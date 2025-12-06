@@ -174,6 +174,14 @@ class FlinkStreamingTransformTranslators {
 
   public static FlinkStreamingPipelineTranslator.StreamTransformTranslator<?> getTranslator(
       PTransform<?, ?> transform) {
+    // Handle PrimitiveUnboundedRead explicitly (created by SplittableParDo conversion)
+    if (transform instanceof SplittableParDo.PrimitiveUnboundedRead) {
+      return new PrimitiveUnboundedReadTranslator<>();
+    }
+    // Handle PrimitiveBoundedRead explicitly
+    if (transform instanceof SplittableParDo.PrimitiveBoundedRead) {
+      return new PrimitiveBoundedReadTranslator<>();
+    }
     @Nullable String urn = PTransformTranslation.urnForTransformOrNull(transform);
     return urn == null ? null : TRANSLATORS.get(urn);
   }
@@ -258,6 +266,129 @@ class FlinkStreamingTransformTranslators {
       } catch (Exception e) {
         throw new RuntimeException("Error while translating UnboundedSource: " + rawSource, e);
       }
+
+      context.setOutputDataStream(output, source);
+    }
+  }
+
+  /**
+   * Translator for {@link SplittableParDo.PrimitiveUnboundedRead}.
+   *
+   * <p>This handles the case where Read.Unbounded is converted to PrimitiveUnboundedRead by {@link
+   * SplittableParDo#convertReadBasedSplittableDoFnsToPrimitiveReadsIfNecessary}.
+   */
+  private static class PrimitiveUnboundedReadTranslator<T>
+      extends FlinkStreamingPipelineTranslator.StreamTransformTranslator<
+          SplittableParDo.PrimitiveUnboundedRead<T>> {
+
+    @Override
+    public void translateNode(
+        SplittableParDo.PrimitiveUnboundedRead<T> transform,
+        FlinkStreamingTranslationContext context) {
+
+      PCollection<T> output = context.getOutput(transform);
+
+      DataStream<WindowedValue<T>> source;
+      DataStream<WindowedValue<ValueWithRecordId<T>>> nonDedupSource;
+      TypeInformation<WindowedValue<T>> outputTypeInfo =
+          context.getTypeInfo(context.getOutput(transform));
+
+      Coder<T> coder = context.getOutput(transform).getCoder();
+
+      TypeInformation<WindowedValue<ValueWithRecordId<T>>> withIdTypeInfo =
+          new CoderTypeInformation<>(
+              WindowedValues.getFullCoder(
+                  ValueWithRecordId.ValueWithRecordIdCoder.of(coder),
+                  output.getWindowingStrategy().getWindowFn().windowCoder()),
+              context.getPipelineOptions());
+
+      // Get source directly from PrimitiveUnboundedRead (not via ReadTranslation)
+      UnboundedSource<T, ?> rawSource = transform.getSource();
+
+      String fullName = getCurrentTransformName(context);
+      try {
+        int parallelism =
+            context.getExecutionEnvironment().getMaxParallelism() > 0
+                ? context.getExecutionEnvironment().getMaxParallelism()
+                : context.getExecutionEnvironment().getParallelism();
+
+        FlinkUnboundedSource<T> unboundedSource =
+            FlinkSource.unbounded(
+                transform.getName(),
+                rawSource,
+                new SerializablePipelineOptions(context.getPipelineOptions()),
+                parallelism);
+        nonDedupSource =
+            context
+                .getExecutionEnvironment()
+                .fromSource(
+                    unboundedSource, WatermarkStrategy.noWatermarks(), fullName, withIdTypeInfo)
+                .uid(fullName);
+
+        if (rawSource.requiresDeduping()) {
+          source =
+              nonDedupSource
+                  .keyBy(new ValueWithRecordIdKeySelector<>())
+                  .transform(
+                      "deduping",
+                      outputTypeInfo,
+                      new DedupingOperator<>(context.getPipelineOptions()))
+                  .uid(format("%s/__deduplicated__", fullName));
+        } else {
+          source =
+              nonDedupSource
+                  .flatMap(new StripIdsMap<>(context.getPipelineOptions()))
+                  .returns(outputTypeInfo);
+        }
+      } catch (Exception e) {
+        throw new RuntimeException("Error while translating UnboundedSource: " + rawSource, e);
+      }
+
+      context.setOutputDataStream(output, source);
+    }
+  }
+
+  /**
+   * Translator for {@link SplittableParDo.PrimitiveBoundedRead}.
+   *
+   * <p>This handles the case where Read.Bounded is converted to PrimitiveBoundedRead by {@link
+   * SplittableParDo#convertReadBasedSplittableDoFnsToPrimitiveReadsIfNecessary}.
+   */
+  private static class PrimitiveBoundedReadTranslator<T>
+      extends FlinkStreamingPipelineTranslator.StreamTransformTranslator<
+          SplittableParDo.PrimitiveBoundedRead<T>> {
+
+    @Override
+    public void translateNode(
+        SplittableParDo.PrimitiveBoundedRead<T> transform,
+        FlinkStreamingTranslationContext context) {
+
+      PCollection<T> output = context.getOutput(transform);
+      TypeInformation<WindowedValue<T>> outputTypeInfo =
+          context.getTypeInfo(context.getOutput(transform));
+
+      // Get source directly from PrimitiveBoundedRead (not via ReadTranslation)
+      BoundedSource<T> rawSource = transform.getSource();
+
+      String fullName = getCurrentTransformName(context);
+      int parallelism =
+          context.getExecutionEnvironment().getMaxParallelism() > 0
+              ? context.getExecutionEnvironment().getMaxParallelism()
+              : context.getExecutionEnvironment().getParallelism();
+
+      FlinkBoundedSource<T> flinkBoundedSource =
+          FlinkSource.bounded(
+              fullName,
+              rawSource,
+              new SerializablePipelineOptions(context.getPipelineOptions()),
+              parallelism);
+
+      DataStream<WindowedValue<T>> source =
+          context
+              .getExecutionEnvironment()
+              .fromSource(
+                  flinkBoundedSource, WatermarkStrategy.noWatermarks(), fullName, outputTypeInfo)
+              .uid(fullName);
 
       context.setOutputDataStream(output, source);
     }

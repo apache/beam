@@ -18,6 +18,8 @@
 package org.apache.beam.runners.flink;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -147,6 +149,86 @@ public class FlinkStreamingTransformTranslatorsTest {
     assertEquals(parallelism, source.getNumSplits());
   }
 
+  @Test
+  public void getTranslatorReturnsPrimitiveUnboundedReadTranslator() {
+    SplittableParDo.PrimitiveUnboundedRead<String> transform =
+        new SplittableParDo.PrimitiveUnboundedRead<>(Read.from(new TestUnboundedSource()));
+
+    FlinkStreamingPipelineTranslator.StreamTransformTranslator<?> translator =
+        FlinkStreamingTransformTranslators.getTranslator(transform);
+
+    assertNotNull("Translator should not be null for PrimitiveUnboundedRead", translator);
+  }
+
+  @Test
+  public void getTranslatorReturnsPrimitiveBoundedReadTranslator() {
+    SplittableParDo.PrimitiveBoundedRead<String> transform =
+        new SplittableParDo.PrimitiveBoundedRead<>(Read.from(new TestBoundedSource(100)));
+
+    FlinkStreamingPipelineTranslator.StreamTransformTranslator<?> translator =
+        FlinkStreamingTransformTranslators.getTranslator(transform);
+
+    assertNotNull("Translator should not be null for PrimitiveBoundedRead", translator);
+  }
+
+  @Test
+  public void primitiveUnboundedReadTranslatorProducesCorrectSource() {
+    final int maxParallelism = 4;
+    final int parallelism = 2;
+
+    SplittableParDo.PrimitiveUnboundedRead<String> transform =
+        new SplittableParDo.PrimitiveUnboundedRead<>(Read.from(new TestUnboundedSource()));
+    StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+    env.setParallelism(parallelism);
+    env.setMaxParallelism(maxParallelism);
+
+    // Use getTranslator directly to verify our new translator is used
+    FlinkStreamingPipelineTranslator.StreamTransformTranslator<?> translator =
+        FlinkStreamingTransformTranslators.getTranslator(transform);
+    assertNotNull(translator);
+
+    Object sourceTransform =
+        applyReadSourceTransformWithTranslator(
+            transform, translator, PCollection.IsBounded.UNBOUNDED, env);
+
+    assertTrue(sourceTransform instanceof OneInputTransformation);
+    OneInputTransformation<?, ?> oneInputTransform = (OneInputTransformation<?, ?>) sourceTransform;
+
+    FlinkSource<?, ?> source =
+        (FlinkSource<?, ?>)
+            ((SourceTransformation<?, ?, ?>) Iterables.getOnlyElement(oneInputTransform.getInputs()))
+                .getSource();
+
+    assertEquals(maxParallelism, source.getNumSplits());
+  }
+
+  @Test
+  public void primitiveBoundedReadTranslatorProducesCorrectSource() {
+    final int maxParallelism = 4;
+    final int parallelism = 2;
+
+    SplittableParDo.PrimitiveBoundedRead<String> transform =
+        new SplittableParDo.PrimitiveBoundedRead<>(Read.from(new TestBoundedSource(maxParallelism)));
+    StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+    env.setParallelism(parallelism);
+    env.setMaxParallelism(maxParallelism);
+
+    // Use getTranslator directly to verify our new translator is used
+    FlinkStreamingPipelineTranslator.StreamTransformTranslator<?> translator =
+        FlinkStreamingTransformTranslators.getTranslator(transform);
+    assertNotNull(translator);
+
+    Object sourceTransform =
+        applyReadSourceTransformWithTranslator(
+            transform, translator, PCollection.IsBounded.BOUNDED, env);
+
+    assertTrue(sourceTransform instanceof SourceTransformation);
+    FlinkBoundedSource<?> source =
+        (FlinkBoundedSource<?>) ((SourceTransformation<?, ?, ?>) sourceTransform).getSource();
+
+    assertEquals(maxParallelism, source.getNumSplits());
+  }
+
   private Object applyReadSourceTransform(
       PTransform<?, ?> transform, PCollection.IsBounded isBounded, StreamExecutionEnvironment env) {
 
@@ -174,6 +256,41 @@ public class FlinkStreamingTransformTranslatorsTest {
 
     ctx.setCurrentTransform(appliedTransform);
     translator.translateNode(transform, ctx);
+
+    return ctx.getInputDataStream(pc).getTransformation();
+  }
+
+  @SuppressWarnings("unchecked")
+  private Object applyReadSourceTransformWithTranslator(
+      PTransform<?, ?> transform,
+      FlinkStreamingPipelineTranslator.StreamTransformTranslator<?> translator,
+      PCollection.IsBounded isBounded,
+      StreamExecutionEnvironment env) {
+
+    FlinkStreamingTranslationContext ctx =
+        new FlinkStreamingTranslationContext(env, PipelineOptionsFactory.create(), true);
+
+    Pipeline pipeline = Pipeline.create();
+    PCollection<String> pc =
+        PCollection.createPrimitiveOutputInternal(
+            pipeline, WindowingStrategy.globalDefault(), isBounded, StringUtf8Coder.of());
+    pc.setName("output");
+
+    Map<TupleTag<?>, PValue> outputs = new HashMap<>();
+    outputs.put(new TupleTag<>(), pc);
+    AppliedPTransform<?, ?, ?> appliedTransform =
+        AppliedPTransform.of(
+            "test-transform",
+            Collections.emptyMap(),
+            PValues.fullyExpand(outputs),
+            transform,
+            ResourceHints.create(),
+            Pipeline.create());
+
+    ctx.setCurrentTransform(appliedTransform);
+    ((FlinkStreamingPipelineTranslator.StreamTransformTranslator<PTransform<?, ?>>)
+            translator)
+        .translateNode(transform, ctx);
 
     return ctx.getInputDataStream(pc).getTransformation();
   }
