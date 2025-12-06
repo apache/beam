@@ -214,6 +214,7 @@ class SwitchingDirectRunner(PipelineRunner):
         pr = runner.run_pipeline(pipeline, options)
         # This is non-blocking, so if the state is *already* finished, something
         # probably failed on job submission.
+        _LOGGER.exception('PrismRunner state:' + str(pr.state))
         if (PipelineState.is_terminal(pr.state) and
             pr.state != PipelineState.DONE):
           _LOGGER.exception(
