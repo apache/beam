@@ -897,7 +897,7 @@ public class ProcessBundleHandler {
       transformIds = topologicalOrderCache.get(bundleId);
     } catch (Exception e) {
       LOG.warn(
-          "Topological ordering failed for descriptor {}. Falling back to descriptor order. Cause: {}",
+          "Topological ordering failed for descriptor {}. Falling back to descriptor order.",
           bundleId,
           e);
 
