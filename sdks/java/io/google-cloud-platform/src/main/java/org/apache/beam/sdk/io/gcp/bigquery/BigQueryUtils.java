@@ -391,7 +391,6 @@ public class BigQueryUtils {
    */
   private static FieldType fromTableFieldSchemaType(
       TableFieldSchema schema,
-      List<TableFieldSchema> nestedFields,
       SchemaConversionOptions options) {
     // see
     // https://googleapis.dev/java/google-api-services-bigquery/latest/com/google/api/services/bigquery/model/TableFieldSchema.html#getType--
@@ -444,14 +443,15 @@ public class BigQueryUtils {
         return FieldType.STRING;
       case "RECORD":
       case "STRUCT":
+        List<TableFieldSchema> nestedFields = schema.getFields()
         if (options.getInferMaps() && nestedFields.size() == 2) {
           TableFieldSchema key = nestedFields.get(0);
           TableFieldSchema value = nestedFields.get(1);
           if (BIGQUERY_MAP_KEY_FIELD_NAME.equals(key.getName())
               && BIGQUERY_MAP_VALUE_FIELD_NAME.equals(value.getName())) {
             return FieldType.map(
-                fromTableFieldSchemaType(key, key.getFields(), options),
-                fromTableFieldSchemaType(value, value.getFields(), options));
+                fromTableFieldSchemaType(key, options),
+                fromTableFieldSchemaType(value, options));
           }
         }
         Schema rowSchema = fromTableFieldSchema(nestedFields, options);
@@ -468,7 +468,7 @@ public class BigQueryUtils {
     Schema.Builder schemaBuilder = Schema.builder();
     for (TableFieldSchema tableFieldSchema : tableFieldSchemas) {
       FieldType fieldType =
-          fromTableFieldSchemaType(tableFieldSchema, tableFieldSchema.getFields(), options);
+          fromTableFieldSchemaType(tableFieldSchema, options);
 
       Optional<Mode> fieldMode = Optional.ofNullable(tableFieldSchema.getMode()).map(Mode::valueOf);
       if (fieldMode.filter(m -> m == Mode.REPEATED).isPresent()
