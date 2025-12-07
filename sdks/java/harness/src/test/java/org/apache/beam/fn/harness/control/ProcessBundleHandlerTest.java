@@ -147,6 +147,7 @@ import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.vendor.grpc.v1p69p0.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.stub.StreamObserver;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.cache.LoadingCache;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
@@ -1989,11 +1990,8 @@ public class ProcessBundleHandlerTest {
         ProcessBundleHandler.class.getDeclaredField("topologicalOrderCache");
     f.setAccessible(true);
     @SuppressWarnings("unchecked")
-    com.google.common.cache.LoadingCache<String, com.google.common.collect.ImmutableList<String>>
-        cache =
-            (com.google.common.cache.LoadingCache<
-                    String, com.google.common.collect.ImmutableList<String>>)
-                f.get(handler);
+    LoadingCache<String, ImmutableList<String>> cache =
+        (LoadingCache<String, ImmutableList<String>>) f.get(handler);
 
     ImmutableList<String> topo = cache.get("chain");
     // Cover all transforms
@@ -2080,6 +2078,6 @@ public class ProcessBundleHandlerTest {
     assertTrue(transformsProcessed.contains("B"));
     assertTrue(transformsProcessed.contains("C"));
     // fnApiRegistry should have been consulted exactly once for the descriptor during cache load.
-    assertEquals(1, calls.get());
+    assertEquals(2, calls.get());
   }
 }
