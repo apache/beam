@@ -1990,10 +1990,15 @@ public class ProcessBundleHandlerTest {
         ProcessBundleHandler.class.getDeclaredField("topologicalOrderCache");
     f.setAccessible(true);
     @SuppressWarnings("unchecked")
-    LoadingCache<String, ImmutableList<String>> cache =
-        (LoadingCache<String, ImmutableList<String>>) f.get(handler);
+    LoadingCache<String, ?> cache = (LoadingCache<String, ?>) f.get(handler);
 
-    ImmutableList<String> topo = cache.get("chain");
+    // Cache holds a TopologyCacheEntry; extract its 'order' field reflectively.
+    Object entry = cache.get("chain");
+    java.lang.reflect.Field orderField = entry.getClass().getDeclaredField("order");
+    orderField.setAccessible(true);
+    @SuppressWarnings("unchecked")
+    ImmutableList<String> topo = (ImmutableList<String>) orderField.get(entry);
+
     // Cover all transforms
     assertEquals(processBundleDescriptor.getTransformsMap().size(), topo.size());
     // Ensure producer -> consumer ordering: A before B before C
@@ -2078,6 +2083,6 @@ public class ProcessBundleHandlerTest {
     assertTrue(transformsProcessed.contains("B"));
     assertTrue(transformsProcessed.contains("C"));
     // fnApiRegistry should have been consulted exactly once for the descriptor during cache load.
-    assertEquals(2, calls.get());
+    assertEquals(1, calls.get());
   }
 }
