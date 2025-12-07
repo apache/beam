@@ -20,6 +20,7 @@
 # pytype: skip-file
 
 import os
+import tempfile
 import threading
 import types
 import unittest
@@ -31,6 +32,7 @@ from apache_beam.internal import code_object_pickler
 from apache_beam.internal import module_test
 from apache_beam.internal.cloudpickle_pickler import dumps
 from apache_beam.internal.cloudpickle_pickler import loads
+from apache_beam.typehints.schemas import LogicalTypeRegistry
 from apache_beam.utils import shared
 
 GLOBAL_DICT_REF = module_test.GLOBAL_DICT
@@ -243,6 +245,24 @@ self.assertEqual(DataClass(datum='abc'), loads(dumps(DataClass(datum='abc'))))
 
     unpickled_filename = os.path.abspath(unpickled_code.co_filename)
     self.assertEqual(unpickled_filename, original_filename)
+
+  @mock.patch(
+      "apache_beam.coders.typecoders.registry.load_custom_type_coder_tuples")
+  @mock.patch(
+      "apache_beam.typehints.schemas.LogicalType._known_logical_types.load")
+  def test_dump_load_session(self, logicaltype_mock, coder_mock):
+    session_file = 'pickled'
+
+    with tempfile.TemporaryDirectory() as tmp_dirname:
+      pickled_session_file = os.path.join(tmp_dirname, session_file)
+      beam_cloudpickle.dump_session(pickled_session_file)
+      beam_cloudpickle.load_session(pickled_session_file)
+    load_logical_types = logicaltype_mock.call_args.args
+    load_coders = coder_mock.call_args.args
+    self.assertEqual(len(load_logical_types), 1)
+    self.assertEqual(len(load_coders), 1)
+    self.assertTrue(isinstance(load_logical_types[0], LogicalTypeRegistry))
+    self.assertTrue(isinstance(load_coders[0], list))
 
 
 if __name__ == '__main__':

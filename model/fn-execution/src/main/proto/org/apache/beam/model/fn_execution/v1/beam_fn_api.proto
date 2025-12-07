@@ -761,6 +761,15 @@ message Elements {
   // extensible and backward compatible
   message ElementMetadata {
     optional DrainMode.Enum drain = 1;
+    // (Optional) As part of https://www.w3.org/TR/trace-context/ we are forwarding a trace and participating in it.
+    // Traceparent header represents the incoming request in a tracing system in a common format.
+    // Example value: 00-0af7651916cd43dd8448eb211c80319c-b7ad6b7169203331-01
+    optional string traceparent = 2;
+    // (Optional) tracestate extends traceparent with open telemetry data represented by a set of name/value pairs.
+    // Format specified https://www.w3.org/TR/trace-context/#list for interoperability and commonly used
+    // across IOs - Kafka, PubSub, http.
+    // Example value: congo=t61rcWkgMzE
+    optional string tracestate = 3;
   }
 
   // Represent the encoded user timer for a given instruction, transform and
