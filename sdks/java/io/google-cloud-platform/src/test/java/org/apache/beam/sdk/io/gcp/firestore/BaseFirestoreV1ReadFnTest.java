@@ -45,7 +45,7 @@ abstract class BaseFirestoreV1ReadFnTest<InT, OutT>
   public final void attemptsExhaustedForRetryableError() throws Exception {
     BaseFirestoreV1ReadFn<InT, OutT> fn = getFn(clock, ff, rpcQosOptions);
     V1RpcFnTestCtx ctx = newCtx();
-    when(ff.getFirestoreStub(any())).thenReturn(stub);
+    when(ff.getFirestoreStub(any(), any(), any())).thenReturn(stub);
     when(ff.getRpcQos(any())).thenReturn(rpcQos);
     when(rpcQos.newReadAttempt(fn.getRpcAttemptContext())).thenReturn(attempt);
     ctx.mockRpcToCallable(stub);
@@ -79,7 +79,7 @@ abstract class BaseFirestoreV1ReadFnTest<InT, OutT>
   public final void noRequestIsSentIfNotSafeToProceed() throws Exception {
     BaseFirestoreV1ReadFn<InT, OutT> fn = getFn(clock, ff, rpcQosOptions);
     V1RpcFnTestCtx ctx = newCtx();
-    when(ff.getFirestoreStub(any())).thenReturn(stub);
+    when(ff.getFirestoreStub(any(), any(), any())).thenReturn(stub);
     when(ff.getRpcQos(any())).thenReturn(rpcQos);
     when(rpcQos.newReadAttempt(fn.getRpcAttemptContext())).thenReturn(attempt);
 

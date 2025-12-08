@@ -57,6 +57,9 @@ public final class FirestoreV1FnListCollectionIdsTest
 
   @Parameter public Instant readTime;
 
+  @Parameter(1)
+  public boolean setDatabaseOnFn;
+
   @Rule public MockitoRule rule = MockitoJUnit.rule();
 
   @Mock private UnaryCallable<ListCollectionIdsRequest, ListCollectionIdsPagedResponse> callable;
@@ -65,9 +68,12 @@ public final class FirestoreV1FnListCollectionIdsTest
   @Mock private ListCollectionIdsPagedResponse pagedResponse2;
   @Mock private ListCollectionIdsPage page2;
 
-  @Parameters(name = "readTime = {0}")
-  public static Collection<Object> data() {
-    return Arrays.asList(null, Instant.now());
+  @Parameters(name = "readTime = {0}, setDatabaseOnFn = {1}")
+  public static Collection<Object[]> data() {
+    return Arrays.asList(
+        new Object[][] {
+          {null, false}, {null, true}, {Instant.now(), false}, {Instant.now(), true}
+        });
   }
 
   private ListCollectionIdsRequest withReadTime(ListCollectionIdsRequest input, Instant readTime) {
@@ -104,7 +110,7 @@ public final class FirestoreV1FnListCollectionIdsTest
 
     when(stub.listCollectionIdsPagedCallable()).thenReturn(callable);
 
-    when(ff.getFirestoreStub(any())).thenReturn(stub);
+    when(ff.getFirestoreStub(any(), any(), any())).thenReturn(stub);
     RpcQosOptions options = RpcQosOptions.defaultOptions();
     when(ff.getRpcQos(any()))
         .thenReturn(FirestoreStatefulComponentFactory.INSTANCE.getRpcQos(options));
@@ -116,7 +122,7 @@ public final class FirestoreV1FnListCollectionIdsTest
 
     when(processContext.element()).thenReturn(request1);
 
-    ListCollectionIdsFn fn = new ListCollectionIdsFn(clock, ff, options, readTime);
+    ListCollectionIdsFn fn = getFnWithParameters();
 
     runFunction(fn);
 
@@ -127,7 +133,7 @@ public final class FirestoreV1FnListCollectionIdsTest
 
   @Override
   public void resumeFromLastReadValue() throws Exception {
-    when(ff.getFirestoreStub(any())).thenReturn(stub);
+    when(ff.getFirestoreStub(any(), any(), any())).thenReturn(stub);
     when(ff.getRpcQos(any())).thenReturn(rpcQos);
     when(rpcQos.newReadAttempt(any())).thenReturn(attempt);
     when(attempt.awaitSafeToProceed(any())).thenReturn(true);
@@ -186,7 +192,7 @@ public final class FirestoreV1FnListCollectionIdsTest
 
     when(stub.listCollectionIdsPagedCallable()).thenReturn(callable);
 
-    when(ff.getFirestoreStub(any())).thenReturn(stub);
+    when(ff.getFirestoreStub(any(), any(), any())).thenReturn(stub);
 
     ArgumentCaptor<ListCollectionIdsResponse> responses =
         ArgumentCaptor.forClass(ListCollectionIdsResponse.class);
@@ -195,7 +201,7 @@ public final class FirestoreV1FnListCollectionIdsTest
 
     when(processContext.element()).thenReturn(request1);
 
-    ListCollectionIdsFn fn = new ListCollectionIdsFn(clock, ff, rpcQosOptions, readTime);
+    ListCollectionIdsFn fn = getFnWithParameters();
 
     runFunction(fn);
 
@@ -237,5 +243,13 @@ public final class FirestoreV1FnListCollectionIdsTest
       FirestoreStatefulComponentFactory firestoreStatefulComponentFactory,
       RpcQosOptions rpcQosOptions) {
     return new ListCollectionIdsFn(clock, firestoreStatefulComponentFactory, rpcQosOptions);
+  }
+
+  private ListCollectionIdsFn getFnWithParameters() {
+    if (setDatabaseOnFn) {
+      return new ListCollectionIdsFn(clock, ff, rpcQosOptions, readTime, projectId, "(default)");
+    } else {
+      return new ListCollectionIdsFn(clock, ff, rpcQosOptions, readTime);
+    }
   }
 }
