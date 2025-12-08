@@ -29,7 +29,7 @@ import java.util.Arrays;
 import java.util.List;
 import org.junit.Test;
 
-public class BeamSqlLineShowTests {
+public class BeamSqlLineShowTest {
   @Test
   public void testShowTables() throws IOException {
     ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
@@ -48,6 +48,7 @@ public class BeamSqlLineShowTests {
     BeamSqlLine.runSqlLine(args, null, byteArrayOutputStream, null);
 
     List<String> lines = Arrays.asList(byteArrayOutputStream.toString("UTF-8").split("\n"));
+    System.out.println(byteArrayOutputStream.toString("UTF-8"));
     assertThat(
         Arrays.asList(
             "+------+------+",
@@ -170,6 +171,7 @@ public class BeamSqlLineShowTests {
     BeamSqlLine.runSqlLine(args, null, byteArrayOutputStream, null);
 
     List<String> lines = Arrays.asList(byteArrayOutputStream.toString("UTF-8").split("\n"));
+    System.out.println(byteArrayOutputStream.toString("UTF-8"));
     assertThat(
         Arrays.asList(
             "+------+",
@@ -265,6 +267,7 @@ public class BeamSqlLineShowTests {
     BeamSqlLine.runSqlLine(args, null, byteArrayOutputStream, null);
 
     List<String> lines = Arrays.asList(byteArrayOutputStream.toString("UTF-8").split("\n"));
+    System.out.println(byteArrayOutputStream.toString("UTF-8"));
     assertThat(
         Arrays.asList(
             "+------+------+",
