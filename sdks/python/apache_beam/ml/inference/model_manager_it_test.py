@@ -96,8 +96,7 @@ class HuggingFaceGpuTest(unittest.TestCase):
 
         pcoll = pipeline | 'CreateInputs' >> beam.Create(examples)
         predictions = pcoll | 'RunInference' >> RunInference(model_handler)
-        actual_labels = predictions | beam.Map(
-            lambda x: x.inference[0]['label'])
+        actual_labels = predictions | beam.Map(lambda x: x.inference['label'])
 
         # Note: Larger models are often more accurate with nuance.
         # e.g. "somewhat annoyed" is confidently NEGATIVE.
