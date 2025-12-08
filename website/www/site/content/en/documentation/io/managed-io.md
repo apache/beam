@@ -102,6 +102,7 @@ and Beam SQL is invoked via the Managed API under the hood.
         catalog_name (<code style="color: green">str</code>)<br>
         catalog_properties (<code>map[<span style="color: green;">str</span>, <span style="color: green;">str</span>]</code>)<br>
         config_properties (<code>map[<span style="color: green;">str</span>, <span style="color: green;">str</span>]</code>)<br>
+        direct_write_byte_limit (<code style="color: #f54251">int32</code>)<br>
         drop (<code>list[<span style="color: green;">str</span>]</code>)<br>
         keep (<code>list[<span style="color: green;">str</span>]</code>)<br>
         only (<code style="color: green">str</code>)<br>
@@ -185,7 +186,7 @@ and Beam SQL is invoked via the Managed API under the hood.
       </td>
     </tr>
     <tr>
-      <td><strong>MYSQL</strong></td>
+      <td><strong>SQLSERVER</strong></td>
       <td>
         <strong>jdbc_url</strong> (<code style="color: green">str</code>)<br>
         connection_init_sql (<code>list[<span style="color: green;">str</span>]</code>)<br>
@@ -219,7 +220,7 @@ and Beam SQL is invoked via the Managed API under the hood.
       </td>
     </tr>
     <tr>
-      <td><strong>SQLSERVER</strong></td>
+      <td><strong>MYSQL</strong></td>
       <td>
         <strong>jdbc_url</strong> (<code style="color: green">str</code>)<br>
         connection_init_sql (<code>list[<span style="color: green;">str</span>]</code>)<br>
@@ -656,6 +657,17 @@ and Beam SQL is invoked via the Managed API under the hood.
     </tr>
     <tr>
       <td>
+        direct_write_byte_limit
+      </td>
+      <td>
+        <code style="color: #f54251">int32</code>
+      </td>
+      <td>
+        For a streaming pipeline, sets the limit for lifting bundles into the direct write path.
+      </td>
+    </tr>
+    <tr>
+      <td>
         drop
       </td>
       <td>
@@ -1046,6 +1058,150 @@ For more information on table properties, please visit https://iceberg.apache.or
   </table>
 </div>
 
+### `POSTGRES` Write
+
+<div class="table-container-wrapper">
+  <table class="table table-bordered">
+    <tr>
+      <th>Configuration</th>
+      <th>Type</th>
+      <th>Description</th>
+    </tr>
+    <tr>
+      <td>
+        <strong>jdbc_url</strong>
+      </td>
+      <td>
+        <code style="color: green">str</code>
+      </td>
+      <td>
+        Connection URL for the JDBC sink.
+      </td>
+    </tr>
+    <tr>
+      <td>
+        autosharding
+      </td>
+      <td>
+        <code style="color: orange">boolean</code>
+      </td>
+      <td>
+        If true, enables using a dynamically determined number of shards to write.
+      </td>
+    </tr>
+    <tr>
+      <td>
+        batch_size
+      </td>
+      <td>
+        <code style="color: #f54251">int64</code>
+      </td>
+      <td>
+        n/a
+      </td>
+    </tr>
+    <tr>
+      <td>
+        connection_init_sql
+      </td>
+      <td>
+        <code>list[<span style="color: green;">str</span>]</code>
+      </td>
+      <td>
+        Sets the connection init sql statements used by the Driver. Only MySQL and MariaDB support this.
+      </td>
+    </tr>
+    <tr>
+      <td>
+        connection_properties
+      </td>
+      <td>
+        <code style="color: green">str</code>
+      </td>
+      <td>
+        Used to set connection properties passed to the JDBC driver not already defined as standalone parameter (e.g. username and password can be set using parameters above accordingly). Format of the string must be "key1=value1;key2=value2;".
+      </td>
+    </tr>
+    <tr>
+      <td>
+        driver_class_name
+      </td>
+      <td>
+        <code style="color: green">str</code>
+      </td>
+      <td>
+        Name of a Java Driver class to use to connect to the JDBC source. For example, "com.mysql.jdbc.Driver".
+      </td>
+    </tr>
+    <tr>
+      <td>
+        driver_jars
+      </td>
+      <td>
+        <code style="color: green">str</code>
+      </td>
+      <td>
+        Comma separated path(s) for the JDBC driver jar(s). This can be a local path or GCS (gs://) path.
+      </td>
+    </tr>
+    <tr>
+      <td>
+        jdbc_type
+      </td>
+      <td>
+        <code style="color: green">str</code>
+      </td>
+      <td>
+        Type of JDBC source. When specified, an appropriate default Driver will be packaged with the transform. One of mysql, postgres, oracle, or mssql.
+      </td>
+    </tr>
+    <tr>
+      <td>
+        location
+      </td>
+      <td>
+        <code style="color: green">str</code>
+      </td>
+      <td>
+        Name of the table to write to.
+      </td>
+    </tr>
+    <tr>
+      <td>
+        password
+      </td>
+      <td>
+        <code style="color: green">str</code>
+      </td>
+      <td>
+        Password for the JDBC source.
+      </td>
+    </tr>
+    <tr>
+      <td>
+        username
+      </td>
+      <td>
+        <code style="color: green">str</code>
+      </td>
+      <td>
+        Username for the JDBC source.
+      </td>
+    </tr>
+    <tr>
+      <td>
+        write_statement
+      </td>
+      <td>
+        <code style="color: green">str</code>
+      </td>
+      <td>
+        SQL query used to insert records into the JDBC sink.
+      </td>
+    </tr>
+  </table>
+</div>
+
 ### `POSTGRES` Read
 
 <div class="table-container-wrapper">
@@ -1223,7 +1379,184 @@ For more information on table properties, please visit https://iceberg.apache.or
   </table>
 </div>
 
-### `POSTGRES` Write
+### `SQLSERVER` Read
+
+<div class="table-container-wrapper">
+  <table class="table table-bordered">
+    <tr>
+      <th>Configuration</th>
+      <th>Type</th>
+      <th>Description</th>
+    </tr>
+    <tr>
+      <td>
+        <strong>jdbc_url</strong>
+      </td>
+      <td>
+        <code style="color: green">str</code>
+      </td>
+      <td>
+        Connection URL for the JDBC source.
+      </td>
+    </tr>
+    <tr>
+      <td>
+        connection_init_sql
+      </td>
+      <td>
+        <code>list[<span style="color: green;">str</span>]</code>
+      </td>
+      <td>
+        Sets the connection init sql statements used by the Driver. Only MySQL and MariaDB support this.
+      </td>
+    </tr>
+    <tr>
+      <td>
+        connection_properties
+      </td>
+      <td>
+        <code style="color: green">str</code>
+      </td>
+      <td>
+        Used to set connection properties passed to the JDBC driver not already defined as standalone parameter (e.g. username and password can be set using parameters above accordingly). Format of the string must be "key1=value1;key2=value2;".
+      </td>
+    </tr>
+    <tr>
+      <td>
+        disable_auto_commit
+      </td>
+      <td>
+        <code style="color: orange">boolean</code>
+      </td>
+      <td>
+        Whether to disable auto commit on read. Defaults to true if not provided. The need for this config varies depending on the database platform. Informix requires this to be set to false while Postgres requires this to be set to true.
+      </td>
+    </tr>
+    <tr>
+      <td>
+        driver_class_name
+      </td>
+      <td>
+        <code style="color: green">str</code>
+      </td>
+      <td>
+        Name of a Java Driver class to use to connect to the JDBC source. For example, "com.mysql.jdbc.Driver".
+      </td>
+    </tr>
+    <tr>
+      <td>
+        driver_jars
+      </td>
+      <td>
+        <code style="color: green">str</code>
+      </td>
+      <td>
+        Comma separated path(s) for the JDBC driver jar(s). This can be a local path or GCS (gs://) path.
+      </td>
+    </tr>
+    <tr>
+      <td>
+        fetch_size
+      </td>
+      <td>
+        <code style="color: #f54251">int32</code>
+      </td>
+      <td>
+        This method is used to override the size of the data that is going to be fetched and loaded in memory per every database call. It should ONLY be used if the default value throws memory errors.
+      </td>
+    </tr>
+    <tr>
+      <td>
+        jdbc_type
+      </td>
+      <td>
+        <code style="color: green">str</code>
+      </td>
+      <td>
+        Type of JDBC source. When specified, an appropriate default Driver will be packaged with the transform. One of mysql, postgres, oracle, or mssql.
+      </td>
+    </tr>
+    <tr>
+      <td>
+        location
+      </td>
+      <td>
+        <code style="color: green">str</code>
+      </td>
+      <td>
+        Name of the table to read from.
+      </td>
+    </tr>
+    <tr>
+      <td>
+        num_partitions
+      </td>
+      <td>
+        <code style="color: #f54251">int32</code>
+      </td>
+      <td>
+        The number of partitions
+      </td>
+    </tr>
+    <tr>
+      <td>
+        output_parallelization
+      </td>
+      <td>
+        <code style="color: orange">boolean</code>
+      </td>
+      <td>
+        Whether to reshuffle the resulting PCollection so results are distributed to all workers.
+      </td>
+    </tr>
+    <tr>
+      <td>
+        partition_column
+      </td>
+      <td>
+        <code style="color: green">str</code>
+      </td>
+      <td>
+        Name of a column of numeric type that will be used for partitioning.
+      </td>
+    </tr>
+    <tr>
+      <td>
+        password
+      </td>
+      <td>
+        <code style="color: green">str</code>
+      </td>
+      <td>
+        Password for the JDBC source.
+      </td>
+    </tr>
+    <tr>
+      <td>
+        read_query
+      </td>
+      <td>
+        <code style="color: green">str</code>
+      </td>
+      <td>
+        SQL query used to query the JDBC source.
+      </td>
+    </tr>
+    <tr>
+      <td>
+        username
+      </td>
+      <td>
+        <code style="color: green">str</code>
+      </td>
+      <td>
+        Username for the JDBC source.
+      </td>
+    </tr>
+  </table>
+</div>
+
+### `SQLSERVER` Write
 
 <div class="table-container-wrapper">
   <table class="table table-bordered">
@@ -1545,327 +1878,6 @@ For more information on table properties, please visit https://iceberg.apache.or
 </div>
 
 ### `MYSQL` Write
-
-<div class="table-container-wrapper">
-  <table class="table table-bordered">
-    <tr>
-      <th>Configuration</th>
-      <th>Type</th>
-      <th>Description</th>
-    </tr>
-    <tr>
-      <td>
-        <strong>jdbc_url</strong>
-      </td>
-      <td>
-        <code style="color: green">str</code>
-      </td>
-      <td>
-        Connection URL for the JDBC sink.
-      </td>
-    </tr>
-    <tr>
-      <td>
-        autosharding
-      </td>
-      <td>
-        <code style="color: orange">boolean</code>
-      </td>
-      <td>
-        If true, enables using a dynamically determined number of shards to write.
-      </td>
-    </tr>
-    <tr>
-      <td>
-        batch_size
-      </td>
-      <td>
-        <code style="color: #f54251">int64</code>
-      </td>
-      <td>
-        n/a
-      </td>
-    </tr>
-    <tr>
-      <td>
-        connection_init_sql
-      </td>
-      <td>
-        <code>list[<span style="color: green;">str</span>]</code>
-      </td>
-      <td>
-        Sets the connection init sql statements used by the Driver. Only MySQL and MariaDB support this.
-      </td>
-    </tr>
-    <tr>
-      <td>
-        connection_properties
-      </td>
-      <td>
-        <code style="color: green">str</code>
-      </td>
-      <td>
-        Used to set connection properties passed to the JDBC driver not already defined as standalone parameter (e.g. username and password can be set using parameters above accordingly). Format of the string must be "key1=value1;key2=value2;".
-      </td>
-    </tr>
-    <tr>
-      <td>
-        driver_class_name
-      </td>
-      <td>
-        <code style="color: green">str</code>
-      </td>
-      <td>
-        Name of a Java Driver class to use to connect to the JDBC source. For example, "com.mysql.jdbc.Driver".
-      </td>
-    </tr>
-    <tr>
-      <td>
-        driver_jars
-      </td>
-      <td>
-        <code style="color: green">str</code>
-      </td>
-      <td>
-        Comma separated path(s) for the JDBC driver jar(s). This can be a local path or GCS (gs://) path.
-      </td>
-    </tr>
-    <tr>
-      <td>
-        jdbc_type
-      </td>
-      <td>
-        <code style="color: green">str</code>
-      </td>
-      <td>
-        Type of JDBC source. When specified, an appropriate default Driver will be packaged with the transform. One of mysql, postgres, oracle, or mssql.
-      </td>
-    </tr>
-    <tr>
-      <td>
-        location
-      </td>
-      <td>
-        <code style="color: green">str</code>
-      </td>
-      <td>
-        Name of the table to write to.
-      </td>
-    </tr>
-    <tr>
-      <td>
-        password
-      </td>
-      <td>
-        <code style="color: green">str</code>
-      </td>
-      <td>
-        Password for the JDBC source.
-      </td>
-    </tr>
-    <tr>
-      <td>
-        username
-      </td>
-      <td>
-        <code style="color: green">str</code>
-      </td>
-      <td>
-        Username for the JDBC source.
-      </td>
-    </tr>
-    <tr>
-      <td>
-        write_statement
-      </td>
-      <td>
-        <code style="color: green">str</code>
-      </td>
-      <td>
-        SQL query used to insert records into the JDBC sink.
-      </td>
-    </tr>
-  </table>
-</div>
-
-### `SQLSERVER` Read
-
-<div class="table-container-wrapper">
-  <table class="table table-bordered">
-    <tr>
-      <th>Configuration</th>
-      <th>Type</th>
-      <th>Description</th>
-    </tr>
-    <tr>
-      <td>
-        <strong>jdbc_url</strong>
-      </td>
-      <td>
-        <code style="color: green">str</code>
-      </td>
-      <td>
-        Connection URL for the JDBC source.
-      </td>
-    </tr>
-    <tr>
-      <td>
-        connection_init_sql
-      </td>
-      <td>
-        <code>list[<span style="color: green;">str</span>]</code>
-      </td>
-      <td>
-        Sets the connection init sql statements used by the Driver. Only MySQL and MariaDB support this.
-      </td>
-    </tr>
-    <tr>
-      <td>
-        connection_properties
-      </td>
-      <td>
-        <code style="color: green">str</code>
-      </td>
-      <td>
-        Used to set connection properties passed to the JDBC driver not already defined as standalone parameter (e.g. username and password can be set using parameters above accordingly). Format of the string must be "key1=value1;key2=value2;".
-      </td>
-    </tr>
-    <tr>
-      <td>
-        disable_auto_commit
-      </td>
-      <td>
-        <code style="color: orange">boolean</code>
-      </td>
-      <td>
-        Whether to disable auto commit on read. Defaults to true if not provided. The need for this config varies depending on the database platform. Informix requires this to be set to false while Postgres requires this to be set to true.
-      </td>
-    </tr>
-    <tr>
-      <td>
-        driver_class_name
-      </td>
-      <td>
-        <code style="color: green">str</code>
-      </td>
-      <td>
-        Name of a Java Driver class to use to connect to the JDBC source. For example, "com.mysql.jdbc.Driver".
-      </td>
-    </tr>
-    <tr>
-      <td>
-        driver_jars
-      </td>
-      <td>
-        <code style="color: green">str</code>
-      </td>
-      <td>
-        Comma separated path(s) for the JDBC driver jar(s). This can be a local path or GCS (gs://) path.
-      </td>
-    </tr>
-    <tr>
-      <td>
-        fetch_size
-      </td>
-      <td>
-        <code style="color: #f54251">int32</code>
-      </td>
-      <td>
-        This method is used to override the size of the data that is going to be fetched and loaded in memory per every database call. It should ONLY be used if the default value throws memory errors.
-      </td>
-    </tr>
-    <tr>
-      <td>
-        jdbc_type
-      </td>
-      <td>
-        <code style="color: green">str</code>
-      </td>
-      <td>
-        Type of JDBC source. When specified, an appropriate default Driver will be packaged with the transform. One of mysql, postgres, oracle, or mssql.
-      </td>
-    </tr>
-    <tr>
-      <td>
-        location
-      </td>
-      <td>
-        <code style="color: green">str</code>
-      </td>
-      <td>
-        Name of the table to read from.
-      </td>
-    </tr>
-    <tr>
-      <td>
-        num_partitions
-      </td>
-      <td>
-        <code style="color: #f54251">int32</code>
-      </td>
-      <td>
-        The number of partitions
-      </td>
-    </tr>
-    <tr>
-      <td>
-        output_parallelization
-      </td>
-      <td>
-        <code style="color: orange">boolean</code>
-      </td>
-      <td>
-        Whether to reshuffle the resulting PCollection so results are distributed to all workers.
-      </td>
-    </tr>
-    <tr>
-      <td>
-        partition_column
-      </td>
-      <td>
-        <code style="color: green">str</code>
-      </td>
-      <td>
-        Name of a column of numeric type that will be used for partitioning.
-      </td>
-    </tr>
-    <tr>
-      <td>
-        password
-      </td>
-      <td>
-        <code style="color: green">str</code>
-      </td>
-      <td>
-        Password for the JDBC source.
-      </td>
-    </tr>
-    <tr>
-      <td>
-        read_query
-      </td>
-      <td>
-        <code style="color: green">str</code>
-      </td>
-      <td>
-        SQL query used to query the JDBC source.
-      </td>
-    </tr>
-    <tr>
-      <td>
-        username
-      </td>
-      <td>
-        <code style="color: green">str</code>
-      </td>
-      <td>
-        Username for the JDBC source.
-      </td>
-    </tr>
-  </table>
-</div>
-
-### `SQLSERVER` Write
 
 <div class="table-container-wrapper">
   <table class="table table-bordered">
