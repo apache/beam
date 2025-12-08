@@ -1278,6 +1278,7 @@ class RunInference(beam.PTransform[beam.PCollection[Union[ExampleT,
       model_metadata_pcoll: beam.PCollection[ModelMetadata] = None,
       watch_model_pattern: Optional[str] = None,
       model_identifier: Optional[str] = None,
+      use_model_manager: bool = False,
       **kwargs):
     """
     A transform that takes a PCollection of examples (or features) for use
@@ -1318,6 +1319,7 @@ class RunInference(beam.PTransform[beam.PCollection[Union[ExampleT,
     self._exception_handling_timeout = None
     self._timeout = None
     self._watch_model_pattern = watch_model_pattern
+    self._use_model_manager = use_model_manager
     self._kwargs = kwargs
     # Generate a random tag to use for shared.py and multi_process_shared.py to
     # allow us to effectively disambiguate in multi-model settings. Only use
@@ -1430,7 +1432,8 @@ class RunInference(beam.PTransform[beam.PCollection[Union[ExampleT,
             self._clock,
             self._metrics_namespace,
             load_model_at_runtime,
-            self._model_tag),
+            self._model_tag,
+            self._use_model_manager),
         self._inference_args,
         beam.pvalue.AsSingleton(
             self._model_metadata_pcoll,
@@ -1807,7 +1810,7 @@ class _RunInferenceDoFn(beam.DoFn, Generic[ExampleT, PredictionT]):
       metrics_namespace,
       load_model_at_runtime: bool = False,
       model_tag: str = "RunInference",
-      use_model_manager: bool = True):
+      use_model_manager: bool = False):
     """A DoFn implementation generic to frameworks.
 
       Args:

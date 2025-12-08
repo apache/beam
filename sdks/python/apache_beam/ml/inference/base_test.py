@@ -1881,6 +1881,34 @@ class RunInferenceBaseTest(unittest.TestCase):
 
     self.assertEqual(0, len(tags))
 
+  def test_run_inference_impl_with_model_manager(self):
+    with TestPipeline() as pipeline:
+      examples = [1, 5, 3, 10]
+      expected = [example + 1 for example in examples]
+      expected[0] = 200
+      pcoll = pipeline | 'start' >> beam.Create(examples)
+      actual = pcoll | base.RunInference(
+          FakeModelHandler(state=200), use_model_manager=True)
+      assert_that(actual, equal_to(expected), label='assert:inferences')
+
+  def test_run_inference_impl_with_model_manager_keyed_handler(self):
+    with TestPipeline() as pipeline:
+      examples = [1, 5, 3, 10]
+      keyed_examples = [(i, example) for i, example in enumerate(examples)]
+      expected = [(i, example + 1) for i, example in enumerate(examples)]
+      expected[0] = (0, 200)
+      pcoll = pipeline | 'start' >> beam.Create(keyed_examples)
+      mhs = [
+          base.KeyModelMapping([0],
+                               FakeModelHandler(
+                                   state=200, multi_process_shared=True)),
+          base.KeyModelMapping([1, 2, 3],
+                               FakeModelHandler(multi_process_shared=True))
+      ]
+      actual = pcoll | base.RunInference(
+          base.KeyedModelHandler(mhs), use_model_manager=True)
+      assert_that(actual, equal_to(expected), label='assert:inferences')
+
 
 def _always_retry(e: Exception) -> bool:
   return True
