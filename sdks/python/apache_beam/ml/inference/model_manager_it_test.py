@@ -65,55 +65,55 @@ class HuggingFaceGpuTest(unittest.TestCase):
       assert_that(
           actual_labels, equal_to(expected_labels), label='CheckPredictions')
 
-    @unittest.skipIf(not torch.cuda.is_available(), "No GPU detected")
-    def test_sentiment_analysis_large_roberta_gpu(self):
-      """
-      Runs inference using a Large architecture (RoBERTa-Large, ~355M params).
-      This tests if the GPU can handle larger weights and requires more VRAM.
-      """
+  @unittest.skipIf(not torch.cuda.is_available(), "No GPU detected")
+  def test_sentiment_analysis_large_roberta_gpu(self):
+    """
+    Runs inference using a Large architecture (RoBERTa-Large, ~355M params).
+    This tests if the GPU can handle larger weights and requires more VRAM.
+    """
 
-      model_handler = HuggingFacePipelineModelHandler(
-          task="sentiment-analysis",
-          model="Siebert/sentiment-roberta-large-english",
-          device=0,
-          inference_args={"batch_size": 2})
+    model_handler = HuggingFacePipelineModelHandler(
+        task="sentiment-analysis",
+        model="Siebert/sentiment-roberta-large-english",
+        device=0,
+        inference_args={"batch_size": 2})
 
-      DUPLICATE_FACTOR = 2
+    DUPLICATE_FACTOR = 2
 
-      with TestPipeline() as pipeline:
-        examples = [
-            "I absolutely love this product, it's a game changer!",
-            "This is the worst experience I have ever had.",
-            "Apache Beam scales effortlessly to massive datasets.",
-            "I am somewhat annoyed by the delay.",
-            "The nuanced performance of this large model is impressive.",
-            "I regret buying this immediately.",
-            "The sunset looks beautiful tonight.",
-            "This documentation is sparse and misleading.",
-            "Winning the championship felt surreal.",
-            "I'm feeling very neutral about this whole situation."
-        ] * DUPLICATE_FACTOR
+    with TestPipeline() as pipeline:
+      examples = [
+          "I absolutely love this product, it's a game changer!",
+          "This is the worst experience I have ever had.",
+          "Apache Beam scales effortlessly to massive datasets.",
+          "I am somewhat annoyed by the delay.",
+          "The nuanced performance of this large model is impressive.",
+          "I regret buying this immediately.",
+          "The sunset looks beautiful tonight.",
+          "This documentation is sparse and misleading.",
+          "Winning the championship felt surreal.",
+          "I'm feeling very neutral about this whole situation."
+      ] * DUPLICATE_FACTOR
 
-        pcoll = pipeline | 'CreateInputs' >> beam.Create(examples)
-        predictions = pcoll | 'RunInference' >> RunInference(model_handler)
-        actual_labels = predictions | beam.Map(lambda x: x.inference['label'])
+      pcoll = pipeline | 'CreateInputs' >> beam.Create(examples)
+      predictions = pcoll | 'RunInference' >> RunInference(model_handler)
+      actual_labels = predictions | beam.Map(lambda x: x.inference['label'])
 
-        # Note: Larger models are often more accurate with nuance.
-        # e.g. "somewhat annoyed" is confidently NEGATIVE.
-        expected_labels = [
-            'POSITIVE',  # love
-            'NEGATIVE',  # worst
-            'POSITIVE',  # scales effortlessly
-            'NEGATIVE',  # annoyed
-            'POSITIVE',  # impressive
-            'NEGATIVE',  # regret
-            'POSITIVE',  # beautiful
-            'NEGATIVE',  # misleading
-            'POSITIVE',  # surreal
-            'NEGATIVE'  # "neutral"
-        ] * DUPLICATE_FACTOR
+      # Note: Larger models are often more accurate with nuance.
+      # e.g. "somewhat annoyed" is confidently NEGATIVE.
+      expected_labels = [
+          'POSITIVE',  # love
+          'NEGATIVE',  # worst
+          'POSITIVE',  # scales effortlessly
+          'NEGATIVE',  # annoyed
+          'POSITIVE',  # impressive
+          'NEGATIVE',  # regret
+          'POSITIVE',  # beautiful
+          'NEGATIVE',  # misleading
+          'POSITIVE',  # surreal
+          'NEGATIVE'  # "neutral"
+      ] * DUPLICATE_FACTOR
 
-        assert_that(
-            actual_labels,
-            equal_to(expected_labels),
-            label='CheckPredictionsLarge')
+      assert_that(
+          actual_labels,
+          equal_to(expected_labels),
+          label='CheckPredictionsLarge')
