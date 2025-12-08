@@ -103,6 +103,11 @@ class CrossLanguageSpannerIOTest(unittest.TestCase):
     )
 
     pipeline = TestPipeline(is_integration_test=True)
+
+    runner_name = type(pipeline.runner).__name__
+    if 'DataflowRunner' in runner_name:
+      pytest.skip("Spanner emulator not compatible with dataflow runner.")
+
     argv = pipeline.get_full_options_as_args()
 
     known_args, _ = parser.parse_known_args(argv)
