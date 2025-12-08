@@ -34,8 +34,11 @@ import java.util.Optional;
 import java.util.UUID;
 import java.util.stream.Collectors;
 import org.apache.beam.sdk.schemas.Schema;
+import org.apache.beam.sdk.schemas.logicaltypes.FixedPrecisionNumeric;
+import org.apache.beam.sdk.schemas.logicaltypes.PassThroughLogicalType;
 import org.apache.beam.sdk.schemas.logicaltypes.SqlTypes;
 import org.apache.beam.sdk.util.Preconditions;
+import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
@@ -71,6 +74,7 @@ public class IcebergUtils {
           .put(SqlTypes.DATE.getIdentifier(), Types.DateType.get())
           .put(SqlTypes.TIME.getIdentifier(), Types.TimeType.get())
           .put(SqlTypes.DATETIME.getIdentifier(), Types.TimestampType.withoutZone())
+          .put(SqlTypes.UUID.getIdentifier(), Types.UUIDType.get())
           .build();
 
   private static Schema.FieldType icebergTypeToBeamFieldType(final Type type) {
@@ -175,8 +179,17 @@ public class IcebergUtils {
       return new TypeAndMaxId(
           --nestedFieldId, BEAM_TYPES_TO_ICEBERG_TYPES.get(beamType.getTypeName()));
     } else if (beamType.getTypeName().isLogicalType()) {
-      String logicalTypeIdentifier =
-          checkArgumentNotNull(beamType.getLogicalType()).getIdentifier();
+      Schema.LogicalType<?, ?> logicalType = checkArgumentNotNull(beamType.getLogicalType());
+      if (logicalType instanceof FixedPrecisionNumeric) {
+        Row args = Preconditions.checkArgumentNotNull(logicalType.getArgument());
+        Integer precision = Preconditions.checkArgumentNotNull(args.getInt32("precision"));
+        Integer scale = Preconditions.checkArgumentNotNull(args.getInt32("scale"));
+        return new TypeAndMaxId(--nestedFieldId, Types.DecimalType.of(precision, scale));
+      }
+      if (logicalType instanceof PassThroughLogicalType) {
+        return beamFieldTypeToIcebergFieldType(logicalType.getBaseType(), nestedFieldId);
+      }
+      String logicalTypeIdentifier = logicalType.getIdentifier();
       @Nullable Type type = BEAM_LOGICAL_TYPES_TO_ICEBERG_TYPES.get(logicalTypeIdentifier);
       if (type == null) {
         throw new RuntimeException("Unsupported Beam logical type " + logicalTypeIdentifier);
@@ -595,5 +608,13 @@ public class IcebergUtils {
     }
     // LocalDateTime, LocalDate, LocalTime
     return icebergValue;
+  }
+
+  static <T> boolean isUnbounded(PCollection<T> input) {
+    return input.isBounded().equals(PCollection.IsBounded.UNBOUNDED);
+  }
+
+  static boolean validDirectWriteLimit(@Nullable Integer directWriteByteLimit) {
+    return directWriteByteLimit != null && directWriteByteLimit >= 0;
   }
 }

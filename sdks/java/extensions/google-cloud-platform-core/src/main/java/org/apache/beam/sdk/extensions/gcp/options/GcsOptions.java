@@ -76,7 +76,6 @@ public interface GcsOptions extends ApplicationNameOptions, GcpOptions, Pipeline
   void setExecutorService(ExecutorService value);
 
   /** GCS endpoint to use. If unspecified, uses the default endpoint. */
-  @JsonIgnore
   @Hidden
   @Description("The URL for the GCS API.")
   String getGcsEndpoint();

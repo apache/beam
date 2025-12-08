@@ -376,7 +376,6 @@ class Stager(object):
       pickled_session_file = os.path.join(
           temp_dir, names.PICKLED_MAIN_SESSION_FILE)
       pickler.dump_session(pickled_session_file)
-      # for pickle_library: cloudpickle, dump_session is no op
       if os.path.exists(pickled_session_file):
         resources.append(
             Stager._create_file_stage_to_artifact(
