@@ -28,6 +28,7 @@ import org.apache.beam.sdk.coders.ByteArrayCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.StructuredCoder;
 import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.util.common.ElementByteSizeObserver;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.MoreObjects;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
@@ -40,6 +41,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  */
 @Internal
 public class ValueWithRecordId<ValueT> {
+
   private final ValueT value;
   private final byte[] id;
 
@@ -81,6 +83,7 @@ public class ValueWithRecordId<ValueT> {
   /** A {@link Coder} for {@code ValueWithRecordId}, using a wrapped value {@code Coder}. */
   public static class ValueWithRecordIdCoder<ValueT>
       extends StructuredCoder<ValueWithRecordId<ValueT>> {
+
     public static <ValueT> ValueWithRecordIdCoder<ValueT> of(Coder<ValueT> valueCoder) {
       return new ValueWithRecordIdCoder<>(valueCoder);
     }
@@ -124,6 +127,19 @@ public class ValueWithRecordId<ValueT> {
       valueCoder.verifyDeterministic();
     }
 
+    @Override
+    public boolean isRegisterByteSizeObserverCheap(ValueWithRecordId<ValueT> value) {
+      // idCoder is always cheap
+      return valueCoder.isRegisterByteSizeObserverCheap(value.value);
+    }
+
+    @Override
+    public void registerByteSizeObserver(
+        ValueWithRecordId<ValueT> value, ElementByteSizeObserver observer) throws Exception {
+      valueCoder.registerByteSizeObserver(value.getValue(), observer);
+      idCoder.registerByteSizeObserver(value.getId(), observer);
+    }
+
     public Coder<ValueT> getValueCoder() {
       return valueCoder;
     }
@@ -134,6 +150,7 @@ public class ValueWithRecordId<ValueT> {
 
   /** {@link DoFn} to turn a {@code ValueWithRecordId<T>} back to the value {@code T}. */
   public static class StripIdsDoFn<T> extends DoFn<ValueWithRecordId<T>, T> {
+
     @ProcessElement
     public void processElement(ProcessContext c) {
       c.output(c.element().getValue());

@@ -979,6 +979,8 @@ public class BigQueryIO {
                   getParseFn(),
                   getOutputCoder(),
                   getBigQueryServices());
+          // due to retry, table may already exist, remove it to ensure correctness
+          querySource.removeDestinationIfExists(options.as(BigQueryOptions.class));
           Table queryResultTable = querySource.getTargetTable(options.as(BigQueryOptions.class));
 
           BigQueryStorageTableSource<T> output =

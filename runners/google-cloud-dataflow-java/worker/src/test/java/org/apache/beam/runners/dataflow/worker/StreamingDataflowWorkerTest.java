@@ -372,6 +372,7 @@ public class StreamingDataflowWorkerTest {
             Watermarks.builder().setInputDataWatermark(Instant.EPOCH).build(),
             Work.createProcessingContext(
                 computationId, new FakeGetDataClient(), ignored -> {}, mock(HeartbeatSender.class)),
+            false,
             Instant::now),
         processWorkFn);
   }
@@ -3276,6 +3277,9 @@ public class StreamingDataflowWorkerTest {
 
     TestCountingSource counter = new TestCountingSource(3).withThrowOnFirstSnapshot(true);
 
+    // Reset static state that may leak across tests.
+    TestExceptionInvalidatesCacheFn.resetStaticState();
+    TestCountingSource.resetStaticState();
     List<ParallelInstruction> instructions =
         Arrays.asList(
             new ParallelInstruction()
@@ -3310,7 +3314,10 @@ public class StreamingDataflowWorkerTest {
                 .build());
     worker.start();
 
-    // Three GetData requests
+    // Three GetData requests:
+    // - first processing has no state
+    // - recovering from checkpoint exception has no persisted state
+    // - recovering from processing exception recovers last committed state
     for (int i = 0; i < 3; i++) {
       ByteString state;
       if (i == 0 || i == 1) {
@@ -3437,6 +3444,11 @@ public class StreamingDataflowWorkerTest {
                       parseCommitRequest(sb.toString()))
                   .build()));
     }
+
+    // Ensure that the invalidated dofn had tearDown called on them.
+    assertEquals(1, TestExceptionInvalidatesCacheFn.tearDownCallCount.get());
+    assertEquals(2, TestExceptionInvalidatesCacheFn.setupCallCount.get());
+
     worker.stop();
   }
 
@@ -3484,7 +3496,7 @@ public class StreamingDataflowWorkerTest {
   }
 
   @Test
-  public void testActiveWorkFailure() throws Exception {
+  public void testQueuedWorkFailure() throws Exception {
     List<ParallelInstruction> instructions =
         Arrays.asList(
             makeSourceInstruction(StringUtf8Coder.of()),
@@ -3515,6 +3527,9 @@ public class StreamingDataflowWorkerTest {
     server.whenGetWorkCalled().thenReturn(workItem).thenReturn(workItemToFail);
     server.waitForEmptyWorkQueue();
 
+    // Wait for key to schedule, it will be blocked.
+    BlockingFn.counter().acquire(1);
+
     // Mock Windmill sending a heartbeat response failing the second work item while the first
     // is still processing.
     ComputationHeartbeatResponse.Builder failedHeartbeat =
@@ -3534,6 +3549,64 @@ public class StreamingDataflowWorkerTest {
         server.waitForAndGetCommitsWithTimeout(1, Duration.standardSeconds((5)));
     assertEquals(1, commits.size());
 
+    assertEquals(0, BlockingFn.teardownCounter.get());
+    assertEquals(1, BlockingFn.setupCounter.get());
+
+    worker.stop();
+  }
+
+  @Test
+  public void testActiveWorkFailure() throws Exception {
+    List<ParallelInstruction> instructions =
+        Arrays.asList(
+            makeSourceInstruction(StringUtf8Coder.of()),
+            makeDoFnInstruction(blockingFn, 0, StringUtf8Coder.of()),
+            makeSinkInstruction(StringUtf8Coder.of(), 0));
+
+    StreamingDataflowWorker worker =
+        makeWorker(
+            defaultWorkerParams("--activeWorkRefreshPeriodMillis=100")
+                .setInstructions(instructions)
+                .publishCounters()
+                .build());
+    worker.start();
+
+    GetWorkResponse workItemToFail =
+        makeInput(0, TimeUnit.MILLISECONDS.toMicros(0), "key", DEFAULT_SHARDING_KEY);
+    long failedWorkToken = workItemToFail.getWork(0).getWork(0).getWorkToken();
+    long failedCacheToken = workItemToFail.getWork(0).getWork(0).getCacheToken();
+    GetWorkResponse workItem =
+        makeInput(1, TimeUnit.MILLISECONDS.toMicros(0), "key", DEFAULT_SHARDING_KEY);
+
+    // Queue up the work item for the key.
+    server.whenGetWorkCalled().thenReturn(workItemToFail).thenReturn(workItem);
+    server.waitForEmptyWorkQueue();
+
+    // Wait for key to schedule, it will be blocked.
+    BlockingFn.counter().acquire(1);
+
+    // Mock Windmill sending a heartbeat response failing the first work item while it is
+    // is processing.
+    ComputationHeartbeatResponse.Builder failedHeartbeat =
+        ComputationHeartbeatResponse.newBuilder();
+    failedHeartbeat
+        .setComputationId(DEFAULT_COMPUTATION_ID)
+        .addHeartbeatResponsesBuilder()
+        .setCacheToken(failedCacheToken)
+        .setWorkToken(failedWorkToken)
+        .setShardingKey(DEFAULT_SHARDING_KEY)
+        .setFailed(true);
+    server.sendFailedHeartbeats(Collections.singletonList(failedHeartbeat.build()));
+
+    // Release the blocked call, there should not be a commit and the dofn should be invalidated.
+    BlockingFn.blocker().countDown();
+    Map<Long, Windmill.WorkItemCommitRequest> commits =
+        server.waitForAndGetCommitsWithTimeout(1, Duration.standardSeconds((5)));
+    assertEquals(1, commits.size());
+
+    assertEquals(0, BlockingFn.teardownCounter.get());
+    assertEquals(1, BlockingFn.setupCounter.get());
+
     worker.stop();
   }
 
@@ -3552,6 +3625,7 @@ public class StreamingDataflowWorkerTest {
                 new FakeGetDataClient(),
                 ignored -> {},
                 mock(HeartbeatSender.class)),
+            false,
             clock);
 
     clock.sleep(Duration.millis(10));
@@ -4246,6 +4320,18 @@ public class StreamingDataflowWorkerTest {
         new AtomicReference<>(new CountDownLatch(1));
     public static AtomicReference<Semaphore> counter = new AtomicReference<>(new Semaphore(0));
     public static AtomicInteger callCounter = new AtomicInteger(0);
+    public static AtomicInteger setupCounter = new AtomicInteger(0);
+    public static AtomicInteger teardownCounter = new AtomicInteger(0);
+
+    @Setup
+    public void setup() {
+      setupCounter.incrementAndGet();
+    }
+
+    @Teardown
+    public void tearDown() {
+      teardownCounter.incrementAndGet();
+    }
 
     @ProcessElement
     public void processElement(ProcessContext c) throws InterruptedException {
@@ -4278,6 +4364,8 @@ public class StreamingDataflowWorkerTest {
             blocker.set(new CountDownLatch(1));
             counter.set(new Semaphore(0));
             callCounter.set(0);
+            setupCounter.set(0);
+            teardownCounter.set(0);
           }
         }
       };
@@ -4397,10 +4485,32 @@ public class StreamingDataflowWorkerTest {
   static class TestExceptionInvalidatesCacheFn
       extends DoFn<ValueWithRecordId<KV<Integer, Integer>>, String> {
 
-    static boolean thrown = false;
+    public static AtomicInteger setupCallCount = new AtomicInteger();
+    public static AtomicInteger tearDownCallCount = new AtomicInteger();
+    private static boolean thrown = false;
+    private boolean setupCalled = false;
+
+    static void resetStaticState() {
+      setupCallCount.set(0);
+      tearDownCallCount.set(0);
+      thrown = false;
+    }
 
     @StateId("int")
     private final StateSpec<ValueState<Integer>> counter = StateSpecs.value(VarIntCoder.of());
+
+    @Setup
+    public void setUp() {
+      assertFalse(setupCalled);
+      setupCalled = true;
+      setupCallCount.addAndGet(1);
+    }
+
+    @Teardown
+    public void tearDown() {
+      assertTrue(setupCalled);
+      tearDownCallCount.addAndGet(1);
+    }
 
     @ProcessElement
     public void processElement(ProcessContext c, @StateId("int") ValueState<Integer> state)

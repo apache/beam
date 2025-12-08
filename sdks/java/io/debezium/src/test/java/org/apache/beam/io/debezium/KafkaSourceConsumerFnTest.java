@@ -159,7 +159,7 @@ public class KafkaSourceConsumerFnTest implements Serializable {
             null));
     tester.testEquals();
   }
-};
+}
 
 class CounterSourceConnector extends SourceConnector {
   public static class CounterSourceConnectorConfig extends AbstractConfig {

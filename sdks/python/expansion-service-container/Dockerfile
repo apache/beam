@@ -18,7 +18,8 @@
 
 # We just need to support one Python version supported by Beam.
 # Picking the current default Beam Python version which is Python 3.10.
-FROM python:3.10-bookworm as expansion-service
+ARG py_version=3.10
+FROM python:${py_version}-bookworm as expansion-service
 LABEL Author "Apache Beam <dev@beam.apache.org>"
 ARG TARGETOS
 ARG TARGETARCH
@@ -61,7 +62,7 @@ COPY  target/go-licenses/* /opt/apache/beam/third_party_licenses/golang/
 
 COPY target/license_scripts /tmp/license_scripts/
 RUN if [ "$pull_licenses" = "true" ] ; then \
-      pip install 'pip-licenses<5' pyyaml tenacity && \
+      pip install 'pip-licenses<6' pyyaml tenacity && \
       python /tmp/license_scripts/pull_licenses_py.py ; \
     fi
 

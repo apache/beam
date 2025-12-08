@@ -47,7 +47,6 @@ jobs:
         # tasks as they are added.
         images_to_publish: [
           {"gradle_task": ":pushAllRunnersDockerImages", "include_skip_flags": "-Pinclude-ml -Pinclude-distroless"},
-          {"gradle_task": ":sdks:python:container:push39", "include_skip_flags": "-Pinclude-ml -Pinclude-distroless"},
           {"gradle_task": ":sdks:python:container:push310", "include_skip_flags": "-Pinclude-ml -Pinclude-distroless"},
           {"gradle_task": ":sdks:python:container:push311", "include_skip_flags": "-Pinclude-ml -Pinclude-distroless"},
           {"gradle_task": ":sdks:python:container:push312", "include_skip_flags": "-Pinclude-ml -Pinclude-distroless"},
@@ -93,6 +92,7 @@ jobs:
         run: |
           ./gradlew ${{ matrix.images_to_publish.gradle_task }} \
           -PisRelease \
+          -PpythonVersion=3.10 \
           -Pdocker-pull-licenses \
           -Pprune-images ${{ matrix.images_to_publish.include_skip_flags }} \
           -Pdocker-repository-root=gcr.io/apache-beam-testing/updated_released_container_images \
