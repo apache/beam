@@ -43,6 +43,7 @@ from apache_beam.yaml.yaml_combine import normalize_combine
 from apache_beam.yaml.yaml_mapping import Validate
 from apache_beam.yaml.yaml_mapping import normalize_mapping
 from apache_beam.yaml.yaml_mapping import validate_generic_expressions
+from apache_beam.yaml import kms
 from apache_beam.yaml.yaml_utils import SafeLineLoader
 
 __all__ = ["YamlTransform"]
@@ -1233,6 +1234,33 @@ def apply_phase(phase, spec):
   return spec
 
 
+def preprocess_encryption(spec):
+  if 'encryption' in spec:
+    enc_spec = spec['encryption']
+    key = enc_spec.get('key')
+    fields = enc_spec.get('fields', [])
+    if not key:
+      raise ValueError(
+          f"Encryption block missing 'key' in {identify_object(spec)}")
+
+    config = spec.get('config', {})
+    for field in fields:
+      if field not in config:
+        raise ValueError(
+            f"Encrypted field '{field}' not found in config of {identify_object(spec)}"
+        )
+
+      try:
+        config[field] = kms.decrypt_value(config[field], key)
+      except Exception as e:
+        raise ValueError(
+            f"Failed to decrypt field '{field}' in {identify_object(spec)}: {e}"
+        ) from e
+
+    del spec['encryption']
+  return spec
+
+
 def preprocess(spec, verbose=False, known_transforms=None):
   if verbose:
     pprint.pprint(spec)
@@ -1282,6 +1310,7 @@ def preprocess(spec, verbose=False, known_transforms=None):
     return spec
 
   for phase in [
+      preprocess_encryption,
       ensure_transforms_have_types,
       normalize_mapping,
       normalize_combine,
