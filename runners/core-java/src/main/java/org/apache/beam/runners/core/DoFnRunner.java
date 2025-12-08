@@ -46,7 +46,8 @@ public interface DoFnRunner<InputT extends @Nullable Object, OutputT extends @Nu
       BoundedWindow window,
       Instant timestamp,
       Instant outputTimestamp,
-      TimeDomain timeDomain);
+      TimeDomain timeDomain,
+      boolean causedByDrain);
 
   /**
    * Calls a {@link DoFn DoFn's} {@link DoFn.FinishBundle @FinishBundle} method and performs

@@ -110,7 +110,8 @@ public class DoFnLifecycleManagerRemovingTransformEvaluatorTest {
               StateNamespaces.global(),
               new Instant(0),
               new Instant(0),
-              TimeDomain.EVENT_TIME),
+              TimeDomain.EVENT_TIME,
+              false),
           "",
           GlobalWindow.INSTANCE);
     } catch (Exception e) {

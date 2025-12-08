@@ -600,7 +600,7 @@ public class SplittableParDoViaKeyedWorkItems {
       // Set a timer to continue processing this element.
       timerInternals.setTimer(
           TimerInternals.TimerData.of(
-              stateNamespace, wakeupTime, wakeupTime, TimeDomain.PROCESSING_TIME));
+              stateNamespace, wakeupTime, wakeupTime, TimeDomain.PROCESSING_TIME, false));
     }
 
     private DoFnInvoker.ArgumentProvider<InputT, OutputT> wrapOptionsAsSetup(

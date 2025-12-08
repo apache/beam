@@ -1129,7 +1129,8 @@ public class ProcessBundleHandlerTest {
                 Collections.singletonList(GlobalWindow.INSTANCE),
                 Instant.ofEpochMilli(1L),
                 Instant.ofEpochMilli(1L),
-                PaneInfo.ON_TIME_AND_ONLY_FIRING),
+                PaneInfo.ON_TIME_AND_ONLY_FIRING,
+                false),
             encodedTimer);
     Elements elements =
         Elements.newBuilder()
@@ -1248,7 +1249,8 @@ public class ProcessBundleHandlerTest {
                 Collections.singletonList(GlobalWindow.INSTANCE),
                 Instant.ofEpochMilli(1L),
                 Instant.ofEpochMilli(1L),
-                PaneInfo.ON_TIME_AND_ONLY_FIRING),
+                PaneInfo.ON_TIME_AND_ONLY_FIRING,
+                false),
             encodedTimer);
 
     assertThrows(
@@ -1342,7 +1344,8 @@ public class ProcessBundleHandlerTest {
                 Collections.singletonList(GlobalWindow.INSTANCE),
                 Instant.ofEpochMilli(1L),
                 Instant.ofEpochMilli(1L),
-                PaneInfo.ON_TIME_AND_ONLY_FIRING),
+                PaneInfo.ON_TIME_AND_ONLY_FIRING,
+                false),
             encodedTimer);
 
     InstructionResponse.Builder builder =
@@ -1961,7 +1964,8 @@ public class ProcessBundleHandlerTest {
                 Collections.singletonList(GlobalWindow.INSTANCE),
                 Instant.ofEpochMilli(1L),
                 Instant.ofEpochMilli(1L),
-                PaneInfo.ON_TIME_AND_ONLY_FIRING),
+                PaneInfo.ON_TIME_AND_ONLY_FIRING,
+                false),
             encodedTimer);
     Elements elements =
         Elements.newBuilder()

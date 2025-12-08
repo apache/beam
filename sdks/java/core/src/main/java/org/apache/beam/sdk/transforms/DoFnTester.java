@@ -590,6 +590,11 @@ public class DoFnTester<InputT, OutputT> implements AutoCloseable {
     }
 
     @Override
+    public boolean causedByDrain() {
+      return false;
+    }
+
+    @Override
     public PipelineOptions getPipelineOptions() {
       return options;
     }

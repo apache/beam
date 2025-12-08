@@ -317,7 +317,8 @@ public class SimplePushbackSideInputDoFnRunnerTest {
                 StateNamespaces.window(IntervalWindow.getCoder(), window),
                 timestamp,
                 timestamp,
-                TimeDomain.EVENT_TIME)));
+                TimeDomain.EVENT_TIME,
+                false)));
   }
 
   private static class TestDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, OutputT> {
@@ -351,7 +352,8 @@ public class SimplePushbackSideInputDoFnRunnerTest {
         BoundedWindow window,
         Instant timestamp,
         Instant outputTimestamp,
-        TimeDomain timeDomain) {
+        TimeDomain timeDomain,
+        boolean causedByDrain) {
       firedTimers.add(
           TimerData.of(
               timerId,
@@ -359,7 +361,8 @@ public class SimplePushbackSideInputDoFnRunnerTest {
               StateNamespaces.window(IntervalWindow.getCoder(), (IntervalWindow) window),
               timestamp,
               outputTimestamp,
-              timeDomain));
+              timeDomain,
+              causedByDrain));
     }
 
     @Override
