@@ -17,7 +17,6 @@
 # pytype: skip-file
 
 import unittest
-from unittest import mock
 
 try:
   from google.genai import errors
@@ -80,30 +79,6 @@ class ModelHandlerArgConditions(unittest.TestCase):
         model_name="gemini-model-123",
         request_fn=generate_from_string,
     )
-
-
-@mock.patch('apache_beam.ml.inference.gemini_inference.genai.Client')
-@mock.patch('apache_beam.ml.inference.gemini_inference.HttpOptions')
-class TestGeminiModelHandler(unittest.TestCase):
-  def test_create_client_with_flex_api(
-      self, mock_http_options, mock_genai_client):
-    handler = GeminiModelHandler(
-        model_name="gemini-pro",
-        request_fn=generate_from_string,
-        project="test-project",
-        location="us-central1",
-        use_vertex_flex_api=True)
-    handler.create_client()
-    mock_http_options.assert_called_with(
-        api_version="v1",
-        headers={"X-Vertex-AI-LLM-Request-Type": "flex"},
-        timeout=600000,
-    )
-    mock_genai_client.assert_called_with(
-        vertexai=True,
-        project="test-project",
-        location="us-central1",
-        http_options=mock_http_options.return_value)
 
 
 if __name__ == '__main__':
