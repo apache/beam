@@ -275,7 +275,32 @@ SqlCall SqlShowCatalogs(Span s) :
     <SHOW> <CATALOGS> { s.add(this); }
     [ <LIKE> regex = StringLiteral() ]
     {
-        return new SqlShowCatalogs(s.end(this), false, regex);
+        List<String> path = new ArrayList<String>();
+        path.add("beamsystem");
+        path.add("catalogs");
+        SqlNodeList selectList = SqlNodeList.of(SqlIdentifier.star(s.end(this)));
+        SqlIdentifier from = new SqlIdentifier(path, s.end(this));
+        SqlNode where = null;
+        if (regex != null) {
+            SqlIdentifier nameIdentifier = new SqlIdentifier("NAME", s.end(this));
+            where = SqlStdOperatorTable.LIKE.createCall(
+                s.end(this),
+                nameIdentifier, regex);
+        }
+
+        return new SqlSelect(
+            s.end(this),
+            null,
+            selectList,
+            from,
+            where,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null);
     }
 }
 
@@ -360,7 +385,37 @@ SqlCall SqlShowDatabases(Span s) :
     [ ( <FROM> | <IN> ) catalogName = SimpleIdentifier() ]
     [ <LIKE> regex = StringLiteral() ]
     {
-        return new SqlShowDatabases(s.end(this), false, catalogName, regex);
+        List<String> path = new ArrayList<String>();
+        path.add("beamsystem");
+        path.add("databases");
+        SqlNodeList selectList = SqlNodeList.of(SqlIdentifier.star(s.end(this)));
+        SqlNode where = null;
+        if (regex != null) {
+            SqlIdentifier nameIdentifier = new SqlIdentifier("NAME", s.end(this));
+            where = SqlStdOperatorTable.LIKE.createCall(
+                s.end(this),
+                nameIdentifier, regex);
+        }
+        if (catalogName != null) {
+            path.add(catalogName.getSimple());
+        } else {
+            path.add("__current_catalog__");
+        }
+        SqlIdentifier from = new SqlIdentifier(path, s.end(this));
+
+        return new SqlSelect(
+            s.end(this),
+            null,
+            selectList,
+            from,
+            where,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null);
     }
 }
 
@@ -372,15 +427,41 @@ SqlCall SqlShowCurrent(Span s) :
 }
 {
     <SHOW> <CURRENT> { s.add(this); }
+    {
+        List<String> path = new ArrayList<String>();
+        path.add("beamsystem");
+    }
     (
         <CATALOG> {
-            return new SqlShowCatalogs(s.end(this), true, null);
+            path.add("__current_catalog__");
         }
     |
         <DATABASE> {
-            return new SqlShowDatabases(s.end(this), true, null, null);
+            path.add("__current_database__");
         }
     )
+    {
+        if (path.size() != 2) {
+            throw new ParseException(
+                "Expected SHOW CURRENT CATALOG or SHOW CURRENT DATABASE");
+        }
+        SqlNodeList selectList = SqlNodeList.of(SqlIdentifier.star(s.end(this)));
+        SqlIdentifier from = new SqlIdentifier(path, s.end(this));
+
+        return new SqlSelect(
+            s.end(this),
+            null,
+            selectList,
+            from,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null);
+    }
 }
 
 
@@ -513,15 +594,55 @@ SqlDrop SqlDropTable(Span s, boolean replace) :
  */
 SqlCall SqlShowTables(Span s) :
 {
-    SqlIdentifier database = null;
+    SqlIdentifier databaseCatalog = null;
     SqlNode regex = null;
 }
 {
     <SHOW> <TABLES> { s.add(this); }
-    [ (<FROM> | <IN>) database = CompoundIdentifier() ]
+    [ (<FROM> | <IN>) databaseCatalog = CompoundIdentifier() ]
     [ <LIKE> regex = StringLiteral() ]
     {
-        return new SqlShowTables(s.end(this), database, regex);
+        List<String> path = new ArrayList<String>();
+        path.add("beamsystem");
+        path.add("tables");
+        SqlNodeList selectList = SqlNodeList.of(SqlIdentifier.star(s.end(this)));
+        SqlNode where = null;
+        if (regex != null) {
+            SqlIdentifier nameIdentifier = new SqlIdentifier("NAME", s.end(this));
+            where = SqlStdOperatorTable.LIKE.createCall(
+                s.end(this),
+                nameIdentifier, regex);
+        }
+        if (databaseCatalog != null) {
+            List<String> components = databaseCatalog.names;
+            if (components.size() == 1) {
+                path.add("__current_catalog__");
+                path.add(components.get(0));
+            } else if (components.size() == 2) {
+                path.addAll(components);
+            } else {
+                throw new ParseException(
+                    "SHOW TABLES FROM/IN accepts at most a catalog name and a database name.");
+            }
+        } else {
+            path.add("__current_catalog__");
+            path.add("__current_database__");
+        }
+        SqlIdentifier from = new SqlIdentifier(path, s.end(this));
+
+        return new SqlSelect(
+            s.end(this),
+            null,
+            selectList,
+            from,
+            where,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null);
     }
 }
 

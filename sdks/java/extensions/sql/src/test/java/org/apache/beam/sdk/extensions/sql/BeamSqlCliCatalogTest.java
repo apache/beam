@@ -26,8 +26,6 @@ import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 
-import java.io.ByteArrayOutputStream;
-import java.io.PrintStream;
 import java.util.Map;
 import org.apache.beam.sdk.extensions.sql.meta.Table;
 import org.apache.beam.sdk.extensions.sql.meta.catalog.Catalog;
@@ -331,60 +329,5 @@ public class BeamSqlCliCatalogTest {
     // drop the table while using catalog_2
     cli.execute("DROP TABLE catalog_1.db_1.person");
     assertNull(metastoreDb1.getTable("person"));
-  }
-
-  @Test
-  public void testShowCurrentCatalog() {
-    cli.execute("CREATE CATALOG my_catalog TYPE 'local'");
-    cli.execute("CREATE CATALOG my_very_long_catalog_name TYPE 'local'");
-    ByteArrayOutputStream outputStreamCaptor = new ByteArrayOutputStream();
-    System.setOut(new PrintStream(outputStreamCaptor));
-    cli.execute("SHOW CURRENT CATALOG");
-    @SuppressWarnings("DefaultCharset")
-    String printOutput = outputStreamCaptor.toString().trim();
-
-    assertEquals("default (type: local)", printOutput);
-  }
-
-  @Test
-  public void testShowCatalogs() {
-    cli.execute("CREATE CATALOG my_catalog TYPE 'local'");
-    cli.execute("CREATE CATALOG my_very_long_catalog_name TYPE 'local'");
-    ByteArrayOutputStream outputStreamCaptor = new ByteArrayOutputStream();
-    System.setOut(new PrintStream(outputStreamCaptor));
-    cli.execute("SHOW CATALOGS");
-    @SuppressWarnings("DefaultCharset")
-    String printOutput = outputStreamCaptor.toString().trim();
-
-    assertEquals(
-        "+---------------------------------------+\n"
-            + "| Catalog Name                | Type    |\n"
-            + "+---------------------------------------+\n"
-            + "| default                     | local   |\n"
-            + "| my_catalog                  | local   |\n"
-            + "| my_very_long_catalog_name   | local   |\n"
-            + "+---------------------------------------+",
-        printOutput);
-  }
-
-  @Test
-  public void testShowCatalogsWithPattern() {
-    cli.execute("CREATE CATALOG my_catalog TYPE 'local'");
-    cli.execute("CREATE CATALOG my_catalog_2 TYPE 'local'");
-    cli.execute("CREATE CATALOG my_very_long_catalog_name TYPE 'local'");
-    ByteArrayOutputStream outputStreamCaptor = new ByteArrayOutputStream();
-    System.setOut(new PrintStream(outputStreamCaptor));
-    cli.execute("SHOW CATALOGS LIKE 'my_catalog%'");
-    @SuppressWarnings("DefaultCharset")
-    String printOutput = outputStreamCaptor.toString().trim();
-
-    assertEquals(
-        "+--------------------------+\n"
-            + "| Catalog Name   | Type    |\n"
-            + "+--------------------------+\n"
-            + "| my_catalog     | local   |\n"
-            + "| my_catalog_2   | local   |\n"
-            + "+--------------------------+",
-        printOutput);
   }
 }

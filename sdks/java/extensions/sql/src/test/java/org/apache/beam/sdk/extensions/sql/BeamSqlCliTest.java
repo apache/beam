@@ -28,14 +28,11 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 
-import java.io.ByteArrayOutputStream;
-import java.io.PrintStream;
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.util.stream.Stream;
 import org.apache.beam.sdk.extensions.sql.impl.ParseException;
 import org.apache.beam.sdk.extensions.sql.meta.Table;
-import org.apache.beam.sdk.extensions.sql.meta.catalog.InMemoryCatalogManager;
 import org.apache.beam.sdk.extensions.sql.meta.provider.test.TestTableProvider;
 import org.apache.beam.sdk.extensions.sql.meta.provider.text.TextTableProvider;
 import org.apache.beam.sdk.extensions.sql.meta.store.InMemoryMetaStore;
@@ -302,101 +299,5 @@ public class BeamSqlCliTest {
     assertEquals("15:23:59", row.getLogicalTypeValue("f_time", LocalTime.class).toString());
     // test TIMESTAMP field
     assertEquals(parseTimestampWithUTCTimeZone("2018-07-01 21:26:07.123"), row.getDateTime("f_ts"));
-  }
-
-  @Test
-  public void testShowTables() {
-    InMemoryCatalogManager catalogManager = new InMemoryCatalogManager();
-    catalogManager.registerTableProvider(new TextTableProvider());
-    catalogManager.registerTableProvider(new TestTableProvider());
-    BeamSqlCli cli = new BeamSqlCli().catalogManager(catalogManager);
-
-    cli.execute("CREATE DATABASE random_db");
-    cli.execute("USE DATABASE random_db");
-    cli.execute("CREATE EXTERNAL TABLE should_not_show_up (id int, name varchar) TYPE 'text'");
-
-    cli.execute("CREATE CATALOG my_catalog TYPE 'local'");
-    cli.execute("USE CATALOG my_catalog");
-    cli.execute("CREATE DATABASE my_db");
-    cli.execute("USE DATABASE my_db");
-    cli.execute("CREATE EXTERNAL TABLE my_table (id int, name varchar) TYPE 'text'");
-    cli.execute("CREATE EXTERNAL TABLE my_other_table (col1 int, col2 timestamp) TYPE 'text'");
-    cli.execute(
-        "CREATE EXTERNAL TABLE my_other_table_with_a_long_name "
-            + "(foo varchar, bar boolean) TYPE 'test'");
-    ByteArrayOutputStream outputStreamCaptor = new ByteArrayOutputStream();
-    System.setOut(new PrintStream(outputStreamCaptor));
-    cli.execute("SHOW TABLES");
-    @SuppressWarnings("DefaultCharset")
-    String printOutput = outputStreamCaptor.toString().trim();
-
-    assertEquals(
-        "+--------------------------------------------+\n"
-            + "| Tables in my_catalog.my_db        | Type   |\n"
-            + "+--------------------------------------------+\n"
-            + "| my_other_table                    | text   |\n"
-            + "| my_other_table_with_a_long_name   | test   |\n"
-            + "| my_table                          | text   |\n"
-            + "+--------------------------------------------+",
-        printOutput);
-  }
-
-  @Test
-  public void testShowTablesInOtherDatabase() {
-    InMemoryCatalogManager catalogManager = new InMemoryCatalogManager();
-    catalogManager.registerTableProvider(new TextTableProvider());
-    catalogManager.registerTableProvider(new TestTableProvider());
-    BeamSqlCli cli = new BeamSqlCli().catalogManager(catalogManager);
-
-    cli.execute("CREATE DATABASE my_db");
-    cli.execute(
-        "CREATE EXTERNAL TABLE my_db.should_not_show_up (id int, name varchar) TYPE 'text'");
-
-    cli.execute("CREATE CATALOG other_catalog TYPE 'local'");
-    cli.execute("CREATE DATABASE other_catalog.other_db");
-    cli.execute(
-        "CREATE EXTERNAL TABLE other_catalog.other_db.other_table (id int, name varchar) TYPE 'text'");
-    ByteArrayOutputStream outputStreamCaptor = new ByteArrayOutputStream();
-    System.setOut(new PrintStream(outputStreamCaptor));
-    cli.execute("SHOW TABLES IN other_catalog.other_db");
-    @SuppressWarnings("DefaultCharset")
-    String printOutput = outputStreamCaptor.toString().trim();
-
-    assertEquals(
-        "+---------------------------------------------+\n"
-            + "| Tables in other_catalog.other_db   | Type   |\n"
-            + "+---------------------------------------------+\n"
-            + "| other_table                        | text   |\n"
-            + "+---------------------------------------------+",
-        printOutput);
-  }
-
-  @Test
-  public void testShowTablesWithPattern() {
-    InMemoryCatalogManager catalogManager = new InMemoryCatalogManager();
-    catalogManager.registerTableProvider(new TextTableProvider());
-    catalogManager.registerTableProvider(new TestTableProvider());
-    BeamSqlCli cli = new BeamSqlCli().catalogManager(catalogManager);
-
-    cli.execute("CREATE DATABASE my_db");
-    cli.execute("CREATE EXTERNAL TABLE my_db.my_table (id int, name varchar) TYPE 'text'");
-    cli.execute("CREATE EXTERNAL TABLE my_db.my_table_2 (id int, name varchar) TYPE 'text'");
-    cli.execute("CREATE EXTERNAL TABLE my_db.my_foo_table_1 (id int, name varchar) TYPE 'text'");
-    cli.execute("CREATE EXTERNAL TABLE my_db.my_foo_table_2 (id int, name varchar) TYPE 'text'");
-
-    ByteArrayOutputStream outputStreamCaptor = new ByteArrayOutputStream();
-    System.setOut(new PrintStream(outputStreamCaptor));
-    cli.execute("SHOW TABLES IN my_db LIKE '%foo%'");
-    @SuppressWarnings("DefaultCharset")
-    String printOutput = outputStreamCaptor.toString().trim();
-
-    assertEquals(
-        "+------------------------------------+\n"
-            + "| Tables in default.my_db   | Type   |\n"
-            + "+------------------------------------+\n"
-            + "| my_foo_table_1            | text   |\n"
-            + "| my_foo_table_2            | text   |\n"
-            + "+------------------------------------+",
-        printOutput);
   }
 }

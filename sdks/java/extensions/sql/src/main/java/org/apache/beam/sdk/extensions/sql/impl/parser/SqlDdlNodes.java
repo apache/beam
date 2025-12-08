@@ -66,13 +66,6 @@ public class SqlDdlNodes {
     return Pair.of(checkStateNotNull(schema, "Got null sub-schema for path '%s'", path), name(id));
   }
 
-  static CalciteSchema schema(CalcitePrepare.Context context, boolean mutable) {
-    CalciteSchema rootSchema = mutable ? context.getMutableRootSchema() : context.getRootSchema();
-    List<String> path = context.getDefaultSchemaPath();
-    @Nullable CalciteSchema schema = childSchema(rootSchema, path);
-    return checkStateNotNull(schema, "Got null sub-schema for path '%s'", path);
-  }
-
   private static @Nullable CalciteSchema childSchema(CalciteSchema rootSchema, List<String> path) {
     @Nullable CalciteSchema schema = rootSchema;
     for (String p : path) {

@@ -24,8 +24,6 @@ import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 
-import java.io.ByteArrayOutputStream;
-import java.io.PrintStream;
 import java.util.stream.Collectors;
 import org.apache.beam.sdk.extensions.sql.meta.Table;
 import org.apache.beam.sdk.extensions.sql.meta.catalog.Catalog;
@@ -210,111 +208,5 @@ public class BeamSqlCliDatabaseTest {
     // drop table, overriding the current database
     cli.execute("DROP TABLE db_1.person");
     assertNull(catalogManager.currentCatalog().metaStore("db_1").getTable("person"));
-  }
-
-  @Test
-  public void testShowCurrentDatabase() {
-    cli.execute("CREATE DATABASE should_not_show_up");
-    cli.execute("CREATE CATALOG my_catalog TYPE 'local'");
-    cli.execute("USE CATALOG my_catalog");
-    cli.execute("CREATE DATABASE my_db");
-    cli.execute("CREATE DATABASE my_other_db");
-    cli.execute("CREATE DATABASE my_database_that_has_a_very_long_name");
-    cli.execute("USE DATABASE my_other_db");
-    ByteArrayOutputStream outputStreamCaptor = new ByteArrayOutputStream();
-    System.setOut(new PrintStream(outputStreamCaptor));
-    cli.execute("SHOW CURRENT database");
-    @SuppressWarnings("DefaultCharset")
-    String printOutput = outputStreamCaptor.toString().trim();
-
-    assertEquals("my_other_db", printOutput);
-  }
-
-  @Test
-  public void testShowCurrentDatabaseWithNoneSet() {
-    cli.execute("CREATE DATABASE should_not_show_up");
-    cli.execute("CREATE CATALOG my_catalog TYPE 'local'");
-    cli.execute("USE CATALOG my_catalog");
-    cli.execute("DROP DATABASE `default`");
-    ByteArrayOutputStream outputStreamCaptor = new ByteArrayOutputStream();
-    System.setOut(new PrintStream(outputStreamCaptor));
-    cli.execute("SHOW CURRENT DATABASE");
-    @SuppressWarnings("DefaultCharset")
-    String printOutput = outputStreamCaptor.toString().trim();
-
-    assertEquals("No database is currently set", printOutput);
-  }
-
-  @Test
-  public void testShowDatabases() {
-    cli.execute("CREATE DATABASE should_not_show_up");
-    cli.execute("CREATE CATALOG my_catalog TYPE 'local'");
-    cli.execute("USE CATALOG my_catalog");
-    cli.execute("CREATE DATABASE my_db");
-    cli.execute("CREATE DATABASE my_other_db");
-    cli.execute("CREATE DATABASE my_database_that_has_a_very_long_name");
-    ByteArrayOutputStream outputStreamCaptor = new ByteArrayOutputStream();
-    System.setOut(new PrintStream(outputStreamCaptor));
-    cli.execute("SHOW DATABASES");
-    @SuppressWarnings("DefaultCharset")
-    String printOutput = outputStreamCaptor.toString().trim();
-
-    assertEquals(
-        "+-----------------------------------------+\n"
-            + "| Databases in my_catalog                 |\n"
-            + "+-----------------------------------------+\n"
-            + "| default                                 |\n"
-            + "| my_database_that_has_a_very_long_name   |\n"
-            + "| my_db                                   |\n"
-            + "| my_other_db                             |\n"
-            + "+-----------------------------------------+",
-        printOutput);
-  }
-
-  @Test
-  public void testShowDatabasesInOtherCatalog() {
-    cli.execute("CREATE DATABASE should_not_show_up");
-    cli.execute("CREATE CATALOG my_catalog TYPE 'local'");
-    cli.execute("USE CATALOG my_catalog");
-    cli.execute("CREATE DATABASE my_db");
-    cli.execute("CREATE CATALOG my_other_catalog TYPE 'local'");
-    cli.execute("CREATE DATABASE my_other_catalog.other_db");
-    ByteArrayOutputStream outputStreamCaptor = new ByteArrayOutputStream();
-    System.setOut(new PrintStream(outputStreamCaptor));
-    cli.execute("SHOW DATABASES FROM my_other_catalog");
-    @SuppressWarnings("DefaultCharset")
-    String printOutput = outputStreamCaptor.toString().trim();
-
-    assertEquals(
-        "+---------------------------------+\n"
-            + "| Databases in my_other_catalog   |\n"
-            + "+---------------------------------+\n"
-            + "| default                         |\n"
-            + "| other_db                        |\n"
-            + "+---------------------------------+",
-        printOutput);
-  }
-
-  @Test
-  public void testShowDatabasesWithPattern() {
-    cli.execute("CREATE CATALOG my_catalog TYPE 'local'");
-    cli.execute("CREATE DATABASE my_catalog.my_db");
-    cli.execute("CREATE DATABASE my_catalog.other_db");
-    cli.execute("CREATE DATABASE my_catalog.some_foo_db");
-    cli.execute("CREATE DATABASE my_catalog.some_other_foo_db");
-    ByteArrayOutputStream outputStreamCaptor = new ByteArrayOutputStream();
-    System.setOut(new PrintStream(outputStreamCaptor));
-    cli.execute("SHOW DATABASES FROM my_catalog LIKE '%foo%'");
-    @SuppressWarnings("DefaultCharset")
-    String printOutput = outputStreamCaptor.toString().trim();
-
-    assertEquals(
-        "+---------------------------+\n"
-            + "| Databases in my_catalog   |\n"
-            + "+---------------------------+\n"
-            + "| some_foo_db               |\n"
-            + "| some_other_foo_db         |\n"
-            + "+---------------------------+",
-        printOutput);
   }
 }

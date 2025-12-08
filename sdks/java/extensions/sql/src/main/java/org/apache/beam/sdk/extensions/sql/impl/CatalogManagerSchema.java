@@ -56,11 +56,13 @@ public class CatalogManagerSchema implements Schema {
   private static final Logger LOG = LoggerFactory.getLogger(CatalogManagerSchema.class);
   private final JdbcConnection connection;
   private final CatalogManager catalogManager;
+  private final BeamSystemSchema beamSystemSchema;
   private final Map<String, CatalogSchema> catalogSubSchemas = new HashMap<>();
 
   CatalogManagerSchema(JdbcConnection jdbcConnection, CatalogManager catalogManager) {
     this.connection = jdbcConnection;
     this.catalogManager = catalogManager;
+    this.beamSystemSchema = new BeamSystemSchema(catalogManager);
   }
 
   @VisibleForTesting
@@ -205,6 +207,9 @@ public class CatalogManagerSchema implements Schema {
   public @Nullable Schema getSubSchema(@Nullable String name) {
     if (name == null) {
       return null;
+    }
+    if (name.equals(BeamSystemSchema.BEAMSYSTEM)) {
+      return beamSystemSchema;
     }
     @Nullable CatalogSchema catalogSchema = catalogSubSchemas.get(name);
     if (catalogSchema == null) {
