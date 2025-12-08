@@ -66,7 +66,6 @@ _LOGGER = logging.getLogger(__name__)
 # from the flag name and whose default value is `None`.
 _FLAG_THAT_SETS_FALSE_VALUE = {
     'use_public_ips': 'no_use_public_ips',
-    'save_main_session': 'no_save_main_session'
 }
 # Set of options which should not be overriden when applying options from a
 # different language. This is relevant when using x-lang transforms where the
@@ -1683,14 +1682,6 @@ class SetupOptions(PipelineOptions):
             'Some workflows do not need the session state if for instance all '
             'their functions/classes are defined in proper modules '
             '(not __main__) and the modules are importable in the worker. '))
-    parser.add_argument(
-        '--no_save_main_session',
-        default=None,
-        action='store_false',
-        dest='save_main_session',
-        help=(
-            'Disable saving the main session state. It is enabled/disabled by'
-            'default for cloudpickle/dill pickler. See "save_main_session".'))
 
     parser.add_argument(
         '--sdk_location',

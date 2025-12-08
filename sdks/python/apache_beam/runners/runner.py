@@ -229,6 +229,10 @@ class PipelineRunner(object):
     """Default pickle library, can be overridden by runner implementation."""
     return None
 
+  def cloudpickle_save_main_session_by_default(self):
+    """Override to 'true' to save_main_session by default for a given runner."""
+    return None
+
 
 # FIXME: replace with PipelineState(str, enum.Enum)
 class PipelineState(object):

@@ -219,6 +219,11 @@ class Pipeline(HasDisplayData):
           SetupOptions).pickle_library = runner.default_pickle_library_override(
           )
     pickler.set_library(self._options.view_as(SetupOptions).pickle_library)
+    if (pickler.is_currently_cloudpickle() and
+        self._options.view_as(SetupOptions).save_main_session is None and
+        runner.cloudpickle_save_main_session_by_default()):
+      self._options.view_as(SetupOptions).save_main_session = True
+      logging.info("Runner defaulting save_main_session to True")
 
     # Validate pipeline options
     errors = PipelineOptionsValidator(self._options, runner).validate()

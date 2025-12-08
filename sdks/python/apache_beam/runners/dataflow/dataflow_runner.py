@@ -101,6 +101,10 @@ class DataflowRunner(PipelineRunner):
   def default_pickle_library_override(self):
     return 'cloudpickle'
 
+  def cloudpickle_save_main_session_by_default(self):
+    """Override to 'true' to save_main_session by default for a given runner."""
+    return True
+
   def is_fnapi_compatible(self):
     return False
 
