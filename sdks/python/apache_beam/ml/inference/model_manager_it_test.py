@@ -46,7 +46,7 @@ class HuggingFaceGpuTest(unittest.TestCase):
 
       predictions = pcoll | 'RunInference' >> RunInference(model_handler)
 
-      actual_labels = predictions | beam.Map(lambda x: x.inference[0]['label'])
+      actual_labels = predictions | beam.Map(lambda x: x.inference['label'])
 
       expected_labels = [
           'POSITIVE',  # "love this product"
