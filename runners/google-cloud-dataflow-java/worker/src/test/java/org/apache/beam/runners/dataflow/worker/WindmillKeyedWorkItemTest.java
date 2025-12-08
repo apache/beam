@@ -30,6 +30,7 @@ import org.apache.beam.runners.core.StateNamespaces;
 import org.apache.beam.runners.core.TimerInternals.TimerData;
 import org.apache.beam.runners.dataflow.worker.WindmillKeyedWorkItem.FakeKeyedWorkItemCoder;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
+import org.apache.beam.runners.dataflow.worker.windmill.state.WindmillStateTagUtil;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CollectionCoder;
 import org.apache.beam.sdk.coders.KvCoder;
@@ -184,13 +185,14 @@ public class WindmillKeyedWorkItemTest {
       StateNamespace ns, long timestamp, Windmill.Timer.Type type) {
     return Windmill.Timer.newBuilder()
         .setTag(
-            WindmillTimerInternals.timerTag(
-                WindmillNamespacePrefix.SYSTEM_NAMESPACE_PREFIX,
-                TimerData.of(
-                    ns,
-                    new Instant(timestamp),
-                    new Instant(timestamp),
-                    WindmillTimerInternals.timerTypeToTimeDomain(type))))
+            WindmillStateTagUtil.instance()
+                .timerTag(
+                    WindmillNamespacePrefix.SYSTEM_NAMESPACE_PREFIX,
+                    TimerData.of(
+                        ns,
+                        new Instant(timestamp),
+                        new Instant(timestamp),
+                        timerTypeToTimeDomain(type))))
         .setTimestamp(WindmillTimeUtils.harnessToWindmillTimestamp(new Instant(timestamp)))
         .setType(type)
         .setStateFamily(STATE_FAMILY)
@@ -253,5 +255,18 @@ public class WindmillKeyedWorkItemTest {
     assertThat(
         keyedWorkItem.timersIterable(),
         Matchers.contains(makeTimer(STATE_NAMESPACE_2, 3, TimeDomain.EVENT_TIME)));
+  }
+
+  private static TimeDomain timerTypeToTimeDomain(Windmill.Timer.Type type) {
+    switch (type) {
+      case REALTIME:
+        return TimeDomain.PROCESSING_TIME;
+      case DEPENDENT_REALTIME:
+        return TimeDomain.SYNCHRONIZED_PROCESSING_TIME;
+      case WATERMARK:
+        return TimeDomain.EVENT_TIME;
+      default:
+        throw new IllegalArgumentException("Unsupported timer type " + type);
+    }
   }
 }

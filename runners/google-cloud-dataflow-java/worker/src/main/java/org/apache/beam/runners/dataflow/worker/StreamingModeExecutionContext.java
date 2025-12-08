@@ -823,11 +823,12 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext<Step
                             && timer.getStateFamily().equals(stateFamily))
                 .transform(
                     timer ->
-                        WindmillTimerInternals.windmillTimerToTimerData(
-                            WindmillNamespacePrefix.SYSTEM_NAMESPACE_PREFIX,
-                            timer,
-                            windowCoder,
-                            getDrainMode()))
+                        WindmillStateTagUtil.instance()
+                            .windmillTimerToTimerData(
+                                WindmillNamespacePrefix.SYSTEM_NAMESPACE_PREFIX,
+                                timer,
+                                windowCoder,
+                                getDrainMode()))
                 .iterator();
       }
 
@@ -886,11 +887,12 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext<Step
                                 && timer.getStateFamily().equals(stateFamily))
                     .transform(
                         timer ->
-                            WindmillTimerInternals.windmillTimerToTimerData(
-                                WindmillNamespacePrefix.USER_NAMESPACE_PREFIX,
-                                timer,
-                                windowCoder,
-                                getDrainMode()))
+                            WindmillStateTagUtil.instance()
+                                .windmillTimerToTimerData(
+                                    WindmillNamespacePrefix.USER_NAMESPACE_PREFIX,
+                                    timer,
+                                    windowCoder,
+                                    getDrainMode()))
                     .iterator());
       }
 

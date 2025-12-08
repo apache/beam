@@ -30,6 +30,7 @@ import org.apache.beam.runners.core.KeyedWorkItemCoder;
 import org.apache.beam.runners.core.TimerInternals.TimerData;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.Timer;
+import org.apache.beam.runners.dataflow.worker.windmill.state.WindmillStateTagUtil;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.StructuredCoder;
@@ -97,11 +98,12 @@ public class WindmillKeyedWorkItem<K, ElemT> implements KeyedWorkItem<K, ElemT> 
         .append(nonEventTimers)
         .transform(
             timer ->
-                WindmillTimerInternals.windmillTimerToTimerData(
-                    WindmillNamespacePrefix.SYSTEM_NAMESPACE_PREFIX,
-                    timer,
-                    windowCoder,
-                    drainMode));
+                WindmillStateTagUtil.instance()
+                    .windmillTimerToTimerData(
+                        WindmillNamespacePrefix.SYSTEM_NAMESPACE_PREFIX,
+                        timer,
+                        windowCoder,
+                        drainMode));
   }
 
   @Override
