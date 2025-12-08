@@ -35,6 +35,7 @@ from apache_beam.pipeline import Pipeline
 from apache_beam.runners import DirectRunner
 from apache_beam.runners import TestDirectRunner
 from apache_beam.runners import create_runner
+from apache_beam.runners.direct.direct_runner import BundleBasedDirectRunner
 from apache_beam.runners.direct.evaluation_context import _ExecutionContext
 from apache_beam.runners.direct.transform_evaluator import _GroupByKeyOnlyEvaluator
 from apache_beam.runners.direct.transform_evaluator import _TransformEvaluator
@@ -165,6 +166,14 @@ class BundleBasedRunnerTest(unittest.TestCase):
   def test_impulse(self):
     with test_pipeline.TestPipeline(runner='BundleBasedDirectRunner') as p:
       assert_that(p | beam.Impulse(), equal_to([b'']))
+
+  def test_groupintobatches(self):
+    with beam.Pipeline(runner=BundleBasedDirectRunner()) as p:
+      groups = (
+          p
+          | "Create input" >> beam.Create([(0, 0)])
+          | "Batch in groups" >> beam.GroupIntoBatches(5))
+      assert_that(groups, equal_to([(0, (0, ))]))
 
 
 class DirectRunnerRetryTests(unittest.TestCase):
