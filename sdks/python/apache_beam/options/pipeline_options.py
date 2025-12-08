@@ -1798,7 +1798,10 @@ class SetupOptions(PipelineOptions):
       # save_main_session default to False for dill, while default to true
       # for cloudpickle
       pickle_library = getattr(self, 'pickle_library')
-      if pickle_library in ['default', 'cloudpickle']:
+      if pickle_library == 'default':
+        from apache_beam.internal.pickler import DEFAULT_PICKLE_LIB
+        pickle_library = DEFAULT_PICKLE_LIB
+      if pickle_library == 'cloudpickle':
         setattr(self, 'save_main_session', True)
       else:
         setattr(self, 'save_main_session', False)
