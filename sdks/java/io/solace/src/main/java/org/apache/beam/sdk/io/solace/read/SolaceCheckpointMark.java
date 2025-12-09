@@ -18,8 +18,8 @@
 package org.apache.beam.sdk.io.solace.read;
 
 import com.solacesystems.jcsmp.BytesXMLMessage;
+import java.util.List;
 import java.util.Objects;
-import java.util.Queue;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.coders.DefaultCoder;
 import org.apache.beam.sdk.extensions.avro.coders.AvroCoder;
@@ -38,7 +38,7 @@ import org.slf4j.LoggerFactory;
 @VisibleForTesting
 public class SolaceCheckpointMark implements UnboundedSource.CheckpointMark {
   private static final Logger LOG = LoggerFactory.getLogger(SolaceCheckpointMark.class);
-  private transient Queue<BytesXMLMessage> safeToAck;
+  private transient List<BytesXMLMessage> safeToAck;
 
   @SuppressWarnings("initialization") // Avro will set the fields by breaking abstraction
   private SolaceCheckpointMark() {}
@@ -48,14 +48,13 @@ public class SolaceCheckpointMark implements UnboundedSource.CheckpointMark {
    *
    * @param safeToAck - a queue of {@link BytesXMLMessage} to be acknowledged.
    */
-  SolaceCheckpointMark(Queue<BytesXMLMessage> safeToAck) {
+  SolaceCheckpointMark(List<BytesXMLMessage> safeToAck) {
     this.safeToAck = safeToAck;
   }
 
   @Override
   public void finalizeCheckpoint() {
-    BytesXMLMessage msg;
-    while ((msg = safeToAck.poll()) != null) {
+    for (BytesXMLMessage msg : safeToAck) {
       try {
         msg.ackMessage();
       } catch (IllegalStateException e) {

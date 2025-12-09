@@ -50,9 +50,9 @@ from apache_beam.runners.worker import opcounters
 from apache_beam.runners.worker import operation_specs
 from apache_beam.runners.worker import sideinputs
 from apache_beam.runners.worker.data_sampler import DataSampler
-from apache_beam.transforms import sideinputs as apache_sideinputs
 from apache_beam.transforms import combiners
 from apache_beam.transforms import core
+from apache_beam.transforms import sideinputs as apache_sideinputs
 from apache_beam.transforms import userstate
 from apache_beam.transforms import window
 from apache_beam.transforms.combiners import PhasedCombineFnExecutor
@@ -809,7 +809,10 @@ class DoOperation(Operation):
     self.tagged_receivers = None  # type: Optional[_TaggedReceivers]
     # A mapping of timer tags to the input "PCollections" they come in on.
     self.input_info = None  # type: Optional[OpInputInfo]
-
+    self.scoped_timer_processing_state = self.state_sampler.scoped_state(
+        self.name_context,
+        'process-timers',
+        metrics_container=self.metrics_container)
     # See fn_data in dataflow_runner.py
     # TODO: Store all the items from spec?
     self.fn, _, _, _, _ = (pickler.loads(self.spec.serialized_fn))
@@ -971,14 +974,15 @@ class DoOperation(Operation):
     self.user_state_context.add_timer_info(timer_family_id, timer_info)
 
   def process_timer(self, tag, timer_data):
-    timer_spec = self.timer_specs[tag]
-    self.dofn_runner.process_user_timer(
-        timer_spec,
-        timer_data.user_key,
-        timer_data.windows[0],
-        timer_data.fire_timestamp,
-        timer_data.paneinfo,
-        timer_data.dynamic_timer_tag)
+    with self.scoped_timer_processing_state:
+      timer_spec = self.timer_specs[tag]
+      self.dofn_runner.process_user_timer(
+          timer_spec,
+          timer_data.user_key,
+          timer_data.windows[0],
+          timer_data.fire_timestamp,
+          timer_data.paneinfo,
+          timer_data.dynamic_timer_tag)
 
   def finish(self):
     # type: () -> None

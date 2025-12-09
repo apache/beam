@@ -38,11 +38,17 @@ import org.joda.time.ReadableDuration;
  * (inclusive) to {@link #end} (exclusive).
  */
 public class IntervalWindow extends BoundedWindow implements Comparable<IntervalWindow> {
+
   /** Start of the interval, inclusive. */
   private final Instant start;
 
   /** End of the interval, exclusive. */
   private final Instant end;
+
+  // Cached hashCode. ints don't tear and access don't need to be synchronized.
+  // Stale reads if any will return 0 and will recalculate hashCode.
+  // ByteString and String hashCodes are cached similarly.
+  private int hashCode; // Default is 0.
 
   /** Creates a new IntervalWindow that represents the half-open time interval [start, end). */
   public IntervalWindow(Instant start, Instant end) {
@@ -103,10 +109,13 @@ public class IntervalWindow extends BoundedWindow implements Comparable<Interval
 
   @Override
   public int hashCode() {
-    // The end values are themselves likely to be arithmetic sequence, which
-    // is a poor distribution to use for a hashtable, so we
-    // add a highly non-linear transformation.
-    return (int) (start.getMillis() + modInverse((int) (end.getMillis() << 1) + 1));
+    if (hashCode == 0) {
+      // The end values are themselves likely to be arithmetic sequence, which
+      // is a poor distribution to use for a hashtable, so we
+      // add a highly non-linear transformation.
+      hashCode = (int) (start.getMillis() + modInverse((int) (end.getMillis() << 1) + 1));
+    }
+    return hashCode;
   }
 
   /** Compute the inverse of (odd) x mod 2^32. */
@@ -177,8 +186,7 @@ public class IntervalWindow extends BoundedWindow implements Comparable<Interval
 
     @Override
     public boolean isRegisterByteSizeObserverCheap(IntervalWindow value) {
-      return instantCoder.isRegisterByteSizeObserverCheap(value.end)
-          && durationCoder.isRegisterByteSizeObserverCheap(new Duration(value.start, value.end));
+      return true;
     }
 
     @Override

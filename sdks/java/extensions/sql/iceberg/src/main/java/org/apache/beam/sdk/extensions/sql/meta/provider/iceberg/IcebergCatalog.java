@@ -62,6 +62,11 @@ public class IcebergCatalog extends InMemoryCatalog {
   }
 
   @Override
+  public Collection<String> databases() {
+    return catalogConfig.listNamespaces();
+  }
+
+  @Override
   public void useDatabase(String database) {
     checkArgument(databaseExists(database), "Database '%s' does not exist.");
     currentDatabase = database;

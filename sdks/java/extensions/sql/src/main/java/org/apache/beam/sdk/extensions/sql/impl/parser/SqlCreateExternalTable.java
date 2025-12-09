@@ -159,10 +159,7 @@ public class SqlCreateExternalTable extends SqlCreate implements BeamSqlParser.E
       CatalogManagerSchema catalogManagerSchema = (CatalogManagerSchema) schema;
       catalogManagerSchema.maybeRegisterProvider(pathOverride, SqlDdlNodes.getString(type));
 
-      CatalogSchema catalogSchema =
-          pathOverride.catalog() != null
-              ? catalogManagerSchema.getCatalogSchema(pathOverride)
-              : catalogManagerSchema.getCurrentCatalogSchema();
+      CatalogSchema catalogSchema = catalogManagerSchema.getCatalogSchema(pathOverride);
       beamCalciteSchema = catalogSchema.getDatabaseSchema(pathOverride);
     } else if (schema instanceof BeamCalciteSchema) {
       beamCalciteSchema = (BeamCalciteSchema) schema;

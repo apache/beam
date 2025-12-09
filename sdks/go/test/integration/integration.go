@@ -301,6 +301,9 @@ var dataflowFilters = []string{
 	// There is no infrastructure for running KafkaIO tests with Dataflow.
 	"TestKafkaIO.*",
 	"TestSpannerIO.*",
+	// TODO(36918) These tests are currently failing in Dataflow Runner
+	"TestBigQueryIO.*",
+	"TestBigtableIO.*",
 	// Dataflow doesn't support any test that requires loopback.
 	// Eg. For FileIO examples.
 	".*Loopback.*",

@@ -51,6 +51,9 @@ public interface Catalog {
   @Nullable
   String currentDatabase();
 
+  /** Returns a collection of existing database names. */
+  Collection<String> databases();
+
   /**
    * Creates a database with this name.
    *

@@ -106,7 +106,7 @@ public class BeamSqlCliDatabaseTest {
         ImmutableSet.of("default"),
         catalogManager.catalogs().stream().map(Catalog::name).collect(Collectors.toSet()));
     thrown.expect(IllegalArgumentException.class);
-    thrown.expectMessage("Catalog 'my_catalog' not found.");
+    thrown.expectMessage("Catalog 'my_catalog' not found");
     cli.execute("USE DATABASE my_catalog.my_database");
   }
 

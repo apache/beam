@@ -40,7 +40,7 @@ cp -r ${ROOT_DIR}/sdks/python ${CONTEXT_DIR}/sdks/
 cp -r ${ROOT_DIR}/model ${CONTEXT_DIR}/
 
 # Use a unique name to allow concurrent runs on the same machine.
-PROJECT_NAME=$(echo hdfs_IT-${BUILD_TAG:-non-jenkins})
+PROJECT_NAME=$(echo hdfs_it-${BUILD_TAG:-non-gha})
 
 if [ -z "${BUILD_TAG:-}" ]; then
   COLOR_OPT=""

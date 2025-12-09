@@ -35,12 +35,20 @@ import sys
 import threading
 import zlib
 
+from apache_beam.internal import code_object_pickler
 from apache_beam.internal.cloudpickle import cloudpickle
+from apache_beam.internal.code_object_pickler import get_normalized_path
 
 DEFAULT_CONFIG = cloudpickle.CloudPickleConfig(
-    skip_reset_dynamic_type_state=True)
-NO_DYNAMIC_CLASS_TRACKING_CONFIG = cloudpickle.CloudPickleConfig(
-    id_generator=None, skip_reset_dynamic_type_state=True)
+    skip_reset_dynamic_type_state=True,
+    filepath_interceptor=get_normalized_path)
+STABLE_CODE_IDENTIFIER_CONFIG = cloudpickle.CloudPickleConfig(
+    skip_reset_dynamic_type_state=True,
+    filepath_interceptor=get_normalized_path,
+    get_code_object_params=cloudpickle.GetCodeObjectParams(
+        get_code_object_identifier=code_object_pickler.
+        get_code_object_identifier,
+        get_code_from_identifier=code_object_pickler.get_code_from_identifier))
 
 try:
   from absl import flags
@@ -88,6 +96,27 @@ LOCK_TYPE = type(threading.Lock())
 _LOGGER = logging.getLogger(__name__)
 
 
+# Helper to return an object directly during unpickling.
+def _return_obj(obj):
+  return obj
+
+
+# Optional import for Python 3.12 TypeAliasType
+try:  # pragma: no cover - dependent on Python version
+  from typing import TypeAliasType as _TypeAliasType  # type: ignore[attr-defined]
+except Exception:
+  _TypeAliasType = None
+
+
+def _typealias_reduce(obj):
+  # Unwrap typing.TypeAliasType to its underlying value for robust pickling.
+  underlying = getattr(obj, '__value__', None)
+  if underlying is None:
+    # Fallback: return the object itself; lets default behavior handle it.
+    return _return_obj, (obj, )
+  return _return_obj, (underlying, )
+
+
 def _reconstruct_enum_descriptor(full_name):
   for _, module in list(sys.modules.items()):
     if not hasattr(module, 'DESCRIPTOR'):
@@ -119,9 +148,14 @@ def dumps(
     enable_trace=True,
     use_zlib=False,
     enable_best_effort_determinism=False,
+    enable_stable_code_identifier_pickling=False,
     config: cloudpickle.CloudPickleConfig = DEFAULT_CONFIG) -> bytes:
   """For internal use only; no backwards-compatibility guarantees."""
-  s = _dumps(o, enable_best_effort_determinism, config)
+  s = _dumps(
+      o,
+      enable_best_effort_determinism,
+      enable_stable_code_identifier_pickling,
+      config)
 
   # Compress as compactly as possible (compresslevel=9) to decrease peak memory
   # usage (of multiple in-memory copies) and to avoid hitting protocol buffer
@@ -141,6 +175,7 @@ def dumps(
 def _dumps(
     o,
     enable_best_effort_determinism=False,
+    enable_stable_code_identifier_pickling=False,
     config: cloudpickle.CloudPickleConfig = DEFAULT_CONFIG) -> bytes:
 
   if enable_best_effort_determinism:
@@ -151,11 +186,16 @@ def _dumps(
         'This has only been implemented for dill.')
   with _pickle_lock:
     with io.BytesIO() as file:
+      if enable_stable_code_identifier_pickling:
+        config = STABLE_CODE_IDENTIFIER_CONFIG
       pickler = cloudpickle.CloudPickler(file, config=config)
       try:
         pickler.dispatch_table[type(flags.FLAGS)] = _pickle_absl_flags
       except NameError:
         pass
+      # Register Python 3.12 `type` alias reducer to unwrap to underlying value.
+      if _TypeAliasType is not None:
+        pickler.dispatch_table[_TypeAliasType] = _typealias_reduce
       try:
         pickler.dispatch_table[RLOCK_TYPE] = _pickle_rlock
       except NameError:
@@ -212,12 +252,35 @@ def _lock_reducer(obj):
 
 
 def dump_session(file_path):
-  # It is possible to dump session with cloudpickle. However, since references
-  # are saved it should not be necessary. See https://s.apache.org/beam-picklers
-  pass
+  # Since References are saved (https://s.apache.org/beam-picklers), we only
+  # dump supported Beam Registries (currently only logical type registry)
+  from apache_beam.coders import typecoders
+  from apache_beam.typehints import schemas
+
+  with _pickle_lock, open(file_path, 'wb') as file:
+    coder_reg = typecoders.registry.get_custom_type_coder_tuples()
+    logical_type_reg = schemas.LogicalType._known_logical_types.copy_custom()
+
+    pickler = cloudpickle.CloudPickler(file)
+    # TODO(https://github.com/apache/beam/issues/18500) add file system registry
+    # once implemented
+    pickler.dump({"coder": coder_reg, "logical_type": logical_type_reg})
 
 
 def load_session(file_path):
-  # It is possible to load_session with cloudpickle. However, since references
-  # are saved it should not be necessary. See https://s.apache.org/beam-picklers
-  pass
+  from apache_beam.coders import typecoders
+  from apache_beam.typehints import schemas
+
+  with _pickle_lock, open(file_path, 'rb') as file:
+    registries = cloudpickle.load(file)
+    if type(registries) != dict:
+      raise ValueError(
+          "Faled loading session: expected dict, got {}", type(registries))
+    if "coder" in registries:
+      typecoders.registry.load_custom_type_coder_tuples(registries["coder"])
+    else:
+      _LOGGER.warning('No coder registry found in saved session')
+    if "logical_type" in registries:
+      schemas.LogicalType._known_logical_types.load(registries["logical_type"])
+    else:
+      _LOGGER.warning('No logical type registry found in saved session')

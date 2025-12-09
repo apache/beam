@@ -331,42 +331,44 @@ class ValidateRunnerXlangTest(unittest.TestCase):
     "EXPANSION_PORT environment var is not provided.")
 @unittest.skipIf(secretmanager is None, 'secretmanager not installed')
 class ValidateRunnerGBEKTest(unittest.TestCase):
-  def setUp(self):
+  @classmethod
+  def setUpClass(cls):
     if secretmanager is not None:
-      self.project_id = 'apache-beam-testing'
+      cls.project_id = 'apache-beam-testing'
       py_version = f'_py{sys.version_info.major}{sys.version_info.minor}'
       secret_postfix = datetime.now().strftime('%m%d_%H%M%S') + py_version
-      self.secret_id = 'gbek_validaterunner_secret_tests_' + secret_postfix
-      self.client = secretmanager.SecretManagerServiceClient()
-      self.project_path = f'projects/{self.project_id}'
-      self.secret_path = f'{self.project_path}/secrets/{self.secret_id}'
+      cls.secret_id = 'gbek_validaterunner_secret_tests_' + secret_postfix
+      cls.client = secretmanager.SecretManagerServiceClient()
+      cls.project_path = f'projects/{cls.project_id}'
+      cls.secret_path = f'{cls.project_path}/secrets/{cls.secret_id}'
       try:
-        self.client.get_secret(request={'name': self.secret_path})
+        cls.client.get_secret(request={'name': cls.secret_path})
       except Exception:
-        self.client.create_secret(
+        cls.client.create_secret(
             request={
-                'parent': self.project_path,
-                'secret_id': self.secret_id,
+                'parent': cls.project_path,
+                'secret_id': cls.secret_id,
                 'secret': {
                     'replication': {
                         'automatic': {}
                     }
                 }
             })
-        self.client.add_secret_version(
+        cls.client.add_secret_version(
             request={
-                'parent': self.secret_path,
+                'parent': cls.secret_path,
                 'payload': {
                     'data': Secret.generate_secret_bytes()
                 }
             })
-      version_name = f'{self.secret_path}/versions/latest'
-      self.gcp_secret = GcpSecret(version_name)
-      self.secret_option = f'type:GcpSecret;version_name:{version_name}'
+      version_name = f'{cls.secret_path}/versions/latest'
+      cls.gcp_secret = GcpSecret(version_name)
+      cls.secret_option = f'type:GcpSecret;version_name:{version_name}'
 
-  def tearDown(self):
+  @classmethod
+  def tearDownClass(cls):
     if secretmanager is not None:
-      self.client.delete_secret(request={'name': self.secret_path})
+      cls.client.delete_secret(request={'name': cls.secret_path})
 
   def create_pipeline(self):
     test_pipeline = TestPipeline()

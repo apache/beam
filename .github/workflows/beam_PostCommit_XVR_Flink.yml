@@ -47,7 +47,7 @@ env:
   DEVELOCITY_ACCESS_KEY: ${{ secrets.DEVELOCITY_ACCESS_KEY }}
   GRADLE_ENTERPRISE_CACHE_USERNAME: ${{ secrets.GE_CACHE_USERNAME }}
   GRADLE_ENTERPRISE_CACHE_PASSWORD: ${{ secrets.GE_CACHE_PASSWORD }}
-  FlinkVersion: 1.19
+  FlinkVersion: 1.20
 
 jobs:
   beam_PostCommit_XVR_Flink:
@@ -63,7 +63,7 @@ jobs:
       matrix:
         job_name: ["beam_PostCommit_XVR_Flink"]
         job_phrase: ["Run XVR_Flink PostCommit"]
-        python_version: ['3.9','3.13']
+        python_version: ['3.10','3.13']
     steps:
       - uses: actions/checkout@v4
       - name: Setup repository
@@ -84,7 +84,7 @@ jobs:
           gradle-command: :runners:flink:${{ env.FlinkVersion }}:job-server:validatesCrossLanguageRunner
           arguments: |
             -PpythonVersion=${{ matrix.python_version }} \
-            -PskipNonPythonTask=${{ (matrix.python_version == '3.9' && true) || false }} \
+            -PskipNonPythonTask=${{ (matrix.python_version == '3.10' && true) || false }} \
       - name: Archive JUnit Test Results
         uses: actions/upload-artifact@v4
         if: ${{ !success() }}

@@ -32,9 +32,14 @@ from pymilvus import Hit
 from pymilvus import Hits
 from pymilvus import MilvusClient
 from pymilvus import SearchResult
+from pymilvus.exceptions import MilvusException
 
 from apache_beam.ml.rag.types import Chunk
 from apache_beam.ml.rag.types import Embedding
+from apache_beam.ml.rag.utils import MilvusConnectionParameters
+from apache_beam.ml.rag.utils import MilvusHelpers
+from apache_beam.ml.rag.utils import retry_with_backoff
+from apache_beam.ml.rag.utils import unpack_dataclass_with_kwargs
 from apache_beam.transforms.enrichment import EnrichmentSourceHandler
 
 
@@ -102,37 +107,6 @@ class MilvusBaseRanker:
 
   def __str__(self):
     return self.dict().__str__()
-
-
-@dataclass
-class MilvusConnectionParameters:
-  """Parameters for establishing connections to Milvus servers.
-
-  Args:
-    uri: URI endpoint for connecting to Milvus server in the format
-      "http(s)://hostname:port".
-    user: Username for authentication. Required if authentication is enabled and
-      not using token authentication.
-    password: Password for authentication. Required if authentication is enabled
-      and not using token authentication.
-    db_id: Database ID to connect to. Specifies which Milvus database to use.
-      Defaults to 'default'.
-    token: Authentication token as an alternative to username/password.
-    timeout: Connection timeout in seconds. Uses client default if None.
-    kwargs: Optional keyword arguments for additional connection parameters.
-      Enables forward compatibility.
-  """
-  uri: str
-  user: str = field(default_factory=str)
-  password: str = field(default_factory=str)
-  db_id: str = "default"
-  token: str = field(default_factory=str)
-  timeout: Optional[float] = None
-  kwargs: Dict[str, Any] = field(default_factory=dict)
-
-  def __post_init__(self):
-    if not self.uri:
-      raise ValueError("URI must be provided for Milvus connection")
 
 
 @dataclass
@@ -354,7 +328,7 @@ class MilvusSearchEnrichmentHandler(EnrichmentSourceHandler[InputT, OutputT]):
       **kwargs):
     """
     Example Usage:
-      connection_paramters = MilvusConnectionParameters(
+      connection_parameters = MilvusConnectionParameters(
         uri="http://localhost:19530")
       search_parameters = MilvusSearchParameters(
         collection_name="my_collection",
@@ -362,7 +336,7 @@ class MilvusSearchEnrichmentHandler(EnrichmentSourceHandler[InputT, OutputT]):
       collection_load_parameters = MilvusCollectionLoadParameters(
         load_fields=["embedding", "metadata"]),
       milvus_handler = MilvusSearchEnrichmentHandler(
-        connection_paramters,
+        connection_parameters,
         search_parameters,
         collection_load_parameters=collection_load_parameters,
         min_batch_size=10,
@@ -400,19 +374,43 @@ class MilvusSearchEnrichmentHandler(EnrichmentSourceHandler[InputT, OutputT]):
         'min_batch_size': min_batch_size, 'max_batch_size': max_batch_size
     }
     self.kwargs = kwargs
+    self._client = None
     self.join_fn = join_fn
     self.use_custom_types = True
 
   def __enter__(self):
-    connection_params = unpack_dataclass_with_kwargs(
-        self._connection_parameters)
-    collection_load_params = unpack_dataclass_with_kwargs(
-        self._collection_load_parameters)
-    self._client = MilvusClient(**connection_params)
-    self._client.load_collection(
-        collection_name=self.collection_name,
-        partition_names=self.partition_names,
-        **collection_load_params)
+    """Enters the context manager and establishes Milvus connection.
+
+    Returns:
+      Self, enabling use in 'with' statements.
+    """
+    if not self._client:
+      connection_params = unpack_dataclass_with_kwargs(
+          self._connection_parameters)
+      collection_load_params = unpack_dataclass_with_kwargs(
+          self._collection_load_parameters)
+
+      # Extract retry parameters from connection_params.
+      max_retries = connection_params.pop('max_retries', 3)
+      retry_delay = connection_params.pop('retry_delay', 1.0)
+      retry_backoff_factor = connection_params.pop('retry_backoff_factor', 2.0)
+
+      def connect_and_load():
+        client = MilvusClient(**connection_params)
+        client.load_collection(
+            collection_name=self.collection_name,
+            partition_names=self.partition_names,
+            **collection_load_params)
+        return client
+
+      self._client = retry_with_backoff(
+          connect_and_load,
+          max_retries=max_retries,
+          retry_delay=retry_delay,
+          retry_backoff_factor=retry_backoff_factor,
+          operation_name="Milvus connection and collection load",
+          exception_types=(MilvusException, ))
+    return self
 
   def __call__(self, request: Union[Chunk, List[Chunk]], *args,
                **kwargs) -> List[Tuple[Chunk, Dict[str, Any]]]:
@@ -495,10 +493,7 @@ class MilvusSearchEnrichmentHandler(EnrichmentSourceHandler[InputT, OutputT]):
       raise ValueError(
           f"Chunk {chunk.id} missing both text content and sparse embedding "
           "required for keyword search")
-
-    sparse_embedding = self.convert_sparse_embedding_to_milvus_format(
-        chunk.sparse_embedding)
-
+    sparse_embedding = MilvusHelpers.sparse_embedding(chunk.sparse_embedding)
     return chunk.content.text or sparse_embedding
 
   def _get_call_response(
@@ -588,15 +583,3 @@ class MilvusSearchEnrichmentHandler(EnrichmentSourceHandler[InputT, OutputT]):
 def join_fn(left: Embedding, right: Dict[str, Any]) -> Embedding:
   left.metadata['enrichment_data'] = right
   return left
-
-
-def unpack_dataclass_with_kwargs(dataclass_instance):
-  # Create a copy of the dataclass's __dict__.
-  params_dict: dict = dataclass_instance.__dict__.copy()
-
-  # Extract the nested kwargs dictionary.
-  nested_kwargs = params_dict.pop('kwargs', {})
-
-  # Merge the dictionaries, with nested_kwargs taking precedence
-  # in case of duplicate keys.
-  return {**params_dict, **nested_kwargs}

@@ -38,6 +38,7 @@ from apache_beam.options.value_provider import RuntimeValueProvider
 from apache_beam.options.value_provider import StaticValueProvider
 from apache_beam.options.value_provider import ValueProvider
 from apache_beam.transforms.display import HasDisplayData
+from apache_beam.utils import logger
 from apache_beam.utils import proto_utils
 
 __all__ = [
@@ -63,7 +64,10 @@ _LOGGER = logging.getLogger(__name__)
 # Map defined with option names to flag names for boolean options
 # that have a destination(dest) in parser.add_argument() different
 # from the flag name and whose default value is `None`.
-_FLAG_THAT_SETS_FALSE_VALUE = {'use_public_ips': 'no_use_public_ips'}
+_FLAG_THAT_SETS_FALSE_VALUE = {
+    'use_public_ips': 'no_use_public_ips',
+    'save_main_session': 'no_save_main_session'
+}
 # Set of options which should not be overriden when applying options from a
 # different language. This is relevant when using x-lang transforms where the
 # expansion service is started up with some pipeline options, and will
@@ -475,7 +479,7 @@ class PipelineOptions(HasDisplayData):
         suggestions = difflib.get_close_matches(arg_name, all_known_options)
         if suggestions:
           msg += f". Did you mean '{suggestions[0]}'?'"
-      _LOGGER.warning(msg)
+      logger.log_first_n(logging.WARN, msg, key="message")
 
   def get_all_options(
       self,
@@ -507,7 +511,7 @@ class PipelineOptions(HasDisplayData):
     subset = {}
     parser = _BeamArgumentParser(allow_abbrev=False)
     for cls in PipelineOptions.__subclasses__():
-      subset[str(cls)] = cls
+      subset.setdefault(str(cls), cls)
     for cls in subset.values():
       cls._add_argparse_args(parser)  # pylint: disable=protected-access
     if add_extra_args_fn:
@@ -1171,7 +1175,7 @@ class GoogleCloudOptions(PipelineOptions):
       return None
     bucket = gcsio.get_or_create_default_gcs_bucket(self)
     if bucket:
-      return 'gs://%s' % bucket.id
+      return 'gs://%s/' % bucket.id
     else:
       return None
 
@@ -1187,14 +1191,19 @@ class GoogleCloudOptions(PipelineOptions):
     try:
       from apache_beam.io.gcp import gcsio
       if gcsio.GcsIO().is_soft_delete_enabled(gcs_path):
-        _LOGGER.warning(
-            "Bucket specified in %s has soft-delete policy enabled."
+        logger.log_first_n(
+            logging.WARN,
+            "Bucket %s used as %s has soft-delete policy enabled."
             " To avoid being billed for unnecessary storage costs, turn"
             " off the soft delete feature on buckets that your Dataflow"
             " jobs use for temporary and staging storage. For more"
             " information, see"
             " https://cloud.google.com/storage/docs/use-soft-delete"
-            "#remove-soft-delete-policy." % arg_name)
+            "#remove-soft-delete-policy.",
+            gcs_path,
+            arg_name,
+            n=1,
+            key="message")
     except ImportError:
       _LOGGER.warning('Unable to check soft delete policy due to import error.')
 
@@ -1666,14 +1675,24 @@ class SetupOptions(PipelineOptions):
         choices=['cloudpickle', 'default', 'dill', 'dill_unsafe'])
     parser.add_argument(
         '--save_main_session',
-        default=False,
+        default=None,
         action='store_true',
         help=(
             'Save the main session state so that pickled functions and classes '
             'defined in __main__ (e.g. interactive session) can be unpickled. '
             'Some workflows do not need the session state if for instance all '
             'their functions/classes are defined in proper modules '
-            '(not __main__) and the modules are importable in the worker. '))
+            '(not __main__) and the modules are importable in the worker. '
+            'It is disabled by default except for cloudpickle as pickle '
+            'library on Dataflow runner.'))
+    parser.add_argument(
+        '--no_save_main_session',
+        default=None,
+        action='store_false',
+        dest='save_main_session',
+        help=(
+            'Disable saving the main session state. See "save_main_session".'))
+
     parser.add_argument(
         '--sdk_location',
         default='default',
@@ -1774,10 +1793,29 @@ class SetupOptions(PipelineOptions):
             'If not specified, the default Maven Central repository will be '
             'used.'))
 
+  def _handle_load_main_session(self, validator):
+    save_main_session = getattr(self, 'save_main_session')
+    if save_main_session is None:
+      if not validator.is_service_runner():
+        setattr(self, 'save_main_session', False)
+      else:
+        # save_main_session default to False for dill, while default to true
+        # for cloudpickle on service runner
+        pickle_library = getattr(self, 'pickle_library')
+        if pickle_library == 'default':
+          from apache_beam.internal.pickler import DEFAULT_PICKLE_LIB
+          pickle_library = DEFAULT_PICKLE_LIB
+        if pickle_library == 'cloudpickle':
+          setattr(self, 'save_main_session', True)
+        else:
+          setattr(self, 'save_main_session', False)
+    return []
+
   def validate(self, validator):
     errors = []
     errors.extend(validator.validate_container_prebuilding_options(self))
     errors.extend(validator.validate_pickle_library(self))
+    errors.extend(self._handle_load_main_session(validator))
     return errors
 
 
@@ -1937,7 +1975,7 @@ class JobServerOptions(PipelineOptions):
 class FlinkRunnerOptions(PipelineOptions):
 
   # These should stay in sync with gradle.properties.
-  PUBLISHED_FLINK_VERSIONS = ['1.17', '1.18', '1.19']
+  PUBLISHED_FLINK_VERSIONS = ['1.17', '1.18', '1.19', '1.20']
 
   @classmethod
   def _add_argparse_args(cls, parser):

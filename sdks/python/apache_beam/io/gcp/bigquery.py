@@ -425,8 +425,8 @@ from apache_beam.utils.annotations import deprecated
 
 try:
   from apache_beam.io.gcp.internal.clients.bigquery import DatasetReference
-  from apache_beam.io.gcp.internal.clients.bigquery import TableReference
   from apache_beam.io.gcp.internal.clients.bigquery import JobReference
+  from apache_beam.io.gcp.internal.clients.bigquery import TableReference
 except ImportError:
   DatasetReference = None
   TableReference = None
@@ -2343,6 +2343,7 @@ bigquery_v2_messages.TableSchema`. or a `ValueProvider` that has a JSON string,
         find_in_nested_dict(self.schema)
 
       from apache_beam.io.gcp.bigquery_file_loads import BigQueryBatchFileLoads
+
       # Only cast to int when a value is given.
       # We only use an int for BigQueryBatchFileLoads
       if self.triggering_frequency is not None:
@@ -2775,6 +2776,20 @@ class StorageWriteToBigQuery(PTransform):
         failed_rows=failed_rows,
         failed_rows_with_errors=failed_rows_with_errors)
 
+  class ConvertToBeamRowsSetupSchema:
+    def __init__(self, schema):
+      self._value = schema
+
+    def __enter__(self):
+      if not isinstance(self._value,
+                        (bigquery.TableSchema, bigquery.TableFieldSchema)):
+        return bigquery_tools.get_bq_tableschema(self._value)
+
+      return self._value
+
+    def __exit__(self, *args):
+      pass
+
   class ConvertToBeamRows(PTransform):
     def __init__(self, schema, dynamic_destinations):
       self.schema = schema
@@ -2785,18 +2800,22 @@ class StorageWriteToBigQuery(PTransform):
         return (
             input_dicts
             | "Convert dict to Beam Row" >> beam.Map(
-                lambda row: beam.Row(
-                    **{
-                        StorageWriteToBigQuery.DESTINATION: row[
-                            0], StorageWriteToBigQuery.RECORD: bigquery_tools.
-                        beam_row_from_dict(row[1], self.schema)
-                    })))
+                lambda row, schema=DoFn.SetupContextParam(
+                    StorageWriteToBigQuery.ConvertToBeamRowsSetupSchema, args=
+                    [self.schema]): beam.Row(
+                        **{
+                            StorageWriteToBigQuery.DESTINATION: row[0],
+                            StorageWriteToBigQuery.RECORD: bigquery_tools.
+                            beam_row_from_dict(row[1], schema)
+                        })))
       else:
         return (
             input_dicts
             | "Convert dict to Beam Row" >> beam.Map(
-                lambda row: bigquery_tools.beam_row_from_dict(row, self.schema))
-        )
+                lambda row, schema=DoFn.SetupContextParam(
+                    StorageWriteToBigQuery.ConvertToBeamRowsSetupSchema, args=[
+                        self.schema
+                    ]): bigquery_tools.beam_row_from_dict(row, schema)))
 
     def with_output_types(self):
       row_type_hints = bigquery_tools.get_beam_typehints_from_tableschema(

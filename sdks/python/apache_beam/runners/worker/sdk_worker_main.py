@@ -113,26 +113,25 @@ def create_harness(environment, dry_run=False):
   _LOGGER.info('semi_persistent_directory: %s', semi_persistent_directory)
   _worker_id = environment.get('WORKER_ID', None)
 
-  if pickle_library != pickler.USE_CLOUDPICKLE:
-    try:
-      _load_main_session(semi_persistent_directory)
-    except LoadMainSessionException:
-      exception_details = traceback.format_exc()
-      _LOGGER.error(
-          'Could not load main session: %s', exception_details, exc_info=True)
-      raise
-    except Exception:  # pylint: disable=broad-except
-      summary = (
-          "Could not load main session. Inspect which external dependencies "
-          "are used in the main module of your pipeline. Verify that "
-          "corresponding packages are installed in the pipeline runtime "
-          "environment and their installed versions match the versions used in "
-          "pipeline submission environment. For more information, see: https://"
-          "beam.apache.org/documentation/sdks/python-pipeline-dependencies/")
-      _LOGGER.error(summary, exc_info=True)
-      exception_details = traceback.format_exc()
-      deferred_exception = LoadMainSessionException(
-          f"{summary} {exception_details}")
+  try:
+    _load_main_session(semi_persistent_directory)
+  except LoadMainSessionException:
+    exception_details = traceback.format_exc()
+    _LOGGER.error(
+        'Could not load main session: %s', exception_details, exc_info=True)
+    raise
+  except Exception:  # pylint: disable=broad-except
+    summary = (
+        "Could not load main session. Inspect which external dependencies "
+        "are used in the main module of your pipeline. Verify that "
+        "corresponding packages are installed in the pipeline runtime "
+        "environment and their installed versions match the versions used in "
+        "pipeline submission environment. For more information, see: https://"
+        "beam.apache.org/documentation/sdks/python-pipeline-dependencies/")
+    _LOGGER.error(summary, exc_info=True)
+    exception_details = traceback.format_exc()
+    deferred_exception = LoadMainSessionException(
+        f"{summary} {exception_details}")
 
   _LOGGER.info(
       'Pipeline_options: %s',
@@ -233,6 +232,10 @@ def terminate_sdk_harness():
   if _FN_LOG_HANDLER:
     _FN_LOG_HANDLER.close()
   os.kill(os.getpid(), signal.SIGINT)
+  # Delay further control flow in the caller until process is terminated.
+  time.sleep(60)
+  # Try to force-terminate if still running.
+  os.kill(os.getpid(), signal.SIGKILL)
 
 
 def _load_pipeline_options(options_json):
@@ -352,6 +355,14 @@ class LoadMainSessionException(Exception):
 
 def _load_main_session(semi_persistent_directory):
   """Loads a pickled main session from the path specified."""
+  if pickler.is_currently_dill():
+    warn_msg = ' Functions defined in __main__ (interactive session) may fail.'
+    err_msg = ' Functions defined in __main__ (interactive session) will ' \
+      'almost certainly fail.'
+  elif pickler.is_currently_cloudpickle():
+    warn_msg = ' User registered objects (e.g. schema, logical type) through' \
+        'registeries may not be effective'
+    err_msg = ''
   if semi_persistent_directory:
     session_file = os.path.join(
         semi_persistent_directory, 'staged', names.PICKLED_MAIN_SESSION_FILE)
@@ -361,21 +372,18 @@ def _load_main_session(semi_persistent_directory):
       # This can happen if the worker fails to download the main session.
       # Raise a fatal error and crash this worker, forcing a restart.
       if os.path.getsize(session_file) == 0:
-        # Potenitally transient error, unclear if still happening.
-        raise LoadMainSessionException(
-            'Session file found, but empty: %s. Functions defined in __main__ '
-            '(interactive session) will almost certainly fail.' %
-            (session_file, ))
-      pickler.load_session(session_file)
+        if pickler.is_currently_dill():
+          # Potenitally transient error, unclear if still happening.
+          raise LoadMainSessionException(
+              'Session file found, but empty: %s.%s' % (session_file, err_msg))
+        else:
+          _LOGGER.warning('Empty session file: %s.%s', warn_msg, session_file)
+      else:
+        pickler.load_session(session_file)
     else:
-      _LOGGER.warning(
-          'No session file found: %s. Functions defined in __main__ '
-          '(interactive session) may fail.',
-          session_file)
+      _LOGGER.warning('No session file found: %s.%s', warn_msg, session_file)
   else:
-    _LOGGER.warning(
-        'No semi_persistent_directory found: Functions defined in __main__ '
-        '(interactive session) may fail.')
+    _LOGGER.warning('No semi_persistent_directory found: %s', warn_msg)
 
 
 if __name__ == '__main__':

@@ -57,8 +57,10 @@ from apache_beam.utils.timestamp import Timestamp
 # Protect against environments where bigquery library is not available.
 # pylint: disable=wrong-import-order, wrong-import-position
 try:
-  from apitools.base.py.exceptions import HttpError, HttpForbiddenError
-  from google.api_core.exceptions import ClientError, DeadlineExceeded
+  from apitools.base.py.exceptions import HttpError
+  from apitools.base.py.exceptions import HttpForbiddenError
+  from google.api_core.exceptions import ClientError
+  from google.api_core.exceptions import DeadlineExceeded
   from google.api_core.exceptions import InternalServerError
 except ImportError:
   ClientError = None
@@ -1112,7 +1114,7 @@ class TestGeographyTypeSupport(unittest.TestCase):
     field.name = 'location'
     field.mode = 'NULLABLE'
 
-    wrapper = BigQueryWrapper()
+    wrapper = BigQueryWrapper(client=mock.Mock())
 
     # Test various WKT formats
     test_cases = [
@@ -1234,7 +1236,7 @@ class TestGeographyTypeSupport(unittest.TestCase):
     field.name = 'complex_geo'
     field.mode = 'NULLABLE'
 
-    wrapper = BigQueryWrapper()
+    wrapper = BigQueryWrapper(client=mock.Mock())
 
     # Test complex WKT with various coordinate systems and precision
     complex_wkt = (

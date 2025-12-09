@@ -105,6 +105,11 @@ public class InMemoryCatalog implements Catalog {
   }
 
   @Override
+  public Collection<String> databases() {
+    return databases;
+  }
+
+  @Override
   public boolean dropDatabase(String database, boolean cascade) {
     checkState(!cascade, "%s does not support CASCADE.", getClass().getSimpleName());
 
