@@ -218,7 +218,7 @@ class Stager(object):
            is None) else setup_options.requirements_cache)
       if (setup_options.requirements_cache != SKIP_REQUIREMENTS_CACHE and
           not os.path.exists(requirements_cache_path)):
-        os.makedirs(requirements_cache_path)
+        os.makedirs(requirements_cache_path, exist_ok=True)
 
       # Stage a requirements file if present.
       if setup_options.requirements_file is not None:
