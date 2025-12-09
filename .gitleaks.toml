@@ -1,0 +1,5 @@
+[[allowlist]]
+description = "False positive: mock RSA private key used for testing (invalid_test_rsa_key.p8)"
+path = "sdks/java/io/snowflake/src/test/resources/invalid_test_rsa_key.p8"
+added_by = "aleksandr.scherbina"
+ticket = "SEC-0001"
