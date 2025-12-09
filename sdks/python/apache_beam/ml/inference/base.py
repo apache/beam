@@ -1801,6 +1801,10 @@ class _SharedModelWrapper():
       return self.models.all_models()[self.model_tag]
     return self.models
 
+  def force_reset(self):
+    if self.use_model_manager:
+      self.models.force_reset()
+
 
 class _RunInferenceDoFn(beam.DoFn, Generic[ExampleT, PredictionT]):
   def __init__(

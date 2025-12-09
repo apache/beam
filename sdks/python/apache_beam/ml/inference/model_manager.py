@@ -348,7 +348,7 @@ class ModelManager:
           isolation_baseline_snap, _, _ = self.monitor.get_stats()
           with cuda_oom_guard(f"Loading {tag}"):
             instance = loader_func()
-
+          logger.info("Model loaded for tag: %s", tag)
           _, peak_during_load, _ = self.monitor.get_stats()
           snapshot = {tag: 1}
           self.estimator.add_observation(
