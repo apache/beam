@@ -261,6 +261,26 @@ class ModelManager:
     return self.models[tag]
 
   def acquire_model(self, tag: str, loader_func: Callable[[], Any]) -> Any:
+    logger.info(
+        "Acquiring model for tag: %s | "
+        "idle_pool size: %d | "
+        "active_count: %d | "
+        "total_active_jobs: %d | "
+        "pending_reservations: %.1f | "
+        "isolation_mode: %s | "
+        "pending_isolation_count: %d | "
+        "estimator known: %s | "
+        "estimator cost: %.1f MB",
+        tag,
+        len(self.idle_pool[tag]),
+        self.active_counts[tag],
+        self.total_active_jobs,
+        self.pending_reservations,
+        self.isolation_mode,
+        self.pending_isolation_count,
+        not self.estimator.is_unknown(tag),
+        self.estimator.get_estimate(tag),
+    )
     should_spawn = False
     est_cost = 0.0
     is_unknown = False
