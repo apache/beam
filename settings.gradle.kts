@@ -18,14 +18,14 @@
 import com.gradle.enterprise.gradleplugin.internal.extension.BuildScanExtensionWithHiddenFeatures
 
 pluginManagement {
-  plugins {
-     id("org.javacc.javacc") version "3.0.3" // enable the JavaCC parser generator
-  }
+    plugins {
+        id("org.javacc.javacc") version "3.0.3" // enable the JavaCC parser generator
+    }
 }
 
 plugins {
-  id("com.gradle.develocity") version "3.19"
-  id("com.gradle.common-custom-user-data-gradle-plugin") version "2.4.0"
+    id("com.gradle.develocity") version "3.19"
+    id("com.gradle.common-custom-user-data-gradle-plugin") version "2.4.0"
 }
 
 
@@ -36,32 +36,32 @@ val isGithubActionsBuild = arrayOf("GITHUB_REPOSITORY", "GITHUB_RUN_ID").all { S
 val isCi = isJenkinsBuild || isGithubActionsBuild
 
 develocity {
-  server = "https://develocity.apache.org"
-  projectId = "beam"
+    server = "https://develocity.apache.org"
+    projectId = "beam"
 
-  buildScan {
-    uploadInBackground = !isCi
-    publishing.onlyIf { it.isAuthenticated }
-    obfuscation {
-      ipAddresses { addresses -> addresses.map { "0.0.0.0" } }
+    buildScan {
+        uploadInBackground = !isCi
+        publishing.onlyIf { it.isAuthenticated }
+        obfuscation {
+            ipAddresses { addresses -> addresses.map { "0.0.0.0" } }
+        }
     }
-  }
 }
 
 buildCache {
-  local {
-    isEnabled = true
-  }
-  remote<HttpBuildCache> {
-    url = uri("https://beam-cache.apache.org/cache/")
-    isAllowUntrustedServer = false
-    credentials {
-      username = System.getenv("GRADLE_ENTERPRISE_CACHE_USERNAME")
-      password = System.getenv("GRADLE_ENTERPRISE_CACHE_PASSWORD")
+    local {
+        isEnabled = true
     }
-    isEnabled = !System.getenv("GRADLE_ENTERPRISE_CACHE_USERNAME").isNullOrBlank()
-    isPush = isCi && !System.getenv("GRADLE_ENTERPRISE_CACHE_USERNAME").isNullOrBlank()
-  }
+    remote<HttpBuildCache> {
+        url = uri("https://beam-cache.apache.org/cache/")
+        isAllowUntrustedServer = false
+        credentials {
+            username = System.getenv("GRADLE_ENTERPRISE_CACHE_USERNAME")
+            password = System.getenv("GRADLE_ENTERPRISE_CACHE_PASSWORD")
+        }
+        isEnabled = !System.getenv("GRADLE_ENTERPRISE_CACHE_USERNAME").isNullOrBlank()
+        isPush = isCi && !System.getenv("GRADLE_ENTERPRISE_CACHE_USERNAME").isNullOrBlank()
+    }
 }
 
 rootProject.name = "beam"
@@ -127,18 +127,12 @@ include(":runners:extensions-java:metrics")
   * verify versions in website/www/site/content/en/documentation/runners/flink.md
   * verify version in sdks/python/apache_beam/runners/interactive/interactive_beam.py
  */
-// Flink 1.17
-include(":runners:flink:1.17")
-include(":runners:flink:1.17:job-server")
-include(":runners:flink:1.17:job-server-container")
-// Flink 1.18
-include(":runners:flink:1.18")
-include(":runners:flink:1.18:job-server")
-include(":runners:flink:1.18:job-server-container")
-// Flink 1.19
-include(":runners:flink:1.19")
-include(":runners:flink:1.19:job-server")
-include(":runners:flink:1.19:job-server-container")
+val flink_versions: String by settings
+for (version in flink_versions.split(',')) {
+    include(":runners:flink:${version}")
+    include(":runners:flink:${version}:job-server")
+    include(":runners:flink:${version}:job-server-container")
+}
 /* End Flink Runner related settings */
 include(":runners:twister2")
 include(":runners:google-cloud-dataflow-java")
@@ -202,7 +196,6 @@ include(":sdks:java:extensions:sql:perf-tests")
 include(":sdks:java:extensions:sql:jdbc")
 include(":sdks:java:extensions:sql:hcatalog")
 include(":sdks:java:extensions:sql:datacatalog")
-include(":sdks:java:extensions:sql:zetasql")
 include(":sdks:java:extensions:sql:expansion-service")
 include(":sdks:java:extensions:sql:udf")
 include(":sdks:java:extensions:sql:udf-test-provider")
@@ -225,6 +218,7 @@ include(":sdks:java:io:debezium:expansion-service")
 include(":sdks:java:io:elasticsearch")
 include(":sdks:java:io:elasticsearch-tests:elasticsearch-tests-7")
 include(":sdks:java:io:elasticsearch-tests:elasticsearch-tests-8")
+include(":sdks:java:io:elasticsearch-tests:elasticsearch-tests-9")
 include(":sdks:java:io:elasticsearch-tests:elasticsearch-tests-common")
 include(":sdks:java:io:expansion-service")
 include(":sdks:java:io:file-based-io-tests")
@@ -384,3 +378,6 @@ include("sdks:java:extensions:sql:iceberg")
 findProject(":sdks:java:extensions:sql:iceberg")?.name = "iceberg"
 include("examples:java:iceberg")
 findProject(":examples:java:iceberg")?.name = "iceberg"
+
+include("sdks:java:ml:inference:remote")
+include("sdks:java:ml:inference:openai")

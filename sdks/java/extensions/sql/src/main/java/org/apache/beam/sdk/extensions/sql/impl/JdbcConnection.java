@@ -17,6 +17,8 @@
  */
 package org.apache.beam.sdk.extensions.sql.impl;
 
+import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
+
 import java.sql.SQLException;
 import java.util.Collections;
 import java.util.Map;
@@ -27,6 +29,7 @@ import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.jdbc.CalciteConnection;
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.jdbc.CalciteSchema;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.schema.Schema;
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.schema.SchemaPlus;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.checkerframework.checker.nullness.qual.Nullable;
@@ -38,9 +41,6 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * {@link BeamCalciteSchema BeamCalciteSchemas} keep reference to this connection. Pipeline options
  * are stored here.
  */
-@SuppressWarnings({
-  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
-})
 public class JdbcConnection extends CalciteConnectionWrapper {
   /**
    * Connection string parameters that begin with {@code "beam."} will be interpreted as {@link
@@ -49,7 +49,7 @@ public class JdbcConnection extends CalciteConnectionWrapper {
   private static final String PIPELINE_OPTION_PREFIX = "beam.";
 
   private Map<String, String> pipelineOptionsMap;
-  private PipelineOptions pipelineOptions;
+  private @Nullable PipelineOptions pipelineOptions;
 
   private JdbcConnection(CalciteConnection connection) throws SQLException {
     super(connection);
@@ -62,16 +62,16 @@ public class JdbcConnection extends CalciteConnectionWrapper {
    * <p>Sets the pipeline options, replaces the initial non-functional top-level schema with schema
    * created by {@link BeamCalciteSchemaFactory}.
    */
-  static @Nullable JdbcConnection initialize(CalciteConnection connection) {
+  static JdbcConnection initialize(CalciteConnection connection) {
     try {
-      if (connection == null) {
-        return null;
-      }
+      String currentSchemaName =
+          checkStateNotNull(
+              connection.getSchema(), "When trying to initialize JdbcConnection: No schema set.");
 
       JdbcConnection jdbcConnection = new JdbcConnection(connection);
       jdbcConnection.setPipelineOptionsMap(extractPipelineOptions(connection));
       jdbcConnection.setSchema(
-          connection.getSchema(),
+          currentSchemaName,
           BeamCalciteSchemaFactory.catalogFromInitialEmptySchema(jdbcConnection));
       return jdbcConnection;
     } catch (SQLException e) {
@@ -107,27 +107,29 @@ public class JdbcConnection extends CalciteConnectionWrapper {
     this.pipelineOptions = pipelineOptions;
   }
 
-  public PipelineOptions getPipelineOptions() {
+  public @Nullable PipelineOptions getPipelineOptions() {
     return this.pipelineOptions;
   }
 
   /** Get the current default schema from the root schema. */
-  @SuppressWarnings("TypeParameterUnusedInFormals")
-  <T> T getCurrentBeamSchema() {
-    try {
-      return (T) CalciteSchema.from(getRootSchema().getSubSchema(getSchema())).schema;
-    } catch (SQLException e) {
-      throw new RuntimeException(e);
-    }
+  Schema getCurrentBeamSchema() {
+    return CalciteSchema.from(getCurrentSchemaPlus()).schema;
   }
 
   /** Calcite-created {@link SchemaPlus} wrapper for the current schema. */
   public SchemaPlus getCurrentSchemaPlus() {
+    String currentSchema;
     try {
-      return getRootSchema().getSubSchema(getSchema());
+      currentSchema = checkStateNotNull(getSchema(), "Current schema not set");
     } catch (SQLException e) {
       throw new RuntimeException(e);
     }
+
+    return checkStateNotNull(
+        getRootSchema().getSubSchema(currentSchema),
+        "SubSchema not found in `%s`: %s",
+        getRootSchema().getName(),
+        currentSchema);
   }
 
   /**

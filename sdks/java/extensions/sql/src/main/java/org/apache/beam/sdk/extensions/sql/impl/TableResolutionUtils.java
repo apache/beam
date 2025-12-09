@@ -19,6 +19,8 @@ package org.apache.beam.sdk.extensions.sql.impl;
 
 import static java.util.stream.Collectors.toList;
 import static java.util.stream.Collectors.toMap;
+import static org.apache.beam.sdk.util.Preconditions.checkArgumentNotNull;
+import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkState;
 
 import java.sql.SQLException;
@@ -31,11 +33,9 @@ import org.apache.beam.sdk.extensions.sql.meta.provider.TableProvider;
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.jdbc.CalciteSchema;
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.sql.SqlNode;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** Utils to wire up the custom table resolution into Calcite's planner. */
-@SuppressWarnings({
-  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
-})
 class TableResolutionUtils {
 
   /**
@@ -68,7 +68,10 @@ class TableResolutionUtils {
    */
   static void setupCustomTableResolution(JdbcConnection connection, SqlNode parsed) {
     List<TableName> tableNames = TableNameExtractionUtils.extractTableNamesFromNode(parsed);
-    String currentSchemaName = getCurrentSchemaName(connection);
+    String currentSchemaName =
+        checkStateNotNull(
+            getCurrentSchemaName(connection),
+            "When trying to set up custom table resolution: current schema is null");
 
     SchemaWithName defaultSchema = SchemaWithName.create(connection, currentSchemaName);
 
@@ -80,7 +83,7 @@ class TableResolutionUtils {
   }
 
   /** Current (default) schema name in the JdbcConnection. */
-  private static String getCurrentSchemaName(JdbcConnection connection) {
+  private static @Nullable String getCurrentSchemaName(JdbcConnection connection) {
     try {
       return connection.getSchema();
     } catch (SQLException e) {
@@ -170,12 +173,22 @@ class TableResolutionUtils {
     String name;
     org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.schema.Schema schema;
 
+    private SchemaWithName(
+        String name,
+        org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.schema.Schema schema) {
+      this.name = name;
+      this.schema = schema;
+    }
+
     static SchemaWithName create(JdbcConnection connection, String name) {
-      SchemaWithName schemaWithName = new SchemaWithName();
-      schemaWithName.name = name;
-      schemaWithName.schema =
-          CalciteSchema.from(connection.getRootSchema().getSubSchema(name)).schema;
-      return schemaWithName;
+      return new SchemaWithName(
+          name,
+          CalciteSchema.from(
+                  checkArgumentNotNull(
+                      connection.getRootSchema().getSubSchema(name),
+                      "Sub-schema not found: %s",
+                      name))
+              .schema);
     }
 
     /** Whether this schema/table provider supports custom table resolution. */

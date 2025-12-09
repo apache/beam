@@ -608,16 +608,16 @@ class BeamModulePlugin implements Plugin<Project> {
     def dbcp2_version = "2.9.0"
     def errorprone_version = "2.31.0"
     // [bomupgrader] determined by: com.google.api:gax, consistent with: google_cloud_platform_libraries_bom
-    def gax_version = "2.68.2"
+    def gax_version = "2.72.1"
     def google_ads_version = "33.0.0"
     def google_clients_version = "2.0.0"
     def google_cloud_bigdataoss_version = "2.2.26"
-    // [bomupgrader] TODO(#35868): currently pinned, should be determined by: com.google.cloud:google-cloud-spanner, consistent with: google_cloud_platform_libraries_bom
-    def google_cloud_spanner_version = "6.95.1"
+    // [bomupgrader] TODO(#37008): currently pinned before gcp-bom moving beyond this version, should be determined by: com.google.cloud:google-cloud-spanner, consistent with: google_cloud_platform_libraries_bom
+    def google_cloud_spanner_version = "6.104.0"
     def google_code_gson_version = "2.10.1"
     def google_oauth_clients_version = "1.34.1"
     // [bomupgrader] determined by: io.grpc:grpc-netty, consistent with: google_cloud_platform_libraries_bom
-    def grpc_version = "1.71.0"
+    def grpc_version = "1.76.0"
     def guava_version = "33.1.0-jre"
     def hadoop_version = "3.4.2"
     def hamcrest_version = "2.1"
@@ -633,10 +633,12 @@ class BeamModulePlugin implements Plugin<Project> {
     def log4j2_version = "2.20.0"
     def nemo_version = "0.1"
     // [bomupgrader] determined by: io.grpc:grpc-netty, consistent with: google_cloud_platform_libraries_bom
-    def netty_version = "4.1.110.Final"
+    def netty_version = "4.1.124.Final"
+    // [bomupgrader] determined by: io.opentelemetry:opentelemetry-sdk, consistent with: google_cloud_platform_libraries_bom
+    def opentelemetry_version = "1.52.0"
     def postgres_version = "42.2.16"
     // [bomupgrader] determined by: com.google.protobuf:protobuf-java, consistent with: google_cloud_platform_libraries_bom
-    def protobuf_version = "4.29.4"
+    def protobuf_version = "4.33.0"
     def qpid_jms_client_version = "0.61.0"
     def quickcheck_version = "1.0"
     def sbe_tool_version = "1.25.1"
@@ -734,12 +736,12 @@ class BeamModulePlugin implements Plugin<Project> {
         google_api_client_gson                      : "com.google.api-client:google-api-client-gson:$google_clients_version",
         google_api_client_java6                     : "com.google.api-client:google-api-client-java6:$google_clients_version",
         google_api_common                           : "com.google.api:api-common", // google_cloud_platform_libraries_bom sets version
-        google_api_services_bigquery                : "com.google.apis:google-api-services-bigquery:v2-rev20250706-2.0.0",  // [bomupgrader] sets version
-        google_api_services_cloudresourcemanager    : "com.google.apis:google-api-services-cloudresourcemanager:v1-rev20240310-2.0.0",  // [bomupgrader] sets version
+        google_api_services_bigquery                : "com.google.apis:google-api-services-bigquery:v2-rev20251012-2.0.0",  // [bomupgrader] sets version
+        google_api_services_cloudresourcemanager    : "com.google.apis:google-api-services-cloudresourcemanager:v1-rev20250606-2.0.0",  // [bomupgrader] sets version
         google_api_services_dataflow                : "com.google.apis:google-api-services-dataflow:v1b3-rev20250519-$google_clients_version",
         google_api_services_healthcare              : "com.google.apis:google-api-services-healthcare:v1-rev20240130-$google_clients_version",
         google_api_services_pubsub                  : "com.google.apis:google-api-services-pubsub:v1-rev20220904-$google_clients_version",
-        google_api_services_storage                 : "com.google.apis:google-api-services-storage:v1-rev20250718-2.0.0",  // [bomupgrader] sets version
+        google_api_services_storage                 : "com.google.apis:google-api-services-storage:v1-rev20250925-2.0.0",  // [bomupgrader] sets version
         google_auth_library_credentials             : "com.google.auth:google-auth-library-credentials", // google_cloud_platform_libraries_bom sets version
         google_auth_library_oauth2_http             : "com.google.auth:google-auth-library-oauth2-http", // google_cloud_platform_libraries_bom sets version
         google_cloud_bigquery                       : "com.google.cloud:google-cloud-bigquery", // google_cloud_platform_libraries_bom sets version
@@ -751,18 +753,20 @@ class BeamModulePlugin implements Plugin<Project> {
         google_cloud_core_grpc                      : "com.google.cloud:google-cloud-core-grpc", // google_cloud_platform_libraries_bom sets version
         google_cloud_datacatalog_v1beta1            : "com.google.cloud:google-cloud-datacatalog", // google_cloud_platform_libraries_bom sets version
         google_cloud_dataflow_java_proto_library_all: "com.google.cloud.dataflow:google-cloud-dataflow-java-proto-library-all:0.5.160304",
-        google_cloud_datastore_v1_proto_client      : "com.google.cloud.datastore:datastore-v1-proto-client:2.31.1",   // [bomupgrader] sets version
+        google_cloud_datastore_v1_proto_client      : "com.google.cloud.datastore:datastore-v1-proto-client:2.33.0",   // [bomupgrader] sets version
         google_cloud_firestore                      : "com.google.cloud:google-cloud-firestore", // google_cloud_platform_libraries_bom sets version
+        google_cloud_kms                            : "com.google.cloud:google-cloud-kms", // google_cloud_platform_libraries_bom sets version
         google_cloud_pubsub                         : "com.google.cloud:google-cloud-pubsub", // google_cloud_platform_libraries_bom sets version
         google_cloud_pubsublite                     : "com.google.cloud:google-cloud-pubsublite",  // google_cloud_platform_libraries_bom sets version
         // [bomupgrader] the BOM version is set by scripts/tools/bomupgrader.py. If update manually, also update
         // libraries-bom version on sdks/java/container/license_scripts/dep_urls_java.yaml
-        google_cloud_platform_libraries_bom         : "com.google.cloud:libraries-bom:26.65.0",
+        google_cloud_platform_libraries_bom         : "com.google.cloud:libraries-bom:26.72.0",
         google_cloud_secret_manager                 : "com.google.cloud:google-cloud-secretmanager", // google_cloud_platform_libraries_bom sets version
         // TODO(#35868) remove pinned google_cloud_spanner_bom after tests or upstream fixed
         google_cloud_spanner_bom                    : "com.google.cloud:google-cloud-spanner-bom:$google_cloud_spanner_version",
         google_cloud_spanner                        : "com.google.cloud:google-cloud-spanner", // google_cloud_platform_libraries_bom sets version
         google_cloud_spanner_test                   : "com.google.cloud:google-cloud-spanner:$google_cloud_spanner_version:tests",
+        google_cloud_tink                           : "com.google.crypto.tink:tink:1.19.0",
         google_cloud_vertexai                       : "com.google.cloud:google-cloud-vertexai", // google_cloud_platform_libraries_bom sets version
         google_code_gson                            : "com.google.code.gson:gson:$google_code_gson_version",
         // google-http-client's version is explicitly declared for sdks/java/maven-archetypes/examples
@@ -853,6 +857,8 @@ class BeamModulePlugin implements Plugin<Project> {
         netty_tcnative_boringssl_static             : "io.netty:netty-tcnative-boringssl-static:2.0.52.Final",
         netty_transport                             : "io.netty:netty-transport:$netty_version",
         netty_transport_native_epoll                : "io.netty:netty-transport-native-epoll:$netty_version",
+        opentelemetry_api                           : "io.opentelemetry:opentelemetry-api", // google_cloud_platform_libraries_bom sets version
+        opentelemetry_bom                           : "io.opentelemetry:opentelemetry-bom-alpha:$opentelemetry_version-alpha", // alpha required by extensions
         postgres                                    : "org.postgresql:postgresql:$postgres_version",
         protobuf_java                               : "com.google.protobuf:protobuf-java:$protobuf_version",
         protobuf_java_util                          : "com.google.protobuf:protobuf-java-util:$protobuf_version",
@@ -862,6 +868,7 @@ class BeamModulePlugin implements Plugin<Project> {
         proto_google_cloud_datacatalog_v1beta1      : "com.google.api.grpc:proto-google-cloud-datacatalog-v1beta1", // google_cloud_platform_libraries_bom sets version
         proto_google_cloud_datastore_v1             : "com.google.api.grpc:proto-google-cloud-datastore-v1", // google_cloud_platform_libraries_bom sets version
         proto_google_cloud_firestore_v1             : "com.google.api.grpc:proto-google-cloud-firestore-v1", // google_cloud_platform_libraries_bom sets version
+        proto_google_cloud_kms_v1                   : "com.google.api.grpc:proto-google-cloud-kms-v1", // google_cloud_platform_libraries_bom sets version
         proto_google_cloud_pubsub_v1                : "com.google.api.grpc:proto-google-cloud-pubsub-v1", // google_cloud_platform_libraries_bom sets version
         proto_google_cloud_pubsublite_v1            : "com.google.api.grpc:proto-google-cloud-pubsublite-v1", // google_cloud_platform_libraries_bom sets version
         proto_google_cloud_secret_manager_v1        : "com.google.api.grpc:proto-google-cloud-secretmanager-v1", // google_cloud_platform_libraries_bom sets version
@@ -1350,7 +1357,7 @@ class BeamModulePlugin implements Plugin<Project> {
         "com.google.auto.service:auto-service-annotations:$autoservice_version",
         "com.google.auto.value:auto-value-annotations:$autovalue_version",
         "com.google.code.findbugs:jsr305:$jsr305_version",
-        "com.google.j2objc:j2objc-annotations:3.0.0",
+        "com.google.j2objc:j2objc-annotations:3.1",
         // These dependencies are needed to avoid error-prone warnings on package-info.java files,
         // also to include the annotations to suppress warnings.
         //
@@ -3115,12 +3122,8 @@ class BeamModulePlugin implements Plugin<Project> {
           }
           project.exec {
             executable 'sh'
-            // TODO: https://github.com/apache/beam/issues/29022
-            // pip 23.3 is failing due to Hash mismatch between expected SHA of the packaged and actual SHA.
-            // until it is resolved on pip's side, don't use pip's cache.
-            // pip 25.1 casues :sdks:python:installGcpTest stuck. Pin to 25.0.1 for now.
             args '-c', ". ${project.ext.envdir}/bin/activate && " +
-                "pip install --pre --retries 10 --upgrade pip==25.0.1 --no-cache-dir && " +
+                "pip install --pre --retries 10 --upgrade pip --no-cache-dir && " +
                 "pip install --pre --retries 10 --upgrade tox --no-cache-dir"
           }
         }

@@ -36,9 +36,6 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * automatically loaded by CLI or other cases when {@link JdbcDriver} is used with default
  * connection parameters.
  */
-@SuppressWarnings({
-  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
-})
 public interface TableProvider {
   /** Gets the table type this provider handles. */
   String getTableType();
@@ -76,7 +73,7 @@ public interface TableProvider {
    * Returns a sub-provider, e.g. sub-schema. Temporary, this logic needs to live in {@link
    * BeamCalciteSchema}.
    */
-  default TableProvider getSubProvider(String name) {
+  default @Nullable TableProvider getSubProvider(String name) {
     return null;
   }
 

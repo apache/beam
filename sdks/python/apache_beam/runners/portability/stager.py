@@ -218,7 +218,7 @@ class Stager(object):
            is None) else setup_options.requirements_cache)
       if (setup_options.requirements_cache != SKIP_REQUIREMENTS_CACHE and
           not os.path.exists(requirements_cache_path)):
-        os.makedirs(requirements_cache_path)
+        os.makedirs(requirements_cache_path, exist_ok=True)
 
       # Stage a requirements file if present.
       if setup_options.requirements_file is not None:
@@ -376,7 +376,6 @@ class Stager(object):
       pickled_session_file = os.path.join(
           temp_dir, names.PICKLED_MAIN_SESSION_FILE)
       pickler.dump_session(pickled_session_file)
-      # for pickle_library: cloudpickle, dump_session is no op
       if os.path.exists(pickled_session_file):
         resources.append(
             Stager._create_file_stage_to_artifact(

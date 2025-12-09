@@ -75,6 +75,7 @@ tasks.rat {
     "**/Gemfile.lock",
     "**/Rakefile",
     "**/.htaccess",
+    "website/www/site/assets/css/**/*",
     "website/www/site/assets/scss/_bootstrap.scss",
     "website/www/site/assets/scss/bootstrap/**/*",
     "website/www/site/assets/js/**/*",
@@ -321,6 +322,8 @@ tasks.register("javaPreCommit") {
   dependsOn(":sdks:java:io:xml:build")
   dependsOn(":sdks:java:javadoc:allJavadoc")
   dependsOn(":sdks:java:managed:build")
+  dependsOn("sdks:java:ml:inference:remote:build")
+  dependsOn("sdks:java:ml:inference:openai:build")
   dependsOn(":sdks:java:testing:expansion-service:build")
   dependsOn(":sdks:java:testing:jpms-tests:build")
   dependsOn(":sdks:java:testing:junit:build")

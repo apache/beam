@@ -175,6 +175,9 @@ class InteractiveEnvironment(object):
     # Tracks the computation completeness of PCollections. PCollections tracked
     # here don't need to be re-computed when data introspection is needed.
     self._computed_pcolls = set()
+
+    self._computing_pcolls = set()
+
     # Always watch __main__ module.
     self.watch('__main__')
     # Check if [interactive] dependencies are installed.
@@ -720,3 +723,19 @@ class InteractiveEnvironment(object):
     bucket_name = cache_dir_path.parts[1]
     assert_bucket_exists(bucket_name)
     return 'gs://{}/{}'.format('/'.join(cache_dir_path.parts[1:]), id(pipeline))
+
+  @property
+  def computing_pcollections(self):
+    return self._computing_pcolls
+
+  def mark_pcollection_computing(self, pcolls):
+    """Marks the given pcolls as currently being computed."""
+    self._computing_pcolls.update(pcolls)
+
+  def unmark_pcollection_computing(self, pcolls):
+    """Removes the given pcolls from the computing set."""
+    self._computing_pcolls.difference_update(pcolls)
+
+  def is_pcollection_computing(self, pcoll):
+    """Checks if the given pcollection is currently being computed."""
+    return pcoll in self._computing_pcolls
