@@ -3,9 +3,10 @@ import time
 import threading
 import random
 from concurrent.futures import ThreadPoolExecutor
+from unittest.mock import patch
 
 # Import from the library file
-from apache_beam.ml.inference.model_manager import ModelManager
+from apache_beam.ml.inference.model_manager import ModelManager, GPUMonitor
 
 
 class MockGPUMonitor:
@@ -235,6 +236,29 @@ class TestModelManager(unittest.TestCase):
     self.assertEqual(self.manager.pending_reservations, 0.0)
     self.assertFalse(self.manager._cv._is_owned())
 
+  def test_model_managaer_force_reset_on_exception(self):
+    """Test that force_reset clears all models from the manager."""
+    model_name = "test_model"
+
+    def dummy_loader():
+      self.mock_monitor.allocate(1000.0)
+      raise RuntimeError("Simulated loader exception")
+
+    # Acquire a model to populate the pool
+    try:
+      instance = self.manager.acquire_model(model_name, dummy_loader)
+    except RuntimeError:
+      self.manager.force_reset()
+      self.assertTrue(len(self.manager.models[model_name]) == 0)
+      self.assertEqual(self.manager.total_active_jobs, 0)
+      self.assertEqual(self.manager.pending_reservations, 0.0)
+      self.assertFalse(self.manager.isolation_mode)
+      pass
+
+    # Verify we can still try again
+    instance = self.manager.acquire_model(model_name, lambda: "model_instance")
+    self.manager.release_model(model_name, instance)
+
   def test_single_model_convergence_with_fluctuations(self):
     """
         Tests that the estimator converges to the true usage with:
@@ -273,6 +297,70 @@ class TestModelManager(unittest.TestCase):
 
     est_cost = self.manager.estimator.get_estimate(model_name)
     self.assertAlmostEqual(est_cost, model_cost, delta=100.0)
+
+
+class TestGPUMonitor(unittest.TestCase):
+  def setUp(self):
+    self.subprocess_patcher = patch('subprocess.check_output')
+    self.mock_subprocess = self.subprocess_patcher.start()
+
+  def tearDown(self):
+    self.subprocess_patcher.stop()
+
+  def test_init_hardware_detected(self):
+    """Test that init correctly reads total memory when nvidia-smi exists."""
+    self.mock_subprocess.return_value = "24576"
+    monitor = GPUMonitor()
+    self.assertTrue(monitor._gpu_available)
+    self.assertEqual(monitor._total_memory, 24576.0)
+
+  def test_init_hardware_missing(self):
+    """Test fallback behavior when nvidia-smi is missing."""
+    self.mock_subprocess.side_effect = FileNotFoundError()
+    monitor = GPUMonitor(fallback_memory_mb=12000.0)
+    self.assertFalse(monitor._gpu_available)
+    self.assertEqual(monitor._total_memory, 12000.0)
+
+  @patch('time.sleep')  # Patch sleep to speed up the test
+  def test_polling_updates_stats(self, mock_sleep):
+    """Test that the polling loop updates current and peak usage."""
+    def subprocess_side_effect(*args, **kwargs):
+      if isinstance(args[0], list) and "memory.total" in args[0][1]:
+        return "16000"
+
+      if isinstance(args[0], str) and "memory.used" in args[0]:
+        return b"4000"
+
+      raise Exception("Unexpected command")
+
+    self.mock_subprocess.side_effect = subprocess_side_effect
+    self.mock_subprocess.return_value = None  # Clear default
+
+    monitor = GPUMonitor()
+    monitor.start()
+    time.sleep(0.1)
+    curr, peak, total = monitor.get_stats()
+    monitor.stop()
+
+    self.assertEqual(curr, 4000.0)
+    self.assertEqual(peak, 4000.0)
+    self.assertEqual(total, 16000.0)
+
+  def test_reset_peak(self):
+    """Test that resetting peak usage works."""
+    monitor = GPUMonitor()
+    monitor._gpu_available = True
+
+    with monitor._lock:
+      monitor._current_usage = 2000.0
+      monitor._peak_usage = 8000.0
+      monitor._memory_history.append((time.time(), 8000.0))
+      monitor._memory_history.append((time.time(), 2000.0))
+
+    monitor.reset_peak()
+
+    _, peak, _ = monitor.get_stats()
+    self.assertEqual(peak, 2000.0)  # Peak should reset to current
 
 
 if __name__ == "__main__":

@@ -55,8 +55,8 @@ def cuda_oom_guard(description: str):
     yield
   except torch.cuda.OutOfMemoryError as e:
     logger.error("CUDA OOM DETECTED during: %s", description)
-    torch.cuda.empty_cache()
     gc.collect()
+    torch.cuda.empty_cache()
     raise e
 
 
@@ -69,20 +69,33 @@ class GPUMonitor:
     self._running = False
     self._thread = None
     self._lock = threading.Lock()
-    self._detect_hardware()
+    self._gpu_available = self._detect_hardware()
 
   def _detect_hardware(self):
     try:
-      cmd = "nvidia-smi --query-gpu=memory.total --format=csv,noheader,nounits"
-      output = subprocess.check_output(cmd, shell=True).decode("utf-8").strip()
+      cmd = [
+          "nvidia-smi",
+          "--query-gpu=memory.total",
+          "--format=csv,noheader,nounits"
+      ]
+      output = subprocess.check_output(cmd, text=True).strip()
       self._total_memory = float(output)
-    except Exception:
+      return True
+    except (FileNotFoundError, subprocess.CalledProcessError):
       logger.warning(
-          "nvidia-smi failed. Defaulting total memory to %s MB",
+          "nvidia-smi not found or failed. Defaulting total memory to %s MB",
           self._total_memory)
+      return False
+    except Exception as e:
+      logger.warning(
+          "Error parsing nvidia-smi output: %s. "
+          "Defaulting total memory to %s MB",
+          e,
+          self._total_memory)
+      return False
 
   def start(self):
-    if self._running:
+    if self._running or not self._gpu_available:
       return
     self._running = True
     self._thread = threading.Thread(target=self._poll_loop, daemon=True)
@@ -311,6 +324,7 @@ class ModelManager:
       # Execution Logic (Spawn)
       if should_spawn:
         try:
+          logger.info("Loading model for tag: %s", tag)
           isolation_baseline_snap, _, _ = self.monitor.get_stats()
           with cuda_oom_guard(f"Loading {tag}"):
             instance = loader_func()
@@ -369,5 +383,33 @@ class ModelManager:
       finally:
         self._cv.notify_all()
 
+  def force_reset(self):
+    for _, instances in self.models.items():
+      del instances[:]
+    gc.collect()
+    torch.cuda.empty_cache()
+
+    self.models = defaultdict(list)
+    self.idle_pool = defaultdict(list)
+    self.active_counts = Counter()
+    self.total_active_jobs = 0
+    self.pending_reservations = 0.0
+    self.isolation_mode = False
+    self.pending_isolation_count = 0
+    self.isolation_baseline = 0.0
+
   def shutdown(self):
+    try:
+      for _, instances in self.models.items():
+        del instances[:]
+      gc.collect()
+      torch.cuda.empty_cache()
+    except Exception as e:
+      logger.error("Error during ModelManager shutdown: %s", e)
     self.monitor.stop()
+
+  def __del__(self):
+    self.shutdown()
+
+  def __exit__(self, exc_type, exc_value, traceback):
+    self.shutdown()
