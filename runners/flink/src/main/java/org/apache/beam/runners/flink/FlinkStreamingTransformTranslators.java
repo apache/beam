@@ -97,6 +97,7 @@ import org.apache.beam.sdk.values.WindowedValues;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Maps;
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.api.common.functions.FlatMapFunction;
@@ -195,6 +196,120 @@ class FlinkStreamingTransformTranslators {
   //  Transformation Implementations
   // --------------------------------------------------------------------------------------------
 
+  /** Common translation logic for unbounded sources. */
+  @SuppressWarnings("unchecked")
+  private static <T> void translateUnboundedSource(
+      UnboundedSource<T, ?> rawSource,
+      String transformName,
+      FlinkStreamingTranslationContext context) {
+
+    PCollection<T> output =
+        (PCollection<T>)
+            Iterables.getOnlyElement(context.getCurrentTransform().getOutputs().values());
+
+    DataStream<WindowedValue<T>> source;
+    DataStream<WindowedValue<ValueWithRecordId<T>>> nonDedupSource;
+    TypeInformation<WindowedValue<T>> outputTypeInfo = context.getTypeInfo(output);
+
+    Coder<T> coder = output.getCoder();
+
+    TypeInformation<WindowedValue<ValueWithRecordId<T>>> withIdTypeInfo =
+        new CoderTypeInformation<>(
+            WindowedValues.getFullCoder(
+                ValueWithRecordId.ValueWithRecordIdCoder.of(coder),
+                output.getWindowingStrategy().getWindowFn().windowCoder()),
+            context.getPipelineOptions());
+
+    String fullName = getCurrentTransformName(context);
+    try {
+      int parallelism =
+          context.getExecutionEnvironment().getMaxParallelism() > 0
+              ? context.getExecutionEnvironment().getMaxParallelism()
+              : context.getExecutionEnvironment().getParallelism();
+
+      FlinkUnboundedSource<T> unboundedSource =
+          FlinkSource.unbounded(
+              transformName,
+              rawSource,
+              new SerializablePipelineOptions(context.getPipelineOptions()),
+              parallelism);
+      nonDedupSource =
+          context
+              .getExecutionEnvironment()
+              .fromSource(
+                  unboundedSource, WatermarkStrategy.noWatermarks(), fullName, withIdTypeInfo)
+              .uid(fullName);
+
+      if (rawSource.requiresDeduping()) {
+        source =
+            nonDedupSource
+                .keyBy(new ValueWithRecordIdKeySelector<>())
+                .transform(
+                    "deduping",
+                    outputTypeInfo,
+                    new DedupingOperator<>(context.getPipelineOptions()))
+                .uid(format("%s/__deduplicated__", fullName));
+      } else {
+        source =
+            nonDedupSource
+                .flatMap(new StripIdsMap<>(context.getPipelineOptions()))
+                .returns(outputTypeInfo);
+      }
+    } catch (Exception e) {
+      throw new RuntimeException("Error while translating UnboundedSource: " + rawSource, e);
+    }
+
+    context.setOutputDataStream(output, source);
+  }
+
+  /** Common translation logic for bounded sources. */
+  @SuppressWarnings("unchecked")
+  private static <T> void translateBoundedSource(
+      BoundedSource<T> rawSource, String transformName, FlinkStreamingTranslationContext context) {
+
+    PCollection<T> output =
+        (PCollection<T>)
+            Iterables.getOnlyElement(context.getCurrentTransform().getOutputs().values());
+
+    TypeInformation<WindowedValue<T>> outputTypeInfo = context.getTypeInfo(output);
+
+    String fullName = getCurrentTransformName(context);
+    int parallelism =
+        context.getExecutionEnvironment().getMaxParallelism() > 0
+            ? context.getExecutionEnvironment().getMaxParallelism()
+            : context.getExecutionEnvironment().getParallelism();
+
+    FlinkBoundedSource<T> flinkBoundedSource =
+        FlinkSource.bounded(
+            transformName,
+            rawSource,
+            new SerializablePipelineOptions(context.getPipelineOptions()),
+            parallelism);
+
+    SingleOutputStreamOperator<WindowedValue<T>> source;
+    try {
+      source =
+          context
+              .getExecutionEnvironment()
+              .fromSource(
+                  flinkBoundedSource, WatermarkStrategy.noWatermarks(), fullName, outputTypeInfo)
+              .uid(fullName)
+              .returns(outputTypeInfo);
+
+      if (!context.isStreaming()
+          && context
+              .getPipelineOptions()
+              .as(FlinkPipelineOptions.class)
+              .getForceSlotSharingGroup()) {
+        source = source.slotSharingGroup(FORCED_SLOT_GROUP);
+      }
+    } catch (Exception e) {
+      throw new RuntimeException("Error while translating BoundedSource: " + rawSource, e);
+    }
+
+    context.setOutputDataStream(output, source);
+  }
+
   private static class UnboundedReadSourceTranslator<T>
       extends FlinkStreamingPipelineTranslator.StreamTransformTranslator<
           PTransform<PBegin, PCollection<T>>> {
@@ -202,22 +317,6 @@ class FlinkStreamingTransformTranslators {
     @Override
     public void translateNode(
         PTransform<PBegin, PCollection<T>> transform, FlinkStreamingTranslationContext context) {
-      PCollection<T> output = context.getOutput(transform);
-
-      DataStream<WindowedValue<T>> source;
-      DataStream<WindowedValue<ValueWithRecordId<T>>> nonDedupSource;
-      TypeInformation<WindowedValue<T>> outputTypeInfo =
-          context.getTypeInfo(context.getOutput(transform));
-
-      Coder<T> coder = context.getOutput(transform).getCoder();
-
-      TypeInformation<WindowedValue<ValueWithRecordId<T>>> withIdTypeInfo =
-          new CoderTypeInformation<>(
-              WindowedValues.getFullCoder(
-                  ValueWithRecordId.ValueWithRecordIdCoder.of(coder),
-                  output.getWindowingStrategy().getWindowFn().windowCoder()),
-              context.getPipelineOptions());
-
       UnboundedSource<T, ?> rawSource;
       try {
         rawSource =
@@ -227,47 +326,7 @@ class FlinkStreamingTransformTranslators {
       } catch (IOException e) {
         throw new RuntimeException(e);
       }
-
-      String fullName = getCurrentTransformName(context);
-      try {
-        int parallelism =
-            context.getExecutionEnvironment().getMaxParallelism() > 0
-                ? context.getExecutionEnvironment().getMaxParallelism()
-                : context.getExecutionEnvironment().getParallelism();
-
-        FlinkUnboundedSource<T> unboundedSource =
-            FlinkSource.unbounded(
-                transform.getName(),
-                rawSource,
-                new SerializablePipelineOptions(context.getPipelineOptions()),
-                parallelism);
-        nonDedupSource =
-            context
-                .getExecutionEnvironment()
-                .fromSource(
-                    unboundedSource, WatermarkStrategy.noWatermarks(), fullName, withIdTypeInfo)
-                .uid(fullName);
-
-        if (rawSource.requiresDeduping()) {
-          source =
-              nonDedupSource
-                  .keyBy(new ValueWithRecordIdKeySelector<>())
-                  .transform(
-                      "deduping",
-                      outputTypeInfo,
-                      new DedupingOperator<>(context.getPipelineOptions()))
-                  .uid(format("%s/__deduplicated__", fullName));
-        } else {
-          source =
-              nonDedupSource
-                  .flatMap(new StripIdsMap<>(context.getPipelineOptions()))
-                  .returns(outputTypeInfo);
-        }
-      } catch (Exception e) {
-        throw new RuntimeException("Error while translating UnboundedSource: " + rawSource, e);
-      }
-
-      context.setOutputDataStream(output, source);
+      translateUnboundedSource(rawSource, transform.getName(), context);
     }
   }
 
@@ -285,66 +344,7 @@ class FlinkStreamingTransformTranslators {
     public void translateNode(
         SplittableParDo.PrimitiveUnboundedRead<T> transform,
         FlinkStreamingTranslationContext context) {
-
-      PCollection<T> output = context.getOutput(transform);
-
-      DataStream<WindowedValue<T>> source;
-      DataStream<WindowedValue<ValueWithRecordId<T>>> nonDedupSource;
-      TypeInformation<WindowedValue<T>> outputTypeInfo =
-          context.getTypeInfo(context.getOutput(transform));
-
-      Coder<T> coder = context.getOutput(transform).getCoder();
-
-      TypeInformation<WindowedValue<ValueWithRecordId<T>>> withIdTypeInfo =
-          new CoderTypeInformation<>(
-              WindowedValues.getFullCoder(
-                  ValueWithRecordId.ValueWithRecordIdCoder.of(coder),
-                  output.getWindowingStrategy().getWindowFn().windowCoder()),
-              context.getPipelineOptions());
-
-      // Get source directly from PrimitiveUnboundedRead (not via ReadTranslation)
-      UnboundedSource<T, ?> rawSource = transform.getSource();
-
-      String fullName = getCurrentTransformName(context);
-      try {
-        int parallelism =
-            context.getExecutionEnvironment().getMaxParallelism() > 0
-                ? context.getExecutionEnvironment().getMaxParallelism()
-                : context.getExecutionEnvironment().getParallelism();
-
-        FlinkUnboundedSource<T> unboundedSource =
-            FlinkSource.unbounded(
-                transform.getName(),
-                rawSource,
-                new SerializablePipelineOptions(context.getPipelineOptions()),
-                parallelism);
-        nonDedupSource =
-            context
-                .getExecutionEnvironment()
-                .fromSource(
-                    unboundedSource, WatermarkStrategy.noWatermarks(), fullName, withIdTypeInfo)
-                .uid(fullName);
-
-        if (rawSource.requiresDeduping()) {
-          source =
-              nonDedupSource
-                  .keyBy(new ValueWithRecordIdKeySelector<>())
-                  .transform(
-                      "deduping",
-                      outputTypeInfo,
-                      new DedupingOperator<>(context.getPipelineOptions()))
-                  .uid(format("%s/__deduplicated__", fullName));
-        } else {
-          source =
-              nonDedupSource
-                  .flatMap(new StripIdsMap<>(context.getPipelineOptions()))
-                  .returns(outputTypeInfo);
-        }
-      } catch (Exception e) {
-        throw new RuntimeException("Error while translating UnboundedSource: " + rawSource, e);
-      }
-
-      context.setOutputDataStream(output, source);
+      translateUnboundedSource(transform.getSource(), transform.getName(), context);
     }
   }
 
@@ -362,35 +362,7 @@ class FlinkStreamingTransformTranslators {
     public void translateNode(
         SplittableParDo.PrimitiveBoundedRead<T> transform,
         FlinkStreamingTranslationContext context) {
-
-      PCollection<T> output = context.getOutput(transform);
-      TypeInformation<WindowedValue<T>> outputTypeInfo =
-          context.getTypeInfo(context.getOutput(transform));
-
-      // Get source directly from PrimitiveBoundedRead (not via ReadTranslation)
-      BoundedSource<T> rawSource = transform.getSource();
-
-      String fullName = getCurrentTransformName(context);
-      int parallelism =
-          context.getExecutionEnvironment().getMaxParallelism() > 0
-              ? context.getExecutionEnvironment().getMaxParallelism()
-              : context.getExecutionEnvironment().getParallelism();
-
-      FlinkBoundedSource<T> flinkBoundedSource =
-          FlinkSource.bounded(
-              fullName,
-              rawSource,
-              new SerializablePipelineOptions(context.getPipelineOptions()),
-              parallelism);
-
-      DataStream<WindowedValue<T>> source =
-          context
-              .getExecutionEnvironment()
-              .fromSource(
-                  flinkBoundedSource, WatermarkStrategy.noWatermarks(), fullName, outputTypeInfo)
-              .uid(fullName);
-
-      context.setOutputDataStream(output, source);
+      translateBoundedSource(transform.getSource(), transform.getName(), context);
     }
   }
 
@@ -503,11 +475,6 @@ class FlinkStreamingTransformTranslators {
     @Override
     public void translateNode(
         PTransform<PBegin, PCollection<T>> transform, FlinkStreamingTranslationContext context) {
-      PCollection<T> output = context.getOutput(transform);
-
-      TypeInformation<WindowedValue<T>> outputTypeInfo =
-          context.getTypeInfo(context.getOutput(transform));
-
       BoundedSource<T> rawSource;
       try {
         rawSource =
@@ -517,43 +484,7 @@ class FlinkStreamingTransformTranslators {
       } catch (IOException e) {
         throw new RuntimeException(e);
       }
-
-      String fullName = getCurrentTransformName(context);
-      int parallelism =
-          context.getExecutionEnvironment().getMaxParallelism() > 0
-              ? context.getExecutionEnvironment().getMaxParallelism()
-              : context.getExecutionEnvironment().getParallelism();
-
-      FlinkBoundedSource<T> flinkBoundedSource =
-          FlinkSource.bounded(
-              transform.getName(),
-              rawSource,
-              new SerializablePipelineOptions(context.getPipelineOptions()),
-              parallelism);
-
-      TypeInformation<WindowedValue<T>> typeInfo = context.getTypeInfo(output);
-
-      SingleOutputStreamOperator<WindowedValue<T>> source;
-      try {
-        source =
-            context
-                .getExecutionEnvironment()
-                .fromSource(
-                    flinkBoundedSource, WatermarkStrategy.noWatermarks(), fullName, outputTypeInfo)
-                .uid(fullName)
-                .returns(typeInfo);
-
-        if (!context.isStreaming()
-            && context
-                .getPipelineOptions()
-                .as(FlinkPipelineOptions.class)
-                .getForceSlotSharingGroup()) {
-          source = source.slotSharingGroup(FORCED_SLOT_GROUP);
-        }
-      } catch (Exception e) {
-        throw new RuntimeException("Error while translating BoundedSource: " + rawSource, e);
-      }
-      context.setOutputDataStream(output, source);
+      translateBoundedSource(rawSource, transform.getName(), context);
     }
   }
 
