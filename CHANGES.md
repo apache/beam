@@ -76,7 +76,7 @@
 
 ## Breaking Changes
 
-* (Python) Some Python dependencies have been split out into extras. To ensure all previously installed dependencies are installed, when installing Beam you can `pip install apache-beam[gcp,interactive,yaml,redis,hadoop,tfrecord]`, though most users will not need all of these extras ([#34554](https://github.com/apache/beam/issues/34554)).
+* X behavior was changed ([#X](https://github.com/apache/beam/issues/X)).
 
 ## Deprecations
 
@@ -103,6 +103,10 @@
   including jupyter notebook example (Python) ([#36176](https://github.com/apache/beam/issues/36176)).
 * Milvus sink I/O connector added (Python) ([#36702](https://github.com/apache/beam/issues/36702)).
 Now Beam has full support for Milvus integration including Milvus enrichment and sink operations.
+
+## Breaking Changes
+
+* (Python) Some Python dependencies have been split out into extras. To ensure all previously installed dependencies are installed, when installing Beam you can `pip install apache-beam[gcp,interactive,yaml,redis,hadoop,tfrecord]`, though most users will not need all of these extras ([#34554](https://github.com/apache/beam/issues/34554)).
 
 ## Deprecations
 
