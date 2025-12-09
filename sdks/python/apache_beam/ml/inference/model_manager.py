@@ -119,9 +119,10 @@ class GPUMonitor:
 
   def _get_nvidia_smi_used(self) -> float:
     try:
-      cmd = "nvidia-smi --query-gpu=memory.used --format=csv,noheader,nounits"
+      cmd = "nvidia-smi --query-gpu=memory.free --format=csv,noheader,nounits"
       output = subprocess.check_output(cmd, shell=True).decode("utf-8").strip()
-      return float(output)
+      free_memory = float(output)
+      return self._total_memory - free_memory
     except Exception:
       return 0.0
 
@@ -208,7 +209,10 @@ class ResourceEstimator:
       # Not enough data to solve yet
       return
 
-    print(f"Solving with {len(A)} total observations for {len(unique)} models.")
+    logger.info(
+        "Solving with %s total observations for %s models.",
+        len(A),
+        len(unique))
 
     try:
       # Solve using Non-Negative Least Squares
@@ -220,7 +224,7 @@ class ResourceEstimator:
 
       for i, model in enumerate(unique):
         calculated_cost = weights[i]
-        print(f"Solved Cost for {model}: {calculated_cost:.1f} MB")
+        logger.info("Solved Cost for %s: %s MB", model, calculated_cost)
 
         if model in self.estimates:
           old = self.estimates[model]
@@ -230,7 +234,7 @@ class ResourceEstimator:
         else:
           self.estimates[model] = calculated_cost
 
-      print(f"System Bias: {bias:.1f} MB")
+      logger.info("System Bias: %s MB", bias)
 
     except Exception as e:
       logger.error("Solver failed: %s", e)
@@ -339,6 +343,20 @@ class ModelManager:
             should_spawn = True
             break
 
+          logger.info(
+              "Model load blocked for tag: %s | "
+              "Current Usage: %.1f MB | "
+              "Peak Usage: %.1f MB | "
+              "Total Memory: %.1f MB | "
+              "Estimated Cost: %.1f MB | "
+              "Limit: %.1f MB",
+              tag,
+              curr,
+              peak,
+              total,
+              est_cost,
+              limit,
+          )
           self._cv.wait()
 
       # Execution Logic (Spawn)
@@ -396,8 +414,8 @@ class ModelManager:
             snapshot[pool_tag] = snapshot.get(pool_tag, 0) + len(models)
 
           if snapshot:
-            print(
-                f"Release Snapshot: {snapshot}, Peak: {peak_during_job:.1f} MB")
+            logger.info(
+                "Release Snapshot: %s, Peak: %s MB", snapshot, peak_during_job)
             self.estimator.add_observation(snapshot, peak_during_job)
 
       finally:

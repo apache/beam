@@ -328,8 +328,8 @@ class TestGPUMonitor(unittest.TestCase):
       if isinstance(args[0], list) and "memory.total" in args[0][1]:
         return "16000"
 
-      if isinstance(args[0], str) and "memory.used" in args[0]:
-        return b"4000"
+      if isinstance(args[0], str) and "memory.free" in args[0]:
+        return b"12000"
 
       raise Exception("Unexpected command")
 
