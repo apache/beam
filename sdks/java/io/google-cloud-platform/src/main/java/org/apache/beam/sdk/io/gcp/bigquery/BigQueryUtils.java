@@ -390,8 +390,7 @@ public class BigQueryUtils {
    * @return Corresponding Beam {@link FieldType}
    */
   private static FieldType fromTableFieldSchemaType(
-      TableFieldSchema schema,
-      SchemaConversionOptions options) {
+      TableFieldSchema schema, SchemaConversionOptions options) {
     // see
     // https://googleapis.dev/java/google-api-services-bigquery/latest/com/google/api/services/bigquery/model/TableFieldSchema.html#getType--
     String typeName = schema.getType();
@@ -410,7 +409,9 @@ public class BigQueryUtils {
       case "BOOL":
         return FieldType.BOOLEAN;
       case "TIMESTAMP":
-        // Timestamp columns can only have 6 or 12 precision.
+        // Timestamp columns can only have 6 (micros) or 12 (picos) precision.
+        // BigQuerySchema currently returns null for all microsecond timestamp
+        // columns but this cannot be guaranteed forever.
         if ((schema.getTimestampPrecision() == null)
             || Long.valueOf(6L).equals(schema.getTimestampPrecision())) {
           return FieldType.DATETIME;
@@ -443,15 +444,14 @@ public class BigQueryUtils {
         return FieldType.STRING;
       case "RECORD":
       case "STRUCT":
-        List<TableFieldSchema> nestedFields = schema.getFields()
+        List<TableFieldSchema> nestedFields = schema.getFields();
         if (options.getInferMaps() && nestedFields.size() == 2) {
           TableFieldSchema key = nestedFields.get(0);
           TableFieldSchema value = nestedFields.get(1);
           if (BIGQUERY_MAP_KEY_FIELD_NAME.equals(key.getName())
               && BIGQUERY_MAP_VALUE_FIELD_NAME.equals(value.getName())) {
             return FieldType.map(
-                fromTableFieldSchemaType(key, options),
-                fromTableFieldSchemaType(value, options));
+                fromTableFieldSchemaType(key, options), fromTableFieldSchemaType(value, options));
           }
         }
         Schema rowSchema = fromTableFieldSchema(nestedFields, options);
@@ -467,8 +467,7 @@ public class BigQueryUtils {
       List<TableFieldSchema> tableFieldSchemas, SchemaConversionOptions options) {
     Schema.Builder schemaBuilder = Schema.builder();
     for (TableFieldSchema tableFieldSchema : tableFieldSchemas) {
-      FieldType fieldType =
-          fromTableFieldSchemaType(tableFieldSchema, options);
+      FieldType fieldType = fromTableFieldSchemaType(tableFieldSchema, options);
 
       Optional<Mode> fieldMode = Optional.ofNullable(tableFieldSchema.getMode()).map(Mode::valueOf);
       if (fieldMode.filter(m -> m == Mode.REPEATED).isPresent()
