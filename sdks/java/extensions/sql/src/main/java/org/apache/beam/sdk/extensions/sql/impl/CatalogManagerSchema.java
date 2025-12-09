@@ -21,6 +21,7 @@ import static org.apache.beam.sdk.util.Preconditions.checkArgumentNotNull;
 import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
 import static org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.util.Static.RESOURCE;
 
+import com.google.common.collect.ImmutableSet;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
@@ -145,8 +146,7 @@ public class CatalogManagerSchema implements Schema {
   // will attempt to do so.
   public void maybeRegisterProvider(TableName path, String type) {
     type = type.toLowerCase();
-    CatalogSchema catalogSchema =
-        path.catalog() != null ? getCatalogSchema(path) : getCurrentCatalogSchema();
+    CatalogSchema catalogSchema = getCatalogSchema(path);
     BeamCalciteSchema beamCalciteSchema = catalogSchema.getDatabaseSchema(path);
 
     if (beamCalciteSchema.getTableProvider() instanceof MetaStore) {
@@ -180,8 +180,14 @@ public class CatalogManagerSchema implements Schema {
     return getCurrentCatalogSchema().getTableNames();
   }
 
+  /**
+   * Returns the {@link CatalogSchema} for the catalog referenced in this {@link TableName}. If the
+   * path does not reference a catalog, the currently use {@link CatalogSchema} will be returned.
+   */
   public CatalogSchema getCatalogSchema(TableName tablePath) {
-    return getCatalogSchema(tablePath.catalog());
+    return tablePath.catalog() != null
+        ? getCatalogSchema(tablePath.catalog())
+        : getCurrentCatalogSchema();
   }
 
   public CatalogSchema getCatalogSchema(@Nullable String catalog) {
@@ -231,7 +237,10 @@ public class CatalogManagerSchema implements Schema {
 
   @Override
   public Set<String> getSubSchemaNames() {
-    return catalogs().stream().map(Catalog::name).collect(Collectors.toSet());
+    return ImmutableSet.<String>builder()
+        .addAll(catalogs().stream().map(Catalog::name).collect(Collectors.toSet()))
+        .add(BeamSystemSchema.BEAMSYSTEM)
+        .build();
   }
 
   public Collection<Catalog> catalogs() {
