@@ -21,6 +21,7 @@ import com.google.auto.value.AutoValue;
 import java.util.Map;
 import org.apache.beam.sdk.schemas.AutoValueSchema;
 import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
+import org.apache.beam.sdk.schemas.annotations.SchemaFieldNumber;
 import org.apache.beam.sdk.schemas.annotations.SchemaIgnore;
 import org.apache.iceberg.DataFile;
 import org.apache.iceberg.PartitionSpec;
@@ -34,8 +35,10 @@ abstract class FileWriteResult {
   private transient @MonotonicNonNull TableIdentifier cachedTableIdentifier;
   private transient @MonotonicNonNull DataFile cachedDataFile;
 
+  @SchemaFieldNumber("0")
   abstract String getTableIdentifierString();
 
+  @SchemaFieldNumber("1")
   abstract SerializableDataFile getSerializableDataFile();
 
   @SchemaIgnore
