@@ -33,7 +33,7 @@ asn1crypto==1.5.1
 astor==0.8.1
 astunparse==1.6.3
 attrs==25.4.0
-beartype==0.21.0
+beartype==0.22.5
 beautifulsoup4==4.14.3
 blake3==1.0.8
 bs4==0.0.2
@@ -219,6 +219,7 @@ pydantic-extra-types==2.10.6
 pydantic_core==2.41.5
 Pygments==2.19.2
 PyHamcrest==2.1.0
+PyJWT==2.10.1
 pymilvus==2.5.18
 pymongo==4.15.5
 PyMySQL==1.1.2
