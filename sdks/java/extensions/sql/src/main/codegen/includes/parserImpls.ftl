@@ -478,10 +478,10 @@ SqlCreate SqlCreateExternalTable(Span s, boolean replace) :
 SqlCall SqlAlterTable(Span s, String scope) :
 {
     final SqlNode tableName;
-    List<Schema.Field> columnsToAdd = null;
     SqlNodeList columnsToDrop = null;
-    SqlNodeList partitionsToAdd = null;
+    List<Schema.Field> columnsToAdd = null;
     SqlNodeList partitionsToDrop = null;
+    SqlNodeList partitionsToAdd = null;
     SqlNodeList setProps = null;
     SqlNodeList resetProps = null;
 }

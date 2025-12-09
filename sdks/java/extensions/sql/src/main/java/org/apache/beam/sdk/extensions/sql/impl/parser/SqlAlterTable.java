@@ -29,6 +29,7 @@ import org.apache.beam.sdk.extensions.sql.impl.BeamCalciteSchema;
 import org.apache.beam.sdk.extensions.sql.impl.CatalogManagerSchema;
 import org.apache.beam.sdk.extensions.sql.impl.CatalogSchema;
 import org.apache.beam.sdk.extensions.sql.impl.TableName;
+import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils;
 import org.apache.beam.sdk.extensions.sql.meta.provider.AlterTableOps;
 import org.apache.beam.sdk.schemas.Schema.Field;
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.jdbc.CalcitePrepare;
@@ -147,40 +148,82 @@ public class SqlAlterTable extends SqlAlter implements BeamSqlParser.ExecutableS
 
   @Override
   public void unparseAlterOperation(SqlWriter writer, int left, int right) {
-    writer.keyword("CATALOG");
+    writer.keyword("TABLE");
     name.unparse(writer, left, right);
+
+    if (columnsToDrop != null && !columnsToDrop.isEmpty()) {
+      writer.keyword("DROP COLUMNS");
+      SqlWriter.Frame frame = writer.startList("(", ")");
+      for (String colName : SqlDdlNodes.getStringList(columnsToDrop)) {
+        writer.sep(",");
+        writer.identifier(colName, false);
+      }
+      writer.endList(frame);
+    }
+
+    if (columnsToAdd != null && !columnsToAdd.isEmpty()) {
+      writer.keyword("ADD COLUMNS");
+      SqlWriter.Frame frame = writer.startList("(", ")");
+      columnsToAdd.forEach(column -> unparseColumn(writer, column));
+      writer.endList(frame);
+    }
+
+    if (partitionsToDrop != null && !partitionsToDrop.isEmpty()) {
+      writer.keyword("DROP PARTITIONS");
+      SqlWriter.Frame frame = writer.startList("(", ")");
+      for (String partition : SqlDdlNodes.getStringList(partitionsToDrop)) {
+        writer.sep(",");
+        writer.identifier(partition, true);
+      }
+      writer.endList(frame);
+    }
+
+    if (partitionsToAdd != null && !partitionsToAdd.isEmpty()) {
+      writer.keyword("ADD PARTITIONS");
+      SqlWriter.Frame frame = writer.startList("(", ")");
+      for (String partition : SqlDdlNodes.getStringList(partitionsToAdd)) {
+        writer.sep(",");
+        writer.identifier(partition, true);
+      }
+      writer.endList(frame);
+    }
+
+    if (resetProps != null && !resetProps.isEmpty()) {
+      writer.keyword("RESET");
+      SqlWriter.Frame frame = writer.startList("(", ")");
+      for (SqlNode resetProp : resetProps) {
+        writer.sep(",");
+        resetProp.unparse(writer, 0, 0);
+      }
+      writer.endList(frame);
+    }
+
     if (setProps != null && !setProps.isEmpty()) {
       writer.keyword("SET");
-      writer.keyword("(");
-      for (int i = 0; i < setProps.size(); i++) {
-        if (i > 0) {
-          writer.keyword(",");
-        }
-        SqlNode property = setProps.get(i);
-        checkState(
-            property instanceof SqlNodeList,
-            String.format(
-                "Unexpected properties entry '%s' of class '%s'", property, property.getClass()));
-        SqlNodeList kv = ((SqlNodeList) property);
-
+      SqlWriter.Frame frame = writer.startList("(", ")");
+      for (SqlNode setProp : setProps) {
+        writer.sep(",");
+        SqlNodeList kv = (SqlNodeList) setProp;
         kv.get(0).unparse(writer, left, right); // key
         writer.keyword("=");
         kv.get(1).unparse(writer, left, right); // value
       }
-      writer.keyword(")");
+      writer.endList(frame);
+    }
+  }
+
+  private void unparseColumn(SqlWriter writer, Field column) {
+    writer.sep(",");
+    writer.identifier(column.getName(), false);
+    writer.identifier(CalciteUtils.toSqlTypeName(column.getType()).name(), false);
+
+    if (column.getType().getNullable() != null && !column.getType().getNullable()) {
+      writer.keyword("NOT NULL");
     }
 
-    if (resetProps != null) {
-      writer.keyword("RESET");
-      writer.sep("(");
-      for (int i = 0; i < resetProps.size(); i++) {
-        if (i > 0) {
-          writer.sep(",");
-        }
-        SqlNode field = resetProps.get(i);
-        field.unparse(writer, 0, 0);
-      }
-      writer.sep(")");
+    if (column.getDescription() != null) {
+      writer.keyword("COMMENT");
+      writer.literal(column.getDescription());
     }
   }
 

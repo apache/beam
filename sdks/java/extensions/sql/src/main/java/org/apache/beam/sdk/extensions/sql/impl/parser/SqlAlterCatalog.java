@@ -82,11 +82,11 @@ public class SqlAlterCatalog extends SqlAlter implements BeamSqlParser.Executabl
     CatalogSchema catalogSchema =
         ((CatalogManagerSchema) schema).getCatalogSchema(SqlDdlNodes.getString(name));
 
-    Map<String, String> setPropsMap = parseSetProps();
-    Collection<String> resetProps = parseResetProps();
+    Map<String, String> setPropsMap = SqlDdlNodes.getStringMap(setProps);
+    Collection<String> resetPropsList = SqlDdlNodes.getStringList(resetProps);
 
     ImmutableList.Builder<String> overlappingPropsBuilder = ImmutableList.builder();
-    resetProps.stream().filter(setPropsMap::containsKey).forEach(overlappingPropsBuilder::add);
+    resetPropsList.stream().filter(setPropsMap::containsKey).forEach(overlappingPropsBuilder::add);
     List<String> overlappingProps = overlappingPropsBuilder.build();
     checkState(
         overlappingProps.isEmpty(),
@@ -94,43 +94,7 @@ public class SqlAlterCatalog extends SqlAlter implements BeamSqlParser.Executabl
         OPERATOR,
         overlappingProps);
 
-    catalogSchema.updateProperties(setPropsMap, resetProps);
-  }
-
-  private Map<String, String> parseSetProps() {
-    if (setProps == null || setProps.isEmpty()) {
-      return Collections.emptyMap();
-    }
-
-    Map<String, String> props = new HashMap<>();
-
-    for (SqlNode property : setProps) {
-      checkState(
-          property instanceof SqlNodeList,
-          String.format(
-              "Unexpected properties entry '%s' of class '%s'", property, property.getClass()));
-      SqlNodeList kv = ((SqlNodeList) property);
-      checkState(kv.size() == 2, "Expected 2 items in properties entry, but got %s", kv.size());
-      String key = checkStateNotNull(SqlDdlNodes.getString(kv.get(0)));
-      String value = checkStateNotNull(SqlDdlNodes.getString(kv.get(1)));
-      props.put(key, value);
-    }
-
-    return props;
-  }
-
-  private Collection<String> parseResetProps() {
-    if (resetProps == null || resetProps.isEmpty()) {
-      return Collections.emptyList();
-    }
-    ImmutableList.Builder<String> resetPropsList = ImmutableList.builder();
-    for (SqlNode propNode : resetProps) {
-      @Nullable String prop = SqlDdlNodes.getString(propNode);
-      if (prop != null) {
-        resetPropsList.add(prop);
-      }
-    }
-    return resetPropsList.build();
+    catalogSchema.updateProperties(setPropsMap, resetPropsList);
   }
 
   @Override
