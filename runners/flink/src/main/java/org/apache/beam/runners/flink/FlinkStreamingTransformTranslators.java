@@ -192,6 +192,12 @@ class FlinkStreamingTransformTranslators {
     return context.getCurrentTransform().getFullName();
   }
 
+  /** Returns the parallelism to use for source operators. */
+  private static int getSourceParallelism(FlinkStreamingTranslationContext context) {
+    int maxParallelism = context.getExecutionEnvironment().getMaxParallelism();
+    return maxParallelism > 0 ? maxParallelism : context.getExecutionEnvironment().getParallelism();
+  }
+
   // --------------------------------------------------------------------------------------------
   //  Transformation Implementations
   // --------------------------------------------------------------------------------------------
@@ -222,10 +228,7 @@ class FlinkStreamingTransformTranslators {
 
     String fullName = getCurrentTransformName(context);
     try {
-      int parallelism =
-          context.getExecutionEnvironment().getMaxParallelism() > 0
-              ? context.getExecutionEnvironment().getMaxParallelism()
-              : context.getExecutionEnvironment().getParallelism();
+      int parallelism = getSourceParallelism(context);
 
       FlinkUnboundedSource<T> unboundedSource =
           FlinkSource.unbounded(
@@ -274,10 +277,7 @@ class FlinkStreamingTransformTranslators {
     TypeInformation<WindowedValue<T>> outputTypeInfo = context.getTypeInfo(output);
 
     String fullName = getCurrentTransformName(context);
-    int parallelism =
-        context.getExecutionEnvironment().getMaxParallelism() > 0
-            ? context.getExecutionEnvironment().getMaxParallelism()
-            : context.getExecutionEnvironment().getParallelism();
+    int parallelism = getSourceParallelism(context);
 
     FlinkBoundedSource<T> flinkBoundedSource =
         FlinkSource.bounded(
