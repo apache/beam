@@ -20,12 +20,14 @@ package org.apache.beam.sdk.extensions.sql.meta.provider.iceberg;
 import static java.lang.String.format;
 import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
 import static org.apache.iceberg.types.Types.NestedField.optional;
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.allOf;
+import static org.hamcrest.Matchers.hasEntry;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
 import java.io.File;
 import java.io.IOException;
-import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
 import org.apache.beam.sdk.extensions.sql.BeamSqlCli;
@@ -88,24 +90,22 @@ public class BeamSqlCliIcebergAlterTest {
     cli.execute(createCatalog("my_catalog"));
     cli.execute("CREATE DATABASE my_catalog.my_db");
     cli.execute("USE DATABASE my_catalog.my_db");
-    cli.execute("CREATE EXTERNAL TABLE my_table(col1 VARCHAR, col2 INTEGER) TYPE 'iceberg'");
+    cli.execute(
+        "CREATE EXTERNAL TABLE my_table(col1 VARCHAR, col2 INTEGER) TYPE 'iceberg' TBLPROPERTIES '{ \"prop1\" : \"123\", \"prop2\" : \"abc\"}'");
     IcebergCatalog catalog = (IcebergCatalog) catalogManager.currentCatalog();
     Table table =
         catalog.catalogConfig.catalog().loadTable(TableIdentifier.parse("my_db.my_table"));
-    Map<String, String> baseProps = table.properties();
+    assertThat(table.properties(), allOf(hasEntry("prop1", "123"), hasEntry("prop2", "abc")));
 
-    cli.execute("ALTER TABLE my_table SET('prop1'='123', 'prop2'='abc', 'prop3'='foo')");
+    cli.execute("ALTER TABLE my_table SET('prop3'='foo')");
     table.refresh();
-    Map<String, String> expectedProps = new HashMap<>(baseProps);
-    expectedProps.putAll(ImmutableMap.of("prop1", "123", "prop2", "abc", "prop3", "foo"));
-
-    assertEquals(expectedProps, table.properties());
+    assertThat(
+        table.properties(),
+        allOf(hasEntry("prop1", "123"), hasEntry("prop2", "abc"), hasEntry("prop3", "foo")));
 
     cli.execute("ALTER TABLE my_table RESET ('prop1') SET ('prop2'='xyz')");
-    expectedProps.put("prop2", "xyz");
-    expectedProps.remove("prop1");
     table.refresh();
-    assertEquals(expectedProps, table.properties());
+    assertThat(table.properties(), allOf(hasEntry("prop2", "xyz"), hasEntry("prop3", "foo")));
   }
 
   @Test

@@ -20,6 +20,7 @@ package org.apache.beam.sdk.extensions.sql.meta.provider.iceberg;
 import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
 
+import com.fasterxml.jackson.core.type.TypeReference;
 import java.util.HashMap;
 import java.util.Map;
 import org.apache.beam.sdk.extensions.sql.TableUtils;
@@ -60,7 +61,12 @@ public class IcebergMetastore extends InMemoryMetaStore {
     } else {
       String identifier = getIdentifier(table);
       try {
-        catalogConfig.createTable(identifier, table.getSchema(), table.getPartitionFields());
+        Map<String, String> properties =
+            TableUtils.getObjectMapper()
+                .convertValue(table.getProperties(), new TypeReference<Map<String, String>>() {});
+        ;
+        catalogConfig.createTable(
+            identifier, table.getSchema(), table.getPartitionFields(), properties);
       } catch (TableAlreadyExistsException e) {
         LOG.info(
             "Iceberg table '{}' already exists at location '{}'.", table.getName(), identifier);
