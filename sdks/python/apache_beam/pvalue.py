@@ -636,5 +636,3 @@ class EmptySideInput(object):
   want to create new instances of this class themselves.
   """
   pass
-
-
