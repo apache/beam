@@ -209,6 +209,9 @@ class TestModelManager(unittest.TestCase):
       raise RuntimeError("Simulated loader exception")
 
     try:
+      instance = self.manager.acquire_model(
+          model_name, lambda: "model_instance")
+      self.manager.release_model(model_name, instance)
       instance = self.manager.acquire_model(model_name, dummy_loader)
     except RuntimeError:
       self.manager.force_reset()

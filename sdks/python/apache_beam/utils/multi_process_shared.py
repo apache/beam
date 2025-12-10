@@ -191,7 +191,10 @@ _SingletonRegistrar.register(
 # singletonProxy_call__ calls (which is a wrapper around the underlying
 # object's __call__ function)
 class _AutoProxyWrapper:
-  def __init__(self, proxyObject: multiprocessing.managers.BaseProxy):
+  def __init__(
+      self,
+      proxyObject: multiprocessing.managers.BaseProxy,
+      deleter: Optional[Callable[[], None]] = None):
     self._proxyObject = proxyObject
 
   def __call__(self, *args, **kwargs):
@@ -208,6 +211,13 @@ class _AutoProxyWrapper:
 
   def get_auto_proxy_object(self):
     return self._proxyObject
+
+  def unsafe_hard_delete(self):
+    if self._deleter:
+      self._deleter()
+    else:
+      raise NotImplementedError(
+          "This proxy was not initialized with deletion capabilities.")
 
 
 class MultiProcessShared(Generic[T]):
@@ -307,7 +317,11 @@ class MultiProcessShared(Generic[T]):
     # Caveat: They must always agree, as they will be ignored if the object
     # is already constructed.
     singleton = self._get_manager().acquire_singleton(self._tag)
-    return _AutoProxyWrapper(singleton)
+
+    def deleter():
+      manager.unsafe_hard_delete_singleton(self._tag)
+
+    return _AutoProxyWrapper(singleton, deleter=deleter)
 
   def release(self, obj):
     self._manager.release_singleton(self._tag, obj.get_auto_proxy_object())

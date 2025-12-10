@@ -409,12 +409,17 @@ class ModelManager:
       finally:
         self._cv.notify_all()
 
-  def force_reset(self):
+  def delete_all_models(self):
     for _, instances in self.models.items():
-      del instances[:]
+      for instance in instances:
+        if hasattr(instance, "unsafe_hard_delete"):
+          instance.unsafe_hard_delete()
+        del instance
     gc.collect()
     torch.cuda.empty_cache()
 
+  def force_reset(self):
+    self.delete_all_models()
     self.models = defaultdict(list)
     self.idle_pool = defaultdict(list)
     self.active_counts = Counter()
@@ -425,13 +430,9 @@ class ModelManager:
     self.isolation_baseline = 0.0
 
   def shutdown(self):
-    try:
-      for _, instances in self.models.items():
-        del instances[:]
-      gc.collect()
-      torch.cuda.empty_cache()
-    except Exception as e:
-      logger.error("Error during ModelManager shutdown: %s", e)
+    self.delete_all_models()
+    gc.collect()
+    torch.cuda.empty_cache()
     self.monitor.stop()
 
   def __del__(self):
