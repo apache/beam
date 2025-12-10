@@ -31,7 +31,7 @@ anyio==4.12.0
 asn1crypto==1.5.1
 astunparse==1.6.3
 attrs==25.4.0
-beartype==0.22.5
+beartype==0.22.8
 beautifulsoup4==4.14.3
 bs4==0.0.2
 build==1.3.0
@@ -40,7 +40,7 @@ certifi==2025.11.12
 cffi==2.0.0
 charset-normalizer==3.4.4
 click==8.3.1
-cloud-sql-python-connector==1.18.5
+cloud-sql-python-connector==1.19.0
 crcmod==1.7
 cryptography==46.0.3
 Cython==3.2.2
@@ -63,9 +63,9 @@ google-api-python-client==2.187.0
 google-apitools==0.5.31
 google-auth==2.43.0
 google-auth-httplib2==0.2.1
-google-cloud-aiplatform==1.129.0
+google-cloud-aiplatform==1.130.0
 google-cloud-bigquery==3.38.0
-google-cloud-bigquery-storage==2.34.0
+google-cloud-bigquery-storage==2.35.0
 google-cloud-bigtable==2.34.0
 google-cloud-core==2.5.0
 google-cloud-datastore==2.21.0
@@ -83,7 +83,7 @@ google-cloud-storage==2.19.0
 google-cloud-videointelligence==2.17.0
 google-cloud-vision==3.11.0
 google-crc32c==1.7.1
-google-genai==1.53.0
+google-genai==1.54.0
 google-pasta==0.2.0
 google-resumable-media==2.8.0
 googleapis-common-protos==1.72.0
@@ -111,6 +111,8 @@ jeepney==0.9.0
 Jinja2==3.1.6
 joblib==1.5.2
 jsonpickle==3.4.2
+jsonschema==4.25.1
+jsonschema-specifications==2025.9.1
 keras==3.12.0
 keyring==25.7.0
 keyrings.google-artifactregistry-auth==1.1.2
@@ -127,9 +129,9 @@ more-itertools==10.8.0
 mpmath==1.3.0
 multidict==6.7.0
 namex==0.1.0
-networkx==3.6
+networkx==3.6.1
 nltk==3.9.2
-numpy==2.2.6
+numpy==2.3.5
 oauth2client==4.1.3
 objsize==0.7.1
 opentelemetry-api==1.39.0
@@ -138,7 +140,7 @@ opentelemetry-semantic-conventions==0.60b0
 opt_einsum==3.4.0
 optree==0.18.0
 oracledb==3.4.1
-orjson==3.11.4
+orjson==3.11.5
 overrides==7.7.0
 packaging==25.0
 pandas==2.2.3
@@ -160,7 +162,6 @@ pydantic==2.12.5
 pydantic_core==2.41.5
 Pygments==2.19.2
 PyHamcrest==2.1.0
-PyJWT==2.10.1
 pymilvus==2.5.18
 pymongo==4.15.5
 PyMySQL==1.1.2
@@ -174,11 +175,12 @@ python-dotenv==1.2.1
 python-tds==1.17.1
 pytz==2025.2
 PyYAML==6.0.3
-redis==5.3.1
+referencing==0.37.0
 regex==2025.11.3
 requests==2.32.5
 requests-mock==1.12.1
 rich==14.2.0
+rpds-py==0.30.0
 rsa==4.9.1
 safetensors==0.7.0
 scikit-learn==1.7.2
@@ -190,7 +192,7 @@ shapely==2.1.2
 six==1.17.0
 sortedcontainers==2.4.0
 soupsieve==2.8
-SQLAlchemy==2.0.44
+SQLAlchemy==2.0.45
 sqlalchemy_pytds==1.0.2
 sqlparse==0.5.4
 sympy==1.14.0
@@ -211,7 +213,7 @@ typing_extensions==4.15.0
 tzdata==2025.2
 ujson==5.11.0
 uritemplate==4.2.0
-urllib3==2.6.0
+urllib3==2.6.1
 virtualenv-clone==0.5.7
 websockets==15.0.1
 Werkzeug==3.1.4
