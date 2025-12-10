@@ -5,7 +5,6 @@ import random
 from concurrent.futures import ThreadPoolExecutor
 from unittest.mock import patch
 
-# Import from the library file
 from apache_beam.ml.inference.model_manager import ModelManager, GPUMonitor, ResourceEstimator
 
 
@@ -37,7 +36,6 @@ class MockGPUMonitor:
     with self._lock:
       self._peak = self._current
 
-  # --- Test Helper Methods ---
   def set_usage(self, current_mb):
     """Sets absolute usage (legacy helper)."""
     with self._lock:
@@ -66,13 +64,8 @@ class MockGPUMonitor:
 class TestModelManager(unittest.TestCase):
   def setUp(self):
     """Force reset the Singleton ModelManager before every test."""
-    # 1. Reset the Singleton instance
     ModelManager._instance = None
-
-    # 2. Instantiate Mock Monitor directly
     self.mock_monitor = MockGPUMonitor()
-
-    # 3. Inject Mock Monitor into Manager
     self.manager = ModelManager(monitor=self.mock_monitor)
 
   def tearDown(self):
@@ -85,12 +78,7 @@ class TestModelManager(unittest.TestCase):
     """
     model_name = "known_model"
     model_cost = 3000.0
-    # Total Memory: 12000. Limit (15% slack) ~ 10200.
-    # 3 * 3000 = 9000 (OK).
-    # 4 * 3000 = 12000 (Over Limit).
-
     self.manager.estimator.set_initial_estimate(model_name, model_cost)
-
     acquired_refs = []
 
     def loader():
@@ -108,8 +96,6 @@ class TestModelManager(unittest.TestCase):
 
     with ThreadPoolExecutor(max_workers=1) as executor:
       future = executor.submit(run_inference)
-
-      # Verify it blocks
       try:
         future.result(timeout=0.5)
         self.fail("Should have blocked due to capacity")
@@ -117,20 +103,11 @@ class TestModelManager(unittest.TestCase):
         pass
 
       # 3. Release resources to unblock
-      # Releasing one puts it in the idle pool.
-      # The blocked thread should wake up, see the idle one in the pool,
-      # and reuse it.
       item_to_release = acquired_refs.pop()
       self.manager.release_model(model_name, item_to_release)
 
-      # 4. Verify Success
-      # The previous logic required a manual notify loop because set_usage
-      # didn't notify. release_model calls notify_all(), so standard futures
-      # waiting works here.
       result = future.result(timeout=2.0)
       self.assertIsNotNone(result)
-
-      # Verify we reused the released instance (optimization check)
       self.assertEqual(result, item_to_release)
 
   def test_model_manager_unknown_model_runs_isolated(self):
@@ -174,29 +151,18 @@ class TestModelManager(unittest.TestCase):
     Simulates a production environment with multiple model types running
     concurrently. Verifies that the estimator converges.
     """
-    # --- Configuration ---
     TRUE_COSTS = {"model_small": 1500.0, "model_medium": 3000.0}
 
     def run_job(model_name):
       cost = TRUE_COSTS[model_name]
 
-      # Loader: Simulates the initial memory spike when loading to VRAM
       def loader():
         self.mock_monitor.allocate(cost)
         time.sleep(0.01)
         return f"instance_{model_name}"
 
-      # 1. Acquire
-      # Note: If reused, loader isn't called, so memory stays stable.
-      # If new, loader runs and bumps monitor memory.
       instance = self.manager.acquire_model(model_name, loader)
-
-      # 2. Simulate Inference Work
-      # In a real GPU, inference might spike memory further (activations).
-      # For this test, we assume the 'cost' captures the peak usage.
       time.sleep(random.uniform(0.01, 0.05))
-
-      # 3. Release
       self.manager.release_model(model_name, instance)
 
     # Create a workload stream
@@ -213,11 +179,9 @@ class TestModelManager(unittest.TestCase):
       for f in futures:
         f.result()
 
-    # --- Assertions ---
     est_small = self.manager.estimator.get_estimate("model_small")
     est_med = self.manager.estimator.get_estimate("model_medium")
 
-    # Check convergence (allow some margin for solver approximation)
     self.assertAlmostEqual(est_small, TRUE_COSTS["model_small"], delta=100.0)
     self.assertAlmostEqual(est_med, TRUE_COSTS["model_medium"], delta=100.0)
 
@@ -244,7 +208,6 @@ class TestModelManager(unittest.TestCase):
       self.mock_monitor.allocate(1000.0)
       raise RuntimeError("Simulated loader exception")
 
-    # Acquire a model to populate the pool
     try:
       instance = self.manager.acquire_model(model_name, dummy_loader)
     except RuntimeError:
@@ -255,7 +218,6 @@ class TestModelManager(unittest.TestCase):
       self.assertFalse(self.manager.isolation_mode)
       pass
 
-    # Verify we can still try again
     instance = self.manager.acquire_model(model_name, lambda: "model_instance")
     self.manager.release_model(model_name, instance)
 

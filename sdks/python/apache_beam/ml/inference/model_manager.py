@@ -225,7 +225,6 @@ class ResourceEstimator:
 
       for i, model in enumerate(unique):
         calculated_cost = weights[i]
-        logger.info("Solved Cost for %s: %s MB", model, calculated_cost)
 
         if model in self.estimates:
           old = self.estimates[model]
@@ -235,6 +234,8 @@ class ResourceEstimator:
         else:
           self.estimates[model] = calculated_cost
 
+        logger.info(
+            "Updated Estimate for %s: %.1f MB", model, self.estimates[model])
       logger.info("System Bias: %s MB", bias)
 
     except Exception as e:
@@ -344,20 +345,6 @@ class ModelManager:
             should_spawn = True
             break
 
-          logger.info(
-              "Model load blocked for tag: %s | "
-              "Current Usage: %.1f MB | "
-              "Peak Usage: %.1f MB | "
-              "Total Memory: %.1f MB | "
-              "Estimated Cost: %.1f MB | "
-              "Limit: %.1f MB",
-              tag,
-              curr,
-              peak,
-              total,
-              est_cost,
-              limit,
-          )
           self._cv.wait()
 
       # Execution Logic (Spawn)

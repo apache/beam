@@ -13,7 +13,7 @@ from apache_beam.testing.util import assert_that, equal_to
 
 class HuggingFaceGpuTest(unittest.TestCase):
 
-  # This decorator skips the test if you run it on a machine without a GPU
+  # Skips the test if you run it on a machine without a GPU
   @unittest.skipIf(
       not torch.cuda.is_available(), "No GPU detected, skipping GPU test")
   def test_sentiment_analysis_on_gpu_large_input(self):
@@ -23,11 +23,9 @@ class HuggingFaceGpuTest(unittest.TestCase):
     model_handler = HuggingFacePipelineModelHandler(
         task="sentiment-analysis",
         model="distilbert-base-uncased-finetuned-sst-2-english",
-        device=0,  # <--- This forces GPU usage
-        inference_args={"batch_size": 4
-                        }  # Optional: Control batch size sent to GPU
-    )
-    DUPLICATE_FACTOR = 2  # Increase to test larger inputs
+        device=0,
+        inference_args={"batch_size": 4})
+    DUPLICATE_FACTOR = 2
 
     with TestPipeline() as pipeline:
       examples = [
@@ -98,8 +96,6 @@ class HuggingFaceGpuTest(unittest.TestCase):
       predictions = pcoll | 'RunInference' >> RunInference(model_handler)
       actual_labels = predictions | beam.Map(lambda x: x.inference['label'])
 
-      # Note: Larger models are often more accurate with nuance.
-      # e.g. "somewhat annoyed" is confidently NEGATIVE.
       expected_labels = [
           'POSITIVE',  # love
           'NEGATIVE',  # worst
