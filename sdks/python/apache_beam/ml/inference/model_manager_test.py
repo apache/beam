@@ -6,7 +6,7 @@ from concurrent.futures import ThreadPoolExecutor
 from unittest.mock import patch
 
 # Import from the library file
-from apache_beam.ml.inference.model_manager import ModelManager, GPUMonitor
+from apache_beam.ml.inference.model_manager import ModelManager, GPUMonitor, ResourceEstimator
 
 
 class MockGPUMonitor:
@@ -361,6 +361,78 @@ class TestGPUMonitor(unittest.TestCase):
 
     _, peak, _ = monitor.get_stats()
     self.assertEqual(peak, 2000.0)  # Peak should reset to current
+
+
+class TestResourceEstimatorSolver(unittest.TestCase):
+  def setUp(self):
+    self.estimator = ResourceEstimator()
+
+  @patch('apache_beam.ml.inference.model_manager.nnls')
+  def test_solver_respects_min_data_points(self, mock_nnls):
+    """
+        Test that the solver does not run until the total number of observations
+        reaches MIN_DATA_POINTS, even if we have enough unique configurations.
+        """
+    mock_nnls.return_value = ([100.0, 50.0], 0.0)
+
+    self.estimator.add_observation({'model_A': 1}, 500)
+    self.estimator.add_observation({'model_B': 1}, 500)
+    self.assertFalse(
+        mock_nnls.called,
+        "Should not solve: Not enough data points or unique keys")
+
+    # Now we have 3 unique keys. For 2 models, 3 >= 2+1.
+    # The 'Unique Models' constraint is now SATISFIED.
+    # However, total observations is 3. MIN_DATA_POINTS is 5.
+    self.estimator.add_observation({'model_A': 1, 'model_B': 1}, 1000)
+
+    self.assertFalse(
+        mock_nnls.called,
+        "Should not solve yet: Total obs (3) < MIN_DATA_POINTS")
+
+    self.estimator.add_observation({'model_A': 1}, 500)
+    self.assertFalse(mock_nnls.called)
+
+    # Now Total Obs = 5. MIN_DATA_POINTS satisfied.
+    # Unique Keys = 3. Variety satisfied.
+    self.estimator.add_observation({'model_B': 1}, 500)
+
+    self.assertTrue(
+        mock_nnls.called,
+        "Solver SHOULD run now that min data points are reached")
+
+  @patch('apache_beam.ml.inference.model_manager.nnls')
+  def test_solver_respects_unique_model_constraint(self, mock_nnls):
+    """
+        Test that the solver does not run if we have a lot of data points,
+        but they don't represent enough unique configurations to solve 
+        the linear system safely.
+        """
+    mock_nnls.return_value = ([100.0, 100.0, 50.0], 0.0)
+
+    for _ in range(5):
+      self.estimator.add_observation({'model_A': 1, 'model_B': 1}, 800)
+
+    for _ in range(5):
+      self.estimator.add_observation({'model_C': 1}, 400)
+
+    # Current State:
+    # Total Observations: 10 (>> MIN_DATA_POINTS)
+    # Unique Keys: 2 ({A,B} and {C})
+    # Required Keys: 4 (A, B, C + Bias)
+
+    self.assertFalse(
+        mock_nnls.called,
+        "Should not solve: 2 unique keys provided, "
+        "but need 4 to solve for 3 models + bias")
+
+    # Now let's satisfy the constraint by adding distinct configurations
+    self.estimator.add_observation({'model_A': 1}, 300)  # Key 3
+    self.estimator.add_observation({'model_B': 1}, 300)  # Key 4
+
+    self.assertTrue(
+        mock_nnls.called,
+        "Solver SHOULD run now that we have enough unique configurations")
 
 
 if __name__ == "__main__":

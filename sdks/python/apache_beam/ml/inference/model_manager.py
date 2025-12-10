@@ -46,6 +46,7 @@ SLACK_PERCENTAGE = 0.15
 POLL_INTERVAL = 0.5
 PEAK_WINDOW_SECONDS = 30.0
 SMOOTHING_FACTOR = 0.2
+MIN_DATA_POINTS = 5
 
 
 @contextmanager
@@ -205,7 +206,7 @@ class ResourceEstimator:
     A = np.array(A)
     b = np.array(b)
 
-    if len(A) < len(unique) + 1:
+    if len(self.history.keys()) < len(unique) + 1 or len(A) < MIN_DATA_POINTS:
       # Not enough data to solve yet
       return
 
