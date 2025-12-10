@@ -74,6 +74,9 @@
 
 * Support configuring Firestore database on ReadFn transforms (Java) ([#36904](https://github.com/apache/beam/issues/36904)).
 
+* (Python) Moved `Row` to `apache_beam.typehints.row` to avoid import cycles and improve module organization. Kept a compatibility alias in `pvalue.py`. (Fixes #35095)
+
+
 ## Breaking Changes
 
 * (Python) Some Python dependencies have been split out into extras. To ensure all previously installed dependencies are installed, when installing Beam you can `pip install apache-beam[gcp,interactive,yaml,redis,hadoop,tfrecord]`, though most users will not need all of these extras ([#34554](https://github.com/apache/beam/issues/34554)).

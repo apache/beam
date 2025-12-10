@@ -33,7 +33,6 @@ from typing import Any
 from typing import Dict
 from typing import Generic
 from typing import Iterator
-from typing import NamedTuple
 from typing import Optional
 from typing import Sequence
 from typing import TypeVar
@@ -45,6 +44,7 @@ from apache_beam.internal import pickler
 from apache_beam.portability import common_urns
 from apache_beam.portability import python_urns
 from apache_beam.portability.api import beam_runner_api_pb2
+from apache_beam.typehints.row import Row, _make_Row
 
 if TYPE_CHECKING:
   from apache_beam.pipeline import AppliedPTransform
