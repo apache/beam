@@ -44,7 +44,7 @@ from apache_beam.internal import pickler
 from apache_beam.portability import common_urns
 from apache_beam.portability import python_urns
 from apache_beam.portability.api import beam_runner_api_pb2
-from apache_beam.typehints.row import Row, _make_Row
+from apache_beam.typehints.row import Row
 
 if TYPE_CHECKING:
   from apache_beam.pipeline import AppliedPTransform
