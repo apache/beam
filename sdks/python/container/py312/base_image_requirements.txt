@@ -103,6 +103,8 @@ jeepney==0.9.0
 Jinja2==3.1.6
 joblib==1.5.2
 jsonpickle==3.4.2
+jsonschema==4.25.1
+jsonschema-specifications==2025.9.1
 keyring==25.6.0
 keyrings.google-artifactregistry-auth==1.1.2
 MarkupSafe==3.0.3
