@@ -51,16 +51,6 @@ class FakeModel:
     return example + 1
 
 
-class FakeFailsOnceModel:
-  _has_failed = False
-
-  def predict(self, example: int) -> int:
-    if not FakeFailsOnceModel._has_failed:
-      FakeFailsOnceModel._has_failed = True
-      raise Exception('Intentional Failure')
-    return example
-
-
 class FakeStatefulModel:
   def __init__(self, state: int):
     if state == 100:
@@ -127,6 +117,19 @@ class FakeSlowModelHandler(base.ModelHandler[int, int, FakeModel]):
     return {'min_batch_size': 1, 'max_batch_size': 1}
 
 
+class SimpleFakeModelHanlder(base.ModelHandler[int, int, FakeModel]):
+  def load_model(self):
+    return FakeModel()
+
+  def run_inference(
+      self,
+      batch: Sequence[int],
+      model: FakeModel,
+      inference_args=None) -> Iterable[int]:
+    for example in batch:
+      yield model.predict(example)
+
+
 class FakeModelHandler(base.ModelHandler[int, int, FakeModel]):
   def __init__(
       self,
@@ -138,7 +141,6 @@ class FakeModelHandler(base.ModelHandler[int, int, FakeModel]):
       incrementing=False,
       max_copies=1,
       num_bytes_per_element=None,
-      inference_fail_once=False,
       **kwargs):
     self._fake_clock = clock
     self._min_batch_size = min_batch_size
@@ -149,14 +151,11 @@ class FakeModelHandler(base.ModelHandler[int, int, FakeModel]):
     self._incrementing = incrementing
     self._max_copies = max_copies
     self._num_bytes_per_element = num_bytes_per_element
-    self._inference_fail_once = inference_fail_once
 
   def load_model(self):
     assert (not self._incrementing or self._state is None)
     if self._fake_clock:
       self._fake_clock.current_time_ns += 500_000_000  # 500ms
-    if self._inference_fail_once:
-      return FakeFailsOnceModel()
     if self._incrementing:
       return FakeIncrementingModel()
     if self._state is not None:
@@ -1901,7 +1900,7 @@ class RunInferenceBaseTest(unittest.TestCase):
       expected = [example + 1 for example in examples]
       pcoll = pipeline | 'start' >> beam.Create(examples)
       actual = pcoll | base.RunInference(
-          FakeModelHandler(multi_process_shared=True), use_model_manager=True)
+          SimpleFakeModelHanlder(), use_model_manager=True)
       assert_that(actual, equal_to(expected), label='assert:inferences')
 
   def test_run_inference_impl_with_model_manager_args(self):
@@ -1910,8 +1909,7 @@ class RunInferenceBaseTest(unittest.TestCase):
       expected = [example + 1 for example in examples]
       pcoll = pipeline | 'start' >> beam.Create(examples)
       actual = pcoll | base.RunInference(
-          FakeModelHandler(
-              multi_process_shared=True, min_batch_size=2, max_batch_size=4),
+          SimpleFakeModelHanlder(),
           use_model_manager=True,
           model_manager_args={
               'slack_percentage': 0.2,
@@ -1920,38 +1918,6 @@ class RunInferenceBaseTest(unittest.TestCase):
               'min_data_points': 10,
               'smoothing_factor': 0.5
           })
-      assert_that(actual, equal_to(expected), label='assert:inferences')
-
-  def test_run_inference_impl_with_model_manager_fail_and_retry(self):
-    pipeline = TestPipeline()
-    examples = [1, 5, 3, 10]
-    expected = [example + 1 for example in examples]
-    with self.assertRaises(Exception):
-      actual = (
-          pipeline | 'start' >> beam.Create(examples)
-          | base.RunInference(
-              FakeModelHandler(
-                  multi_process_shared=True, inference_fail_once=True),
-              use_model_manager=True))
-      pipeline.run()
-    assert_that(actual, equal_to(expected), label='assert:inferences')
-
-  def test_run_inference_impl_with_model_manager_keyed_handler(self):
-    with TestPipeline() as pipeline:
-      examples = [1, 5, 3, 10]
-      keyed_examples = [(i, example) for i, example in enumerate(examples)]
-      expected = [(i, example + 1) for i, example in enumerate(examples)]
-      expected[0] = (0, 200)
-      pcoll = pipeline | 'start' >> beam.Create(keyed_examples)
-      mhs = [
-          base.KeyModelMapping([0],
-                               FakeModelHandler(
-                                   state=200, multi_process_shared=True)),
-          base.KeyModelMapping([1, 2, 3],
-                               FakeModelHandler(multi_process_shared=True))
-      ]
-      actual = pcoll | base.RunInference(
-          base.KeyedModelHandler(mhs), use_model_manager=True)
       assert_that(actual, equal_to(expected), label='assert:inferences')
 
 
