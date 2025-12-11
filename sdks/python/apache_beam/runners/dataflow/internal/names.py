@@ -35,6 +35,6 @@ SERIALIZED_SOURCE_KEY = 'serialized_source'
 # Update this tag whenever there is a change that
 # requires changes to SDK harness container or SDK harness launcher.
 
-BEAM_DEV_SDK_CONTAINER_TAG = 'beam-master-20251205'
+BEAM_DEV_SDK_CONTAINER_TAG = 'beam-master-20251210'
 
 DATAFLOW_CONTAINER_IMAGE_REPOSITORY = 'gcr.io/cloud-dataflow/v1beta3'
