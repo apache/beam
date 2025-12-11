@@ -35,23 +35,10 @@ import numpy as np
 from scipy.optimize import nnls
 import torch
 from collections import defaultdict, deque, Counter
-from contextlib import contextmanager
 from typing import Dict, Any, Tuple, Optional, Callable
 
 # Configure Logging
 logger = logging.getLogger(__name__)
-
-
-@contextmanager
-def cuda_oom_guard(description: str):
-  """Safely catches OOM, clears cache, and re-raises."""
-  try:
-    yield
-  except torch.cuda.OutOfMemoryError as e:
-    logger.error("CUDA OOM DETECTED during: %s", description)
-    gc.collect()
-    torch.cuda.empty_cache()
-    raise e
 
 
 class GPUMonitor:
@@ -364,8 +351,15 @@ class ModelManager:
         try:
           logger.info("Loading model for tag: %s", tag)
           isolation_baseline_snap, _, _ = self.monitor.get_stats()
-          with cuda_oom_guard(f"Loading {tag}"):
+          try:
             instance = loader_func()
+          except torch.cuda.OutOfMemoryError:
+            logger.error(
+                "CUDA OOM while loading model for tag: %s, "
+                "clearing all model instances and reset",
+                tag)
+            self.force_reset()
+            pass
           logger.info("Model loaded for tag: %s", tag)
           _, peak_during_load, _ = self.monitor.get_stats()
           snapshot = {tag: 1}

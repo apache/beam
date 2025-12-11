@@ -79,6 +79,10 @@ class _SingletonProxy:
     assert self._SingletonProxy_valid
     self._SingletonProxy_valid = False
 
+  def unsafe_hard_delete(self):
+    assert self._SingletonProxy_valid
+    self._SingletonProxy_entry.unsafe_hard_delete()
+
   def __getattr__(self, name):
     if not self._SingletonProxy_valid:
       raise RuntimeError('Entry was released.')
@@ -105,6 +109,7 @@ class _SingletonProxy:
     dir = self._SingletonProxy_entry.obj.__dir__()
     dir.append('singletonProxy_call__')
     dir.append('singletonProxy_release')
+    dir.append('unsafe_hard_delete')
     return dir
 
 
@@ -191,12 +196,8 @@ _SingletonRegistrar.register(
 # singletonProxy_call__ calls (which is a wrapper around the underlying
 # object's __call__ function)
 class _AutoProxyWrapper:
-  def __init__(
-      self,
-      proxyObject: multiprocessing.managers.BaseProxy,
-      deleter: Optional[Callable[[], None]] = None):
+  def __init__(self, proxyObject: multiprocessing.managers.BaseProxy):
     self._proxyObject = proxyObject
-    self._deleter = deleter
 
   def __call__(self, *args, **kwargs):
     return self._proxyObject.singletonProxy_call__(*args, **kwargs)
@@ -214,11 +215,7 @@ class _AutoProxyWrapper:
     return self._proxyObject
 
   def unsafe_hard_delete(self):
-    if self._deleter:
-      self._deleter()
-    else:
-      raise NotImplementedError(
-          "This proxy was not initialized with deletion capabilities.")
+    return self._proxyObject.unsafe_hard_delete()
 
 
 class MultiProcessShared(Generic[T]):
@@ -318,11 +315,7 @@ class MultiProcessShared(Generic[T]):
     # Caveat: They must always agree, as they will be ignored if the object
     # is already constructed.
     singleton = self._get_manager().acquire_singleton(self._tag)
-
-    def deleter():
-      self._get_manager().unsafe_hard_delete_singleton(self._tag)
-
-    return _AutoProxyWrapper(singleton, deleter=deleter)
+    return _AutoProxyWrapper(singleton)
 
   def release(self, obj):
     self._manager.release_singleton(self._tag, obj.get_auto_proxy_object())

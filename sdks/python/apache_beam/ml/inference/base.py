@@ -1947,8 +1947,6 @@ class _RunInferenceDoFn(beam.DoFn, Generic[ExampleT, PredictionT]):
     except BaseException as e:
       if self._metrics_collector:
         self._metrics_collector.failed_batches_counter.inc()
-      if self.use_model_manager:
-        self._model.force_reset()
       if (e is pickle.PickleError and
           self._model_handler.share_model_across_processes()):
         raise TypeError(

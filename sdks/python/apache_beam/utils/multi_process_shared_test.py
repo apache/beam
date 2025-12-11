@@ -270,6 +270,18 @@ class MultiProcessSharedTest(unittest.TestCase):
     with self.assertRaisesRegex(Exception, 'released'):
       counter1.get()
 
+  def test_proxy_on_proxy(self):
+    class SimpleClass:
+      def make_proxy(self):
+        return multi_process_shared.MultiProcessShared(
+            Counter, tag='proxy_on_proxy', always_proxy=True).acquire()
+
+    shared1 = multi_process_shared.MultiProcessShared(
+        SimpleClass, tag='proxy_on_proxy_main', always_proxy=True)
+    instance = shared1.acquire()
+    proxy_instance = instance.make_proxy()
+    self.assertEqual(proxy_instance.increment(), 1)
+
 
 if __name__ == '__main__':
   logging.getLogger().setLevel(logging.INFO)
