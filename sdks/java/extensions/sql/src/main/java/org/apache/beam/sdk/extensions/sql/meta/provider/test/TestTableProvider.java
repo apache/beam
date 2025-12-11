@@ -36,6 +36,7 @@ import org.apache.beam.sdk.extensions.sql.meta.BeamSqlTableFilter;
 import org.apache.beam.sdk.extensions.sql.meta.DefaultTableFilter;
 import org.apache.beam.sdk.extensions.sql.meta.ProjectSupport;
 import org.apache.beam.sdk.extensions.sql.meta.Table;
+import org.apache.beam.sdk.extensions.sql.meta.provider.AlterTableOps;
 import org.apache.beam.sdk.extensions.sql.meta.provider.InMemoryMetaTableProvider;
 import org.apache.beam.sdk.extensions.sql.meta.provider.TableProvider;
 import org.apache.beam.sdk.options.PipelineOptions;
@@ -50,6 +51,7 @@ import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.SerializableFunction;
+import org.apache.beam.sdk.util.Preconditions;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PDone;
@@ -108,6 +110,13 @@ public class TestTableProvider extends InMemoryMetaTableProvider {
   }
 
   @Override
+  public AlterTableOps alterTable(String name) {
+    TableWithRows table =
+        Preconditions.checkArgumentNotNull(tables().get(name), "Could not find table '%s'", name);
+    return new AlterTestTableOps(table);
+  }
+
+  @Override
   public synchronized BeamSqlTable buildBeamSqlTable(Table table) {
     return new InMemoryTable(tables().get(table.getName()));
   }
@@ -133,8 +142,20 @@ public class TestTableProvider extends InMemoryMetaTableProvider {
       this.rows = new CopyOnWriteArrayList<>();
     }
 
+    public Table getTable() {
+      return table;
+    }
+
+    void setTable(Table table) {
+      this.table = table;
+    }
+
     public List<Row> getRows() {
       return rows;
+    }
+
+    void setRows(List<Row> rows) {
+      this.rows = rows;
     }
   }
 
