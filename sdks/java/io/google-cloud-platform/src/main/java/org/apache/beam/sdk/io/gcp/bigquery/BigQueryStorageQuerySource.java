@@ -54,7 +54,7 @@ class BigQueryStorageQuerySource<T> extends BigQueryStorageSourceBase<T> {
       SerializableFunction<SchemaAndRecord, T> parseFn,
       Coder<T> outputCoder,
       BigQueryServices bqServices,
-      @Nullable TimestampPrecision timestampPrecision) {
+      @Nullable TimestampPrecision picosTimestampPrecision) {
     return new BigQueryStorageQuerySource<>(
         stepUuid,
         queryProvider,
@@ -69,7 +69,7 @@ class BigQueryStorageQuerySource<T> extends BigQueryStorageSourceBase<T> {
         parseFn,
         outputCoder,
         bqServices,
-        timestampPrecision);
+        picosTimestampPrecision);
   }
 
   public static <T> BigQueryStorageQuerySource<T> create(
@@ -100,7 +100,7 @@ class BigQueryStorageQuerySource<T> extends BigQueryStorageSourceBase<T> {
         parseFn,
         outputCoder,
         bqServices,
-        /*timestampPrecision=*/ null);
+        /*picosTimestampPrecision=*/ null);
   }
 
   public static <T> BigQueryStorageQuerySource<T> create(
@@ -128,7 +128,7 @@ class BigQueryStorageQuerySource<T> extends BigQueryStorageSourceBase<T> {
         parseFn,
         outputCoder,
         bqServices,
-        /*timestampPrecision=*/ null);
+        /*picosTimestampPrecision=*/ null);
   }
 
   private final String stepUuid;
@@ -158,8 +158,8 @@ class BigQueryStorageQuerySource<T> extends BigQueryStorageSourceBase<T> {
       SerializableFunction<SchemaAndRecord, T> parseFn,
       Coder<T> outputCoder,
       BigQueryServices bqServices,
-      @Nullable TimestampPrecision timestampPrecision) {
-    super(format, null, null, parseFn, outputCoder, bqServices, timestampPrecision);
+      @Nullable TimestampPrecision picosTimestampPrecision) {
+    super(format, null, null, parseFn, outputCoder, bqServices, picosTimestampPrecision);
     this.stepUuid = checkNotNull(stepUuid, "stepUuid");
     this.queryProvider = checkNotNull(queryProvider, "queryProvider");
     this.flattenResults = checkNotNull(flattenResults, "flattenResults");

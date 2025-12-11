@@ -63,7 +63,8 @@ public class BigQueryIOTranslationTest {
     READ_TRANSFORM_SCHEMA_MAPPING.put("getQueryTempProject", "query_temp_project");
     READ_TRANSFORM_SCHEMA_MAPPING.put("getMethod", "method");
     READ_TRANSFORM_SCHEMA_MAPPING.put("getFormat", "format");
-    READ_TRANSFORM_SCHEMA_MAPPING.put("getTimestampPrecision", "timestamp_precision");
+    READ_TRANSFORM_SCHEMA_MAPPING.put(
+        "getDirectReadPicosTimestampPrecision", "direct_read_picos_timestamp_precision");
     READ_TRANSFORM_SCHEMA_MAPPING.put("getSelectedFields", "selected_fields");
     READ_TRANSFORM_SCHEMA_MAPPING.put("getRowRestriction", "row_restriction");
     READ_TRANSFORM_SCHEMA_MAPPING.put("getCoder", "coder");

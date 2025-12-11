@@ -109,7 +109,7 @@ public class BigQueryIOTranslation {
             .addNullableBooleanField("projection_pushdown_applied")
             .addNullableByteArrayField("bad_record_router")
             .addNullableByteArrayField("bad_record_error_handler")
-            .addNullableByteArrayField("timestamp_precision")
+            .addNullableByteArrayField("direct_read_picos_timestamp_precision")
             .build();
 
     public static final String BIGQUERY_READ_TRANSFORM_URN =
@@ -196,8 +196,9 @@ public class BigQueryIOTranslation {
       if (transform.getUseAvroLogicalTypes() != null) {
         fieldValues.put("use_avro_logical_types", transform.getUseAvroLogicalTypes());
       }
-      if (transform.getTimestampPrecision() != null) {
-        fieldValues.put("timestamp_precision", toByteArray(transform.getTimestampPrecision()));
+      if (transform.getDirectReadPicosTimestampPrecision() != null) {
+        fieldValues.put(
+            "timestamp_precision", toByteArray(transform.getDirectReadPicosTimestampPrecision()));
       }
       fieldValues.put("projection_pushdown_applied", transform.getProjectionPushdownApplied());
       fieldValues.put("bad_record_router", toByteArray(transform.getBadRecordRouter()));
@@ -297,10 +298,11 @@ public class BigQueryIOTranslation {
         if (formatBytes != null) {
           builder = builder.setFormat((DataFormat) fromByteArray(formatBytes));
         }
-        byte[] timestampPrecisionBytes = configRow.getBytes("timestamp_precision");
+        byte[] timestampPrecisionBytes =
+            configRow.getBytes("direct_read_picos_timestamp_precision");
         if (timestampPrecisionBytes != null) {
           builder =
-              builder.setTimestampPrecision(
+              builder.setDirectReadPicosTimestampPrecision(
                   (TimestampPrecision) fromByteArray(timestampPrecisionBytes));
         }
         Collection<String> selectedFields = configRow.getArray("selected_fields");

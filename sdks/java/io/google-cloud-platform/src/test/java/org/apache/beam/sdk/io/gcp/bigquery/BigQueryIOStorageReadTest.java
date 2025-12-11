@@ -2452,35 +2452,36 @@ public class BigQueryIOStorageReadTest {
             .withMethod(Method.DIRECT_READ)
             .from("foo.com:project:dataset.table");
 
-    assertNull(typedRead.getTimestampPrecision());
+    assertNull(typedRead.getDirectReadPicosTimestampPrecision());
   }
 
   @Test
-  public void testWithTimestampPrecisionNanos() {
+  public void testwithDirectReadPicosTimestampPrecisionNanos() {
     BigQueryIO.TypedRead<TableRow> typedRead =
         BigQueryIO.read(new TableRowParser())
             .withCoder(TableRowJsonCoder.of())
             .withMethod(Method.DIRECT_READ)
             .from("foo.com:project:dataset.table")
-            .withTimestampPrecision(TimestampPrecision.NANOS);
+            .withDirectReadPicosTimestampPrecision(TimestampPrecision.NANOS);
 
-    assertEquals(TimestampPrecision.NANOS, typedRead.getTimestampPrecision());
+    assertEquals(TimestampPrecision.NANOS, typedRead.getDirectReadPicosTimestampPrecision());
   }
 
   @Test
-  public void testWithTimestampPrecisionPicos() {
+  public void testwithDirectReadPicosTimestampPrecisionPicos() {
     BigQueryIO.TypedRead<TableRow> typedRead =
         BigQueryIO.read(new TableRowParser())
             .withCoder(TableRowJsonCoder.of())
             .withMethod(Method.DIRECT_READ)
             .from("foo.com:project:dataset.table")
-            .withTimestampPrecision(TimestampPrecision.PICOS);
+            .withDirectReadPicosTimestampPrecision(TimestampPrecision.PICOS);
 
-    assertEquals(TimestampPrecision.PICOS, typedRead.getTimestampPrecision());
+    assertEquals(TimestampPrecision.PICOS, typedRead.getDirectReadPicosTimestampPrecision());
   }
 
   @Test
-  public void testTableSourceInitialSplit_WithTimestampPrecisionNanos_Arrow() throws Exception {
+  public void testTableSourceInitialSplit_withDirectReadPicosTimestampPrecisionNanos_Arrow()
+      throws Exception {
     fakeDatasetService.createDataset("foo.com:project", "dataset", "", "", null);
     TableReference tableRef = BigQueryHelpers.parseTableSpec("foo.com:project:dataset.table");
     Table table = new Table().setTableReference(tableRef).setNumBytes(100L).setSchema(TABLE_SCHEMA);
@@ -2755,7 +2756,7 @@ public class BigQueryIOStorageReadTest {
                     .withStorageClient(fakeStorageClient));
 
     if (precision != null) {
-      read = read.withTimestampPrecision(precision);
+      read = read.withDirectReadPicosTimestampPrecision(precision);
     }
 
     PCollection<TableRow> output = p.apply(read);
@@ -2968,7 +2969,8 @@ public class BigQueryIOStorageReadTest {
   }
 
   @Test
-  public void testTableSourceInitialSplit_WithTimestampPrecisionNanos_Avro() throws Exception {
+  public void testTableSourceInitialSplit_withDirectReadPicosTimestampPrecisionNanos_Avro()
+      throws Exception {
     fakeDatasetService.createDataset("foo.com:project", "dataset", "", "", null);
     TableReference tableRef = BigQueryHelpers.parseTableSpec("foo.com:project:dataset.table");
     Table table = new Table().setTableReference(tableRef).setNumBytes(100L).setSchema(TABLE_SCHEMA);

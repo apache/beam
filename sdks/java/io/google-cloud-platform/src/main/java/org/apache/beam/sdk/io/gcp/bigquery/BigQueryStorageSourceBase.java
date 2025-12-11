@@ -71,7 +71,7 @@ abstract class BigQueryStorageSourceBase<T> extends BoundedSource<T> {
   protected final SerializableFunction<SchemaAndRecord, T> parseFn;
   protected final Coder<T> outputCoder;
   protected final BigQueryServices bqServices;
-  private final @Nullable TimestampPrecision timestampPrecision;
+  private final @Nullable TimestampPrecision picosTimestampPrecision;
 
   BigQueryStorageSourceBase(
       @Nullable DataFormat format,
@@ -80,14 +80,14 @@ abstract class BigQueryStorageSourceBase<T> extends BoundedSource<T> {
       SerializableFunction<SchemaAndRecord, T> parseFn,
       Coder<T> outputCoder,
       BigQueryServices bqServices,
-      @Nullable TimestampPrecision timestampPrecision) {
+      @Nullable TimestampPrecision picosTimestampPrecision) {
     this.format = format;
     this.selectedFieldsProvider = selectedFieldsProvider;
     this.rowRestrictionProvider = rowRestrictionProvider;
     this.parseFn = checkNotNull(parseFn, "parseFn");
     this.outputCoder = checkNotNull(outputCoder, "outputCoder");
     this.bqServices = checkNotNull(bqServices, "bqServices");
-    this.timestampPrecision = timestampPrecision;
+    this.picosTimestampPrecision = picosTimestampPrecision;
   }
 
   /**
@@ -139,7 +139,7 @@ abstract class BigQueryStorageSourceBase<T> extends BoundedSource<T> {
 
     if (format != null) {
       readSessionBuilder.setDataFormat(format);
-      setTimestampPrecision(tableReadOptionsBuilder, format);
+      setPicosTimestampPrecision(tableReadOptionsBuilder, format);
     }
     readSessionBuilder.setReadOptions(tableReadOptionsBuilder);
 
@@ -206,9 +206,9 @@ abstract class BigQueryStorageSourceBase<T> extends BoundedSource<T> {
     throw new UnsupportedOperationException("BigQuery storage source must be split before reading");
   }
 
-  private void setTimestampPrecision(
+  private void setPicosTimestampPrecision(
       ReadSession.TableReadOptions.Builder tableReadOptionsBuilder, DataFormat dataFormat) {
-    if (timestampPrecision == null) {
+    if (picosTimestampPrecision == null) {
       return;
     }
 
@@ -222,7 +222,7 @@ abstract class BigQueryStorageSourceBase<T> extends BoundedSource<T> {
   private void setArrowTimestampPrecision(
       ReadSession.TableReadOptions.Builder tableReadOptionsBuilder) {
     ArrowSerializationOptions.PicosTimestampPrecision precision;
-    switch (checkNotNull(timestampPrecision)) {
+    switch (checkNotNull(picosTimestampPrecision)) {
       case MICROS:
         precision = ArrowSerializationOptions.PicosTimestampPrecision.TIMESTAMP_PRECISION_MICROS;
         break;
@@ -242,7 +242,7 @@ abstract class BigQueryStorageSourceBase<T> extends BoundedSource<T> {
   private void setAvroTimestampPrecision(
       ReadSession.TableReadOptions.Builder tableReadOptionsBuilder) {
     AvroSerializationOptions.PicosTimestampPrecision precision;
-    switch (checkNotNull(timestampPrecision)) {
+    switch (checkNotNull(picosTimestampPrecision)) {
       case MICROS:
         precision = AvroSerializationOptions.PicosTimestampPrecision.TIMESTAMP_PRECISION_MICROS;
         break;

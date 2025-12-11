@@ -66,7 +66,7 @@ public class BigQueryStorageTableSource<T> extends BigQueryStorageSourceBase<T> 
         outputCoder,
         bqServices,
         projectionPushdownApplied,
-        /*timestampPrecision=*/ null);
+        /*picosTimestampPrecision=*/ null);
   }
 
   public static <T> BigQueryStorageTableSource<T> create(
@@ -85,7 +85,7 @@ public class BigQueryStorageTableSource<T> extends BigQueryStorageSourceBase<T> 
         outputCoder,
         bqServices,
         /*projectionPushdownApplied=*/ false,
-        /*timestampPrecision=*/ null);
+        /*picosTimestampPrecision=*/ null);
   }
 
   public static <T> BigQueryStorageTableSource<T> create(
@@ -97,7 +97,7 @@ public class BigQueryStorageTableSource<T> extends BigQueryStorageSourceBase<T> 
       Coder<T> outputCoder,
       BigQueryServices bqServices,
       boolean projectionPushdownApplied,
-      @Nullable TimestampPrecision timestampPrecision) {
+      @Nullable TimestampPrecision picosTimestampPrecision) {
     return new BigQueryStorageTableSource<>(
         tableRefProvider,
         format,
@@ -107,7 +107,7 @@ public class BigQueryStorageTableSource<T> extends BigQueryStorageSourceBase<T> 
         outputCoder,
         bqServices,
         projectionPushdownApplied,
-        timestampPrecision);
+        picosTimestampPrecision);
   }
 
   private BigQueryStorageTableSource(
@@ -119,7 +119,7 @@ public class BigQueryStorageTableSource<T> extends BigQueryStorageSourceBase<T> 
       Coder<T> outputCoder,
       BigQueryServices bqServices,
       boolean projectionPushdownApplied,
-      @Nullable TimestampPrecision timestampPrecision) {
+      @Nullable TimestampPrecision picosTimestampPrecision) {
     super(
         format,
         selectedFields,
@@ -127,7 +127,7 @@ public class BigQueryStorageTableSource<T> extends BigQueryStorageSourceBase<T> 
         parseFn,
         outputCoder,
         bqServices,
-        timestampPrecision);
+        picosTimestampPrecision);
     this.tableReferenceProvider = checkNotNull(tableRefProvider, "tableRefProvider");
     this.projectionPushdownApplied = projectionPushdownApplied;
     cachedTable = new AtomicReference<>();

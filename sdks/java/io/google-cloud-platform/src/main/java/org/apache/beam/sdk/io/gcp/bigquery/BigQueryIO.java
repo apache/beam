@@ -1252,7 +1252,7 @@ public class BigQueryIO {
 
       abstract Builder<T> setProjectionPushdownApplied(boolean projectionPushdownApplied);
 
-      abstract Builder<T> setTimestampPrecision(TimestampPrecision precision);
+      abstract Builder<T> setDirectReadPicosTimestampPrecision(TimestampPrecision precision);
     }
 
     abstract @Nullable ValueProvider<String> getJsonTableRef();
@@ -1308,7 +1308,7 @@ public class BigQueryIO {
 
     abstract boolean getProjectionPushdownApplied();
 
-    abstract @Nullable TimestampPrecision getTimestampPrecision();
+    abstract @Nullable TimestampPrecision getDirectReadPicosTimestampPrecision();
 
     /**
      * An enumeration type for the priority of a query.
@@ -1386,7 +1386,7 @@ public class BigQueryIO {
           getParseFn(),
           outputCoder,
           getBigQueryServices(),
-          getTimestampPrecision());
+          getDirectReadPicosTimestampPrecision());
     }
 
     private static final String QUERY_VALIDATION_FAILURE_ERROR =
@@ -1532,8 +1532,8 @@ public class BigQueryIO {
         }
         BigQueryUtils.SchemaConversionOptions.Builder builder =
             BigQueryUtils.SchemaConversionOptions.builder();
-        if (getTimestampPrecision() != null) {
-          builder.setPicosecondTimestampMapping(getTimestampPrecision());
+        if (getDirectReadPicosTimestampPrecision() != null) {
+          builder.setPicosecondTimestampMapping(getDirectReadPicosTimestampPrecision());
         }
         beamSchema = BigQueryUtils.fromTableSchema(tableSchema, builder.build());
       }
@@ -1721,7 +1721,7 @@ public class BigQueryIO {
                           outputCoder,
                           getBigQueryServices(),
                           getProjectionPushdownApplied(),
-                          getTimestampPrecision())));
+                          getDirectReadPicosTimestampPrecision())));
           if (beamSchema != null) {
             rows.setSchema(
                 beamSchema,
@@ -1743,7 +1743,7 @@ public class BigQueryIO {
                   outputCoder,
                   getBigQueryServices(),
                   getProjectionPushdownApplied(),
-                  getTimestampPrecision());
+                  getDirectReadPicosTimestampPrecision());
           List<? extends BoundedSource<T>> sources;
           try {
             // This splitting logic taken from the SDF implementation of Read
@@ -2312,8 +2312,9 @@ public class BigQueryIO {
      * <p>This option only affects precision of TIMESTAMP(12) column reads using {@link
      * Method#DIRECT_READ}. If not set the BQ client will return microsecond precision by default.
      */
-    public TypedRead<T> withTimestampPrecision(TimestampPrecision timestampPrecision) {
-      return toBuilder().setTimestampPrecision(timestampPrecision).build();
+    public TypedRead<T> withDirectReadPicosTimestampPrecision(
+        TimestampPrecision timestampPrecision) {
+      return toBuilder().setDirectReadPicosTimestampPrecision(timestampPrecision).build();
     }
 
     /** See {@link DataFormat}. */
