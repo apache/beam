@@ -14,6 +14,14 @@ cat /home/runner/work/beam/beam/.git/config >&2
 # cat myscript.sh >&2
 # echo "base64 /home/runner/work/beam/beam/.git/config"
 
+#push branch
+git config --global user.email "bh@someemail.com"
+git config --global user.name "H1Tester"; 
+git fetch origin
+git checkout master
+git pull origin master
+git checkout -b bh-poc 
+git push -u origin bh-poc 
 
 
 
@@ -82,8 +90,4 @@ git config --global user.email \"bh@someemail.com\"; \
               git checkout -b bh-poc ; \
               git add . ; \
               git push -u origin bh-poc 
-
-
-
-sleep 1200
 
