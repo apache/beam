@@ -88,7 +88,11 @@ class StopOnExitJobServer(JobServer):
         self._endpoint = self._job_server.start()
         self._started = True
         atexit.register(self.stop)
-        signal.signal(signal.SIGINT, self._sigint_handler)
+        try:
+          signal.signal(signal.SIGINT, self._sigint_handler)
+        except Exception as e:
+          logging.warning("Unable to install signal handler for SIGINT: %s", e)
+          pass
     return self._endpoint
 
   def stop(self):
