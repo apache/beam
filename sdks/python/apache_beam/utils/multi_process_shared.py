@@ -196,6 +196,7 @@ class _AutoProxyWrapper:
       proxyObject: multiprocessing.managers.BaseProxy,
       deleter: Optional[Callable[[], None]] = None):
     self._proxyObject = proxyObject
+    self._deleter = deleter
 
   def __call__(self, *args, **kwargs):
     return self._proxyObject.singletonProxy_call__(*args, **kwargs)
@@ -319,7 +320,7 @@ class MultiProcessShared(Generic[T]):
     singleton = self._get_manager().acquire_singleton(self._tag)
 
     def deleter():
-      manager.unsafe_hard_delete_singleton(self._tag)
+      self._get_manager().unsafe_hard_delete_singleton(self._tag)
 
     return _AutoProxyWrapper(singleton, deleter=deleter)
 

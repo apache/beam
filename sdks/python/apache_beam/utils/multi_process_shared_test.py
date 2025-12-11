@@ -193,6 +193,34 @@ class MultiProcessSharedTest(unittest.TestCase):
 
     self.assertEqual(counter3.increment(), 1)
 
+  def test_unsafe_hard_delete_autoproxywrapper(self):
+    shared1 = multi_process_shared.MultiProcessShared(
+        Counter,
+        tag='test_unsafe_hard_delete_autoproxywrapper',
+        always_proxy=True)
+    shared2 = multi_process_shared.MultiProcessShared(
+        Counter,
+        tag='test_unsafe_hard_delete_autoproxywrapper',
+        always_proxy=True)
+
+    counter1 = shared1.acquire()
+    counter2 = shared2.acquire()
+    self.assertEqual(counter1.increment(), 1)
+    self.assertEqual(counter2.increment(), 2)
+
+    counter2.unsafe_hard_delete()
+
+    with self.assertRaises(Exception):
+      counter1.get()
+    with self.assertRaises(Exception):
+      counter2.get()
+
+    counter3 = multi_process_shared.MultiProcessShared(
+        Counter,
+        tag='test_unsafe_hard_delete_autoproxywrapper',
+        always_proxy=True).acquire()
+    self.assertEqual(counter3.increment(), 1)
+
   def test_unsafe_hard_delete_no_op(self):
     shared1 = multi_process_shared.MultiProcessShared(
         Counter, tag='test_unsafe_hard_delete_no_op', always_proxy=True)
