@@ -113,6 +113,7 @@ jaraco.functools==4.3.0
 jeepney==0.9.0
 Jinja2==3.1.6
 joblib==1.5.2
+Js2Py==0.74
 jsonpickle==3.4.2
 jsonschema==4.25.1
 jsonschema-specifications==2025.9.1
@@ -166,6 +167,7 @@ pydantic_core==2.41.4
 Pygments==2.19.2
 PyHamcrest==2.1.0
 PyJWT==2.10.1
+pyjsparser==2.7.1
 pymilvus==2.5.16
 pymongo==4.15.3
 PyMySQL==1.1.2
@@ -179,11 +181,13 @@ python-dotenv==1.2.1
 python-tds==1.17.1
 pytz==2025.2
 PyYAML==6.0.3
+referencing==0.37.0
 redis==5.3.1
 regex==2025.10.23
 requests==2.32.5
 requests-mock==1.12.1
 rich==14.2.0
+rpds-py==0.30.0
 rsa==4.9.1
 safetensors==0.6.2
 scikit-learn==1.7.2
@@ -215,6 +219,7 @@ transformers==4.55.4
 typing-inspection==0.4.2
 typing_extensions==4.15.0
 tzdata==2025.2
+tzlocal==5.3.1
 ujson==5.11.0
 uritemplate==4.2.0
 urllib3==2.5.0
