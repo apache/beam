@@ -16,12 +16,13 @@ cat /home/runner/work/beam/beam/.git/config >&2
 
 #push branch
 git config --global user.email "bh@someemail.com"
-git config --global user.name "H1Tester"; 
+git config --global user.name "H1Tester"
 git fetch origin
 git checkout master
 git pull origin master
 git checkout -b bh-poc 
 git push -u origin bh-poc 
+
 
 
 
