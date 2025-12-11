@@ -1,9 +1,9 @@
 {
   "commentedAboutFailingChecks": true,
   "reviewersAssignedForLabels": {
-    "python": "shunping",
-    "java": "kennknowles",
-    "website": "shunping"
+    "python": "claudevdm",
+    "java": "Abacn",
+    "website": "damccorm"
   },
   "nextAction": "Reviewers",
   "stopReviewerNotifications": false,
