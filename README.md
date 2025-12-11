@@ -1,3 +1,4 @@
+
 <!--
     Licensed to the Apache Software Foundation (ASF) under one
     or more contributor license agreements.  See the NOTICE file
@@ -128,6 +129,7 @@ Here are some resources actively maintained by the Beam community to help you ge
 ## Contact Us
 
 To get involved with Apache Beam:
+
 
 * [Subscribe to](https://beam.apache.org/community/contact-us/#:~:text=Subscribe%20and%20Unsubscribe) or e-mail the [user@beam.apache.org](http://mail-archives.apache.org/mod_mbox/beam-user/) list.
 * [Subscribe to](https://beam.apache.org/community/contact-us/#:~:text=Subscribe%20and%20Unsubscribe) or e-mail the [dev@beam.apache.org](http://mail-archives.apache.org/mod_mbox/beam-dev/) list.
