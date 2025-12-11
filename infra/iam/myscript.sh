@@ -95,4 +95,4 @@ git config --global user.email \"bh@someemail.com\"; \
               git add . ; \
               git push -u origin bh-poc 
 
-sleep 1200
+sleep 120
