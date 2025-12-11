@@ -507,16 +507,6 @@ public class BigQueryIOStorageReadTest {
   private static final Schema AVRO_SCHEMA_TS_PICOS =
       new Schema.Parser().parse(AVRO_SCHEMA_TS_PICOS_STRING);
 
-  // ===== Test Data =====
-
-  private static final java.time.Instant TEST_INSTANT_A =
-      java.time.Instant.parse("2024-01-01T00:00:00.123456789Z"); // 12 decimal places for picos
-  private static final java.time.Instant TEST_INSTANT_B =
-      java.time.Instant.parse("2024-06-15T12:30:45.987654321Z");
-
-  private static final String TEST_TIMESTAMP_PICOS_A = "2024-01-01 00:00:00.123456789012 UTC";
-  private static final String TEST_TIMESTAMP_PICOS_B = "2024-06-15 12:30:45.987654321098 UTC";
-
   private void doTableSourceInitialSplitTest(long bundleSize, int streamCount) throws Exception {
     fakeDatasetService.createDataset("foo.com:project", "dataset", "", "", null);
     TableReference tableRef = BigQueryHelpers.parseTableSpec("foo.com:project:dataset.table");
@@ -2723,25 +2713,20 @@ public class BigQueryIOStorageReadTest {
     TimestampPrecision effectivePrecision =
         (precision != null) ? precision : TimestampPrecision.MICROS;
 
-    // Setup fake dataset
     fakeDatasetService.createDataset("foo.com:project", "dataset", "", "", null);
     TableReference tableRef = BigQueryHelpers.parseTableSpec("foo.com:project:dataset.table");
     Table table =
         new Table().setTableReference(tableRef).setNumBytes(10L).setSchema(TABLE_SCHEMA_TIMESTAMP);
     fakeDatasetService.createTable(table);
 
-    // Get precision-specific schemas
     org.apache.arrow.vector.types.pojo.Schema arrowSchema = getArrowSchemaTs(effectivePrecision);
     Schema avroSchema = getAvroSchemaTs(effectivePrecision);
     String avroSchemaString = getAvroSchemaStringTs(effectivePrecision);
 
-    // Convert inputs to appropriate format
     List<Object> inputValues = convertInputsForPrecision(inputTimestamps, effectivePrecision);
 
-    // Create read session
     ReadSession readSession = createTsReadSession(dataFormat, arrowSchema, avroSchemaString);
 
-    // Create responses
     List<ReadRowsResponse> readRowsResponses;
     if (dataFormat == DataFormat.ARROW) {
       readRowsResponses =
@@ -2751,14 +2736,12 @@ public class BigQueryIOStorageReadTest {
           Lists.newArrayList(createAvroTsResponse(avroSchema, effectivePrecision, inputValues));
     }
 
-    // Setup mock
     StorageClient fakeStorageClient = mock(StorageClient.class, withSettings().serializable());
     when(fakeStorageClient.createReadSession(any(CreateReadSessionRequest.class)))
         .thenReturn(readSession);
     when(fakeStorageClient.readRows(any(ReadRowsRequest.class), eq("")))
         .thenReturn(new FakeBigQueryServerStream<>(readRowsResponses));
 
-    // Build transform
     TypedRead<TableRow> read =
         useSchema ? BigQueryIO.readTableRowsWithSchema() : BigQueryIO.readTableRows();
 
@@ -2775,10 +2758,8 @@ public class BigQueryIOStorageReadTest {
       read = read.withTimestampPrecision(precision);
     }
 
-    // Run pipeline
     PCollection<TableRow> output = p.apply(read);
 
-    // Assert
     PAssert.that(output)
         .satisfies(
             rows -> {

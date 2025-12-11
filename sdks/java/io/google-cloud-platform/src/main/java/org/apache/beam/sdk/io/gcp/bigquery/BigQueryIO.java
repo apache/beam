@@ -1530,9 +1530,12 @@ public class BigQueryIO {
         if (selectedFields != null && selectedFields.isAccessible()) {
           tableSchema = BigQueryUtils.trimSchema(tableSchema, selectedFields.get());
         }
-        beamSchema =
-            BigQueryUtils.fromTableSchema(
-                tableSchema, BigQueryUtils.SchemaConversionOptions.builder().build());
+        BigQueryUtils.SchemaConversionOptions.Builder builder =
+            BigQueryUtils.SchemaConversionOptions.builder();
+        if (getTimestampPrecision() != null) {
+          builder.setPicosecondTimestampMapping(getTimestampPrecision());
+        }
+        beamSchema = BigQueryUtils.fromTableSchema(tableSchema, builder.build());
       }
 
       final Coder<T> coder = inferCoder(p.getCoderRegistry());
@@ -2307,8 +2310,7 @@ public class BigQueryIO {
      * the Storage Read API.
      *
      * <p>This option only affects precision of TIMESTAMP(12) column reads using {@link
-     * Method#DIRECT_READ}. The default is {@link
-     * org.apache.beam.sdk.io.gcp.bigquery.TimestampPrecision#NANOS}.
+     * Method#DIRECT_READ}. If not set the BQ client will return microsecond precision by default.
      */
     public TypedRead<T> withTimestampPrecision(TimestampPrecision timestampPrecision) {
       return toBuilder().setTimestampPrecision(timestampPrecision).build();

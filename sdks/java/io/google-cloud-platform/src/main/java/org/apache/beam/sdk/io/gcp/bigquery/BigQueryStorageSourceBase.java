@@ -211,35 +211,51 @@ abstract class BigQueryStorageSourceBase<T> extends BoundedSource<T> {
     if (timestampPrecision == null) {
       return;
     }
-    switch (timestampPrecision) {
+
+    if (dataFormat == DataFormat.ARROW) {
+      setArrowTimestampPrecision(tableReadOptionsBuilder);
+    } else if (dataFormat == DataFormat.AVRO) {
+      setAvroTimestampPrecision(tableReadOptionsBuilder);
+    }
+  }
+
+  private void setArrowTimestampPrecision(
+      ReadSession.TableReadOptions.Builder tableReadOptionsBuilder) {
+    ArrowSerializationOptions.PicosTimestampPrecision precision;
+    switch (checkNotNull(timestampPrecision)) {
+      case MICROS:
+        precision = ArrowSerializationOptions.PicosTimestampPrecision.TIMESTAMP_PRECISION_MICROS;
+        break;
       case NANOS:
-        if (dataFormat == DataFormat.ARROW) {
-          tableReadOptionsBuilder.setArrowSerializationOptions(
-              ArrowSerializationOptions.newBuilder()
-                  .setPicosTimestampPrecision(
-                      ArrowSerializationOptions.PicosTimestampPrecision.TIMESTAMP_PRECISION_NANOS));
-        } else {
-          tableReadOptionsBuilder.setAvroSerializationOptions(
-              AvroSerializationOptions.newBuilder()
-                  .setPicosTimestampPrecision(
-                      AvroSerializationOptions.PicosTimestampPrecision.TIMESTAMP_PRECISION_NANOS));
-        }
+        precision = ArrowSerializationOptions.PicosTimestampPrecision.TIMESTAMP_PRECISION_NANOS;
         break;
       case PICOS:
-        if (dataFormat == DataFormat.ARROW) {
-          tableReadOptionsBuilder.setArrowSerializationOptions(
-              ArrowSerializationOptions.newBuilder()
-                  .setPicosTimestampPrecision(
-                      ArrowSerializationOptions.PicosTimestampPrecision.TIMESTAMP_PRECISION_PICOS));
-        } else {
-          tableReadOptionsBuilder.setAvroSerializationOptions(
-              AvroSerializationOptions.newBuilder()
-                  .setPicosTimestampPrecision(
-                      AvroSerializationOptions.PicosTimestampPrecision.TIMESTAMP_PRECISION_PICOS));
-        }
+        precision = ArrowSerializationOptions.PicosTimestampPrecision.TIMESTAMP_PRECISION_PICOS;
         break;
       default:
-        break;
+        return;
     }
+    tableReadOptionsBuilder.setArrowSerializationOptions(
+        ArrowSerializationOptions.newBuilder().setPicosTimestampPrecision(precision));
+  }
+
+  private void setAvroTimestampPrecision(
+      ReadSession.TableReadOptions.Builder tableReadOptionsBuilder) {
+    AvroSerializationOptions.PicosTimestampPrecision precision;
+    switch (checkNotNull(timestampPrecision)) {
+      case MICROS:
+        precision = AvroSerializationOptions.PicosTimestampPrecision.TIMESTAMP_PRECISION_MICROS;
+        break;
+      case NANOS:
+        precision = AvroSerializationOptions.PicosTimestampPrecision.TIMESTAMP_PRECISION_NANOS;
+        break;
+      case PICOS:
+        precision = AvroSerializationOptions.PicosTimestampPrecision.TIMESTAMP_PRECISION_PICOS;
+        break;
+      default:
+        return;
+    }
+    tableReadOptionsBuilder.setAvroSerializationOptions(
+        AvroSerializationOptions.newBuilder().setPicosTimestampPrecision(precision));
   }
 }
