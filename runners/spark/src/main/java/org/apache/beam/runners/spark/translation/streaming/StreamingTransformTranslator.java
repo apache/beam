@@ -280,7 +280,8 @@ public final class StreamingTransformTranslator {
       @Override
       public void evaluate(Flatten.PCollections<T> transform, EvaluationContext context) {
         Map<TupleTag<?>, PCollection<?>> pcs = context.getInputs(transform);
-        // since this is a streaming pipeline, at least one of the PCollections to "flatten" are
+        // since this is a streaming pipeline, at least one of the PCollections to
+        // "flatten" are
         // unbounded, meaning it represents a DStream.
         // So we could end up with an unbounded unified DStream.
         final List<JavaDStream<WindowedValue<T>>> dStreams = new ArrayList<>();
@@ -305,7 +306,11 @@ public final class StreamingTransformTranslator {
         }
         // start by unifying streams into a single stream.
         JavaDStream<WindowedValue<T>> unifiedStreams =
-            context.getStreamingContext().union(JavaConverters.asScalaBuffer(dStreams));
+            context
+                .getStreamingContext()
+                .<WindowedValue<T>>union(
+                    (scala.collection.immutable.Seq)
+                        JavaConverters.asScalaBuffer(dStreams).toList());
         context.putDataset(transform, new UnboundedDataset<>(unifiedStreams, streamingSources));
       }
 
@@ -416,7 +421,8 @@ public final class StreamingTransformTranslator {
                     output.getWindowingStrategyInternal().getWindowFn().windowCoder());
 
         // Convert JavaDStream to byte array
-        // The (JavaDStream) cast is used to prevent CheckerFramework type checking errors
+        // The (JavaDStream) cast is used to prevent CheckerFramework type checking
+        // errors
         // CheckerFramework treats mismatched generic type parameters as errors,
         // but at runtime this is safe due to type erasure
         final JavaDStream<byte[]> byteConverted =
@@ -447,7 +453,7 @@ public final class StreamingTransformTranslator {
         // The system initializes with empty values and updates them when data arrives
         // This means side inputs may initially be null
         context.putPView(
-            output, /*Empty Side Inputs*/ Lists.newArrayList(), IterableCoder.of(coderInternal));
+            output, /* Empty Side Inputs */ Lists.newArrayList(), IterableCoder.of(coderInternal));
       }
 
       @Override

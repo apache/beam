@@ -166,7 +166,8 @@ public class SparkStreamingPortablePipelineTranslator
     UnboundedDataset<byte[]> output =
         new UnboundedDataset<>(stream, Collections.singletonList(inputDStream.id()));
 
-    // Add watermark to holder and advance to infinity to ensure future watermarks can be updated
+    // Add watermark to holder and advance to infinity to ensure future watermarks
+    // can be updated
     GlobalWatermarkHolder.SparkWatermarks sparkWatermark =
         new GlobalWatermarkHolder.SparkWatermarks(
             GlobalWindow.INSTANCE.maxTimestamp(),
@@ -330,7 +331,11 @@ public class SparkStreamingPortablePipelineTranslator
         }
       }
       // Unify streams into a single stream.
-      unifiedStreams = context.getStreamingContext().union(JavaConverters.asScalaBuffer(dStreams));
+      unifiedStreams =
+          context
+              .getStreamingContext()
+              .<WindowedValue<T>>union(
+                  (scala.collection.immutable.Seq) JavaConverters.asScalaBuffer(dStreams).toSeq());
     }
 
     context.pushDataset(

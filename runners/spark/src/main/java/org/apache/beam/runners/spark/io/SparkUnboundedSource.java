@@ -112,7 +112,8 @@ public class SparkUnboundedSource {
     // set checkpoint duration for read stream, if set.
     checkpointStream(mapWithStateDStream, options);
 
-    // report the number of input elements for this InputDStream to the InputInfoTracker.
+    // report the number of input elements for this InputDStream to the
+    // InputInfoTracker.
     int id = inputDStream.inputDStream().id();
     JavaDStream<Metadata> metadataDStream = mapWithStateDStream.map(new Tuple2MetadataFunction());
 
@@ -186,7 +187,7 @@ public class SparkUnboundedSource {
 
     @Override
     public scala.collection.immutable.List<DStream<?>> dependencies() {
-      return scala.collection.JavaConversions.asScalaBuffer(
+      return scala.collection.JavaConverters.asScalaBuffer(
               Collections.<DStream<?>>singletonList(parent))
           .toList();
     }

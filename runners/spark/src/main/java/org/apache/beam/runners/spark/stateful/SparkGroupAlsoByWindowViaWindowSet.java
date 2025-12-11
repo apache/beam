@@ -73,7 +73,7 @@ import scala.Option;
 import scala.Tuple2;
 import scala.Tuple3;
 import scala.collection.Iterator;
-import scala.collection.JavaConversions;
+import scala.collection.JavaConverters;
 import scala.collection.Seq;
 import scala.runtime.AbstractFunction1;
 
@@ -116,16 +116,30 @@ public class SparkGroupAlsoByWindowViaWindowSet implements Serializable {
       extends AbstractFunction1<
           Iterator<
               Tuple3<
-                  /*K*/ ByteArray,
-                  Seq</*WV<I>*/ byte[]>,
-                  Option<Tuple2<StateAndTimers, /*WV<KV<K, Itr<I>>>*/ List<byte[]>>>>>,
-          Iterator<
-              Tuple2</*K*/ ByteArray, Tuple2<StateAndTimers, /*WV<KV<K, Itr<I>>>*/ List<byte[]>>>>>
+                  /* K */ ByteArray,
+                  Seq</* WV<I> */ byte[]>,
+                  Option<Tuple2<StateAndTimers, /* WV<KV<K, Itr<I>>> */ List<byte[]>>>>>,
+          Iterator<Tuple2</*
+                                                                                                                                               * K
+                                                                                                                                               */ ByteArray, Tuple2<StateAndTimers, /*
+                                                                                                                                                                                     * WV
+                                                                                                                                                                                     * <
+                                                                                                                                                                                     * KV
+                                                                                                                                                                                     * <
+                                                                                                                                                                                     * K,
+                                                                                                                                                                                     * Itr
+                                                                                                                                                                                     * <
+                                                                                                                                                                                     * I
+                                                                                                                                                                                     * >
+                                                                                                                                                                                     * >
+                                                                                                                                                                                     * >
+                                                                                                                                                                                     */ List<byte[]>>>>>
       implements Serializable {
 
     private class UpdateStateByKeyOutputIterator
         extends AbstractIterator<
-            Tuple2</*K*/ ByteArray, Tuple2<StateAndTimers, /*WV<KV<K, Itr<I>>>*/ List<byte[]>>>> {
+            Tuple2<
+                /* K */ ByteArray, Tuple2<StateAndTimers, /* WV<KV<K, Itr<I>>> */ List<byte[]>>>> {
 
       private final Iterator<
               Tuple3<ByteArray, Seq<byte[]>, Option<Tuple2<StateAndTimers, List<byte[]>>>>>
@@ -189,7 +203,8 @@ public class SparkGroupAlsoByWindowViaWindowSet implements Serializable {
       }
 
       @Override
-      protected Tuple2</*K*/ ByteArray, Tuple2<StateAndTimers, /*WV<KV<K, Itr<I>>>*/ List<byte[]>>>
+      protected Tuple2<
+              /* K */ ByteArray, Tuple2<StateAndTimers, /* WV<KV<K, Itr<I>>> */ List<byte[]>>>
           computeNext() {
         // input iterator is a Spark partition (~bundle), containing keys and their
         // (possibly) previous-state and (possibly) new data.
@@ -238,7 +253,7 @@ public class SparkGroupAlsoByWindowViaWindowSet implements Serializable {
             // new input for key.
             try {
               final Iterable<WindowedValue<InputT>> elements =
-                  FluentIterable.from(JavaConversions.asJavaIterable(encodedElements))
+                  FluentIterable.from(JavaConverters.asJavaIterable(encodedElements))
                       .transform(bytes -> CoderHelpers.fromByteArray(bytes, wvCoder));
 
               LOG.trace("{}: input elements: {}", logPrefix, elements);
@@ -287,12 +302,15 @@ public class SparkGroupAlsoByWindowViaWindowSet implements Serializable {
             // is now stored as the new inputWatermark, according to which triggers are
             // calculated.
             // Note 2: The implicit contract between the runner and reduceFnRunner is that
-            // event_time based triggers are only delivered if the watermark has passed their
+            // event_time based triggers are only delivered if the watermark has passed
+            // their
             // timestamp.
-            // Note 3: Timer cleanups are performed by the GC timer scheduled by reduceFnRunner as
+            // Note 3: Timer cleanups are performed by the GC timer scheduled by
+            // reduceFnRunner as
             // part of processing timers.
             // Note 4: Even if a given timer is deemed eligible for processing, it does not
-            // necessarily mean that it will actually fire (firing is determined by the trigger
+            // necessarily mean that it will actually fire (firing is determined by the
+            // trigger
             // itself, not the TimerInternals/TimerData objects).
             reduceFnRunner.onTimers(timersEligibleForProcessing);
           } catch (final Exception e) {
@@ -316,7 +334,8 @@ public class SparkGroupAlsoByWindowViaWindowSet implements Serializable {
                         timerInternals.getTimers(), timerDataCoder));
 
             if (LOG.isTraceEnabled()) {
-              // Not something we want to happen in production, but is very helpful when debugging.
+              // Not something we want to happen in production, but is very helpful when
+              // debugging.
               LOG.trace("{}: output elements are {}", logPrefix, Joiner.on(", ").join(outputs));
             }
             // persist Spark's state by outputting.
@@ -361,13 +380,13 @@ public class SparkGroupAlsoByWindowViaWindowSet implements Serializable {
 
     @Override
     public Iterator<
-            Tuple2</*K*/ ByteArray, Tuple2<StateAndTimers, /*WV<KV<K, Itr<I>>>*/ List<byte[]>>>>
+            Tuple2</* K */ ByteArray, Tuple2<StateAndTimers, /* WV<KV<K, Itr<I>>> */ List<byte[]>>>>
         apply(
             final Iterator<
                     Tuple3<
-                        /*K*/ ByteArray,
-                        Seq</*WV<I>*/ byte[]>,
-                        Option<Tuple2<StateAndTimers, /*WV<KV<K, Itr<I>>>*/ List<byte[]>>>>>
+                        /* K */ ByteArray,
+                        Seq</* WV<I> */ byte[]>,
+                        Option<Tuple2<StateAndTimers, /* WV<KV<K, Itr<I>>> */ List<byte[]>>>>>
                 input) {
       // --- ACTUAL STATEFUL OPERATION:
       //
@@ -378,7 +397,8 @@ public class SparkGroupAlsoByWindowViaWindowSet implements Serializable {
       //
       // possible input scenarios for (K, Seq, Option<S>):
       // (1) Option<S>.isEmpty: new data with no previous state.
-      // (2) Seq.isEmpty: no new data, but evaluating previous state (timer-like behaviour).
+      // (2) Seq.isEmpty: no new data, but evaluating previous state (timer-like
+      // behaviour).
       // (3) Seq.nonEmpty && Option<S>.isDefined: new data with previous state.
 
       final SystemReduceFn<K, InputT, Iterable<InputT>, Iterable<InputT>, W> reduceFn =
@@ -410,7 +430,7 @@ public class SparkGroupAlsoByWindowViaWindowSet implements Serializable {
         droppedDueToClosedWindow.inc(-droppedDueToClosedWindow.getCumulative());
       }
 
-      return scala.collection.JavaConversions.asScalaIterator(
+      return scala.collection.JavaConverters.asScalaIterator(
           new UpdateStateByKeyOutputIterator(input, reduceFn, droppedDueToLateness));
     }
   }
@@ -442,7 +462,9 @@ public class SparkGroupAlsoByWindowViaWindowSet implements Serializable {
             t2 -> !t2._2()._2().isEmpty())
         .flatMap(
             new FlatMapFunction<
-                Tuple2</*K*/ ByteArray, Tuple2<StateAndTimers, /*WV<KV<K, Itr<I>>>*/ List<byte[]>>>,
+                Tuple2<
+                    /* K */ ByteArray,
+                    Tuple2<StateAndTimers, /* WV<KV<K, Itr<I>>> */ List<byte[]>>>,
                 WindowedValue<KV<K, Iterable<InputT>>>>() {
 
               private final FullWindowedValueCoder<KV<K, Iterable<InputT>>>
@@ -453,8 +475,8 @@ public class SparkGroupAlsoByWindowViaWindowSet implements Serializable {
               @Override
               public java.util.Iterator<WindowedValue<KV<K, Iterable<InputT>>>> call(
                   final Tuple2<
-                          /*K*/ ByteArray,
-                          Tuple2<StateAndTimers, /*WV<KV<K, Itr<I>>>*/ List<byte[]>>>
+                          /* K */ ByteArray,
+                          Tuple2<StateAndTimers, /* WV<KV<K, Itr<I>>> */ List<byte[]>>>
                       t2)
                   throws Exception {
                 // drop the state since it is already persisted at this point.
@@ -470,8 +492,10 @@ public class SparkGroupAlsoByWindowViaWindowSet implements Serializable {
       final Coder<K> keyCoder,
       final Coder<WindowedValue<InputT>> wvCoder) {
 
-    // we have to switch to Scala API to avoid Optional in the Java API, see: SPARK-4819.
-    // we also have a broader API for Scala (access to the actual key and entire iterator).
+    // we have to switch to Scala API to avoid Optional in the Java API, see:
+    // SPARK-4819.
+    // we also have a broader API for Scala (access to the actual key and entire
+    // iterator).
     // we use coders to convert objects in the PCollection to byte arrays, so they
     // can be transferred over the network for the shuffle and be in serialized form
     // for checkpointing.
@@ -508,7 +532,8 @@ public class SparkGroupAlsoByWindowViaWindowSet implements Serializable {
     final PairDStreamFunctions<ByteArray, byte[]> pairDStream =
         buildPairDStream(inputDStream, keyCoder, wvCoder);
 
-    // use updateStateByKey to scan through the state and update elements and timers.
+    // use updateStateByKey to scan through the state and update elements and
+    // timers.
     final UpdateStateByKeyFunction<K, InputT, W> updateFunc =
         new UpdateStateByKeyFunction<>(
             sourceIds,
@@ -519,7 +544,7 @@ public class SparkGroupAlsoByWindowViaWindowSet implements Serializable {
             transformFullName);
 
     final DStream<
-            Tuple2</*K*/ ByteArray, Tuple2<StateAndTimers, /*WV<KV<K, Itr<I>>>*/ List<byte[]>>>>
+            Tuple2</* K */ ByteArray, Tuple2<StateAndTimers, /* WV<KV<K, Itr<I>>> */ List<byte[]>>>>
         firedStream =
             pairDStream.updateStateByKey(
                 updateFunc,
@@ -529,7 +554,8 @@ public class SparkGroupAlsoByWindowViaWindowSet implements Serializable {
 
     checkpointIfNeeded(firedStream, options);
 
-    // filter state-only output (nothing to fire) and remove the state from the output.
+    // filter state-only output (nothing to fire) and remove the state from the
+    // output.
     return stripStateValues(firedStream, keyCoder, (FullWindowedValueCoder<InputT>) wvCoder);
   }
 }
