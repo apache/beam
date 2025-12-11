@@ -162,28 +162,18 @@ public class PortableMetrics extends MetricResults {
   private static Iterable<MetricResult<DistributionResult>>
       extractDistributionMetricsFromJobMetrics(List<MiAndCommitted> monitoringInfoList) {
     return monitoringInfoList.stream()
-        .map(m -> m.mi)
-        .filter(item -> DISTRIBUTION_INT64_TYPE.equals(item.getType()))
-        .filter(item -> item.getLabelsMap().get(NAMESPACE_LABEL) != null)
-        .map(
-            item -> {
-              boolean isCommitted = findCommittedFlag(monitoringInfoList, item);
-              return convertDistributionMonitoringInfoToDistribution(item, isCommitted);
-            })
+        .filter(m -> DISTRIBUTION_INT64_TYPE.equals(m.mi.getType()))
+        .filter(m -> m.mi.getLabelsMap().get(NAMESPACE_LABEL) != null)
+        .map(m -> convertDistributionMonitoringInfoToDistribution(m.mi, m.committed))
         .collect(Collectors.toList());
   }
 
   private static Iterable<MetricResult<GaugeResult>> extractGaugeMetricsFromJobMetrics(
       List<MiAndCommitted> monitoringInfoList) {
     return monitoringInfoList.stream()
-        .map(m -> m.mi)
-        .filter(item -> LATEST_INT64_TYPE.equals(item.getType()))
-        .filter(item -> item.getLabelsMap().get(NAMESPACE_LABEL) != null)
-        .map(
-            item -> {
-              boolean isCommitted = findCommittedFlag(monitoringInfoList, item);
-              return convertGaugeMonitoringInfoToGauge(item, isCommitted);
-            })
+        .filter(m -> LATEST_INT64_TYPE.equals(m.mi.getType()))
+        .filter(m -> m.mi.getLabelsMap().get(NAMESPACE_LABEL) != null)
+        .map(m -> convertGaugeMonitoringInfoToGauge(m.mi, m.committed))
         .collect(Collectors.toList());
   }
 
@@ -203,28 +193,18 @@ public class PortableMetrics extends MetricResults {
   private static Iterable<MetricResult<StringSetResult>> extractStringSetMetricsFromJobMetrics(
       List<MiAndCommitted> monitoringInfoList) {
     return monitoringInfoList.stream()
-        .map(m -> m.mi)
-        .filter(item -> SET_STRING_TYPE.equals(item.getType()))
-        .filter(item -> item.getLabelsMap().get(NAMESPACE_LABEL) != null)
-        .map(
-            item -> {
-              boolean isCommitted = findCommittedFlag(monitoringInfoList, item);
-              return convertStringSetMonitoringInfoToStringSet(item, isCommitted);
-            })
+        .filter(m -> SET_STRING_TYPE.equals(m.mi.getType()))
+        .filter(m -> m.mi.getLabelsMap().get(NAMESPACE_LABEL) != null)
+        .map(m -> convertStringSetMonitoringInfoToStringSet(m.mi, m.committed))
         .collect(Collectors.toList());
   }
 
   private static Iterable<MetricResult<BoundedTrieResult>> extractBoundedTrieMetricsFromJobMetrics(
       List<MiAndCommitted> monitoringInfoList) {
     return monitoringInfoList.stream()
-        .map(m -> m.mi)
-        .filter(item -> BOUNDED_TRIE_TYPE.equals(item.getType()))
-        .filter(item -> item.getLabelsMap().get(NAMESPACE_LABEL) != null)
-        .map(
-            item -> {
-              boolean isCommitted = findCommittedFlag(monitoringInfoList, item);
-              return convertBoundedTrieMonitoringInfoToBoundedTrie(item, isCommitted);
-            })
+        .filter(m -> BOUNDED_TRIE_TYPE.equals(m.mi.getType()))
+        .filter(m -> m.mi.getLabelsMap().get(NAMESPACE_LABEL) != null)
+        .map(m -> convertBoundedTrieMonitoringInfoToBoundedTrie(m.mi, m.committed))
         .collect(Collectors.toList());
   }
 
@@ -270,16 +250,9 @@ public class PortableMetrics extends MetricResults {
   private static Iterable<MetricResult<Long>> extractCountersFromJobMetrics(
       List<MiAndCommitted> monitoringInfoList) {
     return monitoringInfoList.stream()
-        .map(m -> m.mi)
-        .filter(item -> SUM_INT64_TYPE.equals(item.getType()))
-        .filter(
-            item ->
-                item.getLabelsMap().get(NAMESPACE_LABEL) != null) // filter out pcollection metrics
-        .map(
-            item -> {
-              boolean isCommitted = findCommittedFlag(monitoringInfoList, item);
-              return convertCounterMonitoringInfoToCounter(item, isCommitted);
-            })
+        .filter(m -> SUM_INT64_TYPE.equals(m.mi.getType()))
+        .filter(m -> m.mi.getLabelsMap().get(NAMESPACE_LABEL) != null)
+        .map(m -> convertCounterMonitoringInfoToCounter(m.mi, m.committed))
         .collect(Collectors.toList());
   }
 
@@ -291,18 +264,5 @@ public class PortableMetrics extends MetricResults {
             labelsMap.get(STEP_NAME_LABEL),
             MetricName.named(labelsMap.get(NAMESPACE_LABEL), labelsMap.get(METRIC_NAME_LABEL)));
     return MetricResult.create(key, isCommitted, decodeInt64Counter(counterMonInfo.getPayload()));
-  }
-
-  /** Helper to retrieve the committed flag for a MonitoringInfo from the merged list. */
-  private static boolean findCommittedFlag(
-      List<MiAndCommitted> merged, MetricsApi.MonitoringInfo mi) {
-    // Reconstruct the key and look up in the merged map entries.
-    String key = monitoringInfoKey(mi);
-    for (MiAndCommitted entry : merged) {
-      if (monitoringInfoKey(entry.mi).equals(key)) {
-        return entry.committed;
-      }
-    }
-    return false;
   }
 }
