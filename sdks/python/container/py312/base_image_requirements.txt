@@ -157,9 +157,11 @@ python-tds==1.17.1
 pytz==2025.2
 PyYAML==6.0.3
 redis==5.3.1
+referencing==0.37.0
 regex==2025.10.23
 requests==2.32.5
 requests-mock==1.12.1
+rpds-py==0.30.0
 rsa==4.9.1
 scikit-learn==1.7.2
 scipy==1.16.3
