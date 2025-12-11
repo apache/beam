@@ -59,7 +59,7 @@ jobs:
   run_python_yaml_rc_validation:
     name: Run Python YAML RC Validation (${{ github.event.inputs.RELEASE_VER }} RC${{ github.event.inputs.RC_NUM }})
     runs-on: [self-hosted, ubuntu-20.04, main]
-    timeout-minutes: 200
+    timeout-minutes: 200 # Reduced timeout as the job runs for ~20 mins + setup/validation
     env: # Job-level env vars
       DEVELOCITY_ACCESS_KEY: ${{ secrets.DEVELOCITY_ACCESS_KEY }}
       GRADLE_ENTERPRISE_CACHE_USERNAME: ${{ secrets.GE_CACHE_USERNAME }}
