@@ -1279,6 +1279,7 @@ class RunInference(beam.PTransform[beam.PCollection[Union[ExampleT,
       watch_model_pattern: Optional[str] = None,
       model_identifier: Optional[str] = None,
       use_model_manager: bool = False,
+      model_manager_args: Optional[dict[str, Any]] = None,
       **kwargs):
     """
     A transform that takes a PCollection of examples (or features) for use
@@ -1320,6 +1321,7 @@ class RunInference(beam.PTransform[beam.PCollection[Union[ExampleT,
     self._timeout = None
     self._watch_model_pattern = watch_model_pattern
     self._use_model_manager = use_model_manager
+    self._model_manager_args = model_manager_args
     self._kwargs = kwargs
     # Generate a random tag to use for shared.py and multi_process_shared.py to
     # allow us to effectively disambiguate in multi-model settings. Only use
@@ -1433,7 +1435,8 @@ class RunInference(beam.PTransform[beam.PCollection[Union[ExampleT,
             self._metrics_namespace,
             load_model_at_runtime,
             self._model_tag,
-            self._use_model_manager),
+            self._use_model_manager,
+            self._model_manager_args),
         self._inference_args,
         beam.pvalue.AsSingleton(
             self._model_metadata_pcoll,
@@ -1814,7 +1817,8 @@ class _RunInferenceDoFn(beam.DoFn, Generic[ExampleT, PredictionT]):
       metrics_namespace,
       load_model_at_runtime: bool = False,
       model_tag: str = "RunInference",
-      use_model_manager: bool = False):
+      use_model_manager: bool = False,
+      model_manager_args: Optional[dict[str, Any]] = None):
     """A DoFn implementation generic to frameworks.
 
       Args:
@@ -1839,6 +1843,7 @@ class _RunInferenceDoFn(beam.DoFn, Generic[ExampleT, PredictionT]):
     self._model_tag = model_tag
     self._cur_tag = model_tag
     self.use_model_manager = use_model_manager
+    self._model_manager_args = model_manager_args or {}
 
   def _load_model(
       self,
@@ -1875,7 +1880,8 @@ class _RunInferenceDoFn(beam.DoFn, Generic[ExampleT, PredictionT]):
     self._cur_tag = self._model_metadata.get_valid_tag(model_tag)
     if self.use_model_manager:
       model_manager = multi_process_shared.MultiProcessShared(
-          lambda: ModelManager(), tag='model_manager',
+          lambda: ModelManager(**self._model_manager_args),
+          tag='model_manager',
           always_proxy=True).acquire()
       model_wrapper = _SharedModelWrapper(
           model_manager, self._cur_tag, self._model_handler.load_model)

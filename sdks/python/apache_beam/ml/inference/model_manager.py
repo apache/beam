@@ -41,13 +41,6 @@ from typing import Dict, Any, Tuple, Optional, Callable
 # Configure Logging
 logger = logging.getLogger(__name__)
 
-# Constants
-SLACK_PERCENTAGE = 0.15
-POLL_INTERVAL = 0.5
-PEAK_WINDOW_SECONDS = 30.0
-SMOOTHING_FACTOR = 0.2
-MIN_DATA_POINTS = 5
-
 
 @contextmanager
 def cuda_oom_guard(description: str):
@@ -62,10 +55,16 @@ def cuda_oom_guard(description: str):
 
 
 class GPUMonitor:
-  def __init__(self, fallback_memory_mb: float = 16000.0):
+  def __init__(
+      self,
+      fallback_memory_mb: float = 16000.0,
+      poll_interval: float = 0.5,
+      peak_window_seconds: float = 30.0):
     self._current_usage = 0.0
     self._peak_usage = 0.0
     self._total_memory = fallback_memory_mb
+    self._poll_interval = poll_interval
+    self._peak_window_seconds = peak_window_seconds
     self._memory_history = deque()
     self._running = False
     self._thread = None
@@ -135,16 +134,18 @@ class GPUMonitor:
         self._current_usage = usage
         self._memory_history.append((now, usage))
         while self._memory_history and (now - self._memory_history[0][0]
-                                        > PEAK_WINDOW_SECONDS):
+                                        > self._peak_window_seconds):
           self._memory_history.popleft()
         self._peak_usage = (
             max(m for _, m in self._memory_history)
             if self._memory_history else usage)
-      time.sleep(POLL_INTERVAL)
+      time.sleep(self._poll_interval)
 
 
 class ResourceEstimator:
-  def __init__(self):
+  def __init__(self, smoothing_factor: float = 0.2, min_data_points: int = 5):
+    self.smoothing_factor = smoothing_factor
+    self.min_data_points = min_data_points
     self.estimates: Dict[str, float] = {}
     self.history = defaultdict(lambda: deque(maxlen=20))
     self.known_models = set()
@@ -206,7 +207,8 @@ class ResourceEstimator:
     A = np.array(A)
     b = np.array(b)
 
-    if len(self.history.keys()) < len(unique) + 1 or len(A) < MIN_DATA_POINTS:
+    if len(
+        self.history.keys()) < len(unique) + 1 or len(A) < self.min_data_points:
       # Not enough data to solve yet
       return
 
@@ -228,8 +230,8 @@ class ResourceEstimator:
 
         if model in self.estimates:
           old = self.estimates[model]
-          new = (old * (1 - SMOOTHING_FACTOR)) + (
-              calculated_cost * SMOOTHING_FACTOR)
+          new = (old * (1 - self.smoothing_factor)) + (
+              calculated_cost * self.smoothing_factor)
           self.estimates[model] = new
         else:
           self.estimates[model] = calculated_cost
@@ -245,9 +247,19 @@ class ResourceEstimator:
 class ModelManager:
   _lock = threading.Lock()
 
-  def __init__(self, monitor: Optional[GPUMonitor] = None):
-    self.estimator = ResourceEstimator()
-    self.monitor = monitor if monitor else GPUMonitor()
+  def __init__(
+      self,
+      monitor: Optional[GPUMonitor] = None,
+      slack_percentage: float = 0.15,
+      poll_interval: float = 0.5,
+      peak_window_seconds: float = 30.0,
+      min_data_points: int = 5,
+      smoothing_factor: float = 0.2):
+    self.estimator = ResourceEstimator(
+        min_data_points=min_data_points, smoothing_factor=smoothing_factor)
+    self.monitor = monitor if monitor else GPUMonitor(
+        poll_interval=poll_interval, peak_window_seconds=peak_window_seconds)
+    self.slack_percentage = slack_percentage
 
     self.models = defaultdict(list)
     self.idle_pool = defaultdict(list)
@@ -335,7 +347,7 @@ class ModelManager:
           # Capacity Check
           curr, peak, total = self.monitor.get_stats()
           est_cost = self.estimator.get_estimate(tag)
-          limit = total * (1 - SLACK_PERCENTAGE)
+          limit = total * (1 - self.slack_percentage)
           base_usage = max(curr, peak)
 
           if (base_usage + self.pending_reservations + est_cost) <= limit:

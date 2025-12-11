@@ -1904,6 +1904,24 @@ class RunInferenceBaseTest(unittest.TestCase):
           FakeModelHandler(multi_process_shared=True), use_model_manager=True)
       assert_that(actual, equal_to(expected), label='assert:inferences')
 
+  def test_run_inference_impl_with_model_manager_args(self):
+    with TestPipeline() as pipeline:
+      examples = [1, 5, 3, 10]
+      expected = [example + 1 for example in examples]
+      pcoll = pipeline | 'start' >> beam.Create(examples)
+      actual = pcoll | base.RunInference(
+          FakeModelHandler(
+              multi_process_shared=True, min_batch_size=2, max_batch_size=4),
+          use_model_manager=True,
+          model_manager_args={
+              'slack_percentage': 0.2,
+              'poll_interval': 1.0,
+              'peak_window_seconds': 10.0,
+              'min_data_points': 10,
+              'smoothing_factor': 0.5
+          })
+      assert_that(actual, equal_to(expected), label='assert:inferences')
+
   def test_run_inference_impl_with_model_manager_fail_and_retry(self):
     pipeline = TestPipeline()
     examples = [1, 5, 3, 10]
