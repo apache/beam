@@ -486,11 +486,12 @@ class PipelineOptions(HasDisplayData):
       drop_default=False,
       add_extra_args_fn: Optional[Callable[[_BeamArgumentParser], None]] = None,
       retain_unknown_options=False,
-      display_warnings=False) -> Dict[str, Any]:
+      display_warnings=False,
+      hierarchy_only=False,
+  ) -> Dict[str, Any]:
     """Returns a dictionary of all defined arguments.
 
-    Returns a dictionary of all defined arguments (arguments that are defined in
-    any subclass of PipelineOptions) into a dictionary.
+    Returns a dictionary of all defined arguments into a dictionary.
 
     Args:
       drop_default: If set to true, options that are equal to their default
@@ -500,6 +501,9 @@ class PipelineOptions(HasDisplayData):
       retain_unknown_options: If set to true, options not recognized by any
         known pipeline options class will still be included in the result. If
         set to false, they will be discarded.
+      hierarchy_only: If set to true, only returns options defined in this class
+        and its super classes only. Otherwise, arguments that are defined in
+        any subclass of PipelineOptions are returned (default).
 
     Returns:
       Dictionary of all args and values.
@@ -510,8 +514,13 @@ class PipelineOptions(HasDisplayData):
     # instance of each subclass to avoid conflicts.
     subset = {}
     parser = _BeamArgumentParser(allow_abbrev=False)
-    for cls in PipelineOptions.__subclasses__():
-      subset.setdefault(str(cls), cls)
+    if not hierarchy_only:
+      for cls in PipelineOptions.__subclasses__():
+        subset.setdefault(str(cls), cls)
+    else:
+      for cls in self.__class__.__mro__:
+        if issubclass(cls, PipelineOptions):
+          subset.setdefault(str(cls), cls)
     for cls in subset.values():
       cls._add_argparse_args(parser)  # pylint: disable=protected-access
     if add_extra_args_fn:
@@ -562,7 +571,7 @@ class PipelineOptions(HasDisplayData):
           continue
       parsed_args, _ = parser.parse_known_args(self._flags)
     else:
-      if unknown_args:
+      if unknown_args and not hierarchy_only:
         _LOGGER.warning("Discarding unparseable args: %s", unknown_args)
       parsed_args = known_args
     result = vars(parsed_args)
@@ -580,7 +589,7 @@ class PipelineOptions(HasDisplayData):
     if overrides:
       if retain_unknown_options:
         result.update(overrides)
-      else:
+      elif not hierarchy_only:
         _LOGGER.warning("Discarding invalid overrides: %s", overrides)
 
     return result
