@@ -19,7 +19,6 @@ package org.apache.beam.sdk.io.kafka;
 
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkState;
 
-import java.io.Closeable;
 import java.math.BigDecimal;
 import java.math.MathContext;
 import java.time.Duration;
@@ -27,7 +26,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.function.Supplier;
+import java.util.concurrent.atomic.AtomicLong;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.io.kafka.KafkaIO.ReadSourceDescriptors;
 import org.apache.beam.sdk.io.kafka.KafkaIOUtils.MovingAvg;
@@ -48,7 +47,6 @@ import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker.HasProgr
 import org.apache.beam.sdk.transforms.splittabledofn.WatermarkEstimator;
 import org.apache.beam.sdk.transforms.splittabledofn.WatermarkEstimators.MonotonicallyIncreasing;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
-import org.apache.beam.sdk.util.ExpiringMemoizingSerializableSupplier;
 import org.apache.beam.sdk.util.MemoizingPerInstantiationSerializableSupplier;
 import org.apache.beam.sdk.util.Preconditions;
 import org.apache.beam.sdk.util.SerializableSupplier;
@@ -70,6 +68,7 @@ import org.apache.kafka.clients.consumer.Consumer;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.consumer.ConsumerRecords;
+import org.apache.kafka.common.KafkaException;
 import org.apache.kafka.common.PartitionInfo;
 import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.common.config.ConfigDef;
@@ -225,30 +224,12 @@ abstract class ReadFromKafkaDoFn<K, V>
                 CacheBuilder.newBuilder()
                     .concurrencyLevel(Runtime.getRuntime().availableProcessors())
                     .weakValues()
-                    .removalListener(
-                        (RemovalNotification<KafkaSourceDescriptor, KafkaLatestOffsetEstimator>
-                                notification) -> {
-                          final @Nullable KafkaLatestOffsetEstimator value;
-                          if (notification.getCause() == RemovalCause.COLLECTED
-                              && (value = notification.getValue()) != null) {
-                            value.close();
-                          }
-                        })
                     .build(
-                        new CacheLoader<KafkaSourceDescriptor, KafkaLatestOffsetEstimator>() {
+                        new CacheLoader<KafkaSourceDescriptor, AtomicLong>() {
                           @Override
-                          public KafkaLatestOffsetEstimator load(
-                              final KafkaSourceDescriptor sourceDescriptor) {
-                            LOG.info(
-                                "Creating Kafka consumer for offset estimation for {}",
-                                sourceDescriptor);
-                            final Map<String, Object> config =
-                                KafkaIOUtils.overrideBootstrapServersConfig(
-                                    consumerConfig, sourceDescriptor);
-                            final Consumer<byte[], byte[]> consumer =
-                                consumerFactoryFn.apply(config);
-                            return new KafkaLatestOffsetEstimator(
-                                consumer, sourceDescriptor.getTopicPartition());
+                          public AtomicLong load(final KafkaSourceDescriptor sourceDescriptor) {
+                            LOG.info("Creating end offset estimator for {}", sourceDescriptor);
+                            return new AtomicLong(Long.MIN_VALUE);
                           }
                         }));
     this.pollConsumerCacheSupplier =
@@ -309,8 +290,7 @@ abstract class ReadFromKafkaDoFn<K, V>
   private final SerializableSupplier<LoadingCache<KafkaSourceDescriptor, MovingAvg>>
       avgRecordSizeCacheSupplier;
 
-  private final SerializableSupplier<
-          LoadingCache<KafkaSourceDescriptor, KafkaLatestOffsetEstimator>>
+  private final SerializableSupplier<LoadingCache<KafkaSourceDescriptor, AtomicLong>>
       latestOffsetEstimatorCacheSupplier;
 
   private final SerializableSupplier<LoadingCache<KafkaSourceDescriptor, Consumer<byte[], byte[]>>>
@@ -319,8 +299,7 @@ abstract class ReadFromKafkaDoFn<K, V>
   private transient @MonotonicNonNull LoadingCache<KafkaSourceDescriptor, MovingAvg>
       avgRecordSizeCache;
 
-  private transient @MonotonicNonNull LoadingCache<
-          KafkaSourceDescriptor, KafkaLatestOffsetEstimator>
+  private transient @MonotonicNonNull LoadingCache<KafkaSourceDescriptor, AtomicLong>
       latestOffsetEstimatorCache;
 
   private transient @MonotonicNonNull LoadingCache<KafkaSourceDescriptor, Consumer<byte[], byte[]>>
@@ -338,46 +317,6 @@ abstract class ReadFromKafkaDoFn<K, V>
 
   @VisibleForTesting
   static final String RAW_SIZE_METRIC_PREFIX = KafkaUnboundedReader.RAW_SIZE_METRIC_PREFIX;
-
-  /**
-   * A {@link GrowableOffsetRangeTracker.RangeEndEstimator} which uses a Kafka {@link Consumer} to
-   * fetch backlog.
-   */
-  private static class KafkaLatestOffsetEstimator
-      implements GrowableOffsetRangeTracker.RangeEndEstimator, Closeable {
-    private final Consumer<byte[], byte[]> offsetConsumer;
-    private final Supplier<Long> offsetSupplier;
-
-    KafkaLatestOffsetEstimator(
-        final Consumer<byte[], byte[]> offsetConsumer, final TopicPartition topicPartition) {
-      this.offsetConsumer = offsetConsumer;
-      this.offsetSupplier =
-          new ExpiringMemoizingSerializableSupplier<>(
-              () -> {
-                try {
-                  return offsetConsumer
-                      .endOffsets(Collections.singleton(topicPartition))
-                      .getOrDefault(topicPartition, Long.MIN_VALUE);
-                } catch (Throwable t) {
-                  LOG.error("Failed to get end offset for {}", topicPartition, t);
-                  return Long.MIN_VALUE;
-                }
-              },
-              Duration.ofSeconds(1),
-              Long.MIN_VALUE,
-              Duration.ZERO);
-    }
-
-    @Override
-    public long estimate() {
-      return offsetSupplier.get();
-    }
-
-    @Override
-    public void close() {
-      offsetConsumer.close();
-    }
-  }
 
   @GetInitialRestriction
   @RequiresNonNull({"pollConsumerCache"})
@@ -490,8 +429,8 @@ abstract class ReadFromKafkaDoFn<K, V>
   @RequiresNonNull({"latestOffsetEstimatorCache"})
   public OffsetRangeTracker restrictionTracker(
       @Element KafkaSourceDescriptor kafkaSourceDescriptor, @Restriction OffsetRange restriction) {
-    final LoadingCache<KafkaSourceDescriptor, KafkaLatestOffsetEstimator>
-        latestOffsetEstimatorCache = this.latestOffsetEstimatorCache;
+    final LoadingCache<KafkaSourceDescriptor, AtomicLong> latestOffsetEstimatorCache =
+        this.latestOffsetEstimatorCache;
 
     if (restriction.getTo() < Long.MAX_VALUE) {
       return new OffsetRangeTracker(restriction);
@@ -500,8 +439,9 @@ abstract class ReadFromKafkaDoFn<K, V>
     // OffsetEstimators are cached for each topic-partition because they hold a stateful connection,
     // so we want to minimize the amount of connections that we start and track with Kafka. Another
     // point is that it has a memoized backlog, and this should make that more reusable estimations.
-    return new GrowableOffsetRangeTracker(
-        restriction.getFrom(), latestOffsetEstimatorCache.getUnchecked(kafkaSourceDescriptor));
+    final AtomicLong latestOffsetEstimator =
+        latestOffsetEstimatorCache.getUnchecked(kafkaSourceDescriptor);
+    return new GrowableOffsetRangeTracker(restriction.getFrom(), latestOffsetEstimator::get);
   }
 
   @ProcessElement
@@ -514,14 +454,13 @@ abstract class ReadFromKafkaDoFn<K, V>
       throws Exception {
     final LoadingCache<KafkaSourceDescriptor, MovingAvg> avgRecordSizeCache =
         this.avgRecordSizeCache;
-    final LoadingCache<KafkaSourceDescriptor, KafkaLatestOffsetEstimator>
-        latestOffsetEstimatorCache = this.latestOffsetEstimatorCache;
+    final LoadingCache<KafkaSourceDescriptor, AtomicLong> latestOffsetEstimatorCache =
+        this.latestOffsetEstimatorCache;
     final LoadingCache<KafkaSourceDescriptor, Consumer<byte[], byte[]>> pollConsumerCache =
         this.pollConsumerCache;
 
     final MovingAvg avgRecordSize = avgRecordSizeCache.get(kafkaSourceDescriptor);
-    final KafkaLatestOffsetEstimator latestOffsetEstimator =
-        latestOffsetEstimatorCache.get(kafkaSourceDescriptor);
+    final AtomicLong latestOffsetEstimator = latestOffsetEstimatorCache.get(kafkaSourceDescriptor);
     final Consumer<byte[], byte[]> consumer = pollConsumerCache.get(kafkaSourceDescriptor);
     final Deserializer<K> keyDeserializerInstance =
         Preconditions.checkStateNotNull(this.keyDeserializerInstance);
@@ -569,6 +508,14 @@ abstract class ReadFromKafkaDoFn<K, V>
         // Fetch the next records.
         final ConsumerRecords<byte[], byte[]> rawRecords = consumer.poll(remainingTimeout);
         final Duration elapsed = pollTimer.elapsed();
+        try {
+          final long position = consumer.position(topicPartition);
+          consumer
+              .currentLag(topicPartition)
+              .ifPresent(lag -> latestOffsetEstimator.lazySet(position + lag));
+        } catch (KafkaException e) {
+        }
+
         try {
           remainingTimeout = remainingTimeout.minus(elapsed);
         } catch (ArithmeticException e) {
@@ -676,7 +623,7 @@ abstract class ReadFromKafkaDoFn<K, V>
 
         final long estimatedBacklogBytes =
             (long)
-                (BigDecimal.valueOf(latestOffsetEstimator.estimate())
+                (BigDecimal.valueOf(latestOffsetEstimator.get())
                         .subtract(BigDecimal.valueOf(expectedOffset), MathContext.DECIMAL128)
                         .doubleValue()
                     * avgRecordSize.get());
@@ -741,8 +688,8 @@ abstract class ReadFromKafkaDoFn<K, V>
   public void teardown() throws Exception {
     final LoadingCache<KafkaSourceDescriptor, MovingAvg> avgRecordSizeCache =
         this.avgRecordSizeCache;
-    final LoadingCache<KafkaSourceDescriptor, KafkaLatestOffsetEstimator>
-        latestOffsetEstimatorCache = this.latestOffsetEstimatorCache;
+    final LoadingCache<KafkaSourceDescriptor, AtomicLong> latestOffsetEstimatorCache =
+        this.latestOffsetEstimatorCache;
     final LoadingCache<KafkaSourceDescriptor, Consumer<byte[], byte[]>> pollConsumerCache =
         this.pollConsumerCache;
 
