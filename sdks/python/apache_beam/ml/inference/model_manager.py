@@ -242,7 +242,7 @@ class ModelManager:
   def __init__(
       self,
       monitor: Optional['GPUMonitor'] = None,
-      slack_percentage: float = 0.15,
+      slack_percentage: float = 0.10,
       poll_interval: float = 0.5,
       peak_window_seconds: float = 30.0,
       min_data_points: int = 5,
