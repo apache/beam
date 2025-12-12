@@ -207,8 +207,5 @@ class VertexAIModelHandlerJSON(RemoteModelHandler[Any,
     return utils._convert_to_result(
         batch, prediction.predictions, prediction.deployed_model_id)
 
-  def validate_inference_args(self, inference_args: Optional[dict[str, Any]]):
-    pass
-
   def batch_elements_kwargs(self) -> Mapping[str, Any]:
     return self._batching_kwargs
