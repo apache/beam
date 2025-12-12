@@ -1810,7 +1810,7 @@ class PortableOptions(PipelineOptions):
     parser.add_argument(
         '--job_server_timeout',
         '--job-server-timeout',  # For backwards compatibility.
-        default=300,
+        default=600,
         type=int,
         help=(
             'Job service request timeout in seconds. The timeout '
