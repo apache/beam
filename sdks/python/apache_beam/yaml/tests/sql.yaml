@@ -93,3 +93,99 @@ pipelines:
         - type: PyTransform
           config:
             constructor: apache_beam.transforms.util.LogElements
+
+  # Test calcite_connection_properties with PostgreSQL functions
+  - pipeline:
+      type: chain
+      transforms:
+        - type: Create
+          name: CreateEmailData
+          config:
+            elements:
+              - {email: "alice@example.com", id: 1}
+              - {email: "bob@test.org", id: 2}
+        
+        - type: Sql
+          name: PostgreSQLFunctions
+          config:
+            query: |
+              SELECT 
+                id,
+                email,
+                SPLIT_PART(email, '@', 1) as username,
+                SPLIT_PART(email, '@', 2) as domain
+              FROM PCOLLECTION
+
+        - type: AssertEqual
+          config:
+            elements:
+              - {id: 1, email: "alice@example.com", username: "alice", domain: "example.com"}
+              - {id: 2, email: "bob@test.org", username: "bob", domain: "test.org"}
+              
+    options:
+      calcite_connection_properties:
+        fun: "postgresql"
+
+  # Test calcite_connection_properties with BigQuery syntax
+  - pipeline:
+      type: chain
+      transforms:
+        - type: Create
+          name: CreateArrayData
+          config:
+            elements:
+              - {id: 1, tags: ["tag1", "tag2", "tag3"]}
+              - {id: 2, tags: ["tagA", "tagB"]}
+        
+        - type: Sql
+          name: BigQueryArrayFunctions
+          config:
+            query: |
+              SELECT 
+                id,
+                ARRAY_TO_STRING(tags, '|') as tags_string,
+                ARRAY_LENGTH(tags) as tag_count
+              FROM PCOLLECTION
+
+        - type: AssertEqual
+          config:
+            elements:
+              - {id: 1, tags_string: "tag1|tag2|tag3", tag_count: 3}
+              - {id: 2, tags_string: "tagA|tagB", tag_count: 2}
+              
+    options:
+      calcite_connection_properties:
+        fun: "bigquery"
+        lex: "big_query"
+
+  # Test calcite_connection_properties with case sensitivity settings
+  - pipeline:
+      type: chain
+      transforms:
+        - type: Create
+          name: CreateCaseTestData
+          config:
+            elements:
+              - {ID: 1, Name: "Alice", Email: "alice@test.com"}
+              - {ID: 2, Name: "Bob", Email: "bob@test.com"}
+        
+        - type: Sql
+          name: CaseSensitiveSQL
+          config:
+            query: |
+              SELECT 
+                id as lower_id,
+                name as lower_name,
+                email as lower_email
+              FROM PCOLLECTION
+
+        - type: AssertEqual
+          config:
+            elements:
+              - {lower_id: 1, lower_name: "Alice", lower_email: "alice@test.com"}
+              - {lower_id: 2, lower_name: "Bob", lower_email: "bob@test.com"}
+              
+    options:
+      calcite_connection_properties:
+        caseSensitive: "false"
+        unquotedCasing: "TO_LOWER"
