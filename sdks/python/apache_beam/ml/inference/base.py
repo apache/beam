@@ -331,7 +331,9 @@ class ModelHandler(Generic[ExampleT, PredictionT, ModelT]):
   def model_copies_not_overriden(self) -> bool:
     """Returns whether the model_copies method has been overridden by the
     child class. Used to determine if the model manager should be used."""
-    return type(self).model_copies == ModelHandler.model_copies
+    return type(
+        self
+    ).model_copies.__qualname__ == ModelHandler.model_copies.__qualname__
 
   def override_metrics(self, metrics_namespace: str = '') -> bool:
     """Returns a boolean representing whether or not a model handler will
@@ -1884,8 +1886,8 @@ class _RunInferenceDoFn(beam.DoFn, Generic[ExampleT, PredictionT]):
     # Ensure the tag we're loading is valid, if not replace it with a valid tag
     self._cur_tag = self._model_metadata.get_valid_tag(model_tag)
     if self.use_model_manager and \
-        self._model_handler.model_copies_not_overriden(
-    ):
+        self._model_handler.model_copies_not_overriden():
+      logging.info("Using Model Manager to manage models automatically.")
       model_manager = multi_process_shared.MultiProcessShared(
           lambda: ModelManager(**self._model_manager_args),
           tag='model_manager',
