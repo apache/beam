@@ -1766,8 +1766,10 @@ class _ProxyLoader:
 
   def __call__(self):
     unique_tag = self.model_tag + '_' + uuid.uuid4().hex
+    # Ensure that each model loaded in a different process for parallelism
     return multi_process_shared.MultiProcessShared(
-        self.loader_func, tag=unique_tag, always_proxy=True).acquire()
+        self.loader_func, tag=unique_tag, always_proxy=True,
+        spawn_process=True).acquire()
 
 
 class _SharedModelWrapper():

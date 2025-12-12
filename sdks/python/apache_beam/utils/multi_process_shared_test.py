@@ -18,6 +18,9 @@
 
 import logging
 import threading
+import tempfile
+import os
+import multiprocessing
 import unittest
 from typing import Any
 
@@ -80,6 +83,12 @@ class CounterWithBadAttr(object):
     else:
       # Default behaviour
       return object.__getattribute__(self, __name)
+
+
+class SimpleClass:
+  def make_proxy(self):
+    return multi_process_shared.MultiProcessShared(
+        Counter, tag='proxy_on_proxy', always_proxy=True).acquire()
 
 
 class MultiProcessSharedTest(unittest.TestCase):
@@ -271,16 +280,89 @@ class MultiProcessSharedTest(unittest.TestCase):
       counter1.get()
 
   def test_proxy_on_proxy(self):
-    class SimpleClass:
-      def make_proxy(self):
-        return multi_process_shared.MultiProcessShared(
-            Counter, tag='proxy_on_proxy', always_proxy=True).acquire()
-
     shared1 = multi_process_shared.MultiProcessShared(
         SimpleClass, tag='proxy_on_proxy_main', always_proxy=True)
     instance = shared1.acquire()
     proxy_instance = instance.make_proxy()
     self.assertEqual(proxy_instance.increment(), 1)
+
+
+class MultiProcessSharedSpawnProcessTest(unittest.TestCase):
+  def setUp(self):
+    tempdir = tempfile.gettempdir()
+    for tag in ['basic',
+                'proxy_on_proxy',
+                'proxy_on_proxy_main',
+                'to_delete',
+                'mix1',
+                'mix2']:
+      for ext in ['', '.address', '.address.error']:
+        try:
+          os.remove(os.path.join(tempdir, tag + ext))
+        except OSError:
+          pass
+
+  def tearDown(self):
+    for p in multiprocessing.active_children():
+      p.terminate()
+      p.join()
+
+  def test_call(self):
+    shared = multi_process_shared.MultiProcessShared(
+        Counter, tag='basic', always_proxy=True, spawn_process=True).acquire()
+    self.assertEqual(shared.get(), 0)
+    self.assertEqual(shared.increment(), 1)
+    self.assertEqual(shared.increment(10), 11)
+    self.assertEqual(shared.increment(value=10), 21)
+    self.assertEqual(shared.get(), 21)
+
+  def test_proxy_on_proxy(self):
+    shared1 = multi_process_shared.MultiProcessShared(
+        SimpleClass,
+        tag='proxy_on_proxy_main',
+        always_proxy=True,
+        spawn_process=True)
+    instance = shared1.acquire()
+    proxy_instance = instance.make_proxy()
+    self.assertEqual(proxy_instance.increment(), 1)
+
+  def test_unsafe_hard_delete_autoproxywrapper(self):
+    shared1 = multi_process_shared.MultiProcessShared(
+        Counter, tag='to_delete', always_proxy=True, spawn_process=True)
+    shared2 = multi_process_shared.MultiProcessShared(
+        Counter, tag='to_delete', always_proxy=True, spawn_process=True)
+    counter3 = multi_process_shared.MultiProcessShared(
+        Counter, tag='basic', always_proxy=True, spawn_process=True).acquire()
+
+    counter1 = shared1.acquire()
+    counter2 = shared2.acquire()
+    self.assertEqual(counter1.increment(), 1)
+    self.assertEqual(counter2.increment(), 2)
+
+    counter2.unsafe_hard_delete()
+
+    with self.assertRaises(Exception):
+      counter1.get()
+    with self.assertRaises(Exception):
+      counter2.get()
+
+    counter4 = multi_process_shared.MultiProcessShared(
+        Counter, tag='to_delete', always_proxy=True,
+        spawn_process=True).acquire()
+
+    self.assertEqual(counter3.increment(), 1)
+    self.assertEqual(counter4.increment(), 1)
+
+  def test_mix_usage(self):
+    shared1 = multi_process_shared.MultiProcessShared(
+        Counter, tag='mix1', always_proxy=True, spawn_process=False).acquire()
+    shared2 = multi_process_shared.MultiProcessShared(
+        Counter, tag='mix2', always_proxy=True, spawn_process=True).acquire()
+
+    self.assertEqual(shared1.get(), 0)
+    self.assertEqual(shared1.increment(), 1)
+    self.assertEqual(shared2.get(), 0)
+    self.assertEqual(shared2.increment(), 1)
 
 
 if __name__ == '__main__':
