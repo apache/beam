@@ -17,7 +17,7 @@ name: PreCommit YAML Xlang Direct
 
 on:
   pull_request_target:
-    paths: ['release/trigger_all_tests.json', 'model/**', 'sdks/python/**']
+    paths: ['release/trigger_all_tests.json', 'model/**', 'sdks/python/**', '.github/trigger_files/beam_PreCommit_Yaml_Xlang_Direct.json']
   issue_comment:
     types: [created]
   push:
