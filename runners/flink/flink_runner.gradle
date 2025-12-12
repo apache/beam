@@ -27,9 +27,9 @@ import groovy.json.JsonOutput
 
 def base_path = ".."
 
-def overrides(versions, type, base_path) {
+def overrides(versions, type, base_path, group='java') {
   // order is important
-  ["${base_path}/src/${type}/java"] + versions.collect { "${base_path}/${it}/src/${type}/java" } + ["./src/${type}/java"]
+  ["${base_path}/src/${type}/${group}"] + versions.collect { "${base_path}/${it}/src/${type}/${group}" } + ["./src/${type}/${group}"]
 }
 
 def all_versions = flink_versions.split(",")
@@ -39,8 +39,8 @@ def previous_versions = all_versions.findAll { it < flink_major }
 // Version specific code overrides.
 def main_source_overrides = overrides(previous_versions, "main", base_path)
 def test_source_overrides = overrides(previous_versions, "test", base_path)
-def main_resources_overrides = []
-def test_resources_overrides = []
+def main_resources_overrides = overrides(previous_versions, "main", base_path, "resources")
+def test_resources_overrides = overrides(previous_versions, "test", base_path, "resources")
 
 def archivesBaseName = "beam-runners-flink-${flink_major}"
 
@@ -139,7 +139,7 @@ if (use_override) {
         srcDirs = ["${sourceOverridesBase}/main/java"]
       }
       resources {
-        srcDirs = ["${sourceBase}/main/resources", "${sourceOverridesBase}/main/resources"]
+        srcDirs = ["${sourceOverridesBase}/main/resources"]
       }
     }
     test {
@@ -147,7 +147,7 @@ if (use_override) {
         srcDirs = ["${sourceOverridesBase}/test/java"]
       }
       resources {
-        srcDirs = ["${sourceBase}/test/resources", "${sourceOverridesBase}/test/resources"]
+        srcDirs = ["${sourceOverridesBase}/test/resources"]
       }
     }
   }
@@ -224,8 +224,6 @@ dependencies {
   permitUnusedDeclared "org.apache.flink:flink-clients:$flink_version"
 
   implementation "org.apache.flink:flink-streaming-java:$flink_version"
-  // RocksDB state backend (included in the Flink distribution)
-  provided "org.apache.flink:flink-statebackend-rocksdb:$flink_version"
   testImplementation "org.apache.flink:flink-statebackend-rocksdb:$flink_version"
   testImplementation "org.apache.flink:flink-streaming-java:$flink_version:tests"
   testImplementation "org.apache.flink:flink-test-utils:$flink_version"
@@ -237,6 +235,8 @@ dependencies {
   if (project.ext.flink_major.startsWith('1')) {
     // FLINK-36336: dataset API removed in Flink 2
     implementation "org.apache.flink:flink-java:$flink_version"
+    // RocksDB state backend (included in the Flink distribution)
+    provided "org.apache.flink:flink-statebackend-rocksdb:$flink_version"
   }
 
   implementation "org.apache.flink:flink-runtime:$flink_version"

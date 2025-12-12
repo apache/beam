@@ -56,7 +56,7 @@ def pushContainers = project.rootProject.hasProperty(["isRelease"]) || project.r
 def containerName = project.parent.name.startsWith("2") ? "flink_job_server" : "flink${project.parent.name}_job_server"
 def containerTag = project.rootProject.hasProperty(["docker-tag"]) ? project.rootProject["docker-tag"] : project.sdk_version
 if (project.parent.name.startsWith("2")) {
-  containerTag += "-flink" + ${project.parent.name}
+  containerTag += "-flink${project.parent.name}"
 }
 
 docker {
