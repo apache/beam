@@ -190,7 +190,8 @@ public class WindmillKeyedWorkItemTest {
                     ns,
                     new Instant(timestamp),
                     new Instant(timestamp),
-                    WindmillTimerInternals.timerTypeToTimeDomain(type))))
+                    WindmillTimerInternals.timerTypeToTimeDomain(type),
+                    false)))
         .setTimestamp(WindmillTimeUtils.harnessToWindmillTimestamp(new Instant(timestamp)))
         .setType(type)
         .setStateFamily(STATE_FAMILY)
@@ -198,7 +199,7 @@ public class WindmillKeyedWorkItemTest {
   }
 
   private static TimerData makeTimer(StateNamespace ns, long timestamp, TimeDomain domain) {
-    return TimerData.of(ns, new Instant(timestamp), new Instant(timestamp), domain);
+    return TimerData.of(ns, new Instant(timestamp), new Instant(timestamp), domain, false);
   }
 
   @Test
@@ -248,10 +249,10 @@ public class WindmillKeyedWorkItemTest {
     Assert.assertTrue(iterator.next().causedByDrain());
     Assert.assertFalse(iterator.next().causedByDrain());
 
-    // todo add assert for draining once timerdata is filled
-    // (https://github.com/apache/beam/issues/36884)
     assertThat(
         keyedWorkItem.timersIterable(),
-        Matchers.contains(makeTimer(STATE_NAMESPACE_2, 3, TimeDomain.EVENT_TIME)));
+        Matchers.contains(
+            TimerData.of(
+                STATE_NAMESPACE_2, new Instant(3), new Instant(3), TimeDomain.EVENT_TIME, true)));
   }
 }
