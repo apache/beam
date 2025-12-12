@@ -1582,10 +1582,10 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
   }
 
   @SuppressWarnings("deprecation") // Allowed Skew is deprecated for users, but must be respected
-  private void checkTimestamp(Instant timestamp) {
+  private void checkTimestamp(Instant inputTimestamp, Instant timestamp) {
     Instant lowerBound;
     try {
-      lowerBound = currentElement.getTimestamp().minus(doFn.getAllowedTimestampSkew());
+      lowerBound = inputTimestamp.minus(doFn.getAllowedTimestampSkew());
     } catch (ArithmeticException e) {
       lowerBound = BoundedWindow.TIMESTAMP_MIN_VALUE;
     }
@@ -1598,7 +1598,7 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
                   + "than %s. See the DoFn#getAllowedTimestampSkew() Javadoc for details on "
                   + "changing the allowed skew.",
               timestamp,
-              currentElement.getTimestamp(),
+              inputTimestamp,
               doFn.getAllowedTimestampSkew().getMillis() >= Integer.MAX_VALUE
                   ? doFn.getAllowedTimestampSkew()
                   : PeriodFormat.getDefault().print(doFn.getAllowedTimestampSkew().toPeriod()),
@@ -1856,11 +1856,12 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
 
     @Override
     public OutputBuilder<OutputT> builder(OutputT value) {
+      Instant elemTimestamp = currentElement.getTimestamp();
       return WindowedValues.builder(currentElement)
           .withValue(value)
           .setReceiver(
               windowedValue -> {
-                checkTimestamp(windowedValue.getTimestamp());
+                checkTimestamp(elemTimestamp, windowedValue.getTimestamp());
                 outputTo(mainOutputConsumer, windowedValue);
               });
     }
@@ -1902,7 +1903,7 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
 
     @Override
     public <T> void outputWithTimestamp(TupleTag<T> tag, T output, Instant timestamp) {
-      checkTimestamp(timestamp);
+      checkTimestamp(currentElement.getTimestamp(), timestamp);
       FnDataReceiver<WindowedValue<T>> consumer =
           (FnDataReceiver) localNameToConsumer.get(tag.getId());
       if (consumer == null) {
@@ -1921,7 +1922,7 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
         Instant timestamp,
         Collection<? extends BoundedWindow> windows,
         PaneInfo paneInfo) {
-      checkTimestamp(timestamp);
+      checkTimestamp(currentElement.getTimestamp(), timestamp);
       FnDataReceiver<WindowedValue<T>> consumer =
           (FnDataReceiver) localNameToConsumer.get(tag.getId());
       if (consumer == null) {
