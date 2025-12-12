@@ -134,9 +134,13 @@ abstract class BigQuerySourceBase<T> extends BoundedSource<T> {
           BigQueryHelpers.getDatasetLocation(
               datasetService, tableToExtract.getProjectId(), tableToExtract.getDatasetId());
       String bqProjectId =
-          bqOptions.getBigQueryProject() != null
-              ? bqOptions.getBigQueryProject()
-              : bqOptions.getProject();
+          checkArgumentNotNull(
+              bqOptions.getBigQueryProject() != null
+                  ? bqOptions.getBigQueryProject()
+                  : bqOptions.getProject(),
+              "Cannot export data from table "
+                  + tableToExtract
+                  + " without a valid billing project. Check that either --bigQueryProject or --project has been set.");
       List<ResourceId> tempFiles =
           executeExtract(
               extractJobId,
