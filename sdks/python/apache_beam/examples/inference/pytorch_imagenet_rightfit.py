@@ -302,8 +302,7 @@ def run_load_pipeline(known_args, pipeline_args):
   override_or_add(pipeline_args, '--max_num_workers', '10')
   override_or_add(pipeline_args, '--job_name', f"images-load-pubsub-{int(time.time())}")
   override_or_add(pipeline_args, '--project', known_args.project)
-  override_or_add(pipeline_args, '--experiments', 'use_runner_v2')
-
+  pipeline_args = [arg for arg in pipeline_args if not arg.startswith("--experiments")]
 
   pipeline_options = PipelineOptions(pipeline_args)
   pipeline = beam.Pipeline(options=pipeline_options)
