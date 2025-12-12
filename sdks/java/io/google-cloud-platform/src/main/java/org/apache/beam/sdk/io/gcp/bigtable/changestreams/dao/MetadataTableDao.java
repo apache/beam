@@ -453,8 +453,7 @@ public class MetadataTableDao {
    * @return list of PartitionRecord of all StreamPartitions in the metadata table.
    */
   public List<PartitionRecord> readAllStreamPartitions() throws InvalidProtocolBufferException {
-    Query query = Query.create(tableId).prefix(getFullStreamPartitionPrefix());
-    ServerStream<Row> rows = dataClient.readRows(query);
+    ServerStream<Row> rows = readAllStreamPartitionRows();
     List<PartitionRecord> partitions = new ArrayList<>();
     for (Row row : rows) {
       Instant watermark = parseWatermarkFromRow(row);
@@ -816,5 +815,23 @@ public class MetadataTableDao {
       Thread.currentThread().interrupt();
       throw new RuntimeException(interruptedException);
     }
+  }
+
+  /**
+   * Reads the raw bigtable StreamPartition rows. This is separate from {@link
+   * #readAllStreamPartitions()} only for testing purposes. {@link #readAllStreamPartitions()}
+   * should be used for all usage outside this file.
+   *
+   * @return {@link ServerStream} of StreamPartition bigtable rows
+   */
+  @VisibleForTesting
+  ServerStream<Row> readAllStreamPartitionRows() {
+    Query query =
+        Query.create(tableId)
+            .prefix(getFullStreamPartitionPrefix())
+            // Add a cells per column filter to avoid loading old versions of watermark and token.
+            // We only need the latest.
+            .filter(FILTERS.limit().cellsPerColumn(1));
+    return dataClient.readRows(query);
   }
 }
