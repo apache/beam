@@ -137,10 +137,19 @@ class UngroupedWindmillReader<T> extends NativeReader<WindowedValue<T>> {
         @SuppressWarnings("unchecked")
         T result =
             (T) KV.of(decode(kvCoder.getKeyCoder(), key), decode(kvCoder.getValueCoder(), data));
+        // todo #37030 parse context from previous stage
         return WindowedValues.of(
-            result, timestampMillis, windows, paneInfo, null, null, drainingValueFromUpstream);
+            result,
+            timestampMillis,
+            windows,
+            paneInfo,
+            null,
+            null,
+            drainingValueFromUpstream,
+            null);
       } else {
         notifyElementRead(data.available() + metadata.available());
+        // todo #37030 parse context from previous stage
         return WindowedValues.of(
             decode(valueCoder, data),
             timestampMillis,
@@ -148,7 +157,8 @@ class UngroupedWindmillReader<T> extends NativeReader<WindowedValue<T>> {
             paneInfo,
             null,
             null,
-            drainingValueFromUpstream);
+            drainingValueFromUpstream,
+            null);
       }
     }
 
