@@ -17,10 +17,19 @@
  */
 package org.apache.beam.sdk.io.iceberg;
 
-import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
-import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkState;
+import static com.google.common.base.Preconditions.checkArgument;
+import static com.google.common.base.Preconditions.checkState;
 
+import com.google.common.annotations.VisibleForTesting;
+import com.google.common.base.Splitter;
+import com.google.common.cache.Cache;
+import com.google.common.cache.CacheBuilder;
+import com.google.common.cache.RemovalNotification;
+import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
 import java.io.IOException;
+import java.time.Duration;
+import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.YearMonth;
 import java.time.ZoneOffset;
@@ -35,13 +44,6 @@ import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.util.Preconditions;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.WindowedValue;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Splitter;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.cache.Cache;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.cache.CacheBuilder;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.cache.RemovalNotification;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Maps;
 import org.apache.iceberg.DataFile;
 import org.apache.iceberg.ManifestFile;
 import org.apache.iceberg.PartitionField;
@@ -135,7 +137,8 @@ class RecordWriterManager implements AutoCloseable {
                       RuntimeException rethrow =
                           new RuntimeException(
                               String.format(
-                                  "Encountered an error when closing data writer for table '%s', path: %s",
+                                  "Encountered an error when closing data writer for table '%s',"
+                                      + " path: %s",
                                   icebergDestination.getTableIdentifier(), recordWriter.path()),
                               e);
                       exceptions.add(rethrow);
@@ -256,8 +259,40 @@ class RecordWriterManager implements AutoCloseable {
   private final Map<WindowedValue<IcebergDestination>, List<SerializableDataFile>>
       totalSerializableDataFiles = Maps.newHashMap();
 
+  static final class LastRefreshedTable {
+    final Table table;
+    volatile Instant lastRefreshTime;
+    static final Duration STALENESS_THRESHOLD = Duration.ofMinutes(3);
+
+    LastRefreshedTable(Table table, Instant lastRefreshTime) {
+      this.table = table;
+      this.lastRefreshTime = lastRefreshTime;
+    }
+
+    /**
+     * Refreshes the table metadata if it is considered stale (older than 3 minutes).
+     *
+     * <p>This method first performs a non-synchronized check on the table's freshness. This
+     * provides a lock-free fast path that avoids synchronization overhead in the common case where
+     * the table does not need to be refreshed. If the table might be stale, it then enters a
+     * synchronized block to ensure that only one thread performs the refresh operation.
+     */
+    void refreshIfStale() {
+      // Fast path: Avoid entering the synchronized block if the table is not stale.
+      if (lastRefreshTime.isAfter(Instant.now().minus(STALENESS_THRESHOLD))) {
+        return;
+      }
+      synchronized (this) {
+        if (lastRefreshTime.isBefore(Instant.now().minus(STALENESS_THRESHOLD))) {
+          table.refresh();
+          lastRefreshTime = Instant.now();
+        }
+      }
+    }
+  }
+
   @VisibleForTesting
-  static final Cache<TableIdentifier, Table> TABLE_CACHE =
+  static final Cache<TableIdentifier, LastRefreshedTable> LAST_REFRESHED_TABLE_CACHE =
       CacheBuilder.newBuilder().expireAfterAccess(10, TimeUnit.MINUTES).build();
 
   private boolean isClosed = false;
@@ -272,22 +307,22 @@ class RecordWriterManager implements AutoCloseable {
   /**
    * Returns an Iceberg {@link Table}.
    *
-   * <p>First attempts to fetch the table from the {@link #TABLE_CACHE}. If it's not there, we
-   * attempt to load it using the Iceberg API. If the table doesn't exist at all, we attempt to
-   * create it, inferring the table schema from the record schema.
+   * <p>First attempts to fetch the table from the {@link #LAST_REFRESHED_TABLE_CACHE}. If it's not
+   * there, we attempt to load it using the Iceberg API. If the table doesn't exist at all, we
+   * attempt to create it, inferring the table schema from the record schema.
    *
    * <p>Note that this is a best-effort operation that depends on the {@link Catalog}
    * implementation. Although it is expected, some implementations may not support creating a table
    * using the Iceberg API.
    */
-  private Table getOrCreateTable(IcebergDestination destination, Schema dataSchema) {
+  @VisibleForTesting
+  Table getOrCreateTable(IcebergDestination destination, Schema dataSchema) {
     TableIdentifier identifier = destination.getTableIdentifier();
-    @Nullable Table table = TABLE_CACHE.getIfPresent(identifier);
-    if (table != null) {
-      // If fetching from cache, refresh the table to avoid working with stale metadata
-      // (e.g. partition spec)
-      table.refresh();
-      return table;
+    @Nullable
+    LastRefreshedTable lastRefreshedTable = LAST_REFRESHED_TABLE_CACHE.getIfPresent(identifier);
+    if (lastRefreshedTable != null && lastRefreshedTable.table != null) {
+      lastRefreshedTable.refreshIfStale();
+      return lastRefreshedTable.table;
     }
 
     Namespace namespace = identifier.namespace();
@@ -299,7 +334,8 @@ class RecordWriterManager implements AutoCloseable {
             ? createConfig.getTableProperties()
             : Maps.newHashMap();
 
-    synchronized (TABLE_CACHE) {
+    @Nullable Table table = null;
+    synchronized (LAST_REFRESHED_TABLE_CACHE) {
       // Create namespace if it does not exist yet
       if (!namespace.isEmpty() && catalog instanceof SupportsNamespaces) {
         SupportsNamespaces supportsNamespaces = (SupportsNamespaces) catalog;
@@ -323,7 +359,8 @@ class RecordWriterManager implements AutoCloseable {
         try {
           table = catalog.createTable(identifier, tableSchema, partitionSpec, tableProperties);
           LOG.info(
-              "Created Iceberg table '{}' with schema: {}\n, partition spec: {}, table properties: {}",
+              "Created Iceberg table '{}' with schema: {}\n"
+                  + ", partition spec: {}, table properties: {}",
               identifier,
               tableSchema,
               partitionSpec,
@@ -334,8 +371,8 @@ class RecordWriterManager implements AutoCloseable {
         }
       }
     }
-
-    TABLE_CACHE.put(identifier, table);
+    lastRefreshedTable = new LastRefreshedTable(table, Instant.now());
+    LAST_REFRESHED_TABLE_CACHE.put(identifier, lastRefreshedTable);
     return table;
   }
 
