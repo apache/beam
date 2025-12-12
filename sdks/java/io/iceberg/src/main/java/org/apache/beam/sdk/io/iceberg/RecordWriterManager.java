@@ -262,7 +262,7 @@ class RecordWriterManager implements AutoCloseable {
   static final class LastRefreshedTable {
     final Table table;
     volatile Instant lastRefreshTime;
-    static final Duration STALENESS_THRESHOLD = Duration.ofMinutes(3);
+    static final Duration STALENESS_THRESHOLD = Duration.ofMinutes(2);
 
     LastRefreshedTable(Table table, Instant lastRefreshTime) {
       this.table = table;
@@ -270,7 +270,7 @@ class RecordWriterManager implements AutoCloseable {
     }
 
     /**
-     * Refreshes the table metadata if it is considered stale (older than 3 minutes).
+     * Refreshes the table metadata if it is considered stale (older than 2 minutes).
      *
      * <p>This method first performs a non-synchronized check on the table's freshness. This
      * provides a lock-free fast path that avoids synchronization overhead in the common case where
