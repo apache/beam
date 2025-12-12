@@ -34,7 +34,9 @@ import gc
 import numpy as np
 from scipy.optimize import nnls
 import torch
-from collections import defaultdict, deque, Counter
+import heapq
+import itertools
+from collections import defaultdict, deque, Counter, OrderedDict
 from typing import Dict, Any, Tuple, Optional, Callable
 
 # Configure Logging
@@ -154,6 +156,10 @@ class ResourceEstimator:
 
   def add_observation(
       self, active_snapshot: Dict[str, int], peak_memory: float):
+    logger.info(
+        "Adding Observation: Snapshot=%s, PeakMemory=%.1f MB",
+        active_snapshot,
+        peak_memory)
     if not active_snapshot:
       return
     with self._lock:
@@ -236,210 +242,324 @@ class ModelManager:
 
   def __init__(
       self,
-      monitor: Optional[GPUMonitor] = None,
+      monitor: Optional['GPUMonitor'] = None,
       slack_percentage: float = 0.15,
       poll_interval: float = 0.5,
       peak_window_seconds: float = 30.0,
       min_data_points: int = 5,
-      smoothing_factor: float = 0.2):
-    self.estimator = ResourceEstimator(
+      smoothing_factor: float = 0.2,
+      eviction_cooldown_seconds: float = 10.0,
+      min_model_copies: int = 1):
+
+    self._estimator = ResourceEstimator(
         min_data_points=min_data_points, smoothing_factor=smoothing_factor)
-    self.monitor = monitor if monitor else GPUMonitor(
+    self._monitor = monitor if monitor else GPUMonitor(
         poll_interval=poll_interval, peak_window_seconds=peak_window_seconds)
-    self.slack_percentage = slack_percentage
+    self._slack_percentage = slack_percentage
 
-    self.models = defaultdict(list)
-    self.idle_pool = defaultdict(list)
-    self.active_counts = Counter()
-    self.total_active_jobs = 0
-    self.pending_reservations = 0.0
+    self._eviction_cooldown = eviction_cooldown_seconds
+    self._min_model_copies = min_model_copies
 
-    # State Control
-    self.isolation_mode = False
-    self.pending_isolation_count = 0
-    self.isolation_baseline = 0.0
+    # Resource State
+    self._models = defaultdict(list)
+    self._idle_lru = OrderedDict()
+    self._active_counts = Counter()
+    self._total_active_jobs = 0
+    self._pending_reservations = 0.0
 
+    self._isolation_mode = False
+    self._pending_isolation_count = 0
+    self._isolation_baseline = 0.0
+
+    self._wait_queue = []
+    self._ticket_counter = itertools.count()
     self._cv = threading.Condition()
-    self.monitor.start()
+    self._load_lock = threading.Lock()
+
+    self._monitor.start()
 
   def all_models(self, tag) -> list[Any]:
-    return self.models[tag]
+    return self._models[tag]
 
   def acquire_model(self, tag: str, loader_func: Callable[[], Any]) -> Any:
-    logger.info(
-        "Acquiring model for tag: %s | "
-        "idle_pool size: %d | "
-        "active_count: %d | "
-        "total_active_jobs: %d | "
-        "pending_reservations: %.1f | "
-        "isolation_mode: %s | "
-        "pending_isolation_count: %d | "
-        "estimator known: %s | "
-        "estimator cost: %.1f MB",
-        tag,
-        len(self.idle_pool[tag]),
-        self.active_counts[tag],
-        self.total_active_jobs,
-        self.pending_reservations,
-        self.isolation_mode,
-        self.pending_isolation_count,
-        not self.estimator.is_unknown(tag),
-        self.estimator.get_estimate(tag),
-    )
-    should_spawn = False
-    est_cost = 0.0
-    is_unknown = False
+    current_priority = 0 if self._estimator.is_unknown(tag) else 1
+    ticket_num = next(self._ticket_counter)
+    my_id = object()
 
     with self._cv:
-      while True:
-        is_unknown = self.estimator.is_unknown(tag)
+      # FAST PATH
+      if self._pending_isolation_count == 0 and not self._isolation_mode:
+        cached_instance = self._try_grab_from_lru(tag)
+        if cached_instance:
+          return cached_instance
 
-        # Path A: Isolation for Unknown Models
-        if is_unknown:
-          self.pending_isolation_count += 1
-          try:
-            while self.total_active_jobs > 0 or self.isolation_mode:
-              self._cv.wait()
-              if not self.estimator.is_unknown(tag):
-                is_unknown = False
-                break
+      # SLOW PATH
+      logger.info("Acquire Queued: tag=%s, priority=%d", tag, current_priority)
+      heapq.heappush(
+          self._wait_queue, (current_priority, ticket_num, my_id, tag))
 
-            if not is_unknown:
-              continue
+      should_spawn = False
+      est_cost = 0.0
+      is_unknown = False
 
-            self.isolation_mode = True
-            self.total_active_jobs += 1
-            self.isolation_baseline, _, _ = self.monitor.get_stats()
-            self.monitor.reset_peak()
-            should_spawn = True
-            break
-          finally:
-            self.pending_isolation_count -= 1
-            if not should_spawn:
-              self._cv.notify_all()
-
-        # Path B: Concurrent Execution
-        else:
-          # Writer Priority (allow unknown models to drain system)
-          if self.pending_isolation_count > 0 or self.isolation_mode:
+      try:
+        while True:
+          if not self._wait_queue or self._wait_queue[0][2] is not my_id:
             self._cv.wait()
             continue
 
-          if self.idle_pool[tag]:
-            instance = self.idle_pool[tag].pop()
-            self.active_counts[tag] += 1
-            self.total_active_jobs += 1
-            return instance
+          real_is_unknown = self._estimator.is_unknown(tag)
+          real_priority = 0 if real_is_unknown else 1
 
-          # Capacity Check
-          curr, peak, total = self.monitor.get_stats()
-          est_cost = self.estimator.get_estimate(tag)
-          limit = total * (1 - self.slack_percentage)
-          base_usage = max(curr, peak)
+          if current_priority != real_priority:
+            heapq.heappop(self._wait_queue)
+            current_priority = real_priority
+            heapq.heappush(
+                self._wait_queue, (current_priority, ticket_num, my_id, tag))
+            self._cv.notify_all()
+            continue
 
-          if (base_usage + self.pending_reservations + est_cost) <= limit:
-            self.pending_reservations += est_cost
-            self.total_active_jobs += 1
-            self.active_counts[tag] += 1
+          cached_instance = self._try_grab_from_lru(tag)
+          if cached_instance:
+            return cached_instance
+
+          is_unknown = real_is_unknown
+
+          # Path A: Isolation
+          if is_unknown:
+            if self._total_active_jobs > 0:
+              self._cv.wait()
+              continue
+
+            logger.info("Unknown model %s detected. Flushing GPU.", tag)
+            self._delete_all_models()
+
+            self._isolation_mode = True
+            self._total_active_jobs += 1
+            self._isolation_baseline, _, _ = self._monitor.get_stats()
+            self._monitor.reset_peak()
             should_spawn = True
             break
 
-          self._cv.wait()
-
-      # Execution Logic (Spawn)
-      if should_spawn:
-        try:
-          logger.info("Loading model for tag: %s", tag)
-          isolation_baseline_snap, _, _ = self.monitor.get_stats()
-          try:
-            instance = loader_func()
-          except torch.cuda.OutOfMemoryError:
-            logger.error(
-                "CUDA OOM while loading model for tag: %s, "
-                "clearing all model instances and reset",
-                tag)
-            self.force_reset()
-            pass
-          logger.info("Model loaded for tag: %s", tag)
-          _, peak_during_load, _ = self.monitor.get_stats()
-          snapshot = {tag: 1}
-          self.estimator.add_observation(
-              snapshot, peak_during_load - isolation_baseline_snap)
-
-          if not is_unknown:
-            self.pending_reservations = max(
-                0.0, self.pending_reservations - est_cost)
-          self.models[tag].append(instance)
-          return instance
-
-        except Exception as e:
-          self.total_active_jobs -= 1
-          if is_unknown:
-            self.isolation_mode = False
-            self.isolation_baseline = 0.0
+          # Path B: Concurrent
           else:
-            self.pending_reservations = max(
-                0.0, self.pending_reservations - est_cost)
-            self.active_counts[tag] -= 1
+            if self._pending_isolation_count > 0 or self._isolation_mode:
+              self._cv.wait()
+              continue
+
+            curr, _, total = self._monitor.get_stats()
+            est_cost = self._estimator.get_estimate(tag)
+            limit = total * (1 - self._slack_percentage)
+
+            # Use current usage for capacity check (ignore old spikes)
+            if (curr + self._pending_reservations + est_cost) <= limit:
+              self._pending_reservations += est_cost
+              self._total_active_jobs += 1
+              self._active_counts[tag] += 1
+              should_spawn = True
+              break
+
+            # Evict to make space (passing tag to check demand/existence)
+            if self._evict_to_make_space(limit, est_cost, requesting_tag=tag):
+              continue
+
+            self._cv.wait()
+
+      finally:
+        if self._wait_queue and self._wait_queue[0][2] is my_id:
+          heapq.heappop(self._wait_queue)
           self._cv.notify_all()
-          raise e
+
+    if should_spawn:
+      return self._spawn_new_model(tag, loader_func, is_unknown, est_cost)
 
   def release_model(self, tag: str, instance: Any):
     with self._cv:
       try:
-        self.total_active_jobs -= 1
-        if self.active_counts[tag] > 0:
-          self.active_counts[tag] -= 1
+        self._total_active_jobs -= 1
+        if self._active_counts[tag] > 0:
+          self._active_counts[tag] -= 1
 
-        # Return to pool
-        self.idle_pool[tag].append(instance)
+        self._idle_lru[id(instance)] = (tag, instance, time.time())
 
-        _, peak_during_job, _ = self.monitor.get_stats()
+        _, peak_during_job, _ = self._monitor.get_stats()
 
-        if self.isolation_mode and self.active_counts[tag] == 0:
-          cost = max(0, peak_during_job - self.isolation_baseline)
-          self.estimator.set_initial_estimate(tag, cost)
-          self.isolation_mode = False
-          self.isolation_baseline = 0.0
+        if self._isolation_mode and self._active_counts[tag] == 0:
+          cost = max(0, peak_during_job - self._isolation_baseline)
+          self._estimator.set_initial_estimate(tag, cost)
+          self._isolation_mode = False
+          self._isolation_baseline = 0.0
         else:
-          # Solver Snapshot
-          snapshot = dict(self.active_counts)
-          for pool_tag, models in self.idle_pool.items():
-            snapshot[pool_tag] = snapshot.get(pool_tag, 0) + len(models)
-
+          snapshot = {
+              t: len(instances)
+              for t, instances in self._models.items() if len(instances) > 0
+          }
           if snapshot:
-            logger.info(
-                "Release Snapshot: %s, Peak: %s MB", snapshot, peak_during_job)
-            self.estimator.add_observation(snapshot, peak_during_job)
+            self._estimator.add_observation(snapshot, peak_during_job)
 
       finally:
         self._cv.notify_all()
 
-  def delete_all_models(self):
-    for _, instances in self.models.items():
+  def _try_grab_from_lru(self, tag: str) -> Any:
+    target_key = None
+    target_instance = None
+
+    for key, (t, instance, _) in reversed(self._idle_lru.items()):
+      if t == tag:
+        target_key = key
+        target_instance = instance
+        break
+
+    if target_instance:
+      del self._idle_lru[target_key]
+      self._active_counts[tag] += 1
+      self._total_active_jobs += 1
+      return target_instance
+    return None
+
+  def _evict_to_make_space(
+      self, limit: float, est_cost: float, requesting_tag: str) -> bool:
+    """
+    Evicts models based on Demand Magnitude + Tiers.
+    Crucially: If we have 0 active copies of 'requesting_tag', we FORCE eviction
+    of the lowest-demand candidate to avoid starvation.
+    """
+    evicted_something = False
+    curr, _, _ = self._monitor.get_stats()
+    projected_usage = curr + self._pending_reservations + est_cost
+
+    if projected_usage <= limit:
+      return False
+
+    now = time.time()
+
+    demand_map = Counter()
+    for item in self._wait_queue:
+      if len(item) >= 4:
+        demand_map[item[3]] += 1
+
+    my_demand = demand_map[requesting_tag]
+    am_i_starving = len(self._models[requesting_tag]) == 0
+
+    candidates = []
+    for key, (tag, instance, release_time) in self._idle_lru.items():
+      candidate_demand = demand_map[tag]
+
+      if not am_i_starving:
+        if candidate_demand >= my_demand:
+          continue
+
+      age = now - release_time
+      is_cold = age >= self._eviction_cooldown
+
+      total_copies = len(self._models[tag])
+      is_surplus = total_copies > self._min_model_copies
+
+      if is_cold and is_surplus: tier = 0
+      elif not is_cold and is_surplus: tier = 1
+      elif is_cold and not is_surplus: tier = 2
+      else: tier = 3
+
+      score = (candidate_demand * 10) + tier
+
+      candidates.append((score, release_time, key, tag, instance))
+
+    candidates.sort(key=lambda x: (x[0], x[1]))
+
+    for score, _, key, tag, instance in candidates:
+      if projected_usage <= limit:
+        break
+
+      if key not in self._idle_lru: continue
+
+      self._perform_eviction(key, tag, instance, score)
+      evicted_something = True
+
+      curr, _, _ = self._monitor.get_stats()
+      projected_usage = curr + self._pending_reservations + est_cost
+
+    return evicted_something
+
+  def _perform_eviction(self, key, tag, instance, score):
+    logger.info("Evicting Model: %s (Score %d)", tag, score)
+
+    if key in self._idle_lru:
+      del self._idle_lru[key]
+
+    if hasattr(instance, "unsafe_hard_delete"):
+      instance.unsafe_hard_delete()
+
+    if instance in self._models[tag]:
+      self._models[tag].remove(instance)
+
+    del instance
+    gc.collect()
+    torch.cuda.empty_cache()
+    self._monitor.reset_peak()
+
+  def _spawn_new_model(self, tag, loader_func, is_unknown, est_cost):
+    try:
+      with self._load_lock:
+        logger.info("Loading Model: %s (Unknown: %s)", tag, is_unknown)
+        isolation_baseline_snap, _, _ = self._monitor.get_stats()
+        instance = loader_func()
+        _, peak_during_load, _ = self._monitor.get_stats()
+
+      with self._cv:
+        snapshot = {tag: 1}
+        self._estimator.add_observation(
+            snapshot, peak_during_load - isolation_baseline_snap)
+
+        if not is_unknown:
+          self._pending_reservations = max(
+              0.0, self._pending_reservations - est_cost)
+        self._models[tag].append(instance)
+      return instance
+
+    except Exception as e:
+      logger.error("Load Failed: %s. Error: %s", tag, e)
+      with self._cv:
+        self._total_active_jobs -= 1
+        if is_unknown:
+          self._isolation_mode = False
+          self._isolation_baseline = 0.0
+        else:
+          self._pending_reservations = max(
+              0.0, self._pending_reservations - est_cost)
+          self._active_counts[tag] -= 1
+        self._cv.notify_all()
+      raise e
+
+  def _delete_all_models(self):
+    self._idle_lru.clear()
+    for _, instances in self._models.items():
       for instance in instances:
         if hasattr(instance, "unsafe_hard_delete"):
           instance.unsafe_hard_delete()
         del instance
+    self._models.clear()
+    self._active_counts.clear()
     gc.collect()
     torch.cuda.empty_cache()
 
-  def force_reset(self):
-    self.delete_all_models()
-    self.models = defaultdict(list)
-    self.idle_pool = defaultdict(list)
-    self.active_counts = Counter()
-    self.total_active_jobs = 0
-    self.pending_reservations = 0.0
-    self.isolation_mode = False
-    self.pending_isolation_count = 0
-    self.isolation_baseline = 0.0
+  def _force_reset(self):
+    logger.warning("Force Reset Triggered")
+    self._delete_all_models()
+    self._models = defaultdict(list)
+    self._idle_lru = OrderedDict()
+    self._active_counts = Counter()
+    self._wait_queue = []
+    self._total_active_jobs = 0
+    self._pending_reservations = 0.0
+    self._isolation_mode = False
+    self._pending_isolation_count = 0
+    self._isolation_baseline = 0.0
 
   def shutdown(self):
-    self.delete_all_models()
+    self._delete_all_models()
     gc.collect()
     torch.cuda.empty_cache()
-    self.monitor.stop()
+    self._monitor.stop()
 
   def __del__(self):
     self.shutdown()

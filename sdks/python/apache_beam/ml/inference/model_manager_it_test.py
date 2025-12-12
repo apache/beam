@@ -126,8 +126,6 @@ class HuggingFaceGpuTest(unittest.TestCase):
         +--------+--------+
         |                 |
     [ Translation ]   [ Sentiment ]
-        |                 |
-    [ Check Trans ]   [ Check Sent ]
     """
 
     translator_handler = HuggingFacePipelineModelHandler(
