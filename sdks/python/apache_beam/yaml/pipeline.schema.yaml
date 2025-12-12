@@ -47,6 +47,19 @@ $defs:
               type: string
       output_schema:
         type: object
+      encryption:
+        type: object
+        properties:
+          key: { type: string }
+          fields:
+            type: array
+            items: { type: string }
+          __line__: {}
+          __uuid__: {}
+        additionalProperties: false
+        required:
+          - key
+          - fields
     additionalProperties: true
     required:
       - type
@@ -135,6 +148,7 @@ $defs:
             windowing: {}
             resource_hints: {}
             config: { type: object }
+            encryption: {}
             __line__: {}
             __uuid__: {}
           additionalProperties: false

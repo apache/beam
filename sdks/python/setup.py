@@ -487,6 +487,7 @@ if __name__ == '__main__':
               'google-cloud-dlp>=3.0.0,<4',
               'google-cloud-kms>=3.0.0,<4',
               'google-cloud-language>=2.0,<3',
+              'google-cloud-kms>=2.0.0,<3',
               'google-cloud-secret-manager>=2.0,<3',
               'google-cloud-videointelligence>=2.0,<3',
               'google-cloud-vision>=2,<4',
