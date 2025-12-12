@@ -28,10 +28,16 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
 
 import java.io.IOException;
 import java.net.URLEncoder;
 import java.nio.ByteBuffer;
+import java.time.Duration;
+import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
@@ -102,7 +108,7 @@ public class RecordWriterManagerTest {
     windowedDestination =
         getWindowedDestination("table_" + testName.getMethodName(), PARTITION_SPEC);
     catalog = new HadoopCatalog(new Configuration(), warehouse.location);
-    RecordWriterManager.TABLE_CACHE.invalidateAll();
+    RecordWriterManager.LAST_REFRESHED_TABLE_CACHE.invalidateAll();
   }
 
   private WindowedValue<IcebergDestination> getWindowedDestination(
@@ -451,10 +457,15 @@ public class RecordWriterManagerTest {
     assertThat(dataFile.path().toString(), containsString("bool=true"));
 
     // table is cached
-    assertEquals(1, RecordWriterManager.TABLE_CACHE.size());
+    assertEquals(1, RecordWriterManager.LAST_REFRESHED_TABLE_CACHE.size());
 
     // update spec
     table.updateSpec().addField("id").removeField("bool").commit();
+    // Make the cached table stale to force reloading its metadata.
+    RecordWriterManager.LAST_REFRESHED_TABLE_CACHE.getIfPresent(
+                windowedDestination.getValue().getTableIdentifier())
+            .lastRefreshTime =
+        Instant.EPOCH;
 
     // write a second data file
     // should refresh the table and use the new partition spec
@@ -937,5 +948,54 @@ public class RecordWriterManagerTest {
           throw new IllegalStateException("Unexpected column index: " + i);
       }
     }
+  }
+
+  @Test
+  public void testGetOrCreateTable_refreshLogic() {
+    Table mockTable = mock(Table.class);
+    TableIdentifier identifier = TableIdentifier.of("db", "table");
+    IcebergDestination destination =
+        IcebergDestination.builder()
+            .setTableIdentifier(identifier)
+            .setFileFormat(FileFormat.PARQUET)
+            .setTableCreateConfig(
+                IcebergTableCreateConfig.builder()
+                    .setPartitionFields(null)
+                    .setSchema(BEAM_SCHEMA)
+                    .build())
+            .build();
+    // The schema is only used if the table is created, so a null is fine for this
+    // test.
+    Schema beamSchema = null;
+
+    // Instantiate a RecordWriterManager with a dummy catalog.
+    RecordWriterManager writer = new RecordWriterManager(null, "p", 1L, 1);
+
+    // Clean up cache before test
+    RecordWriterManager.LAST_REFRESHED_TABLE_CACHE.invalidateAll();
+
+    // --- 1. Test the fast path (entry is not stale) ---
+    Instant freshTimestamp = Instant.now().minus(Duration.ofMinutes(1));
+    RecordWriterManager.LastRefreshedTable freshEntry =
+        new RecordWriterManager.LastRefreshedTable(mockTable, freshTimestamp);
+    RecordWriterManager.LAST_REFRESHED_TABLE_CACHE.put(identifier, freshEntry);
+
+    // Access the table
+    writer.getOrCreateTable(destination, beamSchema);
+
+    // Verify that refresh() was NOT called because the entry is fresh.
+    verify(mockTable, never()).refresh();
+
+    // --- 2. Test the stale path (entry is stale) ---
+    Instant staleTimestamp = Instant.now().minus(Duration.ofMinutes(5));
+    RecordWriterManager.LastRefreshedTable staleEntry =
+        new RecordWriterManager.LastRefreshedTable(mockTable, staleTimestamp);
+    RecordWriterManager.LAST_REFRESHED_TABLE_CACHE.put(identifier, staleEntry);
+
+    // Access the table again
+    writer.getOrCreateTable(destination, beamSchema);
+
+    // Verify that refresh() WAS called exactly once because the entry was stale.
+    verify(mockTable, times(1)).refresh();
   }
 }
