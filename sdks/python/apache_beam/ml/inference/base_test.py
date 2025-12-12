@@ -293,6 +293,12 @@ class FakeModelHandlerFailsOnInferenceArgs(FakeModelHandler):
         'run_inference should not be called because error should already be '
         'thrown from the validate_inference_args check.')
 
+  def validate_inference_args(self, inference_args: Optional[dict[str, Any]]):
+    if inference_args:
+      raise ValueError(
+          'inference_args were provided, but should be None because this '
+          'framework does not expect extra arguments on inferences.')
+
 
 class FakeModelHandlerExpectedInferenceArgs(FakeModelHandler):
   def run_inference(self, batch, unused_model, inference_args=None):

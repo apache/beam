@@ -219,9 +219,6 @@ class TFModelHandlerNumpy(ModelHandler[numpy.ndarray,
     """
     return 'BeamML_TF_Numpy'
 
-  def validate_inference_args(self, inference_args: Optional[dict[str, Any]]):
-    pass
-
   def batch_elements_kwargs(self):
     return self._batching_kwargs
 
@@ -359,9 +356,6 @@ class TFModelHandlerTensor(ModelHandler[tf.Tensor, PredictionResult,
        A namespace for metrics collected by the RunInference transform.
     """
     return 'BeamML_TF_Tensor'
-
-  def validate_inference_args(self, inference_args: Optional[dict[str, Any]]):
-    pass
 
   def batch_elements_kwargs(self):
     return self._batching_kwargs

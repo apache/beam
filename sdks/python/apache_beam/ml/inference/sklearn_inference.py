@@ -73,9 +73,10 @@ def _default_numpy_inference_fn(
     model: BaseEstimator,
     batch: Sequence[numpy.ndarray],
     inference_args: Optional[dict[str, Any]] = None) -> Any:
+  inference_args = {} if not inference_args else inference_args
   # vectorize data for better performance
   vectorized_batch = numpy.stack(batch, axis=0)
-  return model.predict(vectorized_batch)
+  return model.predict(vectorized_batch, **inference_args)
 
 
 class SklearnModelHandlerNumpy(ModelHandler[numpy.ndarray,

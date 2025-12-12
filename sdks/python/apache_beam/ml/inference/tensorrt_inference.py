@@ -341,3 +341,13 @@ class TensorRTEngineHandlerNumPy(ModelHandler[np.ndarray,
 
   def model_copies(self) -> int:
     return self._model_copies
+
+  def validate_inference_args(self, inference_args: Optional[dict[str, Any]]):
+    """
+    Currently, this model handler does not support inference args. Given that,
+    we will throw if any are passed in.
+    """
+    if inference_args:
+      raise ValueError(
+          'inference_args were provided, but should be None because this '
+          'framework does not expect extra arguments on inferences.')

@@ -342,9 +342,6 @@ class PytorchModelHandlerTensor(ModelHandler[torch.Tensor,
     """
     return 'BeamML_PyTorch'
 
-  def validate_inference_args(self, inference_args: Optional[dict[str, Any]]):
-    pass
-
   def batch_elements_kwargs(self):
     return self._batching_kwargs
 
@@ -589,9 +586,6 @@ class PytorchModelHandlerKeyedTensor(ModelHandler[dict[str, torch.Tensor],
        A namespace for metrics collected by the RunInference transform.
     """
     return 'BeamML_PyTorch'
-
-  def validate_inference_args(self, inference_args: Optional[dict[str, Any]]):
-    pass
 
   def batch_elements_kwargs(self):
     return self._batching_kwargs
