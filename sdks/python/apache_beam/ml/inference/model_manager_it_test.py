@@ -62,7 +62,8 @@ class HuggingFaceGpuTest(unittest.TestCase):
 
       pcoll = pipeline | 'CreateInputs' >> beam.Create(examples)
 
-      predictions = pcoll | 'RunInference' >> RunInference(model_handler)
+      predictions = pcoll | 'RunInference' >> RunInference(
+          model_handler, use_model_manager=True)
 
       actual_labels = predictions | beam.Map(lambda x: x.inference['label'])
 
@@ -112,7 +113,8 @@ class HuggingFaceGpuTest(unittest.TestCase):
       ] * DUPLICATE_FACTOR
 
       pcoll = pipeline | 'CreateInputs' >> beam.Create(examples)
-      predictions = pcoll | 'RunInference' >> RunInference(model_handler)
+      predictions = pcoll | 'RunInference' >> RunInference(
+          model_handler, use_model_manager=True)
       actual_labels = predictions | beam.Map(lambda x: x.inference['label'])
 
       expected_labels = [
@@ -171,10 +173,12 @@ class HuggingFaceGpuTest(unittest.TestCase):
       inputs = pipeline | 'CreateInputs' >> beam.Create(examples)
       _ = (
           inputs
-          | 'RunTranslation' >> RunInference(translator_handler)
+          | 'RunTranslation' >> RunInference(
+              translator_handler, use_model_manager=True)
           | 'ExtractSpanish' >>
           beam.Map(lambda x: x.inference['translation_text']))
       _ = (
           inputs
-          | 'RunSentiment' >> RunInference(sentiment_handler)
+          | 'RunSentiment' >> RunInference(
+              sentiment_handler, use_model_manager=True)
           | 'ExtractLabel' >> beam.Map(lambda x: x.inference['label']))
