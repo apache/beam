@@ -18,6 +18,7 @@
 # pytype: skip-file
 
 import collections
+import json
 import time
 from functools import reduce
 from typing import FrozenSet
@@ -36,6 +37,13 @@ from apache_beam.metrics.cells import HistogramData
 from apache_beam.metrics.cells import StringSetData
 from apache_beam.portability import common_urns
 from apache_beam.portability.api import metrics_pb2
+
+try:
+  from fastdigest import TDigest
+  _TDIGEST_AVAILABLE = True
+except ImportError:
+  _TDIGEST_AVAILABLE = False
+  TDigest = None  # type: ignore
 
 SAMPLED_BYTE_SIZE_URN = (
     common_urns.monitoring_info_specs.SAMPLED_BYTE_SIZE.spec.urn)
@@ -153,7 +161,10 @@ def extract_gauge_value(monitoring_info_proto):
 
 
 def extract_distribution(monitoring_info_proto):
-  """Returns a tuple of (count, sum, min, max).
+  """Returns a tuple of (count, sum, min, max, tdigest).
+
+  The tdigest field will be None if not present in the payload (backwards
+  compatibility) or if fastdigest is not installed.
 
   Args:
     proto: The monitoring info for the distribution.
@@ -257,7 +268,12 @@ def int64_user_distribution(
   """
   labels = create_labels(ptransform=ptransform, namespace=namespace, name=name)
   payload = _encode_distribution(
-      coders.VarIntCoder(), metric.count, metric.sum, metric.min, metric.max)
+      coders.VarIntCoder(),
+      metric.count,
+      metric.sum,
+      metric.min,
+      metric.max,
+      getattr(metric, 'tdigest', None))
   return create_monitoring_info(
       USER_DISTRIBUTION_URN, DISTRIBUTION_INT64_TYPE, payload, labels)
 
@@ -277,7 +293,12 @@ def int64_distribution(
   """
   labels = create_labels(ptransform=ptransform, pcollection=pcollection)
   payload = _encode_distribution(
-      coders.VarIntCoder(), metric.count, metric.sum, metric.min, metric.max)
+      coders.VarIntCoder(),
+      metric.count,
+      metric.sum,
+      metric.min,
+      metric.max,
+      getattr(metric, 'tdigest', None))
   return create_monitoring_info(urn, DISTRIBUTION_INT64_TYPE, payload, labels)
 
 
@@ -451,8 +472,11 @@ def extract_metric_result_map_value(
   if is_counter(monitoring_info_proto):
     return extract_counter_value(monitoring_info_proto)
   if is_distribution(monitoring_info_proto):
-    (count, sum, min, max) = extract_distribution(monitoring_info_proto)
-    return DistributionResult(DistributionData(sum, count, min, max))
+    result = extract_distribution(monitoring_info_proto)
+    count, sum_val, min_val, max_val = result[:4]
+    tdigest = result[4] if len(result) > 4 else None
+    return DistributionResult(
+        DistributionData(sum_val, count, min_val, max_val, tdigest))
   if is_gauge(monitoring_info_proto):
     (timestamp, value) = extract_gauge_value(monitoring_info_proto)
     return GaugeResult(GaugeData(value, timestamp))
@@ -500,14 +524,29 @@ def sum_payload_combiner(payload_a, payload_b):
 
 def distribution_payload_combiner(payload_a, payload_b):
   coder = coders.VarIntCoder()
-  (count_a, sum_a, min_a, max_a) = _decode_distribution(coder, payload_a)
-  (count_b, sum_b, min_b, max_b) = _decode_distribution(coder, payload_b)
+  result_a = _decode_distribution(coder, payload_a)
+  result_b = _decode_distribution(coder, payload_b)
+  count_a, sum_a, min_a, max_a = result_a[:4]
+  count_b, sum_b, min_b, max_b = result_b[:4]
+  tdigest_a = result_a[4] if len(result_a) > 4 else None
+  tdigest_b = result_b[4] if len(result_b) > 4 else None
+
+  # Merge tdigests
+  merged_tdigest = None
+  if tdigest_a and tdigest_b:
+    merged_tdigest = tdigest_a + tdigest_b
+  elif tdigest_a:
+    merged_tdigest = tdigest_a
+  elif tdigest_b:
+    merged_tdigest = tdigest_b
+
   return _encode_distribution(
       coder,
       count_a + count_b,
       sum_a + sum_b,
       min(min_a, min_b),
-      max(max_a, max_b))
+      max(max_a, max_b),
+      merged_tdigest)
 
 
 _KNOWN_COMBINERS = {
@@ -559,18 +598,40 @@ def _encode_gauge(coder, timestamp, value):
 
 
 def _decode_distribution(value_coder, payload):
-  """Returns a tuple of (count, sum, min, max)."""
+  """Returns a tuple of (count, sum, min, max, tdigest).
+
+  The tdigest field will be None if not present in the payload (backwards
+  compatibility) or if fastdigest is not installed.
+  """
   count_coder = coders.VarIntCoder().get_impl()
   value_coder = value_coder.get_impl()
   stream = coder_impl.create_InputStream(payload)
-  return (
-      count_coder.decode_from_stream(stream, True),
-      value_coder.decode_from_stream(stream, True),
-      value_coder.decode_from_stream(stream, True),
-      value_coder.decode_from_stream(stream, True))
+  count = count_coder.decode_from_stream(stream, True)
+  sum_val = value_coder.decode_from_stream(stream, True)
+  min_val = value_coder.decode_from_stream(stream, True)
+  max_val = value_coder.decode_from_stream(stream, True)
+
+  # Try to decode TDigest if more bytes available
+  tdigest = None
+  try:
+    tdigest_len = count_coder.decode_from_stream(stream, True)
+    if tdigest_len > 0 and _TDIGEST_AVAILABLE:
+      tdigest_bytes = stream.read(tdigest_len)
+      tdigest_dict = json.loads(tdigest_bytes.decode('utf-8'))
+      tdigest = TDigest.from_dict(tdigest_dict)
+  except Exception:
+    # Old format without tdigest or decoding error - ignore
+    pass
+
+  return (count, sum_val, min_val, max_val, tdigest)
 
 
-def _encode_distribution(value_coder, count, sum, min, max):
+def _encode_distribution(value_coder, count, sum, min, max, tdigest=None):
+  """Encodes distribution data including optional TDigest.
+
+  The tdigest bytes are appended after the standard count/sum/min/max fields
+  with a length prefix for backwards compatibility.
+  """
   count_coder = coders.VarIntCoder().get_impl()
   value_coder = value_coder.get_impl()
   stream = coder_impl.create_OutputStream()
@@ -578,4 +639,14 @@ def _encode_distribution(value_coder, count, sum, min, max):
   value_coder.encode_to_stream(sum, stream, True)
   value_coder.encode_to_stream(min, stream, True)
   value_coder.encode_to_stream(max, stream, True)
+
+  # Append TDigest if available
+  if tdigest is not None:
+    tdigest_bytes = json.dumps(tdigest.to_dict()).encode('utf-8')
+    count_coder.encode_to_stream(len(tdigest_bytes), stream, True)
+    stream.write(tdigest_bytes)
+  else:
+    # No tdigest - encode 0 length
+    count_coder.encode_to_stream(0, stream, True)
+
   return stream.get()
