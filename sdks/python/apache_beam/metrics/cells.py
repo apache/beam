@@ -375,9 +375,13 @@ class DistributionResult(object):
 
   def __repr__(self):
     # type: () -> str
-    return (
+    base = (
         'DistributionResult(sum={}, count={}, min={}, max={}, '
-        'mean={})'.format(self.sum, self.count, self.min, self.max, self.mean))
+        'mean={}'.format(self.sum, self.count, self.min, self.max, self.mean))
+    if self.data.tdigest is not None and self.data.count > 0:
+      base += ', p50={:.2f}, p95={:.2f}, p99={:.2f}'.format(
+          self.p50, self.p95, self.p99)
+    return base + ')'
 
   @property
   def max(self):
@@ -410,6 +414,58 @@ class DistributionResult(object):
     if self.data.count == 0:
       return None
     return self.data.sum / self.data.count
+
+  @property
+  def p50(self):
+    # type: () -> Optional[float]
+
+    """Returns the 50th percentile (median) of the distribution."""
+    if self.data.tdigest is None or self.data.count == 0:
+      return None
+    return self.data.tdigest.quantile(0.50)
+
+  @property
+  def p90(self):
+    # type: () -> Optional[float]
+
+    """Returns the 90th percentile of the distribution."""
+    if self.data.tdigest is None or self.data.count == 0:
+      return None
+    return self.data.tdigest.quantile(0.90)
+
+  @property
+  def p95(self):
+    # type: () -> Optional[float]
+
+    """Returns the 95th percentile of the distribution."""
+    if self.data.tdigest is None or self.data.count == 0:
+      return None
+    return self.data.tdigest.quantile(0.95)
+
+  @property
+  def p99(self):
+    # type: () -> Optional[float]
+
+    """Returns the 99th percentile of the distribution."""
+    if self.data.tdigest is None or self.data.count == 0:
+      return None
+    return self.data.tdigest.quantile(0.99)
+
+  def quantile(self, q):
+    # type: (float) -> Optional[float]
+
+    """Returns the value at the given quantile (0.0 to 1.0).
+
+    Args:
+      q: The quantile to retrieve, between 0.0 and 1.0.
+
+    Returns:
+      The estimated value at the given quantile, or None if no tdigest
+      is available or the distribution is empty.
+    """
+    if self.data.tdigest is None or self.data.count == 0:
+      return None
+    return self.data.tdigest.quantile(q)
 
 
 class GaugeResult(object):
