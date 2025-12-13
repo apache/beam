@@ -212,6 +212,9 @@ class DistributionCell(MetricCell):
       self.data.min = ivalue
     if ivalue > self.data.max:
       self.data.max = ivalue
+    # Also update tdigest for percentile tracking
+    if self.data.tdigest is not None and _TDIGEST_AVAILABLE:
+      self.data.tdigest += TDigest.from_values([float(ivalue)])
 
   def get_cumulative(self):
     # type: () -> DistributionData
