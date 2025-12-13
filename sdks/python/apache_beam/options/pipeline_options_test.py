@@ -204,11 +204,6 @@ class PipelineOptionsTest(unittest.TestCase):
       parser.add_argument(
           '--fake_multi_option', action='append', help='fake multi option')
 
-  class FakeSubclassOptions(FakeOptions):
-    @classmethod
-    def _add_argparse_args(cls, parser):
-      parser.add_argument('--fake_sub_option', help='fake option')
-
   @parameterized.expand(TEST_CASES)
   def test_display_data(self, flags, _, display_data):
     options = PipelineOptions(flags=flags)
@@ -244,25 +239,16 @@ class PipelineOptionsTest(unittest.TestCase):
         expected['mock_multi_option'])
 
   def test_get_superclass_options(self):
-    flags = [
-        "--mock_option",
-        "mock",
-        "--fake_option",
-        "fake",
-        "--fake_sub_option",
-        "fake_sub"
-    ]
+    flags = ["--mock_option", "mock", "--fake_option", "fake"]
     options = PipelineOptions(flags=flags).view_as(
-        PipelineOptionsTest.FakeSubclassOptions)
-    items = options.get_all_options(hierarchy_only=True).items()
+        PipelineOptionsTest.FakeOptions)
+    items = options.get_all_options(current_only=True).items()
     print(items)
     self.assertTrue(('fake_option', 'fake') in items)
-    self.assertTrue(('fake_sub_option', 'fake_sub') in items)
     self.assertFalse(('mock_option', 'mock') in items)
     items = options.view_as(PipelineOptionsTest.MockOptions).get_all_options(
-        hierarchy_only=True).items()
+        current_only=True).items()
     self.assertFalse(('fake_option', 'fake') in items)
-    self.assertFalse(('fake_sub_option', 'fake_sub') in items)
     self.assertTrue(('mock_option', 'mock') in items)
 
   @parameterized.expand(TEST_CASES)

@@ -236,7 +236,7 @@ class DaskRunner(BundleBasedDirectRunner):
           'DaskRunner is not available. Please install apache_beam[dask].')
 
     dask_options = options.view_as(DaskOptions).get_all_options(
-        drop_default=True, hierarchy_only=True)
+        drop_default=True, current_only=True)
     bag_kwargs = DaskOptions._extract_bag_kwargs(dask_options)
     client = ddist.Client(**dask_options)
 
