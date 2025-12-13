@@ -94,8 +94,12 @@ def plot_quantiles(results):
         print()
 
     print("\n" + "=" * 80)
-    print("ASCII VISUALIZATION (p0 to p100)")
+    print("PDF VISUALIZATION (vertical, density estimate from TDigest)")
     print("=" * 80)
+
+    # Create vertical PDF visualization for all distributions side by side
+    num_bins = 20
+    height = 25  # Chart height in lines
 
     for name, result in results.items():
         if not result or not result.data.tdigest:
@@ -103,30 +107,59 @@ def plot_quantiles(results):
             continue
 
         print(f"\n{name}:")
-        print(f"  Count: {result.count}, Sum: {result.sum}, "
-              f"Min: {result.min}, Max: {result.max}, Mean: {result.mean:.1f}")
+        print(f"  Count: {result.count}, Min: {result.min}, Max: {result.max}, "
+              f"Mean: {result.mean:.1f}")
 
-        # Get all quantile values
-        q_values = [result.quantile(q) for q in quantiles]
-        min_val, max_val = min(q_values), max(q_values)
-        range_val = max_val - min_val if max_val > min_val else 1
+        # Estimate PDF by computing density at each bin
+        # Density is proportional to 1 / (dValue/dQuantile)
+        min_val = float(result.min)
+        max_val = float(result.max)
+        bin_width = (max_val - min_val) / num_bins
 
-        # ASCII plot
-        width = 60
-        print(f"\n  {'p0':<5}{min_val:>8.1f} |", end="")
-        print("-" * width, end="")
-        print(f"| {max_val:<8.1f} p100")
+        densities = []
+        bin_centers = []
+        for i in range(num_bins):
+            bin_start = min_val + i * bin_width
+            bin_end = bin_start + bin_width
+            bin_center = (bin_start + bin_end) / 2
+            bin_centers.append(bin_center)
 
-        # Plot key percentiles as markers
-        markers = {10: 'p10', 25: 'p25', 50: 'p50', 75: 'p75', 90: 'p90', 99: 'p99'}
-        for pct, label in markers.items():
-            q = pct / 100.0
-            val = result.quantile(q)
-            pos = int((val - min_val) / range_val * width)
-            pos = max(0, min(width - 1, pos))
-            print(f"  {label:<5}{val:>8.1f} |", end="")
-            print(" " * pos + "*" + " " * (width - pos - 1), end="")
-            print("|")
+            # Use TDigest's cdf to estimate density
+            # Density = (cdf(bin_end) - cdf(bin_start)) / bin_width
+            cdf_start = result.data.tdigest.cdf(bin_start)
+            cdf_end = result.data.tdigest.cdf(bin_end)
+            density = (cdf_end - cdf_start) / bin_width if bin_width > 0 else 0
+            densities.append(density)
+
+        # Normalize densities for display
+        max_density = max(densities) if densities else 1
+        normalized = [d / max_density for d in densities]
+
+        # Print vertical histogram (rotated 90 degrees)
+        chart_width = 50
+        print()
+        for level in range(height, 0, -1):
+            threshold = level / height
+            line = "  "
+            for norm_d in normalized:
+                if norm_d >= threshold:
+                    line += "██"
+                else:
+                    line += "  "
+            # Add density scale on right side at a few levels
+            if level == height:
+                line += f"  {max_density:.4f}"
+            elif level == height // 2:
+                line += f"  {max_density/2:.4f}"
+            elif level == 1:
+                line += "  0"
+            print(line)
+
+        # Print x-axis
+        print("  " + "──" * num_bins)
+        # Print x-axis labels
+        print(f"  {min_val:<{num_bins}}{max_val:>{num_bins}}")
+        print(f"  {'Value range':-^{num_bins * 2}}")
 
     # Detailed quantile table
     print("\n" + "=" * 80)
