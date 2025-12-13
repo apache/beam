@@ -23,6 +23,7 @@ import random
 import threading
 import unittest
 
+from apache_beam.metrics.cells import _TDIGEST_AVAILABLE
 from apache_beam.metrics.cells import BoundedTrieData
 from apache_beam.metrics.cells import CounterCell
 from apache_beam.metrics.cells import DistributionCell
@@ -38,6 +39,9 @@ from apache_beam.metrics.cells import _BoundedTrieNode
 from apache_beam.metrics.metricbase import MetricName
 from apache_beam.utils.histogram import Histogram
 from apache_beam.utils.histogram import LinearBucket
+
+if _TDIGEST_AVAILABLE:
+  from fastdigest import TDigest
 
 
 class TestCounterCell(unittest.TestCase):
@@ -145,6 +149,100 @@ class TestDistributionCell(unittest.TestCase):
     name = MetricName('namespace', 'name1')
     mi = d.to_runner_api_monitoring_info(name, 'transform_id')
     self.assertGreater(mi.start_time.seconds, 0)
+
+
+@unittest.skipUnless(_TDIGEST_AVAILABLE, 'fastdigest not installed')
+class TestDistributionDataTDigest(unittest.TestCase):
+  """Tests for TDigest integration in DistributionData."""
+  def test_distribution_data_tdigest_field(self):
+    """Test that DistributionData accepts and stores tdigest."""
+    t = TDigest.from_values([1, 2, 3])
+    data = DistributionData(6, 3, 1, 3, tdigest=t)
+    self.assertEqual(data.sum, 6)
+    self.assertEqual(data.count, 3)
+    self.assertIsNotNone(data.tdigest)
+
+    # Test without tdigest (backwards compat)
+    data2 = DistributionData(6, 3, 1, 3)
+    self.assertIsNone(data2.tdigest)
+
+  def test_distribution_data_equality_with_tdigest(self):
+    """Test equality comparison includes tdigest."""
+    t1 = TDigest.from_values([1, 2, 3])
+    t2 = TDigest.from_values([1, 2, 3])
+
+    data1 = DistributionData(6, 3, 1, 3, tdigest=t1)
+    data2 = DistributionData(6, 3, 1, 3, tdigest=t2)
+    data3 = DistributionData(6, 3, 1, 3, tdigest=None)
+
+    # Same tdigest content should be equal
+    self.assertEqual(data1, data2)
+    # Different tdigest presence
+    self.assertNotEqual(data1, data3)
+
+  def test_distribution_data_get_cumulative_with_tdigest(self):
+    """Test get_cumulative preserves tdigest."""
+    t = TDigest.from_values([1, 2, 3, 4, 5])
+    data = DistributionData(15, 5, 1, 5, tdigest=t)
+
+    cumulative = data.get_cumulative()
+
+    self.assertEqual(cumulative.sum, 15)
+    self.assertIsNotNone(cumulative.tdigest)
+    # Verify it's a copy (different object)
+    self.assertIsNot(cumulative.tdigest, data.tdigest)
+    # Verify quantiles match
+    self.assertAlmostEqual(
+        cumulative.tdigest.quantile(0.5),
+        data.tdigest.quantile(0.5),
+        delta=0.01)
+
+  def test_distribution_data_combine_merges_tdigests(self):
+    """Test combine merges tdigests correctly."""
+    t1 = TDigest.from_values([1, 2, 3, 4, 5])
+    t2 = TDigest.from_values([6, 7, 8, 9, 10])
+
+    data1 = DistributionData(15, 5, 1, 5, tdigest=t1)
+    data2 = DistributionData(40, 5, 6, 10, tdigest=t2)
+
+    combined = data1.combine(data2)
+
+    self.assertEqual(combined.sum, 55)
+    self.assertEqual(combined.count, 10)
+    self.assertEqual(combined.min, 1)
+    self.assertEqual(combined.max, 10)
+    self.assertIsNotNone(combined.tdigest)
+    # Merged p50 should be around 5.5
+    self.assertAlmostEqual(combined.tdigest.quantile(0.5), 5.5, delta=1)
+
+  def test_distribution_data_combine_with_none_tdigest(self):
+    """Test combine handles None tdigest correctly."""
+    t1 = TDigest.from_values([1, 2, 3])
+
+    data1 = DistributionData(6, 3, 1, 3, tdigest=t1)
+    data2 = DistributionData(15, 3, 4, 6, tdigest=None)
+
+    combined = data1.combine(data2)
+    # Should preserve the non-None tdigest
+    self.assertIsNotNone(combined.tdigest)
+
+    # Reverse order
+    combined2 = data2.combine(data1)
+    self.assertIsNotNone(combined2.tdigest)
+
+  def test_distribution_data_singleton_creates_tdigest(self):
+    """Test singleton creates tdigest with single value."""
+    data = DistributionData.singleton(42)
+    self.assertEqual(data.count, 1)
+    self.assertEqual(data.sum, 42)
+    self.assertIsNotNone(data.tdigest)
+    self.assertAlmostEqual(data.tdigest.quantile(0.5), 42, delta=0.01)
+
+  def test_distribution_data_identity_creates_empty_tdigest(self):
+    """Test identity_element creates empty tdigest."""
+    data = DistributionData.identity_element()
+    self.assertEqual(data.count, 0)
+    self.assertIsNotNone(data.tdigest)
 
 
 class TestGaugeCell(unittest.TestCase):
