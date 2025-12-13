@@ -171,15 +171,19 @@ class TestDistributionDataTDigest(unittest.TestCase):
     """Test equality comparison includes tdigest."""
     t1 = TDigest.from_values([1, 2, 3])
     t2 = TDigest.from_values([1, 2, 3])
+    t3 = TDigest.from_values([4, 5, 6])
 
     data1 = DistributionData(6, 3, 1, 3, tdigest=t1)
     data2 = DistributionData(6, 3, 1, 3, tdigest=t2)
     data3 = DistributionData(6, 3, 1, 3, tdigest=None)
+    data4 = DistributionData(6, 3, 1, 3, tdigest=t3)
 
     # Same tdigest content should be equal
     self.assertEqual(data1, data2)
-    # Different tdigest presence
-    self.assertNotEqual(data1, data3)
+    # If either tdigest is None, consider equal (backwards compat)
+    self.assertEqual(data1, data3)
+    # Different tdigest content should not be equal
+    self.assertNotEqual(data1, data4)
 
   def test_distribution_data_get_cumulative_with_tdigest(self):
     """Test get_cumulative preserves tdigest."""

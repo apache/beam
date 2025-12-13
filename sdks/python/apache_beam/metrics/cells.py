@@ -591,11 +591,10 @@ class DistributionData(object):
           self.min == other.min and self.max == other.max)
       if not basic_eq:
         return False
-      # Compare tdigests via serialization if both present
-      if self.tdigest is None and other.tdigest is None:
-        return True
+      # Compare tdigests only if both are present
+      # If either is None, consider them equal (backwards compatibility)
       if self.tdigest is None or other.tdigest is None:
-        return False
+        return True
       return self.tdigest.to_dict() == other.tdigest.to_dict()
     else:
       return False
