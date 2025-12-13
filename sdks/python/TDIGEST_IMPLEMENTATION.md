@@ -98,5 +98,27 @@ t2 = TDigest.from_dict(d)              # From dict
 - [x] All cells_test.py tests pass (42 tests)
 - [x] All monitoring_infos_test.py tests pass (15 tests)
 
+### Demo Script
+- [x] Created `tdigest_demo.py` to visualize TDigest quantiles
+- Generates normal, bimodal, and longtail distributions
+- Shows percentile comparison table and ASCII visualization
+- Compares TDigest results with numpy ground truth
+
+## Known Limitations
+
+### Portable Runner Issue
+The portable runner (FnApiRunner, default for DirectRunner) loses TDigest data during
+protobuf serialization. This is because the SDK worker sends metrics to the job service
+via gRPC, and somewhere in that path the TDigest bytes are not being properly preserved.
+
+**Workaround**: Use `BundleBasedDirectRunner` for local testing:
+```python
+with beam.Pipeline(runner='BundleBasedDirectRunner') as p:
+    ...
+```
+
+This issue needs further investigation for production runners (Dataflow, Flink, etc.)
+that use the portable runner protocol.
+
 ## Current Branch
 `tdigestdistribution`
