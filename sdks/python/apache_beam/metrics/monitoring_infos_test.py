@@ -18,14 +18,21 @@
 
 import unittest
 
+from apache_beam.coders import coders
+from apache_beam.coders import coder_impl
 from apache_beam.metrics import monitoring_infos
+from apache_beam.metrics.cells import _TDIGEST_AVAILABLE
 from apache_beam.metrics.cells import CounterCell
+from apache_beam.metrics.cells import DistributionCell
 from apache_beam.metrics.cells import GaugeCell
 from apache_beam.metrics.cells import HistogramCell
 from apache_beam.metrics.cells import HistogramData
 from apache_beam.metrics.cells import StringSetCell
 from apache_beam.utils.histogram import Histogram
 from apache_beam.utils.histogram import LinearBucket
+
+if _TDIGEST_AVAILABLE:
+  from fastdigest import TDigest
 
 
 class MonitoringInfosTest(unittest.TestCase):
@@ -164,6 +171,95 @@ class MonitoringInfosTest(unittest.TestCase):
     for point in datapoints:
       exp_histogram.record(point)
     self.assertEqual(HistogramData(exp_histogram), histogramvalue)
+
+
+@unittest.skipUnless(_TDIGEST_AVAILABLE, 'fastdigest not installed')
+class TDigestSerializationTest(unittest.TestCase):
+  """Tests for TDigest serialization in monitoring_infos."""
+  def test_encode_decode_distribution_with_tdigest(self):
+    """Test encode/decode round-trip with tdigest."""
+    # Create a tdigest with some values
+    t = TDigest.from_values([1, 2, 3, 4, 5, 6, 7, 8, 9, 10])
+
+    # Encode
+    payload = monitoring_infos._encode_distribution(
+        coders.VarIntCoder(), 10, 55, 1, 10, t)
+
+    # Decode
+    result = monitoring_infos._decode_distribution(
+        coders.VarIntCoder(), payload)
+    count, sum_val, min_val, max_val, tdigest = result
+
+    self.assertEqual(count, 10)
+    self.assertEqual(sum_val, 55)
+    self.assertEqual(min_val, 1)
+    self.assertEqual(max_val, 10)
+    self.assertIsNotNone(tdigest)
+    self.assertAlmostEqual(tdigest.quantile(0.5), t.quantile(0.5), delta=0.01)
+
+  def test_decode_distribution_without_tdigest_backwards_compat(self):
+    """Test decoding old-format payload without tdigest bytes."""
+    # Manually create old-format payload (no tdigest bytes)
+    count_coder = coders.VarIntCoder().get_impl()
+    value_coder = coders.VarIntCoder().get_impl()
+    stream = coder_impl.create_OutputStream()
+    count_coder.encode_to_stream(10, stream, True)
+    value_coder.encode_to_stream(55, stream, True)
+    value_coder.encode_to_stream(1, stream, True)
+    value_coder.encode_to_stream(10, stream, True)
+    old_payload = stream.get()
+
+    # Decode should work and return None for tdigest
+    result = monitoring_infos._decode_distribution(
+        coders.VarIntCoder(), old_payload)
+
+    self.assertEqual(result[0], 10)  # count
+    self.assertEqual(result[1], 55)  # sum
+    self.assertEqual(result[2], 1)  # min
+    self.assertEqual(result[3], 10)  # max
+    self.assertIsNone(result[4])  # tdigest should be None
+
+  def test_int64_user_distribution_includes_tdigest(self):
+    """Test that int64_user_distribution includes tdigest."""
+    cell = DistributionCell()
+    for i in range(1, 11):
+      cell.update(i)
+
+    data = cell.get_cumulative()
+    mi = monitoring_infos.int64_user_distribution(
+        'test_ns', 'test_name', data, ptransform='test_transform')
+
+    # Extract and verify
+    result = monitoring_infos.extract_metric_result_map_value(mi)
+
+    self.assertIsNotNone(result)
+    self.assertEqual(result.count, 10)
+    self.assertIsNotNone(result.data.tdigest)
+    self.assertAlmostEqual(result.p50, 5.5, delta=1)
+
+  def test_distribution_payload_combiner_merges_tdigests(self):
+    """Test that distribution_payload_combiner merges tdigests."""
+    t1 = TDigest.from_values([1, 2, 3, 4, 5])
+    t2 = TDigest.from_values([6, 7, 8, 9, 10])
+
+    payload_a = monitoring_infos._encode_distribution(
+        coders.VarIntCoder(), 5, 15, 1, 5, t1)
+    payload_b = monitoring_infos._encode_distribution(
+        coders.VarIntCoder(), 5, 40, 6, 10, t2)
+
+    combined = monitoring_infos.distribution_payload_combiner(
+        payload_a, payload_b)
+
+    result = monitoring_infos._decode_distribution(
+        coders.VarIntCoder(), combined)
+    count, sum_val, min_val, max_val, tdigest = result
+
+    self.assertEqual(count, 10)
+    self.assertEqual(sum_val, 55)
+    self.assertEqual(min_val, 1)
+    self.assertEqual(max_val, 10)
+    self.assertIsNotNone(tdigest)
+    self.assertAlmostEqual(tdigest.quantile(0.5), 5.5, delta=1)
 
 
 if __name__ == '__main__':
