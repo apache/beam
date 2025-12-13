@@ -37,6 +37,13 @@ from apache_beam.portability.api import metrics_pb2
 from apache_beam.utils.histogram import Histogram
 
 try:
+  from fastdigest import TDigest
+  _TDIGEST_AVAILABLE = True
+except ImportError:
+  _TDIGEST_AVAILABLE = False
+  TDigest = None  # type: ignore
+
+try:
   import cython
 except ImportError:
 
@@ -503,8 +510,8 @@ class DistributionData(object):
   This object is not thread safe, so it's not supposed to be modified
   by other than the DistributionCell that contains it.
   """
-  def __init__(self, sum, count, min, max):
-    # type: (int, int, int, int) -> None
+  def __init__(self, sum, count, min, max, tdigest=None):
+    # type: (int, int, int, int, ...) -> None
     if count:
       self.sum = sum
       self.count = count
@@ -515,13 +522,22 @@ class DistributionData(object):
       self.min = 2**63 - 1
       # Avoid Wimplicitly-unsigned-literal caused by -2**63.
       self.max = -self.min - 1
+    self.tdigest = tdigest
 
   def __eq__(self, other):
     # type: (object) -> bool
     if isinstance(other, DistributionData):
-      return (
+      basic_eq = (
           self.sum == other.sum and self.count == other.count and
           self.min == other.min and self.max == other.max)
+      if not basic_eq:
+        return False
+      # Compare tdigests via serialization if both present
+      if self.tdigest is None and other.tdigest is None:
+        return True
+      if self.tdigest is None or other.tdigest is None:
+        return False
+      return self.tdigest.to_dict() == other.tdigest.to_dict()
     else:
       return False
 
@@ -531,12 +547,19 @@ class DistributionData(object):
 
   def __repr__(self):
     # type: () -> str
-    return 'DistributionData(sum={}, count={}, min={}, max={})'.format(
+    base = 'DistributionData(sum={}, count={}, min={}, max={}'.format(
         self.sum, self.count, self.min, self.max)
+    if self.tdigest is not None:
+      base += ', tdigest=<TDigest>'
+    return base + ')'
 
   def get_cumulative(self):
     # type: () -> DistributionData
-    return DistributionData(self.sum, self.count, self.min, self.max)
+    tdigest_copy = None
+    if self.tdigest is not None and _TDIGEST_AVAILABLE:
+      tdigest_copy = TDigest.from_dict(self.tdigest.to_dict())
+    return DistributionData(
+        self.sum, self.count, self.min, self.max, tdigest_copy)
 
   def get_result(self) -> DistributionResult:
     return DistributionResult(self.get_cumulative())
@@ -546,21 +569,37 @@ class DistributionData(object):
     if other is None:
       return self
 
+    # Merge tdigests
+    merged_tdigest = None
+    if self.tdigest is not None and other.tdigest is not None:
+      merged_tdigest = self.tdigest + other.tdigest
+    elif self.tdigest is not None:
+      merged_tdigest = self.tdigest
+    elif other.tdigest is not None:
+      merged_tdigest = other.tdigest
+
     return DistributionData(
         self.sum + other.sum,
         self.count + other.count,
         self.min if self.min < other.min else other.min,
-        self.max if self.max > other.max else other.max)
+        self.max if self.max > other.max else other.max,
+        merged_tdigest)
 
   @staticmethod
   def singleton(value):
     # type: (int) -> DistributionData
-    return DistributionData(value, 1, value, value)
+    tdigest = None
+    if _TDIGEST_AVAILABLE:
+      tdigest = TDigest.from_values([float(value)])
+    return DistributionData(value, 1, value, value, tdigest)
 
   @staticmethod
   def identity_element():
     # type: () -> DistributionData
-    return DistributionData(0, 0, 2**63 - 1, -2**63)
+    tdigest = None
+    if _TDIGEST_AVAILABLE:
+      tdigest = TDigest()
+    return DistributionData(0, 0, 2**63 - 1, -2**63, tdigest)
 
 
 class StringSetData(object):
