@@ -380,7 +380,12 @@ class ModelManager:
       finally:
         if self._wait_queue and self._wait_queue[0][2] is my_id:
           heapq.heappop(self._wait_queue)
-          self._cv.notify_all()
+        else:
+          for i, item in enumerate(self._wait_queue):
+            if item[2] is my_id:
+              self._wait_queue.pop(i)
+              heapq.heapify(self._wait_queue)
+        self._cv.notify_all()
 
     if should_spawn:
       return self._spawn_new_model(tag, loader_func, is_unknown, est_cost)
