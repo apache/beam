@@ -103,6 +103,21 @@ class GPUMonitor:
     with self._lock:
       return self._current_usage, self._peak_usage, self._total_memory
 
+  def refresh(self):
+    """Forces an immediate poll of the GPU."""
+    usage = self._get_nvidia_smi_used()
+    now = time.time()
+    with self._lock:
+      self._current_usage = usage
+      self._memory_history.append((now, usage))
+      # Recalculate peak immediately
+      while self._memory_history and (now - self._memory_history[0][0]
+                                      > self._peak_window_seconds):
+        self._memory_history.popleft()
+      self._peak_usage = (
+          max(m for _, m in self._memory_history)
+          if self._memory_history else usage)
+
   def _get_nvidia_smi_used(self) -> float:
     try:
       cmd = "nvidia-smi --query-gpu=memory.free --format=csv,noheader,nounits"
@@ -360,7 +375,7 @@ class ModelManager:
             if self._evict_to_make_space(limit, est_cost, requesting_tag=tag):
               continue
 
-            self._cv.wait()
+            self._cv.wait(timeout=10.0)
 
       finally:
         if self._wait_queue and self._wait_queue[0][2] is my_id:
@@ -492,6 +507,7 @@ class ModelManager:
     del instance
     gc.collect()
     torch.cuda.empty_cache()
+    self._monitor.refresh()
     self._monitor.reset_peak()
 
   def _spawn_new_model(self, tag, loader_func, is_unknown, est_cost):
@@ -538,6 +554,8 @@ class ModelManager:
     self._active_counts.clear()
     gc.collect()
     torch.cuda.empty_cache()
+    self._monitor.refresh()
+    self._monitor.reset_peak()
 
   def _force_reset(self):
     logger.warning("Force Reset Triggered")

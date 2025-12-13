@@ -81,6 +81,10 @@ class MockGPUMonitor:
         self.history.pop(0)
       self._peak = max(self.history)
 
+  def refresh(self):
+    """Simulates a refresh of the monitor stats (no-op for mock)."""
+    pass
+
 
 class MockModel:
   def __init__(self, name, size, monitor):
