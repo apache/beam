@@ -245,6 +245,45 @@ class TestDistributionDataTDigest(unittest.TestCase):
     self.assertIsNotNone(data.tdigest)
 
 
+@unittest.skipUnless(_TDIGEST_AVAILABLE, 'fastdigest not installed')
+class TestDistributionCellTDigest(unittest.TestCase):
+  """Tests for TDigest integration in DistributionCell."""
+  def test_distribution_cell_updates_tdigest(self):
+    """Test that DistributionCell.update feeds the tdigest."""
+    cell = DistributionCell()
+
+    # Add values 1-100
+    for i in range(1, 101):
+      cell.update(i)
+
+    data = cell.get_cumulative()
+
+    self.assertEqual(data.count, 100)
+    self.assertEqual(data.sum, 5050)
+    self.assertIsNotNone(data.tdigest)
+
+    # Check approximate percentiles
+    self.assertAlmostEqual(data.tdigest.quantile(0.5), 50, delta=5)
+    self.assertAlmostEqual(data.tdigest.quantile(0.9), 90, delta=5)
+
+  def test_distribution_cell_combine_preserves_tdigest(self):
+    """Test that DistributionCell.combine preserves tdigest."""
+    cell1 = DistributionCell()
+    cell2 = DistributionCell()
+
+    for i in range(1, 51):
+      cell1.update(i)
+    for i in range(51, 101):
+      cell2.update(i)
+
+    combined = cell1.combine(cell2)
+    data = combined.get_cumulative()
+
+    self.assertEqual(data.count, 100)
+    self.assertIsNotNone(data.tdigest)
+    self.assertAlmostEqual(data.tdigest.quantile(0.5), 50, delta=5)
+
+
 class TestGaugeCell(unittest.TestCase):
   def test_basic_operations(self):
     g = GaugeCell()
