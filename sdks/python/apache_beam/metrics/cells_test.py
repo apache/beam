@@ -28,6 +28,7 @@ from apache_beam.metrics.cells import BoundedTrieData
 from apache_beam.metrics.cells import CounterCell
 from apache_beam.metrics.cells import DistributionCell
 from apache_beam.metrics.cells import DistributionData
+from apache_beam.metrics.cells import DistributionResult
 from apache_beam.metrics.cells import GaugeCell
 from apache_beam.metrics.cells import GaugeData
 from apache_beam.metrics.cells import HistogramCell
@@ -282,6 +283,80 @@ class TestDistributionCellTDigest(unittest.TestCase):
     self.assertEqual(data.count, 100)
     self.assertIsNotNone(data.tdigest)
     self.assertAlmostEqual(data.tdigest.quantile(0.5), 50, delta=5)
+
+
+@unittest.skipUnless(_TDIGEST_AVAILABLE, 'fastdigest not installed')
+class TestDistributionResultTDigest(unittest.TestCase):
+  """Tests for TDigest percentile methods in DistributionResult."""
+  def test_distribution_result_percentile_properties(self):
+    """Test percentile properties (p50, p90, p95, p99)."""
+    cell = DistributionCell()
+    for i in range(1, 101):
+      cell.update(i)
+
+    result = cell.get_cumulative().get_result()
+
+    # Test basic properties still work
+    self.assertEqual(result.count, 100)
+    self.assertEqual(result.sum, 5050)
+    self.assertEqual(result.min, 1)
+    self.assertEqual(result.max, 100)
+    self.assertAlmostEqual(result.mean, 50.5, delta=0.01)
+
+    # Test new percentile properties
+    self.assertIsNotNone(result.p50)
+    self.assertAlmostEqual(result.p50, 50, delta=5)
+
+    self.assertIsNotNone(result.p90)
+    self.assertAlmostEqual(result.p90, 90, delta=5)
+
+    self.assertIsNotNone(result.p95)
+    self.assertAlmostEqual(result.p95, 95, delta=5)
+
+    self.assertIsNotNone(result.p99)
+    self.assertAlmostEqual(result.p99, 99, delta=2)
+
+    # Test quantile method
+    self.assertAlmostEqual(result.quantile(0.25), 25, delta=5)
+    self.assertAlmostEqual(result.quantile(0.75), 75, delta=5)
+
+  def test_distribution_result_no_tdigest_returns_none(self):
+    """Test that percentile methods return None when tdigest is unavailable."""
+    # Manually create data without tdigest
+    data = DistributionData(100, 10, 1, 10, tdigest=None)
+    result = DistributionResult(data)
+
+    # Basic properties work
+    self.assertEqual(result.count, 10)
+    self.assertEqual(result.sum, 100)
+
+    # Percentile properties return None
+    self.assertIsNone(result.p50)
+    self.assertIsNone(result.p95)
+    self.assertIsNone(result.quantile(0.5))
+
+  def test_distribution_result_empty_returns_none(self):
+    """Test that percentile methods return None for empty distributions."""
+    cell = DistributionCell()
+    result = cell.get_cumulative().get_result()
+
+    self.assertEqual(result.count, 0)
+    self.assertIsNone(result.p50)
+    self.assertIsNone(result.p95)
+    self.assertIsNone(result.quantile(0.5))
+
+  def test_distribution_result_repr_includes_percentiles(self):
+    """Test that __repr__ includes percentile info when available."""
+    cell = DistributionCell()
+    for i in range(1, 11):
+      cell.update(i)
+
+    result = cell.get_cumulative().get_result()
+    repr_str = repr(result)
+
+    self.assertIn('p50=', repr_str)
+    self.assertIn('p95=', repr_str)
+    self.assertIn('p99=', repr_str)
 
 
 class TestGaugeCell(unittest.TestCase):
