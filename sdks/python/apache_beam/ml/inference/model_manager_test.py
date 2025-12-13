@@ -5,7 +5,10 @@ import random
 from concurrent.futures import ThreadPoolExecutor
 from unittest.mock import patch
 
-from apache_beam.ml.inference.model_manager import ModelManager, GPUMonitor, ResourceEstimator
+try:
+  from apache_beam.ml.inference.model_manager import ModelManager, GPUMonitor, ResourceEstimator
+except ImportError as e:
+  raise unittest.SkipTest("Model Manager dependencies are not installed")
 
 
 class MockGPUMonitor:

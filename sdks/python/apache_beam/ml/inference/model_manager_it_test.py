@@ -1,8 +1,10 @@
 import unittest
-import torch
 import apache_beam as beam
 from apache_beam.ml.inference.base import RunInference
+
+# pylint: disable=ungrouped-imports
 try:
+  import torch
   from apache_beam.ml.inference.huggingface_inference import HuggingFacePipelineModelHandler
 except ImportError as e:
   raise unittest.SkipTest(
