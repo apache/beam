@@ -34,13 +34,19 @@ import java.util.Optional;
 import java.util.Random;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Supplier;
 import org.apache.beam.runners.dataflow.worker.FakeWindmillServer;
 import org.apache.beam.runners.dataflow.worker.streaming.ComputationState;
 import org.apache.beam.runners.dataflow.worker.streaming.Watermarks;
+import org.apache.beam.runners.dataflow.worker.streaming.WeightedSemaphore;
 import org.apache.beam.runners.dataflow.worker.streaming.Work;
 import org.apache.beam.runners.dataflow.worker.streaming.WorkId;
 import org.apache.beam.runners.dataflow.worker.util.BoundedQueueExecutor;
@@ -67,6 +73,7 @@ import org.junit.runners.JUnit4;
 
 @RunWith(JUnit4.class)
 public class StreamingEngineWorkCommitterTest {
+
   @Rule public final GrpcCleanupRule grpcCleanup = new GrpcCleanupRule();
   @Rule public ErrorCollector errorCollector = new ErrorCollector();
   @Rule public transient Timeout globalTimeout = Timeout.seconds(600);
@@ -75,9 +82,17 @@ public class StreamingEngineWorkCommitterTest {
   private Supplier<CloseableStream<CommitWorkStream>> commitWorkStreamFactory;
 
   private static void waitForExpectedSetSize(Set<?> s, int expectedSize) {
+    long deadline = System.currentTimeMillis() + 100 * 1000; // 100 seconds
     while (s.size() < expectedSize) {
       try {
         Thread.sleep(10);
+        if (System.currentTimeMillis() > deadline) {
+          throw new RuntimeException(
+              "Timed out waiting for expected set size to be: "
+                  + expectedSize
+                  + " but was: "
+                  + s.size());
+        }
       } catch (InterruptedException e) {
         throw new RuntimeException(e);
       }
@@ -399,5 +414,58 @@ public class StreamingEngineWorkCommitterTest {
     }
 
     workCommitter.stop();
+  }
+
+  @Test
+  public void testStop_drainsCommitQueue_concurrentCommit() throws InterruptedException {
+    Set<CompleteCommit> completeCommits = Collections.newSetFromMap(new ConcurrentHashMap<>());
+    workCommitter =
+        StreamingEngineWorkCommitter.builder()
+            // Set the semaphore to only allow a single commit at a time.
+            // This creates a bottleneck on purpose to trigger race conditions during shutdown.
+            .setCommitByteSemaphore(WeightedSemaphore.create(1, (commit) -> 1))
+            .setCommitWorkStreamFactory(commitWorkStreamFactory)
+            .setOnCommitComplete(completeCommits::add)
+            .build();
+
+    int numThreads = 5;
+    ExecutorService producer = Executors.newFixedThreadPool(numThreads);
+    AtomicBoolean producing = new AtomicBoolean(true);
+    AtomicLong sentCommits = new AtomicLong(0);
+
+    workCommitter.start();
+
+    AtomicLong workToken = new AtomicLong(0);
+    for (int i = 0; i < numThreads; i++) {
+      @SuppressWarnings("FutureReturnValueIgnored")
+      Future<?> unused =
+          producer.submit(
+              () -> {
+                while (producing.get()) {
+                  Work work = createMockWork(workToken.getAndIncrement());
+                  WorkItemCommitRequest commitRequest =
+                      WorkItemCommitRequest.newBuilder()
+                          .setKey(work.getWorkItem().getKey())
+                          .setShardingKey(work.getWorkItem().getShardingKey())
+                          .setWorkToken(work.getWorkItem().getWorkToken())
+                          .setCacheToken(work.getWorkItem().getCacheToken())
+                          .build();
+                  Commit commit =
+                      Commit.create(commitRequest, createComputationState("computationId"), work);
+                  workCommitter.commit(commit);
+                  sentCommits.incrementAndGet();
+                }
+              });
+    }
+
+    // Let it run for a bit
+    Thread.sleep(100);
+
+    workCommitter.stop();
+    producing.set(false);
+    producer.shutdown();
+    assertTrue(producer.awaitTermination(10, TimeUnit.SECONDS));
+
+    waitForExpectedSetSize(completeCommits, sentCommits.intValue());
   }
 }
