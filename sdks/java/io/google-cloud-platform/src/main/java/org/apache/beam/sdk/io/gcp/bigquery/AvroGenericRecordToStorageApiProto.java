@@ -23,6 +23,7 @@ import com.google.protobuf.ByteString;
 import com.google.protobuf.Descriptors.Descriptor;
 import com.google.protobuf.Descriptors.FieldDescriptor;
 import com.google.protobuf.DynamicMessage;
+import com.google.protobuf.Int64Value;
 import java.math.BigDecimal;
 import java.nio.ByteBuffer;
 import java.util.Map;
@@ -54,6 +55,8 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.primitives.Byt
 public class AvroGenericRecordToStorageApiProto {
 
   private static final org.joda.time.LocalDate EPOCH_DATE = new org.joda.time.LocalDate(1970, 1, 1);
+
+  private static final String TIMESTAMP_NANOS_LOGICAL_TYPE = "timestamp-nanos";
 
   static final Map<Schema.Type, TableFieldSchema.Type> PRIMITIVE_TYPES =
       ImmutableMap.<Schema.Type, TableFieldSchema.Type>builder()
@@ -383,6 +386,11 @@ public class AvroGenericRecordToStorageApiProto {
         break;
       default:
         elementType = TypeWithNullability.create(schema).getType();
+        if (TIMESTAMP_NANOS_LOGICAL_TYPE.equals(elementType.getProp("logicalType"))) {
+          builder = builder.setType(TableFieldSchema.Type.TIMESTAMP);
+          builder.setTimestampPrecision(Int64Value.newBuilder().setValue(12L).build());
+          break;
+        }
         Optional<LogicalType> logicalType =
             Optional.ofNullable(LogicalTypes.fromSchema(elementType));
         @Nullable
@@ -476,7 +484,7 @@ public class AvroGenericRecordToStorageApiProto {
                     mapEntryToProtoValue(fieldDescriptor.getMessageType(), valueType, entry))
             .collect(Collectors.toList());
       default:
-        return scalarToProtoValue(avroSchema, value);
+        return scalarToProtoValue(fieldDescriptor, avroSchema, value);
     }
   }
 
@@ -502,10 +510,50 @@ public class AvroGenericRecordToStorageApiProto {
     return builder.build();
   }
 
+  /** Returns true if this schema represents a timestamp-nanos logical type. */
+  private static boolean isTimestampNanos(Schema schema) {
+    return TIMESTAMP_NANOS_LOGICAL_TYPE.equals(schema.getProp("logicalType"));
+  }
+
+  private static DynamicMessage buildTimestampPicosMessage(
+      Descriptor timestampPicosDescriptor, long seconds, long picoseconds) {
+    return DynamicMessage.newBuilder(timestampPicosDescriptor)
+        .setField(
+            Preconditions.checkNotNull(timestampPicosDescriptor.findFieldByName("seconds")),
+            seconds)
+        .setField(
+            Preconditions.checkNotNull(timestampPicosDescriptor.findFieldByName("picoseconds")),
+            picoseconds)
+        .build();
+  }
+
   @VisibleForTesting
-  static Object scalarToProtoValue(Schema fieldSchema, Object value) {
+  static Object scalarToProtoValue(
+      @Nullable FieldDescriptor descriptor, Schema fieldSchema, Object value) {
     TypeWithNullability type = TypeWithNullability.create(fieldSchema);
+    if (TIMESTAMP_NANOS_LOGICAL_TYPE.equals(type.getType().getProp("logicalType"))) {
+      Preconditions.checkArgument(
+          value instanceof Long, "Expecting a value as Long type (timestamp-nanos).");
+      long nanos = (Long) value;
+
+      // Convert nanos since epoch to seconds + picoseconds
+      long seconds = nanos / 1_000_000_000L;
+      int nanoAdjustment = (int) (nanos % 1_000_000_000L);
+
+      // Handle negative timestamps (before epoch)
+      if (nanos < 0 && nanoAdjustment != 0) {
+        seconds -= 1;
+        nanoAdjustment += 1_000_000_000;
+      }
+
+      // Convert nanos to picos (multiply by 1000)
+      long picoseconds = nanoAdjustment * 1000L;
+
+      return buildTimestampPicosMessage(
+          Preconditions.checkNotNull(descriptor).getMessageType(), seconds, picoseconds);
+    }
     LogicalType logicalType = LogicalTypes.fromSchema(type.getType());
+
     if (logicalType != null) {
       @Nullable
       BiFunction<LogicalType, Object, Object> logicalTypeEncoder =
