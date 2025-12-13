@@ -238,6 +238,19 @@ class PipelineOptionsTest(unittest.TestCase):
         options.view_as(PipelineOptionsTest.MockOptions).mock_multi_option,
         expected['mock_multi_option'])
 
+  def test_get_superclass_options(self):
+    flags = ["--mock_option", "mock", "--fake_option", "fake"]
+    options = PipelineOptions(flags=flags).view_as(
+        PipelineOptionsTest.FakeOptions)
+    items = options.get_all_options(current_only=True).items()
+    print(items)
+    self.assertTrue(('fake_option', 'fake') in items)
+    self.assertFalse(('mock_option', 'mock') in items)
+    items = options.view_as(PipelineOptionsTest.MockOptions).get_all_options(
+        current_only=True).items()
+    self.assertFalse(('fake_option', 'fake') in items)
+    self.assertTrue(('mock_option', 'mock') in items)
+
   @parameterized.expand(TEST_CASES)
   def test_subclasses_of_pipeline_options_can_be_instantiated(
       self, flags, expected, _):
