@@ -317,6 +317,15 @@ class FakeModelHandlerExpectedInferenceArgs(FakeModelHandler):
     pass
 
 
+def try_import_model_manager():
+  try:
+    # pylint: disable=unused-import
+    from apache_beam.ml.inference.model_manager import ModelManager
+    return True
+  except ImportError:
+    return False
+
+
 class RunInferenceBaseTest(unittest.TestCase):
   def test_run_inference_impl_simple_examples(self):
     with TestPipeline() as pipeline:
@@ -1894,6 +1903,7 @@ class RunInferenceBaseTest(unittest.TestCase):
 
     self.assertEqual(0, len(tags))
 
+  @skipIf(try_import_model_manager() is False, 'Model Manager not available')
   def test_run_inference_impl_with_model_manager(self):
     with TestPipeline() as pipeline:
       examples = [1, 5, 3, 10]
@@ -1903,6 +1913,7 @@ class RunInferenceBaseTest(unittest.TestCase):
           SimpleFakeModelHanlder(), use_model_manager=True)
       assert_that(actual, equal_to(expected), label='assert:inferences')
 
+  @skipIf(try_import_model_manager() is False, 'Model Manager not available')
   def test_run_inference_impl_with_model_manager_args(self):
     with TestPipeline() as pipeline:
       examples = [1, 5, 3, 10]

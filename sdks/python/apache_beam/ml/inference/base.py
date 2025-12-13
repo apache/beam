@@ -59,13 +59,14 @@ from apache_beam.io.components.adaptive_throttler import ReactiveThrottler
 from apache_beam.utils import multi_process_shared
 from apache_beam.utils import retry
 from apache_beam.utils import shared
-from apache_beam.ml.inference.model_manager import ModelManager
 
 try:
   # pylint: disable=wrong-import-order, wrong-import-position
   import resource
+  from apache_beam.ml.inference.model_manager import ModelManager
 except ImportError:
   resource = None  # type: ignore[assignment]
+  ModelManager = None  # type: ignore[assignment]
 
 _NANOSECOND_TO_MILLISECOND = 1_000_000
 _NANOSECOND_TO_MICROSECOND = 1_000
