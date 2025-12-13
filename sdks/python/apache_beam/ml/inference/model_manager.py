@@ -306,7 +306,11 @@ class ModelManager:
           return cached_instance
 
       # SLOW PATH
-      logger.info("Acquire Queued: tag=%s, priority=%d", tag, current_priority)
+      logger.info(
+          "Acquire Queued: tag=%s, priority=%d total models count=%s",
+          tag,
+          current_priority,
+          len(self._models[tag]))
       heapq.heappush(
           self._wait_queue, (current_priority, ticket_num, my_id, tag))
 
@@ -317,6 +321,8 @@ class ModelManager:
       try:
         while True:
           if not self._wait_queue or self._wait_queue[0][2] is not my_id:
+            logger.info(
+                "Waiting for its turn: tag=%s ticket num=%s", tag, ticket_num)
             self._cv.wait()
             continue
 
@@ -340,6 +346,10 @@ class ModelManager:
           # Path A: Isolation
           if is_unknown:
             if self._total_active_jobs > 0:
+              logger.info(
+                  "Waiting to enter isolation: tag=%s ticket num=%s",
+                  tag,
+                  ticket_num)
               self._cv.wait()
               continue
 
@@ -356,6 +366,10 @@ class ModelManager:
           # Path B: Concurrent
           else:
             if self._pending_isolation_count > 0 or self._isolation_mode:
+              logger.info(
+                  "Waiting due to isolation in progress: tag=%s ticket num%s",
+                  tag,
+                  ticket_num)
               self._cv.wait()
               continue
 
@@ -375,6 +389,10 @@ class ModelManager:
             if self._evict_to_make_space(limit, est_cost, requesting_tag=tag):
               continue
 
+            logger.info(
+                "Waiting for resources to free up: tag=%s ticket num%s",
+                tag,
+                ticket_num)
             self._cv.wait(timeout=10.0)
 
       finally:
