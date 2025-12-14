@@ -155,6 +155,12 @@ class _SingletonEntry:
 class _SingletonManager:
   entries: Dict[Any, Any] = {}
 
+  def __init__(self):
+    self._hard_delete_callback = None
+
+  def set_hard_delete_callback(self, callback):
+    self._hard_delete_callback = callback
+
   def register_singleton(self, constructor, tag, initialize_eagerly=True):
     assert tag not in self.entries, tag
     self.entries[tag] = _SingletonEntry(constructor, initialize_eagerly)
@@ -219,7 +225,13 @@ class _AutoProxyWrapper:
     return self._proxyObject
 
   def unsafe_hard_delete(self):
-    return self._proxyObject.unsafe_hard_delete()
+    try:
+      self._proxyObject.unsafe_hard_delete()
+    except (EOFError, ConnectionResetError, BrokenPipeError):
+      pass
+    except Exception as e:
+      logging.warning(
+          "Exception %s when trying to hard delete shared object proxy", e)
 
 
 def _run_server_process(address_file, tag, constructor, authkey):
@@ -238,6 +250,13 @@ def _run_server_process(address_file, tag, constructor, authkey):
         os.remove(address_file + ".error")
     except Exception:
       pass
+
+  def handle_unsafe_hard_delete():
+    def do_exit():
+      cleanup_files()
+      os._exit(0)
+
+    threading.Thread(target=do_exit, daemon=True).start()
 
   def _monitor_parent():
     """Checks if parent is alive every second."""
@@ -264,6 +283,8 @@ def _run_server_process(address_file, tag, constructor, authkey):
 
     serving_manager = _SingletonRegistrar(
         address=('localhost', 0), authkey=authkey)
+    _process_level_singleton_manager.set_hard_delete_callback(
+        handle_unsafe_hard_delete)
     _process_level_singleton_manager.register_singleton(
         constructor, tag, initialize_eagerly=True)
 
@@ -401,7 +422,15 @@ class MultiProcessShared(Generic[T]):
       to this object exist, or (b) you are ok with all existing references to
       this object throwing strange errors when derefrenced.
     """
-    self._get_manager().unsafe_hard_delete_singleton(self._tag)
+    try:
+      self._get_manager().unsafe_hard_delete_singleton(self._tag)
+    except (EOFError, ConnectionResetError, BrokenPipeError):
+      pass
+    except Exception as e:
+      logging.warning(
+          "Exception %s when trying to hard delete shared object %s",
+          e,
+          self._tag)
 
   def _create_server(self, address_file):
     if self._spawn_process:

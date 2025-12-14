@@ -540,21 +540,25 @@ class ModelManager:
 
   def _perform_eviction(self, key, tag, instance, score):
     logger.info("Evicting Model: %s (Score %d)", tag, score)
+    curr, _, _ = self._monitor.get_stats()
+    logger.info("Resource Usage Before Eviction: %.1f MB", curr)
 
     if key in self._idle_lru:
       del self._idle_lru[key]
 
-    if hasattr(instance, "unsafe_hard_delete"):
-      instance.unsafe_hard_delete()
-
     if instance in self._models[tag]:
       self._models[tag].remove(instance)
+
+    if hasattr(instance, "unsafe_hard_delete"):
+      instance.unsafe_hard_delete()
 
     del instance
     gc.collect()
     torch.cuda.empty_cache()
     self._monitor.refresh()
     self._monitor.reset_peak()
+    curr, _, _ = self._monitor.get_stats()
+    logger.info("Resource Usage After Eviction: %.1f MB", curr)
 
   def _spawn_new_model(self, tag, loader_func, is_unknown, est_cost):
     try:
