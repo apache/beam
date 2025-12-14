@@ -1,0 +1,46 @@
+--- /runner/_work/beam/beam/sdks/python/test-suites/tox/pycommon/build/srcs/sdks/python/apache_beam/metrics/metric_test.py:before	2025-10-16 13:27:21.916235
+1560.31user 33.00system 6:49.10elapsed 389%CPU (0avgtext+0avgdata 925408maxresident)k
+11760inputs+2912outputs (13major+2158492minor)pagefaults 0swaps
++++ /runner/_work/beam/beam/sdks/python/test-suites/tox/pycommon/build/srcs/sdks/python/apache_beam/metrics/metric_test.py:after	2025-10-16 13:42:50.772388
+@@ -17,10 +17,11 @@
+ 
+ # pytype: skip-file
+ 
++import re
++import unittest
++
+ import hamcrest as hc
+ import pytest
+-import re
+-import unittest
+ 
+ import apache_beam as beam
+ from apache_beam import metrics
+ERROR: /runner/_work/beam/beam/sdks/python/test-suites/tox/pycommon/build/srcs/sdks/python/apache_beam/io/gcp/bigquery_tools.py Imports are incorrectly sorted.
+--- /runner/_work/beam/beam/sdks/python/test-suites/tox/pycommon/build/srcs/sdks/python/apache_beam/io/gcp/bigquery_tools.py:before	2025-10-16 13:27:22.059248
++++ /runner/_work/beam/beam/sdks/python/test-suites/tox/pycommon/build/srcs/sdks/python/apache_beam/io/gcp/bigquery_tools.py:after	2025-10-16 13:42:57.634626
+@@ -30,13 +30,10 @@
+ 
+ import datetime
+ import decimal
+-import fastavro
+ import io
+ import json
+ import logging
+-import numpy as np
+ import re
+-import regex
+ import sys
+ import time
+ import uuid
+@@ -46,6 +43,10 @@
+ from typing import Tuple
+ from typing import TypeVar
+ from typing import Union
++
++import fastavro
++import numpy as np
++import regex
+ 
+ import apache_beam
+ from apache_beam import coders

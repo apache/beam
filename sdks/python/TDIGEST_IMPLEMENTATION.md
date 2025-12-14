@@ -106,10 +106,11 @@ t2 = TDigest.from_dict(d)              # From dict
 
 ## Known Limitations
 
-### Portable Runner Issue
-The portable runner (FnApiRunner, default for DirectRunner) loses TDigest data during
-protobuf serialization. This is because the SDK worker sends metrics to the job service
-via gRPC, and somewhere in that path the TDigest bytes are not being properly preserved.
+### Prism Runner Issue
+As of 2024, DirectRunner uses PrismRunner by default, which is a Go-based portable runner.
+Prism does not properly preserve TDigest data in distribution metric payloads. The Python SDK correctly encodes TDigest data (verified with 2000+ byte payloads), but Prism truncates the payload to only 4-5 bytes (basic count/sum/min/max).
+
+**Root Cause**: The issue is in the Go Prism implementation, not the Python SDK. The Python worker correctly creates and serializes MonitoringInfo protobufs with full TDigest payloads, but Prism does not properly handle the extended distribution format.
 
 **Workaround**: Use `BundleBasedDirectRunner` for local testing:
 ```python
@@ -117,8 +118,13 @@ with beam.Pipeline(runner='BundleBasedDirectRunner') as p:
     ...
 ```
 
-This issue needs further investigation for production runners (Dataflow, Flink, etc.)
-that use the portable runner protocol.
+**Investigation Status**:
+- ✅ Python SDK creates MonitoringInfos with TDigest correctly (290+ bytes)
+- ✅ Protobuf serialization/deserialization preserves TDigest
+- ✅ BundleBasedDirectRunner works perfectly
+- ❌ PrismRunner (DirectRunner default) truncates TDigest payloads
+
+**Next Steps**: This requires a fix in the Go Prism codebase to properly handle extended distribution payloads. The portable runner protocol and protobuf schema support the extended format, but Prism's implementation needs to be updated.
 
 ## Current Branch
 `tdigestdistribution`
