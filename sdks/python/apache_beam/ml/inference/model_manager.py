@@ -307,10 +307,12 @@ class ModelManager:
 
       # SLOW PATH
       logger.info(
-          "Acquire Queued: tag=%s, priority=%d total models count=%s",
+          "Acquire Queued: tag=%s, priority=%d "
+          "total models count=%s ticket num=%s",
           tag,
           current_priority,
-          len(self._models[tag]))
+          len(self._models[tag]),
+          ticket_num)
       heapq.heappush(
           self._wait_queue, (current_priority, ticket_num, my_id, tag))
 
@@ -389,10 +391,29 @@ class ModelManager:
             if self._evict_to_make_space(limit, est_cost, requesting_tag=tag):
               continue
 
+            idle_count = 0
+            other_idle_count = 0
+            for item in self._idle_lru.items():
+              if item[1][0] == tag:
+                idle_count += 1
+              else:
+                other_idle_count += 1
+            total_model_count = 0
+            for _, instances in self._models.items():
+              total_model_count += len(instances)
+            curr, _, _ = self._monitor.get_stats()
             logger.info(
-                "Waiting for resources to free up: tag=%s ticket num%s",
+                "Waiting for resources to free up: "
+                "tag=%s ticket num%s model count=%s "
+                "idle count=%s resource usage=%.1f MB "
+                "total models count=%s other idle=%s",
                 tag,
-                ticket_num)
+                ticket_num,
+                len(self._models[tag]),
+                idle_count,
+                curr,
+                total_model_count,
+                other_idle_count)
             self._cv.wait(timeout=10.0)
 
       finally:
@@ -450,6 +471,8 @@ class ModelManager:
       self._active_counts[tag] += 1
       self._total_active_jobs += 1
       return target_instance
+
+    logger.info("No idle model found for tag: %s", tag)
     return None
 
   def _evict_to_make_space(
