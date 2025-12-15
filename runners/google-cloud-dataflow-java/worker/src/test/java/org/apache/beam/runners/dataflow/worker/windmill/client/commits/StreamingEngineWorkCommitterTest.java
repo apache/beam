@@ -34,10 +34,12 @@ import java.util.Optional;
 import java.util.Random;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Consumer;
@@ -417,7 +419,8 @@ public class StreamingEngineWorkCommitterTest {
   }
 
   @Test
-  public void testStop_drainsCommitQueue_concurrentCommit() throws InterruptedException {
+  public void testStop_drainsCommitQueue_concurrentCommit()
+      throws InterruptedException, ExecutionException, TimeoutException {
     Set<CompleteCommit> completeCommits = Collections.newSetFromMap(new ConcurrentHashMap<>());
     workCommitter =
         StreamingEngineWorkCommitter.builder()
@@ -436,9 +439,9 @@ public class StreamingEngineWorkCommitterTest {
     workCommitter.start();
 
     AtomicLong workToken = new AtomicLong(0);
+    List<Future<?>> futures = new ArrayList<>(numThreads);
     for (int i = 0; i < numThreads; i++) {
-      @SuppressWarnings("FutureReturnValueIgnored")
-      Future<?> unused =
+      futures.add(
           producer.submit(
               () -> {
                 while (producing.get()) {
@@ -455,7 +458,7 @@ public class StreamingEngineWorkCommitterTest {
                   workCommitter.commit(commit);
                   sentCommits.incrementAndGet();
                 }
-              });
+              }));
     }
 
     // Let it run for a bit
@@ -465,6 +468,9 @@ public class StreamingEngineWorkCommitterTest {
     producing.set(false);
     producer.shutdown();
     assertTrue(producer.awaitTermination(10, TimeUnit.SECONDS));
+    for (Future<?> future : futures) {
+      future.get(10, TimeUnit.SECONDS);
+    }
 
     waitForExpectedSetSize(completeCommits, sentCommits.intValue());
   }
