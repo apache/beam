@@ -24,6 +24,7 @@ ensuring that models are reused across different workers to optimize resource
 usage and performance.
 """
 
+import uuid
 import time
 import threading
 import subprocess
@@ -247,6 +248,34 @@ class ResourceEstimator:
 
     except Exception as e:
       logger.error("Solver failed: %s", e)
+
+
+class TrackedModelProxy:
+  def __init__(self, obj):
+    object.__setattr__(self, "_wrapped_obj", obj)
+    object.__setattr__(self, "_beam_tracking_id", str(uuid.uuid4()))
+
+  def __getattr__(self, name):
+    return getattr(self._wrapped_obj, name)
+
+  def __setattr__(self, name, value):
+    setattr(self._wrapped_obj, name, value)
+
+  def __call__(self, *args, **kwargs):
+    return self._wrapped_obj(*args, **kwargs)
+
+  def __str__(self):
+    return str(self._wrapped_obj)
+
+  def __repr__(self):
+    return repr(self._wrapped_obj)
+
+  def __dir__(self):
+    return dir(self._wrapped_obj)
+
+  def unsafe_hard_delete(self):
+    if hasattr(self._wrapped_obj, "unsafe_hard_delete"):
+      self._wrapped_obj.unsafe_hard_delete()
 
 
 class ModelManager:
@@ -546,12 +575,13 @@ class ModelManager:
     if key in self._idle_lru:
       del self._idle_lru[key]
 
-    if instance in self._models[tag]:
-      self._models[tag].remove(instance)
+    target_id = instance._beam_tracking_id
+    for i, inst in enumerate(self._models[tag]):
+      if inst._beam_tracking_id == target_id:
+        del self._models[tag][i]
+        break
 
-    if hasattr(instance, "unsafe_hard_delete"):
-      instance.unsafe_hard_delete()
-
+    instance.unsafe_hard_delete()
     del instance
     gc.collect()
     torch.cuda.empty_cache()
@@ -565,7 +595,7 @@ class ModelManager:
       with self._load_lock:
         logger.info("Loading Model: %s (Unknown: %s)", tag, is_unknown)
         isolation_baseline_snap, _, _ = self._monitor.get_stats()
-        instance = loader_func()
+        instance = TrackedModelProxy(loader_func())
         _, peak_during_load, _ = self._monitor.get_stats()
 
       with self._cv:
