@@ -264,6 +264,12 @@ class TrackedModelProxy:
   def __call__(self, *args, **kwargs):
     return self._wrapped_obj(*args, **kwargs)
 
+  def __setstate__(self, state):
+    self.__dict__.update(state)
+
+  def __getstate__(self):
+    return self.__dict__
+
   def __str__(self):
     return str(self._wrapped_obj)
 
