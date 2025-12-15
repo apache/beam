@@ -234,7 +234,8 @@ public class BufferingDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, 
       BoundedWindow window,
       Instant timestamp,
       Instant outputTimestamp,
-      TimeDomain timeDomain) {
+      TimeDomain timeDomain,
+      boolean causedByDrain) {
 
     minBufferedElementTimestamp =
         Math.min(outputTimestamp.getMillis(), minBufferedElementTimestamp);

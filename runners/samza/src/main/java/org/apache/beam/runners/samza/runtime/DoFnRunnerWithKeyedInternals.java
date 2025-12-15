@@ -66,14 +66,22 @@ public class DoFnRunnerWithKeyedInternals<InputT, OutputT> implements DoFnRunner
       BoundedWindow window,
       Instant timestamp,
       Instant outputTimestamp,
-      TimeDomain timeDomain) {
+      TimeDomain timeDomain,
+      boolean causedByDrain) {
     // Note: wrap with KV.of(key, null) as a special use case of setKeyedInternals() to set key
     // directly.
     setKeyedInternals(KV.of(key, null));
 
     try {
       underlying.onTimer(
-          timerId, timerFamilyId, key, window, timestamp, outputTimestamp, timeDomain);
+          timerId,
+          timerFamilyId,
+          key,
+          window,
+          timestamp,
+          outputTimestamp,
+          timeDomain,
+          causedByDrain);
     } finally {
       clearKeyedInternals();
     }

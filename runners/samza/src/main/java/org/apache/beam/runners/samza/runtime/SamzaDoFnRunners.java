@@ -430,7 +430,8 @@ public class SamzaDoFnRunners {
         BoundedWindow window,
         Instant timestamp,
         Instant outputTimestamp,
-        TimeDomain timeDomain) {
+        TimeDomain timeDomain,
+        boolean causedByDrain) {
       final KV<String, String> timerReceiverKey =
           TimerReceiverFactory.decodeTimerDataTimerId(timerFamilyId);
       final FnDataReceiver<Timer> timerReceiver =
@@ -443,7 +444,8 @@ public class SamzaDoFnRunners {
               timestamp,
               outputTimestamp,
               // TODO: Support propagating the PaneInfo through.
-              PaneInfo.NO_FIRING);
+              PaneInfo.NO_FIRING,
+              causedByDrain);
       try {
         timerReceiver.accept(timerValue);
       } catch (Exception e) {

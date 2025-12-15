@@ -534,14 +534,16 @@ public class ExecutableStageDoFnOperatorTest {
                     windowedValue.getWindows(),
                     timestamp,
                     timestamp,
-                    PaneInfo.NO_FIRING),
+                    PaneInfo.NO_FIRING,
+                    false),
                 TimerInternals.TimerData.of(
                     "",
                     TimerReceiverFactory.encodeToTimerDataTimerId("transform", timerId),
                     StateNamespaces.window(IntervalWindow.getCoder(), intervalWindow),
                     timestamp,
                     timestamp,
-                    TimeDomain.EVENT_TIME));
+                    TimeDomain.EVENT_TIME,
+                    false));
 
     timerConsumer.accept("timer", timerTarget);
     timerConsumer.accept("timer2", timerTarget2);
@@ -867,7 +869,8 @@ public class ExecutableStageDoFnOperatorTest {
             stateNamespace,
             window.maxTimestamp(),
             window.maxTimestamp(),
-            TimeDomain.EVENT_TIME);
+            TimeDomain.EVENT_TIME,
+            false);
     operator.setTimer(
         Timer.of(
             windowedValue.getValue().getKey(),
@@ -875,7 +878,8 @@ public class ExecutableStageDoFnOperatorTest {
             windowedValue.getWindows(),
             window.maxTimestamp(),
             window.maxTimestamp(),
-            PaneInfo.NO_FIRING),
+            PaneInfo.NO_FIRING,
+            false),
         userTimer2);
     assertThat(testHarness.numEventTimeTimers(), is(1));
 

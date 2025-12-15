@@ -188,6 +188,8 @@ public interface TimerInternals {
 
     public abstract boolean getDeleted();
 
+    public abstract boolean causedByDrain();
+
     // When adding a new field, make sure to add it to the compareTo() method.
 
     /** Construct a {@link TimerData} for the given parameters. */
@@ -196,9 +198,10 @@ public interface TimerInternals {
         StateNamespace namespace,
         Instant timestamp,
         Instant outputTimestamp,
-        TimeDomain domain) {
+        TimeDomain domain,
+        boolean causedByDrain) {
       return new AutoValue_TimerInternals_TimerData(
-          timerId, "", namespace, timestamp, outputTimestamp, domain, false);
+          timerId, "", namespace, timestamp, outputTimestamp, domain, false, causedByDrain);
     }
 
     /**
@@ -211,9 +214,27 @@ public interface TimerInternals {
         StateNamespace namespace,
         Instant timestamp,
         Instant outputTimestamp,
-        TimeDomain domain) {
+        TimeDomain domain,
+        boolean causedByDrain) {
       return new AutoValue_TimerInternals_TimerData(
-          timerId, timerFamilyId, namespace, timestamp, outputTimestamp, domain, false);
+          timerId,
+          timerFamilyId,
+          namespace,
+          timestamp,
+          outputTimestamp,
+          domain,
+          false,
+          causedByDrain);
+    }
+
+    public static TimerData of(
+        String timerId,
+        String timerFamilyId,
+        StateNamespace namespace,
+        Instant timestamp,
+        Instant outputTimestamp,
+        TimeDomain domain) {
+      return of(timerId, timerFamilyId, namespace, timestamp, outputTimestamp, domain, false);
     }
 
     /**
@@ -221,9 +242,13 @@ public interface TimerInternals {
      * deterministically generated from the {@code timestamp} and {@code domain}.
      */
     public static TimerData of(
-        StateNamespace namespace, Instant timestamp, Instant outputTimestamp, TimeDomain domain) {
+        StateNamespace namespace,
+        Instant timestamp,
+        Instant outputTimestamp,
+        TimeDomain domain,
+        boolean causedByDrain) {
       String timerId = String.valueOf(domain.ordinal()) + ':' + timestamp.getMillis();
-      return of(timerId, namespace, timestamp, outputTimestamp, domain);
+      return of(timerId, namespace, timestamp, outputTimestamp, domain, causedByDrain);
     }
 
     public TimerData deleted() {
@@ -234,7 +259,8 @@ public interface TimerInternals {
           getTimestamp(),
           getOutputTimestamp(),
           getDomain(),
-          true);
+          true,
+          causedByDrain());
     }
 
     /**
@@ -272,7 +298,9 @@ public interface TimerInternals {
           + "/"
           + getTimerFamilyId()
           + ":"
-          + getTimerId();
+          + getTimerId()
+          + ":"
+          + causedByDrain();
     }
   }
 
@@ -309,7 +337,8 @@ public interface TimerInternals {
       Instant timestamp = INSTANT_CODER.decode(inStream);
       Instant outputTimestamp = INSTANT_CODER.decode(inStream);
       TimeDomain domain = TimeDomain.valueOf(STRING_CODER.decode(inStream));
-      return TimerData.of(timerId, timerFamilyId, namespace, timestamp, outputTimestamp, domain);
+      return TimerData.of(
+          timerId, timerFamilyId, namespace, timestamp, outputTimestamp, domain, false);
     }
 
     @Override
@@ -355,7 +384,7 @@ public interface TimerInternals {
           StateNamespaces.fromString(STRING_CODER.decode(inStream), windowCoder);
       Instant timestamp = INSTANT_CODER.decode(inStream);
       TimeDomain domain = TimeDomain.valueOf(STRING_CODER.decode(inStream));
-      return TimerData.of(timerId, namespace, timestamp, timestamp, domain);
+      return TimerData.of(timerId, namespace, timestamp, timestamp, domain, false);
     }
 
     @Override
