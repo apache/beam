@@ -86,9 +86,11 @@ class CounterWithBadAttr(object):
 
 
 class SimpleClass:
-  def make_proxy(self):
+  def make_proxy(
+      self, tag: str = 'proxy_on_proxy', spawn_process: bool = False):
     return multi_process_shared.MultiProcessShared(
-        Counter, tag='proxy_on_proxy', always_proxy=True).acquire()
+        Counter, tag=tag, always_proxy=True,
+        spawn_process=spawn_process).acquire()
 
 
 class MultiProcessSharedTest(unittest.TestCase):
@@ -293,6 +295,7 @@ class MultiProcessSharedSpawnProcessTest(unittest.TestCase):
     for tag in ['basic',
                 'proxy_on_proxy',
                 'proxy_on_proxy_main',
+                'main',
                 'to_delete',
                 'mix1',
                 'mix2']:
@@ -318,13 +321,14 @@ class MultiProcessSharedSpawnProcessTest(unittest.TestCase):
 
   def test_proxy_on_proxy(self):
     shared1 = multi_process_shared.MultiProcessShared(
-        SimpleClass,
-        tag='proxy_on_proxy_main',
-        always_proxy=True,
-        spawn_process=True)
+        SimpleClass, tag='main', always_proxy=True)
     instance = shared1.acquire()
-    proxy_instance = instance.make_proxy()
+    proxy_instance = instance.make_proxy(spawn_process=True)
     self.assertEqual(proxy_instance.increment(), 1)
+    proxy_instance.unsafe_hard_delete()
+
+    proxy_instance2 = instance.make_proxy(tag='proxy_2', spawn_process=True)
+    self.assertEqual(proxy_instance2.increment(), 1)
 
   def test_unsafe_hard_delete_autoproxywrapper(self):
     shared1 = multi_process_shared.MultiProcessShared(

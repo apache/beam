@@ -117,6 +117,25 @@ class _SingletonProxy:
     return dir
 
 
+def _run_with_oom_protection(func, *args, **kwargs):
+  try:
+    return func(*args, **kwargs)
+  except Exception as e:
+    # Check string to avoid hard import dependency
+    if 'CUDA out of memory' in str(e):
+      logging.warning("Caught CUDA OOM during operation. Cleaning memory.")
+      try:
+        import gc
+        import torch
+        gc.collect()
+        torch.cuda.empty_cache()
+      except ImportError:
+        pass
+      except Exception as cleanup_error:
+        logging.error("Failed to clean up CUDA memory: %s", cleanup_error)
+    raise e
+
+
 class _SingletonEntry:
   """Represents a single, refcounted entry in this process."""
   def __init__(self, constructor, initialize_eagerly=True):
@@ -124,7 +143,7 @@ class _SingletonEntry:
     self.refcount = 0
     self.lock = threading.Lock()
     if initialize_eagerly:
-      self.obj = constructor()
+      self.obj = _run_with_oom_protection(constructor)
       self.initialied = True
     else:
       self.initialied = False
@@ -132,7 +151,7 @@ class _SingletonEntry:
   def acquire(self):
     with self.lock:
       if not self.initialied:
-        self.obj = self.constructor()
+        self.obj = _run_with_oom_protection(self.constructor)
         self.initialied = True
       self.refcount += 1
       return _SingletonProxy(self)
@@ -175,7 +194,8 @@ class _SingletonManager:
     return self.entries[tag].release(obj)
 
   def unsafe_hard_delete_singleton(self, tag):
-    return self.entries[tag].unsafe_hard_delete()
+    self.entries[tag].unsafe_hard_delete()
+    self._hard_delete_callback()
 
 
 _process_level_singleton_manager = _SingletonManager()
@@ -240,6 +260,7 @@ def _run_server_process(address_file, tag, constructor, authkey):
     Includes a 'Suicide Pact' monitor: If parent dies, I die.
     """
   parent_pid = os.getppid()
+  os.setsid()
 
   def cleanup_files():
     logging.info("Server process exiting. Deleting files for %s", tag)
@@ -252,11 +273,8 @@ def _run_server_process(address_file, tag, constructor, authkey):
       pass
 
   def handle_unsafe_hard_delete():
-    def do_exit():
-      cleanup_files()
-      os._exit(0)
-
-    threading.Thread(target=do_exit, daemon=True).start()
+    cleanup_files()
+    os._exit(0)
 
   def _monitor_parent():
     """Checks if parent is alive every second."""
