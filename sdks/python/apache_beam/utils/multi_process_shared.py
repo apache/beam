@@ -502,6 +502,7 @@ class MultiProcessShared(Generic[T]):
       atexit.register(cleanup_process)
 
       start_time = time.time()
+      last_log = start_time
       while True:
         if os.path.exists(address_file):
           break
@@ -523,10 +524,12 @@ class MultiProcessShared(Generic[T]):
               "Shared Server Process died unexpectedly"
               f" with exit code {exit_code}")
 
-        if time.time() - start_time > 30:
-          if p.is_alive(): p.terminate()
-          raise TimeoutError(
-              f"Timed out waiting for server process {self._tag} to start.")
+        if time.time() - last_log > 300:
+          logging.warning(
+              "Still waiting for %s to initialize... %ss elapsed)",
+              self._tag,
+              int(time.time() - start_time))
+          last_log = time.time()
 
         time.sleep(0.05)
 
