@@ -298,7 +298,8 @@ class MultiProcessSharedSpawnProcessTest(unittest.TestCase):
                 'main',
                 'to_delete',
                 'mix1',
-                'mix2']:
+                'mix2'
+                'test_process_exit']:
       for ext in ['', '.address', '.address.error']:
         try:
           os.remove(os.path.join(tempdir, tag + ext))
@@ -367,6 +368,97 @@ class MultiProcessSharedSpawnProcessTest(unittest.TestCase):
     self.assertEqual(shared1.increment(), 1)
     self.assertEqual(shared2.get(), 0)
     self.assertEqual(shared2.increment(), 1)
+
+  def test_process_exits_on_unsafe_hard_delete(self):
+    shared = multi_process_shared.MultiProcessShared(
+        Counter, tag='test_process_exit', always_proxy=True, spawn_process=True)
+    obj = shared.acquire()
+
+    self.assertEqual(obj.increment(), 1)
+
+    children = multiprocessing.active_children()
+    server_process = None
+    for p in children:
+      if p.pid != os.getpid() and p.is_alive():
+        server_process = p
+        break
+
+    self.assertIsNotNone(
+        server_process, "Could not find spawned server process")
+    obj.unsafe_hard_delete()
+    server_process.join(timeout=5)
+
+    self.assertFalse(
+        server_process.is_alive(),
+        f"Server process {server_process.pid} is still alive after hard delete")
+    self.assertIsNotNone(
+        server_process.exitcode, "Process has no exit code (did not exit)")
+
+    with self.assertRaises(Exception):
+      obj.get()
+
+  def test_process_exits_on_unsafe_hard_delete_with_manager(self):
+    shared = multi_process_shared.MultiProcessShared(
+        Counter, tag='test_process_exit', always_proxy=True, spawn_process=True)
+    obj = shared.acquire()
+
+    self.assertEqual(obj.increment(), 1)
+
+    children = multiprocessing.active_children()
+    server_process = None
+    for p in children:
+      if p.pid != os.getpid() and p.is_alive():
+        server_process = p
+        break
+
+    self.assertIsNotNone(
+        server_process, "Could not find spawned server process")
+    shared.unsafe_hard_delete()
+    server_process.join(timeout=5)
+
+    self.assertFalse(
+        server_process.is_alive(),
+        f"Server process {server_process.pid} is still alive after hard delete")
+    self.assertIsNotNone(
+        server_process.exitcode, "Process has no exit code (did not exit)")
+
+    with self.assertRaises(Exception):
+      obj.get()
+
+  def test_zombie_reaping_on_acquire(self):
+    shared1 = multi_process_shared.MultiProcessShared(
+        Counter, tag='test_zombie_reap', always_proxy=True, spawn_process=True)
+    obj = shared1.acquire()
+
+    children = multiprocessing.active_children()
+    server_pid = next(
+        p.pid for p in children if p.is_alive() and p.pid != os.getpid())
+
+    obj.unsafe_hard_delete()
+
+    try:
+      os.kill(server_pid, 0)
+      is_zombie = True
+    except OSError:
+      is_zombie = False
+    self.assertTrue(
+        is_zombie,
+        f"Server process {server_pid} was reaped too early before acquire()")
+
+    shared2 = multi_process_shared.MultiProcessShared(
+        Counter, tag='unrelated_tag', always_proxy=True, spawn_process=True)
+    _ = shared2.acquire()
+
+    pid_exists = True
+    try:
+      os.kill(server_pid, 0)
+    except OSError:
+      pid_exists = False
+
+    self.assertFalse(
+        pid_exists,
+        f"Old server process {server_pid} was not reaped by acquire() sweep")
+    shared2.unsafe_hard_delete()
 
 
 if __name__ == '__main__':

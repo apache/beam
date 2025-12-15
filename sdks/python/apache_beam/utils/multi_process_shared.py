@@ -314,7 +314,10 @@ def _run_server_process(address_file, tag, constructor, authkey):
     _process_level_singleton_manager.set_hard_delete_callback(
         handle_unsafe_hard_delete)
     _process_level_singleton_manager.register_singleton(
-        constructor, tag, initialize_eagerly=True)
+        constructor,
+        tag,
+        initialize_eagerly=True,
+        hard_delete_callback=handle_unsafe_hard_delete)
 
     server = serving_manager.get_server()
     logging.info(
@@ -436,6 +439,10 @@ class MultiProcessShared(Generic[T]):
     # Caveat: They must always agree, as they will be ignored if the object
     # is already constructed.
     singleton = self._get_manager().acquire_singleton(self._tag)
+    # Trigger a sweep of zombie processes.
+    # calling active_children() has the side-effect of joining any finished
+    # processes, effectively reaping zombies from previous unsafe_hard_deletes.
+    if self._spawn_process: multiprocessing.active_children()
     return _AutoProxyWrapper(singleton)
 
   def release(self, obj):
