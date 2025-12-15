@@ -138,8 +138,10 @@ def _run_with_oom_protection(func, *args, **kwargs):
 
 class _SingletonEntry:
   """Represents a single, refcounted entry in this process."""
-  def __init__(self, constructor, initialize_eagerly=True):
+  def __init__(
+      self, constructor, initialize_eagerly=True, hard_delete_callback=None):
     self.constructor = constructor
+    self._hard_delete_callback = hard_delete_callback
     self.refcount = 0
     self.lock = threading.Lock()
     if initialize_eagerly:
@@ -169,6 +171,8 @@ class _SingletonEntry:
       if self.initialied:
         del self.obj
         self.initialied = False
+      if self._hard_delete_callback:
+        self._hard_delete_callback()
 
 
 class _SingletonManager:
@@ -180,9 +184,15 @@ class _SingletonManager:
   def set_hard_delete_callback(self, callback):
     self._hard_delete_callback = callback
 
-  def register_singleton(self, constructor, tag, initialize_eagerly=True):
+  def register_singleton(
+      self,
+      constructor,
+      tag,
+      initialize_eagerly=True,
+      hard_delete_callback=None):
     assert tag not in self.entries, tag
-    self.entries[tag] = _SingletonEntry(constructor, initialize_eagerly)
+    self.entries[tag] = _SingletonEntry(
+        constructor, initialize_eagerly, hard_delete_callback)
 
   def has_singleton(self, tag):
     return tag in self.entries
