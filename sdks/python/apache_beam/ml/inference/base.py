@@ -215,15 +215,12 @@ class ModelHandler(Generic[ExampleT, PredictionT, ModelT]):
     return {}
 
   def validate_inference_args(self, inference_args: Optional[dict[str, Any]]):
-    """Validates inference_args passed in the inference call.
-
-    Because most frameworks do not need extra arguments in their predict() call,
-    the default behavior is to error out if inference_args are present.
     """
-    if inference_args:
-      raise ValueError(
-          'inference_args were provided, but should be None because this '
-          'framework does not expect extra arguments on inferences.')
+    Allows model handlers to provide some validation to make sure passed in
+    inference args are valid. Some ModelHandlers throw here to disallow
+    inference args altogether.
+    """
+    pass
 
   def update_model_path(self, model_path: Optional[str] = None):
     """

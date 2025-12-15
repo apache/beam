@@ -33,7 +33,7 @@ asn1crypto==1.5.1
 astor==0.8.1
 astunparse==1.6.3
 attrs==25.4.0
-beartype==0.22.5
+beartype==0.22.8
 beautifulsoup4==4.14.3
 blake3==1.0.8
 bs4==0.0.2
@@ -44,7 +44,7 @@ certifi==2025.11.12
 cffi==2.0.0
 charset-normalizer==3.4.4
 click==8.2.1
-cloud-sql-python-connector==1.18.5
+cloud-sql-python-connector==1.19.0
 cloudpickle==3.1.2
 compressed-tensors==0.10.2
 crcmod==1.7
@@ -61,7 +61,7 @@ docstring_parser==0.17.0
 einops==0.8.1
 email-validator==2.3.0
 execnet==2.1.2
-fastapi==0.123.8
+fastapi==0.124.2
 fastapi-cli==0.0.16
 fastapi-cloud-cli==0.6.0
 fastar==0.8.0
@@ -81,9 +81,9 @@ google-api-python-client==2.187.0
 google-apitools==0.5.31
 google-auth==2.43.0
 google-auth-httplib2==0.2.1
-google-cloud-aiplatform==1.129.0
+google-cloud-aiplatform==1.130.0
 google-cloud-bigquery==3.38.0
-google-cloud-bigquery-storage==2.34.0
+google-cloud-bigquery-storage==2.35.0
 google-cloud-bigtable==2.34.0
 google-cloud-core==2.5.0
 google-cloud-datastore==2.21.0
@@ -101,7 +101,7 @@ google-cloud-storage==2.19.0
 google-cloud-videointelligence==2.17.0
 google-cloud-vision==3.11.0
 google-crc32c==1.7.1
-google-genai==1.53.0
+google-genai==1.54.0
 google-pasta==0.2.0
 google-resumable-media==2.8.0
 googleapis-common-protos==1.72.0
@@ -157,7 +157,7 @@ msgpack==1.1.2
 msgspec==0.20.0
 multidict==6.7.0
 namex==0.1.0
-networkx==3.6
+networkx==3.6.1
 ninja==1.13.0
 nltk==3.9.2
 numba==0.61.2
@@ -188,7 +188,7 @@ opentelemetry-semantic-conventions==0.60b0
 opt_einsum==3.4.0
 optree==0.18.0
 oracledb==3.4.1
-orjson==3.11.4
+orjson==3.11.5
 outlines_core==0.2.10
 overrides==7.7.0
 packaging==25.0
@@ -211,7 +211,7 @@ pyarrow==18.1.0
 pyarrow-hotfix==0.7
 pyasn1==0.6.1
 pyasn1_modules==0.4.2
-pybase64==1.4.2
+pybase64==1.4.3
 pycountry==24.6.1
 pycparser==2.23
 pydantic==2.12.5
@@ -219,7 +219,6 @@ pydantic-extra-types==2.10.6
 pydantic_core==2.41.5
 Pygments==2.19.2
 PyHamcrest==2.1.0
-PyJWT==2.10.1
 pymilvus==2.5.18
 pymongo==4.15.5
 PyMySQL==1.1.2
@@ -263,7 +262,7 @@ sortedcontainers==2.4.0
 soundfile==0.13.1
 soupsieve==2.8
 soxr==1.0.0
-SQLAlchemy==2.0.44
+SQLAlchemy==2.0.45
 sqlalchemy_pytds==1.0.2
 sqlparse==0.5.4
 starlette==0.50.0
@@ -290,7 +289,7 @@ typing_extensions==4.15.0
 tzdata==2025.2
 ujson==5.11.0
 uritemplate==4.2.0
-urllib3==2.5.0
+urllib3==2.6.1
 uvicorn==0.38.0
 uvloop==0.22.1
 virtualenv-clone==0.5.7

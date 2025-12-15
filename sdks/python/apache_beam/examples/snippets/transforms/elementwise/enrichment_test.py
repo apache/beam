@@ -177,7 +177,7 @@ class EnrichmentTest(unittest.TestCase):
         enrichment_with_google_cloudsql_pg()
         output = mock_stdout.getvalue().splitlines()
         expected = validate_enrichment_with_google_cloudsql_pg()
-        self.assertEqual(output, expected)
+        self.assertEqual(sorted(output), sorted(expected))
     except Exception as e:
       self.fail(f"Test failed with unexpected error: {e}")
 
@@ -188,7 +188,7 @@ class EnrichmentTest(unittest.TestCase):
         enrichment_with_external_pg()
         output = mock_stdout.getvalue().splitlines()
         expected = validate_enrichment_with_external_pg()
-        self.assertEqual(output, expected)
+        self.assertEqual(sorted(output), sorted(expected))
     except (TestContainerStartupError, TestContainerTeardownError) as e:
       raise unittest.SkipTest(str(e))
     except Exception as e:
@@ -201,7 +201,7 @@ class EnrichmentTest(unittest.TestCase):
         enrichment_with_external_mysql()
         output = mock_stdout.getvalue().splitlines()
         expected = validate_enrichment_with_external_mysql()
-        self.assertEqual(output, expected)
+        self.assertEqual(sorted(output), sorted(expected))
     except (TestContainerStartupError, TestContainerTeardownError) as e:
       raise unittest.SkipTest(str(e))
     except Exception as e:
@@ -214,7 +214,7 @@ class EnrichmentTest(unittest.TestCase):
         enrichment_with_external_sqlserver()
         output = mock_stdout.getvalue().splitlines()
         expected = validate_enrichment_with_external_sqlserver()
-        self.assertEqual(output, expected)
+        self.assertEqual(sorted(output), sorted(expected))
     except (TestContainerStartupError, TestContainerTeardownError) as e:
       raise unittest.SkipTest(str(e))
     except Exception as e:
