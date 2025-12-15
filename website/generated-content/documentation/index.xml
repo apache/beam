@@ -17892,46 +17892,21 @@ each input collection.&lt;/p>
 Then, we apply &lt;code>CoGroupByKey&lt;/code> to join both &lt;code>PCollection&lt;/code>s using their keys.&lt;/p>
 &lt;p>&lt;code>CoGroupByKey&lt;/code> expects a dictionary of named keyed &lt;code>PCollection&lt;/code>s, and produces elements joined by their keys.
 The values of each output element are dictionaries where the names correspond to the input dictionary, with lists of all the values found for that key.&lt;/p>
-&lt;div class='language-py snippet'>
-&lt;div class="notebook-skip code-snippet">
-&lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
-&lt;img src="/images/copy-icon.svg"/>
-&lt;/a>
-&lt;div class="highlight">&lt;pre tabindex="0" class="chroma">&lt;code class="language-py" data-lang="py">&lt;span class="line">&lt;span class="cl">&lt;span class="kn">import&lt;/span> &lt;span class="nn">apache_beam&lt;/span> &lt;span class="k">as&lt;/span> &lt;span class="nn">beam&lt;/span>
-&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
-&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="k">with&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Pipeline&lt;/span>&lt;span class="p">()&lt;/span> &lt;span class="k">as&lt;/span> &lt;span class="n">pipeline&lt;/span>&lt;span class="p">:&lt;/span>
-&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">icon_pairs&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">pipeline&lt;/span> &lt;span class="o">|&lt;/span> &lt;span class="s1">&amp;#39;Create icons&amp;#39;&lt;/span> &lt;span class="o">&amp;gt;&amp;gt;&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Create&lt;/span>&lt;span class="p">([&lt;/span>
-&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="p">(&lt;/span>&lt;span class="s1">&amp;#39;Apple&amp;#39;&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="s1">&amp;#39;🍎&amp;#39;&lt;/span>&lt;span class="p">),&lt;/span>
-&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="p">(&lt;/span>&lt;span class="s1">&amp;#39;Apple&amp;#39;&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="s1">&amp;#39;🍏&amp;#39;&lt;/span>&lt;span class="p">),&lt;/span>
-&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="p">(&lt;/span>&lt;span class="s1">&amp;#39;Eggplant&amp;#39;&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="s1">&amp;#39;🍆&amp;#39;&lt;/span>&lt;span class="p">),&lt;/span>
-&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="p">(&lt;/span>&lt;span class="s1">&amp;#39;Tomato&amp;#39;&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="s1">&amp;#39;🍅&amp;#39;&lt;/span>&lt;span class="p">),&lt;/span>
-&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="p">])&lt;/span>
-&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
-&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">duration_pairs&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">pipeline&lt;/span> &lt;span class="o">|&lt;/span> &lt;span class="s1">&amp;#39;Create durations&amp;#39;&lt;/span> &lt;span class="o">&amp;gt;&amp;gt;&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Create&lt;/span>&lt;span class="p">([&lt;/span>
-&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="p">(&lt;/span>&lt;span class="s1">&amp;#39;Apple&amp;#39;&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="s1">&amp;#39;perennial&amp;#39;&lt;/span>&lt;span class="p">),&lt;/span>
-&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="p">(&lt;/span>&lt;span class="s1">&amp;#39;Carrot&amp;#39;&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="s1">&amp;#39;biennial&amp;#39;&lt;/span>&lt;span class="p">),&lt;/span>
-&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="p">(&lt;/span>&lt;span class="s1">&amp;#39;Tomato&amp;#39;&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="s1">&amp;#39;perennial&amp;#39;&lt;/span>&lt;span class="p">),&lt;/span>
-&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="p">(&lt;/span>&lt;span class="s1">&amp;#39;Tomato&amp;#39;&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="s1">&amp;#39;annual&amp;#39;&lt;/span>&lt;span class="p">),&lt;/span>
-&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="p">])&lt;/span>
-&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
-&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">plants&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="p">(({&lt;/span>
-&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="s1">&amp;#39;icons&amp;#39;&lt;/span>&lt;span class="p">:&lt;/span> &lt;span class="n">icon_pairs&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="s1">&amp;#39;durations&amp;#39;&lt;/span>&lt;span class="p">:&lt;/span> &lt;span class="n">duration_pairs&lt;/span>
-&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="p">})&lt;/span>
-&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="o">|&lt;/span> &lt;span class="s1">&amp;#39;Merge&amp;#39;&lt;/span> &lt;span class="o">&amp;gt;&amp;gt;&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">CoGroupByKey&lt;/span>&lt;span class="p">()&lt;/span>
-&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="o">|&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Map&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nb">print&lt;/span>&lt;span class="p">))&lt;/span>&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
+&lt;div class="playground-wrapper">
+&lt;div class="playground-snippets">
+&lt;div
+class="language-py playground-snippet"
+data-sdk="python"
+data-path="SDK_PYTHON_CoGroupByKeyMerge"
+data-show="cogroupbykey"
+>&lt;/div>
 &lt;/div>
-&lt;/div>
-&lt;p class="notebook-skip">Output:&lt;/p>
-&lt;div class="snippet">
-&lt;div class="notebook-skip code-snippet without_switcher">
-&lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
-&lt;img src="/images/copy-icon.svg"/>
-&lt;/a>
-&lt;pre tabindex="0">&lt;code>(&amp;#39;Apple&amp;#39;, {&amp;#39;icons&amp;#39;: [&amp;#39;🍎&amp;#39;, &amp;#39;🍏&amp;#39;], &amp;#39;durations&amp;#39;: [&amp;#39;perennial&amp;#39;]})
-(&amp;#39;Carrot&amp;#39;, {&amp;#39;icons&amp;#39;: [], &amp;#39;durations&amp;#39;: [&amp;#39;biennial&amp;#39;]})
-(&amp;#39;Tomato&amp;#39;, {&amp;#39;icons&amp;#39;: [&amp;#39;🍅&amp;#39;], &amp;#39;durations&amp;#39;: [&amp;#39;perennial&amp;#39;, &amp;#39;annual&amp;#39;]})
-(&amp;#39;Eggplant&amp;#39;, {&amp;#39;icons&amp;#39;: [&amp;#39;🍆&amp;#39;], &amp;#39;durations&amp;#39;: []})&lt;/code>&lt;/pre>
-&lt;/div>
+&lt;div
+class="code-snippet code-snippet-playground"
+data-src="https://play.beam.apache.org/embedded?editable=1&amp;examples=%5b%7b%22path%22%3a%22SDK_PYTHON_CoGroupByKeyMerge%22%2c%22sdk%22%3a%22python%22%2c%22show%22%3a%22cogroupbykey%22%7d%5d"
+data-width="100%"
+data-height="800px"
+>&lt;/div>
 &lt;/div>
 &lt;h2 id="related-transforms">Related transforms&lt;/h2>
 &lt;ul>
