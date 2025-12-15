@@ -270,7 +270,6 @@ def _run_server_process(address_file, tag, constructor, authkey):
     Includes a 'Suicide Pact' monitor: If parent dies, I die.
     """
   parent_pid = os.getppid()
-  os.setsid()
 
   def cleanup_files():
     logging.info("Server process exiting. Deleting files for %s", tag)
