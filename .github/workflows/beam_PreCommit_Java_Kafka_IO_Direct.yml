@@ -102,7 +102,7 @@ jobs:
             -PdisableCheckStyle=true \
           max-workers: 4
       - name: Archive JUnit Test Results
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         if: ${{ !success() }}
         with:
           name: JUnit Test Results
@@ -116,7 +116,7 @@ jobs:
           files: '**/build/test-results/**/*.xml'
           large_files: true
       - name: Archive SpotBugs Results
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         if: always()
         with:
           name: SpotBugs Results

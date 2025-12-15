@@ -82,7 +82,7 @@ jobs:
           gradle-command: :sdks:python:test-suites:direct:ioCrossLanguagePostCommit
           arguments: -PuseWheelDistribution
       - name: Archive Python Test Results
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         if: failure()
         with:
           name: Python Test Results

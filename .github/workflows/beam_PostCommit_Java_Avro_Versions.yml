@@ -79,7 +79,7 @@ jobs:
         with:
             gradle-command: :javaAvroVersionsTest
       - name: Archive JUnit Test Results
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         if: ${{ !success() }}
         with:
           name: JUnit Test Results

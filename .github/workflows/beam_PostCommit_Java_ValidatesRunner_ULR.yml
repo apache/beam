@@ -78,7 +78,7 @@ jobs:
       - name: run ulrLoopbackValidatesRunner script
         run: ./gradlew :runners:portability:java:ulrLoopbackValidatesRunner
       - name: Archive JUnit Test Results
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         if: ${{ !success() }}
         with:
           name: JUnit Test Results

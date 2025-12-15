@@ -82,7 +82,7 @@ jobs:
               :runners:spark:3:job-server:validatesPortableRunnerBatch \
               :runners:spark:3:job-server:validatesPortableRunnerDocker \
       - name: Archive JUnit Test Results
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         if: ${{ !success() }}
         with:
           name: JUnit Test Results
@@ -96,7 +96,7 @@ jobs:
           comment_mode: ${{ github.event_name == 'issue_comment'  && 'always' || 'off' }}
           files: '**/build/test-results/**/*.xml'
       - name: Archive SpotBugs Results
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: SpotBugs Results
           path: "**/build/reports/spotbugs/*.html"

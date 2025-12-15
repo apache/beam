@@ -102,13 +102,13 @@ jobs:
         with:
           gradle-command: :runners:prism:java:prismLoopbackValidatesRunnerTests
       - name: Archive JUnit Test Results
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         if: ${{ !success() }}
         with:
           name: JUnit Test Results
           path: "**/build/reports/tests/"
       - name: Upload test report
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: java-code-coverage-report
           path: "**/build/test-results/**/*.xml"

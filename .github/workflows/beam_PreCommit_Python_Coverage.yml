@@ -132,7 +132,7 @@ jobs:
           flags: python
           directory: sdks/python
       - name: Archive Python Test Results
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         if: failure()
         with:
           name: Python ${{ matrix.python_version }} Test Results (${{ join(matrix.os, ', ') }})

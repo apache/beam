@@ -95,7 +95,7 @@ jobs:
             -PtestJavaVersion=8 \
             -Pjava8Home=$JAVA_HOME_8_X64 \
       - name: Archive Python Test Results
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         if: failure()
         with:
           name: Python Test Results

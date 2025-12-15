@@ -86,7 +86,7 @@ jobs:
           gradle-command: :runners:google-cloud-dataflow-java:examples:java${{ matrix.java_version }}PostCommit
           max-workers: 12
       - name: Archive JUnit Test Results
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         if: ${{ !success() }}
         with:
           name: JUnit Test Results
