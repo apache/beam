@@ -52,7 +52,7 @@ docstring_parser==0.17.0
 execnet==2.1.2
 fastavro==1.12.1
 fasteners==0.20
-filelock==3.20.0
+filelock==3.20.1
 flatbuffers==25.9.23
 freezegun==1.5.5
 frozenlist==1.8.0

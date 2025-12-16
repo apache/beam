@@ -69,7 +69,7 @@ fastar==0.8.0
 fastavro==1.12.1
 fasteners==0.20
 fastrlock==0.8.3
-filelock==3.20.0
+filelock==3.20.1
 flatbuffers==25.9.23
 freezegun==1.5.5
 frozenlist==1.8.0
