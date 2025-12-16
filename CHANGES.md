@@ -91,7 +91,7 @@
 
 * ([#X](https://github.com/apache/beam/issues/X)).
 
-# [2.70.0] - Unreleased
+# [2.70.0] - 2025-12-16
 
 ## Highlights
 
