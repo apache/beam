@@ -84,7 +84,9 @@ public class FlinkPipelineRunner implements PortablePipelineRunner {
     SdkHarnessOptions.getConfiguredLoggerFromOptions(pipelineOptions.as(SdkHarnessOptions.class));
 
     FlinkPortablePipelineTranslator<?> translator;
-    if (!pipelineOptions.isStreaming() && !hasUnboundedPCollections(pipeline)) {
+    if (!pipelineOptions.getUseDataStreamForBatch()
+        && !pipelineOptions.isStreaming()
+        && !hasUnboundedPCollections(pipeline)) {
       // TODO: Do we need to inspect for unbounded sources before fusing?
       translator = FlinkBatchPortablePipelineTranslator.createTranslator();
     } else {
