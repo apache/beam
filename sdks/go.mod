@@ -26,7 +26,7 @@ toolchain go1.25.2
 
 require (
 	cloud.google.com/go/bigquery v1.72.0
-	cloud.google.com/go/bigtable v1.40.1
+	cloud.google.com/go/bigtable v1.41.0
 	cloud.google.com/go/datastore v1.21.0
 	cloud.google.com/go/profiler v0.4.3
 	cloud.google.com/go/pubsub v1.50.1
@@ -79,7 +79,7 @@ require (
 	cel.dev/expr v0.24.0 // indirect
 	cloud.google.com/go/auth v0.17.0 // indirect
 	cloud.google.com/go/auth/oauth2adapt v0.2.8 // indirect
-	cloud.google.com/go/monitoring v1.24.2 // indirect
+	cloud.google.com/go/monitoring v1.24.3 // indirect
 	cloud.google.com/go/pubsub/v2 v2.0.0 // indirect
 	dario.cat/mergo v1.0.2 // indirect
 	filippo.io/edwards25519 v1.1.0 // indirect
