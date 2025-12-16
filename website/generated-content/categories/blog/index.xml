@@ -1,4 +1,41 @@
-<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>Apache Beam – blog</title><link>/categories/blog/</link><description>Recent content in blog on Apache Beam</description><generator>Hugo -- gohugo.io</generator><language>en</language><lastBuildDate>Tue, 28 Oct 2025 15:00:00 -0500</lastBuildDate><atom:link href="/categories/blog/index.xml" rel="self" type="application/rss+xml"/><item><title>Blog: Apache Beam 2.69.0</title><link>/blog/beam-2.69.0/</link><pubDate>Tue, 28 Oct 2025 15:00:00 -0500</pubDate><guid>/blog/beam-2.69.0/</guid><description>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>Apache Beam – blog</title><link>/categories/blog/</link><description>Recent content in blog on Apache Beam</description><generator>Hugo -- gohugo.io</generator><language>en</language><lastBuildDate>Tue, 16 Dec 2025 15:00:00 -0500</lastBuildDate><atom:link href="/categories/blog/index.xml" rel="self" type="application/rss+xml"/><item><title>Blog: Apache Beam 2.70.0</title><link>/blog/beam-2.70.0/</link><pubDate>Tue, 16 Dec 2025 15:00:00 -0500</pubDate><guid>/blog/beam-2.70.0/</guid><description>
+&lt;!--
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+http://www.apache.org/licenses/LICENSE-2.0
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+&lt;p>We are happy to present the new 2.70.0 release of Beam.
+This release includes both improvements and new functionality.
+See the &lt;a href="/get-started/downloads/#2700-2025-12-16">download page&lt;/a> for this release.&lt;/p>
+&lt;p>For more information on changes in 2.70.0, check out the &lt;a href="https://github.com/apache/beam/milestone/38?closed=1">detailed release notes&lt;/a>.&lt;/p>
+&lt;h2 id="highlights">Highlights&lt;/h2>
+&lt;ul>
+&lt;li>Flink 1.20 support added (&lt;a href="https://github.com/apache/beam/issues/32647">#32647&lt;/a>).&lt;/li>
+&lt;/ul>
+&lt;h3 id="new-features--improvements">New Features / Improvements&lt;/h3>
+&lt;ul>
+&lt;li>Python examples added for Milvus search enrichment handler on &lt;a href="https://beam.apache.org/documentation/transforms/python/elementwise/enrichment-milvus/">Beam Website&lt;/a>
+including jupyter notebook example (Python) (&lt;a href="https://github.com/apache/beam/issues/36176">#36176&lt;/a>).&lt;/li>
+&lt;li>Milvus sink I/O connector added (Python) (&lt;a href="https://github.com/apache/beam/issues/36702">#36702&lt;/a>).
+Now Beam has full support for Milvus integration including Milvus enrichment and sink operations.&lt;/li>
+&lt;/ul>
+&lt;h3 id="breaking-changes">Breaking Changes&lt;/h3>
+&lt;ul>
+&lt;li>(Python) Some Python dependencies have been split out into extras. To ensure all previously installed dependencies are installed, when installing Beam you can &lt;code>pip install apache-beam[gcp,interactive,yaml,redis,hadoop,tfrecord]&lt;/code>, though most users will not need all of these extras (&lt;a href="https://github.com/apache/beam/issues/34554">#34554&lt;/a>).&lt;/li>
+&lt;/ul>
+&lt;h3 id="deprecations">Deprecations&lt;/h3>
+&lt;ul>
+&lt;li>(Python) Python 3.9 reached EOL in October 2025 and support for the language version has been removed. (&lt;a href="https://github.com/apache/beam/issues/36665">#36665&lt;/a>).&lt;/li>
+&lt;/ul>
+&lt;h2 id="list-of-contributors">List of Contributors&lt;/h2>
+&lt;p>According to git shortlog, the following people contributed to the 2.70.0 release. Thank you to all contributors!&lt;/p>
+&lt;p>Abdelrahman Ibrahim, Ahmed Abualsaud, Alex Chermenin, Andrew Crites, Arun Pandian, Celeste Zeng, Chamikara Jayalath, Chenzo, Claire McGinty, Danny McCormick, Derrick Williams, Dustin Rhodes, Enrique Calderon, Ian Liao, Jack McCluskey, Jessica Hsiao, Joey Tran, Karthik Talluri, Kenneth Knowles, Maciej Szwaja, Mehdi.D, Mohamed Awnallah, Praneet Nadella, Radek Stankiewicz, Radosław Stankiewicz, Reuven Lax, RuiLong J., S. Veyrié, Sam Whittle, Shunping Huang, Stephan Hoyer, Steven van Rossum, Tanu Sharma, Tarun Annapareddy, Tom Stepp, Valentyn Tymofieiev, Vitaly Terentyev, XQ Hu, Yi Hu, changliiu, claudevdm, fozzie15, kristynsmith, wolfchris-google&lt;/p></description></item><item><title>Blog: Apache Beam 2.69.0</title><link>/blog/beam-2.69.0/</link><pubDate>Tue, 28 Oct 2025 15:00:00 -0500</pubDate><guid>/blog/beam-2.69.0/</guid><description>
 &lt;!--
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -6210,50 +6247,4 @@ common Beam concepts, and with TensorRT. We will also add examples showing
 other pieces of the Machine Learning lifecycle like model evaluation with TFMA,
 per-entity training, and more online training.&lt;/p>
 &lt;p>We hope you find this useful! As always, if you see any areas for improvement, please &lt;a href="https://github.com/apache/beam/issues/new/choose">open an issue&lt;/a>
-or a &lt;a href="https://github.com/apache/beam/pulls">pull request&lt;/a>!&lt;/p></description></item><item><title>Blog: Beam starter projects</title><link>/blog/beam-starter-projects/</link><pubDate>Thu, 03 Nov 2022 09:00:00 -0700</pubDate><guid>/blog/beam-starter-projects/</guid><description>
-&lt;!--
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-http://www.apache.org/licenses/LICENSE-2.0
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
--->
-&lt;p>We&amp;rsquo;re happy to announce that we&amp;rsquo;re providing new Beam starter projects! 🎉&lt;/p>
-&lt;p>Setting up and configuring a new project can be time consuming, and varies in different languages. We hope this will make it easier for you to get started in creating new Apache Beam projects and pipelines.&lt;/p>
-&lt;p>All the starter projects come in their own GitHub repository, so you can simply clone a repo and you&amp;rsquo;re ready to go. Each project comes with a README with how to use it, a simple &amp;ldquo;Hello World&amp;rdquo; pipeline, and a test for the pipeline. The GitHub repositories come pre-configured with GitHub Actions to automatically run tests when pull requests are opened or modified, and Dependabot is enabled to make sure all the dependencies are up to date. This all comes out of the box, so you can start playing with your Beam pipeline without a hassle.&lt;/p>
-&lt;p>For example, here&amp;rsquo;s how to get started with Java:&lt;/p>
-&lt;pre tabindex="0">&lt;code>git clone https://github.com/apache/beam-starter-java
-cd beam-starter-java
-# Install Java and Gradle with sdkman.
-curl -s &amp;#34;https://get.sdkman.io&amp;#34; | bash
-sdk install java 11.0.12-tem
-sdk install gradle
-# To run the pipeline.
-gradle run
-# To run the tests.
-gradle test
-&lt;/code>&lt;/pre>&lt;p>And here&amp;rsquo;s how to get started with Python:&lt;/p>
-&lt;pre tabindex="0">&lt;code>git clone https://github.com/apache/beam-starter-python
-cd beam-starter-python
-# Set up a virtual environment with the dependencies.
-python -m venv env
-source env/bin/activate
-pip install -r requirements.txt
-# To run the pipeline.
-python main.py
-# To run the tests.
-python -m unittest
-&lt;/code>&lt;/pre>&lt;p>Here are the starter projects; you can choose your favorite language:&lt;/p>
-&lt;ul>
-&lt;li>&lt;strong>[Java]&lt;/strong> &lt;a href="https://github.com/apache/beam-starter-java">github.com/apache/beam-starter-java&lt;/a> – Includes both Gradle and Maven configurations.&lt;/li>
-&lt;li>&lt;strong>[Python]&lt;/strong> &lt;a href="https://github.com/apache/beam-starter-python">github.com/apache/beam-starter-python&lt;/a> – Includes a setup.py file to allow multiple files in your pipeline.&lt;/li>
-&lt;li>&lt;strong>[Go]&lt;/strong> &lt;a href="https://github.com/apache/beam-starter-go">github.com/apache/beam-starter-go&lt;/a> – Includes how to register different types of functions for ParDo.&lt;/li>
-&lt;li>&lt;strong>[Kotlin]&lt;/strong> &lt;a href="https://github.com/apache/beam-starter-kotlin">github.com/apache/beam-starter-kotlin&lt;/a> – Adapted to idiomatic Kotlin&lt;/li>
-&lt;li>&lt;strong>[Scala]&lt;/strong> &lt;a href="https://github.com/apache/beam-starter-scala">github.com/apache/beam-starter-scala&lt;/a> – Coming soon!&lt;/li>
-&lt;/ul>
-&lt;p>We have updated the &lt;a href="/get-started/quickstart/java/">Java quickstart&lt;/a> to use the new starter project, and we&amp;rsquo;re working on updating the Python and Go quickstarts as well.&lt;/p>
-&lt;p>We hope you find this useful. Feedback and contributions are always welcome! So feel free to create a GitHub issue, or open a Pull Request to any of the starter project repositories.&lt;/p></description></item></channel></rss>
+or a &lt;a href="https://github.com/apache/beam/pulls">pull request&lt;/a>!&lt;/p></description></item></channel></rss>

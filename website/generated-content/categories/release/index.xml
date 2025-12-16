@@ -1,4 +1,41 @@
-<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>Apache Beam – release</title><link>/categories/release/</link><description>Recent content in release on Apache Beam</description><generator>Hugo -- gohugo.io</generator><language>en</language><lastBuildDate>Tue, 28 Oct 2025 15:00:00 -0500</lastBuildDate><atom:link href="/categories/release/index.xml" rel="self" type="application/rss+xml"/><item><title>Blog: Apache Beam 2.69.0</title><link>/blog/beam-2.69.0/</link><pubDate>Tue, 28 Oct 2025 15:00:00 -0500</pubDate><guid>/blog/beam-2.69.0/</guid><description>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>Apache Beam – release</title><link>/categories/release/</link><description>Recent content in release on Apache Beam</description><generator>Hugo -- gohugo.io</generator><language>en</language><lastBuildDate>Tue, 16 Dec 2025 15:00:00 -0500</lastBuildDate><atom:link href="/categories/release/index.xml" rel="self" type="application/rss+xml"/><item><title>Blog: Apache Beam 2.70.0</title><link>/blog/beam-2.70.0/</link><pubDate>Tue, 16 Dec 2025 15:00:00 -0500</pubDate><guid>/blog/beam-2.70.0/</guid><description>
+&lt;!--
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+http://www.apache.org/licenses/LICENSE-2.0
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+&lt;p>We are happy to present the new 2.70.0 release of Beam.
+This release includes both improvements and new functionality.
+See the &lt;a href="/get-started/downloads/#2700-2025-12-16">download page&lt;/a> for this release.&lt;/p>
+&lt;p>For more information on changes in 2.70.0, check out the &lt;a href="https://github.com/apache/beam/milestone/38?closed=1">detailed release notes&lt;/a>.&lt;/p>
+&lt;h2 id="highlights">Highlights&lt;/h2>
+&lt;ul>
+&lt;li>Flink 1.20 support added (&lt;a href="https://github.com/apache/beam/issues/32647">#32647&lt;/a>).&lt;/li>
+&lt;/ul>
+&lt;h3 id="new-features--improvements">New Features / Improvements&lt;/h3>
+&lt;ul>
+&lt;li>Python examples added for Milvus search enrichment handler on &lt;a href="https://beam.apache.org/documentation/transforms/python/elementwise/enrichment-milvus/">Beam Website&lt;/a>
+including jupyter notebook example (Python) (&lt;a href="https://github.com/apache/beam/issues/36176">#36176&lt;/a>).&lt;/li>
+&lt;li>Milvus sink I/O connector added (Python) (&lt;a href="https://github.com/apache/beam/issues/36702">#36702&lt;/a>).
+Now Beam has full support for Milvus integration including Milvus enrichment and sink operations.&lt;/li>
+&lt;/ul>
+&lt;h3 id="breaking-changes">Breaking Changes&lt;/h3>
+&lt;ul>
+&lt;li>(Python) Some Python dependencies have been split out into extras. To ensure all previously installed dependencies are installed, when installing Beam you can &lt;code>pip install apache-beam[gcp,interactive,yaml,redis,hadoop,tfrecord]&lt;/code>, though most users will not need all of these extras (&lt;a href="https://github.com/apache/beam/issues/34554">#34554&lt;/a>).&lt;/li>
+&lt;/ul>
+&lt;h3 id="deprecations">Deprecations&lt;/h3>
+&lt;ul>
+&lt;li>(Python) Python 3.9 reached EOL in October 2025 and support for the language version has been removed. (&lt;a href="https://github.com/apache/beam/issues/36665">#36665&lt;/a>).&lt;/li>
+&lt;/ul>
+&lt;h2 id="list-of-contributors">List of Contributors&lt;/h2>
+&lt;p>According to git shortlog, the following people contributed to the 2.70.0 release. Thank you to all contributors!&lt;/p>
+&lt;p>Abdelrahman Ibrahim, Ahmed Abualsaud, Alex Chermenin, Andrew Crites, Arun Pandian, Celeste Zeng, Chamikara Jayalath, Chenzo, Claire McGinty, Danny McCormick, Derrick Williams, Dustin Rhodes, Enrique Calderon, Ian Liao, Jack McCluskey, Jessica Hsiao, Joey Tran, Karthik Talluri, Kenneth Knowles, Maciej Szwaja, Mehdi.D, Mohamed Awnallah, Praneet Nadella, Radek Stankiewicz, Radosław Stankiewicz, Reuven Lax, RuiLong J., S. Veyrié, Sam Whittle, Shunping Huang, Stephan Hoyer, Steven van Rossum, Tanu Sharma, Tarun Annapareddy, Tom Stepp, Valentyn Tymofieiev, Vitaly Terentyev, XQ Hu, Yi Hu, changliiu, claudevdm, fozzie15, kristynsmith, wolfchris-google&lt;/p></description></item><item><title>Blog: Apache Beam 2.69.0</title><link>/blog/beam-2.69.0/</link><pubDate>Tue, 28 Oct 2025 15:00:00 -0500</pubDate><guid>/blog/beam-2.69.0/</guid><description>
 &lt;!--
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -5071,100 +5108,4 @@ See the &lt;a href="/get-started/downloads/#2220-2020-06-08">download page&lt;/a
 &lt;/ul>
 &lt;h2 id="list-of-contributors">List of Contributors&lt;/h2>
 &lt;p>According to git shortlog, the following people contributed to the 2.22.0 release. Thank you to all contributors!&lt;/p>
-&lt;p>Ahmet Altay, aiyangar, Ajo Thomas, Akshay-Iyangar, Alan Pryor, Alexey Romanenko, Allen Pradeep Xavier, amaliujia, Andrew Pilloud, Ankur Goenka, Ashwin Ramaswami, bntnam, Borzoo Esmailloo, Boyuan Zhang, Brian Hulette, Chamikara Jayalath, Colm O hEigeartaigh, Craig Chambers, Damon Douglas, Daniel Oliveira, David Cavazos, David Moravek, Esun Kim, Etienne Chauchot, Filipe Regadas, Graeme Morgan, Hannah Jiang, Hannah-Jiang, Harch Vardhan, Heejong Lee, Henry Suryawirawan, Ismaël Mejía, Israel Herraiz, Jacob Ferriero, Jan Lukavský, John Mora, Kamil Wasilewski, Kenneth Jung, Kenneth Knowles, kevingg, Kyle Weaver, Kyoungha Min, Kyungwon Jo, Luke Cwik, Mark Liu, Matthias Baetens, Maximilian Michels, Michal Walenia, Mikhail Gryzykhin, Nam Bui, Niel Markwick, Ning Kang, Omar Ismail, omarismail94, Pablo Estrada, paul fisher, pawelpasterz, Pawel Pasterz, Piotr Szuberski, Rahul Patwari, rarokni, Rehman, Rehman Murad Ali, Reuven Lax, Robert Bradshaw, Robert Burke, Rui Wang, Ruoyun Huang, Sam Rohde, Sam Whittle, Sebastian Graca, Shoaib Zafar, Sruthi Sree Kumar, Stephen O&amp;rsquo;Kennedy, Steve Koonce, Steve Niemitz, Steven van Rossum, Tesio, Thomas Weise, tobiaslieber-cognitedata, Tomo Suzuki, Tudor Marian, tvalentyn, Tyson Hamilton, Udi Meiri, Valentyn Tymofieiev, Vasu Nori, xuelianhan, Yichi Zhang, Yifan Zou, yoshiki.obata, Yueyang Qiu, Zhuo Peng&lt;/p></description></item><item><title>Blog: Apache Beam 2.21.0</title><link>/blog/beam-2.21.0/</link><pubDate>Wed, 27 May 2020 00:00:01 -0800</pubDate><guid>/blog/beam-2.21.0/</guid><description>
-&lt;!--
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-http://www.apache.org/licenses/LICENSE-2.0
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
--->
-&lt;p>We are happy to present the new 2.21.0 release of Beam. This release includes both improvements and new functionality.
-See the &lt;a href="/get-started/downloads/#2210-2020-05-27">download page&lt;/a> for this release.&lt;/p>
-&lt;p>For more information on changes in 2.21.0, check out the
-&lt;a href="https://issues.apache.org/jira/secure/ReleaseNote.jspa?projectId=12319527&amp;amp;version=12347143">detailed release notes&lt;/a>.&lt;/p>
-&lt;h2 id="ios">I/Os&lt;/h2>
-&lt;ul>
-&lt;li>Python: Deprecated module &lt;code>apache_beam.io.gcp.datastore.v1&lt;/code> has been removed
-as the client it uses is out of date and does not support Python 3
-(&lt;a href="https://issues.apache.org/jira/browse/BEAM-9529">BEAM-9529&lt;/a>).
-Please migrate your code to use
-&lt;a href="https://beam.apache.org/releases/pydoc/current/apache_beam.io.gcp.datastore.v1new.datastoreio.html">apache_beam.io.gcp.datastore.&lt;strong>v1new&lt;/strong>&lt;/a>.
-See the updated
-&lt;a href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/cookbook/datastore_wordcount.py">datastore_wordcount&lt;/a>
-for example usage.&lt;/li>
-&lt;li>Python SDK: Added integration tests and updated batch write functionality for Google Cloud Spanner transform (&lt;a href="https://issues.apache.org/jira/browse/BEAM-8949">BEAM-8949&lt;/a>).&lt;/li>
-&lt;/ul>
-&lt;h2 id="new-features--improvements">New Features / Improvements&lt;/h2>
-&lt;ul>
-&lt;li>
-&lt;p>Python SDK will now use Python 3 type annotations as pipeline type hints.
-(&lt;a href="https://github.com/apache/beam/pull/10717">#10717&lt;/a>)&lt;/p>
-&lt;p>If you suspect that this feature is causing your pipeline to fail, calling
-&lt;code>apache_beam.typehints.disable_type_annotations()&lt;/code> before pipeline creation
-will disable is completely, and decorating specific functions (such as
-&lt;code>process()&lt;/code>) with &lt;code>@apache_beam.typehints.no_annotations&lt;/code> will disable it
-for that function.&lt;/p>
-&lt;p>More details can be found in
-&lt;a href="/documentation/sdks/python-type-safety/">Ensuring Python Type Safety&lt;/a>
-and the Python SDK Typing Changes
-&lt;a href="/blog/python-typing/">blog post&lt;/a>.&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>Java SDK: Introducing the concept of options in Beam Schema’s. These options add extra
-context to fields and schemas. This replaces the current Beam metadata that is present
-in a FieldType only, options are available in fields and row schemas. Schema options are
-fully typed and can contain complex rows. &lt;em>Remark: Schema aware is still experimental.&lt;/em>
-(&lt;a href="https://issues.apache.org/jira/browse/BEAM-9035">BEAM-9035&lt;/a>)&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>Java SDK: The protobuf extension is fully schema aware and also includes protobuf option
-conversion to beam schema options. &lt;em>Remark: Schema aware is still experimental.&lt;/em>
-(&lt;a href="https://issues.apache.org/jira/browse/BEAM-9044">BEAM-9044&lt;/a>)&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>Added ability to write to BigQuery via Avro file loads (Python) (&lt;a href="https://issues.apache.org/jira/browse/BEAM-8841">BEAM-8841&lt;/a>)&lt;/p>
-&lt;p>By default, file loads will be done using JSON, but it is possible to
-specify the temp_file_format parameter to perform file exports with AVRO.
-AVRO-based file loads work by exporting Python types into Avro types, so
-to switch to Avro-based loads, you will need to change your data types
-from Json-compatible types (string-type dates and timestamp, long numeric
-values as strings) into Python native types that are written to Avro
-(Python&amp;rsquo;s date, datetime types, decimal, etc). For more information
-see &lt;a href="https://cloud.google.com/bigquery/docs/loading-data-cloud-storage-avro#avro_conversions">https://cloud.google.com/bigquery/docs/loading-data-cloud-storage-avro#avro_conversions&lt;/a>.&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>Added integration of Java SDK with Google Cloud AI VideoIntelligence service
-(&lt;a href="https://issues.apache.org/jira/browse/BEAM-9147">BEAM-9147&lt;/a>)&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>Added integration of Java SDK with Google Cloud AI natural language processing API
-(&lt;a href="https://issues.apache.org/jira/browse/BEAM-9634">BEAM-9634&lt;/a>)&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>&lt;code>docker-pull-licenses&lt;/code> tag was introduced. Licenses/notices of third party dependencies will be added to the docker images when &lt;code>docker-pull-licenses&lt;/code> was set.
-The files are added to &lt;code>/opt/apache/beam/third_party_licenses/&lt;/code>.
-By default, no licenses/notices are added to the docker images. (&lt;a href="https://issues.apache.org/jira/browse/BEAM-9136">BEAM-9136&lt;/a>)&lt;/p>
-&lt;/li>
-&lt;/ul>
-&lt;h2 id="breaking-changes">Breaking Changes&lt;/h2>
-&lt;ul>
-&lt;li>Dataflow runner now requires the &lt;code>--region&lt;/code> option to be set, unless a default value is set in the environment (&lt;a href="https://issues.apache.org/jira/browse/BEAM-9199">BEAM-9199&lt;/a>). See &lt;a href="https://cloud.google.com/dataflow/docs/concepts/regional-endpoints">here&lt;/a> for more details.&lt;/li>
-&lt;li>HBaseIO.ReadAll now requires a PCollection of HBaseIO.Read objects instead of HBaseQuery objects (&lt;a href="https://issues.apache.org/jira/browse/BEAM-9279">BEAM-9279&lt;/a>).&lt;/li>
-&lt;li>ProcessContext.updateWatermark has been removed in favor of using a WatermarkEstimator (&lt;a href="https://issues.apache.org/jira/browse/BEAM-9430">BEAM-9430&lt;/a>).&lt;/li>
-&lt;li>Coder inference for PCollection of Row objects has been disabled (&lt;a href="https://issues.apache.org/jira/browse/BEAM-9569">BEAM-9569&lt;/a>).&lt;/li>
-&lt;li>Go SDK docker images are no longer released until further notice.&lt;/li>
-&lt;/ul>
-&lt;h2 id="deprecations">Deprecations&lt;/h2>
-&lt;ul>
-&lt;li>Java SDK: Beam Schema FieldType.getMetadata is now deprecated and is replaced by the Beam
-Schema Options, it will be removed in version &lt;code>2.23.0&lt;/code>. (&lt;a href="https://issues.apache.org/jira/browse/BEAM-9704">BEAM-9704&lt;/a>)&lt;/li>
-&lt;li>The &lt;code>--zone&lt;/code> option in the Dataflow runner is now deprecated. Please use &lt;code>--worker_zone&lt;/code> instead. (&lt;a href="https://issues.apache.org/jira/browse/BEAM-9716">BEAM-9716&lt;/a>)&lt;/li>
-&lt;/ul>
-&lt;h2 id="list-of-contributors">List of Contributors&lt;/h2>
-&lt;p>According to git shortlog, the following people contributed to the 2.21.0 release. Thank you to all contributors!&lt;/p>
-&lt;p>Aaron Meihm, Adrian Eka, Ahmet Altay, AldairCoronel, Alex Van Boxel, Alexey Romanenko, Andrew Crites, Andrew Pilloud, Ankur Goenka, Badrul (Taki) Chowdhury, Bartok Jozsef, Boyuan Zhang, Brian Hulette, brucearctor, bumblebee-coming, Chad Dombrova, Chamikara Jayalath, Chie Hayashida, Chris Gorgolewski, Chuck Yang, Colm O hEigeartaigh, Curtis &amp;ldquo;Fjord&amp;rdquo; Hawthorne, Daniel Mills, Daniel Oliveira, David Yan, Elias Djurfeldt, Emiliano Capoccia, Etienne Chauchot, Fernando Diaz, Filipe Regadas, Gleb Kanterov, Hai Lu, Hannah Jiang, Harch Vardhan, Heejong Lee, Henry Suryawirawan, Hk-tang, Ismaël Mejía, Jacoby, Jan Lukavský, Jeroen Van Goey, jfarr, Jozef Vilcek, Kai Jiang, Kamil Wasilewski, Kenneth Knowles, KevinGG, Kyle Weaver, Kyoungha Min, Luke Cwik, Maximilian Michels, Michal Walenia, Ning Kang, Pablo Estrada, paul fisher, Piotr Szuberski, Reuven Lax, Robert Bradshaw, Robert Burke, Rose Nguyen, Rui Wang, Sam Rohde, Sam Whittle, Spoorti Kundargi, Steve Koonce, sunjincheng121, Ted Yun, Tesio, Thomas Weise, Tomo Suzuki, Udi Meiri, Valentyn Tymofieiev, Vasu Nori, Yichi Zhang, yoshiki.obata, Yueyang Qiu&lt;/p></description></item></channel></rss>
+&lt;p>Ahmet Altay, aiyangar, Ajo Thomas, Akshay-Iyangar, Alan Pryor, Alexey Romanenko, Allen Pradeep Xavier, amaliujia, Andrew Pilloud, Ankur Goenka, Ashwin Ramaswami, bntnam, Borzoo Esmailloo, Boyuan Zhang, Brian Hulette, Chamikara Jayalath, Colm O hEigeartaigh, Craig Chambers, Damon Douglas, Daniel Oliveira, David Cavazos, David Moravek, Esun Kim, Etienne Chauchot, Filipe Regadas, Graeme Morgan, Hannah Jiang, Hannah-Jiang, Harch Vardhan, Heejong Lee, Henry Suryawirawan, Ismaël Mejía, Israel Herraiz, Jacob Ferriero, Jan Lukavský, John Mora, Kamil Wasilewski, Kenneth Jung, Kenneth Knowles, kevingg, Kyle Weaver, Kyoungha Min, Kyungwon Jo, Luke Cwik, Mark Liu, Matthias Baetens, Maximilian Michels, Michal Walenia, Mikhail Gryzykhin, Nam Bui, Niel Markwick, Ning Kang, Omar Ismail, omarismail94, Pablo Estrada, paul fisher, pawelpasterz, Pawel Pasterz, Piotr Szuberski, Rahul Patwari, rarokni, Rehman, Rehman Murad Ali, Reuven Lax, Robert Bradshaw, Robert Burke, Rui Wang, Ruoyun Huang, Sam Rohde, Sam Whittle, Sebastian Graca, Shoaib Zafar, Sruthi Sree Kumar, Stephen O&amp;rsquo;Kennedy, Steve Koonce, Steve Niemitz, Steven van Rossum, Tesio, Thomas Weise, tobiaslieber-cognitedata, Tomo Suzuki, Tudor Marian, tvalentyn, Tyson Hamilton, Udi Meiri, Valentyn Tymofieiev, Vasu Nori, xuelianhan, Yichi Zhang, Yifan Zou, yoshiki.obata, Yueyang Qiu, Zhuo Peng&lt;/p></description></item></channel></rss>
