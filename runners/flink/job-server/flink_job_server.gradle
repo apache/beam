@@ -29,6 +29,11 @@ apply plugin: 'application'
 // we need to set mainClassName before applying shadow plugin
 mainClassName = "org.apache.beam.runners.flink.FlinkJobServerDriver"
 
+// Resolve the Flink project name (and version) the job-server is based on
+def flinkRunnerProject = "${project.path.replace(":job-server", "")}"
+evaluationDependsOn(flinkRunnerProject)
+boolean isFlink2 = project(flinkRunnerProject).ext.flink_major.startsWith('2')
+
 applyJavaNature(
   automaticModuleName: 'org.apache.beam.runners.flink.jobserver',
   archivesBaseName: project.hasProperty('archives_base_name') ? archives_base_name : archivesBaseName,
@@ -37,10 +42,8 @@ applyJavaNature(
   shadowClosure: {
     append "reference.conf"
   },
+  requireJavaVersion: isFlink2 ? JavaVersion.VERSION_11 : null
 )
-
-// Resolve the Flink project name (and version) the job-server is based on
-def flinkRunnerProject = "${project.path.replace(":job-server", "")}"
 
 description = project(flinkRunnerProject).description + " :: Job Server"
 
@@ -126,17 +129,21 @@ runShadow {
     jvmArgs += ["-Dorg.slf4j.simpleLogger.defaultLogLevel=${project.property('logLevel')}"]
 }
 
-def portableValidatesRunnerTask(String name, boolean streaming, boolean checkpointing, boolean docker) {
+def portableValidatesRunnerTask(String name, String mode, boolean checkpointing, boolean docker) {
   def pipelineOptions = [
       // Limit resource consumption via parallelism
       "--parallelism=2",
   ]
+  boolean streaming = (mode == "streaming")
   if (streaming) {
     pipelineOptions += "--streaming"
     if (checkpointing) {
       pipelineOptions += "--checkpointingInterval=3000"
       pipelineOptions += "--shutdownSourcesAfterIdleMs=60000"
     }
+  }
+  if (mode == "batch") {
+    pipelineOptions += "--useDataStreamForBatch=true"
   }
   createPortableValidatesRunnerTask(
     name: "validatesPortableRunner${name}",
@@ -186,7 +193,9 @@ def portableValidatesRunnerTask(String name, boolean streaming, boolean checkpoi
           excludeCategories 'org.apache.beam.sdk.testing.UsesTriggeredSideInputs'
           return
         }
-
+        if (mode == "batch") {
+            excludeCategories 'org.apache.beam.sdk.testing.UsesTriggeredSideInputs'
+        }
         excludeCategories 'org.apache.beam.sdk.testing.UsesUnboundedSplittableParDo'
         excludeCategories 'org.apache.beam.sdk.testing.UsesUnboundedPCollections'
         excludeCategories 'org.apache.beam.sdk.testing.UsesTestStream'
@@ -214,13 +223,17 @@ def portableValidatesRunnerTask(String name, boolean streaming, boolean checkpoi
   )
 }
 
-project.ext.validatesPortableRunnerDocker = portableValidatesRunnerTask("Docker", false, false, true)
-project.ext.validatesPortableRunnerBatch = portableValidatesRunnerTask("Batch", false, false, false)
-project.ext.validatesPortableRunnerStreaming = portableValidatesRunnerTask("Streaming", true, false, false)
-project.ext.validatesPortableRunnerStreamingCheckpoint = portableValidatesRunnerTask("StreamingCheckpointing", true, true, false)
+project.ext.validatesPortableRunnerDocker = portableValidatesRunnerTask("Docker", "batch", false, true)
+project.ext.validatesPortableRunnerBatchDataSet = portableValidatesRunnerTask("BatchDataSet", "batch-dataset", false, false)
+project.ext.validatesPortableRunnerBatch = portableValidatesRunnerTask("Batch", "batch", false, false)
+project.ext.validatesPortableRunnerStreaming = portableValidatesRunnerTask("Streaming", "streaming", false, false)
+project.ext.validatesPortableRunnerStreamingCheckpoint = portableValidatesRunnerTask("StreamingCheckpointing", "streaming", true, false)
 
 tasks.register("validatesPortableRunner") {
   dependsOn validatesPortableRunnerDocker
+  if (!isFlink2) {
+    dependsOn validatesPortableRunnerBatchDataSet
+  }
   dependsOn validatesPortableRunnerBatch
   dependsOn validatesPortableRunnerStreaming
   dependsOn validatesPortableRunnerStreamingCheckpoint
