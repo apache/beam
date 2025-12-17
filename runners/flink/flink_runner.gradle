@@ -88,10 +88,16 @@ def copyResourcesOverrides = tasks.register('copyResourcesOverrides', Copy) {
   it.duplicatesStrategy DuplicatesStrategy.INCLUDE
 }
 
-def copyTestSourceOverrides = tasks.register('copyTestSourceOverrides', Copy) {
-  it.from test_source_overrides
-  it.into "${sourceOverridesBase}/test/java"
-  it.duplicatesStrategy DuplicatesStrategy.INCLUDE
+def copyTestSourceOverrides = tasks.register('copyTestSourceOverrides', Copy) { copyTask ->
+  copyTask.from test_source_overrides
+  copyTask.into "${sourceOverridesBase}/test/java"
+  copyTask.duplicatesStrategy DuplicatesStrategy.INCLUDE
+
+  if (project.ext.has('excluded_files') && project.ext.excluded_files.containsKey('test')) {
+    project.ext.excluded_files.test.each { file ->
+      copyTask.exclude "**/${file}"
+    }
+  }
 }
 
 def copyTestResourcesOverrides = tasks.register('copyTestResourcesOverrides', Copy) {
@@ -100,45 +106,69 @@ def copyTestResourcesOverrides = tasks.register('copyTestResourcesOverrides', Co
   it.duplicatesStrategy DuplicatesStrategy.INCLUDE
 }
 
-// add dependency to gradle Java plugin defined tasks
-compileJava.dependsOn copySourceOverrides
-processResources.dependsOn copyResourcesOverrides
-compileTestJava.dependsOn copyTestSourceOverrides
-processTestResources.dependsOn copyTestResourcesOverrides
+def use_override = (flink_major != all_versions.first())
+def sourceBase = "${project.projectDir}/../src"
 
-// add dependency BeamModulePlugin defined custom tasks
-// they are defined only when certain flags are provided (e.g. -Prelease; -Ppublishing, etc)
-def sourcesJar = project.tasks.findByName('sourcesJar')
-if (sourcesJar != null) {
-  sourcesJar.dependsOn copySourceOverrides
-  sourcesJar.dependsOn copyResourcesOverrides
-}
-def testSourcesJar = project.tasks.findByName('testSourcesJar')
-if (testSourcesJar != null) {
-  testSourcesJar.dependsOn copyTestSourceOverrides
-  testSourcesJar.dependsOn copyTestResourcesOverrides
-}
+if (use_override) {
+  // Copy original+version specific sources to a tmp dir and use it as sourceSet
+  // add dependency to gradle Java plugin defined tasks
+  compileJava.dependsOn copySourceOverrides
+  processResources.dependsOn copyResourcesOverrides
+  compileTestJava.dependsOn copyTestSourceOverrides
+  processTestResources.dependsOn copyTestResourcesOverrides
 
-/*
+  // add dependency BeamModulePlugin defined custom tasks
+  // they are defined only when certain flags are provided (e.g. -Prelease; -Ppublishing, etc)
+  def sourcesJar = project.tasks.findByName('sourcesJar')
+  if (sourcesJar != null) {
+    sourcesJar.dependsOn copySourceOverrides
+    sourcesJar.dependsOn copyResourcesOverrides
+  }
+  def testSourcesJar = project.tasks.findByName('testSourcesJar')
+  if (testSourcesJar != null) {
+    testSourcesJar.dependsOn copyTestSourceOverrides
+    testSourcesJar.dependsOn copyTestResourcesOverrides
+  }
+  /*
  * We have to explicitly set all directories here to make sure each
  * version of Flink has the correct overrides set.
  */
-def sourceBase = "${project.projectDir}/../src"
-sourceSets {
-  main {
-    java {
-      srcDirs = ["${sourceOverridesBase}/main/java"]
+  sourceSets {
+    main {
+      java {
+        srcDirs = ["${sourceOverridesBase}/main/java"]
+      }
+      resources {
+        srcDirs = ["${sourceBase}/main/resources", "${sourceOverridesBase}/main/resources"]
+      }
     }
-    resources {
-      srcDirs = ["${sourceBase}/main/resources", "${sourceOverridesBase}/main/resources"]
+    test {
+      java {
+        srcDirs = ["${sourceOverridesBase}/test/java"]
+      }
+      resources {
+        srcDirs = ["${sourceBase}/test/resources", "${sourceOverridesBase}/test/resources"]
+      }
     }
   }
-  test {
-    java {
-      srcDirs = ["${sourceOverridesBase}/test/java"]
+} else {
+  // Use the original sources directly for the lowest supported Flink version.
+  sourceSets {
+    main {
+      java {
+        srcDirs = ["${sourceBase}/main/java"]
+      }
+      resources {
+        srcDirs = ["${sourceBase}/main/resources"]
+      }
     }
-    resources {
-      srcDirs = ["${sourceBase}/test/resources", "${sourceOverridesBase}/test/resources"]
+    test {
+      java {
+        srcDirs = ["${sourceBase}/test/java"]
+      }
+      resources {
+        srcDirs = ["${sourceBase}/test/resources"]
+      }
     }
   }
 }
