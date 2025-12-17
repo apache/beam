@@ -213,16 +213,17 @@ abstract class BigQueryStorageSourceBase<T> extends BoundedSource<T> {
     }
 
     if (dataFormat == DataFormat.ARROW) {
-      setArrowTimestampPrecision(tableReadOptionsBuilder);
+      setArrowTimestampPrecision(tableReadOptionsBuilder, picosTimestampPrecision);
     } else if (dataFormat == DataFormat.AVRO) {
-      setAvroTimestampPrecision(tableReadOptionsBuilder);
+      setAvroTimestampPrecision(tableReadOptionsBuilder, picosTimestampPrecision);
     }
   }
 
-  private void setArrowTimestampPrecision(
-      ReadSession.TableReadOptions.Builder tableReadOptionsBuilder) {
+  private static void setArrowTimestampPrecision(
+      ReadSession.TableReadOptions.Builder tableReadOptionsBuilder,
+      TimestampPrecision timestampPrecision) {
     ArrowSerializationOptions.PicosTimestampPrecision precision;
-    switch (checkNotNull(picosTimestampPrecision)) {
+    switch (timestampPrecision) {
       case MICROS:
         precision = ArrowSerializationOptions.PicosTimestampPrecision.TIMESTAMP_PRECISION_MICROS;
         break;
@@ -233,16 +234,18 @@ abstract class BigQueryStorageSourceBase<T> extends BoundedSource<T> {
         precision = ArrowSerializationOptions.PicosTimestampPrecision.TIMESTAMP_PRECISION_PICOS;
         break;
       default:
-        return;
+        throw new IllegalArgumentException(
+            "Unsupported timestamp precision for Storage Read API: " + timestampPrecision);
     }
     tableReadOptionsBuilder.setArrowSerializationOptions(
         ArrowSerializationOptions.newBuilder().setPicosTimestampPrecision(precision));
   }
 
-  private void setAvroTimestampPrecision(
-      ReadSession.TableReadOptions.Builder tableReadOptionsBuilder) {
+  private static void setAvroTimestampPrecision(
+      ReadSession.TableReadOptions.Builder tableReadOptionsBuilder,
+      TimestampPrecision timestampPrecision) {
     AvroSerializationOptions.PicosTimestampPrecision precision;
-    switch (checkNotNull(picosTimestampPrecision)) {
+    switch (timestampPrecision) {
       case MICROS:
         precision = AvroSerializationOptions.PicosTimestampPrecision.TIMESTAMP_PRECISION_MICROS;
         break;
@@ -253,7 +256,8 @@ abstract class BigQueryStorageSourceBase<T> extends BoundedSource<T> {
         precision = AvroSerializationOptions.PicosTimestampPrecision.TIMESTAMP_PRECISION_PICOS;
         break;
       default:
-        return;
+        throw new IllegalArgumentException(
+            "Unsupported timestamp precision for Storage Read API: " + timestampPrecision);
     }
     tableReadOptionsBuilder.setAvroSerializationOptions(
         AvroSerializationOptions.newBuilder().setPicosTimestampPrecision(precision));

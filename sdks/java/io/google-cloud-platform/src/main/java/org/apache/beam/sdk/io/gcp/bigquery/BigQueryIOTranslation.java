@@ -198,7 +198,8 @@ public class BigQueryIOTranslation {
       }
       if (transform.getDirectReadPicosTimestampPrecision() != null) {
         fieldValues.put(
-            "timestamp_precision", toByteArray(transform.getDirectReadPicosTimestampPrecision()));
+            "direct_read_picos_timestamp_precision",
+            toByteArray(transform.getDirectReadPicosTimestampPrecision()));
       }
       fieldValues.put("projection_pushdown_applied", transform.getProjectionPushdownApplied());
       fieldValues.put("bad_record_router", toByteArray(transform.getBadRecordRouter()));

@@ -325,4 +325,24 @@ public class BigQueryIOTranslationTest {
                       .contains(fieldName));
             });
   }
+
+  @Test
+  public void testReCreateReadTransformFromRowWithDirectReadPicosTimestampPrecision() {
+    BigQueryIO.TypedRead<TableRow> readTransform =
+        BigQueryIO.readTableRows()
+            .from("dummyproject:dummydataset.dummytable")
+            .withMethod(TypedRead.Method.DIRECT_READ)
+            .withDirectReadPicosTimestampPrecision(TimestampPrecision.PICOS);
+
+    BigQueryIOTranslation.BigQueryIOReadTranslator translator =
+        new BigQueryIOTranslation.BigQueryIOReadTranslator();
+    Row row = translator.toConfigRow(readTransform);
+
+    BigQueryIO.TypedRead<TableRow> readTransformFromRow =
+        (BigQueryIO.TypedRead<TableRow>)
+            translator.fromConfigRow(row, PipelineOptionsFactory.create());
+
+    assertEquals(
+        TimestampPrecision.PICOS, readTransformFromRow.getDirectReadPicosTimestampPrecision());
+  }
 }
