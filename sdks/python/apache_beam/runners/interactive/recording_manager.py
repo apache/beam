@@ -715,6 +715,7 @@ class RecordingManager:
         # Allow initial module loading to be complete and not have a circular
         # import.
         from apache_beam.runners.interactive.display.pipeline_graph import PipelineGraph
+
         # Try to create the graph.
         self._pipeline_graph = PipelineGraph(self.user_pipeline)
       except (ImportError, NameError, AttributeError):
