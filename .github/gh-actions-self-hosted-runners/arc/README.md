@@ -96,7 +96,26 @@ terraform init -backend-config="bucket=bucket_name"
 terraform apply -var-file=environments/environment_name.env
 ```
 
+# Updating
+If you need to update the configuration (e.g. upgrading the github runner image, changing resource settings, etc), follow the steps below:
+
+1. From this directory, login to your gcloud account that you created the bucket with and init terraform. Replace bucket_name with the bucket for storing terraform state, e.g. `beam-arc-state`.
+```
+gcloud auth login
+gcloud auth application-default login
+terraform init -backend-config="bucket=bucket_name"
+```
+
+2. Terraform plan. Replace environment_name.env with the file under environments, e.g. `beam.env`. Fix config problems if any.
+```
+terraform plan -var-file=environments/environment_name.env
+```
+
+3. Terraform apply. Replace environment_name.env with the file under environments, e.g. `beam.env`.
+```
+terraform apply -var-file=environments/environment_name.env
+```
+
 # Maintanance
 
 - To access the ARC k8s cluster call the `get_kubeconfig_command` terraform output and run the command
-
