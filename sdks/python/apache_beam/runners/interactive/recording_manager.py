@@ -41,6 +41,7 @@ from apache_beam.runners.interactive import interactive_runner as ir
 from apache_beam.runners.interactive import pipeline_fragment as pf
 from apache_beam.runners.interactive import utils
 from apache_beam.runners.interactive.caching.cacheable import CacheKey
+from apache_beam.runners.interactive.display.pipeline_graph import PipelineGraph
 from apache_beam.runners.interactive.options import capture_control
 from apache_beam.runners.runner import PipelineState
 
@@ -712,10 +713,6 @@ class RecordingManager:
     """Lazily initializes and returns the PipelineGraph."""
     if self._pipeline_graph is None:
       try:
-        # Allow initial module loading to be complete and not have a circular
-        # import.
-        from apache_beam.runners.interactive.display.pipeline_graph import PipelineGraph
-
         # Try to create the graph.
         self._pipeline_graph = PipelineGraph(self.user_pipeline)
       except (ImportError, NameError, AttributeError):
