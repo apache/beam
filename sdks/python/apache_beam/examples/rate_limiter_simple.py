@@ -29,7 +29,6 @@ from apache_beam.options.pipeline_options import PipelineOptions
 
 class SampleApiDoFn(beam.DoFn):
   """A DoFn that simulates calling an external API with rate limiting."""
-
   def __init__(self, rls_address, domain, descriptors):
     self.rls_address = rls_address
     self.domain = domain
@@ -42,13 +41,13 @@ class SampleApiDoFn(beam.DoFn):
     # We use shared.Shared() to ensure only one RateLimiter instance is created
     # per worker and shared across threads.
     def init_limiter():
-        logging.info(f"Connecting to Envoy RLS at {self.rls_address}")
-        return EnvoyRateLimiter(
-            service_address=self.rls_address,
-            domain=self.domain,
-            descriptors=self.descriptors,
-            namespace='example_pipeline'
-        )
+      logging.info(f"Connecting to Envoy RLS at {self.rls_address}")
+      return EnvoyRateLimiter(
+          service_address=self.rls_address,
+          domain=self.domain,
+          descriptors=self.descriptors,
+          namespace='example_pipeline')
+
     self.rate_limiter = self._shared.acquire(init_limiter)
 
   def process(self, element):
@@ -56,8 +55,9 @@ class SampleApiDoFn(beam.DoFn):
 
     # Process the element mock API call
     logging.info(f"Processing element: {element}")
-    time.sleep(0.1) 
+    time.sleep(0.1)
     yield element
+
 
 def parse_known_args(argv):
   """Parses args for the workflow."""
@@ -77,11 +77,13 @@ def run(argv=None):
     (
         p
         | 'Create' >> beam.Create(range(100))
-        | 'RateLimit' >> beam.ParDo(SampleApiDoFn(
-            rls_address=known_args.rls_address, 
-            domain="mongo_cps", 
-            descriptors=[{"database": "users"}]))
-    )
+        | 'RateLimit' >> beam.ParDo(
+            SampleApiDoFn(
+                rls_address=known_args.rls_address,
+                domain="mongo_cps",
+                descriptors=[{
+                    "database": "users"
+                }])))
 
 
 if __name__ == '__main__':

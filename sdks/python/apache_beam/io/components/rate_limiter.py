@@ -20,19 +20,19 @@ Rate Limiter classes for controlling access to external resources.
 """
 
 import abc
+import logging
+import threading
+import time
+from typing import Dict
+from typing import List
+
+import grpc
+from envoy_data_plane.envoy.extensions.common.ratelimit.v3 import RateLimitDescriptor
+from envoy_data_plane.envoy.extensions.common.ratelimit.v3 import RateLimitDescriptorEntry
 from envoy_data_plane.envoy.service.ratelimit.v3 import RateLimitRequest
 from envoy_data_plane.envoy.service.ratelimit.v3 import RateLimitResponse
 from envoy_data_plane.envoy.service.ratelimit.v3 import RateLimitResponseCode
-from envoy_data_plane.envoy.extensions.common.ratelimit.v3 import RateLimitDescriptor
-from envoy_data_plane.envoy.extensions.common.ratelimit.v3 import RateLimitDescriptorEntry
-import logging
-import time
-import threading
-import random
-from typing import Dict
-from typing import List
-import grpc
-import time
+
 from apache_beam.io.components import adaptive_throttler
 from apache_beam.metrics import Metrics
 
@@ -41,6 +41,7 @@ _LOGGER = logging.getLogger(__name__)
 _MAX_CONNECTION_RETRIES = 5
 _RETRY_DELAY_SECONDS = 10
 
+
 class RateLimiter(abc.ABC):
   """Abstract base class for RateLimiters."""
   def __init__(self, namespace: str = ""):
@@ -48,12 +49,16 @@ class RateLimiter(abc.ABC):
     # Metric updates are thread safe
     self.throttling_signaler = adaptive_throttler.ThrottlingSignaler(
         namespace=namespace)
-    self.requests_counter = Metrics.counter(namespace, 'envoyRatelimitRequestsTotal')
-    self.requests_allowed = Metrics.counter(namespace, 'envoyRatelimitRequestsAllowed')
-    self.requests_throttled = Metrics.counter(namespace, 'envoyRatelimitRequestsThrottled')
+    self.requests_counter = Metrics.counter(
+        namespace, 'envoyRatelimitRequestsTotal')
+    self.requests_allowed = Metrics.counter(
+        namespace, 'envoyRatelimitRequestsAllowed')
+    self.requests_throttled = Metrics.counter(
+        namespace, 'envoyRatelimitRequestsThrottled')
     self.rpc_errors = Metrics.counter(namespace, 'envoyRatelimitRpcErrors')
     self.rpc_retries = Metrics.counter(namespace, 'envoyRatelimitRpcRetries')
-    self.rpc_latency = Metrics.distribution(namespace, 'envoyRatelimitRpcLatencyMs')
+    self.rpc_latency = Metrics.distribution(
+        namespace, 'envoyRatelimitRpcLatencyMs')
 
   @abc.abstractmethod
   def throttle(self, **kwargs) -> bool:
@@ -69,7 +74,6 @@ class RateLimiter(abc.ABC):
       Exception: If an underlying infrastructure error occurs (e.g. RPC failure).
     """
     pass
-    
 
 
 class EnvoyRateLimiter(RateLimiter):
@@ -99,7 +103,7 @@ class EnvoyRateLimiter(RateLimiter):
         throttling is occurring.
     """
     super().__init__(namespace=namespace)
-    
+
     self.service_address = service_address
     self.domain = domain
     self.descriptors = descriptors
@@ -154,9 +158,10 @@ class EnvoyRateLimiter(RateLimiter):
         entries.append(RateLimitDescriptorEntry(key=k, value=v))
       proto_descriptors.append(RateLimitDescriptor(entries=entries))
 
-    
     request = RateLimitRequest(
-        domain=self.domain, descriptors=proto_descriptors, hits_addend=hits_added)
+        domain=self.domain,
+        descriptors=proto_descriptors,
+        hits_addend=hits_added)
 
     self.requests_counter.inc()
     attempt = 0
@@ -199,7 +204,7 @@ class EnvoyRateLimiter(RateLimiter):
               val = dur.total_seconds()
               if val > sleep_s:
                 sleep_s = val
-        
+
         _LOGGER.warning("Throttled for %s seconds", sleep_s)
         # signal throttled time to backend
         self.throttling_signaler.signal_throttled(int(sleep_s))
