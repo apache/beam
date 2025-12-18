@@ -24,8 +24,6 @@ from apache_beam.io.components import rate_limiter
 from envoy_data_plane.envoy.service.ratelimit.v3 import RateLimitResponse
 from envoy_data_plane.envoy.service.ratelimit.v3 import RateLimitResponseCode
 from envoy_data_plane.envoy.service.ratelimit.v3 import RateLimitResponseDescriptorStatus
-from envoy_data_plane.envoy.extensions.common.ratelimit.v3 import RateLimitDescriptor
-from envoy_data_plane.envoy.extensions.common.ratelimit.v3 import RateLimitDescriptorEntry
 
 
 class EnvoyRateLimiterTest(unittest.TestCase):
