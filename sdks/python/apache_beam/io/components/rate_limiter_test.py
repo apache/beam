@@ -113,11 +113,12 @@ class EnvoyRateLimiterTest(unittest.TestCase):
       with self.assertRaises(grpc.RpcError):
         self.limiter.throttle()
 
-    # The inner loop tries 3 times for connection errors
-    self.assertEqual(mock_stub.ShouldRateLimit.call_count, 3)
+    # The inner loop tries 5 times for connection errors
+    self.assertEqual(mock_stub.ShouldRateLimit.call_count, 5)
 
   @mock.patch('grpc.insecure_channel')
-  def test_extract_duration_from_response(self, mock_channel):
+  @mock.patch('random.uniform', return_value=0.0)
+  def test_extract_duration_from_response(self, mock_random, mock_channel):
     # Mock OVER_LIMIT with specific duration
     mock_stub = mock.Mock()
 
@@ -134,7 +135,7 @@ class EnvoyRateLimiterTest(unittest.TestCase):
 
     with mock.patch('time.sleep') as mock_sleep:
       self.limiter.throttle()
-      # Should sleep for 5 seconds
+      # Should sleep for 5 seconds (jitter is 0.0)
       mock_sleep.assert_called_with(5.0)
 
 

@@ -21,6 +21,7 @@ Rate Limiter classes for controlling access to external resources.
 
 import abc
 import logging
+import random
 import threading
 import time
 from typing import Dict
@@ -85,7 +86,7 @@ class EnvoyRateLimiter(RateLimiter):
       service_address: str,
       domain: str,
       descriptors: List[Dict[str, str]],
-      timeout: float = 1.0,
+      timeout: float = 5.0,
       block_until_allowed: bool = True,
       retries: int = 3,
       namespace: str = ""):
@@ -178,12 +179,13 @@ class EnvoyRateLimiter(RateLimiter):
           self.rpc_latency.update(int((time.time() - start_time) * 1000))
           break
         except grpc.RpcError as e:
-          self.rpc_errors.inc()
-          if conn_attempt == _MAX_CONNECTION_RETRIES:
-            _LOGGER.error("Envoy RLS Connection Failed: %s", e)
+          if conn_attempt == _MAX_CONNECTION_RETRIES - 1:
+            _LOGGER.error("[EnvoyRateLimiter] Connection Failed: %s", e)
+            self.rpc_errors.inc()
             raise e
           self.rpc_retries.inc()
-          _LOGGER.error("Envoy RLS Connection Failed, retrying: %s", e)
+          _LOGGER.warning(
+              "[EnvoyRateLimiter] Connection Failed, retrying: %s", e)
           time.sleep(_RETRY_DELAY_SECONDS)
 
       if response.overall_code == RateLimitResponseCode.OK:
@@ -200,18 +202,24 @@ class EnvoyRateLimiter(RateLimiter):
             if status.code == RateLimitResponseCode.OVER_LIMIT:
               dur = status.duration_until_reset
               # duration_until_reset is converted to timedelta by betterproto
-              # timedelta has microseconds precision
+              # duration_until_reset has microsecond precision
               val = dur.total_seconds()
               if val > sleep_s:
                 sleep_s = val
 
-        _LOGGER.warning("Throttled for %s seconds", sleep_s)
+        # Add 1% additive jitter to prevent thundering herd
+        # This adds jitter in the order of ms
+        jitter = random.uniform(0, 0.01 * sleep_s)
+        sleep_s += jitter
+
+        _LOGGER.warning("[EnvoyRateLimiter] Throttled for %s seconds", sleep_s)
         # signal throttled time to backend
         self.throttling_signaler.signal_throttled(int(sleep_s))
         time.sleep(sleep_s)
         attempt += 1
       else:
         _LOGGER.error(
-            "Envoy RLS returned unknown code: %s", response.overall_code)
+            "[EnvoyRateLimiter] Unknown code from RLS: %s",
+            response.overall_code)
         break
     return throttled
