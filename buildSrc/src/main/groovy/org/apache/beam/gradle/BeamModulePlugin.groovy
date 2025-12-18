@@ -612,8 +612,7 @@ class BeamModulePlugin implements Plugin<Project> {
     def google_ads_version = "33.0.0"
     def google_clients_version = "2.0.0"
     def google_cloud_bigdataoss_version = "2.2.26"
-    // [bomupgrader] TODO(#37008): currently pinned before gcp-bom moving beyond this version, should be determined by: com.google.cloud:google-cloud-spanner, consistent with: google_cloud_platform_libraries_bom
-    def google_cloud_spanner_version = "6.104.0"
+    def google_cloud_spanner_version = "6.105.0"
     def google_code_gson_version = "2.10.1"
     def google_oauth_clients_version = "1.34.1"
     // [bomupgrader] determined by: io.grpc:grpc-netty, consistent with: google_cloud_platform_libraries_bom
