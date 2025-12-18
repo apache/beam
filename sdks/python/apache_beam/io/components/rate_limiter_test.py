@@ -29,7 +29,6 @@ from envoy_data_plane.envoy.extensions.common.ratelimit.v3 import RateLimitDescr
 
 
 class EnvoyRateLimiterTest(unittest.TestCase):
-
   def setUp(self):
     self.service_address = 'localhost:8081'
     self.domain = 'test_domain'
@@ -41,8 +40,7 @@ class EnvoyRateLimiterTest(unittest.TestCase):
         timeout=0.1,  # Fast timeout for tests
         block_until_allowed=False,
         retries=2,
-        namespace='test_namespace'
-    )
+        namespace='test_namespace')
 
   @mock.patch('grpc.insecure_channel')
   def test_throttle_allowed(self, mock_channel):
@@ -50,12 +48,12 @@ class EnvoyRateLimiterTest(unittest.TestCase):
     mock_stub = mock.Mock()
     mock_response = RateLimitResponse(overall_code=RateLimitResponseCode.OK)
     mock_stub.ShouldRateLimit.return_value = mock_response
-    
+
     # Inject mock stub
     self.limiter._stub = mock_stub
-    
+
     throttled = self.limiter.throttle()
-    
+
     self.assertTrue(throttled)
     mock_stub.ShouldRateLimit.assert_called_once()
 
@@ -63,16 +61,17 @@ class EnvoyRateLimiterTest(unittest.TestCase):
   def test_throttle_over_limit_retries_exceeded(self, mock_channel):
     # Mock OVER_LIMIT response
     mock_stub = mock.Mock()
-    mock_response = RateLimitResponse(overall_code=RateLimitResponseCode.OVER_LIMIT)
+    mock_response = RateLimitResponse(
+        overall_code=RateLimitResponseCode.OVER_LIMIT)
     mock_stub.ShouldRateLimit.return_value = mock_response
-    
+
     self.limiter._stub = mock_stub
     # block_until_allowed is False, so it should eventually return False
-    
+
     # We mock time.sleep to run fast
     with mock.patch('time.sleep'):
       throttled = self.limiter.throttle()
-    
+
     self.assertFalse(throttled)
     # Should be called 1 (initial) + 2 (retries) + 1 (last check > retries logic depends on loop)
     # Logic: attempt starts at 0.
@@ -88,16 +87,16 @@ class EnvoyRateLimiterTest(unittest.TestCase):
     # Mock RpcError then Success
     mock_stub = mock.Mock()
     mock_response = RateLimitResponse(overall_code=RateLimitResponseCode.OK)
-    
+
     # Side effect: Error, Error, Success
     error = grpc.RpcError()
     mock_stub.ShouldRateLimit.side_effect = [error, error, mock_response]
-    
+
     self.limiter._stub = mock_stub
-    
+
     with mock.patch('time.sleep'):
       throttled = self.limiter.throttle()
-      
+
     self.assertTrue(throttled)
     self.assertEqual(mock_stub.ShouldRateLimit.call_count, 3)
 
@@ -107,13 +106,13 @@ class EnvoyRateLimiterTest(unittest.TestCase):
     mock_stub = mock.Mock()
     error = grpc.RpcError()
     mock_stub.ShouldRateLimit.side_effect = error
-    
+
     self.limiter._stub = mock_stub
-    
+
     with mock.patch('time.sleep'):
       with self.assertRaises(grpc.RpcError):
         self.limiter.throttle()
-        
+
     # The inner loop tries 3 times for connection errors
     self.assertEqual(mock_stub.ShouldRateLimit.call_count, 3)
 
@@ -121,25 +120,22 @@ class EnvoyRateLimiterTest(unittest.TestCase):
   def test_extract_duration_from_response(self, mock_channel):
     # Mock OVER_LIMIT with specific duration
     mock_stub = mock.Mock()
-    
+
     # Valid until 5 seconds
     status = RateLimitResponseDescriptorStatus(
         code=RateLimitResponseCode.OVER_LIMIT,
-        duration_until_reset=timedelta(seconds=5)
-    )
+        duration_until_reset=timedelta(seconds=5))
     mock_response = RateLimitResponse(
-        overall_code=RateLimitResponseCode.OVER_LIMIT,
-        statuses=[status]
-    )
-    
+        overall_code=RateLimitResponseCode.OVER_LIMIT, statuses=[status])
+
     mock_stub.ShouldRateLimit.return_value = mock_response
     self.limiter._stub = mock_stub
-    self.limiter.retries = 0 # Single attempt
-    
+    self.limiter.retries = 0  # Single attempt
+
     with mock.patch('time.sleep') as mock_sleep:
-        self.limiter.throttle()
-        # Should sleep for 5 seconds
-        mock_sleep.assert_called_with(5.0)
+      self.limiter.throttle()
+      # Should sleep for 5 seconds
+      mock_sleep.assert_called_with(5.0)
 
 
 if __name__ == '__main__':
