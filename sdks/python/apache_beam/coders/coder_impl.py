@@ -32,6 +32,7 @@ For internal use only; no backwards-compatibility guarantees.
 
 import decimal
 import enum
+import functools
 import itertools
 import json
 import logging
@@ -375,6 +376,17 @@ def _verify_dill_compat():
     raise RuntimeError(base_error + f". Found dill version '{dill.__version__}")
 
 
+if dataclasses:
+  # Cache the result to avoid multiple checks for the same dataclass type.
+  @functools.cache
+  def dataclass_uses_kw_only(cls):
+    return any(
+        field.init and field.kw_only for field in dataclasses.fields(cls))
+
+else:
+  dataclass_uses_kw_only = lambda cls: False
+
+
 class FastPrimitivesCoderImpl(StreamCoderImpl):
   """For internal use only; no backwards-compatibility guarantees."""
   def __init__(
@@ -498,23 +510,35 @@ class FastPrimitivesCoderImpl(StreamCoderImpl):
       self.encode_type(type(value), stream)
       stream.write(value.SerializePartialToString(deterministic=True), True)
     elif dataclasses and dataclasses.is_dataclass(value):
-      stream.write_byte(DATACLASS_KW_ONLY_TYPE)
       if not type(value).__dataclass_params__.frozen:
         raise TypeError(
             "Unable to deterministically encode non-frozen '%s' of type '%s' "
             "for the input of '%s'" %
             (value, type(value), self.requires_deterministic_step_label))
-      self.encode_type(type(value), stream)
-      init_field_names = [
-          field.name for field in dataclasses.fields(value) if field.init
-      ]
-      stream.write_var_int64(len(init_field_names))
-      try:
-        for field_name in init_field_names:
-          stream.write(field_name.encode('utf-8'), True)
-          self.encode_to_stream(getattr(value, field_name), stream, True)
-      except Exception as e:
-        raise TypeError(self._deterministic_encoding_error_msg(value)) from e
+      if dataclass_uses_kw_only(type(value)):
+        stream.write_byte(DATACLASS_KW_ONLY_TYPE)
+        self.encode_type(type(value), stream)
+        init_field_names = [
+            field.name for field in dataclasses.fields(value) if field.init
+        ]
+        stream.write_var_int64(len(init_field_names))
+        try:
+          for field_name in init_field_names:
+            stream.write(field_name.encode("utf-8"), True)
+            self.encode_to_stream(getattr(value, field_name), stream, True)
+        except Exception as e:
+          raise TypeError(self._deterministic_encoding_error_msg(value)) from e
+      else:  # Not using kw_only, we can pass parameters by position.
+        stream.write_byte(DATACLASS_TYPE)
+        self.encode_type(type(value), stream)
+        values = [
+            getattr(value, field.name) for field in dataclasses.fields(value)
+            if field.init
+        ]
+        try:
+          self.iterable_coder_impl.encode_to_stream(values, stream, True)
+        except Exception as e:
+          raise TypeError(self._deterministic_encoding_error_msg(value)) from e
     elif isinstance(value, tuple) and hasattr(type(value), '_fields'):
       stream.write_byte(NAMED_TUPLE_TYPE)
       self.encode_type(type(value), stream)
