@@ -45,6 +45,7 @@ import org.apache.beam.sdk.transforms.splittabledofn.ManualWatermarkEstimator;
 import org.apache.beam.sdk.transforms.splittabledofn.OffsetRangeTracker;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker.HasProgress;
+import org.apache.beam.sdk.transforms.splittabledofn.UnsplittableRestrictionTracker;
 import org.apache.beam.sdk.transforms.splittabledofn.WatermarkEstimator;
 import org.apache.beam.sdk.transforms.splittabledofn.WatermarkEstimators.MonotonicallyIncreasing;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
@@ -107,6 +108,15 @@ import org.slf4j.LoggerFactory;
  * </ul>
  *
  * <h4>Splitting</h4>
+ *
+ * <p>Consumer group members must not consume from the same {@link TopicPartition} simultaneously
+ * when {@code enable.auto.commit} is set. Doing so may arbitrarily overwrite a consumer group's
+ * committed offset for a {@link TopicPartition}. Restriction trackers for a {@link
+ * KafkaSourceDescriptor} are wrapped as {@link UnsplittableRestrictionTracker<OffsetRange, Long>}
+ * and will only return a non-null {@link org.apache.beam.sdk.transforms.splittabledofn.SplitResult}
+ * for a checkpoint. To the extent possible in the SDK, this reduces the risk of overwriting
+ * committed offsets when {@code enable.auto.commit} is set and prevents concurrent use of
+ * per-{@TopicPartition} cached {@link Consumer} resources.
  *
  * <p>TODO(https://github.com/apache/beam/issues/20280): Add support for initial splitting.
  *
@@ -488,20 +498,21 @@ abstract class ReadFromKafkaDoFn<K, V>
 
   @NewTracker
   @RequiresNonNull({"latestOffsetEstimatorCache"})
-  public OffsetRangeTracker restrictionTracker(
+  public UnsplittableRestrictionTracker<OffsetRange, Long> restrictionTracker(
       @Element KafkaSourceDescriptor kafkaSourceDescriptor, @Restriction OffsetRange restriction) {
     final LoadingCache<KafkaSourceDescriptor, KafkaLatestOffsetEstimator>
         latestOffsetEstimatorCache = this.latestOffsetEstimatorCache;
 
     if (restriction.getTo() < Long.MAX_VALUE) {
-      return new OffsetRangeTracker(restriction);
+      return new UnsplittableRestrictionTracker<>(new OffsetRangeTracker(restriction));
     }
 
     // OffsetEstimators are cached for each topic-partition because they hold a stateful connection,
     // so we want to minimize the amount of connections that we start and track with Kafka. Another
     // point is that it has a memoized backlog, and this should make that more reusable estimations.
-    return new GrowableOffsetRangeTracker(
-        restriction.getFrom(), latestOffsetEstimatorCache.getUnchecked(kafkaSourceDescriptor));
+    return new UnsplittableRestrictionTracker<>(
+        new GrowableOffsetRangeTracker(
+            restriction.getFrom(), latestOffsetEstimatorCache.getUnchecked(kafkaSourceDescriptor)));
   }
 
   @ProcessElement
