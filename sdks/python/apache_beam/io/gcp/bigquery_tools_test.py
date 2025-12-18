@@ -292,6 +292,80 @@ class TestBigQueryWrapper(unittest.TestCase):
       wrapper.create_temporary_dataset('project-id', 'location')
     self.assertTrue(client.datasets.Get.called)
 
+  def test_get_table_invokes_tables_get_and_caches_result(self):
+
+    from apache_beam.io.gcp.bigquery_tools import BigQueryWrapper
+
+    client = mock.Mock()
+    client.tables = mock.Mock()
+
+    returned_table = mock.Mock(name="BigQueryTable")
+    client.tables.Get = mock.Mock(return_value=returned_table)
+
+    wrapper = BigQueryWrapper(client=client)
+
+    project_id = "my-project"
+    dataset_id = "my_dataset"
+    table_id = "my_table"
+
+    table1 = wrapper.get_table(project_id, dataset_id, table_id)
+
+    assert table1 is returned_table
+    assert client.tables.Get.call_count == 1
+
+    (request,), _ = client.tables.Get.call_args
+    assert isinstance(request, bigquery.BigqueryTablesGetRequest)
+    assert request.projectId == project_id
+    assert request.datasetId == dataset_id
+    assert request.tableId == table_id
+
+    table2 = wrapper.get_table(project_id, dataset_id, table_id)
+
+    assert table2 is returned_table
+    assert client.tables.Get.call_count == 1  # still 1 => cached
+
+  def test_get_table_shared_cache_across_wrapper_instances(self):
+    from apache_beam.io.gcp.bigquery_tools import BigQueryWrapper
+
+    # ensure isolation -> clear the shared cache before the test
+    BigQueryWrapper._TABLE_CACHE.clear()
+
+    client = mock.Mock()
+    client.tables = mock.Mock()
+
+    returned_table = mock.Mock(name="BigQueryTable")
+    client.tables.Get = mock.Mock(return_value=returned_table)
+
+    project_id = "my-project"
+    dataset_id = "my_dataset"
+    table_id = "my_table"
+
+    w1 = BigQueryWrapper(client=client)
+    w2 = BigQueryWrapper(client=client)
+    w3 = BigQueryWrapper(client=client)
+
+    # first call -> populate cache
+    t1 = w1.get_table(project_id, dataset_id, table_id)
+    assert t1 is returned_table
+    assert client.tables.Get.call_count == 1
+
+    # verify request shape (from first call)
+    (request,), _ = client.tables.Get.call_args
+    assert isinstance(request, bigquery.BigqueryTablesGetRequest)
+    assert request.projectId == project_id
+    assert request.datasetId == dataset_id
+    assert request.tableId == table_id
+
+    # calls from DIFFERENT wrapper instances -> hit the SAME cache entry
+    t2 = w2.get_table(project_id, dataset_id, table_id)
+    t3 = w3.get_table(project_id, dataset_id, table_id)
+
+    assert t2 is returned_table
+    assert t3 is returned_table
+
+    # still 1 -> record cached across instances
+    assert client.tables.Get.call_count == 1
+
   def test_get_or_create_dataset_created(self):
     client = mock.Mock()
     client.datasets.Get.side_effect = HttpError(

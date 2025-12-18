@@ -37,6 +37,7 @@ import re
 import sys
 import time
 import uuid
+import threading
 from json.decoder import JSONDecodeError
 from typing import Optional
 from typing import Sequence
@@ -66,6 +67,8 @@ from apache_beam.typehints.row_type import RowTypeConstraint
 from apache_beam.typehints.typehints import Any
 from apache_beam.utils import retry
 from apache_beam.utils.histogram import LinearBucket
+from cachetools import TTLCache, cachedmethod, Cache
+from cachetools.keys import hashkey
 
 # Protect against environments where bigquery library is not available.
 try:
@@ -138,6 +141,12 @@ class ExportCompression(object):
   DEFLATE = 'DEFLATE'
   SNAPPY = 'SNAPPY'
   NONE = 'NONE'
+
+class _NonNoneTTLCache(TTLCache):
+  """TTLCache that does not store None values."""
+  def __setitem__(self, key, value, cache_setitem=Cache.__setitem__):
+    if value is not None:
+      super().__setitem__(key=key, value=value)
 
 
 def default_encoder(obj):
@@ -358,6 +367,9 @@ class BigQueryWrapper(object):
   TEMP_DATASET = 'beam_temp_dataset_'
 
   HISTOGRAM_METRIC_LOGGER = MetricLogger()
+
+  _TABLE_CACHE = _NonNoneTTLCache(maxsize=1024, ttl=300)
+  _TABLE_CACHE_LOCK = threading.RLock()
 
   def __init__(self, client=None, temp_dataset_id=None, temp_table_ref=None):
     self.client = client or BigQueryWrapper._bigquery_client(PipelineOptions())
@@ -788,11 +800,17 @@ class BigQueryWrapper(object):
           int(time.time() * 1000) - started_millis)
     return not errors, errors
 
+  @cachedmethod(
+      cache=lambda self: self._TABLE_CACHE,
+      lock=lambda self: self._TABLE_CACHE_LOCK,
+      key=lambda self, project_id, dataset_id, table_id: hashkey(
+        project_id, dataset_id, table_id),
+  )
   @retry.with_exponential_backoff(
       num_retries=MAX_RETRIES,
       retry_filter=retry.retry_on_server_errors_timeout_or_quota_issues_filter)
   def get_table(self, project_id, dataset_id, table_id):
-    """Lookup a table's metadata object.
+    """Lookup a table's metadata object. (TTL cached at class level).
 
     Args:
       client: bigquery.BigqueryV2 instance
@@ -806,9 +824,8 @@ class BigQueryWrapper(object):
       HttpError: if lookup failed.
     """
     request = bigquery.BigqueryTablesGetRequest(
-        projectId=project_id, datasetId=dataset_id, tableId=table_id)
-    response = self.client.tables.Get(request)
-    return response
+      projectId=project_id, datasetId=dataset_id, tableId=table_id)
+    return self.client.tables.Get(request)
 
   def _create_table(
       self,
