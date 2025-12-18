@@ -60,9 +60,9 @@ class WindmillCombiningState<InputT, AccumT, OutputT> extends WindmillState
       CombineFn<InputT, AccumT, OutputT> combineFn,
       ForKeyAndFamily cache,
       boolean isNewKey,
-      WindmillStateTagUtil windmillStateTagUtil) {
+      WindmillTagEncoding windmillTagEncoding) {
     StateTag<BagState<AccumT>> internalBagAddress = StateTags.convertToBagTagInternal(address);
-    InternedByteString encodeKey = windmillStateTagUtil.encodeKey(namespace, internalBagAddress);
+    InternedByteString encodeKey = windmillTagEncoding.stateTag(namespace, internalBagAddress);
 
     WindmillBag<AccumT> bag = (WindmillBag<AccumT>) cache.get(namespace, encodeKey);
     if (bag == null) {

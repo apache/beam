@@ -29,7 +29,7 @@ import org.apache.beam.runners.core.TimerInternals;
 import org.apache.beam.runners.dataflow.worker.streaming.Watermarks;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.Timer;
-import org.apache.beam.runners.dataflow.worker.windmill.state.WindmillStateTagUtil;
+import org.apache.beam.runners.dataflow.worker.windmill.state.WindmillTagEncoding;
 import org.apache.beam.sdk.state.TimeDomain;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
@@ -61,26 +61,26 @@ class WindmillTimerInternals implements TimerInternals {
   private final String stateFamily;
   private final WindmillNamespacePrefix prefix;
   private final Consumer<TimerData> onTimerModified;
-  private final WindmillStateTagUtil windmillStateTagUtil;
+  private final WindmillTagEncoding windmillTagEncoding;
 
   public WindmillTimerInternals(
       String stateFamily, // unique identifies a step
       WindmillNamespacePrefix prefix, // partitions user and system namespaces into "/u" and "/s"
       Instant processingTime,
       Watermarks watermarks,
-      WindmillStateTagUtil windmillStateTagUtil,
+      WindmillTagEncoding windmillTagEncoding,
       Consumer<TimerData> onTimerModified) {
     this.watermarks = watermarks;
     this.processingTime = checkNotNull(processingTime);
     this.stateFamily = stateFamily;
     this.prefix = prefix;
-    this.windmillStateTagUtil = windmillStateTagUtil;
+    this.windmillTagEncoding = windmillTagEncoding;
     this.onTimerModified = onTimerModified;
   }
 
   public WindmillTimerInternals withPrefix(WindmillNamespacePrefix prefix) {
     return new WindmillTimerInternals(
-        stateFamily, prefix, processingTime, watermarks, windmillStateTagUtil, onTimerModified);
+        stateFamily, prefix, processingTime, watermarks, windmillTagEncoding, onTimerModified);
   }
 
   @Override
@@ -187,7 +187,7 @@ class WindmillTimerInternals implements TimerInternals {
       TimerData timerData = value.getKey();
 
       Timer.Builder timer =
-          windmillStateTagUtil.buildWindmillTimerFromTimerData(
+          windmillTagEncoding.buildWindmillTimerFromTimerData(
               stateFamily, prefix, timerData, outputBuilder.addOutputTimersBuilder());
 
       if (value.getValue()) {
@@ -201,7 +201,7 @@ class WindmillTimerInternals implements TimerInternals {
             // Setting a timer, clear any prior hold and set to the new value
             outputBuilder
                 .addWatermarkHoldsBuilder()
-                .setTag(windmillStateTagUtil.timerHoldTag(prefix, timerData))
+                .setTag(windmillTagEncoding.timerHoldTag(prefix, timerData))
                 .setStateFamily(stateFamily)
                 .setReset(true)
                 .addTimestamps(
@@ -210,7 +210,7 @@ class WindmillTimerInternals implements TimerInternals {
             // Clear the hold in case a previous iteration of this timer set one.
             outputBuilder
                 .addWatermarkHoldsBuilder()
-                .setTag(windmillStateTagUtil.timerHoldTag(prefix, timerData))
+                .setTag(windmillTagEncoding.timerHoldTag(prefix, timerData))
                 .setStateFamily(stateFamily)
                 .setReset(true);
           }
@@ -225,7 +225,7 @@ class WindmillTimerInternals implements TimerInternals {
           // We are deleting timer; clear the hold
           outputBuilder
               .addWatermarkHoldsBuilder()
-              .setTag(windmillStateTagUtil.timerHoldTag(prefix, timerData))
+              .setTag(windmillTagEncoding.timerHoldTag(prefix, timerData))
               .setStateFamily(stateFamily)
               .setReset(true);
         }
