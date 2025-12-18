@@ -350,10 +350,11 @@ SET_TYPE = 8
 ITERABLE_LIKE_TYPE = 10
 
 PROTO_TYPE = 100
-DATACLASS_TYPE = 101
+DATACLASS_TYPE = 101  # TODO: Deprecate and use only DATACLASS_KW_ONLY_TYPE.
 NAMED_TUPLE_TYPE = 102
 ENUM_TYPE = 103
 NESTED_STATE_TYPE = 104
+DATACLASS_KW_ONLY_TYPE = 105
 
 # Types that can be encoded as iterables, but are not literally
 # lists, etc. due to being lazy.  The actual type is not preserved
@@ -497,7 +498,7 @@ class FastPrimitivesCoderImpl(StreamCoderImpl):
       self.encode_type(type(value), stream)
       stream.write(value.SerializePartialToString(deterministic=True), True)
     elif dataclasses and dataclasses.is_dataclass(value):
-      stream.write_byte(DATACLASS_TYPE)
+      stream.write_byte(DATACLASS_KW_ONLY_TYPE)
       if not type(value).__dataclass_params__.frozen:
         raise TypeError(
             "Unable to deterministically encode non-frozen '%s' of type '%s' "
@@ -619,7 +620,7 @@ class FastPrimitivesCoderImpl(StreamCoderImpl):
       msg = cls()
       msg.ParseFromString(stream.read_all(True))
       return msg
-    elif t == DATACLASS_TYPE:
+    elif t == DATACLASS_KW_ONLY_TYPE:
       cls = self.decode_type(stream)
       vlen = stream.read_var_int64()
       fields = {}
@@ -627,7 +628,7 @@ class FastPrimitivesCoderImpl(StreamCoderImpl):
         field_name = stream.read_all(True).decode('utf-8')
         fields[field_name] = self.decode_from_stream(stream, True)
       return cls(**fields)
-    elif t == NAMED_TUPLE_TYPE:
+    elif t == DATACLASS_TYPE or t == NAMED_TUPLE_TYPE:
       cls = self.decode_type(stream)
       return cls(*self.iterable_coder_impl.decode_from_stream(stream, True))
     elif t == ENUM_TYPE:
