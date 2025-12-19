@@ -200,14 +200,15 @@ public class WindmillTagEncodingV2 extends WindmillTagEncoding {
   private <W extends BoundedWindow> StateNamespace decodeNonGlobalNamespace(
       InputStream stream, Coder<W> windowCoder) throws IOException {
     W window = decodeWindow(stream, windowCoder);
-    switch (stream.read()) {
+    int namespaceByte = stream.read();
+    switch (namespaceByte) {
       case 0x1: // Window namespace
         return StateNamespaces.window(windowCoder, window);
       case 0x2: // Window and trigger namespace
         Integer triggerIndex = BigEndianIntegerCoder.of().decode(stream);
         return StateNamespaces.windowAndTrigger(windowCoder, window, triggerIndex);
       default:
-        throw new IllegalStateException("Invalid trigger namespace byte: " + stream.read());
+        throw new IllegalStateException("Invalid trigger namespace byte: " + namespaceByte);
     }
   }
 
