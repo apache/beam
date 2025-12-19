@@ -618,7 +618,8 @@ public class WorkerCustomSourcesTest {
             executionStateRegistry,
             globalConfigHandle,
             Long.MAX_VALUE,
-            /*throwExceptionOnLargeOutput=*/ false);
+            /*throwExceptionOnLargeOutput=*/ false,
+            /*enableWindmillTagEncodingV2=*/ false);
 
     options.setNumWorkers(5);
     int maxElements = 10;
@@ -989,7 +990,8 @@ public class WorkerCustomSourcesTest {
             executionStateRegistry,
             globalConfigHandle,
             Long.MAX_VALUE,
-            /*throwExceptionOnLargeOutput=*/ false);
+            /*throwExceptionOnLargeOutput=*/ false,
+            /*enableWindmillTagEncodingV2=*/ false);
 
     options.setNumWorkers(5);
     int maxElements = 100;

@@ -59,10 +59,12 @@ import org.apache.beam.runners.dataflow.worker.windmill.Windmill.GlobalDataId;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.GlobalDataRequest;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.Timer;
 import org.apache.beam.runners.dataflow.worker.windmill.state.WindmillStateCache;
+import org.apache.beam.runners.dataflow.worker.windmill.state.WindmillStateCache.ForComputation;
 import org.apache.beam.runners.dataflow.worker.windmill.state.WindmillStateInternals;
 import org.apache.beam.runners.dataflow.worker.windmill.state.WindmillStateReader;
 import org.apache.beam.runners.dataflow.worker.windmill.state.WindmillTagEncoding;
 import org.apache.beam.runners.dataflow.worker.windmill.state.WindmillTagEncodingV1;
+import org.apache.beam.runners.dataflow.worker.windmill.state.WindmillTagEncodingV2;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.io.UnboundedSource;
@@ -154,13 +156,14 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext<Step
       String computationId,
       ReaderCache readerCache,
       Map<String, String> stateNameMap,
-      WindmillStateCache.ForComputation stateCache,
+      ForComputation stateCache,
       MetricsContainerRegistry<StreamingStepMetricsContainer> metricsContainerRegistry,
       DataflowExecutionStateTracker executionStateTracker,
       StreamingModeExecutionStateRegistry executionStateRegistry,
       StreamingGlobalConfigHandle globalConfigHandle,
       long sinkByteLimit,
-      boolean throwExceptionOnLargeOutput) {
+      boolean throwExceptionOnLargeOutput,
+      boolean enableWindmillTagEncodingV2) {
     super(
         counterFactory,
         metricsContainerRegistry,
@@ -171,7 +174,10 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext<Step
     this.readerCache = readerCache;
     this.globalConfigHandle = globalConfigHandle;
     this.sideInputCache = new HashMap<>();
-    this.windmillTagEncoding = WindmillTagEncodingV1.instance();
+    this.windmillTagEncoding =
+        enableWindmillTagEncodingV2
+            ? WindmillTagEncodingV2.instance()
+            : WindmillTagEncodingV1.instance();
     this.stateNameMap = ImmutableMap.copyOf(stateNameMap);
     this.stateCache = stateCache;
     this.backlogBytes = UnboundedReader.BACKLOG_UNKNOWN;

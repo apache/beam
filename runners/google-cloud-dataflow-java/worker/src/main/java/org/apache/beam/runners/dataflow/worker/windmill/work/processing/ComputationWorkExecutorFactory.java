@@ -74,6 +74,14 @@ final class ComputationWorkExecutorFactory {
   private static final String THROW_EXCEPTIONS_ON_LARGE_OUTPUT_EXPERIMENT =
       "throw_exceptions_on_large_output";
 
+  // Experiment to enable tag encoding v2.
+  // Experiment is for testing by dataflow runner developers.
+  // Related logic could change anytime without notice.
+  // **DO NOT USE** on real workloads.
+  // Enabling the experiment could lead to state incompatibilities and broken jobs.
+  private static final String UNSTABLE_WINDMILL_TAG_ENCODING_EXPERIMENT =
+      "unstable_windmill_tag_encoding_v2";
+
   private final DataflowWorkerHarnessOptions options;
   private final DataflowMapTaskExecutorFactory mapTaskExecutorFactory;
   private final ReaderCache readerCache;
@@ -97,6 +105,7 @@ final class ComputationWorkExecutorFactory {
   private final IdGenerator idGenerator;
   private final StreamingGlobalConfigHandle globalConfigHandle;
   private final boolean throwExceptionOnLargeOutput;
+  private final boolean enableWindmillTagEncodingV2;
 
   ComputationWorkExecutorFactory(
       DataflowWorkerHarnessOptions options,
@@ -124,6 +133,8 @@ final class ComputationWorkExecutorFactory {
             : StreamingDataflowWorker.MAX_SINK_BYTES;
     this.throwExceptionOnLargeOutput =
         hasExperiment(options, THROW_EXCEPTIONS_ON_LARGE_OUTPUT_EXPERIMENT);
+    this.enableWindmillTagEncodingV2 =
+        hasExperiment(options, UNSTABLE_WINDMILL_TAG_ENCODING_EXPERIMENT);
   }
 
   private static Nodes.ParallelInstructionNode extractReadNode(
@@ -268,7 +279,8 @@ final class ComputationWorkExecutorFactory {
         stageInfo.executionStateRegistry(),
         globalConfigHandle,
         maxSinkBytes,
-        throwExceptionOnLargeOutput);
+        throwExceptionOnLargeOutput,
+        enableWindmillTagEncodingV2);
   }
 
   private DataflowMapTaskExecutor createMapTaskExecutor(
