@@ -30,7 +30,8 @@ import org.apache.beam.runners.core.StateNamespaces;
 import org.apache.beam.runners.core.TimerInternals.TimerData;
 import org.apache.beam.runners.dataflow.worker.WindmillKeyedWorkItem.FakeKeyedWorkItemCoder;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
-import org.apache.beam.runners.dataflow.worker.windmill.state.WindmillStateTagUtil;
+import org.apache.beam.runners.dataflow.worker.windmill.state.WindmillTagEncoding;
+import org.apache.beam.runners.dataflow.worker.windmill.state.WindmillTagEncodingV1;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CollectionCoder;
 import org.apache.beam.sdk.coders.KvCoder;
@@ -78,9 +79,12 @@ public class WindmillKeyedWorkItemTest {
   private static final StateNamespace STATE_NAMESPACE_2 =
       StateNamespaces.window(WINDOW_CODER, WINDOW_2);
 
+  public WindmillTagEncoding windmillTagEncoding;
+
   @Before
   public void setUp() {
     MockitoAnnotations.initMocks(this);
+    windmillTagEncoding = WindmillTagEncodingV1.instance();
   }
 
   @Test
@@ -97,7 +101,13 @@ public class WindmillKeyedWorkItemTest {
 
     KeyedWorkItem<String, String> keyedWorkItem =
         new WindmillKeyedWorkItem<>(
-            KEY, workItem.build(), WINDOW_CODER, WINDOWS_CODER, VALUE_CODER, false);
+            KEY,
+            workItem.build(),
+            WINDOW_CODER,
+            WINDOWS_CODER,
+            VALUE_CODER,
+            windmillTagEncoding,
+            false);
 
     assertThat(
         keyedWorkItem.elementsIterable(),
@@ -170,7 +180,8 @@ public class WindmillKeyedWorkItemTest {
             .build();
 
     KeyedWorkItem<String, String> keyedWorkItem =
-        new WindmillKeyedWorkItem<>(KEY, workItem, WINDOW_CODER, WINDOWS_CODER, VALUE_CODER, false);
+        new WindmillKeyedWorkItem<>(
+            KEY, workItem, WINDOW_CODER, WINDOWS_CODER, VALUE_CODER, windmillTagEncoding, false);
 
     assertThat(
         keyedWorkItem.timersIterable(),
@@ -181,18 +192,17 @@ public class WindmillKeyedWorkItemTest {
             makeTimer(STATE_NAMESPACE_1, 2, TimeDomain.PROCESSING_TIME)));
   }
 
-  private static Windmill.Timer makeSerializedTimer(
+  private Windmill.Timer makeSerializedTimer(
       StateNamespace ns, long timestamp, Windmill.Timer.Type type) {
     return Windmill.Timer.newBuilder()
         .setTag(
-            WindmillStateTagUtil.instance()
-                .timerTag(
-                    WindmillNamespacePrefix.SYSTEM_NAMESPACE_PREFIX,
-                    TimerData.of(
-                        ns,
-                        new Instant(timestamp),
-                        new Instant(timestamp),
-                        timerTypeToTimeDomain(type))))
+            windmillTagEncoding.timerTag(
+                WindmillNamespacePrefix.SYSTEM_NAMESPACE_PREFIX,
+                TimerData.of(
+                    ns,
+                    new Instant(timestamp),
+                    new Instant(timestamp),
+                    timerTypeToTimeDomain(type))))
         .setTimestamp(WindmillTimeUtils.harnessToWindmillTimestamp(new Instant(timestamp)))
         .setType(type)
         .setStateFamily(STATE_FAMILY)
@@ -244,7 +254,13 @@ public class WindmillKeyedWorkItemTest {
             .build());
     KeyedWorkItem<String, String> keyedWorkItem =
         new WindmillKeyedWorkItem<>(
-            KEY, workItem.build(), WINDOW_CODER, WINDOWS_CODER, VALUE_CODER, true);
+            KEY,
+            workItem.build(),
+            WINDOW_CODER,
+            WINDOWS_CODER,
+            VALUE_CODER,
+            windmillTagEncoding,
+            true);
 
     Iterator<WindowedValue<String>> iterator = keyedWorkItem.elementsIterable().iterator();
     Assert.assertTrue(iterator.next().causedByDrain());

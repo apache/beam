@@ -30,42 +30,28 @@ import org.apache.beam.runners.dataflow.worker.WindmillTimeUtils;
 import org.apache.beam.runners.dataflow.worker.util.ThreadLocalByteStringOutputStream;
 import org.apache.beam.runners.dataflow.worker.util.ThreadLocalByteStringOutputStream.StreamHandle;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.InternedByteString;
-import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.Timer;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.coders.Coder;
-import org.apache.beam.sdk.state.TimeDomain;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
-import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.util.ByteStringOutputStream;
 import org.apache.beam.sdk.util.VarInt;
 import org.apache.beam.vendor.grpc.v1p69p0.com.google.protobuf.ByteString;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
-import org.checkerframework.checker.nullness.qual.Nullable;
-import org.joda.time.Duration;
 import org.joda.time.Instant;
 
 @Internal
 @ThreadSafe
-public class WindmillStateTagUtil {
-  private static final Instant OUTPUT_TIMESTAMP_MAX_WINDMILL_VALUE =
-      GlobalWindow.INSTANCE.maxTimestamp().plus(Duration.millis(1));
-
-  private static final Instant OUTPUT_TIMESTAMP_MAX_VALUE =
-      BoundedWindow.TIMESTAMP_MAX_VALUE.plus(Duration.millis(1));
+public class WindmillTagEncodingV1 extends WindmillTagEncoding {
 
   private static final String TIMER_HOLD_PREFIX = "/h";
-  private static final WindmillStateTagUtil INSTANCE = new WindmillStateTagUtil();
+  private static final WindmillTagEncodingV1 INSTANCE = new WindmillTagEncodingV1();
 
   // Private constructor to prevent instantiations from outside.
-  private WindmillStateTagUtil() {}
+  private WindmillTagEncodingV1() {}
 
-  /**
-   * Encodes the given namespace and address as {@code &lt;namespace&gt;+&lt;address&gt;}. The
-   * returned InternedByteStrings are weakly interned to reduce memory usage and reduce GC pressure.
-   */
-  @VisibleForTesting
-  InternedByteString encodeKey(StateNamespace namespace, StateTag<?> address) {
+  /** {@inheritDoc} */
+  @Override
+  public InternedByteString stateTag(StateNamespace namespace, StateTag<?> address) {
     try (StreamHandle streamHandle = ThreadLocalByteStringOutputStream.acquire()) {
       // Use ByteStringOutputStream rather than concatenation and String.format. We build these keys
       // a lot, and this leads to better performance results. See associated benchmarks.
@@ -82,10 +68,8 @@ public class WindmillStateTagUtil {
     }
   }
 
-  /**
-   * Produce a state tag that is guaranteed to be unique for the given timer, to add a watermark
-   * hold that is only freed after the timer fires.
-   */
+  /** {@inheritDoc} */
+  @Override
   public ByteString timerHoldTag(WindmillNamespacePrefix prefix, TimerData timerData) {
     String tagString;
     if ("".equals(timerData.getTimerFamilyId())) {
@@ -118,12 +102,8 @@ public class WindmillStateTagUtil {
     return ByteString.copyFromUtf8(tagString);
   }
 
-  /**
-   * Produce a tag that is guaranteed to be unique for the given prefix, namespace, domain and
-   * timestamp.
-   *
-   * <p>This is necessary because Windmill will deduplicate based only on this tag.
-   */
+  /** {@inheritDoc} */
+  @Override
   public ByteString timerTag(WindmillNamespacePrefix prefix, TimerData timerData) {
     String tagString;
     if (useNewTimerTagEncoding(timerData)) {
@@ -151,6 +131,8 @@ public class WindmillStateTagUtil {
     return ByteString.copyFromUtf8(tagString);
   }
 
+  /** {@inheritDoc} */
+  @Override
   public TimerData windmillTimerToTimerData(
       WindmillNamespacePrefix prefix,
       Timer timer,
@@ -253,69 +235,12 @@ public class WindmillStateTagUtil {
 
   }
 
-  /**
-   * Uses the given {@link Timer} builder to build a windmill {@link Timer} from {@link TimerData}.
-   *
-   * @return the input builder for chaining
-   */
-  public Timer.Builder buildWindmillTimerFromTimerData(
-      @Nullable String stateFamily,
-      WindmillNamespacePrefix prefix,
-      TimerData timerData,
-      Timer.Builder builder) {
-
-    builder.setTag(timerTag(prefix, timerData)).setType(timerType(timerData.getDomain()));
-
-    if (stateFamily != null) {
-      builder.setStateFamily(stateFamily);
-    }
-
-    builder.setTimestamp(WindmillTimeUtils.harnessToWindmillTimestamp(timerData.getTimestamp()));
-
-    // Store the output timestamp in the metadata timestamp.
-    Instant outputTimestamp = timerData.getOutputTimestamp();
-    if (outputTimestamp.isAfter(BoundedWindow.TIMESTAMP_MAX_VALUE)) {
-      // We can't encode any value larger than BoundedWindow.TIMESTAMP_MAX_VALUE, so use the end of
-      // the global window
-      // here instead.
-      outputTimestamp = OUTPUT_TIMESTAMP_MAX_WINDMILL_VALUE;
-    }
-    builder.setMetadataTimestamp(WindmillTimeUtils.harnessToWindmillTimestamp(outputTimestamp));
-    return builder;
-  }
-
-  private static Timer.Type timerType(TimeDomain domain) {
-    switch (domain) {
-      case EVENT_TIME:
-        return Timer.Type.WATERMARK;
-      case PROCESSING_TIME:
-        return Timer.Type.REALTIME;
-      case SYNCHRONIZED_PROCESSING_TIME:
-        return Timer.Type.DEPENDENT_REALTIME;
-      default:
-        throw new IllegalArgumentException("Unrecgonized TimeDomain: " + domain);
-    }
-  }
-
-  private static TimeDomain timerTypeToTimeDomain(Windmill.Timer.Type type) {
-    switch (type) {
-      case REALTIME:
-        return TimeDomain.PROCESSING_TIME;
-      case DEPENDENT_REALTIME:
-        return TimeDomain.SYNCHRONIZED_PROCESSING_TIME;
-      case WATERMARK:
-        return TimeDomain.EVENT_TIME;
-      default:
-        throw new IllegalArgumentException("Unsupported timer type " + type);
-    }
-  }
-
   private static boolean useNewTimerTagEncoding(TimerData timerData) {
     return !timerData.getTimerFamilyId().isEmpty();
   }
 
   /** @return the singleton WindmillStateTagUtil */
-  public static WindmillStateTagUtil instance() {
+  public static WindmillTagEncodingV1 instance() {
     return INSTANCE;
   }
 }
