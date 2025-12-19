@@ -54,6 +54,16 @@ import org.joda.time.Instant;
 public class WindmillTagEncodingV2 extends WindmillTagEncoding {
 
   private static final WindmillTagEncodingV2 INSTANCE = new WindmillTagEncodingV2();
+  private static final int WINDOW_NAMESPACE_BYTE = 0x01;
+  private static final int WINDOW_AND_TRIGGER_NAMESPACE_BYTE = 0x02;
+  private static final int NON_GLOBAL_NAMESPACE_BYTE = 0x10;
+  private static final int GLOBAL_NAMESPACE_BYTE = 0x01;
+  private static final int SYSTEM_STATE_TAG_BYTE = 0x01;
+  private static final int USER_STATE_TAG_BYTE = 0x02;
+  private static final int SYSTEM_TIMER_BYTE = 0x03;
+  private static final int USER_TIMER_BYTE = 0x04;
+  private static final int INTERVAL_WINDOW_BYTE = 0x64;
+  private static final int OTHER_WINDOW_BYTE = 0x02;
 
   // Private constructor to prevent instantiations from outside.
   private WindmillTagEncodingV2() {}
@@ -87,9 +97,9 @@ public class WindmillTagEncodingV2 extends WindmillTagEncoding {
       ByteStringOutputStream stream = streamHandle.stream();
       encodeNameSpace(timerData.getNamespace(), stream);
       if (WindmillNamespacePrefix.SYSTEM_NAMESPACE_PREFIX.equals(prefix)) {
-        stream.write(0x03); // System namespace prefix
+        stream.write(SYSTEM_TIMER_BYTE);
       } else if (WindmillNamespacePrefix.USER_NAMESPACE_PREFIX.equals(prefix)) {
-        stream.write(0x04); // User namespace prefix
+        stream.write(USER_TIMER_BYTE);
       } else {
         throw new IllegalStateException("Unexpected WindmillNamespacePrefix" + prefix);
       }
@@ -114,9 +124,9 @@ public class WindmillTagEncodingV2 extends WindmillTagEncoding {
     try {
       StateNamespace stateNamespace = decodeNameSpace(stream, windowCoder);
       int nextByte = stream.read();
-      if (nextByte == 0x03) { // System namespace prefix
+      if (nextByte == SYSTEM_TIMER_BYTE) {
         checkState(WindmillNamespacePrefix.SYSTEM_NAMESPACE_PREFIX.equals(prefix));
-      } else if (nextByte == 0x04) { // User namespace prefix
+      } else if (nextByte == USER_TIMER_BYTE) {
         checkState(WindmillNamespacePrefix.USER_NAMESPACE_PREFIX.equals(prefix));
       } else {
         throw new IllegalStateException("Unexpected timer tag byte: " + nextByte);
@@ -158,9 +168,9 @@ public class WindmillTagEncodingV2 extends WindmillTagEncoding {
 
   private void encodeAddress(StateTag<?> tag, ByteStringOutputStream stream) throws IOException {
     if (StateTags.isSystemTagInternal(tag)) {
-      stream.write(0x01); // System tag
+      stream.write(SYSTEM_STATE_TAG_BYTE); // System tag
     } else {
-      stream.write(0x02); // User tag
+      stream.write(USER_STATE_TAG_BYTE); // User tag
     }
     StringUtf8Coder.of().encode(tag.getId(), stream);
   }
@@ -168,15 +178,12 @@ public class WindmillTagEncodingV2 extends WindmillTagEncoding {
   private void encodeNameSpace(StateNamespace namespace, ByteStringOutputStream stream)
       throws IOException {
     if (namespace instanceof GlobalNamespace) {
-      // Single byte 0x01 for GlobalNamespace.
-      stream.write(0x01);
+      stream.write(GLOBAL_NAMESPACE_BYTE);
     } else if (namespace instanceof WindowNamespace) {
-      // Single byte 0x10 for Non-Global namespace.
-      stream.write(0x10);
+      stream.write(NON_GLOBAL_NAMESPACE_BYTE);
       encodeWindowNamespace((WindowNamespace<? extends BoundedWindow>) namespace, stream);
     } else if (namespace instanceof WindowAndTriggerNamespace) {
-      // Single byte 0x10 for Non-Global namespace.
-      stream.write(0x10);
+      stream.write(NON_GLOBAL_NAMESPACE_BYTE);
       encodeWindowAndTriggerNamespace(
           (WindowAndTriggerNamespace<? extends BoundedWindow>) namespace, stream);
     } else {
@@ -188,9 +195,9 @@ public class WindmillTagEncodingV2 extends WindmillTagEncoding {
       InputStream stream, Coder<? extends BoundedWindow> windowCoder) throws IOException {
     int firstByte = stream.read();
     switch (firstByte) {
-      case 0x01: // GlobalNamespace
+      case GLOBAL_NAMESPACE_BYTE: // GlobalNamespace
         return StateNamespaces.global();
-      case 0x10: // Non-Global namespace
+      case NON_GLOBAL_NAMESPACE_BYTE: // Non-Global namespace
         return decodeNonGlobalNamespace(stream, windowCoder);
       default:
         throw new IllegalStateException("Invalid first namespace byte: " + firstByte);
@@ -202,9 +209,9 @@ public class WindmillTagEncodingV2 extends WindmillTagEncoding {
     W window = decodeWindow(stream, windowCoder);
     int namespaceByte = stream.read();
     switch (namespaceByte) {
-      case 0x1: // Window namespace
+      case WINDOW_NAMESPACE_BYTE: // Window namespace
         return StateNamespaces.window(windowCoder, window);
-      case 0x2: // Window and trigger namespace
+      case WINDOW_AND_TRIGGER_NAMESPACE_BYTE: // Window and trigger namespace
         Integer triggerIndex = BigEndianIntegerCoder.of().decode(stream);
         return StateNamespaces.windowAndTrigger(windowCoder, window, triggerIndex);
       default:
@@ -217,10 +224,10 @@ public class WindmillTagEncodingV2 extends WindmillTagEncoding {
     int firstByte = stream.read();
     W window;
     switch (firstByte) {
-      case 0x64: // IntervalWindow
+      case INTERVAL_WINDOW_BYTE:
         window = (W) decodeIntervalWindow(stream);
         break;
-      case 0x02: // Other Windows
+      case OTHER_WINDOW_BYTE:
         window = windowCoder.decode(stream);
         break;
       default:
@@ -238,7 +245,7 @@ public class WindmillTagEncodingV2 extends WindmillTagEncoding {
   private <W extends BoundedWindow> void encodeWindowNamespace(
       WindowNamespace<W> windowNamespace, ByteStringOutputStream stream) throws IOException {
     encodeWindow(windowNamespace.getWindow(), windowNamespace.getWindowCoder(), stream);
-    stream.write(0x01); // Window namespace
+    stream.write(WINDOW_NAMESPACE_BYTE);
   }
 
   private <W extends BoundedWindow> void encodeWindowAndTriggerNamespace(
@@ -246,18 +253,18 @@ public class WindmillTagEncodingV2 extends WindmillTagEncoding {
       throws IOException {
     encodeWindow(
         windowAndTriggerNamespace.getWindow(), windowAndTriggerNamespace.getWindowCoder(), stream);
-    stream.write(0x02); // Window and trigger namespace
+    stream.write(WINDOW_AND_TRIGGER_NAMESPACE_BYTE);
     BigEndianIntegerCoder.of().encode(windowAndTriggerNamespace.getTriggerIndex(), stream);
   }
 
   private <W extends BoundedWindow> void encodeWindow(
       W window, Coder<W> windowCoder, ByteStringOutputStream stream) throws IOException {
     if (windowCoder instanceof IntervalWindowCoder) {
-      stream.write(0x64); // IntervalWindow
+      stream.write(INTERVAL_WINDOW_BYTE);
       InstantCoder.of().encode(((IntervalWindow) window).end(), stream);
       InstantCoder.of().encode(((IntervalWindow) window).start(), stream);
     } else {
-      stream.write(0x02); // Other Windows
+      stream.write(OTHER_WINDOW_BYTE);
       windowCoder.encode(window, stream);
     }
   }
