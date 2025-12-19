@@ -186,6 +186,9 @@ class ImpulseSeqGenDoFn(beam.DoFn):
 
       current_output_index += 1
 
+    # Don't yield any values here so that the generator
+    # raises StopIteration when we break out of the while loop.
+
 
 class PeriodicSequence(PTransform):
   '''
