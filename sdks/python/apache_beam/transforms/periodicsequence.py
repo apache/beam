@@ -169,11 +169,11 @@ class ImpulseSeqGenDoFn(beam.DoFn):
         # we are too ahead of time, let's wait.
         restriction_tracker.defer_remainder(
             timestamp.Timestamp(current_output_timestamp))
-        return
+        break
 
       if not restriction_tracker.try_claim(current_output_index):
         # nothing to claim, just stop
-        return
+        break
 
       output = self._get_output(current_output_index, current_output_timestamp)
 
