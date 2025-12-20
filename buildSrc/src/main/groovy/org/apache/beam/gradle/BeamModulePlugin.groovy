@@ -838,6 +838,7 @@ class BeamModulePlugin implements Plugin<Project> {
         jupiter_params                              : "org.junit.jupiter:junit-jupiter-params:$jupiter_version",
         kafka                                       : "org.apache.kafka:kafka_2.12:$kafka_version",
         kafka_clients                               : "org.apache.kafka:kafka-clients:$kafka_version",
+        kafka_server                                : "org.apache.kafka:kafka-server:$kafka_version",
         log4j                                       : "log4j:log4j:1.2.17",
         log4j_over_slf4j                            : "org.slf4j:log4j-over-slf4j:$slf4j_version",
         log4j2_api                                  : "org.apache.logging.log4j:log4j-api:$log4j2_version",

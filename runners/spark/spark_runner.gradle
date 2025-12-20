@@ -200,8 +200,9 @@ dependencies {
   testImplementation project(path: ":sdks:java:extensions:avro", configuration: "testRuntimeMigration")
   testImplementation project(":sdks:java:harness")
   testImplementation library.java.avro
-  testImplementation "org.apache.kafka:kafka_$spark_scala_version:2.4.1"
+  testImplementation library.java.kafka
   testImplementation library.java.kafka_clients
+  testImplementation library.java.kafka_server
   testImplementation library.java.junit
   testImplementation library.java.mockito_core
   testImplementation "org.assertj:assertj-core:3.11.1"
