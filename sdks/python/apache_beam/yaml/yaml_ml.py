@@ -168,6 +168,7 @@ class VertexAIModelHandlerJSONProvider(ModelHandlerProvider):
       experiment: Optional[str] = None,
       network: Optional[str] = None,
       private: bool = False,
+      invoke_route: Optional[str] = None,
       min_batch_size: Optional[int] = None,
       max_batch_size: Optional[int] = None,
       max_batch_duration_secs: Optional[int] = None):
@@ -236,6 +237,12 @@ class VertexAIModelHandlerJSONProvider(ModelHandlerProvider):
       private: If the deployed Vertex AI endpoint is
         private, set to true. Requires a network to be provided
         as well.
+      invoke_route: The custom route path to use when invoking
+        endpoints with arbitrary prediction routes. When specified, uses
+        `Endpoint.invoke()` instead of `Endpoint.predict()`. The route
+        should start with a forward slash, e.g., "/predict/v1".
+        See https://cloud.google.com/vertex-ai/docs/predictions/use-arbitrary-custom-routes
+        for more information.
       min_batch_size: The minimum batch size to use when batching
         inputs.
       max_batch_size: The maximum batch size to use when batching
@@ -258,6 +265,7 @@ class VertexAIModelHandlerJSONProvider(ModelHandlerProvider):
         experiment=experiment,
         network=network,
         private=private,
+        invoke_route=invoke_route,
         min_batch_size=min_batch_size,
         max_batch_size=max_batch_size,
         max_batch_duration_secs=max_batch_duration_secs)

@@ -48,5 +48,70 @@ class ModelHandlerArgConditions(unittest.TestCase):
         private=True)
 
 
+class ParseInvokeResponseTest(unittest.TestCase):
+  """Tests for _parse_invoke_response method."""
+
+  def _create_handler_with_invoke_route(self, invoke_route="/test"):
+    """Creates a mock handler with invoke_route for testing."""
+    import unittest.mock as mock
+    with mock.patch.object(
+        VertexAIModelHandlerJSON, '_retrieve_endpoint', return_value=None):
+      handler = VertexAIModelHandlerJSON(
+          endpoint_id="1",
+          project="testproject",
+          location="us-central1",
+          invoke_route=invoke_route)
+    return handler
+
+  def test_parse_invoke_response_with_predictions_key(self):
+    """Test parsing response with standard 'predictions' key."""
+    handler = self._create_handler_with_invoke_route()
+    batch = [{"input": "test1"}, {"input": "test2"}]
+    response = b'{"predictions": ["result1", "result2"], "deployedModelId": "model123"}'
+
+    results = list(handler._parse_invoke_response(batch, response))
+
+    self.assertEqual(len(results), 2)
+    self.assertEqual(results[0].example, {"input": "test1"})
+    self.assertEqual(results[0].inference, "result1")
+    self.assertEqual(results[1].example, {"input": "test2"})
+    self.assertEqual(results[1].inference, "result2")
+
+  def test_parse_invoke_response_list_format(self):
+    """Test parsing response as a list of predictions."""
+    handler = self._create_handler_with_invoke_route()
+    batch = [{"input": "test1"}, {"input": "test2"}]
+    response = b'["result1", "result2"]'
+
+    results = list(handler._parse_invoke_response(batch, response))
+
+    self.assertEqual(len(results), 2)
+    self.assertEqual(results[0].inference, "result1")
+    self.assertEqual(results[1].inference, "result2")
+
+  def test_parse_invoke_response_single_prediction(self):
+    """Test parsing response with a single prediction."""
+    handler = self._create_handler_with_invoke_route()
+    batch = [{"input": "test1"}]
+    response = b'{"output": "single result"}'
+
+    results = list(handler._parse_invoke_response(batch, response))
+
+    self.assertEqual(len(results), 1)
+    self.assertEqual(results[0].inference, {"output": "single result"})
+
+  def test_parse_invoke_response_non_json(self):
+    """Test handling non-JSON response."""
+    handler = self._create_handler_with_invoke_route()
+    batch = [{"input": "test1"}]
+    response = b'not valid json'
+
+    results = list(handler._parse_invoke_response(batch, response))
+
+    self.assertEqual(len(results), 1)
+    self.assertEqual(results[0].inference, response)
+
+
 if __name__ == '__main__':
   unittest.main()
+
