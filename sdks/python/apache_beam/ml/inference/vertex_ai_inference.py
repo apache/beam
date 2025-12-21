@@ -214,14 +214,14 @@ class VertexAIModelHandlerJSON(RemoteModelHandler[Any,
     """
     if self._invoke_route:
       # Use invoke() for endpoints with custom prediction routes
-      request_body = {"instances": list(batch)}
+      request_body: dict[str, Any] = {"instances": list(batch)}
       if inference_args:
         request_body["parameters"] = inference_args
       response = model.invoke(
           request_path=self._invoke_route,
           body=json.dumps(request_body).encode("utf-8"),
           headers={"Content-Type": "application/json"})
-      return self._parse_invoke_response(batch, response)
+      return self._parse_invoke_response(batch, bytes(response))
     else:
       prediction = model.predict(
           instances=list(batch), parameters=inference_args)
