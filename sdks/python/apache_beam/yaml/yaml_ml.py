@@ -241,7 +241,8 @@ class VertexAIModelHandlerJSONProvider(ModelHandlerProvider):
         endpoints with arbitrary prediction routes. When specified, uses
         `Endpoint.invoke()` instead of `Endpoint.predict()`. The route
         should start with a forward slash, e.g., "/predict/v1".
-        See https://cloud.google.com/vertex-ai/docs/predictions/use-arbitrary-custom-routes
+        See
+        https://cloud.google.com/vertex-ai/docs/predictions/use-arbitrary-custom-routes
         for more information.
       min_batch_size: The minimum batch size to use when batching
         inputs.

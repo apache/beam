@@ -50,12 +50,12 @@ class ModelHandlerArgConditions(unittest.TestCase):
 
 class ParseInvokeResponseTest(unittest.TestCase):
   """Tests for _parse_invoke_response method."""
-
   def _create_handler_with_invoke_route(self, invoke_route="/test"):
     """Creates a mock handler with invoke_route for testing."""
     import unittest.mock as mock
-    with mock.patch.object(
-        VertexAIModelHandlerJSON, '_retrieve_endpoint', return_value=None):
+    with mock.patch.object(VertexAIModelHandlerJSON,
+                           '_retrieve_endpoint',
+                           return_value=None):
       handler = VertexAIModelHandlerJSON(
           endpoint_id="1",
           project="testproject",
@@ -67,7 +67,9 @@ class ParseInvokeResponseTest(unittest.TestCase):
     """Test parsing response with standard 'predictions' key."""
     handler = self._create_handler_with_invoke_route()
     batch = [{"input": "test1"}, {"input": "test2"}]
-    response = b'{"predictions": ["result1", "result2"], "deployedModelId": "model123"}'
+    response = (
+        b'{"predictions": ["result1", "result2"], '
+        b'"deployedModelId": "model123"}')
 
     results = list(handler._parse_invoke_response(batch, response))
 
@@ -114,4 +116,3 @@ class ParseInvokeResponseTest(unittest.TestCase):
 
 if __name__ == '__main__':
   unittest.main()
-
