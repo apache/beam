@@ -35,7 +35,7 @@ try:
   from apache_beam.ml.inference import utils
   from apache_beam.ml.inference.base import PredictionResult, RunInference
   from apache_beam.ml.inference.tensorrt_inference import \
-      TensorRTEngineHandlerNumPy
+      TensorRTEngineHandlerNumPy, TensorRTEngineTensorApi
 except ImportError:
   raise unittest.SkipTest('TensorRT dependencies are not installed')
 
@@ -81,6 +81,47 @@ TWO_FEATURES_PREDICTIONS = [
                       0.5], dtype=np.float32)
         ] for example in TWO_FEATURES_EXAMPLES])
 ]
+
+
+def _tensorrt_has_tensor_api() -> bool:
+  engine_reqs = ("num_io_tensors", "get_tensor_name")
+  ctx_reqs = ("execute_async_v3", "set_input_shape", "set_tensor_address")
+  return all(hasattr(trt.ICudaEngine, m) for m in engine_reqs) and all(
+      hasattr(trt.IExecutionContext, m) for m in ctx_reqs)
+
+
+def _build_simple_onnx_model(input_size=1, output_path=None):
+  """Build a simple ONNX model for testing: y = 2x + 0.5."""
+  try:
+    from onnx import TensorProto, helper
+  except ImportError:
+    raise unittest.SkipTest('ONNX dependencies are not installed')
+
+  input_tensor = helper.make_tensor_value_info(
+      'input', TensorProto.FLOAT, [None, input_size])
+  output_tensor = helper.make_tensor_value_info(
+      'output', TensorProto.FLOAT, [None, input_size])
+
+  weight_init = helper.make_tensor(
+      'weight',
+      TensorProto.FLOAT, [input_size, input_size],
+      [2.0] * (input_size * input_size))
+  bias_init = helper.make_tensor(
+      'bias', TensorProto.FLOAT, [input_size], [0.5] * input_size)
+
+  matmul_node = helper.make_node('MatMul', ['input', 'weight'], ['matmul_out'])
+  add_node = helper.make_node('Add', ['matmul_out', 'bias'], ['output'])
+
+  graph = helper.make_graph([matmul_node, add_node],
+                            'simple_linear', [input_tensor], [output_tensor],
+                            [weight_init, bias_init])
+  model = helper.make_model(graph, producer_name='trt_test')
+  model.opset_import[0].version = 13
+
+  if output_path:
+    with open(output_path, 'wb') as f:
+      f.write(model.SerializeToString())
+  return model
 
 
 def _compare_prediction_result(a, b):
@@ -286,6 +327,31 @@ class TensorRTRunInferenceTest(unittest.TestCase):
     predictions = inference_runner.run_inference(TWO_FEATURES_EXAMPLES, engine)
     for actual, expected in zip(predictions, TWO_FEATURES_PREDICTIONS):
       self.assertTrue(_compare_prediction_result(actual, expected))
+
+  @unittest.skipIf(
+      not _tensorrt_has_tensor_api(), 'TensorRT 10.x Tensor API not available')
+  def test_build_on_worker_onnx_trt10(self):
+    """Test TRT10 auto-selection with build_on_worker using local ONNX."""
+    import tempfile
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+      onnx_path = os.path.join(tmpdir, 'test_model.onnx')
+      _build_simple_onnx_model(input_size=1, output_path=onnx_path)
+
+      inference_runner = TensorRTEngineHandlerNumPy(
+          min_batch_size=1,
+          max_batch_size=4,
+          onnx_path=onnx_path,
+          build_on_worker=True)
+      engine = inference_runner.load_model()
+      self.assertIsInstance(engine, TensorRTEngineTensorApi)
+
+      batch = np.array([[1.0], [2.0], [3.0], [4.0]], dtype=np.float32)
+      predictions = list(inference_runner.run_inference(batch, engine))
+      self.assertEqual(len(predictions), 4)
+      for i, pred in enumerate(predictions):
+        expected = batch[i][0] * 2.0 + 0.5
+        np.testing.assert_allclose(pred.inference[0], [expected], rtol=1e-5)
 
   @unittest.skipIf(GCSFileSystem is None, 'GCP dependencies are not installed')
   def test_inference_single_tensor_feature_built_engine(self):
