@@ -516,30 +516,22 @@ class FastPrimitivesCoderImpl(StreamCoderImpl):
             "Unable to deterministically encode non-frozen '%s' of type '%s' "
             "for the input of '%s'" %
             (value, type(value), self.requires_deterministic_step_label))
-      if dataclass_uses_kw_only(type(value)):
-        stream.write_byte(DATACLASS_KW_ONLY_TYPE)
-        self.encode_type(type(value), stream)
-        init_field_names = [
-            field.name for field in dataclasses.fields(value) if field.init
-        ]
-        stream.write_var_int64(len(init_field_names))
-        try:
-          for field_name in init_field_names:
-            stream.write(field_name.encode("utf-8"), True)
-            self.encode_to_stream(getattr(value, field_name), stream, True)
-        except Exception as e:
-          raise TypeError(self._deterministic_encoding_error_msg(value)) from e
-      else:  # Not using kw_only, we can pass parameters by position.
-        stream.write_byte(DATACLASS_TYPE)
-        self.encode_type(type(value), stream)
-        values = [
-            getattr(value, field.name) for field in dataclasses.fields(value)
-            if field.init
-        ]
-        try:
+      init_fields = [field for field in dataclasses.fields(value) if field.init]
+      try:
+        if dataclass_uses_kw_only(type(value)):
+          stream.write_byte(DATACLASS_KW_ONLY_TYPE)
+          self.encode_type(type(value), stream)
+          stream.write_var_int64(len(init_fields))
+          for field in init_fields:
+            stream.write(field.name.encode("utf-8"), True)
+            self.encode_to_stream(getattr(value, field.name), stream, True)
+        else:  # Not using kw_only, we can pass parameters by position.
+          stream.write_byte(DATACLASS_TYPE)
+          self.encode_type(type(value), stream)
+          values = [getattr(value, field.name) for field in init_fields]
           self.iterable_coder_impl.encode_to_stream(values, stream, True)
-        except Exception as e:
-          raise TypeError(self._deterministic_encoding_error_msg(value)) from e
+      except Exception as e:
+        raise TypeError(self._deterministic_encoding_error_msg(value)) from e
     elif isinstance(value, tuple) and hasattr(type(value), '_fields'):
       stream.write_byte(NAMED_TUPLE_TYPE)
       self.encode_type(type(value), stream)
