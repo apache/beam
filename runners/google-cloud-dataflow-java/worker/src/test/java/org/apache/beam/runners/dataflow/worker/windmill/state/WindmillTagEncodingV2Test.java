@@ -18,6 +18,7 @@
 package org.apache.beam.runners.dataflow.worker.windmill.state;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -164,6 +165,7 @@ public class WindmillTagEncodingV2Test {
 
   @RunWith(Parameterized.class)
   public static class EncodeStateTagTest {
+
     @Parameters(name = "{index}: namespace={0} stateTag={1} expectedBytes={2}")
     public static Collection<Object[]> data() {
       return ImmutableList.of(
@@ -216,6 +218,7 @@ public class WindmillTagEncodingV2Test {
 
   @RunWith(Parameterized.class)
   public static class TimerTagTest {
+
     @Parameters(
         name =
             "{index}: namespace={0} prefix={1} expectedBytes={2} includeTimerId={3}"
@@ -323,6 +326,7 @@ public class WindmillTagEncodingV2Test {
 
   @RunWith(Parameterized.class)
   public static class TimerDataFromTimerTest {
+
     @Parameters(name = "{index}: namespace={0} prefix={1} draining={4} timeDomain={5}")
     public static Collection<Object[]> data() {
       List<Object[]> tests =
@@ -440,6 +444,7 @@ public class WindmillTagEncodingV2Test {
 
   @RunWith(JUnit4.class)
   public static class TimerHoldTagTest {
+
     @Test
     public void testTimerHoldTagUsesTimerTag() {
       TimerData timerData =
@@ -460,7 +465,61 @@ public class WindmillTagEncodingV2Test {
     }
   }
 
+  @RunWith(JUnit4.class)
+  public static class SortOrderTest {
+
+    @Test
+    public void testSortOrder() {
+      WindmillTagEncodingV2 encoding = WindmillTagEncodingV2.instance();
+
+      Instant baseInstant = Instant.now();
+      // [5, 20)
+      StateNamespace interval5_20 =
+          StateNamespaces.window(
+              IntervalWindow.getCoder(),
+              new IntervalWindow(baseInstant.plus(5), baseInstant.plus(20)));
+      // [10, 20)
+      StateNamespace interval10_20 =
+          StateNamespaces.window(
+              IntervalWindow.getCoder(),
+              new IntervalWindow(baseInstant.plus(10), baseInstant.plus(20)));
+      // [20, 30)
+      StateNamespace interval20_30 =
+          StateNamespaces.window(
+              IntervalWindow.getCoder(),
+              new IntervalWindow(baseInstant.plus(20), baseInstant.plus(30)));
+
+      ByteString globalBytes = encoding.stateTag(GLOBAL_NAMESPACE, USER_STATE_TAG).byteString();
+      ByteString otherWindowBytes =
+          encoding.stateTag(OTHER_WINDOW_NAMESPACE, USER_STATE_TAG).byteString();
+      ByteString interval5_20Bytes = encoding.stateTag(interval5_20, USER_STATE_TAG).byteString();
+      ByteString interval10_20Bytes = encoding.stateTag(interval10_20, USER_STATE_TAG).byteString();
+      ByteString interval20_30Bytes = encoding.stateTag(interval20_30, USER_STATE_TAG).byteString();
+
+      // Global < Non-Interval < Interval
+      assertOrdered(globalBytes, otherWindowBytes);
+      assertOrdered(otherWindowBytes, interval5_20Bytes);
+
+      // Interval sorting: EndTime then StartTime
+      // [5, 20) < [10, 20) (Same End=20, Start 5 < 10)
+      assertOrdered(interval5_20Bytes, interval10_20Bytes);
+      // [10, 20) < [20, 30) (End 20 < 30)
+      assertOrdered(interval10_20Bytes, interval20_30Bytes);
+
+      assertTrue(globalBytes.startsWith(ByteString.copyFrom(new byte[] {0x01})));
+      assertTrue(otherWindowBytes.startsWith(ByteString.copyFrom(new byte[] {0x10, 0x02})));
+      assertTrue(interval5_20Bytes.startsWith(ByteString.copyFrom(new byte[] {0x10, 0x64})));
+      assertTrue(interval10_20Bytes.startsWith(ByteString.copyFrom(new byte[] {0x10, 0x64})));
+      assertTrue(interval20_30Bytes.startsWith(ByteString.copyFrom(new byte[] {0x10, 0x64})));
+    }
+
+    private void assertOrdered(ByteString smaller, ByteString larger) {
+      assertTrue(ByteString.unsignedLexicographicalComparator().compare(smaller, larger) < 0);
+    }
+  }
+
   private static class CustomWindow extends IntervalWindow {
+
     private CustomWindow(IntervalWindow intervalWindow) {
       super(intervalWindow.start(), intervalWindow.end());
     }

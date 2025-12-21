@@ -48,7 +48,142 @@ import org.apache.beam.sdk.util.ByteStringOutputStream;
 import org.apache.beam.vendor.grpc.v1p69p0.com.google.protobuf.ByteString;
 import org.joda.time.Instant;
 
-/** Encodes and decodes StateTags and TimerTags from and to windmill bytes */
+/**
+ * Encodes and decodes StateTags and TimerTags from and to windmill bytes. This encoding scheme
+ * enforces a specific lexicographical order on state tags. The ordering enables building range
+ * filters using the tags.
+ *
+ * <h2>1. High-Level Tag Formats</h2>
+ *
+ * <p>State tags and Timer tags differ in structure but share common component encodings.
+ *
+ * <h3>1.1 State Tag Encoding</h3>
+ *
+ * <p>Used for generic state variables (e.g., ValueState, BagState, etc).
+ *
+ * <pre>
+ * Format:
+ * | Encoded Namespace | Encoded Address |
+ * </pre>
+ *
+ * <ul>
+ *   <li><b>Encoded Namespace:</b> Encodes the state namespace (see Section 2.1).
+ *   <li><b>Encoded Address:</b> Encodes the state variable address (see Section 2.3).
+ * </ul>
+ *
+ * <h3>1.2 Timer/Timer Hold Tag Encoding</h3>
+ *
+ * <p>Specialized tags, used for timers and automatic watermark holds associated with the timers.
+ *
+ * <pre>
+ * Format:
+ * | Encoded Namespace | Tag Type | Timer Family Id | Timer Id |
+ *
+ * +-------------------+-----------------------------------------------------------+
+ * | Field             | Format                                                    |
+ * +-------------------+-----------------------------------------------------------+
+ * | Encoded Namespace | Encoded namespace (see Section 2.1).                      |
+ * +-------------------+-----------------------------------------------------------+
+ * | Tag Type          | {@code 0x03} (Single byte): System Timer/Watermark Hold   |
+ * |                   | {@code 0x04} (Single byte): User Timer/Watermark Hold     |
+ * +-------------------+-----------------------------------------------------------+
+ * | Timer Family ID   | TimerFamilyId encoded via length prefixed                 |
+ * |                   | {@code StringUtf8Coder}.                                  |
+ * +-------------------+-----------------------------------------------------------+
+ * | Timer ID          | TimerId encoded via length prefixed                       |
+ * |                   | {@code StringUtf8Coder}.                                  |
+ * +-------------------+-----------------------------------------------------------+
+ * </pre>
+ *
+ * <h2>2. Component Encodings</h2>
+ *
+ * <h3>2.1 Namespace Encoding</h3>
+ *
+ * <p>Namespaces are prefixed with a byte ID to control sorting order.
+ *
+ * <pre>
+ * +---------------------------+-------------------------------------------------------------+
+ * | Namespace Type            | Format                                                      |
+ * +---------------------------+-------------------------------------------------------------+
+ * | GlobalNamespace           | | {@code 0x01} |                                            |
+ * |                           | (Single byte)                                               |
+ * +---------------------------+-------------------------------------------------------------+
+ * | WindowNamespace           | | {@code 0x10} | Encoded Window | {@code 0x01} |            |
+ * |                           | (See Section 2.2)                                           |
+ * +---------------------------+-------------------------------------------------------------+
+ * | WindowAndTriggerNamespace | | {@code 0x10} | Encoded Window | {@code 0x02} | TriggerIndex |
+ * |                           | (See Section 2.2 for Encoded Window)                        |
+ * |                           | TriggerIndex is encoded by {@code BigEndianIntegerCoder}    |
+ * +---------------------------+-------------------------------------------------------------+
+ * </pre>
+ *
+ * <h3>2.2 Window Encoding</h3>
+ *
+ * <h4>2.2.1 IntervalWindow</h4>
+ *
+ * <p>IntervalWindows use a custom encoding that is different from the IntervalWindowCoder.
+ *
+ * <pre>
+ * Format:
+ * | 0x64 | End Time | Start Time |
+ * </pre>
+ *
+ * <ul>
+ *   <li><b>Prefix:</b> {@code 0x64}. Single byte identifying Interval windows.
+ *   <li><b>End Time:</b> {@code intervalWindow.end()} encoded via {@code InstantCoder}.
+ *   <li><b>Start Time:</b> {@code intervalWindow.start()} encoded via {@code InstantCoder}.
+ * </ul>
+ *
+ * <p><b>Note:</b> {@code InstantCoder} preserves the sort order. The encoded IntervalWindow is to
+ * be sorted based on {@code [End Time, Start Time]} directly without needing to decode.
+ *
+ * <h4>2.2.2 Other Windows</h4>
+ *
+ * <p>All non-IntervalWindows use the standard window coders.
+ *
+ * <pre>
+ * Format:
+ * | 0x02 | Window |
+ * </pre>
+ *
+ * <ul>
+ *   <li><b>Prefix:</b> {@code 0x02}. Single byte identifying non-Interval windows.
+ *   <li><b>Window:</b> The window serialized using its {@code windowCoder}.
+ * </ul>
+ *
+ * <h3>2.3 Address Encoding</h3>
+ *
+ * <p>Combines the state type and the state identifier.
+ *
+ * <pre>
+ * Format:
+ * | State Type | Address |
+ *
+ * +------------+-----------------------------------------------------------------+
+ * | Field      | Format                                                          |
+ * +------------+-----------------------------------------------------------------+
+ * | State Type | {@code 0x01} (Single byte): System State                        |
+ * |            | {@code 0x02} (Single byte): User State                          |
+ * +------------+-----------------------------------------------------------------+
+ * | Address    | The state address (string) is encoded via length prefixed       |
+ * |            | {@code StringUtf8Coder}.                                        |
+ * +------------+-----------------------------------------------------------------+
+ * </pre>
+ *
+ * <h2>3. Tag Ordering</h2>
+ *
+ * <p>The encoding prefixes are chosen to enforce the following lexicographical sort order (lowest
+ * to highest):
+ *
+ * <ol>
+ *   <li><b>Tags in Global Namespace</b> (Prefix {@code 0x01})
+ *   <li><b>Tags in Non-Interval Windows</b> (Prefix {@code 0x1002})
+ *   <li><b>Tags in Interval Windows</b> (Prefix {@code 0x1064})
+ *       <ul>
+ *         <li>Sorted internally by {@code [EndTime, StartTime]}.
+ *       </ul>
+ * </ol>
+ */
 @Internal
 @ThreadSafe
 public class WindmillTagEncodingV2 extends WindmillTagEncoding {
@@ -168,9 +303,9 @@ public class WindmillTagEncodingV2 extends WindmillTagEncoding {
 
   private void encodeAddress(StateTag<?> tag, ByteStringOutputStream stream) throws IOException {
     if (StateTags.isSystemTagInternal(tag)) {
-      stream.write(SYSTEM_STATE_TAG_BYTE); // System tag
+      stream.write(SYSTEM_STATE_TAG_BYTE);
     } else {
-      stream.write(USER_STATE_TAG_BYTE); // User tag
+      stream.write(USER_STATE_TAG_BYTE);
     }
     StringUtf8Coder.of().encode(tag.getId(), stream);
   }
@@ -195,9 +330,9 @@ public class WindmillTagEncodingV2 extends WindmillTagEncoding {
       InputStream stream, Coder<? extends BoundedWindow> windowCoder) throws IOException {
     int firstByte = stream.read();
     switch (firstByte) {
-      case GLOBAL_NAMESPACE_BYTE: // GlobalNamespace
+      case GLOBAL_NAMESPACE_BYTE:
         return StateNamespaces.global();
-      case NON_GLOBAL_NAMESPACE_BYTE: // Non-Global namespace
+      case NON_GLOBAL_NAMESPACE_BYTE:
         return decodeNonGlobalNamespace(stream, windowCoder);
       default:
         throw new IllegalStateException("Invalid first namespace byte: " + firstByte);
@@ -209,9 +344,9 @@ public class WindmillTagEncodingV2 extends WindmillTagEncoding {
     W window = decodeWindow(stream, windowCoder);
     int namespaceByte = stream.read();
     switch (namespaceByte) {
-      case WINDOW_NAMESPACE_BYTE: // Window namespace
+      case WINDOW_NAMESPACE_BYTE:
         return StateNamespaces.window(windowCoder, window);
-      case WINDOW_AND_TRIGGER_NAMESPACE_BYTE: // Window and trigger namespace
+      case WINDOW_AND_TRIGGER_NAMESPACE_BYTE:
         Integer triggerIndex = BigEndianIntegerCoder.of().decode(stream);
         return StateNamespaces.windowAndTrigger(windowCoder, window, triggerIndex);
       default:
