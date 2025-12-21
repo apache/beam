@@ -228,9 +228,8 @@ class VertexAIModelHandlerJSON(RemoteModelHandler[Any,
       return utils._convert_to_result(
           batch, prediction.predictions, prediction.deployed_model_id)
 
-  def _parse_invoke_response(
-      self, batch: Sequence[Any],
-      response: bytes) -> Iterable[PredictionResult]:
+  def _parse_invoke_response(self, batch: Sequence[Any],
+                             response: bytes) -> Iterable[PredictionResult]:
     """Parses the response from Endpoint.invoke() into PredictionResults.
 
     Args:
