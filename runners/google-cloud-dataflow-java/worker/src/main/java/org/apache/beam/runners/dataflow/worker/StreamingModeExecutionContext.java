@@ -422,7 +422,8 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext<Step
         try {
           activeReader.close();
         } catch (IOException e) {
-          LOG.warn("Failed to close reader for {}-{}", computationId, key.toStringUtf8(), e);
+          LOG.warn(
+              "Failed to close reader for {}-{}", computationId, getWorkItem().getShardingKey(), e);
         }
       }
       activeReader = null;
