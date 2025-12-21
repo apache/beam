@@ -477,17 +477,20 @@ public class WindmillTagEncodingV2Test {
       StateNamespace interval5_20 =
           StateNamespaces.window(
               IntervalWindow.getCoder(),
-              new IntervalWindow(baseInstant.plus(5), baseInstant.plus(20)));
+              new IntervalWindow(
+                  baseInstant.plus(Duration.millis(5)), baseInstant.plus(Duration.millis(20))));
       // [10, 20)
       StateNamespace interval10_20 =
           StateNamespaces.window(
               IntervalWindow.getCoder(),
-              new IntervalWindow(baseInstant.plus(10), baseInstant.plus(20)));
+              new IntervalWindow(
+                  baseInstant.plus(Duration.millis(10)), baseInstant.plus(Duration.millis(20))));
       // [20, 30)
       StateNamespace interval20_30 =
           StateNamespaces.window(
               IntervalWindow.getCoder(),
-              new IntervalWindow(baseInstant.plus(20), baseInstant.plus(30)));
+              new IntervalWindow(
+                  baseInstant.plus(Duration.millis(20)), baseInstant.plus(Duration.millis(30))));
 
       ByteString globalBytes = encoding.stateTag(GLOBAL_NAMESPACE, USER_STATE_TAG).byteString();
       ByteString otherWindowBytes =
