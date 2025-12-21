@@ -92,7 +92,6 @@ import org.mockito.MockitoAnnotations;
 /** Unit tests for {@link StreamingGroupAlsoByWindowsDoFns}. */
 @RunWith(JUnit4.class)
 public class StreamingGroupAlsoByWindowFnsTest {
-
   private static final String KEY = "k";
   private static final String STATE_FAMILY = "stateFamily";
   private static final long WORK_TOKEN = 1000L;
@@ -501,7 +500,6 @@ public class StreamingGroupAlsoByWindowFnsTest {
   }
 
   private final class TestStepContext implements StepContext {
-
     private StateInternals stateInternals;
 
     private TestStepContext(String stepName) {
@@ -524,7 +522,6 @@ public class StreamingGroupAlsoByWindowFnsTest {
    * CombineFn API properly.
    */
   private static class SumLongs extends CombineFn<Long, Long, Long> {
-
     @Override
     public Long createAccumulator() {
       return 0L;

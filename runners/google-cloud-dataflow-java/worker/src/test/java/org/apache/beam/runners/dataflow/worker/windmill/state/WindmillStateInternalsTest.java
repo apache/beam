@@ -112,7 +112,6 @@ import org.mockito.MockitoAnnotations;
   "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
 })
 public class WindmillStateInternalsTest {
-
   @Rule public transient Timeout globalTimeout = Timeout.seconds(600);
   public static final Range<Long> FULL_ORDERED_LIST_RANGE =
       Range.closedOpen(WindmillOrderedList.MIN_TS_MICROS, WindmillOrderedList.MAX_TS_MICROS);
@@ -3524,7 +3523,6 @@ public class WindmillStateInternalsTest {
   }
 
   private static class MultimapEntryUpdate {
-
     String key;
     Iterable<Integer> values;
     boolean deleteAll;
@@ -3537,12 +3535,8 @@ public class WindmillStateInternalsTest {
 
     @Override
     public boolean equals(Object o) {
-      if (this == o) {
-        return true;
-      }
-      if (!(o instanceof MultimapEntryUpdate)) {
-        return false;
-      }
+      if (this == o) return true;
+      if (!(o instanceof MultimapEntryUpdate)) return false;
       MultimapEntryUpdate that = (MultimapEntryUpdate) o;
       return deleteAll == that.deleteAll
           && Objects.equals(key, that.key)
