@@ -376,6 +376,8 @@ if __name__ == '__main__':
           'cryptography>=39.0.0,<48.0.0',
           'fastavro>=0.23.6,<2',
           'fasteners>=0.3,<1.0',
+          # envoy-data-plane>=1.0.1 pulls in grpcio-tools>=1.67
+          # which conflicts with our pinned grpcio<1.66 on Python <= 3.12
           'envoy-data-plane>=1.0.3,<2; python_version >= "3.13"',
           'envoy-data-plane==0.8.1; python_version < "3.13"',
           # TODO(https://github.com/grpc/grpc/issues/37710): Unpin grpc
