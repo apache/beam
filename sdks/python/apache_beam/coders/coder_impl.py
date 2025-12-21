@@ -376,10 +376,11 @@ def _verify_dill_compat():
     raise RuntimeError(base_error + f". Found dill version '{dill.__version__}")
 
 
+dataclass_uses_kw_only: Callable[[Any], bool]
 if dataclasses:
   # Cache the result to avoid multiple checks for the same dataclass type.
   @functools.cache
-  def dataclass_uses_kw_only(cls):
+  def dataclass_uses_kw_only(cls) -> bool:
     return any(
         field.init and field.kw_only for field in dataclasses.fields(cls))
 
