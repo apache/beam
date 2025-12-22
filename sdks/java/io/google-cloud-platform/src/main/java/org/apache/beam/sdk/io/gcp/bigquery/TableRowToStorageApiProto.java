@@ -216,6 +216,8 @@ public class TableRowToStorageApiProto {
   static final DecimalFormat DECIMAL_FORMAT =
       new DecimalFormat("0.0###############", DecimalFormatSymbols.getInstance(Locale.ROOT));
 
+  private static final long PICOSECOND_PRECISION = 12L;
+
   // Map of functions to convert json values into the value expected in the Vortex proto object.
   static final Map<TableFieldSchema.Type, ThrowingBiFunction<String, Object, @Nullable Object>>
       TYPE_MAP_PROTO_CONVERTERS =
@@ -982,7 +984,7 @@ public class TableRowToStorageApiProto {
       case MESSAGE:
         if (fieldDescriptor.getMessageType().getName().equals("TimestampPicos")) {
           tableFieldSchemaBuilder.setType(TableFieldSchema.Type.TIMESTAMP);
-          tableFieldSchemaBuilder.setPrecision(12);
+          tableFieldSchemaBuilder.setPrecision(PICOSECOND_PRECISION);
         } else {
           tableFieldSchemaBuilder = tableFieldSchemaBuilder.setType(TableFieldSchema.Type.STRUCT);
           TableSchema nestedTableField =
@@ -1090,7 +1092,7 @@ public class TableRowToStorageApiProto {
             fieldDescriptorBuilder.setType(Type.TYPE_MESSAGE).setTypeName(nested.getName());
         break;
       case TIMESTAMP:
-        if (fieldSchema.getTimestampPrecision().getValue() == 12) {
+        if (fieldSchema.getTimestampPrecision().getValue() == PICOSECOND_PRECISION) {
           boolean typeAlreadyExists =
               descriptorBuilder.getNestedTypeList().stream()
                   .anyMatch(d -> TIMESTAMP_PICOS_DESCRIPTOR_PROTO.getName().equals(d.getName()));
@@ -1362,7 +1364,7 @@ public class TableRowToStorageApiProto {
                 null);
       }
     } else if (schemaInformation.getType() == TableFieldSchema.Type.TIMESTAMP
-        && schemaInformation.getTimestampPrecision() == 12) {
+        && schemaInformation.getTimestampPrecision() == PICOSECOND_PRECISION) {
 
       long seconds;
       long picoseconds;

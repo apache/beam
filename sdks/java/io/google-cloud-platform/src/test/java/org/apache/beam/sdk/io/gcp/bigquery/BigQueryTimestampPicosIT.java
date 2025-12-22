@@ -38,263 +38,170 @@ import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
 /**
- * Integration tests for BigQuery TIMESTAMP with various precisions.
+ * Integration tests for BigQuery TIMESTAMP with picosecond precision.
  *
- * <p>Tests write timestamps via Storage Write API and read back using different format (AVRO/ARROW)
- * and precision (PICOS/NANOS/MICROS) combinations.
- *
- * <p>Two tables are used:
- *
- * <ul>
- *   <li>FULL_RANGE: dates from 0001-01-01 to 9999-12-31 (for PICOS and MICROS reads)
- *   <li>NANOS_RANGE: dates within int64 nanos bounds ~1678 to ~2261 (for NANOS reads, which use
- *       Avro/Arrow int64 logical types that overflow outside this range)
- * </ul>
+ * <p>Tests write data via Storage Write API and read back using different precision settings. Each
+ * test clearly shows: WRITE DATA → READ SETTINGS → EXPECTED OUTPUT.
  */
 @RunWith(JUnit4.class)
 public class BigQueryTimestampPicosIT {
 
+  private static final long PICOS_PRECISION = 12L;
+
   private static String project;
   private static final String DATASET_ID =
-      "bq_timestamp_picos_it_" + System.currentTimeMillis() + "_" + new SecureRandom().nextInt(32);
-
-  private static TestBigQueryOptions bqOptions;
+      "bq_ts_picos_" + System.currentTimeMillis() + "_" + new SecureRandom().nextInt(32);
   private static final BigqueryClient BQ_CLIENT = new BigqueryClient("BigQueryTimestampPicosIT");
+  private static TestBigQueryOptions bqOptions;
+  private static String tableSpec;
 
-  private static String fullRangeTableSpec;
-  private static String nanosRangeTableSpec;
-  private static final String FULL_RANGE_TABLE = "timestamp_full_range";
-  private static final String NANOS_RANGE_TABLE = "timestamp_nanos_range";
-
-  //  TEST DATA
+  // ============================================================================
+  // UNIFIED SCHEMA - Contains all timestamp column types
+  // ============================================================================
   //
-  //  Tables have 4 timestamp columns written at different precisions:
-  //    ts_picos  - written with 12 fractional digits (picoseconds)
-  //    ts_nanos  - written with 9 fractional digits (nanoseconds)
-  //    ts_micros - written with 6 fractional digits (microseconds)
-  //    ts_millis - written with 3 fractional digits (milliseconds)
+  // Schema structure:
+  //   - ts_simple:       TIMESTAMP(12)
+  //   - ts_array:        ARRAY<TIMESTAMP(12)>
+  //   - event:           STRUCT<
+  //                        name: STRING,
+  //                        ts: TIMESTAMP(12)
+  //                      >
+  //   - events:          ARRAY<STRUCT<
+  //                        name: STRING,
+  //                        ts: TIMESTAMP(12)
+  //                      >>
+  //   - ts_map:          ARRAY<STRUCT<
+  //                        key: TIMESTAMP(12),
+  //                        value: TIMESTAMP(12)
+  //                      >>
 
-  /*
-   * FULL_RANGE table - for PICOS and MICROS reads
-   * Contains dates outside int64 nanos bounds (0001 and 9999)
-   */
-  private static final List<TableRow> FULL_RANGE_WRITE =
+  private static final TableSchema SCHEMA =
+      new TableSchema()
+          .setFields(
+              ImmutableList.of(
+                  // Simple timestamp column
+                  new TableFieldSchema()
+                      .setName("ts_simple")
+                      .setType("TIMESTAMP")
+                      .setTimestampPrecision(PICOS_PRECISION),
+                  // Array of timestamps
+                  new TableFieldSchema()
+                      .setName("ts_array")
+                      .setType("TIMESTAMP")
+                      .setTimestampPrecision(PICOS_PRECISION)
+                      .setMode("REPEATED"),
+                  // Nested struct with timestamp
+                  new TableFieldSchema()
+                      .setName("event")
+                      .setType("STRUCT")
+                      .setFields(
+                          ImmutableList.of(
+                              new TableFieldSchema().setName("name").setType("STRING"),
+                              new TableFieldSchema()
+                                  .setName("ts")
+                                  .setType("TIMESTAMP")
+                                  .setTimestampPrecision(PICOS_PRECISION))),
+                  // Repeated struct with timestamp
+                  new TableFieldSchema()
+                      .setName("events")
+                      .setType("STRUCT")
+                      .setMode("REPEATED")
+                      .setFields(
+                          ImmutableList.of(
+                              new TableFieldSchema().setName("name").setType("STRING"),
+                              new TableFieldSchema()
+                                  .setName("ts")
+                                  .setType("TIMESTAMP")
+                                  .setTimestampPrecision(PICOS_PRECISION))),
+                  // Map-like: repeated struct with timestamp key and value
+                  new TableFieldSchema()
+                      .setName("ts_map")
+                      .setType("STRUCT")
+                      .setMode("REPEATED")
+                      .setFields(
+                          ImmutableList.of(
+                              new TableFieldSchema()
+                                  .setName("key")
+                                  .setType("TIMESTAMP")
+                                  .setTimestampPrecision(PICOS_PRECISION),
+                              new TableFieldSchema()
+                                  .setName("value")
+                                  .setType("TIMESTAMP")
+                                  .setTimestampPrecision(PICOS_PRECISION)))));
+
+  // ============================================================================
+  // TEST DATA - Written once, read with different precision settings
+  // ============================================================================
+
+  private static final List<TableRow> WRITE_DATA =
       ImmutableList.of(
-          row(
-              "2024-01-15T10:30:45.123456789012Z",
-              "2024-01-15 10:30:45.123456789 UTC",
-              "2024-01-15 10:30:45.123456 UTC",
-              "2024-01-15 10:30:45.123 UTC"),
-          row(
-              "2024-06-20T15:45:30.987654321098Z",
-              "2024-06-20 15:45:30.987654321 UTC",
-              "2024-06-20 15:45:30.987654 UTC",
-              "2024-06-20 15:45:30.987 UTC"),
-          row(
-              "0001-01-01T00:00:00.111222333444Z",
-              "0001-01-01 00:00:00.111222333 UTC",
-              "0001-01-01 00:00:00.111222 UTC",
-              "0001-01-01 00:00:00.111 UTC"),
-          row(
-              "1970-01-01T00:00:00.555666777888Z",
-              "1970-01-01 00:00:00.555666777 UTC",
-              "1970-01-01 00:00:00.555666 UTC",
-              "1970-01-01 00:00:00.555 UTC"),
-          row(
-              "9999-12-31T23:59:59.999888777666Z",
-              "9999-12-31 23:59:59.999888777 UTC",
-              "9999-12-31 23:59:59.999888 UTC",
-              "9999-12-31 23:59:59.999 UTC"));
-
-  /*
-   * NANOS_RANGE table - for NANOS reads
-   * Only dates within int64 nanos-since-epoch bounds (~1678 to ~2261)
-   */
-  private static final List<TableRow> NANOS_RANGE_WRITE =
-      ImmutableList.of(
-          row(
-              "2024-01-15T10:30:45.123456789012Z",
-              "2024-01-15 10:30:45.123456789 UTC",
-              "2024-01-15 10:30:45.123456 UTC",
-              "2024-01-15 10:30:45.123 UTC"),
-          row(
-              "2024-06-20T15:45:30.987654321098Z",
-              "2024-06-20 15:45:30.987654321 UTC",
-              "2024-06-20 15:45:30.987654 UTC",
-              "2024-06-20 15:45:30.987 UTC"),
-          row(
-              "1678-09-21T00:12:43.145224192555Z",
-              "1678-09-21 00:12:43.145224192 UTC",
-              "1678-09-21 00:12:43.145224 UTC",
-              "1678-09-21 00:12:43.145 UTC"),
-          row(
-              "1970-01-01T00:00:00.555666777888Z",
-              "1970-01-01 00:00:00.555666777 UTC",
-              "1970-01-01 00:00:00.555666 UTC",
-              "1970-01-01 00:00:00.555 UTC"),
-          row(
-              "2261-04-11T23:47:16.854775807333Z",
-              "2261-04-11 23:47:16.854775807 UTC",
-              "2261-04-11 23:47:16.854775 UTC",
-              "2261-04-11 23:47:16.854 UTC"));
-
-  private static final List<TableRow> FULL_RANGE_READ_PICOS =
-      ImmutableList.of(
-          row(
-              "2024-01-15T10:30:45.123456789012Z",
-              "2024-01-15T10:30:45.123456789000Z",
-              "2024-01-15T10:30:45.123456000000Z",
-              "2024-01-15T10:30:45.123000000000Z"),
-          row(
-              "2024-06-20T15:45:30.987654321098Z",
-              "2024-06-20T15:45:30.987654321000Z",
-              "2024-06-20T15:45:30.987654000000Z",
-              "2024-06-20T15:45:30.987000000000Z"),
-          row(
-              "0001-01-01T00:00:00.111222333444Z",
-              "0001-01-01T00:00:00.111222333000Z",
-              "0001-01-01T00:00:00.111222000000Z",
-              "0001-01-01T00:00:00.111000000000Z"),
-          row(
-              "1970-01-01T00:00:00.555666777888Z",
-              "1970-01-01T00:00:00.555666777000Z",
-              "1970-01-01T00:00:00.555666000000Z",
-              "1970-01-01T00:00:00.555000000000Z"),
-          row(
-              "9999-12-31T23:59:59.999888777666Z",
-              "9999-12-31T23:59:59.999888777000Z",
-              "9999-12-31T23:59:59.999888000000Z",
-              "9999-12-31T23:59:59.999000000000Z"));
-
-  private static final List<TableRow> NANOS_RANGE_READ_NANOS =
-      ImmutableList.of(
-          row(
-              "2024-01-15 10:30:45.123456789 UTC",
-              "2024-01-15 10:30:45.123456789 UTC",
-              "2024-01-15 10:30:45.123456 UTC",
-              "2024-01-15 10:30:45.123 UTC"),
-          row(
-              "2024-06-20 15:45:30.987654321 UTC",
-              "2024-06-20 15:45:30.987654321 UTC",
-              "2024-06-20 15:45:30.987654 UTC",
-              "2024-06-20 15:45:30.987 UTC"),
-          row(
-              "1678-09-21 00:12:43.145224192 UTC",
-              "1678-09-21 00:12:43.145224192 UTC",
-              "1678-09-21 00:12:43.145224 UTC",
-              "1678-09-21 00:12:43.145 UTC"),
-          row(
-              "1970-01-01 00:00:00.555666777 UTC",
-              "1970-01-01 00:00:00.555666777 UTC",
-              "1970-01-01 00:00:00.555666 UTC",
-              "1970-01-01 00:00:00.555 UTC"),
-          row(
-              "2261-04-11 23:47:16.854775807 UTC",
-              "2261-04-11 23:47:16.854775807 UTC",
-              "2261-04-11 23:47:16.854775 UTC",
-              "2261-04-11 23:47:16.854 UTC"));
-
-  private static final List<TableRow> FULL_RANGE_READ_MICROS =
-      ImmutableList.of(
-          row(
-              "2024-01-15 10:30:45.123456 UTC",
-              "2024-01-15 10:30:45.123456 UTC",
-              "2024-01-15 10:30:45.123456 UTC",
-              "2024-01-15 10:30:45.123 UTC"),
-          row(
-              "2024-06-20 15:45:30.987654 UTC",
-              "2024-06-20 15:45:30.987654 UTC",
-              "2024-06-20 15:45:30.987654 UTC",
-              "2024-06-20 15:45:30.987 UTC"),
-          row(
-              "0001-01-01 00:00:00.111222 UTC",
-              "0001-01-01 00:00:00.111222 UTC",
-              "0001-01-01 00:00:00.111222 UTC",
-              "0001-01-01 00:00:00.111 UTC"),
-          row(
-              "1970-01-01 00:00:00.555666 UTC",
-              "1970-01-01 00:00:00.555666 UTC",
-              "1970-01-01 00:00:00.555666 UTC",
-              "1970-01-01 00:00:00.555 UTC"),
-          row(
-              "9999-12-31 23:59:59.999888 UTC",
-              "9999-12-31 23:59:59.999888 UTC",
-              "9999-12-31 23:59:59.999888 UTC",
-              "9999-12-31 23:59:59.999 UTC"));
-
-  private static final List<TableRow> FULL_RANGE_READ_MICROS_ARROW =
-      ImmutableList.of(
-          row(
-              "2024-01-15 10:30:45.123 UTC",
-              "2024-01-15 10:30:45.123 UTC",
-              "2024-01-15 10:30:45.123 UTC",
-              "2024-01-15 10:30:45.123 UTC"),
-          row(
-              "2024-06-20 15:45:30.987 UTC",
-              "2024-06-20 15:45:30.987 UTC",
-              "2024-06-20 15:45:30.987 UTC",
-              "2024-06-20 15:45:30.987 UTC"),
-          row(
-              "0001-01-01 00:00:00.111 UTC",
-              "0001-01-01 00:00:00.111 UTC",
-              "0001-01-01 00:00:00.111 UTC",
-              "0001-01-01 00:00:00.111 UTC"),
-          row(
-              "1970-01-01 00:00:00.555 UTC",
-              "1970-01-01 00:00:00.555 UTC",
-              "1970-01-01 00:00:00.555 UTC",
-              "1970-01-01 00:00:00.555 UTC"),
-          row(
-              "9999-12-31 23:59:59.999 UTC",
-              "9999-12-31 23:59:59.999 UTC",
-              "9999-12-31 23:59:59.999 UTC",
-              "9999-12-31 23:59:59.999 UTC"));
-
-  private static TableRow row(String picos, String nanos, String micros, String millis) {
-    return new TableRow()
-        .set("ts_picos", picos)
-        .set("ts_nanos", nanos)
-        .set("ts_micros", micros)
-        .set("ts_millis", millis);
-  }
+          new TableRow()
+              .set("ts_simple", "2024-01-15T10:30:45.123456789012Z")
+              .set(
+                  "ts_array",
+                  ImmutableList.of(
+                      "2024-01-15T10:30:45.111111111111Z", "2024-06-20T15:45:30.222222222222Z"))
+              .set(
+                  "event",
+                  new TableRow()
+                      .set("name", "login")
+                      .set("ts", "2024-01-15T10:30:45.333333333333Z"))
+              .set(
+                  "events",
+                  ImmutableList.of(
+                      new TableRow()
+                          .set("name", "click")
+                          .set("ts", "2024-01-15T10:30:45.444444444444Z"),
+                      new TableRow()
+                          .set("name", "scroll")
+                          .set("ts", "2024-01-15T10:30:45.555555555555Z")))
+              .set(
+                  "ts_map",
+                  ImmutableList.of(
+                      new TableRow()
+                          .set("key", "2024-01-15T10:30:45.666666666666Z")
+                          .set("value", "2024-01-15T10:30:45.777777777777Z"))),
+          new TableRow()
+              .set("ts_simple", "1970-01-01T00:00:00.000000000001Z")
+              .set("ts_array", ImmutableList.of("1970-01-01T00:00:00.000000000002Z"))
+              .set(
+                  "event",
+                  new TableRow()
+                      .set("name", "epoch")
+                      .set("ts", "1970-01-01T00:00:00.000000000003Z"))
+              .set(
+                  "events",
+                  ImmutableList.of(
+                      new TableRow()
+                          .set("name", "start")
+                          .set("ts", "1970-01-01T00:00:00.000000000004Z")))
+              .set(
+                  "ts_map",
+                  ImmutableList.of(
+                      new TableRow()
+                          .set("key", "1970-01-01T00:00:00.000000000005Z")
+                          .set("value", "1970-01-01T00:00:00.000000000006Z"))));
 
   @BeforeClass
   public static void setup() throws Exception {
     bqOptions = TestPipeline.testingPipelineOptions().as(TestBigQueryOptions.class);
     project = bqOptions.as(GcpOptions.class).getProject();
-
     BQ_CLIENT.createNewDataset(project, DATASET_ID, null, "us-central1");
+    tableSpec = String.format("%s:%s.%s", project, DATASET_ID, "timestamp_picos_test");
 
-    fullRangeTableSpec = String.format("%s:%s.%s", project, DATASET_ID, FULL_RANGE_TABLE);
-    nanosRangeTableSpec = String.format("%s:%s.%s", project, DATASET_ID, NANOS_RANGE_TABLE);
-
-    // Write full range table
-    Pipeline writePipeline1 = Pipeline.create(bqOptions);
-    writePipeline1
-        .apply("CreateFullRange", Create.of(FULL_RANGE_WRITE))
+    // Write test data
+    Pipeline writePipeline = Pipeline.create(bqOptions);
+    writePipeline
+        .apply("CreateData", Create.of(WRITE_DATA))
         .apply(
-            "WriteFullRange",
+            "WriteData",
             BigQueryIO.writeTableRows()
-                .to(fullRangeTableSpec)
-                .withSchema(createSchema())
+                .to(tableSpec)
+                .withSchema(SCHEMA)
                 .withMethod(BigQueryIO.Write.Method.STORAGE_WRITE_API)
                 .withCreateDisposition(BigQueryIO.Write.CreateDisposition.CREATE_IF_NEEDED)
                 .withWriteDisposition(BigQueryIO.Write.WriteDisposition.WRITE_TRUNCATE));
-    writePipeline1.run().waitUntilFinish();
-
-    // Write nanos range table
-    Pipeline writePipeline2 = Pipeline.create(bqOptions);
-    writePipeline2
-        .apply("CreateNanosRange", Create.of(NANOS_RANGE_WRITE))
-        .apply(
-            "WriteNanosRange",
-            BigQueryIO.writeTableRows()
-                .to(nanosRangeTableSpec)
-                .withSchema(createSchema())
-                .withMethod(BigQueryIO.Write.Method.STORAGE_WRITE_API)
-                .withCreateDisposition(BigQueryIO.Write.CreateDisposition.CREATE_IF_NEEDED)
-                .withWriteDisposition(BigQueryIO.Write.WriteDisposition.WRITE_TRUNCATE));
-    writePipeline2.run().waitUntilFinish();
+    writePipeline.run().waitUntilFinish();
   }
 
   @AfterClass
@@ -302,129 +209,264 @@ public class BigQueryTimestampPicosIT {
     BQ_CLIENT.deleteDataset(project, DATASET_ID);
   }
 
-  private static TableSchema createSchema() {
-    return new TableSchema()
-        .setFields(
-            ImmutableList.of(
-                new TableFieldSchema()
-                    .setName("ts_picos")
-                    .setType("TIMESTAMP")
-                    .setTimestampPrecision(12L),
-                new TableFieldSchema()
-                    .setName("ts_nanos")
-                    .setType("TIMESTAMP")
-                    .setTimestampPrecision(12L),
-                new TableFieldSchema()
-                    .setName("ts_micros")
-                    .setType("TIMESTAMP")
-                    .setTimestampPrecision(12L),
-                new TableFieldSchema()
-                    .setName("ts_millis")
-                    .setType("TIMESTAMP")
-                    .setTimestampPrecision(12L)));
+  @Test
+  public void testReadWithPicosPrecision_Avro() {
+    // WRITE DATA (written in @BeforeClass):
+    //   ts_simple: "2024-01-15T10:30:45.123456789012Z"  (12 digits)
+    //   ts_array:  ["...111111111111Z", "...222222222222Z"]
+    //   event:     {name: "login", ts: "...333333333333Z"}
+    //   events:    [{name: "click", ts: "...444444444444Z"}, ...]
+    //   ts_map:    [{key: "...666666666666Z", value: "...777777777777Z"}]
+    //
+    // READ SETTINGS:
+    //   precision: PICOS (12 digits)
+    //   format:    AVRO
+    //
+    // EXPECTED: All 12 digits preserved in ISO format
+
+    List<TableRow> expectedOutput =
+        ImmutableList.of(
+            new TableRow()
+                .set("ts_simple", "2024-01-15T10:30:45.123456789012Z")
+                .set(
+                    "ts_array",
+                    ImmutableList.of(
+                        "2024-01-15T10:30:45.111111111111Z", "2024-06-20T15:45:30.222222222222Z"))
+                .set(
+                    "event",
+                    new TableRow()
+                        .set("name", "login")
+                        .set("ts", "2024-01-15T10:30:45.333333333333Z"))
+                .set(
+                    "events",
+                    ImmutableList.of(
+                        new TableRow()
+                            .set("name", "click")
+                            .set("ts", "2024-01-15T10:30:45.444444444444Z"),
+                        new TableRow()
+                            .set("name", "scroll")
+                            .set("ts", "2024-01-15T10:30:45.555555555555Z")))
+                .set(
+                    "ts_map",
+                    ImmutableList.of(
+                        new TableRow()
+                            .set("key", "2024-01-15T10:30:45.666666666666Z")
+                            .set("value", "2024-01-15T10:30:45.777777777777Z"))),
+            new TableRow()
+                .set("ts_simple", "1970-01-01T00:00:00.000000000001Z")
+                .set("ts_array", ImmutableList.of("1970-01-01T00:00:00.000000000002Z"))
+                .set(
+                    "event",
+                    new TableRow()
+                        .set("name", "epoch")
+                        .set("ts", "1970-01-01T00:00:00.000000000003Z"))
+                .set(
+                    "events",
+                    ImmutableList.of(
+                        new TableRow()
+                            .set("name", "start")
+                            .set("ts", "1970-01-01T00:00:00.000000000004Z")))
+                .set(
+                    "ts_map",
+                    ImmutableList.of(
+                        new TableRow()
+                            .set("key", "1970-01-01T00:00:00.000000000005Z")
+                            .set("value", "1970-01-01T00:00:00.000000000006Z"))));
+
+    runReadTest(TimestampPrecision.PICOS, DataFormat.AVRO, expectedOutput);
   }
 
-  private void runReadTest(
-      TimestampPrecision precision,
-      DataFormat format,
-      String tableSpec,
-      String tableName,
-      List<TableRow> expectedRows) {
+  @Test
+  public void testReadWithPicosPrecision_Arrow() {
+    // WRITE DATA: Same as above (12-digit picosecond timestamps)
+    //
+    // READ SETTINGS:
+    //   precision: PICOS (12 digits)
+    //   format:    ARROW
+    //
+    // EXPECTED: All 12 digits preserved in ISO format
 
+    List<TableRow> expectedOutput =
+        ImmutableList.of(
+            new TableRow()
+                .set("ts_simple", "2024-01-15T10:30:45.123456789012Z")
+                .set(
+                    "ts_array",
+                    ImmutableList.of(
+                        "2024-01-15T10:30:45.111111111111Z", "2024-06-20T15:45:30.222222222222Z"))
+                .set(
+                    "event",
+                    new TableRow()
+                        .set("name", "login")
+                        .set("ts", "2024-01-15T10:30:45.333333333333Z"))
+                .set(
+                    "events",
+                    ImmutableList.of(
+                        new TableRow()
+                            .set("name", "click")
+                            .set("ts", "2024-01-15T10:30:45.444444444444Z"),
+                        new TableRow()
+                            .set("name", "scroll")
+                            .set("ts", "2024-01-15T10:30:45.555555555555Z")))
+                .set(
+                    "ts_map",
+                    ImmutableList.of(
+                        new TableRow()
+                            .set("key", "2024-01-15T10:30:45.666666666666Z")
+                            .set("value", "2024-01-15T10:30:45.777777777777Z"))),
+            new TableRow()
+                .set("ts_simple", "1970-01-01T00:00:00.000000000001Z")
+                .set("ts_array", ImmutableList.of("1970-01-01T00:00:00.000000000002Z"))
+                .set(
+                    "event",
+                    new TableRow()
+                        .set("name", "epoch")
+                        .set("ts", "1970-01-01T00:00:00.000000000003Z"))
+                .set(
+                    "events",
+                    ImmutableList.of(
+                        new TableRow()
+                            .set("name", "start")
+                            .set("ts", "1970-01-01T00:00:00.000000000004Z")))
+                .set(
+                    "ts_map",
+                    ImmutableList.of(
+                        new TableRow()
+                            .set("key", "1970-01-01T00:00:00.000000000005Z")
+                            .set("value", "1970-01-01T00:00:00.000000000006Z"))));
+
+    runReadTest(TimestampPrecision.PICOS, DataFormat.ARROW, expectedOutput);
+  }
+
+  @Test
+  public void testReadWithNanosPrecision_Avro() {
+    // WRITE DATA: 12-digit picosecond timestamps
+    //
+    // READ SETTINGS:
+    //   precision: NANOS (9 digits)
+    //   format:    AVRO
+    //
+    // EXPECTED: Truncated to 9 digits, UTC format
+    //   "2024-01-15T10:30:45.123456789012Z" → "2024-01-15 10:30:45.123456789 UTC"
+
+    List<TableRow> expectedOutput =
+        ImmutableList.of(
+            new TableRow()
+                .set("ts_simple", "2024-01-15 10:30:45.123456789 UTC")
+                .set(
+                    "ts_array",
+                    ImmutableList.of(
+                        "2024-01-15 10:30:45.111111111 UTC", "2024-06-20 15:45:30.222222222 UTC"))
+                .set(
+                    "event",
+                    new TableRow()
+                        .set("name", "login")
+                        .set("ts", "2024-01-15 10:30:45.333333333 UTC"))
+                .set(
+                    "events",
+                    ImmutableList.of(
+                        new TableRow()
+                            .set("name", "click")
+                            .set("ts", "2024-01-15 10:30:45.444444444 UTC"),
+                        new TableRow()
+                            .set("name", "scroll")
+                            .set("ts", "2024-01-15 10:30:45.555555555 UTC")))
+                .set(
+                    "ts_map",
+                    ImmutableList.of(
+                        new TableRow()
+                            .set("key", "2024-01-15 10:30:45.666666666 UTC")
+                            .set("value", "2024-01-15 10:30:45.777777777 UTC"))),
+            new TableRow()
+                .set("ts_simple", "1970-01-01 00:00:00 UTC") // .000000000 truncated
+                .set("ts_array", ImmutableList.of("1970-01-01 00:00:00 UTC"))
+                .set(
+                    "event",
+                    new TableRow().set("name", "epoch").set("ts", "1970-01-01 00:00:00 UTC"))
+                .set(
+                    "events",
+                    ImmutableList.of(
+                        new TableRow().set("name", "start").set("ts", "1970-01-01 00:00:00 UTC")))
+                .set(
+                    "ts_map",
+                    ImmutableList.of(
+                        new TableRow()
+                            .set("key", "1970-01-01 00:00:00 UTC")
+                            .set("value", "1970-01-01 00:00:00 UTC"))));
+
+    runReadTest(TimestampPrecision.NANOS, DataFormat.AVRO, expectedOutput);
+  }
+
+  @Test
+  public void testReadWithMicrosPrecision_Avro() {
+    // WRITE DATA: 12-digit picosecond timestamps
+    //
+    // READ SETTINGS:
+    //   precision: MICROS (6 digits)
+    //   format:    AVRO
+    //
+    // EXPECTED: Truncated to 6 digits, UTC format
+    //   "2024-01-15T10:30:45.123456789012Z" → "2024-01-15 10:30:45.123456 UTC"
+
+    List<TableRow> expectedOutput =
+        ImmutableList.of(
+            new TableRow()
+                .set("ts_simple", "2024-01-15 10:30:45.123456 UTC")
+                .set(
+                    "ts_array",
+                    ImmutableList.of(
+                        "2024-01-15 10:30:45.111111 UTC", "2024-06-20 15:45:30.222222 UTC"))
+                .set(
+                    "event",
+                    new TableRow().set("name", "login").set("ts", "2024-01-15 10:30:45.333333 UTC"))
+                .set(
+                    "events",
+                    ImmutableList.of(
+                        new TableRow()
+                            .set("name", "click")
+                            .set("ts", "2024-01-15 10:30:45.444444 UTC"),
+                        new TableRow()
+                            .set("name", "scroll")
+                            .set("ts", "2024-01-15 10:30:45.555555 UTC")))
+                .set(
+                    "ts_map",
+                    ImmutableList.of(
+                        new TableRow()
+                            .set("key", "2024-01-15 10:30:45.666666 UTC")
+                            .set("value", "2024-01-15 10:30:45.777777 UTC"))),
+            new TableRow()
+                .set("ts_simple", "1970-01-01 00:00:00 UTC")
+                .set("ts_array", ImmutableList.of("1970-01-01 00:00:00 UTC"))
+                .set(
+                    "event",
+                    new TableRow().set("name", "epoch").set("ts", "1970-01-01 00:00:00 UTC"))
+                .set(
+                    "events",
+                    ImmutableList.of(
+                        new TableRow().set("name", "start").set("ts", "1970-01-01 00:00:00 UTC")))
+                .set(
+                    "ts_map",
+                    ImmutableList.of(
+                        new TableRow()
+                            .set("key", "1970-01-01 00:00:00 UTC")
+                            .set("value", "1970-01-01 00:00:00 UTC"))));
+
+    runReadTest(TimestampPrecision.MICROS, DataFormat.AVRO, expectedOutput);
+  }
+  private void runReadTest(
+      TimestampPrecision precision, DataFormat format, List<TableRow> expectedOutput) {
     Pipeline readPipeline = Pipeline.create(bqOptions);
 
-    PCollection<TableRow> fromTable =
+    PCollection<TableRow> result =
         readPipeline.apply(
-            "ReadFromTable",
+            String.format("Read_%s_%s", precision, format),
             BigQueryIO.readTableRows()
                 .withMethod(BigQueryIO.TypedRead.Method.DIRECT_READ)
                 .withFormat(format)
                 .withDirectReadPicosTimestampPrecision(precision)
                 .from(tableSpec));
-    PCollection<TableRow> fromTableWithSchema =
-        readPipeline.apply(
-            "ReadFromTableWithSchema",
-            BigQueryIO.readTableRowsWithSchema()
-                .withMethod(BigQueryIO.TypedRead.Method.DIRECT_READ)
-                .withFormat(format)
-                .withDirectReadPicosTimestampPrecision(precision)
-                .from(tableSpec));
 
-    PCollection<TableRow> fromQuery =
-        readPipeline.apply(
-            "ReadFromQuery",
-            BigQueryIO.readTableRows()
-                .withMethod(BigQueryIO.TypedRead.Method.DIRECT_READ)
-                .fromQuery(String.format("SELECT * FROM %s.%s.%s", project, DATASET_ID, tableName))
-                .usingStandardSql()
-                .withFormat(format)
-                .withDirectReadPicosTimestampPrecision(precision));
-
-    PAssert.that(fromTable).containsInAnyOrder(expectedRows);
-    PAssert.that(fromQuery).containsInAnyOrder(expectedRows);
-    PAssert.that(fromTableWithSchema).containsInAnyOrder(expectedRows);
-
+    PAssert.that(result).containsInAnyOrder(expectedOutput);
     readPipeline.run().waitUntilFinish();
-  }
-
-  @Test
-  public void testRead_Picos_Avro() {
-    runReadTest(
-        TimestampPrecision.PICOS,
-        DataFormat.AVRO,
-        fullRangeTableSpec,
-        FULL_RANGE_TABLE,
-        FULL_RANGE_READ_PICOS);
-  }
-
-  @Test
-  public void testRead_Picos_Arrow() {
-    runReadTest(
-        TimestampPrecision.PICOS,
-        DataFormat.ARROW,
-        fullRangeTableSpec,
-        FULL_RANGE_TABLE,
-        FULL_RANGE_READ_PICOS);
-  }
-
-  @Test
-  public void testRead_Nanos_Avro() {
-    runReadTest(
-        TimestampPrecision.NANOS,
-        DataFormat.AVRO,
-        nanosRangeTableSpec,
-        NANOS_RANGE_TABLE,
-        NANOS_RANGE_READ_NANOS);
-  }
-
-  @Test
-  public void testRead_Nanos_Arrow() {
-    runReadTest(
-        TimestampPrecision.NANOS,
-        DataFormat.ARROW,
-        nanosRangeTableSpec,
-        NANOS_RANGE_TABLE,
-        NANOS_RANGE_READ_NANOS);
-  }
-
-  @Test
-  public void testRead_Micros_Avro() {
-    runReadTest(
-        TimestampPrecision.MICROS,
-        DataFormat.AVRO,
-        fullRangeTableSpec,
-        FULL_RANGE_TABLE,
-        FULL_RANGE_READ_MICROS);
-  }
-
-  @Test
-  public void testRead_Micros_Arrow() {
-    // Known issue: Arrow MICROS truncates to milliseconds
-    runReadTest(
-        TimestampPrecision.MICROS,
-        DataFormat.ARROW,
-        fullRangeTableSpec,
-        FULL_RANGE_TABLE,
-        FULL_RANGE_READ_MICROS_ARROW);
   }
 }

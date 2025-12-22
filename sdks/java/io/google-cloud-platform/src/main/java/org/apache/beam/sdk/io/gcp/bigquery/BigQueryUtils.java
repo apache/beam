@@ -115,6 +115,8 @@ public class BigQueryUtils {
               + "(?<DATASET>[a-zA-Z0-9_]{1,1024})[\\.]"
               + "(?<TABLE>[\\p{L}\\p{M}\\p{N}\\p{Pc}\\p{Pd}\\p{Zs}$]{1,1024})$");
 
+  private static final long PICOSECOND_PRECISION = 12L;
+
   /** Options for how to convert BigQuery data to Beam data. */
   @AutoValue
   public abstract static class ConversionOptions implements Serializable {
@@ -416,7 +418,7 @@ public class BigQueryUtils {
         String fractionalPart =
             timestampString.substring(dotIndex + 1, timestampString.length() - 1);
 
-        if (fractionalPart.length() == 12) {
+        if ((long) fractionalPart.length() == PICOSECOND_PRECISION) {
           // ISO timestamp with 12 decimal digits (picosecond precision)
           // Parse the datetime part (without fractional seconds)
           String dateTimePart = timestampString.substring(0, dotIndex) + "Z";
