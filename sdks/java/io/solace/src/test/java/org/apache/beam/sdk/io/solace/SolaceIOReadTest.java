@@ -72,14 +72,16 @@ public class SolaceIOReadTest {
     return SolaceIO.read()
         .from(Solace.Queue.fromName("queue"))
         .withSempClientFactory(MockSempClientFactory.getDefaultMock())
-        .withMaxNumConnections(1);
+        .withMaxNumConnections(1)
+        .withAckDeadlineSeconds(1);
   }
 
   private Read<Record> getDefaultReadForTopic() {
     return SolaceIO.read()
         .from(Solace.Topic.fromName("topic"))
         .withSempClientFactory(MockSempClientFactory.getDefaultMock())
-        .withMaxNumConnections(1);
+        .withMaxNumConnections(1)
+        .withAckDeadlineSeconds(1);
   }
 
   private static BytesXMLMessage getOrNull(Integer index, List<BytesXMLMessage> messages) {
@@ -97,7 +99,8 @@ public class SolaceIOReadTest {
         spec.inferCoder(pipeline, configuration.getTypeDescriptor()),
         configuration.getTimestampFn(),
         configuration.getWatermarkIdleDurationThreshold(),
-        configuration.getParseFn());
+        configuration.getParseFn(),
+        configuration.getAckDeadlineSeconds());
   }
 
   @Test
@@ -437,7 +440,8 @@ public class SolaceIOReadTest {
     Read<Record> spec =
         getDefaultRead()
             .withSessionServiceFactory(fakeSessionServiceFactory)
-            .withMaxNumConnections(4);
+            .withMaxNumConnections(4)
+            .withAckDeadlineSeconds(1);
 
     UnboundedSolaceSource<Record> initialSource = getSource(spec, pipeline);
 
@@ -458,18 +462,25 @@ public class SolaceIOReadTest {
     // mark all consumed messages as ready to be acknowledged
     CheckpointMark checkpointMark = reader.getCheckpointMark();
 
-    // consume 1 more message. This will call #ackMsg() on messages that were ready to be acked.
+    // consume 1 more message. This will still not call ack.
     reader.advance();
-    assertEquals(4, countAckMessages.get());
+    assertEquals(0, countAckMessages.get());
 
     // consume 1 more message. No change in the acknowledged messages.
     reader.advance();
-    assertEquals(4, countAckMessages.get());
+    assertEquals(0, countAckMessages.get());
 
     // acknowledge from the first checkpoint
     checkpointMark.finalizeCheckpoint();
     // No change in the acknowledged messages, because they were acknowledged in the #advance()
     // method.
+    assertEquals(4, countAckMessages.get());
+
+    checkpointMark = reader.getCheckpointMark();
+
+    Thread.sleep(2000);
+    checkpointMark.finalizeCheckpoint();
+    // messages were nacked, no chane in expected values
     assertEquals(4, countAckMessages.get());
   }
 
@@ -542,7 +553,7 @@ public class SolaceIOReadTest {
   @Test
   public void testDefaultCoder() {
     Coder<SolaceCheckpointMark> coder =
-        new UnboundedSolaceSource<>(null, null, null, 0, false, null, null, null, null)
+        new UnboundedSolaceSource<>(null, null, null, 0, false, null, null, null, null, 1)
             .getCheckpointMarkCoder();
     CoderProperties.coderSerializable(coder);
   }
