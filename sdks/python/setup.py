@@ -374,8 +374,8 @@ if __name__ == '__main__':
       ext_modules=extensions,
       install_requires=[
           'cryptography>=39.0.0,<48.0.0',
-          'envoy-data-plane==0.8.1; python_version < "3.13"',
-          'envoy-data-plane==1.0.3; python_version >= "3.13"',
+          'envoy-data-plane>=0.8.1,<1; python_version < "3.13"',
+          'envoy-data-plane>=1.0.3,<2; python_version >= "3.13"',
           'fastavro>=0.23.6,<2',
           'fasteners>=0.3,<1.0',
           # TODO(https://github.com/grpc/grpc/issues/37710): Unpin grpc
