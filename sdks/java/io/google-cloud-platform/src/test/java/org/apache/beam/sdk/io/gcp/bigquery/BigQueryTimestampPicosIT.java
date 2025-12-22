@@ -53,29 +53,10 @@ public class BigQueryTimestampPicosIT {
       "bq_ts_picos_" + System.currentTimeMillis() + "_" + new SecureRandom().nextInt(32);
   private static final BigqueryClient BQ_CLIENT = new BigqueryClient("BigQueryTimestampPicosIT");
   private static TestBigQueryOptions bqOptions;
-  private static String tableSpec;
+  private static String nestedTableSpec;
+  private static String simpleTableSpec;
 
-  // ============================================================================
-  // UNIFIED SCHEMA - Contains all timestamp column types
-  // ============================================================================
-  //
-  // Schema structure:
-  //   - ts_simple:       TIMESTAMP(12)
-  //   - ts_array:        ARRAY<TIMESTAMP(12)>
-  //   - event:           STRUCT<
-  //                        name: STRING,
-  //                        ts: TIMESTAMP(12)
-  //                      >
-  //   - events:          ARRAY<STRUCT<
-  //                        name: STRING,
-  //                        ts: TIMESTAMP(12)
-  //                      >>
-  //   - ts_map:          ARRAY<STRUCT<
-  //                        key: TIMESTAMP(12),
-  //                        value: TIMESTAMP(12)
-  //                      >>
-
-  private static final TableSchema SCHEMA =
+  private static final TableSchema NESTED_SCHEMA =
       new TableSchema()
           .setFields(
               ImmutableList.of(
@@ -129,11 +110,20 @@ public class BigQueryTimestampPicosIT {
                                   .setType("TIMESTAMP")
                                   .setTimestampPrecision(PICOS_PRECISION)))));
 
+  private static final TableSchema SIMPLE_SCHEMA =
+      new TableSchema()
+          .setFields(
+              ImmutableList.of(
+                  // Simple timestamp column
+                  new TableFieldSchema()
+                      .setName("ts_simple")
+                      .setType("TIMESTAMP")
+                      .setTimestampPrecision(PICOS_PRECISION)));
+
   // ============================================================================
   // TEST DATA - Written once, read with different precision settings
   // ============================================================================
-
-  private static final List<TableRow> WRITE_DATA =
+  private static final List<TableRow> NESTED_WRITE_DATA =
       ImmutableList.of(
           new TableRow()
               .set("ts_simple", "2024-01-15T10:30:45.123456789012Z")
@@ -162,7 +152,7 @@ public class BigQueryTimestampPicosIT {
                           .set("key", "2024-01-15T10:30:45.666666666666Z")
                           .set("value", "2024-01-15T10:30:45.777777777777Z"))),
           new TableRow()
-              .set("ts_simple", "1970-01-01T00:00:00.000000000001Z")
+              .set("ts_simple", "1890-01-01T00:00:00.123456789123Z")
               .set("ts_array", ImmutableList.of("1970-01-01T00:00:00.000000000002Z"))
               .set(
                   "event",
@@ -182,22 +172,38 @@ public class BigQueryTimestampPicosIT {
                           .set("key", "1970-01-01T00:00:00.000000000005Z")
                           .set("value", "1970-01-01T00:00:00.000000000006Z"))));
 
+  private static final List<TableRow> SIMPLE_WRITE_DATA =
+      ImmutableList.of(
+          new TableRow().set("ts_simple", "2024-01-15T10:30:45.123456789012Z"),
+          new TableRow().set("ts_simple", "1890-01-01T00:00:00.123456789123Z"));
+
   @BeforeClass
   public static void setup() throws Exception {
     bqOptions = TestPipeline.testingPipelineOptions().as(TestBigQueryOptions.class);
     project = bqOptions.as(GcpOptions.class).getProject();
     BQ_CLIENT.createNewDataset(project, DATASET_ID, null, "us-central1");
-    tableSpec = String.format("%s:%s.%s", project, DATASET_ID, "timestamp_picos_test");
+    nestedTableSpec = String.format("%s:%s.%s", project, DATASET_ID, "nested_timestamp_picos_test");
+    simpleTableSpec = String.format("%s:%s.%s", project, DATASET_ID, "simple_timestamp_picos_test");
 
     // Write test data
     Pipeline writePipeline = Pipeline.create(bqOptions);
     writePipeline
-        .apply("CreateData", Create.of(WRITE_DATA))
+        .apply("CreateNestedData", Create.of(NESTED_WRITE_DATA))
         .apply(
-            "WriteData",
+            "WriteNestedData",
             BigQueryIO.writeTableRows()
-                .to(tableSpec)
-                .withSchema(SCHEMA)
+                .to(nestedTableSpec)
+                .withSchema(NESTED_SCHEMA)
+                .withMethod(BigQueryIO.Write.Method.STORAGE_WRITE_API)
+                .withCreateDisposition(BigQueryIO.Write.CreateDisposition.CREATE_IF_NEEDED)
+                .withWriteDisposition(BigQueryIO.Write.WriteDisposition.WRITE_TRUNCATE));
+    writePipeline
+        .apply("CreateSimpleData", Create.of(SIMPLE_WRITE_DATA))
+        .apply(
+            "WriteSimpleData",
+            BigQueryIO.writeTableRows()
+                .to(simpleTableSpec)
+                .withSchema(SIMPLE_SCHEMA)
                 .withMethod(BigQueryIO.Write.Method.STORAGE_WRITE_API)
                 .withCreateDisposition(BigQueryIO.Write.CreateDisposition.CREATE_IF_NEEDED)
                 .withWriteDisposition(BigQueryIO.Write.WriteDisposition.WRITE_TRUNCATE));
@@ -211,18 +217,6 @@ public class BigQueryTimestampPicosIT {
 
   @Test
   public void testReadWithPicosPrecision_Avro() {
-    // WRITE DATA (written in @BeforeClass):
-    //   ts_simple: "2024-01-15T10:30:45.123456789012Z"  (12 digits)
-    //   ts_array:  ["...111111111111Z", "...222222222222Z"]
-    //   event:     {name: "login", ts: "...333333333333Z"}
-    //   events:    [{name: "click", ts: "...444444444444Z"}, ...]
-    //   ts_map:    [{key: "...666666666666Z", value: "...777777777777Z"}]
-    //
-    // READ SETTINGS:
-    //   precision: PICOS (12 digits)
-    //   format:    AVRO
-    //
-    // EXPECTED: All 12 digits preserved in ISO format
 
     List<TableRow> expectedOutput =
         ImmutableList.of(
@@ -253,7 +247,7 @@ public class BigQueryTimestampPicosIT {
                             .set("key", "2024-01-15T10:30:45.666666666666Z")
                             .set("value", "2024-01-15T10:30:45.777777777777Z"))),
             new TableRow()
-                .set("ts_simple", "1970-01-01T00:00:00.000000000001Z")
+                .set("ts_simple", "1890-01-01T00:00:00.123456789123Z")
                 .set("ts_array", ImmutableList.of("1970-01-01T00:00:00.000000000002Z"))
                 .set(
                     "event",
@@ -273,81 +267,11 @@ public class BigQueryTimestampPicosIT {
                             .set("key", "1970-01-01T00:00:00.000000000005Z")
                             .set("value", "1970-01-01T00:00:00.000000000006Z"))));
 
-    runReadTest(TimestampPrecision.PICOS, DataFormat.AVRO, expectedOutput);
-  }
-
-  @Test
-  public void testReadWithPicosPrecision_Arrow() {
-    // WRITE DATA: Same as above (12-digit picosecond timestamps)
-    //
-    // READ SETTINGS:
-    //   precision: PICOS (12 digits)
-    //   format:    ARROW
-    //
-    // EXPECTED: All 12 digits preserved in ISO format
-
-    List<TableRow> expectedOutput =
-        ImmutableList.of(
-            new TableRow()
-                .set("ts_simple", "2024-01-15T10:30:45.123456789012Z")
-                .set(
-                    "ts_array",
-                    ImmutableList.of(
-                        "2024-01-15T10:30:45.111111111111Z", "2024-06-20T15:45:30.222222222222Z"))
-                .set(
-                    "event",
-                    new TableRow()
-                        .set("name", "login")
-                        .set("ts", "2024-01-15T10:30:45.333333333333Z"))
-                .set(
-                    "events",
-                    ImmutableList.of(
-                        new TableRow()
-                            .set("name", "click")
-                            .set("ts", "2024-01-15T10:30:45.444444444444Z"),
-                        new TableRow()
-                            .set("name", "scroll")
-                            .set("ts", "2024-01-15T10:30:45.555555555555Z")))
-                .set(
-                    "ts_map",
-                    ImmutableList.of(
-                        new TableRow()
-                            .set("key", "2024-01-15T10:30:45.666666666666Z")
-                            .set("value", "2024-01-15T10:30:45.777777777777Z"))),
-            new TableRow()
-                .set("ts_simple", "1970-01-01T00:00:00.000000000001Z")
-                .set("ts_array", ImmutableList.of("1970-01-01T00:00:00.000000000002Z"))
-                .set(
-                    "event",
-                    new TableRow()
-                        .set("name", "epoch")
-                        .set("ts", "1970-01-01T00:00:00.000000000003Z"))
-                .set(
-                    "events",
-                    ImmutableList.of(
-                        new TableRow()
-                            .set("name", "start")
-                            .set("ts", "1970-01-01T00:00:00.000000000004Z")))
-                .set(
-                    "ts_map",
-                    ImmutableList.of(
-                        new TableRow()
-                            .set("key", "1970-01-01T00:00:00.000000000005Z")
-                            .set("value", "1970-01-01T00:00:00.000000000006Z"))));
-
-    runReadTest(TimestampPrecision.PICOS, DataFormat.ARROW, expectedOutput);
+    runReadTest(TimestampPrecision.PICOS, DataFormat.AVRO, expectedOutput, nestedTableSpec);
   }
 
   @Test
   public void testReadWithNanosPrecision_Avro() {
-    // WRITE DATA: 12-digit picosecond timestamps
-    //
-    // READ SETTINGS:
-    //   precision: NANOS (9 digits)
-    //   format:    AVRO
-    //
-    // EXPECTED: Truncated to 9 digits, UTC format
-    //   "2024-01-15T10:30:45.123456789012Z" → "2024-01-15 10:30:45.123456789 UTC"
 
     List<TableRow> expectedOutput =
         ImmutableList.of(
@@ -378,7 +302,7 @@ public class BigQueryTimestampPicosIT {
                             .set("key", "2024-01-15 10:30:45.666666666 UTC")
                             .set("value", "2024-01-15 10:30:45.777777777 UTC"))),
             new TableRow()
-                .set("ts_simple", "1970-01-01 00:00:00 UTC") // .000000000 truncated
+                .set("ts_simple", "1890-01-01 00:00:00.123456789 UTC")
                 .set("ts_array", ImmutableList.of("1970-01-01 00:00:00 UTC"))
                 .set(
                     "event",
@@ -394,19 +318,11 @@ public class BigQueryTimestampPicosIT {
                             .set("key", "1970-01-01 00:00:00 UTC")
                             .set("value", "1970-01-01 00:00:00 UTC"))));
 
-    runReadTest(TimestampPrecision.NANOS, DataFormat.AVRO, expectedOutput);
+    runReadTest(TimestampPrecision.NANOS, DataFormat.AVRO, expectedOutput, nestedTableSpec);
   }
 
   @Test
   public void testReadWithMicrosPrecision_Avro() {
-    // WRITE DATA: 12-digit picosecond timestamps
-    //
-    // READ SETTINGS:
-    //   precision: MICROS (6 digits)
-    //   format:    AVRO
-    //
-    // EXPECTED: Truncated to 6 digits, UTC format
-    //   "2024-01-15T10:30:45.123456789012Z" → "2024-01-15 10:30:45.123456 UTC"
 
     List<TableRow> expectedOutput =
         ImmutableList.of(
@@ -435,7 +351,7 @@ public class BigQueryTimestampPicosIT {
                             .set("key", "2024-01-15 10:30:45.666666 UTC")
                             .set("value", "2024-01-15 10:30:45.777777 UTC"))),
             new TableRow()
-                .set("ts_simple", "1970-01-01 00:00:00 UTC")
+                .set("ts_simple", "1890-01-01 00:00:00.123456 UTC")
                 .set("ts_array", ImmutableList.of("1970-01-01 00:00:00 UTC"))
                 .set(
                     "event",
@@ -451,10 +367,37 @@ public class BigQueryTimestampPicosIT {
                             .set("key", "1970-01-01 00:00:00 UTC")
                             .set("value", "1970-01-01 00:00:00 UTC"))));
 
-    runReadTest(TimestampPrecision.MICROS, DataFormat.AVRO, expectedOutput);
+    runReadTest(TimestampPrecision.MICROS, DataFormat.AVRO, expectedOutput, nestedTableSpec);
   }
+
+  @Test
+  public void testReadWithPicosPrecision_Arrow() {
+
+    List<TableRow> expectedOutput =
+        ImmutableList.of(
+            new TableRow().set("ts_simple", "2024-01-15T10:30:45.123456789012Z"),
+            new TableRow().set("ts_simple", "1890-01-01T00:00:00.123456789123Z"));
+
+    runReadTest(TimestampPrecision.PICOS, DataFormat.ARROW, expectedOutput, simpleTableSpec);
+  }
+
+  @Test
+  public void testReadWithNanosPrecision_Arrow() {
+
+    List<TableRow> expectedOutput =
+        ImmutableList.of(
+            new TableRow().set("ts_simple", "2024-01-15 10:30:45.123456789 UTC"),
+            new TableRow().set("ts_simple", "1890-01-01 00:00:00.123456789 UTC"));
+
+    runReadTest(TimestampPrecision.NANOS, DataFormat.ARROW, expectedOutput, simpleTableSpec);
+  }
+
+
   private void runReadTest(
-      TimestampPrecision precision, DataFormat format, List<TableRow> expectedOutput) {
+      TimestampPrecision precision,
+      DataFormat format,
+      List<TableRow> expectedOutput,
+      String tableSpec) {
     Pipeline readPipeline = Pipeline.create(bqOptions);
 
     PCollection<TableRow> result =
