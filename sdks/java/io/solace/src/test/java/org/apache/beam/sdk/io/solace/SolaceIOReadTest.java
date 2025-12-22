@@ -458,86 +458,19 @@ public class SolaceIOReadTest {
     // mark all consumed messages as ready to be acknowledged
     CheckpointMark checkpointMark = reader.getCheckpointMark();
 
-    // consume 1 more message.
+    // consume 1 more message. This will call #ackMsg() on messages that were ready to be acked.
     reader.advance();
-    assertEquals(0, countAckMessages.get());
+    assertEquals(4, countAckMessages.get());
 
     // consume 1 more message. No change in the acknowledged messages.
     reader.advance();
-    assertEquals(0, countAckMessages.get());
+    assertEquals(4, countAckMessages.get());
 
     // acknowledge from the first checkpoint
     checkpointMark.finalizeCheckpoint();
     // No change in the acknowledged messages, because they were acknowledged in the #advance()
     // method.
     assertEquals(4, countAckMessages.get());
-  }
-
-  @Test
-  public void testLateCheckpointOverlappingFlushingOfNextBundle() throws Exception {
-    AtomicInteger countConsumedMessages = new AtomicInteger(0);
-    AtomicInteger countAckMessages = new AtomicInteger(0);
-
-    // Broker that creates input data
-    SerializableFunction<Integer, BytesXMLMessage> recordFn =
-        index -> {
-          List<BytesXMLMessage> messages = new ArrayList<>();
-          for (int i = 0; i < 10; i++) {
-            messages.add(
-                SolaceDataUtils.getBytesXmlMessage(
-                    "payload_test" + i, "45" + i, (num) -> countAckMessages.incrementAndGet()));
-          }
-          countConsumedMessages.incrementAndGet();
-          return getOrNull(index, messages);
-        };
-
-    SessionServiceFactory fakeSessionServiceFactory =
-        MockSessionServiceFactory.builder().recordFn(recordFn).minMessagesReceived(10).build();
-
-    Read<Record> spec =
-        getDefaultRead()
-            .withSessionServiceFactory(fakeSessionServiceFactory)
-            .withMaxNumConnections(4);
-
-    UnboundedSolaceSource<Record> initialSource = getSource(spec, pipeline);
-
-    UnboundedReader<Record> reader =
-        initialSource.createReader(PipelineOptionsFactory.create(), null);
-
-    // start the reader and move to the first record
-    assertTrue(reader.start());
-
-    // consume 3 messages (NB: #start() already consumed the first message)
-    for (int i = 0; i < 3; i++) {
-      assertTrue(String.format("Failed at %d-th message", i), reader.advance());
-    }
-
-    // #advance() was called, but the messages were not ready to be acknowledged.
-    assertEquals(0, countAckMessages.get());
-
-    // mark all consumed messages as ready to be acknowledged
-    CheckpointMark checkpointMark = reader.getCheckpointMark();
-
-    // data is flushed
-
-    // consume 1 more message.
-    reader.advance();
-    assertEquals(0, countAckMessages.get());
-
-    // consume 1 more message. No change in the acknowledged messages.
-    reader.advance();
-    assertEquals(0, countAckMessages.get());
-
-    CheckpointMark checkpointMark2 = reader.getCheckpointMark();
-    // data is prepared for flushing that will be rejected
-
-    // acknowledge from the first checkpoint may arrive late
-    checkpointMark.finalizeCheckpoint();
-
-    assertEquals(4, countAckMessages.get());
-
-    checkpointMark2.finalizeCheckpoint();
-    assertEquals(6, countAckMessages.get());
   }
 
   @Test
