@@ -392,7 +392,6 @@ public class BigQueryTimestampPicosIT {
     runReadTest(TimestampPrecision.NANOS, DataFormat.ARROW, expectedOutput, simpleTableSpec);
   }
 
-
   private void runReadTest(
       TimestampPrecision precision,
       DataFormat format,
