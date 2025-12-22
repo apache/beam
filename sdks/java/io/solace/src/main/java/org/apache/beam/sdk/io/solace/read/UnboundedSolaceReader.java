@@ -17,9 +17,12 @@
  */
 package org.apache.beam.sdk.io.solace.read;
 
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkNotNull;
 
 import com.solacesystems.jcsmp.BytesXMLMessage;
+import com.solacesystems.jcsmp.JCSMPException;
+import com.solacesystems.jcsmp.XMLMessage;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
@@ -30,7 +33,9 @@ import java.util.UUID;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import org.apache.beam.sdk.io.UnboundedSource;
 import org.apache.beam.sdk.io.UnboundedSource.UnboundedReader;
@@ -59,12 +64,8 @@ class UnboundedSolaceReader<T> extends UnboundedReader<T> {
   private final SessionServiceFactory sessionServiceFactory;
   private @Nullable BytesXMLMessage solaceOriginalRecord;
   private @Nullable T solaceMappedRecord;
-
-  /**
-   * Queue to place advanced messages before {@link #getCheckpointMark()} is called. CAUTION:
-   * Accessed by both reader and checkpointing threads.
-   */
-  private final Queue<BytesXMLMessage> safeToAckMessages = new ConcurrentLinkedQueue<>();
+  private @Nullable Future<?> nackCallback = null;
+  private final int ackDeadlineSeconds;
 
   /**
    * Queue for messages that were ingested in the {@link #advance()} method, but not sent yet to a
@@ -73,7 +74,8 @@ class UnboundedSolaceReader<T> extends UnboundedReader<T> {
   private final Queue<BytesXMLMessage> receivedMessages = new ArrayDeque<>();
 
   private static final Cache<UUID, SessionService> sessionServiceCache;
-  private static final ScheduledExecutorService cleanUpThread = Executors.newScheduledThreadPool(1);
+  private static final ScheduledExecutorService cleanUpThread = Executors.newScheduledThreadPool(4);
+  private final ScheduledExecutorService nackExecutorPool;
 
   static {
     Duration cacheExpirationTimeout = Duration.ofMinutes(1);
@@ -102,6 +104,7 @@ class UnboundedSolaceReader<T> extends UnboundedReader<T> {
   }
 
   public UnboundedSolaceReader(UnboundedSolaceSource<T> currentSource) {
+    checkArgument(currentSource.getAckDeadlineSeconds() < 60);
     this.currentSource = currentSource;
     this.watermarkPolicy =
         WatermarkPolicy.create(
@@ -109,6 +112,12 @@ class UnboundedSolaceReader<T> extends UnboundedReader<T> {
     this.sessionServiceFactory = currentSource.getSessionServiceFactory();
     this.sempClient = currentSource.getSempClientFactory().create();
     this.readerUuid = UUID.randomUUID();
+    this.ackDeadlineSeconds = currentSource.getAckDeadlineSeconds();
+
+    ScheduledThreadPoolExecutor executor = new ScheduledThreadPoolExecutor(4);
+    executor.setExecuteExistingDelayedTasksAfterShutdownPolicy(true);
+    executor.setRemoveOnCancelPolicy(true);
+    this.nackExecutorPool = executor;
   }
 
   private SessionService getSessionService() {
@@ -136,8 +145,6 @@ class UnboundedSolaceReader<T> extends UnboundedReader<T> {
 
   @Override
   public boolean advance() {
-    finalizeReadyMessages();
-
     BytesXMLMessage receivedXmlMessage;
     try {
       receivedXmlMessage = getSessionService().getReceiver().receive();
@@ -158,23 +165,28 @@ class UnboundedSolaceReader<T> extends UnboundedReader<T> {
 
   @Override
   public void close() {
-    finalizeReadyMessages();
+    nackExecutorPool.shutdown();
+    try {
+      if (!nackExecutorPool.awaitTermination(ackDeadlineSeconds * 2, TimeUnit.SECONDS)) {
+        nackExecutorPool.shutdownNow();
+      }
+    } catch (InterruptedException e) {
+      nackExecutorPool.shutdownNow();
+    }
     sessionServiceCache.invalidate(readerUuid);
   }
 
-  public void finalizeReadyMessages() {
+  public void nackMessages(Queue<BytesXMLMessage> checkpoint) {
     BytesXMLMessage msg;
-    while ((msg = safeToAckMessages.poll()) != null) {
+    while ((msg = checkpoint.poll()) != null) {
       try {
-        msg.ackMessage();
-      } catch (IllegalStateException e) {
+        msg.settle(XMLMessage.Outcome.FAILED);
+      } catch (IllegalStateException | JCSMPException e) {
         LOG.error(
-            "SolaceIO.Read: failed to acknowledge the message with applicationMessageId={}, ackMessageId={}. Returning the message to queue to retry.",
+            "SolaceIO.Read: failed to nack the message with applicationMessageId={}, ackMessageId={}.",
             msg.getApplicationMessageId(),
             msg.getAckMessageId(),
             e);
-        safeToAckMessages.add(msg); // In case the error was transient, might succeed later
-        break; // Commit is only best effort
       }
     }
   }
@@ -190,9 +202,14 @@ class UnboundedSolaceReader<T> extends UnboundedReader<T> {
 
   @Override
   public UnboundedSource.CheckpointMark getCheckpointMark() {
+    Queue<BytesXMLMessage> safeToAckMessages = new ConcurrentLinkedQueue<>();
     safeToAckMessages.addAll(receivedMessages);
+    getSessionService(); // poke cache
     receivedMessages.clear();
-    return new SolaceCheckpointMark(safeToAckMessages);
+    nackCallback =
+        nackExecutorPool.schedule(
+            () -> nackMessages(safeToAckMessages), ackDeadlineSeconds, TimeUnit.SECONDS);
+    return new SolaceCheckpointMark(safeToAckMessages, nackCallback);
   }
 
   @Override
