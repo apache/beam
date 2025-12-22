@@ -659,6 +659,11 @@ runtime. The sharding behavior depends on the runners.
 You must use `triggering_frequency` to specify a triggering frequency for
 initiating load jobs. Be careful about setting the frequency such that your
 pipeline doesn't exceed the BigQuery load job [quota limit](https://cloud.google.com/bigquery/quotas#load_jobs).
+
+> **Note:** When using file load-based BigQuery writes with dynamic destinations and a non-zero
+> `triggering_frequency`, temporary tables may be created repeatedly and loads
+> are not finalized into destination tables. This is a known limitation (see BEAM-9917).
+
 {{< /paragraph >}}
 
 {{< paragraph class="language-py" >}}
