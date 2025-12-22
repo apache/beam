@@ -50,7 +50,7 @@ import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.InputMessageBundle;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.Timer;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.WorkItem;
-import org.apache.beam.runners.dataflow.worker.windmill.state.WindmillStateTagUtil;
+import org.apache.beam.runners.dataflow.worker.windmill.state.WindmillTagEncodingV1;
 import org.apache.beam.sdk.coders.BigEndianLongCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.Coder.Context;
@@ -149,7 +149,7 @@ public class StreamingGroupAlsoByWindowFnsTest {
         .getTimersBuilder()
         .addTimersBuilder()
         .setTag(
-            WindmillStateTagUtil.instance()
+            WindmillTagEncodingV1.instance()
                 .timerTag(
                     WindmillNamespacePrefix.SYSTEM_NAMESPACE_PREFIX,
                     TimerData.of(
@@ -196,7 +196,13 @@ public class StreamingGroupAlsoByWindowFnsTest {
     return new ValueInEmptyWindows<>(
         (KeyedWorkItem<String, T>)
             new WindmillKeyedWorkItem<>(
-                KEY, workItem.build(), windowCoder, wildcardWindowsCoder, valueCoder, false));
+                KEY,
+                workItem.build(),
+                windowCoder,
+                wildcardWindowsCoder,
+                valueCoder,
+                WindmillTagEncodingV1.instance(),
+                false));
   }
 
   @Test

@@ -38,7 +38,6 @@ from apache_beam.runners import runner
 from apache_beam.runners.direct import direct_runner
 from apache_beam.runners.interactive import cache_manager as cache
 from apache_beam.runners.interactive.messaging.interactive_environment_inspector import InteractiveEnvironmentInspector
-from apache_beam.runners.interactive.recording_manager import RecordingManager
 from apache_beam.runners.interactive.sql.sql_chain import SqlChain
 from apache_beam.runners.interactive.user_pipeline_tracker import UserPipelineTracker
 from apache_beam.runners.interactive.utils import assert_bucket_exists
@@ -428,6 +427,10 @@ class InteractiveEnvironment(object):
 
   def get_recording_manager(self, pipeline, create_if_absent=False):
     """Gets the recording manager for the given pipeline."""
+    # Allow initial module loading to be complete and not have a circular
+    # import.
+    from apache_beam.runners.interactive.recording_manager import RecordingManager
+
     recording_manager = self._recording_managers.get(str(id(pipeline)), None)
     if not recording_manager and create_if_absent:
       # Get the pipeline variable name for the user. This is useful if the user
