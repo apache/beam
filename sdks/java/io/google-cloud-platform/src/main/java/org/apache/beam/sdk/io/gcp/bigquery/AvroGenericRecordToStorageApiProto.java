@@ -260,6 +260,7 @@ public class AvroGenericRecordToStorageApiProto {
     for (Schema.Field field : schema.getFields()) {
       builder.addFields(fieldDescriptorFromAvroField(field));
     }
+    System.out.println("CLAUDE protoTableSchemaFromAvroSchema " + builder.build());
     return builder.build();
   }
 
@@ -317,6 +318,8 @@ public class AvroGenericRecordToStorageApiProto {
   @SuppressWarnings("nullness")
   private static TableFieldSchema fieldDescriptorFromAvroField(org.apache.avro.Schema.Field field) {
     @Nullable Schema schema = field.schema();
+    System.out.println("CLANDE fieldDescriptorFromAvroField schema " + schema);
+
     Preconditions.checkNotNull(schema, "Unexpected null schema!");
     if (StorageApiCDC.COLUMNS.contains(field.name())) {
       throw new RuntimeException("Reserved field name " + field.name() + " in user schema.");
@@ -383,39 +386,45 @@ public class AvroGenericRecordToStorageApiProto {
                 .setType(unionFieldSchema.getType())
                 .setMode(unionFieldSchema.getMode())
                 .addAllFields(unionFieldSchema.getFieldsList());
+
+        if (unionFieldSchema.hasTimestampPrecision()) {
+          builder.setTimestampPrecision(unionFieldSchema.getTimestampPrecision());
+        }
         break;
       default:
         elementType = TypeWithNullability.create(schema).getType();
+        System.out.println("CLAUDE fieldDescriptorFromAvroField elementType " + elementType);
         if (TIMESTAMP_NANOS_LOGICAL_TYPE.equals(elementType.getProp("logicalType"))) {
           builder = builder.setType(TableFieldSchema.Type.TIMESTAMP);
           builder.setTimestampPrecision(Int64Value.newBuilder().setValue(12L).build());
           break;
-        }
-        Optional<LogicalType> logicalType =
-            Optional.ofNullable(LogicalTypes.fromSchema(elementType));
-        @Nullable
-        TableFieldSchema.Type primitiveType =
-            logicalType
-                .flatMap(AvroGenericRecordToStorageApiProto::logicalTypes)
-                .orElse(PRIMITIVE_TYPES.get(elementType.getType()));
-        if (primitiveType == null) {
-          throw new RuntimeException("Unsupported type " + elementType.getType());
-        }
-        // a scalar will be required by default, if defined as part of union then
-        // caller will set nullability requirements
-        builder = builder.setType(primitiveType);
-        // parametrized types
-        if (logicalType.isPresent() && logicalType.get().getName().equals("decimal")) {
-          LogicalTypes.Decimal decimal = (LogicalTypes.Decimal) logicalType.get();
-          int precision = decimal.getPrecision();
-          int scale = decimal.getScale();
-          if (!(precision == 38 && scale == 9) // NUMERIC
-              && !(precision == 77 && scale == 38) // BIGNUMERIC
-          ) {
-            // parametrized type
-            builder = builder.setPrecision(precision);
-            if (scale != 0) {
-              builder = builder.setScale(scale);
+        } else {
+          Optional<LogicalType> logicalType =
+              Optional.ofNullable(LogicalTypes.fromSchema(elementType));
+          @Nullable
+          TableFieldSchema.Type primitiveType =
+              logicalType
+                  .flatMap(AvroGenericRecordToStorageApiProto::logicalTypes)
+                  .orElse(PRIMITIVE_TYPES.get(elementType.getType()));
+          if (primitiveType == null) {
+            throw new RuntimeException("Unsupported type " + elementType.getType());
+          }
+          // a scalar will be required by default, if defined as part of union then
+          // caller will set nullability requirements
+          builder = builder.setType(primitiveType);
+          // parametrized types
+          if (logicalType.isPresent() && logicalType.get().getName().equals("decimal")) {
+            LogicalTypes.Decimal decimal = (LogicalTypes.Decimal) logicalType.get();
+            int precision = decimal.getPrecision();
+            int scale = decimal.getScale();
+            if (!(precision == 38 && scale == 9) // NUMERIC
+                && !(precision == 77 && scale == 38) // BIGNUMERIC
+            ) {
+              // parametrized type
+              builder = builder.setPrecision(precision);
+              if (scale != 0) {
+                builder = builder.setScale(scale);
+              }
             }
           }
         }
@@ -430,6 +439,7 @@ public class AvroGenericRecordToStorageApiProto {
     if (field.doc() != null) {
       builder = builder.setDescription(field.doc());
     }
+    System.out.println("CLAUDE  builder.build " + builder.build());
     return builder.build();
   }
 
@@ -531,7 +541,17 @@ public class AvroGenericRecordToStorageApiProto {
   static Object scalarToProtoValue(
       @Nullable FieldDescriptor descriptor, Schema fieldSchema, Object value) {
     TypeWithNullability type = TypeWithNullability.create(fieldSchema);
+    System.out.println(
+        "CLAUDE fieldSchema "
+            + fieldSchema
+            + " value "
+            + value
+            + " type.getType() "
+            + type.getType()
+            + " "
+            + TIMESTAMP_NANOS_LOGICAL_TYPE.equals(type.getType().getProp("logicalType")));
     if (TIMESTAMP_NANOS_LOGICAL_TYPE.equals(type.getType().getProp("logicalType"))) {
+      System.out.println("CLAUDE in TIMESTAMP_NANOS_LOGICAL_TYPE");
       Preconditions.checkArgument(
           value instanceof Long, "Expecting a value as Long type (timestamp-nanos).");
       long nanos = (Long) value;
@@ -548,7 +568,14 @@ public class AvroGenericRecordToStorageApiProto {
 
       // Convert nanos to picos (multiply by 1000)
       long picoseconds = nanoAdjustment * 1000L;
-
+      System.out.println("CLAUDE before returning descriptor " + descriptor);
+      System.out.println(
+          "CLAUDE before returning descriptor "
+              + Preconditions.checkNotNull(descriptor).getMessageType().getName());
+      System.out.println(
+          "CLAUDE Returning "
+              + buildTimestampPicosMessage(
+                  Preconditions.checkNotNull(descriptor).getMessageType(), seconds, picoseconds));
       return buildTimestampPicosMessage(
           Preconditions.checkNotNull(descriptor).getMessageType(), seconds, picoseconds);
     }
