@@ -381,6 +381,8 @@ if __name__ == '__main__':
           # TODO(https://github.com/grpc/grpc/issues/37710): Unpin grpc
           'grpcio>=1.33.1,<2,!=1.48.0,!=1.59.*,!=1.60.*,!=1.61.*,!=1.62.0,!=1.62.1,<1.66.0; python_version <= "3.12"',  # pylint: disable=line-too-long
           'grpcio>=1.67.0; python_version >= "3.13"',
+          'grpcio-status<1.63.0; python_version < "3.13"',
+          'grpcio-tools<1.66.0; python_version < "3.13"',
           'httplib2>=0.8,<0.23.0',
           'jsonpickle>=3.0.0,<4.0.0',
           # numpy can have breaking changes in minor versions.
@@ -410,8 +412,6 @@ if __name__ == '__main__':
           'zstandard>=0.18.0,<1',
           'pyyaml>=3.12,<7.0.0',
           'beartype>=0.21.0,<0.23.0',
-          'grpcio-status<1.63.0; python_version < "3.13"',
-          'grpcio-tools<1.66.0; python_version < "3.13"',
           # Dynamic dependencies must be specified in a separate list, otherwise
           # Dependabot won't be able to parse the main list. Any dynamic
           # dependencies will not receive updates from Dependabot.
