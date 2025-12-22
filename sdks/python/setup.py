@@ -374,6 +374,8 @@ if __name__ == '__main__':
       ext_modules=extensions,
       install_requires=[
           'cryptography>=39.0.0,<48.0.0',
+          'envoy-data-plane==0.8.1; python_version < "3.13"',
+          'envoy-data-plane==1.0.3; python_version >= "3.13"',
           'fastavro>=0.23.6,<2',
           'fasteners>=0.3,<1.0',
           # TODO(https://github.com/grpc/grpc/issues/37710): Unpin grpc
@@ -398,7 +400,8 @@ if __name__ == '__main__':
           #
           # 3. Exclude protobuf 4 versions that leak memory, see:
           # https://github.com/apache/beam/issues/28246
-          'protobuf>=3.20.3,<7.0.0.dev0,!=4.0.*,!=4.21.*,!=4.22.0,!=4.23.*,!=4.24.*',  # pylint: disable=line-too-long
+          'protobuf>=3.20.3,<6.0.0.dev0,!=4.0.*,!=4.21.*,!=4.22.0,!=4.23.*,!=4.24.*; python_version < "3.13"',  # pylint: disable=line-too-long
+          'protobuf>=3.20.3,<7.0.0.dev0,!=4.0.*,!=4.21.*,!=4.22.0,!=4.23.*,!=4.24.*; python_version >= "3.13"',
           'python-dateutil>=2.8.0,<3',
           'pytz>=2018.3',
           'requests>=2.32.4,<3.0.0',
@@ -407,6 +410,8 @@ if __name__ == '__main__':
           'zstandard>=0.18.0,<1',
           'pyyaml>=3.12,<7.0.0',
           'beartype>=0.21.0,<0.23.0',
+          'grpcio-status<1.63.0; python_version < "3.13"',
+          'grpcio-tools<1.66.0; python_version < "3.13"',
           # Dynamic dependencies must be specified in a separate list, otherwise
           # Dependabot won't be able to parse the main list. Any dynamic
           # dependencies will not receive updates from Dependabot.
