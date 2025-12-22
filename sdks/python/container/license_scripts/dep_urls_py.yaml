@@ -84,6 +84,9 @@ pip_dependencies:
   grpcio-status:
     license: "https://raw.githubusercontent.com/grpc/grpc/master/LICENSE"
     notice: "https://raw.githubusercontent.com/grpc/grpc/master/NOTICE.txt"
+  grpcio-tools:
+    license: "https://raw.githubusercontent.com/grpc/grpc/master/LICENSE"
+    notice: "https://raw.githubusercontent.com/grpc/grpc/master/NOTICE.txt"
   guppy:
     license: "https://raw.githubusercontent.com/joshwcomeau/guppy/master/LICENSE.md"
   guppy3:
