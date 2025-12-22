@@ -101,7 +101,7 @@ public class BigQueryUtils {
   private static final Pattern TABLE_RESOURCE_PATTERN =
       Pattern.compile(
           "^projects/(?<PROJECT>[^/]+)/datasets/(?<DATASET>[^/]+)/tables/(?<TABLE>[^/]+)$");
-ig
+
   // For parsing the format used to refer to tables parameters in BigQueryIO.
   // "{project_id}:{dataset_id}.{table_id}" or
   // "{project_id}.{dataset_id}.{table_id}"
