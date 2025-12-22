@@ -45,6 +45,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.logicaltypes.SqlTypes;
 import org.apache.beam.sdk.values.Row;
@@ -65,6 +66,10 @@ import org.apache.iceberg.catalog.Catalog;
 import org.apache.iceberg.catalog.Namespace;
 import org.apache.iceberg.catalog.TableIdentifier;
 import org.apache.iceberg.hadoop.HadoopCatalog;
+import org.apache.iceberg.io.FileIO;
+import org.apache.iceberg.io.InputFile;
+import org.apache.iceberg.io.OutputFile;
+import org.apache.iceberg.io.PositionOutputStream;
 import org.apache.iceberg.transforms.Transform;
 import org.apache.iceberg.types.Conversions;
 import org.apache.iceberg.types.Type;
@@ -83,6 +88,7 @@ import org.junit.rules.TemporaryFolder;
 import org.junit.rules.TestName;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
+import org.mockito.Mockito;
 
 /** Test class for {@link RecordWriterManager}. */
 @RunWith(JUnit4.class)
@@ -947,6 +953,105 @@ public class RecordWriterManagerTest {
         default:
           throw new IllegalStateException("Unexpected column index: " + i);
       }
+    }
+  }
+
+  @Test
+  public void testRecordWriterKeepsFileIOOpenUntilClose() throws IOException {
+    TableIdentifier tableId =
+        TableIdentifier.of(
+            "default",
+            "table_"
+                + testName.getMethodName()
+                + "_"
+                + UUID.randomUUID().toString().replace("-", "").substring(0, 6));
+    Table table = warehouse.createTable(tableId, ICEBERG_SCHEMA);
+
+    CloseTrackingFileIO trackingFileIO = new CloseTrackingFileIO(table.io());
+    Table spyTable = Mockito.spy(table);
+    Mockito.doReturn(trackingFileIO).when(spyTable).io();
+
+    PartitionKey partitionKey = new PartitionKey(spyTable.spec(), spyTable.schema());
+    RecordWriter writer =
+        new RecordWriter(spyTable, FileFormat.PARQUET, "file.parquet", partitionKey);
+
+    Row row = Row.withSchema(BEAM_SCHEMA).addValues(1, "aaa", true).build();
+
+    writer.write(IcebergUtils.beamRowToIcebergRecord(ICEBERG_SCHEMA, row));
+    writer.close();
+
+    assertTrue("FileIO should be closed after writer close", trackingFileIO.closed);
+  }
+
+  private static final class CloseTrackingFileIO implements FileIO {
+    private final FileIO delegate;
+    volatile boolean closed = false;
+
+    CloseTrackingFileIO(FileIO delegate) {
+      this.delegate = delegate;
+    }
+
+    @Override
+    public InputFile newInputFile(String path) {
+      return delegate.newInputFile(path);
+    }
+
+    @Override
+    public OutputFile newOutputFile(String path) {
+      OutputFile underlying = delegate.newOutputFile(path);
+      return new CloseAwareOutputFile(underlying, this);
+    }
+
+    @Override
+    public void deleteFile(String path) {
+      delegate.deleteFile(path);
+    }
+
+    @Override
+    public Map<String, String> properties() {
+      return delegate.properties();
+    }
+
+    @Override
+    public void close() {
+      closed = true;
+      delegate.close();
+    }
+  }
+
+  private static final class CloseAwareOutputFile implements OutputFile {
+    private final OutputFile delegate;
+    private final CloseTrackingFileIO io;
+
+    CloseAwareOutputFile(OutputFile delegate, CloseTrackingFileIO io) {
+      this.delegate = delegate;
+      this.io = io;
+    }
+
+    @Override
+    public PositionOutputStream create() {
+      if (io.closed) {
+        throw new IllegalStateException("Connection pool shut down");
+      }
+      return delegate.create();
+    }
+
+    @Override
+    public PositionOutputStream createOrOverwrite() {
+      if (io.closed) {
+        throw new IllegalStateException("Connection pool shut down");
+      }
+      return delegate.createOrOverwrite();
+    }
+
+    @Override
+    public String location() {
+      return delegate.location();
+    }
+
+    @Override
+    public InputFile toInputFile() {
+      return delegate.toInputFile();
     }
   }
 
