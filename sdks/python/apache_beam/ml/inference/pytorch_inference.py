@@ -26,6 +26,7 @@ from typing import Any
 from typing import Optional
 
 import torch
+
 from apache_beam.io.filesystems import FileSystems
 from apache_beam.ml.inference import utils
 from apache_beam.ml.inference.base import ModelHandler
@@ -341,9 +342,6 @@ class PytorchModelHandlerTensor(ModelHandler[torch.Tensor,
     """
     return 'BeamML_PyTorch'
 
-  def validate_inference_args(self, inference_args: Optional[dict[str, Any]]):
-    pass
-
   def batch_elements_kwargs(self):
     return self._batching_kwargs
 
@@ -588,9 +586,6 @@ class PytorchModelHandlerKeyedTensor(ModelHandler[dict[str, torch.Tensor],
        A namespace for metrics collected by the RunInference transform.
     """
     return 'BeamML_PyTorch'
-
-  def validate_inference_args(self, inference_args: Optional[dict[str, Any]]):
-    pass
 
   def batch_elements_kwargs(self):
     return self._batching_kwargs

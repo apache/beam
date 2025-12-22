@@ -27,9 +27,9 @@ from typing import Optional
 from typing import Union
 
 import numpy
-
 import tensorflow as tf
 import tensorflow_hub as hub
+
 from apache_beam.ml.inference import utils
 from apache_beam.ml.inference.base import ModelHandler
 from apache_beam.ml.inference.base import PredictionResult
@@ -219,9 +219,6 @@ class TFModelHandlerNumpy(ModelHandler[numpy.ndarray,
     """
     return 'BeamML_TF_Numpy'
 
-  def validate_inference_args(self, inference_args: Optional[dict[str, Any]]):
-    pass
-
   def batch_elements_kwargs(self):
     return self._batching_kwargs
 
@@ -359,9 +356,6 @@ class TFModelHandlerTensor(ModelHandler[tf.Tensor, PredictionResult,
        A namespace for metrics collected by the RunInference transform.
     """
     return 'BeamML_TF_Tensor'
-
-  def validate_inference_args(self, inference_args: Optional[dict[str, Any]]):
-    pass
 
   def batch_elements_kwargs(self):
     return self._batching_kwargs

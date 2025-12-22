@@ -46,7 +46,7 @@ jaxen:
   '1.1.6':
     type: "3-Clause BSD"
 libraries-bom:
-  '26.65.0':
+  '26.73.0':
     license: "https://raw.githubusercontent.com/GoogleCloudPlatform/cloud-opensource-java/master/LICENSE"
     type: "Apache License 2.0"
 paranamer:
@@ -65,6 +65,14 @@ org.eclipse.jgit:
   '4.4.1.201607150455-r':
     license: "https://www.eclipse.org/org/documents/edl-v10.html"
     type: "Eclipse Distribution License - v1.0"
+opentelemetry-bom:
+  '1.52.0':
+    license: "https://raw.githubusercontent.com/open-telemetry/opentelemetry-java/v1.52.0/LICENSE"
+    type: "Apache License 2.0"
+opentelemetry-bom-alpha:
+  '1.52.0-alpha':
+    license: "https://raw.githubusercontent.com/open-telemetry/opentelemetry-java/v1.52.0/LICENSE"
+    type: "Apache License 2.0"
 zstd-jni:
   '1.5.2-5':
     license: "https://raw.githubusercontent.com/luben/zstd-jni/master/LICENSE"

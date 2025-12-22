@@ -68,6 +68,7 @@ public class WindmillStreamSenderTest {
           serializedWorkItemSize,
           watermarks,
           processingContext,
+          drainMode,
           getWorkStreamLatencies) -> {};
   @Rule public transient Timeout globalTimeout = Timeout.seconds(600);
   private ManagedChannel inProcessChannel;

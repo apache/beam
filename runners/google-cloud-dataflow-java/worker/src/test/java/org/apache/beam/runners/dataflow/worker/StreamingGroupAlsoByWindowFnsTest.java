@@ -50,6 +50,7 @@ import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.InputMessageBundle;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.Timer;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.WorkItem;
+import org.apache.beam.runners.dataflow.worker.windmill.state.WindmillTagEncodingV1;
 import org.apache.beam.sdk.coders.BigEndianLongCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.Coder.Context;
@@ -148,15 +149,16 @@ public class StreamingGroupAlsoByWindowFnsTest {
         .getTimersBuilder()
         .addTimersBuilder()
         .setTag(
-            WindmillTimerInternals.timerTag(
-                WindmillNamespacePrefix.SYSTEM_NAMESPACE_PREFIX,
-                TimerData.of(
-                    namespace,
-                    timestamp,
-                    timestamp,
-                    type == Windmill.Timer.Type.WATERMARK
-                        ? TimeDomain.EVENT_TIME
-                        : TimeDomain.PROCESSING_TIME)))
+            WindmillTagEncodingV1.instance()
+                .timerTag(
+                    WindmillNamespacePrefix.SYSTEM_NAMESPACE_PREFIX,
+                    TimerData.of(
+                        namespace,
+                        timestamp,
+                        timestamp,
+                        type == Windmill.Timer.Type.WATERMARK
+                            ? TimeDomain.EVENT_TIME
+                            : TimeDomain.PROCESSING_TIME)))
         .setTimestamp(WindmillTimeUtils.harnessToWindmillTimestamp(timestamp))
         .setType(type)
         .setStateFamily(STATE_FAMILY);
@@ -194,7 +196,13 @@ public class StreamingGroupAlsoByWindowFnsTest {
     return new ValueInEmptyWindows<>(
         (KeyedWorkItem<String, T>)
             new WindmillKeyedWorkItem<>(
-                KEY, workItem.build(), windowCoder, wildcardWindowsCoder, valueCoder));
+                KEY,
+                workItem.build(),
+                windowCoder,
+                wildcardWindowsCoder,
+                valueCoder,
+                WindmillTagEncodingV1.instance(),
+                false));
   }
 
   @Test

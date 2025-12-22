@@ -20,6 +20,9 @@ package org.apache.beam.sdk.options;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkNotNull;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonIgnore;
+import io.opentelemetry.api.GlobalOpenTelemetry;
+import io.opentelemetry.api.OpenTelemetry;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -440,4 +443,41 @@ public interface SdkHarnessOptions extends PipelineOptions, MemoryMonitorOptions
   int getElementProcessingTimeoutMinutes();
 
   void setElementProcessingTimeoutMinutes(int value);
+
+  /**
+   * The Avro spec supports the `java-class` schema annotation, which allows fields to be serialized
+   * and deserialized via their toString/String constructor. As of Avro 1.11.4+, allowed Java
+   * classes must be explicitly specified via the jvm option. The comma-separated String value of
+   * this pipeline option will be passed to the Dataflow worker via the
+   * -Dorg.apache.avro.SERIALIZABLE_CLASSES jvm option.
+   */
+  @Description("Serializable classes required by java-class props in Avro 1.11.4+")
+  List<String> getAvroSerializableClasses();
+
+  void setAvroSerializableClasses(List<String> options);
+
+  /**
+   * The OpenTelemetry properties that will be appended to the set of system properties for SDK
+   * harness instances. Property names must be specified without the 'otel.' prefix.
+   */
+  @Description(
+      "The OpenTelemetry properties that will be appended to the set of system properties for SDK "
+          + "harness instances. Property names must be specified without the 'otel.' prefix.")
+  Map<String, String> getOpenTelemetryProperties();
+
+  void setOpenTelemetryProperties(Map<String, String> value);
+
+  @JsonIgnore
+  @Hidden
+  @Default.InstanceFactory(GlobalOpenTelemetryFactory.class)
+  OpenTelemetry getOpenTelemetry();
+
+  void setOpenTelemetry(OpenTelemetry value);
+
+  class GlobalOpenTelemetryFactory implements DefaultValueFactory<OpenTelemetry> {
+    @Override
+    public OpenTelemetry create(PipelineOptions options) {
+      return GlobalOpenTelemetry.get();
+    }
+  }
 }

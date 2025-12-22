@@ -63,6 +63,11 @@ import org.slf4j.LoggerFactory;
  *
  * <h3>Usage example</h3>
  *
+ * <p>Support is currently experimental. One of the known issues is that the connector does not
+ * preserve the offset on a worker crash or restart, causing it to retrieve all the data from the
+ * beginning again. See <a href="https://github.com/apache/beam/issues/28248">Issue #28248</a> for
+ * details.
+ *
  * <p>Connect to a Debezium - MySQL database and run a Pipeline
  *
  * <pre>

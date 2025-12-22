@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.extensions.sql.impl;
 
+import static org.apache.beam.sdk.util.Preconditions.checkArgumentNotNull;
 import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
 import static org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.util.Static.RESOURCE;
 
@@ -43,6 +44,7 @@ import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.sql.SqlIdentifi
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.sql.SqlUtil;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableSet;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -55,11 +57,13 @@ public class CatalogManagerSchema implements Schema {
   private static final Logger LOG = LoggerFactory.getLogger(CatalogManagerSchema.class);
   private final JdbcConnection connection;
   private final CatalogManager catalogManager;
+  private final BeamSystemSchema beamSystemSchema;
   private final Map<String, CatalogSchema> catalogSubSchemas = new HashMap<>();
 
   CatalogManagerSchema(JdbcConnection jdbcConnection, CatalogManager catalogManager) {
     this.connection = jdbcConnection;
     this.catalogManager = catalogManager;
+    this.beamSystemSchema = new BeamSystemSchema(catalogManager);
   }
 
   @VisibleForTesting
@@ -176,15 +180,23 @@ public class CatalogManagerSchema implements Schema {
     return getCurrentCatalogSchema().getTableNames();
   }
 
+  /**
+   * Returns the {@link CatalogSchema} for the catalog referenced in this {@link TableName}. If the
+   * path does not reference a catalog, the currently use {@link CatalogSchema} will be returned.
+   */
   public CatalogSchema getCatalogSchema(TableName tablePath) {
-    @Nullable Schema catalogSchema = getSubSchema(tablePath.catalog());
-    if (catalogSchema == null) {
-      catalogSchema = getCurrentCatalogSchema();
-    }
+    return tablePath.catalog() != null
+        ? getCatalogSchema(tablePath.catalog())
+        : getCurrentCatalogSchema();
+  }
+
+  public CatalogSchema getCatalogSchema(@Nullable String catalog) {
+    Schema catalogSchema =
+        checkArgumentNotNull(getSubSchema(catalog), "Catalog '%s' not found.", catalog);
     Preconditions.checkState(
         catalogSchema instanceof CatalogSchema,
         "Unexpected Schema type for Catalog '%s': %s",
-        tablePath.catalog(),
+        catalog,
         catalogSchema.getClass());
     return (CatalogSchema) catalogSchema;
   }
@@ -201,6 +213,9 @@ public class CatalogManagerSchema implements Schema {
   public @Nullable Schema getSubSchema(@Nullable String name) {
     if (name == null) {
       return null;
+    }
+    if (name.equals(BeamSystemSchema.BEAMSYSTEM)) {
+      return beamSystemSchema;
     }
     @Nullable CatalogSchema catalogSchema = catalogSubSchemas.get(name);
     if (catalogSchema == null) {
@@ -222,7 +237,14 @@ public class CatalogManagerSchema implements Schema {
 
   @Override
   public Set<String> getSubSchemaNames() {
-    return catalogManager.catalogs().stream().map(Catalog::name).collect(Collectors.toSet());
+    return ImmutableSet.<String>builder()
+        .addAll(catalogs().stream().map(Catalog::name).collect(Collectors.toSet()))
+        .add(BeamSystemSchema.BEAMSYSTEM)
+        .build();
+  }
+
+  public Collection<Catalog> catalogs() {
+    return catalogManager.catalogs();
   }
 
   public void setPipelineOption(String key, String value) {

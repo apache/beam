@@ -101,10 +101,10 @@ public class ScalarFunctionImpl extends UdfImplReflectiveFunctionBase
 
   /**
    * Creates {@link org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.schema.Function} from
-   * given method. When {@code eval} method does not suit, {@code null} is returned.
+   * given method.
    *
    * @param method method that is used to implement the function
-   * @return created {@link Function} or null
+   * @return created {@link Function}
    */
   public static Function create(Method method) {
     return create(method, "");
@@ -112,11 +112,11 @@ public class ScalarFunctionImpl extends UdfImplReflectiveFunctionBase
 
   /**
    * Creates {@link org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.schema.Function} from
-   * given method. When {@code eval} method does not suit, {@code null} is returned.
+   * given method.
    *
    * @param method method that is used to implement the function
    * @param jarPath Path to jar that contains the method.
-   * @return created {@link Function} or null
+   * @return created {@link Function}
    */
   public static Function create(Method method, String jarPath) {
     validateMethod(method);

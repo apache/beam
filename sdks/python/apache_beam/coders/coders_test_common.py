@@ -38,8 +38,8 @@ import pytest
 from parameterized import param
 from parameterized import parameterized
 
-from apache_beam.coders import proto2_coder_test_messages_pb2 as test_message
 from apache_beam.coders import coders
+from apache_beam.coders import proto2_coder_test_messages_pb2 as test_message
 from apache_beam.coders import typecoders
 from apache_beam.internal import pickler
 from apache_beam.runners import pipeline_context
@@ -112,6 +112,11 @@ if dataclasses is not None:
   class FrozenDataClass:
     a: Any
     b: int
+
+  @dataclasses.dataclass(frozen=True, kw_only=True)
+  class FrozenKwOnlyDataClass:
+    c: int
+    d: int
 
   @dataclasses.dataclass
   class UnFrozenDataClass:
@@ -303,9 +308,11 @@ class CodersTest(unittest.TestCase):
 
     if dataclasses is not None:
       self.check_coder(deterministic_coder, FrozenDataClass(1, 2))
+      self.check_coder(deterministic_coder, FrozenKwOnlyDataClass(c=1, d=2))
 
       with self.assertRaises(TypeError):
         self.check_coder(deterministic_coder, UnFrozenDataClass(1, 2))
+
       with self.assertRaises(TypeError):
         self.check_coder(
             deterministic_coder, FrozenDataClass(UnFrozenDataClass(1, 2), 3))
@@ -650,6 +657,7 @@ class CodersTest(unittest.TestCase):
   def test_param_windowed_value_coder(self):
     from apache_beam.transforms.window import IntervalWindow
     from apache_beam.utils.windowed_value import PaneInfo
+
     # pylint: disable=too-many-function-args
     wv = windowed_value.create(
         b'',
@@ -741,6 +749,7 @@ class CodersTest(unittest.TestCase):
         from apache_beam.coders.coders_test_common import DefinesGetState
         from apache_beam.coders.coders_test_common import DefinesGetAndSetState
         from apache_beam.coders.coders_test_common import FrozenDataClass
+        from apache_beam.coders.coders_test_common import FrozenKwOnlyDataClass
 
 
         from apache_beam.coders import proto2_coder_test_messages_pb2 as test_message
@@ -776,6 +785,8 @@ class CodersTest(unittest.TestCase):
         test_cases.extend([
             ("frozen_dataclass", FrozenDataClass(1, 2)),
             ("frozen_dataclass_list", [FrozenDataClass(1, 2), FrozenDataClass(3, 4)]),
+            ("frozen_kwonly_dataclass", FrozenKwOnlyDataClass(c=1, d=2)),
+            ("frozen_kwonly_dataclass_list", [FrozenKwOnlyDataClass(c=1, d=2), FrozenKwOnlyDataClass(c=3, d=4)]),
         ])
 
         compat_version = {'"'+ compat_version +'"' if compat_version else None}

@@ -74,8 +74,8 @@ jobs:
         uses: ./.github/actions/setup-environment-action
         with:
           python-version: |
-            3.9
             3.10
+            3.11
       - name: Prepare test arguments
         uses: ./.github/actions/test-arguments-action
         with:
@@ -89,6 +89,6 @@ jobs:
         with:
           gradle-command: :sdks:python:test-suites:dataflow:tftTests
           arguments: |
-            -PpythonVersion=3.9 \
+            -PpythonVersion=3.10 \
             -Prunner=DataflowRunner \
             '-Popts=${{ env.beam_CloudML_Benchmarks_Dataflow_test_arguments_1 }}'

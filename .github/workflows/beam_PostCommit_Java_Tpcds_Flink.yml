@@ -101,5 +101,5 @@ jobs:
         with:
           gradle-command: :sdks:java:testing:tpcds:run
           arguments: |
-            -Ptpcds.runner=:runners:flink:1.19 \
+            -Ptpcds.runner=:runners:flink:1.20 \
             "-Ptpcds.args=${{env.tpcdsBigQueryArgs}} ${{env.tpcdsInfluxDBArgs}} ${{ env.GRADLE_COMMAND_ARGUMENTS }} --queries=${{env.tpcdsQueriesArg}}" \

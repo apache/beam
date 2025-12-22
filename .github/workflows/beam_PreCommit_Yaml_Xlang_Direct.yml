@@ -17,7 +17,7 @@ name: PreCommit YAML Xlang Direct
 
 on:
   pull_request_target:
-    paths: ['release/trigger_all_tests.json', 'model/**', 'sdks/python/**']
+    paths: ['release/trigger_all_tests.json', 'model/**', 'sdks/python/**', '.github/trigger_files/beam_PreCommit_Yaml_Xlang_Direct.json']
   issue_comment:
     types: [created]
   push:
@@ -91,7 +91,7 @@ jobs:
       - name: run PreCommit Yaml Xlang Direct script
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
-          gradle-command: :sdks:python:yamlIntegrationTests -PbeamPythonExtra=ml_test
+          gradle-command: :sdks:python:yamlIntegrationTests -PbeamPythonExtra=ml_test,yaml
       - name: Archive Python Test Results
         uses: actions/upload-artifact@v4
         if: failure()

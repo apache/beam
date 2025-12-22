@@ -166,11 +166,7 @@ ml_base = [
     'embeddings',
     'onnxruntime',
     'langchain',
-    # sentence-transformers 3.0+ requires transformers 4.34+
-    # which uses Python 3.10+ union syntax
-    # Use 2.x versions for Python 3.9 compatibility with transformers <4.55.0
-    'sentence-transformers>=2.2.2,<3.0.0; python_version < "3.10"',
-    'sentence-transformers>=2.2.2; python_version >= "3.10"',
+    'sentence-transformers>=2.2.2',
     'skl2onnx',
     'pillow',
     'pyod',
@@ -297,7 +293,7 @@ def get_portability_package_data():
   return files
 
 
-python_requires = '>=3.9'
+python_requires = '>=3.10'
 
 if sys.version_info.major == 3 and sys.version_info.minor >= 14:
   warnings.warn(
@@ -377,21 +373,17 @@ if __name__ == '__main__':
       },
       ext_modules=extensions,
       install_requires=[
-          'crcmod>=1.7,<2.0',
           'cryptography>=39.0.0,<48.0.0',
-          'orjson>=3.9.7,<4',
           'fastavro>=0.23.6,<2',
           'fasteners>=0.3,<1.0',
           # TODO(https://github.com/grpc/grpc/issues/37710): Unpin grpc
           'grpcio>=1.33.1,<2,!=1.48.0,!=1.59.*,!=1.60.*,!=1.61.*,!=1.62.0,!=1.62.1,<1.66.0; python_version <= "3.12"',  # pylint: disable=line-too-long
           'grpcio>=1.67.0; python_version >= "3.13"',
-          'hdfs>=2.1.0,<3.0.0',
           'httplib2>=0.8,<0.23.0',
-          'jsonschema>=4.0.0,<5.0.0',
           'jsonpickle>=3.0.0,<4.0.0',
           # numpy can have breaking changes in minor versions.
           # Use a strict upper bound.
-          'numpy>=1.14.3,<2.3.0',  # Update pyproject.toml as well.
+          'numpy>=1.14.3,<2.4.0',  # Update pyproject.toml as well.
           'objsize>=0.6.1,<0.8.0',
           'packaging>=22.0',
           'pymongo>=3.8.0,<5.0.0',
@@ -407,17 +399,14 @@ if __name__ == '__main__':
           # 3. Exclude protobuf 4 versions that leak memory, see:
           # https://github.com/apache/beam/issues/28246
           'protobuf>=3.20.3,<7.0.0.dev0,!=4.0.*,!=4.21.*,!=4.22.0,!=4.23.*,!=4.24.*',  # pylint: disable=line-too-long
-          'pydot>=1.2.0,<2',
           'python-dateutil>=2.8.0,<3',
           'pytz>=2018.3',
-          'redis>=5.0.0,<6',
-          'regex>=2020.6.8',
           'requests>=2.32.4,<3.0.0',
           'sortedcontainers>=2.4.0',
           'typing-extensions>=3.7.0',
           'zstandard>=0.18.0,<1',
           'pyyaml>=3.12,<7.0.0',
-          'beartype>=0.21.0,<0.22.0',
+          'beartype>=0.21.0,<0.23.0',
           # Dynamic dependencies must be specified in a separate list, otherwise
           # Dependabot won't be able to parse the main list. Any dynamic
           # dependencies will not receive updates from Dependabot.
@@ -459,17 +448,18 @@ if __name__ == '__main__':
               'pytest>=7.1.2,<9.0',
               'pytest-xdist>=2.5.0,<4',
               'pytest-timeout>=2.1.0,<3',
-              'scikit-learn>=0.20.0',
+              'scikit-learn>=0.20.0,<1.8.0',
               'sqlalchemy>=1.3,<3.0',
-              'psycopg2-binary>=2.8.5,<2.9.10; python_version <= "3.9"',
-              'psycopg2-binary>=2.8.5,<3.0; python_version >= "3.10"',
+              'psycopg2-binary>=2.8.5,<3.0',
               'testcontainers[mysql,kafka,milvus]>=4.0.0,<5.0.0',
               'cryptography>=41.0.2',
-              'hypothesis>5.0.0,<7.0.0',
+              # TODO(https://github.com/apache/beam/issues/36951): need to
+              # further investigate the cause
+              'hypothesis>5.0.0,<6.148.4',
               'virtualenv-clone>=0.5,<1.0',
               'python-tds>=1.16.1',
               'sqlalchemy-pytds>=1.0.2',
-              'pg8000>=1.31.1',
+              'pg8000>=1.31.5',
               "PyMySQL>=1.1.0",
               'oracledb>=3.1.1'
           ] + milvus_dependency,
@@ -495,6 +485,7 @@ if __name__ == '__main__':
               'google-cloud-spanner>=3.0.0,<4',
               # GCP Packages required by ML functionality
               'google-cloud-dlp>=3.0.0,<4',
+              'google-cloud-kms>=3.0.0,<4',
               'google-cloud-language>=2.0,<3',
               'google-cloud-secret-manager>=2.0,<3',
               'google-cloud-videointelligence>=2.0,<3',
@@ -503,13 +494,15 @@ if __name__ == '__main__':
               'google-cloud-aiplatform>=1.26.0, < 2.0',
               'cloud-sql-python-connector>=1.18.2,<2.0.0',
               'python-tds>=1.16.1',
-              'pg8000>=1.31.1',
+              'pg8000>=1.31.5',
               "PyMySQL>=1.1.0",
               # Authentication for Google Artifact Registry when using
               # --extra-index-url or --index-url in requirements.txt in
               # Dataflow, which allows installing python packages from private
               # Python repositories in GAR.
-              'keyrings.google-artifactregistry-auth'
+              'keyrings.google-artifactregistry-auth',
+              'orjson>=3.9.7,<4',
+              'regex>=2020.6.8',
           ],
           'interactive': [
               'facets-overview>=1.1.0,<2',
@@ -520,6 +513,7 @@ if __name__ == '__main__':
               # Skip version 6.1.13 due to
               # https://github.com/jupyter/jupyter_client/issues/637
               'jupyter-client>=6.1.11,!=6.1.13,<8.2.1',
+              'pydot>=1.2.0,<2',
               'timeloop>=1.0.2,<2',
               'nbformat>=5.0.5,<6',
               'nbconvert>=6.2.0,<8',
@@ -571,12 +565,14 @@ if __name__ == '__main__':
               # `--update` / `-U` flag to replace the dask release brought in
               # by distributed.
           ],
+          'hadoop': ['hdfs>=2.1.0,<3.0.0'],
           'yaml': [
               'docstring-parser>=0.15,<1.0',
               'jinja2>=3.0,<3.2',
               'virtualenv-clone>=0.5,<1.0',
               # https://github.com/PiotrDabkowski/Js2Py/issues/317
               'js2py>=0.74,<1; python_version<"3.12"',
+              'jsonschema>=4.0.0,<5.0.0',
           ] + dataframe_dependency,
           # Keep the following dependencies in line with what we test against
           # in https://github.com/apache/beam/blob/master/sdks/python/tox.ini
@@ -585,14 +581,16 @@ if __name__ == '__main__':
           'torch': ['torch>=1.9.0,<2.8.0'],
           'tensorflow': ['tensorflow>=2.12rc1,<2.21'],
           'transformers': [
-              # Restrict transformers to <4.55.0 for Python 3.9 compatibility
-              # Versions 4.55.0+ use Python 3.10+ union syntax (int | None)
-              # which causes TypeError on Python 3.9
-              'transformers>=4.28.0,<4.55.0; python_version < "3.10"',
-              'transformers>=4.28.0,<4.56.0; python_version >= "3.10"',
+              'transformers>=4.28.0,<4.56.0',
               'tensorflow>=2.12.0',
               'torch>=1.9.0'
           ],
+          'ml_cpu': [
+              'tensorflow>=2.12.0',
+              'torch==2.8.0+cpu',
+              'transformers>=4.28.0,<4.56.0'
+          ],
+          'redis': ['redis>=5.0.0,<6'],
           'tft': [
               'tensorflow_transform>=1.14.0,<1.15.0'
               # tensorflow-transform requires dill, but doesn't set dill as a
@@ -600,6 +598,7 @@ if __name__ == '__main__':
               ,
               'dill'
           ],
+          'tfrecord': ['crcmod>=1.7,<2.0'],
           'onnx': [
               'onnxruntime==1.13.1',
               'torch==1.13.1',
@@ -610,7 +609,8 @@ if __name__ == '__main__':
           ],
           'xgboost': ['xgboost>=1.6.0,<2.1.3', 'datatable==1.0.0'],
           'tensorflow-hub': ['tensorflow-hub>=0.14.0,<0.16.0'],
-          'milvus': milvus_dependency
+          'milvus': milvus_dependency,
+          'vllm': ['openai==1.107.1', 'vllm==0.10.1.1', 'triton==3.3.1']
       },
       zip_safe=False,
       # PyPI package information.
@@ -618,7 +618,6 @@ if __name__ == '__main__':
           'Intended Audience :: End Users/Desktop',
           'License :: OSI Approved :: Apache Software License',
           'Operating System :: POSIX :: Linux',
-          'Programming Language :: Python :: 3.9',
           'Programming Language :: Python :: 3.10',
           'Programming Language :: Python :: 3.11',
           'Programming Language :: Python :: 3.12',

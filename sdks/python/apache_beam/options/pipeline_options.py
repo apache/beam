@@ -64,7 +64,10 @@ _LOGGER = logging.getLogger(__name__)
 # Map defined with option names to flag names for boolean options
 # that have a destination(dest) in parser.add_argument() different
 # from the flag name and whose default value is `None`.
-_FLAG_THAT_SETS_FALSE_VALUE = {'use_public_ips': 'no_use_public_ips'}
+_FLAG_THAT_SETS_FALSE_VALUE = {
+    'use_public_ips': 'no_use_public_ips',
+    'save_main_session': 'no_save_main_session'
+}
 # Set of options which should not be overriden when applying options from a
 # different language. This is relevant when using x-lang transforms where the
 # expansion service is started up with some pipeline options, and will
@@ -483,11 +486,12 @@ class PipelineOptions(HasDisplayData):
       drop_default=False,
       add_extra_args_fn: Optional[Callable[[_BeamArgumentParser], None]] = None,
       retain_unknown_options=False,
-      display_warnings=False) -> Dict[str, Any]:
+      display_warnings=False,
+      current_only=False,
+  ) -> Dict[str, Any]:
     """Returns a dictionary of all defined arguments.
 
-    Returns a dictionary of all defined arguments (arguments that are defined in
-    any subclass of PipelineOptions) into a dictionary.
+    Returns a dictionary of all defined arguments into a dictionary.
 
     Args:
       drop_default: If set to true, options that are equal to their default
@@ -497,6 +501,9 @@ class PipelineOptions(HasDisplayData):
       retain_unknown_options: If set to true, options not recognized by any
         known pipeline options class will still be included in the result. If
         set to false, they will be discarded.
+      current_only: If set to true, only returns options defined in this class.
+      Otherwise, arguments that are defined in any subclass of PipelineOptions
+      are returned (default).
 
     Returns:
       Dictionary of all args and values.
@@ -507,8 +514,11 @@ class PipelineOptions(HasDisplayData):
     # instance of each subclass to avoid conflicts.
     subset = {}
     parser = _BeamArgumentParser(allow_abbrev=False)
-    for cls in PipelineOptions.__subclasses__():
-      subset[str(cls)] = cls
+    if current_only:
+      subset.setdefault(str(type(self)), type(self))
+    else:
+      for cls in PipelineOptions.__subclasses__():
+        subset.setdefault(str(cls), cls)
     for cls in subset.values():
       cls._add_argparse_args(parser)  # pylint: disable=protected-access
     if add_extra_args_fn:
@@ -559,7 +569,7 @@ class PipelineOptions(HasDisplayData):
           continue
       parsed_args, _ = parser.parse_known_args(self._flags)
     else:
-      if unknown_args:
+      if unknown_args and not current_only:
         _LOGGER.warning("Discarding unparseable args: %s", unknown_args)
       parsed_args = known_args
     result = vars(parsed_args)
@@ -577,7 +587,7 @@ class PipelineOptions(HasDisplayData):
     if overrides:
       if retain_unknown_options:
         result.update(overrides)
-      else:
+      elif not current_only:
         _LOGGER.warning("Discarding invalid overrides: %s", overrides)
 
     return result
@@ -1672,14 +1682,24 @@ class SetupOptions(PipelineOptions):
         choices=['cloudpickle', 'default', 'dill', 'dill_unsafe'])
     parser.add_argument(
         '--save_main_session',
-        default=False,
+        default=None,
         action='store_true',
         help=(
             'Save the main session state so that pickled functions and classes '
             'defined in __main__ (e.g. interactive session) can be unpickled. '
             'Some workflows do not need the session state if for instance all '
             'their functions/classes are defined in proper modules '
-            '(not __main__) and the modules are importable in the worker. '))
+            '(not __main__) and the modules are importable in the worker. '
+            'It is disabled by default except for cloudpickle as pickle '
+            'library on Dataflow runner.'))
+    parser.add_argument(
+        '--no_save_main_session',
+        default=None,
+        action='store_false',
+        dest='save_main_session',
+        help=(
+            'Disable saving the main session state. See "save_main_session".'))
+
     parser.add_argument(
         '--sdk_location',
         default='default',
@@ -1780,10 +1800,29 @@ class SetupOptions(PipelineOptions):
             'If not specified, the default Maven Central repository will be '
             'used.'))
 
+  def _handle_load_main_session(self, validator):
+    save_main_session = getattr(self, 'save_main_session')
+    if save_main_session is None:
+      if not validator.is_service_runner():
+        setattr(self, 'save_main_session', False)
+      else:
+        # save_main_session default to False for dill, while default to true
+        # for cloudpickle on service runner
+        pickle_library = getattr(self, 'pickle_library')
+        if pickle_library == 'default':
+          from apache_beam.internal.pickler import DEFAULT_PICKLE_LIB
+          pickle_library = DEFAULT_PICKLE_LIB
+        if pickle_library == 'cloudpickle':
+          setattr(self, 'save_main_session', True)
+        else:
+          setattr(self, 'save_main_session', False)
+    return []
+
   def validate(self, validator):
     errors = []
     errors.extend(validator.validate_container_prebuilding_options(self))
     errors.extend(validator.validate_pickle_library(self))
+    errors.extend(self._handle_load_main_session(validator))
     return errors
 
 
@@ -1943,7 +1982,7 @@ class JobServerOptions(PipelineOptions):
 class FlinkRunnerOptions(PipelineOptions):
 
   # These should stay in sync with gradle.properties.
-  PUBLISHED_FLINK_VERSIONS = ['1.17', '1.18', '1.19']
+  PUBLISHED_FLINK_VERSIONS = ['1.17', '1.18', '1.19', '1.20']
 
   @classmethod
   def _add_argparse_args(cls, parser):

@@ -127,7 +127,7 @@ public class JdbcDriverTest {
   public void testDriverManager_hasUserAgent() throws Exception {
     JdbcConnection connection =
         (JdbcConnection) DriverManager.getConnection(JdbcDriver.CONNECT_STRING_PREFIX);
-    CatalogManagerSchema schema = connection.getCurrentBeamSchema();
+    CatalogManagerSchema schema = (CatalogManagerSchema) connection.getCurrentBeamSchema();
     assertThat(
         schema.connection().getPipelineOptionsMap().get("userAgent"),
         equalTo("BeamSQL/" + ReleaseInfo.getReleaseInfo().getVersion()));

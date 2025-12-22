@@ -114,6 +114,14 @@ class CoderRegistry(object):
       typehint_coder_class: Type[coders.Coder]) -> None:
     self._coders[typehint_type] = typehint_coder_class
 
+  @staticmethod
+  def _normalize_typehint_type(typehint_type):
+    if typehint_type.__module__ == '__main__':
+      # See https://github.com/apache/beam/issues/21541
+      # TODO(robertwb): Remove once all runners are portable.
+      return getattr(typehint_type, '__name__', str(typehint_type))
+    return typehint_type
+
   def register_coder(
       self, typehint_type: Any,
       typehint_coder_class: Type[coders.Coder]) -> None:
@@ -123,11 +131,8 @@ class CoderRegistry(object):
           'Received %r instead.' % typehint_coder_class)
     if typehint_type not in self.custom_types:
       self.custom_types.append(typehint_type)
-    if typehint_type.__module__ == '__main__':
-      # See https://github.com/apache/beam/issues/21541
-      # TODO(robertwb): Remove once all runners are portable.
-      typehint_type = getattr(typehint_type, '__name__', str(typehint_type))
-    self._register_coder_internal(typehint_type, typehint_coder_class)
+    self._register_coder_internal(
+        self._normalize_typehint_type(typehint_type), typehint_coder_class)
 
   def get_coder(self, typehint: Any) -> coders.Coder:
     if typehint and typehint.__module__ == '__main__':
@@ -170,9 +175,15 @@ class CoderRegistry(object):
       coder = self._fallback_coder
     return coder.from_type_hint(typehint, self)
 
-  def get_custom_type_coder_tuples(self, types):
+  def get_custom_type_coder_tuples(self, types=None):
     """Returns type/coder tuples for all custom types passed in."""
-    return [(t, self._coders[t]) for t in types if t in self.custom_types]
+    return [(t, self._coders[self._normalize_typehint_type(t)])
+            for t in self.custom_types if (types is None or t in types)]
+
+  def load_custom_type_coder_tuples(self, type_coder):
+    """Load type/coder tuples into coder registry."""
+    for t, c in type_coder:
+      self.register_coder(t, c)
 
   def verify_deterministic(self, key_coder, op_name, silent=True):
     if not key_coder.is_deterministic():

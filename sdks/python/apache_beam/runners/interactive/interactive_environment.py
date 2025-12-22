@@ -38,7 +38,6 @@ from apache_beam.runners import runner
 from apache_beam.runners.direct import direct_runner
 from apache_beam.runners.interactive import cache_manager as cache
 from apache_beam.runners.interactive.messaging.interactive_environment_inspector import InteractiveEnvironmentInspector
-from apache_beam.runners.interactive.recording_manager import RecordingManager
 from apache_beam.runners.interactive.sql.sql_chain import SqlChain
 from apache_beam.runners.interactive.user_pipeline_tracker import UserPipelineTracker
 from apache_beam.runners.interactive.utils import assert_bucket_exists
@@ -175,13 +174,17 @@ class InteractiveEnvironment(object):
     # Tracks the computation completeness of PCollections. PCollections tracked
     # here don't need to be re-computed when data introspection is needed.
     self._computed_pcolls = set()
+
+    self._computing_pcolls = set()
+
     # Always watch __main__ module.
     self.watch('__main__')
     # Check if [interactive] dependencies are installed.
     try:
       import IPython  # pylint: disable=unused-import
       import timeloop  # pylint: disable=unused-import
-      from facets_overview.generic_feature_statistics_generator import GenericFeatureStatisticsGenerator  # pylint: disable=unused-import
+      from facets_overview.generic_feature_statistics_generator import \
+          GenericFeatureStatisticsGenerator  # pylint: disable=unused-import
       from google.cloud import dataproc_v1  # pylint: disable=unused-import
       self._is_interactive_ready = True
     except ImportError:
@@ -424,6 +427,10 @@ class InteractiveEnvironment(object):
 
   def get_recording_manager(self, pipeline, create_if_absent=False):
     """Gets the recording manager for the given pipeline."""
+    # Allow initial module loading to be complete and not have a circular
+    # import.
+    from apache_beam.runners.interactive.recording_manager import RecordingManager
+
     recording_manager = self._recording_managers.get(str(id(pipeline)), None)
     if not recording_manager and create_if_absent:
       # Get the pipeline variable name for the user. This is useful if the user
@@ -719,3 +726,19 @@ class InteractiveEnvironment(object):
     bucket_name = cache_dir_path.parts[1]
     assert_bucket_exists(bucket_name)
     return 'gs://{}/{}'.format('/'.join(cache_dir_path.parts[1:]), id(pipeline))
+
+  @property
+  def computing_pcollections(self):
+    return self._computing_pcolls
+
+  def mark_pcollection_computing(self, pcolls):
+    """Marks the given pcolls as currently being computed."""
+    self._computing_pcolls.update(pcolls)
+
+  def unmark_pcollection_computing(self, pcolls):
+    """Removes the given pcolls from the computing set."""
+    self._computing_pcolls.difference_update(pcolls)
+
+  def is_pcollection_computing(self, pcoll):
+    """Checks if the given pcollection is currently being computed."""
+    return pcoll in self._computing_pcolls

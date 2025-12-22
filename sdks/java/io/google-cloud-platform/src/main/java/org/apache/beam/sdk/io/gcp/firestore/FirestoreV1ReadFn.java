@@ -100,6 +100,17 @@ final class FirestoreV1ReadFn {
       super(clock, firestoreStatefulComponentFactory, rpcQosOptions, readTime);
     }
 
+    RunQueryFn(
+        JodaClock clock,
+        FirestoreStatefulComponentFactory firestoreStatefulComponentFactory,
+        RpcQosOptions rpcQosOptions,
+        @Nullable Instant readTime,
+        @Nullable String projectId,
+        @Nullable String databaseId) {
+      super(
+          clock, firestoreStatefulComponentFactory, rpcQosOptions, readTime, projectId, databaseId);
+    }
+
     @Override
     public Context getRpcAttemptContext() {
       return FirestoreV1RpcAttemptContexts.V1FnRpcAttemptContext.RunQuery;
@@ -167,7 +178,7 @@ final class FirestoreV1ReadFn {
         JodaClock clock,
         FirestoreStatefulComponentFactory firestoreStatefulComponentFactory,
         RpcQosOptions rpcQosOptions) {
-      super(clock, firestoreStatefulComponentFactory, rpcQosOptions, null);
+      super(clock, firestoreStatefulComponentFactory, rpcQosOptions, null, null, null);
     }
 
     public PartitionQueryFn(
@@ -175,7 +186,18 @@ final class FirestoreV1ReadFn {
         FirestoreStatefulComponentFactory firestoreStatefulComponentFactory,
         RpcQosOptions rpcQosOptions,
         @Nullable Instant readTime) {
-      super(clock, firestoreStatefulComponentFactory, rpcQosOptions, readTime);
+      super(clock, firestoreStatefulComponentFactory, rpcQosOptions, readTime, null, null);
+    }
+
+    public PartitionQueryFn(
+        JodaClock clock,
+        FirestoreStatefulComponentFactory firestoreStatefulComponentFactory,
+        RpcQosOptions rpcQosOptions,
+        @Nullable Instant readTime,
+        @Nullable String projectId,
+        @Nullable String databaseId) {
+      super(
+          clock, firestoreStatefulComponentFactory, rpcQosOptions, readTime, projectId, databaseId);
     }
 
     @Override
@@ -266,7 +288,7 @@ final class FirestoreV1ReadFn {
         JodaClock clock,
         FirestoreStatefulComponentFactory firestoreStatefulComponentFactory,
         RpcQosOptions rpcQosOptions) {
-      super(clock, firestoreStatefulComponentFactory, rpcQosOptions, null);
+      super(clock, firestoreStatefulComponentFactory, rpcQosOptions, null, null, null);
     }
 
     ListDocumentsFn(
@@ -274,7 +296,18 @@ final class FirestoreV1ReadFn {
         FirestoreStatefulComponentFactory firestoreStatefulComponentFactory,
         RpcQosOptions rpcQosOptions,
         @Nullable Instant readTime) {
-      super(clock, firestoreStatefulComponentFactory, rpcQosOptions, readTime);
+      super(clock, firestoreStatefulComponentFactory, rpcQosOptions, readTime, null, null);
+    }
+
+    ListDocumentsFn(
+        JodaClock clock,
+        FirestoreStatefulComponentFactory firestoreStatefulComponentFactory,
+        RpcQosOptions rpcQosOptions,
+        @Nullable Instant readTime,
+        @Nullable String projectId,
+        @Nullable String databaseId) {
+      super(
+          clock, firestoreStatefulComponentFactory, rpcQosOptions, readTime, projectId, databaseId);
     }
 
     @Override
@@ -320,7 +353,7 @@ final class FirestoreV1ReadFn {
         JodaClock clock,
         FirestoreStatefulComponentFactory firestoreStatefulComponentFactory,
         RpcQosOptions rpcQosOptions) {
-      super(clock, firestoreStatefulComponentFactory, rpcQosOptions, null);
+      super(clock, firestoreStatefulComponentFactory, rpcQosOptions, null, null, null);
     }
 
     ListCollectionIdsFn(
@@ -328,7 +361,18 @@ final class FirestoreV1ReadFn {
         FirestoreStatefulComponentFactory firestoreStatefulComponentFactory,
         RpcQosOptions rpcQosOptions,
         @Nullable Instant readTime) {
-      super(clock, firestoreStatefulComponentFactory, rpcQosOptions, readTime);
+      super(clock, firestoreStatefulComponentFactory, rpcQosOptions, readTime, null, null);
+    }
+
+    ListCollectionIdsFn(
+        JodaClock clock,
+        FirestoreStatefulComponentFactory firestoreStatefulComponentFactory,
+        RpcQosOptions rpcQosOptions,
+        @Nullable Instant readTime,
+        @Nullable String projectId,
+        @Nullable String databaseId) {
+      super(
+          clock, firestoreStatefulComponentFactory, rpcQosOptions, readTime, projectId, databaseId);
     }
 
     @Override
@@ -381,6 +425,17 @@ final class FirestoreV1ReadFn {
         RpcQosOptions rpcQosOptions,
         @Nullable Instant readTime) {
       super(clock, firestoreStatefulComponentFactory, rpcQosOptions, readTime);
+    }
+
+    BatchGetDocumentsFn(
+        JodaClock clock,
+        FirestoreStatefulComponentFactory firestoreStatefulComponentFactory,
+        RpcQosOptions rpcQosOptions,
+        @Nullable Instant readTime,
+        @Nullable String projectId,
+        @Nullable String databaseId) {
+      super(
+          clock, firestoreStatefulComponentFactory, rpcQosOptions, readTime, projectId, databaseId);
     }
 
     @Override
@@ -458,7 +513,7 @@ final class FirestoreV1ReadFn {
         JodaClock clock,
         FirestoreStatefulComponentFactory firestoreStatefulComponentFactory,
         RpcQosOptions rpcQosOptions) {
-      super(clock, firestoreStatefulComponentFactory, rpcQosOptions, null);
+      super(clock, firestoreStatefulComponentFactory, rpcQosOptions, null, null, null);
     }
 
     protected StreamingFirestoreV1ReadFn(
@@ -466,7 +521,18 @@ final class FirestoreV1ReadFn {
         FirestoreStatefulComponentFactory firestoreStatefulComponentFactory,
         RpcQosOptions rpcQosOptions,
         @Nullable Instant readTime) {
-      super(clock, firestoreStatefulComponentFactory, rpcQosOptions, readTime);
+      super(clock, firestoreStatefulComponentFactory, rpcQosOptions, readTime, null, null);
+    }
+
+    protected StreamingFirestoreV1ReadFn(
+        JodaClock clock,
+        FirestoreStatefulComponentFactory firestoreStatefulComponentFactory,
+        RpcQosOptions rpcQosOptions,
+        @Nullable Instant readTime,
+        @Nullable String projectId,
+        @Nullable String databaseId) {
+      super(
+          clock, firestoreStatefulComponentFactory, rpcQosOptions, readTime, projectId, databaseId);
     }
 
     protected abstract ServerStreamingCallable<InT, OutT> getCallable(FirestoreStub firestoreStub);
@@ -539,8 +605,11 @@ final class FirestoreV1ReadFn {
         JodaClock clock,
         FirestoreStatefulComponentFactory firestoreStatefulComponentFactory,
         RpcQosOptions rpcQosOptions,
-        @Nullable Instant readTime) {
-      super(clock, firestoreStatefulComponentFactory, rpcQosOptions, readTime);
+        @Nullable Instant readTime,
+        @Nullable String projectId,
+        @Nullable String databaseId) {
+      super(
+          clock, firestoreStatefulComponentFactory, rpcQosOptions, readTime, projectId, databaseId);
     }
 
     protected abstract UnaryCallable<RequestT, PagedResponseT> getCallable(
@@ -610,6 +679,7 @@ final class FirestoreV1ReadFn {
     protected transient FirestoreStub firestoreStub;
     protected transient RpcQos rpcQos;
     protected transient String projectId;
+    protected transient @Nullable String databaseId;
 
     @SuppressWarnings(
         "initialization.fields.uninitialized") // allow transient fields to be managed by component
@@ -618,12 +688,18 @@ final class FirestoreV1ReadFn {
         JodaClock clock,
         FirestoreStatefulComponentFactory firestoreStatefulComponentFactory,
         RpcQosOptions rpcQosOptions,
-        @Nullable Instant readTime) {
+        @Nullable Instant readTime,
+        @Nullable String projectId,
+        @Nullable String databaseId) {
       this.clock = requireNonNull(clock, "clock must be non null");
       this.firestoreStatefulComponentFactory =
           requireNonNull(firestoreStatefulComponentFactory, "firestoreFactory must be non null");
       this.rpcQosOptions = requireNonNull(rpcQosOptions, "rpcQosOptions must be non null");
       this.readTime = readTime;
+      if (projectId != null) {
+        this.projectId = projectId;
+      }
+      this.databaseId = databaseId;
     }
 
     /** {@inheritDoc} */
@@ -635,7 +711,10 @@ final class FirestoreV1ReadFn {
     /** {@inheritDoc} */
     @Override
     public final void startBundle(StartBundleContext c) {
-      String project = c.getPipelineOptions().as(FirestoreOptions.class).getFirestoreProject();
+      String project =
+          this.projectId != null
+              ? this.projectId
+              : c.getPipelineOptions().as(FirestoreOptions.class).getFirestoreProject();
       if (project == null) {
         project = c.getPipelineOptions().as(GcpOptions.class).getProject();
       }
@@ -643,7 +722,15 @@ final class FirestoreV1ReadFn {
           requireNonNull(
               project,
               "project must be defined on FirestoreOptions or GcpOptions of PipelineOptions");
-      firestoreStub = firestoreStatefulComponentFactory.getFirestoreStub(c.getPipelineOptions());
+      databaseId =
+          this.databaseId != null
+              ? this.databaseId
+              : c.getPipelineOptions().as(FirestoreOptions.class).getFirestoreDb();
+      requireNonNull(
+          databaseId, "firestoreDb must be defined on FirestoreOptions of PipelineOptions");
+      firestoreStub =
+          firestoreStatefulComponentFactory.getFirestoreStub(
+              c.getPipelineOptions(), projectId, databaseId);
     }
 
     /** {@inheritDoc} */
@@ -651,6 +738,7 @@ final class FirestoreV1ReadFn {
     @Override
     public void finishBundle() throws Exception {
       projectId = null;
+      databaseId = null;
       firestoreStub.close();
     }
 

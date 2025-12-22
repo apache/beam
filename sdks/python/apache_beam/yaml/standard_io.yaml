@@ -47,7 +47,7 @@
         'ReadFromBigQuery': 'beam:schematransform:org.apache.beam:bigquery_storage_read:v1'
         'WriteToBigQuery': 'beam:schematransform:org.apache.beam:bigquery_write:v1'
       config:
-        gradle_target: 'sdks:java:extensions:sql:expansion-service:shadowJar'
+        gradle_target: 'sdks:java:io:google-cloud-platform:expansion-service:shadowJar'
         managed_replacement:
           # Following transforms may be replaced with equivalent managed transforms,
           # if the pipelines 'updateCompatibilityBeamVersion' match the provided
@@ -403,3 +403,31 @@
         'WriteToBigTable': 'beam:schematransform:org.apache.beam:bigtable_write:v1'
       config:
         gradle_target: 'sdks:java:io:google-cloud-platform:expansion-service:shadowJar'
+
+#IcebergCDC
+- type: renaming
+  transforms:
+    'ReadFromIcebergCDC': 'ReadFromIcebergCDC'
+  config:
+    mappings:
+      'ReadFromIcebergCDC':
+        table: 'table'
+        catalog_name: 'catalog_name'
+        catalog_properties: 'catalog_properties'
+        config_properties: 'config_properties'
+        drop: 'drop'
+        filter: 'filter'
+        from_snapshot: 'from_snapshot'
+        from_timestamp: 'from_timestamp'
+        keep: 'keep'
+        poll_interval_seconds: 'poll_interval_seconds'
+        starting_strategy: 'starting_strategy'
+        streaming: 'streaming'
+        to_snapshot: 'to_snapshot'
+        to_timestamp: 'to_timestamp'
+    underlying_provider:
+      type: beamJar
+      transforms:
+        'ReadFromIcebergCDC': 'beam:schematransform:org.apache.beam:iceberg_cdc_read:v1'
+      config:
+        gradle_target: 'sdks:java:io:expansion-service:shadowJar'

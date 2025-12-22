@@ -16,6 +16,7 @@
 package engine
 
 import (
+	"bytes"
 	"log/slog"
 	"time"
 
@@ -174,12 +175,20 @@ type tsElementEvent struct {
 func (ev tsElementEvent) Execute(em *ElementManager) {
 	t := em.testStreamHandler.tagState[ev.Tag]
 
+	info := em.pcolInfo[t.pcollection]
 	var pending []element
 	for _, e := range ev.Elements {
+		var keyBytes []byte
+		if info.KeyDec != nil {
+			kbuf := bytes.NewBuffer(e.Encoded)
+			keyBytes = info.KeyDec(kbuf)
+		}
+
 		pending = append(pending, element{
 			window:    window.GlobalWindow{},
 			timestamp: e.EventTime,
 			elmBytes:  e.Encoded,
+			keyBytes:  keyBytes,
 			pane:      typex.NoFiringPane(),
 		})
 	}
@@ -238,7 +247,7 @@ func (ev tsProcessingTimeEvent) Execute(em *ElementManager) {
 	}
 
 	// Add the refreshes now so our block prevention logic works.
-	emNow := em.ProcessingTimeNow()
+	emNow := em.processingTimeNow()
 	toRefresh := em.processTimeEvents.AdvanceTo(emNow)
 	em.changedStages.merge(toRefresh)
 }

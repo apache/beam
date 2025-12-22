@@ -51,6 +51,7 @@ def _list_submodules(package):
 _transform_constructors = {}
 try:
   from apache_beam.ml.transforms.base import MLTransform
+
   # Load all available ML Transform modules
   for module_name in _list_submodules(beam.ml.transforms):
     try:
