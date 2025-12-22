@@ -189,14 +189,14 @@ class AppendFilesToTables
         ManifestWriter<DataFile> writer;
         try (FileIO io = table.io()) {
           writer = createManifestWriter(table.location(), uuid, spec, io);
+          for (DataFile file : files) {
+            writer.add(file);
+            committedDataFileByteSize.update(file.fileSizeInBytes());
+            committedDataFileRecordCount.update(file.recordCount());
+          }
+          writer.close();
+          update.appendManifest(writer.toManifestFile());
         }
-        for (DataFile file : files) {
-          writer.add(file);
-          committedDataFileByteSize.update(file.fileSizeInBytes());
-          committedDataFileRecordCount.update(file.recordCount());
-        }
-        writer.close();
-        update.appendManifest(writer.toManifestFile());
       }
       update.commit();
     }
