@@ -201,7 +201,7 @@ class WindmillTimerInternals implements TimerInternals {
             // Setting a timer, clear any prior hold and set to the new value
             outputBuilder
                 .addWatermarkHoldsBuilder()
-                .setTag(windmillTagEncoding.timerHoldTag(prefix, timerData))
+                .setTag(windmillTagEncoding.timerHoldTag(prefix, timerData, timer.getTag()))
                 .setStateFamily(stateFamily)
                 .setReset(true)
                 .addTimestamps(
@@ -210,7 +210,7 @@ class WindmillTimerInternals implements TimerInternals {
             // Clear the hold in case a previous iteration of this timer set one.
             outputBuilder
                 .addWatermarkHoldsBuilder()
-                .setTag(windmillTagEncoding.timerHoldTag(prefix, timerData))
+                .setTag(windmillTagEncoding.timerHoldTag(prefix, timerData, timer.getTag()))
                 .setStateFamily(stateFamily)
                 .setReset(true);
           }
@@ -225,7 +225,7 @@ class WindmillTimerInternals implements TimerInternals {
           // We are deleting timer; clear the hold
           outputBuilder
               .addWatermarkHoldsBuilder()
-              .setTag(windmillTagEncoding.timerHoldTag(prefix, timerData))
+              .setTag(windmillTagEncoding.timerHoldTag(prefix, timerData, timer.getTag()))
               .setStateFamily(stateFamily)
               .setReset(true);
         }

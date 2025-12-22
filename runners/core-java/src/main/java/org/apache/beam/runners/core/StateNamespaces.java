@@ -102,6 +102,10 @@ public class StateNamespaces {
       return window;
     }
 
+    public Coder<W> getWindowCoder() {
+      return windowCoder;
+    }
+
     @Override
     public String stringKey() {
       try {
@@ -168,6 +172,10 @@ public class StateNamespaces {
 
     public W getWindow() {
       return window;
+    }
+
+    public Coder<W> getWindowCoder() {
+      return windowCoder;
     }
 
     public int getTriggerIndex() {
