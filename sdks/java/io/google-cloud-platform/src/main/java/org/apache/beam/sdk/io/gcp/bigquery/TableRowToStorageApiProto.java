@@ -69,6 +69,7 @@ import java.util.function.Predicate;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
+import org.apache.beam.sdk.io.gcp.bigquery.BigQueryUtils.TimestampPicos;
 import org.apache.beam.sdk.util.Preconditions;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Functions;
@@ -1370,8 +1371,7 @@ public class TableRowToStorageApiProto {
       long picoseconds;
 
       if (value instanceof String) {
-        BigQueryUtils.TimestampPicos parsed =
-            BigQueryUtils.parseTimestampPicosFromString((String) value);
+        TimestampPicos parsed = TimestampPicos.fromString((String) value);
         seconds = parsed.seconds;
         picoseconds = parsed.picoseconds;
 

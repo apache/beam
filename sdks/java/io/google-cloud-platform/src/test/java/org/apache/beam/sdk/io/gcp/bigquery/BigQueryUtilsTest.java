@@ -1546,7 +1546,7 @@ public class BigQueryUtilsTest {
 
       long expectedSecs = expectedSeconds(isoEquivalent);
 
-      BigQueryUtils.TimestampPicos result = BigQueryUtils.parseTimestampPicosFromString(input);
+      BigQueryUtils.TimestampPicos result = BigQueryUtils.TimestampPicos.fromString(input);
 
       assertEquals(
           String.format("Seconds mismatch for '%s' (%s)", input, description),
