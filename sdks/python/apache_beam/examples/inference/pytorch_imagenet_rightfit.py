@@ -192,7 +192,7 @@ class PostProcessDoFn(beam.DoFn):
         "image_id": image_id,
         "model_name": self.model_name,
         "topk": json.dumps(topk),
-        "infer_ts_ms": now_millis(),
+        "infer_ms": now_millis(),
     }
 
 
@@ -319,7 +319,7 @@ def override_or_add(args, flag, value):
 # ============ Model factory (timm) ============
 
 
-def create_timm_model(model_name: str, num_classes: int = 1000):
+def create_timm_m(model_name: str, num_classes: int = 1000):
   import timm
   model = timm.create_model(
       model_name, pretrained=True, num_classes=num_classes)
@@ -367,8 +367,7 @@ def run_load_pipeline(known_args, pipeline_args):
   _ = (
       lines
       | 'ToBytes' >> beam.Map(lambda line: line.encode('utf-8'))
-      |
-      'WriteToPubSub' >> beam.io.WriteToPubSub(topic=known_args.pubsub_topic))
+      | 'ToPubSub' >> beam.io.WriteToPubSub(topic=known_args.pubsub_topic))
   return pipeline.run()
 
 
@@ -409,7 +408,7 @@ def run(
   for bs in tried:
     try:
       model_handler = PytorchModelHandlerTensor(
-          model_class=lambda: create_timm_model(known_args.pretrained_model_name),
+          model_class=lambda: create_timm_m(known_args.pretrained_model_name),
           model_params={},
           state_dict_path=known_args.model_state_dict_path,
           device=device,
@@ -435,9 +434,7 @@ def run(
         "Falling back to batch_size=8 due to previous errors: %s", last_err)
     bs_ok = 8
     model_handler = PytorchModelHandlerTensor(
-        model_class=lambda: create_timm_model(
-            known_args.pretrained_model_name
-        ),
+        model_class=lambda: create_timm_m(known_args.pretrained_model_name),
         model_params={},
         state_dict_path=known_args.model_state_dict_path,
         device=device,
@@ -500,7 +497,7 @@ def run(
         | 'WriteToBigQuery' >> beam.io.WriteToBigQuery(
             known_args.output_table,
             schema=
-            'image_id:STRING, model_name:STRING, topk:STRING, infer_ts_ms:INT64',
+            'image_id:STRING, model_name:STRING, topk:STRING, infer_ms:INT64',
             write_disposition=beam.io.BigQueryDisposition.WRITE_APPEND,
             create_disposition=beam.io.BigQueryDisposition.CREATE_IF_NEEDED,
             method=beam.io.WriteToBigQuery.Method.STREAMING_INSERTS))
