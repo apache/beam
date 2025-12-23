@@ -115,7 +115,7 @@ jsonschema-specifications==2025.9.1
 keyring==25.7.0
 keyrings.google-artifactregistry-auth==1.1.2
 MarkupSafe==3.0.3
-milvus-lite==2.5.1
+milvus-lite==2.4.12
 mmh3==5.2.0
 mock==5.2.0
 more-itertools==10.8.0
@@ -150,7 +150,7 @@ pydantic==2.12.5
 pydantic_core==2.41.5
 Pygments==2.19.2
 PyHamcrest==2.1.0
-pymilvus==2.5.18
+pymilvus==2.4.15
 pymongo==4.15.5
 PyMySQL==1.1.2
 pyparsing==3.3.0
