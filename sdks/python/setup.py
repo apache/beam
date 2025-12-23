@@ -507,7 +507,7 @@ if __name__ == '__main__':
               # Python repositories in GAR.
               'keyrings.google-artifactregistry-auth',
               'orjson>=3.9.7,<4',
-              'regex>=2020.6.8'
+              'regex>=2020.6.8',
           ],
           'interactive': [
               'facets-overview>=1.1.0,<2',
