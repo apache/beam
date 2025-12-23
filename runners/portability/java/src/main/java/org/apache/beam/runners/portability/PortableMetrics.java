@@ -164,7 +164,7 @@ public class PortableMetrics extends MetricResults {
     return monitoringInfoList.stream()
         .filter(m -> DISTRIBUTION_INT64_TYPE.equals(m.mi.getType()))
         .filter(m -> m.mi.getLabelsMap().get(NAMESPACE_LABEL) != null)
-        .map(PortableMetrics::convertDistributionMonitoringInfoToDistribution)
+        .map(m->convertDistributionMonitoringInfoToDistribution(m))
         .collect(Collectors.toList());
   }
 
@@ -173,7 +173,7 @@ public class PortableMetrics extends MetricResults {
     return monitoringInfoList.stream()
         .filter(m -> LATEST_INT64_TYPE.equals(m.mi.getType()))
         .filter(m -> m.mi.getLabelsMap().get(NAMESPACE_LABEL) != null)
-        .map(PortableMetrics::convertGaugeMonitoringInfoToGauge)
+        .map(m->convertGaugeMonitoringInfoToGauge(m))
         .collect(Collectors.toList());
   }
 
@@ -196,7 +196,7 @@ public class PortableMetrics extends MetricResults {
     return monitoringInfoList.stream()
         .filter(m -> SET_STRING_TYPE.equals(m.mi.getType()))
         .filter(m -> m.mi.getLabelsMap().get(NAMESPACE_LABEL) != null)
-        .map(PortableMetrics::convertStringSetMonitoringInfoToStringSet)
+        .map(m->convertStringSetMonitoringInfoToStringSet(m))
         .collect(Collectors.toList());
   }
 
@@ -205,7 +205,7 @@ public class PortableMetrics extends MetricResults {
     return monitoringInfoList.stream()
         .filter(m -> BOUNDED_TRIE_TYPE.equals(m.mi.getType()))
         .filter(m -> m.mi.getLabelsMap().get(NAMESPACE_LABEL) != null)
-        .map(PortableMetrics::convertBoundedTrieMonitoringInfoToBoundedTrie)
+        .map(m->convertBoundedTrieMonitoringInfoToBoundedTrie(m))
         .collect(Collectors.toList());
   }
 
@@ -259,7 +259,7 @@ public class PortableMetrics extends MetricResults {
     return monitoringInfoList.stream()
         .filter(m -> SUM_INT64_TYPE.equals(m.mi.getType()))
         .filter(m -> m.mi.getLabelsMap().get(NAMESPACE_LABEL) != null)
-        .map(PortableMetrics::convertCounterMonitoringInfoToCounter)
+        .map(m->convertCounterMonitoringInfoToCounter(m))
         .collect(Collectors.toList());
   }
 
