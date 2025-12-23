@@ -173,7 +173,7 @@ public class PortableMetrics extends MetricResults {
     return monitoringInfoList.stream()
         .filter(m -> LATEST_INT64_TYPE.equals(m.mi.getType()))
         .filter(m -> m.mi.getLabelsMap().get(NAMESPACE_LABEL) != null)
-        .map(m -> convertGaugeMonitoringInfoToGauge)
+        .map(PortableMetrics::convertBoundedTrieMonitoringInfoToBoundedTrie)
         .collect(Collectors.toList());
   }
 
@@ -196,7 +196,7 @@ public class PortableMetrics extends MetricResults {
     return monitoringInfoList.stream()
         .filter(m -> SET_STRING_TYPE.equals(m.mi.getType()))
         .filter(m -> m.mi.getLabelsMap().get(NAMESPACE_LABEL) != null)
-        .map(m -> convertStringSetMonitoringInfoToStringSet)
+        .map(PortableMetrics::convertBoundedTrieMonitoringInfoToBoundedTrie)
         .collect(Collectors.toList());
   }
 
@@ -205,7 +205,7 @@ public class PortableMetrics extends MetricResults {
     return monitoringInfoList.stream()
         .filter(m -> BOUNDED_TRIE_TYPE.equals(m.mi.getType()))
         .filter(m -> m.mi.getLabelsMap().get(NAMESPACE_LABEL) != null)
-        .map(m -> convertBoundedTrieMonitoringInfoToBoundedTrie)
+        .map(PortableMetrics::convertBoundedTrieMonitoringInfoToBoundedTrie)
         .collect(Collectors.toList());
   }
 
