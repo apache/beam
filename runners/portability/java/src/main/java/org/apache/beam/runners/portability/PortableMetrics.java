@@ -164,7 +164,7 @@ public class PortableMetrics extends MetricResults {
     return monitoringInfoList.stream()
         .filter(m -> DISTRIBUTION_INT64_TYPE.equals(m.mi.getType()))
         .filter(m -> m.mi.getLabelsMap().get(NAMESPACE_LABEL) != null)
-        .map(m -> convertDistributionMonitoringInfoToDistribution(m.mi, m.committed))
+        .map(m -> convertDistributionMonitoringInfoToDistribution(m))
         .collect(Collectors.toList());
   }
 
@@ -173,12 +173,13 @@ public class PortableMetrics extends MetricResults {
     return monitoringInfoList.stream()
         .filter(m -> LATEST_INT64_TYPE.equals(m.mi.getType()))
         .filter(m -> m.mi.getLabelsMap().get(NAMESPACE_LABEL) != null)
-        .map(m -> convertGaugeMonitoringInfoToGauge(m.mi, m.committed))
+        .map(m -> convertGaugeMonitoringInfoToGauge)
         .collect(Collectors.toList());
   }
 
-  private static MetricResult<GaugeResult> convertGaugeMonitoringInfoToGauge(
-      MetricsApi.MonitoringInfo monitoringInfo, boolean isCommitted) {
+  private static MetricResult<GaugeResult> convertGaugeMonitoringInfoToGauge(MiAndCommitted m) {
+    MetricsApi.MonitoringInfo monitoringInfo = m.mi;
+    boolean isCommitted = m.committed;
     Map<String, String> labelsMap = monitoringInfo.getLabelsMap();
     MetricKey key =
         MetricKey.create(
@@ -195,7 +196,7 @@ public class PortableMetrics extends MetricResults {
     return monitoringInfoList.stream()
         .filter(m -> SET_STRING_TYPE.equals(m.mi.getType()))
         .filter(m -> m.mi.getLabelsMap().get(NAMESPACE_LABEL) != null)
-        .map(m -> convertStringSetMonitoringInfoToStringSet(m.mi, m.committed))
+        .map(m -> convertStringSetMonitoringInfoToStringSet)
         .collect(Collectors.toList());
   }
 
@@ -204,12 +205,14 @@ public class PortableMetrics extends MetricResults {
     return monitoringInfoList.stream()
         .filter(m -> BOUNDED_TRIE_TYPE.equals(m.mi.getType()))
         .filter(m -> m.mi.getLabelsMap().get(NAMESPACE_LABEL) != null)
-        .map(m -> convertBoundedTrieMonitoringInfoToBoundedTrie(m.mi, m.committed))
+        .map(m -> convertBoundedTrieMonitoringInfoToBoundedTrie)
         .collect(Collectors.toList());
   }
 
   private static MetricResult<StringSetResult> convertStringSetMonitoringInfoToStringSet(
-      MetricsApi.MonitoringInfo monitoringInfo, boolean isCommitted) {
+      MiAndCommitted m) {
+    MetricsApi.MonitoringInfo monitoringInfo = m.mi;
+    boolean isCommitted = m.committed;
     Map<String, String> labelsMap = monitoringInfo.getLabelsMap();
     MetricKey key =
         MetricKey.create(
@@ -222,7 +225,9 @@ public class PortableMetrics extends MetricResults {
   }
 
   private static MetricResult<BoundedTrieResult> convertBoundedTrieMonitoringInfoToBoundedTrie(
-      MetricsApi.MonitoringInfo monitoringInfo, boolean isCommitted) {
+      MiAndCommitted m) {
+    MetricsApi.MonitoringInfo monitoringInfo = m.mi;
+    boolean isCommitted = m.committed;
     Map<String, String> labelsMap = monitoringInfo.getLabelsMap();
     MetricKey key =
         MetricKey.create(
@@ -235,7 +240,9 @@ public class PortableMetrics extends MetricResults {
   }
 
   private static MetricResult<DistributionResult> convertDistributionMonitoringInfoToDistribution(
-      MetricsApi.MonitoringInfo monitoringInfo, boolean isCommitted) {
+      MiAndCommitted m) {
+    MetricsApi.MonitoringInfo monitoringInfo = m.mi;
+    boolean isCommitted = m.committed;
     Map<String, String> labelsMap = monitoringInfo.getLabelsMap();
     MetricKey key =
         MetricKey.create(
@@ -252,12 +259,13 @@ public class PortableMetrics extends MetricResults {
     return monitoringInfoList.stream()
         .filter(m -> SUM_INT64_TYPE.equals(m.mi.getType()))
         .filter(m -> m.mi.getLabelsMap().get(NAMESPACE_LABEL) != null)
-        .map(m -> convertCounterMonitoringInfoToCounter(m.mi, m.committed))
+        .map(PortableMetrics::convertCounterMonitoringInfoToCounter)
         .collect(Collectors.toList());
   }
 
-  private static MetricResult<Long> convertCounterMonitoringInfoToCounter(
-      MetricsApi.MonitoringInfo counterMonInfo, boolean isCommitted) {
+  private static MetricResult<Long> convertCounterMonitoringInfoToCounter(MiAndCommitted m) {
+    MetricsApi.MonitoringInfo counterMonInfo = m.mi;
+    boolean isCommitted = m.committed;
     Map<String, String> labelsMap = counterMonInfo.getLabelsMap();
     MetricKey key =
         MetricKey.create(
