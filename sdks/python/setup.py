@@ -160,11 +160,7 @@ dataframe_dependency = [
     'pandas>=1.4.3,!=1.5.0,!=1.5.1,<2.3',
 ]
 
-milvus_dependency = [
-    'pymilvus>=2.5.10,<3.0.0; python_version >= "3.13"',
-    'pymilvus>=2.4.0,<2.5.0; python_version <= "3.12"',
-    'setuptools>=70.0.0',
-]
+milvus_dependency = ['pymilvus>=2.5.10,<3.0.0']
 
 ml_base = [
     'embeddings',
@@ -470,8 +466,7 @@ if __name__ == '__main__':
               'sqlalchemy-pytds>=1.0.2',
               'pg8000>=1.31.5',
               "PyMySQL>=1.1.0",
-              'oracledb>=3.1.1',
-              'aiohttp!=4.0.0a1',
+              'oracledb>=3.1.1'
           ] + milvus_dependency,
           'gcp': [
               'cachetools>=3.1.0,<7',
@@ -512,8 +507,7 @@ if __name__ == '__main__':
               # Python repositories in GAR.
               'keyrings.google-artifactregistry-auth',
               'orjson>=3.9.7,<4',
-              'regex>=2020.6.8',
-              'aiohttp!=4.0.0a1',
+              'regex>=2020.6.8'
           ],
           'interactive': [
               'facets-overview>=1.1.0,<2',
