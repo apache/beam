@@ -26,7 +26,6 @@ import com.google.api.services.bigquery.model.Table;
 import com.google.api.services.bigquery.model.TableReference;
 import com.google.api.services.bigquery.model.TableSchema;
 import com.google.api.services.bigquery.model.TimePartitioning;
-import com.google.cloud.hadoop.util.ApiErrorExtractor;
 import java.io.IOException;
 import java.util.List;
 import java.util.Map;
@@ -61,9 +60,9 @@ import org.slf4j.LoggerFactory;
  */
 @SuppressWarnings({"nullness"})
 public class UpdateSchemaDestination<DestinationT>
-    extends DoFn<
-        Iterable<KV<DestinationT, WriteTables.Result>>,
-        Iterable<KV<TableDestination, WriteTables.Result>>> {
+  extends DoFn<
+  Iterable<KV<DestinationT, WriteTables.Result>>,
+  Iterable<KV<TableDestination, WriteTables.Result>>> {
 
   private static final Logger LOG = LoggerFactory.getLogger(UpdateSchemaDestination.class);
   private final BigQueryServices bqServices;
@@ -84,9 +83,9 @@ public class UpdateSchemaDestination<DestinationT>
     final BoundedWindow window;
 
     public PendingJobData(
-        BigQueryHelpers.PendingJob retryJob,
-        TableDestination tableDestination,
-        BoundedWindow window) {
+      BigQueryHelpers.PendingJob retryJob,
+      TableDestination tableDestination,
+      BoundedWindow window) {
       this.retryJob = retryJob;
       this.tableDestination = tableDestination;
       this.window = window;
@@ -96,15 +95,15 @@ public class UpdateSchemaDestination<DestinationT>
   private final Map<DestinationT, PendingJobData> pendingJobs = Maps.newHashMap();
 
   public UpdateSchemaDestination(
-      BigQueryServices bqServices,
-      PCollectionView<String> zeroLoadJobIdPrefixView,
-      @Nullable ValueProvider<String> loadJobProjectId,
-      BigQueryIO.Write.WriteDisposition writeDisposition,
-      BigQueryIO.Write.CreateDisposition createDisposition,
-      int maxRetryJobs,
-      @Nullable String kmsKey,
-      Set<BigQueryIO.Write.SchemaUpdateOption> schemaUpdateOptions,
-      DynamicDestinations<?, DestinationT> dynamicDestinations) {
+    BigQueryServices bqServices,
+    PCollectionView<String> zeroLoadJobIdPrefixView,
+    @Nullable ValueProvider<String> loadJobProjectId,
+    BigQueryIO.Write.WriteDisposition writeDisposition,
+    BigQueryIO.Write.CreateDisposition createDisposition,
+    int maxRetryJobs,
+    @Nullable String kmsKey,
+    Set<BigQueryIO.Write.SchemaUpdateOption> schemaUpdateOptions,
+    DynamicDestinations<?, DestinationT> dynamicDestinations) {
     this.loadJobProjectId = loadJobProjectId;
     this.zeroLoadJobIdPrefixView = zeroLoadJobIdPrefixView;
     this.bqServices = bqServices;
@@ -124,8 +123,8 @@ public class UpdateSchemaDestination<DestinationT>
   TableDestination getTableWithDefaultProject(DestinationT destination) {
     if (dynamicDestinations.getPipelineOptions() == null) {
       throw new IllegalStateException(
-          "Unexpected null pipeline option for DynamicDestination object. "
-              + "Need to call setSideInputAccessorFromProcessContext(context) before use it.");
+        "Unexpected null pipeline option for DynamicDestination object. "
+          + "Need to call setSideInputAccessorFromProcessContext(context) before use it.");
     }
     BigQueryOptions options = dynamicDestinations.getPipelineOptions().as(BigQueryOptions.class);
     TableDestination tableDestination = dynamicDestinations.getTable(destination);
@@ -133,9 +132,9 @@ public class UpdateSchemaDestination<DestinationT>
 
     if (Strings.isNullOrEmpty(tableReference.getProjectId())) {
       tableReference.setProjectId(
-          options.getBigQueryProject() == null
-              ? options.getProject()
-              : options.getBigQueryProject());
+        options.getBigQueryProject() == null
+          ? options.getProject()
+          : options.getBigQueryProject());
       tableDestination = tableDestination.withTableReference(tableReference);
     }
 
@@ -144,10 +143,10 @@ public class UpdateSchemaDestination<DestinationT>
 
   @ProcessElement
   public void processElement(
-      @Element Iterable<KV<DestinationT, WriteTables.Result>> element,
-      ProcessContext context,
-      BoundedWindow window)
-      throws IOException {
+    @Element Iterable<KV<DestinationT, WriteTables.Result>> element,
+    ProcessContext context,
+    BoundedWindow window)
+    throws IOException {
     dynamicDestinations.setSideInputAccessorFromProcessContext(context);
     List<KV<TableDestination, WriteTables.Result>> outputs = Lists.newArrayList();
     for (KV<DestinationT, WriteTables.Result> entry : element) {
@@ -161,33 +160,33 @@ public class UpdateSchemaDestination<DestinationT>
       TableSchema schema = dynamicDestinations.getSchema(destination);
       TableReference tableReference = tableDestination.getTableReference();
       String jobIdPrefix =
-          BigQueryResourceNaming.createJobIdWithDestination(
-              context.sideInput(zeroLoadJobIdPrefixView),
-              tableDestination,
-              1,
-              context.pane().getIndex());
+        BigQueryResourceNaming.createJobIdWithDestination(
+          context.sideInput(zeroLoadJobIdPrefixView),
+          tableDestination,
+          1,
+          context.pane().getIndex());
       BigQueryHelpers.PendingJob updateSchemaDestinationJob =
-          startZeroLoadJob(
-              getJobService(context.getPipelineOptions().as(BigQueryOptions.class)),
-              getDatasetService(context.getPipelineOptions().as(BigQueryOptions.class)),
-              jobIdPrefix,
-              tableReference,
-              tableDestination.getTimePartitioning(),
-              tableDestination.getClustering(),
-              schema,
-              writeDisposition,
-              createDisposition,
-              schemaUpdateOptions);
+        startZeroLoadJob(
+          getJobService(context.getPipelineOptions().as(BigQueryOptions.class)),
+          getDatasetService(context.getPipelineOptions().as(BigQueryOptions.class)),
+          jobIdPrefix,
+          tableReference,
+          tableDestination.getTimePartitioning(),
+          tableDestination.getClustering(),
+          schema,
+          writeDisposition,
+          createDisposition,
+          schemaUpdateOptions);
       if (updateSchemaDestinationJob != null) {
         pendingJobs.put(
-            destination, new PendingJobData(updateSchemaDestinationJob, tableDestination, window));
+          destination, new PendingJobData(updateSchemaDestinationJob, tableDestination, window));
       }
     }
     if (!pendingJobs.isEmpty()) {
       LOG.info(
-          "Added {} pending jobs to update the schema for each destination before copying {} temp tables.",
-          pendingJobs.size(),
-          outputs.size());
+        "Added {} pending jobs to update the schema for each destination before copying {} temp tables.",
+        pendingJobs.size(),
+        outputs.size());
     }
     context.output(outputs);
   }
@@ -211,61 +210,61 @@ public class UpdateSchemaDestination<DestinationT>
   @FinishBundle
   public void finishBundle(FinishBundleContext context) throws Exception {
     DatasetService datasetService =
-        getDatasetService(context.getPipelineOptions().as(BigQueryOptions.class));
+      getDatasetService(context.getPipelineOptions().as(BigQueryOptions.class));
     BigQueryHelpers.PendingJobManager jobManager = new BigQueryHelpers.PendingJobManager();
     for (final PendingJobData pendingJobData : pendingJobs.values()) {
       jobManager =
-          jobManager.addPendingJob(
-              pendingJobData.retryJob,
-              j -> {
-                try {
-                  if (pendingJobData.tableDestination.getTableDescription() != null) {
-                    TableReference ref = pendingJobData.tableDestination.getTableReference();
-                    datasetService.patchTableDescription(
-                        ref.clone()
-                            .setTableId(BigQueryHelpers.stripPartitionDecorator(ref.getTableId())),
-                        pendingJobData.tableDestination.getTableDescription());
-                  }
-                } catch (IOException | InterruptedException e) {
-                  return e;
-                }
-                return null;
-              });
+        jobManager.addPendingJob(
+          pendingJobData.retryJob,
+          j -> {
+            try {
+              if (pendingJobData.tableDestination.getTableDescription() != null) {
+                TableReference ref = pendingJobData.tableDestination.getTableReference();
+                datasetService.patchTableDescription(
+                  ref.clone()
+                    .setTableId(BigQueryHelpers.stripPartitionDecorator(ref.getTableId())),
+                  pendingJobData.tableDestination.getTableDescription());
+              }
+            } catch (IOException | InterruptedException e) {
+              return e;
+            }
+            return null;
+          });
     }
     jobManager.waitForDone();
   }
 
   private BigQueryHelpers.PendingJob startZeroLoadJob(
-      BigQueryServices.JobService jobService,
-      DatasetService datasetService,
-      String jobIdPrefix,
-      TableReference tableReference,
-      TimePartitioning timePartitioning,
-      Clustering clustering,
-      @Nullable TableSchema schema,
-      BigQueryIO.Write.WriteDisposition writeDisposition,
-      BigQueryIO.Write.CreateDisposition createDisposition,
-      Set<BigQueryIO.Write.SchemaUpdateOption> schemaUpdateOptions) {
+    BigQueryServices.JobService jobService,
+    DatasetService datasetService,
+    String jobIdPrefix,
+    TableReference tableReference,
+    TimePartitioning timePartitioning,
+    Clustering clustering,
+    @Nullable TableSchema schema,
+    BigQueryIO.Write.WriteDisposition writeDisposition,
+    BigQueryIO.Write.CreateDisposition createDisposition,
+    Set<BigQueryIO.Write.SchemaUpdateOption> schemaUpdateOptions) {
     JobConfigurationLoad loadConfig =
-        new JobConfigurationLoad()
-            .setDestinationTable(tableReference)
-            .setSchema(schema)
-            .setWriteDisposition(writeDisposition.name())
-            .setCreateDisposition(createDisposition.name())
-            .setSourceFormat("NEWLINE_DELIMITED_JSON");
+      new JobConfigurationLoad()
+        .setDestinationTable(tableReference)
+        .setSchema(schema)
+        .setWriteDisposition(writeDisposition.name())
+        .setCreateDisposition(createDisposition.name())
+        .setSourceFormat("NEWLINE_DELIMITED_JSON");
     if (schemaUpdateOptions != null) {
       List<String> options =
-          schemaUpdateOptions.stream()
-              .map(BigQueryIO.Write.SchemaUpdateOption::name)
-              .collect(Collectors.toList());
+        schemaUpdateOptions.stream()
+          .map(BigQueryIO.Write.SchemaUpdateOption::name)
+          .collect(Collectors.toList());
       loadConfig.setSchemaUpdateOptions(options);
     }
     if (!loadConfig
-            .getWriteDisposition()
-            .equals(BigQueryIO.Write.WriteDisposition.WRITE_TRUNCATE.toString())
-        && !loadConfig
-            .getWriteDisposition()
-            .equals(BigQueryIO.Write.WriteDisposition.WRITE_APPEND.toString())) {
+      .getWriteDisposition()
+      .equals(BigQueryIO.Write.WriteDisposition.WRITE_TRUNCATE.toString())
+      && !loadConfig
+      .getWriteDisposition()
+      .equals(BigQueryIO.Write.WriteDisposition.WRITE_APPEND.toString())) {
       return null;
     }
     final Table destinationTable;
@@ -282,9 +281,9 @@ public class UpdateSchemaDestination<DestinationT>
     // or when destination schema is null (the write will set the schema)
     // or when provided schema is null (e.g. when using CREATE_NEVER disposition)
     if (destinationTable.getSchema() == null
-        || destinationTable.getSchema().isEmpty()
-        || destinationTable.getSchema().equals(schema)
-        || schema == null) {
+      || destinationTable.getSchema().isEmpty()
+      || destinationTable.getSchema().equals(schema)
+      || schema == null) {
       return null;
     }
     if (timePartitioning != null) {
@@ -297,92 +296,67 @@ public class UpdateSchemaDestination<DestinationT>
 
     if (kmsKey != null) {
       loadConfig.setDestinationEncryptionConfiguration(
-          new EncryptionConfiguration().setKmsKeyName(kmsKey));
+        new EncryptionConfiguration().setKmsKeyName(kmsKey));
     }
     String projectId =
-        loadJobProjectId == null || loadJobProjectId.get() == null
-            ? tableReference.getProjectId()
-            : loadJobProjectId.get();
-    String bqLocation;
-    try {
-      bqLocation =
-          BigQueryHelpers.getDatasetLocation(
-              datasetService, tableReference.getProjectId(), tableReference.getDatasetId());
-    } catch (IOException e) {
-      ApiErrorExtractor errorExtractor = new ApiErrorExtractor();
-      if (errorExtractor.itemNotFound(e)) {
-        throw new RuntimeException(
-            String.format(
-                "Dataset %s not found in project %s. Please ensure the dataset exists before running the pipeline.",
-                tableReference.getDatasetId(), tableReference.getProjectId()),
-            e);
-      }
-
-      throw new RuntimeException(
-          String.format(
-              "Unable to get dataset location for dataset %s in project %s",
-              tableReference.getDatasetId(), tableReference.getProjectId()),
-          e);
-    } catch (InterruptedException e) {
-      Thread.currentThread().interrupt();
-      throw new RuntimeException(
-          String.format(
-              "Interrupted while getting dataset location for dataset %s in project %s",
-              tableReference.getDatasetId(), tableReference.getProjectId()),
-          e);
-    }
+      loadJobProjectId == null || loadJobProjectId.get() == null
+        ? tableReference.getProjectId()
+        : loadJobProjectId.get();
+    String bqLocation =
+      BigQueryHelpers.getDatasetLocation(
+        datasetService, tableReference.getProjectId(), tableReference.getDatasetId());
 
     BigQueryHelpers.PendingJob retryJob =
-        new BigQueryHelpers.PendingJob(
-            // Function to load the data.
-            jobId -> {
-              JobReference jobRef =
-                  new JobReference()
-                      .setProjectId(projectId)
-                      .setJobId(jobId.getJobId())
-                      .setLocation(bqLocation);
-              LOG.info(
-                  "Loading zero rows using job {}, job id {} iteration {}",
-                  tableReference,
-                  jobRef,
-                  jobId.getRetryIndex());
-              try {
-                jobService.startLoadJob(
-                    jobRef, loadConfig, new ByteArrayContent("text/plain", new byte[0]));
-              } catch (IOException | InterruptedException e) {
-                LOG.warn("Schema update load job {} failed with {}", jobRef, e.toString());
-                throw new RuntimeException(e);
-              }
-              return null;
-            },
-            // Function to poll the result of a load job.
-            jobId -> {
-              JobReference jobRef =
-                  new JobReference()
-                      .setProjectId(projectId)
-                      .setJobId(jobId.getJobId())
-                      .setLocation(bqLocation);
-              try {
-                return jobService.pollJob(jobRef, BatchLoads.LOAD_JOB_POLL_MAX_RETRIES);
-              } catch (InterruptedException e) {
-                throw new RuntimeException(e);
-              }
-            },
-            // Function to lookup a job.
-            jobId -> {
-              JobReference jobRef =
-                  new JobReference()
-                      .setProjectId(projectId)
-                      .setJobId(jobId.getJobId())
-                      .setLocation(bqLocation);
-              try {
-                return jobService.getJob(jobRef);
-              } catch (InterruptedException | IOException e) {
-                throw new RuntimeException(e);
-              }
-            },
-            maxRetryJobs,
-            jobIdPrefix);
+      new BigQueryHelpers.PendingJob(
+        // Function to load the data.
+        jobId -> {
+          JobReference jobRef =
+            new JobReference()
+              .setProjectId(projectId)
+              .setJobId(jobId.getJobId())
+              .setLocation(bqLocation);
+          LOG.info(
+            "Loading zero rows using job {}, job id {} iteration {}",
+            tableReference,
+            jobRef,
+            jobId.getRetryIndex());
+          try {
+            jobService.startLoadJob(
+              jobRef, loadConfig, new ByteArrayContent("text/plain", new byte[0]));
+          } catch (IOException | InterruptedException e) {
+            LOG.warn("Schema update load job {} failed with {}", jobRef, e.toString());
+            throw new RuntimeException(e);
+          }
+          return null;
+        },
+        // Function to poll the result of a load job.
+        jobId -> {
+          JobReference jobRef =
+            new JobReference()
+              .setProjectId(projectId)
+              .setJobId(jobId.getJobId())
+              .setLocation(bqLocation);
+          try {
+            return jobService.pollJob(jobRef, BatchLoads.LOAD_JOB_POLL_MAX_RETRIES);
+          } catch (InterruptedException e) {
+            throw new RuntimeException(e);
+          }
+        },
+        // Function to lookup a job.
+        jobId -> {
+          JobReference jobRef =
+            new JobReference()
+              .setProjectId(projectId)
+              .setJobId(jobId.getJobId())
+              .setLocation(bqLocation);
+          try {
+            return jobService.getJob(jobRef);
+          } catch (InterruptedException | IOException e) {
+            throw new RuntimeException(e);
+          }
+        },
+        maxRetryJobs,
+        jobIdPrefix);
     return retryJob;
   }
 

@@ -21,7 +21,6 @@ import com.google.api.services.bigquery.model.EncryptionConfiguration;
 import com.google.api.services.bigquery.model.JobConfigurationTableCopy;
 import com.google.api.services.bigquery.model.JobReference;
 import com.google.api.services.bigquery.model.TableReference;
-import com.google.cloud.hadoop.util.ApiErrorExtractor;
 import java.io.IOException;
 import java.io.Serializable;
 import java.util.Collection;
@@ -319,7 +318,6 @@ class WriteRename
         CreateDisposition createDisposition,
         @Nullable String kmsKey,
         @Nullable ValueProvider<String> loadJobProjectId) {
-
       JobConfigurationTableCopy copyConfig =
           new JobConfigurationTableCopy()
               .setSourceTables(tempTables)
@@ -331,39 +329,14 @@ class WriteRename
             new EncryptionConfiguration().setKmsKeyName(kmsKey));
       }
 
-      String bqLocation;
-      try {
-        bqLocation =
-            BigQueryHelpers.getDatasetLocation(
-                datasetService, ref.getProjectId(), ref.getDatasetId());
-      } catch (IOException e) {
-        ApiErrorExtractor errorExtractor = new ApiErrorExtractor();
-        if (errorExtractor.itemNotFound(e)) {
-          throw new RuntimeException(
-              String.format(
-                  "Dataset %s not found in project %s. Please ensure the dataset exists before running the pipeline.",
-                  ref.getDatasetId(), ref.getProjectId()),
-              e);
-        }
-        throw new RuntimeException(
-            String.format(
-                "Unable to get dataset location for dataset %s in project %s",
-                ref.getDatasetId(), ref.getProjectId()),
-            e);
-      } catch (InterruptedException e) {
-        Thread.currentThread().interrupt();
-        throw new RuntimeException(
-            String.format(
-                "Interrupted while getting dataset location for dataset %s in project %s",
-                ref.getDatasetId(), ref.getProjectId()),
-            e);
-      }
+      String bqLocation =
+          BigQueryHelpers.getDatasetLocation(
+              datasetService, ref.getProjectId(), ref.getDatasetId());
 
       String projectId =
           loadJobProjectId == null || loadJobProjectId.get() == null
               ? ref.getProjectId()
               : loadJobProjectId.get();
-
       BigQueryHelpers.PendingJob retryJob =
           new BigQueryHelpers.PendingJob(
               jobId -> {
