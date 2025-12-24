@@ -74,6 +74,7 @@
 
 * Support configuring Firestore database on ReadFn transforms (Java) ([#36904](https://github.com/apache/beam/issues/36904)).
 * (Python) Inference args are now allowed in most model handlers, except where they are explicitly/intentionally disallowed ([#37093](https://github.com/apache/beam/issues/37093)).
+* Include logger name in FnApiLogRecordHandler log entries for filtering and debugging (Python) ([#37146](https://github.com/apache/beam/issues/37146)).
 
 ## Breaking Changes
 
