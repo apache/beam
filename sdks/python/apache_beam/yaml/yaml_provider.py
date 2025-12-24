@@ -490,7 +490,7 @@ class YamlProvider(Provider):
     return dict(
         type='object',
         additionalProperties=False,
-        **self._transforms[type]['config_schema'])
+        **self._transforms[type].get('config_schema', {}))
 
   def description(self, type):
     return self._transforms[type].get('description')

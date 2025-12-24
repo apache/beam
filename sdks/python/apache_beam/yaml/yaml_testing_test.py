@@ -322,6 +322,40 @@ class YamlTestingTest(unittest.TestCase):
             }]
         })
 
+  def test_toplevel_providers(self):
+    yaml_testing.run_test(
+        '''
+        pipeline:
+          type: chain
+          transforms:
+            - type: Create
+              config:
+                elements: [1, 2, 3]
+            - type: MyDoubler
+        providers:
+          - type: yaml
+            transforms:
+              MyDoubler:
+                body:
+                  type: MapToFields
+                  config:
+                    language: python
+                    fields:
+                      doubled: element * 2
+        ''',
+        {
+            'expected_outputs': [{
+                'name': 'MyDoubler',
+                'elements': [{
+                    'doubled': 2
+                }, {
+                    'doubled': 4
+                }, {
+                    'doubled': 6
+                }]
+            }]
+        })
+
 
 if __name__ == '__main__':
   logging.getLogger().setLevel(logging.INFO)
