@@ -158,7 +158,8 @@ public class StreamingGroupAlsoByWindowFnsTest {
                         timestamp,
                         type == Windmill.Timer.Type.WATERMARK
                             ? TimeDomain.EVENT_TIME
-                            : TimeDomain.PROCESSING_TIME)))
+                            : TimeDomain.PROCESSING_TIME,
+                        TimerData.CausedByDrain.NORMAL)))
         .setTimestamp(WindmillTimeUtils.harnessToWindmillTimestamp(timestamp))
         .setType(type)
         .setStateFamily(STATE_FAMILY);

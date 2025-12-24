@@ -173,7 +173,8 @@ public class StreamingModeExecutionContextTest {
             new StateNamespaceForTest("key"),
             new Instant(5000),
             new Instant(5000),
-            TimeDomain.EVENT_TIME));
+            TimeDomain.EVENT_TIME,
+            TimerData.CausedByDrain.NORMAL));
     executionContext.flushState();
 
     Windmill.Timer timer = outputBuilder.buildPartial().getOutputTimers(0);
