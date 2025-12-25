@@ -283,3 +283,19 @@ looks:
           title: AvgThroughputBytesPerSec by Version
         - id: P7wKZy6tQFWbbDfm4HzfCJnsQrVgfGsJ
           title: AvgThroughputElementsPerSec by Version
+  pytorchimageobjectdetection:
+    write:
+      folder: #TODO
+      cost:
+        - id: #TODO
+          title: RunTime and EstimatedCost
+      date:
+        - id: #TODO
+          title: AvgThroughputBytesPerSec by Date
+        - id: #TODO
+          title: AvgThroughputElementsPerSec by Date
+      version:
+        - id: #TODO
+          title: AvgThroughputBytesPerSec by Version
+        - id: #TODO
+          title: AvgThroughputElementsPerSec by Version

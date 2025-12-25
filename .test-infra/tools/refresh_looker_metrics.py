@@ -45,6 +45,7 @@ LOOKS_TO_DOWNLOAD = [
     ("86", ["284", "285", "286", "287", "288"]),  # VLLM Batch Gemma
     ("96", ["270", "304", "305", "353", "354"]),   # Table Row Inference Sklearn Batch
     ("106", ["355", "356", "357", "358", "359"])   # Table Row Inference Sklearn Streaming
+    #TODO: PyTorch Image Object Detection Faster R-CNN ResNet-50 Batch
 ]
 
 def get_look(id: str) -> models.Look:
