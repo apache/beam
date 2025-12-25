@@ -505,8 +505,14 @@ class WriteTables<DestinationT extends @NonNull Object>
         loadJobProjectId == null || loadJobProjectId.get() == null
             ? ref.getProjectId()
             : loadJobProjectId.get();
-    String bqLocation =
-        BigQueryHelpers.getDatasetLocation(datasetService, ref.getProjectId(), ref.getDatasetId());
+    String bqLocation;
+    try {
+      bqLocation =
+          BigQueryHelpers.getDatasetLocation(
+              datasetService, ref.getProjectId(), ref.getDatasetId());
+    } catch (IOException | InterruptedException e) {
+      throw new RuntimeException(e);
+    }
 
     PendingJob retryJob =
         new PendingJob(

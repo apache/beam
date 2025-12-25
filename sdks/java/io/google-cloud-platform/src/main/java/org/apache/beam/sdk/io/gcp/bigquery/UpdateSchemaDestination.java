@@ -302,9 +302,14 @@ public class UpdateSchemaDestination<DestinationT>
         loadJobProjectId == null || loadJobProjectId.get() == null
             ? tableReference.getProjectId()
             : loadJobProjectId.get();
-    String bqLocation =
-        BigQueryHelpers.getDatasetLocation(
-            datasetService, tableReference.getProjectId(), tableReference.getDatasetId());
+    String bqLocation;
+    try {
+      bqLocation =
+          BigQueryHelpers.getDatasetLocation(
+              datasetService, tableReference.getProjectId(), tableReference.getDatasetId());
+    } catch (IOException | InterruptedException e) {
+      throw new RuntimeException(e);
+    }
 
     BigQueryHelpers.PendingJob retryJob =
         new BigQueryHelpers.PendingJob(

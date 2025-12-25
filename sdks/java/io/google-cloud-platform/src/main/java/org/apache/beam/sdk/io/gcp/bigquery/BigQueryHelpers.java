@@ -637,6 +637,21 @@ public class BigQueryHelpers {
     try {
       Dataset dataset = datasetService.getDataset(projectId, datasetId);
       return dataset.getLocation();
+    } catch (IOException e) {
+      ApiErrorExtractor errorExtractor = new ApiErrorExtractor();
+      if (errorExtractor.itemNotFound(e)
+          || e instanceof BigQueryServicesImpl.RetryExhaustedException) {
+        LOG.error(
+            "Terminal failure obtaining dataset {} in project {}. Resource missing or retries exhausted.",
+            datasetId,
+            projectId);
+        throw new IllegalStateException(
+            String.format(
+                "Dataset %s not found or inaccessible in project %s. Please ensure the dataset exists before running the pipeline.",
+                datasetId, projectId),
+            e);
+      }
+      throw e;
     } catch (InterruptedException e) {
       Thread.currentThread().interrupt();
       throw e;

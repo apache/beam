@@ -200,6 +200,12 @@ public class BigQueryServicesImpl implements BigQueryServices {
   private static final Metadata.Key<RetryInfo> KEY_RETRY_INFO =
       ProtoUtils.keyForProto(RetryInfo.getDefaultInstance());
 
+  public static class RetryExhaustedException extends IOException {
+    public RetryExhaustedException(String message, Throwable cause) {
+      super(message, cause);
+    }
+  }
+
   @Override
   public JobService getJobService(BigQueryOptions options) {
     return new JobServiceImpl(options);
@@ -1688,7 +1694,7 @@ public class BigQueryServicesImpl implements BigQueryServices {
         LOG.info("Ignore the error and retry the request.", e);
       }
     } while (nextBackOff(sleeper, backoff));
-    throw new IOException(errorMessage, lastException);
+    throw new RetryExhaustedException(errorMessage, lastException);
   }
 
   /** Identical to {@link BackOffUtils#next} but without checked IOException. */

@@ -17,8 +17,7 @@
  */
 package org.apache.beam.sdk.io.gcp.bigquery;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.fail;
+import static org.junit.Assert.*;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -285,15 +284,19 @@ public class BigQueryHelpersTest {
     BigQueryServices.DatasetService mockDatasetService =
         mock(BigQueryServices.DatasetService.class);
 
-    IOException notFoundException = new IOException("Dataset not found");
+    BigQueryServicesImpl.RetryExhaustedException retryExhaustedException =
+        new BigQueryServicesImpl.RetryExhaustedException(
+            "Retries exhausted", new IOException("cause"));
     when(mockDatasetService.getDataset("project", "nonexistent_dataset"))
-        .thenThrow(notFoundException);
+        .thenThrow(retryExhaustedException);
 
     try {
       BigQueryHelpers.getDatasetLocation(mockDatasetService, "project", "nonexistent_dataset");
-      fail("Expected IOException to be thrown");
-    } catch (IOException e) {
-      assertEquals("Dataset not found", e.getMessage());
+      fail("Expected IllegalStateException to be thrown");
+    } catch (IllegalStateException e) {
+      assertTrue(
+          e.getMessage().contains("not found")
+              || e.getMessage().contains("not found or inaccessible"));
       // Verify that getDataset was called only once (the IOException is not wrapped and re-thrown)
       verify(mockDatasetService, times(1)).getDataset("project", "nonexistent_dataset");
     }
