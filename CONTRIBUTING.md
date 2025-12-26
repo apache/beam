@@ -44,13 +44,13 @@ These steps and instructions on getting started are outlined below as well.
 - Latest [Go](https://golang.org) 1.x installed.
 - [Docker](https://www.docker.com/) installed for some tasks including building worker containers and testing changes to this website locally.
 - For SDK Development:
-  - For manual testing, install any version of supported Python version (found [here](gradle.properties)) suffices.
+  - For manual testing, install any supported Python version (found [here](gradle.properties)) suffices.
   - For running test suites, however, you will need Python interpreters for all Python versions supported by Beam.
     Interpreters should be installed and available in shell via `python3.x` commands.
     For more information, see:
     Python installation tips in [Developer Wiki](https://cwiki.apache.org/confluence/display/BEAM/Python+Tips#PythonTips-InstallingPythoninterpreters).
-- For large contributions, a signed [Individual Contributor License.
-  Agreement](https://www.apache.org/licenses/icla.pdf) (ICLA) to the Apache
+- For large contributions, a signed [Individual Contributor License
+  Agreement.](https://www.apache.org/licenses/icla.pdf) (ICLA) to the Apache
   Software Foundation (ASF).
 
 ### Share Your Intent
@@ -112,7 +112,7 @@ To install these in a Debian-based distribution:
 
 ###### Automated script for Linux and macOS
 
-You can install these in a Debian-based distribution for Linux or macOs using the [local-env-setup.sh](https://github.com/apache/beam/blob/master/local-env-setup.sh) script, which is part of the Beam repo. It contains:
+You can install these in a Debian-based distribution for Linux or macOS using the [local-env-setup.sh](https://github.com/apache/beam/blob/master/local-env-setup.sh) script, which is part of the Beam repo. It contains:
 
 * pip3 packages
 * go packages
@@ -285,7 +285,6 @@ If you run into any issues, check out the [contribution FAQ](https://cwiki.apach
 If you didn't find the information you were looking for in this guide, please
 [reach out to the Beam community](https://beam.apache.org/community/contact-us/).
 
-</div>
 
 ## Find Efforts to Contribute to
 A great way to contribute is to join an existing effort. If you want to get involved but don’t have a project in mind, check our [list of open starter tasks](https://s.apache.org/beam-starter-tasks).
