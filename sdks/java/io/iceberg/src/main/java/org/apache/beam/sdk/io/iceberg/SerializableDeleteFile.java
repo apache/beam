@@ -21,6 +21,7 @@ import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
 
 import com.google.auto.value.AutoValue;
 import java.nio.ByteBuffer;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
@@ -31,88 +32,93 @@ import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
 import org.apache.beam.sdk.schemas.annotations.SchemaFieldNumber;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Equivalence;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Maps;
-import org.apache.iceberg.DataFile;
-import org.apache.iceberg.DataFiles;
+import org.apache.iceberg.DeleteFile;
+import org.apache.iceberg.FileContent;
 import org.apache.iceberg.FileFormat;
+import org.apache.iceberg.FileMetadata;
 import org.apache.iceberg.Metrics;
-import org.apache.iceberg.PartitionKey;
 import org.apache.iceberg.PartitionSpec;
+import org.apache.iceberg.SortOrder;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
-/**
- * Serializable version of an Iceberg {@link DataFile}.
- *
- * <p>{@link DataFile} is not serializable and the Iceberg API doesn't offer an easy way to
- * encode/decode it. This class is an identical version that can be used as a PCollection element
- * type.
- *
- * <p>NOTE: If you add any new fields here, you need to also update the {@link #equals} and {@link
- * #hashCode()} methods.
- *
- * <p>Use {@link #from(DataFile, String)} to create a {@link SerializableDataFile} and {@link
- * #createDataFile(Map)} to reconstruct the original {@link DataFile}.
- */
 @DefaultSchema(AutoValueSchema.class)
 @AutoValue
-public abstract class SerializableDataFile {
-  public static Builder builder() {
-    return new AutoValue_SerializableDataFile.Builder();
+public abstract class SerializableDeleteFile {
+  public static SerializableDeleteFile.Builder builder() {
+    return new AutoValue_SerializableDeleteFile.Builder();
   }
 
   @SchemaFieldNumber("0")
-  public abstract String getPath();
+  public abstract FileContent getContentType();
 
   @SchemaFieldNumber("1")
-  abstract String getFileFormat();
+  public abstract String getLocation();
 
   @SchemaFieldNumber("2")
-  abstract long getRecordCount();
+  public abstract String getFileFormat();
 
   @SchemaFieldNumber("3")
-  public abstract long getFileSizeInBytes();
+  public abstract long getRecordCount();
 
   @SchemaFieldNumber("4")
-  abstract String getPartitionPath();
+  public abstract long getFileSizeInBytes();
 
   @SchemaFieldNumber("5")
-  abstract int getPartitionSpecId();
+  public abstract String getPartitionPath();
 
   @SchemaFieldNumber("6")
-  abstract @Nullable ByteBuffer getKeyMetadata();
+  public abstract int getPartitionSpecId();
 
   @SchemaFieldNumber("7")
-  abstract @Nullable List<Long> getSplitOffsets();
+  public abstract @Nullable Integer getSortOrderId();
 
   @SchemaFieldNumber("8")
-  abstract @Nullable Map<Integer, Long> getColumnSizes();
+  public abstract @Nullable List<Integer> getEqualityFieldIds();
 
   @SchemaFieldNumber("9")
-  abstract @Nullable Map<Integer, Long> getValueCounts();
+  public abstract @Nullable ByteBuffer getKeyMetadata();
 
   @SchemaFieldNumber("10")
-  abstract @Nullable Map<Integer, Long> getNullValueCounts();
+  public abstract @Nullable List<Long> getSplitOffsets();
 
   @SchemaFieldNumber("11")
-  abstract @Nullable Map<Integer, Long> getNanValueCounts();
+  public abstract @Nullable Map<Integer, Long> getColumnSizes();
 
   @SchemaFieldNumber("12")
-  abstract @Nullable Map<Integer, byte[]> getLowerBounds();
+  public abstract @Nullable Map<Integer, Long> getValueCounts();
 
   @SchemaFieldNumber("13")
-  abstract @Nullable Map<Integer, byte[]> getUpperBounds();
+  public abstract @Nullable Map<Integer, Long> getNullValueCounts();
 
   @SchemaFieldNumber("14")
-  public abstract @Nullable Long getDataSequenceNumber();
+  public abstract @Nullable Map<Integer, Long> getNanValueCounts();
 
   @SchemaFieldNumber("15")
-  public abstract @Nullable Long getFileSequenceNumber();
+  public abstract @Nullable Map<Integer, byte[]> getLowerBounds();
 
   @SchemaFieldNumber("16")
-  public abstract @Nullable Long getFirstRowId();
+  public abstract @Nullable Map<Integer, byte[]> getUpperBounds();
+
+  @SchemaFieldNumber("17")
+  public abstract @Nullable Long getContentOffset();
+
+  @SchemaFieldNumber("18")
+  public abstract @Nullable Long getContentSizeInBytes();
+
+  @SchemaFieldNumber("19")
+  public abstract @Nullable String getReferencedDataFile();
+
+  @SchemaFieldNumber("20")
+  public abstract @Nullable Long getDataSequenceNumber();
+
+  @SchemaFieldNumber("21")
+  public abstract @Nullable Long getFileSequenceNumber();
 
   @AutoValue.Builder
   abstract static class Builder {
-    abstract Builder setPath(String path);
+    abstract Builder setContentType(FileContent content);
+
+    abstract Builder setLocation(String path);
 
     abstract Builder setFileFormat(String fileFormat);
 
@@ -123,6 +129,10 @@ public abstract class SerializableDataFile {
     abstract Builder setPartitionPath(String partitionPath);
 
     abstract Builder setPartitionSpecId(int partitionSpec);
+
+    abstract Builder setSortOrderId(int sortOrderId);
+
+    abstract Builder setEqualityFieldIds(List<Integer> equalityFieldIds);
 
     abstract Builder setKeyMetadata(ByteBuffer keyMetadata);
 
@@ -140,59 +150,58 @@ public abstract class SerializableDataFile {
 
     abstract Builder setUpperBounds(@Nullable Map<Integer, byte[]> upperBounds);
 
+    abstract Builder setContentOffset(@Nullable Long offset);
+
+    abstract Builder setContentSizeInBytes(@Nullable Long sizeInBytes);
+
+    abstract Builder setReferencedDataFile(@Nullable String dataFile);
+
     abstract Builder setDataSequenceNumber(@Nullable Long number);
 
     abstract Builder setFileSequenceNumber(@Nullable Long number);
 
-    abstract Builder setFirstRowId(@Nullable Long id);
-
-    abstract SerializableDataFile build();
+    abstract SerializableDeleteFile build();
   }
 
-  /**
-   * Create a {@link SerializableDataFile} from a {@link DataFile} and its associated {@link
-   * PartitionKey}.
-   */
-  public static SerializableDataFile from(DataFile f, String partitionPath) {
-
-    return SerializableDataFile.builder()
-        .setPath(f.path().toString())
-        .setFileFormat(f.format().toString())
-        .setRecordCount(f.recordCount())
-        .setFileSizeInBytes(f.fileSizeInBytes())
+  public static SerializableDeleteFile from(DeleteFile deleteFile, String partitionPath) {
+    return SerializableDeleteFile.builder()
+        .setLocation(deleteFile.location())
+        .setFileFormat(deleteFile.format().name())
+        .setFileSizeInBytes(deleteFile.fileSizeInBytes())
         .setPartitionPath(partitionPath)
-        .setPartitionSpecId(f.specId())
-        .setKeyMetadata(f.keyMetadata())
-        .setSplitOffsets(f.splitOffsets())
-        .setColumnSizes(f.columnSizes())
-        .setValueCounts(f.valueCounts())
-        .setNullValueCounts(f.nullValueCounts())
-        .setNanValueCounts(f.nanValueCounts())
-        .setLowerBounds(toByteArrayMap(f.lowerBounds()))
-        .setUpperBounds(toByteArrayMap(f.upperBounds()))
-        .setDataSequenceNumber(f.dataSequenceNumber())
-        .setFileSequenceNumber(f.fileSequenceNumber())
-        .setFirstRowId(f.firstRowId())
+        .setPartitionSpecId(deleteFile.specId())
+        .setRecordCount(deleteFile.recordCount())
+        .setColumnSizes(deleteFile.columnSizes())
+        .setValueCounts(deleteFile.valueCounts())
+        .setNullValueCounts(deleteFile.nullValueCounts())
+        .setNanValueCounts(deleteFile.nanValueCounts())
+        .setLowerBounds(toByteArrayMap(deleteFile.lowerBounds()))
+        .setUpperBounds(toByteArrayMap(deleteFile.upperBounds()))
+        .setSplitOffsets(deleteFile.splitOffsets())
+        .setKeyMetadata(deleteFile.keyMetadata())
+        .setEqualityFieldIds(deleteFile.equalityFieldIds())
+        .setSortOrderId(deleteFile.sortOrderId())
+        .setContentOffset(deleteFile.contentOffset())
+        .setContentSizeInBytes(deleteFile.contentSizeInBytes())
+        .setReferencedDataFile(deleteFile.referencedDataFile())
+        .setContentType(deleteFile.content())
+        .setDataSequenceNumber(deleteFile.dataSequenceNumber())
+        .setFileSequenceNumber(deleteFile.fileSequenceNumber())
         .build();
   }
 
-  /**
-   * Reconstructs the original {@link DataFile} from this {@link SerializableDataFile}.
-   *
-   * <p>We require an input {@link PartitionSpec} as well because there's no easy way to reconstruct
-   * it from Beam-compatible types.
-   */
   @SuppressWarnings("nullness")
-  DataFile createDataFile(Map<Integer, PartitionSpec> partitionSpecs) {
+  public DeleteFile createDeleteFile(
+      Map<Integer, PartitionSpec> partitionSpecs, @Nullable Map<Integer, SortOrder> sortOrders) {
     PartitionSpec partitionSpec =
         checkStateNotNull(
             partitionSpecs.get(getPartitionSpecId()),
-            "This DataFile was originally created with spec id '%s'. Could not find "
-                + "this among table's partition specs: %s.",
+            "This DeleteFile was originally created with spec id '%s', "
+                + "but table only has spec ids: %s.",
             getPartitionSpecId(),
             partitionSpecs.keySet());
 
-    Metrics dataFileMetrics =
+    Metrics metrics =
         new Metrics(
             getRecordCount(),
             getColumnSizes(),
@@ -202,16 +211,53 @@ public abstract class SerializableDataFile {
             toByteBufferMap(getLowerBounds()),
             toByteBufferMap(getUpperBounds()));
 
-    return DataFiles.builder(partitionSpec)
-        .withFormat(FileFormat.fromString(getFileFormat()))
-        .withPath(getPath())
-        .withPartitionPath(getPartitionPath())
-        .withEncryptionKeyMetadata(getKeyMetadata())
-        .withFileSizeInBytes(getFileSizeInBytes())
-        .withMetrics(dataFileMetrics)
-        .withSplitOffsets(getSplitOffsets())
-        .withFirstRowId(getFirstRowId())
-        .build();
+    FileMetadata.Builder deleteFileBuilder =
+        FileMetadata.deleteFileBuilder(partitionSpec)
+            .withPath(getLocation())
+            .withFormat(getFileFormat())
+            .withFileSizeInBytes(getFileSizeInBytes())
+            .withRecordCount(getRecordCount())
+            .withMetrics(metrics)
+            .withSplitOffsets(getSplitOffsets())
+            .withEncryptionKeyMetadata(getKeyMetadata())
+            .withPartitionPath(getPartitionPath());
+
+    switch (getContentType()) {
+      case POSITION_DELETES:
+        deleteFileBuilder = deleteFileBuilder.ofPositionDeletes();
+        break;
+      case EQUALITY_DELETES:
+        int[] equalityFieldIds =
+            Objects.requireNonNullElse(getEqualityFieldIds(), new ArrayList<Integer>()).stream()
+                .mapToInt(Integer::intValue)
+                .toArray();
+        SortOrder sortOrder = SortOrder.unsorted();
+        if (sortOrders != null) {
+          sortOrder =
+              checkStateNotNull(
+                  sortOrders.get(getSortOrderId()),
+                  "This DeleteFile was originally created with sort order id '%s', "
+                      + "but table only has sort order ids: %s.",
+                  getSortOrderId(),
+                  sortOrders.keySet());
+        }
+        deleteFileBuilder =
+            deleteFileBuilder.ofEqualityDeletes(equalityFieldIds).withSortOrder(sortOrder);
+        break;
+      default:
+        throw new IllegalStateException(
+            "Unexpected content type for DeleteFile: " + getContentType());
+    }
+
+    // needed for puffin files
+    if (getFileFormat().equalsIgnoreCase(FileFormat.PUFFIN.name())) {
+      deleteFileBuilder =
+          deleteFileBuilder
+              .withContentOffset(checkStateNotNull(getContentOffset()))
+              .withContentSizeInBytes(checkStateNotNull(getContentSizeInBytes()))
+              .withReferencedDataFile(checkStateNotNull(getReferencedDataFile()));
+    }
+    return deleteFileBuilder.build();
   }
 
   // ByteBuddyUtils has trouble converting Map value type ByteBuffer
@@ -249,13 +295,16 @@ public abstract class SerializableDataFile {
     if (o == null || getClass() != o.getClass()) {
       return false;
     }
-    SerializableDataFile that = (SerializableDataFile) o;
-    return getPath().equals(that.getPath())
+    SerializableDeleteFile that = (SerializableDeleteFile) o;
+    return getContentType().equals(that.getContentType())
+        && getLocation().equals(that.getLocation())
         && getFileFormat().equals(that.getFileFormat())
         && getRecordCount() == that.getRecordCount()
         && getFileSizeInBytes() == that.getFileSizeInBytes()
         && getPartitionPath().equals(that.getPartitionPath())
         && getPartitionSpecId() == that.getPartitionSpecId()
+        && Objects.equals(getSortOrderId(), that.getSortOrderId())
+        && Objects.equals(getEqualityFieldIds(), that.getEqualityFieldIds())
         && Objects.equals(getKeyMetadata(), that.getKeyMetadata())
         && Objects.equals(getSplitOffsets(), that.getSplitOffsets())
         && Objects.equals(getColumnSizes(), that.getColumnSizes())
@@ -263,7 +312,12 @@ public abstract class SerializableDataFile {
         && Objects.equals(getNullValueCounts(), that.getNullValueCounts())
         && Objects.equals(getNanValueCounts(), that.getNanValueCounts())
         && mapEquals(getLowerBounds(), that.getLowerBounds())
-        && mapEquals(getUpperBounds(), that.getUpperBounds());
+        && mapEquals(getUpperBounds(), that.getUpperBounds())
+        && Objects.equals(getContentOffset(), that.getContentOffset())
+        && Objects.equals(getContentSizeInBytes(), that.getContentSizeInBytes())
+        && Objects.equals(getReferencedDataFile(), that.getReferencedDataFile())
+        && Objects.equals(getDataSequenceNumber(), that.getDataSequenceNumber())
+        && Objects.equals(getFileSequenceNumber(), that.getFileSequenceNumber());
   }
 
   private static boolean mapEquals(
@@ -293,18 +347,26 @@ public abstract class SerializableDataFile {
   public final int hashCode() {
     int hashCode =
         Objects.hash(
-            getPath(),
+            getContentType(),
+            getLocation(),
             getFileFormat(),
             getRecordCount(),
             getFileSizeInBytes(),
             getPartitionPath(),
             getPartitionSpecId(),
+            getSortOrderId(),
+            getEqualityFieldIds(),
             getKeyMetadata(),
             getSplitOffsets(),
             getColumnSizes(),
             getValueCounts(),
             getNullValueCounts(),
-            getNanValueCounts());
+            getNanValueCounts(),
+            getContentOffset(),
+            getContentSizeInBytes(),
+            getReferencedDataFile(),
+            getDataSequenceNumber(),
+            getFileSequenceNumber());
     hashCode = 31 * hashCode + computeMapByteHashCode(getLowerBounds());
     hashCode = 31 * hashCode + computeMapByteHashCode(getUpperBounds());
     return hashCode;
