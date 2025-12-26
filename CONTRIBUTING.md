@@ -44,7 +44,7 @@ These steps and instructions on getting started are outlined below as well.
 - Latest [Go](https://golang.org) 1.x installed.
 - [Docker](https://www.docker.com/) installed for some tasks including building worker containers and testing changes to this website locally.
 - For SDK Development:
-  - For manual testing install any version of supported Python version (found [here](gradle.properties)) suffices.
+  - For manual testing, install any version of supported Python version (found [here](gradle.properties)) suffices.
   - For running test suites, however, you will need Python interpreters for all Python versions supported by Beam.
     Interpreters should be installed and available in shell via `python3.x` commands.
     For more information, see:
