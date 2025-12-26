@@ -58,6 +58,7 @@ public class GcpCoreApiSurfaceTest {
             classesInPackage("com.fasterxml.jackson.annotation"),
             classesInPackage("com.google.cloud.hadoop.gcsio"),
             classesInPackage("com.google.common.collect"), // Via gcs-connector ReadOptions builder
+            classesInPackage("io.opentelemetry"), // open telemetry
             classesInPackage("java"),
             classesInPackage("javax"),
             classesInPackage("org.apache.beam.model.pipeline.v1"),
