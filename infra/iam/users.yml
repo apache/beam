@@ -1239,4 +1239,4 @@
   email: yalahuangfeng@gmail.com
   member_type: user
   permissions:
-  - role: beam_writer
+  - role: roles/beam_writer
