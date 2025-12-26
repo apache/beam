@@ -174,4 +174,5 @@ pip_dependencies:
   wget:
     license: "https://raw.githubusercontent.com/mirror/wget/master/COPYING"
   xds-protos:
-    license: "https://raw.githubusercontent.com/cncf/xds/main/LICENSE"
+    license: "https://raw.githubusercontent.com/grpc/grpc/master/LICENSE"
+    notice: "https://raw.githubusercontent.com/grpc/grpc/master/NOTICE.txt"
