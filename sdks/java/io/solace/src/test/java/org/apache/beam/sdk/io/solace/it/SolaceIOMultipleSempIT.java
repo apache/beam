@@ -107,6 +107,7 @@ public class SolaceIOMultipleSempIT {
             SolaceIO.read()
                 .from(Queue.fromName(QUEUE_NAME))
                 .withMaxNumConnections(1)
+                .withAckDeadlineSeconds(10)
                 .withDeduplicateRecords(true)
                 .withSempClientFactory(
                     BasicAuthMultipleSempClientFactory.builder()
@@ -131,7 +132,7 @@ public class SolaceIOMultipleSempIT {
     PipelineResult pipelineResult = writerPipeline.run();
     // We need enough time for Beam to pull all messages from the queue, but we need a timeout too,
     // as the Read connector will keep attempting to read forever.
-    pipelineResult.waitUntilFinish(Duration.standardSeconds(15));
+    pipelineResult.waitUntilFinish(Duration.standardMinutes(2));
 
     MetricsReader metricsReader = new MetricsReader(pipelineResult, NAMESPACE);
     long actualRecordsCount = metricsReader.getCounterMetric(READ_COUNT);

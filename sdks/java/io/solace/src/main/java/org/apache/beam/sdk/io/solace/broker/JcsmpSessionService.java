@@ -29,6 +29,7 @@ import com.solacesystems.jcsmp.JCSMPFactory;
 import com.solacesystems.jcsmp.JCSMPProperties;
 import com.solacesystems.jcsmp.JCSMPSession;
 import com.solacesystems.jcsmp.Queue;
+import com.solacesystems.jcsmp.XMLMessage;
 import com.solacesystems.jcsmp.XMLMessageProducer;
 import java.io.IOException;
 import java.util.Objects;
@@ -143,6 +144,8 @@ public abstract class JcsmpSessionService extends SessionService {
 
     ConsumerFlowProperties flowProperties = new ConsumerFlowProperties();
     flowProperties.setEndpoint(queue);
+    flowProperties.addRequiredSettlementOutcomes(
+        XMLMessage.Outcome.FAILED, XMLMessage.Outcome.REJECTED);
     flowProperties.setAckMode(JCSMPProperties.SUPPORTED_MESSAGE_ACK_CLIENT);
 
     EndpointProperties endpointProperties = new EndpointProperties();
