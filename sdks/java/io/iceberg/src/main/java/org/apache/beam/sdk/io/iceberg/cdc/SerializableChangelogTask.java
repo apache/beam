@@ -31,6 +31,7 @@ import org.apache.beam.sdk.schemas.NoSuchSchemaException;
 import org.apache.beam.sdk.schemas.SchemaCoder;
 import org.apache.beam.sdk.schemas.SchemaRegistry;
 import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
+import org.apache.beam.sdk.schemas.annotations.SchemaFieldNumber;
 import org.apache.beam.sdk.schemas.annotations.SchemaIgnore;
 import org.apache.iceberg.AddedRowsScanTask;
 import org.apache.iceberg.ChangelogOperation;
@@ -68,28 +69,40 @@ public abstract class SerializableChangelogTask {
         .setAddedDeletes(Collections.emptyList());
   }
 
+  @SchemaFieldNumber("0")
   public abstract Type getType();
 
+  @SchemaFieldNumber("1")
   public abstract SerializableDataFile getDataFile();
 
+  @SchemaFieldNumber("2")
   public abstract List<SerializableDeleteFile> getExistingDeletes();
 
+  @SchemaFieldNumber("3")
   public abstract List<SerializableDeleteFile> getAddedDeletes();
 
+  @SchemaFieldNumber("4")
   public abstract int getSpecId();
 
+  @SchemaFieldNumber("5")
   public abstract ChangelogOperation getOperation();
 
+  @SchemaFieldNumber("6")
   public abstract int getOrdinal();
 
+  @SchemaFieldNumber("7")
   public abstract long getCommitSnapshotId();
 
+  @SchemaFieldNumber("8")
   public abstract long getStart();
 
+  @SchemaFieldNumber("9")
   public abstract long getLength();
 
+  @SchemaFieldNumber("10")
   public abstract String getJsonExpression();
 
+  @SchemaFieldNumber("11")
   public abstract long getTimestampMillis();
 
   @SchemaIgnore

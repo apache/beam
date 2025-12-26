@@ -46,9 +46,9 @@ public class ReconcileChanges extends DoFn<KV<Row, CoGbkResult>, Row> {
 
     if (hasInserts && hasDeletes) {
       // UPDATE: row ID exists in both streams
-      // emit all deletes as 'UPDATE_BEFORE', and all inserts as 'UPDATE_AFTER'
-      // emit extra inserts as 'UPDATE_AFTER'
-      // ignore extra deletes (TODO: double check this decision)
+      // - emit all deletes as 'UPDATE_BEFORE', and all inserts as 'UPDATE_AFTER'
+      // - emit extra inserts as 'UPDATE_AFTER'
+      // - ignore extra deletes (TODO: double check if this is a good decision)
       Iterator<TimestampedValue<Row>> deletesIterator = deletes.iterator();
       Iterator<TimestampedValue<Row>> insertsIterator = inserts.iterator();
       while (deletesIterator.hasNext() && insertsIterator.hasNext()) {

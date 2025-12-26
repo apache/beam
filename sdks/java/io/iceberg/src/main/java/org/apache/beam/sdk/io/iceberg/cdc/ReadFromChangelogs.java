@@ -225,6 +225,7 @@ public class ReadFromChangelogs<OutT>
     Instant timestamp = Instant.ofEpochMilli(timestampMillis);
     if (keyedOutput) { // slow path
       StructProjection recId = recordIdProjection.wrap(rec);
+      // Create a Row ID consisting of record ID columns and the changelog task's ordinal #
       Row id = structToBeamRow(ordinal, recId, recordIdSchema, rowIdWithOrdinalBeamSchema);
       outputReceiver.get(keyedTag).outputWithTimestamp(KV.of(id, row), timestamp);
     } else { // fast path
@@ -242,8 +243,9 @@ public class ReadFromChangelogs<OutT>
       Object value = schema.accessorForField(column.fieldId()).get(struct);
       values.put(name, value);
     }
-    // include ordinal as part of the row ID to ensure we are comparing rows within the same
-    // operation
+    // Include ordinal as part of the row ID.
+    // This is essential to ensure that the downstream ReconcileChanges compares rows
+    // within the same operation.
     values.put(ORDINAL_FIELD, ordinal);
     return Row.withSchema(beamSchema).withFieldValues(values.build()).build();
   }
