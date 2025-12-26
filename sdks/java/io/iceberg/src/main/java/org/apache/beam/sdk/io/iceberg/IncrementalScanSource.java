@@ -42,11 +42,11 @@ import org.joda.time.Duration;
  * source creates a single range, while the unbounded implementation continuously polls for new
  * snapshots at the specified interval.
  */
-class IncrementalScanSource extends PTransform<PBegin, PCollection<Row>> {
+public class IncrementalScanSource extends PTransform<PBegin, PCollection<Row>> {
   private static final Duration DEFAULT_POLL_INTERVAL = Duration.standardSeconds(60);
-  private final IcebergScanConfig scanConfig;
+  protected final IcebergScanConfig scanConfig;
 
-  IncrementalScanSource(IcebergScanConfig scanConfig) {
+  public IncrementalScanSource(IcebergScanConfig scanConfig) {
     this.scanConfig = scanConfig;
   }
 
@@ -74,14 +74,15 @@ class IncrementalScanSource extends PTransform<PBegin, PCollection<Row>> {
   }
 
   /** Continuously watches for new snapshots. */
-  private PCollection<KV<String, List<SnapshotInfo>>> unboundedSnapshots(PBegin input) {
+  protected PCollection<KV<String, List<SnapshotInfo>>> unboundedSnapshots(PBegin input) {
     Duration pollInterval =
         MoreObjects.firstNonNull(scanConfig.getPollInterval(), DEFAULT_POLL_INTERVAL);
     return input.apply("Watch for Snapshots", new WatchForSnapshots(scanConfig, pollInterval));
   }
 
   /** Creates a fixed snapshot range. */
-  private PCollection<KV<String, List<SnapshotInfo>>> boundedSnapshots(PBegin input, Table table) {
+  protected PCollection<KV<String, List<SnapshotInfo>>> boundedSnapshots(
+      PBegin input, Table table) {
     checkStateNotNull(
         table.currentSnapshot().snapshotId(),
         "Table %s does not have any snapshots to read from.",

@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.io.iceberg;
 
+import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
 import static org.apache.iceberg.util.SnapshotUtil.ancestorsOf;
 
 import java.util.Collection;
@@ -28,16 +29,22 @@ import java.util.Set;
 import java.util.function.BiFunction;
 import java.util.stream.Collectors;
 import org.apache.beam.sdk.io.iceberg.IcebergIO.ReadRows.StartingStrategy;
+import org.apache.beam.sdk.io.iceberg.cdc.DeleteReader;
+import org.apache.beam.sdk.io.iceberg.cdc.SerializableChangelogTask;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.MoreObjects;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Sets;
 import org.apache.hadoop.conf.Configuration;
-import org.apache.iceberg.FileScanTask;
+import org.apache.iceberg.ContentFile;
+import org.apache.iceberg.ContentScanTask;
+import org.apache.iceberg.DeleteFile;
 import org.apache.iceberg.PartitionSpec;
 import org.apache.iceberg.Schema;
 import org.apache.iceberg.Snapshot;
+import org.apache.iceberg.StructLike;
 import org.apache.iceberg.Table;
 import org.apache.iceberg.TableProperties;
+import org.apache.iceberg.data.DeleteFilter;
 import org.apache.iceberg.data.IdentityPartitionConverters;
 import org.apache.iceberg.data.InternalRecordWrapper;
 import org.apache.iceberg.data.Record;
@@ -55,7 +62,6 @@ import org.apache.iceberg.mapping.NameMappingParser;
 import org.apache.iceberg.parquet.ParquetReader;
 import org.apache.iceberg.types.Type;
 import org.apache.iceberg.types.TypeUtil;
-import org.apache.iceberg.util.PartitionUtil;
 import org.apache.iceberg.util.SnapshotUtil;
 import org.apache.parquet.HadoopReadOptions;
 import org.apache.parquet.ParquetReadOptions;
@@ -72,16 +78,42 @@ public class ReadUtils {
           "parquet.read.support.class",
           "parquet.crypto.factory.class");
 
-  static ParquetReader<Record> createReader(FileScanTask task, Table table, Schema schema) {
-    String filePath = task.file().path().toString();
+  public static CloseableIterable<Record> createReader(
+      SerializableChangelogTask task, Table table, IcebergScanConfig scanConfig) {
+    return createReader(
+        table,
+        scanConfig,
+        checkStateNotNull(table.specs().get(task.getSpecId())),
+        task.getDataFile().createDataFile(table.specs()),
+        task.getStart(),
+        task.getLength(),
+        task.getExpression(table.schema()));
+  }
+
+  public static CloseableIterable<Record> createReader(
+      ContentScanTask<?> task, Table table, IcebergScanConfig scanConfig) {
+    return createReader(
+        table, scanConfig, task.spec(), task.file(), task.start(), task.length(), task.residual());
+  }
+
+  public static CloseableIterable<Record> createReader(
+      Table table,
+      IcebergScanConfig scanConfig,
+      PartitionSpec spec,
+      ContentFile<?> file,
+      long start,
+      long length,
+      Expression residual) {
+    Schema schema = scanConfig.getRequiredSchema();
     InputFile inputFile;
     try (FileIO io = table.io()) {
       EncryptedInputFile encryptedInput =
-          EncryptedFiles.encryptedInput(io.newInputFile(filePath), task.file().keyMetadata());
+          EncryptedFiles.encryptedInput(io.newInputFile(file.location()), file.keyMetadata());
       inputFile = table.encryption().decrypt(encryptedInput);
     }
     Map<Integer, ?> idToConstants =
-        ReadUtils.constantsMap(task, IdentityPartitionConverters::convertConstant, table.schema());
+        ReadUtils.constantsMap(
+            spec, file, IdentityPartitionConverters::convertConstant, table.schema());
 
     ParquetReadOptions.Builder optionsBuilder;
     if (inputFile instanceof HadoopInputFile) {
@@ -96,37 +128,40 @@ public class ReadUtils {
     }
     optionsBuilder =
         optionsBuilder
-            .withRange(task.start(), task.start() + task.length())
+            .withRange(start, start + length)
             .withMaxAllocationInBytes(MAX_FILE_BUFFER_SIZE);
 
     @Nullable String nameMapping = table.properties().get(TableProperties.DEFAULT_NAME_MAPPING);
     NameMapping mapping =
         nameMapping != null ? NameMappingParser.fromJson(nameMapping) : NameMapping.empty();
 
-    return new ParquetReader<>(
-        inputFile,
-        schema,
-        optionsBuilder.build(),
-        // TODO(ahmedabu98): Implement a Parquet-to-Beam Row reader, bypassing conversion to Iceberg
-        // Record
-        fileSchema -> GenericParquetReaders.buildReader(schema, fileSchema, idToConstants),
-        mapping,
-        task.residual(),
-        false,
-        true);
+    ParquetReader<Record> records =
+        new ParquetReader<>(
+            inputFile,
+            schema,
+            optionsBuilder.build(),
+            // TODO(ahmedabu98): Implement a Parquet-to-Beam Row reader, bypassing conversion to
+            // Iceberg
+            // Record
+            fileSchema -> GenericParquetReaders.buildReader(schema, fileSchema, idToConstants),
+            mapping,
+            residual,
+            false,
+            true);
+    return maybeApplyFilter(records, scanConfig);
   }
 
   static Map<Integer, ?> constantsMap(
-      FileScanTask task,
+      PartitionSpec spec,
+      ContentFile<?> file,
       BiFunction<Type, Object, Object> converter,
       org.apache.iceberg.Schema schema) {
-    PartitionSpec spec = task.spec();
     Set<Integer> idColumns = spec.identitySourceIds();
     org.apache.iceberg.Schema partitionSchema = TypeUtil.select(schema, idColumns);
     boolean projectsIdentityPartitionColumns = !partitionSchema.columns().isEmpty();
 
     if (projectsIdentityPartitionColumns) {
-      return PartitionUtil.constantsMap(task, converter);
+      return PartitionUtils.constantsMap(spec, file, converter);
     } else {
       return Collections.emptyMap();
     }
@@ -207,5 +242,139 @@ public class ReadUtils {
       return CloseableIterable.filter(iterable, record -> evaluator.eval(wrapper.wrap(record)));
     }
     return iterable;
+  }
+
+  public static DeleteFilter<Record> genericDeleteFilter(
+      Table table,
+      IcebergScanConfig scanConfig,
+      String dataFilePath,
+      List<SerializableDeleteFile> deletes) {
+    return new BeamDeleteFilter(
+        table.io(),
+        dataFilePath,
+        scanConfig.getRequiredSchema(),
+        scanConfig.getProjectedSchema(),
+        deletes.stream()
+            .map(sdf -> sdf.createDeleteFile(table.specs(), table.sortOrders()))
+            .collect(Collectors.toList()));
+  }
+
+  public static DeleteReader<Record> genericDeleteReader(
+      Table table,
+      IcebergScanConfig scanConfig,
+      String dataFilePath,
+      List<SerializableDeleteFile> deletes) {
+    return new BeamDeleteReader(
+        table.io(),
+        dataFilePath,
+        scanConfig.getRequiredSchema(),
+        scanConfig.getProjectedSchema(),
+        deletes.stream()
+            .map(sdf -> sdf.createDeleteFile(table.specs(), table.sortOrders()))
+            .collect(Collectors.toList()));
+  }
+
+  public static class BeamDeleteFilter extends DeleteFilter<Record> {
+    private final FileIO io;
+    private final InternalRecordWrapper asStructLike;
+
+    @SuppressWarnings("method.invocation")
+    public BeamDeleteFilter(
+        FileIO io,
+        String dataFilePath,
+        Schema tableSchema,
+        Schema projectedSchema,
+        List<DeleteFile> deleteFiles) {
+      super(dataFilePath, deleteFiles, tableSchema, projectedSchema);
+      this.io = io;
+      this.asStructLike = new InternalRecordWrapper(requiredSchema().asStruct());
+    }
+
+    // TODO: remove this (unused)
+    @SuppressWarnings("method.invocation")
+    public BeamDeleteFilter(
+        FileIO io,
+        SerializableChangelogTask scanTask,
+        Schema tableSchema,
+        Schema projectedSchema,
+        List<DeleteFile> deleteFiles) {
+      super(scanTask.getDataFile().getPath(), deleteFiles, tableSchema, projectedSchema);
+      this.io = io;
+      this.asStructLike = new InternalRecordWrapper(requiredSchema().asStruct());
+    }
+
+    // TODO: remove this (unused)
+    @SuppressWarnings("method.invocation")
+    public BeamDeleteFilter(FileIO io, ContentScanTask<?> scanTask, List<DeleteFile> deleteFiles) {
+      super(
+          scanTask.file().location(),
+          deleteFiles,
+          scanTask.spec().schema(),
+          scanTask.spec().schema());
+      this.io = io;
+      this.asStructLike = new InternalRecordWrapper(requiredSchema().asStruct());
+    }
+
+    @Override
+    protected StructLike asStructLike(Record record) {
+      return asStructLike.wrap(record);
+    }
+
+    @Override
+    protected InputFile getInputFile(String location) {
+      return io.newInputFile(location);
+    }
+  }
+
+  public static class BeamDeleteReader extends DeleteReader<Record> {
+    private final FileIO io;
+    private final InternalRecordWrapper asStructLike;
+
+    @SuppressWarnings("method.invocation")
+    public BeamDeleteReader(
+        FileIO io,
+        String dataFilePath,
+        Schema tableSchema,
+        Schema projectedSchema,
+        List<DeleteFile> deleteFiles) {
+      super(dataFilePath, deleteFiles, tableSchema, projectedSchema);
+      this.io = io;
+      this.asStructLike = new InternalRecordWrapper(requiredSchema().asStruct());
+    }
+
+    // TODO: remove this (unused)
+    @SuppressWarnings("method.invocation")
+    public BeamDeleteReader(
+        FileIO io,
+        SerializableChangelogTask scanTask,
+        Schema tableSchema,
+        Schema projectedSchema,
+        List<DeleteFile> deleteFiles) {
+      super(scanTask.getDataFile().getPath(), deleteFiles, tableSchema, projectedSchema);
+      this.io = io;
+      this.asStructLike = new InternalRecordWrapper(requiredSchema().asStruct());
+    }
+
+    // TODO: remove this (unused)
+    @SuppressWarnings("method.invocation")
+    public BeamDeleteReader(FileIO io, ContentScanTask<?> scanTask, List<DeleteFile> deleteFiles) {
+      super(
+          scanTask.file().location(),
+          deleteFiles,
+          scanTask.spec().schema(),
+          scanTask.spec().schema());
+      this.io = io;
+      this.asStructLike = new InternalRecordWrapper(requiredSchema().asStruct());
+    }
+
+    @Override
+    protected StructLike asStructLike(Record record) {
+      return asStructLike.wrap(record);
+    }
+
+    @Override
+    protected InputFile getInputFile(String location) {
+      return io.newInputFile(location);
+    }
   }
 }
