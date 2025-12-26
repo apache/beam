@@ -173,3 +173,5 @@ pip_dependencies:
     license: "https://raw.githubusercontent.com/triton-lang/triton/refs/heads/main/LICENSE"
   wget:
     license: "https://raw.githubusercontent.com/mirror/wget/master/COPYING"
+  xds-protos:
+    license: "https://raw.githubusercontent.com/cncf/xds/main/LICENSE"
