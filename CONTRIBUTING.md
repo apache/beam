@@ -50,7 +50,7 @@ These steps and instructions on getting started are outlined below as well.
     For more information, see:
     Python installation tips in [Developer Wiki](https://cwiki.apache.org/confluence/display/BEAM/Python+Tips#PythonTips-InstallingPythoninterpreters).
 - For large contributions, a signed [Individual Contributor License
-  Agreement.](https://www.apache.org/licenses/icla.pdf) (ICLA) to the Apache
+  Agreement](https://www.apache.org/licenses/icla.pdf) (ICLA) to the Apache
   Software Foundation (ASF).
 
 ### Share Your Intent
