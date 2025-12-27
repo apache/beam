@@ -468,6 +468,7 @@ if __name__ == '__main__':
           'gcp': [
               'cachetools>=3.1.0,<7',
               'google-api-core>=2.0.0,<3',
+              'googleapis-common-protos>=1.56.0',
               'google-apitools>=0.5.31,<0.5.32; python_version < "3.13"',
               'google-apitools>=0.5.35; python_version >= "3.13"',
               # NOTE: Maintainers, please do not require google-auth>=2.x.x
