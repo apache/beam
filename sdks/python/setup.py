@@ -593,7 +593,7 @@ if __name__ == '__main__':
           ],
           'redis': ['redis>=5.0.0,<6'],
           'tft': [
-              'tensorflow_transform>=1.14.0,<1.15.0'
+              'tensorflow_transform>=1.14.0,<1.18.0'
               # tensorflow-transform requires dill, but doesn't set dill as a
               # hard requirement in setup.py.
               ,
