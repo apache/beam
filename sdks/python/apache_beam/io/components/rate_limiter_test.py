@@ -21,9 +21,8 @@ import grpc
 from datetime import timedelta
 
 from apache_beam.io.components import rate_limiter
-from envoy_data_plane.envoy.service.ratelimit.v3 import RateLimitResponse
-from envoy_data_plane.envoy.service.ratelimit.v3 import RateLimitResponseCode
-from envoy_data_plane.envoy.service.ratelimit.v3 import RateLimitResponseDescriptorStatus
+from envoy.service.ratelimit.v3 import rls_pb2
+from google.protobuf.duration_pb2 import Duration
 
 
 class EnvoyRateLimiterTest(unittest.TestCase):
@@ -44,7 +43,8 @@ class EnvoyRateLimiterTest(unittest.TestCase):
   def test_throttle_allowed(self, mock_channel):
     # Mock successful OK response
     mock_stub = mock.Mock()
-    mock_response = RateLimitResponse(overall_code=RateLimitResponseCode.OK)
+    mock_response = rls_pb2.RateLimitResponse(
+        overall_code=rls_pb2.RateLimitResponse.OK)
     mock_stub.ShouldRateLimit.return_value = mock_response
 
     # Inject mock stub
@@ -59,8 +59,8 @@ class EnvoyRateLimiterTest(unittest.TestCase):
   def test_throttle_over_limit_retries_exceeded(self, mock_channel):
     # Mock OVER_LIMIT response
     mock_stub = mock.Mock()
-    mock_response = RateLimitResponse(
-        overall_code=RateLimitResponseCode.OVER_LIMIT)
+    mock_response = rls_pb2.RateLimitResponse(
+        overall_code=rls_pb2.RateLimitResponse.OVER_LIMIT)
     mock_stub.ShouldRateLimit.return_value = mock_response
 
     self.limiter._stub = mock_stub
@@ -84,7 +84,8 @@ class EnvoyRateLimiterTest(unittest.TestCase):
   def test_throttle_rpc_error_retry(self, mock_channel):
     # Mock RpcError then Success
     mock_stub = mock.Mock()
-    mock_response = RateLimitResponse(overall_code=RateLimitResponseCode.OK)
+    mock_response = rls_pb2.RateLimitResponse(
+        overall_code=rls_pb2.RateLimitResponse.OK)
 
     # Side effect: Error, Error, Success
     error = grpc.RpcError()
@@ -121,11 +122,12 @@ class EnvoyRateLimiterTest(unittest.TestCase):
     mock_stub = mock.Mock()
 
     # Valid until 5 seconds
-    status = RateLimitResponseDescriptorStatus(
-        code=RateLimitResponseCode.OVER_LIMIT,
-        duration_until_reset=timedelta(seconds=5))
-    mock_response = RateLimitResponse(
-        overall_code=RateLimitResponseCode.OVER_LIMIT, statuses=[status])
+    # Valid until 5 seconds
+    status = rls_pb2.RateLimitResponse.DescriptorStatus(
+        code=rls_pb2.RateLimitResponse.OVER_LIMIT,
+        duration_until_reset=Duration(seconds=5))
+    mock_response = rls_pb2.RateLimitResponse(
+        overall_code=rls_pb2.RateLimitResponse.OVER_LIMIT, statuses=[status])
 
     mock_stub.ShouldRateLimit.return_value = mock_response
     self.limiter._stub = mock_stub

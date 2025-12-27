@@ -28,11 +28,9 @@ from typing import Dict
 from typing import List
 
 import grpc
-from envoy_data_plane.envoy.extensions.common.ratelimit.v3 import RateLimitDescriptor
-from envoy_data_plane.envoy.extensions.common.ratelimit.v3 import RateLimitDescriptorEntry
-from envoy_data_plane.envoy.service.ratelimit.v3 import RateLimitRequest
-from envoy_data_plane.envoy.service.ratelimit.v3 import RateLimitResponse
-from envoy_data_plane.envoy.service.ratelimit.v3 import RateLimitResponseCode
+from envoy.extensions.common.ratelimit.v3 import ratelimit_pb2
+from envoy.service.ratelimit.v3 import rls_pb2
+from envoy.service.ratelimit.v3 import rls_pb2_grpc
 
 from apache_beam.io.components import adaptive_throttler
 from apache_beam.metrics import Metrics
@@ -114,22 +112,6 @@ class EnvoyRateLimiter(RateLimiter):
     self._stub = None
     self._lock = threading.Lock()
 
-  class RateLimitServiceStub(object):
-    """ 
-    Wrapper for gRPC stub to be compatible with envoy_data_plane messages.
-    
-    The envoy-data-plane package uses 'betterproto' which generates async stubs
-    for 'grpclib'. As Beam uses standard synchronous 'grpcio', RateLimitServiceStub
-    is a bridge class to use the betterproto Message types (RateLimitRequest) 
-    with a standard grpcio Channel.
-    """
-    def __init__(self, channel):
-      self.ShouldRateLimit = channel.unary_unary(
-          '/envoy.service.ratelimit.v3.RateLimitService/ShouldRateLimit',
-          request_serializer=RateLimitRequest.SerializeToString,
-          response_deserializer=RateLimitResponse.FromString,
-      )
-
   def init_connection(self):
     if self._stub is None:
       # Acquire lock to safegaurd againest multiple DoFn threads sharing the same
@@ -137,7 +119,7 @@ class EnvoyRateLimiter(RateLimiter):
       with self._lock:
         if self._stub is None:
           channel = grpc.insecure_channel(self.service_address)
-          self._stub = EnvoyRateLimiter.RateLimitServiceStub(channel)
+          self._stub = rls_pb2_grpc.RateLimitServiceStub(channel)
 
   def throttle(self, hits_added: int = 1) -> bool:
     """Calls the Envoy RLS to check for rate limits.
@@ -156,10 +138,10 @@ class EnvoyRateLimiter(RateLimiter):
     for d in self.descriptors:
       entries = []
       for k, v in d.items():
-        entries.append(RateLimitDescriptorEntry(key=k, value=v))
-      proto_descriptors.append(RateLimitDescriptor(entries=entries))
+        entries.append(ratelimit_pb2.RateLimitDescriptor.Entry(key=k, value=v))
+      proto_descriptors.append(ratelimit_pb2.RateLimitDescriptor(entries=entries))
 
-    request = RateLimitRequest(
+    request = rls_pb2.RateLimitRequest(
         domain=self.domain,
         descriptors=proto_descriptors,
         hits_addend=hits_added)
@@ -188,22 +170,21 @@ class EnvoyRateLimiter(RateLimiter):
               "[EnvoyRateLimiter] Connection Failed, retrying: %s", e)
           time.sleep(_RETRY_DELAY_SECONDS)
 
-      if response.overall_code == RateLimitResponseCode.OK:
+      if response.overall_code == rls_pb2.RateLimitResponse.OK:
         self.requests_allowed.inc()
         throttled = True
         break
-      elif response.overall_code == RateLimitResponseCode.OVER_LIMIT:
+      elif response.overall_code == rls_pb2.RateLimitResponse.OVER_LIMIT:
         self.requests_throttled.inc()
         # Ratelimit exceeded, sleep for duration until reset and retry
         # multiple rules can be set in the RLS config, so we need to find the max duration
         sleep_s = 0.0
         if response.statuses:
           for status in response.statuses:
-            if status.code == RateLimitResponseCode.OVER_LIMIT:
+            if status.code == rls_pb2.RateLimitResponse.OVER_LIMIT:
               dur = status.duration_until_reset
-              # duration_until_reset is converted to timedelta by betterproto
-              # duration_until_reset has microsecond precision
-              val = dur.total_seconds()
+              # duration_until_reset is google.protobuf.Duration
+              val = dur.seconds + dur.nanos / 1e9
               if val > sleep_s:
                 sleep_s = val
 
