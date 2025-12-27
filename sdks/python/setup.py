@@ -404,7 +404,7 @@ if __name__ == '__main__':
           'requests>=2.32.4,<3.0.0',
           'sortedcontainers>=2.4.0',
           'typing-extensions>=3.7.0',
-          'xds-protos>=1.71.2,<1.72.0',
+          'xds-protos>=1.60.0,<1.63.0',
           'zstandard>=0.18.0,<1',
           'pyyaml>=3.12,<7.0.0',
           'beartype>=0.21.0,<0.23.0',
@@ -593,7 +593,7 @@ if __name__ == '__main__':
           ],
           'redis': ['redis>=5.0.0,<6'],
           'tft': [
-              'tensorflow_transform>=1.14.0,<1.18.0'
+              'tensorflow_transform>=1.14.0,<1.15.0'
               # tensorflow-transform requires dill, but doesn't set dill as a
               # hard requirement in setup.py.
               ,
