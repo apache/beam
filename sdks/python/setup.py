@@ -165,6 +165,7 @@ milvus_dependency = ['pymilvus>=2.5.10,<3.0.0']
 ml_base = [
     'embeddings',
     'onnxruntime',
+    'onnx>=1.16.0',
     'langchain',
     'sentence-transformers>=2.2.2',
     'skl2onnx',
