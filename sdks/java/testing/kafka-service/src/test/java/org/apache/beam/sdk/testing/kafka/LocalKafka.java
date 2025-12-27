@@ -20,10 +20,10 @@ package org.apache.beam.sdk.testing.kafka;
 import java.nio.file.Files;
 import java.util.Properties;
 import kafka.server.KafkaConfig;
-import kafka.server.KafkaServerStartable;
+import kafka.server.KafkaServer;
 
 public class LocalKafka {
-  private final KafkaServerStartable server;
+  private final KafkaServer server;
 
   LocalKafka(int kafkaPort, int zookeeperPort) throws Exception {
     Properties kafkaProperties = new Properties();
@@ -31,7 +31,12 @@ public class LocalKafka {
     kafkaProperties.setProperty("zookeeper.connect", String.format("localhost:%s", zookeeperPort));
     kafkaProperties.setProperty("offsets.topic.replication.factor", "1");
     kafkaProperties.setProperty("log.dir", Files.createTempDirectory("kafka-log-").toString());
-    server = new KafkaServerStartable(KafkaConfig.fromProps(kafkaProperties));
+    server =
+        new KafkaServer(
+            KafkaConfig.fromProps(kafkaProperties),
+            KafkaServer.$lessinit$greater$default$2(),
+            KafkaServer.$lessinit$greater$default$3(),
+            KafkaServer.$lessinit$greater$default$4());
   }
 
   public void start() {
