@@ -165,7 +165,6 @@ milvus_dependency = ['pymilvus>=2.5.10,<3.0.0']
 ml_base = [
     'embeddings',
     'onnxruntime',
-    'onnx>=1.16.0',
     'langchain',
     'sentence-transformers>=2.2.2',
     'skl2onnx',
@@ -380,7 +379,6 @@ if __name__ == '__main__':
           # TODO(https://github.com/grpc/grpc/issues/37710): Unpin grpc
           'grpcio>=1.33.1,<2,!=1.48.0,!=1.59.*,!=1.60.*,!=1.61.*,!=1.62.0,!=1.62.1,<1.66.0; python_version <= "3.12"',  # pylint: disable=line-too-long
           'grpcio>=1.67.0; python_version >= "3.13"',
-          'grpcio-status>=1.33.2,<1.66.0; python_version <= "3.12"',
           'httplib2>=0.8,<0.23.0',
           'jsonpickle>=3.0.0,<4.0.0',
           # numpy can have breaking changes in minor versions.
@@ -407,7 +405,6 @@ if __name__ == '__main__':
           'sortedcontainers>=2.4.0',
           'typing-extensions>=3.7.0',
           'xds-protos>=1.60.0,<1.63.0; python_version < "3.13"',
-          'xds-protos>=1.75.0; python_version >= "3.13"',
           'zstandard>=0.18.0,<1',
           'pyyaml>=3.12,<7.0.0',
           'beartype>=0.21.0,<0.23.0',
@@ -470,7 +467,6 @@ if __name__ == '__main__':
           'gcp': [
               'cachetools>=3.1.0,<7',
               'google-api-core>=2.0.0,<3',
-              'googleapis-common-protos>=1.56.0',
               'google-apitools>=0.5.31,<0.5.32; python_version < "3.13"',
               'google-apitools>=0.5.35; python_version >= "3.13"',
               # NOTE: Maintainers, please do not require google-auth>=2.x.x
