@@ -117,6 +117,19 @@ class FakeSlowModelHandler(base.ModelHandler[int, int, FakeModel]):
     return {'min_batch_size': 1, 'max_batch_size': 1}
 
 
+class SimpleFakeModelHanlder(base.ModelHandler[int, int, FakeModel]):
+  def load_model(self):
+    return FakeModel()
+
+  def run_inference(
+      self,
+      batch: Sequence[int],
+      model: FakeModel,
+      inference_args=None) -> Iterable[int]:
+    for example in batch:
+      yield model.predict(example)
+
+
 class FakeModelHandler(base.ModelHandler[int, int, FakeModel]):
   def __init__(
       self,
@@ -308,6 +321,15 @@ class FakeModelHandlerExpectedInferenceArgs(FakeModelHandler):
 
   def validate_inference_args(self, inference_args):
     pass
+
+
+def try_import_model_manager():
+  try:
+    # pylint: disable=unused-import
+    from apache_beam.ml.inference.model_manager import ModelManager
+    return True
+  except ImportError:
+    return False
 
 
 class RunInferenceBaseTest(unittest.TestCase):
@@ -1599,13 +1621,13 @@ class RunInferenceBaseTest(unittest.TestCase):
       actual = pcoll | base.RunInference(FakeModelHandlerNoEnvVars())
       assert_that(actual, equal_to(expected), label='assert:inferences')
 
-  def test_model_manager_loads_shared_model(self):
+  def test_model_handler_manager_loads_shared_model(self):
     mhs = {
         'key1': FakeModelHandler(state=1),
         'key2': FakeModelHandler(state=2),
         'key3': FakeModelHandler(state=3)
     }
-    mm = base._ModelManager(mh_map=mhs)
+    mm = base._ModelHandlerManager(mh_map=mhs)
     tag1 = mm.load('key1').model_tag
     # Use bad_mh's load function to make sure we're actually loading the
     # version already stored
@@ -1623,12 +1645,12 @@ class RunInferenceBaseTest(unittest.TestCase):
     self.assertEqual(2, model2.predict(10))
     self.assertEqual(3, model3.predict(10))
 
-  def test_model_manager_evicts_models(self):
+  def test_model_handler_manager_evicts_models(self):
     mh1 = FakeModelHandler(state=1)
     mh2 = FakeModelHandler(state=2)
     mh3 = FakeModelHandler(state=3)
     mhs = {'key1': mh1, 'key2': mh2, 'key3': mh3}
-    mm = base._ModelManager(mh_map=mhs)
+    mm = base._ModelHandlerManager(mh_map=mhs)
     mm.increment_max_models(2)
     tag1 = mm.load('key1').model_tag
     sh1 = multi_process_shared.MultiProcessShared(mh1.load_model, tag=tag1)
@@ -1667,10 +1689,10 @@ class RunInferenceBaseTest(unittest.TestCase):
         mh3.load_model, tag=tag3).acquire()
     self.assertEqual(8, model3.predict(10))
 
-  def test_model_manager_evicts_models_after_update(self):
+  def test_model_handler_manager_evicts_models_after_update(self):
     mh1 = FakeModelHandler(state=1)
     mhs = {'key1': mh1}
-    mm = base._ModelManager(mh_map=mhs)
+    mm = base._ModelHandlerManager(mh_map=mhs)
     tag1 = mm.load('key1').model_tag
     sh1 = multi_process_shared.MultiProcessShared(mh1.load_model, tag=tag1)
     model1 = sh1.acquire()
@@ -1697,13 +1719,12 @@ class RunInferenceBaseTest(unittest.TestCase):
     self.assertEqual(6, model1.predict(10))
     sh1.release(model1)
 
-  def test_model_manager_evicts_correct_num_of_models_after_being_incremented(
-      self):
+  def test_model_handler_manager_evicts_correctly_after_being_incremented(self):
     mh1 = FakeModelHandler(state=1)
     mh2 = FakeModelHandler(state=2)
     mh3 = FakeModelHandler(state=3)
     mhs = {'key1': mh1, 'key2': mh2, 'key3': mh3}
-    mm = base._ModelManager(mh_map=mhs)
+    mm = base._ModelHandlerManager(mh_map=mhs)
     mm.increment_max_models(1)
     mm.increment_max_models(1)
     tag1 = mm.load('key1').model_tag
@@ -1887,6 +1908,36 @@ class RunInferenceBaseTest(unittest.TestCase):
     tags = ms.get_tags_for_garbage_collection()
 
     self.assertEqual(0, len(tags))
+
+  @unittest.skipIf(
+      not try_import_model_manager(), 'Model Manager not available')
+  def test_run_inference_impl_with_model_manager(self):
+    with TestPipeline() as pipeline:
+      examples = [1, 5, 3, 10]
+      expected = [example + 1 for example in examples]
+      pcoll = pipeline | 'start' >> beam.Create(examples)
+      actual = pcoll | base.RunInference(
+          SimpleFakeModelHanlder(), use_model_manager=True)
+      assert_that(actual, equal_to(expected), label='assert:inferences')
+
+  @unittest.skipIf(
+      not try_import_model_manager(), 'Model Manager not available')
+  def test_run_inference_impl_with_model_manager_args(self):
+    with TestPipeline() as pipeline:
+      examples = [1, 5, 3, 10]
+      expected = [example + 1 for example in examples]
+      pcoll = pipeline | 'start' >> beam.Create(examples)
+      actual = pcoll | base.RunInference(
+          SimpleFakeModelHanlder(),
+          use_model_manager=True,
+          model_manager_args={
+              'slack_percentage': 0.2,
+              'poll_interval': 1.0,
+              'peak_window_seconds': 10.0,
+              'min_data_points': 10,
+              'smoothing_factor': 0.5
+          })
+      assert_that(actual, equal_to(expected), label='assert:inferences')
 
 
 def _always_retry(e: Exception) -> bool:
