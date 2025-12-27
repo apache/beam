@@ -404,7 +404,7 @@ if __name__ == '__main__':
           'requests>=2.32.4,<3.0.0',
           'sortedcontainers>=2.4.0',
           'typing-extensions>=3.7.0',
-          'xds-protos>=1.60.0,<1.63.0; python_version < "3.13"',
+          'xds-protos>=1.75.0; python_version >= "3.13"',
           'zstandard>=0.18.0,<1',
           'pyyaml>=3.12,<7.0.0',
           'beartype>=0.21.0,<0.23.0',
