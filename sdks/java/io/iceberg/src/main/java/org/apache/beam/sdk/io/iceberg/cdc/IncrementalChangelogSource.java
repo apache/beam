@@ -17,8 +17,8 @@
  */
 package org.apache.beam.sdk.io.iceberg.cdc;
 
-import static org.apache.beam.sdk.io.iceberg.cdc.ChangelogScanner.MIXED_CHANGES;
-import static org.apache.beam.sdk.io.iceberg.cdc.ChangelogScanner.UNIFORM_CHANGES;
+import static org.apache.beam.sdk.io.iceberg.cdc.ChangelogScanner.BIDIRECTIONAL_CHANGES;
+import static org.apache.beam.sdk.io.iceberg.cdc.ChangelogScanner.UNIDIRECTIONAL_CHANGES;
 import static org.apache.beam.sdk.io.iceberg.cdc.ReadFromChangelogs.KEYED_DELETES;
 import static org.apache.beam.sdk.io.iceberg.cdc.ReadFromChangelogs.KEYED_INSERTS;
 import static org.apache.beam.sdk.io.iceberg.cdc.ReadFromChangelogs.UNIFORM_ROWS;
@@ -77,25 +77,28 @@ public class IncrementalChangelogSource extends IncrementalScanSource {
             .apply(
                 "Create Changelog Tasks",
                 ParDo.of(new ChangelogScanner(scanConfig))
-                    .withOutputTags(UNIFORM_CHANGES, TupleTagList.of(MIXED_CHANGES)));
+                    .withOutputTags(
+                        UNIDIRECTIONAL_CHANGES, TupleTagList.of(BIDIRECTIONAL_CHANGES)));
 
     // for changelog ordinal groups that have UNIFORM changes (i.e. all deletes, or all inserts),
     // take the fast approach of just reading and emitting CDC records.
-    PCollection<Row> fastPathCdcRows =
-        processUniformChanges(
-            changelogTasks.get(UNIFORM_CHANGES).setCoder(ChangelogScanner.OUTPUT_CODER));
+    PCollection<Row> uniDirectionalCdcRows =
+        processUniDirectionalChanges(
+            changelogTasks.get(UNIDIRECTIONAL_CHANGES).setCoder(ChangelogScanner.OUTPUT_CODER));
 
-    // changelog ordinal groups that have MIXED changes (i.e. some deletes and some inserts)
-    // will need extra processing to identify any updates
-    PCollection<Row> slowPathCdcRows =
-        processMixedChanges(
-            changelogTasks.get(MIXED_CHANGES).setCoder(ChangelogScanner.OUTPUT_CODER));
+    // changelog ordinal groups that have BIDIRECTIONAL changes (i.e. both deletes and inserts)
+    // will need extra processing (including a shuffle) to identify any updates
+    PCollection<Row> largeBiDirectionalCdcRows =
+        processLargeBiDirectionalChanges(
+            changelogTasks.get(BIDIRECTIONAL_CHANGES).setCoder(ChangelogScanner.OUTPUT_CODER));
 
-    // Merge UNIFORM and MIXED outputs
-    return PCollectionList.of(fastPathCdcRows).and(slowPathCdcRows).apply(Flatten.pCollections());
+    // Merge UNIDIRECTIONAL and BIDIRECTIONAL outputs
+    return PCollectionList.of(uniDirectionalCdcRows)
+        .and(largeBiDirectionalCdcRows)
+        .apply(Flatten.pCollections());
   }
 
-  private PCollection<Row> processUniformChanges(
+  private PCollection<Row> processUniDirectionalChanges(
       PCollection<KV<ChangelogDescriptor, List<SerializableChangelogTask>>> uniformChangelogs) {
     return uniformChangelogs
         .apply(Redistribute.arbitrarily())
@@ -107,41 +110,47 @@ public class IncrementalChangelogSource extends IncrementalScanSource {
         .setRowSchema(IcebergUtils.icebergSchemaToBeamSchema(scanConfig.getProjectedSchema()));
   }
 
-  private PCollection<Row> processMixedChanges(
-      PCollection<KV<ChangelogDescriptor, List<SerializableChangelogTask>>> mixedChangelogs) {
-    PCollectionTuple mixedCdcKeyedRows =
-        mixedChangelogs
+  private PCollection<Row> processLargeBiDirectionalChanges(
+      PCollection<KV<ChangelogDescriptor, List<SerializableChangelogTask>>>
+          biDirectionalChangelogs) {
+    PCollectionTuple biDirectionalKeyedRows =
+        biDirectionalChangelogs
             .apply(Redistribute.arbitrarily())
             .apply(
-                "Read Mixed Changes",
+                "Read Large BiDirectional Changes",
                 ParDo.of(ReadFromChangelogs.withKeyedOutput(scanConfig))
                     .withOutputTags(KEYED_INSERTS, TupleTagList.of(KEYED_DELETES)));
 
     // prior to CoGBK, set a windowing strategy to maintain the earliest timestamp in the window
+    // this allows us to emit records downstream that may have larger reified timestamps
     Window<KV<Row, TimestampedValue<Row>>> windowingStrategy =
         Window.<KV<Row, TimestampedValue<Row>>>into(new GlobalWindows())
             .withTimestampCombiner(TimestampCombiner.EARLIEST);
 
     // preserve the element's timestamp by moving it into the value
+    // in the normal case, this will be a no-op because all CDC rows in an ordinal have the same
+    // commit timestamp.
+    // but this will matter if we add custom watermarking, where record timestamps are
+    // derived from a specified column
     KvCoder<Row, Row> keyedOutputCoder = ReadFromChangelogs.keyedOutputCoder(scanConfig);
     PCollection<KV<Row, TimestampedValue<Row>>> keyedInsertsWithTimestamps =
-        mixedCdcKeyedRows
+        biDirectionalKeyedRows
             .get(KEYED_INSERTS)
             .setCoder(keyedOutputCoder)
-            .apply(Reify.timestampsInValue())
+            .apply("Reify INSERT Timestamps", Reify.timestampsInValue())
             .apply(windowingStrategy);
     PCollection<KV<Row, TimestampedValue<Row>>> keyedDeletesWithTimestamps =
-        mixedCdcKeyedRows
+        biDirectionalKeyedRows
             .get(KEYED_DELETES)
             .setCoder(keyedOutputCoder)
-            .apply(Reify.timestampsInValue())
+            .apply("Reify DELETE Timestamps", Reify.timestampsInValue())
             .apply(windowingStrategy);
 
     // CoGroup by record ID and emit any (DELETE + INSERT) pairs as updates: (UPDATE_BEFORE,
     // UPDATE_AFTER)
     return KeyedPCollectionTuple.of(INSERTS, keyedInsertsWithTimestamps)
         .and(DELETES, keyedDeletesWithTimestamps)
-        .apply(CoGroupByKey.create())
+        .apply("CoGroupBy Row ID", CoGroupByKey.create())
         .apply("Reconcile Inserts and Deletes", ParDo.of(new ReconcileChanges()))
         .setRowSchema(IcebergUtils.icebergSchemaToBeamSchema(scanConfig.getProjectedSchema()));
   }

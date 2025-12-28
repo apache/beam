@@ -61,9 +61,9 @@ public class ChangelogScanner
   private static final Counter numDeletedDataFileScanTasks =
       Metrics.counter(ChangelogScanner.class, "numDeletedDataFileScanTasks");
   public static final TupleTag<KV<ChangelogDescriptor, List<SerializableChangelogTask>>>
-      UNIFORM_CHANGES = new TupleTag<>();
+      UNIDIRECTIONAL_CHANGES = new TupleTag<>();
   public static final TupleTag<KV<ChangelogDescriptor, List<SerializableChangelogTask>>>
-      MIXED_CHANGES = new TupleTag<>();
+      BIDIRECTIONAL_CHANGES = new TupleTag<>();
   public static final KvCoder<ChangelogDescriptor, List<SerializableChangelogTask>> OUTPUT_CODER =
       KvCoder.of(ChangelogDescriptor.coder(), ListCoder.of(SerializableChangelogTask.coder()));
   private final IcebergScanConfig scanConfig;
@@ -117,7 +117,7 @@ public class ChangelogScanner
     Map<Long, Long> cachedSnapshotTimestamps = new HashMap<>();
     // Maintain the same scan task groupings produced by Iceberg's binpacking, for
     // better work load distribution among readers.
-    // Also allows the user to control by setting a `read.split.target-size`:
+    // This allows the user to control load per worker by tuning `read.split.target-size`:
     // https://iceberg.apache.org/docs/latest/configuration/#read-properties
     Map<Integer, List<List<SerializableChangelogTask>>> changelogScanTaskGroups = new HashMap<>();
 
@@ -126,7 +126,7 @@ public class ChangelogScanner
 
     try (CloseableIterable<ScanTaskGroup<ChangelogScanTask>> scanTaskGroups = scan.planTasks()) {
       for (ScanTaskGroup<ChangelogScanTask> scanTaskGroup : scanTaskGroups) {
-        Map<Integer, List<SerializableChangelogTask>> ordinalGroups = new HashMap<>();
+        Map<Integer, List<SerializableChangelogTask>> ordinalTaskGroup = new HashMap<>();
 
         for (ChangelogScanTask changelogScanTask : scanTaskGroup.tasks()) {
           long snapshotId = changelogScanTask.commitSnapshotId();
@@ -137,7 +137,7 @@ public class ChangelogScanner
 
           SerializableChangelogTask task =
               SerializableChangelogTask.from(changelogScanTask, timestampMillis);
-          ordinalGroups.computeIfAbsent(ordinal, (unused) -> new ArrayList<>()).add(task);
+          ordinalTaskGroup.computeIfAbsent(ordinal, (o) -> new ArrayList<>()).add(task);
 
           changeTypesPerOrdinal
               .computeIfAbsent(ordinal, (o) -> new HashSet<>())
@@ -158,7 +158,7 @@ public class ChangelogScanner
         }
 
         for (Map.Entry<Integer, List<SerializableChangelogTask>> ordinalGroup :
-            ordinalGroups.entrySet()) {
+            ordinalTaskGroup.entrySet()) {
           changelogScanTaskGroups
               .computeIfAbsent(ordinalGroup.getKey(), (unused) -> new ArrayList<>())
               .add(ordinalGroup.getValue());
@@ -198,17 +198,20 @@ public class ChangelogScanner
             KV.of(descriptor, subgroup);
 
         // Determine where each ordinal's tasks will go, based on the type of changes:
-        // 1. If an ordinal's changes are uniform (i.e. all inserts or all deletes), they should be
+        // 1. If an ordinal's changes are unidirectional (i.e. only inserts or only deletes), they
+        // should be
         // processed directly in the fast path.
-        // 2. If an ordinal's changes are mixed (i.e. some inserts and some deletes), they will need
+        // 2. If an ordinal's changes are bidirectional (i.e. both inserts and deletes), they will
+        // need
         // more careful processing to determine if any updates have occurred.
         Set<SerializableChangelogTask.Type> changeTypes =
             checkStateNotNull(changeTypesPerOrdinal.get(ordinal));
         TupleTag<KV<ChangelogDescriptor, List<SerializableChangelogTask>>> outputTag;
-        if (changeTypes.contains(ADDED_ROWS) && changeTypes.size() > 1) { // added and deleted rows
-          outputTag = MIXED_CHANGES;
-        } else { // all added or all deleted rows
-          outputTag = UNIFORM_CHANGES;
+        if (changeTypes.contains(ADDED_ROWS)
+            && changeTypes.size() > 1) { // both added and deleted rows
+          outputTag = BIDIRECTIONAL_CHANGES;
+        } else { // only added or only deleted rows
+          outputTag = UNIDIRECTIONAL_CHANGES;
         }
 
         multiOutputReceiver.get(outputTag).outputWithTimestamp(output, timestamp);

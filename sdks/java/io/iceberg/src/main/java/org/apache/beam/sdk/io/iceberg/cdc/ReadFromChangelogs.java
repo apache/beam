@@ -66,8 +66,8 @@ public class ReadFromChangelogs<OutT>
   private transient StructProjection recordIdProjection;
   private transient org.apache.iceberg.Schema recordIdSchema;
   private final Schema beamRowSchema;
-  private final Schema rowIdWithOrdinalBeamSchema;
-  private static final String ORDINAL_FIELD = "__beam__changelog__ordinal__";
+  private final Schema rowAndSnapshotIDBeamSchema;
+  private static final String SNAPSHOT_FIELD = "__beam__changelog__snapshot__id__";
 
   private ReadFromChangelogs(IcebergScanConfig scanConfig, boolean keyedOutput) {
     this.scanConfig = scanConfig;
@@ -78,13 +78,7 @@ public class ReadFromChangelogs<OutT>
     this.recordIdSchema = recordSchema.select(recordSchema.identifierFieldNames());
     this.recordIdProjection = StructProjection.create(recordSchema, recordIdSchema);
 
-    Schema rowIdBeamSchema = icebergSchemaToBeamSchema(recordIdSchema);
-    List<Schema.Field> fields =
-        ImmutableList.<Schema.Field>builder()
-            .add(Schema.Field.of(ORDINAL_FIELD, Schema.FieldType.INT32))
-            .addAll(rowIdBeamSchema.getFields())
-            .build();
-    this.rowIdWithOrdinalBeamSchema = new Schema(fields);
+    this.rowAndSnapshotIDBeamSchema = rowAndSnapshotIDBeamSchema(scanConfig);
   }
 
   static ReadFromChangelogs<Row> of(IcebergScanConfig scanConfig) {
@@ -101,18 +95,23 @@ public class ReadFromChangelogs<OutT>
    */
   static KvCoder<Row, Row> keyedOutputCoder(IcebergScanConfig scanConfig) {
     org.apache.iceberg.Schema recordSchema = scanConfig.getProjectedSchema();
+    Schema rowAndSnapshotIDBeamSchema = rowAndSnapshotIDBeamSchema(scanConfig);
+    return KvCoder.of(
+        SchemaCoder.of(rowAndSnapshotIDBeamSchema),
+        SchemaCoder.of(icebergSchemaToBeamSchema(recordSchema)));
+  }
+
+  private static Schema rowAndSnapshotIDBeamSchema(IcebergScanConfig scanConfig) {
+    org.apache.iceberg.Schema recordSchema = scanConfig.getProjectedSchema();
     org.apache.iceberg.Schema recordIdSchema =
-        recordSchema.select(recordSchema.identifierFieldNames());
+      recordSchema.select(recordSchema.identifierFieldNames());
     Schema rowIdBeamSchema = icebergSchemaToBeamSchema(recordIdSchema);
     List<Schema.Field> fields =
-        ImmutableList.<Schema.Field>builder()
-            .add(Schema.Field.of(ORDINAL_FIELD, Schema.FieldType.INT32))
-            .addAll(rowIdBeamSchema.getFields())
-            .build();
-    Schema rowIdWithOrdinalBeamSchema = new Schema(fields);
-    return KvCoder.of(
-        SchemaCoder.of(rowIdWithOrdinalBeamSchema),
-        SchemaCoder.of(icebergSchemaToBeamSchema(recordSchema)));
+      ImmutableList.<Schema.Field>builder()
+        .add(Schema.Field.of(SNAPSHOT_FIELD, Schema.FieldType.INT64))
+        .addAll(rowIdBeamSchema.getFields())
+        .build();
+    return new Schema(fields);
   }
 
   @Setup
@@ -164,12 +163,16 @@ public class ReadFromChangelogs<OutT>
     try (CloseableIterable<Record> fullIterable = ReadUtils.createReader(task, table, scanConfig)) {
       DeleteFilter<Record> deleteFilter =
           ReadUtils.genericDeleteFilter(
-              table, scanConfig, task.getDataFile().getPath(), task.getExistingDeletes());
+              table, scanConfig, task.getDataFile().getPath(), task.getAddedDeletes());
       CloseableIterable<Record> filtered = deleteFilter.filter(fullIterable);
 
       for (Record rec : filtered) {
         outputRecord(
-            rec, outputReceiver, task.getOrdinal(), task.getTimestampMillis(), KEYED_INSERTS);
+            rec,
+            outputReceiver,
+            task.getCommitSnapshotId(),
+            task.getTimestampMillis(),
+            KEYED_INSERTS);
       }
     }
     numAddedRowsScanTasksCompleted.inc();
@@ -192,7 +195,11 @@ public class ReadFromChangelogs<OutT>
       for (Record rec : newlyDeletedRecords) {
         // TODO: output with DELETE kind
         outputRecord(
-            rec, outputReceiver, task.getOrdinal(), task.getTimestampMillis(), KEYED_DELETES);
+            rec,
+            outputReceiver,
+            task.getCommitSnapshotId(),
+            task.getTimestampMillis(),
+            KEYED_DELETES);
       }
     }
     numDeletedRowsScanTasksCompleted.inc();
@@ -209,7 +216,11 @@ public class ReadFromChangelogs<OutT>
       for (Record rec : filtered) {
         // TODO: output with DELETE kind
         outputRecord(
-            rec, outputReceiver, task.getOrdinal(), task.getTimestampMillis(), KEYED_DELETES);
+            rec,
+            outputReceiver,
+            task.getCommitSnapshotId(),
+            task.getTimestampMillis(),
+            KEYED_DELETES);
       }
     }
     numDeletedDataFileScanTasksCompleted.inc();
@@ -218,24 +229,27 @@ public class ReadFromChangelogs<OutT>
   private void outputRecord(
       Record rec,
       MultiOutputReceiver outputReceiver,
-      int ordinal,
+      long snapshotId,
       long timestampMillis,
       TupleTag<KV<Row, Row>> keyedTag) {
     Row row = IcebergUtils.icebergRecordToBeamRow(beamRowSchema, rec);
     Instant timestamp = Instant.ofEpochMilli(timestampMillis);
     if (keyedOutput) { // slow path
       StructProjection recId = recordIdProjection.wrap(rec);
-      // Create a Row ID consisting of record ID columns and the changelog task's ordinal #
-      Row id = structToBeamRow(ordinal, recId, recordIdSchema, rowIdWithOrdinalBeamSchema);
+      // Create a Row ID consisting of:
+      // 1. the task's commit snapshot ID
+      // 2. the record ID column values
+      // This is needed to sufficiently distinguish a record change
+      Row id = structToBeamRow(snapshotId, recId, recordIdSchema, rowAndSnapshotIDBeamSchema);
       outputReceiver.get(keyedTag).outputWithTimestamp(KV.of(id, row), timestamp);
     } else { // fast path
-      System.out.printf("[UNIFORM] -- Output(%s, %s)\n%s%n", ordinal, timestamp, row);
+      System.out.printf("[UNIFORM] -- Output(%s, %s)\n%s%n", snapshotId, timestamp, row);
       outputReceiver.get(UNIFORM_ROWS).outputWithTimestamp(row, timestamp);
     }
   }
 
   public static Row structToBeamRow(
-      int ordinal, StructLike struct, org.apache.iceberg.Schema schema, Schema beamSchema) {
+      long snapshotId, StructLike struct, org.apache.iceberg.Schema schema, Schema beamSchema) {
     ImmutableMap.Builder<String, Object> values = ImmutableMap.builder();
     List<Types.NestedField> columns = schema.columns();
     for (Types.NestedField column : columns) {
@@ -243,10 +257,10 @@ public class ReadFromChangelogs<OutT>
       Object value = schema.accessorForField(column.fieldId()).get(struct);
       values.put(name, value);
     }
-    // Include ordinal as part of the row ID.
+    // Include snapshot ID as part of the row ID.
     // This is essential to ensure that the downstream ReconcileChanges compares rows
     // within the same operation.
-    values.put(ORDINAL_FIELD, ordinal);
+    values.put(SNAPSHOT_FIELD, snapshotId);
     return Row.withSchema(beamSchema).withFieldValues(values.build()).build();
   }
 

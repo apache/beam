@@ -36,6 +36,7 @@ public class ReconcileChanges extends DoFn<KV<Row, CoGbkResult>, Row> {
       @Timestamp Instant timestamp,
       OutputReceiver<Row> out) {
     CoGbkResult result = element.getValue();
+    System.out.println("xxx [MIXED] Process timestamp: " + timestamp);
 
     // iterables are lazy-loaded from the shuffle service
     Iterable<TimestampedValue<Row>> deletes = result.getAll(DELETES);
