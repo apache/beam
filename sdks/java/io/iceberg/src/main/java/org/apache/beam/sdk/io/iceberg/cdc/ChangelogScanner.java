@@ -60,6 +60,10 @@ public class ChangelogScanner
       Metrics.counter(ChangelogScanner.class, "numDeletedRowsScanTasks");
   private static final Counter numDeletedDataFileScanTasks =
       Metrics.counter(ChangelogScanner.class, "numDeletedDataFileScanTasks");
+  private static final Counter numUniDirectionalTasks =
+      Metrics.counter(ChangelogScanner.class, "numUniDirectionalTasks");
+  private static final Counter numBiDirectionalTasks =
+      Metrics.counter(ChangelogScanner.class, "numBiDirectionalTasks");
   public static final TupleTag<KV<ChangelogDescriptor, List<SerializableChangelogTask>>>
       UNIDIRECTIONAL_CHANGES = new TupleTag<>();
   public static final TupleTag<KV<ChangelogDescriptor, List<SerializableChangelogTask>>>
@@ -115,14 +119,15 @@ public class ChangelogScanner
     int numDeletedFileTasks = 0;
 
     Map<Long, Long> cachedSnapshotTimestamps = new HashMap<>();
-    // Maintain the same scan task groupings produced by Iceberg's binpacking, for
+    // Best effort maintain the same scan task groupings produced by Iceberg's binpacking, for
     // better work load distribution among readers.
     // This allows the user to control load per worker by tuning `read.split.target-size`:
     // https://iceberg.apache.org/docs/latest/configuration/#read-properties
-    Map<Integer, List<List<SerializableChangelogTask>>> changelogScanTaskGroups = new HashMap<>();
+    Map<Integer, List<List<SerializableChangelogTask>>> changelogScanTasks = new HashMap<>();
 
-    // keep track of the types of changes in each ordinal
-    Map<Integer, Set<SerializableChangelogTask.Type>> changeTypesPerOrdinal = new HashMap<>();
+    // keep track of the types of changes in each partition. do this for each ordinal
+    Map<Integer, Map<String, Set<SerializableChangelogTask.Type>>> partitionChangeTypesPerOrdinal =
+        new HashMap<>();
 
     try (CloseableIterable<ScanTaskGroup<ChangelogScanTask>> scanTaskGroups = scan.planTasks()) {
       for (ScanTaskGroup<ChangelogScanTask> scanTaskGroup : scanTaskGroups) {
@@ -137,13 +142,9 @@ public class ChangelogScanner
 
           SerializableChangelogTask task =
               SerializableChangelogTask.from(changelogScanTask, timestampMillis);
-          ordinalTaskGroup.computeIfAbsent(ordinal, (o) -> new ArrayList<>()).add(task);
+          String partition = task.getDataFile().getPartitionPath();
 
-          changeTypesPerOrdinal
-              .computeIfAbsent(ordinal, (o) -> new HashSet<>())
-              .add(task.getType());
-
-          // metric gathering
+          // gather metrics
           switch (task.getType()) {
             case ADDED_ROWS:
               numAddedRowsTasks++;
@@ -155,34 +156,29 @@ public class ChangelogScanner
               numDeletedFileTasks++;
               break;
           }
+
+          partitionChangeTypesPerOrdinal
+              .computeIfAbsent(ordinal, (o) -> new HashMap<>())
+              .computeIfAbsent(partition, (p) -> new HashSet<>())
+              .add(task.getType());
+
+          ordinalTaskGroup.computeIfAbsent(ordinal, (o) -> new ArrayList<>()).add(task);
         }
 
         for (Map.Entry<Integer, List<SerializableChangelogTask>> ordinalGroup :
             ordinalTaskGroup.entrySet()) {
-          changelogScanTaskGroups
+          changelogScanTasks
               .computeIfAbsent(ordinalGroup.getKey(), (unused) -> new ArrayList<>())
               .add(ordinalGroup.getValue());
         }
       }
     }
 
-    int totalTasks = numAddedRowsTasks + numDeletedRowsTasks + numDeletedFileTasks;
-    totalChangelogScanTasks.inc(totalTasks);
-    numAddedRowsScanTasks.inc(numAddedRowsTasks);
-    numDeletedRowsScanTasks.inc(numDeletedRowsTasks);
-    numDeletedDataFileScanTasks.inc(numDeletedFileTasks);
-
-    LOG.info(
-        "Snapshots [{}, {}] produced {} tasks:\n\t{} AddedRowsScanTasks\n\t{} DeletedRowsScanTasks\n\t{} DeletedDataFileScanTasks",
-        startSnapshot.getSnapshotId(),
-        endSnapshot.getSnapshotId(),
-        totalTasks,
-        numAddedRowsTasks,
-        numDeletedRowsTasks,
-        numDeletedFileTasks);
+    int numUniDirTasks = 0;
+    int numBiDirTasks = 0;
 
     for (Map.Entry<Integer, List<List<SerializableChangelogTask>>> taskGroups :
-        changelogScanTaskGroups.entrySet()) {
+        changelogScanTasks.entrySet()) {
       int ordinal = taskGroups.getKey();
       ChangelogDescriptor descriptor =
           ChangelogDescriptor.builder()
@@ -194,28 +190,69 @@ public class ChangelogScanner
 
       for (List<SerializableChangelogTask> subgroup : taskGroups.getValue()) {
         Instant timestamp = Instant.ofEpochMilli(subgroup.get(0).getTimestampMillis());
-        KV<ChangelogDescriptor, List<SerializableChangelogTask>> output =
-            KV.of(descriptor, subgroup);
 
         // Determine where each ordinal's tasks will go, based on the type of changes:
         // 1. If an ordinal's changes are unidirectional (i.e. only inserts or only deletes), they
-        // should be
-        // processed directly in the fast path.
-        // 2. If an ordinal's changes are bidirectional (i.e. both inserts and deletes), they will
-        // need
-        // more careful processing to determine if any updates have occurred.
-        Set<SerializableChangelogTask.Type> changeTypes =
-            checkStateNotNull(changeTypesPerOrdinal.get(ordinal));
-        TupleTag<KV<ChangelogDescriptor, List<SerializableChangelogTask>>> outputTag;
-        if (changeTypes.contains(ADDED_ROWS)
-            && changeTypes.size() > 1) { // both added and deleted rows
-          outputTag = BIDIRECTIONAL_CHANGES;
-        } else { // only added or only deleted rows
-          outputTag = UNIDIRECTIONAL_CHANGES;
+        // should be processed directly in the fast path.
+        // 2. If an ordinal's changes are bidirectional (i.e. both inserts and deletes) within a
+        // partition, they will need more careful processing to determine if any updates have
+        // occurred.
+        Map<String, Set<SerializableChangelogTask.Type>> changeTypesPerPartition =
+            checkStateNotNull(partitionChangeTypesPerOrdinal.get(ordinal));
+        List<SerializableChangelogTask> uniDirTasks = new ArrayList<>();
+        List<SerializableChangelogTask> biDirTasks = new ArrayList<>();
+        for (SerializableChangelogTask task : subgroup) {
+          Set<SerializableChangelogTask.Type> partitionChangeTypes =
+              checkStateNotNull(changeTypesPerPartition.get(task.getDataFile().getPartitionPath()));
+          if (containsBiDirectionalChanges(partitionChangeTypes)) {
+            biDirTasks.add(task);
+          } else {
+            uniDirTasks.add(task);
+          }
         }
 
-        multiOutputReceiver.get(outputTag).outputWithTimestamp(output, timestamp);
+        if (!uniDirTasks.isEmpty()) {
+          KV<ChangelogDescriptor, List<SerializableChangelogTask>> uniDirOutput =
+              KV.of(descriptor, uniDirTasks);
+          multiOutputReceiver
+              .get(UNIDIRECTIONAL_CHANGES)
+              .outputWithTimestamp(uniDirOutput, timestamp);
+          numUniDirTasks += uniDirTasks.size();
+        }
+        if (!biDirTasks.isEmpty()) {
+          KV<ChangelogDescriptor, List<SerializableChangelogTask>> biDirOutput =
+              KV.of(descriptor, biDirTasks);
+          multiOutputReceiver
+              .get(BIDIRECTIONAL_CHANGES)
+              .outputWithTimestamp(biDirOutput, timestamp);
+          numBiDirTasks += biDirTasks.size();
+        }
       }
     }
+
+    int totalTasks = numAddedRowsTasks + numDeletedRowsTasks + numDeletedFileTasks;
+    totalChangelogScanTasks.inc(totalTasks);
+    numAddedRowsScanTasks.inc(numAddedRowsTasks);
+    numDeletedRowsScanTasks.inc(numDeletedRowsTasks);
+    numDeletedDataFileScanTasks.inc(numDeletedFileTasks);
+    numUniDirectionalTasks.inc(numUniDirTasks);
+    numBiDirectionalTasks.inc(numBiDirTasks);
+
+    LOG.info(
+        "Snapshots [{}, {}] produced {} tasks:\n\t{} AddedRowsScanTasks\n\t{} DeletedRowsScanTasks\n\t{} DeletedDataFileScanTasks\n"
+            + "Observed {} uni-directional tasks and {} bi-directional tasks.",
+        startSnapshot.getSnapshotId(),
+        endSnapshot.getSnapshotId(),
+        totalTasks,
+        numAddedRowsTasks,
+        numDeletedRowsTasks,
+        numDeletedFileTasks,
+        numUniDirTasks,
+        numBiDirTasks);
+  }
+
+  private static boolean containsBiDirectionalChanges(
+      Set<SerializableChangelogTask.Type> changeTypes) {
+    return changeTypes.contains(ADDED_ROWS) && changeTypes.size() > 1;
   }
 }

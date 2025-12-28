@@ -72,7 +72,7 @@ public abstract class SerializableDataFile {
   public abstract long getFileSizeInBytes();
 
   @SchemaFieldNumber("4")
-  abstract String getPartitionPath();
+  public abstract String getPartitionPath();
 
   @SchemaFieldNumber("5")
   abstract int getPartitionSpecId();
@@ -217,8 +217,7 @@ public abstract class SerializableDataFile {
   // ByteBuddyUtils has trouble converting Map value type ByteBuffer
   // to byte[] and back to ByteBuffer, so we perform these conversions manually
   // TODO(https://github.com/apache/beam/issues/32701)
-  static @Nullable Map<Integer, byte[]> toByteArrayMap(
-      @Nullable Map<Integer, ByteBuffer> input) {
+  static @Nullable Map<Integer, byte[]> toByteArrayMap(@Nullable Map<Integer, ByteBuffer> input) {
     if (input == null) {
       return null;
     }
@@ -229,8 +228,7 @@ public abstract class SerializableDataFile {
     return output;
   }
 
-  static @Nullable Map<Integer, ByteBuffer> toByteBufferMap(
-      @Nullable Map<Integer, byte[]> input) {
+  static @Nullable Map<Integer, ByteBuffer> toByteBufferMap(@Nullable Map<Integer, byte[]> input) {
     if (input == null) {
       return null;
     }
@@ -308,9 +306,9 @@ public abstract class SerializableDataFile {
             getValueCounts(),
             getNullValueCounts(),
             getNanValueCounts(),
-          getDataSequenceNumber(),
-          getFileSequenceNumber(),
-          getFirstRowId());
+            getDataSequenceNumber(),
+            getFileSequenceNumber(),
+            getFirstRowId());
     hashCode = 31 * hashCode + computeMapByteHashCode(getLowerBounds());
     hashCode = 31 * hashCode + computeMapByteHashCode(getUpperBounds());
     return hashCode;

@@ -168,6 +168,7 @@ public class ReadFromChangelogs<OutT>
 
       for (Record rec : filtered) {
         outputRecord(
+            "INSERT",
             rec,
             outputReceiver,
             task.getCommitSnapshotId(),
@@ -195,6 +196,7 @@ public class ReadFromChangelogs<OutT>
       for (Record rec : newlyDeletedRecords) {
         // TODO: output with DELETE kind
         outputRecord(
+            "DELETE",
             rec,
             outputReceiver,
             task.getCommitSnapshotId(),
@@ -216,6 +218,7 @@ public class ReadFromChangelogs<OutT>
       for (Record rec : filtered) {
         // TODO: output with DELETE kind
         outputRecord(
+            "DELETE-DF",
             rec,
             outputReceiver,
             task.getCommitSnapshotId(),
@@ -227,6 +230,7 @@ public class ReadFromChangelogs<OutT>
   }
 
   private void outputRecord(
+      String type,
       Record rec,
       MultiOutputReceiver outputReceiver,
       long snapshotId,
@@ -243,7 +247,7 @@ public class ReadFromChangelogs<OutT>
       Row id = structToBeamRow(snapshotId, recId, recordIdSchema, rowAndSnapshotIDBeamSchema);
       outputReceiver.get(keyedTag).outputWithTimestamp(KV.of(id, row), timestamp);
     } else { // fast path
-      System.out.printf("[UNIDIRECTIONAL] -- Output(%s, %s)\n%s%n", snapshotId, timestamp, row);
+      System.out.printf("[UNIDIRECTIONAL] -- %s(%s, %s)\n%s%n", type, snapshotId, timestamp, row);
       outputReceiver.get(UNIDIRECTIONAL_ROWS).outputWithTimestamp(row, timestamp);
     }
   }
