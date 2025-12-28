@@ -274,10 +274,7 @@ final class CachingStateTable {
     public abstract String getId();
 
     public static StateTableKey create(StateNamespace namespace, StateTag<?> stateTag) {
-      // TODO(https://github.com/apache/beam/issues/36753): stateTag.getId() returns only the
-      // string tag without system/user prefix. This could cause a collision between system and
-      // user tag with the same id. Consider adding the prefix to state table key.
-      return new AutoValue_CachingStateTable_StateTableKey(namespace, stateTag.getId());
+      return new AutoValue_CachingStateTable_StateTableKey(namespace, stateTag.getIdWithPrefix());
     }
   }
 
