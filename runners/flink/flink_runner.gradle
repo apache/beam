@@ -28,7 +28,8 @@ import groovy.json.JsonOutput
 def base_path = ".."
 
 def overrides(versions, type, base_path) {
-  versions.collect { "${base_path}/${it}/src/${type}/java" } + ["./src/${type}/java"]
+  // order is important
+  ["${base_path}/src/${type}/java"] + versions.collect { "${base_path}/${it}/src/${type}/java" } + ["./src/${type}/java"]
 }
 
 def all_versions = flink_versions.split(",")
@@ -49,7 +50,8 @@ applyJavaNature(
     automaticModuleName: 'org.apache.beam.runners.flink',
     archivesBaseName: archivesBaseName,
     // flink runner jars are in same package name. Publish javadoc once.
-    exportJavadoc: project.ext.flink_version.startsWith(all_versions.first())
+    exportJavadoc: project.ext.flink_version.startsWith(all_versions.first()),
+    requireJavaVersion: project.ext.flink_major.startsWith('2') ? JavaVersion.VERSION_11 : null
 )
 
 description = "Apache Beam :: Runners :: Flink $flink_version"
@@ -68,10 +70,16 @@ evaluationDependsOn(":examples:java")
  */
 def sourceOverridesBase = project.layout.buildDirectory.dir('source-overrides/src').get()
 
-def copySourceOverrides = tasks.register('copySourceOverrides', Copy) {
-  it.from main_source_overrides
-  it.into "${sourceOverridesBase}/main/java"
-  it.duplicatesStrategy DuplicatesStrategy.INCLUDE
+def copySourceOverrides = tasks.register('copySourceOverrides', Copy) { copyTask ->
+  copyTask.from main_source_overrides
+  copyTask.into "${sourceOverridesBase}/main/java"
+  copyTask.duplicatesStrategy DuplicatesStrategy.INCLUDE
+
+  if (project.ext.has('excluded_files') && project.ext.excluded_files.containsKey('main')) {
+    project.ext.excluded_files.main.each { file ->
+      copyTask.exclude "**/${file}"
+    }
+  }
 }
 
 def copyResourcesOverrides = tasks.register('copyResourcesOverrides', Copy) {
@@ -80,10 +88,16 @@ def copyResourcesOverrides = tasks.register('copyResourcesOverrides', Copy) {
   it.duplicatesStrategy DuplicatesStrategy.INCLUDE
 }
 
-def copyTestSourceOverrides = tasks.register('copyTestSourceOverrides', Copy) {
-  it.from test_source_overrides
-  it.into "${sourceOverridesBase}/test/java"
-  it.duplicatesStrategy DuplicatesStrategy.INCLUDE
+def copyTestSourceOverrides = tasks.register('copyTestSourceOverrides', Copy) { copyTask ->
+  copyTask.from test_source_overrides
+  copyTask.into "${sourceOverridesBase}/test/java"
+  copyTask.duplicatesStrategy DuplicatesStrategy.INCLUDE
+
+  if (project.ext.has('excluded_files') && project.ext.excluded_files.containsKey('test')) {
+    project.ext.excluded_files.test.each { file ->
+      copyTask.exclude "**/${file}"
+    }
+  }
 }
 
 def copyTestResourcesOverrides = tasks.register('copyTestResourcesOverrides', Copy) {
@@ -92,45 +106,69 @@ def copyTestResourcesOverrides = tasks.register('copyTestResourcesOverrides', Co
   it.duplicatesStrategy DuplicatesStrategy.INCLUDE
 }
 
-// add dependency to gradle Java plugin defined tasks
-compileJava.dependsOn copySourceOverrides
-processResources.dependsOn copyResourcesOverrides
-compileTestJava.dependsOn copyTestSourceOverrides
-processTestResources.dependsOn copyTestResourcesOverrides
+def use_override = (flink_major != all_versions.first())
+def sourceBase = "${project.projectDir}/../src"
 
-// add dependency BeamModulePlugin defined custom tasks
-// they are defined only when certain flags are provided (e.g. -Prelease; -Ppublishing, etc)
-def sourcesJar = project.tasks.findByName('sourcesJar')
-if (sourcesJar != null) {
-  sourcesJar.dependsOn copySourceOverrides
-  sourcesJar.dependsOn copyResourcesOverrides
-}
-def testSourcesJar = project.tasks.findByName('testSourcesJar')
-if (testSourcesJar != null) {
-  testSourcesJar.dependsOn copyTestSourceOverrides
-  testSourcesJar.dependsOn copyTestResourcesOverrides
-}
+if (use_override) {
+  // Copy original+version specific sources to a tmp dir and use it as sourceSet
+  // add dependency to gradle Java plugin defined tasks
+  compileJava.dependsOn copySourceOverrides
+  processResources.dependsOn copyResourcesOverrides
+  compileTestJava.dependsOn copyTestSourceOverrides
+  processTestResources.dependsOn copyTestResourcesOverrides
 
-/*
+  // add dependency BeamModulePlugin defined custom tasks
+  // they are defined only when certain flags are provided (e.g. -Prelease; -Ppublishing, etc)
+  def sourcesJar = project.tasks.findByName('sourcesJar')
+  if (sourcesJar != null) {
+    sourcesJar.dependsOn copySourceOverrides
+    sourcesJar.dependsOn copyResourcesOverrides
+  }
+  def testSourcesJar = project.tasks.findByName('testSourcesJar')
+  if (testSourcesJar != null) {
+    testSourcesJar.dependsOn copyTestSourceOverrides
+    testSourcesJar.dependsOn copyTestResourcesOverrides
+  }
+  /*
  * We have to explicitly set all directories here to make sure each
  * version of Flink has the correct overrides set.
  */
-def sourceBase = "${project.projectDir}/../src"
-sourceSets {
-  main {
-    java {
-      srcDirs = ["${sourceBase}/main/java", "${sourceOverridesBase}/main/java"]
+  sourceSets {
+    main {
+      java {
+        srcDirs = ["${sourceOverridesBase}/main/java"]
+      }
+      resources {
+        srcDirs = ["${sourceBase}/main/resources", "${sourceOverridesBase}/main/resources"]
+      }
     }
-    resources {
-      srcDirs = ["${sourceBase}/main/resources", "${sourceOverridesBase}/main/resources"]
+    test {
+      java {
+        srcDirs = ["${sourceOverridesBase}/test/java"]
+      }
+      resources {
+        srcDirs = ["${sourceBase}/test/resources", "${sourceOverridesBase}/test/resources"]
+      }
     }
   }
-  test {
-    java {
-      srcDirs = ["${sourceBase}/test/java", "${sourceOverridesBase}/test/java"]
+} else {
+  // Use the original sources directly for the lowest supported Flink version.
+  sourceSets {
+    main {
+      java {
+        srcDirs = ["${sourceBase}/main/java"]
+      }
+      resources {
+        srcDirs = ["${sourceBase}/main/resources"]
+      }
     }
-    resources {
-      srcDirs = ["${sourceBase}/test/resources", "${sourceOverridesBase}/test/resources"]
+    test {
+      java {
+        srcDirs = ["${sourceBase}/test/java"]
+      }
+      resources {
+        srcDirs = ["${sourceBase}/test/resources"]
+      }
     }
   }
 }
@@ -196,7 +234,10 @@ dependencies {
 
   implementation "org.apache.flink:flink-core:$flink_version"
   implementation "org.apache.flink:flink-metrics-core:$flink_version"
-  implementation "org.apache.flink:flink-java:$flink_version"
+  if (project.ext.flink_major.startsWith('1')) {
+    // FLINK-36336: dataset API removed in Flink 2
+    implementation "org.apache.flink:flink-java:$flink_version"
+  }
 
   implementation "org.apache.flink:flink-runtime:$flink_version"
   implementation "org.apache.flink:flink-metrics-core:$flink_version"
