@@ -21,7 +21,7 @@ import static org.apache.beam.sdk.io.iceberg.cdc.ChangelogScanner.BIDIRECTIONAL_
 import static org.apache.beam.sdk.io.iceberg.cdc.ChangelogScanner.UNIDIRECTIONAL_CHANGES;
 import static org.apache.beam.sdk.io.iceberg.cdc.ReadFromChangelogs.KEYED_DELETES;
 import static org.apache.beam.sdk.io.iceberg.cdc.ReadFromChangelogs.KEYED_INSERTS;
-import static org.apache.beam.sdk.io.iceberg.cdc.ReadFromChangelogs.UNIFORM_ROWS;
+import static org.apache.beam.sdk.io.iceberg.cdc.ReadFromChangelogs.UNIDIRECTIONAL_ROWS;
 import static org.apache.beam.sdk.io.iceberg.cdc.ReconcileChanges.DELETES;
 import static org.apache.beam.sdk.io.iceberg.cdc.ReconcileChanges.INSERTS;
 
@@ -80,7 +80,8 @@ public class IncrementalChangelogSource extends IncrementalScanSource {
                     .withOutputTags(
                         UNIDIRECTIONAL_CHANGES, TupleTagList.of(BIDIRECTIONAL_CHANGES)));
 
-    // for changelog ordinal groups that have UNIFORM changes (i.e. all deletes, or all inserts),
+    // for changelog ordinal groups that have UNIDIRECTIONAL changes (i.e. all deletes, or all
+    // inserts),
     // take the fast approach of just reading and emitting CDC records.
     PCollection<Row> uniDirectionalCdcRows =
         processUniDirectionalChanges(
@@ -88,36 +89,37 @@ public class IncrementalChangelogSource extends IncrementalScanSource {
 
     // changelog ordinal groups that have BIDIRECTIONAL changes (i.e. both deletes and inserts)
     // will need extra processing (including a shuffle) to identify any updates
-    PCollection<Row> largeBiDirectionalCdcRows =
-        processLargeBiDirectionalChanges(
+    PCollection<Row> biDirectionalCdcRows =
+        processBiDirectionalChanges(
             changelogTasks.get(BIDIRECTIONAL_CHANGES).setCoder(ChangelogScanner.OUTPUT_CODER));
 
     // Merge UNIDIRECTIONAL and BIDIRECTIONAL outputs
     return PCollectionList.of(uniDirectionalCdcRows)
-        .and(largeBiDirectionalCdcRows)
+        .and(biDirectionalCdcRows)
         .apply(Flatten.pCollections());
   }
 
   private PCollection<Row> processUniDirectionalChanges(
-      PCollection<KV<ChangelogDescriptor, List<SerializableChangelogTask>>> uniformChangelogs) {
-    return uniformChangelogs
+      PCollection<KV<ChangelogDescriptor, List<SerializableChangelogTask>>>
+          uniDirectionalChangelogs) {
+    return uniDirectionalChangelogs
         .apply(Redistribute.arbitrarily())
         .apply(
-            "Read Uniform Changes",
+            "Read UniDirectional Changes",
             ParDo.of(ReadFromChangelogs.of(scanConfig))
-                .withOutputTags(UNIFORM_ROWS, TupleTagList.empty()))
-        .get(UNIFORM_ROWS)
+                .withOutputTags(UNIDIRECTIONAL_ROWS, TupleTagList.empty()))
+        .get(UNIDIRECTIONAL_ROWS)
         .setRowSchema(IcebergUtils.icebergSchemaToBeamSchema(scanConfig.getProjectedSchema()));
   }
 
-  private PCollection<Row> processLargeBiDirectionalChanges(
+  private PCollection<Row> processBiDirectionalChanges(
       PCollection<KV<ChangelogDescriptor, List<SerializableChangelogTask>>>
           biDirectionalChangelogs) {
     PCollectionTuple biDirectionalKeyedRows =
         biDirectionalChangelogs
             .apply(Redistribute.arbitrarily())
             .apply(
-                "Read Large BiDirectional Changes",
+                "Read BiDirectional Changes",
                 ParDo.of(ReadFromChangelogs.withKeyedOutput(scanConfig))
                     .withOutputTags(KEYED_INSERTS, TupleTagList.of(KEYED_DELETES)));
 

@@ -17,6 +17,10 @@
  */
 package org.apache.beam.sdk.io.iceberg;
 
+import static org.apache.beam.sdk.io.iceberg.SerializableDataFile.computeMapByteHashCode;
+import static org.apache.beam.sdk.io.iceberg.SerializableDataFile.mapEquals;
+import static org.apache.beam.sdk.io.iceberg.SerializableDataFile.toByteArrayMap;
+import static org.apache.beam.sdk.io.iceberg.SerializableDataFile.toByteBufferMap;
 import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
 
 import com.google.auto.value.AutoValue;
@@ -260,33 +264,6 @@ public abstract class SerializableDeleteFile {
     return deleteFileBuilder.build();
   }
 
-  // ByteBuddyUtils has trouble converting Map value type ByteBuffer
-  // to byte[] and back to ByteBuffer, so we perform these conversions manually
-  // TODO(https://github.com/apache/beam/issues/32701)
-  private static @Nullable Map<Integer, byte[]> toByteArrayMap(
-      @Nullable Map<Integer, ByteBuffer> input) {
-    if (input == null) {
-      return null;
-    }
-    Map<Integer, byte[]> output = new HashMap<>(input.size());
-    for (Map.Entry<Integer, ByteBuffer> e : input.entrySet()) {
-      output.put(e.getKey(), e.getValue().array());
-    }
-    return output;
-  }
-
-  private static @Nullable Map<Integer, ByteBuffer> toByteBufferMap(
-      @Nullable Map<Integer, byte[]> input) {
-    if (input == null) {
-      return null;
-    }
-    Map<Integer, ByteBuffer> output = new HashMap<>(input.size());
-    for (Map.Entry<Integer, byte[]> e : input.entrySet()) {
-      output.put(e.getKey(), ByteBuffer.wrap(e.getValue()));
-    }
-    return output;
-  }
-
   @Override
   public final boolean equals(@Nullable Object o) {
     if (this == o) {
@@ -320,29 +297,6 @@ public abstract class SerializableDeleteFile {
         && Objects.equals(getFileSequenceNumber(), that.getFileSequenceNumber());
   }
 
-  private static boolean mapEquals(
-      @Nullable Map<Integer, byte[]> map1, @Nullable Map<Integer, byte[]> map2) {
-    if (map1 == null && map2 == null) {
-      return true;
-    } else if (map1 == null || map2 == null) {
-      return false;
-    }
-    Equivalence<byte[]> byteArrayEquivalence =
-        new Equivalence<byte[]>() {
-          @Override
-          protected boolean doEquivalent(byte[] a, byte[] b) {
-            return Arrays.equals(a, b);
-          }
-
-          @Override
-          protected int doHash(byte[] bytes) {
-            return Arrays.hashCode(bytes);
-          }
-        };
-
-    return Maps.difference(map1, map2, byteArrayEquivalence).areEqual();
-  }
-
   @Override
   public final int hashCode() {
     int hashCode =
@@ -369,19 +323,6 @@ public abstract class SerializableDeleteFile {
             getFileSequenceNumber());
     hashCode = 31 * hashCode + computeMapByteHashCode(getLowerBounds());
     hashCode = 31 * hashCode + computeMapByteHashCode(getUpperBounds());
-    return hashCode;
-  }
-
-  private static int computeMapByteHashCode(@Nullable Map<Integer, byte[]> map) {
-    if (map == null) {
-      return 0;
-    }
-    int hashCode = 0;
-    for (Map.Entry<Integer, byte[]> entry : map.entrySet()) {
-      int keyHash = entry.getKey().hashCode();
-      int valueHash = Arrays.hashCode(entry.getValue()); // content-based hash code
-      hashCode += keyHash ^ valueHash;
-    }
     return hashCode;
   }
 }

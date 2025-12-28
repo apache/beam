@@ -217,7 +217,7 @@ public abstract class SerializableDataFile {
   // ByteBuddyUtils has trouble converting Map value type ByteBuffer
   // to byte[] and back to ByteBuffer, so we perform these conversions manually
   // TODO(https://github.com/apache/beam/issues/32701)
-  private static @Nullable Map<Integer, byte[]> toByteArrayMap(
+  static @Nullable Map<Integer, byte[]> toByteArrayMap(
       @Nullable Map<Integer, ByteBuffer> input) {
     if (input == null) {
       return null;
@@ -229,7 +229,7 @@ public abstract class SerializableDataFile {
     return output;
   }
 
-  private static @Nullable Map<Integer, ByteBuffer> toByteBufferMap(
+  static @Nullable Map<Integer, ByteBuffer> toByteBufferMap(
       @Nullable Map<Integer, byte[]> input) {
     if (input == null) {
       return null;
@@ -263,10 +263,13 @@ public abstract class SerializableDataFile {
         && Objects.equals(getNullValueCounts(), that.getNullValueCounts())
         && Objects.equals(getNanValueCounts(), that.getNanValueCounts())
         && mapEquals(getLowerBounds(), that.getLowerBounds())
-        && mapEquals(getUpperBounds(), that.getUpperBounds());
+        && mapEquals(getUpperBounds(), that.getUpperBounds())
+        && Objects.equals(getDataSequenceNumber(), that.getDataSequenceNumber())
+        && Objects.equals(getFileSequenceNumber(), that.getFileSequenceNumber())
+        && Objects.equals(getFirstRowId(), that.getFirstRowId());
   }
 
-  private static boolean mapEquals(
+  static boolean mapEquals(
       @Nullable Map<Integer, byte[]> map1, @Nullable Map<Integer, byte[]> map2) {
     if (map1 == null && map2 == null) {
       return true;
@@ -304,13 +307,16 @@ public abstract class SerializableDataFile {
             getColumnSizes(),
             getValueCounts(),
             getNullValueCounts(),
-            getNanValueCounts());
+            getNanValueCounts(),
+          getDataSequenceNumber(),
+          getFileSequenceNumber(),
+          getFirstRowId());
     hashCode = 31 * hashCode + computeMapByteHashCode(getLowerBounds());
     hashCode = 31 * hashCode + computeMapByteHashCode(getUpperBounds());
     return hashCode;
   }
 
-  private static int computeMapByteHashCode(@Nullable Map<Integer, byte[]> map) {
+  static int computeMapByteHashCode(@Nullable Map<Integer, byte[]> map) {
     if (map == null) {
       return 0;
     }

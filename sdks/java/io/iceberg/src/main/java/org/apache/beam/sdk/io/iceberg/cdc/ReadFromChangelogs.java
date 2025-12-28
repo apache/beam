@@ -50,7 +50,7 @@ import org.joda.time.Instant;
 @DoFn.BoundedPerElement
 public class ReadFromChangelogs<OutT>
     extends DoFn<KV<ChangelogDescriptor, List<SerializableChangelogTask>>, OutT> {
-  public static final TupleTag<Row> UNIFORM_ROWS = new TupleTag<>();
+  public static final TupleTag<Row> UNIDIRECTIONAL_ROWS = new TupleTag<>();
   public static final TupleTag<KV<Row, Row>> KEYED_INSERTS = new TupleTag<>();
   public static final TupleTag<KV<Row, Row>> KEYED_DELETES = new TupleTag<>();
 
@@ -104,13 +104,13 @@ public class ReadFromChangelogs<OutT>
   private static Schema rowAndSnapshotIDBeamSchema(IcebergScanConfig scanConfig) {
     org.apache.iceberg.Schema recordSchema = scanConfig.getProjectedSchema();
     org.apache.iceberg.Schema recordIdSchema =
-      recordSchema.select(recordSchema.identifierFieldNames());
+        recordSchema.select(recordSchema.identifierFieldNames());
     Schema rowIdBeamSchema = icebergSchemaToBeamSchema(recordIdSchema);
     List<Schema.Field> fields =
-      ImmutableList.<Schema.Field>builder()
-        .add(Schema.Field.of(SNAPSHOT_FIELD, Schema.FieldType.INT64))
-        .addAll(rowIdBeamSchema.getFields())
-        .build();
+        ImmutableList.<Schema.Field>builder()
+            .add(Schema.Field.of(SNAPSHOT_FIELD, Schema.FieldType.INT64))
+            .addAll(rowIdBeamSchema.getFields())
+            .build();
     return new Schema(fields);
   }
 
@@ -243,8 +243,8 @@ public class ReadFromChangelogs<OutT>
       Row id = structToBeamRow(snapshotId, recId, recordIdSchema, rowAndSnapshotIDBeamSchema);
       outputReceiver.get(keyedTag).outputWithTimestamp(KV.of(id, row), timestamp);
     } else { // fast path
-      System.out.printf("[UNIFORM] -- Output(%s, %s)\n%s%n", snapshotId, timestamp, row);
-      outputReceiver.get(UNIFORM_ROWS).outputWithTimestamp(row, timestamp);
+      System.out.printf("[UNIDIRECTIONAL] -- Output(%s, %s)\n%s%n", snapshotId, timestamp, row);
+      outputReceiver.get(UNIDIRECTIONAL_ROWS).outputWithTimestamp(row, timestamp);
     }
   }
 
