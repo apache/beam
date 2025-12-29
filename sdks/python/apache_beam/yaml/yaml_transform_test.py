@@ -1005,8 +1005,7 @@ class YamlWindowingTest(unittest.TestCase):
                   elements: [0, 1, 2, 3, 4, 5]
             - type: WindowInto
               config:
-                windowing: |
-                  {"type": "fixed", "size": "4s"}
+                windowing: {"type": "fixed", "size": "4s"}
             - type: SumGlobally
           ''',
           providers=TEST_PROVIDERS)

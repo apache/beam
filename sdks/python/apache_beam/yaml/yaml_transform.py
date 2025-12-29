@@ -1034,19 +1034,6 @@ def preprocess_windowing(spec):
       spec['config'] = spec.get('config', {})
       spec['config']['windowing'] = spec.pop('windowing')
 
-    if spec.get('config', {}).get('windowing'):
-      windowing_config = spec['config']['windowing']
-      if isinstance(windowing_config, str):
-        try:
-          # PyYAML can load a JSON string.
-          parsed_config = yaml.safe_load(windowing_config)
-          if not isinstance(parsed_config, dict):
-            raise TypeError('Windowing config string must be a YAML/JSON map.')
-          spec['config']['windowing'] = parsed_config
-        except Exception as e:
-          raise ValueError(
-              f'Error parsing windowing config string at \
-                {identify_object(spec)}: {e}') from e
     return spec
   elif 'windowing' not in spec:
     # Nothing to do.
