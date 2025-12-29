@@ -398,13 +398,12 @@ if __name__ == '__main__':
           #
           # 3. Exclude protobuf 4 versions that leak memory, see:
           # https://github.com/apache/beam/issues/28246
-          'protobuf>=3.20.3,<6.0.0.dev0,!=4.0.*,!=4.21.*,!=4.22.0,!=4.23.*,!=4.24.*',  # pylint: disable=line-too-long
+          'protobuf>=3.20.3,<7.0.0.dev0,!=4.0.*,!=4.21.*,!=4.22.0,!=4.23.*,!=4.24.*',  # pylint: disable=line-too-long
           'python-dateutil>=2.8.0,<3',
           'pytz>=2018.3',
           'requests>=2.32.4,<3.0.0',
           'sortedcontainers>=2.4.0',
           'typing-extensions>=3.7.0',
-          'xds-protos>=1.70.0,<1.72.0; python_version >= "3.13"',
           'zstandard>=0.18.0,<1',
           'pyyaml>=3.12,<7.0.0',
           'beartype>=0.21.0,<0.23.0',
