@@ -127,7 +127,7 @@ public abstract class IcebergScanConfig implements Serializable {
     if (cachedRequiredSchema == null) {
       cachedRequiredSchema =
           resolveSchema(
-              getTable().schema(),
+              IcebergUtils.beamSchemaToIcebergSchema(getSchema()),
               getKeepFields(),
               getDropFields(),
               FilterUtils.getReferencedFieldNames(getFilterString()));
