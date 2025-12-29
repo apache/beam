@@ -1033,7 +1033,6 @@ def preprocess_windowing(spec):
     if 'windowing' in spec:
       spec['config'] = spec.get('config', {})
       spec['config']['windowing'] = spec.pop('windowing')
-
     return spec
   elif 'windowing' not in spec:
     # Nothing to do.
