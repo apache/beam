@@ -1030,7 +1030,6 @@ def push_windowing_to_roots(spec):
 def preprocess_windowing(spec):
   if spec['type'] == 'WindowInto':
     # This is the transform where it is actually applied.
-
     if 'windowing' in spec:
       spec['config'] = spec.get('config', {})
       spec['config']['windowing'] = spec.pop('windowing')
