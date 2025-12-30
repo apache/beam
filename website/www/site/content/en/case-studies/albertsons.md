@@ -120,12 +120,14 @@ All ingestion paths adhere to internal security controls and support **tokenizat
 
 Apache Beam has significantly improved the reliability, reusability, and speed of Albertsons’ data  platforms:
 
+{{< table >}}
 | Area                   | Outcome                                             |
 | ---------------------- | --------------------------------------------------- |
 | Reliability            | **99.9%+ uptime** for data ingestion                |
 | Developer Productivity | Pipelines created faster via standardized templates |
 | Operational Efficiency | **Autoscaling** optimizes resource utilization      |
 | Business Enablement    | Enables **real-time decisioning**                   |
+{{< /table >}}
 
 ### Business Impact
 
@@ -171,6 +173,7 @@ Beam enabled one unified ingestion framework that supports both streaming and ba
 
 ## Infrastructure
 
+{{< table >}}
 | Component              | Detail                                        |
 | ---------------------- | --------------------------------------------- |
 | Cloud                  | Google Cloud Platform                         |
@@ -181,6 +184,7 @@ Beam enabled one unified ingestion framework that supports both streaming and ba
 | Sources                | Kafka, JDBC systems, files, MQ, APIs          |
 | Targets                | BigQuery, GCS, Kafka                          |
 | Observability          | Centralized logging, alerting, retry patterns |
+{{< /table >}}
 
 Deployment is portable across Dev, QA, and Prod environments.
 
