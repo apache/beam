@@ -100,7 +100,7 @@ class PartitionUtils {
 
   /**
    * Copied over from Apache Iceberg's <a
-   * href="https://github.com/apache/iceberg/blob/main/core/src/main/java/org/apache/iceberg/util/PartitionUtil.java">PartitionUtil</a>
+   * href="https://github.com/apache/iceberg/blob/main/core/src/main/java/org/apache/iceberg/util/PartitionUtil.java">PartitionUtil</a>.
    */
   public static Map<Integer, ?> constantsMap(
       PartitionSpec spec, ContentFile<?> file, BiFunction<Type, Object, Object> convertConstant) {

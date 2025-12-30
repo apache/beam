@@ -24,17 +24,26 @@ import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TimestampedValue;
 import org.apache.beam.sdk.values.TupleTag;
-import org.joda.time.Instant;
 
+/**
+ * Receives inserts and deletes, keyed by snapshot ID and Primary Key, and determines if any updates
+ * have occurred.
+ *
+ * <p>If the element has a mix of inserts and deletes, it is considered an update. INSERT becomes
+ * UPDATE_BEFORE and DELETE becomes UPDATE_AFTER.
+ *
+ * <p>Otherwise, records are output as-is: INSERT as INSERT, and DELETE as DELETE.
+ *
+ * <p>Input elements have their timestamp reified. This is because CoGroupByKey assigns all elements
+ * in a window with the same timestamp, erasing individual record timestamps. This DoFn preserves it
+ * by outputting records with their reified timestamps.
+ */
 public class ReconcileChanges extends DoFn<KV<Row, CoGbkResult>, Row> {
   public static final TupleTag<TimestampedValue<Row>> DELETES = new TupleTag<>() {};
   public static final TupleTag<TimestampedValue<Row>> INSERTS = new TupleTag<>() {};
 
   @DoFn.ProcessElement
-  public void processElement(
-      @Element KV<Row, CoGbkResult> element,
-      @Timestamp Instant timestamp,
-      OutputReceiver<Row> out) {
+  public void processElement(@Element KV<Row, CoGbkResult> element, OutputReceiver<Row> out) {
     CoGbkResult result = element.getValue();
 
     // iterables are lazy-loaded from the shuffle service

@@ -76,8 +76,8 @@ import org.slf4j.LoggerFactory;
  *
  * <p>If the table's partition fields are derived entirely from Primary Key fields, we assume that a
  * record will not migrate between partitions. This narrows down data locality and allows us to only
- * check for bi-directional changes <bold>within a partition</bold>. Doing this will allow
- * partitions with uni-directional changes to bypass the expensive CoGBK shuffle.
+ * check for bi-directional changes <b>within a partition</b>. Doing this will allow partitions with
+ * uni-directional changes to bypass the expensive CoGBK shuffle.
  */
 public class ChangelogScanner
     extends DoFn<
@@ -318,7 +318,7 @@ public class ChangelogScanner
         rowsPinnedToPartition ? "partition" : "ordinal");
   }
 
-  /** Checks if a set of change types include both inserts and deletes */
+  /** Checks if a set of change types include both inserts and deletes. */
   private static boolean containsBiDirectionalChanges(
       Set<SerializableChangelogTask.Type> changeTypes) {
     return changeTypes.contains(ADDED_ROWS) && changeTypes.size() > 1;

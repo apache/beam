@@ -17,7 +17,7 @@
  */
 package org.apache.beam.sdk.io.iceberg.cdc;
 
-import static com.google.common.base.Preconditions.checkState;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkState;
 
 import com.google.auto.value.AutoValue;
 import java.util.Collections;
