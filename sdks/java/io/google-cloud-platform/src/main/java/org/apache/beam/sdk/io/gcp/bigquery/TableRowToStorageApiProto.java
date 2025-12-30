@@ -1375,8 +1375,11 @@ public class TableRowToStorageApiProto {
         seconds = parsed.seconds;
         picoseconds = parsed.picoseconds;
 
-      } else if (value instanceof Instant) {
-        Instant timestamp = (Instant) value;
+      } else if (value instanceof Instant || value instanceof org.joda.time.Instant) {
+        Instant timestamp =
+            value instanceof Instant
+                ? (Instant) value
+                : Instant.ofEpochMilli(((org.joda.time.Instant) value).getMillis());
         seconds = timestamp.getEpochSecond();
         picoseconds = timestamp.getNano() * 1000L;
       } else {
