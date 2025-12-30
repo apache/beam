@@ -374,7 +374,7 @@ if __name__ == '__main__':
       ext_modules=extensions,
       install_requires=[
           'cryptography>=39.0.0,<48.0.0',
-          # reconcile envoy-data-plane dependency for python 3.12 and 3.13
+          # reconcile envoy-data-plane dependency for python < 3.12 and >= 3.13
           # when grpcio is unpinned, also check for protobuf version compatibility
           'envoy-data-plane>=1.0.3,<2; python_version >= "3.13"',
           'envoy-data-plane<0.3.0; python_version < "3.13"',
