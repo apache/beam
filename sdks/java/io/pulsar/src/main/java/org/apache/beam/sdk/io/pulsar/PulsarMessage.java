@@ -31,19 +31,19 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 @DefaultSchema(AutoValueSchema.class)
 @AutoValue
 public abstract class PulsarMessage {
-  abstract @Nullable String getTopic();
+  public abstract @Nullable String getTopic();
 
-  abstract long getPublishTimestamp();
+  public abstract long getPublishTimestamp();
 
-  abstract @Nullable String getKey();
-
-  @SuppressWarnings("mutable")
-  abstract byte[] getValue();
-
-  abstract @Nullable Map<String, String> getProperties();
+  public abstract @Nullable String getKey();
 
   @SuppressWarnings("mutable")
-  abstract byte[] getMessageId();
+  public abstract byte[] getValue();
+
+  public abstract @Nullable Map<String, String> getProperties();
+
+  @SuppressWarnings("mutable")
+  public abstract byte[] getMessageId();
 
   public static PulsarMessage create(
       @Nullable String topicName,

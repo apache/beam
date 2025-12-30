@@ -53,6 +53,38 @@ class BigQueryStorageQuerySource<T> extends BigQueryStorageSourceBase<T> {
       @Nullable DataFormat format,
       SerializableFunction<SchemaAndRecord, T> parseFn,
       Coder<T> outputCoder,
+      BigQueryServices bqServices,
+      @Nullable TimestampPrecision picosTimestampPrecision) {
+    return new BigQueryStorageQuerySource<>(
+        stepUuid,
+        queryProvider,
+        flattenResults,
+        useLegacySql,
+        priority,
+        location,
+        queryTempDataset,
+        queryTempProject,
+        kmsKey,
+        format,
+        parseFn,
+        outputCoder,
+        bqServices,
+        picosTimestampPrecision);
+  }
+
+  public static <T> BigQueryStorageQuerySource<T> create(
+      String stepUuid,
+      ValueProvider<String> queryProvider,
+      Boolean flattenResults,
+      Boolean useLegacySql,
+      QueryPriority priority,
+      @Nullable String location,
+      @Nullable String queryTempDataset,
+      @Nullable String queryTempProject,
+      @Nullable String kmsKey,
+      @Nullable DataFormat format,
+      SerializableFunction<SchemaAndRecord, T> parseFn,
+      Coder<T> outputCoder,
       BigQueryServices bqServices) {
     return new BigQueryStorageQuerySource<>(
         stepUuid,
@@ -67,7 +99,8 @@ class BigQueryStorageQuerySource<T> extends BigQueryStorageSourceBase<T> {
         format,
         parseFn,
         outputCoder,
-        bqServices);
+        bqServices,
+        /*picosTimestampPrecision=*/ null);
   }
 
   public static <T> BigQueryStorageQuerySource<T> create(
@@ -94,7 +127,8 @@ class BigQueryStorageQuerySource<T> extends BigQueryStorageSourceBase<T> {
         null,
         parseFn,
         outputCoder,
-        bqServices);
+        bqServices,
+        /*picosTimestampPrecision=*/ null);
   }
 
   private final String stepUuid;
@@ -123,8 +157,9 @@ class BigQueryStorageQuerySource<T> extends BigQueryStorageSourceBase<T> {
       @Nullable DataFormat format,
       SerializableFunction<SchemaAndRecord, T> parseFn,
       Coder<T> outputCoder,
-      BigQueryServices bqServices) {
-    super(format, null, null, parseFn, outputCoder, bqServices);
+      BigQueryServices bqServices,
+      @Nullable TimestampPrecision picosTimestampPrecision) {
+    super(format, null, null, parseFn, outputCoder, bqServices, picosTimestampPrecision);
     this.stepUuid = checkNotNull(stepUuid, "stepUuid");
     this.queryProvider = checkNotNull(queryProvider, "queryProvider");
     this.flattenResults = checkNotNull(flattenResults, "flattenResults");

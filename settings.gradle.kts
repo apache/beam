@@ -19,7 +19,7 @@ import com.gradle.enterprise.gradleplugin.internal.extension.BuildScanExtensionW
 
 pluginManagement {
     plugins {
-        id("org.javacc.javacc") version "3.0.3" // enable the JavaCC parser generator
+        id("org.javacc.javacc") version "4.0.3" // enable the JavaCC parser generator
     }
 }
 
@@ -339,8 +339,6 @@ include("beam-test-infra-mock-apis")
 project(":beam-test-infra-mock-apis").projectDir = file(".test-infra/mock-apis")
 include("beam-test-tools")
 project(":beam-test-tools").projectDir = file(".test-infra/tools")
-include("beam-test-jenkins")
-project(":beam-test-jenkins").projectDir = file(".test-infra/jenkins")
 include("beam-test-gha")
 project(":beam-test-gha").projectDir = file(".github")
 include("beam-validate-runner")

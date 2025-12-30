@@ -50,7 +50,7 @@ import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
 @RunWith(JUnit4.class)
-public class WindmillStateTagUtilTest {
+public class WindmillTagEncodingV1Test {
   private static final List<KV<Coder<? extends BoundedWindow>, StateNamespace>>
       TEST_NAMESPACES_WITH_CODERS =
           ImmutableList.of(
@@ -80,15 +80,15 @@ public class WindmillStateTagUtilTest {
       ImmutableList.of("", "foo", "this one has spaces", "this/one/has/slashes", "/");
 
   @Test
-  public void testEncodeKey() {
+  public void testStateTag() {
     StateNamespaceForTest namespace = new StateNamespaceForTest("key");
     StateTag<SetState<Integer>> foo = StateTags.set("foo", VarIntCoder.of());
-    InternedByteString bytes = WindmillStateTagUtil.instance().encodeKey(namespace, foo);
+    InternedByteString bytes = WindmillTagEncodingV1.instance().stateTag(namespace, foo);
     assertEquals("key+ufoo", bytes.byteString().toStringUtf8());
   }
 
   @Test
-  public void testEncodeKeyNested() {
+  public void testStateTagNested() {
     // Hypothetical case where a namespace/tag encoding depends on a call to encodeKey
     // This tests if thread locals in WindmillStateUtil are not reused with nesting
     StateNamespaceForTest namespace1 = new StateNamespaceForTest("key");
@@ -97,7 +97,7 @@ public class WindmillStateTagUtilTest {
         new StateTag<SetState<Integer>>() {
           @Override
           public void appendTo(Appendable sb) throws IOException {
-            WindmillStateTagUtil.instance().encodeKey(namespace1, tag1);
+            WindmillTagEncodingV1.instance().stateTag(namespace1, tag1);
             sb.append("tag2");
           }
 
@@ -121,11 +121,11 @@ public class WindmillStateTagUtilTest {
         new StateNamespaceForTest("key") {
           @Override
           public void appendTo(Appendable sb) throws IOException {
-            WindmillStateTagUtil.instance().encodeKey(namespace1, tag1);
+            WindmillTagEncodingV1.instance().stateTag(namespace1, tag1);
             sb.append("namespace2");
           }
         };
-    InternedByteString bytes = WindmillStateTagUtil.instance().encodeKey(namespace2, tag2);
+    InternedByteString bytes = WindmillTagEncodingV1.instance().stateTag(namespace2, tag2);
     assertEquals("namespace2+tag2", bytes.byteString().toStringUtf8());
   }
 
@@ -152,10 +152,10 @@ public class WindmillStateTagUtilTest {
                         ? BoundedWindow.TIMESTAMP_MIN_VALUE
                         : timer.getOutputTimestamp();
                 TimerData computed =
-                    WindmillStateTagUtil.instance()
+                    WindmillTagEncodingV1.instance()
                         .windmillTimerToTimerData(
                             prefix,
-                            WindmillStateTagUtil.instance()
+                            WindmillTagEncodingV1.instance()
                                 .buildWindmillTimerFromTimerData(
                                     stateFamily, prefix, timer, Timer.newBuilder())
                                 .build(),
@@ -205,10 +205,10 @@ public class WindmillStateTagUtilTest {
                           expectedTimestamp,
                           timer.getDomain());
                   assertThat(
-                      WindmillStateTagUtil.instance()
+                      WindmillTagEncodingV1.instance()
                           .windmillTimerToTimerData(
                               prefix,
-                              WindmillStateTagUtil.instance()
+                              WindmillTagEncodingV1.instance()
                                   .buildWindmillTimerFromTimerData(
                                       stateFamily, prefix, timer, Timer.newBuilder())
                                   .build(),
