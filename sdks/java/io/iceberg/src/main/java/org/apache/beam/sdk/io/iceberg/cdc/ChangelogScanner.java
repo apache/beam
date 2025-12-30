@@ -31,6 +31,7 @@ import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.ListCoder;
 import org.apache.beam.sdk.io.iceberg.IcebergScanConfig;
 import org.apache.beam.sdk.io.iceberg.SnapshotInfo;
+import org.apache.beam.sdk.io.iceberg.TableCache;
 import org.apache.beam.sdk.metrics.Counter;
 import org.apache.beam.sdk.metrics.Metrics;
 import org.apache.beam.sdk.transforms.DoFn;
@@ -105,14 +106,13 @@ public class ChangelogScanner
 
   ChangelogScanner(IcebergScanConfig scanConfig) {
     this.scanConfig = scanConfig;
+    TableCache.setup(scanConfig);
   }
 
   @ProcessElement
   public void process(@Element KV<String, List<SnapshotInfo>> element, MultiOutputReceiver out)
       throws IOException {
-    // TODO: use TableCache here
-    Table table = scanConfig.getTable();
-    table.refresh();
+    Table table = TableCache.getRefreshed(scanConfig.getTableIdentifier());
 
     List<SnapshotInfo> snapshots = element.getValue();
     SnapshotInfo startSnapshot = snapshots.get(0);

@@ -111,7 +111,7 @@ public abstract class SerializableDataFile {
   public abstract @Nullable Long getFirstRowId();
 
   @AutoValue.Builder
-  abstract static class Builder {
+  public abstract static class Builder {
     abstract Builder setPath(String path);
 
     abstract Builder setFileFormat(String fileFormat);

@@ -64,30 +64,30 @@ public class ReconcileChanges extends DoFn<KV<Row, CoGbkResult>, Row> {
         // TODO: output as UPDATE_BEFORE kind
         TimestampedValue<Row> updateBefore = deletesIterator.next();
         out.outputWithTimestamp(updateBefore.getValue(), updateBefore.getTimestamp());
-        System.out.printf("[BIDIRECTIONAL] -- UpdateBefore\n%s\n", updateBefore);
+        System.out.printf("[BIDIRECTIONAL] -- UpdateBefore%n%s%n", updateBefore);
 
         // TODO: output as UPDATE_AFTER kind
         TimestampedValue<Row> updateAfter = insertsIterator.next();
         out.outputWithTimestamp(updateAfter.getValue(), updateAfter.getTimestamp());
-        System.out.printf("[BIDIRECTIONAL] -- UpdateAfter\n%s\n", updateAfter);
+        System.out.printf("[BIDIRECTIONAL] -- UpdateAfter%n%s%n", updateAfter);
       }
       while (insertsIterator.hasNext()) {
         // TODO: output as UPDATE_AFTER kind
         TimestampedValue<Row> insert = insertsIterator.next();
         out.outputWithTimestamp(insert.getValue(), insert.getTimestamp());
-        System.out.printf("[BIDIRECTIONAL] -- Added(extra)\n%s\n", insert);
+        System.out.printf("[BIDIRECTIONAL] -- Added(extra)%n%s%n", insert);
       }
     } else if (hasInserts) {
       // INSERT only
       for (TimestampedValue<Row> rec : inserts) {
-        System.out.printf("[BIDIRECTIONAL] -- Added\n%s\n", rec);
+        System.out.printf("[BIDIRECTIONAL] -- Added%n%s%n", rec);
         out.outputWithTimestamp(rec.getValue(), rec.getTimestamp());
       }
     } else if (hasDeletes) {
       // DELETE only
       for (TimestampedValue<Row> rec : deletes) {
         // TODO: output as DELETE kind
-        System.out.printf("[BIDIRECTIONAL] -- Deleted\n%s\n", rec);
+        System.out.printf("[BIDIRECTIONAL] -- Deleted%n%s%n", rec);
         out.outputWithTimestamp(rec.getValue(), rec.getTimestamp());
       }
     }

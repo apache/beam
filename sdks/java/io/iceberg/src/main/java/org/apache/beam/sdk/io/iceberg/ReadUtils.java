@@ -290,31 +290,6 @@ public class ReadUtils {
       this.asStructLike = new InternalRecordWrapper(requiredSchema().asStruct());
     }
 
-    // TODO: remove this (unused)
-    @SuppressWarnings("method.invocation")
-    public BeamDeleteFilter(
-        FileIO io,
-        SerializableChangelogTask scanTask,
-        Schema tableSchema,
-        Schema projectedSchema,
-        List<DeleteFile> deleteFiles) {
-      super(scanTask.getDataFile().getPath(), deleteFiles, tableSchema, projectedSchema);
-      this.io = io;
-      this.asStructLike = new InternalRecordWrapper(requiredSchema().asStruct());
-    }
-
-    // TODO: remove this (unused)
-    @SuppressWarnings("method.invocation")
-    public BeamDeleteFilter(FileIO io, ContentScanTask<?> scanTask, List<DeleteFile> deleteFiles) {
-      super(
-          scanTask.file().location(),
-          deleteFiles,
-          scanTask.spec().schema(),
-          scanTask.spec().schema());
-      this.io = io;
-      this.asStructLike = new InternalRecordWrapper(requiredSchema().asStruct());
-    }
-
     @Override
     protected StructLike asStructLike(Record record) {
       return asStructLike.wrap(record);
@@ -338,31 +313,6 @@ public class ReadUtils {
         Schema projectedSchema,
         List<DeleteFile> deleteFiles) {
       super(dataFilePath, deleteFiles, tableSchema, projectedSchema);
-      this.io = io;
-      this.asStructLike = new InternalRecordWrapper(requiredSchema().asStruct());
-    }
-
-    // TODO: remove this (unused)
-    @SuppressWarnings("method.invocation")
-    public BeamDeleteReader(
-        FileIO io,
-        SerializableChangelogTask scanTask,
-        Schema tableSchema,
-        Schema projectedSchema,
-        List<DeleteFile> deleteFiles) {
-      super(scanTask.getDataFile().getPath(), deleteFiles, tableSchema, projectedSchema);
-      this.io = io;
-      this.asStructLike = new InternalRecordWrapper(requiredSchema().asStruct());
-    }
-
-    // TODO: remove this (unused)
-    @SuppressWarnings("method.invocation")
-    public BeamDeleteReader(FileIO io, ContentScanTask<?> scanTask, List<DeleteFile> deleteFiles) {
-      super(
-          scanTask.file().location(),
-          deleteFiles,
-          scanTask.spec().schema(),
-          scanTask.spec().schema());
       this.io = io;
       this.asStructLike = new InternalRecordWrapper(requiredSchema().asStruct());
     }

@@ -20,6 +20,7 @@ package org.apache.beam.sdk.io.iceberg.cdc;
 import static org.apache.beam.sdk.io.iceberg.IcebergUtils.icebergSchemaToBeamSchema;
 import static org.apache.beam.sdk.io.iceberg.cdc.ChangelogScanner.BIDIRECTIONAL_CHANGES;
 import static org.apache.beam.sdk.io.iceberg.cdc.ChangelogScanner.UNIDIRECTIONAL_CHANGES;
+import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
 
 import java.io.IOException;
 import java.util.List;
@@ -30,6 +31,7 @@ import org.apache.beam.sdk.io.iceberg.IcebergScanConfig;
 import org.apache.beam.sdk.io.iceberg.IcebergUtils;
 import org.apache.beam.sdk.io.iceberg.ReadUtils;
 import org.apache.beam.sdk.io.iceberg.SerializableDeleteFile;
+import org.apache.beam.sdk.io.iceberg.TableCache;
 import org.apache.beam.sdk.io.range.OffsetRange;
 import org.apache.beam.sdk.metrics.Counter;
 import org.apache.beam.sdk.metrics.Metrics;
@@ -63,6 +65,7 @@ import org.apache.iceberg.data.Record;
 import org.apache.iceberg.io.CloseableIterable;
 import org.apache.iceberg.types.Types;
 import org.apache.iceberg.util.StructProjection;
+import org.checkerframework.checker.nullness.qual.MonotonicNonNull;
 import org.joda.time.Instant;
 
 /**
@@ -248,8 +251,8 @@ class ReadFromChangelogs extends PTransform<PCollectionTuple, ReadFromChangelogs
       extends DoFn<KV<ChangelogDescriptor, List<SerializableChangelogTask>>, OutT> {
     private final IcebergScanConfig scanConfig;
     private final boolean keyedOutput;
-    private transient StructProjection recordIdProjection;
-    private transient org.apache.iceberg.Schema recordIdSchema;
+    private transient @MonotonicNonNull StructProjection recordIdProjection;
+    private transient org.apache.iceberg.@MonotonicNonNull Schema recordIdSchema;
     private final Schema beamRowSchema;
     private final Schema rowAndSnapshotIDBeamSchema;
 
@@ -271,10 +274,6 @@ class ReadFromChangelogs extends PTransform<PCollectionTuple, ReadFromChangelogs
       this.keyedOutput = keyedOutput;
 
       this.beamRowSchema = icebergSchemaToBeamSchema(scanConfig.getProjectedSchema());
-      org.apache.iceberg.Schema recordSchema = scanConfig.getProjectedSchema();
-      this.recordIdSchema = recordSchema.select(recordSchema.identifierFieldNames());
-      this.recordIdProjection = StructProjection.create(recordSchema, recordIdSchema);
-
       this.rowAndSnapshotIDBeamSchema = rowAndSnapshotIDBeamSchema(scanConfig);
     }
 
@@ -285,6 +284,7 @@ class ReadFromChangelogs extends PTransform<PCollectionTuple, ReadFromChangelogs
       org.apache.iceberg.Schema recordSchema = scanConfig.getProjectedSchema();
       this.recordIdSchema = recordSchema.select(recordSchema.identifierFieldNames());
       this.recordIdProjection = StructProjection.create(recordSchema, recordIdSchema);
+      TableCache.setup(scanConfig);
     }
 
     @ProcessElement
@@ -293,9 +293,7 @@ class ReadFromChangelogs extends PTransform<PCollectionTuple, ReadFromChangelogs
         RestrictionTracker<OffsetRange, Long> tracker,
         MultiOutputReceiver out)
         throws IOException {
-      // TODO: use TableCache
-      Table table = scanConfig.getTable();
-      table.refresh();
+      Table table = TableCache.get(scanConfig.getTableIdentifier());
 
       List<SerializableChangelogTask> tasks = element.getValue();
 
@@ -448,15 +446,17 @@ class ReadFromChangelogs extends PTransform<PCollectionTuple, ReadFromChangelogs
       Row row = IcebergUtils.icebergRecordToBeamRow(beamRowSchema, rec);
       Instant timestamp = Instant.ofEpochMilli(timestampMillis);
       if (keyedOutput) { // slow path
-        StructProjection recId = recordIdProjection.wrap(rec);
+        StructProjection recId = checkStateNotNull(recordIdProjection).wrap(rec);
         // Create a Row ID consisting of:
         // 1. the task's commit snapshot ID
         // 2. the record ID column values
         // This is needed to sufficiently distinguish a record change
-        Row id = structToBeamRow(snapshotId, recId, recordIdSchema, rowAndSnapshotIDBeamSchema);
+        Row id =
+            structToBeamRow(
+                snapshotId, recId, checkStateNotNull(recordIdSchema), rowAndSnapshotIDBeamSchema);
         outputReceiver.get(keyedTag).outputWithTimestamp(KV.of(id, row), timestamp);
       } else { // fast path
-        System.out.printf("[UNIDIRECTIONAL] -- %s(%s, %s)\n%s%n", type, snapshotId, timestamp, row);
+        System.out.printf("[UNIDIRECTIONAL] -- %s(%s, %s)%n%s%n", type, snapshotId, timestamp, row);
         outputReceiver.get(UNIDIRECTIONAL_ROWS).outputWithTimestamp(row, timestamp);
       }
     }
