@@ -190,7 +190,7 @@ public class LineageRegistrarTest {
 
     // Verify lineage was recorded with separator
     List<String> sources = TestLineage.getRecordedSources();
-    assertThat(sources, hasItem("gcs:bucket.path/to/file.txt"));
+    assertThat(sources, hasItem("gcs:bucket.`path/to/file.txt`"));
   }
 
   @Test
@@ -249,6 +249,7 @@ public class LineageRegistrarTest {
 
     @ProcessElement
     public void processElement(ProcessContext c) {
+      // !!! Lineage Caller !!!
       Lineage.getSources().add(system, segments);
       c.output(c.element());
     }
@@ -268,6 +269,7 @@ public class LineageRegistrarTest {
 
     @ProcessElement
     public void processElement(ProcessContext c) {
+      // !!! Lineage Caller !!!
       Lineage.getSources().add(system, subtype, segments, null);
       c.output(c.element());
     }
@@ -287,6 +289,7 @@ public class LineageRegistrarTest {
 
     @ProcessElement
     public void processElement(ProcessContext c) {
+      // !!! Lineage Caller !!!
       Lineage.getSources().add(system, segments, separator);
       c.output(c.element());
     }
@@ -296,7 +299,9 @@ public class LineageRegistrarTest {
   private static class RecordBothSourceAndSinkLineageDoFn extends DoFn<String, String> {
     @ProcessElement
     public void processElement(ProcessContext c) {
+      // !!! Lineage Caller !!!
       Lineage.getSources().add("input-system", ImmutableList.of("input-db", "input-table"));
+      // !!! Lineage Caller !!!
       Lineage.getSinks().add("output-system", ImmutableList.of("output-db", "output-table"));
       c.output(c.element());
     }
