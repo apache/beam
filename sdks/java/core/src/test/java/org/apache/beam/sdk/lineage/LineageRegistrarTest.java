@@ -52,33 +52,34 @@ import org.junit.runners.JUnit4;
 public class LineageRegistrarTest {
 
   /**
-   * TestWatcher that logs detailed lineage diagnostics only when tests fail.
-   * This keeps successful test output clean while providing deep debugging for failures.
+   * TestWatcher that logs detailed lineage diagnostics only when tests fail. This keeps successful
+   * test output clean while providing deep debugging for failures.
    */
   @Rule
-  public TestWatcher lineageDebugLogger = new TestWatcher() {
-    @Override
-    protected void failed(Throwable e, Description description) {
-      System.err.println("=== Lineage Test Failure Diagnostics ===");
-      System.err.println("Test: " + description.getMethodName());
-      System.err.println("Error: " + e.getMessage());
+  public TestWatcher lineageDebugLogger =
+      new TestWatcher() {
+        @Override
+        protected void failed(Throwable e, Description description) {
+          System.err.println("=== Lineage Test Failure Diagnostics ===");
+          System.err.println("Test: " + description.getMethodName());
+          System.err.println("Error: " + e.getMessage());
 
-      List<String> sources = TestLineage.getRecordedSources();
-      List<String> sinks = TestLineage.getRecordedSinks();
+          List<String> sources = TestLineage.getRecordedSources();
+          List<String> sinks = TestLineage.getRecordedSinks();
 
-      System.err.println("\nRecorded Sources (" + sources.size() + "):");
-      for (int i = 0; i < sources.size(); i++) {
-        System.err.println("  [" + i + "] \"" + sources.get(i) + "\"");
-      }
+          System.err.println("\nRecorded Sources (" + sources.size() + "):");
+          for (int i = 0; i < sources.size(); i++) {
+            System.err.println("  [" + i + "] \"" + sources.get(i) + "\"");
+          }
 
-      System.err.println("\nRecorded Sinks (" + sinks.size() + "):");
-      for (int i = 0; i < sinks.size(); i++) {
-        System.err.println("  [" + i + "] \"" + sinks.get(i) + "\"");
-      }
+          System.err.println("\nRecorded Sinks (" + sinks.size() + "):");
+          for (int i = 0; i < sinks.size(); i++) {
+            System.err.println("  [" + i + "] \"" + sinks.get(i) + "\"");
+          }
 
-      System.err.println("========================================");
-    }
-  };
+          System.err.println("========================================");
+        }
+      };
 
   @Before
   public void setUp() {
