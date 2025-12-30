@@ -28,8 +28,10 @@ from typing import Dict
 from typing import List
 
 import grpc
-from envoy_data_plane.envoy.extensions.common.ratelimit.v3 import RateLimitDescriptor
-from envoy_data_plane.envoy.extensions.common.ratelimit.v3 import RateLimitDescriptorEntry
+from envoy_data_plane.envoy.extensions.common.ratelimit.v3 import (
+    RateLimitDescriptor)
+from envoy_data_plane.envoy.extensions.common.ratelimit.v3 import (
+    RateLimitDescriptorEntry)
 from envoy_data_plane.envoy.service.ratelimit.v3 import RateLimitRequest
 from envoy_data_plane.envoy.service.ratelimit.v3 import RateLimitResponse
 from envoy_data_plane.envoy.service.ratelimit.v3 import RateLimitResponseCode
@@ -39,7 +41,7 @@ from apache_beam.metrics import Metrics
 
 _LOGGER = logging.getLogger(__name__)
 
-_MAX_CONNECTION_RETRIES = 5
+_MAX_RETRIES = 5
 _RETRY_DELAY_SECONDS = 10
 
 
@@ -51,15 +53,15 @@ class RateLimiter(abc.ABC):
     self.throttling_signaler = adaptive_throttler.ThrottlingSignaler(
         namespace=namespace)
     self.requests_counter = Metrics.counter(
-        namespace, 'envoyRatelimitRequestsTotal')
+        namespace, 'RatelimitRequestsTotal')
     self.requests_allowed = Metrics.counter(
-        namespace, 'envoyRatelimitRequestsAllowed')
+        namespace, 'RatelimitRequestsAllowed')
     self.requests_throttled = Metrics.counter(
-        namespace, 'envoyRatelimitRequestsThrottled')
-    self.rpc_errors = Metrics.counter(namespace, 'envoyRatelimitRpcErrors')
-    self.rpc_retries = Metrics.counter(namespace, 'envoyRatelimitRpcRetries')
+        namespace, 'RatelimitRequestsThrottled')
+    self.rpc_errors = Metrics.counter(namespace, 'RatelimitRpcErrors')
+    self.rpc_retries = Metrics.counter(namespace, 'RatelimitRpcRetries')
     self.rpc_latency = Metrics.distribution(
-        namespace, 'envoyRatelimitRpcLatencyMs')
+        namespace, 'RatelimitRpcLatencyMs')
 
   @abc.abstractmethod
   def throttle(self, **kwargs) -> bool:
@@ -72,7 +74,8 @@ class RateLimiter(abc.ABC):
       bool: True if the request is allowed, False if retries exceeded.
 
     Raises:
-      Exception: If an underlying infrastructure error occurs (e.g. RPC failure).
+      Exception: If an underlying infrastructure error occurs (e.g. RPC
+        failure).
     """
     pass
 
@@ -119,9 +122,9 @@ class EnvoyRateLimiter(RateLimiter):
     Wrapper for gRPC stub to be compatible with envoy_data_plane messages.
     
     The envoy-data-plane package uses 'betterproto' which generates async stubs
-    for 'grpclib'. As Beam uses standard synchronous 'grpcio', RateLimitServiceStub
-    is a bridge class to use the betterproto Message types (RateLimitRequest) 
-    with a standard grpcio Channel.
+    for 'grpclib'. As Beam uses standard synchronous 'grpcio',
+    RateLimitServiceStub is a bridge class to use the betterproto Message types
+    (RateLimitRequest) with a standard grpcio Channel.
     """
     def __init__(self, channel):
       self.ShouldRateLimit = channel.unary_unary(
@@ -132,8 +135,8 @@ class EnvoyRateLimiter(RateLimiter):
 
   def init_connection(self):
     if self._stub is None:
-      # Acquire lock to safegaurd againest multiple DoFn threads sharing the same
-      # RateLimiter instance, which is the case when using Shared().
+      # Acquire lock to safegaurd againest multiple DoFn threads sharing the
+      # same RateLimiter instance, which is the case when using Shared().
       with self._lock:
         if self._stub is None:
           channel = grpc.insecure_channel(self.service_address)
@@ -171,21 +174,23 @@ class EnvoyRateLimiter(RateLimiter):
       if not self.block_until_allowed and attempt > self.retries:
         break
 
-      # Connection retry loop
-      for conn_attempt in range(_MAX_CONNECTION_RETRIES):
+      # retry loop
+      for retry_attempt in range(_MAX_RETRIES):
         try:
           start_time = time.time()
           response = self._stub.ShouldRateLimit(request, timeout=self.timeout)
           self.rpc_latency.update(int((time.time() - start_time) * 1000))
           break
         except grpc.RpcError as e:
-          if conn_attempt == _MAX_CONNECTION_RETRIES - 1:
-            _LOGGER.error("[EnvoyRateLimiter] Connection Failed: %s", e)
+          if retry_attempt == _MAX_RETRIES - 1:
+            _LOGGER.error(
+                "[EnvoyRateLimiter] ratelimit service call failed: %s", e)
             self.rpc_errors.inc()
             raise e
           self.rpc_retries.inc()
           _LOGGER.warning(
-              "[EnvoyRateLimiter] Connection Failed, retrying: %s", e)
+              "[EnvoyRateLimiter] ratelimit service call failed, retrying: %s",
+              e)
           time.sleep(_RETRY_DELAY_SECONDS)
 
       if response.overall_code == RateLimitResponseCode.OK:
@@ -195,20 +200,19 @@ class EnvoyRateLimiter(RateLimiter):
       elif response.overall_code == RateLimitResponseCode.OVER_LIMIT:
         self.requests_throttled.inc()
         # Ratelimit exceeded, sleep for duration until reset and retry
-        # multiple rules can be set in the RLS config, so we need to find the max duration
+        # multiple rules can be set in the RLS config, so we need to find the
+        # max duration
         sleep_s = 0.0
         if response.statuses:
           for status in response.statuses:
             if status.code == RateLimitResponseCode.OVER_LIMIT:
               dur = status.duration_until_reset
               # duration_until_reset is converted to timedelta by betterproto
-              # duration_until_reset has microsecond precision
               val = dur.total_seconds()
               if val > sleep_s:
                 sleep_s = val
 
         # Add 1% additive jitter to prevent thundering herd
-        # This adds jitter in the order of ms
         jitter = random.uniform(0, 0.01 * sleep_s)
         sleep_s += jitter
 

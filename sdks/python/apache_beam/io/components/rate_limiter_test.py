@@ -23,7 +23,8 @@ from datetime import timedelta
 from apache_beam.io.components import rate_limiter
 from envoy_data_plane.envoy.service.ratelimit.v3 import RateLimitResponse
 from envoy_data_plane.envoy.service.ratelimit.v3 import RateLimitResponseCode
-from envoy_data_plane.envoy.service.ratelimit.v3 import RateLimitResponseDescriptorStatus
+from envoy_data_plane.envoy.service.ratelimit.v3 import (
+    RateLimitResponseDescriptorStatus)
 
 
 class EnvoyRateLimiterTest(unittest.TestCase):
@@ -71,7 +72,8 @@ class EnvoyRateLimiterTest(unittest.TestCase):
       throttled = self.limiter.throttle()
 
     self.assertFalse(throttled)
-    # Should be called 1 (initial) + 2 (retries) + 1 (last check > retries logic depends on loop)
+    # Should be called 1 (initial) + 2 (retries) + 1 (last check > retries
+    # logic depends on loop)
     # Logic: attempt starts at 0.
     # Loop 1: attempt 0. status OVER_LIMIT. sleep. attempt becomes 1.
     # Loop 2: attempt 1. status OVER_LIMIT. sleep. attempt becomes 2.

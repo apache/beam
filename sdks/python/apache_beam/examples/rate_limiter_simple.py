@@ -15,7 +15,9 @@
 # limitations under the License.
 #
 
-"""A simple example demonstrating usage of the EnvoyRateLimiter in a Beam pipeline."""
+"""A simple example demonstrating usage of the EnvoyRateLimiter in a Beam
+pipeline.
+"""
 
 import argparse
 import logging
@@ -41,7 +43,7 @@ class SampleApiDoFn(beam.DoFn):
     # We use shared.Shared() to ensure only one RateLimiter instance is created
     # per worker and shared across threads.
     def init_limiter():
-      logging.info(f"Connecting to Envoy RLS at {self.rls_address}")
+      logging.info("Connecting to Envoy RLS at %s", self.rls_address)
       return EnvoyRateLimiter(
           service_address=self.rls_address,
           domain=self.domain,
@@ -54,7 +56,7 @@ class SampleApiDoFn(beam.DoFn):
     self.rate_limiter.throttle()
 
     # Process the element mock API call
-    logging.info(f"Processing element: {element}")
+    logging.info("Processing element: %s", element)
     time.sleep(0.1)
     yield element
 
@@ -74,7 +76,7 @@ def run(argv=None):
   pipeline_options = PipelineOptions(pipeline_args)
 
   with beam.Pipeline(options=pipeline_options) as p:
-    (
+    _ = (
         p
         | 'Create' >> beam.Create(range(100))
         | 'RateLimit' >> beam.ParDo(
