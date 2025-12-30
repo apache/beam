@@ -16,15 +16,15 @@
 #
 
 import unittest
-from unittest import mock
-import grpc
 from datetime import timedelta
+from unittest import mock
 
-from apache_beam.io.components import rate_limiter
+import grpc
 from envoy_data_plane.envoy.service.ratelimit.v3 import RateLimitResponse
 from envoy_data_plane.envoy.service.ratelimit.v3 import RateLimitResponseCode
-from envoy_data_plane.envoy.service.ratelimit.v3 import (
-    RateLimitResponseDescriptorStatus)
+from envoy_data_plane.envoy.service.ratelimit.v3 import RateLimitResponseDescriptorStatus
+
+from apache_beam.io.components import rate_limiter
 
 
 class EnvoyRateLimiterTest(unittest.TestCase):

@@ -24,9 +24,9 @@ import logging
 import time
 
 import apache_beam as beam
-from apache_beam.utils import shared
 from apache_beam.io.components.rate_limiter import EnvoyRateLimiter
 from apache_beam.options.pipeline_options import PipelineOptions
+from apache_beam.utils import shared
 
 
 class SampleApiDoFn(beam.DoFn):

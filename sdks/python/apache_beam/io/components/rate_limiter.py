@@ -28,10 +28,8 @@ from typing import Dict
 from typing import List
 
 import grpc
-from envoy_data_plane.envoy.extensions.common.ratelimit.v3 import (
-    RateLimitDescriptor)
-from envoy_data_plane.envoy.extensions.common.ratelimit.v3 import (
-    RateLimitDescriptorEntry)
+from envoy_data_plane.envoy.extensions.common.ratelimit.v3 import RateLimitDescriptor
+from envoy_data_plane.envoy.extensions.common.ratelimit.v3 import RateLimitDescriptorEntry
 from envoy_data_plane.envoy.service.ratelimit.v3 import RateLimitRequest
 from envoy_data_plane.envoy.service.ratelimit.v3 import RateLimitResponse
 from envoy_data_plane.envoy.service.ratelimit.v3 import RateLimitResponseCode
@@ -52,16 +50,14 @@ class RateLimiter(abc.ABC):
     # Metric updates are thread safe
     self.throttling_signaler = adaptive_throttler.ThrottlingSignaler(
         namespace=namespace)
-    self.requests_counter = Metrics.counter(
-        namespace, 'RatelimitRequestsTotal')
+    self.requests_counter = Metrics.counter(namespace, 'RatelimitRequestsTotal')
     self.requests_allowed = Metrics.counter(
         namespace, 'RatelimitRequestsAllowed')
     self.requests_throttled = Metrics.counter(
         namespace, 'RatelimitRequestsThrottled')
     self.rpc_errors = Metrics.counter(namespace, 'RatelimitRpcErrors')
     self.rpc_retries = Metrics.counter(namespace, 'RatelimitRpcRetries')
-    self.rpc_latency = Metrics.distribution(
-        namespace, 'RatelimitRpcLatencyMs')
+    self.rpc_latency = Metrics.distribution(namespace, 'RatelimitRpcLatencyMs')
 
   @abc.abstractmethod
   def throttle(self, **kwargs) -> bool:
