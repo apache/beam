@@ -660,9 +660,6 @@ public class JmsIOTest {
     final int delay = 10;
     return connectorClass == JmsConnectionFactory.class
         ? (JmsTextMessage message) -> {
-          if (message == null) {
-            return null;
-          }
           final JmsAcknowledgeCallback originalCallback = message.getAcknowledgeCallback();
           JmsAcknowledgeCallback jmsAcknowledgeCallbackMock =
               Mockito.mock(JmsAcknowledgeCallback.class);
@@ -682,9 +679,6 @@ public class JmsIOTest {
           return message;
         }
         : (ActiveMQMessage message) -> {
-          if (message == null) {
-            return null;
-          }
           final Callback originalCallback = message.getAcknowledgeCallback();
           message.setAcknowledgeCallback(
               () -> {
