@@ -225,10 +225,10 @@ jobs:
         with:
           gradle-command: :sdks:python:apache_beam:testing:load_tests:run
           arguments: |
-            -PloadTest.mainClass=apache_beam.testing.benchmarks.inference.pytorch_object_detection_benchmarks \
+            -PloadTest.mainClass=apache_beam.testing.benchmarks.inference.pytorch_image_object_detection_benchmarks \
             -Prunner=DataflowRunner \
             -PpythonVersion=3.10 \
-            -PloadTest.requirementsTxtFile=apache_beam/ml/inference/pytorch_object_detection_requirements.txt \
+            -PloadTest.requirementsTxtFile=apache_beam/ml/inference/pytorch_image_object_detection_requirements.txt \
             '-PloadTest.args=${{ env.beam_Inference_Python_Benchmarks_Dataflow_test_arguments_9 }} --mode=batch --job_name=benchmark-tests-pytorch-object_detection-batch-${{env.NOW_UTC}} --output_table=apache-beam-testing.beam_run_inference.result_torch_inference_object_detection_batch' \
 
       - name: run MLTransform Generate Vocab Batch
