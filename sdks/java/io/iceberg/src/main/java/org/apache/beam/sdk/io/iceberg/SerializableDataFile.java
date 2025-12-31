@@ -54,13 +54,13 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  */
 @DefaultSchema(AutoValueSchema.class)
 @AutoValue
-abstract class SerializableDataFile {
+public abstract class SerializableDataFile {
   public static Builder builder() {
     return new AutoValue_SerializableDataFile.Builder();
   }
 
   @SchemaFieldNumber("0")
-  abstract String getPath();
+  public abstract String getPath();
 
   @SchemaFieldNumber("1")
   abstract String getFileFormat();
@@ -69,10 +69,10 @@ abstract class SerializableDataFile {
   abstract long getRecordCount();
 
   @SchemaFieldNumber("3")
-  abstract long getFileSizeInBytes();
+  public abstract long getFileSizeInBytes();
 
   @SchemaFieldNumber("4")
-  abstract String getPartitionPath();
+  public abstract String getPartitionPath();
 
   @SchemaFieldNumber("5")
   abstract int getPartitionSpecId();
@@ -101,8 +101,17 @@ abstract class SerializableDataFile {
   @SchemaFieldNumber("13")
   abstract @Nullable Map<Integer, byte[]> getUpperBounds();
 
+  @SchemaFieldNumber("14")
+  public abstract @Nullable Long getDataSequenceNumber();
+
+  @SchemaFieldNumber("15")
+  public abstract @Nullable Long getFileSequenceNumber();
+
+  @SchemaFieldNumber("16")
+  public abstract @Nullable Long getFirstRowId();
+
   @AutoValue.Builder
-  abstract static class Builder {
+  public abstract static class Builder {
     abstract Builder setPath(String path);
 
     abstract Builder setFileFormat(String fileFormat);
@@ -131,6 +140,12 @@ abstract class SerializableDataFile {
 
     abstract Builder setUpperBounds(@Nullable Map<Integer, byte[]> upperBounds);
 
+    abstract Builder setDataSequenceNumber(@Nullable Long number);
+
+    abstract Builder setFileSequenceNumber(@Nullable Long number);
+
+    abstract Builder setFirstRowId(@Nullable Long id);
+
     abstract SerializableDataFile build();
   }
 
@@ -138,7 +153,7 @@ abstract class SerializableDataFile {
    * Create a {@link SerializableDataFile} from a {@link DataFile} and its associated {@link
    * PartitionKey}.
    */
-  static SerializableDataFile from(DataFile f, String partitionPath) {
+  public static SerializableDataFile from(DataFile f, String partitionPath) {
 
     return SerializableDataFile.builder()
         .setPath(f.path().toString())
@@ -155,6 +170,9 @@ abstract class SerializableDataFile {
         .setNanValueCounts(f.nanValueCounts())
         .setLowerBounds(toByteArrayMap(f.lowerBounds()))
         .setUpperBounds(toByteArrayMap(f.upperBounds()))
+        .setDataSequenceNumber(f.dataSequenceNumber())
+        .setFileSequenceNumber(f.fileSequenceNumber())
+        .setFirstRowId(f.firstRowId())
         .build();
   }
 
@@ -192,14 +210,14 @@ abstract class SerializableDataFile {
         .withFileSizeInBytes(getFileSizeInBytes())
         .withMetrics(dataFileMetrics)
         .withSplitOffsets(getSplitOffsets())
+        .withFirstRowId(getFirstRowId())
         .build();
   }
 
   // ByteBuddyUtils has trouble converting Map value type ByteBuffer
   // to byte[] and back to ByteBuffer, so we perform these conversions manually
   // TODO(https://github.com/apache/beam/issues/32701)
-  private static @Nullable Map<Integer, byte[]> toByteArrayMap(
-      @Nullable Map<Integer, ByteBuffer> input) {
+  static @Nullable Map<Integer, byte[]> toByteArrayMap(@Nullable Map<Integer, ByteBuffer> input) {
     if (input == null) {
       return null;
     }
@@ -210,8 +228,7 @@ abstract class SerializableDataFile {
     return output;
   }
 
-  private static @Nullable Map<Integer, ByteBuffer> toByteBufferMap(
-      @Nullable Map<Integer, byte[]> input) {
+  static @Nullable Map<Integer, ByteBuffer> toByteBufferMap(@Nullable Map<Integer, byte[]> input) {
     if (input == null) {
       return null;
     }
@@ -244,10 +261,13 @@ abstract class SerializableDataFile {
         && Objects.equals(getNullValueCounts(), that.getNullValueCounts())
         && Objects.equals(getNanValueCounts(), that.getNanValueCounts())
         && mapEquals(getLowerBounds(), that.getLowerBounds())
-        && mapEquals(getUpperBounds(), that.getUpperBounds());
+        && mapEquals(getUpperBounds(), that.getUpperBounds())
+        && Objects.equals(getDataSequenceNumber(), that.getDataSequenceNumber())
+        && Objects.equals(getFileSequenceNumber(), that.getFileSequenceNumber())
+        && Objects.equals(getFirstRowId(), that.getFirstRowId());
   }
 
-  private static boolean mapEquals(
+  static boolean mapEquals(
       @Nullable Map<Integer, byte[]> map1, @Nullable Map<Integer, byte[]> map2) {
     if (map1 == null && map2 == null) {
       return true;
@@ -285,13 +305,16 @@ abstract class SerializableDataFile {
             getColumnSizes(),
             getValueCounts(),
             getNullValueCounts(),
-            getNanValueCounts());
+            getNanValueCounts(),
+            getDataSequenceNumber(),
+            getFileSequenceNumber(),
+            getFirstRowId());
     hashCode = 31 * hashCode + computeMapByteHashCode(getLowerBounds());
     hashCode = 31 * hashCode + computeMapByteHashCode(getUpperBounds());
     return hashCode;
   }
 
-  private static int computeMapByteHashCode(@Nullable Map<Integer, byte[]> map) {
+  static int computeMapByteHashCode(@Nullable Map<Integer, byte[]> map) {
     if (map == null) {
       return 0;
     }

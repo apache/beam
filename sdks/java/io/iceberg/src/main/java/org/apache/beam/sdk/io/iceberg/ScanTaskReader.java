@@ -122,7 +122,10 @@ class ScanTaskReader extends BoundedSource.BoundedReader<Row> {
       InputFile input = decryptor.getInputFile(fileTask);
       Map<Integer, ?> idToConstants =
           ReadUtils.constantsMap(
-              fileTask, IdentityPartitionConverters::convertConstant, requiredSchema);
+              fileTask.spec(),
+              fileTask.file(),
+              IdentityPartitionConverters::convertConstant,
+              requiredSchema);
 
       CloseableIterable<Record> iterable;
       switch (file.format()) {
