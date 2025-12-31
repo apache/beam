@@ -266,3 +266,19 @@ looks:
           title: AvgThroughputBytesPerSec by Version
         - id: #TODO
           title: AvgThroughputElementsPerSec by Version
+  pytorchimagecaptioning:
+    write:
+      folder: #TODO
+      cost:
+        - id: #TODO
+          title: RunTime and EstimatedCost
+      date:
+        - id: #TODO
+          title: AvgThroughputBytesPerSec by Date
+        - id: #TODO
+          title: AvgThroughputElementsPerSec by Date
+      version:
+        - id: #TODO
+          title: AvgThroughputBytesPerSec by Version
+        - id: #TODO
+          title: AvgThroughputElementsPerSec by Version
