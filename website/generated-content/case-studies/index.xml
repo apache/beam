@@ -1,4 +1,219 @@
-<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>Apache Beam – Case Studies</title><link>/case-studies/</link><description>Recent content in Case Studies on Apache Beam</description><generator>Hugo -- gohugo.io</generator><language>en</language><atom:link href="/case-studies/index.xml" rel="self" type="application/rss+xml"/><item><title>Case-Studies: Credit Karma: Leveraging Apache Beam for Enhanced Financial Insights</title><link>/case-studies/creditkarmainsights/</link><pubDate>Sun, 25 May 2025 00:12:00 +0000</pubDate><guid>/case-studies/creditkarmainsights/</guid><description>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>Apache Beam – Case Studies</title><link>/case-studies/</link><description>Recent content in Case Studies on Apache Beam</description><generator>Hugo -- gohugo.io</generator><language>en</language><atom:link href="/case-studies/index.xml" rel="self" type="application/rss+xml"/><item><title>Case-Studies: Albertsons: Using Apache Beam for Unified Analytics Ingestion</title><link>/case-studies/albertsons/</link><pubDate>Tue, 30 Dec 2025 00:04:00 +0000</pubDate><guid>/case-studies/albertsons/</guid><description>
+&lt;!--
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+http://www.apache.org/licenses/LICENSE-2.0
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+&lt;!-- div with class case-study-opinion is displayed at the top left area of the case study page -->
+&lt;div class="case-study-opinion">
+&lt;div class="case-study-opinion-img">
+&lt;img src="/images/logos/powered-by/albertsons.jpg"/>
+&lt;/div>
+&lt;blockquote class="case-study-quote-block">
+&lt;p class="case-study-quote-text">
+“Apache Beam enabled Albertsons to standardize ingestion into a resilient and portable framework, delivering 99.9% reliability at enterprise scale across both real-time signals and core business data.”
+&lt;/p>
+&lt;div class="case-study-quote-author">
+&lt;div class="case-study-quote-author-img">
+&lt;img src="/images/case-study/albertsons/utkarshparekh.png">
+&lt;/div>
+&lt;div class="case-study-quote-author-info">
+&lt;div class="case-study-quote-author-name">
+Utkarsh Parekh
+&lt;/div>
+&lt;div class="case-study-quote-author-position">
+Staff Engineer, Data @ Albertsons
+&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;/blockquote>
+&lt;/div>
+&lt;!-- div with class case-study-post is the case study page main content -->
+&lt;div class="case-study-post">
+&lt;h1 id="albertsons-using-apache-beam-for-unified-analytics-ingestion">Albertsons: Using Apache Beam for Unified Analytics Ingestion&lt;/h1>
+&lt;h2 id="context">Context&lt;/h2>
+&lt;p>Albertsons Companies is one of the largest retail grocery organizations in North America, operating over 2,200 stores and serving millions of customers across physical and digital channels.&lt;/p>
+&lt;p>Apache Beam is the foundation of the &lt;strong>internal Unified Data Ingestion framework&lt;/strong>, a standardized enterprise ELT platform that delivers both streaming and batch data into modern cloud analytics systems. The framework uses &lt;strong>both Java and Python Beam SDKs, Dataflow Flex Templates, enabling flexibility across workloads. When a capability is not yet supported in the Python SDK but is available in the Java SDK, we can seamlessly leverage Java-based implementations to deliver the required functionality.&lt;/strong>&lt;/p>
+&lt;p>This unified architecture reduces duplicated logic, standardizes governance, and accelerates data enablement across business domains.&lt;/p>
+&lt;h2 id="challenges-and-use-cases">Challenges and Use Cases&lt;/h2>
+&lt;p>Before Apache Beam, ingestion patterns were fragmented across streaming and batch pipelines. This led to longer development cycles, inconsistent data quality, and increased operational overhead.&lt;/p>
+&lt;p>The framework’s architecture emphasizes object-oriented principles including single responsibility, modularity, and separation of concerns. This enables reusable Beam transforms, configurable IO connectors, and clean abstractions between orchestration and execution layers.&lt;/p>
+&lt;p>Beam enabled:&lt;/p>
+&lt;ul>
+&lt;li>Unified development for real-time and scheduled ingestion&lt;/li>
+&lt;li>Standardized connectivity to enterprise systems&lt;/li>
+&lt;li>Reliable governance and observability baked into pipelines&lt;/li>
+&lt;/ul>
+&lt;p>The framework supports:&lt;/p>
+&lt;ul>
+&lt;li>&lt;strong>Real-time streaming analytics&lt;/strong> from operational and digital signals&lt;/li>
+&lt;li>&lt;strong>Batch ingestion&lt;/strong> from mission-critical enterprise systems&lt;/li>
+&lt;li>&lt;strong>File-based ingestion&lt;/strong> for vendor and financial datasets&lt;/li>
+&lt;li>&lt;strong>Legacy MQ ingestion&lt;/strong> using JMSIO-based connectors&lt;/li>
+&lt;/ul>
+&lt;p>To scale efficiently, the framework features &lt;strong>Apache Airflow dynamic DAG creation.&lt;/strong>&lt;/p>
+&lt;p>Metadata-driven ingestion jobs generate DAGs automatically at runtime, and &lt;strong>BashOperator&lt;/strong> is used to submit &lt;strong>Dataflow&lt;/strong> jobs for consistent execution, security, and monitoring.&lt;/p>
+&lt;p>Common Beam transforms include Impulse, windowing, grouping, and batching optimizations.&lt;/p>
+&lt;blockquote class="case-study-quote-block case-study-quote-wrapped">
+&lt;p class="case-study-quote-text">
+In Albertsons we utilized Apache Beam to write an in-house framework that enabled our data engineering teams to create robust data pipelines through a consistent - single interface. The framework helped reduce the overall development cycle since we templatized the various data integration patterns. Having a custom framework gave us flexibility to prioritize and configure multiple technologies/integration points like Kafka, Files, Managed Queues, Databases (Oracle, DB2, Azure SQL etc.) and Data Warehouses like BigQuery and Snowflake. Moreover this helped the production support teams to manage and debug 2500+ jobs with ease since the implementations were consistent across 17+ data engineering teams
+&lt;/p>
+&lt;div class="case-study-quote-author">
+&lt;div class="case-study-quote-author-img">
+&lt;img src="/images/case-study/albertsons/mohammedjawedkhan.jpeg">
+&lt;/div>
+&lt;div class="case-study-quote-author-info">
+&lt;div class="case-study-quote-author-name">
+Mohammed Jawed Khan
+&lt;/div>
+&lt;div class="case-study-quote-author-position">
+Principal Data Engineer @ Albertsons
+&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;/blockquote>
+&lt;h2 id="technical-data">Technical Data&lt;/h2>
+&lt;p>Apache Beam pipelines operate at enterprise scale:&lt;/p>
+&lt;ul>
+&lt;li>Hundreds of production pipelines&lt;/li>
+&lt;li>Terabytes of data processed weekly, including thousands of streaming events per second.&lt;/li>
+&lt;/ul>
+&lt;p>All ingestion paths adhere to internal security controls and support &lt;strong>tokenization&lt;/strong> for PII and sensitive data protection using Protegrity.&lt;/p>
+&lt;h2 id="results">Results&lt;/h2>
+&lt;p>Apache Beam has significantly improved the reliability, reusability, and speed of Albertsons’ data platforms:&lt;/p>
+&lt;div class="table-wrapper">&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th>Area&lt;/th>
+&lt;th>Outcome&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td>Reliability&lt;/td>
+&lt;td>&lt;strong>99.9%+ uptime&lt;/strong> for data ingestion&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>Developer Productivity&lt;/td>
+&lt;td>Pipelines created faster via standardized templates&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>Operational Efficiency&lt;/td>
+&lt;td>&lt;strong>Autoscaling&lt;/strong> optimizes resource utilization&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>Business Enablement&lt;/td>
+&lt;td>Enables &lt;strong>real-time decisioning&lt;/strong>&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
+&lt;/div>
+&lt;h3 id="business-impact">Business Impact&lt;/h3>
+&lt;p>Beam enabled one unified ingestion framework that supports both streaming and batch workloads - eliminating fragmentation and delivering trusted signals to analytics.&lt;/p>
+&lt;blockquote class="case-study-quote-block case-study-quote-wrapped">
+&lt;p class="case-study-quote-text">
+Integrating Apache Beam into our in-house ELT platform has reduced engineering effort and operational overhead, while improving efficiency at scale. Teams can now focus more on delivering business outcomes instead of managing infrastructure.
+&lt;/p>
+&lt;div class="case-study-quote-author">
+&lt;div class="case-study-quote-author-img">
+&lt;img src="/images/case-study/albertsons/vinaydesai.jpeg">
+&lt;/div>
+&lt;div class="case-study-quote-author-info">
+&lt;div class="case-study-quote-author-name">
+Vinay Desai
+&lt;/div>
+&lt;div class="case-study-quote-author-position">
+Director Engineering @ Albertsons
+&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;/blockquote>
+&lt;blockquote class="case-study-quote-block case-study-quote-wrapped">
+&lt;p class="case-study-quote-text">
+By leveraging Apache Beam into the ACI platform, we achieved a significant reduction in downtime. The adoption of reusable features further minimized the risk of production issues.
+&lt;/p>
+&lt;div class="case-study-quote-author">
+&lt;div class="case-study-quote-author-img">
+&lt;img src="/images/case-study/albertsons/ankurraj.jpeg">
+&lt;/div>
+&lt;div class="case-study-quote-author-info">
+&lt;div class="case-study-quote-author-name">
+Ankur Raj
+&lt;/div>
+&lt;div class="case-study-quote-author-position">
+Director , Data Engineering Operations @ Albertsons
+&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;/blockquote>
+&lt;h2 id="infrastructure">Infrastructure&lt;/h2>
+&lt;div class="table-wrapper">&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th>Component&lt;/th>
+&lt;th>Detail&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td>Cloud&lt;/td>
+&lt;td>Google Cloud Platform&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>Runner&lt;/td>
+&lt;td>DataflowRunner&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>Beam SDKs&lt;/td>
+&lt;td>Java &amp;amp; Python&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>Workflow Orchestration&lt;/td>
+&lt;td>Apache Airflow with dynamic DAG creation&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>Deployment&lt;/td>
+&lt;td>BashOperator submits Dataflow jobs&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>Sources&lt;/td>
+&lt;td>Kafka, JDBC systems, files, MQ, APIs&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>Targets&lt;/td>
+&lt;td>BigQuery, GCS, Kafka&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>Observability&lt;/td>
+&lt;td>Centralized logging, alerting, retry patterns&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
+&lt;/div>
+&lt;p>Deployment is portable across Dev, QA, and Prod environments.&lt;/p>
+&lt;h2 id="beam-community--evolution">Beam Community &amp;amp; Evolution&lt;/h2>
+&lt;p>Beam community resources supported the framework’s growth through:&lt;/p>
+&lt;ul>
+&lt;li>Slack &amp;amp; developer channels&lt;/li>
+&lt;li>Documentation&lt;/li>
+&lt;li>Beam Summit participation&lt;/li>
+&lt;/ul>
+&lt;!-- case_study_feedback adds feedback buttons -->
+&lt;div class="case-study-feedback" id="case-study-feedback">
+&lt;p class="case-study-feedback-title">Was this information useful?&lt;/p>
+&lt;div>
+&lt;button class="btn case-study-feedback-btn" onclick="sendCaseStudyFeedback(true, 'AlbertsonsCompanies')">Yes&lt;/button>
+&lt;button class="btn case-study-feedback-btn" onclick="sendCaseStudyFeedback(false, 'AlbertsonsCompanies')">No&lt;/button>
+&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;div class="clear-nav">&lt;/div></description></item><item><title>Case-Studies: Credit Karma: Leveraging Apache Beam for Enhanced Financial Insights</title><link>/case-studies/creditkarmainsights/</link><pubDate>Sun, 25 May 2025 00:12:00 +0000</pubDate><guid>/case-studies/creditkarmainsights/</guid><description>
 &lt;!--
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -3079,17 +3294,6 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 --></description></item><item><title>Case-Studies: Hoxton AI</title><link>/case-studies/hoxtonai/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>/case-studies/hoxtonai/</guid><description>
-&lt;!--
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-http://www.apache.org/licenses/LICENSE-2.0
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
---></description></item><item><title>Case-Studies: iBiblio</title><link>/case-studies/ibiblio/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>/case-studies/ibiblio/</guid><description>
 &lt;!--
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
