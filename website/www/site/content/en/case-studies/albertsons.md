@@ -9,7 +9,7 @@ cardDescription: "Apache Beam enabled Albertsons to standardize ingestion into a
 authorName: "Utkarsh Parekh"
 authorPosition: "Staff Engineer, Data @ Albertsons"
 authorImg: /images/case-study/albertsons/utkarshparekh.png
-publishDate: 2026-01-06T00:04:00+00:00
+publishDate: 2025-12-30T00:04:00+00:00
 ---
 <!--
 Licensed under the Apache License, Version 2.0 (the "License");
