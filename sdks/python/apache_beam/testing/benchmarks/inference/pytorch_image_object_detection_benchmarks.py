@@ -26,15 +26,15 @@ class PytorchImageObjectDetectionBenchmarkTest(DataflowCostBenchmark):
   def __init__(self):
     self.metrics_namespace = 'BeamML_PyTorch'
     super().__init__(
-      metrics_namespace=self.metrics_namespace,
-      pcollection='PostProcess.out0')
+        metrics_namespace=self.metrics_namespace,
+        pcollection='PostProcess.out0')
 
   def test(self):
     extra_opts = {}
     extra_opts['input'] = self.pipeline.get_option('input_file')
     self.result = pytorch_image_object_detection.run(
-      self.pipeline.get_full_options_as_args(**extra_opts),
-      test_pipeline=self.pipeline)
+        self.pipeline.get_full_options_as_args(**extra_opts),
+        test_pipeline=self.pipeline)
 
 
 if __name__ == '__main__':

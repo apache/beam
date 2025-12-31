@@ -21,7 +21,7 @@
 --autoscaling_algorithm=NONE
 --staging_location=gs://temp-storage-for-perf-tests/loadtests
 --temp_location=gs://temp-storage-for-perf-tests/loadtests
---requirements_file=apache_beam/ml/inference/pytorch_object_detection_requirements.txt
+--requirements_file=apache_beam/ml/inference/pytorch_image_object_detection_requirements.txt
 --publish_to_big_query=true
 --metrics_dataset=beam_run_inference
 --metrics_table=result_torch_inference_object_detection_batch
