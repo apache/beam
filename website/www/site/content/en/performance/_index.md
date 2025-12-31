@@ -60,5 +60,6 @@ See the following pages for performance measures recorded when running various B
 - [VLLM Gemma Batch Completion Tesla T4 GPU](/performance/vllmgemmabatchtesla)
 - [Table Row Inference Sklearn Batch](/performance/tablerowinference)
 - [PyTorch Image Object Detection Faster R-CNN ResNet-50 Batch](/performance/pytorchimageobjectdetection)
+- [PyTorch Image Captioning BLIP + CLIP Batch](/performance/pytorchimagecaptioning)
 - [MLTransform Generate Vocab (batch)](/performance/mltransformvocab)
 - [MLTransform One-Hot Encoding](/performance/mltransformonehot)
