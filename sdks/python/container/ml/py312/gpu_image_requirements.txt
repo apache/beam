@@ -40,7 +40,7 @@ blake3==1.0.8
 bs4==0.0.2
 build==1.3.0
 cachetools==6.2.4
-cbor2==5.7.1
+cbor2==5.8.0
 certifi==2025.11.12
 cffi==2.0.0
 charset-normalizer==3.4.4
