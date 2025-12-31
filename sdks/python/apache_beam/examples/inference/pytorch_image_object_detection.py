@@ -52,8 +52,8 @@ from apache_beam.runners.runner import PipelineResult
 import torch
 import PIL.Image as PILImage
 
-
 # ============ Utility & Preprocessing ============
+
 
 def now_millis() -> int:
   return int(time.time() * 1000)
@@ -71,9 +71,9 @@ def load_image_from_uri(uri: str) -> bytes:
     return f.read()
 
 
-def decode_to_tensor(
-  image_bytes: bytes,
-  resize_shorter_side: Optional[int] = None) -> torch.Tensor:
+def decode_to_tens(
+    image_bytes: bytes,
+    resize_shorter_side: Optional[int] = None) -> torch.Tensor:
   """Decode bytes -> RGB PIL -> optional resize -> float tensor [0..1], CHW.
 
   Note: TorchVision detection models apply their own normalization internally.
@@ -105,6 +105,7 @@ def sha1_hex(s: str) -> str:
 
 # ============ DoFns ============
 
+
 class MakeKeyDoFn(beam.DoFn):
   """Produce (image_id, uri) where image_id is stable for dedup and keys."""
   def process(self, element: str):
@@ -123,19 +124,21 @@ class DecodePreprocessDoFn(beam.DoFn):
     start = now_millis()
     try:
       b = load_image_from_uri(uri)
-      tensor = decode_to_tensor(b, resize_shorter_side=self.resize_shorter_side)
+      tensor = decode_to_tens(b, resize_shorter_side=self.resize_shorter_side)
       preprocess_ms = now_millis() - start
-      yield image_id, {"tensor": tensor, "preprocess_ms": preprocess_ms, "uri": uri}
+      yield image_id, {
+          "tensor": tensor, "preprocess_ms": preprocess_ms, "uri": uri
+      }
     except Exception as e:
       logging.warning("Decode failed for %s (%s): %s", image_id, uri, e)
       return
 
 
 def _torchvision_detection_inference_fn(
-  model, batch: List[torch.Tensor], device: str) -> List[Dict[str, Any]]:
+    model, batch: List[torch.Tensor], device: str) -> List[Dict[str, Any]]:
   """Custom inference for TorchVision detection models.
 
-  TorchVision detection models expect: List[Tensor] (each tensor: CHW float [0..1]).
+  TorchVision detection models expect: List[Tensor] (each: CHW float [0..1]).
   """
   with torch.no_grad():
     inputs = []
@@ -152,10 +155,7 @@ def _torchvision_detection_inference_fn(
 class PostProcessDoFn(beam.DoFn):
   """PredictionResult -> dict row for BQ."""
   def __init__(
-    self,
-    model_name: str,
-    score_threshold: float,
-    max_detections: int):
+    self, model_name: str, score_threshold: float, max_detections: int):
     self.model_name = model_name
     self.score_threshold = score_threshold
     self.max_detections = max_detections
@@ -191,9 +191,9 @@ class PostProcessDoFn(beam.DoFn):
         continue
       box = boxes_list[i]  # [x1,y1,x2,y2]
       dets.append({
-        "label_id": int(labels_list[i]),
-        "score": score,
-        "box": [float(box[0]), float(box[1]), float(box[2]), float(box[3])],
+          "label_id": int(labels_list[i]),
+          "score": score,
+          "box": [float(box[0]), float(box[1]), float(box[2]), float(box[3])],
       })
       if len(dets) >= self.max_detections:
         break
@@ -214,8 +214,7 @@ class PostProcessDoFn(beam.DoFn):
 
     if not isinstance(inference_obj, dict):
       logging.warning(
-          "Unexpected inference type for %s: %s", image_id, type(inference_obj)
-      )
+          "Unexpected inf-ce type for %s: %s", image_id, type(inference_obj))
       yield {
           "image_id": image_id,
           "model_name": self.model_name,
@@ -238,32 +237,32 @@ class PostProcessDoFn(beam.DoFn):
 
 # ============ Args & Helpers ============
 
+
 def parse_known_args(argv):
   parser = argparse.ArgumentParser()
 
   # I/O & runtime
   parser.add_argument('--mode', default='batch', choices=['batch'])
   parser.add_argument(
-    '--output_table',
-    required=True,
-    help='BigQuery output table: dataset.table')
+      '--output_table',
+      required=True,
+      help='BigQuery output table: dataset.table')
   parser.add_argument(
-    '--publish_to_big_query', default='true', choices=['true', 'false'])
+      '--publish_to_big_query', default='true', choices=['true', 'false'])
   parser.add_argument(
-    '--input',
-    required=True,
-    help='GCS path to file with image URIs')
+      '--input', required=True, help='GCS path to file with image URIs')
 
   # Model & inference
   parser.add_argument(
-    '--pretrained_model_name',
-    default='fasterrcnn_resnet50_fpn',
-    help=('TorchVision detection model name '
+      '--pretrained_model_name',
+      default='fasterrcnn_resnet50_fpn',
+      help=(
+          'TorchVision detection model name '
           '(e.g., fasterrcnn_resnet50_fpn)'))
   parser.add_argument(
-    '--model_state_dict_path',
-    required=True,
-    help='GCS path to a state_dict .pth for the chosen model')
+      '--model_state_dict_path',
+      required=True,
+      help='GCS path to a state_dict .pth for the chosen model')
   parser.add_argument('--device', default='GPU', choices=['CPU', 'GPU'])
 
   # Batch sizing (no right-fitting)
@@ -311,8 +310,9 @@ def create_torchvision_detection_model(model_name: str):
 
 # ============ Main pipeline ============
 
+
 def run(
-  argv=None, save_main_session=True, test_pipeline=None) -> PipelineResult:
+    argv=None, save_main_session=True, test_pipeline=None) -> PipelineResult:
   known_args, pipeline_args = parse_known_args(argv)
 
   pipeline_options = PipelineOptions(pipeline_args)
@@ -328,30 +328,25 @@ def run(
   batch_size = int(known_args.inference_batch_size)
 
   model_handler = PytorchModelHandlerTensor(
-    model_class=lambda: create_torchvision_detection_model(
-        known_args.pretrained_model_name
-    ),
-    model_params={},
-    state_dict_path=known_args.model_state_dict_path,
-    device=device,
-    inference_batch_size=batch_size,
-    inference_fn=_torchvision_detection_inference_fn,
+      model_class=lambda: create_torchvision_detection_model(
+          known_args.pretrained_model_name
+      ),
+      model_params={},
+      state_dict_path=known_args.model_state_dict_path,
+      device=device,
+      inference_batch_size=batch_size,
+      inference_fn=_torchvision_detection_inference_fn,
   )
 
   pipeline = test_pipeline or beam.Pipeline(options=pipeline_options)
 
   pcoll = (
-    pipeline
-    | 'ReadURIsBatch' >> beam.Create(
-        list(read_gcs_file_lines(known_args.input))
-    )
-    | 'FilterEmptyBatch' >> beam.Filter(lambda s: s.strip())
-  )
+      pipeline
+      | 'ReadURIsBatch' >> beam.Create(
+          list(read_gcs_file_lines(known_args.input)))
+      | 'FilterEmptyBatch' >> beam.Filter(lambda s: s.strip()))
 
-  keyed = (
-    pcoll
-    | 'MakeKey' >> beam.ParDo(MakeKeyDoFn())
-  )
+  keyed = (pcoll | 'MakeKey' >> beam.ParDo(MakeKeyDoFn()))
 
   # Batch exactly-once behavior:
   # 1) Dedup by key within the run to ensure stable writes.
@@ -359,41 +354,37 @@ def run(
   keyed = keyed | 'DistinctByKey' >> beam.Distinct()
 
   preprocessed = (
-    keyed
-    | 'DecodePreprocess' >> beam.ParDo(
-    DecodePreprocessDoFn(resize_shorter_side=resize_shorter_side))
-  )
+      keyed
+      | 'DecodePreprocess' >> beam.ParDo(
+          DecodePreprocessDoFn(resize_shorter_side=resize_shorter_side)))
 
   to_infer = (
-    preprocessed
-    | 'ToKeyedTensor' >> beam.Map(lambda kv: (kv[0], kv[1]["tensor"]))
-  )
+      preprocessed
+      | 'ToKeyedTensor' >> beam.Map(lambda kv: (kv[0], kv[1]["tensor"])))
 
   predictions = (
-    to_infer
-    | 'RunInference' >> RunInference(KeyedModelHandler(model_handler))
-  )
+      to_infer
+      | 'RunInference' >> RunInference(KeyedModelHandler(model_handler)))
 
   results = (
-    predictions
-    | 'PostProcess' >> beam.ParDo(
-    PostProcessDoFn(
-      model_name=known_args.pretrained_model_name,
-      score_threshold=known_args.score_threshold,
-      max_detections=known_args.max_detections))
-  )
+      predictions
+      | 'PostProcess' >> beam.ParDo(
+          PostProcessDoFn(
+              model_name=known_args.pretrained_model_name,
+              score_threshold=known_args.score_threshold,
+              max_detections=known_args.max_detections)))
 
   if known_args.publish_to_big_query == 'true':
     _ = (
-      results
-      | 'WriteToBigQuery' >> beam.io.WriteToBigQuery(
-      known_args.output_table,
-      schema=('image_id:STRING, model_name:STRING, '
-              'detections:STRING, num_detections:INT64, infer_ms:INT64'),
-      write_disposition=beam.io.BigQueryDisposition.WRITE_APPEND,
-      create_disposition=beam.io.BigQueryDisposition.CREATE_IF_NEEDED,
-      method=beam.io.WriteToBigQuery.Method.FILE_LOADS)
-    )
+        results
+        | 'WriteToBigQuery' >> beam.io.WriteToBigQuery(
+            known_args.output_table,
+            schema=(
+                'image_id:STRING, model_name:STRING, '
+                'detections:STRING, num_detections:INT64, infer_ms:INT64'),
+            write_disposition=beam.io.BigQueryDisposition.WRITE_APPEND,
+            create_disposition=beam.io.BigQueryDisposition.CREATE_IF_NEEDED,
+            method=beam.io.WriteToBigQuery.Method.FILE_LOADS))
 
   result = pipeline.run()
   result.wait_until_finish(duration=1800000)  # 30 min
