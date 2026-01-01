@@ -1451,6 +1451,73 @@ def side_input_slow_update(
   return pipeline, result
 
 
+def side_input_slow_update_global_window():
+  # [START SideInputPatternSlowUpdateGlobalWindowSnip1]
+  import apache_beam as beam
+  from apache_beam.transforms.periodicsequence import PeriodicSequence
+  from apache_beam import pvalue
+  from apache_beam.transforms import window
+  from apache_beam.transforms.trigger import Repeatedly, AfterProcessingTime
+  from apache_beam.utils.timestamp import MAX_TIMESTAMP
+  import time
+  import logging
+
+  def placeholder_external_service_read_test_data(element):
+    """Placeholder function that represents an external service generating test data."""
+    # Replace with actual external service call
+    return {
+        'Key_A': time.strftime('%H:%M:%S', time.localtime(time.time()))
+    }
+
+  # Create pipeline
+  pipeline = beam.Pipeline()
+
+  # Create a side input that updates every 5 seconds.
+  # View as an iterable, not singleton, so that if we happen to trigger more
+  # than once before Latest.Globally is computed we can handle both elements.
+  side_input = (
+      pipeline
+      | 'SideInputSequence' >> PeriodicSequence(
+          start=time.time(), 
+          stop=MAX_TIMESTAMP,  # Run indefinitely
+          interval=5)  # Update every 5 seconds
+      | 'FetchExternalData' >> beam.Map(placeholder_external_service_read_test_data)
+      | 'GlobalWindow' >> beam.WindowInto(
+          window.GlobalWindows(),
+          trigger=Repeatedly(AfterProcessingTime(delay=0)),
+          accumulation_mode=beam.transforms.trigger.AccumulationMode.DISCARDING)
+      | 'LatestValue' >> beam.combiners.Latest.Globally().without_defaults()
+      | 'ViewAsIterable' >> beam.pvalue.AsIter())
+
+  # Consume side input. Use PeriodicSequence for test data.
+  # Use a real source (like PubSubIO or KafkaIO) in production.
+  main_result = (
+      pipeline
+      | 'MainSequence' >> PeriodicSequence(
+          start=time.time() - 1,
+          stop=MAX_TIMESTAMP,
+          interval=1)  # Generate every 1 second
+      | 'FixedWindow' >> beam.WindowInto(window.FixedWindows(1))
+      | 'SumGlobally' >> beam.CombineGlobally(sum).without_defaults()
+      | 'ProcessWithSideInput' >> beam.FlatMap(
+          lambda element, side_data: [
+              {
+                  'main_value': element,
+                  'side_input_key_a': list(side_data)[0].get('Key_A', 'N/A') 
+                      if side_data else 'No side input',
+                  'timestamp': time.strftime('%H:%M:%S')
+              }
+          ],
+          side_data=side_input)
+      | 'LogResults' >> beam.Map(
+          lambda result: logging.info(
+              f"Value is {result['main_value']} with timestamp {result['timestamp']}, "
+              f"using key A from side input with time {result['side_input_key_a']}.") or result))
+  # [END SideInputPatternSlowUpdateGlobalWindowSnip1]
+
+  return pipeline, main_result
+
+
 def bigqueryio_deadletter():
   # [START BigQueryIODeadLetter]
 
