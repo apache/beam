@@ -1,0 +1,65 @@
+# coding=utf-8
+#
+# Licensed to the Apache Software Foundation (ASF) under one or more
+# contributor license agreements.  See the NOTICE file distributed with
+# this work for additional information regarding copyright ownership.
+# The ASF licenses this file to You under the Apache License, Version 2.0
+# (the "License"); you may not use this file except in compliance with
+# the License.  You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# SQL Transform with BigQuery Functions and Syntax
+# This example demonstrates using BigQuery-specific SQL syntax and functions.
+# The calcite_connection_properties enable BigQuery function library and lexical rules.
+
+pipeline:
+  transforms:
+    - type: Create
+      name: CreateSalesData
+      config:
+        elements:
+          - {transaction_id: "txn_001", customer_id: 101, amount: 250.75, timestamp: "2024-01-15T10:30:00Z", product_categories: ["electronics", "accessories"]}
+          - {transaction_id: "txn_002", customer_id: 102, amount: 89.99, timestamp: "2024-01-15T11:45:00Z", product_categories: ["books", "education"]}
+          - {transaction_id: "txn_003", customer_id: 103, amount: 1250.00, timestamp: "2024-01-15T14:20:00Z", product_categories: ["electronics", "computers"]}
+          - {transaction_id: "txn_004", customer_id: 101, amount: 45.50, timestamp: "2024-01-16T09:15:00Z", product_categories: ["food", "groceries"]}
+
+    - type: Sql
+      name: AnalyzeSalesData
+      input: CreateSalesData
+      config:
+        query: |
+          SELECT 
+            customer_id,
+            COUNT(*) as transaction_count,
+            SUM(amount) as total_spent,
+            AVG(amount) as avg_transaction_amount,
+            -- BigQuery-style date/time functions
+            FORMAT_TIMESTAMP('%Y-%m-%d', PARSE_TIMESTAMP('%Y-%m-%dT%H:%M:%SZ', timestamp)) as transaction_date,
+            -- BigQuery array functions (when available)
+            ARRAY_TO_STRING(product_categories, ', ') as categories_str,
+            -- Conditional aggregation using BigQuery syntax
+            COUNTIF(amount > 100) as high_value_transactions,
+            -- BigQuery mathematical functions
+            ROUND(amount, 2) as rounded_amount
+          FROM PCOLLECTION
+          GROUP BY customer_id, transaction_date, categories_str, rounded_amount
+          ORDER BY customer_id, total_spent DESC
+
+    - type: LogForTesting
+      input: AnalyzeSalesData
+
+# Configure Calcite to use BigQuery function library and syntax
+# 'fun': 'bigquery' enables BigQuery-specific functions
+# 'lex': 'big_query' enables BigQuery lexical rules and syntax
+options:
+  calcite_connection_properties:
+    fun: "bigquery"
+    lex: "big_query"
+  streaming: false
