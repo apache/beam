@@ -69,6 +69,7 @@
 ## I/Os
 
 * (Java) Elasticsearch 9 Support ([#36491](https://github.com/apache/beam/issues/36491)).
+* Upgrade jetty dependecy from 9.4.57.v20241219 to 12.1.5
 
 ## New Features / Improvements
 
