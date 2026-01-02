@@ -144,6 +144,10 @@ class FnApiLogRecordHandler(logging.Handler):
           current_state.name_context.transform_id):
         log_entry.transform_id = current_state.name_context.transform_id
 
+    # Include the logger name in custom_data for filtering and debugging.
+    if record.name:
+      log_entry.custom_data.fields['logger'].string_value = record.name
+
     try:
       self._log_entry_queue.put(log_entry, block=False)
     except queue.Full:
