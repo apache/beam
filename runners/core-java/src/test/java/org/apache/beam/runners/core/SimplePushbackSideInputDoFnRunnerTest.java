@@ -317,7 +317,8 @@ public class SimplePushbackSideInputDoFnRunnerTest {
                 StateNamespaces.window(IntervalWindow.getCoder(), window),
                 timestamp,
                 timestamp,
-                TimeDomain.EVENT_TIME)));
+                TimeDomain.EVENT_TIME,
+                TimerData.CausedByDrain.NORMAL)));
   }
 
   private static class TestDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, OutputT> {
@@ -359,7 +360,8 @@ public class SimplePushbackSideInputDoFnRunnerTest {
               StateNamespaces.window(IntervalWindow.getCoder(), (IntervalWindow) window),
               timestamp,
               outputTimestamp,
-              timeDomain));
+              timeDomain,
+              TimerData.CausedByDrain.NORMAL));
     }
 
     @Override
