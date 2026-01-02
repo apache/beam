@@ -881,10 +881,26 @@ class PTransformWithSideInputs(PTransform):
     self._cached_fn = self.fn
 
     # Ensure fn and side inputs are picklable for remote execution.
+    # Ensure fn and side inputs are picklable for remote execution.
     try:
       self.fn = pickler.roundtrip(self.fn)
-    except RuntimeError as e:
-      raise RuntimeError('Unable to pickle fn %s: %s' % (self.fn, e))
+    except Exception as e:
+      # --- ENHANCED ERROR MESSAGE FOR APACHE BEAM ---
+      error_details = (
+          f"\n\n[Apache Beam SDK] Serialization Failure: The function '{self.fn}' "
+          "could not be serialized.\n"
+          "----------------------------------------------------------------------\n"
+          "Apache Beam ships your code to remote workers. This requires your \n"
+          "functions and their captured variables to be 'picklable'.\n\n"
+          "Common Solutions:\n"
+          " 1. Use a named function defined at the module level instead of a lambda.\n"
+          " 2. Ensure all variables captured in the closure are serializable.\n"
+          " 3. If you're using a complex object (like a DB client or ML model),\n"
+          "    initialize it inside a DoFn.setup() method rather than the constructor.\n\n"
+          "Reference: https://beam.apache.org/documentation/programming-guide/#serialization\n"
+          "----------------------------------------------------------------------"
+      )
+      raise RuntimeError(error_details) from e
 
     self.args = pickler.roundtrip(self.args)
     self.kwargs = pickler.roundtrip(self.kwargs)
