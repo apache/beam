@@ -50,7 +50,9 @@ import org.apache.flink.metrics.MetricGroup;
 abstract class FlinkMetricContainerBase {
 
   private static final String METRIC_KEY_SEPARATOR =
-      GlobalConfiguration.loadConfiguration().getString(MetricOptions.SCOPE_DELIMITER);
+      GlobalConfiguration.loadConfiguration()
+          .getOptional(MetricOptions.SCOPE_DELIMITER)
+          .orElseGet(MetricOptions.SCOPE_DELIMITER::defaultValue);
 
   protected final MetricsContainerStepMap metricsContainers;
   private final Map<String, Counter> flinkCounterCache;
