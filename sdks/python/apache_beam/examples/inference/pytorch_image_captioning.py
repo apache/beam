@@ -51,7 +51,6 @@ from apache_beam.runners.runner import PipelineResult
 import torch
 import PIL.Image as PILImage
 
-
 # ============ Utility ============
 
 
@@ -143,13 +142,13 @@ class PostProcessDoFn(beam.DoFn):
 
 class BlipCaptionModelHandler(ModelHandler):
   def __init__(
-    self,
-    model_name: str,
-    device: str,
-    batch_size: int,
-    num_captions: int,
-    max_new_tokens: int,
-    num_beams: int):
+      self,
+      model_name: str,
+      device: str,
+      batch_size: int,
+      num_captions: int,
+      max_new_tokens: int,
+      num_beams: int):
     self.model_name = model_name
     self.device = device
     self.batch_size = batch_size
@@ -214,7 +213,7 @@ class BlipCaptionModelHandler(ModelHandler):
     candidates_per_image = []
     idx = 0
     for _ in range(len(batch)):
-      candidates_per_image.append(captions_all[idx: idx + self.num_captions])
+      candidates_per_image.append(captions_all[idx:idx + self.num_captions])
       idx += self.num_captions
 
     blip_ms = now_millis() - start
@@ -235,11 +234,11 @@ class BlipCaptionModelHandler(ModelHandler):
 
 class ClipRankModelHandler(ModelHandler):
   def __init__(
-    self,
-    model_name: str,
-    device: str,
-    batch_size: int,
-    score_normalize: bool):
+      self,
+      model_name: str,
+      device: str,
+      batch_size: int,
+      score_normalize: bool):
     self.model_name = model_name
     self.device = device
     self.batch_size = batch_size
@@ -363,7 +362,8 @@ def parse_known_args(argv):
   parser.add_argument('--num_beams', type=int, default=5)
 
   # CLIP
-  parser.add_argument('--clip_model_name', default='openai/clip-vit-base-patch32')
+  parser.add_argument(
+      '--clip_model_name', default='openai/clip-vit-base-patch32')
   parser.add_argument('--clip_batch_size', type=int, default=8)
   parser.add_argument(
       '--clip_score_normalize', default='false', choices=['true', 'false'])
@@ -415,9 +415,7 @@ def run(
       | 'MakeKey' >> beam.ParDo(MakeKeyDoFn())
       | 'DistinctByKey' >> beam.Distinct())
 
-  images = (
-      keyed
-      | 'ReadImageBytes' >> beam.ParDo(ReadImageBytesDoFn()))
+  images = (keyed | 'ReadImageBytes' >> beam.ParDo(ReadImageBytesDoFn()))
 
   # Stage 1: BLIP candidate generation
   blip_out = (
@@ -431,23 +429,24 @@ def run(
 
   results = (
       clip_out
-      | 'PostProcess' >> beam.ParDo(PostProcessDoFn(
-      blip_name=known_args.blip_model_name,
-      clip_name=known_args.clip_model_name)))
+      | 'PostProcess' >> beam.ParDo(
+          PostProcessDoFn(
+              blip_name=known_args.blip_model_name,
+              clip_name=known_args.clip_model_name)))
 
   if known_args.publish_to_big_query == 'true':
     _ = (
         results
         | 'WriteToBigQuery' >> beam.io.WriteToBigQuery(
-        known_args.output_table,
-        schema=(
-            'image_id:STRING, blip_model:STRING, clip_model:STRING, '
-            'best_caption:STRING, best_score:FLOAT, '
-            'candidates:STRING, scores:STRING, '
-            'blip_ms:INT64, clip_ms:INT64, total_ms:INT64, infer_ms:INT64'),
-        write_disposition=beam.io.BigQueryDisposition.WRITE_APPEND,
-        create_disposition=beam.io.BigQueryDisposition.CREATE_IF_NEEDED,
-        method=beam.io.WriteToBigQuery.Method.FILE_LOADS))
+            known_args.output_table,
+            schema=(
+                'image_id:STRING, blip_model:STRING, clip_model:STRING, '
+                'best_caption:STRING, best_score:FLOAT, '
+                'candidates:STRING, scores:STRING, '
+                'blip_ms:INT64, clip_ms:INT64, total_ms:INT64, infer_ms:INT64'),
+            write_disposition=beam.io.BigQueryDisposition.WRITE_APPEND,
+            create_disposition=beam.io.BigQueryDisposition.CREATE_IF_NEEDED,
+            method=beam.io.WriteToBigQuery.Method.FILE_LOADS))
 
   result = pipeline.run()
   result.wait_until_finish(duration=1800000)  # 30 min
