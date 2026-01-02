@@ -155,7 +155,7 @@ def _torchvision_detection_inference_fn(
 class PostProcessDoFn(beam.DoFn):
   """PredictionResult -> dict row for BQ."""
   def __init__(
-    self, model_name: str, score_threshold: float, max_detections: int):
+      self, model_name: str, score_threshold: float, max_detections: int):
     self.model_name = model_name
     self.score_threshold = score_threshold
     self.max_detections = max_detections
@@ -329,8 +329,7 @@ def run(
 
   model_handler = PytorchModelHandlerTensor(
       model_class=lambda: create_torchvision_detection_model(
-          known_args.pretrained_model_name
-      ),
+          known_args.pretrained_model_name),
       model_params={},
       state_dict_path=known_args.model_state_dict_path,
       device=device,
