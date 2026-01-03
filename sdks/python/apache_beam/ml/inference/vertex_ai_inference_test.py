@@ -53,6 +53,7 @@ class ParseInvokeResponseTest(unittest.TestCase):
   def _create_handler_with_invoke_route(self, invoke_route="/test"):
     """Creates a mock handler with invoke_route for testing."""
     import unittest.mock as mock
+
     # Mock both _retrieve_endpoint and aiplatform.init to prevent test
     # pollution of global aiplatform state
     with mock.patch.object(VertexAIModelHandlerJSON,
