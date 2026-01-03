@@ -17,10 +17,10 @@
  */
 package org.apache.beam.runners.dataflow.worker.status;
 
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.util.function.BooleanSupplier;
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
 
 /** Respond to /healthz with health information. */
 public class HealthzServlet extends BaseStatusServlet {
