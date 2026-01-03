@@ -21,6 +21,7 @@ Rate Limiter classes for controlling access to external resources.
 
 import abc
 import logging
+import math
 import random
 import threading
 import time
@@ -39,8 +40,8 @@ from apache_beam.metrics import Metrics
 
 _LOGGER = logging.getLogger(__name__)
 
-_MAX_RETRIES = 5
-_RETRY_DELAY_SECONDS = 10
+_RPC_MAX_RETRIES = 5
+_RPC_RETRY_DELAY_SECONDS = 10
 
 
 class RateLimiter(abc.ABC):
@@ -171,14 +172,14 @@ class EnvoyRateLimiter(RateLimiter):
         break
 
       # retry loop
-      for retry_attempt in range(_MAX_RETRIES):
+      for retry_attempt in range(_RPC_MAX_RETRIES):
         try:
           start_time = time.time()
           response = self._stub.ShouldRateLimit(request, timeout=self.timeout)
           self.rpc_latency.update(int((time.time() - start_time) * 1000))
           break
         except grpc.RpcError as e:
-          if retry_attempt == _MAX_RETRIES - 1:
+          if retry_attempt == _RPC_MAX_RETRIES - 1:
             _LOGGER.error(
                 "[EnvoyRateLimiter] ratelimit service call failed: %s", e)
             self.rpc_errors.inc()
@@ -187,7 +188,7 @@ class EnvoyRateLimiter(RateLimiter):
           _LOGGER.warning(
               "[EnvoyRateLimiter] ratelimit service call failed, retrying: %s",
               e)
-          time.sleep(_RETRY_DELAY_SECONDS)
+          time.sleep(_RPC_RETRY_DELAY_SECONDS)
 
       if response.overall_code == RateLimitResponseCode.OK:
         self.requests_allowed.inc()
@@ -214,7 +215,7 @@ class EnvoyRateLimiter(RateLimiter):
 
         _LOGGER.warning("[EnvoyRateLimiter] Throttled for %s seconds", sleep_s)
         # signal throttled time to backend
-        self.throttling_signaler.signal_throttled(int(sleep_s))
+        self.throttling_signaler.signal_throttled(math.ceil(sleep_s))
         time.sleep(sleep_s)
         attempt += 1
       else:
