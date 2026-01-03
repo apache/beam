@@ -18,6 +18,8 @@
 package org.apache.beam.runners.dataflow.worker.windmill.state;
 
 import com.google.auto.value.AutoBuilder;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.util.HashMap;
@@ -25,8 +27,6 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentMap;
 import java.util.function.BiConsumer;
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
 import org.apache.beam.runners.core.StateNamespace;
 import org.apache.beam.runners.dataflow.worker.*;
 import org.apache.beam.runners.dataflow.worker.status.BaseStatusServlet;
