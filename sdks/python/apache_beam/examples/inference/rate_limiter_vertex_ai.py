@@ -21,7 +21,8 @@
 
 import argparse
 import logging
-import time
+
+
 
 import apache_beam as beam
 from apache_beam.io.components.rate_limiter import EnvoyRateLimiter
@@ -49,7 +50,7 @@ def run(argv=None):
       '--rls_address',
       dest='rls_address',
       help='The address of the Envoy Rate Limit Service (e.g. localhost:8081).')
-  
+
   known_args, pipeline_args = parser.parse_known_args(argv)
   pipeline_options = PipelineOptions(pipeline_args)
   pipeline_options.view_as(SetupOptions).save_main_session = True
@@ -80,7 +81,7 @@ def run(argv=None):
   ]
 
   with beam.Pipeline(options=pipeline_options) as p:
-    (p 
+    _ = (p 
      | 'CreateInputs' >> beam.Create(features)
      | 'RunInference' >> RunInference(model_handler)
      | 'PrintPredictions' >> beam.Map(logging.info)

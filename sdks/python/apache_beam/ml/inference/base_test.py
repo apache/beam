@@ -2071,7 +2071,6 @@ class RunInferenceRemoteTest(unittest.TestCase):
             responses.append(model.predict(example))
           return responses
 
-
   def test_run_inference_with_rate_limiter(self):
     class FakeRateLimiter(base.RateLimiter):
       def __init__(self):
@@ -2085,6 +2084,7 @@ class RunInferenceRemoteTest(unittest.TestCase):
 
     with TestPipeline() as pipeline:
       examples = [1, 5]
+
       class ConcreteRemoteModelHandler(base.RemoteModelHandler):
         def create_client(self):
           return FakeModel()
@@ -2104,10 +2104,10 @@ class RunInferenceRemoteTest(unittest.TestCase):
       result = pipeline.run()
       result.wait_until_finish()
 
-      metrics_filter = MetricsFilter().with_name('RatelimitRequestsTotal').with_namespace('test_namespace')
+      metrics_filter = MetricsFilter().with_name(
+          'RatelimitRequestsTotal').with_namespace('test_namespace')
       metrics = result.metrics().query(metrics_filter)
       self.assertGreaterEqual(metrics['counters'][0].committed, 0)
-
 
   def test_run_inference_with_rate_limiter_exceeded(self):
     class FakeRateLimiter(base.RateLimiter):
