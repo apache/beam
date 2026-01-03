@@ -53,14 +53,17 @@ class ParseInvokeResponseTest(unittest.TestCase):
   def _create_handler_with_invoke_route(self, invoke_route="/test"):
     """Creates a mock handler with invoke_route for testing."""
     import unittest.mock as mock
+    # Mock both _retrieve_endpoint and aiplatform.init to prevent test
+    # pollution of global aiplatform state
     with mock.patch.object(VertexAIModelHandlerJSON,
                            '_retrieve_endpoint',
                            return_value=None):
-      handler = VertexAIModelHandlerJSON(
-          endpoint_id="1",
-          project="testproject",
-          location="us-central1",
-          invoke_route=invoke_route)
+      with mock.patch('google.cloud.aiplatform.init'):
+        handler = VertexAIModelHandlerJSON(
+            endpoint_id="1",
+            project="testproject",
+            location="us-central1",
+            invoke_route=invoke_route)
     return handler
 
   def test_parse_invoke_response_with_predictions_key(self):
