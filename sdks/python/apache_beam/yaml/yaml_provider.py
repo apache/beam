@@ -490,7 +490,7 @@ class YamlProvider(Provider):
     return dict(
         type='object',
         additionalProperties=False,
-        **self._transforms[type]['config_schema'])
+        **self._transforms[type].get('config_schema', {}))
 
   def description(self, type):
     return self._transforms[type].get('description')
@@ -1063,7 +1063,7 @@ class YamlProviders:
            size: 30s
 
     Note that any Yaml transform can have a
-    [windowing parameter](https://github.com/apache/beam/blob/master/sdks/python/apache_beam/yaml/README.md#windowing),
+    [windowing parameter](https://beam.apache.org/documentation/sdks/yaml/#windowing),
     which is applied to its inputs (if any) or outputs (if there are no inputs)
     which means that explicit WindowInto operations are not typically needed.
 

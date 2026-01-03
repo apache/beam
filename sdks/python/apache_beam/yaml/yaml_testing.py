@@ -73,12 +73,15 @@ class YamlTestCase(unittest.TestCase):
 
 def run_test(pipeline_spec, test_spec, options=None, fix_failures=False):
   if isinstance(pipeline_spec, str):
-    pipeline_spec = yaml.load(pipeline_spec, Loader=yaml_utils.SafeLineLoader)
+    pipeline_spec_dict = yaml.load(
+        pipeline_spec, Loader=yaml_utils.SafeLineLoader)
+  else:
+    pipeline_spec_dict = pipeline_spec
 
-  pipeline_spec = _preprocess_for_testing(pipeline_spec)
+  processed_pipeline_spec = _preprocess_for_testing(pipeline_spec_dict)
 
   transform_spec, recording_ids = inject_test_tranforms(
-      pipeline_spec,
+      processed_pipeline_spec,
       test_spec,
       fix_failures)
 
@@ -96,12 +99,18 @@ def run_test(pipeline_spec, test_spec, options=None, fix_failures=False):
     options = beam.options.pipeline_options.PipelineOptions(
         pickle_library='cloudpickle',
         **yaml_transform.SafeLineLoader.strip_metadata(
-            pipeline_spec.get('options', {})))
+            pipeline_spec_dict.get('options', {})))
+
+  providers = yaml_provider.merge_providers(
+      yaml_provider.parse_providers(
+          '', pipeline_spec_dict.get('providers', [])),
+      {
+          'AssertEqualAndRecord': yaml_provider.as_provider_list(
+              'AssertEqualAndRecord', AssertEqualAndRecord)
+      })
 
   with beam.Pipeline(options=options) as p:
-    _ = p | yaml_transform.YamlTransform(
-        transform_spec,
-        providers={'AssertEqualAndRecord': AssertEqualAndRecord})
+    _ = p | yaml_transform.YamlTransform(transform_spec, providers=providers)
 
   if fix_failures:
     fixes = {}
