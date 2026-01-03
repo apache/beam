@@ -49,9 +49,37 @@ export interface StateProvider {
 export class CachingStateProvider implements StateProvider {
   underlying: StateProvider;
   cache: Map<string, MaybePromise<any>> = new Map();
+  maxCacheSize: number;
 
-  constructor(underlying: StateProvider) {
+  constructor(underlying: StateProvider, maxCacheSize: number = 1000) {
     this.underlying = underlying;
+    this.maxCacheSize = maxCacheSize;
+  }
+
+  /**
+   * Evicts the least recently used entry if the cache is at capacity.
+   * JavaScript Maps preserve insertion order, so the first entry is the oldest.
+   */
+  private evictIfNeeded() {
+    if (this.cache.size >= this.maxCacheSize) {
+      // Remove the first (oldest) entry
+      const firstKey = this.cache.keys().next().value;
+      if (firstKey !== undefined) {
+        this.cache.delete(firstKey);
+      }
+    }
+  }
+
+  /**
+   * Moves a cache entry to the end (most recently used) by deleting and re-adding it.
+   * This maintains LRU order: most recently accessed items are at the end.
+   */
+  private touchCacheEntry(cacheKey: string) {
+    const value = this.cache.get(cacheKey);
+    if (value !== undefined) {
+      this.cache.delete(cacheKey);
+      this.cache.set(cacheKey, value);
+    }
   }
 
   getState<T>(stateKey: fnApi.StateKey, decode: (data: Uint8Array) => T) {
@@ -62,20 +90,26 @@ export class CachingStateProvider implements StateProvider {
       "base64",
     );
     if (this.cache.has(cacheKey)) {
+      // Cache hit: move to end (most recently used)
+      this.touchCacheEntry(cacheKey);
       return this.cache.get(cacheKey)!;
     }
+    // Cache miss: fetch from underlying provider
     let result = this.underlying.getState(stateKey, decode);
     const this_ = this;
     if (result.type === "promise") {
       result = {
         type: "promise",
         promise: result.promise.then((value) => {
+          // When promise resolves, update cache with resolved value
+          this_.evictIfNeeded();
           this_.cache.set(cacheKey, { type: "value", value });
           return value;
         }),
       };
     }
-    // TODO: (Perf) Cache eviction.
+    // Evict if needed before adding new entry
+    this.evictIfNeeded();
     this.cache.set(cacheKey, result);
     return result;
   }
