@@ -89,7 +89,7 @@ class EnvoyRateLimiter(RateLimiter):
       timeout: float = 5.0,
       block_until_allowed: bool = True,
       retries: int = 3,
-      namespace: str = ""):
+      namespace: str = ''):
     """
     Args:
       service_address: Address of the Envoy RLS (e.g., 'localhost:8081').
@@ -224,3 +224,16 @@ class EnvoyRateLimiter(RateLimiter):
             response.overall_code)
         break
     return throttled
+
+  def __getstate__(self):
+    state = self.__dict__.copy()
+    if '_lock' in state:
+      del state['_lock']
+    if '_stub' in state:
+      del state['_stub']
+    return state
+
+  def __setstate__(self, state):
+    self.__dict__.update(state)
+    self._lock = threading.Lock()
+    self._stub = None

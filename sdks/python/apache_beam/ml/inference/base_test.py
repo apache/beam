@@ -2072,5 +2072,69 @@ class RunInferenceRemoteTest(unittest.TestCase):
           return responses
 
 
+  def test_run_inference_with_rate_limiter(self):
+    class FakeRateLimiter(base.RateLimiter):
+      def __init__(self):
+        super().__init__(namespace='test_namespace')
+
+      def throttle(self, hits_added=1):
+        self.requests_counter.inc()
+        return True
+
+    limiter = FakeRateLimiter()
+
+    with TestPipeline() as pipeline:
+      examples = [1, 5]
+      class ConcreteRemoteModelHandler(base.RemoteModelHandler):
+        def create_client(self):
+          return FakeModel()
+
+        def request(self, batch, model, inference_args=None):
+          return [model.predict(example) for example in batch]
+
+      model_handler = ConcreteRemoteModelHandler(
+          rate_limiter=limiter, namespace='test_namespace')
+
+      pcoll = pipeline | 'start' >> beam.Create(examples)
+      actual = pcoll | base.RunInference(model_handler)
+
+      expected = [2, 6]
+      assert_that(actual, equal_to(expected))
+
+      result = pipeline.run()
+      result.wait_until_finish()
+
+      metrics_filter = MetricsFilter().with_name('RatelimitRequestsTotal').with_namespace('test_namespace')
+      metrics = result.metrics().query(metrics_filter)
+      self.assertGreaterEqual(metrics['counters'][0].committed, 0)
+
+
+  def test_run_inference_with_rate_limiter_exceeded(self):
+    class FakeRateLimiter(base.RateLimiter):
+      def __init__(self):
+        super().__init__(namespace='test_namespace')
+
+      def throttle(self, hits_added=1):
+        return False
+
+    with self.assertRaises(RuntimeError):
+      with TestPipeline() as pipeline:
+        examples = [1]
+
+        class ConcreteRemoteModelHandler(base.RemoteModelHandler):
+          def create_client(self):
+            return FakeModel()
+
+          def request(self, batch, model, inference_args=None):
+            return [model.predict(example) for example in batch]
+
+        model_handler = ConcreteRemoteModelHandler(
+            rate_limiter=FakeRateLimiter(),
+            namespace='test_namespace',
+            num_retries=0)
+        pcoll = pipeline | 'start' >> beam.Create(examples)
+        _ = pcoll | base.RunInference(model_handler)
+
+
 if __name__ == '__main__':
   unittest.main()
