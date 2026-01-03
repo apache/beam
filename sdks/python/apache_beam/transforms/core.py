@@ -1002,6 +1002,23 @@ class CallableWrapperDoFn(DoFn):
     if not callable(fn):
       raise TypeError('Expected a callable object instead of: %r' % fn)
 
+
+    if not callable(fn):
+      raise TypeError('Expected a callable object instead of: %r' % fn)
+    
+    # Early serialization check to provide immediate feedback to the user.
+    # We use the internal pickler to see if 'fn' can actually be sent to workers.
+    from apache_beam.internal import pickler
+    try:
+      pickler.dumps(fn)
+    except Exception as e:
+      # We wrap the error in a RuntimeError to match the SDK's expected error format.
+      raise RuntimeError('[Apache Beam SDK] Serialization Failure') from e
+    # --- ADD THIS END ---
+
+    self._fn = fn
+
+
     self._fn = fn
     self._fullargspec = fullargspec
     if isinstance(

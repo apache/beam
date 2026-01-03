@@ -305,19 +305,34 @@ class PTransformTest(unittest.TestCase):
         pcoll | 'Do' >> beam.FlatMap(incorrect_par_do_fn)
         # It's a requirement that all user-defined functions to a ParDo return
         # an iterable.
-  def test_ptransform_serialization_error_message(self):
+        
+        
+  # def test_ptransform_serialization_error_message(self):
+  #   """Tests that a helpful error message is raised on serialization failure."""
+  #   # We create a non-serializable object (a file handle)
+  #   with open(__file__, 'r') as f:
+  #     # Defining a lambda that captures 'f' will fail pickling
+  #     # because file handles cannot be serialized.
+  #     with self.assertRaisesRegex(
+  #         RuntimeError, 
+  #         r"\[Apache Beam SDK\] Serialization Failure"):
+        
+  #       # This triggers the check in PTransformWithSideInputs.__init__
+  #       _ = beam.Map(lambda x: f.read(1))
+        
+        
+        def test_ptransform_serialization_error_message(self):
     """Tests that a helpful error message is raised on serialization failure."""
     # We create a non-serializable object (a file handle)
+    # Using __file__ ensures the path is valid on any machine
     with open(__file__, 'r') as f:
-      # Defining a lambda that captures 'f' will fail pickling
-      # because file handles cannot be serialized.
       with self.assertRaisesRegex(
-          RuntimeError, 
-          r"\[Apache Beam SDK\] Serialization Failure"):
-        
-        # This triggers the check in PTransformWithSideInputs.__init__
-        _ = beam.Map(lambda x: f.read(1))
-        
+          RuntimeError, r"\[Apache Beam SDK\] Serialization Failure"):
+        with TestPipeline() as p:
+          # We apply the transform inside a pipeline to force serialization
+          _ = p | beam.Create([1]) | beam.Map(lambda x: f.read(1))
+          
+          
   def test_do_fn_with_finish(self):
     class MyDoFn(beam.DoFn):
       def process(self, element):
