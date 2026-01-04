@@ -192,4 +192,52 @@ public class StateTagTest {
         StateTags.convertToBagTagInternal((StateTag) fooCoder1Max1),
         StateTags.convertToBagTagInternal((StateTag) barCoder1Max));
   }
+
+  @Test
+  public void testSystemAndUserTagsWithSameIdDoNotCollide() {
+    StateTag<?> userTag = StateTags.value("collision", StringUtf8Coder.of());
+    StateTag<?> systemTag =
+        StateTags.makeSystemTagInternal(StateTags.value("collision", StringUtf8Coder.of()));
+
+    // Same raw ID, different prefixed IDs.
+    assertEquals(userTag.getId(), systemTag.getId());
+    assertNotEquals(userTag.getIdWithPrefix(), systemTag.getIdWithPrefix());
+
+    // Tags are equal by ID, but state tables use prefixed IDs to prevent collision.
+    assertEquals(userTag, systemTag);
+  }
+
+  @Test
+  public void testIdWithPrefixForUserTag() {
+    StateTag<?> userTag = StateTags.value("test", StringUtf8Coder.of());
+    String prefixedId = userTag.getIdWithPrefix();
+
+    assertEquals('u', prefixedId.charAt(0));
+    assertEquals("utest", prefixedId);
+  }
+
+  @Test
+  public void testIdWithPrefixForSystemTag() {
+    StateTag<?> systemTag =
+        StateTags.makeSystemTagInternal(StateTags.value("test", StringUtf8Coder.of()));
+    String prefixedId = systemTag.getIdWithPrefix();
+
+    assertEquals('s', prefixedId.charAt(0));
+    assertEquals("stest", prefixedId);
+  }
+
+  @Test
+  public void testIdEquivalenceWithPrefix() {
+    StateTag<?> userTag1 = StateTags.value("collision", StringUtf8Coder.of());
+    StateTag<?> userTag2 = StateTags.value("collision", StringUtf8Coder.of());
+    StateTag<?> systemTag =
+        StateTags.makeSystemTagInternal(StateTags.value("collision", StringUtf8Coder.of()));
+
+    // Same ID and prefix.
+    assertEquals(StateTags.ID_EQUIVALENCE.wrap(userTag1), StateTags.ID_EQUIVALENCE.wrap(userTag2));
+
+    // Same ID, different prefix.
+    assertNotEquals(
+        StateTags.ID_EQUIVALENCE.wrap(userTag1), StateTags.ID_EQUIVALENCE.wrap(systemTag));
+  }
 }
