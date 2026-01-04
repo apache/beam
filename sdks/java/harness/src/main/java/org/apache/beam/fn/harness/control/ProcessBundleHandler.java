@@ -86,6 +86,8 @@ import org.apache.beam.sdk.util.common.ReflectHelpers;
 import org.apache.beam.sdk.util.construction.BeamUrns;
 import org.apache.beam.sdk.util.construction.PTransformTranslation;
 import org.apache.beam.sdk.util.construction.Timer;
+import org.apache.beam.sdk.util.construction.graph.PipelineNode;
+import org.apache.beam.sdk.util.construction.graph.QueryablePipeline;
 import org.apache.beam.sdk.values.WindowedValue;
 import org.apache.beam.vendor.grpc.v1p69p0.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.grpc.v1p69p0.com.google.protobuf.TextFormat;
@@ -161,6 +163,17 @@ public class ProcessBundleHandler {
   @VisibleForTesting final BundleProcessorCache bundleProcessorCache;
   private final Set<String> runnerCapabilities;
   private final @Nullable DataSampler dataSampler;
+  private final LoadingCache<String, TopologyCacheEntry> topologicalOrderCache;
+
+  private static class TopologyCacheEntry {
+    final ProcessBundleDescriptor descriptor;
+    final ImmutableList<String> order;
+
+    TopologyCacheEntry(ProcessBundleDescriptor descriptor, ImmutableList<String> order) {
+      this.descriptor = descriptor;
+      this.order = order;
+    }
+  }
 
   public ProcessBundleHandler(
       PipelineOptions options,
@@ -220,6 +233,43 @@ public class ProcessBundleHandler {
     this.processWideCache = processWideCache;
     this.bundleProcessorCache = bundleProcessorCache;
     this.dataSampler = dataSampler;
+
+    // Initialize topological-order cache. Use same timeout idiom as BundleProcessorCache.
+    CacheBuilder<Object, Object> topoBuilder = CacheBuilder.newBuilder();
+    Duration topoTimeout = options.as(SdkHarnessOptions.class).getBundleProcessorCacheTimeout();
+    if (topoTimeout.compareTo(Duration.ZERO) > 0) {
+      topoBuilder = topoBuilder.expireAfterAccess(topoTimeout);
+    }
+    this.topologicalOrderCache =
+        topoBuilder.build(
+            new CacheLoader<String, TopologyCacheEntry>() {
+              @Override
+              public TopologyCacheEntry load(String descriptorId) throws Exception {
+                ProcessBundleDescriptor desc = fnApiRegistry.apply(descriptorId);
+                RunnerApi.Components comps =
+                    RunnerApi.Components.newBuilder()
+                        .putAllCoders(desc.getCodersMap())
+                        .putAllPcollections(desc.getPcollectionsMap())
+                        .putAllTransforms(desc.getTransformsMap())
+                        .putAllWindowingStrategies(desc.getWindowingStrategiesMap())
+                        .build();
+                QueryablePipeline qp =
+                    QueryablePipeline.forTransforms(desc.getTransformsMap().keySet(), comps);
+                ImmutableList.Builder<String> ids = ImmutableList.builder();
+                for (PipelineNode.PTransformNode node : qp.getTopologicallyOrderedTransforms()) {
+                  ids.add(node.getId());
+                }
+                ImmutableList<String> topo = ids.build();
+                // Treat incomplete topo as a cycle/error so loader fails and caller falls back.
+                if (topo.size() != desc.getTransformsMap().size()) {
+                  throw new IllegalStateException(
+                      String.format(
+                          "Topological ordering incomplete for descriptor %s: %d of %d",
+                          descriptorId, topo.size(), desc.getTransformsMap().size()));
+                }
+                return new TopologyCacheEntry(desc, topo);
+              }
+            });
   }
 
   private void addRunnerAndConsumersForPTransformRecursively(
@@ -779,15 +829,43 @@ public class ProcessBundleHandler {
 
   private BundleProcessor createBundleProcessor(
       String bundleId, ProcessBundleRequest processBundleRequest) throws IOException {
-    ProcessBundleDescriptor bundleDescriptor = fnApiRegistry.apply(bundleId);
 
-    SetMultimap<String, String> pCollectionIdsToConsumingPTransforms = HashMultimap.create();
+    // Prepare per-bundle state trackers / registries first.
     BundleProgressReporter.InMemory bundleProgressReporterAndRegistrar =
         new BundleProgressReporter.InMemory();
     MetricsEnvironmentStateForBundle metricsEnvironmentStateForBundle =
         new MetricsEnvironmentStateForBundle();
     ExecutionStateTracker stateTracker = executionStateSampler.create();
     bundleProgressReporterAndRegistrar.register(stateTracker);
+    HashSet<String> processedPTransformIds = new HashSet<>();
+
+    // Resolve descriptor + transform order from cache (descriptor+topo cached together) or
+    // fall back to single-fetch descriptor + descriptor order.
+    ProcessBundleDescriptor bundleDescriptor;
+    Iterable<String> transformIds;
+    try {
+      TopologyCacheEntry entry = topologicalOrderCache.get(bundleId);
+      bundleDescriptor = entry.descriptor;
+      transformIds = entry.order;
+    } catch (Exception e) {
+      LOG.warn(
+          "Topological ordering failed for descriptor {}. Falling back to descriptor order. Cause: {}",
+          bundleId,
+          e.toString());
+      // Fall back: fetch descriptor once and use descriptor-order iteration.
+      bundleDescriptor = fnApiRegistry.apply(bundleId);
+      transformIds = bundleDescriptor.getTransformsMap().keySet();
+    }
+
+    // Build a multimap of PCollection ids to PTransform ids which consume said PCollections
+    SetMultimap<String, String> pCollectionIdsToConsumingPTransforms = HashMultimap.create();
+    for (Map.Entry<String, PTransform> entry : bundleDescriptor.getTransformsMap().entrySet()) {
+      for (String pCollectionId : entry.getValue().getInputsMap().values()) {
+        pCollectionIdsToConsumingPTransforms.put(pCollectionId, entry.getKey());
+      }
+    }
+
+    // Now that bundleDescriptor is known, construct the consumer registry.
     PCollectionConsumerRegistry pCollectionConsumerRegistry =
         new PCollectionConsumerRegistry(
             stateTracker,
@@ -795,7 +873,6 @@ public class ProcessBundleHandler {
             bundleProgressReporterAndRegistrar,
             bundleDescriptor,
             dataSampler);
-    HashSet<String> processedPTransformIds = new HashSet<>();
 
     PTransformFunctionRegistry startFunctionRegistry =
         new PTransformFunctionRegistry(shortIds, stateTracker, Urns.START_BUNDLE_MSECS);
@@ -803,13 +880,6 @@ public class ProcessBundleHandler {
         new PTransformFunctionRegistry(shortIds, stateTracker, Urns.FINISH_BUNDLE_MSECS);
     List<ThrowingRunnable> resetFunctions = new ArrayList<>();
     List<ThrowingRunnable> tearDownFunctions = new ArrayList<>();
-
-    // Build a multimap of PCollection ids to PTransform ids which consume said PCollections
-    for (Map.Entry<String, PTransform> entry : bundleDescriptor.getTransformsMap().entrySet()) {
-      for (String pCollectionId : entry.getValue().getInputsMap().values()) {
-        pCollectionIdsToConsumingPTransforms.put(pCollectionId, entry.getKey());
-      }
-    }
 
     // Instantiate a State API call handler depending on whether a State ApiServiceDescriptor was
     // specified.
@@ -852,32 +922,31 @@ public class ProcessBundleHandler {
             bundleFinalizationCallbackRegistrations,
             runnerCapabilities);
 
-    // Create a BeamFnStateClient
-    for (Map.Entry<String, PTransform> entry : bundleDescriptor.getTransformsMap().entrySet()) {
+    // Build components once for this descriptor.
+    final RunnerApi.Components components =
+        RunnerApi.Components.newBuilder()
+            .putAllCoders(bundleDescriptor.getCodersMap())
+            .putAllPcollections(bundleDescriptor.getPcollectionsMap())
+            .putAllWindowingStrategies(bundleDescriptor.getWindowingStrategiesMap())
+            .build();
 
-      // Skip anything which isn't a root.
-      // Also force data output transforms to be unconditionally instantiated (see BEAM-10450).
-      // TODO: Remove source as a root and have it be triggered by the Runner.
-      if (!DATA_INPUT_URN.equals(entry.getValue().getSpec().getUrn())
-          && !DATA_OUTPUT_URN.equals(entry.getValue().getSpec().getUrn())
-          && !JAVA_SOURCE_URN.equals(entry.getValue().getSpec().getUrn())
-          && !PTransformTranslation.READ_TRANSFORM_URN.equals(
-              entry.getValue().getSpec().getUrn())) {
+    for (String transformId : transformIds) {
+      PTransform pTransform = bundleDescriptor.getTransformsMap().get(transformId);
+      if (pTransform == null) {
+        continue; // defensive
+      }
+      if (!DATA_INPUT_URN.equals(pTransform.getSpec().getUrn())
+          && !DATA_OUTPUT_URN.equals(pTransform.getSpec().getUrn())
+          && !JAVA_SOURCE_URN.equals(pTransform.getSpec().getUrn())
+          && !PTransformTranslation.READ_TRANSFORM_URN.equals(pTransform.getSpec().getUrn())) {
         continue;
       }
-
-      RunnerApi.Components components =
-          RunnerApi.Components.newBuilder()
-              .putAllCoders(bundleDescriptor.getCodersMap())
-              .putAllPcollections(bundleDescriptor.getPcollectionsMap())
-              .putAllWindowingStrategies(bundleDescriptor.getWindowingStrategiesMap())
-              .build();
-
+      ProcessBundleDescriptor finalBundleDescriptor = bundleDescriptor;
       addRunnerAndConsumersForPTransformRecursively(
           beamFnStateClient,
           beamFnDataClient,
-          entry.getKey(),
-          entry.getValue(),
+          transformId,
+          pTransform,
           bundleProcessor::getInstructionId,
           bundleProcessor::getCacheTokens,
           bundleProcessor::getBundleCache,
@@ -899,7 +968,7 @@ public class ProcessBundleHandler {
             bundleProcessor.getInboundDataEndpoints().add(dataEndpoint);
           },
           (timerEndpoint) -> {
-            if (!bundleDescriptor.hasTimerApiServiceDescriptor()) {
+            if (!finalBundleDescriptor.hasTimerApiServiceDescriptor()) {
               throw new IllegalStateException(
                   String.format(
                       "Timers are unsupported because the "
