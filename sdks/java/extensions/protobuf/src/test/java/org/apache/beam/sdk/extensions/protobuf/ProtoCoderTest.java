@@ -19,7 +19,10 @@ package org.apache.beam.sdk.extensions.protobuf;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotEquals;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
+import com.google.protobuf.Message;
 import java.io.ObjectStreamClass;
 import java.util.Collections;
 import org.apache.beam.sdk.coders.CannotProvideCoderException;
@@ -179,5 +182,48 @@ public class ProtoCoderTest {
   public void testSerialVersionID() {
     long serialVersionID = ObjectStreamClass.lookup(ProtoCoder.class).getSerialVersionUID();
     assertEquals(-5043999806040629525L, serialVersionID);
+  }
+
+  @Test
+  public void testProtoCoderFailsWithRawMessageInterface() {
+    // Simulate the user’s pipeline where T resolves to Message
+    ProtoCoder<Message> coder = ProtoCoder.of(Message.class);
+    try {
+      coder.getParser(); // Triggers the new check in updated code
+      fail("Expected IllegalArgumentException for raw Message interface");
+    } catch (IllegalArgumentException e) {
+      assertEquals(
+          "ProtoCoder does not support the raw Message interface. Use a concrete Protobuf-generated class.",
+          e.getMessage());
+    }
+  }
+
+  @Test
+  public void testProtoCoderWithGeneratedClass() throws Exception {
+    ProtoCoder<MessageA> coder = ProtoCoder.of(MessageA.class);
+    MessageA message = MessageA.newBuilder().setField1("Test").build();
+    byte[] encoded = CoderUtils.encodeToByteArray(coder, message);
+    MessageA decoded = CoderUtils.decodeFromByteArray(coder, encoded);
+    assertEquals(message, decoded);
+    assertEquals("Test", decoded.getField1());
+  }
+
+  @Test
+  public void testProtoCoderWithAbstractClassThrowsException() {
+    try {
+      abstract class InvalidMessage implements Message {
+        // No implementation needed for test
+      }
+      ProtoCoder<InvalidMessage> coder = ProtoCoder.of(InvalidMessage.class);
+      coder.getParser();
+      fail("Expected IllegalArgumentException for abstract class");
+    } catch (IllegalArgumentException e) {
+      assertTrue(
+          "Expected message about abstract class, but was: " + e.getMessage(),
+          e.getMessage().contains("is abstract or cannot be instantiated"));
+      assertTrue(
+          "Expected cause to be InstantiationException",
+          e.getCause() instanceof InstantiationException);
+    }
   }
 }
