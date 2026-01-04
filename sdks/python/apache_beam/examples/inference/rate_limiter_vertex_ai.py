@@ -1,4 +1,3 @@
-
 #
 # Licensed to the Apache Software Foundation (ASF) under one or more
 # contributor license agreements.  See the NOTICE file distributed with
@@ -21,8 +20,6 @@
 
 import argparse
 import logging
-
-
 
 import apache_beam as beam
 from apache_beam.io.components.rate_limiter import EnvoyRateLimiter
@@ -59,7 +56,9 @@ def run(argv=None):
   rate_limiter = EnvoyRateLimiter(
       service_address=known_args.rls_address,
       domain="mongo_cps",
-      descriptors=[{"database": "users"}],
+      descriptors=[{
+          "database": "users"
+      }],
       namespace='example_pipeline')
 
   # Initialize the VertexAIModelHandlerJSON with the rate limiter
@@ -67,25 +66,19 @@ def run(argv=None):
       endpoint_id=known_args.endpoint_id,
       project=known_args.project,
       location=known_args.location,
-      rate_limiter=rate_limiter
-  )
+      rate_limiter=rate_limiter)
 
   # Define a set of input features for the model
   # Each inner list represents a single instance with 3 float features.
-  features = [
-      [1.0, 2.0, 3.0],
-      [4.0, 5.0, 6.0],
-      [7.0, 8.0, 9.0],
-      [10.0, 11.0, 12.0],
-      [13.0, 14.0, 15.0]
-  ]
+  features = [[1.0, 2.0, 3.0], [4.0, 5.0, 6.0], [7.0, 8.0, 9.0],
+              [10.0, 11.0, 12.0], [13.0, 14.0, 15.0]]
 
   with beam.Pipeline(options=pipeline_options) as p:
-    _ = (p 
-     | 'CreateInputs' >> beam.Create(features)
-     | 'RunInference' >> RunInference(model_handler)
-     | 'PrintPredictions' >> beam.Map(logging.info)
-    )
+    _ = (
+        p
+        | 'CreateInputs' >> beam.Create(features)
+        | 'RunInference' >> RunInference(model_handler)
+        | 'PrintPredictions' >> beam.Map(logging.info))
 
 
 if __name__ == '__main__':
