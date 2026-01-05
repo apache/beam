@@ -69,6 +69,7 @@
 ## I/Os
 
 * (Java) Elasticsearch 9 Support ([#36491](https://github.com/apache/beam/issues/36491)).
+* Upgrade org.apache.hive from 3.1.3 to 4.0.1
 
 ## New Features / Improvements
 
