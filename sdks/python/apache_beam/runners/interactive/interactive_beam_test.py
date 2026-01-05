@@ -387,6 +387,110 @@ class InteractiveBeamTest(unittest.TestCase):
     self.assertIsInstance(result[0], list)
     self.assertEqual(result[0], data)
 
+  def test_collect_wait_for_inputs_true(self, mock_current_env):
+    mock_env = MagicMock()
+    mock_current_env.return_value = mock_env
+    mock_rm = MagicMock()
+    mock_env.get_recording_manager.return_value = mock_rm
+    mock_env.computed_pcollections = set()
+
+    p = beam.Pipeline(ir.InteractiveRunner())
+    pcoll1 = p | 'Create1' >> beam.Create([1, 2, 3])
+    pcoll2 = pcoll1 | 'Map1' >> beam.Map(lambda x: x * 2)
+
+    # Simulate pcoll1 being computed asynchronously
+    mock_env.is_pcollection_computing.return_value = True
+    async_res = MagicMock(spec=AsyncComputationResult)
+    mock_rm._async_computations = {'id1': async_res}
+    mock_rm._get_all_dependencies.return_value = {pcoll1}
+
+    # Set up return value for record
+    mock_recording = MagicMock()
+    mock_rm.record.return_value = mock_recording
+    mock_rm._wait_for_dependencies.return_value = True
+
+    ib.collect(pcoll2, wait_for_inputs=True)
+
+    # Check if wait_for_dependencies was called because wait_for_inputs is True
+    mock_rm._wait_for_dependencies.assert_called_once_with({pcoll2})
+    # Check that record was called with wait_for_inputs=True
+    mock_rm.record.assert_called_once_with({pcoll2},
+                                           max_n=float('inf'),
+                                           max_duration=float('inf'),
+                                           runner=None,
+                                           options=None,
+                                           force_compute=False,
+                                           wait_for_inputs=True)
+
+  def test_collect_wait_for_inputs_false(self, mock_current_env):
+    mock_env = MagicMock()
+    mock_current_env.return_value = mock_env
+    mock_rm = MagicMock()
+    mock_env.get_recording_manager.return_value = mock_rm
+    mock_env.computed_pcollections = set()
+
+    p = beam.Pipeline(ir.InteractiveRunner())
+    pcoll1 = p | 'Create1' >> beam.Create([1, 2, 3])
+    pcoll2 = pcoll1 | 'Map1' >> beam.Map(lambda x: x * 2)
+
+    # Simulate pcoll1 being computed asynchronously
+    mock_env.is_pcollection_computing.return_value = True
+    async_res = MagicMock(spec=AsyncComputationResult)
+    mock_rm._async_computations = {'id1': async_res}
+    mock_rm._get_all_dependencies.return_value = {pcoll1}
+
+    # Set up return value for record
+    mock_recording = MagicMock()
+    mock_rm.record.return_value = mock_recording
+
+    ib.collect(pcoll2, wait_for_inputs=False)
+
+    # Check that wait_for_dependencies was NOT called
+    mock_rm._wait_for_dependencies.assert_not_called()
+    # Check that record was called with wait_for_inputs=False
+    mock_rm.record.assert_called_once_with({pcoll2},
+                                           max_n=float('inf'),
+                                           max_duration=float('inf'),
+                                           runner=None,
+                                           options=None,
+                                           force_compute=False,
+                                           wait_for_inputs=False)
+
+  def test_collect_wait_for_inputs_default(self, mock_current_env):
+    mock_env = MagicMock()
+    mock_current_env.return_value = mock_env
+    mock_rm = MagicMock()
+    mock_env.get_recording_manager.return_value = mock_rm
+    mock_env.computed_pcollections = set()
+
+    p = beam.Pipeline(ir.InteractiveRunner())
+    pcoll1 = p | 'Create1' >> beam.Create([1, 2, 3])
+    pcoll2 = pcoll1 | 'Map1' >> beam.Map(lambda x: x * 2)
+
+    # Simulate pcoll1 being computed asynchronously
+    mock_env.is_pcollection_computing.return_value = True
+    async_res = MagicMock(spec=AsyncComputationResult)
+    mock_rm._async_computations = {'id1': async_res}
+    mock_rm._get_all_dependencies.return_value = {pcoll1}
+    mock_rm._wait_for_dependencies.return_value = True
+
+    # Set up return value for record
+    mock_recording = MagicMock()
+    mock_rm.record.return_value = mock_recording
+
+    ib.collect(pcoll2)  # wait_for_inputs defaults to True
+
+    # Check that wait_for_dependencies was called
+    mock_rm._wait_for_dependencies.assert_called_once_with({pcoll2})
+    # Check that record was called with wait_for_inputs=True
+    mock_rm.record.assert_called_once_with({pcoll2},
+                                           max_n=float('inf'),
+                                           max_duration=float('inf'),
+                                           runner=None,
+                                           options=None,
+                                           force_compute=False,
+                                           wait_for_inputs=True)
+
 
 @unittest.skipIf(
     not ie.current_env().is_interactive_ready,
