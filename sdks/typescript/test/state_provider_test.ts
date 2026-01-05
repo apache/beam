@@ -66,7 +66,8 @@ class MockStateProvider implements StateProvider {
 describe("CachingStateProvider", function () {
   it("caches values and returns cached result on subsequent calls", function () {
     const mockProvider = new MockStateProvider();
-    const cache = new CachingStateProvider(mockProvider, 100);
+    // Use large weight limit to ensure no eviction for this test
+    const cache = new CachingStateProvider(mockProvider, 10 * 1024);
 
     const stateKey: fnApi.StateKey = {
       type: {
@@ -106,9 +107,11 @@ describe("CachingStateProvider", function () {
     }
   });
 
-  it("evicts least recently used entry when cache is full", function () {
+  it("evicts least recently used entry when cache weight exceeds limit", function () {
     const mockProvider = new MockStateProvider();
-    const cache = new CachingStateProvider(mockProvider, 3); // Small cache for testing
+    // Each small string "valueX" is approximately 52 bytes (40 + 6*2)
+    // Set weight limit to hold approximately 3 entries
+    const cache = new CachingStateProvider(mockProvider, 180);
 
     const decode = (data: Uint8Array) => data.toString();
 
@@ -150,7 +153,6 @@ describe("CachingStateProvider", function () {
     // Add 4th entry - should evict keys[1] (least recently used, not keys[0])
     cache.getState(keys[3], decode);
     assert.equal(mockProvider.callCount, 4);
-    assert.equal(cache.cache.size, 3); // Still at max size
 
     // keys[1] should be evicted (not in cache)
     const result1 = cache.getState(keys[1], decode);
@@ -171,7 +173,8 @@ describe("CachingStateProvider", function () {
 
   it("handles promise-based state fetches correctly", async function () {
     const mockProvider = new MockStateProvider(10); // 10ms delay
-    const cache = new CachingStateProvider(mockProvider, 100);
+    // Use large weight limit to ensure no eviction for this test
+    const cache = new CachingStateProvider(mockProvider, 10 * 1024);
 
     const stateKey: fnApi.StateKey = {
       type: {
@@ -211,9 +214,10 @@ describe("CachingStateProvider", function () {
     }
   });
 
-  it("respects custom maxCacheSize", function () {
+  it("respects custom maxCacheWeight and evicts based on memory size", function () {
     const mockProvider = new MockStateProvider();
-    const cache = new CachingStateProvider(mockProvider, 2); // Very small cache
+    // Set weight limit to hold approximately 2 small string entries
+    const cache = new CachingStateProvider(mockProvider, 120);
 
     const decode = (data: Uint8Array) => data.toString();
 
@@ -236,18 +240,48 @@ describe("CachingStateProvider", function () {
       mockProvider.setValue(key, `value${i}`);
     }
 
-    // Fill cache to max (2 entries)
+    // Fill cache with 2 entries
     cache.getState(keys[0], decode);
     cache.getState(keys[1], decode);
     assert.equal(cache.cache.size, 2);
 
-    // Add 3rd entry - should evict first
+    // Add 3rd entry - should evict oldest to stay under weight limit
     cache.getState(keys[2], decode);
-    assert.equal(cache.cache.size, 2); // Still at max
 
     // First entry should be evicted
     cache.getState(keys[0], decode);
     assert.equal(mockProvider.callCount, 4); // Had to fetch keys[0] again
+  });
+
+  it("tracks cache weight correctly", function () {
+    const mockProvider = new MockStateProvider();
+    const cache = new CachingStateProvider(mockProvider, 10 * 1024);
+
+    const decode = (data: Uint8Array) => data.toString();
+
+    const stateKey: fnApi.StateKey = {
+      type: {
+        oneofKind: "bagUserState",
+        bagUserState: fnApi.StateKey_BagUserState.create({
+          transformId: "test",
+          userStateId: "state1",
+          window: new Uint8Array(0),
+          key: new Uint8Array(0),
+        }),
+      },
+    };
+
+    const key = Buffer.from(fnApi.StateKey.toBinary(stateKey)).toString(
+      "base64",
+    );
+    mockProvider.setValue(key, "test_value");
+
+    // Cache should start with 0 weight
+    assert.equal(cache.currentWeight, 0);
+
+    // After adding an entry, weight should increase
+    cache.getState(stateKey, decode);
+    assert.ok(cache.currentWeight > 0);
   });
 });
 
