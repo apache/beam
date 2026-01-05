@@ -613,7 +613,9 @@ class BundleBasedDirectRunner(PipelineRunner):
         evaluation_context)
     # DirectRunner does not support injecting
     # PipelineOptions values at runtime
-    RuntimeValueProvider.set_runtime_options({})
+    RuntimeValueProvider.set_runtime_options(
+      {'experiments': set(options.view_as(beam.options.pipeline_options.DebugOptions).experiments)}
+    )
     # Start the executor. This is a non-blocking call, it will start the
     # execution in background threads and return.
     executor.start(self.consumer_tracking_visitor.root_transforms)
