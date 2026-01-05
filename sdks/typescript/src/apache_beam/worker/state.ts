@@ -181,8 +181,7 @@ export class CachingStateProvider implements StateProvider {
       };
     }
     // Estimate weight for the new entry
-    const weight =
-      result.type === "value" ? estimateSize(result.value) : 64; // Promise placeholder weight
+    const weight = result.type === "value" ? estimateSize(result.value) : 64; // Promise placeholder weight
     // Evict if needed before adding new entry
     this.currentWeight += weight;
     this.evictIfNeeded();
