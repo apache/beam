@@ -20,6 +20,8 @@ package org.apache.beam.sdk.io.solace.read;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkNotNull;
 
 import com.solacesystems.jcsmp.BytesXMLMessage;
+import com.solacesystems.jcsmp.JCSMPException;
+import com.solacesystems.jcsmp.XMLMessage;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
@@ -27,10 +29,13 @@ import java.util.ArrayDeque;
 import java.util.NoSuchElementException;
 import java.util.Queue;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import org.apache.beam.sdk.io.UnboundedSource;
 import org.apache.beam.sdk.io.UnboundedSource.UnboundedReader;
 import org.apache.beam.sdk.io.solace.broker.SempClient;
@@ -41,7 +46,6 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.Vi
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.cache.Cache;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.cache.CacheBuilder;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.cache.RemovalNotification;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Instant;
 import org.slf4j.Logger;
@@ -59,6 +63,8 @@ class UnboundedSolaceReader<T> extends UnboundedReader<T> {
   private final SessionServiceFactory sessionServiceFactory;
   private @Nullable BytesXMLMessage solaceOriginalRecord;
   private @Nullable T solaceMappedRecord;
+  private @Nullable Future<?> nackCallback = null;
+  private final int ackDeadlineSeconds;
 
   /**
    * Queue for messages that were ingested in the {@link #advance()} method, but not sent yet to a
@@ -67,7 +73,7 @@ class UnboundedSolaceReader<T> extends UnboundedReader<T> {
   private final Queue<BytesXMLMessage> receivedMessages = new ArrayDeque<>();
 
   private static final Cache<UUID, SessionService> sessionServiceCache;
-  private static final ScheduledExecutorService cleanUpThread = Executors.newScheduledThreadPool(1);
+  private static final ScheduledExecutorService cleanUpThread = Executors.newScheduledThreadPool(4);
 
   static {
     Duration cacheExpirationTimeout = Duration.ofMinutes(1);
@@ -103,6 +109,7 @@ class UnboundedSolaceReader<T> extends UnboundedReader<T> {
     this.sessionServiceFactory = currentSource.getSessionServiceFactory();
     this.sempClient = currentSource.getSempClientFactory().create();
     this.readerUuid = UUID.randomUUID();
+    this.ackDeadlineSeconds = currentSource.getAckDeadlineSeconds();
   }
 
   private SessionService getSessionService() {
@@ -150,7 +157,30 @@ class UnboundedSolaceReader<T> extends UnboundedReader<T> {
 
   @Override
   public void close() {
+    try {
+      if (nackCallback != null) {
+        // wait only for last one to finish, it will mean all the previous one are also done.
+        nackCallback.get(ackDeadlineSeconds * 2, TimeUnit.SECONDS);
+      }
+    } catch (InterruptedException | ExecutionException | TimeoutException e) {
+      LOG.error("SolaceIO.Read: Failed to wait till nack background thread is finished");
+    }
     sessionServiceCache.invalidate(readerUuid);
+  }
+
+  public void nackMessages(Queue<BytesXMLMessage> checkpoint) {
+    BytesXMLMessage msg;
+    while ((msg = checkpoint.poll()) != null) {
+      try {
+        msg.settle(XMLMessage.Outcome.FAILED);
+      } catch (IllegalStateException | JCSMPException e) {
+        LOG.error(
+            "SolaceIO.Read: failed to nack the message with applicationMessageId={}, ackMessageId={}.",
+            msg.getApplicationMessageId(),
+            msg.getAckMessageId(),
+            e);
+      }
+    }
   }
 
   @Override
@@ -164,10 +194,20 @@ class UnboundedSolaceReader<T> extends UnboundedReader<T> {
 
   @Override
   public UnboundedSource.CheckpointMark getCheckpointMark() {
-
-    ImmutableList<BytesXMLMessage> bytesXMLMessages = ImmutableList.copyOf(receivedMessages);
+    Queue<BytesXMLMessage> safeToAckMessages = new ConcurrentLinkedQueue<>();
+    safeToAckMessages.addAll(receivedMessages);
     receivedMessages.clear();
-    return new SolaceCheckpointMark(bytesXMLMessages);
+    nackCallback =
+        cleanUpThread.submit(
+            () -> {
+              try {
+                Thread.sleep(ackDeadlineSeconds * 1000L);
+              } catch (InterruptedException e) {
+                throw new RuntimeException(e);
+              }
+              nackMessages(safeToAckMessages);
+            });
+    return new SolaceCheckpointMark(safeToAckMessages);
   }
 
   @Override

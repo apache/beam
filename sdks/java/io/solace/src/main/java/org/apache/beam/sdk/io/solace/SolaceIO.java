@@ -412,6 +412,7 @@ public class SolaceIO {
         }
       };
   private static final boolean DEFAULT_DEDUPLICATE_RECORDS = false;
+  private static final int DEFAULT_ACK_DEADLINE_SECONDS = 60;
   private static final Duration DEFAULT_WATERMARK_IDLE_DURATION_THRESHOLD =
       Duration.standardSeconds(30);
   public static final int DEFAULT_WRITER_NUM_SHARDS = 20;
@@ -461,6 +462,7 @@ public class SolaceIO {
             .setParseFn(SolaceRecordMapper::map)
             .setTimestampFn(SENDER_TIMESTAMP_FUNCTION)
             .setDeduplicateRecords(DEFAULT_DEDUPLICATE_RECORDS)
+            .setAckDeadlineSeconds(DEFAULT_ACK_DEADLINE_SECONDS)
             .setWatermarkIdleDurationThreshold(DEFAULT_WATERMARK_IDLE_DURATION_THRESHOLD));
   }
 
@@ -490,6 +492,7 @@ public class SolaceIO {
             .setParseFn(parseFn)
             .setTimestampFn(timestampFn)
             .setDeduplicateRecords(DEFAULT_DEDUPLICATE_RECORDS)
+            .setAckDeadlineSeconds(DEFAULT_ACK_DEADLINE_SECONDS)
             .setWatermarkIdleDurationThreshold(DEFAULT_WATERMARK_IDLE_DURATION_THRESHOLD));
   }
 
@@ -584,6 +587,16 @@ public class SolaceIO {
      */
     public Read<T> withDeduplicateRecords(boolean deduplicateRecords) {
       configurationBuilder.setDeduplicateRecords(deduplicateRecords);
+      return this;
+    }
+
+    /**
+     * Optional, default: 60. Set to ack deadline after which {@link
+     * org.apache.beam.sdk.io.solace.read.UnboundedSolaceReader} will start to reject outstanding
+     * messages that were not successfully checkpointed.
+     */
+    public Read<T> withAckDeadlineSeconds(int ackDeadlineSeconds) {
+      configurationBuilder.setAckDeadlineSeconds(ackDeadlineSeconds);
       return this;
     }
 
@@ -689,6 +702,8 @@ public class SolaceIO {
 
       abstract Duration getWatermarkIdleDurationThreshold();
 
+      abstract int getAckDeadlineSeconds();
+
       public static <T> Builder<T> builder() {
         Builder<T> builder =
             new org.apache.beam.sdk.io.solace.AutoValue_SolaceIO_Read_Configuration.Builder<T>();
@@ -718,6 +733,8 @@ public class SolaceIO {
         abstract Builder<T> setTypeDescriptor(TypeDescriptor<T> typeDescriptor);
 
         abstract Builder<T> setWatermarkIdleDurationThreshold(Duration idleDurationThreshold);
+
+        abstract Builder<T> setAckDeadlineSeconds(int seconds);
 
         abstract Configuration<T> build();
       }
@@ -756,7 +773,8 @@ public class SolaceIO {
                   coder,
                   configuration.getTimestampFn(),
                   configuration.getWatermarkIdleDurationThreshold(),
-                  configuration.getParseFn())));
+                  configuration.getParseFn(),
+                  configuration.getAckDeadlineSeconds())));
     }
 
     @VisibleForTesting
