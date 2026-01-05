@@ -61,15 +61,14 @@ def run(argv=None):
       }],
       namespace='example_pipeline')
 
-  # Initialize the VertexAIModelHandlerJSON with the rate limiter
+  # Initialize the VertexAIModelHandler with the rate limiter
   model_handler = VertexAIModelHandlerJSON(
       endpoint_id=known_args.endpoint_id,
       project=known_args.project,
       location=known_args.location,
       rate_limiter=rate_limiter)
 
-  # Define a set of input features for the model
-  # Each inner list represents a single instance with 3 float features.
+  # Input features for the model
   features = [[1.0, 2.0, 3.0], [4.0, 5.0, 6.0], [7.0, 8.0, 9.0],
               [10.0, 11.0, 12.0], [13.0, 14.0, 15.0]]
 

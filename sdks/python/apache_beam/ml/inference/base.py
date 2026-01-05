@@ -447,8 +447,8 @@ class RemoteModelHandler(ABC, ModelHandler[ExampleT, PredictionT, ModelT]):
 
       if not self._shared_rate_limiter.throttle(hits_added=len(batch)):
         raise RuntimeError(
-            "Global Rate Limit Exceeded. "
-            "Processing this batch would exceed the capacity")
+            "Rate Limit Exceeded, "
+            "Could not process this batch.")
 
     self.throttler.throttle()
 
