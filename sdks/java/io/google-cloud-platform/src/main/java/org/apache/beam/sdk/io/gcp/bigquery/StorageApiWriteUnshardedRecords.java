@@ -219,7 +219,7 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
                         operationName,
                         dynamicDestinations,
                         bqServices,
-                        false,
+                        usesCdc,
                         options.getStorageApiAppendThresholdBytes(),
                         options.getStorageApiAppendThresholdRecordCount(),
                         options.getNumStorageWriteApiStreamAppendClients(),
