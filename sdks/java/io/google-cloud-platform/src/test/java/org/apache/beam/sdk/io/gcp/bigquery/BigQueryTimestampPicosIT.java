@@ -411,11 +411,11 @@ public class BigQueryTimestampPicosIT {
         .endRecord();
   }
 
+  private static final java.time.Instant TEST_INSTANT =
+      java.time.Instant.parse("2024-01-15T10:30:45.123456789Z");
+
   private static final org.apache.avro.Schema TIMESTAMP_NANOS_AVRO_SCHEMA =
       createTimestampNanosAvroSchema();
-
-  // Nanoseconds since epoch for 2024-01-15T10:30:45.123456789Z
-  private static final long TEST_NANOS_VALUE = 1705321845123456789L;
 
   @Test
   public void testWriteGenericRecordTimestampNanos() throws Exception {
@@ -425,7 +425,7 @@ public class BigQueryTimestampPicosIT {
     // Create GenericRecord with timestamp-nanos value
     GenericRecord record =
         new GenericRecordBuilder(TIMESTAMP_NANOS_AVRO_SCHEMA)
-            .set("ts_nanos", TEST_NANOS_VALUE)
+            .set("ts_nanos", TEST_INSTANT.getEpochSecond() * 1_000_000_000 + TEST_INSTANT.getNano())
             .build();
 
     // Write using Storage Write API with Avro format
@@ -437,10 +437,11 @@ public class BigQueryTimestampPicosIT {
             BigQueryIO.writeGenericRecords()
                 .to(tableSpec)
                 .withAvroSchemaFactory(tableSchema -> TIMESTAMP_NANOS_AVRO_SCHEMA)
+                .withSchema(BigQueryUtils.fromGenericAvroSchema(TIMESTAMP_NANOS_AVRO_SCHEMA, true))
                 .useAvroLogicalTypes()
                 .withMethod(BigQueryIO.Write.Method.STORAGE_WRITE_API)
                 .withCreateDisposition(BigQueryIO.Write.CreateDisposition.CREATE_IF_NEEDED)
-                .withWriteDisposition(BigQueryIO.Write.WriteDisposition.WRITE_TRUNCATE));
+                .withWriteDisposition(BigQueryIO.Write.WriteDisposition.WRITE_APPEND));
     writePipeline.run().waitUntilFinish();
 
     // Read back and verify
@@ -458,9 +459,6 @@ public class BigQueryTimestampPicosIT {
         .containsInAnyOrder(new TableRow().set("ts_nanos", "2024-01-15T10:30:45.123456789000Z"));
     readPipeline.run().waitUntilFinish();
   }
-
-  private static final java.time.Instant TEST_INSTANT =
-      java.time.Instant.parse("2024-01-15T10:30:45.123456789Z");
 
   private static final Schema BEAM_TIMESTAMP_NANOS_SCHEMA =
       Schema.builder().addField("ts_nanos", Schema.FieldType.logicalType(Timestamp.NANOS)).build();
@@ -486,7 +484,7 @@ public class BigQueryTimestampPicosIT {
                 .useBeamSchema() // Key method for Beam Row!
                 .withMethod(BigQueryIO.Write.Method.STORAGE_WRITE_API)
                 .withCreateDisposition(BigQueryIO.Write.CreateDisposition.CREATE_IF_NEEDED)
-                .withWriteDisposition(BigQueryIO.Write.WriteDisposition.WRITE_TRUNCATE));
+                .withWriteDisposition(BigQueryIO.Write.WriteDisposition.WRITE_APPEND));
     writePipeline.run().waitUntilFinish();
 
     // Read back and verify
