@@ -1,13 +1,13 @@
 /*
  * Licensed to the Apache Software Foundation (ASF) under one
- * or more contributor license agreements.  See the NOTICE file
+ * or more contributor license agreements. See the NOTICE file
  * distributed with this work for additional information
- * regarding copyright ownership.  The ASF licenses this file
+ * regarding copyright ownership. The ASF licenses this file
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
- * with the License.  You may obtain a copy of the License at
+ * with the License. You may obtain a copy of the License at
  *
- *     http://www.apache.org/licenses/LICENSE-2.0
+ * http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -47,8 +47,8 @@ import org.joda.time.Instant;
  * A Reader that receives input data from a Windmill server, and returns it as individual elements.
  */
 @SuppressWarnings({
-  "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
-  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+  "rawtypes", // TOD[](https://github.com/apache/beam/issues/20447)
+  "nullness" // TOD[](https://github.com/apache/beam/issues/20497)
 })
 class UngroupedWindmillReader<T> extends NativeReader<WindowedValue<T>> {
   private final Coder<T> valueCoder;
@@ -65,7 +65,6 @@ class UngroupedWindmillReader<T> extends NativeReader<WindowedValue<T>> {
   /** A {@link ReaderFactory.Registrar} for ungrouped windmill sources. */
   @AutoService(ReaderFactory.Registrar.class)
   public static class Registrar implements ReaderFactory.Registrar {
-
     @Override
     public Map<String, ReaderFactory> factories() {
       Factory factory = new Factory();
@@ -110,60 +109,61 @@ class UngroupedWindmillReader<T> extends NativeReader<WindowedValue<T>> {
       }
       return super.advance();
     }
-@Override
-protected WindowedValue<T> decodeMessage(Windmill.Message message) throws IOException {
-  Instant timestampMillis =
-      WindmillTimeUtils.windmillToHarnessTimestamp(message.getTimestamp());
-  InputStream data = message.getData().newInput();
-  InputStream metadata = message.getMetadata().newInput();
-  Collection<? extends BoundedWindow> windows =
-      WindmillSink.decodeMetadataWindows(windowsCoder, message.getMetadata());
-  PaneInfo paneInfo = WindmillSink.decodeMetadataPane(message.getMetadata());
 
-  // Existing drain propagation from current master
-  boolean drainingValueFromUpstream = false;
-  if (WindowedValues.WindowedValueCoder.isMetadataSupported()) {
-    BeamFnApi.Elements.ElementMetadata elementMetadata =
-        WindmillSink.decodeAdditionalMetadata(windowsCoder, message.getMetadata());
-    drainingValueFromUpstream =
-        elementMetadata.getDrain() == BeamFnApi.Elements.DrainMode.Enum.DRAINING;
-  }
+    @Override
+    protected WindowedValue<T> decodeMessage(Windmill.Message message) throws IOException {
+      Instant timestampMillis =
+          WindmillTimeUtils.windmillToHarnessTimestamp(message.getTimestamp());
+      InputStream data = message.getData().newInput();
+      InputStream metadata = message.getMetadata().newInput();
+      Collection<? extends BoundedWindow> windows =
+          WindmillSink.decodeMetadataWindows(windowsCoder, message.getMetadata());
+      PaneInfo paneInfo = WindmillSink.decodeMetadataPane(message.getMetadata());
 
-  // New: propagate record ID and offset
-  String recordId = null;
-  Long recordOffset = null;
-  if (context.offsetBasedDeduplicationSupported()) {
-    byte[] rawId = context.getCurrentRecordId();
-    if (rawId != null) {
-      recordId = new String(rawId, StandardCharsets.UTF_8);
+      // Propagate drain bit (existing in current master)
+      boolean drainingValueFromUpstream = false;
+      if (WindowedValues.WindowedValueCoder.isMetadataSupported()) {
+        BeamFnApi.Elements.ElementMetadata elementMetadata =
+            WindmillSink.decodeAdditionalMetadata(windowsCoder, message.getMetadata());
+        drainingValueFromUpstream =
+            elementMetadata.getDrain() == BeamFnApi.Elements.DrainMode.Enum.DRAINING;
+      }
+
+      // Propagate record ID and offset
+      String recordId = null;
+      Long recordOffset = null;
+      if (context.offsetBasedDeduplicationSupported()) {
+        byte[] rawId = context.getCurrentRecordId();
+        if (rawId != null) {
+          recordId = new String(rawId, StandardCharsets.UTF_8);
+        }
+        byte[] rawOffset = context.getCurrentRecordOffset();
+        if (rawOffset != null && rawOffset.length == Longs.BYTES) {
+          recordOffset = Longs.fromByteArray(rawOffset);
+        }
+      }
+
+      if (valueCoder instanceof KvCoder) {
+        KvCoder<?, ?> kvCoder = (KvCoder<?, ?>) valueCoder;
+        InputStream key = context.getSerializedKey().newInput();
+        notifyElementRead(key.available() + data.available() + metadata.available());
+        @SuppressWarnings("unchecked")
+        T result =
+            (T) KV.of(decode(kvCoder.getKeyCoder(), key), decode(kvCoder.getValueCoder(), data));
+
+        return WindowedValues.of(
+            result, timestampMillis, windows, paneInfo,
+            recordId, recordOffset, drainingValueFromUpstream);
+      } else {
+        notifyElementRead(data.available() + metadata.available());
+        return WindowedValues.of(
+            decode(valueCoder, data),
+            timestampMillis,
+            windows,
+            paneInfo,
+            recordId, recordOffset, drainingValueFromUpstream);
+      }
     }
-    byte[] rawOffset = context.getCurrentRecordOffset();
-    if (rawOffset != null && rawOffset.length == Longs.BYTES) {
-      recordOffset = Longs.fromByteArray(rawOffset);
-    }
-  }
-
-  if (valueCoder instanceof KvCoder) {
-    KvCoder<?, ?> kvCoder = (KvCoder<?, ?>) valueCoder;
-    InputStream key = context.getSerializedKey().newInput();
-    notifyElementRead(key.available() + data.available() + metadata.available());
-    @SuppressWarnings("unchecked")
-    T result =
-        (T) KV.of(decode(kvCoder.getKeyCoder(), key), decode(kvCoder.getValueCoder(), data));
-
-    return WindowedValues.of(
-        result, timestampMillis, windows, paneInfo,
-        recordId, recordOffset, drainingValueFromUpstream);
-  } else {
-    notifyElementRead(data.available() + metadata.available());
-    return WindowedValues.of(
-        decode(valueCoder, data),
-        timestampMillis,
-        windows,
-        paneInfo,
-        recordId, recordOffset, drainingValueFromUpstream);
-  }
-}
 
     private <X> X decode(Coder<X> coder, InputStream input) throws IOException {
       return coder.decode(input, Coder.Context.OUTER);
