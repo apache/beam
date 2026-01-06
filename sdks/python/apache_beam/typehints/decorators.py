@@ -76,7 +76,6 @@ this module defines two functions: 'enable_run_time_type_checking' and
 properly it must appear at the top of the module where all functions are
 defined, or before importing a module containing type-hinted functions.
 """
-
 # pytype: skip-file
 
 import inspect
@@ -84,6 +83,7 @@ import itertools
 import logging
 import traceback
 import types
+import typing
 from typing import Any
 from typing import Callable
 from typing import Dict
@@ -126,6 +126,15 @@ _ANY_VAR_KEYWORD = typehints.Dict[typehints.Any, typehints.Any]
 _disable_from_callable = False  # pylint: disable=invalid-name
 
 
+def _get_type_hints(obj):
+  if isinstance(obj, type):
+    resolved_annotations = typing.get_type_hints(obj.__init__)
+    resolved_annotations['return'] = obj
+  else:
+    resolved_annotations = typing.get_type_hints(obj)
+  return resolved_annotations
+
+
 def get_signature(func):
   """Like inspect.signature(), but supports Py2 as well.
 
@@ -145,6 +154,34 @@ def get_signature(func):
     ]
 
     signature = inspect.Signature(params)
+
+  try:
+    resolved_annotations: Dict[str, Any] = _get_type_hints(func)
+  except NameError:
+    # note(jtran): if the function uses any types defined only in a
+    # `if typing.TYPE_CHECKING:` block, we'll get a NameError
+    pass
+  except TypeError:
+    # Let callable non-functions and functools.partial pass through
+    pass
+  else:
+    new_parameters = []
+    for name, param in signature.parameters.items():
+      # Look up the resolved annotation for the parameter
+      resolved_annotation = resolved_annotations.get(name, param.annotation)
+
+      # Create a new Parameter object with the resolved annotation
+      new_param = param.replace(annotation=resolved_annotation)
+      new_parameters.append(new_param)
+    # 4. Determine the resolved return annotation
+    resolved_return_annotation = resolved_annotations.get(
+        'return', signature.return_annotation)
+    if resolved_return_annotation is type(None):
+      # For backward compatibility, we just use None to represent the
+      # type of None
+      resolved_return_annotation = None
+    signature = signature.replace(
+        parameters=new_parameters, return_annotation=resolved_return_annotation)
 
   # This is a specialization to hint the first argument of certain builtins,
   # such as str.strip.
@@ -339,7 +376,7 @@ class IOTypeHints(NamedTuple):
                 strip_pcoll_helper(self.output_types,
                                    self.has_simple_output_type,
                                    'output_types',
-                                   [PDone, None],
+                                   [PDone, None, type(None)],
                                    'This output type hint will be ignored '
                                    'and not used for type-checking purposes. '
                                    'Typically, output type hints for a '
@@ -431,6 +468,11 @@ class IOTypeHints(NamedTuple):
           origin=self._make_origin([self], tb=False, msg=['strip_iterable()']))
 
     yielded_type = typehints.get_yielded_type(output_type)
+    if isinstance(yielded_type, typehints.TypeVariable):
+      # For backwards compatibility, we cast TypeVars to  Any.
+      return self._replace(
+          output_types=((typehints.Any, ), {}),
+          origin=self._make_origin([self], tb=False, msg=['strip_iterable()']))
     return self._replace(
         output_types=((yielded_type, ), {}),
         origin=self._make_origin([self], tb=False, msg=['strip_iterable()']))

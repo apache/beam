@@ -398,7 +398,7 @@ class MainInputTest(unittest.TestCase):
       _ = [1, 2, 3] | beam.ParDo(my_do_fn, a=1)
 
   def test_typed_callable_string_literals(self):
-    def do_fn(element: 'int') -> 'typehints.List[str]':
+    def do_fn(element: 'int') -> 'typehints.List[typehints.List[str]]':
       return [[str(element)] * 2]
 
     result = [1, 2] | beam.ParDo(do_fn)
