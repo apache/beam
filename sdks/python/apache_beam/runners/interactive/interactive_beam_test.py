@@ -395,7 +395,7 @@ class InteractiveBeamTest(unittest.TestCase):
       mock_rm = MagicMock()
       mock_env.get_recording_manager.return_value = mock_rm
       mock_env.computed_pcollections = set()
-      mock_env.user_pipeline.return_value = lambda x: x  # Mock user_pipeline
+      mock_env.user_pipeline.side_effect = lambda x: x
 
       p = beam.Pipeline(ir.InteractiveRunner())
       pcoll1 = p | 'Create1' >> beam.Create([1, 2, 3])
@@ -434,7 +434,7 @@ class InteractiveBeamTest(unittest.TestCase):
       mock_rm = MagicMock()
       mock_env.get_recording_manager.return_value = mock_rm
       mock_env.computed_pcollections = set()
-      mock_env.user_pipeline.return_value = lambda x: x  # Mock user_pipeline
+      mock_env.user_pipeline.side_effect = lambda x: x
 
       p = beam.Pipeline(ir.InteractiveRunner())
       pcoll1 = p | 'Create1' >> beam.Create([1, 2, 3])
@@ -471,7 +471,7 @@ class InteractiveBeamTest(unittest.TestCase):
       mock_rm = MagicMock()
       mock_env.get_recording_manager.return_value = mock_rm
       mock_env.computed_pcollections = set()
-      mock_env.user_pipeline.return_value = lambda x: x  # Mock user_pipeline
+      mock_env.user_pipeline.side_effect = lambda x: x
 
       p = beam.Pipeline(ir.InteractiveRunner())
       pcoll1 = p | 'Create1' >> beam.Create([1, 2, 3])
