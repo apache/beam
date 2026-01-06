@@ -57,6 +57,9 @@ public class AvroGenericRecordToStorageApiProto {
   private static final org.joda.time.LocalDate EPOCH_DATE = new org.joda.time.LocalDate(1970, 1, 1);
 
   private static final String TIMESTAMP_NANOS_LOGICAL_TYPE = "timestamp-nanos";
+  private static final long PICOSECOND_PRECISION = 12L;
+  private static final long NANOS_PER_SECOND = 1_000_000_000L;
+  private static final long PICOS_PER_NANO = 1000L;
 
   static final Map<Schema.Type, TableFieldSchema.Type> PRIMITIVE_TYPES =
       ImmutableMap.<Schema.Type, TableFieldSchema.Type>builder()
@@ -393,7 +396,8 @@ public class AvroGenericRecordToStorageApiProto {
         elementType = TypeWithNullability.create(schema).getType();
         if (TIMESTAMP_NANOS_LOGICAL_TYPE.equals(elementType.getProp("logicalType"))) {
           builder = builder.setType(TableFieldSchema.Type.TIMESTAMP);
-          builder.setTimestampPrecision(Int64Value.newBuilder().setValue(12L).build());
+          builder.setTimestampPrecision(
+              Int64Value.newBuilder().setValue(PICOSECOND_PRECISION).build());
           break;
         } else {
           Optional<LogicalType> logicalType =
@@ -537,16 +541,16 @@ public class AvroGenericRecordToStorageApiProto {
           value instanceof Long, "Expecting a value as Long type (timestamp-nanos).");
       long nanos = (Long) value;
 
-      long seconds = nanos / 1_000_000_000L;
-      int nanoAdjustment = (int) (nanos % 1_000_000_000L);
+      long seconds = nanos / NANOS_PER_SECOND;
+      long nanoAdjustment = nanos % NANOS_PER_SECOND;
 
       // Handle negative timestamps (before epoch)
       if (nanos < 0 && nanoAdjustment != 0) {
         seconds -= 1;
-        nanoAdjustment += 1_000_000_000;
+        nanoAdjustment += NANOS_PER_SECOND;
       }
 
-      long picoseconds = nanoAdjustment * 1000L;
+      long picoseconds = nanoAdjustment * PICOS_PER_NANO;
       return buildTimestampPicosMessage(
           Preconditions.checkNotNull(descriptor).getMessageType(), seconds, picoseconds);
     }

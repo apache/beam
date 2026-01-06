@@ -587,12 +587,8 @@ public class BigQueryUtils {
         field.setFields(toTableFieldSchema(mapSchema));
         field.setMode(Mode.REPEATED.toString());
       }
-      if (type.getTypeName().isLogicalType()
-          && Preconditions.checkArgumentNotNull(type.getLogicalType())
-              .getIdentifier()
-              .equals(Timestamp.IDENTIFIER)) {
-        Schema.LogicalType<?, ?> logicalType =
-            Preconditions.checkArgumentNotNull(type.getLogicalType());
+      Schema.LogicalType<?, ?> logicalType = type.getLogicalType();
+      if (logicalType != null && Timestamp.IDENTIFIER.equals(logicalType.getIdentifier())) {
         int precision = Preconditions.checkArgumentNotNull(logicalType.getArgument());
         if (precision != 9) {
           throw new IllegalArgumentException(

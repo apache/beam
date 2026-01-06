@@ -425,7 +425,8 @@ public class BigQueryTimestampPicosIT {
     // Create GenericRecord with timestamp-nanos value
     GenericRecord record =
         new GenericRecordBuilder(TIMESTAMP_NANOS_AVRO_SCHEMA)
-            .set("ts_nanos", TEST_INSTANT.getEpochSecond() * 1_000_000_000 + TEST_INSTANT.getNano())
+            .set(
+                "ts_nanos", TEST_INSTANT.getEpochSecond() * 1_000_000_000L + TEST_INSTANT.getNano())
             .build();
 
     // Write using Storage Write API with Avro format
