@@ -17,7 +17,7 @@
     under the License.
 -->
 
-This directory contains an example of a Python pipeline that uses Rust DoFns to perform some of the string processing in wordcount. This is performed using [PyO3](https://pyo3.rs/v0.27.2/) to produce bindings for the Rust code, managed using the [maturin](https://github.com/PyO3/maturin) python package. 
+This directory contains an example of a Python pipeline that uses Rust DoFns to perform some of the string processing in wordcount. This is performed using [PyO3](https://pyo3.rs/v0.27.2/) to produce bindings for the Rust code, managed using the [maturin](https://github.com/PyO3/maturin) python package.
 
 This example should be built and run in a Python virtual environment with Apache Beam and maturin installed. The `requirements.txt` file in this directory can be used to install the version of maturin used when the example was created.
 

@@ -60,7 +60,8 @@ def run(argv=None, save_main_session=True) -> PipelineResult:
 
   counts = (
       lines
-      | 'Split' >> (beam.ParDo(word_processing.extract_words).with_output_types(str))
+      | 'Split' >>
+      (beam.ParDo(word_processing.extract_words).with_output_types(str))
       | 'PairWithOne' >> beam.Map(word_processing.map_to_int)
       | 'GroupAndSum' >> beam.CombinePerKey(sum))
 
