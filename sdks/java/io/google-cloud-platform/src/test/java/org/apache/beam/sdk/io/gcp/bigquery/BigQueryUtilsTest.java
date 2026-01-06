@@ -69,6 +69,12 @@ import org.junit.runners.JUnit4;
 /** Tests for {@link BigQueryUtils}. */
 @RunWith(JUnit4.class)
 public class BigQueryUtilsTest {
+  private static final TableFieldSchema TIMESTAMP_NANOS =
+      new TableFieldSchema()
+          .setName("timestamp_nanos")
+          .setType(StandardSQLTypeName.TIMESTAMP.toString())
+          .setTimestampPrecision(12L);
+
   private static final Schema FLAT_TYPE =
       Schema.builder()
           .addNullableField("id", Schema.FieldType.INT64)
@@ -98,6 +104,7 @@ public class BigQueryUtilsTest {
           .addNullableField("boolean", Schema.FieldType.BOOLEAN)
           .addNullableField("long", Schema.FieldType.INT64)
           .addNullableField("double", Schema.FieldType.DOUBLE)
+          .addNullableField("timestamp_nanos", Schema.FieldType.logicalType(Timestamp.NANOS))
           .build();
 
   private static final Schema ENUM_TYPE =
@@ -280,7 +287,8 @@ public class BigQueryUtilsTest {
                   NUMERIC,
                   BOOLEAN,
                   LONG,
-                  DOUBLE));
+                  DOUBLE,
+                  TIMESTAMP_NANOS));
 
   private static final TableFieldSchema ROWS =
       new TableFieldSchema()
@@ -315,7 +323,8 @@ public class BigQueryUtilsTest {
                   NUMERIC,
                   BOOLEAN,
                   LONG,
-                  DOUBLE));
+                  DOUBLE,
+                  TIMESTAMP_NANOS));
 
   private static final TableFieldSchema MAP =
       new TableFieldSchema()
@@ -368,7 +377,8 @@ public class BigQueryUtilsTest {
               new BigDecimal("123.456").setScale(3, RoundingMode.HALF_UP),
               true,
               123L,
-              123.456d)
+              123.456d,
+              java.time.Instant.parse("2024-08-10T16:52:07.123456789Z"))
           .build();
 
   private static final TableRow BQ_FLAT_ROW =
@@ -404,13 +414,14 @@ public class BigQueryUtilsTest {
           .set("numeric", "123.456")
           .set("boolean", true)
           .set("long", 123L)
-          .set("double", 123.456d);
+          .set("double", 123.456d)
+          .set("timestamp_nanos", "2024-08-10 16:52:07.123456789 UTC");
 
   private static final Row NULL_FLAT_ROW =
       Row.withSchema(FLAT_TYPE)
           .addValues(
               null, null, null, null, null, null, null, null, null, null, null, null, null, null,
-              null, null, null, null, null, null, null, null, null, null, null, null, null)
+              null, null, null, null, null, null, null, null, null, null, null, null, null, null)
           .build();
 
   private static final TableRow BQ_NULL_FLAT_ROW =
@@ -441,7 +452,8 @@ public class BigQueryUtilsTest {
           .set("numeric", null)
           .set("boolean", null)
           .set("long", null)
-          .set("double", null);
+          .set("double", null)
+          .set("timestamp_nanos", null);
 
   private static final Row ENUM_ROW =
       Row.withSchema(ENUM_TYPE).addValues(new EnumerationType.Value(1)).build();
@@ -533,7 +545,8 @@ public class BigQueryUtilsTest {
                   NUMERIC,
                   BOOLEAN,
                   LONG,
-                  DOUBLE));
+                  DOUBLE,
+                  TIMESTAMP_NANOS));
 
   private static final TableSchema BQ_ENUM_TYPE = new TableSchema().setFields(Arrays.asList(COLOR));
 
@@ -593,7 +606,8 @@ public class BigQueryUtilsTest {
             NUMERIC,
             BOOLEAN,
             LONG,
-            DOUBLE));
+            DOUBLE,
+            TIMESTAMP_NANOS));
   }
 
   @Test
@@ -648,7 +662,8 @@ public class BigQueryUtilsTest {
             NUMERIC,
             BOOLEAN,
             LONG,
-            DOUBLE));
+            DOUBLE,
+            TIMESTAMP_NANOS));
   }
 
   @Test
@@ -689,7 +704,8 @@ public class BigQueryUtilsTest {
             NUMERIC,
             BOOLEAN,
             LONG,
-            DOUBLE));
+            DOUBLE,
+            TIMESTAMP_NANOS));
   }
 
   @Test
@@ -720,7 +736,7 @@ public class BigQueryUtilsTest {
   public void testToTableRow_flat() {
     TableRow row = toTableRow().apply(FLAT_ROW);
 
-    assertThat(row.size(), equalTo(27));
+    assertThat(row.size(), equalTo(28));
     assertThat(row, hasEntry("id", "123"));
     assertThat(row, hasEntry("value", "123.456"));
     assertThat(row, hasEntry("timestamp_variant1", "2019-08-16 13:52:07.000 UTC"));
@@ -748,6 +764,7 @@ public class BigQueryUtilsTest {
     assertThat(row, hasEntry("boolean", "true"));
     assertThat(row, hasEntry("long", "123"));
     assertThat(row, hasEntry("double", "123.456"));
+    assertThat(row, hasEntry("timestamp_nanos", "2024-08-10 16:52:07.123456789 UTC"));
   }
 
   @Test
@@ -783,7 +800,7 @@ public class BigQueryUtilsTest {
 
     assertThat(row.size(), equalTo(1));
     row = (TableRow) row.get("row");
-    assertThat(row.size(), equalTo(27));
+    assertThat(row.size(), equalTo(28));
     assertThat(row, hasEntry("id", "123"));
     assertThat(row, hasEntry("value", "123.456"));
     assertThat(row, hasEntry("timestamp_variant1", "2019-08-16 13:52:07.000 UTC"));
@@ -811,6 +828,7 @@ public class BigQueryUtilsTest {
     assertThat(row, hasEntry("boolean", "true"));
     assertThat(row, hasEntry("long", "123"));
     assertThat(row, hasEntry("double", "123.456"));
+    assertThat(row, hasEntry("timestamp_nanos", "2024-08-10 16:52:07.123456789 UTC"));
   }
 
   @Test
@@ -819,7 +837,7 @@ public class BigQueryUtilsTest {
 
     assertThat(row.size(), equalTo(1));
     row = ((List<TableRow>) row.get("rows")).get(0);
-    assertThat(row.size(), equalTo(27));
+    assertThat(row.size(), equalTo(28));
     assertThat(row, hasEntry("id", "123"));
     assertThat(row, hasEntry("value", "123.456"));
     assertThat(row, hasEntry("timestamp_variant1", "2019-08-16 13:52:07.000 UTC"));
@@ -847,13 +865,14 @@ public class BigQueryUtilsTest {
     assertThat(row, hasEntry("boolean", "true"));
     assertThat(row, hasEntry("long", "123"));
     assertThat(row, hasEntry("double", "123.456"));
+    assertThat(row, hasEntry("timestamp_nanos", "2024-08-10 16:52:07.123456789 UTC"));
   }
 
   @Test
   public void testToTableRow_null_row() {
     TableRow row = toTableRow().apply(NULL_FLAT_ROW);
 
-    assertThat(row.size(), equalTo(27));
+    assertThat(row.size(), equalTo(28));
     assertThat(row, hasEntry("id", null));
     assertThat(row, hasEntry("value", null));
     assertThat(row, hasEntry("name", null));
@@ -881,6 +900,7 @@ public class BigQueryUtilsTest {
     assertThat(row, hasEntry("boolean", null));
     assertThat(row, hasEntry("long", null));
     assertThat(row, hasEntry("double", null));
+    assertThat(row, hasEntry("timestamp_nanos", null));
   }
 
   private static final BigQueryUtils.ConversionOptions TRUNCATE_OPTIONS =
