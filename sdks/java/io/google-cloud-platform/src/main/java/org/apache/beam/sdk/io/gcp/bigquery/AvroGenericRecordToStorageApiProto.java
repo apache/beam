@@ -260,7 +260,6 @@ public class AvroGenericRecordToStorageApiProto {
     for (Schema.Field field : schema.getFields()) {
       builder.addFields(fieldDescriptorFromAvroField(field));
     }
-    System.out.println("CLAUDE protoTableSchemaFromAvroSchema " + builder.build());
     return builder.build();
   }
 
@@ -318,7 +317,6 @@ public class AvroGenericRecordToStorageApiProto {
   @SuppressWarnings("nullness")
   private static TableFieldSchema fieldDescriptorFromAvroField(org.apache.avro.Schema.Field field) {
     @Nullable Schema schema = field.schema();
-    System.out.println("CLANDE fieldDescriptorFromAvroField schema " + schema);
 
     Preconditions.checkNotNull(schema, "Unexpected null schema!");
     if (StorageApiCDC.COLUMNS.contains(field.name())) {
@@ -393,7 +391,6 @@ public class AvroGenericRecordToStorageApiProto {
         break;
       default:
         elementType = TypeWithNullability.create(schema).getType();
-        System.out.println("CLAUDE fieldDescriptorFromAvroField elementType " + elementType);
         if (TIMESTAMP_NANOS_LOGICAL_TYPE.equals(elementType.getProp("logicalType"))) {
           builder = builder.setType(TableFieldSchema.Type.TIMESTAMP);
           builder.setTimestampPrecision(Int64Value.newBuilder().setValue(12L).build());
@@ -439,7 +436,6 @@ public class AvroGenericRecordToStorageApiProto {
     if (field.doc() != null) {
       builder = builder.setDescription(field.doc());
     }
-    System.out.println("CLAUDE  builder.build " + builder.build());
     return builder.build();
   }
 
@@ -520,11 +516,6 @@ public class AvroGenericRecordToStorageApiProto {
     return builder.build();
   }
 
-  /** Returns true if this schema represents a timestamp-nanos logical type. */
-  private static boolean isTimestampNanos(Schema schema) {
-    return TIMESTAMP_NANOS_LOGICAL_TYPE.equals(schema.getProp("logicalType"));
-  }
-
   private static DynamicMessage buildTimestampPicosMessage(
       Descriptor timestampPicosDescriptor, long seconds, long picoseconds) {
     return DynamicMessage.newBuilder(timestampPicosDescriptor)
@@ -541,22 +532,11 @@ public class AvroGenericRecordToStorageApiProto {
   static Object scalarToProtoValue(
       @Nullable FieldDescriptor descriptor, Schema fieldSchema, Object value) {
     TypeWithNullability type = TypeWithNullability.create(fieldSchema);
-    System.out.println(
-        "CLAUDE fieldSchema "
-            + fieldSchema
-            + " value "
-            + value
-            + " type.getType() "
-            + type.getType()
-            + " "
-            + TIMESTAMP_NANOS_LOGICAL_TYPE.equals(type.getType().getProp("logicalType")));
     if (TIMESTAMP_NANOS_LOGICAL_TYPE.equals(type.getType().getProp("logicalType"))) {
-      System.out.println("CLAUDE in TIMESTAMP_NANOS_LOGICAL_TYPE");
       Preconditions.checkArgument(
           value instanceof Long, "Expecting a value as Long type (timestamp-nanos).");
       long nanos = (Long) value;
 
-      // Convert nanos since epoch to seconds + picoseconds
       long seconds = nanos / 1_000_000_000L;
       int nanoAdjustment = (int) (nanos % 1_000_000_000L);
 
@@ -566,16 +546,7 @@ public class AvroGenericRecordToStorageApiProto {
         nanoAdjustment += 1_000_000_000;
       }
 
-      // Convert nanos to picos (multiply by 1000)
       long picoseconds = nanoAdjustment * 1000L;
-      System.out.println("CLAUDE before returning descriptor " + descriptor);
-      System.out.println(
-          "CLAUDE before returning descriptor "
-              + Preconditions.checkNotNull(descriptor).getMessageType().getName());
-      System.out.println(
-          "CLAUDE Returning "
-              + buildTimestampPicosMessage(
-                  Preconditions.checkNotNull(descriptor).getMessageType(), seconds, picoseconds));
       return buildTimestampPicosMessage(
           Preconditions.checkNotNull(descriptor).getMessageType(), seconds, picoseconds);
     }

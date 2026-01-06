@@ -69,10 +69,8 @@ class StorageApiDynamicDestinationsGenericRecord<T, DestinationT extends @NonNul
       avroSchema = schemaFactory.apply(getSchema(destination));
       protoTableSchema =
           AvroGenericRecordToStorageApiProto.protoTableSchemaFromAvroSchema(avroSchema);
-      System.out.println("CLAUDE protoTableSchema " + protoTableSchema);
       descriptor =
           TableRowToStorageApiProto.getDescriptorFromTableSchema(protoTableSchema, true, false);
-      // System.out.println("CLAUDE descriptor " + descriptor);
       if (usesCdc) {
         cdcDescriptor =
             TableRowToStorageApiProto.getDescriptorFromTableSchema(protoTableSchema, true, true);

@@ -23,13 +23,19 @@ import com.google.api.services.bigquery.model.TableSchema;
 import com.google.cloud.bigquery.storage.v1.DataFormat;
 import java.security.SecureRandom;
 import java.util.List;
+import org.apache.avro.generic.GenericRecord;
+import org.apache.avro.generic.GenericRecordBuilder;
 import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.sdk.extensions.avro.coders.AvroCoder;
 import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
 import org.apache.beam.sdk.io.gcp.testing.BigqueryClient;
+import org.apache.beam.sdk.schemas.Schema;
+import org.apache.beam.sdk.schemas.logicaltypes.Timestamp;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
@@ -390,6 +396,113 @@ public class BigQueryTimestampPicosIT {
             new TableRow().set("ts_simple", "1890-01-01 00:00:00.123456789 UTC"));
 
     runReadTest(TimestampPrecision.NANOS, DataFormat.ARROW, expectedOutput, simpleTableSpec);
+  }
+
+  // Schema with custom timestamp-nanos logical type
+  private static org.apache.avro.Schema createTimestampNanosAvroSchema() {
+    org.apache.avro.Schema longSchema =
+        org.apache.avro.Schema.create(org.apache.avro.Schema.Type.LONG);
+    longSchema.addProp("logicalType", "timestamp-nanos");
+    return org.apache.avro.SchemaBuilder.record("TimestampNanosRecord")
+        .fields()
+        .name("ts_nanos")
+        .type(longSchema)
+        .noDefault()
+        .endRecord();
+  }
+
+  private static final org.apache.avro.Schema TIMESTAMP_NANOS_AVRO_SCHEMA =
+      createTimestampNanosAvroSchema();
+
+  // Nanoseconds since epoch for 2024-01-15T10:30:45.123456789Z
+  private static final long TEST_NANOS_VALUE = 1705321845123456789L;
+
+  @Test
+  public void testWriteGenericRecordTimestampNanos() throws Exception {
+    String tableSpec =
+        String.format("%s:%s.%s", project, DATASET_ID, "generic_record_ts_nanos_test");
+
+    // Create GenericRecord with timestamp-nanos value
+    GenericRecord record =
+        new GenericRecordBuilder(TIMESTAMP_NANOS_AVRO_SCHEMA)
+            .set("ts_nanos", TEST_NANOS_VALUE)
+            .build();
+
+    // Write using Storage Write API with Avro format
+    Pipeline writePipeline = Pipeline.create(bqOptions);
+    writePipeline
+        .apply("CreateData", Create.of(record).withCoder(AvroCoder.of(TIMESTAMP_NANOS_AVRO_SCHEMA)))
+        .apply(
+            "WriteGenericRecords",
+            BigQueryIO.writeGenericRecords()
+                .to(tableSpec)
+                .withAvroSchemaFactory(tableSchema -> TIMESTAMP_NANOS_AVRO_SCHEMA)
+                .useAvroLogicalTypes()
+                .withMethod(BigQueryIO.Write.Method.STORAGE_WRITE_API)
+                .withCreateDisposition(BigQueryIO.Write.CreateDisposition.CREATE_IF_NEEDED)
+                .withWriteDisposition(BigQueryIO.Write.WriteDisposition.WRITE_TRUNCATE));
+    writePipeline.run().waitUntilFinish();
+
+    // Read back and verify
+    Pipeline readPipeline = Pipeline.create(bqOptions);
+    PCollection<TableRow> result =
+        readPipeline.apply(
+            "Read",
+            BigQueryIO.readTableRows()
+                .withMethod(BigQueryIO.TypedRead.Method.DIRECT_READ)
+                .withFormat(DataFormat.AVRO)
+                .withDirectReadPicosTimestampPrecision(TimestampPrecision.PICOS)
+                .from(tableSpec));
+
+    PAssert.that(result)
+        .containsInAnyOrder(new TableRow().set("ts_nanos", "2024-01-15T10:30:45.123456789000Z"));
+    readPipeline.run().waitUntilFinish();
+  }
+
+  private static final java.time.Instant TEST_INSTANT =
+      java.time.Instant.parse("2024-01-15T10:30:45.123456789Z");
+
+  private static final Schema BEAM_TIMESTAMP_NANOS_SCHEMA =
+      Schema.builder().addField("ts_nanos", Schema.FieldType.logicalType(Timestamp.NANOS)).build();
+
+  @Test
+  public void testWriteBeamRowTimestampNanos() throws Exception {
+    String tableSpec = String.format("%s:%s.%s", project, DATASET_ID, "beam_row_ts_nanos_test");
+
+    // Create Beam Row with Timestamp.NANOS
+    Row row =
+        Row.withSchema(BEAM_TIMESTAMP_NANOS_SCHEMA)
+            .withFieldValue("ts_nanos", TEST_INSTANT)
+            .build();
+
+    // Write using Storage Write API with Beam Schema
+    Pipeline writePipeline = Pipeline.create(bqOptions);
+    writePipeline
+        .apply("CreateData", Create.of(row).withRowSchema(BEAM_TIMESTAMP_NANOS_SCHEMA))
+        .apply(
+            "WriteBeamRows",
+            BigQueryIO.<Row>write()
+                .to(tableSpec)
+                .useBeamSchema() // Key method for Beam Row!
+                .withMethod(BigQueryIO.Write.Method.STORAGE_WRITE_API)
+                .withCreateDisposition(BigQueryIO.Write.CreateDisposition.CREATE_IF_NEEDED)
+                .withWriteDisposition(BigQueryIO.Write.WriteDisposition.WRITE_TRUNCATE));
+    writePipeline.run().waitUntilFinish();
+
+    // Read back and verify
+    Pipeline readPipeline = Pipeline.create(bqOptions);
+    PCollection<TableRow> result =
+        readPipeline.apply(
+            "Read",
+            BigQueryIO.readTableRows()
+                .withMethod(BigQueryIO.TypedRead.Method.DIRECT_READ)
+                .withFormat(DataFormat.AVRO)
+                .withDirectReadPicosTimestampPrecision(TimestampPrecision.PICOS)
+                .from(tableSpec));
+
+    PAssert.that(result)
+        .containsInAnyOrder(new TableRow().set("ts_nanos", "2024-01-15T10:30:45.123456789000Z"));
+    readPipeline.run().waitUntilFinish();
   }
 
   private void runReadTest(

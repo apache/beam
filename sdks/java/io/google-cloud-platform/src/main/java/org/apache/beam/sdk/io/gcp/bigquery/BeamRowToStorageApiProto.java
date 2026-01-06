@@ -17,8 +17,6 @@
  */
 package org.apache.beam.sdk.io.gcp.bigquery;
 
-import static com.google.common.base.Preconditions.checkNotNull;
-
 import com.google.cloud.bigquery.storage.v1.TableFieldSchema;
 import com.google.cloud.bigquery.storage.v1.TableSchema;
 import com.google.protobuf.ByteString;
@@ -249,7 +247,10 @@ public class BeamRowToStorageApiProto {
         }
         @Nullable TableFieldSchema.Type type;
         if (logicalType.getIdentifier().equals(Timestamp.IDENTIFIER)) {
-          int precision = checkNotNull(logicalType.getArgument());
+          int precision =
+              Preconditions.checkNotNull(
+                  logicalType.getArgument(),
+                  "Expected logical type argument for timestamp precision.");
           if (precision != 9) {
             throw new RuntimeException(
                 "Unsupported precision for Timestamp logical type " + precision);
@@ -386,7 +387,8 @@ public class BeamRowToStorageApiProto {
       }
       if (logicalType.getIdentifier().equals(Timestamp.IDENTIFIER)) {
         Instant instant = (Instant) value;
-        Descriptor timestampPicosDescriptor = checkNotNull(fieldDescriptor).getMessageType();
+        Descriptor timestampPicosDescriptor =
+            Preconditions.checkNotNull(fieldDescriptor).getMessageType();
         return buildTimestampPicosMessage(timestampPicosDescriptor, instant);
       }
       @Nullable
