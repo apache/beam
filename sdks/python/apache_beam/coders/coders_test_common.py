@@ -130,7 +130,7 @@ if dataclasses is not None:
 
     def __post_init__(self):
       # Hack to update an attribute in a frozen dataclass.
-      object.__setattr__(self, 'area', self.side ** 2)
+      object.__setattr__(self, 'area', self.side**2)
 
 
 # These tests need to all be run in the same process due to the asserts
@@ -318,7 +318,8 @@ class CodersTest(unittest.TestCase):
     if dataclasses is not None:
       self.check_coder(deterministic_coder, FrozenDataClass(1, 2))
       self.check_coder(deterministic_coder, FrozenKwOnlyDataClass(c=1, d=2))
-      self.check_coder(deterministic_coder, FrozenUnInitKwOnlyDataClass(side=11))
+      self.check_coder(
+          deterministic_coder, FrozenUnInitKwOnlyDataClass(side=11))
 
       with self.assertRaises(TypeError):
         self.check_coder(deterministic_coder, UnFrozenDataClass(1, 2))
