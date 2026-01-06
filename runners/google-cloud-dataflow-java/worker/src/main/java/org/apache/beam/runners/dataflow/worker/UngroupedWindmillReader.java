@@ -47,8 +47,8 @@ import org.joda.time.Instant;
  * A Reader that receives input data from a Windmill server, and returns it as individual elements.
  */
 @SuppressWarnings({
-  "rawtypes", // TOD[](https://github.com/apache/beam/issues/20447)
-  "nullness" // TOD[](https://github.com/apache/beam/issues/20497)
+  "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 class UngroupedWindmillReader<T> extends NativeReader<WindowedValue<T>> {
   private final Coder<T> valueCoder;
@@ -120,7 +120,10 @@ class UngroupedWindmillReader<T> extends NativeReader<WindowedValue<T>> {
           WindmillSink.decodeMetadataWindows(windowsCoder, message.getMetadata());
       PaneInfo paneInfo = WindmillSink.decodeMetadataPane(message.getMetadata());
 
-      // Propagate drain bit (existing in current master)
+      /**
+       * https://s.apache.org/beam-drain-mode - propagate drain bit if aggregation/expiry induced by
+       * drain happened upstream
+       */
       boolean drainingValueFromUpstream = false;
       if (WindowedValues.WindowedValueCoder.isMetadataSupported()) {
         BeamFnApi.Elements.ElementMetadata elementMetadata =
