@@ -50,12 +50,12 @@ public class StateTags {
       new Equivalence<StateTag>() {
         @Override
         protected boolean doEquivalent(StateTag a, StateTag b) {
-          return a.getId().equals(b.getId());
+          return a.getIdWithPrefix().equals(b.getIdWithPrefix());
         }
 
         @Override
         protected int doHash(StateTag stateTag) {
-          return stateTag.getId().hashCode();
+          return stateTag.getIdWithPrefix().hashCode();
         }
       };
 
