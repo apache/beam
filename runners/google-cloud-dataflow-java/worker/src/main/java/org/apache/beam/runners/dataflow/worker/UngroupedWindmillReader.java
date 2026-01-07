@@ -137,7 +137,7 @@ class UngroupedWindmillReader<T> extends NativeReader<WindowedValue<T>> {
       Long recordOffset = null;
       if (context.offsetBasedDeduplicationSupported()) {
         byte[] rawId = context.getCurrentRecordId();
-        if (rawId != null) {
+        if (rawId != null && rawId.length > 0) {
           recordId = new String(rawId, StandardCharsets.UTF_8);
         }
         byte[] rawOffset = context.getCurrentRecordOffset();
