@@ -15,6 +15,16 @@
 # limitations under the License.
 #
 
-"""Apache Beam SDK version information and utilities."""
+[build-system]
+requires = ["maturin>=1.11,<2.0"]
+build-backend = "maturin"
 
-__version__ = '2.72.0.dev'
+[project]
+name = "word_processing"
+requires-python = ">=3.8"
+classifiers = [
+    "Programming Language :: Rust",
+    "Programming Language :: Python :: Implementation :: CPython",
+    "Programming Language :: Python :: Implementation :: PyPy",
+]
+dynamic = ["version"]
