@@ -587,7 +587,17 @@ public class BigQueryUtils {
         field.setFields(toTableFieldSchema(mapSchema));
         field.setMode(Mode.REPEATED.toString());
       }
-      field.setType(toStandardSQLTypeName(type).toString());
+      Schema.LogicalType<?, ?> logicalType = type.getLogicalType();
+      if (logicalType != null && Timestamp.IDENTIFIER.equals(logicalType.getIdentifier())) {
+        int precision = Preconditions.checkArgumentNotNull(logicalType.getArgument());
+        if (precision != 9) {
+          throw new IllegalArgumentException(
+              "Unsupported precision for Timestamp logical type " + precision);
+        }
+        field.setType(StandardSQLTypeName.TIMESTAMP.toString()).setTimestampPrecision(12L);
+      } else {
+        field.setType(toStandardSQLTypeName(type).toString());
+      }
 
       fields.add(field);
     }
