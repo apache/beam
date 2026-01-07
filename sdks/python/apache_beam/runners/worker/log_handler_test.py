@@ -233,6 +233,15 @@ class FnApiLogRecordHandlerTest(unittest.TestCase):
     finally:
       statesampler.set_current_tracker(None)
 
+  def test_logger_name_in_custom_data(self):
+    """Tests that logger name is included in custom_data."""
+    _LOGGER.info('test message')
+    self.fn_log_handler.close()
+
+    log_entry = self.test_logging_service.log_records_received[0].log_entries[0]
+    self.assertEqual(
+        log_entry.custom_data.fields['logger'].string_value, __name__)
+
   def test_extracts_transform_id_during_exceptions(self):
     """Tests that transform ids are captured during user code exceptions."""
     descriptor = beam_fn_api_pb2.ProcessBundleDescriptor()
