@@ -23,6 +23,11 @@ import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.instanceOf;
 import static org.hamcrest.Matchers.not;
 
+import io.opentelemetry.api.trace.Span;
+import io.opentelemetry.api.trace.SpanContext;
+import io.opentelemetry.api.trace.TraceFlags;
+import io.opentelemetry.api.trace.TraceState;
+import io.opentelemetry.context.Context;
 import java.util.Arrays;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
@@ -80,6 +85,17 @@ public class WindowedValueTest {
   @Test
   public void testWindowedValueWithElementMetadataCoder() throws CoderException {
     WindowedValues.WindowedValueCoder.setMetadataSupported();
+
+    Context context =
+        Context.current()
+            .with(
+                Span.wrap(
+                    SpanContext.create(
+                        "ff000000000000000000000000000041",
+                        "ff00000000000041",
+                        TraceFlags.getSampled(),
+                        TraceState.builder().put("foo", "bar").put("bar", "baz").build())));
+
     Instant timestamp = new Instant(1234);
     WindowedValue<String> value =
         WindowedValues.of(
@@ -92,12 +108,14 @@ public class WindowedValueTest {
             PaneInfo.NO_FIRING,
             null,
             null,
-            true); // drain is persisted as part of metadata
+            true,
+            context);
 
     Coder<WindowedValue<String>> windowedValueCoder =
         WindowedValues.getFullCoder(StringUtf8Coder.of(), IntervalWindow.getCoder());
 
     byte[] encodedValue = CoderUtils.encodeToByteArray(windowedValueCoder, value);
+
     WindowedValue<String> decodedValue =
         CoderUtils.decodeFromByteArray(windowedValueCoder, encodedValue);
 
@@ -105,6 +123,7 @@ public class WindowedValueTest {
     Assert.assertEquals(value.getTimestamp(), decodedValue.getTimestamp());
     Assert.assertArrayEquals(value.getWindows().toArray(), decodedValue.getWindows().toArray());
     Assert.assertTrue(value.causedByDrain());
+    Assert.assertNotNull(value.getOpenTelemetryContext());
   }
 
   @Test
