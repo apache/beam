@@ -1515,7 +1515,8 @@ def _check_fn_use_yield_and_return(fn):
           "yield("):
         has_yield = True
       elif lstripped_line.rstrip() == "return":
-        has_return = True
+        # Return is likely used to exit the function - ok to use with 'yield'.
+        pass
       elif lstripped_line.startswith("return ") or lstripped_line.startswith(
           "return("):
         if lstripped_line.rstrip() == "return None" or lstripped_line.rstrip(

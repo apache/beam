@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.io.gcp.bigquery;
 
+import com.google.api.services.bigquery.model.TableReference;
 import com.google.api.services.bigquery.model.TableRow;
 import java.io.IOException;
 import java.io.InputStream;
@@ -42,12 +43,18 @@ public class BigQueryStorageApiInsertErrorCoder extends AtomicCoder<BigQueryStor
       throws IOException {
     TABLE_ROW_CODER.encode(value.getRow(), outStream);
     STRING_CODER.encode(value.getErrorMessage(), outStream);
+    TableReference table = value.getTable();
+    String tableSpec = table != null ? BigQueryHelpers.toTableSpec(table) : null;
+    STRING_CODER.encode(tableSpec, outStream);
   }
 
   @Override
   public BigQueryStorageApiInsertError decode(InputStream inStream)
       throws CoderException, IOException {
-    return new BigQueryStorageApiInsertError(
-        TABLE_ROW_CODER.decode(inStream), STRING_CODER.decode(inStream));
+    TableRow row = TABLE_ROW_CODER.decode(inStream);
+    String errorMessage = STRING_CODER.decode(inStream);
+    String tableSpec = STRING_CODER.decode(inStream);
+    TableReference table = tableSpec != null ? BigQueryHelpers.parseTableSpec(tableSpec) : null;
+    return new BigQueryStorageApiInsertError(row, errorMessage, table);
   }
 }

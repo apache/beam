@@ -1235,3 +1235,8 @@
   member_type: user
   permissions:
   - role: roles/editor
+- username: yalah5084
+  email: yalahuangfeng@gmail.com
+  member_type: user
+  permissions:
+  - role: beam_writer
