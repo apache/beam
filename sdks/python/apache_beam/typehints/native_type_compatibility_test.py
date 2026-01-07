@@ -337,7 +337,7 @@ class NativeTypeCompatibilityTest(unittest.TestCase):
     self.assertEqual(typehints.Any, convert_to_beam_type('int'))
     self.assertEqual(typehints.Any, convert_to_beam_type('typing.List[int]'))
     self.assertEqual(
-        typehints.List[typehints.Any], convert_to_beam_type(typing.List['int']))
+        typehints.List[typehints.Any], convert_to_beam_type(list['int']))
 
   def test_convert_nested_to_beam_type(self):
     self.assertEqual(typehints.List[typing.Any], typehints.List[typehints.Any])
