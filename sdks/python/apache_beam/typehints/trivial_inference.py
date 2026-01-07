@@ -521,9 +521,9 @@ def infer_return_type_func(f, input_types, debug=False, depth=0):
         # stack[-1 - has_kwargs]: Iterable of positional args.
         # stack[-2 - has_kwargs]: Function to call.
         if arg is None:
-          # CALL_FUNCTION_EX does not take an arg in 3.14
-          # This is an undocumented change. Instead, always,
-          # assume there are kwargs.
+          # CALL_FUNCTION_EX does not take an arg in 3.14, instead the
+          # signaling for kwargs is done via a PUSH_NULL instruction
+          # right before CALL_FUNCTION_EX.
           arg = ~last_op_push_null & 1
         has_kwargs: int = arg & 1
         pop_count = has_kwargs + 2
