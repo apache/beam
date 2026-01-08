@@ -17,7 +17,7 @@
 
 from typing import NamedTuple
 # Ensure Row schema support is registered even for empty pipelines.
-from apache_beam.typehints import schemas  # noqa: F401
+from apache_beam.typehints import schemas  # pylint: disable=unused-import
 
 
 class Row(object):
