@@ -65,7 +65,7 @@
 
 ## I/Os
 
-* Added DATE, DATETIME, and JSON type support to BigQuery I/O for use with Storage Write API and BEAM_ROW format (Python).
+* Added DATE, DATETIME, and JSON type support to BigQuery I/O for use with Storage Write API and BEAM_ROW format (Python) ([#25946](https://github.com/apache/beam/issues/25946)).
 
 # [2.71.0] - Unreleased
 
