@@ -341,8 +341,7 @@ class TestBigQueryToSchema(unittest.TestCase):
     fields = [
         bigquery.TableFieldSchema(
             name='birth_date', type='DATE', mode="NULLABLE"),
-        bigquery.TableFieldSchema(
-            name='dates', type='DATE', mode="REPEATED"),
+        bigquery.TableFieldSchema(name='dates', type='DATE', mode="REPEATED"),
         bigquery.TableFieldSchema(
             name='required_date', type='DATE', mode="REQUIRED")
     ]
@@ -537,10 +536,8 @@ class TestBigQueryToSchema(unittest.TestCase):
   def test_json_type_support(self):
     """Test that JSON type is properly supported in schema conversion."""
     fields = [
-        bigquery.TableFieldSchema(
-            name='data', type='JSON', mode="NULLABLE"),
-        bigquery.TableFieldSchema(
-            name='items', type='JSON', mode="REPEATED"),
+        bigquery.TableFieldSchema(name='data', type='JSON', mode="NULLABLE"),
+        bigquery.TableFieldSchema(name='items', type='JSON', mode="REPEATED"),
         bigquery.TableFieldSchema(
             name='required_data', type='JSON', mode="REQUIRED")
     ]
@@ -614,8 +611,7 @@ class TestBigQueryToSchema(unittest.TestCase):
     # Create a user type with JSON field
     fields = [
         bigquery.TableFieldSchema(name='id', type='INTEGER', mode="REQUIRED"),
-        bigquery.TableFieldSchema(
-            name='data', type='JSON', mode="NULLABLE")
+        bigquery.TableFieldSchema(name='data', type='JSON', mode="NULLABLE")
     ]
     schema = bigquery.TableSchema(fields=fields)
     usertype = bigquery_schema_tools.generate_user_type_from_bq_schema(schema)
