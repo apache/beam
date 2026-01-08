@@ -21,6 +21,7 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 
+import com.google.cloud.bigquery.storage.v1.TableFieldSchema;
 import com.google.protobuf.ByteString;
 import com.google.protobuf.DescriptorProtos.DescriptorProto;
 import com.google.protobuf.DescriptorProtos.FieldDescriptorProto;
@@ -47,6 +48,7 @@ import org.apache.beam.sdk.schemas.Schema.Field;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.schemas.logicaltypes.EnumerationType;
 import org.apache.beam.sdk.schemas.logicaltypes.SqlTypes;
+import org.apache.beam.sdk.schemas.logicaltypes.Timestamp;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Functions;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
@@ -60,6 +62,13 @@ import org.junit.runners.JUnit4;
 /** Unit tests form {@link BeamRowToStorageApiProto}. */
 @RunWith(JUnit4.class)
 public class BeamRowToStorageApiProtoTest {
+  private static final java.time.Instant TEST_INSTANT_NANOS =
+      java.time.Instant.parse("2024-01-15T12:30:45.123456789Z");
+
+  private static final Schema TIMESTAMP_NANOS_SCHEMA =
+      Schema.builder()
+          .addField("timestampNanos", FieldType.logicalType(Timestamp.NANOS).withNullable(true))
+          .build();
   private static final EnumerationType TEST_ENUM =
       EnumerationType.create("ONE", "TWO", "RED", "BLUE");
   private static final Schema BASE_SCHEMA =
@@ -589,8 +598,59 @@ public class BeamRowToStorageApiProtoTest {
               p -> {
                 assertEquals(
                     p.getValue(),
-                    BeamRowToStorageApiProto.scalarToProtoValue(entry.getKey(), p.getKey()));
+                    BeamRowToStorageApiProto.scalarToProtoValue(null, entry.getKey(), p.getKey()));
               });
     }
+  }
+
+  @Test
+  public void testTimestampNanosSchema() {
+    com.google.cloud.bigquery.storage.v1.TableSchema protoSchema =
+        BeamRowToStorageApiProto.protoTableSchemaFromBeamSchema(TIMESTAMP_NANOS_SCHEMA);
+
+    assertEquals(1, protoSchema.getFieldsCount());
+    TableFieldSchema field = protoSchema.getFields(0);
+    assertEquals(TableFieldSchema.Type.TIMESTAMP, field.getType());
+    assertEquals(12L, field.getTimestampPrecision().getValue());
+  }
+
+  @Test
+  public void testTimestampNanosDescriptor() throws Exception {
+    DescriptorProto descriptor =
+        TableRowToStorageApiProto.descriptorSchemaFromTableSchema(
+            BeamRowToStorageApiProto.protoTableSchemaFromBeamSchema(TIMESTAMP_NANOS_SCHEMA),
+            true,
+            false);
+
+    FieldDescriptorProto field = descriptor.getField(0);
+    assertEquals("timestampnanos", field.getName());
+    assertEquals(Type.TYPE_MESSAGE, field.getType());
+    assertEquals("TimestampPicos", field.getTypeName());
+  }
+
+  @Test
+  public void testTimestampNanosMessage() throws Exception {
+    Row row =
+        Row.withSchema(TIMESTAMP_NANOS_SCHEMA)
+            .withFieldValue("timestampNanos", TEST_INSTANT_NANOS)
+            .build();
+
+    Descriptor descriptor =
+        TableRowToStorageApiProto.getDescriptorFromTableSchema(
+            BeamRowToStorageApiProto.protoTableSchemaFromBeamSchema(TIMESTAMP_NANOS_SCHEMA),
+            true,
+            false);
+
+    DynamicMessage msg = BeamRowToStorageApiProto.messageFromBeamRow(descriptor, row, null, -1);
+
+    FieldDescriptor field = descriptor.findFieldByName("timestampnanos");
+    DynamicMessage picos = (DynamicMessage) msg.getField(field);
+    Descriptor picosDesc = field.getMessageType();
+
+    assertEquals(
+        TEST_INSTANT_NANOS.getEpochSecond(), picos.getField(picosDesc.findFieldByName("seconds")));
+    assertEquals(
+        TEST_INSTANT_NANOS.getNano() * 1000L,
+        picos.getField(picosDesc.findFieldByName("picoseconds")));
   }
 }

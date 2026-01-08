@@ -34,6 +34,8 @@ try:
 except ImportError:
   jsonschema = None
 
+_LOGGER = logging.getLogger(__name__)
+
 
 class CreateTimestamped(beam.PTransform):
   _yaml_requires_inputs = False
@@ -244,6 +246,10 @@ class YamlTransformE2ETest(unittest.TestCase):
       input = os.path.join(tmpdir, 'input.csv')
       output = os.path.join(tmpdir, 'output.json')
       data.to_csv(input, index=False)
+      with open(input, 'r') as f:
+        lines = f.readlines()
+      _LOGGER.debug("input.csv has these {lines} lines.")
+      self.assertEqual(len(lines), len(data) + 1)  # +1 for header
 
       with beam.Pipeline() as p:
         result = p | YamlTransform(
@@ -256,9 +262,11 @@ class YamlTransformE2ETest(unittest.TestCase):
               - type: WriteToJson
                 config:
                     path: %s
-                num_shards: 1
+                    num_shards: 1
+              - type: LogForTesting
             ''' % (repr(input), repr(output)))
-
+      all_output = list(glob.glob(output + "*"))
+      self.assertEqual(len(all_output), 1)
       output_shard = list(glob.glob(output + "*"))[0]
       result = pd.read_json(
           output_shard, orient='records',
@@ -992,6 +1000,61 @@ class YamlWindowingTest(unittest.TestCase):
           ''',
           providers=TEST_PROVIDERS)
       assert_that(result, equal_to([6, 9]))
+
+  def test_explicit_window_into_with_json_string_config_one_line(self):
+    with beam.Pipeline(options=beam.options.pipeline_options.PipelineOptions(
+        pickle_library='cloudpickle')) as p:
+      result = p | YamlTransform(
+          '''
+          type: chain
+          transforms:
+            - type: CreateTimestamped
+              config:
+                  elements: [0, 1, 2, 3, 4, 5]
+            - type: WindowInto
+              config:
+                windowing: {"type": "fixed", "size": "4s"}
+            - type: SumGlobally
+          ''',
+          providers=TEST_PROVIDERS)
+      assert_that(result, equal_to([6, 9]))
+
+  def test_explicit_window_into_with_json_string_config_multi_line(self):
+    with beam.Pipeline(options=beam.options.pipeline_options.PipelineOptions(
+        pickle_library='cloudpickle')) as p:
+      result = p | YamlTransform(
+          '''
+          type: chain
+          transforms:
+            - type: CreateTimestamped
+              config:
+                  elements: [0, 1, 2, 3, 4, 5]
+            - type: WindowInto
+              config:
+                windowing: |
+                  {"type": "fixed", "size": "4s"}
+            - type: SumGlobally
+          ''',
+          providers=TEST_PROVIDERS)
+      assert_that(result, equal_to([6, 9]))
+
+  def test_explicit_window_into_with_string_config_fails(self):
+    with self.assertRaisesRegex(ValueError, 'Error parsing windowing config'):
+      with beam.Pipeline(options=beam.options.pipeline_options.PipelineOptions(
+          pickle_library='cloudpickle')) as p:
+        _ = p | YamlTransform(
+            '''
+            type: chain
+            transforms:
+              - type: CreateTimestamped
+                config:
+                    elements: [0, 1, 2, 3, 4, 5]
+              - type: WindowInto
+                config:
+                  windowing: |
+                    'not a valid yaml'
+            ''',
+            providers=TEST_PROVIDERS)
 
   def test_windowing_on_input(self):
     with beam.Pipeline(options=beam.options.pipeline_options.PipelineOptions(
