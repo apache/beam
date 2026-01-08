@@ -24,15 +24,22 @@ import static org.apache.beam.sdk.extensions.sql.utils.DateTimeUtils.parseTimest
 import static org.apache.beam.sdk.schemas.Schema.toSchema;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.equalTo;
+import static org.hamcrest.Matchers.everyItem;
+import static org.hamcrest.Matchers.is;
+import static org.hamcrest.Matchers.oneOf;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 
 import java.time.LocalDate;
 import java.time.LocalTime;
+import java.util.Arrays;
+import java.util.List;
 import java.util.stream.Stream;
 import org.apache.beam.sdk.extensions.sql.impl.ParseException;
 import org.apache.beam.sdk.extensions.sql.meta.Table;
+import org.apache.beam.sdk.extensions.sql.meta.catalog.InMemoryCatalogManager;
 import org.apache.beam.sdk.extensions.sql.meta.provider.test.TestTableProvider;
 import org.apache.beam.sdk.extensions.sql.meta.provider.text.TextTableProvider;
 import org.apache.beam.sdk.extensions.sql.meta.store.InMemoryMetaStore;
@@ -299,5 +306,75 @@ public class BeamSqlCliTest {
     assertEquals("15:23:59", row.getLogicalTypeValue("f_time", LocalTime.class).toString());
     // test TIMESTAMP field
     assertEquals(parseTimestampWithUTCTimeZone("2018-07-01 21:26:07.123"), row.getDateTime("f_ts"));
+  }
+
+  @Test
+  public void testAlterTableSchema() {
+    InMemoryCatalogManager catalogManager = new InMemoryCatalogManager();
+    TestTableProvider provider = new TestTableProvider();
+    catalogManager.registerTableProvider(provider);
+    BeamSqlCli cli = new BeamSqlCli().catalogManager(catalogManager);
+
+    cli.execute(
+        "CREATE EXTERNAL TABLE test_table(id integer not null, str varchar not null, fl float) type 'test'");
+    cli.execute("INSERT INTO test_table VALUES (1, 'a', 0.1), (2, 'b', 0.2), (3, 'c', 0.3)");
+    TestTableProvider.TableWithRows tableWithRows = provider.tables().get("test_table");
+    assertNotNull(tableWithRows);
+    Schema initialSchema =
+        Schema.builder()
+            .addInt32Field("id")
+            .addStringField("str")
+            .addNullableFloatField("fl")
+            .build();
+    assertEquals(initialSchema, tableWithRows.getTable().getSchema());
+    List<Row> initialRows =
+        Arrays.asList(
+            Row.withSchema(initialSchema).addValues(1, "a", 0.1f).build(),
+            Row.withSchema(initialSchema).addValues(2, "b", 0.2f).build(),
+            Row.withSchema(initialSchema).addValues(3, "c", 0.3f).build());
+    assertThat(initialRows, everyItem(is(oneOf(tableWithRows.getRows().toArray(new Row[0])))));
+
+    cli.execute(
+        "ALTER TABLE test_table DROP COLUMNS (str, fl) ADD COLUMNS (newBool boolean, newLong bigint)");
+    cli.execute("INSERT INTO test_table VALUES (4, true, 4), (5, false, 5), (6, false, 6)");
+    Schema newSchema =
+        Schema.builder()
+            .addInt32Field("id")
+            .addNullableBooleanField("newBool")
+            .addNullableInt64Field("newLong")
+            .build();
+    assertEquals(newSchema, tableWithRows.getTable().getSchema());
+
+    // existing rows should have the corresponding values dropped
+    List<Row> newRows =
+        Arrays.asList(
+            Row.withSchema(newSchema).addValues(1, null, null).build(),
+            Row.withSchema(newSchema).addValues(2, null, null).build(),
+            Row.withSchema(newSchema).addValues(3, null, null).build(),
+            Row.withSchema(newSchema).addValues(4, true, 4L).build(),
+            Row.withSchema(newSchema).addValues(5, false, 5L).build(),
+            Row.withSchema(newSchema).addValues(6, false, 6L).build());
+    assertThat(newRows, everyItem(is(oneOf(tableWithRows.getRows().toArray(new Row[0])))));
+  }
+
+  @Test
+  public void testAlterTableProperties() {
+    InMemoryCatalogManager catalogManager = new InMemoryCatalogManager();
+    TestTableProvider provider = new TestTableProvider();
+    catalogManager.registerTableProvider(provider);
+    BeamSqlCli cli = new BeamSqlCli().catalogManager(catalogManager);
+
+    cli.execute(
+        "CREATE EXTERNAL TABLE test_table(id integer, str varchar) type 'test' "
+            + "TBLPROPERTIES '{ \"foo\" : \"123\", \"bar\" : \"abc\"}'");
+    TestTableProvider.TableWithRows tableWithRows = provider.tables().get("test_table");
+    assertNotNull(tableWithRows);
+    assertEquals("123", tableWithRows.getTable().getProperties().get("foo").asText());
+    assertEquals("abc", tableWithRows.getTable().getProperties().get("bar").asText());
+
+    cli.execute("ALTER TABLE test_table RESET('bar') SET('foo'='456', 'baz'='xyz')");
+    assertEquals("456", tableWithRows.getTable().getProperties().get("foo").asText());
+    assertEquals("xyz", tableWithRows.getTable().getProperties().get("baz").asText());
+    assertFalse(tableWithRows.getTable().getProperties().has("bar"));
   }
 }
