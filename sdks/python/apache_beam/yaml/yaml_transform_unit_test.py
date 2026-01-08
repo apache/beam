@@ -1099,6 +1099,33 @@ class ExpandPipelineTest(unittest.TestCase):
       with self.assertRaises(KeyError):
         expand_pipeline(p, spec, validate_schema=None)
 
+  def test_expand_pipeline_with_valid_schema(self):
+    spec = '''
+      pipeline:
+        type: chain
+        transforms:
+          - type: Create
+            config:
+              elements: [1,2,3]
+          - type: LogForTesting
+    '''
+    with new_pipeline() as p:
+      expand_pipeline(p, spec, validate_schema='generic')
+
+  def test_expand_pipeline_with_invalid_schema(self):
+    spec = '''
+      pipeline:
+        type: chain
+        transforms:
+          - name: Create
+            config:
+              elements: [1,2,3]
+          - type: LogForTesting
+    '''
+    with new_pipeline() as p:
+      with self.assertRaises(jsonschema.ValidationError):
+        expand_pipeline(p, spec, validate_schema='generic')
+
 
 if __name__ == '__main__':
   logging.getLogger().setLevel(logging.INFO)
