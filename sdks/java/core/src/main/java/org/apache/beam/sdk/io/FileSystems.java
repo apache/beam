@@ -29,6 +29,7 @@ import java.nio.channels.WritableByteChannel;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
@@ -396,6 +397,37 @@ public class FileSystems {
     }
     getFileSystemInternal(resourceIdsToDelete.iterator().next().getScheme())
         .delete(resourceIdsToDelete);
+  }
+
+  /**
+   * Report source {@link Lineage} metrics for multiple resource ids. Due to the size limit of Beam
+   * metrics, report full file name or only dir depend on the number of files.
+   *
+   * <p>- Number of files<=100, report full file paths;
+   *
+   * <p>- Number of directory<=100, report directory names (one level up);
+   *
+   * <p>- Otherwise, report top level only.
+   */
+  public static void reportSourceLineage(List<ResourceId> resourceIds) {
+    if (resourceIds.size() <= 100) {
+      for (ResourceId resourceId : resourceIds) {
+        FileSystems.reportSourceLineage(resourceId);
+      }
+    } else {
+      HashSet<ResourceId> uniqueDirs = new HashSet<>();
+      for (ResourceId resourceId : resourceIds) {
+        ResourceId dir = resourceId.getCurrentDirectory();
+        uniqueDirs.add(dir);
+        if (uniqueDirs.size() > 100) {
+          FileSystems.reportSourceLineage(dir, LineageLevel.TOP_LEVEL);
+          return;
+        }
+      }
+      for (ResourceId uniqueDir : uniqueDirs) {
+        FileSystems.reportSourceLineage(uniqueDir);
+      }
+    }
   }
 
   /** Report source {@link Lineage} metrics for resource id. */
