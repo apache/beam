@@ -435,6 +435,105 @@ class TestBigQueryToSchema(unittest.TestCase):
     self.assertEqual(result.id, 1)
     self.assertEqual(result.birth_date, '2021-01-15')
 
+  def test_datetime_type_support(self):
+    """Test that DATETIME type is properly supported in schema conversion."""
+    fields = [
+        bigquery.TableFieldSchema(
+            name='event_time', type='DATETIME', mode="NULLABLE"),
+        bigquery.TableFieldSchema(
+            name='timestamps', type='DATETIME', mode="REPEATED"),
+        bigquery.TableFieldSchema(
+            name='required_time', type='DATETIME', mode="REQUIRED")
+    ]
+    schema = bigquery.TableSchema(fields=fields)
+
+    usertype = bigquery_schema_tools.generate_user_type_from_bq_schema(schema)
+
+    expected_annotations = {
+        'event_time': typing.Optional[str],
+        'timestamps': typing.Sequence[str],
+        'required_time': str
+    }
+
+    self.assertEqual(usertype.__annotations__, expected_annotations)
+
+  def test_datetime_in_bq_to_python_types_mapping(self):
+    """Test that DATETIME is included in BIG_QUERY_TO_PYTHON_TYPES mapping."""
+    from apache_beam.io.gcp.bigquery_schema_tools import BIG_QUERY_TO_PYTHON_TYPES
+
+    self.assertIn("DATETIME", BIG_QUERY_TO_PYTHON_TYPES)
+    self.assertEqual(BIG_QUERY_TO_PYTHON_TYPES["DATETIME"], str)
+
+  def test_datetime_field_type_conversion(self):
+    """Test bq_field_to_type function with DATETIME fields."""
+    from apache_beam.io.gcp.bigquery_schema_tools import bq_field_to_type
+
+    # Test required DATETIME field
+    result = bq_field_to_type("DATETIME", "REQUIRED")
+    self.assertEqual(result, str)
+
+    # Test nullable DATETIME field
+    result = bq_field_to_type("DATETIME", "NULLABLE")
+    self.assertEqual(result, typing.Optional[str])
+
+    # Test repeated DATETIME field
+    result = bq_field_to_type("DATETIME", "REPEATED")
+    self.assertEqual(result, typing.Sequence[str])
+
+    # Test DATETIME field with None mode (should default to nullable)
+    result = bq_field_to_type("DATETIME", None)
+    self.assertEqual(result, typing.Optional[str])
+
+    # Test DATETIME field with empty mode (should default to nullable)
+    result = bq_field_to_type("DATETIME", "")
+    self.assertEqual(result, typing.Optional[str])
+
+  def test_convert_to_usertype_with_datetime(self):
+    """Test convert_to_usertype function with DATETIME fields."""
+    schema = bigquery.TableSchema(
+        fields=[
+            bigquery.TableFieldSchema(
+                name='id', type='INTEGER', mode="REQUIRED"),
+            bigquery.TableFieldSchema(
+                name='event_time', type='DATETIME', mode="NULLABLE"),
+            bigquery.TableFieldSchema(
+                name='name', type='STRING', mode="REQUIRED")
+        ])
+
+    conversion_transform = bigquery_schema_tools.convert_to_usertype(schema)
+
+    # Verify the transform is created successfully
+    self.assertIsNotNone(conversion_transform)
+
+    # The transform should be a ParDo with BeamSchemaConversionDoFn
+    self.assertIsInstance(conversion_transform, beam.ParDo)
+
+  def test_beam_schema_conversion_dofn_with_datetime(self):
+    """Test BeamSchemaConversionDoFn with DATETIME data."""
+    from apache_beam.io.gcp.bigquery_schema_tools import BeamSchemaConversionDoFn
+
+    # Create a user type with DATETIME field
+    fields = [
+        bigquery.TableFieldSchema(name='id', type='INTEGER', mode="REQUIRED"),
+        bigquery.TableFieldSchema(
+            name='event_time', type='DATETIME', mode="NULLABLE")
+    ]
+    schema = bigquery.TableSchema(fields=fields)
+    usertype = bigquery_schema_tools.generate_user_type_from_bq_schema(schema)
+
+    # Create the DoFn
+    dofn = BeamSchemaConversionDoFn(usertype)
+
+    # Test processing a dictionary with DATETIME data
+    input_dict = {'id': 1, 'event_time': '2021-01-15T10:30:00'}
+
+    results = list(dofn.process(input_dict))
+    self.assertEqual(len(results), 1)
+
+    result = results[0]
+    self.assertEqual(result.id, 1)
+    self.assertEqual(result.event_time, '2021-01-15T10:30:00')
+
 
 if __name__ == '__main__':
   logging.getLogger().setLevel(logging.INFO)
