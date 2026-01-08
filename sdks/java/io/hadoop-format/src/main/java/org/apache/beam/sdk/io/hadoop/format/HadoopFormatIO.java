@@ -52,6 +52,9 @@ import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.coders.CoderRegistry;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.io.BoundedSource;
+import org.apache.beam.sdk.io.FileSystem;
+import org.apache.beam.sdk.io.FileSystems;
+import org.apache.beam.sdk.io.fs.ResourceId;
 import org.apache.beam.sdk.io.hadoop.SerializableConfiguration;
 import org.apache.beam.sdk.io.hadoop.WritableCoder;
 import org.apache.beam.sdk.options.PipelineOptions;
@@ -83,6 +86,7 @@ import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.io.ObjectWritable;
 import org.apache.hadoop.io.Writable;
 import org.apache.hadoop.mapred.FileAlreadyExistsException;
+import org.apache.hadoop.mapred.FileSplit;
 import org.apache.hadoop.mapreduce.InputFormat;
 import org.apache.hadoop.mapreduce.InputSplit;
 import org.apache.hadoop.mapreduce.Job;
@@ -462,6 +466,7 @@ public class HadoopFormatIO {
       if (getValueTranslationFunction() == null) {
         builder.setValueTypeDescriptor((TypeDescriptor<V>) inputFormatValueClass);
       }
+
       return builder.build();
     }
 
@@ -724,7 +729,11 @@ public class HadoopFormatIO {
         LOG.info("Not splitting source {} because source is already split.", this);
         return ImmutableList.of(this);
       }
+
       computeSplitsIfNecessary();
+
+      reportSourceLineage(inputSplits);
+
       LOG.info(
           "Generated {} splits. Size of first split is {} ",
           inputSplits.size(),
@@ -742,6 +751,39 @@ public class HadoopFormatIO {
                       skipKeyClone,
                       skipValueClone))
           .collect(Collectors.toList());
+    }
+
+    private void reportSourceLineage(final List<SerializableSplit> inputSplits) {
+      List<ResourceId> fileResources = new ArrayList<>();
+
+      for (SerializableSplit split : inputSplits) {
+        InputSplit inputSplit = split.getSplit();
+
+        if (inputSplit instanceof FileSplit) {
+          String pathString = ((FileSplit) inputSplit).getPath().toString();
+          ResourceId resourceId = FileSystems.matchNewResource(pathString, false);
+          fileResources.add(resourceId);
+        }
+      }
+
+      if (fileResources.size() <= 100) {
+        for (ResourceId resource : fileResources) {
+          FileSystems.reportSourceLineage(resource);
+        }
+      } else {
+        HashSet<ResourceId> uniqueDirs = new HashSet<>();
+        for (ResourceId resource : fileResources) {
+          ResourceId dir = resource.getCurrentDirectory();
+          uniqueDirs.add(dir);
+          if (uniqueDirs.size() > 100) {
+            FileSystems.reportSourceLineage(dir, FileSystem.LineageLevel.TOP_LEVEL);
+            return;
+          }
+        }
+        for (ResourceId dir : uniqueDirs) {
+          FileSystems.reportSourceLineage(dir);
+        }
+      }
     }
 
     @Override
