@@ -1,3 +1,4 @@
+//
 // Licensed to the Apache Software Foundation (ASF) under one or more
 // contributor license agreements.  See the NOTICE file distributed with
 // this work for additional information regarding copyright ownership.
@@ -12,23 +13,26 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-
-// Package core contains constants and other static data related to the SDK,
-// such as the SDK Name and version.
 //
-// As a rule, this package should not have dependencies, and should not depend
-// on any package within the Apache Beam Go SDK.
-//
-// Files in this package may be generated or updated by release scripts, allowing
-// for accurate version information to be included.
-package core
 
-const (
-	// SdkName is the human readable name of the SDK for UserAgents.
-	SdkName = "Apache Beam SDK for Go"
-	// SdkVersion is the current version of the SDK.
-	SdkVersion = "2.72.0.dev"
+use pyo3::prelude::*;
 
-	// DefaultDockerImage represents the associated image for this release.
-	DefaultDockerImage = "apache/beam_go_sdk:" + SdkVersion
-)
+/// A Python module implemented in Rust.
+#[pymodule]
+mod word_processing {
+    use pyo3::prelude::*;
+    use regex::Regex;
+
+    /// Builds the map of string to tuple(string, int).
+    #[pyfunction]
+    fn map_to_int(a: String) -> PyResult<(String, u32)> {
+        Ok((a, 1))
+    }
+
+    /// Extracts individual words from a line of text.
+    #[pyfunction]
+    fn extract_words(a: String) -> PyResult<Vec<String>> {
+        let re = Regex::new(r"[\w\']+").unwrap();
+        Ok(re.find_iter(&a).map(|m| m.as_str().to_string()).collect())
+    }
+}

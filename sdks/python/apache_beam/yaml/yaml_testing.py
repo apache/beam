@@ -411,6 +411,13 @@ def create_test(
         **yaml_transform.SafeLineLoader.strip_metadata(
             pipeline_spec.get('options', {})))
 
+  providers = yaml_provider.merge_providers(
+      yaml_provider.parse_providers('', pipeline_spec.get('providers', [])),
+      {
+          'AssertEqualAndRecord': yaml_provider.as_provider_list(
+              'AssertEqualAndRecord', AssertEqualAndRecord)
+      })
+
   def get_name(transform):
     if 'name' in transform:
       return str(transform['name'])
@@ -428,7 +435,8 @@ def create_test(
   mock_outputs = [{
       'name': get_name(t),
       'elements': [
-          _try_row_as_dict(row) for row in _first_n(t, options, max_num_inputs)
+          _try_row_as_dict(row)
+          for row in _first_n(t, options, max_num_inputs, providers)
       ],
   } for t in input_transforms]
 
@@ -504,15 +512,18 @@ class RecordElements(beam.PTransform):
     return pcoll | beam.Map(record)
 
 
-def _first_n(transform_spec, options, n):
+def _first_n(transform_spec, options, n, providers=None):
   recorder = RecordElements(n)
+  if providers is None:
+    providers = {
+        'AssertEqualAndRecord': yaml_provider.as_provider_list(
+            'AssertEqualAndRecord', AssertEqualAndRecord)
+    }
   try:
     with beam.Pipeline(options=options) as p:
       _ = (
           p
-          | yaml_transform.YamlTransform(
-              transform_spec,
-              providers={'AssertEqualAndRecord': AssertEqualAndRecord})
+          | yaml_transform.YamlTransform(transform_spec, providers=providers)
           | recorder)
   except _DoneException:
     pass

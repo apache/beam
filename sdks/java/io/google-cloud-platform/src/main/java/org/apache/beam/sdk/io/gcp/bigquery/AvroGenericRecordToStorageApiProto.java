@@ -23,6 +23,7 @@ import com.google.protobuf.ByteString;
 import com.google.protobuf.Descriptors.Descriptor;
 import com.google.protobuf.Descriptors.FieldDescriptor;
 import com.google.protobuf.DynamicMessage;
+import com.google.protobuf.Int64Value;
 import java.math.BigDecimal;
 import java.nio.ByteBuffer;
 import java.util.Map;
@@ -54,6 +55,11 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.primitives.Byt
 public class AvroGenericRecordToStorageApiProto {
 
   private static final org.joda.time.LocalDate EPOCH_DATE = new org.joda.time.LocalDate(1970, 1, 1);
+
+  private static final String TIMESTAMP_NANOS_LOGICAL_TYPE = "timestamp-nanos";
+  private static final long PICOSECOND_PRECISION = 12L;
+  private static final long NANOS_PER_SECOND = 1_000_000_000L;
+  private static final long PICOS_PER_NANO = 1000L;
 
   static final Map<Schema.Type, TableFieldSchema.Type> PRIMITIVE_TYPES =
       ImmutableMap.<Schema.Type, TableFieldSchema.Type>builder()
@@ -314,6 +320,7 @@ public class AvroGenericRecordToStorageApiProto {
   @SuppressWarnings("nullness")
   private static TableFieldSchema fieldDescriptorFromAvroField(org.apache.avro.Schema.Field field) {
     @Nullable Schema schema = field.schema();
+
     Preconditions.checkNotNull(schema, "Unexpected null schema!");
     if (StorageApiCDC.COLUMNS.contains(field.name())) {
       throw new RuntimeException("Reserved field name " + field.name() + " in user schema.");
@@ -380,34 +387,45 @@ public class AvroGenericRecordToStorageApiProto {
                 .setType(unionFieldSchema.getType())
                 .setMode(unionFieldSchema.getMode())
                 .addAllFields(unionFieldSchema.getFieldsList());
+
+        if (unionFieldSchema.hasTimestampPrecision()) {
+          builder.setTimestampPrecision(unionFieldSchema.getTimestampPrecision());
+        }
         break;
       default:
         elementType = TypeWithNullability.create(schema).getType();
-        Optional<LogicalType> logicalType =
-            Optional.ofNullable(LogicalTypes.fromSchema(elementType));
-        @Nullable
-        TableFieldSchema.Type primitiveType =
-            logicalType
-                .flatMap(AvroGenericRecordToStorageApiProto::logicalTypes)
-                .orElse(PRIMITIVE_TYPES.get(elementType.getType()));
-        if (primitiveType == null) {
-          throw new RuntimeException("Unsupported type " + elementType.getType());
-        }
-        // a scalar will be required by default, if defined as part of union then
-        // caller will set nullability requirements
-        builder = builder.setType(primitiveType);
-        // parametrized types
-        if (logicalType.isPresent() && logicalType.get().getName().equals("decimal")) {
-          LogicalTypes.Decimal decimal = (LogicalTypes.Decimal) logicalType.get();
-          int precision = decimal.getPrecision();
-          int scale = decimal.getScale();
-          if (!(precision == 38 && scale == 9) // NUMERIC
-              && !(precision == 77 && scale == 38) // BIGNUMERIC
-          ) {
-            // parametrized type
-            builder = builder.setPrecision(precision);
-            if (scale != 0) {
-              builder = builder.setScale(scale);
+        if (TIMESTAMP_NANOS_LOGICAL_TYPE.equals(elementType.getProp("logicalType"))) {
+          builder = builder.setType(TableFieldSchema.Type.TIMESTAMP);
+          builder.setTimestampPrecision(
+              Int64Value.newBuilder().setValue(PICOSECOND_PRECISION).build());
+          break;
+        } else {
+          Optional<LogicalType> logicalType =
+              Optional.ofNullable(LogicalTypes.fromSchema(elementType));
+          @Nullable
+          TableFieldSchema.Type primitiveType =
+              logicalType
+                  .flatMap(AvroGenericRecordToStorageApiProto::logicalTypes)
+                  .orElse(PRIMITIVE_TYPES.get(elementType.getType()));
+          if (primitiveType == null) {
+            throw new RuntimeException("Unsupported type " + elementType.getType());
+          }
+          // a scalar will be required by default, if defined as part of union then
+          // caller will set nullability requirements
+          builder = builder.setType(primitiveType);
+          // parametrized types
+          if (logicalType.isPresent() && logicalType.get().getName().equals("decimal")) {
+            LogicalTypes.Decimal decimal = (LogicalTypes.Decimal) logicalType.get();
+            int precision = decimal.getPrecision();
+            int scale = decimal.getScale();
+            if (!(precision == 38 && scale == 9) // NUMERIC
+                && !(precision == 77 && scale == 38) // BIGNUMERIC
+            ) {
+              // parametrized type
+              builder = builder.setPrecision(precision);
+              if (scale != 0) {
+                builder = builder.setScale(scale);
+              }
             }
           }
         }
@@ -476,7 +494,7 @@ public class AvroGenericRecordToStorageApiProto {
                     mapEntryToProtoValue(fieldDescriptor.getMessageType(), valueType, entry))
             .collect(Collectors.toList());
       default:
-        return scalarToProtoValue(avroSchema, value);
+        return scalarToProtoValue(fieldDescriptor, avroSchema, value);
     }
   }
 
@@ -502,10 +520,42 @@ public class AvroGenericRecordToStorageApiProto {
     return builder.build();
   }
 
+  private static DynamicMessage buildTimestampPicosMessage(
+      Descriptor timestampPicosDescriptor, long seconds, long picoseconds) {
+    return DynamicMessage.newBuilder(timestampPicosDescriptor)
+        .setField(
+            Preconditions.checkNotNull(timestampPicosDescriptor.findFieldByName("seconds")),
+            seconds)
+        .setField(
+            Preconditions.checkNotNull(timestampPicosDescriptor.findFieldByName("picoseconds")),
+            picoseconds)
+        .build();
+  }
+
   @VisibleForTesting
-  static Object scalarToProtoValue(Schema fieldSchema, Object value) {
+  static Object scalarToProtoValue(
+      @Nullable FieldDescriptor descriptor, Schema fieldSchema, Object value) {
     TypeWithNullability type = TypeWithNullability.create(fieldSchema);
+    if (TIMESTAMP_NANOS_LOGICAL_TYPE.equals(type.getType().getProp("logicalType"))) {
+      Preconditions.checkArgument(
+          value instanceof Long, "Expecting a value as Long type (timestamp-nanos).");
+      long nanos = (Long) value;
+
+      long seconds = nanos / NANOS_PER_SECOND;
+      long nanoAdjustment = nanos % NANOS_PER_SECOND;
+
+      // Handle negative timestamps (before epoch)
+      if (nanos < 0 && nanoAdjustment != 0) {
+        seconds -= 1;
+        nanoAdjustment += NANOS_PER_SECOND;
+      }
+
+      long picoseconds = nanoAdjustment * PICOS_PER_NANO;
+      return buildTimestampPicosMessage(
+          Preconditions.checkNotNull(descriptor).getMessageType(), seconds, picoseconds);
+    }
     LogicalType logicalType = LogicalTypes.fromSchema(type.getType());
+
     if (logicalType != null) {
       @Nullable
       BiFunction<LogicalType, Object, Object> logicalTypeEncoder =

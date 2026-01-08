@@ -114,6 +114,111 @@ sudo apt-get install \
    virtualenv \
    tox \
    docker-ce
+# Contributing to Beam
+
+There are many ways to contribute to Beam, just one of which is by contributing code.
+For a full list of ways to contribute and get plugged into Beam, see the
+[Beam Contribution Guide](https://beam.apache.org/contribute/)
+
+## Code Contributions
+
+*Before opening a pull request*, review the Beam contribution guide below.
+It lists steps that are required before creating a PR and provides tips for
+getting started. In particular, consider the following:
+
+- Have you searched for existing, related Issues and pull requests?
+- Have you shared your intent by creating an issue and commenting that you plan to take it on?
+- If the change is large, have you discussed it on the dev@ mailing list?
+- Is the change being proposed clearly explained and motivated?
+
+These steps and instructions on getting started are outlined below as well.
+
+### Prerequisites
+
+- A [GitHub](https://github.com/) account.
+- A Linux, macOS, or Microsoft Windows development environment.
+- Java JDK 11 (preferred, or 8, 17, 21) installed.
+- Latest [Go](https://golang.org) 1.x installed.
+- [Docker](https://www.docker.com/) installed for some tasks including building worker containers and testing changes to this website locally.
+- For SDK Development:
+  - For manual testing, install any supported Python version (found [here](gradle.properties)) suffices.
+  - For running test suites, however, you will need Python interpreters for all Python versions supported by Beam.
+    Interpreters should be installed and available in shell via `python3.x` commands.
+    For more information, see:
+    Python installation tips in [Developer Wiki](https://cwiki.apache.org/confluence/display/BEAM/Python+Tips#PythonTips-InstallingPythoninterpreters).
+- For large contributions, a signed [Individual Contributor License
+  Agreement](https://www.apache.org/licenses/icla.pdf) (ICLA) to the Apache
+  Software Foundation (ASF).
+
+### Share Your Intent
+1. Find or create an issue in the [Beam repo](https://github.com/apache/beam/issues/new/choose).
+   Tracking your work in an issue will avoid duplicated or conflicting work, and provide
+   a place for notes. Later, your pull request will be linked to the issue as well.
+2. Comment ".take-issue" on the issue. This will cause the issue to be assigned to you.
+   Comment ".free-issue" on the issue. This will cause the issue to be unassigned from you.
+   When you've completed the issue, you can close it by commenting ".close-issue".
+   If you are a committer and would like to assign an issue to a non-committer, they must comment
+   on the issue first; please tag the user asking them to do so or to comment "\`.take-issue\`".
+   The command will be ignored if it is surrounded by `\`` markdown characters.
+3. If your change is large or it is your first change, it is a good idea to
+   [discuss it on the dev@beam.apache.org mailing list](https://beam.apache.org/community/contact-us/).
+4. For large changes create a design doc
+   ([template](https://s.apache.org/beam-design-doc-template),
+   [examples](https://s.apache.org/beam-design-docs)) and email it to the [dev@beam.apache.org mailing list](https://beam.apache.org/community/contact-us/).
+
+### Setup Your Environment and Learn About Language Specific Setup
+
+Before you begin, check out the Wiki pages. There are many useful tips about [Git](https://cwiki.apache.org/confluence/display/BEAM/Git+Tips), [Go](https://cwiki.apache.org/confluence/display/BEAM/Go+Tips), [Gradle](https://cwiki.apache.org/confluence/display/BEAM/Gradle+Tips), [Java](https://cwiki.apache.org/confluence/display/BEAM/Java+Tips), [Python](https://cwiki.apache.org/confluence/display/BEAM/Python+Tips), etc.
+
+#### Configuration Options
+You have two options for configuring your development environment:
+- Local:
+  - Manually installing the [prerequisites](#prerequisites).
+  - Using the automated script for Linux and macOS.
+- Container-based: using a [Docker](https://www.docker.com/) image.
+
+##### Local: Debian-based Distribution
+
+###### Manual steps
+
+To install these in a Debian-based distribution:
+1. Execute:
+    ```
+    sudo apt-get install \
+       openjdk-11-jdk \
+       python-setuptools \
+       python-pip \
+       virtualenv \
+       tox \
+       docker-ce
+    ```
+2. On some systems, like Ubuntu 20.04, install these:
+    ```
+    pip3 install grpcio-tools mypy-protobuf
+    ```
+3. If you develop in GO:
+  1. Install [Go](https://golang.org/doc/install).
+  2. Check BEAM repo is in: `$GOPATH/src/github.com/apache/`
+  3. At the end, it should look like this: `$GOPATH/src/github.com/apache/beam`
+4. Once Go is installed, install goavro:
+    ```
+    $ export GOPATH=`pwd`/sdks/go/examples/.gogradle/project_gopath
+    $ go get github.com/linkedin/goavro/v2
+    ```
+**Important**: gLinux users should configure their machines for sudoless Docker.
+
+###### Automated script for Linux and macOS
+
+You can install these in a Debian-based distribution for Linux or macOS using the [local-env-setup.sh](https://github.com/apache/beam/blob/master/local-env-setup.sh) script, which is part of the Beam repo. It contains:
+
+* pip3 packages
+* go packages
+* goavro
+* JDK 11
+* Python
+* Docker
+
+To install execute:
 ```
 
 For Ubuntu 20.04 and similar systems:
