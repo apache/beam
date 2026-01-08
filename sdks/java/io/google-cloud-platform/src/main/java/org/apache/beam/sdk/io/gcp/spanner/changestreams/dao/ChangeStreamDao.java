@@ -31,12 +31,12 @@ import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.InitialPartition;
  * as a {@link ResultSet}, which can be consumed until the stream is finished.
  */
 public class ChangeStreamDao {
-
   private final String changeStreamName;
   private final DatabaseClient databaseClient;
   private final RpcPriority rpcPriority;
   private final String jobName;
   private final Dialect dialect;
+  private final boolean isMutableChangeStream;
 
   /**
    * Constructs a change stream dao. All the queries performed by this class will be for the given
@@ -53,12 +53,14 @@ public class ChangeStreamDao {
       DatabaseClient databaseClient,
       RpcPriority rpcPriority,
       String jobName,
-      Dialect dialect) {
+      Dialect dialect,
+      boolean isMutableChangeStream) {
     this.changeStreamName = changeStreamName;
     this.databaseClient = databaseClient;
     this.rpcPriority = rpcPriority;
     this.jobName = jobName;
     this.dialect = dialect;
+    this.isMutableChangeStream = isMutableChangeStream;
   }
 
   /**
@@ -91,8 +93,18 @@ public class ChangeStreamDao {
     String query = "";
     Statement statement;
     if (this.isPostgres()) {
-      query =
-          "SELECT * FROM \"spanner\".\"read_json_" + changeStreamName + "\"($1, $2, $3, $4, null)";
+      // Ensure we have determined whether change stream uses mutable key range
+      if (this.isMutableChangeStream) {
+        query =
+            "SELECT * FROM \"spanner\".\"read_proto_bytes_"
+                + changeStreamName
+                + "\"($1, $2, $3, $4, null)";
+      } else {
+        query =
+            "SELECT * FROM \"spanner\".\"read_json_"
+                + changeStreamName
+                + "\"($1, $2, $3, $4, null)";
+      }
       statement =
           Statement.newBuilder(query)
               .bind("p1")
