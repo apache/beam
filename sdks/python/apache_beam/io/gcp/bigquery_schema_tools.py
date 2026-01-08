@@ -51,6 +51,7 @@ BIG_QUERY_TO_PYTHON_TYPES = {
     "GEOGRAPHY": str,
     "DATE": str,
     "DATETIME": str,
+    "JSON": str,
     #TODO(https://github.com/apache/beam/issues/20810):
     # Finish mappings for all BQ types
 }
