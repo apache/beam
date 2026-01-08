@@ -71,7 +71,7 @@ public class WindmillTagEncodingV1 extends WindmillTagEncoding {
   /** {@inheritDoc} */
   @Override
   public ByteString timerHoldTag(
-      WindmillNamespacePrefix prefix, TimerData timerData, ByteString timerTag) {
+      WindmillNamespacePrefix prefix, TimerData timerData, ByteString unusedTimerTag) {
     String tagString;
     if ("".equals(timerData.getTimerFamilyId())) {
       tagString =

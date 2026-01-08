@@ -208,7 +208,7 @@ public class WindmillTagEncodingV2 extends WindmillTagEncoding {
   public InternedByteString stateTag(StateNamespace namespace, StateTag<?> address) {
     try (StreamHandle streamHandle = ThreadLocalByteStringOutputStream.acquire()) {
       ByteStringOutputStream stream = streamHandle.stream();
-      encodeNameSpace(namespace, stream);
+      encodeNamespace(namespace, stream);
       encodeAddress(address, stream);
       return InternedByteString.of(stream.toByteStringAndReset());
     } catch (IOException e) {
@@ -230,7 +230,7 @@ public class WindmillTagEncodingV2 extends WindmillTagEncoding {
   public ByteString timerTag(WindmillNamespacePrefix prefix, TimerData timerData) {
     try (StreamHandle streamHandle = ThreadLocalByteStringOutputStream.acquire()) {
       ByteStringOutputStream stream = streamHandle.stream();
-      encodeNameSpace(timerData.getNamespace(), stream);
+      encodeNamespace(timerData.getNamespace(), stream);
       if (WindmillNamespacePrefix.SYSTEM_NAMESPACE_PREFIX.equals(prefix)) {
         stream.write(SYSTEM_TIMER_BYTE);
       } else if (WindmillNamespacePrefix.USER_NAMESPACE_PREFIX.equals(prefix)) {
@@ -257,7 +257,7 @@ public class WindmillTagEncodingV2 extends WindmillTagEncoding {
     InputStream stream = timer.getTag().newInput();
 
     try {
-      StateNamespace stateNamespace = decodeNameSpace(stream, windowCoder);
+      StateNamespace stateNamespace = decodeNamespace(stream, windowCoder);
       int nextByte = stream.read();
       if (nextByte == SYSTEM_TIMER_BYTE) {
         checkState(WindmillNamespacePrefix.SYSTEM_NAMESPACE_PREFIX.equals(prefix));
@@ -310,7 +310,7 @@ public class WindmillTagEncodingV2 extends WindmillTagEncoding {
     StringUtf8Coder.of().encode(tag.getId(), stream);
   }
 
-  private void encodeNameSpace(StateNamespace namespace, ByteStringOutputStream stream)
+  private void encodeNamespace(StateNamespace namespace, ByteStringOutputStream stream)
       throws IOException {
     if (namespace instanceof GlobalNamespace) {
       stream.write(GLOBAL_NAMESPACE_BYTE);
@@ -326,7 +326,7 @@ public class WindmillTagEncodingV2 extends WindmillTagEncoding {
     }
   }
 
-  private StateNamespace decodeNameSpace(
+  private StateNamespace decodeNamespace(
       InputStream stream, Coder<? extends BoundedWindow> windowCoder) throws IOException {
     int firstByte = stream.read();
     switch (firstByte) {
