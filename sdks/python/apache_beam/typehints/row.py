@@ -16,6 +16,8 @@
 #
 
 from typing import NamedTuple
+# Ensure Row schema support is registered even for empty pipelines.
+from apache_beam.typehints import schemas  # noqa: F401
 
 
 class Row(object):
