@@ -441,7 +441,6 @@ public class BigQueryTimestampPicosIT {
             "WriteGenericRecords",
             BigQueryIO.writeGenericRecords()
                 .to(tableSpec)
-                .withAvroSchemaFactory(tableSchema -> TIMESTAMP_NANOS_AVRO_SCHEMA)
                 .withSchema(BigQueryUtils.fromGenericAvroSchema(TIMESTAMP_NANOS_AVRO_SCHEMA, true))
                 .useAvroLogicalTypes()
                 .withMethod(BigQueryIO.Write.Method.STORAGE_WRITE_API)
