@@ -126,6 +126,7 @@ BIGQUERY_TYPE_TO_PYTHON_TYPE = {
     "GEOGRAPHY": str,
     "DATE": str,
     "DATETIME": str,
+    "JSON": str,
 }
 
 

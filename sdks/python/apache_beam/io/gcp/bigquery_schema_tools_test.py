@@ -534,6 +534,105 @@ class TestBigQueryToSchema(unittest.TestCase):
     self.assertEqual(result.id, 1)
     self.assertEqual(result.event_time, '2021-01-15T10:30:00')
 
+  def test_json_type_support(self):
+    """Test that JSON type is properly supported in schema conversion."""
+    fields = [
+        bigquery.TableFieldSchema(
+            name='data', type='JSON', mode="NULLABLE"),
+        bigquery.TableFieldSchema(
+            name='items', type='JSON', mode="REPEATED"),
+        bigquery.TableFieldSchema(
+            name='required_data', type='JSON', mode="REQUIRED")
+    ]
+    schema = bigquery.TableSchema(fields=fields)
+
+    usertype = bigquery_schema_tools.generate_user_type_from_bq_schema(schema)
+
+    expected_annotations = {
+        'data': typing.Optional[str],
+        'items': typing.Sequence[str],
+        'required_data': str
+    }
+
+    self.assertEqual(usertype.__annotations__, expected_annotations)
+
+  def test_json_in_bq_to_python_types_mapping(self):
+    """Test that JSON is included in BIG_QUERY_TO_PYTHON_TYPES mapping."""
+    from apache_beam.io.gcp.bigquery_schema_tools import BIG_QUERY_TO_PYTHON_TYPES
+
+    self.assertIn("JSON", BIG_QUERY_TO_PYTHON_TYPES)
+    self.assertEqual(BIG_QUERY_TO_PYTHON_TYPES["JSON"], str)
+
+  def test_json_field_type_conversion(self):
+    """Test bq_field_to_type function with JSON fields."""
+    from apache_beam.io.gcp.bigquery_schema_tools import bq_field_to_type
+
+    # Test required JSON field
+    result = bq_field_to_type("JSON", "REQUIRED")
+    self.assertEqual(result, str)
+
+    # Test nullable JSON field
+    result = bq_field_to_type("JSON", "NULLABLE")
+    self.assertEqual(result, typing.Optional[str])
+
+    # Test repeated JSON field
+    result = bq_field_to_type("JSON", "REPEATED")
+    self.assertEqual(result, typing.Sequence[str])
+
+    # Test JSON field with None mode (should default to nullable)
+    result = bq_field_to_type("JSON", None)
+    self.assertEqual(result, typing.Optional[str])
+
+    # Test JSON field with empty mode (should default to nullable)
+    result = bq_field_to_type("JSON", "")
+    self.assertEqual(result, typing.Optional[str])
+
+  def test_convert_to_usertype_with_json(self):
+    """Test convert_to_usertype function with JSON fields."""
+    schema = bigquery.TableSchema(
+        fields=[
+            bigquery.TableFieldSchema(
+                name='id', type='INTEGER', mode="REQUIRED"),
+            bigquery.TableFieldSchema(
+                name='data', type='JSON', mode="NULLABLE"),
+            bigquery.TableFieldSchema(
+                name='name', type='STRING', mode="REQUIRED")
+        ])
+
+    conversion_transform = bigquery_schema_tools.convert_to_usertype(schema)
+
+    # Verify the transform is created successfully
+    self.assertIsNotNone(conversion_transform)
+
+    # The transform should be a ParDo with BeamSchemaConversionDoFn
+    self.assertIsInstance(conversion_transform, beam.ParDo)
+
+  def test_beam_schema_conversion_dofn_with_json(self):
+    """Test BeamSchemaConversionDoFn with JSON data."""
+    from apache_beam.io.gcp.bigquery_schema_tools import BeamSchemaConversionDoFn
+
+    # Create a user type with JSON field
+    fields = [
+        bigquery.TableFieldSchema(name='id', type='INTEGER', mode="REQUIRED"),
+        bigquery.TableFieldSchema(
+            name='data', type='JSON', mode="NULLABLE")
+    ]
+    schema = bigquery.TableSchema(fields=fields)
+    usertype = bigquery_schema_tools.generate_user_type_from_bq_schema(schema)
+
+    # Create the DoFn
+    dofn = BeamSchemaConversionDoFn(usertype)
+
+    # Test processing a dictionary with JSON data
+    input_dict = {'id': 1, 'data': '{"key": "value", "count": 42}'}
+
+    results = list(dofn.process(input_dict))
+    self.assertEqual(len(results), 1)
+
+    result = results[0]
+    self.assertEqual(result.id, 1)
+    self.assertEqual(result.data, '{"key": "value", "count": 42}')
+
 
 if __name__ == '__main__':
   logging.getLogger().setLevel(logging.INFO)
