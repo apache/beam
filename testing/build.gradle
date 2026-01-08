@@ -1,0 +1,30 @@
+apply plugin: 'org.apache.beam.module'
+apply plugin: 'application'
+
+applyJavaNature(
+        automaticModuleName: 'org.apache.beam.testing',
+        exportJavadoc: false,
+)
+
+dependencies {
+    implementation project(path: ":sdks:java:core", configuration: "shadow")
+    implementation library.java.google_auth_library_credentials
+    implementation library.java.bigdataoss_util
+    implementation library.java.vendored_grpc_1_69_0
+    implementation project(path: ':sdks:java:extensions:google-cloud-platform-core')
+    implementation project(path: ':runners:google-cloud-dataflow-java')
+    implementation project(":sdks:java:io:google-cloud-platform")
+    implementation project(":sdks:java:extensions:avro")
+    implementation project(":sdks:java:extensions:protobuf")
+    implementation library.java.hadoop_common
+    implementation library.java.google_api_services_bigquery
+    implementation project(path: ":runners:direct-java", configuration: "shadow")
+    implementation library.java.vendored_guava_32_1_2_jre
+}
+
+tasks.create(name:"execute", type:JavaExec) {
+    main = project.hasProperty("mainClass") ? project.getProperty("mainClass") : "NONE"
+    classpath = sourceSets.main.runtimeClasspath
+    systemProperties System.getProperties()
+    args project.hasProperty("exec.args") ? project.getProperty("exec.args").split() : []
+}

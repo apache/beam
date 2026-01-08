@@ -379,3 +379,4 @@ findProject(":examples:java:iceberg")?.name = "iceberg"
 
 include("sdks:java:ml:inference:remote")
 include("sdks:java:ml:inference:openai")
+include("testing")
