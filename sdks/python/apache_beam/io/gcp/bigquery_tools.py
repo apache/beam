@@ -125,6 +125,7 @@ BIGQUERY_TYPE_TO_PYTHON_TYPE = {
     "TIMESTAMP": apache_beam.utils.timestamp.Timestamp,
     "GEOGRAPHY": str,
     "DATE": str,
+    "DATETIME": str,
 }
 
 
