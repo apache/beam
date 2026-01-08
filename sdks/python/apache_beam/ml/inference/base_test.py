@@ -2117,7 +2117,7 @@ class RunInferenceRemoteTest(unittest.TestCase):
       def throttle(self, hits_added=1):
         return False
 
-    with self.assertRaises(RuntimeError):
+    with self.assertRaises(RuntimeError) as error:
       with TestPipeline() as pipeline:
         examples = [1]
 
@@ -2134,6 +2134,7 @@ class RunInferenceRemoteTest(unittest.TestCase):
             num_retries=0)
         pcoll = pipeline | 'start' >> beam.Create(examples)
         _ = pcoll | base.RunInference(model_handler)
+    self.assertIn('RateLimitExceeded', str(error.exception))
 
 
 if __name__ == '__main__':

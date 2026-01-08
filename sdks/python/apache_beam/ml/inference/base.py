@@ -102,6 +102,9 @@ PredictionResult.inference.__doc__ = """Results for the inference on the model
   for the given example."""
 PredictionResult.model_id.__doc__ = """Model ID used to run the prediction."""
 
+class RateLimitExceeded(RuntimeError):
+  """RateLimit Exceeded to process a batch of requests."""
+  pass
 
 class ModelMetadata(NamedTuple):
   model_id: str
@@ -446,7 +449,7 @@ class RemoteModelHandler(ABC, ModelHandler[ExampleT, PredictionT, ModelT]):
         self._shared_rate_limiter = self._shared_handle.acquire(init_limiter)
 
       if not self._shared_rate_limiter.throttle(hits_added=len(batch)):
-        raise RuntimeError(
+        raise RateLimitExceeded(
             "Rate Limit Exceeded, "
             "Could not process this batch.")
 
