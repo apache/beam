@@ -630,7 +630,7 @@ class BeamModulePlugin implements Plugin<Project> {
     def jsr305_version = "3.0.2"
     def everit_json_version = "1.14.2"
     def kafka_version = "2.4.1"
-    def log4j2_version = "2.20.0"
+    def log4j2_version = "2.25.3"
     def nemo_version = "0.1"
     // [bomupgrader] determined by: io.grpc:grpc-netty, consistent with: google_cloud_platform_libraries_bom
     def netty_version = "4.1.124.Final"
