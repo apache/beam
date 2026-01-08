@@ -100,6 +100,7 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Immuta
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Maps;
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.api.common.functions.FlatMapFunction;
+import org.apache.flink.api.common.functions.OpenContext;
 import org.apache.flink.api.common.functions.RichFlatMapFunction;
 import org.apache.flink.api.common.functions.RichMapFunction;
 import org.apache.flink.api.common.operators.ProcessingTimeService.ProcessingTimeCallback;
@@ -109,7 +110,6 @@ import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.typeutils.ResultTypeQueryable;
 import org.apache.flink.api.java.typeutils.ValueTypeInfo;
-import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.state.FunctionInitializationContext;
 import org.apache.flink.runtime.state.FunctionSnapshotContext;
 import org.apache.flink.streaming.api.checkpoint.CheckpointedFunction;
@@ -118,7 +118,7 @@ import org.apache.flink.streaming.api.datastream.DataStreamSource;
 import org.apache.flink.streaming.api.datastream.DataStreamUtils;
 import org.apache.flink.streaming.api.datastream.KeyedStream;
 import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
-import org.apache.flink.streaming.api.functions.source.RichParallelSourceFunction;
+import org.apache.flink.streaming.api.functions.source.legacy.RichParallelSourceFunction;
 import org.apache.flink.streaming.api.transformations.TwoInputTransformation;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.util.Collector;
@@ -288,7 +288,7 @@ class FlinkStreamingTransformTranslators {
     }
 
     @Override
-    public void open(Configuration parameters) {
+    public void open(OpenContext openContext) {
       // Initialize FileSystems for any coders which may want to use the FileSystem,
       // see https://issues.apache.org/jira/browse/BEAM-8303
       FileSystems.setDefaultPipelineOptions(options.get());
@@ -437,7 +437,7 @@ class FlinkStreamingTransformTranslators {
     }
 
     @Override
-    public void open(Configuration parameters) {
+    public void open(OpenContext openContext) {
       // Initialize FileSystems for any coders which may want to use the FileSystem,
       // see https://issues.apache.org/jira/browse/BEAM-8303
       FileSystems.setDefaultPipelineOptions(options.get());
@@ -1158,7 +1158,7 @@ class FlinkStreamingTransformTranslators {
     }
 
     @Override
-    public void open(Configuration parameters) {
+    public void open(OpenContext openContext) {
       // Initialize FileSystems for any coders which may want to use the FileSystem,
       // see https://issues.apache.org/jira/browse/BEAM-8303
       FileSystems.setDefaultPipelineOptions(options.get());
@@ -1326,6 +1326,7 @@ class FlinkStreamingTransformTranslators {
     }
   }
 
+  // TODO(https://github.com/apache/beam/issues/37114) migrate off RichParallelSourceFunction
   /**
    * Wrapper for {@link UnboundedSourceWrapper}, which simplifies output type, namely, removes
    * {@link ValueWithRecordId}.
@@ -1351,9 +1352,9 @@ class FlinkStreamingTransformTranslators {
     }
 
     @Override
-    public void open(Configuration parameters) throws Exception {
+    public void open(OpenContext openContext) throws Exception {
       unboundedSourceWrapper.setRuntimeContext(getRuntimeContext());
-      unboundedSourceWrapper.open(parameters);
+      unboundedSourceWrapper.open(openContext);
     }
 
     @Override

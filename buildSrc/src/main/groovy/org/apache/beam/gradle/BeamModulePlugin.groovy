@@ -552,7 +552,8 @@ class BeamModulePlugin implements Plugin<Project> {
     project.ext.currentJavaVersion = getSupportedJavaVersion()
 
     project.ext.allFlinkVersions = project.flink_versions.split(',')
-    project.ext.latestFlinkVersion = project.ext.allFlinkVersions.last()
+    // TODO(https://github.com/apache/beam/issues/36947): Move to use project.ext.allFlinkVersions.last() when Flink 2 support completed
+    project.ext.latestFlinkVersion = '1.20'
 
     project.ext.nativeArchitecture = {
       // Best guess as to this system's normalized native architecture name.

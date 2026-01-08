@@ -43,24 +43,25 @@ import org.apache.beam.sdk.values.ValueWithRecordId;
 import org.apache.beam.sdk.values.WindowedValue;
 import org.apache.beam.sdk.values.WindowedValues;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
-import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.functions.OpenContext;
 import org.apache.flink.api.common.operators.ProcessingTimeService.ProcessingTimeCallback;
+import org.apache.flink.api.common.serialization.SerializerConfigImpl;
 import org.apache.flink.api.common.state.CheckpointListener;
 import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.state.OperatorStateStore;
-import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.state.DefaultOperatorStateBackend;
 import org.apache.flink.runtime.state.FunctionInitializationContext;
 import org.apache.flink.runtime.state.FunctionSnapshotContext;
 import org.apache.flink.streaming.api.checkpoint.CheckpointedFunction;
-import org.apache.flink.streaming.api.functions.source.RichParallelSourceFunction;
+import org.apache.flink.streaming.api.functions.source.legacy.RichParallelSourceFunction;
 import org.apache.flink.streaming.api.operators.StreamingRuntimeContext;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.joda.time.Instant;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+// TODO(https://github.com/apache/beam/issues/37114) migrate off RichParallelSourceFunction
 /** Wrapper for executing {@link UnboundedSource UnboundedSources} as a Flink Source. */
 @SuppressWarnings({
   "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
@@ -183,14 +184,14 @@ public class UnboundedSourceWrapper<OutputT, CheckpointMarkT extends UnboundedSo
 
   /** Initialize and restore state before starting execution of the source. */
   @Override
-  public void open(Configuration parameters) throws Exception {
+  public void open(OpenContext openContext) throws Exception {
     FileSystems.setDefaultPipelineOptions(serializedOptions.get());
     runtimeContext = (StreamingRuntimeContext) getRuntimeContext();
     metricContainer = new FlinkMetricContainer(runtimeContext);
 
     // figure out which split sources we're responsible for
-    int subtaskIndex = runtimeContext.getIndexOfThisSubtask();
-    int numSubtasks = runtimeContext.getNumberOfParallelSubtasks();
+    int subtaskIndex = runtimeContext.getTaskInfo().getIndexOfThisSubtask();
+    int numSubtasks = runtimeContext.getTaskInfo().getNumberOfParallelSubtasks();
 
     localSplitSources = new ArrayList<>();
     localReaders = new ArrayList<>();
@@ -442,7 +443,7 @@ public class UnboundedSourceWrapper<OutputT, CheckpointMarkT extends UnboundedSo
         stateStore.getListState(
             new ListStateDescriptor<>(
                 DefaultOperatorStateBackend.DEFAULT_OPERATOR_STATE_NAME,
-                typeInformation.createSerializer(new ExecutionConfig())));
+                typeInformation.createSerializer(new SerializerConfigImpl())));
 
     if (context.isRestored()) {
       isRestored = true;
@@ -479,7 +480,11 @@ public class UnboundedSourceWrapper<OutputT, CheckpointMarkT extends UnboundedSo
   @SuppressWarnings("FutureReturnValueIgnored")
   private void setNextWatermarkTimer(StreamingRuntimeContext runtime) {
     if (this.isRunning) {
-      long watermarkInterval = runtime.getExecutionConfig().getAutoWatermarkInterval();
+      java.time.Duration autoWaterMarkDuration =
+          runtime
+              .getJobConfiguration()
+              .get(org.apache.flink.configuration.PipelineOptions.AUTO_WATERMARK_INTERVAL);
+      long watermarkInterval = autoWaterMarkDuration.toMillis();
       synchronized (context.getCheckpointLock()) {
         long currentProcessingTime = runtime.getProcessingTimeService().getCurrentProcessingTime();
         if (currentProcessingTime < Long.MAX_VALUE) {

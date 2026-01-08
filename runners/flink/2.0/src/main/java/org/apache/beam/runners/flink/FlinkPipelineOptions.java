@@ -25,6 +25,7 @@ import org.apache.beam.sdk.options.FileStagingOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.options.StreamingOptions;
+import org.apache.flink.runtime.state.StateBackendFactory;
 
 /**
  * Options which can be used to configure the Flink Runner.
@@ -45,10 +46,9 @@ public interface FlinkPipelineOptions
 
   /**
    * The url of the Flink JobManager on which to execute pipelines. This can either be the address
-   * of a cluster JobManager, in the form "host:port" or one of the special Strings "[local]",
-   * "[collection]" or "[auto]". "[local]" will start a local Flink Cluster in the JVM,
-   * "[collection]" will execute the pipeline on Java Collections while "[auto]" will let the system
-   * decide where to execute the pipeline based on the environment.
+   * of a cluster JobManager, in the form "host:port" or one of the special Strings "[local]", or
+   * "[auto]". "[local]" will start a local Flink Cluster in the JVM, while "[auto]" will let the
+   * system decide where to execute the pipeline based on the environment.
    */
   @Description(
       "Address of the Flink Master where the Pipeline should be executed. Can"
@@ -111,12 +111,11 @@ public interface FlinkPipelineOptions
 
   @Description(
       "Sets the expected behaviour for tasks in case that they encounter an error in their "
-          + "checkpointing procedure. If this is set to true, the task will fail on checkpointing error. "
-          + "If this is set to false, the task will only decline the checkpoint and continue running. ")
-  @Default.Boolean(true)
-  Boolean getFailOnCheckpointingErrors();
+          + "checkpointing procedure. To tolerate a specific number of failures, set it to a positive number.")
+  @Default.Integer(0)
+  Integer getTolerableCheckpointFailureNumber();
 
-  void setFailOnCheckpointingErrors(Boolean failOnCheckpointingErrors);
+  void setTolerableCheckpointFailureNumber(Integer tolerableCheckpointFailureNumber);
 
   @Description(
       "If set, finishes the current bundle and flushes all output before checkpointing the state of the operators. "
@@ -197,25 +196,18 @@ public interface FlinkPipelineOptions
 
   void setOperatorChaining(Boolean chaining);
 
-  /**
-   * State backend to store Beam's state during computation. Note: Only applicable when executing in
-   * streaming mode.
-   *
-   * @deprecated Please use setStateBackend below.
-   */
-  @Deprecated
+  /** State backend to store Beam's state during computation. */
   @Description(
       "Sets the state backend factory to use in streaming mode. "
           + "Defaults to the flink cluster's state.backend configuration.")
-  Class<? extends FlinkStateBackendFactory> getStateBackendFactory();
+  Class<? extends StateBackendFactory<?>> getStateBackendFactory();
 
-  /** @deprecated Please use setStateBackend below. */
-  @Deprecated
-  void setStateBackendFactory(Class<? extends FlinkStateBackendFactory> stateBackendFactory);
+  void setStateBackendFactory(Class<? extends StateBackendFactory<?>> stateBackendFactory);
 
   void setStateBackend(String stateBackend);
 
-  @Description("State backend to store Beam's state. Use 'rocksdb' or 'filesystem'.")
+  @Description(
+      "State backend to store Beam's state. Use 'rocksdb' or 'hashmap' (same as 'filesystem').")
   String getStateBackend();
 
   void setStateBackendStoragePath(String path);
@@ -350,13 +342,6 @@ public interface FlinkPipelineOptions
   String getReportCheckpointDuration();
 
   void setReportCheckpointDuration(String metricNamespace);
-
-  @Description(
-      "Flag indicating whether result of GBK needs to be re-iterable. Re-iterable result implies that all values for a single key must fit in memory as we currently do not support spilling to disk.")
-  @Default.Boolean(false)
-  Boolean getReIterableGroupByKeyResult();
-
-  void setReIterableGroupByKeyResult(Boolean reIterableGroupByKeyResult);
 
   @Description(
       "Remove unneeded deep copy between operators. See https://issues.apache.org/jira/browse/BEAM-11146")
