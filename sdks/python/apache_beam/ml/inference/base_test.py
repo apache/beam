@@ -2128,10 +2128,9 @@ class RunInferenceRemoteTest(unittest.TestCase):
         rate_limiter=FakeRateLimiter(),
         namespace='test_namespace',
         num_retries=0)
-    
+
     with self.assertRaises(base.RateLimitExceeded):
       model_handler.run_inference([1], FakeModel())
-    
 
 
 if __name__ == '__main__':
