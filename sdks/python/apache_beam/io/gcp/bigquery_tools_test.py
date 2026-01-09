@@ -1016,7 +1016,8 @@ class TestBeamRowFromDict(unittest.TestCase):
 class TestBeamTypehintFromSchema(unittest.TestCase):
   EXPECTED_TYPEHINTS = [("str", str), ("bool", bool), ("bytes", bytes),
                         ("int", np.int64), ("float", np.float64),
-                        ("numeric", decimal.Decimal), ("timestamp", Timestamp)]
+                        ("numeric", decimal.Decimal), ("timestamp", Timestamp),
+                        ("date", str), ("datetime", str), ("json", str)]
 
   def get_schema_fields_with_mode(self, mode):
     return [{
@@ -1033,6 +1034,12 @@ class TestBeamTypehintFromSchema(unittest.TestCase):
         "name": "numeric", "type": "NUMERIC", "mode": mode
     }, {
         "name": "timestamp", "type": "TIMESTAMP", "mode": mode
+    }, {
+        "name": "date", "type": "DATE", "mode": mode
+    }, {
+        "name": "datetime", "type": "DATETIME", "mode": mode
+    }, {
+        "name": "json", "type": "JSON", "mode": mode
     }]
 
   def test_typehints_from_required_schema(self):

@@ -65,32 +65,7 @@
 
 ## I/Os
 
-* Support for X source added (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
-
-## New Features / Improvements
-
-* X feature added (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
-
-## Breaking Changes
-
-* X behavior was changed ([#X](https://github.com/apache/beam/issues/X)).
-
-## Deprecations
-
-* X behavior is deprecated and will be removed in X versions ([#X](https://github.com/apache/beam/issues/X)).
-
-## Bugfixes
-
-* Fixed X (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
-
-## Security Fixes
-
-* Fixed [CVE-YYYY-NNNN](https://www.cve.org/CVERecord?id=CVE-YYYY-NNNN) (Java/Python/Go) ([#X](https://github.com/apache/beam/issues/X)).
-
-## Known Issues
-
-[comment]: # ( When updating known issues after release, make sure also update website blog in website/www/site/content/blog.)
-* ([#X](https://github.com/apache/beam/issues/X)).
+* Added DATE, DATETIME, and JSON type support to BigQuery I/O for use with Storage Write API and BEAM_ROW format (Python) ([#25946](https://github.com/apache/beam/issues/25946)).
 
 # [2.71.0] - Unreleased
 
