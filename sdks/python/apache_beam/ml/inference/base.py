@@ -102,9 +102,11 @@ PredictionResult.inference.__doc__ = """Results for the inference on the model
   for the given example."""
 PredictionResult.model_id.__doc__ = """Model ID used to run the prediction."""
 
+
 class RateLimitExceeded(RuntimeError):
   """RateLimit Exceeded to process a batch of requests."""
   pass
+
 
 class ModelMetadata(NamedTuple):
   model_id: str

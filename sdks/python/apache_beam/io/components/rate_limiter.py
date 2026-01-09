@@ -62,7 +62,12 @@ class RateLimiter(abc.ABC):
 
   @abc.abstractmethod
   def throttle(self, **kwargs) -> bool:
-    """Check if request should be throttled.
+    """Applies rate limiting to the request.
+
+    This method checks if the request is permitted by the rate limiting policy.
+    Depending on the implementation and configuration, it may block (sleep)
+    until the request is allowed, or return false if the rate limit retry is
+    exceeded.
 
     Args:
       **kwargs: Keyword arguments specific to the RateLimiter implementation.
@@ -78,8 +83,12 @@ class RateLimiter(abc.ABC):
 
 
 class EnvoyRateLimiter(RateLimiter):
-  """
-  Rate limiter implementation that uses an external Envoy Rate Limit Service.
+  """Rate limiter implementation that uses an external Envoy Rate Limit Service.
+
+  This limiter connects to a gRPC Envoy Rate Limit Service (RLS) to determine
+  whether a request should be allowed. It supports defining a domain and a
+  list of descriptors that correspond to the rate limit configuration in the
+  RLS.
   """
   def __init__(
       self,
@@ -140,7 +149,15 @@ class EnvoyRateLimiter(RateLimiter):
           self._stub = EnvoyRateLimiter.RateLimitServiceStub(channel)
 
   def throttle(self, hits_added: int = 1) -> bool:
-    """Calls the Envoy RLS to check for rate limits.
+    """Calls the Envoy RLS to apply rate limits.
+
+    Sends a rate limit request to the configured Envoy Rate Limit Service.
+    If 'block_until_allowed' is True, this method will sleep and retry
+    if the limit is exceeded, effectively blocking until the request is
+    permitted.
+
+    If 'block_until_allowed' is False, it will return False after the retry
+    limit is exceeded.
 
     Args:
       hits_added: Number of hits to add to the rate limit.
