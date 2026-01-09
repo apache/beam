@@ -2117,24 +2117,21 @@ class RunInferenceRemoteTest(unittest.TestCase):
       def throttle(self, hits_added=1):
         return False
 
-    with self.assertRaises(RuntimeError) as error:
-      with TestPipeline() as pipeline:
-        examples = [1]
+    class ConcreteRemoteModelHandler(base.RemoteModelHandler):
+      def create_client(self):
+        return FakeModel()
 
-        class ConcreteRemoteModelHandler(base.RemoteModelHandler):
-          def create_client(self):
-            return FakeModel()
+      def request(self, batch, model, inference_args=None):
+        return [model.predict(example) for example in batch]
 
-          def request(self, batch, model, inference_args=None):
-            return [model.predict(example) for example in batch]
-
-        model_handler = ConcreteRemoteModelHandler(
-            rate_limiter=FakeRateLimiter(),
-            namespace='test_namespace',
-            num_retries=0)
-        pcoll = pipeline | 'start' >> beam.Create(examples)
-        _ = pcoll | base.RunInference(model_handler)
-    self.assertIn('RateLimitExceeded', str(error.exception))
+    model_handler = ConcreteRemoteModelHandler(
+        rate_limiter=FakeRateLimiter(),
+        namespace='test_namespace',
+        num_retries=0)
+    
+    with self.assertRaises(base.RateLimitExceeded):
+      model_handler.run_inference([1], FakeModel())
+    
 
 
 if __name__ == '__main__':
