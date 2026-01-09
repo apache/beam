@@ -410,7 +410,8 @@ public class FileSystems {
    * <p>- Otherwise, report top level only.
    */
   public static void reportSourceLineage(List<ResourceId> resourceIds) {
-    if (resourceIds.size() <= 100) {
+    final int MAX_LINEAGE_TARGETS = 100;
+    if (resourceIds.size() <= MAX_LINEAGE_TARGETS) {
       for (ResourceId resourceId : resourceIds) {
         FileSystems.reportSourceLineage(resourceId);
       }
@@ -419,7 +420,7 @@ public class FileSystems {
       for (ResourceId resourceId : resourceIds) {
         ResourceId dir = resourceId.getCurrentDirectory();
         uniqueDirs.add(dir);
-        if (uniqueDirs.size() > 100) {
+        if (uniqueDirs.size() > MAX_LINEAGE_TARGETS) {
           FileSystems.reportSourceLineage(dir, LineageLevel.TOP_LEVEL);
           return;
         }

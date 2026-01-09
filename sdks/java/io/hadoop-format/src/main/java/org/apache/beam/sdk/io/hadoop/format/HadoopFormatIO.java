@@ -465,7 +465,6 @@ public class HadoopFormatIO {
       if (getValueTranslationFunction() == null) {
         builder.setValueTypeDescriptor((TypeDescriptor<V>) inputFormatValueClass);
       }
-
       return builder.build();
     }
 
@@ -728,11 +727,8 @@ public class HadoopFormatIO {
         LOG.info("Not splitting source {} because source is already split.", this);
         return ImmutableList.of(this);
       }
-
       computeSplitsIfNecessary();
-
       reportSourceLineage(inputSplits);
-
       LOG.info(
           "Generated {} splits. Size of first split is {} ",
           inputSplits.size(),
@@ -754,17 +750,13 @@ public class HadoopFormatIO {
 
     /** Report only file-based sources */
     private void reportSourceLineage(final List<SerializableSplit> inputSplits) {
-      List<ResourceId> fileResources = new ArrayList<>();
-
-      for (SerializableSplit split : inputSplits) {
-        InputSplit inputSplit = split.getSplit();
-
-        if (inputSplit instanceof FileSplit) {
-          String pathString = ((FileSplit) inputSplit).getPath().toString();
-          ResourceId resourceId = FileSystems.matchNewResource(pathString, false);
-          fileResources.add(resourceId);
-        }
-      }
+      List<ResourceId> fileResources =
+          inputSplits.stream()
+              .map(SerializableSplit::getSplit)
+              .filter(FileSplit.class::isInstance)
+              .map(FileSplit.class::cast)
+              .map(fileSplit -> FileSystems.matchNewResource(fileSplit.getPath().toString(), false))
+              .collect(Collectors.toList());
 
       FileSystems.reportSourceLineage(fileResources);
     }
