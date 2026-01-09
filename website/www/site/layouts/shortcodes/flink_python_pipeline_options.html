@@ -64,7 +64,7 @@ Should be called before running the tests.
 </tr>
 <tr>
   <td><code>execution_mode_for_batch</code></td>
-  <td>Flink mode for data exchange of batch pipelines. Reference {@link org.apache.flink.api.common.ExecutionMode}. Set this to BATCH_FORCED if pipelines get blocked, see https://issues.apache.org/jira/browse/FLINK-10672</td>
+  <td>Flink mode for data exchange of batch pipelines. Reference {@link org.apache.flink.api.common.ExecutionMode}. Set this to BATCH_FORCED if pipelines get blocked, see https://issues.apache.org/jira/browse/FLINK-10672.</td>
   <td>Default: <code>PIPELINED</code></td>
 </tr>
 <tr>
@@ -76,11 +76,6 @@ Should be called before running the tests.
   <td><code>externalized_checkpoints_enabled</code></td>
   <td>Enables or disables externalized checkpoints. Works in conjunction with CheckpointingInterval</td>
   <td>Default: <code>false</code></td>
-</tr>
-<tr>
-  <td><code>fail_on_checkpointing_errors</code></td>
-  <td>Sets the expected behaviour for tasks in case that they encounter an error in their checkpointing procedure. If this is set to true, the task will fail on checkpointing error. If this is set to false, the task will only decline the checkpoint and continue running. </td>
-  <td>Default: <code>true</code></td>
 </tr>
 <tr>
   <td><code>faster_copy</code></td>
@@ -173,11 +168,6 @@ Should be called before running the tests.
   <td>Default: <code>-1</code></td>
 </tr>
 <tr>
-  <td><code>re_iterable_group_by_key_result</code></td>
-  <td>Flag indicating whether result of GBK needs to be re-iterable. Re-iterable result implies that all values for a single key must fit in memory as we currently do not support spilling to disk.</td>
-  <td>Default: <code>false</code></td>
-</tr>
-<tr>
   <td><code>report_checkpoint_duration</code></td>
   <td>If not null, reports the checkpoint duration of each ParDo stage in the provided metric namespace.</td>
   <td></td>
@@ -199,7 +189,7 @@ Should be called before running the tests.
 </tr>
 <tr>
   <td><code>state_backend</code></td>
-  <td>State backend to store Beam's state. Use 'rocksdb' or 'filesystem'.</td>
+  <td>State backend to store Beam's state. Use 'rocksdb' or 'hashmap' (same as 'filesystem').</td>
   <td></td>
 </tr>
 <tr>
@@ -211,6 +201,11 @@ Should be called before running the tests.
   <td><code>state_backend_storage_path</code></td>
   <td>State backend path to persist state backend data. Used to initialize state backend.</td>
   <td></td>
+</tr>
+<tr>
+  <td><code>tolerable_checkpoint_failure_number</code></td>
+  <td>Sets the expected behaviour for tasks in case that they encounter an error in their checkpointing procedure. To tolerate a specific number of failures, set it to a positive number.</td>
+  <td>Default: <code>0</code></td>
 </tr>
 <tr>
   <td><code>unaligned_checkpoint_enabled</code></td>

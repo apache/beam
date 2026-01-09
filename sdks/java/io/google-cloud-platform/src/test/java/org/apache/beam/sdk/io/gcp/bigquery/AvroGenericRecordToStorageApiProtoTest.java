@@ -19,6 +19,7 @@ package org.apache.beam.sdk.io.gcp.bigquery;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertTrue;
 
 import com.google.cloud.bigquery.storage.v1.BigDecimalByteStringEncoder;
 import com.google.protobuf.ByteString;
@@ -335,6 +336,19 @@ public class AvroGenericRecordToStorageApiProtoTest {
           .stringType()
           .noDefault()
           .endRecord();
+
+  private static Schema createTimestampNanosSchema() {
+    Schema longSchema = Schema.create(Schema.Type.LONG);
+    longSchema.addProp("logicalType", "timestamp-nanos");
+    return SchemaBuilder.record("TimestampNanosRecord")
+        .fields()
+        .name("timestampNanosValue")
+        .type(longSchema)
+        .noDefault()
+        .endRecord();
+  }
+
+  private static final Schema TIMESTAMP_NANOS_SCHEMA = createTimestampNanosSchema();
 
   private static GenericRecord baseRecord;
   private static GenericRecord rawLogicalTypesRecord;
@@ -764,5 +778,111 @@ public class AvroGenericRecordToStorageApiProtoTest {
 
     List<String> list = (List<String>) msg.getField(fieldDescriptors.get("anullablearray"));
     assertEquals(Collections.emptyList(), list);
+  }
+
+  @Test
+  public void testDescriptorFromSchemaTimestampNanos() {
+    DescriptorProto descriptor =
+        TableRowToStorageApiProto.descriptorSchemaFromTableSchema(
+            AvroGenericRecordToStorageApiProto.protoTableSchemaFromAvroSchema(
+                TIMESTAMP_NANOS_SCHEMA),
+            true,
+            false);
+
+    assertEquals(1, descriptor.getFieldCount());
+    FieldDescriptorProto field = descriptor.getField(0);
+    assertEquals("timestampnanosvalue", field.getName());
+    assertEquals(Type.TYPE_MESSAGE, field.getType());
+    assertEquals("TimestampPicos", field.getTypeName());
+
+    // Verify nested TimestampPicos type exists
+    assertEquals(1, descriptor.getNestedTypeCount());
+    DescriptorProto nestedType = descriptor.getNestedType(0);
+    assertEquals("TimestampPicos", nestedType.getName());
+    assertEquals(2, nestedType.getFieldCount());
+  }
+
+  @Test
+  public void testMessageFromGenericRecordTimestampNanos() throws Exception {
+    // 2024-01-15 12:30:45.123456789 → nanoseconds since epoch
+    // Seconds: 1705321845
+    // Nanos: 123456789
+    // Total nanos = 1705321845 * 1_000_000_000 + 123456789 = 1705321845123456789L
+    long nanosValue = 1705321845123456789L;
+
+    GenericRecord record =
+        new GenericRecordBuilder(TIMESTAMP_NANOS_SCHEMA)
+            .set("timestampNanosValue", nanosValue)
+            .build();
+
+    Descriptors.Descriptor descriptor =
+        TableRowToStorageApiProto.getDescriptorFromTableSchema(
+            AvroGenericRecordToStorageApiProto.protoTableSchemaFromAvroSchema(
+                TIMESTAMP_NANOS_SCHEMA),
+            true,
+            false);
+
+    DynamicMessage msg =
+        AvroGenericRecordToStorageApiProto.messageFromGenericRecord(descriptor, record, null, -1);
+
+    assertEquals(1, msg.getAllFields().size());
+
+    // Get the TimestampPicos field
+    Descriptors.FieldDescriptor timestampField = descriptor.findFieldByName("timestampnanosvalue");
+    DynamicMessage timestampPicos = (DynamicMessage) msg.getField(timestampField);
+
+    // Verify seconds and picoseconds
+    Descriptors.Descriptor picosDesc = timestampField.getMessageType();
+    long seconds = (Long) timestampPicos.getField(picosDesc.findFieldByName("seconds"));
+    long picoseconds = (Long) timestampPicos.getField(picosDesc.findFieldByName("picoseconds"));
+
+    assertEquals(1705321845L, seconds);
+    assertEquals(123456789L * 1000L, picoseconds); // 123456789000 picos
+  }
+
+  @Test
+  public void testMessageFromGenericRecordTimestampNanosNegative() throws Exception {
+    // -0.5 seconds = -500_000_000 nanoseconds
+    long nanosValue = -500_000_000L;
+
+    GenericRecord record =
+        new GenericRecordBuilder(TIMESTAMP_NANOS_SCHEMA)
+            .set("timestampNanosValue", nanosValue)
+            .build();
+
+    Descriptors.Descriptor descriptor =
+        TableRowToStorageApiProto.getDescriptorFromTableSchema(
+            AvroGenericRecordToStorageApiProto.protoTableSchemaFromAvroSchema(
+                TIMESTAMP_NANOS_SCHEMA),
+            true,
+            false);
+
+    DynamicMessage msg =
+        AvroGenericRecordToStorageApiProto.messageFromGenericRecord(descriptor, record, null, -1);
+
+    Descriptors.FieldDescriptor timestampField = descriptor.findFieldByName("timestampnanosvalue");
+    DynamicMessage timestampPicos = (DynamicMessage) msg.getField(timestampField);
+
+    Descriptors.Descriptor picosDesc = timestampField.getMessageType();
+    long seconds = (Long) timestampPicos.getField(picosDesc.findFieldByName("seconds"));
+    long picoseconds = (Long) timestampPicos.getField(picosDesc.findFieldByName("picoseconds"));
+
+    // -0.5s should be represented as {seconds: -1, picoseconds: 500_000_000_000}
+    assertEquals(-1L, seconds);
+    assertEquals(500_000_000_000L, picoseconds); // 500 million picos
+  }
+
+  @Test
+  public void testProtoTableSchemaFromAvroSchemaTimestampNanos() {
+    com.google.cloud.bigquery.storage.v1.TableSchema protoSchema =
+        AvroGenericRecordToStorageApiProto.protoTableSchemaFromAvroSchema(TIMESTAMP_NANOS_SCHEMA);
+
+    assertEquals(1, protoSchema.getFieldsCount());
+    com.google.cloud.bigquery.storage.v1.TableFieldSchema field = protoSchema.getFields(0);
+    assertEquals("timestampnanosvalue", field.getName());
+    assertEquals(
+        com.google.cloud.bigquery.storage.v1.TableFieldSchema.Type.TIMESTAMP, field.getType());
+    assertTrue(field.hasTimestampPrecision());
+    assertEquals(12L, field.getTimestampPrecision().getValue());
   }
 }

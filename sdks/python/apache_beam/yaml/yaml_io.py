@@ -165,9 +165,12 @@ def write_to_bigquery(
         Defaults to `{BigQueryDisposition.WRITE_APPEND}`.
 
       error_handling: If specified, should be a mapping giving an output into
-        which to emit records that failed to bet written to BigQuery, as
+        which to emit records that failed to be written to BigQuery, as
         described at https://beam.apache.org/documentation/sdks/yaml-errors/
         Otherwise permanently failing records will cause pipeline failure.
+        Note: error_handling requires the Storage Write API method and is not
+        supported with File Loads (FILE_LOADS method). When error_handling is
+        specified, the transform will automatically use STORAGE_WRITE_API.
   """
   class WriteToBigQueryHandlingErrors(beam.PTransform):
     def default_label(self):
