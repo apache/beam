@@ -879,7 +879,8 @@ def collect(
     options=None,
     force_compute=False,
     force_tuple=False,
-    raw_records=False):
+    raw_records=False,
+    wait_for_inputs=True):
   """Materializes the elements from a PCollection into a Dataframe.
 
   This reads each element from file and reads only the amount that it needs
@@ -903,6 +904,10 @@ def collect(
         the bare results if only one PCollection is computed
     raw_records: (optional) if True, return a list of collected records
         without converting to a DataFrame. Default False.
+    wait_for_inputs: Whether to wait until the asynchronous dependencies are
+        computed. Setting this to False allows to immediately schedule the
+        computation, but also potentially results in running the same pipeline
+        stages multiple times.
 
   For example::
 
@@ -980,7 +985,8 @@ def collect(
         max_duration=duration,
         runner=runner,
         options=options,
-        force_compute=force_compute)
+        force_compute=force_compute,
+        wait_for_inputs=wait_for_inputs)
 
     try:
       for pcoll in uncomputed:
