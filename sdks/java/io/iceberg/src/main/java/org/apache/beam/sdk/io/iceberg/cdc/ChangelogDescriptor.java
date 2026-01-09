@@ -25,6 +25,7 @@ import org.apache.beam.sdk.schemas.SchemaRegistry;
 import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
 import org.apache.beam.sdk.schemas.annotations.SchemaFieldNumber;
 
+/** Descriptor for a set of {@link SerializableChangelogTask}s. */
 @DefaultSchema(AutoValueSchema.class)
 @AutoValue
 public abstract class ChangelogDescriptor {
@@ -43,24 +44,9 @@ public abstract class ChangelogDescriptor {
   @SchemaFieldNumber("0")
   abstract String getTableIdentifierString();
 
-  @SchemaFieldNumber("1")
-  abstract long getStartSnapshotId();
-
-  @SchemaFieldNumber("2")
-  abstract long getEndSnapshotId();
-
-  @SchemaFieldNumber("3")
-  abstract int getChangeOrdinal();
-
   @AutoValue.Builder
   public abstract static class Builder {
     abstract Builder setTableIdentifierString(String table);
-
-    abstract Builder setStartSnapshotId(long snapshotId);
-
-    abstract Builder setEndSnapshotId(long snapshotId);
-
-    abstract Builder setChangeOrdinal(int ordinal);
 
     abstract ChangelogDescriptor build();
   }

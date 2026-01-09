@@ -20,6 +20,7 @@ package org.apache.beam.sdk.io.iceberg.cdc;
 import static org.apache.beam.sdk.io.iceberg.cdc.SerializableChangelogTask.Type.ADDED_ROWS;
 import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
 
+import com.google.common.collect.ImmutableMap;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -38,6 +39,7 @@ import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.iceberg.ChangelogScanTask;
+import org.apache.iceberg.DataOperations;
 import org.apache.iceberg.IncrementalChangelogScan;
 import org.apache.iceberg.PartitionField;
 import org.apache.iceberg.PartitionSpec;
@@ -134,14 +136,23 @@ public class ChangelogScanner
     }
     LOG.info("Planning to scan snapshot range [{}, {}]", fromSnapshotId, toSnapshot);
 
+    ImmutableMap.Builder<Long, SnapshotInfo> snapshotMap = ImmutableMap.builder();
+    snapshots.forEach(s -> snapshotMap.put(s.getSnapshotId(), s));
+
     createAndOutputReadTasks(
-        scan, startSnapshot, endSnapshot, SerializableTable.copyOf(table), out);
+        scan,
+        startSnapshot,
+        endSnapshot,
+        snapshotMap.build(),
+        SerializableTable.copyOf(table),
+        out);
   }
 
   private void createAndOutputReadTasks(
       IncrementalChangelogScan scan,
       SnapshotInfo startSnapshot,
       SnapshotInfo endSnapshot,
+      Map<Long, SnapshotInfo> snapshotMap,
       Table table,
       MultiOutputReceiver multiOutputReceiver)
       throws IOException {
@@ -149,39 +160,27 @@ public class ChangelogScanner
     int numDeletedRowsTasks = 0;
     int numDeletedFileTasks = 0;
 
-    // if the record's identifier fields include all partitioned fields, we can further optimize the
-    // scan
-    // by only shuffling bi-directional changes *within* a partition.
-    // this is safe to do because we can assume a record change will not be a cross-partition change
+    // if partition fields are sourced entirely from a record's PK, we can further optimize
+    // the scan by only shuffling bi-directional changes *within* a partition.
+    // this is safe to do because we can assume no cross-partition changes will occur
     boolean rowsPinnedToPartition = isRowPinnedToPartition(table.spec());
+    // keep track of change types per partition (useful if row is pinned to its partition)
+    Map<Long, Map<String, Set<SerializableChangelogTask.Type>>> changeTypesPerPartitionPerSnapshot =
+        new HashMap<>();
 
-    Map<Long, Long> cachedSnapshotTimestamps = new HashMap<>();
     // Best effort maintain the same scan task groupings produced by Iceberg's binpacking, for
     // better work load distribution among readers.
     // This allows the user to control load per worker by tuning `read.split.target-size`:
     // https://iceberg.apache.org/docs/latest/configuration/#read-properties
-    Map<Integer, List<List<SerializableChangelogTask>>> changelogScanTasks = new HashMap<>();
-
-    // keep track of change types per ordinal
-    Map<Integer, Set<SerializableChangelogTask.Type>> changeTypesPerOrdinal = new HashMap<>();
-    // keep track of change types per partition, per ordinal (useful if record is pinned to its
-    // partition)
-    Map<Integer, Map<String, Set<SerializableChangelogTask.Type>>>
-        changeTypesPerPartitionPerOrdinal = new HashMap<>();
+    Map<Long, List<List<SerializableChangelogTask>>> changelogScanTasks = new HashMap<>();
 
     try (CloseableIterable<ScanTaskGroup<ChangelogScanTask>> scanTaskGroups = scan.planTasks()) {
       for (ScanTaskGroup<ChangelogScanTask> scanTaskGroup : scanTaskGroups) {
-        Map<Integer, List<SerializableChangelogTask>> ordinalTaskGroup = new HashMap<>();
+        Map<Long, List<SerializableChangelogTask>> snapshotTaskGroup = new HashMap<>();
 
         for (ChangelogScanTask changelogScanTask : scanTaskGroup.tasks()) {
           long snapshotId = changelogScanTask.commitSnapshotId();
-          long timestampMillis =
-              cachedSnapshotTimestamps.computeIfAbsent(
-                  snapshotId, (snapId) -> table.snapshot(snapId).timestampMillis());
-          int ordinal = changelogScanTask.changeOrdinal();
-
-          SerializableChangelogTask task =
-              SerializableChangelogTask.from(changelogScanTask, timestampMillis);
+          SerializableChangelogTask task = SerializableChangelogTask.from(changelogScanTask);
           String partition = task.getDataFile().getPartitionPath();
 
           // gather metrics
@@ -198,24 +197,20 @@ public class ChangelogScanner
           }
 
           if (rowsPinnedToPartition) {
-            changeTypesPerPartitionPerOrdinal
-                .computeIfAbsent(ordinal, (o) -> new HashMap<>())
+            changeTypesPerPartitionPerSnapshot
+                .computeIfAbsent(snapshotId, (id) -> new HashMap<>())
                 .computeIfAbsent(partition, (p) -> new HashSet<>())
-                .add(task.getType());
-          } else {
-            changeTypesPerOrdinal
-                .computeIfAbsent(ordinal, (o) -> new HashSet<>())
                 .add(task.getType());
           }
 
-          ordinalTaskGroup.computeIfAbsent(ordinal, (o) -> new ArrayList<>()).add(task);
+          snapshotTaskGroup.computeIfAbsent(snapshotId, (id) -> new ArrayList<>()).add(task);
         }
 
-        for (Map.Entry<Integer, List<SerializableChangelogTask>> ordinalGroup :
-            ordinalTaskGroup.entrySet()) {
+        for (Map.Entry<Long, List<SerializableChangelogTask>> subGroup :
+            snapshotTaskGroup.entrySet()) {
           changelogScanTasks
-              .computeIfAbsent(ordinalGroup.getKey(), (unused) -> new ArrayList<>())
-              .add(ordinalGroup.getValue());
+              .computeIfAbsent(subGroup.getKey(), (unused) -> new ArrayList<>())
+              .add(subGroup.getValue());
         }
       }
     }
@@ -223,20 +218,20 @@ public class ChangelogScanner
     int numUniDirTasks = 0;
     int numBiDirTasks = 0;
 
-    for (Map.Entry<Integer, List<List<SerializableChangelogTask>>> taskGroups :
+    for (Map.Entry<Long, List<List<SerializableChangelogTask>>> taskGroups :
         changelogScanTasks.entrySet()) {
-      int ordinal = taskGroups.getKey();
+      long snapshotId = taskGroups.getKey();
+      long timestampMillis = checkStateNotNull(snapshotMap.get(snapshotId)).getTimestampMillis();
+      Instant timestamp = Instant.ofEpochMilli(timestampMillis);
+      String operation =
+          checkStateNotNull(checkStateNotNull(snapshotMap.get(snapshotId)).getOperation());
+
       ChangelogDescriptor descriptor =
           ChangelogDescriptor.builder()
               .setTableIdentifierString(checkStateNotNull(startSnapshot.getTableIdentifierString()))
-              .setStartSnapshotId(startSnapshot.getSnapshotId())
-              .setEndSnapshotId(endSnapshot.getSnapshotId())
-              .setChangeOrdinal(ordinal)
               .build();
 
       for (List<SerializableChangelogTask> subgroup : taskGroups.getValue()) {
-        Instant timestamp = Instant.ofEpochMilli(subgroup.get(0).getTimestampMillis());
-
         // Determine where each ordinal's tasks will go, based on the type of changes:
         // 1. If an ordinal's changes are unidirectional (i.e. only inserts or only deletes), they
         // should be processed directly in the fast path.
@@ -245,36 +240,44 @@ public class ChangelogScanner
         List<SerializableChangelogTask> uniDirTasks = new ArrayList<>();
         List<SerializableChangelogTask> biDirTasks = new ArrayList<>();
 
-        // if we can guarantee no cross-partition changes, we can further drill down and only
-        // include
-        // bi-directional changes within a partition
-        if (rowsPinnedToPartition) {
-          Map<String, Set<SerializableChangelogTask.Type>> changeTypesPerPartition =
-              checkStateNotNull(changeTypesPerPartitionPerOrdinal.get(ordinal));
-          for (SerializableChangelogTask task : subgroup) {
-            Set<SerializableChangelogTask.Type> partitionChangeTypes =
-                checkStateNotNull(
-                    changeTypesPerPartition.get(task.getDataFile().getPartitionPath()));
-
-            if (containsBiDirectionalChanges(partitionChangeTypes)) {
-              biDirTasks.add(task);
-            } else {
-              uniDirTasks.add(task);
-            }
-          }
-        } else {
-          // otherwise, we need to look at the ordinal's changes as a whole. this is the safer
-          // option because a cross-partition change may occur
-          // (e.g. an update occurs by deleting a record in partition A, then inserting the new
-          // record in partition B)
-          Set<SerializableChangelogTask.Type> changeTypes =
-              checkStateNotNull(changeTypesPerOrdinal.get(ordinal));
-
-          if (containsBiDirectionalChanges(changeTypes)) {
-            biDirTasks = subgroup;
-          } else {
+        switch (operation) {
+          case DataOperations.DELETE:
+          case DataOperations.APPEND:
+            // indicates a uni-directional change
             uniDirTasks = subgroup;
-          }
+            break;
+          case DataOperations.OVERWRITE:
+            // indicates bi-directional changes occurred
+            if (rowsPinnedToPartition) {
+              // if partitions are sourced from PK, we guarantee no cross-partition changes,
+              // so we can further drill down and only include bi-directional changes within a
+              // partition
+              Map<String, Set<SerializableChangelogTask.Type>> changeTypesPerPartition =
+                  checkStateNotNull(changeTypesPerPartitionPerSnapshot.get(snapshotId));
+              for (SerializableChangelogTask task : subgroup) {
+                Set<SerializableChangelogTask.Type> partitionChangeTypes =
+                    checkStateNotNull(
+                        changeTypesPerPartition.get(task.getDataFile().getPartitionPath()));
+
+                if (containsBiDirectionalChanges(partitionChangeTypes)) {
+                  biDirTasks.add(task);
+                } else {
+                  uniDirTasks.add(task);
+                }
+              }
+            } else {
+              // otherwise, cross-partition change may occur (e.g. an update occurs by deleting a
+              // record in partition A, then inserting the new record in partition B).
+              // we must CoGBK all the task records to identify updates
+              biDirTasks = subgroup;
+            }
+            break;
+          default:
+            // IncrementalChangelogScan skips REPLACE operations
+            throw new IllegalStateException(
+                String.format(
+                    "Changelog scan produced snapshot %s with unexpected operation '%s'.",
+                    snapshotId, operation));
         }
 
         if (!uniDirTasks.isEmpty()) {

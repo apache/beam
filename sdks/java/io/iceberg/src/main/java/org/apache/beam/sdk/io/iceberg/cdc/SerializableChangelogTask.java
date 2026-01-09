@@ -102,9 +102,6 @@ public abstract class SerializableChangelogTask {
   @SchemaFieldNumber("10")
   public abstract String getJsonExpression();
 
-  @SchemaFieldNumber("11")
-  public abstract long getTimestampMillis();
-
   @SchemaIgnore
   public Expression getExpression(Schema schema) {
     return ExpressionParser.fromJson(getJsonExpression(), schema);
@@ -139,13 +136,11 @@ public abstract class SerializableChangelogTask {
 
     abstract Builder setJsonExpression(String expression);
 
-    abstract Builder setTimestampMillis(long timestampMillis);
-
     abstract SerializableChangelogTask build();
   }
 
   @SuppressWarnings("nullness")
-  public static SerializableChangelogTask from(ChangelogScanTask task, long timestampMillis) {
+  public static SerializableChangelogTask from(ChangelogScanTask task) {
     checkState(
         task instanceof ContentScanTask, "Expected ChangelogScanTask to also be a ContentScanTask");
     ContentScanTask<DataFile> contentScanTask = (ContentScanTask<DataFile>) task;
@@ -159,8 +154,7 @@ public abstract class SerializableChangelogTask {
             .setSpecId(spec.specId())
             .setStart(contentScanTask.start())
             .setLength(contentScanTask.length())
-            .setJsonExpression(ExpressionParser.toJson(contentScanTask.residual()))
-            .setTimestampMillis(timestampMillis);
+            .setJsonExpression(ExpressionParser.toJson(contentScanTask.residual()));
 
     if (task instanceof AddedRowsScanTask) {
       AddedRowsScanTask addedRowsTask = (AddedRowsScanTask) task;

@@ -66,7 +66,6 @@ import org.apache.iceberg.io.CloseableIterable;
 import org.apache.iceberg.types.Types;
 import org.apache.iceberg.util.StructProjection;
 import org.checkerframework.checker.nullness.qual.MonotonicNonNull;
-import org.joda.time.Instant;
 
 /**
  * A {@link PTransform} that processed {@link org.apache.iceberg.ChangelogScanTask}s. They come in
@@ -342,13 +341,7 @@ class ReadFromChangelogs extends PTransform<PCollectionTuple, ReadFromChangelogs
         CloseableIterable<Record> filtered = deleteFilter.filter(fullIterable);
 
         for (Record rec : filtered) {
-          outputRecord(
-              "INSERT",
-              rec,
-              outputReceiver,
-              task.getCommitSnapshotId(),
-              task.getTimestampMillis(),
-              KEYED_INSERTS);
+          outputRecord("INSERT", rec, outputReceiver, task.getCommitSnapshotId(), KEYED_INSERTS);
         }
       }
       numAddedRowsScanTasksCompleted.inc();
@@ -381,13 +374,7 @@ class ReadFromChangelogs extends PTransform<PCollectionTuple, ReadFromChangelogs
 
         for (Record rec : newlyDeletedRecords) {
           // TODO: output with DELETE kind
-          outputRecord(
-              "DELETE",
-              rec,
-              outputReceiver,
-              task.getCommitSnapshotId(),
-              task.getTimestampMillis(),
-              KEYED_DELETES);
+          outputRecord("DELETE", rec, outputReceiver, task.getCommitSnapshotId(), KEYED_DELETES);
         }
       }
       numDeletedRowsScanTasksCompleted.inc();
@@ -414,13 +401,7 @@ class ReadFromChangelogs extends PTransform<PCollectionTuple, ReadFromChangelogs
         CloseableIterable<Record> filtered = deleteFilter.filter(fullIterable);
         for (Record rec : filtered) {
           // TODO: output with DELETE kind
-          outputRecord(
-              "DELETE-DF",
-              rec,
-              outputReceiver,
-              task.getCommitSnapshotId(),
-              task.getTimestampMillis(),
-              KEYED_DELETES);
+          outputRecord("DELETE-DF", rec, outputReceiver, task.getCommitSnapshotId(), KEYED_DELETES);
         }
       }
       numDeletedDataFileScanTasksCompleted.inc();
@@ -441,10 +422,8 @@ class ReadFromChangelogs extends PTransform<PCollectionTuple, ReadFromChangelogs
         Record rec,
         MultiOutputReceiver outputReceiver,
         long snapshotId,
-        long timestampMillis,
         TupleTag<KV<Row, Row>> keyedTag) {
       Row row = IcebergUtils.icebergRecordToBeamRow(beamRowSchema, rec);
-      Instant timestamp = Instant.ofEpochMilli(timestampMillis);
       if (keyedOutput) { // slow path
         StructProjection recId = checkStateNotNull(recordIdProjection).wrap(rec);
         // Create a Row ID consisting of:
@@ -454,10 +433,10 @@ class ReadFromChangelogs extends PTransform<PCollectionTuple, ReadFromChangelogs
         Row id =
             structToBeamRow(
                 snapshotId, recId, checkStateNotNull(recordIdSchema), rowAndSnapshotIDBeamSchema);
-        outputReceiver.get(keyedTag).outputWithTimestamp(KV.of(id, row), timestamp);
+        outputReceiver.get(keyedTag).output(KV.of(id, row));
       } else { // fast path
-        System.out.printf("[UNIDIRECTIONAL] -- %s(%s, %s)%n%s%n", type, snapshotId, timestamp, row);
-        outputReceiver.get(UNIDIRECTIONAL_ROWS).outputWithTimestamp(row, timestamp);
+        System.out.printf("[UNIDIRECTIONAL] -- %s(%s)%n%s%n", type, snapshotId, row);
+        outputReceiver.get(UNIDIRECTIONAL_ROWS).output(row);
       }
     }
 
