@@ -1099,6 +1099,7 @@ class ExpandPipelineTest(unittest.TestCase):
       with self.assertRaises(KeyError):
         expand_pipeline(p, spec, validate_schema=None)
 
+  @unittest.skipIf(jsonschema is None, "Yaml dependencies not installed")
   def test_expand_pipeline_with_valid_schema(self):
     spec = '''
       pipeline:
@@ -1112,6 +1113,7 @@ class ExpandPipelineTest(unittest.TestCase):
     with new_pipeline() as p:
       expand_pipeline(p, spec, validate_schema='generic')
 
+  @unittest.skipIf(jsonschema is None, "Yaml dependencies not installed")
   def test_expand_pipeline_with_invalid_schema(self):
     spec = '''
       pipeline:
