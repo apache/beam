@@ -71,6 +71,10 @@
 
 * X feature added (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
 
+* Moved `Row` to `apache_beam.typehints.row` to avoid import cycles and improve module organization. Kept a compatibility alias in `pvalue.py` (Python) ([#35095](https://github.com/apache/beam/issues/35095)).
+
+
+
 ## Breaking Changes
 
 * X behavior was changed ([#X](https://github.com/apache/beam/issues/X)).
