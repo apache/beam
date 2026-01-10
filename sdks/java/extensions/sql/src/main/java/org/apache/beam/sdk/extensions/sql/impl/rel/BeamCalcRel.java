@@ -43,6 +43,8 @@ import java.util.Set;
 import java.util.TimeZone;
 import java.util.TreeSet;
 import java.util.stream.Collectors;
+
+import org.apache.beam.model.pipeline.v1.SchemaApi.FieldType;
 import org.apache.beam.sdk.coders.RowCoder;
 import org.apache.beam.sdk.extensions.sql.impl.BeamSqlPipelineOptions;
 import org.apache.beam.sdk.extensions.sql.impl.JavaUdfLoader;
@@ -765,6 +767,8 @@ public class BeamCalcRel extends AbstractBeamCalcRel {
                     Expressions.multiply(dateValue, Expressions.constant(MILLIS_PER_DAY)),
                     Expressions.divide(timeValue, Expressions.constant(NANOS_PER_MILLISECOND)));
             return nullOr(value, returnValue);
+          } else if (FixedPrecisionNumeric.IDENTIFIER.equals(identifier)) {
+            return Expressions.convert_(value, BigDecimal.class);
           } else if (fieldType.getLogicalType() instanceof PassThroughLogicalType) {
             // For pass-through logical types, convert underlying base type to Calcite value
             FieldType baseType = fieldType.getLogicalType().getBaseType();
