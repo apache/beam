@@ -23,12 +23,17 @@ import uuid
 
 import pytest
 
+import apache_beam as beam
 from apache_beam.io.filesystems import FileSystems
+from apache_beam.ml.inference.base import PredictionResult
+from apache_beam.ml.inference.base import RunInference
 from apache_beam.testing.test_pipeline import TestPipeline
 
 # pylint: disable=ungrouped-imports
 try:
   from apache_beam.examples.inference import vertex_ai_image_classification
+  from apache_beam.ml.inference.vertex_ai_inference import \
+      VertexAIModelHandlerJSON
 except ImportError as e:
   raise unittest.SkipTest(
       "Vertex AI model handler dependencies are not installed")
@@ -41,6 +46,12 @@ _ENDPOINT_REGION = "us-central1"
 _ENDPOINT_NETWORK = "projects/844138762903/global/networks/beam-test-vpc"
 # pylint: disable=line-too-long
 _SUBNETWORK = "https://www.googleapis.com/compute/v1/projects/apache-beam-testing/regions/us-central1/subnetworks/beam-test-vpc"
+
+# Constants for custom prediction routes (invoke) test
+# TODO: Update endpoint ID after deploying invoke-enabled model
+_INVOKE_ENDPOINT_ID = ""  # Set after GCP setup
+_INVOKE_ROUTE = "/predict"
+_INVOKE_OUTPUT_DIR = "gs://apache-beam-ml/testing/outputs/vertex_invoke"
 
 
 class VertexAIInference(unittest.TestCase):
@@ -62,6 +73,43 @@ class VertexAIInference(unittest.TestCase):
     vertex_ai_image_classification.run(
         test_pipeline.get_full_options_as_args(**extra_opts))
     self.assertEqual(FileSystems().exists(output_file), True)
+
+  @pytest.mark.vertex_ai_postcommit
+  @unittest.skipIf(
+      not _INVOKE_ENDPOINT_ID,
+      "Invoke endpoint not configured. Set _INVOKE_ENDPOINT_ID.")
+  def test_vertex_ai_custom_prediction_route(self):
+    """Test custom prediction routes using invoke_route parameter.
+
+    This test verifies that VertexAIModelHandlerJSON correctly uses
+    Endpoint.invoke() instead of Endpoint.predict() when invoke_route
+    is specified, enabling custom prediction routes.
+    """
+    output_file = '/'.join(
+        [_INVOKE_OUTPUT_DIR, str(uuid.uuid4()), 'output.txt'])
+
+    test_pipeline = TestPipeline(is_integration_test=True)
+
+    model_handler = VertexAIModelHandlerJSON(
+        endpoint_id=_INVOKE_ENDPOINT_ID,
+        project=_ENDPOINT_PROJECT,
+        location=_ENDPOINT_REGION,
+        invoke_route=_INVOKE_ROUTE)
+
+    # Test inputs - simple data to echo back
+    test_inputs = [{"value": 1}, {"value": 2}, {"value": 3}]
+
+    with test_pipeline as p:
+      results = (
+          p
+          | "CreateInputs" >> beam.Create(test_inputs)
+          | "RunInference" >> RunInference(model_handler)
+          | "ExtractResults" >>
+          beam.Map(lambda result: f"{result.example}:{result.inference}"))
+      _ = results | "WriteOutput" >> beam.io.WriteToText(
+          output_file, shard_name_template='')
+
+    self.assertTrue(FileSystems().exists(output_file))
 
 
 if __name__ == '__main__':
