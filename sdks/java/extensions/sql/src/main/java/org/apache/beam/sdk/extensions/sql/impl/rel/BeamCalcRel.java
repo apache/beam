@@ -618,7 +618,7 @@ public class BeamCalcRel extends AbstractBeamCalcRel {
                         fieldName,
                         Expressions.constant(LocalDateTime.class)),
                     LocalDateTime.class);
-          }  else if (FixedPrecisionNumeric.IDENTIFIER.equals(identifier)) {
+          } else if (FixedPrecisionNumeric.IDENTIFIER.equals(identifier)) {
             value = Expressions.call(expression, "getDecimal", fieldName);
           } else {
             throw new UnsupportedOperationException("Unable to get logical type " + identifier);
