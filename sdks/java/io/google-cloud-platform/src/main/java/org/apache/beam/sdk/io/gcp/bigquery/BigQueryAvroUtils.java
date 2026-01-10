@@ -102,9 +102,15 @@ class BigQueryAvroUtils {
         // boolean
         return SchemaBuilder.builder().booleanType();
       case "TIMESTAMP":
-        // in Extract Jobs, it always uses the Avro logical type
-        // we may have to change this if we move to EXPORT DATA
-        return LogicalTypes.timestampMicros().addToSchema(SchemaBuilder.builder().longType());
+        if (schema.getTimestampPrecision() == null || schema.getTimestampPrecision() == 6) {
+          // in Extract Jobs, it always uses the Avro logical type
+          // we may have to change this if we move to EXPORT DATA
+          return LogicalTypes.timestampMicros().addToSchema(SchemaBuilder.builder().longType());
+        }
+        return SchemaBuilder.builder()
+            .longBuilder()
+            .prop("logicalType", TIMESTAMP_NANOS_LOGICAL_TYPE)
+            .endLong();
       case "DATE":
         if (useAvroLogicalTypes) {
           return LogicalTypes.date().addToSchema(SchemaBuilder.builder().intType());
@@ -644,7 +650,7 @@ class BigQueryAvroUtils {
         // TODO: Use LogicalTypes.TimestampNanos once avro version is updated.
         if (useAvroLogicalTypes
             && (TIMESTAMP_NANOS_LOGICAL_TYPE.equals(type.getProp("logicalType")))) {
-          return fieldSchema.setType("TIMESTAMP");
+          return fieldSchema.setType("TIMESTAMP").setTimestampPrecision(12L);
         }
         if (logicalType instanceof LogicalTypes.TimeMicros) {
           return fieldSchema.setType("TIME");

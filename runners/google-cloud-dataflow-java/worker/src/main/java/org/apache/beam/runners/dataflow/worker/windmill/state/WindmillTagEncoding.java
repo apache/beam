@@ -54,8 +54,11 @@ public abstract class WindmillTagEncoding {
   /**
    * Produce a state tag that is guaranteed to be unique for the given timer, to add a watermark
    * hold that is only freed after the timer fires.
+   *
+   * @param timerTag tag of the timer that maps to the hold.
    */
-  public abstract ByteString timerHoldTag(WindmillNamespacePrefix prefix, TimerData timerData);
+  public abstract ByteString timerHoldTag(
+      WindmillNamespacePrefix prefix, TimerData timerData, ByteString timerTag);
 
   /**
    * Produce a tag that is guaranteed to be unique for the given prefix, namespace, domain and

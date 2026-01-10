@@ -356,6 +356,45 @@ class YamlTestingTest(unittest.TestCase):
             }]
         })
 
+  def test_create_with_external_providers(self):
+    """Test that create_test works with external providers defined in the
+    pipeline spec.
+
+    This test validates the fix for issue #37136 where external providers
+    defined in YAML files were not recognized when running tests.
+    """
+    pipeline = '''
+    pipeline:
+      type: chain
+      transforms:
+        - type: Create
+          config:
+            elements:
+              - {a: 1, b: 2}
+              - {a: 2, b: 3}
+              - {a: 3, b: 4}
+              - {a: 4, b: 5}
+              - {a: 5, b: 6}
+        - type: MyCustomTransform
+        - type: LogForTesting
+    providers:
+      - type: yaml
+        transforms:
+          MyCustomTransform:
+            body:
+              type: MapToFields
+              config:
+                language: python
+                fields:
+                  sum_ab: a + b
+    '''
+    test_spec = yaml_testing.create_test(
+        pipeline, max_num_inputs=10, min_num_outputs=3)
+
+    self.assertEqual(len(test_spec['expected_inputs']), 1)
+    self.assertGreaterEqual(len(test_spec['expected_inputs'][0]['elements']), 3)
+    yaml_testing.run_test(pipeline, test_spec)
+
 
 if __name__ == '__main__':
   logging.getLogger().setLevel(logging.INFO)

@@ -42,6 +42,7 @@ import com.google.protobuf.Descriptors.Descriptor;
 import com.google.protobuf.Descriptors.DescriptorValidationException;
 import com.google.protobuf.Descriptors.FieldDescriptor;
 import com.google.protobuf.DynamicMessage;
+import com.google.protobuf.Int64Value;
 import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.nio.charset.StandardCharsets;
@@ -52,6 +53,7 @@ import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -131,6 +133,11 @@ public class TableRowToStorageApiProtoTest {
                   .add(new TableFieldSchema().setType("TIMESTAMP").setName("timestampvaluemaximum"))
                   .add(
                       new TableFieldSchema().setType("STRING").setName("123_illegalprotofieldname"))
+                  .add(
+                      new TableFieldSchema()
+                          .setType("TIMESTAMP")
+                          .setName("timestamppicosvalue")
+                          .setTimestampPrecision(12L))
                   .build());
 
   private static final TableSchema BASE_TABLE_SCHEMA_NO_F =
@@ -183,6 +190,11 @@ public class TableRowToStorageApiProtoTest {
                   .add(new TableFieldSchema().setType("TIMESTAMP").setName("timestampvaluemaximum"))
                   .add(
                       new TableFieldSchema().setType("STRING").setName("123_illegalprotofieldname"))
+                  .add(
+                      new TableFieldSchema()
+                          .setType("TIMESTAMP")
+                          .setName("timestamppicosvalue")
+                          .setTimestampPrecision(12L))
                   .build());
 
   private static final DescriptorProto BASE_TABLE_SCHEMA_PROTO_DESCRIPTOR =
@@ -396,6 +408,14 @@ public class TableRowToStorageApiProtoTest {
                               AnnotationsProto.columnName.getDescriptor(),
                               "123_illegalprotofieldname"))
                   .build())
+          .addField(
+              FieldDescriptorProto.newBuilder()
+                  .setName("timestamppicosvalue")
+                  .setNumber(30)
+                  .setType(Type.TYPE_MESSAGE)
+                  .setLabel(Label.LABEL_OPTIONAL)
+                  .setTypeName("TimestampPicos")
+                  .build())
           .build();
 
   private static final com.google.cloud.bigquery.storage.v1.TableSchema BASE_TABLE_PROTO_SCHEMA =
@@ -544,6 +564,12 @@ public class TableRowToStorageApiProtoTest {
               com.google.cloud.bigquery.storage.v1.TableFieldSchema.newBuilder()
                   .setName("123_illegalprotofieldname")
                   .setType(com.google.cloud.bigquery.storage.v1.TableFieldSchema.Type.STRING)
+                  .build())
+          .addFields(
+              com.google.cloud.bigquery.storage.v1.TableFieldSchema.newBuilder()
+                  .setName("timestamppicosvalue")
+                  .setType(com.google.cloud.bigquery.storage.v1.TableFieldSchema.Type.TIMESTAMP)
+                  .setTimestampPrecision(Int64Value.newBuilder().setValue(12L))
                   .build())
           .build();
 
@@ -751,6 +777,14 @@ public class TableRowToStorageApiProtoTest {
                               AnnotationsProto.columnName.getDescriptor(),
                               "123_illegalprotofieldname"))
                   .build())
+          .addField(
+              FieldDescriptorProto.newBuilder()
+                  .setName("timestamppicosvalue")
+                  .setNumber(29)
+                  .setType(Type.TYPE_MESSAGE)
+                  .setLabel(Label.LABEL_OPTIONAL)
+                  .setTypeName("TimestampPicos")
+                  .build())
           .build();
 
   private static final com.google.cloud.bigquery.storage.v1.TableSchema
@@ -895,6 +929,12 @@ public class TableRowToStorageApiProtoTest {
                   com.google.cloud.bigquery.storage.v1.TableFieldSchema.newBuilder()
                       .setName("123_illegalprotofieldname")
                       .setType(com.google.cloud.bigquery.storage.v1.TableFieldSchema.Type.STRING)
+                      .build())
+              .addFields(
+                  com.google.cloud.bigquery.storage.v1.TableFieldSchema.newBuilder()
+                      .setName("timestamppicosvalue")
+                      .setType(com.google.cloud.bigquery.storage.v1.TableFieldSchema.Type.TIMESTAMP)
+                      .setTimestampPrecision(Int64Value.newBuilder().setValue(12L))
                       .build())
               .build();
   private static final TableSchema NESTED_TABLE_SCHEMA =
@@ -1137,6 +1177,34 @@ public class TableRowToStorageApiProtoTest {
     assertEquals(roundTripExpectedBaseTypesNoF, nestedRoundTripTypes);
   }
 
+  private static final DescriptorProto TIMESTAMP_PICOS_PROTO =
+      DescriptorProto.newBuilder()
+          .setName("TimestampPicos")
+          .addField(
+              FieldDescriptorProto.newBuilder()
+                  .setName("seconds")
+                  .setNumber(1)
+                  .setType(Type.TYPE_INT64)
+                  .setLabel(Label.LABEL_OPTIONAL))
+          .addField(
+              FieldDescriptorProto.newBuilder()
+                  .setName("picoseconds")
+                  .setNumber(2)
+                  .setType(Type.TYPE_INT64)
+                  .setLabel(Label.LABEL_OPTIONAL))
+          .build();
+
+  private static final Descriptor TIMESTAMP_PICOS_DESCRIPTOR;
+
+  static {
+    try {
+      TIMESTAMP_PICOS_DESCRIPTOR =
+          TableRowToStorageApiProto.wrapDescriptorProto(TIMESTAMP_PICOS_PROTO);
+    } catch (DescriptorValidationException e) {
+      throw new RuntimeException(e);
+    }
+  }
+
   private static final List<Object> REPEATED_BYTES =
       ImmutableList.of(
           BaseEncoding.base64().encode("hello".getBytes(StandardCharsets.UTF_8)),
@@ -1183,7 +1251,8 @@ public class TableRowToStorageApiProtoTest {
                   new TableCell().setV("1970-01-01 00:00:00.1230"),
                   new TableCell().setV("2019-08-16 00:52:07.123456"),
                   new TableCell().setV("9999-12-31 23:59:59.999999Z"),
-                  new TableCell().setV("madeit")));
+                  new TableCell().setV("madeit"),
+                  new TableCell().setV("2024-01-15T10:30:45.123456789012Z")));
 
   private static final TableRow BASE_TABLE_ROW_NO_F =
       new TableRow()
@@ -1217,7 +1286,8 @@ public class TableRowToStorageApiProtoTest {
           .set("timestampvaluespacetrailingzero", "1970-01-01 00:00:00.1230")
           .set("datetimevaluespace", "2019-08-16 00:52:07.123456")
           .set("timestampvaluemaximum", "9999-12-31 23:59:59.999999Z")
-          .set("123_illegalprotofieldname", "madeit");
+          .set("123_illegalprotofieldname", "madeit")
+          .set("timestamppicosvalue", "2024-01-15T10:30:45.123456789012Z");
 
   private static final Map<String, Object> BASE_ROW_EXPECTED_PROTO_VALUES =
       ImmutableMap.<String, Object>builder()
@@ -1261,6 +1331,15 @@ public class TableRowToStorageApiProtoTest {
           .put(
               BigQuerySchemaUtil.generatePlaceholderFieldName("123_illegalprotofieldname"),
               "madeit")
+          .put(
+              "timestamppicosvalue",
+              DynamicMessage.newBuilder(TIMESTAMP_PICOS_DESCRIPTOR)
+                  .setField(
+                      TIMESTAMP_PICOS_DESCRIPTOR.findFieldByName("seconds"),
+                      Instant.parse("2024-01-15T10:30:45Z").getEpochSecond())
+                  .setField(
+                      TIMESTAMP_PICOS_DESCRIPTOR.findFieldByName("picoseconds"), 123456789012L)
+                  .build())
           .build();
 
   private static final Map<String, String> BASE_ROW_EXPECTED_NAME_OVERRIDES =
@@ -1309,6 +1388,15 @@ public class TableRowToStorageApiProtoTest {
           .put(
               BigQuerySchemaUtil.generatePlaceholderFieldName("123_illegalprotofieldname"),
               "madeit")
+          .put(
+              "timestamppicosvalue",
+              DynamicMessage.newBuilder(TIMESTAMP_PICOS_DESCRIPTOR)
+                  .setField(
+                      TIMESTAMP_PICOS_DESCRIPTOR.findFieldByName("seconds"),
+                      Instant.parse("2024-01-15T10:30:45Z").getEpochSecond())
+                  .setField(
+                      TIMESTAMP_PICOS_DESCRIPTOR.findFieldByName("picoseconds"), 123456789012L)
+                  .build())
           .build();
 
   private static final Map<String, String> BASE_ROW_NO_F_EXPECTED_NAME_OVERRIDES =
@@ -1394,6 +1482,16 @@ public class TableRowToStorageApiProtoTest {
         == com.google.cloud.bigquery.storage.v1.TableFieldSchema.Type.STRUCT) {
       return normalizeTableRow((TableRow) value, schemaInformation, outputUsingF);
     } else {
+      if (schemaInformation.getType()
+          == com.google.cloud.bigquery.storage.v1.TableFieldSchema.Type.TIMESTAMP) {
+        // Handle picosecond timestamp (12-digit precision)
+        if (schemaInformation.getTimestampPrecision() == 12) {
+          // Already a string, return as-is.
+          if (value instanceof String) {
+            return value;
+          }
+        }
+      }
       convertedValue = TYPE_MAP_PROTO_CONVERTERS.get(schemaInformation.getType()).apply("", value);
       switch (schemaInformation.getType()) {
         case BOOL:
@@ -1461,8 +1559,42 @@ public class TableRowToStorageApiProtoTest {
                     entry ->
                         entry.getKey().getOptions().getExtension(AnnotationsProto.columnName)));
 
-    assertEquals(
-        withF ? BASE_ROW_EXPECTED_PROTO_VALUES : BASE_ROW_NO_F_EXPECTED_PROTO_VALUES, recordFields);
+    // Get expected values
+    Map<String, Object> expectedValues =
+        withF ? BASE_ROW_EXPECTED_PROTO_VALUES : BASE_ROW_NO_F_EXPECTED_PROTO_VALUES;
+
+    // Handle timestamppicosvalue separately since DynamicMessage doesn't have proper equals()
+    Object actualPicos = recordFields.get("timestamppicosvalue");
+    Object expectedPicos = expectedValues.get("timestamppicosvalue");
+
+    if (actualPicos != null && expectedPicos != null) {
+      // Compare DynamicMessages by their field values
+      DynamicMessage actualPicosMsg = (DynamicMessage) actualPicos;
+      DynamicMessage expectedPicosMsg = (DynamicMessage) expectedPicos;
+
+      Descriptor actualDescriptor = actualPicosMsg.getDescriptorForType();
+
+      assertEquals(
+          "TimestampPicos seconds mismatch",
+          expectedPicosMsg.getField(
+              expectedPicosMsg.getDescriptorForType().findFieldByName("seconds")),
+          actualPicosMsg.getField(actualDescriptor.findFieldByName("seconds")));
+      assertEquals(
+          "TimestampPicos picoseconds mismatch",
+          expectedPicosMsg.getField(
+              expectedPicosMsg.getDescriptorForType().findFieldByName("picoseconds")),
+          actualPicosMsg.getField(actualDescriptor.findFieldByName("picoseconds")));
+    }
+
+    // Remove timestamppicosvalue from both maps for remaining comparison
+    Map<String, Object> recordFieldsWithoutPicos = new HashMap<>(recordFields);
+    Map<String, Object> expectedValuesWithoutPicos = new HashMap<>(expectedValues);
+    recordFieldsWithoutPicos.remove("timestamppicosvalue");
+    expectedValuesWithoutPicos.remove("timestamppicosvalue");
+
+    // Compare remaining fields
+    assertEquals(expectedValuesWithoutPicos, recordFieldsWithoutPicos);
+
     assertEquals(
         withF ? BASE_ROW_EXPECTED_NAME_OVERRIDES : BASE_ROW_NO_F_EXPECTED_NAME_OVERRIDES,
         overriddenNames);
@@ -1484,6 +1616,7 @@ public class TableRowToStorageApiProtoTest {
     DynamicMessage msg =
         TableRowToStorageApiProto.messageFromTableRow(
             schemaInformation, descriptor, tableRow, false, false, null, null, -1);
+
     assertEquals(4, msg.getAllFields().size());
 
     Map<String, FieldDescriptor> fieldDescriptors =
@@ -1511,6 +1644,7 @@ public class TableRowToStorageApiProtoTest {
     DynamicMessage msg =
         TableRowToStorageApiProto.messageFromTableRow(
             schemaInformation, descriptor, tableRow, false, false, null, null, -1);
+
     TableRow recovered =
         TableRowToStorageApiProto.tableRowFromMessage(
             schemaInformation, msg, true, Predicates.alwaysTrue());

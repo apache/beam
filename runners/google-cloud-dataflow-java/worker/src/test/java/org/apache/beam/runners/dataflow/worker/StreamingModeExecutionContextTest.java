@@ -133,7 +133,8 @@ public class StreamingModeExecutionContextTest {
             executionStateRegistry,
             globalConfigHandle,
             Long.MAX_VALUE,
-            /*throwExceptionOnLargeOutput=*/ false);
+            /*throwExceptionOnLargeOutput=*/ false,
+            /*enableWindmillTagEncodingV2=*/ false);
   }
 
   private static Work createMockWork(Windmill.WorkItem workItem, Watermarks watermarks) {
