@@ -43,7 +43,6 @@ import java.util.Set;
 import java.util.TimeZone;
 import java.util.TreeSet;
 import java.util.stream.Collectors;
-
 import org.apache.beam.model.pipeline.v1.SchemaApi.FieldType;
 import org.apache.beam.sdk.coders.RowCoder;
 import org.apache.beam.sdk.extensions.sql.impl.BeamSqlPipelineOptions;
@@ -58,9 +57,9 @@ import org.apache.beam.sdk.schemas.Schema.LogicalType;
 import org.apache.beam.sdk.schemas.logicaltypes.FixedBytes;
 import org.apache.beam.sdk.schemas.logicaltypes.FixedPrecisionNumeric;
 import org.apache.beam.sdk.schemas.logicaltypes.FixedString;
-import org.apache.beam.sdk.schemas.logicaltypes.PassThroughLogicalType;
 import org.apache.beam.sdk.schemas.logicaltypes.MicrosInstant;
 import org.apache.beam.sdk.schemas.logicaltypes.NanosInstant;
+import org.apache.beam.sdk.schemas.logicaltypes.PassThroughLogicalType;
 import org.apache.beam.sdk.schemas.logicaltypes.SqlTypes;
 import org.apache.beam.sdk.schemas.logicaltypes.VariableBytes;
 import org.apache.beam.sdk.schemas.logicaltypes.VariableString;
@@ -737,7 +736,9 @@ public class BeamCalcRel extends AbstractBeamCalcRel {
               || NanosInstant.IDENTIFIER.equals(identifier)) {
             // Convert java.time.Instant to epoch milliseconds for Calcite
             return nullOr(
-                value, Expressions.call(Expressions.convert_(value, java.time.Instant.class), "toEpochMilli"));
+                value,
+                Expressions.call(
+                    Expressions.convert_(value, java.time.Instant.class), "toEpochMilli"));
           } else if (SqlTypes.DATE.getIdentifier().equals(identifier)) {
             return nullOr(
                 value,
@@ -794,10 +795,12 @@ public class BeamCalcRel extends AbstractBeamCalcRel {
               case DATETIME:
                 return nullOr(
                     value,
-                    Expressions.call(Expressions.convert_(value, AbstractInstant.class), "getMillis"));
+                    Expressions.call(
+                        Expressions.convert_(value, AbstractInstant.class), "getMillis"));
               case BYTES:
                 return nullOr(
-                    value, Expressions.new_(ByteString.class, Expressions.convert_(value, byte[].class)));
+                    value,
+                    Expressions.new_(ByteString.class, Expressions.convert_(value, byte[].class)));
               case ARRAY:
                 return nullOr(value, toCalciteList(value, baseType.getCollectionElementType()));
               case MAP:
@@ -805,7 +808,8 @@ public class BeamCalcRel extends AbstractBeamCalcRel {
               case ROW:
                 return nullOr(value, toCalciteRow(value, baseType.getRowSchema()));
               default:
-                throw new UnsupportedOperationException("Unable to convert logical type " + identifier);
+                throw new UnsupportedOperationException(
+                    "Unable to convert logical type " + identifier);
             }
           } else {
             throw new UnsupportedOperationException("Unable to convert logical type " + identifier);
