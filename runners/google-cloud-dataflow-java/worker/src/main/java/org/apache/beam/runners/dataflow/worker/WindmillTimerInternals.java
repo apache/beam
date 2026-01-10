@@ -101,7 +101,14 @@ class WindmillTimerInternals implements TimerInternals {
       Instant outputTimestamp,
       TimeDomain timeDomain) {
     TimerData timer =
-        TimerData.of(timerId, timerFamilyId, namespace, timestamp, outputTimestamp, timeDomain);
+        TimerData.of(
+            timerId,
+            timerFamilyId,
+            namespace,
+            timestamp,
+            outputTimestamp,
+            timeDomain,
+            TimerData.CausedByDrain.NORMAL);
     setTimer(timer);
   }
 
@@ -138,7 +145,8 @@ class WindmillTimerInternals implements TimerInternals {
             namespace,
             BoundedWindow.TIMESTAMP_MIN_VALUE,
             BoundedWindow.TIMESTAMP_MAX_VALUE,
-            timeDomain));
+            timeDomain,
+            TimerData.CausedByDrain.NORMAL));
   }
 
   @Override

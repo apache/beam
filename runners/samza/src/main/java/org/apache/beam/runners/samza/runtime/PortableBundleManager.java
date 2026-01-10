@@ -104,7 +104,8 @@ public class PortableBundleManager<OutT> implements BundleManager<OutT> {
             StateNamespaces.global(),
             nextBundleCheckTime,
             nextBundleCheckTime,
-            TimeDomain.PROCESSING_TIME);
+            TimeDomain.PROCESSING_TIME,
+            TimerInternals.TimerData.CausedByDrain.NORMAL);
     bundleTimerScheduler.schedule(
         new KeyedTimerData<>(new byte[0], null, timerData), nextBundleCheckTime.getMillis());
   }
