@@ -23,7 +23,8 @@ import java.io.Serializable;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
-import org.apache.beam.sdk.testing.TestPipeline;
+import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
@@ -49,8 +50,6 @@ public class AppendFilesToTablesTest implements Serializable {
   @Rule
   public transient TestDataWarehouse warehouse = new TestDataWarehouse(TEMPORARY_FOLDER, "default");
 
-  @Rule public transient TestPipeline testPipeline = TestPipeline.create();
-
   @Test
   public void testAppendAfterDelete() throws Exception {
     TableIdentifier tableId =
@@ -68,13 +67,13 @@ public class AppendFilesToTablesTest implements Serializable {
             .setCatalogProperties(catalogProps)
             .build();
 
-    // 1. Create table and write some data
-    testPipeline
-        .apply("Records To Add", Create.of(TestFixtures.asRows(TestFixtures.FILE1SNAPSHOT1)))
+    // 1. Create table and write some data using first pipeline
+    Pipeline p1 = Pipeline.create(PipelineOptionsFactory.create());
+    p1.apply("Records To Add", Create.of(TestFixtures.asRows(TestFixtures.FILE1SNAPSHOT1)))
         .setRowSchema(IcebergUtils.icebergSchemaToBeamSchema(TestFixtures.SCHEMA))
         .apply("Append To Table", IcebergIO.writeRows(catalog).to(tableId));
 
-    testPipeline.run().waitUntilFinish();
+    p1.run().waitUntilFinish();
 
     // 2. Delete the data
     Table table = warehouse.loadTable(tableId);
@@ -83,21 +82,17 @@ public class AppendFilesToTablesTest implements Serializable {
     table.currentSnapshot().addedDataFiles(table.io()).forEach(delete::deleteFile);
     delete.commit();
 
-    // 3. Write more data
-    testPipeline
-        .apply("More Records To Add", Create.of(TestFixtures.asRows(TestFixtures.FILE1SNAPSHOT2)))
+    // 3. Write more data using a fresh second pipeline
+    Pipeline p2 = Pipeline.create(PipelineOptionsFactory.create());
+    p2.apply("More Records To Add", Create.of(TestFixtures.asRows(TestFixtures.FILE1SNAPSHOT2)))
         .setRowSchema(IcebergUtils.icebergSchemaToBeamSchema(TestFixtures.SCHEMA))
         .apply("Append More To Table", IcebergIO.writeRows(catalog).to(tableId));
 
-    testPipeline.run().waitUntilFinish();
+    p2.run().waitUntilFinish();
 
-    // Verify data
-    // We mainly want to verify that no exception is thrown during the write.
-    // The exact content might depend on how delete operations interact with
-    // subsequent appends
-    // which is not the focus of this test.
+    // Verify data - after delete and append, only FILE1SNAPSHOT2 should be present
     table.refresh();
     List<Record> writtenRecords = ImmutableList.copyOf(IcebergGenerics.read(table).build());
-    assertThat(writtenRecords, Matchers.hasItem(Matchers.anything()));
+    assertThat(writtenRecords, Matchers.containsInAnyOrder(TestFixtures.FILE1SNAPSHOT2.toArray()));
   }
 }
