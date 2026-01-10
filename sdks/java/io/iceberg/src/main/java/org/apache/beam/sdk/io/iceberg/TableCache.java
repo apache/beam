@@ -33,7 +33,7 @@ import org.apache.iceberg.Table;
 import org.apache.iceberg.catalog.TableIdentifier;
 
 /** Utility to fetch and cache Iceberg {@link Table}s. */
-class TableCache {
+public class TableCache {
   private static final Map<String, IcebergCatalogConfig> CATALOG_CACHE = new ConcurrentHashMap<>();
   private static final LoadingCache<String, Table> INTERNAL_CACHE =
       CacheBuilder.newBuilder()
@@ -55,7 +55,7 @@ class TableCache {
                 }
               });;
 
-  static Table get(String identifier) {
+  public static Table get(String identifier) {
     try {
       return INTERNAL_CACHE.get(identifier);
     } catch (ExecutionException e) {
@@ -65,12 +65,12 @@ class TableCache {
   }
 
   /** Forces a table refresh and returns. */
-  static Table getRefreshed(String identifier) {
+  public static Table getRefreshed(String identifier) {
     INTERNAL_CACHE.refresh(identifier);
     return get(identifier);
   }
 
-  static void setup(IcebergScanConfig scanConfig) {
+  public static void setup(IcebergScanConfig scanConfig) {
     String tableIdentifier = scanConfig.getTableIdentifier();
     IcebergCatalogConfig catalogConfig = scanConfig.getCatalogConfig();
     if (CATALOG_CACHE.containsKey(tableIdentifier)) {

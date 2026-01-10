@@ -40,7 +40,6 @@ import org.apache.iceberg.Table;
 import org.apache.iceberg.catalog.TableIdentifier;
 import org.apache.iceberg.data.Record;
 import org.apache.iceberg.io.CloseableIterable;
-import org.apache.iceberg.parquet.ParquetReader;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.junit.ClassRule;
 import org.junit.Rule;
@@ -75,14 +74,25 @@ public class ReadUtilsTest {
           .commit();
     }
 
+    IcebergScanConfig scanConfig =
+        IcebergScanConfig.builder()
+            .setCatalogConfig(
+                IcebergCatalogConfig.builder()
+                    .setCatalogProperties(
+                        ImmutableMap.of("type", "hadoop", "warehouse", warehouse.location))
+                    .build())
+            .setTableIdentifier(tableId)
+            .setSchema(IcebergUtils.icebergSchemaToBeamSchema(simpleTable.schema()))
+            .build();
+
     int numFiles = 0;
     try (CloseableIterable<CombinedScanTask> iterable = simpleTable.newScan().planTasks()) {
       for (CombinedScanTask combinedScanTask : iterable) {
         for (FileScanTask fileScanTask : combinedScanTask.tasks()) {
           String fileName = Iterables.getLast(Splitter.on("/").split(fileScanTask.file().path()));
           List<Record> recordsRead = new ArrayList<>();
-          try (ParquetReader<Record> reader =
-              ReadUtils.createReader(fileScanTask, simpleTable, simpleTable.schema())) {
+          try (CloseableIterable<Record> reader =
+              ReadUtils.createReader(fileScanTask, simpleTable, scanConfig)) {
             reader.forEach(recordsRead::add);
           }
 

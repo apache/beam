@@ -47,6 +47,9 @@ public class SerializableDataFileTest {
           .add("nanValueCounts")
           .add("lowerBounds")
           .add("upperBounds")
+          .add("dataSequenceNumber")
+          .add("fileSequenceNumber")
+          .add("firstRowId")
           .build();
 
   @Test
