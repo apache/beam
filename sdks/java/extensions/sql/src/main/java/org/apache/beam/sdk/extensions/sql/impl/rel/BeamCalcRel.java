@@ -421,7 +421,7 @@ public class BeamCalcRel extends AbstractBeamCalcRel {
         } else if (MicrosInstant.IDENTIFIER.equals(identifier)
             || NanosInstant.IDENTIFIER.equals(identifier)) {
           // Portable instant logical types: treat calcite numeric as epoch milliseconds.
-          return Instant.ofEpochMilli(((Number) value).longValue());
+          return java.time.Instant.ofEpochMilli(((Number) value).longValue());
         } else if (SqlTypes.DATE.getIdentifier().equals(identifier)) {
           if (value instanceof Date) {
             value = SqlFunctions.toInt((Date) value);
@@ -618,60 +618,7 @@ public class BeamCalcRel extends AbstractBeamCalcRel {
                         fieldName,
                         Expressions.constant(LocalDateTime.class)),
                     LocalDateTime.class);
-          } else if (fieldType.getLogicalType() instanceof PassThroughLogicalType) {
-            // For pass-through logical types, read the underlying base type using the
-            // corresponding Row getter.
-            FieldType baseType = fieldType.getLogicalType().getBaseType();
-            switch (baseType.getTypeName()) {
-              case BYTE:
-                value = Expressions.call(expression, "getByte", fieldName);
-                break;
-              case INT16:
-                value = Expressions.call(expression, "getInt16", fieldName);
-                break;
-              case INT32:
-                value = Expressions.call(expression, "getInt32", fieldName);
-                break;
-              case INT64:
-                value = Expressions.call(expression, "getInt64", fieldName);
-                break;
-              case DECIMAL:
-                value = Expressions.call(expression, "getDecimal", fieldName);
-                break;
-              case FLOAT:
-                value = Expressions.call(expression, "getFloat", fieldName);
-                break;
-              case DOUBLE:
-                value = Expressions.call(expression, "getDouble", fieldName);
-                break;
-              case STRING:
-                value = Expressions.call(expression, "getString", fieldName);
-                break;
-              case DATETIME:
-                value = Expressions.call(expression, "getDateTime", fieldName);
-                break;
-              case BOOLEAN:
-                value = Expressions.call(expression, "getBoolean", fieldName);
-                break;
-              case BYTES:
-                value = Expressions.call(expression, "getBytes", fieldName);
-                break;
-              case ARRAY:
-                value = Expressions.call(expression, "getArray", fieldName);
-                break;
-              case MAP:
-                value = Expressions.call(expression, "getMap", fieldName);
-                break;
-              case ROW:
-                value = Expressions.call(expression, "getRow", fieldName);
-                break;
-              case ITERABLE:
-                value = Expressions.call(expression, "getIterable", fieldName);
-                break;
-              default:
-                throw new UnsupportedOperationException("Unable to get logical type " + identifier);
-            }
-          } else if (FixedPrecisionNumeric.IDENTIFIER.equals(identifier)) {
+          }  else if (FixedPrecisionNumeric.IDENTIFIER.equals(identifier)) {
             value = Expressions.call(expression, "getDecimal", fieldName);
           } else {
             throw new UnsupportedOperationException("Unable to get logical type " + identifier);
@@ -769,47 +716,6 @@ public class BeamCalcRel extends AbstractBeamCalcRel {
             return nullOr(value, returnValue);
           } else if (FixedPrecisionNumeric.IDENTIFIER.equals(identifier)) {
             return Expressions.convert_(value, BigDecimal.class);
-          } else if (fieldType.getLogicalType() instanceof PassThroughLogicalType) {
-            // For pass-through logical types, convert underlying base type to Calcite value
-            FieldType baseType = fieldType.getLogicalType().getBaseType();
-            switch (baseType.getTypeName()) {
-              case BYTE:
-                return Expressions.convert_(value, Byte.class);
-              case INT16:
-                return Expressions.convert_(value, Short.class);
-              case INT32:
-                return Expressions.convert_(value, Integer.class);
-              case INT64:
-                return Expressions.convert_(value, Long.class);
-              case DECIMAL:
-                return Expressions.convert_(value, BigDecimal.class);
-              case FLOAT:
-                return Expressions.convert_(value, Float.class);
-              case DOUBLE:
-                return Expressions.convert_(value, Double.class);
-              case STRING:
-                return Expressions.convert_(value, String.class);
-              case BOOLEAN:
-                return Expressions.convert_(value, Boolean.class);
-              case DATETIME:
-                return nullOr(
-                    value,
-                    Expressions.call(
-                        Expressions.convert_(value, AbstractInstant.class), "getMillis"));
-              case BYTES:
-                return nullOr(
-                    value,
-                    Expressions.new_(ByteString.class, Expressions.convert_(value, byte[].class)));
-              case ARRAY:
-                return nullOr(value, toCalciteList(value, baseType.getCollectionElementType()));
-              case MAP:
-                return nullOr(value, toCalciteMap(value, baseType.getMapValueType()));
-              case ROW:
-                return nullOr(value, toCalciteRow(value, baseType.getRowSchema()));
-              default:
-                throw new UnsupportedOperationException(
-                    "Unable to convert logical type " + identifier);
-            }
           } else {
             throw new UnsupportedOperationException("Unable to convert logical type " + identifier);
           }
