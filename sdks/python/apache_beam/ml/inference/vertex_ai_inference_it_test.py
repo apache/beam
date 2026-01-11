@@ -31,8 +31,7 @@ from apache_beam.testing.test_pipeline import TestPipeline
 # pylint: disable=ungrouped-imports
 try:
   from apache_beam.examples.inference import vertex_ai_image_classification
-  from apache_beam.ml.inference.vertex_ai_inference import \
-      VertexAIModelHandlerJSON
+  from apache_beam.ml.inference.vertex_ai_inference import VertexAIModelHandlerJSON
 except ImportError as e:
   raise unittest.SkipTest(
       "Vertex AI model handler dependencies are not installed")
