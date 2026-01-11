@@ -1,3 +1,22 @@
+<!--
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+-->
+
 # Vertex AI Custom Prediction Route Test Setup
 
 To run the `test_vertex_ai_custom_prediction_route` in [vertex_ai_inference_it_test.py](../../vertex_ai_inference_it_test.py), you need a dedicated Vertex AI endpoint with an invoke-enabled model deployed.
@@ -12,7 +31,7 @@ From this directory:
 
 ```bash
 export PROJECT_ID="apache-beam-testing"  # Or your project
-export IMAGE_URI="gcr.io/${PROJECT_ID}/beam-invoke-echo-model:latest"
+export IMAGE_URI="gcr.io/${PROJECT_ID}/beam-ml/beam-invoke-echo-model:latest"
 
 gcloud builds submit --tag ${IMAGE_URI} .
 ```
@@ -26,7 +45,7 @@ from google.cloud import aiplatform
 
 PROJECT_ID = "apache-beam-testing"
 REGION = "us-central1"
-IMAGE_URI = f"gcr.io/{PROJECT_ID}/beam-invoke-echo-model:latest"
+IMAGE_URI = f"gcr.io/{PROJECT_ID}/beam-ml/beam-invoke-echo-model:latest"
 
 aiplatform.init(project=PROJECT_ID, location=REGION)
 
