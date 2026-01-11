@@ -49,7 +49,7 @@ _SUBNETWORK = "https://www.googleapis.com/compute/v1/projects/apache-beam-testin
 # Constants for custom prediction routes (invoke) test
 # Follow beam/sdks/python/apache_beam/ml/inference/test_resources/vertex_ai_custom_prediction/README.md
 # to get endpoint ID after deploying invoke-enabled model
-_INVOKE_ENDPOINT_ID = ""
+_INVOKE_ENDPOINT_ID = "6890840581900075008"
 _INVOKE_ROUTE = "/predict"
 _INVOKE_OUTPUT_DIR = "gs://apache-beam-ml/testing/outputs/vertex_invoke"
 

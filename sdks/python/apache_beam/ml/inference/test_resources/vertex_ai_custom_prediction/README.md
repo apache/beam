@@ -30,10 +30,12 @@ Run these commands in the `apache-beam-testing` project (or your own test projec
 From this directory:
 
 ```bash
+# on Linux
 export PROJECT_ID="apache-beam-testing"  # Or your project
 export IMAGE_URI="gcr.io/${PROJECT_ID}/beam-ml/beam-invoke-echo-model:latest"
 
-gcloud builds submit --tag ${IMAGE_URI} .
+docker build -t ${IMAGE_URI} .
+docker push ${IMAGE_URI}
 ```
 
 ### 2. Upload Model and Deploy Endpoint
