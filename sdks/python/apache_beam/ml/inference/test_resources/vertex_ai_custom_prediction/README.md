@@ -71,7 +71,7 @@ endpoint.deploy(
     model=model,
     traffic_percentage=100,
     machine_type="n1-standard-2",
-    min_replica_count=0, 
+    min_replica_count=0,
     max_replica_count=1,
     sync=True,
 )

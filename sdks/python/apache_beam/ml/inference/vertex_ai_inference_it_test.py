@@ -25,7 +25,6 @@ import pytest
 
 import apache_beam as beam
 from apache_beam.io.filesystems import FileSystems
-from apache_beam.ml.inference.base import PredictionResult
 from apache_beam.ml.inference.base import RunInference
 from apache_beam.testing.test_pipeline import TestPipeline
 
@@ -48,8 +47,9 @@ _ENDPOINT_NETWORK = "projects/844138762903/global/networks/beam-test-vpc"
 _SUBNETWORK = "https://www.googleapis.com/compute/v1/projects/apache-beam-testing/regions/us-central1/subnetworks/beam-test-vpc"
 
 # Constants for custom prediction routes (invoke) test
-# TODO: Update endpoint ID after deploying invoke-enabled model
-_INVOKE_ENDPOINT_ID = ""  # Set after GCP setup
+# Follow beam/sdks/python/apache_beam/ml/inference/test_resources/vertex_ai_custom_prediction/README.md
+# to get endpoint ID after deploying invoke-enabled model
+_INVOKE_ENDPOINT_ID = ""
 _INVOKE_ROUTE = "/predict"
 _INVOKE_OUTPUT_DIR = "gs://apache-beam-ml/testing/outputs/vertex_invoke"
 
