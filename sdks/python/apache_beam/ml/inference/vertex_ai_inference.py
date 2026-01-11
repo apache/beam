@@ -221,6 +221,8 @@ class VertexAIModelHandlerJSON(RemoteModelHandler[Any,
           request_path=self._invoke_route,
           body=json.dumps(request_body).encode("utf-8"),
           headers={"Content-Type": "application/json"})
+      if hasattr(response, "content"):
+        return self._parse_invoke_response(batch, response.content)
       return self._parse_invoke_response(batch, bytes(response))
     else:
       prediction = model.predict(
