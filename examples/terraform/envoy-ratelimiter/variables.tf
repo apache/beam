@@ -16,10 +16,33 @@
  * limitations under the License.
  */
 
+# ------------------------------------------------------------------------------
+# REQUIRED VARIABLES
+# ------------------------------------------------------------------------------
+
 variable "project_id" {
   description = "The Google Cloud Project ID"
   type        = string
 }
+
+variable "vpc_name" {
+  description = "The name of the existing VPC network"
+  type        = string
+}
+
+variable "subnet_name" {
+  description = "The name of the existing subnetwork."
+  type        = string
+}
+
+variable "ratelimit_config_yaml" {
+  description = "Content of the ratelimit config.yaml (Required)"
+  type        = string
+}
+
+# ------------------------------------------------------------------------------
+# OPTIONAL VARIABLES
+# ------------------------------------------------------------------------------
 
 variable "region" {
   description = "The region to deploy resources to"
@@ -43,16 +66,6 @@ variable "deletion_protection" {
   description = "Whether to enable deletion protection on the GKE cluster. Set to true for production."
   type        = bool
   default     = false
-}
-
-variable "vpc_name" {
-  description = "The name of the existing VPC network"
-  type        = string
-}
-
-variable "subnet_name" {
-  description = "The name of the existing subnetwork."
-  type        = string
 }
 
 variable "ip_name" {
@@ -101,21 +114,6 @@ variable "statsd_exporter_image" {
   description = "Docker image for StatsD Exporter"
   type        = string
   default     = "prom/statsd-exporter:v0.24.0"
-}
-
-variable "ratelimit_config_yaml" {
-  description = "Content of the ratelimit config.yaml"
-  type        = string
-  default     = <<EOF
-domain: mongo_cps
-descriptors:
-  - key: database
-    value: users
-    detailed_metric: true
-    rate_limit:
-      unit: second
-      requests_per_unit: 100
-EOF
 }
 
 variable "ratelimit_log_level" {

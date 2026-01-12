@@ -44,10 +44,10 @@ This directory contains a production-ready Terraform module to deploy a scalable
    ```
 
 4. **Network Configuration**:
-   - **Cloud NAT**: Must exist in the region to allow Private Nodes to pull images and reach external APIs.
+   - **Cloud NAT**: Must exist in the region to allow Private Nodes to pull images and reach external APIs. Follow [this](https://docs.cloud.google.com/nat/docs/gke-example#create-nat) for more details.
    - **Validation via Console**:
      1. Go to **Network Services** > **Cloud NAT** in the Google Cloud Console.
-     2. Verify a NAT Gateway exists for your **Region** (`us-central1`) and **VPC Network**.
+     2. Verify a NAT Gateway exists for your **Region** and **VPC Network**.
      3. Ensure it is configured to apply to **Primary and Secondary ranges** (or at least the ranges GKE will use).
 
 # Prepare deployment configuration:
@@ -137,6 +137,7 @@ terraform destroy
 |project_id             |**Required** Google Cloud Project ID                 |-                                |
 |vpc_name               |**Required** Existing VPC name to deploy into        |-                                |
 |subnet_name            |**Required** Existing Subnet name                    |-                                |
+|ratelimit_config_yaml  |**Required** Rate Limit configuration content        |-                                |
 |region                 |GCP Region for deployment                            |us-central1                      |
 |control_plane_cidr     |CIDR block for GKE control plane                     |172.16.0.0/28                    |
 |cluster_name           |Name of the GKE cluster                              |ratelimit-cluster                |
