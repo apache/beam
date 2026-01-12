@@ -1239,4 +1239,5 @@
   email: yalahuangfeng@gmail.com
   member_type: user
   permissions:
-  - role: roles/beam_writer
+  - role: projects/apache-beam-testing/roles/beam_viewer
+  - role: projects/apache-beam-testing/roles/beam_writer
