@@ -63,6 +63,11 @@ if sys.version_info >= (3, 11):
 else:
   _div_binop_args = frozenset()
 
+if sys.version_info >= (3, 14):
+  _NB_SUBSCR_OPCODE = [op[0] for op in opcode._nb_ops].index('NB_SUBSCR')
+else:
+  _NB_SUBSCR_OPCODE = None
+
 
 def pop_one(state, unused_arg):
   del state.stack[-1:]
@@ -152,7 +157,7 @@ _NUMERIC_PROMOTION_LADDER = [bool, int, float, complex]
 def symmetric_binary_op(state, arg, is_true_div=None):
   # TODO(robertwb): This may not be entirely correct...
   # BINARY_SUBSCR was rolled into BINARY_OP in 3.14.
-  if arg == 26:
+  if arg == _NB_SUBSCR_OPCODE:
     return binary_subscr(state, arg)
   b, a = Const.unwrap(state.stack.pop()), Const.unwrap(state.stack.pop())
   if a == b:

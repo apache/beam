@@ -105,13 +105,13 @@ class TrivialInferenceTest(unittest.TestCase):
         typehints.Tuple[int, int], reverse, [typehints.List[int]])
 
   def testGetItemSlice(self):
-    # self.assertReturnType(
-    #     typehints.List[int], lambda v: v[::-1], [typehints.List[int]])
-    # self.assertReturnType(
-    #     typehints.Tuple[int], lambda v: v[::-1], [typehints.Tuple[int]])
-    # self.assertReturnType(str, lambda v: v[::-1], [str])
-    # self.assertReturnType(typehints.Any, lambda v: v[::-1], [typehints.Any])
-    # self.assertReturnType(typehints.Any, lambda v: v[::-1], [object])
+    self.assertReturnType(
+        typehints.List[int], lambda v: v[::-1], [typehints.List[int]])
+    self.assertReturnType(
+        typehints.Tuple[int], lambda v: v[::-1], [typehints.Tuple[int]])
+    self.assertReturnType(str, lambda v: v[::-1], [str])
+    self.assertReturnType(typehints.Any, lambda v: v[::-1], [typehints.Any])
+    self.assertReturnType(typehints.Any, lambda v: v[::-1], [object])
     # Test binary_subscr on a slice of a Const.
     test_list = ['a', 'b']
     self.assertReturnType(typehints.List[str], lambda: test_list[:], [])

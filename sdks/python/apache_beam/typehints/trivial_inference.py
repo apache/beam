@@ -524,7 +524,7 @@ def infer_return_type_func(f, input_types, debug=False, depth=0):
           # CALL_FUNCTION_EX does not take an arg in 3.14, instead the
           # signaling for kwargs is done via a PUSH_NULL instruction
           # right before CALL_FUNCTION_EX.
-          arg = ~last_op_push_null & 1
+          arg = ~last_op_push_null
         has_kwargs: int = arg & 1
         pop_count = has_kwargs + 2
         if has_kwargs:
