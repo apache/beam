@@ -45,6 +45,15 @@ This directory contains a production-ready Terraform module to deploy a scalable
 
 4. **Network Configuration**:
    - **Cloud NAT**: Must exist in the region to allow Private Nodes to pull images and reach external APIs. Follow [this](https://docs.cloud.google.com/nat/docs/gke-example#create-nat) for more details.
+     **Helper Command** (if you need to create one):
+     ```bash
+     gcloud compute routers create nat-router --network <VPC_NAME> --region <REGION>
+     gcloud compute routers nats create nat-config \
+         --router=nat-router \
+         --region=<REGION> \
+         --auto-allocated-nat-external-ips \
+         --nat-all-subnet-ip-ranges
+     ```
    - **Validation via Console**:
      1. Go to **Network Services** > **Cloud NAT** in the Google Cloud Console.
      2. Verify a NAT Gateway exists for your **Region** and **VPC Network**.
