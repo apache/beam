@@ -61,7 +61,7 @@ class RateLimiter(abc.ABC):
     self.rpc_latency = Metrics.distribution(namespace, 'RatelimitRpcLatencyMs')
 
   @abc.abstractmethod
-  def throttle(self, **kwargs) -> bool:
+  def allow(self, **kwargs) -> bool:
     """Applies rate limiting to the request.
 
     This method checks if the request is permitted by the rate limiting policy.
@@ -148,7 +148,7 @@ class EnvoyRateLimiter(RateLimiter):
           channel = grpc.insecure_channel(self.service_address)
           self._stub = EnvoyRateLimiter.RateLimitServiceStub(channel)
 
-  def throttle(self, hits_added: int = 1) -> bool:
+  def allow(self, hits_added: int = 1) -> bool:
     """Calls the Envoy RLS to apply rate limits.
 
     Sends a rate limit request to the configured Envoy Rate Limit Service.
