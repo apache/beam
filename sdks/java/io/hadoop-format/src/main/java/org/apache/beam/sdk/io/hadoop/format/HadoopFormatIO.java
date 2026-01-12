@@ -748,7 +748,7 @@ public class HadoopFormatIO {
           .collect(Collectors.toList());
     }
 
-    /** Report only file-based sources */
+    /** Report only file-based sources. */
     private void reportSourceLineage(final List<SerializableSplit> inputSplits) {
       List<ResourceId> fileResources =
           inputSplits.stream()
