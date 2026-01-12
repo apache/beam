@@ -450,7 +450,7 @@ class RemoteModelHandler(ABC, ModelHandler[ExampleT, PredictionT, ModelT]):
 
         self._shared_rate_limiter = self._shared_handle.acquire(init_limiter)
 
-      if not self._shared_rate_limiter.throttle(hits_added=len(batch)):
+      if not self._shared_rate_limiter.allow(hits_added=len(batch)):
         raise RateLimitExceeded(
             "Rate Limit Exceeded, "
             "Could not process this batch.")

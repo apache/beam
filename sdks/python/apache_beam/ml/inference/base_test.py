@@ -2076,7 +2076,7 @@ class RunInferenceRemoteTest(unittest.TestCase):
       def __init__(self):
         super().__init__(namespace='test_namespace')
 
-      def throttle(self, hits_added=1):
+      def allow(self, hits_added=1):
         self.requests_counter.inc()
         return True
 
@@ -2114,7 +2114,7 @@ class RunInferenceRemoteTest(unittest.TestCase):
       def __init__(self):
         super().__init__(namespace='test_namespace')
 
-      def throttle(self, hits_added=1):
+      def allow(self, hits_added=1):
         return False
 
     class ConcreteRemoteModelHandler(base.RemoteModelHandler):
