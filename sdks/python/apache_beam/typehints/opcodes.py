@@ -66,7 +66,7 @@ else:
 if sys.version_info >= (3, 14):
   _NB_SUBSCR_OPCODE = [op[0] for op in opcode._nb_ops].index('NB_SUBSCR')
 else:
-  _NB_SUBSCR_OPCODE = None
+  _NB_SUBSCR_OPCODE = -1
 
 
 def pop_one(state, unused_arg):
