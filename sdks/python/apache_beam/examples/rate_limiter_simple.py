@@ -53,7 +53,7 @@ class SampleApiDoFn(beam.DoFn):
     self.rate_limiter = self._shared.acquire(init_limiter)
 
   def process(self, element):
-    self.rate_limiter.throttle()
+    self.rate_limiter.allow()
 
     # Process the element mock API call
     logging.info("Processing element: %s", element)
