@@ -73,14 +73,8 @@ resource "kubernetes_deployment" "redis" {
           }
 
           resources {
-            requests = {
-              cpu    = "100m"
-              memory = "128Mi"
-            }
-            limits = {
-              cpu    = "500m"
-              memory = "512Mi"
-            }
+            requests = var.redis_resources.requests
+            limits   = var.redis_resources.limits
           }
         }
       }
@@ -197,14 +191,8 @@ resource "kubernetes_deployment" "ratelimit" {
           }
 
           resources {
-            requests = {
-              cpu    = "250m"
-              memory = "512Mi"
-            }
-            limits = {
-              cpu    = "500m"
-              memory = "512Mi"
-            }
+            requests = var.ratelimit_resources.requests
+            limits   = var.ratelimit_resources.limits
           }
 
           volume_mount {
@@ -249,7 +237,7 @@ resource "kubernetes_deployment" "ratelimit" {
   ]
 }
 
-resource "kubernetes_horizontal_pod_autoscaler" "ratelimit" {
+resource "kubernetes_horizontal_pod_autoscaler_v2" "ratelimit" {
   metadata {
     name = "ratelimit-hpa"
   }
@@ -264,7 +252,27 @@ resource "kubernetes_horizontal_pod_autoscaler" "ratelimit" {
       api_version = "apps/v1"
     }
 
-    target_cpu_utilization_percentage = var.hpa_cpu_target
+    metric {
+      type = "Resource"
+      resource {
+        name  = "cpu"
+        target {
+          type                = "Utilization"
+          average_utilization = var.hpa_cpu_target
+        }
+      }
+    }
+
+    metric {
+      type = "Resource"
+      resource {
+        name  = "memory"
+        target {
+          type                = "Utilization"
+          average_utilization = var.hpa_memory_target
+        }
+      }
+    }
   }
 
   depends_on = [time_sleep.wait_for_cluster]

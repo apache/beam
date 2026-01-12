@@ -95,7 +95,13 @@ variable "max_replicas" {
 variable "hpa_cpu_target" {
   description = "Target CPU utilization percentage for autoscaling"
   type        = number
-  default     = 80
+  default     = 75
+}
+
+variable "hpa_memory_target" {
+  description = "Target Memory utilization percentage for autoscaling"
+  type        = number
+  default     = 75
 }
 
 variable "ratelimit_image" {
@@ -120,4 +126,40 @@ variable "ratelimit_log_level" {
   description = "Log level for ratelimit service"
   type        = string
   default     = "debug"
+}
+
+variable "redis_resources" {
+  description = "Compute resources for Redis container"
+  type = object({
+    requests = map(string)
+    limits   = map(string)
+  })
+  default = {
+    requests = {
+      cpu    = "100m"
+      memory = "128Mi"
+    }
+    limits = {
+      cpu    = "500m"
+      memory = "512Mi"
+    }
+  }
+}
+
+variable "ratelimit_resources" {
+  description = "Compute resources for Rate Limit container"
+  type = object({
+    requests = map(string)
+    limits   = map(string)
+  })
+  default = {
+    requests = {
+      cpu    = "250m"
+      memory = "256Mi"
+    }
+    limits = {
+      cpu    = "500m"
+      memory = "512Mi"
+    }
+  }
 }

@@ -77,17 +77,20 @@ vpc_name              = "default"                   # Existing VPC name to deplo
 subnet_name           = "default"                   # Existing Subnet name (required for Internal LB IP)
 ratelimit_image       = "envoyproxy/ratelimit:e9ce92cc" # Docker image for Rate Limit service
 redis_image           = "redis:6.2-alpine"          # Docker image for Redis
+ratelimit_resources   = { requests = { cpu = "100m", memory = "128Mi" }, limits = { cpu = "500m", memory = "512Mi" } }
+redis_resources       = { requests = { cpu = "250m", memory = "256Mi" }, limits = { cpu = "500m", memory = "512Mi" } }
 ```
 
 * Custom Rate Limit Configuration (Must override in `terraform.tfvars`):
 ```
 ratelimit_config_yaml = <<EOF
-domain: edge_proxy
+domain: mongo_cps
 descriptors:
-  - key: remote_address
+  - key: database
+    value: users
     rate_limit:
       unit: second
-      requests_per_unit: 50
+      requests_per_unit: 500
 EOF
 ```
 
@@ -154,7 +157,10 @@ terraform destroy
 |ratelimit_replicas     |Initial number of Rate Limit pods                    |1                                |
 |min_replicas           |Minimum HPA replicas                                 |1                                |
 |max_replicas           |Maximum HPA replicas                                 |5                                |
-|hpa_cpu_target         |CPU utilization target for HPA (%)                   |80                               |
+|hpa_cpu_target         |CPU utilization target for HPA (%)                   |75                               |
+|hpa_memory_target      |Memory utilization target for HPA (%)                |75                               |
 |ratelimit_image        |Docker image for Rate Limit service                  |envoyproxy/ratelimit:e9ce92cc    |
 |redis_image            |Docker image for Redis                               |redis:6.2-alpine                 |
+|ratelimit_resources    |Resources for Rate Limit service (map)               |requests/limits (CPU/Mem)        |
+|redis_resources        |Resources for Redis container (map)                  |requests/limits (CPU/Mem)        |
 
