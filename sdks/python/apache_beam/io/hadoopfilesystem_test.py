@@ -668,6 +668,92 @@ class HadoopFileSystemRuntimeValueProviderTest(unittest.TestCase):
     self.fs = hdfs.HadoopFileSystem(pipeline_options=pipeline_options)
     self.assertTrue(self.fs._full_urls)
 
+  def test_insecure_client_default(self):
+    """Test that InsecureClient is used by default."""
+    pipeline_options = PipelineOptions()
+    hdfs_options = pipeline_options.view_as(HadoopFileSystemOptions)
+    hdfs_options.hdfs_host = 'localhost'
+    hdfs_options.hdfs_port = 9870
+    hdfs_options.hdfs_user = 'testuser'
+    # hdfs_client not specified, should default to INSECURE
+
+    self.fs = hdfs.HadoopFileSystem(pipeline_options)
+    self.assertIsInstance(self.fs._hdfs_client, FakeHdfs)
+
+  def test_insecure_client_explicit(self):
+    """Test that InsecureClient is used when explicitly specified."""
+    pipeline_options = PipelineOptions()
+    hdfs_options = pipeline_options.view_as(HadoopFileSystemOptions)
+    hdfs_options.hdfs_host = 'localhost'
+    hdfs_options.hdfs_port = 9870
+    hdfs_options.hdfs_user = 'testuser'
+    hdfs_options.hdfs_client = 'INSECURE'
+
+    self.fs = hdfs.HadoopFileSystem(pipeline_options)
+    self.assertIsInstance(self.fs._hdfs_client, FakeHdfs)
+
+  def test_kerberos_client_missing_library(self):
+    """Test that Kerberos client fails gracefully when library not installed."""
+    pipeline_options = PipelineOptions()
+    hdfs_options = pipeline_options.view_as(HadoopFileSystemOptions)
+    hdfs_options.hdfs_host = 'localhost'
+    hdfs_options.hdfs_port = 9870
+    hdfs_options.hdfs_user = 'testuser'
+    hdfs_options.hdfs_client = 'KERBEROS'
+
+    # Temporarily set KerberosClient to None to simulate missing library
+    original_kerberos_client = hdfs.KerberosClient
+    hdfs.KerberosClient = None
+
+    try:
+      with self.assertRaisesRegex(ImportError, r'requests-kerberos'):
+        hdfs.HadoopFileSystem(pipeline_options)
+    finally:
+      hdfs.KerberosClient = original_kerberos_client
+
+  def test_kerberos_client_creation(self):
+    """Test that KerberosClient is created when specified."""
+    pipeline_options = PipelineOptions()
+    hdfs_options = pipeline_options.view_as(HadoopFileSystemOptions)
+    hdfs_options.hdfs_host = 'localhost'
+    hdfs_options.hdfs_port = 9870
+    hdfs_options.hdfs_user = 'testuser'
+    hdfs_options.hdfs_client = 'KERBEROS'
+
+    # Mock KerberosClient to return our FakeHdfs
+    if hdfs.KerberosClient is not None:
+      original_kerberos_client = hdfs.KerberosClient
+      hdfs.KerberosClient = lambda *args, **kwargs: self._fake_hdfs
+
+      try:
+        self.fs = hdfs.HadoopFileSystem(pipeline_options)
+        self.assertIsInstance(self.fs._hdfs_client, FakeHdfs)
+      finally:
+        hdfs.KerberosClient = original_kerberos_client
+
+  def test_dict_options_insecure_client(self):
+    """Test InsecureClient with dict-based pipeline options."""
+    pipeline_options = {
+        'hdfs_host': 'localhost',
+        'hdfs_port': 9870,
+        'hdfs_user': 'testuser',
+        'hdfs_client': 'INSECURE',
+    }
+
+    self.fs = hdfs.HadoopFileSystem(pipeline_options=pipeline_options)
+    self.assertIsInstance(self.fs._hdfs_client, FakeHdfs)
+
+  def test_dict_options_default_client(self):
+    """Test dict options default to INSECURE without hdfs_client."""
+    pipeline_options = {
+        'hdfs_host': 'localhost',
+        'hdfs_port': 9870,
+        'hdfs_user': 'testuser',
+    }
+
+    self.fs = hdfs.HadoopFileSystem(pipeline_options=pipeline_options)
+    self.assertIsInstance(self.fs._hdfs_client, FakeHdfs)
+
 
 if __name__ == '__main__':
   logging.getLogger().setLevel(logging.INFO)

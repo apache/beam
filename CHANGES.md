@@ -70,6 +70,7 @@
 ## New Features / Improvements
 
 * X feature added (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
+* HadoopFileSystem now supports Kerberos authentication via `--hdfs_client=KERBEROS` flag (Python) ([#20719](https://github.com/apache/beam/issues/20719)).
 
 ## Breaking Changes
 
@@ -2349,4 +2350,4 @@ Schema Options, it will be removed in version `2.23.0`. ([BEAM-9704](https://iss
 
 ## Highlights
 
-- For versions 2.19.0 and older release notes are available on [Apache Beam Blog](https://beam.apache.org/blog/).
+- - For versions 2.19.0 and older release notes are available on [Apache Beam Blog](https://beam.apache.org/blog/).

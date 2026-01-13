@@ -1328,6 +1328,14 @@ class HadoopFileSystemOptions(PipelineOptions):
             'If set, URLs will be parsed as "hdfs://server/path/...", instead '
             'of "hdfs://path/...". The "server" part will be unused (use '
             '--hdfs_host and --hdfs_port).'))
+    parser.add_argument(
+        '--hdfs_client',
+        default='INSECURE',
+        choices=['INSECURE', 'KERBEROS'],
+        help=(
+            'HDFS client type for authentication. INSECURE uses simple '
+            'username-based authentication (default). KERBEROS uses Kerberos '
+            'authentication (requires kinit or keytab configuration).'))
 
   def validate(self, validator):
     errors = []

@@ -40,6 +40,11 @@ try:
 except ImportError:
   hdfs = None
 
+try:
+  from hdfs.ext.kerberos import KerberosClient
+except ImportError:
+  KerberosClient = None
+
 __all__ = ['HadoopFileSystem']
 
 _HDFS_PREFIX = 'hdfs:/'
@@ -123,11 +128,13 @@ class HadoopFileSystem(FileSystem):
       hdfs_host = hdfs_options.hdfs_host
       hdfs_port = hdfs_options.hdfs_port
       hdfs_user = hdfs_options.hdfs_user
+      hdfs_client = hdfs_options.hdfs_client
       self._full_urls = hdfs_options.hdfs_full_urls
     else:
       hdfs_host = pipeline_options.get('hdfs_host')
       hdfs_port = pipeline_options.get('hdfs_port')
       hdfs_user = pipeline_options.get('hdfs_user')
+      hdfs_client = pipeline_options.get('hdfs_client', 'INSECURE')
       self._full_urls = pipeline_options.get('hdfs_full_urls', False)
 
     if hdfs_host is None:
@@ -139,8 +146,25 @@ class HadoopFileSystem(FileSystem):
     if not isinstance(self._full_urls, bool):
       raise ValueError(
           'hdfs_full_urls should be bool, got: %s', self._full_urls)
-    self._hdfs_client = hdfs.InsecureClient(
-        'http://%s:%s' % (hdfs_host, str(hdfs_port)), user=hdfs_user)
+
+    # Create HDFS client based on authentication type
+    url = 'http://%s:%s' % (hdfs_host, str(hdfs_port))
+    if hdfs_client == 'KERBEROS':
+      if KerberosClient is None:
+        raise ImportError(
+            'Kerberos authentication requires the requests-kerberos library. '
+            'Install it with: pip install requests-kerberos')
+      _LOGGER.info('Using KerberosClient for HDFS authentication')
+      try:
+        self._hdfs_client = KerberosClient(url)
+      except Exception as e:
+        raise RuntimeError(
+            'Failed to create KerberosClient. Ensure you have valid Kerberos '
+            'credentials (run kinit) or have configured a keytab. '
+            'Error: %s' % str(e))
+    else:
+      # Default to INSECURE for backward compatibility
+      self._hdfs_client = hdfs.InsecureClient(url, user=hdfs_user)
 
   @classmethod
   def scheme(cls):
