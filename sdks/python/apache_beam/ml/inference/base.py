@@ -56,13 +56,14 @@ from typing import Union
 
 import apache_beam as beam
 from apache_beam.io.components.adaptive_throttler import ReactiveThrottler
+from apache_beam.utils import multi_process_shared
+from apache_beam.utils import retry
+from apache_beam.utils import shared
+
 try:
   from apache_beam.io.components.rate_limiter import RateLimiter
 except ImportError:
   RateLimiter = None
-from apache_beam.utils import multi_process_shared
-from apache_beam.utils import retry
-from apache_beam.utils import shared
 
 try:
   # pylint: disable=wrong-import-order, wrong-import-position
