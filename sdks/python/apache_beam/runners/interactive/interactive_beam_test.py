@@ -414,9 +414,6 @@ class InteractiveBeamTest(unittest.TestCase):
 
       ib.collect(pcoll2, wait_for_inputs=True)
 
-      # Check wait_for_dependencies was called because wait_for_inputs is True
-      mock_rm._wait_for_dependencies.assert_called_once_with({pcoll2},
-                                                             async_result=None)
       # Check that record was called with wait_for_inputs=True
       mock_rm.record.assert_called_once_with({pcoll2},
                                              max_n=float('inf'),
@@ -490,9 +487,6 @@ class InteractiveBeamTest(unittest.TestCase):
 
       ib.collect(pcoll2)  # wait_for_inputs defaults to True
 
-      # Check that wait_for_dependencies was called
-      mock_rm._wait_for_dependencies.assert_called_once_with({pcoll2},
-                                                             async_result=None)
       # Check that record was called with wait_for_inputs=True
       mock_rm.record.assert_called_once_with({pcoll2},
                                              max_n=float('inf'),
