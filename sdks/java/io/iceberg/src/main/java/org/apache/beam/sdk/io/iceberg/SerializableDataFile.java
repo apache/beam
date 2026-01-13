@@ -96,10 +96,10 @@ public abstract class SerializableDataFile {
   abstract @Nullable Map<Integer, Long> getNanValueCounts();
 
   @SchemaFieldNumber("12")
-  abstract @Nullable Map<Integer, byte[]> getLowerBounds();
+  public abstract @Nullable Map<Integer, byte[]> getLowerBounds();
 
   @SchemaFieldNumber("13")
-  abstract @Nullable Map<Integer, byte[]> getUpperBounds();
+  public abstract @Nullable Map<Integer, byte[]> getUpperBounds();
 
   @SchemaFieldNumber("14")
   public abstract @Nullable Long getDataSequenceNumber();
@@ -149,31 +149,40 @@ public abstract class SerializableDataFile {
     abstract SerializableDataFile build();
   }
 
+  public static SerializableDataFile from(DataFile f, String partitionPath) {
+    return from(f, partitionPath, true);
+  }
+
   /**
    * Create a {@link SerializableDataFile} from a {@link DataFile} and its associated {@link
    * PartitionKey}.
    */
-  public static SerializableDataFile from(DataFile f, String partitionPath) {
-
-    return SerializableDataFile.builder()
-        .setPath(f.path().toString())
-        .setFileFormat(f.format().toString())
-        .setRecordCount(f.recordCount())
-        .setFileSizeInBytes(f.fileSizeInBytes())
-        .setPartitionPath(partitionPath)
-        .setPartitionSpecId(f.specId())
-        .setKeyMetadata(f.keyMetadata())
-        .setSplitOffsets(f.splitOffsets())
-        .setColumnSizes(f.columnSizes())
-        .setValueCounts(f.valueCounts())
-        .setNullValueCounts(f.nullValueCounts())
-        .setNanValueCounts(f.nanValueCounts())
-        .setLowerBounds(toByteArrayMap(f.lowerBounds()))
-        .setUpperBounds(toByteArrayMap(f.upperBounds()))
-        .setDataSequenceNumber(f.dataSequenceNumber())
-        .setFileSequenceNumber(f.fileSequenceNumber())
-        .setFirstRowId(f.firstRowId())
-        .build();
+  public static SerializableDataFile from(
+      DataFile f, String partitionPath, boolean includeMetrics) {
+    SerializableDataFile.Builder builder =
+        SerializableDataFile.builder()
+            .setPath(f.location())
+            .setFileFormat(f.format().toString())
+            .setRecordCount(f.recordCount())
+            .setFileSizeInBytes(f.fileSizeInBytes())
+            .setPartitionPath(partitionPath)
+            .setPartitionSpecId(f.specId())
+            .setKeyMetadata(f.keyMetadata())
+            .setSplitOffsets(f.splitOffsets())
+            .setColumnSizes(f.columnSizes())
+            .setValueCounts(f.valueCounts())
+            .setNullValueCounts(f.nullValueCounts())
+            .setNanValueCounts(f.nanValueCounts())
+            .setDataSequenceNumber(f.dataSequenceNumber())
+            .setFileSequenceNumber(f.fileSequenceNumber())
+            .setFirstRowId(f.firstRowId());
+    if (includeMetrics) {
+      builder =
+          builder
+              .setLowerBounds(toByteArrayMap(f.lowerBounds()))
+              .setUpperBounds(toByteArrayMap(f.upperBounds()));
+    }
+    return builder.build();
   }
 
   /**

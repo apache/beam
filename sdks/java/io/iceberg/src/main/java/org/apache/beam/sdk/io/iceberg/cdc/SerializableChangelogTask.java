@@ -114,8 +114,8 @@ public abstract class SerializableChangelogTask {
     abstract Builder setDataFile(SerializableDataFile dataFile);
 
     @SchemaIgnore
-    public Builder setDataFile(DataFile df, String partitionPath) {
-      return setDataFile(SerializableDataFile.from(df, partitionPath));
+    public Builder setDataFile(DataFile df, String partitionPath, boolean includeMetrics) {
+      return setDataFile(SerializableDataFile.from(df, partitionPath, includeMetrics));
     }
 
     abstract Builder setExistingDeletes(List<SerializableDeleteFile> existingDeletes);
@@ -139,8 +139,11 @@ public abstract class SerializableChangelogTask {
     abstract SerializableChangelogTask build();
   }
 
-  @SuppressWarnings("nullness")
   public static SerializableChangelogTask from(ChangelogScanTask task) {
+    return from(task, false);
+  }
+
+  public static SerializableChangelogTask from(ChangelogScanTask task, boolean includeMetrics) {
     checkState(
         task instanceof ContentScanTask, "Expected ChangelogScanTask to also be a ContentScanTask");
     ContentScanTask<DataFile> contentScanTask = (ContentScanTask<DataFile>) task;
@@ -150,7 +153,10 @@ public abstract class SerializableChangelogTask {
             .setOperation(task.operation())
             .setOrdinal(task.changeOrdinal())
             .setCommitSnapshotId(task.commitSnapshotId())
-            .setDataFile(contentScanTask.file(), spec.partitionToPath(contentScanTask.partition()))
+            .setDataFile(
+                contentScanTask.file(),
+                spec.partitionToPath(contentScanTask.partition()),
+                includeMetrics)
             .setSpecId(spec.specId())
             .setStart(contentScanTask.start())
             .setLength(contentScanTask.length())
@@ -161,30 +167,49 @@ public abstract class SerializableChangelogTask {
       builder =
           builder
               .setType(Type.ADDED_ROWS)
-              .setAddedDeletes(toSerializableDeletes(addedRowsTask.deletes(), spec));
+              .setAddedDeletes(
+                  toSerializableDeletes(addedRowsTask.deletes(), spec, includeMetrics));
     } else if (task instanceof DeletedRowsScanTask) {
       DeletedRowsScanTask deletedRowsTask = (DeletedRowsScanTask) task;
       builder =
           builder
               .setType(Type.DELETED_ROWS)
-              .setAddedDeletes(toSerializableDeletes(deletedRowsTask.addedDeletes(), spec))
-              .setExistingDeletes(toSerializableDeletes(deletedRowsTask.existingDeletes(), spec));
+              .setAddedDeletes(
+                  toSerializableDeletes(deletedRowsTask.addedDeletes(), spec, includeMetrics))
+              .setExistingDeletes(
+                  toSerializableDeletes(deletedRowsTask.existingDeletes(), spec, includeMetrics));
     } else if (task instanceof DeletedDataFileScanTask) {
       DeletedDataFileScanTask deletedFileTask = (DeletedDataFileScanTask) task;
       builder =
           builder
               .setType(Type.DELETED_FILE)
-              .setExistingDeletes(toSerializableDeletes(deletedFileTask.existingDeletes(), spec));
+              .setExistingDeletes(
+                  toSerializableDeletes(deletedFileTask.existingDeletes(), spec, includeMetrics));
     } else {
       throw new IllegalStateException("Unknown ChangelogScanTask type: " + task.getClass());
     }
     return builder.build();
   }
 
+  public static Type getType(ChangelogScanTask task) {
+    if (task instanceof AddedRowsScanTask) {
+      return Type.ADDED_ROWS;
+    } else if (task instanceof DeletedRowsScanTask) {
+      return Type.DELETED_ROWS;
+    } else if (task instanceof DeletedDataFileScanTask) {
+      return Type.DELETED_FILE;
+    } else {
+      throw new IllegalStateException("Unknown ChangelogScanTask type: " + task.getClass());
+    }
+  }
+
   private static List<SerializableDeleteFile> toSerializableDeletes(
-      List<DeleteFile> dfs, PartitionSpec spec) {
+      List<DeleteFile> dfs, PartitionSpec spec, boolean includeMetrics) {
     return dfs.stream()
-        .map(df -> SerializableDeleteFile.from(df, spec.partitionToPath(df.partition())))
+        .map(
+            df ->
+                SerializableDeleteFile.from(
+                    df, spec.partitionToPath(df.partition()), includeMetrics))
         .collect(Collectors.toList());
   }
 

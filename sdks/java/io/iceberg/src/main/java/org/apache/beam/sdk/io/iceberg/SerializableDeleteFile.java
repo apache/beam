@@ -163,31 +163,39 @@ public abstract class SerializableDeleteFile {
     abstract SerializableDeleteFile build();
   }
 
-  public static SerializableDeleteFile from(DeleteFile deleteFile, String partitionPath) {
-    return SerializableDeleteFile.builder()
-        .setLocation(deleteFile.location())
-        .setFileFormat(deleteFile.format().name())
-        .setFileSizeInBytes(deleteFile.fileSizeInBytes())
-        .setPartitionPath(partitionPath)
-        .setPartitionSpecId(deleteFile.specId())
-        .setRecordCount(deleteFile.recordCount())
-        .setColumnSizes(deleteFile.columnSizes())
-        .setValueCounts(deleteFile.valueCounts())
-        .setNullValueCounts(deleteFile.nullValueCounts())
-        .setNanValueCounts(deleteFile.nanValueCounts())
-        .setLowerBounds(toByteArrayMap(deleteFile.lowerBounds()))
-        .setUpperBounds(toByteArrayMap(deleteFile.upperBounds()))
-        .setSplitOffsets(deleteFile.splitOffsets())
-        .setKeyMetadata(deleteFile.keyMetadata())
-        .setEqualityFieldIds(deleteFile.equalityFieldIds())
-        .setSortOrderId(deleteFile.sortOrderId())
-        .setContentOffset(deleteFile.contentOffset())
-        .setContentSizeInBytes(deleteFile.contentSizeInBytes())
-        .setReferencedDataFile(deleteFile.referencedDataFile())
-        .setContentType(deleteFile.content())
-        .setDataSequenceNumber(deleteFile.dataSequenceNumber())
-        .setFileSequenceNumber(deleteFile.fileSequenceNumber())
-        .build();
+  public static SerializableDeleteFile from(
+      DeleteFile deleteFile, String partitionPath, boolean includeMetrics) {
+    SerializableDeleteFile.Builder builder =
+        SerializableDeleteFile.builder()
+            .setLocation(deleteFile.location())
+            .setFileFormat(deleteFile.format().name())
+            .setFileSizeInBytes(deleteFile.fileSizeInBytes())
+            .setPartitionPath(partitionPath)
+            .setPartitionSpecId(deleteFile.specId())
+            .setRecordCount(deleteFile.recordCount())
+            .setColumnSizes(deleteFile.columnSizes())
+            .setValueCounts(deleteFile.valueCounts())
+            .setNullValueCounts(deleteFile.nullValueCounts())
+            .setNanValueCounts(deleteFile.nanValueCounts())
+            .setSplitOffsets(deleteFile.splitOffsets())
+            .setKeyMetadata(deleteFile.keyMetadata())
+            .setEqualityFieldIds(deleteFile.equalityFieldIds())
+            .setSortOrderId(deleteFile.sortOrderId())
+            .setContentOffset(deleteFile.contentOffset())
+            .setContentSizeInBytes(deleteFile.contentSizeInBytes())
+            .setReferencedDataFile(deleteFile.referencedDataFile())
+            .setContentType(deleteFile.content())
+            .setDataSequenceNumber(deleteFile.dataSequenceNumber())
+            .setFileSequenceNumber(deleteFile.fileSequenceNumber());
+
+    if (includeMetrics) {
+      builder =
+          builder
+              .setLowerBounds(toByteArrayMap(deleteFile.lowerBounds()))
+              .setUpperBounds(toByteArrayMap(deleteFile.upperBounds()));
+    }
+
+    return builder.build();
   }
 
   @SuppressWarnings("nullness")

@@ -80,14 +80,14 @@ public class ReconcileChanges extends DoFn<KV<Row, CoGbkResult>, Row> {
     } else if (hasInserts) {
       // INSERT only
       for (TimestampedValue<Row> rec : inserts) {
-        System.out.printf("[BIDIRECTIONAL] -- Added%n%s%n", rec);
+        System.out.printf("[UNIDIRECTIONAL] -- Added%n%s%n", rec);
         out.outputWithTimestamp(rec.getValue(), rec.getTimestamp());
       }
     } else if (hasDeletes) {
       // DELETE only
       for (TimestampedValue<Row> rec : deletes) {
         // TODO: output as DELETE kind
-        System.out.printf("[BIDIRECTIONAL] -- Deleted%n%s%n", rec);
+        System.out.printf("[UNIDIRECTIONAL] -- Deleted%n%s%n", rec);
         out.outputWithTimestamp(rec.getValue(), rec.getTimestamp());
       }
     }

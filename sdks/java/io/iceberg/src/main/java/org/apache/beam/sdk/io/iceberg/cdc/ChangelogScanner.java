@@ -20,14 +20,10 @@ package org.apache.beam.sdk.io.iceberg.cdc;
 import static org.apache.beam.sdk.io.iceberg.cdc.SerializableChangelogTask.Type.ADDED_ROWS;
 import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
 
-import com.google.common.collect.ImmutableMap;
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
+import java.nio.ByteBuffer;
+import java.util.*;
+import java.util.stream.Collectors;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.ListCoder;
 import org.apache.beam.sdk.io.iceberg.IcebergScanConfig;
@@ -38,16 +34,16 @@ import org.apache.beam.sdk.metrics.Metrics;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.TupleTag;
-import org.apache.iceberg.ChangelogScanTask;
-import org.apache.iceberg.DataOperations;
-import org.apache.iceberg.IncrementalChangelogScan;
-import org.apache.iceberg.PartitionField;
-import org.apache.iceberg.PartitionSpec;
-import org.apache.iceberg.ScanTaskGroup;
-import org.apache.iceberg.SerializableTable;
-import org.apache.iceberg.Table;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Splitter;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
+import org.apache.iceberg.*;
+import org.apache.iceberg.data.GenericRecord;
 import org.apache.iceberg.expressions.Expression;
 import org.apache.iceberg.io.CloseableIterable;
+import org.apache.iceberg.types.*;
+import org.apache.iceberg.util.Pair;
+import org.apache.iceberg.util.PropertyUtil;
+import org.checkerframework.checker.nullness.qual.MonotonicNonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Instant;
 import org.slf4j.Logger;
@@ -75,12 +71,46 @@ import org.slf4j.LoggerFactory;
  *       Key and processed by {@link ReconcileChanges} to identify potential updates.
  * </ol>
  *
- * <h3>Optimization for Pinned Partitions</h3>
+ * <h2>Optimizing by Shuffling Less Data</h2>
+ *
+ * <p>We take a three-layered approach to identify data that can bypass the expensive downstream
+ * CoGroupByKey shuffle:
+ *
+ * <h3>Snapshots</h3>
+ *
+ * We start by analyzing the nature of changes at the snapshot level. If a snapshot's operation is
+ * not of type {@link DataOperations#OVERWRITE}, then it's a uni-directional change.
+ *
+ * <h3>Pinned Partitions</h3>
  *
  * <p>If the table's partition fields are derived entirely from Primary Key fields, we assume that a
  * record will not migrate between partitions. This narrows down data locality and allows us to only
  * check for bi-directional changes <b>within a partition</b>. Doing this will allow partitions with
  * uni-directional changes to bypass the expensive CoGBK shuffle.
+ *
+ * <h3>Optimization for Individual Files</h3>
+ *
+ * When we have narrowed down our group of tasks with bi-directional changes, we start analyzing the
+ * metadata of their underlying files. We compare the upper and lower bounds of Partition Keys
+ * relevant to each file, and consider any overlaps as potentially containing an update. If a given
+ * task's bounds of inserted Partition Keys has no overlap with any other task's bounds of deleted
+ * Partition Keys, then we can safely let that task bypass the shuffle, as it would be impossible to
+ * create an (insert, delete) pair with it.
+ *
+ * <p>For example, say we have a group of tasks:
+ *
+ * <ol>
+ *   <li>Task A (adds rows): bounds [3, 8]
+ *   <li>Task B (adds rows): bounds [2, 4]
+ *   <li>Task C (deletes rows): bounds [1, 5]
+ *   <li>Task D (adds rows): bounds [6, 12]
+ * </ol>
+ *
+ * <p>Tasks A and B add rows, and overlap with Task C which deletes row. We need to shuffle the rows
+ * in these 3 tasks because there may be (insert, delete) pairs that lead to an update.
+ *
+ * <p>Task D however, does not overlap with any delete rows. It will never produce an (insert,
+ * delete) pair, so we don't need to shuffle it's output rows.
  */
 public class ChangelogScanner
     extends DoFn<
@@ -105,10 +135,16 @@ public class ChangelogScanner
   public static final KvCoder<ChangelogDescriptor, List<SerializableChangelogTask>> OUTPUT_CODER =
       KvCoder.of(ChangelogDescriptor.coder(), ListCoder.of(SerializableChangelogTask.coder()));
   private final IcebergScanConfig scanConfig;
+  private Map<Long, SnapshotInfo> snapshotMap = new HashMap<>();
 
   ChangelogScanner(IcebergScanConfig scanConfig) {
     this.scanConfig = scanConfig;
     TableCache.setup(scanConfig);
+  }
+
+  @StartBundle
+  public void start() {
+    snapshotMap = new HashMap<>();
   }
 
   @ProcessElement
@@ -127,6 +163,22 @@ public class ChangelogScanner
             .newIncrementalChangelogScan()
             .toSnapshot(toSnapshot)
             .project(scanConfig.getProjectedSchema());
+
+    // configure the scan to store upper/lower bound metrics only
+    // if it's available for primary key fields
+    boolean metricsAvailable = true;
+    MetricsConfig metricsConfig = MetricsConfig.forTable(table);
+    Collection<String> pkFields = table.schema().identifierFieldNames();
+    for (String field : pkFields) {
+      MetricsModes.MetricsMode mode = metricsConfig.columnMode(field);
+      if (!(mode instanceof MetricsModes.Full) && !(mode instanceof MetricsModes.Truncate)) {
+        metricsAvailable = false;
+        break;
+      }
+    }
+    if (metricsAvailable) {
+      scan = scan.includeColumnStats(pkFields);
+    }
     if (fromSnapshotId != null) {
       scan = scan.fromSnapshotExclusive(fromSnapshotId);
     }
@@ -136,23 +188,54 @@ public class ChangelogScanner
     }
     LOG.info("Planning to scan snapshot range [{}, {}]", fromSnapshotId, toSnapshot);
 
-    ImmutableMap.Builder<Long, SnapshotInfo> snapshotMap = ImmutableMap.builder();
     snapshots.forEach(s -> snapshotMap.put(s.getSnapshotId(), s));
 
     createAndOutputReadTasks(
+        element.getKey(),
+        element.getValue(),
         scan,
         startSnapshot,
         endSnapshot,
-        snapshotMap.build(),
         SerializableTable.copyOf(table),
         out);
   }
 
+  private void gatherPartitionData(
+      IncrementalChangelogScan scan,
+      Map<Long, Map<StructLike, Set<SerializableChangelogTask.Type>>>
+          changeTypesPerPartitionPerSnapshot,
+      Set<Integer> pinnedSpecs,
+      Set<Long> snapshotsWithUnpinnedSpecs)
+      throws IOException {
+    try (CloseableIterable<ScanTaskGroup<ChangelogScanTask>> groups = scan.planTasks()) {
+      for (ScanTaskGroup<ChangelogScanTask> group : groups) {
+        for (ChangelogScanTask task : group.tasks()) {
+          long snapshotId = task.commitSnapshotId();
+          int specId = getSpecId(task);
+
+          if (!pinnedSpecs.contains(specId)) {
+            snapshotsWithUnpinnedSpecs.add(snapshotId);
+            continue;
+          }
+
+          SerializableChangelogTask.Type type = SerializableChangelogTask.getType(task);
+          StructLike partition = getPartition(task);
+
+          changeTypesPerPartitionPerSnapshot
+              .computeIfAbsent(snapshotId, (id) -> new HashMap<>())
+              .computeIfAbsent(partition, (p) -> new HashSet<>())
+              .add(type);
+        }
+      }
+    }
+  }
+
   private void createAndOutputReadTasks(
+      String tableIdentifier,
+      List<SnapshotInfo> snapshots,
       IncrementalChangelogScan scan,
       SnapshotInfo startSnapshot,
       SnapshotInfo endSnapshot,
-      Map<Long, SnapshotInfo> snapshotMap,
       Table table,
       MultiOutputReceiver multiOutputReceiver)
       throws IOException {
@@ -160,31 +243,60 @@ public class ChangelogScanner
     int numDeletedRowsTasks = 0;
     int numDeletedFileTasks = 0;
 
-    // if partition fields are sourced entirely from a record's PK, we can further optimize
-    // the scan by only shuffling bi-directional changes *within* a partition.
+    // ******** Partition Optimization ********
+    // First pass over the scan to get a full picture of the nature of changes per partition, per
+    // snapshot.
+    // if partition fields are sourced entirely from a record's PK, that record will
+    // always be pinned to that partition (so long as the spec doesn't change).
+    // we can optimize the scan by only shuffling bi-directional changes *within* a partition.
     // this is safe to do because we can assume no cross-partition changes will occur
-    boolean rowsPinnedToPartition = isRowPinnedToPartition(table.spec());
-    // keep track of change types per partition (useful if row is pinned to its partition)
-    Map<Long, Map<String, Set<SerializableChangelogTask.Type>>> changeTypesPerPartitionPerSnapshot =
-        new HashMap<>();
+    Set<Integer> pinnedSpecs =
+        table.specs().entrySet().stream()
+            .filter(e -> isRowPinnedToPartition(e.getValue()))
+            .map(Map.Entry::getKey)
+            .collect(Collectors.toSet());
+    // optimization cannot apply to snapshots that have any file using an unpinned spec
+    Set<Long> snapshotsWithUnpinnedSpecs = new HashSet<>();
+    Map<Long, Map<StructLike, Set<SerializableChangelogTask.Type>>>
+        changeTypesPerPartitionPerSnapshot = new HashMap<>();
+    // Don't bother scanning if the table never had a spec where records are pinned to their
+    // partitions.
+    if (!pinnedSpecs.isEmpty()) {
+      gatherPartitionData(
+          scan, changeTypesPerPartitionPerSnapshot, pinnedSpecs, snapshotsWithUnpinnedSpecs);
+    }
+
+    // Second pass to route uni-directional tasks downstream, and buffer bi-directional tasks for
+    // further processing
+    Schema schema = table.schema();
+    Schema recIdSchema = TypeUtil.select(schema, schema.identifierFieldIds());
+    Comparator<StructLike> idComp = Comparators.forType(recIdSchema.asStruct());
 
     // Best effort maintain the same scan task groupings produced by Iceberg's binpacking, for
     // better work load distribution among readers.
     // This allows the user to control load per worker by tuning `read.split.target-size`:
     // https://iceberg.apache.org/docs/latest/configuration/#read-properties
-    Map<Long, List<List<SerializableChangelogTask>>> changelogScanTasks = new HashMap<>();
+    Map<Long, Map<StructLike, List<ChangelogScanTask>>> potentiallyBidirectionalTasks =
+        new HashMap<>();
+    long splitSize =
+        PropertyUtil.propertyAsLong(
+            table.properties(), TableProperties.SPLIT_SIZE, TableProperties.SPLIT_SIZE_DEFAULT);
+
+    TaskBatcher batcher =
+        new TaskBatcher(
+            tableIdentifier, splitSize, multiOutputReceiver.get(UNIDIRECTIONAL_CHANGES));
+
+    int numUniDirTasks = 0;
+    int numBiDirTasks = 0;
 
     try (CloseableIterable<ScanTaskGroup<ChangelogScanTask>> scanTaskGroups = scan.planTasks()) {
       for (ScanTaskGroup<ChangelogScanTask> scanTaskGroup : scanTaskGroups) {
-        Map<Long, List<SerializableChangelogTask>> snapshotTaskGroup = new HashMap<>();
-
-        for (ChangelogScanTask changelogScanTask : scanTaskGroup.tasks()) {
-          long snapshotId = changelogScanTask.commitSnapshotId();
-          SerializableChangelogTask task = SerializableChangelogTask.from(changelogScanTask);
-          String partition = task.getDataFile().getPartitionPath();
-
+        for (ChangelogScanTask task : scanTaskGroup.tasks()) {
+          long snapshotId = task.commitSnapshotId();
+          String snapshotOperation = checkStateNotNull(snapshotMap.get(snapshotId)).getOperation();
+          SerializableChangelogTask.Type type = SerializableChangelogTask.getType(task);
           // gather metrics
-          switch (task.getType()) {
+          switch (type) {
             case ADDED_ROWS:
               numAddedRowsTasks++;
               break;
@@ -196,107 +308,118 @@ public class ChangelogScanner
               break;
           }
 
-          if (rowsPinnedToPartition) {
-            changeTypesPerPartitionPerSnapshot
+          StructLike partition = getPartition(task);
+
+          // potentially bi-directional if it's an overwrite snapshot AND:
+          // 1. we are not dealing with a spec where rows are pinned to partitions, OR
+          // 2. rows are pinned to partitions, but the changes in this partition are still
+          // bi-directional
+          // in such a case, we buffer the task for more thorough analysis below
+          if (DataOperations.OVERWRITE.equals(snapshotOperation)
+              && (snapshotsWithUnpinnedSpecs.contains(snapshotId)
+                  || containsBiDirectionalChanges(
+                      checkStateNotNull(
+                          checkStateNotNull(changeTypesPerPartitionPerSnapshot.get(snapshotId))
+                              .get(partition))))) {
+            // TODO: remove debug printing
+            System.out.printf("\tUnidirectional task with partition '%s':\n", partition);
+            System.out.printf(
+                "\t\t(%s) DF: %s\n",
+                task.getClass().getSimpleName(), name(getDataFile(task).location()));
+            for (DeleteFile delf : getDeleteFiles(task)) {
+              System.out.println("\t\t\tAdded DelF: " + name(delf.location()));
+            }
+            potentiallyBidirectionalTasks
                 .computeIfAbsent(snapshotId, (id) -> new HashMap<>())
-                .computeIfAbsent(partition, (p) -> new HashSet<>())
-                .add(task.getType());
+                .computeIfAbsent(partition, (p) -> new ArrayList<>())
+                .add(task);
+            continue;
           }
 
-          snapshotTaskGroup.computeIfAbsent(snapshotId, (id) -> new ArrayList<>()).add(task);
-        }
-
-        for (Map.Entry<Long, List<SerializableChangelogTask>> subGroup :
-            snapshotTaskGroup.entrySet()) {
-          changelogScanTasks
-              .computeIfAbsent(subGroup.getKey(), (unused) -> new ArrayList<>())
-              .add(subGroup.getValue());
+          // unidirectional. put into batches of appropriate split size and flush to downstream
+          // route, bypassing the shuffle
+          batcher.add(task);
+          numUniDirTasks++;
         }
       }
+      // we won't see these snapshots again, so flush what we have before processing the more
+      // complex case below
+      batcher.flush();
     }
 
-    int numUniDirTasks = 0;
-    int numBiDirTasks = 0;
+    // pass over the buffered bi-directional files and analyze further
+    for (Map.Entry<Long, Map<StructLike, List<ChangelogScanTask>>> tasksInSnapshot :
+        potentiallyBidirectionalTasks.entrySet()) {
+      long snapshotId = tasksInSnapshot.getKey();
+      SnapshotBuffer uniBuffer =
+          new SnapshotBuffer(
+              tableIdentifier,
+              snapshotId,
+              splitSize,
+              multiOutputReceiver.get(UNIDIRECTIONAL_CHANGES));
+      SnapshotBuffer biBuffer =
+          new SnapshotBuffer(
+              tableIdentifier,
+              snapshotId,
+              splitSize,
+              multiOutputReceiver.get(BIDIRECTIONAL_CHANGES));
 
-    for (Map.Entry<Long, List<List<SerializableChangelogTask>>> taskGroups :
-        changelogScanTasks.entrySet()) {
-      long snapshotId = taskGroups.getKey();
-      long timestampMillis = checkStateNotNull(snapshotMap.get(snapshotId)).getTimestampMillis();
-      Instant timestamp = Instant.ofEpochMilli(timestampMillis);
-      String operation =
-          checkStateNotNull(checkStateNotNull(snapshotMap.get(snapshotId)).getOperation());
+      if (snapshotsWithUnpinnedSpecs.contains(snapshotId)) {
+        // Records are not pinned to partition
+        // We need to compare the underlying files in the whole snapshot
+        List<ChangelogScanTask> tasks = new ArrayList<>();
+        tasksInSnapshot.getValue().values().forEach(tasks::addAll);
+        Pair<List<ChangelogScanTask>, List<ChangelogScanTask>> uniBirTasks =
+            analyzeFiles(tasks, schema, idComp);
 
-      ChangelogDescriptor descriptor =
-          ChangelogDescriptor.builder()
-              .setTableIdentifierString(checkStateNotNull(startSnapshot.getTableIdentifierString()))
-              .build();
+        uniBirTasks.first().forEach(uniBuffer::add);
+        uniBirTasks.second().forEach(biBuffer::add);
 
-      for (List<SerializableChangelogTask> subgroup : taskGroups.getValue()) {
-        // Determine where each ordinal's tasks will go, based on the type of changes:
-        // 1. If an ordinal's changes are unidirectional (i.e. only inserts or only deletes), they
-        // should be processed directly in the fast path.
-        // 2. If an ordinal's changes are bidirectional (i.e. both inserts and deletes), they will
-        // need more careful processing to determine if any updates have occurred.
-        List<SerializableChangelogTask> uniDirTasks = new ArrayList<>();
-        List<SerializableChangelogTask> biDirTasks = new ArrayList<>();
+        // metrics
+        numUniDirTasks += uniBirTasks.first().size();
 
-        switch (operation) {
-          case DataOperations.DELETE:
-          case DataOperations.APPEND:
-            // indicates a uni-directional change
-            uniDirTasks = subgroup;
-            break;
-          case DataOperations.OVERWRITE:
-            // indicates bi-directional changes occurred
-            if (rowsPinnedToPartition) {
-              // if partitions are sourced from PK, we guarantee no cross-partition changes,
-              // so we can further drill down and only include bi-directional changes within a
-              // partition
-              Map<String, Set<SerializableChangelogTask.Type>> changeTypesPerPartition =
-                  checkStateNotNull(changeTypesPerPartitionPerSnapshot.get(snapshotId));
-              for (SerializableChangelogTask task : subgroup) {
-                Set<SerializableChangelogTask.Type> partitionChangeTypes =
-                    checkStateNotNull(
-                        changeTypesPerPartition.get(task.getDataFile().getPartitionPath()));
+        numBiDirTasks += uniBirTasks.second().size();
+        System.out.println("\t\tUnpinned spec:");
+        for (ChangelogScanTask task : tasks) {
+          System.out.printf(
+              "\t\t\t(%s) DF: %s\n",
+              task.getClass().getSimpleName(), name(getDataFile(task).location()));
+          for (DeleteFile delf : getDeleteFiles(task)) {
+            System.out.println("\t\t\tAdded DelF: " + name(delf.location()));
+          }
+        }
+      } else {
+        // Records are pinned to partition
+        // We can narrow down by only comparing the underlying files within each partition
+        for (Map.Entry<StructLike, List<ChangelogScanTask>> tasksInPartition :
+            tasksInSnapshot.getValue().entrySet()) {
+          Pair<List<ChangelogScanTask>, List<ChangelogScanTask>> uniBirTasks =
+              analyzeFiles(tasksInPartition.getValue(), schema, idComp);
 
-                if (containsBiDirectionalChanges(partitionChangeTypes)) {
-                  biDirTasks.add(task);
-                } else {
-                  uniDirTasks.add(task);
-                }
-              }
-            } else {
-              // otherwise, cross-partition change may occur (e.g. an update occurs by deleting a
-              // record in partition A, then inserting the new record in partition B).
-              // we must CoGBK all the task records to identify updates
-              biDirTasks = subgroup;
+          uniBirTasks.first().forEach(uniBuffer::add);
+          uniBirTasks.second().forEach(biBuffer::add);
+
+          // metrics
+          numUniDirTasks += uniBirTasks.first().size();
+          numBiDirTasks += uniBirTasks.second().size();
+
+          // TODO: remove debug printing
+          System.out.printf("\t\tPartition '%s' bidirectional:\n", tasksInPartition.getKey());
+          for (ChangelogScanTask task : tasksInPartition.getValue()) {
+            System.out.printf(
+                "\t\t\t(%s) DF: %s\n",
+                task.getClass().getSimpleName(), name(getDataFile(task).location()));
+            for (DeleteFile delf : getDeleteFiles(task)) {
+              System.out.println("\t\t\tAdded DelF: " + name(delf.location()));
             }
-            break;
-          default:
-            // IncrementalChangelogScan skips REPLACE operations
-            throw new IllegalStateException(
-                String.format(
-                    "Changelog scan produced snapshot %s with unexpected operation '%s'.",
-                    snapshotId, operation));
-        }
-
-        if (!uniDirTasks.isEmpty()) {
-          KV<ChangelogDescriptor, List<SerializableChangelogTask>> uniDirOutput =
-              KV.of(descriptor, uniDirTasks);
-          multiOutputReceiver
-              .get(UNIDIRECTIONAL_CHANGES)
-              .outputWithTimestamp(uniDirOutput, timestamp);
-          numUniDirTasks += uniDirTasks.size();
-        }
-        if (!biDirTasks.isEmpty()) {
-          KV<ChangelogDescriptor, List<SerializableChangelogTask>> biDirOutput =
-              KV.of(descriptor, biDirTasks);
-          multiOutputReceiver
-              .get(BIDIRECTIONAL_CHANGES)
-              .outputWithTimestamp(biDirOutput, timestamp);
-          numBiDirTasks += biDirTasks.size();
+          }
         }
       }
+
+      // we won't see this snapshot again, so flush what we have and continue processing the next
+      // snapshot's metadata
+      uniBuffer.flush();
+      biBuffer.flush();
     }
 
     int totalTasks = numAddedRowsTasks + numDeletedRowsTasks + numDeletedFileTasks;
@@ -309,7 +432,7 @@ public class ChangelogScanner
 
     LOG.info(
         "Snapshots [{}, {}] produced {} tasks:\n\t{} AddedRowsScanTasks\n\t{} DeletedRowsScanTasks\n\t{} DeletedDataFileScanTasks\n"
-            + "Observed {} uni-directional tasks and {} bi-directional tasks, using per-{} mapping.",
+            + "Observed {} uni-directional tasks and {} bi-directional tasks.",
         startSnapshot.getSnapshotId(),
         endSnapshot.getSnapshotId(),
         totalTasks,
@@ -317,14 +440,207 @@ public class ChangelogScanner
         numDeletedRowsTasks,
         numDeletedFileTasks,
         numUniDirTasks,
-        numBiDirTasks,
-        rowsPinnedToPartition ? "partition" : "ordinal");
+        numBiDirTasks);
   }
 
   /** Checks if a set of change types include both inserts and deletes. */
   private static boolean containsBiDirectionalChanges(
       Set<SerializableChangelogTask.Type> changeTypes) {
     return changeTypes.contains(ADDED_ROWS) && changeTypes.size() > 1;
+  }
+
+  /**
+   * Analyzes all tasks in the given list by comparing the bounds of each task's underlying files.
+   * If a task's partition key bounds overlap with an opposing task's partition key bounds, they are
+   * both considered bi-directional changes. If a task's bounds do not overlap with any opposing
+   * task's bounds, it is considered a uni-directional change.
+   *
+   * <p>Note: "opposing" refers to a change that happens in the opposite direction (e.g. insert is
+   * "positive", delete is "negative")
+   */
+  private Pair<List<ChangelogScanTask>, List<ChangelogScanTask>> analyzeFiles(
+      List<ChangelogScanTask> tasks, Schema schema, Comparator<StructLike> idComp) {
+    // separate insert and delete tasks
+    List<TaskAndBounds> insertTasks = new ArrayList<>();
+    List<TaskAndBounds> deleteTasks = new ArrayList<>();
+    try {
+      for (ChangelogScanTask task : tasks) {
+        if (task instanceof AddedRowsScanTask) {
+          insertTasks.add(TaskAndBounds.of(task, schema, idComp));
+        } else {
+          deleteTasks.add(TaskAndBounds.of(task, schema, idComp));
+        }
+      }
+    } catch (TaskAndBounds.NoBoundMetricsException e) {
+      // if metrics are not fully available, we need to play it safe and shuffle all the tasks.
+      return Pair.of(Collections.emptyList(), tasks);
+    }
+
+    // check for any overlapping delete and insert tasks
+    for (TaskAndBounds insertTask : insertTasks) {
+      for (TaskAndBounds deleteTask : deleteTasks) {
+        deleteTask.checkOverlapWith(insertTask, idComp);
+      }
+    }
+
+    // collect results and return.
+    // overlapping tasks are bidirectional.
+    // otherwise they are unidirectional.
+    List<ChangelogScanTask> unidirectional = new ArrayList<>();
+    List<ChangelogScanTask> bidirectional = new ArrayList<>();
+
+    for (List<TaskAndBounds> boundsList : Arrays.asList(deleteTasks, insertTasks)) {
+      for (TaskAndBounds taskAndBounds : boundsList) {
+        String msg = "";
+        if (taskAndBounds.overlaps) {
+          msg +=
+              String.format(
+                  "overlapping task: (%s, %s)",
+                  taskAndBounds.task.commitSnapshotId(),
+                  taskAndBounds.task.getClass().getSimpleName());
+          bidirectional.add(taskAndBounds.task);
+        } else {
+          unidirectional.add(taskAndBounds.task);
+          msg +=
+              String.format(
+                  "NON-overlapping task: (%s, %s)",
+                  taskAndBounds.task.commitSnapshotId(),
+                  taskAndBounds.task.getClass().getSimpleName());
+        }
+        msg += "\n\tDF: " + name(getDataFile(taskAndBounds.task).location());
+        msg += "\n\t\tlower: " + taskAndBounds.lowerId + ", upper: " + taskAndBounds.upperId;
+        if (!getDeleteFiles(taskAndBounds.task).isEmpty()) {
+          for (DeleteFile df : getDeleteFiles(taskAndBounds.task)) {
+            msg += "\n\tAdded DelF: " + name(df.location());
+            msg += "\n\t\tlower: " + taskAndBounds.lowerId + ", upper: " + taskAndBounds.upperId;
+          }
+        }
+        System.out.println(msg);
+      }
+    }
+    return Pair.of(unidirectional, bidirectional);
+  }
+
+  /**
+   * Wraps the {@link ChangelogScanTask}, and stores its lower and upper Primary Keys. Identifies
+   * overlaps with other tasks by comparing lower and upper keys using Iceberg libraries.
+   */
+  static class TaskAndBounds {
+    ChangelogScanTask task;
+    StructLike lowerId;
+    StructLike upperId;
+    boolean overlaps = false;
+
+    private TaskAndBounds(ChangelogScanTask task, StructLike lowerId, StructLike upperId) {
+      this.task = task;
+      this.lowerId = lowerId;
+      this.upperId = upperId;
+    }
+
+    static TaskAndBounds of(ChangelogScanTask task, Schema schema, Comparator<StructLike> idComp)
+        throws NoBoundMetricsException {
+      Schema recIdSchema = TypeUtil.select(schema, schema.identifierFieldIds());
+      GenericRecord wrapper = GenericRecord.create(recIdSchema);
+      @MonotonicNonNull GenericRecord lowerId = null;
+      @MonotonicNonNull GenericRecord upperId = null;
+
+      if (task instanceof AddedRowsScanTask || task instanceof DeletedDataFileScanTask) {
+        // just store the bounds of the DataFile
+        DataFile df = getDataFile(task);
+        @Nullable Map<Integer, ByteBuffer> lowerBounds = df.lowerBounds();
+        @Nullable Map<Integer, ByteBuffer> upperBounds = df.upperBounds();
+        if (lowerBounds == null || upperBounds == null) {
+          throw new NoBoundMetricsException(
+              String.format(
+                  "Upper and/or lower bounds are missing for %s with DataFile: %s.",
+                  task.getClass().getSimpleName(), name(df.location())));
+        }
+
+        lowerId = fillValues(wrapper, schema, lowerBounds);
+        upperId = fillValues(wrapper, schema, upperBounds);
+      } else if (task instanceof DeletedRowsScanTask) {
+        // iterate over all added DeleteFiles and keep track of only the
+        // minimum and maximum bounds over the list
+        for (DeleteFile deleteFile : getDeleteFiles(task)) {
+          @Nullable Map<Integer, ByteBuffer> lowerDelBounds = deleteFile.lowerBounds();
+          @Nullable Map<Integer, ByteBuffer> upperDelBounds = deleteFile.upperBounds();
+          if (lowerDelBounds == null || upperDelBounds == null) {
+            throw new NoBoundMetricsException(
+                String.format(
+                    "Upper and/or lower bounds are missing for %s with "
+                        + "DataFile '%s' and DeleteFile '%s'",
+                    task.getClass().getSimpleName(),
+                    name(getDataFile(task).location()),
+                    name(deleteFile.location())));
+          }
+
+          GenericRecord delFileLower = fillValues(wrapper, schema, lowerDelBounds);
+          GenericRecord delFileUpper = fillValues(wrapper, schema, upperDelBounds);
+
+          if (lowerId == null || idComp.compare(delFileLower, lowerId) < 0) {
+            lowerId = delFileLower;
+          }
+          if (upperId == null || idComp.compare(delFileUpper, upperId) > 0) {
+            upperId = delFileUpper;
+          }
+        }
+      } else {
+        throw new UnsupportedOperationException(
+            "Unsupported task type: " + task.getClass().getSimpleName());
+      }
+
+      if (lowerId == null || upperId == null) {
+        throw new NoBoundMetricsException(
+            String.format(
+                "Could not compute min and/or max bounds for %s with DataFile: %s",
+                task.getClass().getSimpleName(), getDataFile(task).location()));
+      }
+      return new TaskAndBounds(task, lowerId, upperId);
+    }
+
+    /**
+     * Compares itself with another task. If the bounds overlap, sets {@link #overlaps} to true for
+     * both tasks.
+     */
+    private void checkOverlapWith(TaskAndBounds other, Comparator<StructLike> idComp) {
+      if (overlaps && other.overlaps) {
+        return;
+      }
+
+      int left = idComp.compare(lowerId, other.upperId);
+      int right = idComp.compare(other.lowerId, upperId);
+
+      if (left <= 0 && right <= 0) {
+        overlaps = true;
+        other.overlaps = true;
+      }
+    }
+
+    private static GenericRecord fillValues(
+        GenericRecord wrapper, Schema schema, Map<Integer, ByteBuffer> bounds)
+        throws NoBoundMetricsException {
+      for (Types.NestedField field : schema.columns()) {
+        int idx = field.fieldId();
+        Type type = field.type();
+        String name = field.name();
+        if (!schema.identifierFieldIds().contains(idx)) {
+          continue;
+        }
+        @Nullable ByteBuffer value = bounds.get(idx);
+        if (value == null) {
+          throw new NoBoundMetricsException("Could not fetch metric value for column: " + name);
+        }
+        Object data = checkStateNotNull(Conversions.fromByteBuffer(type, value));
+        wrapper.setField(name, data);
+      }
+      return wrapper.copy();
+    }
+
+    static class NoBoundMetricsException extends NullPointerException {
+      public NoBoundMetricsException(String msg) {
+        super(msg);
+      }
+    }
   }
 
   /** Checks if all partition fields are derived from record identifier fields. */
@@ -341,5 +657,129 @@ public class ChangelogScanner
     }
 
     return true;
+  }
+
+  class TaskBatcher {
+    Map<Long, SnapshotBuffer> taskBuffers = new HashMap<>();
+    final long maxSplitSize;
+    final String tableIdentifier;
+    final OutputReceiver<KV<ChangelogDescriptor, List<SerializableChangelogTask>>> output;
+
+    TaskBatcher(
+        String tableIdentifier,
+        long maxSplitSize,
+        OutputReceiver<KV<ChangelogDescriptor, List<SerializableChangelogTask>>> output) {
+      this.tableIdentifier = tableIdentifier;
+      this.maxSplitSize = maxSplitSize;
+      this.output = output;
+    }
+
+    void add(ChangelogScanTask task) {
+      taskBuffers
+          .computeIfAbsent(
+              task.commitSnapshotId(),
+              (id) -> new SnapshotBuffer(tableIdentifier, id, maxSplitSize, output))
+          .add(task);
+    }
+
+    void flush() {
+      taskBuffers.values().forEach(SnapshotBuffer::flush);
+    }
+  }
+
+  class SnapshotBuffer {
+    List<ChangelogScanTask> tasks = new ArrayList<>();
+    long byteSize = 0L;
+    final long maxSplitSize;
+    final String tableIdentifier;
+    final long snapshotId;
+    final OutputReceiver<KV<ChangelogDescriptor, List<SerializableChangelogTask>>> output;
+
+    SnapshotBuffer(
+        String tableIdentifier,
+        long snapshotId,
+        long maxSplitSize,
+        OutputReceiver<KV<ChangelogDescriptor, List<SerializableChangelogTask>>> output) {
+      this.tableIdentifier = tableIdentifier;
+      this.snapshotId = snapshotId;
+      this.maxSplitSize = maxSplitSize;
+      this.output = output;
+    }
+
+    boolean canTake(ChangelogScanTask task) {
+      return byteSize + task.sizeBytes() <= maxSplitSize;
+    }
+
+    void add(ChangelogScanTask task) {
+      if (!canTake(task)) {
+        flush();
+      }
+      byteSize += task.sizeBytes();
+      tasks.add(task);
+    }
+
+    void flush() {
+      ChangelogDescriptor descriptor =
+          ChangelogDescriptor.builder().setTableIdentifierString(tableIdentifier).build();
+      Instant timestamp =
+          Instant.ofEpochMilli(checkStateNotNull(snapshotMap.get(snapshotId)).getTimestampMillis());
+
+      List<SerializableChangelogTask> serializableTasks =
+          tasks.stream().map(SerializableChangelogTask::from).collect(Collectors.toList());
+
+      output.outputWithTimestamp(KV.of(descriptor, serializableTasks), timestamp);
+
+      byteSize = 0;
+      tasks = new ArrayList<>();
+    }
+  }
+
+  // TODO: remove
+  private static DataFile getDataFile(ChangelogScanTask task) {
+    if (task instanceof AddedRowsScanTask) {
+      return ((AddedRowsScanTask) task).file();
+    } else if (task instanceof DeletedRowsScanTask) {
+      return ((DeletedRowsScanTask) task).file();
+    } else if (task instanceof DeletedDataFileScanTask) {
+      return ((DeletedDataFileScanTask) task).file();
+    }
+    throw new IllegalStateException("Unknown task type: " + task.getClass());
+  }
+
+  private static List<DeleteFile> getDeleteFiles(ChangelogScanTask task) {
+    if (task instanceof AddedRowsScanTask) {
+      return Collections.emptyList();
+    } else if (task instanceof DeletedRowsScanTask) {
+      return ((DeletedRowsScanTask) task).addedDeletes();
+    } else if (task instanceof DeletedDataFileScanTask) {
+      return Collections.emptyList();
+    }
+    throw new IllegalStateException("Unknown task type: " + task.getClass());
+  }
+
+  private static StructLike getPartition(ChangelogScanTask task) {
+    if (task instanceof AddedRowsScanTask) {
+      return ((AddedRowsScanTask) task).partition();
+    } else if (task instanceof DeletedRowsScanTask) {
+      return ((DeletedRowsScanTask) task).partition();
+    } else if (task instanceof DeletedDataFileScanTask) {
+      return ((DeletedDataFileScanTask) task).partition();
+    }
+    throw new IllegalStateException("Unknown task type: " + task.getClass());
+  }
+
+  private static int getSpecId(ChangelogScanTask task) {
+    if (task instanceof AddedRowsScanTask) {
+      return ((AddedRowsScanTask) task).spec().specId();
+    } else if (task instanceof DeletedRowsScanTask) {
+      return ((DeletedRowsScanTask) task).spec().specId();
+    } else if (task instanceof DeletedDataFileScanTask) {
+      return ((DeletedDataFileScanTask) task).spec().specId();
+    }
+    throw new IllegalStateException("Unknown task type: " + task.getClass());
+  }
+
+  static String name(String path) {
+    return Iterables.getLast(Splitter.on("-").split(path));
   }
 }
