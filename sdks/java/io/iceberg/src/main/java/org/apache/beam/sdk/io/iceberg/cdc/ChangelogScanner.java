@@ -68,7 +68,7 @@ import org.slf4j.LoggerFactory;
  *       shuffle</b> and are output immediately.
  *   <li><b>Bidirectional (Slow Path):</b> If an ordinal contains a mix of inserts and deletes, its
  *       tasks are emitted to {@link #BIDIRECTIONAL_CHANGES}. These records are grouped by Primary
- *       Key and processed by {@link ReconcileChanges} to identify potential updates.
+ *       Key and processed by {@link ResolveChanges} to identify potential updates.
  * </ol>
  *
  * <h2>Optimizing by Shuffling Less Data</h2>

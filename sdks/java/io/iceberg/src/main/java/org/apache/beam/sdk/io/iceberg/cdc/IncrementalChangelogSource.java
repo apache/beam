@@ -19,8 +19,8 @@ package org.apache.beam.sdk.io.iceberg.cdc;
 
 import static org.apache.beam.sdk.io.iceberg.cdc.ChangelogScanner.BIDIRECTIONAL_CHANGES;
 import static org.apache.beam.sdk.io.iceberg.cdc.ChangelogScanner.UNIDIRECTIONAL_CHANGES;
-import static org.apache.beam.sdk.io.iceberg.cdc.ReconcileChanges.DELETES;
-import static org.apache.beam.sdk.io.iceberg.cdc.ReconcileChanges.INSERTS;
+import static org.apache.beam.sdk.io.iceberg.cdc.ResolveChanges.DELETES;
+import static org.apache.beam.sdk.io.iceberg.cdc.ResolveChanges.INSERTS;
 
 import java.util.List;
 import org.apache.beam.sdk.io.iceberg.IcebergScanConfig;
@@ -87,7 +87,7 @@ public class IncrementalChangelogSource extends IncrementalScanSource {
         KeyedPCollectionTuple.of(INSERTS, outputRows.keyedInserts())
             .and(DELETES, outputRows.keyedDeletes())
             .apply("CoGroupBy Primary Key", CoGroupByKey.create())
-            .apply("Reconcile Updates-Inserts-Deletes", ParDo.of(new ReconcileChanges()))
+            .apply("Resolve Delete-Insert Pairs", ParDo.of(new ResolveChanges()))
             .setRowSchema(IcebergUtils.icebergSchemaToBeamSchema(scanConfig.getProjectedSchema()));
 
     // Merge uni-directional and bi-directional outputs

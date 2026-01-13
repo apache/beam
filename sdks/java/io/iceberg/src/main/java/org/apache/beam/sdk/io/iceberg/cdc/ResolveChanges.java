@@ -38,7 +38,7 @@ import org.apache.beam.sdk.values.TupleTag;
  * in a window with the same timestamp, erasing individual record timestamps. This DoFn preserves it
  * by outputting records with their reified timestamps.
  */
-public class ReconcileChanges extends DoFn<KV<Row, CoGbkResult>, Row> {
+public class ResolveChanges extends DoFn<KV<Row, CoGbkResult>, Row> {
   public static final TupleTag<TimestampedValue<Row>> DELETES = new TupleTag<>() {};
   public static final TupleTag<TimestampedValue<Row>> INSERTS = new TupleTag<>() {};
 
