@@ -237,6 +237,9 @@ public class BeamRowToStorageApiProto {
         TableFieldSchema elementFieldSchema =
             fieldDescriptorFromBeamField(Field.of(field.getName(), elementType));
         builder = builder.setType(elementFieldSchema.getType());
+        if (elementFieldSchema.hasTimestampPrecision()) {
+          builder = builder.setTimestampPrecision(elementFieldSchema.getTimestampPrecision());
+        }
         builder.addAllFields(elementFieldSchema.getFieldsList());
         builder = builder.setMode(TableFieldSchema.Mode.REPEATED);
         break;
