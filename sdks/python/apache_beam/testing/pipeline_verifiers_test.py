@@ -39,6 +39,7 @@ try:
   # pylint: disable=ungrouped-imports
   from google.api_core.exceptions import GoogleAPICallError
   from google.api_core.exceptions import NotFound
+
   from apache_beam.io.gcp.gcsfilesystem import GCSFileSystem
 except ImportError:
   GoogleAPICallError = None  # type: ignore
