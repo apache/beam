@@ -69,6 +69,10 @@ public class BeamRowToStorageApiProtoTest {
       Schema.builder()
           .addField("timestampNanos", FieldType.logicalType(Timestamp.NANOS).withNullable(true))
           .build();
+  private static final Schema TIMESTAMP_NANOS_ARRAY_SCHEMA =
+      Schema.builder()
+          .addField("timestampNanosArray", FieldType.array(FieldType.logicalType(Timestamp.NANOS)))
+          .build();
   private static final EnumerationType TEST_ENUM =
       EnumerationType.create("ONE", "TWO", "RED", "BLUE");
   private static final Schema BASE_SCHEMA =
@@ -611,6 +615,19 @@ public class BeamRowToStorageApiProtoTest {
     assertEquals(1, protoSchema.getFieldsCount());
     TableFieldSchema field = protoSchema.getFields(0);
     assertEquals(TableFieldSchema.Type.TIMESTAMP, field.getType());
+    assertEquals(12L, field.getTimestampPrecision().getValue());
+  }
+
+  @Test
+  public void testTimestampNanosArraySchema() {
+    com.google.cloud.bigquery.storage.v1.TableSchema protoSchema =
+        BeamRowToStorageApiProto.protoTableSchemaFromBeamSchema(TIMESTAMP_NANOS_ARRAY_SCHEMA);
+
+    assertEquals(1, protoSchema.getFieldsCount());
+    TableFieldSchema field = protoSchema.getFields(0);
+    assertEquals(TableFieldSchema.Type.TIMESTAMP, field.getType());
+    assertEquals(
+        com.google.cloud.bigquery.storage.v1.TableFieldSchema.Mode.REPEATED, field.getMode());
     assertEquals(12L, field.getTimestampPrecision().getValue());
   }
 
