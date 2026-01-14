@@ -23,6 +23,7 @@ import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Pr
 import com.solacesystems.jcsmp.BytesXMLMessage;
 import com.solacesystems.jcsmp.JCSMPException;
 import com.solacesystems.jcsmp.XMLMessage;
+import com.solacesystems.jcsmp.XMLMessage.Outcome;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
@@ -33,7 +34,6 @@ import java.util.UUID;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executors;
-import java.util.concurrent.Future;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
@@ -43,6 +43,7 @@ import org.apache.beam.sdk.io.solace.broker.SempClient;
 import org.apache.beam.sdk.io.solace.broker.SessionService;
 import org.apache.beam.sdk.io.solace.broker.SessionServiceFactory;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
+import org.apache.beam.sdk.values.KV;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.cache.Cache;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.cache.CacheBuilder;
@@ -54,7 +55,7 @@ import org.slf4j.LoggerFactory;
 
 /** Unbounded Reader to read messages from a Solace Router. */
 @VisibleForTesting
-class UnboundedSolaceReader<T> extends UnboundedReader<T> {
+class UnboundedSolaceReader<T> extends UnboundedReader<KV<Long, T>> {
 
   private static final Logger LOG = LoggerFactory.getLogger(UnboundedSolaceReader.class);
   private final UnboundedSolaceSource<T> currentSource;
@@ -63,8 +64,7 @@ class UnboundedSolaceReader<T> extends UnboundedReader<T> {
   private final UUID readerUuid;
   private final SessionServiceFactory sessionServiceFactory;
   private @Nullable BytesXMLMessage solaceOriginalRecord;
-  private @Nullable T solaceMappedRecord;
-  private @Nullable Future<?> nackCallback = null;
+  private @Nullable KV<Long, T> solaceMappedRecord;
   private final int ackDeadlineSeconds;
 
   /**
@@ -157,8 +157,18 @@ class UnboundedSolaceReader<T> extends UnboundedReader<T> {
       return false;
     }
     solaceOriginalRecord = receivedXmlMessage;
-    solaceMappedRecord = getCurrentSource().getParseFn().apply(receivedXmlMessage);
-    receivedMessages.add(receivedXmlMessage);
+    T apply = getCurrentSource().getParseFn().apply(receivedXmlMessage);
+    if (apply == null) {
+      try {
+        receivedXmlMessage.settle(Outcome.REJECTED);
+      } catch (JCSMPException e) {
+        LOG.warn("SolaceIO.Read: Exception when rejecting null message.", e);
+      }
+    } else {
+      long msgId = receivedXmlMessage.getMessageIdLong();
+      solaceMappedRecord = KV.of(msgId, apply);
+      receivedMessages.add(receivedXmlMessage);
+    }
 
     return true;
   }
@@ -204,16 +214,12 @@ class UnboundedSolaceReader<T> extends UnboundedReader<T> {
   public UnboundedSource.CheckpointMark getCheckpointMark() {
     Queue<BytesXMLMessage> safeToAckMessages = new ConcurrentLinkedQueue<>();
     safeToAckMessages.addAll(receivedMessages);
-    getSessionService(); // poke cache
     receivedMessages.clear();
-    nackCallback =
-        nackExecutorPool.schedule(
-            () -> nackMessages(safeToAckMessages), ackDeadlineSeconds, TimeUnit.SECONDS);
-    return new SolaceCheckpointMark(safeToAckMessages, nackCallback);
+    return new SolaceCheckpointMark(safeToAckMessages);
   }
 
   @Override
-  public T getCurrent() throws NoSuchElementException {
+  public KV<Long, T> getCurrent() throws NoSuchElementException {
     if (solaceMappedRecord == null) {
       throw new NoSuchElementException();
     }
@@ -247,7 +253,7 @@ class UnboundedSolaceReader<T> extends UnboundedReader<T> {
     if (getCurrent() == null) {
       throw new NoSuchElementException();
     }
-    return currentSource.getTimestampFn().apply(getCurrent());
+    return currentSource.getTimestampFn().apply(getCurrent().getValue());
   }
 
   @Override

@@ -24,12 +24,15 @@ import java.util.ArrayList;
 import java.util.List;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.coders.KvCoder;
+import org.apache.beam.sdk.coders.VarLongCoder;
 import org.apache.beam.sdk.extensions.avro.coders.AvroCoder;
 import org.apache.beam.sdk.io.UnboundedSource;
 import org.apache.beam.sdk.io.solace.broker.SempClientFactory;
 import org.apache.beam.sdk.io.solace.broker.SessionServiceFactory;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.SerializableFunction;
+import org.apache.beam.sdk.values.KV;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
@@ -37,7 +40,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 @Internal
-public class UnboundedSolaceSource<T> extends UnboundedSource<T, SolaceCheckpointMark> {
+public class UnboundedSolaceSource<T> extends UnboundedSource<KV<Long, T>, SolaceCheckpointMark> {
   private static final long serialVersionUID = 42L;
   private static final Logger LOG = LoggerFactory.getLogger(UnboundedSolaceSource.class);
   private final Queue queue;
@@ -103,7 +106,7 @@ public class UnboundedSolaceSource<T> extends UnboundedSource<T, SolaceCheckpoin
   }
 
   @Override
-  public UnboundedReader<T> createReader(
+  public UnboundedReader<KV<Long, T>> createReader(
       PipelineOptions options, @Nullable SolaceCheckpointMark checkpointMark) {
     // it makes no sense to resume a Solace Session with the previous checkpoint
     // so don't need the pass a checkpoint to new a Solace Reader
@@ -154,8 +157,8 @@ public class UnboundedSolaceSource<T> extends UnboundedSource<T, SolaceCheckpoin
   }
 
   @Override
-  public Coder<T> getOutputCoder() {
-    return coder;
+  public Coder<KV<Long, T>> getOutputCoder() {
+    return KvCoder.of(VarLongCoder.of(), coder);
   }
 
   @Override

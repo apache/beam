@@ -135,6 +135,9 @@ public abstract class MockSessionService extends SessionService {
     public void close() {}
 
     @Override
+    public void ack(Long id) {}
+
+    @Override
     public boolean isEOF() {
       return counter.get() >= minMessagesReceived;
     }

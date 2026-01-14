@@ -21,6 +21,7 @@ import com.solacesystems.jcsmp.BytesXMLMessage;
 import com.solacesystems.jcsmp.FlowReceiver;
 import com.solacesystems.jcsmp.JCSMPException;
 import com.solacesystems.jcsmp.StaleSessionException;
+import com.solacesystems.jcsmp.impl.flow.FlowHandle;
 import java.io.IOException;
 import org.apache.beam.sdk.io.solace.RetryCallableManager;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableSet;
@@ -64,5 +65,11 @@ public class SolaceMessageReceiver implements MessageReceiver {
   @Override
   public void close() {
     flowReceiver.close();
+  }
+
+  @Override
+  public void ack(Long id) {
+    FlowHandle flowHandle = (FlowHandle) flowReceiver;
+    flowHandle.sendSingleAck(id, true);
   }
 }

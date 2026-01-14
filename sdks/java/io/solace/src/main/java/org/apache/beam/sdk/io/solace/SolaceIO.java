@@ -41,6 +41,7 @@ import org.apache.beam.sdk.io.solace.broker.SessionServiceFactory;
 import org.apache.beam.sdk.io.solace.data.Solace;
 import org.apache.beam.sdk.io.solace.data.Solace.Record;
 import org.apache.beam.sdk.io.solace.data.Solace.SolaceRecordMapper;
+import org.apache.beam.sdk.io.solace.read.AckMessageDoFn;
 import org.apache.beam.sdk.io.solace.read.UnboundedSolaceSource;
 import org.apache.beam.sdk.io.solace.write.AddShardKeyDoFn;
 import org.apache.beam.sdk.io.solace.write.SolaceOutput;
@@ -48,10 +49,13 @@ import org.apache.beam.sdk.io.solace.write.UnboundedBatchedSolaceWriter;
 import org.apache.beam.sdk.io.solace.write.UnboundedStreamingSolaceWriter;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.schemas.NoSuchSchemaException;
+import org.apache.beam.sdk.transforms.Keys;
 import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.transforms.Redistribute;
 import org.apache.beam.sdk.transforms.SerializableFunction;
+import org.apache.beam.sdk.transforms.Values;
 import org.apache.beam.sdk.transforms.errorhandling.BadRecord;
 import org.apache.beam.sdk.transforms.errorhandling.ErrorHandler;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindows;
@@ -762,19 +766,27 @@ public class SolaceIO {
 
       Coder<T> coder = inferCoder(input.getPipeline(), configuration.getTypeDescriptor());
 
-      return input.apply(
-          org.apache.beam.sdk.io.Read.from(
-              new UnboundedSolaceSource<>(
-                  initializedQueue,
-                  sempClientFactory,
-                  sessionServiceFactory,
-                  configuration.getMaxNumConnections(),
-                  configuration.getDeduplicateRecords(),
-                  coder,
-                  configuration.getTimestampFn(),
-                  configuration.getWatermarkIdleDurationThreshold(),
-                  configuration.getParseFn(),
-                  configuration.getAckDeadlineSeconds())));
+      PCollection<KV<Long, T>> messages =
+          input.apply(
+              org.apache.beam.sdk.io.Read.from(
+                  new UnboundedSolaceSource<>(
+                      initializedQueue,
+                      sempClientFactory,
+                      sessionServiceFactory,
+                      configuration.getMaxNumConnections(),
+                      configuration.getDeduplicateRecords(),
+                      coder,
+                      configuration.getTimestampFn(),
+                      configuration.getWatermarkIdleDurationThreshold(),
+                      configuration.getParseFn(),
+                      configuration.getAckDeadlineSeconds())));
+
+      messages
+          .apply("Keys", Keys.create())
+          .apply("Reshuffle", Redistribute.arbitrarily())
+          .apply("Ack", ParDo.of(new AckMessageDoFn(sessionServiceFactory)));
+
+      return messages.apply("Values", Values.create());
     }
 
     @VisibleForTesting

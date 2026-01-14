@@ -52,6 +52,7 @@ import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.SerializableFunction;
+import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TypeDescriptor;
@@ -392,7 +393,7 @@ public class SolaceIOReadTest {
     Read<Record> spec = getDefaultRead().withSessionServiceFactory(fakeSessionServiceFactory);
 
     UnboundedSolaceSource<Record> initialSource = getSource(spec, pipeline);
-    UnboundedReader<Record> reader =
+    UnboundedReader<KV<Long, Record>> reader =
         initialSource.createReader(PipelineOptionsFactory.create(), null);
 
     // start the reader and move to the first record
@@ -445,7 +446,7 @@ public class SolaceIOReadTest {
 
     UnboundedSolaceSource<Record> initialSource = getSource(spec, pipeline);
 
-    UnboundedReader<Record> reader =
+    UnboundedReader<KV<Long, Record>> reader =
         initialSource.createReader(PipelineOptionsFactory.create(), null);
 
     // start the reader and move to the first record
@@ -515,7 +516,7 @@ public class SolaceIOReadTest {
 
     UnboundedSolaceSource<Record> initialSource = getSource(spec, pipeline);
 
-    UnboundedReader<Record> reader =
+    UnboundedReader<KV<Long, Record>> reader =
         initialSource.createReader(PipelineOptionsFactory.create(), null);
 
     // start the reader and move to the first record

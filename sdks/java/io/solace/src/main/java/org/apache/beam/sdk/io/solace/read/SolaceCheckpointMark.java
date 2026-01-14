@@ -20,7 +20,6 @@ package org.apache.beam.sdk.io.solace.read;
 import com.solacesystems.jcsmp.BytesXMLMessage;
 import java.util.Objects;
 import java.util.Queue;
-import java.util.concurrent.Future;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.coders.DefaultCoder;
 import org.apache.beam.sdk.extensions.avro.coders.AvroCoder;
@@ -39,7 +38,6 @@ import org.slf4j.LoggerFactory;
 @VisibleForTesting
 public class SolaceCheckpointMark implements UnboundedSource.CheckpointMark {
   private static final Logger LOG = LoggerFactory.getLogger(SolaceCheckpointMark.class);
-  private transient Future<?> callback;
   private transient Queue<BytesXMLMessage> safeToAck;
 
   @SuppressWarnings("initialization") // Avro will set the fields by breaking abstraction
@@ -50,27 +48,12 @@ public class SolaceCheckpointMark implements UnboundedSource.CheckpointMark {
    *
    * @param safeToAck - a queue of {@link BytesXMLMessage} to be acknowledged.
    */
-  SolaceCheckpointMark(Queue<BytesXMLMessage> safeToAck, Future<?> callback) {
+  SolaceCheckpointMark(Queue<BytesXMLMessage> safeToAck) {
     this.safeToAck = safeToAck;
-    this.callback = callback;
   }
 
   @Override
-  public void finalizeCheckpoint() {
-    callback.cancel(false);
-    BytesXMLMessage msg;
-    while ((msg = safeToAck.poll()) != null) {
-      try {
-        msg.ackMessage();
-      } catch (IllegalStateException e) {
-        LOG.error(
-            "SolaceIO.Read: cannot acknowledge the message with applicationMessageId={}, ackMessageId={}. It will not be retried.",
-            msg.getApplicationMessageId(),
-            msg.getAckMessageId(),
-            e);
-      }
-    }
-  }
+  public void finalizeCheckpoint() {}
 
   @Override
   public boolean equals(@Nullable Object o) {
