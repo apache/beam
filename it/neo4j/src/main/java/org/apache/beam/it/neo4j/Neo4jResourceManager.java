@@ -39,6 +39,14 @@ import org.slf4j.LoggerFactory;
 import org.testcontainers.containers.Neo4jContainer;
 import org.testcontainers.utility.DockerImageName;
 
+/**
+ * Client for managing Neo4j resources.
+ *
+ * <p>The database name is formed using testId. The database name will be "{testId}-{ISO8601 time,
+ * microsecond precision}", with additional formatting.
+ *
+ * <p>The class is thread-safe.
+ */
 public class Neo4jResourceManager extends TestContainerResourceManager<Neo4jContainer<?>>
     implements ResourceManager {
 
@@ -223,7 +231,7 @@ public class Neo4jResourceManager extends TestContainerResourceManager<Neo4jCont
      * <p>Note: if a database name is set, and a static Neo4j server is being used
      * (useStaticContainer() is also called on the builder), then a database will be created on the
      * static server if it does not exist, and it will not be removed when cleanupAll() is called on
-     * the PatchNeo4jResourceManager.
+     * the Neo4jResourceManager.
      *
      * @param databaseName The database name.
      * @return this builder object with the database name set.
@@ -239,7 +247,7 @@ public class Neo4jResourceManager extends TestContainerResourceManager<Neo4jCont
      * <p>Note: if a database name is set, and a static Neo4j server is being used
      * (useStaticContainer() is also called on the builder), then a database will be created on the
      * static server if it does not exist, and it will not be removed when cleanupAll() is called on
-     * the PatchNeo4jResourceManager.
+     * the Neo4jResourceManager.
      *
      * <p>{@link DatabaseWaitOptions} exposes all configurable wait options
      *
