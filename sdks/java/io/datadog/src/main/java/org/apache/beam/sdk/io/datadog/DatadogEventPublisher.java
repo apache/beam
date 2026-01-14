@@ -217,6 +217,8 @@ public abstract class DatadogEventPublisher {
 
     abstract Builder setRequestFactory(HttpRequestFactory requestFactory);
 
+    abstract HttpRequestFactory requestFactory();
+
     abstract Builder setGenericUrl(GenericUrl genericUrl);
 
     abstract GenericUrl genericUrl();

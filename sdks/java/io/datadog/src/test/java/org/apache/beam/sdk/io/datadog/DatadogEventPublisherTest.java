@@ -74,6 +74,7 @@ public class DatadogEventPublisherTest {
         DatadogEventPublisher.newBuilder()
             .withUrl("http://example.com")
             .withApiKey("test-api-key")
+            .withMaxElapsedMillis(ExponentialBackOff.DEFAULT_MAX_ELAPSED_TIME_MILLIS)
             .build();
 
     String expectedString =
@@ -114,6 +115,7 @@ public class DatadogEventPublisherTest {
         DatadogEventPublisher.newBuilder()
             .withUrl("http://example.com")
             .withApiKey("test-api-key")
+            .withMaxElapsedMillis(ExponentialBackOff.DEFAULT_MAX_ELAPSED_TIME_MILLIS)
             .build();
 
     assertThat(
@@ -150,6 +152,7 @@ public class DatadogEventPublisherTest {
           DatadogEventPublisher.newBuilder()
               .withUrl(Joiner.on(':').join("http://localhost", mockServer.getPort()))
               .withApiKey("test-api-key")
+              .withMaxElapsedMillis(ExponentialBackOff.DEFAULT_MAX_ELAPSED_TIME_MILLIS)
               .build();
 
       DatadogEvent event =
@@ -169,7 +172,7 @@ public class DatadogEventPublisherTest {
               .withContentType(MediaType.APPLICATION_JSON)
               .withHeader("dd-api-key", "test-api-key")
               .withHeader("dd-evp-origin", "dataflow")
-              .withHeader("content-encoding", "gzip"),
+              .withHeader("Accept-Encoding", "gzip"),
           VerificationTimes.once());
     }
   }
