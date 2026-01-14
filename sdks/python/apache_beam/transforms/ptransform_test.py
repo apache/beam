@@ -179,8 +179,8 @@ class PTransformTest(unittest.TestCase):
         'User code must be serializable (picklable) for distributed execution.',
         message)
     self.assertIn('non-serializable objects like file handles', message)
-    self.assertIn('Try: (1) using module-level functions instead of lambdas',
-                  message)
+    self.assertIn(
+        'Try: (1) using module-level functions instead of lambdas', message)
 
   def test_do_with_do_fn_returning_string_raises_warning(self):
     ex_details = r'.*Returning a str from a ParDo or FlatMap is discouraged.'

@@ -891,8 +891,7 @@ class PTransformWithSideInputs(PTransform):
           'non-serializable objects like file handles, database connections, '
           'or thread locks. Try: (1) using module-level functions instead of '
           'lambdas, (2) initializing resources in setup() methods, '
-          '(3) checking what your closure captures.' %
-          (self.fn, e)) from e
+          '(3) checking what your closure captures.' % (self.fn, e)) from e
 
     self.args = pickler.roundtrip(self.args)
     self.kwargs = pickler.roundtrip(self.kwargs)
