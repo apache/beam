@@ -59,31 +59,25 @@ and Beam SQL is invoked via the Managed API under the hood.
       <th>Write Configuration</th>
     </tr>
     <tr>
-      <td><strong>KAFKA</strong></td>
+      <td><strong>ICEBERG_CDC</strong></td>
       <td>
-        <strong>bootstrap_servers</strong> (<code style="color: green">str</code>)<br>
-        <strong>topic</strong> (<code style="color: green">str</code>)<br>
-        allow_duplicates (<code style="color: orange">boolean</code>)<br>
-        confluent_schema_registry_subject (<code style="color: green">str</code>)<br>
-        confluent_schema_registry_url (<code style="color: green">str</code>)<br>
-        consumer_config_updates (<code>map[<span style="color: green;">str</span>, <span style="color: green;">str</span>]</code>)<br>
-        file_descriptor_path (<code style="color: green">str</code>)<br>
-        format (<code style="color: green">str</code>)<br>
-        message_name (<code style="color: green">str</code>)<br>
-        offset_deduplication (<code style="color: orange">boolean</code>)<br>
-        redistribute_by_record_key (<code style="color: orange">boolean</code>)<br>
-        redistribute_num_keys (<code style="color: #f54251">int32</code>)<br>
-        redistributed (<code style="color: orange">boolean</code>)<br>
-        schema (<code style="color: green">str</code>)<br>
+        <strong>table</strong> (<code style="color: green">str</code>)<br>
+        catalog_name (<code style="color: green">str</code>)<br>
+        catalog_properties (<code>map[<span style="color: green;">str</span>, <span style="color: green;">str</span>]</code>)<br>
+        config_properties (<code>map[<span style="color: green;">str</span>, <span style="color: green;">str</span>]</code>)<br>
+        drop (<code>list[<span style="color: green;">str</span>]</code>)<br>
+        filter (<code style="color: green">str</code>)<br>
+        from_snapshot (<code style="color: #f54251">int64</code>)<br>
+        from_timestamp (<code style="color: #f54251">int64</code>)<br>
+        keep (<code>list[<span style="color: green;">str</span>]</code>)<br>
+        poll_interval_seconds (<code style="color: #f54251">int32</code>)<br>
+        starting_strategy (<code style="color: green">str</code>)<br>
+        streaming (<code style="color: orange">boolean</code>)<br>
+        to_snapshot (<code style="color: #f54251">int64</code>)<br>
+        to_timestamp (<code style="color: #f54251">int64</code>)<br>
       </td>
       <td>
-        <strong>bootstrap_servers</strong> (<code style="color: green">str</code>)<br>
-        <strong>format</strong> (<code style="color: green">str</code>)<br>
-        <strong>topic</strong> (<code style="color: green">str</code>)<br>
-        file_descriptor_path (<code style="color: green">str</code>)<br>
-        message_name (<code style="color: green">str</code>)<br>
-        producer_config_updates (<code>map[<span style="color: green;">str</span>, <span style="color: green;">str</span>]</code>)<br>
-        schema (<code style="color: green">str</code>)<br>
+        Unavailable
       </td>
     </tr>
     <tr>
@@ -112,25 +106,110 @@ and Beam SQL is invoked via the Managed API under the hood.
       </td>
     </tr>
     <tr>
-      <td><strong>ICEBERG_CDC</strong></td>
+      <td><strong>KAFKA</strong></td>
       <td>
-        <strong>table</strong> (<code style="color: green">str</code>)<br>
-        catalog_name (<code style="color: green">str</code>)<br>
-        catalog_properties (<code>map[<span style="color: green;">str</span>, <span style="color: green;">str</span>]</code>)<br>
-        config_properties (<code>map[<span style="color: green;">str</span>, <span style="color: green;">str</span>]</code>)<br>
-        drop (<code>list[<span style="color: green;">str</span>]</code>)<br>
-        filter (<code style="color: green">str</code>)<br>
-        from_snapshot (<code style="color: #f54251">int64</code>)<br>
-        from_timestamp (<code style="color: #f54251">int64</code>)<br>
-        keep (<code>list[<span style="color: green;">str</span>]</code>)<br>
-        poll_interval_seconds (<code style="color: #f54251">int32</code>)<br>
-        starting_strategy (<code style="color: green">str</code>)<br>
-        streaming (<code style="color: orange">boolean</code>)<br>
-        to_snapshot (<code style="color: #f54251">int64</code>)<br>
-        to_timestamp (<code style="color: #f54251">int64</code>)<br>
+        <strong>bootstrap_servers</strong> (<code style="color: green">str</code>)<br>
+        <strong>topic</strong> (<code style="color: green">str</code>)<br>
+        allow_duplicates (<code style="color: orange">boolean</code>)<br>
+        confluent_schema_registry_subject (<code style="color: green">str</code>)<br>
+        confluent_schema_registry_url (<code style="color: green">str</code>)<br>
+        consumer_config_updates (<code>map[<span style="color: green;">str</span>, <span style="color: green;">str</span>]</code>)<br>
+        file_descriptor_path (<code style="color: green">str</code>)<br>
+        format (<code style="color: green">str</code>)<br>
+        message_name (<code style="color: green">str</code>)<br>
+        offset_deduplication (<code style="color: orange">boolean</code>)<br>
+        redistribute_by_record_key (<code style="color: orange">boolean</code>)<br>
+        redistribute_num_keys (<code style="color: #f54251">int32</code>)<br>
+        redistributed (<code style="color: orange">boolean</code>)<br>
+        schema (<code style="color: green">str</code>)<br>
       </td>
       <td>
-        Unavailable
+        <strong>bootstrap_servers</strong> (<code style="color: green">str</code>)<br>
+        <strong>format</strong> (<code style="color: green">str</code>)<br>
+        <strong>topic</strong> (<code style="color: green">str</code>)<br>
+        file_descriptor_path (<code style="color: green">str</code>)<br>
+        message_name (<code style="color: green">str</code>)<br>
+        producer_config_updates (<code>map[<span style="color: green;">str</span>, <span style="color: green;">str</span>]</code>)<br>
+        schema (<code style="color: green">str</code>)<br>
+      </td>
+    </tr>
+    <tr>
+      <td><strong>POSTGRES</strong></td>
+      <td>
+        <strong>jdbc_url</strong> (<code style="color: green">str</code>)<br>
+        connection_properties (<code style="color: green">str</code>)<br>
+        fetch_size (<code style="color: #f54251">int32</code>)<br>
+        location (<code style="color: green">str</code>)<br>
+        num_partitions (<code style="color: #f54251">int32</code>)<br>
+        output_parallelization (<code style="color: orange">boolean</code>)<br>
+        partition_column (<code style="color: green">str</code>)<br>
+        password (<code style="color: green">str</code>)<br>
+        read_query (<code style="color: green">str</code>)<br>
+        username (<code style="color: green">str</code>)<br>
+      </td>
+      <td>
+        <strong>jdbc_url</strong> (<code style="color: green">str</code>)<br>
+        autosharding (<code style="color: orange">boolean</code>)<br>
+        batch_size (<code style="color: #f54251">int64</code>)<br>
+        connection_properties (<code style="color: green">str</code>)<br>
+        location (<code style="color: green">str</code>)<br>
+        password (<code style="color: green">str</code>)<br>
+        username (<code style="color: green">str</code>)<br>
+        write_statement (<code style="color: green">str</code>)<br>
+      </td>
+    </tr>
+    <tr>
+      <td><strong>SQLSERVER</strong></td>
+      <td>
+        <strong>jdbc_url</strong> (<code style="color: green">str</code>)<br>
+        connection_properties (<code style="color: green">str</code>)<br>
+        disable_auto_commit (<code style="color: orange">boolean</code>)<br>
+        fetch_size (<code style="color: #f54251">int32</code>)<br>
+        location (<code style="color: green">str</code>)<br>
+        num_partitions (<code style="color: #f54251">int32</code>)<br>
+        output_parallelization (<code style="color: orange">boolean</code>)<br>
+        partition_column (<code style="color: green">str</code>)<br>
+        password (<code style="color: green">str</code>)<br>
+        read_query (<code style="color: green">str</code>)<br>
+        username (<code style="color: green">str</code>)<br>
+      </td>
+      <td>
+        <strong>jdbc_url</strong> (<code style="color: green">str</code>)<br>
+        autosharding (<code style="color: orange">boolean</code>)<br>
+        batch_size (<code style="color: #f54251">int64</code>)<br>
+        connection_properties (<code style="color: green">str</code>)<br>
+        location (<code style="color: green">str</code>)<br>
+        password (<code style="color: green">str</code>)<br>
+        username (<code style="color: green">str</code>)<br>
+        write_statement (<code style="color: green">str</code>)<br>
+      </td>
+    </tr>
+    <tr>
+      <td><strong>MYSQL</strong></td>
+      <td>
+        <strong>jdbc_url</strong> (<code style="color: green">str</code>)<br>
+        connection_init_sql (<code>list[<span style="color: green;">str</span>]</code>)<br>
+        connection_properties (<code style="color: green">str</code>)<br>
+        disable_auto_commit (<code style="color: orange">boolean</code>)<br>
+        fetch_size (<code style="color: #f54251">int32</code>)<br>
+        location (<code style="color: green">str</code>)<br>
+        num_partitions (<code style="color: #f54251">int32</code>)<br>
+        output_parallelization (<code style="color: orange">boolean</code>)<br>
+        partition_column (<code style="color: green">str</code>)<br>
+        password (<code style="color: green">str</code>)<br>
+        read_query (<code style="color: green">str</code>)<br>
+        username (<code style="color: green">str</code>)<br>
+      </td>
+      <td>
+        <strong>jdbc_url</strong> (<code style="color: green">str</code>)<br>
+        autosharding (<code style="color: orange">boolean</code>)<br>
+        batch_size (<code style="color: #f54251">int64</code>)<br>
+        connection_init_sql (<code>list[<span style="color: green;">str</span>]</code>)<br>
+        connection_properties (<code style="color: green">str</code>)<br>
+        location (<code style="color: green">str</code>)<br>
+        password (<code style="color: green">str</code>)<br>
+        username (<code style="color: green">str</code>)<br>
+        write_statement (<code style="color: green">str</code>)<br>
       </td>
     </tr>
     <tr>
@@ -151,112 +230,410 @@ and Beam SQL is invoked via the Managed API under the hood.
         triggering_frequency_seconds (<code style="color: #f54251">int64</code>)<br>
       </td>
     </tr>
+  </table>
+</div>
+
+## Configuration Details
+
+### `ICEBERG_CDC` Read
+
+<div class="table-container-wrapper">
+  <table class="table table-bordered">
     <tr>
-      <td><strong>POSTGRES</strong></td>
+      <th>Configuration</th>
+      <th>Type</th>
+      <th>Description</th>
+    </tr>
+    <tr>
       <td>
-        <strong>jdbc_url</strong> (<code style="color: green">str</code>)<br>
-        connection_init_sql (<code>list[<span style="color: green;">str</span>]</code>)<br>
-        connection_properties (<code style="color: green">str</code>)<br>
-        disable_auto_commit (<code style="color: orange">boolean</code>)<br>
-        driver_class_name (<code style="color: green">str</code>)<br>
-        driver_jars (<code style="color: green">str</code>)<br>
-        fetch_size (<code style="color: #f54251">int32</code>)<br>
-        jdbc_type (<code style="color: green">str</code>)<br>
-        location (<code style="color: green">str</code>)<br>
-        num_partitions (<code style="color: #f54251">int32</code>)<br>
-        output_parallelization (<code style="color: orange">boolean</code>)<br>
-        partition_column (<code style="color: green">str</code>)<br>
-        password (<code style="color: green">str</code>)<br>
-        read_query (<code style="color: green">str</code>)<br>
-        username (<code style="color: green">str</code>)<br>
+        <strong>table</strong>
       </td>
       <td>
-        <strong>jdbc_url</strong> (<code style="color: green">str</code>)<br>
-        autosharding (<code style="color: orange">boolean</code>)<br>
-        batch_size (<code style="color: #f54251">int64</code>)<br>
-        connection_init_sql (<code>list[<span style="color: green;">str</span>]</code>)<br>
-        connection_properties (<code style="color: green">str</code>)<br>
-        driver_class_name (<code style="color: green">str</code>)<br>
-        driver_jars (<code style="color: green">str</code>)<br>
-        jdbc_type (<code style="color: green">str</code>)<br>
-        location (<code style="color: green">str</code>)<br>
-        password (<code style="color: green">str</code>)<br>
-        username (<code style="color: green">str</code>)<br>
-        write_statement (<code style="color: green">str</code>)<br>
+        <code style="color: green">str</code>
+      </td>
+      <td>
+        Identifier of the Iceberg table.
       </td>
     </tr>
     <tr>
-      <td><strong>SQLSERVER</strong></td>
       <td>
-        <strong>jdbc_url</strong> (<code style="color: green">str</code>)<br>
-        connection_init_sql (<code>list[<span style="color: green;">str</span>]</code>)<br>
-        connection_properties (<code style="color: green">str</code>)<br>
-        disable_auto_commit (<code style="color: orange">boolean</code>)<br>
-        driver_class_name (<code style="color: green">str</code>)<br>
-        driver_jars (<code style="color: green">str</code>)<br>
-        fetch_size (<code style="color: #f54251">int32</code>)<br>
-        jdbc_type (<code style="color: green">str</code>)<br>
-        location (<code style="color: green">str</code>)<br>
-        num_partitions (<code style="color: #f54251">int32</code>)<br>
-        output_parallelization (<code style="color: orange">boolean</code>)<br>
-        partition_column (<code style="color: green">str</code>)<br>
-        password (<code style="color: green">str</code>)<br>
-        read_query (<code style="color: green">str</code>)<br>
-        username (<code style="color: green">str</code>)<br>
+        catalog_name
       </td>
       <td>
-        <strong>jdbc_url</strong> (<code style="color: green">str</code>)<br>
-        autosharding (<code style="color: orange">boolean</code>)<br>
-        batch_size (<code style="color: #f54251">int64</code>)<br>
-        connection_init_sql (<code>list[<span style="color: green;">str</span>]</code>)<br>
-        connection_properties (<code style="color: green">str</code>)<br>
-        driver_class_name (<code style="color: green">str</code>)<br>
-        driver_jars (<code style="color: green">str</code>)<br>
-        jdbc_type (<code style="color: green">str</code>)<br>
-        location (<code style="color: green">str</code>)<br>
-        password (<code style="color: green">str</code>)<br>
-        username (<code style="color: green">str</code>)<br>
-        write_statement (<code style="color: green">str</code>)<br>
+        <code style="color: green">str</code>
+      </td>
+      <td>
+        Name of the catalog containing the table.
       </td>
     </tr>
     <tr>
-      <td><strong>MYSQL</strong></td>
       <td>
-        <strong>jdbc_url</strong> (<code style="color: green">str</code>)<br>
-        connection_init_sql (<code>list[<span style="color: green;">str</span>]</code>)<br>
-        connection_properties (<code style="color: green">str</code>)<br>
-        disable_auto_commit (<code style="color: orange">boolean</code>)<br>
-        driver_class_name (<code style="color: green">str</code>)<br>
-        driver_jars (<code style="color: green">str</code>)<br>
-        fetch_size (<code style="color: #f54251">int32</code>)<br>
-        jdbc_type (<code style="color: green">str</code>)<br>
-        location (<code style="color: green">str</code>)<br>
-        num_partitions (<code style="color: #f54251">int32</code>)<br>
-        output_parallelization (<code style="color: orange">boolean</code>)<br>
-        partition_column (<code style="color: green">str</code>)<br>
-        password (<code style="color: green">str</code>)<br>
-        read_query (<code style="color: green">str</code>)<br>
-        username (<code style="color: green">str</code>)<br>
+        catalog_properties
       </td>
       <td>
-        <strong>jdbc_url</strong> (<code style="color: green">str</code>)<br>
-        autosharding (<code style="color: orange">boolean</code>)<br>
-        batch_size (<code style="color: #f54251">int64</code>)<br>
-        connection_init_sql (<code>list[<span style="color: green;">str</span>]</code>)<br>
-        connection_properties (<code style="color: green">str</code>)<br>
-        driver_class_name (<code style="color: green">str</code>)<br>
-        driver_jars (<code style="color: green">str</code>)<br>
-        jdbc_type (<code style="color: green">str</code>)<br>
-        location (<code style="color: green">str</code>)<br>
-        password (<code style="color: green">str</code>)<br>
-        username (<code style="color: green">str</code>)<br>
-        write_statement (<code style="color: green">str</code>)<br>
+        <code>map[<span style="color: green;">str</span>, <span style="color: green;">str</span>]</code>
+      </td>
+      <td>
+        Properties used to set up the Iceberg catalog.
+      </td>
+    </tr>
+    <tr>
+      <td>
+        config_properties
+      </td>
+      <td>
+        <code>map[<span style="color: green;">str</span>, <span style="color: green;">str</span>]</code>
+      </td>
+      <td>
+        Properties passed to the Hadoop Configuration.
+      </td>
+    </tr>
+    <tr>
+      <td>
+        drop
+      </td>
+      <td>
+        <code>list[<span style="color: green;">str</span>]</code>
+      </td>
+      <td>
+        A subset of column names to exclude from reading. If null or empty, all columns will be read.
+      </td>
+    </tr>
+    <tr>
+      <td>
+        filter
+      </td>
+      <td>
+        <code style="color: green">str</code>
+      </td>
+      <td>
+        SQL-like predicate to filter data at scan time. Example: "id > 5 AND status = 'ACTIVE'". Uses Apache Calcite syntax: https://calcite.apache.org/docs/reference.html
+      </td>
+    </tr>
+    <tr>
+      <td>
+        from_snapshot
+      </td>
+      <td>
+        <code style="color: #f54251">int64</code>
+      </td>
+      <td>
+        Starts reading from this snapshot ID (inclusive).
+      </td>
+    </tr>
+    <tr>
+      <td>
+        from_timestamp
+      </td>
+      <td>
+        <code style="color: #f54251">int64</code>
+      </td>
+      <td>
+        Starts reading from the first snapshot (inclusive) that was created after this timestamp (in milliseconds).
+      </td>
+    </tr>
+    <tr>
+      <td>
+        keep
+      </td>
+      <td>
+        <code>list[<span style="color: green;">str</span>]</code>
+      </td>
+      <td>
+        A subset of column names to read exclusively. If null or empty, all columns will be read.
+      </td>
+    </tr>
+    <tr>
+      <td>
+        poll_interval_seconds
+      </td>
+      <td>
+        <code style="color: #f54251">int32</code>
+      </td>
+      <td>
+        The interval at which to poll for new snapshots. Defaults to 60 seconds.
+      </td>
+    </tr>
+    <tr>
+      <td>
+        starting_strategy
+      </td>
+      <td>
+        <code style="color: green">str</code>
+      </td>
+      <td>
+        The source's starting strategy. Valid options are: "earliest" or "latest". Can be overriden by setting a starting snapshot or timestamp. Defaults to earliest for batch, and latest for streaming.
+      </td>
+    </tr>
+    <tr>
+      <td>
+        streaming
+      </td>
+      <td>
+        <code style="color: orange">boolean</code>
+      </td>
+      <td>
+        Enables streaming reads, where source continuously polls for snapshots forever.
+      </td>
+    </tr>
+    <tr>
+      <td>
+        to_snapshot
+      </td>
+      <td>
+        <code style="color: #f54251">int64</code>
+      </td>
+      <td>
+        Reads up to this snapshot ID (inclusive).
+      </td>
+    </tr>
+    <tr>
+      <td>
+        to_timestamp
+      </td>
+      <td>
+        <code style="color: #f54251">int64</code>
+      </td>
+      <td>
+        Reads up to the latest snapshot (inclusive) created before this timestamp (in milliseconds).
       </td>
     </tr>
   </table>
 </div>
 
-## Configuration Details
+### `ICEBERG` Write
+
+<div class="table-container-wrapper">
+  <table class="table table-bordered">
+    <tr>
+      <th>Configuration</th>
+      <th>Type</th>
+      <th>Description</th>
+    </tr>
+    <tr>
+      <td>
+        <strong>table</strong>
+      </td>
+      <td>
+        <code style="color: green">str</code>
+      </td>
+      <td>
+        A fully-qualified table identifier. You may also provide a template to write to multiple dynamic destinations, for example: `dataset.my_{col1}_{col2.nested}_table`.
+      </td>
+    </tr>
+    <tr>
+      <td>
+        catalog_name
+      </td>
+      <td>
+        <code style="color: green">str</code>
+      </td>
+      <td>
+        Name of the catalog containing the table.
+      </td>
+    </tr>
+    <tr>
+      <td>
+        catalog_properties
+      </td>
+      <td>
+        <code>map[<span style="color: green;">str</span>, <span style="color: green;">str</span>]</code>
+      </td>
+      <td>
+        Properties used to set up the Iceberg catalog.
+      </td>
+    </tr>
+    <tr>
+      <td>
+        config_properties
+      </td>
+      <td>
+        <code>map[<span style="color: green;">str</span>, <span style="color: green;">str</span>]</code>
+      </td>
+      <td>
+        Properties passed to the Hadoop Configuration.
+      </td>
+    </tr>
+    <tr>
+      <td>
+        direct_write_byte_limit
+      </td>
+      <td>
+        <code style="color: #f54251">int32</code>
+      </td>
+      <td>
+        For a streaming pipeline, sets the limit for lifting bundles into the direct write path.
+      </td>
+    </tr>
+    <tr>
+      <td>
+        drop
+      </td>
+      <td>
+        <code>list[<span style="color: green;">str</span>]</code>
+      </td>
+      <td>
+        A list of field names to drop from the input record before writing. Is mutually exclusive with 'keep' and 'only'.
+      </td>
+    </tr>
+    <tr>
+      <td>
+        keep
+      </td>
+      <td>
+        <code>list[<span style="color: green;">str</span>]</code>
+      </td>
+      <td>
+        A list of field names to keep in the input record. All other fields are dropped before writing. Is mutually exclusive with 'drop' and 'only'.
+      </td>
+    </tr>
+    <tr>
+      <td>
+        only
+      </td>
+      <td>
+        <code style="color: green">str</code>
+      </td>
+      <td>
+        The name of a single record field that should be written. Is mutually exclusive with 'keep' and 'drop'.
+      </td>
+    </tr>
+    <tr>
+      <td>
+        partition_fields
+      </td>
+      <td>
+        <code>list[<span style="color: green;">str</span>]</code>
+      </td>
+      <td>
+        Fields used to create a partition spec that is applied when tables are created. For a field 'foo', the available partition transforms are:
+
+- `foo`
+- `truncate(foo, N)`
+- `bucket(foo, N)`
+- `hour(foo)`
+- `day(foo)`
+- `month(foo)`
+- `year(foo)`
+- `void(foo)`
+
+For more information on partition transforms, please visit https://iceberg.apache.org/spec/#partition-transforms.
+      </td>
+    </tr>
+    <tr>
+      <td>
+        table_properties
+      </td>
+      <td>
+        <code>map[<span style="color: green;">str</span>, <span style="color: green;">str</span>]</code>
+      </td>
+      <td>
+        Iceberg table properties to be set on the table when it is created.
+For more information on table properties, please visit https://iceberg.apache.org/docs/latest/configuration/#table-properties.
+      </td>
+    </tr>
+    <tr>
+      <td>
+        triggering_frequency_seconds
+      </td>
+      <td>
+        <code style="color: #f54251">int32</code>
+      </td>
+      <td>
+        For a streaming pipeline, sets the frequency at which snapshots are produced.
+      </td>
+    </tr>
+  </table>
+</div>
+
+### `ICEBERG` Read
+
+<div class="table-container-wrapper">
+  <table class="table table-bordered">
+    <tr>
+      <th>Configuration</th>
+      <th>Type</th>
+      <th>Description</th>
+    </tr>
+    <tr>
+      <td>
+        <strong>table</strong>
+      </td>
+      <td>
+        <code style="color: green">str</code>
+      </td>
+      <td>
+        Identifier of the Iceberg table.
+      </td>
+    </tr>
+    <tr>
+      <td>
+        catalog_name
+      </td>
+      <td>
+        <code style="color: green">str</code>
+      </td>
+      <td>
+        Name of the catalog containing the table.
+      </td>
+    </tr>
+    <tr>
+      <td>
+        catalog_properties
+      </td>
+      <td>
+        <code>map[<span style="color: green;">str</span>, <span style="color: green;">str</span>]</code>
+      </td>
+      <td>
+        Properties used to set up the Iceberg catalog.
+      </td>
+    </tr>
+    <tr>
+      <td>
+        config_properties
+      </td>
+      <td>
+        <code>map[<span style="color: green;">str</span>, <span style="color: green;">str</span>]</code>
+      </td>
+      <td>
+        Properties passed to the Hadoop Configuration.
+      </td>
+    </tr>
+    <tr>
+      <td>
+        drop
+      </td>
+      <td>
+        <code>list[<span style="color: green;">str</span>]</code>
+      </td>
+      <td>
+        A subset of column names to exclude from reading. If null or empty, all columns will be read.
+      </td>
+    </tr>
+    <tr>
+      <td>
+        filter
+      </td>
+      <td>
+        <code style="color: green">str</code>
+      </td>
+      <td>
+        SQL-like predicate to filter data at scan time. Example: "id > 5 AND status = 'ACTIVE'". Uses Apache Calcite syntax: https://calcite.apache.org/docs/reference.html
+      </td>
+    </tr>
+    <tr>
+      <td>
+        keep
+      </td>
+      <td>
+        <code>list[<span style="color: green;">str</span>]</code>
+      </td>
+      <td>
+        A subset of column names to read exclusively. If null or empty, all columns will be read.
+      </td>
+    </tr>
+  </table>
+</div>
 
 ### `KAFKA` Write
 
@@ -513,551 +890,6 @@ and Beam SQL is invoked via the Managed API under the hood.
   </table>
 </div>
 
-### `ICEBERG` Read
-
-<div class="table-container-wrapper">
-  <table class="table table-bordered">
-    <tr>
-      <th>Configuration</th>
-      <th>Type</th>
-      <th>Description</th>
-    </tr>
-    <tr>
-      <td>
-        <strong>table</strong>
-      </td>
-      <td>
-        <code style="color: green">str</code>
-      </td>
-      <td>
-        Identifier of the Iceberg table.
-      </td>
-    </tr>
-    <tr>
-      <td>
-        catalog_name
-      </td>
-      <td>
-        <code style="color: green">str</code>
-      </td>
-      <td>
-        Name of the catalog containing the table.
-      </td>
-    </tr>
-    <tr>
-      <td>
-        catalog_properties
-      </td>
-      <td>
-        <code>map[<span style="color: green;">str</span>, <span style="color: green;">str</span>]</code>
-      </td>
-      <td>
-        Properties used to set up the Iceberg catalog.
-      </td>
-    </tr>
-    <tr>
-      <td>
-        config_properties
-      </td>
-      <td>
-        <code>map[<span style="color: green;">str</span>, <span style="color: green;">str</span>]</code>
-      </td>
-      <td>
-        Properties passed to the Hadoop Configuration.
-      </td>
-    </tr>
-    <tr>
-      <td>
-        drop
-      </td>
-      <td>
-        <code>list[<span style="color: green;">str</span>]</code>
-      </td>
-      <td>
-        A subset of column names to exclude from reading. If null or empty, all columns will be read.
-      </td>
-    </tr>
-    <tr>
-      <td>
-        filter
-      </td>
-      <td>
-        <code style="color: green">str</code>
-      </td>
-      <td>
-        SQL-like predicate to filter data at scan time. Example: "id > 5 AND status = 'ACTIVE'". Uses Apache Calcite syntax: https://calcite.apache.org/docs/reference.html
-      </td>
-    </tr>
-    <tr>
-      <td>
-        keep
-      </td>
-      <td>
-        <code>list[<span style="color: green;">str</span>]</code>
-      </td>
-      <td>
-        A subset of column names to read exclusively. If null or empty, all columns will be read.
-      </td>
-    </tr>
-  </table>
-</div>
-
-### `ICEBERG` Write
-
-<div class="table-container-wrapper">
-  <table class="table table-bordered">
-    <tr>
-      <th>Configuration</th>
-      <th>Type</th>
-      <th>Description</th>
-    </tr>
-    <tr>
-      <td>
-        <strong>table</strong>
-      </td>
-      <td>
-        <code style="color: green">str</code>
-      </td>
-      <td>
-        A fully-qualified table identifier. You may also provide a template to write to multiple dynamic destinations, for example: `dataset.my_{col1}_{col2.nested}_table`.
-      </td>
-    </tr>
-    <tr>
-      <td>
-        catalog_name
-      </td>
-      <td>
-        <code style="color: green">str</code>
-      </td>
-      <td>
-        Name of the catalog containing the table.
-      </td>
-    </tr>
-    <tr>
-      <td>
-        catalog_properties
-      </td>
-      <td>
-        <code>map[<span style="color: green;">str</span>, <span style="color: green;">str</span>]</code>
-      </td>
-      <td>
-        Properties used to set up the Iceberg catalog.
-      </td>
-    </tr>
-    <tr>
-      <td>
-        config_properties
-      </td>
-      <td>
-        <code>map[<span style="color: green;">str</span>, <span style="color: green;">str</span>]</code>
-      </td>
-      <td>
-        Properties passed to the Hadoop Configuration.
-      </td>
-    </tr>
-    <tr>
-      <td>
-        direct_write_byte_limit
-      </td>
-      <td>
-        <code style="color: #f54251">int32</code>
-      </td>
-      <td>
-        For a streaming pipeline, sets the limit for lifting bundles into the direct write path.
-      </td>
-    </tr>
-    <tr>
-      <td>
-        drop
-      </td>
-      <td>
-        <code>list[<span style="color: green;">str</span>]</code>
-      </td>
-      <td>
-        A list of field names to drop from the input record before writing. Is mutually exclusive with 'keep' and 'only'.
-      </td>
-    </tr>
-    <tr>
-      <td>
-        keep
-      </td>
-      <td>
-        <code>list[<span style="color: green;">str</span>]</code>
-      </td>
-      <td>
-        A list of field names to keep in the input record. All other fields are dropped before writing. Is mutually exclusive with 'drop' and 'only'.
-      </td>
-    </tr>
-    <tr>
-      <td>
-        only
-      </td>
-      <td>
-        <code style="color: green">str</code>
-      </td>
-      <td>
-        The name of a single record field that should be written. Is mutually exclusive with 'keep' and 'drop'.
-      </td>
-    </tr>
-    <tr>
-      <td>
-        partition_fields
-      </td>
-      <td>
-        <code>list[<span style="color: green;">str</span>]</code>
-      </td>
-      <td>
-        Fields used to create a partition spec that is applied when tables are created. For a field 'foo', the available partition transforms are:
-
-- `foo`
-- `truncate(foo, N)`
-- `bucket(foo, N)`
-- `hour(foo)`
-- `day(foo)`
-- `month(foo)`
-- `year(foo)`
-- `void(foo)`
-
-For more information on partition transforms, please visit https://iceberg.apache.org/spec/#partition-transforms.
-      </td>
-    </tr>
-    <tr>
-      <td>
-        table_properties
-      </td>
-      <td>
-        <code>map[<span style="color: green;">str</span>, <span style="color: green;">str</span>]</code>
-      </td>
-      <td>
-        Iceberg table properties to be set on the table when it is created.
-For more information on table properties, please visit https://iceberg.apache.org/docs/latest/configuration/#table-properties.
-      </td>
-    </tr>
-    <tr>
-      <td>
-        triggering_frequency_seconds
-      </td>
-      <td>
-        <code style="color: #f54251">int32</code>
-      </td>
-      <td>
-        For a streaming pipeline, sets the frequency at which snapshots are produced.
-      </td>
-    </tr>
-  </table>
-</div>
-
-### `ICEBERG_CDC` Read
-
-<div class="table-container-wrapper">
-  <table class="table table-bordered">
-    <tr>
-      <th>Configuration</th>
-      <th>Type</th>
-      <th>Description</th>
-    </tr>
-    <tr>
-      <td>
-        <strong>table</strong>
-      </td>
-      <td>
-        <code style="color: green">str</code>
-      </td>
-      <td>
-        Identifier of the Iceberg table.
-      </td>
-    </tr>
-    <tr>
-      <td>
-        catalog_name
-      </td>
-      <td>
-        <code style="color: green">str</code>
-      </td>
-      <td>
-        Name of the catalog containing the table.
-      </td>
-    </tr>
-    <tr>
-      <td>
-        catalog_properties
-      </td>
-      <td>
-        <code>map[<span style="color: green;">str</span>, <span style="color: green;">str</span>]</code>
-      </td>
-      <td>
-        Properties used to set up the Iceberg catalog.
-      </td>
-    </tr>
-    <tr>
-      <td>
-        config_properties
-      </td>
-      <td>
-        <code>map[<span style="color: green;">str</span>, <span style="color: green;">str</span>]</code>
-      </td>
-      <td>
-        Properties passed to the Hadoop Configuration.
-      </td>
-    </tr>
-    <tr>
-      <td>
-        drop
-      </td>
-      <td>
-        <code>list[<span style="color: green;">str</span>]</code>
-      </td>
-      <td>
-        A subset of column names to exclude from reading. If null or empty, all columns will be read.
-      </td>
-    </tr>
-    <tr>
-      <td>
-        filter
-      </td>
-      <td>
-        <code style="color: green">str</code>
-      </td>
-      <td>
-        SQL-like predicate to filter data at scan time. Example: "id > 5 AND status = 'ACTIVE'". Uses Apache Calcite syntax: https://calcite.apache.org/docs/reference.html
-      </td>
-    </tr>
-    <tr>
-      <td>
-        from_snapshot
-      </td>
-      <td>
-        <code style="color: #f54251">int64</code>
-      </td>
-      <td>
-        Starts reading from this snapshot ID (inclusive).
-      </td>
-    </tr>
-    <tr>
-      <td>
-        from_timestamp
-      </td>
-      <td>
-        <code style="color: #f54251">int64</code>
-      </td>
-      <td>
-        Starts reading from the first snapshot (inclusive) that was created after this timestamp (in milliseconds).
-      </td>
-    </tr>
-    <tr>
-      <td>
-        keep
-      </td>
-      <td>
-        <code>list[<span style="color: green;">str</span>]</code>
-      </td>
-      <td>
-        A subset of column names to read exclusively. If null or empty, all columns will be read.
-      </td>
-    </tr>
-    <tr>
-      <td>
-        poll_interval_seconds
-      </td>
-      <td>
-        <code style="color: #f54251">int32</code>
-      </td>
-      <td>
-        The interval at which to poll for new snapshots. Defaults to 60 seconds.
-      </td>
-    </tr>
-    <tr>
-      <td>
-        starting_strategy
-      </td>
-      <td>
-        <code style="color: green">str</code>
-      </td>
-      <td>
-        The source's starting strategy. Valid options are: "earliest" or "latest". Can be overriden by setting a starting snapshot or timestamp. Defaults to earliest for batch, and latest for streaming.
-      </td>
-    </tr>
-    <tr>
-      <td>
-        streaming
-      </td>
-      <td>
-        <code style="color: orange">boolean</code>
-      </td>
-      <td>
-        Enables streaming reads, where source continuously polls for snapshots forever.
-      </td>
-    </tr>
-    <tr>
-      <td>
-        to_snapshot
-      </td>
-      <td>
-        <code style="color: #f54251">int64</code>
-      </td>
-      <td>
-        Reads up to this snapshot ID (inclusive).
-      </td>
-    </tr>
-    <tr>
-      <td>
-        to_timestamp
-      </td>
-      <td>
-        <code style="color: #f54251">int64</code>
-      </td>
-      <td>
-        Reads up to the latest snapshot (inclusive) created before this timestamp (in milliseconds).
-      </td>
-    </tr>
-  </table>
-</div>
-
-### `BIGQUERY` Read
-
-<div class="table-container-wrapper">
-  <table class="table table-bordered">
-    <tr>
-      <th>Configuration</th>
-      <th>Type</th>
-      <th>Description</th>
-    </tr>
-    <tr>
-      <td>
-        kms_key
-      </td>
-      <td>
-        <code style="color: green">str</code>
-      </td>
-      <td>
-        Use this Cloud KMS key to encrypt your data
-      </td>
-    </tr>
-    <tr>
-      <td>
-        query
-      </td>
-      <td>
-        <code style="color: green">str</code>
-      </td>
-      <td>
-        The SQL query to be executed to read from the BigQuery table.
-      </td>
-    </tr>
-    <tr>
-      <td>
-        row_restriction
-      </td>
-      <td>
-        <code style="color: green">str</code>
-      </td>
-      <td>
-        Read only rows that match this filter, which must be compatible with Google standard SQL. This is not supported when reading via query.
-      </td>
-    </tr>
-    <tr>
-      <td>
-        fields
-      </td>
-      <td>
-        <code>list[<span style="color: green;">str</span>]</code>
-      </td>
-      <td>
-        Read only the specified fields (columns) from a BigQuery table. Fields may not be returned in the order specified. If no value is specified, then all fields are returned. Example: "col1, col2, col3"
-      </td>
-    </tr>
-    <tr>
-      <td>
-        table
-      </td>
-      <td>
-        <code style="color: green">str</code>
-      </td>
-      <td>
-        The fully-qualified name of the BigQuery table to read from. Format: [${PROJECT}:]${DATASET}.${TABLE}
-      </td>
-    </tr>
-  </table>
-</div>
-
-### `BIGQUERY` Write
-
-<div class="table-container-wrapper">
-  <table class="table table-bordered">
-    <tr>
-      <th>Configuration</th>
-      <th>Type</th>
-      <th>Description</th>
-    </tr>
-    <tr>
-      <td>
-        <strong>table</strong>
-      </td>
-      <td>
-        <code style="color: green">str</code>
-      </td>
-      <td>
-        The bigquery table to write to. Format: [${PROJECT}:]${DATASET}.${TABLE}
-      </td>
-    </tr>
-    <tr>
-      <td>
-        drop
-      </td>
-      <td>
-        <code>list[<span style="color: green;">str</span>]</code>
-      </td>
-      <td>
-        A list of field names to drop from the input record before writing. Is mutually exclusive with 'keep' and 'only'.
-      </td>
-    </tr>
-    <tr>
-      <td>
-        keep
-      </td>
-      <td>
-        <code>list[<span style="color: green;">str</span>]</code>
-      </td>
-      <td>
-        A list of field names to keep in the input record. All other fields are dropped before writing. Is mutually exclusive with 'drop' and 'only'.
-      </td>
-    </tr>
-    <tr>
-      <td>
-        kms_key
-      </td>
-      <td>
-        <code style="color: green">str</code>
-      </td>
-      <td>
-        Use this Cloud KMS key to encrypt your data
-      </td>
-    </tr>
-    <tr>
-      <td>
-        only
-      </td>
-      <td>
-        <code style="color: green">str</code>
-      </td>
-      <td>
-        The name of a single record field that should be written. Is mutually exclusive with 'keep' and 'drop'.
-      </td>
-    </tr>
-    <tr>
-      <td>
-        triggering_frequency_seconds
-      </td>
-      <td>
-        <code style="color: #f54251">int64</code>
-      </td>
-      <td>
-        Determines how often to 'commit' progress into BigQuery. Default is every 5 seconds.
-      </td>
-    </tr>
-  </table>
-</div>
-
 ### `POSTGRES` Write
 
 <div class="table-container-wrapper">
@@ -1102,17 +934,6 @@ For more information on table properties, please visit https://iceberg.apache.or
     </tr>
     <tr>
       <td>
-        connection_init_sql
-      </td>
-      <td>
-        <code>list[<span style="color: green;">str</span>]</code>
-      </td>
-      <td>
-        Sets the connection init sql statements used by the Driver. Only MySQL and MariaDB support this.
-      </td>
-    </tr>
-    <tr>
-      <td>
         connection_properties
       </td>
       <td>
@@ -1120,39 +941,6 @@ For more information on table properties, please visit https://iceberg.apache.or
       </td>
       <td>
         Used to set connection properties passed to the JDBC driver not already defined as standalone parameter (e.g. username and password can be set using parameters above accordingly). Format of the string must be "key1=value1;key2=value2;".
-      </td>
-    </tr>
-    <tr>
-      <td>
-        driver_class_name
-      </td>
-      <td>
-        <code style="color: green">str</code>
-      </td>
-      <td>
-        Name of a Java Driver class to use to connect to the JDBC source. For example, "com.mysql.jdbc.Driver".
-      </td>
-    </tr>
-    <tr>
-      <td>
-        driver_jars
-      </td>
-      <td>
-        <code style="color: green">str</code>
-      </td>
-      <td>
-        Comma separated path(s) for the JDBC driver jar(s). This can be a local path or GCS (gs://) path.
-      </td>
-    </tr>
-    <tr>
-      <td>
-        jdbc_type
-      </td>
-      <td>
-        <code style="color: green">str</code>
-      </td>
-      <td>
-        Type of JDBC source. When specified, an appropriate default Driver will be packaged with the transform. One of mysql, postgres, oracle, or mssql.
       </td>
     </tr>
     <tr>
@@ -1224,17 +1012,6 @@ For more information on table properties, please visit https://iceberg.apache.or
     </tr>
     <tr>
       <td>
-        connection_init_sql
-      </td>
-      <td>
-        <code>list[<span style="color: green;">str</span>]</code>
-      </td>
-      <td>
-        Sets the connection init sql statements used by the Driver. Only MySQL and MariaDB support this.
-      </td>
-    </tr>
-    <tr>
-      <td>
         connection_properties
       </td>
       <td>
@@ -1246,39 +1023,6 @@ For more information on table properties, please visit https://iceberg.apache.or
     </tr>
     <tr>
       <td>
-        disable_auto_commit
-      </td>
-      <td>
-        <code style="color: orange">boolean</code>
-      </td>
-      <td>
-        Whether to disable auto commit on read. Defaults to true if not provided. The need for this config varies depending on the database platform. Informix requires this to be set to false while Postgres requires this to be set to true.
-      </td>
-    </tr>
-    <tr>
-      <td>
-        driver_class_name
-      </td>
-      <td>
-        <code style="color: green">str</code>
-      </td>
-      <td>
-        Name of a Java Driver class to use to connect to the JDBC source. For example, "com.mysql.jdbc.Driver".
-      </td>
-    </tr>
-    <tr>
-      <td>
-        driver_jars
-      </td>
-      <td>
-        <code style="color: green">str</code>
-      </td>
-      <td>
-        Comma separated path(s) for the JDBC driver jar(s). This can be a local path or GCS (gs://) path.
-      </td>
-    </tr>
-    <tr>
-      <td>
         fetch_size
       </td>
       <td>
@@ -1286,194 +1030,6 @@ For more information on table properties, please visit https://iceberg.apache.or
       </td>
       <td>
         This method is used to override the size of the data that is going to be fetched and loaded in memory per every database call. It should ONLY be used if the default value throws memory errors.
-      </td>
-    </tr>
-    <tr>
-      <td>
-        jdbc_type
-      </td>
-      <td>
-        <code style="color: green">str</code>
-      </td>
-      <td>
-        Type of JDBC source. When specified, an appropriate default Driver will be packaged with the transform. One of mysql, postgres, oracle, or mssql.
-      </td>
-    </tr>
-    <tr>
-      <td>
-        location
-      </td>
-      <td>
-        <code style="color: green">str</code>
-      </td>
-      <td>
-        Name of the table to read from.
-      </td>
-    </tr>
-    <tr>
-      <td>
-        num_partitions
-      </td>
-      <td>
-        <code style="color: #f54251">int32</code>
-      </td>
-      <td>
-        The number of partitions
-      </td>
-    </tr>
-    <tr>
-      <td>
-        output_parallelization
-      </td>
-      <td>
-        <code style="color: orange">boolean</code>
-      </td>
-      <td>
-        Whether to reshuffle the resulting PCollection so results are distributed to all workers.
-      </td>
-    </tr>
-    <tr>
-      <td>
-        partition_column
-      </td>
-      <td>
-        <code style="color: green">str</code>
-      </td>
-      <td>
-        Name of a column of numeric type that will be used for partitioning.
-      </td>
-    </tr>
-    <tr>
-      <td>
-        password
-      </td>
-      <td>
-        <code style="color: green">str</code>
-      </td>
-      <td>
-        Password for the JDBC source.
-      </td>
-    </tr>
-    <tr>
-      <td>
-        read_query
-      </td>
-      <td>
-        <code style="color: green">str</code>
-      </td>
-      <td>
-        SQL query used to query the JDBC source.
-      </td>
-    </tr>
-    <tr>
-      <td>
-        username
-      </td>
-      <td>
-        <code style="color: green">str</code>
-      </td>
-      <td>
-        Username for the JDBC source.
-      </td>
-    </tr>
-  </table>
-</div>
-
-### `SQLSERVER` Read
-
-<div class="table-container-wrapper">
-  <table class="table table-bordered">
-    <tr>
-      <th>Configuration</th>
-      <th>Type</th>
-      <th>Description</th>
-    </tr>
-    <tr>
-      <td>
-        <strong>jdbc_url</strong>
-      </td>
-      <td>
-        <code style="color: green">str</code>
-      </td>
-      <td>
-        Connection URL for the JDBC source.
-      </td>
-    </tr>
-    <tr>
-      <td>
-        connection_init_sql
-      </td>
-      <td>
-        <code>list[<span style="color: green;">str</span>]</code>
-      </td>
-      <td>
-        Sets the connection init sql statements used by the Driver. Only MySQL and MariaDB support this.
-      </td>
-    </tr>
-    <tr>
-      <td>
-        connection_properties
-      </td>
-      <td>
-        <code style="color: green">str</code>
-      </td>
-      <td>
-        Used to set connection properties passed to the JDBC driver not already defined as standalone parameter (e.g. username and password can be set using parameters above accordingly). Format of the string must be "key1=value1;key2=value2;".
-      </td>
-    </tr>
-    <tr>
-      <td>
-        disable_auto_commit
-      </td>
-      <td>
-        <code style="color: orange">boolean</code>
-      </td>
-      <td>
-        Whether to disable auto commit on read. Defaults to true if not provided. The need for this config varies depending on the database platform. Informix requires this to be set to false while Postgres requires this to be set to true.
-      </td>
-    </tr>
-    <tr>
-      <td>
-        driver_class_name
-      </td>
-      <td>
-        <code style="color: green">str</code>
-      </td>
-      <td>
-        Name of a Java Driver class to use to connect to the JDBC source. For example, "com.mysql.jdbc.Driver".
-      </td>
-    </tr>
-    <tr>
-      <td>
-        driver_jars
-      </td>
-      <td>
-        <code style="color: green">str</code>
-      </td>
-      <td>
-        Comma separated path(s) for the JDBC driver jar(s). This can be a local path or GCS (gs://) path.
-      </td>
-    </tr>
-    <tr>
-      <td>
-        fetch_size
-      </td>
-      <td>
-        <code style="color: #f54251">int32</code>
-      </td>
-      <td>
-        This method is used to override the size of the data that is going to be fetched and loaded in memory per every database call. It should ONLY be used if the default value throws memory errors.
-      </td>
-    </tr>
-    <tr>
-      <td>
-        jdbc_type
-      </td>
-      <td>
-        <code style="color: green">str</code>
-      </td>
-      <td>
-        Type of JDBC source. When specified, an appropriate default Driver will be packaged with the transform. One of mysql, postgres, oracle, or mssql.
       </td>
     </tr>
     <tr>
@@ -1600,17 +1156,6 @@ For more information on table properties, please visit https://iceberg.apache.or
     </tr>
     <tr>
       <td>
-        connection_init_sql
-      </td>
-      <td>
-        <code>list[<span style="color: green;">str</span>]</code>
-      </td>
-      <td>
-        Sets the connection init sql statements used by the Driver. Only MySQL and MariaDB support this.
-      </td>
-    </tr>
-    <tr>
-      <td>
         connection_properties
       </td>
       <td>
@@ -1618,39 +1163,6 @@ For more information on table properties, please visit https://iceberg.apache.or
       </td>
       <td>
         Used to set connection properties passed to the JDBC driver not already defined as standalone parameter (e.g. username and password can be set using parameters above accordingly). Format of the string must be "key1=value1;key2=value2;".
-      </td>
-    </tr>
-    <tr>
-      <td>
-        driver_class_name
-      </td>
-      <td>
-        <code style="color: green">str</code>
-      </td>
-      <td>
-        Name of a Java Driver class to use to connect to the JDBC source. For example, "com.mysql.jdbc.Driver".
-      </td>
-    </tr>
-    <tr>
-      <td>
-        driver_jars
-      </td>
-      <td>
-        <code style="color: green">str</code>
-      </td>
-      <td>
-        Comma separated path(s) for the JDBC driver jar(s). This can be a local path or GCS (gs://) path.
-      </td>
-    </tr>
-    <tr>
-      <td>
-        jdbc_type
-      </td>
-      <td>
-        <code style="color: green">str</code>
-      </td>
-      <td>
-        Type of JDBC source. When specified, an appropriate default Driver will be packaged with the transform. One of mysql, postgres, oracle, or mssql.
       </td>
     </tr>
     <tr>
@@ -1695,6 +1207,139 @@ For more information on table properties, please visit https://iceberg.apache.or
       </td>
       <td>
         SQL query used to insert records into the JDBC sink.
+      </td>
+    </tr>
+  </table>
+</div>
+
+### `SQLSERVER` Read
+
+<div class="table-container-wrapper">
+  <table class="table table-bordered">
+    <tr>
+      <th>Configuration</th>
+      <th>Type</th>
+      <th>Description</th>
+    </tr>
+    <tr>
+      <td>
+        <strong>jdbc_url</strong>
+      </td>
+      <td>
+        <code style="color: green">str</code>
+      </td>
+      <td>
+        Connection URL for the JDBC source.
+      </td>
+    </tr>
+    <tr>
+      <td>
+        connection_properties
+      </td>
+      <td>
+        <code style="color: green">str</code>
+      </td>
+      <td>
+        Used to set connection properties passed to the JDBC driver not already defined as standalone parameter (e.g. username and password can be set using parameters above accordingly). Format of the string must be "key1=value1;key2=value2;".
+      </td>
+    </tr>
+    <tr>
+      <td>
+        disable_auto_commit
+      </td>
+      <td>
+        <code style="color: orange">boolean</code>
+      </td>
+      <td>
+        Whether to disable auto commit on read. Defaults to true if not provided. The need for this config varies depending on the database platform. Informix requires this to be set to false while Postgres requires this to be set to true.
+      </td>
+    </tr>
+    <tr>
+      <td>
+        fetch_size
+      </td>
+      <td>
+        <code style="color: #f54251">int32</code>
+      </td>
+      <td>
+        This method is used to override the size of the data that is going to be fetched and loaded in memory per every database call. It should ONLY be used if the default value throws memory errors.
+      </td>
+    </tr>
+    <tr>
+      <td>
+        location
+      </td>
+      <td>
+        <code style="color: green">str</code>
+      </td>
+      <td>
+        Name of the table to read from.
+      </td>
+    </tr>
+    <tr>
+      <td>
+        num_partitions
+      </td>
+      <td>
+        <code style="color: #f54251">int32</code>
+      </td>
+      <td>
+        The number of partitions
+      </td>
+    </tr>
+    <tr>
+      <td>
+        output_parallelization
+      </td>
+      <td>
+        <code style="color: orange">boolean</code>
+      </td>
+      <td>
+        Whether to reshuffle the resulting PCollection so results are distributed to all workers.
+      </td>
+    </tr>
+    <tr>
+      <td>
+        partition_column
+      </td>
+      <td>
+        <code style="color: green">str</code>
+      </td>
+      <td>
+        Name of a column of numeric type that will be used for partitioning.
+      </td>
+    </tr>
+    <tr>
+      <td>
+        password
+      </td>
+      <td>
+        <code style="color: green">str</code>
+      </td>
+      <td>
+        Password for the JDBC source.
+      </td>
+    </tr>
+    <tr>
+      <td>
+        read_query
+      </td>
+      <td>
+        <code style="color: green">str</code>
+      </td>
+      <td>
+        SQL query used to query the JDBC source.
+      </td>
+    </tr>
+    <tr>
+      <td>
+        username
+      </td>
+      <td>
+        <code style="color: green">str</code>
+      </td>
+      <td>
+        Username for the JDBC source.
       </td>
     </tr>
   </table>
@@ -1755,28 +1400,6 @@ For more information on table properties, please visit https://iceberg.apache.or
     </tr>
     <tr>
       <td>
-        driver_class_name
-      </td>
-      <td>
-        <code style="color: green">str</code>
-      </td>
-      <td>
-        Name of a Java Driver class to use to connect to the JDBC source. For example, "com.mysql.jdbc.Driver".
-      </td>
-    </tr>
-    <tr>
-      <td>
-        driver_jars
-      </td>
-      <td>
-        <code style="color: green">str</code>
-      </td>
-      <td>
-        Comma separated path(s) for the JDBC driver jar(s). This can be a local path or GCS (gs://) path.
-      </td>
-    </tr>
-    <tr>
-      <td>
         fetch_size
       </td>
       <td>
@@ -1784,17 +1407,6 @@ For more information on table properties, please visit https://iceberg.apache.or
       </td>
       <td>
         This method is used to override the size of the data that is going to be fetched and loaded in memory per every database call. It should ONLY be used if the default value throws memory errors.
-      </td>
-    </tr>
-    <tr>
-      <td>
-        jdbc_type
-      </td>
-      <td>
-        <code style="color: green">str</code>
-      </td>
-      <td>
-        Type of JDBC source. When specified, an appropriate default Driver will be packaged with the transform. One of mysql, postgres, oracle, or mssql.
       </td>
     </tr>
     <tr>
@@ -1943,39 +1555,6 @@ For more information on table properties, please visit https://iceberg.apache.or
     </tr>
     <tr>
       <td>
-        driver_class_name
-      </td>
-      <td>
-        <code style="color: green">str</code>
-      </td>
-      <td>
-        Name of a Java Driver class to use to connect to the JDBC source. For example, "com.mysql.jdbc.Driver".
-      </td>
-    </tr>
-    <tr>
-      <td>
-        driver_jars
-      </td>
-      <td>
-        <code style="color: green">str</code>
-      </td>
-      <td>
-        Comma separated path(s) for the JDBC driver jar(s). This can be a local path or GCS (gs://) path.
-      </td>
-    </tr>
-    <tr>
-      <td>
-        jdbc_type
-      </td>
-      <td>
-        <code style="color: green">str</code>
-      </td>
-      <td>
-        Type of JDBC source. When specified, an appropriate default Driver will be packaged with the transform. One of mysql, postgres, oracle, or mssql.
-      </td>
-    </tr>
-    <tr>
-      <td>
         location
       </td>
       <td>
@@ -2016,6 +1595,151 @@ For more information on table properties, please visit https://iceberg.apache.or
       </td>
       <td>
         SQL query used to insert records into the JDBC sink.
+      </td>
+    </tr>
+  </table>
+</div>
+
+### `BIGQUERY` Read
+
+<div class="table-container-wrapper">
+  <table class="table table-bordered">
+    <tr>
+      <th>Configuration</th>
+      <th>Type</th>
+      <th>Description</th>
+    </tr>
+    <tr>
+      <td>
+        kms_key
+      </td>
+      <td>
+        <code style="color: green">str</code>
+      </td>
+      <td>
+        Use this Cloud KMS key to encrypt your data
+      </td>
+    </tr>
+    <tr>
+      <td>
+        query
+      </td>
+      <td>
+        <code style="color: green">str</code>
+      </td>
+      <td>
+        The SQL query to be executed to read from the BigQuery table.
+      </td>
+    </tr>
+    <tr>
+      <td>
+        row_restriction
+      </td>
+      <td>
+        <code style="color: green">str</code>
+      </td>
+      <td>
+        Read only rows that match this filter, which must be compatible with Google standard SQL. This is not supported when reading via query.
+      </td>
+    </tr>
+    <tr>
+      <td>
+        fields
+      </td>
+      <td>
+        <code>list[<span style="color: green;">str</span>]</code>
+      </td>
+      <td>
+        Read only the specified fields (columns) from a BigQuery table. Fields may not be returned in the order specified. If no value is specified, then all fields are returned. Example: "col1, col2, col3"
+      </td>
+    </tr>
+    <tr>
+      <td>
+        table
+      </td>
+      <td>
+        <code style="color: green">str</code>
+      </td>
+      <td>
+        The fully-qualified name of the BigQuery table to read from. Format: [${PROJECT}:]${DATASET}.${TABLE}
+      </td>
+    </tr>
+  </table>
+</div>
+
+### `BIGQUERY` Write
+
+<div class="table-container-wrapper">
+  <table class="table table-bordered">
+    <tr>
+      <th>Configuration</th>
+      <th>Type</th>
+      <th>Description</th>
+    </tr>
+    <tr>
+      <td>
+        <strong>table</strong>
+      </td>
+      <td>
+        <code style="color: green">str</code>
+      </td>
+      <td>
+        The bigquery table to write to. Format: [${PROJECT}:]${DATASET}.${TABLE}
+      </td>
+    </tr>
+    <tr>
+      <td>
+        drop
+      </td>
+      <td>
+        <code>list[<span style="color: green;">str</span>]</code>
+      </td>
+      <td>
+        A list of field names to drop from the input record before writing. Is mutually exclusive with 'keep' and 'only'.
+      </td>
+    </tr>
+    <tr>
+      <td>
+        keep
+      </td>
+      <td>
+        <code>list[<span style="color: green;">str</span>]</code>
+      </td>
+      <td>
+        A list of field names to keep in the input record. All other fields are dropped before writing. Is mutually exclusive with 'drop' and 'only'.
+      </td>
+    </tr>
+    <tr>
+      <td>
+        kms_key
+      </td>
+      <td>
+        <code style="color: green">str</code>
+      </td>
+      <td>
+        Use this Cloud KMS key to encrypt your data
+      </td>
+    </tr>
+    <tr>
+      <td>
+        only
+      </td>
+      <td>
+        <code style="color: green">str</code>
+      </td>
+      <td>
+        The name of a single record field that should be written. Is mutually exclusive with 'keep' and 'drop'.
+      </td>
+    </tr>
+    <tr>
+      <td>
+        triggering_frequency_seconds
+      </td>
+      <td>
+        <code style="color: #f54251">int64</code>
+      </td>
+      <td>
+        Determines how often to 'commit' progress into BigQuery. Default is every 5 seconds.
       </td>
     </tr>
   </table>
