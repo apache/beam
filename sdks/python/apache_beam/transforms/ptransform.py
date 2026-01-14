@@ -883,8 +883,16 @@ class PTransformWithSideInputs(PTransform):
     # Ensure fn and side inputs are picklable for remote execution.
     try:
       self.fn = pickler.roundtrip(self.fn)
-    except RuntimeError as e:
-      raise RuntimeError('Unable to pickle fn %s: %s' % (self.fn, e))
+    except (RuntimeError, TypeError, Exception) as e:
+      raise RuntimeError(
+          'Unable to pickle fn %s: %s. '
+          'User code must be serializable (picklable) for distributed '
+          'execution. This usually happens when lambdas or closures capture '
+          'non-serializable objects like file handles, database connections, '
+          'or thread locks. Try: (1) using module-level functions instead of '
+          'lambdas, (2) initializing resources in setup() methods, '
+          '(3) checking what your closure captures.' %
+          (self.fn, e)) from e
 
     self.args = pickler.roundtrip(self.args)
     self.kwargs = pickler.roundtrip(self.kwargs)
