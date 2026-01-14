@@ -37,8 +37,8 @@ import time
 import uuid
 from typing import Type
 
-from google.cloud.devtools.cloudbuild_v1.services import cloud_build
 from google.cloud.devtools.cloudbuild_v1 import types as cloud_build_types
+from google.cloud.devtools.cloudbuild_v1.services import cloud_build
 from google.protobuf.json_format import MessageToJson
 
 from apache_beam import version as beam_version
