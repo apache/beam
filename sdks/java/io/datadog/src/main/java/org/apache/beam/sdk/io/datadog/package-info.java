@@ -16,4 +16,13 @@
  * limitations under the License.
  */
 
+/**
+ * Transforms for writing to <a href="https://www.datadoghq.com/">Datadog</a>.
+ *
+ * <p>The {@link org.apache.beam.sdk.io.datadog.DatadogIO} class provides a {@link
+ * org.apache.beam.sdk.transforms.PTransform} that allows writing data to the Datadog Logs API.
+ *
+ * <p>For more information on the Datadog Logs API, see the <a
+ * href="https://docs.datadoghq.com/api/latest/logs/">official documentation</a>.
+ */
 package org.apache.beam.sdk.io.datadog;

@@ -679,6 +679,7 @@ class BeamModulePlugin implements Plugin<Project> {
         activemq_mqtt                               : "org.apache.activemq:activemq-mqtt:$activemq_version",
         args4j                                      : "args4j:args4j:2.33",
         auto_value_annotations                      : "com.google.auto.value:auto-value-annotations:$autovalue_version",
+        auto_value                                  : "com.google.auto.value:auto-value:$autovalue_version",
         // TODO: https://github.com/apache/beam/issues/34993 after stopping supporting Java 8
         avro                                        : "org.apache.avro:avro:1.11.4",
         aws_java_sdk2_apache_client                 : "software.amazon.awssdk:apache-client:$aws_java_sdk2_version",

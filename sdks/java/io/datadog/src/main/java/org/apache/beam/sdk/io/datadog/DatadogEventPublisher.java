@@ -17,7 +17,7 @@
  */
 package org.apache.beam.sdk.io.datadog;
 
-import static com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkNotNull;
 
 import com.google.api.client.http.ByteArrayContent;
 import com.google.api.client.http.GZipEncoding;
@@ -35,8 +35,6 @@ import com.google.api.client.util.BackOffUtils;
 import com.google.api.client.util.ExponentialBackOff;
 import com.google.api.client.util.Sleeper;
 import com.google.auto.value.AutoValue;
-import com.google.common.annotations.VisibleForTesting;
-import com.google.common.base.Preconditions;
 import java.io.IOException;
 import java.io.UnsupportedEncodingException;
 import java.security.KeyManagementException;
@@ -45,7 +43,9 @@ import java.util.List;
 import java.util.Set;
 import javax.net.ssl.HostnameVerifier;
 import javax.net.ssl.SSLContext;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Joiner;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableSet;
 import org.apache.http.client.config.CookieSpecs;
@@ -85,7 +85,8 @@ public abstract class DatadogEventPublisher {
   private static final String HTTPS_PROTOCOL_PREFIX = "https";
 
   public static Builder newBuilder() {
-    return new AutoValue_DatadogEventPublisher.Builder();
+    return new AutoValue_DatadogEventPublisher.Builder()
+        .withMaxElapsedMillis(ExponentialBackOff.DEFAULT_MAX_ELAPSED_TIME_MILLIS);
   }
 
   abstract ApacheHttpTransport transport();
@@ -277,13 +278,6 @@ public abstract class DatadogEventPublisher {
 
       checkNotNull(apiKey(), "API Key needs to be specified via withApiKey(apiKey).");
       checkNotNull(genericUrl(), "URL needs to be specified via withUrl(url).");
-
-      if (maxElapsedMillis() == null) {
-        LOG.info(
-            "Defaulting max backoff time to: {} milliseconds ",
-            ExponentialBackOff.DEFAULT_MAX_ELAPSED_TIME_MILLIS);
-        setMaxElapsedMillis(ExponentialBackOff.DEFAULT_MAX_ELAPSED_TIME_MILLIS);
-      }
 
       CloseableHttpClient httpClient = getHttpClient(DEFAULT_MAX_CONNECTIONS);
 

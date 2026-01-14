@@ -19,8 +19,6 @@ package org.apache.beam.sdk.io.datadog;
 
 import static org.mockserver.integration.ClientAndServer.startClientAndServer;
 
-import com.google.common.base.Joiner;
-import com.google.common.collect.ImmutableList;
 import java.io.IOException;
 import java.util.List;
 import org.apache.beam.sdk.testing.NeedsRunner;
@@ -28,6 +26,8 @@ import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Joiner;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;

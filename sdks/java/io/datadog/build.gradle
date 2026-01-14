@@ -25,13 +25,12 @@ description = "Apache Beam :: SDKs :: Java :: IO :: Datadog"
 ext.summary = "IO to read and write to Datadog."
 
 dependencies {
+    implementation enforcedPlatform(library.java.google_cloud_platform_libraries_bom)
     implementation project(path: ":sdks:java:core", configuration: "shadow")
     implementation library.java.vendored_guava_32_1_2_jre
     implementation library.java.joda_time
     implementation library.java.slf4j_api
-    implementation library.java.google_api_client
     implementation library.java.google_http_client
-    implementation library.java.google_http_client_gson
     implementation library.java.google_code_gson
     implementation library.java.auto_value_annotations
     annotationProcessor library.java.auto_value
@@ -44,4 +43,7 @@ dependencies {
     testImplementation project(path: ":sdks:java:io:common")
     testImplementation group: 'org.mock-server', name: 'mockserver-client-java', version: '5.10.0'
     testImplementation group: 'org.mock-server', name: 'mockserver-junit-rule', version: '5.10.0'
+    implementation library.java.google_http_client_apache_v2
+    implementation library.java.http_client
+    implementation library.java.http_core
 }
