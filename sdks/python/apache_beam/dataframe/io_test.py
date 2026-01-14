@@ -440,7 +440,8 @@ X     , c1, c2
                           set(self.read_all_lines(output + 'out2.csv*')))
 
 
-@unittest.skipIf(GoogleAPICallError is None, 'GCP dependencies are not installed')
+@unittest.skipIf(
+    GoogleAPICallError is None, 'GCP dependencies are not installed')
 class ReadGbqTransformTests(unittest.TestCase):
   @mock.patch.object(BigQueryWrapper, 'get_table')
   def test_bad_schema_public_api_direct_read(self, get_table):

@@ -43,7 +43,7 @@ __all__ = [
 try:
   from google.api_core.exceptions import GoogleAPICallError
 except ImportError:
-  GoogleAPICallError = None
+  GoogleAPICallError = None # type: ignore
 
 MAX_RETRIES = 4
 

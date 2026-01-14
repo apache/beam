@@ -41,8 +41,8 @@ try:
   from google.api_core.exceptions import NotFound
   from apache_beam.io.gcp.gcsfilesystem import GCSFileSystem
 except ImportError:
-  GoogleAPICallError = None
-  NotFound = None
+  GoogleAPICallError = None # type: ignore
+  NotFound = None # type: ignore
   GCSFileSystem = None  # type: ignore
 
 
@@ -123,7 +123,8 @@ class PipelineVerifiersTest(unittest.TestCase):
     self.assertEqual(verifiers.MAX_RETRIES + 1, mock_match.call_count)
 
   @patch.object(GCSFileSystem, 'match')
-  @unittest.skipIf(GoogleAPICallError is None, 'GCP dependencies are not installed')
+  @unittest.skipIf(
+      GoogleAPICallError is None, 'GCP dependencies are not installed')
   def test_file_checksum_matcher_service_error(self, mock_match):
     mock_match.side_effect = NotFound('Not Found')
     matcher = verifiers.FileChecksumMatcher('gs://dummy/path', Mock())

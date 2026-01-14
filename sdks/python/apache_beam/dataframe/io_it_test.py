@@ -38,7 +38,8 @@ except ImportError:
   GoogleAPICallError = None
 
 
-@unittest.skipIf(GoogleAPICallError is None, 'GCP dependencies are not installed')
+@unittest.skipIf(
+    GoogleAPICallError is None, 'GCP dependencies are not installed')
 class ReadUsingReadGbqTests(unittest.TestCase):
   @pytest.mark.it_postcommit
   def test_ReadGbq(self):
