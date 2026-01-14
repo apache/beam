@@ -47,7 +47,7 @@ certifi==2026.1.4
 cffi==2.0.0
 charset-normalizer==3.4.4
 click==8.3.1
-cloud-sql-python-connector==1.19.0
+cloud-sql-python-connector==1.20.0
 cloudpickle==3.1.2
 compressed-tensors==0.10.2
 crcmod==1.7
@@ -68,7 +68,7 @@ exceptiongroup==1.3.1
 execnet==2.1.2
 fastapi==0.128.0
 fastapi-cli==0.0.20
-fastapi-cloud-cli==0.9.0
+fastapi-cloud-cli==0.10.1
 fastar==0.8.0
 fastavro==1.12.1
 fasteners==0.20
@@ -82,7 +82,7 @@ future==1.0.0
 gast==0.7.0
 gguf==0.17.1
 google-api-core==2.29.0
-google-api-python-client==2.187.0
+google-api-python-client==2.188.0
 google-apitools==0.5.31
 google-auth==2.47.0
 google-auth-httplib2==0.2.1
@@ -90,6 +90,7 @@ google-cloud-aiplatform==1.133.0
 google-cloud-bigquery==3.40.0
 google-cloud-bigquery-storage==2.36.0
 google-cloud-bigtable==2.35.0
+google-cloud-build==3.35.0
 google-cloud-core==2.5.0
 google-cloud-datastore==2.23.0
 google-cloud-dlp==3.33.0
@@ -135,7 +136,7 @@ importlib_metadata==8.7.1
 iniconfig==2.3.0
 interegular==0.3.3
 jaraco.classes==3.4.0
-jaraco.context==6.0.2
+jaraco.context==6.1.0
 jaraco.functools==4.4.0
 jeepney==0.9.0
 Jinja2==3.1.6
@@ -211,7 +212,7 @@ pillow==12.1.0
 pip==25.3
 pluggy==1.6.0
 prometheus-fastapi-instrumentator==7.1.0
-prometheus_client==0.23.1
+prometheus_client==0.24.1
 propcache==0.4.1
 proto-plus==1.27.0
 protobuf==5.29.5
@@ -249,7 +250,7 @@ PyYAML==6.0.3
 pyzmq==27.1.0
 ray==2.53.0
 referencing==0.37.0
-regex==2025.11.3
+regex==2026.1.14
 requests==2.32.5
 requests-mock==1.12.1
 rich==14.2.0
@@ -288,7 +289,7 @@ testcontainers==4.14.0
 threadpoolctl==3.6.0
 tiktoken==0.12.0
 tokenizers==0.21.4
-tomli==2.3.0
+tomli==2.4.0
 torch==2.7.1
 torchaudio==2.7.1
 torchvision==0.22.1
