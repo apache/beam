@@ -784,7 +784,8 @@ public class SolaceIO {
       messages
           .apply("Keys", Keys.create())
           .apply("Reshuffle", Redistribute.arbitrarily())
-          .apply("Ack", ParDo.of(new AckMessageDoFn(sessionServiceFactory)));
+          .apply(
+              "Ack", ParDo.of(new AckMessageDoFn(initializedQueue.getName(), sempClientFactory)));
 
       return messages.apply("Values", Values.create());
     }

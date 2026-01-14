@@ -73,6 +73,11 @@ public class BasicAuthSempClient implements SempClient {
     return sempBasicAuthClientExecutor.getBacklogBytes(queueName);
   }
 
+  @Override
+  public void ack(String queueName, Long msgId) throws IOException {
+    sempBasicAuthClientExecutor.ack(queueName, msgId);
+  }
+
   private void createQueue(String queueName) throws IOException {
     LOG.info("SolaceIO.Read: Creating new queue {}.", queueName);
     sempBasicAuthClientExecutor.createQueueResponse(queueName);

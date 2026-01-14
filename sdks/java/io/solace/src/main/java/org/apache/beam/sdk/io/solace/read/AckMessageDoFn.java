@@ -17,10 +17,10 @@
  */
 package org.apache.beam.sdk.io.solace.read;
 
+import java.io.IOException;
 import org.apache.beam.sdk.annotations.Internal;
-import org.apache.beam.sdk.io.solace.broker.MessageReceiver;
-import org.apache.beam.sdk.io.solace.broker.SessionService;
-import org.apache.beam.sdk.io.solace.broker.SessionServiceFactory;
+import org.apache.beam.sdk.io.solace.broker.SempClient;
+import org.apache.beam.sdk.io.solace.broker.SempClientFactory;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.util.Preconditions;
 import org.checkerframework.checker.nullness.qual.Nullable;
@@ -30,50 +30,36 @@ import org.slf4j.LoggerFactory;
 @Internal
 public class AckMessageDoFn extends DoFn<Long, Void> {
   private static final Logger LOG = LoggerFactory.getLogger(AckMessageDoFn.class);
-  private final SessionServiceFactory sessionServiceFactory;
-  @Nullable MessageReceiver receiver = null;
-  @Nullable SessionService sessionService = null;
+  private String queueName;
+  private final SempClientFactory sempClientFactory;
+  @Nullable SempClient sempClient;
 
-  public AckMessageDoFn(SessionServiceFactory sessionServiceFactory) {
-    this.sessionServiceFactory = sessionServiceFactory;
+  public AckMessageDoFn(String queueName, SempClientFactory sempClientFactory) {
+    this.queueName = queueName;
+    this.sempClientFactory = sempClientFactory;
   }
 
   @StartBundle
   public void startBundle() {
-    SessionService session = sessionServiceFactory.create();
-    session.connect();
-    MessageReceiver r = session.getReceiver();
-    r.start();
-    sessionService = session;
-    receiver = r;
+    sempClient = sempClientFactory.create();
   }
 
   @Teardown
   public void tearDown() {
-    if (receiver != null) {
-      receiver.close();
-      receiver = null;
-    }
-    if (sessionService != null) {
-      sessionService.close();
-      sessionService = null;
+    if (sempClient != null) {
+      sempClient = null;
     }
   }
 
   @ProcessElement
-  public void processElement(@Element Long msgId) {
-    Preconditions.checkStateNotNull(receiver).ack(msgId);
+  public void processElement(@Element Long msgId) throws IOException {
+    Preconditions.checkStateNotNull(sempClient).ack(queueName, msgId);
   }
 
   @FinishBundle
   public void finishBundle() {
-    if (receiver != null) {
-      receiver.close();
-      receiver = null;
-    }
-    if (sessionService != null) {
-      sessionService.close();
-      sessionService = null;
+    if (sempClient != null) {
+      sempClient = null;
     }
   }
 }

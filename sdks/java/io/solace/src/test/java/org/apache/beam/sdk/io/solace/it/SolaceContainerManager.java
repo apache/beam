@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.io.solace.it;
 
+import com.github.dockerjava.api.model.Ulimit;
 import java.io.IOException;
 import java.net.ServerSocket;
 import java.util.ArrayList;
@@ -43,10 +44,16 @@ public class SolaceContainerManager {
 
   public SolaceContainerManager() throws IOException {
     this.container =
-        new SolaceContainer(DockerImageName.parse("solace/solace-pubsub-standard:10.7")) {
+        new SolaceContainer(DockerImageName.parse("solace/solace-pubsub-standard:latest")) {
           {
             addFixedExposedPort(jcsmpPortMapped, 55555);
             addFixedExposedPort(sempPortMapped, 8080);
+            withCreateContainerCmdModifier(
+                cmd -> {
+                  cmd.getHostConfig()
+                      .withShmSize((long) Math.pow(1024, 3))
+                      .withUlimits(new Ulimit[] {new Ulimit("nofile", 2448L, 1048576L)});
+                });
           }
         }.withVpn(VPN_NAME)
             .withCredentials(USERNAME, PASSWORD)

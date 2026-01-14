@@ -119,7 +119,7 @@ public class SolaceIOCustomSessionServiceFactoryIT {
     PipelineResult pipelineResult = writerPipeline.run();
     // We need enough time for Beam to pull all messages from the queue, but we need a timeout too,
     // as the Read connector will keep attempting to read forever.
-    pipelineResult.waitUntilFinish(Duration.standardMinutes(2));
+    pipelineResult.waitUntilFinish(Duration.standardMinutes(1));
 
     MetricsReader metricsReader = new MetricsReader(pipelineResult, NAMESPACE);
     long actualRecordsCount = metricsReader.getCounterMetric(READ_COUNT);

@@ -46,6 +46,8 @@ import java.util.stream.Collectors;
 import org.apache.beam.sdk.io.solace.data.Semp.Queue;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.checkerframework.checker.nullness.qual.Nullable;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * A class to execute requests to SEMP v2 with Basic Auth authentication.
@@ -59,6 +61,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 public class SempBasicAuthClientExecutor implements Serializable {
   // Every request will be repeated 2 times in case of abnormal connection failures.
   private static final int REQUEST_NUM_RETRIES = 2;
+  private static final Logger LOG = LoggerFactory.getLogger(SempBasicAuthClientExecutor.class);
   private static final Map<CookieManagerKey, CookieManager> COOKIE_MANAGER_MAP =
       new ConcurrentHashMap<CookieManagerKey, CookieManager>();
   private static final String COOKIES_HEADER = "Set-Cookie";
@@ -100,6 +103,13 @@ public class SempBasicAuthClientExecutor implements Serializable {
       throws UnsupportedEncodingException {
     return String.format(
         "/monitor/msgVpns/%s/queues/%s", urlEncode(messageVpn), urlEncode(queueName));
+  }
+
+  private static String getAckEndpoint(String messageVpn, String queueName, Long msgId)
+      throws UnsupportedEncodingException {
+    return String.format(
+        "/action/msgVpns/%s/queues/%s/msgs/%d/delete",
+        urlEncode(messageVpn), urlEncode(queueName), msgId);
   }
 
   private static String createQueueEndpoint(String messageVpn) throws UnsupportedEncodingException {
@@ -155,6 +165,13 @@ public class SempBasicAuthClientExecutor implements Serializable {
       throws IOException {
     HttpContent content = new JsonHttpContent(GsonFactory.getDefaultInstance(), parameters);
     HttpRequest request = requestFactory.buildPostRequest(url, content);
+    return execute(request);
+  }
+
+  private HttpResponse executePut(GenericUrl url, ImmutableMap<String, Object> parameters)
+      throws IOException {
+    HttpContent content = new JsonHttpContent(GsonFactory.getDefaultInstance(), parameters);
+    HttpRequest request = requestFactory.buildPutRequest(url, content);
     return execute(request);
   }
 
@@ -226,6 +243,13 @@ public class SempBasicAuthClientExecutor implements Serializable {
     }
     Queue q = mapJsonToClass(response.content, Queue.class);
     return q.data().msgSpoolUsage();
+  }
+
+  public void ack(String queueName, Long msgId) throws IOException {
+    String queryUrl = getAckEndpoint(messageVpn, queueName, msgId);
+    ImmutableMap<String, Object> params = ImmutableMap.<String, Object>builder().build();
+    HttpResponse response = executePut(new GenericUrl(baseUrl + queryUrl), params);
+    BrokerResponse.fromHttpResponse(response);
   }
 
   private static class CookieManagerKey implements Serializable {

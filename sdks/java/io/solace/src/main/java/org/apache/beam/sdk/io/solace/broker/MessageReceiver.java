@@ -52,6 +52,4 @@ public interface MessageReceiver {
   default boolean isEOF() {
     return false;
   }
-
-  void ack(Long id);
 }

@@ -46,4 +46,6 @@ public interface SempClient extends Serializable {
    * the amount of data in messages that are waiting to be delivered to consumers.
    */
   long getBacklogBytes(String queueName) throws IOException;
+
+  void ack(String queueName, Long msgId) throws IOException;
 }

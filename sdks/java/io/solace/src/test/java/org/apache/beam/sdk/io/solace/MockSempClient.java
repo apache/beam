@@ -84,4 +84,7 @@ public class MockSempClient implements SempClient {
   public long getBacklogBytes(String queueName) throws IOException {
     return getBacklogBytesFn.apply(queueName);
   }
+
+  @Override
+  public void ack(String queueName, Long msgId) throws IOException {}
 }
