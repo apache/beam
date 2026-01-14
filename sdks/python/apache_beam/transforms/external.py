@@ -805,15 +805,17 @@ class ExternalTransform(ptransform.PTransform):
                   urn=common_urns.primitives.IMPULSE.urn),
               outputs={'out': transform_proto.inputs[tag]}))
     output_coders = None
-    if self._type_hints.output_types:
-      if self._type_hints.output_types[0]:
-        output_coders = dict(
-            (str(k), context.coder_id_from_element_type(v))
-            for (k, v) in enumerate(self._type_hints.output_types[0]))
-      elif self._type_hints.output_types[1]:
+    # Retrieve type hints and store them in variables to avoid duplicate calls and AttributeError
+    hints = self.get_type_hints()
+    output_coders = None
+    if hints.output_types:
+      if hints.output_types[0]:
+        output_coders = dict((str(k), context.coder_id_from_element_type(v))
+                             for (k, v) in enumerate(hints.output_types[0]))
+      elif hints.output_types[1]:
         output_coders = {
             k: context.coder_id_from_element_type(v)
-            for (k, v) in self._type_hints.output_types[1].items()
+            for (k, v) in hints.output_types[1].items()
         }
     components = context.to_runner_api()
     request = beam_expansion_api_pb2.ExpansionRequest(
