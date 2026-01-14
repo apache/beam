@@ -41,8 +41,8 @@ try:
   from google.api_core.exceptions import NotFound
   from apache_beam.io.gcp.gcsfilesystem import GCSFileSystem
 except ImportError:
-  GoogleAPICallError = None # type: ignore
-  NotFound = None # type: ignore
+  GoogleAPICallError = None  # type: ignore
+  NotFound = None  # type: ignore
   GCSFileSystem = None  # type: ignore
 
 

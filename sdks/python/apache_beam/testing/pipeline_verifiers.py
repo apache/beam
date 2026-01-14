@@ -43,7 +43,7 @@ __all__ = [
 try:
   from google.api_core.exceptions import GoogleAPICallError
 except ImportError:
-  GoogleAPICallError = None # type: ignore
+  GoogleAPICallError = None  # type: ignore
 
 MAX_RETRIES = 4
 
@@ -76,7 +76,7 @@ class PipelineStateMatcher(BaseMatcher):
 def retry_on_io_error_and_server_error(exception):
   """Filter allowing retries on file I/O errors and service error."""
   return isinstance(exception, IOError) or \
-          (GoogleAPICallError is not None and isinstance(exception, GoogleAPICallError))
+          (GoogleAPICallError is not None and isinstance(exception, GoogleAPICallError)) # pylint: disable=line-too-long
 
 
 class FileChecksumMatcher(BaseMatcher):
