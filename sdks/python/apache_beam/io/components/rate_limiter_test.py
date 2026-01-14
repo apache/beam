@@ -42,7 +42,7 @@ class EnvoyRateLimiterTest(unittest.TestCase):
         namespace='test_namespace')
 
   @mock.patch('grpc.insecure_channel')
-  def test_throttle_allowed(self, mock_channel):
+  def test_allow_success(self, mock_channel):
     # Mock successful OK response
     mock_stub = mock.Mock()
     mock_response = RateLimitResponse(overall_code=RateLimitResponseCode.OK)
@@ -51,13 +51,13 @@ class EnvoyRateLimiterTest(unittest.TestCase):
     # Inject mock stub
     self.limiter._stub = mock_stub
 
-    throttled = self.limiter.throttle()
+    allowed = self.limiter.allow()
 
-    self.assertTrue(throttled)
+    self.assertTrue(allowed)
     mock_stub.ShouldRateLimit.assert_called_once()
 
   @mock.patch('grpc.insecure_channel')
-  def test_throttle_over_limit_retries_exceeded(self, mock_channel):
+  def test_allow_over_limit_retries_exceeded(self, mock_channel):
     # Mock OVER_LIMIT response
     mock_stub = mock.Mock()
     mock_response = RateLimitResponse(
@@ -69,9 +69,9 @@ class EnvoyRateLimiterTest(unittest.TestCase):
 
     # We mock time.sleep to run fast
     with mock.patch('time.sleep'):
-      throttled = self.limiter.throttle()
+      allowed = self.limiter.allow()
 
-    self.assertFalse(throttled)
+    self.assertFalse(allowed)
     # Should be called 1 (initial) + 2 (retries) + 1 (last check > retries
     # logic depends on loop)
     # Logic: attempt starts at 0.
@@ -83,7 +83,7 @@ class EnvoyRateLimiterTest(unittest.TestCase):
     self.assertEqual(mock_stub.ShouldRateLimit.call_count, 3)
 
   @mock.patch('grpc.insecure_channel')
-  def test_throttle_rpc_error_retry(self, mock_channel):
+  def test_allow_rpc_error_retry(self, mock_channel):
     # Mock RpcError then Success
     mock_stub = mock.Mock()
     mock_response = RateLimitResponse(overall_code=RateLimitResponseCode.OK)
@@ -95,13 +95,13 @@ class EnvoyRateLimiterTest(unittest.TestCase):
     self.limiter._stub = mock_stub
 
     with mock.patch('time.sleep'):
-      throttled = self.limiter.throttle()
+      allowed = self.limiter.allow()
 
-    self.assertTrue(throttled)
+    self.assertTrue(allowed)
     self.assertEqual(mock_stub.ShouldRateLimit.call_count, 3)
 
   @mock.patch('grpc.insecure_channel')
-  def test_throttle_rpc_error_fail(self, mock_channel):
+  def test_allow_rpc_error_fail(self, mock_channel):
     # Mock Persistent RpcError
     mock_stub = mock.Mock()
     error = grpc.RpcError()
@@ -111,7 +111,7 @@ class EnvoyRateLimiterTest(unittest.TestCase):
 
     with mock.patch('time.sleep'):
       with self.assertRaises(grpc.RpcError):
-        self.limiter.throttle()
+        self.limiter.allow()
 
     # The inner loop tries 5 times for connection errors
     self.assertEqual(mock_stub.ShouldRateLimit.call_count, 5)
@@ -134,7 +134,7 @@ class EnvoyRateLimiterTest(unittest.TestCase):
     self.limiter.retries = 0  # Single attempt
 
     with mock.patch('time.sleep') as mock_sleep:
-      self.limiter.throttle()
+      self.limiter.allow()
       # Should sleep for 5 seconds (jitter is 0.0)
       mock_sleep.assert_called_with(5.0)
 

@@ -61,8 +61,13 @@ class RateLimiter(abc.ABC):
     self.rpc_latency = Metrics.distribution(namespace, 'RatelimitRpcLatencyMs')
 
   @abc.abstractmethod
-  def throttle(self, **kwargs) -> bool:
-    """Check if request should be throttled.
+  def allow(self, **kwargs) -> bool:
+    """Applies rate limiting to the request.
+
+    This method checks if the request is permitted by the rate limiting policy.
+    Depending on the implementation and configuration, it may block (sleep)
+    until the request is allowed, or return false if the rate limit retry is
+    exceeded.
 
     Args:
       **kwargs: Keyword arguments specific to the RateLimiter implementation.
@@ -78,8 +83,12 @@ class RateLimiter(abc.ABC):
 
 
 class EnvoyRateLimiter(RateLimiter):
-  """
-  Rate limiter implementation that uses an external Envoy Rate Limit Service.
+  """Rate limiter implementation that uses an external Envoy Rate Limit Service.
+
+  This limiter connects to a gRPC Envoy Rate Limit Service (RLS) to determine
+  whether a request should be allowed. It supports defining a domain and a
+  list of descriptors that correspond to the rate limit configuration in the
+  RLS.
   """
   def __init__(
       self,
@@ -89,7 +98,7 @@ class EnvoyRateLimiter(RateLimiter):
       timeout: float = 5.0,
       block_until_allowed: bool = True,
       retries: int = 3,
-      namespace: str = ""):
+      namespace: str = ''):
     """
     Args:
       service_address: Address of the Envoy RLS (e.g., 'localhost:8081').
@@ -139,8 +148,16 @@ class EnvoyRateLimiter(RateLimiter):
           channel = grpc.insecure_channel(self.service_address)
           self._stub = EnvoyRateLimiter.RateLimitServiceStub(channel)
 
-  def throttle(self, hits_added: int = 1) -> bool:
-    """Calls the Envoy RLS to check for rate limits.
+  def allow(self, hits_added: int = 1) -> bool:
+    """Calls the Envoy RLS to apply rate limits.
+
+    Sends a rate limit request to the configured Envoy Rate Limit Service.
+    If 'block_until_allowed' is True, this method will sleep and retry
+    if the limit is exceeded, effectively blocking until the request is
+    permitted.
+
+    If 'block_until_allowed' is False, it will return False after the retry
+    limit is exceeded.
 
     Args:
       hits_added: Number of hits to add to the rate limit.
@@ -224,3 +241,16 @@ class EnvoyRateLimiter(RateLimiter):
             response.overall_code)
         break
     return throttled
+
+  def __getstate__(self):
+    state = self.__dict__.copy()
+    if '_lock' in state:
+      del state['_lock']
+    if '_stub' in state:
+      del state['_stub']
+    return state
+
+  def __setstate__(self, state):
+    self.__dict__.update(state)
+    self._lock = threading.Lock()
+    self._stub = None
