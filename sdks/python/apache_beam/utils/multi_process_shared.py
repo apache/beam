@@ -186,7 +186,6 @@ class _SingletonManager:
 
   def unsafe_hard_delete_singleton(self, tag):
     self.entries[tag].unsafe_hard_delete()
-    self._hard_delete_callback()
 
 
 _process_level_singleton_manager = _SingletonManager()
@@ -236,13 +235,7 @@ class _AutoProxyWrapper:
     return self._proxyObject
 
   def unsafe_hard_delete(self):
-    try:
-      self._proxyObject.unsafe_hard_delete()
-    except (EOFError, ConnectionResetError, BrokenPipeError):
-      pass
-    except Exception as e:
-      logging.warning(
-          "Exception %s when trying to hard delete shared object proxy", e)
+    self._proxyObject.unsafe_hard_delete()
 
 
 def _run_server_process(address_file, tag, constructor, authkey):
@@ -259,8 +252,8 @@ def _run_server_process(address_file, tag, constructor, authkey):
         os.remove(address_file)
       if os.path.exists(address_file + ".error"):
         os.remove(address_file + ".error")
-    except Exception:
-      pass
+    except Exception as e:
+      logging.warning('Failed to cleanup files for tag %s: %s', tag, e)
 
   def handle_unsafe_hard_delete():
     cleanup_files()
@@ -270,6 +263,9 @@ def _run_server_process(address_file, tag, constructor, authkey):
     """Checks if parent is alive every second."""
     while True:
       try:
+        # Sends a check to see if parent_pid is still alive,
+        # this call will fail with OSError if the parent has died
+        # and no-op if alive.
         os.kill(parent_pid, 0)
       except OSError:
         logging.warning(
@@ -284,7 +280,6 @@ def _run_server_process(address_file, tag, constructor, authkey):
 
   try:
     t = threading.Thread(target=_monitor_parent, daemon=True)
-    t.start()
 
     logging.getLogger().setLevel(logging.INFO)
     multiprocessing.current_process().authkey = authkey
@@ -298,6 +293,9 @@ def _run_server_process(address_file, tag, constructor, authkey):
         tag,
         initialize_eagerly=True,
         hard_delete_callback=handle_unsafe_hard_delete)
+    # Start monitoring parent after initialisation is done to avoid
+    # potential race conditions.
+    t.start()
 
     server = serving_manager.get_server()
     logging.info(
@@ -422,7 +420,8 @@ class MultiProcessShared(Generic[T]):
     # Trigger a sweep of zombie processes.
     # calling active_children() has the side-effect of joining any finished
     # processes, effectively reaping zombies from previous unsafe_hard_deletes.
-    if self._spawn_process: multiprocessing.active_children()
+    if self._spawn_process:
+      multiprocessing.active_children()
     return _AutoProxyWrapper(singleton)
 
   def release(self, obj):
@@ -437,15 +436,7 @@ class MultiProcessShared(Generic[T]):
       to this object exist, or (b) you are ok with all existing references to
       this object throwing strange errors when derefrenced.
     """
-    try:
-      self._get_manager().unsafe_hard_delete_singleton(self._tag)
-    except (EOFError, ConnectionResetError, BrokenPipeError):
-      pass
-    except Exception as e:
-      logging.warning(
-          "Exception %s when trying to hard delete shared object %s",
-          e,
-          self._tag)
+    self._get_manager().unsafe_hard_delete_singleton(self._tag)
 
   def _create_server(self, address_file):
     if self._spawn_process:
@@ -477,8 +468,11 @@ class MultiProcessShared(Generic[T]):
             os.remove(address_file)
           if os.path.exists(error_file):
             os.remove(error_file)
-        except Exception:
-          pass
+        except Exception as e:
+          logging.warning(
+              'Failed to cleanup files for tag %s in atexit handler: %s',
+              self._tag,
+              e)
 
       atexit.register(cleanup_process)
 

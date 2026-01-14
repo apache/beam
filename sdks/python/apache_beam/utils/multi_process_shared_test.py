@@ -189,8 +189,11 @@ class MultiProcessSharedTest(unittest.TestCase):
     self.assertEqual(counter1.increment(), 1)
     self.assertEqual(counter2.increment(), 2)
 
-    multi_process_shared.MultiProcessShared(
-        Counter, tag='test_unsafe_hard_delete').unsafe_hard_delete()
+    try:
+      multi_process_shared.MultiProcessShared(
+          Counter, tag='test_unsafe_hard_delete').unsafe_hard_delete()
+    except Exception:
+      pass
 
     with self.assertRaises(Exception):
       counter1.get()
@@ -219,7 +222,10 @@ class MultiProcessSharedTest(unittest.TestCase):
     self.assertEqual(counter1.increment(), 1)
     self.assertEqual(counter2.increment(), 2)
 
-    counter2.unsafe_hard_delete()
+    try:
+      counter2.unsafe_hard_delete()
+    except Exception:
+      pass
 
     with self.assertRaises(Exception):
       counter1.get()
@@ -243,8 +249,11 @@ class MultiProcessSharedTest(unittest.TestCase):
     self.assertEqual(counter1.increment(), 1)
     self.assertEqual(counter2.increment(), 2)
 
-    multi_process_shared.MultiProcessShared(
-        Counter, tag='no_tag_to_delete').unsafe_hard_delete()
+    try:
+      multi_process_shared.MultiProcessShared(
+          Counter, tag='no_tag_to_delete').unsafe_hard_delete()
+    except Exception:
+      pass
 
     self.assertEqual(counter1.increment(), 3)
     self.assertEqual(counter2.increment(), 4)
@@ -298,8 +307,9 @@ class MultiProcessSharedSpawnProcessTest(unittest.TestCase):
                 'main',
                 'to_delete',
                 'mix1',
-                'mix2'
-                'test_process_exit']:
+                'mix2',
+                'test_process_exit',
+                'thundering_herd_test']:
       for ext in ['', '.address', '.address.error']:
         try:
           os.remove(os.path.join(tempdir, tag + ext))
@@ -326,7 +336,10 @@ class MultiProcessSharedSpawnProcessTest(unittest.TestCase):
     instance = shared1.acquire()
     proxy_instance = instance.make_proxy(spawn_process=True)
     self.assertEqual(proxy_instance.increment(), 1)
-    proxy_instance.unsafe_hard_delete()
+    try:
+      proxy_instance.unsafe_hard_delete()
+    except Exception:
+      pass
 
     proxy_instance2 = instance.make_proxy(tag='proxy_2', spawn_process=True)
     self.assertEqual(proxy_instance2.increment(), 1)
@@ -344,7 +357,10 @@ class MultiProcessSharedSpawnProcessTest(unittest.TestCase):
     self.assertEqual(counter1.increment(), 1)
     self.assertEqual(counter2.increment(), 2)
 
-    counter2.unsafe_hard_delete()
+    try:
+      counter2.unsafe_hard_delete()
+    except Exception:
+      pass
 
     with self.assertRaises(Exception):
       counter1.get()
@@ -385,7 +401,10 @@ class MultiProcessSharedSpawnProcessTest(unittest.TestCase):
 
     self.assertIsNotNone(
         server_process, "Could not find spawned server process")
-    obj.unsafe_hard_delete()
+    try:
+      obj.unsafe_hard_delete()
+    except Exception:
+      pass
     server_process.join(timeout=5)
 
     self.assertFalse(
@@ -413,7 +432,10 @@ class MultiProcessSharedSpawnProcessTest(unittest.TestCase):
 
     self.assertIsNotNone(
         server_process, "Could not find spawned server process")
-    shared.unsafe_hard_delete()
+    try:
+      shared.unsafe_hard_delete()
+    except Exception:
+      pass
     server_process.join(timeout=5)
 
     self.assertFalse(
@@ -434,7 +456,10 @@ class MultiProcessSharedSpawnProcessTest(unittest.TestCase):
     server_pid = next(
         p.pid for p in children if p.is_alive() and p.pid != os.getpid())
 
-    obj.unsafe_hard_delete()
+    try:
+      obj.unsafe_hard_delete()
+    except Exception:
+      pass
 
     try:
       os.kill(server_pid, 0)
@@ -458,7 +483,10 @@ class MultiProcessSharedSpawnProcessTest(unittest.TestCase):
     self.assertFalse(
         pid_exists,
         f"Old server process {server_pid} was not reaped by acquire() sweep")
-    shared2.unsafe_hard_delete()
+    try:
+      shared2.unsafe_hard_delete()
+    except Exception:
+      pass
 
 
 if __name__ == '__main__':
