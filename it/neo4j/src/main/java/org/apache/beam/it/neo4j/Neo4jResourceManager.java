@@ -21,9 +21,11 @@ import static org.apache.beam.it.common.utils.ResourceManagerUtils.generatePassw
 import static org.apache.beam.it.neo4j.Neo4jResourceManagerUtils.generateDatabaseName;
 
 import com.google.common.annotations.VisibleForTesting;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 import org.apache.beam.it.common.ResourceManager;
 import org.apache.beam.it.testcontainers.TestContainerResourceManager;
 import org.checkerframework.checker.nullness.qual.Nullable;
@@ -37,14 +39,6 @@ import org.slf4j.LoggerFactory;
 import org.testcontainers.containers.Neo4jContainer;
 import org.testcontainers.utility.DockerImageName;
 
-/**
- * Client for managing Neo4j resources.
- *
- * <p>The database name is formed using testId. The database name will be "{testId}-{ISO8601 time,
- * microsecond precision}", with additional formatting.
- *
- * <p>The class is thread-safe.
- */
 public class Neo4jResourceManager extends TestContainerResourceManager<Neo4jContainer<?>>
     implements ResourceManager {
 
@@ -60,7 +54,8 @@ public class Neo4jResourceManager extends TestContainerResourceManager<Neo4jCont
   private static final int NEO4J_BOLT_PORT = 7687;
 
   private final Driver neo4jDriver;
-  private final String databaseName;
+  private final @Nullable String databaseName;
+  private final List<String> newDataBases = new ArrayList<>();
   private final DatabaseWaitOption waitOption;
   private final String connectionString;
   private final boolean usingStaticDatabase;
@@ -95,9 +90,8 @@ public class Neo4jResourceManager extends TestContainerResourceManager<Neo4jCont
       this.databaseName = builder.databaseName;
       this.waitOption = null;
     } else {
-      this.databaseName = generateDatabaseName(builder.testId);
+      this.databaseName = null;
       this.waitOption = builder.waitOption;
-      createDatabase(databaseName, waitOption);
     }
   }
 
@@ -110,11 +104,12 @@ public class Neo4jResourceManager extends TestContainerResourceManager<Neo4jCont
     return connectionString;
   }
 
-  public List<Map<String, Object>> run(String query) {
-    return this.run(query, Collections.emptyMap());
+  public List<Map<String, Object>> run(String query, String databaseName) {
+    return this.run(query, databaseName, Collections.emptyMap());
   }
 
-  public List<Map<String, Object>> run(String query, Map<String, Object> parameters) {
+  public List<Map<String, Object>> run(
+      String query, String databaseName, Map<String, Object> parameters) {
     try (Session session =
         neo4jDriver.session(SessionConfig.builder().withDatabase(databaseName).build())) {
       return session.run(query, parameters).list(record -> record.asMap());
@@ -128,7 +123,7 @@ public class Neo4jResourceManager extends TestContainerResourceManager<Neo4jCont
    *
    * @return the name of the Neo4j Database.
    */
-  public synchronized String getDatabaseName() {
+  public synchronized @Nullable String getDatabaseName() {
     return databaseName;
   }
 
@@ -140,11 +135,11 @@ public class Neo4jResourceManager extends TestContainerResourceManager<Neo4jCont
 
     // First, delete the database if it was not given as a static argument
     try {
-      if (!usingStaticDatabase) {
-        dropDatabase(databaseName, waitOption);
+      if (!newDataBases.isEmpty()) {
+        dropTestDatabases(waitOption);
       }
     } catch (Exception e) {
-      LOG.error("Failed to delete Neo4j database {}.", databaseName, e);
+      LOG.error("Failed to delete Neo4j databases {}.", newDataBases, e);
       producedError = true;
     }
 
@@ -167,28 +162,34 @@ public class Neo4jResourceManager extends TestContainerResourceManager<Neo4jCont
     LOG.info("Neo4j manager successfully cleaned up.");
   }
 
-  private void createDatabase(String databaseName, DatabaseWaitOption waitOption) {
+  public String createTestDatabase() {
+    String newDatabaseName =
+        generateDatabaseName("test" + UUID.randomUUID().toString().substring(0, 4));
     try (Session session =
         neo4jDriver.session(SessionConfig.builder().withDatabase("system").build())) {
       String query =
           String.format("CREATE DATABASE $db %s", DatabaseWaitOptions.asCypher(waitOption));
-      session.run(query, Collections.singletonMap("db", databaseName)).consume();
+      session.run(query, Collections.singletonMap("db", newDatabaseName)).consume();
     } catch (Exception e) {
       throw new Neo4jResourceManagerException(
-          String.format("Error dropping database %s.", databaseName), e);
+          String.format("Error dropping database %s.", newDatabaseName), e);
     }
+    newDataBases.add(newDatabaseName);
+    return newDatabaseName;
   }
 
   @VisibleForTesting
-  void dropDatabase(String databaseName, DatabaseWaitOption waitOption) {
+  void dropTestDatabases(DatabaseWaitOption waitOption) {
     try (Session session =
         neo4jDriver.session(SessionConfig.builder().withDatabase("system").build())) {
       String query =
           String.format("DROP DATABASE $db %s", DatabaseWaitOptions.asCypher(waitOption));
-      session.run(query, Collections.singletonMap("db", databaseName)).consume();
+      for (String databaseName : newDataBases) {
+        session.run(query, Collections.singletonMap("db", databaseName)).consume();
+      }
     } catch (Exception e) {
       throw new Neo4jResourceManagerException(
-          String.format("Error dropping database %s.", databaseName), e);
+          String.format("Error dropping database %s.", newDataBases), e);
     }
   }
 
@@ -222,7 +223,7 @@ public class Neo4jResourceManager extends TestContainerResourceManager<Neo4jCont
      * <p>Note: if a database name is set, and a static Neo4j server is being used
      * (useStaticContainer() is also called on the builder), then a database will be created on the
      * static server if it does not exist, and it will not be removed when cleanupAll() is called on
-     * the Neo4jResourceManager.
+     * the PatchNeo4jResourceManager.
      *
      * @param databaseName The database name.
      * @return this builder object with the database name set.
@@ -238,7 +239,7 @@ public class Neo4jResourceManager extends TestContainerResourceManager<Neo4jCont
      * <p>Note: if a database name is set, and a static Neo4j server is being used
      * (useStaticContainer() is also called on the builder), then a database will be created on the
      * static server if it does not exist, and it will not be removed when cleanupAll() is called on
-     * the Neo4jResourceManager.
+     * the PatchNeo4jResourceManager.
      *
      * <p>{@link DatabaseWaitOptions} exposes all configurable wait options
      *
