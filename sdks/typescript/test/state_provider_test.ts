@@ -283,5 +283,46 @@ describe("CachingStateProvider", function () {
     cache.getState(stateKey, decode);
     assert.ok(cache.currentWeight > 0);
   });
-});
 
+  it("evicts oversized item that exceeds maxCacheWeight", function () {
+    const mockProvider = new MockStateProvider();
+    // Set a very small weight limit (10 bytes)
+    const cache = new CachingStateProvider(mockProvider, 10);
+
+    const decode = (data: Uint8Array) => data.toString();
+
+    const stateKey: fnApi.StateKey = {
+      type: {
+        oneofKind: "bagUserState",
+        bagUserState: fnApi.StateKey_BagUserState.create({
+          transformId: "test",
+          userStateId: "oversized_state",
+          window: new Uint8Array(0),
+          key: new Uint8Array(0),
+        }),
+      },
+    };
+
+    const key = Buffer.from(fnApi.StateKey.toBinary(stateKey)).toString(
+      "base64",
+    );
+    // Create a large value that exceeds the cache weight limit
+    const largeValue = "this_is_a_very_large_value_that_exceeds_the_limit";
+    mockProvider.setValue(key, largeValue);
+
+    // Cache should start empty
+    assert.equal(cache.cache.size, 0);
+    assert.equal(cache.currentWeight, 0);
+
+    // Add the oversized item - it should be added and then immediately evicted
+    cache.getState(stateKey, decode);
+
+    // The cache should be empty after eviction (item was added then evicted)
+    assert.equal(cache.cache.size, 0);
+    assert.equal(cache.currentWeight, 0);
+
+    // Fetching again should hit the underlying provider since item was evicted
+    cache.getState(stateKey, decode);
+    assert.equal(mockProvider.callCount, 2);
+  });
+});

@@ -54,13 +54,24 @@ interface WeightedCacheEntry<T> {
   weight: number;
 }
 
+// Default weight for values that cannot be sized (e.g., promises)
+const DEFAULT_WEIGHT = 64;
+
 /**
  * Estimates the memory size of a value in bytes.
- * This is a simplified estimation - actual memory usage may vary.
+ * Handles circular references by tracking visited objects.
  */
-function estimateSize(value: any): number {
+function sizeof(value: any, visited: Set<any> = new Set()): number {
   if (value === null || value === undefined) {
     return 8;
+  }
+
+  // Handle circular references for objects
+  if (typeof value === "object") {
+    if (visited.has(value)) {
+      return 8; // Account for reference size, not the full object again
+    }
+    visited.add(value);
   }
 
   const type = typeof value;
@@ -81,20 +92,20 @@ function estimateSize(value: any): number {
   if (Array.isArray(value)) {
     let size = 40; // Array overhead
     for (const item of value) {
-      size += estimateSize(item);
+      size += sizeof(item, visited);
     }
     return size;
   }
   if (type === "object") {
     let size = 40; // Object overhead
     for (const key of Object.keys(value)) {
-      size += estimateSize(key) + estimateSize(value[key]);
+      size += sizeof(key, visited) + sizeof(value[key], visited);
     }
     return size;
   }
 
   // Default for unknown types
-  return 64;
+  return DEFAULT_WEIGHT;
 }
 
 // Default cache size: 100MB
@@ -120,15 +131,16 @@ export class CachingStateProvider implements StateProvider {
    */
   private evictIfNeeded() {
     while (this.currentWeight > this.maxCacheWeight && this.cache.size > 0) {
-      // Remove the first (oldest) entry
+      // Get the first (oldest) entry
       const firstKey = this.cache.keys().next().value;
-      if (firstKey !== undefined) {
-        const evicted = this.cache.get(firstKey);
-        if (evicted !== undefined) {
-          this.currentWeight -= evicted.weight;
-        }
-        this.cache.delete(firstKey);
+      if (firstKey === undefined) {
+        break;
       }
+      const evictedEntry = this.cache.get(firstKey);
+      if (evictedEntry !== undefined) {
+        this.currentWeight -= evictedEntry.weight;
+      }
+      this.cache.delete(firstKey);
     }
   }
 
@@ -169,7 +181,7 @@ export class CachingStateProvider implements StateProvider {
             // Remove old weight from total
             this.currentWeight -= currentEntry.weight;
           }
-          const resolvedWeight = estimateSize(value);
+          const resolvedWeight = sizeof(value);
           this.cache.set(cacheKey, {
             entry: { type: "value", value },
             weight: resolvedWeight,
@@ -180,12 +192,13 @@ export class CachingStateProvider implements StateProvider {
         }),
       };
     }
-    // Estimate weight for the new entry
-    const weight = result.type === "value" ? estimateSize(result.value) : 64; // Promise placeholder weight
-    // Evict if needed before adding new entry
+    // Calculate weight for the new entry
+    const weight =
+      result.type === "value" ? sizeof(result.value) : DEFAULT_WEIGHT;
+    // Add new entry to cache and then evict if needed
     this.currentWeight += weight;
-    this.evictIfNeeded();
     this.cache.set(cacheKey, { entry: result, weight });
+    this.evictIfNeeded();
     return result;
   }
 }
