@@ -484,6 +484,7 @@ if __name__ == '__main__':
               # GCP packages required by tests
               'google-cloud-bigquery>=2.0.0,<4',
               'google-cloud-bigquery-storage>=2.6.3,<3',
+              'google-cloud-build>=3.35.0,<4',
               'google-cloud-core>=2.0.0,<3',
               'google-cloud-bigtable>=2.19.0,<3',
               'google-cloud-spanner>=3.0.0,<4',
