@@ -348,6 +348,9 @@ public class AvroGenericRecordToStorageApiProto {
             fieldDescriptorFromAvroField(
                 new Schema.Field(field.name(), elementType, field.doc(), field.defaultVal()));
         builder = builder.setType(elementFieldSchema.getType());
+        if (elementFieldSchema.hasTimestampPrecision()) {
+          builder.setTimestampPrecision(elementFieldSchema.getTimestampPrecision());
+        }
         builder.addAllFields(elementFieldSchema.getFieldsList());
         builder = builder.setMode(TableFieldSchema.Mode.REPEATED);
         break;
