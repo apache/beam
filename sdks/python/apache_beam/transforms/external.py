@@ -804,8 +804,8 @@ class ExternalTransform(ptransform.PTransform):
               spec=beam_runner_api_pb2.FunctionSpec(
                   urn=common_urns.primitives.IMPULSE.urn),
               outputs={'out': transform_proto.inputs[tag]}))
-              
-    # Retrieve type hints and store them in variables 
+
+    # Retrieve type hints and store them in variables
     # to avoid duplicate calls and AttributeError
     hints = self.get_type_hints()
     output_coders = None
