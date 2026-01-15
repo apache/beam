@@ -212,7 +212,7 @@ class _SdkContainerImageCloudBuilder(SdkContainerImageBuilder):
     from apache_beam.io.gcp.gcsio import create_storage_client
     self._storage_client = create_storage_client(
         options, not self._google_cloud_options.no_auth)
-    
+
     from google.cloud.devtools.cloudbuild_v1.services import cloud_build
     self._cloudbuild_client = cloud_build.CloudBuildClient(
         credentials=credentials)
