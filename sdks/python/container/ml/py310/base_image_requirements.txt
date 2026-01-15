@@ -125,7 +125,7 @@ Js2Py==0.74
 jsonpickle==3.4.2
 jsonschema==4.26.0
 jsonschema-specifications==2025.9.1
-keras==3.12.0
+keras==3.13.1
 keyring==25.7.0
 keyrings.google-artifactregistry-auth==1.1.2
 libclang==18.1.1
