@@ -22,21 +22,22 @@ resource "google_project_service" "required" {
     "iam",
     "compute",
   ])
+
   service            = "${each.key}.googleapis.com"
   disable_on_destroy = false
 }
 
 // Query the VPC network to make sure it exists.
 data "google_compute_network" "default" {
-  depends_on = [google_project_service.required]
   name       = var.vpc_name
+  depends_on = [google_project_service.required]
 }
 
 // Query the VPC subnetwork to make sure it exists in the region specified.
 data "google_compute_subnetwork" "default" {
-  depends_on = [google_project_service.required]
   name       = var.subnet_name
   region     = var.region
+  depends_on = [google_project_service.required]
   lifecycle {
     postcondition {
       condition     = self.private_ip_google_access
@@ -47,5 +48,3 @@ EOT
     }
   }
 }
-
-

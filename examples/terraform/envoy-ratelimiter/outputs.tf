@@ -17,9 +17,11 @@
  */
 
 output "cluster_name" {
-  value = google_container_cluster.primary.name
+  description = "The name of the GKE cluster."
+  value       = google_container_cluster.primary.name
 }
 
 output "load_balancer_ip" {
-  value = google_compute_address.ratelimit_ip.address
+  description = "The IP address of the load balancer."
+  value       = google_compute_address.ratelimit_ip.address
 }

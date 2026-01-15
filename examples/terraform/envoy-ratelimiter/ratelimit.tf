@@ -20,9 +20,9 @@
 # GKE Public Endpoint takes ~1-2 minutes to become globally routable after creation.
 # This delay prevents "network is unreachable" errors during initial resource deployment.
 resource "time_sleep" "wait_for_cluster" {
-  depends_on = [google_container_cluster.primary]
-
   create_duration = "60s"
+
+  depends_on = [google_container_cluster.primary]
 }
 
 # ConfigMap
@@ -226,15 +226,15 @@ resource "kubernetes_deployment" "ratelimit" {
     }
   }
 
-  lifecycle {
-    ignore_changes = [spec[0].replicas]
-  }
-
   depends_on = [
     time_sleep.wait_for_cluster,
     kubernetes_config_map.ratelimit_config,
     kubernetes_service.redis
   ]
+
+  lifecycle {
+    ignore_changes = [spec[0].replicas]
+  }
 }
 
 resource "kubernetes_horizontal_pod_autoscaler_v2" "ratelimit" {
@@ -258,7 +258,7 @@ resource "kubernetes_horizontal_pod_autoscaler_v2" "ratelimit" {
         name  = "cpu"
         target {
           type                = "Utilization"
-          average_utilization = var.hpa_cpu_target
+          average_utilization = var.hpa_cpu_target_percentage
         }
       }
     }
@@ -269,7 +269,7 @@ resource "kubernetes_horizontal_pod_autoscaler_v2" "ratelimit" {
         name  = "memory"
         target {
           type                = "Utilization"
-          average_utilization = var.hpa_memory_target
+          average_utilization = var.hpa_memory_target_percentage
         }
       }
     }

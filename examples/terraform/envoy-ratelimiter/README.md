@@ -72,7 +72,8 @@ control_plane_cidr    = "172.16.0.0/28"             # CIDR for GKE control plane
 ratelimit_replicas    = 1                           # Initial number of Rate Limit pods
 min_replicas          = 1                           # Minimum HPA replicas
 max_replicas          = 5                           # Maximum HPA replicas
-hpa_cpu_target        = 80                          # CPU utilization target for HPA (%)
+hpa_cpu_target_percentage        = 75                          # CPU utilization target for HPA (%)
+hpa_memory_target_percentage     = 75                          # Memory utilization target for HPA (%)
 vpc_name              = "default"                   # Existing VPC name to deploy into
 subnet_name           = "default"                   # Existing Subnet name (required for Internal LB IP)
 ratelimit_image       = "envoyproxy/ratelimit:e9ce92cc" # Docker image for Rate Limit service
@@ -157,8 +158,8 @@ terraform destroy
 |ratelimit_replicas     |Initial number of Rate Limit pods                    |1                                |
 |min_replicas           |Minimum HPA replicas                                 |1                                |
 |max_replicas           |Maximum HPA replicas                                 |5                                |
-|hpa_cpu_target         |CPU utilization target for HPA (%)                   |75                               |
-|hpa_memory_target      |Memory utilization target for HPA (%)                |75                               |
+|hpa_cpu_target_percentage         |CPU utilization target for HPA (%)                   |75                               |
+|hpa_memory_target_percentage      |Memory utilization target for HPA (%)                |75                               |
 |ratelimit_image        |Docker image for Rate Limit service                  |envoyproxy/ratelimit:e9ce92cc    |
 |redis_image            |Docker image for Redis                               |redis:6.2-alpine                 |
 |ratelimit_resources    |Resources for Rate Limit service (map)               |requests/limits (CPU/Mem)        |

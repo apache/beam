@@ -92,13 +92,13 @@ variable "max_replicas" {
   default     = 5
 }
 
-variable "hpa_cpu_target" {
+variable "hpa_cpu_target_percentage" {
   description = "Target CPU utilization percentage for autoscaling"
   type        = number
   default     = 75
 }
 
-variable "hpa_memory_target" {
+variable "hpa_memory_target_percentage" {
   description = "Target Memory utilization percentage for autoscaling"
   type        = number
   default     = 75
