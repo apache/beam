@@ -777,7 +777,7 @@ tasks.register("validateChanges") {
     println("Found ${errors.size} errors")
 
     if (errors.isNotEmpty()) {
-      throw GradleException("CHANGES.md validation failed with the following errors:\n${errors.joinToString("\n")}\n\nYou can run ./gradlew formatChanges to correct some issues.")
+      throw GradleException("CHANGES.md validation failed with the following errors:\n${errors.joinToString("\n")}\n\nYou can run `./gradlew formatChanges` to correct some issues.")
     }
 
     println("CHANGES.md validation successful")
