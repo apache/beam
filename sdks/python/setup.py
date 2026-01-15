@@ -411,7 +411,6 @@ if __name__ == '__main__':
           'zstandard>=0.18.0,<1',
           'pyyaml>=3.12,<7.0.0',
           'beartype>=0.21.0,<0.23.0',
-          'google-cloud-build>=3.35.0,<4',
           # Dynamic dependencies must be specified in a separate list, otherwise
           # Dependabot won't be able to parse the main list. Any dynamic
           # dependencies will not receive updates from Dependabot.
@@ -487,6 +486,7 @@ if __name__ == '__main__':
               'google-cloud-bigquery-storage>=2.6.3,<3',
               'google-cloud-core>=2.0.0,<3',
               'google-cloud-bigtable>=2.19.0,<3',
+              'google-cloud-build>=3.35.0,<4',
               'google-cloud-spanner>=3.0.0,<4',
               # GCP Packages required by ML functionality
               'google-cloud-dlp>=3.0.0,<4',

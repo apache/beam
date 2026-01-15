@@ -37,8 +37,6 @@ import time
 import uuid
 from typing import Type
 
-from google.cloud.devtools.cloudbuild_v1 import types as cloud_build_types
-from google.cloud.devtools.cloudbuild_v1.services import cloud_build
 from google.protobuf.json_format import MessageToJson
 
 from apache_beam import version as beam_version
@@ -214,6 +212,8 @@ class _SdkContainerImageCloudBuilder(SdkContainerImageBuilder):
     from apache_beam.io.gcp.gcsio import create_storage_client
     self._storage_client = create_storage_client(
         options, not self._google_cloud_options.no_auth)
+    
+    from google.cloud.devtools.cloudbuild_v1.services import cloud_build
     self._cloudbuild_client = cloud_build.CloudBuildClient(
         credentials=credentials)
     if not self._docker_registry_push_url:
@@ -225,6 +225,7 @@ class _SdkContainerImageCloudBuilder(SdkContainerImageBuilder):
     return 'cloud_build'
 
   def _invoke_docker_build_and_push(self, container_image_name):
+    from google.cloud.devtools.cloudbuild_v1 import types as cloud_build_types
     project_id = self._google_cloud_options.project
     temp_location = self._google_cloud_options.temp_location
     # google cloud build service expects all the build source file to be
@@ -346,6 +347,7 @@ class _SdkContainerImageCloudBuilder(SdkContainerImageBuilder):
 
   @staticmethod
   def _get_cloud_build_machine_type_enum(machine_type: str):
+    from google.cloud.devtools.cloudbuild_v1 import types as cloud_build_types
     if not machine_type:
       return None
     mappings = {
