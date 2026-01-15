@@ -64,7 +64,7 @@
 
 ## I/Os
 
-* Add support for Datadog IO (Java)[#37318](https://github.com/apache/beam/issues/37318).
+* Add support for Datadog IO (Java) ([#37318](https://github.com/apache/beam/issues/37318)).
 
 ## New Features / Improvements
 
