@@ -65,7 +65,7 @@
 
 ## I/Os
 
-* Support for X source added (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
+* Add support for Datadog IO (Java)[#37319](https://github.com/apache/beam/pull/37319).
 
 ## New Features / Improvements
 
