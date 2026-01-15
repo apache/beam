@@ -131,15 +131,11 @@ export class CachingStateProvider implements StateProvider {
    */
   private evictIfNeeded() {
     while (this.currentWeight > this.maxCacheWeight && this.cache.size > 0) {
-      // Get the first (oldest) entry
-      const firstKey = this.cache.keys().next().value;
-      if (firstKey === undefined) {
-        break;
-      }
-      const evictedEntry = this.cache.get(firstKey);
-      if (evictedEntry !== undefined) {
-        this.currentWeight -= evictedEntry.weight;
-      }
+      // Get the first (oldest) entry from the map iterator
+      const firstEntry = this.cache.entries().next().value;
+      const firstKey = firstEntry[0];
+      const evictedEntry = firstEntry[1];
+      this.currentWeight -= evictedEntry.weight;
       this.cache.delete(firstKey);
     }
   }
@@ -175,19 +171,22 @@ export class CachingStateProvider implements StateProvider {
         type: "promise",
         promise: result.promise.then((value) => {
           // When promise resolves, update cache with resolved value
-          // Get the current entry to update its weight
           const currentEntry = this.cache.get(cacheKey);
-          if (currentEntry !== undefined) {
-            // Remove old weight from total
+          // Only update if the entry in the cache is still the promise we are resolving.
+          // This prevents a race condition where the entry is evicted and replaced
+          // before this promise resolves.
+          if (currentEntry?.entry === result) {
+            // Remove old weight (of the promise) from total
             this.currentWeight -= currentEntry.weight;
+
+            const resolvedWeight = sizeof(value);
+            this.cache.set(cacheKey, {
+              entry: { type: "value", value },
+              weight: resolvedWeight,
+            });
+            this.currentWeight += resolvedWeight;
+            this.evictIfNeeded();
           }
-          const resolvedWeight = sizeof(value);
-          this.cache.set(cacheKey, {
-            entry: { type: "value", value },
-            weight: resolvedWeight,
-          });
-          this.currentWeight += resolvedWeight;
-          this.evictIfNeeded();
           return value;
         }),
       };
