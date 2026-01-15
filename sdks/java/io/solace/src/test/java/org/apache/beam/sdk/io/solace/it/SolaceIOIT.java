@@ -63,7 +63,7 @@ public class SolaceIOIT {
   private static final String READ_COUNT = "read_count";
   private static final String WRITE_COUNT = "write_count";
   private static SolaceContainerManager solaceContainerManager;
-  private static final String queueName = "test_queue";
+  private static final String queueName = "test_queue/with/slash";
   private static final TestPipelineOptions pipelineOptions;
   private static final long PUBLISH_MESSAGE_COUNT = 20;
 

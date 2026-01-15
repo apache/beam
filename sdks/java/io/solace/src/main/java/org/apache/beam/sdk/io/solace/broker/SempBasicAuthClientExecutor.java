@@ -36,8 +36,6 @@ import java.io.Serializable;
 import java.io.UnsupportedEncodingException;
 import java.net.CookieManager;
 import java.net.HttpCookie;
-import java.net.URLEncoder;
-import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -45,6 +43,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 import org.apache.beam.sdk.io.solace.data.Semp.Queue;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.net.UrlEscapers;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -227,8 +226,8 @@ public class SempBasicAuthClientExecutor implements Serializable {
     }
   }
 
-  private static String urlEncode(String queueName) throws UnsupportedEncodingException {
-    return URLEncoder.encode(queueName, StandardCharsets.UTF_8.name());
+  private static String urlEncode(String path) {
+    return UrlEscapers.urlPathSegmentEscaper().escape(path);
   }
 
   private <T> T mapJsonToClass(String content, Class<T> mapSuccessToClass)
@@ -248,8 +247,12 @@ public class SempBasicAuthClientExecutor implements Serializable {
   public void ack(String queueName, Long msgId) throws IOException {
     String queryUrl = getAckEndpoint(messageVpn, queueName, msgId);
     ImmutableMap<String, Object> params = ImmutableMap.<String, Object>builder().build();
-    HttpResponse response = executePut(new GenericUrl(baseUrl + queryUrl), params);
-    BrokerResponse.fromHttpResponse(response);
+    try {
+      HttpResponse response = executePut(new GenericUrl(baseUrl + queryUrl), params);
+      BrokerResponse.fromHttpResponse(response);
+    } catch (HttpResponseException e) {
+      LOG.error("Failed to ack message", e);
+    }
   }
 
   private static class CookieManagerKey implements Serializable {

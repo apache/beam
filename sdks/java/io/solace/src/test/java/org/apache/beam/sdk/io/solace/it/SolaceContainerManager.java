@@ -23,6 +23,7 @@ import java.net.ServerSocket;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.net.UrlEscapers;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testcontainers.containers.Container.ExecResult;
@@ -104,7 +105,7 @@ public class SolaceContainerManager {
         "http://localhost:8080/SEMP/v2/config/msgVpns/"
             + VPN_NAME
             + "/queues/"
-            + queueName
+            + UrlEscapers.urlPathSegmentEscaper().escape(queueName)
             + "/subscriptions",
         "-X",
         "POST",
@@ -145,7 +146,7 @@ public class SolaceContainerManager {
         "http://localhost:8080/SEMP/v2/monitor/msgVpns/"
             + VPN_NAME
             + "/queues/"
-            + queueName
+            + UrlEscapers.urlPathSegmentEscaper().escape(queueName)
             + "/msgs",
         "-X",
         "GET",
