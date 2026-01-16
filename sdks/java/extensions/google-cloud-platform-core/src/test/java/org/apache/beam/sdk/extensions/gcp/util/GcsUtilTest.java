@@ -100,8 +100,8 @@ import org.apache.beam.sdk.extensions.gcp.auth.TestCredential;
 import org.apache.beam.sdk.extensions.gcp.options.GcsOptions;
 import org.apache.beam.sdk.extensions.gcp.util.GcsUtil.CreateOptions;
 import org.apache.beam.sdk.extensions.gcp.util.GcsUtil.StorageObjectOrIOException;
-import org.apache.beam.sdk.extensions.gcp.util.GcsUtilLegacy.BatchInterface;
-import org.apache.beam.sdk.extensions.gcp.util.GcsUtilLegacy.RewriteOp;
+import org.apache.beam.sdk.extensions.gcp.util.GcsUtilV1.BatchInterface;
+import org.apache.beam.sdk.extensions.gcp.util.GcsUtilV1.RewriteOp;
 import org.apache.beam.sdk.extensions.gcp.util.gcsfs.GcsPath;
 import org.apache.beam.sdk.io.fs.MoveOptions.StandardMoveOptions;
 import org.apache.beam.sdk.metrics.MetricName;
@@ -1631,8 +1631,8 @@ public class GcsUtilTest {
         throws IOException {
       GcsUtilMock gcsUtilMock = createMock(options);
 
-      GcsUtilLegacyMock mockLegacy =
-          GcsUtilLegacyMock.createMockWithMockStorage(options, readPayload);
+      GcsUtilV1Mock mockLegacy =
+          GcsUtilV1Mock.createMockWithMockStorage(options, readPayload);
       gcsUtilMock.delegate = mockLegacy;
 
       return gcsUtilMock;
@@ -1682,13 +1682,13 @@ public class GcsUtilTest {
     }
   }
 
-  public static class GcsUtilLegacyMock extends GcsUtilLegacy {
+  public static class GcsUtilV1Mock extends GcsUtilV1 {
 
     public GoogleCloudStorage googleCloudStorage;
 
-    public static GcsUtilLegacyMock createMockWithMockStorage(
+    public static GcsUtilV1Mock createMockWithMockStorage(
         PipelineOptions options, byte[] readPayload) throws IOException {
-      GcsUtilLegacyMock gcsUtilMock = createMock(options);
+      GcsUtilV1Mock gcsUtilMock = createMock(options);
       GoogleCloudStorage googleCloudStorageMock = Mockito.mock(GoogleCloudStorage.class);
       gcsUtilMock.googleCloudStorage = googleCloudStorageMock;
       // set the mock in the super object as well
@@ -1706,10 +1706,10 @@ public class GcsUtilTest {
       return gcsUtilMock;
     }
 
-    public static GcsUtilLegacyMock createMock(PipelineOptions options) {
+    public static GcsUtilV1Mock createMock(PipelineOptions options) {
       GcsOptions gcsOptions = options.as(GcsOptions.class);
       Storage.Builder storageBuilder = Transport.newStorageClient(gcsOptions);
-      return new GcsUtilLegacyMock(
+      return new GcsUtilV1Mock(
           storageBuilder.build(),
           storageBuilder.getHttpRequestInitializer(),
           gcsOptions.getExecutorService(),
@@ -1717,7 +1717,7 @@ public class GcsUtilTest {
           gcsOptions.getGcpCredential(),
           gcsOptions.getGcsUploadBufferSizeBytes(),
           gcsOptions.getGcsRewriteDataOpBatchLimit(),
-          GcsUtilLegacy.GcsCountersOptions.create(
+          GcsUtilV1.GcsCountersOptions.create(
               gcsOptions.getEnableBucketReadMetricCounter()
                   ? gcsOptions.getGcsReadCounterPrefix()
                   : null,
@@ -1727,7 +1727,7 @@ public class GcsUtilTest {
           gcsOptions.getGoogleCloudStorageReadOptions());
     }
 
-    private GcsUtilLegacyMock(
+    private GcsUtilV1Mock(
         Storage storageClient,
         HttpRequestInitializer httpRequestInitializer,
         ExecutorService executorService,
@@ -1735,7 +1735,7 @@ public class GcsUtilTest {
         Credentials credentials,
         @Nullable Integer uploadBufferSizeBytes,
         @Nullable Integer rewriteDataOpBatchLimit,
-        GcsUtilLegacy.GcsCountersOptions gcsCountersOptions,
+        GcsUtilV1.GcsCountersOptions gcsCountersOptions,
         GoogleCloudStorageReadOptions gcsReadOptions) {
       super(
           storageClient,
@@ -1765,7 +1765,7 @@ public class GcsUtilTest {
     GoogleCloudStorage mockStorage = Mockito.mock(GoogleCloudStorage.class);
     WritableByteChannel mockChannel = Mockito.mock(WritableByteChannel.class);
 
-    GcsUtilLegacyMock mockLegacy = GcsUtilLegacyMock.createMock(gcsOptions);
+    GcsUtilV1Mock mockLegacy = GcsUtilV1Mock.createMock(gcsOptions);
     mockLegacy.googleCloudStorage = mockStorage;
     gcsUtil.delegate = mockLegacy;
 
@@ -1785,7 +1785,7 @@ public class GcsUtilTest {
 
     GoogleCloudStorage mockStorage = Mockito.mock(GoogleCloudStorage.class);
 
-    GcsUtilLegacyMock mockLegacy = GcsUtilLegacyMock.createMock(gcsOptions);
+    GcsUtilV1Mock mockLegacy = GcsUtilV1Mock.createMock(gcsOptions);
     mockLegacy.googleCloudStorage = mockStorage;
     gcsUtil.delegate = mockLegacy;
 

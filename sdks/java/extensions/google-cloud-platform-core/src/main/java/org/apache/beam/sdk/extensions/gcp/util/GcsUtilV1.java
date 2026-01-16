@@ -107,7 +107,7 @@ import org.slf4j.LoggerFactory;
 @SuppressWarnings({
   "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
-public class GcsUtilLegacy {
+public class GcsUtilV1 {
 
   @AutoValue
   public abstract static class GcsCountersOptions {
@@ -121,7 +121,7 @@ public class GcsUtilLegacy {
 
     public static GcsCountersOptions create(
         @Nullable String readCounterPrefix, @Nullable String writeCounterPrefix) {
-      return new AutoValue_GcsUtilLegacy_GcsCountersOptions(readCounterPrefix, writeCounterPrefix);
+      return new AutoValue_GcsUtilV1_GcsCountersOptions(readCounterPrefix, writeCounterPrefix);
     }
   }
 
@@ -134,22 +134,22 @@ public class GcsUtilLegacy {
   }
 
   /**
-   * This is a {@link DefaultValueFactory} able to create a {@link GcsUtilLegacy} using any
+   * This is a {@link DefaultValueFactory} able to create a {@link GcsUtilV1} using any
    * transport flags specified on the {@link PipelineOptions}.
    */
-  public static class GcsUtilFactory implements DefaultValueFactory<GcsUtilLegacy> {
+  public static class GcsUtilFactory implements DefaultValueFactory<GcsUtilV1> {
     /**
-     * Returns an instance of {@link GcsUtilLegacy} based on the {@link PipelineOptions}.
+     * Returns an instance of {@link GcsUtilV1} based on the {@link PipelineOptions}.
      *
      * <p>If no instance has previously been created, one is created and the value stored in {@code
      * options}.
      */
     @Override
-    public GcsUtilLegacy create(PipelineOptions options) {
+    public GcsUtilV1 create(PipelineOptions options) {
       LOG.debug("Creating new GcsUtil");
       GcsOptions gcsOptions = options.as(GcsOptions.class);
       Storage.Builder storageBuilder = Transport.newStorageClient(gcsOptions);
-      return new GcsUtilLegacy(
+      return new GcsUtilV1(
           storageBuilder.build(),
           storageBuilder.getHttpRequestInitializer(),
           gcsOptions.getExecutorService(),
@@ -168,7 +168,7 @@ public class GcsUtilLegacy {
     }
   }
 
-  private static final Logger LOG = LoggerFactory.getLogger(GcsUtilLegacy.class);
+  private static final Logger LOG = LoggerFactory.getLogger(GcsUtilV1.class);
 
   /** Maximum number of items to retrieve per Objects.List request. */
   private static final long MAX_LIST_ITEMS_PER_CALL = 1024;
@@ -245,7 +245,7 @@ public class GcsUtilLegacy {
   }
 
   @VisibleForTesting
-  GcsUtilLegacy(
+  GcsUtilV1(
       Storage storageClient,
       HttpRequestInitializer httpRequestInitializer,
       ExecutorService executorService,
@@ -268,7 +268,7 @@ public class GcsUtilLegacy {
   }
 
   @VisibleForTesting
-  GcsUtilLegacy(
+  GcsUtilV1(
       Storage storageClient,
       HttpRequestInitializer httpRequestInitializer,
       ExecutorService executorService,
@@ -297,7 +297,7 @@ public class GcsUtilLegacy {
         () -> {
           // Capture reference to this so that the most recent storageClient and initializer
           // are used.
-          GcsUtilLegacy util = this;
+          GcsUtilV1 util = this;
           return new BatchInterface() {
             final BatchRequest batch = util.storageClient.batch(util.httpRequestInitializer);
 
@@ -671,7 +671,7 @@ public class GcsUtilLegacy {
     public abstract @Nullable String getContentType();
 
     public static Builder builder() {
-      return new AutoValue_GcsUtilLegacy_CreateOptions.Builder().setExpectFileToNotExist(false);
+      return new AutoValue_GcsUtilV1_CreateOptions.Builder().setExpectFileToNotExist(false);
     }
 
     @AutoValue.Builder
@@ -1402,13 +1402,13 @@ public class GcsUtilLegacy {
 
     @VisibleForTesting
     public static StorageObjectOrIOException create(StorageObject storageObject) {
-      return new AutoValue_GcsUtilLegacy_StorageObjectOrIOException(
+      return new AutoValue_GcsUtilV1_StorageObjectOrIOException(
           checkNotNull(storageObject, "storageObject"), null /* ioException */);
     }
 
     @VisibleForTesting
     public static StorageObjectOrIOException create(IOException ioException) {
-      return new AutoValue_GcsUtilLegacy_StorageObjectOrIOException(
+      return new AutoValue_GcsUtilV1_StorageObjectOrIOException(
           null /* storageObject */, checkNotNull(ioException, "ioException"));
     }
   }

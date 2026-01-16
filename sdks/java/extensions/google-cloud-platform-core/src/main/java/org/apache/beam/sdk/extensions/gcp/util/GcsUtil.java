@@ -42,12 +42,12 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.Vi
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 public class GcsUtil {
-  @VisibleForTesting GcsUtilLegacy delegate;
+  @VisibleForTesting GcsUtilV1 delegate;
 
   public static class GcsCountersOptions {
-    final GcsUtilLegacy.GcsCountersOptions delegate;
+    final GcsUtilV1.GcsCountersOptions delegate;
 
-    private GcsCountersOptions(GcsUtilLegacy.GcsCountersOptions delegate) {
+    private GcsCountersOptions(GcsUtilV1.GcsCountersOptions delegate) {
       this.delegate = delegate;
     }
 
@@ -66,7 +66,7 @@ public class GcsUtil {
     public static GcsCountersOptions create(
         @Nullable String readCounterPrefix, @Nullable String writeCounterPrefix) {
       return new GcsCountersOptions(
-          GcsUtilLegacy.GcsCountersOptions.create(readCounterPrefix, writeCounterPrefix));
+          GcsUtilV1.GcsCountersOptions.create(readCounterPrefix, writeCounterPrefix));
     }
   }
 
@@ -96,11 +96,11 @@ public class GcsUtil {
   }
 
   public static String getNonWildcardPrefix(String globExp) {
-    return GcsUtilLegacy.getNonWildcardPrefix(globExp);
+    return GcsUtilV1.getNonWildcardPrefix(globExp);
   }
 
   public static boolean isWildcard(GcsPath spec) {
-    return GcsUtilLegacy.isWildcard(spec);
+    return GcsUtilV1.isWildcard(spec);
   }
 
   @VisibleForTesting
@@ -115,7 +115,7 @@ public class GcsUtil {
       GcsCountersOptions gcsCountersOptions,
       GcsOptions gcsOptions) {
     this.delegate =
-        new GcsUtilLegacy(
+        new GcsUtilV1(
             storageClient,
             httpRequestInitializer,
             executorService,
@@ -131,7 +131,7 @@ public class GcsUtil {
     delegate.setStorageClient(storageClient);
   }
 
-  protected void setBatchRequestSupplier(Supplier<GcsUtilLegacy.BatchInterface> supplier) {
+  protected void setBatchRequestSupplier(Supplier<GcsUtilV1.BatchInterface> supplier) {
     delegate.setBatchRequestSupplier(supplier);
   }
 
@@ -159,7 +159,7 @@ public class GcsUtil {
   }
 
   public List<StorageObjectOrIOException> getObjects(List<GcsPath> gcsPaths) throws IOException {
-    List<GcsUtilLegacy.StorageObjectOrIOException> legacy = delegate.getObjects(gcsPaths);
+    List<GcsUtilV1.StorageObjectOrIOException> legacy = delegate.getObjects(gcsPaths);
     return legacy.stream()
         .map(StorageObjectOrIOException::fromLegacy)
         .collect(java.util.stream.Collectors.toList());
@@ -199,9 +199,9 @@ public class GcsUtil {
   }
 
   public static class CreateOptions {
-    final GcsUtilLegacy.CreateOptions delegate;
+    final GcsUtilV1.CreateOptions delegate;
 
-    private CreateOptions(GcsUtilLegacy.CreateOptions delegate) {
+    private CreateOptions(GcsUtilV1.CreateOptions delegate) {
       this.delegate = delegate;
     }
 
@@ -218,13 +218,13 @@ public class GcsUtil {
     }
 
     public static Builder builder() {
-      return new Builder(GcsUtilLegacy.CreateOptions.builder());
+      return new Builder(GcsUtilV1.CreateOptions.builder());
     }
 
     public static class Builder {
-      private final GcsUtilLegacy.CreateOptions.Builder delegateBuilder;
+      private final GcsUtilV1.CreateOptions.Builder delegateBuilder;
 
-      private Builder(GcsUtilLegacy.CreateOptions.Builder delegateBuilder) {
+      private Builder(GcsUtilV1.CreateOptions.Builder delegateBuilder) {
         this.delegateBuilder = delegateBuilder;
       }
 
@@ -305,12 +305,12 @@ public class GcsUtil {
   }
 
   @VisibleForTesting
-  List<GcsUtilLegacy.BatchInterface> makeGetBatches(
+  List<GcsUtilV1.BatchInterface> makeGetBatches(
       Collection<GcsPath> paths, List<StorageObjectOrIOException[]> results) throws IOException {
-    List<GcsUtilLegacy.StorageObjectOrIOException[]> legacyResults = new java.util.ArrayList<>();
-    List<GcsUtilLegacy.BatchInterface> legacyBatch = delegate.makeGetBatches(paths, legacyResults);
+    List<GcsUtilV1.StorageObjectOrIOException[]> legacyResults = new java.util.ArrayList<>();
+    List<GcsUtilV1.BatchInterface> legacyBatch = delegate.makeGetBatches(paths, legacyResults);
 
-    for (GcsUtilLegacy.StorageObjectOrIOException[] legacyResult : legacyResults) {
+    for (GcsUtilV1.StorageObjectOrIOException[] legacyResult : legacyResults) {
       StorageObjectOrIOException[] result = new StorageObjectOrIOException[legacyResult.length];
       for (int i = 0; i < legacyResult.length; ++i) {
         result[i] = StorageObjectOrIOException.fromLegacy(legacyResult[i]);
@@ -334,7 +334,7 @@ public class GcsUtil {
 
   @VisibleForTesting
   @SuppressWarnings("JdkObsolete")
-  java.util.LinkedList<GcsUtilLegacy.RewriteOp> makeRewriteOps(
+  java.util.LinkedList<GcsUtilV1.RewriteOp> makeRewriteOps(
       Iterable<String> srcFilenames,
       Iterable<String> destFilenames,
       boolean deleteSource,
@@ -347,13 +347,13 @@ public class GcsUtil {
 
   @VisibleForTesting
   @SuppressWarnings("JdkObsolete")
-  List<GcsUtilLegacy.BatchInterface> makeRewriteBatches(
-      java.util.LinkedList<GcsUtilLegacy.RewriteOp> rewrites) throws IOException {
+  List<GcsUtilV1.BatchInterface> makeRewriteBatches(
+      java.util.LinkedList<GcsUtilV1.RewriteOp> rewrites) throws IOException {
     return delegate.makeRewriteBatches(rewrites);
   }
 
   @VisibleForTesting
-  List<GcsUtilLegacy.BatchInterface> makeRemoveBatches(Collection<String> filenames)
+  List<GcsUtilV1.BatchInterface> makeRemoveBatches(Collection<String> filenames)
       throws IOException {
     return delegate.makeRemoveBatches(filenames);
   }
@@ -364,23 +364,23 @@ public class GcsUtil {
 
   @SuppressFBWarnings("NM_CLASS_NOT_EXCEPTION")
   public static class StorageObjectOrIOException {
-    final GcsUtilLegacy.StorageObjectOrIOException delegate;
+    final GcsUtilV1.StorageObjectOrIOException delegate;
 
-    private StorageObjectOrIOException(GcsUtilLegacy.StorageObjectOrIOException delegate) {
+    private StorageObjectOrIOException(GcsUtilV1.StorageObjectOrIOException delegate) {
       this.delegate = delegate;
     }
 
     public static StorageObjectOrIOException create(StorageObject storageObject) {
       return new StorageObjectOrIOException(
-          GcsUtilLegacy.StorageObjectOrIOException.create(storageObject));
+          GcsUtilV1.StorageObjectOrIOException.create(storageObject));
     }
 
     public static StorageObjectOrIOException create(IOException ioException) {
       return new StorageObjectOrIOException(
-          GcsUtilLegacy.StorageObjectOrIOException.create(ioException));
+          GcsUtilV1.StorageObjectOrIOException.create(ioException));
     }
 
-    static StorageObjectOrIOException fromLegacy(GcsUtilLegacy.StorageObjectOrIOException legacy) {
+    static StorageObjectOrIOException fromLegacy(GcsUtilV1.StorageObjectOrIOException legacy) {
       return new StorageObjectOrIOException(legacy);
     }
 
