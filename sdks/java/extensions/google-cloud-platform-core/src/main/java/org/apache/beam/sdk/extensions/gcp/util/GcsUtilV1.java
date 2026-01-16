@@ -107,7 +107,7 @@ import org.slf4j.LoggerFactory;
 @SuppressWarnings({
   "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
-public class GcsUtilV1 {
+class GcsUtilV1 {
 
   @AutoValue
   public abstract static class GcsCountersOptions {
