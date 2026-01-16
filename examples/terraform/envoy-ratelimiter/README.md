@@ -20,6 +20,15 @@
 # Envoy Rate Limiter on GKE (Terraform)
 This directory contains a production-ready Terraform module to deploy a scalable **Envoy Rate Limit Service** on Google Kubernetes Engine (GKE) Autopilot.
 
+## Overview
+Apache Beam pipelines often process data at massive scale, which can easily overwhelm external APIs (e.g., Databases, LLM Inference endpoints, SaaS APIs).
+
+This Terraform module deploys a **centralized Rate Limit Service (RLS)** using Envoy. Dataflow workers can query this service to coordinate global quotas across thousands of distributed workers, ensuring you stay within safe API limits without hitting `429 Too Many Requests` errors.
+
+Example Beam Pipelines using it:
+*   [Simple DoFn RateLimiter](https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/rate_limiter_simple.py)
+*   [Vertex AI RateLimiter](https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/inference/rate_limiter_vertex_ai.py)
+
 ## Architectures:
 - **GKE Autopilot**: Fully managed, serverless Kubernetes environment.
   - **Private Cluster**: Nodes have internal IPs only.
@@ -60,7 +69,7 @@ This directory contains a production-ready Terraform module to deploy a scalable
      3. Ensure it is configured to apply to **Primary and Secondary ranges** (or at least the ranges GKE will use).
 
 # Prepare deployment configuration:
-1. Create a `terraform.tfvars` file to define variables specific to your environment:
+1. Update the `terraform.tfvars` file to define variables specific to your environment:
 
 * `terraform.tfvars` environment variables:
 ```
