@@ -81,7 +81,7 @@ func isPackageInstalled(pkgName string) bool {
 }
 
 // pipInstallPackage installs the given package, if present.
-func pipInstallPackage(ctx context.Context, logger *tools.Logger, files []string, dir, name string, force, optional bool, extras []string) error {
+func pipInstallPackage(ctx context.Context, logger *tools.Logger, files []string, dir, name string, force, optional, useBuildIsolation bool, extras []string) error {
 	pythonVersion, err := expansionx.GetPythonVersion()
 	if err != nil {
 		return err
@@ -112,6 +112,9 @@ func pipInstallPackage(ctx context.Context, logger *tools.Logger, files []string
 				// installed if necessary.  This achieves our goal outlined above.
 				args := []string{"-m", "pip", "install", "--no-cache-dir", "--disable-pip-version-check", "--upgrade", "--force-reinstall", "--no-deps",
 					filepath.Join(dir, packageSpec)}
+				if !useBuildIsolation {
+					args = append(args, "--no-build-isolation")
+				}
 				err := execx.ExecuteEnvWithIO(nil, os.Stdin, bufLogger, bufLogger, pythonVersion, args...)
 				if err != nil {
 					bufLogger.FlushAtError(ctx)
@@ -120,6 +123,9 @@ func pipInstallPackage(ctx context.Context, logger *tools.Logger, files []string
 					bufLogger.FlushAtDebug(ctx)
 				}
 				args = []string{"-m", "pip", "install", "--no-cache-dir", "--disable-pip-version-check", filepath.Join(dir, packageSpec)}
+				if !useBuildIsolation {
+					args = append(args, "--no-build-isolation")
+				}
 				err = execx.ExecuteEnvWithIO(nil, os.Stdin, bufLogger, bufLogger, pythonVersion, args...)
 				if err != nil {
 					bufLogger.FlushAtError(ctx)
@@ -131,6 +137,9 @@ func pipInstallPackage(ctx context.Context, logger *tools.Logger, files []string
 
 			// Case when we do not perform a forced reinstall.
 			args := []string{"-m", "pip", "install", "--no-cache-dir", "--disable-pip-version-check", filepath.Join(dir, packageSpec)}
+			if !useBuildIsolation {
+				args = append(args, "--no-build-isolation")
+			}
 			err := execx.ExecuteEnvWithIO(nil, os.Stdin, bufLogger, bufLogger, pythonVersion, args...)
 			if err != nil {
 				bufLogger.FlushAtError(ctx)
@@ -168,7 +177,7 @@ func installExtraPackages(ctx context.Context, logger *tools.Logger, files []str
 		for s.Scan() {
 			extraPackage := s.Text()
 			bufLogger.Printf(ctx, "Installing extra package: %s", extraPackage)
-			if err = pipInstallPackage(ctx, logger, files, dir, extraPackage, true, false, nil); err != nil {
+			if err = pipInstallPackage(ctx, logger, files, dir, extraPackage, true, false, true, nil); err != nil {
 				return fmt.Errorf("failed to install extra package %s: %v", extraPackage, err)
 			}
 		}
@@ -203,7 +212,7 @@ func installSdk(ctx context.Context, logger *tools.Logger, files []string, workD
 	if sdkWhlFile != "" {
 		// by default, pip rejects to install wheel if same version already installed
 		isDev := strings.Contains(sdkWhlFile, ".dev")
-		err := pipInstallPackage(ctx, logger, files, workDir, sdkWhlFile, isDev, false, []string{"gcp"})
+		err := pipInstallPackage(ctx, logger, files, workDir, sdkWhlFile, isDev, false, true, []string{"gcp"})
 		if err == nil {
 			return nil
 		}
@@ -215,6 +224,6 @@ func installSdk(ctx context.Context, logger *tools.Logger, files []string, workD
 			return nil
 		}
 	}
-	err := pipInstallPackage(ctx, logger, files, workDir, sdkSrcFile, false, false, []string{"gcp"})
+	err := pipInstallPackage(ctx, logger, files, workDir, sdkSrcFile, false, false, true, []string{"gcp"})
 	return err
 }
