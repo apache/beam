@@ -61,6 +61,11 @@ from apache_beam.utils import retry
 from apache_beam.utils import shared
 
 try:
+  from apache_beam.io.components.rate_limiter import RateLimiter
+except ImportError:
+  RateLimiter = None
+
+try:
   # pylint: disable=wrong-import-order, wrong-import-position
   import resource
 except ImportError:
@@ -100,6 +105,11 @@ PredictionResult.example.__doc__ = """The input example."""
 PredictionResult.inference.__doc__ = """Results for the inference on the model
   for the given example."""
 PredictionResult.model_id.__doc__ = """Model ID used to run the prediction."""
+
+
+class RateLimitExceeded(RuntimeError):
+  """RateLimit Exceeded to process a batch of requests."""
+  pass
 
 
 class ModelMetadata(NamedTuple):
@@ -349,7 +359,8 @@ class RemoteModelHandler(ABC, ModelHandler[ExampleT, PredictionT, ModelT]):
       *,
       window_ms: int = 1 * _MILLISECOND_TO_SECOND,
       bucket_ms: int = 1 * _MILLISECOND_TO_SECOND,
-      overload_ratio: float = 2):
+      overload_ratio: float = 2,
+      rate_limiter: Optional[RateLimiter] = None):
     """Initializes a ReactiveThrottler class for enabling
     client-side throttling for remote calls to an inference service. Also wraps
     provided calls to the service with retry logic.
@@ -372,6 +383,7 @@ class RemoteModelHandler(ABC, ModelHandler[ExampleT, PredictionT, ModelT]):
       overload_ratio: the target ratio between requests sent and successful
         requests. This is "K" in the formula in
         https://landing.google.com/sre/book/chapters/handling-overload.html.
+      rate_limiter: A RateLimiter object for setting a global rate limit.
     """
     # Configure ReactiveThrottler for client-side throttling behavior.
     self.throttler = ReactiveThrottler(
@@ -383,6 +395,9 @@ class RemoteModelHandler(ABC, ModelHandler[ExampleT, PredictionT, ModelT]):
     self.logger = logging.getLogger(namespace)
     self.num_retries = num_retries
     self.retry_filter = retry_filter
+    self._rate_limiter = rate_limiter
+    self._shared_rate_limiter = None
+    self._shared_handle = shared.Shared()
 
   def __init_subclass__(cls):
     if cls.load_model is not RemoteModelHandler.load_model:
@@ -431,6 +446,19 @@ class RemoteModelHandler(ABC, ModelHandler[ExampleT, PredictionT, ModelT]):
     Returns:
       An Iterable of Predictions.
     """
+    if self._rate_limiter:
+      if self._shared_rate_limiter is None:
+
+        def init_limiter():
+          return self._rate_limiter
+
+        self._shared_rate_limiter = self._shared_handle.acquire(init_limiter)
+
+      if not self._shared_rate_limiter.allow(hits_added=len(batch)):
+        raise RateLimitExceeded(
+            "Rate Limit Exceeded, "
+            "Could not process this batch.")
+
     self.throttler.throttle()
 
     try:

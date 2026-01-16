@@ -408,6 +408,10 @@ public class BigQueryTimestampPicosIT {
         .name("ts_nanos")
         .type(longSchema)
         .noDefault()
+        .name("ts_picos")
+        .type()
+        .stringType()
+        .noDefault()
         .endRecord();
   }
 
@@ -421,12 +425,12 @@ public class BigQueryTimestampPicosIT {
   public void testWriteGenericRecordTimestampNanos() throws Exception {
     String tableSpec =
         String.format("%s:%s.%s", project, DATASET_ID, "generic_record_ts_nanos_test");
-
     // Create GenericRecord with timestamp-nanos value
     GenericRecord record =
         new GenericRecordBuilder(TIMESTAMP_NANOS_AVRO_SCHEMA)
             .set(
                 "ts_nanos", TEST_INSTANT.getEpochSecond() * 1_000_000_000L + TEST_INSTANT.getNano())
+            .set("ts_picos", "2024-01-15T10:30:45.123456789123Z")
             .build();
 
     // Write using Storage Write API with Avro format
@@ -437,7 +441,6 @@ public class BigQueryTimestampPicosIT {
             "WriteGenericRecords",
             BigQueryIO.writeGenericRecords()
                 .to(tableSpec)
-                .withAvroSchemaFactory(tableSchema -> TIMESTAMP_NANOS_AVRO_SCHEMA)
                 .withSchema(BigQueryUtils.fromGenericAvroSchema(TIMESTAMP_NANOS_AVRO_SCHEMA, true))
                 .useAvroLogicalTypes()
                 .withMethod(BigQueryIO.Write.Method.STORAGE_WRITE_API)
@@ -457,12 +460,18 @@ public class BigQueryTimestampPicosIT {
                 .from(tableSpec));
 
     PAssert.that(result)
-        .containsInAnyOrder(new TableRow().set("ts_nanos", "2024-01-15T10:30:45.123456789000Z"));
+        .containsInAnyOrder(
+            new TableRow()
+                .set("ts_nanos", "2024-01-15T10:30:45.123456789000Z")
+                .set("ts_picos", "2024-01-15T10:30:45.123456789123Z"));
     readPipeline.run().waitUntilFinish();
   }
 
   private static final Schema BEAM_TIMESTAMP_NANOS_SCHEMA =
-      Schema.builder().addField("ts_nanos", Schema.FieldType.logicalType(Timestamp.NANOS)).build();
+      Schema.builder()
+          .addField("ts_nanos", Schema.FieldType.logicalType(Timestamp.NANOS))
+          .addField("ts_picos", Schema.FieldType.STRING)
+          .build();
 
   @Test
   public void testWriteBeamRowTimestampNanos() throws Exception {
@@ -472,6 +481,7 @@ public class BigQueryTimestampPicosIT {
     Row row =
         Row.withSchema(BEAM_TIMESTAMP_NANOS_SCHEMA)
             .withFieldValue("ts_nanos", TEST_INSTANT)
+            .withFieldValue("ts_picos", "2024-01-15T10:30:45.123456789123Z")
             .build();
 
     // Write using Storage Write API with Beam Schema
@@ -500,7 +510,10 @@ public class BigQueryTimestampPicosIT {
                 .from(tableSpec));
 
     PAssert.that(result)
-        .containsInAnyOrder(new TableRow().set("ts_nanos", "2024-01-15T10:30:45.123456789000Z"));
+        .containsInAnyOrder(
+            new TableRow()
+                .set("ts_nanos", "2024-01-15T10:30:45.123456789000Z")
+                .set("ts_picos", "2024-01-15T10:30:45.123456789123Z"));
     readPipeline.run().waitUntilFinish();
   }
 
