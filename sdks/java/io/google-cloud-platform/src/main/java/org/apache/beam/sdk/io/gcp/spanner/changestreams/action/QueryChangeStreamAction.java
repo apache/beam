@@ -178,11 +178,6 @@ public class QueryChangeStreamAction {
       BundleFinalizer bundleFinalizer) {
     final String token = partition.getPartitionToken();
     final Timestamp startTimestamp = tracker.currentRestriction().getFrom();
-    final Timestamp endTimestamp = partition.getEndTimestamp();
-    final Timestamp changeStreamQueryEndTimestamp =
-        endTimestamp.equals(MAX_INCLUSIVE_END_AT)
-            ? getNextReadChangeStreamEndTimestamp()
-            : endTimestamp;
 
     // TODO: Potentially we can avoid this fetch, by enriching the runningAt timestamp when the
     // ReadChangeStreamPartitionDoFn#processElement is called
@@ -197,6 +192,12 @@ public class QueryChangeStreamAction {
     // Interrupter with soft timeout to commit the work if any records have been processed.
     RestrictionInterrupter<Timestamp> interrupter =
         RestrictionInterrupter.withSoftTimeout(RESTRICTION_TRACKER_TIMEOUT);
+    
+    final Timestamp endTimestamp = partition.getEndTimestamp();
+    final Timestamp changeStreamQueryEndTimestamp =
+        endTimestamp.equals(MAX_INCLUSIVE_END_AT)
+            ? getNextReadChangeStreamEndTimestamp()
+            : endTimestamp;
 
     try (ChangeStreamResultSet resultSet =
         changeStreamDao.changeStreamQuery(
