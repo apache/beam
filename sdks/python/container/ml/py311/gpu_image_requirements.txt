@@ -218,7 +218,7 @@ psycopg2-binary==2.9.11
 py-cpuinfo==9.0.0
 pyarrow==18.1.0
 pyarrow-hotfix==0.7
-pyasn1==0.6.1
+pyasn1==0.6.2
 pyasn1_modules==0.4.2
 pybase64==1.4.3
 pycountry==24.6.1
