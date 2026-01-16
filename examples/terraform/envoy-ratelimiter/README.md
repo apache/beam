@@ -23,7 +23,7 @@ This directory contains a production-ready Terraform module to deploy a scalable
 ## Overview
 Apache Beam pipelines often process data at massive scale, which can easily overwhelm external APIs (e.g., Databases, LLM Inference endpoints, SaaS APIs).
 
-This Terraform module deploys a **centralized Rate Limit Service (RLS)** using Envoy. Dataflow workers can query this service to coordinate global quotas across thousands of distributed workers, ensuring you stay within safe API limits without hitting `429 Too Many Requests` errors.
+This Terraform module deploys a **centralized Rate Limit Service (RLS)** using Envoy. Beam workers can query this service to coordinate global quotas across thousands of distributed workers, ensuring you stay within safe API limits without hitting `429 Too Many Requests` errors.
 
 Example Beam Pipelines using it:
 *   [Simple DoFn RateLimiter](https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/rate_limiter_simple.py)
