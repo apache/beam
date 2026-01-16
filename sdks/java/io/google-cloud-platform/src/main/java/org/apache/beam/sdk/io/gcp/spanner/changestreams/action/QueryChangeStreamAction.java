@@ -303,14 +303,24 @@ public class QueryChangeStreamAction {
       throw e;
     }
 
-    LOG.debug("[{}] change stream completed successfully", token);
-    if (tracker.tryClaim(endTimestamp)) {
+    LOG.debug(
+        "[{}] change stream completed successfully up to {}", token, changeStreamQueryEndTimestamp);
+    if (!tracker.tryClaim(changeStreamQueryEndTimestamp)) {
+      return ProcessContinuation.stop();
+    }
+
+    if (changeStreamQueryEndTimestamp.equals(endTimestamp)) {
       LOG.debug("[{}] Finishing partition", token);
+      // TODO: This should be performed after the commit succeeds.  Since bundle finalizers are not
+      // guaranteed to be called, this needs to be performed in a subsequent fused stage.
       partitionMetadataDao.updateToFinished(token);
       metrics.decActivePartitionReadCounter();
       LOG.info("[{}] After attempting to finish the partition", token);
+      return ProcessContinuation.stop();
     }
-    return ProcessContinuation.stop();
+
+    LOG.info("[{}] Rescheduling partition where query completed due to not being finished", token);
+    return ProcessContinuation.resume();
   }
 
   private BundleFinalizer.Callback updateWatermarkCallback(
@@ -339,8 +349,8 @@ public class QueryChangeStreamAction {
   }
 
   // Return (now + 2 mins) as the end timestamp for reading change streams. This is only used if
-  // users want to run the connector forever. This approach works because Google Dataflow
-  // checkpoints every 5s or 5MB output provided and the change stream query has deadline for 1 min.
+  // users want to run the connector forever. If the end timestamp is reached, we will resume
+  // processing from that timestamp on a subsequent DoFn execution.
   private Timestamp getNextReadChangeStreamEndTimestamp() {
     final Timestamp current = Timestamp.now();
     return Timestamp.ofTimeSecondsAndNanos(current.getSeconds() + 2 * 60, current.getNanos());

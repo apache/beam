@@ -17,8 +17,10 @@
  */
 package org.apache.beam.sdk.io.gcp.spanner.changestreams.action;
 
+import static org.apache.beam.sdk.io.gcp.spanner.changestreams.ChangeStreamsConstants.MAX_INCLUSIVE_END_AT;
 import static org.apache.beam.sdk.io.gcp.spanner.changestreams.model.PartitionMetadata.State.SCHEDULED;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotEquals;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
@@ -55,6 +57,7 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Sets;
 import org.joda.time.Instant;
 import org.junit.Before;
 import org.junit.Test;
+import org.mockito.ArgumentCaptor;
 
 public class QueryChangeStreamActionTest {
   private static final String PARTITION_TOKEN = "partitionToken";
@@ -613,6 +616,53 @@ public class QueryChangeStreamActionTest {
     assertEquals(ProcessContinuation.stop(), result);
     verify(partitionMetadataDao).updateWatermark(PARTITION_TOKEN, WATERMARK_TIMESTAMP);
     verify(partitionMetadataDao).updateToFinished(PARTITION_TOKEN);
+    verify(metrics).decActivePartitionReadCounter();
+
+    verify(dataChangeRecordAction, never()).run(any(), any(), any(), any(), any(), any());
+    verify(heartbeatRecordAction, never()).run(any(), any(), any(), any(), any());
+    verify(childPartitionsRecordAction, never()).run(any(), any(), any(), any(), any());
+    verify(partitionStartRecordAction, never()).run(any(), any(), any(), any(), any());
+    verify(partitionEndRecordAction, never()).run(any(), any(), any(), any(), any());
+    verify(partitionEventRecordAction, never()).run(any(), any(), any(), any(), any());
+  }
+
+  @Test
+  public void testQueryChangeStreamFinishedWithResume() {
+    partition =
+        PartitionMetadata.newBuilder()
+            .setPartitionToken(PARTITION_TOKEN)
+            .setParentTokens(Sets.newHashSet("parentToken"))
+            .setStartTimestamp(PARTITION_START_TIMESTAMP)
+            .setEndTimestamp(MAX_INCLUSIVE_END_AT)
+            .setHeartbeatMillis(PARTITION_HEARTBEAT_MILLIS)
+            .setState(SCHEDULED)
+            .setWatermark(WATERMARK_TIMESTAMP)
+            .setScheduledAt(Timestamp.now())
+            .build();
+    when(partitionMetadataMapper.from(any())).thenReturn(partition);
+
+    final ChangeStreamResultSet changeStreamResultSet = mock(ChangeStreamResultSet.class);
+    final ArgumentCaptor<Timestamp> timestampCaptor = ArgumentCaptor.forClass(Timestamp.class);
+    when(changeStreamDao.changeStreamQuery(
+            eq(PARTITION_TOKEN),
+            eq(PARTITION_START_TIMESTAMP),
+            timestampCaptor.capture(),
+            eq(PARTITION_HEARTBEAT_MILLIS)))
+        .thenReturn(changeStreamResultSet);
+    when(changeStreamResultSet.next()).thenReturn(false);
+    when(watermarkEstimator.currentWatermark()).thenReturn(WATERMARK);
+    when(restrictionTracker.tryClaim(any(Timestamp.class))).thenReturn(true);
+
+    final ProcessContinuation result =
+        action.run(
+            partition, restrictionTracker, outputReceiver, watermarkEstimator, bundleFinalizer);
+    assertEquals(ProcessContinuation.resume(), result);
+    assertNotEquals(MAX_INCLUSIVE_END_AT, timestampCaptor.getValue());
+
+    verify(restrictionTracker).tryClaim(timestampCaptor.getValue());
+    verify(partitionMetadataDao).updateWatermark(PARTITION_TOKEN, WATERMARK_TIMESTAMP);
+    verify(partitionMetadataDao, never()).updateToFinished(PARTITION_TOKEN);
+    verify(metrics, never()).decActivePartitionReadCounter();
 
     verify(dataChangeRecordAction, never()).run(any(), any(), any(), any(), any(), any());
     verify(heartbeatRecordAction, never()).run(any(), any(), any(), any(), any());
