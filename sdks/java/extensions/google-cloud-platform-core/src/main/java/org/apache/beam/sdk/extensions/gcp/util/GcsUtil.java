@@ -37,6 +37,7 @@ import org.apache.beam.sdk.extensions.gcp.options.GcsOptions;
 import org.apache.beam.sdk.extensions.gcp.util.gcsfs.GcsPath;
 import org.apache.beam.sdk.io.fs.MoveOptions;
 import org.apache.beam.sdk.options.DefaultValueFactory;
+import org.apache.beam.sdk.options.ExperimentalOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.checkerframework.checker.nullness.qual.Nullable;
@@ -79,8 +80,7 @@ public class GcsUtil {
           storageBuilder.build(),
           storageBuilder.getHttpRequestInitializer(),
           gcsOptions.getExecutorService(),
-          org.apache.beam.sdk.options.ExperimentalOptions.hasExperiment(
-              options, "use_grpc_for_gcs"),
+          ExperimentalOptions.hasExperiment(options, "use_grpc_for_gcs"),
           gcsOptions.getGcpCredential(),
           gcsOptions.getGcsUploadBufferSizeBytes(),
           gcsOptions.getGcsRewriteDataOpBatchLimit(),
