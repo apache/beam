@@ -135,7 +135,8 @@ class AppendFilesToTables
       }
 
       // vast majority of the time, we will simply append data files.
-      // in the rare case we get a batch that contains multiple partition specs, we will group
+      // in the rare case we get a batch that contains multiple partition specs, we
+      // will group
       // data into manifest files and append.
       // note: either way, we must use a single commit operation for atomicity.
       if (containsMultiplePartitionSpecs(fileWriteResults)) {
@@ -163,11 +164,14 @@ class AppendFilesToTables
       update.commit();
     }
 
-    // When a user updates their table partition spec during runtime, we can end up with
-    // a batch of files where some are written with the old spec and some are written with the new
+    // When a user updates their table partition spec during runtime, we can end up
+    // with
+    // a batch of files where some are written with the old spec and some are
+    // written with the new
     // spec.
     // A table commit is limited to a single partition spec.
-    // To handle this, we create a manifest file for each partition spec, and group data files
+    // To handle this, we create a manifest file for each partition spec, and group
+    // data files
     // accordingly.
     // Afterward, we append all manifests using a single commit operation.
     private void appendManifestFiles(Table table, Iterable<FileWriteResult> fileWriteResults)
@@ -211,14 +215,18 @@ class AppendFilesToTables
       return ManifestFiles.write(spec, io.newOutputFile(location));
     }
 
-    // If the process call fails immediately after a successful commit, it gets retried with
+    // If the process call fails immediately after a successful commit, it gets
+    // retried with
     // the same data, possibly leading to data duplication.
-    // To mitigate, we skip the current batch of files if it matches the most recently committed
+    // To mitigate, we skip the current batch of files if it matches the most
+    // recently committed
     // batch.
     //
-    // TODO(ahmedabu98): This does not cover concurrent writes from other pipelines, where the
-    //  "last successful snapshot" might reflect commits from other sources. Ideally, we would make
-    //  this stateful, but that is update incompatible.
+    // TODO(ahmedabu98): This does not cover concurrent writes from other pipelines,
+    // where the
+    // "last successful snapshot" might reflect commits from other sources. Ideally,
+    // we would make
+    // this stateful, but that is update incompatible.
     // TODO(ahmedabu98): add load test pipelines with intentional periodic crashing
     private boolean shouldSkip(Table table, Iterable<FileWriteResult> fileWriteResults) {
       if (table.currentSnapshot() == null) {
@@ -231,8 +239,11 @@ class AppendFilesToTables
       // Check if the current batch is identical to the most recently committed batch.
       // Upstream GBK means we always get the same batch of files on retry,
       // so a single overlapping file means the whole batch is identical.
-      String sampleCommittedDataFilePath =
-          table.currentSnapshot().addedDataFiles(table.io()).iterator().next().path().toString();
+      Iterable<DataFile> addedDataFiles = table.currentSnapshot().addedDataFiles(table.io());
+      if (!addedDataFiles.iterator().hasNext()) {
+        return false;
+      }
+      String sampleCommittedDataFilePath = addedDataFiles.iterator().next().location().toString();
       for (FileWriteResult result : fileWriteResults) {
         if (result.getSerializableDataFile().getPath().equals(sampleCommittedDataFilePath)) {
           return true;
