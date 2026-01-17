@@ -3,9 +3,12 @@
 # This is typically in files named 'src.xml' throughout this repository.
 
 # Ignore IDE files
+.agent/
+.codex/
 .trae/
 .cursor/
 .windsurf/
+.claude/
 
 # Ignore any offline repositories the user may have created.
 **/offline-repository/**/*
