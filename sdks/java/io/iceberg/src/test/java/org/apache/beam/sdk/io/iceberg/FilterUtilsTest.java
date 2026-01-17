@@ -726,6 +726,7 @@ public class FilterUtilsTest {
             Pair.of("field_1 < 35", Sets.newHashSet("FIELD_1")),
             Pair.of("\"field_1\" in (1, 2, 3)", Sets.newHashSet("field_1")),
             Pair.of("field_1 < 35 and \"fiELd_2\" = TRUE", Sets.newHashSet("FIELD_1", "fiELd_2")),
+            Pair.of("\"nested\".\"inner\" = 'abc'", Sets.newHashSet("nested.inner")),
             Pair.of(
                 "(\"field_1\" < 35 and \"field_2\" = TRUE) or \"field_3\" in ('a', 'b')",
                 Sets.newHashSet("field_1", "field_2", "field_3")));
