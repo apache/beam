@@ -305,6 +305,51 @@ class PubSubIntegrationTest(unittest.TestCase):
     """Test WriteToPubSub in batch mode with attributes."""
     self._test_batch_write(with_attributes=True)
 
+  @pytest.mark.it_postcommit
+  def test_batch_write_with_ordering_key(self):
+    """Test WriteToPubSub in batch mode with ordering keys."""
+    from apache_beam.options.pipeline_options import PipelineOptions
+    from apache_beam.options.pipeline_options import StandardOptions
+    from apache_beam.transforms import Create
+
+    # Create test messages with ordering keys
+    test_messages = [
+        PubsubMessage(
+            b'order_data001', {'attr': 'value1'}, ordering_key='key1'),
+        PubsubMessage(
+            b'order_data002', {'attr': 'value2'}, ordering_key='key1'),
+        PubsubMessage(
+            b'order_data003', {'attr': 'value3'}, ordering_key='key2')
+    ]
+
+    pipeline_options = PipelineOptions()
+    pipeline_options.view_as(StandardOptions).streaming = False
+
+    with TestPipeline(options=pipeline_options) as p:
+      messages = p | 'CreateMessages' >> Create(test_messages)
+      _ = messages | 'WriteToPubSub' >> WriteToPubSub(
+          self.output_topic.name, with_attributes=True)
+
+    # Verify messages were published
+    time.sleep(10)
+
+    response = self.sub_client.pull(
+        request={
+            "subscription": self.output_sub.name,
+            "max_messages": 10,
+        })
+
+    self.assertEqual(len(response.received_messages), len(test_messages))
+
+    # Verify ordering keys were preserved
+    for received_message in response.received_messages:
+      self.assertIn('ordering_key', dir(received_message.message))
+      self.sub_client.acknowledge(
+          request={
+              "subscription": self.output_sub.name,
+              "ack_ids": [received_message.ack_id],
+          })
+
 
 if __name__ == '__main__':
   logging.getLogger().setLevel(logging.DEBUG)
