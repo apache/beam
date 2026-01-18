@@ -109,7 +109,7 @@ class _OpenAITextEmbeddingHandler(RemoteModelHandler):
         "input": batch,
     }
     if self.dimensions:
-      kwargs["dimensions"] = [str(self.dimensions)]
+      kwargs["dimensions"] = self.dimensions
     if self.user:
       kwargs["user"] = self.user
 
