@@ -105,6 +105,34 @@ public class CallTest {
   }
 
   @Test
+  public void givenCallerThrowsNonUserCodeException_emitsWrappedUserCodeExecutionException() {
+    Result<Response> result =
+        pipeline
+            .apply(Create.of(new Request("a")))
+            .apply(Call.of(new CallerThrowsRuntimeException(), NON_DETERMINISTIC_RESPONSE_CODER));
+
+    PCollection<ApiIOError> failures = result.getFailures();
+    PAssert.thatSingleton(countStackTracesOf(failures, UserCodeExecutionException.class))
+        .isEqualTo(1L);
+
+    pipeline.run();
+  }
+
+  @Test
+  public void givenCallerThrowsCircularCausalChain_emitsUserCodeExecutionException() {
+    Result<Response> result =
+        pipeline
+            .apply(Create.of(new Request("a")))
+            .apply(Call.of(new CallerThrowsCircularCause(), NON_DETERMINISTIC_RESPONSE_CODER));
+
+    PCollection<ApiIOError> failures = result.getFailures();
+    PAssert.thatSingleton(countStackTracesOf(failures, UserCodeExecutionException.class))
+        .isEqualTo(1L);
+
+    pipeline.run();
+  }
+
+  @Test
   public void givenCallerThrowsQuotaException_emitsIntoFailurePCollection() {
     Result<Response> result =
         pipeline
@@ -142,7 +170,7 @@ public class CallTest {
   }
 
   @Test
-  public void givenCallerThrowsTimeoutException_emitsFailurePCollection() {
+  public void givenCallerThrowsTimeoutException_thenPreservesExceptionType() {
     Result<Response> result =
         pipeline
             .apply(Create.of(new Request("a")))
@@ -150,10 +178,157 @@ public class CallTest {
 
     PCollection<ApiIOError> failures = result.getFailures();
     PAssert.thatSingleton(countStackTracesOf(failures, UserCodeExecutionException.class))
-        .isEqualTo(1L);
+        .isEqualTo(0L);
     PAssert.thatSingleton(countStackTracesOf(failures, UserCodeQuotaException.class)).isEqualTo(0L);
     PAssert.thatSingleton(countStackTracesOf(failures, UserCodeTimeoutException.class))
         .isEqualTo(1L);
+
+    pipeline.run();
+  }
+
+  @Test
+  public void givenCallerThrowsRemoteSystemException_thenPreservesExceptionType() {
+    Result<Response> result =
+        pipeline
+            .apply(Create.of(new Request("a")))
+            .apply(
+                Call.of(new CallerThrowsRemoteSystemException(), NON_DETERMINISTIC_RESPONSE_CODER));
+
+    PCollection<ApiIOError> failures = result.getFailures();
+    PAssert.thatSingleton(countStackTracesOf(failures, UserCodeRemoteSystemException.class))
+        .isEqualTo(1L);
+    PAssert.thatSingleton(countStackTracesOf(failures, UserCodeExecutionException.class))
+        .isEqualTo(0L);
+
+    pipeline.run();
+  }
+
+  @Test
+  public void givenNestedExecutionException_thenPreservesExceptionType() {
+    Result<Response> result =
+        pipeline
+            .apply(Create.of(new Request("a")))
+            .apply(
+                Call.of(
+                    new CallerThrowsNestedExecutionException(), NON_DETERMINISTIC_RESPONSE_CODER));
+
+    PCollection<ApiIOError> failures = result.getFailures();
+    PAssert.thatSingleton(countStackTracesOf(failures, UserCodeExecutionException.class))
+        .isEqualTo(1L);
+    PAssert.thatSingleton(countStackTracesOf(failures, UserCodeTimeoutException.class))
+        .isEqualTo(0L);
+    PAssert.thatSingleton(countStackTracesOf(failures, UserCodeRemoteSystemException.class))
+        .isEqualTo(0L);
+
+    pipeline.run();
+  }
+
+  @Test
+  public void givenCallerThrowsGenericWrappingTimeout_thenPreservesExceptionType() {
+    Result<Response> result =
+        pipeline
+            .apply(Create.of(new Request("a")))
+            .apply(
+                Call.of(
+                    new CallerThrowsGenericWrappingTimeout(), NON_DETERMINISTIC_RESPONSE_CODER));
+
+    PCollection<ApiIOError> failures = result.getFailures();
+    PAssert.thatSingleton(countStackTracesOf(failures, UserCodeTimeoutException.class))
+        .isEqualTo(1L);
+    PAssert.thatSingleton(countStackTracesOf(failures, UserCodeExecutionException.class))
+        .isEqualTo(0L);
+
+    pipeline.run();
+  }
+
+  @Test
+  public void givenCallerThrowsGenericWrappingQuota_thenPreservesExceptionType() {
+    Result<Response> result =
+        pipeline
+            .apply(Create.of(new Request("a")))
+            .apply(
+                Call.of(new CallerThrowsGenericWrappingQuota(), NON_DETERMINISTIC_RESPONSE_CODER));
+
+    PCollection<ApiIOError> failures = result.getFailures();
+    PAssert.thatSingleton(countStackTracesOf(failures, UserCodeQuotaException.class)).isEqualTo(1L);
+    PAssert.thatSingleton(countStackTracesOf(failures, UserCodeExecutionException.class))
+        .isEqualTo(0L);
+
+    pipeline.run();
+  }
+
+  @Test
+  public void givenCallerThrowsGenericWrappingRemoteSystem_thenPreservesExceptionType() {
+    Result<Response> result =
+        pipeline
+            .apply(Create.of(new Request("a")))
+            .apply(
+                Call.of(
+                    new CallerThrowsGenericWrappingRemoteSystem(),
+                    NON_DETERMINISTIC_RESPONSE_CODER));
+
+    PCollection<ApiIOError> failures = result.getFailures();
+    PAssert.thatSingleton(countStackTracesOf(failures, UserCodeRemoteSystemException.class))
+        .isEqualTo(1L);
+    PAssert.thatSingleton(countStackTracesOf(failures, UserCodeExecutionException.class))
+        .isEqualTo(0L);
+
+    pipeline.run();
+  }
+
+  @Test
+  public void
+      givenCallerThrowsUncheckedExecutionExceptionWrappingTimeout_thenPreservesExceptionType() {
+    Result<Response> result =
+        pipeline
+            .apply(Create.of(new Request("a")))
+            .apply(
+                Call.of(
+                    new CallerThrowsUncheckedExecutionExceptionWrappingTimeout(),
+                    NON_DETERMINISTIC_RESPONSE_CODER));
+
+    PCollection<ApiIOError> failures = result.getFailures();
+    PAssert.thatSingleton(countStackTracesOf(failures, UserCodeTimeoutException.class))
+        .isEqualTo(1L);
+    PAssert.thatSingleton(countStackTracesOf(failures, UserCodeExecutionException.class))
+        .isEqualTo(0L);
+
+    pipeline.run();
+  }
+
+  @Test
+  public void
+      givenCallerThrowsUncheckedExecutionExceptionWrappingRemoteSystem_thenPreservesExceptionType() {
+    Result<Response> result =
+        pipeline
+            .apply(Create.of(new Request("a")))
+            .apply(
+                Call.of(
+                    new CallerThrowsUncheckedExecutionExceptionWrappingRemoteSystem(),
+                    NON_DETERMINISTIC_RESPONSE_CODER));
+
+    PCollection<ApiIOError> failures = result.getFailures();
+    PAssert.thatSingleton(countStackTracesOf(failures, UserCodeRemoteSystemException.class))
+        .isEqualTo(1L);
+    PAssert.thatSingleton(countStackTracesOf(failures, UserCodeExecutionException.class))
+        .isEqualTo(0L);
+
+    pipeline.run();
+  }
+
+  @Test
+  public void givenCallerThrowsTripleNestedTimeout_thenPreservesExceptionType() {
+    Result<Response> result =
+        pipeline
+            .apply(Create.of(new Request("a")))
+            .apply(
+                Call.of(new CallerThrowsTripleNestedTimeout(), NON_DETERMINISTIC_RESPONSE_CODER));
+
+    PCollection<ApiIOError> failures = result.getFailures();
+    PAssert.thatSingleton(countStackTracesOf(failures, UserCodeTimeoutException.class))
+        .isEqualTo(1L);
+    PAssert.thatSingleton(countStackTracesOf(failures, UserCodeExecutionException.class))
+        .isEqualTo(0L);
 
     pipeline.run();
   }
@@ -376,11 +551,98 @@ public class CallTest {
     }
   }
 
+  private static class CallerThrowsRuntimeException implements Caller<Request, Response> {
+
+    @Override
+    public Response call(Request request) {
+      throw new RuntimeException("unexpected error");
+    }
+  }
+
+  private static class CallerThrowsCircularCause implements Caller<Request, Response> {
+
+    @Override
+    public Response call(Request request) {
+      Exception a = new Exception("a");
+      Exception b = new Exception("b", a);
+      a.initCause(b); // a -> b -> a (circular reference)
+      throw new RuntimeException("boom", a);
+    }
+  }
+
   private static class CallerThrowsTimeout implements Caller<Request, Response> {
 
     @Override
     public Response call(Request request) throws UserCodeExecutionException {
       throw new UserCodeTimeoutException("");
+    }
+  }
+
+  private static class CallerThrowsRemoteSystemException implements Caller<Request, Response> {
+
+    @Override
+    public Response call(Request request) throws UserCodeExecutionException {
+      throw new UserCodeRemoteSystemException("");
+    }
+  }
+
+  private static class CallerThrowsNestedExecutionException implements Caller<Request, Response> {
+
+    @Override
+    public Response call(Request request) throws UserCodeExecutionException {
+      throw new UncheckedExecutionException(new UserCodeExecutionException("nested"));
+    }
+  }
+
+  private static class CallerThrowsGenericWrappingTimeout implements Caller<Request, Response> {
+
+    @Override
+    public Response call(Request request) throws UserCodeExecutionException {
+      throw new UserCodeExecutionException("generic", new UserCodeTimeoutException("timeout"));
+    }
+  }
+
+  private static class CallerThrowsGenericWrappingQuota implements Caller<Request, Response> {
+
+    @Override
+    public Response call(Request request) throws UserCodeExecutionException {
+      throw new UserCodeExecutionException("generic", new UserCodeQuotaException("quota"));
+    }
+  }
+
+  private static class CallerThrowsGenericWrappingRemoteSystem
+      implements Caller<Request, Response> {
+
+    @Override
+    public Response call(Request request) throws UserCodeExecutionException {
+      throw new UserCodeExecutionException("generic", new UserCodeRemoteSystemException("remote"));
+    }
+  }
+
+  private static class CallerThrowsUncheckedExecutionExceptionWrappingTimeout
+      implements Caller<Request, Response> {
+
+    @Override
+    public Response call(Request request) throws UserCodeExecutionException {
+      throw new UncheckedExecutionException(new UserCodeTimeoutException("timeout"));
+    }
+  }
+
+  private static class CallerThrowsUncheckedExecutionExceptionWrappingRemoteSystem
+      implements Caller<Request, Response> {
+
+    @Override
+    public Response call(Request request) throws UserCodeExecutionException {
+      throw new UncheckedExecutionException(new UserCodeRemoteSystemException("remote"));
+    }
+  }
+
+  private static class CallerThrowsTripleNestedTimeout implements Caller<Request, Response> {
+
+    @Override
+    public Response call(Request request) throws UserCodeExecutionException {
+      throw new UncheckedExecutionException(
+          new RuntimeException(new UserCodeTimeoutException("deep timeout")));
     }
   }
 
