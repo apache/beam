@@ -76,6 +76,7 @@ jobs:
           python-version: |
             3.10
             3.11
+            3.14
       - name: Prepare test arguments
         uses: ./.github/actions/test-arguments-action
         with:
