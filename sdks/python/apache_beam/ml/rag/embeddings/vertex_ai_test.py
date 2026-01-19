@@ -21,6 +21,7 @@ import tempfile
 import unittest
 
 import apache_beam as beam
+from apache_beam.ml.rag.test_utils import TestHelpers
 from apache_beam.ml.rag.types import Chunk
 from apache_beam.ml.rag.types import Content
 from apache_beam.ml.rag.types import Embedding
@@ -37,19 +38,6 @@ try:
   VERTEX_AI_AVAILABLE = True
 except ImportError:
   VERTEX_AI_AVAILABLE = False
-
-
-def chunk_approximately_equals(expected, actual):
-  """Compare embeddings allowing for numerical differences."""
-  if not isinstance(expected, Chunk) or not isinstance(actual, Chunk):
-    return False
-
-  return (
-      expected.id == actual.id and expected.metadata == actual.metadata and
-      expected.content == actual.content and
-      len(expected.embedding.dense_embedding) == len(
-          actual.embedding.dense_embedding) and
-      all(isinstance(x, float) for x in actual.embedding.dense_embedding))
 
 
 @unittest.skipIf(
@@ -104,7 +92,8 @@ class VertexAITextEmbeddingsTest(unittest.TestCase):
           with_transform(embedder))
 
       assert_that(
-          embeddings, equal_to(expected, equals_fn=chunk_approximately_equals))
+          embeddings,
+          equal_to(expected, equals_fn=TestHelpers.chunk_approximately_equals))
 
 
 if __name__ == '__main__':
