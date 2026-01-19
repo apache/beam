@@ -168,7 +168,6 @@ public class QueryChangeStreamAction {
    * @return a {@link ProcessContinuation#stop()} if a record timestamp could not be claimed or if
    *     the partition processing has finished
    */
-  @SuppressWarnings("nullness")
   @VisibleForTesting
   public ProcessContinuation run(
       PartitionMetadata partition,
@@ -179,10 +178,9 @@ public class QueryChangeStreamAction {
     final String token = partition.getPartitionToken();
     final Timestamp startTimestamp = tracker.currentRestriction().getFrom();
     final Timestamp endTimestamp = partition.getEndTimestamp();
+    final boolean readToEndTimestamp = !endTimestamp.equals(MAX_INCLUSIVE_END_AT);
     final Timestamp changeStreamQueryEndTimestamp =
-        endTimestamp.equals(MAX_INCLUSIVE_END_AT)
-            ? getNextReadChangeStreamEndTimestamp()
-            : endTimestamp;
+        readToEndTimestamp ? endTimestamp : getNextReadChangeStreamEndTimestamp();
 
     // TODO: Potentially we can avoid this fetch, by enriching the runningAt timestamp when the
     // ReadChangeStreamPartitionDoFn#processElement is called
@@ -198,6 +196,7 @@ public class QueryChangeStreamAction {
     RestrictionInterrupter<Timestamp> interrupter =
         RestrictionInterrupter.withSoftTimeout(RESTRICTION_TRACKER_TIMEOUT);
 
+    boolean stopAfterQuerySucceeds = readToEndTimestamp;
     try (ChangeStreamResultSet resultSet =
         changeStreamDao.changeStreamQuery(
             token, startTimestamp, changeStreamQueryEndTimestamp, partition.getHeartbeatMillis())) {
@@ -250,6 +249,9 @@ public class QueryChangeStreamAction {
                     tracker,
                     interrupter,
                     watermarkEstimator);
+            // The PartitionEndRecord indicates that there are no more records expected
+            // for this partition.
+            stopAfterQuerySucceeds = true;
           } else if (record instanceof PartitionEventRecord) {
             maybeContinuation =
                 partitionEventRecordAction.run(
@@ -272,10 +274,6 @@ public class QueryChangeStreamAction {
           }
         }
       }
-      bundleFinalizer.afterBundleCommit(
-          Instant.now().plus(BUNDLE_FINALIZER_TIMEOUT),
-          updateWatermarkCallback(token, watermarkEstimator));
-
     } catch (SpannerException e) {
       /*
       If there is a split when a partition is supposed to be finished, the residual will try
@@ -283,16 +281,16 @@ public class QueryChangeStreamAction {
       here, and the residual should be able to claim the end of the timestamp range, finishing
       the partition.
       */
-      if (isTimestampOutOfRange(e)) {
-        LOG.info(
-            "[{}] query change stream is out of range for {} to {}, finishing stream.",
-            token,
-            startTimestamp,
-            endTimestamp,
-            e);
-      } else {
+      if (!isTimestampOutOfRange(e)) {
         throw e;
       }
+      LOG.info(
+          "[{}] query change stream is out of range for {} to {}, finishing stream.",
+          token,
+          startTimestamp,
+          endTimestamp,
+          e);
+      stopAfterQuerySucceeds = true;
     } catch (Exception e) {
       LOG.error(
           "[{}] query change stream had exception processing range {} to {}.",
@@ -305,22 +303,27 @@ public class QueryChangeStreamAction {
 
     LOG.debug(
         "[{}] change stream completed successfully up to {}", token, changeStreamQueryEndTimestamp);
-    if (!tracker.tryClaim(changeStreamQueryEndTimestamp)) {
+    Timestamp claimTimestamp =
+        stopAfterQuerySucceeds ? endTimestamp : changeStreamQueryEndTimestamp;
+    if (!tracker.tryClaim(claimTimestamp)) {
       return ProcessContinuation.stop();
     }
+    bundleFinalizer.afterBundleCommit(
+        Instant.now().plus(BUNDLE_FINALIZER_TIMEOUT),
+        updateWatermarkCallback(token, watermarkEstimator));
 
-    if (changeStreamQueryEndTimestamp.equals(endTimestamp)) {
-      LOG.debug("[{}] Finishing partition", token);
-      // TODO: This should be performed after the commit succeeds.  Since bundle finalizers are not
-      // guaranteed to be called, this needs to be performed in a subsequent fused stage.
-      partitionMetadataDao.updateToFinished(token);
-      metrics.decActivePartitionReadCounter();
-      LOG.info("[{}] After attempting to finish the partition", token);
-      return ProcessContinuation.stop();
+    if (!stopAfterQuerySucceeds) {
+      LOG.debug("[{}] Rescheduling partition to resume reading", token);
+      return ProcessContinuation.resume();
     }
 
-    LOG.info("[{}] Rescheduling partition where query completed due to not being finished", token);
-    return ProcessContinuation.resume();
+    LOG.debug("[{}] Finishing partition", token);
+    // TODO: This should be performed after the commit succeeds.  Since bundle finalizers are not
+    // guaranteed to be called, this needs to be performed in a subsequent fused stage.
+    partitionMetadataDao.updateToFinished(token);
+    metrics.decActivePartitionReadCounter();
+    LOG.info("[{}] After attempting to finish the partition", token);
+    return ProcessContinuation.stop();
   }
 
   private BundleFinalizer.Callback updateWatermarkCallback(
