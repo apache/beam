@@ -32,69 +32,73 @@ from apache_beam.testing.util import assert_that, equal_to
 
 # pylint: disable=unused-import
 try:
-    from sentence_transformers import SentenceTransformer
+  from sentence_transformers import SentenceTransformer
 
-    SENTENCE_TRANSFORMERS_AVAILABLE = True
+  SENTENCE_TRANSFORMERS_AVAILABLE = True
 except ImportError:
-    SENTENCE_TRANSFORMERS_AVAILABLE = False
+  SENTENCE_TRANSFORMERS_AVAILABLE = False
 
 
 @pytest.mark.uses_transformers
 @unittest.skipIf(
-    not SENTENCE_TRANSFORMERS_AVAILABLE, "sentence-transformers not available"
-)
+    not SENTENCE_TRANSFORMERS_AVAILABLE, "sentence-transformers not available")
 class HuggingfaceTextEmbeddingsTest(unittest.TestCase):
-    def setUp(self):
-        self.artifact_location = tempfile.mkdtemp(prefix="sentence_transformers_")
-        self.test_chunks = [
-            Chunk(
-                content=Content(text="This is a test sentence."),
-                id="1",
-                metadata={"source": "test.txt", "language": "en"},
-            ),
-            Chunk(
-                content=Content(text="Another example."),
-                id="2",
-                metadata={"source": "test.txt", "language": "en"},
-            ),
-        ]
+  def setUp(self):
+    self.artifact_location = tempfile.mkdtemp(prefix="sentence_transformers_")
+    self.test_chunks = [
+        Chunk(
+            content=Content(text="This is a test sentence."),
+            id="1",
+            metadata={
+                "source": "test.txt", "language": "en"
+            },
+        ),
+        Chunk(
+            content=Content(text="Another example."),
+            id="2",
+            metadata={
+                "source": "test.txt", "language": "en"
+            },
+        ),
+    ]
 
-    def tearDown(self) -> None:
-        shutil.rmtree(self.artifact_location)
+  def tearDown(self) -> None:
+    shutil.rmtree(self.artifact_location)
 
-    def test_embedding_pipeline(self):
-        expected = [
-            Chunk(
-                id="1",
-                embedding=Embedding(dense_embedding=[0.0] * 384),
-                metadata={"source": "test.txt", "language": "en"},
-                content=Content(text="This is a test sentence."),
-            ),
-            Chunk(
-                id="2",
-                embedding=Embedding(dense_embedding=[0.0] * 384),
-                metadata={"source": "test.txt", "language": "en"},
-                content=Content(text="Another example."),
-            ),
-        ]
-        embedder = HuggingfaceTextEmbeddings(
-            model_name="sentence-transformers/all-MiniLM-L6-v2"
-        )
+  def test_embedding_pipeline(self):
+    expected = [
+        Chunk(
+            id="1",
+            embedding=Embedding(dense_embedding=[0.0] * 384),
+            metadata={
+                "source": "test.txt", "language": "en"
+            },
+            content=Content(text="This is a test sentence."),
+        ),
+        Chunk(
+            id="2",
+            embedding=Embedding(dense_embedding=[0.0] * 384),
+            metadata={
+                "source": "test.txt", "language": "en"
+            },
+            content=Content(text="Another example."),
+        ),
+    ]
+    embedder = HuggingfaceTextEmbeddings(
+        model_name="sentence-transformers/all-MiniLM-L6-v2")
 
-        with TestPipeline() as p:
-            embeddings = (
-                p
-                | beam.Create(self.test_chunks)
-                | MLTransform(
-                    write_artifact_location=self.artifact_location
-                ).with_transform(embedder)
-            )
+    with TestPipeline() as p:
+      embeddings = (
+          p
+          | beam.Create(self.test_chunks)
+          | MLTransform(write_artifact_location=self.artifact_location).
+          with_transform(embedder))
 
-            assert_that(
-                embeddings,
-                equal_to(expected, equals_fn=TestHelpers.chunk_approximately_equals),
-            )
+      assert_that(
+          embeddings,
+          equal_to(expected, equals_fn=TestHelpers.chunk_approximately_equals),
+      )
 
 
 if __name__ == "__main__":
-    unittest.main()
+  unittest.main()
