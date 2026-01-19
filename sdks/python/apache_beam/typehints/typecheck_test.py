@@ -23,6 +23,7 @@ See additional runtime_type_check=True tests in ptransform_test.py.
 
 # pytype: skip-file
 
+import logging
 import os
 import tempfile
 import unittest
@@ -41,6 +42,8 @@ from apache_beam.typehints import with_input_types
 from apache_beam.typehints import with_output_types
 
 decorators._enable_from_callable = True
+
+_LOGGER = logging.getLogger(__name__)
 
 # Disable frequent lint warning due to pipe operator for chaining transforms.
 # pylint: disable=expression-not-assigned
@@ -139,6 +142,10 @@ class PerformanceRuntimeTypeCheckTest(unittest.TestCase):
     self.p = Pipeline(
         options=PipelineOptions(
             performance_runtime_type_check=True, pipeline_type_check=False))
+    runner_class = self.p.runner.__class__.__name__
+    _LOGGER.info(
+        "PerformanceRuntimeTypeCheckTest using runner: %s", runner_class)
+    print("[DEBUG] Runner selected: %s" % runner_class)
 
   def assertStartswith(self, msg, prefix):
     self.assertTrue(
