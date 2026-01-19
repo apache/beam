@@ -613,8 +613,10 @@ class BeamModulePlugin implements Plugin<Project> {
     def google_ads_version = "33.0.0"
     def google_clients_version = "2.0.0"
     def google_cloud_bigdataoss_version = "2.2.26"
+    // This version is only used for test classifier artifacts. The main google-cloud-spanner
+    // library version is managed by google_cloud_platform_libraries_bom.
     // [bomupgrader] determined by: com.google.cloud:google-cloud-spanner, consistent with: google_cloud_platform_libraries_bom
-    def google_cloud_spanner_version = "6.104.0"
+    def google_cloud_spanner_version = "6.105.0"
     def google_code_gson_version = "2.10.1"
     def google_oauth_clients_version = "1.34.1"
     // [bomupgrader] determined by: io.grpc:grpc-netty, consistent with: google_cloud_platform_libraries_bom
@@ -763,8 +765,6 @@ class BeamModulePlugin implements Plugin<Project> {
         // libraries-bom version on sdks/java/container/license_scripts/dep_urls_java.yaml
         google_cloud_platform_libraries_bom         : "com.google.cloud:libraries-bom:26.73.0",
         google_cloud_secret_manager                 : "com.google.cloud:google-cloud-secretmanager", // google_cloud_platform_libraries_bom sets version
-        // TODO(#35868) remove pinned google_cloud_spanner_bom after tests or upstream fixed
-        google_cloud_spanner_bom                    : "com.google.cloud:google-cloud-spanner-bom:$google_cloud_spanner_version",
         google_cloud_spanner                        : "com.google.cloud:google-cloud-spanner", // google_cloud_platform_libraries_bom sets version
         google_cloud_spanner_test                   : "com.google.cloud:google-cloud-spanner:$google_cloud_spanner_version:tests",
         google_cloud_tink                           : "com.google.crypto.tink:tink:1.19.0",
