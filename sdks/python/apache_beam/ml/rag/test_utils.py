@@ -80,6 +80,19 @@ class TestHelpers:
       # Return the port number assigned by OS.
       return s.getsockname()[1]
 
+  @staticmethod
+  def chunk_approximately_equals(expected, actual):
+    """Compare embeddings allowing for numerical differences."""
+    if not isinstance(expected, Chunk) or not isinstance(actual, Chunk):
+      return False
+
+    return (
+        expected.id == actual.id and expected.metadata == actual.metadata and
+        expected.content == actual.content and
+        len(expected.embedding.dense_embedding) == len(
+            actual.embedding.dense_embedding) and
+        all(isinstance(x, float) for x in actual.embedding.dense_embedding))
+
 
 class CustomMilvusContainer(MilvusContainer):
   """Custom Milvus container with configurable ports and environment setup.
@@ -407,7 +420,3 @@ class MilvusTestHelpers:
           # Validate field metadata.
           err_msg = f"Field Metadata doesn't match for chunk {actual.id}"
           assert a_f['metadata'] == e_f['metadata'], err_msg
-
-
-if __name__ == '__main__':
-  unittest.main()

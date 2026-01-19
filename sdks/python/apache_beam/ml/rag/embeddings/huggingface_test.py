@@ -24,33 +24,19 @@ import pytest
 
 import apache_beam as beam
 from apache_beam.ml.rag.embeddings.huggingface import HuggingfaceTextEmbeddings
-from apache_beam.ml.rag.types import Chunk
-from apache_beam.ml.rag.types import Content
-from apache_beam.ml.rag.types import Embedding
+from apache_beam.ml.rag.test_utils import TestHelpers
+from apache_beam.ml.rag.types import Chunk, Content, Embedding
 from apache_beam.ml.transforms.base import MLTransform
 from apache_beam.testing.test_pipeline import TestPipeline
-from apache_beam.testing.util import assert_that
-from apache_beam.testing.util import equal_to
+from apache_beam.testing.util import assert_that, equal_to
 
 # pylint: disable=unused-import
 try:
   from sentence_transformers import SentenceTransformer
+
   SENTENCE_TRANSFORMERS_AVAILABLE = True
 except ImportError:
   SENTENCE_TRANSFORMERS_AVAILABLE = False
-
-
-def chunk_approximately_equals(expected, actual):
-  """Compare embeddings allowing for numerical differences."""
-  if not isinstance(expected, Chunk) or not isinstance(actual, Chunk):
-    return False
-
-  return (
-      expected.id == actual.id and expected.metadata == actual.metadata and
-      expected.content == actual.content and
-      len(expected.embedding.dense_embedding) == len(
-          actual.embedding.dense_embedding) and
-      all(isinstance(x, float) for x in actual.embedding.dense_embedding))
 
 
 @pytest.mark.uses_transformers
@@ -58,20 +44,22 @@ def chunk_approximately_equals(expected, actual):
     not SENTENCE_TRANSFORMERS_AVAILABLE, "sentence-transformers not available")
 class HuggingfaceTextEmbeddingsTest(unittest.TestCase):
   def setUp(self):
-    self.artifact_location = tempfile.mkdtemp(prefix='sentence_transformers_')
+    self.artifact_location = tempfile.mkdtemp(prefix="sentence_transformers_")
     self.test_chunks = [
         Chunk(
             content=Content(text="This is a test sentence."),
             id="1",
             metadata={
                 "source": "test.txt", "language": "en"
-            }),
+            },
+        ),
         Chunk(
             content=Content(text="Another example."),
             id="2",
             metadata={
                 "source": "test.txt", "language": "en"
-            })
+            },
+        ),
     ]
 
   def tearDown(self) -> None:
@@ -85,14 +73,16 @@ class HuggingfaceTextEmbeddingsTest(unittest.TestCase):
             metadata={
                 "source": "test.txt", "language": "en"
             },
-            content=Content(text="This is a test sentence.")),
+            content=Content(text="This is a test sentence."),
+        ),
         Chunk(
             id="2",
             embedding=Embedding(dense_embedding=[0.0] * 384),
             metadata={
                 "source": "test.txt", "language": "en"
             },
-            content=Content(text="Another example."))
+            content=Content(text="Another example."),
+        ),
     ]
     embedder = HuggingfaceTextEmbeddings(
         model_name="sentence-transformers/all-MiniLM-L6-v2")
@@ -105,8 +95,10 @@ class HuggingfaceTextEmbeddingsTest(unittest.TestCase):
           with_transform(embedder))
 
       assert_that(
-          embeddings, equal_to(expected, equals_fn=chunk_approximately_equals))
+          embeddings,
+          equal_to(expected, equals_fn=TestHelpers.chunk_approximately_equals),
+      )
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
   unittest.main()

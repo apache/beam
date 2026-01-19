@@ -23,15 +23,13 @@ import apache_beam as beam
 from apache_beam.ml.inference.base import RunInference
 from apache_beam.ml.transforms import base
 from apache_beam.ml.transforms.base import MLTransform
-
-try:
-  from sdks.python.apache_beam.ml.transforms.embeddings.open_ai import OpenAITextEmbeddings
-except ImportError:
-  OpenAITextEmbeddings = None
+from apache_beam.ml.transforms.embeddings.open_ai import OpenAITextEmbeddings
 
 # pylint: disable=ungrouped-imports
 try:
   import tensorflow_transform as tft
+
+  from apache_beam.ml.transforms.tft import ScaleTo01
 except ImportError:
   tft = None
 
@@ -41,11 +39,11 @@ model_name: str = "text-embedding-3-small"
 
 
 @unittest.skipIf(
-    OpenAITextEmbeddings is None, 'OpenAI Python SDK is not installed.')
+    OpenAITextEmbeddings is None, "OpenAI Python SDK is not installed.")
 class OpenAIEmbeddingsTest(unittest.TestCase):
   def setUp(self) -> None:
-    self.artifact_location = tempfile.mkdtemp(prefix='_openai_test')
-    self.api_key = os.environ.get('OPENAI_API_KEY')
+    self.artifact_location = tempfile.mkdtemp(prefix="_openai_test")
+    self.api_key = os.environ.get("OPENAI_API_KEY")
 
   def tearDown(self) -> None:
     shutil.rmtree(self.artifact_location)
@@ -67,15 +65,16 @@ class OpenAIEmbeddingsTest(unittest.TestCase):
         # OpenAI text-embedding-3-small produces 1536-dimensional embeddings
         assert len(element[test_query_column]) == 1536
 
-      _ = (transformed_pcoll | beam.Map(assert_element))
+      _ = transformed_pcoll | beam.Map(assert_element)
 
-  @unittest.skipIf(tft is None, 'Tensorflow Transform is not installed.')
+  @unittest.skipIf(tft is None, "Tensorflow Transform is not installed.")
   def test_embeddings_with_scale_to_0_1(self):
     embedding_config = OpenAITextEmbeddings(
         model_name=model_name,
         columns=[test_query_column],
         api_key=self.api_key,
     )
+    scale_config = ScaleTo01(columns=["embedding"])
     with beam.Pipeline() as pipeline:
       transformed_pcoll = (
           pipeline
@@ -84,19 +83,22 @@ class OpenAIEmbeddingsTest(unittest.TestCase):
           }])
           | "MLTransform" >> MLTransform(
               write_artifact_location=self.artifact_location).with_transform(
-                  embedding_config))
+                  embedding_config)).with_transform(scale_config)
 
       def assert_element(element):
-        assert max(element.feature_1) == 1
+        embedding_values = element.embedding
+        assert 0 <= max(embedding_values) <= 1
+        assert 0 <= min(embedding_values) <= 1
 
-      _ = (transformed_pcoll | beam.Map(assert_element))
+      _ = transformed_pcoll | beam.Map(assert_element)
 
   def test_embeddings_with_dimensions(self):
     embedding_config = OpenAITextEmbeddings(
         model_name=model_name,
         columns=[test_query_column],
         api_key=self.api_key,
-        dimensions=512)
+        dimensions=512,
+    )
     with beam.Pipeline() as pipeline:
       transformed_pcoll = (
           pipeline
@@ -111,23 +113,22 @@ class OpenAIEmbeddingsTest(unittest.TestCase):
         # Check that we get 512-dimensional embeddings as requested
         assert len(element[test_query_column]) == 512
 
-      _ = (transformed_pcoll | beam.Map(assert_element))
+      _ = transformed_pcoll | beam.Map(assert_element)
 
   def pipeline_with_configurable_artifact_location(
       self,
       pipeline,
       embedding_config=None,
       read_artifact_location=None,
-      write_artifact_location=None):
+      write_artifact_location=None,
+  ):
     if write_artifact_location:
-      return (
-          pipeline
-          | MLTransform(write_artifact_location=write_artifact_location).
-          with_transform(embedding_config))
+      return pipeline | MLTransform(
+          write_artifact_location=write_artifact_location).with_transform(
+              embedding_config)
     elif read_artifact_location:
-      return (
-          pipeline
-          | MLTransform(read_artifact_location=read_artifact_location))
+      return pipeline | MLTransform(
+          read_artifact_location=read_artifact_location)
     else:
       raise NotImplementedError
 
@@ -138,24 +139,19 @@ class OpenAIEmbeddingsTest(unittest.TestCase):
         api_key=self.api_key)
 
     with beam.Pipeline() as p:
-      data = (
-          p
-          | "CreateData" >> beam.Create([{
-              test_query_column: test_query
-          }]))
+      data = p | "CreateData" >> beam.Create([{test_query_column: test_query}])
       _ = self.pipeline_with_configurable_artifact_location(
           pipeline=data,
           embedding_config=embedding_config,
-          write_artifact_location=self.artifact_location)
+          write_artifact_location=self.artifact_location,
+      )
 
     with beam.Pipeline() as p:
-      data = (
-          p
-          | "CreateData" >> beam.Create([{
-              test_query_column: test_query
-          }, {
-              test_query_column: test_query
-          }]))
+      data = p | "CreateData" >> beam.Create([{
+          test_query_column: test_query
+      }, {
+          test_query_column: test_query
+      }])
       result_pcoll = self.pipeline_with_configurable_artifact_location(
           pipeline=data, read_artifact_location=self.artifact_location)
 
@@ -186,10 +182,10 @@ class OpenAIEmbeddingsTest(unittest.TestCase):
                 write_artifact_location=self.artifact_location).with_transform(
                     embedding_config))
 
-  def test_with_artifact_location(self):  # pylint: disable=line-too-long
+  def test_with_artifact_location(self):
     """Local artifact location test"""
     secondary_artifact_location = tempfile.mkdtemp(
-        prefix='_openai_secondary_test')
+        prefix="_openai_secondary_test")
 
     try:
       embedding_config = OpenAITextEmbeddings(
@@ -198,24 +194,21 @@ class OpenAIEmbeddingsTest(unittest.TestCase):
           api_key=self.api_key)
 
       with beam.Pipeline() as p:
-        data = (
-            p
-            | "CreateData" >> beam.Create([{
-                test_query_column: test_query
-            }]))
+        data = p | "CreateData" >> beam.Create([{
+            test_query_column: test_query
+        }])
         _ = self.pipeline_with_configurable_artifact_location(
             pipeline=data,
             embedding_config=embedding_config,
-            write_artifact_location=secondary_artifact_location)
+            write_artifact_location=secondary_artifact_location,
+        )
 
       with beam.Pipeline() as p:
-        data = (
-            p
-            | "CreateData" >> beam.Create([{
-                test_query_column: test_query
-            }, {
-                test_query_column: test_query
-            }]))
+        data = p | "CreateData" >> beam.Create([{
+            test_query_column: test_query
+        }, {
+            test_query_column: test_query
+        }])
         result_pcoll = self.pipeline_with_configurable_artifact_location(
             pipeline=data, read_artifact_location=secondary_artifact_location)
 
@@ -231,26 +224,28 @@ class OpenAIEmbeddingsTest(unittest.TestCase):
       # Clean up the temporary directory
       shutil.rmtree(secondary_artifact_location)
 
-  def test_mltransform_to_ptransform_with_openai(self):  # pylint: disable=line-too-long
+  def test_mltransform_to_ptransform_with_openai(self):
     transforms = [
         OpenAITextEmbeddings(
-            columns=['x'],
+            columns=["x"],
             model_name=model_name,
             api_key=self.api_key,
-            dimensions=512),
+            dimensions=512,
+        ),
         OpenAITextEmbeddings(
-            columns=['y', 'z'], model_name=model_name, api_key=self.api_key)
+            columns=["y", "z"], model_name=model_name, api_key=self.api_key),
     ]
     ptransform_mapper = base._MLTransformToPTransformMapper(
         transforms=transforms,
         artifact_location=self.artifact_location,
-        artifact_mode=None)
+        artifact_mode=None,
+    )
 
     ptransform_list = ptransform_mapper.create_and_save_ptransform_list()
     self.assertTrue(len(ptransform_list) == 2)
 
     self.assertEqual(type(ptransform_list[0]), RunInference)
-    expected_columns = [['x'], ['y', 'z']]
+    expected_columns = [["x"], ["y", "z"]]
     expected_dimensions = [512, None]
     for i in range(len(ptransform_list)):
       self.assertEqual(type(ptransform_list[i]), RunInference)
@@ -263,7 +258,8 @@ class OpenAIEmbeddingsTest(unittest.TestCase):
       if expected_dimensions[i]:
         self.assertEqual(
             ptransform_list[i]._model_handler._underlying.dimensions,
-            expected_dimensions[i])
+            expected_dimensions[i],
+        )
 
     ptransform_list = (
         base._MLTransformToPTransformMapper.
@@ -279,8 +275,9 @@ class OpenAIEmbeddingsTest(unittest.TestCase):
       if expected_dimensions[i]:
         self.assertEqual(
             ptransform_list[i]._model_handler._underlying.dimensions,
-            expected_dimensions[i])
+            expected_dimensions[i],
+        )
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
   unittest.main()

@@ -161,6 +161,7 @@ dataframe_dependency = [
 ]
 
 milvus_dependency = ['pymilvus>=2.5.10,<3.0.0']
+openai_dependency = ['openai>=1.107.1,<2.0.0']
 
 ml_base = [
     'embeddings',
@@ -466,7 +467,7 @@ if __name__ == '__main__':
               'pg8000>=1.31.5',
               "PyMySQL>=1.1.0",
               'oracledb>=3.1.1'
-          ] + milvus_dependency,
+          ] + milvus_dependency + openai_dependency,
           'gcp': [
               'cachetools>=3.1.0,<7',
               'google-api-core>=2.0.0,<3',
@@ -614,7 +615,8 @@ if __name__ == '__main__':
           'xgboost': ['xgboost>=1.6.0,<2.1.3', 'datatable==1.0.0'],
           'tensorflow-hub': ['tensorflow-hub>=0.14.0,<0.16.0'],
           'milvus': milvus_dependency,
-          'vllm': ['openai==1.107.1', 'vllm==0.10.1.1', 'triton==3.3.1']
+          'openai': openai_dependency,
+          'vllm': ['vllm==0.10.1.1', 'triton==3.3.1'] + openai_dependency,
       },
       zip_safe=False,
       # PyPI package information.
