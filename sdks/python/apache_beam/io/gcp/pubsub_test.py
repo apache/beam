@@ -23,9 +23,9 @@
 import logging
 import unittest
 
-import apache_beam as beam
 import hamcrest as hc
 import mock
+import apache_beam as beam
 from apache_beam import Pipeline
 from apache_beam.io import Read
 from apache_beam.io import Write
