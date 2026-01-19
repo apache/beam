@@ -70,6 +70,7 @@
 ## New Features / Improvements
 
 * X feature added (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
+* OpenAI text embeddings notebook added (Python) ([#37344](https://github.com/apache/beam/issues/37344)).
 
 ## Breaking Changes
 
