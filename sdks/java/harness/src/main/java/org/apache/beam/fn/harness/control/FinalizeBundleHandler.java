@@ -20,7 +20,6 @@ package org.apache.beam.fn.harness.control;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkState;
 
 import com.google.auto.value.AutoValue;
-import com.google.errorprone.annotations.concurrent.GuardedBy;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Comparator;
@@ -33,6 +32,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.ReentrantLock;
 import javax.annotation.Nullable;
+import javax.annotation.concurrent.GuardedBy;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.FinalizeBundleResponse;
 import org.apache.beam.sdk.transforms.DoFn.BundleFinalizer;
@@ -53,7 +53,7 @@ public class FinalizeBundleHandler {
 
   /** A {@link BundleFinalizer.Callback} and expiry time pair. */
   @AutoValue
-  abstract static class CallbackRegistration {
+  public abstract static class CallbackRegistration {
     public static CallbackRegistration create(
         Instant expiryTime, BundleFinalizer.Callback callback) {
       return new AutoValue_FinalizeBundleHandler_CallbackRegistration(expiryTime, callback);
