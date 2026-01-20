@@ -125,17 +125,9 @@ class GcsUtilV1 {
     }
   }
 
-  public static class GcsReadOptionsFactory
-      implements DefaultValueFactory<GoogleCloudStorageReadOptions> {
-    @Override
-    public GoogleCloudStorageReadOptions create(PipelineOptions options) {
-      return GoogleCloudStorageReadOptions.DEFAULT;
-    }
-  }
-
   /**
-   * This is a {@link DefaultValueFactory} able to create a {@link GcsUtilV1} using any
-   * transport flags specified on the {@link PipelineOptions}.
+   * This is a {@link DefaultValueFactory} able to create a {@link GcsUtilV1} using any transport
+   * flags specified on the {@link PipelineOptions}.
    */
   public static class GcsUtilFactory implements DefaultValueFactory<GcsUtilV1> {
     /**

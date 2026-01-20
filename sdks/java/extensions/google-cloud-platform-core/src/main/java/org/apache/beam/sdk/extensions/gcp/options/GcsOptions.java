@@ -25,7 +25,6 @@ import java.util.concurrent.ExecutorService;
 import org.apache.beam.sdk.extensions.gcp.storage.GcsPathValidator;
 import org.apache.beam.sdk.extensions.gcp.storage.PathValidator;
 import org.apache.beam.sdk.extensions.gcp.util.GcsUtil;
-import org.apache.beam.sdk.extensions.gcp.util.GcsUtilV1;
 import org.apache.beam.sdk.options.ApplicationNameOptions;
 import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.DefaultValueFactory;
@@ -47,13 +46,24 @@ public interface GcsOptions extends ApplicationNameOptions, GcpOptions, Pipeline
 
   void setGcsUtil(GcsUtil value);
 
+  class GcsReadOptionsFactory implements DefaultValueFactory<GoogleCloudStorageReadOptions> {
+    @Override
+    public GoogleCloudStorageReadOptions create(PipelineOptions options) {
+      return GoogleCloudStorageReadOptions.DEFAULT;
+    }
+  }
+
+  /** @deprecated This option will be removed in a future release. */
   @JsonIgnore
   @Description(
       "The GoogleCloudStorageReadOptions instance that should be used to read from Google Cloud Storage.")
-  @Default.InstanceFactory(GcsUtilV1.GcsReadOptionsFactory.class)
+  @Default.InstanceFactory(GcsReadOptionsFactory.class)
   @Hidden
+  @Deprecated
   GoogleCloudStorageReadOptions getGoogleCloudStorageReadOptions();
 
+  /** @deprecated This option will be removed in a future release. */
+  @Deprecated
   void setGoogleCloudStorageReadOptions(GoogleCloudStorageReadOptions value);
 
   /**

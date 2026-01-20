@@ -1631,8 +1631,7 @@ public class GcsUtilTest {
         throws IOException {
       GcsUtilMock gcsUtilMock = createMock(options);
 
-      GcsUtilV1Mock mockLegacy =
-          GcsUtilV1Mock.createMockWithMockStorage(options, readPayload);
+      GcsUtilV1Mock mockLegacy = GcsUtilV1Mock.createMockWithMockStorage(options, readPayload);
       gcsUtilMock.delegate = mockLegacy;
 
       return gcsUtilMock;
