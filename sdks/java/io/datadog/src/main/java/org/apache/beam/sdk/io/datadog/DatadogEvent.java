@@ -30,20 +30,15 @@ public abstract class DatadogEvent {
     return new AutoValue_DatadogEvent.Builder();
   }
 
-  @Nullable
-  public abstract String ddsource();
+  public abstract @Nullable String ddsource();
 
-  @Nullable
-  public abstract String ddtags();
+  public abstract @Nullable String ddtags();
 
-  @Nullable
-  public abstract String hostname();
+  public abstract @Nullable String hostname();
 
-  @Nullable
-  public abstract String service();
+  public abstract @Nullable String service();
 
-  @Nullable
-  public abstract String message();
+  public abstract @Nullable String message();
 
   /** A builder class for creating {@link DatadogEvent} objects. */
   @AutoValue.Builder
