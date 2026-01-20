@@ -318,14 +318,28 @@ class ByteBuddyDoFnInvokerFactory implements DoFnInvokerFactory {
         fn.getClass());
 
     // Extract input and output type descriptors from the DoFn instance
-    // Fall back to Object.class if the type descriptors are null (e.g., for mocked DoFn instances)
-    @SuppressWarnings("unchecked")
-    TypeDescriptor<InputT> inputType = fn.getInputTypeDescriptor();
+    // Fall back to Object.class if the type descriptors are null or unavailable (e.g., MapElements
+    // after serialization)
+    TypeDescriptor<InputT> inputType;
+    try {
+      inputType = fn.getInputTypeDescriptor();
+    } catch (Exception e) {
+      // Some DoFns (like MapElements) throw IllegalStateException if queried after
+      // serialization.
+      // In this case, we fall back to the raw class behavior (Object).
+      inputType = null;
+    }
     if (inputType == null) {
       inputType = (TypeDescriptor<InputT>) TypeDescriptor.of(Object.class);
     }
-    @SuppressWarnings("unchecked")
-    TypeDescriptor<OutputT> outputType = fn.getOutputTypeDescriptor();
+
+    TypeDescriptor<OutputT> outputType;
+    try {
+      outputType = fn.getOutputTypeDescriptor();
+    } catch (Exception e) {
+      // Same as above: fall back to Object if type info is unavailable.
+      outputType = null;
+    }
     if (outputType == null) {
       outputType = (TypeDescriptor<OutputT>) TypeDescriptor.of(Object.class);
     }
