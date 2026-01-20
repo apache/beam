@@ -44,7 +44,8 @@ public class GcpCoreApiSurfaceTest {
             .pruningPattern("org[.]apache[.]beam[.].*IT")
             .pruningPattern("org[.]checkerframework[.].*[.]qual[.].*")
             .pruningPattern("java[.]lang.*")
-            .pruningPattern("java[.]util.*");
+            .pruningPattern("java[.]util.*")
+            .pruningPattern("jdk[.]internal[.]vm[.]annotation[.].*");
 
     @SuppressWarnings("unchecked")
     final Set<Matcher<Class<?>>> allowedClasses =
@@ -60,7 +61,6 @@ public class GcpCoreApiSurfaceTest {
             classesInPackage("com.google.common.collect"), // Via gcs-connector ReadOptions builder
             classesInPackage("java"),
             classesInPackage("javax"),
-            classesInPackage("jdk.internal.vm.annotation"),
             classesInPackage("org.apache.beam.model.pipeline.v1"),
             classesInPackage("org.apache.beam.sdk"),
             classesInPackage("org.joda.time"));
