@@ -333,7 +333,7 @@ public class GcsUtil {
   }
 
   @VisibleForTesting
-  @SuppressWarnings("JdkObsolete")
+  @SuppressWarnings("JdkObsolete") // for LinkedList
   java.util.LinkedList<GcsUtilV1.RewriteOp> makeRewriteOps(
       Iterable<String> srcFilenames,
       Iterable<String> destFilenames,
@@ -346,7 +346,7 @@ public class GcsUtil {
   }
 
   @VisibleForTesting
-  @SuppressWarnings("JdkObsolete")
+  @SuppressWarnings("JdkObsolete") // for LinkedList
   List<GcsUtilV1.BatchInterface> makeRewriteBatches(
       java.util.LinkedList<GcsUtilV1.RewriteOp> rewrites) throws IOException {
     return delegate.makeRewriteBatches(rewrites);
