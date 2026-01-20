@@ -546,8 +546,6 @@ task validatesRunnerV2 {
     name: 'validatesRunnerV2Test',
     pipelineOptions: runnerV2PipelineOptions,
     excludedCategories: [
-      'org.apache.beam.sdk.testing.UsesOnWindowExpiration',
-      'org.apache.beam.sdk.testing.UsesStatefulParDo',
       'org.apache.beam.sdk.testing.UsesTimersInParDo',
       'org.apache.beam.sdk.testing.UsesUnboundedPCollections',
       'org.apache.beam.sdk.testing.UsesUnboundedSplittableParDo',
