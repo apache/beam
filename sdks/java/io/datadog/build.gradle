@@ -33,7 +33,6 @@ dependencies {
     implementation library.java.google_http_client
     implementation library.java.google_code_gson
     implementation library.java.auto_value_annotations
-    annotationProcessor library.java.auto_value
     testImplementation project(path: ":sdks:java:core", configuration: "shadowTest")
     testImplementation library.java.jupiter_api
     testRuntimeOnly library.java.jupiter_engine

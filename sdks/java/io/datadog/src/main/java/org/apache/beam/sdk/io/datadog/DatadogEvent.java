@@ -20,7 +20,7 @@ package org.apache.beam.sdk.io.datadog;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkNotNull;
 
 import com.google.auto.value.AutoValue;
-import javax.annotation.Nullable;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** A class for Datadog events. */
 @AutoValue
