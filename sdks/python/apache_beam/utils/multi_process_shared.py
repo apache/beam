@@ -83,7 +83,7 @@ class _SingletonProxy:
     assert self._SingletonProxy_valid
     self._SingletonProxy_valid = False
 
-  def unsafe_hard_delete(self):
+  def singletonProxy_unsafe_hard_delete(self):
     assert self._SingletonProxy_valid
     self._SingletonProxy_entry.unsafe_hard_delete()
 
@@ -113,7 +113,7 @@ class _SingletonProxy:
     dir = self._SingletonProxy_entry.obj.__dir__()
     dir.append('singletonProxy_call__')
     dir.append('singletonProxy_release')
-    dir.append('unsafe_hard_delete')
+    dir.append('singletonProxy_unsafe_hard_delete')
     return dir
 
 

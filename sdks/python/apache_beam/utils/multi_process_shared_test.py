@@ -223,7 +223,7 @@ class MultiProcessSharedTest(unittest.TestCase):
     self.assertEqual(counter2.increment(), 2)
 
     try:
-      counter2.unsafe_hard_delete()
+      counter2.singletonProxy_unsafe_hard_delete()
     except Exception:
       pass
 
@@ -358,7 +358,7 @@ class MultiProcessSharedSpawnProcessTest(unittest.TestCase):
     self.assertEqual(counter2.increment(), 2)
 
     try:
-      counter2.unsafe_hard_delete()
+      counter2.singletonProxy_unsafe_hard_delete()
     except Exception:
       pass
 
@@ -402,7 +402,7 @@ class MultiProcessSharedSpawnProcessTest(unittest.TestCase):
     self.assertIsNotNone(
         server_process, "Could not find spawned server process")
     try:
-      obj.unsafe_hard_delete()
+      obj.singletonProxy_unsafe_hard_delete()
     except Exception:
       pass
     server_process.join(timeout=5)
@@ -457,7 +457,7 @@ class MultiProcessSharedSpawnProcessTest(unittest.TestCase):
         p.pid for p in children if p.is_alive() and p.pid != os.getpid())
 
     try:
-      obj.unsafe_hard_delete()
+      obj.singletonProxy_unsafe_hard_delete()
     except Exception:
       pass
 
