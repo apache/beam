@@ -29,6 +29,9 @@ import sys
 import time
 import traceback
 
+
+from google.protobuf import text_format
+
 from apache_beam.internal import pickler
 from apache_beam.io import filesystems
 from apache_beam.options.pipeline_options import DebugOptions
@@ -44,7 +47,6 @@ from apache_beam.runners.worker.data_sampler import DataSampler
 from apache_beam.runners.worker.log_handler import FnApiLogRecordHandler
 from apache_beam.runners.worker.sdk_worker import SdkHarness
 from apache_beam.utils import profiler
-from google.protobuf import text_format
 
 _LOGGER = logging.getLogger(__name__)
 _ENABLE_GOOGLE_CLOUD_PROFILER = 'enable_google_cloud_profiler'
