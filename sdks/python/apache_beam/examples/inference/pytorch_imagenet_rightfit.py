@@ -203,6 +203,8 @@ def parse_known_args(argv):
   parser = argparse.ArgumentParser()
   # I/O & runtime
   parser.add_argument(
+      '--project', default='apache-beam-testing', help='GCP project ID')
+  parser.add_argument(
       '--mode', default='streaming', choices=['streaming', 'batch'])
   parser.add_argument(
       '--output_table',

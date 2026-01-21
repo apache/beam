@@ -342,6 +342,8 @@ def parse_known_args(argv):
   # I/O & runtime
   parser.add_argument('--mode', default='batch', choices=['batch'])
   parser.add_argument(
+      '--project', default='apache-beam-testing', help='GCP project ID')
+  parser.add_argument(
       '--input', required=True, help='GCS path to file with image URIs')
   parser.add_argument(
       '--output_table',
