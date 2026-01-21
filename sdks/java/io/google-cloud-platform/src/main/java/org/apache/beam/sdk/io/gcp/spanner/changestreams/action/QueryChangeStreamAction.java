@@ -176,11 +176,6 @@ public class QueryChangeStreamAction {
       ManualWatermarkEstimator<Instant> watermarkEstimator,
       BundleFinalizer bundleFinalizer) {
     final String token = partition.getPartitionToken();
-    final Timestamp startTimestamp = tracker.currentRestriction().getFrom();
-    final Timestamp endTimestamp = partition.getEndTimestamp();
-    final boolean readToEndTimestamp = !endTimestamp.equals(MAX_INCLUSIVE_END_AT);
-    final Timestamp changeStreamQueryEndTimestamp =
-        readToEndTimestamp ? endTimestamp : getNextReadChangeStreamEndTimestamp();
 
     // TODO: Potentially we can avoid this fetch, by enriching the runningAt timestamp when the
     // ReadChangeStreamPartitionDoFn#processElement is called
@@ -196,7 +191,17 @@ public class QueryChangeStreamAction {
     RestrictionInterrupter<Timestamp> interrupter =
         RestrictionInterrupter.withSoftTimeout(RESTRICTION_TRACKER_TIMEOUT);
 
-    boolean stopAfterQuerySucceeds = readToEndTimestamp;
+    final Timestamp startTimestamp = tracker.currentRestriction().getFrom();
+    final Timestamp endTimestamp = partition.getEndTimestamp();
+    final boolean isBoundedRestriction = !endTimestamp.equals(MAX_INCLUSIVE_END_AT);
+    final Timestamp changeStreamQueryEndTimestamp =
+        isBoundedRestriction ? endTimestamp : getNextReadChangeStreamEndTimestamp();
+
+    // Once the changeStreamQuery completes we may need to resume reading from the partition if we
+    // had an unbounded restriction for which we set an arbitrary query end timestamp and for which
+    // we didn't  encounter any indications that the partition is done (explicit end records or
+    // exceptions about being out of timestamp range).
+    boolean stopAfterQuerySucceeds = isBoundedRestriction;
     try (ChangeStreamResultSet resultSet =
         changeStreamDao.changeStreamQuery(
             token, startTimestamp, changeStreamQueryEndTimestamp, partition.getHeartbeatMillis())) {
@@ -233,6 +238,10 @@ public class QueryChangeStreamAction {
                     tracker,
                     interrupter,
                     watermarkEstimator);
+            // Child Partition records indicate that the partition has ended. There may be
+            // additional ChildPartitionRecords but they will share the same timestamp and
+            // will be returned by the query and processed if it finishes successfully.
+            stopAfterQuerySucceeds = true;
           } else if (record instanceof PartitionStartRecord) {
             maybeContinuation =
                 partitionStartRecordAction.run(
@@ -303,18 +312,30 @@ public class QueryChangeStreamAction {
 
     LOG.debug(
         "[{}] change stream completed successfully up to {}", token, changeStreamQueryEndTimestamp);
-    Timestamp claimTimestamp =
-        stopAfterQuerySucceeds ? endTimestamp : changeStreamQueryEndTimestamp;
-    if (!tracker.tryClaim(claimTimestamp)) {
-      return ProcessContinuation.stop();
-    }
-    bundleFinalizer.afterBundleCommit(
-        Instant.now().plus(BUNDLE_FINALIZER_TIMEOUT),
-        updateWatermarkCallback(token, watermarkEstimator));
 
     if (!stopAfterQuerySucceeds) {
+      // Records stopped being returned for the query due to our artificial query end timestamp but
+      // we want to continue processing the partition, resuming from changeStreamQueryEndTimestamp.
+      if (!tracker.tryClaim(changeStreamQueryEndTimestamp)) {
+        return ProcessContinuation.stop();
+      }
+      bundleFinalizer.afterBundleCommit(
+          Instant.now().plus(BUNDLE_FINALIZER_TIMEOUT),
+          updateWatermarkCallback(token, watermarkEstimator));
       LOG.debug("[{}] Rescheduling partition to resume reading", token);
       return ProcessContinuation.resume();
+    }
+
+    // Otherwise we have finished processing the partition, either due to:
+    //   1. reading to the bounded restriction end timestamp
+    //   2. encountering a ChildPartitionRecord or EndPartitionRecord indicating there are no more
+    //      elements in the partition
+    //   3. encountering a exception indicating the start timestamp is out of bounds of the
+    //      partition
+    // We claim the restriction completely to satisfy internal sanity checks and do not reschedule
+    // the restriction.
+    if (!tracker.tryClaim(endTimestamp)) {
+      return ProcessContinuation.stop();
     }
 
     LOG.debug("[{}] Finishing partition", token);
