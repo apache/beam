@@ -133,8 +133,16 @@ public class WindmillKeyedWorkItem<K, ElemT> implements KeyedWorkItem<K, ElemT> 
                 }
                 InputStream inputStream = message.getData().newInput();
                 ElemT value = valueCoder.decode(inputStream, Coder.Context.OUTER);
+                // todo #37030 parse context from previous stage
                 return WindowedValues.of(
-                    value, timestamp, windows, paneInfo, null, null, drainingValueFromUpstream);
+                    value,
+                    timestamp,
+                    windows,
+                    paneInfo,
+                    null,
+                    null,
+                    drainingValueFromUpstream,
+                    null);
               } catch (IOException e) {
                 throw new RuntimeException(e);
               }

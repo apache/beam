@@ -123,6 +123,7 @@ public class GcpApiSurfaceTest {
             classesInPackage("com.fasterxml.jackson.core"),
             classesInPackage("com.fasterxml.jackson.databind"),
             classesInPackage("io.grpc"),
+            classesInPackage("io.opentelemetry.context"),
             classesInPackage("java"),
             classesInPackage("javax"),
             classesInPackage("org.apache.avro"),
