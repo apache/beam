@@ -155,6 +155,12 @@ func launchSDKProcess() error {
 		logger.Fatalf(ctx, "Failed to convert pipeline options: %v", err)
 	}
 
+	pipNoBuildIsolation = false
+	if strings.Contains(options, "pip_no_build_isolation") {
+		pipNoBuildIsolation = true
+		logger.Printf(ctx, "Disabled build isolation when installing packages with pip")
+	}
+
 	// (2) Retrieve and install the staged packages.
 	//
 	// No log.Fatalf() from here on, otherwise deferred cleanups will not be called!
@@ -390,11 +396,6 @@ func installSetupPackages(ctx context.Context, logger *tools.Logger, files []str
 		bufLogger.Printf(ctx, "Failed to setup acceptable wheel specs, leave it as empty: %v", err)
 	}
 
-	useBuildIsolationForWorkflow := false
-	if os.Getenv("USE_BUILD_ISOLATION_FOR_WORKFLOW") != "" {
-		useBuildIsolationForWorkflow = true
-	}
-
 	// Install the Dataflow Python SDK if one was staged. In released
 	// container images, SDK is already installed, but can be overriden
 	// using the --sdk_location pipeline option.
@@ -416,7 +417,7 @@ func installSetupPackages(ctx context.Context, logger *tools.Logger, files []str
 	if err := installExtraPackages(ctx, logger, files, extraPackagesFile, workDir); err != nil {
 		return fmt.Errorf("failed to install extra packages: %v", err)
 	}
-	if err := pipInstallPackage(ctx, logger, files, workDir, workflowFile, false, true, useBuildIsolationForWorkflow, nil); err != nil {
+	if err := pipInstallPackage(ctx, logger, files, workDir, workflowFile, false, true, nil); err != nil {
 		return fmt.Errorf("failed to install workflow: %v", err)
 	}
 	if err := logRuntimeDependencies(ctx, bufLogger); err != nil {

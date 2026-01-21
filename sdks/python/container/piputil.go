@@ -32,6 +32,11 @@ import (
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/util/execx"
 )
 
+var (
+	// Whether to append "--no-build-isolation" flag to pip install command
+	pipNoBuildIsolation bool
+)
+
 const pipLogFlushInterval time.Duration = 15 * time.Second
 const unrecoverableURL string = "https://beam.apache.org/documentation/sdks/python-unrecoverable-errors/index.html#pip-dependency-resolution-failures"
 
@@ -81,7 +86,7 @@ func isPackageInstalled(pkgName string) bool {
 }
 
 // pipInstallPackage installs the given package, if present.
-func pipInstallPackage(ctx context.Context, logger *tools.Logger, files []string, dir, name string, force, optional, useBuildIsolation bool, extras []string) error {
+func pipInstallPackage(ctx context.Context, logger *tools.Logger, files []string, dir, name string, force, optional bool, extras []string) error {
 	pythonVersion, err := expansionx.GetPythonVersion()
 	if err != nil {
 		return err
@@ -112,7 +117,7 @@ func pipInstallPackage(ctx context.Context, logger *tools.Logger, files []string
 				// installed if necessary.  This achieves our goal outlined above.
 				args := []string{"-m", "pip", "install", "--no-cache-dir", "--disable-pip-version-check", "--upgrade", "--force-reinstall", "--no-deps",
 					filepath.Join(dir, packageSpec)}
-				if !useBuildIsolation {
+				if pipNoBuildIsolation {
 					args = append(args, "--no-build-isolation")
 				}
 				err := execx.ExecuteEnvWithIO(nil, os.Stdin, bufLogger, bufLogger, pythonVersion, args...)
@@ -123,7 +128,7 @@ func pipInstallPackage(ctx context.Context, logger *tools.Logger, files []string
 					bufLogger.FlushAtDebug(ctx)
 				}
 				args = []string{"-m", "pip", "install", "--no-cache-dir", "--disable-pip-version-check", filepath.Join(dir, packageSpec)}
-				if !useBuildIsolation {
+				if pipNoBuildIsolation {
 					args = append(args, "--no-build-isolation")
 				}
 				err = execx.ExecuteEnvWithIO(nil, os.Stdin, bufLogger, bufLogger, pythonVersion, args...)
@@ -137,7 +142,7 @@ func pipInstallPackage(ctx context.Context, logger *tools.Logger, files []string
 
 			// Case when we do not perform a forced reinstall.
 			args := []string{"-m", "pip", "install", "--no-cache-dir", "--disable-pip-version-check", filepath.Join(dir, packageSpec)}
-			if !useBuildIsolation {
+			if pipNoBuildIsolation {
 				args = append(args, "--no-build-isolation")
 			}
 			err := execx.ExecuteEnvWithIO(nil, os.Stdin, bufLogger, bufLogger, pythonVersion, args...)
@@ -177,7 +182,7 @@ func installExtraPackages(ctx context.Context, logger *tools.Logger, files []str
 		for s.Scan() {
 			extraPackage := s.Text()
 			bufLogger.Printf(ctx, "Installing extra package: %s", extraPackage)
-			if err = pipInstallPackage(ctx, logger, files, dir, extraPackage, true, false, true, nil); err != nil {
+			if err = pipInstallPackage(ctx, logger, files, dir, extraPackage, true, false, nil); err != nil {
 				return fmt.Errorf("failed to install extra package %s: %v", extraPackage, err)
 			}
 		}
@@ -212,7 +217,7 @@ func installSdk(ctx context.Context, logger *tools.Logger, files []string, workD
 	if sdkWhlFile != "" {
 		// by default, pip rejects to install wheel if same version already installed
 		isDev := strings.Contains(sdkWhlFile, ".dev")
-		err := pipInstallPackage(ctx, logger, files, workDir, sdkWhlFile, isDev, false, true, []string{"gcp"})
+		err := pipInstallPackage(ctx, logger, files, workDir, sdkWhlFile, isDev, false, []string{"gcp"})
 		if err == nil {
 			return nil
 		}
@@ -224,6 +229,6 @@ func installSdk(ctx context.Context, logger *tools.Logger, files []string, workD
 			return nil
 		}
 	}
-	err := pipInstallPackage(ctx, logger, files, workDir, sdkSrcFile, false, false, true, []string{"gcp"})
+	err := pipInstallPackage(ctx, logger, files, workDir, sdkSrcFile, false, false, []string{"gcp"})
 	return err
 }
