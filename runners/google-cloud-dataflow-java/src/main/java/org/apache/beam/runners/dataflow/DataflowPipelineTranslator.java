@@ -405,6 +405,12 @@ public class DataflowPipelineTranslator {
       if (options.getDiskSizeGb() > 0) {
         workerPool.setDiskSizeGb(options.getDiskSizeGb());
       }
+      if (options.getDiskProvisionedIops() != null) {
+        workerPool.setDiskProvisionedIops(options.getDiskProvisionedIops());
+      }
+      if (options.getDiskProvisionedThroughputMibps() != null) {
+        workerPool.setDiskProvisionedThroughputMibps(options.getDiskProvisionedThroughputMibps());
+      }
       AutoscalingSettings settings = new AutoscalingSettings();
       if (options.getAutoscalingAlgorithm() != null) {
         settings.setAlgorithm(options.getAutoscalingAlgorithm().getAlgorithm());

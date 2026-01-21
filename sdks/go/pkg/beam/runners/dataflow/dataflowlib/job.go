@@ -58,6 +58,8 @@ type JobOptions struct {
 	NumWorkers          int64
 	DiskSizeGb          int64
 	DiskType            string
+	DiskProvisionedIOPS int64
+	DiskProvisionedThroughputMibps int64
 	MachineType         string
 	Labels              map[string]string
 	ServiceAccountEmail string
@@ -191,6 +193,8 @@ func Translate(ctx context.Context, p *pipepb.Pipeline, opts *JobOptions, worker
 				},
 				DiskSizeGb:                  opts.DiskSizeGb,
 				DiskType:                    opts.DiskType,
+				DiskProvisionedIops:         opts.DiskProvisionedIOPS,
+				DiskProvisionedThroughputMibps: opts.DiskProvisionedThroughputMibps,
 				IpConfiguration:             ipConfiguration,
 				Kind:                        "harness",
 				Packages:                    packages,
