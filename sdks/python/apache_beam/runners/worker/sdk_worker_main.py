@@ -29,7 +29,6 @@ import sys
 import time
 import traceback
 
-
 from google.protobuf import text_format
 
 from apache_beam.internal import pickler
