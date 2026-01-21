@@ -42,5 +42,5 @@
 --inference_batch_size=auto
 --window_sec=60
 --trigger_proc_time_sec=30
---enable_dedup=false
+--enable_dedup=true
 --experiments=worker_accelerator=type:nvidia-tesla-t4;count:1;install-nvidia-driver:5xx

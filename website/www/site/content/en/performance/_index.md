@@ -60,5 +60,5 @@ See the following pages for performance measures recorded when running various B
 - [TensorFlow MNIST Image Classification](/performance/tensorflowmnist)
 - [VLLM Gemma Batch Completion Tesla T4 GPU](/performance/vllmgemmabatchtesla)
 - [Table Row Inference Sklearn Batch](/performance/tablerowinference)
-- [PyTorch Image Object Detection Faster R-CNN ResNet-50 Batch](/performance/pytorchimageobjectdetection)
-- [PyTorch Image Captioning BLIP + CLIP Batch](/performance/pytorchimagecaptioning)
+- [PyTorch Image Object Detection Faster R-CNN ResNet-50 Batch GPU](/performance/pytorchimageobjectdetectionbatchgpu)
+- [PyTorch Image Captioning BLIP + CLIP Batch GPU](/performance/pytorchimagecaptioningbatchgpu)
