@@ -92,9 +92,29 @@ def create_harness(environment, dry_run=False):
       fn_log_handler = None
   else:
     fn_log_handler = None
+  
+  options_json = environment.get('PIPELINE_OPTIONS')
 
-  pipeline_options_dict = _load_pipeline_options(
-      environment.get('PIPELINE_OPTIONS'))
+
+  #We check if options are stored in the file.
+  if 'PIPELINE_OPTIONS_FILE' in environment:
+    options_file = environment['PIPELINE_OPTIONS_FILE']
+    try:
+      with open(options_file, 'r') as f:
+        options_json = f.read()
+        _LOGGER.info('Load pipeline options from file: %s', options_file)
+    except:
+      _LOGGER.error('Failed to load pipeline options from file: %s', options_file)
+      raise
+
+  pipeline_options_dict = _load_pipeline_options(options_json)
+
+  #pipeline_options_dict = _load_pipeline_options(
+  #    environment.get('PIPELINE_OPTIONS'))
+  
+
+
+
   default_log_level = _get_log_level_from_options_dict(pipeline_options_dict)
   logging.getLogger().setLevel(default_log_level)
   _set_log_level_overrides(pipeline_options_dict)

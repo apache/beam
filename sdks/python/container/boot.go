@@ -220,7 +220,18 @@ func launchSDKProcess() error {
 
 	// (3) Invoke python
 
-	os.Setenv("PIPELINE_OPTIONS", options)
+	//Commented out -->
+	//os.Setenv("PIPELINE_OPTIONS", options)
+
+	//To prevent crashes if options > ARG_MAX -->
+	// --> Write the large JSON content into a file on disk
+	// --> environment only receives the short filename
+	if optionsFile, err := MakePipelineOptionsFileAndEnvVar(options); err != nil {
+		logger.Fatalf(ctx, "Failed to create a pipeline options file: %v", err)
+	} else {
+		os.Setenv("PIPELINE_OPTIONS_FILE", optionsFile)
+	}
+	os.Setenv("SEMI_PERSISTENT_DIRECTORY", *semiPersistDir)
 	os.Setenv("SEMI_PERSISTENT_DIRECTORY", *semiPersistDir)
 	os.Setenv("LOGGING_API_SERVICE_DESCRIPTOR", (&pipepb.ApiServiceDescriptor{Url: *loggingEndpoint}).String())
 	os.Setenv("CONTROL_API_SERVICE_DESCRIPTOR", (&pipepb.ApiServiceDescriptor{Url: *controlEndpoint}).String())
@@ -502,4 +513,22 @@ func logSubmissionEnvDependencies(ctx context.Context, bufLogger *tools.Buffered
 	}
 	bufLogger.Printf(ctx, "%s", string(content))
 	return nil
+}
+
+// MakePipelineOptionsFileAndEnvVar writes the pipeline options to a file.
+// Assumes the options string is JSON formatted.
+//
+// Stores the file name in question in PIPELINE_OPTIONS_FILE for access by the SDK.
+func MakePipelineOptionsFileAndEnvVar(options string) (string, error) {
+	fn := "pipeline_options.json"
+	f, err := os.Create(fn)
+	if err != nil {
+		return "", fmt.Errorf("unable to create %v: %w", fn, err)
+	}
+	defer f.Close()
+	if _, err := f.WriteString(options); err != nil {
+		return "", fmt.Errorf("error writing %v: %w", f.Name(), err)
+	}
+	os.Setenv("PIPELINE_OPTIONS_FILE", f.Name())
+	return fn, nil
 }
