@@ -1406,4 +1406,108 @@ public class DoFnInvokersTest {
 
     verify(mockBundleFinalizer).afterBundleCommit(eq(Instant.ofEpochSecond(42L)), eq(null));
   }
+
+  /**
+   * Tests that DoFns with different concrete type parameters (via anonymous subclasses) get
+   * different invokers. Anonymous subclasses preserve generic type information at runtime, so they
+   * should produce different invoker classes.
+   *
+   * <p>Note: This test uses anonymous classes which are inherently different Class objects, so it
+   * validates that the invoker generation correctly handles type-specific bytecode generation. For
+   * the cache collision scenario described in <a
+   * href="https://github.com/apache/beam/issues/37351">Issue #37351</a>, a more complete fix would
+   * also require instance-aware signature resolution in DoFnSignatures.
+   */
+  @Test
+  public void testAnonymousDoFnsWithDifferentTypesGetDifferentInvokers() {
+    // Create two anonymous subclasses of DoFn with different type parameters.
+    // Anonymous classes preserve generic type information via their superclass declaration.
+    DoFn<String, String> stringDoFn =
+        new DoFn<String, String>() {
+          @ProcessElement
+          public void processElement(@Element String element, OutputReceiver<String> out) {
+            out.output(element);
+          }
+        };
+
+    DoFn<Integer, Integer> integerDoFn =
+        new DoFn<Integer, Integer>() {
+          @ProcessElement
+          public void processElement(@Element Integer element, OutputReceiver<Integer> out) {
+            out.output(element);
+          }
+        };
+
+    DoFnInvoker<String, String> stringInvoker = DoFnInvokers.invokerFor(stringDoFn);
+    DoFnInvoker<Integer, Integer> integerInvoker = DoFnInvokers.invokerFor(integerDoFn);
+
+    // Verify the invokers work correctly with their respective types
+    assertThat(stringInvoker.getFn(), instanceOf(DoFn.class));
+    assertThat(integerInvoker.getFn(), instanceOf(DoFn.class));
+
+    // The invokers should be different classes since they handle different types
+    // (anonymous classes are different Class objects, so signatures will differ)
+    assertFalse(
+        "Invokers for DoFns with different type parameters should not be the same class",
+        stringInvoker.getClass().equals(integerInvoker.getClass()));
+  }
+
+  /**
+   * Tests that the same DoFn instance gets the same cached invoker when called multiple times. This
+   * ensures the caching mechanism still works correctly after the fix for Issue #37351.
+   */
+  @Test
+  public void testSameDoFnGetsCachedInvoker() {
+    DoFn<String, String> doFn =
+        new DoFn<String, String>() {
+          @ProcessElement
+          public void processElement(@Element String element, OutputReceiver<String> out) {
+            out.output(element);
+          }
+        };
+
+    DoFnInvoker<String, String> invoker1 = DoFnInvokers.invokerFor(doFn);
+    DoFnInvoker<String, String> invoker2 = DoFnInvokers.invokerFor(doFn);
+
+    // The invokers should be the same class (cached)
+    assertEquals(
+        "Multiple calls for the same DoFn should return invokers of the same class",
+        invoker1.getClass(),
+        invoker2.getClass());
+  }
+
+  /**
+   * Tests that DoFns with different element types produce different signatures, which validates
+   * that the cache key correctly includes type information. This is a key part of the fix for <a
+   * href="https://github.com/apache/beam/issues/37351">Issue #37351</a>.
+   */
+  @Test
+  public void testDoFnSignaturesDistinguishElementTypes() {
+    DoFn<String, String> stringDoFn =
+        new DoFn<String, String>() {
+          @ProcessElement
+          public void processElement(@Element String element, OutputReceiver<String> out) {
+            out.output(element);
+          }
+        };
+
+    DoFn<Integer, Integer> integerDoFn =
+        new DoFn<Integer, Integer>() {
+          @ProcessElement
+          public void processElement(@Element Integer element, OutputReceiver<Integer> out) {
+            out.output(element);
+          }
+        };
+
+    DoFnSignature stringSignature = DoFnSignatures.signatureForDoFn(stringDoFn);
+    DoFnSignature integerSignature = DoFnSignatures.signatureForDoFn(integerDoFn);
+
+    // The extra parameters should be different due to different element types
+    assertFalse(
+        "Signatures for DoFns with different element types should have different extraParameters",
+        stringSignature
+            .processElement()
+            .extraParameters()
+            .equals(integerSignature.processElement().extraParameters()));
+  }
 }

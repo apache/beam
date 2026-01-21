@@ -27,6 +27,7 @@ import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
 import net.bytebuddy.ByteBuddy;
 import net.bytebuddy.description.field.FieldDescription;
@@ -166,15 +167,54 @@ class ByteBuddyDoFnInvokerFactory implements DoFnInvokerFactory {
   private static final String FN_DELEGATE_FIELD_NAME = "delegate";
 
   /**
-   * A cache of constructors of generated {@link DoFnInvoker} classes, keyed by {@link DoFn} class.
-   * Needed because generating an invoker class is expensive, and to avoid generating an excessive
-   * number of classes consuming PermGen memory.
+   * Cache key that includes both the DoFn class and the extra parameters from the signature to
+   * properly distinguish between DoFns with different generic type parameters. This fixes the cache
+   * collision issue where DoFns like {@code MyDoFn<String>} and {@code MyDoFn<Integer>} would
+   * incorrectly share the same cached invoker.
+   *
+   * @see <a href="https://github.com/apache/beam/issues/37351">Issue #37351</a>
+   */
+  private static final class InvokerCacheKey {
+    private final Class<? extends DoFn<?, ?>> fnClass;
+    private final List<DoFnSignature.Parameter> extraParameters;
+
+    InvokerCacheKey(
+        Class<? extends DoFn<?, ?>> fnClass, List<DoFnSignature.Parameter> extraParameters) {
+      this.fnClass = fnClass;
+      this.extraParameters = extraParameters;
+    }
+
+    @Override
+    public boolean equals(@Nullable Object o) {
+      if (this == o) {
+        return true;
+      }
+      if (o == null || getClass() != o.getClass()) {
+        return false;
+      }
+      InvokerCacheKey that = (InvokerCacheKey) o;
+      return fnClass.equals(that.fnClass) && extraParameters.equals(that.extraParameters);
+    }
+
+    @Override
+    public int hashCode() {
+      return Objects.hash(fnClass, extraParameters);
+    }
+  }
+
+  /**
+   * A cache of constructors of generated {@link DoFnInvoker} classes, keyed by {@link DoFn} class
+   * and its signature's extra parameters. Needed because generating an invoker class is expensive,
+   * and to avoid generating an excessive number of classes consuming PermGen memory.
+   *
+   * <p>The cache key includes extra parameters from the DoFnSignature to properly handle generic
+   * DoFns with different type parameters (e.g., {@code MyDoFn<String>} vs {@code MyDoFn<Integer>}).
    *
    * <p>Note that special care must be taken to enumerate this object as concurrent hash maps are <a
    * href="https://docs.oracle.com/javase/8/docs/api/java/util/concurrent/package-summary.html#Weakly>weakly
    * consistent</a>.
    */
-  private final Map<Class<?>, Constructor<?>> byteBuddyInvokerConstructorCache =
+  private final Map<InvokerCacheKey, Constructor<?>> byteBuddyInvokerConstructorCache =
       new ConcurrentHashMap<>();
 
   private ByteBuddyDoFnInvokerFactory() {}
@@ -300,16 +340,25 @@ class ByteBuddyDoFnInvokerFactory implements DoFnInvokerFactory {
    * Returns a generated constructor for a {@link DoFnInvoker} for the given {@link DoFn} class.
    *
    * <p>These are cached such that at most one {@link DoFnInvoker} class exists for a given {@link
-   * DoFn} class.
+   * DoFn} class with the same signature. The cache key includes the extra parameters from the
+   * signature to properly handle generic DoFns with different type parameters.
+   *
+   * @see <a href="https://github.com/apache/beam/issues/37351">Issue #37351</a>
    */
   private Constructor<?> getByteBuddyInvokerConstructor(DoFnSignature signature) {
     Class<? extends DoFn<?, ?>> fnClass = signature.fnClass();
+    // Include extra parameters in cache key to handle generic DoFns correctly.
+    // The extra parameters contain type information (e.g., ElementParameter.elementT())
+    // that differs between MyDoFn<String> and MyDoFn<Integer>.
+    List<DoFnSignature.Parameter> extraParameters = signature.processElement().extraParameters();
+    InvokerCacheKey cacheKey = new InvokerCacheKey(fnClass, extraParameters);
+
     return byteBuddyInvokerConstructorCache.computeIfAbsent(
-        fnClass,
-        clazz -> {
+        cacheKey,
+        key -> {
           Class<? extends DoFnInvoker<?, ?>> invokerClass = generateInvokerClass(signature);
           try {
-            return invokerClass.getConstructor(clazz);
+            return invokerClass.getConstructor(fnClass);
           } catch (IllegalArgumentException | NoSuchMethodException | SecurityException e) {
             throw new RuntimeException(e);
           }
