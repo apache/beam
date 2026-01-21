@@ -25,7 +25,7 @@
 --metrics_table=result_torch_inference_image_captioning_batch
 --input_options={}
 --influx_measurement=result_torch_inference_image_captioning_batch
---device=GPU
+--device=CPU
 --mode=batch
 --input=gs://apache-beam-ml/testing/inputs/openimage_50k_benchmark.txt
 --blip_model_name=Salesforce/blip-image-captioning-base

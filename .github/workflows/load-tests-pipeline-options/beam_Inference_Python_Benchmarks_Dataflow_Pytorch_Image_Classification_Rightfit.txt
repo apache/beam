@@ -27,7 +27,7 @@
 --metrics_table=torch_inference_imagenet_results_stream_rightfit
 --influx_measurement=torch_inference_imagenet_stream_rightfit
 --pretrained_model_name=efficientnet_b0
---device=GPU
+--device=CPU
 --input_file=gs://apache-beam-ml/testing/inputs/openimage_50k_benchmark.txt
 --runner=DataflowRunner
 --mode=streaming

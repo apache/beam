@@ -28,7 +28,7 @@
 --input_options={}
 --influx_measurement=result_torch_inference_image_object_detection_batch
 --pretrained_model_name=fasterrcnn_resnet50_fpn
---device=GPU
+--device=CPU
 --mode=batch
 --inference_batch_size=8
 --resize_shorter_side=800
