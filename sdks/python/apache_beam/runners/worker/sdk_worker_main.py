@@ -29,8 +29,6 @@ import sys
 import time
 import traceback
 
-from google.protobuf import text_format
-
 from apache_beam.internal import pickler
 from apache_beam.io import filesystems
 from apache_beam.options.pipeline_options import DebugOptions
@@ -46,6 +44,7 @@ from apache_beam.runners.worker.data_sampler import DataSampler
 from apache_beam.runners.worker.log_handler import FnApiLogRecordHandler
 from apache_beam.runners.worker.sdk_worker import SdkHarness
 from apache_beam.utils import profiler
+from google.protobuf import text_format
 
 _LOGGER = logging.getLogger(__name__)
 _ENABLE_GOOGLE_CLOUD_PROFILER = 'enable_google_cloud_profiler'
@@ -92,9 +91,8 @@ def create_harness(environment, dry_run=False):
       fn_log_handler = None
   else:
     fn_log_handler = None
-  
-  options_json = environment.get('PIPELINE_OPTIONS')
 
+  options_json = environment.get('PIPELINE_OPTIONS')
 
   #We check if options are stored in the file.
   if 'PIPELINE_OPTIONS_FILE' in environment:
@@ -104,16 +102,14 @@ def create_harness(environment, dry_run=False):
         options_json = f.read()
         _LOGGER.info('Load pipeline options from file: %s', options_file)
     except:
-      _LOGGER.error('Failed to load pipeline options from file: %s', options_file)
+      _LOGGER.error(
+          'Failed to load pipeline options from file: %s', options_file)
       raise
 
   pipeline_options_dict = _load_pipeline_options(options_json)
 
   #pipeline_options_dict = _load_pipeline_options(
   #    environment.get('PIPELINE_OPTIONS'))
-  
-
-
 
   default_log_level = _get_log_level_from_options_dict(pipeline_options_dict)
   logging.getLogger().setLevel(default_log_level)
@@ -271,7 +267,8 @@ def _load_pipeline_options(options_json):
     return {
         re.match(portable_option_regex, k).group('key') if re.match(
             portable_option_regex, k) else k: v
-        for k, v in options.items()
+        for k,
+        v in options.items()
     }
 
 
