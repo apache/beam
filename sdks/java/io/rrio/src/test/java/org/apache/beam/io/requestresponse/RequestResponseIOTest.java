@@ -42,7 +42,6 @@ import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.util.BackOff;
-import org.apache.beam.sdk.util.FluentBackoff;
 import org.apache.beam.sdk.util.SerializableSupplier;
 import org.apache.beam.sdk.util.Sleeper;
 import org.apache.beam.sdk.values.PCollection;
@@ -332,25 +331,6 @@ public class RequestResponseIOTest {
             customBackOffSupplier.getClass(),
             customBackOffSupplier.getCounterName().getName()),
         greaterThan(0L));
-  }
-
-  @Test
-  public void givenBoundedBackoff_thenRetriesStopAfterLimit() {
-    // Create a bounded backoff that stops after 3 retries
-    SerializableSupplier<BackOff> boundedBackoffSupplier =
-        () -> FluentBackoff.DEFAULT.withMaxRetries(3).backoff();
-
-    // CallerImpl(5) will fail 5 times, but with maxRetries=3, it should stop retrying
-    // and emit to failure PCollection after 3 attempts
-    requests()
-        .apply(
-            "rrio",
-            RequestResponseIO.of(new CallerImpl(5), RESPONSE_CODER)
-                .withBackOffSupplier(boundedBackoffSupplier));
-
-    PipelineResult pipelineResult = pipeline.run();
-    pipelineResult.waitUntilFinish();
-    // Test passes if pipeline completes (bounded retries prevent infinite loop)
   }
 
   // TODO(damondouglas): Count metrics of caching after https://github.com/apache/beam/issues/29888

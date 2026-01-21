@@ -229,8 +229,7 @@ public class RequestResponseIO<RequestT, ResponseT>
    * need for a {@link SerializableSupplier} instead of setting this directly is that some {@link
    * BackOff} implementations, such as {@link FluentBackoff} are not {@link Serializable}.
    */
-  public RequestResponseIO<RequestT, ResponseT> withBackOffSupplier(
-      SerializableSupplier<BackOff> value) {
+  RequestResponseIO<RequestT, ResponseT> withBackOffSupplier(SerializableSupplier<BackOff> value) {
     return new RequestResponseIO<>(
         rrioConfiguration, callConfiguration.toBuilder().setBackOffSupplier(value).build());
   }
