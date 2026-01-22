@@ -193,7 +193,7 @@ jobs:
             -PpythonVersion=3.10 \
             -PloadTest.requirementsTxtFile=apache_beam/ml/inference/torch_tests_requirements.txt \
             '-PloadTest.args=${{ env.beam_Inference_Python_Benchmarks_Dataflow_test_arguments_5 }} --job_name=benchmark-tests-pytorch-imagenet-python-gpu-${{env.NOW_UTC}} --output=gs://temp-storage-for-end-to-end-tests/torch/result_resnet152_gpu-${{env.NOW_UTC}}.txt' \
-      - name: run PyTorch Image Classification EfficientNet-B0 Streaming (Right-fitting)
+      - name: run PyTorch Image Classification EfficientNet-B0 Streaming (Right-fitting) GPU
         uses: ./.github/actions/gradle-command-self-hosted-action
         timeout-minutes: 180
         with:
@@ -204,7 +204,7 @@ jobs:
             -PpythonVersion=3.10 \
             -PloadTest.requirementsTxtFile=apache_beam/ml/inference/pytorch_rightfit_requirements.txt \
             '-PloadTest.args=${{ env.beam_Inference_Python_Benchmarks_Dataflow_test_arguments_9 }} --mode=streaming --job_name=benchmark-tests-pytorch-imagenet-rightfit-streaming-${{env.NOW_UTC}} --output_table=apache-beam-testing.beam_run_inference.result_torch_inference_imagenet_stream_rightfit' \
-      - name: run PyTorch Image Object Detection Faster R-CNN ResNet-50 Batch
+      - name: run PyTorch Image Object Detection Faster R-CNN ResNet-50 Batch GPU
         uses: ./.github/actions/gradle-command-self-hosted-action
         timeout-minutes: 180
         with:
@@ -214,8 +214,8 @@ jobs:
             -Prunner=DataflowRunner \
             -PpythonVersion=3.10 \
             -PloadTest.requirementsTxtFile=apache_beam/ml/inference/pytorch_image_object_detection_requirements.txt \
-            '-PloadTest.args=${{ env.beam_Inference_Python_Benchmarks_Dataflow_test_arguments_10 }} --mode=batch --job_name=benchmark-tests-pytorch-image-object_detection-batch-${{env.NOW_UTC}} --output_table=apache-beam-testing.beam_run_inference.result_torch_inference_image_object_detection_batch' \
-      - name: run PyTorch Image Captioning BLIP + CLIP Batch
+            '-PloadTest.args=${{ env.beam_Inference_Python_Benchmarks_Dataflow_test_arguments_10 }} --mode=batch --job_name=benchmark-tests-pytorch-image-object-detection-batch-${{env.NOW_UTC}} --output_table=apache-beam-testing.beam_run_inference.result_torch_inference_image_object_detection_batch' \
+      - name: run PyTorch Image Captioning BLIP + CLIP Batch GPU
         uses: ./.github/actions/gradle-command-self-hosted-action
         timeout-minutes: 180
         with:
