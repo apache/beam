@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.util;
 
+import com.google.protobuf.CodedOutputStream;
 import java.io.EOFException;
 import java.io.IOException;
 import java.io.InputStream;
@@ -136,16 +137,11 @@ public class VarInt {
 
   /** Returns the length of the encoding of the given value (in bytes). */
   public static int getLength(int v) {
-    return getLength(convertIntToLongNoSignExtend(v));
+    return CodedOutputStream.computeUInt32SizeNoTag(v);
   }
 
   /** Returns the length of the encoding of the given value (in bytes). */
   public static int getLength(long v) {
-    int result = 0;
-    do {
-      result++;
-      v >>>= 7;
-    } while (v != 0);
-    return result;
+    return CodedOutputStream.computeUInt64SizeNoTag(v);
   }
 }
