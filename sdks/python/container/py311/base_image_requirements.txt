@@ -197,7 +197,7 @@ uritemplate==4.2.0
 urllib3==2.6.3
 virtualenv-clone==0.5.7
 websockets==15.0.1
-wheel==0.45.1
+wheel==0.46.2
 wrapt==2.0.1
 yarl==1.22.0
 zipp==3.23.0
