@@ -9214,6 +9214,14 @@ PubsubUnboundedSource:
   - validate
   properties: 
   - outer
+PubsubWriteSchemaTransformProvider: 
+  methods: 
+  - buildTransform
+  - expand
+  - identifier
+  - inputCollectionNames
+  - outputCollectionNames
+  - process
 PulsarIO: 
   methods: 
   - expand
