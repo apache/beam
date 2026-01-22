@@ -268,33 +268,33 @@ looks:
           title: AvgThroughputElementsPerSec by Version
   pytorchimageobjectdetectionbatchgpu:
     write:
-      folder: #TODO
+      folder: 93
       cost:
-        - id: #TODO
+        - id: XGPVSYhVbZGJHQCtMPW4nRGynxXpdzdh
           title: RunTime and EstimatedCost
       date:
-        - id: #TODO
+        - id: ZW48KBPBxShGgWx53vjfvgqp6cVmHCNB
           title: AvgThroughputBytesPerSec by Date
-        - id: #TODO
+        - id: BjMWg26F3gNHQyZSsg8HjhTg3mCh6jFJ
           title: AvgThroughputElementsPerSec by Date
       version:
-        - id: #TODO
+        - id: kbF7Gnqjsjnvh3MKvYszSgWFbgDYYTWR
           title: AvgThroughputBytesPerSec by Version
-        - id: #TODO
+        - id: cTxrpY3KGrCb35dq7fnjvdsDnd7t85pJ
           title: AvgThroughputElementsPerSec by Version
   pytorchimagecaptioningbatchgpu:
     write:
-      folder: #TODO
+      folder: 94
       cost:
-        - id: #TODO
+        - id: nhYggnCYJzfgDyTXZRGJwpSyYKvBpfhV
           title: RunTime and EstimatedCost
       date:
-        - id: #TODO
+        - id: qzjkYQJCrxjc8GPcBF7dFJSFdTXQKxmR
           title: AvgThroughputBytesPerSec by Date
-        - id: #TODO
+        - id: kgkdbBCbkhDHpb2rHNGQDxcwGqzykwqD
           title: AvgThroughputElementsPerSec by Date
       version:
-        - id: #TODO
+        - id: 4p7b4HWVMRC8HXDZYMXbVYf2VPzYQ2kz
           title: AvgThroughputBytesPerSec by Version
-        - id: #TODO
+        - id: xQZRDYJRvmV7qMhb3j2XTrPmC8TP4DTr
           title: AvgThroughputElementsPerSec by Version
