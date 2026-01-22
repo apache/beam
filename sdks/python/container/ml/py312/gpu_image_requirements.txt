@@ -87,6 +87,7 @@ google-cloud-aiplatform==1.133.0
 google-cloud-bigquery==3.40.0
 google-cloud-bigquery-storage==2.36.0
 google-cloud-bigtable==2.35.0
+google-cloud-build==3.35.0
 google-cloud-core==2.5.0
 google-cloud-datastore==2.23.0
 google-cloud-dlp==3.34.0
