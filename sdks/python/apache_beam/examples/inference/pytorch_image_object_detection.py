@@ -31,12 +31,13 @@ import io
 import json
 import logging
 import time
-from typing import Iterable
-from typing import Optional
-from typing import Tuple
 from typing import Any
 from typing import Dict
+from typing import Iterable
 from typing import List
+from typing import Optional
+from typing import Sequence
+from typing import Tuple
 
 import apache_beam as beam
 from apache_beam.io.filesystems import FileSystems
@@ -135,12 +136,24 @@ class DecodePreprocessDoFn(beam.DoFn):
 
 
 def _torchvision_detection_inference_fn(
-    model, batch: List[torch.Tensor], device: str) -> List[Dict[str, Any]]:
-  """Custom inference for TorchVision detection models.
+    batch: Sequence[torch.Tensor],
+    model: torch.nn.Module,
+    device: torch.device,
+    inference_args: Optional[dict[str, Any]] = None,
+    model_id: Optional[str] = None,
+) -> List[Dict[str, Any]]:
+  """Inference function for TorchVision detection models.
 
-  TorchVision detection models expect: List[Tensor] (each: CHW float [0..1]).
+  TorchVision detection models expect List[Tensor] where each tensor is:
+    - shape: [3, H, W]
+    - dtype: float32
+    - values: [0..1]
   """
+  del inference_args
+  del model_id
+
   with torch.no_grad():
+    # Ensure tensors are on device
     inputs = []
     for t in batch:
       if isinstance(t, torch.Tensor):
