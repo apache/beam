@@ -1,4 +1,39 @@
-<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>Apache Beam – release</title><link>/categories/release/</link><description>Recent content in release on Apache Beam</description><generator>Hugo -- gohugo.io</generator><language>en</language><lastBuildDate>Tue, 16 Dec 2025 15:00:00 -0500</lastBuildDate><atom:link href="/categories/release/index.xml" rel="self" type="application/rss+xml"/><item><title>Blog: Apache Beam 2.70.0</title><link>/blog/beam-2.70.0/</link><pubDate>Tue, 16 Dec 2025 15:00:00 -0500</pubDate><guid>/blog/beam-2.70.0/</guid><description>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>Apache Beam – release</title><link>/categories/release/</link><description>Recent content in release on Apache Beam</description><generator>Hugo -- gohugo.io</generator><language>en</language><lastBuildDate>Tue, 13 Jan 2026 09:00:00 -0700</lastBuildDate><atom:link href="/categories/release/index.xml" rel="self" type="application/rss+xml"/><item><title>Blog: Apache Beam 2.71.0</title><link>/blog/beam-2.71.0/</link><pubDate>Tue, 13 Jan 2026 09:00:00 -0700</pubDate><guid>/blog/beam-2.71.0/</guid><description>
+&lt;!--
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+http://www.apache.org/licenses/LICENSE-2.0
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+&lt;p>We are happy to present the new 2.71.0 release of Beam.
+This release includes both improvements and new functionality.
+See the &lt;a href="/get-started/downloads/#2710-2026-01-22">download page&lt;/a> for this release.&lt;/p>
+&lt;p>For more information on changes in 2.71.0, check out the &lt;a href="https://github.com/apache/beam/milestone/39">detailed release notes&lt;/a>.&lt;/p>
+&lt;h2 id="ios">I/Os&lt;/h2>
+&lt;ul>
+&lt;li>(Java) Elasticsearch 9 Support (&lt;a href="https://github.com/apache/beam/issues/36491">#36491&lt;/a>).&lt;/li>
+&lt;li>(Java) Upgraded HCatalogIO to Hive 4.0.1 (&lt;a href="https://github.com/apache/beam/issues/32189">#32189&lt;/a>).&lt;/li>
+&lt;/ul>
+&lt;h2 id="new-features--improvements">New Features / Improvements&lt;/h2>
+&lt;ul>
+&lt;li>Support configuring Firestore database on ReadFn transforms (Java) (&lt;a href="https://github.com/apache/beam/issues/36904">#36904&lt;/a>).&lt;/li>
+&lt;li>(Python) Inference args are now allowed in most model handlers, except where they are explicitly/intentionally disallowed (&lt;a href="https://github.com/apache/beam/issues/37093">#37093&lt;/a>).&lt;/li>
+&lt;/ul>
+&lt;h2 id="bugfixes">Bugfixes&lt;/h2>
+&lt;ul>
+&lt;li>Fixed FirestoreV1 Beam connectors allow configuring inconsistent project/database IDs between RPC requests and routing headers #36895 (Java) (&lt;a href="https://github.com/apache/beam/issues/36895">#36895&lt;/a>).&lt;/li>
+&lt;li>Logical type and coder registry are saved for pipelines in the case of default pickler (&lt;a href="https://github.com/apache/beam/issues/36271">#36271&lt;/a>). This fixes a side effect of switching to cloudpickle as default pickler in Beam 2.65.0 (Python) (&lt;a href="https://github.com/apache/beam/issues/35738">#35738&lt;/a>).&lt;/li>
+&lt;/ul>
+&lt;h2 id="known-issues">Known Issues&lt;/h2>
+&lt;p>For the most up to date list of known issues, see &lt;a href="https://github.com/apache/beam/blob/master/CHANGES.md">https://github.com/apache/beam/blob/master/CHANGES.md&lt;/a>&lt;/p>
+&lt;h2 id="list-of-contributors">List of Contributors&lt;/h2>
+&lt;p>According to git shortlog, the following people contributed to the 2.71.0 release. Thank you to all contributors!&lt;/p>
+&lt;p>Abacn, Ahmed Abualsaud, Amar3tto, Andrew Crites, apanich, Arun, Arun Pandian, assaf127, Chamikara Jayalath, CherisPatelInfocusp, Cheskel Twersky, Claire McGinty, Claude, Danny Mccormick, dependabot[bot], Derrick Williams, Egbert van der Wal, Evan Galpin, Ganesh, github-actions[bot], hekk-kaori-maeda, Jack Dingilian, Jack McCluskey, JayajP, Jiang Zhu, Kenneth Knowles, liferoad, M Junaid Shaukat, Nayan Mathur, Noah Stapp, Paco Avila, Radek Stankiewicz, Radosław Stankiewicz, Robert Stupp, Sam Whittle, Shunping Huang, Steven van Rossum, Suvrat Acharya, Tarun Annapareddy, tvalentyn, Utkarsh Parekh, Vitaly Terentyev, Xiaochu Liu, Yala Huang Feng, Yi Hu, Yu Watanabe, zhan7236&lt;/p></description></item><item><title>Blog: Apache Beam 2.70.0</title><link>/blog/beam-2.70.0/</link><pubDate>Tue, 16 Dec 2025 15:00:00 -0500</pubDate><guid>/blog/beam-2.70.0/</guid><description>
 &lt;!--
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -5063,49 +5098,4 @@ This changes the output type for this transform (&lt;a href="https://issues.apac
 &lt;h2 id="known-issues">Known Issues&lt;/h2>
 &lt;h2 id="list-of-contributors">List of Contributors&lt;/h2>
 &lt;p>According to git shortlog, the following people contributed to the 2.23.0 release. Thank you to all contributors!&lt;/p>
-&lt;p>Aaron, Abhishek Yadav, Ahmet Altay, aiyangar, Aizhamal Nurmamat kyzy, Ajo Thomas, Akshay-Iyangar, Alan Pryor, Alex Amato, Alexey Romanenko, Allen Pradeep Xavier, Andrew Crites, Andrew Pilloud, Ankur Goenka, Anna Qin, Ashwin Ramaswami, bntnam, Borzoo Esmailloo, Boyuan Zhang, Brian Hulette, Brian Michalski, brucearctor, Chamikara Jayalath, chi-chi weng, Chuck Yang, Chun Yang, Colm O hEigeartaigh, Corvin Deboeser, Craig Chambers, Damian Gadomski, Damon Douglas, Daniel Oliveira, Dariusz Aniszewski, darshanj, darshan jani, David Cavazos, David Moravek, David Yan, Esun Kim, Etienne Chauchot, Filipe Regadas, fuyuwei, Graeme Morgan, Hannah-Jiang, Harch Vardhan, Heejong Lee, Henry Suryawirawan, InigoSJ, Ismaël Mejía, Israel Herraiz, Jacob Ferriero, Jan Lukavský, Jie Fan, John Mora, Jozef Vilcek, Julien Phalip, Justine Koa, Kamil Gabryjelski, Kamil Wasilewski, Kasia Kucharczyk, Kenneth Jung, Kenneth Knowles, kevingg, Kevin Sijo Puthusseri, kshivvy, Kyle Weaver, Kyoungha Min, Kyungwon Jo, Luke Cwik, Mark Liu, Mark-Zeng, Matthias Baetens, Maximilian Michels, Michal Walenia, Mikhail Gryzykhin, Nam Bui, Nathan Fisher, Niel Markwick, Ning Kang, Omar Ismail, Pablo Estrada, paul fisher, Pawel Pasterz, perkss, Piotr Szuberski, pulasthi, purbanow, Rahul Patwari, Rajat Mittal, Rehman, Rehman Murad Ali, Reuben van Ammers, Reuven Lax, Reza Rokni, Rion Williams, Robert Bradshaw, Robert Burke, Rui Wang, Ruoyun Huang, sabhyankar, Sam Rohde, Sam Whittle, sclukas77, Sebastian Graca, Shoaib Zafar, Sruthi Sree Kumar, Stephen O&amp;rsquo;Kennedy, Steve Koonce, Steve Niemitz, Steven van Rossum, Ted Romer, Tesio, Thinh Ha, Thomas Weise, Tobias Kaymak, tobiaslieber-cognitedata, Tobiasz Kędzierski, Tomo Suzuki, Tudor Marian, tvs, Tyson Hamilton, Udi Meiri, Valentyn Tymofieiev, Vasu Nori, xuelianhan, Yichi Zhang, Yifan Zou, Yixing Zhang, yoshiki.obata, Yueyang Qiu, Yu Feng, Yuwei Fu, Zhuo Peng, ZijieSong946.&lt;/p></description></item><item><title>Blog: Apache Beam 2.22.0</title><link>/blog/beam-2.22.0/</link><pubDate>Mon, 08 Jun 2020 00:00:01 -0800</pubDate><guid>/blog/beam-2.22.0/</guid><description>
-&lt;!--
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-http://www.apache.org/licenses/LICENSE-2.0
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
--->
-&lt;p>We are happy to present the new 2.22.0 release of Beam. This release includes both improvements and new functionality.
-See the &lt;a href="/get-started/downloads/#2220-2020-06-08">download page&lt;/a> for this release.&lt;/p>
-&lt;p>For more information on changes in 2.22.0, check out the
-&lt;a href="https://issues.apache.org/jira/secure/ReleaseNote.jspa?projectId=12319527&amp;amp;version=12347144">detailed release notes&lt;/a>.&lt;/p>
-&lt;h2 id="ios">I/Os&lt;/h2>
-&lt;ul>
-&lt;li>Basic Kafka read/write support for DataflowRunner (Python) (&lt;a href="https://issues.apache.org/jira/browse/BEAM-8019">BEAM-8019&lt;/a>).&lt;/li>
-&lt;li>Sources and sinks for Google Healthcare APIs (Java)(&lt;a href="https://issues.apache.org/jira/browse/BEAM-9468">BEAM-9468&lt;/a>).&lt;/li>
-&lt;/ul>
-&lt;h2 id="new-features--improvements">New Features / Improvements&lt;/h2>
-&lt;ul>
-&lt;li>&lt;code>--workerCacheMB&lt;/code> flag is supported in Dataflow streaming pipeline (&lt;a href="https://issues.apache.org/jira/browse/BEAM-9964">BEAM-9964&lt;/a>)&lt;/li>
-&lt;li>&lt;code>--direct_num_workers=0&lt;/code> is supported for FnApi runner. It will set the number of threads/subprocesses to number of cores of the machine executing the pipeline (&lt;a href="https://issues.apache.org/jira/browse/BEAM-9443">BEAM-9443&lt;/a>).&lt;/li>
-&lt;li>Python SDK now has experimental support for SqlTransform (&lt;a href="https://issues.apache.org/jira/browse/BEAM-8603">BEAM-8603&lt;/a>).&lt;/li>
-&lt;li>Add OnWindowExpiration method to Stateful DoFn (&lt;a href="https://issues.apache.org/jira/browse/BEAM-1589">BEAM-1589&lt;/a>).&lt;/li>
-&lt;li>Added PTransforms for Google Cloud DLP (Data Loss Prevention) services integration (&lt;a href="https://issues.apache.org/jira/browse/BEAM-9723">BEAM-9723&lt;/a>):
-&lt;ul>
-&lt;li>Inspection of data,&lt;/li>
-&lt;li>Deidentification of data,&lt;/li>
-&lt;li>Reidentification of data.&lt;/li>
-&lt;/ul>
-&lt;/li>
-&lt;li>Add a more complete I/O support matrix in the documentation site (&lt;a href="https://issues.apache.org/jira/browse/BEAM-9916">BEAM-9916&lt;/a>).&lt;/li>
-&lt;li>Upgrade Sphinx to 3.0.3 for building PyDoc.&lt;/li>
-&lt;li>Added a PTransform for image annotation using Google Cloud AI image processing service
-(&lt;a href="https://issues.apache.org/jira/browse/BEAM-9646">BEAM-9646&lt;/a>)&lt;/li>
-&lt;/ul>
-&lt;h2 id="breaking-changes">Breaking Changes&lt;/h2>
-&lt;ul>
-&lt;li>The Python SDK now requires &lt;code>--job_endpoint&lt;/code> to be set when using &lt;code>--runner=PortableRunner&lt;/code> (&lt;a href="https://issues.apache.org/jira/browse/BEAM-9860">BEAM-9860&lt;/a>). Users seeking the old default behavior should set &lt;code>--runner=FlinkRunner&lt;/code> instead.&lt;/li>
-&lt;/ul>
-&lt;h2 id="list-of-contributors">List of Contributors&lt;/h2>
-&lt;p>According to git shortlog, the following people contributed to the 2.22.0 release. Thank you to all contributors!&lt;/p>
-&lt;p>Ahmet Altay, aiyangar, Ajo Thomas, Akshay-Iyangar, Alan Pryor, Alexey Romanenko, Allen Pradeep Xavier, amaliujia, Andrew Pilloud, Ankur Goenka, Ashwin Ramaswami, bntnam, Borzoo Esmailloo, Boyuan Zhang, Brian Hulette, Chamikara Jayalath, Colm O hEigeartaigh, Craig Chambers, Damon Douglas, Daniel Oliveira, David Cavazos, David Moravek, Esun Kim, Etienne Chauchot, Filipe Regadas, Graeme Morgan, Hannah Jiang, Hannah-Jiang, Harch Vardhan, Heejong Lee, Henry Suryawirawan, Ismaël Mejía, Israel Herraiz, Jacob Ferriero, Jan Lukavský, John Mora, Kamil Wasilewski, Kenneth Jung, Kenneth Knowles, kevingg, Kyle Weaver, Kyoungha Min, Kyungwon Jo, Luke Cwik, Mark Liu, Matthias Baetens, Maximilian Michels, Michal Walenia, Mikhail Gryzykhin, Nam Bui, Niel Markwick, Ning Kang, Omar Ismail, omarismail94, Pablo Estrada, paul fisher, pawelpasterz, Pawel Pasterz, Piotr Szuberski, Rahul Patwari, rarokni, Rehman, Rehman Murad Ali, Reuven Lax, Robert Bradshaw, Robert Burke, Rui Wang, Ruoyun Huang, Sam Rohde, Sam Whittle, Sebastian Graca, Shoaib Zafar, Sruthi Sree Kumar, Stephen O&amp;rsquo;Kennedy, Steve Koonce, Steve Niemitz, Steven van Rossum, Tesio, Thomas Weise, tobiaslieber-cognitedata, Tomo Suzuki, Tudor Marian, tvalentyn, Tyson Hamilton, Udi Meiri, Valentyn Tymofieiev, Vasu Nori, xuelianhan, Yichi Zhang, Yifan Zou, yoshiki.obata, Yueyang Qiu, Zhuo Peng&lt;/p></description></item></channel></rss>
+&lt;p>Aaron, Abhishek Yadav, Ahmet Altay, aiyangar, Aizhamal Nurmamat kyzy, Ajo Thomas, Akshay-Iyangar, Alan Pryor, Alex Amato, Alexey Romanenko, Allen Pradeep Xavier, Andrew Crites, Andrew Pilloud, Ankur Goenka, Anna Qin, Ashwin Ramaswami, bntnam, Borzoo Esmailloo, Boyuan Zhang, Brian Hulette, Brian Michalski, brucearctor, Chamikara Jayalath, chi-chi weng, Chuck Yang, Chun Yang, Colm O hEigeartaigh, Corvin Deboeser, Craig Chambers, Damian Gadomski, Damon Douglas, Daniel Oliveira, Dariusz Aniszewski, darshanj, darshan jani, David Cavazos, David Moravek, David Yan, Esun Kim, Etienne Chauchot, Filipe Regadas, fuyuwei, Graeme Morgan, Hannah-Jiang, Harch Vardhan, Heejong Lee, Henry Suryawirawan, InigoSJ, Ismaël Mejía, Israel Herraiz, Jacob Ferriero, Jan Lukavský, Jie Fan, John Mora, Jozef Vilcek, Julien Phalip, Justine Koa, Kamil Gabryjelski, Kamil Wasilewski, Kasia Kucharczyk, Kenneth Jung, Kenneth Knowles, kevingg, Kevin Sijo Puthusseri, kshivvy, Kyle Weaver, Kyoungha Min, Kyungwon Jo, Luke Cwik, Mark Liu, Mark-Zeng, Matthias Baetens, Maximilian Michels, Michal Walenia, Mikhail Gryzykhin, Nam Bui, Nathan Fisher, Niel Markwick, Ning Kang, Omar Ismail, Pablo Estrada, paul fisher, Pawel Pasterz, perkss, Piotr Szuberski, pulasthi, purbanow, Rahul Patwari, Rajat Mittal, Rehman, Rehman Murad Ali, Reuben van Ammers, Reuven Lax, Reza Rokni, Rion Williams, Robert Bradshaw, Robert Burke, Rui Wang, Ruoyun Huang, sabhyankar, Sam Rohde, Sam Whittle, sclukas77, Sebastian Graca, Shoaib Zafar, Sruthi Sree Kumar, Stephen O&amp;rsquo;Kennedy, Steve Koonce, Steve Niemitz, Steven van Rossum, Ted Romer, Tesio, Thinh Ha, Thomas Weise, Tobias Kaymak, tobiaslieber-cognitedata, Tobiasz Kędzierski, Tomo Suzuki, Tudor Marian, tvs, Tyson Hamilton, Udi Meiri, Valentyn Tymofieiev, Vasu Nori, xuelianhan, Yichi Zhang, Yifan Zou, Yixing Zhang, yoshiki.obata, Yueyang Qiu, Yu Feng, Yuwei Fu, Zhuo Peng, ZijieSong946.&lt;/p></description></item></channel></rss>
