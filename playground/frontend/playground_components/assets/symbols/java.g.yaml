@@ -9214,6 +9214,32 @@ PubsubUnboundedSource:
   - validate
   properties: 
   - outer
+PubsubWriteSchemaTransformConfiguration: 
+  methods: 
+  - build
+  - builder
+  - getAttributesFieldName
+  - getFormat
+  - getIdAttribute
+  - getPayloadFieldName
+  - getSource
+  - getTarget
+  - getTimestampAttributeKey
+  - getTimestampFieldName
+  - getTopic
+  - setAttributesFieldName
+  - setFormat
+  - setIdAttribute
+  - setPayloadFieldName
+  - setSource
+  - setTarget
+  - setTimestampAttributeKey
+  - setTimestampFieldName
+  - setTopic
+  - sourceConfigurationBuilder
+  - targetConfigurationBuilder
+  properties: 
+  - DEFAULT_TIMESTAMP_ATTRIBUTE
 PubsubWriteSchemaTransformProvider: 
   methods: 
   - buildTransform
