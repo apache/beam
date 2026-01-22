@@ -219,9 +219,12 @@ class PostProcessDoFn(beam.DoFn):
   def process(self, kv: Tuple[str, PredictionResult]):
     image_id, pred = kv
 
-    # pred.inference should be torchvision dict for this element,
-    # but keep robust fallback.
-    inference_obj = pred.inference
+    # pred can be PredictionResult OR raw torchvision dict.
+    if hasattr(pred, "inference"):
+      inference_obj = pred.inference
+    else:
+      inference_obj = pred
+
     if isinstance(inference_obj, list) and len(inference_obj) == 1:
       inference_obj = inference_obj[0]
 
