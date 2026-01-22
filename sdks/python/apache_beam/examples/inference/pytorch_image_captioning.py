@@ -111,7 +111,10 @@ class PostProcessDoFn(beam.DoFn):
 
   def process(self, kv: Tuple[str, PredictionResult]):
     image_id, pred = kv
-    inf = pred.inference or {}
+    if hasattr(pred, "inference"):
+      inf = pred.inference or {}
+    else:
+      inf = pred
     # Expected inference fields from CLIP handler:
     # best_caption, best_score, candidates, scores, blip_ms, clip_ms, total_ms
     best_caption = inf.get("best_caption", "")
