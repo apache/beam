@@ -310,7 +310,7 @@ vllm==0.10.1.1
 watchfiles==1.1.1
 websockets==15.0.1
 Werkzeug==3.1.5
-wheel==0.45.1
+wheel==0.46.2
 wrapt==2.0.1
 xformers==0.0.31
 xgrammar==0.1.21
