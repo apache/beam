@@ -43,9 +43,9 @@ LOOKS_TO_DOWNLOAD = [
     ("82", ["263", "264", "265", "266", "267"]),  # PyTorch Sentiment Streaming DistilBERT base uncased
     ("85", ["268", "269", "270", "271", "272"]),  # PyTorch Sentiment Batch DistilBERT base uncased
     ("86", ["284", "285", "286", "287", "288"]),  # VLLM Batch Gemma
-    ("92", ["289", "290", "291", "292", "293"]),  # PyTorch Image Classification EfficientNet-B0 Streaming (Right-fitting)
-    #TODO: PyTorch Image Object Detection Faster R-CNN ResNet-50 Batch
-    #TODO: PyTorch Image Captioning BLIP + CLIP Batch
+    ("92", ["289", "290", "291", "292", "293"]),  # PyTorch Image Classification EfficientNet-B0 Streaming (Right-fit)
+    ("93", ["294", "295", "296", "298", "299"]),  # PyTorch Image Object Detection Faster R-CNN ResNet-50 Batch GPU
+    ("94", ["297", "300", "301", "302", "303"]),  # PyTorch Image Captioning BLIP + CLIP Batch GPU
 ]
 
 
