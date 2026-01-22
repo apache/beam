@@ -9031,26 +9031,6 @@ PubsubLiteIO:
   - expand
   - read
   - write
-PubsubLiteReadSchemaTransformProvider: 
-  methods: 
-  - build
-  - buildTransform
-  - builder
-  - expand
-  - from
-  - getDataFormat
-  - getLocation
-  - getProject
-  - getSchema
-  - getSubscriptionName
-  - identifier
-  - inputCollectionNames
-  - outputCollectionNames
-  - setDataFormat
-  - setLocation
-  - setProject
-  - setSchema
-  - setSubscriptionName
 PubsubLiteSink: 
   methods: 
   - finishBundle
@@ -9060,25 +9040,6 @@ PubsubLiteTableProvider:
   methods: 
   - buildBeamSqlTable
   - getTableType
-PubsubLiteWriteSchemaTransformProvider: 
-  methods: 
-  - build
-  - buildTransform
-  - builder
-  - expand
-  - getFormat
-  - getLocation
-  - getProject
-  - getTopicName
-  - identifier
-  - inputCollectionNames
-  - outputCollectionNames
-  - setFormat
-  - setLocation
-  - setProject
-  - setTopicName
-  properties: 
-  - SUPPORTED_FORMATS
 PubsubMessage: 
   methods: 
   - equals
@@ -9253,40 +9214,6 @@ PubsubUnboundedSource:
   - validate
   properties: 
   - outer
-PubsubWriteSchemaTransformConfiguration: 
-  methods: 
-  - build
-  - builder
-  - getAttributesFieldName
-  - getFormat
-  - getIdAttribute
-  - getPayloadFieldName
-  - getSource
-  - getTarget
-  - getTimestampAttributeKey
-  - getTimestampFieldName
-  - getTopic
-  - setAttributesFieldName
-  - setFormat
-  - setIdAttribute
-  - setPayloadFieldName
-  - setSource
-  - setTarget
-  - setTimestampAttributeKey
-  - setTimestampFieldName
-  - setTopic
-  - sourceConfigurationBuilder
-  - targetConfigurationBuilder
-  properties: 
-  - DEFAULT_TIMESTAMP_ATTRIBUTE
-PubsubWriteSchemaTransformProvider: 
-  methods: 
-  - buildTransform
-  - expand
-  - identifier
-  - inputCollectionNames
-  - outputCollectionNames
-  - process
 PulsarIO: 
   methods: 
   - expand
