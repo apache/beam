@@ -2315,8 +2315,6 @@ public class DataflowRunnerTest implements Serializable {
   @Test
   public void testBatchGroupIntoBatchesWithShardedKeyOverrideCount() throws IOException {
     PipelineOptions options = buildPipelineOptions();
-    // Ignore this test for streaming pipelines.
-    assumeFalse(pipeline.getOptions().as(StreamingOptions.class).isStreaming());
     Pipeline p = Pipeline.create(options);
     verifyGroupIntoBatchesOverrideCount(p, true, true);
   }
@@ -2324,8 +2322,6 @@ public class DataflowRunnerTest implements Serializable {
   @Test
   public void testBatchGroupIntoBatchesWithShardedKeyOverrideBytes() throws IOException {
     PipelineOptions options = buildPipelineOptions();
-    // Ignore this test for streaming pipelines.
-    assumeFalse(pipeline.getOptions().as(StreamingOptions.class).isStreaming());
     Pipeline p = Pipeline.create(options);
     verifyGroupIntoBatchesOverrideBytes(p, true, true);
   }
