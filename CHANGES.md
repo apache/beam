@@ -81,6 +81,7 @@
 ## Bugfixes
 
 * Fixed X (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
+* Fixed flaky DataflowRunnerTest when running in streaming mode (Java) ([#37371](https://github.com/apache/beam/issues/37371)).
 
 ## Security Fixes
 
