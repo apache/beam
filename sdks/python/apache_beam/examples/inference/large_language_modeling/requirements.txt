@@ -16,6 +16,6 @@
 # specific language governing permissions and limitations
 # under the License
 
-torch==1.13.1
+torch==2.7.1
 transformers==4.53.0
 sentencepiece==0.2.1
