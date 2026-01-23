@@ -133,9 +133,10 @@ dependencies {
   shadowTest library.java.log4j
   shadowTest library.java.log4j2_api
   shadowTest library.java.jamm
-  shadowTest 'com.google.cloud:google-cloud-secretmanager:2.75.0'
-  shadowTest 'com.google.cloud:google-cloud-kms:2.75.0'
-  shadowTest 'com.google.crypto.tink:tink:1.19.0'
+  shadowTest enforcedPlatform(library.java.google_cloud_platform_libraries_bom)
+  shadowTest library.java.google_cloud_secret_manager
+  shadowTest library.java.google_cloud_kms
+  shadowTest library.java.google_cloud_tink
   testRuntimeOnly library.java.slf4j_jdk14
 }
 
