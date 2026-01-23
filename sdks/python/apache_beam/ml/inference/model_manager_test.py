@@ -94,7 +94,7 @@ class MockModel:
     self.deleted = False
     self.monitor.allocate(size)
 
-  def unsafe_hard_delete(self):
+  def singletonProxy_unsafe_hard_delete(self):
     if not self.deleted:
       self.monitor.free(self.size)
       self.deleted = True
@@ -453,6 +453,7 @@ class TestGPUMonitor(unittest.TestCase):
     """Test that init correctly reads total memory when nvidia-smi exists."""
     self.mock_subprocess.return_value = "24576"
     monitor = GPUMonitor()
+    monitor.start()
     self.assertTrue(monitor._gpu_available)
     self.assertEqual(monitor._total_memory, 24576.0)
 
@@ -460,6 +461,7 @@ class TestGPUMonitor(unittest.TestCase):
     """Test fallback behavior when nvidia-smi is missing."""
     self.mock_subprocess.side_effect = FileNotFoundError()
     monitor = GPUMonitor(fallback_memory_mb=12000.0)
+    monitor.start()
     self.assertFalse(monitor._gpu_available)
     self.assertEqual(monitor._total_memory, 12000.0)
 

@@ -42,6 +42,17 @@ logger = logging.getLogger(__name__)
 
 
 class GPUMonitor:
+  """Monitors GPU memory usage in a separate thread using nvidia-smi.
+
+  This class continuously polls GPU memory statistics to track current usage
+  and peak usage over a sliding time window. It serves as the source of truth
+  for the ModelManager's resource decisions.
+
+  Attributes:
+    fallback_memory_mb: Default total memory if hardware detection fails.
+    poll_interval: Seconds between memory checks.
+    peak_window_seconds: Duration to track peak memory usage.
+  """
   def __init__(
       self,
       fallback_memory_mb: float = 16000.0,
@@ -56,7 +67,6 @@ class GPUMonitor:
     self._running = False
     self._thread = None
     self._lock = threading.Lock()
-    self._gpu_available = self._detect_hardware()
 
   def _detect_hardware(self):
     try:
@@ -82,6 +92,7 @@ class GPUMonitor:
       return False
 
   def start(self):
+    self._gpu_available = self._detect_hardware()
     if self._running or not self._gpu_available:
       return
     self._running = True
@@ -145,6 +156,12 @@ class GPUMonitor:
 
 
 class ResourceEstimator:
+  """Estimates individual model memory usage using statistical observation.
+
+  Uses Non-Negative Least Squares (NNLS) to deduce the memory footprint of
+  individual models based on aggregate system memory readings and the
+  configuration of active models at that time.
+  """
   def __init__(self, smoothing_factor: float = 0.2, min_data_points: int = 5):
     self.smoothing_factor = smoothing_factor
     self.min_data_points = min_data_points
@@ -251,6 +268,11 @@ class ResourceEstimator:
 
 
 class TrackedModelProxy:
+  """A transparent proxy for model objects that adds tracking metadata.
+
+  Wraps the underlying model object to attach a unique ID and intercept
+  calls, allowing the manager to track individual instances across processes.
+  """
   def __init__(self, obj):
     object.__setattr__(self, "_wrapped_obj", obj)
     object.__setattr__(self, "_beam_tracking_id", str(uuid.uuid4()))
@@ -279,12 +301,24 @@ class TrackedModelProxy:
   def __dir__(self):
     return dir(self._wrapped_obj)
 
-  def unsafe_hard_delete(self):
-    if hasattr(self._wrapped_obj, "unsafe_hard_delete"):
-      self._wrapped_obj.unsafe_hard_delete()
+  def trackedModelProxy_unsafe_hard_delete(self):
+    if hasattr(self._wrapped_obj, "singletonProxy_unsafe_hard_delete"):
+      try:
+        self._wrapped_obj.singletonProxy_unsafe_hard_delete()
+      except Exception:
+        pass
 
 
 class ModelManager:
+  """Manages model lifecycles, caching, and resource arbitration.
+
+  This class acts as the central controller for acquiring model instances.
+  It handles:
+  1. LRU Caching of idle models.
+  2. Resource estimation and admission control (preventing OOM).
+  3. Dynamic eviction of low-priority models when space is needed.
+  4. 'Isolation Mode' for safely profiling unknown models.
+  """
   _lock = threading.Lock()
 
   def __init__(
@@ -587,7 +621,8 @@ class ModelManager:
         del self._models[tag][i]
         break
 
-    instance.unsafe_hard_delete()
+    if hasattr(instance, "trackedModelProxy_unsafe_hard_delete"):
+      instance.trackedModelProxy_unsafe_hard_delete()
     del instance
     gc.collect()
     torch.cuda.empty_cache()
@@ -633,8 +668,8 @@ class ModelManager:
     self._idle_lru.clear()
     for _, instances in self._models.items():
       for instance in instances:
-        if hasattr(instance, "unsafe_hard_delete"):
-          instance.unsafe_hard_delete()
+        if hasattr(instance, "trackedModelProxy_unsafe_hard_delete"):
+          instance.trackedModelProxy_unsafe_hard_delete()
         del instance
     self._models.clear()
     self._active_counts.clear()
