@@ -2320,6 +2320,16 @@ public class DataflowRunnerTest implements Serializable {
   }
 
   @Test
+  public void testBatchGroupIntoBatchesWithShardedKeyOverrideCountV2() throws IOException {
+    PipelineOptions options = buildPipelineOptions();
+    options
+        .as(DataflowPipelineOptions.class)
+        .setExperiments(Arrays.asList("use_runner_v2", "use_unified_worker"));
+    Pipeline p = Pipeline.create(options);
+    verifyGroupIntoBatchesOverrideCount(p, true, true);
+  }
+
+  @Test
   public void testBatchGroupIntoBatchesWithShardedKeyOverrideBytes() throws IOException {
     PipelineOptions options = buildPipelineOptions();
     Pipeline p = Pipeline.create(options);
