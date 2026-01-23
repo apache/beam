@@ -237,6 +237,7 @@ public class ChangelogScanner
       Set<Integer> pinnedSpecs,
       Set<Long> snapshotsWithUnpinnedSpecs)
       throws IOException {
+    Map<Long, Set<Integer>> specsInSnapshot = new HashMap<>();
     try (CloseableIterable<ScanTaskGroup<ChangelogScanTask>> groups = scan.planTasks()) {
       for (ScanTaskGroup<ChangelogScanTask> group : groups) {
         for (ChangelogScanTask task : group.tasks()) {
@@ -255,9 +256,16 @@ public class ChangelogScanner
               .computeIfAbsent(snapshotId, (id) -> new HashMap<>())
               .computeIfAbsent(partition, (p) -> new HashSet<>())
               .add(type);
+          specsInSnapshot.computeIfAbsent(snapshotId, id -> new HashSet<>()).add(specId);
         }
       }
     }
+
+    // snapshots where multiple specs are used are also not safe
+    specsInSnapshot.entrySet().stream()
+        .filter(e -> e.getValue().size() > 1)
+        .map(Map.Entry::getKey)
+        .forEach(snapshotsWithUnpinnedSpecs::add);
   }
 
   private void createAndOutputReadTasks(
@@ -352,7 +360,7 @@ public class ChangelogScanner
                           checkStateNotNull(changeTypesPerPartitionPerSnapshot.get(snapshotId))
                               .get(partition))))) {
             // TODO: remove debug printing
-            System.out.printf("\tUnidirectional task with partition '%s':\n", partition);
+            System.out.printf("\tBidirectional task with partition '%s':\n", partition);
             System.out.printf(
                 "\t\t(%s) DF: %s\n",
                 task.getClass().getSimpleName(), name(getDataFile(task).location()));
