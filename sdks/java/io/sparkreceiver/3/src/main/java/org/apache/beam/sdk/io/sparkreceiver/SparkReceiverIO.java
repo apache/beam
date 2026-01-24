@@ -21,12 +21,19 @@ import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
 
 import com.google.auto.value.AutoValue;
+import java.util.List;
+import java.util.stream.Collectors;
+import java.util.stream.IntStream;
+import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.Impulse;
+import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.transforms.Reshuffle;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.TypeDescriptors;
 import org.apache.spark.streaming.receiver.Receiver;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Instant;
@@ -99,6 +106,8 @@ public class SparkReceiverIO {
 
     abstract @Nullable Long getStartOffset();
 
+    abstract @Nullable Integer getNumReaders();
+
     abstract Builder<V> toBuilder();
 
     @AutoValue.Builder
@@ -116,6 +125,8 @@ public class SparkReceiverIO {
       abstract Builder<V> setStartPollTimeoutSec(Long startPollTimeoutSec);
 
       abstract Builder<V> setStartOffset(Long startOffset);
+
+      abstract Builder<V> setNumReaders(Integer numReaders);
 
       abstract Read<V> build();
     }
@@ -151,10 +162,19 @@ public class SparkReceiverIO {
       return toBuilder().setStartPollTimeoutSec(startPollTimeoutSec).build();
     }
 
-    /** Inclusive start offset from which the reading should be started. */
     public Read<V> withStartOffset(Long startOffset) {
       checkArgument(startOffset != null, "Start offset can not be null");
       return toBuilder().setStartOffset(startOffset).build();
+    }
+
+    /**
+     * A number of workers to read from Spark {@link Receiver}.
+     *
+     * <p>If this value is not set, or set to 1, the reading will be performed on a single worker.
+     */
+    public Read<V> withNumReaders(int numReaders) {
+      checkArgument(numReaders > 0, "Number of readers should be greater than 0");
+      return toBuilder().setNumReaders(numReaders).build();
     }
 
     @Override
@@ -191,10 +211,29 @@ public class SparkReceiverIO {
                 sparkReceiverBuilder.getSparkReceiverClass().getName()));
       } else {
         LOG.info("{} started reading", ReadFromSparkReceiverWithOffsetDoFn.class.getSimpleName());
-        return input
-            .apply(Impulse.create())
-            .apply(ParDo.of(new ReadFromSparkReceiverWithOffsetDoFn<>(sparkReceiverRead)));
-        // TODO: Split data from SparkReceiver into multiple workers
+        Integer numReadersObj = sparkReceiverRead.getNumReaders();
+        if (numReadersObj == null || numReadersObj == 1) {
+          return input
+              .apply(Impulse.create())
+              .apply(
+                  MapElements.into(TypeDescriptors.integers())
+                      .via(
+                          new SerializableFunction<byte[], Integer>() {
+                            @Override
+                            public Integer apply(byte[] input) {
+                              return 0;
+                            }
+                          }))
+              .apply(ParDo.of(new ReadFromSparkReceiverWithOffsetDoFn<>(sparkReceiverRead)));
+        } else {
+          int numReaders = numReadersObj;
+          List<Integer> shards =
+              IntStream.range(0, numReaders).boxed().collect(Collectors.toList());
+          return input
+              .apply(Create.of(shards))
+              .apply(Reshuffle.viaRandomKey())
+              .apply(ParDo.of(new ReadFromSparkReceiverWithOffsetDoFn<>(sparkReceiverRead)));
+        }
       }
     }
   }

@@ -65,6 +65,7 @@
 ## I/Os
 
 * Add support for Datadog IO (Java) ([#37318](https://github.com/apache/beam/issues/37318)).
+* Support for parallel reading in SparkReceiverIO (Java) ([#37410](https://github.com/apache/beam/issues/37410)).
 
 ## New Features / Improvements
 

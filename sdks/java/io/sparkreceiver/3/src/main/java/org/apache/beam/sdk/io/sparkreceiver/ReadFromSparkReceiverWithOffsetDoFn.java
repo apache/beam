@@ -57,7 +57,7 @@ import scala.collection.mutable.ArrayBuffer;
  * ReadFromSparkReceiverWithOffsetDoFn} will move to process the next element.
  */
 @UnboundedPerElement
-class ReadFromSparkReceiverWithOffsetDoFn<V> extends DoFn<byte[], V> {
+class ReadFromSparkReceiverWithOffsetDoFn<V> extends DoFn<Integer, V> {
 
   private static final Logger LOG =
       LoggerFactory.getLogger(ReadFromSparkReceiverWithOffsetDoFn.class);
@@ -118,7 +118,7 @@ class ReadFromSparkReceiverWithOffsetDoFn<V> extends DoFn<byte[], V> {
   }
 
   @GetInitialRestriction
-  public OffsetRange initialRestriction(@Element byte[] element) {
+  public OffsetRange initialRestriction(@Element Integer element) {
     return new OffsetRange(startOffset, Long.MAX_VALUE);
   }
 
@@ -134,13 +134,13 @@ class ReadFromSparkReceiverWithOffsetDoFn<V> extends DoFn<byte[], V> {
   }
 
   @GetSize
-  public double getSize(@Element byte[] element, @Restriction OffsetRange offsetRange) {
+  public double getSize(@Element Integer element, @Restriction OffsetRange offsetRange) {
     return restrictionTracker(element, offsetRange).getProgress().getWorkRemaining();
   }
 
   @NewTracker
   public OffsetRangeTracker restrictionTracker(
-      @Element byte[] element, @Restriction OffsetRange restriction) {
+      @Element Integer element, @Restriction OffsetRange restriction) {
     return new OffsetRangeTracker(restriction) {
       private final AtomicBoolean isCheckDoneCalled = new AtomicBoolean(false);
 
@@ -178,7 +178,8 @@ class ReadFromSparkReceiverWithOffsetDoFn<V> extends DoFn<byte[], V> {
   }
 
   // Need to do an unchecked cast from Object
-  // because org.apache.spark.streaming.receiver.ReceiverSupervisor accepts Object in push methods
+  // because org.apache.spark.streaming.receiver.ReceiverSupervisor accepts Object
+  // in push methods
   @SuppressWarnings("unchecked")
   private static class SparkConsumerWithOffset<V> implements SparkConsumer<V> {
     private final Queue<V> recordsQueue;
@@ -210,8 +211,9 @@ class ReadFromSparkReceiverWithOffsetDoFn<V> extends DoFn<byte[], V> {
               return null;
             }
             /*
-            Use only [0] element - data.
-            The other elements are not needed because they are related to Spark environment options.
+             * Use only [0] element - data.
+             * The other elements are not needed because they are related to Spark
+             * environment options.
              */
             Object data = input[0];
 
@@ -265,7 +267,7 @@ class ReadFromSparkReceiverWithOffsetDoFn<V> extends DoFn<byte[], V> {
 
   @ProcessElement
   public ProcessContinuation processElement(
-      @Element byte[] element,
+      @Element Integer element,
       RestrictionTracker<OffsetRange, Long> tracker,
       WatermarkEstimator<Instant> watermarkEstimator,
       OutputReceiver<V> receiver) {
