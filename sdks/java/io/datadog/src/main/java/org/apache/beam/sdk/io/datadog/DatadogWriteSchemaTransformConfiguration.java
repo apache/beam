@@ -17,17 +17,31 @@
  */
 package org.apache.beam.sdk.io.datadog;
 
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
+
 import com.google.auto.value.AutoValue;
 import javax.annotation.Nullable;
+import org.apache.beam.sdk.schemas.AutoValueSchema;
 import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
 import org.apache.beam.sdk.schemas.annotations.SchemaFieldDescription;
-import org.apache.beam.sdk.schemas.io.payloads.AutoValuePayloads.AutoValueSchema;
+import org.apache.beam.sdk.schemas.transforms.providers.ErrorHandling;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Strings;
 
+/** Configuration for writing to Datadog. */
 @DefaultSchema(AutoValueSchema.class)
 @AutoValue
 public abstract class DatadogWriteSchemaTransformConfiguration {
 
-  public void validate() {}
+  public void validate() {
+    String invalidConfigMessage = "Invalid Datadog Write configuration: ";
+
+    ErrorHandling errorHandling = getErrorHandling();
+    if (errorHandling != null) {
+      checkArgument(
+          !Strings.isNullOrEmpty(errorHandling.getOutput()),
+          invalidConfigMessage + "Output must not be empty if error handling specified.");
+    }
+  }
 
   public static Builder builder() {
     return new AutoValue_DatadogWriteSchemaTransformConfiguration.Builder();
@@ -40,16 +54,16 @@ public abstract class DatadogWriteSchemaTransformConfiguration {
   public abstract String getApiKey();
 
   @SchemaFieldDescription("The number of events to batch together for each write.")
-  @Nullable
-  public abstract Integer getBatchCount();
+  public abstract @Nullable Integer getBatchCount();
 
   @SchemaFieldDescription("The maximum buffer size in bytes.")
-  @Nullable
-  public abstract Long getMaxBufferSize();
+  public abstract @Nullable Long getMaxBufferSize();
 
   @SchemaFieldDescription("The degree of parallelism for writing.")
-  @Nullable
-  public abstract Integer getParallelism();
+  public abstract @Nullable Integer getParallelism();
+
+  @SchemaFieldDescription("Specifies how to handle errors.")
+  public abstract @Nullable ErrorHandling getErrorHandling();
 
   @AutoValue.Builder
   public abstract static class Builder {
@@ -62,6 +76,8 @@ public abstract class DatadogWriteSchemaTransformConfiguration {
     public abstract Builder setMaxBufferSize(Long maxBufferSize);
 
     public abstract Builder setParallelism(Integer parallelism);
+
+    public abstract Builder setErrorHandling(@Nullable ErrorHandling errorHandling);
 
     public abstract DatadogWriteSchemaTransformConfiguration build();
   }

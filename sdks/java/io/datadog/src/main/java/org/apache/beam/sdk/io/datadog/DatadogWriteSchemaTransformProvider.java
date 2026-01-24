@@ -20,11 +20,7 @@ package org.apache.beam.sdk.io.datadog;
 import com.google.auto.service.AutoService;
 import java.util.Collections;
 import java.util.List;
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.schemas.Schema;
-import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
-import org.apache.beam.sdk.schemas.annotations.SchemaFieldDescription;
-import org.apache.beam.sdk.schemas.io.payloads.AutoValuePayloads.AutoValueSchema;
 import org.apache.beam.sdk.schemas.transforms.SchemaTransform;
 import org.apache.beam.sdk.schemas.transforms.SchemaTransformProvider;
 import org.apache.beam.sdk.schemas.transforms.TypedSchemaTransformProvider;
@@ -35,8 +31,8 @@ import org.apache.beam.sdk.values.PCollectionRowTuple;
 import org.apache.beam.sdk.values.Row;
 
 @AutoService(SchemaTransformProvider.class)
-public class DatadogWriteSchemaTransformProvider extends
-    TypedSchemaTransformProvider<DatadogWriteSchemaTransformProvider.DatadogWriteSchemaTransformConfiguration> {
+public class DatadogWriteSchemaTransformProvider
+    extends TypedSchemaTransformProvider<DatadogWriteSchemaTransformConfiguration> {
 
   static final String INPUT_TAG = "input";
 
@@ -65,51 +61,6 @@ public class DatadogWriteSchemaTransformProvider extends
     return Collections.emptyList();
   }
 
-  @DefaultSchema(AutoValueSchema.class)
-  @com.google.auto.value.AutoValue
-  public abstract static class DatadogWriteSchemaTransformConfiguration {
-
-    public void validate() {}
-
-    public static Builder builder() {
-      return new AutoValue_DatadogWriteSchemaTransformProvider_DatadogWriteSchemaTransformConfiguration.Builder();
-    }
-
-    @SchemaFieldDescription("The Datadog API URL.")
-    public abstract String getUrl();
-
-    @SchemaFieldDescription("The Datadog API key.")
-    public abstract String getApiKey();
-
-    @SchemaFieldDescription("The number of events to batch together for each write.")
-    @Nullable
-    public abstract Integer getBatchCount();
-
-    @SchemaFieldDescription("The maximum buffer size in bytes.")
-    @Nullable
-    public abstract Long getMaxBufferSize();
-
-    @SchemaFieldDescription("The degree of parallelism for writing.")
-    @Nullable
-    public abstract Integer getParallelism();
-
-
-    @com.google.auto.value.AutoValue.Builder
-    public abstract static class Builder {
-      public abstract Builder setUrl(String url);
-
-      public abstract Builder setApiKey(String apiKey);
-
-      public abstract Builder setBatchCount(Integer batchCount);
-
-      public abstract Builder setMaxBufferSize(Long maxBufferSize);
-
-      public abstract Builder setParallelism(Integer parallelism);
-
-      public abstract DatadogWriteSchemaTransformConfiguration build();
-    }
-  }
-
   protected static class DatadogWriteSchemaTransform extends SchemaTransform {
     private final DatadogWriteSchemaTransformConfiguration configuration;
 
@@ -118,25 +69,30 @@ public class DatadogWriteSchemaTransformProvider extends
       this.configuration = configuration;
     }
 
-
     @Override
     public PCollectionRowTuple expand(PCollectionRowTuple input) {
       PCollection<Row> inputRows = input.get(INPUT_TAG);
 
-      PCollection<DatadogEvent> events = inputRows.apply("RowToDatadogEvent", ParDo.of(new RowToDatadogEventFn()));
+      PCollection<DatadogEvent> events =
+          inputRows.apply("RowToDatadogEvent", ParDo.of(new RowToDatadogEventFn()));
+      events.setCoder(DatadogEventCoder.of());
 
-      DatadogIO.Write.Builder writeBuilder = DatadogIO.writeBuilder()
-          .withUrl(configuration.getUrl())
-          .withApiKey(configuration.getApiKey());
+      DatadogIO.Write.Builder writeBuilder =
+          DatadogIO.writeBuilder()
+              .withUrl(configuration.getUrl())
+              .withApiKey(configuration.getApiKey());
 
-      if (configuration.getBatchCount() != null) {
-        writeBuilder = writeBuilder.withBatchCount(configuration.getBatchCount());
+      Integer batchCount = configuration.getBatchCount();
+      if (batchCount != null) {
+        writeBuilder = writeBuilder.withBatchCount(batchCount);
       }
-      if (configuration.getMaxBufferSize() != null) {
-        writeBuilder = writeBuilder.withMaxBufferSize(configuration.getMaxBufferSize());
+      Long maxBufferSize = configuration.getMaxBufferSize();
+      if (maxBufferSize != null) {
+        writeBuilder = writeBuilder.withMaxBufferSize(maxBufferSize);
       }
-      if (configuration.getParallelism() != null) {
-        writeBuilder = writeBuilder.withParallelism(configuration.getParallelism());
+      Integer parallelism = configuration.getParallelism();
+      if (parallelism != null) {
+        writeBuilder = writeBuilder.withParallelism(parallelism);
       }
 
       events.apply("WriteToDatadog", writeBuilder.build());
@@ -148,19 +104,41 @@ public class DatadogWriteSchemaTransformProvider extends
   static class RowToDatadogEventFn extends DoFn<Row, DatadogEvent> {
     @ProcessElement
     public void processElement(@Element Row row, OutputReceiver<DatadogEvent> out) {
-      // The schema of the input Row should match the expected structure for a DatadogEvent.
-      // This is a simplified conversion. A real implementation would need to handle nested
-      // structures and metadata correctly.
+      DatadogEvent.Builder builder = DatadogEvent.newBuilder();
       Schema schema = row.getSchema();
-      // This is a placeholder for the actual conversion logic.
-      // You need to extract the fields from the Row and create a DatadogEvent.
-      // The Row schema is dynamic, so you need to inspect it.
-      // For this example, we'll assume a simple schema.
-      String message = row.getString("message");
-      DatadogEvent event = DatadogEvent.newBuilder()
-              .withMessage(message)
-              .build();
-      out.output(event);
+
+      if (schema.hasField("ddsource")) {
+        String ddsource = row.getString("ddsource");
+        if (ddsource != null) {
+          builder.withSource(ddsource);
+        }
+      }
+      if (schema.hasField("ddtags")) {
+        String ddtags = row.getString("ddtags");
+        if (ddtags != null) {
+          builder.withTags(ddtags);
+        }
+      }
+      if (schema.hasField("hostname")) {
+        String hostname = row.getString("hostname");
+        if (hostname != null) {
+          builder.withHostname(hostname);
+        }
+      }
+      if (schema.hasField("service")) {
+        String service = row.getString("service");
+        if (service != null) {
+          builder.withService(service);
+        }
+      }
+      if (schema.hasField("message")) {
+        String message = row.getString("message");
+        if (message != null) {
+          builder.withMessage(message);
+        }
+      }
+
+      out.output(builder.build());
     }
   }
 }
