@@ -487,9 +487,9 @@ public class TriggerExample {
           .apply(
               "BigQuery Write Rows" + i,
               BigQueryIO.writeTableRows()
-                        .to(tableRef)
-                        .withSchema(getSchema())
-                        .withWriteDisposition(BigQueryIO.Write.WriteDisposition.WRITE_APPEND));
+                  .to(tableRef)
+                  .withSchema(getSchema())
+                  .withWriteDisposition(BigQueryIO.Write.WriteDisposition.WRITE_APPEND));
     }
 
     PipelineResult result = pipeline.run();
