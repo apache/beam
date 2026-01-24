@@ -27,6 +27,7 @@ import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
 import net.bytebuddy.ByteBuddy;
 import net.bytebuddy.description.field.FieldDescription;
@@ -106,6 +107,7 @@ import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.util.UserCodeException;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.sdk.values.TypeDescriptors;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.MoreObjects;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Maps;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.primitives.Primitives;
 import org.checkerframework.checker.nullness.qual.MonotonicNonNull;
@@ -192,24 +194,23 @@ class ByteBuddyDoFnInvokerFactory implements DoFnInvokerFactory {
         return false;
       }
       InvokerCacheKey that = (InvokerCacheKey) o;
-      return fnClass.equals(that.fnClass)
-          && inputType.equals(that.inputType)
-          && outputType.equals(that.outputType);
+      return Objects.equals(fnClass, that.fnClass)
+          && Objects.equals(inputType, that.inputType)
+          && Objects.equals(outputType, that.outputType);
     }
 
     @Override
     public int hashCode() {
-      int result = fnClass.hashCode();
-      result = 31 * result + inputType.hashCode();
-      result = 31 * result + outputType.hashCode();
-      return result;
+      return Objects.hash(fnClass, inputType, outputType);
     }
 
     @Override
     public String toString() {
-      return String.format(
-          "InvokerCacheKey{fnClass=%s, inputType=%s, outputType=%s}",
-          fnClass.getName(), inputType, outputType);
+      return MoreObjects.toStringHelper(this)
+          .add("fnClass", fnClass.getName())
+          .add("inputType", inputType)
+          .add("outputType", outputType)
+          .toString();
     }
   }
 
@@ -317,9 +318,10 @@ class ByteBuddyDoFnInvokerFactory implements DoFnInvokerFactory {
         signature.fnClass(),
         fn.getClass());
 
-    // Extract input and output type descriptors from the DoFn instance
-    // Fall back to Object.class if the type descriptors are null or unavailable (e.g., MapElements
-    // after serialization)
+    // Extract input and output type descriptors to distinguish generic instantiations.
+    // Fall back to Object.class if unavailable. When type info is lost, different generic
+    // instantiations share an invoker, which is acceptable since the DoFn class in the cache
+    // key prevents collisions between different DoFn classes.
     TypeDescriptor<InputT> inputType;
     try {
       inputType = fn.getInputTypeDescriptor();
@@ -540,6 +542,26 @@ class ByteBuddyDoFnInvokerFactory implements DoFnInvokerFactory {
     }
   }
 
+  /**
+   * Generates a type suffix string for use in invoker class names.
+   *
+   * <p>This creates a unique suffix based on the input and output type descriptors to avoid class
+   * name collisions when the same DoFn class is used with different generic types.
+   *
+   * <p>The format is: {@code DoFnInvoker$<8-digit hex hash>}
+   *
+   * @param inputType the input type descriptor
+   * @param outputType the output type descriptor
+   * @return a string suffix for the invoker class name
+   */
+  public static String generateTypeSuffix(
+      TypeDescriptor<?> inputType, TypeDescriptor<?> outputType) {
+    return String.format(
+        "%s$%08x",
+        DoFnInvoker.class.getSimpleName(),
+        (inputType.toString() + "|" + outputType.toString()).hashCode());
+  }
+
   /** Generates a {@link DoFnInvoker} class for the given {@link DoFnSignature}. */
   private static Class<? extends DoFnInvoker<?, ?>> generateInvokerClass(
       DoFnSignature signature, TypeDescriptor<?> inputType, TypeDescriptor<?> outputType) {
@@ -547,11 +569,7 @@ class ByteBuddyDoFnInvokerFactory implements DoFnInvokerFactory {
 
     // Create a unique suffix based on the type descriptors to avoid class name collisions
     // when the same DoFn class is used with different generic types.
-    String typeSuffix =
-        String.format(
-            "%s$%08x",
-            DoFnInvoker.class.getSimpleName(),
-            (inputType.toString() + "|" + outputType.toString()).hashCode());
+    String typeSuffix = generateTypeSuffix(inputType, outputType);
 
     final TypeDescription clazzDescription = new TypeDescription.ForLoadedType(fnClass);
 

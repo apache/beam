@@ -1389,11 +1389,7 @@ public class DoFnInvokersTest {
     // different generic instantiations of the same DoFn class.
     // Format: <DoFn class name>$<DoFnInvoker>$<type hash>
     TypeDescriptor<Void> voidType = new StableNameTestDoFn().getInputTypeDescriptor();
-    String expectedTypeSuffix =
-        String.format(
-            "%s$%08x",
-            DoFnInvoker.class.getSimpleName(),
-            (voidType.toString() + "|" + voidType.toString()).hashCode());
+    String expectedTypeSuffix = ByteBuddyDoFnInvokerFactory.generateTypeSuffix(voidType, voidType);
     assertThat(
         invoker.getClass().getName(),
         equalTo(String.format("%s$%s", StableNameTestDoFn.class.getName(), expectedTypeSuffix)));
