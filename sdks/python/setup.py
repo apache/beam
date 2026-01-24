@@ -38,6 +38,7 @@ from setuptools import Command
 # It is recommended to import setuptools prior to importing distutils to avoid
 # using legacy behavior from distutils.
 # https://setuptools.readthedocs.io/en/latest/history.html#v48-0-0
+# Add something here to retrigger tests.
 from distutils.errors import DistutilsError  # isort:skip
 
 

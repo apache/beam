@@ -85,15 +85,16 @@ class _SharedCache:
 
   def register(self):
     owner = self._next_id()
-    self._live_owners.add(owner)
+    with self._lock:
+      self._live_owners.add(owner)
     return owner
 
   def purge(self, owner):
-    if owner not in self._live_owners:
-      raise ValueError(f"{owner} not in {self._live_owners}")
-    self._live_owners.remove(owner)
     to_delete = []
     with self._lock:
+      if owner not in self._live_owners:
+        raise ValueError(f"{owner} not in {self._live_owners}")
+      self._live_owners.remove(owner)
       for key, entry in list(self._cache.items()):
         if owner in entry.owners:
           entry.owners.remove(owner)
@@ -105,9 +106,9 @@ class _SharedCache:
       self._destructor(value)
 
   def get(self, *key):
-    if not self._live_owners:
-      raise RuntimeError("At least one owner must be registered.")
     with self._lock:
+      if not self._live_owners:
+        raise RuntimeError("At least one owner must be registered.")
       if key not in self._cache:
         self._cache[key] = _SharedCacheEntry(self._constructor(*key), set())
       for owner in self._live_owners:
@@ -439,7 +440,7 @@ class JavaJarServer(SubprocessServer):
   def _download_jar_to_cache(
       cls, download_url, cached_jar_path, user_agent=None):
     """Downloads a jar from the given URL to the specified cache path.
-    
+
     Args:
       download_url (str): The URL to download from.
       cached_jar_path (str): The local path where the jar should be cached.
