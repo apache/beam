@@ -36,11 +36,13 @@ public class CustomReceiverWithOffset extends Receiver<String> implements HasOff
   public static final int RECORDS_COUNT = 20;
 
   /*
-   Used in test for imitation of reading with exception
-  */
+   * Used in test for imitation of reading with exception
+   */
   public static boolean shouldFailInTheMiddle = false;
 
   private Long startOffset;
+  private int shardId = 0;
+  private int numShards = 1;
 
   CustomReceiverWithOffset() {
     super(StorageLevel.MEMORY_AND_DISK_2());
@@ -51,6 +53,12 @@ public class CustomReceiverWithOffset extends Receiver<String> implements HasOff
     if (startOffset != null) {
       this.startOffset = startOffset;
     }
+  }
+
+  @Override
+  public void setShard(int shardId, int numShards) {
+    this.shardId = shardId;
+    this.numShards = numShards;
   }
 
   @Override
@@ -76,7 +84,9 @@ public class CustomReceiverWithOffset extends Receiver<String> implements HasOff
           LOG.debug("Expected fail in the middle of reading");
           throw new IllegalStateException("Expected exception");
         }
-        store(String.valueOf(currentOffset));
+        if (currentOffset % numShards == shardId) {
+          store(String.valueOf(currentOffset));
+        }
         currentOffset++;
       } else {
         break;

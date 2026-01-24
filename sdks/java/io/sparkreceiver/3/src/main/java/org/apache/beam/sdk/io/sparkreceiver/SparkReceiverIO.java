@@ -25,15 +25,12 @@ import java.util.List;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import org.apache.beam.sdk.transforms.Create;
-import org.apache.beam.sdk.transforms.Impulse;
-import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.Reshuffle;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.sdk.values.TypeDescriptors;
 import org.apache.spark.streaming.receiver.Receiver;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Instant;
@@ -162,6 +159,7 @@ public class SparkReceiverIO {
       return toBuilder().setStartPollTimeoutSec(startPollTimeoutSec).build();
     }
 
+    /** Inclusive start offset from which the reading should be started. */
     public Read<V> withStartOffset(Long startOffset) {
       checkArgument(startOffset != null, "Start offset can not be null");
       return toBuilder().setStartOffset(startOffset).build();
@@ -214,16 +212,7 @@ public class SparkReceiverIO {
         Integer numReadersObj = sparkReceiverRead.getNumReaders();
         if (numReadersObj == null || numReadersObj == 1) {
           return input
-              .apply(Impulse.create())
-              .apply(
-                  MapElements.into(TypeDescriptors.integers())
-                      .via(
-                          new SerializableFunction<byte[], Integer>() {
-                            @Override
-                            public Integer apply(byte[] input) {
-                              return 0;
-                            }
-                          }))
+              .apply(Create.of(0))
               .apply(ParDo.of(new ReadFromSparkReceiverWithOffsetDoFn<>(sparkReceiverRead)));
         } else {
           int numReaders = numReadersObj;

@@ -79,6 +79,7 @@ class ReadFromSparkReceiverWithOffsetDoFn<V> extends DoFn<Integer, V> {
   private final Long pullFrequencySec;
   private final Long startPollTimeoutSec;
   private final Long startOffset;
+  private final int numReaders;
 
   ReadFromSparkReceiverWithOffsetDoFn(SparkReceiverIO.Read<V> transform) {
     createWatermarkEstimatorFn = WatermarkEstimators.Manual::new;
@@ -115,6 +116,9 @@ class ReadFromSparkReceiverWithOffsetDoFn<V> extends DoFn<Integer, V> {
       startOffset = DEFAULT_START_OFFSET;
     }
     this.startOffset = startOffset;
+
+    Integer numReadersObj = transform.getNumReaders();
+    this.numReaders = (numReadersObj != null) ? numReadersObj : 1;
   }
 
   @GetInitialRestriction
@@ -286,6 +290,9 @@ class ReadFromSparkReceiverWithOffsetDoFn<V> extends DoFn<Integer, V> {
     }
     LOG.debug("Restriction {}", tracker.currentRestriction().toString());
     sparkConsumer = new SparkConsumerWithOffset<>(tracker.currentRestriction().getFrom());
+    if (sparkReceiver instanceof HasOffset) {
+      ((HasOffset) sparkReceiver).setShard(element, numReaders);
+    }
     sparkConsumer.start(sparkReceiver);
 
     Long recordsProcessed = 0L;

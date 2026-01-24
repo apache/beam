@@ -33,5 +33,13 @@ public interface HasOffset {
    * Some {@link org.apache.spark.streaming.receiver.Receiver} support mechanism of checkpoint (e.g.
    * ack). This method should be called before stopping the receiver.
    */
-  default void setCheckpoint(Long recordsProcessed) {};
+  default void setCheckpoint(Long recordsProcessed) {}
+
+  /**
+   * Set the shard identifier and the total number of shards for parallel reading.
+   *
+   * @param shardId The unique identifier for this shard (reader).
+   * @param numShards The total number of shards (readers).
+   */
+  default void setShard(int shardId, int numShards) {}
 }

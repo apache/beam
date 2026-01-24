@@ -258,10 +258,11 @@ public class SparkReceiverIOTest {
             .withNumReaders(3);
 
     List<String> expected = new ArrayList<>();
-    for (int j = 0; j < 3; j++) {
-      for (int i = 0; i < CustomReceiverWithOffset.RECORDS_COUNT; i++) {
-        expected.add(String.valueOf(i));
-      }
+    // With sharding enabled in CustomReceiverWithOffset, the total records read
+    // across all workers
+    // should be exactly the set of 0..RECORDS_COUNT-1, each read exactly once.
+    for (int i = 0; i < CustomReceiverWithOffset.RECORDS_COUNT; i++) {
+      expected.add(String.valueOf(i));
     }
     PCollection<String> actual = pipeline.apply(reader).setCoder(StringUtf8Coder.of());
 
