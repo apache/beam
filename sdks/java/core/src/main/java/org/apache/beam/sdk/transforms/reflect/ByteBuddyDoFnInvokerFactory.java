@@ -170,11 +170,24 @@ class ByteBuddyDoFnInvokerFactory implements DoFnInvokerFactory {
    * Needed because generating an invoker class is expensive, and to avoid generating an excessive
    * number of classes consuming PermGen memory.
    *
+   * <p>The cache uses {@link DoFnSignature} as the key rather than just {@code Class<?>} because:
+   *
+   * <ul>
+   *   <li>While Java type erasure means {@code MyDoFn<String>} and {@code MyDoFn<Integer>} share
+   *       the same runtime {@code Class} object, in Apache Beam a DoFn's behavior isn't defined
+   *       solely by its Class.
+   *   <li>Users can override {@code getInputTypeDescriptor()} or use mechanisms that capture types
+   *       to provide different type information for the same raw DoFn class.
+   *   <li>The {@link DoFnSignature} properly captures this type information, ensuring that DoFns
+   *       with different {@code TypeDescriptor}s receive correctly generated invokers.
+   *   <li>This is critical for correct serialization (Coders) and schema verification.
+   * </ul>
+   *
    * <p>Note that special care must be taken to enumerate this object as concurrent hash maps are <a
    * href="https://docs.oracle.com/javase/8/docs/api/java/util/concurrent/package-summary.html#Weakly>weakly
    * consistent</a>.
    */
-  private final Map<Class<?>, Constructor<?>> byteBuddyInvokerConstructorCache =
+  private final Map<DoFnSignature, Constructor<?>> byteBuddyInvokerConstructorCache =
       new ConcurrentHashMap<>();
 
   private ByteBuddyDoFnInvokerFactory() {}
@@ -297,19 +310,22 @@ class ByteBuddyDoFnInvokerFactory implements DoFnInvokerFactory {
   }
 
   /**
-   * Returns a generated constructor for a {@link DoFnInvoker} for the given {@link DoFn} class.
+   * Returns a generated constructor for a {@link DoFnInvoker} for the given {@link DoFnSignature}.
    *
    * <p>These are cached such that at most one {@link DoFnInvoker} class exists for a given {@link
-   * DoFn} class.
+   * DoFnSignature}. Using {@link DoFnSignature} as the cache key (rather than just {@code Class})
+   * ensures that DoFns with the same raw class but different type descriptors (e.g., via overriding
+   * {@code getInputTypeDescriptor()}) receive correctly generated invokers for proper serialization
+   * and schema verification.
    */
   private Constructor<?> getByteBuddyInvokerConstructor(DoFnSignature signature) {
     Class<? extends DoFn<?, ?>> fnClass = signature.fnClass();
     return byteBuddyInvokerConstructorCache.computeIfAbsent(
-        fnClass,
-        clazz -> {
-          Class<? extends DoFnInvoker<?, ?>> invokerClass = generateInvokerClass(signature);
+        signature,
+        sig -> {
+          Class<? extends DoFnInvoker<?, ?>> invokerClass = generateInvokerClass(sig);
           try {
-            return invokerClass.getConstructor(clazz);
+            return invokerClass.getConstructor(fnClass);
           } catch (IllegalArgumentException | NoSuchMethodException | SecurityException e) {
             throw new RuntimeException(e);
           }

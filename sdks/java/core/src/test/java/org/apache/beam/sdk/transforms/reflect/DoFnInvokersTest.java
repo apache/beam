@@ -1406,4 +1406,43 @@ public class DoFnInvokersTest {
 
     verify(mockBundleFinalizer).afterBundleCommit(eq(Instant.ofEpochSecond(42L)), eq(null));
   }
+
+  /**
+   * Test that DoFn instances with different generic types but same raw class don't experience cache
+   * collisions in the invoker factory.
+   *
+   * <p>Due to Java type erasure, generic type parameters are erased at runtime for non-anonymous
+   * classes. However, when using anonymous subclasses (which preserve type information in the class
+   * metadata), different type instantiations should receive correctly generated invokers.
+   */
+  @Test
+  public void testGenericDoFnCacheKeyingWithAnonymousSubclasses() {
+    // Create two anonymous subclasses with different generic types.
+    // Anonymous classes preserve generic type information in their class metadata,
+    // so they should be treated as different classes and not share cache entries.
+    DoFn<String, String> stringDoFn =
+        new DoFn<String, String>() {
+          @ProcessElement
+          public void processElement(@Element String element, OutputReceiver<String> out) {
+            out.output(element);
+          }
+        };
+
+    DoFn<Integer, Integer> integerDoFn =
+        new DoFn<Integer, Integer>() {
+          @ProcessElement
+          public void processElement(@Element Integer element, OutputReceiver<Integer> out) {
+            out.output(element);
+          }
+        };
+
+    DoFnInvoker<String, String> stringInvoker = DoFnInvokers.invokerFor(stringDoFn);
+    DoFnInvoker<Integer, Integer> integerInvoker = DoFnInvokers.invokerFor(integerDoFn);
+
+    // Verify that different anonymous classes produce different invoker classes
+    assertThat(
+        "Anonymous DoFn subclasses with different generic types should produce different invokers",
+        stringInvoker.getClass(),
+        org.hamcrest.Matchers.not(equalTo(integerInvoker.getClass())));
+  }
 }
