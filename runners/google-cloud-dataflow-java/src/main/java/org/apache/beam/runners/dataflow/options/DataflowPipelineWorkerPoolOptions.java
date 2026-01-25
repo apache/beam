@@ -193,6 +193,17 @@ public interface DataflowPipelineWorkerPoolOptions extends GcpOptions, FileStagi
 
   void setWorkerDiskType(String value);
 
+@Description("IOPS provisioned for the root disk for VMs. If zero or " +
+             "unspecified, the service will attempt to choose a reasonable default.")
+Long getDiskProvisionedIops();
+void setDiskProvisionedIops(Long diskProvisionedIops);
+
+@Description("Throughput provisioned in MiB/s for the root disk for VMs. If zero or " +
+             "unspecified, the service will attempt to choose a reasonable default.")
+Long getDiskProvisionedThroughputMibps();
+void setDiskProvisionedThroughputMibps(Long diskProvisionedThroughputMibps);
+
+
   /**
    * Specifies whether worker pools should be started with public IP addresses.
    *

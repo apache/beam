@@ -1387,6 +1387,26 @@ class WorkerOptions(PipelineOptions):
         default=None,
         help=('Specifies what type of persistent disk should be used.'))
     parser.add_argument(
+        '--disk_provisioned_iops',
+        type=int,
+        default=None,
+        dest='disk_provisioned_iops',
+        help=(
+            'The provisioned IOPS of the disk. If not set, the Dataflow service'
+            ' will choose a reasonable default.'
+        ),
+    )
+    parser.add_argument(
+        '--disk_provisioned_throughput_mibps',
+        type=int,
+        default=None,
+        dest='disk_provisioned_throughput_mibps',
+        help=(
+            'The provisioned throughput of the disk in MiB/s. If not set, the'
+            ' Dataflow service will choose a reasonable default.'
+        ),
+    )
+    parser.add_argument(
         '--worker_region',
         default=None,
         help=(

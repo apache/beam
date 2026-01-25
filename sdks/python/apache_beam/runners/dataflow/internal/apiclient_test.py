@@ -128,6 +128,26 @@ class UtilTest(unittest.TestCase):
         env.proto.workerPools[0].subnetwork,
         '/regions/MY/subnetworks/SUBNETWORK')
 
+  def test_set_disk_provisioning_options(self):
+    pipeline_options = PipelineOptions([
+        '--disk_provisioned_iops',
+        '4000',
+        '--disk_provisioned_throughput_mibps',
+        '200',
+        '--temp_location',
+        'gs://any-location/temp',
+    ])
+    env = apiclient.Environment(
+        [],  # packages
+        pipeline_options,
+        '2.0.0',  # any environment version
+        FAKE_PIPELINE_URL,
+    )
+    self.assertEqual(env.proto.workerPools[0].diskProvisionedIops, 4000)
+    self.assertEqual(
+        env.proto.workerPools[0].diskProvisionedThroughputMibps, 200
+    )
+
   def test_flexrs_blank(self):
     pipeline_options = PipelineOptions(
         ['--temp_location', 'gs://any-location/temp'])

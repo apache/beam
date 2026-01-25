@@ -619,6 +619,30 @@ public class DataflowPipelineTranslatorTest implements Serializable {
     assertEquals(diskSizeGb, job.getEnvironment().getWorkerPools().get(0).getDiskSizeGb());
   }
 
+   @Test
+    public void testDiskProvisioningTranslation() {
+        DataflowPipelineOptions options = PipelineOptionsFactory.create().as(DataflowPipelineOptions.class);
+        options.setDiskProvisionedIops(Long.valueOf(7000));
+        options.setDiskProvisionedThroughputMibps(Long.valueOf(250));
+        options.setProject("test-project"); // Required for translator
+
+        WorkerPool pool = translateWorkerPool(options);
+
+        assertEquals(Long.valueOf(7000), pool.getDiskProvisionedIops());
+        assertEquals(Long.valueOf(250), pool.getDiskProvisionedThroughputMibps());
+    }
+
+    @Test
+    public void testDiskProvisioningTranslationDefaults() {
+        DataflowPipelineOptions options = PipelineOptionsFactory.create().as(DataflowPipelineOptions.class);
+        options.setProject("test-project"); // Required for translator
+
+        WorkerPool pool = translateWorkerPool(options);
+
+        assertNull(pool.getDiskProvisionedIops());
+        assertNull(pool.getDiskProvisionedThroughputMibps());
+    }
+
   /** A composite transform that returns an output that is unrelated to the input. */
   private static class UnrelatedOutputCreator
       extends PTransform<PCollection<Integer>, PCollection<Integer>> {

@@ -444,12 +444,18 @@ class PipelineOptionsTest(unittest.TestCase):
         'abc',
         '--disk_type',
         'def',
+         '--disk_provisioned_iops',
+        '4000',
+        '--disk_provisioned_throughput_mibps',
+        '200',
         '--element_processing_timeout_minutes',
         '10',
     ])
     worker_options = options.view_as(WorkerOptions)
     self.assertEqual(worker_options.machine_type, 'abc')
     self.assertEqual(worker_options.disk_type, 'def')
+    self.assertEqual(worker_options.disk_provisioned_iops, 4000)
+    self.assertEqual(worker_options.disk_provisioned_throughput_mibps, 200)
     self.assertEqual(worker_options.element_processing_timeout_minutes, 10)
 
     options = PipelineOptions(
