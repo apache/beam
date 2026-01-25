@@ -68,7 +68,7 @@
 
 ## New Features / Improvements
 
-* X feature added (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
+* Added support for setting quota project ID in BigQuery read operations via `--quota_project_id` pipeline option or `quota_project_id` parameter in ReadFromBigQuery transform (Python) ([#37431](https://github.com/apache/beam/issues/37431)).
 
 ## Breaking Changes
 

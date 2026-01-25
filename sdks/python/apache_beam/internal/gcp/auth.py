@@ -82,6 +82,47 @@ def get_service_credentials(pipeline_options):
   return _Credentials.get_service_credentials(pipeline_options)
 
 
+def with_quota_project(credentials, quota_project_id):
+  """For internal use only; no backwards-compatibility guarantees.
+
+  Apply a quota project to credentials if supported.
+
+  The quota project is used to bill API requests to a specific GCP project,
+  separate from the project that owns the service account or data.
+
+  Args:
+    credentials: The credentials object (either _ApitoolsCredentialsAdapter
+      or a google.auth credentials object).
+    quota_project_id: The GCP project ID to use for quota and billing.
+
+  Returns:
+    Credentials with the quota project applied, or the original credentials
+    if quota project is not supported or credentials is None.
+  """
+  if credentials is None or quota_project_id is None:
+    return credentials
+
+  # Get the underlying google-auth credentials if wrapped
+  if hasattr(credentials, 'get_google_auth_credentials'):
+    underlying_creds = credentials.get_google_auth_credentials()
+  else:
+    underlying_creds = credentials
+
+  # Apply quota project if supported
+  if hasattr(underlying_creds, 'with_quota_project'):
+    new_creds = underlying_creds.with_quota_project(quota_project_id)
+    # Re-wrap if the original was wrapped
+    if hasattr(credentials, 'get_google_auth_credentials'):
+      return _ApitoolsCredentialsAdapter(new_creds)
+    return new_creds
+
+  _LOGGER.warning(
+      'Credentials of type %s do not support quota project. '
+      'The quota_project_id parameter will be ignored.',
+      type(underlying_creds).__name__)
+  return credentials
+
+
 if _GOOGLE_AUTH_AVAILABLE:
 
   class _ApitoolsCredentialsAdapter:

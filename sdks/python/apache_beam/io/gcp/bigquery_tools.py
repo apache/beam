@@ -60,6 +60,7 @@ from apache_beam.io.gcp.internal.clients import bigquery
 from apache_beam.metrics import monitoring_infos
 from apache_beam.metrics.metric import Metrics
 from apache_beam.options import value_provider
+from apache_beam.options.pipeline_options import GoogleCloudOptions
 from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.transforms import DoFn
 from apache_beam.typehints.row_type import RowTypeConstraint
@@ -359,11 +360,25 @@ class BigQueryWrapper(object):
 
   HISTOGRAM_METRIC_LOGGER = MetricLogger()
 
-  def __init__(self, client=None, temp_dataset_id=None, temp_table_ref=None):
-    self.client = client or BigQueryWrapper._bigquery_client(PipelineOptions())
-    self.gcp_bq_client = client or gcp_bigquery.Client(
-        client_info=ClientInfo(
-            user_agent="apache-beam-%s" % apache_beam.__version__))
+  def __init__(
+      self,
+      client=None,
+      temp_dataset_id=None,
+      temp_table_ref=None,
+      quota_project_id=None):
+    self.quota_project_id = quota_project_id
+    self.client = client or BigQueryWrapper._bigquery_client(
+        PipelineOptions(), quota_project_id=quota_project_id)
+
+    # If the client is a mock (common in tests) or has the specific method
+    # we use, we use it as the gcp_bq_client to preserve backward
+    # compatibility for tests. Otherwise (e.g. it's a real apitools client),
+    # we create the correct google-cloud-bigquery client.
+    if client and hasattr(client, 'insert_rows_json'):
+      self.gcp_bq_client = client
+    else:
+      self.gcp_bq_client = BigQueryWrapper._gcp_bigquery_client(
+          quota_project_id=quota_project_id)
 
     self._unique_row_id = 0
     # For testing scenarios where we pass in a client we do not want a
@@ -1399,18 +1414,68 @@ class BigQueryWrapper(object):
 
   @staticmethod
   def from_pipeline_options(pipeline_options: PipelineOptions):
+    """Create a BigQueryWrapper from pipeline options.
+
+    Args:
+      pipeline_options: Pipeline options containing GCP configuration.
+        The quota_project_id is read from GoogleCloudOptions if set.
+    """
+    quota_project_id = None
+    if pipeline_options is not None:
+      quota_project_id = pipeline_options.view_as(
+          GoogleCloudOptions).quota_project_id
     return BigQueryWrapper(
-        client=BigQueryWrapper._bigquery_client(pipeline_options))
+        client=BigQueryWrapper._bigquery_client(pipeline_options),
+        quota_project_id=quota_project_id)
 
   @staticmethod
-  def _bigquery_client(pipeline_options: PipelineOptions):
+  def _bigquery_client(
+      pipeline_options: PipelineOptions, quota_project_id: str = None):
+    """Create a BigQuery API client from pipeline options.
+
+    Args:
+      pipeline_options: Pipeline options for credentials.
+      quota_project_id: Optional quota project ID. If not provided, will be
+        extracted from pipeline_options.
+    """
+    credentials = auth.get_service_credentials(pipeline_options)
+    # Use explicit quota_project_id if provided, otherwise get from options
+    if quota_project_id is None and pipeline_options is not None:
+      quota_project_id = pipeline_options.view_as(
+          GoogleCloudOptions).quota_project_id
+    if quota_project_id:
+      credentials = auth.with_quota_project(credentials, quota_project_id)
     return bigquery.BigqueryV2(
         http=get_new_http(),
-        credentials=auth.get_service_credentials(pipeline_options),
+        credentials=credentials,
         response_encoding='utf8',
         additional_http_headers={
             "user-agent": "apache-beam-%s" % apache_beam.__version__
         })
+
+  @staticmethod
+  def _gcp_bigquery_client(quota_project_id: str = None):
+    """Create a google-cloud-bigquery Client with optional quota project."""
+    credentials = None
+
+    if quota_project_id:
+      # Get default credentials and apply quota project
+      try:
+        import google.auth
+        from google.auth import exceptions as auth_exceptions
+        credentials, _ = google.auth.default()
+        credentials = auth.with_quota_project(credentials, quota_project_id)
+      except (auth_exceptions.DefaultCredentialsError, AttributeError) as e:
+        _LOGGER.warning(
+            'Failed to apply quota project %s to gcp-bigquery client: %s. '
+            'Falling back to default client.',
+            quota_project_id,
+            e)
+
+    return gcp_bigquery.Client(
+        credentials=credentials,
+        client_info=ClientInfo(
+            user_agent="apache-beam-%s" % apache_beam.__version__))
 
 
 class RowAsDictJsonCoder(coders.Coder):

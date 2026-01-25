@@ -1158,6 +1158,14 @@ class GoogleCloudOptions(PipelineOptions):
         help='Throttling counter in GcsIO is enabled by default. Set '
         '--no_gcsio_throttling_counter to avoid it.')
     parser.add_argument(
+        '--quota_project_id',
+        default=None,
+        help='GCP project ID to use for quota and billing purposes. '
+        'If not specified, the project associated with the credentials '
+        'will be used for quota. This is useful when running pipelines '
+        'that access resources in a different project than the one '
+        'associated with the credentials.')
+    parser.add_argument(
         '--enable_gcsio_blob_generation',
         default=False,
         action='store_true',
