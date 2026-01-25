@@ -1091,6 +1091,7 @@ class BundleProcessor(object):
       state_handler: sdk_worker.CachingStateHandler,
       data_channel_factory: data_plane.DataChannelFactory,
       data_sampler: Optional[data_sampler.DataSampler] = None,
+      instruction_id: Optional[str] = None,
   ) -> None:
     """Initialize a bundle processor.
 
@@ -1159,8 +1160,13 @@ class BundleProcessor(object):
         from apache_beam.runners.worker.sdk_worker_main import terminate_sdk_harness
         terminate_sdk_harness()
 
-    for op in reversed(self.ops.values()):
-      op.setup(self.data_sampler)
+      if instruction_id:
+        with statesampler.instruction_id(instruction_id):
+          for op in reversed(self.ops.values()):
+            op.setup(self.data_sampler)
+      else:
+        for op in reversed(self.ops.values()):
+          op.setup(self.data_sampler)
     self.splitting_lock = threading.Lock()
 
   def create_execution_tree(

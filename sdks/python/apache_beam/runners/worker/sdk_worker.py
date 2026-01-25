@@ -520,7 +520,8 @@ class BundleProcessorCache(object):
         self.state_handler_factory.create_state_handler(
             pbd.state_api_service_descriptor),
         self.data_channel_factory,
-        self.data_sampler)
+        self.data_sampler,
+        instruction_id=instruction_id)
     with self._lock:
       self.active_bundle_processors[
         instruction_id] = bundle_descriptor_id, processor
