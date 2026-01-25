@@ -30,7 +30,7 @@ dependencies:
   app_state: ^0.9.4
   collection: ^1.15.0
   easy_localization: ^3.0.1
-  easy_localization_ext: ^0.1.1
+  easy_localization_ext: ^0.1.0 # Pin to 0.1.0 to avoid addAllRecursive conflict
   easy_localization_loader: ^1.0.0
   equatable: ^2.0.5
   expansion_widget: ^0.0.2
@@ -48,6 +48,10 @@ dependencies:
   shared_preferences: ^2.0.12
   url_launcher: ^6.0.12
   url_strategy: ^0.2.0
+
+dependency_overrides:
+  # This fixes the 'WidgetStateProperty' error by forcing the old version
+  keyed_collection_widgets: 0.4.2
 
 dev_dependencies:
   build_runner: ^2.1.4
