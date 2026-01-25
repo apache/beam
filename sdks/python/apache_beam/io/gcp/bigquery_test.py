@@ -65,6 +65,7 @@ from apache_beam.io.gcp.tests.bigquery_matcher import BigqueryFullResultStreamin
 from apache_beam.io.gcp.tests.bigquery_matcher import BigQueryTableMatcher
 from apache_beam.metrics.metric import Lineage
 from apache_beam.options import value_provider
+from apache_beam.options.pipeline_options import GoogleCloudOptions
 from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.options.pipeline_options import StandardOptions
 from apache_beam.options.value_provider import RuntimeValueProvider
@@ -338,6 +339,10 @@ class TestJsonToDictCoder(unittest.TestCase):
 class TestReadFromBigQuery(unittest.TestCase):
   @classmethod
   def setUpClass(cls):
+    cls.env_patch = mock.patch.dict(
+        os.environ, {'GOOGLE_CLOUD_PROJECT': 'test-project'})
+    cls.env_patch.start()
+
     class UserDefinedOptions(PipelineOptions):
       @classmethod
       def _add_argparse_args(cls, parser):
@@ -351,6 +356,7 @@ class TestReadFromBigQuery(unittest.TestCase):
 
   @classmethod
   def tearDownClass(cls):
+    cls.env_patch.stop()
     # Unset the option added in setupClass to avoid interfere with other tests.
     # Force a gc so PipelineOptions.__subclass__() no longer contains it.
     del cls.UserDefinedOptions
@@ -778,6 +784,196 @@ class TestReadFromBigQuery(unittest.TestCase):
         ]))
 
 
+@unittest.skipIf(
+    HttpError is None or gcp_bigquery is None,
+    'GCP dependencies are not installed')
+class TestReadFromBigQueryQuotaProject(unittest.TestCase):
+  """Tests for quota_project_id in ReadFromBigQuery sources."""
+  def test_quota_project_id_from_pipeline_options(self):
+    """Test that quota_project_id is read from GoogleCloudOptions."""
+    options = PipelineOptions(['--quota_project_id=my-billing-project'])
+    gcp_options = options.view_as(GoogleCloudOptions)
+    self.assertEqual(gcp_options.quota_project_id, 'my-billing-project')
+
+  def test_quota_project_id_none_by_default_in_options(self):
+    """Test that quota_project_id is None by default in options."""
+    options = PipelineOptions([])
+    gcp_options = options.view_as(GoogleCloudOptions)
+    self.assertIsNone(gcp_options.quota_project_id)
+
+  def test_export_source_explicit_quota_project(self):
+    """Test that explicit quota_project_id is stored in
+    _CustomBigQuerySource."""
+    source = beam_bq._CustomBigQuerySource(
+        method=ReadFromBigQuery.Method.EXPORT,
+        table='project:dataset.table',
+        quota_project_id='my-billing-project')
+    self.assertEqual(source.quota_project_id, 'my-billing-project')
+    self.assertEqual(source._get_quota_project_id(), 'my-billing-project')
+
+  def test_export_source_gets_quota_from_options(self):
+    """Test that _CustomBigQuerySource falls back to options for
+    quota_project_id."""
+    options = PipelineOptions(['--quota_project_id=my-billing-project'])
+    source = beam_bq._CustomBigQuerySource(
+        method=ReadFromBigQuery.Method.EXPORT,
+        table='project:dataset.table',
+        pipeline_options=options)
+    self.assertEqual(source._get_quota_project_id(), 'my-billing-project')
+
+  def test_export_source_explicit_overrides_options(self):
+    """Test that explicit quota_project_id overrides options."""
+    options = PipelineOptions(['--quota_project_id=options-project'])
+    source = beam_bq._CustomBigQuerySource(
+        method=ReadFromBigQuery.Method.EXPORT,
+        table='project:dataset.table',
+        pipeline_options=options,
+        quota_project_id='explicit-project')
+    self.assertEqual(source._get_quota_project_id(), 'explicit-project')
+
+  def test_storage_source_explicit_quota_project(self):
+    """Test that explicit quota_project_id is stored in
+    _CustomBigQueryStorageSource."""
+    source = beam_bq._CustomBigQueryStorageSource(
+        method=ReadFromBigQuery.Method.DIRECT_READ,
+        table='project:dataset.table',
+        quota_project_id='my-billing-project')
+    self.assertEqual(source.quota_project_id, 'my-billing-project')
+    self.assertEqual(source._get_quota_project_id(), 'my-billing-project')
+
+  def test_storage_source_gets_quota_from_options(self):
+    """Test that _CustomBigQueryStorageSource falls back to options."""
+    options = PipelineOptions(['--quota_project_id=my-billing-project'])
+    source = beam_bq._CustomBigQueryStorageSource(
+        method=ReadFromBigQuery.Method.DIRECT_READ,
+        table='project:dataset.table',
+        pipeline_options=options)
+    self.assertEqual(source._get_quota_project_id(), 'my-billing-project')
+
+  def test_quota_project_id_in_export_source_display_data(self):
+    """Test that quota_project_id appears in display data for export source."""
+    source = beam_bq._CustomBigQuerySource(
+        method=ReadFromBigQuery.Method.EXPORT,
+        table='project:dataset.table',
+        quota_project_id='my-billing-project')
+    display_data = source.display_data()
+    self.assertEqual(display_data['quota_project_id'], 'my-billing-project')
+
+  def test_quota_project_id_empty_in_display_data_when_not_set(self):
+    """Test that quota_project_id is empty string in display data
+    when not set."""
+    options = PipelineOptions([])
+    source = beam_bq._CustomBigQuerySource(
+        method=ReadFromBigQuery.Method.EXPORT,
+        table='project:dataset.table',
+        pipeline_options=options)
+    display_data = source.display_data()
+    self.assertEqual(display_data['quota_project_id'], '')
+
+  def test_stream_source_stores_quota_project_id(self):
+    """Test that quota_project_id is stored in
+    _CustomBigQueryStorageStreamSource."""
+    stream_source = beam_bq._CustomBigQueryStorageStreamSource(
+        read_stream_name='projects/p/locations/l/sessions/s/streams/stream1',
+        use_native_datetime=True,
+        timeout=30.0,
+        quota_project_id='my-billing-project')
+    self.assertEqual(stream_source.quota_project_id, 'my-billing-project')
+
+  def test_stream_source_quota_project_id_none_by_default(self):
+    """Test that quota_project_id is None by default in stream source."""
+    stream_source = beam_bq._CustomBigQueryStorageStreamSource(
+        read_stream_name='projects/p/locations/l/sessions/s/streams/stream1')
+    self.assertIsNone(stream_source.quota_project_id)
+
+  def test_stream_source_split_preserves_quota_project_id(self):
+    """Test that split() preserves quota_project_id."""
+    stream_source = beam_bq._CustomBigQueryStorageStreamSource(
+        read_stream_name='projects/p/locations/l/sessions/s/streams/stream1',
+        use_native_datetime=True,
+        timeout=30.0,
+        quota_project_id='my-billing-project')
+    bundle = stream_source.split(desired_bundle_size=0)
+    self.assertEqual(bundle.source.quota_project_id, 'my-billing-project')
+    self.assertEqual(bundle.source.timeout, 30.0)
+    self.assertEqual(bundle.source.use_native_datetime, True)
+
+  @mock.patch('apache_beam.io.gcp.bigquery._create_bq_storage_client')
+  def test_stream_source_read_arrow_uses_quota_project(
+      self, mock_create_client):
+    """Test that read_arrow() uses _create_bq_storage_client
+    with quota_project_id."""
+    mock_client = mock.MagicMock()
+    mock_create_client.return_value = mock_client
+    # Mock read_rows to return empty iterator
+    mock_client.read_rows.return_value.rows.return_value = iter([])
+
+    stream_source = beam_bq._CustomBigQueryStorageStreamSource(
+        read_stream_name='projects/p/locations/l/sessions/s/streams/stream1',
+        use_native_datetime=True,
+        quota_project_id='my-billing-project')
+    # Consume the iterator
+    list(stream_source.read_arrow())
+
+    mock_create_client.assert_called_once_with('my-billing-project')
+
+  @mock.patch('apache_beam.io.gcp.bigquery._create_bq_storage_client')
+  def test_stream_source_read_avro_uses_quota_project(self, mock_create_client):
+    """Test that read_avro() uses _create_bq_storage_client
+    with quota_project_id."""
+    mock_client = mock.MagicMock()
+    mock_create_client.return_value = mock_client
+    # Mock read_rows to return empty iterator
+    mock_client.read_rows.return_value = iter([])
+
+    stream_source = beam_bq._CustomBigQueryStorageStreamSource(
+        read_stream_name='projects/p/locations/l/sessions/s/streams/stream1',
+        use_native_datetime=False,
+        quota_project_id='my-billing-project')
+    # Consume the iterator
+    list(stream_source.read_avro())
+
+    mock_create_client.assert_called_once_with('my-billing-project')
+
+  @mock.patch('apache_beam.io.gcp.bigquery.bq_storage')
+  @mock.patch('apache_beam.io.gcp.bigquery._LOGGER')
+  def test_create_bq_storage_client_logs_on_failure(
+      self, mock_logger, mock_bq_storage):
+    """Test that _create_bq_storage_client logs when quota project fails."""
+    # Make google.auth.default raise a DefaultCredentialsError
+    from google.auth import exceptions as auth_exceptions
+    with mock.patch(
+        'google.auth.default',
+        side_effect=auth_exceptions.DefaultCredentialsError('Auth error')):
+      beam_bq._create_bq_storage_client('my-billing-project')
+
+    mock_logger.warning.assert_called_once()
+    warning_args = mock_logger.warning.call_args[0]
+    self.assertIn('Failed to apply quota project', warning_args[0])
+    self.assertIn('my-billing-project', warning_args[1])
+
+  @mock.patch('apache_beam.io.gcp.bigquery.bq_storage')
+  def test_create_bq_storage_client_with_quota_project(self, mock_bq_storage):
+    """Test _create_bq_storage_client applies quota project to credentials."""
+    mock_creds = mock.MagicMock(spec=['with_quota_project'])
+    mock_new_creds = mock.MagicMock()
+    mock_creds.with_quota_project.return_value = mock_new_creds
+
+    with mock.patch('google.auth.default', return_value=(mock_creds, 'proj')):
+      beam_bq._create_bq_storage_client('my-billing-project')
+
+    mock_creds.with_quota_project.assert_called_once_with('my-billing-project')
+    mock_bq_storage.BigQueryReadClient.assert_called_once_with(
+        credentials=mock_new_creds)
+
+  @mock.patch('apache_beam.io.gcp.bigquery.bq_storage')
+  def test_create_bq_storage_client_without_quota_project(
+      self, mock_bq_storage):
+    """Test _create_bq_storage_client without quota project uses default."""
+    beam_bq._create_bq_storage_client(None)
+    mock_bq_storage.BigQueryReadClient.assert_called_once_with()
+
+
 @unittest.skipIf(HttpError is None, 'GCP dependencies are not installed')
 class TestBigQuerySink(unittest.TestCase):
   def test_table_spec_display_data(self):
@@ -819,10 +1015,14 @@ class TestWriteToBigQuery(unittest.TestCase):
       os.remove('insert_calls2')
 
   def setUp(self):
+    self.env_patch = mock.patch.dict(
+        os.environ, {'GOOGLE_CLOUD_PROJECT': 'test-project'})
+    self.env_patch.start()
     self._cleanup_files()
 
   def tearDown(self):
     self._cleanup_files()
+    self.env_patch.stop()
 
   def test_noop_schema_parsing(self):
     expected_table_schema = None
@@ -1238,6 +1438,13 @@ class TestWriteToBigQuery(unittest.TestCase):
     HttpError is None or exceptions is None,
     'GCP dependencies are not installed')
 class BigQueryStreamingInsertsErrorHandling(unittest.TestCase):
+  def setUp(self):
+    self.env_patch = mock.patch.dict(
+        os.environ, {'GOOGLE_CLOUD_PROJECT': 'test-project'})
+    self.env_patch.start()
+
+  def tearDown(self):
+    self.env_patch.stop()
 
   # Running tests with a variety of exceptions from  https://googleapis.dev
   #     /python/google-api-core/latest/_modules/google/api_core/exceptions.html.

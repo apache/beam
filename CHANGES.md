@@ -82,6 +82,7 @@
 * (YAML) Added WriteToDatadog transform ([#38362](https://github.com/apache/beam/issues/38362)).
 * (Java) Flink 2.1 and 2.2 support is added ([#38947](https://github.com/apache/beam/issues/38947)) ([#38978](https://github.com/apache/beam/issues/38978)); Flink 1.17 and 1.18 support is dropped.
 * (Python) MqttIO is now supported in Python via cross-language ([#21060](https://github.com/apache/beam/issues/21060)).
+* Added support for setting quota project ID in BigQuery read operations via `--quota_project_id` pipeline option or `quota_project_id` parameter in ReadFromBigQuery transform (Python) ([#37431](https://github.com/apache/beam/issues/37431)).
 
 ## Breaking Changes
 

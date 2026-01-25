@@ -132,5 +132,65 @@ class AuthTest(unittest.TestCase):
     auth._LOGGER.removeHandler(loggerHandler)
 
 
+@unittest.skipIf(gauth is None, 'Google Auth dependencies are not installed')
+class WithQuotaProjectTest(unittest.TestCase):
+  """Tests for with_quota_project function."""
+  def test_with_quota_project_returns_credentials_unchanged_when_none(self):
+    """Test that None credentials are returned unchanged."""
+    result = auth.with_quota_project(None, 'my-project')
+    self.assertIsNone(result)
+
+  def test_with_quota_project_returns_credentials_unchanged_when_no_quota(self):
+    """Test that credentials are returned unchanged when
+    quota_project_id is None."""
+    mock_creds = mock.MagicMock()
+    result = auth.with_quota_project(mock_creds, None)
+    self.assertEqual(result, mock_creds)
+    mock_creds.with_quota_project.assert_not_called()
+
+  @mock.patch('apache_beam.internal.gcp.auth._ApitoolsCredentialsAdapter')
+  def test_with_quota_project_applies_quota_to_wrapped_credentials(
+      self, mock_adapter_class):
+    """Test that quota project is applied to wrapped credentials."""
+    mock_inner_creds = mock.MagicMock()
+    mock_new_creds = mock.MagicMock()
+    mock_inner_creds.with_quota_project.return_value = mock_new_creds
+
+    mock_adapter = mock.MagicMock()
+    mock_adapter.get_google_auth_credentials.return_value = mock_inner_creds
+
+    mock_adapter_instance = mock.MagicMock()
+    mock_adapter_class.return_value = mock_adapter_instance
+
+    result = auth.with_quota_project(mock_adapter, 'my-billing-project')
+
+    mock_inner_creds.with_quota_project.assert_called_once_with(
+        'my-billing-project')
+    # Result should be a new adapter wrapping the new credentials
+    mock_adapter_class.assert_called_once_with(mock_new_creds)
+    self.assertEqual(result, mock_adapter_instance)
+
+  def test_with_quota_project_applies_quota_to_direct_credentials(self):
+    """Test that quota project is applied to direct credentials."""
+    mock_creds = mock.MagicMock(spec=['with_quota_project'])
+    mock_new_creds = mock.MagicMock()
+    mock_creds.with_quota_project.return_value = mock_new_creds
+
+    result = auth.with_quota_project(mock_creds, 'my-billing-project')
+
+    mock_creds.with_quota_project.assert_called_once_with('my-billing-project')
+    self.assertEqual(result, mock_new_creds)
+
+  def test_with_quota_project_returns_original_when_not_supported(self):
+    """Test that original credentials are returned when
+    with_quota_project is not supported."""
+    # Create a mock without with_quota_project method
+    mock_creds = mock.MagicMock(spec=[])
+
+    result = auth.with_quota_project(mock_creds, 'my-billing-project')
+
+    self.assertEqual(result, mock_creds)
+
+
 if __name__ == '__main__':
   unittest.main()
