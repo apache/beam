@@ -177,23 +177,14 @@ extension WidgetTesterExtension on WidgetTester {
     // 3. Polling for the Analytics Event via the Global Service
     RunFinishedAnalyticsEvent? finishedEvent;
     stopwatch.reset();
-    
     while (stopwatch.elapsed < const Duration(seconds: 10)) {
-      // Process microtasks (Essential for Flutter Web)
-      await pump(Duration.zero); 
-      
-      // FIX: Access the service globally. This avoids the "missing getter" 
-      // on the controller and works in both Standalone and Embedded.
+      await pump(const Duration(milliseconds: 200));
+
       final event = PlaygroundComponents.analyticsService.lastEvent;
-      
       if (event is RunFinishedAnalyticsEvent) {
         finishedEvent = event;
         break;
       }
-
-      // Allow real-world async network calls to resolve
-      await runAsync(() => Future.delayed(const Duration(milliseconds: 200)));
-      await pump();
     }
 
     expect(
