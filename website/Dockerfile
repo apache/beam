@@ -51,25 +51,17 @@ RUN curl -sL https://deb.nodesource.com/setup_lts.x | bash - \
         nodejs \
     && apt-get autoremove -yqq --purge \
     && apt-get clean \
-    && rm -rf /var/lib/apt/lists/* 
+    && rm -rf /var/lib/apt/lists/*
 
 RUN npm update -g npm
-    
-RUN npm install postcss postcss-cli autoprefixer 
+
+RUN npm install postcss postcss-cli autoprefixer
 
 # Install yarn
-RUN set -eux; \
-    apt-get update; \
-    apt-get install -y --no-install-recommends curl gnupg ca-certificates; \
-    mkdir -p /etc/apt/keyrings; \
-    curl -fsSL https://dl.yarnpkg.com/debian/pubkey.gpg \
-      | gpg --dearmor -o /etc/apt/keyrings/yarn.gpg; \
-    echo "deb [signed-by=/etc/apt/keyrings/yarn.gpg] https://dl.yarnpkg.com/debian stable main" \
-      > /etc/apt/sources.list.d/yarn.list; \
-    apt-get update; \
-    apt-get install -y --no-install-recommends yarn; \
-    apt-get clean; \
-    rm -rf /var/lib/apt/lists/*
+ENV COREPACK_HOME=/usr/local/share/corepack
+RUN mkdir -p "$COREPACK_HOME" \
+ && corepack enable \
+ && corepack prepare yarn@1.22.22 --activate
 
 # Install hugo extended version v0.117.0
 RUN HUGOHOME="$(mktemp -d)" \
