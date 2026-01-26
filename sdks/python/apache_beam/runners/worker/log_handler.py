@@ -134,9 +134,12 @@ class FnApiLogRecordHandler(logging.Handler):
     log_entry.timestamp.nanos = int(nanoseconds)
     if record.exc_info:
       log_entry.trace = ''.join(traceback.format_exception(*record.exc_info))
-    instruction_id = statesampler.get_current_instruction_id()
-    if instruction_id:
-      log_entry.instruction_id = instruction_id
+    if hasattr(record, 'instruction_id'):
+      log_entry.instruction_id = record.instruction_id
+    if not log_entry.instruction_id:
+      instruction_id = statesampler.get_current_instruction_id()
+      if instruction_id:
+        log_entry.instruction_id = instruction_id
     tracker = statesampler.get_current_tracker()
     if tracker:
       current_state = tracker.current_state()
