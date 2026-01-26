@@ -49,6 +49,7 @@ public class DaoFactory implements Serializable {
   private final String jobName;
   private final Dialect spannerChangeStreamDatabaseDialect;
   private final Dialect metadataDatabaseDialect;
+  private final boolean isMutableChangeStream;
 
   /**
    * Constructs a {@link DaoFactory} with the configuration to be used for the underlying instances.
@@ -68,7 +69,8 @@ public class DaoFactory implements Serializable {
       RpcPriority rpcPriority,
       String jobName,
       Dialect spannerChangeStreamDatabaseDialect,
-      Dialect metadataDatabaseDialect) {
+      Dialect metadataDatabaseDialect,
+      boolean isMutableChangeStream) {
     if (metadataSpannerConfig.getInstanceId() == null) {
       throw new IllegalArgumentException("Metadata instance can not be null");
     }
@@ -83,6 +85,7 @@ public class DaoFactory implements Serializable {
     this.jobName = jobName;
     this.spannerChangeStreamDatabaseDialect = spannerChangeStreamDatabaseDialect;
     this.metadataDatabaseDialect = metadataDatabaseDialect;
+    this.isMutableChangeStream = isMutableChangeStream;
   }
 
   /**
@@ -143,7 +146,8 @@ public class DaoFactory implements Serializable {
               spannerAccessor.getDatabaseClient(),
               rpcPriority,
               jobName,
-              this.spannerChangeStreamDatabaseDialect);
+              this.spannerChangeStreamDatabaseDialect,
+              this.isMutableChangeStream);
     }
     return changeStreamDaoInstance;
   }
