@@ -150,10 +150,10 @@ extension WidgetTesterExtension on WidgetTester {
   Future<void> modifyRunExpectReal(ExampleDescriptor example) async {
     modifyCodeController();
 
-    // 1. Explicitly type the controller to avoid the 'dynamic' error
-    final PlaygroundController playgroundController = findPlaygroundController();
-    final eventSnippetContext = playgroundController.eventSnippetContext;
-    
+    // 1. Get the controller for context (casting is unnecessary here)
+    final controller = findPlaygroundController();
+    final eventSnippetContext = (controller as dynamic).eventSnippetContext;
+
     final runButton = find.runOrCancelButton();
     await ensureVisible(runButton);
     await pumpAndSettle();
@@ -162,33 +162,36 @@ extension WidgetTesterExtension on WidgetTester {
       await tap(runButton);
     });
 
-    // 2. Poll for output text
+    // 2. Wait for output text
     bool hasOutput = false;
     final stopwatch = Stopwatch()..start();
     while (stopwatch.elapsed < const Duration(seconds: 15)) {
       await pump(const Duration(milliseconds: 200));
-      if (findOutputText()!.isNotEmpty) {
+      if (findOutputText()?.isNotEmpty ?? false) {
         hasOutput = true;
         break;
       }
     }
-
     expect(hasOutput, isTrue, reason: 'Output never appeared.');
 
-    // 3. Polling for the Analytics Event on the specific controller instance
+    // 3. Polling for the Analytics Event via the Global Service
     RunFinishedAnalyticsEvent? finishedEvent;
     stopwatch.reset();
     
     while (stopwatch.elapsed < const Duration(seconds: 10)) {
+      // Process microtasks (Essential for Flutter Web)
       await pump(Duration.zero); 
       
-      // Now the compiler knows analyticsService exists
+      // FIX: Access the service globally. This avoids the "missing getter" 
+      // on the controller and works in both Standalone and Embedded.
       final event = PlaygroundComponents.analyticsService.lastEvent;
+      
       if (event is RunFinishedAnalyticsEvent) {
         finishedEvent = event;
         break;
       }
 
+      // Allow real-world async network calls to resolve
       await runAsync(() => Future.delayed(const Duration(milliseconds: 200)));
       await pump();
     }
@@ -196,12 +199,11 @@ extension WidgetTesterExtension on WidgetTester {
     expect(
       finishedEvent, 
       isNotNull, 
-      reason: 'RunFinishedAnalyticsEvent was not fired.\n'
-              'Last event: ${PlaygroundComponents.analyticsService.lastEvent}'
+      reason: 'RunFinishedAnalyticsEvent was not '
+      'fired on PlaygroundComponents.analyticsService.'
     );
     
     expect(finishedEvent!.snippetContext, eventSnippetContext);
-
   }
 
   /// Modifies the code controller in a unique way by inserting timestamp
