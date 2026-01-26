@@ -153,37 +153,35 @@ extension WidgetTesterExtension on WidgetTester {
     final playgroundController = findPlaygroundController();
     final eventSnippetContext = playgroundController.eventSnippetContext;
     expect(eventSnippetContext.snippet, null);
+    
+    // 1. Wrap the tap and wait in runAsync for real async handling
+    await runAsync(() async {
+      await tap(find.runOrCancelButton());
+      // Wait for the backend response/logic to actually finish
+      await Future.delayed(const Duration(seconds: 2)); 
+    });
 
-    await tap(find.runOrCancelButton());
+    // 2. Settle any remaining UI animations
     await pumpAndSettle();
 
     final actualText = findOutputText();
     expect(actualText, isNot(startsWith(kCachedResultsLog)));
     expectOutputIfDeployed(example, this);
 
-    // 1. Give the system a moment to actually process the run completion
-    await pumpAndSettle();
-
-    // 2. Poll for the expected event instead of a single check
+    // 3. Polling for the event
     RunFinishedAnalyticsEvent? finishedEvent;
     final stopwatch = Stopwatch()..start();
-
     while (stopwatch.elapsed < const Duration(seconds: 5)) {
       final event = PlaygroundComponents.analyticsService.lastEvent;
       if (event is RunFinishedAnalyticsEvent) {
         finishedEvent = event;
         break;
       }
-      // Wait a small amount before checking again
+      await pump(); // Help the scheduler move
       await Future.delayed(const Duration(milliseconds: 200));
     }
 
-    // 3. Final Assertions
-    expect(
-      finishedEvent,
-      isNotNull,
-      reason: 'RunFinishedAnalyticsEvent was not fired within 5 seconds',
-    );
+    expect(finishedEvent, isNotNull, reason: 'RunFinishedAnalyticsEvent was not fired');
     expect(finishedEvent!.snippetContext, eventSnippetContext);
 
   }
