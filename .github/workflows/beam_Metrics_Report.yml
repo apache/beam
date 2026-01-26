@@ -17,10 +17,11 @@
 
 name: Beam Metrics Report
 
+# DISABLED: Workflow disabled
 on:
-  schedule:
-    - cron: '0 11 * * 2'
-  workflow_dispatch:
+  # schedule:
+  #   - cron: '0 11 * * 2'
+  # workflow_dispatch:
 
 # This allows a subsequently queued workflow run to interrupt previous runs
 concurrency:
