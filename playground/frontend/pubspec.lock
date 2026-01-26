@@ -462,10 +462,10 @@ packages:
     dependency: transitive
     description:
       name: fluttertoast
-      sha256: "81b68579e23fcbcada2db3d50302813d2371664afe6165bc78148050ab94bf66"
+      sha256: dfdde255317af381bfc1c486ed968d5a43a2ded9c931e87cbecd88767d6a71c1
       url: "https://pub.dev"
     source: hosted
-    version: "8.2.5"
+    version: "8.2.4"
   frontend_server_client:
     dependency: transitive
     description:
