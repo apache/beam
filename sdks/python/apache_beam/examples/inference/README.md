@@ -969,3 +969,69 @@ An emperor penguin is an adorable creature that lives in Antarctica.
 ```
 
 ---
+## Table row inference
+
+[`table_row_inference.py`](./table_row_inference.py) contains an implementation for a RunInference pipeline that processes structured table rows from a file or Pub/Sub, runs ML inference while preserving the table schema, and writes results to BigQuery. It supports both batch (file input) and streaming (Pub/Sub) modes.
+
+### Prerequisites for table row inference
+
+Install dependencies (or use `apache_beam/ml/inference/table_row_inference_requirements.txt` from the `sdks/python` directory):
+
+```sh
+pip install apache-beam[gcp] scikit-learn google-cloud-pubsub
+```
+
+For streaming mode you need a Pub/Sub topic and subscription, a BigQuery dataset, and a GCS bucket for model and temp files.
+
+### Model and data for table row inference
+
+1. Create a scikit-learn model and sample data using the provided utilities:
+
+```sh
+python -m apache_beam.examples.inference.table_row_inference_utils --action=create_model --output_path=model.pkl --num_features=3
+python -m apache_beam.examples.inference.table_row_inference_utils --action=generate_data --output_path=input_data.jsonl --num_rows=1000 --num_features=3
+```
+
+2. Input data should be JSONL with an `id` field and feature columns, for example:
+
+```json
+{"id": "row_1", "feature1": 1.5, "feature2": 2.3, "feature3": 3.7}
+```
+
+### Running `table_row_inference.py` (batch)
+
+To run the table row inference pipeline in batch mode locally:
+
+```sh
+python -m apache_beam.examples.inference.table_row_inference \
+  --mode=batch \
+  --input_file=input_data.jsonl \
+  --output_table=PROJECT:DATASET.predictions \
+  --model_path=model.pkl \
+  --feature_columns=feature1,feature2,feature3 \
+  --runner=DirectRunner
+```
+
+### Running `table_row_inference.py` (streaming)
+
+For streaming mode, use a Pub/Sub subscription and DataflowRunner. Set up a topic and subscription first, then run:
+
+```sh
+python -m apache_beam.examples.inference.table_row_inference \
+  --mode=streaming \
+  --input_subscription=projects/PROJECT/subscriptions/SUBSCRIPTION \
+  --output_table=PROJECT:DATASET.predictions \
+  --model_path=gs://BUCKET/model.pkl \
+  --feature_columns=feature1,feature2,feature3 \
+  --runner=DataflowRunner \
+  --project=PROJECT \
+  --region=us-central1 \
+  --temp_location=gs://BUCKET/temp \
+  --staging_location=gs://BUCKET/staging
+```
+
+See the script for full pipeline options (window size, trigger interval, worker settings, etc.).
+
+Output is written to the BigQuery table with columns such as `row_key`, `prediction`, and the original input feature columns.
+
+---

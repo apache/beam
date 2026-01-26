@@ -92,8 +92,14 @@ class LoadTest(object):
   following environment options: `INFLUXDB_USER` and `INFLUXDB_USER_PASSWORD`.
   """
   def __init__(self, metrics_namespace=None):
-    # Be sure to set blocking to false for timeout_ms to work properly
-    self.pipeline = TestPipeline(is_integration_test=True, blocking=False)
+    options_class = getattr(self.__class__, 'options_class', None)
+    if options_class is not None:
+      options_list = TestPipeline.get_options_list()
+      options = options_class(options_list)
+      self.pipeline = TestPipeline(
+          options=options, is_integration_test=True, blocking=False)
+    else:
+      self.pipeline = TestPipeline(is_integration_test=True, blocking=False)
     assert not self.pipeline.blocking
 
     options = self.pipeline.get_pipeline_options().view_as(LoadTestOptions)

@@ -250,3 +250,35 @@ looks:
           title: AvgThroughputBytesPerSec by Version
         - id: dKyJy5ZKhkBdSTXRY3wZR6fXzptSs2qm
           title: AvgThroughputElementsPerSec by Version
+  tablerowinference:
+    write:
+      folder: 96
+      cost:
+        - id: Yj3r3VpFDxQwNmPzSsq7wJKf628FxtTg
+          title: RunTime and EstimatedCost
+      date:
+        - id: 82WSkFRcNHm5gbzWdSJFQxDPyGMwFMRj
+          title: AvgThroughputBytesPerSec by Date
+        - id: cN8GSph5PfJgTFxhZHgW4KfkvzhnXcFG
+          title: AvgThroughputElementsPerSec by Date
+      version:
+        - id: cxkwmK48MWZWB5bd4DHmGMsMs4VTf4Jd
+          title: AvgThroughputBytesPerSec by Version
+        - id: kCbhxxJbh2fyyZZFVtPQdpV5jX36CySQ
+          title: AvgThroughputElementsPerSec by Version
+  tablerowinferencestreaming:
+    write:
+      folder: 106
+      cost:
+        - id: WcSwy6KG8JQdYBVspDjbXqQgynrNWdxR
+          title: RunTime and EstimatedCost
+      date:
+        - id: c7h74dqjc4J7r4cGWFZwmzZK4WDBpRgt
+          title: AvgThroughputBytesPerSec by Date
+        - id: 7bznmBXqc2fwsQrGMfVWXZgNsyyq7Tdx
+          title: AvgThroughputElementsPerSec by Date
+      version:
+        - id: Y4464V8V4ngydnypmrrTVDmrYQsfb8mz
+          title: AvgThroughputBytesPerSec by Version
+        - id: P7wKZy6tQFWbbDfm4HzfCJnsQrVgfGsJ
+          title: AvgThroughputElementsPerSec by Version
