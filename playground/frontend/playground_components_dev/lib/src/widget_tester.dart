@@ -154,18 +154,21 @@ extension WidgetTesterExtension on WidgetTester {
     final eventSnippetContext = playgroundController.eventSnippetContext;
     expect(eventSnippetContext.snippet, null);
 
-    // 1. Trigger the run. We use runAsync because the Beam runner
-    // involves real network/asynchronous calls.
+    // 1. Ensure the button is visible before tapping. 
+    // Crucial for Embedded mode which has a smaller viewport.
+    final runButton = find.runOrCancelButton();
+    await ensureVisible(runButton);
+    await pumpAndSettle();
+
     await runAsync(() async {
-      await tap(find.runOrCancelButton());
+      await tap(runButton);
     });
 
-    // 2. Wait for the output to appear.
-    // We poll for the text because pumpAndSettle() doesn't always 
-    // catch the moment a network response updates the UI.
+    // 2. Wait for the output text to change.
+    // If output never appears, RunFinished will never fire.
     bool hasOutput = false;
     final stopwatch = Stopwatch()..start();
-    while (stopwatch.elapsed < const Duration(seconds: 10)) {
+    while (stopwatch.elapsed < const Duration(seconds: 15)) {
       await pump(const Duration(milliseconds: 200));
       if (findOutputText()!.isNotEmpty) {
         hasOutput = true;
@@ -173,37 +176,40 @@ extension WidgetTesterExtension on WidgetTester {
       }
     }
 
-    expect(hasOutput, isTrue, reason: 'Output never appeared in the console.');
+    expect(
+      hasOutput,
+      isTrue,
+      reason: 'Output never appeared. The Run action might have failed.',
+    );
 
     final actualText = findOutputText();
     expect(actualText, isNot(startsWith(kCachedResultsLog)));
     expectOutputIfDeployed(example, this);
 
-    // 3. Polling for the Analytics Event.
-    // We must use pump() inside the loop to allow the framework to 
-    // process the event dispatching.
+    // 3. Polling for the Analytics Event with Microtask Flushing
     RunFinishedAnalyticsEvent? finishedEvent;
-    
-    // Reset stopwatch for the event polling
     stopwatch.reset();
-    while (stopwatch.elapsed < const Duration(seconds: 5)) {
-      final event = PlaygroundComponents.analyticsService.lastEvent;
+    
+    while (stopwatch.elapsed < const Duration(seconds: 10)) {
+      // Flush microtasks - critical for dispatching analytics events in 3.10.4
+      await pump(Duration.zero); 
       
+      final event = PlaygroundComponents.analyticsService.lastEvent;
       if (event is RunFinishedAnalyticsEvent) {
         finishedEvent = event;
         break;
       }
 
-      // Advances the clock and processes microtasks/timers
-      await pump(const Duration(milliseconds: 200));
+      // Keep the real-world async bridge open
+      await runAsync(() => Future.delayed(const Duration(milliseconds: 200)));
+      await pump();
     }
 
     expect(
-      finishedEvent,
-      isNotNull,
+      finishedEvent, 
+      isNotNull, 
       reason: 'RunFinishedAnalyticsEvent was not fired. '
-          'Last captured event was: '
-          '${PlaygroundComponents.analyticsService.lastEvent}',
+              'Last event: ${PlaygroundComponents.analyticsService.lastEvent}'
     );
     
     expect(finishedEvent!.snippetContext, eventSnippetContext);
