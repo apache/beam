@@ -192,7 +192,8 @@ extension WidgetTesterExtension on WidgetTester {
       }
 
       // Allow real-world async network calls to resolve
-      await pump(const Duration(milliseconds: 200));
+      await runAsync(() => Future.delayed(const Duration(milliseconds: 200)));
+      await pump();
     }
 
     expect(

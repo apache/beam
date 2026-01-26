@@ -54,7 +54,7 @@ class RunOrCancelButton extends StatelessWidget {
         beforeRun?.call();
         final runner = playgroundController.codeRunner;
         await runner.runCode();
-        if (runner.result?.status == RunCodeStatus.finished) {
+        if (runner.result?.isFinished ?? false) {
           onComplete?.call(playgroundController.codeRunner);
         }
       },
