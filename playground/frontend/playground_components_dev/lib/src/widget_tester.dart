@@ -161,14 +161,31 @@ extension WidgetTesterExtension on WidgetTester {
     expect(actualText, isNot(startsWith(kCachedResultsLog)));
     expectOutputIfDeployed(example, this);
 
-    // Animation stops just before the analytics event is fired, wait a bit.
-    await Future.delayed(const Duration(seconds: 1));
+    // 1. Give the system a moment to actually process the run completion
+    await pumpAndSettle();
 
-    final event = PlaygroundComponents.analyticsService.lastEvent;
-    expect(event, isA<RunFinishedAnalyticsEvent>());
+    // 2. Poll for the expected event instead of a single check
+    RunFinishedAnalyticsEvent? finishedEvent;
+    final stopwatch = Stopwatch()..start();
 
-    final finishedEvent = event! as RunFinishedAnalyticsEvent;
-    expect(finishedEvent.snippetContext, eventSnippetContext);
+    while (stopwatch.elapsed < const Duration(seconds: 5)) {
+      final event = PlaygroundComponents.analyticsService.lastEvent;
+      if (event is RunFinishedAnalyticsEvent) {
+        finishedEvent = event;
+        break;
+      }
+      // Wait a small amount before checking again
+      await Future.delayed(const Duration(milliseconds: 200));
+    }
+
+    // 3. Final Assertions
+    expect(
+      finishedEvent,
+      isNotNull,
+      reason: 'RunFinishedAnalyticsEvent was not fired within 5 seconds',
+    );
+    expect(finishedEvent!.snippetContext, eventSnippetContext);
+
   }
 
   /// Modifies the code controller in a unique way by inserting timestamp
