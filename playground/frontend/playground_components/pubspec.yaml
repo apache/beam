@@ -26,12 +26,12 @@ environment:
 
 dependencies:
   aligned_dialog: ^0.0.6
-  app_state: 0.9.4
+  app_state: 0.9.4 # pin for 3.10.4 sdk
   clock: ^1.1.1
   collection: ^1.16.0
   connectivity_plus: ^2.3.9
-  easy_localization: 3.0.3
-  easy_localization_ext: 0.1.1
+  easy_localization: 3.0.3 # pin for 3.10.4 sdk
+  easy_localization_ext: 0.1.1 # pin for 3.10.4 sdk
   easy_localization_loader: ^1.0.0
   enum_map: ^0.2.1
   equatable: ^2.0.5
@@ -53,7 +53,7 @@ dependencies:
   hive_test: ^1.0.1
   http: ^0.13.5
   json_annotation: ^4.7.0
-  keyed_collection_widgets: 0.4.3
+  keyed_collection_widgets: 0.4.3 # pin for 3.10.4 sdk
   meta: ^1.7.0
   os_detect: ^2.0.1
   protobuf: ^2.1.0
@@ -65,18 +65,15 @@ dependencies:
   yaml: ^3.1.1
 
 dev_dependencies:
+  dart_style: 2.3.1 # pin for 3.10.4 sdk
   build_runner: ^2.2.0
   enum_map_gen: ^0.2.1
-  flutter_gen_runner: ^5.3.0
+  flutter_gen_core: 5.3.0 # pin for 3.10.4 sdk
+  flutter_gen_runner: 5.3.0 # pin for 3.10.4 sdk
   flutter_test: { sdk: flutter }
   json_serializable: ^6.4.1
   mockito: ^5.4.1
   total_lints: ^2.17.4
-
-dependency_overrides:
-  dart_style: 2.3.1
-  flutter_gen_core: 5.3.0
-  flutter_gen_runner: 5.3.0
 
 flutter:
   uses-material-design: true
