@@ -58,7 +58,9 @@ RUN npm update -g npm
 RUN npm install postcss postcss-cli autoprefixer
 
 # Install yarn
-RUN corepack enable \
+ENV COREPACK_HOME=/usr/local/share/corepack
+RUN mkdir -p "$COREPACK_HOME" \
+ && corepack enable \
  && corepack prepare yarn@1.22.22 --activate
 
 # Install hugo extended version v0.117.0
