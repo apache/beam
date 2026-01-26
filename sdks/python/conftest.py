@@ -54,8 +54,6 @@ def configure_beam_rpc_timeouts():
   """
   print("\n--- Applying Beam RPC timeout configuration ---")
 
-  bundle_timeout_ms = '600000' if sys.version_info >= (3, 13) else '300000'
-
   timeout_env_vars = {
       'GRPC_ARG_KEEPALIVE_TIME_MS': '30000',
       'GRPC_ARG_KEEPALIVE_TIMEOUT_MS': '10000',
@@ -74,7 +72,7 @@ def configure_beam_rpc_timeouts():
       'BEAM_RETRY_MAX_ATTEMPTS': '5',
       'BEAM_RETRY_INITIAL_DELAY_MS': '1000',
       'BEAM_RETRY_MAX_DELAY_MS': '60000',
-      'BEAM_RUNNER_BUNDLE_TIMEOUT_MS': bundle_timeout_ms,
+      'BEAM_RUNNER_BUNDLE_TIMEOUT_MS': '300000',
 
       # Force deterministic execution in DinD environment
       'BEAM_TESTING_FORCE_SINGLE_BUNDLE': 'true',
