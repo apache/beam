@@ -14,8 +14,9 @@ Example _$ExampleFromJson(Map<String, dynamic> json) => Example(
       sdk: Sdk.fromJson(json['sdk'] as Map<String, dynamic>),
       type: $enumDecode(_$ExampleTypeEnumMap, json['type']),
       path: json['path'] as String,
+      alwaysRun: json['alwaysRun'] as bool? ?? false,
       complexity: $enumDecodeNullable(_$ComplexityEnumMap, json['complexity']),
-      contextLine: json['contextLine'] as int? ?? 1,
+      contextLine: (json['contextLine'] as num?)?.toInt() ?? 1,
       datasets: (json['datasets'] as List<dynamic>?)
               ?.map((e) => Dataset.fromJson(e as Map<String, dynamic>))
               .toList() ??
@@ -38,6 +39,7 @@ Example _$ExampleFromJson(Map<String, dynamic> json) => Example(
     );
 
 Map<String, dynamic> _$ExampleToJson(Example instance) => <String, dynamic>{
+      'alwaysRun': instance.alwaysRun,
       'complexity': _$ComplexityEnumMap[instance.complexity],
       'contextLine': instance.contextLine,
       'datasets': instance.datasets,
