@@ -186,10 +186,17 @@ class ResourceEstimator:
 
   def add_observation(
       self, active_snapshot: Dict[str, int], peak_memory: float):
+    if active_snapshot:
+      model_list = "\n".join(
+          f"\t- {model}: {count}"
+          for model, count in sorted(active_snapshot.items()))
+    else:
+      model_list = "\t- None"
+
     logger.info(
-        "Adding Observation: Snapshot=%s, PeakMemory=%.1f MB",
-        active_snapshot,
-        peak_memory)
+        "Adding Observation:\n PeakMemory: %.1f MB\n  Instances:\n%s",
+        peak_memory,
+        model_list)
     if not active_snapshot:
       return
     with self._lock:
@@ -316,7 +323,8 @@ class ModelManager:
   It handles:
   1. LRU Caching of idle models.
   2. Resource estimation and admission control (preventing OOM).
-  3. Dynamic eviction of low-priority models when space is needed.
+  3. Dynamic eviction of low-priority models, determined by count of 
+    pending requests, when space is needed.
   4. 'Isolation Mode' for safely profiling unknown models.
   """
   _lock = threading.Lock()
@@ -343,24 +351,91 @@ class ModelManager:
 
     # Resource State
     self._models = defaultdict(list)
+    # Idle LRU used to track released models that
+    # can be freed or reused upon request.
     self._idle_lru = OrderedDict()
     self._active_counts = Counter()
     self._total_active_jobs = 0
     self._pending_reservations = 0.0
 
+    # Isolation state used to profile unknown models,
+    # ensuring they run alone to get accurate readings.
+    # isolation_baseline represents the GPU usage before
+    # loading the unknown model.
     self._isolation_mode = False
-    self._pending_isolation_count = 0
     self._isolation_baseline = 0.0
 
+    # Waiting Queue and Ticketing to make sure we have fair ordering
+    # and also priority for unknown models.
     self._wait_queue = []
     self._ticket_counter = itertools.count()
     self._cv = threading.Condition()
-    self._load_lock = threading.Lock()
 
     self._monitor.start()
 
   def all_models(self, tag) -> list[Any]:
     return self._models[tag]
+
+  def enter_isolation_mode(self, tag: str, ticket_num: int) -> bool:
+    if self._total_active_jobs > 0:
+      logger.info(
+          "Waiting to enter isolation: tag=%s ticket num=%s", tag, ticket_num)
+      self._cv.wait()
+      # return False since we have waited and need to re-evaluate
+      # in caller to make sure our priority is still valid.
+      return False
+
+    logger.info("Unknown model %s detected. Flushing GPU.", tag)
+    self._delete_all_models()
+
+    self._isolation_mode = True
+    self._total_active_jobs += 1
+    self._isolation_baseline, _, _ = self._monitor.get_stats()
+    self._monitor.reset_peak()
+    return True
+
+  def should_spawn_model(self, tag: str, ticket_num: int) -> bool:
+    curr, _, total = self._monitor.get_stats()
+    est_cost = self._estimator.get_estimate(tag)
+    limit = total * (1 - self._slack_percentage)
+
+    # Use current usage for capacity check (ignore old spikes)
+    if (curr + self._pending_reservations + est_cost) <= limit:
+      self._pending_reservations += est_cost
+      self._total_active_jobs += 1
+      self._active_counts[tag] += 1
+      return True
+
+    # Evict to make space (passing tag to check demand/existence)
+    if self._evict_to_make_space(limit, est_cost, requesting_tag=tag):
+      return True
+
+    # Manually log status for debugging if we are going to wait
+    idle_count = 0
+    other_idle_count = 0
+    for item in self._idle_lru.items():
+      if item[1][0] == tag:
+        idle_count += 1
+      else:
+        other_idle_count += 1
+    total_model_count = 0
+    for _, instances in self._models.items():
+      total_model_count += len(instances)
+    curr, _, _ = self._monitor.get_stats()
+    logger.info(
+        "Waiting for resources to free up: "
+        "tag=%s ticket num%s model count=%s "
+        "idle count=%s resource usage=%.1f MB "
+        "total models count=%s other idle=%s",
+        tag,
+        ticket_num,
+        len(self._models[tag]),
+        idle_count,
+        curr,
+        total_model_count,
+        other_idle_count)
+    self._cv.wait(timeout=10.0)
+    return False
 
   def acquire_model(self, tag: str, loader_func: Callable[[], Any]) -> Any:
     current_priority = 0 if self._estimator.is_unknown(tag) else 1
@@ -368,13 +443,15 @@ class ModelManager:
     my_id = object()
 
     with self._cv:
-      # FAST PATH
-      if self._pending_isolation_count == 0 and not self._isolation_mode:
+      # FAST PATH: Grab from idle LRU if available
+      if not self._isolation_mode:
         cached_instance = self._try_grab_from_lru(tag)
         if cached_instance:
           return cached_instance
 
-      # SLOW PATH
+      # SLOW PATH: Enqueue and wait for turn to acquire model,
+      # with unknown models having priority and order enforced
+      # by ticket number as FIFO.
       logger.info(
           "Acquire Queued: tag=%s, priority=%d "
           "total models count=%s ticket num=%s",
@@ -397,9 +474,11 @@ class ModelManager:
             self._cv.wait()
             continue
 
+          # Re-evaluate priority in case model became known during wait
           real_is_unknown = self._estimator.is_unknown(tag)
           real_priority = 0 if real_is_unknown else 1
 
+          # If priority changed, reinsert into queue and wait
           if current_priority != real_priority:
             heapq.heappop(self._wait_queue)
             current_priority = real_priority
@@ -408,6 +487,7 @@ class ModelManager:
             self._cv.notify_all()
             continue
 
+          # Try grab from LRU again in case model was released during wait
           cached_instance = self._try_grab_from_lru(tag)
           if cached_instance:
             return cached_instance
@@ -416,27 +496,17 @@ class ModelManager:
 
           # Path A: Isolation
           if is_unknown:
-            if self._total_active_jobs > 0:
-              logger.info(
-                  "Waiting to enter isolation: tag=%s ticket num=%s",
-                  tag,
-                  ticket_num)
-              self._cv.wait()
+            if self.enter_isolation_mode(tag, ticket_num):
+              should_spawn = True
+              break
+            else:
+              # We waited, need to re-evaluate our turn
+              # because priority may have changed during the wait
               continue
-
-            logger.info("Unknown model %s detected. Flushing GPU.", tag)
-            self._delete_all_models()
-
-            self._isolation_mode = True
-            self._total_active_jobs += 1
-            self._isolation_baseline, _, _ = self._monitor.get_stats()
-            self._monitor.reset_peak()
-            should_spawn = True
-            break
 
           # Path B: Concurrent
           else:
-            if self._pending_isolation_count > 0 or self._isolation_mode:
+            if self._isolation_mode:
               logger.info(
                   "Waiting due to isolation in progress: tag=%s ticket num%s",
                   tag,
@@ -444,48 +514,17 @@ class ModelManager:
               self._cv.wait()
               continue
 
-            curr, _, total = self._monitor.get_stats()
-            est_cost = self._estimator.get_estimate(tag)
-            limit = total * (1 - self._slack_percentage)
-
-            # Use current usage for capacity check (ignore old spikes)
-            if (curr + self._pending_reservations + est_cost) <= limit:
-              self._pending_reservations += est_cost
-              self._total_active_jobs += 1
-              self._active_counts[tag] += 1
+            if self.should_spawn_model(tag, ticket_num):
               should_spawn = True
+              est_cost = self._estimator.get_estimate(tag)
               break
-
-            # Evict to make space (passing tag to check demand/existence)
-            if self._evict_to_make_space(limit, est_cost, requesting_tag=tag):
+            else:
+              # We waited, need to re-evaluate our turn
+              # because priority may have changed during the wait
               continue
 
-            idle_count = 0
-            other_idle_count = 0
-            for item in self._idle_lru.items():
-              if item[1][0] == tag:
-                idle_count += 1
-              else:
-                other_idle_count += 1
-            total_model_count = 0
-            for _, instances in self._models.items():
-              total_model_count += len(instances)
-            curr, _, _ = self._monitor.get_stats()
-            logger.info(
-                "Waiting for resources to free up: "
-                "tag=%s ticket num%s model count=%s "
-                "idle count=%s resource usage=%.1f MB "
-                "total models count=%s other idle=%s",
-                tag,
-                ticket_num,
-                len(self._models[tag]),
-                idle_count,
-                curr,
-                total_model_count,
-                other_idle_count)
-            self._cv.wait(timeout=10.0)
-
       finally:
+        # Remove self from wait queue once done
         if self._wait_queue and self._wait_queue[0][2] is my_id:
           heapq.heappop(self._wait_queue)
         else:
@@ -495,8 +534,8 @@ class ModelManager:
               heapq.heapify(self._wait_queue)
         self._cv.notify_all()
 
-    if should_spawn:
-      return self._spawn_new_model(tag, loader_func, is_unknown, est_cost)
+      if should_spawn:
+        return self._spawn_new_model(tag, loader_func, is_unknown, est_cost)
 
   def release_model(self, tag: str, instance: Any):
     with self._cv:
@@ -507,14 +546,18 @@ class ModelManager:
 
         self._idle_lru[id(instance)] = (tag, instance, time.time())
 
+        # Update estimator with latest stats
         _, peak_during_job, _ = self._monitor.get_stats()
 
         if self._isolation_mode and self._active_counts[tag] == 0:
+          # For isolation mode, we directly set the initial estimate
+          # so that we can quickly learn the model cost.
           cost = max(0, peak_during_job - self._isolation_baseline)
           self._estimator.set_initial_estimate(tag, cost)
           self._isolation_mode = False
           self._isolation_baseline = 0.0
         else:
+          # Regular update for known models
           snapshot = {
               t: len(instances)
               for t, instances in self._models.items() if len(instances) > 0
@@ -536,6 +579,7 @@ class ModelManager:
         break
 
     if target_instance:
+      # Found an idle model, remove from LRU and return
       del self._idle_lru[target_key]
       self._active_counts[tag] += 1
       self._total_active_jobs += 1
@@ -550,20 +594,21 @@ class ModelManager:
     Evicts models based on Demand Magnitude + Tiers.
     Crucially: If we have 0 active copies of 'requesting_tag', we FORCE eviction
     of the lowest-demand candidate to avoid starvation.
+    Returns True if space was made, False otherwise.
     """
-    evicted_something = False
     curr, _, _ = self._monitor.get_stats()
     projected_usage = curr + self._pending_reservations + est_cost
 
     if projected_usage <= limit:
-      return False
+      # Memory usage changed and we are already under limit
+      return True
 
     now = time.time()
 
+    # Calculate the demand from the wait queue
     demand_map = Counter()
     for item in self._wait_queue:
-      if len(item) >= 4:
-        demand_map[item[3]] += 1
+      demand_map[item[3]] += 1
 
     my_demand = demand_map[requesting_tag]
     am_i_starving = len(self._models[requesting_tag]) == 0
@@ -572,10 +617,12 @@ class ModelManager:
     for key, (tag, instance, release_time) in self._idle_lru.items():
       candidate_demand = demand_map[tag]
 
-      if not am_i_starving:
-        if candidate_demand >= my_demand:
-          continue
+      if not am_i_starving and candidate_demand >= my_demand:
+        continue
 
+      # Attempts to score candidates based on hotness and manually
+      # specified minimum copies. Demand is weighted heavily to
+      # ensure we evict low-demand models first.
       age = now - release_time
       is_cold = age >= self._eviction_cooldown
 
@@ -593,6 +640,7 @@ class ModelManager:
 
     candidates.sort(key=lambda x: (x[0], x[1]))
 
+    # Evict candidates until we are under limit
     for score, _, key, tag, instance in candidates:
       if projected_usage <= limit:
         break
@@ -600,14 +648,13 @@ class ModelManager:
       if key not in self._idle_lru: continue
 
       self._perform_eviction(key, tag, instance, score)
-      evicted_something = True
 
       curr, _, _ = self._monitor.get_stats()
       projected_usage = curr + self._pending_reservations + est_cost
 
-    return evicted_something
+    return projected_usage <= limit
 
-  def _perform_eviction(self, key, tag, instance, score):
+  def _perform_eviction(self, key: str, tag: str, instance: Any, score: int):
     logger.info("Evicting Model: %s (Score %d)", tag, score)
     curr, _, _ = self._monitor.get_stats()
     logger.info("Resource Usage Before Eviction: %.1f MB", curr)
@@ -621,8 +668,7 @@ class ModelManager:
         del self._models[tag][i]
         break
 
-    if hasattr(instance, "trackedModelProxy_unsafe_hard_delete"):
-      instance.trackedModelProxy_unsafe_hard_delete()
+    instance.trackedModelProxy_unsafe_hard_delete()
     del instance
     gc.collect()
     torch.cuda.empty_cache()
@@ -631,18 +677,22 @@ class ModelManager:
     curr, _, _ = self._monitor.get_stats()
     logger.info("Resource Usage After Eviction: %.1f MB", curr)
 
-  def _spawn_new_model(self, tag, loader_func, is_unknown, est_cost):
+  def _spawn_new_model(
+      self,
+      tag: str,
+      loader_func: Callable[[], Any],
+      is_unknown: bool,
+      est_cost: float) -> Any:
     try:
-      with self._load_lock:
+      with self._cv:
         logger.info("Loading Model: %s (Unknown: %s)", tag, is_unknown)
-        isolation_baseline_snap, _, _ = self._monitor.get_stats()
+        baseline_snap, _, _ = self._monitor.get_stats()
         instance = TrackedModelProxy(loader_func())
         _, peak_during_load, _ = self._monitor.get_stats()
 
-      with self._cv:
         snapshot = {tag: 1}
         self._estimator.add_observation(
-            snapshot, peak_during_load - isolation_baseline_snap)
+            snapshot, peak_during_load - baseline_snap)
 
         if not is_unknown:
           self._pending_reservations = max(
@@ -668,8 +718,7 @@ class ModelManager:
     self._idle_lru.clear()
     for _, instances in self._models.items():
       for instance in instances:
-        if hasattr(instance, "trackedModelProxy_unsafe_hard_delete"):
-          instance.trackedModelProxy_unsafe_hard_delete()
+        instance.trackedModelProxy_unsafe_hard_delete()
         del instance
     self._models.clear()
     self._active_counts.clear()
@@ -688,7 +737,6 @@ class ModelManager:
     self._total_active_jobs = 0
     self._pending_reservations = 0.0
     self._isolation_mode = False
-    self._pending_isolation_count = 0
     self._isolation_baseline = 0.0
 
   def shutdown(self):
