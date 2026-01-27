@@ -970,6 +970,38 @@ class StagerTest(unittest.TestCase):
     self.assertFalse(
         os.path.isfile(os.path.join(staging_dir, 'another_old.tar.gz')))
 
+  def test_populate_requirements_cache_uses_find_links(self):
+    """Test that _populate_requirements_cache uses --find-links to reuse cache.
+
+    This test verifies that pip download is called with --find-links pointing
+    to the cache directory, so packages already in cache are reused instead
+    of being re-downloaded from PyPI.
+    """
+    requirements_cache_dir = self.make_temp_dir()
+    source_dir = self.make_temp_dir()
+
+    # Create a requirements file
+    requirements_file = os.path.join(source_dir, 'requirements.txt')
+    self.create_temp_file(requirements_file, 'some_package==1.0.0')
+
+    captured_cmd_args = []
+
+    def mock_check_output(cmd_args, **kwargs):
+      captured_cmd_args.extend(cmd_args)
+      return b''
+
+    with mock.patch(
+        'apache_beam.runners.portability.stager.processes.check_output',
+        side_effect=mock_check_output):
+      stager.Stager._populate_requirements_cache(
+          requirements_file, requirements_cache_dir)
+
+    # Verify --find-links is in the command with the cache directory
+    self.assertIn('--find-links', captured_cmd_args)
+    find_links_index = captured_cmd_args.index('--find-links')
+    self.assertEqual(
+        requirements_cache_dir, captured_cmd_args[find_links_index + 1])
+
 
 class TestStager(stager.Stager):
   def stage_artifact(self, local_path_to_artifact, artifact_name, sha256):

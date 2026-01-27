@@ -771,6 +771,8 @@ class Stager(object):
           'download',
           '--dest',
           download_dir,
+          '--find-links',
+          cache_dir,
           '-r',
           tmp_requirements_filepath,
           '--exists-action',
