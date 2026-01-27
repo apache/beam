@@ -369,6 +369,8 @@ class ModelManager:
     # and also priority for unknown models.
     self._wait_queue = []
     self._ticket_counter = itertools.count()
+    # TODO: Consider making the wait to be smarter, i.e.
+    # splitting read/write etc. to avoid potential contention.
     self._cv = threading.Condition()
 
     self._monitor.start()
