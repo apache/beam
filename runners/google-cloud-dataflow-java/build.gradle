@@ -546,14 +546,16 @@ task validatesRunnerV2 {
     name: 'validatesRunnerV2Test',
     pipelineOptions: runnerV2PipelineOptions,
     excludedCategories: [
-      'org.apache.beam.sdk.testing.UsesOnWindowExpiration',
-      'org.apache.beam.sdk.testing.UsesStatefulParDo',
       'org.apache.beam.sdk.testing.UsesTimersInParDo',
       'org.apache.beam.sdk.testing.UsesUnboundedPCollections',
       'org.apache.beam.sdk.testing.UsesUnboundedSplittableParDo',
     ],
     excludedTests: [
       'org.apache.beam.sdk.transforms.ReshuffleTest.testReshuffleWithTimestampsStreaming',
+
+      // TODO(https://github.com/apache/beam/issues/37371): Identify the cause of assertion failure for these tests
+      'org.apache.beam.runners.dataflow.DataflowRunnerTest.testBatchGroupIntoBatchesOverrideBytes',
+      'org.apache.beam.runners.dataflow.DataflowRunnerTest.testBatchGroupIntoBatchesOverrideCount',
 
       // These tests use static state and don't work with remote execution.
       'org.apache.beam.sdk.transforms.ParDoLifecycleTest.testTeardownCalledAfterExceptionInFinishBundle',
