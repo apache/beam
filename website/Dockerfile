@@ -40,6 +40,7 @@ RUN apt-get update \
         gnupg2 \
         gosu \
         lynx \
+    && pip3 install --upgrade pip --break-system-packages || true \
     && apt-get autoremove -yqq --purge \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
@@ -58,10 +59,9 @@ RUN npm update -g npm
 RUN npm install postcss postcss-cli autoprefixer
 
 # Install yarn
-ENV COREPACK_HOME=/usr/local/share/corepack
-RUN mkdir -p "$COREPACK_HOME" \
- && corepack enable \
- && corepack prepare yarn@1.22.22 --activate
+RUN set -eux; \
+    corepack enable; \
+    corepack prepare yarn@stable --activate
 
 # Install hugo extended version v0.117.0
 RUN HUGOHOME="$(mktemp -d)" \
