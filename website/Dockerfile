@@ -27,8 +27,7 @@ ENV DEBIAN_FRONTEND=noninteractive \
     LANG=C.UTF-8 \
     LC_ALL=C.UTF-8 \
     LC_CTYPE=C.UTF-8 \
-    LC_MESSAGES=C.UTF-8 \
-    COREPACK_HOME=/opt/.corepack
+    LC_MESSAGES=C.UTF-8
 
 WORKDIR /opt/
 
@@ -55,12 +54,15 @@ RUN curl -sL https://deb.nodesource.com/setup_lts.x | bash - \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
-# Update npm and enable corepack to install yarn
-RUN mkdir -p $COREPACK_HOME && chmod 777 $COREPACK_HOME \
-    && npm update -g npm \
-    && npm install -g postcss postcss-cli autoprefixer \
-    && corepack enable \
-    && corepack prepare yarn@stable --activate
+# Install npm
+RUN npm update -g npm
+RUN npm install postcss postcss-cli autoprefixer
+
+# Install yarn
+ENV COREPACK_HOME=/usr/local/share/corepack
+RUN mkdir -p "$COREPACK_HOME" \
+ && corepack enable \
+ && corepack prepare yarn@stable --activate
 
 # Install hugo extended version v0.117.0
 RUN HUGOHOME="$(mktemp -d)" \
