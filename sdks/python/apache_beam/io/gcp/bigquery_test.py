@@ -31,15 +31,12 @@ import time
 import unittest
 import uuid
 
+import apache_beam as beam
 import hamcrest as hc
 import mock
 import pytest
 import pytz
 import requests
-from parameterized import param
-from parameterized import parameterized
-
-import apache_beam as beam
 from apache_beam.internal import pickler
 from apache_beam.internal.gcp.json_value import to_json_value
 from apache_beam.io.filebasedsink_test import _TestCaseWithTempDirCleanUp
@@ -80,18 +77,19 @@ from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
 from apache_beam.transforms.display import DisplayData
 from apache_beam.transforms.display_test import DisplayDataItemMatcher
+from parameterized import param
+from parameterized import parameterized
 
 # Protect against environments where bigquery library is not available.
 # pylint: disable=wrong-import-order, wrong-import-position, ungrouped-imports
 
 try:
+  from apache_beam.io.gcp.internal.clients.bigquery import bigquery_v2_client
   from apitools.base.py.exceptions import HttpError
   from apitools.base.py.exceptions import HttpForbiddenError
   from google.api_core import exceptions
   from google.cloud import bigquery as gcp_bigquery
   from google.cloud import bigquery_storage_v1 as bq_storage
-
-  from apache_beam.io.gcp.internal.clients.bigquery import bigquery_v2_client
 except ImportError:
   gcp_bigquery = None
   bq_storage = None

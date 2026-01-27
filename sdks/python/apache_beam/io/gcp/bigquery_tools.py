@@ -43,10 +43,9 @@ from typing import Sequence
 from typing import TypeVar
 from typing import Union
 
+import apache_beam
 import fastavro
 import numpy as np
-
-import apache_beam
 from apache_beam import coders
 from apache_beam.internal.gcp import auth
 from apache_beam.internal.gcp.json_value import from_json_value
