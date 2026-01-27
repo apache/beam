@@ -630,6 +630,77 @@ class TestBigQueryToSchema(unittest.TestCase):
     self.assertEqual(result.data, '{"key": "value", "count": 42}')
 
 
+class TypeOverridesSchemaToolsTest(unittest.TestCase):
+  """Tests for type_overrides parameter in bigquery_schema_tools."""
+  def test_bq_field_to_type_with_overrides(self):
+    """Test bq_field_to_type function with type_overrides."""
+    import datetime
+    from apache_beam.io.gcp.bigquery_schema_tools import bq_field_to_type
+
+    # Without overrides
+    self.assertEqual(bq_field_to_type("DATE", "REQUIRED"), str)
+
+    # With overrides
+    overrides = {"DATE": datetime.date}
+    self.assertEqual(
+        bq_field_to_type("DATE", "REQUIRED", overrides), datetime.date)
+    self.assertEqual(
+        bq_field_to_type("DATE", "NULLABLE", overrides),
+        typing.Optional[datetime.date])
+    self.assertEqual(
+        bq_field_to_type("DATE", "REPEATED", overrides),
+        typing.Sequence[datetime.date])
+
+  def test_generate_user_type_with_overrides(self):
+    """Test generate_user_type_from_bq_schema with type_overrides."""
+    import datetime
+
+    schema = bigquery.TableSchema(
+        fields=[
+            bigquery.TableFieldSchema(
+                name='id', type='INTEGER', mode="REQUIRED"),
+            bigquery.TableFieldSchema(
+                name='event_date', type='DATE', mode="NULLABLE")
+        ])
+
+    # Without overrides
+    usertype = bigquery_schema_tools.generate_user_type_from_bq_schema(schema)
+    self.assertEqual(
+        usertype.__annotations__, {
+            'id': np.int64, 'event_date': typing.Optional[str]
+        })
+
+    # With overrides
+    overrides = {"DATE": datetime.date}
+    usertype_with_override = \
+        bigquery_schema_tools.generate_user_type_from_bq_schema(
+            schema, type_overrides=overrides)
+    self.assertEqual(
+        usertype_with_override.__annotations__, {
+            'id': np.int64, 'event_date': typing.Optional[datetime.date]
+        })
+
+  def test_convert_to_usertype_with_overrides(self):
+    """Test convert_to_usertype function with type_overrides."""
+    import datetime
+
+    schema = bigquery.TableSchema(
+        fields=[
+            bigquery.TableFieldSchema(
+                name='id', type='INTEGER', mode="REQUIRED"),
+            bigquery.TableFieldSchema(
+                name='event_date', type='DATE', mode="NULLABLE")
+        ])
+
+    overrides = {"DATE": datetime.date}
+    transform = bigquery_schema_tools.convert_to_usertype(
+        schema, type_overrides=overrides)
+
+    # The transform should be created successfully
+    self.assertIsNotNone(transform)
+    self.assertIsInstance(transform, beam.ParDo)
+
+
 if __name__ == '__main__':
   logging.getLogger().setLevel(logging.INFO)
   unittest.main()

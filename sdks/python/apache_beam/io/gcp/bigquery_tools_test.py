@@ -1255,6 +1255,139 @@ class TestGeographyTypeSupport(unittest.TestCase):
     self.assertIsInstance(result, str)
 
 
+class TestTypeOverrides(unittest.TestCase):
+  """Tests for type_overrides parameter in BigQuery type mappings."""
+  def test_type_overrides_basic(self):
+    """Test that type_overrides overrides default type mappings."""
+    import datetime
+    schema = {
+        "fields": [{
+            "name": "date_field", "type": "DATE", "mode": "REQUIRED"
+        },
+                   {
+                       "name": "datetime_field",
+                       "type": "DATETIME",
+                       "mode": "REQUIRED"
+                   }]
+    }
+
+    # Without overrides, DATE and DATETIME map to str
+    typehints = get_beam_typehints_from_tableschema(schema)
+    self.assertEqual(typehints, [("date_field", str), ("datetime_field", str)])
+
+    # With overrides, use custom types
+    type_overrides = {"DATE": datetime.date, "DATETIME": datetime.datetime}
+    typehints_with_override = get_beam_typehints_from_tableschema(
+        schema, type_overrides)
+    self.assertEqual(
+        typehints_with_override, [("date_field", datetime.date),
+                                  ("datetime_field", datetime.datetime)])
+
+  def test_type_overrides_with_modes(self):
+    """Test that type_overrides works with NULLABLE and REPEATED modes."""
+    import datetime
+    schema = {
+        "fields": [{
+            "name": "required_date", "type": "DATE", "mode": "REQUIRED"
+        }, {
+            "name": "optional_date", "type": "DATE", "mode": "NULLABLE"
+        }, {
+            "name": "repeated_dates", "type": "DATE", "mode": "REPEATED"
+        }]
+    }
+
+    type_overrides = {"DATE": datetime.date}
+    typehints = get_beam_typehints_from_tableschema(schema, type_overrides)
+
+    expected = [("required_date", datetime.date),
+                ("optional_date", Optional[datetime.date]),
+                ("repeated_dates", Sequence[datetime.date])]
+    self.assertEqual(typehints, expected)
+
+  def test_type_overrides_partial(self):
+    """Test that type_overrides only affects specified types."""
+    import datetime
+    schema = {
+        "fields": [{
+            "name": "date_field", "type": "DATE", "mode": "REQUIRED"
+        }, {
+            "name": "string_field", "type": "STRING", "mode": "REQUIRED"
+        }, {
+            "name": "int_field", "type": "INTEGER", "mode": "REQUIRED"
+        }]
+    }
+
+    # Only override DATE
+    type_overrides = {"DATE": datetime.date}
+    typehints = get_beam_typehints_from_tableschema(schema, type_overrides)
+
+    expected = [("date_field", datetime.date), ("string_field", str),
+                ("int_field", np.int64)]
+    self.assertEqual(typehints, expected)
+
+  def test_type_overrides_with_nested_struct(self):
+    """Test that type_overrides is propagated to nested STRUCT fields."""
+    import datetime
+    schema = bigquery.TableSchema()
+
+    # Root field
+    date_field = bigquery.TableFieldSchema()
+    date_field.name = "date_field"
+    date_field.type = "DATE"
+    date_field.mode = "REQUIRED"
+
+    # Nested struct with DATE field
+    struct_field = bigquery.TableFieldSchema()
+    struct_field.name = "nested"
+    struct_field.type = "RECORD"
+    struct_field.mode = "REQUIRED"
+
+    nested_date = bigquery.TableFieldSchema()
+    nested_date.name = "nested_date"
+    nested_date.type = "DATE"
+    nested_date.mode = "REQUIRED"
+    struct_field.fields.append(nested_date)
+
+    schema.fields.append(date_field)
+    schema.fields.append(struct_field)
+
+    type_overrides = {"DATE": datetime.date}
+    typehints = get_beam_typehints_from_tableschema(schema, type_overrides)
+
+    self.assertEqual(len(typehints), 2)
+    self.assertEqual(typehints[0], ("date_field", datetime.date))
+    # The nested field's DATE should also be overridden
+    nested_constraint = typehints[1][1]
+    nested_fields = nested_constraint._fields
+    self.assertEqual(nested_fields[0], ("nested_date", datetime.date))
+
+  def test_type_overrides_empty_dict(self):
+    """Test that empty type_overrides dict uses default mappings."""
+    schema = {
+        "fields": [{
+            "name": "date_field", "type": "DATE", "mode": "REQUIRED"
+        }]
+    }
+
+    typehints_none = get_beam_typehints_from_tableschema(schema, None)
+    typehints_empty = get_beam_typehints_from_tableschema(schema, {})
+
+    self.assertEqual(typehints_none, typehints_empty)
+    self.assertEqual(typehints_none, [("date_field", str)])
+
+  def test_type_overrides_json_to_dict(self):
+    """Test overriding JSON type to dict."""
+    schema = {"fields": [{"name": "data", "type": "JSON", "mode": "NULLABLE"}]}
+
+    # Default: JSON -> str
+    typehints = get_beam_typehints_from_tableschema(schema)
+    self.assertEqual(typehints, [("data", Optional[str])])
+
+    # Override: JSON -> dict
+    typehints_dict = get_beam_typehints_from_tableschema(schema, {"JSON": dict})
+    self.assertEqual(typehints_dict, [("data", Optional[dict])])
+
+
 if __name__ == '__main__':
   logging.getLogger().setLevel(logging.INFO)
   unittest.main()
