@@ -167,10 +167,48 @@ class KeyModelPathMapping(Generic[KeyT]):
 
 class ModelHandler(Generic[ExampleT, PredictionT, ModelT]):
   """Has the ability to load and apply an ML model."""
-  def __init__(self):
-    """Environment variables are set using a dict named 'env_vars' before
-    loading the model. Child classes can accept this dict as a kwarg."""
-    self._env_vars = {}
+  def __init__(
+      self,
+      *,
+      min_batch_size: Optional[int] = None,
+      max_batch_size: Optional[int] = None,
+      max_batch_duration_secs: Optional[int] = None,
+      max_batch_weight: Optional[int] = None,
+      element_size_fn: Optional[Callable[[Any], int]] = None,
+      large_model: bool = False,
+      model_copies: Optional[int] = None,
+      **kwargs):
+    """Initializes the ModelHandler.
+
+    Args:
+      min_batch_size: the minimum batch size to use when batching inputs.
+      max_batch_size: the maximum batch size to use when batching inputs.
+      max_batch_duration_secs: the maximum amount of time to buffer a batch
+        before emitting; used in streaming contexts.
+      max_batch_weight: the maximum weight of a batch. Requires element_size_fn.
+      element_size_fn: a function that returns the size (weight) of an element.
+      large_model: set to true if your model is large enough to run into
+        memory pressure if you load multiple copies.
+      model_copies: The exact number of models that you would like loaded
+        onto your machine.
+      kwargs: 'env_vars' can be used to set environment variables
+        before loading the model.
+    """
+    self._env_vars = kwargs.get('env_vars', {})
+    self._batching_kwargs: dict[str, Any] = {}
+    if min_batch_size is not None:
+      self._batching_kwargs['min_batch_size'] = min_batch_size
+    if max_batch_size is not None:
+      self._batching_kwargs['max_batch_size'] = max_batch_size
+    if max_batch_duration_secs is not None:
+      self._batching_kwargs['max_batch_duration_secs'] = max_batch_duration_secs
+    if max_batch_weight is not None:
+      self._batching_kwargs['max_batch_weight'] = max_batch_weight
+    if element_size_fn is not None:
+      self._batching_kwargs['element_size_fn'] = element_size_fn
+    self._large_model = large_model
+    self._model_copies = model_copies
+    self._share_across_processes = large_model or (model_copies is not None)
 
   def load_model(self) -> ModelT:
     """Loads and initializes a model for processing."""
@@ -220,7 +258,7 @@ class ModelHandler(Generic[ExampleT, PredictionT, ModelT]):
     Returns:
        kwargs suitable for beam.BatchElements.
     """
-    return {}
+    return getattr(self, '_batching_kwargs', {})
 
   def validate_inference_args(self, inference_args: Optional[dict[str, Any]]):
     """
@@ -325,14 +363,14 @@ class ModelHandler(Generic[ExampleT, PredictionT, ModelT]):
     memory. Multi-process support may vary by runner, but this will fallback to
     loading per process as necessary. See
     https://beam.apache.org/releases/pydoc/current/apache_beam.utils.multi_process_shared.html"""
-    return False
+    return getattr(self, '_share_across_processes', False)
 
   def model_copies(self) -> int:
     """Returns the maximum number of model copies that should be loaded at one
     time. This only impacts model handlers that are using
     share_model_across_processes to share their model across processes instead
     of being loaded per process."""
-    return 1
+    return getattr(self, '_model_copies', None) or 1
 
   def override_metrics(self, metrics_namespace: str = '') -> bool:
     """Returns a boolean representing whether or not a model handler will
