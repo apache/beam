@@ -150,7 +150,6 @@ extension WidgetTesterExtension on WidgetTester {
   Future<void> modifyRunExpectReal(ExampleDescriptor example) async {
     modifyCodeController();
 
-    // 1. Get the controller for context (casting is unnecessary here)
     final controller = findPlaygroundController();
     final eventSnippetContext = (controller as dynamic).eventSnippetContext;
 
@@ -162,45 +161,51 @@ extension WidgetTesterExtension on WidgetTester {
       await tap(runButton);
     });
 
-    // 2. Wait for output text
+    // Combined loop to wait for both the visual output and the analytics event.
+    // This is more robust against events being overwritten in 'lastEvent'.
+    RunFinishedAnalyticsEvent? finishedEvent;
     bool hasOutput = false;
     final stopwatch = Stopwatch()..start();
-    while (stopwatch.elapsed < const Duration(seconds: 15)) {
-      await pump(const Duration(milliseconds: 200));
-      if (findOutputText()?.isNotEmpty ?? false) {
-        hasOutput = true;
-        break;
-      }
-    }
-    expect(hasOutput, isTrue, reason: 'Output never appeared.');
-
-    // 3. Polling for the Analytics Event via the Global Service
-    RunFinishedAnalyticsEvent? finishedEvent;
-    stopwatch.reset();
     
-    while (stopwatch.elapsed < const Duration(seconds: 10)) {
-      // Process microtasks (Essential for Flutter Web)
-      await pump(Duration.zero); 
+    while (stopwatch.elapsed < const Duration(seconds: 20)) {
+      // 1. Process microtasks and timers. 
+      // Non-zero duration helps Flutter Web 3.10.4 process the event queue.
+      await pump(const Duration(milliseconds: 100)); 
       
-      // FIX: Access the service globally. This avoids the "missing getter" 
-      // on the controller and works in both Standalone and Embedded.
+      // 2. Check for output text (visual confirmation)
+      if (!hasOutput && (findOutputText()?.isNotEmpty ?? false)) {
+        hasOutput = true;
+      }
+      
+      // 3. Capture the event if it appears in 'lastEvent'
       final event = PlaygroundComponents.analyticsService.lastEvent;
-      
       if (event is RunFinishedAnalyticsEvent) {
         finishedEvent = event;
+      }
+
+      // Exit early ONLY if we have both confirmation of run and the event
+      if (hasOutput && finishedEvent != null) {
         break;
       }
 
-      // Allow real-world async network calls to resolve
-      await runAsync(() => Future.delayed(const Duration(milliseconds: 200)));
-      await pump();
+      // 4. Yield control to the engine to allow real-world async calls to 
+      // resolve
+      await runAsync(() => Future.delayed(const Duration(milliseconds: 100)));
     }
+
+    expect(
+      hasOutput, 
+      isTrue, 
+      reason: 'Output never appeared. The run might not have started.'
+    );
 
     expect(
       finishedEvent, 
       isNotNull, 
-      reason: 'RunFinishedAnalyticsEvent was not '
-      'fired on PlaygroundComponents.analyticsService.'
+      reason: 'RunFinishedAnalyticsEvent was not fired on '
+      'PlaygroundComponents.analyticsService. '
+      'The last captured event was: '
+      '${PlaygroundComponents.analyticsService.lastEvent}'
     );
     
     expect(finishedEvent!.snippetContext, eventSnippetContext);
