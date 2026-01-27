@@ -1421,7 +1421,7 @@ class OutputDecoratorTestCase(TypeHintTestCase):
       return 5, 'bar'
 
   def test_no_kwargs_accepted(self):
-    with self.assertRaisesRegex(ValueError, r'must be positional'):
+    with self.assertRaisesRegex(ValueError, r'single positional argument'):
 
       @with_output_types(m=int)
       def unused_foo():

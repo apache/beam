@@ -24,6 +24,7 @@ import typing
 import unittest
 
 from apache_beam import Map
+from apache_beam.pvalue import TaggedOutput
 from apache_beam.typehints import Any
 from apache_beam.typehints import Dict
 from apache_beam.typehints import List
@@ -262,6 +263,75 @@ class IOTypeHintsTest(unittest.TestCase):
     th = decorators.IOTypeHints.from_callable(fn)
     self.assertRegex(th.debug_str(), r'unknown')
 
+  def test_from_callable_no_tagged_output(self):
+    def fn(x: int) -> str:
+      return str(x)
+
+    th = decorators.IOTypeHints.from_callable(fn)
+    self.assertEqual(th.input_types, ((int, ), {}))
+    self.assertEqual(th.output_types, ((str, ), {}))
+
+    def fn2(x: int) -> typing.Iterable[str]:
+      yield str(x)
+
+    th = decorators.IOTypeHints.from_callable(fn2)
+    self.assertEqual(th.input_types, ((int, ), {}))
+    self.assertEqual(th.output_types, ((typehints.Iterable[str], ), {}))
+
+  def test_from_callable_tagged_output_union(self):
+    def fn(
+        x: int
+    ) -> int | str | TaggedOutput[typing.Literal['errors'], float
+                                  | str] | TaggedOutput[
+                                      typing.Literal['warnings'], str]:
+      return x
+
+    th = decorators.IOTypeHints.from_callable(fn)
+    self.assertEqual(th.input_types, ((int, ), {}))
+    self.assertEqual(
+        th.output_types,
+        ((typehints.Union[int, str], ), {
+            'errors': typehints.Union[float, str], 'warnings': str
+        }))
+
+  def test_from_callable_tagged_output_iterable(self):
+    def fn(
+        x: int
+    ) -> typing.Iterable[int | TaggedOutput[typing.Literal['errors'], str]]:
+      yield x
+
+    th = decorators.IOTypeHints.from_callable(fn)
+    self.assertEqual(th.input_types, ((int, ), {}))
+    self.assertEqual(
+        th.output_types, ((typehints.Iterable[int], ), {
+            'errors': str
+        }))
+
+  def test_from_callable_tagged_output_multiple_tags(self):
+    def fn(
+        x: int
+    ) -> (
+        int | TaggedOutput[typing.Literal['errors'], str] |
+        TaggedOutput[typing.Literal['warnings'], str]):
+      return x
+
+    th = decorators.IOTypeHints.from_callable(fn)
+    self.assertEqual(th.input_types, ((int, ), {}))
+    self.assertEqual(
+        th.output_types, ((int, ), {
+            'errors': str, 'warnings': str
+        }))
+
+  def test_from_callable_tagged_output_only(self):
+    def fn(x: int) -> TaggedOutput[typing.Literal['errors'], str]:
+      pass
+
+    th = decorators.IOTypeHints.from_callable(fn)
+    self.assertEqual(th.input_types, ((int, ), {}))
+    self.assertEqual(th.output_types, ((Any, ), {
+        'errors': str
+    }))
+
   def test_getcallargs_forhints(self):
     def fn(
         a: int,
@@ -424,6 +494,116 @@ class DecoratorsTest(unittest.TestCase):
       return a
 
     _ = ['a', 'b', 'c'] | Map(fn2)  # Doesn't raise - no input type hints.
+
+
+class TaggedOutputExtractionTest(unittest.TestCase):
+  """Tests for TaggedOutput extraction helper functions."""
+  def test_contains_tagged_output_true_direct(self):
+    t = TaggedOutput[typing.Literal['errors'], str]
+    self.assertTrue(decorators._contains_tagged_output(t))
+
+  def test_contains_tagged_output_true_in_union(self):
+    t = int | TaggedOutput[typing.Literal['errors'], str]
+    self.assertTrue(decorators._contains_tagged_output(t))
+
+  def test_contains_tagged_output_true_in_iterable(self):
+    t = typing.Iterable[int | TaggedOutput[typing.Literal['errors'], str]]
+    self.assertTrue(decorators._contains_tagged_output(t))
+
+  def test_contains_tagged_output_false_simple_type(self):
+    self.assertFalse(decorators._contains_tagged_output(int))
+    self.assertFalse(decorators._contains_tagged_output(str))
+
+  def test_contains_tagged_output_false_union_no_tagged(self):
+    t = int | str
+    self.assertFalse(decorators._contains_tagged_output(t))
+
+  def test_contains_tagged_output_false_iterable_no_tagged(self):
+    t = typing.Iterable[int]
+    self.assertFalse(decorators._contains_tagged_output(t))
+
+  def test_contains_tagged_output_false_deeply_nested(self):
+    t = typing.List[typing.Tuple[TaggedOutput[typing.Literal['errors'], str]]]
+    self.assertFalse(decorators._contains_tagged_output(t))
+
+  def test_extract_main_and_tagged_simple_type(self):
+    main, tagged = decorators._extract_main_and_tagged(int)
+    self.assertEqual(main, int)
+    self.assertEqual(tagged, {})
+
+  def test_extract_main_and_tagged_tagged_output_only(self):
+    t = TaggedOutput[typing.Literal['errors'], str]
+    main, tagged = decorators._extract_main_and_tagged(t)
+    self.assertIsNone(main)
+    self.assertEqual(tagged, {'errors': str})
+
+  def test_extract_main_and_tagged_union(self):
+    t = int | TaggedOutput[typing.Literal['errors'], str]
+    main, tagged = decorators._extract_main_and_tagged(t)
+    self.assertEqual(main, int)
+    self.assertEqual(tagged, {'errors': str})
+
+  def test_extract_main_and_tagged_union_multiple_tagged(self):
+    t = (
+        int | TaggedOutput[typing.Literal['errors'], str]
+        | TaggedOutput[typing.Literal['warnings'], str])
+    main, tagged = decorators._extract_main_and_tagged(t)
+    self.assertEqual(main, int)
+    self.assertEqual(tagged, {'errors': str, 'warnings': str})
+
+  def test_extract_main_and_tagged_union_multiple_main_types(self):
+    t = (int | str | TaggedOutput[typing.Literal['errors'], bytes])
+    main, tagged = decorators._extract_main_and_tagged(t)
+    # Main type should be Union[int, str]
+    self.assertEqual(typing.get_origin(main), typing.Union)
+    self.assertIn(int, typing.get_args(main))
+    self.assertIn(str, typing.get_args(main))
+    self.assertEqual(tagged, {'errors': bytes})
+
+  def test_extract_output_types_empty_signature(self):
+    import inspect
+    main, tagged = decorators._extract_output_types(inspect.Signature.empty)
+    self.assertEqual(main, [typing.Any])
+    self.assertEqual(tagged, {})
+
+  def test_extract_output_types_simple_type(self):
+    main, tagged = decorators._extract_output_types(int)
+    self.assertEqual(main, [int])
+    self.assertEqual(tagged, {})
+
+  def test_extract_output_types_union_with_tagged(self):
+    t = int | TaggedOutput[typing.Literal['errors'], str]
+    main, tagged = decorators._extract_output_types(t)
+    self.assertEqual(main, [int])
+    self.assertEqual(tagged, {'errors': str})
+
+  def test_extract_output_types_iterable_with_tagged(self):
+    t = typing.Iterable[int | TaggedOutput[typing.Literal['errors'], str]]
+    main, tagged = decorators._extract_output_types(t)
+    self.assertEqual(main, [typing.Iterable[int]])
+    self.assertEqual(tagged, {'errors': str})
+
+  def test_extract_output_types_list_with_tagged_not_extracted(self):
+    t = typing.List[int | TaggedOutput[typing.Literal['errors'], str]]
+    _, tagged = decorators._extract_output_types(t)
+    # The whole type is converted as-is. Users should use Iterable instead.
+    self.assertEqual(tagged, {})
+
+  def test_extract_output_types_tagged_only(self):
+    t = TaggedOutput[typing.Literal['errors'], str]
+    main, tagged = decorators._extract_output_types(t)
+    self.assertEqual(main, [typing.Any])
+    self.assertEqual(tagged, {'errors': str})
+
+  def test_extract_output_types_iterable_tagged_only(self):
+    t = typing.Iterable[TaggedOutput[typing.Literal['errors'], str]]
+    main, tagged = decorators._extract_output_types(t)
+    self.assertEqual(main, [typing.Iterable[typing.Any]])
+    self.assertEqual(tagged, {'errors': str})
+
+  def test_extract_main_and_tagged_bare_tagged_output_raises(self):
+    with self.assertRaises(TypeError):
+      decorators._extract_main_and_tagged(TaggedOutput)
 
 
 if __name__ == '__main__':
