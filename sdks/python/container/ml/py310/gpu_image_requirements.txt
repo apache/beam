@@ -242,7 +242,7 @@ pytest-xdist==3.8.0
 python-dateutil==2.9.0.post0
 python-dotenv==1.2.1
 python-json-logger==4.0.0
-python-multipart==0.0.21
+python-multipart==0.0.22
 python-tds==1.17.1
 pytz==2025.2
 PyYAML==6.0.3
