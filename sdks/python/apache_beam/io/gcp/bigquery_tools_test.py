@@ -1016,8 +1016,7 @@ class TestBeamRowFromDict(unittest.TestCase):
 class TestBeamTypehintFromSchema(unittest.TestCase):
   EXPECTED_TYPEHINTS = [("str", str), ("bool", bool), ("bytes", bytes),
                         ("int", np.int64), ("float", np.float64),
-                        ("numeric", decimal.Decimal), ("timestamp", Timestamp),
-                        ("date", str), ("datetime", str), ("json", str)]
+                        ("numeric", decimal.Decimal), ("timestamp", Timestamp)]
 
   def get_schema_fields_with_mode(self, mode):
     return [{
@@ -1034,12 +1033,6 @@ class TestBeamTypehintFromSchema(unittest.TestCase):
         "name": "numeric", "type": "NUMERIC", "mode": mode
     }, {
         "name": "timestamp", "type": "TIMESTAMP", "mode": mode
-    }, {
-        "name": "date", "type": "DATE", "mode": mode
-    }, {
-        "name": "datetime", "type": "DATETIME", "mode": mode
-    }, {
-        "name": "json", "type": "JSON", "mode": mode
     }]
 
   def test_typehints_from_required_schema(self):
@@ -1257,8 +1250,35 @@ class TestGeographyTypeSupport(unittest.TestCase):
 
 class TestTypeOverrides(unittest.TestCase):
   """Tests for type_overrides parameter in BigQuery type mappings."""
-  def test_type_overrides_basic(self):
-    """Test that type_overrides overrides default type mappings."""
+  def test_type_overrides_enables_unsupported_types(self):
+    """Test that type_overrides enables support for DATE/DATETIME/JSON."""
+    import datetime
+    schema = {
+        "fields": [{
+            "name": "date_field", "type": "DATE", "mode": "REQUIRED"
+        },
+                   {
+                       "name": "datetime_field",
+                       "type": "DATETIME",
+                       "mode": "REQUIRED"
+                   }, {
+                       "name": "json_field", "type": "JSON", "mode": "REQUIRED"
+                   }]
+    }
+
+    # Without overrides, these types are not supported
+    with self.assertRaises(ValueError):
+      get_beam_typehints_from_tableschema(schema)
+
+    # With overrides, they work
+    type_overrides = {"DATE": str, "DATETIME": str, "JSON": str}
+    typehints = get_beam_typehints_from_tableschema(schema, type_overrides)
+    self.assertEqual(
+        typehints, [("date_field", str), ("datetime_field", str),
+                    ("json_field", str)])
+
+  def test_type_overrides_with_custom_types(self):
+    """Test type_overrides with custom Python types."""
     import datetime
     schema = {
         "fields": [{
@@ -1271,17 +1291,11 @@ class TestTypeOverrides(unittest.TestCase):
                    }]
     }
 
-    # Without overrides, DATE and DATETIME map to str
-    typehints = get_beam_typehints_from_tableschema(schema)
-    self.assertEqual(typehints, [("date_field", str), ("datetime_field", str)])
-
-    # With overrides, use custom types
     type_overrides = {"DATE": datetime.date, "DATETIME": datetime.datetime}
-    typehints_with_override = get_beam_typehints_from_tableschema(
-        schema, type_overrides)
+    typehints = get_beam_typehints_from_tableschema(schema, type_overrides)
     self.assertEqual(
-        typehints_with_override, [("date_field", datetime.date),
-                                  ("datetime_field", datetime.datetime)])
+        typehints, [("date_field", datetime.date),
+                    ("datetime_field", datetime.datetime)])
 
   def test_type_overrides_with_modes(self):
     """Test that type_overrides works with NULLABLE and REPEATED modes."""
@@ -1304,8 +1318,8 @@ class TestTypeOverrides(unittest.TestCase):
                 ("repeated_dates", Sequence[datetime.date])]
     self.assertEqual(typehints, expected)
 
-  def test_type_overrides_partial(self):
-    """Test that type_overrides only affects specified types."""
+  def test_type_overrides_mixed_with_default_types(self):
+    """Test type_overrides alongside default type mappings."""
     import datetime
     schema = {
         "fields": [{
@@ -1317,7 +1331,6 @@ class TestTypeOverrides(unittest.TestCase):
         }]
     }
 
-    # Only override DATE
     type_overrides = {"DATE": datetime.date}
     typehints = get_beam_typehints_from_tableschema(schema, type_overrides)
 
@@ -1361,29 +1374,36 @@ class TestTypeOverrides(unittest.TestCase):
     nested_fields = nested_constraint._fields
     self.assertEqual(nested_fields[0], ("nested_date", datetime.date))
 
-  def test_type_overrides_empty_dict(self):
-    """Test that empty type_overrides dict uses default mappings."""
+  def test_type_overrides_can_override_default_types(self):
+    """Test that type_overrides can override default type mappings."""
     schema = {
         "fields": [{
-            "name": "date_field", "type": "DATE", "mode": "REQUIRED"
+            "name": "geo_field", "type": "GEOGRAPHY", "mode": "REQUIRED"
         }]
     }
 
-    typehints_none = get_beam_typehints_from_tableschema(schema, None)
-    typehints_empty = get_beam_typehints_from_tableschema(schema, {})
+    # Without overrides, GEOGRAPHY maps to str (default)
+    typehints = get_beam_typehints_from_tableschema(schema, None)
+    self.assertEqual(typehints, [("geo_field", str)])
 
-    self.assertEqual(typehints_none, typehints_empty)
-    self.assertEqual(typehints_none, [("date_field", str)])
+    # With overrides, we can change it
+    typehints_override = get_beam_typehints_from_tableschema(
+        schema, {"GEOGRAPHY": bytes})
+    self.assertEqual(typehints_override, [("geo_field", bytes)])
 
   def test_type_overrides_json_to_dict(self):
-    """Test overriding JSON type to dict."""
+    """Test using type_overrides to map JSON to dict."""
     schema = {"fields": [{"name": "data", "type": "JSON", "mode": "NULLABLE"}]}
 
-    # Default: JSON -> str
-    typehints = get_beam_typehints_from_tableschema(schema)
-    self.assertEqual(typehints, [("data", Optional[str])])
+    # Without overrides, JSON is not supported
+    with self.assertRaises(ValueError):
+      get_beam_typehints_from_tableschema(schema)
 
-    # Override: JSON -> dict
+    # With overrides, can map to str
+    typehints_str = get_beam_typehints_from_tableschema(schema, {"JSON": str})
+    self.assertEqual(typehints_str, [("data", Optional[str])])
+
+    # Or map to dict
     typehints_dict = get_beam_typehints_from_tableschema(schema, {"JSON": dict})
     self.assertEqual(typehints_dict, [("data", Optional[dict])])
 
