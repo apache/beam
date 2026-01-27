@@ -68,7 +68,7 @@
 
 ## New Features / Improvements
 
-* Added `type_overrides` parameter to `WriteToBigQuery` allowing users to specify custom BigQuery to Python type mappings when using Storage Write API (Python) ([#25946](https://github.com/apache/beam/issues/25946)).
+* Added `type_overrides` parameter to `WriteToBigQuery` allowing users to specify custom BigQuery to Python type mappings when using Storage Write API. This enables support for types like DATE, DATETIME, and JSON (Python) ([#25946](https://github.com/apache/beam/issues/25946)).
 
 ## Breaking Changes
 

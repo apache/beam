@@ -336,299 +336,6 @@ class TestBigQueryToSchema(unittest.TestCase):
 
     self.assertEqual(usertype.__annotations__, expected_annotations)
 
-  def test_date_type_support(self):
-    """Test that DATE type is properly supported in schema conversion."""
-    fields = [
-        bigquery.TableFieldSchema(
-            name='birth_date', type='DATE', mode="NULLABLE"),
-        bigquery.TableFieldSchema(name='dates', type='DATE', mode="REPEATED"),
-        bigquery.TableFieldSchema(
-            name='required_date', type='DATE', mode="REQUIRED")
-    ]
-    schema = bigquery.TableSchema(fields=fields)
-
-    usertype = bigquery_schema_tools.generate_user_type_from_bq_schema(schema)
-
-    expected_annotations = {
-        'birth_date': typing.Optional[str],
-        'dates': typing.Sequence[str],
-        'required_date': str
-    }
-
-    self.assertEqual(usertype.__annotations__, expected_annotations)
-
-  def test_date_in_bq_to_python_types_mapping(self):
-    """Test that DATE is included in BIG_QUERY_TO_PYTHON_TYPES mapping."""
-    from apache_beam.io.gcp.bigquery_schema_tools import BIG_QUERY_TO_PYTHON_TYPES
-
-    self.assertIn("DATE", BIG_QUERY_TO_PYTHON_TYPES)
-    self.assertEqual(BIG_QUERY_TO_PYTHON_TYPES["DATE"], str)
-
-  def test_date_field_type_conversion(self):
-    """Test bq_field_to_type function with DATE fields."""
-    from apache_beam.io.gcp.bigquery_schema_tools import bq_field_to_type
-
-    # Test required DATE field
-    result = bq_field_to_type("DATE", "REQUIRED")
-    self.assertEqual(result, str)
-
-    # Test nullable DATE field
-    result = bq_field_to_type("DATE", "NULLABLE")
-    self.assertEqual(result, typing.Optional[str])
-
-    # Test repeated DATE field
-    result = bq_field_to_type("DATE", "REPEATED")
-    self.assertEqual(result, typing.Sequence[str])
-
-    # Test DATE field with None mode (should default to nullable)
-    result = bq_field_to_type("DATE", None)
-    self.assertEqual(result, typing.Optional[str])
-
-    # Test DATE field with empty mode (should default to nullable)
-    result = bq_field_to_type("DATE", "")
-    self.assertEqual(result, typing.Optional[str])
-
-  def test_convert_to_usertype_with_date(self):
-    """Test convert_to_usertype function with DATE fields."""
-    schema = bigquery.TableSchema(
-        fields=[
-            bigquery.TableFieldSchema(
-                name='id', type='INTEGER', mode="REQUIRED"),
-            bigquery.TableFieldSchema(
-                name='birth_date', type='DATE', mode="NULLABLE"),
-            bigquery.TableFieldSchema(
-                name='name', type='STRING', mode="REQUIRED")
-        ])
-
-    conversion_transform = bigquery_schema_tools.convert_to_usertype(schema)
-
-    # Verify the transform is created successfully
-    self.assertIsNotNone(conversion_transform)
-
-    # The transform should be a ParDo with BeamSchemaConversionDoFn
-    self.assertIsInstance(conversion_transform, beam.ParDo)
-
-  def test_beam_schema_conversion_dofn_with_date(self):
-    """Test BeamSchemaConversionDoFn with DATE data."""
-    from apache_beam.io.gcp.bigquery_schema_tools import BeamSchemaConversionDoFn
-
-    # Create a user type with DATE field
-    fields = [
-        bigquery.TableFieldSchema(name='id', type='INTEGER', mode="REQUIRED"),
-        bigquery.TableFieldSchema(
-            name='birth_date', type='DATE', mode="NULLABLE")
-    ]
-    schema = bigquery.TableSchema(fields=fields)
-    usertype = bigquery_schema_tools.generate_user_type_from_bq_schema(schema)
-
-    # Create the DoFn
-    dofn = BeamSchemaConversionDoFn(usertype)
-
-    # Test processing a dictionary with DATE data
-    input_dict = {'id': 1, 'birth_date': '2021-01-15'}
-
-    results = list(dofn.process(input_dict))
-    self.assertEqual(len(results), 1)
-
-    result = results[0]
-    self.assertEqual(result.id, 1)
-    self.assertEqual(result.birth_date, '2021-01-15')
-
-  def test_datetime_type_support(self):
-    """Test that DATETIME type is properly supported in schema conversion."""
-    fields = [
-        bigquery.TableFieldSchema(
-            name='event_time', type='DATETIME', mode="NULLABLE"),
-        bigquery.TableFieldSchema(
-            name='timestamps', type='DATETIME', mode="REPEATED"),
-        bigquery.TableFieldSchema(
-            name='required_time', type='DATETIME', mode="REQUIRED")
-    ]
-    schema = bigquery.TableSchema(fields=fields)
-
-    usertype = bigquery_schema_tools.generate_user_type_from_bq_schema(schema)
-
-    expected_annotations = {
-        'event_time': typing.Optional[str],
-        'timestamps': typing.Sequence[str],
-        'required_time': str
-    }
-
-    self.assertEqual(usertype.__annotations__, expected_annotations)
-
-  def test_datetime_in_bq_to_python_types_mapping(self):
-    """Test that DATETIME is included in BIG_QUERY_TO_PYTHON_TYPES mapping."""
-    from apache_beam.io.gcp.bigquery_schema_tools import BIG_QUERY_TO_PYTHON_TYPES
-
-    self.assertIn("DATETIME", BIG_QUERY_TO_PYTHON_TYPES)
-    self.assertEqual(BIG_QUERY_TO_PYTHON_TYPES["DATETIME"], str)
-
-  def test_datetime_field_type_conversion(self):
-    """Test bq_field_to_type function with DATETIME fields."""
-    from apache_beam.io.gcp.bigquery_schema_tools import bq_field_to_type
-
-    # Test required DATETIME field
-    result = bq_field_to_type("DATETIME", "REQUIRED")
-    self.assertEqual(result, str)
-
-    # Test nullable DATETIME field
-    result = bq_field_to_type("DATETIME", "NULLABLE")
-    self.assertEqual(result, typing.Optional[str])
-
-    # Test repeated DATETIME field
-    result = bq_field_to_type("DATETIME", "REPEATED")
-    self.assertEqual(result, typing.Sequence[str])
-
-    # Test DATETIME field with None mode (should default to nullable)
-    result = bq_field_to_type("DATETIME", None)
-    self.assertEqual(result, typing.Optional[str])
-
-    # Test DATETIME field with empty mode (should default to nullable)
-    result = bq_field_to_type("DATETIME", "")
-    self.assertEqual(result, typing.Optional[str])
-
-  def test_convert_to_usertype_with_datetime(self):
-    """Test convert_to_usertype function with DATETIME fields."""
-    schema = bigquery.TableSchema(
-        fields=[
-            bigquery.TableFieldSchema(
-                name='id', type='INTEGER', mode="REQUIRED"),
-            bigquery.TableFieldSchema(
-                name='event_time', type='DATETIME', mode="NULLABLE"),
-            bigquery.TableFieldSchema(
-                name='name', type='STRING', mode="REQUIRED")
-        ])
-
-    conversion_transform = bigquery_schema_tools.convert_to_usertype(schema)
-
-    # Verify the transform is created successfully
-    self.assertIsNotNone(conversion_transform)
-
-    # The transform should be a ParDo with BeamSchemaConversionDoFn
-    self.assertIsInstance(conversion_transform, beam.ParDo)
-
-  def test_beam_schema_conversion_dofn_with_datetime(self):
-    """Test BeamSchemaConversionDoFn with DATETIME data."""
-    from apache_beam.io.gcp.bigquery_schema_tools import BeamSchemaConversionDoFn
-
-    # Create a user type with DATETIME field
-    fields = [
-        bigquery.TableFieldSchema(name='id', type='INTEGER', mode="REQUIRED"),
-        bigquery.TableFieldSchema(
-            name='event_time', type='DATETIME', mode="NULLABLE")
-    ]
-    schema = bigquery.TableSchema(fields=fields)
-    usertype = bigquery_schema_tools.generate_user_type_from_bq_schema(schema)
-
-    # Create the DoFn
-    dofn = BeamSchemaConversionDoFn(usertype)
-
-    # Test processing a dictionary with DATETIME data
-    input_dict = {'id': 1, 'event_time': '2021-01-15T10:30:00'}
-
-    results = list(dofn.process(input_dict))
-    self.assertEqual(len(results), 1)
-
-    result = results[0]
-    self.assertEqual(result.id, 1)
-    self.assertEqual(result.event_time, '2021-01-15T10:30:00')
-
-  def test_json_type_support(self):
-    """Test that JSON type is properly supported in schema conversion."""
-    fields = [
-        bigquery.TableFieldSchema(name='data', type='JSON', mode="NULLABLE"),
-        bigquery.TableFieldSchema(name='items', type='JSON', mode="REPEATED"),
-        bigquery.TableFieldSchema(
-            name='required_data', type='JSON', mode="REQUIRED")
-    ]
-    schema = bigquery.TableSchema(fields=fields)
-
-    usertype = bigquery_schema_tools.generate_user_type_from_bq_schema(schema)
-
-    expected_annotations = {
-        'data': typing.Optional[str],
-        'items': typing.Sequence[str],
-        'required_data': str
-    }
-
-    self.assertEqual(usertype.__annotations__, expected_annotations)
-
-  def test_json_in_bq_to_python_types_mapping(self):
-    """Test that JSON is included in BIG_QUERY_TO_PYTHON_TYPES mapping."""
-    from apache_beam.io.gcp.bigquery_schema_tools import BIG_QUERY_TO_PYTHON_TYPES
-
-    self.assertIn("JSON", BIG_QUERY_TO_PYTHON_TYPES)
-    self.assertEqual(BIG_QUERY_TO_PYTHON_TYPES["JSON"], str)
-
-  def test_json_field_type_conversion(self):
-    """Test bq_field_to_type function with JSON fields."""
-    from apache_beam.io.gcp.bigquery_schema_tools import bq_field_to_type
-
-    # Test required JSON field
-    result = bq_field_to_type("JSON", "REQUIRED")
-    self.assertEqual(result, str)
-
-    # Test nullable JSON field
-    result = bq_field_to_type("JSON", "NULLABLE")
-    self.assertEqual(result, typing.Optional[str])
-
-    # Test repeated JSON field
-    result = bq_field_to_type("JSON", "REPEATED")
-    self.assertEqual(result, typing.Sequence[str])
-
-    # Test JSON field with None mode (should default to nullable)
-    result = bq_field_to_type("JSON", None)
-    self.assertEqual(result, typing.Optional[str])
-
-    # Test JSON field with empty mode (should default to nullable)
-    result = bq_field_to_type("JSON", "")
-    self.assertEqual(result, typing.Optional[str])
-
-  def test_convert_to_usertype_with_json(self):
-    """Test convert_to_usertype function with JSON fields."""
-    schema = bigquery.TableSchema(
-        fields=[
-            bigquery.TableFieldSchema(
-                name='id', type='INTEGER', mode="REQUIRED"),
-            bigquery.TableFieldSchema(
-                name='data', type='JSON', mode="NULLABLE"),
-            bigquery.TableFieldSchema(
-                name='name', type='STRING', mode="REQUIRED")
-        ])
-
-    conversion_transform = bigquery_schema_tools.convert_to_usertype(schema)
-
-    # Verify the transform is created successfully
-    self.assertIsNotNone(conversion_transform)
-
-    # The transform should be a ParDo with BeamSchemaConversionDoFn
-    self.assertIsInstance(conversion_transform, beam.ParDo)
-
-  def test_beam_schema_conversion_dofn_with_json(self):
-    """Test BeamSchemaConversionDoFn with JSON data."""
-    from apache_beam.io.gcp.bigquery_schema_tools import BeamSchemaConversionDoFn
-
-    # Create a user type with JSON field
-    fields = [
-        bigquery.TableFieldSchema(name='id', type='INTEGER', mode="REQUIRED"),
-        bigquery.TableFieldSchema(name='data', type='JSON', mode="NULLABLE")
-    ]
-    schema = bigquery.TableSchema(fields=fields)
-    usertype = bigquery_schema_tools.generate_user_type_from_bq_schema(schema)
-
-    # Create the DoFn
-    dofn = BeamSchemaConversionDoFn(usertype)
-
-    # Test processing a dictionary with JSON data
-    input_dict = {'id': 1, 'data': '{"key": "value", "count": 42}'}
-
-    results = list(dofn.process(input_dict))
-    self.assertEqual(len(results), 1)
-
-    result = results[0]
-    self.assertEqual(result.id, 1)
-    self.assertEqual(result.data, '{"key": "value", "count": 42}')
-
 
 class TypeOverridesSchemaToolsTest(unittest.TestCase):
   """Tests for type_overrides parameter in bigquery_schema_tools."""
@@ -637,10 +344,11 @@ class TypeOverridesSchemaToolsTest(unittest.TestCase):
     import datetime
     from apache_beam.io.gcp.bigquery_schema_tools import bq_field_to_type
 
-    # Without overrides
-    self.assertEqual(bq_field_to_type("DATE", "REQUIRED"), str)
+    # Without overrides, DATE is not supported
+    with self.assertRaises(KeyError):
+      bq_field_to_type("DATE", "REQUIRED")
 
-    # With overrides
+    # With overrides, DATE works
     overrides = {"DATE": datetime.date}
     self.assertEqual(
         bq_field_to_type("DATE", "REQUIRED", overrides), datetime.date)
@@ -650,6 +358,15 @@ class TypeOverridesSchemaToolsTest(unittest.TestCase):
     self.assertEqual(
         bq_field_to_type("DATE", "REPEATED", overrides),
         typing.Sequence[datetime.date])
+
+  def test_bq_field_to_type_overrides_can_use_str(self):
+    """Test that type_overrides can map DATE/DATETIME/JSON to str."""
+    from apache_beam.io.gcp.bigquery_schema_tools import bq_field_to_type
+
+    overrides = {"DATE": str, "DATETIME": str, "JSON": str}
+    self.assertEqual(bq_field_to_type("DATE", "REQUIRED", overrides), str)
+    self.assertEqual(bq_field_to_type("DATETIME", "REQUIRED", overrides), str)
+    self.assertEqual(bq_field_to_type("JSON", "REQUIRED", overrides), str)
 
   def test_generate_user_type_with_overrides(self):
     """Test generate_user_type_from_bq_schema with type_overrides."""
@@ -663,21 +380,35 @@ class TypeOverridesSchemaToolsTest(unittest.TestCase):
                 name='event_date', type='DATE', mode="NULLABLE")
         ])
 
-    # Without overrides
-    usertype = bigquery_schema_tools.generate_user_type_from_bq_schema(schema)
+    # Without overrides, DATE is not supported
+    with self.assertRaises(ValueError):
+      bigquery_schema_tools.generate_user_type_from_bq_schema(schema)
+
+    # With overrides, DATE works
+    overrides = {"DATE": datetime.date}
+    usertype = bigquery_schema_tools.generate_user_type_from_bq_schema(
+        schema, type_overrides=overrides)
+    self.assertEqual(
+        usertype.__annotations__, {
+            'id': np.int64, 'event_date': typing.Optional[datetime.date]
+        })
+
+  def test_generate_user_type_overrides_with_str(self):
+    """Test that type_overrides can map DATE to str."""
+    schema = bigquery.TableSchema(
+        fields=[
+            bigquery.TableFieldSchema(
+                name='id', type='INTEGER', mode="REQUIRED"),
+            bigquery.TableFieldSchema(
+                name='event_date', type='DATE', mode="NULLABLE")
+        ])
+
+    overrides = {"DATE": str}
+    usertype = bigquery_schema_tools.generate_user_type_from_bq_schema(
+        schema, type_overrides=overrides)
     self.assertEqual(
         usertype.__annotations__, {
             'id': np.int64, 'event_date': typing.Optional[str]
-        })
-
-    # With overrides
-    overrides = {"DATE": datetime.date}
-    usertype_with_override = \
-        bigquery_schema_tools.generate_user_type_from_bq_schema(
-            schema, type_overrides=overrides)
-    self.assertEqual(
-        usertype_with_override.__annotations__, {
-            'id': np.int64, 'event_date': typing.Optional[datetime.date]
         })
 
   def test_convert_to_usertype_with_overrides(self):
@@ -699,6 +430,18 @@ class TypeOverridesSchemaToolsTest(unittest.TestCase):
     # The transform should be created successfully
     self.assertIsNotNone(transform)
     self.assertIsInstance(transform, beam.ParDo)
+
+  def test_type_overrides_can_override_default_types(self):
+    """Test that type_overrides can override default type mappings."""
+    from apache_beam.io.gcp.bigquery_schema_tools import bq_field_to_type
+
+    # GEOGRAPHY is in the default mapping as str
+    self.assertEqual(bq_field_to_type("GEOGRAPHY", "REQUIRED"), str)
+
+    # We can override it
+    overrides = {"GEOGRAPHY": bytes}
+    self.assertEqual(
+        bq_field_to_type("GEOGRAPHY", "REQUIRED", overrides), bytes)
 
 
 if __name__ == '__main__':
