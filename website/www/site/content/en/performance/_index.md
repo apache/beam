@@ -46,6 +46,7 @@ See the following pages for performance measures recorded when running various B
 ## Streaming
 
 - [PyTorch Sentiment Analysis Streaming DistilBERT base](/performance/pytorchbertsentimentstreaming)
+- [PyTorch Image Classification EfficientNet-B0 Streaming (Right-fitting)](/performance/pytorchimagenetrightfit)
 
 ## Batch
 
@@ -57,3 +58,5 @@ See the following pages for performance measures recorded when running various B
 - [PyTorch Vision Classification Resnet 152 Tesla T4 GPU](/performance/pytorchresnet152tesla)
 - [TensorFlow MNIST Image Classification](/performance/tensorflowmnist)
 - [VLLM Gemma Batch Completion Tesla T4 GPU](/performance/vllmgemmabatchtesla)
+- [PyTorch Image Object Detection Faster R-CNN ResNet-50 Batch GPU](/performance/pytorchimageobjectdetectionbatchgpu)
+- [PyTorch Image Captioning BLIP + CLIP Batch GPU](/performance/pytorchimagecaptioningbatchgpu)
