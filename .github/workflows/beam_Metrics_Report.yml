@@ -21,7 +21,7 @@ name: Beam Metrics Report
 on:
   # schedule:
   #   - cron: '0 11 * * 2'
-  # workflow_dispatch:
+  workflow_dispatch:
 
 # This allows a subsequently queued workflow run to interrupt previous runs
 concurrency:
