@@ -27,12 +27,14 @@ import static software.amazon.awssdk.core.protocol.MarshallingType.SDK_BYTES;
 import static software.amazon.awssdk.core.protocol.MarshallingType.SDK_POJO;
 
 import java.io.Serializable;
+import java.util.Collections;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.function.BiConsumer;
 import org.apache.beam.sdk.schemas.Factory;
+import org.apache.beam.sdk.schemas.FieldValueTypeInformation;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.Field;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
@@ -89,6 +91,20 @@ public class AwsTypes {
     }
     throw new RuntimeException(
         String.format("Type %s of field %s is unknown.", type, normalizedNameOf(field)));
+  }
+
+  static FieldValueTypeInformation fieldValueTypeInformationFor(SdkField<?> sdkField) {
+    TypeDescriptor<?> type = TypeDescriptor.of(sdkField.marshallingType().getTargetClass());
+    return FieldValueTypeInformation.builder()
+        .setName(normalizedNameOf(sdkField))
+        .setType(type)
+        .setRawType(sdkField.marshallingType().getClass())
+        .setElementType(FieldValueTypeInformation.getIterableComponentType(type))
+        .setMapKeyType(FieldValueTypeInformation.getMapKeyType(type))
+        .setMapValueType(FieldValueTypeInformation.getMapValueType(type))
+        .setOneOfTypes(Collections.emptyMap())
+        .setNullable(true)
+        .build();
   }
 
   private static Schema schemaFor(List<SdkField<?>> fields, Set<Class<?>> seen) {
