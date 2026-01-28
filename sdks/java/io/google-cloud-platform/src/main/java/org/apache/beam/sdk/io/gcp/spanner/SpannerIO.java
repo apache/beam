@@ -1977,11 +1977,6 @@ public class SpannerIO {
               + changeStreamDatabaseId
               + " has dialect "
               + changeStreamDatabaseDialect);
-      LOG.info(
-          "The Spanner database "
-              + fullPartitionMetadataDatabaseId
-              + " has dialect "
-              + metadataDatabaseDialect);
       PartitionMetadataTableNames partitionMetadataTableNames =
           Optional.ofNullable(getMetadataTable())
               .map(
@@ -2005,6 +2000,7 @@ public class SpannerIO {
       final boolean isMutableChangeStream =
           isMutableChangeStream(
               spannerAccessor.getDatabaseClient(), changeStreamDatabaseDialect, changeStreamName);
+      LOG.info("The change stream " + changeStreamName + " is mutable: " + isMutableChangeStream);
       final DaoFactory daoFactory =
           new DaoFactory(
               changeStreamSpannerConfig,
