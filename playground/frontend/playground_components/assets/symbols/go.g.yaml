@@ -24,8 +24,9 @@
   - BoolToBounded
   - Bounded
   - BucketExists
+  - BuildAndRun
   - BuildTempWorkerBinary
-  - BuildWorkerBinary
+  - CPUCount
   - CallNoPanic
   - CheckConcrete
   - ClassOf
@@ -55,8 +56,11 @@
   - CreateBucket
   - CreateDisposition
   - CreateEnvironment
+  - CreateExternalConfigurationPayload
+  - CreateJobServer
   - CreateList
   - CreateList2
+  - CreateWebServer
   - CreateWithEndpoint
   - CrossLanguage
   - CrossLanguagePayload
@@ -177,7 +181,6 @@
   - Emitter2
   - Emitter3
   - Empty
-  - EnableCaptureHook
   - EnableHeapCaptureHook
   - EnableHook
   - EnableProfCaptureHook
@@ -222,6 +225,7 @@
   - Execute
   - ExecuteBundles
   - ExecuteEnv
+  - ExecuteEnvWithIO
   - ExecutionMsecUrn
   - Exit
   - Exitf
@@ -324,7 +328,9 @@
   - FunctionName
   - FunctionReg
   - GetBeamJar
+  - GetBundleID
   - GetDefaultRepositoryURL
+  - GetElementProcessingTimeout
   - GetEndpoint
   - GetEnvironmentConfig
   - GetEnvironmentUrn
@@ -332,12 +338,15 @@
   - GetJobName
   - GetMetrics
   - GetPipelineResourceHints
+  - GetPrefix
   - GetProject
   - GetProjectFromFlagOrEnvironment
+  - GetPythonVersion
   - GetRegion
   - GetRunningJobByName
   - GetSdkImageOverrides
   - GetStore
+  - GetTransformID
   - GroupByKey
   - Hash
   - Head
@@ -347,6 +356,8 @@
   - Import
   - Impulse
   - ImpulseValue
+  - InEventTime
+  - InProcessingTime
   - InboundTagToNode
   - Include
   - InferFieldNames
@@ -362,6 +373,8 @@
   - Int64Latest
   - Interface
   - Invoke
+  - InvokeWithOpts
+  - InvokeWithOptsWithoutEventTime
   - InvokeWithoutEventTime
   - IsBound
   - IsCoGBK
@@ -413,6 +426,7 @@
   - MainRet
   - MainRetWithDefault
   - MainWithDefault
+  - MainWithOptions
   - MakeBagState
   - MakeCombiningState
   - MakeElementDecoder
@@ -480,8 +494,22 @@
   - MarshalCoders
   - MarshalTo
   - MarshalWindowingStrategy
+  - Match
+  - MatchAll
+  - MatchApplyWindow
+  - MatchContinuously
+  - MatchDuplicateAllow
+  - MatchDuplicateAllowIfModified
+  - MatchDuplicateSkip
+  - MatchEmptyAllow
+  - MatchEmptyAllowIfWildcard
+  - MatchEmptyDisallow
+  - MatchEnd
+  - MatchFiles
+  - MatchStart
   - Materialize
   - Max
+  - MaxActiveBundlesPerWorker
   - MaxNumRecords
   - MaxPerKey
   - MaxReadSecs
@@ -535,11 +563,13 @@
   - NewCounter
   - NewCrossLanguage
   - NewCustomCoder
+  - NewDataSampler
   - NewDistribution
   - NewDoFn
   - NewDouble
   - NewElementDecoder
   - NewElementEncoder
+  - NewElementManager
   - NewExpansionServiceClient
   - NewExpansionServiceRunner
   - NewExternal
@@ -553,6 +583,7 @@
   - NewGlobalWindow
   - NewGlobalWindows
   - NewGrowableTracker
+  - NewHandlerRegistry
   - NewHints
   - NewI
   - NewImpulse
@@ -563,6 +594,7 @@
   - NewLegacyArtifactRetrievalServiceClient
   - NewLegacyArtifactStagingServiceClient
   - NewLockRTracker
+  - NewMultiplexW
   - NewMutation
   - NewN
   - NewNamespaceGenerator
@@ -588,6 +620,8 @@
   - NewScopedDataManager
   - NewScopedStateReader
   - NewScopedStateReaderWithCache
+  - NewSequenceDefinition
+  - NewServer
   - NewSessions
   - NewSideInputAdapter
   - NewSlidingWindows
@@ -595,7 +629,6 @@
   - NewString
   - NewT
   - NewTaggedExternal
-  - NewTestStreamServiceClient
   - NewTracker
   - NewUnauthenticatedClient
   - NewUserStateAdapter
@@ -635,6 +668,7 @@
   - ParDo6
   - ParDo7
   - ParDoN
+  - ParseMaxActiveBundlesPerWorker
   - ParseMinRAM
   - ParseObject
   - Partition
@@ -655,20 +689,33 @@
   - Read
   - ReadAll
   - ReadAllSdf
+  - ReadAutoCompression
   - ReadClasspaths
   - ReadConnectionInitSQLs
   - ReadConnectionProperties
+  - ReadDirectoryDisallow
+  - ReadDirectorySkip
+  - ReadEndSeqNo
   - ReadExpansionAddr
+  - ReadFetchSize
   - ReadFromPostgres
+  - ReadGzip
+  - ReadMatches
   - ReadN
   - ReadNBufUnsafe
   - ReadObject
+  - ReadProcessingTimePolicy
   - ReadProxyManifest
+  - ReadPublishingTimePolicy
   - ReadQuery
   - ReadRowHeader
   - ReadSdf
   - ReadSimpleRowHeader
+  - ReadStartSeqNo
+  - ReadUncompressed
   - ReadUnsafe
+  - ReadUserCredentials
+  - ReadWithFilename
   - ReadWorkerID
   - Register
   - RegisterArtifactRetrievalServiceServer
@@ -679,7 +726,6 @@
   - RegisterBeamFnLoggingServer
   - RegisterBeamFnStateServer
   - RegisterBeamFnWorkerStatusServer
-  - RegisterCaptureHook
   - RegisterCoder
   - RegisterDoFn
   - RegisterEmitter
@@ -704,7 +750,6 @@
   - RegisterSchemaProviderWithURN
   - RegisterSchemaProviders
   - RegisterStructWrapper
-  - RegisterTestStreamServiceServer
   - RegisterTraceCaptureHook
   - RegisterType
   - Registered
@@ -713,6 +758,7 @@
   - Render
   - Repeat
   - Replace
+  - RequesterBillingProject
   - Require
   - RequireAllFieldsExported
   - Reshuffle
@@ -729,23 +775,29 @@
   - Run
   - RunAndValidate
   - RunInitHooks
+  - RunPipeline
   - RunRequestHooks
   - RunResponseHooks
   - RunWithMetrics
+  - Runner
   - SampleForHeapProfile
   - SampleInterval
   - Satisfy
   - Search
   - Seq
+  - Sequence
   - SerializeHooksToOptions
   - SetBundleID
   - SetDefaultRepositoryURL
   - SetLogger
   - SetPTransformID
   - SetProcessMemoryCeiling
+  - SetRequesterBillingProject
   - SetTopLevelMsg
   - SetTopLevelMsgf
   - SetUpPythonEnvironment
+  - SetupLogging
+  - SetupLoggingWithDefault
   - ShallowClone
   - ShallowClonePTransform
   - ShimNeeded
@@ -756,11 +808,11 @@
   - SklearnModel
   - Smallest
   - SmallestPerKey
+  - SoftDeletePolicyEnabled
   - Source
   - SourceSingle
   - Stage
   - StageDir
-  - StageFile
   - StageModel
   - StageViaLegacyAPI
   - StageViaPortableAPI
@@ -858,6 +910,7 @@
   - UnnamedInput
   - UnnamedOutput
   - UnnamedOutputTag
+  - UnnamedOutputType
   - Unpack
   - UnpackBase64Proto
   - UnpackBytes
@@ -891,15 +944,24 @@
   - Warnln
   - WindowInto
   - WithArgs
+  - WithBatching
   - WithContext
   - WithContextf
+  - WithCreateDisposition
   - WithExpansionAddr
   - WithExtraPackages
   - WithIndexes
+  - WithMaxPartitions
+  - WithNoOutputTimestamp
+  - WithNumShards
+  - WithOutputTimestamp
   - WithQueryLocation
   - WithReadBucketAuto
   - WithReadBundleSize
   - WithReadFilter
+  - WithSuffix
+  - WithTag
+  - WithTimestampBound
   - WithWriteBatchSize
   - WithWriteOrdered
   - Wrap
@@ -918,6 +980,7 @@
   - WriteStatement
   - WriteToPostgres
   - WriteUnsafe
+  - WriteUserCredentials
   - WriteWithBatchSize
   - WriteWorkerID
 AccumulationMode:
@@ -987,6 +1050,31 @@ Annotation:
   properties:
   - Key
   - Value
+Annotations:
+  methods:
+  - Descriptor
+  - ProtoMessage
+  - ProtoReflect
+  - Reset
+  - String
+Annotations_Enum:
+  methods:
+  - Descriptor
+  - Enum
+  - EnumDescriptor
+  - Number
+  - String
+  - Type
+AnyOfEnvironmentPayload:
+  methods:
+  - Descriptor
+  - GetEnvironments
+  - ProtoMessage
+  - ProtoReflect
+  - Reset
+  - String
+  properties:
+  - Environments
 ApiServiceDescriptor:
   methods:
   - Descriptor
@@ -1227,6 +1315,32 @@ AuthenticationSpec:
   properties:
   - Payload
   - Urn
+B:
+  methods:
+  - Cleanup
+  - DataOrTimerDone
+  - Finalize
+  - Init
+  - LogValue
+  - ProcessOn
+  - Progress
+  - Respond
+  - Split
+  properties:
+  - BundleErr
+  - DataWait
+  - EstimatedInputElements
+  - HasTimers
+  - Input
+  - InputTransformID
+  - InstID
+  - IterableSideInputData
+  - MultiMapSideInputData
+  - OutputCount
+  - OutputData
+  - PBDID
+  - Resp
+  - SinkToPCollection
 Bag:
   methods:
   - Add
@@ -1343,6 +1457,11 @@ BeamFnWorkerStatusClient:
 BeamFnWorkerStatusServer:
   methods:
   - WorkerStatus
+Block:
+  properties:
+  - Bytes
+  - Kind
+  - Transform
 BoundableRTracker:
   methods:
   - IsBounded
@@ -1350,6 +1469,32 @@ BoundedQuery:
   properties:
   - End
   - Start
+BoundedTrie:
+  methods:
+  - Descriptor
+  - GetBound
+  - GetRoot
+  - GetSingleton
+  - ProtoMessage
+  - ProtoReflect
+  - Reset
+  - String
+  properties:
+  - Bound
+  - Root
+  - Singleton
+BoundedTrieNode:
+  methods:
+  - Descriptor
+  - GetChildren
+  - GetTruncated
+  - ProtoMessage
+  - ProtoReflect
+  - Reset
+  - String
+  properties:
+  - Children
+  - Truncated
 BuilderMethod:
   methods:
   - Descriptor
@@ -1388,6 +1533,12 @@ BundleFinalization:
 BundleState:
   methods:
   - String
+CPUCountHint:
+  methods:
+  - MergeWithOuter
+  - Payload
+  - String
+  - URN
 CacheMetrics:
   properties:
   - Hits
@@ -1411,6 +1562,10 @@ CancelJobResponse:
   - String
   properties:
   - State
+Cell:
+  properties:
+  - Timestamp_micros
+  - Value
 Checkpoint:
   properties:
   - Reapply
@@ -1504,6 +1659,9 @@ Combine:
   - PID
   - UID
   - UsesKey
+CombineCharacteristic:
+  properties:
+  - EnableLifting
 CombineFn:
   methods:
   - AddInputFn
@@ -1583,6 +1741,9 @@ CommitManifestResponse_Constants:
   - Number
   - String
   - Type
+CompileOpts:
+  properties:
+  - OS
 Components:
   methods:
   - Descriptor
@@ -1609,9 +1770,25 @@ Config:
   - AdvanceProcessingTimeToInfinity
   - AdvanceWatermark
   - AdvanceWatermarkToInfinity
+  properties:
+  - EnableRTC
+  - EnableSDFSplit
+  - MaxBundleSize
+  - StreamingMode
+ConsumerMessage:
+  properties:
+  - Data
+  - Headers
+  - ID
+  - PublishingTime
+  - Subject
 ContentStructure:
   methods:
   - String
+Context:
+  properties:
+  - Family
+  - Tag
 ConvertToAccumulators:
   methods:
   - ProcessElement
@@ -1653,7 +1830,8 @@ CustomCoder:
   - Type
 DataChannel:
   methods:
-  - OpenRead
+  - OpenElementChan
+  - OpenTimerWrite
   - OpenWrite
 DataChannelManager:
   methods:
@@ -1664,8 +1842,19 @@ DataContext:
   - State
 DataManager:
   methods:
-  - OpenRead
+  - OpenElementChan
+  - OpenTimerWrite
   - OpenWrite
+DataSample:
+  properties:
+  - Element
+  - PCollectionID
+  - Timestamp
+DataSampler:
+  methods:
+  - GetSamples
+  - Process
+  - SendSample
 DataSink:
   methods:
   - Down
@@ -1695,6 +1884,7 @@ DataSource:
   properties:
   - Coder
   - Name
+  - OnTimerTransforms
   - Out
   - PCol
   - SID
@@ -1815,7 +2005,9 @@ DoFn:
   - FinishBundleFn
   - IsSplittable
   - Name
+  - OnTimerFn
   - PipelineState
+  - PipelineTimers
   - ProcessElementFn
   - SetupFn
   - StartBundleFn
@@ -1830,6 +2022,26 @@ DockerPayload:
   - String
   properties:
   - ContainerImage
+DrainJobRequest:
+  methods:
+  - Descriptor
+  - GetJobId
+  - ProtoMessage
+  - ProtoReflect
+  - Reset
+  - String
+  properties:
+  - JobId
+DrainJobResponse:
+  methods:
+  - Descriptor
+  - GetState
+  - ProtoMessage
+  - ProtoReflect
+  - Reset
+  - String
+  properties:
+  - State
 DynFn:
   methods:
   - Descriptor
@@ -1854,6 +2066,25 @@ ElementDecoder:
 ElementEncoder:
   methods:
   - Encode
+ElementManager:
+  methods:
+  - AddStage
+  - AddTestStream
+  - Bundles
+  - DataAndTimerInputForBundle
+  - DumpStages
+  - FailBundle
+  - GetSideData
+  - Impulse
+  - InputForBundle
+  - PersistBundle
+  - RegisterPColInfo
+  - ReturnResiduals
+  - StageAggregates
+  - StageOnWindowExpiration
+  - StageProcessingTimeTimers
+  - StageStateful
+  - StateForBundle
 ElementProcessor:
   methods:
   - ProcessElement
@@ -1868,6 +2099,7 @@ Elements:
   - String
   properties:
   - Data
+  - TimerFamilyID
   - Timers
 Elements_Data:
   methods:
@@ -1939,56 +2171,6 @@ EncodedType:
 Encoder:
   methods:
   - Encode
-Entry:
-  methods:
-  - Descriptor
-  - GetElems
-  - GetFooter
-  - GetHeader
-  - GetInstReq
-  - GetInstResp
-  - GetKind
-  - GetLogEntries
-  - GetMsg
-  - GetTimestamp
-  - ProtoMessage
-  - ProtoReflect
-  - Reset
-  - String
-  properties:
-  - Kind
-  - Msg
-  - Timestamp
-Entry_Elems:
-  properties:
-  - Elems
-Entry_Footer:
-  properties:
-  - Footer
-Entry_Header:
-  properties:
-  - Header
-Entry_InstReq:
-  properties:
-  - InstReq
-Entry_InstResp:
-  properties:
-  - InstResp
-Entry_LogEntries:
-  properties:
-  - LogEntries
-EntryHeader:
-  methods:
-  - Descriptor
-  - GetKind
-  - GetLen
-  - ProtoMessage
-  - ProtoReflect
-  - Reset
-  - String
-  properties:
-  - Kind
-  - Len
 Environment:
   methods:
   - Descriptor
@@ -2009,6 +2191,9 @@ Environment:
   - Payload
   - ResourceHints
   - Urn
+EnvironmentMetadata:
+  properties:
+  - ResourceHints
 Eval:
   methods:
   - AllExported
@@ -2019,16 +2204,14 @@ Eval:
   - Printf
   - RequiresRegistrations
   - UsesDefaultReflectionShims
-EventsRequest:
+EventTime:
   methods:
-  - Descriptor
-  - GetOutputIds
-  - ProtoMessage
-  - ProtoReflect
-  - Reset
-  - String
+  - Clear
+  - ClearTag
+  - Set
+  - Timers
   properties:
-  - OutputIds
+  - Family
 ExecutableStagePayload:
   methods:
   - Descriptor
@@ -2177,6 +2360,8 @@ ExpansionRequest:
   - GetComponents
   - GetNamespace
   - GetOutputCoderRequests
+  - GetPipelineOptions
+  - GetRequirements
   - GetTransform
   - ProtoMessage
   - ProtoReflect
@@ -2186,6 +2371,8 @@ ExpansionRequest:
   - Components
   - Namespace
   - OutputCoderRequests
+  - PipelineOptions
+  - Requirements
   - Transform
 ExpansionResponse:
   methods:
@@ -2366,6 +2553,11 @@ FieldValue_MapValue:
 FieldValue_RowValue:
   properties:
   - RowValue
+FileMetadata:
+  properties:
+  - LastModified
+  - Path
+  - Size
 FinalizeBundleRequest:
   methods:
   - Descriptor
@@ -2467,6 +2659,7 @@ Fn:
   - Returns
   - StateProvider
   - String
+  - TimerProvider
   - Type
   - WatermarkEstimator
   - Window
@@ -2483,19 +2676,27 @@ Fn:
   - Ret
   - Size
   - Type
+FnApiTransforms:
+  methods:
+  - Descriptor
+  - ProtoMessage
+  - ProtoReflect
+  - Reset
+  - String
+FnApiTransforms_Runner:
+  methods:
+  - Descriptor
+  - Enum
+  - EnumDescriptor
+  - Number
+  - String
+  - Type
 FnParam:
   properties:
   - Kind
   - T
 FnParamKind:
   methods:
-  - String
-Footer:
-  methods:
-  - Descriptor
-  - ProtoMessage
-  - ProtoReflect
-  - Reset
   - String
 FullType:
   methods:
@@ -2884,6 +3085,10 @@ GuardedError:
   methods:
   - Error
   - TrySetError
+HandlerMetadata:
+  methods:
+  - ConfigCharacteristic
+  - ConfigURN
 HandlerParams:
   methods:
   - CoderMarshaller
@@ -2892,6 +3097,13 @@ HandlerParams:
   properties:
   - Config
   - Req
+HandlerRegistry:
+  methods:
+  - GetVariant
+  - LoadFromYaml
+  - RegisterHandlers
+  - UsedHandlers
+  - Variants
 HarnessMonitoringInfosRequest:
   methods:
   - Descriptor
@@ -2909,20 +3121,6 @@ HarnessMonitoringInfosResponse:
   - String
   properties:
   - MonitoringData
-Header:
-  methods:
-  - Descriptor
-  - GetMaxMsgLen
-  - GetSdkVersion
-  - GetVersion
-  - ProtoMessage
-  - ProtoReflect
-  - Reset
-  - String
-  properties:
-  - MaxMsgLen
-  - SdkVersion
-  - Version
 Hint:
   methods:
   - MergeWithOuter
@@ -2933,6 +3131,64 @@ Hints:
   - Equal
   - MergeWithOuter
   - Payloads
+HistogramValue:
+  methods:
+  - Descriptor
+  - GetBucketCounts
+  - GetBucketOptions
+  - GetCount
+  - ProtoMessage
+  - ProtoReflect
+  - Reset
+  - String
+  properties:
+  - BucketCounts
+  - BucketOptions
+  - Count
+HistogramValue_BucketOptions:
+  methods:
+  - Descriptor
+  - GetBucketType
+  - GetExponential
+  - GetLinear
+  - ProtoMessage
+  - ProtoReflect
+  - Reset
+  - String
+  properties:
+  - BucketType
+HistogramValue_BucketOptions_Base2Exponent:
+  methods:
+  - Descriptor
+  - GetNumberOfBuckets
+  - GetScale
+  - ProtoMessage
+  - ProtoReflect
+  - Reset
+  - String
+  properties:
+  - NumberOfBuckets
+  - Scale
+HistogramValue_BucketOptions_Exponential:
+  properties:
+  - Exponential
+HistogramValue_BucketOptions_Linear:
+  methods:
+  - Descriptor
+  - GetNumberOfBuckets
+  - GetStart
+  - GetWidth
+  - ProtoMessage
+  - ProtoReflect
+  - Reset
+  - String
+  properties:
+  - NumberOfBuckets
+  - Start
+  - Width
+HistogramValue_BucketOptions_Linear_:
+  properties:
+  - Linear
 Hook:
   properties:
   - Dialer
@@ -3000,6 +3256,7 @@ InstructionRequest:
   - GetProcessBundleSplit
   - GetRegister
   - GetRequest
+  - GetSampleData
   - ProtoMessage
   - ProtoReflect
   - Reset
@@ -3028,6 +3285,9 @@ InstructionRequest_ProcessBundleSplit:
 InstructionRequest_Register:
   properties:
   - Register
+InstructionRequest_SampleData:
+  properties:
+  - SampleData
 InstructionResponse:
   methods:
   - Descriptor
@@ -3041,6 +3301,7 @@ InstructionResponse:
   - GetProcessBundleSplit
   - GetRegister
   - GetResponse
+  - GetSampleData
   - ProtoMessage
   - ProtoReflect
   - Reset
@@ -3070,6 +3331,9 @@ InstructionResponse_ProcessBundleSplit:
 InstructionResponse_Register:
   properties:
   - Register
+InstructionResponse_SampleData:
+  properties:
+  - SampleData
 Interface:
   methods:
   - List
@@ -3083,6 +3347,7 @@ IntervalWindow:
   - String
   properties:
   - Start
+InvokeOpts: {}
 IsBounded:
   methods:
   - Descriptor
@@ -3136,6 +3401,31 @@ JavaClassLookupPayload:
   - ConstructorMethod
   - ConstructorPayload
   - ConstructorSchema
+Job:
+  methods:
+  - AddMetricShortIDs
+  - ArtifactEndpoint
+  - Canceled
+  - Canceling
+  - ContributeFinalMetrics
+  - ContributeTentativeMetrics
+  - Done
+  - Failed
+  - JobKey
+  - LogValue
+  - MakeWorker
+  - PendingDone
+  - PipelineOptions
+  - Running
+  - SendMsg
+  - Start
+  - String
+  - WaitForCleanUp
+  properties:
+  - CancelFn
+  - Logger
+  - Pipeline
+  - RootCtx
 JobInfo:
   methods:
   - Descriptor
@@ -3217,6 +3507,7 @@ JobOptions:
   - FlexRSGoal
   - KmsKey
   - Labels
+  - Loopback
   - MachineType
   - MaxNumWorkers
   - Name
@@ -3257,6 +3548,7 @@ JobServiceClient:
   methods:
   - Cancel
   - DescribePipelineOptions
+  - Drain
   - GetJobMetrics
   - GetJobs
   - GetMessageStream
@@ -3269,6 +3561,7 @@ JobServiceServer:
   methods:
   - Cancel
   - DescribePipelineOptions
+  - Drain
   - GetJobMetrics
   - GetJobs
   - GetMessageStream
@@ -3308,14 +3601,6 @@ KV: {}
 KeyedFile:
   properties:
   - Key
-Kind:
-  methods:
-  - Descriptor
-  - Enum
-  - EnumDescriptor
-  - Number
-  - String
-  - Type
 LabelledPayload:
   methods:
   - Descriptor
@@ -3355,6 +3640,9 @@ Labels:
   - Namespace
   - PCollection
   - Transform
+LastModifiedGetter:
+  methods:
+  - LastModified
 LegacyArtifactRetrievalService_GetArtifactClient:
   methods:
   - Recv
@@ -3408,6 +3696,9 @@ LiftedCombine:
   properties:
   - KeyCoder
   - WindowCoder
+LinkID:
+  properties:
+  - Transform
 LockRTracker:
   methods:
   - GetError
@@ -3431,6 +3722,7 @@ LogControl:
 LogEntry:
   methods:
   - Descriptor
+  - GetCustomData
   - GetInstructionId
   - GetLogLocation
   - GetMessage
@@ -3444,6 +3736,7 @@ LogEntry:
   - Reset
   - String
   properties:
+  - CustomData
   - InstructionId
   - LogLocation
   - Message
@@ -3539,6 +3832,21 @@ MainInput:
   - Key
   - RTracker
   - Values
+ManagedTransforms:
+  methods:
+  - Descriptor
+  - ProtoMessage
+  - ProtoReflect
+  - Reset
+  - String
+ManagedTransforms_Urns:
+  methods:
+  - Descriptor
+  - Enum
+  - EnumDescriptor
+  - Number
+  - String
+  - Type
 Manifest:
   methods:
   - Descriptor
@@ -3628,6 +3936,7 @@ MapWindows:
   - Up
   properties:
   - Fn
+  - FnUrn
   - Out
   - UID
 MavenPayload:
@@ -3902,6 +4211,18 @@ MultiEdge_Outbound:
   - String
   properties:
   - Type
+MultimapStateSpec:
+  methods:
+  - Descriptor
+  - GetKeyCoderId
+  - GetValueCoderId
+  - ProtoMessage
+  - ProtoReflect
+  - Reset
+  - String
+  properties:
+  - KeyCoderId
+  - ValueCoderId
 Multiplex:
   methods:
   - Down
@@ -3914,6 +4235,17 @@ Multiplex:
   properties:
   - Out
   - UID
+MultiplexW:
+  methods:
+  - Control
+  - Data
+  - GetProcessBundleDescriptor
+  - GetProvisionInfo
+  - Logging
+  - MakeWorker
+  - MonitoringMetadata
+  - State
+  - WaitForCleanUp
 Mutation:
   methods:
   - Set
@@ -3985,12 +4317,19 @@ Options:
   - Add
   - Export
   - Get
+  - GetContextReg
   - Import
   - LoadOptionsFromFlags
   - Set
   properties:
+  - CancelFn
+  - ContextReg
   - Environment
+  - IdleShutdownTimeout
   - PipelineResourceHints
+  - Port
+  - RunnerCapabilities
+  - StatusEndpoint
 Opts:
   properties:
   - InternalSharding
@@ -4001,6 +4340,18 @@ OrFinallyTrigger:
   - Finally
   - Main
   - String
+OrderedListRange:
+  methods:
+  - Descriptor
+  - GetEnd
+  - GetStart
+  - ProtoMessage
+  - ProtoReflect
+  - Reset
+  - String
+  properties:
+  - End
+  - Start
 OrderedListStateSpec:
   methods:
   - Descriptor
@@ -4042,6 +4393,16 @@ PCol:
   - Coder
   - Index
   - Local
+PColInfo:
+  methods:
+  - LogValue
+  properties:
+  - EDec
+  - GlobalID
+  - KeyDec
+  - WDec
+  - WEnc
+  - WindowCoder
 PColResult:
   methods:
   - Name
@@ -4087,6 +4448,7 @@ PCollection:
   - Seed
   - UID
   - UniqueName
+  - WindowCoder
   - WindowingStrategyId
 PCollectionSnapshot:
   properties:
@@ -4138,14 +4500,19 @@ PaneInfo:
   - Index
   - IsFirst
   - Timing
+PaneTiming:
+  methods:
+  - String
 ParDo:
   methods:
   - AttachFinalizer
   - Down
   - FinishBundle
   - GetPID
+  - HasOnTimer
   - ID
   - ProcessElement
+  - ProcessTimers
   - StartBundle
   - String
   - Up
@@ -4155,8 +4522,12 @@ ParDo:
   - Out
   - PID
   - Side
+  - TimerTracker
   - UID
   - UState
+ParDoCharacteristic:
+  properties:
+  - DisableSDF
 ParDoPayload:
   methods:
   - Descriptor
@@ -4253,6 +4624,9 @@ PipelineState:
   - KeyCoderType
   - StateKey
   - StateType
+PipelineTimer:
+  methods:
+  - Timers
 Plan:
   methods:
   - Checkpoint
@@ -4341,6 +4715,7 @@ ProcessBundleProgressRequest:
 ProcessBundleProgressResponse:
   methods:
   - Descriptor
+  - GetConsumingReceivedData
   - GetMonitoringData
   - GetMonitoringInfos
   - ProtoMessage
@@ -4348,6 +4723,7 @@ ProcessBundleProgressResponse:
   - Reset
   - String
   properties:
+  - ConsumingReceivedData
   - MonitoringData
   - MonitoringInfos
 ProcessBundleRequest:
@@ -4515,8 +4891,23 @@ ProcessSizedElementsAndRestrictions:
   - PDo
   - SU
   - TfId
+ProcessingTime:
+  methods:
+  - Clear
+  - ClearTag
+  - Set
+  - Timers
+  properties:
+  - Family
+ProducerMessage:
+  properties:
+  - Data
+  - Headers
+  - ID
+  - Subject
 ProgressReportSnapshot:
   properties:
+  - ConsumingReceivedData
   - Count
   - ID
 Provider:
@@ -4533,6 +4924,7 @@ Provider:
   - ReadMapStateKeys
   - ReadMapStateValue
   - ReadValueState
+  - Set
   - WriteBagState
   - WriteMapState
   - WriteValueState
@@ -4632,6 +5024,13 @@ PubSubWritePayload:
   - TimestampAttribute
   - Topic
   - TopicRuntimeOverridden
+PublishAck:
+  properties:
+  - Duplicate
+  - ID
+  - Sequence
+  - Stream
+  - Subject
 PutArtifactMetadata:
   methods:
   - Descriptor
@@ -4743,6 +5142,7 @@ ReadOptions:
   - IDAttribute
   - Subscription
   - TimestampAttribute
+  - Topic
   - WithAttributes
 ReadPayload:
   methods:
@@ -4756,6 +5156,24 @@ ReadPayload:
   properties:
   - IsBounded
   - Source
+ReadableFile:
+  methods:
+  - Open
+  - Read
+  - ReadString
+  properties:
+  - Compression
+  - Metadata
+RedistributePayload:
+  methods:
+  - Descriptor
+  - GetAllowDuplicates
+  - ProtoMessage
+  - ProtoReflect
+  - Reset
+  - String
+  properties:
+  - AllowDuplicates
 RegisterRequest:
   methods:
   - Descriptor
@@ -4775,12 +5193,16 @@ RegisterResponse:
   - String
 Registry:
   methods:
+  - EnvExtrator
+  - ExtractEnvironmentMetadata
+  - ExtractTransformMetadata
   - FromType
   - RegisterLogicalType
   - RegisterLogicalTypeProvider
   - RegisterType
   - Registered
   - ToType
+  - TransformExtractor
 RemoteGrpcPort:
   methods:
   - Descriptor
@@ -4844,6 +5266,16 @@ ReshufflePayload:
   properties:
   - CoderId
   - CoderPayloads
+Residual:
+  properties:
+  - Bounded
+  - Delay
+  - Element
+Residuals:
+  properties:
+  - Data
+  - MinOutputWatermarks
+  - TransformID
 ResolveArtifactsRequest:
   methods:
   - Descriptor
@@ -4909,6 +5341,7 @@ Root:
   - Process
 Row:
   methods:
+  - AddCell
   - Descriptor
   - GetValues
   - ProtoMessage
@@ -4916,6 +5349,8 @@ Row:
   - Reset
   - String
   properties:
+  - Column_families
+  - Key
   - Values
 RowDecoderBuilder:
   methods:
@@ -4939,6 +5374,13 @@ RowType:
   - String
   properties:
   - Schema
+RunBundle:
+  methods:
+  - LogValue
+  properties:
+  - BundleID
+  - StageID
+  - Watermark
 RunJobRequest:
   methods:
   - Descriptor
@@ -4961,9 +5403,72 @@ RunJobResponse:
   - String
   properties:
   - JobId
+RunnerCharacteristic:
+  properties:
+  - SDKFlatten
+  - SDKGBK
+  - SDKReshuffle
 SCombine:
   methods:
   - MergeAccumulators
+SampleDataRequest:
+  methods:
+  - Descriptor
+  - GetPcollectionIds
+  - ProtoMessage
+  - ProtoReflect
+  - Reset
+  - String
+  properties:
+  - PcollectionIds
+SampleDataResponse:
+  methods:
+  - Descriptor
+  - GetElementSamples
+  - ProtoMessage
+  - ProtoReflect
+  - Reset
+  - String
+  properties:
+  - ElementSamples
+SampleDataResponse_ElementList:
+  methods:
+  - Descriptor
+  - GetElements
+  - ProtoMessage
+  - ProtoReflect
+  - Reset
+  - String
+  properties:
+  - Elements
+SampledElement:
+  methods:
+  - Descriptor
+  - GetElement
+  - GetException
+  - GetSampleTimestamp
+  - ProtoMessage
+  - ProtoReflect
+  - Reset
+  - String
+  properties:
+  - Element
+  - Exception
+  - SampleTimestamp
+SampledElement_Exception:
+  methods:
+  - Descriptor
+  - GetError
+  - GetInstructionId
+  - GetTransformId
+  - ProtoMessage
+  - ProtoReflect
+  - Reset
+  - String
+  properties:
+  - Error
+  - InstructionId
+  - TransformId
 Schema:
   methods:
   - Descriptor
@@ -4995,6 +5500,7 @@ SchemaTransformConfig:
   methods:
   - Descriptor
   - GetConfigSchema
+  - GetDescription
   - GetInputPcollectionNames
   - GetOutputPcollectionNames
   - ProtoMessage
@@ -5003,6 +5509,7 @@ SchemaTransformConfig:
   - String
   properties:
   - ConfigSchema
+  - Description
   - InputPcollectionNames
   - OutputPcollectionNames
 SchemaTransformPayload:
@@ -5025,7 +5532,9 @@ Scope:
   - IsValid
   - Scope
   - String
+  - WithContext
   properties:
+  - Context
   - Label
   - Parent
 ScopeTree:
@@ -5036,7 +5545,8 @@ ScopeTree:
 ScopedDataManager:
   methods:
   - Close
-  - OpenRead
+  - OpenElementChan
+  - OpenTimerWrite
   - OpenWrite
 ScopedStateReader:
   methods:
@@ -5070,6 +5580,30 @@ SearchQuery:
   - Identifier
   - Parameters
   - ResourceType
+SequenceDefinition:
+  properties:
+  - End
+  - Interval
+  - Start
+Server:
+  methods:
+  - Cancel
+  - DescribePipelineOptions
+  - Endpoint
+  - GetArtifact
+  - GetJobMetrics
+  - GetJobs
+  - GetMessageStream
+  - GetPipeline
+  - GetState
+  - GetStateStream
+  - IdleShutdown
+  - Prepare
+  - ResolveArtifacts
+  - ReverseArtifactRetrievalService
+  - Run
+  - Serve
+  - Stop
 SessionWindowsPayload:
   methods:
   - Descriptor
@@ -5142,6 +5676,9 @@ SideInputCache:
   - QueryCache
   - SetCache
   - SetValidTokens
+SideInputKey:
+  properties:
+  - TransformID
 Signature:
   methods:
   - String
@@ -5542,6 +6079,12 @@ StateClearResponse:
   - ProtoReflect
   - Reset
   - String
+StateData:
+  properties:
+  - Bag
+  - Multimap
+  - Pane
+  - Trigger
 StateGetRequest:
   methods:
   - Descriptor
@@ -5571,8 +6114,10 @@ StateKey:
   - GetIterableSideInput
   - GetMultimapKeysSideInput
   - GetMultimapKeysUserState
+  - GetMultimapKeysValuesSideInput
   - GetMultimapSideInput
   - GetMultimapUserState
+  - GetOrderedListUserState
   - GetRunner
   - GetType
   - ProtoMessage
@@ -5653,6 +6198,23 @@ StateKey_MultimapKeysUserState:
 StateKey_MultimapKeysUserState_:
   properties:
   - MultimapKeysUserState
+StateKey_MultimapKeysValuesSideInput:
+  methods:
+  - Descriptor
+  - GetSideInputId
+  - GetTransformId
+  - GetWindow
+  - ProtoMessage
+  - ProtoReflect
+  - Reset
+  - String
+  properties:
+  - SideInputId
+  - TransformId
+  - Window
+StateKey_MultimapKeysValuesSideInput_:
+  properties:
+  - MultimapKeysValuesSideInput
 StateKey_MultimapSideInput:
   methods:
   - Descriptor
@@ -5693,6 +6255,27 @@ StateKey_MultimapUserState:
 StateKey_MultimapUserState_:
   properties:
   - MultimapUserState
+StateKey_OrderedListUserState:
+  methods:
+  - Descriptor
+  - GetKey
+  - GetRange
+  - GetTransformId
+  - GetUserStateId
+  - GetWindow
+  - ProtoMessage
+  - ProtoReflect
+  - Reset
+  - String
+  properties:
+  - Key
+  - Range
+  - TransformId
+  - UserStateId
+  - Window
+StateKey_OrderedListUserState_:
+  properties:
+  - OrderedListUserState
 StateKey_Runner:
   methods:
   - Descriptor
@@ -5784,6 +6367,7 @@ StateSpec:
   - GetBagSpec
   - GetCombiningSpec
   - GetMapSpec
+  - GetMultimapSpec
   - GetOrderedListSpec
   - GetProtocol
   - GetReadModifyWriteSpec
@@ -5805,6 +6389,9 @@ StateSpec_CombiningSpec:
 StateSpec_MapSpec:
   properties:
   - MapSpec
+StateSpec_MultimapSpec:
+  properties:
+  - MultimapSpec
 StateSpec_OrderedListSpec:
   properties:
   - OrderedListSpec
@@ -5814,6 +6401,9 @@ StateSpec_ReadModifyWriteSpec:
 StateSpec_SetSpec:
   properties:
   - SetSpec
+StaticTimerID:
+  properties:
+  - TransformID
 Status:
   methods:
   - String
@@ -5866,6 +6456,9 @@ StreamID:
   properties:
   - Port
   - PtransformID
+Structural:
+  methods:
+  - Log
 SymbolResolver:
   methods:
   - Sym2Addr
@@ -5880,6 +6473,36 @@ T:
   - Failed
   - Helper
   - Run
+TentativeData:
+  methods:
+  - AppendBagState
+  - AppendMultimapState
+  - AppendOrderedListState
+  - ClearBagState
+  - ClearMultimapKeysState
+  - ClearMultimapState
+  - ClearOrderedListState
+  - GetBagState
+  - GetMultimapKeysState
+  - GetMultimapState
+  - GetOrderedListState
+  - WriteData
+  - WriteTimers
+  properties:
+  - Raw
+TestDto:
+  properties:
+  - One
+  - Two
+TestStreamBuilder:
+  methods:
+  - AddElementEvent
+  - AddProcessingTimeEvent
+  - AddWatermarkEvent
+TestStreamElement:
+  properties:
+  - Encoded
+  - EventTime
 TestStreamPayload:
   methods:
   - Descriptor
@@ -5962,18 +6585,6 @@ TestStreamPayload_TimestampedElement:
   properties:
   - EncodedElement
   - Timestamp
-TestStreamService_EventsClient:
-  methods:
-  - Recv
-TestStreamService_EventsServer:
-  methods:
-  - Send
-TestStreamServiceClient:
-  methods:
-  - Events
-TestStreamServiceServer:
-  methods:
-  - Events
 Time:
   methods:
   - Add
@@ -6008,11 +6619,19 @@ TimerFamilySpec:
   properties:
   - TimeDomain
   - TimerFamilyCoderId
+TimerKey:
+  properties:
+  - Transform
 TimerMap:
   properties:
   - Clear
+  - Family
   - FireTimestamp
+  - Tag
+TimerRecv:
+  properties:
   - Key
+  - KeyString
   - Pane
   - Windows
 Timers:
@@ -6043,6 +6662,9 @@ TimestampTransform:
   - Reset
   - String
   properties:
+  - AlignToOffset
+  - AlignToPeriod
+  - Delay
   - TimestampTransform
 TimestampTransform_AlignTo:
   methods:
@@ -6072,6 +6694,18 @@ TimestampTransform_Delay:
 TimestampTransform_Delay_:
   properties:
   - Delay
+ToString:
+  methods:
+  - Down
+  - FinishBundle
+  - ID
+  - ProcessElement
+  - StartBundle
+  - String
+  - Up
+  properties:
+  - Out
+  - UID
 Top:
   properties:
   - Emitters
@@ -6098,6 +6732,9 @@ Transaction:
   - MapKey
   - Type
   - Val
+TransformMetadata:
+  properties:
+  - Annotations
 TransformPayload:
   methods:
   - Descriptor
@@ -6284,6 +6921,59 @@ Trigger_Repeat:
 Trigger_Repeat_:
   properties:
   - Repeat
+TriggerAfterAll:
+  methods:
+  - String
+  properties:
+  - SubTriggers
+TriggerAfterAny:
+  methods:
+  - String
+  properties:
+  - SubTriggers
+TriggerAfterEach:
+  methods:
+  - String
+  properties:
+  - SubTriggers
+TriggerAfterEndOfWindow:
+  methods:
+  - String
+  properties:
+  - Early
+TriggerAfterProcessingTime:
+  methods:
+  - String
+  properties:
+  - Transforms
+TriggerAfterSynchronizedProcessingTime:
+  methods:
+  - String
+TriggerAlways:
+  methods:
+  - String
+TriggerDefault:
+  methods:
+  - String
+TriggerElementCount:
+  methods:
+  - String
+  properties:
+  - ElementCount
+TriggerNever:
+  methods:
+  - String
+TriggerOrFinally:
+  methods:
+  - String
+  properties:
+  - Finally
+  - Main
+TriggerRepeatedly:
+  methods:
+  - String
+  properties:
+  - Repeated
 TruncateSizedRestriction:
   methods:
   - Down
@@ -6413,6 +7103,7 @@ UnimplementedJobServiceServer:
   methods:
   - Cancel
   - DescribePipelineOptions
+  - Drain
   - GetJobMetrics
   - GetJobs
   - GetMessageStream
@@ -6432,9 +7123,6 @@ UnimplementedLegacyArtifactStagingServiceServer:
 UnimplementedProvisionServiceServer:
   methods:
   - GetProvisionInfo
-UnimplementedTestStreamServiceServer:
-  methods:
-  - Events
 Unit:
   methods:
   - Down
@@ -6455,7 +7143,6 @@ UnsafeJobServiceServer: {}
 UnsafeLegacyArtifactRetrievalServiceServer: {}
 UnsafeLegacyArtifactStagingServiceServer: {}
 UnsafeProvisionServiceServer: {}
-UnsafeTestStreamServiceServer: {}
 UserFn:
   methods:
   - Descriptor
@@ -6482,12 +7169,55 @@ Value:
   - Write
   properties:
   - Key
+Variant:
+  methods:
+  - GetCharacteristics
+W:
+  methods:
+  - Connected
+  - Control
+  - Data
+  - Endpoint
+  - GetProcessBundleDescriptor
+  - GetProvisionInfo
+  - LogValue
+  - Logging
+  - MonitoringMetadata
+  - NextInst
+  - ResolveEndpoints
+  - State
+  - Stop
+  - Stopped
+  - String
+  properties:
+  - DataReqs
+  - Descriptors
+  - EnvPb
+  - ID
+  - InstReqs
+  - JobKey
+  - PipelineOptions
+  - StoppedChan
 WallTimeWatermarkEstimator:
   methods:
   - CurrentWatermark
 WatermarkEstimator:
   methods:
   - CurrentWatermark
+WinCoderType:
+  methods:
+  - String
+WinStrat:
+  methods:
+  - EarliestCompletion
+  - GetAfterProcessingTimeTriggers
+  - IsNeverTrigger
+  - IsTriggerReady
+  - String
+  properties:
+  - Accumulating
+  - AllowedLateness
+  - Trigger
 Window:
   methods:
   - Equals
@@ -6617,6 +7347,7 @@ WrappedTracker:
 WriteFilesPayload:
   methods:
   - Descriptor
+  - GetAutoSharded
   - GetFormatFunction
   - GetRunnerDeterminedSharding
   - GetSideInputs
@@ -6627,6 +7358,7 @@ WriteFilesPayload:
   - Reset
   - String
   properties:
+  - AutoSharded
   - FormatFunction
   - RunnerDeterminedSharding
   - SideInputs

@@ -1,3 +1,4 @@
+A: {}
 AbstractBeamJob:
   methods:
   - artifact_staging_endpoint
@@ -39,6 +40,23 @@ AbstractJobServiceServicer:
   - GetStateStream
   - Prepare
   - Run
+AbstractMetricCell:
+  methods:
+  - combine
+  - get_cumulative
+  - reset
+  - set
+  - to_runner_api_monitoring_info_impl
+  - update
+Accelerator:
+  properties:
+  - A100_40GB
+  - A100_80GB
+  - L4
+  - P100
+  - P4
+  - T4
+  - V100
 AcceleratorHint:
   properties:
   - urn
@@ -63,19 +81,19 @@ AccumulatorCombineFnCounter:
   - reset
   - update
   - update_n
+AckCaller: {}
 AdaptiveThrottler:
   methods:
   - successful_request
   - throttle_request
   properties:
   - MIN_REQUESTS
-AddBitbucketServerConnectedRepositoryRequest:
-  properties:
-  - connectedRepository
-AddBitbucketServerConnectedRepositoryResponse:
-  properties:
-  - config
-  - connectedRepository
+AddLambdaVariable:
+  methods:
+  - my_method
+AddLocalVariable:
+  methods:
+  - my_method
 AddThenMultiply:
   methods:
   - expand
@@ -97,6 +115,7 @@ AfterAny:
 AfterCount:
   methods:
   - from_runner_api
+  - get_continuation_trigger
   - has_ontime_pane
   - may_lose_data
   - on_element
@@ -110,6 +129,7 @@ AfterCount:
 AfterEach:
   methods:
   - from_runner_api
+  - get_continuation_trigger
   - has_ontime_pane
   - may_lose_data
   - on_element
@@ -123,6 +143,7 @@ AfterEach:
 AfterProcessingTime:
   methods:
   - from_runner_api
+  - get_continuation_trigger
   - has_ontime_pane
   - may_lose_data
   - on_element
@@ -136,6 +157,7 @@ AfterProcessingTime:
 AfterWatermark:
   methods:
   - from_runner_api
+  - get_continuation_trigger
   - has_ontime_pane
   - is_late
   - may_lose_data
@@ -156,12 +178,40 @@ AggregateClassificationMetrics:
   - recall
   - rocAuc
   - threshold
+AggregateMilkQualityResults:
+  methods:
+  - add_input
+  - create_accumulator
+  - extract_output
+  - merge_accumulators
+AggregationFn:
+  methods:
+  - apply
 AllAccumulator:
   methods:
   - add_input
   - extract_output
   - merge
 AllCombineFn: {}
+AlloyDBLanguageConnectorConfig:
+  methods:
+  - additional_jdbc_args
+  - to_connection_config
+  - to_jdbc_url
+  properties:
+  - additional_properties
+  - admin_service_endpoint
+  - connection_properties
+  - database_name
+  - delegates
+  - enable_iam_auth
+  - instance_name
+  - ip_type
+  - password
+  - quota_project
+  - target_principal
+  - username
+AlloyDBVectorWriterConfig: {}
 AllPrimitives:
   properties:
   - field_bool
@@ -182,9 +232,11 @@ AllPrimitives:
   - field_optional_int8
   - field_optional_str
   - field_str
+AllVote: {}
 Always:
   methods:
   - from_runner_api
+  - get_continuation_trigger
   - has_ontime_pane
   - may_lose_data
   - on_element
@@ -213,13 +265,16 @@ AnnotateVideo:
 AnnotateVideoWithContext:
   methods:
   - expand
+AnnotatingProvider: {}
 AnnotationBasedPayloadBuilder: {}
+Annotations: {}
 AnnotationTests:
   methods:
   - check_annotation
   - check_custom_annotation
   - setUp
   - test_deprecated_custom_no_replacements
+  - test_deprecated_with_class
   - test_deprecated_with_since_current
   - test_deprecated_with_since_current_message
   - test_deprecated_with_since_current_message_class
@@ -228,20 +283,42 @@ AnnotationTests:
   - test_deprecated_without_since_custom_should_fail
   - test_deprecated_without_since_should_fail
   - test_enforce_custom_since_deprecated_must_fail
-  - test_experimental_with_current
-  - test_experimental_with_current_message
-  - test_experimental_with_current_message_class
-  - test_experimental_with_current_message_custom
-  - test_experimental_without_current
+AnomalyDetection:
+  methods:
+  - expand
+AnomalyDetector:
+  methods:
+  - learn_one
+  - score_one
+AnomalyPrediction:
+  properties:
+  - info
+  - label
+  - model_id
+  - score
+  - source_predictions
+  - threshold
+AnomalyResult:
+  properties:
+  - example
+  - predictions
+AnotherAnnProvider: {}
 AnyAccumulator:
   methods:
   - add_input
   - extract_output
   - merge
 AnyCombineFn: {}
+AnyOfEnvironment:
+  methods:
+  - create_proto
+  - from_runner_api_parameter
+  - to_runner_api
+  - to_runner_api_parameter
 AnyTypeConstraint:
   methods:
   - type_check
+AnyVote: {}
 AppendDestinationsFn:
   methods:
   - display_data
@@ -260,19 +337,12 @@ AppliedPTransform:
   - replace_side_inputs
   - to_runner_api
   - visit
-ApprovalConfig:
-  properties:
-  - approvalRequired
-ApprovalResult:
-  properties:
-  - approvalTime
-  - approverAccount
-  - comment
-  - decision
-  - url
-ApproveBuildRequest:
-  properties:
-  - approvalResult
+ApplyBuckets:
+  methods:
+  - apply_transform
+ApplyBucketsWithInterpolation:
+  methods:
+  - apply_transform
 ApproximateProgress:
   properties:
   - percentComplete
@@ -365,28 +435,33 @@ ArrayMultiplyDoFn:
   methods:
   - infer_output_type
   - process_batch
-ArtifactObjects:
+ArtifactMode:
   properties:
-  - location
-  - paths
-  - timing
-ArtifactResult:
-  properties:
-  - fileHash
-  - location
+  - CONSUME
+  - PRODUCE
 ArtifactRetrievalService:
   methods:
   - GetArtifact
   - ResolveArtifacts
-Artifacts:
-  properties:
-  - images
-  - objects
+ArtifactRetrievalServiceServicer:
+  methods:
+  - GetArtifact
+  - ResolveArtifacts
+ArtifactRetrievalServiceStub: {}
+ArtifactsFetcher:
+  methods:
+  - get_vocab_filepath
+  - get_vocab_list
+  - get_vocab_size
 ArtifactStagingService:
   methods:
   - register_job
   - resolved_deps
   - ReverseArtifactRetrievalService
+ArtifactStagingServiceServicer:
+  methods:
+  - ReverseArtifactRetrievalService
+ArtifactStagingServiceStub: {}
 AsDict: {}
 AsIter:
   methods:
@@ -395,12 +470,28 @@ AsList: {}
 AsMultiMap:
   methods:
   - requires_keyed_input
+AssertEqualAndRecord:
+  methods:
+  - expand
+  - get_recorded_result
+  - has_recorded_result
+  - remove_recorded_result
+  - store_recorded_result
 AsSideInput:
   methods:
   - element_type
   - from_runner_api
   - requires_keyed_input
   - to_runner_api
+AssignClusterLabelsFn:
+  methods:
+  - process
+AssignClusterLabelsInMemoryModel:
+  methods:
+  - expand
+AssignClusterLabelsRunInference:
+  methods:
+  - expand
 AssignTimestamps:
   methods:
   - process
@@ -410,6 +501,34 @@ AssignUniqueID:
 AsSingleton:
   methods:
   - element_type
+AsyncComputationResult:
+  methods:
+  - cancel
+  - done
+  - exception
+  - result
+  - set_pipeline_result
+  - update_display
+AsyncWrapper:
+  methods:
+  - accepting_items
+  - commit_finished_items
+  - decrement_items_in_buffer
+  - initialize_pool
+  - is_empty
+  - next_time_to_fire
+  - process
+  - reset_state
+  - schedule_if_room
+  - schedule_item
+  - setup
+  - sync_fn_process
+  - teardown
+  - timer_callback
+  properties:
+  - TIMER
+  - TIMER_SET
+  - TO_PROCESS
 Auction:
   properties:
   - CODER
@@ -477,6 +596,24 @@ AutocompleteIT:
   properties:
   - EXPECTED_PREFIXES
   - WORDS
+AutoGenerationScriptIT:
+  methods:
+  - create_and_check_transforms_config_exists
+  - create_and_validate_transforms_config
+  - delete_and_validate
+  - get_module
+  - setUp
+  - tearDown
+  - test_check_standard_external_transforms_config_in_sync
+  - test_pretty_types
+  - test_run_pipeline_with_generated_transform
+  - test_script_fails_with_invalid_destinations
+  - test_script_workflow
+  - test_script_workflow_with_modified_transforms
+  - test_script_workflow_with_skipped_transform
+  - write_wrappers_to_destinations_and_validate
+  properties:
+  - GEN_SEQ_IDENTIFIER
 AutoscalingEvent:
   properties:
   - currentNumWorkers
@@ -489,10 +626,19 @@ AutoscalingSettings:
   properties:
   - algorithm
   - maxNumWorkers
+AverageScore: {}
 AvroBase:
   methods:
   - setUp
   - tearDown
+  - test_avro_schema_to_beam_and_back
+  - test_avro_schema_to_beam_schema_with_nullable_atomic_fields
+  - test_avro_union_type_to_beam_type_with_multiple_types
+  - test_avro_union_type_to_beam_type_with_nullable_annotated_string
+  - test_avro_union_type_to_beam_type_with_nullable_long
+  - test_avro_union_type_to_beam_type_with_only_null
+  - test_avro_union_type_to_beam_type_with_record_and_null
+  - test_avro_union_type_to_beam_type_with_string_long
   - test_corrupted_file
   - test_dynamic_work_rebalancing_exhaustive
   - test_read_all_continuously_new
@@ -516,6 +662,7 @@ AvroBase:
   - test_read_without_splitting_compressed_snappy
   - test_read_without_splitting_multiple_blocks
   - test_read_without_splitting_pattern
+  - test_schema_read_write
   - test_sink_display_data
   - test_sink_transform
   - test_sink_transform_snappy
@@ -533,6 +680,13 @@ AvroGenericCoder:
   - is_deterministic
   - to_runner_api_parameter
   - to_type_hint
+AvroNycTripsIT:
+  methods:
+  - test_avro_nyc_trips_output_files_on_small_input
+  properties:
+  - EXPECTED
+  - RECORDS
+  - SCHEMA
 AvroRecord: {}
 AvroRowWriter:
   methods:
@@ -550,6 +704,7 @@ AvroTestRecord: {}
 AzureOptions:
   methods:
   - validate
+B: {}
 BackgroundCachingJob:
   methods:
   - cancel
@@ -564,6 +719,9 @@ BagInStateOutputAfterTimer:
   properties:
   - EMIT_TIMER
   - SET_STATE
+BagOfWords:
+  methods:
+  - apply_transform
 BagRuntimeState:
   methods:
   - add
@@ -572,6 +730,14 @@ BagRuntimeState:
 BagStateSpec:
   methods:
   - to_runner_api
+Base2Exponent:
+  properties:
+  - numberOfBuckets
+  - scale
+Base64Coder:
+  properties:
+  - decode
+  - encode
 Base64PickleCoder:
   methods:
   - decode
@@ -580,10 +746,49 @@ Base64PickleCoder:
   - is_kv_coder
   - key_coder
   - value_coder
+BaseCloudSQLDBEnrichment:
+  methods:
+  - setUpClass
+  - tearDownClass
+BaseExternalSQLDBEnrichment:
+  methods:
+  - setUpClass
+  - tearDownClass
+BaseOperation:
+  methods:
+  - apply_transform
+BaseSearchParameters:
+  properties:
+  - anns_field
+  - consistency_level
+  - filter
+  - limit
+  - search_params
+BaseTestSQLEnrichment:
+  methods:
+  - cache_container
+  - get_columns
+  - setUpClass
+  - tearDownClass
+  - test_sql_enrichment
+  - test_sql_enrichment_batched
+  - test_sql_enrichment_batched_multiple_fields
+  - test_sql_enrichment_on_non_existent_table
+  - test_sql_enrichment_with_condition_value_fn
+  - test_sql_enrichment_with_query_fn
+  - test_sql_enrichment_with_redis
 BaseTimer:
   methods:
   - clear
   - set
+BaseTracker:
+  methods:
+  - get
+  - push
+BasicDofn:
+  methods:
+  - getProcessed
+  - process
 BasicLoggingService:
   methods:
   - Logging
@@ -601,17 +806,6 @@ BatchConverter:
   - get_length
   - produce_batch
   - register
-BatchCreateBitbucketServerConnectedRepositoriesRequest:
-  properties:
-  - requests
-BatchCreateBitbucketServerConnectedRepositoriesResponse:
-  properties:
-  - bitbucketServerConnectedRepositories
-BatchCreateBitbucketServerConnectedRepositoriesResponseMetadata:
-  properties:
-  - completeTime
-  - config
-  - createTime
 BatchDoFn:
   methods:
   - process_batch
@@ -641,6 +835,13 @@ BatchToElementDoFn:
   methods:
   - process_batch
 BeamAssertException: {}
+BeamBlobReader:
+  methods:
+  - read
+BeamBlobWriter:
+  methods:
+  - write
+BeamConstants: {}
 BeamDataframeDoctestRunner:
   methods:
   - fake_pandas_module
@@ -654,24 +855,56 @@ BeamFilesystemHandler:
   methods:
   - file_reader
   - file_writer
+BeamFnControl:
+  methods:
+  - Control
+  - GetProcessBundleDescriptor
 BeamFnControlServicer:
   methods:
   - Control
+BeamFnControlStub: {}
+BeamFnData:
+  methods:
+  - Data
 BeamFnDataServicer:
   methods:
   - Data
   - get_conn_by_worker_id
+BeamFnDataStub: {}
+BeamFnExternalWorkerPool:
+  methods:
+  - StartWorker
+  - StopWorker
 BeamFnExternalWorkerPoolServicer:
   methods:
   - start
   - StartWorker
   - StopWorker
+BeamFnExternalWorkerPoolStub: {}
+BeamFnLogging:
+  methods:
+  - Logging
 BeamFnLoggingServicer:
   methods:
   - Logging
+BeamFnLoggingStub: {}
+BeamFnState:
+  methods:
+  - State
+BeamFnStateServicer:
+  methods:
+  - State
+BeamFnStateStub: {}
 BeamFnStatusServicer:
   methods:
   - WorkerStatus
+BeamFnWorkerStatus:
+  methods:
+  - WorkerStatus
+BeamFnWorkerStatusServicer:
+  methods:
+  - WorkerStatus
+BeamFnWorkerStatusStub: {}
 BeamIOError: {}
 BeamJarExpansionService: {}
 BeamJob:
@@ -731,6 +964,15 @@ BidCoderImpl:
   methods:
   - decode_from_stream
   - encode_to_stream
+BigEndianShortCoder:
+  methods:
+  - is_deterministic
+  - to_type_hint
+BigEndianShortCoderImpl:
+  methods:
+  - decode_from_stream
+  - encode_to_stream
+  - estimate_size
 BigIntegerCoder:
   methods:
   - is_deterministic
@@ -792,6 +1034,18 @@ BigQueryDisposition:
   - WRITE_APPEND
   - WRITE_EMPTY
   - WRITE_TRUNCATE
+BigQueryEnrichmentHandler:
+  methods:
+  - batch_elements_kwargs
+  - create_row_key
+  - get_cache_key
+BigQueryEnrichmentIT:
+  methods:
+  - setUpClass
+  - tearDownClass
+  properties:
+  - bigquery_dataset_id
+  - project
 BigQueryFileLoadsIntegrationTests:
   methods:
   - setUp
@@ -803,6 +1057,7 @@ BigQueryFileLoadsIT:
   methods:
   - setUp
   - tearDown
+  - test_batch_copy_jobs_with_no_input_schema
   - test_bqfl_streaming
   - test_bqfl_streaming_with_copy_jobs
   - test_bqfl_streaming_with_dynamic_destinations
@@ -820,6 +1075,19 @@ BigqueryFullResultMatcher:
 BigqueryFullResultStreamingMatcher:
   properties:
   - DEFAULT_TIMEOUT
+BigQueryGeographyIntegrationTests:
+  methods:
+  - create_geography_table
+  - setUp
+  - tearDown
+  - test_geography_complex_geometries
+  - test_geography_file_loads_method
+  - test_geography_repeated_fields
+  - test_geography_storage_write_api
+  - test_geography_write_and_read_basic_geometries
+  - test_geography_write_with_beam_rows
+  properties:
+  - BIG_QUERY_DATASET_ID
 BigQueryIODetails:
   properties:
   - dataset
@@ -890,18 +1158,21 @@ BigQueryJsonIT:
   - read_and_validate_rows
   - run_test_write
   - setUpClass
+  - tearDownClass
   - test_direct_read
   - test_export_read
   - test_file_loads_write
   - test_query_read
   - test_streaming_inserts
+  properties:
+  - created_tables
 BigqueryMatcher:
   methods:
   - describe_mismatch
   - describe_to
 BigQueryMetricsFetcher:
   methods:
-  - fetch
+  - fetch_metric_data
 BigQueryMetricsPublisher:
   methods:
   - publish
@@ -1003,10 +1274,14 @@ BigQuerySideInputIT:
   - DEFAULT_OUTPUT_FILE
 BigQueryStreamingInsertsErrorHandling:
   methods:
-  - test_insert_all_retries_if_structured_retriable
-  - test_insert_all_retries_if_unstructured_retriable
-  - test_insert_all_unretriable_errors
-  - test_insert_all_unretriable_errors_streaming
+  - test_insert_rows_json_errors_retry_always
+  - test_insert_rows_json_errors_retry_never
+  - test_insert_rows_json_errors_retry_on_transient_error
+  - test_insert_rows_json_exception_retry_always
+  - test_insert_rows_json_exception_retry_never
+  - test_insert_rows_json_exception_retry_on_transient_error
+  - test_insert_rows_json_intermittent_retriable_exception
+  - test_insert_rows_json_persistent_retriable_exception
 BigQueryStreamingInsertTransformIntegrationTests:
   methods:
   - setUp
@@ -1098,11 +1373,38 @@ BigqueryV2:
   - BASE_URL
   - MESSAGES_MODULE
   - MTLS_BASE_URL
+BigQueryVectorSearchEnrichmentHandler:
+  methods:
+  - batch_elements_kwargs
+BigQueryVectorSearchIT:
+  methods:
+  - setUpClass
+  - tearDownClass
+  properties:
+  - bigquery_dataset_id
+  - project
+BigQueryVectorSearchParameters:
+  methods:
+  - format_query
+  properties:
+  - columns
+  - distance_type
+  - embedding_column
+  - include_distance
+  - metadata_restriction_template
+  - neighbor_count
+  - options
+  - project
+  - table_name
+BigQueryVectorWriterConfig:
+  methods:
+  - create_write_transform
 BigQueryWrapper:
   methods:
   - clean_up_temporary_dataset
   - convert_row_to_dict
   - create_temporary_dataset
+  - from_pipeline_options
   - get_job
   - get_or_create_dataset
   - get_or_create_table
@@ -1140,12 +1442,40 @@ BigQueryWriteIntegrationTests:
   - tearDown
   - test_big_query_write
   - test_big_query_write_insert_errors_reporting
+  - test_big_query_write_insert_non_transient_api_call_error
   - test_big_query_write_new_types
   - test_big_query_write_schema_autodetect
   - test_big_query_write_temp_table_append_schema_update
   - test_big_query_write_without_schema
   properties:
   - BIG_QUERY_DATASET_ID
+BigQueryXlangStorageWriteIT:
+  methods:
+  - assert_iceberg_tables_created
+  - parse_expected_data
+  - run_storage_write_test
+  - run_streaming
+  - setUp
+  - skip_if_not_dataflow_runner
+  - tearDown
+  - test_all_types
+  - test_nested_records_and_lists
+  - test_streaming_with_at_least_once
+  - test_streaming_with_auto_sharding
+  - test_streaming_with_fixed_num_streams
+  - test_with_at_least_once_semantics
+  - test_write_to_dynamic_destinations
+  - test_write_to_dynamic_destinations_with_beam_rows
+  - test_write_with_beam_rows
+  - test_write_with_beam_rows_cdc
+  - test_write_with_big_lake_configuration
+  - test_write_with_clustering
+  - test_write_with_dicts_cdc
+  - test_write_with_managed_transform
+  properties:
+  - ALL_TYPES_SCHEMA
+  - BIGQUERY_DATASET
+  - ELEMENTS
 BigtableColumn:
   properties:
   - encoding
@@ -1161,6 +1491,9 @@ BigtableColumnFamily:
   - familyId
   - onlyReadLatest
   - type
+BigTableEnrichmentHandler:
+  methods:
+  - get_cache_key
 BigTableIODetails:
   properties:
   - instanceId
@@ -1193,51 +1526,6 @@ Binding:
   - condition
   - members
   - role
-BitbucketServerConfig:
-  properties:
-  - apiKey
-  - connectedRepositories
-  - createTime
-  - hostUri
-  - name
-  - peeredNetwork
-  - secrets
-  - sslCa
-  - username
-  - webhookKey
-BitbucketServerConnectedRepository:
-  properties:
-  - parent
-  - repo
-  - status
-BitbucketServerRepository:
-  properties:
-  - browseUri
-  - description
-  - displayName
-  - name
-  - repoId
-BitbucketServerRepositoryId:
-  properties:
-  - projectKey
-  - repoSlug
-  - webhookId
-BitbucketServerSecrets:
-  properties:
-  - adminAccessTokenVersionName
-  - readAccessTokenVersionName
-  - webhookSecretVersionName
-BitbucketServerTriggerConfig:
-  properties:
-  - bitbucketServerConfig
-  - bitbucketServerConfigResource
-  - projectKey
-  - pullRequest
-  - push
-  - repoSlug
-BitcoinTxnCountDoFn:
-  methods:
-  - process
 Blob: {}
 BlobStorageDownloader:
   methods:
@@ -1258,6 +1546,7 @@ BlobStorageFileSystem:
   - mkdirs
   - open
   - rename
+  - report_lineage
   - scheme
   - size
   - split
@@ -1306,6 +1595,27 @@ BoundedSource:
   - is_bounded
   - read
   - split
+BoundedTrie:
+  methods:
+  - add
+BoundedTrieCell:
+  methods:
+  - add
+  - to_runner_api_monitoring_info_impl
+BoundedTrieData:
+  methods:
+  - add
+  - as_trie
+  - combine
+  - contains
+  - flattened
+  - from_proto
+  - get_cumulative
+  - get_result
+  - identity_element
+  - singleton
+  - size
+  - to_proto
 BoundedWindow:
   methods:
   - end
@@ -1326,170 +1636,41 @@ BqmlTrainingRun:
   - state
   - trainingOptions
 Breakfast: {}
-Bucket:
+Bucketize:
+  methods:
+  - apply_transform
+BucketOptions:
   properties:
-  - acl
-  - billing
-  - cors
-  - defaultEventBasedHold
-  - defaultObjectAcl
-  - encryption
-  - etag
-  - id
-  - kind
-  - labels
-  - lifecycle
-  - location
-  - logging
-  - metageneration
-  - name
-  - owner
-  - projectNumber
-  - retentionPolicy
-  - selfLink
-  - storageClass
-  - timeCreated
-  - updated
-  - versioning
-  - website
-BucketAccessControl:
-  properties:
-  - bucket
-  - domain
-  - email
-  - entity
-  - entityId
-  - etag
-  - id
-  - kind
-  - projectTeam
-  - role
-  - selfLink
-BucketAccessControls:
-  properties:
-  - items
-  - kind
-Buckets:
-  properties:
-  - items
-  - kind
-  - nextPageToken
+  - exponential
+  - linear
 BucketType:
   methods:
   - accumulated_bucket_size
   - bucket_index
   - bucket_size
+  - from_runner_api
   - num_buckets
   - range_from
   - range_to
+  - to_runner_api
 Buffer:
   methods:
   - append
   - extend
+BufferedLandmarkQuantileTracker: {}
+BufferedQuantileTracker:
+  methods:
+  - get
+  - push
+BufferedSlidingQuantileTracker: {}
+BufferStateType:
+  properties:
+  - BAG
+  - ORDERED_LIST
+  - VALUE
 build:
   properties:
   - sub_commands
-Build:
-  properties:
-  - approval
-  - artifacts
-  - availableSecrets
-  - buildTriggerId
-  - createTime
-  - failureInfo
-  - finishTime
-  - id
-  - images
-  - logsBucket
-  - logUrl
-  - name
-  - options
-  - projectId
-  - queueTtl
-  - results
-  - secrets
-  - serviceAccount
-  - source
-  - sourceProvenance
-  - startTime
-  - status
-  - statusDetail
-  - steps
-  - substitutions
-  - tags
-  - timeout
-  - timing
-  - warnings
-BuildApproval:
-  properties:
-  - config
-  - result
-  - state
-BuildOperationMetadata:
-  properties:
-  - build
-BuildOptions:
-  properties:
-  - diskSizeGb
-  - dynamicSubstitutions
-  - env
-  - logging
-  - logStreamingOption
-  - machineType
-  - pool
-  - requestedVerifyOption
-  - secretEnv
-  - sourceProvenanceHash
-  - substitutionOption
-  - volumes
-  - workerPool
-BuildStep:
-  properties:
-  - args
-  - dir
-  - entrypoint
-  - env
-  - id
-  - name
-  - pullTiming
-  - script
-  - secretEnv
-  - status
-  - timeout
-  - timing
-  - volumes
-  - waitFor
-BuildTrigger:
-  properties:
-  - approvalConfig
-  - autodetect
-  - bitbucketServerTriggerConfig
-  - build
-  - createTime
-  - description
-  - disabled
-  - eventType
-  - filename
-  - filter
-  - gitFileSource
-  - github
-  - id
-  - ignoredFiles
-  - includedFiles
-  - name
-  - pubsubConfig
-  - resourceName
-  - serviceAccount
-  - sourceToBuild
-  - substitutions
-  - tags
-  - triggerTemplate
-  - webhookConfig
-BuiltImage:
-  properties:
-  - digest
-  - name
-  - pushTiming
 BundleBasedDirectRunner:
   methods:
   - is_fnapi_compatible
@@ -1544,7 +1725,6 @@ ByteCountingOutputStream:
   - write_byte
 BytesCoder:
   methods:
-  - as_cloud_object
   - is_deterministic
   - to_type_hint
 BytesCoderImpl:
@@ -1553,6 +1733,15 @@ BytesCoderImpl:
   - decode_from_stream
   - encode
   - encode_to_stream
+C: {}
+Cache:
+  methods:
+  - get_read
+  - get_write
+  - request_coder
+  - request_coder
+  - source_caller
+  - source_caller
 Cacheable:
   methods:
   - from_pcoll
@@ -1595,6 +1784,12 @@ CachingStateHandler:
   - done
   - extend
   - process_instruction_id
+CalculatePricePerAttribute:
+  methods:
+  - add_input
+  - create_accumulator
+  - extract_output
+  - merge_accumulators
 CalculateSpammyUsers:
   methods:
   - expand
@@ -1606,6 +1801,10 @@ CalculateTeamScores:
 CalculateUserScores:
   methods:
   - expand
+CallableCounter:
+  methods:
+  - error
+  - increment
 CallableWrapperCombineFn:
   methods:
   - add_input
@@ -1634,6 +1833,13 @@ CallbackCoderImpl:
   - encode_to_stream
   - estimate_size
   - get_estimated_size_and_observables
+Caller:
+  methods:
+  - batch_elements_kwargs
+  - get_cache_key
+CallerThatRetries: {}
+CallerWithRuntimeError: {}
+CallerWithTimeout: {}
 CallSequenceEnforcingCombineFn:
   methods:
   - add_input
@@ -1652,12 +1858,6 @@ CallSequenceEnforcingDoFn:
   - setup
   - start_bundle
   - teardown
-CancelBuildRequest:
-  properties:
-  - id
-  - name
-  - projectId
-CancelOperationRequest: {}
 CaptureControl:
   methods:
   - limiters
@@ -1669,18 +1869,70 @@ CategoryCount:
   properties:
   - category
   - count
-Channel:
+ChangePointConfig:
   properties:
-  - address
-  - expiration
+  - median_abs_deviation_threshold
+  - min_runs_between_change_points
+  - num_runs_in_change_point_window
+Child_1:
+  properties:
+  - child_class_var
+  - counter
+Child_2:
+  properties:
+  - child_class_var
+  - counter
+Child_Error_1:
+  properties:
+  - child_class_var
+  - counter
+Child_Error_2:
+  properties:
+  - child_class_var
+  - counter
+Chunk:
+  methods:
+  - dense_embedding
+  - sparse_embedding
+  properties:
+  - content
+  - embedding
   - id
-  - kind
-  - params
-  - payload
-  - resourceId
-  - resourceUri
-  - token
-  - type
+  - index
+  - metadata
+ChunkingTransformProvider:
+  methods:
+  - get_ptransform_for_processing
+  - get_splitter_transform
+ChunkTestUtils:
+  methods:
+  - from_seed
+  - get_expected_values
+ClassWithClassMethod:
+  methods:
+  - class_method
+ClassWithFunction:
+  methods:
+  - process
+ClassWithLambda:
+  methods:
+  - process
+ClassWithNestedClass: {}
+ClassWithNestedFunction:
+  methods:
+  - my_method
+ClassWithNestedFunction2:
+  methods:
+  - my_method
+ClassWithNestedLambda:
+  methods:
+  - process
+ClassWithStaticMethod:
+  methods:
+  - static_method
+ClassWithTwoMethods:
+  methods:
+  - my_method
 Client:
   methods:
   - complete_multipart_upload
@@ -1703,272 +1955,44 @@ ClosableOutputStream:
   - create
   - flush
   - maybe_flush
-CloudbuildLocationsRegionalWebhookRequest:
-  properties:
-  - httpBody
-  - location
-  - webhookKey
-CloudbuildOperationsCancelRequest:
-  properties:
-  - cancelOperationRequest
-  - name
-CloudbuildOperationsGetRequest:
-  properties:
-  - name
-CloudbuildProjectsBuildsApproveRequest:
-  properties:
-  - approveBuildRequest
-  - name
-CloudbuildProjectsBuildsCreateRequest:
-  properties:
-  - build
-  - parent
-  - projectId
-CloudbuildProjectsBuildsGetRequest:
-  properties:
-  - id
-  - name
-  - projectId
-CloudbuildProjectsBuildsListRequest:
-  properties:
-  - filter
-  - pageSize
-  - pageToken
-  - parent
-  - projectId
-CloudbuildProjectsGithubEnterpriseConfigsCreateRequest:
-  properties:
-  - gheConfigId
-  - gitHubEnterpriseConfig
-  - parent
-  - projectId
-CloudbuildProjectsGithubEnterpriseConfigsDeleteRequest:
-  properties:
-  - configId
-  - name
-  - projectId
-CloudbuildProjectsGithubEnterpriseConfigsGetRequest:
-  properties:
-  - configId
-  - name
-  - projectId
-CloudbuildProjectsGithubEnterpriseConfigsListRequest:
-  properties:
-  - parent
-  - projectId
-CloudbuildProjectsGithubEnterpriseConfigsPatchRequest:
-  properties:
-  - gitHubEnterpriseConfig
-  - name
-  - updateMask
-CloudbuildProjectsLocationsBitbucketServerConfigsAddBitbucketServerConnectedRepositoryRequest:
-  properties:
-  - addBitbucketServerConnectedRepositoryRequest
-  - config
-CloudbuildProjectsLocationsBitbucketServerConfigsConnectedRepositoriesBatchCreateRequest:
-  properties:
-  - batchCreateBitbucketServerConnectedRepositoriesRequest
-  - parent
-CloudbuildProjectsLocationsBitbucketServerConfigsCreateRequest:
-  properties:
-  - bitbucketServerConfig
-  - bitbucketServerConfigId
-  - parent
-CloudbuildProjectsLocationsBitbucketServerConfigsDeleteRequest:
-  properties:
-  - name
-CloudbuildProjectsLocationsBitbucketServerConfigsGetRequest:
-  properties:
-  - name
-CloudbuildProjectsLocationsBitbucketServerConfigsListRequest:
-  properties:
-  - pageSize
-  - pageToken
-  - parent
-CloudbuildProjectsLocationsBitbucketServerConfigsPatchRequest:
-  properties:
-  - bitbucketServerConfig
-  - name
-  - updateMask
-CloudbuildProjectsLocationsBitbucketServerConfigsRemoveBitbucketServerConnectedRepositoryRequest:
-  properties:
-  - config
-  - removeBitbucketServerConnectedRepositoryRequest
-CloudbuildProjectsLocationsBitbucketServerConfigsReposListRequest:
-  properties:
-  - pageSize
-  - pageToken
-  - parent
-CloudbuildProjectsLocationsBuildsApproveRequest:
-  properties:
-  - approveBuildRequest
-  - name
-CloudbuildProjectsLocationsBuildsCreateRequest:
-  properties:
-  - build
-  - parent
-  - projectId
-CloudbuildProjectsLocationsBuildsGetRequest:
-  properties:
-  - id
-  - name
-  - projectId
-CloudbuildProjectsLocationsBuildsListRequest:
-  properties:
-  - filter
-  - pageSize
-  - pageToken
-  - parent
-  - projectId
-CloudbuildProjectsLocationsGithubEnterpriseConfigsCreateRequest:
-  properties:
-  - gheConfigId
-  - gitHubEnterpriseConfig
-  - parent
-  - projectId
-CloudbuildProjectsLocationsGithubEnterpriseConfigsDeleteRequest:
-  properties:
-  - configId
-  - name
-  - projectId
-CloudbuildProjectsLocationsGithubEnterpriseConfigsGetRequest:
-  properties:
-  - configId
-  - name
-  - projectId
-CloudbuildProjectsLocationsGithubEnterpriseConfigsListRequest:
-  properties:
-  - parent
-  - projectId
-CloudbuildProjectsLocationsGithubEnterpriseConfigsPatchRequest:
-  properties:
-  - gitHubEnterpriseConfig
-  - name
-  - updateMask
-CloudbuildProjectsLocationsOperationsCancelRequest:
-  properties:
-  - cancelOperationRequest
-  - name
-CloudbuildProjectsLocationsOperationsGetRequest:
-  properties:
-  - name
-CloudbuildProjectsLocationsTriggersCreateRequest:
-  properties:
-  - buildTrigger
-  - parent
-  - projectId
-CloudbuildProjectsLocationsTriggersDeleteRequest:
-  properties:
-  - name
-  - projectId
-  - triggerId
-CloudbuildProjectsLocationsTriggersGetRequest:
-  properties:
-  - name
-  - projectId
-  - triggerId
-CloudbuildProjectsLocationsTriggersListRequest:
-  properties:
-  - pageSize
-  - pageToken
-  - parent
-  - projectId
-CloudbuildProjectsLocationsTriggersPatchRequest:
-  properties:
-  - buildTrigger
-  - projectId
-  - resourceName
-  - triggerId
-CloudbuildProjectsLocationsTriggersRunRequest:
-  properties:
-  - name
-  - runBuildTriggerRequest
-CloudbuildProjectsLocationsTriggersWebhookRequest:
-  properties:
-  - httpBody
-  - name
-  - projectId
-  - secret
-  - trigger
-CloudbuildProjectsLocationsWorkerPoolsCreateRequest:
-  properties:
-  - parent
-  - validateOnly
-  - workerPool
-  - workerPoolId
-CloudbuildProjectsLocationsWorkerPoolsDeleteRequest:
-  properties:
-  - allowMissing
-  - etag
-  - name
-  - validateOnly
-CloudbuildProjectsLocationsWorkerPoolsGetRequest:
-  properties:
-  - name
-CloudbuildProjectsLocationsWorkerPoolsListRequest:
-  properties:
-  - pageSize
-  - pageToken
-  - parent
-CloudbuildProjectsLocationsWorkerPoolsPatchRequest:
-  properties:
-  - name
-  - updateMask
-  - validateOnly
-  - workerPool
-CloudbuildProjectsTriggersCreateRequest:
-  properties:
-  - buildTrigger
-  - parent
-  - projectId
-CloudbuildProjectsTriggersDeleteRequest:
-  properties:
-  - name
-  - projectId
-  - triggerId
-CloudbuildProjectsTriggersGetRequest:
-  properties:
-  - name
-  - projectId
-  - triggerId
-CloudbuildProjectsTriggersListRequest:
-  properties:
-  - pageSize
-  - pageToken
-  - parent
-  - projectId
-CloudbuildProjectsTriggersPatchRequest:
-  properties:
-  - buildTrigger
-  - projectId
-  - triggerId
-CloudbuildProjectsTriggersRunRequest:
-  properties:
-  - name
-  - projectId
-  - repoSource
-  - triggerId
-CloudbuildProjectsTriggersWebhookRequest:
-  properties:
-  - httpBody
-  - name
-  - projectId
-  - secret
-  - trigger
-CloudbuildV1:
-  properties:
-  - BASE_URL
-  - MESSAGES_MODULE
-  - MTLS_BASE_URL
-CloudbuildWebhookRequest:
-  properties:
-  - httpBody
-  - webhookKey
 CloudDLPIT:
   methods:
   - setUp
   - test_deidentification
   - test_inspection
+CloudpickleCoder: {}
+CloudPickleConfig:
+  properties:
+  - filepath_interceptor
+  - get_code_object_params
+  - id_generator
+  - skip_reset_dynamic_type_state
+CloudSQLConnectionConfig:
+  methods:
+  - get_connector_handler
+  - get_db_url
+  properties:
+  - connect_kwargs
+  - connector_kwargs
+  - db_adapter
+  - db_id
+  - instance_connection_uri
+  - password
+  - refresh_strategy
+  - user
+CloudSQLEnrichmentHandler:
+  methods:
+  - batch_elements_kwargs
+  - create_row_key
+  - get_cache_key
+CloudSQLEnrichmentTestDataConstruct:
+  properties:
+  - client_handler
+  - db
+  - engine
+  - metadata
+CloudSQLMySQLVectorWriterConfig: {}
+CloudSQLPostgresVectorWriterConfig: {}
 Cluster:
   properties:
   - centroidId
@@ -1982,11 +2006,22 @@ ClusterInfo:
 Clustering:
   properties:
   - fields
+ClusteringAlgorithm:
+  methods:
+  - load_model_checkpoint
+  - process
+  properties:
+  - ITERATION_SPEC
+  - MODEL_ID
+  - MODEL_SPEC
 ClusteringMetrics:
   properties:
   - clusters
   - daviesBouldinIndex
   - meanSquaredDistance
+ClusteringPreprocessing:
+  methods:
+  - expand
 ClusterMetadata:
   methods:
   - reset_name
@@ -2011,7 +2046,6 @@ Clusters:
   - DATAPROC_MINIMUM_WORKER_NUM
 Coder:
   methods:
-  - as_cloud_object
   - as_deterministic_coder
   - decode
   - decode_nested
@@ -2032,6 +2066,7 @@ Coder:
   - to_runner_api_parameter
   - to_type_hint
   - value_coder
+  - version_tag
 CoderImpl:
   methods:
   - decode
@@ -2048,6 +2083,7 @@ CoderRegistry:
   methods:
   - get_coder
   - get_custom_type_coder_tuples
+  - load_custom_type_coder_tuples
   - register_coder
   - register_fallback_coder
   - register_standard_coders
@@ -2066,12 +2102,49 @@ CoGBKTransform:
 CoGroupByKey:
   methods:
   - expand
+CollectingErrorHandler:
+  methods:
+  - output
+  - verify_closed
 CollectingFn:
   methods:
   - process
   properties:
   - BUFFER_STATE
   - COUNT_STATE
+CollectionHint: {}
+ColoredFixedWindow: {}
+ColoredFixedWindowCoder:
+  methods:
+  - decode
+  - encode
+  - is_deterministic
+  properties:
+  - kv_coder
+ColumnSpec:
+  methods:
+  - float
+  - integer
+  - jsonb
+  - placeholder
+  - text
+  - vector
+  properties:
+  - column_name
+  - python_type
+  - sql_typecast
+  - value_fn
+ColumnSpecsBuilder:
+  methods:
+  - add_custom_column_spec
+  - add_metadata_field
+  - build
+  - with_content_spec
+  - with_defaults
+  - with_embedding_spec
+  - with_id_spec
+  - with_metadata_spec
+  - with_sparse_embedding_spec
 CombineFn:
   methods:
   - add_input
@@ -2133,6 +2206,11 @@ CombinerWithoutDefaults:
   methods:
   - with_defaults
   - without_defaults
+CombinerWithSideInputs:
+  methods:
+  - test_combinefn_methods_with_side_input
+  - test_cpk_with_side_input
+  - test_cpk_with_windows
 CombineValues:
   methods:
   - expand
@@ -2145,10 +2223,6 @@ CombineValuesDoFn:
   - process
   - setup
   - teardown
-CombineValuesPTransformOverride:
-  methods:
-  - get_replacement_transform
-  - matches
 CombiningTriggerDriver:
   methods:
   - process_elements
@@ -2157,7 +2231,6 @@ CombiningValueRuntimeState:
   methods:
   - add
   - clear
-  - commit
   - finalize
   - read
 CombiningValueStateSpec:
@@ -2166,6 +2239,7 @@ CombiningValueStateSpec:
 Command:
   methods:
   - run
+CommitManifestResponse: {}
 ComparableValue:
   methods:
   - hydrate
@@ -2191,11 +2265,6 @@ ComponentTransform:
   - name
   - originalTransform
   - userName
-ComposeRequest:
-  properties:
-  - destination
-  - kind
-  - sourceObjects
 CompositeTypeHint: {}
 CompositeTypeHintError: {}
 CompressedFile:
@@ -2221,6 +2290,7 @@ CompressionTypes:
   - BZIP2
   - DEFLATE
   - GZIP
+  - LZMA
   - UNCOMPRESSED
   - ZSTD
 ComputationTopology:
@@ -2231,6 +2301,9 @@ ComputationTopology:
   - outputs
   - stateFamilies
   - systemStageName
+ComputeAndApplyVocabulary:
+  methods:
+  - apply_transform
 ComputedExpression:
   methods:
   - args
@@ -2250,7 +2323,16 @@ ComputeTopSessionsIT:
   properties:
   - EDITS
   - EXPECTED
-ConcatPosition: {}
+ConcatListCombineFn:
+  methods:
+  - add_input
+  - create_accumulator
+  - extract_output
+  - merge_accumulators
+ConcatPosition:
+  properties:
+  - index
+  - position
 ConcatRangeTracker:
   methods:
   - fraction_consumed
@@ -2271,10 +2353,26 @@ ConcatSource:
   - read
   - sources
   - split
+ConflictResolution:
+  methods:
+  - get_conflict_clause
+  - maybe_set_default_update_fields
+  properties:
+  - action
+  - on_conflict_fields
+  - update_fields
 ConfusionMatrix:
   properties:
   - confidenceThreshold
   - rows
+ConnectionConfig:
+  properties:
+  - additional_jdbc_args
+  - connection_init_sqls
+  - connection_properties
+  - jdbc_url
+  - password
+  - username
 ConnectionProperty:
   properties:
   - key
@@ -2309,8 +2407,14 @@ ContainerSpec:
   properties:
   - defaultEnvironment
   - image
+  - imageRepositoryCertPath
+  - imageRepositoryPasswordSecretId
+  - imageRepositoryUsernameSecretId
   - metadata
   - sdkInfo
+Content:
+  properties:
+  - text
 ControlConnection:
   methods:
   - abort
@@ -2326,11 +2430,13 @@ ControlFuture:
   - get
   - is_done
   - set
+ConvertToNumpyArray:
+  methods:
+  - process
 ConvertToPubSubMessage:
   methods:
   - process
 CopyRequest: {}
-CorruptMainSessionException: {}
 Count:
   methods:
   - expand
@@ -2355,9 +2461,8 @@ CountCombineFn:
   - merge_accumulators
 Counter:
   methods:
-  - error
-  - get
-  - increment
+  - dec
+  - inc
 CounterAggregator:
   methods:
   - combine
@@ -2421,6 +2526,11 @@ CounterUpdate:
   - shortId
   - stringList
   - structuredNameAndMetadata
+CounterWithBadAttr:
+  methods:
+  - error
+  - get
+  - increment
 CountingSource:
   methods:
   - estimate_size
@@ -2444,6 +2554,11 @@ CountPerElementTransform:
 CountWords:
   methods:
   - expand
+CpuCountHint:
+  methods:
+  - get_merged_value
+  properties:
+  - urn
 CPUTime:
   properties:
   - rate
@@ -2452,15 +2567,6 @@ CPUTime:
 Create:
   methods:
   - apply
-CreateBitbucketServerConfigOperationMetadata:
-  properties:
-  - bitbucketServerConfig
-  - completeTime
-  - createTime
-CreateBitbucketServerConnectedRepositoryRequest:
-  properties:
-  - bitbucketServerConnectedRepository
-  - parent
 CreateCatalogItem:
   methods:
   - expand
@@ -2473,17 +2579,10 @@ CreateDisposition:
 CreateFolderFn:
   methods:
   - process
-CreateGitHubEnterpriseConfigOperationMetadata:
-  properties:
-  - completeTime
-  - createTime
-  - githubEnterpriseConfig
-CreateGitLabConfigOperationMetadata:
-  properties:
-  - completeTime
-  - createTime
-  - gitlabConfig
 CreateGrid:
+  methods:
+  - expand
+CreateInts:
   methods:
   - expand
 CreateJobFromTemplateRequest:
@@ -2493,18 +2592,18 @@ CreateJobFromTemplateRequest:
   - jobName
   - location
   - parameters
-CreatePTransformOverride:
+CreateKey:
   methods:
-  - get_replacement_transform_for_applied_ptransform
-  - matches
+  - process
+CreateKeyWithServiceAndDay:
+  methods:
+  - process
+CreateTimestamped:
+  methods:
+  - expand
 CreateTransportData:
   methods:
   - process
-CreateWorkerPoolOperationMetadata:
-  properties:
-  - completeTime
-  - createTime
-  - workerPool
 CrossLanguageKafkaIO:
   methods:
   - build_read_pipeline
@@ -2518,6 +2617,7 @@ CrossLanguageTestPipelines:
   - run_combine_per_key
   - run_flatten
   - run_group_by_key
+  - run_group_by_key_no_assert
   - run_multi_input_output_with_sideinput
   - run_partition
   - run_prefix
@@ -2546,6 +2646,7 @@ CustomMergingWindowFn:
   - assign
   - get_window_coder
   - merge
+CustomMilvusContainer: {}
 CustomPTransformIT:
   methods:
   - test_custom_ptransform_output_files_on_small_input
@@ -2555,6 +2656,9 @@ CustomPTransformIT:
 CustomPytorchModelHandlerKeyedTensor:
   methods:
   - load_model
+CustomQueryConfig:
+  properties:
+  - query_fn
 CustomSklearnModelHandlerNumpy:
   methods:
   - batch_elements_kwargs
@@ -2571,6 +2675,11 @@ DaskBagOp:
   - transform
   properties:
   - applied
+  - bag_kwargs
+DaskBagWindowedIterator:
+  properties:
+  - bag
+  - window_fn
 DaskOptions: {}
 DaskRunner:
   methods:
@@ -2585,6 +2694,35 @@ DaskRunnerResult:
   properties:
   - client
   - futures
+DatabaseTestConfig:
+  properties:
+  - common_module
+  - connector_module
+  - database
+  - database_type
+  - id_column_type
+  - instance_uri
+  - jdbc_driver
+  - metadata_column_type
+  - password_env_var
+  - table_prefix
+  - username
+  - vector_column_type
+  - writer_config_class
+DatabaseTestHelper:
+  methods:
+  - cleanup
+  - create_all_tables
+  - create_writer_config
+  - get_read_query
+  - setup_connection
+DatabaseTypeAdapter:
+  methods:
+  - to_sqlalchemy_dialect
+  properties:
+  - MYSQL
+  - POSTGRESQL
+  - SQLSERVER
 DataChannel:
   methods:
   - close
@@ -2593,6 +2731,7 @@ DataChannel:
   - output_timer_stream
 DataChannelFactory:
   methods:
+  - cleanup
   - close
   - create_data_channel
   - create_data_channel_from_url
@@ -2611,10 +2750,17 @@ DataflowApplicationClient:
   - list_messages
   - modify_job_state
   - stage_file
+  - stage_file_with_retry
   - submit_job_description
 DataflowBeamJob:
   methods:
   - cancel
+DataflowCostBenchmark:
+  methods:
+  - run
+  properties:
+  - WORKER_START_PATTERN
+  - WORKER_STOP_PATTERN
 DataflowDistributionCounter:
   methods:
   - add_input
@@ -2627,6 +2773,12 @@ DataflowDistributionCounter:
   - BUCKET_PER_TEN
   - MAX_BUCKET_SIZE
 DataflowDistributionCounterFn: {}
+DataflowHistogramValue:
+  properties:
+  - bucketCounts
+  - bucketOptions
+  - count
+  - outlierStats
 DataflowJobAlreadyExistsError: {}
 DataflowMetrics:
   methods:
@@ -2656,6 +2808,7 @@ DataflowProjectsJobsAggregatedRequest:
   properties:
   - filter
   - location
+  - name
   - pageSize
   - pageToken
   - projectId
@@ -2693,6 +2846,7 @@ DataflowProjectsJobsListRequest:
   properties:
   - filter
   - location
+  - name
   - pageSize
   - pageToken
   - projectId
@@ -2718,6 +2872,7 @@ DataflowProjectsJobsUpdateRequest:
   - jobId
   - location
   - projectId
+  - updateMask
 DataflowProjectsJobsWorkItemsLeaseRequest:
   properties:
   - jobId
@@ -2775,6 +2930,7 @@ DataflowProjectsLocationsJobsListRequest:
   properties:
   - filter
   - location
+  - name
   - pageSize
   - pageToken
   - projectId
@@ -2816,6 +2972,7 @@ DataflowProjectsLocationsJobsUpdateRequest:
   - jobId
   - location
   - projectId
+  - updateMask
 DataflowProjectsLocationsJobsWorkItemsLeaseRequest:
   properties:
   - jobId
@@ -2843,11 +3000,6 @@ DataflowProjectsLocationsSnapshotsListRequest:
   - jobId
   - location
   - projectId
-DataflowProjectsLocationsSqlValidateRequest:
-  properties:
-  - location
-  - projectId
-  - query
 DataflowProjectsLocationsTemplatesCreateRequest:
   properties:
   - createJobFromTemplateRequest
@@ -2908,29 +3060,13 @@ DataflowProjectsWorkerMessagesRequest:
   - sendWorkerMessagesRequest
 DataflowRunner:
   methods:
-  - add_pcoll_with_auto_sharding
-  - apply
-  - apply_GroupByKey
-  - byte_array_to_json_string
   - combinefn_visitor
-  - deserialize_windowing_strategy
+  - default_pickle_library_override
   - flatten_input_visitor
   - get_default_gcp_region
-  - get_pcoll_with_auto_sharding
   - is_fnapi_compatible
-  - json_string_to_byte_array
   - poll_for_job_completion
-  - run__NativeWrite
-  - run_CombineValuesReplacement
-  - run_ExternalTransform
-  - run_Flatten
-  - run_GroupByKey
-  - run_Impulse
-  - run_ParDo
   - run_pipeline
-  - run_Read
-  - run_TestStream
-  - serialize_windowing_strategy
   - side_input_visitor
 DataflowRuntimeException: {}
 DataflowV1b3:
@@ -2994,6 +3130,26 @@ DataprocClusterManager:
   - parse_master_url_and_dashboard
   - stage_init_action
   - wait_for_cluster_to_provision
+DataSampler:
+  methods:
+  - create
+  - initialize_samplers
+  - sampler_for_output
+  - samples
+  - stop
+  - wait_for_samples
+DataSamplingConfig:
+  properties:
+  - behaviors
+DataSamplingReport:
+  properties:
+  - bytesWrittenDelta
+  - elementsSampledBytes
+  - elementsSampledCount
+  - exceptionsSampledCount
+  - pcollectionsSampledCount
+  - persistenceErrorsCount
+  - translationErrorsCount
 Dataset:
   properties:
   - access
@@ -3045,6 +3201,7 @@ DatastoreWriteIT:
   - NUM_ENTITIES
 DebugOptions:
   properties:
+  - dataSampling
   - enableHotKeyLogging
 DecimalCoder:
   methods:
@@ -3084,6 +3241,9 @@ Deduplicate:
 DeduplicatePerKey:
   methods:
   - expand
+DeduplicateTensorPerRow:
+  methods:
+  - apply_transform
 DefaultEnvironment:
   methods:
   - from_runner_api_parameter
@@ -3091,9 +3251,11 @@ DefaultEnvironment:
 DefaultRootBundleProvider:
   methods:
   - get_root_bundles
+DefaultThrottler: {}
 DefaultTrigger:
   methods:
   - from_runner_api
+  - get_continuation_trigger
   - has_ontime_pane
   - may_lose_data
   - on_element
@@ -3177,7 +3339,6 @@ DeferredDataFrame:
   - kurtosis
   - last_valid_index
   - lookup
-  - mad
   - max
   - mean
   - median
@@ -3329,6 +3490,7 @@ DeferredPandasModule:
   - period_range
   - pivot
   - pivot_table
+  - set_eng_float_format
   - show_versions
   - test
   - timedelta_range
@@ -3413,7 +3575,6 @@ DeferredSeries:
   - items
   - iteritems
   - last_valid_index
-  - mad
   - map
   - max
   - median
@@ -3452,33 +3613,13 @@ DefinesGetAndSetState: {}
 DefinesGetState: {}
 DeleteBatchRequest: {}
 DeleteBatchResponse: {}
-DeleteBitbucketServerConfigOperationMetadata:
-  properties:
-  - bitbucketServerConfig
-  - completeTime
-  - createTime
 DeleteFromDatastore: {}
-DeleteGitHubEnterpriseConfigOperationMetadata:
-  properties:
-  - completeTime
-  - createTime
-  - githubEnterpriseConfig
-DeleteGitLabConfigOperationMetadata:
-  properties:
-  - completeTime
-  - createTime
-  - gitlabConfig
 DeleteRequest: {}
 DeleteSnapshotResponse: {}
 DeleteTablesFn:
   methods:
   - process
   - start_bundle
-DeleteWorkerPoolOperationMetadata:
-  properties:
-  - completeTime
-  - createTime
-  - workerPool
 DependsOnlyOnWindow:
   methods:
   - merge
@@ -3498,6 +3639,15 @@ DeterministicFastPrimitivesCoder:
   - key_coder
   - to_type_hint
   - value_coder
+DeterministicFastPrimitivesCoderV2:
+  methods:
+  - is_deterministic
+  - is_kv_coder
+  - key_coder
+  - to_runner_api_parameter
+  - to_type_hint
+  - value_coder
+  - version_tag
 DeterministicMapCoder:
   methods:
   - is_deterministic
@@ -3521,6 +3671,7 @@ DicomSearch:
   - expand
 DictHint: {}
 DictToObject: {}
+DictWrapper: {}
 DillCoder: {}
 DirectMetric:
   methods:
@@ -3600,11 +3751,6 @@ DisplayManager:
 Distribution:
   methods:
   - update
-DistributionAggregator:
-  methods:
-  - combine
-  - identity_element
-  - result
 DistributionCell:
   methods:
   - combine
@@ -3616,6 +3762,8 @@ DistributionData:
   methods:
   - combine
   - get_cumulative
+  - get_result
+  - identity_element
   - singleton
 DistributionInt64Accumulator:
   methods:
@@ -3680,6 +3828,7 @@ DoFn:
   - yields_batches
   - yields_elements
   properties:
+  - BundleContextParam
   - BundleFinalizerParam
   - DoFnProcessParams
   - DynamicTimerTagParam
@@ -3687,11 +3836,13 @@ DoFn:
   - KeyParam
   - PaneInfoParam
   - RestrictionParam
+  - SetupContextParam
   - SideInputParam
   - StateParam
   - TimerParam
   - TimestampParam
   - WatermarkEstimatorParam
+  - WindowedValueParam
   - WindowParam
 DoFnContext:
   methods:
@@ -3737,8 +3888,10 @@ DoFnRunner:
   - try_split
 DoFnSignature:
   methods:
+  - get_bundle_contexts
   - get_restriction_coder
   - get_restriction_provider
+  - get_setup_contexts
   - get_watermark_estimator_provider
   - has_bundle_finalization
   - has_timers
@@ -3788,9 +3941,7 @@ DriverClassName:
   - MYSQL
   - ORACLE
   - POSTGRESQL
-DummyClass:
-  methods:
-  - func
+DummyClass: {}
 DummyCoder:
   methods:
   - decode
@@ -3814,9 +3965,24 @@ DynamicSourceSplit:
   properties:
   - primary
   - residual
-DynamicSplitRequest: {}
-DynamicSplitResult: {}
-DynamicSplitResultWithPosition: {}
+EchoHTTPCaller: {}
+EchoHTTPCallerTestIT:
+  methods:
+  - setUpClass
+  - test_request_response_io
+  properties:
+  - client
+  - options
+EchoITOptions: {}
+EchoResponse:
+  properties:
+  - id
+  - payload
+EdgeData:
+  properties:
+  - label
+  - source
+  - target
 Eggs: {}
 EitherDoFn:
   methods:
@@ -3837,6 +4003,10 @@ ElementEvent:
 ElementLimiter:
   methods:
   - update
+ElementSampler:
+  properties:
+  - el
+  - has_element
 ElementsToSeriesFn:
   methods:
   - process_batch
@@ -3883,7 +4053,18 @@ EmbeddedWorkerHandler:
   - start_worker
   - state_api_service_descriptor
   - stop_worker
-Empty: {}
+Embedding:
+  properties:
+  - dense_embedding
+  - sparse_embedding
+EmbeddingsManager:
+  methods:
+  - get_columns_to_apply
+  - get_model_handler
+EmbeddingTypeAdapter:
+  properties:
+  - input_fn
+  - output_fn
 EmptyMatchTreatment:
   methods:
   - allow_empty_match
@@ -3896,6 +4077,25 @@ EmulatedIterable: {}
 EncryptionConfiguration:
   properties:
   - kmsKeyName
+Enrichment:
+  methods:
+  - expand
+  - with_redis_cache
+EnrichmentSourceHandler:
+  methods:
+  - get_cache_key
+EnrichmentTestHelpers:
+  methods:
+  - milvus_test_context
+  - post_milvus_enrichment
+  - post_sql_enrichment_test
+  - pre_milvus_enrichment
+  - pre_sql_enrichment_test
+  - sql_test_context
+EnsembleAnomalyDetector:
+  methods:
+  - learn_one
+  - score_one
 Entity:
   methods:
   - from_client_entity
@@ -3921,19 +4121,33 @@ Environment:
   - serviceKmsKeyName
   - serviceOptions
   - shuffleMode
+  - streamingMode
   - tempStoragePrefix
   - userAgent
+  - useStreamingEngineResourceBasedBilling
   - version
   - workerPools
   - workerRegion
   - workerZone
+EnvoyRateLimiter:
+  methods:
+  - allow
+  - init_connection
 EOL:
   properties:
   - CRLF
-  - CUSTOM_DELIMITER
   - LF
   - LF_WITH_NOTHING_AT_LAST_LINE
   - MIXED
+ErrorHandler:
+  methods:
+  - add_error_pcollection
+  - close
+  - output
+  - verify_closed
+ErrorHandlingConfig:
+  properties:
+  - output
 ErrorProto:
   properties:
   - debugInfo
@@ -3968,6 +4182,10 @@ EvaluationMetrics:
   - multiClassClassificationMetrics
   - rankingMetrics
   - regressionMetrics
+EvenOddWindows:
+  methods:
+  - assign
+  - get_window_coder
 Event:
   methods:
   - from_runner_api
@@ -3980,12 +4198,31 @@ EventRecorder:
 EventsReader:
   methods:
   - read_multiple
+ExceptionLevel:
+  properties:
+  - QUIET
+  - RAISE
+  - WARN
+ExceptionMetadata:
+  properties:
+  - instruction_id
+  - msg
+  - transform_id
+ExceptionTimerDoFn:
+  methods:
+  - on_timer_f
+  properties:
+  - TIMER_SPEC
 Exec:
   methods:
   - setUp
   - test_method_forwarding_not_windows
   - test_method_forwarding_windows
-ExecutionContext: {}
+ExecutionContext:
+  properties:
+  - delayed_applications
+  - instruction_id
+  - output_sampler
 ExecutionStageState:
   properties:
   - currentStateTime
@@ -4001,6 +4238,15 @@ ExecutionStageSummary:
   - name
   - outputSource
   - prerequisiteStage
+ExecutionState:
+  methods:
+  - get_pcollection_contents
+  - new_id
+  - register_process_bundle_descriptor
+  - set_pcollection_contents
+  - windowed_coder
+  - windowed_coder_id
+  - windowing_strategy
 Executor:
   methods:
   - await_completion
@@ -4018,9 +4264,17 @@ ExpandStringsProvider:
 ExpansionAndArtifactRetrievalStub:
   methods:
   - artifact_service
+  - ready
+ExpansionMethods: {}
+ExpansionService:
+  methods:
+  - DiscoverSchemaTransform
+  - Expand
 ExpansionServiceServicer:
   methods:
+  - artifact_service
   - Expand
+ExpansionServiceStub: {}
 ExpectedSplitOutcome:
   properties:
   - MUST_BE_CONSISTENT_IF_SUCCEEDS
@@ -4070,9 +4324,15 @@ Explanation:
   properties:
   - attribution
   - featureName
+ExplicitSchemaTransformPayloadBuilder:
+  methods:
+  - build
 ExplodeWindowsFn:
   methods:
   - process
+ExponentialBackOffRepeater:
+  methods:
+  - repeat
 ExportCompression:
   properties:
   - DEFLATE
@@ -4117,21 +4377,49 @@ ExternalEnvironment:
   - from_options
   - from_runner_api_parameter
   - to_runner_api_parameter
+ExternalJavaProvider:
+  methods:
+  - available
+  - cache_artifacts
 ExternalJobServer:
   methods:
   - start
   - stop
+ExternalProvider:
+  methods:
+  - config_schema
+  - create_external_transform
+  - create_transform
+  - description
+  - provided_transforms
+  - provider_from_spec
+  - register_provider_type
+  - requires_inputs
+  - schema_transforms
+ExternalPythonProvider:
+  methods:
+  - available
+  - cache_artifacts
+  - create_external_transform
+ExternalSQLDBConnectionConfig:
+  methods:
+  - get_connector_handler
+  - get_db_url
+  properties:
+  - connect_kwargs
+  - db_adapter
+  - db_id
+  - host
+  - password
+  - port
+  - user
 ExternalTransform:
   methods:
-  - default_label
   - expand
-  - get_local_namespace
-  - outer_namespace
-  - replace_named_inputs
-  - replace_named_outputs
-  - service
-  - to_runner_api_transform
-  - with_output_types
+  properties:
+  - configuration_schema
+  - default_expansion_service
+  - identifier
 ExternalTransformFinder:
   methods:
   - contains_external_transforms
@@ -4140,6 +4428,17 @@ ExternalTransformFinder:
 ExternalTransformIT:
   methods:
   - test_job_python_from_python_it
+ExternalTransformProvider:
+  methods:
+  - get
+  - get_all
+  - get_available
+  - get_urn
+ExternalTransformProviderIT:
+  methods:
+  - test_generate_sequence_signature_and_doc
+  - test_run_generate_sequence
+  - test_run_generate_sequence_with_rate
 ExternalWorkerHandler:
   methods:
   - host_from_worker
@@ -4162,30 +4461,56 @@ ExtractHtmlTitleTransform:
 ExtractInferences:
   methods:
   - process
-ExtractUserAndTimestampDoFn:
-  methods:
-  - process
 FailedLocation:
   properties:
   - name
-FailureInfo:
+FailureMode:
   properties:
-  - detail
-  - type
-FakeApiCall: {}
+  - FAIL_FAST
+  - REPORT_FAILURES
+FakeAggregation:
+  methods:
+  - expand
+FakeAlwaysFailsRemoteModelHandler:
+  methods:
+  - batch_elements_kwargs
+  - create_client
+  - request
+FakeBagState:
+  methods:
+  - add
+  - clear
+  - read
 FakeBatch:
   methods:
   - begin
   - commit
   - delete
   - put
-FakeBatchApiRequest:
+FakeBlob:
   methods:
-  - Add
-  - Execute
+  - delete
+  - download_as_bytes
+  - exists
+  - reload
+FakeBucket:
+  methods:
+  - add_blob
+  - blob
+  - copy_blob
+  - delete_blob
+  - get_blob
+  - list_blobs
+  - lookup_blob
+  - set_default_kms_key_name
+FakeCallerForCache: {}
 FakeClock:
   methods:
-  - time_ns
+  - sleep
+FakeDetector:
+  methods:
+  - learn_one
+  - score_one
 FakeDeterministicFastPrimitivesCoder:
   methods:
   - is_deterministic
@@ -4193,27 +4518,29 @@ FakeDownloader:
   methods:
   - get_range
   - size
+FakeEmbeddingsManager:
+  methods:
+  - get_model_handler
+  - get_ptransform_for_processing
+FakeEnrichmentTransform: {}
+FakeFailsOnceRemoteModelHandler:
+  methods:
+  - batch_elements_kwargs
+  - create_client
+  - request
 FakeFile:
   methods:
   - get_metadata
-FakeGcsBuckets:
-  methods:
-  - Get
-  - get_bucket
-FakeGcsClient: {}
-FakeGcsObjects:
+FakeGcsClient:
   methods:
   - add_file
-  - Delete
-  - delete_file
-  - Get
+  - batch
+  - bucket
+  - create_bucket
+  - get_bucket
   - get_file
-  - get_last_generation
-  - Insert
-  - List
-  - Rewrite
-  properties:
-  - REWRITE_TOKEN
+  - list_blobs
+  - lookup_bucket
 FakeHdfs:
   methods:
   - checksum
@@ -4226,20 +4553,42 @@ FakeHdfs:
   - walk
   - write
 FakeHdfsError: {}
-FakeHttpClient:
+FakeImageEmbeddingsManager:
   methods:
-  - dicomweb_store_instance
-  - qido_search
+  - get_model_handler
+  - get_ptransform_for_processing
+FakeImageModel: {}
+FakeImageModelHandler:
+  methods:
+  - load_model
+  - run_inference
+FakeIncrementingModel:
+  methods:
+  - predict
 FakeLogger:
   methods:
   - log
+FakeMessage:
+  methods:
+  - ByteSize
 FakeModel:
+  methods:
+  - predict
+FakeModelAdd:
+  methods:
+  - predict
+FakeModelDefault:
   methods:
   - predict
 FakeModelHandler:
   methods:
+  - batch_elements_kwargs
+  - get_num_bytes
   - load_model
+  - model_copies
   - run_inference
+  - share_model_across_processes
+  - update_model_path
 FakeModelHandlerExpectedInferenceArgs:
   methods:
   - run_inference
@@ -4247,13 +4596,43 @@ FakeModelHandlerExpectedInferenceArgs:
 FakeModelHandlerFailsOnInferenceArgs:
   methods:
   - run_inference
+  - validate_inference_args
 FakeModelHandlerNeedsBigBatch:
   methods:
   - batch_elements_kwargs
   - run_inference
-FakeMutation:
+FakeModelHandlerNoEnvVars:
   methods:
-  - ByteSize
+  - batch_elements_kwargs
+  - load_model
+  - run_inference
+  - update_model_path
+FakeModelHandlerReturnsPredictionResult:
+  methods:
+  - load_model
+  - run_inference
+  - update_model_path
+FakeModelSub:
+  methods:
+  - predict
+FakeMultiModalEmbeddingsManager:
+  methods:
+  - get_model_handler
+  - get_ptransform_for_processing
+FakeMultiModalInput:
+  properties:
+  - image
+  - text
+  - video
+FakeMultiModalModel: {}
+FakeMultiModalModelHandler:
+  methods:
+  - load_model
+  - run_inference
+FakeMutation: {}
+FakeNumpyModel:
+  methods:
+  - predict
 FakeNumpyModelDictOut:
   methods:
   - predict
@@ -4261,6 +4640,14 @@ FakePandasModelDictOut:
   methods:
   - predict
 FakePandasObject: {}
+FakeReadFromPubSub:
+  methods:
+  - expand
+FakeRemoteModelHandler:
+  methods:
+  - batch_elements_kwargs
+  - create_client
+  - request
 FakeS3Client:
   methods:
   - add_file
@@ -4275,21 +4662,61 @@ FakeS3Client:
   - get_range
   - list
   - upload_part
+FakeSecret:
+  methods:
+  - get_secret_bytes
+FakeSlowModel:
+  methods:
+  - predict
+FakeSlowModelHandler:
+  methods:
+  - batch_elements_kwargs
+  - load_model
+  - run_inference
+  - share_model_across_processes
 FakeSource:
   methods:
   - reader
 FakeSourceReader:
   methods:
   - returns_windowed_values
+FakeSql:
+  methods:
+  - default_label
+  - expand
+FakeStatefulModel:
+  methods:
+  - increment_state
+  - predict
+FakeTFNumpyModel:
+  methods:
+  - predict
+FakeTFTensorModel:
+  methods:
+  - predict
+FakeTimer:
+  methods:
+  - set
+FakeTorchModel:
+  methods:
+  - predict
 FakeUnboundedSource:
   methods:
   - is_bounded
-  - reader
 FakeUploader:
   methods:
   - finish
   - last_error
   - put
+FakeWriteToPubSub:
+  methods:
+  - expand
+FanOutToSlideBoundaries:
+  methods:
+  - process
+FanOutToWindows:
+  methods:
+  - process
 FastavroIT:
   methods:
   - setUp
@@ -4306,7 +4733,6 @@ FastCoders:
   - test_using_fast_impl
 FastPrimitivesCoder:
   methods:
-  - as_cloud_object
   - as_deterministic_coder
   - is_deterministic
   - is_kv_coder
@@ -4320,8 +4746,12 @@ FastPrimitivesCoderImpl:
   - encode_special_deterministic
   - encode_to_stream
   - encode_type
+  - encode_type_2_67_0
   - get_estimated_size_and_observables
   - register_iterable_like_type
+FeastFeatureStoreEnrichmentHandler:
+  methods:
+  - get_cache_key
 FeatureValue:
   properties:
   - categoricalValue
@@ -4358,6 +4788,8 @@ FileBasedCacheManager:
   - clear
   - exists
   - load_pcoder
+  - raw_sink
+  - raw_source
   - read
   - save_pcoder
   - sink
@@ -4369,11 +4801,13 @@ FileBasedSink:
   methods:
   - close
   - display_data
+  - finalize_windowed_write
   - finalize_write
   - initialize_write
   - open
   - open_writer
   - pre_finalize
+  - pre_finalize_windowed
   - write_encoded_record
   - write_record
 FileBasedSinkWriter:
@@ -4403,9 +4837,6 @@ FileFormat:
   - AVRO
   - CSV
   - JSON
-FileHashes:
-  properties:
-  - fileHash
 FileIODetails:
   properties:
   - filePattern
@@ -4439,6 +4870,7 @@ FileSystem:
   - mkdirs
   - open
   - rename
+  - report_lineage
   - scheme
   - size
   - split
@@ -4461,6 +4893,8 @@ FileSystems:
   - mkdirs
   - open
   - rename
+  - report_sink_lineage
+  - report_source_lineage
   - set_options
   - split
   properties:
@@ -4473,12 +4907,6 @@ FilterLessThanTransform:
 FilterTextFn:
   methods:
   - process
-FinishCombine:
-  methods:
-  - default_type_hints
-  - process
-  - setup
-  - teardown
 FirstOf:
   methods:
   - from_type_hint
@@ -4505,12 +4933,18 @@ FixedString:
   - language_type
   - to_language_type
   - urn
+FixedThreshold:
+  methods:
+  - apply
+  - is_stateful
+  - threshold
 FixedWindows:
   methods:
   - assign
   - from_runner_api_parameter
   - get_window_coder
   - to_runner_api_parameter
+FixedWindowsPayload: {}
 Flatten:
   methods:
   - apply
@@ -4520,6 +4954,9 @@ FlattenAndDouble:
 FlattenAndTriple:
   methods:
   - expand
+FlattenBatch:
+  methods:
+  - process
 FlattenInstruction:
   properties:
   - inputs
@@ -4531,6 +4968,9 @@ FlattenTransform:
   - expand
   - from_runner_api_parameter
   - to_runner_api_parameter
+FlattenWith:
+  methods:
+  - expand
 FlexTemplateRuntimeEnvironment:
   properties:
   - additionalExperiments
@@ -4538,6 +4978,7 @@ FlexTemplateRuntimeEnvironment:
   - autoscalingAlgorithm
   - diskSizeGb
   - dumpHeapOnOom
+  - enableLauncherVmSerialPortLogging
   - enableStreamingEngine
   - flexrsGoal
   - ipConfiguration
@@ -4551,6 +4992,7 @@ FlexTemplateRuntimeEnvironment:
   - sdkContainerImage
   - serviceAccountEmail
   - stagingLocation
+  - streamingMode
   - subnetwork
   - tempLocation
   - workerRegion
@@ -4577,8 +5019,8 @@ FlinkRunner:
   methods:
   - add_http_scheme
   - create_job_service_handle
+  - default_environment
   - default_job_server
-  - run_pipeline
 FlinkRunnerOptions:
   properties:
   - PUBLISHED_FLINK_VERSIONS
@@ -4593,7 +5035,6 @@ FlinkRunnerTestOptimized:
 FlinkRunnerTestStreaming:
   methods:
   - create_options
-  - setUp
   - test_callbacks_with_exception
   - test_register_finalizations
 FlinkStreamingImpulseSource:
@@ -4632,6 +5073,10 @@ FloatingPointMean:
   properties:
   - count
   - sum
+FlowGraph:
+  properties:
+  - edges
+  - nodes
 FnApiLogRecordHandler:
   methods:
   - close
@@ -4648,6 +5093,7 @@ FnApiRunner:
   - embed_default_docker_image
   - get_cache_token_generator
   - maybe_profile
+  - resolve_any_environments
   - run_pipeline
   - run_stages
   - run_via_runner_api
@@ -4674,6 +5120,7 @@ FnApiRunnerTestWithBundleRepeatAndMultiWorkers:
   - test_sdf_with_dofn_as_watermark_estimator
   - test_sdf_with_sdf_initiated_checkpointing
   - test_sdf_with_watermark_tracking
+  - test_sliding_windows
 FnApiRunnerTestWithDisabledCaching:
   methods:
   - create_pipeline
@@ -4689,6 +5136,7 @@ FnApiRunnerTestWithGrpcAndMultiWorkers:
   - test_sdf_with_dofn_as_watermark_estimator
   - test_sdf_with_sdf_initiated_checkpointing
   - test_sdf_with_watermark_tracking
+  - test_sliding_windows
 FnApiRunnerTestWithMultiWorkers:
   methods:
   - create_pipeline
@@ -4698,6 +5146,8 @@ FnApiRunnerTestWithMultiWorkers:
   - test_sdf_with_dofn_as_watermark_estimator
   - test_sdf_with_sdf_initiated_checkpointing
   - test_sdf_with_watermark_tracking
+  - test_sliding_windows
+FnApiTransforms: {}
 FnApiUserStateContext:
   methods:
   - add_timer_info
@@ -4723,7 +5173,10 @@ FnRunnerStatefulTriggerContext:
 FormatDoFn:
   methods:
   - process
-FormatOutputDoFn:
+FormatOutput:
+  methods:
+  - process
+FormatResults:
   methods:
   - process
 FormatToQido:
@@ -4762,33 +5215,39 @@ GameStatsIT:
 Gauge:
   methods:
   - set
-GaugeAggregator:
-  methods:
-  - combine
-  - identity_element
-  - result
 GaugeCell:
   methods:
-  - combine
-  - get_cumulative
-  - reset
-  - set
   - to_runner_api_monitoring_info_impl
-  - update
 GaugeData:
   methods:
   - combine
   - get_cumulative
+  - get_result
+  - identity_element
   - singleton
 GaugeResult:
   methods:
   - timestamp
   - value
+GbekIT:
+  methods:
+  - setUpClass
+  - tearDownClass
+  - test_combineValues_with_gbek_it
+  - test_gbk_with_gbek_hsm_it
+  - test_gbk_with_gbek_it
 GBKTransform:
   methods:
   - expand
   - from_runner_api_parameter
   - to_runner_api_parameter
+GcpHsmGeneratedSecret:
+  methods:
+  - generate_dek
+  - get_secret_bytes
+GcpSecret:
+  methods:
+  - get_secret_bytes
 GcpTestIOError: {}
 GCSFileSystem:
   methods:
@@ -4804,6 +5263,7 @@ GCSFileSystem:
   - mkdirs
   - open
   - rename
+  - report_lineage
   - scheme
   - size
   - split
@@ -4822,6 +5282,7 @@ GcsIO:
   - exists
   - get_bucket
   - get_project_number
+  - is_soft_delete_enabled
   - kms_key
   - last_updated
   - list_files
@@ -4829,10 +5290,18 @@ GcsIO:
   - open
   - rename
   - size
-GcsIOError: {}
-GcsIOOverrides:
+GcsVLLMCompletionsModelHandler:
   methods:
-  - retry_func
+  - load_model
+GeminiInference:
+  methods:
+  - test_gemini_image_generation
+  - test_gemini_text_classification
+GeminiModelHandler:
+  methods:
+  - create_client
+  - request
+GemmaVLLMOptions: {}
 GeneralPurposeConsumerSet:
   methods:
   - flush
@@ -4863,10 +5332,22 @@ GeneralTriggerManagerDoFn:
   - WATERMARK_TIMER
   - WINDOW_ELEMENT_PAIRS
   - WINDOW_TAG_VALUES
+GenerateContextDoFn:
+  methods:
+  - on_timer
+  - process
+  properties:
+  - ORDERED_BUFFER_STATE
+  - TIMER_STATE
+  - WINDOW_TIMER
 GeneratedClassRowTypeConstraint: {}
 GenerateDocs:
   methods:
   - process
+GenerateEvent:
+  methods:
+  - expand
+  - sample_data
 GenerateSequence:
   properties:
   - URN
@@ -4877,6 +5358,11 @@ GeneratorHint: {}
 GeneratorWrapper:
   properties:
   - next
+GenericAggregator:
+  methods:
+  - combine
+  - identity_element
+  - result
 GenericMergingWindowFn:
   methods:
   - assign
@@ -4904,6 +5390,10 @@ GenericRowColumnEncoder:
   - encode_to_stream
   - finalize_write
   - null_flags
+GetCodeObjectParams:
+  properties:
+  - get_code_from_identifier
+  - get_code_object_identifier
 GetDebugConfigRequest:
   properties:
   - componentId
@@ -4947,43 +5437,6 @@ GetTemplateResponse:
 GetUpdates:
   methods:
   - process
-GitFileSource:
-  properties:
-  - bitbucketServerConfig
-  - githubEnterpriseConfig
-  - path
-  - repoType
-  - revision
-  - uri
-GitHubEnterpriseConfig:
-  properties:
-  - appId
-  - createTime
-  - displayName
-  - hostUrl
-  - name
-  - peeredNetwork
-  - secrets
-  - sslCa
-  - webhookKey
-GitHubEnterpriseSecrets:
-  properties:
-  - oauthClientIdName
-  - oauthClientIdVersionName
-  - oauthSecretName
-  - oauthSecretVersionName
-  - privateKeyName
-  - privateKeyVersionName
-  - webhookSecretName
-  - webhookSecretVersionName
-GitHubEventsConfig:
-  properties:
-  - enterpriseConfigResourceName
-  - installationId
-  - name
-  - owner
-  - pullRequest
-  - push
 GitHubIssueMetaData:
   properties:
   - change_point
@@ -4994,13 +5447,6 @@ GitHubIssueMetaData:
   - metric_name
   - test_id
   - test_name
-GitRepoSource:
-  properties:
-  - bitbucketServerConfig
-  - githubEnterpriseConfig
-  - ref
-  - repoType
-  - uri
 GlobalCachingStateHandler:
   methods:
   - blocking_get
@@ -5015,9 +5461,7 @@ GlobalExplanation:
 GlobalWindow:
   methods:
   - start
-GlobalWindowCoder:
-  methods:
-  - as_cloud_object
+GlobalWindowCoder: {}
 GlobalWindows:
   methods:
   - assign
@@ -5027,8 +5471,10 @@ GlobalWindows:
   - windowed_batch
   - windowed_value
   - windowed_value_at_end_of_window
+GlobalWindowsPayload: {}
 GoogleCloudOptions:
   methods:
+  - get_cloud_profiler_service_name
   - validate
   properties:
   - BIGQUERY_API_SERVICE
@@ -5036,15 +5482,6 @@ GoogleCloudOptions:
   - DATAFLOW_ENDPOINT
   - OAUTH_SCOPES
   - STORAGE_API_SERVICE
-GoogleDevtoolsCloudbuildV2OperationMetadata:
-  properties:
-  - apiVersion
-  - createTime
-  - endTime
-  - requestedCancellation
-  - statusMessage
-  - target
-  - verb
 GoogleSheetsOptions:
   properties:
   - range
@@ -5055,6 +5492,9 @@ GroupBy:
   - default_label
   - expand
   - force_tuple_keys
+GroupByEncryptedKey:
+  methods:
+  - expand
 GroupByKey:
   methods:
   - apply
@@ -5073,10 +5513,6 @@ GroupIntoBatches:
   - expand
   - from_runner_api_parameter
   - to_runner_api_parameter
-GroupIntoBatchesWithShardedKeyPTransformOverride:
-  methods:
-  - get_replacement_transform_for_applied_ptransform
-  - matches
 GRPCChannelFactory:
   methods:
   - insecure_channel
@@ -5086,6 +5522,7 @@ GRPCChannelFactory:
 GrpcClientDataChannel: {}
 GrpcClientDataChannelFactory:
   methods:
+  - cleanup
   - close
   - create_data_channel
   - create_data_channel_from_url
@@ -5140,10 +5577,15 @@ HadoopFileSystemOptions:
 HasDisplayData:
   methods:
   - display_data
-Hash:
-  properties:
-  - type
-  - value
+HashingFn:
+  methods:
+  - add_input
+  - create_accumulator
+  - extract_output
+  - merge_accumulators
+HashStrings:
+  methods:
+  - apply_transform
 HdfsDownloader:
   methods:
   - get_range
@@ -5153,9 +5595,8 @@ HdfsUploader:
   - finish
   - put
 Histogram:
-  properties:
-  - bucketCounts
-  - firstBucketOffset
+  methods:
+  - update
 HistogramAggregator:
   methods:
   - combine
@@ -5172,9 +5613,14 @@ HistogramCellFactory: {}
 HistogramData:
   methods:
   - combine
+  - from_proto
   - get_cumulative
+  - get_result
+  - identity_element
+  - to_proto
 HistogramResult:
   methods:
+  - histogram
   - p90
   - p95
   - p99
@@ -5196,11 +5642,19 @@ HomogeneousWindowedBatch:
   - windows
   - windows
   - with_values
+HotKeyDebuggingInfo:
+  properties:
+  - detectedHotKeys
 HotKeyDetection:
   properties:
   - hotKeyAge
   - systemName
   - userStepName
+HotKeyInfo:
+  properties:
+  - hotKeyAge
+  - key
+  - keyTruncated
 HourlyTeamScore:
   methods:
   - expand
@@ -5214,22 +5668,65 @@ HourlyTeamScoreIT:
   - DEFAULT_INPUT_FILE
   - OUTPUT_DATASET
   - OUTPUT_TABLE
-HttpBody:
-  properties:
-  - contentType
-  - data
-  - extensions
-HTTPDelivery:
-  properties:
-  - uri
+HuggingFaceInference:
+  methods:
+  - test_hf_language_modeling
+  - test_hf_language_modeling_large_model
+  - test_hf_pipeline
+HuggingFaceModelHandlerKeyedTensor:
+  methods:
+  - batch_elements_kwargs
+  - get_metrics_namespace
+  - get_num_bytes
+  - load_model
+  - model_copies
+  - run_inference
+  - share_model_across_processes
+  - update_model_path
+HuggingFaceModelHandlerTensor:
+  methods:
+  - batch_elements_kwargs
+  - get_metrics_namespace
+  - get_num_bytes
+  - load_model
+  - model_copies
+  - run_inference
+  - share_model_across_processes
+  - update_model_path
+HuggingFacePipelineModelHandler:
+  methods:
+  - batch_elements_kwargs
+  - get_metrics_namespace
+  - get_num_bytes
+  - load_model
+  - model_copies
+  - run_inference
+  - share_model_across_processes
+  - update_model_path
 HuggingFaceStripBatchingWrapper:
   methods:
   - forward
+HuggingfaceTextEmbeddings:
+  methods:
+  - get_model_handler
+  - get_ptransform_for_processing
+HybridSearchParameters:
+  properties:
+  - keyword
+  - kwargs
+  - limit
+  - ranker
+  - vector
 IdOrName: {}
 IFrameParser:
   methods:
   - handle_starttag
   - srcdocs
+ImageSink:
+  methods:
+  - flush
+  - open
+  - write
 ImplicitSchemaPayloadBuilder: {}
 ImportCatalogItems:
   methods:
@@ -5256,6 +5753,18 @@ ImpulseSeqGenRestrictionProvider:
   - initial_restriction
   - restriction_size
   - truncate
+IncLandmarkMeanTracker: {}
+IncLandmarkStdevTracker: {}
+IncMeanTracker:
+  methods:
+  - get
+  - push
+IncSlidingMeanTracker: {}
+IncSlidingStdevTracker: {}
+IncStdevTracker:
+  methods:
+  - get
+  - push
 Index:
   methods:
   - check
@@ -5268,6 +5777,17 @@ IndexAssigningDoFn:
   properties:
   - state_param
 InefficientExecutionWarning: {}
+InferenceAPIEmbeddings:
+  methods:
+  - api_url
+  - authorization_token
+  - get_model_handler
+  - get_ptransform_for_processing
+  - get_token
+InferenceTransform:
+  methods:
+  - expand
+  - from_runner_api_parameter
 InfluxDBMetricsPublisher:
   methods:
   - publish
@@ -5282,10 +5802,19 @@ InitialPositionInStream:
   - AT_TIMESTAMP
   - LATEST
   - TRIM_HORIZON
-InlineSecret:
-  properties:
-  - envMap
-  - kmsKeyName
+InlineProvider:
+  methods:
+  - available
+  - cache_artifacts
+  - config_schema
+  - config_schema_from_callable
+  - create_transform
+  - description
+  - description_from_callable
+  - get_docs
+  - provided_transforms
+  - requires_inputs
+  - to_json
 InMemoryCache:
   methods:
   - cleanup
@@ -5338,10 +5867,12 @@ InputStream:
   - read_all
   - read_bigendian_double
   - read_bigendian_float
+  - read_bigendian_int16
   - read_bigendian_int32
   - read_bigendian_int64
   - read_bigendian_uint64
   - read_byte
+  - read_var_int32
   - read_var_int64
   - size
 InspectForDetails:
@@ -5378,6 +5909,7 @@ InteractiveEnvironment:
   - cleanup_environment
   - cleanup_pipeline
   - computed_pcollections
+  - computing_pcollections
   - describe_all_recordings
   - evict_background_caching_job
   - evict_cache_manager
@@ -5399,9 +5931,11 @@ InteractiveEnvironment:
   - is_in_ipython
   - is_in_notebook
   - is_interactive_ready
+  - is_pcollection_computing
   - is_terminated
   - load_jquery_with_datatable
   - mark_pcollection_computed
+  - mark_pcollection_computing
   - options
   - pipeline_id_to_pipeline
   - pipeline_result
@@ -5413,6 +5947,7 @@ InteractiveEnvironment:
   - set_test_stream_service_controller
   - track_user_pipelines
   - tracked_user_pipelines
+  - unmark_pcollection_computing
   - user_pipeline
   - watch
   - watching
@@ -5446,13 +5981,20 @@ IntervalWindow:
   - union
 IntervalWindowCoder:
   methods:
-  - as_cloud_object
   - is_deterministic
 IntervalWindowCoderImpl:
   methods:
   - decode_from_stream
   - encode_to_stream
   - estimate_size
+IntType:
+  properties:
+  - x
+InvalidChunkingProvider: {}
+InvalidEmbeddingsManager:
+  methods:
+  - get_model_handler
+  - get_ptransform_for_processing
 IOTypeHints:
   methods:
   - debug_str
@@ -5478,6 +6020,10 @@ IPythonLogHandler:
   properties:
   - log_template
   - logging_to_alert_level_map
+IQR:
+  methods:
+  - learn_one
+  - score_one
 Item: {}
 IterableCoder:
   methods:
@@ -5510,7 +6056,13 @@ JavaClassLookupPayloadBuilder:
 JavaExternalTransform:
   methods:
   - expand
-JavaJarExpansionService: {}
+JavaHelper:
+  methods:
+  - get_java
+JavaJarExpansionService:
+  methods:
+  - is_existing_service
+  - with_user_agent
 JavaJarJobServer:
   methods:
   - java_arguments
@@ -5529,14 +6081,36 @@ JavaJarServer:
   - jar_name
   - local_jar
   - make_classpath_jar
+  - parse_gradle_target
   - path_to_beam_jar
+  - path_to_dev_beam_jar
   - path_to_maven_jar
   - start_process
   - stop_process
   properties:
   - BEAM_GROUP_ID
+  - GOOGLE_MAVEN_MIRROR
   - JAR_CACHE
   - MAVEN_CENTRAL_REPOSITORY
+  - MAVEN_STAGING_REPOSITORY
+JdbcDateType:
+  methods:
+  - argument
+  - argument_type
+  - language_type
+  - representation_type
+  - to_language_type
+  - to_representation_type
+  - urn
+JdbcTimeType:
+  methods:
+  - argument
+  - argument_type
+  - language_type
+  - representation_type
+  - to_language_type
+  - to_representation_type
+  - urn
 Job:
   properties:
   - clientRequestId
@@ -5556,7 +6130,10 @@ Job:
   - replacedByJobId
   - replaceJobId
   - requestedState
+  - runtimeUpdatableParams
+  - satisfiesPzi
   - satisfiesPzs
+  - serviceResources
   - stageStates
   - startTime
   - steps
@@ -5695,6 +6272,7 @@ JobMetadata:
   - pubsubDetails
   - sdkVersion
   - spannerDetails
+  - userDisplayProperties
 JobMetrics:
   properties:
   - metrics
@@ -5709,6 +6287,19 @@ JobServer:
   - start
   - stop
 JobServerOptions: {}
+JobService:
+  methods:
+  - Cancel
+  - DescribePipelineOptions
+  - Drain
+  - GetJobMetrics
+  - GetJobs
+  - GetMessageStream
+  - GetPipeline
+  - GetState
+  - GetStateStream
+  - Prepare
+  - Run
 JobServiceHandle:
   methods:
   - encode_pipeline_options
@@ -5717,6 +6308,20 @@ JobServiceHandle:
   - run
   - stage
   - submit
+JobServiceServicer:
+  methods:
+  - Cancel
+  - DescribePipelineOptions
+  - Drain
+  - GetJobMetrics
+  - GetJobs
+  - GetMessageStream
+  - GetPipeline
+  - GetState
+  - GetStateStream
+  - Prepare
+  - Run
+JobServiceStub: {}
 JobStatistics:
   properties:
   - completionRatio
@@ -5848,9 +6453,24 @@ KeyedModelHandler:
   - get_num_bytes
   - get_resource_hints
   - load_model
+  - model_copies
+  - override_metrics
   - run_inference
+  - share_model_across_processes
+  - should_garbage_collect_on_timeout
+  - update_model_path
+  - update_model_paths
   - validate_inference_args
 KeyedWorkItem: {}
+KeyExamplesForEachModelType:
+  methods:
+  - process
+KeyModelMapping: {}
+KeyModelPathMapping:
+  properties:
+  - keys
+  - model_id
+  - update_path
 KeyRangeDataDiskAssignment:
   properties:
   - dataDisk
@@ -5871,6 +6491,12 @@ KeywordOnlyArgsTests:
   - test_combine_keyword_only_args
   - test_do_fn_keyword_only_args
   - test_side_input_keyword_only_args
+KeywordSearchMetrics:
+  properties:
+  - BM25
+KeywordSearchParameters:
+  properties:
+  - kwargs
 KinesisHelper:
   methods:
   - create_stream
@@ -5878,6 +6504,31 @@ KinesisHelper:
   - get_first_shard_id
   - read_from_stream
 KVHint: {}
+LabelAggregation:
+  methods:
+  - apply
+LabelAggTestWithMissingOrError:
+  methods:
+  - test_default
+LangChainChunker:
+  methods:
+  - get_splitter_transform
+LanguageConnectorConfig:
+  methods:
+  - additional_jdbc_args
+  - to_connection_config
+  properties:
+  - additional_properties
+  - connection_properties
+  - database_name
+  - delegates
+  - enable_iam_auth
+  - instance_name
+  - ip_types
+  - password
+  - quota_project
+  - target_principal
+  - username
 Largest:
   methods:
   - default_label
@@ -5915,6 +6566,14 @@ LaunchTemplateParameters:
 LaunchTemplateResponse:
   properties:
   - job
+LCGenerator:
+  methods:
+  - next_int
+  - next_uint
+  - randbytes
+  - random_sample
+  - seed
+  - seed_jdk
 LeaderBoardIT:
   methods:
   - setUp
@@ -5942,11 +6601,29 @@ LeaseWorkItemResponse:
   properties:
   - unifiedWorkerResponse
   - workItems
+LegacyArtifactRetrievalService:
+  methods:
+  - GetArtifact
+  - GetManifest
+LegacyArtifactRetrievalServiceServicer:
+  methods:
+  - GetArtifact
+  - GetManifest
+LegacyArtifactRetrievalServiceStub: {}
+LegacyArtifactStagingService:
+  methods:
+  - CommitManifest
+  - PutArtifact
+LegacyArtifactStagingServiceServicer:
+  methods:
+  - CommitManifest
+  - PutArtifact
+LegacyArtifactStagingServiceStub: {}
 LengthPrefixCoder:
   methods:
-  - as_cloud_object
   - estimate_size
   - is_deterministic
+  - to_type_hint
   - value_coder
 LengthPrefixCoderImpl:
   methods:
@@ -5960,17 +6637,42 @@ LexicographicKeyRangeTracker:
 LiftedCombinePerKey:
   methods:
   - expand
+LightweightScope:
+  methods:
+  - get_transform_id
+  - get_transform_id_and_output_name
+  - get_transform_spec
 Limiter:
   methods:
   - is_triggered
+Lineage:
+  methods:
+  - add
+  - add_raw
+  - get_fq_name
+  - query
+  - sinks
+  - sources
+  - wrap_segment
+  properties:
+  - LINEAGE_NAMESPACE
+  - SINK
+  - SOURCE
+Linear:
+  properties:
+  - numberOfBuckets
+  - start
+  - width
 LinearBucket:
   methods:
   - accumulated_bucket_size
   - bucket_index
   - bucket_size
+  - from_runner_api
   - num_buckets
   - range_from
   - range_to
+  - to_runner_api
 LinearRegression:
   methods:
   - forward
@@ -5980,6 +6682,9 @@ LinearRegressionBenchmarkConfig:
   - increment
   - num_runs
   - starting_point
+LinearTransform:
+  methods:
+  - expand
 LineSource:
   methods:
   - read_records
@@ -5995,14 +6700,6 @@ ListBatchConverter:
   - MAX_SAMPLES
   - SAMPLE_FRACTION
   - SAMPLED_BATCH_SIZE
-ListBitbucketServerConfigsResponse:
-  properties:
-  - bitbucketServerConfigs
-  - nextPageToken
-ListBitbucketServerRepositoriesResponse:
-  properties:
-  - bitbucketServerRepositories
-  - nextPageToken
 ListBuffer:
   methods:
   - append
@@ -6011,22 +6708,14 @@ ListBuffer:
   - extend
   - partition
   - reset
-ListBuildsResponse:
-  properties:
-  - builds
-  - nextPageToken
-ListBuildTriggersResponse:
-  properties:
-  - nextPageToken
-  - triggers
 ListCoder:
   methods:
   - to_type_hint
 ListCoderImpl: {}
-ListGithubEnterpriseConfigsResponse:
-  properties:
-  - configs
 ListHint: {}
+ListIntType:
+  properties:
+  - x
 ListJobMessagesResponse:
   properties:
   - autoscalingEvents
@@ -6039,7 +6728,6 @@ ListJobsResponse:
   - nextPageToken
 ListLikeCoder:
   methods:
-  - as_cloud_object
   - as_deterministic_coder
   - from_type_hint
   - is_deterministic
@@ -6065,13 +6753,13 @@ ListRowAccessPoliciesResponse:
 ListSnapshotsResponse:
   properties:
   - snapshots
-ListWorkerPoolsResponse:
-  properties:
-  - nextPageToken
-  - workerPools
 LoadDataframe:
   methods:
   - process
+LoadMainSessionException: {}
+LoadTestMetricsFetcher:
+  methods:
+  - fetch_metric_data
 LoadTestOptions: {}
 LocalFileSystem:
   methods:
@@ -6087,6 +6775,7 @@ LocalFileSystem:
   - mkdirs
   - open
   - rename
+  - report_lineage
   - scheme
   - size
   - split
@@ -6110,6 +6799,7 @@ LogicalType:
   - argument_type
   - from_runner_api
   - from_typing
+  - is_known_logical_type
   - language_type
   - register_logical_type
   - representation_type
@@ -6127,9 +6817,26 @@ LogicalTypeCoderImpl:
 LogicalTypeRegistry:
   methods:
   - add
+  - copy
+  - copy_custom
   - get_logical_type_by_language_type
   - get_logical_type_by_urn
-  - get_urn_by_logial_type
+  - get_urn_by_logical_type
+  - load
+LogicalTypes: {}
+MadTracker:
+  methods:
+  - get
+  - get_median
+  - push
+MajorityVote: {}
+ManagedIcebergIT:
+  methods:
+  - setUp
+  - test_write_read_pipeline
+  properties:
+  - WAREHOUSE
+ManagedTransforms: {}
 ManualWatermarkEstimator:
   methods:
   - current_watermark
@@ -6137,9 +6844,6 @@ ManualWatermarkEstimator:
   - get_estimator_state
   - observe_timestamp
   - set_watermark
-Map:
-  methods:
-  - apply
 MapCoder:
   methods:
   - as_deterministic_coder
@@ -6151,12 +6855,16 @@ MapCoderImpl:
   - decode_from_stream
   - encode_to_stream
   - estimate_size
+MappingHint: {}
 MapTask:
   properties:
   - counterPrefix
   - instructions
   - stageName
   - systemName
+MapTFIDFScoreToVocab:
+  methods:
+  - process
 MapToUnionTypesTransform:
   methods:
   - expand
@@ -6182,6 +6890,11 @@ MaterializedViewDefinition:
   - lastRefreshTime
   - query
   - refreshIntervalMs
+MaxActiveBundlesPerWorkerHint:
+  methods:
+  - get_merged_value
+  properties:
+  - urn
 MaxDoubleAccumulator:
   methods:
   - add_input
@@ -6195,14 +6908,21 @@ MaxInt64Accumulator:
   - extract_output
   - merge
 MaxInt64Fn: {}
+MaxScore: {}
 MaybeKeyedModelHandler:
   methods:
   - batch_elements_kwargs
   - get_metrics_namespace
   - get_num_bytes
+  - get_postprocess_fns
+  - get_preprocess_fns
   - get_resource_hints
   - load_model
+  - model_copies
   - run_inference
+  - share_model_across_processes
+  - should_skip_batching
+  - update_model_path
   - validate_inference_args
 Mean: {}
 MeanCombineFn:
@@ -6225,6 +6945,7 @@ MeanInt64Accumulator:
   - extract_output
   - merge
 MeanInt64Fn: {}
+MeanTracker: {}
 MeasureBytes:
   methods:
   - process
@@ -6240,6 +6961,10 @@ MeasureTime:
   - finish_bundle
   - process
   - start_bundle
+MedianTracker:
+  methods:
+  - get
+  - push
 MemInfo:
   properties:
   - currentLimitBytes
@@ -6259,12 +6984,13 @@ MergeableStateAdapter:
   - set_timer
   properties:
   - WINDOW_IDS
+MetaInlineProvider:
+  methods:
+  - create_transform
 MethodWrapper:
   methods:
   - invoke_timer_callback
-Metric:
-  methods:
-  - as_dict
+Metric: {}
 MetricAggregator:
   methods:
   - combine
@@ -6278,6 +7004,12 @@ MetricCell:
   - to_runner_api_monitoring_info_impl
   - update
 MetricCellFactory: {}
+MetricContainer:
+  methods:
+  - sort_by_timestamp
+  properties:
+  - timestamps
+  - values
 MetricKey: {}
 MetricLogger:
   methods:
@@ -6298,23 +7030,36 @@ MetricResults:
   - matches
   - query
   properties:
+  - BOUNDED_TRIES
   - COUNTERS
   - DISTRIBUTIONS
   - GAUGES
+  - HISTOGRAMS
+  - STRINGSETS
 Metrics:
   methods:
+  - bounded_trie
   - counter
+  - distribution
+  - gauge
+  - get_namespace
   - histogram
+  - string_set
 MetricsContainer:
   methods:
+  - get_bounded_trie
   - get_counter
   - get_cumulative
   - get_distribution
   - get_gauge
   - get_metric_cell
+  - get_string_set
   - reset
   - to_runner_api
   - to_runner_api_monitoring_infos
+MetricsFetcher:
+  methods:
+  - fetch_metric_data
 MetricsFilter:
   methods:
   - names
@@ -6372,6 +7117,12 @@ MetricUpdateTranslators:
   - translate_scalar_counter_int
   - translate_scalar_mean_float
   - translate_scalar_mean_int
+MetricValue:
+  properties:
+  - metric
+  - metricLabels
+  - valueHistogram
+  - valueInt64
 MicrosInstant:
   methods:
   - language_type
@@ -6379,12 +7130,98 @@ MicrosInstant:
   - to_language_type
   - to_representation_type
   - urn
+MilkQualityAggregation:
+  properties:
+  - bad_quality_measurements
+  - high_quality_measurements
+  - medium_quality_measurements
 MillisInstant:
   methods:
   - language_type
   - representation_type
   - to_language_type
   - urn
+MilvusBaseRanker:
+  methods:
+  - dict
+MilvusCollectionLoadParameters:
+  properties:
+  - kwargs
+  - load_fields
+  - refresh
+  - resource_groups
+  - skip_load_dynamic_field
+MilvusConnectionParameters:
+  properties:
+  - db_name
+  - kwargs
+  - password
+  - timeout
+  - token
+  - uri
+  - user
+MilvusHelpers:
+  methods:
+  - sparse_embedding
+MilvusITDataConstruct:
+  properties:
+  - content
+  - cost
+  - dense_embedding
+  - domain
+  - id
+  - metadata
+  - sparse_embedding
+  - tags
+  - vocabulary
+MilvusSearchEnrichmentHandler:
+  methods:
+  - batch_elements_kwargs
+  - collection_name
+  - convert_sparse_embedding_to_milvus_format
+  - output_fields
+  - partition_names
+  - round_decimal
+  - search_strategy
+  - timeout
+MilvusSearchParameters:
+  properties:
+  - collection_name
+  - output_fields
+  - partition_names
+  - round_decimal
+  - search_strategy
+  - timeout
+MilvusSearchResult:
+  properties:
+  - distance
+  - fields
+  - id
+MilvusTestHelpers:
+  methods:
+  - assert_chunks_equivalent
+  - create_user_yaml
+  - initialize_db_with_data
+  - start_db_container
+  - stop_db_container
+MilvusVectorWriterConfig:
+  methods:
+  - create_converter
+  - create_write_transform
+  - default_column_specs
+  properties:
+  - column_specs
+  - connection_params
+  - write_config
+MilvusWriteConfig:
+  methods:
+  - write_batch_size
+  properties:
+  - collection_name
+  - kwargs
+  - partition_name
+  - timeout
+  - write_config
 MinDoubleAccumulator:
   methods:
   - add_input
@@ -6412,13 +7249,28 @@ MismatchedElementProducingDoFn:
   methods:
   - process
   - process_batch
-MockBuckets:
+MLTransform:
   methods:
-  - Get
+  - expand
+  - with_exception_handling
+  - with_transform
+MLTransformMetricsUsage:
+  methods:
+  - expand
+MLTransformProvider:
+  methods:
+  - get_counter
+  - get_ptransform_for_processing
+MockChunkingProvider:
+  methods:
+  - get_splitter_transform
 MockCluster: {}
 MockClusterMetadata:
   properties:
   - master_url
+MockDatabaseConfig:
+  methods:
+  - create_write_transform
 MockException: {}
 MockFileIO:
   methods:
@@ -6426,6 +7278,19 @@ MockFileIO:
 MockFileSystem:
   methods:
   - open
+MockGoogleCloudOptionsNoBucket: {}
+MockGoogleCloudOptionsWithBucket: {}
+MockHttpClient:
+  methods:
+  - dicomweb_store_instance
+  - qido_search
+MockLoggingHandler:
+  methods:
+  - emit
+  - reset
+MockNoOpDecrypt:
+  methods:
+  - process
 MockPipelineResult:
   methods:
   - cancel
@@ -6433,8 +7298,16 @@ MockPipelineResult:
   - state
   - wait_until_finish
 MockProperty: {}
+MockRanker:
+  methods:
+  - dict
 MockRunners: {}
-MockStorageClient: {}
+MockStorageClient:
+  methods:
+  - get_bucket
+MockWriteTransform:
+  methods:
+  - expand
 Model:
   properties:
   - creationTime
@@ -6464,15 +7337,63 @@ ModelHandler:
   - batch_elements_kwargs
   - get_metrics_namespace
   - get_num_bytes
+  - get_postprocess_fns
+  - get_preprocess_fns
   - get_resource_hints
   - load_model
+  - model_copies
+  - override_metrics
   - run_inference
+  - set_environment_vars
+  - share_model_across_processes
+  - should_garbage_collect_on_timeout
+  - should_skip_batching
+  - update_model_path
+  - update_model_paths
   - validate_inference_args
+  - with_no_batching
+  - with_postprocess_fn
+  - with_preprocess_fn
+ModelHandlerArgConditions:
+  methods:
+  - test_all_params_set
+  - test_missing_all_params
+  - test_missing_vertex_location_param
+  - test_missing_vertex_project_param
+ModelHandlerProvider:
+  methods:
+  - create_handler
+  - default_postprocess_fn
+  - default_preprocess_fn
+  - inference_output_type
+  - parse_processing_transform
+  - register_handler_type
+  - underlying_handler
+  - validate
+  properties:
+  - handler_types
+ModelHelper:
+  methods:
+  - load_data
+  - train_model
+ModelMetadata:
+  properties:
+  - model_id
+  - model_name
 ModelReference:
   properties:
   - datasetId
   - modelId
   - projectId
+ModelSink:
+  methods:
+  - flush
+  - open
+  - write
+ModelType:
+  properties:
+  - SAVED_MODEL
+  - SAVED_WEIGHTS
 ModelWrapper:
   methods:
   - forward
@@ -6483,6 +7404,9 @@ MonitorDoFn:
   - finish_bundle
   - process
   - start_bundle
+MonitoringInfo: {}
+MonitoringInfoSpecs: {}
+MonitoringInfoTypeUrns: {}
 MonitorSuffix:
   properties:
   - ELEMENT_COUNTER
@@ -6519,6 +7443,10 @@ MultiClassClassificationMetrics:
   properties:
   - aggregateClassificationMetrics
   - confusionMatrixList
+MultiElementDoFn:
+  methods:
+  - finish_bundle
+  - process
 MultiOutputInfo:
   properties:
   - tag
@@ -6537,6 +7465,7 @@ MultiProcessShared:
   methods:
   - acquire
   - release
+  - unsafe_hard_delete
 MutationGroup:
   methods:
   - info
@@ -6550,6 +7479,9 @@ MutltiTransform:
   - expand
   - from_runner_api_parameter
   - to_runner_api_parameter
+MyClass:
+  methods:
+  - another_function
 MyDoFn:
   methods:
   - finish_bundle
@@ -6574,6 +7506,9 @@ MyRow:
   properties:
   - timestamp
   - value
+MySQLVectorWriterConfig:
+  methods:
+  - create_write_transform
 NameAndKind:
   properties:
   - kind
@@ -6590,24 +7525,6 @@ NativeReadPTransformOverride:
   methods:
   - get_replacement_transform
   - matches
-NativeSink:
-  methods:
-  - writer
-NativeSinkWriter:
-  methods:
-  - takes_windowed_values
-  - Write
-NativeSource:
-  methods:
-  - is_bounded
-  - reader
-  properties:
-  - coder
-NativeSourceReader:
-  methods:
-  - get_progress
-  - request_dynamic_split
-  - returns_windowed_values
 NaturalLanguageMlTestIT:
   methods:
   - test_analyzing_syntax
@@ -6629,10 +7546,6 @@ NestedValueProvider:
   methods:
   - get
   - is_accessible
-NetworkConfig:
-  properties:
-  - egressOption
-  - peeredNetwork
 NexmarkLauncher:
   methods:
   - cleanup
@@ -6654,16 +7567,25 @@ NexmarkLauncher:
 NexmarkPerf:
   methods:
   - has_progress
+NGrams:
+  methods:
+  - apply_transform
 NoArgumentLogicalType:
   methods:
   - argument
   - argument_type
+NodeData:
+  properties:
+  - id
+  - label
+  - type
 NoElementOutputAnnotation:
   methods:
   - process_batch
 NoInputAnnotation:
   methods:
   - process_batch
+NonBuiltInGeneric: {}
 NonLiquidShardingOffsetRangeTracker:
   methods:
   - checkpoint
@@ -6679,6 +7601,9 @@ NoOp:
 NoopSink:
   methods:
   - expand
+NoOpsRepeater:
+  methods:
+  - repeat
 NoOpTransformIOCounter:
   methods:
   - add_bytes_read
@@ -6706,6 +7631,7 @@ NoSideInputsCallableWrapperCombineFn:
   - create_accumulator
   - extract_output
   - merge_accumulators
+NotAvailableWithReason: {}
 NotebookExecutor:
   methods:
   - cleanup
@@ -6713,38 +7639,6 @@ NotebookExecutor:
   - notebook_path_to_execution_id
   - output_html_dir
   - output_html_paths
-Notification:
-  properties:
-  - filter
-  - httpDelivery
-  - slackDelivery
-  - smtpDelivery
-  - structDelivery
-Notifications:
-  properties:
-  - items
-  - kind
-NotifierConfig:
-  properties:
-  - apiVersion
-  - kind
-  - metadata
-  - spec
-NotifierMetadata:
-  properties:
-  - name
-  - notifier
-NotifierSecret:
-  properties:
-  - name
-  - value
-NotifierSecretRef:
-  properties:
-  - secretRef
-NotifierSpec:
-  properties:
-  - notification
-  - secrets
 NullableCoder:
   methods:
   - as_deterministic_coder
@@ -6767,70 +7661,21 @@ NumpyBatchConverter:
   - from_typehints
   - get_length
   - produce_batch
+NumpyType:
+  properties:
+  - x
 NumpyTypeHint: {}
-Object:
-  properties:
-  - acl
-  - bucket
-  - cacheControl
-  - componentCount
-  - contentDisposition
-  - contentEncoding
-  - contentLanguage
-  - contentType
-  - crc32c
-  - customerEncryption
-  - etag
-  - eventBasedHold
-  - generation
-  - id
-  - kind
-  - kmsKeyName
-  - md5Hash
-  - mediaLink
-  - metadata
-  - metageneration
-  - name
-  - owner
-  - retentionExpirationTime
-  - selfLink
-  - size
-  - storageClass
-  - temporaryHold
-  - timeCreated
-  - timeDeleted
-  - timeStorageClassUpdated
-  - updated
-ObjectAccessControl:
-  properties:
-  - bucket
-  - domain
-  - email
-  - entity
-  - entityId
-  - etag
-  - generation
-  - id
-  - kind
-  - object
-  - projectTeam
-  - role
-  - selfLink
-ObjectAccessControls:
-  properties:
-  - items
-  - kind
-Objects:
-  properties:
-  - items
-  - kind
-  - nextPageToken
-  - prefixes
 ObjectThatDoesNotImplementLen: {}
 ObservableMixin:
   methods:
   - notify_observers
   - register_observer
+OfflineDetector:
+  methods:
+  - label_prediction_adapter
+  - learn_one
+  - score_one
+  - score_prediction_adapter
 OffsetRange:
   methods:
   - new_tracker
@@ -6873,6 +7718,43 @@ OffsetRestrictionTracker:
   - try_claim
   - try_split
 OldClassThatDoesNotImplementLen: {}
+OneReceiver:
+  properties:
+  - values
+OnlineClustering:
+  methods:
+  - expand
+OnlineKMeans:
+  methods:
+  - process
+  properties:
+  - ITERATION_SPEC
+  - MODEL_ID
+  - MODEL_SPEC
+OnnxInference:
+  methods:
+  - test_onnx_run_inference_roberta_sentiment_classification
+OnnxModelHandlerNumpy:
+  methods:
+  - batch_elements_kwargs
+  - get_metrics_namespace
+  - get_num_bytes
+  - load_model
+  - model_copies
+  - run_inference
+  - share_model_across_processes
+OnnxTestBase:
+  methods:
+  - setUp
+  - tearDown
+OpenAIChatMessage:
+  properties:
+  - content
+  - role
+OpenAITextEmbeddings:
+  methods:
+  - get_model_handler
+  - get_ptransform_for_processing
 Operation:
   methods:
   - add_receiver
@@ -6905,15 +7787,6 @@ OperationCounters:
   - update_collect
   - update_from
   - update_from_batch
-OperationMetadata:
-  properties:
-  - apiVersion
-  - cancelRequested
-  - createTime
-  - endTime
-  - statusDetail
-  - target
-  - verb
 OptimizeGrid:
   methods:
   - expand
@@ -6955,6 +7828,19 @@ OptionsForm:
   - display_actions
   - display_for_input
   - to_options
+OracleTestContainer:
+  methods:
+  - get_connection_url
+  - start
+OrderedListRuntimeState:
+  methods:
+  - add
+  - clear_range
+  - read
+  - read_range
+OrderedListStateSpec:
+  methods:
+  - to_runner_api
 OrderedPositionRangeTracker:
   methods:
   - fraction_consumed
@@ -6967,10 +7853,46 @@ OrderedPositionRangeTracker:
   - try_split
   properties:
   - UNSTARTED
+OrderedWindowElements:
+  methods:
+  - expand
+OrderedWindowElementsDoFn:
+  methods:
+  - finish_bundle
+  - on_timer
+  - process
+  - start_bundle
+  properties:
+  - BUFFER_MIN_TS_STATE
+  - BUFFER_STATE
+  - ESTIMATED_WM_STATE
+  - LAST_VALUE
+  - TIMER_STATE
+  - WINDOW_TIMER
+OrderedWindowElementsDoFnWithBag:
+  methods:
+  - on_timer
+  - process
+  properties:
+  - BUFFER_STATE
+  - WINDOW_TIMER
+OrderedWindowElementsDoFnWithValue:
+  methods:
+  - on_timer
+  - process
+  properties:
+  - BUFFER_STATE
+  - WINDOW_TIMER
 OrFinally:
   methods:
   - from_runner_api
   - to_runner_api
+OutlierStats:
+  properties:
+  - overflowCount
+  - overflowMean
+  - underflowCount
+  - underflowMean
 OutputAtEarliestInputTimestampImpl:
   methods:
   - assign_output_time
@@ -7000,6 +7922,13 @@ OutputHandler:
   methods:
   - handle_process_batch_outputs
   - handle_process_outputs
+OutputSampler:
+  methods:
+  - flush
+  - remove_windowed_value
+  - sample
+  - sample_exception
+  - stop
 OutputStream:
   methods:
   - get
@@ -7007,10 +7936,12 @@ OutputStream:
   - write
   - write_bigendian_double
   - write_bigendian_float
+  - write_bigendian_int16
   - write_bigendian_int32
   - write_bigendian_int64
   - write_bigendian_uint64
   - write_byte
+  - write_var_int32
   - write_var_int64
 OutputTimer:
   methods:
@@ -7043,6 +7974,10 @@ PaneInfo:
   - is_last
   - nonspeculative_index
   - timing
+PaneInfoCoder:
+  methods:
+  - is_deterministic
+  - to_type_hint
 PaneInfoCoderImpl:
   methods:
   - decode_from_stream
@@ -7062,6 +7997,15 @@ PaneInfoTiming:
   - LATE
   - ON_TIME
   - UNKNOWN
+PaneInfoTuple:
+  methods:
+  - from_pane_info
+  properties:
+  - index
+  - is_first
+  - is_last
+  - nonspeculative_index
+  - timing
 ParallelBundleManager:
   methods:
   - process_bundle
@@ -7083,15 +8027,25 @@ Parameter:
 ParameterMetadata:
   properties:
   - customMetadata
+  - defaultValue
+  - enumOptions
+  - groupName
   - helpText
+  - hiddenUi
   - isOptional
   - label
   - name
   - paramType
+  - parentName
+  - parentTriggerValues
   - regexes
+ParameterMetadataEnumOption:
+  properties:
+  - description
+  - label
+  - value
 ParamWindowedValueCoder:
   methods:
-  - as_cloud_object
   - from_runner_api_parameter
   - is_deterministic
   - to_runner_api_parameter
@@ -7110,6 +8064,10 @@ ParDoInstruction:
   - numOutputs
   - sideInputs
   - userFn
+Parent:
+  properties:
+  - counter
+  - parent_class_var
 ParseEventFn:
   methods:
   - process
@@ -7119,14 +8077,6 @@ ParseGameEventFn:
 ParseJsonEventFn:
   methods:
   - process
-PartialGroupByKeyCombiningValues:
-  methods:
-  - default_type_hints
-  - finish_bundle
-  - process
-  - setup
-  - start_bundle
-  - teardown
 PartialGroupByKeyInstruction:
   properties:
   - input
@@ -7243,6 +8193,11 @@ PersonCoderImpl:
   methods:
   - decode_from_stream
   - encode_to_stream
+PerStepNamespaceMetrics:
+  properties:
+  - metricsNamespace
+  - metricValues
+  - originalStep
 PerWindowInvoker:
   methods:
   - current_element_progress
@@ -7257,8 +8212,12 @@ PerWindowTriggerContext:
   - get_current_time
   - get_state
   - set_timer
+PerWorkerMetrics:
+  properties:
+  - perStepNamespaceMetrics
 PGBKCVOperation:
   methods:
+  - add_key_value
   - finish
   - output_key
   - process
@@ -7285,10 +8244,16 @@ PickledDoFnInfo:
   - serialized_dofn_data
   - to_runner_api
 PickledObject: {}
+Pickler:
+  methods:
+  - dump
+  properties:
+  - dispatch_table
 Pipeline:
   methods:
   - allow_unsafe_triggers
   - apply
+  - display_data
   - from_runner_api
   - merge_compatible_environments
   - options
@@ -7296,12 +8261,14 @@ Pipeline:
   - run
   - runner_implemented_transforms
   - to_runner_api
+  - transform_annotations
   - visit
 PipelineContext:
   methods:
   - add_requirement
   - coder_id_from_element_type
   - default_environment_id
+  - deterministic_coder
   - element_type_from_coder_id
   - from_runner_api
   - get_environment_id_for_resource_hints
@@ -7312,6 +8279,7 @@ PipelineDescription:
   - displayData
   - executionPipelineStage
   - originalPipelineTransform
+  - stepNamesHash
 PipelineError: {}
 PipelineFragment:
   methods:
@@ -7344,7 +8312,9 @@ PipelineOptions:
   methods:
   - display_data
   - from_dictionary
+  - from_runner_api
   - get_all_options
+  - to_runner_api
   - view_as
 PipelineOptionsValidator:
   methods:
@@ -7353,17 +8323,20 @@ PipelineOptionsValidator:
   - validate
   - validate_cloud_options
   - validate_container_prebuilding_options
+  - validate_endpoint_url
   - validate_environment_options
   - validate_gcs_path
   - validate_num_workers
   - validate_optional_argument_positive
+  - validate_pickle_library
   - validate_repeatable_argument_passed_as_list
   - validate_sdk_container_image_options
   - validate_test_matcher
   - validate_worker_region_zone
   properties:
-  - ENDPOINT_PATTERN
+  - ERR_DILL_NOT_INSTALLED
   - ERR_ENVIRONMENT_CONFIG
+  - ERR_INVALID_ENDPOINT
   - ERR_INVALID_ENVIRONMENT
   - ERR_INVALID_GCS_BUCKET
   - ERR_INVALID_GCS_OBJECT
@@ -7380,6 +8353,7 @@ PipelineOptionsValidator:
   - ERR_MISSING_REQUIRED_ENVIRONMENT_OPTION
   - ERR_NUM_WORKERS_TOO_HIGH
   - ERR_REPEATABLE_OPTIONS_NOT_SET_AS_LIST
+  - ERR_UNSAFE_DILL_VERSION
   - GCS_BUCKET
   - GCS_SCHEME
   - GCS_URI
@@ -7410,21 +8384,22 @@ PipelineRenderer:
 PipelineResult:
   methods:
   - cancel
-  - metrics
-  - pipeline_state_to_runner_api_state
-  - runner_api_state_to_pipeline_state
+  - get
+  - read
   - state
   - wait_until_finish
 PipelineRunner:
   methods:
   - apply
   - apply_PTransform
+  - check_requirements
+  - default_environment
+  - default_pickle_library_override
   - is_fnapi_compatible
   - run
   - run_async
   - run_pipeline
-  - run_transform
-  - visit_transforms
+  - run_portable_pipeline
 PipelineState:
   methods:
   - is_terminal
@@ -7447,6 +8422,43 @@ PipelineStateMatcher:
   methods:
   - describe_mismatch
   - describe_to
+PipelineTask:
+  properties:
+  - AudioClassification
+  - AutomaticSpeechRecognition
+  - Conversational
+  - DepthEstimation
+  - DocumentQuestionAnswering
+  - FeatureExtraction
+  - FillMask
+  - ImageClassification
+  - ImageSegmentation
+  - ImageToText
+  - MaskGeneration
+  - NER
+  - ObjectDetection
+  - QuestionAnswering
+  - SentimentAnalysis
+  - Summarization
+  - TableQuestionAnswering
+  - Text2TextGeneration
+  - TextClassification
+  - TextGeneration
+  - TextToAudio
+  - TokenClassification
+  - Translation
+  - Translation_XX_to_YY
+  - VideoClassification
+  - VisualQuestionAnswering
+  - VQA
+  - ZeroShotAudioClassification
+  - ZeroShotClassification
+  - ZeroShotImageClassification
+  - ZeroShotObjectDetection
+PipelineVerificationHelper:
+  methods:
+  - build_jdbc_params
+  - verify_standard_operations
 PipelineVisitor:
   methods:
   - enter_composite_transform
@@ -7477,13 +8489,10 @@ Point:
   - value
 Policy:
   properties:
+  - auditConfigs
   - bindings
   - etag
-  - kind
-  - resourceId
-PoolOption:
-  properties:
-  - name
+  - version
 PortableMetrics:
   methods:
   - query
@@ -7502,7 +8511,8 @@ PortableRunner:
   - create_job_service_handle
   - default_job_server
   - get_proto_pipeline
-  - run_pipeline
+  - run_portable_pipeline
+  - start_and_replace_loopback_environments
 PortableRunnerOptimized:
   methods:
   - create_options
@@ -7532,12 +8542,17 @@ Position:
   - key
   - recordIndex
   - shufflePosition
+PostgresVectorWriterConfig:
+  methods:
+  - create_write_transform
 Postprocess:
   methods:
   - process
 PostProcessor:
   methods:
   - process
+PreCallThrottler: {}
+PredictionResult: {}
 PredictUserEvent:
   methods:
   - expand
@@ -7549,21 +8564,37 @@ PrefixTransform:
   - expand
   - from_runner_api_parameter
   - to_runner_api_parameter
+PrepareDataforTraining:
+  methods:
+  - process
 Preprocess:
   methods:
   - process
 PrintFn:
   methods:
   - process
-PrivatePoolV1Config:
+PrismJobServer:
+  methods:
+  - construct_download_url
+  - local_bin
+  - path_to_binary
+  - prism_arguments
+  - subprocess_cmd_and_endpoint
   properties:
-  - networkConfig
-  - workerConfig
-ProcessAppManifestCallbackOperationMetadata:
+  - BIN_CACHE
+PrismRunner:
+  methods:
+  - create_job_service_handle
+  - default_environment
+  - default_job_server
   properties:
-  - completeTime
-  - createTime
-  - githubEnterpriseConfig
+  - shared_handle
+PrismRunnerLogFilter:
+  methods:
+  - filter
+  properties:
+  - COMMON_FIELDS
+PrismRunnerOptions: {}
 ProcessContinuation:
   methods:
   - resume
@@ -7583,6 +8614,9 @@ ProcessFn:
   - set_process_element_invoker
   - step_context
   - step_context
+ProcessHandler:
+  methods:
+  - append_transform
 ProcessInferenceToString:
   methods:
   - process
@@ -7642,59 +8676,6 @@ ProjectReference:
 ProjectToCategoryPriceFn:
   methods:
   - process
-PropertyNames:
-  properties:
-  - ALLOWS_SHARDABLE_STATE
-  - BIGQUERY_CREATE_DISPOSITION
-  - BIGQUERY_DATASET
-  - BIGQUERY_EXPORT_FORMAT
-  - BIGQUERY_FLATTEN_RESULTS
-  - BIGQUERY_KMS_KEY
-  - BIGQUERY_PROJECT
-  - BIGQUERY_QUERY
-  - BIGQUERY_SCHEMA
-  - BIGQUERY_TABLE
-  - BIGQUERY_USE_LEGACY_SQL
-  - BIGQUERY_WRITE_DISPOSITION
-  - DISPLAY_DATA
-  - ELEMENT
-  - ELEMENTS
-  - ENCODING
-  - FILE_NAME_PREFIX
-  - FILE_NAME_SUFFIX
-  - FILE_PATTERN
-  - FORMAT
-  - IMPULSE_ELEMENT
-  - INPUTS
-  - NON_PARALLEL_INPUTS
-  - NUM_SHARDS
-  - OUT
-  - OUTPUT
-  - OUTPUT_INFO
-  - OUTPUT_NAME
-  - PARALLEL_INPUT
-  - PIPELINE_PROTO_TRANSFORM_ID
-  - PRESERVES_KEYS
-  - PUBSUB_ID_LABEL
-  - PUBSUB_SERIALIZED_ATTRIBUTES_FN
-  - PUBSUB_SUBSCRIPTION
-  - PUBSUB_TIMESTAMP_ATTRIBUTE
-  - PUBSUB_TOPIC
-  - RESOURCE_HINTS
-  - RESTRICTION_ENCODING
-  - SERIALIZED_FN
-  - SERIALIZED_TEST_STREAM
-  - SHARD_NAME_TEMPLATE
-  - SOURCE_STEP_INPUT
-  - STEP_NAME
-  - USE_INDEXED_FORMAT
-  - USER_FN
-  - USER_NAME
-  - USES_KEYED_STATE
-  - VALIDATE_SINK
-  - VALIDATE_SOURCE
-  - VALUE
-  - WINDOWING_STRATEGY
 ProperyTestingCoders:
   methods:
   - test_float_coder
@@ -7729,6 +8710,25 @@ ProtoPlusMessageB:
 ProtoPlusMessageWithMap:
   properties:
   - field1
+Provider:
+  methods:
+  - affinity
+  - available
+  - cache_artifacts
+  - config_schema
+  - create_transform
+  - description
+  - provided_transforms
+  - requires_inputs
+  - underlying_provider
+  - with_extra_dependencies
+ProvisionService:
+  methods:
+  - GetProvisionInfo
+ProvisionServiceServicer:
+  methods:
+  - GetProvisionInfo
+ProvisionServiceStub: {}
 PTransform:
   methods:
   - annotations
@@ -7773,6 +8773,10 @@ PTransformTestDisplayData:
   - test_flatmap_named_function
   - test_map_anonymous_function
   - test_map_named_function
+PTransformWithErrors:
+  methods:
+  - expand
+  - with_error_handler
 PTransformWithSideInputs:
   methods:
   - default_label
@@ -7791,12 +8795,6 @@ PubSubBigQueryIT:
   - INPUT_TOPIC
   - SCHEMA
   - WAIT_UNTIL_FINISH_DURATION
-PubsubConfig:
-  properties:
-  - serviceAccountEmail
-  - state
-  - subscription
-  - topic
 PubSubIODetails:
   properties:
   - subscription
@@ -7804,6 +8802,7 @@ PubSubIODetails:
 PubsubLocation:
   properties:
   - dropLateData
+  - dynamicDestinations
   - idLabel
   - subscription
   - timestampLabel
@@ -7825,29 +8824,10 @@ PubSubSourceDescriptor:
   - id_label
   - source
   - timestamp_attribute
-PullRequestFilter:
-  properties:
-  - branch
-  - commentControl
-  - invertRegex
 PullResponseMessage: {}
-PushFilter:
-  properties:
-  - branch
-  - invertRegex
-  - tag
 PValue:
   methods:
   - apply
-PValueCache:
-  methods:
-  - cache_output
-  - clear_pvalue
-  - get_pvalue
-  - get_unwindowed_pvalue
-  - is_cached
-  - key
-  - to_cache_key
 PValueError: {}
 PyarrowArrayBatchConverter:
   methods:
@@ -7869,10 +8849,21 @@ PydotRenderer:
   methods:
   - option
   - render_pipeline_graph
+PyJsYamlCombine:
+  methods:
+  - expand
+PyODFactory:
+  methods:
+  - create_detector
+PyODModelHandler:
+  methods:
+  - load_model
+  - run_inference
 PyPIArtifactRegistry:
   methods:
   - get_artifacts
   - register_artifact
+PypiExpansionService: {}
 PythonCallable:
   methods:
   - language_type
@@ -7888,6 +8879,10 @@ PythonCallableWithSource:
   - load_from_fully_qualified_name
   - load_from_script
   - load_from_source
+PythonLoopbackEnvironment:
+  methods:
+  - from_runner_api_parameter
+  - to_runner_api_parameter
 PytorchBatchConverter:
   methods:
   - combine_batches
@@ -7899,8 +8894,16 @@ PytorchBatchConverter:
 PyTorchInference:
   methods:
   - test_torch_run_inference_bert_for_masked_lm
+  - test_torch_run_inference_bert_for_masked_lm_large_model
   - test_torch_run_inference_coco_maskrcnn_resnet50_fpn
+  - test_torch_run_inference_coco_maskrcnn_resnet50_fpn_v1_and_v2
   - test_torch_run_inference_imagenet_mobilenetv2
+PytorchInferenceTestWithMocks:
+  methods:
+  - setUp
+  - tearDown
+  - test_load_model_args_keyed_tensor
+  - test_load_model_args_tensor
 PytorchLinearRegression:
   methods:
   - forward
@@ -7913,28 +8916,37 @@ PytorchLinearRegressionKeyedBatchAndExtraInferenceArgs:
   - forward
 PytorchModelHandlerKeyedTensor:
   methods:
+  - batch_elements_kwargs
   - get_metrics_namespace
   - get_num_bytes
   - load_model
+  - model_copies
   - run_inference
-  - validate_inference_args
+  - share_model_across_processes
+  - update_model_path
 PytorchModelHandlerTensor:
   methods:
+  - batch_elements_kwargs
   - get_metrics_namespace
   - get_num_bytes
   - load_model
+  - model_copies
   - run_inference
-  - validate_inference_args
+  - share_model_across_processes
+  - update_model_path
 PytorchNoBatchModelHandler:
   methods:
   - batch_elements_kwargs
 PytorchTypeHint: {}
+QuantileThreshold:
+  methods:
+  - apply
+  - is_stateful
+  - threshold
+QuantileTracker: {}
 Query:
   methods:
   - clone
-QueryInfo:
-  properties:
-  - queryProperty
 QueryParameter:
   properties:
   - name
@@ -7999,6 +9011,9 @@ RangePartitioning:
   properties:
   - field
   - range
+RangeSet:
+  methods:
+  - add
 RangeSource:
   methods:
   - estimate_size
@@ -8024,6 +9039,16 @@ RankingMetrics:
   - meanAveragePrecision
   - meanSquaredError
   - normalizedDiscountedCumulativeGain
+RateLimitDoFn:
+  methods:
+  - process
+RateLimiter:
+  methods:
+  - allow
+RateLimitExceeded: {}
+ReactiveThrottler:
+  methods:
+  - throttle
 Read:
   methods:
   - display_data
@@ -8047,6 +9072,7 @@ ReadAllBQTests:
   - TABLE_DATA_1
   - TABLE_DATA_2
   - TABLE_DATA_3
+  - TABLE_DATA_AVAILABILITY_WAIT_SECONDS
 ReadAllFiles:
   methods:
   - expand
@@ -8082,20 +9108,31 @@ ReadAllFromTextContinuously:
 ReadAllFromTFRecord:
   methods:
   - expand
+ReadAndShuffleData:
+  methods:
+  - expand
 ReadCache:
   methods:
   - read_cache
+ReadChangeStreamFromSpanner:
+  properties:
+  - URN
+ReadChangeStreamFromSpannerSchema:
+  properties:
+  - changeStreamName
+  - database_id
+  - inclusiveEndAt
+  - inclusiveStartAt
+  - instance_id
+  - metadataDatabase
+  - metadataInstance
+  - metadataTable
+  - project_id
+  - rpcPriority
+  - watermarkRefreshRate
 ReadDataFromKinesis:
   properties:
   - URN
-ReaderPosition: {}
-ReaderProgress:
-  methods:
-  - consumed_split_points
-  - percent_complete
-  - position
-  - remaining_split_points
-  - remaining_time
 ReadFiles:
   methods:
   - process
@@ -8116,6 +9153,11 @@ ReadFromBigQuery:
 ReadFromBigQueryRequest:
   methods:
   - validate
+ReadFromBigtable:
+  methods:
+  - expand
+  properties:
+  - URN
 ReadFromCountingSource:
   methods:
   - expand
@@ -8153,11 +9195,8 @@ ReadFromParquetBatched:
 ReadFromPubSub:
   methods:
   - expand
-  properties:
-  - URN
-ReadFromPubSubLite:
-  methods:
-  - expand
+  - expand_continued
+  - to_runner_api_parameter
 ReadFromSnowflake:
   methods:
   - expand
@@ -8206,7 +9245,8 @@ ReadMatches:
 ReadModifyWriteRuntimeState:
   methods:
   - clear
-  - commit
+  - is_cleared
+  - is_modified
   - read
   - write
 ReadModifyWriteStateSpec:
@@ -8222,10 +9262,6 @@ ReadNewTypesTests:
 ReadOperation:
   methods:
   - start
-ReadPTransformOverride:
-  methods:
-  - get_replacement_transform_for_applied_ptransform
-  - matches
 ReadTests:
   methods:
   - create_table
@@ -8251,12 +9287,14 @@ ReadUsingStorageApiTests:
   - test_iobase_source
   - test_iobase_source_with_column_selection
   - test_iobase_source_with_column_selection_and_row_restriction
+  - test_iobase_source_with_column_selection_and_row_restriction_rows
   - test_iobase_source_with_native_datetime
   - test_iobase_source_with_query
   - test_iobase_source_with_query_and_filters
   - test_iobase_source_with_row_restriction
   - test_iobase_source_with_very_selective_filters
   properties:
+  - BIG_QUERY_DATASET_ID
   - TABLE_DATA
 ReadViaPandas:
   methods:
@@ -8264,23 +9302,33 @@ ReadViaPandas:
 RealClock:
   methods:
   - time
+RebaseMode:
+  properties:
+  - REBASE_ALL
+  - REBASE_NONE
+  - REBASE_START
 Receiver:
   methods:
   - flush
   - receive
   - receive_batch
-ReceiveTriggerWebhookResponse: {}
 RecommendationAIIT:
   methods:
   - tearDownClass
   - test_create_catalog_item
   - test_create_user_event
   - test_predict
+  properties:
+  - test_ran
 Record:
   properties:
   - age
   - height
   - name
+RecordElements:
+  methods:
+  - expand
+  - get_and_remove
 Recording:
   methods:
   - cancel
@@ -8294,6 +9342,7 @@ RecordingManager:
   methods:
   - cancel
   - clear
+  - compute_async
   - describe
   - read
   - record
@@ -8307,6 +9356,14 @@ Recordings:
 RecursiveClass:
   properties:
   - SELF_TYPE
+RedisCache:
+  methods:
+  - get_read
+  - get_write
+  - request_coder
+  - request_coder
+  - source_caller
+  - source_caller
 Regex:
   methods:
   - all_matches
@@ -8336,9 +9393,38 @@ ReifyWindowsFn:
 RekeyElements:
   methods:
   - process
-RemoveBitbucketServerConnectedRepositoryRequest:
-  properties:
-  - connectedRepository
+RemoteModelHandler:
+  methods:
+  - create_client
+  - load_model
+  - request
+  - retry_on_exception
+  - run_inference
+RemoteProvider:
+  methods:
+  - available
+  - cache_artifacts
+RemoveLambdaVariable:
+  methods:
+  - my_method
+RemoveLocalVariable:
+  methods:
+  - my_method
+RemoveMethod:
+  methods:
+  - another_method
+  - my_method
+RenamingProvider:
+  methods:
+  - available
+  - cache_artifacts
+  - config_schema
+  - create_transform
+  - description
+  - expand_mappings
+  - provided_transforms
+  - requires_inputs
+  - underlying_provider
 RenderOptions: {}
 RenderPipelineResult:
   methods:
@@ -8347,9 +9433,11 @@ RenderPipelineResult:
 RenderRunner:
   methods:
   - run_pipeline
+  - run_portable_pipeline
 Repeatedly:
   methods:
   - from_runner_api
+  - get_continuation_trigger
   - has_ontime_pane
   - may_lose_data
   - on_element
@@ -8358,6 +9446,9 @@ Repeatedly:
   - reset
   - should_fire
   - to_runner_api
+Repeater:
+  methods:
+  - repeat
 ReportedParallelism:
   properties:
   - isInfinite
@@ -8373,16 +9464,13 @@ ReportWorkItemStatusResponse:
   properties:
   - unifiedWorkerResponse
   - workItemServiceStates
-RepoSource:
+Request:
   properties:
-  - branchName
-  - commitSha
-  - dir
-  - invertRegex
-  - projectId
-  - repoName
-  - substitutions
-  - tagName
+  - id
+  - payload
+RequestResponseIO:
+  methods:
+  - expand
 Reshuffle:
   methods:
   - expand
@@ -8391,6 +9479,7 @@ Reshuffle:
 ReshufflePerKey:
   methods:
   - expand
+  - expand_2_64_0
 ResourceHint:
   methods:
   - get_by_name
@@ -8453,19 +9542,6 @@ ResultNames:
   - RESERVE
   - SELLER
   - STATE
-Results:
-  properties:
-  - artifactManifest
-  - artifactTiming
-  - buildStepImages
-  - buildStepOutputs
-  - images
-  - numArtifacts
-RetryBuildRequest:
-  properties:
-  - id
-  - name
-  - projectId
 RetryStrategy:
   methods:
   - should_retry
@@ -8476,14 +9552,12 @@ RetryStrategy:
 ReverseTestStream:
   methods:
   - expand
-RewriteResponse:
+RobustZScore:
+  methods:
+  - learn_one
+  - score_one
   properties:
-  - done
-  - kind
-  - objectSize
-  - resource
-  - rewriteToken
-  - totalBytesRewritten
+  - SCALE_FACTOR
 RootBundleProvider:
   methods:
   - get_root_bundles
@@ -8533,7 +9607,6 @@ RowAsDictJsonCoder:
   - to_type_hint
 RowCoder:
   methods:
-  - as_cloud_object
   - as_deterministic_coder
   - from_payload
   - from_runner_api_parameter
@@ -8577,15 +9650,23 @@ RowTypeConstraint:
   - set_schema_id
   - type_check
   - user_type
-RunBuildTriggerRequest:
-  properties:
-  - projectId
-  - source
-  - triggerId
-RunInference:
+RunAggregationStrategy:
   methods:
   - expand
+RunEnsembleDetector:
+  methods:
+  - expand
+RunInference:
+  methods:
+  - annotations
+  - expand
   - from_callable
+  - with_exception_handling
+RunInferenceDLQ:
+  properties:
+  - failed_inferences
+  - failed_postprocessing
+  - failed_preprocessing
 RunnerApiFn:
   methods:
   - from_runner_api
@@ -8605,11 +9686,24 @@ RunnerResult:
   - monitoring_infos
   - monitoring_metrics
   - wait_until_finish
+RunOfflineDetector:
+  methods:
+  - expand
+RunOneDetector:
+  methods:
+  - expand
+RunScoreAndLearn:
+  methods:
+  - expand
+RunThresholdCriterion:
+  methods:
+  - expand
 RuntimeEnvironment:
   properties:
   - additionalExperiments
   - additionalUserLabels
   - bypassTempDirValidation
+  - diskSizeGb
   - enableStreamingEngine
   - ipConfiguration
   - kmsKeyName
@@ -8618,6 +9712,7 @@ RuntimeEnvironment:
   - network
   - numWorkers
   - serviceAccountEmail
+  - streamingMode
   - subnetwork
   - tempLocation
   - workerRegion
@@ -8636,6 +9731,11 @@ RuntimeTimer:
   methods:
   - clear
   - set
+RuntimeUpdatableParams:
+  properties:
+  - maxNumWorkers
+  - minNumWorkers
+  - workerUtilizationHint
 RuntimeValueProvider:
   methods:
   - get
@@ -8646,15 +9746,6 @@ RuntimeValueProvider:
   - experiments
   - runtime_options
 RuntimeValueProviderError: {}
-RunWorkflowCustomOperationMetadata:
-  properties:
-  - apiVersion
-  - createTime
-  - endTime
-  - pipelineRunId
-  - requestedCancellation
-  - target
-  - verb
 S3ClientError: {}
 S3Downloader:
   methods:
@@ -8674,6 +9765,7 @@ S3FileSystem:
   - mkdirs
   - open
   - rename
+  - report_lineage
   - scheme
   - size
   - split
@@ -8707,7 +9799,18 @@ SafeFastPrimitivesCoder:
   methods:
   - decode
   - encode
+SafeLineLoader:
+  methods:
+  - construct_mapping
+  - construct_scalar
+  - create_uuid
+  - get_line
+  - strip_metadata
 Sample: {}
+SampleApiDoFn:
+  methods:
+  - process
+  - setup
 SampleCombineFn:
   methods:
   - add_input
@@ -8717,20 +9820,48 @@ SampleCombineFn:
   - merge_accumulators
   - setup
   - teardown
+SampleHTTPEnrichment: {}
 SampleOptions: {}
+SampleTimer:
+  methods:
+  - reset
+  - sample
+  - stop
+SaveModel:
+  methods:
+  - process
+ScaleByMinMax:
+  methods:
+  - apply_transform
+ScaleTo01:
+  methods:
+  - apply_transform
+ScaleToGaussian:
+  methods:
+  - apply_transform
+ScaleToZScore:
+  methods:
+  - apply_transform
 SchemaAwareExternalTransform:
   methods:
   - discover
+  - discover_config
+  - discover_iter
   - expand
 SchemaBasedPayloadBuilder:
   methods:
   - build
+SchemaConfig:
+  properties:
+  - chunk_to_dict_fn
+  - schema
 SchemaLoadedSqlTransform:
   methods:
   - expand
 SchemaTransformPayloadBuilder:
   methods:
   - build
+  - identifier
 SchemaTranslation:
   methods:
   - atomic_value_from_runner_api
@@ -8748,10 +9879,26 @@ SchemaTypeRegistry:
   - generate_new_id
   - get_schema_by_id
   - get_typing_by_id
+Scope:
+  methods:
+  - best_provider
+  - compute_all
+  - compute_outputs
+  - create_ptransform
+  - followers
+  - get_outputs
+  - get_pcollection
+  - unique_name
 ScopedState:
   methods:
   - sampled_msecs_int
   - sampled_seconds
+ScoreAggregation:
+  methods:
+  - apply
+ScoreAggTestWithMissingOrError:
+  methods:
+  - test_default
 ScreenDiffIntegrationTestEnvironment:
   methods:
   - base_url
@@ -8788,6 +9935,11 @@ SdfTruncateSizedRestrictions:
   methods:
   - current_element_progress
   - try_split
+SdkBug:
+  properties:
+  - severity
+  - type
+  - uri
 SdkContainerImageBuilder:
   methods:
   - build_container_image
@@ -8809,6 +9961,7 @@ SDKInfo:
   - version
 SdkVersion:
   properties:
+  - bugs
   - sdkSupportStatus
   - version
   - versionDisplayName
@@ -8821,23 +9974,32 @@ SdkWorker:
   - process_bundle_progress
   - process_bundle_split
   - register
+SearchStrategy:
+  properties:
+  - HYBRID
+  - KEYWORD
+  - VECTOR
+SecondaryBufferedQuantileTracker:
+  methods:
+  - get
+  - push
 Secret:
-  properties:
-  - kmsKeyName
-  - secretEnv
-SecretManagerSecret:
-  properties:
-  - env
-  - versionName
-Secrets:
-  properties:
-  - inline
-  - secretManager
+  methods:
+  - generate_secret_bytes
+  - get_secret_bytes
+  - parse_secret_option
 Select:
   methods:
   - default_label
   - expand
   - infer_output_type
+  - with_exception_handling
+SelectLatestModelState:
+  methods:
+  - add_input
+  - create_accumulator
+  - extract_output
+  - merge_accumulators
 SelectMaxBidFn:
   methods:
   - process
@@ -8856,6 +10018,13 @@ SendWorkerMessagesRequest:
 SendWorkerMessagesResponse:
   properties:
   - workerMessageResponses
+SentenceTransformerEmbeddings:
+  methods:
+  - get_model_handler
+  - get_ptransform_for_processing
+SentimentPostProcessor:
+  methods:
+  - process
 Sentinel:
   properties:
   - sentinel
@@ -8880,6 +10049,7 @@ SequenceCoderImpl:
   - encode_to_stream
   - estimate_size
   - get_estimated_size_and_observables
+SequenceHint: {}
 SequenceTypeConstraint:
   methods:
   - bind_type_variables
@@ -8897,15 +10067,14 @@ SeriesToElementsFn:
   methods:
   - infer_output_type
   - process
-ServiceAccount:
-  properties:
-  - email_address
-  - kind
 ServiceCallMetric:
   methods:
   - bigtable_error_code_to_grpc_status_string
   - call
   - convert_to_canonical_status_string
+ServiceResources:
+  properties:
+  - zones
 Session:
   methods:
   - evaluate
@@ -8917,9 +10086,7 @@ Sessions:
   - get_window_coder
   - merge
   - to_runner_api_parameter
-SessionsToStringsDoFn:
-  methods:
-  - process
+SessionWindowsPayload: {}
 SetHint: {}
 SetIamPolicyRequest:
   properties:
@@ -8942,7 +10109,6 @@ ShardedKey:
   - key
 ShardedKeyCoder:
   methods:
-  - as_cloud_object
   - from_type_hint
   - is_deterministic
   - to_type_hint
@@ -8961,6 +10127,7 @@ ShardEventsDoFn:
 Shared:
   methods:
   - acquire
+SharedKey: {}
 ShellTask:
   properties:
   - command
@@ -8969,6 +10136,7 @@ ShortIdCache:
   methods:
   - get_infos
   - get_short_id
+ShouldBackOff: {}
 ShuffleBarrier:
   methods:
   - expand
@@ -9021,6 +10189,15 @@ SimpleOutput:
 SimpleRow:
   properties:
   - value
+SimpleSlidingMeanTracker:
+  methods:
+  - get
+SimpleSlidingQuantileTracker:
+  methods:
+  - get
+SimpleSlidingStdevTracker:
+  methods:
+  - get
 SimpleState:
   methods:
   - add_state
@@ -9087,42 +10264,41 @@ SizeLimiter:
 SklearnInference:
   methods:
   - test_sklearn_mnist_classification
+  - test_sklearn_mnist_classification_large_model
   - test_sklearn_regression
 SklearnModelHandlerNumpy:
   methods:
+  - batch_elements_kwargs
   - get_metrics_namespace
   - get_num_bytes
   - load_model
+  - model_copies
   - run_inference
+  - share_model_across_processes
+  - update_model_path
 SklearnModelHandlerPandas:
   methods:
+  - batch_elements_kwargs
   - get_metrics_namespace
   - get_num_bytes
   - load_model
+  - model_copies
   - run_inference
-SlackDelivery:
-  properties:
-  - webhookUri
+  - share_model_across_processes
+  - update_model_path
 SlidingWindows:
   methods:
   - assign
   - from_runner_api_parameter
   - get_window_coder
   - to_runner_api_parameter
+SlidingWindowsPayload: {}
 SlowCoders:
   methods:
   - test_using_slow_impl
 Smallest:
   methods:
   - default_label
-SMTPDelivery:
-  properties:
-  - fromAddress
-  - password
-  - port
-  - recipientAddresses
-  - senderAddress
-  - server
 Snapshot:
   properties:
   - creationTime
@@ -9154,11 +10330,14 @@ SortedConcatWithCounters:
   - merge_accumulators
 Source:
   properties:
-  - repoSource
-  - storageSource
-  - storageSourceManifest
+  - baseSpecs
+  - codec
+  - doesNotNeedSplitting
+  - metadata
+  - spec
 SourceBase:
   methods:
+  - default_output_coder
   - is_bounded
 SourceFork:
   properties:
@@ -9189,12 +10368,6 @@ SourceOperationResponse:
   properties:
   - getMetadata
   - split
-SourceProvenance:
-  properties:
-  - fileHashes
-  - resolvedRepoSource
-  - resolvedStorageSource
-  - resolvedStorageSourceManifest
 SourceSplitOptions:
   properties:
   - desiredBundleSizeBytes
@@ -9212,9 +10385,32 @@ SourceSplitShard:
   properties:
   - derivationMode
   - source
+SpannerColumnSpec:
+  properties:
+  - column_name
+  - python_type
+  - value_fn
+SpannerColumnSpecsBuilder:
+  methods:
+  - add_column
+  - add_metadata_field
+  - build
+  - with_content_spec
+  - with_defaults
+  - with_embedding_spec
+  - with_id_spec
+  - with_metadata_spec
 SpannerDelete:
   properties:
   - URN
+SpannerEmulatorHelper:
+  methods:
+  - create_database
+  - create_instance
+  - drop_database
+  - get_emulator_host
+  - read_data
+  - shutdown
 SpannerHelper:
   methods:
   - create_database
@@ -9239,6 +10435,7 @@ SpannerPartTestRow:
   properties:
   - f_int64
   - f_string
+  - f_timestamp
 SpannerReplace:
   properties:
   - URN
@@ -9250,9 +10447,16 @@ SpannerTestRow:
   - f_boolean
   - f_int64
   - f_string
+  - f_timestamp
 SpannerUpdate:
   properties:
   - URN
+SpannerVectorWriterConfig:
+  methods:
+  - create_write_transform
+SpannerWrapper:
+  properties:
+  - TEMP_DATABASE_PREFIX
 SparkBeamJob:
   methods:
   - cancel
@@ -9271,8 +10475,8 @@ SparkJarJobServer:
 SparkRunner:
   methods:
   - create_job_service_handle
+  - default_environment
   - default_job_server
-  - run_pipeline
 SparkRunnerOptions: {}
 SparkTestPipelineOptions:
   methods:
@@ -9283,6 +10487,10 @@ SparkUberJarJobServer:
   - executable_jar
   - start
   - stop
+Spec:
+  properties:
+  - config
+  - type
 SpecialDoFn:
   methods:
   - display_data
@@ -9290,6 +10498,16 @@ SpecialDoFn:
 SpecialParDo:
   methods:
   - display_data
+Specifiable:
+  methods:
+  - from_spec
+  - run_original_init
+  - spec_type
+  - to_spec
+  - unspecifiable
+SpecProvider:
+  methods:
+  - create_transform
 SplitInt64:
   properties:
   - highBits
@@ -9312,6 +10530,17 @@ SplittableParDoOverride:
   methods:
   - get_replacement_transform_for_applied_ptransform
   - matches
+SqlBackedProvider:
+  methods:
+  - available
+  - cache_artifacts
+  - config_schema
+  - create_transform
+  - description
+  - provided_transforms
+  - sql_provider
+  - to_json
+  - underlying_provider
 SqlChain:
   methods:
   - append
@@ -9322,6 +10551,23 @@ SqlChain:
   - nodes
   - root
   - user_pipeline
+SQLDBContainerInfo:
+  methods:
+  - address
+  - url
+  properties:
+  - adapter
+  - container
+  - host
+  - id
+  - password
+  - port
+  - user
+SQLEnrichmentTestHelper:
+  methods:
+  - create_table
+  - start_sql_db_container
+  - stop_sql_db_container
 SqlNode:
   methods:
   - to_pipeline
@@ -9357,7 +10603,6 @@ Stager:
   - create_and_stage_job_resources
   - create_job_resources
   - extract_staging_tuple_iter
-  - get_sdk_package_name
   - stage_artifact
   - stage_job_resources
 StageSource:
@@ -9374,11 +10619,19 @@ StageSummary:
   - stageId
   - startTime
   - state
+  - stragglerSummary
+StandardArtifacts: {}
+StandardCoders: {}
+StandardDisplayData: {}
+StandardEnvironments: {}
 StandardOptions:
   properties:
   - ALL_KNOWN_RUNNERS
   - DEFAULT_RUNNER
   - KNOWN_RUNNER_NAMES
+  - LOCAL_RUNNERS
+StandardProtocols: {}
+StandardPTransforms: {}
 StandardQueryParameters:
   properties:
   - access_token
@@ -9393,6 +10646,10 @@ StandardQueryParameters:
   - trace
   - upload_protocol
   - uploadType
+StandardRequirements: {}
+StandardResourceHints: {}
+StandardRunnerProtocols: {}
+StandardSideInputTypes: {}
 StandardSqlDataType:
   properties:
   - arrayElementType
@@ -9405,6 +10662,7 @@ StandardSqlField:
 StandardSqlStructType:
   properties:
   - fields
+StandardUserStateTypes: {}
 StateBackedIterableCoder:
   methods:
   - from_runner_api_parameter
@@ -9463,13 +10721,11 @@ StatelessDoFnInfo:
   - REGISTERED_DOFNS
 StateSampler:
   methods:
-  - commit_counters
-  - get_info
-  - scoped_state
-  - stage_name
+  - current_state
+  - reset
   - start
   - stop
-  - stop_if_still_running
+  - update_metric
 StateServicer:
   methods:
   - append_raw
@@ -9494,6 +10750,7 @@ Status:
   - code
   - details
   - message
+StdevTracker: {}
 Step:
   properties:
   - kind
@@ -9503,380 +10760,35 @@ StopOnExitJobServer:
   methods:
   - start
   - stop
-StorageBucketAccessControlsDeleteRequest:
+StorageWriteToBigQuery:
+  methods:
+  - expand
   properties:
-  - bucket
-  - entity
-  - userProject
-StorageBucketAccessControlsDeleteResponse: {}
-StorageBucketAccessControlsGetRequest:
+  - CDC_INFO
+  - CDC_MUTATION_TYPE
+  - CDC_SQN
+  - DESTINATION
+  - DYNAMIC_DESTINATIONS
+  - FAILED_ROWS
+  - FAILED_ROWS_WITH_ERRORS
+  - IDENTIFIER
+  - RECORD
+Straggler:
   properties:
-  - bucket
-  - entity
-  - userProject
-StorageBucketAccessControlsInsertRequest:
+  - batchStraggler
+  - streamingStraggler
+StragglerDebuggingInfo:
   properties:
-  - bucket
-  - bucketAccessControl
-  - userProject
-StorageBucketAccessControlsListRequest:
+  - hotKey
+StragglerInfo:
   properties:
-  - bucket
-  - userProject
-StorageBucketAccessControlsPatchRequest:
+  - causes
+  - startTime
+StragglerSummary:
   properties:
-  - bucket
-  - bucketAccessControl
-  - entity
-  - userProject
-StorageBucketAccessControlsUpdateRequest:
-  properties:
-  - bucket
-  - bucketAccessControl
-  - entity
-  - userProject
-StorageBucketsDeleteRequest:
-  properties:
-  - bucket
-  - ifMetagenerationMatch
-  - ifMetagenerationNotMatch
-  - userProject
-StorageBucketsDeleteResponse: {}
-StorageBucketsGetIamPolicyRequest:
-  properties:
-  - bucket
-  - userProject
-StorageBucketsGetRequest:
-  properties:
-  - bucket
-  - ifMetagenerationMatch
-  - ifMetagenerationNotMatch
-  - projection
-  - userProject
-StorageBucketsInsertRequest:
-  properties:
-  - bucket
-  - predefinedAcl
-  - predefinedDefaultObjectAcl
-  - project
-  - projection
-  - userProject
-StorageBucketsListRequest:
-  properties:
-  - maxResults
-  - pageToken
-  - prefix
-  - project
-  - projection
-  - userProject
-StorageBucketsLockRetentionPolicyRequest:
-  properties:
-  - bucket
-  - ifMetagenerationMatch
-  - userProject
-StorageBucketsPatchRequest:
-  properties:
-  - bucket
-  - bucketResource
-  - ifMetagenerationMatch
-  - ifMetagenerationNotMatch
-  - predefinedAcl
-  - predefinedDefaultObjectAcl
-  - projection
-  - userProject
-StorageBucketsSetIamPolicyRequest:
-  properties:
-  - bucket
-  - policy
-  - userProject
-StorageBucketsTestIamPermissionsRequest:
-  properties:
-  - bucket
-  - permissions
-  - userProject
-StorageBucketsUpdateRequest:
-  properties:
-  - bucket
-  - bucketResource
-  - ifMetagenerationMatch
-  - ifMetagenerationNotMatch
-  - predefinedAcl
-  - predefinedDefaultObjectAcl
-  - projection
-  - userProject
-StorageChannelsStopResponse: {}
-StorageDefaultObjectAccessControlsDeleteRequest:
-  properties:
-  - bucket
-  - entity
-  - userProject
-StorageDefaultObjectAccessControlsDeleteResponse: {}
-StorageDefaultObjectAccessControlsGetRequest:
-  properties:
-  - bucket
-  - entity
-  - userProject
-StorageDefaultObjectAccessControlsInsertRequest:
-  properties:
-  - bucket
-  - objectAccessControl
-  - userProject
-StorageDefaultObjectAccessControlsListRequest:
-  properties:
-  - bucket
-  - ifMetagenerationMatch
-  - ifMetagenerationNotMatch
-  - userProject
-StorageDefaultObjectAccessControlsPatchRequest:
-  properties:
-  - bucket
-  - entity
-  - objectAccessControl
-  - userProject
-StorageDefaultObjectAccessControlsUpdateRequest:
-  properties:
-  - bucket
-  - entity
-  - objectAccessControl
-  - userProject
-StorageNotificationsDeleteRequest:
-  properties:
-  - bucket
-  - notification
-  - userProject
-StorageNotificationsDeleteResponse: {}
-StorageNotificationsGetRequest:
-  properties:
-  - bucket
-  - notification
-  - userProject
-StorageNotificationsInsertRequest:
-  properties:
-  - bucket
-  - notification
-  - userProject
-StorageNotificationsListRequest:
-  properties:
-  - bucket
-  - userProject
-StorageObjectAccessControlsDeleteRequest:
-  properties:
-  - bucket
-  - entity
-  - generation
-  - object
-  - userProject
-StorageObjectAccessControlsDeleteResponse: {}
-StorageObjectAccessControlsGetRequest:
-  properties:
-  - bucket
-  - entity
-  - generation
-  - object
-  - userProject
-StorageObjectAccessControlsInsertRequest:
-  properties:
-  - bucket
-  - generation
-  - object
-  - objectAccessControl
-  - userProject
-StorageObjectAccessControlsListRequest:
-  properties:
-  - bucket
-  - generation
-  - object
-  - userProject
-StorageObjectAccessControlsPatchRequest:
-  properties:
-  - bucket
-  - entity
-  - generation
-  - object
-  - objectAccessControl
-  - userProject
-StorageObjectAccessControlsUpdateRequest:
-  properties:
-  - bucket
-  - entity
-  - generation
-  - object
-  - objectAccessControl
-  - userProject
-StorageObjectsComposeRequest:
-  properties:
-  - composeRequest
-  - destinationBucket
-  - destinationObject
-  - destinationPredefinedAcl
-  - ifGenerationMatch
-  - ifMetagenerationMatch
-  - kmsKeyName
-  - userProject
-StorageObjectsCopyRequest:
-  properties:
-  - destinationBucket
-  - destinationObject
-  - destinationPredefinedAcl
-  - ifGenerationMatch
-  - ifGenerationNotMatch
-  - ifMetagenerationMatch
-  - ifMetagenerationNotMatch
-  - ifSourceGenerationMatch
-  - ifSourceGenerationNotMatch
-  - ifSourceMetagenerationMatch
-  - ifSourceMetagenerationNotMatch
-  - object
-  - projection
-  - sourceBucket
-  - sourceGeneration
-  - sourceObject
-  - userProject
-StorageObjectsDeleteRequest:
-  properties:
-  - bucket
-  - generation
-  - ifGenerationMatch
-  - ifGenerationNotMatch
-  - ifMetagenerationMatch
-  - ifMetagenerationNotMatch
-  - object
-  - userProject
-StorageObjectsDeleteResponse: {}
-StorageObjectsGetIamPolicyRequest:
-  properties:
-  - bucket
-  - generation
-  - object
-  - userProject
-StorageObjectsGetRequest:
-  properties:
-  - bucket
-  - generation
-  - ifGenerationMatch
-  - ifGenerationNotMatch
-  - ifMetagenerationMatch
-  - ifMetagenerationNotMatch
-  - object
-  - projection
-  - userProject
-StorageObjectsInsertRequest:
-  properties:
-  - bucket
-  - contentEncoding
-  - ifGenerationMatch
-  - ifGenerationNotMatch
-  - ifMetagenerationMatch
-  - ifMetagenerationNotMatch
-  - kmsKeyName
-  - name
-  - object
-  - predefinedAcl
-  - projection
-  - userProject
-StorageObjectsListRequest:
-  properties:
-  - bucket
-  - delimiter
-  - includeTrailingDelimiter
-  - maxResults
-  - pageToken
-  - prefix
-  - projection
-  - userProject
-  - versions
-StorageObjectsPatchRequest:
-  properties:
-  - bucket
-  - generation
-  - ifGenerationMatch
-  - ifGenerationNotMatch
-  - ifMetagenerationMatch
-  - ifMetagenerationNotMatch
-  - object
-  - objectResource
-  - predefinedAcl
-  - projection
-  - userProject
-StorageObjectsRewriteRequest:
-  properties:
-  - destinationBucket
-  - destinationKmsKeyName
-  - destinationObject
-  - destinationPredefinedAcl
-  - ifGenerationMatch
-  - ifGenerationNotMatch
-  - ifMetagenerationMatch
-  - ifMetagenerationNotMatch
-  - ifSourceGenerationMatch
-  - ifSourceGenerationNotMatch
-  - ifSourceMetagenerationMatch
-  - ifSourceMetagenerationNotMatch
-  - maxBytesRewrittenPerCall
-  - object
-  - projection
-  - rewriteToken
-  - sourceBucket
-  - sourceGeneration
-  - sourceObject
-  - userProject
-StorageObjectsSetIamPolicyRequest:
-  properties:
-  - bucket
-  - generation
-  - object
-  - policy
-  - userProject
-StorageObjectsTestIamPermissionsRequest:
-  properties:
-  - bucket
-  - generation
-  - object
-  - permissions
-  - userProject
-StorageObjectsUpdateRequest:
-  properties:
-  - bucket
-  - generation
-  - ifGenerationMatch
-  - ifGenerationNotMatch
-  - ifMetagenerationMatch
-  - ifMetagenerationNotMatch
-  - object
-  - objectResource
-  - predefinedAcl
-  - projection
-  - userProject
-StorageObjectsWatchAllRequest:
-  properties:
-  - bucket
-  - channel
-  - delimiter
-  - includeTrailingDelimiter
-  - maxResults
-  - pageToken
-  - prefix
-  - projection
-  - userProject
-  - versions
-StorageProjectsServiceAccountGetRequest:
-  properties:
-  - projectId
-  - userProject
-StorageSource:
-  properties:
-  - bucket
-  - generation
-  - object
-StorageSourceManifest:
-  properties:
-  - bucket
-  - generation
-  - object
-StorageV1:
-  properties:
-  - BASE_URL
-  - MESSAGES_MODULE
+  - recentStragglers
+  - stragglerCauseCount
+  - totalStragglerCount
 StreamCoderImpl:
   methods:
   - decode
@@ -9936,10 +10848,40 @@ StreamingConfigTask:
   - commitStreamChunkSizeBytes
   - getDataStreamChunkSizeBytes
   - maxWorkItemCommitBytes
+  - operationalLimits
   - streamingComputationConfigs
   - userStepToStateFamilyNameMap
   - windmillServiceEndpoint
   - windmillServicePort
+StreamingOperationalLimits:
+  properties:
+  - maxBagElementBytes
+  - maxGlobalDataBytes
+  - maxKeyBytes
+  - maxProductionOutputBytes
+  - maxSortedListElementBytes
+  - maxSourceStateBytes
+  - maxTagBytes
+  - maxValueBytes
+StreamingOptions: {}
+StreamingPubSubWriteDoFnOverride:
+  methods:
+  - get_replacement_transform_for_applied_ptransform
+  - matches
+StreamingScalingReport:
+  properties:
+  - activeBundleCount
+  - activeThreadCount
+  - maximumBundleCount
+  - maximumBytes
+  - maximumBytesCount
+  - maximumThreadCount
+  - outstandingBundleCount
+  - outstandingBytes
+  - outstandingBytesCount
+StreamingScalingReportResponse:
+  properties:
+  - maximumThreadCount
 StreamingSetupTask:
   properties:
   - drain
@@ -9954,6 +10896,13 @@ StreamingSideInputLocation:
 StreamingStageLocation:
   properties:
   - streamId
+StreamingStragglerInfo:
+  properties:
+  - dataWatermarkLag
+  - endTime
+  - startTime
+  - systemWatermarkLag
+  - workerName
 StreamingUserMetricsDoFn:
   methods:
   - finish_bundle
@@ -9982,6 +10931,22 @@ StreamLocation:
 StringList:
   properties:
   - elements
+StringSet:
+  methods:
+  - add
+StringSetCell:
+  methods:
+  - add
+  - to_runner_api_monitoring_info_impl
+StringSetData:
+  methods:
+  - add
+  - add_until_capacity
+  - combine
+  - get_cumulative
+  - get_result
+  - identity_element
+  - singleton
 StructuredMessage:
   properties:
   - messageKey
@@ -10015,7 +10980,7 @@ SubprocessSdkWorkerHandler:
   - stop_worker
 SubprocessServer:
   methods:
-  - local_temp_dir
+  - cache_subprocesses
   - start
   - start_process
   - stop
@@ -10030,6 +10995,9 @@ SumDoubleAccumulator:
   - extract_output
   - merge
 SumFloatFn: {}
+SumGlobally:
+  methods:
+  - expand
 SumInt64Accumulator:
   methods:
   - add_input
@@ -10045,6 +11013,7 @@ SuperClass: {}
 SwitchingDirectRunner:
   methods:
   - is_fnapi_compatible
+  - is_interactive
   - run_pipeline
 SynchronousBagRuntimeState:
   methods:
@@ -10052,6 +11021,19 @@ SynchronousBagRuntimeState:
   - clear
   - commit
   - read
+SynchronousOrderedListRuntimeState:
+  methods:
+  - add
+  - clear
+  - clear_range
+  - commit
+  - read
+  - read_range
+  properties:
+  - RANGE_MAX
+  - RANGE_MIN
+  - TIMESTAMP_RANGE_MAX
+  - TIMESTAMP_RANGE_MIN
 SynchronousSetRuntimeState:
   methods:
   - add
@@ -10150,6 +11132,16 @@ TableFieldSchema:
   - name
   - policyTags
   - type
+TableFieldsQueryConfig:
+  properties:
+  - table_id
+  - where_clause_fields
+  - where_clause_template
+TableFunctionQueryConfig:
+  properties:
+  - table_id
+  - where_clause_template
+  - where_clause_value_fn
 TableList:
   properties:
   - etag
@@ -10173,6 +11165,12 @@ TableSchema:
   properties:
   - fields
 TaggedOutput: {}
+TaggingReceiver:
+  methods:
+  - receive
+  properties:
+  - tag
+  - values
 TaskRunnerSettings:
   properties:
   - alsologtostderr
@@ -10194,6 +11192,15 @@ TaskRunnerSettings:
   - tempStoragePrefix
   - vmId
   - workflowFileName
+TaxiRideEventSchema:
+  properties:
+  - latitude
+  - longitude
+  - meter_reading
+  - passenger_count
+  - ride_id
+  - ride_status
+  - timestamp
 TaxirideIT:
   methods:
   - setUp
@@ -10203,15 +11210,39 @@ TaxirideIT:
 TeamScoresDict:
   methods:
   - process
+Tee:
+  methods:
+  - expand
 TempDir:
   methods:
   - create_temp_file
   - get_path
 TemplateMetadata:
   properties:
+  - defaultStreamingMode
   - description
   - name
   - parameters
+  - streaming
+  - supportsAtLeastOnce
+  - supportsExactlyOnce
+TensorflowHubImageEmbeddings:
+  methods:
+  - get_model_handler
+  - get_ptransform_for_processing
+TensorflowHubTextEmbeddings:
+  methods:
+  - get_model_handler
+  - get_ptransform_for_processing
+TensorflowInference:
+  methods:
+  - test_tf_imagenet_image_segmentation
+  - test_tf_mnist_classification
+  - test_tf_mnist_classification_large_model
+  - test_tf_mnist_with_weights_classification
+TensorflowMNISTClassificationCostBenchmark:
+  methods:
+  - test
 TensorRTEngine:
   methods:
   - get_engine_attrs
@@ -10223,11 +11254,20 @@ TensorRTEngineHandlerNumPy:
   - get_num_bytes
   - load_model
   - load_onnx
+  - model_copies
   - run_inference
-Test_NativeWrite:
+  - share_model_across_processes
+  - validate_inference_args
+TestAnomalyDetection:
+  methods:
+  - test_multiple_detectors_without_aggregation
+  - test_multiple_sub_detectors_with_aggregation
+  - test_one_detector
+TestAnomalyDetector:
   methods:
   - setUp
-  - test_expand_method_pcollection_errors
+  - tearDown
+  - test_model_id_and_spec
 TestAvroRowWriter:
   methods:
   - test_write_row
@@ -10239,13 +11279,65 @@ TestAZFSPathParser:
   - test_bad_azfs_path_blob_optional
   properties:
   - BAD_AZFS_PATHS
+TestBeamRowFromDict:
+  methods:
+  - get_schema_fields_with_mode
+  - test_dict_to_beam_row_all_types_nullable
+  - test_dict_to_beam_row_all_types_repeated
+  - test_dict_to_beam_row_all_types_required
+  - test_dict_to_beam_row_nested_record
+  - test_dict_to_beam_row_repeated_nested_record
+  properties:
+  - DICT_ROW
+TestBeamRowToPartialRowData:
+  methods:
+  - test_beam_row_to_bigtable_row
+TestBeamTypehintFromSchema:
+  methods:
+  - get_schema_fields_with_mode
+  - test_typehints_from_nullable_schema
+  - test_typehints_from_repeated_schema
+  - test_typehints_from_required_schema
+  - test_typehints_from_schema_with_repeated_struct
+  - test_typehints_from_schema_with_struct
+  properties:
+  - EXPECTED_TYPEHINTS
+TestBigQueryEnrichment:
+  methods:
+  - setUp
+  - test_valid_params
+TestBigQueryEnrichmentIT:
+  methods:
+  - create_table
+  - setUp
+  - setUpClass
+  - tearDown
+  - test_bigquery_enrichment
+  - test_bigquery_enrichment_bad_request
+  - test_bigquery_enrichment_batched
+  - test_bigquery_enrichment_batched_multiple_fields
+  - test_bigquery_enrichment_no_results_graceful
+  - test_bigquery_enrichment_no_results_graceful_batched
+  - test_bigquery_enrichment_no_results_partial_graceful_batched
+  - test_bigquery_enrichment_no_results_throws_exception
+  - test_bigquery_enrichment_no_results_with_query_fn_graceful
+  - test_bigquery_enrichment_no_results_with_query_fn_throws_exception
+  - test_bigquery_enrichment_partial_results_throws_exception_batched
+  - test_bigquery_enrichment_with_condition_value_fn
+  - test_bigquery_enrichment_with_query_fn
+  - test_bigquery_enrichment_with_redis
+  properties:
+  - table_data
 TestBigQueryFileLoads:
   methods:
   - test_load_job_id_use_for_copy_job
   - test_load_job_id_used
+  - test_multiple_identical_destinations_on_write_truncate
   - test_multiple_partition_files
+  - test_multiple_partition_files_write_dispositions
   - test_one_load_job_failed_after_waiting
   - test_records_traverse_transform_with_mocks
+  - test_reshuffle_before_load
   - test_trigger_load_jobs_with_empty_files
   - test_triggering_frequency
   - test_wait_for_load_job_completion
@@ -10261,17 +11353,40 @@ TestBigQueryToSchema:
   methods:
   - test_bad_schema_public_api_direct_read
   - test_bad_schema_public_api_export
+  - test_beam_schema_conversion_dofn_with_geography
   - test_check_conversion_with_empty_schema
+  - test_check_conversion_with_selected_fields
   - test_check_schema_conversions
   - test_check_schema_conversions_with_timestamp
+  - test_convert_to_usertype_with_geography
+  - test_geography_field_type_conversion
+  - test_geography_in_bq_to_python_types_mapping
+  - test_geography_type_support
+  - test_geography_with_complex_wkt
   - test_unsupported_callable
   - test_unsupported_mode
   - test_unsupported_query_direct_read
   - test_unsupported_query_export
   - test_unsupported_type
   - test_unsupported_value_provider
+TestBigQueryVectorSearchIT:
+  methods:
+  - create_table
+  - setUpClass
+  - test_basic_vector_search
+  - test_batched_metadata_filter_vector_search
+  - test_condition_batching
+  - test_empty_input
+  - test_euclidean_distance_search
+  - test_include_distance
+  - test_invalid_query
+  - test_metadata_filter_leakage
+  - test_missing_embedding
+  - test_no_metadata_restriction
+  - test_price_range_filter_with_callable
 TestBigQueryWrapper:
   methods:
+  - test_create_temporary_dataset_with_kms_key
   - test_delete_dataset_retries_fail
   - test_delete_dataset_retries_for_timeouts
   - test_delete_non_existing_dataset
@@ -10285,27 +11400,88 @@ TestBigQueryWrapper:
   - test_get_or_create_table_invalid_tablename
   - test_get_or_create_table_race_condition
   - test_get_query_location
+  - test_get_temp_table_project_with_temp_table_ref
+  - test_get_temp_table_project_without_temp_table_ref
   - test_insert_rows_sets_metric_on_failure
   - test_perform_load_job_source_mutual_exclusivity
   - test_perform_load_job_with_load_job_id
   - test_perform_load_job_with_source_stream
   - test_start_query_job_priority_configuration
   - test_temporary_dataset_is_unique
+  - test_user_agent_create_temporary_dataset
   - test_user_agent_insert_all
-  - test_user_agent_passed
   - test_wait_for_job_retries_fail
   - test_wait_for_job_returns_true_when_job_is_done
   - verify_write_call_metric
+TestBigtableDirectRowToBeamRow:
+  methods:
+  - test_delete_cells
+  - test_delete_column_family
+  - test_delete_row
+  - test_set_cell
+  properties:
+  - doFn
+TestBigTableEnrichment:
+  methods:
+  - setUp
+  - tearDown
+  - test_bigtable_enrichment_with_lambda
+  - test_bigtable_enrichment_with_redis
+  - test_enrichment_with_bigtable
+  - test_enrichment_with_bigtable_bad_row_filter
+  - test_enrichment_with_bigtable_exception_level
+  - test_enrichment_with_bigtable_no_enrichment
+  - test_enrichment_with_bigtable_raises_key_error
+  - test_enrichment_with_bigtable_raises_not_found
+  - test_enrichment_with_bigtable_row_filter
+  - test_enrichment_with_bigtable_with_timestamp
+TestBigTableEnrichmentHandler:
+  methods:
+  - test_bigtable_enrichment_invalid_args
+TestBoundedTrieNode:
+  methods:
+  - assert_covers
+  - assert_covers_flattened
+  - random_segments
+  - random_segments_fixed_depth
+  - run_covers_test
+  - run_fuzz
+  - run_test
+  - test_bounded_trie_data_combine
+  - test_bounded_trie_data_combine_trim
+  - test_covers_exact
+  - test_covers_trunacted
+  - test_deep
+  - test_flat
+  - test_large_dense
+  - test_large_sparse
+  - test_medium
+  - test_merge_on_empty_node
+  - test_merge_with_empty_node
+  - test_small
+  - test_trivial
 TestBQJobNames:
   methods:
   - test_matches_template
   - test_random_in_name
   - test_simple_names
+TestCaller:
+  methods:
+  - test_call_runtime_error
+  - test_call_timeout
+  - test_caller_backoff_retry_strategy
+  - test_caller_no_retry_strategy
+  - test_default_throttler
+  - test_retry_on_exception
+  - test_valid_call
 TestChangePointAnalysis:
   methods:
   - setUp
   - test_alert_on_data_with_change_point
   - test_alert_on_data_with_reported_change_point
+  - test_change_point_has_anomaly_marker_in_gh_description
+  - test_change_point_on_edge_segment
+  - test_change_point_on_noisy_data
   - test_change_point_outside_inspection_window_is_not_a_valid_alert
   - test_duplicate_change_point
   - test_duplicate_change_points_are_not_valid_alerts
@@ -10318,10 +11494,34 @@ TestCheckSchemaEqual:
   - test_descriptions
   - test_field_order
   - test_simple_schemas
+TestClassAsArgument:
+  methods:
+  - setUp
+  - tearDown
+  - test_normal_class
 TestClock:
   methods:
   - advance_time
   - time
+TestCloudSQLEnrichment:
+  methods:
+  - test_build_batch_query_multiple_requests
+  - test_build_batch_query_single_request
+  - test_build_parameters_dict_batch
+  - test_build_single_param_dict
+  - test_build_single_param_dict_with_generic_names
+  - test_create_batch_clause
+  - test_custom_query_config_cache_key_error
+  - test_duplicate_binding_parameter_names_handling
+  - test_extract_parameter_names
+  - test_extract_values_from_request
+  - test_invalid_cloudsql_db_connection_params
+  - test_invalid_external_db_connection_params
+  - test_invalid_query_config
+  - test_security_parameter_extraction_edge_cases
+  - test_unsupported_query_config_type_error
+  - test_valid_query_configs
+TestCloudSQLPostgresEnrichment: {}
 TestCoerceToKvType:
   methods:
   - test_coercion_fail
@@ -10331,6 +11531,7 @@ TestCompressedFile:
   - setUp
   - tearDown
   - test_concatenated_compressed_file
+  - test_read
   - test_read_and_seek_back_to_beginning
   - test_read_from_end_returns_no_data
   - test_seek_cur
@@ -10343,16 +11544,24 @@ TestCompressedFile:
   properties:
   - content
   - read_block_size
-TestConcatPosition:
-  methods:
-  - test_invalid_position_type
-  - test_valid_position_type
 TestConcatSource:
   methods:
   - setUp
   - test_estimate_size
   - test_read
   - test_split
+TestConfigContainer:
+  properties:
+  - labels
+  - metric_name
+  - metrics_dataset
+  - metrics_table
+  - project
+  - test_description
+  - test_id
+  - test_name
+TestContainerStartupError: {}
+TestContainerTeardownError: {}
 TestCounterCell:
   methods:
   - test_basic_operations
@@ -10365,6 +11574,18 @@ TestCustomWindows:
   methods:
   - assign
   - get_window_coder
+TestDataAndModel:
+  methods:
+  - get_one_feature_predictions
+  - get_one_feature_samples
+  - get_sklearn_one_feature_model
+  - get_sklearn_two_feature_model
+  - get_tf_one_feature_model
+  - get_tf_two_feature_model
+  - get_torch_one_feature_model
+  - get_torch_two_feature_model
+  - get_two_feature_examples
+  - get_two_feature_predictions
 TestDataflowMetrics:
   methods:
   - setup_mock_client_result
@@ -10392,7 +11613,9 @@ TestDeidentifyText:
 TestDicomSearch:
   methods:
   - test_client_search_notfound
-  - test_missing_parameters
+  - test_missing_dataset_id
+  - test_missing_project_id
+  - test_missing_region
   - test_param_dict_passing
   - test_Qido_search_small_buffer_flush
   - test_successful_search
@@ -10417,20 +11640,63 @@ TestDistributionCell:
   properties:
   - NUM_ITERATIONS
   - NUM_THREADS
+TestDoFn0:
+  methods:
+  - process
+TestDoFn1:
+  methods:
+  - process
+TestDoFn10:
+  methods:
+  - process
+TestDoFn11:
+  methods:
+  - process
+TestDoFn12:
+  methods:
+  - process
+TestDoFn2:
+  methods:
+  - process
+TestDoFn3:
+  methods:
+  - process
+TestDoFn4:
+  methods:
+  - process
+TestDoFn5:
+  methods:
+  - process
+TestDoFn6:
+  methods:
+  - process
+TestDoFn7:
+  methods:
+  - process
+TestDoFn8:
+  methods:
+  - process
+TestDoFn9:
+  methods:
+  - process
+TestDoFnStateful:
+  methods:
+  - process
+  properties:
+  - STATE_SPEC
+TestDoFnWithTimer:
+  methods:
+  - expiry_callback
+  - process
+  properties:
+  - ALL_ELEMENTS
+  - TIMER
 TestDownloaderStream:
   methods:
   - test_file_attributes
   - test_read
   - test_read_buffered
   - test_read_empty
-TestDynamicSplitRequest:
-  methods:
-  - test_invalid_progress_type
-  - test_valid_progress_type
-TestDynamicSplitResultWithPosition:
-  methods:
-  - test_invalid_stop_position_type
-  - test_valid_stop_position_type
 TestEnd2EndWriteAndRead:
   methods:
   - create_inputs
@@ -10439,10 +11705,30 @@ TestEnd2EndWriteAndRead:
   - test_end2end_auto_compression_unsharded
   - test_end2end_example_proto
   - test_end2end_read_write_read
+TestEnrichment:
+  methods:
+  - setUpClass
+  - test_http_enrichment
+  - test_http_enrichment_custom_join
+  properties:
+  - client
+  - options
+TestEnrichmentTransform:
+  methods:
+  - test_cross_join
+TestEnsembleAnomalyDetector:
+  methods:
+  - setUp
+  - tearDown
+  - test_model_id_and_spec
 TestEnvironment:
   methods:
-  - context
-  - fake_pandas_module
+  - input_csv
+  - input_file
+  - input_json
+  - input_tsv
+  - output_file
+  - udf_file
 TestErrorHandlingCall:
   methods:
   - setUpClass
@@ -10462,7 +11748,28 @@ TestErrorHandlingCheckOutput:
   - tearDownClass
   - test_check_output_pip_install_non_existing_package
   - test_oserror_check_output_message
+TestExternalMySQLEnrichment: {}
+TestExternalPostgresEnrichment: {}
+TestExternalSQLServerEnrichment: {}
+TestExternalYamlProvider:
+  methods:
+  - setUp
+  - tearDown
+  - test_must_consume_error_output
+  - test_provider_with_error_handling
 TestFastAvro: {}
+TestFeastEnrichmentHandler:
+  methods:
+  - setUp
+  - test_feast_enrichment
+  - test_feast_enrichment_bad_feature_service_name
+  - test_feast_enrichment_with_lambda
+TestFeastFeatureStoreHandler:
+  methods:
+  - setUp
+  - test_feast_enrichment_invalid_args
+  - test_feast_enrichment_no_feature_service
+  - test_feature_store_yaml_path_exists
 TestFileBasedSink:
   methods:
   - run_temp_dir_check
@@ -10521,6 +11828,12 @@ TestFileSystem:
 TestFileSystemWithDirs:
   methods:
   - setUp
+TestFixedThreshold:
+  methods:
+  - test_apply_only
+TestFlatMapTuple:
+  methods:
+  - test_flatmaptuple
 TestFormatToQido:
   methods:
   - test_failed_convert
@@ -10530,6 +11843,12 @@ TestFormatToQido:
   - expected_valid_pubsub_dict
   - invalid_pubsub_string
   - valid_pubsub_string
+TestFunctionAsArgument:
+  methods:
+  - setUp
+  - tearDown
+  - test_lambda_function
+  - test_normal_function
 TestGaugeCell:
   methods:
   - test_basic_operations
@@ -10540,41 +11859,36 @@ TestGCSIO:
   methods:
   - setUp
   - test_bad_file_modes
+  - test_blob_delete
   - test_checksum
-  - test_context_manager
   - test_copy
   - test_copy_batch
+  - test_copy_batch_timeout_exceeded
   - test_copytree
+  - test_create_default_bucket
   - test_default_bucket_name
   - test_default_bucket_name_failure
   - test_delete
-  - test_delete_batch
   - test_downloader_fail_non_existent_object
-  - test_downloader_fail_to_get_project_number
-  - test_downloader_fail_when_getting_metadata
-  - test_downloader_fail_when_reading
-  - test_downloader_monitoring_info
-  - test_empty_batches
   - test_exists
   - test_exists_failure
-  - test_file_close
-  - test_file_flush
-  - test_file_iterator
-  - test_file_mode
-  - test_file_random_seek
-  - test_file_read_line
+  - test_file_buffered_read_call
+  - test_file_mode_calls
   - test_file_status
-  - test_file_write
-  - test_full_file_read
+  - test_file_write_call
+  - test_headers
+  - test_is_soft_delete_enabled
+  - test_kms_key
   - test_last_updated
   - test_list_prefix
-  - test_mime_binary_encoding
-  - test_num_retries
+  - test_read_bucket_metric
   - test_rename
-  - test_retry_func
   - test_size
-  - test_uploader_monitoring_info
-  - test_user_agent_passed
+  - test_write_bucket_metric
+TestGCSIORetry:
+  methods:
+  - test_retry_on_non_retriable
+  - test_retry_on_throttling
 TestGCSPathParser:
   methods:
   - test_bad_gcs_path
@@ -10586,19 +11900,30 @@ TestGCSPathParser:
 TestGeneratorWrapper:
   methods:
   - test_functions_as_regular_generator
+TestGeographyTypeSupport:
+  methods:
+  - test_geography_beam_row_conversion
+  - test_geography_beam_row_conversion_repeated
+  - test_geography_beam_row_conversion_with_null
+  - test_geography_field_conversion
+  - test_geography_in_bigquery_type_mapping
+  - test_geography_json_encoding
+  - test_geography_typehints_from_schema
+  - test_geography_with_special_characters
 TestGetYieldedType:
   methods:
   - test_iterables
   - test_not_iterable
+  - test_union_not_iterable
 TestGroupBy:
   methods:
   - test_aggregate
   - test_fields
   - test_lambdas
   - test_pickled_field
-TestHelperFunctions:
+TestHelpers:
   methods:
-  - test_dict_printable_fields
+  - find_free_port
 TestHistogramCell:
   methods:
   - test_basic_operations
@@ -10611,8 +11936,14 @@ TestIamPermissionsRequest:
   - permissions
 TestIamPermissionsResponse:
   properties:
-  - kind
   - permissions
+TestImageEmbeddingHandler:
+  methods:
+  - setUp
+  - tearDown
+  - test_handler_with_dict_inputs
+  - test_handler_with_non_dict_datatype
+  - test_handler_with_non_image_datatype
 TestingFileSystem:
   methods:
   - checksum
@@ -10630,6 +11961,15 @@ TestingFileSystem:
   - scheme
   - size
   - split
+TestInitCallCount:
+  methods:
+  - setUp
+  - tearDown
+  - test_just_in_time_init
+  - test_on_demand_and_just_in_time_init
+  - test_on_demand_init
+  - test_on_dill_pickle
+  - test_on_pickle
 TestInspectFn:
   methods:
   - test_inspect_called
@@ -10639,6 +11979,16 @@ TestInspectText:
 TestJobServicePlan:
   methods:
   - get_pipeline_options
+TestJsonPickleTransformAttributeManager:
+  methods:
+  - setUp
+  - tearDown
+  - test_mltransform_to_ptransform_wrapper
+  - test_save_and_load_run_inference
+  - test_save_run_inference
+  - test_save_tft_process_handler
+  - test_with_gcs_location_with_none_options
+  - test_with_same_local_artifact_location
 TestJsonRowWriter:
   methods:
   - test_write_row
@@ -10650,6 +12000,17 @@ TestJsonToDictCoder:
   - test_record_field_is_properly_converted
   - test_repeatable_field_is_properly_converted
   - test_values_are_converted
+TestLogFirstN:
+  methods:
+  - setUp
+  - test_log_every_n_multiple
+  - test_log_every_n_seconds_always
+  - test_log_every_n_seconds_multiple
+  - test_log_first_n_multiple
+  - test_log_first_n_once
+  - test_log_first_n_with_caller_and_message_key
+  - test_log_first_n_with_different_callers
+  - test_log_first_n_with_message_key
 TestMatchers:
   methods:
   - test_metric_update_basic
@@ -10663,24 +12024,71 @@ TestMetricsContainer:
   methods:
   - test_add_to_counter
   - test_get_cumulative_or_updates
+TestMilvusHybridSearchEnrichment:
+  methods:
+  - test_invalid_search_parameters
+TestMilvusKeywordSearchEnrichment:
+  methods:
+  - test_invalid_search_parameters
+  - test_missing_sparse_embedding_only
+  - test_missing_text_content_and_sparse_embedding
+  - test_missing_text_content_only
+TestMilvusSearchEnrichment:
+  methods:
+  - test_invalid_connection_parameters
+  - test_invalid_search_parameters
+  - test_unpack_dataclass_with_kwargs
+TestMilvusVectorSearchEnrichment:
+  methods:
+  - test_invalid_search_parameters
+  - test_missing_dense_embedding
+TestMilvusVectorWriterConfig:
+  methods:
+  - test_create_converter_returns_callable
+  - test_create_write_transform_returns_ptransform
+  - test_default_column_specs_has_expected_fields
+  - test_invalid_configuration_parameters
+  - test_valid_config_creation
+TestMilvusWriteConfig:
+  methods:
+  - test_empty_collection_name_raises_error
+  - test_none_collection_name_raises_error
+TestMultiModalEmbeddingHandler:
+  methods:
+  - setUp
+  - tearDown
+  - test_handler_with_dict_inputs
+  - test_handler_with_incorrect_datatype
+  - test_handler_with_non_dict_datatype
 TestMultiReadFromPubSubOverride:
   methods:
   - test_expand_with_multiple_sources
   - test_expand_with_multiple_sources_and_attributes
   - test_expand_with_multiple_sources_and_other_options
   - test_expand_with_wrong_source
-TestNativeSink:
+TestNestedSpecifiable:
   methods:
-  - test_on_direct_runner
-  - test_repr_method
-  - test_writer_method
-TestNativeSource:
+  - setUp
+  - tearDown
+  - test_error_in_child
+  - test_nested_specifiable
+TestNonBuiltInGenerics:
   methods:
-  - test_reader_method
-  - test_repr_method
+  - test_no_error_thrown
+TestOfflineDetector:
+  methods:
+  - setUp
+  - tearDown
+  - test_default_inference_fn
+  - test_run_inference_args
 TestOffsetRestrictionProvider:
   methods:
   - restriction_size
+TestOnnxModelHandler: {}
+TestOperation:
+  methods:
+  - process
+  - start
 TestOptions:
   methods:
   - validate
@@ -10707,6 +12115,7 @@ TestParquet:
   - test_read_with_splitting_multiple_row_group
   - test_read_without_splitting
   - test_read_without_splitting_multiple_row_group
+  - test_schema_read_write
   - test_selective_columns
   - test_sink_display_data
   - test_sink_transform
@@ -10719,6 +12128,7 @@ TestParquet:
   - test_split_points
   - test_write_batched_display_data
   - test_write_display_data
+  - test_write_with_nullable_fields_missing_data
 TestParquetIT:
   methods:
   - setUp
@@ -10741,6 +12151,15 @@ TestPipeStream:
   methods:
   - test_pipe_stream
   - test_pipe_stream_rewind_buffer
+TestProtoUtils:
+  methods:
+  - test_from_micros_duration
+  - test_from_micros_timestamp
+  - test_round_trip_duration
+  - test_round_trip_timestamp
+  - test_to_micros_duration
+  - test_to_micros_timestamp
+TestProvider: {}
 TestPTransformAnnotations:
   methods:
   - test_annotations_with_arbitrary_input_and_output
@@ -10791,6 +12210,10 @@ TestPubSubSource:
   - test_display_data_topic
 TestPytorchModelHandlerForInferenceOnly: {}
 TestPytorchModelHandlerKeyedTensorForInferenceOnly: {}
+TestQuantileThreshold:
+  methods:
+  - test_apply_only
+  - test_quantile_tracker
 TestReadAllFromTFRecord:
   methods:
   - test_process_auto
@@ -10802,31 +12225,37 @@ TestReadAllFromTFRecord:
   - test_process_multiple_globs
   - test_process_single
   - test_process_with_filename
-TestReaderPosition:
-  methods:
-  - test_invalid_concat_position_type
-  - test_valid_concat_position_type
-TestReaderProgress:
-  methods:
-  - test_out_of_bounds_percent_complete
-  - test_percent_complete_property
-  - test_position_property
 TestReadFromBigQuery:
   methods:
   - setUpClass
   - tearDown
+  - tearDownClass
   - test_create_temp_dataset_exception
   - test_get_destination_uri_empty_runtime_vp
   - test_get_destination_uri_fallback_temp_location
   - test_get_destination_uri_none
   - test_get_destination_uri_runtime_vp
   - test_get_destination_uri_static_vp
+  - test_get_table_non_transient_exception
+  - test_get_table_transient_exception
   - test_query_job_exception
+  - test_read_all_lineage
+  - test_read_direct_lineage
   - test_read_export_exception
   - test_temp_dataset_is_configurable
+TestReadFromBigTableIT:
+  methods:
+  - add_rows
+  - setUp
+  - tearDown
+  - test_read_xlang
+  properties:
+  - INSTANCE
+  - TABLE_ID
 TestReadFromPubSub:
   methods:
   - test_read_data_success
+  - test_read_from_pubsub_no_overwrite
   - test_read_message_id_label_unsupported
   - test_read_messages_success
   - test_read_messages_timestamp_attribute_fail_parse
@@ -10853,6 +12282,14 @@ TestReadFromTFRecord:
   - test_process_gzip_without_coder
   - test_process_multiple
   - test_process_single
+TestRedisCache:
+  methods:
+  - setUp
+  - tearDown
+  - test_rrio_cache_all_hit
+  - test_rrio_cache_all_miss
+  - test_rrio_cache_miss_and_hit
+  - test_rrio_no_coder_exception
 TestRowAsDictJsonCoder:
   methods:
   - json_compliance_exception
@@ -10917,6 +12354,15 @@ TestSingleFileSource:
   - test_source_creation_display_data
   - test_source_creation_fails_for_non_number_offsets
   - test_source_creation_fails_if_start_lg_stop
+TestSpecifiable:
+  methods:
+  - setUp
+  - tearDown
+  - test_decorator_in_function_form
+  - test_decorator_in_syntactic_sugar_form
+  - test_from_spec_and_to_spec
+  - test_from_spec_on_unknown_spec_type
+  - test_init_params_in_specifiable
 TestStager:
   methods:
   - commit_manifest
@@ -10935,6 +12381,13 @@ TestStatefulDoFn:
   - EXPIRY_TIMER_2
   - EXPIRY_TIMER_3
   - EXPIRY_TIMER_FAMILY
+TestStatefulThresholdDoFn:
+  methods:
+  - test_dofn_on_single_prediction
+TestStatelessThresholdDoFn:
+  methods:
+  - test_dofn_on_multiple_predictions
+  - test_dofn_on_single_prediction
 TestStream:
   methods:
   - add_elements
@@ -10951,11 +12404,23 @@ TestStreamIntegrationTests:
   - test_basic_execution
   - test_multiple_outputs
   - test_multiple_outputs_with_watermark_advancement
+TestStreamService:
+  methods:
+  - Events
 TestStreamServiceController:
   methods:
   - Events
   - start
   - stop
+TestStreamServiceServicer:
+  methods:
+  - Events
+TestStreamServiceStub: {}
+TestStringSetCell:
+  methods:
+  - test_add_size_tracked_correctly
+  - test_combine_appropriately
+  - test_not_leak_mutable_set
 TestTableReferenceParser:
   methods:
   - test_calling_with_all_arguments
@@ -10991,16 +12456,49 @@ TestTFRecordUtil:
   - test_read_record_invalid_length_mask
   - test_read_record_invalid_record
   - test_write_record
+TestUncommonUsages:
+  methods:
+  - test_double_specifiable
+  - test_unspecifiable
 TestUploaderStream:
   methods:
   - test_file_attributes
   - test_write
   - test_write_buffered
   - test_write_empty
+TestUtilFunctions:
+  methods:
+  - test_dict_input_fn_normal
+  - test_dict_input_fn_on_list_inputs
+  - test_dict_output_fn_normal
+  - test_dict_output_fn_on_list_inputs
+TestVertexAIFeatureStoreHandler:
+  methods:
+  - setUp
+  - tearDown
+  - test_feature_store_enrichment_with_redis
+  - test_vertex_ai_feature_store_bigtable_serving_enrichment
+  - test_vertex_ai_feature_store_bigtable_serving_enrichment_bad
+  - test_vertex_ai_feature_store_wrong_name
+  - test_vertex_ai_legacy_feature_store_enrichment
+  - test_vertex_ai_legacy_feature_store_enrichment_bad
+  - test_vertex_ai_legacy_feature_store_invalid_featurestore
+TestVertexAIFeatureStoreHandlerInit:
+  methods:
+  - test_raise_error_duplicate_api_endpoint_legacy_store
+  - test_raise_error_duplicate_api_endpoint_online_store
+TestWindowedValue:
+  properties:
+  - pane_info
+  - timestamp
+  - value
+  - windows
 TestWriteBigTable:
   methods:
   - generate_row
   - setUp
+  - test_custom_flush_config
+  - test_write
   - test_write_metrics
   - verify_write_call_metric
   properties:
@@ -11027,25 +12525,46 @@ TestWriteToBigQuery:
   - test_copy_load_job_exception
   - test_dict_schema_parsing
   - test_load_job_exception
+  - test_max_retries_exceeds_limit
   - test_none_schema_parsing
   - test_noop_dict_schema_parsing
   - test_noop_schema_parsing
   - test_schema_autodetect_not_allowed_with_avro_file_loads
+  - test_streaming_inserts_flush_on_byte_size_limit
   - test_streaming_triggering_frequency_with_auto_sharding
   - test_streaming_triggering_frequency_without_auto_sharding
   - test_string_schema_parsing
   - test_table_schema_parsing
   - test_table_schema_parsing_end_to_end
   - test_to_from_runner_api
+TestWriteToBigtableXlangIT:
+  methods:
+  - run_pipeline
+  - setUp
+  - setUpClass
+  - tearDown
+  - tearDownClass
+  - test_delete_cells_mutation
+  - test_delete_cells_with_timerange_mutation
+  - test_delete_column_family_mutation
+  - test_delete_row_mutation
+  - test_set_mutation
+  properties:
+  - INSTANCE
+  - TABLE_ID
 TestWriteToPubSub:
   methods:
   - test_runner_api_transformation
   - test_runner_api_transformation_properties_none
+  - test_write_messages_batch_mode_success
   - test_write_messages_deprecated
   - test_write_messages_success
   - test_write_messages_unsupported_features
+  - test_write_messages_with_attributes_batch_mode_success
   - test_write_messages_with_attributes_error
   - test_write_messages_with_attributes_success
+  - test_write_to_pubsub_no_overwrite
+  - test_write_to_pubsub_with_attributes_no_overwrite
 TestWriteToTFRecord:
   methods:
   - test_write_record_auto
@@ -11059,15 +12578,69 @@ TextSink:
   - flush
   - open
   - write
+TFIDF:
+  methods:
+  - apply_transform
 TfIdf:
   methods:
   - expand
 TfIdfIT:
   methods:
   - test_basics
+TFModelHandlerNumpy:
+  methods:
+  - batch_elements_kwargs
+  - get_metrics_namespace
+  - get_num_bytes
+  - load_model
+  - model_copies
+  - run_inference
+  - share_model_across_processes
+  - update_model_path
+TFModelHandlerTensor:
+  methods:
+  - batch_elements_kwargs
+  - get_metrics_namespace
+  - get_num_bytes
+  - load_model
+  - model_copies
+  - run_inference
+  - share_model_across_processes
+  - update_model_path
 TFModelWrapperWithSignature:
   methods:
   - call
+TfrecordRead:
+  properties:
+  - identifier
+TfrecordWrite:
+  properties:
+  - identifier
+TFRunInferenceTestWithMocks:
+  methods:
+  - setUp
+  - tearDown
+  - test_env_vars_set_correctly_numpy
+  - test_env_vars_set_correctly_tensor
+  - test_load_model_args
+  - test_load_model_with_args_and_custom_weights
+TFTOperation:
+  methods:
+  - get_ptransform_for_processing
+TFTProcessHandler:
+  methods:
+  - append_transform
+  - convert_raw_data_feature_spec_to_dataset_metadata
+  - expand
+  - get_raw_data_feature_spec
+  - get_raw_data_metadata
+  - process_data_fn
+  - with_exception_handling
+  - write_transform_artifacts
+TFTProcessHandlerTestWithGCSLocation:
+  methods:
+  - setUp
+  - tearDown
 TFXRunInferenceTests:
   methods:
   - test_tfx_run_inference_mobilenetv2
@@ -11086,6 +12659,15 @@ ThreadsafeWatermarkEstimator:
   - current_watermark
   - get_estimator_state
   - observe_timestamp
+ThresholdFn:
+  methods:
+  - apply
+  - is_stateful
+  - threshold
+ThrottlingHandler: {}
+ThrottlingSignaler:
+  methods:
+  - signal_throttled
 ThrowingStateHandler:
   methods:
   - blocking_get
@@ -11116,6 +12698,11 @@ TimerCoderImpl:
   methods:
   - decode_from_stream
   - encode_to_stream
+TimerDoFn:
+  methods:
+  - on_timer_f
+  properties:
+  - TIMER_SPEC
 TimerFiring: {}
 TimerInfo: {}
 TimerSpec:
@@ -11123,10 +12710,6 @@ TimerSpec:
   - to_runner_api
   properties:
   - prefix
-TimeSpan:
-  properties:
-  - endTime
-  - startTime
 Timestamp:
   methods:
   - from_proto
@@ -11136,6 +12719,7 @@ Timestamp:
   - of
   - predecessor
   - seconds
+  - successor
   - to_proto
   - to_rfc3339
   - to_utc_datetime
@@ -11169,9 +12753,16 @@ TimestampCombinerImpl:
   - combine_all
   - merge
 TimestampedValue: {}
+TimestampPrefixingOpaqueWindowCoder:
+  methods:
+  - is_deterministic
+TimestampPrefixingOpaqueWindowCoderImpl:
+  methods:
+  - decode_from_stream
+  - encode_to_stream
+  - estimate_size
 TimestampPrefixingWindowCoder:
   methods:
-  - as_cloud_object
   - is_deterministic
   - to_type_hint
 TimestampPrefixingWindowCoderImpl:
@@ -11246,6 +12837,9 @@ TopPerMonth:
 TopPerPrefix:
   methods:
   - expand
+ToRow:
+  methods:
+  - expand
 ToSet:
   methods:
   - expand
@@ -11317,6 +12911,9 @@ TrainingRun:
   - results
   - startTime
   - trainingOptions
+TrainModel:
+  methods:
+  - process
 TransactionInfo:
   properties:
   - transactionId
@@ -11328,6 +12925,7 @@ TransformContext:
   - maybe_length_prefixed_and_safe_coder
   - maybe_length_prefixed_coder
   - parents_map
+  - timestamped_prefixed_window_coder
   - with_state_iterables
 TransformError: {}
 TransformEvaluatorRegistry:
@@ -11343,17 +12941,13 @@ TransformIOCounter:
   methods:
   - add_bytes_read
   - update_current_step
-TransformNames:
-  properties:
-  - COLLECTION_TO_SINGLETON
-  - COMBINE
-  - CREATE_PCOLLECTION
-  - DO
-  - FLATTEN
-  - GROUP
-  - READ
-  - WRITE
 TransformResult: {}
+TransformServiceLauncher:
+  methods:
+  - shutdown
+  - start
+  - status
+  - wait_till_up
 TransformSummary:
   properties:
   - displayData
@@ -11362,6 +12956,14 @@ TransformSummary:
   - kind
   - name
   - outputCollectionName
+TranslatingProvider:
+  methods:
+  - available
+  - cache_artifacts
+  - create_transform
+  - provided_transforms
+  - to_json
+  - underlying_provider
 TriggerContext:
   methods:
   - add_state
@@ -11376,6 +12978,7 @@ TriggerCopyJobs:
   - finish_bundle
   - process
   - process_one
+  - setup
   - start_bundle
   properties:
   - TRIGGER_DELETE_TEMP_TABLES
@@ -11391,6 +12994,7 @@ TriggerEmailAlert:
 TriggerFn:
   methods:
   - from_runner_api
+  - get_continuation_trigger
   - has_ontime_pane
   - may_lose_data
   - on_element
@@ -11414,9 +13018,15 @@ TriggerMergeContext:
 TripleParDo:
   methods:
   - expand
+TrivialRunner:
+  methods:
+  - execute_executable_stage
+  - execute_transform
+  - group_by_key_and_window
+  - run_portable_pipeline
+  - supported_requirements
 TupleCoder:
   methods:
-  - as_cloud_object
   - as_deterministic_coder
   - coders
   - from_runner_api_parameter
@@ -11466,6 +13076,7 @@ TypeConstraint:
   - match_type_variables
   - type_check
   - visit
+TypedWindowedValue: {}
 TypeInferenceError: {}
 TypeOptions:
   methods:
@@ -11504,6 +13115,7 @@ UnmergedState:
   - get_global_state
   - set_global_state
 UnorderedList: {}
+UnPicklable: {}
 Unreify:
   methods:
   - process
@@ -11522,32 +13134,12 @@ UnsplittableRestrictionTracker:
   methods:
   - try_split
 UnusableUnpickledDeferredBase: {}
-UpdateBitbucketServerConfigOperationMetadata:
-  properties:
-  - bitbucketServerConfig
-  - completeTime
-  - createTime
 UpdateDestinationSchema:
   methods:
   - display_data
   - finish_bundle
   - process
   - start_bundle
-UpdateGitHubEnterpriseConfigOperationMetadata:
-  properties:
-  - completeTime
-  - createTime
-  - githubEnterpriseConfig
-UpdateGitLabConfigOperationMetadata:
-  properties:
-  - completeTime
-  - createTime
-  - gitlabConfig
-UpdateWorkerPoolOperationMetadata:
-  properties:
-  - completeTime
-  - createTime
-  - workerPool
 Uploader:
   methods:
   - finish
@@ -11565,6 +13157,9 @@ UploadResponse: {}
 UploadToDicomStore:
   methods:
   - expand
+UserCodeExecutionException: {}
+UserCodeQuotaException: {}
+UserCodeTimeoutException: {}
 UserDefinedFunctionResource:
   properties:
   - inlineCode
@@ -11606,10 +13201,22 @@ UseSdfBoundedSourcesTests:
   methods:
   - test_sdf_wrap_range_source
   - test_sdf_wrapper_overrides_read
+Validate:
+  methods:
+  - expand
+  - with_exception_handling
+ValidateCacheResponses:
+  methods:
+  - process
+ValidateCallerResponses:
+  methods:
+  - process
+ValidateFields:
+  methods:
+  - process
 ValidateResponse:
-  properties:
-  - errorMessage
-  - queryInfo
+  methods:
+  - process
 ValueProvider:
   methods:
   - get
@@ -11645,9 +13252,19 @@ VariableString:
   - language_type
   - to_language_type
   - urn
+VarInt32Coder:
+  methods:
+  - is_deterministic
+  - to_type_hint
+VarInt32CoderImpl:
+  methods:
+  - decode
+  - decode_from_stream
+  - encode
+  - encode_to_stream
+  - estimate_size
 VarIntCoder:
   methods:
-  - as_cloud_object
   - is_deterministic
   - to_type_hint
 VarIntCoderImpl:
@@ -11657,6 +13274,76 @@ VarIntCoderImpl:
   - encode
   - encode_to_stream
   - estimate_size
+VectorDatabaseWriteConfig:
+  methods:
+  - create_write_transform
+VectorDatabaseWriteTransform:
+  methods:
+  - expand
+VectorDBContainerInfo:
+  methods:
+  - uri
+  properties:
+  - container
+  - host
+  - id
+  - password
+  - port
+  - token
+  - user
+VectorSearchMetrics:
+  properties:
+  - COSINE
+  - EUCLIDEAN_DISTANCE
+  - INNER_PRODUCT
+VectorSearchParameters:
+  properties:
+  - kwargs
+VertexAIFeatureStoreEnrichmentHandler:
+  methods:
+  - get_cache_key
+VertexAIFeatureStoreLegacyEnrichmentHandler:
+  methods:
+  - get_cache_key
+VertexAIImageEmbeddings:
+  methods:
+  - get_model_handler
+  - get_ptransform_for_processing
+VertexAIInference:
+  methods:
+  - test_vertex_ai_custom_prediction_route
+  - test_vertex_ai_run_flower_image_classification
+VertexAIModelHandlerJSON:
+  methods:
+  - batch_elements_kwargs
+  - create_client
+  - request
+VertexAIModelHandlerJSONProvider:
+  methods:
+  - inference_output_type
+  - validate
+VertexAIMultiModalEmbeddings:
+  methods:
+  - get_model_handler
+  - get_ptransform_for_processing
+VertexAIMultiModalInput:
+  properties:
+  - contextual_text
+  - image
+  - video
+VertexAITextEmbeddings:
+  methods:
+  - get_model_handler
+  - get_ptransform_for_processing
+VertexImage:
+  properties:
+  - embedding
+  - image_content
+VertexVideo:
+  properties:
+  - config
+  - embeddings
+  - video_content
 VideoIntelligenceMlTestIT:
   methods:
   - test_label_detection_with_video_context
@@ -11670,20 +13357,28 @@ ViewDefinition:
 VisionMlTestIT:
   methods:
   - test_text_detection_with_language_hint
-Volume:
-  properties:
-  - name
-  - path
+VLLMChatModelHandler:
+  methods:
+  - load_model
+  - run_inference
+  - share_model_across_processes
+VLLMCompletionsModelHandler:
+  methods:
+  - load_model
+  - run_inference
+  - share_model_across_processes
+WaitOn:
+  methods:
+  - expand
 WalltimeWatermarkEstimator:
   methods:
   - current_watermark
   - default_provider
   - get_estimator_state
   - observe_timestamp
-Warning:
-  properties:
-  - priority
-  - text
+WatchFilePattern:
+  methods:
+  - expand
 WatermarkEstimator:
   methods:
   - current_watermark
@@ -11699,19 +13394,18 @@ WatermarkEvent:
   - to_runner_api
 WatermarkManager:
   methods:
-  - get_pcoll_node
-  - get_stage_node
-  - set_pcoll_watermark
+  - extract_all_timers
+  - get_watermarks
+  - update_watermarks
+  properties:
+  - WATERMARK_NEG_INF
+  - WATERMARK_POS_INF
 WatermarkPolicy:
   methods:
   - validate_param
   properties:
   - ARRIVAL_TIME
   - PROCESSING_TYPE
-WebhookConfig:
-  properties:
-  - secret
-  - state
 WeightedValue:
   methods:
   - value
@@ -11721,8 +13415,13 @@ WindowedBatch:
   - as_windowed_values
   - from_windowed_values
   - with_values
+WindowedTracker:
+  methods:
+  - pop
+  - push
 WindowedTypeConstraint:
   methods:
+  - bind_type_variables
   - type_check
 WindowedValue:
   methods:
@@ -11730,10 +13429,11 @@ WindowedValue:
   - with_value
 WindowedValueCoder:
   methods:
-  - as_cloud_object
+  - from_type_hint
   - is_deterministic
   - is_kv_coder
   - key_coder
+  - to_type_hint
   - value_coder
 WindowedValueCoderImpl:
   methods:
@@ -11751,6 +13451,14 @@ WindowFn:
   - get_window_coder
   - is_merging
   - merge
+WindowGapFillingDoFn:
+  methods:
+  - process
+WindowGapStrategy:
+  properties:
+  - DISCARD
+  - FORWARD_FILL
+  - IGNORE
 WindowGroupingBuffer:
   methods:
   - append
@@ -11767,9 +13475,17 @@ WindowInto:
   - get_windowing
   - infer_output_type
   - to_runner_api_parameter
+WindowMode:
+  properties:
+  - LANDMARK
+  - SLIDING
 WinningBids:
   methods:
   - expand
+WithSharedKey:
+  methods:
+  - process
+  - setup
 WithTypeHints:
   methods:
   - default_type_hints
@@ -11777,23 +13493,23 @@ WithTypeHints:
   - with_input_types
   - with_output_types
 WontImplementError: {}
+WordcountCostBenchmark:
+  methods:
+  - test
 WordCountIT:
   methods:
-  - test_wordcount_fnapi_it
   - test_wordcount_impersonation_it
   - test_wordcount_it
   - test_wordcount_it_with_prebuilt_sdk_container_cloud_build
   - test_wordcount_it_with_prebuilt_sdk_container_local_docker
-  - test_wordcount_it_with_use_sibling_sdk_workers
   properties:
   - DEFAULT_CHECKSUM
 WordExtractingDoFn:
   methods:
   - process
-WorkerConfig:
-  properties:
-  - diskSizeGb
-  - machineType
+WordSplitter:
+  methods:
+  - process
 WorkerDetails:
   properties:
   - workerName
@@ -11845,37 +13561,55 @@ WorkerLifecycleEvent:
   - metadata
 WorkerMessage:
   properties:
+  - dataSamplingReport
   - labels
+  - perWorkerMetrics
+  - streamingScalingReport
   - time
   - workerHealthReport
   - workerLifecycleEvent
   - workerMessageCode
   - workerMetrics
   - workerShutdownNotice
+  - workerThreadScalingReport
 WorkerMessageCode:
   properties:
   - code
   - parameters
 WorkerMessageResponse:
   properties:
+  - streamingScalingReportResponse
   - workerHealthReportResponse
   - workerMetricsResponse
   - workerShutdownNoticeResponse
+  - workerThreadScalingReportResponse
 WorkerOptions:
   methods:
   - validate
 WorkerPool:
   properties:
-  - annotations
-  - createTime
-  - deleteTime
-  - displayName
-  - etag
-  - name
-  - privatePoolV1Config
-  - state
-  - uid
-  - updateTime
+  - autoscalingSettings
+  - dataDisks
+  - defaultPackageSet
+  - diskSizeGb
+  - diskSourceImage
+  - diskType
+  - ipConfiguration
+  - kind
+  - machineType
+  - metadata
+  - network
+  - numThreadsPerWorker
+  - numWorkers
+  - onHostMaintenance
+  - packages
+  - poolArgs
+  - sdkHarnessContainerImages
+  - subnetwork
+  - taskrunnerSettings
+  - teardownPolicy
+  - workerHarnessContainerImage
+  - zone
 WorkerSettings:
   properties:
   - baseUrl
@@ -11888,6 +13622,12 @@ WorkerShutdownNotice:
   properties:
   - reason
 WorkerShutdownNoticeResponse: {}
+WorkerThreadScalingReport:
+  properties:
+  - currentThreadCount
+WorkerThreadScalingReportResponse:
+  properties:
+  - recommendedThreadCount
 WorkItem:
   properties:
   - configuration
@@ -11913,6 +13653,7 @@ WorkItemDetails:
   - progress
   - startTime
   - state
+  - stragglerInfo
   - taskId
 WorkItemServiceState:
   properties:
@@ -11942,6 +13683,10 @@ WorkItemStatus:
   - stopPosition
   - totalThrottlerWaitTimeSeconds
   - workItemId
+Wrapper:
+  methods:
+  - run_func
+  - run_func_in_class
 Write:
   methods:
   - display_data
@@ -11951,6 +13696,11 @@ Write:
 WriteCache:
   methods:
   - write_cache
+WriteConfig:
+  properties:
+  - autosharding
+  - max_connections
+  - write_batch_size
 WriteDisposition:
   methods:
   - VerifyParam
@@ -12003,6 +13753,10 @@ WriteResult:
   - failed_rows
   - failed_rows_with_errors
   - validate
+WriteStreamingIT:
+  methods:
+  - setUp
+  - test_write_streaming_2_shards_default_shard_name_template
 WriteToAvro:
   methods:
   - display_data
@@ -12014,6 +13768,8 @@ WriteToBigQuery:
 WriteToBigTable:
   methods:
   - expand
+  properties:
+  - URN
 WriteToDatastore: {}
 WriteToFiles:
   methods:
@@ -12047,12 +13803,11 @@ WriteToParquetBatched:
   - expand
 WriteToPubSub:
   methods:
+  - bytes_to_proto_str
+  - display_data
   - expand
-  properties:
-  - URN
-WriteToPubSubLite:
-  methods:
-  - expand
+  - message_to_proto_str
+  - to_runner_api_parameter
 WriteToSnowflake:
   methods:
   - expand
@@ -12067,7 +13822,9 @@ WriteToSpannerSchema:
   - commit_deadline
   - database_id
   - emulator_host
+  - failure_mode
   - grouping_factor
+  - high_priority
   - host
   - instance_id
   - max_batch_size_bytes
@@ -12091,6 +13848,74 @@ WriteUserEvent:
 WriteViaPandas:
   methods:
   - expand
+XGBoostInference:
+  methods:
+  - test_iris_classification_datatable_multi_batch
+  - test_iris_classification_datatable_single_batch
+  - test_iris_classification_numpy_multi_batch
+  - test_iris_classification_numpy_single_batch
+  - test_iris_classification_numpy_single_batch_large_model
+  - test_iris_classification_pandas_multi_batch
+  - test_iris_classification_pandas_single_batch
+  - test_iris_classification_scipy_multi_batch
+  - test_iris_classification_scipy_single_batch
+XGBoostModelHandler:
+  methods:
+  - batch_elements_kwargs
+  - get_metrics_namespace
+  - load_model
+XGBoostModelHandlerDatatable:
+  methods:
+  - get_num_bytes
+  - run_inference
+XGBoostModelHandlerNumpy:
+  methods:
+  - get_num_bytes
+  - run_inference
+XGBoostModelHandlerPandas:
+  methods:
+  - get_num_bytes
+  - run_inference
+XGBoostModelHandlerSciPy:
+  methods:
+  - get_num_bytes
+  - run_inference
 Xyz:
   methods:
   - foo
+YamlDefinedProider:
+  methods:
+  - test_recursive
+  - test_yaml_define_provider
+YamlExamplesTestSuite:
+  methods:
+  - create_test_suite
+  - parse_test_methods
+  - register_test_preprocessor
+  - run
+YamlOptions:
+  methods:
+  - check_enabled
+YamlProvider:
+  methods:
+  - available
+  - cache_artifacts
+  - config_schema
+  - create_transform
+  - description
+  - json_config_schema
+  - provided_transforms
+  - requires_inputs
+YamlProviders:
+  methods:
+  - create
+  - create_builtin_provider
+  - fully_qualified_named_transform
+  - log_for_testing
+YamlTransform:
+  methods:
+  - expand
+ZScore:
+  methods:
+  - learn_one
+  - score_one

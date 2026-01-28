@@ -13,7 +13,7 @@ ExampleBase _$ExampleBaseFromJson(Map<String, dynamic> json) => ExampleBase(
       type: $enumDecode(_$ExampleTypeEnumMap, json['type']),
       alwaysRun: json['alwaysRun'] as bool? ?? false,
       complexity: $enumDecodeNullable(_$ComplexityEnumMap, json['complexity']),
-      contextLine: json['contextLine'] as int? ?? 1,
+      contextLine: (json['contextLine'] as num?)?.toInt() ?? 1,
       datasets: (json['datasets'] as List<dynamic>?)
               ?.map((e) => Dataset.fromJson(e as Map<String, dynamic>))
               .toList() ??
