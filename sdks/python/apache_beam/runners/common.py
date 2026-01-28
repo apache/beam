@@ -812,16 +812,15 @@ class PerWindowInvoker(DoFnInvoker):
       self.current_window_index = None
       self.stop_window_index = None
 
-    # TODO(https://github.com/apache/beam/issues/28776): Remove caching after
-    # fully rolling out.
-    # If true, always recalculate window args. If false, has_cached_window_args
-    # and has_cached_window_batch_args will be set to true if the corresponding
-    # self.args_for_process,have been updated and should be reused directly.
-    self.recalculate_window_args = (
-        self.has_windowed_inputs or 'disable_global_windowed_args_caching'
-        in RuntimeValueProvider.experiments)
-    self.has_cached_window_args = False
-    self.has_cached_window_batch_args = False
+    # If true, after the first process invocation the the args for process will be cached
+    # in cached_args_for_process and cached_kwargs_for_process and reused on
+    # subsequent invocations in the same bundle..
+    self.should_cache_args = (not self.has_windowed_inputs)
+    self.cached_args_for_process = None
+    self.cached_kwargs_for_process = None
+    # See above, similar cached args for process_batch invocations.
+    self.cached_args_for_process_batch = None
+    self.cached_kwargs_for_process_batch = None
 
     # Try to prepare all the arguments that can just be filled in
     # without any additional work. in the process function.
@@ -984,9 +983,9 @@ class PerWindowInvoker(DoFnInvoker):
       additional_kwargs,
   ):
     # type: (...) -> Optional[SplitResultResidual]
-    if self.has_cached_window_args:
+    if self.cached_args_for_process:
       args_for_process, kwargs_for_process = (
-          self.args_for_process, self.kwargs_for_process)
+          self.cached_args_for_process, self.cached_kwargs_for_process)
     else:
       if self.has_windowed_inputs:
         assert len(windowed_value.windows) <= 1
@@ -997,10 +996,9 @@ class PerWindowInvoker(DoFnInvoker):
       side_inputs.extend(additional_args)
       args_for_process, kwargs_for_process = util.insert_values_in_args(
           self.args_for_process, self.kwargs_for_process, side_inputs)
-      if not self.recalculate_window_args:
-        self.args_for_process, self.kwargs_for_process = (
+      if self.should_cache_args:
+        self.cached_args_for_process, self.cached_kwargs_for_process = (
             args_for_process, kwargs_for_process)
-        self.has_cached_window_args = True
 
     # Extract key in the case of a stateful DoFn. Note that in the case of a
     # stateful DoFn, we set during __init__ self.has_windowed_inputs to be
@@ -1088,9 +1086,9 @@ class PerWindowInvoker(DoFnInvoker):
   ):
     # type: (...) -> Optional[SplitResultResidual]
 
-    if self.has_cached_window_batch_args:
+    if self.cached_args_for_process_batch:
       args_for_process_batch, kwargs_for_process_batch = (
-          self.args_for_process_batch, self.kwargs_for_process_batch)
+          self.cached_args_for_process_batch, self.cached_kwargs_for_process_batch)
     else:
       if self.has_windowed_inputs:
         assert isinstance(windowed_batch, HomogeneousWindowedBatch)
@@ -1107,10 +1105,9 @@ class PerWindowInvoker(DoFnInvoker):
               side_inputs,
           )
       )
-      if not self.recalculate_window_args:
-        self.args_for_process_batch, self.kwargs_for_process_batch = (
+      if self.should_cache_args:
+        self.cached_args_for_process_batch, self.cached_kwargs_for_process_batch = (
             args_for_process_batch, kwargs_for_process_batch)
-        self.has_cached_window_batch_args = True
 
     for i, p in self.placeholders_for_process_batch:
       if core.DoFn.ElementParam == p:
@@ -1149,6 +1146,15 @@ class PerWindowInvoker(DoFnInvoker):
         self.process_batch_method(
             *args_for_process_batch, **kwargs_for_process_batch),
         self.threadsafe_watermark_estimator)
+
+  def invoke_finish_bundle(self):
+    # type: () -> None
+    # Clear the cached args to allow for refreshing of side inputs across bundles.
+    self.cached_args_for_process, self.cached_kwargs_for_process = (None, None)
+    self.cached_args_for_process_batch, self.cached_kwargs_for_process_batch = (
+        None, None)
+
+    super(PerWindowInvoker, self).invoke_finish_bundle()
 
   @staticmethod
   def _try_split(
