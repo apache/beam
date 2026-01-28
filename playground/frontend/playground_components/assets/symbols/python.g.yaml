@@ -8155,6 +8155,9 @@ ReadFromPubSub:
   - expand
   properties:
   - URN
+ReadFromPubSubLite:
+  methods:
+  - expand
 ReadFromSnowflake:
   methods:
   - expand
@@ -12047,6 +12050,9 @@ WriteToPubSub:
   - expand
   properties:
   - URN
+WriteToPubSubLite:
+  methods:
+  - expand
 WriteToSnowflake:
   methods:
   - expand

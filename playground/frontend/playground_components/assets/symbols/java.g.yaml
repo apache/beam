@@ -9024,6 +9024,22 @@ PubsubJsonClient:
   - pull
   properties: 
   - FACTORY
+PubsubLiteIO: 
+  methods: 
+  - addUuids
+  - deduplicate
+  - expand
+  - read
+  - write
+PubsubLiteSink: 
+  methods: 
+  - finishBundle
+  - processElement
+  - startBundle
+PubsubLiteTableProvider: 
+  methods: 
+  - buildBeamSqlTable
+  - getTableType
 PubsubMessage: 
   methods: 
   - equals

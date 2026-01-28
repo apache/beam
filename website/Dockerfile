@@ -40,7 +40,6 @@ RUN apt-get update \
         gnupg2 \
         gosu \
         lynx \
-    && pip3 install --upgrade pip --break-system-packages || true \
     && apt-get autoremove -yqq --purge \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
@@ -54,15 +53,15 @@ RUN curl -sL https://deb.nodesource.com/setup_lts.x | bash - \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
-# Install npm
 RUN npm update -g npm
+
 RUN npm install postcss postcss-cli autoprefixer
 
 # Install yarn
 ENV COREPACK_HOME=/usr/local/share/corepack
 RUN mkdir -p "$COREPACK_HOME" \
  && corepack enable \
- && corepack prepare yarn@stable --activate
+ && corepack prepare yarn@1.22.22 --activate
 
 # Install hugo extended version v0.117.0
 RUN HUGOHOME="$(mktemp -d)" \
