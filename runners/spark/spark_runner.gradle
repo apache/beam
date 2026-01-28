@@ -31,6 +31,7 @@ applyJavaNature(
     'WindowingHelpers'   : 'https://github.com/typetools/checker-framework/issues/3793',
     'WindowAssignTranslatorBatch': 'https://github.com/typetools/checker-framework/issues/6388#issuecomment-1885532351',
   ],
+  requireJavaVersion: (spark_version.startsWith("4") ? org.gradle.api.JavaVersion.VERSION_17 : null),
 )
 
 description = "Apache Beam :: Runners :: Spark $spark_version"
@@ -124,6 +125,7 @@ if (copySourceBase) {
     }
   }
 }
+println "srcDirs: ${sourceSets.main.java.srcDirs}"
 
 test {
   systemProperties sparkTestProperties()
