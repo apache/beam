@@ -113,7 +113,7 @@ public class DatadogWriteSchemaTransformProviderTest {
   }
 
   @Test
-  public void testRowToDatadogEventFnWithMissingFields() throws NonDeterministicException {
+  public void testRowToDatadogEventFnWithMissingOptionalFields() throws NonDeterministicException {
     Schema missingFieldsSchema =
         Schema.builder()
             .addStringField("ddsource")
@@ -148,7 +148,8 @@ public class DatadogWriteSchemaTransformProviderTest {
   }
 
   @Test
-  public void testRowToDatadogEventFnWithExtraFields() throws NonDeterministicException {
+  public void testRowToDatadogEventFnWithExtraFields_DiscardsExtraFields()
+      throws NonDeterministicException {
     Schema extraFieldsSchema =
         Schema.builder()
             .addStringField("ddsource")
@@ -187,6 +188,37 @@ public class DatadogWriteSchemaTransformProviderTest {
     output.setCoder(DatadogEventCoder.of());
 
     PAssert.that(output).containsInAnyOrder(expectedEvent);
+    p.run().waitUntilFinish();
+  }
+
+  @Test(expected = NullPointerException.class)
+  public void testRowToDatadogEventFnWithNullRequiredField() {
+    Schema nullSchema =
+        Schema.builder()
+            .addStringField("ddsource")
+            .addNullableField("ddtags", Schema.FieldType.STRING)
+            .addStringField("hostname")
+            .addNullableField("service", Schema.FieldType.STRING)
+            .addNullableField("message", Schema.FieldType.STRING)
+            .build();
+
+    Row row =
+        Row.withSchema(nullSchema)
+            .withFieldValue("ddsource", "my-source")
+            .withFieldValue("ddtags", "tag1:value1,tag2")
+            .withFieldValue("hostname", "my-host")
+            .withFieldValue("service", "my-service")
+            .withFieldValue("message", null)
+            .build();
+
+    PCollection<Row> input = p.apply(Create.of(row).withRowSchema(nullSchema));
+    PCollection<DatadogEvent> output =
+        input.apply(
+            "RowToDatadogEvent",
+            ParDo.of(new DatadogWriteSchemaTransformProvider.RowToDatadogEventFn()));
+
+    output.setCoder(DatadogEventCoder.of());
+
     p.run().waitUntilFinish();
   }
 
