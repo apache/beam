@@ -109,7 +109,6 @@ def create_harness(environment, dry_run=False):
 
   pipeline_options_dict = _load_pipeline_options(options_json)
 
-
   default_log_level = _get_log_level_from_options_dict(pipeline_options_dict)
   logging.getLogger().setLevel(default_log_level)
   _set_log_level_overrides(pipeline_options_dict)
