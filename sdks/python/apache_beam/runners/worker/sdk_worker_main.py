@@ -109,8 +109,6 @@ def create_harness(environment, dry_run=False):
 
   pipeline_options_dict = _load_pipeline_options(options_json)
 
-  #pipeline_options_dict = _load_pipeline_options(
-  #    environment.get('PIPELINE_OPTIONS'))
 
   default_log_level = _get_log_level_from_options_dict(pipeline_options_dict)
   logging.getLogger().setLevel(default_log_level)
@@ -256,6 +254,7 @@ def terminate_sdk_harness():
 
 
 def _load_pipeline_options(options_json):
+  """Deserialize the pipeline options from a JSON string into a dictionary."""
   if options_json is None:
     return {}
   options = json.loads(options_json)
@@ -273,6 +272,7 @@ def _load_pipeline_options(options_json):
 
 
 def _parse_pipeline_options(options_json):
+  """Parses the pipeline options from a JSON string into a PipelineOptions object."""
   return PipelineOptions.from_dictionary(_load_pipeline_options(options_json))
 
 
