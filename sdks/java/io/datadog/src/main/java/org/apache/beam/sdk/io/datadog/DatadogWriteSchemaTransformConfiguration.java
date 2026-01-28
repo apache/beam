@@ -27,7 +27,11 @@ import org.apache.beam.sdk.schemas.annotations.SchemaFieldDescription;
 import org.apache.beam.sdk.schemas.transforms.providers.ErrorHandling;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Strings;
 
-/** Configuration for writing to Datadog. */
+/**
+ * Configuration for writing to Datadog.
+ *
+ * <p>This class is meant to be used with {@link DatadogWriteSchemaTransformProvider}.
+ */
 @DefaultSchema(AutoValueSchema.class)
 @AutoValue
 public abstract class DatadogWriteSchemaTransformConfiguration {
@@ -43,7 +47,8 @@ public abstract class DatadogWriteSchemaTransformConfiguration {
     }
   }
 
-  public static Builder builder() {
+  /** Instantiates a {@link DatadogWriteSchemaTransformConfiguration.Builder} instance. */
+  public static DatadogWriteSchemaTransformConfiguration.Builder builder() {
     return new AutoValue_DatadogWriteSchemaTransformConfiguration.Builder();
   }
 
@@ -79,6 +84,7 @@ public abstract class DatadogWriteSchemaTransformConfiguration {
 
     public abstract Builder setErrorHandling(@Nullable ErrorHandling errorHandling);
 
+    /** Builds the {@link DatadogWriteSchemaTransformConfiguration} configuration. */
     public abstract DatadogWriteSchemaTransformConfiguration build();
   }
 }
