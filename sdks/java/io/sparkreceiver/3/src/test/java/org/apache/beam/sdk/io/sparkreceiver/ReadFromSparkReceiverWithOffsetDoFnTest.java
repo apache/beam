@@ -35,7 +35,7 @@ import org.junit.Test;
 /** Test class for {@link ReadFromSparkReceiverWithOffsetDoFn}. */
 public class ReadFromSparkReceiverWithOffsetDoFnTest {
 
-  private static final byte[] TEST_ELEMENT = new byte[] {};
+  private static final Integer TEST_ELEMENT = 0;
 
   private final ReadFromSparkReceiverWithOffsetDoFn<String> dofnInstance =
       new ReadFromSparkReceiverWithOffsetDoFn<>(makeReadTransform());
