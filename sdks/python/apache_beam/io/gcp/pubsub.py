@@ -658,12 +658,22 @@ class _PubSubWriteDoFn(DoFn):
       # Deserialize the protobuf to get the original PubsubMessage
       pubsub_msg = PubsubMessage._from_proto_str(elem)
 
-      # Publish with the correct data and attributes
+      # Publish with the correct data, attributes, and ordering_key
       if self.with_attributes and pubsub_msg.attributes:
         future = self._pub_client.publish(
-            self._topic, pubsub_msg.data, **pubsub_msg.attributes)
+            self._topic,
+            pubsub_msg.data,
+            ordering_key=pubsub_msg.ordering_key
+            if pubsub_msg.ordering_key else '',
+            **pubsub_msg.attributes)
       else:
-        future = self._pub_client.publish(self._topic, pubsub_msg.data)
+        if pubsub_msg.ordering_key:
+          future = self._pub_client.publish(
+              self._topic,
+              pubsub_msg.data,
+              ordering_key=pubsub_msg.ordering_key)
+        else:
+          future = self._pub_client.publish(self._topic, pubsub_msg.data)
 
       futures.append(future)
 
