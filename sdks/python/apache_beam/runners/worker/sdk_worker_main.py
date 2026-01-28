@@ -271,7 +271,8 @@ def _load_pipeline_options(options_json):
 
 
 def _parse_pipeline_options(options_json):
-  """Parses the pipeline options from a JSON string into a PipelineOptions object."""
+  """Parses the pipeline options from a JSON string into a PipelineOptions 
+  object."""
   return PipelineOptions.from_dictionary(_load_pipeline_options(options_json))
 
 
