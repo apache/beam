@@ -2109,10 +2109,9 @@ public class SpannerIO {
     // Allow passing the credential from pipeline options to the getDialect() call.
     SpannerConfig spannerConfigWithCredential =
         buildSpannerConfigWithCredential(spannerConfig, pipelineOptions);
-    try (SpannerAccessor sa = SpannerAccessor.getOrCreate(spannerConfigWithCredential)) {
-      DatabaseClient databaseClient = sa.getDatabaseClient();
-      return databaseClient.getDialect();
-    }
+    SpannerAccessor sa = SpannerAccessor.getOrCreate(spannerConfigWithCredential);
+    DatabaseClient databaseClient = sa.getDatabaseClient();
+    return databaseClient.getDialect();
   }
 
   /**

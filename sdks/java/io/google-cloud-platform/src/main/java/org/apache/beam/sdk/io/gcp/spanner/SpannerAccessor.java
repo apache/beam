@@ -30,6 +30,7 @@ import com.google.cloud.spanner.BatchClient;
 import com.google.cloud.spanner.DatabaseAdminClient;
 import com.google.cloud.spanner.DatabaseClient;
 import com.google.cloud.spanner.DatabaseId;
+import com.google.cloud.spanner.SessionPoolOptions;
 import com.google.cloud.spanner.Spanner;
 import com.google.cloud.spanner.SpannerOptions;
 import com.google.cloud.spanner.v1.stub.SpannerStubSettings;
@@ -264,6 +265,15 @@ public class SpannerAccessor implements AutoCloseable {
     if (credentials != null && credentials.get() != null) {
       builder.setCredentials(credentials.get());
     }
+
+    ValueProvider<java.time.Duration> waitForMinSessionsDuration = spannerConfig.getWaitForMinSessionsDuration();
+    java.time.Duration waitDuration = java.time.Duration.ofMinutes(5);
+    if (waitForMinSessionsDuration != null) {
+      waitDuration = waitForMinSessionsDuration.get();
+    }
+    builder.setSessionPoolOption(SessionPoolOptions.newBuilder()
+        .setWaitForMinSessionsDuration(waitDuration)
+      .build());
 
     return builder.build();
   }

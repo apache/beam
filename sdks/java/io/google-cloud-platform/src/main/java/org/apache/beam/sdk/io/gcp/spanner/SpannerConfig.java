@@ -104,6 +104,8 @@ public abstract class SpannerConfig implements Serializable {
 
   public abstract @Nullable ValueProvider<Credentials> getCredentials();
 
+  public abstract @Nullable ValueProvider<java.time.Duration> getWaitForMinSessionsDuration();
+
   abstract Builder toBuilder();
 
   public static SpannerConfig create() {
@@ -188,6 +190,8 @@ public abstract class SpannerConfig implements Serializable {
     abstract Builder setCredentials(ValueProvider<Credentials> credentials);
 
     abstract Builder setPlainText(ValueProvider<Boolean> plainText);
+
+    abstract Builder setWaitForMinSessions(ValueProvider<java.time.Duration> waitForMinSessions);
 
     public abstract SpannerConfig build();
   }
@@ -388,5 +392,21 @@ public abstract class SpannerConfig implements Serializable {
    */
   public SpannerConfig withUsingPlainTextChannel(boolean plainText) {
     return withUsingPlainTextChannel(ValueProvider.StaticValueProvider.of(plainText));
+  }
+
+  /**
+   * @param waitForMinSessionsDuration
+   * @return {@link SpannerConfig}
+   *
+   * Sets the wait time for multiplexed session to be available while creating a database client.
+   * Setting this will block the {@link com.google.cloud.spanner.DatabaseClient} creation. By default,
+   * We will be setting 5 mins as minimum wait time.
+   */
+  public SpannerConfig withWaitForMinSessionsDuration(ValueProvider<java.time.Duration> waitForMinSessionsDuration) {
+    return toBuilder().setWaitForMinSessions(waitForMinSessionsDuration).build();
+  }
+
+  public SpannerConfig withWaitForMinSessionsDuration(java.time.Duration waitForMinSessionsDuration) {
+    return withWaitForMinSessionsDuration(ValueProvider.StaticValueProvider.of(waitForMinSessionsDuration));
   }
 }
