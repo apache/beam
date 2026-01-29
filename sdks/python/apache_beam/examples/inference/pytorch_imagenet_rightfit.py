@@ -176,9 +176,28 @@ class PostProcessDoFn(beam.DoFn):
 
   def process(self, kv: Tuple[str, PredictionResult]):
     image_id, pred = kv
-    logits = pred.inference[
-        "logits"]  # torch.Tensor [B, num_classes] or [num_classes]
-    if isinstance(logits, torch.Tensor) and logits.ndim == 1:
+
+    # pred can be PredictionResult OR raw inference object.
+    inference_obj = pred.inference if hasattr(pred, "inference") else pred
+
+    # inference_obj can be dict {'logits': tensor} OR tensor directly.
+    if isinstance(inference_obj, dict):
+      logits = inference_obj.get("logits", None)
+      if logits is None:
+        # fallback: try first value if dict shape differs
+        try:
+          logits = next(iter(inference_obj.values()))
+        except Exception:
+          logits = None
+    else:
+      logits = inference_obj
+
+    if not isinstance(logits, torch.Tensor):
+      logging.warning("Unexpected logits type for %s: %s", image_id, type(logits))
+      return
+
+    # Ensure shape [1, C]
+    if logits.ndim == 1:
       logits = logits.unsqueeze(0)
 
     probs = F.softmax(logits, dim=-1)  # [B, C]
