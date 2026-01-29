@@ -167,6 +167,9 @@ dependencies {
   testImplementation library.java.google_cloud_spanner_test
   testImplementation library.java.google_cloud_bigtable_emulator
   testRuntimeOnly library.java.slf4j_jdk14
+  // everit_json is needed for Pubsub SchemaTransform that relies on JSON-schema translation.
+  permitUnusedDeclared library.java.everit_json_schema
+  provided library.java.everit_json_schema
 }
 
 // Don't pull in newer versions of the checker framework from dependencies.
