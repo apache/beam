@@ -102,8 +102,6 @@ dependencies {
   permitUnusedDeclared library.java.flogger_system_backend
   implementation library.java.google_api_client
   // Ensures SequencedMessage availability for Spotless
-  implementation library.java.proto_google_cloud_pubsublite_v1
-  permitUnusedDeclared library.java.proto_google_cloud_pubsublite_v1
   implementation library.java.google_api_services_dataflow
   implementation library.java.google_api_services_storage
   permitUnusedDeclared library.java.google_api_services_storage // BEAM-11761

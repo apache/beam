@@ -103,8 +103,6 @@ dependencies {
   implementation library.java.proto_google_cloud_bigtable_v2
   implementation library.java.google_api_services_bigquery
   permitUnusedDeclared library.java.google_api_services_bigquery
-  implementation library.java.proto_google_cloud_pubsublite_v1
-  implementation library.java.google_cloud_pubsublite
   implementation project(":sdks:java:io:mongodb")
   implementation library.java.avro
   implementation library.java.protobuf_java
