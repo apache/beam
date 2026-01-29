@@ -185,6 +185,7 @@ def disable_type_annotations():
 
 
 TRACEBACK_LIMIT = 5
+_NO_MAIN_TYPE = object()
 
 
 def _is_union_type(origin):
@@ -214,57 +215,17 @@ def _tag_and_type(t):
   return tag_string, value_type
 
 
-def _contains_tagged_output(t):
-  """Check if type contains TaggedOutput at a meaningful position.
-
-  TaggedOutput only makes sense in these patterns:
-  - TaggedOutput[...]
-  - X | TaggedOutput[...]
-  - Iterable[TaggedOutput[...]]
-  - Iterable[X | TaggedOutput[...]]
-  """
-  def _is_tagged(typ):
-    if typ is TaggedOutput:
-      logging.warning(
-          "TaggedOutput in return type must include type parameters: "
-          "TaggedOutput[Literal['tag_name'], ValueType]")
-    return get_origin(typ) is TaggedOutput
-
-  # TaggedOutput[...]
-  if _is_tagged(t):
-    return True
-
-  origin = get_origin(t)
-  args = get_args(t)
-
-  # X | TaggedOutput[...]
-  if _is_union_type(origin):
-    return any(_is_tagged(arg) for arg in args)
-
-  # Iterable[...]
-  if origin is collections.abc.Iterable and len(args) == 1:
-    inner = args[0]
-    # Iterable[TaggedOutput[...]]
-    if _is_tagged(inner):
-      return True
-    # Iterable[X | TaggedOutput[...]]
-    if _is_union_type(get_origin(inner)):
-      return any(_is_tagged(arg) for arg in get_args(inner))
-
-  return False
-
-
 def _extract_main_and_tagged(t):
   """Extract main type and tagged types from a type annotation.
 
   Returns:
     (main_type, tagged_dict) where main_type is the type without TaggedOutput
-    annotations (or None if no main type), and tagged_dict maps tag names to
-    their types.
+    annotations (or _NO_MAIN_TYPE if no main type), and tagged_dict maps tag
+    names to their types.
   """
   if get_origin(t) is TaggedOutput:
     tag, typ = _tag_and_type(t)
-    return None, {tag: typ}
+    return _NO_MAIN_TYPE, {tag: typ}
 
   if t is TaggedOutput:
     logging.warning(
@@ -291,7 +252,7 @@ def _extract_main_and_tagged(t):
       main_types.append(arg)
 
   if len(main_types) == 0:
-    main_type = None
+    main_type = _NO_MAIN_TYPE
   elif len(main_types) == 1:
     main_type = main_types[0]
   else:
@@ -311,25 +272,16 @@ def _extract_output_types(return_annotation):
   if return_annotation == inspect.Signature.empty:
     return [Any], {}
 
-  # Early return if no TaggedOutput
-  if not _contains_tagged_output(return_annotation):
-    return [return_annotation], {}
-
   # Iterable[T | TaggedOutput[...]]
   if get_origin(return_annotation) is collections.abc.Iterable:
     yield_type = get_args(return_annotation)[0]
     clean_yield, tagged_types = _extract_main_and_tagged(yield_type)
-    clean_main = clean_yield if clean_yield else Any
+    clean_main = Any if clean_yield is _NO_MAIN_TYPE else clean_yield
     return [Iterable[clean_main]], tagged_types
 
-  # TaggedOutput
-  if get_origin(return_annotation) is TaggedOutput:
-    tag, typ = _tag_and_type(return_annotation)
-    return [Any], {tag: typ}
-
-  # T | TaggedOutput
+  # T | TaggedOutput (or plain type with no tags)
   main_type, tagged_types = _extract_main_and_tagged(return_annotation)
-  main = main_type if main_type else Any
+  main = Any if main_type is _NO_MAIN_TYPE else main_type
   return [main], tagged_types
 
 

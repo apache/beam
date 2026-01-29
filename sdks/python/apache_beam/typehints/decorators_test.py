@@ -498,34 +498,6 @@ class DecoratorsTest(unittest.TestCase):
 
 class TaggedOutputExtractionTest(unittest.TestCase):
   """Tests for TaggedOutput extraction helper functions."""
-  def test_contains_tagged_output_true_direct(self):
-    t = TaggedOutput[typing.Literal['errors'], str]
-    self.assertTrue(decorators._contains_tagged_output(t))
-
-  def test_contains_tagged_output_true_in_union(self):
-    t = int | TaggedOutput[typing.Literal['errors'], str]
-    self.assertTrue(decorators._contains_tagged_output(t))
-
-  def test_contains_tagged_output_true_in_iterable(self):
-    t = typing.Iterable[int | TaggedOutput[typing.Literal['errors'], str]]
-    self.assertTrue(decorators._contains_tagged_output(t))
-
-  def test_contains_tagged_output_false_simple_type(self):
-    self.assertFalse(decorators._contains_tagged_output(int))
-    self.assertFalse(decorators._contains_tagged_output(str))
-
-  def test_contains_tagged_output_false_union_no_tagged(self):
-    t = int | str
-    self.assertFalse(decorators._contains_tagged_output(t))
-
-  def test_contains_tagged_output_false_iterable_no_tagged(self):
-    t = typing.Iterable[int]
-    self.assertFalse(decorators._contains_tagged_output(t))
-
-  def test_contains_tagged_output_false_deeply_nested(self):
-    t = typing.List[typing.Tuple[TaggedOutput[typing.Literal['errors'], str]]]
-    self.assertFalse(decorators._contains_tagged_output(t))
-
   def test_extract_main_and_tagged_simple_type(self):
     main, tagged = decorators._extract_main_and_tagged(int)
     self.assertEqual(main, int)
@@ -534,7 +506,7 @@ class TaggedOutputExtractionTest(unittest.TestCase):
   def test_extract_main_and_tagged_tagged_output_only(self):
     t = TaggedOutput[typing.Literal['errors'], str]
     main, tagged = decorators._extract_main_and_tagged(t)
-    self.assertIsNone(main)
+    self.assertIs(main, decorators._NO_MAIN_TYPE)
     self.assertEqual(tagged, {'errors': str})
 
   def test_extract_main_and_tagged_union(self):
