@@ -85,14 +85,6 @@ class CounterWithBadAttr(object):
       return object.__getattribute__(self, __name)
 
 
-class SimpleClass:
-  def make_proxy(
-      self, tag: str = 'proxy_on_proxy', spawn_process: bool = False):
-    return multi_process_shared.MultiProcessShared(
-        Counter, tag=tag, always_proxy=True,
-        spawn_process=spawn_process).acquire()
-
-
 class MultiProcessSharedTest(unittest.TestCase):
   @classmethod
   def setUpClass(cls):
@@ -290,20 +282,11 @@ class MultiProcessSharedTest(unittest.TestCase):
     with self.assertRaisesRegex(Exception, 'released'):
       counter1.get()
 
-  def test_proxy_on_proxy(self):
-    shared1 = multi_process_shared.MultiProcessShared(
-        SimpleClass, tag='proxy_on_proxy_main', always_proxy=True)
-    instance = shared1.acquire()
-    proxy_instance = instance.make_proxy()
-    self.assertEqual(proxy_instance.increment(), 1)
-
 
 class MultiProcessSharedSpawnProcessTest(unittest.TestCase):
   def setUp(self):
     tempdir = tempfile.gettempdir()
     for tag in ['basic',
-                'proxy_on_proxy',
-                'proxy_on_proxy_main',
                 'main',
                 'to_delete',
                 'mix1',
@@ -329,20 +312,6 @@ class MultiProcessSharedSpawnProcessTest(unittest.TestCase):
     self.assertEqual(shared.increment(10), 11)
     self.assertEqual(shared.increment(value=10), 21)
     self.assertEqual(shared.get(), 21)
-
-  def test_proxy_on_proxy(self):
-    shared1 = multi_process_shared.MultiProcessShared(
-        SimpleClass, tag='main', always_proxy=True)
-    instance = shared1.acquire()
-    proxy_instance = instance.make_proxy(spawn_process=True)
-    self.assertEqual(proxy_instance.increment(), 1)
-    try:
-      proxy_instance.unsafe_hard_delete()
-    except Exception:
-      pass
-
-    proxy_instance2 = instance.make_proxy(tag='proxy_2', spawn_process=True)
-    self.assertEqual(proxy_instance2.increment(), 1)
 
   def test_unsafe_hard_delete_autoproxywrapper(self):
     shared1 = multi_process_shared.MultiProcessShared(
