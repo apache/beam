@@ -429,6 +429,58 @@ TYPE pubsub
 LOCATION 'projects/testing-integration/topics/user-location'
 ```
 
+## Pub/Sub Lite
+
+### Syntax
+```
+CREATE EXTERNAL TABLE [ IF NOT EXISTS ] tableName(
+    publish_timestamp DATETIME,
+    event_timestamp DATETIME,
+    message_key BYTES,
+    attributes ARRAY<ROW<key VARCHAR, `values` ARRAY<VARBINARY>>>,
+    payload [BYTES, ROW<tableElement [, tableElement ]*>]
+)
+TYPE pubsublite
+// For writing
+LOCATION 'projects/[PROJECT]/locations/[GCP-LOCATION]/topics/[TOPIC]'
+// For reading
+LOCATION 'projects/[PROJECT]/locations/[GCP-LOCATION]/subscriptions/[SUBSCRIPTION]'
+```
+
+*   `LOCATION`:
+    *   `PROJECT`: ID of the Google Cloud Project
+    *   `TOPIC`: The Pub/Sub Lite topic name.
+    *   `SUBSCRIPTION`: The Pub/Sub Lite subscription name.
+    *   `GCP-LOCATION`: The location for this Pub/Sub Lite topic os subscription.
+*   `TBLPROPERTIES`:
+    *   `timestampAttributeKey`: Optional. The key which contains the event
+        timestamp associated with the Pub/Sub message. If not specified, the
+        message publish timestamp is used as an event timestamp for
+        windowing/watermarking.
+    *   `deadLetterQueue`: Optional, supports
+        [Generic DLQ Handling](#generic-dlq-handling)
+    *   `format`: Optional. Allows you to specify the payload format.
+
+### Read Mode
+
+PubsubLiteIO supports reading from subscriptions.
+
+### Write Mode
+
+PubsubLiteIO supports writing to topics.
+
+### Supported Payload
+
+*   Pub/Sub Lite supports [Generic Payload Handling](#generic-payload-handling).
+
+### Example
+
+```
+CREATE EXTERNAL TABLE locations (event_timestamp TIMESTAMP, attributes ARRAY<ROW<key VARCHAR, `values` ARRAY<VARBINARY>>>, payload ROW<id INTEGER, location VARCHAR>)
+TYPE pubsublite
+LOCATION 'projects/testing-integration/locations/us-central1-a/topics/user-location'
+```
+
 ## Kafka
 
 KafkaIO is experimental in Beam SQL.
