@@ -105,8 +105,6 @@ dependencies {
   permitUnusedDeclared library.java.google_api_services_bigquery
   implementation project(":sdks:java:io:mongodb")
   implementation library.java.avro
-  implementation library.java.protobuf_java
-  implementation library.java.protobuf_java_util
   provided project(":sdks:java:io:parquet")
   provided library.java.jackson_dataformat_xml
   permitUnusedDeclared library.java.jackson_dataformat_xml
