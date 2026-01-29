@@ -573,13 +573,11 @@ class TaggedOutputExtractionTest(unittest.TestCase):
     self.assertEqual(main, [typing.Iterable[typing.Any]])
     self.assertEqual(tagged, {'errors': str})
 
-  def test_extract_output_types_bare_tagged_to_main(self):
+  def test_extract_output_types_bare_tagged_excluded(self):
     with self.assertLogs(level='WARNING') as cm:
       main, tagged = decorators._extract_output_types(str | TaggedOutput)
-    self.assertIn(
-        'TaggedOutput in return type must include type parameters',
-        cm.output[0])
-    self.assertEqual(main, [str | TaggedOutput])
+    self.assertIn('Bare TaggedOutput falling back to Any', cm.output[0])
+    self.assertEqual(main, [str])
     self.assertEqual(tagged, {})
 
 

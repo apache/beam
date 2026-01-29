@@ -230,7 +230,9 @@ def _extract_main_and_tagged(t):
   if t is TaggedOutput:
     logging.warning(
         "TaggedOutput in return type must include type parameters: "
-        "TaggedOutput[Literal['tag_name'], ValueType]")
+        "TaggedOutput[Literal['tag_name'], ValueType]. "
+        "Bare TaggedOutput falling back to Any.")
+    return _NO_MAIN_TYPE, {}
 
   if not _is_union_type(get_origin(t)):
     return t, {}
@@ -244,10 +246,8 @@ def _extract_main_and_tagged(t):
     elif arg is TaggedOutput:
       logging.warning(
           "TaggedOutput in return type must include type parameters: "
-          "TaggedOutput[Literal['tag_name'], ValueType]")
-      # Append to main types to maintain backwards compatibility. The result
-      # will be a union type that maps to FastPrimitivesCoder.
-      main_types.append(arg)
+          "TaggedOutput[Literal['tag_name'], ValueType]. "
+          "Bare TaggedOutput falling back to Any.")
     else:
       main_types.append(arg)
 
