@@ -935,4 +935,4 @@ DLQ handling are supported:
 *   `pubsub`: Pub/Sub Topic
     *   DLQ_ID is the full path of the Pub/Sub Topic.
 *   `pubsublite`: Pub/Sub Lite Topic
-    *   DLQ_ID is the full path of the Pub/Sub Lite Topic.
+    *   DLQ_ID is the full path of the Pub/Sub Lite Topic. 
