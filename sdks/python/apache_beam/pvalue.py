@@ -246,6 +246,8 @@ class DoOutputsTuple(object):
     self._tags = tags
     self._main_tag = main_tag
     self._transform = transform
+    self._tagged_output_types = (
+        transform.get_type_hints().tagged_output_types() if transform else {})
     self._allow_unknown_tags = (
         not tags if allow_unknown_tags is None else allow_unknown_tags)
     # The ApplyPTransform instance for the application of the multi FlatMap
@@ -303,7 +305,7 @@ class DoOutputsTuple(object):
       pcoll = PCollection(
           self._pipeline,
           tag=tag,
-          element_type=typehints.Any,
+          element_type=self._tagged_output_types.get(tag, typehints.Any),
           is_bounded=is_bounded)
       # Transfer the producer from the DoOutputsTuple to the resulting
       # PCollection.
@@ -323,7 +325,11 @@ class DoOutputsTuple(object):
     return pcoll
 
 
-class TaggedOutput(object):
+TagType = TypeVar('TagType', bound=str)
+ValueType = TypeVar('ValueType')
+
+
+class TaggedOutput(Generic[TagType, ValueType]):
   """An object representing a tagged value.
 
   ParDo, Map, and FlatMap transforms can emit values on multiple outputs which
@@ -331,7 +337,7 @@ class TaggedOutput(object):
   if it wants to emit on the main output and TaggedOutput objects
   if it wants to emit a value on a specific tagged output.
   """
-  def __init__(self, tag: str, value: Any) -> None:
+  def __init__(self, tag: TagType, value: ValueType) -> None:
     if not isinstance(tag, str):
       raise TypeError(
           'Attempting to create a TaggedOutput with non-string tag %s' %

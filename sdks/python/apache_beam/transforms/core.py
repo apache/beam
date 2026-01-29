@@ -1834,6 +1834,17 @@ class ParDo(PTransformWithSideInputs):
       raise ValueError(
           'Main output tag %r must be different from side output tags %r.' %
           (main, tags))
+    type_hints = self.get_type_hints()
+    declared_tags = set(type_hints.tagged_output_types().keys())
+    requested_tags = set(tags)
+
+    unknown = requested_tags - declared_tags
+    if unknown and declared_tags:  # Only warn if type hints exist
+      logging.warning(
+          "Tags %s requested in with_outputs() but not declared "
+          "in type hints. Declared tags: %s",
+          unknown,
+          declared_tags)
     return _MultiParDo(self, tags, main, allow_unknown_tags)
 
   def _do_fn_info(self):
@@ -2120,8 +2131,10 @@ def Map(fn, *args, **kwargs):  # pylint: disable=invalid-name
             wrapper)
   output_hint = type_hints.simple_output_type(label)
   if output_hint:
+    tagged_output_types = type_hints.tagged_output_types()
     wrapper = with_output_types(
-        typehints.Iterable[_strip_output_annotations(output_hint)])(
+        typehints.Iterable[_strip_output_annotations(output_hint)],
+        **tagged_output_types)(
             wrapper)
   # pylint: disable=protected-access
   wrapper._argspec_fn = fn
@@ -2189,8 +2202,10 @@ def MapTuple(fn, *args, **kwargs):  # pylint: disable=invalid-name
     pass
   output_hint = type_hints.simple_output_type(label)
   if output_hint:
+    tagged_output_types = type_hints.tagged_output_types()
     wrapper = with_output_types(
-        typehints.Iterable[_strip_output_annotations(output_hint)])(
+        typehints.Iterable[_strip_output_annotations(output_hint)],
+        **tagged_output_types)(
             wrapper)
 
   # Replace the first (args) component.
@@ -2261,7 +2276,10 @@ def FlatMapTuple(fn, *args, **kwargs):  # pylint: disable=invalid-name
     pass
   output_hint = type_hints.simple_output_type(label)
   if output_hint:
-    wrapper = with_output_types(_strip_output_annotations(output_hint))(wrapper)
+    tagged_output_types = type_hints.tagged_output_types()
+    wrapper = with_output_types(
+        _strip_output_annotations(output_hint), **tagged_output_types)(
+            wrapper)
 
   # Replace the first (args) component.
   modified_arg_names = ['tuple_element'] + arg_names[-num_defaults:]
