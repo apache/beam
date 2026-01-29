@@ -187,6 +187,11 @@ def disable_type_annotations():
 TRACEBACK_LIMIT = 5
 
 
+def _is_union_type(origin):
+  """Check if a type origin is a Union (typing.Union or types.UnionType)."""
+  return origin is Union or origin is types.UnionType
+
+
 def _tag_and_type(t):
   """Extract tag name and value type from TaggedOutput[Literal['tag'], Type].
 
@@ -219,7 +224,11 @@ def _contains_tagged_output(t):
   - Iterable[X | TaggedOutput[...]]
   """
   def _is_tagged(typ):
-    return get_origin(typ) is TaggedOutput or typ is TaggedOutput
+    if typ is TaggedOutput:
+      logging.warning(
+          "TaggedOutput in return type must include type parameters: "
+          "TaggedOutput[Literal['tag_name'], ValueType]")
+    return get_origin(typ) is TaggedOutput
 
   # TaggedOutput[...]
   if _is_tagged(t):
@@ -229,7 +238,7 @@ def _contains_tagged_output(t):
   args = get_args(t)
 
   # X | TaggedOutput[...]
-  if origin is Union:
+  if _is_union_type(origin):
     return any(_is_tagged(arg) for arg in args)
 
   # Iterable[...]
@@ -239,7 +248,7 @@ def _contains_tagged_output(t):
     if _is_tagged(inner):
       return True
     # Iterable[X | TaggedOutput[...]]
-    if get_origin(inner) is Union:
+    if _is_union_type(get_origin(inner)):
       return any(_is_tagged(arg) for arg in get_args(inner))
 
   return False
@@ -258,11 +267,11 @@ def _extract_main_and_tagged(t):
     return None, {tag: typ}
 
   if t is TaggedOutput:
-    raise TypeError(
+    logging.warning(
         "TaggedOutput in return type must include type parameters: "
         "TaggedOutput[Literal['tag_name'], ValueType]")
 
-  if get_origin(t) is not Union:
+  if not _is_union_type(get_origin(t)):
     return t, {}
 
   main_types = []
@@ -272,9 +281,12 @@ def _extract_main_and_tagged(t):
       tag, typ = _tag_and_type(arg)
       tagged_types[tag] = typ
     elif arg is TaggedOutput:
-      raise TypeError(
+      logging.warning(
           "TaggedOutput in return type must include type parameters: "
           "TaggedOutput[Literal['tag_name'], ValueType]")
+      # Append to main types to maintain backwards compatibility. The result
+      # will be a union type that maps to FastPrimitivesCoder.
+      main_types.append(arg)
     else:
       main_types.append(arg)
 

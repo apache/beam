@@ -601,9 +601,14 @@ class TaggedOutputExtractionTest(unittest.TestCase):
     self.assertEqual(main, [typing.Iterable[typing.Any]])
     self.assertEqual(tagged, {'errors': str})
 
-  def test_extract_main_and_tagged_bare_tagged_output_raises(self):
-    with self.assertRaises(TypeError):
-      decorators._extract_main_and_tagged(TaggedOutput)
+  def test_extract_output_types_bare_tagged_to_main(self):
+    with self.assertLogs(level='WARNING') as cm:
+      main, tagged = decorators._extract_output_types(str | TaggedOutput)
+    self.assertIn(
+        'TaggedOutput in return type must include type parameters',
+        cm.output[0])
+    self.assertEqual(main, [str | TaggedOutput])
+    self.assertEqual(tagged, {})
 
 
 if __name__ == '__main__':
