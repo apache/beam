@@ -24,7 +24,6 @@ ensuring that models are reused across different workers to optimize resource
 usage and performance.
 """
 
-import uuid
 import time
 import threading
 import subprocess
@@ -37,6 +36,7 @@ import heapq
 import itertools
 from collections import defaultdict, deque, Counter, OrderedDict
 from typing import Dict, Any, Tuple, Optional, Callable
+from apache_beam.utils import multi_process_shared
 
 logger = logging.getLogger(__name__)
 
@@ -272,48 +272,6 @@ class ResourceEstimator:
 
     except Exception as e:
       logger.error("Solver failed: %s", e)
-
-
-class TrackedModelProxy:
-  """A transparent proxy for model objects that adds tracking metadata.
-
-  Wraps the underlying model object to attach a unique ID and intercept
-  calls, allowing the manager to track individual instances across processes.
-  """
-  def __init__(self, obj):
-    object.__setattr__(self, "_wrapped_obj", obj)
-    object.__setattr__(self, "_beam_tracking_id", str(uuid.uuid4()))
-
-  def __getattr__(self, name):
-    return getattr(self._wrapped_obj, name)
-
-  def __setattr__(self, name, value):
-    setattr(self._wrapped_obj, name, value)
-
-  def __call__(self, *args, **kwargs):
-    return self._wrapped_obj(*args, **kwargs)
-
-  def __setstate__(self, state):
-    self.__dict__.update(state)
-
-  def __getstate__(self):
-    return self.__dict__
-
-  def __str__(self):
-    return str(self._wrapped_obj)
-
-  def __repr__(self):
-    return repr(self._wrapped_obj)
-
-  def __dir__(self):
-    return dir(self._wrapped_obj)
-
-  def trackedModelProxy_unsafe_hard_delete(self):
-    if hasattr(self._wrapped_obj, "singletonProxy_unsafe_hard_delete"):
-      try:
-        self._wrapped_obj.singletonProxy_unsafe_hard_delete()
-      except Exception:
-        pass
 
 
 class ModelManager:
@@ -619,6 +577,7 @@ class ModelManager:
     for key, (tag, instance, release_time) in self._idle_lru.items():
       candidate_demand = demand_map[tag]
 
+      # TODO: Try to avoid churn if demand is similar
       if not am_i_starving and candidate_demand >= my_demand:
         continue
 
@@ -656,6 +615,17 @@ class ModelManager:
 
     return projected_usage <= limit
 
+  def _delete_instance(self, instance: Any):
+    if isinstance(instance, str):
+      # If the instance is a string, it's a uuid used
+      # to retrieve the model from MultiProcessShared
+      multi_process_shared.MultiProcessShared(
+          lambda: "N/A", tag=instance).unsafe_hard_delete()
+    if hasattr(instance, 'mock_model_unsafe_hard_delete'):
+      # Call the mock unsafe hard delete method for testing
+      instance.mock_model_unsafe_hard_delete()
+    del instance
+
   def _perform_eviction(self, key: str, tag: str, instance: Any, score: int):
     logger.info("Evicting Model: %s (Score %d)", tag, score)
     curr, _, _ = self._monitor.get_stats()
@@ -664,14 +634,12 @@ class ModelManager:
     if key in self._idle_lru:
       del self._idle_lru[key]
 
-    target_id = instance._beam_tracking_id
     for i, inst in enumerate(self._models[tag]):
-      if inst._beam_tracking_id == target_id:
+      if instance == inst:
         del self._models[tag][i]
         break
 
-    instance.trackedModelProxy_unsafe_hard_delete()
-    del instance
+    self._delete_instance(instance)
     gc.collect()
     torch.cuda.empty_cache()
     self._monitor.refresh()
@@ -689,7 +657,7 @@ class ModelManager:
       with self._cv:
         logger.info("Loading Model: %s (Unknown: %s)", tag, is_unknown)
         baseline_snap, _, _ = self._monitor.get_stats()
-        instance = TrackedModelProxy(loader_func())
+        instance = loader_func()
         _, peak_during_load, _ = self._monitor.get_stats()
 
         snapshot = {tag: 1}
@@ -720,8 +688,7 @@ class ModelManager:
     self._idle_lru.clear()
     for _, instances in self._models.items():
       for instance in instances:
-        instance.trackedModelProxy_unsafe_hard_delete()
-        del instance
+        self._delete_instance(instance)
     self._models.clear()
     self._active_counts.clear()
     gc.collect()

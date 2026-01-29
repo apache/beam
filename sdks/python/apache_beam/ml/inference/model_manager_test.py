@@ -21,6 +21,7 @@ import threading
 import random
 from concurrent.futures import ThreadPoolExecutor
 from unittest.mock import patch
+from apache_beam.utils import multi_process_shared
 
 try:
   from apache_beam.ml.inference.model_manager import ModelManager, GPUMonitor, ResourceEstimator
@@ -94,10 +95,24 @@ class MockModel:
     self.deleted = False
     self.monitor.allocate(size)
 
-  def singletonProxy_unsafe_hard_delete(self):
+  def mock_model_unsafe_hard_delete(self):
     if not self.deleted:
       self.monitor.free(self.size)
       self.deleted = True
+
+
+class Counter(object):
+  def __init__(self, start=0):
+    self.running = start
+    self.lock = threading.Lock()
+
+  def get(self):
+    return self.running
+
+  def increment(self, value=1):
+    with self.lock:
+      self.running += value
+      return self.running
 
 
 class TestModelManager(unittest.TestCase):
@@ -109,6 +124,34 @@ class TestModelManager(unittest.TestCase):
 
   def tearDown(self):
     self.manager.shutdown()
+
+  def test_model_manager_deletes_multiprocessshared_instances(self):
+    """Test that MultiProcessShared instances are deleted properly."""
+    model_name = "test_model_shared"
+    tag = f"model_manager_test_{model_name}"
+
+    def loader():
+      multi_process_shared.MultiProcessShared(
+          lambda: Counter, tag=tag, always_proxy=True)
+      return tag
+
+    instance = self.manager.acquire_model(model_name, loader)
+    instance_before = multi_process_shared.MultiProcessShared(
+        Counter, tag=tag, always_proxy=True).acquire()
+    instance_before.increment()
+    self.assertEqual(instance_before.get(), 1)
+    self.manager.release_model(model_name, instance)
+
+    # Force delete all models
+    self.manager._force_reset()
+
+    # Verify that the MultiProcessShared instance is deleted
+    # and the counter is reseted
+    with self.assertRaises(Exception):
+      instance_before.get()
+    instance_after = multi_process_shared.MultiProcessShared(
+        Counter, tag=tag, always_proxy=True).acquire()
+    self.assertEqual(instance_after.get(), 0)
 
   def test_model_manager_capacity_check(self):
     """
