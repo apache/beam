@@ -112,6 +112,8 @@ class GeminiModelHandler(RemoteModelHandler[Any, PredictionResult,
       min_batch_size: Optional[int] = None,
       max_batch_size: Optional[int] = None,
       max_batch_duration_secs: Optional[int] = None,
+      max_batch_weight: Optional[int] = None,
+      element_size_fn: Optional[Callable[[Any], int]] = None,
       **kwargs):
     """Implementation of the ModelHandler interface for Google Gemini.
     **NOTE:** This API and its implementation are under development and
@@ -134,15 +136,18 @@ class GeminiModelHandler(RemoteModelHandler[Any, PredictionResult,
       project: the GCP project to use for Vertex AI requests. Setting this
         parameter routes requests to Vertex AI. If this paramter is provided,
         location must also be provided and api_key should not be set.
-      location: the GCP project to use for Vertex AI requests. Setting this 
+      location: the GCP project to use for Vertex AI requests. Setting this
         parameter routes requests to Vertex AI. If this paramter is provided,
         project must also be provided and api_key should not be set.
       min_batch_size: optional. the minimum batch size to use when batching
         inputs.
       max_batch_size: optional. the maximum batch size to use when batching
         inputs.
-      max_batch_duration_secs: optional. the maximum amount of time to buffer 
+      max_batch_duration_secs: optional. the maximum amount of time to buffer
         a batch before emitting; used in streaming contexts.
+      max_batch_weight: optional. the maximum total weight of a batch.
+      element_size_fn: optional. a function that returns the size (weight)
+        of an element.
     """
     self._batching_kwargs = {}
     self._env_vars = kwargs.get('env_vars', {})
@@ -152,6 +157,10 @@ class GeminiModelHandler(RemoteModelHandler[Any, PredictionResult,
       self._batching_kwargs["max_batch_size"] = max_batch_size
     if max_batch_duration_secs is not None:
       self._batching_kwargs["max_batch_duration_secs"] = max_batch_duration_secs
+    if max_batch_weight is not None:
+      self._batching_kwargs["max_batch_weight"] = max_batch_weight
+    if element_size_fn is not None:
+      self._batching_kwargs['element_size_fn'] = element_size_fn
 
     self.model_name = model_name
     self.request_fn = request_fn
@@ -173,6 +182,9 @@ class GeminiModelHandler(RemoteModelHandler[Any, PredictionResult,
         namespace='GeminiModelHandler',
         retry_filter=_retry_on_appropriate_service_error,
         **kwargs)
+
+  def batch_elements_kwargs(self):
+    return self._batching_kwargs
 
   def create_client(self) -> genai.Client:
     """Creates the GenAI client used to send requests. Creates a version for
