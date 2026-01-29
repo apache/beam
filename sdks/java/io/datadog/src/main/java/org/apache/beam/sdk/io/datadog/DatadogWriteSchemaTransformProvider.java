@@ -29,73 +29,103 @@ import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionRowTuple;
 import org.apache.beam.sdk.values.Row;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 @AutoService(SchemaTransformProvider.class)
 public class DatadogWriteSchemaTransformProvider
     extends TypedSchemaTransformProvider<DatadogWriteSchemaTransformConfiguration> {
-
+  private static final String IDENTIFIER = "beam:schematransform:org.apache.beam:datadog_write:v1";
   static final String INPUT_TAG = "input";
+  private static final Logger LOG =
+      LoggerFactory.getLogger(DatadogWriteSchemaTransformProvider.class);
 
-  @Override
-  protected Class<DatadogWriteSchemaTransformConfiguration> configurationClass() {
-    return DatadogWriteSchemaTransformConfiguration.class;
-  }
-
+  /** Returns the expected {@link SchemaTransform} of the configuration. */
   @Override
   protected SchemaTransform from(DatadogWriteSchemaTransformConfiguration configuration) {
     return new DatadogWriteSchemaTransform(configuration);
   }
 
+  // @Override
+  // protected Class<DatadogWriteSchemaTransformConfiguration> configurationClass() {
+  //   return DatadogWriteSchemaTransformConfiguration.class;
+  // }
+
+  /** Implementation of the {@link TypedSchemaTransformProvider} identifier method. */
   @Override
   public String identifier() {
-    return "beam:schematransform:org.apache.beam:datadog_write:v1";
+    return IDENTIFIER;
   }
 
+  /** Implementation of the {@link TypedSchemaTransformProvider} input collection names method. */
   @Override
   public List<String> inputCollectionNames() {
     return Collections.singletonList(INPUT_TAG);
   }
 
+  /** Implementation of the {@link TypedSchemaTransformProvider} output collection names method. */
   @Override
   public List<String> outputCollectionNames() {
     return Collections.emptyList();
   }
 
+  /**
+   * An implementation of {@link SchemaTransform} for Datadog Write jobs configured using {@link
+   * DatadogWriteSchemaTransformConfiguration}.
+   */
   protected static class DatadogWriteSchemaTransform extends SchemaTransform {
     private final DatadogWriteSchemaTransformConfiguration configuration;
 
     DatadogWriteSchemaTransform(DatadogWriteSchemaTransformConfiguration configuration) {
-      configuration.validate();
       this.configuration = configuration;
     }
 
     @Override
     public PCollectionRowTuple expand(PCollectionRowTuple input) {
+      // Validate configuration parameters
+      configuration.validate();
+
+      // Create basic transform
+      DatadogIO.Write.Builder writeTransform =
+          DatadogIO.writeBuilder()
+              .withUrl(configuration.getUrl())
+              .withApiKey(configuration.getApiKey());
+
+      // Add more parameters if not null
+      Integer batchCount = configuration.getBatchCount();
+      if (batchCount != null) {
+        writeTransform = writeTransform.withBatchCount(batchCount);
+      }
+      Long maxBufferSize = configuration.getMaxBufferSize();
+      if (maxBufferSize != null) {
+        writeTransform = writeTransform.withMaxBufferSize(maxBufferSize);
+      }
+      Integer parallelism = configuration.getParallelism();
+      if (parallelism != null) {
+        writeTransform = writeTransform.withParallelism(parallelism);
+      }
+
+      // Obtain input rows and convert to DatadogEvents
       PCollection<Row> inputRows = input.get(INPUT_TAG);
 
       PCollection<DatadogEvent> events =
           inputRows.apply("RowToDatadogEvent", ParDo.of(new RowToDatadogEventFn()));
       events.setCoder(DatadogEventCoder.of());
 
-      DatadogIO.Write.Builder writeBuilder =
-          DatadogIO.writeBuilder()
-              .withUrl(configuration.getUrl())
-              .withApiKey(configuration.getApiKey());
+      events.apply("WriteToDatadog", writeTransform.build());
 
-      Integer batchCount = configuration.getBatchCount();
-      if (batchCount != null) {
-        writeBuilder = writeBuilder.withBatchCount(batchCount);
-      }
-      Long maxBufferSize = configuration.getMaxBufferSize();
-      if (maxBufferSize != null) {
-        writeBuilder = writeBuilder.withMaxBufferSize(maxBufferSize);
-      }
-      Integer parallelism = configuration.getParallelism();
-      if (parallelism != null) {
-        writeBuilder = writeBuilder.withParallelism(parallelism);
-      }
-
-      events.apply("WriteToDatadog", writeBuilder.build());
+      // // Return empty tuple
+      // String output = "";
+      // ErrorHandling errorHandler = configuration.getErrorHandling();
+      // if (errorHandler != null) {
+      //   String outputHandler = errorHandler.getOutput();
+      //   if (outputHandler != null) {
+      //     output = outputHandler;
+      //   } else {
+      //     output = "";
+      //   }
+      // }
+      // PCollectionRowTuple outputTuple = PCollectionRowTuple.of(output, events);
 
       return PCollectionRowTuple.empty(input.getPipeline());
     }

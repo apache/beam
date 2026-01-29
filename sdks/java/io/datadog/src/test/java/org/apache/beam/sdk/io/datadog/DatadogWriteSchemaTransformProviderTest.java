@@ -19,9 +19,11 @@ package org.apache.beam.sdk.io.datadog;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
 import java.util.Arrays;
 import java.util.List;
+import org.apache.beam.sdk.Pipeline.PipelineExecutionException;
 import org.apache.beam.sdk.coders.Coder.NonDeterministicException;
 import org.apache.beam.sdk.schemas.AutoValueSchema;
 import org.apache.beam.sdk.schemas.NoSuchSchemaException;
@@ -191,7 +193,7 @@ public class DatadogWriteSchemaTransformProviderTest {
     p.run().waitUntilFinish();
   }
 
-  @Test(expected = NullPointerException.class)
+  @Test
   public void testRowToDatadogEventFnWithNullRequiredField() {
     Schema nullSchema =
         Schema.builder()
@@ -219,7 +221,15 @@ public class DatadogWriteSchemaTransformProviderTest {
 
     output.setCoder(DatadogEventCoder.of());
 
-    p.run().waitUntilFinish();
+    try {
+      p.run().waitUntilFinish();
+      fail("Expected a PipelineExecutionException to be thrown.");
+    } catch (PipelineExecutionException e) {
+      assertTrue(
+          "Expected cause to be of type NullPointerException",
+          e.getCause() instanceof NullPointerException);
+      assertEquals("Message is required.", e.getCause().getMessage());
+    }
   }
 
   @Test
@@ -273,6 +283,99 @@ public class DatadogWriteSchemaTransformProviderTest {
     DatadogWriteSchemaTransformProvider provider = new DatadogWriteSchemaTransformProvider();
     provider.from(DatadogWriteSchemaTransformConfiguration.builder().setUrl("test-url").build());
   }
+
+  @Test
+  public void testRowToDatadogEventFnWithWrongType() {
+    Schema wrongSchema =
+        Schema.builder()
+            .addStringField("ddsource")
+            .addInt64Field("ddtags")
+            .addStringField("hostname")
+            .addStringField("message")
+            .build();
+
+    Row row =
+        Row.withSchema(wrongSchema)
+            .withFieldValue("ddsource", "my-source")
+            .withFieldValue("ddtags", 123L)
+            .withFieldValue("hostname", "my-host")
+            .withFieldValue("message", "Hello World 1")
+            .build();
+
+    PCollection<Row> input = p.apply(Create.of(row).withRowSchema(wrongSchema));
+    PCollection<DatadogEvent> output =
+        input.apply(
+            "RowToDatadogEvent",
+            ParDo.of(new DatadogWriteSchemaTransformProvider.RowToDatadogEventFn()));
+
+    output.setCoder(DatadogEventCoder.of());
+
+    try {
+      p.run().waitUntilFinish();
+      fail("Expected a ClassCastException to be thrown.");
+    } catch (PipelineExecutionException e) {
+      assertTrue(
+          "Expected cause to be of type ClassCastException",
+          e.getCause() instanceof ClassCastException);
+    }
+  }
+
+  //   @Test
+  //   public void testErrorHandling() {
+  //     DatadogWriteSchemaTransformProvider provider = new DatadogWriteSchemaTransformProvider();
+  //     provider.setDatadogWriter(
+  //         (SerializableFunction<Integer, DatadogIO.Write>)
+  //             (SerializableFunction<Integer, DatadogIO.Write>)
+  //                 unused ->
+  //                     DatadogIO.write()
+  //                         .withApiKey("test-api-key")
+  //                         .withUrl("http://localhost:8080")
+  //                         .withBatchCount(1)
+  //                         .withMaxBufferSize(1L)
+  //                         .withParallelism(1));
+
+  //     ErrorHandling errorHandling = ErrorHandling.builder().setOutput("errors").build();
+  //     DatadogWriteSchemaTransformConfiguration configuration =
+  //         DatadogWriteSchemaTransformConfiguration.builder()
+  //             .setApiKey("test-api-key")
+  //             .setUrl("http://localhost:8080")
+  //             .setErrorHandling(errorHandling)
+  //             .build();
+
+  //     Schema nullSchema =
+  //         Schema.builder()
+  //             .addStringField("ddsource")
+  //             .addNullableField("ddtags", Schema.FieldType.STRING)
+  //             .addStringField("hostname")
+  //             .addNullableField("service", Schema.FieldType.STRING)
+  //             .addNullableField("message", Schema.FieldType.STRING)
+  //             .build();
+
+  //     Row row =
+  //         Row.withSchema(nullSchema)
+  //             .withFieldValue("ddsource", "my-source")
+  //             .withFieldValue("ddtags", "tag1:value1,tag2")
+  //             .withFieldValue("hostname", "my-host")
+  //             .withFieldValue("service", "my-service")
+  //             .withFieldValue("message", null)
+  //             .build();
+
+  //     PCollection<Row> input = p.apply(Create.of(row).withRowSchema(nullSchema));
+  //     PCollectionRowTuple inputTuple = PCollectionRowTuple.of("input", input);
+
+  //     SchemaTransform transform = provider.from(configuration);
+  //     PCollectionRowTuple outputTuple = transform.expand(inputTuple);
+
+  //     assertTrue(outputTuple.has("errors"));
+  //     PAssert.that(outputTuple.get("errors"))
+  //         .satisfies(
+  //             (errors) -> {
+  //               assertEquals(1, errors.spliterator().getExactSizeIfKnown());
+  //               return null;
+  //             });
+
+  //     p.run().waitUntilFinish();
+  //   }
 
   @Test
   public void testConfigurationSchema() throws NoSuchSchemaException {
