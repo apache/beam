@@ -73,6 +73,8 @@ RUN groupadd --gid 20000 appgroup \
 
 RUN mkdir -p /opt/playground/backend/executable_files/
 
+RUN pip install apache-beam[gcp,interactive]==$BEAM_VERSION
+
 # Chown all required files to the `appuser`.
 RUN chown -R appuser:appgroup /opt/playground/backend/executable_files/ && chmod +x /entrypoint.sh
 
