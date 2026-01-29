@@ -88,12 +88,14 @@ def decode_and_preprocess(image_bytes: bytes, size: int = 224) -> torch.Tensor:
 
     # To tensor [0..1]
     import numpy as np
+    mean = np.array(IMAGENET_MEAN, dtype=np.float32)
+    std = np.array(IMAGENET_STD, dtype=np.float32)
     arr = np.asarray(img).astype("float32") / 255.0  # H,W,3
     # Normalize
-    arr = (arr - IMAGENET_MEAN) / IMAGENET_STD
+    arr = (arr - mean) / std
     # HWC -> CHW
-    arr = np.transpose(arr, (2, 0, 1))
-    return torch.from_numpy(arr)  # float32, shape (3,224,224)
+    arr = np.transpose(arr, (2, 0, 1)).astype("float32")
+    return torch.from_numpy(arr).float()  # float32, shape (3,224,224)
 
 
 class RateLimitDoFn(beam.DoFn):
@@ -480,7 +482,7 @@ def run(
 
   to_infer = (
       preprocessed
-      | 'ToKeyedTensor' >> beam.Map(lambda kv: (kv[0], kv[1]["tensor"])))
+      | 'ToKeyedTensor' >> beam.Map(lambda kv: (kv[0], kv[1]["tensor"].float())))
 
   predictions = (
       to_infer
