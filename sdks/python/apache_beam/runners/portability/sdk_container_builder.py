@@ -244,7 +244,7 @@ class _SdkContainerImageCloudBuilder(SdkContainerImageBuilder):
     build = cloud_build_types.Build()
     if self._cloud_build_machine_type:
       build.options = cloud_build_types.BuildOptions()
-      build.options.machineType = self._cloud_build_machine_type
+      build.options.machine_type = self._cloud_build_machine_type
     build.steps = []
     step = cloud_build_types.BuildStep()
     step.name = 'quay.io/buildah/stable:latest'
@@ -262,10 +262,10 @@ class _SdkContainerImageCloudBuilder(SdkContainerImageBuilder):
     build.steps.append(step)
 
     source = cloud_build_types.Source()
-    source.storageSource = cloud_build_types.StorageSource()
+    source.storage_source = cloud_build_types.StorageSource()
     gcs_bucket, gcs_object = self._get_gcs_bucket_and_name(gcs_location)
-    source.storageSource.bucket = os.path.join(gcs_bucket)
-    source.storageSource.object = gcs_object
+    source.storage_source.bucket = os.path.join(gcs_bucket)
+    source.storage_source.object = gcs_object
     build.source = source
     # TODO(zyichi): make timeout configurable
     build.timeout = '7200s'
