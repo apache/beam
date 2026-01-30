@@ -295,8 +295,6 @@ class ModelManager:
     pending requests, when space is needed.
   4. 'Isolation Mode' for safely profiling unknown models.
   """
-  _lock = threading.Lock()
-
   def __init__(
       self,
       monitor: Optional['GPUMonitor'] = None,
@@ -738,8 +736,6 @@ class ModelManager:
 
   def shutdown(self):
     self._delete_all_models()
-    gc.collect()
-    torch.cuda.empty_cache()
     self._monitor.stop()
 
   def __del__(self):

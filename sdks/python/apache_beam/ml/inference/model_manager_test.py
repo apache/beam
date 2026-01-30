@@ -121,7 +121,6 @@ class Counter(object):
 class TestModelManager(unittest.TestCase):
   def setUp(self):
     """Force reset the Singleton ModelManager before every test."""
-    ModelManager._instance = None
     self.mock_monitor = MockGPUMonitor()
     self.manager = ModelManager(monitor=self.mock_monitor)
 
@@ -366,7 +365,6 @@ class TestModelManager(unittest.TestCase):
 class TestModelManagerEviction(unittest.TestCase):
   def setUp(self):
     self.mock_monitor = MockGPUMonitor(total_memory=12000.0)
-    ModelManager._instance = None
     self.manager = ModelManager(
         monitor=self.mock_monitor,
         slack_percentage=0.0,
