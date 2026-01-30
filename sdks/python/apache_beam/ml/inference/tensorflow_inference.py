@@ -143,7 +143,8 @@ class TFModelHandlerNumpy(ModelHandler[numpy.ndarray,
           onto your machine. This can be useful if you exactly know your CPU or
           GPU capacity and want to maximize resource utilization.
         max_batch_weight: the maximum total weight of a batch.
-        element_size_fn: a function that returns the size (weight) of an element.
+        element_size_fn: a function that returns the size (weight) of an
+          element.
         kwargs: 'env_vars' can be used to set environment variables
           before loading the model.
 
@@ -275,7 +276,8 @@ class TFModelHandlerTensor(ModelHandler[tf.Tensor, PredictionResult,
           onto your machine. This can be useful if you exactly know your CPU or
           GPU capacity and want to maximize resource utilization.
         max_batch_weight: the maximum total weight of a batch.
-        element_size_fn: a function that returns the size (weight) of an element.
+        element_size_fn: a function that returns the size (weight) of an
+          element.
         kwargs: 'env_vars' can be used to set environment variables
           before loading the model.
 

@@ -19,7 +19,6 @@ import sys
 from abc import ABC
 from collections.abc import Callable
 from collections.abc import Iterable
-from collections.abc import Mapping
 from collections.abc import Sequence
 from typing import Any
 from typing import Optional

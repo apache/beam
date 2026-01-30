@@ -2140,23 +2140,16 @@ class FakeModelHandlerForSizing(base.ModelHandler[int, int, FakeModel]):
       max_batch_size: int = 10,
       max_batch_weight: Optional[int] = None,
       element_size_fn=None):
-    self._max_batch_size = max_batch_size
-    self._max_batch_weight = max_batch_weight
-    self._element_size_fn = element_size_fn
+    super().__init__(
+        max_batch_size=max_batch_size,
+        max_batch_weight=max_batch_weight,
+        element_size_fn=element_size_fn)
 
   def load_model(self) -> FakeModel:
     return FakeModel()
 
   def run_inference(self, batch, model, inference_args=None):
     return [model.predict(x) for x in batch]
-
-  def batch_elements_kwargs(self):
-    kwargs = {'max_batch_size': self._max_batch_size}
-    if self._max_batch_weight is not None:
-      kwargs['max_batch_weight'] = self._max_batch_weight
-    if self._element_size_fn:
-      kwargs['element_size_fn'] = self._element_size_fn
-    return kwargs
 
 
 class RunInferenceSizeTest(unittest.TestCase):
@@ -2189,6 +2182,101 @@ class RunInferenceSizeTest(unittest.TestCase):
         max_batch_size=1, element_size_fn=large_size_fn)
     kwargs = sized_handler.batch_elements_kwargs()
     self.assertEqual(kwargs['element_size_fn'](1), 1000000)
+
+
+class FakeModelHandlerForBatching(base.ModelHandler[int, int, FakeModel]):
+  """A ModelHandler used to test batching behavior via base class __init__."""
+  def __init__(self, **kwargs):
+    super().__init__(**kwargs)
+
+  def load_model(self) -> FakeModel:
+    return FakeModel()
+
+  def run_inference(self, batch, model, inference_args=None):
+    return [model.predict(x) for x in batch]
+
+
+class ModelHandlerBatchingArgsTest(unittest.TestCase):
+  """Tests for ModelHandler.__init__ batching parameters."""
+  def test_batch_elements_kwargs_all_args(self):
+    """All batching args passed to __init__ are in batch_elements_kwargs."""
+    def size_fn(x):
+      return 10
+
+    handler = FakeModelHandlerForBatching(
+        min_batch_size=5,
+        max_batch_size=20,
+        max_batch_duration_secs=30,
+        max_batch_weight=100,
+        element_size_fn=size_fn)
+
+    kwargs = handler.batch_elements_kwargs()
+
+    self.assertEqual(kwargs['min_batch_size'], 5)
+    self.assertEqual(kwargs['max_batch_size'], 20)
+    self.assertEqual(kwargs['max_batch_duration_secs'], 30)
+    self.assertEqual(kwargs['max_batch_weight'], 100)
+    self.assertIn('element_size_fn', kwargs)
+    self.assertEqual(kwargs['element_size_fn'](1), 10)
+
+  def test_batch_elements_kwargs_partial_args(self):
+    """Only provided batching args are included in kwargs."""
+    handler = FakeModelHandlerForBatching(max_batch_size=50)
+    kwargs = handler.batch_elements_kwargs()
+
+    self.assertEqual(kwargs, {'max_batch_size': 50})
+
+  def test_batch_elements_kwargs_empty_when_no_args(self):
+    """No batching kwargs when none are provided."""
+    handler = FakeModelHandlerForBatching()
+    kwargs = handler.batch_elements_kwargs()
+
+    self.assertEqual(kwargs, {})
+
+  def test_large_model_sets_share_across_processes(self):
+    """Setting large_model=True enables share_model_across_processes."""
+    handler = FakeModelHandlerForBatching(large_model=True)
+
+    self.assertTrue(handler.share_model_across_processes())
+
+  def test_model_copies_sets_share_across_processes(self):
+    """Setting model_copies enables share_model_across_processes."""
+    handler = FakeModelHandlerForBatching(model_copies=2)
+
+    self.assertTrue(handler.share_model_across_processes())
+    self.assertEqual(handler.model_copies(), 2)
+
+  def test_default_share_across_processes_is_false(self):
+    """Default share_model_across_processes is False."""
+    handler = FakeModelHandlerForBatching()
+
+    self.assertFalse(handler.share_model_across_processes())
+
+  def test_default_model_copies_is_one(self):
+    """Default model_copies is 1."""
+    handler = FakeModelHandlerForBatching()
+
+    self.assertEqual(handler.model_copies(), 1)
+
+  def test_env_vars_from_kwargs(self):
+    """Environment variables can be passed via kwargs."""
+    handler = FakeModelHandlerForBatching(env_vars={'MY_VAR': 'value'})
+
+    self.assertEqual(handler._env_vars, {'MY_VAR': 'value'})
+
+  def test_min_batch_size_only(self):
+    """min_batch_size can be passed alone."""
+    handler = FakeModelHandlerForBatching(min_batch_size=10)
+    kwargs = handler.batch_elements_kwargs()
+
+    self.assertEqual(kwargs, {'min_batch_size': 10})
+
+  def test_max_batch_duration_secs_only(self):
+    """max_batch_duration_secs can be passed alone."""
+    handler = FakeModelHandlerForBatching(max_batch_duration_secs=60)
+    kwargs = handler.batch_elements_kwargs()
+
+    self.assertEqual(kwargs, {'max_batch_duration_secs': 60})
 
 
 if __name__ == '__main__':
