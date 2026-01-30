@@ -301,8 +301,17 @@ class MultiProcessSharedSpawnProcessTest(unittest.TestCase):
 
   def tearDown(self):
     for p in multiprocessing.active_children():
-      p.terminate()
-      p.join()
+      if p.is_alive():
+        try:
+          p.terminate()
+          p.join(timeout=0.5)
+
+          if p.is_alive():
+            # Force kill if still alive
+            p.kill()
+            p.join(timeout=0.1)
+        except Exception:
+          pass
 
   def test_call(self):
     shared = multi_process_shared.MultiProcessShared(
