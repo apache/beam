@@ -26,7 +26,6 @@ import atexit
 import logging
 import multiprocessing.managers
 import os
-import sys
 import tempfile
 import threading
 import time
@@ -308,7 +307,7 @@ def _run_server_process(address_file, tag, constructor, authkey):
         fout.write(tb)
       os.rename(address_file + ".error.tmp", address_file + ".error")
     except Exception:
-      print(f"CRITICAL ERROR IN SHARED SERVER:\n{tb}", file=sys.stderr)
+      logging.error("CRITICAL ERROR IN SHARED SERVER:\n%s", tb)
     os._exit(1)
 
 
