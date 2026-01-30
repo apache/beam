@@ -15,16 +15,19 @@
 # limitations under the License.
 #
 
-import unittest
-import time
-import threading
 import random
+import threading
+import time
+import unittest
 from concurrent.futures import ThreadPoolExecutor
 from unittest.mock import patch
+
 from apache_beam.utils import multi_process_shared
 
 try:
-  from apache_beam.ml.inference.model_manager import ModelManager, GPUMonitor, ResourceEstimator
+  from apache_beam.ml.inference.model_manager import GPUMonitor
+  from apache_beam.ml.inference.model_manager import ModelManager
+  from apache_beam.ml.inference.model_manager import ResourceEstimator
 except ImportError as e:
   raise unittest.SkipTest("Model Manager dependencies are not installed")
 

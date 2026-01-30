@@ -24,18 +24,27 @@ ensuring that models are reused across different workers to optimize resource
 usage and performance.
 """
 
-import time
-import threading
-import subprocess
-import logging
 import gc
-import numpy as np
-from scipy.optimize import nnls
-import torch
 import heapq
 import itertools
-from collections import defaultdict, deque, Counter, OrderedDict
-from typing import Dict, Any, Tuple, Optional, Callable
+import logging
+import subprocess
+import threading
+import time
+from collections import Counter
+from collections import OrderedDict
+from collections import defaultdict
+from collections import deque
+from typing import Any
+from typing import Callable
+from typing import Dict
+from typing import Optional
+from typing import Tuple
+
+import numpy as np
+import torch
+from scipy.optimize import nnls
+
 from apache_beam.utils import multi_process_shared
 
 logger = logging.getLogger(__name__)
