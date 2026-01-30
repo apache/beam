@@ -20,6 +20,7 @@ package org.apache.beam.sdk.io.gcp.spanner.changestreams.dofn;
 import static org.apache.beam.sdk.io.gcp.spanner.changestreams.model.PartitionMetadata.State.SCHEDULED;
 import static org.junit.Assert.assertEquals;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -149,7 +150,8 @@ public class ReadChangeStreamPartitionDoFnTest {
             partitionStartRecordAction,
             partitionEndRecordAction,
             partitionEventRecordAction,
-            metrics))
+            metrics,
+            anyBoolean()))
         .thenReturn(queryChangeStreamAction);
 
     doFn.setup();

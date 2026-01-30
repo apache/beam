@@ -34,6 +34,7 @@ import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.ChangeStreamRecord
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.ChildPartitionsRecord;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.DataChangeRecord;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.HeartbeatRecord;
+import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.InitialPartition;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.PartitionEndRecord;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.PartitionEventRecord;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.PartitionMetadata;
@@ -89,6 +90,7 @@ public class QueryChangeStreamAction {
   private final PartitionEndRecordAction partitionEndRecordAction;
   private final PartitionEventRecordAction partitionEventRecordAction;
   private final ChangeStreamMetrics metrics;
+  private final boolean isMutableChangeStream;
 
   /**
    * Constructs an action class for performing a change stream query for a given partition.
@@ -106,6 +108,7 @@ public class QueryChangeStreamAction {
    * @param PartitionEndRecordAction action class to process {@link PartitionEndRecord}s
    * @param PartitionEventRecordAction action class to process {@link PartitionEventRecord}s
    * @param metrics metrics gathering class
+   * @param isMutableChangeStream whether the change stream is mutable or not
    */
   QueryChangeStreamAction(
       ChangeStreamDao changeStreamDao,
@@ -118,7 +121,8 @@ public class QueryChangeStreamAction {
       PartitionStartRecordAction partitionStartRecordAction,
       PartitionEndRecordAction partitionEndRecordAction,
       PartitionEventRecordAction partitionEventRecordAction,
-      ChangeStreamMetrics metrics) {
+      ChangeStreamMetrics metrics,
+      boolean isMutableChangeStream) {
     this.changeStreamDao = changeStreamDao;
     this.partitionMetadataDao = partitionMetadataDao;
     this.changeStreamRecordMapper = changeStreamRecordMapper;
@@ -130,6 +134,7 @@ public class QueryChangeStreamAction {
     this.partitionEndRecordAction = partitionEndRecordAction;
     this.partitionEventRecordAction = partitionEventRecordAction;
     this.metrics = metrics;
+    this.isMutableChangeStream = isMutableChangeStream;
   }
 
   /**
@@ -195,13 +200,22 @@ public class QueryChangeStreamAction {
     final Timestamp endTimestamp = partition.getEndTimestamp();
     final boolean isBoundedRestriction = !endTimestamp.equals(MAX_INCLUSIVE_END_AT);
     final Timestamp changeStreamQueryEndTimestamp =
-        isBoundedRestriction ? endTimestamp : getNextReadChangeStreamEndTimestamp();
+        isBoundedRestriction
+            ? getBoundedQueryEndTimestamp(endTimestamp)
+            : getNextReadChangeStreamEndTimestamp();
 
     // Once the changeStreamQuery completes we may need to resume reading from the partition if we
     // had an unbounded restriction for which we set an arbitrary query end timestamp and for which
     // we didn't  encounter any indications that the partition is done (explicit end records or
     // exceptions about being out of timestamp range).
-    boolean stopAfterQuerySucceeds = isBoundedRestriction;
+    boolean stopAfterQuerySucceeds = false;
+    if (InitialPartition.isInitialPartition(partition.getPartitionToken())) {
+      stopAfterQuerySucceeds = true;
+    } else {
+      stopAfterQuerySucceeds =
+          isBoundedRestriction && changeStreamQueryEndTimestamp.equals(endTimestamp);
+    }
+
     try (ChangeStreamResultSet resultSet =
         changeStreamDao.changeStreamQuery(
             token, startTimestamp, changeStreamQueryEndTimestamp, partition.getHeartbeatMillis())) {
@@ -378,5 +392,15 @@ public class QueryChangeStreamAction {
   private Timestamp getNextReadChangeStreamEndTimestamp() {
     final Timestamp current = Timestamp.now();
     return Timestamp.ofTimeSecondsAndNanos(current.getSeconds() + 2 * 60, current.getNanos());
+  }
+
+  // For Mutable Change Stream, Spanner only allow the max query end timestamp to be 2 minutes in
+  // the future.
+  private Timestamp getBoundedQueryEndTimestamp(Timestamp endTimestamp) {
+    if (this.isMutableChangeStream) {
+      Timestamp maxTimestamp = getNextReadChangeStreamEndTimestamp();
+      return maxTimestamp.compareTo(endTimestamp) < 0 ? maxTimestamp : endTimestamp;
+    }
+    return endTimestamp;
   }
 }
