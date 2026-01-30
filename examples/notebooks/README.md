@@ -33,7 +33,7 @@ community.
 6. Note: If the Colab saving process errors out, this could be due to an OAuth issue. Verify Colab has write permissions.
    If Colab does have permissions, one trick to force Colab to re-verify your Github OAuth is to toggle the 
    *Include a link to Colab* check box.
-6. Pull the latest changes from the remote branch.
+7. Pull the latest changes from the remote branch.
     ```sh
     git pull
     ```
@@ -42,12 +42,12 @@ community.
     git checkout -- file1 file2 .. fileN
     git pull
     ```
-7. Repeat for all the notebooks you want to add.
-8. From the project root directory, patch the Notebooks to point to the `master` branch instead of the local branch.
+8. Repeat for all the notebooks you want to add.
+9. From the project root directory, patch the Notebooks to point to the `master` branch instead of the local branch.
     ```sh
     python examples/notebooks/patch.py
     ```
-9. Squash all the commits into a single commit.
+10. Squash all the commits into a single commit.
     ```sh
     git commit --all --amend
     ```
