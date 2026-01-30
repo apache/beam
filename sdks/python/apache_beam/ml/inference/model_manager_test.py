@@ -302,7 +302,7 @@ class TestModelManager(unittest.TestCase):
     self.assertEqual(self.manager._pending_reservations, 0.0)
     self.assertFalse(self.manager._cv._is_owned())
 
-  def test_model_managaer_force_reset_on_exception(self):
+  def test_model_manager_force_reset_on_exception(self):
     """Test that force_reset clears all models from the manager."""
     model_name = "test_model"
 
