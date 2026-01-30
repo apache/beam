@@ -445,12 +445,9 @@ class ModelManager:
         while True:
           wait_time_elapsed = time.time() - wait_time_start
           if wait_time_elapsed > self._wait_timeout_seconds:
-            logger.warning(
-                "Long wait detected for model acquisition: "
-                "tag=%s ticket num=%s elapsed=%.1f seconds",
-                tag,
-                ticket_num,
-                wait_time_elapsed)
+            raise RuntimeError(
+                f"Timeout waiting to acquire model: {tag} "
+                f"after {wait_time_elapsed:.1f} seconds.")
           if not self._wait_queue or self._wait_queue[0][2] is not my_id:
             logger.info(
                 "Waiting for its turn: tag=%s ticket num=%s", tag, ticket_num)
