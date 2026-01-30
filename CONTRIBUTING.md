@@ -17,293 +17,387 @@
     under the License.
 -->
 
-# Contributing to Beam
+# Contributing to Apache Beam
 
-There are many ways to contribute to Beam, just one of which is by contributing code.
-For a full list of ways to contribute and get plugged into Beam, see the
-[Beam Contribution Guide](https://beam.apache.org/contribute/)
+Apache Beam welcomes many types of contributions, including code, documentation, and community help.
 
-## Code Contributions
+**Full guide:** https://beam.apache.org/contribute/
 
-*Before opening a pull request*, review the Beam contribution guide below.
-It lists steps that are required before creating a PR and provides tips for
-getting started. In particular, consider the following:
+---
 
-- Have you searched for existing, related Issues and pull requests?
-- Have you shared your intent by creating an issue and commenting that you plan to take it on?
-- If the change is large, have you discussed it on the dev@ mailing list?
-- Is the change being proposed clearly explained and motivated?
+## Before Opening a Pull Request
 
-These steps and instructions on getting started are outlined below as well.
+Before creating a PR, please:
 
-### Prerequisites
+- **Search** for existing issues or PRs to avoid duplication
+- **Create or comment** on an issue to share your intent
+- **Discuss** large changes or first-time contributions on `dev@beam.apache.org`
+- **Explain clearly** what you're changing and why
 
-- A [GitHub](https://github.com/) account.
-- A Linux, macOS, or Microsoft Windows development environment.
-- Java JDK 11 (preferred, or 8, 17, 21) installed.
-- Latest [Go](https://golang.org) 1.x installed.
-- [Docker](https://www.docker.com/) installed for some tasks including building worker containers and testing changes to this website locally.
-- For SDK Development:
-  - For manual testing, install any supported Python version (found [here](gradle.properties)) suffices.
-  - For running test suites, however, you will need Python interpreters for all Python versions supported by Beam.
-    Interpreters should be installed and available in shell via `python3.x` commands.
-    For more information, see:
-    Python installation tips in [Developer Wiki](https://cwiki.apache.org/confluence/display/BEAM/Python+Tips#PythonTips-InstallingPythoninterpreters).
-- For large contributions, a signed [Individual Contributor License
-  Agreement](https://www.apache.org/licenses/icla.pdf) (ICLA) to the Apache
-  Software Foundation (ASF).
+---
 
-### Share Your Intent
-1. Find or create an issue in the [Beam repo](https://github.com/apache/beam/issues/new/choose).
-   Tracking your work in an issue will avoid duplicated or conflicting work, and provide
-   a place for notes. Later, your pull request will be linked to the issue as well.
-2. Comment ".take-issue" on the issue. This will cause the issue to be assigned to you.
-   Comment ".free-issue" on the issue. This will cause the issue to be unassigned from you.
-   When you've completed the issue, you can close it by commenting ".close-issue".
-   If you are a committer and would like to assign an issue to a non-committer, they must comment
-   on the issue first; please tag the user asking them to do so or to comment "\`.take-issue\`".
-   The command will be ignored if it is surrounded by `\`` markdown characters.
-3. If your change is large or it is your first change, it is a good idea to
-   [discuss it on the dev@beam.apache.org mailing list](https://beam.apache.org/community/contact-us/).
-4. For large changes create a design doc
-   ([template](https://s.apache.org/beam-design-doc-template),
-   [examples](https://s.apache.org/beam-design-docs)) and email it to the [dev@beam.apache.org mailing list](https://beam.apache.org/community/contact-us/).
+## Prerequisites
 
-### Setup Your Environment and Learn About Language Specific Setup
+### Required Tools
 
-Before you begin, check out the Wiki pages. There are many useful tips about [Git](https://cwiki.apache.org/confluence/display/BEAM/Git+Tips), [Go](https://cwiki.apache.org/confluence/display/BEAM/Go+Tips), [Gradle](https://cwiki.apache.org/confluence/display/BEAM/Gradle+Tips), [Java](https://cwiki.apache.org/confluence/display/BEAM/Java+Tips), [Python](https://cwiki.apache.org/confluence/display/BEAM/Python+Tips), etc.
+- **GitHub account**
+- **Operating System:** Linux, macOS, or Windows
+- **Java JDK 11** (preferred; versions 8, 17, and 21 also supported)
+- **Go 1.x** (latest version)
+- **Docker** (for building worker containers and local testing)
 
-#### Configuration Options
-You have two options for configuring your development environment:
-- Local:
-  - Manually installing the [prerequisites](#prerequisites).
-  - Using the automated script for Linux and macOS.
-- Container-based: using a [Docker](https://www.docker.com/) image.
+### For SDK Development
 
-##### Local: Debian-based Distribution
+**Python:**
+- For manual testing: any supported Python version (see [gradle.properties](https://github.com/apache/beam/blob/master/gradle.properties))
+- For test suites: all Python versions supported by Beam must be installed and available via `python3.x` commands
+- Setup help: [Python Tips on Developer Wiki](https://cwiki.apache.org/confluence/display/BEAM/Python+Tips)
 
-###### Manual steps
+### For Large Contributions
 
-To install these in a Debian-based distribution:
-1. Execute:
-    ```
-    sudo apt-get install \
-       openjdk-11-jdk \
-       python-setuptools \
-       python-pip \
-       virtualenv \
-       tox \
-       docker-ce
-    ```
-2. On some systems, like Ubuntu 20.04, install these:
-    ```
-    pip3 install grpcio-tools mypy-protobuf
-    ```
-3. If you develop in GO:
-  1. Install [Go](https://golang.org/doc/install).
-  2. Check BEAM repo is in: `$GOPATH/src/github.com/apache/`
-  3. At the end, it should look like this: `$GOPATH/src/github.com/apache/beam`
-4. Once Go is installed, install goavro:
-    ```
-    $ export GOPATH=`pwd`/sdks/go/examples/.gogradle/project_gopath
-    $ go get github.com/linkedin/goavro/v2
-    ```
-**Important**: gLinux users should configure their machines for sudoless Docker.
+- Signed **Individual Contributor License Agreement (ICLA)** to Apache Software Foundation
+- Download: https://www.apache.org/licenses/icla.pdf
 
-###### Automated script for Linux and macOS
+---
 
-You can install these in a Debian-based distribution for Linux or macOS using the [local-env-setup.sh](https://github.com/apache/beam/blob/master/local-env-setup.sh) script, which is part of the Beam repo. It contains:
+## Share Your Intent
 
-* pip3 packages
-* go packages
-* goavro
-* JDK 11
-* Python
-* Docker
+### 1. Find or Create an Issue
 
-To install execute:
+Visit: https://github.com/apache/beam/issues/new/choose
+
+### 2. Use Issue Commands
+
+Comment on the issue to manage it:
+- **`.take-issue`** → assigns the issue to you
+- **`.free-issue`** → unassigns the issue from you
+- **`.close-issue`** → closes the issue when complete
+
+> **Note:** If you're a committer assigning to a non-committer, they must comment first. The command is ignored if surrounded by markdown backticks.
+
+### 3. Discuss Your Change
+
+For large changes or first contributions:
+- Email the mailing list: https://beam.apache.org/community/contact-us/
+
+### 4. Create a Design Document (for large changes)
+
+- Use the [design doc template](https://s.apache.org/beam-design-doc-template)
+- See [design doc examples](https://s.apache.org/beam-design-docs)
+- Email it to `dev@beam.apache.org`
+
+---
+
+## Environment Setup
+
+### Helpful Resources
+
+Check out the Wiki pages for tips on:
+- [Git](https://cwiki.apache.org/confluence/display/BEAM/Git+Tips)
+- [Go](https://cwiki.apache.org/confluence/display/BEAM/Go+Tips)
+- [Gradle](https://cwiki.apache.org/confluence/display/BEAM/Gradle+Tips)
+- [Java](https://cwiki.apache.org/confluence/display/BEAM/Java+Tips)
+- [Python](https://cwiki.apache.org/confluence/display/BEAM/Python+Tips)
+
+### Configuration Options
+
+You have two main options:
+
+#### Option 1: Local Setup
+
+**Manual Installation (Debian-based systems):**
+```bash
+sudo apt-get install \
+   openjdk-11-jdk \
+   python-setuptools \
+   python-pip \
+   virtualenv \
+   tox \
+   docker-ce
 ```
+
+For Ubuntu 20.04 and similar systems:
+```bash
+pip3 install grpcio-tools mypy-protobuf
+```
+
+**For Go Development:**
+1. Install [Go](https://golang.org/doc/install)
+2. Ensure Beam repo is in: `$GOPATH/src/github.com/apache/`
+3. Final path should be: `$GOPATH/src/github.com/apache/beam`
+4. Install goavro:
+```bash
+export GOPATH=`pwd`/sdks/go/examples/.gogradle/project_gopath
+go get github.com/linkedin/goavro/v2
+```
+
+> **Important:** gLinux users should configure machines for sudoless Docker.
+
+**Automated Script (Linux and macOS):**
+
+Use the included setup script that installs:
+- pip3 packages
+- Go packages
+- goavro
+- JDK 11
+- Python
+- Docker
+```bash
 ./local-env-setup.sh
 ```
 
-##### Container: Docker-based
+#### Option 2: Docker-Based Setup
 
-Alternatively, you can use the Docker based local development environment to wrap your clone of the Beam repo
-into a container meeting the requirements above.
-
-You can start this container using the [start-build-env.sh](https://github.com/apache/beam/blob/master/start-build-env.sh) script which is part of the Beam repo.
-
-Execute:
-```
+Use a Docker container that meets all requirements:
+```bash
 ./start-build-env.sh
 ```
 
-#### Development Setup {#development-setup}
+---
 
-1. Check [Git workflow tips](https://cwiki.apache.org/confluence/display/BEAM/Git+Tips) if you need help with git forking, cloning, branching, committing, pull requests, and squashing commits.
+## Development Setup
 
-2. Make a fork of https://github.com/apache/beam repo.
+### 1. Fork and Clone
 
-3. Clone the forked repository. You can download it anywhere you like.
-    ```
-    $ mkdir -p ~/path/to/your/folder
-    $ cd ~/path/to/your/folder
-    $ git clone https://github.com/forked/apache/beam
-    $ cd beam
-    ```
-   For **Go development**:
+See [Git workflow tips](https://cwiki.apache.org/confluence/display/BEAM/Git+Tips) for help with forking, cloning, branching, and committing.
 
-   We recommend putting it in your `$GOPATH` (`$HOME/go` by default on Unix systems).
+**Fork the repository:**
+- Go to https://github.com/apache/beam and fork it
 
-   Clone the repo, and update your branch as normal:
-    ```
-    $ git clone https://github.com/apache/beam.git
-    $ cd beam
-    $ git remote add <GitHub_user> git@github.com:<GitHub_user>/beam.git
-    $ git fetch --all
-    ```
+**Clone your fork:**
+```bash
+mkdir -p ~/path/to/your/folder
+cd ~/path/to/your/folder
+git clone https://github.com/<your-username>/beam
+cd beam
+```
 
-   Get or Update all the Go SDK dependencies:
-    ```
-    $ go get -u ./...
-    ```
+**For Go Development:**
 
-4. Check the environment was set up correctly.
+We recommend putting it in your `$GOPATH` (`$HOME/go` by default):
+```bash
+git clone https://github.com/apache/beam.git
+cd beam
+git remote add <GitHub_user> git@github.com:<GitHub_user>/beam.git
+git fetch --all
+```
 
-   **Option 1**: validate the Go, Java, and Python environments:
+Get or update Go SDK dependencies:
+```bash
+go get -u ./...
+```
 
-   **Important**: Make sure you have activated Python development.
-    ```
-    ./gradlew :checkSetup
-    ```
-   **Option 2**: Run independent checks:
-  - For **Go development**:
-      ```
-      export GOLANG_PROTOBUF_REGISTRATION_CONFLICT=ignore./gradlew :sdks:go:examples:wordCount
-      ```
-  - For **Python development**:
-      ```
-      ./gradlew :sdks:python:wordCount
-      ```
-  - For **Java development**:
-      ```
-      ./gradlew :examples:java:wordCount
-     ```
+### 2. Verify Your Setup
 
-5. Follow [Code change guide](contributor-docs/code-change-guide.md) to make code changes, setting up unit tests and test locally.
+**Option 1: Validate All Environments (Go, Java, Python)**
 
-    You may want to set up your preferred IDE and other aspects of your development environment. See the Developers' wiki for tips, guides, and FAQs on:
-   - [IntelliJ](https://cwiki.apache.org/confluence/display/BEAM/Using+IntelliJ+IDE)
-   - [Java](https://cwiki.apache.org/confluence/display/BEAM/Java+Tips)
-   - [Python](https://cwiki.apache.org/confluence/display/BEAM/Python+Tips)
-   - [Go](https://cwiki.apache.org/confluence/display/BEAM/Go+Tips)
-   - [Website](https://cwiki.apache.org/confluence/display/BEAM/Website+Tips)
-   - [Gradle](https://cwiki.apache.org/confluence/display/BEAM/Gradle+Tips)
-   - [Jenkins](https://cwiki.apache.org/confluence/display/BEAM/Jenkins+Tips)
-   - [FAQ](https://cwiki.apache.org/confluence/display/BEAM/Contributor+FAQ)
+> **Important:** Activate Python development first.
+```bash
+./gradlew :checkSetup
+```
 
-### Create a Pull Request
+**Option 2: Run Independent Checks**
 
-1. Make your code change. Every source file needs to include the Apache license header. Every new dependency needs to
-   have an open source license [compatible](https://www.apache.org/legal/resolved.html#criteria) with Apache.
+**Go:**
+```bash
+export GOLANG_PROTOBUF_REGISTRATION_CONFLICT=ignore
+./gradlew :sdks:go:examples:wordCount
+```
 
-2. Add unit tests for your change.
+**Python:**
+```bash
+./gradlew :sdks:python:wordCount
+```
 
-3. Use descriptive commit messages that make it easy to identify changes and provide a clear history.
+**Java:**
+```bash
+./gradlew :examples:java:wordCount
+```
 
-4. When your change is ready to be reviewed and merged, create a pull request.
+### 3. Follow the Code Change Guide
 
-5. Link to the issue you are addressing in your pull request.
+See [Code Change Guide](contributor-docs/code-change-guide.md) for:
+- Making code changes
+- Setting up unit tests
+- Testing locally
 
-6. The pull request and any changes pushed to it will trigger [pre-commit
-   jobs](https://cwiki.apache.org/confluence/display/BEAM/Contribution+Testing+Guide#ContributionTestingGuide-Pre-commit). If a test fails and appears unrelated to your
-   change, you can cause tests to be re-run by adding a single line comment on your
-   PR:
-    ```
-    retest this please
-    ```
-Pull request template has a link to a [catalog of trigger phrases](https://github.com/apache/beam/blob/master/.test-infra/jenkins/README.md)
-that start various post-commit tests suites. Use these sparingly because post-commit tests consume shared development resources.
+### 4. Set Up Your IDE (Optional)
 
-For detailed information about GitHub workflows, including how to trigger them
-manually and fix workflow issues, see the
-[workflows README](https://github.com/apache/beam/blob/master/.github/workflows/README.md).
+See developer Wiki guides for:
+- [IntelliJ](https://cwiki.apache.org/confluence/display/BEAM/Using+IntelliJ+IDE)
+- [Java Tips](https://cwiki.apache.org/confluence/display/BEAM/Java+Tips)
+- [Python Tips](https://cwiki.apache.org/confluence/display/BEAM/Python+Tips)
+- [Go Tips](https://cwiki.apache.org/confluence/display/BEAM/Go+Tips)
+- [Website Tips](https://cwiki.apache.org/confluence/display/BEAM/Website+Tips)
+- [Gradle Tips](https://cwiki.apache.org/confluence/display/BEAM/Gradle+Tips)
+- [Jenkins Tips](https://cwiki.apache.org/confluence/display/BEAM/Jenkins+Tips)
+- [Contributor FAQ](https://cwiki.apache.org/confluence/display/BEAM/Contributor+FAQ)
 
-### Review Process and Releases
+---
 
-#### Get Reviewed
+## Create a Pull Request
 
-Your pull requests should automatically have reviewers assigned within a few hours of opening it.
-If that doesn't happen for some reason, you can also request a review yourself.
+### 1. Make Your Code Change
 
-1. Pull requests can only be merged by a
-   [Beam committer](https://home.apache.org/phonebook.html?pmc=beam).
-   To find a committer for your area, either:
-  - look for similar code merges, or
-  - ask on [dev@beam.apache.org](https://beam.apache.org/community/contact-us/)
+- **Include Apache license headers** in every source file
+- **Ensure open source compatibility** for any new dependencies ([Apache compatibility criteria](https://www.apache.org/legal/resolved.html#criteria))
 
-   Use `R: @username` in the pull request to notify a reviewer.
+### 2. Add Unit Tests
 
-2. If you don't get any response in 3 business days, email the [dev@beam.apache.org mailing list](https://beam.apache.org/community/contact-us/) to ask for someone to look at your pull request.
+Write comprehensive unit tests for your changes.
 
-#### Make the Reviewer’s Job Easier
+### 3. Write Clear Commit Messages
 
-1. Provide context for your changes in the associated issue and/or PR description.
+Use descriptive commit messages that make it easy to identify changes and provide clear history.
 
-2. Avoid huge mega-changes.
+### 4. Open Your Pull Request
 
-3. Review feedback typically leads to follow-up changes. It is easier to review follow-up changes when they are added as additional "fixup" commits to the
-   existing PR/branch. This allows reviewer(s) to track the incremental progress and focus on new changes,
-   and keeps comment threads attached to the code.
-   Please refrain from squashing new commits into reviewed commits before review is completed.
-   Because squashing reviewed and unreviewed commits often makes it harder to
-   see the difference between the review iterations, reviewers may ask you to unsquash new changes.
+When your change is ready for review:
+- Create a pull request
+- Link to the issue you're addressing
 
-4. After review is complete and the PR is accepted, fixup commits should be squashed (see [Git workflow tips](https://cwiki.apache.org/confluence/display/BEAM/Git+Tips)).
-   Beam committers [can squash](https://beam.apache.org/contribute/committer-guide/#merging-it)
-   all commits in the PR during merge, however if a PR has a mixture of independent changes that should not be squashed, and fixup commits,
-   then the PR author should help squashing fixup commits to maintain a clean commit history.
+### 5. CI Tests
 
-#### Apache Beam Releases
+Pull requests trigger [pre-commit jobs](https://cwiki.apache.org/confluence/display/BEAM/Contribution+Testing+Guide#ContributionTestingGuide-Pre-commit) automatically.
 
-Apache Beam makes minor releases every 6 weeks. Apache Beam has a
-[calendar](https://calendar.google.com/calendar/embed?src=0p73sl034k80oob7seouanigd0%40group.calendar.google.com) for
-cutting the next release branch. Your change needs to be checked into master before the release branch is cut
-to make the next release.
+**To re-run failed tests**, comment:
+```
+retest this please
+```
 
-#### Stale Pull Requests
+**For post-commit tests**, see the [catalog of trigger phrases](https://github.com/apache/beam/blob/master/.test-infra/jenkins/README.md) in the PR template. Use these sparingly as they consume shared resources.
 
-The community will close stale pull requests in order to keep the project
-healthy. A pull request becomes stale after its author fails to respond to
-actionable comments for 60 days.  Author of a closed pull request is welcome to
-reopen the same pull request again in the future.
+**For workflow issues**, see the [workflows README](https://github.com/apache/beam/blob/master/.github/workflows/README.md).
 
-### Troubleshooting
+---
 
-If you run into any issues, check out the [contribution FAQ](https://cwiki.apache.org/confluence/display/BEAM/Contributor+FAQ) or ask on the [dev@ mailing list](https://beam.apache.org/community/contact-us/) or [#beam channel of the ASF Slack](https://beam.apache.org/community/contact-us/).
+## Review Process
 
-If you didn't find the information you were looking for in this guide, please
-[reach out to the Beam community](https://beam.apache.org/community/contact-us/).
+### Getting a Review
 
+Reviewers should be assigned automatically within a few hours. If not:
 
-## Find Efforts to Contribute to
-A great way to contribute is to join an existing effort. If you want to get involved but don’t have a project in mind, check our [list of open starter tasks](https://s.apache.org/beam-starter-tasks).
-For the most intensive efforts, check out the [roadmap](https://beam.apache.org/roadmap/).
+**Find a reviewer:**
+- Look for similar code merges, or
+- Ask on `dev@beam.apache.org`
+- Use `R: @username` in your PR to request a review
 
-## Contributing to the Developer Documentation
+**If no response in 3 business days:**
+- Email `dev@beam.apache.org` to request someone look at your PR
 
-New contributors are often best equipped to find gaps in the developer documentation.
-If you'd like to contribute to our documentation, either open a PR in the Beam repo with
-the proposed changes or make edits to the [Beam wiki](https://cwiki.apache.org/confluence/display/BEAM/Apache+Beam).
+> **Note:** Only [Beam committers](https://home.apache.org/phonebook.html?pmc=beam) can merge pull requests.
 
-By default, everyone has access to the wiki. If you wish to contribute changes,
-please create an account and request edit access on the dev@beam.apache.org mailing list (include your Wiki account user ID).
+### Making Reviews Easier
+
+**Provide context:**
+- Explain changes in the issue and PR description
+
+**Avoid huge changes:**
+- Break large changes into smaller PRs when possible
+
+**Handle feedback effectively:**
+- Add follow-up changes as **separate "fixup" commits**
+- This allows reviewers to track progress and see incremental changes
+- Keep comment threads attached to code
+- **Don't squash reviewed commits** until review is complete
+- Squashing makes it harder to see changes between iterations
+
+**After approval:**
+- Squash fixup commits (see [Git workflow tips](https://cwiki.apache.org/confluence/display/BEAM/Git+Tips))
+- Committers can squash all commits during merge
+- If PR has independent changes plus fixup commits, help squash the fixups
+
+---
+
+## Releases
+
+### Release Schedule
+
+- Apache Beam makes **minor releases every 6 weeks**
+- View the [release calendar](https://calendar.google.com/calendar/embed?src=0p73sl034k80oob7seouanigd0%40group.calendar.google.com)
+- Changes must be merged to master **before the release branch is cut**
+
+### Stale Pull Requests
+
+- PRs with no author response to comments for **60 days** will be closed
+- Closed PRs can be reopened anytime
+
+---
+
+## Contributing Documentation
+
+### Developer Documentation
+
+New contributors often find gaps in documentation. To contribute:
+
+**Option 1: Open a PR**
+- Submit changes directly to the Beam repository
+
+**Option 2: Edit the Wiki**
+- Edit the [Beam Wiki](https://cwiki.apache.org/confluence/display/BEAM/Apache+Beam)
+- Everyone has default access
+- To contribute changes, create an account and request edit access on `dev@beam.apache.org` (include your Wiki user ID)
+
+---
+
+## Where to Contribute
+
+### Starter Tasks
+
+Great for getting started:
+- https://s.apache.org/beam-starter-tasks
+
+### Roadmap
+
+For major efforts:
+- https://beam.apache.org/roadmap/
+
+---
 
 ## Additional Resources
-Please see Beam developers’ [Wiki Contributor FAQ](https://cwiki.apache.org/confluence/display/BEAM/Contributor+FAQ) for more information.
 
-If you are contributing a ```PTransform``` to Beam, we have an extensive [PTransform Style Guide](https://beam.apache.org/contribute/ptransform-style-guide).
+### Guides and Documentation
 
-If you are contributing a Runner to Beam, refer to the [Runner authoring guide](https://beam.apache.org/contribute/runner-guide/).
+- **Contributor FAQ:** https://cwiki.apache.org/confluence/display/BEAM/Contributor+FAQ
+- **PTransform Style Guide:** https://beam.apache.org/contribute/ptransform-style-guide
+- **Runner Authoring Guide:** https://beam.apache.org/contribute/runner-guide/
+- **Design Documents:** https://s.apache.org/beam-design-docs
 
-Review [design documents](https://s.apache.org/beam-design-docs).
+---
+
+## Troubleshooting
+
+If you run into issues:
+
+1. Check the [Contribution FAQ](https://cwiki.apache.org/confluence/display/BEAM/Contributor+FAQ)
+2. Ask on the [dev@ mailing list](https://beam.apache.org/community/contact-us/)
+3. Join the [#beam channel on ASF Slack](https://beam.apache.org/community/contact-us/)
+4. [Reach out to the Beam community](https://beam.apache.org/community/contact-us/)
+
+---
+
+## Quick Reference
+
+### Important Links
+
+- **Main Guide:** https://beam.apache.org/contribute/
+- **Repository:** https://github.com/apache/beam
+- **Issues:** https://github.com/apache/beam/issues
+- **Mailing List:** dev@beam.apache.org
+- **Community Contact:** https://beam.apache.org/community/contact-us/
+- **Wiki:** https://cwiki.apache.org/confluence/display/BEAM/Apache+Beam
+
+### Commands
+
+**Issue Management:**
+```
+.take-issue    # Assign to yourself
+.free-issue    # Unassign from yourself
+.close-issue   # Close the issue
+```
+
+**PR Testing:**
+```
+retest this please    # Re-run CI tests
+R: @username         # Request review
+```

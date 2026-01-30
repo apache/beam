@@ -3356,8 +3356,9 @@ public class BigQueryIO {
     /**
      * Choose the frequency at which file writes are triggered.
      *
-     * <p>This is only applicable when the write method is set to {@link Method#FILE_LOADS} or
-     * {@link Method#STORAGE_WRITE_API}, and only when writing an unbounded {@link PCollection}.
+     * <p>This is applicable when the write method is set to {@link Method#FILE_LOADS}, {@link
+     * Method#STORAGE_WRITE_API} or {@link Method#STORAGE_API_AT_LEAST_ONCE} and only when writing
+     * an unbounded {@link PCollection}.
      *
      * <p>Every triggeringFrequency duration, a BigQuery load job will be generated for all the data
      * written since the last load job. BigQuery has limits on how many load jobs can be triggered
