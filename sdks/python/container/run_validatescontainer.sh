@@ -86,7 +86,7 @@ if [[ "$ARCH" == "x86" ]]; then
   docker tag "apache/$IMAGE_NAME:$SDK_VERSION" "$CONTAINER:$TAG"
 
   # Push the container
-  gcloud docker -- push $CONTAINER:$TAG
+  docker push $CONTAINER:$TAG
 elif [[ "$ARCH" == "ARM" ]]; then
   # Reset the multi-arch Python SDK container image tag.
   TAG=$MULTIARCH_TAG
