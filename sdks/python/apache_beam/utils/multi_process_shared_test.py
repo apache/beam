@@ -22,6 +22,7 @@ import os
 import tempfile
 import threading
 import unittest
+from unittest.mock import patch
 from typing import Any
 
 from apache_beam.utils import multi_process_shared
@@ -299,19 +300,24 @@ class MultiProcessSharedSpawnProcessTest(unittest.TestCase):
         except OSError:
           pass
 
-  def tearDown(self):
-    for p in multiprocessing.active_children():
-      if p.is_alive():
-        try:
-          p.terminate()
-          p.join(timeout=0.5)
+    # Patch atexit.register to prevent hanging on exit
+    # on Windows due to multiprocessing issues.
+    self.atexit_patcher = patch('atexit.register')
+    self.mock_atexit = self.atexit_patcher.start()
+    self.captured_handlers = []
 
-          if p.is_alive():
-            # Force kill if still alive
-            p.kill()
-            p.join(timeout=0.1)
-        except Exception:
-          pass
+    def capture_handler(func, *args, **kwargs):
+      self.captured_handlers.append((func, args, kwargs))
+
+    self.mock_atexit.side_effect = capture_handler
+
+  def tearDown(self):
+    for func, args, kwargs in reversed(self.captured_handlers):
+      try:
+        func(*args, **kwargs)
+      except Exception:
+        pass
+    self.atexit_patcher.stop()
 
   def test_call(self):
     shared = multi_process_shared.MultiProcessShared(
