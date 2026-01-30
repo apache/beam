@@ -217,7 +217,8 @@ public class RequestResponseIO<RequestT, ResponseT>
    * for a {@link SerializableSupplier} instead of setting this directly is that some
    * implementations of {@link Sleeper} may not be {@link Serializable}.
    */
-  public RequestResponseIO<RequestT, ResponseT> withSleeperSupplier(SerializableSupplier<Sleeper> value) {
+  public RequestResponseIO<RequestT, ResponseT> withSleeperSupplier(
+      SerializableSupplier<Sleeper> value) {
     return new RequestResponseIO<>(
         rrioConfiguration, callConfiguration.toBuilder().setSleeperSupplier(value).build());
   }
