@@ -345,7 +345,8 @@ class ModelManager:
   def all_models(self, tag) -> list[Any]:
     return self._models[tag]
 
-  def enter_isolation_mode(self, tag: str, ticket_num: int) -> bool:
+  # Should hold _cv lock when calling
+  def try_enter_isolation_mode(self, tag: str, ticket_num: int) -> bool:
     if self._total_active_jobs > 0:
       logger.info(
           "Waiting to enter isolation: tag=%s ticket num=%s", tag, ticket_num)
@@ -363,6 +364,7 @@ class ModelManager:
     self._monitor.reset_peak()
     return True
 
+  # Should hold _cv lock when calling
   def should_spawn_model(self, tag: str, ticket_num: int) -> bool:
     curr, _, total = self._monitor.get_stats()
     est_cost = self._estimator.get_estimate(tag)
@@ -403,6 +405,8 @@ class ModelManager:
         curr,
         total_model_count,
         other_idle_count)
+    # Wait since we couldn't make space and
+    # added timeout to avoid missed notify call.
     self._cv.wait(timeout=10.0)
     return False
 
@@ -431,7 +435,6 @@ class ModelManager:
       heapq.heappush(
           self._wait_queue, (current_priority, ticket_num, my_id, tag))
 
-      should_spawn = False
       est_cost = 0.0
       is_unknown = False
 
@@ -465,8 +468,8 @@ class ModelManager:
 
           # Path A: Isolation
           if is_unknown:
-            if self.enter_isolation_mode(tag, ticket_num):
-              should_spawn = True
+            if self.try_enter_isolation_mode(tag, ticket_num):
+              # We got isolation, can proceed to spawn
               break
             else:
               # We waited, need to re-evaluate our turn
@@ -484,8 +487,8 @@ class ModelManager:
               continue
 
             if self.should_spawn_model(tag, ticket_num):
-              should_spawn = True
               est_cost = self._estimator.get_estimate(tag)
+              # We can proceed to spawn since we have resources
               break
             else:
               # We waited, need to re-evaluate our turn
@@ -497,14 +500,18 @@ class ModelManager:
         if self._wait_queue and self._wait_queue[0][2] is my_id:
           heapq.heappop(self._wait_queue)
         else:
+          logger.warning(
+              "Item not at head of wait queue during cleanup"
+              ", this is not expected: tag=%s ticket num=%s",
+              tag,
+              ticket_num)
           for i, item in enumerate(self._wait_queue):
             if item[2] is my_id:
               self._wait_queue.pop(i)
               heapq.heapify(self._wait_queue)
         self._cv.notify_all()
 
-      if should_spawn:
-        return self._spawn_new_model(tag, loader_func, is_unknown, est_cost)
+      return self._spawn_new_model(tag, loader_func, is_unknown, est_cost)
 
   def release_model(self, tag: str, instance: Any):
     with self._cv:
@@ -575,6 +582,7 @@ class ModelManager:
     now = time.time()
 
     # Calculate the demand from the wait queue
+    # TODO: Also factor in the active counts to avoid thrashing
     demand_map = Counter()
     for item in self._wait_queue:
       demand_map[item[3]] += 1
