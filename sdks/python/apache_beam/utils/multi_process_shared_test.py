@@ -443,14 +443,12 @@ class MultiProcessSharedSpawnProcessTest(unittest.TestCase):
         Counter, tag='unrelated_tag', always_proxy=True, spawn_process=True)
     _ = shared2.acquire()
 
-    pid_exists = True
-    try:
-      os.kill(server_pid, 0)
-    except OSError:
-      pid_exists = False
+    # If reaping worked, our old server_pid should NOT be in this list.
+    current_children_pids = [p.pid for p in multiprocessing.active_children()]
 
-    self.assertFalse(
-        pid_exists,
+    self.assertNotIn(
+        server_pid,
+        current_children_pids,
         f"Old server process {server_pid} was not reaped by acquire() sweep")
     try:
       shared2.unsafe_hard_delete()
