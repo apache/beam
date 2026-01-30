@@ -84,11 +84,12 @@ RUN  \
     rm -rf /root/.cache/pip && \
 
     # Update ensurepip to use most recent versions of setuptools and pip. This avoids some vulnerabilities which won't be fixed on older versions of python.
+    # upgrade_ensurepip may fail on Python 3.13+ due to ensurepip structure changes - allow failure and continue.
     pip install upgrade_ensurepip; \
-    python3 -m upgrade_ensurepip; \
-    find /usr/local/lib/python${py_version}/ensurepip/_bundled/setuptools-* -type f ! -name $(basename $(ls -v /usr/local/lib/python${py_version}/ensurepip/_bundled/setuptools-*-py3-none-any.whl | tail -n 1)) -delete; \
-    find /usr/local/lib/python${py_version}/ensurepip/_bundled/pip-* -type f ! -name $(basename $(ls -v /usr/local/lib/python${py_version}/ensurepip/_bundled/pip-*-py3-none-any.whl | tail -n 1)) -delete; \
-    pip uninstall upgrade_ensurepip -y; \
+    (python3 -m upgrade_ensurepip && \
+    find /usr/local/lib/python${py_version}/ensurepip/_bundled/setuptools-* -type f ! -name $(basename $(ls -v /usr/local/lib/python${py_version}/ensurepip/_bundled/setuptools-*-py3-none-any.whl 2>/dev/null | tail -n 1)) -delete 2>/dev/null; \
+    find /usr/local/lib/python${py_version}/ensurepip/_bundled/pip-* -type f ! -name $(basename $(ls -v /usr/local/lib/python${py_version}/ensurepip/_bundled/pip-*-py3-none-any.whl 2>/dev/null | tail -n 1)) -delete 2>/dev/null; \
+    pip uninstall upgrade_ensurepip -y) || true; \
     python3 -m ensurepip;
 
 ENTRYPOINT ["/opt/apache/beam/boot"]
