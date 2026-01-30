@@ -305,7 +305,8 @@ class ModelManager:
       min_data_points: int = 5,
       smoothing_factor: float = 0.2,
       eviction_cooldown_seconds: float = 10.0,
-      min_model_copies: int = 1):
+      min_model_copies: int = 1,
+      wait_timeout_seconds: float = 300.0):
 
     self._estimator = ResourceEstimator(
         min_data_points=min_data_points, smoothing_factor=smoothing_factor)
@@ -315,6 +316,7 @@ class ModelManager:
 
     self._eviction_cooldown = eviction_cooldown_seconds
     self._min_model_copies = min_model_copies
+    self._wait_timeout_seconds = wait_timeout_seconds
 
     # Resource State
     self._models = defaultdict(list)
@@ -437,9 +439,18 @@ class ModelManager:
 
       est_cost = 0.0
       is_unknown = False
+      wait_time_start = time.time()
 
       try:
         while True:
+          wait_time_elapsed = time.time() - wait_time_start
+          if wait_time_elapsed > self._wait_timeout_seconds:
+            logger.warning(
+                "Long wait detected for model acquisition: "
+                "tag=%s ticket num=%s elapsed=%.1f seconds",
+                tag,
+                ticket_num,
+                wait_time_elapsed)
           if not self._wait_queue or self._wait_queue[0][2] is not my_id:
             logger.info(
                 "Waiting for its turn: tag=%s ticket num=%s", tag, ticket_num)
