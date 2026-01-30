@@ -306,7 +306,8 @@ class ModelManager:
       smoothing_factor: float = 0.2,
       eviction_cooldown_seconds: float = 10.0,
       min_model_copies: int = 1,
-      wait_timeout_seconds: float = 300.0):
+      wait_timeout_seconds: float = 300.0,
+      lock_timeout_seconds: float = 60.0):
 
     self._estimator = ResourceEstimator(
         min_data_points=min_data_points, smoothing_factor=smoothing_factor)
@@ -317,6 +318,7 @@ class ModelManager:
     self._eviction_cooldown = eviction_cooldown_seconds
     self._min_model_copies = min_model_copies
     self._wait_timeout_seconds = wait_timeout_seconds
+    self._lock_timeout_seconds = lock_timeout_seconds
 
     # Resource State
     self._models = defaultdict(list)
@@ -352,7 +354,7 @@ class ModelManager:
     if self._total_active_jobs > 0:
       logger.info(
           "Waiting to enter isolation: tag=%s ticket num=%s", tag, ticket_num)
-      self._cv.wait()
+      self._cv.wait(timeout=self._lock_timeout_seconds)
       # return False since we have waited and need to re-evaluate
       # in caller to make sure our priority is still valid.
       return False
@@ -409,7 +411,7 @@ class ModelManager:
         other_idle_count)
     # Wait since we couldn't make space and
     # added timeout to avoid missed notify call.
-    self._cv.wait(timeout=10.0)
+    self._cv.wait(timeout=self._lock_timeout_seconds)
     return False
 
   def acquire_model(self, tag: str, loader_func: Callable[[], Any]) -> Any:
@@ -451,7 +453,7 @@ class ModelManager:
           if not self._wait_queue or self._wait_queue[0][2] is not my_id:
             logger.info(
                 "Waiting for its turn: tag=%s ticket num=%s", tag, ticket_num)
-            self._cv.wait()
+            self._cv.wait(timeout=self._lock_timeout_seconds)
             continue
 
           # Re-evaluate priority in case model became known during wait
@@ -491,7 +493,7 @@ class ModelManager:
                   "Waiting due to isolation in progress: tag=%s ticket num%s",
                   tag,
                   ticket_num)
-              self._cv.wait()
+              self._cv.wait(timeout=self._lock_timeout_seconds)
               continue
 
             if self.should_spawn_model(tag, ticket_num):

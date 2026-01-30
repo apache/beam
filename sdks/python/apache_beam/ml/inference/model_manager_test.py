@@ -156,6 +156,30 @@ class TestModelManager(unittest.TestCase):
         Counter, tag=tag, always_proxy=True).acquire()
     self.assertEqual(instance_after.get(), 0)
 
+  def test_model_manager_timeout_on_acquire(self):
+    """Test that acquiring a model times out properly."""
+    model_name = "timeout_model"
+    self.manager = ModelManager(
+        monitor=self.mock_monitor,
+        wait_timeout_seconds=1.0,
+        lock_timeout_seconds=1.0)
+
+    def loader():
+      self.mock_monitor.allocate(self.mock_monitor._total)
+      return model_name
+
+    # Acquire the model in one thread to block others
+    _ = self.manager.acquire_model(model_name, loader)
+
+    def acquire_model_with_timeout():
+      return self.manager.acquire_model(model_name, loader)
+
+    with ThreadPoolExecutor(max_workers=1) as executor:
+      future = executor.submit(acquire_model_with_timeout)
+      with self.assertRaises(RuntimeError) as context:
+        future.result(timeout=5.0)
+      self.assertIn("Timeout waiting to acquire model", str(context.exception))
+
   def test_model_manager_capacity_check(self):
     """
     Test that the manager blocks when spawning models exceeds the limit,
