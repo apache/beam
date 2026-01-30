@@ -141,7 +141,11 @@ class GPUMonitor:
 
   def _get_nvidia_smi_used(self) -> float:
     try:
-      cmd = ["nvidia-smi", "--query-gpu=memory.free", "--format=csv,noheader,nounits"]
+      cmd = [
+          "nvidia-smi",
+          "--query-gpu=memory.free",
+          "--format=csv,noheader,nounits"
+      ]
       output = subprocess.check_output(cmd, text=True).strip()
       free_memory = float(output)
       return self._total_memory - free_memory
