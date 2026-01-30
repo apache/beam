@@ -145,7 +145,8 @@ class GPUMonitor:
       output = subprocess.check_output(cmd, text=True).strip()
       free_memory = float(output)
       return self._total_memory - free_memory
-    except Exception:
+    except Exception as e:
+      logger.warning('Failed to get GPU memory usage: %s', e)
       return 0.0
 
   def _poll_loop(self):
