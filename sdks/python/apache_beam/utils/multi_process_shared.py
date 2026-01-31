@@ -30,7 +30,6 @@ import tempfile
 import threading
 import time
 import traceback
-import weakref
 from typing import Any
 from typing import Callable
 from typing import Dict
@@ -232,7 +231,7 @@ class _AutoProxyWrapper:
     self._proxyObject.unsafe_hard_delete()
 
 
-def _run_server_process(address_file, tag, constructor, authkey):
+def _run_server_process(address_file, tag, constructor, authkey, life_line):
   """
     Runs in a separate process.
     Includes a 'Suicide Pact' monitor: If parent dies, I die.
@@ -257,11 +256,9 @@ def _run_server_process(address_file, tag, constructor, authkey):
     """Checks if parent is alive every second."""
     while True:
       try:
-        # Sends a check to see if parent_pid is still alive,
-        # this call will fail with OSError if the parent has died
-        # and no-op if alive.
-        os.kill(parent_pid, 0)
-      except OSError:
+        # This will break if parent dies.
+        life_line.recv_bytes()
+      except (EOFError, OSError, BrokenPipeError):
         logging.warning(
             "Process %s detected Parent %s died. Self-destructing.",
             os.getpid(),
@@ -442,28 +439,26 @@ class MultiProcessShared(Generic[T]):
         except OSError:
           pass
 
+      # Create a pipe to connect with child process
+      # used to clean up child process if parent dies
+      reader, writer = multiprocessing.Pipe(duplex=False)
+      self._life_line = writer
+
       ctx = multiprocessing.get_context('spawn')
       p = ctx.Process(
           target=_run_server_process,
-          args=(address_file, self._tag, self._constructor, AUTH_KEY),
+          args=(address_file, self._tag, self._constructor, AUTH_KEY, reader),
           daemon=False  # Must be False for nested proxies
       )
       p.start()
       logging.info("Parent: Waiting for %s to write address file...", self._tag)
 
-      # Make a weakref so that on Windows we don't keep
-      # prevent the process from being GCed.
-      weakref_p = weakref.ref(p)
-
       def cleanup_process():
-        proc = weakref_p()
-        if proc and proc.is_alive():
+        if p.is_alive():
           logging.info(
-              "Parent: Terminating server process %s for %s",
-              proc.pid,
-              self._tag)
-          proc.terminate()
-          proc.join()
+              "Parent: Terminating server process %s for %s", p.pid, self._tag)
+          p.terminate()
+          p.join()
         try:
           if os.path.exists(address_file):
             os.remove(address_file)
