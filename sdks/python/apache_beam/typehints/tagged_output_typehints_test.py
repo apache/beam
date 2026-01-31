@@ -115,7 +115,7 @@ class DecoratorStyleTaggedOutputTest(unittest.TestCase):
 
   def test_flatmap_decorator_pipeline(self):
     """Test that tagged types propagate through FlatMap."""
-    @with_output_types(Iterable[int], errors=str)
+    @with_output_types(Iterable[int], errors=Iterable[str])
     def flatmapfn(element):
       if element < 0:
         yield beam.pvalue.TaggedOutput('errors', f'Negative: {element}')
@@ -151,7 +151,7 @@ class DecoratorStyleTaggedOutputTest(unittest.TestCase):
 
   def test_flatmaptuple_decorator_pipeline(self):
     """Test that tagged types propagate through FlatMapTuple."""
-    @with_output_types(Iterable[int], errors=str)
+    @with_output_types(Iterable[int], errors=Iterable[str])
     def flatmaptuplefn(key, value):
       if value < 0:
         yield beam.pvalue.TaggedOutput('errors', f'Negative: {key}={value}')

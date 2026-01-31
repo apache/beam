@@ -79,7 +79,6 @@ defined, or before importing a module containing type-hinted functions.
 
 # pytype: skip-file
 
-import collections.abc
 import inspect
 import itertools
 import logging
@@ -188,11 +187,6 @@ TRACEBACK_LIMIT = 5
 _NO_MAIN_TYPE = object()
 
 
-def _is_union_type(origin):
-  """Check if a type origin is a Union (typing.Union or types.UnionType)."""
-  return origin is Union or origin is types.UnionType
-
-
 def _tag_and_type(t):
   """Extract tag name and value type from TaggedOutput[Literal['tag'], Type].
 
@@ -215,74 +209,58 @@ def _tag_and_type(t):
   return tag_string, value_type
 
 
-def _extract_main_and_tagged(t):
-  """Extract main type and tagged types from a type annotation.
+def _extract_tagged_from_type(beam_type):
+  """Extract tagged output types from a Beam type (post-convert_to_beam_type).
+
+  Called after the Iterable wrapper has been removed.
+  At this point, the type has already been through convert_to_beam_type, so
+  unions are typehints.UnionConstraint (not typing.Union), but
+  TaggedOutput[Literal['tag'], T] passes through unchanged as a typing
+  generic alias.
 
   Returns:
-    (main_type, tagged_dict) where main_type is the type without TaggedOutput
-    annotations (or _NO_MAIN_TYPE if no main type), and tagged_dict maps tag
-    names to their types.
+    (clean_type, tagged_dict) where clean_type is the type without TaggedOutput
+    members (or _NO_MAIN_TYPE if no main type), and tagged_dict maps tag names
+    to their Beam types.
   """
-  if get_origin(t) is TaggedOutput:
-    tag, typ = _tag_and_type(t)
-    return _NO_MAIN_TYPE, {tag: typ}
+  # Single TaggedOutput[Literal['tag'], Type]
+  if get_origin(beam_type) is TaggedOutput:
+    tag, typ = _tag_and_type(beam_type)
+    return _NO_MAIN_TYPE, {tag: convert_to_beam_type(typ)}
 
-  if t is TaggedOutput:
+  # Bare TaggedOutput (unparameterized)
+  if beam_type is TaggedOutput:
     logging.warning(
         "TaggedOutput in return type must include type parameters: "
         "TaggedOutput[Literal['tag_name'], ValueType]. "
-        "Bare TaggedOutput falling back to Any.")
+        "Bare TaggedOutput will be ignored.")
     return _NO_MAIN_TYPE, {}
 
-  if not _is_union_type(get_origin(t)):
-    return t, {}
+  if not isinstance(beam_type, typehints.UnionHint.UnionConstraint):
+    return beam_type, {}
 
+  # UnionConstraint containing TaggedOutput members
   main_types = []
-  tagged_types = {}
-  for arg in get_args(t):
-    if get_origin(arg) is TaggedOutput:
-      tag, typ = _tag_and_type(arg)
-      tagged_types[tag] = typ
-    elif arg is TaggedOutput:
+  tagged = {}
+  for member in beam_type.union_types:
+    if get_origin(member) is TaggedOutput:
+      tag, typ = _tag_and_type(member)
+      tagged[tag] = convert_to_beam_type(typ)
+    elif member is TaggedOutput:
       logging.warning(
           "TaggedOutput in return type must include type parameters: "
           "TaggedOutput[Literal['tag_name'], ValueType]. "
-          "Bare TaggedOutput falling back to Any.")
+          "Bare TaggedOutput will be ignored.")
     else:
-      main_types.append(arg)
-
-  if len(main_types) == 0:
-    main_type = _NO_MAIN_TYPE
+      main_types.append(member)
+  if not tagged and len(main_types) == len(beam_type.union_types):
+    return beam_type, {}
+  if not main_types:
+    return _NO_MAIN_TYPE, tagged
   elif len(main_types) == 1:
-    main_type = main_types[0]
+    return main_types[0], tagged
   else:
-    main_type = Union[tuple(main_types)]
-
-  return main_type, tagged_types
-
-
-def _extract_output_types(return_annotation):
-  """Parse return annotation into (main_types, tagged_types).
-
-  For tagged outputs to be extracted from generator/iterator functions,
-  users must explicitly use Iterable[T | TaggedOutput[...]] as return type.
-
-  Returns raw Python types. Conversion to beam types happens in from_callable.
-  """
-  if return_annotation == inspect.Signature.empty:
-    return [Any], {}
-
-  # Iterable[T | TaggedOutput[...]]
-  if get_origin(return_annotation) is collections.abc.Iterable:
-    yield_type = get_args(return_annotation)[0]
-    clean_yield, tagged_types = _extract_main_and_tagged(yield_type)
-    clean_main = Any if clean_yield is _NO_MAIN_TYPE else clean_yield
-    return [Iterable[clean_main]], tagged_types
-
-  # T | TaggedOutput (or plain type with no tags)
-  main_type, tagged_types = _extract_main_and_tagged(return_annotation)
-  main = Any if main_type is _NO_MAIN_TYPE else main_type
-  return [main], tagged_types
+    return typehints.Union[tuple(main_types)], tagged
 
 
 class IOTypeHints(NamedTuple):
@@ -377,13 +355,11 @@ class IOTypeHints(NamedTuple):
               'Unsupported Parameter kind: %s' % param.kind
           input_args.append(convert_to_beam_type(param.annotation))
 
-    output_args, output_kwargs = _extract_output_types(
-        signature.return_annotation)
-    output_args = [convert_to_beam_type(t) for t in output_args]
-    output_kwargs = {
-        k: convert_to_beam_type(v)
-        for k, v in output_kwargs.items()
-    }
+    output_args = []
+    if signature.return_annotation != signature.empty:
+      output_args.append(convert_to_beam_type(signature.return_annotation))
+    else:
+      output_args.append(typehints.Any)
 
     name = getattr(fn, '__name__', '<unknown>')
     msg = ['from_callable(%s)' % name, '  signature: %s' % signature]
@@ -393,7 +369,7 @@ class IOTypeHints(NamedTuple):
           (fn.__code__.co_filename, fn.__code__.co_firstlineno))
     return IOTypeHints(
         input_types=(tuple(input_args), input_kwargs),
-        output_types=(tuple(output_args), output_kwargs),
+        output_types=(tuple(output_args), {}),
         origin=cls._make_origin([], tb=False, msg=msg))
 
   def with_input_types(self, *args, **kwargs) -> 'IOTypeHints':
@@ -544,9 +520,46 @@ class IOTypeHints(NamedTuple):
           origin=self._make_origin([self], tb=False, msg=['strip_iterable()']))
 
     yielded_type = typehints.get_yielded_type(output_type)
+
+    # Also strip Iterable from tagged output types (e.g. from Map/MapTuple
+    # which wrap both main and tagged types in Iterable).
+    stripped_tags = {
+        tag: typehints.get_yielded_type(hint)
+        for tag, hint in tagged_output_types.items()
+    }
+
     return self._replace(
-        output_types=((yielded_type, ), tagged_output_types),
+        output_types=((yielded_type, ), stripped_tags),
         origin=self._make_origin([self], tb=False, msg=['strip_iterable()']))
+
+  def extract_tagged_outputs(self):
+    """Extract TaggedOutput types from the main output type into kwargs.
+
+    For annotation style (e.g. -> Iterable[int | TaggedOutput[...]]),
+    TaggedOutput stays embedded in the main type through convert_to_beam_type
+    and strip_iterable. This method extracts those TaggedOutput members into
+    the tagged output kwargs dict.
+
+    Should be called after strip_iterable().
+
+    Returns:
+      A copy of this instance with TaggedOutput members moved from the main
+      output type into the output kwargs dict.
+    """
+    if self.output_types is None or not self.has_simple_output_type():
+      return self
+    output_type = self.output_types[0][0]
+
+    clean_type, extracted_tags = _extract_tagged_from_type(output_type)
+    if not extracted_tags:
+      return self
+    if clean_type is _NO_MAIN_TYPE:
+      clean_type = typehints.Any
+    return self._replace(
+        output_types=((clean_type, ), extracted_tags),
+        origin=self._make_origin([self],
+                                 tb=False,
+                                 msg=['extract_tagged_outputs()']))
 
   def with_defaults(self, hints: Optional['IOTypeHints']) -> 'IOTypeHints':
     if not hints:
