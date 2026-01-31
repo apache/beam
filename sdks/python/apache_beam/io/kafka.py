@@ -277,6 +277,7 @@ class WriteToKafka(ExternalTransform):
 
     When with_headers=True, the input PCollection elements must be beam.Row
     objects with the following schema:
+
       - key: bytes (required) - The key of the record.
       - value: bytes (required) - The value of the record.
       - headers: List[Row(key=str, value=bytes)] (optional) - Record headers.
@@ -290,7 +291,8 @@ class WriteToKafka(ExternalTransform):
       'org.apache.kafka.common.serialization.ByteArraySerializer')
 
   URN = 'beam:transform:org.apache.beam:kafka_write:v1'
-  URN_WITH_HEADERS = 'beam:transform:org.apache.beam:kafka_write_with_headers:v1'
+  URN_WITH_HEADERS = (
+      'beam:transform:org.apache.beam:kafka_write_with_headers:v1')
 
   def __init__(
       self,
@@ -318,9 +320,8 @@ class WriteToKafka(ExternalTransform):
         Only ByteArraySerializer is supported when with_headers=True.
     :param expansion_service: The address (host:port) of the ExpansionService.
     """
-    if with_headers and (
-        key_serializer != self.byte_array_serializer or
-        value_serializer != self.byte_array_serializer):
+    if with_headers and (key_serializer != self.byte_array_serializer or
+                         value_serializer != self.byte_array_serializer):
       raise ValueError(
           'WriteToKafka(with_headers=True) only supports '
           'ByteArraySerializer for key and value.')
