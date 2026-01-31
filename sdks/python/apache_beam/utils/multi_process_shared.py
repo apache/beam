@@ -454,6 +454,8 @@ class MultiProcessShared(Generic[T]):
       logging.info("Parent: Waiting for %s to write address file...", self._tag)
 
       def cleanup_process():
+        if self._life_line:
+          self._life_line.close()
         if p.is_alive():
           logging.info(
               "Parent: Terminating server process %s for %s", p.pid, self._tag)
