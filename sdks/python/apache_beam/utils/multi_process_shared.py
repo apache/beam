@@ -30,13 +30,13 @@ import tempfile
 import threading
 import time
 import traceback
+import weakref
 from typing import Any
 from typing import Callable
 from typing import Dict
 from typing import Generic
 from typing import Optional
 from typing import TypeVar
-import weakref
 
 import fasteners
 

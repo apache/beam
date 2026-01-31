@@ -16,6 +16,7 @@
 #
 # pytype: skip-file
 
+import gc
 import logging
 import multiprocessing
 import os
@@ -300,6 +301,10 @@ class MultiProcessSharedSpawnProcessTest(unittest.TestCase):
           pass
 
   def tearDown(self):
+    # Force a garbage collection to ensure that any leftover references
+    # to the old server process proxy are cleaned up.
+    gc.collect()
+
     for p in multiprocessing.active_children():
       if p.is_alive():
         try:
@@ -434,14 +439,11 @@ class MultiProcessSharedSpawnProcessTest(unittest.TestCase):
     except Exception:
       pass
 
-    try:
-      os.kill(server_pid, 0)
-      is_zombie = True
-    except OSError:
-      is_zombie = False
-    self.assertTrue(
-        is_zombie,
-        f"Server process {server_pid} was reaped too early before acquire()")
+    current_children_pids = [p.pid for p in multiprocessing.active_children()]
+    self.assertIn(
+        server_pid,
+        current_children_pids,
+        f"Server process {server_pid} was prematurely reaped before acquire()")
 
     shared2 = multi_process_shared.MultiProcessShared(
         Counter, tag='unrelated_tag', always_proxy=True, spawn_process=True)
