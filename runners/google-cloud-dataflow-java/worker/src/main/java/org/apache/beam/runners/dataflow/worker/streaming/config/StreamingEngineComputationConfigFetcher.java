@@ -25,6 +25,7 @@ import com.google.api.services.dataflow.model.StreamingComputationConfig;
 import com.google.api.services.dataflow.model.StreamingConfigTask;
 import com.google.api.services.dataflow.model.WorkItem;
 import java.io.IOException;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
@@ -207,6 +208,10 @@ public final class StreamingEngineComputationConfigFetcher implements Computatio
         LOG.error("Parsing UserWorkerRunnerV1Settings failed", e);
       }
       pipelineConfig.setUserWorkerJobSettings(settings);
+    }
+
+    if (Objects.equals(2, config.getStreamingEngineStateTagEncodingVersion())) {
+      pipelineConfig.setEnableStateTagEncodingV2(true);
     }
 
     return pipelineConfig.build();

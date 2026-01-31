@@ -22,6 +22,7 @@ import static org.apache.beam.runners.dataflow.worker.counters.DataflowCounterUp
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.equalTo;
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.mock;
@@ -66,6 +67,8 @@ import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
 import org.apache.beam.runners.dataflow.worker.windmill.client.getdata.FakeGetDataClient;
 import org.apache.beam.runners.dataflow.worker.windmill.state.WindmillStateCache;
 import org.apache.beam.runners.dataflow.worker.windmill.state.WindmillStateReader;
+import org.apache.beam.runners.dataflow.worker.windmill.state.WindmillTagEncodingV1;
+import org.apache.beam.runners.dataflow.worker.windmill.state.WindmillTagEncodingV2;
 import org.apache.beam.runners.dataflow.worker.windmill.work.refresh.HeartbeatSender;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.metrics.MetricsContainer;
@@ -92,6 +95,7 @@ import org.mockito.MockitoAnnotations;
 /** Tests for {@link StreamingModeExecutionContext}. */
 @RunWith(JUnit4.class)
 public class StreamingModeExecutionContextTest {
+
   @Rule public transient Timeout globalTimeout = Timeout.seconds(600);
   @Mock private SideInputStateFetcher sideInputStateFetcher;
   @Mock private WindmillStateReader stateReader;
@@ -133,8 +137,7 @@ public class StreamingModeExecutionContextTest {
             executionStateRegistry,
             globalConfigHandle,
             Long.MAX_VALUE,
-            /*throwExceptionOnLargeOutput=*/ false,
-            /*enableWindmillTagEncodingV2=*/ false);
+            /*throwExceptionOnLargeOutput=*/ false);
   }
 
   private static Work createMockWork(Windmill.WorkItem workItem, Watermarks watermarks) {
@@ -404,6 +407,60 @@ public class StreamingModeExecutionContextTest {
       }
     } finally {
       sampler.stop();
+    }
+  }
+
+  @Test
+  public void testStateTagEncodingBasedOnConfig() {
+    for (Class<?> expectedEncoding :
+        Lists.newArrayList(WindmillTagEncodingV1.class, WindmillTagEncodingV2.class)) {
+      CounterSet counterSet = new CounterSet();
+      ConcurrentHashMap<String, String> stateNameMap = new ConcurrentHashMap<>();
+      StreamingGlobalConfigHandle globalConfigHandle =
+          new FixedGlobalConfigHandle(
+              StreamingGlobalConfig.builder()
+                  .setEnableStateTagEncodingV2(WindmillTagEncodingV2.class.equals(expectedEncoding))
+                  .build());
+      stateNameMap.put(NameContextsForTests.nameContextForTest().userName(), "testStateFamily");
+      executionContext =
+          new StreamingModeExecutionContext(
+              counterSet,
+              COMPUTATION_ID,
+              new ReaderCache(Duration.standardMinutes(1), Executors.newCachedThreadPool()),
+              stateNameMap,
+              WindmillStateCache.builder()
+                  .setSizeMb(options.getWorkerCacheMb())
+                  .build()
+                  .forComputation("comp"),
+              StreamingStepMetricsContainer.createRegistry(),
+              new DataflowExecutionStateTracker(
+                  ExecutionStateSampler.newForTest(),
+                  executionStateRegistry.getState(
+                      NameContext.forStage("stage"), "other", null, NoopProfileScope.NOOP),
+                  counterSet,
+                  PipelineOptionsFactory.create(),
+                  "test-work-item-id"),
+              executionStateRegistry,
+              globalConfigHandle,
+              Long.MAX_VALUE,
+              /*throwExceptionOnLargeOutput=*/ false);
+      Windmill.WorkItemCommitRequest.Builder outputBuilder =
+          Windmill.WorkItemCommitRequest.newBuilder();
+      NameContext nameContext = NameContextsForTests.nameContextForTest();
+      DataflowOperationContext operationContext =
+          executionContext.createOperationContext(nameContext);
+      StreamingModeExecutionContext.StepContext stepContext =
+          executionContext.getStepContext(operationContext);
+
+      executionContext.start(
+          "key",
+          createMockWork(
+              Windmill.WorkItem.newBuilder().setKey(ByteString.EMPTY).setWorkToken(17L).build(),
+              Watermarks.builder().setInputDataWatermark(new Instant(1000)).build()),
+          stateReader,
+          sideInputStateFetcher,
+          outputBuilder);
+      assertEquals(expectedEncoding, executionContext.getWindmillTagEncoding().getClass());
     }
   }
 }
