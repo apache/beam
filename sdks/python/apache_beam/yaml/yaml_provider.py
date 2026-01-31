@@ -490,7 +490,7 @@ class YamlProvider(Provider):
     return dict(
         type='object',
         additionalProperties=False,
-        **self._transforms[type]['config_schema'])
+        **self._transforms[type].get('config_schema', {}))
 
   def description(self, type):
     return self._transforms[type].get('description')
@@ -506,8 +506,9 @@ class YamlProvider(Provider):
       yaml_create_transform: Callable[
           [Mapping[str, Any], Iterable[beam.PCollection]], beam.PTransform]
   ) -> beam.PTransform:
-    from apache_beam.yaml.yaml_transform import expand_jinja, preprocess
     from apache_beam.yaml.yaml_transform import SafeLineLoader
+    from apache_beam.yaml.yaml_transform import expand_jinja
+    from apache_beam.yaml.yaml_transform import preprocess
     spec = self._transforms[type]
     try:
       import jsonschema
@@ -1062,7 +1063,7 @@ class YamlProviders:
            size: 30s
 
     Note that any Yaml transform can have a
-    [windowing parameter](https://github.com/apache/beam/blob/master/sdks/python/apache_beam/yaml/README.md#windowing),
+    [windowing parameter](https://beam.apache.org/documentation/sdks/yaml/#windowing),
     which is applied to its inputs (if any) or outputs (if there are no inputs)
     which means that explicit WindowInto operations are not typically needed.
 
@@ -1629,9 +1630,9 @@ def merge_providers(*provider_sets) -> Mapping[str, Iterable[Provider]]:
 @functools.cache
 def standard_providers():
   from apache_beam.yaml.yaml_combine import create_combine_providers
-  from apache_beam.yaml.yaml_mapping import create_mapping_providers
-  from apache_beam.yaml.yaml_join import create_join_providers
   from apache_beam.yaml.yaml_io import io_providers
+  from apache_beam.yaml.yaml_join import create_join_providers
+  from apache_beam.yaml.yaml_mapping import create_mapping_providers
   from apache_beam.yaml.yaml_specifiable import create_spec_providers
 
   return merge_providers(

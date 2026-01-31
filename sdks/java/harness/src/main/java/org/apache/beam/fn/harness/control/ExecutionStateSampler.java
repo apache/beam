@@ -131,6 +131,16 @@ public class ExecutionStateSampler {
   /** An {@link ExecutionState} represents the current state of an execution thread. */
   public interface ExecutionState {
 
+    interface ActiveState extends AutoCloseable {}
+
+    /**
+     * Activates this execution state within the {@link ExecutionStateTracker}. The returned
+     * closable will restore the previously active execution state.
+     *
+     * <p>Must only be invoked by the bundle processing thread.
+     */
+    ActiveState scopedActivate();
+
     /**
      * Activates this execution state within the {@link ExecutionStateTracker}.
      *
@@ -527,6 +537,9 @@ public class ExecutionStateSampler {
       // Read and written by the bundle processing thread frequently.
       private @Nullable ExecutionStateImpl previousState;
 
+      @SuppressWarnings("methodref")
+      private final ActiveState activeState = this::deactivate;
+
       private ExecutionStateImpl(
           String shortId,
           String ptransformId,
@@ -579,6 +592,12 @@ public class ExecutionStateSampler {
         currentStateLazy.lazySet(this);
         numTransitions += 1;
         numTransitionsLazy.lazySet(numTransitions);
+      }
+
+      @Override
+      public ActiveState scopedActivate() {
+        activate();
+        return activeState;
       }
 
       @Override

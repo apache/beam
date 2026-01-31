@@ -276,6 +276,28 @@ func main() {
 				args = append(args, "--add-modules="+module.GetStringValue())
 			}
 		}
+		// Add trusted Avro serializable classes
+		var serializableClassesList []string
+		if serializableClasses, ok := pipelineOptions.GetStructValue().GetFields()["avroSerializableClasses"]; ok {
+			for _, cls := range serializableClasses.GetListValue().GetValues() {
+				// User can specify an empty list, which is serialized as a single, blank value
+				if cls.GetStringValue() != "" {
+					serializableClassesList = append(serializableClassesList, cls.GetStringValue())
+				}
+			}
+		} else {
+			serializableClassesList = []string{
+				"java.math.BigDecimal",
+				"java.math.BigInteger",
+				"java.net.URI",
+				"java.net.URL",
+				"java.io.File",
+				"java.lang.Integer",
+			}
+		}
+		if len(serializableClassesList) > 0 {
+			args = append(args, "-Dorg.apache.avro.SERIALIZABLE_CLASSES="+strings.Join(serializableClassesList, ","))
+		}
 	}
 	// Automatically open modules for Java 11+
 	openModuleAgentJar := "/opt/apache/beam/jars/open-module-agent.jar"

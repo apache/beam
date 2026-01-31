@@ -163,79 +163,81 @@ public class ExecutionStateSamplerTest {
     tracker1.start("bundleId1");
     tracker2.start("bundleId2");
 
-    state1.activate();
-    state2.activate();
+    ExecutionStateTrackerStatus activeStateStatus1, activeStateStatus2;
+    try (ExecutionState.ActiveState activeState = state1.scopedActivate()) {
+      state2.activate();
 
-    // Check that the current threads PTransform id is available
-    assertEquals("ptransformId1", tracker1.getCurrentThreadsPTransformId());
-    assertEquals("ptransformId2", tracker2.getCurrentThreadsPTransformId());
+      // Check that the current threads PTransform id is available
+      assertEquals("ptransformId1", tracker1.getCurrentThreadsPTransformId());
+      assertEquals("ptransformId2", tracker2.getCurrentThreadsPTransformId());
 
-    // Check that the status returns a value as soon as it is activated.
-    ExecutionStateTrackerStatus activeBundleStatus1 = tracker1.getStatus();
-    ExecutionStateTrackerStatus activeBundleStatus2 = tracker2.getStatus();
-    assertEquals("ptransformId1", activeBundleStatus1.getPTransformId());
-    assertEquals("ptransformId2", activeBundleStatus2.getPTransformId());
-    assertEquals("ptransformIdName1", activeBundleStatus1.getPTransformUniqueName());
-    assertEquals("ptransformIdName2", activeBundleStatus2.getPTransformUniqueName());
-    assertEquals(Thread.currentThread(), activeBundleStatus1.getTrackedThread());
-    assertEquals(Thread.currentThread(), activeBundleStatus2.getTrackedThread());
-    assertThat(activeBundleStatus1.getStartTime().getMillis(), equalTo(1L));
-    assertThat(activeBundleStatus2.getStartTime().getMillis(), equalTo(1L));
-    assertThat(
-        activeBundleStatus1.getLastTransitionTime().getMillis(),
-        // Because we are using lazySet, we aren't guaranteed to see the latest value
-        // but we should definitely be seeing a value that isn't zero
-        equalTo(1L));
-    assertThat(
-        activeBundleStatus2.getLastTransitionTime().getMillis(),
-        // Internal implementation has this be equal to the second value we return (2 * 100L)
-        equalTo(1L));
+      // Check that the status returns a value as soon as it is activated.
+      ExecutionStateTrackerStatus activeBundleStatus1 = tracker1.getStatus();
+      ExecutionStateTrackerStatus activeBundleStatus2 = tracker2.getStatus();
+      assertEquals("ptransformId1", activeBundleStatus1.getPTransformId());
+      assertEquals("ptransformId2", activeBundleStatus2.getPTransformId());
+      assertEquals("ptransformIdName1", activeBundleStatus1.getPTransformUniqueName());
+      assertEquals("ptransformIdName2", activeBundleStatus2.getPTransformUniqueName());
+      assertEquals(Thread.currentThread(), activeBundleStatus1.getTrackedThread());
+      assertEquals(Thread.currentThread(), activeBundleStatus2.getTrackedThread());
+      assertThat(activeBundleStatus1.getStartTime().getMillis(), equalTo(1L));
+      assertThat(activeBundleStatus2.getStartTime().getMillis(), equalTo(1L));
+      assertThat(
+          activeBundleStatus1.getLastTransitionTime().getMillis(),
+          // Because we are using lazySet, we aren't guaranteed to see the latest value
+          // but we should definitely be seeing a value that isn't zero
+          equalTo(1L));
+      assertThat(
+          activeBundleStatus2.getLastTransitionTime().getMillis(),
+          // Internal implementation has this be equal to the second value we return (2 * 100L)
+          equalTo(1L));
 
-    waitTillActive.countDown();
-    waitForSamples.await();
+      waitTillActive.countDown();
+      waitForSamples.await();
 
-    // Check that the current threads PTransform id is available
-    assertEquals("ptransformId1", tracker1.getCurrentThreadsPTransformId());
-    assertEquals("ptransformId2", tracker2.getCurrentThreadsPTransformId());
+      // Check that the current threads PTransform id is available
+      assertEquals("ptransformId1", tracker1.getCurrentThreadsPTransformId());
+      assertEquals("ptransformId2", tracker2.getCurrentThreadsPTransformId());
 
-    // Check that we get additional data about the active PTransform.
-    ExecutionStateTrackerStatus activeStateStatus1 = tracker1.getStatus();
-    ExecutionStateTrackerStatus activeStateStatus2 = tracker2.getStatus();
-    assertEquals("ptransformId1", activeStateStatus1.getPTransformId());
-    assertEquals("ptransformId2", activeStateStatus2.getPTransformId());
-    assertEquals("ptransformIdName1", activeStateStatus1.getPTransformUniqueName());
-    assertEquals("ptransformIdName2", activeStateStatus2.getPTransformUniqueName());
-    assertEquals(Thread.currentThread(), activeStateStatus1.getTrackedThread());
-    assertEquals(Thread.currentThread(), activeStateStatus2.getTrackedThread());
-    assertThat(
-        activeStateStatus1.getLastTransitionTime(),
-        greaterThan(activeBundleStatus1.getLastTransitionTime()));
-    assertThat(
-        activeStateStatus2.getLastTransitionTime(),
-        greaterThan(activeBundleStatus2.getLastTransitionTime()));
+      // Check that we get additional data about the active PTransform.
+      activeStateStatus1 = tracker1.getStatus();
+      activeStateStatus2 = tracker2.getStatus();
+      assertEquals("ptransformId1", activeStateStatus1.getPTransformId());
+      assertEquals("ptransformId2", activeStateStatus2.getPTransformId());
+      assertEquals("ptransformIdName1", activeStateStatus1.getPTransformUniqueName());
+      assertEquals("ptransformIdName2", activeStateStatus2.getPTransformUniqueName());
+      assertEquals(Thread.currentThread(), activeStateStatus1.getTrackedThread());
+      assertEquals(Thread.currentThread(), activeStateStatus2.getTrackedThread());
+      assertThat(
+          activeStateStatus1.getLastTransitionTime(),
+          greaterThan(activeBundleStatus1.getLastTransitionTime()));
+      assertThat(
+          activeStateStatus2.getLastTransitionTime(),
+          greaterThan(activeBundleStatus2.getLastTransitionTime()));
 
-    // Validate intermediate monitoring data
-    Map<String, ByteString> intermediateResults1 = new HashMap<>();
-    Map<String, ByteString> intermediateResults2 = new HashMap<>();
-    tracker1.updateIntermediateMonitoringData(intermediateResults1);
-    tracker2.updateIntermediateMonitoringData(intermediateResults2);
-    assertThat(
-        MonitoringInfoEncodings.decodeInt64Counter(intermediateResults1.get("shortId1")),
-        // Because we are using lazySet, we aren't guaranteed to see the latest value.
-        // The CountDownLatch ensures that we will see either the prior value or
-        // the latest value.
-        anyOf(equalTo(900L), equalTo(1000L)));
-    assertThat(
-        MonitoringInfoEncodings.decodeInt64Counter(intermediateResults2.get("shortId2")),
-        // Because we are using lazySet, we aren't guaranteed to see the latest value.
-        // The CountDownLatch ensures that we will see either the prior value or
-        // the latest value.
-        anyOf(equalTo(900L), equalTo(1000L)));
+      // Validate intermediate monitoring data
+      Map<String, ByteString> intermediateResults1 = new HashMap<>();
+      Map<String, ByteString> intermediateResults2 = new HashMap<>();
+      tracker1.updateIntermediateMonitoringData(intermediateResults1);
+      tracker2.updateIntermediateMonitoringData(intermediateResults2);
+      assertThat(
+          MonitoringInfoEncodings.decodeInt64Counter(intermediateResults1.get("shortId1")),
+          // Because we are using lazySet, we aren't guaranteed to see the latest value.
+          // The CountDownLatch ensures that we will see either the prior value or
+          // the latest value.
+          anyOf(equalTo(900L), equalTo(1000L)));
+      assertThat(
+          MonitoringInfoEncodings.decodeInt64Counter(intermediateResults2.get("shortId2")),
+          // Because we are using lazySet, we aren't guaranteed to see the latest value.
+          // The CountDownLatch ensures that we will see either the prior value or
+          // the latest value.
+          anyOf(equalTo(900L), equalTo(1000L)));
 
-    waitTillIntermediateReport.countDown();
-    waitForMoreSamples.await();
+      waitTillIntermediateReport.countDown();
+      waitForMoreSamples.await();
+      state2.deactivate();
+    }
     state1.deactivate();
-    state2.deactivate();
 
     waitTillStatesDeactivated.countDown();
     waitForEvenMoreSamples.await();

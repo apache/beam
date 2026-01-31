@@ -134,6 +134,11 @@ echo ">>> Successfully built and push container $CONTAINER"
 cd sdks/python
 SDK_LOCATION=$2
 
+echo ">>> Configuring Docker authentication for GCR"
+gcloud --quiet auth configure-docker us.gcr.io
+gcloud --quiet auth configure-docker gcr.io
+gcloud auth print-access-token | docker login -u oauth2accesstoken --password-stdin https://us.gcr.io
+
 echo ">>> RUNNING DATAFLOW RUNNER VALIDATESCONTAINER TEST"
 pytest -o log_cli=True -o log_level=Info -o junit_suite_name=$IMAGE_NAME \
   -m=it_validatescontainer \

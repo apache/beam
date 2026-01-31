@@ -17,7 +17,6 @@
  */
 package org.apache.beam.sdk.io.gcp.bigquery;
 
-import com.google.api.services.bigquery.model.TableRow;
 import com.google.api.services.bigquery.model.TableSchema;
 import java.io.Serializable;
 import org.apache.avro.Schema;
@@ -41,29 +40,29 @@ abstract class RowWriterFactory<ElementT, DestinationT> implements Serializable 
       String tempFilePrefix, DestinationT destination) throws Exception;
 
   static <ElementT, DestinationT> RowWriterFactory<ElementT, DestinationT> tableRows(
-      SerializableFunction<ElementT, TableRow> toRow,
-      SerializableFunction<ElementT, TableRow> toFailsafeRow) {
+      BigQueryIO.TableRowFormatFunction<ElementT> toRow,
+      BigQueryIO.TableRowFormatFunction<ElementT> toFailsafeRow) {
     return new TableRowWriterFactory<ElementT, DestinationT>(toRow, toFailsafeRow);
   }
 
   static final class TableRowWriterFactory<ElementT, DestinationT>
       extends RowWriterFactory<ElementT, DestinationT> {
 
-    private final SerializableFunction<ElementT, TableRow> toRow;
-    private final SerializableFunction<ElementT, TableRow> toFailsafeRow;
+    private final BigQueryIO.TableRowFormatFunction<ElementT> toRow;
+    private final BigQueryIO.TableRowFormatFunction<ElementT> toFailsafeRow;
 
     private TableRowWriterFactory(
-        SerializableFunction<ElementT, TableRow> toRow,
-        SerializableFunction<ElementT, TableRow> toFailsafeRow) {
+        BigQueryIO.TableRowFormatFunction<ElementT> toRow,
+        BigQueryIO.TableRowFormatFunction<ElementT> toFailsafeRow) {
       this.toRow = toRow;
       this.toFailsafeRow = toFailsafeRow;
     }
 
-    public SerializableFunction<ElementT, TableRow> getToRowFn() {
+    public BigQueryIO.TableRowFormatFunction<ElementT> getToRowFn() {
       return toRow;
     }
 
-    public SerializableFunction<ElementT, TableRow> getToFailsafeRowFn() {
+    public BigQueryIO.TableRowFormatFunction<ElementT> getToFailsafeRowFn() {
       if (toFailsafeRow == null) {
         return toRow;
       }
@@ -76,9 +75,10 @@ abstract class RowWriterFactory<ElementT, DestinationT> implements Serializable 
     }
 
     @Override
+    @SuppressWarnings("nullness")
     public BigQueryRowWriter<ElementT> createRowWriter(
         String tempFilePrefix, DestinationT destination) throws Exception {
-      return new TableRowWriter<>(tempFilePrefix, toRow);
+      return new TableRowWriter<>(tempFilePrefix, toRow.toSerializableFunction());
     }
 
     @Override

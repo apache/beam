@@ -47,8 +47,8 @@ except ImportError:
 
 # pylint: disable=wrong-import-order, wrong-import-position, ungrouped-imports
 try:
-  from testcontainers.postgres import PostgresContainer
   from testcontainers.mysql import MySqlContainer
+  from testcontainers.postgres import PostgresContainer
 except ImportError:
   PostgresContainer = None
 # pylint: enable=wrong-import-order, wrong-import-position, ungrouped-imports

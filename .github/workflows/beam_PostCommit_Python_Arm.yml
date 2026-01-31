@@ -60,13 +60,15 @@ jobs:
       matrix:
         job_name: [beam_PostCommit_Python_Arm]
         job_phrase: [Run Python PostCommit Arm]
-        python_version: ['3.9', '3.13']
+        python_version: ['3.10', '3.13']
     if: |
       github.event_name == 'workflow_dispatch' ||
       github.event_name == 'pull_request_target' ||
       (github.event_name == 'schedule' && github.repository == 'apache/beam')
     steps:
       - uses: actions/checkout@v4
+      - name: Free Disk Space (Ubuntu)
+        uses: jlumbroso/free-disk-space@v1.3.1
       - name: Setup repository
         uses: ./.github/actions/setup-action
         with:

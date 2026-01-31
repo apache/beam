@@ -75,6 +75,16 @@ func WithOutputTimestamp(outputTimestamp time.Time) timerOptions {
 	}
 }
 
+// WithNoOutputTimestamp sets the timer without an output timestamp.
+// The output watermark will not be held up, and it is illegal to output
+// messages from this timer triggering using the default output timestamp.
+func WithNoOutputTimestamp() timerOptions {
+	return func(tm *timerConfig) {
+		tm.HoldSet = true
+		tm.HoldTimestamp = mtime.MaxTimestamp
+	}
+}
+
 // Context is a parameter for OnTimer methods to receive the fired Timer.
 type Context struct {
 	Family string

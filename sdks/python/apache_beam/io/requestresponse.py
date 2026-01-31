@@ -35,7 +35,6 @@ from typing import Tuple
 from typing import TypeVar
 from typing import Union
 
-import redis
 from google.api_core.exceptions import TooManyRequests
 
 import apache_beam as beam
@@ -45,6 +44,11 @@ from apache_beam.io.components.adaptive_throttler import AdaptiveThrottler
 from apache_beam.metrics import Metrics
 from apache_beam.transforms.util import BatchElements
 from apache_beam.utils import retry
+
+try:
+  import redis
+except ImportError:
+  redis = None
 
 RequestT = TypeVar('RequestT')
 ResponseT = TypeVar('ResponseT')
@@ -688,6 +692,11 @@ class RedisCache(Cache):
     self._response_coder = response_coder
     self._kwargs = kwargs if kwargs else {}
     self._source_caller = None
+
+    if redis is None:
+      raise ImportError(
+          'Failed to import redis. You can ensure it is '
+          'installed by installing the redis beam extra')
 
   def get_read(self):
     """get_read returns a PTransform for reading from the cache."""

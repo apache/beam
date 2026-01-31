@@ -68,9 +68,12 @@
     opacity: 0;
     width: 0;
     overflow-y: scroll;
+    color: #10141b;
   }
 
   &:hover {
+    text-decoration: none;
+
     .case-study-used-by-card-description {
       font-size: 14px;
       line-height: 1.63;

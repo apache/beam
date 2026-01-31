@@ -48,7 +48,7 @@ task check {
           return
         }
 
-        // precommit and postcommit should triggered by this specific file
+        // precommit and postcommit should be triggered by this specific file
         // this is to ensure not missing test during release branch verification
         if (paths != null && !paths.contains('release/trigger_all_tests.json') && !fname.toLowerCase().contains('sickbay') && !workflow.name.toLowerCase().contains('disabled')) {
           errors.add("Error validating ${fname}: " +
@@ -56,7 +56,7 @@ task check {
           return
         }
 
-        // postcommit should triggered by a specific file so that there is a way to exercise post for open PR
+        // postcommit should be triggered by a specific file so that there is a way to exercise post for open PR
         // TODO(https://github.com/apache/beam/issues/28909)
         //  remove file match trigger once a better trigger (e.g. comment trigger) is implemented
         if (fname.startsWith("beam_PostCommit")) {

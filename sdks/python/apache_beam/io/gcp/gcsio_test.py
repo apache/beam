@@ -34,15 +34,17 @@ from apache_beam.pipeline import PipelineOptions
 from apache_beam.runners.worker import statesampler
 from apache_beam.utils import counters
 
-# pylint: disable=wrong-import-order, wrong-import-position
+# pylint: disable=wrong-import-order, wrong-import-position, ungrouped-imports
 
 try:
+  from google.cloud.exceptions import BadRequest
+  from google.cloud.exceptions import NotFound
+
   from apache_beam.io.gcp import gcsio
   from apache_beam.io.gcp.gcsio_retry import DEFAULT_RETRY_WITH_THROTTLING_COUNTER
-  from google.cloud.exceptions import BadRequest, NotFound
 except ImportError:
   NotFound = None
-# pylint: enable=wrong-import-order, wrong-import-position
+# pylint: enable=wrong-import-order, wrong-import-position, ungrouped-imports
 
 DEFAULT_GCP_PROJECT = 'apache-beam-testing'
 

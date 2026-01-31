@@ -28,8 +28,10 @@ import com.google.cloud.spanner.Mutation;
 import com.google.cloud.spanner.Struct;
 import com.google.cloud.spanner.Type;
 import java.math.BigDecimal;
+import java.time.Instant;
 import java.util.List;
 import org.apache.beam.sdk.schemas.Schema;
+import org.apache.beam.sdk.schemas.logicaltypes.MicrosInstant;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.joda.time.DateTime;
@@ -44,6 +46,7 @@ public class MutationUtilsTest {
   private static final Struct EMPTY_STRUCT = Struct.newBuilder().build();
   private static final Struct INT64_STRUCT = Struct.newBuilder().set("int64").to(3L).build();
   private static final String TABLE = "some_table";
+  private static final Instant TEST_INSTANT = Instant.parse("2024-01-15T10:30:00.123456Z");
 
   private static final Schema WRITE_ROW_SCHEMA =
       Schema.builder()
@@ -71,6 +74,10 @@ public class MutationUtilsTest {
           .addNullableField("f_decimal", Schema.FieldType.DECIMAL)
           .addNullableField("f_byte", Schema.FieldType.BYTE)
           .addNullableField("f_iterable", Schema.FieldType.iterable(Schema.FieldType.INT64))
+          .addNullableField("f_micros_instant", Schema.FieldType.logicalType(new MicrosInstant()))
+          .addNullableField(
+              "f_micros_instant_array",
+              Schema.FieldType.array(Schema.FieldType.logicalType(new MicrosInstant())))
           .build();
 
   private static final Row WRITE_ROW =
@@ -107,6 +114,8 @@ public class MutationUtilsTest {
           .withFieldValue("f_decimal", BigDecimal.valueOf(Long.MIN_VALUE))
           .withFieldValue("f_byte", Byte.parseByte("127"))
           .withFieldValue("f_iterable", ImmutableList.of(2L, 3L))
+          .withFieldValue("f_micros_instant", TEST_INSTANT)
+          .withFieldValue("f_micros_instant_array", ImmutableList.of(TEST_INSTANT, TEST_INSTANT))
           .build();
 
   private static final Schema WRITE_ROW_SCHEMA_NULLS =
@@ -123,10 +132,16 @@ public class MutationUtilsTest {
           .addNullableField("f_array", Schema.FieldType.array(Schema.FieldType.INT64))
           .addNullableField(
               "f_struct_array", Schema.FieldType.array(Schema.FieldType.row(INT64_SCHEMA)))
+          .addNullableField("f_micros_instant", Schema.FieldType.logicalType(new MicrosInstant()))
+          .addNullableField(
+              "f_micros_instant_array",
+              Schema.FieldType.array(Schema.FieldType.logicalType(new MicrosInstant())))
           .build();
 
   private static final Row WRITE_ROW_NULLS =
       Row.withSchema(WRITE_ROW_SCHEMA_NULLS)
+          .addValue(null)
+          .addValue(null)
           .addValue(null)
           .addValue(null)
           .addValue(null)
@@ -153,6 +168,7 @@ public class MutationUtilsTest {
           .addNullableField("f_int32", Schema.FieldType.INT32)
           .addNullableField("f_decimal", Schema.FieldType.DECIMAL)
           .addNullableField("f_byte", Schema.FieldType.BYTE)
+          .addNullableField("f_micros_instant", Schema.FieldType.logicalType(new MicrosInstant()))
           .build();
 
   private static final Row KEY_ROW =
@@ -168,6 +184,7 @@ public class MutationUtilsTest {
           .withFieldValue("f_int32", 0x7fffffff)
           .withFieldValue("f_decimal", BigDecimal.valueOf(Long.MIN_VALUE))
           .withFieldValue("f_byte", Byte.parseByte("127"))
+          .withFieldValue("f_micros_instant", TEST_INSTANT)
           .build();
 
   private static final Schema KEY_SCHEMA_NULLS =
@@ -178,10 +195,12 @@ public class MutationUtilsTest {
           .addNullableField("f_bytes", Schema.FieldType.BYTES)
           .addNullableField("f_date_time", Schema.FieldType.DATETIME)
           .addNullableField("f_bool", Schema.FieldType.BOOLEAN)
+          .addNullableField("f_micros_instant", Schema.FieldType.logicalType(new MicrosInstant()))
           .build();
 
   private static final Row KEY_ROW_NULLS =
       Row.withSchema(KEY_SCHEMA_NULLS)
+          .addValue(null)
           .addValue(null)
           .addValue(null)
           .addValue(null)
@@ -264,6 +283,7 @@ public class MutationUtilsTest {
   }
 
   private static Mutation createDeleteMutation() {
+    long micros = TEST_INSTANT.getEpochSecond() * 1_000_000L + TEST_INSTANT.getNano() / 1_000L;
     Key key =
         Key.newBuilder()
             .append(1L)
@@ -277,6 +297,7 @@ public class MutationUtilsTest {
             .append(0x7fffffff)
             .append(BigDecimal.valueOf(Long.MIN_VALUE))
             .append(Byte.parseByte("127"))
+            .append(Timestamp.ofTimeMicroseconds(micros))
             .build();
     return Mutation.delete(TABLE, key);
   }
@@ -290,12 +311,14 @@ public class MutationUtilsTest {
             .append((ByteArray) null)
             .append((Timestamp) null)
             .append((Boolean) null)
+            .append((Timestamp) null)
             .build();
     return Mutation.delete(TABLE, key);
   }
 
   private static Mutation createMutation(Mutation.Op operation) {
     Mutation.WriteBuilder builder = chooseBuilder(operation);
+    long micros = TEST_INSTANT.getEpochSecond() * 1_000_000L + TEST_INSTANT.getNano() / 1_000L;
     return builder
         .set("f_int64")
         .to(1L)
@@ -353,6 +376,12 @@ public class MutationUtilsTest {
         .to(Byte.parseByte("127"))
         .set("f_iterable")
         .toInt64Array(ImmutableList.of(2L, 3L))
+        .set("f_micros_instant")
+        .to(Timestamp.ofTimeMicroseconds(micros))
+        .set("f_micros_instant_array")
+        .toTimestampArray(
+            ImmutableList.of(
+                Timestamp.ofTimeMicroseconds(micros), Timestamp.ofTimeMicroseconds(micros)))
         .build();
   }
 
@@ -381,6 +410,10 @@ public class MutationUtilsTest {
         .toInt64Array((List<Long>) null)
         .set("f_struct_array")
         .toStructArray(Type.struct(Type.StructField.of("int64", Type.int64())), null)
+        .set("f_micros_instant")
+        .to((Timestamp) null)
+        .set("f_micros_instant_array")
+        .toTimestampArray(null)
         .build();
   }
 

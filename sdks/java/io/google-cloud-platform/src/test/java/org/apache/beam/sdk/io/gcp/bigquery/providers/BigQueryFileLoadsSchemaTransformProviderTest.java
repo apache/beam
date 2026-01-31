@@ -70,13 +70,28 @@ public class BigQueryFileLoadsSchemaTransformProviderTest {
       new TableReference().setProjectId(PROJECT).setDatasetId(DATASET).setTableId(TABLE_ID);
 
   private static final Schema SCHEMA =
-      Schema.of(Field.of("name", FieldType.STRING), Field.of("number", FieldType.INT64));
+      Schema.of(
+          Field.of("name", FieldType.STRING),
+          Field.of("number", FieldType.INT64),
+          Field.of("age", FieldType.INT32).withNullable(true));
 
   private static final List<Row> ROWS =
       Arrays.asList(
-          Row.withSchema(SCHEMA).withFieldValue("name", "a").withFieldValue("number", 1L).build(),
-          Row.withSchema(SCHEMA).withFieldValue("name", "b").withFieldValue("number", 2L).build(),
-          Row.withSchema(SCHEMA).withFieldValue("name", "c").withFieldValue("number", 3L).build());
+          Row.withSchema(SCHEMA)
+              .withFieldValue("name", "a")
+              .withFieldValue("number", 1L)
+              .withFieldValue("age", 10)
+              .build(),
+          Row.withSchema(SCHEMA)
+              .withFieldValue("name", "b")
+              .withFieldValue("number", 2L)
+              .withFieldValue("age", 20)
+              .build(),
+          Row.withSchema(SCHEMA)
+              .withFieldValue("name", "c")
+              .withFieldValue("number", 3L)
+              .withFieldValue("age", null)
+              .build());
 
   private static final BigQueryOptions OPTIONS =
       TestPipeline.testingPipelineOptions().as(BigQueryOptions.class);

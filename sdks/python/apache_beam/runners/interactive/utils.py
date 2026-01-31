@@ -191,6 +191,7 @@ class IPythonLogHandler(logging.Handler):
   def emit(self, record):
     try:
       from html import escape
+
       from IPython.display import HTML
       from IPython.display import display
       display(HTML(_INTERACTIVE_LOG_STYLE))
@@ -234,6 +235,7 @@ class ProgressIndicator(object):
     try:
       from IPython.display import HTML
       from IPython.display import display
+
       from apache_beam.runners.interactive import interactive_environment as ie
       if ie.current_env().is_in_notebook:
         display(
@@ -252,6 +254,7 @@ class ProgressIndicator(object):
       from IPython.display import Javascript
       from IPython.display import display
       from IPython.display import display_javascript
+
       from apache_beam.runners.interactive import interactive_environment as ie
       if ie.current_env().is_in_notebook:
         script = self.spinner_removal_template.format(id=self._id)
@@ -447,6 +450,7 @@ def assert_bucket_exists(bucket_name: str) -> None:
   try:
     from google.cloud.exceptions import ClientError
     from google.cloud.exceptions import NotFound
+
     from apache_beam.io.gcp.gcsio import create_storage_client
     storage_client = create_storage_client(PipelineOptions())
     storage_client.get_bucket(bucket_name)

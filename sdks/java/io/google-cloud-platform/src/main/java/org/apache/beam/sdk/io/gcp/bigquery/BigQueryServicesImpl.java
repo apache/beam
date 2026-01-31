@@ -1838,6 +1838,7 @@ public class BigQueryServicesImpl implements BigQueryServices {
             && status.getCode() == Code.RESOURCE_EXHAUSTED
             && metadata != null
             && metadata.containsKey(KEY_RETRY_INFO)) {
+          LOG.info("BigQuery direct read quota exceeded, retrying.");
           RetryInfo retryInfo = metadata.get(KEY_RETRY_INFO);
           if (retryInfo.hasRetryDelay()) {
             long delay =

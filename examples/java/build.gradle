@@ -45,6 +45,7 @@ dependencies {
     // this dependency is a provided dependency for kafka-avro-serializer. It is not needed to compile with Java<=17
     // but needed for compile only under Java21, specifically, required for extending from AbstractKafkaAvroDeserializer
     compileOnly library.java.kafka
+    permitUnusedDeclared library.java.kafka
   }
   implementation library.java.kafka_clients
   implementation project(path: ":sdks:java:core", configuration: "shadow")

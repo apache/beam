@@ -26,6 +26,7 @@ import javax.annotation.concurrent.NotThreadSafe;
 import org.apache.beam.runners.core.StateNamespace;
 import org.apache.beam.runners.core.StateTag;
 import org.apache.beam.runners.core.StateTags;
+import org.apache.beam.runners.dataflow.worker.util.common.worker.InternedByteString;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
 import org.apache.beam.runners.dataflow.worker.windmill.state.WindmillStateCache.ForKeyAndFamily;
 import org.apache.beam.sdk.coders.Coder;
@@ -59,22 +60,15 @@ class WindmillCombiningState<InputT, AccumT, OutputT> extends WindmillState
       CombineFn<InputT, AccumT, OutputT> combineFn,
       ForKeyAndFamily cache,
       boolean isNewKey,
-      WindmillStateTagUtil windmillStateTagUtil) {
+      WindmillTagEncoding windmillTagEncoding) {
     StateTag<BagState<AccumT>> internalBagAddress = StateTags.convertToBagTagInternal(address);
-    this.bag =
-        cache
-            .get(namespace, internalBagAddress)
-            .map(state -> (WindmillBag<AccumT>) state)
-            .orElseGet(
-                () ->
-                    new WindmillBag<>(
-                        namespace,
-                        internalBagAddress,
-                        stateFamily,
-                        accumCoder,
-                        isNewKey,
-                        windmillStateTagUtil));
+    InternedByteString encodeKey = windmillTagEncoding.stateTag(namespace, internalBagAddress);
 
+    WindmillBag<AccumT> bag = (WindmillBag<AccumT>) cache.get(namespace, encodeKey);
+    if (bag == null) {
+      bag = new WindmillBag<>(namespace, encodeKey, stateFamily, accumCoder, isNewKey);
+    }
+    this.bag = bag;
     this.combineFn = combineFn;
     this.localAdditionsAccumulator = combineFn.createAccumulator();
     this.hasLocalAdditions = false;

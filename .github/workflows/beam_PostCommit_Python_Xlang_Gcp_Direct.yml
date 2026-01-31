@@ -75,7 +75,7 @@ jobs:
         uses: ./.github/actions/setup-environment-action
         with:
           python-version: |
-            3.9
+            3.10
             3.13
       - name: Install docker compose
         run: |

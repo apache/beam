@@ -18,9 +18,10 @@
 
 import logging
 
+from torchvision import models
+
 from apache_beam.examples.inference import pytorch_image_classification
 from apache_beam.testing.load_tests.dataflow_cost_benchmark import DataflowCostBenchmark
-from torchvision import models
 
 _PERF_TEST_MODELS = ['resnet50', 'resnet101', 'resnet152']
 _PRETRAINED_MODEL_MODULE = 'torchvision.models'

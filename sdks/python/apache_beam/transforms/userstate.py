@@ -131,6 +131,7 @@ class CombiningValueStateSpec(StateSpec):
     """
     # Avoid circular import.
     from apache_beam.transforms.core import CombineFn
+
     # We want the coder to be optional, but unfortunately it comes
     # before the non-optional combine_fn parameter, which we can't
     # change for backwards compatibility reasons.

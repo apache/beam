@@ -18,7 +18,6 @@
 package org.apache.beam.sdk.schemas.utils;
 
 import static org.apache.beam.sdk.util.ByteBuddyUtils.getClassLoadingStrategy;
-import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkNotNull;
 
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
@@ -63,9 +62,9 @@ import org.apache.beam.sdk.schemas.utils.ByteBuddyUtils.DefaultTypeConversionsFa
 import org.apache.beam.sdk.schemas.utils.ByteBuddyUtils.InjectPackageStrategy;
 import org.apache.beam.sdk.schemas.utils.ByteBuddyUtils.TypeConversion;
 import org.apache.beam.sdk.schemas.utils.ByteBuddyUtils.TypeConversionsFactory;
+import org.apache.beam.sdk.util.Preconditions;
 import org.apache.beam.sdk.util.common.ReflectHelpers;
 import org.apache.beam.sdk.values.TypeDescriptor;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
@@ -189,7 +188,7 @@ public class AutoValueUtils {
                 Collectors.toMap(
                     f ->
                         ReflectUtils.stripGetterPrefix(
-                            Preconditions.checkNotNull(
+                            Preconditions.checkArgumentNotNull(
                                     f.getMethod(), JavaBeanUtils.GETTER_WITH_NULL_METHOD_ERROR)
                                 .getName()),
                     Function.identity()));
@@ -249,7 +248,7 @@ public class AutoValueUtils {
     for (FieldValueTypeInformation type : schemaTypes) {
       String autoValueFieldName =
           ReflectUtils.stripGetterPrefix(
-              Preconditions.checkNotNull(
+              Preconditions.checkArgumentNotNull(
                       type.getMethod(), JavaBeanUtils.GETTER_WITH_NULL_METHOD_ERROR)
                   .getName());
 
@@ -347,11 +346,10 @@ public class AutoValueUtils {
 
         TypeConversion<Type> convertType = typeConversionsFactory.createTypeConversion(true);
         for (int i = 0; i < setters.size(); ++i) {
-          Method setterMethod = checkNotNull(setters.get(i).getMethod());
-          Parameter parameter = setterMethod.getParameters()[0];
+          FieldValueTypeInformation setterType = setters.get(i);
+          Method setterMethod = Preconditions.checkStateNotNull(setterType.getMethod());
           ForLoadedType convertedType =
-              new ForLoadedType(
-                  (Class) convertType.convert(TypeDescriptor.of(parameter.getParameterizedType())));
+              new ForLoadedType((Class) convertType.convert(setterType.getType()));
 
           StackManipulation readParameter =
               new StackManipulation.Compound(
@@ -366,7 +364,7 @@ public class AutoValueUtils {
                   Duplication.SINGLE,
                   typeConversionsFactory
                       .createSetterConversions(readParameter)
-                      .convert(TypeDescriptor.of(parameter.getType())),
+                      .convert(setterType.getType()),
                   MethodInvocation.invoke(new ForLoadedMethod(setterMethod)),
                   Removal.SINGLE);
         }

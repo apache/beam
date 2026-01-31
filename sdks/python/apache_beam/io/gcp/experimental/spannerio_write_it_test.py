@@ -29,11 +29,12 @@ from apache_beam.testing.test_pipeline import TestPipeline
 # pylint: disable=wrong-import-order, wrong-import-position, ungrouped-imports
 # pylint: disable=unused-import
 try:
-  from google.cloud import spanner
   from google.api_core.exceptions import NotFound
+  from google.cloud import spanner
+
   from apache_beam.io.gcp import resource_identifiers
-  from apache_beam.io.gcp.experimental.spannerio import WriteMutation
   from apache_beam.io.gcp.experimental.spannerio import MutationGroup
+  from apache_beam.io.gcp.experimental.spannerio import WriteMutation
   from apache_beam.io.gcp.experimental.spannerio import WriteToSpanner
   from apache_beam.metrics import monitoring_infos
   from apache_beam.metrics.execution import MetricsEnvironment

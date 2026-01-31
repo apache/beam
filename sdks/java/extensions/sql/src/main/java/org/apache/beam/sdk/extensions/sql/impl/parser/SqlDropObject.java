@@ -74,8 +74,10 @@ abstract class SqlDropObject extends SqlDrop implements BeamSqlParser.Executable
       case DROP_TABLE:
         if (schema.schema instanceof BeamCalciteSchema) {
           BeamCalciteSchema beamSchema = (BeamCalciteSchema) schema.schema;
-          beamSchema.getTableProvider().dropTable(name.getSimple());
-          existed = true;
+          existed = beamSchema.getTableProvider().getTable(name.getSimple()) != null;
+          if (existed) {
+            beamSchema.getTableProvider().dropTable(name.getSimple());
+          }
         } else {
           existed = schema.removeTable(name.getSimple());
         }

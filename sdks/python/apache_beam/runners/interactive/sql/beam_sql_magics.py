@@ -31,6 +31,10 @@ from typing import Optional
 from typing import Tuple
 from typing import Union
 
+from IPython.core.magic import Magics
+from IPython.core.magic import line_cell_magic
+from IPython.core.magic import magics_class
+
 import apache_beam as beam
 from apache_beam.pvalue import PValue
 from apache_beam.runners.interactive import interactive_environment as ie
@@ -54,9 +58,6 @@ from apache_beam.testing import test_stream
 from apache_beam.testing.test_stream_service import TestStreamServiceController
 from apache_beam.transforms.sql import SqlTransform
 from apache_beam.typehints.native_type_compatibility import match_is_named_tuple
-from IPython.core.magic import Magics
-from IPython.core.magic import line_cell_magic
-from IPython.core.magic import magics_class
 
 _LOGGER = logging.getLogger(__name__)
 

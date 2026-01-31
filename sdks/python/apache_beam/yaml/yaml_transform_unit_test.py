@@ -55,6 +55,7 @@ def new_pipeline():
           pickle_library='cloudpickle'))
 
 
+@unittest.skipIf(jsonschema is None, "Yaml dependencies not installed")
 class MainTest(unittest.TestCase):
   def assertYaml(self, expected, result):
     result = SafeLineLoader.strip_metadata(result)
@@ -1097,6 +1098,35 @@ class ExpandPipelineTest(unittest.TestCase):
     with new_pipeline() as p:
       with self.assertRaises(KeyError):
         expand_pipeline(p, spec, validate_schema=None)
+
+  @unittest.skipIf(jsonschema is None, "Yaml dependencies not installed")
+  def test_expand_pipeline_with_valid_schema(self):
+    spec = '''
+      pipeline:
+        type: chain
+        transforms:
+          - type: Create
+            config:
+              elements: [1,2,3]
+          - type: LogForTesting
+    '''
+    with new_pipeline() as p:
+      expand_pipeline(p, spec, validate_schema='generic')
+
+  @unittest.skipIf(jsonschema is None, "Yaml dependencies not installed")
+  def test_expand_pipeline_with_invalid_schema(self):
+    spec = '''
+      pipeline:
+        type: chain
+        transforms:
+          - name: Create
+            config:
+              elements: [1,2,3]
+          - type: LogForTesting
+    '''
+    with new_pipeline() as p:
+      with self.assertRaises(jsonschema.ValidationError):
+        expand_pipeline(p, spec, validate_schema='generic')
 
 
 if __name__ == '__main__':

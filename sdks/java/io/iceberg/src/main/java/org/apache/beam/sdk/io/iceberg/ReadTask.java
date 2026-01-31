@@ -25,6 +25,7 @@ import org.apache.beam.sdk.schemas.NoSuchSchemaException;
 import org.apache.beam.sdk.schemas.SchemaCoder;
 import org.apache.beam.sdk.schemas.SchemaRegistry;
 import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
+import org.apache.beam.sdk.schemas.annotations.SchemaFieldNumber;
 import org.apache.beam.sdk.schemas.annotations.SchemaIgnore;
 import org.apache.iceberg.CombinedScanTask;
 import org.apache.iceberg.FileScanTask;
@@ -53,6 +54,7 @@ abstract class ReadTask {
     return new AutoValue_ReadTask.Builder();
   }
 
+  @SchemaFieldNumber("0")
   abstract List<String> getFileScanTaskJsons();
 
   @SchemaIgnore

@@ -933,6 +933,7 @@ class DeterministicFastPrimitivesCoderV2(FastCoder):
     self._use_relative_filepaths = True
     self._version_tag = "v2_69"
     from apache_beam.transforms.util import is_v1_prior_to_v2
+
     # Versions prior to 2.69.0 did not use relative filepaths.
     if update_compatibility_version and is_v1_prior_to_v2(
         v1=update_compatibility_version, v2="2.69.0"):
@@ -1574,7 +1575,7 @@ class WindowedValueCoder(FastCoder):
   def __repr__(self):
     return (
         f'WindowedValueCoder[window_coder={self.window_coder}, '
-        f'value_coder={self.value_coder()}]')
+        f'wrapped_value_coder={self.wrapped_value_coder}]')
 
   def __eq__(self, other):
     return (

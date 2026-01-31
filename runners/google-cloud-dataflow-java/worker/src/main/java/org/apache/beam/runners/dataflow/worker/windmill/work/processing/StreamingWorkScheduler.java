@@ -210,10 +210,12 @@ public class StreamingWorkScheduler {
       long serializedWorkItemSize,
       Watermarks watermarks,
       Work.ProcessingContext processingContext,
+      boolean drainMode,
       ImmutableList<LatencyAttribution> getWorkStreamLatencies) {
     computationState.activateWork(
         ExecutableWork.create(
-            Work.create(workItem, serializedWorkItemSize, watermarks, processingContext, clock),
+            Work.create(
+                workItem, serializedWorkItemSize, watermarks, processingContext, drainMode, clock),
             work -> processWork(computationState, work, getWorkStreamLatencies)));
   }
 
@@ -415,6 +417,7 @@ public class StreamingWorkScheduler {
 
       // Release the execution state for another thread to use.
       computationState.releaseComputationWorkExecutor(computationWorkExecutor);
+      computationWorkExecutor = null;
 
       work.setState(Work.State.COMMIT_QUEUED);
       outputBuilder.addAllPerWorkItemLatencyAttributions(work.getLatencyAttributions(sampler));
@@ -422,11 +425,13 @@ public class StreamingWorkScheduler {
       return ExecuteWorkResult.create(
           outputBuilder, stateReader.getBytesRead() + localSideInputStateFetcher.getBytesRead());
     } catch (Throwable t) {
-      // If processing failed due to a thrown exception, close the executionState. Do not
-      // return/release the executionState back to computationState as that will lead to this
-      // executionState instance being reused.
-      LOG.debug("Invalidating executor after work item {} failed", workItem.getWorkToken(), t);
-      computationWorkExecutor.invalidate();
+      if (computationWorkExecutor != null) {
+        // If processing failed due to a thrown exception, close the executionState. Do not
+        // return/release the executionState back to computationState as that will lead to this
+        // executionState instance being reused.
+        LOG.debug("Invalidating executor after work item {} failed", workItem.getWorkToken(), t);
+        computationWorkExecutor.invalidate();
+      }
 
       // Re-throw the exception, it will be caught and handled by workFailureProcessor downstream.
       throw t;

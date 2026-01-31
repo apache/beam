@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.io.gcp.bigquery;
 
+import static org.apache.beam.sdk.io.gcp.bigquery.BigQueryResourceNaming.createTempTableReference;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkNotNull;
 
 import com.google.api.services.bigquery.model.JobStatistics;
@@ -25,6 +26,7 @@ import com.google.api.services.bigquery.model.TableReference;
 import com.google.cloud.bigquery.storage.v1.DataFormat;
 import java.io.IOException;
 import java.io.ObjectInputStream;
+import java.util.Optional;
 import java.util.concurrent.atomic.AtomicReference;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.TypedRead.QueryPriority;
@@ -37,6 +39,38 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** A {@link org.apache.beam.sdk.io.Source} representing reading the results of a query. */
 class BigQueryStorageQuerySource<T> extends BigQueryStorageSourceBase<T> {
+
+  public static <T> BigQueryStorageQuerySource<T> create(
+      String stepUuid,
+      ValueProvider<String> queryProvider,
+      Boolean flattenResults,
+      Boolean useLegacySql,
+      QueryPriority priority,
+      @Nullable String location,
+      @Nullable String queryTempDataset,
+      @Nullable String queryTempProject,
+      @Nullable String kmsKey,
+      @Nullable DataFormat format,
+      SerializableFunction<SchemaAndRecord, T> parseFn,
+      Coder<T> outputCoder,
+      BigQueryServices bqServices,
+      @Nullable TimestampPrecision picosTimestampPrecision) {
+    return new BigQueryStorageQuerySource<>(
+        stepUuid,
+        queryProvider,
+        flattenResults,
+        useLegacySql,
+        priority,
+        location,
+        queryTempDataset,
+        queryTempProject,
+        kmsKey,
+        format,
+        parseFn,
+        outputCoder,
+        bqServices,
+        picosTimestampPrecision);
+  }
 
   public static <T> BigQueryStorageQuerySource<T> create(
       String stepUuid,
@@ -65,7 +99,8 @@ class BigQueryStorageQuerySource<T> extends BigQueryStorageSourceBase<T> {
         format,
         parseFn,
         outputCoder,
-        bqServices);
+        bqServices,
+        /*picosTimestampPrecision=*/ null);
   }
 
   public static <T> BigQueryStorageQuerySource<T> create(
@@ -92,7 +127,8 @@ class BigQueryStorageQuerySource<T> extends BigQueryStorageSourceBase<T> {
         null,
         parseFn,
         outputCoder,
-        bqServices);
+        bqServices,
+        /*picosTimestampPrecision=*/ null);
   }
 
   private final String stepUuid;
@@ -121,8 +157,9 @@ class BigQueryStorageQuerySource<T> extends BigQueryStorageSourceBase<T> {
       @Nullable DataFormat format,
       SerializableFunction<SchemaAndRecord, T> parseFn,
       Coder<T> outputCoder,
-      BigQueryServices bqServices) {
-    super(format, null, null, parseFn, outputCoder, bqServices);
+      BigQueryServices bqServices,
+      @Nullable TimestampPrecision picosTimestampPrecision) {
+    super(format, null, null, parseFn, outputCoder, bqServices, picosTimestampPrecision);
     this.stepUuid = checkNotNull(stepUuid, "stepUuid");
     this.queryProvider = checkNotNull(queryProvider, "queryProvider");
     this.flattenResults = checkNotNull(flattenResults, "flattenResults");
@@ -187,5 +224,25 @@ class BigQueryStorageQuerySource<T> extends BigQueryStorageSourceBase<T> {
   @Override
   protected @Nullable String getTargetTableId(BigQueryOptions options) throws Exception {
     return null;
+  }
+
+  void removeDestinationIfExists(BigQueryOptions options) throws Exception {
+    DatasetService datasetService = bqServices.getDatasetService(options.as(BigQueryOptions.class));
+    String project = queryTempProject;
+    if (project == null) {
+      project =
+          options.as(BigQueryOptions.class).getBigQueryProject() == null
+              ? options.as(BigQueryOptions.class).getProject()
+              : options.as(BigQueryOptions.class).getBigQueryProject();
+    }
+    String tempTableID =
+        BigQueryResourceNaming.createJobIdPrefix(
+            options.getJobName(), stepUuid, BigQueryResourceNaming.JobType.QUERY);
+    TableReference tempTableReference =
+        createTempTableReference(project, tempTableID, Optional.ofNullable(queryTempDataset));
+    Table destTable = datasetService.getTable(tempTableReference);
+    if (destTable != null) {
+      datasetService.deleteTable(tempTableReference);
+    }
   }
 }

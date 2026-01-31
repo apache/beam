@@ -169,11 +169,11 @@ class ImpulseSeqGenDoFn(beam.DoFn):
         # we are too ahead of time, let's wait.
         restriction_tracker.defer_remainder(
             timestamp.Timestamp(current_output_timestamp))
-        return
+        break
 
       if not restriction_tracker.try_claim(current_output_index):
         # nothing to claim, just stop
-        return
+        break
 
       output = self._get_output(current_output_index, current_output_timestamp)
 
@@ -185,6 +185,9 @@ class ImpulseSeqGenDoFn(beam.DoFn):
       yield output
 
       current_output_index += 1
+
+    # Don't yield any values here so that the generator
+    # raises StopIteration when we break out of the while loop.
 
 
 class PeriodicSequence(PTransform):
@@ -337,8 +340,7 @@ class PeriodicImpulse(PTransform):
     if self.rebase == RebaseMode.REBASE_ALL:
       duration = Timestamp.of(self.stop_ts) - Timestamp.of(self.start_ts)
       impulse_element = pbegin | beam.Impulse() | beam.Map(
-          lambda _:
-          [Timestamp.now(), Timestamp.now() + duration, self.interval])
+          lambda _: [now := Timestamp.now(), now + duration, self.interval])
     elif self.rebase == RebaseMode.REBASE_START:
       impulse_element = pbegin | beam.Impulse() | beam.Map(
           lambda _: [Timestamp.now(), self.stop_ts, self.interval])

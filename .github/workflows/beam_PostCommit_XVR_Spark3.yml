@@ -62,7 +62,7 @@ jobs:
       matrix:
         job_name: ["beam_PostCommit_XVR_Spark3"]
         job_phrase: ["Run XVR_Spark3 PostCommit"]
-        python_version: ['3.9','3.13']
+        python_version: ['3.10','3.13']
     steps:
       - uses: actions/checkout@v4
       - name: Setup repository
@@ -83,7 +83,7 @@ jobs:
           gradle-command: :runners:spark:3:job-server:validatesCrossLanguageRunner
           arguments: |
             -PpythonVersion=${{ matrix.python_version }} \
-            -PskipNonPythonTask=${{ (matrix.python_version == '3.9' && true) || false }} \
+            -PskipNonPythonTask=${{ (matrix.python_version == '3.10' && true) || false }} \
       - name: Archive JUnit Test Results
         uses: actions/upload-artifact@v4
         if: ${{ !success() }}

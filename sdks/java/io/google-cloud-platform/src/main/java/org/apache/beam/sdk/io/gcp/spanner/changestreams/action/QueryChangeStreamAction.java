@@ -168,7 +168,6 @@ public class QueryChangeStreamAction {
    * @return a {@link ProcessContinuation#stop()} if a record timestamp could not be claimed or if
    *     the partition processing has finished
    */
-  @SuppressWarnings("nullness")
   @VisibleForTesting
   public ProcessContinuation run(
       PartitionMetadata partition,
@@ -177,12 +176,6 @@ public class QueryChangeStreamAction {
       ManualWatermarkEstimator<Instant> watermarkEstimator,
       BundleFinalizer bundleFinalizer) {
     final String token = partition.getPartitionToken();
-    final Timestamp startTimestamp = tracker.currentRestriction().getFrom();
-    final Timestamp endTimestamp = partition.getEndTimestamp();
-    final Timestamp changeStreamQueryEndTimestamp =
-        endTimestamp.equals(MAX_INCLUSIVE_END_AT)
-            ? getNextReadChangeStreamEndTimestamp()
-            : endTimestamp;
 
     // TODO: Potentially we can avoid this fetch, by enriching the runningAt timestamp when the
     // ReadChangeStreamPartitionDoFn#processElement is called
@@ -198,6 +191,17 @@ public class QueryChangeStreamAction {
     RestrictionInterrupter<Timestamp> interrupter =
         RestrictionInterrupter.withSoftTimeout(RESTRICTION_TRACKER_TIMEOUT);
 
+    final Timestamp startTimestamp = tracker.currentRestriction().getFrom();
+    final Timestamp endTimestamp = partition.getEndTimestamp();
+    final boolean isBoundedRestriction = !endTimestamp.equals(MAX_INCLUSIVE_END_AT);
+    final Timestamp changeStreamQueryEndTimestamp =
+        isBoundedRestriction ? endTimestamp : getNextReadChangeStreamEndTimestamp();
+
+    // Once the changeStreamQuery completes we may need to resume reading from the partition if we
+    // had an unbounded restriction for which we set an arbitrary query end timestamp and for which
+    // we didn't  encounter any indications that the partition is done (explicit end records or
+    // exceptions about being out of timestamp range).
+    boolean stopAfterQuerySucceeds = isBoundedRestriction;
     try (ChangeStreamResultSet resultSet =
         changeStreamDao.changeStreamQuery(
             token, startTimestamp, changeStreamQueryEndTimestamp, partition.getHeartbeatMillis())) {
@@ -234,6 +238,10 @@ public class QueryChangeStreamAction {
                     tracker,
                     interrupter,
                     watermarkEstimator);
+            // Child Partition records indicate that the partition has ended. There may be
+            // additional ChildPartitionRecords but they will share the same timestamp and
+            // will be returned by the query and processed if it finishes successfully.
+            stopAfterQuerySucceeds = true;
           } else if (record instanceof PartitionStartRecord) {
             maybeContinuation =
                 partitionStartRecordAction.run(
@@ -250,6 +258,9 @@ public class QueryChangeStreamAction {
                     tracker,
                     interrupter,
                     watermarkEstimator);
+            // The PartitionEndRecord indicates that there are no more records expected
+            // for this partition.
+            stopAfterQuerySucceeds = true;
           } else if (record instanceof PartitionEventRecord) {
             maybeContinuation =
                 partitionEventRecordAction.run(
@@ -272,10 +283,6 @@ public class QueryChangeStreamAction {
           }
         }
       }
-      bundleFinalizer.afterBundleCommit(
-          Instant.now().plus(BUNDLE_FINALIZER_TIMEOUT),
-          updateWatermarkCallback(token, watermarkEstimator));
-
     } catch (SpannerException e) {
       /*
       If there is a split when a partition is supposed to be finished, the residual will try
@@ -283,16 +290,16 @@ public class QueryChangeStreamAction {
       here, and the residual should be able to claim the end of the timestamp range, finishing
       the partition.
       */
-      if (isTimestampOutOfRange(e)) {
-        LOG.info(
-            "[{}] query change stream is out of range for {} to {}, finishing stream.",
-            token,
-            startTimestamp,
-            endTimestamp,
-            e);
-      } else {
+      if (!isTimestampOutOfRange(e)) {
         throw e;
       }
+      LOG.info(
+          "[{}] query change stream is out of range for {} to {}, finishing stream.",
+          token,
+          startTimestamp,
+          endTimestamp,
+          e);
+      stopAfterQuerySucceeds = true;
     } catch (Exception e) {
       LOG.error(
           "[{}] query change stream had exception processing range {} to {}.",
@@ -303,13 +310,40 @@ public class QueryChangeStreamAction {
       throw e;
     }
 
-    LOG.debug("[{}] change stream completed successfully", token);
-    if (tracker.tryClaim(endTimestamp)) {
-      LOG.debug("[{}] Finishing partition", token);
-      partitionMetadataDao.updateToFinished(token);
-      metrics.decActivePartitionReadCounter();
-      LOG.info("[{}] After attempting to finish the partition", token);
+    LOG.debug(
+        "[{}] change stream completed successfully up to {}", token, changeStreamQueryEndTimestamp);
+
+    if (!stopAfterQuerySucceeds) {
+      // Records stopped being returned for the query due to our artificial query end timestamp but
+      // we want to continue processing the partition, resuming from changeStreamQueryEndTimestamp.
+      if (!tracker.tryClaim(changeStreamQueryEndTimestamp)) {
+        return ProcessContinuation.stop();
+      }
+      bundleFinalizer.afterBundleCommit(
+          Instant.now().plus(BUNDLE_FINALIZER_TIMEOUT),
+          updateWatermarkCallback(token, watermarkEstimator));
+      LOG.debug("[{}] Rescheduling partition to resume reading", token);
+      return ProcessContinuation.resume();
     }
+
+    // Otherwise we have finished processing the partition, either due to:
+    //   1. reading to the bounded restriction end timestamp
+    //   2. encountering a ChildPartitionRecord or EndPartitionRecord indicating there are no more
+    //      elements in the partition
+    //   3. encountering a exception indicating the start timestamp is out of bounds of the
+    //      partition
+    // We claim the restriction completely to satisfy internal sanity checks and do not reschedule
+    // the restriction.
+    if (!tracker.tryClaim(endTimestamp)) {
+      return ProcessContinuation.stop();
+    }
+
+    LOG.debug("[{}] Finishing partition", token);
+    // TODO: This should be performed after the commit succeeds.  Since bundle finalizers are not
+    // guaranteed to be called, this needs to be performed in a subsequent fused stage.
+    partitionMetadataDao.updateToFinished(token);
+    metrics.decActivePartitionReadCounter();
+    LOG.info("[{}] After attempting to finish the partition", token);
     return ProcessContinuation.stop();
   }
 
@@ -339,8 +373,8 @@ public class QueryChangeStreamAction {
   }
 
   // Return (now + 2 mins) as the end timestamp for reading change streams. This is only used if
-  // users want to run the connector forever. This approach works because Google Dataflow
-  // checkpoints every 5s or 5MB output provided and the change stream query has deadline for 1 min.
+  // users want to run the connector forever. If the end timestamp is reached, we will resume
+  // processing from that timestamp on a subsequent DoFn execution.
   private Timestamp getNextReadChangeStreamEndTimestamp() {
     final Timestamp current = Timestamp.now();
     return Timestamp.ofTimeSecondsAndNanos(current.getSeconds() + 2 * 60, current.getNanos());

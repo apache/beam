@@ -96,6 +96,10 @@ public class IcebergWriteSchemaTransformProvider
     public abstract @Nullable Integer getTriggeringFrequencySeconds();
 
     @SchemaFieldDescription(
+        "For a streaming pipeline, sets the limit for lifting bundles into the direct write path.")
+    public abstract @Nullable Integer getDirectWriteByteLimit();
+
+    @SchemaFieldDescription(
         "A list of field names to keep in the input record. All other fields are dropped before writing. "
             + "Is mutually exclusive with 'drop' and 'only'.")
     public abstract @Nullable List<String> getKeep();
@@ -141,6 +145,8 @@ public class IcebergWriteSchemaTransformProvider
       public abstract Builder setConfigProperties(Map<String, String> confProperties);
 
       public abstract Builder setTriggeringFrequencySeconds(Integer triggeringFrequencySeconds);
+
+      public abstract Builder setDirectWriteByteLimit(Integer directWriteByteLimit);
 
       public abstract Builder setKeep(List<String> keep);
 
@@ -225,6 +231,11 @@ public class IcebergWriteSchemaTransformProvider
       Integer trigFreq = configuration.getTriggeringFrequencySeconds();
       if (trigFreq != null) {
         writeTransform = writeTransform.withTriggeringFrequency(Duration.standardSeconds(trigFreq));
+      }
+
+      Integer directWriteByteLimit = configuration.getDirectWriteByteLimit();
+      if (directWriteByteLimit != null) {
+        writeTransform = writeTransform.withDirectWriteByteLimit(directWriteByteLimit);
       }
 
       // TODO: support dynamic destinations

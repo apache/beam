@@ -22,11 +22,12 @@ from pathlib import Path
 from typing import Any
 from typing import Optional
 
+from feast import FeatureStore
+
 import apache_beam as beam
 from apache_beam.io.filesystems import FileSystems
 from apache_beam.transforms.enrichment import EnrichmentSourceHandler
 from apache_beam.transforms.enrichment_handlers.utils import ExceptionLevel
-from feast import FeatureStore
 
 __all__ = [
     'FeastFeatureStoreEnrichmentHandler',

@@ -30,10 +30,11 @@ from apache_beam.testing.test_pipeline import TestPipeline
 # pylint: disable=ungrouped-imports
 try:
   import torch
+
   from apache_beam.examples.inference import pytorch_image_classification
   from apache_beam.examples.inference import pytorch_image_segmentation
-  from apache_beam.examples.inference import pytorch_model_per_key_image_segmentation
   from apache_beam.examples.inference import pytorch_language_modeling
+  from apache_beam.examples.inference import pytorch_model_per_key_image_segmentation
 except ImportError as e:
   torch = None
 

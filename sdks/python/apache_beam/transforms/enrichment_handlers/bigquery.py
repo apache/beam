@@ -14,6 +14,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
+import logging
 from collections.abc import Callable
 from collections.abc import Mapping
 from typing import Any
@@ -29,6 +30,8 @@ from apache_beam.transforms.enrichment import EnrichmentSourceHandler
 
 QueryFn = Callable[[beam.Row], str]
 ConditionValueFn = Callable[[beam.Row], list[Any]]
+
+_LOGGER = logging.getLogger(__name__)
 
 
 def _validate_bigquery_metadata(
@@ -87,6 +90,7 @@ class BigQueryEnrichmentHandler(EnrichmentSourceHandler[Union[Row, list[Row]],
       query_fn: Optional[QueryFn] = None,
       min_batch_size: int = 1,
       max_batch_size: int = 10000,
+      throw_exception_on_empty_results: bool = True,
       **kwargs,
   ):
     """
@@ -145,6 +149,7 @@ class BigQueryEnrichmentHandler(EnrichmentSourceHandler[Union[Row, list[Row]],
     self.query_template = (
         "SELECT %s FROM %s WHERE %s" %
         (self.select_fields, self.table_name, self.row_restriction_template))
+    self.throw_exception_on_empty_results = throw_exception_on_empty_results
     self.kwargs = kwargs
     self._batching_kwargs = {}
     if not query_fn:
@@ -157,10 +162,13 @@ class BigQueryEnrichmentHandler(EnrichmentSourceHandler[Union[Row, list[Row]],
   def _execute_query(self, query: str):
     try:
       results = self.client.query(query=query).result()
+      row_list = [dict(row.items()) for row in results]
+      if not row_list:
+        return None
       if self._batching_kwargs:
-        return [dict(row.items()) for row in results]
+        return row_list
       else:
-        return [dict(row.items()) for row in results][0]
+        return row_list[0]
     except BadRequest as e:
       raise BadRequest(
           f'Could not execute the query: {query}. Please check if '
@@ -204,11 +212,21 @@ class BigQueryEnrichmentHandler(EnrichmentSourceHandler[Union[Row, list[Row]],
       query = raw_query.format(*values)
 
       responses_dict = self._execute_query(query)
-      for response in responses_dict:
-        response_row = beam.Row(**response)
-        response_key = self.create_row_key(response_row)
-        if response_key in requests_map:
-          responses.append((requests_map[response_key], response_row))
+      unmatched_requests = requests_map.copy()
+      if responses_dict:
+        for response in responses_dict:
+          response_row = beam.Row(**response)
+          response_key = self.create_row_key(response_row)
+          if response_key in unmatched_requests:
+            req = unmatched_requests.pop(response_key)
+            responses.append((req, response_row))
+      if unmatched_requests:
+        if self.throw_exception_on_empty_results:
+          raise ValueError(f"no matching row found for query: {query}")
+        else:
+          _LOGGER.warning('no matching row found for query: %s', query)
+          for req in unmatched_requests.values():
+            responses.append((req, beam.Row()))
       return responses
     else:
       request_dict = request._asdict()
@@ -223,6 +241,12 @@ class BigQueryEnrichmentHandler(EnrichmentSourceHandler[Union[Row, list[Row]],
         # construct the query.
         query = self.query_template.format(*values)
       response_dict = self._execute_query(query)
+      if response_dict is None:
+        if self.throw_exception_on_empty_results:
+          raise ValueError(f"no matching row found for query: {query}")
+        else:
+          _LOGGER.warning('no matching row found for query: %s', query)
+        return request, beam.Row()
       return request, beam.Row(**response_dict)
 
   def __exit__(self, exc_type, exc_val, exc_tb):

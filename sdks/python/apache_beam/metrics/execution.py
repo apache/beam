@@ -42,13 +42,13 @@ from typing import Type
 from typing import Union
 from typing import cast
 
-from apache_beam.internal.metrics.cells import HistogramCellFactory
-from apache_beam.internal.metrics.cells import HistogramData
 from apache_beam.metrics import monitoring_infos
 from apache_beam.metrics.cells import BoundedTrieCell
 from apache_beam.metrics.cells import CounterCell
 from apache_beam.metrics.cells import DistributionCell
 from apache_beam.metrics.cells import GaugeCell
+from apache_beam.metrics.cells import HistogramCellFactory
+from apache_beam.metrics.cells import HistogramData
 from apache_beam.metrics.cells import StringSetCell
 from apache_beam.metrics.cells import StringSetData
 from apache_beam.runners.worker import statesampler
@@ -56,8 +56,8 @@ from apache_beam.runners.worker.statesampler import get_current_tracker
 
 if TYPE_CHECKING:
   from apache_beam.metrics.cells import BoundedTrieData
-  from apache_beam.metrics.cells import GaugeData
   from apache_beam.metrics.cells import DistributionData
+  from apache_beam.metrics.cells import GaugeData
   from apache_beam.metrics.cells import MetricCell
   from apache_beam.metrics.cells import MetricCellFactory
   from apache_beam.metrics.metricbase import MetricName

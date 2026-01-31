@@ -37,6 +37,7 @@ import psycopg2
 import pytds
 import sqlalchemy
 import yaml
+from apitools.base.py.exceptions import HttpError
 from google.cloud import pubsub_v1
 from google.cloud.bigtable import client
 from google.cloud.bigtable_admin_v2.types import instance
@@ -58,7 +59,6 @@ from apache_beam.utils import python_callable
 from apache_beam.yaml import yaml_provider
 from apache_beam.yaml import yaml_transform
 from apache_beam.yaml.conftest import yaml_test_files_dir
-from apitools.base.py.exceptions import HttpError
 
 _LOGGER = logging.getLogger(__name__)
 

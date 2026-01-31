@@ -32,6 +32,11 @@ from apache_beam.testing.util import equal_to
 from apache_beam.typehints import schemas as schema_utils
 from apache_beam.yaml.yaml_transform import YamlTransform
 
+try:
+  import jsonschema
+except ImportError:
+  jsonschema = None
+
 
 class FakeReadFromPubSub:
   def __init__(
@@ -82,6 +87,7 @@ class FakeWriteToPubSub:
     return AssertThat(equal_to(self._messages))
 
 
+@unittest.skipIf(jsonschema is None, "Yaml dependencies not installed")
 class YamlPubSubTest(unittest.TestCase):
   def test_simple_read(self):
     with beam.Pipeline(options=beam.options.pipeline_options.PipelineOptions(

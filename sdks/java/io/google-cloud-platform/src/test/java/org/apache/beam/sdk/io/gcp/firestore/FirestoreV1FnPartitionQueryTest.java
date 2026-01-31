@@ -47,6 +47,8 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
+import org.junit.runners.Parameterized.Parameter;
+import org.junit.runners.Parameterized.Parameters;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.MockitoJUnit;
@@ -58,6 +60,9 @@ public final class FirestoreV1FnPartitionQueryTest
 
   @Parameterized.Parameter public Instant readTime;
 
+  @Parameter(1)
+  public boolean setDatabaseOnFn;
+
   @Rule public MockitoRule rule = MockitoJUnit.rule();
 
   @Mock private UnaryCallable<PartitionQueryRequest, PartitionQueryPagedResponse> callable;
@@ -66,9 +71,12 @@ public final class FirestoreV1FnPartitionQueryTest
   @Mock private PartitionQueryPagedResponse pagedResponse2;
   @Mock private PartitionQueryPage page2;
 
-  @Parameterized.Parameters(name = "readTime = {0}")
-  public static Collection<Object> data() {
-    return Arrays.asList(null, Instant.now());
+  @Parameters(name = "readTime = {0}, setDatabaseOnFn = {1}")
+  public static Collection<Object[]> data() {
+    return Arrays.asList(
+        new Object[][] {
+          {null, false}, {null, true}, {Instant.now(), false}, {Instant.now(), true}
+        });
   }
 
   private PartitionQueryRequest withReadTime(PartitionQueryRequest request, Instant readTime) {
@@ -101,7 +109,7 @@ public final class FirestoreV1FnPartitionQueryTest
 
     when(stub.partitionQueryPagedCallable()).thenReturn(callable);
 
-    when(ff.getFirestoreStub(any())).thenReturn(stub);
+    when(ff.getFirestoreStub(any(), any(), any())).thenReturn(stub);
     RpcQosOptions options = RpcQosOptions.defaultOptions();
     when(ff.getRpcQos(any()))
         .thenReturn(FirestoreStatefulComponentFactory.INSTANCE.getRpcQos(options));
@@ -113,7 +121,7 @@ public final class FirestoreV1FnPartitionQueryTest
 
     when(processContext.element()).thenReturn(request1);
 
-    PartitionQueryFn fn = new PartitionQueryFn(clock, ff, options, readTime);
+    PartitionQueryFn fn = getFnWithParameters();
 
     runFunction(fn);
 
@@ -136,7 +144,7 @@ public final class FirestoreV1FnPartitionQueryTest
 
     when(stub.partitionQueryPagedCallable()).thenReturn(callable);
 
-    when(ff.getFirestoreStub(any())).thenReturn(stub);
+    when(ff.getFirestoreStub(any(), any(), any())).thenReturn(stub);
     RpcQosOptions options = RpcQosOptions.defaultOptions();
     when(ff.getRpcQos(any()))
         .thenReturn(FirestoreStatefulComponentFactory.INSTANCE.getRpcQos(options));
@@ -148,7 +156,7 @@ public final class FirestoreV1FnPartitionQueryTest
 
     when(processContext.element()).thenReturn(request1);
 
-    PartitionQueryFn fn = new PartitionQueryFn(clock, ff, options, readTime);
+    PartitionQueryFn fn = getFnWithParameters();
 
     runFunction(fn);
 
@@ -159,7 +167,7 @@ public final class FirestoreV1FnPartitionQueryTest
 
   @Override
   public void resumeFromLastReadValue() throws Exception {
-    when(ff.getFirestoreStub(any())).thenReturn(stub);
+    when(ff.getFirestoreStub(any(), any(), any())).thenReturn(stub);
     when(ff.getRpcQos(any())).thenReturn(rpcQos);
     when(rpcQos.newReadAttempt(any())).thenReturn(attempt);
     when(attempt.awaitSafeToProceed(any())).thenReturn(true);
@@ -230,7 +238,7 @@ public final class FirestoreV1FnPartitionQueryTest
 
     when(stub.partitionQueryPagedCallable()).thenReturn(callable);
 
-    when(ff.getFirestoreStub(any())).thenReturn(stub);
+    when(ff.getFirestoreStub(any(), any(), any())).thenReturn(stub);
 
     ArgumentCaptor<PartitionQueryPair> responses =
         ArgumentCaptor.forClass(PartitionQueryPair.class);
@@ -282,5 +290,13 @@ public final class FirestoreV1FnPartitionQueryTest
       FirestoreStatefulComponentFactory firestoreStatefulComponentFactory,
       RpcQosOptions rpcQosOptions) {
     return new PartitionQueryFn(clock, firestoreStatefulComponentFactory, rpcQosOptions);
+  }
+
+  private PartitionQueryFn getFnWithParameters() {
+    if (setDatabaseOnFn) {
+      return new PartitionQueryFn(clock, ff, rpcQosOptions, readTime, projectId, "(default)");
+    } else {
+      return new PartitionQueryFn(clock, ff, rpcQosOptions, readTime);
+    }
   }
 }

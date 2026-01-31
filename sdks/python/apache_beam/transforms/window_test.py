@@ -192,6 +192,19 @@ class WindowTest(unittest.TestCase):
                   ('key @ [2.0, 6.0)', [2, 3])]
       assert_that(result, equal_to(expected))
 
+  def test_sliding_windows_period_longer_than_size(self):
+    with TestPipeline() as p:
+      pcoll = self.timestamped_key_values(p, 'key', 1, 2, 3, 4, 5, 6, 7, 8)
+      result = (
+          pcoll
+          | 'w' >> WindowInto(SlidingWindows(period=4, size=2))
+          | GroupByKey()
+          | beam.MapTuple(lambda k, vs: (k, sorted(vs)))
+          | beam.ParDo(ReifyWindowsFn()))
+      expected = [('key @ [0.0, 2.0)', [1]), ('key @ [4.0, 6.0)', [4, 5]),
+                  ('key @ [8.0, 10.0)', [8])]
+      assert_that(result, equal_to(expected))
+
   def test_sessions(self):
     with TestPipeline() as p:
       pcoll = self.timestamped_key_values(p, 'key', 1, 2, 3, 20, 35, 27)

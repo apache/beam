@@ -32,7 +32,8 @@ from apache_beam.runners.interactive.utils import progress_indicated
 
 try:
   from google.cloud import dataproc_v1
-  from apache_beam.io.gcp import gcsfilesystem  #pylint: disable=ungrouped-imports
+
+  from apache_beam.io.gcp import gcsfilesystem  # pylint: disable=ungrouped-imports
 except ImportError:
 
   class UnimportedDataproc:

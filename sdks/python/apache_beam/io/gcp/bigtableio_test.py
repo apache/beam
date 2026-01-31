@@ -44,11 +44,14 @@ _LOGGER = logging.getLogger(__name__)
 try:
   from google.cloud.bigtable import client
   from google.cloud.bigtable.batcher import MutationsBatcher
-  from google.cloud.bigtable.row_filters import TimestampRange
   from google.cloud.bigtable.instance import Instance
-  from google.cloud.bigtable.row import DirectRow, PartialRowData, Cell
+  from google.cloud.bigtable.row import Cell
+  from google.cloud.bigtable.row import DirectRow
+  from google.cloud.bigtable.row import PartialRowData
+  from google.cloud.bigtable.row_filters import TimestampRange
   from google.cloud.bigtable.table import Table
-  from google.rpc.code_pb2 import OK, ALREADY_EXISTS
+  from google.rpc.code_pb2 import ALREADY_EXISTS
+  from google.rpc.code_pb2 import OK
   from google.rpc.status_pb2 import Status
 except ImportError as e:
   client = None

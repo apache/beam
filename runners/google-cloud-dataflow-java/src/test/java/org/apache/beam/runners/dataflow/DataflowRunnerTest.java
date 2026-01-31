@@ -133,6 +133,11 @@ import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.runners.PTransformOverrideFactory.ReplacementOutput;
 import org.apache.beam.sdk.runners.TransformHierarchy;
 import org.apache.beam.sdk.runners.TransformHierarchy.Node;
+import org.apache.beam.sdk.state.BagState;
+import org.apache.beam.sdk.state.MapState;
+import org.apache.beam.sdk.state.MultimapState;
+import org.apache.beam.sdk.state.OrderedListState;
+import org.apache.beam.sdk.state.SetState;
 import org.apache.beam.sdk.state.StateSpec;
 import org.apache.beam.sdk.state.StateSpecs;
 import org.apache.beam.sdk.state.ValueState;
@@ -1244,8 +1249,8 @@ public class DataflowRunnerTest implements Serializable {
   @Test
   public void testApplySdkEnvironmentOverrides() throws IOException {
     DataflowPipelineOptions options = buildPipelineOptions();
-    String dockerHubPythonContainerUrl = "apache/beam_python3.9_sdk:latest";
-    String gcrPythonContainerUrl = "gcr.io/apache-beam-testing/beam-sdk/beam_python3.9_sdk:latest";
+    String dockerHubPythonContainerUrl = "apache/beam_python3.10_sdk:latest";
+    String gcrPythonContainerUrl = "gcr.io/apache-beam-testing/beam-sdk/beam_python3.10_sdk:latest";
     options.setSdkHarnessContainerImageOverrides(".*python.*," + gcrPythonContainerUrl);
     DataflowRunner runner = DataflowRunner.fromOptions(options);
     RunnerApi.Pipeline pipeline = containerUrlToPipeline(dockerHubPythonContainerUrl);
@@ -1256,8 +1261,8 @@ public class DataflowRunnerTest implements Serializable {
   @Test
   public void testApplySdkEnvironmentOverridesByDefault() throws IOException {
     DataflowPipelineOptions options = buildPipelineOptions();
-    String dockerHubPythonContainerUrl = "apache/beam_python3.9_sdk:latest";
-    String gcrPythonContainerUrl = "gcr.io/cloud-dataflow/v1beta3/beam_python3.9_sdk:latest";
+    String dockerHubPythonContainerUrl = "apache/beam_python3.10_sdk:latest";
+    String gcrPythonContainerUrl = "gcr.io/cloud-dataflow/v1beta3/beam_python3.10_sdk:latest";
     DataflowRunner runner = DataflowRunner.fromOptions(options);
     RunnerApi.Pipeline pipeline = containerUrlToPipeline(dockerHubPythonContainerUrl);
     RunnerApi.Pipeline expectedPipeline = containerUrlToPipeline(gcrPythonContainerUrl);
@@ -1267,8 +1272,8 @@ public class DataflowRunnerTest implements Serializable {
   @Test
   public void testApplySdkEnvironmentOverridesRcByDefault() throws IOException {
     DataflowPipelineOptions options = buildPipelineOptions();
-    String dockerHubPythonContainerUrl = "apache/beam_python3.9_sdk:2.68.0rc2";
-    String gcrPythonContainerUrl = "gcr.io/cloud-dataflow/v1beta3/beam_python3.9_sdk:2.68.0";
+    String dockerHubPythonContainerUrl = "apache/beam_python3.10_sdk:2.68.0rc2";
+    String gcrPythonContainerUrl = "gcr.io/cloud-dataflow/v1beta3/beam_python3.10_sdk:2.68.0";
     DataflowRunner runner = DataflowRunner.fromOptions(options);
     RunnerApi.Pipeline pipeline = containerUrlToPipeline(dockerHubPythonContainerUrl);
     RunnerApi.Pipeline expectedPipeline = containerUrlToPipeline(gcrPythonContainerUrl);
@@ -2511,7 +2516,7 @@ public class DataflowRunnerTest implements Serializable {
     options.setDataflowServiceOptions(ImmutableList.of("streaming_mode_at_least_once"));
     Pipeline pipeline = Pipeline.create(options);
 
-    ImmutableList<KV<String, Integer>> abitraryKVs =
+    ImmutableList<KV<String, Integer>> arbitraryKVs =
         ImmutableList.of(
             KV.of("k1", 3),
             KV.of("k5", Integer.MAX_VALUE),
@@ -2522,7 +2527,7 @@ public class DataflowRunnerTest implements Serializable {
             KV.of("k3", 0));
     PCollection<KV<String, Integer>> input =
         pipeline.apply(
-            Create.of(abitraryKVs).withCoder(KvCoder.of(StringUtf8Coder.of(), VarIntCoder.of())));
+            Create.of(arbitraryKVs).withCoder(KvCoder.of(StringUtf8Coder.of(), VarIntCoder.of())));
     // The allowDuplicates for Redistribute is false by default.
     PCollection<KV<String, Integer>> output = input.apply(Redistribute.byKey());
     pipeline.run();
@@ -2683,5 +2688,76 @@ public class DataflowRunnerTest implements Serializable {
         }
       };
     }
+  }
+
+  @Test
+  public void testBatchStateSupported() throws IOException {
+    DataflowPipelineOptions options = buildPipelineOptions();
+    options.setRunner(DataflowRunner.class);
+    Pipeline p = Pipeline.create(options);
+    p.apply(Create.of(KV.of(13, 42)))
+        .apply(
+            ParDo.of(
+                new DoFn<KV<Integer, Integer>, Void>() {
+                  @StateId("value")
+                  private final StateSpec<ValueState<Void>> valueState = StateSpecs.value();
+
+                  @StateId("bag")
+                  private final StateSpec<BagState<Void>> bagState = StateSpecs.bag();
+
+                  @StateId("set")
+                  private final StateSpec<SetState<Void>> setState = StateSpecs.set();
+
+                  @StateId("map")
+                  private final StateSpec<MapState<Void, Void>> mapState = StateSpecs.map();
+
+                  @StateId("multimap")
+                  private final StateSpec<MultimapState<Void, Void>> multimapState =
+                      StateSpecs.multimap();
+
+                  @StateId("ordered list")
+                  private final StateSpec<OrderedListState<Void>> orderedListState =
+                      StateSpecs.orderedList(VoidCoder.of());
+
+                  @ProcessElement
+                  public void process() {}
+                }));
+    p.run();
+  }
+
+  @Test
+  public void testStreamingStateSupported() throws IOException {
+    DataflowPipelineOptions options = buildPipelineOptions();
+    options.setRunner(DataflowRunner.class);
+    options.setStreaming(true);
+    Pipeline p = Pipeline.create(options);
+    p.apply(Create.of(KV.of(13, 42)))
+        .apply(
+            ParDo.of(
+                new DoFn<KV<Integer, Integer>, Void>() {
+                  @StateId("value")
+                  private final StateSpec<ValueState<Void>> valueState = StateSpecs.value();
+
+                  @StateId("bag")
+                  private final StateSpec<BagState<Void>> bagState = StateSpecs.bag();
+
+                  @StateId("set")
+                  private final StateSpec<SetState<Void>> setState = StateSpecs.set();
+
+                  @StateId("map")
+                  private final StateSpec<MapState<Void, Void>> mapState = StateSpecs.map();
+
+                  @StateId("multimap")
+                  private final StateSpec<MultimapState<Void, Void>> multimapState =
+                      StateSpecs.multimap();
+
+                  @StateId("ordered list")
+                  private final StateSpec<OrderedListState<Void>> orderedListState =
+                      StateSpecs.orderedList(VoidCoder.of());
+
+                  @ProcessElement
+                  public void process() {}
+                }));
+    p.run();
   }
 }

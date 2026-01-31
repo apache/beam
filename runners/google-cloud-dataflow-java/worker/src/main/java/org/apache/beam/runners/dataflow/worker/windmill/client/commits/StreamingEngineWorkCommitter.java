@@ -45,6 +45,7 @@ import org.slf4j.LoggerFactory;
 @Internal
 @ThreadSafe
 public final class StreamingEngineWorkCommitter implements WorkCommitter {
+
   private static final Logger LOG = LoggerFactory.getLogger(StreamingEngineWorkCommitter.class);
   private static final int TARGET_COMMIT_BATCH_KEYS = 5;
   private static final String NO_BACKEND_WORKER_TOKEN = "";
@@ -99,18 +100,22 @@ public final class StreamingEngineWorkCommitter implements WorkCommitter {
 
   @Override
   public void commit(Commit commit) {
-    boolean isShutdown = !this.isRunning.get();
-    if (commit.work().isFailed() || isShutdown) {
-      if (isShutdown) {
-        LOG.debug(
-            "Trying to queue commit on shutdown, failing commit=[computationId={}, shardingKey={}, workId={} ].",
-            commit.computationId(),
-            commit.work().getShardedKey(),
-            commit.work().id());
-      }
+    if (commit.work().isFailed()) {
       failCommit(commit);
     } else {
       commitQueue.put(commit);
+    }
+
+    // Do this check after adding to commitQueue, else commitQueue.put() can race with
+    // drainCommitQueue() in stop() and leave commits orphaned in the queue.
+    if (!this.isRunning.get()) {
+      LOG.debug(
+          "Trying to queue commit on shutdown, failing commit=[computationId={}, shardingKey={},"
+              + " workId={} ].",
+          commit.computationId(),
+          commit.work().getShardedKey(),
+          commit.work().id());
+      drainCommitQueue();
     }
   }
 
@@ -255,6 +260,7 @@ public final class StreamingEngineWorkCommitter implements WorkCommitter {
 
   @AutoBuilder
   public interface Builder {
+
     Builder setCommitWorkStreamFactory(
         Supplier<CloseableStream<CommitWorkStream>> commitWorkStreamFactory);
 

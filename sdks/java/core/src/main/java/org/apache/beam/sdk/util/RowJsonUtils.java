@@ -46,26 +46,21 @@ public class RowJsonUtils {
   /**
    * Increase the default jackson-databind stream read constraint.
    *
-   * <p>StreamReadConstraints was introduced in jackson 2.15 causing string > 20MB (5MB in 2.15.0)
-   * parsing failure. This has caused regressions in its dependencies include Beam. Here we
-   * overwrite the default buffer size limit to 100 MB, and exposes this interface for higher limit.
-   * If needed, call this method during pipeline run time, e.g. in DoFn.setup.
+   * <p>In Jackson 2.15, a new constraint is added on the max string length of JSON parsing, see
+   * https://github.com/FasterXML/jackson-core/issues/863. The default is 20M characters. This is
+   * too small for some of our users. This method allows users to increase this limit.
    */
-  public static void increaseDefaultStreamReadConstraints(int newLimit) {
-    if (newLimit <= defaultBufferLimit) {
+  public static synchronized void increaseDefaultStreamReadConstraints(int newLimit) {
+    if (!STREAM_READ_CONSTRAINTS_AVAILABLE) {
       return;
     }
-    try {
-      Class<?> unused = Class.forName("com.fasterxml.jackson.core.StreamReadConstraints");
-
+    if (newLimit > defaultBufferLimit) {
       com.fasterxml.jackson.core.StreamReadConstraints.overrideDefaultStreamReadConstraints(
           com.fasterxml.jackson.core.StreamReadConstraints.builder()
               .maxStringLength(newLimit)
               .build());
-    } catch (ClassNotFoundException e) {
-      // <2.15, do nothing
+      defaultBufferLimit = newLimit;
     }
-    defaultBufferLimit = newLimit;
   }
 
   static {
@@ -103,11 +98,17 @@ public class RowJsonUtils {
    */
   public static JsonFactory createJsonFactory(int sizeLimit) {
     sizeLimit = Math.max(sizeLimit, MAX_STRING_LENGTH);
-    JsonFactory jsonFactory = new JsonFactory();
     if (STREAM_READ_CONSTRAINTS_AVAILABLE) {
-      StreamReadConstraintsHelper.setStreamReadConstraints(jsonFactory, sizeLimit);
+      // Synchronize to avoid race condition with increaseDefaultStreamReadConstraints
+      // which modifies static defaults that builder() and new JsonFactory() may read.
+      synchronized (RowJsonUtils.class) {
+        JsonFactory jsonFactory = new JsonFactory();
+        StreamReadConstraintsHelper.setStreamReadConstraints(jsonFactory, sizeLimit);
+        return jsonFactory;
+      }
+    } else {
+      return new JsonFactory();
     }
-    return jsonFactory;
   }
 
   public static ObjectMapper newObjectMapperWith(RowJson.RowJsonDeserializer deserializer) {

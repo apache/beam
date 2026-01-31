@@ -59,7 +59,7 @@ jobs:
           persist-credentials: false
           submodules: recursive
       - name: Install node
-        uses: actions/setup-node@v5
+        uses: actions/setup-node@v6
         with:
           node-version: '18'
       - name: Install Develocity npm Agent
@@ -101,7 +101,7 @@ jobs:
           persist-credentials: false
           submodules: recursive
       - name: Install Node
-        uses: actions/setup-node@v5
+        uses: actions/setup-node@v6
         with:
           node-version: '18'
       - name: Install Develocity npm Agent
@@ -110,7 +110,7 @@ jobs:
       - name: Install Python
         uses: actions/setup-python@v5
         with:
-          python-version: 3.9
+          python-version: '3.10'
       - name: Setup Beam Python
         working-directory: ./sdks/python
         run: |
@@ -164,7 +164,7 @@ jobs:
           persist-credentials: false
           submodules: recursive
       - name: Install node
-        uses: actions/setup-node@v5
+        uses: actions/setup-node@v6
         with:
           node-version: '18'
       - name: Install Develocity npm Agent
@@ -173,7 +173,7 @@ jobs:
       - name: Install python
         uses: actions/setup-python@v5
         with:
-          python-version: 3.9
+          python-version: '3.10'
       - name: Setup Beam Python
         working-directory: ./sdks/python
         run: |

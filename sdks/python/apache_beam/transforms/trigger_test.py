@@ -966,6 +966,7 @@ class TranscriptTest(unittest.TestCase):
 
     # pylint: disable=wrong-import-order, wrong-import-position
     from apache_beam.transforms import window as window_module
+
     # pylint: enable=wrong-import-order, wrong-import-position
     window_fn_names = dict(window_module.__dict__)
     # yapf: disable

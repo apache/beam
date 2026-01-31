@@ -21,15 +21,54 @@
 import logging
 import time
 import unittest
+from unittest import mock
+from unittest.mock import Mock
+from unittest.mock import patch
 
 from tenacity import retry
 from tenacity import stop_after_attempt
 
+from apache_beam.internal import pickler
+from apache_beam.runners import common
+from apache_beam.runners.worker import operation_specs
+from apache_beam.runners.worker import operations
 from apache_beam.runners.worker import statesampler
+from apache_beam.transforms import core
+from apache_beam.transforms import userstate
+from apache_beam.transforms.core import GlobalWindows
+from apache_beam.transforms.core import Windowing
+from apache_beam.transforms.window import GlobalWindow
 from apache_beam.utils.counters import CounterFactory
 from apache_beam.utils.counters import CounterName
+from apache_beam.utils.windowed_value import PaneInfo
 
 _LOGGER = logging.getLogger(__name__)
+
+
+class TimerDoFn(core.DoFn):
+  TIMER_SPEC = userstate.TimerSpec('timer', userstate.TimeDomain.WATERMARK)
+
+  def __init__(self, sleep_duration_s=0):
+    self._sleep_duration_s = sleep_duration_s
+
+  @userstate.on_timer(TIMER_SPEC)
+  def on_timer_f(self):
+    if self._sleep_duration_s:
+      time.sleep(self._sleep_duration_s)
+
+
+class ExceptionTimerDoFn(core.DoFn):
+  """A DoFn that raises an exception when its timer fires."""
+  TIMER_SPEC = userstate.TimerSpec('ts-timer', userstate.TimeDomain.WATERMARK)
+
+  def __init__(self, sleep_duration_s=0):
+    self._sleep_duration_s = sleep_duration_s
+
+  @userstate.on_timer(TIMER_SPEC)
+  def on_timer_f(self):
+    if self._sleep_duration_s:
+      time.sleep(self._sleep_duration_s)
+    raise RuntimeError("Test exception from timer")
 
 
 class StateSamplerTest(unittest.TestCase):
@@ -126,6 +165,152 @@ class StateSamplerTest(unittest.TestCase):
     # take 0.17us when compiled in opt mode or 0.48 us when compiled with in
     # debug mode).
     self.assertLess(overhead_us, 20.0)
+
+  @retry(reraise=True, stop=stop_after_attempt(3))
+  # Patch the problematic function to return the correct timer spec
+  @patch('apache_beam.transforms.userstate.get_dofn_specs')
+  def test_do_operation_process_timer(self, mock_get_dofn_specs):
+    fn = TimerDoFn()
+    mock_get_dofn_specs.return_value = ([], [fn.TIMER_SPEC])
+
+    if not statesampler.FAST_SAMPLER:
+      self.skipTest('DoOperation test requires FAST_SAMPLER')
+
+    state_duration_ms = 200
+    margin_of_error = 0.75
+
+    counter_factory = CounterFactory()
+    sampler = statesampler.StateSampler(
+        'test_do_op', counter_factory, sampling_period_ms=1)
+
+    fn_for_spec = TimerDoFn(sleep_duration_s=state_duration_ms / 1000.0)
+
+    spec = operation_specs.WorkerDoFn(
+        serialized_fn=pickler.dumps(
+            (fn_for_spec, [], {}, [], Windowing(GlobalWindows()))),
+        output_tags=[],
+        input=None,
+        side_inputs=[],
+        output_coders=[])
+
+    mock_user_state_context = mock.MagicMock()
+    op = operations.DoOperation(
+        common.NameContext('step1'),
+        spec,
+        counter_factory,
+        sampler,
+        user_state_context=mock_user_state_context)
+
+    op.setup()
+
+    timer_data = Mock()
+    timer_data.user_key = None
+    timer_data.windows = [GlobalWindow()]
+    timer_data.fire_timestamp = 0
+    timer_data.paneinfo = PaneInfo(
+        is_first=False,
+        is_last=False,
+        timing=0,
+        index=0,
+        nonspeculative_index=0)
+    timer_data.dynamic_timer_tag = ''
+
+    sampler.start()
+    op.process_timer('ts-timer', timer_data=timer_data)
+    sampler.stop()
+    sampler.commit_counters()
+
+    expected_name = CounterName(
+        'process-timers-msecs', step_name='step1', stage_name='test_do_op')
+
+    found_counter = None
+    for counter in counter_factory.get_counters():
+      if counter.name == expected_name:
+        found_counter = counter
+        break
+
+    self.assertIsNotNone(
+        found_counter, f"Expected counter '{expected_name}' to be created.")
+
+    actual_value = found_counter.value()
+    logging.info("Actual value %d", actual_value)
+    self.assertGreater(
+        actual_value, state_duration_ms * (1.0 - margin_of_error))
+
+  @retry(reraise=True, stop=stop_after_attempt(3))
+  @patch('apache_beam.runners.worker.operations.userstate.get_dofn_specs')
+  def test_do_operation_process_timer_with_exception(self, mock_get_dofn_specs):
+    fn = ExceptionTimerDoFn()
+    mock_get_dofn_specs.return_value = ([], [fn.TIMER_SPEC])
+
+    if not statesampler.FAST_SAMPLER:
+      self.skipTest('DoOperation test requires FAST_SAMPLER')
+
+    state_duration_ms = 200
+    margin_of_error = 0.50
+
+    counter_factory = CounterFactory()
+    sampler = statesampler.StateSampler(
+        'test_do_op_exception', counter_factory, sampling_period_ms=1)
+
+    fn_for_spec = ExceptionTimerDoFn(
+        sleep_duration_s=state_duration_ms / 1000.0)
+
+    spec = operation_specs.WorkerDoFn(
+        serialized_fn=pickler.dumps(
+            (fn_for_spec, [], {}, [], Windowing(GlobalWindows()))),
+        output_tags=[],
+        input=None,
+        side_inputs=[],
+        output_coders=[])
+
+    mock_user_state_context = mock.MagicMock()
+    op = operations.DoOperation(
+        common.NameContext('step1'),
+        spec,
+        counter_factory,
+        sampler,
+        user_state_context=mock_user_state_context)
+
+    op.setup()
+
+    timer_data = Mock()
+    timer_data.user_key = None
+    timer_data.windows = [GlobalWindow()]
+    timer_data.fire_timestamp = 0
+    timer_data.paneinfo = PaneInfo(
+        is_first=False,
+        is_last=False,
+        timing=0,
+        index=0,
+        nonspeculative_index=0)
+    timer_data.dynamic_timer_tag = ''
+
+    sampler.start()
+    # Assert that the expected exception is raised
+    with self.assertRaises(RuntimeError):
+      op.process_timer('ts-ts-timer', timer_data=timer_data)
+    sampler.stop()
+    sampler.commit_counters()
+
+    expected_name = CounterName(
+        'process-timers-msecs',
+        step_name='step1',
+        stage_name='test_do_op_exception')
+
+    found_counter = None
+    for counter in counter_factory.get_counters():
+      if counter.name == expected_name:
+        found_counter = counter
+        break
+
+    self.assertIsNotNone(
+        found_counter, f"Expected counter '{expected_name}' to be created.")
+
+    actual_value = found_counter.value()
+    self.assertGreater(
+        actual_value, state_duration_ms * (1.0 - margin_of_error))
+    _LOGGER.info("Exception test finished successfully.")
 
 
 if __name__ == '__main__':

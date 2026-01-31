@@ -27,7 +27,6 @@ import com.google.protobuf.Message;
 import java.lang.reflect.InvocationTargetException;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServices.DatasetService;
-import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.util.Preconditions;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Predicates;
 import org.checkerframework.checker.nullness.qual.NonNull;
@@ -36,13 +35,13 @@ import org.checkerframework.checker.nullness.qual.NonNull;
 class StorageApiDynamicDestinationsProto<T extends Message, DestinationT extends @NonNull Object>
     extends StorageApiDynamicDestinations<T, DestinationT> {
   private final DescriptorProtos.DescriptorProto descriptorProto;
-  private final @Nullable SerializableFunction<T, TableRow> formatRecordOnFailureFunction;
+  private final @Nullable BigQueryIO.TableRowFormatFunction<T> formatRecordOnFailureFunction;
 
   @SuppressWarnings({"unchecked", "nullness"})
   StorageApiDynamicDestinationsProto(
       DynamicDestinations<T, DestinationT> inner,
       Class<T> protoClass,
-      @Nullable SerializableFunction<T, TableRow> formatRecordOnFailureFunction) {
+      @Nullable BigQueryIO.TableRowFormatFunction<T> formatRecordOnFailureFunction) {
     super(inner);
     try {
       this.formatRecordOnFailureFunction = formatRecordOnFailureFunction;
@@ -66,14 +65,24 @@ class StorageApiDynamicDestinationsProto<T extends Message, DestinationT extends
 
   class Converter implements MessageConverter<T> {
     TableSchema tableSchema;
+    transient @Nullable TableRowToStorageApiProto.SchemaInformation schemaInformation;
 
     Converter(TableSchema tableSchema) {
       this.tableSchema = tableSchema;
+      this.schemaInformation = null;
     }
 
     @Override
     public TableSchema getTableSchema() {
       return tableSchema;
+    }
+
+    public TableRowToStorageApiProto.SchemaInformation getSchemaInformation() {
+      if (this.schemaInformation == null) {
+        this.schemaInformation =
+            TableRowToStorageApiProto.SchemaInformation.fromTableSchema(tableSchema);
+      }
+      return this.schemaInformation;
     }
 
     @Override
@@ -97,13 +106,15 @@ class StorageApiDynamicDestinationsProto<T extends Message, DestinationT extends
           formatRecordOnFailureFunction != null ? toFailsafeTableRow(element) : null);
     }
 
+    @SuppressWarnings("nullness")
     @Override
     public TableRow toFailsafeTableRow(T element) {
       if (formatRecordOnFailureFunction != null) {
-        return formatRecordOnFailureFunction.apply(element);
+        return formatRecordOnFailureFunction.apply(schemaInformation, element);
       } else {
         try {
           return TableRowToStorageApiProto.tableRowFromMessage(
+              getSchemaInformation(),
               DynamicMessage.parseFrom(
                   TableRowToStorageApiProto.wrapDescriptorProto(descriptorProto),
                   element.toByteArray()),

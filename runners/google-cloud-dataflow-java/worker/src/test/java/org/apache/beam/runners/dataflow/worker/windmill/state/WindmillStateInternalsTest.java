@@ -128,6 +128,7 @@ public class WindmillStateInternalsTest {
   private WindmillStateInternals<String> underTest;
   private WindmillStateInternals<String> underTestNewKey;
   private WindmillStateInternals<String> underTestMapViaMultimap;
+  private WindmillTagEncoding windmillTagEncoding;
   private WindmillStateCache cache;
   private WindmillStateCache cacheViaMultimap;
   @Mock private Supplier<Closeable> readStateSupplier;
@@ -216,6 +217,7 @@ public class WindmillStateInternalsTest {
 
   public void resetUnderTest() {
     workToken++;
+    windmillTagEncoding = WindmillTagEncodingV1.instance();
     underTest =
         new WindmillStateInternals<>(
             "dummyKey",
@@ -230,7 +232,7 @@ public class WindmillStateInternalsTest {
                     17L,
                     workToken)
                 .forFamily(STATE_FAMILY),
-            WindmillStateTagUtil.instance(),
+            windmillTagEncoding,
             readStateSupplier);
     underTestNewKey =
         new WindmillStateInternals<String>(
@@ -246,7 +248,7 @@ public class WindmillStateInternalsTest {
                     17L,
                     workToken)
                 .forFamily(STATE_FAMILY),
-            WindmillStateTagUtil.instance(),
+            windmillTagEncoding,
             readStateSupplier);
     underTestMapViaMultimap =
         new WindmillStateInternals<String>(
@@ -262,7 +264,7 @@ public class WindmillStateInternalsTest {
                     17L,
                     workToken)
                 .forFamily(STATE_FAMILY),
-            WindmillStateTagUtil.instance(),
+            windmillTagEncoding,
             readStateSupplier);
   }
 

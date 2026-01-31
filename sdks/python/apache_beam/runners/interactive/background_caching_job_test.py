@@ -224,6 +224,7 @@ class BackgroundCachingJobTest(unittest.TestCase):
 
     with cell:  # Cell 2
       from apache_beam.io.gcp.pubsub import _PubSubSource
+
       # Alter the transform.
       transform._source = _PubSubSource(subscription=_BAR_PUBSUB_SUB)
 

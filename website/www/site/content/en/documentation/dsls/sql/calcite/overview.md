@@ -65,3 +65,30 @@ The following table summarizes the Apache Calcite functions and operators suppor
 <tr><td><a href="https://calcite.apache.org/docs/reference.html#match_recognize">MATCH_RECOGNIZE</a></td><td>No</td></tr>
 <tr><td><a href="https://calcite.apache.org/docs/reference.html#ddl-extensions">DDL Extensions</a></td><td>See Beam SQL extension <a href="/documentation/dsls/sql/create-external-table/">CREATE EXTERNAL TABLE</a></td></tr>
 </table>
+
+## Calcite Version Compatibility
+
+Since Beam 2.17.0, Beam SQL uses a vendored Calcite that is pinned to a Apache Calcite version.
+
+<table class="table table-bordered">
+<tr>
+  <th>Calcite Version</th>
+  <th>Supported Beam Versions</th>
+</tr>
+<tr>
+  <td>1.40.0</td>
+  <td>&ge; 2.68.0</td>
+</tr>
+<tr>
+  <td>1.28.0</td>
+  <td>2.35.0 - 2.67.0</td>
+</tr>
+<tr>
+  <td>1.26.0</td>
+  <td>2.34.0</td>
+</tr>
+<tr>
+  <td>1.20.0</td>
+  <td>2.16.0 - 2.33.0</td>
+</tr>
+</table>

@@ -303,8 +303,8 @@ class DataflowRunner(PipelineRunner):
   @staticmethod
   def combinefn_visitor():
     # Imported here to avoid circular dependencies.
-    from apache_beam.pipeline import PipelineVisitor
     from apache_beam import core
+    from apache_beam.pipeline import PipelineVisitor
 
     class CombineFnVisitor(PipelineVisitor):
       """Checks if `CombineFn` has non-default setup or teardown methods.
@@ -380,8 +380,7 @@ class DataflowRunner(PipelineRunner):
 
       # Apply DataflowRunner-specific overrides (e.g., streaming PubSub
       # optimizations)
-      from apache_beam.runners.dataflow.ptransform_overrides import (
-          get_dataflow_transform_overrides)
+      from apache_beam.runners.dataflow.ptransform_overrides import get_dataflow_transform_overrides
       dataflow_overrides = get_dataflow_transform_overrides(options)
       if dataflow_overrides:
         pipeline.replace_all(dataflow_overrides)

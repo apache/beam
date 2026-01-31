@@ -133,6 +133,7 @@ public class ActiveWorkRefresherTest {
             Watermarks.builder().setInputDataWatermark(Instant.EPOCH).build(),
             Work.createProcessingContext(
                 "computationId", new FakeGetDataClient(), ignored -> {}, heartbeatSender),
+            false,
             A_LONG_TIME_AGO),
         processWork);
   }

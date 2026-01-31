@@ -19,8 +19,9 @@ import os
 import uuid
 
 try:
-  import pytest
   import unittest
+
+  import pytest
   import xgboost
 
   from apache_beam.examples.inference import xgboost_iris_classification
