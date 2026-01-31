@@ -36,6 +36,7 @@ from typing import Dict
 from typing import Generic
 from typing import Optional
 from typing import TypeVar
+import weakref
 
 import fasteners
 
@@ -450,12 +451,19 @@ class MultiProcessShared(Generic[T]):
       p.start()
       logging.info("Parent: Waiting for %s to write address file...", self._tag)
 
+      # Make a weakref so that on Windows we don't keep
+      # prevent the process from being GCed.
+      weakref_p = weakref.ref(p)
+
       def cleanup_process():
-        if p.is_alive():
+        proc = weakref_p()
+        if proc and proc.is_alive():
           logging.info(
-              "Parent: Terminating server process %s for %s", p.pid, self._tag)
-          p.terminate()
-          p.join()
+              "Parent: Terminating server process %s for %s",
+              proc.pid,
+              self._tag)
+          proc.terminate()
+          proc.join()
         try:
           if os.path.exists(address_file):
             os.remove(address_file)
