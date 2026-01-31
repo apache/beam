@@ -19,8 +19,8 @@ package org.apache.beam.sdk.io;
 
 import static org.apache.beam.sdk.io.fs.ResolveOptions.StandardResolveOptions.RESOLVE_FILE;
 import static org.apache.beam.sdk.transforms.Contextful.fn;
-import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
-import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkState;
+import static com.google.common.base.Preconditions.checkArgument;
+import static com.google.common.base.Preconditions.checkState;
 
 import com.google.auto.value.AutoValue;
 import java.io.IOException;
@@ -74,10 +74,10 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.sdk.values.TypeDescriptors;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.MoreObjects;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Objects;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
+import com.google.common.annotations.VisibleForTesting;
+import com.google.common.base.MoreObjects;
+import com.google.common.base.Objects;
+import com.google.common.collect.Lists;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
@@ -548,8 +548,9 @@ public class FileIO {
     public MatchConfiguration continuously(
         Duration interval, TerminationCondition<String, ?> condition, boolean matchUpdatedFiles) {
       LOG.warn(
-          "Matching Continuously is stateful, and can scale poorly. Consider using Pub/Sub "
-              + "Notifications (https://cloud.google.com/storage/docs/pubsub-notifications) if possible");
+          "Matching Continuously is stateful, and can scale poorly. Consider using Pub/Sub"
+              + " Notifications (https://cloud.google.com/storage/docs/pubsub-notifications) if"
+              + " possible");
       return toBuilder()
           .setWatchInterval(interval)
           .setWatchTerminationCondition(condition)
@@ -1059,6 +1060,12 @@ public class FileIO {
 
     abstract @Nullable Integer getMaxNumWritersPerBundle();
 
+    abstract @Nullable Integer getBatchSize();
+
+    abstract @Nullable Integer getBatchSizeBytes();
+
+    abstract @Nullable Duration getBatchMaxBufferingDuration();
+
     abstract @Nullable ErrorHandler<BadRecord, ?> getBadRecordErrorHandler();
 
     abstract Builder<DestinationT, UserT> toBuilder();
@@ -1111,6 +1118,13 @@ public class FileIO {
 
       abstract Builder<DestinationT, UserT> setMaxNumWritersPerBundle(
           @Nullable Integer maxNumWritersPerBundle);
+
+      abstract Builder<DestinationT, UserT> setBatchSize(@Nullable Integer batchSize);
+
+      abstract Builder<DestinationT, UserT> setBatchSizeBytes(@Nullable Integer batchSizeBytes);
+
+      abstract Builder<DestinationT, UserT> setBatchMaxBufferingDuration(
+          @Nullable Duration batchMaxBufferingDuration);
 
       abstract Builder<DestinationT, UserT> setBadRecordErrorHandler(
           @Nullable ErrorHandler<BadRecord, ?> badRecordErrorHandler);
@@ -1301,6 +1315,7 @@ public class FileIO {
      */
     public Write<DestinationT, UserT> withNumShards(int numShards) {
       checkArgument(numShards >= 0, "numShards must be non-negative, but was: %s", numShards);
+      checkArgument(!getAutoSharding(), "Cannot set numShards when withAutoSharding() is used");
       if (numShards == 0) {
         return withNumShards(null);
       }
@@ -1311,6 +1326,7 @@ public class FileIO {
      * Like {@link #withNumShards(int)}. Specifying {@code null} means runner-determined sharding.
      */
     public Write<DestinationT, UserT> withNumShards(@Nullable ValueProvider<Integer> numShards) {
+      checkArgument(!getAutoSharding(), "Cannot set numShards when withAutoSharding() is used");
       return toBuilder().setNumShards(numShards).build();
     }
 
@@ -1321,6 +1337,7 @@ public class FileIO {
     public Write<DestinationT, UserT> withSharding(
         PTransform<PCollection<UserT>, PCollectionView<Integer>> sharding) {
       checkArgument(sharding != null, "sharding can not be null");
+      checkArgument(!getAutoSharding(), "Cannot set sharding when withAutoSharding() is used");
       return toBuilder().setSharding(sharding).build();
     }
 
@@ -1337,6 +1354,9 @@ public class FileIO {
     }
 
     public Write<DestinationT, UserT> withAutoSharding() {
+      checkArgument(
+          getNumShards() == null && getSharding() == null,
+          "Cannot use withAutoSharding() when withNumShards() or withSharding() is set");
       return toBuilder().setAutoSharding(true).build();
     }
 
@@ -1364,6 +1384,37 @@ public class FileIO {
     public Write<DestinationT, UserT> withBadRecordErrorHandler(
         ErrorHandler<BadRecord, ?> errorHandler) {
       return toBuilder().setBadRecordErrorHandler(errorHandler).build();
+    }
+
+    /**
+     * Returns a new {@link Write} that will batch the input records using specified batch size. The
+     * default value is {@link WriteFiles#FILE_TRIGGERING_RECORD_COUNT}.
+     *
+     * <p>This option is used only for writing unbounded data with auto-sharding.
+     */
+    public Write<DestinationT, UserT> withBatchSize(@Nullable Integer batchSize) {
+      return toBuilder().setBatchSize(batchSize).build();
+    }
+
+    /**
+     * Returns a new {@link Write} that will batch the input records using specified batch size in
+     * bytes. The default value is {@link WriteFiles#FILE_TRIGGERING_BYTE_COUNT}.
+     *
+     * <p>This option is used only for writing unbounded data with auto-sharding.
+     */
+    public Write<DestinationT, UserT> withBatchSizeBytes(@Nullable Integer batchSizeBytes) {
+      return toBuilder().setBatchSizeBytes(batchSizeBytes).build();
+    }
+
+    /**
+     * Returns a new {@link Write} that will batch the input records using specified max buffering
+     * duration. The default value is {@link WriteFiles#FILE_TRIGGERING_RECORD_BUFFERING_DURATION}.
+     *
+     * <p>This option is used only for writing unbounded data with auto-sharding.
+     */
+    public Write<DestinationT, UserT> withBatchMaxBufferingDuration(
+        @Nullable Duration batchMaxBufferingDuration) {
+      return toBuilder().setBatchMaxBufferingDuration(batchMaxBufferingDuration).build();
     }
 
     @VisibleForTesting
@@ -1481,6 +1532,15 @@ public class FileIO {
       }
       if (getBadRecordErrorHandler() != null) {
         writeFiles = writeFiles.withBadRecordErrorHandler(getBadRecordErrorHandler());
+      }
+      if (getBatchSize() != null) {
+        writeFiles = writeFiles.withBatchSize(getBatchSize());
+      }
+      if (getBatchSizeBytes() != null) {
+        writeFiles = writeFiles.withBatchSizeBytes(getBatchSizeBytes());
+      }
+      if (getBatchMaxBufferingDuration() != null) {
+        writeFiles = writeFiles.withBatchMaxBufferingDuration(getBatchMaxBufferingDuration());
       }
       return input.apply(writeFiles);
     }
