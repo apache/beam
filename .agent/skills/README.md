@@ -31,6 +31,7 @@ This directory contains skills that help the agent perform specialized tasks in 
 | [gradle-build](gradle-build/SKILL.md) | Build commands, flags, publishing, troubleshooting |
 | [io-connectors](io-connectors/SKILL.md) | 51+ I/O connectors, testing patterns, usage examples |
 | [java-development](java-development/SKILL.md) | Java SDK development, building, testing, project structure |
+| [license-compliance](license-compliance/SKILL.md) | Apache 2.0 license headers for all new files |
 | [python-development](python-development/SKILL.md) | Python SDK environment setup, testing, building pipelines |
 | [runners](runners/SKILL.md) | Direct, Dataflow, Flink, Spark runner configuration |
 
