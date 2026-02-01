@@ -21,9 +21,9 @@ import static org.apache.beam.sdk.values.Row.toRow;
 
 import java.io.InputStream;
 import java.math.BigDecimal;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
-import java.util.ArrayList;
 import java.util.Map;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -40,18 +40,22 @@ import org.yaml.snakeyaml.Yaml;
 import org.yaml.snakeyaml.error.YAMLException;
 
 public class YamlUtils {
-  private static final Map<Schema.TypeName, Function<String, @Nullable Object>> YAML_VALUE_PARSERS = ImmutableMap.<Schema.TypeName, Function<String, @org.checkerframework.checker.nullness.qual.Nullable Object>>builder()
-      .put(Schema.TypeName.BYTE, Byte::valueOf)
-      .put(Schema.TypeName.INT16, Short::valueOf)
-      .put(Schema.TypeName.INT32, Integer::valueOf)
-      .put(Schema.TypeName.INT64, Long::valueOf)
-      .put(Schema.TypeName.FLOAT, Float::valueOf)
-      .put(Schema.TypeName.DOUBLE, Double::valueOf)
-      .put(Schema.TypeName.DECIMAL, BigDecimal::new)
-      .put(Schema.TypeName.BOOLEAN, Boolean::valueOf)
-      .put(Schema.TypeName.STRING, str -> str)
-      .put(Schema.TypeName.BYTES, str -> BaseEncoding.base64().decode(str))
-      .build();
+  private static final Map<Schema.TypeName, Function<String, @Nullable Object>> YAML_VALUE_PARSERS =
+      ImmutableMap
+          .<Schema.TypeName,
+              Function<String, @org.checkerframework.checker.nullness.qual.Nullable Object>>
+              builder()
+          .put(Schema.TypeName.BYTE, Byte::valueOf)
+          .put(Schema.TypeName.INT16, Short::valueOf)
+          .put(Schema.TypeName.INT32, Integer::valueOf)
+          .put(Schema.TypeName.INT64, Long::valueOf)
+          .put(Schema.TypeName.FLOAT, Float::valueOf)
+          .put(Schema.TypeName.DOUBLE, Double::valueOf)
+          .put(Schema.TypeName.DECIMAL, BigDecimal::new)
+          .put(Schema.TypeName.BOOLEAN, Boolean::valueOf)
+          .put(Schema.TypeName.STRING, str -> str)
+          .put(Schema.TypeName.BYTES, str -> BaseEncoding.base64().decode(str))
+          .build();
 
   public static Row toBeamRow(@Nullable String yamlString, Schema schema) {
     return toBeamRow(yamlString, schema, false);
@@ -60,9 +64,10 @@ public class YamlUtils {
   public static Row toBeamRow(
       @Nullable String yamlString, Schema schema, boolean convertNamesToCamelCase) {
     if (yamlString == null || yamlString.isEmpty()) {
-      List<Field> requiredFields = schema.getFields().stream()
-          .filter(field -> !field.getType().getNullable())
-          .collect(Collectors.toList());
+      List<Field> requiredFields =
+          schema.getFields().stream()
+              .filter(field -> !field.getType().getNullable())
+              .collect(Collectors.toList());
       if (requiredFields.isEmpty()) {
         return Row.nullRow(schema);
       } else {
@@ -111,26 +116,29 @@ public class YamlUtils {
     }
 
     if (yamlValue instanceof List) {
-      FieldType innerType = Preconditions.checkNotNull(
-          fieldType.getCollectionElementType(),
-          "Cannot convert YAML type '%s` to `%s` because the YAML value is a List, but the output schema field does not define a collection type.",
-          yamlValue.getClass(),
-          fieldType);
+      FieldType innerType =
+          Preconditions.checkNotNull(
+              fieldType.getCollectionElementType(),
+              "Cannot convert YAML type '%s` to `%s` because the YAML value is a List, but the output schema field does not define a collection type.",
+              yamlValue.getClass(),
+              fieldType);
       return ((List<Object>) yamlValue)
           .stream()
-          .map(
-              v -> Preconditions.checkNotNull(
-                  toBeamValue(field.withType(innerType), v, convertNamesToCamelCase)))
-          .collect(Collectors.toList());
+              .map(
+                  v ->
+                      Preconditions.checkNotNull(
+                          toBeamValue(field.withType(innerType), v, convertNamesToCamelCase)))
+              .collect(Collectors.toList());
     }
 
     if (yamlValue instanceof Map) {
       if (fieldType.getTypeName() == Schema.TypeName.ROW) {
-        Schema nestedSchema = Preconditions.checkNotNull(
-            fieldType.getRowSchema(),
-            "Received a YAML '%s' type, but output schema field '%s' does not define a Row Schema",
-            yamlValue.getClass(),
-            fieldType);
+        Schema nestedSchema =
+            Preconditions.checkNotNull(
+                fieldType.getRowSchema(),
+                "Received a YAML '%s' type, but output schema field '%s' does not define a Row Schema",
+                yamlValue.getClass(),
+                fieldType);
         return toBeamRow((Map<String, Object>) yamlValue, nestedSchema, convertNamesToCamelCase);
       } else if (fieldType.getTypeName() == Schema.TypeName.MAP) {
         return yamlValue;
@@ -146,9 +154,10 @@ public class YamlUtils {
   public static Row toBeamRow(
       @Nullable Map<String, Object> map, Schema rowSchema, boolean toCamelCase) {
     if (map == null || map.isEmpty()) {
-      List<Field> requiredFields = rowSchema.getFields().stream()
-          .filter(field -> !field.getType().getNullable())
-          .collect(Collectors.toList());
+      List<Field> requiredFields =
+          rowSchema.getFields().stream()
+              .filter(field -> !field.getType().getNullable())
+              .collect(Collectors.toList());
       if (requiredFields.isEmpty()) {
         return Row.nullRow(rowSchema);
       } else {
@@ -160,8 +169,9 @@ public class YamlUtils {
     }
     return rowSchema.getFields().stream()
         .map(
-            field -> toBeamValue(
-                field, map.get(maybeGetSnakeCase(field.getName(), toCamelCase)), toCamelCase))
+            field ->
+                toBeamValue(
+                    field, map.get(maybeGetSnakeCase(field.getName(), toCamelCase)), toCamelCase))
         .collect(toRow(rowSchema));
   }
 

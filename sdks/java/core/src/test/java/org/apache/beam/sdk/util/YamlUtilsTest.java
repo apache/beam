@@ -37,8 +37,7 @@ import org.junit.runners.JUnit4;
 
 @RunWith(JUnit4.class)
 public class YamlUtilsTest {
-  @Rule
-  public transient ExpectedException thrown = ExpectedException.none();
+  @Rule public transient ExpectedException thrown = ExpectedException.none();
 
   public String makeNested(String input) {
     return Arrays.stream(input.split("\n"))
@@ -68,11 +67,12 @@ public class YamlUtilsTest {
   @Test
   public void testNullableValues() {
     String yamlString = "nullable_string:\n" + "nullable_integer:\n" + "nullable_boolean:\n";
-    Schema schema = Schema.builder()
-        .addNullableStringField("nullable_string")
-        .addNullableInt32Field("nullable_integer")
-        .addNullableBooleanField("nullable_boolean")
-        .build();
+    Schema schema =
+        Schema.builder()
+            .addNullableStringField("nullable_string")
+            .addNullableInt32Field("nullable_integer")
+            .addNullableBooleanField("nullable_boolean")
+            .build();
 
     assertEquals(Row.nullRow(schema), YamlUtils.toBeamRow(yamlString, schema));
   }
@@ -80,11 +80,12 @@ public class YamlUtilsTest {
   @Test
   public void testMissingNullableValues() {
     String yamlString = "nullable_string:";
-    Schema schema = Schema.builder()
-        .addNullableStringField("nullable_string")
-        .addNullableInt32Field("nullable_integer")
-        .addNullableBooleanField("nullable_boolean")
-        .build();
+    Schema schema =
+        Schema.builder()
+            .addNullableStringField("nullable_string")
+            .addNullableInt32Field("nullable_integer")
+            .addNullableBooleanField("nullable_boolean")
+            .build();
 
     assertEquals(Row.nullRow(schema), YamlUtils.toBeamRow(yamlString, schema));
   }
@@ -92,7 +93,8 @@ public class YamlUtilsTest {
   @Test
   public void testInvalidNullableValues() {
     String yamlString = "nullable_string:\n" + "integer:";
-    Schema schema = Schema.builder().addNullableStringField("nullable_string").addInt32Field("integer").build();
+    Schema schema =
+        Schema.builder().addNullableStringField("nullable_string").addInt32Field("integer").build();
 
     thrown.expect(IllegalArgumentException.class);
     thrown.expectMessage("Received null value for non-nullable field \"integer\"");
@@ -102,7 +104,8 @@ public class YamlUtilsTest {
   @Test
   public void testInvalidMissingRequiredValues() {
     String yamlString = "nullable_string:";
-    Schema schema = Schema.builder().addNullableStringField("nullable_string").addInt32Field("integer").build();
+    Schema schema =
+        Schema.builder().addNullableStringField("nullable_string").addInt32Field("integer").build();
     thrown.expect(IllegalArgumentException.class);
     thrown.expectMessage("Received null value for non-nullable field \"integer\"");
 
@@ -128,42 +131,45 @@ public class YamlUtilsTest {
     YamlUtils.toBeamRow(invalidYaml, schema);
   }
 
-  private static final Schema FLAT_SCHEMA = Schema.builder()
-      .addByteField("byte_field")
-      .addInt16Field("int16_field")
-      .addInt32Field("int32_field")
-      .addInt64Field("int64_field")
-      .addFloatField("float_field")
-      .addDoubleField("double_field")
-      .addDecimalField("decimal_field")
-      .addBooleanField("boolean_field")
-      .addStringField("string_field")
-      .addByteArrayField("bytes_field")
-      .build();
+  private static final Schema FLAT_SCHEMA =
+      Schema.builder()
+          .addByteField("byte_field")
+          .addInt16Field("int16_field")
+          .addInt32Field("int32_field")
+          .addInt64Field("int64_field")
+          .addFloatField("float_field")
+          .addDoubleField("double_field")
+          .addDecimalField("decimal_field")
+          .addBooleanField("boolean_field")
+          .addStringField("string_field")
+          .addByteArrayField("bytes_field")
+          .build();
 
-  private static final Row FLAT_ROW = Row.withSchema(FLAT_SCHEMA)
-      .withFieldValue("byte_field", Byte.valueOf("123"))
-      .withFieldValue("int16_field", Short.valueOf("16"))
-      .withFieldValue("int32_field", 32)
-      .withFieldValue("int64_field", 64L)
-      .withFieldValue("float_field", 123.456F)
-      .withFieldValue("double_field", 456.789)
-      .withFieldValue("decimal_field", BigDecimal.valueOf(789.123))
-      .withFieldValue("boolean_field", true)
-      .withFieldValue("string_field", "some string")
-      .withFieldValue("bytes_field", BaseEncoding.base64().decode("abc"))
-      .build();
+  private static final Row FLAT_ROW =
+      Row.withSchema(FLAT_SCHEMA)
+          .withFieldValue("byte_field", Byte.valueOf("123"))
+          .withFieldValue("int16_field", Short.valueOf("16"))
+          .withFieldValue("int32_field", 32)
+          .withFieldValue("int64_field", 64L)
+          .withFieldValue("float_field", 123.456F)
+          .withFieldValue("double_field", 456.789)
+          .withFieldValue("decimal_field", BigDecimal.valueOf(789.123))
+          .withFieldValue("boolean_field", true)
+          .withFieldValue("string_field", "some string")
+          .withFieldValue("bytes_field", BaseEncoding.base64().decode("abc"))
+          .build();
 
-  private static final String FLAT_YAML = "byte_field: 123\n"
-      + "int16_field: 16\n"
-      + "int32_field: 32\n"
-      + "int64_field: 64\n"
-      + "float_field: 123.456\n"
-      + "double_field: 456.789\n"
-      + "decimal_field: 789.123\n"
-      + "boolean_field: true\n"
-      + "string_field: some string\n"
-      + "bytes_field: abc";
+  private static final String FLAT_YAML =
+      "byte_field: 123\n"
+          + "int16_field: 16\n"
+          + "int32_field: 32\n"
+          + "int64_field: 64\n"
+          + "float_field: 123.456\n"
+          + "double_field: 456.789\n"
+          + "decimal_field: 789.123\n"
+          + "boolean_field: true\n"
+          + "string_field: some string\n"
+          + "bytes_field: abc";
 
   @Test
   public void testAllTypesFlat() {
@@ -175,22 +181,27 @@ public class YamlUtilsTest {
     String nestedFlatTypes = makeNested(FLAT_YAML);
     String topLevelYaml = "top_string: abc\n" + "nested: \n" + nestedFlatTypes;
 
-    Schema schema = Schema.builder().addStringField("top_string").addRowField("nested", FLAT_SCHEMA).build();
-    Row expectedRow = Row.withSchema(schema)
-        .withFieldValue("top_string", "abc")
-        .withFieldValue("nested", FLAT_ROW)
-        .build();
+    Schema schema =
+        Schema.builder().addStringField("top_string").addRowField("nested", FLAT_SCHEMA).build();
+    Row expectedRow =
+        Row.withSchema(schema)
+            .withFieldValue("top_string", "abc")
+            .withFieldValue("nested", FLAT_ROW)
+            .build();
 
     assertEquals(expectedRow, YamlUtils.toBeamRow(topLevelYaml, schema));
   }
 
-  private static final String INT_ARRAY_YAML = "arr:\n" + "  - 1\n" + "  - 2\n" + "  - 3\n" + "  - 4\n" + "  - 5\n";
+  private static final String INT_ARRAY_YAML =
+      "arr:\n" + "  - 1\n" + "  - 2\n" + "  - 3\n" + "  - 4\n" + "  - 5\n";
 
-  private static final Schema INT_ARRAY_SCHEMA = Schema.builder().addArrayField("arr", Schema.FieldType.INT32).build();
+  private static final Schema INT_ARRAY_SCHEMA =
+      Schema.builder().addArrayField("arr", Schema.FieldType.INT32).build();
 
-  private static final Row INT_ARRAY_ROW = Row.withSchema(INT_ARRAY_SCHEMA)
-      .withFieldValue("arr", IntStream.range(1, 6).boxed().collect(Collectors.toList()))
-      .build();
+  private static final Row INT_ARRAY_ROW =
+      Row.withSchema(INT_ARRAY_SCHEMA)
+          .withFieldValue("arr", IntStream.range(1, 6).boxed().collect(Collectors.toList()))
+          .build();
 
   @Test
   public void testArray() {
@@ -202,40 +213,46 @@ public class YamlUtilsTest {
     String nestedArray = makeNested(INT_ARRAY_YAML);
     String yamlString = "str_field: some string\n" + "nested: \n" + nestedArray;
 
-    Schema schema = Schema.builder()
-        .addStringField("str_field")
-        .addRowField("nested", INT_ARRAY_SCHEMA)
-        .build();
+    Schema schema =
+        Schema.builder()
+            .addStringField("str_field")
+            .addRowField("nested", INT_ARRAY_SCHEMA)
+            .build();
 
-    Row expectedRow = Row.withSchema(schema)
-        .withFieldValue("str_field", "some string")
-        .withFieldValue("nested", INT_ARRAY_ROW)
-        .build();
+    Row expectedRow =
+        Row.withSchema(schema)
+            .withFieldValue("str_field", "some string")
+            .withFieldValue("nested", INT_ARRAY_ROW)
+            .build();
 
     assertEquals(expectedRow, YamlUtils.toBeamRow(yamlString, schema));
   }
 
-  private static final Schema FLAT_SCHEMA_CAMEL_CASE = Schema.builder()
-      .addFields(
-          FLAT_SCHEMA.getFields().stream()
-              .map(
-                  field -> field.withName(
-                      CaseFormat.LOWER_UNDERSCORE.to(
-                          CaseFormat.LOWER_CAMEL, field.getName())))
-              .collect(Collectors.toList()))
-      .build();
+  private static final Schema FLAT_SCHEMA_CAMEL_CASE =
+      Schema.builder()
+          .addFields(
+              FLAT_SCHEMA.getFields().stream()
+                  .map(
+                      field ->
+                          field.withName(
+                              CaseFormat.LOWER_UNDERSCORE.to(
+                                  CaseFormat.LOWER_CAMEL, field.getName())))
+                  .collect(Collectors.toList()))
+          .build();
 
-  private static final Map<String, Object> FLAT_MAP = FLAT_SCHEMA.getFields().stream()
-      .collect(
-          Collectors.toMap(
-              Schema.Field::getName,
-              field -> Preconditions.checkArgumentNotNull(FLAT_ROW.getValue(field.getName()))));
+  private static final Map<String, Object> FLAT_MAP =
+      FLAT_SCHEMA.getFields().stream()
+          .collect(
+              Collectors.toMap(
+                  Schema.Field::getName,
+                  field -> Preconditions.checkArgumentNotNull(FLAT_ROW.getValue(field.getName()))));
 
   @Test
   public void testSnakeCaseMapToCamelCaseRow() {
-    Row expectedRow = FLAT_SCHEMA.getFields().stream()
-        .map(field -> Preconditions.checkStateNotNull(FLAT_ROW.getValue(field.getName())))
-        .collect(Row.toRow(FLAT_SCHEMA_CAMEL_CASE));
+    Row expectedRow =
+        FLAT_SCHEMA.getFields().stream()
+            .map(field -> Preconditions.checkStateNotNull(FLAT_ROW.getValue(field.getName())))
+            .collect(Row.toRow(FLAT_SCHEMA_CAMEL_CASE));
 
     Row convertedRow = YamlUtils.toBeamRow(FLAT_MAP, FLAT_SCHEMA_CAMEL_CASE, true);
 
@@ -263,10 +280,9 @@ public class YamlUtilsTest {
 
   @Test
   public void testYamlStringFromMapWithValidMap() {
-    Map<String, Object> config = org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap.of(
-        "string_key", "value",
-        "int_key", 123,
-        "boolean_key", true);
+    Map<String, Object> config =
+        org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap.of(
+            "string_key", "value", "int_key", 123, "boolean_key", true);
 
     String yaml = YamlUtils.yamlStringFromMap(config);
     org.junit.Assert.assertNotNull(yaml);
