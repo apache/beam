@@ -161,7 +161,7 @@ input.apply(Window.<T>into(FixedWindows.of(Duration.standardMinutes(5)))
 Additional inputs to ParDo.
 
 ```java
-PCollectionView<Map<String, String>> sideInput = 
+PCollectionView<Map<String, String>> sideInput =
     lookupTable.apply(View.asMap());
 
 mainInput.apply(ParDo.of(new DoFn<String, String>() {

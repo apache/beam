@@ -144,7 +144,7 @@ Tests that validate runner correctness:
 # Direct Runner
 ./gradlew :runners:direct-java:validatesRunner
 
-# Flink Runner  
+# Flink Runner
 ./gradlew :runners:flink:1.18:validatesRunner
 
 # Spark Runner

@@ -53,7 +53,7 @@ description: Guides the contribution workflow for Apache Beam, including creatin
 ### 2. Claim the Issue
 ```
 .take-issue    # Assigns issue to you
-.free-issue    # Unassigns issue from you  
+.free-issue    # Unassigns issue from you
 .close-issue   # Closes the issue
 ```
 
