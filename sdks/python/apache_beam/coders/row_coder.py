@@ -52,13 +52,16 @@ class RowCoder(FastCoder):
 
   Implements the beam:coder:row:v1 standard coder spec.
   """
-  def __init__(self, schema, force_deterministic=False):
+  def __init__(self, schema, force_deterministic=False, options=None):
     """Initializes a :class:`RowCoder`.
 
     Args:
       schema (apache_beam.portability.api.schema_pb2.Schema): The protobuf
         representation of the schema of the data that the RowCoder will be used
         to encode/decode.
+      force_deterministic: If truthy, used as the step_label for making
+        component coders deterministic.
+      options: Optional PipelineOptions for version compatibility.
     """
     self.schema = schema
 
@@ -71,7 +74,8 @@ class RowCoder(FastCoder):
     ]
     if force_deterministic:
       self.components = [
-          c.as_deterministic_coder(force_deterministic) for c in self.components
+          c.as_deterministic_coder(force_deterministic, options=options)
+          for c in self.components
       ]
     self.forced_deterministic = bool(force_deterministic)
 
@@ -81,11 +85,12 @@ class RowCoder(FastCoder):
   def is_deterministic(self):
     return all(c.is_deterministic() for c in self.components)
 
-  def as_deterministic_coder(self, step_label, error_message=None):
+  def as_deterministic_coder(
+      self, step_label, error_message=None, options=None):
     if self.is_deterministic():
       return self
     else:
-      return RowCoder(self.schema, error_message or step_label)
+      return RowCoder(self.schema, error_message or step_label, options)
 
   def to_type_hint(self):
     return self._type_hint

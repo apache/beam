@@ -43,6 +43,7 @@ from apache_beam import pvalue
 from apache_beam.coders.coder_impl import IterableStateReader
 from apache_beam.coders.coder_impl import IterableStateWriter
 from apache_beam.internal import pickler
+from apache_beam.options import pipeline_options
 from apache_beam.pipeline import ComponentIdMap
 from apache_beam.portability.api import beam_fn_api_pb2
 from apache_beam.portability.api import beam_runner_api_pb2
@@ -177,6 +178,7 @@ class PipelineContext(object):
       iterable_state_write: Optional[IterableStateWriter] = None,
       namespace: str = 'ref',
       requirements: Iterable[str] = (),
+      options: Optional[pipeline_options.PipelineOptions] = None,
   ) -> None:
     if isinstance(proto, beam_fn_api_pb2.ProcessBundleDescriptor):
       proto = beam_runner_api_pb2.Components(
@@ -226,6 +228,7 @@ class PipelineContext(object):
     self.iterable_state_read = iterable_state_read
     self.iterable_state_write = iterable_state_write
     self._requirements = set(requirements)
+    self.options = options
     self.enable_best_effort_deterministic_pickling = False
     self.enable_stable_code_identifier_pickling = False
 
@@ -258,7 +261,8 @@ class PipelineContext(object):
 
   def deterministic_coder(self, coder: coders.Coder, msg: str) -> coders.Coder:
     if coder not in self.deterministic_coder_map:
-      self.deterministic_coder_map[coder] = coder.as_deterministic_coder(msg)  # type: ignore
+      self.deterministic_coder_map[coder] = coder.as_deterministic_coder(  # type: ignore
+          msg, options=self.options)
     return self.deterministic_coder_map[coder]
 
   def element_type_from_coder_id(self, coder_id: str) -> Any:

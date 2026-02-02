@@ -23,14 +23,20 @@ import copy
 import platform
 import unittest
 import uuid
+from typing import Any
+from typing import NamedTuple
 
 import mock
 import pytest
+from parameterized import param
+from parameterized import parameterized
 
 import apache_beam as beam
 from apache_beam import coders
 from apache_beam import typehints
 from apache_beam.coders import BytesCoder
+from apache_beam.coders.coders import DeterministicFastPrimitivesCoder
+from apache_beam.coders.coders import DeterministicFastPrimitivesCoderV2
 from apache_beam.io import Read
 from apache_beam.io.iobase import SourceBase
 from apache_beam.options.pipeline_options import PortableOptions
@@ -65,6 +71,11 @@ from apache_beam.transforms.window import TimestampedValue
 from apache_beam.typehints import TypeCheckError
 from apache_beam.utils import windowed_value
 from apache_beam.utils.timestamp import MIN_TIMESTAMP
+
+
+class KeyWithAnyField(NamedTuple):
+  id: int
+  data: Any
 
 
 class FakeUnboundedSource(SourceBase):
@@ -1023,6 +1034,7 @@ class PipelineOptionsTest(unittest.TestCase):
     self.assertEqual({
         'from_dictionary',
         'get_all_options',
+        'is_compat_version_prior_to',
         'slices',
         'style',
         'view_as',
@@ -1038,6 +1050,7 @@ class PipelineOptionsTest(unittest.TestCase):
     self.assertEqual({
         'from_dictionary',
         'get_all_options',
+        'is_compat_version_prior_to',
         'style',
         'view_as',
         'display_data',
@@ -1649,6 +1662,53 @@ class RunnerApiTest(unittest.TestCase):
     # Confirm that Split Sales correctly has two outputs as specified by
     #  ParDo.with_outputs in ParentSalesSplitter.
     assert len(xform.outputs) == 2
+
+  @parameterized.expand([
+      param(compat_version=None),
+      param(compat_version="2.67.0"),
+      param(compat_version="2.68.0"),
+  ])
+  def test_pipeline_options_propagate_to_deterministic_coders(
+      self, compat_version):
+    """End-to-end test verifying pipeline options propagate to coder selection.
+
+    When a pipeline with update_compatibility_version is serialized via
+    to_runner_api(), the PipelineContext should use the options to select
+    the appropriate deterministic coder version:
+    - SDK version <= 2.67.0: DeterministicFastPrimitivesCoder (dill-based)
+    - SDK version >= 2.68.0: DeterministicFastPrimitivesCoderV2 (cloudpickle)
+    """
+    options = PipelineOptions(update_compatibility_version=compat_version)
+    p = beam.Pipeline(options=options)
+
+    # Create a pipeline with GroupByKey that requires deterministic key coders
+    # KeyWithAnyField is a NamedTuple with an Any field, requiring deterministic
+    # encoding
+    _ = (
+        p
+        | beam.Create([(KeyWithAnyField(1, {'nested': 'data'}), 'value1')])
+        | beam.GroupByKey())
+
+    # Serialize to runner API and get the context back
+    _, context = p.to_runner_api(return_context=True)
+
+    # Get the coder for our key type and find its deterministic version
+    key_coder = coders.registry.get_coder(KeyWithAnyField)
+    self.assertIn(
+        key_coder,
+        context.deterministic_coder_map,
+        "Expected coder for KeyWithAnyField to be in deterministic_coder_map")
+
+    deterministic_key_coder = context.deterministic_coder_map[key_coder]
+    expected_coder_type = (
+        DeterministicFastPrimitivesCoderV2 if compat_version
+        in (None, "2.68.0") else DeterministicFastPrimitivesCoder)
+
+    self.assertIsInstance(
+        deterministic_key_coder,
+        expected_coder_type,
+        f"Expected {expected_coder_type.__name__} for compat_version="
+        f"{compat_version}, but got {type(deterministic_key_coder).__name__}")
 
 
 if __name__ == '__main__':

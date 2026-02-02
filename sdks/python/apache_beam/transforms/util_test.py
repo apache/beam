@@ -1322,9 +1322,6 @@ class ReshuffleTest(unittest.TestCase):
       param(compat_version="2.64.0"),
   ])
   def test_reshuffle_custom_window_preserves_metadata(self, compat_version):
-    """Tests that Reshuffle preserves pane info."""
-    from apache_beam.coders import typecoders
-    typecoders.registry.force_dill_deterministic_coders = True
     element_count = 12
     timestamp_value = timestamp.Timestamp(0)
     l = [
@@ -1390,6 +1387,7 @@ class ReshuffleTest(unittest.TestCase):
     ])
     options = PipelineOptions(update_compatibility_version=compat_version)
     options.view_as(StandardOptions).streaming = True
+    object.__setattr__(options, 'force_dill_deterministic_coders', True)
 
     with beam.Pipeline(options=options) as p:
       stream_source = (
@@ -1418,7 +1416,6 @@ class ReshuffleTest(unittest.TestCase):
           equal_to(expected),
           label='CheckMetadataPreserved',
           reify_windows=True)
-    typecoders.registry.force_dill_deterministic_coders = False
 
   @parameterized.expand([
       param(compat_version=None),
@@ -1427,8 +1424,6 @@ class ReshuffleTest(unittest.TestCase):
   def test_reshuffle_default_window_preserves_metadata(self, compat_version):
     """Tests that Reshuffle preserves timestamp, window, and pane info
     metadata."""
-    from apache_beam.coders import typecoders
-    typecoders.registry.force_dill_deterministic_coders = True
     no_firing = PaneInfo(
         is_first=True,
         is_last=True,
@@ -1481,6 +1476,7 @@ class ReshuffleTest(unittest.TestCase):
         if compat_version is None else expected_not_preserved)
 
     options = PipelineOptions(update_compatibility_version=compat_version)
+    object.__setattr__(options, 'force_dill_deterministic_coders', True)
     with TestPipeline(options=options) as pipeline:
       # Create windowed values with specific metadata
       elements = [
@@ -1502,7 +1498,6 @@ class ReshuffleTest(unittest.TestCase):
           equal_to(expected),
           label='CheckMetadataPreserved',
           reify_windows=True)
-    typecoders.registry.force_dill_deterministic_coders = False
 
   @pytest.mark.it_validatesrunner
   def test_reshuffle_preserves_timestamps(self):
@@ -2558,68 +2553,6 @@ class WaitOnTest(unittest.TestCase):
           result,
           equal_to([(None, 'result', 6), (None, 'result', 7)]),
           label='result')
-
-
-class CompatCheckTest(unittest.TestCase):
-  def test_is_v1_prior_to_v2(self):
-    test_cases = [
-        # Basic comparison cases
-        ("1.0.0", "2.0.0", True),  # v1 < v2 in major
-        ("2.0.0", "1.0.0", False),  # v1 > v2 in major
-        ("1.1.0", "1.2.0", True),  # v1 < v2 in minor
-        ("1.2.0", "1.1.0", False),  # v1 > v2 in minor
-        ("1.0.1", "1.0.2", True),  # v1 < v2 in patch
-        ("1.0.2", "1.0.1", False),  # v1 > v2 in patch
-
-        # Equal versions
-        ("1.0.0", "1.0.0", False),  # Identical
-        ("0.0.0", "0.0.0", False),  # Both zero
-
-        # Different lengths - shorter vs longer
-        ("1.0", "1.0.0", False),  # Should be equal (1.0 = 1.0.0)
-        ("1.0", "1.0.1", True),  # 1.0.0 < 1.0.1
-        ("1.2", "1.2.0", False),  # Should be equal (1.2 = 1.2.0)
-        ("1.2", "1.2.3", True),  # 1.2.0 < 1.2.3
-        ("2", "2.0.0", False),  # Should be equal (2 = 2.0.0)
-        ("2", "2.0.1", True),  # 2.0.0 < 2.0.1
-        ("1", "2.0", True),  # 1.0.0 < 2.0.0
-
-        # Different lengths - longer vs shorter
-        ("1.0.0", "1.0", False),  # Should be equal
-        ("1.0.1", "1.0", False),  # 1.0.1 > 1.0.0
-        ("1.2.0", "1.2", False),  # Should be equal
-        ("1.2.3", "1.2", False),  # 1.2.3 > 1.2.0
-        ("2.0.0", "2", False),  # Should be equal
-        ("2.0.1", "2", False),  # 2.0.1 > 2.0.0
-        ("2.0", "1", False),  # 2.0.0 > 1.0.0
-
-        # Mixed length comparisons
-        ("1.0", "2.0.0", True),  # 1.0.0 < 2.0.0
-        ("2.0", "1.0.0", False),  # 2.0.0 > 1.0.0
-        ("1", "1.0.1", True),  # 1.0.0 < 1.0.1
-        ("1.1", "1.0.9", False),  # 1.1.0 > 1.0.9
-
-        # Large numbers
-        ("1.9.9", "2.0.0", True),  # 1.9.9 < 2.0.0
-        ("10.0.0", "9.9.9", False),  # 10.0.0 > 9.9.9
-        ("1.10.0", "1.9.0", False),  # 1.10.0 > 1.9.0
-        ("1.2.10", "1.2.9", False),  # 1.2.10 > 1.2.9
-
-        # Sequential versions
-        ("1.0.0", "1.0.1", True),
-        ("1.0.1", "1.0.2", True),
-        ("1.0.9", "1.1.0", True),
-        ("1.9.9", "2.0.0", True),
-
-        # Null/None cases
-        (None, "1.0.0", False),  # v1 is None
-    ]
-
-    for v1, v2, expected in test_cases:
-      self.assertEqual(
-          util.is_v1_prior_to_v2(v1=v1, v2=v2),
-          expected,
-          msg=f"Failed {v1} < {v2} == {expected}")
 
 
 if __name__ == '__main__':

@@ -357,7 +357,8 @@ class _GroupByKey(PTransform):
           pcoll.element_type)
       typecoders.registry.verify_deterministic(
           typecoders.registry.get_coder(key_type),
-          'GroupByKey operation "%s"' % self.label)
+          'GroupByKey operation "%s"' % self.label,
+          options=pcoll.pipeline.options)
 
       reify_output_type = typehints.KV[
           key_type, typehints.WindowedValue[value_type]]  # type: ignore[misc]

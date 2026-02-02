@@ -84,7 +84,6 @@ class CoderRegistry(object):
     self._coders: Dict[Any, Type[coders.Coder]] = {}
     self.custom_types: List[Any] = []
     self.register_standard_coders(fallback_coder)
-    self.update_compatibility_version = None
 
   def register_standard_coders(self, fallback_coder):
     """Register coders for all basic and composite types."""
@@ -185,7 +184,7 @@ class CoderRegistry(object):
     for t, c in type_coder:
       self.register_coder(t, c)
 
-  def verify_deterministic(self, key_coder, op_name, silent=True):
+  def verify_deterministic(self, key_coder, op_name, silent=True, options=None):
     if not key_coder.is_deterministic():
       error_msg = (
           'The key coder "%s" for %s '
@@ -195,7 +194,7 @@ class CoderRegistry(object):
           'and for custom key classes, by writing a '
           'deterministic custom Coder. Please see the '
           'documentation for more details.' % (key_coder, op_name))
-      return key_coder.as_deterministic_coder(op_name, error_msg)
+      return key_coder.as_deterministic_coder(op_name, error_msg, options)
     else:
       return key_coder
 

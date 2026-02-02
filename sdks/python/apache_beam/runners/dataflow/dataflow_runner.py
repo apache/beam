@@ -544,7 +544,9 @@ class DataflowRunner(PipelineRunner):
           'key-value coder: %s.') % (transform.label, coder))
     # TODO(robertwb): Update the coder itself if it changed.
     coders.registry.verify_deterministic(
-        coder.key_coder(), 'GroupByKey operation "%s"' % transform.label)
+        coder.key_coder(),
+        'GroupByKey operation "%s"' % transform.label,
+        options=pcoll.pipeline.options)
 
   def get_default_gcp_region(self):
     """Get a default value for Google Cloud region according to

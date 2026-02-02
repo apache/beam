@@ -79,7 +79,6 @@ from apache_beam.options.pipeline_options import DebugOptions
 from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.options.pipeline_options import SetupOptions
 from apache_beam.options.pipeline_options import StandardOptions
-from apache_beam.options.pipeline_options import StreamingOptions
 from apache_beam.options.pipeline_options import TypeOptions
 from apache_beam.options.pipeline_options_validator import PipelineOptionsValidator
 from apache_beam.portability import common_urns
@@ -225,9 +224,6 @@ class Pipeline(HasDisplayData):
     if errors:
       raise ValueError(
           'Pipeline has validations errors: \n' + '\n'.join(errors))
-
-    typecoders.registry.update_compatibility_version = self._options.view_as(
-        StreamingOptions).update_compatibility_version
 
     # set default experiments for portable runners
     # (needs to occur prior to pipeline construction)
@@ -1051,7 +1047,8 @@ class Pipeline(HasDisplayData):
       context = pipeline_context.PipelineContext(
           use_fake_coders=use_fake_coders,
           component_id_map=self.component_id_map,
-          default_environment=default_environment)
+          default_environment=default_environment,
+          options=self.options)
     elif default_environment is not None:
       raise ValueError(
           'Only one of context or default_environment may be specified.')

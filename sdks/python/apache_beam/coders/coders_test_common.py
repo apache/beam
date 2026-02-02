@@ -41,7 +41,10 @@ from parameterized import parameterized
 from apache_beam.coders import coders
 from apache_beam.coders import proto2_coder_test_messages_pb2 as test_message
 from apache_beam.coders import typecoders
+from apache_beam.coders.row_coder import RowCoder
+from apache_beam.typehints.schemas import typing_to_runner_api
 from apache_beam.internal import pickler
+from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.runners import pipeline_context
 from apache_beam.transforms import userstate
 from apache_beam.transforms import window
@@ -202,9 +205,6 @@ class CodersTest(unittest.TestCase):
     assert not standard - cls.seen, str(standard - cls.seen)
     assert not cls.seen_nested - standard, str(cls.seen_nested - standard)
 
-  def tearDown(self):
-    typecoders.registry.update_compatibility_version = None
-
   @classmethod
   def _observe(cls, coder):
     cls.seen.add(type(coder))
@@ -275,13 +275,14 @@ class CodersTest(unittest.TestCase):
     with relative filepaths in code objects and dynamic functions.
     """
 
-    typecoders.registry.update_compatibility_version = compat_version
+    options = PipelineOptions(update_compatibility_version=compat_version)
     coder = coders.FastPrimitivesCoder()
     if not dill and compat_version == "2.67.0":
       with self.assertRaises(RuntimeError):
-        coder.as_deterministic_coder(step_label="step")
+        coder.as_deterministic_coder(step_label="step", options=options)
       self.skipTest('Dill not installed')
-    deterministic_coder = coder.as_deterministic_coder(step_label="step")
+    deterministic_coder = coder.as_deterministic_coder(
+        step_label="step", options=options)
 
     self.check_coder(deterministic_coder, *self.test_values_deterministic)
     for v in self.test_values_deterministic:
@@ -364,7 +365,7 @@ class CodersTest(unittest.TestCase):
     - In SDK version >=2.69.0 cloudpickle is used to encode "special types"
     with relative file.
     """
-    typecoders.registry.update_compatibility_version = compat_version
+    options = PipelineOptions(update_compatibility_version=compat_version)
     values = [{
         MyTypedNamedTuple(i, 'a'): MyTypedNamedTuple('a', i)
         for i in range(10)
@@ -375,10 +376,11 @@ class CodersTest(unittest.TestCase):
 
     if not dill and compat_version == "2.67.0":
       with self.assertRaises(RuntimeError):
-        coder.as_deterministic_coder(step_label="step")
+        coder.as_deterministic_coder(step_label="step", options=options)
       self.skipTest('Dill not installed')
 
-    deterministic_coder = coder.as_deterministic_coder(step_label="step")
+    deterministic_coder = coder.as_deterministic_coder(
+        step_label="step", options=options)
 
     assert isinstance(
         deterministic_coder._key_coder,
@@ -386,6 +388,53 @@ class CodersTest(unittest.TestCase):
         in (None, "2.68.0") else coders.DeterministicFastPrimitivesCoder)
 
     self.check_coder(deterministic_coder, *values)
+
+  @parameterized.expand([
+      param(compat_version=None),
+      param(compat_version="2.67.0"),
+      param(compat_version="2.68.0"),
+  ])
+  def test_deterministic_row_coder_is_update_compatible(self, compat_version):
+    """ Test that RowCoder.as_deterministic_coder propagates options to
+    component coders for proper version compatibility.
+
+    - In SDK version <= 2.67.0 dill is used to encode "special types"
+    - In SDK version 2.68.0 cloudpickle is used to encode "special types" with
+    absolute filepaths in code objects and dynamic functions.
+    - In SDK version >=2.69.0 cloudpickle is used to encode "special types"
+    with relative filepaths in code objects and dynamic functions.
+    """
+    # Create a NamedTuple with an Any field which uses FastPrimitivesCoder
+    RowWithAny = NamedTuple('RowWithAny', [('name', str), ('data', Any)])
+    schema = typing_to_runner_api(RowWithAny).row_type.schema
+
+    options = PipelineOptions(update_compatibility_version=compat_version)
+    coder = RowCoder(schema)
+
+    if not dill and compat_version == "2.67.0":
+      with self.assertRaises(RuntimeError):
+        coder.as_deterministic_coder(step_label="step", options=options)
+      self.skipTest('Dill not installed')
+
+    deterministic_coder = coder.as_deterministic_coder(
+        step_label="step", options=options)
+
+    # The 'data' field (index 1) should have the appropriate deterministic coder
+    # based on the compat_version
+    data_coder = deterministic_coder.components[1]
+    expected_coder_type = (
+        coders.DeterministicFastPrimitivesCoderV2 if compat_version
+        in (None, "2.68.0") else coders.DeterministicFastPrimitivesCoder)
+    self.assertIsInstance(data_coder, expected_coder_type)
+
+    # Verify encoding/decoding works
+    test_values = [
+        RowWithAny(name='test', data={'key': 'value'}),
+        RowWithAny(name='test2', data=[1, 2, 3]),
+    ]
+    for value in test_values:
+      self.assertEqual(
+          value, deterministic_coder.decode(deterministic_coder.encode(value)))
 
   def test_dill_coder(self):
     if not dill:
@@ -738,7 +787,7 @@ class CodersTest(unittest.TestCase):
 
     if sys.executable is None:
       self.skipTest('No Python interpreter found')
-    typecoders.registry.update_compatibility_version = compat_version
+    options = PipelineOptions(update_compatibility_version=compat_version)
 
     # pylint: disable=line-too-long
     script = textwrap.dedent(
@@ -750,7 +799,7 @@ class CodersTest(unittest.TestCase):
         import logging
 
         from apache_beam.coders import coders
-        from apache_beam.coders import typecoders
+        from apache_beam.options.pipeline_options import PipelineOptions
         from apache_beam.coders.coders_test_common import MyNamedTuple
         from apache_beam.coders.coders_test_common import MyTypedNamedTuple
         from apache_beam.coders.coders_test_common import MyEnum
@@ -802,9 +851,9 @@ class CodersTest(unittest.TestCase):
         ])
 
         compat_version = {'"'+ compat_version +'"' if compat_version else None}
-        typecoders.registry.update_compatibility_version = compat_version
+        options = PipelineOptions(update_compatibility_version=compat_version)
         coder = coders.FastPrimitivesCoder()
-        deterministic_coder = coder.as_deterministic_coder("step")
+        deterministic_coder = coder.as_deterministic_coder("step", options=options)
         
         results = dict()
         for test_name, value in test_cases:
@@ -834,7 +883,7 @@ class CodersTest(unittest.TestCase):
     results2 = run_subprocess()
 
     coder = coders.FastPrimitivesCoder()
-    deterministic_coder = coder.as_deterministic_coder("step")
+    deterministic_coder = coder.as_deterministic_coder("step", options=options)
 
     for test_name in results1:
 

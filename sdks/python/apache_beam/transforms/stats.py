@@ -152,8 +152,8 @@ class ApproximateUnique(object):
       coder = coders.registry.get_coder(pcoll)
       return pcoll \
              | 'CountGlobalUniqueValues' \
-             >> (CombineGlobally(ApproximateUniqueCombineFn(self._sample_size,
-                                                            coder)))
+             >> (CombineGlobally(ApproximateUniqueCombineFn(
+                     self._sample_size, coder, pcoll.pipeline.options)))
 
   @typehints.with_input_types(typing.Tuple[K, V])
   @typehints.with_output_types(typing.Tuple[K, int])
@@ -166,8 +166,8 @@ class ApproximateUnique(object):
       coder = coders.registry.get_coder(pcoll)
       return pcoll \
              | 'CountPerKeyUniqueValues' \
-             >> (CombinePerKey(ApproximateUniqueCombineFn(self._sample_size,
-                                                          coder)))
+             >> (CombinePerKey(ApproximateUniqueCombineFn(
+                     self._sample_size, coder, pcoll.pipeline.options)))
 
 
 class _LargestUnique(object):
@@ -242,10 +242,10 @@ class ApproximateUniqueCombineFn(CombineFn):
   ApproximateUniqueCombineFn computes an estimate of the number of
   unique values that were combined.
   """
-  def __init__(self, sample_size, coder):
+  def __init__(self, sample_size, coder, options=None):
     self._sample_size = sample_size
     coder = coders.typecoders.registry.verify_deterministic(
-        coder, 'ApproximateUniqueCombineFn')
+        coder, 'ApproximateUniqueCombineFn', options=options)
 
     self._coder = coder
     self._hash_fn = _get_default_hash_fn()
