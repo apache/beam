@@ -470,15 +470,6 @@ export class CombinePerKeyPrecombineOperator<I, A, O>
     );
   }
 
-  /**
-   * Moves a key to the end of the Map (most recently used position).
-   * JavaScript Maps preserve insertion order, so delete + set moves to end.
-   */
-  private touchKey(wkey: string, value: A) {
-    this.groups.delete(wkey);
-    this.groups.set(wkey, value);
-  }
-
   process(wvalue: WindowedValue<any>) {
     for (const window of wvalue.windows) {
       const wkey =
@@ -494,7 +485,11 @@ export class CombinePerKeyPrecombineOperator<I, A, O>
               wvalue.value.value,
             );
       // Move to end (most recently used) by delete + set
-      this.touchKey(wkey, newAccumulator);
+      // Only delete if the key already exists (avoids unnecessary operation for new keys)
+      if (existingAccumulator !== undefined) {
+        this.groups.delete(wkey);
+      }
+      this.groups.set(wkey, newAccumulator);
     }
     if (this.groups.size > this.maxKeys) {
       // Flush the least recently used entries (at the front of the Map)
@@ -545,41 +540,9 @@ export class CombinePerKeyPrecombineOperator<I, A, O>
     return result.build();
   }
 
-  /**
-   * Flushes all entries from the cache.
-   */
-  flush(target: number): ProcessResult {
-    const result = new ProcessResultBuilder();
-    const toDelete: string[] = [];
-    for (const [wkey, values] of this.groups) {
-      const parts = wkey.split(" ");
-      const encodedWindow = parts[0];
-      const encodedKey = parts[1];
-      const window = decodeFromBase64(encodedWindow, this.windowCoder);
-      result.add(
-        this.receiver.receive({
-          value: {
-            key: decodeFromBase64(encodedKey, this.keyCoder),
-            value: values,
-          },
-          windows: [window],
-          timestamp: window.maxTimestamp(),
-          pane: PaneInfoCoder.ONE_AND_ONLY_FIRING,
-        }),
-      );
-      toDelete.push(wkey);
-      if (this.groups.size - toDelete.length <= target) {
-        break;
-      }
-    }
-    for (const wkey of toDelete) {
-      this.groups.delete(wkey);
-    }
-    return result.build();
-  }
-
   async finishBundle() {
-    const maybePromise = this.flush(0);
+    // Flush all remaining entries using flushLRU(0)
+    const maybePromise = this.flushLRU(0);
     if (maybePromise !== NonPromise) {
       await maybePromise;
     }
