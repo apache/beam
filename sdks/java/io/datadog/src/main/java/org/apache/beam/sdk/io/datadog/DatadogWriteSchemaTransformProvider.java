@@ -24,6 +24,7 @@ import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.transforms.SchemaTransform;
 import org.apache.beam.sdk.schemas.transforms.SchemaTransformProvider;
 import org.apache.beam.sdk.schemas.transforms.TypedSchemaTransformProvider;
+import org.apache.beam.sdk.schemas.transforms.providers.ErrorHandling;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.PCollection;
@@ -36,7 +37,7 @@ import org.slf4j.LoggerFactory;
 public class DatadogWriteSchemaTransformProvider
     extends TypedSchemaTransformProvider<DatadogWriteSchemaTransformConfiguration> {
   private static final String IDENTIFIER = "beam:schematransform:org.apache.beam:datadog_write:v1";
-  static final String INPUT_TAG = "input";
+  static final String INPUT = "input";
   private static final Logger LOG =
       LoggerFactory.getLogger(DatadogWriteSchemaTransformProvider.class);
 
@@ -60,7 +61,7 @@ public class DatadogWriteSchemaTransformProvider
   /** Implementation of the {@link TypedSchemaTransformProvider} input collection names method. */
   @Override
   public List<String> inputCollectionNames() {
-    return Collections.singletonList(INPUT_TAG);
+    return Collections.singletonList(INPUT);
   }
 
   /** Implementation of the {@link TypedSchemaTransformProvider} output collection names method. */
@@ -106,28 +107,57 @@ public class DatadogWriteSchemaTransformProvider
       }
 
       // Obtain input rows and convert to DatadogEvents
-      PCollection<Row> inputRows = input.get(INPUT_TAG);
+      PCollection<Row> inputRows = input.get(INPUT);
 
       PCollection<DatadogEvent> events =
           inputRows.apply("RowToDatadogEvent", ParDo.of(new RowToDatadogEventFn()));
       events.setCoder(DatadogEventCoder.of());
 
-      events.apply("WriteToDatadog", writeTransform.build());
+      DatadogIO.Write datadogWrite = writeTransform.build();
+      PCollection<DatadogWriteError> deadLetter = events.apply("WriteToDatadog", datadogWrite);
 
-      // // Return empty tuple
-      // String output = "";
-      // ErrorHandling errorHandler = configuration.getErrorHandling();
-      // if (errorHandler != null) {
-      //   String outputHandler = errorHandler.getOutput();
-      //   if (outputHandler != null) {
-      //     output = outputHandler;
-      //   } else {
-      //     output = "";
-      //   }
-      // }
-      // PCollectionRowTuple outputTuple = PCollectionRowTuple.of(output, events);
+      ErrorHandling errorHandling = configuration.getErrorHandling();
+      if (errorHandling == null) {
+        return PCollectionRowTuple.empty(input.getPipeline());
+      }
 
-      return PCollectionRowTuple.empty(input.getPipeline());
+      PCollection<Row> errorRows =
+          deadLetter.apply("DatadogWriteErrorToRow", ParDo.of(new DatadogWriteErrorToRowFn(true)));
+      errorRows.setRowSchema(DatadogWriteErrorToRowFn.ERROR_SCHEMA);
+      return PCollectionRowTuple.of(errorHandling.getOutput(), errorRows);
+    }
+  }
+
+  static class DatadogWriteErrorToRowFn extends DoFn<DatadogWriteError, Row> {
+
+    private final Boolean isConfigured;
+
+    public DatadogWriteErrorToRowFn(Boolean isConfigured) {
+      this.isConfigured = isConfigured;
+    }
+
+    public static final Schema ERROR_SCHEMA =
+        Schema.builder()
+            .addNullableField("statusCode", Schema.FieldType.INT32)
+            .addNullableField("statusMessage", Schema.FieldType.STRING)
+            .addNullableField("payload", Schema.FieldType.STRING)
+            .build();
+
+    @ProcessElement
+    public void processElement(@Element DatadogWriteError error, OutputReceiver<Row> out) {
+      if (!isConfigured) {
+        return;
+      }
+      Integer status = error.statusCode();
+      String message = error.statusMessage();
+      String payload = error.payload();
+      Row row =
+          Row.withSchema(ERROR_SCHEMA)
+              .withFieldValue("statusCode", status == null ? 0 : status)
+              .withFieldValue("statusMessage", message == null ? "" : message)
+              .withFieldValue("payload", payload == null ? "" : payload)
+              .build();
+      out.output(row);
     }
   }
 

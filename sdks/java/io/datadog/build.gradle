@@ -47,3 +47,11 @@ dependencies {
     implementation library.java.http_client
     implementation library.java.http_core
 }
+
+sourceSets {
+    main {
+        java {
+            exclude '**/DatadogWriterFn*'
+        }
+    }
+}

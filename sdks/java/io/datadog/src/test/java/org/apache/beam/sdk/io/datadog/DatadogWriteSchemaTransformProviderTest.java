@@ -320,62 +320,59 @@ public class DatadogWriteSchemaTransformProviderTest {
     }
   }
 
-  //   @Test
-  //   public void testErrorHandling() {
-  //     DatadogWriteSchemaTransformProvider provider = new DatadogWriteSchemaTransformProvider();
-  //     provider.setDatadogWriter(
-  //         (SerializableFunction<Integer, DatadogIO.Write>)
-  //             (SerializableFunction<Integer, DatadogIO.Write>)
-  //                 unused ->
-  //                     DatadogIO.write()
-  //                         .withApiKey("test-api-key")
-  //                         .withUrl("http://localhost:8080")
-  //                         .withBatchCount(1)
-  //                         .withMaxBufferSize(1L)
-  //                         .withParallelism(1));
+  @Test
+  public void testErrorHandling() {
+    DatadogWriteSchemaTransformProvider provider = new DatadogWriteSchemaTransformProvider();
+    ErrorHandling errorHandling = ErrorHandling.builder().setOutput("errors").build();
+    DatadogWriteSchemaTransformConfiguration configuration =
+        DatadogWriteSchemaTransformConfiguration.builder()
+            .setApiKey("test-api-key")
+            .setUrl("http://localhost:8080")
+            .setBatchCount(10)
+            .setMaxBufferSize(1L)
+            .setParallelism(1)
+            .setErrorHandling(errorHandling)
+            .build();
 
-  //     ErrorHandling errorHandling = ErrorHandling.builder().setOutput("errors").build();
-  //     DatadogWriteSchemaTransformConfiguration configuration =
-  //         DatadogWriteSchemaTransformConfiguration.builder()
-  //             .setApiKey("test-api-key")
-  //             .setUrl("http://localhost:8080")
-  //             .setErrorHandling(errorHandling)
-  //             .build();
+    Schema nullSchema =
+        Schema.builder()
+            .addStringField("ddsource")
+            .addNullableField("ddtags", Schema.FieldType.STRING)
+            .addStringField("hostname")
+            .addNullableField("service", Schema.FieldType.STRING)
+            .addNullableField("message", Schema.FieldType.STRING)
+            .build();
 
-  //     Schema nullSchema =
-  //         Schema.builder()
-  //             .addStringField("ddsource")
-  //             .addNullableField("ddtags", Schema.FieldType.STRING)
-  //             .addStringField("hostname")
-  //             .addNullableField("service", Schema.FieldType.STRING)
-  //             .addNullableField("message", Schema.FieldType.STRING)
-  //             .build();
+    Row row =
+        Row.withSchema(nullSchema)
+            .withFieldValue("ddsource", "my-source")
+            .withFieldValue("ddtags", "tag1:value1,tag2")
+            .withFieldValue("hostname", "my-host")
+            .withFieldValue("service", "my-service")
+            .withFieldValue("message", null)
+            .build();
 
-  //     Row row =
-  //         Row.withSchema(nullSchema)
-  //             .withFieldValue("ddsource", "my-source")
-  //             .withFieldValue("ddtags", "tag1:value1,tag2")
-  //             .withFieldValue("hostname", "my-host")
-  //             .withFieldValue("service", "my-service")
-  //             .withFieldValue("message", null)
-  //             .build();
+    PCollection<Row> input = p.apply(Create.of(row).withRowSchema(nullSchema));
+    PCollectionRowTuple inputTuple = PCollectionRowTuple.of("input", input);
 
-  //     PCollection<Row> input = p.apply(Create.of(row).withRowSchema(nullSchema));
-  //     PCollectionRowTuple inputTuple = PCollectionRowTuple.of("input", input);
+    SchemaTransform transform = provider.from(configuration);
+    PCollectionRowTuple outputTuple = transform.expand(inputTuple);
 
-  //     SchemaTransform transform = provider.from(configuration);
-  //     PCollectionRowTuple outputTuple = transform.expand(inputTuple);
+    assertTrue(outputTuple.has("errors"));
+    PAssert.that(outputTuple.get("errors"))
+        .satisfies(
+            (errors) -> {
+              assertEquals(1, errors.spliterator().getExactSizeIfKnown());
+              Row error = errors.iterator().next();
+              assertEquals(row, error.getRow("failed_row"));
+              assertTrue(
+                  "Expected error message to contain 'Message is required.'",
+                  error.getString("error_message").contains("Message is required."));
+              return null;
+            });
 
-  //     assertTrue(outputTuple.has("errors"));
-  //     PAssert.that(outputTuple.get("errors"))
-  //         .satisfies(
-  //             (errors) -> {
-  //               assertEquals(1, errors.spliterator().getExactSizeIfKnown());
-  //               return null;
-  //             });
-
-  //     p.run().waitUntilFinish();
-  //   }
+    p.run().waitUntilFinish();
+  }
 
   @Test
   public void testConfigurationSchema() throws NoSuchSchemaException {
