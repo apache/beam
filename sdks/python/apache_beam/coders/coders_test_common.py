@@ -42,6 +42,8 @@ from apache_beam.coders import coders
 from apache_beam.coders import proto2_coder_test_messages_pb2 as test_message
 from apache_beam.coders import typecoders
 from apache_beam.internal import pickler
+from apache_beam.options.pipeline_construction_options import pipeline_construction_options
+from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.runners import pipeline_context
 from apache_beam.transforms import userstate
 from apache_beam.transforms import window
@@ -203,7 +205,7 @@ class CodersTest(unittest.TestCase):
     assert not cls.seen_nested - standard, str(cls.seen_nested - standard)
 
   def tearDown(self):
-    typecoders.registry.update_compatibility_version = None
+    pipeline_construction_options.options = None
 
   @classmethod
   def _observe(cls, coder):
@@ -275,7 +277,8 @@ class CodersTest(unittest.TestCase):
     with relative filepaths in code objects and dynamic functions.
     """
 
-    typecoders.registry.update_compatibility_version = compat_version
+    pipeline_construction_options.options = PipelineOptions(
+        update_compatibility_version=compat_version)
     coder = coders.FastPrimitivesCoder()
     if not dill and compat_version == "2.67.0":
       with self.assertRaises(RuntimeError):
@@ -364,7 +367,8 @@ class CodersTest(unittest.TestCase):
     - In SDK version >=2.69.0 cloudpickle is used to encode "special types"
     with relative file.
     """
-    typecoders.registry.update_compatibility_version = compat_version
+    pipeline_construction_options.options = PipelineOptions(
+        update_compatibility_version=compat_version)
     values = [{
         MyTypedNamedTuple(i, 'a'): MyTypedNamedTuple('a', i)
         for i in range(10)
@@ -738,7 +742,8 @@ class CodersTest(unittest.TestCase):
 
     if sys.executable is None:
       self.skipTest('No Python interpreter found')
-    typecoders.registry.update_compatibility_version = compat_version
+    pipeline_construction_options.options = PipelineOptions(
+        update_compatibility_version=compat_version)
 
     # pylint: disable=line-too-long
     script = textwrap.dedent(
@@ -750,7 +755,8 @@ class CodersTest(unittest.TestCase):
         import logging
 
         from apache_beam.coders import coders
-        from apache_beam.coders import typecoders
+        from apache_beam.options.pipeline_construction_options import pipeline_construction_options
+        from apache_beam.options.pipeline_options import PipelineOptions
         from apache_beam.coders.coders_test_common import MyNamedTuple
         from apache_beam.coders.coders_test_common import MyTypedNamedTuple
         from apache_beam.coders.coders_test_common import MyEnum
@@ -802,7 +808,8 @@ class CodersTest(unittest.TestCase):
         ])
 
         compat_version = {'"'+ compat_version +'"' if compat_version else None}
-        typecoders.registry.update_compatibility_version = compat_version
+        pipeline_construction_options.options = PipelineOptions(
+        update_compatibility_version=compat_version)
         coder = coders.FastPrimitivesCoder()
         deterministic_coder = coder.as_deterministic_coder("step")
         

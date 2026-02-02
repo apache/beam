@@ -927,16 +927,17 @@ class CloudpickleCoder(_PickleCoderBase):
 
 class DeterministicFastPrimitivesCoderV2(FastCoder):
   """Throws runtime errors when encoding non-deterministic values."""
-  def __init__(self, coder, step_label, update_compatibility_version=None):
+  def __init__(self, coder, step_label):
     self._underlying_coder = coder
     self._step_label = step_label
     self._use_relative_filepaths = True
     self._version_tag = "v2_69"
-    from apache_beam.transforms.util import is_v1_prior_to_v2
 
     # Versions prior to 2.69.0 did not use relative filepaths.
-    if update_compatibility_version and is_v1_prior_to_v2(
-        v1=update_compatibility_version, v2="2.69.0"):
+    from apache_beam.options.pipeline_construction_options import (
+        pipeline_construction_options)
+    opts = pipeline_construction_options.options
+    if opts and opts.is_compat_version_prior_to("2.69.0"):
       self._version_tag = ""
       self._use_relative_filepaths = False
 
@@ -1005,20 +1006,20 @@ class DeterministicFastPrimitivesCoder(FastCoder):
     return Any
 
 
-def _should_force_use_dill(registry):
+def _should_force_use_dill():
+  from apache_beam.options.pipeline_construction_options import (
+      pipeline_construction_options)
   # force_dill_deterministic_coders is for testing purposes. If there is a
   # DeterministicFastPrimitivesCoder in the pipeline graph but the dill
-  # encoding path is not really triggered dill does not have to be installed.
+  # encoding path is not really triggered dill does not have to be installed
   # and this check can be skipped.
-  if getattr(registry, 'force_dill_deterministic_coders', False):
+  if getattr(pipeline_construction_options,
+             'force_dill_deterministic_coders',
+             False):
     return True
 
-  from apache_beam.transforms.util import is_v1_prior_to_v2
-  update_compat_version = registry.update_compatibility_version
-  if not update_compat_version:
-    return False
-
-  if not is_v1_prior_to_v2(v1=update_compat_version, v2="2.68.0"):
+  opts = pipeline_construction_options.options
+  if opts is None or not opts.is_compat_version_prior_to("2.68.0"):
     return False
 
   try:
@@ -1043,12 +1044,9 @@ def _update_compatible_deterministic_fast_primitives_coder(coder, step_label):
    - In SDK version 2.69.0 cloudpickle is used to encode "special types" with
    relative filepaths in code objects and dynamic functions.
   """
-  from apache_beam.coders import typecoders
-
-  if _should_force_use_dill(typecoders.registry):
+  if _should_force_use_dill():
     return DeterministicFastPrimitivesCoder(coder, step_label)
-  return DeterministicFastPrimitivesCoderV2(
-      coder, step_label, typecoders.registry.update_compatibility_version)
+  return DeterministicFastPrimitivesCoderV2(coder, step_label)
 
 
 class FastPrimitivesCoder(FastCoder):
