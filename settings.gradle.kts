@@ -366,6 +366,8 @@ include("sdks:java:io:iceberg:hive")
 findProject(":sdks:java:io:iceberg:hive")?.name = "hive"
 include("sdks:java:io:iceberg:bqms")
 findProject(":sdks:java:io:iceberg:bqms")?.name = "bqms"
+include("sdks:java:io:iceberg:aws")
+findProject(":sdks:java:io:iceberg:aws")?.name = "aws"
 include("it:clickhouse")
 findProject(":it:clickhouse")?.name = "clickhouse"
 include("sdks:java:extensions:sql:iceberg")

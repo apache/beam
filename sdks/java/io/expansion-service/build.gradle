@@ -84,9 +84,7 @@ dependencies {
     runtimeOnly project(":sdks:java:io:iceberg")
     runtimeOnly project(":sdks:java:io:iceberg:hive")
     runtimeOnly project(path: ":sdks:java:io:iceberg:bqms", configuration: "shadow")
-    // support for S3-compatible storage
-    runtimeOnly "org.apache.iceberg:iceberg-aws:1.10.0"
-    runtimeOnly "org.apache.iceberg:iceberg-aws-bundle:1.10.0"
+    runtimeOnly project(":sdks:java:io:iceberg:aws")
   }
 
   runtimeOnly library.java.kafka_clients
