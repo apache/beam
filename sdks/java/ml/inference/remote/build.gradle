@@ -41,4 +41,5 @@ dependencies {
   testRuntimeOnly project(path: ":runners:direct-java", configuration: "shadow")
   testImplementation library.java.junit
   testRuntimeOnly library.java.hamcrest
+  testRuntimeOnly library.java.slf4j_simple
 }
