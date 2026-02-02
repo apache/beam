@@ -38,7 +38,6 @@ Example Beam Pipelines using it:
 - **StatsD Exporter**: Sidecar container that converts StatsD metrics to Prometheus format, exposed on port `9102`.
 - **Internal Load Balancer**: A Google Cloud TCP Load Balancer exposing the Rate Limit service internally within the VPC.
 
-
 ## Prerequisites:
 ### Following items need to be setup for Envoy Rate Limiter deployment on GCP:
 1. [GCP project](https://cloud.google.com/resource-manager/docs/creating-managing-projects)
