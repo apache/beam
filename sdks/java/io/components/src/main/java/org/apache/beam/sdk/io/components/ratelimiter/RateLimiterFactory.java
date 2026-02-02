@@ -53,5 +53,5 @@ public interface RateLimiterFactory extends Serializable {
    * @throws IOException if there is an error communicating with the ratelimiter service.
    * @throws InterruptedException if the thread is interrupted while waiting.
    */
-  boolean check(RateLimiterContext context, int permits) throws IOException, InterruptedException;
+  boolean allow(RateLimiterContext context, int permits) throws IOException, InterruptedException;
 }

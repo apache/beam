@@ -89,7 +89,7 @@ public class EnvoyRateLimiterFactory implements RateLimiterFactory {
   }
 
   @Override
-  public boolean check(RateLimiterContext context, int permits)
+  public boolean allow(RateLimiterContext context, int permits)
       throws IOException, InterruptedException {
     if (!(context instanceof EnvoyRateLimiterContext)) {
       throw new IllegalArgumentException(

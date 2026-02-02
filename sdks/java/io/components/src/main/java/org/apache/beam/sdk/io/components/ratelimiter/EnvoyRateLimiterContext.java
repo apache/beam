@@ -23,7 +23,7 @@ import org.apache.beam.sdk.schemas.AutoValueSchema;
 import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
 
 /**
- * Context for an Envoy Rate Limiter check.
+ * Context for an Envoy Rate Limiter call.
  *
  * <p>Contains the domain and descriptors required to define a specific rate limit bucket.
  */

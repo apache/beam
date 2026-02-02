@@ -25,8 +25,8 @@ description = "Apache Beam :: SDKs :: Java :: IO :: Components"
 ext.summary = "Components for building fully featured IOs"
 
 dependencies {
-  implementation project(path: ":sdks:java:core", configuration: "shadow")
-  implementation library.java.protobuf_java
+    implementation project(path: ":sdks:java:core", configuration: "shadow")
+    implementation library.java.protobuf_java
     permitUnusedDeclared library.java.protobuf_java // BEAM-11761
     implementation library.java.slf4j_api
     implementation library.java.vendored_guava_32_1_2_jre
@@ -34,15 +34,15 @@ dependencies {
 
     testImplementation project(path: ":sdks:java:core", configuration: "shadowTest")
     testImplementation library.java.guava_testlib
-  testImplementation library.java.junit
+    testImplementation library.java.junit
     testImplementation library.java.hamcrest
     testRuntimeOnly library.java.slf4j_jdk14
     testImplementation project(path: ":runners:direct-java", configuration: "shadow")
 
-  // Envoy Rate Limiter Dependencies
-  implementation library.java.envoy_control_plane_api
-  implementation library.java.grpc_api
-  implementation library.java.grpc_stub
-  implementation library.java.grpc_protobuf
-  implementation library.java.auto_value_annotations
+    // Envoy Rate Limiter Dependencies
+    implementation library.java.envoy_control_plane_api
+    implementation library.java.grpc_api
+    implementation library.java.grpc_stub
+    implementation library.java.grpc_protobuf
+    implementation library.java.auto_value_annotations
 }

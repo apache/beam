@@ -158,10 +158,3 @@ task wordCount(type:JavaExec) {
   systemProperties = System.getProperties()
   args = ["--output=/tmp/output.txt"]
 }
-
-task exec (type:JavaExec) {
-    main = System.getProperty("mainClass")
-    classpath = sourceSets.main.runtimeClasspath
-    systemProperties System.getProperties()
-    args System.getProperty("exec.args", "").split()
-}
