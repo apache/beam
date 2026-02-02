@@ -48,6 +48,7 @@ from apache_beam import Map
 from apache_beam import WindowInto
 from apache_beam.coders import coders
 from apache_beam.metrics import MetricsFilter
+from apache_beam.options.pipeline_construction_options import pipeline_construction_options
 from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.options.pipeline_options import SetupOptions
 from apache_beam.options.pipeline_options import StandardOptions
@@ -1323,8 +1324,6 @@ class ReshuffleTest(unittest.TestCase):
   ])
   def test_reshuffle_custom_window_preserves_metadata(self, compat_version):
     """Tests that Reshuffle preserves pane info."""
-    from apache_beam.options.pipeline_construction_options import (
-        pipeline_construction_options)
     pipeline_construction_options.force_dill_deterministic_coders = True
     element_count = 12
     timestamp_value = timestamp.Timestamp(0)
@@ -1428,8 +1427,6 @@ class ReshuffleTest(unittest.TestCase):
   def test_reshuffle_default_window_preserves_metadata(self, compat_version):
     """Tests that Reshuffle preserves timestamp, window, and pane info
     metadata."""
-    from apache_beam.options.pipeline_construction_options import (
-        pipeline_construction_options)
     pipeline_construction_options.force_dill_deterministic_coders = True
     no_firing = PaneInfo(
         is_first=True,

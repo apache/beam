@@ -46,6 +46,7 @@ from apache_beam.io.gcp.internal.clients import bigquery as bigquery_api
 from apache_beam.io.gcp.tests.bigquery_matcher import BigqueryFullResultMatcher
 from apache_beam.io.gcp.tests.bigquery_matcher import BigqueryFullResultStreamingMatcher
 from apache_beam.metrics.metric import Lineage
+from apache_beam.options.pipeline_construction_options import pipeline_construction_options
 from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.options.pipeline_options import StandardOptions
 from apache_beam.runners.dataflow.test_dataflow_runner import TestDataflowRunner
@@ -486,8 +487,6 @@ class TestBigQueryFileLoads(_TestCaseWithTempDirCleanUp):
       param(compat_version="2.64.0"),
   ])
   def test_reshuffle_before_load(self, compat_version):
-    from apache_beam.options.pipeline_construction_options import (
-        pipeline_construction_options)
     pipeline_construction_options.force_dill_deterministic_coders = True
     destination = 'project1:dataset1.table1'
 
@@ -998,8 +997,6 @@ class TestBigQueryFileLoads(_TestCaseWithTempDirCleanUp):
   ])
   def test_triggering_frequency(
       self, is_streaming, with_auto_sharding, compat_version):
-    from apache_beam.options.pipeline_construction_options import (
-        pipeline_construction_options)
     pipeline_construction_options.force_dill_deterministic_coders = True
 
     destination = 'project1:dataset1.table1'
