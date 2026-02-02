@@ -42,6 +42,15 @@ import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+/**
+ * Execute OpenAI model handler integration test.
+ *
+ * <pre>
+ * ./gradlew :sdks:java:ml:inference:openai:integrationTest \
+ *   --tests org.apache.beam.sdk.ml.inference.openai.OpenAIModelHandlerIT \
+ *   --info
+ * </pre>
+ */
 public class OpenAIModelHandlerIT {
   private static final Logger LOG = LoggerFactory.getLogger(OpenAIModelHandlerIT.class);
 
