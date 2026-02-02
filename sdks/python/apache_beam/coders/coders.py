@@ -1007,6 +1007,7 @@ class DeterministicFastPrimitivesCoder(FastCoder):
 
 def _should_force_use_dill():
   from apache_beam.options.pipeline_construction_options import pipeline_construction_options
+
   # force_dill_deterministic_coders is for testing purposes. If there is a
   # DeterministicFastPrimitivesCoder in the pipeline graph but the dill
   # encoding path is not really triggered dill does not have to be installed
