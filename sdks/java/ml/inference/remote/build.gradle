@@ -17,10 +17,13 @@
  */
 plugins {
   id 'org.apache.beam.module'
-  id 'java-library'
 }
+applyJavaNature(
+  automaticModuleName: 'org.apache.beam.sdk.ml.inference.remote',
+)
 
 description = "Apache Beam :: SDKs :: Java :: ML :: Inference :: Remote"
+ext.summary = "Base framework for remote ml inference"
 
 dependencies {
   // Core Beam SDK
@@ -37,5 +40,4 @@ dependencies {
   testRuntimeOnly project(path: ":runners:direct-java", configuration: "shadow")
   testImplementation library.java.junit
   testRuntimeOnly library.java.hamcrest
-  testRuntimeOnly library.java.slf4j_simple
 }
