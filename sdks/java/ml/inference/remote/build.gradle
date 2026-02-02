@@ -20,6 +20,7 @@ plugins {
 }
 applyJavaNature(
   automaticModuleName: 'org.apache.beam.sdk.ml.inference.remote',
+  requireJavaVersion: JavaVersion.VERSION_11
 )
 
 description = "Apache Beam :: SDKs :: Java :: ML :: Inference :: Remote"

@@ -20,7 +20,8 @@ plugins {
 }
 
 applyJavaNature(
-  automaticModuleName: 'org.apache.beam.sdk.ml.inference.openai'
+  automaticModuleName: 'org.apache.beam.sdk.ml.inference.openai',
+  requireJavaVersion: JavaVersion.VERSION_11
 )
 
 description = "Apache Beam :: SDKs :: Java :: ML :: Inference :: OpenAI"
