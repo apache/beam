@@ -106,7 +106,7 @@ public class DatadogWriteSchemaTransformProviderTest {
     PCollection<DatadogEvent> output =
         input.apply(
             "RowToDatadogEvent",
-            ParDo.of(new DatadogWriteSchemaTransformProvider.RowToDatadogEventFn()));
+            ParDo.of(new DatadogWriteSchemaTransformProvider.RowToDatadogEventFn(null)));
 
     output.setCoder(DatadogEventCoder.of());
 
@@ -141,7 +141,7 @@ public class DatadogWriteSchemaTransformProviderTest {
     PCollection<DatadogEvent> output =
         input.apply(
             "RowToDatadogEvent",
-            ParDo.of(new DatadogWriteSchemaTransformProvider.RowToDatadogEventFn()));
+            ParDo.of(new DatadogWriteSchemaTransformProvider.RowToDatadogEventFn(null)));
 
     output.setCoder(DatadogEventCoder.of());
 
@@ -185,7 +185,7 @@ public class DatadogWriteSchemaTransformProviderTest {
     PCollection<DatadogEvent> output =
         input.apply(
             "RowToDatadogEvent",
-            ParDo.of(new DatadogWriteSchemaTransformProvider.RowToDatadogEventFn()));
+            ParDo.of(new DatadogWriteSchemaTransformProvider.RowToDatadogEventFn(null)));
 
     output.setCoder(DatadogEventCoder.of());
 
@@ -217,7 +217,7 @@ public class DatadogWriteSchemaTransformProviderTest {
     PCollection<DatadogEvent> output =
         input.apply(
             "RowToDatadogEvent",
-            ParDo.of(new DatadogWriteSchemaTransformProvider.RowToDatadogEventFn()));
+            ParDo.of(new DatadogWriteSchemaTransformProvider.RowToDatadogEventFn(null)));
 
     output.setCoder(DatadogEventCoder.of());
 
@@ -226,9 +226,12 @@ public class DatadogWriteSchemaTransformProviderTest {
       fail("Expected a PipelineExecutionException to be thrown.");
     } catch (PipelineExecutionException e) {
       assertTrue(
-          "Expected cause to be of type NullPointerException",
-          e.getCause() instanceof NullPointerException);
-      assertEquals("Message is required.", e.getCause().getMessage());
+          "Expected cause to be of type RuntimeException",
+          e.getCause() instanceof RuntimeException);
+      assertTrue(
+          "Expected cause's cause to be of type NullPointerException",
+          e.getCause().getCause() instanceof NullPointerException);
+      assertEquals("Message is required.", e.getCause().getCause().getMessage());
     }
   }
 
@@ -306,7 +309,7 @@ public class DatadogWriteSchemaTransformProviderTest {
     PCollection<DatadogEvent> output =
         input.apply(
             "RowToDatadogEvent",
-            ParDo.of(new DatadogWriteSchemaTransformProvider.RowToDatadogEventFn()));
+            ParDo.of(new DatadogWriteSchemaTransformProvider.RowToDatadogEventFn(null)));
 
     output.setCoder(DatadogEventCoder.of());
 
@@ -315,8 +318,11 @@ public class DatadogWriteSchemaTransformProviderTest {
       fail("Expected a ClassCastException to be thrown.");
     } catch (PipelineExecutionException e) {
       assertTrue(
-          "Expected cause to be of type ClassCastException",
-          e.getCause() instanceof ClassCastException);
+          "Expected cause to be of type RuntimeException",
+          e.getCause() instanceof RuntimeException);
+      assertTrue(
+          "Expected cause's cause to be of type ClassCastException",
+          e.getCause().getCause() instanceof ClassCastException);
     }
   }
 

@@ -29,7 +29,11 @@ import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionRowTuple;
+import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.Row;
+import org.apache.beam.sdk.values.TupleTag;
+import org.apache.beam.sdk.values.TupleTagList;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -106,25 +110,36 @@ public class DatadogWriteSchemaTransformProvider
         writeTransform = writeTransform.withParallelism(parallelism);
       }
 
-      // Obtain input rows and convert to DatadogEvents
       PCollection<Row> inputRows = input.get(INPUT);
+      TupleTag<DatadogEvent> successTag = new TupleTag<>();
+      TupleTag<Row> failureTag = new TupleTag<>();
 
-      PCollection<DatadogEvent> events =
-          inputRows.apply("RowToDatadogEvent", ParDo.of(new RowToDatadogEventFn()));
+      PCollectionTuple pCollectionTuple =
+          inputRows.apply(
+              "RowToDatadogEvent",
+              ParDo.of(new RowToDatadogEventFn(failureTag))
+                  .withOutputTags(successTag, TupleTagList.of(failureTag)));
+
+      pCollectionTuple
+          .get(failureTag)
+          .setRowSchema(
+              Schema.builder()
+                  .addRowField("failed_row", inputRows.getSchema())
+                  .addNullableField("error_message", Schema.FieldType.STRING)
+                  .build());
+
+      PCollection<DatadogEvent> events = pCollectionTuple.get(successTag);
       events.setCoder(DatadogEventCoder.of());
 
-      DatadogIO.Write datadogWrite = writeTransform.build();
-      PCollection<DatadogWriteError> deadLetter = events.apply("WriteToDatadog", datadogWrite);
+      // TODO: correctly handle write errors
+      events.apply("WriteToDatadog", writeTransform.build());
 
       ErrorHandling errorHandling = configuration.getErrorHandling();
-      if (errorHandling == null) {
+      if (errorHandling != null) {
+        return PCollectionRowTuple.of(errorHandling.getOutput(), pCollectionTuple.get(failureTag));
+      } else {
         return PCollectionRowTuple.empty(input.getPipeline());
       }
-
-      PCollection<Row> errorRows =
-          deadLetter.apply("DatadogWriteErrorToRow", ParDo.of(new DatadogWriteErrorToRowFn(true)));
-      errorRows.setRowSchema(DatadogWriteErrorToRowFn.ERROR_SCHEMA);
-      return PCollectionRowTuple.of(errorHandling.getOutput(), errorRows);
     }
   }
 
@@ -162,43 +177,67 @@ public class DatadogWriteSchemaTransformProvider
   }
 
   static class RowToDatadogEventFn extends DoFn<Row, DatadogEvent> {
+    private final @Nullable TupleTag<Row> failureTag;
+
+    public RowToDatadogEventFn(@Nullable TupleTag<Row> failureTag) {
+      this.failureTag = failureTag;
+    }
+
     @ProcessElement
-    public void processElement(@Element Row row, OutputReceiver<DatadogEvent> out) {
-      DatadogEvent.Builder builder = DatadogEvent.newBuilder();
-      Schema schema = row.getSchema();
+    public void processElement(ProcessContext c) {
+      Row row = c.element();
+      try {
+        DatadogEvent.Builder builder = DatadogEvent.newBuilder();
+        Schema schema = row.getSchema();
 
-      if (schema.hasField("ddsource")) {
-        String ddsource = row.getString("ddsource");
-        if (ddsource != null) {
-          builder.withSource(ddsource);
+        if (schema.hasField("ddsource")) {
+          String ddsource = row.getString("ddsource");
+          if (ddsource != null) {
+            builder.withSource(ddsource);
+          }
         }
-      }
-      if (schema.hasField("ddtags")) {
-        String ddtags = row.getString("ddtags");
-        if (ddtags != null) {
-          builder.withTags(ddtags);
+        if (schema.hasField("ddtags")) {
+          String ddtags = row.getString("ddtags");
+          if (ddtags != null) {
+            builder.withTags(ddtags);
+          }
         }
-      }
-      if (schema.hasField("hostname")) {
-        String hostname = row.getString("hostname");
-        if (hostname != null) {
-          builder.withHostname(hostname);
+        if (schema.hasField("hostname")) {
+          String hostname = row.getString("hostname");
+          if (hostname != null) {
+            builder.withHostname(hostname);
+          }
         }
-      }
-      if (schema.hasField("service")) {
-        String service = row.getString("service");
-        if (service != null) {
-          builder.withService(service);
+        if (schema.hasField("service")) {
+          String service = row.getString("service");
+          if (service != null) {
+            builder.withService(service);
+          }
         }
-      }
-      if (schema.hasField("message")) {
-        String message = row.getString("message");
-        if (message != null) {
-          builder.withMessage(message);
+        if (schema.hasField("message")) {
+          String message = row.getString("message");
+          if (message != null) {
+            builder.withMessage(message);
+          }
         }
-      }
 
-      out.output(builder.build());
+        c.output(builder.build());
+      } catch (Exception e) {
+        if (this.failureTag != null) {
+          c.output(
+              failureTag,
+              Row.withSchema(
+                      Schema.builder()
+                          .addRowField("failed_row", row.getSchema())
+                          .addNullableField("error_message", Schema.FieldType.STRING)
+                          .build())
+                  .withFieldValue("failed_row", row)
+                  .withFieldValue("error_message", e.getMessage() == null ? "" : e.getMessage())
+                  .build());
+        } else {
+          throw new RuntimeException(e);
+        }
+      }
     }
   }
 }
