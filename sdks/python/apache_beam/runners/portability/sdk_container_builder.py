@@ -326,8 +326,23 @@ class _SdkContainerImageCloudBuilder(SdkContainerImageBuilder):
     _LOGGER.info('Completed GCS upload to %s.', gcs_location)
 
   def _get_cloud_build_id_and_log_url(self, metadata):
-    build = metadata.build
-    return (build.id, build.log_url)
+    # google-cloud-build 3.35+
+    if getattr(metadata, 'build', None):
+      build = metadata.build
+      return (build.id, build.log_url)
+    # Fallback for older clients that use additionalProperties.
+    id = None
+    log_url = None
+    additional_props = getattr(metadata, 'additionalProperties', None)
+    if additional_props:
+      for item in additional_props:
+        if item.key == 'build':
+          for field in item.value.object_value.properties:
+            if field.key == 'logUrl':
+              log_url = field.value.string_value
+            if field.key == 'id':
+              id = field.value.string_value
+    return id, log_url
 
   @staticmethod
   def _get_gcs_bucket_and_name(gcs_location):
