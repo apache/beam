@@ -17,8 +17,8 @@
  */
 package org.apache.beam.sdk.io;
 
-import static com.google.common.base.MoreObjects.firstNonNull;
 import static org.apache.beam.sdk.io.fs.ResolveOptions.StandardResolveOptions.RESOLVE_FILE;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.MoreObjects.firstNonNull;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.isA;
@@ -26,7 +26,6 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
-import com.google.common.collect.Lists;
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileNotFoundException;
@@ -103,11 +102,6 @@ public class FileIOTest implements Serializable {
   @Rule public transient ExpectedException thrown = ExpectedException.none();
 
   @Rule public transient Timeout globalTimeout = Timeout.seconds(1200);
-
-  private static final int CUSTOM_FILE_TRIGGERING_RECORD_COUNT = 50000;
-  private static final int CUSTOM_FILE_TRIGGERING_BYTE_COUNT = 32 * 1024 * 1024; // 32MiB
-  private static final Duration CUSTOM_FILE_TRIGGERING_RECORD_BUFFERING_DURATION =
-      Duration.standardSeconds(4);
 
   @Test
   @Category(NeedsRunner.class)
@@ -585,9 +579,10 @@ public class FileIOTest implements Serializable {
             .withPrefix("output")
             .withSuffix(".txt")
             .withAutoSharding()
-            .withBatchSize(CUSTOM_FILE_TRIGGERING_RECORD_COUNT)
-            .withBatchSizeBytes(CUSTOM_FILE_TRIGGERING_BYTE_COUNT)
-            .withBatchMaxBufferingDuration(CUSTOM_FILE_TRIGGERING_RECORD_BUFFERING_DURATION);
+            .withBatchSize(3)
+            .withBatchSizeBytes(1024 * 1024) // Set high to avoid triggering flushing.
+            .withBatchMaxBufferingDuration(
+                Duration.standardMinutes(1)); // Set high to avoid triggering flushing.
 
     // Prepare timestamps for the elements.
     List<Long> timestamps = new ArrayList<>();
@@ -602,12 +597,19 @@ public class FileIOTest implements Serializable {
     p.run().waitUntilFinish();
 
     // Verify that the custom batch parameters are set.
-    assertEquals(CUSTOM_FILE_TRIGGERING_RECORD_COUNT, write.getBatchSize().intValue());
-    assertEquals(CUSTOM_FILE_TRIGGERING_BYTE_COUNT, write.getBatchSizeBytes().intValue());
-    assertEquals(
-        CUSTOM_FILE_TRIGGERING_RECORD_BUFFERING_DURATION, write.getBatchMaxBufferingDuration());
+    assertEquals(3, write.getBatchSize().intValue());
+    assertEquals(1024 * 1024, write.getBatchSizeBytes().intValue());
+    assertEquals(Duration.standardMinutes(1), write.getBatchMaxBufferingDuration());
 
+    // Verify file contents.
     checkFileContents(root, "output", inputs);
+
+    // With auto-sharding, we can't assert on the exact number of output files, but because
+    // batch size is 3 and there are 6 elements, we expect at least 2 files.
+    final String pattern = new File(root, "output").getAbsolutePath() + "*";
+    List<Metadata> metadata =
+        FileSystems.match(Collections.singletonList(pattern)).get(0).metadata();
+    assertTrue(metadata.size() >= 2);
   }
 
   static void checkFileContents(File rootDir, String prefix, List<String> inputs)
