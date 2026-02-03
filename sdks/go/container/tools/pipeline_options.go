@@ -85,13 +85,9 @@ func GetExperiments(options string) []string {
 	}
 
 	// Check the legacy experiments first
-	if len(opts.Options.Experiments) > 0 {
+	if opts.Options.Experiments != nil {
 		return opts.Options.Experiments
 	}
 
-	if len(opts.Experiments) > 0 {
-		return opts.Experiments
-	}
-
-	return nil
+	return opts.Experiments
 }

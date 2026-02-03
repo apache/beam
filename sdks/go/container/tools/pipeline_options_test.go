@@ -84,8 +84,18 @@ func TestGetExperiments(t *testing.T) {
 			[]string{"c", "d"},
 		},
 		{
-			"empty experiments",
+			"valid legacy and urn experiments; legacy first, even if empty",
+			`{"options": {"experiments": []}, "beam:option:experiments:v1": ["a", "b"]}`,
+			[]string{},
+		},
+		{
+			"empty legacy experiments",
 			`{"options": {"experiments": []}}`,
+			[]string{},
+		},
+		{
+			"empty urn experiments",
+			`{"beam:option:experiments:v1": []}`,
 			[]string{},
 		},
 		{
