@@ -54,6 +54,7 @@ from apache_beam.pvalue import AsSideInput
 from apache_beam.pvalue import PCollection
 from apache_beam.transforms import window
 from apache_beam.transforms.combiners import CountCombineFn
+from apache_beam.transforms.combiners import Top
 from apache_beam.transforms.core import CombinePerKey
 from apache_beam.transforms.core import Create
 from apache_beam.transforms.core import DoFn
@@ -105,11 +106,13 @@ __all__ = [
     'Reshuffle',
     'Secret',
     'ToString',
+    'Take',
     'Tee',
     'Values',
     'WithKeys',
     'GroupIntoBatches',
-    'WaitOn'
+    'WaitOn',
+    'take',
 ]
 
 K = TypeVar('K')
@@ -1965,6 +1968,75 @@ class LogElements(PTransform):
             self.with_pane_info,
             self.use_epoch_time,
         ))
+
+
+@typehints.with_input_types(T)
+@typehints.with_output_types(T)
+class Take(PTransform):
+  """Takes the first N elements from a PCollection.
+
+  This transform returns a PCollection containing at most N elements from the
+  input PCollection. The elements are taken deterministically (not randomly
+  sampled).
+
+  Args:
+    n: Number of elements to take. Must be a positive integer.
+
+  Returns:
+    A PCollection containing at most N elements.
+
+  Example::
+    # Take first 10 elements
+    first_10 = pcoll | beam.take(10)
+
+    # Or as a method
+    first_10 = pcoll.take(10)
+  """
+  def __init__(self, n):
+    """Initializes Take transform.
+
+    Args:
+      n: Number of elements to take. Must be positive.
+    """
+    if n <= 0:
+      raise ValueError('n must be positive, got %d' % n)
+    self._n = n
+
+  def expand(self, pcoll):
+    """Expands the Take transform.
+
+    Args:
+      pcoll: Input PCollection.
+
+    Returns:
+      A PCollection containing at most N elements.
+    """
+    # Use Top.Of with a constant key to get first N elements deterministically.
+    # Top.Of returns a list, so we flatten it to get individual elements.
+    return (
+        pcoll
+        | Top.Of(self._n, key=lambda x: 0).without_defaults()
+        | FlatMap(lambda elements: elements))
+
+  def default_label(self):
+    return 'Take(%d)' % self._n
+
+
+def take(n):
+  """Convenience function for Take transform.
+
+  Takes the first N elements from a PCollection.
+
+  Args:
+    n: Number of elements to take. Must be positive.
+
+  Returns:
+    A Take transform instance.
+
+  Example::
+    first_10 = pcoll | beam.take(10)
+  """
+  return Take(n)
 
 
 class Reify(object):
