@@ -28,6 +28,7 @@ import mock
 from apache_beam.io.filesystem import BeamIOError
 from apache_beam.io.filesystem import FileMetadata
 from apache_beam.options.pipeline_options import PipelineOptions
+from apache_beam.io.filesystems import FileSystems
 
 # Protect against environments where apitools library is not available.
 # pylint: disable=wrong-import-order, wrong-import-position
@@ -36,6 +37,13 @@ try:
 except ImportError:
   gcsfilesystem = None  # type: ignore
 # pylint: enable=wrong-import-order, wrong-import-position
+
+
+class GCSFileSystemLazyLoadTest(unittest.TestCase):
+
+  def test_get_filesystem_does_not_require_gcp_extra(self):
+    fs = FileSystems.get_filesystem('gs://test-bucket/path')
+    self.assertEqual(fs.scheme(), 'gs')
 
 
 @unittest.skipIf(gcsfilesystem is None, 'GCP dependencies are not installed')
@@ -77,11 +85,13 @@ class GCSFileSystemTest(unittest.TestCase):
     with self.assertRaises(ValueError):
       self.fs.split('/no/gcs/prefix')
 
-  @mock.patch('apache_beam.io.gcp.gcsfilesystem.gcsio')
-  def test_match_multiples(self, mock_gcsio):
+  @mock.patch('apache_beam.io.gcp.gcsfilesystem.GCSFileSystem._get_gcsio')
+  def test_match_multiples(self, mock_get_gcsio):
     # Prepare mocks.
     gcsio_mock = mock.MagicMock()
-    gcsfilesystem.gcsio.GcsIO = lambda pipeline_options=None: gcsio_mock
+    mock_gcsio_module = mock.MagicMock()
+    mock_gcsio_module.GcsIO.return_value = gcsio_mock
+    mock_get_gcsio.return_value = mock_gcsio_module
     gcsio_mock.list_files.return_value = iter([
         ('gs://bucket/file1', (1, 99999.0)),
         ('gs://bucket/file2', (2, 88888.0))
@@ -95,12 +105,14 @@ class GCSFileSystemTest(unittest.TestCase):
     gcsio_mock.list_files.assert_called_once_with(
         'gs://bucket/', with_metadata=True)
 
-  @mock.patch('apache_beam.io.gcp.gcsfilesystem.gcsio')
-  def test_match_multiples_limit(self, mock_gcsio):
+  @mock.patch('apache_beam.io.gcp.gcsfilesystem.GCSFileSystem._get_gcsio')
+  def test_match_multiples_limit(self, mock_get_gcsio):
     # Prepare mocks.
     gcsio_mock = mock.MagicMock()
     limit = 1
-    gcsfilesystem.gcsio.GcsIO = lambda pipeline_options=None: gcsio_mock
+    mock_gcsio_module = mock.MagicMock()
+    mock_gcsio_module.GcsIO.return_value = gcsio_mock
+    mock_get_gcsio.return_value = mock_gcsio_module
     gcsio_mock.list_files.return_value = iter([
         ('gs://bucket/file1', (1, 99999.0))
     ])
@@ -111,11 +123,13 @@ class GCSFileSystemTest(unittest.TestCase):
     gcsio_mock.list_files.assert_called_once_with(
         'gs://bucket/', with_metadata=True)
 
-  @mock.patch('apache_beam.io.gcp.gcsfilesystem.gcsio')
-  def test_match_multiples_error(self, mock_gcsio):
+  @mock.patch('apache_beam.io.gcp.gcsfilesystem.GCSFileSystem._get_gcsio')
+  def test_match_multiples_error(self, mock_get_gcsio):
     # Prepare mocks.
     gcsio_mock = mock.MagicMock()
-    gcsfilesystem.gcsio.GcsIO = lambda pipeline_options=None: gcsio_mock
+    mock_gcsio_module = mock.MagicMock()
+    mock_gcsio_module.GcsIO.return_value = gcsio_mock
+    mock_get_gcsio.return_value = mock_gcsio_module
     exception = IOError('Failed')
     gcsio_mock.list_files.side_effect = exception
 
@@ -127,11 +141,13 @@ class GCSFileSystemTest(unittest.TestCase):
     gcsio_mock.list_files.assert_called_once_with(
         'gs://bucket/', with_metadata=True)
 
-  @mock.patch('apache_beam.io.gcp.gcsfilesystem.gcsio')
-  def test_match_multiple_patterns(self, mock_gcsio):
+  @mock.patch('apache_beam.io.gcp.gcsfilesystem.GCSFileSystem._get_gcsio')
+  def test_match_multiple_patterns(self, mock_get_gcsio):
     # Prepare mocks.
     gcsio_mock = mock.MagicMock()
-    gcsfilesystem.gcsio.GcsIO = lambda pipeline_options=None: gcsio_mock
+    mock_gcsio_module = mock.MagicMock()
+    mock_gcsio_module.GcsIO.return_value = gcsio_mock
+    mock_get_gcsio.return_value = mock_gcsio_module
     gcsio_mock.list_files.side_effect = [
         iter([('gs://bucket/file1', (1, 99999.0))]),
         iter([('gs://bucket/file2', (2, 88888.0))]),
@@ -141,33 +157,39 @@ class GCSFileSystemTest(unittest.TestCase):
     result = self.fs.match(['gs://bucket/file1*', 'gs://bucket/file2*'])
     self.assertEqual([mr.metadata_list for mr in result], expected_results)
 
-  @mock.patch('apache_beam.io.gcp.gcsfilesystem.gcsio')
-  def test_create(self, mock_gcsio):
+  @mock.patch('apache_beam.io.gcp.gcsfilesystem.GCSFileSystem._get_gcsio')
+  def test_create(self, mock_get_gcsio):
     # Prepare mocks.
     gcsio_mock = mock.MagicMock()
-    gcsfilesystem.gcsio.GcsIO = lambda pipeline_options=None: gcsio_mock
+    mock_gcsio_module = mock.MagicMock()
+    mock_gcsio_module.GcsIO.return_value = gcsio_mock
+    mock_get_gcsio.return_value = mock_gcsio_module
     # Issue file copy
     _ = self.fs.create('gs://bucket/from1', 'application/octet-stream')
 
     gcsio_mock.open.assert_called_once_with(
         'gs://bucket/from1', 'wb', mime_type='application/octet-stream')
 
-  @mock.patch('apache_beam.io.gcp.gcsfilesystem.gcsio')
-  def test_open(self, mock_gcsio):
+  @mock.patch('apache_beam.io.gcp.gcsfilesystem.GCSFileSystem._get_gcsio')
+  def test_open(self, mock_get_gcsio):
     # Prepare mocks.
     gcsio_mock = mock.MagicMock()
-    gcsfilesystem.gcsio.GcsIO = lambda pipeline_options=None: gcsio_mock
+    mock_gcsio_module = mock.MagicMock()
+    mock_gcsio_module.GcsIO.return_value = gcsio_mock
+    mock_get_gcsio.return_value = mock_gcsio_module
     # Issue file copy
     _ = self.fs.open('gs://bucket/from1', 'application/octet-stream')
 
     gcsio_mock.open.assert_called_once_with(
         'gs://bucket/from1', 'rb', mime_type='application/octet-stream')
 
-  @mock.patch('apache_beam.io.gcp.gcsfilesystem.gcsio')
-  def test_copy_file(self, mock_gcsio):
+  @mock.patch('apache_beam.io.gcp.gcsfilesystem.GCSFileSystem._get_gcsio')
+  def test_copy_file(self, mock_get_gcsio):
     # Prepare mocks.
     gcsio_mock = mock.MagicMock()
-    gcsfilesystem.gcsio.GcsIO = lambda pipeline_options=None: gcsio_mock
+    mock_gcsio_module = mock.MagicMock()
+    mock_gcsio_module.GcsIO.return_value = gcsio_mock
+    mock_get_gcsio.return_value = mock_gcsio_module
     sources = ['gs://bucket/from1']
     destinations = ['gs://bucket/to1']
 
@@ -177,11 +199,13 @@ class GCSFileSystemTest(unittest.TestCase):
     gcsio_mock.copy.assert_called_once_with(
         'gs://bucket/from1', 'gs://bucket/to1')
 
-  @mock.patch('apache_beam.io.gcp.gcsfilesystem.gcsio')
-  def test_copy_file_error(self, mock_gcsio):
+  @mock.patch('apache_beam.io.gcp.gcsfilesystem.GCSFileSystem._get_gcsio')
+  def test_copy_file_error(self, mock_get_gcsio):
     # Prepare mocks.
     gcsio_mock = mock.MagicMock()
-    gcsfilesystem.gcsio.GcsIO = lambda pipeline_options=None: gcsio_mock
+    mock_gcsio_module = mock.MagicMock()
+    mock_gcsio_module.GcsIO.return_value = gcsio_mock
+    mock_get_gcsio.return_value = mock_gcsio_module
     sources = ['gs://bucket/from1']
     destinations = ['gs://bucket/to1']
 
@@ -201,11 +225,13 @@ class GCSFileSystemTest(unittest.TestCase):
     gcsio_mock.copy.assert_called_once_with(
         'gs://bucket/from1', 'gs://bucket/to1')
 
-  @mock.patch('apache_beam.io.gcp.gcsfilesystem.gcsio')
-  def test_copy_tree(self, mock_gcsio):
+  @mock.patch('apache_beam.io.gcp.gcsfilesystem.GCSFileSystem._get_gcsio')
+  def test_copy_tree(self, mock_get_gcsio):
     # Prepare mocks.
     gcsio_mock = mock.MagicMock()
-    gcsfilesystem.gcsio.GcsIO = lambda pipeline_options=None: gcsio_mock
+    mock_gcsio_module = mock.MagicMock()
+    mock_gcsio_module.GcsIO.return_value = gcsio_mock
+    mock_get_gcsio.return_value = mock_gcsio_module
     sources = ['gs://bucket1/']
     destinations = ['gs://bucket2/']
 
@@ -215,11 +241,13 @@ class GCSFileSystemTest(unittest.TestCase):
     gcsio_mock.copytree.assert_called_once_with(
         'gs://bucket1/', 'gs://bucket2/')
 
-  @mock.patch('apache_beam.io.gcp.gcsfilesystem.gcsio')
-  def test_rename(self, mock_gcsio):
+  @mock.patch('apache_beam.io.gcp.gcsfilesystem.GCSFileSystem._get_gcsio')
+  def test_rename(self, mock_get_gcsio):
     # Prepare mocks.
     gcsio_mock = mock.MagicMock()
-    gcsfilesystem.gcsio.GcsIO = lambda pipeline_options=None: gcsio_mock
+    mock_gcsio_module = mock.MagicMock()
+    mock_gcsio_module.GcsIO.return_value = gcsio_mock
+    mock_get_gcsio.return_value = mock_gcsio_module
     sources = [
         'gs://bucket/from1',
         'gs://bucket/from2',
@@ -255,11 +283,13 @@ class GCSFileSystemTest(unittest.TestCase):
         'gs://bucket/from3',
     ])
 
-  @mock.patch('apache_beam.io.gcp.gcsfilesystem.gcsio')
-  def test_rename_delete_error(self, mock_gcsio):
+  @mock.patch('apache_beam.io.gcp.gcsfilesystem.GCSFileSystem._get_gcsio')
+  def test_rename_delete_error(self, mock_get_gcsio):
     # Prepare mocks.
     gcsio_mock = mock.MagicMock()
-    gcsfilesystem.gcsio.GcsIO = lambda pipeline_options=None: gcsio_mock
+    mock_gcsio_module = mock.MagicMock()
+    mock_gcsio_module.GcsIO.return_value = gcsio_mock
+    mock_get_gcsio.return_value = mock_gcsio_module
     sources = [
         'gs://bucket/from1',
         'gs://bucket/from2',
@@ -296,11 +326,13 @@ class GCSFileSystemTest(unittest.TestCase):
         'gs://bucket/from3',
     ])
 
-  @mock.patch('apache_beam.io.gcp.gcsfilesystem.gcsio')
-  def test_rename_copy_error(self, mock_gcsio):
+  @mock.patch('apache_beam.io.gcp.gcsfilesystem.GCSFileSystem._get_gcsio')
+  def test_rename_copy_error(self, mock_get_gcsio):
     # Prepare mocks.
     gcsio_mock = mock.MagicMock()
-    gcsfilesystem.gcsio.GcsIO = lambda pipeline_options=None: gcsio_mock
+    mock_gcsio_module = mock.MagicMock()
+    mock_gcsio_module.GcsIO.return_value = gcsio_mock
+    mock_get_gcsio.return_value = mock_gcsio_module
     sources = [
         'gs://bucket/from1',
         'gs://bucket/from2',
@@ -335,11 +367,13 @@ class GCSFileSystemTest(unittest.TestCase):
         'gs://bucket/from3',
     ])
 
-  @mock.patch('apache_beam.io.gcp.gcsfilesystem.gcsio')
-  def test_delete(self, mock_gcsio):
+  @mock.patch('apache_beam.io.gcp.gcsfilesystem.GCSFileSystem._get_gcsio')
+  def test_delete(self, mock_get_gcsio):
     # Prepare mocks.
     gcsio_mock = mock.MagicMock()
-    gcsfilesystem.gcsio.GcsIO = lambda pipeline_options=None: gcsio_mock
+    mock_gcsio_module = mock.MagicMock()
+    mock_gcsio_module.GcsIO.return_value = gcsio_mock
+    mock_get_gcsio.return_value = mock_gcsio_module
     gcsio_mock._status.return_value = {'size': 0, 'updated': 99999.0}
     files = [
         'gs://bucket/from1',
@@ -351,11 +385,13 @@ class GCSFileSystemTest(unittest.TestCase):
     self.fs.delete(files)
     gcsio_mock.delete_batch.assert_called()
 
-  @mock.patch('apache_beam.io.gcp.gcsfilesystem.gcsio')
-  def test_delete_error(self, mock_gcsio):
+  @mock.patch('apache_beam.io.gcp.gcsfilesystem.GCSFileSystem._get_gcsio')
+  def test_delete_error(self, mock_get_gcsio):
     # Prepare mocks.
     gcsio_mock = mock.MagicMock()
-    gcsfilesystem.gcsio.GcsIO = lambda pipeline_options=None: gcsio_mock
+    mock_gcsio_module = mock.MagicMock()
+    mock_gcsio_module.GcsIO.return_value = gcsio_mock
+    mock_get_gcsio.return_value = mock_gcsio_module
 
     gcsio_mock._status.return_value = {'size': 0, 'updated': 99999.0}
     files = [
