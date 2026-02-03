@@ -62,6 +62,7 @@ import org.slf4j.LoggerFactory;
 @Internal
 @ThreadSafe
 public final class StreamingEngineComputationConfigFetcher implements ComputationConfig.Fetcher {
+
   private static final Logger LOG =
       LoggerFactory.getLogger(StreamingEngineComputationConfigFetcher.class);
   private static final String CONFIG_REFRESHER_THREAD_NAME = "GlobalPipelineConfigRefresher";
@@ -210,7 +211,11 @@ public final class StreamingEngineComputationConfigFetcher implements Computatio
       pipelineConfig.setUserWorkerJobSettings(settings);
     }
 
-    if (Objects.equals(2, config.getStreamingEngineStateTagEncodingVersion())) {
+    Integer tagEncodingVersion = config.getStreamingEngineStateTagEncodingVersion();
+    if (tagEncodingVersion != null) {
+      Preconditions.checkState(tagEncodingVersion <= 2);
+    }
+    if (Objects.equals(2, tagEncodingVersion)) {
       pipelineConfig.setEnableStateTagEncodingV2(true);
     }
 
