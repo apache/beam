@@ -44,28 +44,38 @@ func MakePipelineOptionsFileAndEnvVar(options string) error {
 }
 
 type PipelineOptionsData struct {
-	Options OptionsData `json:"options"`
+	Options     LegacyOptionsData `json:"options"`
+	Experiments []string          `json:"beam:option:experiments:v1"`
 }
 
-type OptionsData struct {
+type LegacyOptionsData struct {
 	Experiments []string `json:"experiments"`
 }
 
 // GetExperiments extracts a string array from the options string (in JSON format)
 //
-// The json string of pipeline options is in the following format.
-// We only focus on experiments here.
+// The json string of pipeline options can be in two formats.
+//
+// Legacy format:
 //
 //	{
-//		 "display_data": [
-//		  	{...},
-//		 ],
-//		 "options": {
-//		  	...
-//			  "experiments": [
+//		"display_data": [
+//			{...},
+//		],
+//		"options": {
+//			...
+//			"experiments": [
 //				...
-//			 ],
-//		 }
+//			],
+//		}
+//	}
+//
+// URN format:
+//
+//	{
+//		"beam:option:experiments:v1": [
+//			...
+//		]
 //	}
 func GetExperiments(options string) []string {
 	var opts PipelineOptionsData
@@ -73,5 +83,15 @@ func GetExperiments(options string) []string {
 	if err != nil {
 		return nil
 	}
-	return opts.Options.Experiments
+
+	// Check the legacy experiments first
+	if len(opts.Options.Experiments) > 0 {
+		return opts.Options.Experiments
+	}
+
+	if len(opts.Experiments) > 0 {
+		return opts.Experiments
+	}
+
+	return nil
 }

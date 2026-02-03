@@ -69,9 +69,19 @@ func TestGetExperiments(t *testing.T) {
 			nil,
 		},
 		{
-			"valid experiments",
+			"valid legacy experiments",
 			`{"options": {"experiments": ["a", "b"]}}`,
 			[]string{"a", "b"},
+		},
+		{
+			"valid urn experiments",
+			`{"beam:option:experiments:v1": ["a", "b"]}`,
+			[]string{"a", "b"},
+		},
+		{
+			"valid legacy and urn experiments; legacy first",
+			`{"options": {"experiments": ["c", "d"]}, "beam:option:experiments:v1": ["a", "b"]}`,
+			[]string{"c", "d"},
 		},
 		{
 			"empty experiments",
