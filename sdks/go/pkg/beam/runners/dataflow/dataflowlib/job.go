@@ -322,21 +322,20 @@ func GetRunningJobByName(client *df.Service, project, region string, name string
 	jobsListCall := client.Projects.Locations.Jobs.List(project, region)
 	jobsListCall.Filter("ACTIVE")
 	jobsResponse, err := jobsListCall.Do()
-	if err != nil {
-		return nil, err
-	}
-	for len(jobsResponse.Jobs) > 0 {
+	for {
+		if err != nil {
+			return nil, err
+		}
 		for _, job := range jobsResponse.Jobs {
 			if job.Name == name {
 				return job, nil
 			}
 		}
-
+		if jobsResponse.NextPageToken == "" {
+			break
+		}
 		jobsListCall.PageToken(jobsResponse.NextPageToken)
 		jobsResponse, err = jobsListCall.Do()
-		if err != nil {
-			return nil, err
-		}
 	}
 	return nil, errors.New(fmt.Sprintf("Unable to find running job with name %s", name))
 }
