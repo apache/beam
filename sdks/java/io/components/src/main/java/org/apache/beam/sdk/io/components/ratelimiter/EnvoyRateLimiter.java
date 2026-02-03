@@ -37,4 +37,9 @@ public class EnvoyRateLimiter implements RateLimiter {
   public boolean allow(int permits) throws IOException, InterruptedException {
     return factory.allow(context, permits);
   }
+
+  @Override
+  public void close() throws Exception {
+    factory.close();
+  }
 }

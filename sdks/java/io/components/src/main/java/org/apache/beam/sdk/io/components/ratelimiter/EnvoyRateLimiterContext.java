@@ -18,9 +18,11 @@
 package org.apache.beam.sdk.io.components.ratelimiter;
 
 import com.google.auto.value.AutoValue;
+import edu.umd.cs.findbugs.annotations.NonNull;
 import java.util.Map;
 import org.apache.beam.sdk.schemas.AutoValueSchema;
 import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 
 /**
  * Context for an Envoy Rate Limiter call.
@@ -33,9 +35,28 @@ public abstract class EnvoyRateLimiterContext implements RateLimiterContext {
 
   public abstract String getDomain();
 
-  public abstract Map<String, String> getDescriptors();
+  public abstract ImmutableMap<String, String> getDescriptors();
 
-  public static EnvoyRateLimiterContext create(String domain, Map<String, String> descriptors) {
-    return new AutoValue_EnvoyRateLimiterContext(domain, descriptors);
+  public static Builder builder() {
+    return new AutoValue_EnvoyRateLimiterContext.Builder();
+  }
+
+  @AutoValue.Builder
+  public abstract static class Builder {
+    public abstract Builder setDomain(@NonNull String domain);
+
+    public abstract ImmutableMap.Builder<String, String> descriptorsBuilder();
+
+    public Builder addDescriptor(@NonNull String key, @NonNull String value) {
+      descriptorsBuilder().put(key, value);
+      return this;
+    }
+
+    public Builder setDescriptors(@NonNull Map<String, String> descriptors) {
+      descriptorsBuilder().putAll(descriptors);
+      return this;
+    }
+
+    public abstract EnvoyRateLimiterContext build();
   }
 }

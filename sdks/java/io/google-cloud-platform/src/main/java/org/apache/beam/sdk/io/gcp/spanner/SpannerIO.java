@@ -2510,8 +2510,11 @@ public class SpannerIO {
     }
 
     @Teardown
-    public void teardown() {
+    public void teardown() throws Exception {
       spannerAccessor.close();
+      if (rateLimiter != null) {
+        rateLimiter.close();
+      }
     }
 
     @ProcessElement

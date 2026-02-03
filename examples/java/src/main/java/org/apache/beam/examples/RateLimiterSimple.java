@@ -32,7 +32,6 @@ import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
@@ -61,6 +60,7 @@ public class RateLimiterSimple {
     private final String rlsAddress;
     private final String rlsDomain;
     private transient @Nullable RateLimiter rateLimiter = null;
+    private transient @Nullable RateLimiterFactory factory = null;
 
     public CallExternalServiceFn(String rlsAddress, String rlsDomain) {
       this.rlsAddress = rlsAddress;
@@ -73,10 +73,25 @@ public class RateLimiterSimple {
       RateLimiterOptions options = RateLimiterOptions.builder().setAddress(rlsAddress).build();
 
       // Static RateLimtier with pre-configured domain and descriptors
-      RateLimiterFactory factory = new EnvoyRateLimiterFactory(options);
+      EnvoyRateLimiterFactory factory = new EnvoyRateLimiterFactory(options);
+      this.factory = factory;
       EnvoyRateLimiterContext context =
-          EnvoyRateLimiterContext.create(rlsDomain, ImmutableMap.of("database", "users"));
+          EnvoyRateLimiterContext.builder()
+              .setDomain(rlsDomain)
+              .addDescriptor("database", "users")
+              .build();
       this.rateLimiter = factory.getLimiter(context);
+    }
+
+    @Teardown
+    public void teardown() {
+      if (factory != null) {
+        try {
+          factory.close();
+        } catch (Exception e) {
+          throw new RuntimeException("Failed to close RateLimiterFactory", e);
+        }
+      }
     }
 
     @ProcessElement
@@ -102,7 +117,7 @@ public class RateLimiterSimple {
     p.apply(
             "CreateItems",
             Create.of(
-                IntStream.range(0, 1000000).mapToObj(i -> "item" + i).collect(Collectors.toList())))
+                IntStream.range(0, 100).mapToObj(i -> "item" + i).collect(Collectors.toList())))
         .apply(
             "CallExternalService",
             ParDo.of(

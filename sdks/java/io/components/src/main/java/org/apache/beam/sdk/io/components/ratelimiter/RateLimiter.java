@@ -26,7 +26,7 @@ import java.io.Serializable;
  *
  * <p>Implementations must be {@link Serializable} as they are passed to workers.
  */
-public interface RateLimiter extends Serializable {
+public interface RateLimiter extends Serializable, AutoCloseable {
 
   /**
    * Blocks until the specified number of permits are acquired and returns true if the request was

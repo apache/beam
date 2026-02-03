@@ -26,7 +26,7 @@ import java.io.Serializable;
  * <p>Implementations must be {@link Serializable} as they are passed to workers. The factory
  * typically manages the heavy connection (e.g. gRPC stub) and is thread-safe.
  */
-public interface RateLimiterFactory extends Serializable {
+public interface RateLimiterFactory extends Serializable, AutoCloseable {
 
   /**
    * Creates a lightweight ratelimiter handle bound to a specific context.

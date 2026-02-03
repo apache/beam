@@ -30,7 +30,6 @@ import org.apache.beam.sdk.metrics.Counter;
 import org.apache.beam.sdk.metrics.Distribution;
 import org.apache.beam.sdk.metrics.Metrics;
 import org.apache.beam.sdk.util.Sleeper;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -43,6 +42,7 @@ public class EnvoyRateLimiterFactory implements RateLimiterFactory {
   private final RateLimiterOptions options;
 
   private transient volatile @Nullable RateLimitServiceGrpc.RateLimitServiceBlockingStub stub;
+  private transient @Nullable RateLimiterClientCache clientCache;
   private final ThrottlingSignaler throttlingSignaler;
 
   private final Counter requestsTotal;
@@ -64,17 +64,24 @@ public class EnvoyRateLimiterFactory implements RateLimiterFactory {
     this.rpcLatency = Metrics.distribution(namespace, "ratelimit-rpc-latency-ms");
   }
 
+  @Override
+  public synchronized void close() {
+    if (clientCache != null) {
+      clientCache.release();
+      clientCache = null;
+      stub = null;
+    }
+  }
+
   private void init() {
     if (stub != null) {
       return;
     }
     synchronized (this) {
       if (stub == null) {
-        RateLimiterClientCache clientCache =
-            RateLimiterClientCache.getOrCreate(options.getAddress());
-        stub =
-            RateLimitServiceGrpc.newBlockingStub(
-                Preconditions.checkNotNull(clientCache).getChannel());
+        RateLimiterClientCache cache = RateLimiterClientCache.getOrCreate(options.getAddress());
+        this.clientCache = cache;
+        stub = RateLimitServiceGrpc.newBlockingStub(cache.getChannel());
       }
     }
   }
