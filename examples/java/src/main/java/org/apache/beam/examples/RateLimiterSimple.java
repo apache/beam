@@ -60,7 +60,6 @@ public class RateLimiterSimple {
     private final String rlsAddress;
     private final String rlsDomain;
     private transient @Nullable RateLimiter rateLimiter = null;
-    private transient @Nullable RateLimiterFactory factory = null;
 
     public CallExternalServiceFn(String rlsAddress, String rlsDomain) {
       this.rlsAddress = rlsAddress;
@@ -74,7 +73,6 @@ public class RateLimiterSimple {
 
       // Static RateLimtier with pre-configured domain and descriptors
       EnvoyRateLimiterFactory factory = new EnvoyRateLimiterFactory(options);
-      this.factory = factory;
       EnvoyRateLimiterContext context =
           EnvoyRateLimiterContext.builder()
               .setDomain(rlsDomain)
@@ -85,11 +83,11 @@ public class RateLimiterSimple {
 
     @Teardown
     public void teardown() {
-      if (factory != null) {
+      if (rateLimiter != null) {
         try {
-          factory.close();
+          rateLimiter.close();
         } catch (Exception e) {
-          throw new RuntimeException("Failed to close RateLimiterFactory", e);
+          throw new RuntimeException("Failed to close RateLimiter", e);
         }
       }
     }
