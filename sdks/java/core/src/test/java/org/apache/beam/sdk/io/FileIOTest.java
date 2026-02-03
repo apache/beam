@@ -626,11 +626,8 @@ public class FileIOTest implements Serializable {
       List<String> actualShard = Lists.newArrayList();
       try (BufferedReader reader =
           Files.newBufferedReader(outputFile.toPath(), StandardCharsets.UTF_8)) {
-        for (; ; ) {
-          String line = reader.readLine();
-          if (line == null) {
-            break;
-          }
+        String line;
+        while ((line = reader.readLine()) != null) {
           actualShard.add(line);
         }
       }

@@ -19,8 +19,8 @@ package org.apache.beam.sdk.io;
 
 import static org.apache.beam.sdk.io.fs.ResolveOptions.StandardResolveOptions.RESOLVE_FILE;
 import static org.apache.beam.sdk.transforms.Contextful.fn;
-import static com.google.common.base.Preconditions.checkArgument;
-import static com.google.common.base.Preconditions.checkState;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkState;
 
 import com.google.auto.value.AutoValue;
 import java.io.IOException;
@@ -74,10 +74,10 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.sdk.values.TypeDescriptors;
-import com.google.common.annotations.VisibleForTesting;
-import com.google.common.base.MoreObjects;
-import com.google.common.base.Objects;
-import com.google.common.collect.Lists;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.MoreObjects;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Objects;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
@@ -548,9 +548,8 @@ public class FileIO {
     public MatchConfiguration continuously(
         Duration interval, TerminationCondition<String, ?> condition, boolean matchUpdatedFiles) {
       LOG.warn(
-          "Matching Continuously is stateful, and can scale poorly. Consider using Pub/Sub"
-              + " Notifications (https://cloud.google.com/storage/docs/pubsub-notifications) if"
-              + " possible");
+          "Matching Continuously is stateful, and can scale poorly. Consider using Pub/Sub "
+              + "Notifications (https://cloud.google.com/storage/docs/pubsub-notifications) if possible");
       return toBuilder()
           .setWatchInterval(interval)
           .setWatchTerminationCondition(condition)
