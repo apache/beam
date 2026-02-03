@@ -59,9 +59,8 @@ import org.apache.beam.runners.dataflow.worker.profiler.ScopedProfiler.NoopProfi
 import org.apache.beam.runners.dataflow.worker.profiler.ScopedProfiler.ProfileScope;
 import org.apache.beam.runners.dataflow.worker.streaming.Watermarks;
 import org.apache.beam.runners.dataflow.worker.streaming.Work;
-import org.apache.beam.runners.dataflow.worker.streaming.config.FixedGlobalConfigHandle;
+import org.apache.beam.runners.dataflow.worker.streaming.config.FakeGlobalConfigHandle;
 import org.apache.beam.runners.dataflow.worker.streaming.config.StreamingGlobalConfig;
-import org.apache.beam.runners.dataflow.worker.streaming.config.StreamingGlobalConfigHandle;
 import org.apache.beam.runners.dataflow.worker.streaming.sideinput.SideInputStateFetcher;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
 import org.apache.beam.runners.dataflow.worker.windmill.client.getdata.FakeGetDataClient;
@@ -106,6 +105,7 @@ public class StreamingModeExecutionContextTest {
       new StreamingModeExecutionStateRegistry();
   private StreamingModeExecutionContext executionContext;
   DataflowWorkerHarnessOptions options;
+  private FakeGlobalConfigHandle globalConfigHandle;
 
   @Before
   public void setUp() {
@@ -113,8 +113,7 @@ public class StreamingModeExecutionContextTest {
     options = PipelineOptionsFactory.as(DataflowWorkerHarnessOptions.class);
     CounterSet counterSet = new CounterSet();
     ConcurrentHashMap<String, String> stateNameMap = new ConcurrentHashMap<>();
-    StreamingGlobalConfigHandle globalConfigHandle =
-        new FixedGlobalConfigHandle(StreamingGlobalConfig.builder().build());
+    globalConfigHandle = new FakeGlobalConfigHandle(StreamingGlobalConfig.builder().build());
     stateNameMap.put(NameContextsForTests.nameContextForTest().userName(), "testStateFamily");
     executionContext =
         new StreamingModeExecutionContext(
@@ -412,46 +411,13 @@ public class StreamingModeExecutionContextTest {
 
   @Test
   public void testStateTagEncodingBasedOnConfig() {
-    for (Class<?> expectedEncoding :
-        Lists.newArrayList(WindmillTagEncodingV1.class, WindmillTagEncodingV2.class)) {
-      CounterSet counterSet = new CounterSet();
-      ConcurrentHashMap<String, String> stateNameMap = new ConcurrentHashMap<>();
-      StreamingGlobalConfigHandle globalConfigHandle =
-          new FixedGlobalConfigHandle(
-              StreamingGlobalConfig.builder()
-                  .setEnableStateTagEncodingV2(WindmillTagEncodingV2.class.equals(expectedEncoding))
-                  .build());
-      stateNameMap.put(NameContextsForTests.nameContextForTest().userName(), "testStateFamily");
-      executionContext =
-          new StreamingModeExecutionContext(
-              counterSet,
-              COMPUTATION_ID,
-              new ReaderCache(Duration.standardMinutes(1), Executors.newCachedThreadPool()),
-              stateNameMap,
-              WindmillStateCache.builder()
-                  .setSizeMb(options.getWorkerCacheMb())
-                  .build()
-                  .forComputation("comp"),
-              StreamingStepMetricsContainer.createRegistry(),
-              new DataflowExecutionStateTracker(
-                  ExecutionStateSampler.newForTest(),
-                  executionStateRegistry.getState(
-                      NameContext.forStage("stage"), "other", null, NoopProfileScope.NOOP),
-                  counterSet,
-                  PipelineOptionsFactory.create(),
-                  "test-work-item-id"),
-              executionStateRegistry,
-              globalConfigHandle,
-              Long.MAX_VALUE,
-              /*throwExceptionOnLargeOutput=*/ false);
+    for (Boolean isV2Encoding : Lists.newArrayList(Boolean.TRUE, Boolean.FALSE)) {
+      Class<?> expectedEncoding =
+          isV2Encoding ? WindmillTagEncodingV2.class : WindmillTagEncodingV1.class;
       Windmill.WorkItemCommitRequest.Builder outputBuilder =
           Windmill.WorkItemCommitRequest.newBuilder();
-      NameContext nameContext = NameContextsForTests.nameContextForTest();
-      DataflowOperationContext operationContext =
-          executionContext.createOperationContext(nameContext);
-      StreamingModeExecutionContext.StepContext stepContext =
-          executionContext.getStepContext(operationContext);
-
+      globalConfigHandle.setConfig(
+          StreamingGlobalConfig.builder().setEnableStateTagEncodingV2(isV2Encoding).build());
       executionContext.start(
           "key",
           createMockWork(
