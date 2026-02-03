@@ -460,8 +460,8 @@ class ModelManager:
             continue
 
           # Re-evaluate priority in case model became known during wait
-          real_is_unknown = self._estimator.is_unknown(tag)
-          real_priority = 0 if real_is_unknown else 1
+          is_unknown = self._estimator.is_unknown(tag)
+          real_priority = 0 if is_unknown else 1
 
           # If priority changed, reinsert into queue and wait
           if current_priority != real_priority:
@@ -476,8 +476,6 @@ class ModelManager:
           cached_instance = self._try_grab_from_lru(tag)
           if cached_instance:
             return cached_instance
-
-          is_unknown = real_is_unknown
 
           # Path A: Isolation
           if is_unknown:
