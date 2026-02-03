@@ -117,37 +117,6 @@ func main() {
 	}
 }
 
-// The json string of pipeline options is in the following format.
-// We only focus on experiments here.
-//
-//	{
-//		 "display_data": [
-//		  	{...},
-//		 ],
-//		 "options": {
-//		  	...
-//			  "experiments": [
-//				...
-//			 ],
-//		 }
-//	}
-type PipelineOptionsData struct {
-	Options OptionsData `json:"options"`
-}
-
-type OptionsData struct {
-	Experiments []string `json:"experiments"`
-}
-
-func getExperiments(options string) []string {
-	var opts PipelineOptionsData
-	err := json.Unmarshal([]byte(options), &opts)
-	if err != nil {
-		return nil
-	}
-	return opts.Options.Experiments
-}
-
 func launchSDKProcess() error {
 	ctx := grpcx.WriteWorkerID(context.Background(), *id)
 
@@ -187,7 +156,7 @@ func launchSDKProcess() error {
 		logger.Fatalf(ctx, "Failed to convert pipeline options: %v", err)
 	}
 
-	experiments := getExperiments(options)
+	experiments := tools.GetExperiments(options)
 	pipNoBuildIsolation = false
 	if slices.Contains(experiments, "pip_no_build_isolation") {
 		pipNoBuildIsolation = true

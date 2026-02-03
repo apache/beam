@@ -42,3 +42,36 @@ func MakePipelineOptionsFileAndEnvVar(options string) error {
 	os.Setenv("PIPELINE_OPTIONS_FILE", f.Name())
 	return nil
 }
+
+type PipelineOptionsData struct {
+	Options OptionsData `json:"options"`
+}
+
+type OptionsData struct {
+	Experiments []string `json:"experiments"`
+}
+
+// GetExperiments extracts a string array from the options string (in JSON format)
+//
+// The json string of pipeline options is in the following format.
+// We only focus on experiments here.
+//
+//	{
+//		 "display_data": [
+//		  	{...},
+//		 ],
+//		 "options": {
+//		  	...
+//			  "experiments": [
+//				...
+//			 ],
+//		 }
+//	}
+func GetExperiments(options string) []string {
+	var opts PipelineOptionsData
+	err := json.Unmarshal([]byte(options), &opts)
+	if err != nil {
+		return nil
+	}
+	return opts.Options.Experiments
+}

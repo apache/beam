@@ -56,3 +56,51 @@ func TestMakePipelineOptionsFileAndEnvVar(t *testing.T) {
 	}
 	os.Remove("pipeline_options.json")
 }
+
+func TestGetExperiments(t *testing.T) {
+	tests := []struct {
+		name         string
+		inputOptions string
+		expectedExps []string
+	}{
+		{
+			"no experiments",
+			`{"options": {"a": "b"}}`,
+			nil,
+		},
+		{
+			"valid experiments",
+			`{"options": {"experiments": ["a", "b"]}}`,
+			[]string{"a", "b"},
+		},
+		{
+			"empty experiments",
+			`{"options": {"experiments": []}}`,
+			[]string{},
+		},
+		{
+			"invalid json",
+			`{options: {"experiments": []}}`,
+			nil,
+		},
+		{
+			"empty string",
+			"",
+			nil,
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			exps := GetExperiments(test.inputOptions)
+			if len(exps) != len(test.expectedExps) {
+				t.Errorf("got: %v, want: %v", exps, test.expectedExps)
+			}
+			for i, v := range exps {
+				if v != test.expectedExps[i] {
+					t.Errorf("got: %v, want: %v", exps, test.expectedExps)
+				}
+			}
+		})
+	}
+}
