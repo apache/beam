@@ -141,7 +141,13 @@ class GeminiModelHandler(RemoteModelHandler[Any, PredictionResult,
       location: the GCP project to use for Vertex AI requests. Setting this
         parameter routes requests to Vertex AI. If this paramter is provided,
         project must also be provided and api_key should not be set.
-      use_vertex_flex_api: if true, use the Vertex Flex API.
+      use_vertex_flex_api: if true, use the Vertex Flex API. This is a
+        cost-effective option for accessing Gemini models if you can tolerate
+        longer response times and throttling. This is often beneficial for
+        data processing workloads which usually have higher latency tolerance
+        than live serving paths. See
+        https://docs.cloud.google.com/vertex-ai/generative-ai/docs/flex-paygo
+        for more details.
       min_batch_size: optional. the minimum batch size to use when batching
         inputs.
       max_batch_size: optional. the maximum batch size to use when batching
