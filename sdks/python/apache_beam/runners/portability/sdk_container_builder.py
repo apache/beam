@@ -262,10 +262,11 @@ class _SdkContainerImageCloudBuilder(SdkContainerImageBuilder):
     build.steps.append(step)
 
     source = cloud_build_types.Source()
-    source.storage_source = cloud_build_types.StorageSource()
+    storage_source = cloud_build_types.StorageSource()
     gcs_bucket, gcs_object = self._get_gcs_bucket_and_name(gcs_location)
-    source.storage_source.bucket = os.path.join(gcs_bucket)
-    source.storage_source.object = gcs_object
+    storage_source.bucket = os.path.join(gcs_bucket)
+    storage_source.object = gcs_object
+    source.storage_source = storage_source
     build.source = source
     # TODO(zyichi): make timeout configurable
     build.timeout = '7200s'
@@ -325,16 +326,8 @@ class _SdkContainerImageCloudBuilder(SdkContainerImageBuilder):
     _LOGGER.info('Completed GCS upload to %s.', gcs_location)
 
   def _get_cloud_build_id_and_log_url(self, metadata):
-    id = None
-    log_url = None
-    for item in metadata.additionalProperties:
-      if item.key == 'build':
-        for field in item.value.object_value.properties:
-          if field.key == 'logUrl':
-            log_url = field.value.string_value
-          if field.key == 'id':
-            id = field.value.string_value
-    return id, log_url
+    build = metadata.build
+    return (build.id, build.log_url)
 
   @staticmethod
   def _get_gcs_bucket_and_name(gcs_location):
