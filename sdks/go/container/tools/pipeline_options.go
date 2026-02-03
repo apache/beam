@@ -52,11 +52,12 @@ type LegacyOptionsData struct {
 	Experiments []string `json:"experiments"`
 }
 
-// GetExperiments extracts a string array from the options string (in JSON format)
+// GetExperiments extracts a string array of experiments from the pipeline
+// options string (in JSON format)
 //
-// The json string of pipeline options can be in two formats.
+// The JSON string can be in two styles:
 //
-// Legacy format:
+// Legacy style:
 //
 //	{
 //		"display_data": [
@@ -70,7 +71,7 @@ type LegacyOptionsData struct {
 //		}
 //	}
 //
-// URN format:
+// URN style:
 //
 //	{
 //		"beam:option:experiments:v1": [
@@ -84,7 +85,7 @@ func GetExperiments(options string) []string {
 		return nil
 	}
 
-	// Check the legacy experiments first
+	// Check the legacy style experiments first
 	if opts.Options.Experiments != nil {
 		return opts.Options.Experiments
 	}
