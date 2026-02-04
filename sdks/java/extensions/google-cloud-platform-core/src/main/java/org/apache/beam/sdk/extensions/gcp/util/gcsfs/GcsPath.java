@@ -129,6 +129,9 @@ public class GcsPath implements Path, Serializable {
   /** Pattern that is used to validate a GCS bucket name. */
   private static final Pattern GCS_BUCKET_NAME = Pattern.compile("[a-z0-9][-_a-z0-9.]+[a-z0-9]");
 
+  /** Matches a glob containing a wildcard, capturing the portion before the first wildcard. */
+  private static final Pattern GLOB_PREFIX = Pattern.compile("(?<PREFIX>[^\\[*?]*)[\\[*?].*");
+
   /** Creates a GcsPath from a OnePlatform resource name in string form. */
   public static GcsPath fromResourceName(String name) {
     Matcher m = GCS_RESOURCE_NAME.matcher(name);
@@ -604,5 +607,17 @@ public class GcsPath implements Path, Serializable {
     } else {
       return bucket + "/" + object;
     }
+  }
+
+  /** Returns the prefix portion of the glob that doesn't contain wildcards. */
+  public static String getNonWildcardPrefix(String globExp) {
+    Matcher m = GLOB_PREFIX.matcher(globExp);
+    checkArgument(m.matches(), String.format("Glob expression: [%s] is not expandable.", globExp));
+    return m.group("PREFIX");
+  }
+
+  /** Returns true if the given {@code spec} contains wildcard. */
+  public static boolean isWildcard(GcsPath spec) {
+    return GLOB_PREFIX.matcher(spec.getObject()).matches();
   }
 }

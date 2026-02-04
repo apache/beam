@@ -99,11 +99,11 @@ public class GcsUtil {
   }
 
   public static String getNonWildcardPrefix(String globExp) {
-    return GcsUtilV1.getNonWildcardPrefix(globExp);
+    return GcsPath.getNonWildcardPrefix(globExp);
   }
 
   public static boolean isWildcard(GcsPath spec) {
-    return GcsUtilV1.isWildcard(spec);
+    return GcsPath.isWildcard(spec);
   }
 
   @VisibleForTesting
