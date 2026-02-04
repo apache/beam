@@ -92,7 +92,7 @@ jobs:
       - name: Install python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.10'
+          python-version: '3.11'
       - name: Get tag
         id: get_tag
         run: |
@@ -244,13 +244,13 @@ jobs:
     - name: Install Python
       uses: actions/setup-python@v5
       with:
-        python-version: '3.10'
+        python-version: '3.11'
     - uses: docker/setup-qemu-action@v3
       if: ${{matrix.os_python.arch == 'aarch64'}}
       name: Set up QEMU
     - name: Install cibuildwheel
       # note: sync cibuildwheel version with gradle task sdks:python:bdistPy* steps
-      run: pip install cibuildwheel==2.23.3 setuptools
+      run: pip install cibuildwheel==3.3.1 setuptools
     - name: Build wheel
       # Only build wheel if it is one of the target versions for this platform, otherwise no-op
       if: ${{ contains(matrix.os_python.python, matrix.py_version) }}
