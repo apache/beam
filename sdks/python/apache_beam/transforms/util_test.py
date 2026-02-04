@@ -1934,6 +1934,45 @@ class ToStringTest(unittest.TestCase):
       assert_that(result, equal_to(["one1", "two2"]))
 
 
+class TakeTest(unittest.TestCase):
+  def test_take_function_syntax(self):
+    with TestPipeline() as p:
+      result = p | beam.Create([1, 2, 3, 4, 5]) | util.take(3)
+      assert_that(result, equal_to([1, 2, 3]))
+
+  def test_take_method_syntax(self):
+    with TestPipeline() as p:
+      pcoll = p | beam.Create([10, 20, 30, 40, 50])
+      result = pcoll.take(2)
+      assert_that(result, equal_to([10, 20]))
+
+  def test_take_more_than_available(self):
+    with TestPipeline() as p:
+      result = p | beam.Create([1, 2, 3]) | util.take(10)
+      assert_that(result, equal_to([1, 2, 3]))
+
+  def test_take_single_element(self):
+    with TestPipeline() as p:
+      result = p | beam.Create([100, 200, 300]) | util.take(1)
+      assert_that(result, equal_to([100]))
+
+  def test_take_all_elements(self):
+    with TestPipeline() as p:
+      data = [1, 2, 3, 4, 5]
+      result = p | beam.Create(data) | util.take(len(data))
+      assert_that(result, equal_to(data))
+
+  def test_take_invalid_n_zero(self):
+    with self.assertRaises(ValueError) as ctx:
+      util.Take(0)
+    self.assertIn('n must be positive', str(ctx.exception))
+
+  def test_take_invalid_n_negative(self):
+    with self.assertRaises(ValueError) as ctx:
+      util.Take(-1)
+    self.assertIn('n must be positive', str(ctx.exception))
+
+
 class LogElementsTest(unittest.TestCase):
   @pytest.fixture(scope="function")
   def _capture_stdout_log(request, capsys):

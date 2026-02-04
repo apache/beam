@@ -17,10 +17,17 @@
  */
 plugins {
   id 'org.apache.beam.module'
-  id 'java'
 }
 
+applyJavaNature(
+  automaticModuleName: 'org.apache.beam.sdk.ml.inference.openai',
+  requireJavaVersion: JavaVersion.VERSION_11
+)
+provideIntegrationTestingDependencies()
+enableJavaPerformanceTesting()
+
 description = "Apache Beam :: SDKs :: Java :: ML :: Inference :: OpenAI"
+ext.summary = "OpenAI model handler for remote inference"
 
 dependencies {
   implementation project(":sdks:java:ml:inference:remote")
