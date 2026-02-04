@@ -25,6 +25,7 @@ import com.google.api.services.storage.model.Bucket;
 import com.google.api.services.storage.model.Objects;
 import com.google.api.services.storage.model.StorageObject;
 import com.google.auth.Credentials;
+import com.google.cloud.storage.Blob;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.io.IOException;
 import java.nio.channels.SeekableByteChannel;
@@ -44,6 +45,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 
 public class GcsUtil {
   @VisibleForTesting GcsUtilV1 delegate;
+  @VisibleForTesting @Nullable GcsUtilV2 delegateV2;
 
   public static class GcsCountersOptions {
     final GcsUtilV1.GcsCountersOptions delegate;
@@ -91,7 +93,8 @@ public class GcsUtil {
               gcsOptions.getEnableBucketWriteMetricCounter()
                   ? gcsOptions.getGcsWriteCounterPrefix()
                   : null),
-          gcsOptions);
+          gcsOptions,
+          ExperimentalOptions.hasExperiment(options, "use_gcsutil_v2"));
     }
   }
 
@@ -125,6 +128,36 @@ public class GcsUtil {
             rewriteDataOpBatchLimit,
             gcsCountersOptions.delegate,
             gcsOptions);
+    this.delegateV2 = null;
+  }
+
+  @VisibleForTesting
+  GcsUtil(
+      Storage storageClient,
+      HttpRequestInitializer httpRequestInitializer,
+      ExecutorService executorService,
+      Boolean shouldUseGrpc,
+      Credentials credentials,
+      @Nullable Integer uploadBufferSizeBytes,
+      @Nullable Integer rewriteDataOpBatchLimit,
+      GcsCountersOptions gcsCountersOptions,
+      GcsOptions gcsOptions,
+      Boolean shouldUseV2) {
+    this.delegate =
+        new GcsUtilV1(
+            storageClient,
+            httpRequestInitializer,
+            executorService,
+            shouldUseGrpc,
+            credentials,
+            uploadBufferSizeBytes,
+            rewriteDataOpBatchLimit,
+            gcsCountersOptions.delegate,
+            gcsOptions);
+
+    if (shouldUseV2) {
+      this.delegateV2 = new GcsUtilV2(gcsOptions);
+    }
   }
 
   protected void setStorageClient(Storage storageClient) {
@@ -146,16 +179,26 @@ public class GcsUtil {
   }
 
   public long fileSize(GcsPath path) throws IOException {
+    if (delegateV2 != null) return delegateV2.fileSize(path);
     return delegate.fileSize(path);
   }
 
+  /** @deprecated use {@link #getBlob(GcsPath)}. */
+  @Deprecated
   public StorageObject getObject(GcsPath gcsPath) throws IOException {
     return delegate.getObject(gcsPath);
   }
 
+  /** @deprecated use {@link #getBlob(GcsPath)}. */
+  @Deprecated
   @VisibleForTesting
   StorageObject getObject(GcsPath gcsPath, BackOff backoff, Sleeper sleeper) throws IOException {
     return delegate.getObject(gcsPath, backoff, sleeper);
+  }
+
+  public Blob getBlob(GcsPath gcsPath) throws IOException {
+    if (delegateV2 != null) return delegateV2.getBlob(gcsPath);
+    throw new IOException("GcsUtil2 not initialized.");
   }
 
   public List<StorageObjectOrIOException> getObjects(List<GcsPath> gcsPaths) throws IOException {
