@@ -1392,6 +1392,7 @@ public class FileIO {
      * <p>This option is used only for writing unbounded data with auto-sharding.
      */
     public Write<DestinationT, UserT> withBatchSize(@Nullable Integer batchSize) {
+      checkArgument(batchSize > 0, "batchSize must be positive, but was: %s", batchSize);
       return toBuilder().setBatchSize(batchSize).build();
     }
 
@@ -1402,6 +1403,8 @@ public class FileIO {
      * <p>This option is used only for writing unbounded data with auto-sharding.
      */
     public Write<DestinationT, UserT> withBatchSizeBytes(@Nullable Integer batchSizeBytes) {
+      checkArgument(
+          batchSizeBytes > 0, "batchSizeBytes must be positive, but was: %s", batchSizeBytes);
       return toBuilder().setBatchSizeBytes(batchSizeBytes).build();
     }
 
@@ -1413,6 +1416,10 @@ public class FileIO {
      */
     public Write<DestinationT, UserT> withBatchMaxBufferingDuration(
         @Nullable Duration batchMaxBufferingDuration) {
+      checkArgument(
+          batchMaxBufferingDuration.isLongerThan(Duration.ZERO),
+          "batchMaxBufferingDuration must be positive, but was: %s",
+          batchMaxBufferingDuration);
       return toBuilder().setBatchMaxBufferingDuration(batchMaxBufferingDuration).build();
     }
 
