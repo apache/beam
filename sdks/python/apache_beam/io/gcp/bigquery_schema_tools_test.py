@@ -342,6 +342,7 @@ class TypeOverridesSchemaToolsTest(unittest.TestCase):
   def test_bq_field_to_type_with_overrides(self):
     """Test bq_field_to_type function with type_overrides."""
     import datetime
+
     from apache_beam.io.gcp.bigquery_schema_tools import bq_field_to_type
 
     # Without overrides, DATE is not supported
