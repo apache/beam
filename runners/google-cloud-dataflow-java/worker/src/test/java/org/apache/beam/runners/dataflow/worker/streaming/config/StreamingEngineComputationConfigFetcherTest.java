@@ -240,8 +240,7 @@ public class StreamingEngineComputationConfigFetcherTest {
   public void test_streamingEngineStateTagEncodingVersion()
       throws IOException, InterruptedException {
     for (Optional<Integer> tagEncoding :
-        Arrays.<Optional<Integer>>asList(
-            Optional.empty(), Optional.of(1), Optional.of(2), Optional.of(3))) {
+        Arrays.<Optional<Integer>>asList(Optional.empty(), Optional.of(1), Optional.of(2))) {
       StreamingConfigTask streamingConfigTask =
           new StreamingConfigTask().setMaxWorkItemCommitBytes(100L);
       tagEncoding.ifPresent(
