@@ -321,11 +321,11 @@ public class WindmillTagEncodingV2Test {
                   timeDomain)
               : TimerData.of(
                   TIMER_ID,
-                namespace,
-                new Instant(123),
-                new Instant(456),
-                timeDomain,
-                TimerData.CausedByDrain.NORMAL);
+                  namespace,
+                  new Instant(123),
+                  new Instant(456),
+                  timeDomain,
+                  TimerData.CausedByDrain.NORMAL);
       assertEquals(expectedBytes, WindmillTagEncodingV2.instance().timerTag(prefix, timerData));
     }
   }
