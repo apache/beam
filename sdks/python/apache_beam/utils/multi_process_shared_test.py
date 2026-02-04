@@ -324,7 +324,8 @@ class MultiProcessSharedSpawnProcessTest(unittest.TestCase):
     shared2 = multi_process_shared.MultiProcessShared(
         Counter, tag='to_delete', always_proxy=True, spawn_process=True)
     counter3 = multi_process_shared.MultiProcessShared(
-        Counter, tag='to_retain', always_proxy=True, spawn_process=True).acquire()
+        Counter, tag='to_retain', always_proxy=True,
+        spawn_process=True).acquire()
 
     counter1 = shared1.acquire()
     counter2 = shared2.acquire()
