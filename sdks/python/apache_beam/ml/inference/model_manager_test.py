@@ -19,6 +19,7 @@ import random
 import threading
 import time
 import unittest
+from concurrent.futures import TimeoutError
 from concurrent.futures import ThreadPoolExecutor
 from unittest.mock import patch
 
@@ -353,7 +354,7 @@ class TestModelManager(unittest.TestCase):
       return
 
     with ThreadPoolExecutor(max_workers=8) as executor:
-      futures = [executor.submit(run_inference) for _ in range(100)]
+      futures = [executor.submit(run_inference) for _ in range(200)]
 
     for f in futures:
       f.result()
