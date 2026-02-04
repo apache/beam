@@ -68,6 +68,7 @@ except ImportError:
 try:
   # pylint: disable=wrong-import-order, wrong-import-position
   import resource
+
   from apache_beam.ml.inference.model_manager import ModelManager
 except ImportError:
   resource = None  # type: ignore[assignment]
