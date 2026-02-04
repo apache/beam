@@ -40,7 +40,6 @@ except ImportError:
 
 
 class GCSFileSystemLazyLoadTest(unittest.TestCase):
-
   def test_get_filesystem_does_not_require_gcp_extra(self):
     fs = FileSystems.get_filesystem('gs://test-bucket/path')
     self.assertEqual(fs.scheme(), 'gs')

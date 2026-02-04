@@ -35,23 +35,20 @@ from apache_beam.io.filesystem import CompressionTypes
 from apache_beam.io.filesystem import FileMetadata
 from apache_beam.io.filesystem import FileSystem
 
-
 __all__ = ['GCSFileSystem']
 
 
 class GCSFileSystem(FileSystem):
   """A GCS ``FileSystem`` implementation for accessing files on GCS.
   """
- 
   def _get_gcsio(self):
     try:
       from apache_beam.io.gcp import gcsio
       return gcsio
     except ImportError:
       raise ImportError(
-         'GCSFileSystem requires apache-beam[gcp]. '
-         'Install it with: pip install apache-beam[gcp]'
-      )
+          'GCSFileSystem requires apache-beam[gcp]. '
+          'Install it with: pip install apache-beam[gcp]')
 
   _CHUNK_SIZE = None
 
@@ -60,6 +57,7 @@ class GCSFileSystem(FileSystem):
     if self._CHUNK_SIZE is None:
       self._CHUNK_SIZE = self._get_gcsio().MAX_BATCH_OPERATION_SIZE
     return self._CHUNK_SIZE  # Chuck size in batch operations
+
   GCS_PREFIX = 'gs://'
 
   def __init__(self, pipeline_options):
