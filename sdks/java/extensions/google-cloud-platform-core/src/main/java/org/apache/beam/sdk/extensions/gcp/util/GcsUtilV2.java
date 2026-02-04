@@ -17,15 +17,21 @@
  */
 package org.apache.beam.sdk.extensions.gcp.util;
 
+import com.google.api.gax.paging.Page;
 import com.google.cloud.storage.Blob;
 import com.google.cloud.storage.Storage;
 import com.google.cloud.storage.Storage.BlobGetOption;
+import com.google.cloud.storage.Storage.BlobListOption;
 import com.google.cloud.storage.StorageOptions;
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.stream.Collectors;
 import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
 import org.apache.beam.sdk.extensions.gcp.util.gcsfs.GcsPath;
 import org.apache.beam.sdk.options.DefaultValueFactory;
 import org.apache.beam.sdk.options.PipelineOptions;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 class GcsUtilV2 {
   public static class GcsUtilFactory implements DefaultValueFactory<GcsUtilV2> {
@@ -39,6 +45,9 @@ class GcsUtilV2 {
 
   private Storage storage;
 
+  /** Maximum number of items to retrieve per Objects.List request. */
+  private static final long MAX_LIST_BLOBS_PER_CALL = 1024;
+
   GcsUtilV2(PipelineOptions options) {
     String projectId = options.as(GcpOptions.class).getProject();
     storage = StorageOptions.newBuilder().setProjectId(projectId).build().getService();
@@ -50,5 +59,31 @@ class GcsUtilV2 {
 
   public long fileSize(GcsPath gcsPath) throws IOException {
     return getBlob(gcsPath).getSize();
+  }
+
+  /** Lists {@link Blob}s given the {@code bucket}, {@code prefix}, {@code pageToken}. */
+  public List<Blob> listBlobs(
+      String bucket, String prefix, @Nullable String pageToken, @Nullable String delimiter)
+      throws IOException {
+    List<BlobListOption> options = new ArrayList<>();
+    options.add(BlobListOption.pageSize(MAX_LIST_BLOBS_PER_CALL));
+    if (pageToken != null) {
+      options.add(BlobListOption.pageToken(pageToken));
+    }
+    if (prefix != null) {
+      options.add(BlobListOption.prefix(prefix));
+    }
+    if (delimiter != null) {
+      options.add(BlobListOption.delimiter(delimiter));
+    }
+
+    Page<Blob> blobs = storage.list(bucket, options.toArray(new BlobListOption[0]));
+    List<Blob> blobList = blobs.streamValues().collect(Collectors.toList());
+    return blobList;
+  }
+
+  public List<Blob> listBlobs(String bucket, String prefix, @Nullable String pageToken)
+      throws IOException {
+    return listBlobs(bucket, prefix, pageToken, null);
   }
 }

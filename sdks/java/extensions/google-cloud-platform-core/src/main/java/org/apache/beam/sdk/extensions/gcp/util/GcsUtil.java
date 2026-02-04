@@ -208,15 +208,32 @@ public class GcsUtil {
         .collect(java.util.stream.Collectors.toList());
   }
 
+  /** @deprecated use {@link #listBlobs(String, String, String)}. */
+  @Deprecated
   public Objects listObjects(String bucket, String prefix, @Nullable String pageToken)
       throws IOException {
     return delegate.listObjects(bucket, prefix, pageToken);
   }
 
+  /** @deprecated use {@link #listBlobs(String, String, String, String)}. */
+  @Deprecated
   public Objects listObjects(
       String bucket, String prefix, @Nullable String pageToken, @Nullable String delimiter)
       throws IOException {
     return delegate.listObjects(bucket, prefix, pageToken, delimiter);
+  }
+
+  public List<Blob> listBlobs(String bucket, String prefix, @Nullable String pageToken)
+      throws IOException {
+    if (delegateV2 != null) return delegateV2.listBlobs(bucket, prefix, pageToken);
+    throw new IOException("GcsUtil2 not initialized.");
+  }
+
+  public List<Blob> listBlobs(
+      String bucket, String prefix, @Nullable String pageToken, @Nullable String delimiter)
+      throws IOException {
+    if (delegateV2 != null) return delegateV2.listBlobs(bucket, prefix, pageToken, delimiter);
+    throw new IOException("GcsUtil2 not initialized.");
   }
 
   @VisibleForTesting

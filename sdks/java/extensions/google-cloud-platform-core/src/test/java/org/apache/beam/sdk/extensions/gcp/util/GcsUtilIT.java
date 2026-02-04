@@ -20,11 +20,14 @@ package org.apache.beam.sdk.extensions.gcp.util;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 
+import com.google.api.services.storage.model.Objects;
 import com.google.api.services.storage.model.StorageObject;
 import com.google.cloud.storage.Blob;
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.List;
+import java.util.stream.Collectors;
 import org.apache.beam.sdk.extensions.gcp.options.GcsOptions;
 import org.apache.beam.sdk.extensions.gcp.util.gcsfs.GcsPath;
 import org.apache.beam.sdk.options.ExperimentalOptions;
@@ -99,6 +102,32 @@ public class GcsUtilIT {
       crc = obj.getCrc32c();
     }
     assertEquals(expectedCRC, crc);
+  }
+
+  @Test
+  public void testListObjectsOrListBlobs() throws IOException {
+    final String bucket = "apache-beam-samples";
+    final String prefix = "shakespeare/kingrichard";
+    TestPipelineOptions options =
+        TestPipeline.testingPipelineOptions().as(TestPipelineOptions.class);
+
+    // set the experimental flag.
+    ExperimentalOptions experimentalOptions = options.as(ExperimentalOptions.class);
+    experimentalOptions.setExperiments(Collections.singletonList(experiment));
+
+    GcsOptions gcsOptions = options.as(GcsOptions.class);
+    GcsUtil gcsUtil = gcsOptions.getGcsUtil();
+
+    List<String> names;
+    if (experiment.equals("use_gcsutil_v2")) {
+      List<Blob> blobs = gcsUtil.listBlobs(bucket, prefix, null);
+      names = blobs.stream().map(blob -> blob.getName()).collect(Collectors.toList());
+    } else {
+      Objects objs = gcsUtil.listObjects(bucket, prefix, null);
+      names = objs.getItems().stream().map(obj -> obj.getName()).collect(Collectors.toList());
+    }
+    assertEquals(
+        Arrays.asList("shakespeare/kingrichardii.txt", "shakespeare/kingrichardiii.txt"), names);
   }
 
   // /** Tests a rewrite operation that requires multiple API calls (using a continuation token). */
