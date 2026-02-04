@@ -32,10 +32,11 @@ from apache_beam.testing.util import equal_to
 # pylint: disable=wrong-import-order, wrong-import-position, ungrouped-imports
 try:
   import tensorrt as trt
+
   from apache_beam.ml.inference import utils
-  from apache_beam.ml.inference.base import PredictionResult, RunInference
-  from apache_beam.ml.inference.tensorrt_inference import \
-      TensorRTEngineHandlerNumPy
+  from apache_beam.ml.inference.base import PredictionResult
+  from apache_beam.ml.inference.base import RunInference
+  from apache_beam.ml.inference.tensorrt_inference import TensorRTEngineHandlerNumPy
 except ImportError:
   raise unittest.SkipTest('TensorRT dependencies are not installed')
 

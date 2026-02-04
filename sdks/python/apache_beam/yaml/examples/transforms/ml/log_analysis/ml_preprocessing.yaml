@@ -117,6 +117,7 @@ pipeline:
 
 options:
   yaml_experimental_features: [ 'ML' ]
+  temp_location: "gs://apache-beam-testing/temp"
 
 # Expected:
 #  Row(id=1, date='2024-10-01', time='12:00:00', level='INFO', process='Main', component='ComponentA', content='System started successfully', embedding=[0.13483997249264842, 0.26967994498529685, 0.40451991747794525, 0.5393598899705937, 0.674199862463242])

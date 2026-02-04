@@ -117,6 +117,7 @@ class PubsubWritePerfTest(PubsubIOPerfTest):
   def test(self):
     def to_pubsub_message(element):
       import uuid
+
       from apache_beam.io import PubsubMessage
       return PubsubMessage(
           data=element[1],

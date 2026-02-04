@@ -30,6 +30,7 @@ import java.util.stream.Collectors;
 import net.bytebuddy.ByteBuddy;
 import net.bytebuddy.asm.AsmVisitorWrapper;
 import net.bytebuddy.description.field.FieldDescription.ForLoadedField;
+import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.description.type.TypeDescription.ForLoadedType;
 import net.bytebuddy.dynamic.DynamicType;
 import net.bytebuddy.dynamic.scaffold.InstrumentedType;
@@ -151,18 +152,13 @@ public class POJOUtils {
       Schema schema,
       List<FieldValueTypeInformation> types,
       TypeConversionsFactory typeConversionsFactory) {
-    // Get the list of class fields ordered by schema.
-    List<Field> fields =
-        types.stream()
-            .map(type -> Preconditions.checkNotNull(type.getField()))
-            .collect(Collectors.toList());
     try {
       DynamicType.Builder<SchemaUserTypeCreator> builder =
           BYTE_BUDDY
               .with(new InjectPackageStrategy(clazz))
               .subclass(SchemaUserTypeCreator.class)
               .method(ElementMatchers.named("create"))
-              .intercept(new SetFieldCreateInstruction(fields, clazz, typeConversionsFactory));
+              .intercept(new SetFieldCreateInstruction(types, clazz, typeConversionsFactory));
 
       return builder
           .visit(new AsmVisitorWrapper.ForDeclaredMethods().writerFlags(ClassWriter.COMPUTE_FRAMES))
@@ -305,11 +301,8 @@ public class POJOUtils {
         ByteBuddyUtils.subclassGetterInterface(
             BYTE_BUDDY,
             field.getDeclaringClass(),
-            typeConversionsFactory
-                .createTypeConversion(false)
-                .convert(TypeDescriptor.of(field.getType())));
-    builder =
-        implementGetterMethods(builder, field, typeInformation.getName(), typeConversionsFactory);
+            typeConversionsFactory.createTypeConversion(false).convert(typeInformation.getType()));
+    builder = implementGetterMethods(builder, typeInformation, typeConversionsFactory);
     try {
       return builder
           .visit(new AsmVisitorWrapper.ForDeclaredMethods().writerFlags(ClassWriter.COMPUTE_FRAMES))
@@ -331,107 +324,25 @@ public class POJOUtils {
   private static <ObjectT, ValueT>
       DynamicType.Builder<FieldValueGetter<@NonNull ObjectT, ValueT>> implementGetterMethods(
           DynamicType.Builder<FieldValueGetter<@NonNull ObjectT, ValueT>> builder,
-          Field field,
-          String name,
+          FieldValueTypeInformation typeInformation,
           TypeConversionsFactory typeConversionsFactory) {
     return builder
         .visit(new AsmVisitorWrapper.ForDeclaredMethods().writerFlags(ClassWriter.COMPUTE_FRAMES))
         .method(ElementMatchers.named("name"))
-        .intercept(FixedValue.reference(name))
+        .intercept(FixedValue.reference(typeInformation.getName()))
         .method(ElementMatchers.named("get"))
-        .intercept(new ReadFieldInstruction(field, typeConversionsFactory));
-  }
-
-  // The list of setters for a class is cached, so we only create the classes the first time
-  // getSetters is called.
-  private static final Map<TypeDescriptorWithSchema<?>, List<FieldValueSetter<?, ?>>>
-      CACHED_SETTERS = Maps.newConcurrentMap();
-
-  public static <T> List<FieldValueSetter<@NonNull T, Object>> getSetters(
-      TypeDescriptor<T> typeDescriptor,
-      Schema schema,
-      FieldValueTypeSupplier fieldValueTypeSupplier,
-      TypeConversionsFactory typeConversionsFactory) {
-    // Return the setters, ordered by their position in the schema.
-    return (List)
-        CACHED_SETTERS.computeIfAbsent(
-            TypeDescriptorWithSchema.create(typeDescriptor, schema),
-            c -> {
-              List<FieldValueTypeInformation> types =
-                  fieldValueTypeSupplier.get(typeDescriptor, schema);
-              return types.stream()
-                  .map(t -> createSetter(t, typeConversionsFactory))
-                  .collect(Collectors.toList());
-            });
-  }
-
-  /**
-   * Generate the following {@link FieldValueSetter} class for the {@link Field}.
-   *
-   * <pre><code>
-   *   class Setter implements {@literal FieldValueSetter<POJO, FieldType>} {
-   *     {@literal @}Override public String name() { return field.getName(); }
-   *     {@literal @}Override public Class type() { return field.getType(); }
-   *     {@literal @}Override public Type elementType() { return elementType; }
-   *     {@literal @}Override public Type mapKeyType() { return mapKeyType; }
-   *     {@literal @}Override public Type mapValueType() { return mapValueType; }
-   *     {@literal @}Override public void set(POJO pojo, FieldType value) {
-   *        pojo.field = convert(value);
-   *      }
-   *   }
-   * </code></pre>
-   */
-  @SuppressWarnings("unchecked")
-  private static <ObjectT, ValueT> FieldValueSetter<ObjectT, ValueT> createSetter(
-      FieldValueTypeInformation typeInformation, TypeConversionsFactory typeConversionsFactory) {
-    Field field = Preconditions.checkNotNull(typeInformation.getField());
-    DynamicType.Builder<FieldValueSetter<ObjectT, ValueT>> builder =
-        ByteBuddyUtils.subclassSetterInterface(
-            BYTE_BUDDY,
-            field.getDeclaringClass(),
-            typeConversionsFactory
-                .createTypeConversion(false)
-                .convert(TypeDescriptor.of(field.getType())));
-    builder = implementSetterMethods(builder, field, typeConversionsFactory);
-    try {
-      return builder
-          .visit(new AsmVisitorWrapper.ForDeclaredMethods().writerFlags(ClassWriter.COMPUTE_FRAMES))
-          .make()
-          .load(
-              ReflectHelpers.findClassLoader(field.getDeclaringClass().getClassLoader()),
-              getClassLoadingStrategy(field.getDeclaringClass()))
-          .getLoaded()
-          .getDeclaredConstructor()
-          .newInstance();
-    } catch (InstantiationException
-        | IllegalAccessException
-        | NoSuchMethodException
-        | InvocationTargetException e) {
-      throw new RuntimeException("Unable to generate a getter for field '" + field + "'.", e);
-    }
-  }
-
-  private static <ObjectT, ValueT>
-      DynamicType.Builder<FieldValueSetter<ObjectT, ValueT>> implementSetterMethods(
-          DynamicType.Builder<FieldValueSetter<ObjectT, ValueT>> builder,
-          Field field,
-          TypeConversionsFactory typeConversionsFactory) {
-    return builder
-        .visit(new AsmVisitorWrapper.ForDeclaredMethods().writerFlags(ClassWriter.COMPUTE_FRAMES))
-        .method(ElementMatchers.named("name"))
-        .intercept(FixedValue.reference(field.getName()))
-        .method(ElementMatchers.named("set"))
-        .intercept(new SetFieldInstruction(field, typeConversionsFactory));
+        .intercept(new ReadFieldInstruction(typeInformation, typeConversionsFactory));
   }
 
   // Implements a method to read a public field out of an object.
   static class ReadFieldInstruction implements Implementation {
     // Field that will be read.
-    private final Field field;
+    private final FieldValueTypeInformation typeInformation;
     private final TypeConversionsFactory typeConversionsFactory;
 
-    ReadFieldInstruction(Field field, TypeConversionsFactory typeConversionsFactory) {
-      this.field = field;
+    ReadFieldInstruction(
+        FieldValueTypeInformation typeInformation, TypeConversionsFactory typeConversionsFactory) {
+      this.typeInformation = typeInformation;
       this.typeConversionsFactory = typeConversionsFactory;
     }
 
@@ -446,19 +357,25 @@ public class POJOUtils {
         // this + method parameters.
         int numLocals = 1 + instrumentedMethod.getParameters().size();
 
+        StackManipulation cast =
+            typeInformation.getRawType().isAssignableFrom(typeInformation.getField().getType())
+                ? StackManipulation.Trivial.INSTANCE
+                : TypeCasting.to(TypeDescription.ForLoadedType.of(typeInformation.getRawType()));
+
         // StackManipulation that will read the value from the class field.
         StackManipulation readValue =
             new StackManipulation.Compound(
                 // Method param is offset 1 (offset 0 is the this parameter).
                 MethodVariableAccess.REFERENCE.loadFrom(1),
                 // Read the field from the object.
-                FieldAccess.forField(new ForLoadedField(field)).read());
+                FieldAccess.forField(new ForLoadedField(typeInformation.getField())).read(),
+                cast);
 
         StackManipulation stackManipulation =
             new StackManipulation.Compound(
                 typeConversionsFactory
                     .createGetterConversions(readValue)
-                    .convert(TypeDescriptor.of(field.getGenericType())),
+                    .convert(typeInformation.getType()),
                 MethodReturn.REFERENCE);
 
         StackManipulation.Size size = stackManipulation.apply(methodVisitor, implementationContext);
@@ -513,13 +430,15 @@ public class POJOUtils {
 
   // Implements a method to construct an object.
   static class SetFieldCreateInstruction implements Implementation {
-    private final List<Field> fields;
+    private final List<FieldValueTypeInformation> typeInformations;
     private final Class<?> pojoClass;
     private final TypeConversionsFactory typeConversionsFactory;
 
     SetFieldCreateInstruction(
-        List<Field> fields, Class<?> pojoClass, TypeConversionsFactory typeConversionsFactory) {
-      this.fields = fields;
+        List<FieldValueTypeInformation> typeInformations,
+        Class<?> pojoClass,
+        TypeConversionsFactory typeConversionsFactory) {
+      this.typeInformations = typeInformations;
       this.pojoClass = pojoClass;
       this.typeConversionsFactory = typeConversionsFactory;
     }
@@ -551,11 +470,12 @@ public class POJOUtils {
         // The types in the POJO might be the types returned by Beam's Row class,
         // so we have to convert the types used by Beam's Row class.
         TypeConversion<Type> convertType = typeConversionsFactory.createTypeConversion(true);
-        for (int i = 0; i < fields.size(); ++i) {
-          Field field = fields.get(i);
+        for (int i = 0; i < typeInformations.size(); ++i) {
+          FieldValueTypeInformation typeInformation = typeInformations.get(i);
+          Field field = typeInformation.getField();
 
           ForLoadedType convertedType =
-              new ForLoadedType((Class) convertType.convert(TypeDescriptor.of(field.getType())));
+              new ForLoadedType((Class) convertType.convert(typeInformation.getType()));
 
           // The instruction to read the parameter.
           StackManipulation readParameter =
@@ -572,7 +492,7 @@ public class POJOUtils {
                   // Do any conversions necessary.
                   typeConversionsFactory
                       .createSetterConversions(readParameter)
-                      .convert(TypeDescriptor.of(field.getType())),
+                      .convert(typeInformation.getType()),
                   // Now update the field.
                   FieldAccess.forField(new ForLoadedField(field)).write());
           stackManipulation = new StackManipulation.Compound(stackManipulation, updateField);

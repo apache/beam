@@ -61,7 +61,7 @@ jobs:
         job_name: [beam_PostCommit_Java_Examples_Dataflow_V2_Java]
         job_phrase_1: [Run Java ]
         job_phrase_2: [Examples on Dataflow Runner V2]
-        java_version: ['8', '17', '21']
+        java_version: ['8', '17', '21', '25']
     if: |
       github.event_name == 'workflow_dispatch' ||
       github.event_name == 'pull_request_target' ||

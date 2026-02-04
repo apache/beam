@@ -54,6 +54,7 @@ from apache_beam.pvalue import AsSideInput
 from apache_beam.pvalue import PCollection
 from apache_beam.transforms import window
 from apache_beam.transforms.combiners import CountCombineFn
+from apache_beam.transforms.combiners import Top
 from apache_beam.transforms.core import CombinePerKey
 from apache_beam.transforms.core import Create
 from apache_beam.transforms.core import DoFn
@@ -105,11 +106,13 @@ __all__ = [
     'Reshuffle',
     'Secret',
     'ToString',
+    'Take',
     'Tee',
     'Values',
     'WithKeys',
     'GroupIntoBatches',
-    'WaitOn'
+    'WaitOn',
+    'take',
 ]
 
 K = TypeVar('K')
@@ -341,6 +344,49 @@ class Secret():
     """Generates a new secret key."""
     return Fernet.generate_key()
 
+  @staticmethod
+  def parse_secret_option(secret) -> 'Secret':
+    """Parses a secret string and returns the appropriate secret type.
+
+    The secret string should be formatted like:
+    'type:<secret_type>;<secret_param>:<value>'
+
+    For example, 'type:GcpSecret;version_name:my_secret/versions/latest'
+    would return a GcpSecret initialized with 'my_secret/versions/latest'.
+    """
+    param_map = {}
+    for param in secret.split(';'):
+      parts = param.split(':')
+      param_map[parts[0]] = parts[1]
+
+    if 'type' not in param_map:
+      raise ValueError('Secret string must contain a valid type parameter')
+
+    secret_type = param_map['type'].lower()
+    del param_map['type']
+    secret_class = Secret
+    secret_params = None
+    if secret_type == 'gcpsecret':
+      secret_class = GcpSecret  # type: ignore[assignment]
+      secret_params = ['version_name']
+    elif secret_type == 'gcphsmgeneratedsecret':
+      secret_class = GcpHsmGeneratedSecret  # type: ignore[assignment]
+      secret_params = [
+          'project_id', 'location_id', 'key_ring_id', 'key_id', 'job_name'
+      ]
+    else:
+      raise ValueError(
+          f'Invalid secret type {secret_type}, currently only '
+          'GcpSecret and GcpHsmGeneratedSecret are supported')
+
+    for param_name in param_map.keys():
+      if param_name not in secret_params:
+        raise ValueError(
+            f'Invalid secret parameter {param_name}, '
+            f'{secret_type} only supports the following '
+            f'parameters: {secret_params}')
+    return secret_class(**param_map)
+
 
 class GcpSecret(Secret):
   """A secret manager implementation that retrieves secrets from Google Cloud
@@ -367,7 +413,161 @@ class GcpSecret(Secret):
       secret = response.payload.data
       return secret
     except Exception as e:
-      raise RuntimeError(f'Failed to retrieve secret bytes with excetion {e}')
+      raise RuntimeError(
+          'Failed to retrieve secret bytes for secret '
+          f'{self._version_name} with exception {e}')
+
+  def __eq__(self, secret):
+    return self._version_name == getattr(secret, '_version_name', None)
+
+
+class GcpHsmGeneratedSecret(Secret):
+  """A secret manager implementation that generates a secret using a GCP HSM key
+  and stores it in Google Cloud Secret Manager. If the secret already exists,
+  it will be retrieved.
+  """
+  def __init__(
+      self,
+      project_id: str,
+      location_id: str,
+      key_ring_id: str,
+      key_id: str,
+      job_name: str):
+    """Initializes a GcpHsmGeneratedSecret object.
+
+    Args:
+      project_id: The GCP project ID.
+      location_id: The GCP location ID for the HSM key.
+      key_ring_id: The ID of the KMS key ring.
+      key_id: The ID of the KMS key.
+      job_name: The name of the job, used to generate a unique secret name.
+    """
+    self._project_id = project_id
+    self._location_id = location_id
+    self._key_ring_id = key_ring_id
+    self._key_id = key_id
+    self._secret_version_name = f'HsmGeneratedSecret_{job_name}'
+
+  def get_secret_bytes(self) -> bytes:
+    """Retrieves the secret bytes.
+
+    If the secret version already exists in Secret Manager, it is retrieved.
+    Otherwise, a new secret and version are created. The new secret is
+    generated using the HSM key.
+
+    Returns:
+      The secret as a byte string.
+    """
+    try:
+      from google.api_core import exceptions as api_exceptions
+      from google.cloud import secretmanager
+      client = secretmanager.SecretManagerServiceClient()
+
+      project_path = f"projects/{self._project_id}"
+      secret_path = f"{project_path}/secrets/{self._secret_version_name}"
+      # Since we may generate multiple versions when doing this on workers,
+      # just always take the first version added to maintain consistency.
+      secret_version_path = f"{secret_path}/versions/1"
+
+      try:
+        response = client.access_secret_version(
+            request={"name": secret_version_path})
+        return response.payload.data
+      except api_exceptions.NotFound:
+        # Don't bother logging yet, we'll only log if we actually add the
+        # secret version below
+        pass
+
+      try:
+        client.create_secret(
+            request={
+                "parent": project_path,
+                "secret_id": self._secret_version_name,
+                "secret": {
+                    "replication": {
+                        "automatic": {}
+                    }
+                },
+            })
+      except api_exceptions.AlreadyExists:
+        # Don't bother logging yet, we'll only log if we actually add the
+        # secret version below
+        pass
+
+      new_key = self.generate_dek()
+      try:
+        # Try one more time in case it was created while we were generating the
+        # DEK.
+        response = client.access_secret_version(
+            request={"name": secret_version_path})
+        return response.payload.data
+      except api_exceptions.NotFound:
+        logging.info(
+            "Secret version %s not found. "
+            "Creating new secret and version.",
+            secret_version_path)
+      client.add_secret_version(
+          request={
+              "parent": secret_path, "payload": {
+                  "data": new_key
+              }
+          })
+      response = client.access_secret_version(
+          request={"name": secret_version_path})
+      return response.payload.data
+
+    except Exception as e:
+      raise RuntimeError(
+          f'Failed to retrieve or create secret bytes for secret '
+          f'{self._secret_version_name} with exception {e}')
+
+  def generate_dek(self, dek_size: int = 32) -> bytes:
+    """Generates a new Data Encryption Key (DEK) using an HSM-backed key.
+
+    This function follows a key derivation process that incorporates entropy
+    from the HSM-backed key into the nonce used for key derivation.
+
+    Args:
+      dek_size: The size of the DEK to generate.
+
+    Returns:
+        A new DEK of the specified size, url-safe base64-encoded.
+    """
+    try:
+      import base64
+      import os
+
+      from cryptography.hazmat.primitives import hashes
+      from cryptography.hazmat.primitives.kdf.hkdf import HKDF
+      from google.cloud import kms
+
+      # 1. Generate a random nonce (nonce_one)
+      nonce_one = os.urandom(dek_size)
+
+      # 2. Use the HSM-backed key to encrypt nonce_one to create nonce_two
+      kms_client = kms.KeyManagementServiceClient()
+      key_path = kms_client.crypto_key_path(
+          self._project_id, self._location_id, self._key_ring_id, self._key_id)
+      response = kms_client.encrypt(
+          request={
+              'name': key_path, 'plaintext': nonce_one
+          })
+      nonce_two = response.ciphertext
+
+      # 3. Generate a Derivation Key (DK)
+      dk = os.urandom(dek_size)
+
+      # 4. Use a KDF to derive the DEK using DK and nonce_two
+      hkdf = HKDF(
+          algorithm=hashes.SHA256(),
+          length=dek_size,
+          salt=nonce_two,
+          info=None,
+      )
+      dek = hkdf.derive(dk)
+      return base64.urlsafe_b64encode(dek)
+    except Exception as e:
+      raise RuntimeError(f'Failed to generate DEK with exception {e}')
 
 
 class _EncryptMessage(DoFn):
@@ -499,15 +699,22 @@ class GroupByEncryptedKey(PTransform):
     self._hmac_key = hmac_key
 
   def expand(self, pcoll):
-    kv_type_hint = pcoll.element_type
+    key_type, value_type = (typehints.typehints.coerce_to_kv_type(
+        pcoll.element_type).tuple_types)
+    kv_type_hint = typehints.KV[key_type, value_type]
     if kv_type_hint and kv_type_hint != typehints.Any:
-      coder = coders.registry.get_coder(kv_type_hint).as_deterministic_coder(
-          f'GroupByEncryptedKey {self.label}'
-          'The key coder is not deterministic. This may result in incorrect '
-          'pipeline output. This can be fixed by adding a type hint to the '
-          'operation preceding the GroupByKey step, and for custom key '
-          'classes, by writing a deterministic custom Coder. Please see the '
-          'documentation for more details.')
+      coder = coders.registry.get_coder(kv_type_hint)
+      try:
+        coder = coder.as_deterministic_coder(self.label)
+      except ValueError:
+        logging.warning(
+            'GroupByEncryptedKey %s: '
+            'The key coder is not deterministic. This may result in incorrect '
+            'pipeline output. This can be fixed by adding a type hint to the '
+            'operation preceding the GroupByKey step, and for custom key '
+            'classes, by writing a deterministic custom Coder. Please see the '
+            'documentation for more details.',
+            self.label)
       if not coder.is_kv_coder():
         raise ValueError(
             'Input elements to the transform %s with stateful DoFn must be '
@@ -518,11 +725,17 @@ class GroupByEncryptedKey(PTransform):
       key_coder = coders.registry.get_coder(typehints.Any)
       value_coder = key_coder
 
+    gbk = beam.GroupByKey()
+    gbk._inside_gbek = True
+    output_type = Tuple[key_type, Iterable[value_type]]
+
     return (
         pcoll
         | beam.ParDo(_EncryptMessage(self._hmac_key, key_coder, value_coder))
-        | beam.GroupByKey()
-        | beam.ParDo(_DecryptMessage(self._hmac_key, key_coder, value_coder)))
+        | gbk
+        | beam.ParDo(
+            _DecryptMessage(self._hmac_key, key_coder,
+                            value_coder)).with_output_types(output_type))
 
 
 class _BatchSizeEstimator(object):
@@ -1393,13 +1606,18 @@ def WithKeys(pcoll, k, *args, **kwargs):
       if all(isinstance(arg, AsSideInput)
              for arg in args) and all(isinstance(kwarg, AsSideInput)
                                       for kwarg in kwargs.values()):
-        return pcoll | Map(
+        # Map(lambda) produces a label formatted like this, but it cannot be
+        # changed without breaking update compat. Here, we pin to the transform
+        # name used in the 2.68 release to avoid breaking changes when the line
+        # number changes. Context: https://github.com/apache/beam/pull/36381
+        return pcoll | "Map(<lambda at util.py:1189>)" >> Map(
             lambda v, *args, **kwargs: (k(v, *args, **kwargs), v),
             *args,
             **kwargs)
-      return pcoll | Map(lambda v: (k(v, *args, **kwargs), v))
-    return pcoll | Map(lambda v: (k(v), v))
-  return pcoll | Map(lambda v: (k, v))
+      return pcoll | "Map(<lambda at util.py:1192>)" >> Map(
+          lambda v: (k(v, *args, **kwargs), v))
+    return pcoll | "Map(<lambda at util.py:1193>)" >> Map(lambda v: (k(v), v))
+  return pcoll | "Map(<lambda at util.py:1194>)" >> Map(lambda v: (k, v))
 
 
 @typehints.with_input_types(tuple[K, V])
@@ -1479,7 +1697,11 @@ class GroupIntoBatches(PTransform):
 
     def expand(self, pcoll):
       key_type, value_type = pcoll.element_type.tuple_types
-      sharded_pcoll = pcoll | Map(
+      # Map(lambda) produces a label formatted like this, but it cannot be
+      # changed without breaking update compat. Here, we pin to the transform
+      # name used in the 2.68 release to avoid breaking changes when the line
+      # number changes. Context: https://github.com/apache/beam/pull/36381
+      sharded_pcoll = pcoll | "Map(<lambda at util.py:1275>)" >> Map(
           lambda key_value: (
               ShardedKey(
                   key_value[0],
@@ -1748,6 +1970,75 @@ class LogElements(PTransform):
         ))
 
 
+@typehints.with_input_types(T)
+@typehints.with_output_types(T)
+class Take(PTransform):
+  """Takes the first N elements from a PCollection.
+
+  This transform returns a PCollection containing at most N elements from the
+  input PCollection. The elements are taken deterministically (not randomly
+  sampled).
+
+  Args:
+    n: Number of elements to take. Must be a positive integer.
+
+  Returns:
+    A PCollection containing at most N elements.
+
+  Example::
+    # Take first 10 elements
+    first_10 = pcoll | beam.take(10)
+
+    # Or as a method
+    first_10 = pcoll.take(10)
+  """
+  def __init__(self, n):
+    """Initializes Take transform.
+
+    Args:
+      n: Number of elements to take. Must be positive.
+    """
+    if n <= 0:
+      raise ValueError('n must be positive, got %d' % n)
+    self._n = n
+
+  def expand(self, pcoll):
+    """Expands the Take transform.
+
+    Args:
+      pcoll: Input PCollection.
+
+    Returns:
+      A PCollection containing at most N elements.
+    """
+    # Use Top.Of with a constant key to get first N elements deterministically.
+    # Top.Of returns a list, so we flatten it to get individual elements.
+    return (
+        pcoll
+        | Top.Of(self._n, key=lambda x: 0).without_defaults()
+        | FlatMap(lambda elements: elements))
+
+  def default_label(self):
+    return 'Take(%d)' % self._n
+
+
+def take(n):
+  """Convenience function for Take transform.
+
+  Takes the first N elements from a PCollection.
+
+  Args:
+    n: Number of elements to take. Must be positive.
+
+  Returns:
+    A Take transform instance.
+
+  Example::
+    first_10 = pcoll | beam.take(10)
+  """
+  return Take(n)
+
+
 class Reify(object):
   """PTransforms for converting between explicit and implicit form of various
   Beam values."""
@@ -1984,7 +2275,12 @@ class Regex(object):
       replacement: the string to be substituted for each match.
     """
     regex = Regex._regex_compile(regex)
-    return pcoll | Map(lambda elem: regex.sub(replacement, elem))
+    # Map(lambda) produces a label formatted like this, but it cannot be
+    # changed without breaking update compat. Here, we pin to the transform
+    # name used in the 2.68 release to avoid breaking changes when the line
+    # number changes. Context: https://github.com/apache/beam/pull/36381
+    return pcoll | "Map(<lambda at util.py:1779>)" >> Map(
+        lambda elem: regex.sub(replacement, elem))
 
   @staticmethod
   @typehints.with_input_types(str)
@@ -2000,7 +2296,12 @@ class Regex(object):
       replacement: the string to be substituted for each match.
     """
     regex = Regex._regex_compile(regex)
-    return pcoll | Map(lambda elem: regex.sub(replacement, elem, 1))
+    # Map(lambda) produces a label formatted like this, but it cannot be
+    # changed without breaking update compat. Here, we pin to the transform
+    # name used in the 2.68 release to avoid breaking changes when the line
+    # number changes. Context: https://github.com/apache/beam/pull/36381
+    return pcoll | "Map(<lambda at util.py:1795>)" >> Map(
+        lambda elem: regex.sub(replacement, elem, 1))
 
   @staticmethod
   @typehints.with_input_types(str)
@@ -2091,4 +2392,9 @@ class WaitOn(PTransform):
             | f"WaitOn{ix}" >> (beam.FlatMap(lambda x: ()) | GroupByKey()))
         for (ix, side) in enumerate(self._to_be_waited_on)
     ]
-    return pcoll | beam.Map(lambda x, *unused_sides: x, *sides)
+    # Map(lambda) produces a label formatted like this, but it cannot be
+    # changed without breaking update compat. Here, we pin to the transform
+    # name used in the 2.68 release to avoid breaking changes when the line
+    # number changes. Context: https://github.com/apache/beam/pull/36381
+    return pcoll | "Map(<lambda at util.py:1886>)" >> beam.Map(
+        lambda x, *unused_sides: x, *sides)

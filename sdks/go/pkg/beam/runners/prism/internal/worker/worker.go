@@ -36,6 +36,7 @@ import (
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/window"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime/exec"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/typex"
+	beamlog "github.com/apache/beam/sdks/v2/go/pkg/beam/log"
 	fnpb "github.com/apache/beam/sdks/v2/go/pkg/beam/model/fnexecution_v1"
 	pipepb "github.com/apache/beam/sdks/v2/go/pkg/beam/model/pipeline_v1"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/runners/prism/internal/engine"
@@ -224,7 +225,6 @@ func (wk *W) Logging(stream fnpb.BeamFnLogging_LoggingServer) error {
 				slog.String("transformID", l.GetTransformId()), // TODO: pull the unique name from the pipeline graph.
 				slog.String("location", l.GetLogLocation()),
 				slog.Time(slog.TimeKey, l.GetTimestamp().AsTime()),
-				slog.String(slog.MessageKey, l.GetMessage()),
 			}
 			if fs := l.GetCustomData().GetFields(); len(fs) > 0 {
 				var grp []any
@@ -245,7 +245,11 @@ func (wk *W) Logging(stream fnpb.BeamFnLogging_LoggingServer) error {
 				attrs = append(attrs, slog.Group("customData", grp...))
 			}
 
-			slog.LogAttrs(stream.Context(), toSlogSev(l.GetSeverity()), "log from SDK worker", slog.Any("worker", wk), slog.Group("sdk", attrs...))
+			if beamlog.LogLevel == "debug" {
+				slog.LogAttrs(stream.Context(), toSlogSev(l.GetSeverity()), "[SDK] "+l.GetMessage(), slog.Group("sdk", attrs...), slog.Any("worker", wk))
+			} else {
+				slog.LogAttrs(stream.Context(), toSlogSev(l.GetSeverity()), "[SDK] "+l.GetMessage())
+			}
 		}
 	}
 }

@@ -39,14 +39,14 @@ from apache_beam.io import iobase
 from apache_beam.io import source_test_utils
 from apache_beam.io.filesystem import CompressionTypes
 from apache_beam.io.filesystems import FileSystems
-from apache_beam.io.textio import _TextSink as TextSink
-from apache_beam.io.textio import _TextSource as TextSource
 # Importing following private classes for testing.
 from apache_beam.io.textio import ReadAllFromText
 from apache_beam.io.textio import ReadAllFromTextContinuously
 from apache_beam.io.textio import ReadFromText
 from apache_beam.io.textio import ReadFromTextWithFilename
 from apache_beam.io.textio import WriteToText
+from apache_beam.io.textio import _TextSink as TextSink
+from apache_beam.io.textio import _TextSource as TextSource
 from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.testing.test_stream import TestStream

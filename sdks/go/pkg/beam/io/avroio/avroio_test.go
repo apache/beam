@@ -19,7 +19,9 @@ import (
 	"bytes"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"os"
+	"path/filepath"
 	"reflect"
 	"testing"
 
@@ -141,15 +143,29 @@ const userSchema = `{
 }`
 
 func TestWrite(t *testing.T) {
-	avroFile := "./user.avro"
+	testWriteDefaults(t)
+}
+
+func TestWriteWithOptions(t *testing.T) {
+	testWriteWithOptions(t, 3)
+}
+
+func testWriteDefaults(t *testing.T) {
+	avroPrefix := "./user"
+	numShards := 1
+	avroSuffix := ".avro"
 	testUsername := "user1"
 	testInfo := "userInfo"
+
 	p, s, sequence := ptest.CreateList([]TwitterUser{{
 		User: testUsername,
 		Info: testInfo,
 	}})
 	format := beam.ParDo(s, toJSONString, sequence)
-	Write(s, avroFile, userSchema, format)
+
+	Write(s, avroPrefix, userSchema, format)
+
+	avroFile := fmt.Sprintf("%s-%05d-of-%05d%s", avroPrefix, 0, numShards, avroSuffix)
 	t.Cleanup(func() {
 		os.Remove(avroFile)
 	})
@@ -187,5 +203,93 @@ func TestWrite(t *testing.T) {
 	}
 	if got, want := nativeData[0].(map[string]any)["info"], testInfo; got != want {
 		t.Fatalf("User.User=%v, want %v", got, want)
+	}
+}
+
+func testWriteWithOptions(t *testing.T, numShards int) {
+	avroPrefix := "./users"
+	avroSuffix := ".avro"
+	users := []TwitterUser{
+		{User: "user1", Info: "info1"},
+		{User: "user2", Info: "info2"},
+		{User: "user3", Info: "info3"},
+		{User: "user4", Info: "info4"},
+		{User: "user5", Info: "info5"},
+	}
+
+	p, s, sequence := ptest.CreateList(users)
+	format := beam.ParDo(s, toJSONString, sequence)
+
+	Write(s, avroPrefix, userSchema, format, WithNumShards(numShards))
+
+	t.Cleanup(func() {
+		pattern := fmt.Sprintf("%s-*-of-%s%s", avroPrefix, fmt.Sprintf("%05d", numShards), avroSuffix)
+		files, err := filepath.Glob(pattern)
+		if err == nil {
+			for _, f := range files {
+				os.Remove(f)
+			}
+		}
+	})
+
+	ptest.RunAndValidate(t, p)
+
+	var allRecords []map[string]any
+	recordCounts := make(map[int]int)
+
+	for shardNum := 0; shardNum < numShards; shardNum++ {
+		avroFile := fmt.Sprintf("%s-%05d-of-%05d%s", avroPrefix, shardNum, numShards, avroSuffix)
+
+		if _, err := os.Stat(avroFile); errors.Is(err, os.ErrNotExist) {
+			continue
+		}
+
+		avroBytes, err := os.ReadFile(avroFile)
+		if err != nil {
+			t.Fatalf("Failed to read avro file %v: %v", avroFile, err)
+		}
+		ocf, err := goavro.NewOCFReader(bytes.NewReader(avroBytes))
+		if err != nil {
+			t.Fatalf("Failed to make OCF Reader for %v: %v", avroFile, err)
+		}
+		shardRecordCount := 0
+		for ocf.Scan() {
+			datum, err := ocf.Read()
+			if err != nil {
+				break
+			}
+			allRecords = append(allRecords, datum.(map[string]any))
+			shardRecordCount++
+		}
+
+		recordCounts[shardNum] = shardRecordCount
+
+		if err := ocf.Err(); err != nil {
+			t.Fatalf("Error decoding avro data from %v: %v", avroFile, err)
+		}
+	}
+
+	if got, want := len(allRecords), len(users); got != want {
+		t.Fatalf("Total records across all shards, got %v, want %v", got, want)
+	}
+
+	hasRecords := false
+	for _, count := range recordCounts {
+		if count > 0 {
+			hasRecords = true
+		}
+	}
+	if !hasRecords {
+		t.Fatal("No records found in any shard")
+	}
+	foundUsers := make(map[string]bool)
+	for _, record := range allRecords {
+		username := record["username"].(string)
+		foundUsers[username] = true
+	}
+	for _, user := range users {
+		if !foundUsers[user.User] {
+			t.Fatalf("Expected user %v not found in any shard", user.User)
+		}
 	}
 }

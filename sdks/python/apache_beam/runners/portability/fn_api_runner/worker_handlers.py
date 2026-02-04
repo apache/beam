@@ -76,9 +76,11 @@ from apache_beam.utils.interactive_utils import is_in_notebook
 from apache_beam.utils.sentinel import Sentinel
 
 if TYPE_CHECKING:
-  from grpc import ServicerContext
   from google.protobuf import message
-  from apache_beam.runners.portability.fn_api_runner.fn_runner import ExtendedProvisionInfo  # pylint: disable=ungrouped-imports
+  from grpc import ServicerContext
+
+  from apache_beam.runners.portability.fn_api_runner.fn_runner import \
+      ExtendedProvisionInfo  # pylint: disable=ungrouped-imports
 
 # State caching is enabled in the fn_api_runner for testing, except for one
 # test which runs without state caching (FnApiRunnerTestWithDisabledCaching).
@@ -463,10 +465,15 @@ class GrpcServer(object):
     # received or sent over the data plane. The actual buffer size
     # is controlled in a layer above. Also, options to keep the server alive
     # when too many pings are received.
-    options = [("grpc.max_receive_message_length", -1),
-               ("grpc.max_send_message_length", -1),
-               ("grpc.http2.max_pings_without_data", 0),
-               ("grpc.http2.max_ping_strikes", 0)]
+    options = [
+        ("grpc.max_receive_message_length", -1),
+        ("grpc.max_send_message_length", -1),
+        ("grpc.http2.max_pings_without_data", 0),
+        ("grpc.http2.max_ping_strikes", 0),
+        # match `grpc.keepalive_time_ms` defined in the client
+        # (channel_factory.py)
+        ("grpc.http2.min_ping_interval_without_data_ms", 20_000),
+    ]
 
     self.state = state
     self.provision_info = provision_info
@@ -747,6 +754,7 @@ class DockerSdkWorkerHandler(GrpcWorkerHandler):
       return 'host.docker.internal'
     if sys.platform == 'linux' and is_in_notebook():
       import socket
+
       # Gets ipv4 address of current host. Note the host is not guaranteed to
       # be localhost because the python SDK could be running within a container.
       return socket.gethostbyname(socket.getfqdn())
@@ -764,8 +772,8 @@ class DockerSdkWorkerHandler(GrpcWorkerHandler):
     except ImportError:
       pass
     else:
-      from google.auth import environment_vars
       from google.auth import _cloud_sdk
+      from google.auth import environment_vars
       gcloud_cred_file = os.environ.get(
           environment_vars.CREDENTIALS,
           _cloud_sdk.get_application_default_credentials_path())

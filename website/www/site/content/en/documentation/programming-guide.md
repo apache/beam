@@ -6422,22 +6422,20 @@ public class MyMetricsDoFn extends DoFn<Integer, Integer> {
 {{< highlight py >}}
 class MyMetricsDoFn(beam.DoFn):
   def __init__(self):
+    super().__init__()
     self.counter = metrics.Metrics.counter("namespace", "counter1")
 
   def process(self, element):
-    counter.inc()
+    self.counter.inc()
     yield element
 
-pipeline = beam.Pipeline()
+with beam.Pipeline() as p:
+  p | beam.Create([1, 2, 3]) | beam.ParDo(MyMetricsDoFn())
 
-pipeline | beam.ParDo(MyMetricsDoFn())
+metrics_filter = metrics.MetricsFilter().with_name("counter1")
+query_result  = p.result.metrics().query(metrics_filter)
 
-result = pipeline.run().wait_until_finish()
-
-metrics = result.metrics().query(
-    metrics.MetricsFilter.with_namespace("namespace").with_name("counter1"))
-
-for metric in metrics["counters"]:
+for metric in query_result["counters"]:
   print(metric)
 {{< /highlight >}}
 
@@ -6855,7 +6853,7 @@ class EventTimerDoFn(DoFn):
 
   @on_timer(TIMER)
   def expiry_callback(self, buffer = DoFn.StateParam(ALL_ELEMENTS)):
-    state.clear()
+    buffer.clear()
 
 _ = (p | 'Read per user' >> ReadPerUser()
        | 'EventTime timer pardo' >> beam.ParDo(EventTimerDoFn()))
@@ -6907,7 +6905,7 @@ class ProcessingTimerDoFn(DoFn):
   @on_timer(TIMER)
   def expiry_callback(self, buffer = DoFn.StateParam(ALL_ELEMENTS)):
     # Process timer.
-    state.clear()
+    buffer.clear()
 
 _ = (p | 'Read per user' >> ReadPerUser()
        | 'ProcessingTime timer pardo' >> beam.ParDo(ProcessingTimerDoFn()))

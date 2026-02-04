@@ -16,6 +16,37 @@
  * limitations under the License.
  */
 
+/** Define the list of runners which execute a precommit test.
+ * Some runners are run from separate projects, see the preCommit task below
+ * for details.
+ */
+project.ext.preCommitRunners = ["directRunner", "flinkRunner", "sparkRunner"]
+// The following runners have configuration created but not added to preCommit
+project.ext.nonPreCommitRunners = ["dataflowRunner", "prismRunner"]
+for (String runner : ext.preCommitRunners) {
+  configurations.create(runner + "PreCommit")
+}
+for (String runner: ext.nonPreCommitRunners) {
+  configurations.create(runner + "PreCommit")
+}
+configurations.sparkRunnerPreCommit {
+  // Ban certain dependencies to prevent a StackOverflow within Spark
+  // because JUL -> SLF4J -> JUL, and similarly JDK14 -> SLF4J -> JDK14
+  exclude group: "org.slf4j", module: "jul-to-slf4j"
+  exclude group: "org.slf4j", module: "slf4j-jdk14"
+}
+
+dependencies {
+  directRunnerPreCommit project(path: ":runners:direct-java", configuration: "shadow")
+  flinkRunnerPreCommit project(":runners:flink:${project.ext.latestFlinkVersion}")
+  sparkRunnerPreCommit project(":runners:spark:3")
+  sparkRunnerPreCommit project(":sdks:java:io:hadoop-file-system")
+  dataflowRunnerPreCommit project(":runners:google-cloud-dataflow-java")
+  dataflowRunnerPreCommit project(":runners:google-cloud-dataflow-java:worker") // v1 worker
+  dataflowRunnerPreCommit project(":sdks:java:harness") // v2 worker
+  prismRunnerPreCommit project(":runners:prism:java")
+}
+
  /*
  * A convenient task to run individual example directly on Beam repo.
  *

@@ -20,7 +20,6 @@ package org.apache.beam.sdk.io.gcp.bigquery;
 import static org.apache.beam.sdk.util.construction.TransformUpgrader.fromByteArray;
 import static org.apache.beam.sdk.util.construction.TransformUpgrader.toByteArray;
 
-import com.google.api.services.bigquery.model.TableRow;
 import com.google.auto.service.AutoService;
 import com.google.cloud.bigquery.storage.v1.AppendRowsRequest.MissingValueInterpretation;
 import com.google.cloud.bigquery.storage.v1.DataFormat;
@@ -110,6 +109,7 @@ public class BigQueryIOTranslation {
             .addNullableBooleanField("projection_pushdown_applied")
             .addNullableByteArrayField("bad_record_router")
             .addNullableByteArrayField("bad_record_error_handler")
+            .addNullableByteArrayField("direct_read_picos_timestamp_precision")
             .build();
 
     public static final String BIGQUERY_READ_TRANSFORM_URN =
@@ -195,6 +195,11 @@ public class BigQueryIOTranslation {
       }
       if (transform.getUseAvroLogicalTypes() != null) {
         fieldValues.put("use_avro_logical_types", transform.getUseAvroLogicalTypes());
+      }
+      if (transform.getDirectReadPicosTimestampPrecision() != null) {
+        fieldValues.put(
+            "direct_read_picos_timestamp_precision",
+            toByteArray(transform.getDirectReadPicosTimestampPrecision()));
       }
       fieldValues.put("projection_pushdown_applied", transform.getProjectionPushdownApplied());
       fieldValues.put("bad_record_router", toByteArray(transform.getBadRecordRouter()));
@@ -293,6 +298,13 @@ public class BigQueryIOTranslation {
         byte[] formatBytes = configRow.getBytes("format");
         if (formatBytes != null) {
           builder = builder.setFormat((DataFormat) fromByteArray(formatBytes));
+        }
+        byte[] timestampPrecisionBytes =
+            configRow.getBytes("direct_read_picos_timestamp_precision");
+        if (timestampPrecisionBytes != null) {
+          builder =
+              builder.setDirectReadPicosTimestampPrecision(
+                  (TimestampPrecision) fromByteArray(timestampPrecisionBytes));
         }
         Collection<String> selectedFields = configRow.getArray("selected_fields");
         if (selectedFields != null && !selectedFields.isEmpty()) {
@@ -641,14 +653,14 @@ public class BigQueryIOTranslation {
         if (formatFunctionBytes != null) {
           builder =
               builder.setFormatFunction(
-                  (SerializableFunction<?, TableRow>) fromByteArray(formatFunctionBytes));
+                  (BigQueryIO.TableRowFormatFunction<?>) fromByteArray(formatFunctionBytes));
         }
         byte[] formatRecordOnFailureFunctionBytes =
             configRow.getBytes("format_record_on_failure_function");
         if (formatRecordOnFailureFunctionBytes != null) {
           builder =
               builder.setFormatRecordOnFailureFunction(
-                  (SerializableFunction<?, TableRow>)
+                  (BigQueryIO.TableRowFormatFunction<?>)
                       fromByteArray(formatRecordOnFailureFunctionBytes));
         }
         byte[] avroRowWriterFactoryBytes = configRow.getBytes("avro_row_writer_factory");

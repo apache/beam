@@ -17,10 +17,11 @@
 from collections.abc import Iterable
 from typing import Optional
 
-import apache_beam as beam
 import tensorflow as tf
 import tensorflow_hub as hub
 import tensorflow_text as text  # required to register TF ops. # pylint: disable=unused-import
+
+import apache_beam as beam
 from apache_beam.ml.inference import utils
 from apache_beam.ml.inference.base import ModelHandler
 from apache_beam.ml.inference.base import PredictionResult

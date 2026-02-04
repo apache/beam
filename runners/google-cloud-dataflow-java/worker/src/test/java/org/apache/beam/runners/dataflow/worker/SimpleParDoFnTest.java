@@ -198,7 +198,7 @@ public class SimpleParDoFnTest {
         new TestDoFn(
             ImmutableList.of(
                 new TupleTag<>("tag1"), new TupleTag<>("tag2"), new TupleTag<>("tag3")));
-    DoFnInfo<?, ?> fnInfo =
+    DoFnInfo<Integer, String> fnInfo =
         DoFnInfo.forFn(
             fn,
             WindowingStrategy.globalDefault(),
@@ -279,7 +279,7 @@ public class SimpleParDoFnTest {
   @SuppressWarnings("AssertionFailureIgnored")
   public void testUnexpectedNumberOfReceivers() throws Exception {
     TestDoFn fn = new TestDoFn(Collections.emptyList());
-    DoFnInfo<?, ?> fnInfo =
+    DoFnInfo<Integer, String> fnInfo =
         DoFnInfo.forFn(
             fn,
             WindowingStrategy.globalDefault(),
@@ -330,7 +330,7 @@ public class SimpleParDoFnTest {
   @Test
   public void testErrorPropagation() throws Exception {
     TestErrorDoFn fn = new TestErrorDoFn();
-    DoFnInfo<?, ?> fnInfo =
+    DoFnInfo<Integer, String> fnInfo =
         DoFnInfo.forFn(
             fn,
             WindowingStrategy.globalDefault(),
@@ -423,7 +423,7 @@ public class SimpleParDoFnTest {
                 new TupleTag<>("undecl1"),
                 new TupleTag<>("undecl2"),
                 new TupleTag<>("undecl3")));
-    DoFnInfo<?, ?> fnInfo =
+    DoFnInfo<Integer, String> fnInfo =
         DoFnInfo.forFn(
             fn,
             WindowingStrategy.globalDefault(),
@@ -485,7 +485,7 @@ public class SimpleParDoFnTest {
     }
 
     StateTestingDoFn fn = new StateTestingDoFn();
-    DoFnInfo<?, ?> fnInfo =
+    DoFnInfo<Integer, String> fnInfo =
         DoFnInfo.forFn(
             fn,
             WindowingStrategy.globalDefault(),
@@ -578,7 +578,7 @@ public class SimpleParDoFnTest {
     }
 
     DoFn<Integer, String> fn = new RepeaterDoFn();
-    DoFnInfo<?, ?> fnInfo =
+    DoFnInfo<Integer, String> fnInfo =
         DoFnInfo.forFn(
             fn,
             WindowingStrategy.globalDefault(),

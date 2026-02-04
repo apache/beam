@@ -26,11 +26,12 @@ from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
 from apache_beam.testing.util import is_not_empty
 
+# pylint: disable=ungrouped-imports
 try:
-  from apache_beam.ml.rag.chunking.langchain import LangChainChunker
+  from langchain.text_splitter import CharacterTextSplitter
+  from langchain.text_splitter import RecursiveCharacterTextSplitter
 
-  from langchain.text_splitter import (
-      CharacterTextSplitter, RecursiveCharacterTextSplitter)
+  from apache_beam.ml.rag.chunking.langchain import LangChainChunker
   LANGCHAIN_AVAILABLE = True
 except ImportError:
   LANGCHAIN_AVAILABLE = False

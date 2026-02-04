@@ -1668,48 +1668,6 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
         }
         outputTo(consumer, WindowedValues.of(output, timestamp, window, PaneInfo.NO_FIRING));
       }
-
-      @Override
-      public void output(
-          OutputT output,
-          Instant timestamp,
-          BoundedWindow window,
-          @Nullable String currentRecordId,
-          @Nullable Long currentRecordOffset) {
-        outputTo(
-            mainOutputConsumer,
-            WindowedValues.of(
-                output,
-                timestamp,
-                Collections.singletonList(window),
-                PaneInfo.NO_FIRING,
-                currentRecordId,
-                currentRecordOffset));
-      }
-
-      @Override
-      public <T> void output(
-          TupleTag<T> tag,
-          T output,
-          Instant timestamp,
-          BoundedWindow window,
-          @Nullable String currentRecordId,
-          @Nullable Long currentRecordOffset) {
-        FnDataReceiver<WindowedValue<T>> consumer =
-            (FnDataReceiver) localNameToConsumer.get(tag.getId());
-        if (consumer == null) {
-          throw new IllegalArgumentException(String.format("Unknown output tag %s", tag));
-        }
-        outputTo(
-            consumer,
-            WindowedValues.of(
-                output,
-                timestamp,
-                Collections.singletonList(window),
-                PaneInfo.NO_FIRING,
-                currentRecordId,
-                currentRecordOffset));
-      }
     }
 
     private final FinishBundleArgumentProvider.Context context =
@@ -1809,22 +1767,6 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
     }
 
     @Override
-    public void outputWindowedValue(
-        OutputT output,
-        Instant timestamp,
-        Collection<? extends BoundedWindow> windows,
-        PaneInfo paneInfo,
-        @Nullable String currentRecordId,
-        @Nullable Long currentRecordOffset) {
-      // TODO(https://github.com/apache/beam/issues/29637): Check that timestamp is valid once all
-      // runners can provide proper timestamps.
-      outputTo(
-          mainOutputConsumer,
-          WindowedValues.of(
-              output, timestamp, windows, paneInfo, currentRecordId, currentRecordOffset));
-    }
-
-    @Override
     public <T> void outputWithTimestamp(TupleTag<T> tag, T output, Instant timestamp) {
       // TODO(https://github.com/apache/beam/issues/29637): Check that timestamp is valid once all
       // runners can provide proper timestamps.
@@ -1853,26 +1795,6 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
         throw new IllegalArgumentException(String.format("Unknown output tag %s", tag));
       }
       outputTo(consumer, WindowedValues.of(output, timestamp, windows, paneInfo));
-    }
-
-    @Override
-    public <T> void outputWindowedValue(
-        TupleTag<T> tag,
-        T output,
-        Instant timestamp,
-        Collection<? extends BoundedWindow> windows,
-        PaneInfo paneInfo,
-        @Nullable String currentRecordId,
-        @Nullable Long currentRecordOffset) {
-      FnDataReceiver<WindowedValue<T>> consumer =
-          (FnDataReceiver) localNameToConsumer.get(tag.getId());
-      if (consumer == null) {
-        throw new IllegalArgumentException(String.format("Unknown output tag %s", tag));
-      }
-      outputTo(
-          consumer,
-          WindowedValues.of(
-              output, timestamp, windows, paneInfo, currentRecordId, currentRecordOffset));
     }
 
     @Override
@@ -1979,21 +1901,6 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
     }
 
     @Override
-    public void outputWindowedValue(
-        OutputT output,
-        Instant timestamp,
-        Collection<? extends BoundedWindow> windows,
-        PaneInfo paneInfo,
-        @Nullable String currentRecordId,
-        @Nullable Long currentRecordOffset) {
-      checkTimestamp(timestamp);
-      outputTo(
-          mainOutputConsumer,
-          WindowedValues.of(
-              output, timestamp, windows, paneInfo, currentRecordId, currentRecordOffset));
-    }
-
-    @Override
     public <T> void outputWithTimestamp(TupleTag<T> tag, T output, Instant timestamp) {
       checkTimestamp(timestamp);
       FnDataReceiver<WindowedValue<T>> consumer =
@@ -2021,27 +1928,6 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
         throw new IllegalArgumentException(String.format("Unknown output tag %s", tag));
       }
       outputTo(consumer, WindowedValues.of(output, timestamp, windows, paneInfo));
-    }
-
-    @Override
-    public <T> void outputWindowedValue(
-        TupleTag<T> tag,
-        T output,
-        Instant timestamp,
-        Collection<? extends BoundedWindow> windows,
-        PaneInfo paneInfo,
-        @Nullable String currentRecordId,
-        @Nullable Long currentRecordOffset) {
-      checkTimestamp(timestamp);
-      FnDataReceiver<WindowedValue<T>> consumer =
-          (FnDataReceiver) localNameToConsumer.get(tag.getId());
-      if (consumer == null) {
-        throw new IllegalArgumentException(String.format("Unknown output tag %s", tag));
-      }
-      outputTo(
-          consumer,
-          WindowedValues.of(
-              output, timestamp, windows, paneInfo, currentRecordId, currentRecordOffset));
     }
   }
 
@@ -2400,21 +2286,6 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
       }
 
       @Override
-      public void outputWindowedValue(
-          OutputT output,
-          Instant timestamp,
-          Collection<? extends BoundedWindow> windows,
-          PaneInfo paneInfo,
-          @Nullable String currentRecordId,
-          @Nullable Long currentRecordOffset) {
-        checkOnWindowExpirationTimestamp(timestamp);
-        outputTo(
-            mainOutputConsumer,
-            WindowedValues.of(
-                output, timestamp, windows, paneInfo, currentRecordId, currentRecordOffset));
-      }
-
-      @Override
       public <T> void output(TupleTag<T> tag, T output) {
         FnDataReceiver<WindowedValue<T>> consumer =
             (FnDataReceiver) localNameToConsumer.get(tag.getId());
@@ -2450,25 +2321,10 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
           Instant timestamp,
           Collection<? extends BoundedWindow> windows,
           PaneInfo paneInfo) {
-        outputWindowedValue(tag, output, timestamp, windows, paneInfo, null, null);
-      }
-
-      @Override
-      public <T> void outputWindowedValue(
-          TupleTag<T> tag,
-          T output,
-          Instant timestamp,
-          Collection<? extends BoundedWindow> windows,
-          PaneInfo paneInfo,
-          @Nullable String currentRecordId,
-          @Nullable Long currentRecordOffset) {
         checkOnWindowExpirationTimestamp(timestamp);
         FnDataReceiver<WindowedValue<T>> consumer =
             (FnDataReceiver) localNameToConsumer.get(tag.getId());
-        outputTo(
-            consumer,
-            WindowedValues.of(
-                output, timestamp, windows, paneInfo, currentRecordId, currentRecordOffset));
+        outputTo(consumer, WindowedValues.of(output, timestamp, windows, paneInfo));
       }
 
       @SuppressWarnings(
@@ -2724,21 +2580,6 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
       }
 
       @Override
-      public void outputWindowedValue(
-          OutputT output,
-          Instant timestamp,
-          Collection<? extends BoundedWindow> windows,
-          PaneInfo paneInfo,
-          @Nullable String currentRecordId,
-          @Nullable Long currentRecordOffset) {
-        checkTimerTimestamp(timestamp);
-        outputTo(
-            mainOutputConsumer,
-            WindowedValues.of(
-                output, timestamp, windows, paneInfo, currentRecordId, currentRecordOffset));
-      }
-
-      @Override
       public <T> void output(TupleTag<T> tag, T output) {
         checkTimerTimestamp(currentTimer.getHoldTimestamp());
         FnDataReceiver<WindowedValue<T>> consumer =
@@ -2775,16 +2616,6 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
           Instant timestamp,
           Collection<? extends BoundedWindow> windows,
           PaneInfo paneInfo) {}
-
-      @Override
-      public <T> void outputWindowedValue(
-          TupleTag<T> tag,
-          T output,
-          Instant timestamp,
-          Collection<? extends BoundedWindow> windows,
-          PaneInfo paneInfo,
-          @Nullable String currentRecordId,
-          @Nullable Long currentRecordOffset) {}
 
       @Override
       public TimeDomain timeDomain() {

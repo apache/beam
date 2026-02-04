@@ -17,17 +17,29 @@
  */
 package org.apache.beam.sdk.util.construction;
 
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.equalTo;
+
+import com.google.cloud.secretmanager.v1.ProjectName;
+import com.google.cloud.secretmanager.v1.SecretManagerServiceClient;
+import com.google.cloud.secretmanager.v1.SecretName;
+import com.google.cloud.secretmanager.v1.SecretPayload;
+import com.google.protobuf.ByteString;
 import java.io.IOException;
 import java.io.Serializable;
+import java.security.SecureRandom;
 import java.util.Arrays;
 import org.apache.beam.model.pipeline.v1.ExternalTransforms;
 import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.coders.RowCoder;
+import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.Field;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.schemas.SchemaTranslation;
 import org.apache.beam.sdk.testing.PAssert;
+import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.UsesJavaExpansionService;
 import org.apache.beam.sdk.testing.UsesPythonExpansionService;
 import org.apache.beam.sdk.testing.ValidatesRunner;
@@ -42,8 +54,13 @@ import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TypeDescriptors;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
+import org.junit.After;
+import org.junit.AfterClass;
+import org.junit.BeforeClass;
+import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
+import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
@@ -283,6 +300,118 @@ public class ValidateRunnerXlangTest {
     })
     public void test() {
       groupByKeyTest(testPipeline);
+    }
+  }
+
+  /**
+   * Motivation behind GroupByKeyWithGbekTest.
+   *
+   * <p>Target transform – GroupByKey
+   * (https://beam.apache.org/documentation/programming-guide/#groupbykey) Test scenario – Grouping
+   * a collection of KV<K,V> to a collection of KV<K, Iterable<V>> by key Boundary conditions
+   * checked – –> PCollection<KV<?, ?>> to external transforms –> PCollection<KV<?, Iterable<?>>>
+   * from external transforms while using GroupByEncryptedKey overrides
+   */
+  @RunWith(JUnit4.class)
+  public static class GroupByKeyWithGbekTest extends ValidateRunnerXlangTestBase {
+    @Rule public ExpectedException thrown = ExpectedException.none();
+    private static final String PROJECT_ID = "apache-beam-testing";
+    private static final String SECRET_ID = "gbek-test";
+    private static String gcpSecretVersionName;
+    private static String secretId;
+
+    @BeforeClass
+    public static void setUpClass() {
+      secretId = String.format("%s-%d", SECRET_ID, new SecureRandom().nextInt(10000));
+      try (SecretManagerServiceClient client = SecretManagerServiceClient.create()) {
+        ProjectName projectName = ProjectName.of(PROJECT_ID);
+        SecretName secretName = SecretName.of(PROJECT_ID, secretId);
+
+        try {
+          client.getSecret(secretName);
+        } catch (Exception e) {
+          com.google.cloud.secretmanager.v1.Secret secret =
+              com.google.cloud.secretmanager.v1.Secret.newBuilder()
+                  .setReplication(
+                      com.google.cloud.secretmanager.v1.Replication.newBuilder()
+                          .setAutomatic(
+                              com.google.cloud.secretmanager.v1.Replication.Automatic.newBuilder()
+                                  .build())
+                          .build())
+                  .build();
+          client.createSecret(projectName, secretId, secret);
+          byte[] secretBytes = new byte[32];
+          new SecureRandom().nextBytes(secretBytes);
+          client.addSecretVersion(
+              secretName,
+              SecretPayload.newBuilder()
+                  .setData(
+                      ByteString.copyFrom(java.util.Base64.getUrlEncoder().encode(secretBytes)))
+                  .build());
+        }
+        gcpSecretVersionName = secretName.toString() + "/versions/latest";
+      } catch (IOException e) {
+        gcpSecretVersionName = null;
+        return;
+      }
+      expansionAddr =
+          String.format("localhost:%s", Integer.valueOf(System.getProperty("expansionPort")));
+    }
+
+    @AfterClass
+    public static void tearDownClass() {
+      if (gcpSecretVersionName != null) {
+        try (SecretManagerServiceClient client = SecretManagerServiceClient.create()) {
+          SecretName secretName = SecretName.of(PROJECT_ID, secretId);
+          client.deleteSecret(secretName);
+        } catch (IOException e) {
+          // Do nothing.
+        }
+      }
+    }
+
+    @After
+    @Override
+    public void tearDown() {
+      // Override tearDown since we're doing our own assertion instead of relying on base class
+      // assertions
+    }
+
+    @Test
+    @Category({
+      ValidatesRunner.class,
+      UsesJavaExpansionService.class,
+      UsesPythonExpansionService.class
+    })
+    public void test() {
+      if (gcpSecretVersionName == null) {
+        // Skip test if we couldn't set up secret manager
+        return;
+      }
+      PipelineOptions options = TestPipeline.testingPipelineOptions();
+      options.setGbek(String.format("type:gcpsecret;version_name:%s", gcpSecretVersionName));
+      Pipeline pipeline = Pipeline.create(options);
+      groupByKeyTest(pipeline);
+      PipelineResult pipelineResult = pipeline.run();
+      pipelineResult.waitUntilFinish();
+      assertThat(pipelineResult.getState(), equalTo(PipelineResult.State.DONE));
+    }
+
+    @Test
+    @Category({
+      ValidatesRunner.class,
+      UsesJavaExpansionService.class,
+      UsesPythonExpansionService.class
+    })
+    public void testFailure() {
+      thrown.expect(Exception.class);
+      PipelineOptions options = TestPipeline.testingPipelineOptions();
+      options.setGbek("version_name:fake_secret");
+      Pipeline pipeline = Pipeline.create(options);
+      groupByKeyTest(pipeline);
+      PipelineResult pipelineResult = pipeline.run();
+      pipelineResult.waitUntilFinish();
+      assertThat(pipelineResult.getState(), equalTo(PipelineResult.State.DONE));
     }
   }
 

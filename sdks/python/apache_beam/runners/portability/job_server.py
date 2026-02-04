@@ -155,8 +155,9 @@ class JavaJarJobServer(SubprocessJobServer):
         gradle_target, artifact_id=artifact_id)
 
   @staticmethod
-  def local_jar(url, jar_cache_dir=None):
-    return subprocess_server.JavaJarServer.local_jar(url, jar_cache_dir)
+  def local_jar(url, jar_cache_dir=None, user_agent=None):
+    return subprocess_server.JavaJarServer.local_jar(
+        url, jar_cache_dir, user_agent)
 
   def subprocess_cmd_and_endpoint(self):
     jar_path = self.local_jar(self.path_to_jar(), self._jar_cache_dir)

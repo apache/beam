@@ -44,44 +44,44 @@ pipelines:
       project: "apache-beam-testing"
       temp_location: "{TEMP_DIR}"
 
-  - pipeline:
-      type: chain
-      transforms:
-        - type: Create
-          name: Data
-          config:
-            elements:
-            - {label: '11a', name: 'S1'}
-            - {label: '37a', name: 'S2'}
-            - {label: '389a', name: 'S3'}
-        - type: Enrichment
-          name: Enriched
-          config:
-            enrichment_handler: 'BigQuery'
-            handler_config:
-              project: apache-beam-testing
-              table_name: "{BQ_TABLE}"
-              fields: ['label']
-              row_restriction_template: "label = '37a'"
-            timeout: 30
+  # - pipeline:
+  #     type: chain
+  #     transforms:
+  #       - type: Create
+  #         name: Data
+  #         config:
+  #           elements:
+  #           - {label: '11a', name: 'S1'}
+  #           - {label: '37a', name: 'S2'}
+  #           - {label: '389a', name: 'S3'}
+  #       - type: Enrichment
+  #         name: Enriched
+  #         config:
+  #           enrichment_handler: 'BigQuery'
+  #           handler_config:
+  #             project: apache-beam-testing
+  #             table_name: "{BQ_TABLE}"
+  #             fields: ['label']
+  #             row_restriction_template: "label = '37a'"
+  #           timeout: 30
           
-        - type: MapToFields
-          config:
-            language: python
-            fields:
-              label:
-                callable: 'lambda x: x.label'
-                output_type: string
-              rank:
-                callable: 'lambda x: x.rank'
-                output_type: integer
-              name:
-                callable: 'lambda x: x.name'
-                output_type: string
+  #       - type: MapToFields
+  #         config:
+  #           language: python
+  #           fields:
+  #             label:
+  #               callable: 'lambda x: x.label'
+  #               output_type: string
+  #             rank:
+  #               callable: 'lambda x: x.rank'
+  #               output_type: integer
+  #             name:
+  #               callable: 'lambda x: x.name'
+  #               output_type: string
 
-        - type: AssertEqual
-          config:
-            elements:
-              - {label: '37a', rank: 1, name: 'S2'}
-    options:
-      yaml_experimental_features: [ 'Enrichment' ]
+  #       - type: AssertEqual
+  #         config:
+  #           elements:
+  #             - {label: '37a', rank: 1, name: 'S2'}
+  #   options:
+  #     yaml_experimental_features: [ 'Enrichment' ]

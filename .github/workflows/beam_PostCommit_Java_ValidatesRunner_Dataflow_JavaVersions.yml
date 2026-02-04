@@ -60,7 +60,7 @@ jobs:
       matrix:
         job_name: [beam_PostCommit_Java_ValidatesRunner_Dataflow_JavaVersions]
         job_phrase: [Run Dataflow ValidatesRunner Java]
-        java_version: ['8', '21']
+        java_version: ['8', '25']
     if: |
       github.event_name == 'workflow_dispatch' ||
       github.event_name == 'pull_request_target' ||

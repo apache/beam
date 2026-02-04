@@ -29,6 +29,7 @@ import java.io.IOException;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
+import org.apache.beam.model.fnexecution.v1.BeamFnApi;
 import org.apache.beam.runners.core.DoFnRunner;
 import org.apache.beam.runners.core.DoFnRunners;
 import org.apache.beam.runners.core.InMemoryStateInternals;
@@ -49,6 +50,7 @@ import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.InputMessageBundle;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.Timer;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.WorkItem;
+import org.apache.beam.runners.dataflow.worker.windmill.state.WindmillTagEncodingV1;
 import org.apache.beam.sdk.coders.BigEndianLongCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.Coder.Context;
@@ -147,15 +149,17 @@ public class StreamingGroupAlsoByWindowFnsTest {
         .getTimersBuilder()
         .addTimersBuilder()
         .setTag(
-            WindmillTimerInternals.timerTag(
-                WindmillNamespacePrefix.SYSTEM_NAMESPACE_PREFIX,
-                TimerData.of(
-                    namespace,
-                    timestamp,
-                    timestamp,
-                    type == Windmill.Timer.Type.WATERMARK
-                        ? TimeDomain.EVENT_TIME
-                        : TimeDomain.PROCESSING_TIME)))
+            WindmillTagEncodingV1.instance()
+                .timerTag(
+                    WindmillNamespacePrefix.SYSTEM_NAMESPACE_PREFIX,
+                    TimerData.of(
+                        namespace,
+                        timestamp,
+                        timestamp,
+                        type == Windmill.Timer.Type.WATERMARK
+                            ? TimeDomain.EVENT_TIME
+                            : TimeDomain.PROCESSING_TIME,
+                        TimerData.CausedByDrain.NORMAL)))
         .setTimestamp(WindmillTimeUtils.harnessToWindmillTimestamp(timestamp))
         .setType(type)
         .setStateFamily(STATE_FAMILY);
@@ -176,7 +180,12 @@ public class StreamingGroupAlsoByWindowFnsTest {
     valueCoder.encode(value, dataOutput, Context.OUTER);
     messageBundle
         .addMessagesBuilder()
-        .setMetadata(WindmillSink.encodeMetadata(windowsCoder, windows, PaneInfo.NO_FIRING))
+        .setMetadata(
+            WindmillSink.encodeMetadata(
+                windowsCoder,
+                windows,
+                PaneInfo.NO_FIRING,
+                BeamFnApi.Elements.ElementMetadata.newBuilder().build()))
         .setData(dataOutput.toByteString())
         .setTimestamp(WindmillTimeUtils.harnessToWindmillTimestamp(timestamp));
   }
@@ -188,7 +197,13 @@ public class StreamingGroupAlsoByWindowFnsTest {
     return new ValueInEmptyWindows<>(
         (KeyedWorkItem<String, T>)
             new WindmillKeyedWorkItem<>(
-                KEY, workItem.build(), windowCoder, wildcardWindowsCoder, valueCoder));
+                KEY,
+                workItem.build(),
+                windowCoder,
+                wildcardWindowsCoder,
+                valueCoder,
+                WindmillTagEncodingV1.instance(),
+                false));
   }
 
   @Test

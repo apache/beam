@@ -65,8 +65,6 @@ class WriteUngroupedRowsToFiles
    */
   @VisibleForTesting static final int DEFAULT_MAX_WRITERS_PER_BUNDLE = 20;
 
-  private static final long DEFAULT_MAX_BYTES_PER_FILE = (1L << 29); // 512mb
-
   private static final TupleTag<FileWriteResult> WRITTEN_FILES_TAG = new TupleTag<>("writtenFiles");
   private static final TupleTag<Row> WRITTEN_ROWS_TAG = new TupleTag<Row>("writtenRows") {};
   private static final TupleTag<KV<ShardedKey<String>, Row>> SPILLED_ROWS_TAG =
@@ -75,14 +73,17 @@ class WriteUngroupedRowsToFiles
   private final String filePrefix;
   private final DynamicDestinations dynamicDestinations;
   private final IcebergCatalogConfig catalogConfig;
+  private final long maxBytesPerFile;
 
   WriteUngroupedRowsToFiles(
       IcebergCatalogConfig catalogConfig,
       DynamicDestinations dynamicDestinations,
-      String filePrefix) {
+      String filePrefix,
+      long maxBytesPerFile) {
     this.catalogConfig = catalogConfig;
     this.dynamicDestinations = dynamicDestinations;
     this.filePrefix = filePrefix;
+    this.maxBytesPerFile = maxBytesPerFile;
   }
 
   @Override
@@ -96,7 +97,7 @@ class WriteUngroupedRowsToFiles
                         dynamicDestinations,
                         filePrefix,
                         DEFAULT_MAX_WRITERS_PER_BUNDLE,
-                        DEFAULT_MAX_BYTES_PER_FILE))
+                        maxBytesPerFile))
                 .withOutputTags(
                     WRITTEN_FILES_TAG,
                     TupleTagList.of(ImmutableList.of(WRITTEN_ROWS_TAG, SPILLED_ROWS_TAG))));

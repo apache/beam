@@ -649,6 +649,20 @@ public class ExpansionService extends ExpansionServiceGrpc.ExpansionServiceImplB
       }
     }
 
+    // Use expansion config file provided in commandLineOptions if not available
+    // in the expansion request options.
+    String configFileFromPipelineOptions =
+        pipeline.getOptions().as(ExpansionServiceOptions.class).getExpansionServiceConfigFile();
+    String configFileFromCommandLineOptions =
+        commandLineOptions.as(ExpansionServiceOptions.class).getExpansionServiceConfigFile();
+
+    if (configFileFromPipelineOptions == null && configFileFromCommandLineOptions != null) {
+      pipeline
+          .getOptions()
+          .as(ExpansionServiceOptions.class)
+          .setExpansionServiceConfigFile(configFileFromCommandLineOptions);
+    }
+
     List<String> classpathResources =
         transformProvider.getDependencies(request.getTransform().getSpec(), pipeline.getOptions());
     pipeline.getOptions().as(PortablePipelineOptions.class).setFilesToStage(classpathResources);

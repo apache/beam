@@ -139,8 +139,6 @@ Output:
 {{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/elementwise/enrichment_test.py" enrichment_with_external_sqlserver >}}
 {{< /highlight >}}
 
-## Related transforms
-
-Not applicable.
+## API documentation
 
 {{< button-pydoc path="apache_beam.transforms.enrichment_handlers.cloudsql" class="CloudSQLEnrichmentHandler" >}}

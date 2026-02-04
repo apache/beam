@@ -96,7 +96,7 @@ tasks.register("portableLocalRunnerJuliaSetWithSetupPy") {
           && python juliaset_main.py \\
               --runner=PortableRunner \\
               --job_endpoint=embed \\
-              --requirements_file=./requirements.txt \\
+              --setup_file=./setup.py \\
               --coordinate_output=/tmp/juliaset \\
               --grid_size=1
           """

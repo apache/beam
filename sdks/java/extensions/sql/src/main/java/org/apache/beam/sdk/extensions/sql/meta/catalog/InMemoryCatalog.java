@@ -20,25 +20,34 @@ package org.apache.beam.sdk.extensions.sql.meta.catalog;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkState;
 
+import java.util.Collection;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
-import java.util.Set;
+import org.apache.beam.sdk.extensions.sql.meta.provider.TableProvider;
 import org.apache.beam.sdk.extensions.sql.meta.store.InMemoryMetaStore;
 import org.apache.beam.sdk.extensions.sql.meta.store.MetaStore;
 import org.apache.beam.sdk.util.Preconditions;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.MoreObjects;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 public class InMemoryCatalog implements Catalog {
   private final String name;
   private final Map<String, String> properties;
-  private final InMemoryMetaStore metaStore = new InMemoryMetaStore();
+  protected final Map<String, TableProvider> tableProviders = new HashMap<>();
+  private final Map<String, MetaStore> metaStores = new HashMap<>();
   private final HashSet<String> databases = new HashSet<>(Collections.singleton(DEFAULT));
   protected @Nullable String currentDatabase = DEFAULT;
 
   public InMemoryCatalog(String name, Map<String, String> properties) {
+    this(name, new InMemoryMetaStore(), properties);
+  }
+
+  public InMemoryCatalog(String name, MetaStore defaultMetastore, Map<String, String> properties) {
     this.name = name;
     this.properties = properties;
+    metaStores.put(DEFAULT, defaultMetastore);
   }
 
   @Override
@@ -53,7 +62,13 @@ public class InMemoryCatalog implements Catalog {
   }
 
   @Override
-  public MetaStore metaStore() {
+  public MetaStore metaStore(String db) {
+    @Nullable MetaStore metaStore = metaStores.get(db);
+    if (metaStore == null) {
+      metaStore = new InMemoryMetaStore();
+      tableProviders.values().forEach(metaStore::registerProvider);
+      metaStores.put(db, metaStore);
+    }
     return metaStore;
   }
 
@@ -68,14 +83,24 @@ public class InMemoryCatalog implements Catalog {
   }
 
   @Override
+  public boolean databaseExists(String db) {
+    return databases.contains(db);
+  }
+
+  @Override
   public void useDatabase(String database) {
-    checkArgument(listDatabases().contains(database), "Database '%s' does not exist.");
+    checkArgument(databaseExists(database), "Database '%s' does not exist.");
     currentDatabase = database;
   }
 
   @Override
   public @Nullable String currentDatabase() {
     return currentDatabase;
+  }
+
+  @Override
+  public Collection<String> databases() {
+    return databases;
   }
 
   @Override
@@ -90,7 +115,22 @@ public class InMemoryCatalog implements Catalog {
   }
 
   @Override
-  public Set<String> listDatabases() {
-    return databases;
+  public void registerTableProvider(TableProvider provider) {
+    tableProviders.put(provider.getTableType(), provider);
+    metaStores.values().forEach(m -> m.registerProvider(provider));
+  }
+
+  @Override
+  public Map<String, TableProvider> tableProviders() {
+    return tableProviders;
+  }
+
+  @Override
+  public String toString() {
+    return MoreObjects.toStringHelper(InMemoryCatalog.class)
+        .add("name", name)
+        .add("currentDatabase", currentDatabase)
+        .add("databases", databases)
+        .toString();
   }
 }

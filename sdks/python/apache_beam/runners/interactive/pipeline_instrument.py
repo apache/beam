@@ -29,9 +29,9 @@ from typing import Dict
 import apache_beam as beam
 from apache_beam.pipeline import PipelineVisitor
 from apache_beam.portability.api import beam_runner_api_pb2
+from apache_beam.runners.interactive import background_caching_job
 from apache_beam.runners.interactive import interactive_environment as ie
 from apache_beam.runners.interactive import pipeline_fragment as pf
-from apache_beam.runners.interactive import background_caching_job
 from apache_beam.runners.interactive import utils
 from apache_beam.runners.interactive.caching.cacheable import Cacheable
 from apache_beam.runners.interactive.caching.cacheable import CacheKey

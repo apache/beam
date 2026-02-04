@@ -18,7 +18,6 @@
 """Result of WinningBid transform."""
 from apache_beam.coders import coder_impl
 from apache_beam.coders.coders import FastCoder
-from apache_beam.testing.benchmarks.nexmark import nexmark_util
 from apache_beam.testing.benchmarks.nexmark.models import nexmark_model
 
 
@@ -41,7 +40,7 @@ class AuctionBid(object):
     self.bid = bid
 
   def __repr__(self):
-    return nexmark_util.model_to_json(self)
+    return nexmark_model.model_to_json(self)
 
 
 class AuctionBidCoderImpl(coder_impl.StreamCoderImpl):

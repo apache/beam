@@ -119,6 +119,40 @@ class AsyncTest(unittest.TestCase):
         expected_count,
     )
 
+  def test_custom_id_fn(self):
+    class CustomIdObject:
+      def __init__(self, element_id, value):
+        self.element_id = element_id
+        self.value = value
+
+      def __hash__(self):
+        return hash(self.element_id)
+
+      def __eq__(self, other):
+        return self.element_id == other.element_id
+
+    dofn = BasicDofn()
+    async_dofn = async_lib.AsyncWrapper(dofn, id_fn=lambda x: x.element_id)
+    async_dofn.setup()
+    fake_bag_state = FakeBagState([])
+    fake_timer = FakeTimer(0)
+    msg1 = ('key1', CustomIdObject(1, 'a'))
+    msg2 = ('key1', CustomIdObject(1, 'b'))
+
+    result = async_dofn.process(
+        msg1, to_process=fake_bag_state, timer=fake_timer)
+    self.assertEqual(result, [])
+
+    # The second message should be a no-op as it has the same id.
+    result = async_dofn.process(
+        msg2, to_process=fake_bag_state, timer=fake_timer)
+    self.assertEqual(result, [])
+
+    self.wait_for_empty(async_dofn)
+    result = async_dofn.commit_finished_items(fake_bag_state, fake_timer)
+    self.check_output(result, [('key1', msg1[1])])
+    self.assertEqual(fake_bag_state.items, [])
+
   def test_basic(self):
     # Setup an async dofn and send a message in to process.
     dofn = BasicDofn()
@@ -343,10 +377,15 @@ class AsyncTest(unittest.TestCase):
     self.assertEqual(async_dofn._max_items_to_buffer, 5)
     self.check_items_in_buffer(async_dofn, 5)
 
-    # After 55 seconds all items should be finished (including those which were
-    # waiting on the buffer).
+    # Wait for all buffered items to finish.
     self.wait_for_empty(async_dofn, 100)
+    # This will commit buffered items and add new items which didn't fit in the
+    # buffer.
     result = async_dofn.commit_finished_items(fake_bag_state, fake_timer)
+
+    # Wait for the new buffered items to finish.
+    self.wait_for_empty(async_dofn, 100)
+    result.extend(async_dofn.commit_finished_items(fake_bag_state, fake_timer))
     self.check_output(result, expected_output)
     self.check_items_in_buffer(async_dofn, 0)
 
@@ -414,33 +453,23 @@ class AsyncTest(unittest.TestCase):
     # Run for a while. Should be enough to start all items but not finish them
     # all.
     time.sleep(random.randint(30, 50))
-    # Commit some stuff
-    pre_crash_results = []
-    for i in range(0, 10):
-      pre_crash_results.append(
-          async_dofn.commit_finished_items(
-              bag_states['key' + str(i)], timers['key' + str(i)]))
 
-    # Wait for all items to at least make it into the buffer.
     done = False
+    results = [[] for _ in range(0, 10)]
     while not done:
-      time.sleep(10)
       done = True
-      for future in futures:
-        if not future.done():
+      for i in range(0, 10):
+        results[i].extend(
+            async_dofn.commit_finished_items(
+                bag_states['key' + str(i)], timers['key' + str(i)]))
+        if not bag_states['key' + str(i)].items:
+          self.check_output(results[i], expected_outputs['key' + str(i)])
+        else:
           done = False
-          break
-
-    # Wait for all items to finish.
-    self.wait_for_empty(async_dofn)
+      time.sleep(random.randint(10, 30))
 
     for i in range(0, 10):
-      result = async_dofn.commit_finished_items(
-          bag_states['key' + str(i)], timers['key' + str(i)])
-      logging.info('pre_crash_results %s', pre_crash_results[i])
-      logging.info('result %s', result)
-      self.check_output(
-          pre_crash_results[i] + result, expected_outputs['key' + str(i)])
+      self.check_output(results[i], expected_outputs['key' + str(i)])
       self.assertEqual(bag_states['key' + str(i)].items, [])
 
 

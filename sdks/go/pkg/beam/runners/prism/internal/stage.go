@@ -88,7 +88,8 @@ type stage struct {
 	OutputsToCoders   map[string]engine.PColInfo
 
 	// Stage specific progress and splitting interval.
-	baseProgTick atomic.Value // time.Duration
+	baseProgTick  atomic.Value // time.Duration
+	sdfSplittable bool
 }
 
 // The minimum and maximum durations between each ProgressBundleRequest and split evaluation.
@@ -234,7 +235,7 @@ progress:
 
 			// Check if there has been any measurable progress by the input, or all output pcollections since last report.
 			slow := previousIndex == index["index"] && previousTotalCount == index["totalCount"]
-			if slow && unsplit && b.EstimatedInputElements > 0 {
+			if slow && unsplit && b.EstimatedInputElements > 0 && s.sdfSplittable {
 				slog.Debug("splitting report", "bundle", rb, "index", index)
 				sr, err := b.Split(ctx, wk, 0.5 /* fraction of remainder */, nil /* allowed splits */)
 				if err != nil {

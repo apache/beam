@@ -44,7 +44,8 @@ public class GcpCoreApiSurfaceTest {
             .pruningPattern("org[.]apache[.]beam[.].*IT")
             .pruningPattern("org[.]checkerframework[.].*[.]qual[.].*")
             .pruningPattern("java[.]lang.*")
-            .pruningPattern("java[.]util.*");
+            .pruningPattern("java[.]util.*")
+            .pruningPattern("jdk[.]internal[.]vm[.]annotation[.].*");
 
     @SuppressWarnings("unchecked")
     final Set<Matcher<Class<?>>> allowedClasses =

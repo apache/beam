@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.io.kafka;
 
 import static org.apache.beam.sdk.io.kafka.KafkaWriteSchemaTransformProvider.getRowToRawBytesFunction;
+import static org.junit.Assert.assertEquals;
 
 import java.io.UnsupportedEncodingException;
 import java.util.Arrays;
@@ -35,7 +36,9 @@ import org.apache.beam.sdk.extensions.protobuf.ProtoByteUtils;
 import org.apache.beam.sdk.io.kafka.KafkaWriteSchemaTransformProvider.KafkaWriteSchemaTransform.ErrorCounterFn;
 import org.apache.beam.sdk.io.kafka.KafkaWriteSchemaTransformProvider.KafkaWriteSchemaTransform.GenericRecordErrorCounterFn;
 import org.apache.beam.sdk.managed.Managed;
+import org.apache.beam.sdk.schemas.NoSuchSchemaException;
 import org.apache.beam.sdk.schemas.Schema;
+import org.apache.beam.sdk.schemas.SchemaRegistry;
 import org.apache.beam.sdk.schemas.transforms.providers.ErrorHandling;
 import org.apache.beam.sdk.schemas.utils.JsonUtils;
 import org.apache.beam.sdk.schemas.utils.YamlUtils;
@@ -266,5 +269,68 @@ public class KafkaWriteSchemaTransformProviderTest {
               Pipeline.create()
                   .apply(Create.empty(Schema.builder().addByteArrayField("bytes").build())));
     }
+  }
+
+  @Test
+  public void testKafkaWriteSchemaTransformConfigurationSchema() throws NoSuchSchemaException {
+    Schema schema =
+        SchemaRegistry.createDefault()
+            .getSchema(
+                KafkaWriteSchemaTransformProvider.KafkaWriteSchemaTransformConfiguration.class);
+
+    System.out.println("schema = " + schema);
+
+    assertEquals(8, schema.getFieldCount());
+
+    // Check field name, type, and nullability. Descriptions are not checked as they are not
+    // critical for serialization.
+    assertEquals(
+        Schema.Field.of("format", Schema.FieldType.STRING)
+            .withDescription(schema.getField(0).getDescription()),
+        schema.getField(0));
+
+    assertEquals(
+        Schema.Field.of("topic", Schema.FieldType.STRING)
+            .withDescription(schema.getField(1).getDescription()),
+        schema.getField(1));
+
+    assertEquals(
+        Schema.Field.of("bootstrapServers", Schema.FieldType.STRING)
+            .withDescription(schema.getField(2).getDescription()),
+        schema.getField(2));
+
+    assertEquals(
+        Schema.Field.nullable(
+                "producerConfigUpdates",
+                Schema.FieldType.map(Schema.FieldType.STRING, Schema.FieldType.STRING))
+            .withDescription(schema.getField(3).getDescription()),
+        schema.getField(3));
+
+    Schema actualRowSchemaForErrorHandling = schema.getField(4).getType().getRowSchema();
+    assertEquals(
+        Schema.Field.nullable(
+                "errorHandling",
+                Schema.FieldType.row(
+                    Schema.of(
+                        Schema.Field.of("output", Schema.FieldType.STRING)
+                            .withDescription(
+                                actualRowSchemaForErrorHandling.getField(0).getDescription()))))
+            .withDescription(schema.getField(4).getDescription()),
+        schema.getField(4));
+
+    assertEquals(
+        Schema.Field.nullable("fileDescriptorPath", Schema.FieldType.STRING)
+            .withDescription(schema.getField(5).getDescription()),
+        schema.getField(5));
+
+    assertEquals(
+        Schema.Field.nullable("messageName", Schema.FieldType.STRING)
+            .withDescription(schema.getField(6).getDescription()),
+        schema.getField(6));
+
+    assertEquals(
+        Schema.Field.nullable("schema", Schema.FieldType.STRING)
+            .withDescription(schema.getField(7).getDescription()),
+        schema.getField(7));
   }
 }

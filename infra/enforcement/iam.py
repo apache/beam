@@ -113,6 +113,7 @@ class IAMPolicyComplianceChecker:
                     members_data[member_str] = {
                         "username": username,
                         "email": email_address,
+                        "member_type": member_type,
                         "permissions": []
                     }
 
@@ -131,6 +132,7 @@ class IAMPolicyComplianceChecker:
             output_list.append({
                 "username": data["username"],
                 "email": data["email"],
+                "member_type": data["member_type"],
                 "permissions": data["permissions"]
             })
 
@@ -225,6 +227,8 @@ class IAMPolicyComplianceChecker:
             elif not current_user and existing_user:
                 differences.append(f"User {email} found in policy file but not in GCP.")
             elif current_user and existing_user:
+                if current_user.get("member_type") != existing_user.get("member_type"):
+                    differences.append(f"User {email} has different member type. In GCP: {current_user.get('member_type')}, in file: {existing_user.get('member_type')}")
                 if current_user["permissions"] != existing_user["permissions"]:
                     msg = f"\nPermissions for user {email} differ."
                     msg += f"\nIn GCP: {current_user['permissions']}"

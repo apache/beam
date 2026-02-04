@@ -328,7 +328,7 @@ public final class StreamingWorkerStatusReporter {
     StreamingScalingReport activeThreadsReport =
         new StreamingScalingReport()
             .setActiveThreadCount(workExecutor.activeCount())
-            .setActiveBundleCount(workExecutor.elementsOutstanding())
+            .setOutstandingBundleCount(workExecutor.elementsOutstanding())
             .setOutstandingBytes(workExecutor.bytesOutstanding())
             .setMaximumThreadCount(workExecutor.getMaximumPoolSize())
             .setMaximumBundleCount(workExecutor.maximumElementsOutstanding())

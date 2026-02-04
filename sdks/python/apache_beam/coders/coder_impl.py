@@ -58,6 +58,7 @@ from fastavro import schemaless_writer
 from apache_beam.coders import observable
 from apache_beam.coders.avro_record import AvroRecord
 from apache_beam.internal import cloudpickle_pickler
+from apache_beam.internal.cloudpickle import cloudpickle
 from apache_beam.typehints.schemas import named_tuple_from_schema
 from apache_beam.utils import proto_utils
 from apache_beam.utils import windowed_value
@@ -78,6 +79,7 @@ except ImportError:
 
 if TYPE_CHECKING:
   import proto
+
   from apache_beam.transforms import userstate
   from apache_beam.transforms.window import IntervalWindow
 
@@ -92,9 +94,9 @@ is_compiled = False
 fits_in_64_bits = lambda x: -(1 << 63) <= x <= (1 << 63) - 1
 
 if TYPE_CHECKING or SLOW_STREAM:
+  from .slow_stream import ByteCountingOutputStream
   from .slow_stream import InputStream as create_InputStream
   from .slow_stream import OutputStream as create_OutputStream
-  from .slow_stream import ByteCountingOutputStream
   from .slow_stream import get_varint_size
 
   try:
@@ -105,10 +107,11 @@ if TYPE_CHECKING or SLOW_STREAM:
 
 else:
   # pylint: disable=wrong-import-order, wrong-import-position, ungrouped-imports
+  from .stream import ByteCountingOutputStream
   from .stream import InputStream as create_InputStream
   from .stream import OutputStream as create_OutputStream
-  from .stream import ByteCountingOutputStream
   from .stream import get_varint_size
+
   # Make it possible to import create_InputStream and other cdef-classes
   # from apache_beam.coders.coder_impl when Cython codepath is used.
   globals()['create_InputStream'] = create_InputStream
@@ -351,6 +354,7 @@ DATACLASS_TYPE = 101
 NAMED_TUPLE_TYPE = 102
 ENUM_TYPE = 103
 NESTED_STATE_TYPE = 104
+DATACLASS_KW_ONLY_TYPE = 105
 
 # Types that can be encoded as iterables, but are not literally
 # lists, etc. due to being lazy.  The actual type is not preserved
@@ -377,12 +381,14 @@ class FastPrimitivesCoderImpl(StreamCoderImpl):
       self,
       fallback_coder_impl,
       requires_deterministic_step_label=None,
-      force_use_dill=False):
+      force_use_dill=False,
+      use_relative_filepaths=True):
     self.fallback_coder_impl = fallback_coder_impl
     self.iterable_coder_impl = IterableCoderImpl(self)
     self.requires_deterministic_step_label = requires_deterministic_step_label
     self.warn_deterministic_fallback = True
     self.force_use_dill = force_use_dill
+    self.use_relative_filepaths = use_relative_filepaths
 
   @staticmethod
   def register_iterable_like_type(t):
@@ -492,18 +498,25 @@ class FastPrimitivesCoderImpl(StreamCoderImpl):
       self.encode_type(type(value), stream)
       stream.write(value.SerializePartialToString(deterministic=True), True)
     elif dataclasses and dataclasses.is_dataclass(value):
-      stream.write_byte(DATACLASS_TYPE)
       if not type(value).__dataclass_params__.frozen:
         raise TypeError(
             "Unable to deterministically encode non-frozen '%s' of type '%s' "
             "for the input of '%s'" %
             (value, type(value), self.requires_deterministic_step_label))
-      self.encode_type(type(value), stream)
-      values = [
-          getattr(value, field.name) for field in dataclasses.fields(value)
-      ]
+      init_fields = [field for field in dataclasses.fields(value) if field.init]
       try:
-        self.iterable_coder_impl.encode_to_stream(values, stream, True)
+        if any(field.kw_only for field in init_fields):
+          stream.write_byte(DATACLASS_KW_ONLY_TYPE)
+          self.encode_type(type(value), stream)
+          stream.write_var_int64(len(init_fields))
+          for field in init_fields:
+            stream.write(field.name.encode("utf-8"), True)
+            self.encode_to_stream(getattr(value, field.name), stream, True)
+        else:  # Not using kw_only, we can pass parameters by position.
+          stream.write_byte(DATACLASS_TYPE)
+          self.encode_type(type(value), stream)
+          values = [getattr(value, field.name) for field in init_fields]
+          self.iterable_coder_impl.encode_to_stream(values, stream, True)
       except Exception as e:
         raise TypeError(self._deterministic_encoding_error_msg(value)) from e
     elif isinstance(value, tuple) and hasattr(type(value), '_fields'):
@@ -560,8 +573,13 @@ class FastPrimitivesCoderImpl(StreamCoderImpl):
       return self.encode_type_2_67_0(t, stream)
 
     if t not in _pickled_types:
-      _pickled_types[t] = cloudpickle_pickler.dumps(
-          t, config=cloudpickle_pickler.NO_DYNAMIC_CLASS_TRACKING_CONFIG)
+      config = cloudpickle.CloudPickleConfig(
+          id_generator=None,
+          skip_reset_dynamic_type_state=True,
+          filepath_interceptor=cloudpickle.get_relative_path)
+      if not self.use_relative_filepaths:
+        config.filepath_interceptor = None
+      _pickled_types[t] = cloudpickle_pickler.dumps(t, config=config)
     stream.write(_pickled_types[t], True)
 
   def decode_type(self, stream):
@@ -606,6 +624,14 @@ class FastPrimitivesCoderImpl(StreamCoderImpl):
       msg = cls()
       msg.ParseFromString(stream.read_all(True))
       return msg
+    elif t == DATACLASS_KW_ONLY_TYPE:
+      cls = self.decode_type(stream)
+      vlen = stream.read_var_int64()
+      fields = {}
+      for _ in range(vlen):
+        field_name = stream.read_all(True).decode('utf-8')
+        fields[field_name] = self.decode_from_stream(stream, True)
+      return cls(**fields)
     elif t == DATACLASS_TYPE or t == NAMED_TUPLE_TYPE:
       cls = self.decode_type(stream)
       return cls(*self.iterable_coder_impl.decode_from_stream(stream, True))
@@ -1004,7 +1030,14 @@ class VarIntCoderImpl(StreamCoderImpl):
   A coder for int objects."""
   def encode_to_stream(self, value, out, nested):
     # type: (int, create_OutputStream, bool) -> None
-    out.write_var_int64(value)
+    try:
+      out.write_var_int64(value)
+    except OverflowError as e:
+      raise OverflowError(
+          f"Integer value '{value}' is out of the encodable range for "
+          f"VarIntCoder. This coder is limited to values that fit "
+          f"within a 64-bit signed integer (-(2**63) to 2**63 - 1). "
+          f"Original error: {e}") from e
 
   def decode_from_stream(self, in_stream, nested):
     # type: (create_InputStream, bool) -> int
@@ -1026,7 +1059,13 @@ class VarIntCoderImpl(StreamCoderImpl):
   def estimate_size(self, value, nested=False):
     # type: (Any, bool) -> int
     # Note that VarInts are encoded the same way regardless of nesting.
-    return get_varint_size(value)
+    try:
+      return get_varint_size(value)
+    except OverflowError as e:
+      raise OverflowError(
+          f"Cannot estimate size for integer value '{value}'. "
+          f"Value is out of the range for VarIntCoder (64-bit signed integer). "
+          f"Original error: {e}") from e
 
 
 class VarInt32CoderImpl(StreamCoderImpl):

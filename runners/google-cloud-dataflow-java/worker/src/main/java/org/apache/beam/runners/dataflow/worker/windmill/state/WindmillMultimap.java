@@ -17,8 +17,6 @@
  */
 package org.apache.beam.runners.dataflow.worker.windmill.state;
 
-import static org.apache.beam.runners.dataflow.worker.windmill.state.WindmillStateUtil.encodeKey;
-
 import java.io.Closeable;
 import java.io.IOException;
 import java.util.AbstractMap;
@@ -33,7 +31,7 @@ import java.util.concurrent.Future;
 import java.util.stream.Collectors;
 import org.apache.beam.repackaged.core.org.apache.commons.lang3.tuple.Triple;
 import org.apache.beam.runners.core.StateNamespace;
-import org.apache.beam.runners.core.StateTag;
+import org.apache.beam.runners.dataflow.worker.util.common.worker.InternedByteString;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.state.MultimapState;
@@ -54,8 +52,7 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.util.concurren
 public class WindmillMultimap<K, V> extends SimpleWindmillState implements MultimapState<K, V> {
 
   private final StateNamespace namespace;
-  private final StateTag<MultimapState<K, V>> address;
-  private final ByteString stateKey;
+  private final InternedByteString stateKey;
   private final String stateFamily;
   private final Coder<K> keyCoder;
   private final Coder<V> valueCoder;
@@ -76,14 +73,13 @@ public class WindmillMultimap<K, V> extends SimpleWindmillState implements Multi
 
   WindmillMultimap(
       StateNamespace namespace,
-      StateTag<MultimapState<K, V>> address,
+      InternedByteString stateKey,
       String stateFamily,
       Coder<K> keyCoder,
       Coder<V> valueCoder,
       boolean isNewShardingKey) {
     this.namespace = namespace;
-    this.address = address;
-    this.stateKey = encodeKey(namespace, address);
+    this.stateKey = stateKey;
     this.stateFamily = stateFamily;
     this.keyCoder = keyCoder;
     this.valueCoder = valueCoder;
@@ -123,7 +119,8 @@ public class WindmillMultimap<K, V> extends SimpleWindmillState implements Multi
       // Since we're complete, even if there are entries in storage we don't need to read them.
       return Futures.immediateFuture(Collections.emptyList());
     } else {
-      return reader.multimapFetchAllFuture(omitValues, stateKey, stateFamily, valueCoder);
+      return reader.multimapFetchAllFuture(
+          omitValues, stateKey.byteString(), stateFamily, valueCoder);
     }
   }
 
@@ -133,7 +130,7 @@ public class WindmillMultimap<K, V> extends SimpleWindmillState implements Multi
       ByteStringOutputStream keyStream = new ByteStringOutputStream();
       keyCoder.encode(key, keyStream, Coder.Context.OUTER);
       return reader.multimapFetchSingleEntryFuture(
-          keyStream.toByteString(), stateKey, stateFamily, valueCoder);
+          keyStream.toByteString(), stateKey.byteString(), stateFamily, valueCoder);
     } catch (IOException e) {
       throw new RuntimeException(e);
     }
@@ -148,13 +145,13 @@ public class WindmillMultimap<K, V> extends SimpleWindmillState implements Multi
   protected Windmill.WorkItemCommitRequest persistDirectly(WindmillStateCache.ForKeyAndFamily cache)
       throws IOException {
     if (!cleared && !hasLocalAdditions && !hasLocalRemovals) {
-      cache.put(namespace, address, this, 1);
+      cache.put(namespace, stateKey, this, 1);
       return Windmill.WorkItemCommitRequest.newBuilder().buildPartial();
     }
     Windmill.WorkItemCommitRequest.Builder commitBuilder =
         Windmill.WorkItemCommitRequest.newBuilder();
     Windmill.TagMultimapUpdateRequest.Builder builder = commitBuilder.addMultimapUpdatesBuilder();
-    builder.setTag(stateKey).setStateFamily(stateFamily);
+    builder.setTag(stateKey.byteString()).setStateFamily(stateFamily);
 
     if (cleared) {
       builder.setDeleteAll(true);
@@ -203,7 +200,7 @@ public class WindmillMultimap<K, V> extends SimpleWindmillState implements Multi
     hasLocalRemovals = false;
     cleared = false;
 
-    cache.put(namespace, address, this, 1);
+    cache.put(namespace, stateKey, this, 1);
     return commitBuilder.buildPartial();
   }
 

@@ -94,6 +94,32 @@ class SdkContainerBuilderTest(unittest.TestCase):
     mocked_local_builder.assert_called_once_with(options)
     mocked_local_builder.return_value._build.assert_called_once_with()
 
+  def test_container_image_name_uses_forward_slashes(self):
+    """Verify container image names use forward slashes as URI separators."""
+    options = pipeline_options.PipelineOptions([
+        '--docker_registry_push_url=europe-west1-docker.pkg.dev/project-id'\
+          '/repo-name',
+    ])
+    builder = sdk_container_builder._SdkContainerImageLocalBuilder(options)
+
+    # Mock the file and docker operations
+    with unittest.mock.patch(
+        'apache_beam.runners.portability.sdk_container_builder.tempfile.' \
+          'TemporaryDirectory'
+    ):
+      with unittest.mock.patch.object(builder, '_prepare_dependencies'):
+        with unittest.mock.patch.object(builder,
+                                        '_invoke_docker_build_and_push'):
+          container_image_name = builder._build()
+
+    expected_prefix = 'europe-west1-docker.pkg.dev/project-id/repo-name/' \
+      'beam_python_prebuilt_sdk:'
+    self.assertTrue(
+        container_image_name.startswith(expected_prefix),
+        f'Expected image name to start with {expected_prefix},'\
+           f' got: {container_image_name}'
+    )
+
 
 if __name__ == '__main__':
   # Run the tests.

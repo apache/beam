@@ -81,7 +81,7 @@ jobs:
       - name: run validatesRunner Java8 script
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
-          gradle-command: :runners:flink:1.19:validatesRunner
+          gradle-command: :runners:flink:1.20:validatesRunner
           arguments: |
             -PtestJavaVersion=8 \
             -Pjava8Home=$JAVA_HOME_8_X64 \

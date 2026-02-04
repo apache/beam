@@ -26,7 +26,7 @@ class VllmGemmaBenchmarkTest(DataflowCostBenchmark):
     self.metrics_namespace = "BeamML_vLLM"
     super().__init__(
         metrics_namespace=self.metrics_namespace,
-        pcollection="WriteBQ.out0",
+        pcollection="FormatForBQ.out0",
     )
 
   def test(self):

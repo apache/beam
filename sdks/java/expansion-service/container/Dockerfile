@@ -28,7 +28,6 @@ WORKDIR /opt/apache/beam
 COPY target/avro.jar jars/
 COPY target/beam-sdks-java-io-expansion-service.jar jars/
 COPY target/beam-sdks-java-io-google-cloud-platform-expansion-service.jar jars/
-COPY target/beam-sdks-java-extensions-schemaio-expansion-service.jar jars/
 
 # Copy licenses
 COPY target/LICENSE /opt/apache/beam/

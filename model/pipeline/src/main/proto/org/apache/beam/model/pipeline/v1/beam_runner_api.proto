@@ -1073,6 +1073,10 @@ message StandardCoders {
     // Components: None
     ROW = 13 [(beam_urn) = "beam:coder:row:v1"];
 
+    // Similar to ROW above, but for arbitrary types that can be converted
+    // to and from row objects, which can then be encoded with a schema.
+    SCHEMA = 18 [(beam_urn) = "beam:coder:schema:v1"];
+
     // Encodes a user key and a shard id which is an opaque byte string.
     //
     // The encoding for a sharded key consists of a shard id byte string and the
@@ -1621,13 +1625,13 @@ message AnyOfEnvironmentPayload {
 // environment understands.
 message StandardProtocols {
   enum Enum {
-    // Indicates suport for progress reporting via the legacy Metrics proto.
+    // Indicates support for progress reporting via the legacy Metrics proto.
     LEGACY_PROGRESS_REPORTING = 0 [(beam_urn) = "beam:protocol:progress_reporting:v0"];
 
-    // Indicates suport for progress reporting via the new MonitoringInfo proto.
+    // Indicates support for progress reporting via the new MonitoringInfo proto.
     PROGRESS_REPORTING = 1 [(beam_urn) = "beam:protocol:progress_reporting:v1"];
 
-    // Indicates suport for worker status protocol defined at
+    // Indicates support for worker status protocol defined at
     // https://s.apache.org/beam-fn-api-harness-status.
     WORKER_STATUS = 2 [(beam_urn) = "beam:protocol:worker_status:v1"];
 
@@ -1681,6 +1685,10 @@ message StandardProtocols {
     // Indicates support for reading, writing and propagating Element's metadata
     ELEMENT_METADATA = 11
     [(beam_urn) = "beam:protocol:element_metadata:v1"];
+
+    // Indicates whether the SDK supports multimap state.
+    MULTIMAP_STATE = 12
+    [(beam_urn) = "beam:protocol:multimap_state:v1"];
   }
 }
 

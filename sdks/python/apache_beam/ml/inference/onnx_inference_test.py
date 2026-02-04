@@ -39,17 +39,18 @@ if bool(1):  # lint doesn't like an unconditional `raise`.
 # pylint: disable=wrong-import-order, wrong-import-position, ungrouped-imports
 try:
   import onnxruntime as ort
-  import torch
   import tensorflow as tf
   import tf2onnx
-  from tensorflow.keras import layers
-  from sklearn import linear_model
+  import torch
   from skl2onnx import convert_sklearn
   from skl2onnx.common.data_types import FloatTensorType
+  from sklearn import linear_model
+  from tensorflow.keras import layers
+
   from apache_beam.ml.inference.base import PredictionResult
   from apache_beam.ml.inference.base import RunInference
-  from apache_beam.ml.inference.onnx_inference import default_numpy_inference_fn
   from apache_beam.ml.inference.onnx_inference import OnnxModelHandlerNumpy
+  from apache_beam.ml.inference.onnx_inference import default_numpy_inference_fn
 except ImportError:
   raise unittest.SkipTest('Onnx dependencies are not installed')
 

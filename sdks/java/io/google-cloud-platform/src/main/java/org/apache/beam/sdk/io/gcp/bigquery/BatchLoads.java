@@ -285,14 +285,17 @@ class BatchLoads<DestinationT, ElementT>
     PipelineOptions options = Preconditions.checkArgumentNotNull(maybeOptions);
     // We will use a BigQuery load job -- validate the temp location.
     String tempLocation;
-    if (customGcsTempLocation == null || customGcsTempLocation.get() == null) {
+    if (customGcsTempLocation == null) {
       tempLocation = options.getTempLocation();
     } else {
       if (!customGcsTempLocation.isAccessible()) {
         // Can't perform verification in this case.
         return;
+      } else if (Strings.isNullOrEmpty(customGcsTempLocation.get())) {
+        tempLocation = options.getTempLocation();
+      } else {
+        tempLocation = customGcsTempLocation.get();
       }
-      tempLocation = customGcsTempLocation.get();
     }
     checkArgument(
         !Strings.isNullOrEmpty(tempLocation),

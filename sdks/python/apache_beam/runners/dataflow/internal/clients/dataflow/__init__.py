@@ -24,8 +24,9 @@ import pkgutil
 # pylint: disable=wrong-import-order, wrong-import-position
 try:
   from apitools.base.py import *
-  from apache_beam.runners.dataflow.internal.clients.dataflow.dataflow_v1b3_messages import *
+
   from apache_beam.runners.dataflow.internal.clients.dataflow.dataflow_v1b3_client import *
+  from apache_beam.runners.dataflow.internal.clients.dataflow.dataflow_v1b3_messages import *
 except ImportError:
   pass
 # pylint: enable=wrong-import-order, wrong-import-position

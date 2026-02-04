@@ -17,8 +17,9 @@
  */
 package org.apache.beam.sdk.extensions.sql.impl;
 
+import static org.apache.beam.sdk.util.Preconditions.checkArgumentNotNull;
+
 import com.google.auto.value.AutoValue;
-import java.util.Arrays;
 import java.util.Collection;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.extensions.sql.impl.utils.TVFStreamingUtils;
@@ -27,16 +28,15 @@ import org.apache.beam.sdk.transforms.windowing.NonMergingWindowFn;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
 import org.apache.beam.sdk.transforms.windowing.WindowMappingFn;
 import org.apache.beam.sdk.values.Row;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.joda.time.Duration;
+import org.joda.time.ReadableDateTime;
 
 /**
  * TVFSlidingWindowFn assigns window based on input row's "window_start" and "window_end"
  * timestamps.
  */
 @AutoValue
-@SuppressWarnings({
-  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
-})
 public abstract class TVFSlidingWindowFn extends NonMergingWindowFn<Object, IntervalWindow> {
   /** Size of the generated windows. */
   public abstract Duration getSize();
@@ -53,10 +53,19 @@ public abstract class TVFSlidingWindowFn extends NonMergingWindowFn<Object, Inte
     Row curRow = (Row) c.element();
     // In sliding window as TVF syntax, each row contains's its window's start and end as metadata,
     // thus we can assign a window directly based on window's start and end metadata.
-    return Arrays.asList(
-        new IntervalWindow(
-            curRow.getDateTime(TVFStreamingUtils.WINDOW_START).toInstant(),
-            curRow.getDateTime(TVFStreamingUtils.WINDOW_END).toInstant()));
+    ReadableDateTime windowStart =
+        checkArgumentNotNull(
+            curRow.getDateTime(TVFStreamingUtils.WINDOW_START),
+            "When assigning a sliding window to row: %s cannot be null",
+            TVFStreamingUtils.WINDOW_START);
+
+    ReadableDateTime windowEnd =
+        checkArgumentNotNull(
+            curRow.getDateTime(TVFStreamingUtils.WINDOW_END),
+            "When assigning a sliding window to row: %s is null",
+            TVFStreamingUtils.WINDOW_END);
+
+    return ImmutableList.of(new IntervalWindow(windowStart.toInstant(), windowEnd.toInstant()));
   }
 
   @Override

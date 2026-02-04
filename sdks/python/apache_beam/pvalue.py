@@ -47,12 +47,12 @@ from apache_beam.portability import python_urns
 from apache_beam.portability.api import beam_runner_api_pb2
 
 if TYPE_CHECKING:
-  from apache_beam.transforms import sideinputs
-  from apache_beam.transforms.core import ParDo
-  from apache_beam.transforms.core import Windowing
   from apache_beam.pipeline import AppliedPTransform
   from apache_beam.pipeline import Pipeline
   from apache_beam.runners.pipeline_context import PipelineContext
+  from apache_beam.transforms import sideinputs
+  from apache_beam.transforms.core import ParDo
+  from apache_beam.transforms.core import Windowing
 
 __all__ = [
     'PCollection',
@@ -175,6 +175,25 @@ class PCollection(PValue, Generic[T]):
     if is_bounded is None:
       is_bounded = pcoll.is_bounded
     return PCollection(pcoll.pipeline, is_bounded=is_bounded)
+
+  def take(self, n: int) -> 'PCollection[T]':
+    """Takes the first N elements from this PCollection.
+
+    This is a convenience method that returns a new PCollection containing
+    at most N elements from this PCollection. The elements are taken
+    deterministically (not randomly sampled).
+
+    Args:
+      n: Number of elements to take. Must be a positive integer.
+
+    Returns:
+      A new PCollection containing at most N elements.
+
+    Example::
+      first_10 = pcoll.take(10)
+    """
+    from apache_beam.transforms import util
+    return self | util.take(n)
 
   def to_runner_api(
       self, context: 'PipelineContext') -> beam_runner_api_pb2.PCollection:

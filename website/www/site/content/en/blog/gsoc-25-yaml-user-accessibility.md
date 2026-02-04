@@ -27,7 +27,7 @@ limitations under the License.
 
 The relatively new Beam YAML SDK was introduced in the spirit of making data processing easy,
 but it has gained little adoption for complex ML tasks and hasn’t been widely used with
-[Managed I/O](beam.apache.org/documentation/io/managed-io/) such as Kafka and Iceberg.
+[Managed I/O](https://beam.apache.org/documentation/io/managed-io/) such as Kafka and Iceberg.
 As part of Google Summer of Code 2025, new illustrative, production-ready pipeline examples
 of ML use cases with Kafka and Iceberg data sources using the YAML SDK have been developed
 to address this adoption gap.

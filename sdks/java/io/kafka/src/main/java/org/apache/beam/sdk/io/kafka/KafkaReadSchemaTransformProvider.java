@@ -166,6 +166,31 @@ public class KafkaReadSchemaTransformProvider
       return SchemaRegistryProvider.UNSPECIFIED;
     }
 
+    private static <K, V> KafkaIO.Read<K, V> applyRedistributeSettings(
+        KafkaIO.Read<K, V> kafkaRead, KafkaReadSchemaTransformConfiguration configuration) {
+      Boolean redistribute = configuration.getRedistributed();
+      if (redistribute != null && redistribute) {
+        kafkaRead = kafkaRead.withRedistribute();
+      }
+      Integer redistributeNumKeys = configuration.getRedistributeNumKeys();
+      if (redistributeNumKeys != null && redistributeNumKeys > 0) {
+        kafkaRead = kafkaRead.withRedistributeNumKeys(redistributeNumKeys);
+      }
+      Boolean allowDuplicates = configuration.getAllowDuplicates();
+      if (allowDuplicates != null) {
+        kafkaRead = kafkaRead.withAllowDuplicates(allowDuplicates);
+      }
+      Boolean redistributeByRecordKey = configuration.getRedistributeByRecordKey();
+      if (redistributeByRecordKey != null) {
+        kafkaRead = kafkaRead.withRedistributeByRecordKey(redistributeByRecordKey);
+      }
+      Boolean offsetDeduplication = configuration.getOffsetDeduplication();
+      if (offsetDeduplication != null) {
+        kafkaRead = kafkaRead.withOffsetDeduplication(offsetDeduplication);
+      }
+      return kafkaRead;
+    }
+
     @Override
     public PCollectionRowTuple expand(PCollectionRowTuple input) {
       configuration.validate();
@@ -233,6 +258,8 @@ public class KafkaReadSchemaTransformProvider
           kafkaRead = kafkaRead.withMaxReadTime(Duration.standardSeconds(maxReadTimeSeconds));
         }
 
+        kafkaRead = applyRedistributeSettings(kafkaRead, configuration);
+
         PCollection<GenericRecord> kafkaValues =
             input.getPipeline().apply(kafkaRead.withoutMetadata()).apply(Values.create());
 
@@ -282,6 +309,8 @@ public class KafkaReadSchemaTransformProvider
       if (maxReadTimeSeconds != null) {
         kafkaRead = kafkaRead.withMaxReadTime(Duration.standardSeconds(maxReadTimeSeconds));
       }
+
+      kafkaRead = applyRedistributeSettings(kafkaRead, configuration);
 
       PCollection<byte[]> kafkaValues =
           input.getPipeline().apply(kafkaRead.withoutMetadata()).apply(Values.create());

@@ -25,11 +25,14 @@ from collections.abc import Callable
 from typing import Any
 from typing import Optional
 
-import jsonschema
-
 import apache_beam as beam
 from apache_beam.portability.api import schema_pb2
 from apache_beam.typehints import schemas
+
+try:
+  import jsonschema
+except ImportError:
+  pass
 
 JSON_ATOMIC_TYPES_TO_BEAM = {
     'boolean': schema_pb2.BOOLEAN,

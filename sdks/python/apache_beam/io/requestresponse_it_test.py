@@ -35,6 +35,7 @@ from apache_beam.testing.test_pipeline import TestPipeline
 # pylint: disable=ungrouped-imports
 try:
   from testcontainers.redis import RedisContainer
+
   from apache_beam.io.requestresponse import Caller
   from apache_beam.io.requestresponse import RedisCache
   from apache_beam.io.requestresponse import RequestResponseIO

@@ -17,8 +17,11 @@
 
 """Pytest configuration and custom hooks."""
 
+import gc
 import os
 import sys
+import threading
+import time
 from types import SimpleNamespace
 
 import pytest
@@ -51,10 +54,9 @@ def configure_beam_rpc_timeouts():
   """
   print("\n--- Applying Beam RPC timeout configuration ---")
 
-  # Set gRPC keepalive and timeout settings
   timeout_env_vars = {
       'GRPC_ARG_KEEPALIVE_TIME_MS': '30000',
-      'GRPC_ARG_KEEPALIVE_TIMEOUT_MS': '5000',
+      'GRPC_ARG_KEEPALIVE_TIMEOUT_MS': '10000',
       'GRPC_ARG_HTTP2_MAX_PINGS_WITHOUT_DATA': '0',
       'GRPC_ARG_KEEPALIVE_PERMIT_WITHOUT_CALLS': '1',
       'GRPC_ARG_HTTP2_MIN_RECV_PING_INTERVAL_WITHOUT_DATA_MS': '300000',
@@ -63,7 +65,7 @@ def configure_beam_rpc_timeouts():
       # Additional stability settings for DinD environment
       'GRPC_ARG_MAX_RECONNECT_BACKOFF_MS': '120000',
       'GRPC_ARG_INITIAL_RECONNECT_BACKOFF_MS': '1000',
-      'GRPC_ARG_MAX_CONNECTION_IDLE_MS': '300000',
+      'GRPC_ARG_MAX_CONNECTION_IDLE_MS': '600000',
       'GRPC_ARG_MAX_CONNECTION_AGE_MS': '1800000',
 
       # Beam-specific retry and timeout settings
@@ -101,55 +103,50 @@ def configure_beam_rpc_timeouts():
   print("Successfully configured Beam RPC timeouts")
 
 
-@pytest.fixture(autouse=True)
+@pytest.fixture(scope="class", autouse=True)
 def ensure_clean_state():
   """
-  Ensure clean state before each test
+  Ensure clean state before each test class
   to prevent cross-test contamination.
+  Runs once per test class instead of per test to reduce overhead.
   """
-  import gc
-  import threading
-  import time
-
   # Force garbage collection to clean up any lingering resources
   gc.collect()
 
   # Log active thread count for debugging
   thread_count = threading.active_count()
-  if thread_count > 50:  # Increased threshold since we see 104 threads
-    print(f"Warning: {thread_count} active threads detected before test")
-
+  if thread_count > 50:
+    print(f"Warning: {thread_count} active threads detected before test class")
     # Force a brief pause to let threads settle
     time.sleep(0.5)
     gc.collect()
 
   yield
 
-  # Enhanced cleanup after test
+  # Enhanced cleanup after test class
   try:
     # Force more aggressive cleanup
     gc.collect()
-
     # Brief pause to let any async operations complete
     time.sleep(0.1)
-
     # Additional garbage collection
     gc.collect()
   except Exception as e:
     print(f"Warning: Cleanup error: {e}")
 
 
-@pytest.fixture(autouse=True)
+@pytest.fixture(scope="class", autouse=True)
 def enhance_mock_stability():
-  """Enhance mock stability in DinD environment."""
-  import time
-
-  # Brief pause before test to ensure clean mock state
+  """
+  Enhance mock stability in DinD environment.
+  Runs once per test class instead of per test to reduce overhead.
+  """
+  # Brief pause before test class to ensure clean mock state
   time.sleep(0.05)
 
   yield
 
-  # Brief pause after test to let mocks clean up
+  # Brief pause after test class to let mocks clean up
   time.sleep(0.05)
 
 

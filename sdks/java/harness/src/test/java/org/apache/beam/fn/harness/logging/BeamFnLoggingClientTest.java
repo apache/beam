@@ -206,9 +206,9 @@ public class BeamFnLoggingClientTest {
       // from.
       ExecutionStateSampler.ExecutionState errorState =
           stateTracker.create("shortId", "errorPtransformId", "errorPtransformIdName", "process");
-      errorState.activate();
-      configuredLogger.log(TEST_RECORD_WITH_EXCEPTION);
-      errorState.deactivate();
+      try (AutoCloseable activeState = errorState.scopedActivate()) {
+        configuredLogger.log(TEST_RECORD_WITH_EXCEPTION);
+      }
 
       // Ensure that configuring a custom formatter on the logging handler will be honored.
       for (Handler handler : rootLogger.getHandlers()) {

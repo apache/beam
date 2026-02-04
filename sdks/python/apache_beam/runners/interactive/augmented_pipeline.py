@@ -28,8 +28,8 @@ from typing import Set
 
 import apache_beam as beam
 from apache_beam.portability.api import beam_runner_api_pb2
-from apache_beam.runners.interactive import interactive_environment as ie
 from apache_beam.runners.interactive import background_caching_job
+from apache_beam.runners.interactive import interactive_environment as ie
 from apache_beam.runners.interactive.caching.cacheable import Cacheable
 from apache_beam.runners.interactive.caching.read_cache import ReadCache
 from apache_beam.runners.interactive.caching.write_cache import WriteCache

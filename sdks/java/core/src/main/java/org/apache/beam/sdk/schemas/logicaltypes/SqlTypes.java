@@ -21,6 +21,7 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
+import java.util.UUID;
 import org.apache.beam.sdk.schemas.Schema.LogicalType;
 import org.apache.beam.sdk.values.Row;
 
@@ -40,4 +41,7 @@ public class SqlTypes {
 
   /** Beam LogicalType corresponding to TIMESTAMP type. */
   public static final LogicalType<Instant, Row> TIMESTAMP = new MicrosInstant();
+
+  /** Beam LogicalType corresponding to UUID type. */
+  public static final LogicalType<UUID, Row> UUID = new UuidLogicalType();
 }

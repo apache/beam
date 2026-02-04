@@ -24,6 +24,7 @@ from __future__ import annotations
 import base64
 import bisect
 import collections
+import concurrent.futures
 import copy
 import heapq
 import itertools
@@ -76,6 +77,7 @@ from apache_beam.runners.worker import data_sampler
 from apache_beam.runners.worker import operation_specs
 from apache_beam.runners.worker import operations
 from apache_beam.runners.worker import statesampler
+from apache_beam.runners.worker.worker_status import thread_dump
 from apache_beam.transforms import TimeDomain
 from apache_beam.transforms import core
 from apache_beam.transforms import environments
@@ -89,6 +91,7 @@ from apache_beam.utils.windowed_value import WindowedValue
 
 if TYPE_CHECKING:
   from google.protobuf import message  # pylint: disable=ungrouped-imports
+
   from apache_beam import pvalue
   from apache_beam.portability.api import metrics_pb2
   from apache_beam.runners.sdf_utils import SplitResultPrimary
@@ -231,9 +234,11 @@ class DataInputOperation(RunnerIOOperation):
         decoded_value = self.windowed_coder_impl.decode_from_stream(
             input_stream, True)
       except Exception as exn:
+        coder = str(self.windowed_coder)
+        step = self.name_context.step_name
         raise ValueError(
-            "Error decoding input stream with coder " +
-            str(self.windowed_coder)) from exn
+            f"Error decoding input stream with coder {coder} in step {step}"
+        ) from exn
       self.output(decoded_value)
 
   def monitoring_infos(
@@ -1130,7 +1135,30 @@ class BundleProcessor(object):
         'fnapi-step-%s' % self.process_bundle_descriptor.id,
         self.counter_factory)
 
-    self.ops = self.create_execution_tree(self.process_bundle_descriptor)
+    with concurrent.futures.ThreadPoolExecutor(
+        max_workers=1, thread_name_prefix='ExecutionTreeCreator') as executor:
+      future = executor.submit(
+          self.create_execution_tree, self.process_bundle_descriptor)
+      try:
+        self.ops = future.result(timeout=3600)
+      except concurrent.futures.TimeoutError:
+        # In rare cases, unpickling a DoFn might get permanently stuck,
+        # for example when unpickling involves importing a module and
+        # a subprocess is launched during the import operation.
+        _LOGGER.error(
+            'Timed out while reconstructing a pipeline fragment for: %s.\n'
+            'This is likely a transient error. The SDK harness '
+            'will self-terminate, and the runner can retry the operation. '
+            'If the error is frequent, check whether the stuckness happens '
+            'while deserializing (unpickling) a dependency of your pipeline '
+            'in the stacktrace below: \n%s\n',
+            self.process_bundle_descriptor.id,
+            thread_dump('ExecutionTreeCreator'))
+        # Raising an exception here doesn't interrupt the left-over thread.
+        # Out of caution, terminate the SDK harness process.
+        from apache_beam.runners.worker.sdk_worker_main import terminate_sdk_harness
+        terminate_sdk_harness()
+
     for op in reversed(self.ops.values()):
       op.setup(self.data_sampler)
     self.splitting_lock = threading.Lock()

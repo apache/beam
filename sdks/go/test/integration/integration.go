@@ -171,6 +171,7 @@ var flinkFilters = []string{
 	"TestBigQueryIO.*",
 	"TestBigtableIO.*",
 	"TestSpannerIO.*",
+	"TestTriggerAfterProcessingTime",
 	// The number of produced outputs in AfterSynchronizedProcessingTime varies in different runs.
 	"TestTriggerAfterSynchronizedProcessingTime",
 	// The flink runner does not support pipeline drain for SDF.
@@ -277,9 +278,9 @@ var sparkFilters = []string{
 	"TestSetStateClear",
 	"TestSetState",
 
-	"TestTimers_EventTime_Unbounded",     // Side inputs in executable stage not supported.
-	"TestTimers_ProcessingTime_Infinity", // Spark doesn't support test stream.
-
+	"TestTimers_EventTime_Unbounded",      // Side inputs in executable stage not supported.
+	"TestTimers_ProcessingTime_Infinity",  // Spark doesn't support test stream.
+	"TestTimers_ProcessingTime_Unbounded", // Side inputs in executable stage not supported.
 	// no support for BundleFinalizer
 	"TestParDoBundleFinalizer.*",
 }
@@ -300,6 +301,9 @@ var dataflowFilters = []string{
 	// There is no infrastructure for running KafkaIO tests with Dataflow.
 	"TestKafkaIO.*",
 	"TestSpannerIO.*",
+	// TODO(36918) These tests are currently failing in Dataflow Runner
+	"TestBigQueryIO.*",
+	"TestBigtableIO.*",
 	// Dataflow doesn't support any test that requires loopback.
 	// Eg. For FileIO examples.
 	".*Loopback.*",

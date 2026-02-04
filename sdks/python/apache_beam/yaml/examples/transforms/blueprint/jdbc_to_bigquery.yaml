@@ -46,7 +46,8 @@ pipeline:
       config:
         path: "gs://my-bucket/yaml-123/writingToBigQueryErrors.json"
 
-
+options:
+  temp_location: "gs://apache-beam-testing/temp"
 
 # Expected:
 #  Row(shipment_id='S1', customer_id='C1', shipment_date='2023-05-01', shipment_cost=150.0, customer_name='Alice', customer_email='alice@example.com')

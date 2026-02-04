@@ -24,8 +24,6 @@ import logging
 import struct
 from functools import partial
 
-import crcmod
-
 from apache_beam import coders
 from apache_beam.io import filebasedsink
 from apache_beam.io.filebasedsource import FileBasedSource
@@ -34,6 +32,16 @@ from apache_beam.io.filesystem import CompressionTypes
 from apache_beam.io.iobase import Read
 from apache_beam.io.iobase import Write
 from apache_beam.transforms import PTransform
+
+try:
+  import crcmod
+except ImportError:
+  logging.warning(
+      'crcmod package not found. This package is required if '
+      'python-snappy or google-crc32c are not installed. To ensure crcmod is '
+      'installed, install the tfrecord extra: pip install '
+      'apache-beam[tfrecord]')
+  crcmod = None
 
 __all__ = ['ReadFromTFRecord', 'ReadAllFromTFRecord', 'WriteToTFRecord']
 
@@ -47,6 +55,7 @@ def _default_crc32c_fn(value):
   if not _default_crc32c_fn.fn:
     try:
       import snappy  # pylint: disable=import-error
+
       # Support multiple versions of python-snappy:
       # https://github.com/andrix/python-snappy/pull/53
       if getattr(snappy, '_crc32c', None):
@@ -66,6 +75,11 @@ def _default_crc32c_fn(value):
       pass
 
     if not _default_crc32c_fn.fn:
+      if crcmod is None:
+        raise RuntimeError(
+            'Could not find python-snappy, google-crc32c, or crcmod. To allow '
+            'execution to succeed, make sure that one of these packages is '
+            'installed or pip install apache-beam[tfrecord]')
       _LOGGER.warning(
           'Couldn\'t find python-snappy or google-crc32c so the '
           'implementation of _TFRecordUtil._masked_crc32c is not as fast '

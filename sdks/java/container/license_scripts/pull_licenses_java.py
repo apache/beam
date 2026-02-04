@@ -137,12 +137,13 @@ def pull_from_url(file_name, url, dep, no_list, use_cache=False):
     if use_cache:
         CACHED_LICENSES.add(os.path.basename(pulled_file_name))
         logging.info(f"Copying {pulled_file_name} -> {file_name}")
-        shutil.copy(pull_file_name, file_name)
+        shutil.copy(pulled_file_name, file_name)
 
 def pull_source_code(base_url, dir_name, dep):
     # base_url example: https://repo1.maven.org/maven2/org/mortbay/jetty/jsp-2.1/6.1.14/
     try:
-      soup = BeautifulSoup(urlopen(base_url).read(), "html.parser")
+      soup = BeautifulSoup(urlopen(Request(base_url, headers={
+        'User-Agent': 'Apache Beam'})).read(), "html.parser")
     except:
       logging.error('Error reading source base from {base_url}'.format(base_url=base_url))
       raise
@@ -188,7 +189,7 @@ def execute(dep):
         "moduleLicenseUrl": "http://www.antlr.org/license.html"
     }
     '''
-
+    logging.debug("Dep: %s", dep)
     name = dep['moduleName'].split(':')[1]
     version = dep['moduleVersion']
     name_version = name + '-' + version
@@ -217,8 +218,14 @@ def execute(dep):
                 with thread_lock:
                     no_licenses.append(name_version)
                 license_url = 'skip'
-        pull_from_url(dir_name + '/LICENSE', license_url, name_version,
-                      no_licenses, use_cache=use_license_cache)
+
+        # Split the url string by commas in case of multiple/dual licenses
+        # NOTE: If license doesn't have a ',', this is a no-op.
+        # TODO: Do we only download our preferred one?
+        license_urls = [u.strip() for u in license_url.split(',')]
+        for license_url in license_urls:
+            pull_from_url(dir_name + '/LICENSE', license_url, name_version,
+                        no_licenses, use_cache=use_license_cache)
         # pull notice
         try:
             notice_url = dep_config[name][version]['notice']

@@ -182,7 +182,7 @@ async def check_workflow_flakiness(workflow):
 
     success_rate = 1.0
     if len(workflow_runs):
-        failed_runs = list(filter(lambda r: r.status == "failure", workflow_runs))
+        failed_runs = list(filter(lambda r: r.status == "failure" | r.status == "cancelled", workflow_runs))
         print(f"Number of failed workflow runs: {len(failed_runs)}")
         success_rate -= len(failed_runs) / len(workflow_runs)
 
@@ -285,13 +285,12 @@ async def fetch_workflow_runs():
     def append_workflow_runs(workflow, runs):
         workflow_runs = {}
         for run in runs:
-            # Getting rid of all runs with a "skipped" status to display
-            # only actual runs
+            # Getting rid of all "skipped" runs to display only actual runs
+            # Possible values for run["status"] are ["queued", "in_progress", "completed"]
             if run["conclusion"] != "skipped":
-                status = ""
                 if run["status"] == "completed":
                     status = run["conclusion"]
-                elif run["status"] != "cancelled":
+                else:
                     status = run["status"]
                 workflow_run = WorkflowRun(
                     run["id"],

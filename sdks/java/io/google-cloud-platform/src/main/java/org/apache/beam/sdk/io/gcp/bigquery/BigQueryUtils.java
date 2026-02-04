@@ -34,6 +34,8 @@ import java.nio.ByteBuffer;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
+import java.time.ZoneOffset;
+import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -65,6 +67,7 @@ import org.apache.beam.sdk.schemas.Schema.TypeName;
 import org.apache.beam.sdk.schemas.logicaltypes.EnumerationType;
 import org.apache.beam.sdk.schemas.logicaltypes.PassThroughLogicalType;
 import org.apache.beam.sdk.schemas.logicaltypes.SqlTypes;
+import org.apache.beam.sdk.schemas.logicaltypes.Timestamp;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.SerializableFunctions;
 import org.apache.beam.sdk.util.Preconditions;
@@ -112,6 +115,8 @@ public class BigQueryUtils {
               + "(?<DATASET>[a-zA-Z0-9_]{1,1024})[\\.]"
               + "(?<TABLE>[\\p{L}\\p{M}\\p{N}\\p{Pc}\\p{Pd}\\p{Zs}$]{1,1024})$");
 
+  private static final long PICOSECOND_PRECISION = 12L;
+
   /** Options for how to convert BigQuery data to Beam data. */
   @AutoValue
   public abstract static class ConversionOptions implements Serializable {
@@ -155,8 +160,25 @@ public class BigQueryUtils {
      */
     public abstract boolean getInferMaps();
 
+    /**
+     * Controls how BigQuery {@code TIMESTAMP(12)} (picosecond precision) columns are mapped to Beam
+     * schema types.
+     *
+     * <p>Standard TIMESTAMP(6) columns are mapped to FieldType.DATETIME, which only support up to
+     * millisecond precision. This option allows mapping TIMESTAMP(12) columns to logical types
+     * Timestamp.MILLIS, Timestamp.MICROS, Timestamp.NANOS or preserve full picosecond precision as
+     * a STRING type.
+     *
+     * <p>This option has no effect on {@code TIMESTAMP(6)} (microsecond) columns.
+     *
+     * <p>Defaults to {@link TimestampPrecision#NANOS}.
+     */
+    public abstract TimestampPrecision getPicosecondTimestampMapping();
+
     public static Builder builder() {
-      return new AutoValue_BigQueryUtils_SchemaConversionOptions.Builder().setInferMaps(false);
+      return new AutoValue_BigQueryUtils_SchemaConversionOptions.Builder()
+          .setInferMaps(false)
+          .setPicosecondTimestampMapping(TimestampPrecision.NANOS);
     }
 
     /** Builder for {@link SchemaConversionOptions}. */
@@ -164,15 +186,52 @@ public class BigQueryUtils {
     public abstract static class Builder {
       public abstract Builder setInferMaps(boolean inferMaps);
 
+      public abstract Builder setPicosecondTimestampMapping(TimestampPrecision conversion);
+
       public abstract SchemaConversionOptions build();
     }
   }
 
   private static final String BIGQUERY_TIME_PATTERN = "HH:mm:ss[.SSSSSS]";
-  private static final java.time.format.DateTimeFormatter BIGQUERY_TIME_FORMATTER =
+  static final java.time.format.DateTimeFormatter BIGQUERY_TIME_FORMATTER =
       java.time.format.DateTimeFormatter.ofPattern(BIGQUERY_TIME_PATTERN);
-  private static final java.time.format.DateTimeFormatter BIGQUERY_DATETIME_FORMATTER =
+  static final java.time.format.DateTimeFormatter BIGQUERY_DATETIME_FORMATTER =
       java.time.format.DateTimeFormatter.ofPattern("uuuu-MM-dd'T'" + BIGQUERY_TIME_PATTERN);
+
+  // Custom formatter that accepts "2022-05-09 18:04:59.123456"
+  // The old dremel parser accepts this format, and so does insertall. We need to accept it
+  // for backwards compatibility, and it is based on UTC time.
+  static final java.time.format.DateTimeFormatter DATETIME_SPACE_FORMATTER =
+      new java.time.format.DateTimeFormatterBuilder()
+          .append(java.time.format.DateTimeFormatter.ISO_LOCAL_DATE)
+          .optionalStart()
+          .appendLiteral(' ')
+          .optionalEnd()
+          .optionalStart()
+          .appendLiteral('T')
+          .optionalEnd()
+          .append(java.time.format.DateTimeFormatter.ISO_LOCAL_TIME)
+          .toFormatter()
+          .withZone(ZoneOffset.UTC);
+
+  static final java.time.format.DateTimeFormatter TIMESTAMP_FORMATTER =
+      new java.time.format.DateTimeFormatterBuilder()
+          // 'yyyy-MM-dd(T| )HH:mm:ss.SSSSSSSSS'
+          .append(DATETIME_SPACE_FORMATTER)
+          // 'yyyy-MM-dd(T| )HH:mm:ss.SSSSSSSSS(+HH:mm:ss|Z)'
+          .optionalStart()
+          .appendOffsetId()
+          .optionalEnd()
+          .optionalStart()
+          .appendOffset("+HH:mm", "+00:00")
+          .optionalEnd()
+          // 'yyyy-MM-dd(T| )HH:mm:ss.SSSSSSSSS [time_zone]', time_zone -> UTC, Asia/Kolkata, etc
+          // if both an offset and a time zone are provided, the offset takes precedence
+          .optionalStart()
+          .appendLiteral(' ')
+          .parseCaseSensitive()
+          .appendZoneRegionId()
+          .toFormatter();
 
   private static final DateTimeFormatter BIGQUERY_TIMESTAMP_PRINTER;
 
@@ -217,6 +276,21 @@ public class BigQueryUtils {
             .appendFractionOfSecond(3, 3)
             .appendLiteral(" UTC")
             .toFormatter();
+  }
+
+  private static final java.time.format.DateTimeFormatter VAR_PRECISION_FORMATTER;
+
+  static {
+    VAR_PRECISION_FORMATTER =
+        new java.time.format.DateTimeFormatterBuilder()
+            .appendPattern("yyyy-MM-dd HH:mm:ss")
+
+            // Variable Nano-of-second (0 to 9 digits)
+            // The 'true' argument means: "Expect a decimal point only if fractions exist"
+            .appendFraction(java.time.temporal.ChronoField.NANO_OF_SECOND, 0, 9, true)
+            .appendLiteral(" UTC")
+            .toFormatter()
+            .withZone(java.time.ZoneId.of("UTC"));
   }
 
   private static final Map<TypeName, StandardSQLTypeName> BEAM_TO_BIGQUERY_TYPE_MAPPING =
@@ -309,18 +383,80 @@ public class BigQueryUtils {
   }
 
   /**
+   * Represents a timestamp with picosecond precision, split into seconds and picoseconds
+   * components.
+   */
+  public static class TimestampPicos {
+    final long seconds;
+    final long picoseconds;
+
+    TimestampPicos(long seconds, long picoseconds) {
+      this.seconds = seconds;
+      this.picoseconds = picoseconds;
+    }
+
+    /**
+     * Parses a timestamp string into seconds and picoseconds components.
+     *
+     * <p>Handles two formats:
+     *
+     * <ul>
+     *   <li>ISO format with exactly 12 fractional digits ending in Z (picosecond precision): e.g.,
+     *       "2024-01-15T10:30:45.123456789012Z"
+     *   <li>UTC format with 0-9 fractional digits ending in "UTC" (up to nanosecond precision):
+     *       e.g., "2024-01-15 10:30:45.123456789 UTC", "2024-01-15 10:30:45 UTC"
+     * </ul>
+     */
+    public static TimestampPicos fromString(String timestampString) {
+      // Check for ISO picosecond format up to 12 fractional digits before Z
+      // Format: "2024-01-15T10:30:45.123456789012Z"
+      if (timestampString.endsWith("Z")) {
+        int dotIndex = timestampString.lastIndexOf('.');
+
+        if (dotIndex > 0) {
+          String fractionalPart =
+              timestampString.substring(dotIndex + 1, timestampString.length() - 1);
+
+          if ((long) fractionalPart.length() == PICOSECOND_PRECISION) {
+            // ISO timestamp with 12 decimal digits (picosecond precision)
+            // Parse the datetime part (without fractional seconds)
+            String dateTimePart = timestampString.substring(0, dotIndex) + "Z";
+            java.time.Instant baseInstant = java.time.Instant.parse(dateTimePart);
+
+            // Parse all 12 digits directly as picoseconds (subsecond portion)
+            long picoseconds = Long.parseLong(fractionalPart);
+
+            return new TimestampPicos(baseInstant.getEpochSecond(), picoseconds);
+          }
+        }
+
+        // ISO format with 0-9 fractional digits - Instant.parse handles this
+        java.time.Instant timestamp = java.time.Instant.parse(timestampString);
+        return new TimestampPicos(timestamp.getEpochSecond(), timestamp.getNano() * 1000L);
+      }
+
+      // UTC format: "2024-01-15 10:30:45.123456789 UTC"
+      // Use TIMESTAMP_FORMATTER which handles space separator and "UTC" suffix
+      java.time.Instant timestamp =
+          java.time.Instant.from(TIMESTAMP_FORMATTER.parse(timestampString));
+      return new TimestampPicos(timestamp.getEpochSecond(), timestamp.getNano() * 1000L);
+    }
+  }
+
+  /**
    * Get the Beam {@link FieldType} from a BigQuery type name.
    *
    * <p>Supports both standard and legacy SQL types.
    *
-   * @param typeName Name of the type returned by {@link TableFieldSchema#getType()}
+   * @param schema Schema of the type returned
    * @param nestedFields Nested fields for the given type (eg. RECORD type)
    * @return Corresponding Beam {@link FieldType}
    */
   private static FieldType fromTableFieldSchemaType(
-      String typeName, List<TableFieldSchema> nestedFields, SchemaConversionOptions options) {
+      TableFieldSchema schema, SchemaConversionOptions options) {
     // see
     // https://googleapis.dev/java/google-api-services-bigquery/latest/com/google/api/services/bigquery/model/TableFieldSchema.html#getType--
+    String typeName = schema.getType();
     switch (typeName) {
       case "STRING":
         return FieldType.STRING;
@@ -336,7 +472,26 @@ public class BigQueryUtils {
       case "BOOL":
         return FieldType.BOOLEAN;
       case "TIMESTAMP":
-        return FieldType.DATETIME;
+        // Timestamp columns can only have 6 (micros) or 12 (picos) precision.
+        // BigQuerySchema currently returns null for all microsecond timestamp
+        // columns but this cannot be guaranteed forever.
+        if ((schema.getTimestampPrecision() == null)
+            || Long.valueOf(6L).equals(schema.getTimestampPrecision())) {
+          return FieldType.DATETIME;
+        }
+        switch (options.getPicosecondTimestampMapping()) {
+          case MILLIS:
+            return FieldType.logicalType(Timestamp.MILLIS);
+          case MICROS:
+            return FieldType.logicalType(Timestamp.MICROS);
+          case NANOS:
+            return FieldType.logicalType(Timestamp.NANOS);
+          case PICOS:
+            return FieldType.STRING;
+          default:
+            throw new UnsupportedOperationException(
+                "Converting BigQuery type " + typeName + " to Beam type is unsupported");
+        }
       case "DATE":
         return FieldType.logicalType(SqlTypes.DATE);
       case "TIME":
@@ -352,14 +507,14 @@ public class BigQueryUtils {
         return FieldType.STRING;
       case "RECORD":
       case "STRUCT":
+        List<TableFieldSchema> nestedFields = schema.getFields();
         if (options.getInferMaps() && nestedFields.size() == 2) {
           TableFieldSchema key = nestedFields.get(0);
           TableFieldSchema value = nestedFields.get(1);
           if (BIGQUERY_MAP_KEY_FIELD_NAME.equals(key.getName())
               && BIGQUERY_MAP_VALUE_FIELD_NAME.equals(value.getName())) {
             return FieldType.map(
-                fromTableFieldSchemaType(key.getType(), key.getFields(), options),
-                fromTableFieldSchemaType(value.getType(), value.getFields(), options));
+                fromTableFieldSchemaType(key, options), fromTableFieldSchemaType(value, options));
           }
         }
         Schema rowSchema = fromTableFieldSchema(nestedFields, options);
@@ -375,9 +530,7 @@ public class BigQueryUtils {
       List<TableFieldSchema> tableFieldSchemas, SchemaConversionOptions options) {
     Schema.Builder schemaBuilder = Schema.builder();
     for (TableFieldSchema tableFieldSchema : tableFieldSchemas) {
-      FieldType fieldType =
-          fromTableFieldSchemaType(
-              tableFieldSchema.getType(), tableFieldSchema.getFields(), options);
+      FieldType fieldType = fromTableFieldSchemaType(tableFieldSchema, options);
 
       Optional<Mode> fieldMode = Optional.ofNullable(tableFieldSchema.getMode()).map(Mode::valueOf);
       if (fieldMode.filter(m -> m == Mode.REPEATED).isPresent()
@@ -434,7 +587,17 @@ public class BigQueryUtils {
         field.setFields(toTableFieldSchema(mapSchema));
         field.setMode(Mode.REPEATED.toString());
       }
-      field.setType(toStandardSQLTypeName(type).toString());
+      Schema.LogicalType<?, ?> logicalType = type.getLogicalType();
+      if (logicalType != null && Timestamp.IDENTIFIER.equals(logicalType.getIdentifier())) {
+        int precision = Preconditions.checkArgumentNotNull(logicalType.getArgument());
+        if (precision != 9) {
+          throw new IllegalArgumentException(
+              "Unsupported precision for Timestamp logical type " + precision);
+        }
+        field.setType(StandardSQLTypeName.TIMESTAMP.toString()).setTimestampPrecision(12L);
+      } else {
+        field.setType(toStandardSQLTypeName(type).toString());
+      }
 
       fields.add(field);
     }
@@ -666,6 +829,8 @@ public class BigQueryUtils {
           java.time.format.DateTimeFormatter localDateTimeFormatter =
               (0 == localDateTime.getNano()) ? ISO_LOCAL_DATE_TIME : BIGQUERY_DATETIME_FORMATTER;
           return localDateTimeFormatter.format(localDateTime);
+        } else if (Timestamp.IDENTIFIER.equals(fieldType.getLogicalType().getIdentifier())) {
+          return BigQueryAvroUtils.formatTimestamp((java.time.Instant) fieldValue);
         } else if ("Enum".equals(identifier)) {
           return fieldType
               .getLogicalType(EnumerationType.class)
@@ -747,7 +912,11 @@ public class BigQueryUtils {
           return CivilTimeEncoder.decodePacked64DatetimeMicrosAsJavaTime(value);
         } catch (NumberFormatException e) {
           // Handle as a String, ie. "2023-02-16 12:00:00"
-          return LocalDateTime.parse(jsonBQString, BIGQUERY_DATETIME_FORMATTER);
+          try {
+            return LocalDateTime.parse(jsonBQString);
+          } catch (DateTimeParseException e2) {
+            return LocalDateTime.parse(jsonBQString, DATETIME_SPACE_FORMATTER);
+          }
         }
       } else if (fieldType.isLogicalType(SqlTypes.DATE.getIdentifier())) {
         return LocalDate.parse(jsonBQString);
@@ -762,6 +931,8 @@ public class BigQueryUtils {
         } catch (NumberFormatException e) {
           return java.time.Instant.parse(jsonBQString);
         }
+      } else if (fieldType.isLogicalType(Timestamp.IDENTIFIER)) {
+        return VAR_PRECISION_FORMATTER.parse(jsonBQString, java.time.Instant::from);
       }
     }
 

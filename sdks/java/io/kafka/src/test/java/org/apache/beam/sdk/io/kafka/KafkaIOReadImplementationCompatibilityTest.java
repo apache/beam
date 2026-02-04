@@ -17,7 +17,6 @@
  */
 package org.apache.beam.sdk.io.kafka;
 
-import static org.apache.beam.sdk.io.kafka.KafkaIOTest.mkKafkaReadTransform;
 import static org.apache.beam.sdk.io.kafka.KafkaIOTest.mkKafkaReadTransformWithOffsetDedup;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsInAnyOrder;
@@ -109,7 +108,7 @@ public class KafkaIOReadImplementationCompatibilityTest {
       Function<KafkaIO.Read<Integer, Long>, KafkaIO.Read<Integer, Long>> kafkaReadDecorator) {
     p.apply(
         kafkaReadDecorator.apply(
-            mkKafkaReadTransform(
+            KafkaIOTest.mkKafkaReadTransform(
                 1000,
                 null,
                 new ValueAsTimestampFn(),
@@ -117,7 +116,8 @@ public class KafkaIOReadImplementationCompatibilityTest {
                 false, /*allowDuplicates*/
                 0, /*numKeys*/
                 null, /*offsetDeduplication*/
-                null /*topics*/)));
+                null, /*topics*/
+                null /*redistributeByRecordKey*/)));
     return p.run();
   }
 

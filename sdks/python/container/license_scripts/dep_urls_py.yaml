@@ -84,6 +84,9 @@ pip_dependencies:
   grpcio-status:
     license: "https://raw.githubusercontent.com/grpc/grpc/master/LICENSE"
     notice: "https://raw.githubusercontent.com/grpc/grpc/master/NOTICE.txt"
+  grpcio-tools:
+    license: "https://raw.githubusercontent.com/grpc/grpc/master/LICENSE"
+    notice: "https://raw.githubusercontent.com/grpc/grpc/master/NOTICE.txt"
   guppy:
     license: "https://raw.githubusercontent.com/joshwcomeau/guppy/master/LICENSE.md"
   guppy3:
@@ -165,7 +168,11 @@ pip_dependencies:
     license: "https://raw.githubusercontent.com/PAIR-code/what-if-tool/master/LICENSE"
   timeloop:
     license: "https://raw.githubusercontent.com/sankalpjonn/timeloop/master/LICENSE"
+  tokenizers:
+    license: "https://raw.githubusercontent.com/huggingface/tokenizers/refs/heads/main/LICENSE"
   torch:
     license: "https://raw.githubusercontent.com/pytorch/pytorch/master/LICENSE"
+  triton:
+    license: "https://raw.githubusercontent.com/triton-lang/triton/refs/heads/main/LICENSE"
   wget:
     license: "https://raw.githubusercontent.com/mirror/wget/master/COPYING"

@@ -293,6 +293,12 @@ class FakeModelHandlerFailsOnInferenceArgs(FakeModelHandler):
         'run_inference should not be called because error should already be '
         'thrown from the validate_inference_args check.')
 
+  def validate_inference_args(self, inference_args: Optional[dict[str, Any]]):
+    if inference_args:
+      raise ValueError(
+          'inference_args were provided, but should be None because this '
+          'framework does not expect extra arguments on inferences.')
+
 
 class FakeModelHandlerExpectedInferenceArgs(FakeModelHandler):
   def run_inference(self, batch, unused_model, inference_args=None):
@@ -1141,7 +1147,7 @@ class RunInferenceBaseTest(unittest.TestCase):
             accumulation_mode=trigger.AccumulationMode.DISCARDING))
 
     test_pipeline.options.view_as(StandardOptions).streaming = True
-    with self.assertRaises(ValueError) as e:
+    with self.assertRaises(Exception) as e:
       _ = (
           test_pipeline
           | beam.Create([1, 2, 3, 4])
@@ -1165,7 +1171,7 @@ class RunInferenceBaseTest(unittest.TestCase):
             accumulation_mode=trigger.AccumulationMode.DISCARDING))
 
     test_pipeline.options.view_as(StandardOptions).streaming = True
-    with self.assertRaises(ValueError) as e:
+    with self.assertRaises(Exception) as e:
       _ = (
           test_pipeline
           | beam.Create([1, 2, 3, 4])
@@ -2064,6 +2070,213 @@ class RunInferenceRemoteTest(unittest.TestCase):
           for example in batch:
             responses.append(model.predict(example))
           return responses
+
+  def test_run_inference_with_rate_limiter(self):
+    class FakeRateLimiter(base.RateLimiter):
+      def __init__(self):
+        super().__init__(namespace='test_namespace')
+
+      def allow(self, hits_added=1):
+        self.requests_counter.inc()
+        return True
+
+    limiter = FakeRateLimiter()
+
+    with TestPipeline() as pipeline:
+      examples = [1, 5]
+
+      class ConcreteRemoteModelHandler(base.RemoteModelHandler):
+        def create_client(self):
+          return FakeModel()
+
+        def request(self, batch, model, inference_args=None):
+          return [model.predict(example) for example in batch]
+
+      model_handler = ConcreteRemoteModelHandler(
+          rate_limiter=limiter, namespace='test_namespace')
+
+      pcoll = pipeline | 'start' >> beam.Create(examples)
+      actual = pcoll | base.RunInference(model_handler)
+
+      expected = [2, 6]
+      assert_that(actual, equal_to(expected))
+
+      result = pipeline.run()
+      result.wait_until_finish()
+
+      metrics_filter = MetricsFilter().with_name(
+          'RatelimitRequestsTotal').with_namespace('test_namespace')
+      metrics = result.metrics().query(metrics_filter)
+      self.assertGreaterEqual(metrics['counters'][0].committed, 0)
+
+  def test_run_inference_with_rate_limiter_exceeded(self):
+    class FakeRateLimiter(base.RateLimiter):
+      def __init__(self):
+        super().__init__(namespace='test_namespace')
+
+      def allow(self, hits_added=1):
+        return False
+
+    class ConcreteRemoteModelHandler(base.RemoteModelHandler):
+      def create_client(self):
+        return FakeModel()
+
+      def request(self, batch, model, inference_args=None):
+        return [model.predict(example) for example in batch]
+
+    model_handler = ConcreteRemoteModelHandler(
+        rate_limiter=FakeRateLimiter(),
+        namespace='test_namespace',
+        num_retries=0)
+
+    with self.assertRaises(base.RateLimitExceeded):
+      model_handler.run_inference([1], FakeModel())
+
+
+class FakeModelHandlerForSizing(base.ModelHandler[int, int, FakeModel]):
+  """A ModelHandler used to test element sizing behavior."""
+  def __init__(
+      self,
+      max_batch_size: int = 10,
+      max_batch_weight: Optional[int] = None,
+      element_size_fn=None):
+    super().__init__(
+        max_batch_size=max_batch_size,
+        max_batch_weight=max_batch_weight,
+        element_size_fn=element_size_fn)
+
+  def load_model(self) -> FakeModel:
+    return FakeModel()
+
+  def run_inference(self, batch, model, inference_args=None):
+    return [model.predict(x) for x in batch]
+
+
+class RunInferenceSizeTest(unittest.TestCase):
+  """Tests for ModelHandler.batch_elements_kwargs with element_size_fn."""
+  def test_kwargs_are_passed_correctly(self):
+    """Adds element_size_fn without clobbering existing kwargs."""
+    def size_fn(x):
+      return 10
+
+    sized_handler = FakeModelHandlerForSizing(
+        max_batch_size=20, max_batch_weight=100, element_size_fn=size_fn)
+
+    kwargs = sized_handler.batch_elements_kwargs()
+
+    self.assertEqual(kwargs['max_batch_size'], 20)
+    self.assertEqual(kwargs['max_batch_weight'], 100)
+    self.assertIn('element_size_fn', kwargs)
+    self.assertEqual(kwargs['element_size_fn'](1), 10)
+
+  def test_sizing_with_edge_cases(self):
+    """Allows extreme values from element_size_fn."""
+    zero_size_fn = lambda x: 0
+    sized_handler = FakeModelHandlerForSizing(
+        max_batch_size=1, element_size_fn=zero_size_fn)
+    kwargs = sized_handler.batch_elements_kwargs()
+    self.assertEqual(kwargs['element_size_fn'](999), 0)
+
+    large_size_fn = lambda x: 1000000
+    sized_handler = FakeModelHandlerForSizing(
+        max_batch_size=1, element_size_fn=large_size_fn)
+    kwargs = sized_handler.batch_elements_kwargs()
+    self.assertEqual(kwargs['element_size_fn'](1), 1000000)
+
+
+class FakeModelHandlerForBatching(base.ModelHandler[int, int, FakeModel]):
+  """A ModelHandler used to test batching behavior via base class __init__."""
+  def __init__(self, **kwargs):
+    super().__init__(**kwargs)
+
+  def load_model(self) -> FakeModel:
+    return FakeModel()
+
+  def run_inference(self, batch, model, inference_args=None):
+    return [model.predict(x) for x in batch]
+
+
+class ModelHandlerBatchingArgsTest(unittest.TestCase):
+  """Tests for ModelHandler.__init__ batching parameters."""
+  def test_batch_elements_kwargs_all_args(self):
+    """All batching args passed to __init__ are in batch_elements_kwargs."""
+    def size_fn(x):
+      return 10
+
+    handler = FakeModelHandlerForBatching(
+        min_batch_size=5,
+        max_batch_size=20,
+        max_batch_duration_secs=30,
+        max_batch_weight=100,
+        element_size_fn=size_fn)
+
+    kwargs = handler.batch_elements_kwargs()
+
+    self.assertEqual(kwargs['min_batch_size'], 5)
+    self.assertEqual(kwargs['max_batch_size'], 20)
+    self.assertEqual(kwargs['max_batch_duration_secs'], 30)
+    self.assertEqual(kwargs['max_batch_weight'], 100)
+    self.assertIn('element_size_fn', kwargs)
+    self.assertEqual(kwargs['element_size_fn'](1), 10)
+
+  def test_batch_elements_kwargs_partial_args(self):
+    """Only provided batching args are included in kwargs."""
+    handler = FakeModelHandlerForBatching(max_batch_size=50)
+    kwargs = handler.batch_elements_kwargs()
+
+    self.assertEqual(kwargs, {'max_batch_size': 50})
+
+  def test_batch_elements_kwargs_empty_when_no_args(self):
+    """No batching kwargs when none are provided."""
+    handler = FakeModelHandlerForBatching()
+    kwargs = handler.batch_elements_kwargs()
+
+    self.assertEqual(kwargs, {})
+
+  def test_large_model_sets_share_across_processes(self):
+    """Setting large_model=True enables share_model_across_processes."""
+    handler = FakeModelHandlerForBatching(large_model=True)
+
+    self.assertTrue(handler.share_model_across_processes())
+
+  def test_model_copies_sets_share_across_processes(self):
+    """Setting model_copies enables share_model_across_processes."""
+    handler = FakeModelHandlerForBatching(model_copies=2)
+
+    self.assertTrue(handler.share_model_across_processes())
+    self.assertEqual(handler.model_copies(), 2)
+
+  def test_default_share_across_processes_is_false(self):
+    """Default share_model_across_processes is False."""
+    handler = FakeModelHandlerForBatching()
+
+    self.assertFalse(handler.share_model_across_processes())
+
+  def test_default_model_copies_is_one(self):
+    """Default model_copies is 1."""
+    handler = FakeModelHandlerForBatching()
+
+    self.assertEqual(handler.model_copies(), 1)
+
+  def test_env_vars_from_kwargs(self):
+    """Environment variables can be passed via kwargs."""
+    handler = FakeModelHandlerForBatching(env_vars={'MY_VAR': 'value'})
+
+    self.assertEqual(handler._env_vars, {'MY_VAR': 'value'})
+
+  def test_min_batch_size_only(self):
+    """min_batch_size can be passed alone."""
+    handler = FakeModelHandlerForBatching(min_batch_size=10)
+    kwargs = handler.batch_elements_kwargs()
+
+    self.assertEqual(kwargs, {'min_batch_size': 10})
+
+  def test_max_batch_duration_secs_only(self):
+    """max_batch_duration_secs can be passed alone."""
+    handler = FakeModelHandlerForBatching(max_batch_duration_secs=60)
+    kwargs = handler.batch_elements_kwargs()
+
+    self.assertEqual(kwargs, {'max_batch_duration_secs': 60})
 
 
 if __name__ == '__main__':

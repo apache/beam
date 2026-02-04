@@ -114,7 +114,8 @@ class BigQueryXlangStorageWriteIT(unittest.TestCase):
     self.project = self.test_pipeline.get_option('project')
     self._runner = PipelineOptions(self.args).get_all_options()['runner']
 
-    self.bigquery_client = BigQueryWrapper()
+    self.bigquery_client = BigQueryWrapper.from_pipeline_options(
+        self.test_pipeline.options)
     self.dataset_id = '%s_%s_%s' % (
         self.BIGQUERY_DATASET, str(int(time.time())), secrets.token_hex(3))
     self.bigquery_client.get_or_create_dataset(self.project, self.dataset_id)
@@ -154,7 +155,7 @@ class BigQueryXlangStorageWriteIT(unittest.TestCase):
       self, table_prefix, storage_uri, expected_count=1):
     """Verify that Iceberg table directories are created in
     the warehouse location.
-    
+
     Args:
       table_prefix: The table name prefix to look for
       storage_uri: The GCS storage URI (e.g., 'gs://bucket/path')
@@ -606,6 +607,36 @@ class BigQueryXlangStorageWriteIT(unittest.TestCase):
 
     # Verify that the table directory was created in the warehouse location
     self.assert_iceberg_tables_created(table, big_lake_config['storageUri'])
+
+  def test_write_with_managed_transform(self):
+    table = 'write_with_managed_transform'
+    table_id = '{}:{}.{}'.format(self.project, self.dataset_id, table)
+
+    row_elements = [
+        beam.Row(
+            my_int=e['int'],
+            my_float=e['float'],
+            my_string=e['str'],
+            my_bool=e['bool'],
+            my_bytes=e['bytes'],
+            my_timestamp=e['timestamp']) for e in self.ELEMENTS
+    ]
+
+    expected = []
+    for e in self.ELEMENTS:
+      del e["numeric"]
+      expected.append(e)
+    bq_matcher = BigqueryFullResultMatcher(
+        project=self.project,
+        query="SELECT * FROM {}.{}".format(self.dataset_id, table),
+        data=self.parse_expected_data(expected))
+
+    with beam.Pipeline(argv=self.args) as p:
+      _ = (
+          p
+          | beam.Create(row_elements)
+          | beam.managed.Write("bigquery", config={"table": table_id}))
+    hamcrest_assert(p, bq_matcher)
 
 
 if __name__ == '__main__':

@@ -600,7 +600,11 @@ public class SplittableParDoViaKeyedWorkItems {
       // Set a timer to continue processing this element.
       timerInternals.setTimer(
           TimerInternals.TimerData.of(
-              stateNamespace, wakeupTime, wakeupTime, TimeDomain.PROCESSING_TIME));
+              stateNamespace,
+              wakeupTime,
+              wakeupTime,
+              TimeDomain.PROCESSING_TIME,
+              TimerInternals.TimerData.CausedByDrain.NORMAL));
     }
 
     private DoFnInvoker.ArgumentProvider<InputT, OutputT> wrapOptionsAsSetup(
@@ -659,27 +663,6 @@ public class SplittableParDoViaKeyedWorkItems {
             @Override
             public <T> void output(
                 TupleTag<T> tag, T output, Instant timestamp, BoundedWindow window) {
-              throwUnsupportedOutput();
-            }
-
-            @Override
-            public void output(
-                OutputT output,
-                Instant timestamp,
-                BoundedWindow window,
-                @Nullable String currentRecordId,
-                @Nullable Long currentRecordOffset) {
-              throwUnsupportedOutput();
-            }
-
-            @Override
-            public <T> void output(
-                TupleTag<T> tag,
-                T output,
-                Instant timestamp,
-                BoundedWindow window,
-                @Nullable String currentRecordId,
-                @Nullable Long currentRecordOffset) {
               throwUnsupportedOutput();
             }
 

@@ -23,6 +23,7 @@ import (
 	"github.com/apache/beam/sdks/v2/go/pkg/beam"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime/graphx"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime/xlangx"
+	"google.golang.org/protobuf/encoding/prototext"
 
 	// Importing to get the side effect of the remote execution hook. See init().
 	_ "github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime/harness/init"
@@ -92,7 +93,7 @@ func Execute(ctx context.Context, p *beam.Pipeline) (beam.PipelineResult, error)
 		return nil, errors.WithContextf(err, "generating model pipeline")
 	}
 
-	log.Info(ctx, pipeline.String())
+	log.Debugf(ctx, "Pipeline proto: %s", prototext.Format(pipeline))
 
 	opt := &runnerlib.JobOptions{
 		Name:         jobopts.GetJobName(),

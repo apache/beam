@@ -40,7 +40,8 @@ task copyDockerfileDependencies(type: Copy) {
 }
 
 task copyRequirementsFile(type: Copy) {
-    from project(':sdks:python:container:py39').fileTree("./")
+    def pythonVersionSuffix = project.ext.pythonVersion.replace('.', '')
+    from project(":sdks:python:container:py${pythonVersionSuffix}").fileTree("./")
     include 'base_image_requirements.txt'
     rename 'base_image_requirements.txt', 'requirements.txt'
     setDuplicatesStrategy(DuplicatesStrategy.INCLUDE)
@@ -70,6 +71,7 @@ docker {
   // tags used by dockerTag task
   tags containerImageTags()
   files "./build"
+  buildArgs(['py_version': "${project.ext.pythonVersion}"])
   buildx project.useBuildx()
   platform(*project.containerPlatforms())
   load project.useBuildx() && !pushContainers

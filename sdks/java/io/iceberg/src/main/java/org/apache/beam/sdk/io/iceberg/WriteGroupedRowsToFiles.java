@@ -36,8 +36,7 @@ import org.checkerframework.checker.nullness.qual.MonotonicNonNull;
 class WriteGroupedRowsToFiles
     extends PTransform<
         PCollection<KV<ShardedKey<String>, Iterable<Row>>>, PCollection<FileWriteResult>> {
-
-  private static final long DEFAULT_MAX_BYTES_PER_FILE = (1L << 29); // 512mb
+  private final long maxBytesPerFile;
 
   private final DynamicDestinations dynamicDestinations;
   private final IcebergCatalogConfig catalogConfig;
@@ -46,10 +45,12 @@ class WriteGroupedRowsToFiles
   WriteGroupedRowsToFiles(
       IcebergCatalogConfig catalogConfig,
       DynamicDestinations dynamicDestinations,
-      String filePrefix) {
+      String filePrefix,
+      long maxBytesPerFile) {
     this.catalogConfig = catalogConfig;
     this.dynamicDestinations = dynamicDestinations;
     this.filePrefix = filePrefix;
+    this.maxBytesPerFile = maxBytesPerFile;
   }
 
   @Override
@@ -58,7 +59,7 @@ class WriteGroupedRowsToFiles
     return input.apply(
         ParDo.of(
             new WriteGroupedRowsToFilesDoFn(
-                catalogConfig, dynamicDestinations, DEFAULT_MAX_BYTES_PER_FILE, filePrefix)));
+                catalogConfig, dynamicDestinations, maxBytesPerFile, filePrefix)));
   }
 
   private static class WriteGroupedRowsToFilesDoFn

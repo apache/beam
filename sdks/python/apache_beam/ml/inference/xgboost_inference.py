@@ -19,18 +19,17 @@ import sys
 from abc import ABC
 from collections.abc import Callable
 from collections.abc import Iterable
-from collections.abc import Mapping
 from collections.abc import Sequence
 from typing import Any
 from typing import Optional
 from typing import Union
 
+import datatable
 import numpy
 import pandas
 import scipy
-
-import datatable
 import xgboost
+
 from apache_beam.io.filesystems import FileSystems
 from apache_beam.ml.inference.base import ExampleT
 from apache_beam.ml.inference.base import ModelHandler
@@ -79,6 +78,8 @@ class XGBoostModelHandler(ModelHandler[ExampleT, PredictionT, ModelT], ABC):
       min_batch_size: Optional[int] = None,
       max_batch_size: Optional[int] = None,
       max_batch_duration_secs: Optional[int] = None,
+      max_batch_weight: Optional[int] = None,
+      element_size_fn: Optional[Callable[[Any], int]] = None,
       **kwargs):
     """Implementation of the ModelHandler interface for XGBoost.
 
@@ -103,8 +104,11 @@ class XGBoostModelHandler(ModelHandler[ExampleT, PredictionT, ModelT], ABC):
         inputs.
       max_batch_size: optional. the maximum batch size to use when batching
         inputs.
-      max_batch_duration_secs: optional. the maximum amount of time to buffer 
+      max_batch_duration_secs: optional. the maximum amount of time to buffer
         a batch before emitting; used in streaming contexts.
+      max_batch_weight: optional. the maximum total weight of a batch.
+      element_size_fn: optional. a function that returns the size (weight)
+        of an element.
       kwargs: 'env_vars' can be used to set environment variables
         before loading the model.
 
@@ -121,17 +125,16 @@ class XGBoostModelHandler(ModelHandler[ExampleT, PredictionT, ModelT], ABC):
     and should not be instantiated directly. (See instead
     XGBoostModelHandlerNumpy, XGBoostModelHandlerPandas, etc.)
     """
+    super().__init__(
+        min_batch_size=min_batch_size,
+        max_batch_size=max_batch_size,
+        max_batch_duration_secs=max_batch_duration_secs,
+        max_batch_weight=max_batch_weight,
+        element_size_fn=element_size_fn,
+        **kwargs)
     self._model_class = model_class
     self._model_state = model_state
     self._inference_fn = inference_fn
-    self._env_vars = kwargs.get('env_vars', {})
-    self._batching_kwargs = {}
-    if min_batch_size is not None:
-      self._batching_kwargs["min_batch_size"] = min_batch_size
-    if max_batch_size is not None:
-      self._batching_kwargs["max_batch_size"] = max_batch_size
-    if max_batch_duration_secs is not None:
-      self._batching_kwargs["max_batch_duration_secs"] = max_batch_duration_secs
 
   def load_model(self) -> Union[xgboost.Booster, xgboost.XGBModel]:
     model = self._model_class()
@@ -145,9 +148,6 @@ class XGBoostModelHandler(ModelHandler[ExampleT, PredictionT, ModelT], ABC):
 
   def get_metrics_namespace(self) -> str:
     return 'BeamML_XGBoost'
-
-  def batch_elements_kwargs(self) -> Mapping[str, Any]:
-    return self._batching_kwargs
 
 
 class XGBoostModelHandlerNumpy(XGBoostModelHandler[numpy.ndarray,

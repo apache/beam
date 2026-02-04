@@ -205,6 +205,20 @@ class FileBasedSink(iobase.Sink):
     # We also ensure there will be no collisions with uid and a
     # (possibly unsharded) file_path_prefix and a (possibly empty)
     # file_name_suffix.
+    from apache_beam.pvalue import EmptySideInput
+
+    # Handle case where init_result is EmptySideInput (empty collection)
+    # TODO: https://github.com/apache/beam/issues/36563 for Prism
+    if isinstance(init_result, EmptySideInput):
+      # Fall back to creating a temporary directory based on file_path_prefix
+      _LOGGER.warning(
+          'Initialization result collection was empty, falling back to '
+          'creating temporary directory. This may indicate an issue with '
+          'the pipeline initialization phase.')
+      file_path_prefix = self.file_path_prefix.get()
+      init_result = self._create_temp_dir(file_path_prefix)
+      FileSystems.mkdirs(init_result)
+
     file_path_prefix = self.file_path_prefix.get()
     file_name_suffix = self.file_name_suffix.get()
     suffix = ('.' + os.path.basename(file_path_prefix) + file_name_suffix)

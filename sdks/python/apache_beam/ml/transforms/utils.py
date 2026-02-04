@@ -20,10 +20,10 @@ __all__ = ['ArtifactsFetcher']
 import os
 import tempfile
 
+import tensorflow_transform as tft
 from google.cloud.storage import Client
 from google.cloud.storage import transfer_manager
 
-import tensorflow_transform as tft
 from apache_beam.ml.transforms import base
 
 

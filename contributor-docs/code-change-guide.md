@@ -496,7 +496,7 @@ These instructions explain how to configure your console (shell) for Python deve
 3. Install the `apache_beam` package in editable mode:
    ```
    cd sdks/python
-   pip install -e .[gcp, test]
+   pip install -e .[gcp,test]
    ```
 
 4. For development that uses an SDK container image, do the following:

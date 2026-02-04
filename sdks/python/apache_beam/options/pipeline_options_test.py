@@ -34,6 +34,7 @@ from apache_beam.options.pipeline_options import GoogleCloudOptions
 from apache_beam.options.pipeline_options import JobServerOptions
 from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.options.pipeline_options import ProfilingOptions
+from apache_beam.options.pipeline_options import StandardOptions
 from apache_beam.options.pipeline_options import TypeOptions
 from apache_beam.options.pipeline_options import WorkerOptions
 from apache_beam.options.pipeline_options import _BeamArgumentParser
@@ -237,6 +238,19 @@ class PipelineOptionsTest(unittest.TestCase):
         options.view_as(PipelineOptionsTest.MockOptions).mock_multi_option,
         expected['mock_multi_option'])
 
+  def test_get_superclass_options(self):
+    flags = ["--mock_option", "mock", "--fake_option", "fake"]
+    options = PipelineOptions(flags=flags).view_as(
+        PipelineOptionsTest.FakeOptions)
+    items = options.get_all_options(current_only=True).items()
+    print(items)
+    self.assertTrue(('fake_option', 'fake') in items)
+    self.assertFalse(('mock_option', 'mock') in items)
+    items = options.view_as(PipelineOptionsTest.MockOptions).get_all_options(
+        current_only=True).items()
+    self.assertFalse(('fake_option', 'fake') in items)
+    self.assertTrue(('mock_option', 'mock') in items)
+
   @parameterized.expand(TEST_CASES)
   def test_subclasses_of_pipeline_options_can_be_instantiated(
       self, flags, expected, _):
@@ -307,6 +321,26 @@ class PipelineOptionsTest(unittest.TestCase):
     result = options_from_dict.get_all_options()
     self.assertEqual(result['test_arg_int'], 5)
     self.assertEqual(result['test_arg_none'], None)
+
+  def test_merging_options(self):
+    opts = PipelineOptions(flags=['--num_workers', '5'])
+    actual_opts = PipelineOptions.from_runner_api(opts.to_runner_api())
+    actual = actual_opts.view_as(WorkerOptions).num_workers
+    self.assertEqual(5, actual)
+
+  def test_merging_options_with_overriden_options(self):
+    opts = PipelineOptions(flags=['--num_workers', '5'])
+    base = PipelineOptions(flags=['--num_workers', '2'])
+    actual_opts = PipelineOptions.from_runner_api(opts.to_runner_api(), base)
+    actual = actual_opts.view_as(WorkerOptions).num_workers
+    self.assertEqual(5, actual)
+
+  def test_merging_options_with_overriden_runner(self):
+    opts = PipelineOptions(flags=['--runner', 'FnApiRunner'])
+    base = PipelineOptions(flags=['--runner', 'Direct'])
+    actual_opts = PipelineOptions.from_runner_api(opts.to_runner_api(), base)
+    actual = actual_opts.view_as(StandardOptions).runner
+    self.assertEqual('Direct', actual)
 
   def test_from_kwargs(self):
     class MyOptions(PipelineOptions):
@@ -731,8 +765,7 @@ class PipelineOptionsTest(unittest.TestCase):
             "store_true. It would be confusing "
             "to the user. Please specify the dest as the "
             "flag_name instead."))
-    from apache_beam.options.pipeline_options import (
-        _FLAG_THAT_SETS_FALSE_VALUE)
+    from apache_beam.options.pipeline_options import _FLAG_THAT_SETS_FALSE_VALUE
 
     self.assertDictEqual(
         _FLAG_THAT_SETS_FALSE_VALUE,

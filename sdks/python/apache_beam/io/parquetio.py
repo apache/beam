@@ -54,6 +54,7 @@ try:
   import pyarrow as pa
   paTable = pa.Table
   import pyarrow.parquet as pq
+
   # pylint: disable=ungrouped-imports
   from apache_beam.typehints import arrow_type_compatibility
 except ImportError:

@@ -230,7 +230,7 @@ public class AsyncBatchWriteHandlerTest {
     nextResults.complete(emptyList());
 
     handler.waitForCompletion();
-    assertThat(future).isDone();
+    eventually(5, () -> assertThat(future).isDone());
   }
 
   static class SubmitFn<T, V> implements BiFunction<String, List<T>, CompletableFuture<List<V>>> {

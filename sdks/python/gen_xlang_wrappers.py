@@ -34,7 +34,6 @@ from typing import List
 from typing import Union
 
 import yaml
-
 from gen_protos import LICENSE_HEADER
 from gen_protos import PROJECT_ROOT
 from gen_protos import PYTHON_SDK_ROOT

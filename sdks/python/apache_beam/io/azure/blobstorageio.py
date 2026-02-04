@@ -43,10 +43,8 @@ try:
   # pylint: disable=wrong-import-order, wrong-import-position
   # pylint: disable=ungrouped-imports
   from azure.core.exceptions import ResourceNotFoundError
-  from azure.storage.blob import (
-      BlobServiceClient,
-      ContentSettings,
-  )
+  from azure.storage.blob import BlobServiceClient
+  from azure.storage.blob import ContentSettings
   AZURE_DEPS_INSTALLED = True
 except ImportError:
   AZURE_DEPS_INSTALLED = False

@@ -99,6 +99,7 @@ __all__ = [
     'SpannerUpdate',
     'TimestampBoundMode',
     'TimeUnit',
+    'ReadChangeStreamFromSpanner',
 ]
 
 
@@ -683,8 +684,7 @@ class ReadChangeStreamFromSpanner(ExternalTransform):
   Example:
 
   with beam.Pipeline(options=pipeline_options) as p:
-    p | 
-    "ReadFromSpannerChangeStream" >> beam_spanner.ReadChangeStreamFromSpanner( 
+    p | "ReadSpannerChangeStream" >> beam_spanner.ReadChangeStreamFromSpanner( 
         project_id="spanner-project-id", 
         instance_id="spanner-instance-id", 
         database_id="spanner-database-id", 
@@ -714,32 +714,32 @@ class ReadChangeStreamFromSpanner(ExternalTransform):
       expansion_service=None,
   ):
     """
-        Reads Change Streams from Google Cloud Spanner.
-        
-        :param project_id: (Required) Specifies the Cloud Spanner project.
-        :param instance_id: (Required) Specifies the Cloud Spanner 
-          instance.
-        :param database_id: (Required) Specifies the Cloud Spanner 
-          database.
-        :param changeStreamName: (Required) The name of the Spanner 
-          change stream to read.
-        :param metadataDatabase: (Required) The database where the 
-          change stream metadata is stored.
-        :param metadataInstance: (Required) The instance where the 
-          change stream metadata database resides.
-        :param inclusiveStartAt: (Required) An inclusive start timestamp 
-          for reading the change stream.
-        :param inclusiveEndAt: (Optional) An inclusive end timestamp for 
-          reading the change stream. If not specified, the stream will be 
-          read indefinitely.
-        :param metadataTable: (Optional) The name of the metadata table used 
-          by the change stream connector. If not specified, a default table 
-          name will be used.
-        :param rpcPriority: (Optional) The RPC priority for Spanner operations. 
-          Can be 'HIGH', 'MEDIUM', or 'LOW'.
-        :param watermarkRefreshRate: (Optional) The duration at which the 
-          watermark is refreshed.
-        """
+    Reads Change Streams from Google Cloud Spanner.
+    
+    :param project_id: (Required) Specifies the Cloud Spanner project.
+    :param instance_id: (Required) Specifies the Cloud Spanner 
+      instance.
+    :param database_id: (Required) Specifies the Cloud Spanner 
+      database.
+    :param changeStreamName: (Required) The name of the Spanner 
+      change stream to read.
+    :param metadataDatabase: (Required) The database where the 
+      change stream metadata is stored.
+    :param metadataInstance: (Required) The instance where the 
+      change stream metadata database resides.
+    :param inclusiveStartAt: (Required) An inclusive start timestamp 
+      for reading the change stream.
+    :param inclusiveEndAt: (Optional) An inclusive end timestamp for 
+      reading the change stream. If not specified, the stream will be 
+      read indefinitely.
+    :param metadataTable: (Optional) The name of the metadata table used 
+      by the change stream connector. If not specified, a default table 
+      name will be used.
+    :param rpcPriority: (Optional) The RPC priority for Spanner operations. 
+      Can be 'HIGH', 'MEDIUM', or 'LOW'.
+    :param watermarkRefreshRate: (Optional) The duration at which the 
+      watermark is refreshed.
+    """
 
     super().__init__(
         self.URN,

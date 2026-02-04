@@ -37,6 +37,7 @@ from apache_beam.portability.api import beam_fn_api_pb2
 from apache_beam.portability.api import beam_fn_api_pb2_grpc
 from apache_beam.portability.api import beam_runner_api_pb2
 from apache_beam.portability.api import metrics_pb2
+from apache_beam.runners.worker import data_plane
 from apache_beam.runners.worker import sdk_worker
 from apache_beam.runners.worker import statecache
 from apache_beam.runners.worker.sdk_worker import BundleProcessorCache
@@ -126,7 +127,10 @@ class SdkWorkerTest(unittest.TestCase):
 
   def test_inactive_bundle_processor_returns_empty_progress_response(self):
     bundle_processor = mock.MagicMock()
-    bundle_processor_cache = BundleProcessorCache(None, None, None, {})
+    data_channel_factory = mock.create_autospec(
+        data_plane.GrpcClientDataChannelFactory)
+    bundle_processor_cache = BundleProcessorCache(
+        None, None, data_channel_factory, {})
     bundle_processor_cache.activate('instruction_id')
     worker = SdkWorker(bundle_processor_cache)
     split_request = beam_fn_api_pb2.InstructionRequest(
@@ -153,7 +157,10 @@ class SdkWorkerTest(unittest.TestCase):
 
   def test_failed_bundle_processor_returns_failed_progress_response(self):
     bundle_processor = mock.MagicMock()
-    bundle_processor_cache = BundleProcessorCache(None, None, None, {})
+    data_channel_factory = mock.create_autospec(
+        data_plane.GrpcClientDataChannelFactory)
+    bundle_processor_cache = BundleProcessorCache(
+        None, None, data_channel_factory, {})
     bundle_processor_cache.activate('instruction_id')
     worker = SdkWorker(bundle_processor_cache)
 
@@ -176,7 +183,10 @@ class SdkWorkerTest(unittest.TestCase):
 
   def test_inactive_bundle_processor_returns_empty_split_response(self):
     bundle_processor = mock.MagicMock()
-    bundle_processor_cache = BundleProcessorCache(None, None, None, {})
+    data_channel_factory = mock.create_autospec(
+        data_plane.GrpcClientDataChannelFactory)
+    bundle_processor_cache = BundleProcessorCache(
+        None, None, data_channel_factory, {})
     bundle_processor_cache.activate('instruction_id')
     worker = SdkWorker(bundle_processor_cache)
     split_request = beam_fn_api_pb2.InstructionRequest(
@@ -262,7 +272,10 @@ class SdkWorkerTest(unittest.TestCase):
 
   def test_failed_bundle_processor_returns_failed_split_response(self):
     bundle_processor = mock.MagicMock()
-    bundle_processor_cache = BundleProcessorCache(None, None, None, {})
+    data_channel_factory = mock.create_autospec(
+        data_plane.GrpcClientDataChannelFactory)
+    bundle_processor_cache = BundleProcessorCache(
+        None, None, data_channel_factory, {})
     bundle_processor_cache.activate('instruction_id')
     worker = SdkWorker(bundle_processor_cache)
 
@@ -337,6 +350,29 @@ class SdkWorkerTest(unittest.TestCase):
             }))
 
     self.assertEqual(response, expected_response)
+
+  def test_bundle_processor_creation_failure_cleans_up_grpc_data_channel(self):
+    data_channel_factory = data_plane.GrpcClientDataChannelFactory()
+    channel = data_channel_factory.create_data_channel_from_url('some_url')
+    state_handler_factory = mock.create_autospec(
+        sdk_worker.GrpcStateHandlerFactory)
+    bundle_processor_cache = BundleProcessorCache(
+        frozenset(), state_handler_factory, data_channel_factory, {})
+    if bundle_processor_cache.periodic_shutdown:
+      bundle_processor_cache.periodic_shutdown.cancel()
+
+    bundle_processor_cache.get = mock.MagicMock(
+        side_effect=RuntimeError('test error'))
+
+    worker = SdkWorker(bundle_processor_cache)
+    instruction_id = 'instruction_id'
+    request = beam_fn_api_pb2.ProcessBundleRequest(
+        process_bundle_descriptor_id='descriptor_id')
+
+    with self.assertRaises(RuntimeError):
+      worker.process_bundle(request, instruction_id)
+
+    self.assertIn(instruction_id, channel._cleaned_instruction_ids)
 
 
 class CachingStateHandlerTest(unittest.TestCase):

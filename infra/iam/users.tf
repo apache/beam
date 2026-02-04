@@ -28,6 +28,7 @@ locals {
         {
           username              = user.username
           email                 = user.email
+          member_type           = user.member_type
           role                  = replace(perm.role, "PROJECT-ID", var.project_id)
           title                 = lookup(perm, "title", null)
           description           = lookup(perm, "description", null)
@@ -46,7 +47,7 @@ resource "google_project_iam_member" "project_members" {
   }
   project = var.project_id
   role    = each.value.role
-  member = can(regex(".*\\.gserviceaccount\\.com$", each.value.email)) ? "serviceAccount:${each.value.email}" : "user:${each.value.email}"
+  member  = "${each.value.member_type}:${each.value.email}"
 
   dynamic "condition" {
     # Condition is only created if expiry_date is set

@@ -24,6 +24,7 @@ import (
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime/genx"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime/graphx/schema"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/typex"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/log"
 )
 
 // IMPLEMENTATION NOTE: functions and types in this file are assumed to be
@@ -51,6 +52,10 @@ func RegisterType(t reflect.Type) {
 }
 
 func init() {
+	runtime.RegisterInit(func() {
+		log.SetupLoggingWithDefault()
+	})
+
 	runtime.RegisterInit(func() {
 		if EnableSchemas {
 			schema.Initialize()

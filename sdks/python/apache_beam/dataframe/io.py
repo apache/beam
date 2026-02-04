@@ -107,6 +107,7 @@ def read_csv(path, *args, splittable=False, binary=True, **kwargs):
 
 def _as_pc(df, label=None):
   from apache_beam.dataframe import convert  # avoid circular import
+
   # TODO(roberwb): Amortize the computation for multiple writes?
   return convert.to_pcollection(df, yield_elements='pandas', label=label)
 
@@ -791,7 +792,6 @@ class ReadViaPandas(beam.PTransform):
       **kwargs):
     if format == 'csv':
       kwargs['filename_column'] = filename_column
-    self._reader = globals()['read_%s' % format](*args, **kwargs)
     self._reader = globals()['read_%s' % format](*args, **kwargs)
     self._include_indexes = include_indexes
     self._objects_as_strings = objects_as_strings

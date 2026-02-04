@@ -88,7 +88,7 @@ jobs:
       - name: Run QuickStart Java Flink Runner
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
-          gradle-command: :runners:flink:1.19:runQuickstartJavaFlinkLocal
+          gradle-command: :runners:flink:1.20:runQuickstartJavaFlinkLocal
           arguments: |
             -Prepourl=${{ env.APACHE_REPO_URL }} \
             -Pver=${{ env.RELEASE_VERSION }}

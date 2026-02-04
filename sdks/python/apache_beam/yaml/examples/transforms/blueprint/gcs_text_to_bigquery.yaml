@@ -36,6 +36,9 @@ pipeline:
         write_disposition: "WRITE_APPEND"
         num_streams: 1
 
+options:
+  temp_location: "gs://apache-beam-testing/temp"
+
 
 # Expected:
 #  Row(line='Fool\tThou shouldst not have been old till thou hadst')

@@ -238,15 +238,15 @@ looks:
     write:
       folder: 86
       cost:
-        - id: tJWFWW3cnF2CWpmK2zZdXGvWmtNnJgrC
+        - id: J5TtpRykjwPs4W6S88FnJ28Tr8sSHpqN
           title: RunTime and EstimatedCost
       date:
-        - id: J5TtpRykjwPs4W6S88FnJ28Tr8sSHpqN
+        - id: tJWFWW3cnF2CWpmK2zZdXGvWmtNnJgrC
           title: AvgThroughputBytesPerSec by Date
         - id: Jf6qGqN25Zf787DpkNDX5CBpGRvCGMXp
           title: AvgThroughputElementsPerSec by Date
       version:
-        - id: dKyJy5ZKhkBdSTXRY3wZR6fXzptSs2qm
-          title: AvgThroughputBytesPerSec by Version
         - id: Qwxm27qY4fqT4CxXsFfKm2g3734TFJNN
+          title: AvgThroughputBytesPerSec by Version
+        - id: dKyJy5ZKhkBdSTXRY3wZR6fXzptSs2qm
           title: AvgThroughputElementsPerSec by Version
