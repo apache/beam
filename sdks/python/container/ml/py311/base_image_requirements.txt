@@ -158,7 +158,7 @@ pandas==2.2.3
 parameterized==0.9.0
 pg8000==1.31.5
 pillow==12.1.0
-pip==26.0
+pip==25.3
 pluggy==1.6.0
 propcache==0.4.1
 proto-plus==1.27.0
