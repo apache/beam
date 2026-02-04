@@ -84,7 +84,9 @@ _FNAPI_ENVIRONMENT_MAJOR_VERSION = '8'
 
 _LOGGER = logging.getLogger(__name__)
 
-_PYTHON_VERSIONS_SUPPORTED_BY_DATAFLOW = ['3.10', '3.11', '3.12', '3.13', '3.14']
+_PYTHON_VERSIONS_SUPPORTED_BY_DATAFLOW = [
+    '3.10', '3.11', '3.12', '3.13', '3.14'
+]
 
 
 class Environment(object):
