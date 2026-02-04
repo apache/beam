@@ -19,8 +19,8 @@ import random
 import threading
 import time
 import unittest
-from concurrent.futures import TimeoutError
 from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import TimeoutError
 from unittest.mock import patch
 
 from apache_beam.utils import multi_process_shared
