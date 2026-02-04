@@ -296,7 +296,7 @@ class ModelManager:
   1. LRU Caching of idle models.
   2. Resource estimation and admission control (preventing OOM).
   3. Dynamic eviction of low-priority models, determined by count of 
-    pending requests, when space is needed.
+     pending requests, when space is needed.
   4. 'Isolation Mode' for safely profiling unknown models.
   """
   def __init__(
