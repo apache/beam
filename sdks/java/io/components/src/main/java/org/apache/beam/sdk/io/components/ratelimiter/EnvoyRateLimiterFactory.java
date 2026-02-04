@@ -80,8 +80,8 @@ public class EnvoyRateLimiterFactory implements RateLimiterFactory {
     synchronized (this) {
       if (stub == null) {
         RateLimiterClientCache cache = RateLimiterClientCache.getOrCreate(options.getAddress());
-        this.clientCache = cache;
         stub = RateLimitServiceGrpc.newBlockingStub(cache.getChannel());
+        this.clientCache = cache;
       }
     }
   }
@@ -135,14 +135,13 @@ public class EnvoyRateLimiterFactory implements RateLimiterFactory {
             .addDescriptors(descriptorBuilder.build())
             .build();
 
-    boolean blockUntilAllowed = options.isBlockUntilAllowed();
-    int maxRetries = options.getMaxRetries();
+    Integer maxRetries = options.getMaxRetries();
     long timeoutMillis = options.getTimeout().toMillis();
 
     requestsTotal.inc();
     int attempt = 0;
     while (true) {
-      if (!blockUntilAllowed && attempt > maxRetries) {
+      if (maxRetries != null && attempt > maxRetries) {
         return false;
       }
 

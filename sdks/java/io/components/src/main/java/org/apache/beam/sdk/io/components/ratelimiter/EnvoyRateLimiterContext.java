@@ -18,11 +18,11 @@
 package org.apache.beam.sdk.io.components.ratelimiter;
 
 import com.google.auto.value.AutoValue;
-import edu.umd.cs.findbugs.annotations.NonNull;
 import java.util.Map;
 import org.apache.beam.sdk.schemas.AutoValueSchema;
 import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
+import org.checkerframework.checker.nullness.qual.NonNull;
 
 /**
  * Context for an Envoy Rate Limiter call.

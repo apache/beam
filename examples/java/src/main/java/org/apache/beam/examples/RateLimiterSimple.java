@@ -23,6 +23,7 @@ import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.io.components.ratelimiter.EnvoyRateLimiterContext;
 import org.apache.beam.sdk.io.components.ratelimiter.EnvoyRateLimiterFactory;
 import org.apache.beam.sdk.io.components.ratelimiter.RateLimiter;
+import org.apache.beam.sdk.io.components.ratelimiter.RateLimiterContext;
 import org.apache.beam.sdk.io.components.ratelimiter.RateLimiterFactory;
 import org.apache.beam.sdk.io.components.ratelimiter.RateLimiterOptions;
 import org.apache.beam.sdk.options.Description;
@@ -33,6 +34,8 @@ import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
 import org.checkerframework.checker.nullness.qual.Nullable;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * A simple example demonstrating how to use the {@link RateLimiter} in a custom {@link DoFn}.
@@ -45,12 +48,12 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 public class RateLimiterSimple {
 
   public interface Options extends PipelineOptions {
-    @Description("Address of the Envoy Rate Limit Service (e.g., localhost:8081)")
+    @Description("Address of the Envoy Rate Limit Service(eg:localhost:8081)")
     String getRateLimiterAddress();
 
     void setRateLimiterAddress(String value);
 
-    @Description("Domain for the Rate Limit Service")
+    @Description("Domain for the Rate Limit Service(eg:mydomain)")
     String getRateLimiterDomain();
 
     void setRateLimiterDomain(String value);
@@ -59,7 +62,8 @@ public class RateLimiterSimple {
   static class CallExternalServiceFn extends DoFn<String, String> {
     private final String rlsAddress;
     private final String rlsDomain;
-    private transient @Nullable RateLimiter rateLimiter = null;
+    private transient @Nullable RateLimiter rateLimiter;
+    private static final Logger LOG = LoggerFactory.getLogger(CallExternalServiceFn.class);
 
     public CallExternalServiceFn(String rlsAddress, String rlsDomain) {
       this.rlsAddress = rlsAddress;
@@ -72,8 +76,8 @@ public class RateLimiterSimple {
       RateLimiterOptions options = RateLimiterOptions.builder().setAddress(rlsAddress).build();
 
       // Static RateLimtier with pre-configured domain and descriptors
-      EnvoyRateLimiterFactory factory = new EnvoyRateLimiterFactory(options);
-      EnvoyRateLimiterContext context =
+      RateLimiterFactory factory = new EnvoyRateLimiterFactory(options);
+      RateLimiterContext context =
           EnvoyRateLimiterContext.builder()
               .setDomain(rlsDomain)
               .addDescriptor("database", "users")
@@ -102,8 +106,8 @@ public class RateLimiterSimple {
       }
 
       // Simulate external API call
+      LOG.info("Processing: " + element);
       Thread.sleep(100);
-      System.out.println("Processing: " + element);
       c.output("Processed: " + element);
     }
   }

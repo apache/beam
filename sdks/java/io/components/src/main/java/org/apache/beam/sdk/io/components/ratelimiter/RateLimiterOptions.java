@@ -20,6 +20,7 @@ package org.apache.beam.sdk.io.components.ratelimiter;
 import com.google.auto.value.AutoValue;
 import java.io.Serializable;
 import java.time.Duration;
+import javax.annotation.Nullable;
 import org.apache.beam.sdk.schemas.AutoValueSchema;
 import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
 
@@ -29,28 +30,22 @@ import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
 public abstract class RateLimiterOptions implements Serializable {
   public abstract String getAddress();
 
+  @Nullable
+  public abstract Integer getMaxRetries();
+
   public abstract Duration getTimeout();
 
-  public abstract boolean isBlockUntilAllowed();
-
-  public abstract int getMaxRetries();
-
   public static Builder builder() {
-    return new AutoValue_RateLimiterOptions.Builder()
-        .setTimeout(Duration.ofSeconds(5))
-        .setBlockUntilAllowed(true)
-        .setMaxRetries(3);
+    return new AutoValue_RateLimiterOptions.Builder().setTimeout(Duration.ofSeconds(5));
   }
 
   @AutoValue.Builder
   public abstract static class Builder {
     public abstract Builder setAddress(String address);
 
+    public abstract Builder setMaxRetries(Integer maxRetries);
+
     public abstract Builder setTimeout(Duration timeout);
-
-    public abstract Builder setBlockUntilAllowed(boolean blockUntilAllowed);
-
-    public abstract Builder setMaxRetries(int maxRetries);
 
     public abstract RateLimiterOptions build();
   }

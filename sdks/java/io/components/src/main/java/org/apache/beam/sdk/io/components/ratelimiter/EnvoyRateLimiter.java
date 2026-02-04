@@ -22,7 +22,8 @@ import java.io.IOException;
 /**
  * A lightweight handle for an Envoy-based rate limiter.
  *
- * <p>Delegates work to the {@link EnvoyRateLimiterFactory} using the baked-in {@link Context}.
+ * <p>Delegates work to the {@link EnvoyRateLimiterFactory} using the baked-in {@link
+ * EnvoyRateLimiterContext}.
  */
 public class EnvoyRateLimiter implements RateLimiter {
   private final EnvoyRateLimiterFactory factory;
