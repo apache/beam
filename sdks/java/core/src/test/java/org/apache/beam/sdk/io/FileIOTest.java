@@ -563,7 +563,7 @@ public class FileIOTest implements Serializable {
 
   @Test
   @Category({NeedsRunner.class, UsesUnboundedPCollections.class})
-  public void testWriteUnboundedWithCustomBatchParameters() throws IOException {
+  public void testWriteUnboundedWithCustomBatchSize() throws IOException {
     File root = tmpFolder.getRoot();
     List<String> inputs = Arrays.asList("one", "two", "three", "four", "five", "six");
 
@@ -581,9 +581,9 @@ public class FileIOTest implements Serializable {
             .withSuffix(".txt")
             .withAutoSharding()
             .withBatchSize(3)
-            .withBatchSizeBytes(1024 * 1024) // Set high to avoid triggering flushing.
+            .withBatchSizeBytes(1024 * 1024) // Set high to avoid triggering flushing by byte count.
             .withBatchMaxBufferingDuration(
-                Duration.standardMinutes(1)); // Set high to avoid triggering flushing.
+                Duration.standardMinutes(1)); // Set high to avoid triggering flushing by duration.
 
     // Prepare timestamps for the elements.
     List<Long> timestamps = new ArrayList<>();
@@ -607,6 +607,54 @@ public class FileIOTest implements Serializable {
 
     // With auto-sharding, we can't assert on the exact number of output files, but because
     // batch size is 3 and there are 6 elements, we expect at least 2 files.
+    final String pattern = new File(root, "output").getAbsolutePath() + "*";
+    List<Metadata> metadata =
+        FileSystems.match(Collections.singletonList(pattern)).get(0).metadata();
+    assertTrue(metadata.size() >= 2);
+  }
+
+  @Test
+  @Category({NeedsRunner.class, UsesUnboundedPCollections.class})
+  public void testWriteUnboundedWithCustomBatchSizeBytes() throws IOException {
+    File root = tmpFolder.getRoot();
+    // The elements plus newline characters give a total of 4+4+6+5+5+4=28 bytes.
+    List<String> inputs = Arrays.asList("one", "two", "three", "four", "five", "six");
+    // Assign timestamps so that all elements fall into the same 10s window.
+    List<Long> timestamps = Arrays.asList(1L, 2L, 3L, 4L, 5L, 6L);
+
+    FileIO.Write<Void, String> write =
+        FileIO.<String>write()
+            .via(TextIO.sink())
+            .to(root.getAbsolutePath())
+            .withPrefix("output")
+            .withSuffix(".txt")
+            .withAutoSharding()
+            .withBatchSize(1000) // Set high to avoid flushing by record count.
+            .withBatchSizeBytes(10)
+            .withBatchMaxBufferingDuration(
+                Duration.standardMinutes(1)); // Set high to avoid flushing by duration.
+
+    p.apply(Create.timestamped(inputs, timestamps).withCoder(StringUtf8Coder.of()))
+        .setIsBoundedInternal(IsBounded.UNBOUNDED)
+        .apply(
+            Window.<String>into(FixedWindows.of(Duration.standardSeconds(10)))
+                .triggering(AfterWatermark.pastEndOfWindow())
+                .withAllowedLateness(Duration.ZERO)
+                .discardingFiredPanes())
+        .apply(write);
+
+    p.run().waitUntilFinish();
+
+    // Verify that the custom batch parameters are set.
+    assertEquals(1000, write.getBatchSize().intValue());
+    assertEquals(10, write.getBatchSizeBytes().intValue());
+    assertEquals(Duration.standardMinutes(1), write.getBatchMaxBufferingDuration());
+    checkFileContents(root, "output", inputs);
+
+    // With auto-sharding, we cannot assert on the exact number of output files. The BatchSizeBytes
+    // acts as a threshold for flushing; once buffer size reaches 10 bytes, a flush is triggered,
+    // but more items may be added before it completes. With 28 bytes total, we can only guarantee
+    // at least 2 files are produced.
     final String pattern = new File(root, "output").getAbsolutePath() + "*";
     List<Metadata> metadata =
         FileSystems.match(Collections.singletonList(pattern)).get(0).metadata();
