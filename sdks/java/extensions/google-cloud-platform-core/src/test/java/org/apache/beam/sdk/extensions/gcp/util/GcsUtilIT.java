@@ -23,6 +23,7 @@ import static org.junit.Assert.assertNotNull;
 import com.google.api.services.storage.model.Objects;
 import com.google.api.services.storage.model.StorageObject;
 import com.google.cloud.storage.Blob;
+import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.Collections;
@@ -128,6 +129,26 @@ public class GcsUtilIT {
     }
     assertEquals(
         Arrays.asList("shakespeare/kingrichardii.txt", "shakespeare/kingrichardiii.txt"), names);
+  }
+
+  @Test(expected = FileNotFoundException.class)
+  public void testGetBucketOrGetBucketV2OnNonExistentBucket() throws IOException {
+    final GcsPath gcsPath = GcsPath.fromUri("gs://my-random-test-bucket-12345");
+    TestPipelineOptions options =
+        TestPipeline.testingPipelineOptions().as(TestPipelineOptions.class);
+
+    // set the experimental flag.
+    ExperimentalOptions experimentalOptions = options.as(ExperimentalOptions.class);
+    experimentalOptions.setExperiments(Collections.singletonList(experiment));
+
+    GcsOptions gcsOptions = options.as(GcsOptions.class);
+    GcsUtil gcsUtil = gcsOptions.getGcsUtil();
+
+    if (experiment.equals("use_gcsutil_v2")) {
+      gcsUtil.getBucketV2(gcsPath);
+    } else {
+      gcsUtil.getBucket(gcsPath);
+    }
   }
 
   // /** Tests a rewrite operation that requires multiple API calls (using a continuation token). */

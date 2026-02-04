@@ -19,10 +19,15 @@ package org.apache.beam.sdk.extensions.gcp.util;
 
 import com.google.api.gax.paging.Page;
 import com.google.cloud.storage.Blob;
+import com.google.cloud.storage.Bucket;
 import com.google.cloud.storage.Storage;
 import com.google.cloud.storage.Storage.BlobGetOption;
 import com.google.cloud.storage.Storage.BlobListOption;
+import com.google.cloud.storage.Storage.BucketField;
+import com.google.cloud.storage.Storage.BucketGetOption;
+import com.google.cloud.storage.StorageException;
 import com.google.cloud.storage.StorageOptions;
+import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
@@ -85,5 +90,33 @@ class GcsUtilV2 {
   public List<Blob> listBlobs(String bucket, String prefix, @Nullable String pageToken)
       throws IOException {
     return listBlobs(bucket, prefix, pageToken, null);
+  }
+
+  /** Get the {@link Bucket} from Cloud Storage path or propagates an exception. */
+  public @Nullable Bucket getBucket(GcsPath path) throws IOException {
+    Bucket bucket = storage.get(path.getBucket());
+    if (bucket != null) {
+      return bucket;
+    }
+    throw new FileNotFoundException(
+        String.format("The specified bucket does not exist: %s", path.getBucket()));
+  }
+
+  /** Returns whether the GCS bucket exists and is accessible. */
+  public boolean bucketAccessible(GcsPath path) {
+    try {
+      // Only select bucket name as a minimal set of returned fields.
+      return storage.get(path.getBucket(), BucketGetOption.fields(BucketField.NAME)) != null;
+    } catch (StorageException e) {
+      return false;
+    }
+  }
+
+  /**
+   * Checks whether the GCS bucket exists. Similar to {@link #bucketAccessible(GcsPath)}, but throws
+   * exception if the bucket is inaccessible due to permissions or does not exist.
+   */
+  public void verifyBucketAccessible(GcsPath path) throws IOException {
+    storage.get(path.getBucket(), BucketGetOption.fields(BucketField.NAME));
   }
 }

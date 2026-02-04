@@ -314,10 +314,12 @@ public class GcsUtil {
   }
 
   public void verifyBucketAccessible(GcsPath path) throws IOException {
+    if (delegateV2 != null) delegateV2.verifyBucketAccessible(path);
     delegate.verifyBucketAccessible(path);
   }
 
   public boolean bucketAccessible(GcsPath path) throws IOException {
+    if (delegateV2 != null) return delegateV2.bucketAccessible(path);
     return delegate.bucketAccessible(path);
   }
 
@@ -331,6 +333,11 @@ public class GcsUtil {
 
   public @Nullable Bucket getBucket(GcsPath path) throws IOException {
     return delegate.getBucket(path);
+  }
+
+  public com.google.cloud.storage.@Nullable Bucket getBucketV2(GcsPath path) throws IOException {
+    if (delegateV2 != null) return delegateV2.getBucket(path);
+    throw new IOException("GcsUtil2 not initialized.");
   }
 
   public void removeBucket(Bucket bucket) throws IOException {
