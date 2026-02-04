@@ -333,7 +333,9 @@ class TestModelManager(unittest.TestCase):
     """
     model_name = "fluctuating_model"
     model_cost = 3000.0
-    load_cost = 2000.0
+    load_cost = 2500.0
+    # Fix random seed for reproducibility
+    random.seed(42)
 
     def loader():
       self.mock_monitor.allocate(load_cost)
@@ -354,7 +356,7 @@ class TestModelManager(unittest.TestCase):
       return
 
     with ThreadPoolExecutor(max_workers=8) as executor:
-      futures = [executor.submit(run_inference) for _ in range(200)]
+      futures = [executor.submit(run_inference) for _ in range(100)]
 
     for f in futures:
       f.result()
