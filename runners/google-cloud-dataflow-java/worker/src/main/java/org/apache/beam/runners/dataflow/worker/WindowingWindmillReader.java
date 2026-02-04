@@ -120,7 +120,13 @@ class WindowingWindmillReader<K, T> extends NativeReader<WindowedValue<KeyedWork
     final WorkItem workItem = context.getWorkItem();
     KeyedWorkItem<K, T> keyedWorkItem =
         new WindmillKeyedWorkItem<>(
-            key, workItem, windowCoder, windowsCoder, valueCoder, context.getDrainMode());
+            key,
+            workItem,
+            windowCoder,
+            windowsCoder,
+            valueCoder,
+            context.getWindmillTagEncoding(),
+            context.getDrainMode());
     final boolean isEmptyWorkItem =
         (Iterables.isEmpty(keyedWorkItem.timersIterable())
             && Iterables.isEmpty(keyedWorkItem.elementsIterable()));

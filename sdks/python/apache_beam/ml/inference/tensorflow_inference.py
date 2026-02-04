@@ -112,6 +112,8 @@ class TFModelHandlerNumpy(ModelHandler[numpy.ndarray,
       max_batch_duration_secs: Optional[int] = None,
       large_model: bool = False,
       model_copies: Optional[int] = None,
+      max_batch_weight: Optional[int] = None,
+      element_size_fn: Optional[Callable[[Any], int]] = None,
       **kwargs):
     """Implementation of the ModelHandler interface for Tensorflow.
 
@@ -140,28 +142,30 @@ class TFModelHandlerNumpy(ModelHandler[numpy.ndarray,
         model_copies: The exact number of models that you would like loaded
           onto your machine. This can be useful if you exactly know your CPU or
           GPU capacity and want to maximize resource utilization.
+        max_batch_weight: the maximum total weight of a batch.
+        element_size_fn: a function that returns the size (weight) of an
+          element.
         kwargs: 'env_vars' can be used to set environment variables
           before loading the model.
 
     **Supported Versions:** RunInference APIs in Apache Beam have been tested
     with Tensorflow 2.9, 2.10, 2.11.
     """
+    super().__init__(
+        min_batch_size=min_batch_size,
+        max_batch_size=max_batch_size,
+        max_batch_duration_secs=max_batch_duration_secs,
+        max_batch_weight=max_batch_weight,
+        element_size_fn=element_size_fn,
+        large_model=large_model,
+        model_copies=model_copies,
+        **kwargs)
     self._model_uri = model_uri
     self._model_type = model_type
     self._inference_fn = inference_fn
     self._create_model_fn = create_model_fn
-    self._env_vars = kwargs.get('env_vars', {})
     self._load_model_args = {} if not load_model_args else load_model_args
     self._custom_weights = custom_weights
-    self._batching_kwargs = {}
-    if min_batch_size is not None:
-      self._batching_kwargs['min_batch_size'] = min_batch_size
-    if max_batch_size is not None:
-      self._batching_kwargs['max_batch_size'] = max_batch_size
-    if max_batch_duration_secs is not None:
-      self._batching_kwargs["max_batch_duration_secs"] = max_batch_duration_secs
-    self._share_across_processes = large_model or (model_copies is not None)
-    self._model_copies = model_copies or 1
 
   def load_model(self) -> tf.Module:
     """Loads and initializes a Tensorflow model for processing."""
@@ -219,18 +223,6 @@ class TFModelHandlerNumpy(ModelHandler[numpy.ndarray,
     """
     return 'BeamML_TF_Numpy'
 
-  def validate_inference_args(self, inference_args: Optional[dict[str, Any]]):
-    pass
-
-  def batch_elements_kwargs(self):
-    return self._batching_kwargs
-
-  def share_model_across_processes(self) -> bool:
-    return self._share_across_processes
-
-  def model_copies(self) -> int:
-    return self._model_copies
-
 
 class TFModelHandlerTensor(ModelHandler[tf.Tensor, PredictionResult,
                                         tf.Module]):
@@ -248,6 +240,8 @@ class TFModelHandlerTensor(ModelHandler[tf.Tensor, PredictionResult,
       max_batch_duration_secs: Optional[int] = None,
       large_model: bool = False,
       model_copies: Optional[int] = None,
+      max_batch_weight: Optional[int] = None,
+      element_size_fn: Optional[Callable[[Any], int]] = None,
       **kwargs):
     """Implementation of the ModelHandler interface for Tensorflow.
 
@@ -281,28 +275,30 @@ class TFModelHandlerTensor(ModelHandler[tf.Tensor, PredictionResult,
         model_copies: The exact number of models that you would like loaded
           onto your machine. This can be useful if you exactly know your CPU or
           GPU capacity and want to maximize resource utilization.
+        max_batch_weight: the maximum total weight of a batch.
+        element_size_fn: a function that returns the size (weight) of an
+          element.
         kwargs: 'env_vars' can be used to set environment variables
           before loading the model.
 
     **Supported Versions:** RunInference APIs in Apache Beam have been tested
     with Tensorflow 2.11.
     """
+    super().__init__(
+        min_batch_size=min_batch_size,
+        max_batch_size=max_batch_size,
+        max_batch_duration_secs=max_batch_duration_secs,
+        max_batch_weight=max_batch_weight,
+        element_size_fn=element_size_fn,
+        large_model=large_model,
+        model_copies=model_copies,
+        **kwargs)
     self._model_uri = model_uri
     self._model_type = model_type
     self._inference_fn = inference_fn
     self._create_model_fn = create_model_fn
-    self._env_vars = kwargs.get('env_vars', {})
     self._load_model_args = {} if not load_model_args else load_model_args
     self._custom_weights = custom_weights
-    self._batching_kwargs = {}
-    if min_batch_size is not None:
-      self._batching_kwargs['min_batch_size'] = min_batch_size
-    if max_batch_size is not None:
-      self._batching_kwargs['max_batch_size'] = max_batch_size
-    if max_batch_duration_secs is not None:
-      self._batching_kwargs["max_batch_duration_secs"] = max_batch_duration_secs
-    self._share_across_processes = large_model or (model_copies is not None)
-    self._model_copies = model_copies or 1
 
   def load_model(self) -> tf.Module:
     """Loads and initializes a tensorflow model for processing."""
@@ -359,15 +355,3 @@ class TFModelHandlerTensor(ModelHandler[tf.Tensor, PredictionResult,
        A namespace for metrics collected by the RunInference transform.
     """
     return 'BeamML_TF_Tensor'
-
-  def validate_inference_args(self, inference_args: Optional[dict[str, Any]]):
-    pass
-
-  def batch_elements_kwargs(self):
-    return self._batching_kwargs
-
-  def share_model_across_processes(self) -> bool:
-    return self._share_across_processes
-
-  def model_copies(self) -> int:
-    return self._model_copies

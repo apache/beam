@@ -20,6 +20,7 @@ package org.apache.beam.sdk.extensions.sql.meta.catalog;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkState;
 
+import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -95,6 +96,11 @@ public class InMemoryCatalog implements Catalog {
   @Override
   public @Nullable String currentDatabase() {
     return currentDatabase;
+  }
+
+  @Override
+  public Collection<String> databases() {
+    return databases;
   }
 
   @Override

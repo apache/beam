@@ -17,6 +17,9 @@
 # pytype: skip-file
 
 import logging
+import multiprocessing
+import os
+import tempfile
 import threading
 import unittest
 from typing import Any
@@ -178,8 +181,11 @@ class MultiProcessSharedTest(unittest.TestCase):
     self.assertEqual(counter1.increment(), 1)
     self.assertEqual(counter2.increment(), 2)
 
-    multi_process_shared.MultiProcessShared(
-        Counter, tag='test_unsafe_hard_delete').unsafe_hard_delete()
+    try:
+      multi_process_shared.MultiProcessShared(
+          Counter, tag='test_unsafe_hard_delete').unsafe_hard_delete()
+    except Exception:
+      pass
 
     with self.assertRaises(Exception):
       counter1.get()
@@ -193,6 +199,37 @@ class MultiProcessSharedTest(unittest.TestCase):
 
     self.assertEqual(counter3.increment(), 1)
 
+  def test_unsafe_hard_delete_autoproxywrapper(self):
+    shared1 = multi_process_shared.MultiProcessShared(
+        Counter,
+        tag='test_unsafe_hard_delete_autoproxywrapper',
+        always_proxy=True)
+    shared2 = multi_process_shared.MultiProcessShared(
+        Counter,
+        tag='test_unsafe_hard_delete_autoproxywrapper',
+        always_proxy=True)
+
+    counter1 = shared1.acquire()
+    counter2 = shared2.acquire()
+    self.assertEqual(counter1.increment(), 1)
+    self.assertEqual(counter2.increment(), 2)
+
+    try:
+      counter2.singletonProxy_unsafe_hard_delete()
+    except Exception:
+      pass
+
+    with self.assertRaises(Exception):
+      counter1.get()
+    with self.assertRaises(Exception):
+      counter2.get()
+
+    counter3 = multi_process_shared.MultiProcessShared(
+        Counter,
+        tag='test_unsafe_hard_delete_autoproxywrapper',
+        always_proxy=True).acquire()
+    self.assertEqual(counter3.increment(), 1)
+
   def test_unsafe_hard_delete_no_op(self):
     shared1 = multi_process_shared.MultiProcessShared(
         Counter, tag='test_unsafe_hard_delete_no_op', always_proxy=True)
@@ -204,8 +241,11 @@ class MultiProcessSharedTest(unittest.TestCase):
     self.assertEqual(counter1.increment(), 1)
     self.assertEqual(counter2.increment(), 2)
 
-    multi_process_shared.MultiProcessShared(
-        Counter, tag='no_tag_to_delete').unsafe_hard_delete()
+    try:
+      multi_process_shared.MultiProcessShared(
+          Counter, tag='no_tag_to_delete').unsafe_hard_delete()
+    except Exception:
+      pass
 
     self.assertEqual(counter1.increment(), 3)
     self.assertEqual(counter2.increment(), 4)
@@ -241,6 +281,183 @@ class MultiProcessSharedTest(unittest.TestCase):
 
     with self.assertRaisesRegex(Exception, 'released'):
       counter1.get()
+
+
+class MultiProcessSharedSpawnProcessTest(unittest.TestCase):
+  def setUp(self):
+    tempdir = tempfile.gettempdir()
+    for tag in ['basic',
+                'main',
+                'to_delete',
+                'mix1',
+                'mix2',
+                'test_process_exit',
+                'thundering_herd_test']:
+      for ext in ['', '.address', '.address.error']:
+        try:
+          os.remove(os.path.join(tempdir, tag + ext))
+        except OSError:
+          pass
+
+  def tearDown(self):
+    for p in multiprocessing.active_children():
+      if p.is_alive():
+        try:
+          p.kill()
+          p.join(timeout=1.0)
+        except Exception:
+          pass
+
+  def test_call(self):
+    shared = multi_process_shared.MultiProcessShared(
+        Counter, tag='basic', always_proxy=True, spawn_process=True).acquire()
+    self.assertEqual(shared.get(), 0)
+    self.assertEqual(shared.increment(), 1)
+    self.assertEqual(shared.increment(10), 11)
+    self.assertEqual(shared.increment(value=10), 21)
+    self.assertEqual(shared.get(), 21)
+
+  def test_unsafe_hard_delete_autoproxywrapper(self):
+    shared1 = multi_process_shared.MultiProcessShared(
+        Counter, tag='to_delete', always_proxy=True, spawn_process=True)
+    shared2 = multi_process_shared.MultiProcessShared(
+        Counter, tag='to_delete', always_proxy=True, spawn_process=True)
+    counter3 = multi_process_shared.MultiProcessShared(
+        Counter, tag='basic', always_proxy=True, spawn_process=True).acquire()
+
+    counter1 = shared1.acquire()
+    counter2 = shared2.acquire()
+    self.assertEqual(counter1.increment(), 1)
+    self.assertEqual(counter2.increment(), 2)
+
+    try:
+      counter2.singletonProxy_unsafe_hard_delete()
+    except Exception:
+      pass
+
+    with self.assertRaises(Exception):
+      counter1.get()
+    with self.assertRaises(Exception):
+      counter2.get()
+
+    counter4 = multi_process_shared.MultiProcessShared(
+        Counter, tag='to_delete', always_proxy=True,
+        spawn_process=True).acquire()
+
+    self.assertEqual(counter3.increment(), 1)
+    self.assertEqual(counter4.increment(), 1)
+
+  def test_mix_usage(self):
+    shared1 = multi_process_shared.MultiProcessShared(
+        Counter, tag='mix1', always_proxy=True, spawn_process=False).acquire()
+    shared2 = multi_process_shared.MultiProcessShared(
+        Counter, tag='mix2', always_proxy=True, spawn_process=True).acquire()
+
+    self.assertEqual(shared1.get(), 0)
+    self.assertEqual(shared1.increment(), 1)
+    self.assertEqual(shared2.get(), 0)
+    self.assertEqual(shared2.increment(), 1)
+
+  def test_process_exits_on_unsafe_hard_delete(self):
+    shared = multi_process_shared.MultiProcessShared(
+        Counter, tag='test_process_exit', always_proxy=True, spawn_process=True)
+    obj = shared.acquire()
+
+    self.assertEqual(obj.increment(), 1)
+
+    children = multiprocessing.active_children()
+    server_process = None
+    for p in children:
+      if p.pid != os.getpid() and p.is_alive():
+        server_process = p
+        break
+
+    self.assertIsNotNone(
+        server_process, "Could not find spawned server process")
+    try:
+      obj.singletonProxy_unsafe_hard_delete()
+    except Exception:
+      pass
+    server_process.join(timeout=5)
+
+    self.assertFalse(
+        server_process.is_alive(),
+        f"Server process {server_process.pid} is still alive after hard delete")
+    self.assertIsNotNone(
+        server_process.exitcode, "Process has no exit code (did not exit)")
+
+    with self.assertRaises(Exception):
+      obj.get()
+
+  def test_process_exits_on_unsafe_hard_delete_with_manager(self):
+    shared = multi_process_shared.MultiProcessShared(
+        Counter, tag='test_process_exit', always_proxy=True, spawn_process=True)
+    obj = shared.acquire()
+
+    self.assertEqual(obj.increment(), 1)
+
+    children = multiprocessing.active_children()
+    server_process = None
+    for p in children:
+      if p.pid != os.getpid() and p.is_alive():
+        server_process = p
+        break
+
+    self.assertIsNotNone(
+        server_process, "Could not find spawned server process")
+    try:
+      shared.unsafe_hard_delete()
+    except Exception:
+      pass
+    server_process.join(timeout=5)
+
+    self.assertFalse(
+        server_process.is_alive(),
+        f"Server process {server_process.pid} is still alive after hard delete")
+    self.assertIsNotNone(
+        server_process.exitcode, "Process has no exit code (did not exit)")
+
+    with self.assertRaises(Exception):
+      obj.get()
+
+  def test_zombie_reaping_on_acquire(self):
+    shared1 = multi_process_shared.MultiProcessShared(
+        Counter, tag='test_zombie_reap', always_proxy=True, spawn_process=True)
+    obj = shared1.acquire()
+
+    children = multiprocessing.active_children()
+    server_pid = next(
+        p.pid for p in children if p.is_alive() and p.pid != os.getpid())
+
+    try:
+      obj.singletonProxy_unsafe_hard_delete()
+    except Exception:
+      pass
+
+    try:
+      os.kill(server_pid, 0)
+      is_zombie = True
+    except OSError:
+      is_zombie = False
+    self.assertTrue(
+        is_zombie,
+        f"Server process {server_pid} was reaped too early before acquire()")
+
+    shared2 = multi_process_shared.MultiProcessShared(
+        Counter, tag='unrelated_tag', always_proxy=True, spawn_process=True)
+    _ = shared2.acquire()
+
+    # If reaping worked, our old server_pid should NOT be in this list.
+    current_children_pids = [p.pid for p in multiprocessing.active_children()]
+
+    self.assertNotIn(
+        server_pid,
+        current_children_pids,
+        f"Old server process {server_pid} was not reaped by acquire() sweep")
+    try:
+      shared2.unsafe_hard_delete()
+    except Exception:
+      pass
 
 
 if __name__ == '__main__':

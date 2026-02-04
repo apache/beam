@@ -396,6 +396,11 @@ def infer_return_type_func(f, input_types, debug=False, depth=0):
 
   jump_multiplier = 2
 
+  # Python 3.14+ push nulls are used to signal kwargs for CALL_FUNCTION_EX
+  # so there must be a little extra bookkeeping even if we don't care about
+  # the nulls themselves.
+  last_op_push_null = 0
+
   last_pc = -1
   last_real_opname = opname = None
   while pc < end:  # pylint: disable=too-many-nested-blocks
@@ -441,7 +446,8 @@ def infer_return_type_func(f, input_types, debug=False, depth=0):
         elif op in dis.haslocal:
           # Args to double-fast opcodes are bit manipulated, correct the arg
           # for printing + avoid the out-of-index
-          if dis.opname[op] == 'LOAD_FAST_LOAD_FAST':
+          if dis.opname[op] == 'LOAD_FAST_LOAD_FAST' or dis.opname[
+              op] == "LOAD_FAST_BORROW_LOAD_FAST_BORROW":
             print(
                 '(' + co.co_varnames[arg >> 4] + ', ' +
                 co.co_varnames[arg & 15] + ')',
@@ -449,6 +455,8 @@ def infer_return_type_func(f, input_types, debug=False, depth=0):
           elif dis.opname[op] == 'STORE_FAST_LOAD_FAST':
             print('(' + co.co_varnames[arg & 15] + ')', end=' ')
           elif dis.opname[op] == 'STORE_FAST_STORE_FAST':
+            pass
+          elif dis.opname[op] == 'LOAD_DEREF':
             pass
           else:
             print('(' + co.co_varnames[arg] + ')', end=' ')
@@ -512,6 +520,12 @@ def infer_return_type_func(f, input_types, debug=False, depth=0):
         # stack[-has_kwargs]: Map of keyword args.
         # stack[-1 - has_kwargs]: Iterable of positional args.
         # stack[-2 - has_kwargs]: Function to call.
+        if arg is None:
+          # CALL_FUNCTION_EX does not take an arg in 3.14, instead the
+          # signaling for kwargs is done via a PUSH_NULL instruction
+          # right before CALL_FUNCTION_EX. A PUSH_NULL indicates that
+          # there are no kwargs.
+          arg = ~last_op_push_null
         has_kwargs: int = arg & 1
         pop_count = has_kwargs + 2
         if has_kwargs:
@@ -680,6 +694,9 @@ def infer_return_type_func(f, input_types, debug=False, depth=0):
       jmp_state = state.copy()
       jmp_state.stack.pop()
       state.stack.append(element_type(state.stack[-1]))
+    elif opname == 'POP_ITER':
+      # Introduced in 3.14.
+      state.stack.pop()
     elif opname == 'COPY_FREE_VARS':
       # Helps with calling closures, but since we aren't executing
       # them we can treat this as a no-op
@@ -694,6 +711,10 @@ def infer_return_type_func(f, input_types, debug=False, depth=0):
       # We're treating this as a no-op to avoid having to check
       # for extra None values on the stack when we extract return
       # values
+      last_op_push_null = 1
+      pass
+    elif opname == 'NOT_TAKEN':
+      # NOT_TAKEN is a no-op introduced in 3.14.
       pass
     elif opname == 'PRECALL':
       # PRECALL is a no-op.
@@ -726,6 +747,10 @@ def infer_return_type_func(f, input_types, debug=False, depth=0):
 
     else:
       raise TypeInferenceError('unable to handle %s' % opname)
+
+    # Clear check for previous push_null.
+    if opname != 'PUSH_NULL' and last_op_push_null == 1:
+      last_op_push_null = 0
 
     if jmp is not None:
       # TODO(robertwb): Is this guaranteed to converge?

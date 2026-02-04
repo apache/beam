@@ -1515,7 +1515,8 @@ def _check_fn_use_yield_and_return(fn):
           "yield("):
         has_yield = True
       elif lstripped_line.rstrip() == "return":
-        has_return = True
+        # Return is likely used to exit the function - ok to use with 'yield'.
+        pass
       elif lstripped_line.startswith("return ") or lstripped_line.startswith(
           "return("):
         if lstripped_line.rstrip() == "return None" or lstripped_line.rstrip(
@@ -2443,7 +2444,8 @@ class _ExceptionHandlingWrapperDoFn(DoFn):
         try:
           self._on_failure_callback(exn, args[0])
         except Exception as e:
-          logging.warning('on_failure_callback failed with error: %s', e)
+          logging.warning(
+              'on_failure_callback failed with error: %s', e, exc_info=True)
       yield pvalue.TaggedOutput(
           self._dead_letter_tag,
           (

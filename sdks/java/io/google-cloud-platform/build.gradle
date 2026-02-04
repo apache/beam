@@ -88,7 +88,6 @@ dependencies {
   permitUnusedDeclared library.java.google_cloud_core_grpc // BEAM-11761
   implementation library.java.google_cloud_datastore_v1_proto_client
   implementation library.java.google_cloud_firestore
-  implementation library.java.google_cloud_pubsublite
   // GCP PubSub client is used in TestPubSub
   implementation library.java.google_cloud_pubsub
   implementation library.java.google_cloud_spanner
@@ -119,8 +118,6 @@ dependencies {
   implementation library.java.grpc_xds
   permitUnusedDeclared library.java.grpc_xds // BEAM-11761
   implementation library.java.grpc_google_cloud_pubsub_v1
-  implementation library.java.grpc_google_cloud_pubsublite_v1
-  permitUnusedDeclared library.java.grpc_google_cloud_pubsublite_v1 // BEAM-11761
   implementation library.java.guava
   implementation library.java.http_client
   implementation library.java.hamcrest
@@ -139,7 +136,6 @@ dependencies {
   implementation library.java.proto_google_cloud_datastore_v1
   implementation library.java.proto_google_cloud_firestore_v1
   implementation library.java.proto_google_cloud_pubsub_v1
-  implementation library.java.proto_google_cloud_pubsublite_v1
   implementation library.java.proto_google_cloud_spanner_admin_database_v1
   implementation library.java.proto_google_cloud_spanner_v1
   implementation library.java.proto_google_common_protos
@@ -171,7 +167,7 @@ dependencies {
   testImplementation library.java.google_cloud_spanner_test
   testImplementation library.java.google_cloud_bigtable_emulator
   testRuntimeOnly library.java.slf4j_jdk14
-  // everit_json is needed for PubsubLite SchemaTransform tests that rely on JSON-schema translation.
+  // everit_json is needed for Pubsub SchemaTransform that relies on JSON-schema translation.
   permitUnusedDeclared library.java.everit_json_schema
   provided library.java.everit_json_schema
 }

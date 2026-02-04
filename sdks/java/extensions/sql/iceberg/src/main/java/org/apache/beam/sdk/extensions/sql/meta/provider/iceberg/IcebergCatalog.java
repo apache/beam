@@ -19,6 +19,7 @@ package org.apache.beam.sdk.extensions.sql.meta.provider.iceberg;
 
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
 
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
 import org.apache.beam.sdk.extensions.sql.meta.catalog.InMemoryCatalog;
@@ -69,6 +70,11 @@ public class IcebergCatalog extends InMemoryCatalog {
   @Override
   public boolean createDatabase(String database) {
     return catalogConfig.createNamespace(database);
+  }
+
+  @Override
+  public Collection<String> databases() {
+    return catalogConfig.listNamespaces();
   }
 
   @Override

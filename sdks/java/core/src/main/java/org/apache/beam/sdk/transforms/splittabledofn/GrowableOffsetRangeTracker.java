@@ -30,7 +30,7 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.primitives.Uns
  * used as the end of the range to indicate infinity.
  *
  * <p>An offset range is considered growable when the end offset could grow (or change) during
- * execution time (e.g., Kafka topic partition offset, appended file, ...).
+ * execution time (e.g., appended file, ...).
  *
  * <p>The growable range is marked as done by claiming {@code Long.MAX_VALUE}.
  */

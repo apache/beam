@@ -73,9 +73,10 @@ def _default_numpy_inference_fn(
     model: BaseEstimator,
     batch: Sequence[numpy.ndarray],
     inference_args: Optional[dict[str, Any]] = None) -> Any:
+  inference_args = {} if not inference_args else inference_args
   # vectorize data for better performance
   vectorized_batch = numpy.stack(batch, axis=0)
-  return model.predict(vectorized_batch)
+  return model.predict(vectorized_batch, **inference_args)
 
 
 class SklearnModelHandlerNumpy(ModelHandler[numpy.ndarray,
@@ -92,6 +93,8 @@ class SklearnModelHandlerNumpy(ModelHandler[numpy.ndarray,
       max_batch_duration_secs: Optional[int] = None,
       large_model: bool = False,
       model_copies: Optional[int] = None,
+      max_batch_weight: Optional[int] = None,
+      element_size_fn: Optional[Callable[[Any], int]] = None,
       **kwargs):
     """ Implementation of the ModelHandler interface for scikit-learn
     using numpy arrays as input.
@@ -121,22 +124,23 @@ class SklearnModelHandlerNumpy(ModelHandler[numpy.ndarray,
       model_copies: The exact number of models that you would like loaded
         onto your machine. This can be useful if you exactly know your CPU or
         GPU capacity and want to maximize resource utilization.
+      max_batch_weight: the maximum total weight of a batch.
+      element_size_fn: a function that returns the size (weight) of an element.
       kwargs: 'env_vars' can be used to set environment variables
         before loading the model.
     """
+    super().__init__(
+        min_batch_size=min_batch_size,
+        max_batch_size=max_batch_size,
+        max_batch_duration_secs=max_batch_duration_secs,
+        max_batch_weight=max_batch_weight,
+        element_size_fn=element_size_fn,
+        large_model=large_model,
+        model_copies=model_copies,
+        **kwargs)
     self._model_uri = model_uri
     self._model_file_type = model_file_type
     self._model_inference_fn = inference_fn
-    self._batching_kwargs = {}
-    if min_batch_size is not None:
-      self._batching_kwargs['min_batch_size'] = min_batch_size
-    if max_batch_size is not None:
-      self._batching_kwargs['max_batch_size'] = max_batch_size
-    if max_batch_duration_secs is not None:
-      self._batching_kwargs["max_batch_duration_secs"] = max_batch_duration_secs
-    self._env_vars = kwargs.get('env_vars', {})
-    self._share_across_processes = large_model or (model_copies is not None)
-    self._model_copies = model_copies or 1
 
   def load_model(self) -> BaseEstimator:
     """Loads and initializes a model for processing."""
@@ -186,15 +190,6 @@ class SklearnModelHandlerNumpy(ModelHandler[numpy.ndarray,
     """
     return 'BeamML_Sklearn'
 
-  def batch_elements_kwargs(self):
-    return self._batching_kwargs
-
-  def share_model_across_processes(self) -> bool:
-    return self._share_across_processes
-
-  def model_copies(self) -> int:
-    return self._model_copies
-
 
 PandasInferenceFn = Callable[
     [BaseEstimator, Sequence[pandas.DataFrame], Optional[dict[str, Any]]], Any]
@@ -227,6 +222,8 @@ class SklearnModelHandlerPandas(ModelHandler[pandas.DataFrame,
       max_batch_duration_secs: Optional[int] = None,
       large_model: bool = False,
       model_copies: Optional[int] = None,
+      max_batch_weight: Optional[int] = None,
+      element_size_fn: Optional[Callable[[Any], int]] = None,
       **kwargs):
     """Implementation of the ModelHandler interface for scikit-learn that
     supports pandas dataframes.
@@ -259,22 +256,23 @@ class SklearnModelHandlerPandas(ModelHandler[pandas.DataFrame,
       model_copies: The exact number of models that you would like loaded
         onto your machine. This can be useful if you exactly know your CPU or
         GPU capacity and want to maximize resource utilization.
+      max_batch_weight: the maximum total weight of a batch.
+      element_size_fn: a function that returns the size (weight) of an element.
       kwargs: 'env_vars' can be used to set environment variables
         before loading the model.
     """
+    super().__init__(
+        min_batch_size=min_batch_size,
+        max_batch_size=max_batch_size,
+        max_batch_duration_secs=max_batch_duration_secs,
+        max_batch_weight=max_batch_weight,
+        element_size_fn=element_size_fn,
+        large_model=large_model,
+        model_copies=model_copies,
+        **kwargs)
     self._model_uri = model_uri
     self._model_file_type = model_file_type
     self._model_inference_fn = inference_fn
-    self._batching_kwargs = {}
-    if min_batch_size is not None:
-      self._batching_kwargs['min_batch_size'] = min_batch_size
-    if max_batch_size is not None:
-      self._batching_kwargs['max_batch_size'] = max_batch_size
-    if max_batch_duration_secs is not None:
-      self._batching_kwargs["max_batch_duration_secs"] = max_batch_duration_secs
-    self._env_vars = kwargs.get('env_vars', {})
-    self._share_across_processes = large_model or (model_copies is not None)
-    self._model_copies = model_copies or 1
 
   def load_model(self) -> BaseEstimator:
     """Loads and initializes a model for processing."""
@@ -325,12 +323,3 @@ class SklearnModelHandlerPandas(ModelHandler[pandas.DataFrame,
        A namespace for metrics collected by the RunInference transform.
     """
     return 'BeamML_Sklearn'
-
-  def batch_elements_kwargs(self):
-    return self._batching_kwargs
-
-  def share_model_across_processes(self) -> bool:
-    return self._share_across_processes
-
-  def model_copies(self) -> int:
-    return self._model_copies

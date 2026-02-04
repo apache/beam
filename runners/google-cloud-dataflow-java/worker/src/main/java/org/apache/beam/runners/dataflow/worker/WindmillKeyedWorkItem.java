@@ -30,6 +30,7 @@ import org.apache.beam.runners.core.KeyedWorkItemCoder;
 import org.apache.beam.runners.core.TimerInternals.TimerData;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.Timer;
+import org.apache.beam.runners.dataflow.worker.windmill.state.WindmillTagEncoding;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.StructuredCoder;
@@ -67,6 +68,7 @@ public class WindmillKeyedWorkItem<K, ElemT> implements KeyedWorkItem<K, ElemT> 
   private final transient Coder<? extends BoundedWindow> windowCoder;
   private final transient Coder<Collection<? extends BoundedWindow>> windowsCoder;
   private final transient Coder<ElemT> valueCoder;
+  private final WindmillTagEncoding windmillTagEncoding;
 
   public WindmillKeyedWorkItem(
       K key,
@@ -74,12 +76,14 @@ public class WindmillKeyedWorkItem<K, ElemT> implements KeyedWorkItem<K, ElemT> 
       Coder<? extends BoundedWindow> windowCoder,
       Coder<Collection<? extends BoundedWindow>> windowsCoder,
       Coder<ElemT> valueCoder,
+      WindmillTagEncoding windmillTagEncoding,
       boolean drainMode) {
     this.key = key;
     this.workItem = workItem;
     this.windowCoder = windowCoder;
     this.windowsCoder = windowsCoder;
     this.valueCoder = valueCoder;
+    this.windmillTagEncoding = windmillTagEncoding;
     this.drainMode = drainMode;
   }
 
@@ -97,7 +101,7 @@ public class WindmillKeyedWorkItem<K, ElemT> implements KeyedWorkItem<K, ElemT> 
         .append(nonEventTimers)
         .transform(
             timer ->
-                WindmillTimerInternals.windmillTimerToTimerData(
+                windmillTagEncoding.windmillTimerToTimerData(
                     WindmillNamespacePrefix.SYSTEM_NAMESPACE_PREFIX,
                     timer,
                     windowCoder,

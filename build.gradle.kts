@@ -344,6 +344,7 @@ tasks.register("javaioPreCommit") {
   dependsOn(":sdks:java:io:csv:build")
   dependsOn(":sdks:java:io:cdap:build")
   dependsOn(":sdks:java:io:clickhouse:build")
+  dependsOn(":sdks:java:io:datadog:build")
   dependsOn(":sdks:java:io:debezium:expansion-service:build")
   dependsOn(":sdks:java:io:debezium:build")
   dependsOn(":sdks:java:io:elasticsearch:build")
@@ -777,7 +778,7 @@ tasks.register("validateChanges") {
     println("Found ${errors.size} errors")
 
     if (errors.isNotEmpty()) {
-      throw GradleException("CHANGES.md validation failed with the following errors:\n${errors.joinToString("\n")}\n\nYou can run ./gradlew formatChanges to correct some issues.")
+      throw GradleException("CHANGES.md validation failed with the following errors:\n${errors.joinToString("\n")}\n\nYou can run `./gradlew formatChanges` to correct some issues.")
     }
 
     println("CHANGES.md validation successful")
