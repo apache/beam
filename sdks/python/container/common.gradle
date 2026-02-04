@@ -46,23 +46,24 @@ def generatePythonRequirements = tasks.register("generatePythonRequirements") {
               "${pipExtraOptions}"
     }
     // Generate versions for ML dependencies
-    exec {
-      executable 'sh'
-      args '-c', "cd ${rootDir} && ${runScriptsPath} " +
-              "${project.ext.pythonVersion} " +
-              "${files(configurations.sdkSourceTarball.files).singleFile} " +
-              "base_image_requirements.txt " +
+    // Skip for 3.14 since there isn't a tensorflow release that supports it
+    // yet.
+    if ("${project.ext.pythonVersion}" != "3.14") {
+      exec {
+        executable 'sh'
+        args '-c', "cd ${rootDir} && ${runScriptsPath} " +
+                "${project.ext.pythonVersion} " +
+                "${files(configurations.sdkSourceTarball.files).singleFile} " +
+                "base_image_requirements.txt " +
               "container/ml " +
               "[gcp,dataframe,test,ml_cpu,tfrecord,yaml] " +
               "${pipExtraOptions}"
     }
+    }
     // TODO(https://github.com/apache/beam/issues/36637)
-    // Skip generating Python 3.13 requirements for now since not all 3.13
-    // wheels are available/buildable.
-    // Also skip 3.9 because there are some dependency version conflicts. This
-    // is fine since 3.9 will be EoL by the next release, and we can remove
-    // this condition once we remove support entirely.
-    if ("${project.ext.pythonVersion}" != "3.13" && "${project.ext.pythonVersion}" != "3.9") {
+    // Skip generating Python 3.13 and 3.14 requirements for now since not all 3.13
+    // and 3.14 wheels are available/buildable.
+    if ("${project.ext.pythonVersion}" != "3.13" && "${project.ext.pythonVersion}" != "3.14") {
       // GPU requirements not used for any containers directly due to
       // licensing, but can be picked up by customers or other consumers for
       // use.

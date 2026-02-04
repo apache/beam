@@ -494,6 +494,7 @@ tasks.register("pythonPreCommit") {
   dependsOn(":sdks:python:test-suites:tox:py311:preCommitPy311")
   dependsOn(":sdks:python:test-suites:tox:py312:preCommitPy312")
   dependsOn(":sdks:python:test-suites:tox:py313:preCommitPy313")
+  dependsOn(":sdks:python:test-suites:tox:py314:preCommitPy314")
 }
 
 tasks.register("pythonPreCommitIT") {
@@ -510,6 +511,7 @@ tasks.register("pythonDockerBuildPreCommit") {
   dependsOn(":sdks:python:container:py311:docker")
   dependsOn(":sdks:python:container:py312:docker")
   dependsOn(":sdks:python:container:py313:docker")
+  dependsOn(":sdks:python:container:py314:docker")
 }
 
 tasks.register("pythonLintPreCommit") {
@@ -820,14 +822,21 @@ tasks.register("python313PostCommit") {
   dependsOn(":sdks:python:test-suites:portable:py313:postCommitPy313")
 }
 
+tasks.register("python314PostCommit") {
+  dependsOn(":sdks:python:test-suites:dataflow:py314:postCommitIT")
+  dependsOn(":sdks:python:test-suites:direct:py314:postCommitIT")
+  dependsOn(":sdks:python:test-suites:direct:py314:hdfsIntegrationTest")
+  dependsOn(":sdks:python:test-suites:portable:py314:postCommitPy314")
+}
+
 tasks.register("portablePythonPreCommit") {
   dependsOn(":sdks:python:test-suites:portable:py310:preCommitPy310")
-  dependsOn(":sdks:python:test-suites:portable:py313:preCommitPy313")
+  dependsOn(":sdks:python:test-suites:portable:py314:preCommitPy314")
 }
 
 tasks.register("pythonSparkPostCommit") {
   dependsOn(":sdks:python:test-suites:portable:py310:sparkValidatesRunner")
-  dependsOn(":sdks:python:test-suites:portable:py313:sparkValidatesRunner")
+  dependsOn(":sdks:python:test-suites:portable:py314:sparkValidatesRunner")
 }
 
 tasks.register("websitePreCommit") {
