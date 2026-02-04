@@ -64,7 +64,8 @@
 
 ## I/Os
 
-* Add support for Datadog IO (Java) ([#37318](https://github.com/apache/beam/issues/37318)).
+* Add Datadog IO support (Java) ([#37318](https://github.com/apache/beam/issues/37318)).
+* Remove Pubsublite IO support, since service will be deprecated in March 2026. ([#37375](https://github.com/apache/beam/issues/37375)).
 
 ## New Features / Improvements
 
