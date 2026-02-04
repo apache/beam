@@ -241,4 +241,32 @@ public class SparkReceiverIOTest {
     PAssert.that(actual).containsInAnyOrder(expected);
     pipeline.run().waitUntilFinish(Duration.standardSeconds(15));
   }
+
+  @Test
+  public void testReadFromCustomReceiverWithParallelism() {
+    CustomReceiverWithOffset.shouldFailInTheMiddle = false;
+    ReceiverBuilder<String, CustomReceiverWithOffset> receiverBuilder =
+        new ReceiverBuilder<>(CustomReceiverWithOffset.class).withConstructorArgs();
+    SparkReceiverIO.Read<String> reader =
+        SparkReceiverIO.<String>read()
+            .withGetOffsetFn(Long::valueOf)
+            .withTimestampFn(Instant::parse)
+            .withPullFrequencySec(PULL_FREQUENCY_SEC)
+            .withStartPollTimeoutSec(START_POLL_TIMEOUT_SEC)
+            .withStartOffset(START_OFFSET)
+            .withSparkReceiverBuilder(receiverBuilder)
+            .withNumReaders(3);
+
+    List<String> expected = new ArrayList<>();
+    // With sharding enabled in CustomReceiverWithOffset, the total records read
+    // across all workers
+    // should be exactly the set of 0..RECORDS_COUNT-1, each read exactly once.
+    for (int i = 0; i < CustomReceiverWithOffset.RECORDS_COUNT; i++) {
+      expected.add(String.valueOf(i));
+    }
+    PCollection<String> actual = pipeline.apply(reader).setCoder(StringUtf8Coder.of());
+
+    PAssert.that(actual).containsInAnyOrder(expected);
+    pipeline.run().waitUntilFinish(Duration.standardSeconds(15));
+  }
 }
