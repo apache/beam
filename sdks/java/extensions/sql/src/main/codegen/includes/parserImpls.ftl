@@ -600,11 +600,12 @@ SqlCreate SqlCreateExternalTable(Span s, boolean replace) :
 }
 
 /**
+ * Loosely following Flink's grammar: https://nightlies.apache.org/flink/flink-docs-release-1.20/docs/dev/table/sql/alter/#alter-table
  * ALTER TABLE table_name
- *   [ ADD COLUMN <> ]
- *   [ DROP COLUMN <> ]
- *   [ ADD PARTITION <> ]
- *   [ DROP PARTITION <> ]
+ *   [ ADD COLUMNS <column_def, column_def, ...> ]
+ *   [ DROP COLUMNS <column_name, column_name> ]
+ *   [ ADD PARTITIONS <partition_field, partition_field, ...> ]
+ *   [ DROP PARTITIONS <partition_field, partition_field, ...> ]
  *   [ SET (key1=val1, key2=val2, ...) ]
  *   [ (RESET | UNSET) (key1, key2, ...) ]
  */

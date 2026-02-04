@@ -46,6 +46,7 @@ import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.sql.SqlUtil;
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.sql.SqlWriter;
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.sql.parser.SqlParserPos;
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.util.Pair;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Strings;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
@@ -60,6 +61,10 @@ public class SqlAlterTable extends SqlAlter implements BeamSqlParser.ExecutableS
   private final @Nullable SqlNodeList setProps;
   private final @Nullable SqlNodeList resetProps;
 
+  /**
+   * Called by the auto-generated {@link org.apache.beam.sdk.extensions.sql.impl.parser.impl.BeamSqlParserImpl}.
+   * Check SqlAlterTable in `sql/src/main/codegen/includesparserImpls.ftl` to see the corresponding SQL syntax
+   */
   public SqlAlterTable(
       SqlParserPos pos,
       @Nullable String scope,
@@ -148,6 +153,12 @@ public class SqlAlterTable extends SqlAlter implements BeamSqlParser.ExecutableS
 
   @Override
   public void unparseAlterOperation(SqlWriter writer, int left, int right) {
+    unparse(writer, left, right);
+  }
+
+  @Override
+  public void unparse(SqlWriter writer, int left, int right) {
+    writer.keyword("ALTER");
     writer.keyword("TABLE");
     name.unparse(writer, left, right);
 
@@ -215,15 +226,15 @@ public class SqlAlterTable extends SqlAlter implements BeamSqlParser.ExecutableS
   private void unparseColumn(SqlWriter writer, Field column) {
     writer.sep(",");
     writer.identifier(column.getName(), false);
-    writer.identifier(CalciteUtils.toSqlTypeName(column.getType()).name(), false);
+    writer.keyword(CalciteUtils.toSqlTypeName(column.getType()).name());
 
     if (column.getType().getNullable() != null && !column.getType().getNullable()) {
       writer.keyword("NOT NULL");
     }
 
-    if (column.getDescription() != null) {
+    if (!Strings.isNullOrEmpty(column.getDescription())) {
       writer.keyword("COMMENT");
-      writer.literal(column.getDescription());
+      writer.identifier(column.getDescription(), true);
     }
   }
 

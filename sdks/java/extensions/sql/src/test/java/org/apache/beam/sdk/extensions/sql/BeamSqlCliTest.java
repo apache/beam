@@ -35,9 +35,11 @@ import static org.junit.Assert.assertNull;
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 import java.util.stream.Stream;
 import org.apache.beam.sdk.extensions.sql.impl.ParseException;
+import org.apache.beam.sdk.extensions.sql.impl.parser.SqlAlterTable;
 import org.apache.beam.sdk.extensions.sql.meta.Table;
 import org.apache.beam.sdk.extensions.sql.meta.catalog.InMemoryCatalogManager;
 import org.apache.beam.sdk.extensions.sql.meta.provider.test.TestTableProvider;
@@ -46,6 +48,13 @@ import org.apache.beam.sdk.extensions.sql.meta.store.InMemoryMetaStore;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.Field;
 import org.apache.beam.sdk.values.Row;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.sql.SqlIdentifier;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.sql.SqlLiteral;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.sql.SqlNode;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.sql.SqlNodeList;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.sql.dialect.AnsiSqlDialect;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.sql.parser.SqlParserPos;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.sql.pretty.SqlPrettyWriter;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
@@ -376,5 +385,168 @@ public class BeamSqlCliTest {
     assertEquals("456", tableWithRows.getTable().getProperties().get("foo").asText());
     assertEquals("xyz", tableWithRows.getTable().getProperties().get("baz").asText());
     assertFalse(tableWithRows.getTable().getProperties().has("bar"));
+  }
+
+  private static final SqlParserPos POS = SqlParserPos.ZERO;
+
+  @Test
+  public void testUnparseAlter_AddColumns() {
+    SqlNode tableName = new SqlIdentifier("test_table", POS);
+
+    Field col1 = Field.of("new_col_1", Schema.FieldType.STRING).withNullable(true);
+    Field col2 =
+        Field.of("new_col_2", Schema.FieldType.INT64)
+            .withNullable(false)
+            .withDescription("description for col2");
+
+    List<Field> columnsToAdd = Arrays.asList(col1, col2);
+
+    SqlAlterTable alterTable =
+        new SqlAlterTable(POS, null, tableName, columnsToAdd, null, null, null, null, null);
+
+    String expectedSql =
+        "ALTER TABLE `test_table` "
+            + "ADD COLUMNS (`new_col_1` VARCHAR, "
+            + "`new_col_2` BIGINT NOT NULL COMMENT `description for col2`)";
+
+    assertEquals(expectedSql, toSql(alterTable));
+  }
+
+  @Test
+  public void testUnparseAlter_DropColumns() {
+    SqlNode tableName = new SqlIdentifier("test_table", POS);
+
+    SqlNodeList columnsToDrop = createStringList("col_to_drop_1", "col_to_drop_2");
+
+    SqlAlterTable alterTable =
+        new SqlAlterTable(POS, null, tableName, null, columnsToDrop, null, null, null, null);
+
+    String expectedSql = "ALTER TABLE `test_table` DROP COLUMNS (`col_to_drop_1`, `col_to_drop_2`)";
+    assertEquals(expectedSql, toSql(alterTable));
+  }
+
+  @Test
+  public void testUnparseAlter_AddColumnsAndDropColumns() {
+    SqlNode tableName = new SqlIdentifier("test_table", POS);
+
+    // Setup Add
+    Field col1 = Field.of("new_col", Schema.FieldType.BOOLEAN).withNullable(true);
+    List<Field> columnsToAdd = Arrays.asList(col1);
+
+    // Setup Drop
+    SqlNodeList columnsToDrop = createStringList("col_to_drop");
+
+    SqlAlterTable alterTable =
+        new SqlAlterTable(
+            POS, null, tableName, columnsToAdd, columnsToDrop, null, null, null, null);
+
+    // unparses DROP before ADD
+    String expectedSql =
+        "ALTER TABLE `test_table` "
+            + "DROP COLUMNS (`col_to_drop`) "
+            + "ADD COLUMNS (`new_col` BOOLEAN)";
+
+    assertEquals(expectedSql, toSql(alterTable));
+  }
+
+  @Test
+  public void testUnparseAlter_AddAndDropPartitions() {
+    SqlNode tableName = new SqlIdentifier("test_table", POS);
+
+    SqlNodeList partsToAdd = createStringList("p1", "p2");
+    SqlNodeList partsToDrop = createStringList("p3");
+
+    SqlAlterTable alterTable =
+        new SqlAlterTable(POS, null, tableName, null, null, partsToAdd, partsToDrop, null, null);
+
+    // unparses DROP before ADD
+    String expectedSql =
+        "ALTER TABLE `test_table` DROP PARTITIONS (`p3`) ADD PARTITIONS (`p1`, `p2`)";
+
+    assertEquals(expectedSql, toSql(alterTable));
+  }
+
+  @Test
+  public void testUnparseAlter_TableProperties() {
+    SqlNode tableName = new SqlIdentifier("test_table", POS);
+
+    SqlNodeList setProps = new SqlNodeList(POS);
+    setProps.add(createPropertyPair("prop1", "val1"));
+
+    SqlNodeList resetProps = createStringList("prop2");
+
+    SqlAlterTable alterTable =
+        new SqlAlterTable(POS, null, tableName, null, null, null, null, setProps, resetProps);
+
+    // unparses RESET before SET
+    String expectedSql = "ALTER TABLE `test_table` RESET ('prop2') SET ('prop1' = 'val1')";
+
+    assertEquals(expectedSql, toSql(alterTable));
+  }
+
+  @Test
+  public void testUnparseAlter_AllOperations() {
+    // A comprehensive test combining all clauses to verify strict ordering
+    SqlNode tableName = new SqlIdentifier("full_table", POS);
+
+    List<Field> addCols = Collections.singletonList(Field.of("c1", Schema.FieldType.BOOLEAN));
+    SqlNodeList dropCols = createStringList("c_old");
+    SqlNodeList addParts = createStringList("p_new");
+    SqlNodeList dropParts = createStringList("p_old");
+    SqlNodeList setProps = new SqlNodeList(POS);
+    setProps.add(createPropertyPair("k", "v"));
+    SqlNodeList resetProps = createStringList("k_reset");
+
+    SqlAlterTable alterTable =
+        new SqlAlterTable(
+            POS, null, tableName, addCols, dropCols, addParts, dropParts, setProps, resetProps);
+
+    // Expected Order based on source code:
+    // 1. DROP COLUMNS
+    // 2. ADD COLUMNS
+    // 3. DROP PARTITIONS
+    // 4. ADD PARTITIONS
+    // 5. RESET
+    // 6. SET
+    String expectedSql =
+        "ALTER TABLE `full_table` "
+            + "DROP COLUMNS (`c_old`) "
+            + "ADD COLUMNS (`c1` BOOLEAN NOT NULL) "
+            + "DROP PARTITIONS (`p_old`) "
+            + "ADD PARTITIONS (`p_new`) "
+            + "RESET ('k_reset') "
+            + "SET ('k' = 'v')";
+
+    assertEquals(expectedSql, toSql(alterTable));
+  }
+
+  /** Helper to execute the unparse mechanism using a PrettyWriter. */
+  private String toSql(SqlAlterTable node) {
+    SqlPrettyWriter writer = new SqlPrettyWriter(AnsiSqlDialect.DEFAULT);
+    writer.setAlwaysUseParentheses(false);
+    writer.setSelectListItemsOnSeparateLines(false);
+    writer.setIndentation(0);
+    node.unparse(writer, 0, 0);
+    return writer.toSqlString().getSql();
+  }
+
+  /**
+   * Helper to create a list of string literals. Useful for Drop Columns, Add/Drop Partitions, Reset
+   * Props.
+   */
+  private SqlNodeList createStringList(String... values) {
+    SqlNodeList list = new SqlNodeList(POS);
+    for (String val : values) {
+      list.add(SqlLiteral.createCharString(val, POS));
+    }
+    return list;
+  }
+
+  /** Helper to create Key=Value pair for Set Properties. */
+  private SqlNodeList createPropertyPair(String key, String value) {
+    SqlNodeList pair = new SqlNodeList(POS);
+    pair.add(SqlLiteral.createCharString(key, POS));
+    pair.add(SqlLiteral.createCharString(value, POS));
+    return pair;
   }
 }

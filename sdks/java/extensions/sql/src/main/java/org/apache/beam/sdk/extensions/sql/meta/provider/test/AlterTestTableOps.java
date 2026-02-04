@@ -76,7 +76,7 @@ public class AlterTestTableOps implements AlterTableOps {
 
     // update existing rows
     List<Row> rows = tableWithRows.getRows();
-    List<Row> newRows = new CopyOnWriteArrayList<>();
+    ImmutableList.Builder<Row> newRows = ImmutableList.builderWithExpectedSize(rows.size());
     for (Row row : rows) {
       Map<String, Object> values = new HashMap<>();
       // add existing values, minus dropped columns
@@ -89,7 +89,7 @@ public class AlterTestTableOps implements AlterTableOps {
       Row newRow = Row.withSchema(newSchema).withFieldValues(values).build();
       newRows.add(newRow);
     }
-    tableWithRows.setRows(newRows);
+    tableWithRows.setRows(new CopyOnWriteArrayList<Row>(newRows.build()));
   }
 
   @Override

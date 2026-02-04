@@ -64,7 +64,6 @@ public class IcebergMetastore extends InMemoryMetaStore {
         Map<String, String> properties =
             TableUtils.getObjectMapper()
                 .convertValue(table.getProperties(), new TypeReference<Map<String, String>>() {});
-        ;
         catalogConfig.createTable(
             identifier, table.getSchema(), table.getPartitionFields(), properties);
       } catch (TableAlreadyExistsException e) {

@@ -49,6 +49,10 @@ public class SqlAlterCatalog extends SqlAlter implements BeamSqlParser.Executabl
   private final @Nullable SqlNodeList setProps;
   private final @Nullable SqlNodeList resetProps;
 
+  /**
+   * Called by the auto-generated {@link org.apache.beam.sdk.extensions.sql.impl.parser.impl.BeamSqlParserImpl}.
+   * Check SqlAlterCatalog in `sql/src/main/codegen/includesparserImpls.ftl` to see the corresponding SQL syntax
+   */
   public SqlAlterCatalog(
       SqlParserPos pos,
       @Nullable String scope,
@@ -96,6 +100,12 @@ public class SqlAlterCatalog extends SqlAlter implements BeamSqlParser.Executabl
 
   @Override
   public void unparseAlterOperation(SqlWriter writer, int left, int right) {
+    unparse(writer, left, right);
+  }
+
+  @Override
+  public void unparse(SqlWriter writer, int left, int right) {
+    writer.keyword("ALTER");
     writer.keyword("CATALOG");
     name.unparse(writer, left, right);
     if (setProps != null && !setProps.isEmpty()) {
@@ -121,15 +131,15 @@ public class SqlAlterCatalog extends SqlAlter implements BeamSqlParser.Executabl
 
     if (resetProps != null) {
       writer.keyword("RESET");
-      writer.sep("(");
+      writer.keyword("(");
       for (int i = 0; i < resetProps.size(); i++) {
         if (i > 0) {
-          writer.sep(",");
+          writer.keyword(",");
         }
         SqlNode field = resetProps.get(i);
         field.unparse(writer, 0, 0);
       }
-      writer.sep(")");
+      writer.keyword(")");
     }
   }
 
