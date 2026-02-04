@@ -62,8 +62,9 @@ public class SqlAlterTable extends SqlAlter implements BeamSqlParser.ExecutableS
   private final @Nullable SqlNodeList resetProps;
 
   /**
-   * Called by the auto-generated {@link org.apache.beam.sdk.extensions.sql.impl.parser.impl.BeamSqlParserImpl}.
-   * Check SqlAlterTable in `sql/src/main/codegen/includesparserImpls.ftl` to see the corresponding SQL syntax
+   * Called by the auto-generated {@link
+   * org.apache.beam.sdk.extensions.sql.impl.parser.impl.BeamSqlParserImpl}. Check SqlAlterTable in
+   * `sql/src/main/codegen/includesparserImpls.ftl` to see the corresponding SQL syntax
    */
   public SqlAlterTable(
       SqlParserPos pos,
