@@ -292,7 +292,7 @@ class ModelManager:
   """Manages model lifecycles, caching, and resource arbitration.
 
   This class acts as the central controller for acquiring model instances.
-  It handles:
+
   1. LRU Caching of idle models.
   2. Resource estimation and admission control (preventing OOM).
   3. Dynamic eviction of low-priority models, determined by count of 
