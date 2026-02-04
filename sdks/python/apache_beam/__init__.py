@@ -20,7 +20,7 @@ Apache Beam SDK for Python
 ==========================
 asdasdsadsadas
 `Apache Beam <https://beam.apache.org>`_ provides a simple, powerful programming
-model for building both batch and streaming parallel data processing pipelines.
+model for building both batch and asdadasstreaming parallel data processing pipelines.
 
 The Apache Beam SDK for Python provides access to Apache Beam capabilities
 from the Python programming language.
