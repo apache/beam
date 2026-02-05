@@ -15,7 +15,7 @@
 # limitations under the License.
 #
 
-"""This batch pipeline performs image captioning using a multi-model approach:
+"""This pipeline performs image captioning using a multi-model approach:
 BLIP generates candidate captions, CLIP ranks them by image-text similarity.
 
 The pipeline reads image URIs from a GCS input file, decodes images, runs BLIP

@@ -1,5 +1,3 @@
-#  Licensed to the Apache Software Foundation (ASF) under one
-#  or more contributor license agreements.  See the NOTICE file
 #  distributed with this work for additional information
 #  regarding copyright ownership.  The ASF licenses this file
 #  to you under the Apache License, Version 2.0 (the
@@ -21,21 +19,20 @@
 --autoscaling_algorithm=NONE
 --staging_location=gs://temp-storage-for-perf-tests/loadtests
 --temp_location=gs://temp-storage-for-perf-tests/loadtests
---requirements_file=apache_beam/ml/inference/pytorch_image_object_detection_requirements.txt
+--requirements_file=apache_beam/ml/inference/pytorch_image_captioning_requirements.txt
 --publish_to_big_query=true
 --metrics_dataset=beam_run_inference
---metrics_table=result_torch_inference_image_object_detection_batch
+--metrics_table=result_torch_inference_image_captioning_batch
 --input_options={}
---influx_measurement=result_torch_inference_image_object_detection_batch
---pretrained_model_name=fasterrcnn_resnet50_fpn
---device=GPU
---mode=batch
---inference_batch_size=8
---resize_shorter_side=800
---score_threshold=0.5
---max_detections=50
+--influx_measurement=result_torch_inference_image_captioning_batch
 --input=gs://apache-beam-ml/testing/inputs/openimage_50k_benchmark.txt
---model_state_dict_path=gs://apache-beam-ml/models/torchvision.detection.fasterrcnn_resnet50_fpn.pth
+--blip_model_name=Salesforce/blip-image-captioning-base
+--blip_batch_size=4
+--num_captions=5
+--max_new_tokens=30
+--num_beams=5
+--clip_model_name=openai/clip-vit-base-patch32
+--clip_batch_size=8
+--clip_score_normalize=false
 --runner=DataflowRunner
 --experiments=use_runner_v2
---worker_accelerator=type=nvidia-tesla-t4,count=1,install-nvidia-driver=true

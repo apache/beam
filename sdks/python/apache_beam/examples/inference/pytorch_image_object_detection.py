@@ -15,7 +15,7 @@
 # limitations under the License.
 #
 
-"""This batch pipeline performs object detection using an open-source PyTorch
+"""This pipeline performs object detection using an open-source PyTorch
 TorchVision detection model (e.g., Faster R-CNN ResNet50 FPN) on GPU.
 
 It reads image URIs from a GCS input file, decodes and preprocesses images,
