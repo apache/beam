@@ -2351,14 +2351,24 @@ public class DoFnSignatures {
     }
 
     try {
-      TypeDescriptor<?> valueStateType = stateType.getSupertype(ValueState.class);
-      Type type = valueStateType.getType();
+      // Get the type directly and extract ValueState's type parameter
+      Type type = stateType.getType();
       if (!(type instanceof ParameterizedType)) {
         return;
       }
 
-      Type valueType = ((ParameterizedType) type).getActualTypeArguments()[0];
-      if (valueType instanceof java.lang.reflect.TypeVariable
+      // Find ValueState in the type hierarchy and get its type argument
+      Type valueType = null;
+      ParameterizedType pType = (ParameterizedType) type;
+      if (pType.getRawType() == ValueState.class) {
+        valueType = pType.getActualTypeArguments()[0];
+      } else {
+        // For subtypes of ValueState, we need to resolve the type parameter
+        return;
+      }
+
+      if (valueType == null
+          || valueType instanceof java.lang.reflect.TypeVariable
           || valueType instanceof java.lang.reflect.WildcardType) {
         // Cannot determine actual type, skip warning
         return;
