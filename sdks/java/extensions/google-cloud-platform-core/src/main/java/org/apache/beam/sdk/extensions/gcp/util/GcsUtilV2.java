@@ -29,6 +29,7 @@ import com.google.cloud.storage.StorageException;
 import com.google.cloud.storage.StorageOptions;
 import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.nio.file.AccessDeniedException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -92,18 +93,29 @@ class GcsUtilV2 {
     return listBlobs(bucket, prefix, pageToken, null);
   }
 
+  @SuppressWarnings({
+    "nullness" // For Creating AccessDeniedException with null.
+  })
   /** Get the {@link Bucket} from Cloud Storage path or propagates an exception. */
   public @Nullable Bucket getBucket(GcsPath path) throws IOException {
-    Bucket bucket = storage.get(path.getBucket());
-    if (bucket != null) {
-      return bucket;
+    try {
+      Bucket bucket = storage.get(path.getBucket());
+      if (bucket != null) {
+        return bucket;
+      }
+    } catch (StorageException e) {
+      if (e.getCode() == 403) { // 403 Forbidden
+        throw new AccessDeniedException(path.toString(), null, e.getMessage());
+      } else {
+        throw e;
+      }
     }
     throw new FileNotFoundException(
         String.format("The specified bucket does not exist: %s", path.getBucket()));
   }
 
   /** Returns whether the GCS bucket exists and is accessible. */
-  public boolean bucketAccessible(GcsPath path) {
+  public boolean bucketAccessible(GcsPath path) throws IOException {
     try {
       // Only select bucket name as a minimal set of returned fields.
       return storage.get(path.getBucket(), BucketGetOption.fields(BucketField.NAME)) != null;

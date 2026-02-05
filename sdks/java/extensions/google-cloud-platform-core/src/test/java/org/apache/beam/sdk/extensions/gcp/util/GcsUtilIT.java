@@ -18,13 +18,13 @@
 package org.apache.beam.sdk.extensions.gcp.util;
 
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
 
 import com.google.api.services.storage.model.Objects;
 import com.google.api.services.storage.model.StorageObject;
 import com.google.cloud.storage.Blob;
 import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.nio.file.AccessDeniedException;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
@@ -35,6 +35,7 @@ import org.apache.beam.sdk.options.ExperimentalOptions;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.TestPipelineOptions;
 import org.apache.beam.sdk.testing.UsesKms;
+import org.junit.Before;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
 import org.junit.runner.RunWith;
@@ -60,21 +61,25 @@ public class GcsUtilIT {
 
   @Parameter public String experiment;
 
-  @Test
-  public void testFileSize() throws IOException {
-    final GcsPath gcsPath = GcsPath.fromUri("gs://apache-beam-samples/shakespeare/kinglear.txt");
-    final long expectedSize = 157283L;
+  private TestPipelineOptions options;
+  private GcsUtil gcsUtil;
 
-    TestPipelineOptions options =
-        TestPipeline.testingPipelineOptions().as(TestPipelineOptions.class);
+  @Before
+  public void setUp() {
+    options = TestPipeline.testingPipelineOptions().as(TestPipelineOptions.class);
 
     // set the experimental flag.
     ExperimentalOptions experimentalOptions = options.as(ExperimentalOptions.class);
     experimentalOptions.setExperiments(Collections.singletonList(experiment));
 
     GcsOptions gcsOptions = options.as(GcsOptions.class);
-    GcsUtil gcsUtil = gcsOptions.getGcsUtil();
-    assertNotNull(gcsUtil);
+    gcsUtil = gcsOptions.getGcsUtil();
+  }
+
+  @Test
+  public void testFileSize() throws IOException {
+    final GcsPath gcsPath = GcsPath.fromUri("gs://apache-beam-samples/shakespeare/kinglear.txt");
+    final long expectedSize = 157283L;
 
     assertEquals(expectedSize, gcsUtil.fileSize(gcsPath));
   }
@@ -83,16 +88,6 @@ public class GcsUtilIT {
   public void testGetObjectOrGetBlob() throws IOException {
     final GcsPath gcsPath = GcsPath.fromUri("gs://apache-beam-samples/shakespeare/kinglear.txt");
     final String expectedCRC = "s0a3Tg==";
-
-    TestPipelineOptions options =
-        TestPipeline.testingPipelineOptions().as(TestPipelineOptions.class);
-
-    // set the experimental flag.
-    ExperimentalOptions experimentalOptions = options.as(ExperimentalOptions.class);
-    experimentalOptions.setExperiments(Collections.singletonList(experiment));
-
-    GcsOptions gcsOptions = options.as(GcsOptions.class);
-    GcsUtil gcsUtil = gcsOptions.getGcsUtil();
 
     String crc;
     if (experiment.equals("use_gcsutil_v2")) {
@@ -109,15 +104,6 @@ public class GcsUtilIT {
   public void testListObjectsOrListBlobs() throws IOException {
     final String bucket = "apache-beam-samples";
     final String prefix = "shakespeare/kingrichard";
-    TestPipelineOptions options =
-        TestPipeline.testingPipelineOptions().as(TestPipelineOptions.class);
-
-    // set the experimental flag.
-    ExperimentalOptions experimentalOptions = options.as(ExperimentalOptions.class);
-    experimentalOptions.setExperiments(Collections.singletonList(experiment));
-
-    GcsOptions gcsOptions = options.as(GcsOptions.class);
-    GcsUtil gcsUtil = gcsOptions.getGcsUtil();
 
     List<String> names;
     if (experiment.equals("use_gcsutil_v2")) {
@@ -131,24 +117,50 @@ public class GcsUtilIT {
         Arrays.asList("shakespeare/kingrichardii.txt", "shakespeare/kingrichardiii.txt"), names);
   }
 
+  @Test
+  public void testGetBucketOrGetBucketV2OnAccessibleBucket() throws IOException {
+    final GcsPath gcsPath = GcsPath.fromUri("gs://apache-beam-samples");
+
+    String bucket;
+    if (experiment.equals("use_gcsutil_v2")) {
+      bucket = gcsUtil.getBucketV2(gcsPath).getName();
+    } else {
+      bucket = gcsUtil.getBucket(gcsPath).getName();
+    }
+    assertEquals("apache-beam-samples", bucket);
+  }
+
   @Test(expected = FileNotFoundException.class)
   public void testGetBucketOrGetBucketV2OnNonExistentBucket() throws IOException {
     final GcsPath gcsPath = GcsPath.fromUri("gs://my-random-test-bucket-12345");
-    TestPipelineOptions options =
-        TestPipeline.testingPipelineOptions().as(TestPipelineOptions.class);
-
-    // set the experimental flag.
-    ExperimentalOptions experimentalOptions = options.as(ExperimentalOptions.class);
-    experimentalOptions.setExperiments(Collections.singletonList(experiment));
-
-    GcsOptions gcsOptions = options.as(GcsOptions.class);
-    GcsUtil gcsUtil = gcsOptions.getGcsUtil();
 
     if (experiment.equals("use_gcsutil_v2")) {
       gcsUtil.getBucketV2(gcsPath);
     } else {
       gcsUtil.getBucket(gcsPath);
     }
+  }
+
+  @Test(expected = AccessDeniedException.class)
+  public void testGetBucketOrGetBucketV2OnForbiddenBucket() throws IOException {
+    final GcsPath gcsPath = GcsPath.fromUri("gs://test-bucket");
+
+    if (experiment.equals("use_gcsutil_v2")) {
+      gcsUtil.getBucketV2(gcsPath);
+    } else {
+      gcsUtil.getBucket(gcsPath);
+    }
+  }
+
+  @Test
+  public void testBucketAccessible() throws IOException {
+    final GcsPath accessiblePath = GcsPath.fromUri("gs://apache-beam-samples");
+    final GcsPath nonExistentPath = GcsPath.fromUri("gs://my-random-test-bucket-12345");
+    final GcsPath forbiddenPath = GcsPath.fromUri("gs://test-bucket");
+
+    assertEquals(true, gcsUtil.bucketAccessible(accessiblePath));
+    assertEquals(false, gcsUtil.bucketAccessible(nonExistentPath));
+    assertEquals(false, gcsUtil.bucketAccessible(forbiddenPath));
   }
 
   // /** Tests a rewrite operation that requires multiple API calls (using a continuation token). */
