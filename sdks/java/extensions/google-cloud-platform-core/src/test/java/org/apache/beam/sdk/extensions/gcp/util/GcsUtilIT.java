@@ -163,6 +163,13 @@ public class GcsUtilIT {
     assertEquals(false, gcsUtil.bucketAccessible(forbiddenPath));
   }
 
+  @Test
+  public void testBucketOwner() throws IOException {
+    final GcsPath gcsPath = GcsPath.fromUri("gs://apache-beam-samples");
+    final long expectedProjectNumber = 844138762903L; // apache-beam-testing
+    assertEquals(expectedProjectNumber, gcsUtil.bucketOwner(gcsPath));
+  }
+
   // /** Tests a rewrite operation that requires multiple API calls (using a continuation token). */
   // @Test
   // public void testRewriteMultiPart() throws IOException {

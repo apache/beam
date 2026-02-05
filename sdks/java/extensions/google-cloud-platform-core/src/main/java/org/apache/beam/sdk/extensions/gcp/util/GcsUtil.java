@@ -324,6 +324,7 @@ public class GcsUtil {
   }
 
   public long bucketOwner(GcsPath path) throws IOException {
+    if (delegateV2 != null) return delegateV2.bucketProject(path);
     return delegate.bucketOwner(path);
   }
 

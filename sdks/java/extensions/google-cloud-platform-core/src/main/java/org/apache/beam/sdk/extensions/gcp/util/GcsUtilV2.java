@@ -131,4 +131,14 @@ class GcsUtilV2 {
   public void verifyBucketAccessible(GcsPath path) throws IOException {
     storage.get(path.getBucket(), BucketGetOption.fields(BucketField.NAME));
   }
+
+  /**
+   * Returns the project number of the project which owns this bucket. If the bucket exists, it must
+   * be accessible otherwise the permissions exception will be propagated. If the bucket does not
+   * exist, an exception will be thrown.
+   */
+  public long bucketProject(GcsPath path) throws IOException {
+    Bucket bucket = storage.get(path.getBucket(), BucketGetOption.fields(BucketField.PROJECT));
+    return bucket.getProject().longValue();
+  }
 }
