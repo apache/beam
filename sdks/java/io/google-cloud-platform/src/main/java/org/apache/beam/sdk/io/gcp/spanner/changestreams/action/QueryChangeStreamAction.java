@@ -207,7 +207,8 @@ public class QueryChangeStreamAction {
     // Once the changeStreamQuery completes we may need to resume reading from the partition if we
     // had an unbounded restriction for which we set an arbitrary query end timestamp and for which
     // we didn't  encounter any indications that the partition is done (explicit end records or
-    // exceptions about being out of timestamp range).
+    // exceptions about being out of timestamp range). We also special case the InitialPartition,
+    // which always stops after the query succeeds.
     boolean stopAfterQuerySucceeds = false;
     if (InitialPartition.isInitialPartition(partition.getPartitionToken())) {
       stopAfterQuerySucceeds = true;
@@ -394,12 +395,12 @@ public class QueryChangeStreamAction {
     return Timestamp.ofTimeSecondsAndNanos(current.getSeconds() + 2 * 60, current.getNanos());
   }
 
-  // For Mutable Change Stream, Spanner only allow the max query end timestamp to be 2 minutes in
-  // the future.
+  // For Mutable Change Stream bounded queries, update the query end timestamp to be within 2
+  // minutes in the future.
   private Timestamp getBoundedQueryEndTimestamp(Timestamp endTimestamp) {
     if (this.isMutableChangeStream) {
-      Timestamp maxTimestamp = getNextReadChangeStreamEndTimestamp();
-      return maxTimestamp.compareTo(endTimestamp) < 0 ? maxTimestamp : endTimestamp;
+      Timestamp nextTimestamp = getNextReadChangeStreamEndTimestamp();
+      return nextTimestamp.compareTo(endTimestamp) < 0 ? nextTimestamp : endTimestamp;
     }
     return endTimestamp;
   }
