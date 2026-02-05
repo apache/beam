@@ -112,6 +112,20 @@ def parse_known_args(argv):
       required=False,
       default=None,
       help='Chat template to use for chat example.')
+  parser.add_argument(
+      '--vllm_server_kwargs',
+      dest='vllm_server_kwargs',
+      type=str,
+      required=False,
+      default=None,
+      help='VLLM server kwargs in format key1=value1,key2=value2')
+  parser.add_argument(
+      '--use_dynamo',
+      dest='use_dynamo',
+      type=bool,
+      required=False,
+      default=False,
+      help='Whether to use dynamo')
   return parser.parse_known_args(argv)
 
 
@@ -132,13 +146,24 @@ def run(
   pipeline_options = PipelineOptions(pipeline_args)
   pipeline_options.view_as(SetupOptions).save_main_session = save_main_session
 
-  model_handler = VLLMCompletionsModelHandler(model_name=known_args.model)
+  vllm_server_kwargs = {}
+  if known_args.vllm_server_kwargs:
+    for kv in known_args.vllm_server_kwargs.split(','):
+      k, v = kv.split('=')
+      vllm_server_kwargs[k] = v
+
+  model_handler = VLLMCompletionsModelHandler(
+      model_name=known_args.model,
+      vllm_server_kwargs=vllm_server_kwargs,
+      use_dynamo=known_args.use_dynamo)
   input_examples = COMPLETION_EXAMPLES
 
   if known_args.chat:
     model_handler = VLLMChatModelHandler(
         model_name=known_args.model,
-        chat_template_path=known_args.chat_template)
+        chat_template_path=known_args.chat_template,
+        vllm_server_kwargs=vllm_server_kwargs,
+        use_dynamo=known_args.use_dynamo)
     input_examples = CHAT_EXAMPLES
 
   pipeline = test_pipeline
