@@ -59,7 +59,7 @@ jobs:
     name: ${{ matrix.job_name }} (${{ matrix.job_phrase }})
     strategy:
       matrix:
-        job_name: ["beam_Inference_Python_Benchmarks_Dataflow_2]
+        job_name: ["beam_Inference_Python_Benchmarks_Dataflow_2"]
         job_phrase: ["Run Inference Benchmarks 2"]
     steps:
       - uses: actions/checkout@v4
