@@ -187,6 +187,14 @@ class BlipCaptionModelHandler(ModelHandler):
 
   def run_inference(
       self, batch: List[Dict[str, Any]], model, inference_args=None):
+
+    if model is not None:
+      self._model = model
+      self._model.to(self.device)
+      self._model.eval()
+    if self._processor is None:
+      from transformers import BlipProcessor
+      self._processor = BlipProcessor.from_pretrained(self.model_name)
     if self._model is None:
       self._model = self.load_model()
 
@@ -275,72 +283,127 @@ class ClipRankModelHandler(ModelHandler):
 
   def run_inference(
       self, batch: List[Dict[str, Any]], model, inference_args=None):
+
+    if model is not None:
+      self._model = model
+      self._model.to(self.device)
+      self._model.eval()
+    if self._processor is None:
+      from transformers import CLIPProcessor
+      self._processor = CLIPProcessor.from_pretrained(self.model_name)
     if self._model is None:
       self._model = self.load_model()
 
-    start = now_millis()
+    start_batch = now_millis()
 
-    results = []
-    with torch.no_grad():
-      for x in batch:
-        image_bytes = x["image_bytes"]
-        candidates = x.get("candidates", [])
-        blip_ms = x.get("blip_ms", None)
+    # Flat lists for a single batched CLIP forward pass
+    images: List[PILImage.Image] = []
+    texts: List[str] = []
+    offsets: List[Tuple[int, int]] = []
+    # per element -> [start, end) in flat arrays
+    candidates_list: List[List[str]] = []
+    blip_ms_list: List[Optional[int]] = []
 
-        # Decode image
-        try:
-          image = decode_pil(image_bytes)
-        except Exception:
-          image = PILImage.new("RGB", (224, 224), color=(0, 0, 0))
+    for x in batch:
+      image_bytes = x["image_bytes"]
+      candidates = [str(c) for c in (x.get("candidates", []) or [])]
+      candidates_list.append(candidates)
+      blip_ms_list.append(x.get("blip_ms", None))
 
-        if not candidates:
-          clip_ms = now_millis() - start
-          results.append({
-              "best_caption": "",
-              "best_score": None,
-              "candidates": [],
-              "scores": [],
-              "blip_ms": blip_ms,
-              "clip_ms": clip_ms,
-              "total_ms": None,
-          })
-          continue
+      try:
+        img = decode_pil(image_bytes)
+      except Exception:
+        img = PILImage.new("RGB", (224, 224), color=(0, 0, 0))
 
-        # CLIPProcessor can accept a single image and list of texts
-        inputs = self._processor(
-            text=candidates, images=image, return_tensors="pt", padding=True)
-        inputs = {k: v.to(self.device) for k, v in inputs.items()}
+      start_i = len(texts)
+      for c in candidates:
+        images.append(img)
+        texts.append(c)
+      end_i = len(texts)
+      offsets.append((start_i, end_i))
 
-        outputs = self._model(**inputs)
-        # logits_per_image shape: [1, num_texts]
-        logits = outputs.logits_per_image[0]
+    results: List[Dict[str, Any]] = []
 
-        if self.score_normalize:
-          # optional normalization to [0..1] via softmax
-          probs = torch.softmax(logits, dim=-1)
-          scores_t = probs
-        else:
-          scores_t = logits
-
-        scores = scores_t.detach().cpu().tolist()
-        best_idx = int(torch.argmax(scores_t).item())
-        best_caption = candidates[best_idx]
-        best_score = float(scores[best_idx])
-
-        clip_ms = now_millis() - start
-        total_ms = None
-        if blip_ms is not None:
-          total_ms = int(blip_ms) + int(clip_ms)
-
+    # Fast path: no candidates at all
+    if not texts:
+      for blip_ms in blip_ms_list:
+        total_ms = int(blip_ms) if blip_ms is not None else None
         results.append({
-            "best_caption": best_caption,
-            "best_score": best_score,
-            "candidates": candidates,
-            "scores": scores,
+            "best_caption": "",
+            "best_score": None,
+            "candidates": [],
+            "scores": [],
             "blip_ms": blip_ms,
-            "clip_ms": clip_ms,
+            "clip_ms": 0,
             "total_ms": total_ms,
         })
+      return results
+
+    with torch.no_grad():
+      inputs = self._processor(
+          text=texts,
+          images=images,
+          return_tensors="pt",
+          padding=True,
+          truncation=True,
+      )
+      inputs = {k: (v.to(self.device) if torch.is_tensor(v) else v)
+                for k, v in inputs.items()}
+
+      # avoid NxN logits inside CLIPModel.forward()
+      img = self._model.get_image_features(pixel_values=inputs["pixel_values"])  # [N, D]
+      txt = self._model.get_text_features(
+          input_ids=inputs["input_ids"],
+          attention_mask=inputs.get("attention_mask"),
+      )  # [N, D]
+
+      img = img / img.norm(dim=-1, keepdim=True)
+      txt = txt / txt.norm(dim=-1, keepdim=True)
+
+      logit_scale = self._model.logit_scale.exp()  # scalar tensor
+      pair_scores = (img * txt).sum(dim=-1) * logit_scale  # [N]
+      pair_scores_cpu = pair_scores.detach().cpu().tolist()
+
+    batch_ms = now_millis() - start_batch
+    total_pairs = len(texts)
+
+    for (start_i, end_i), candidates, blip_ms in zip(offsets, candidates_list, blip_ms_list):
+      if start_i == end_i:
+        total_ms = int(blip_ms) if blip_ms is not None else None
+        results.append({
+            "best_caption": "",
+            "best_score": None,
+            "candidates": [],
+            "scores": [],
+            "blip_ms": blip_ms,
+            "clip_ms": 0,
+            "total_ms": total_ms,
+        })
+        continue
+
+      scores = [float(pair_scores_cpu[j]) for j in range(start_i, end_i)]
+
+      if self.score_normalize:
+        scores_t = torch.tensor(scores, dtype=torch.float32)
+        scores = torch.softmax(scores_t, dim=0).tolist()
+
+      best_idx = max(range(len(scores)), key=lambda i: scores[i])
+
+      pairs = end_i - start_i
+      clip_ms_elem = int(batch_ms * (pairs / max(1, total_pairs)))
+      if pairs > 0:
+        clip_ms_elem = max(1, clip_ms_elem)
+
+      total_ms = int(blip_ms) + clip_ms_elem if blip_ms is not None else None
+      results.append({
+          "best_caption": candidates[best_idx],
+          "best_score": float(scores[best_idx]),
+          "candidates": candidates,
+          "scores": scores,
+          "blip_ms": blip_ms,
+          "clip_ms": clip_ms_elem,
+          "total_ms": total_ms,
+      })
 
     return results
 
