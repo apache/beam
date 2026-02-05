@@ -13,7 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""This streaming pipeline performs image classification using an open-source
+"""This pipeline performs image classification using an open-source
 PyTorch EfficientNet-B0 model optimized for T4 GPUs.
 It reads image URIs from Pub/Sub, decodes and preprocesses them in parallel,
 and runs inference with adaptive batch sizing for optimal GPU utilization.
@@ -401,12 +401,12 @@ def run(
     argv=None, save_main_session=True, test_pipeline=None) -> PipelineResult:
   known_args, pipeline_args = parse_known_args(argv)
 
-  ensure_pubsub_resources(
-      project=known_args.project,
-      topic_path=known_args.pubsub_topic,
-      subscription_path=known_args.pubsub_subscription)
-
   if known_args.mode == 'streaming':
+    ensure_pubsub_resources(
+        project=known_args.project,
+        topic_path=known_args.pubsub_topic,
+        subscription_path=known_args.pubsub_subscription)
+
     # Start feeder thread that reads URIs from GCS and fills Pub/Sub.
     threading.Thread(
         target=lambda:
@@ -514,6 +514,12 @@ def run(
               top_k=known_args.top_k,
               model_name=known_args.pretrained_model_name)))
 
+  method = (
+      beam.io.WriteToBigQuery.Method.FILE_LOADS
+      if known_args.mode == 'batch'
+      else beam.io.WriteToBigQuery.Method.STREAMING_INSERTS
+  )
+
   if known_args.publish_to_big_query == 'true':
     _ = (
         results
@@ -523,7 +529,7 @@ def run(
             'image_id:STRING, model_name:STRING, topk:STRING, infer_ms:INT64',
             write_disposition=beam.io.BigQueryDisposition.WRITE_APPEND,
             create_disposition=beam.io.BigQueryDisposition.CREATE_IF_NEEDED,
-            method=beam.io.WriteToBigQuery.Method.STREAMING_INSERTS))
+            method=method))
 
   result = pipeline.run()
   result.wait_until_finish(duration=1800000)  # 30 min
@@ -532,10 +538,11 @@ def run(
   except Exception:
     pass
 
-  cleanup_pubsub_resources(
-      project=known_args.project,
-      topic_path=known_args.pubsub_topic,
-      subscription_path=known_args.pubsub_subscription)
+  if known_args.mode == 'streaming':
+    cleanup_pubsub_resources(
+        project=known_args.project,
+        topic_path=known_args.pubsub_topic,
+        subscription_path=known_args.pubsub_subscription)
 
   return result
 
