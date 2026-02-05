@@ -21,8 +21,8 @@ on:
     paths:
       - .github/workflows/playground_backend_precommit.yml
       - playground/backend/**
-  issue_comment:
-    types: [created]
+  schedule:
+    - cron: '10 2/6 * * *'
 
 env:
   DEVELOCITY_ACCESS_KEY: ${{ secrets.DEVELOCITY_ACCESS_KEY }}
