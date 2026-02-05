@@ -297,6 +297,32 @@ public class IcebergIOReadTest {
   }
 
   @Test
+  public void testNestedColumnDropValidation() {
+    // Test that nested column paths work correctly with drop configuration
+    org.apache.iceberg.Schema schemaWithNested =
+        new org.apache.iceberg.Schema(
+            required(1, "id", StringType.get()),
+            required(
+                2,
+                "data",
+                StructType.of(
+                    required(3, "name", StringType.get()),
+                    required(4, "value", StringType.get()))),
+            required(5, "metadata", StringType.get()));
+
+    // Test dropping a nested field "data.name" - should keep id, data.value, metadata
+    org.apache.iceberg.Schema projectNestedDrop =
+        resolveSchema(schemaWithNested, null, asList("data.name"));
+
+    // Verify "data.name" is NOT in the projected schema
+    assertTrue(projectNestedDrop.findField("id") != null);
+    assertTrue(projectNestedDrop.findField("data.value") != null);
+    assertTrue(projectNestedDrop.findField("metadata") != null);
+    // data.name should be dropped
+    assertTrue(projectNestedDrop.findField("data.name") == null);
+  }
+
+  @Test
   public void testSimpleScan() throws Exception {
     TableIdentifier tableId =
         TableIdentifier.of("default", "table" + Long.toString(UUID.randomUUID().hashCode(), 16));

@@ -93,10 +93,29 @@ public abstract class IcebergScanConfig implements Serializable {
     if (keep != null && !keep.isEmpty()) {
       selectedFieldsBuilder.addAll(keep);
     } else if (drop != null && !drop.isEmpty()) {
-      Set<String> fields =
-          schema.columns().stream().map(Types.NestedField::name).collect(Collectors.toSet());
-      drop.forEach(fields::remove);
-      selectedFieldsBuilder.addAll(fields);
+      // Get all field paths including nested ones
+      java.util.List<String> allPaths = new java.util.ArrayList<>(
+          org.apache.iceberg.types.TypeUtil.indexByName(schema.asStruct()).keySet());
+      java.util.Collections.sort(allPaths);
+
+      // Identify leaf fields only (fields that are not parents of other fields)
+      // This prevents selecting a parent struct from implicitly including dropped children
+      java.util.Set<String> leaves = new java.util.HashSet<>();
+      for (int i = 0; i < allPaths.size(); i++) {
+        String path = allPaths.get(i);
+        // If the next path starts with "path.", then "path" is a parent - skip it
+        if (i + 1 < allPaths.size() && allPaths.get(i + 1).startsWith(path + ".")) {
+          continue;
+        }
+        leaves.add(path);
+      }
+
+      // Remove fields that are dropped or are children of dropped fields
+      for (String d : drop) {
+        leaves.removeIf(f -> f.equals(d) || f.startsWith(d + "."));
+      }
+
+      selectedFieldsBuilder.addAll(leaves);
     } else {
       // default: include all columns
       return schema;
