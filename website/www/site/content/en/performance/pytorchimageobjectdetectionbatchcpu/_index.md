@@ -1,5 +1,5 @@
 ---
-title: "PyTorch Image Object Detection Faster R-CNN ResNet-50 Batch GPU Performance"
+title: "PyTorch Image Object Detection Faster R-CNN ResNet-50 Batch CPU Performance"
 ---
 
 <!--
@@ -14,28 +14,28 @@ See the License for the specific language governing permissions and
 limitations under the License.
 -->
 
-# PyTorch Image Object Detection Faster R-CNN ResNet-50 Batch GPU
+# PyTorch Image Object Detection Faster R-CNN ResNet-50 Batch CPU
 
 **Model**: PyTorch Image Object Detection — Faster R-CNN ResNet-50 FPN (pretrained on COCO)
-**Accelerator**: Tesla T4 GPU (fixed batch size)
+**Accelerator**: CPU only
 **Host**: 50 × n1-standard-4 (4 vCPUs, 15 GB RAM)
 
-This batch pipeline performs object detection using an open-source PyTorch Faster R-CNN ResNet-50 FPN model on GPU.
-It reads image URIs from GCS, decodes and preprocesses images, and runs batched inference with a fixed batch size to measure stable GPU performance.
+This batch pipeline performs object detection using an open-source PyTorch Faster R-CNN ResNet-50 FPN model on CPU.
+It reads image URIs from GCS, decodes and preprocesses images, and runs batched inference with a fixed batch size.
 
-The following graphs show various metrics when running PyTorch Image Object Detection Faster R-CNN ResNet-50 Batch GPU pipeline.
+The following graphs show various metrics when running PyTorch Image Object Detection Faster R-CNN ResNet-50 Batch CPU pipeline.
 See the [glossary](/performance/glossary) for definitions.
 
 Full pipeline implementation is available [here](https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/inference/pytorch_image_object_detection.py).
 
 ## What is the estimated cost to run the pipeline?
 
-{{< performance_looks io="pytorchimageobjectdetectionbatchgpu" read_or_write="write" section="cost" >}}
+{{< performance_looks io="pytorchimageobjectdetectionbatchcpu" read_or_write="write" section="cost" >}}
 
 ## How has various metrics changed when running the pipeline for different Beam SDK versions?
 
-{{< performance_looks io="pytorchimageobjectdetectionbatchgpu" read_or_write="write" section="version" >}}
+{{< performance_looks io="pytorchimageobjectdetectionbatchcpu" read_or_write="write" section="version" >}}
 
 ## How has various metrics changed over time when running the pipeline?
 
-{{< performance_looks io="pytorchimageobjectdetectionbatchgpu" read_or_write="write" section="date" >}}
+{{< performance_looks io="pytorchimageobjectdetectionbatchcpu" read_or_write="write" section="date" >}}
