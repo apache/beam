@@ -111,6 +111,7 @@ jobs:
             :sdks:java:io:google-cloud-platform:expansion-service:build \
             :sdks:java:io:google-cloud-platform:postCommit \
           arguments: |
+            --info \
             -PdisableSpotlessCheck=true \
             -PdisableCheckStyle=true \
             -PenableJacocoReport \
