@@ -26,7 +26,6 @@ import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
-import java.util.stream.Collectors;
 import org.apache.beam.sdk.io.iceberg.IcebergIO.ReadRows.StartingStrategy;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
@@ -37,7 +36,6 @@ import org.apache.iceberg.Table;
 import org.apache.iceberg.catalog.TableIdentifier;
 import org.apache.iceberg.expressions.Evaluator;
 import org.apache.iceberg.expressions.Expression;
-import org.apache.iceberg.types.Types;
 import org.checkerframework.checker.nullness.qual.MonotonicNonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.checkerframework.dataflow.qual.Pure;
@@ -94,8 +92,9 @@ public abstract class IcebergScanConfig implements Serializable {
       selectedFieldsBuilder.addAll(keep);
     } else if (drop != null && !drop.isEmpty()) {
       // Get all field paths including nested ones
-      java.util.List<String> allPaths = new java.util.ArrayList<>(
-          org.apache.iceberg.types.TypeUtil.indexByName(schema.asStruct()).keySet());
+      java.util.List<String> allPaths =
+          new java.util.ArrayList<>(
+              org.apache.iceberg.types.TypeUtil.indexByName(schema.asStruct()).keySet());
       java.util.Collections.sort(allPaths);
 
       // Identify leaf fields only (fields that are not parents of other fields)

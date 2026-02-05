@@ -283,8 +283,7 @@ public class IcebergIOReadTest {
                 2,
                 "data",
                 StructType.of(
-                    required(3, "name", StringType.get()),
-                    required(4, "value", StringType.get()))),
+                    required(3, "name", StringType.get()), required(4, "value", StringType.get()))),
             required(5, "metadata", StringType.get()));
 
     // Test that nested column path "data.name" is valid and can be selected
@@ -306,8 +305,7 @@ public class IcebergIOReadTest {
                 2,
                 "data",
                 StructType.of(
-                    required(3, "name", StringType.get()),
-                    required(4, "value", StringType.get()))),
+                    required(3, "name", StringType.get()), required(4, "value", StringType.get()))),
             required(5, "metadata", StringType.get()));
 
     // Test dropping a nested field "data.name" - should keep id, data.value, metadata
