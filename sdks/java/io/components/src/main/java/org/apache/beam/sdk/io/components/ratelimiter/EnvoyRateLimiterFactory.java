@@ -30,6 +30,8 @@ import org.apache.beam.sdk.metrics.Counter;
 import org.apache.beam.sdk.metrics.Distribution;
 import org.apache.beam.sdk.metrics.Metrics;
 import org.apache.beam.sdk.util.Sleeper;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -44,6 +46,7 @@ public class EnvoyRateLimiterFactory implements RateLimiterFactory {
   private transient volatile @Nullable RateLimitServiceGrpc.RateLimitServiceBlockingStub stub;
   private transient @Nullable RateLimiterClientCache clientCache;
   private final ThrottlingSignaler throttlingSignaler;
+  private final Sleeper sleeper;
 
   private final Counter requestsTotal;
   private final Counter requestsAllowed;
@@ -53,7 +56,13 @@ public class EnvoyRateLimiterFactory implements RateLimiterFactory {
   private final Distribution rpcLatency;
 
   public EnvoyRateLimiterFactory(RateLimiterOptions options) {
+    this(options, Sleeper.DEFAULT);
+  }
+
+  @VisibleForTesting
+  EnvoyRateLimiterFactory(RateLimiterOptions options, Sleeper sleeper) {
     this.options = options;
+    this.sleeper = sleeper;
     String namespace = EnvoyRateLimiterFactory.class.getName();
     this.throttlingSignaler = new ThrottlingSignaler(namespace);
     this.requestsTotal = Metrics.counter(namespace, "ratelimit-requests-total");
@@ -69,8 +78,8 @@ public class EnvoyRateLimiterFactory implements RateLimiterFactory {
     if (clientCache != null) {
       clientCache.release();
       clientCache = null;
-      stub = null;
     }
+    stub = null;
   }
 
   private void init() {
@@ -80,10 +89,15 @@ public class EnvoyRateLimiterFactory implements RateLimiterFactory {
     synchronized (this) {
       if (stub == null) {
         RateLimiterClientCache cache = RateLimiterClientCache.getOrCreate(options.getAddress());
-        stub = RateLimitServiceGrpc.newBlockingStub(cache.getChannel());
         this.clientCache = cache;
+        stub = RateLimitServiceGrpc.newBlockingStub(cache.getChannel());
       }
     }
+  }
+
+  @VisibleForTesting
+  void setStub(RateLimitServiceGrpc.RateLimitServiceBlockingStub stub) {
+    this.stub = stub;
   }
 
   @Override
@@ -104,6 +118,7 @@ public class EnvoyRateLimiterFactory implements RateLimiterFactory {
               + context.getClass().getName());
     }
     EnvoyRateLimiterContext envoyContext = (EnvoyRateLimiterContext) context;
+    Preconditions.checkArgument(permits >= 0, "Permits must be non-negative");
     return callEnvoy(envoyContext, permits);
   }
 
@@ -111,10 +126,9 @@ public class EnvoyRateLimiterFactory implements RateLimiterFactory {
       throws IOException, InterruptedException {
 
     init();
-    Sleeper sleeper = Sleeper.DEFAULT;
     RateLimitServiceGrpc.RateLimitServiceBlockingStub currentStub = stub;
     if (currentStub == null) {
-      throw new IllegalStateException("RateLimitService stub is null");
+      throw new IllegalStateException("RateLimitServiceStub is null");
     }
 
     Map<String, String> descriptors = context.getDescriptors();

@@ -23,6 +23,7 @@ import java.time.Duration;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.schemas.AutoValueSchema;
 import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
 
 /** Configuration options for {@link RateLimiterFactory}. */
 @DefaultSchema(AutoValueSchema.class)
@@ -47,6 +48,17 @@ public abstract class RateLimiterOptions implements Serializable {
 
     public abstract Builder setTimeout(Duration timeout);
 
-    public abstract RateLimiterOptions build();
+    abstract RateLimiterOptions autoBuild();
+
+    public RateLimiterOptions build() {
+      RateLimiterOptions options = autoBuild();
+      Preconditions.checkArgument(
+          options.getTimeout().compareTo(Duration.ZERO) > 0, "Timeout must be positive");
+      Integer maxRetries = options.getMaxRetries();
+      if (maxRetries != null) {
+        Preconditions.checkArgument(maxRetries >= 0, "MaxRetries must be non-negative");
+      }
+      return options;
+    }
   }
 }

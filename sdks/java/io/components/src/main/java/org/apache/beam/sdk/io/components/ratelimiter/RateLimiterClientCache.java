@@ -48,7 +48,11 @@ public class RateLimiterClientCache {
     this.channel = ManagedChannelBuilder.forTarget(address).usePlaintext().build();
   }
 
-  /** Gets or creates a cached client for the given address. Increments the reference count. */
+  /**
+   * Gets or creates a cached client for the given address. Increments the reference count.
+   * Synchronized on the class to prevent race conditions when multiple instances call getOrCreate()
+   * simultaneously
+   */
   public static synchronized RateLimiterClientCache getOrCreate(String address) {
     RateLimiterClientCache client = CACHE.get(address);
     if (client == null) {
@@ -66,21 +70,24 @@ public class RateLimiterClientCache {
 
   /**
    * Releases the client. Decrements the reference count. If reference count reaches 0, the channel
-   * is shut down and removed from the cache.
+   * is shut down and removed from the cache. Synchronized on the class to prevent race conditions
+   * when multiple instances call release() simultaneously
    */
-  public synchronized void release() {
-    refCount--;
-    LOG.debug("Released RLS Channel for {}. New RefCount: {}", address, refCount);
-    if (refCount <= 0) {
-      LOG.info("Closing ManagedChannel for RLS at {}", address);
-      CACHE.remove(address);
-      channel.shutdown();
-      try {
-        channel.awaitTermination(10, TimeUnit.SECONDS);
-      } catch (InterruptedException e) {
-        LOG.error("Couldn't gracefully close gRPC channel={}", channel, e);
+  public void release() {
+    synchronized (RateLimiterClientCache.class) {
+      refCount--;
+      LOG.debug("Released RLS Channel for {}. New RefCount: {}", address, refCount);
+      if (refCount <= 0) {
+        LOG.info("Closing ManagedChannel for RLS at {}", address);
+        CACHE.remove(address);
+        channel.shutdown();
+        try {
+          channel.awaitTermination(10, TimeUnit.SECONDS);
+        } catch (InterruptedException e) {
+          LOG.error("Couldn't gracefully close gRPC channel={}", channel, e);
+        }
+        channel.shutdownNow();
       }
-      channel.shutdownNow();
     }
   }
 }
