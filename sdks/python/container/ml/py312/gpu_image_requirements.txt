@@ -211,7 +211,7 @@ prometheus-fastapi-instrumentator==7.1.0
 prometheus_client==0.24.1
 propcache==0.4.1
 proto-plus==1.27.0
-protobuf==5.29.5
+protobuf==5.29.6
 psutil==7.2.1
 psycopg2-binary==2.9.11
 py-cpuinfo==9.0.0

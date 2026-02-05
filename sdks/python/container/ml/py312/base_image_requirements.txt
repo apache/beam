@@ -160,7 +160,7 @@ pip==25.3
 pluggy==1.6.0
 propcache==0.4.1
 proto-plus==1.27.0
-protobuf==5.29.5
+protobuf==5.29.6
 psycopg2-binary==2.9.11
 pyarrow==18.1.0
 pyarrow-hotfix==0.7
