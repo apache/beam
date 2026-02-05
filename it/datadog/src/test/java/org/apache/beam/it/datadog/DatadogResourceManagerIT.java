@@ -23,12 +23,12 @@ import static org.apache.beam.it.datadog.matchers.DatadogAsserts.datadogEntriesT
 import java.util.ArrayList;
 import java.util.List;
 import org.apache.beam.it.testcontainers.TestContainersIntegrationTest;
+import org.apache.commons.lang3.RandomStringUtils;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
-import org.testcontainers.shaded.org.apache.commons.lang3.RandomStringUtils;
 
 /** Integration tests for Datadog Resource Managers. */
 @Category(TestContainersIntegrationTest.class)

@@ -58,6 +58,13 @@ public final class DatadogResourceManagerUtils {
         break;
       }
     }
-    return new String(chars);
+    String result = new String(chars);
+
+    // In the rare case a UUID has only one letter, it will now be uppercase.
+    // The test requires a lowercase letter, so we add one if missing.
+    if (!result.matches(".*[a-z].*")) {
+      return result + "a";
+    }
+    return result;
   }
 }

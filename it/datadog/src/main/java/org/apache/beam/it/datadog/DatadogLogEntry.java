@@ -17,7 +17,7 @@
  */
 package org.apache.beam.it.datadog;
 
-import static com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkNotNull;
 
 import com.google.auto.value.AutoValue;
 import javax.annotation.Nullable;
