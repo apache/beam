@@ -185,3 +185,7 @@ class HuggingFaceGpuTest(unittest.TestCase):
           | 'RunSentiment' >> RunInference(
               sentiment_handler, use_model_manager=True)
           | 'ExtractLabel' >> beam.Map(lambda x: x.inference['label']))
+
+
+if __name__ == "__main__":
+  unittest.main()
