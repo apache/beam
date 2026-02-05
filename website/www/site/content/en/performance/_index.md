@@ -46,7 +46,14 @@ See the following pages for performance measures recorded when running various B
 ## Streaming
 
 - [PyTorch Sentiment Analysis Streaming DistilBERT base](/performance/pytorchbertsentimentstreaming)
-- [PyTorch Image Classification EfficientNet-B0 Streaming (Right-fitting)](/performance/pytorchimagenetrightfit)
+- [PyTorch Image Classification EfficientNet-B0 Streaming (Right-fitting) CPU](/performance/pytorchimagenetrightfitcpu)
+- [PyTorch Image Classification EfficientNet-B0 Streaming (Right-fitting Exactly-once) CPU](/performance/pytorchimagenetrightfitoncecpu)
+- [PyTorch Image Classification EfficientNet-B0 Streaming (Right-fitting) GPU](/performance/pytorchimagenetrightfitgpu)
+- [PyTorch Image Classification EfficientNet-B0 Streaming (Right-fitting Exactly-once)](/performance/pytorchimagenetrightfitoncegpu)
+- [PyTorch Image Captioning BLIP + CLIP Streaming CPU](/performance/pytorchimagecaptioningstreamingcpu)
+- [PyTorch Image Captioning BLIP + CLIP Streaming GPU](/performance/pytorchimagecaptioningstreaminggpu)
+- [PyTorch Image Object Detection Faster R-CNN ResNet-50 Streaming CPU](/performance/pytorchimageobjectdetectionstreamingcpu)
+- [PyTorch Image Object Detection Faster R-CNN ResNet-50 Streaming GPU](/performance/pytorchimageobjectdetectionstreaminggpu)
 
 ## Batch
 
@@ -58,5 +65,7 @@ See the following pages for performance measures recorded when running various B
 - [PyTorch Vision Classification Resnet 152 Tesla T4 GPU](/performance/pytorchresnet152tesla)
 - [TensorFlow MNIST Image Classification](/performance/tensorflowmnist)
 - [VLLM Gemma Batch Completion Tesla T4 GPU](/performance/vllmgemmabatchtesla)
+- [PyTorch Image Object Detection Faster R-CNN ResNet-50 Batch CPU](/performance/pytorchimageobjectdetectionbatchcpu)
 - [PyTorch Image Object Detection Faster R-CNN ResNet-50 Batch GPU](/performance/pytorchimageobjectdetectionbatchgpu)
+- [PyTorch Image Captioning BLIP + CLIP Batch CPU](/performance/pytorchimagecaptioningbatchcpu)
 - [PyTorch Image Captioning BLIP + CLIP Batch GPU](/performance/pytorchimagecaptioningbatchgpu)

@@ -43,9 +43,24 @@ LOOKS_TO_DOWNLOAD = [
     ("82", ["263", "264", "265", "266", "267"]),  # PyTorch Sentiment Streaming DistilBERT base uncased
     ("85", ["268", "269", "270", "271", "272"]),  # PyTorch Sentiment Batch DistilBERT base uncased
     ("86", ["284", "285", "286", "287", "288"]),  # VLLM Batch Gemma
-    ("92", ["289", "290", "291", "292", "293"]),  # PyTorch Image Classification EfficientNet-B0 Streaming (Right-fit)
-    ("93", ["294", "295", "296", "298", "299"]),  # PyTorch Image Object Detection Faster R-CNN ResNet-50 Batch GPU
-    ("94", ["297", "300", "301", "302", "303"]),  # PyTorch Image Captioning BLIP + CLIP Batch GPU
+
+    # PyTorch Image Classification EfficientNet-B0 Streaming (Right-fit) CPU
+    ("92", ["289", "290", "291", "292", "293"]),
+    #TODO: PyTorch Image Classification EfficientNet-B0 Streaming (Right-fit) GPU
+    #TODO: PyTorch Image Classification EfficientNet-B0 Streaming (Right-fit Exactly-once) CPU
+    #TODO: PyTorch Image Classification EfficientNet-B0 Streaming (Right-fit Exactly-once) GPU
+
+    # PyTorch Image Object Detection Faster R-CNN ResNet-50 Batch CPU
+    ("93", ["294", "295", "296", "298", "299"]),
+    #TODO: PyTorch Image Object Detection Faster R-CNN ResNet-50 Batch GPU
+    #TODO: PyTorch Image Object Detection Faster R-CNN ResNet-50 Streaming CPU
+    #TODO: PyTorch Image Object Detection Faster R-CNN ResNet-50 Streaming GPU
+
+    # PyTorch Image Captioning BLIP + CLIP Batch CPU
+    ("94", ["297", "300", "301", "302", "303"]),
+    #TODO: PyTorch Image Captioning BLIP + CLIP Batch GPU
+    #TODO: PyTorch Image Captioning BLIP + CLIP Streaming CPU
+    #TODO: PyTorch Image Captioning BLIP + CLIP Streaming GPU
 ]
 
 

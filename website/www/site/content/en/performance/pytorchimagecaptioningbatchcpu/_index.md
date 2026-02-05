@@ -1,5 +1,5 @@
 ---
-title: "PyTorch Image Captioning BLIP + CLIP Batch GPU Performance"
+title: "PyTorch Image Captioning BLIP + CLIP Batch CPU Performance"
 ---
 
 <!--
@@ -14,28 +14,28 @@ See the License for the specific language governing permissions and
 limitations under the License.
 -->
 
-# PyTorch Image Captioning BLIP + CLIP Batch GPU
+# PyTorch Image Captioning BLIP + CLIP Batch CPU
 
 **Model**: PyTorch Image Captioning — BLIP (candidate generation) + CLIP (ranking)
-**Accelerator**: Tesla T4 GPU
+**Accelerator**: CPU only
 **Host**: 50 × n1-standard-4 (4 vCPUs, 15 GB RAM)
 
 This batch pipeline performs image captioning using a multi-model open-source PyTorch approach.
 It first generates multiple candidate captions per image using a BLIP model, then ranks these candidates with a CLIP model based on image-text similarity.
 
-The following graphs show various metrics when running PyTorch Image Captioning BLIP + CLIP Batch GPU pipeline.
+The following graphs show various metrics when running PyTorch Image Captioning BLIP + CLIP Batch CPU pipeline.
 See the [glossary](/performance/glossary) for definitions.
 
 Full pipeline implementation is available [here](https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/inference/pytorch_image_captioning.py).
 
 ## What is the estimated cost to run the pipeline?
 
-{{< performance_looks io="pytorchimagecaptioningbatchgpu" read_or_write="write" section="cost" >}}
+{{< performance_looks io="pytorchimagecaptioningbatchcpu" read_or_write="write" section="cost" >}}
 
 ## How has various metrics changed when running the pipeline for different Beam SDK versions?
 
-{{< performance_looks io="pytorchimagecaptioningbatchgpu" read_or_write="write" section="version" >}}
+{{< performance_looks io="pytorchimagecaptioningbatchcpu" read_or_write="write" section="version" >}}
 
 ## How has various metrics changed over time when running the pipeline?
 
-{{< performance_looks io="pytorchimagecaptioningbatchgpu" read_or_write="write" section="date" >}}
+{{< performance_looks io="pytorchimagecaptioningbatchcpu" read_or_write="write" section="date" >}}

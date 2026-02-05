@@ -250,7 +250,7 @@ looks:
           title: AvgThroughputBytesPerSec by Version
         - id: dKyJy5ZKhkBdSTXRY3wZR6fXzptSs2qm
           title: AvgThroughputElementsPerSec by Version
-  pytorchimagenetrightfit:
+  pytorchimagenetrightfitcpu:
     write:
       folder: 92
       cost:
@@ -265,6 +265,54 @@ looks:
         - id: dGN6Zr6rh7DfnRtTDCN6GHcNfhSkrbCq
           title: AvgThroughputBytesPerSec by Version
         - id: VJMWrZh3jXk2mqCZk4NQn3tBrHgGWqnC
+          title: AvgThroughputElementsPerSec by Version
+  pytorchimagenetrightfitoncecpu:
+    write:
+      folder: #TODO
+      cost:
+        - id: #TODO
+          title: RunTime and EstimatedCost
+      date:
+        - id: #TODO
+          title: AvgThroughputBytesPerSec by Date
+        - id: #TODO
+          title: AvgThroughputElementsPerSec by Date
+      version:
+        - id: #TODO
+          title: AvgThroughputBytesPerSec by Version
+        - id: #TODO
+          title: AvgThroughputElementsPerSec by Version
+  pytorchimagenetrightfitgpu:
+    write:
+      folder: #TODO
+      cost:
+        - id: #TODO
+          title: RunTime and EstimatedCost
+      date:
+        - id: #TODO
+          title: AvgThroughputBytesPerSec by Date
+        - id: #TODO
+          title: AvgThroughputElementsPerSec by Date
+      version:
+        - id: #TODO
+          title: AvgThroughputBytesPerSec by Version
+        - id: #TODO
+          title: AvgThroughputElementsPerSec by Version
+  pytorchimagenetrightfitoncegpu:
+    write:
+      folder: #TODO
+      cost:
+        - id: #TODO
+          title: RunTime and EstimatedCost
+      date:
+        - id: #TODO
+          title: AvgThroughputBytesPerSec by Date
+        - id: #TODO
+          title: AvgThroughputElementsPerSec by Date
+      version:
+        - id: #TODO
+          title: AvgThroughputBytesPerSec by Version
+        - id: #TODO
           title: AvgThroughputElementsPerSec by Version
   pytorchimageobjectdetectionbatchgpu:
     write:
@@ -282,6 +330,54 @@ looks:
           title: AvgThroughputBytesPerSec by Version
         - id: cTxrpY3KGrCb35dq7fnjvdsDnd7t85pJ
           title: AvgThroughputElementsPerSec by Version
+  pytorchimageobjectdetectionbatchcpu:
+    write:
+      folder: #TODO
+      cost:
+        - id: #TODO
+          title: RunTime and EstimatedCost
+      date:
+        - id: #TODO
+          title: AvgThroughputBytesPerSec by Date
+        - id: #TODO
+          title: AvgThroughputElementsPerSec by Date
+      version:
+        - id: #TODO
+          title: AvgThroughputBytesPerSec by Version
+        - id: #TODO
+          title: AvgThroughputElementsPerSec by Version
+  pytorchimageobjectdetectionstreaminggpu:
+    write:
+      folder: #TODO
+      cost:
+        - id: #TODO
+          title: RunTime and EstimatedCost
+      date:
+        - id: #TODO
+          title: AvgThroughputBytesPerSec by Date
+        - id: #TODO
+          title: AvgThroughputElementsPerSec by Date
+      version:
+        - id: #TODO
+          title: AvgThroughputBytesPerSec by Version
+        - id: #TODO
+          title: AvgThroughputElementsPerSec by Version
+  pytorchimageobjectdetectionstreamingcpu:
+    write:
+      folder: #TODO
+      cost:
+        - id: #TODO
+          title: RunTime and EstimatedCost
+      date:
+        - id: #TODO
+          title: AvgThroughputBytesPerSec by Date
+        - id: #TODO
+          title: AvgThroughputElementsPerSec by Date
+      version:
+        - id: #TODO
+          title: AvgThroughputBytesPerSec by Version
+        - id: #TODO
+          title: AvgThroughputElementsPerSec by Version
   pytorchimagecaptioningbatchgpu:
     write:
       folder: 94
@@ -297,4 +393,52 @@ looks:
         - id: 4p7b4HWVMRC8HXDZYMXbVYf2VPzYQ2kz
           title: AvgThroughputBytesPerSec by Version
         - id: xQZRDYJRvmV7qMhb3j2XTrPmC8TP4DTr
+          title: AvgThroughputElementsPerSec by Version
+  pytorchimagecaptioningbatchcpu:
+    write:
+      folder: #TODO
+      cost:
+        - id: #TODO
+          title: RunTime and EstimatedCost
+      date:
+        - id: #TODO
+          title: AvgThroughputBytesPerSec by Date
+        - id: #TODO
+          title: AvgThroughputElementsPerSec by Date
+      version:
+        - id: #TODO
+          title: AvgThroughputBytesPerSec by Version
+        - id: #TODO
+          title: AvgThroughputElementsPerSec by Version
+  pytorchimagecaptioningstreaminggpu:
+    write:
+      folder: #TODO
+      cost:
+        - id: #TODO
+          title: RunTime and EstimatedCost
+      date:
+        - id: #TODO
+          title: AvgThroughputBytesPerSec by Date
+        - id: #TODO
+          title: AvgThroughputElementsPerSec by Date
+      version:
+        - id: #TODO
+          title: AvgThroughputBytesPerSec by Version
+        - id: #TODO
+          title: AvgThroughputElementsPerSec by Version
+  pytorchimagecaptioningstreamingcpu:
+    write:
+      folder: #TODO
+      cost:
+        - id: #TODO
+          title: RunTime and EstimatedCost
+      date:
+        - id: #TODO
+          title: AvgThroughputBytesPerSec by Date
+        - id: #TODO
+          title: AvgThroughputElementsPerSec by Date
+      version:
+        - id: #TODO
+          title: AvgThroughputBytesPerSec by Version
+        - id: #TODO
           title: AvgThroughputElementsPerSec by Version
