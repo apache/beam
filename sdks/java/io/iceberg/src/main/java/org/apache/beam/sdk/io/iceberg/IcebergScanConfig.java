@@ -327,7 +327,9 @@ public abstract class IcebergScanConfig implements Serializable {
         param = "drop";
         fieldsSpecified = newHashSet(checkNotNull(drop));
       }
-      table.schema().columns().forEach(nf -> fieldsSpecified.remove(nf.name()));
+      // Use findField() to support nested column paths (e.g., "colA.colB")
+      // Iceberg's Schema.findField() resolves dot-notation paths for nested fields
+      fieldsSpecified.removeIf(name -> table.schema().findField(name) != null);
 
       checkArgument(
           fieldsSpecified.isEmpty(),

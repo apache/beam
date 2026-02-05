@@ -274,6 +274,29 @@ public class IcebergIOReadTest {
   }
 
   @Test
+  public void testNestedColumnPruningValidation() {
+    // Test that nested column paths (dot notation) are accepted in keep/drop configuration
+    org.apache.iceberg.Schema schemaWithNested =
+        new org.apache.iceberg.Schema(
+            required(1, "id", StringType.get()),
+            required(
+                2,
+                "data",
+                StructType.of(
+                    required(3, "name", StringType.get()),
+                    required(4, "value", StringType.get()))),
+            required(5, "metadata", StringType.get()));
+
+    // Test that nested column path "data.name" is valid and can be selected
+    org.apache.iceberg.Schema projectNestedKeep =
+        resolveSchema(schemaWithNested, asList("id", "data.name"), null);
+
+    // Verify the projected schema contains the nested field
+    assertTrue(projectNestedKeep.findField("id") != null);
+    assertTrue(projectNestedKeep.findField("data.name") != null);
+  }
+
+  @Test
   public void testSimpleScan() throws Exception {
     TableIdentifier tableId =
         TableIdentifier.of("default", "table" + Long.toString(UUID.randomUUID().hashCode(), 16));
