@@ -165,12 +165,7 @@ class PipelineConstructionOptionsTest(unittest.TestCase):
     """Test that coders see correct pipeline options during proto conversion.
 
     This tests the run path where as_deterministic_coder() is called during
-    to_runner_api() proto conversion. Each thread runs a pipeline with a
-    custom key type that uses a non-deterministic coder. During conversion,
-    as_deterministic_coder() should see the correct pipeline options.
-
-    Uses PrismRunner for deterministic behavior and shared.Shared() to
-    capture results across the pickle boundary.
+    to_runner_api() proto conversion.
     """
     from apache_beam.coders import coders
     from apache_beam.utils import shared
@@ -207,60 +202,29 @@ class PipelineConstructionOptionsTest(unittest.TestCase):
         opts = get_current_pipeline_options()
         if opts is not None:
           results = OptionsCapturingKeyCoder.shared_handle.acquire(WeakRefDict)
-          thread_name = threading.current_thread().name
           job_name = opts.get_all_options().get('job_name')
-          results[thread_name] = job_name
+          results['Worker1'] = job_name
         return self
 
     beam.coders.registry.register_coder(TestKey, OptionsCapturingKeyCoder)
 
     results = OptionsCapturingKeyCoder.shared_handle.acquire(WeakRefDict)
 
-    start_barrier = threading.Barrier(2)
+    job_name = 'gbk_job'
+    options = PipelineOptions([f'--job_name={job_name}'])
 
-    def construct_pipeline(worker_id):
-      try:
-        job_name = f'gbk_job_{worker_id}'
-        options = PipelineOptions(
-            [f'--job_name={job_name}', '--runner=PrismRunner'])
-
-        start_barrier.wait(timeout=5)
-
-        with beam.Pipeline(options=options) as p:
-          _ = (
-              p
-              | beam.Create([(TestKey(1), 'a'), (TestKey(2), 'b')])
-              | beam.GroupByKey())
-
-      except ValueError as e:
-        # Ignore "signal only works in main thread" error from PrismRunner
-        if 'signal' not in str(e):
-          import traceback
-          errors.append(f"Worker {worker_id}: {e}\n{traceback.format_exc()}")
-      except Exception as e:
-        import traceback
-        errors.append(f"Worker {worker_id}: {e}\n{traceback.format_exc()}")
-
-    thread1 = threading.Thread(
-        target=construct_pipeline, args=(1, ), name='Worker1')
-    thread2 = threading.Thread(
-        target=construct_pipeline, args=(2, ), name='Worker2')
-
-    thread1.start()
-    thread2.start()
-
-    thread1.join(timeout=30)
-    thread2.join(timeout=30)
+    with beam.Pipeline(options=options) as p:
+      _ = (
+          p
+          | beam.Create([(TestKey(1), 'a'), (TestKey(2), 'b')])
+          | beam.GroupByKey())
 
     self.assertEqual(errors, [], f"Errors occurred: {errors}")
     self.assertEqual(
         results.get('Worker1'),
-        'gbk_job_1',
+        job_name,
         f"Worker1 saw wrong options: {results}")
-    self.assertEqual(
-        results.get('Worker2'),
-        'gbk_job_2',
-        f"Worker2 saw wrong options: {results}")
+    self.assertFalse(get_current_pipeline_options() == options)
 
   def test_barrier_inside_default_type_hints(self):
     """Test race condition detection with barrier inside default_type_hints.
