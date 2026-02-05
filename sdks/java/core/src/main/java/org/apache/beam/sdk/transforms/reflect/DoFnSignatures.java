@@ -104,6 +104,8 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Immuta
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Maps;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Instant;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /** Utilities for working with {@link DoFnSignature}. See {@link #getSignature}. */
 @Internal
@@ -112,6 +114,8 @@ import org.joda.time.Instant;
   "rawtypes"
 })
 public class DoFnSignatures {
+
+  private static final Logger LOG = LoggerFactory.getLogger(DoFnSignatures.class);
 
   private DoFnSignatures() {}
 
@@ -2327,10 +2331,65 @@ public class DoFnSignatures {
           (TypeDescriptor<? extends State>)
               TypeDescriptor.of(fnClazz).resolveType(unresolvedStateType);
 
+      // Warn if ValueState contains a collection type that could benefit from specialized state
+      warnIfValueStateContainsCollection(fnClazz, id, stateType);
+
       declarations.put(id, DoFnSignature.StateDeclaration.create(id, field, stateType));
     }
 
     return ImmutableMap.copyOf(declarations);
+  }
+
+  /**
+   * Warns if a ValueState is declared with a collection type (Map, List, Set) that could benefit
+   * from using specialized state types (MapState, BagState, SetState) for better performance.
+   */
+  private static void warnIfValueStateContainsCollection(
+      Class<?> fnClazz, String stateId, TypeDescriptor<? extends State> stateType) {
+    if (!stateType.isSubtypeOf(TypeDescriptor.of(ValueState.class))) {
+      return;
+    }
+
+    try {
+      TypeDescriptor<?> valueStateType = stateType.getSupertype(ValueState.class);
+      Type type = valueStateType.getType();
+      if (!(type instanceof ParameterizedType)) {
+        return;
+      }
+
+      Type valueType = ((ParameterizedType) type).getActualTypeArguments()[0];
+      if (valueType instanceof java.lang.reflect.TypeVariable
+          || valueType instanceof java.lang.reflect.WildcardType) {
+        // Cannot determine actual type, skip warning
+        return;
+      }
+
+      TypeDescriptor<?> valueTypeDescriptor = TypeDescriptor.of(valueType);
+      Class<?> rawType = valueTypeDescriptor.getRawType();
+
+      String recommendation = null;
+      if (Map.class.isAssignableFrom(rawType)) {
+        recommendation = "MapState";
+      } else if (List.class.isAssignableFrom(rawType)) {
+        recommendation = "BagState or OrderedListState";
+      } else if (java.util.Set.class.isAssignableFrom(rawType)) {
+        recommendation = "SetState";
+      }
+
+      if (recommendation != null) {
+        LOG.warn(
+            "DoFn {} declares ValueState '{}' with type {}. "
+                + "Storing collections in ValueState requires reading and writing the entire "
+                + "collection on each access, which can cause performance issues. "
+                + "Consider using {} instead for better performance with large collections.",
+            fnClazz.getSimpleName(),
+            stateId,
+            rawType.getSimpleName(),
+            recommendation);
+      }
+    } catch (Exception e) {
+      // If we can't determine the type, don't warn - it's just an optimization hint
+    }
   }
 
   private static @Nullable Method findAnnotatedMethod(

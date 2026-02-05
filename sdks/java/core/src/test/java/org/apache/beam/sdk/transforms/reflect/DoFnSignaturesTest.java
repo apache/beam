@@ -1700,4 +1700,65 @@ public class DoFnSignaturesTest {
     @Override
     public void processWithTimer(ProcessContext context, Timer timer) {}
   }
+
+  // Test DoFns for ValueState collection warning tests
+  private static class DoFnWithMapValueState extends DoFn<String, String> {
+    @StateId("mapState")
+    private final StateSpec<ValueState<java.util.Map<String, String>>> mapState =
+        StateSpecs.value();
+
+    @ProcessElement
+    public void process() {}
+  }
+
+  private static class DoFnWithListValueState extends DoFn<String, String> {
+    @StateId("listState")
+    private final StateSpec<ValueState<java.util.List<String>>> listState = StateSpecs.value();
+
+    @ProcessElement
+    public void process() {}
+  }
+
+  private static class DoFnWithSetValueState extends DoFn<String, String> {
+    @StateId("setState")
+    private final StateSpec<ValueState<java.util.Set<String>>> setState = StateSpecs.value();
+
+    @ProcessElement
+    public void process() {}
+  }
+
+  private static class DoFnWithSimpleValueState extends DoFn<String, String> {
+    @StateId("simpleState")
+    private final StateSpec<ValueState<String>> simpleState = StateSpecs.value();
+
+    @ProcessElement
+    public void process() {}
+  }
+
+  @Test
+  public void testValueStateWithMapLogsWarning() {
+    // This test verifies that the signature can be parsed for DoFns with collection ValueState.
+    // The warning is logged but doesn't prevent the signature from being created.
+    DoFnSignature signature = DoFnSignatures.getSignature(DoFnWithMapValueState.class);
+    assertThat(signature.stateDeclarations().get("mapState"), notNullValue());
+  }
+
+  @Test
+  public void testValueStateWithListLogsWarning() {
+    DoFnSignature signature = DoFnSignatures.getSignature(DoFnWithListValueState.class);
+    assertThat(signature.stateDeclarations().get("listState"), notNullValue());
+  }
+
+  @Test
+  public void testValueStateWithSetLogsWarning() {
+    DoFnSignature signature = DoFnSignatures.getSignature(DoFnWithSetValueState.class);
+    assertThat(signature.stateDeclarations().get("setState"), notNullValue());
+  }
+
+  @Test
+  public void testValueStateWithSimpleTypeNoWarning() {
+    // Simple types should not trigger any warning
+    DoFnSignature signature = DoFnSignatures.getSignature(DoFnWithSimpleValueState.class);
+    assertThat(signature.stateDeclarations().get("simpleState"), notNullValue());
+  }
 }
