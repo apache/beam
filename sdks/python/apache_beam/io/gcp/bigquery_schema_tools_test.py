@@ -337,6 +337,114 @@ class TestBigQueryToSchema(unittest.TestCase):
     self.assertEqual(usertype.__annotations__, expected_annotations)
 
 
+class TypeOverridesSchemaToolsTest(unittest.TestCase):
+  """Tests for type_overrides parameter in bigquery_schema_tools."""
+  def test_bq_field_to_type_with_overrides(self):
+    """Test bq_field_to_type function with type_overrides."""
+    import datetime
+
+    from apache_beam.io.gcp.bigquery_schema_tools import bq_field_to_type
+
+    # Without overrides, DATE is not supported
+    with self.assertRaises(KeyError):
+      bq_field_to_type("DATE", "REQUIRED")
+
+    # With overrides, DATE works
+    overrides = {"DATE": datetime.date}
+    self.assertEqual(
+        bq_field_to_type("DATE", "REQUIRED", overrides), datetime.date)
+    self.assertEqual(
+        bq_field_to_type("DATE", "NULLABLE", overrides),
+        typing.Optional[datetime.date])
+    self.assertEqual(
+        bq_field_to_type("DATE", "REPEATED", overrides),
+        typing.Sequence[datetime.date])
+
+  def test_bq_field_to_type_overrides_can_use_str(self):
+    """Test that type_overrides can map DATE/DATETIME/JSON to str."""
+    from apache_beam.io.gcp.bigquery_schema_tools import bq_field_to_type
+
+    overrides = {"DATE": str, "DATETIME": str, "JSON": str}
+    self.assertEqual(bq_field_to_type("DATE", "REQUIRED", overrides), str)
+    self.assertEqual(bq_field_to_type("DATETIME", "REQUIRED", overrides), str)
+    self.assertEqual(bq_field_to_type("JSON", "REQUIRED", overrides), str)
+
+  def test_generate_user_type_with_overrides(self):
+    """Test generate_user_type_from_bq_schema with type_overrides."""
+    import datetime
+
+    schema = bigquery.TableSchema(
+        fields=[
+            bigquery.TableFieldSchema(
+                name='id', type='INTEGER', mode="REQUIRED"),
+            bigquery.TableFieldSchema(
+                name='event_date', type='DATE', mode="NULLABLE")
+        ])
+
+    # Without overrides, DATE is not supported
+    with self.assertRaises(ValueError):
+      bigquery_schema_tools.generate_user_type_from_bq_schema(schema)
+
+    # With overrides, DATE works
+    overrides = {"DATE": datetime.date}
+    usertype = bigquery_schema_tools.generate_user_type_from_bq_schema(
+        schema, type_overrides=overrides)
+    self.assertEqual(
+        usertype.__annotations__, {
+            'id': np.int64, 'event_date': typing.Optional[datetime.date]
+        })
+
+  def test_generate_user_type_overrides_with_str(self):
+    """Test that type_overrides can map DATE to str."""
+    schema = bigquery.TableSchema(
+        fields=[
+            bigquery.TableFieldSchema(
+                name='id', type='INTEGER', mode="REQUIRED"),
+            bigquery.TableFieldSchema(
+                name='event_date', type='DATE', mode="NULLABLE")
+        ])
+
+    overrides = {"DATE": str}
+    usertype = bigquery_schema_tools.generate_user_type_from_bq_schema(
+        schema, type_overrides=overrides)
+    self.assertEqual(
+        usertype.__annotations__, {
+            'id': np.int64, 'event_date': typing.Optional[str]
+        })
+
+  def test_convert_to_usertype_with_overrides(self):
+    """Test convert_to_usertype function with type_overrides."""
+    import datetime
+
+    schema = bigquery.TableSchema(
+        fields=[
+            bigquery.TableFieldSchema(
+                name='id', type='INTEGER', mode="REQUIRED"),
+            bigquery.TableFieldSchema(
+                name='event_date', type='DATE', mode="NULLABLE")
+        ])
+
+    overrides = {"DATE": datetime.date}
+    transform = bigquery_schema_tools.convert_to_usertype(
+        schema, type_overrides=overrides)
+
+    # The transform should be created successfully
+    self.assertIsNotNone(transform)
+    self.assertIsInstance(transform, beam.ParDo)
+
+  def test_type_overrides_can_override_default_types(self):
+    """Test that type_overrides can override default type mappings."""
+    from apache_beam.io.gcp.bigquery_schema_tools import bq_field_to_type
+
+    # GEOGRAPHY is in the default mapping as str
+    self.assertEqual(bq_field_to_type("GEOGRAPHY", "REQUIRED"), str)
+
+    # We can override it
+    overrides = {"GEOGRAPHY": bytes}
+    self.assertEqual(
+        bq_field_to_type("GEOGRAPHY", "REQUIRED", overrides), bytes)
+
+
 if __name__ == '__main__':
   logging.getLogger().setLevel(logging.INFO)
   unittest.main()

@@ -71,6 +71,7 @@
 
 * (Python) Added exception chaining to preserve error context in CloudSQLEnrichmentHandler, processes utilities, and core transforms ([#37422](https://github.com/apache/beam/issues/37422)).
 * (Python) Added `take(n)` convenience for PCollection: `beam.take(n)` and `pcoll.take(n)` to get the first N elements deterministically without Top.Of + FlatMap ([#X](https://github.com/apache/beam/issues/37429)).
+* (Python) Added `type_overrides` parameter to `WriteToBigQuery` allowing users to specify custom BigQuery to Python type mappings when using Storage Write API. This enables support for types like DATE, DATETIME, and JSON (Python) ([#25946](https://github.com/apache/beam/issues/25946)).
 * X feature added (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
 
 ## Breaking Changes
