@@ -20,17 +20,6 @@ translation.
 
 This module provides thread-safe and async-safe access to PipelineOptions
 using contextvars.
-
-Usage:
-    # Reading options (from anywhere in the call stack):
-    from apache_beam.options.pipeline_construction_options import get_current_pipeline_options
-    options = get_current_pipeline_options()
-
-    # Setting options (typically done internally by Pipeline):
-    from apache_beam.options.pipeline_construction_options import scoped_pipeline_options
-    with scoped_pipeline_options(options):
-        # All code here sees these options
-        ...
 """
 
 from contextlib import contextmanager
