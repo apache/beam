@@ -48,7 +48,7 @@ These steps and instructions on getting started are outlined below as well.
   - For running test suites, however, you will need Python interpreters for all Python versions supported by Beam.
     Interpreters should be installed and available in shell via `python3.x` commands.
     See Python installation tips in [Developer Wiki](https://cwiki.apache.org/confluence/display/BEAM/Python+Tips#PythonTips-InstallingPythoninterpreters).
-  - Ubuntu 24.04 includes Python 3.12 by default but lacks `python3.10`, `python3.11`, and `python3.13` commands. Builds can fail with errors like `python3.10: command not found` or `Cannot run program "python3.10": No such file or directory`.
+  - If you encounter errors like `python3.10: command not found` or `Cannot run program "python3.10": No such file or directory`, your system may be missing some Python versions.
     Workaround: install missing versions with `pyenv` (for example, `pyenv install 3.10` then `pyenv global 3.10 3.11 3.12 3.13` to make all available), or create symlinks in `/usr/local/bin/` pointing to installed Python binaries.
 - For large contributions, a signed [Individual Contributor License
   Agreement](https://www.apache.org/licenses/icla.pdf) (ICLA) to the Apache
