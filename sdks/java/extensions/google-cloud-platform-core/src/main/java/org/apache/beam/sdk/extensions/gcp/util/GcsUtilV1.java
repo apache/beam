@@ -104,7 +104,7 @@ import org.slf4j.LoggerFactory;
 
 /** Provides operations on GCS. */
 @SuppressWarnings({
-  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+  "nullness" // For Creating AccessDeniedException with null.
 })
 class GcsUtilV1 {
 

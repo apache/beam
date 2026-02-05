@@ -26,6 +26,7 @@ import com.google.api.services.storage.model.Objects;
 import com.google.api.services.storage.model.StorageObject;
 import com.google.auth.Credentials;
 import com.google.cloud.storage.Blob;
+import com.google.cloud.storage.BucketInfo;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.io.IOException;
 import java.nio.channels.SeekableByteChannel;
@@ -314,7 +315,10 @@ public class GcsUtil {
   }
 
   public void verifyBucketAccessible(GcsPath path) throws IOException {
-    if (delegateV2 != null) delegateV2.verifyBucketAccessible(path);
+    if (delegateV2 != null) {
+      delegateV2.verifyBucketAccessible(path);
+      return;
+    }
     delegate.verifyBucketAccessible(path);
   }
 
@@ -332,6 +336,14 @@ public class GcsUtil {
     delegate.createBucket(projectId, bucket);
   }
 
+  public void createBucket(BucketInfo bucketInfo) throws IOException {
+    if (delegateV2 != null) {
+      delegateV2.createBucket(bucketInfo);
+    } else {
+      throw new IOException("GcsUtil2 not initialized.");
+    }
+  }
+
   public @Nullable Bucket getBucket(GcsPath path) throws IOException {
     return delegate.getBucket(path);
   }
@@ -343,6 +355,14 @@ public class GcsUtil {
 
   public void removeBucket(Bucket bucket) throws IOException {
     delegate.removeBucket(bucket);
+  }
+
+  public void removeBucket(BucketInfo bucketInfo) throws IOException {
+    if (delegateV2 != null) {
+      delegateV2.removeBucket(bucketInfo);
+    } else {
+      throw new IOException("GcsUtil2 not initialized.");
+    }
   }
 
   @VisibleForTesting

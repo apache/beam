@@ -20,6 +20,7 @@ package org.apache.beam.sdk.extensions.gcp.util;
 import com.google.api.gax.paging.Page;
 import com.google.cloud.storage.Blob;
 import com.google.cloud.storage.Bucket;
+import com.google.cloud.storage.BucketInfo;
 import com.google.cloud.storage.Storage;
 import com.google.cloud.storage.Storage.BlobGetOption;
 import com.google.cloud.storage.Storage.BlobListOption;
@@ -30,6 +31,7 @@ import com.google.cloud.storage.StorageOptions;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.nio.file.AccessDeniedException;
+import java.nio.file.FileAlreadyExistsException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -98,20 +100,22 @@ class GcsUtilV2 {
   })
   /** Get the {@link Bucket} from Cloud Storage path or propagates an exception. */
   public @Nullable Bucket getBucket(GcsPath path) throws IOException {
+    String bucketName = path.getBucket();
     try {
-      Bucket bucket = storage.get(path.getBucket());
-      if (bucket != null) {
-        return bucket;
+      Bucket bucket = storage.get(bucketName);
+      if (bucket == null) {
+        throw new FileNotFoundException(
+            String.format("The specified bucket does not exist: %s", bucketName));
       }
+      return bucket;
     } catch (StorageException e) {
       if (e.getCode() == 403) { // 403 Forbidden
-        throw new AccessDeniedException(path.toString(), null, e.getMessage());
-      } else {
-        throw e;
+        throw new AccessDeniedException(String.format("gs://%s", bucketName), null, e.getMessage());
       }
+
+      // rethrow other exceptions
+      throw e;
     }
-    throw new FileNotFoundException(
-        String.format("The specified bucket does not exist: %s", path.getBucket()));
   }
 
   /** Returns whether the GCS bucket exists and is accessible. */
@@ -140,5 +144,46 @@ class GcsUtilV2 {
   public long bucketProject(GcsPath path) throws IOException {
     Bucket bucket = storage.get(path.getBucket(), BucketGetOption.fields(BucketField.PROJECT));
     return bucket.getProject().longValue();
+  }
+
+  @SuppressWarnings({
+    "nullness" // For Creating AccessDeniedException with null.
+  })
+  public void createBucket(BucketInfo bucketInfo) throws IOException {
+    String bucketName = bucketInfo.getName();
+    try {
+      storage.create(bucketInfo);
+    } catch (StorageException e) {
+      if (e.getCode() == 403) { // 403 Forbidden
+        throw new AccessDeniedException(String.format("gs://%s", bucketName), null, e.getMessage());
+      } else if (e.getCode() == 409) { // 409 Conflict
+        throw new FileAlreadyExistsException(bucketName, null, e.getMessage());
+      }
+
+      // rethrow other exceptions
+      throw e;
+    }
+  }
+
+  @SuppressWarnings({
+    "nullness" // For Creating AccessDeniedException with null.
+  })
+  public void removeBucket(BucketInfo bucketInfo) throws IOException {
+    String bucketName = bucketInfo.getName();
+    try {
+      Bucket bucket = storage.get(bucketName, BucketGetOption.fields(BucketField.NAME));
+      if (bucket == null) {
+        throw new FileNotFoundException(
+            String.format("The specified bucket does not exist: %s", bucketName));
+      }
+      bucket.delete();
+    } catch (StorageException e) {
+      if (e.getCode() == 403) { // 403 Forbidden
+        throw new AccessDeniedException(String.format("gs://%s", bucketName), null, e.getMessage());
+      }
+
+      // rethrow other exceptions
+      throw e;
+    }
   }
 }

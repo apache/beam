@@ -18,13 +18,19 @@
 package org.apache.beam.sdk.extensions.gcp.util;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertThrows;
+import static org.junit.Assert.assertTrue;
 
+import com.google.api.services.storage.model.Bucket;
 import com.google.api.services.storage.model.Objects;
 import com.google.api.services.storage.model.StorageObject;
 import com.google.cloud.storage.Blob;
+import com.google.cloud.storage.BucketInfo;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.nio.file.AccessDeniedException;
+import java.nio.file.FileAlreadyExistsException;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
@@ -168,6 +174,62 @@ public class GcsUtilIT {
     final GcsPath gcsPath = GcsPath.fromUri("gs://apache-beam-samples");
     final long expectedProjectNumber = 844138762903L; // apache-beam-testing
     assertEquals(expectedProjectNumber, gcsUtil.bucketOwner(gcsPath));
+  }
+
+  @Test
+  public void testCreateAndRemoveBucket() throws IOException {
+    final GcsPath gcsPath = GcsPath.fromUri("gs://apache-beam-test-bucket-12345");
+
+    if (experiment.equals("use_gcsutil_v2")) {
+      BucketInfo bucketInfo = BucketInfo.of(gcsPath.getBucket());
+      try {
+        assertFalse(gcsUtil.bucketAccessible(gcsPath));
+        gcsUtil.createBucket(bucketInfo);
+        assertTrue(gcsUtil.bucketAccessible(gcsPath));
+
+        // raise exception when the bucket already exists during creation
+        assertThrows(FileAlreadyExistsException.class, () -> gcsUtil.createBucket(bucketInfo));
+
+        assertTrue(gcsUtil.bucketAccessible(gcsPath));
+        gcsUtil.removeBucket(bucketInfo);
+        assertFalse(gcsUtil.bucketAccessible(gcsPath));
+
+        // raise exception when the bucket does not exist during removal
+        assertThrows(FileNotFoundException.class, () -> gcsUtil.removeBucket(bucketInfo));
+      } finally {
+        // clean up and ignore errors no matter what
+        try {
+          gcsUtil.removeBucket(bucketInfo);
+        } catch (IOException e) {
+        }
+      }
+    } else {
+      Bucket bucket = new Bucket().setName(gcsPath.getBucket());
+      GcsOptions gcsOptions = options.as(GcsOptions.class);
+      String projectId = gcsOptions.getProject();
+      try {
+        assertFalse(gcsUtil.bucketAccessible(gcsPath));
+        gcsUtil.createBucket(projectId, bucket);
+        assertTrue(gcsUtil.bucketAccessible(gcsPath));
+
+        // raise exception when the bucket already exists during creation
+        assertThrows(
+            FileAlreadyExistsException.class, () -> gcsUtil.createBucket(projectId, bucket));
+
+        assertTrue(gcsUtil.bucketAccessible(gcsPath));
+        gcsUtil.removeBucket(bucket);
+        assertFalse(gcsUtil.bucketAccessible(gcsPath));
+
+        // raise exception when the bucket does not exist during removal
+        assertThrows(FileNotFoundException.class, () -> gcsUtil.removeBucket(bucket));
+      } finally {
+        // clean up and ignore errors no matter what
+        try {
+          gcsUtil.removeBucket(bucket);
+        } catch (IOException e) {
+        }
+      }
+    }
   }
 
   // /** Tests a rewrite operation that requires multiple API calls (using a continuation token). */
