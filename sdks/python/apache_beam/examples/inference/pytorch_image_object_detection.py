@@ -30,6 +30,7 @@ import argparse
 import io
 import json
 import logging
+import threading
 import time
 from typing import Any
 from typing import Dict
@@ -49,7 +50,9 @@ from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.options.pipeline_options import SetupOptions
 from apache_beam.options.pipeline_options import StandardOptions
 from apache_beam.runners.runner import PipelineResult
+from apache_beam.transforms import window
 
+from google.cloud import pubsub_v1
 import torch
 import PIL.Image as PILImage
 
@@ -105,6 +108,15 @@ def sha1_hex(s: str) -> str:
 
 
 # ============ DoFns ============
+
+
+class RateLimitDoFn(beam.DoFn):
+  def __init__(self, rate_per_sec: float):
+    self.delay = 1.0 / rate_per_sec
+
+  def process(self, element):
+    time.sleep(self.delay)
+    yield element
 
 
 class MakeKeyDoFn(beam.DoFn):
@@ -258,9 +270,10 @@ def parse_known_args(argv):
   parser = argparse.ArgumentParser()
 
   # I/O & runtime
-  parser.add_argument('--mode', default='batch', choices=['batch'])
   parser.add_argument(
       '--project', default='apache-beam-testing', help='GCP project ID')
+  parser.add_argument(
+      '--mode', default='batch', choices=['streaming', 'batch'])
   parser.add_argument(
       '--output_table',
       required=True,
@@ -269,6 +282,17 @@ def parse_known_args(argv):
       '--publish_to_big_query', default='true', choices=['true', 'false'])
   parser.add_argument(
       '--input', required=True, help='GCS path to file with image URIs')
+  parser.add_argument(
+      '--pubsub_topic',
+      default='projects/apache-beam-testing/topics/images_topic')
+  parser.add_argument(
+      '--pubsub_subscription',
+      default='projects/apache-beam-testing/subscriptions/images_subscription')
+  parser.add_argument(
+      '--rate_limit',
+      type=float,
+      default=None,
+      help='Elements per second for load pipeline')
 
   # Model & inference
   parser.add_argument(
@@ -293,8 +317,63 @@ def parse_known_args(argv):
   parser.add_argument('--score_threshold', type=float, default=0.5)
   parser.add_argument('--max_detections', type=int, default=50)
 
+  # Windows
+  parser.add_argument('--window_sec', type=int, default=60)
+  parser.add_argument('--trigger_proc_time_sec', type=int, default=30)
+
   known_args, pipeline_args = parser.parse_known_args(argv)
   return known_args, pipeline_args
+
+
+def ensure_pubsub_resources(
+    project: str, topic_path: str, subscription_path: str):
+  publisher = pubsub_v1.PublisherClient()
+  subscriber = pubsub_v1.SubscriberClient()
+
+  topic_name = topic_path.split("/")[-1]
+  subscription_name = subscription_path.split("/")[-1]
+
+  full_topic_path = publisher.topic_path(project, topic_name)
+  full_subscription_path = subscriber.subscription_path(
+      project, subscription_name)
+
+  try:
+    publisher.get_topic(request={"topic": full_topic_path})
+  except Exception:
+    publisher.create_topic(name=full_topic_path)
+
+  try:
+    subscriber.get_subscription(
+        request={"subscription": full_subscription_path})
+  except Exception:
+    subscriber.create_subscription(
+        name=full_subscription_path, topic=full_topic_path)
+
+
+def cleanup_pubsub_resources(
+    project: str, topic_path: str, subscription_path: str):
+  publisher = pubsub_v1.PublisherClient()
+  subscriber = pubsub_v1.SubscriberClient()
+
+  topic_name = topic_path.split("/")[-1]
+  subscription_name = subscription_path.split("/")[-1]
+
+  full_topic_path = publisher.topic_path(project, topic_name)
+  full_subscription_path = subscriber.subscription_path(
+      project, subscription_name)
+
+  try:
+    subscriber.delete_subscription(
+        request={"subscription": full_subscription_path})
+    print(f"Deleted subscription: {subscription_name}")
+  except Exception as e:
+    print(f"Failed to delete subscription: {e}")
+
+  try:
+    publisher.delete_topic(request={"topic": full_topic_path})
+    print(f"Deleted topic: {topic_name}")
+  except Exception as e:
+    print(f"Failed to delete topic: {e}")
 
 
 def override_or_add(args, flag, value):
@@ -326,6 +405,41 @@ def create_torchvision_detection_model(model_name: str):
   return model
 
 
+# ============ Load pipeline ============
+
+
+def run_load_pipeline(known_args, pipeline_args):
+  """Reads GCS file with URIs and publishes them to Pub/Sub (for streaming)."""
+  # enforce smaller/CPU-only defaults for feeder
+  override_or_add(pipeline_args, '--device', 'CPU')
+  override_or_add(pipeline_args, '--num_workers', '5')
+  override_or_add(pipeline_args, '--max_num_workers', '10')
+  override_or_add(
+      pipeline_args, '--job_name', f"images-load-pubsub-{int(time.time())}")
+  override_or_add(pipeline_args, '--project', known_args.project)
+  pipeline_args = [
+      arg for arg in pipeline_args if not arg.startswith("--experiments")
+  ]
+
+  pipeline_options = PipelineOptions(pipeline_args)
+  pipeline = beam.Pipeline(options=pipeline_options)
+
+  lines = (
+      pipeline
+      |
+      'ReadGCSFile' >> beam.Create(list(read_gcs_file_lines(known_args.input)))
+      | 'FilterEmpty' >> beam.Filter(lambda line: line.strip()))
+  if known_args.rate_limit:
+    lines = lines | 'RateLimit' >> beam.ParDo(
+        RateLimitDoFn(rate_per_sec=known_args.rate_limit))
+
+  _ = (
+      lines
+      | 'ToBytes' >> beam.Map(lambda line: line.encode('utf-8'))
+      | 'ToPubSub' >> beam.io.WriteToPubSub(topic=known_args.pubsub_topic))
+  return pipeline.run()
+
+
 # ============ Main pipeline ============
 
 
@@ -333,11 +447,24 @@ def run(
     argv=None, save_main_session=True, test_pipeline=None) -> PipelineResult:
   known_args, pipeline_args = parse_known_args(argv)
 
+  if known_args.mode == 'streaming':
+    ensure_pubsub_resources(
+        project=known_args.project,
+        topic_path=known_args.pubsub_topic,
+        subscription_path=known_args.pubsub_subscription)
+
+    # Start feeder thread that reads URIs from GCS and fills Pub/Sub.
+    threading.Thread(
+        target=lambda:
+        (time.sleep(900), run_load_pipeline(known_args, pipeline_args)),
+        daemon=True).start()
+
   pipeline_options = PipelineOptions(pipeline_args)
   pipeline_options.view_as(SetupOptions).save_main_session = save_main_session
-  pipeline_options.view_as(StandardOptions).streaming = False
+  pipeline_options.view_as(StandardOptions).streaming = (
+      known_args.mode == 'streaming')
 
-  device = 'cuda' if known_args.device.upper() == 'GPU' else 'cpu'
+  device = 'GPU' if known_args.device.upper() == 'GPU' else 'CPU'
   resize_shorter_side = (
       known_args.resize_shorter_side
   ) if known_args.resize_shorter_side > 0 else None
@@ -357,18 +484,26 @@ def run(
 
   pipeline = test_pipeline or beam.Pipeline(options=pipeline_options)
 
-  pcoll = (
-      pipeline
-      | 'ReadURIsBatch' >> beam.Create(
-          list(read_gcs_file_lines(known_args.input)))
-      | 'FilterEmptyBatch' >> beam.Filter(lambda s: s.strip()))
+  if known_args.mode == 'batch':
+    pcoll = (
+        pipeline
+        | 'ReadURIsBatch' >> beam.Create(
+            list(read_gcs_file_lines(known_args.input)))
+        | 'FilterEmptyBatch' >> beam.Filter(lambda s: s.strip()))
+  else:
+    pcoll = (
+        pipeline
+        | 'ReadFromPubSub' >>
+        beam.io.ReadFromPubSub(subscription=known_args.pubsub_subscription)
+        | 'DecodeUTF8' >> beam.Map(lambda x: x.decode('utf-8'))
+        | 'Window' >> beam.WindowInto(
+            window.FixedWindows(known_args.window_sec),
+            trigger=beam.trigger.AfterProcessingTime(
+                known_args.trigger_proc_time_sec),
+            accumulation_mode=beam.trigger.AccumulationMode.DISCARDING,
+            allowed_lateness=0))
 
   keyed = (pcoll | 'MakeKey' >> beam.ParDo(MakeKeyDoFn()))
-
-  # Batch exactly-once behavior:
-  # 1) Dedup by key within the run to ensure stable writes.
-  # 2) Use FILE_LOADS for BQ to avoid streaming insert duplicates in retries.
-  keyed = keyed | 'DistinctByKey' >> beam.Distinct()
 
   preprocessed = (
       keyed
@@ -391,6 +526,12 @@ def run(
               score_threshold=known_args.score_threshold,
               max_detections=known_args.max_detections)))
 
+  method = (
+      beam.io.WriteToBigQuery.Method.FILE_LOADS
+      if known_args.mode == 'batch'
+      else beam.io.WriteToBigQuery.Method.STREAMING_INSERTS
+  )
+
   if known_args.publish_to_big_query == 'true':
     _ = (
         results
@@ -401,7 +542,7 @@ def run(
                 'detections:STRING, num_detections:INT64, infer_ms:INT64'),
             write_disposition=beam.io.BigQueryDisposition.WRITE_APPEND,
             create_disposition=beam.io.BigQueryDisposition.CREATE_IF_NEEDED,
-            method=beam.io.WriteToBigQuery.Method.FILE_LOADS))
+            method=method))
 
   result = pipeline.run()
   result.wait_until_finish(duration=1800000)  # 30 min
@@ -409,6 +550,12 @@ def run(
     result.cancel()
   except Exception:
     pass
+
+  if known_args.mode == 'streaming':
+    cleanup_pubsub_resources(
+        project=known_args.project,
+        topic_path=known_args.pubsub_topic,
+        subscription_path=known_args.pubsub_subscription)
 
   return result
 

@@ -24,7 +24,6 @@
 --requirements_file=apache_beam/ml/inference/pytorch_image_object_detection_requirements.txt
 --publish_to_big_query=true
 --metrics_dataset=beam_run_inference
---metrics_table=result_torch_inference_image_object_detection_batch
 --input_options={}
 --influx_measurement=result_torch_inference_image_object_detection_batch
 --pretrained_model_name=fasterrcnn_resnet50_fpn

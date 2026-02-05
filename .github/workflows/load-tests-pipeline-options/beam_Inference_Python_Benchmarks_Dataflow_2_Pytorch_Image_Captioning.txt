@@ -22,9 +22,8 @@
 --requirements_file=apache_beam/ml/inference/pytorch_image_captioning_requirements.txt
 --publish_to_big_query=true
 --metrics_dataset=beam_run_inference
---metrics_table=result_torch_inference_image_captioning_batch
 --input_options={}
---influx_measurement=result_torch_inference_image_captioning_batch
+--influx_measurement=result_torch_inference_image_captioning
 --input=gs://apache-beam-ml/testing/inputs/openimage_50k_benchmark.txt
 --blip_model_name=Salesforce/blip-image-captioning-base
 --blip_batch_size=4
