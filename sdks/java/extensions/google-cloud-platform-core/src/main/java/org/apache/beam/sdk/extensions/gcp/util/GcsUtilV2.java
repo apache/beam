@@ -76,18 +76,20 @@ class GcsUtilV2 {
   @SuppressWarnings({
     "nullness" // For Creating AccessDeniedException and FileAlreadyExistsException with null.
   })
-  private IOException translateStorageException(
-      String bucketName, @Nullable String blobName, StorageException e) {
-    String path = "gs://" + bucketName + (blobName == null ? "" : "/" + blobName);
-
+  private IOException translateStorageException(GcsPath gcsPath, StorageException e) {
     switch (e.getCode()) {
       case 403:
-        return new AccessDeniedException(path, null, e.getMessage());
+        return new AccessDeniedException(gcsPath.toString(), null, e.getMessage());
       case 409:
-        return new FileAlreadyExistsException(path, null, e.getMessage());
+        return new FileAlreadyExistsException(gcsPath.toString(), null, e.getMessage());
       default:
         return new IOException(e);
     }
+  }
+
+  private IOException translateStorageException(
+      String bucketName, @Nullable String blobName, StorageException e) {
+    return translateStorageException(GcsPath.fromComponents(bucketName, blobName), e);
   }
 
   public Blob getBlob(GcsPath gcsPath, BlobGetOption... options) throws IOException {
@@ -99,7 +101,7 @@ class GcsUtilV2 {
       }
       return blob;
     } catch (StorageException e) {
-      throw translateStorageException(gcsPath.getBucket(), gcsPath.getObject(), e);
+      throw translateStorageException(gcsPath, e);
     }
   }
 
@@ -157,11 +159,8 @@ class GcsUtilV2 {
                           "The specified file does not exist: %s", gcsPaths.get(i).toString()))));
         }
       } catch (StorageException e) {
-        // Populating bucket and object name for better error context
-        GcsPath originalPath = gcsPaths.get(i);
         results.add(
-            BlobOrIOException.create(
-                translateStorageException(originalPath.getBucket(), originalPath.getObject(), e)));
+            BlobOrIOException.create(translateStorageException(gcsPaths.get(i), e)));
       }
     }
     return results;
