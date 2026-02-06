@@ -696,8 +696,9 @@ public class FlinkStreamingPortablePipelineTranslator
   public static class IsFlinkNativeTransform implements NativeTransforms.IsNativeTransform {
     @Override
     public boolean test(RunnerApi.PTransform pTransform) {
-      return STREAMING_IMPULSE_TRANSFORM_URN.equals(
-          PTransformTranslation.urnForTransformOrNull(pTransform));
+      String urn = PTransformTranslation.urnForTransformOrNull(pTransform);
+      return STREAMING_IMPULSE_TRANSFORM_URN.equals(urn)
+          || PTransformTranslation.RESHUFFLE_URN.equals(urn);
     }
   }
 

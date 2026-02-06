@@ -75,6 +75,7 @@ dependencies {
   testImplementation project(path: ":sdks:java:extensions:avro:vendored-test", configuration: "shadowTest")
   testImplementation library.java.junit
   testImplementation "org.tukaani:xz:1.9" // marked as optional in avro
+  testImplementation "com.esotericsoftware:kryo:5.6.2" // Used by Avro coder test
   testRuntimeOnly project(path: ":runners:direct-java", configuration: "shadow")
   testRuntimeOnly library.java.slf4j_jdk14
   avroVersions.each { k,v ->
