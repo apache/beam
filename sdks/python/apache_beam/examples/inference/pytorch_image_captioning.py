@@ -370,7 +370,8 @@ class ClipRankModelHandler(ModelHandler):
     batch_ms = now_millis() - start_batch
     total_pairs = len(texts)
 
-    for (start_i, end_i), candidates, blip_ms in zip(offsets, candidates_list, blip_ms_list):
+    items = zip(offsets, candidates_list, blip_ms_list)
+    for (start_i, end_i), candidates, blip_ms in items:
       if start_i == end_i:
         total_ms = int(blip_ms) if blip_ms is not None else None
         results.append({
