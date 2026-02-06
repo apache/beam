@@ -4065,6 +4065,12 @@ and restricting it to a particular type. Beam will automatically infer the
 schema for PCollections with `NamedTuple` output types. For example:
 {{< /paragraph >}}
 
+
+{{< highlight java >}}
+purchases.apply(Select.fieldNames("shippingAddress.postCode"));
+{{< /highlight >}}
+
+
 {{< highlight py >}}
 class Transaction(typing.NamedTuple):
   bank: str
