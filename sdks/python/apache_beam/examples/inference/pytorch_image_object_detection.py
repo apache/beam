@@ -273,7 +273,7 @@ def parse_known_args(argv):
   parser.add_argument(
       '--project', default='apache-beam-testing', help='GCP project ID')
   parser.add_argument(
-      '--mode', default='batch', choices=['streaming', 'batch'])
+      '--mode', default='streaming', choices=['streaming', 'batch'])
   parser.add_argument(
       '--output_table',
       required=True,
@@ -527,10 +527,8 @@ def run(
               max_detections=known_args.max_detections)))
 
   method = (
-      beam.io.WriteToBigQuery.Method.FILE_LOADS
-      if known_args.mode == 'batch'
-      else beam.io.WriteToBigQuery.Method.STREAMING_INSERTS
-  )
+      beam.io.WriteToBigQuery.Method.FILE_LOADS if known_args.mode == 'batch'
+      else beam.io.WriteToBigQuery.Method.STREAMING_INSERTS)
 
   if known_args.publish_to_big_query == 'true':
     _ = (
