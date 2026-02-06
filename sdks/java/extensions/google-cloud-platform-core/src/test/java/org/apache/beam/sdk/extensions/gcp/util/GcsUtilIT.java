@@ -22,6 +22,7 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
 
+import com.google.api.gax.paging.Page;
 import com.google.api.services.storage.model.Bucket;
 import com.google.api.services.storage.model.Objects;
 import com.google.api.services.storage.model.StorageObject;
@@ -112,7 +113,8 @@ public class GcsUtilIT {
 
     if (experiment.equals("use_gcsutil_v2")) {
       assertThrows(FileNotFoundException.class, () -> gcsUtil.getBlob(nonExistentPath));
-      // For V2, we are returning AccessDeniedException (a subclass of IOException) for forbidden paths.
+      // For V2, we are returning AccessDeniedException (a subclass of IOException) for forbidden
+      // paths.
       assertThrows(AccessDeniedException.class, () -> gcsUtil.getBlob(forbiddenPath));
     } else {
       assertThrows(FileNotFoundException.class, () -> gcsUtil.getObject(nonExistentPath));
@@ -127,14 +129,26 @@ public class GcsUtilIT {
 
     List<String> names;
     if (experiment.equals("use_gcsutil_v2")) {
-      List<Blob> blobs = gcsUtil.listBlobs(bucket, prefix, null);
-      names = blobs.stream().map(blob -> blob.getName()).collect(Collectors.toList());
+      Page<Blob> blobs = gcsUtil.listBlobs(bucket, prefix, null);
+      names = blobs.streamAll().map(blob -> blob.getName()).collect(Collectors.toList());
     } else {
       Objects objs = gcsUtil.listObjects(bucket, prefix, null);
       names = objs.getItems().stream().map(obj -> obj.getName()).collect(Collectors.toList());
     }
     assertEquals(
         Arrays.asList("shakespeare/kingrichardii.txt", "shakespeare/kingrichardiii.txt"), names);
+  }
+
+  @Test
+  public void testExpand() throws IOException {
+    final GcsPath gcsPattern = GcsPath.fromUri("gs://apache-beam-samples/shakespeare/king*iii.txt");
+    List<GcsPath> paths = gcsUtil.expand(gcsPattern);
+
+    assertEquals(
+        Arrays.asList(
+            GcsPath.fromUri("gs://apache-beam-samples/shakespeare/kinghenryviii.txt"),
+            GcsPath.fromUri("gs://apache-beam-samples/shakespeare/kingrichardiii.txt")),
+        paths);
   }
 
   @Test

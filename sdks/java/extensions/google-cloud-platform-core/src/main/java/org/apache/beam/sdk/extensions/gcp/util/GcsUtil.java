@@ -20,6 +20,7 @@ package org.apache.beam.sdk.extensions.gcp.util;
 import com.google.api.client.http.HttpRequestInitializer;
 import com.google.api.client.util.BackOff;
 import com.google.api.client.util.Sleeper;
+import com.google.api.gax.paging.Page;
 import com.google.api.services.storage.Storage;
 import com.google.api.services.storage.model.Bucket;
 import com.google.api.services.storage.model.Objects;
@@ -170,6 +171,7 @@ public class GcsUtil {
   }
 
   public List<GcsPath> expand(GcsPath gcsPattern) throws IOException {
+    if (delegateV2 != null) return delegateV2.expand(gcsPattern);
     return delegate.expand(gcsPattern);
   }
 
@@ -224,13 +226,13 @@ public class GcsUtil {
     return delegate.listObjects(bucket, prefix, pageToken, delimiter);
   }
 
-  public List<Blob> listBlobs(String bucket, String prefix, @Nullable String pageToken)
+  public Page<Blob> listBlobs(String bucket, String prefix, @Nullable String pageToken)
       throws IOException {
     if (delegateV2 != null) return delegateV2.listBlobs(bucket, prefix, pageToken);
     throw new IOException("GcsUtil2 not initialized.");
   }
 
-  public List<Blob> listBlobs(
+  public Page<Blob> listBlobs(
       String bucket, String prefix, @Nullable String pageToken, @Nullable String delimiter)
       throws IOException {
     if (delegateV2 != null) return delegateV2.listBlobs(bucket, prefix, pageToken, delimiter);

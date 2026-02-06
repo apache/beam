@@ -17,6 +17,8 @@
  */
 package org.apache.beam.sdk.extensions.gcp.util;
 
+import static org.apache.beam.sdk.io.FileSystemUtils.wildcardToRegexp;
+
 import com.google.api.gax.paging.Page;
 import com.google.cloud.storage.Blob;
 import com.google.cloud.storage.Bucket;
@@ -34,14 +36,17 @@ import java.nio.file.AccessDeniedException;
 import java.nio.file.FileAlreadyExistsException;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.stream.Collectors;
+import java.util.regex.Pattern;
 import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
 import org.apache.beam.sdk.extensions.gcp.util.gcsfs.GcsPath;
 import org.apache.beam.sdk.options.DefaultValueFactory;
 import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 class GcsUtilV2 {
+  private static final org.slf4j.Logger LOG = org.slf4j.LoggerFactory.getLogger(GcsUtilV2.class);
+
   public static class GcsUtilFactory implements DefaultValueFactory<GcsUtilV2> {
     @Override
     public GcsUtilV2 create(PipelineOptions options) {
@@ -96,7 +101,7 @@ class GcsUtilV2 {
   }
 
   /** Lists {@link Blob}s given the {@code bucket}, {@code prefix}, {@code pageToken}. */
-  public List<Blob> listBlobs(
+  public Page<Blob> listBlobs(
       String bucket, String prefix, @Nullable String pageToken, @Nullable String delimiter)
       throws IOException {
     List<BlobListOption> options = new ArrayList<>();
@@ -111,14 +116,58 @@ class GcsUtilV2 {
       options.add(BlobListOption.delimiter(delimiter));
     }
 
-    Page<Blob> blobs = storage.list(bucket, options.toArray(new BlobListOption[0]));
-    List<Blob> blobList = blobs.streamValues().collect(Collectors.toList());
-    return blobList;
+    return storage.list(bucket, options.toArray(new BlobListOption[0]));
   }
 
-  public List<Blob> listBlobs(String bucket, String prefix, @Nullable String pageToken)
+  public Page<Blob> listBlobs(String bucket, String prefix, @Nullable String pageToken)
       throws IOException {
     return listBlobs(bucket, prefix, pageToken, null);
+  }
+
+  /**
+   * Expands a pattern into matched paths. The pattern path may contain globs, which are expanded in
+   * the result. For patterns that only match a single object, we ensure that the object exists.
+   */
+  public List<GcsPath> expand(GcsPath gcsPattern) throws IOException {
+    Pattern p = null;
+    String prefix = null;
+    if (GcsPath.isWildcard(gcsPattern)) {
+      // Part before the first wildcard character.
+      prefix = GcsPath.getNonWildcardPrefix(gcsPattern.getObject());
+      p = Pattern.compile(wildcardToRegexp(gcsPattern.getObject()));
+    } else {
+      // Not a wildcard.
+      try {
+        // Use a get request to fetch the metadata of the object, and ignore the return value.
+        // The request has strong global consistency.
+        getBlob(gcsPattern);
+        return ImmutableList.of(gcsPattern);
+      } catch (FileNotFoundException e) {
+        // If the path was not found, return an empty list.
+        return ImmutableList.of();
+      }
+    }
+
+    LOG.debug(
+        "matching files in bucket {}, prefix {} against pattern {}",
+        gcsPattern.getBucket(),
+        prefix,
+        p.toString());
+
+    String pageToken = null;
+    List<GcsPath> results = new ArrayList<>();
+    Page<Blob> blobs = listBlobs(gcsPattern.getBucket(), prefix, pageToken);
+
+    // Filter objects based on the regex.
+    for (Blob b : blobs.iterateAll()) {
+      String name = b.getName();
+      // Skip directories, which end with a slash.
+      if (p.matcher(name).matches() && !name.endsWith("/")) {
+        LOG.debug("Matched object: {}", name);
+        results.add(GcsPath.fromComponents(b.getBucket(), b.getName()));
+      }
+    }
+    return results;
   }
 
   /** Get the {@link Bucket} from Cloud Storage path or propagates an exception. */
