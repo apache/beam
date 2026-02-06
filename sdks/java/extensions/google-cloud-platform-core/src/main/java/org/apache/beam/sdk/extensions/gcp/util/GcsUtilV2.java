@@ -129,14 +129,8 @@ class GcsUtilV2 {
    * the result. For patterns that only match a single object, we ensure that the object exists.
    */
   public List<GcsPath> expand(GcsPath gcsPattern) throws IOException {
-    Pattern p = null;
-    String prefix = null;
-    if (GcsPath.isWildcard(gcsPattern)) {
-      // Part before the first wildcard character.
-      prefix = GcsPath.getNonWildcardPrefix(gcsPattern.getObject());
-      p = Pattern.compile(wildcardToRegexp(gcsPattern.getObject()));
-    } else {
-      // Not a wildcard.
+    // Handle Non-Wildcard Path
+    if (!GcsPath.isWildcard(gcsPattern)) {
       try {
         // Use a get request to fetch the metadata of the object, and ignore the return value.
         // The request has strong global consistency.
@@ -148,20 +142,22 @@ class GcsUtilV2 {
       }
     }
 
+    // Handle Non-Wildcard Path
+    String prefix = GcsPath.getNonWildcardPrefix(gcsPattern.getObject());
+    Pattern p = Pattern.compile(wildcardToRegexp(gcsPattern.getObject()));
+
     LOG.debug(
         "matching files in bucket {}, prefix {} against pattern {}",
         gcsPattern.getBucket(),
         prefix,
         p.toString());
 
-    String pageToken = null;
     List<GcsPath> results = new ArrayList<>();
-    Page<Blob> blobs = listBlobs(gcsPattern.getBucket(), prefix, pageToken);
-
-    // Filter objects based on the regex.
+    Page<Blob> blobs = listBlobs(gcsPattern.getBucket(), prefix, null);
+    // Iterate through all elements page by page (lazily)
     for (Blob b : blobs.iterateAll()) {
       String name = b.getName();
-      // Skip directories, which end with a slash.
+      // Filter objects based on the regex. Skip directories, which end with a slash.
       if (p.matcher(name).matches() && !name.endsWith("/")) {
         LOG.debug("Matched object: {}", name);
         results.add(GcsPath.fromComponents(b.getBucket(), b.getName()));

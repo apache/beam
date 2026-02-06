@@ -609,7 +609,7 @@ public class GcsPath implements Path, Serializable {
     }
   }
 
-  /** Returns the prefix portion of the glob that doesn't contain wildcards. */
+  /** Returns the prefix portion of the glob before the first wildcard character. */
   public static String getNonWildcardPrefix(String globExp) {
     Matcher m = GLOB_PREFIX.matcher(globExp);
     checkArgument(m.matches(), String.format("Glob expression: [%s] is not expandable.", globExp));

@@ -334,6 +334,8 @@ public class GcsUtil {
     return delegate.bucketOwner(path);
   }
 
+  /** @deprecated use {@link #createBucket(BucketInfo)}. */
+  @Deprecated
   public void createBucket(String projectId, Bucket bucket) throws IOException {
     delegate.createBucket(projectId, bucket);
   }
@@ -346,6 +348,8 @@ public class GcsUtil {
     }
   }
 
+  /** @deprecated use {@link #getBucketV2(GcsPath)}. */
+  @Deprecated
   public @Nullable Bucket getBucket(GcsPath path) throws IOException {
     return delegate.getBucket(path);
   }
@@ -355,6 +359,8 @@ public class GcsUtil {
     throw new IOException("GcsUtil2 not initialized.");
   }
 
+  /** @deprecated use {@link #removeBucket(BucketInfo)}. */
+  @Deprecated
   public void removeBucket(Bucket bucket) throws IOException {
     delegate.removeBucket(bucket);
   }
