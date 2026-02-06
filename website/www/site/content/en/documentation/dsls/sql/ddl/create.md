@@ -25,7 +25,7 @@ The **CREATE** command serves two potential functions depending on the connector
 (e.g. namespace or table) in the underlying storage.
 
 _**Note**: Creating a catalog or database does not automatically switch to it. Remember
-to run [USE](TODO:LINK-TO-USE) afterwards to set it as a default._
+to run [USE](/use) afterwards to set it as a default._
 
 ## `CREATE CATALOG`
 Registers a new catalog instance.

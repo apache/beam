@@ -22,7 +22,7 @@ The **USE** statement sets the active catalog or database for the current sessio
 This simplifies queries by allowing you to reference tables directly (e.g., `orders`),
 avoiding the need for fully qualified names (e.g., `prod_catalog.sales_db.orders`).
 
-***Tip**: the SHOW CURRENT statement helps verify what the currently active entity is.*
+***Tip**: the [SHOW CURRENT](/show) statement helps verify what the current context is.*
 
 ## USE CATALOG
 Switches the current session's active Catalog.
