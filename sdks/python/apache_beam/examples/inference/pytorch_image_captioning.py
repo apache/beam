@@ -347,11 +347,14 @@ class ClipRankModelHandler(ModelHandler):
           padding=True,
           truncation=True,
       )
-      inputs = {k: (v.to(self.device) if torch.is_tensor(v) else v)
-                for k, v in inputs.items()}
+      inputs = {
+          k: (v.to(self.device) if torch.is_tensor(v) else v)
+          for k, v in inputs.items()
+      }
 
       # avoid NxN logits inside CLIPModel.forward()
-      img = self._model.get_image_features(pixel_values=inputs["pixel_values"])  # [N, D]
+      img = self._model.get_image_features(
+          pixel_values=inputs["pixel_values"])  # [N, D]
       txt = self._model.get_text_features(
           input_ids=inputs["input_ids"],
           attention_mask=inputs.get("attention_mask"),
@@ -387,7 +390,7 @@ class ClipRankModelHandler(ModelHandler):
         scores_t = torch.tensor(scores, dtype=torch.float32)
         scores = torch.softmax(scores_t, dim=0).tolist()
 
-      best_idx = max(range(len(scores)), key=lambda i: scores[i])
+      best_idx = max(range(len(scores)), key=lambda i, s=scores: s[i])
 
       pairs = end_i - start_i
       clip_ms_elem = int(batch_ms * (pairs / max(1, total_pairs)))
@@ -419,7 +422,7 @@ def parse_known_args(argv):
 
   # I/O & runtime
   parser.add_argument(
-      '--mode', default='batch', choices=['streaming', 'batch'])
+      '--mode', default='streaming', choices=['streaming', 'batch'])
   parser.add_argument(
       '--project', default='apache-beam-testing', help='GCP project ID')
   parser.add_argument(
@@ -648,10 +651,8 @@ def run(
               clip_name=known_args.clip_model_name)))
 
   method = (
-      beam.io.WriteToBigQuery.Method.FILE_LOADS
-      if known_args.mode == 'batch'
-      else beam.io.WriteToBigQuery.Method.STREAMING_INSERTS
-  )
+      beam.io.WriteToBigQuery.Method.FILE_LOADS if known_args.mode == 'batch'
+      else beam.io.WriteToBigQuery.Method.STREAMING_INSERTS)
 
   if known_args.publish_to_big_query == 'true':
     _ = (
