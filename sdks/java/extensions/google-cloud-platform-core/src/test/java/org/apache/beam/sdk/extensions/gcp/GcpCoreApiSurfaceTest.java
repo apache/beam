@@ -54,16 +54,19 @@ public class GcpCoreApiSurfaceTest {
             classesInPackage("com.google.api.client.http"),
             classesInPackage("com.google.api.client.json"),
             classesInPackage("com.google.api.client.util"),
+            classesInPackage("com.google.api.gax"),
             classesInPackage("com.google.api.services.storage"),
             classesInPackage("com.google.auth"),
+            classesInPackage("com.google.cloud"),
             classesInPackage("com.fasterxml.jackson.annotation"),
             classesInPackage("com.google.cloud.hadoop.gcsio"),
             classesInPackage("com.google.common.collect"), // Via gcs-connector ReadOptions builder
             classesInPackage("java"),
             classesInPackage("javax"),
+            classesInPackage("io.opentelemetry"),
             classesInPackage("org.apache.beam.model.pipeline.v1"),
             classesInPackage("org.apache.beam.sdk"),
-            classesInPackage("org.joda.time"));
+            classesInPackage("org.threeten.bp.temporal"));
 
     assertThat(apiSurface, containsOnlyClassesMatching(allowedClasses));
   }
