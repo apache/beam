@@ -4215,14 +4215,14 @@ Individual nested fields can be specified using the dot operator. For example, t
  shipping address one would write
 {{< /paragraph >}}
 
-{{< highlight java >}}
-purchases.apply(Select.fieldNames("shippingAddress.postCode"));
+{{< highlight py >}}
+import apache_beam as beam
+
+purchases | beam.Select(
+    postCode=lambda row: row.shippingAddress.postCode
+)
 {{< /highlight >}}
 
-<!-- {{< highlight py >}}
-input_pc = ... # {"user_id": ..., "shipping_address": "post_code": ..., "bank": ..., "purchase_amount": ...}
-output_pc = input_pc | beam.Select(post_code=lambda item: str(item["shipping_address.post_code"]))
-{{< /highlight >}} -->
 ##### **Wildcards**
 
 {{< paragraph class="language-py" >}}
