@@ -131,6 +131,19 @@ class TestErrorHandlingCheckCall(unittest.TestCase):
       self.assertIn("Pip install failed for package: {}".format(package),\
         error.args[0])
 
+  def test_check_call_pip_short_command_no_index_error(self):
+    """Short pip command (e.g. pip install pkg) must not raise IndexError."""
+    returncode = 1
+    cmd = ['python', '-m', 'pip', 'install', 'nonexistent-package-xyz']
+    output = "ERROR: Could not find a version that satisfies"
+    self.mock_get.side_effect = subprocess.CalledProcessError(
+        returncode, cmd, output=output)
+    with self.assertRaises(RuntimeError) as ctx:
+      processes.check_call(cmd)
+    self.assertIn("Output from execution of subprocess:", ctx.exception.args[0])
+    self.assertIn(output, ctx.exception.args[0])
+    self.assertIn("see output below", ctx.exception.args[0])
+
 
 class TestErrorHandlingCheckOutput(unittest.TestCase):
   @classmethod
@@ -172,6 +185,19 @@ class TestErrorHandlingCheckOutput(unittest.TestCase):
       self.assertIn("Pip install failed for package: {}".format(package),\
         error.args[0])
 
+  def test_check_output_pip_short_command_no_index_error(self):
+    """Short pip command must not raise IndexError."""
+    returncode = 1
+    cmd = ['python', '-m', 'pip', 'install', 'nonexistent-package-xyz']
+    output = "ERROR: Could not find a version"
+    self.mock_get.side_effect = subprocess.CalledProcessError(
+        returncode, cmd, output=output)
+    with self.assertRaises(RuntimeError) as ctx:
+      processes.check_output(cmd)
+    self.assertIn("Output from execution of subprocess:", ctx.exception.args[0])
+    self.assertIn(output, ctx.exception.args[0])
+    self.assertIn("see output below", ctx.exception.args[0])
+
 
 class TestErrorHandlingCall(unittest.TestCase):
   @classmethod
@@ -212,6 +238,19 @@ class TestErrorHandlingCall(unittest.TestCase):
         error.args[0])
       self.assertIn("Pip install failed for package: {}".format(package),\
         error.args[0])
+
+  def test_call_pip_short_command_no_index_error(self):
+    """Short pip command must not raise IndexError."""
+    returncode = 1
+    cmd = ['python', '-m', 'pip', 'install', 'nonexistent-package-xyz']
+    output = "ERROR: Could not find a version"
+    self.mock_get.side_effect = subprocess.CalledProcessError(
+        returncode, cmd, output=output)
+    with self.assertRaises(RuntimeError) as ctx:
+      processes.call(cmd)
+    self.assertIn("Output from execution of subprocess:", ctx.exception.args[0])
+    self.assertIn(output, ctx.exception.args[0])
+    self.assertIn("see output below", ctx.exception.args[0])
 
 
 if __name__ == '__main__':
