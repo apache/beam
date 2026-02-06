@@ -193,7 +193,8 @@ class PostProcessDoFn(beam.DoFn):
       logits = inference_obj
 
     if not isinstance(logits, torch.Tensor):
-      logging.warning("Unexpected logits type for %s: %s", image_id, type(logits))
+      logging.warning(
+          "Unexpected logits type for %s: %s", image_id, type(logits))
       return
 
     # Ensure shape [1, C]
@@ -501,7 +502,8 @@ def run(
 
   to_infer = (
       preprocessed
-      | 'ToKeyedTensor' >> beam.Map(lambda kv: (kv[0], kv[1]["tensor"].float())))
+      |
+      'ToKeyedTensor' >> beam.Map(lambda kv: (kv[0], kv[1]["tensor"].float())))
 
   predictions = (
       to_infer
@@ -515,10 +517,8 @@ def run(
               model_name=known_args.pretrained_model_name)))
 
   method = (
-      beam.io.WriteToBigQuery.Method.FILE_LOADS
-      if known_args.mode == 'batch'
-      else beam.io.WriteToBigQuery.Method.STREAMING_INSERTS
-  )
+      beam.io.WriteToBigQuery.Method.FILE_LOADS if known_args.mode == 'batch'
+      else beam.io.WriteToBigQuery.Method.STREAMING_INSERTS)
 
   if known_args.publish_to_big_query == 'true':
     _ = (
