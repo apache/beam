@@ -1085,8 +1085,22 @@ public class BigQueryIO {
                           rowTag, getParseFn(), getBadRecordRouter(), cleanupInfoTag))
                   .withOutputTags(rowTag, TupleTagList.of(BAD_RECORD_TAG).and(cleanupInfoTag)));
 
-      PCollectionList.of(resultTuple.get(cleanupInfoTag))
-          .and(readResultTuple.get(cleanupInfoTag))
+      PCollection<KV<String, CleanupOperationMessage>> cleanupMessages1 =
+          resultTuple
+              .get(cleanupInfoTag)
+              .setCoder(
+                  KvCoder.of(
+                      StringUtf8Coder.of(), SerializableCoder.of(CleanupOperationMessage.class)));
+
+      PCollection<KV<String, CleanupOperationMessage>> cleanupMessages2 =
+          readResultTuple
+              .get(cleanupInfoTag)
+              .setCoder(
+                  KvCoder.of(
+                      StringUtf8Coder.of(), SerializableCoder.of(CleanupOperationMessage.class)));
+
+      PCollectionList.of(cleanupMessages1)
+          .and(cleanupMessages2)
           .apply(Flatten.pCollections())
           .apply("CleanupTempTables", ParDo.of(new CleanupTempTableDoFn(getBigQueryServices())));
 
