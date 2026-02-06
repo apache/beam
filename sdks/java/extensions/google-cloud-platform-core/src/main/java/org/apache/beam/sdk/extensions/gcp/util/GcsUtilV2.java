@@ -49,6 +49,7 @@ import org.apache.beam.sdk.options.DefaultValueFactory;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 class GcsUtilV2 {
@@ -67,6 +68,9 @@ class GcsUtilV2 {
 
   /** Maximum number of items to retrieve per Objects.List request. */
   private static final long MAX_LIST_BLOBS_PER_CALL = 1024;
+
+  /** Maximum number of requests permitted in a GCS batch request. */
+  private static final int MAX_REQUESTS_PER_BATCH = 100;
 
   GcsUtilV2(PipelineOptions options) {
     String projectId = options.as(GcpOptions.class).getProject();
@@ -136,31 +140,37 @@ class GcsUtilV2 {
 
   public List<BlobOrIOException> getBlobs(List<GcsPath> gcsPaths, BlobGetOption... options)
       throws IOException {
-    StorageBatch batch = storage.batch();
-    List<StorageBatchResult<Blob>> batchResultFutures = new ArrayList<>();
-
-    for (GcsPath path : gcsPaths) {
-      batchResultFutures.add(batch.get(path.getBucket(), path.getObject(), options));
-    }
-    batch.submit();
 
     List<BlobOrIOException> results = new ArrayList<>();
-    for (int i = 0; i < batchResultFutures.size(); i++) {
-      StorageBatchResult<Blob> future = batchResultFutures.get(i);
-      try {
-        Blob blob = future.get();
-        if (blob != null) {
-          results.add(BlobOrIOException.create(blob));
-        } else {
-          results.add(
-              BlobOrIOException.create(
-                  new FileNotFoundException(
-                      String.format(
-                          "The specified file does not exist: %s", gcsPaths.get(i).toString()))));
+
+    for (List<GcsPath> pathPartition :
+        Lists.partition(Lists.newArrayList(gcsPaths), MAX_REQUESTS_PER_BATCH)) {
+
+      // Create a new empty batch every time
+      StorageBatch batch = storage.batch();
+      List<StorageBatchResult<Blob>> batchResultFutures = new ArrayList<>();
+
+      for (GcsPath path : pathPartition) {
+        batchResultFutures.add(batch.get(path.getBucket(), path.getObject(), options));
+      }
+      batch.submit();
+
+      for (int i = 0; i < batchResultFutures.size(); i++) {
+        StorageBatchResult<Blob> future = batchResultFutures.get(i);
+        try {
+          Blob blob = future.get();
+          if (blob != null) {
+            results.add(BlobOrIOException.create(blob));
+          } else {
+            results.add(
+                BlobOrIOException.create(
+                    new FileNotFoundException(
+                        String.format(
+                            "The specified file does not exist: %s", gcsPaths.get(i).toString()))));
+          }
+        } catch (StorageException e) {
+          results.add(BlobOrIOException.create(translateStorageException(gcsPaths.get(i), e)));
         }
-      } catch (StorageException e) {
-        results.add(
-            BlobOrIOException.create(translateStorageException(gcsPaths.get(i), e)));
       }
     }
     return results;
