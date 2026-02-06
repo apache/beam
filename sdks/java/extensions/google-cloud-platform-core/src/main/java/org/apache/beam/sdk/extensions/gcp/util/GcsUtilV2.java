@@ -116,7 +116,11 @@ class GcsUtilV2 {
       options.add(BlobListOption.delimiter(delimiter));
     }
 
-    return storage.list(bucket, options.toArray(new BlobListOption[0]));
+    try {
+      return storage.list(bucket, options.toArray(new BlobListOption[0]));
+    } catch (StorageException e) {
+      throw translateStorageException(bucket, prefix, e);
+    }
   }
 
   public Page<Blob> listBlobs(String bucket, String prefix, @Nullable String pageToken)
