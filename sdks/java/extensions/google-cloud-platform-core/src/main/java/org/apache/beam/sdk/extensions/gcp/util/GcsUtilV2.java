@@ -24,6 +24,7 @@ import com.google.cloud.storage.Blob;
 import com.google.cloud.storage.Bucket;
 import com.google.cloud.storage.BucketInfo;
 import com.google.cloud.storage.Storage;
+import com.google.cloud.storage.Storage.BlobField;
 import com.google.cloud.storage.Storage.BlobGetOption;
 import com.google.cloud.storage.Storage.BlobListOption;
 import com.google.cloud.storage.Storage.BucketField;
@@ -97,12 +98,16 @@ class GcsUtilV2 {
   }
 
   public long fileSize(GcsPath gcsPath) throws IOException {
-    return getBlob(gcsPath).getSize();
+    return getBlob(gcsPath, BlobGetOption.fields(BlobField.SIZE)).getSize();
   }
 
   /** Lists {@link Blob}s given the {@code bucket}, {@code prefix}, {@code pageToken}. */
   public Page<Blob> listBlobs(
-      String bucket, String prefix, @Nullable String pageToken, @Nullable String delimiter)
+      String bucket,
+      String prefix,
+      @Nullable String pageToken,
+      @Nullable String delimiter,
+      BlobListOption... extraOptions)
       throws IOException {
     List<BlobListOption> options = new ArrayList<>();
     options.add(BlobListOption.pageSize(MAX_LIST_BLOBS_PER_CALL));
@@ -115,6 +120,11 @@ class GcsUtilV2 {
     if (delimiter != null) {
       options.add(BlobListOption.delimiter(delimiter));
     }
+    if (extraOptions != null && extraOptions.length > 0) {
+      for (BlobListOption option : extraOptions) {
+        options.add(option);
+      }
+    }
 
     try {
       return storage.list(bucket, options.toArray(new BlobListOption[0]));
@@ -123,9 +133,10 @@ class GcsUtilV2 {
     }
   }
 
-  public Page<Blob> listBlobs(String bucket, String prefix, @Nullable String pageToken)
+  public Page<Blob> listBlobs(
+      String bucket, String prefix, @Nullable String pageToken, BlobListOption... extraOptions)
       throws IOException {
-    return listBlobs(bucket, prefix, pageToken, null);
+    return listBlobs(bucket, prefix, pageToken, null, extraOptions);
   }
 
   /**
@@ -138,7 +149,7 @@ class GcsUtilV2 {
       try {
         // Use a get request to fetch the metadata of the object, and ignore the return value.
         // The request has strong global consistency.
-        getBlob(gcsPattern);
+        getBlob(gcsPattern, BlobGetOption.fields(BlobField.NAME));
         return ImmutableList.of(gcsPattern);
       } catch (FileNotFoundException e) {
         // If the path was not found, return an empty list.
@@ -158,7 +169,12 @@ class GcsUtilV2 {
         p.toString());
 
     List<GcsPath> results = new ArrayList<>();
-    Page<Blob> blobs = listBlobs(gcsPattern.getBucket(), prefix, null);
+    Page<Blob> blobs =
+        listBlobs(
+            gcsPattern.getBucket(),
+            prefix,
+            null,
+            BlobListOption.fields(BlobField.NAME, BlobField.BUCKET));
     // Iterate through all elements page by page (lazily)
     for (Blob b : blobs.iterateAll()) {
       String name = b.getName();
