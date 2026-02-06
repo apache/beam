@@ -16,4 +16,5 @@
 #
 
 [run]
+parallel = True
 omit = target/*

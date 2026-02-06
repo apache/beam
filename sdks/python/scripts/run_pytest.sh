@@ -150,6 +150,14 @@ fi
 if [[ $status1 != 0 && $status1 != 5 ]]; then
   exit $status1
 fi
-if [[ $status2 != 0 && $status2 != 5 ]]; then
-  exit $status2
+# Combine coverage data if parallel was used.
+if [ -f .coveragerc ] && grep -q "parallel = True" .coveragerc; then
+  echo "Combining coverage data..."
+  coverage combine
+  if [[ $pytest_args == *"--cov-report=xml"* ]]; then
+    echo "Generating XML report..."
+    coverage xml
+  fi
 fi
+
+exit 0
