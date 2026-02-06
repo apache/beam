@@ -1842,7 +1842,7 @@ class _SharedModelWrapper():
       self,
       models: Union[list[Any], ModelManager],
       model_tag: str,
-      loader_func: Callable[[], Any] = None):
+      loader_func: Optional[Callable[[], Any]] = None):
     self.models = models
     self.use_model_manager = not isinstance(models, list)
     self.model_tag = model_tag
