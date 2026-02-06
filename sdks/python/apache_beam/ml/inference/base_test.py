@@ -2279,7 +2279,7 @@ class ModelHandlerBatchingArgsTest(unittest.TestCase):
     self.assertEqual(kwargs, {'max_batch_duration_secs': 60})
 
 
-class SimpleFakeModelHanlder(base.ModelHandler[int, int, FakeModel]):
+class SimpleFakeModelHandler(base.ModelHandler[int, int, FakeModel]):
   def load_model(self):
     return FakeModel()
 
