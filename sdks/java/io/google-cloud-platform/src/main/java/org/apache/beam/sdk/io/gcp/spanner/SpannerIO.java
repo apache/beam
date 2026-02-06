@@ -2110,6 +2110,7 @@ public class SpannerIO {
     SpannerConfig spannerConfigWithCredential =
         buildSpannerConfigWithCredential(spannerConfig, pipelineOptions);
 
+
     try (SpannerAccessor sa = SpannerAccessor.getOrCreate(spannerConfigWithCredential)) {
       DatabaseClient databaseClient = sa.getDatabaseClient();
       return databaseClient.getDialect();
