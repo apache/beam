@@ -2316,7 +2316,7 @@ class ModelManagerTest(unittest.TestCase):
       expected = [example + 1 for example in examples]
       pcoll = pipeline | 'start' >> beam.Create(examples)
       actual = pcoll | base.RunInference(
-          SimpleFakeModelHanlder(), use_model_manager=True)
+          SimpleFakeModelHandler(), use_model_manager=True)
       assert_that(actual, equal_to(expected), label='assert:inferences')
 
   @unittest.skipIf(
@@ -2327,7 +2327,7 @@ class ModelManagerTest(unittest.TestCase):
       expected = [example + 1 for example in examples]
       pcoll = pipeline | 'start' >> beam.Create(examples)
       actual = pcoll | base.RunInference(
-          SimpleFakeModelHanlder(),
+          SimpleFakeModelHandler(),
           use_model_manager=True,
           model_manager_args={
               'slack_percentage': 0.2,
