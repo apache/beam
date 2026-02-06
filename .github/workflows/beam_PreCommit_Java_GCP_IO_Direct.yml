@@ -111,7 +111,7 @@ jobs:
             :sdks:java:io:google-cloud-platform:expansion-service:build \
             :sdks:java:io:google-cloud-platform:postCommit \
           arguments: |
-            --tests "*SpannerChangeStreamOrderedWithinKeyGloballyIT.testOrderedWithinKey*"
+            --tests "*SpannerChangeStreamOrderedWithinKeyGloballyIT.testOrderedWithinKey*" \
             -PdisableSpotlessCheck=true \
             -PdisableCheckStyle=true \
             -PenableJacocoReport \
