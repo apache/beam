@@ -175,7 +175,9 @@ public class GcsUtil {
   }
 
   public List<GcsPath> expand(GcsPath gcsPattern) throws IOException {
-    if (delegateV2 != null) return delegateV2.expand(gcsPattern);
+    if (delegateV2 != null) {
+      return delegateV2.expand(gcsPattern);
+    }
     return delegate.expand(gcsPattern);
   }
 
@@ -186,7 +188,9 @@ public class GcsUtil {
   }
 
   public long fileSize(GcsPath path) throws IOException {
-    if (delegateV2 != null) return delegateV2.fileSize(path);
+    if (delegateV2 != null) {
+      return delegateV2.fileSize(path);
+    }
     return delegate.fileSize(path);
   }
 
@@ -204,7 +208,9 @@ public class GcsUtil {
   }
 
   public Blob getBlob(GcsPath gcsPath, BlobGetOption... options) throws IOException {
-    if (delegateV2 != null) return delegateV2.getBlob(gcsPath, options);
+    if (delegateV2 != null) {
+      return delegateV2.getBlob(gcsPath, options);
+    }
     throw new IOException("GcsUtil2 not initialized.");
   }
 
@@ -219,7 +225,9 @@ public class GcsUtil {
 
   public List<BlobOrIOException> getBlobs(List<GcsPath> gcsPaths, BlobGetOption... options)
       throws IOException {
-    if (delegateV2 != null) return delegateV2.getBlobs(gcsPaths, options);
+    if (delegateV2 != null) {
+      return delegateV2.getBlobs(gcsPaths, options);
+    }
     throw new IOException("GcsUtil2 not initialized.");
   }
 
@@ -241,7 +249,9 @@ public class GcsUtil {
   public Page<Blob> listBlobs(
       String bucket, String prefix, @Nullable String pageToken, BlobListOption... options)
       throws IOException {
-    if (delegateV2 != null) return delegateV2.listBlobs(bucket, prefix, pageToken, options);
+    if (delegateV2 != null) {
+      return delegateV2.listBlobs(bucket, prefix, pageToken, options);
+    }
     throw new IOException("GcsUtil2 not initialized.");
   }
 
@@ -252,8 +262,9 @@ public class GcsUtil {
       @Nullable String delimiter,
       BlobListOption... options)
       throws IOException {
-    if (delegateV2 != null)
+    if (delegateV2 != null) {
       return delegateV2.listBlobs(bucket, prefix, pageToken, delimiter, options);
+    }
     throw new IOException("GcsUtil2 not initialized.");
   }
 
@@ -343,12 +354,16 @@ public class GcsUtil {
   }
 
   public boolean bucketAccessible(GcsPath path) throws IOException {
-    if (delegateV2 != null) return delegateV2.bucketAccessible(path);
+    if (delegateV2 != null) {
+      return delegateV2.bucketAccessible(path);
+    }
     return delegate.bucketAccessible(path);
   }
 
   public long bucketOwner(GcsPath path) throws IOException {
-    if (delegateV2 != null) return delegateV2.bucketProject(path);
+    if (delegateV2 != null) {
+      return delegateV2.bucketProject(path);
+    }
     return delegate.bucketOwner(path);
   }
 
@@ -374,7 +389,9 @@ public class GcsUtil {
 
   public com.google.cloud.storage.@Nullable Bucket getBucketV2(
       GcsPath path, BucketGetOption... options) throws IOException {
-    if (delegateV2 != null) return delegateV2.getBucket(path, options);
+    if (delegateV2 != null) {
+      return delegateV2.getBucket(path, options);
+    }
     throw new IOException("GcsUtil2 not initialized.");
   }
 
