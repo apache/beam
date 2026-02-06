@@ -1026,6 +1026,223 @@ class BatchElementsTest(unittest.TestCase):
       assert_that(res, equal_to([1, 1, 2, 4, 8, 16, 32, 50, 50]))
 
 
+class SortAndBatchElementsTest(unittest.TestCase):
+  """Tests for SortAndBatchElements transform."""
+  def test_elements_are_sorted_by_size(self):
+    """Test that elements are sorted by size within batches."""
+    with TestPipeline() as p:
+      # Create elements with varying sizes
+      data = ['aaaaa', 'bb', 'cccc', 'a', 'ddd']
+      res = (
+          p
+          | beam.Create(data, reshuffle=False)
+          | util.SortAndBatchElements(
+              min_batch_size=1, max_batch_size=5, max_batch_weight=100))
+
+      def check_sorted(batch):
+        lengths = [len(s) for s in batch]
+        assert lengths == sorted(lengths), (
+            f'Batch not sorted by size: {lengths}')
+        return batch
+
+      _ = res | beam.Map(check_sorted)
+
+  def test_batch_respects_max_batch_size(self):
+    """Test that batches do not exceed max_batch_size."""
+    with TestPipeline() as p:
+      res = (
+          p
+          | beam.Create(['a'] * 10, reshuffle=False)
+          | util.SortAndBatchElements(
+              min_batch_size=1, max_batch_size=3, max_batch_weight=100)
+          | beam.Map(len))
+      assert_that(res, equal_to([3, 3, 3, 1]))
+
+  def test_batch_respects_max_batch_weight(self):
+    """Test that batches do not exceed max_batch_weight."""
+    with TestPipeline() as p:
+      # Each element has size 5, max_batch_weight is 12
+      # So we can fit at most 2 elements per batch
+      data = ['aaaaa', 'bbbbb', 'ccccc', 'ddddd']
+      res = (
+          p
+          | beam.Create(data, reshuffle=False)
+          | util.SortAndBatchElements(
+              min_batch_size=1, max_batch_size=10, max_batch_weight=12)
+          | beam.Map(len))
+      assert_that(res, equal_to([2, 2]))
+
+  def test_default_element_size_fn_with_strings(self):
+    """Test default element_size_fn works with strings."""
+    with TestPipeline() as p:
+      data = ['a', 'bbb', 'cc']
+      res = (
+          p
+          | beam.Create(data, reshuffle=False)
+          | util.SortAndBatchElements(
+              min_batch_size=1, max_batch_size=3, max_batch_weight=100)
+          | beam.FlatMap(lambda batch: [len(s) for s in batch]))
+      # Elements should be sorted by length: 'a'(1), 'cc'(2), 'bbb'(3)
+      assert_that(res, equal_to([1, 2, 3]))
+
+  def test_default_element_size_fn_with_integers(self):
+    """Test default element_size_fn falls back to 1 for integers."""
+    with TestPipeline() as p:
+      data = [10, 20, 30, 40, 50]
+      res = (
+          p
+          | beam.Create(data, reshuffle=False)
+          | util.SortAndBatchElements(
+              min_batch_size=1, max_batch_size=3, max_batch_weight=100)
+          | beam.Map(len))
+      # With size=1 for all, should batch by max_batch_size
+      assert_that(res, equal_to([3, 2]))
+
+  def test_custom_element_size_fn(self):
+    """Test using a custom element_size_fn."""
+    with TestPipeline() as p:
+      data = [{'text': 'a'}, {'text': 'bbb'}, {'text': 'cc'}]
+      res = (
+          p
+          | beam.Create(data, reshuffle=False)
+          | util.SortAndBatchElements(
+              min_batch_size=1,
+              max_batch_size=3,
+              max_batch_weight=100,
+              element_size_fn=lambda x: len(x['text']))
+          | beam.FlatMap(lambda batch: [len(e['text']) for e in batch]))
+      # Should be sorted by text length
+      assert_that(res, equal_to([1, 2, 3]))
+
+  def test_empty_input(self):
+    """Test with empty input produces no output."""
+    with TestPipeline() as p:
+      res = (
+          p
+          | beam.Create([], reshuffle=False)
+          | util.SortAndBatchElements(
+              min_batch_size=1, max_batch_size=10, max_batch_weight=100)
+          | beam.Map(len))
+      assert_that(res, equal_to([]))
+
+  def test_single_element(self):
+    """Test with a single element."""
+    with TestPipeline() as p:
+      res = (
+          p
+          | beam.Create(['hello'], reshuffle=False)
+          | util.SortAndBatchElements(
+              min_batch_size=1, max_batch_size=10, max_batch_weight=100))
+      assert_that(res, equal_to([['hello']]))
+
+  def test_windowed_batches(self):
+    """Test that windowed elements are batched per window."""
+    with TestPipeline('FnApiRunner') as p:
+      res = (
+          p
+          | beam.Create(range(1, 8), reshuffle=False)
+          | beam.Map(lambda t: window.TimestampedValue('a' * t, t))
+          | beam.WindowInto(window.FixedWindows(3))
+          | util.SortAndBatchElements(
+              min_batch_size=1, max_batch_size=10, max_batch_weight=100)
+          | beam.Map(lambda batch: ''.join(batch)))
+      # FixedWindows(3) with default offset 0 produces:
+      # Window [0, 3): elements at t=1,2 with sizes 1,2
+      # Window [3, 6): elements at t=3,4,5 with sizes 3,4,5
+      # Window [6, 9): elements at t=6,7 with sizes 6,7
+      assert_that(
+          res,
+          equal_to([
+              'a' * (1 + 2),  # Window [0, 3)
+              'a' * (3 + 4 + 5),  # Window [3, 6)
+              'a' * (6 + 7),  # Window [6, 9)
+          ]))
+
+  def test_validation_min_batch_size(self):
+    """Test that min_batch_size validation raises ValueError."""
+    with self.assertRaises(ValueError) as cm:
+      util.SortAndBatchElements(
+          min_batch_size=0, max_batch_size=10, max_batch_weight=100)
+    self.assertIn('min_batch_size must be >= 1', str(cm.exception))
+
+  def test_validation_max_batch_size(self):
+    """Test that max_batch_size < min_batch_size raises ValueError."""
+    with self.assertRaises(ValueError) as cm:
+      util.SortAndBatchElements(
+          min_batch_size=10, max_batch_size=5, max_batch_weight=100)
+    self.assertIn('max_batch_size', str(cm.exception))
+    self.assertIn('min_batch_size', str(cm.exception))
+
+  def test_validation_max_batch_weight(self):
+    """Test that max_batch_weight validation raises ValueError."""
+    with self.assertRaises(ValueError) as cm:
+      util.SortAndBatchElements(
+          min_batch_size=1, max_batch_size=10, max_batch_weight=0)
+    self.assertIn('max_batch_weight must be >= 1', str(cm.exception))
+
+  def test_validation_element_size_fn_callable(self):
+    """Test that a non-callable element_size_fn raises TypeError."""
+    with self.assertRaises(TypeError) as cm:
+      util.SortAndBatchElements(
+          min_batch_size=1,
+          max_batch_size=10,
+          max_batch_weight=100,
+          element_size_fn=123)
+    self.assertIn('element_size_fn must be callable', str(cm.exception))
+
+  def test_batch_timestamps(self):
+    """Test that batches have correct timestamps."""
+    with TestPipeline('FnApiRunner') as p:
+      res = (
+          p
+          | beam.Create(['a', 'bb', 'ccc'], reshuffle=False)
+          | util.SortAndBatchElements(
+              min_batch_size=1, max_batch_size=10, max_batch_weight=100)
+          |
+          beam.Map(lambda batch, ts=beam.DoFn.TimestampParam: (len(batch), ts)))
+      assert_that(res, equal_to([(3, GlobalWindow().max_timestamp())]))
+
+  def test_padding_efficiency_improvement(self):
+    """Test that sorting improves padding efficiency."""
+    # This test verifies the core value proposition of SortAndBatchElements
+    data = ['a', 'aaaaa', 'aa', 'aaaa', 'aaa']
+
+    # Compute what BatchElements would produce (preserves input order)
+    batch_elements_batches = []
+    with TestPipeline() as p:
+      _ = (
+          p
+          | 'Create1' >> beam.Create(data, reshuffle=False)
+          | util.BatchElements(min_batch_size=5, max_batch_size=5)
+          | beam.Map(lambda b: batch_elements_batches.append(list(b))))
+
+    # Compute what SortAndBatchElements produces
+    sort_batch_batches = []
+    with TestPipeline() as p:
+      _ = (
+          p
+          | 'Create2' >> beam.Create(data, reshuffle=False)
+          | util.SortAndBatchElements(
+              min_batch_size=1, max_batch_size=5, max_batch_weight=100)
+          | beam.Map(lambda b: sort_batch_batches.append(list(b))))
+
+    # Calculate padding overhead for each approach
+    # Padding overhead:
+    # sum(max_len_in_batch * batch_size) - sum(actual_lengths)
+    def compute_overhead(batches):
+      overhead = 0
+      for batch in batches:
+        lengths = [len(s) for s in batch]
+        overhead += max(lengths) * len(batch) - sum(lengths)
+      return overhead
+
+    batch_overhead = compute_overhead(batch_elements_batches)
+    sort_overhead = compute_overhead(sort_batch_batches)
+
+    # SortAndBatchElements should have less or equal overhead
+    self.assertLessEqual(sort_overhead, batch_overhead)
+
+
 class IdentityWindowTest(unittest.TestCase):
   def test_window_preserved(self):
     expected_timestamp = timestamp.Timestamp(5)
