@@ -541,11 +541,6 @@ class ModelManager:
         if self._wait_queue and self._wait_queue[0].ticket_num == ticket_num:
           heapq.heappop(self._wait_queue)
         else:
-          logger.warning(
-              "Item not at head of wait queue during cleanup"
-              ", this is not expected: tag=%s ticket num=%s",
-              tag,
-              ticket_num)
           # Marked as cancelled so that we skip when we reach head later
           self._cancelled_tickets.add(ticket_num)
         self._wake_next_in_queue()
