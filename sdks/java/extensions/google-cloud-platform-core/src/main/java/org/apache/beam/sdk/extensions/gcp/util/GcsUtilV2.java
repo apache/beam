@@ -146,7 +146,8 @@ class GcsUtilV2 {
       }
     }
 
-    // Handle Non-Wildcard Path
+    // Handle Wildcard Path
+    // TODO: check out BlobListOption.matchGlob() for a similar function.
     String prefix = GcsPath.getNonWildcardPrefix(gcsPattern.getObject());
     Pattern p = Pattern.compile(wildcardToRegexp(gcsPattern.getObject()));
 

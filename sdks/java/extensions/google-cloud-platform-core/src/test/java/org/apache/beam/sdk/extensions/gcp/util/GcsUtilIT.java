@@ -137,18 +137,36 @@ public class GcsUtilIT {
     }
     assertEquals(
         Arrays.asList("shakespeare/kingrichardii.txt", "shakespeare/kingrichardiii.txt"), names);
+
+    final String randomPrefix = "my-random-prefix/random";
+    if (experiment.equals("use_gcsutil_v2")) {
+      Page<Blob> blobs = gcsUtil.listBlobs(bucket, randomPrefix, null);
+      assertEquals(0, blobs.streamAll().count());
+    } else {
+      Objects objs = gcsUtil.listObjects(bucket, randomPrefix, null);
+      assertEquals(null, objs.getItems());
+    }
   }
 
   @Test
   public void testExpand() throws IOException {
-    final GcsPath gcsPattern = GcsPath.fromUri("gs://apache-beam-samples/shakespeare/king*iii.txt");
-    List<GcsPath> paths = gcsUtil.expand(gcsPattern);
+    final GcsPath existingPattern =
+        GcsPath.fromUri("gs://apache-beam-samples/shakespeare/kingrichardii*.txt");
+    List<GcsPath> paths = gcsUtil.expand(existingPattern);
 
     assertEquals(
         Arrays.asList(
-            GcsPath.fromUri("gs://apache-beam-samples/shakespeare/kinghenryviii.txt"),
+            GcsPath.fromUri("gs://apache-beam-samples/shakespeare/kingrichardii.txt"),
             GcsPath.fromUri("gs://apache-beam-samples/shakespeare/kingrichardiii.txt")),
         paths);
+
+    final GcsPath nonExistentPattern1 =
+        GcsPath.fromUri("gs://apache-beam-samples/my_random_folder/random*.txt");
+    assertTrue(gcsUtil.expand(nonExistentPattern1).isEmpty());
+
+    final GcsPath nonExistentPattern2 =
+        GcsPath.fromUri("gs://apache-beam-samples/shakespeare/king*.csv");
+    assertTrue(gcsUtil.expand(nonExistentPattern2).isEmpty());
   }
 
   @Test
@@ -188,9 +206,14 @@ public class GcsUtilIT {
 
   @Test
   public void testBucketOwner() throws IOException {
-    final GcsPath gcsPath = GcsPath.fromUri("gs://apache-beam-samples");
+    final GcsPath existingPath = GcsPath.fromUri("gs://apache-beam-samples");
     final long expectedProjectNumber = 844138762903L; // apache-beam-testing
-    assertEquals(expectedProjectNumber, gcsUtil.bucketOwner(gcsPath));
+    assertEquals(expectedProjectNumber, gcsUtil.bucketOwner(existingPath));
+
+    final GcsPath nonExistentPath = GcsPath.fromUri("gs://my-random-test-bucket-12345");
+    final GcsPath forbiddenPath = GcsPath.fromUri("gs://test-bucket");
+    assertThrows(FileNotFoundException.class, () -> gcsUtil.bucketOwner(nonExistentPath));
+    assertThrows(AccessDeniedException.class, () -> gcsUtil.bucketOwner(forbiddenPath));
   }
 
   @Test
