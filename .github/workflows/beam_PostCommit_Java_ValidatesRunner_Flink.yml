@@ -50,13 +50,15 @@ env:
 
 jobs:
   beam_PostCommit_Java_ValidatesRunner_Flink:    
-    name: ${{ matrix.job_name }} (${{ matrix.job_phrase }})
+    name: ${{ matrix.job_name }} (${{ matrix.flink_version }})
     runs-on: [self-hosted, ubuntu-20.04, main]
     timeout-minutes: 100
     strategy:
       matrix:
         job_name: [beam_PostCommit_Java_ValidatesRunner_Flink]
         job_phrase: [Run Flink ValidatesRunner]
+        # every major version
+        flink_version: ['1.20', '2.0']
     if: |
       github.event_name == 'workflow_dispatch' ||
       github.event_name == 'pull_request_target' ||
@@ -69,7 +71,7 @@ jobs:
         with:
           comment_phrase: ${{ matrix.job_phrase }}
           github_token: ${{ secrets.GITHUB_TOKEN }}
-          github_job: ${{ matrix.job_name }} (${{ matrix.job_phrase }})
+          github_job: ${{ matrix.job_name }} (${{ matrix.flink_version }})
       - name: Setup environment
         uses: ./.github/actions/setup-environment-action
         with:
@@ -78,7 +80,7 @@ jobs:
       - name: run validatesRunner script
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
-          gradle-command: :runners:flink:1.20:validatesRunner
+          gradle-command: :runners:flink:${{ matrix.flink_version }}:validatesRunner
       - name: Archive JUnit Test Results
         uses: actions/upload-artifact@v4
         if: ${{ !success() }}
