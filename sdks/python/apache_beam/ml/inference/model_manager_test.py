@@ -174,7 +174,7 @@ class TestModelManager(unittest.TestCase):
     def acquire_model_with_timeout():
       return self.manager.acquire_model(model_name, loader)
 
-    with ThreadPoolExecutor(max_workers=16) as executor:
+    with ThreadPoolExecutor(max_workers=1000) as executor:
       futures = [
           executor.submit(acquire_model_with_timeout) for i in range(1000)
       ]

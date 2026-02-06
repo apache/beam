@@ -434,14 +434,23 @@ class ModelManager:
       # Clean up cancelled tickets at head of queue
       while self._wait_queue and self._wait_queue[
           0].ticket_num in self._cancelled_tickets:
-        heapq.heappop(self._wait_queue)
         self._cancelled_tickets.remove(self._wait_queue[0].ticket_num)
+        heapq.heappop(self._wait_queue)
       next_inline = self._wait_queue[0]
       next_inline.wake_event.set()
+
+  def _wait_in_queue(self, ticket: QueueTicket):
+    self._cv.release()
+    try:
+      ticket.wake_event.wait(timeout=self._lock_timeout_seconds)
+      ticket.wake_event.clear()
+    finally:
+      self._cv.acquire()
 
   def acquire_model(self, tag: str, loader_func: Callable[[], Any]) -> Any:
     current_priority = 0 if self._estimator.is_unknown(tag) else 1
     ticket_num = next(self._ticket_counter)
+    my_ticket = QueueTicket(current_priority, ticket_num, tag)
 
     with self._cv:
       # FAST PATH: Grab from idle LRU if available
@@ -460,8 +469,7 @@ class ModelManager:
           current_priority,
           len(self._models[tag]),
           ticket_num)
-      heapq.heappush(
-          self._wait_queue, QueueTicket(current_priority, ticket_num, tag))
+      heapq.heappush(self._wait_queue, my_ticket)
 
       est_cost = 0.0
       is_unknown = False
@@ -478,7 +486,7 @@ class ModelManager:
               0].ticket_num != ticket_num:
             logger.info(
                 "Waiting for its turn: tag=%s ticket num=%s", tag, ticket_num)
-            self._cv.wait(timeout=self._lock_timeout_seconds)
+            self._wait_in_queue(my_ticket)
             continue
 
           # Re-evaluate priority in case model became known during wait
@@ -489,9 +497,8 @@ class ModelManager:
           if current_priority != real_priority:
             heapq.heappop(self._wait_queue)
             current_priority = real_priority
-            heapq.heappush(
-                self._wait_queue,
-                QueueTicket(current_priority, ticket_num, tag))
+            my_ticket = QueueTicket(current_priority, ticket_num, tag)
+            heapq.heappush(self._wait_queue, my_ticket)
             self._wake_next_in_queue()
             continue
 
@@ -517,7 +524,7 @@ class ModelManager:
                   "Waiting due to isolation in progress: tag=%s ticket num%s",
                   tag,
                   ticket_num)
-              self._cv.wait(timeout=self._lock_timeout_seconds)
+              self._wait_in_queue(my_ticket)
               continue
 
             if self.should_spawn_model(tag, ticket_num):
@@ -575,6 +582,7 @@ class ModelManager:
 
       finally:
         self._wake_next_in_queue()
+        self._cv.notify_all()
 
   def _try_grab_from_lru(self, tag: str) -> Any:
     target_key = None
