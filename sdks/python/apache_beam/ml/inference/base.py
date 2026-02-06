@@ -1823,6 +1823,11 @@ class _ProxyLoader:
     self.model_tag = model_tag
 
   def __call__(self):
+    # Generate a unique tag for the model being loaded so that
+    # we will have unique instances of the model in multi_process_shared
+    # space instead of reusing the same instance over. The instance will
+    # be initialized and left running as a separate process, which then
+    # can be grabbed again using the unique tag if needed during inference.
     unique_tag = self.model_tag + '_' + uuid.uuid4().hex
     # Ensure that each model loaded in a different process for parallelism
     multi_process_shared.MultiProcessShared(
