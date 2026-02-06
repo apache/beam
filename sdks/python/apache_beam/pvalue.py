@@ -176,25 +176,6 @@ class PCollection(PValue, Generic[T]):
       is_bounded = pcoll.is_bounded
     return PCollection(pcoll.pipeline, is_bounded=is_bounded)
 
-  def take(self, n: int) -> 'PCollection[T]':
-    """Takes the first N elements from this PCollection.
-
-    This is a convenience method that returns a new PCollection containing
-    at most N elements from this PCollection. The elements are taken
-    deterministically (not randomly sampled).
-
-    Args:
-      n: Number of elements to take. Must be a positive integer.
-
-    Returns:
-      A new PCollection containing at most N elements.
-
-    Example::
-      first_10 = pcoll.take(10)
-    """
-    from apache_beam.transforms import util
-    return self | util.take(n)
-
   def to_runner_api(
       self, context: 'PipelineContext') -> beam_runner_api_pb2.PCollection:
     return beam_runner_api_pb2.PCollection(
@@ -265,6 +246,8 @@ class DoOutputsTuple(object):
     self._tags = tags
     self._main_tag = main_tag
     self._transform = transform
+    self._tagged_output_types = (
+        transform.get_type_hints().tagged_output_types() if transform else {})
     self._allow_unknown_tags = (
         not tags if allow_unknown_tags is None else allow_unknown_tags)
     # The ApplyPTransform instance for the application of the multi FlatMap
@@ -322,7 +305,7 @@ class DoOutputsTuple(object):
       pcoll = PCollection(
           self._pipeline,
           tag=tag,
-          element_type=typehints.Any,
+          element_type=self._tagged_output_types.get(tag, typehints.Any),
           is_bounded=is_bounded)
       # Transfer the producer from the DoOutputsTuple to the resulting
       # PCollection.
@@ -342,7 +325,11 @@ class DoOutputsTuple(object):
     return pcoll
 
 
-class TaggedOutput(object):
+TagType = TypeVar('TagType', bound=str)
+ValueType = TypeVar('ValueType')
+
+
+class TaggedOutput(Generic[TagType, ValueType]):
   """An object representing a tagged value.
 
   ParDo, Map, and FlatMap transforms can emit values on multiple outputs which
@@ -350,7 +337,7 @@ class TaggedOutput(object):
   if it wants to emit on the main output and TaggedOutput objects
   if it wants to emit a value on a specific tagged output.
   """
-  def __init__(self, tag: str, value: Any) -> None:
+  def __init__(self, tag: TagType, value: ValueType) -> None:
     if not isinstance(tag, str):
       raise TypeError(
           'Attempting to create a TaggedOutput with non-string tag %s' %

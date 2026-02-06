@@ -341,22 +341,21 @@ class TestModelManager(unittest.TestCase):
     """
     model_name = "fluctuating_model"
     model_cost = 3000.0
-    load_cost = 2500.0
     # Fix random seed for reproducibility
     random.seed(42)
 
     def loader():
-      self.mock_monitor.allocate(load_cost)
+      self.mock_monitor.allocate(model_cost)
       return model_name
 
     model = self.manager.acquire_model(model_name, loader)
     self.manager.release_model(model_name, model)
     initial_est = self.manager._estimator.get_estimate(model_name)
-    self.assertEqual(initial_est, load_cost)
+    self.assertEqual(initial_est, model_cost)
 
     def run_inference():
       model = self.manager.acquire_model(model_name, loader)
-      noise = model_cost - load_cost + random.uniform(-300.0, 300.0)
+      noise = random.uniform(-300.0, 300.0)
       self.mock_monitor.allocate(noise)
       time.sleep(0.1)
       self.mock_monitor.free(noise)
