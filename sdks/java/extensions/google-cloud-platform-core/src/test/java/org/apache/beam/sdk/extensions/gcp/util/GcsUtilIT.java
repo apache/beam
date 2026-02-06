@@ -92,18 +92,32 @@ public class GcsUtilIT {
 
   @Test
   public void testGetObjectOrGetBlob() throws IOException {
-    final GcsPath gcsPath = GcsPath.fromUri("gs://apache-beam-samples/shakespeare/kinglear.txt");
+    final GcsPath existingPath =
+        GcsPath.fromUri("gs://apache-beam-samples/shakespeare/kinglear.txt");
     final String expectedCRC = "s0a3Tg==";
 
     String crc;
     if (experiment.equals("use_gcsutil_v2")) {
-      Blob blob = gcsUtil.getBlob(gcsPath);
+      Blob blob = gcsUtil.getBlob(existingPath);
       crc = blob.getCrc32c();
     } else {
-      StorageObject obj = gcsUtil.getObject(gcsPath);
+      StorageObject obj = gcsUtil.getObject(existingPath);
       crc = obj.getCrc32c();
     }
     assertEquals(expectedCRC, crc);
+
+    final GcsPath nonExistentPath =
+        GcsPath.fromUri("gs://my-random-test-bucket-12345/unknown-12345.txt");
+    final GcsPath forbiddenPath = GcsPath.fromUri("gs://test-bucket/unknown-12345.txt");
+
+    if (experiment.equals("use_gcsutil_v2")) {
+      assertThrows(FileNotFoundException.class, () -> gcsUtil.getBlob(nonExistentPath));
+      // For V2, we are returning AccessDeniedException (a subclass of IOException) for forbidden paths.
+      assertThrows(AccessDeniedException.class, () -> gcsUtil.getBlob(forbiddenPath));
+    } else {
+      assertThrows(FileNotFoundException.class, () -> gcsUtil.getObject(nonExistentPath));
+      assertThrows(IOException.class, () -> gcsUtil.getObject(forbiddenPath));
+    }
   }
 
   @Test
@@ -124,47 +138,36 @@ public class GcsUtilIT {
   }
 
   @Test
-  public void testGetBucketOrGetBucketV2OnAccessibleBucket() throws IOException {
-    final GcsPath gcsPath = GcsPath.fromUri("gs://apache-beam-samples");
+  public void testGetBucketOrGetBucketV2() throws IOException {
+    final GcsPath existingPath = GcsPath.fromUri("gs://apache-beam-samples");
 
     String bucket;
     if (experiment.equals("use_gcsutil_v2")) {
-      bucket = gcsUtil.getBucketV2(gcsPath).getName();
+      bucket = gcsUtil.getBucketV2(existingPath).getName();
     } else {
-      bucket = gcsUtil.getBucket(gcsPath).getName();
+      bucket = gcsUtil.getBucket(existingPath).getName();
     }
     assertEquals("apache-beam-samples", bucket);
-  }
 
-  @Test(expected = FileNotFoundException.class)
-  public void testGetBucketOrGetBucketV2OnNonExistentBucket() throws IOException {
-    final GcsPath gcsPath = GcsPath.fromUri("gs://my-random-test-bucket-12345");
+    final GcsPath nonExistentPath = GcsPath.fromUri("gs://my-random-test-bucket-12345");
+    final GcsPath forbiddenPath = GcsPath.fromUri("gs://test-bucket");
 
     if (experiment.equals("use_gcsutil_v2")) {
-      gcsUtil.getBucketV2(gcsPath);
+      assertThrows(FileNotFoundException.class, () -> gcsUtil.getBucketV2(nonExistentPath));
+      assertThrows(AccessDeniedException.class, () -> gcsUtil.getBucketV2(forbiddenPath));
     } else {
-      gcsUtil.getBucket(gcsPath);
-    }
-  }
-
-  @Test(expected = AccessDeniedException.class)
-  public void testGetBucketOrGetBucketV2OnForbiddenBucket() throws IOException {
-    final GcsPath gcsPath = GcsPath.fromUri("gs://test-bucket");
-
-    if (experiment.equals("use_gcsutil_v2")) {
-      gcsUtil.getBucketV2(gcsPath);
-    } else {
-      gcsUtil.getBucket(gcsPath);
+      assertThrows(FileNotFoundException.class, () -> gcsUtil.getBucket(nonExistentPath));
+      assertThrows(AccessDeniedException.class, () -> gcsUtil.getBucket(forbiddenPath));
     }
   }
 
   @Test
   public void testBucketAccessible() throws IOException {
-    final GcsPath accessiblePath = GcsPath.fromUri("gs://apache-beam-samples");
+    final GcsPath existingPath = GcsPath.fromUri("gs://apache-beam-samples");
     final GcsPath nonExistentPath = GcsPath.fromUri("gs://my-random-test-bucket-12345");
     final GcsPath forbiddenPath = GcsPath.fromUri("gs://test-bucket");
 
-    assertEquals(true, gcsUtil.bucketAccessible(accessiblePath));
+    assertEquals(true, gcsUtil.bucketAccessible(existingPath));
     assertEquals(false, gcsUtil.bucketAccessible(nonExistentPath));
     assertEquals(false, gcsUtil.bucketAccessible(forbiddenPath));
   }

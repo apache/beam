@@ -61,8 +61,34 @@ class GcsUtilV2 {
     storage = StorageOptions.newBuilder().setProjectId(projectId).build().getService();
   }
 
+  @SuppressWarnings({
+    "nullness" // For Creating AccessDeniedException and FileAlreadyExistsException with null.
+  })
+  private IOException translateStorageException(
+      String bucketName, @Nullable String blobName, StorageException e) {
+    String path = "gs://" + bucketName + (blobName == null ? "" : "/" + blobName);
+
+    switch (e.getCode()) {
+      case 403:
+        return new AccessDeniedException(path, null, e.getMessage());
+      case 409:
+        return new FileAlreadyExistsException(path, null, e.getMessage());
+      default:
+        return new IOException(e);
+    }
+  }
+
   public Blob getBlob(GcsPath gcsPath, BlobGetOption... blobGetOptions) throws IOException {
-    return storage.get(gcsPath.getBucket(), gcsPath.getObject(), blobGetOptions);
+    try {
+      Blob blob = storage.get(gcsPath.getBucket(), gcsPath.getObject(), blobGetOptions);
+      if (blob == null) {
+        throw new FileNotFoundException(
+            String.format("The specified file does not exist: %s", gcsPath.toString()));
+      }
+      return blob;
+    } catch (StorageException e) {
+      throw translateStorageException(gcsPath.getBucket(), gcsPath.getObject(), e);
+    }
   }
 
   public long fileSize(GcsPath gcsPath) throws IOException {
@@ -95,35 +121,28 @@ class GcsUtilV2 {
     return listBlobs(bucket, prefix, pageToken, null);
   }
 
-  @SuppressWarnings({
-    "nullness" // For Creating AccessDeniedException with null.
-  })
   /** Get the {@link Bucket} from Cloud Storage path or propagates an exception. */
-  public @Nullable Bucket getBucket(GcsPath path) throws IOException {
+  public Bucket getBucket(GcsPath path, BucketGetOption... options) throws IOException {
     String bucketName = path.getBucket();
     try {
-      Bucket bucket = storage.get(bucketName);
+      Bucket bucket = storage.get(bucketName, options);
       if (bucket == null) {
         throw new FileNotFoundException(
-            String.format("The specified bucket does not exist: %s", bucketName));
+            String.format("The specified bucket does not exist: gs://%s", bucketName));
       }
       return bucket;
     } catch (StorageException e) {
-      if (e.getCode() == 403) { // 403 Forbidden
-        throw new AccessDeniedException(String.format("gs://%s", bucketName), null, e.getMessage());
-      }
-
-      // rethrow other exceptions
-      throw e;
+      throw translateStorageException(bucketName, null, e);
     }
   }
 
   /** Returns whether the GCS bucket exists and is accessible. */
-  public boolean bucketAccessible(GcsPath path) throws IOException {
+  public boolean bucketAccessible(GcsPath path) {
     try {
-      // Only select bucket name as a minimal set of returned fields.
-      return storage.get(path.getBucket(), BucketGetOption.fields(BucketField.NAME)) != null;
-    } catch (StorageException e) {
+      // Fetch only the name field to minimize data transfer
+      getBucket(path, BucketGetOption.fields(BucketField.NAME));
+      return true;
+    } catch (IOException e) {
       return false;
     }
   }
@@ -133,7 +152,8 @@ class GcsUtilV2 {
    * exception if the bucket is inaccessible due to permissions or does not exist.
    */
   public void verifyBucketAccessible(GcsPath path) throws IOException {
-    storage.get(path.getBucket(), BucketGetOption.fields(BucketField.NAME));
+    // Fetch only the name field to minimize data transfer
+    getBucket(path, BucketGetOption.fields(BucketField.NAME));
   }
 
   /**
@@ -142,48 +162,28 @@ class GcsUtilV2 {
    * exist, an exception will be thrown.
    */
   public long bucketProject(GcsPath path) throws IOException {
-    Bucket bucket = storage.get(path.getBucket(), BucketGetOption.fields(BucketField.PROJECT));
+    Bucket bucket = getBucket(path, BucketGetOption.fields(BucketField.PROJECT));
     return bucket.getProject().longValue();
   }
 
-  @SuppressWarnings({
-    "nullness" // For Creating AccessDeniedException with null.
-  })
   public void createBucket(BucketInfo bucketInfo) throws IOException {
-    String bucketName = bucketInfo.getName();
     try {
       storage.create(bucketInfo);
     } catch (StorageException e) {
-      if (e.getCode() == 403) { // 403 Forbidden
-        throw new AccessDeniedException(String.format("gs://%s", bucketName), null, e.getMessage());
-      } else if (e.getCode() == 409) { // 409 Conflict
-        throw new FileAlreadyExistsException(bucketName, null, e.getMessage());
-      }
-
-      // rethrow other exceptions
-      throw e;
+      throw translateStorageException(bucketInfo.getName(), null, e);
     }
   }
 
-  @SuppressWarnings({
-    "nullness" // For Creating AccessDeniedException with null.
-  })
   public void removeBucket(BucketInfo bucketInfo) throws IOException {
-    String bucketName = bucketInfo.getName();
+    Bucket bucket =
+        getBucket(
+            GcsPath.fromComponents(bucketInfo.getName(), null),
+            BucketGetOption.fields(BucketField.NAME));
+
     try {
-      Bucket bucket = storage.get(bucketName, BucketGetOption.fields(BucketField.NAME));
-      if (bucket == null) {
-        throw new FileNotFoundException(
-            String.format("The specified bucket does not exist: %s", bucketName));
-      }
       bucket.delete();
     } catch (StorageException e) {
-      if (e.getCode() == 403) { // 403 Forbidden
-        throw new AccessDeniedException(String.format("gs://%s", bucketName), null, e.getMessage());
-      }
-
-      // rethrow other exceptions
-      throw e;
+      throw translateStorageException(bucketInfo.getName(), null, e);
     }
   }
 }
