@@ -18,8 +18,10 @@
 package org.apache.beam.sdk.extensions.gcp.util;
 
 import static org.apache.beam.sdk.io.FileSystemUtils.wildcardToRegexp;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkNotNull;
 
 import com.google.api.gax.paging.Page;
+import com.google.auto.value.AutoValue;
 import com.google.cloud.storage.Blob;
 import com.google.cloud.storage.Bucket;
 import com.google.cloud.storage.BucketInfo;
@@ -29,8 +31,11 @@ import com.google.cloud.storage.Storage.BlobGetOption;
 import com.google.cloud.storage.Storage.BlobListOption;
 import com.google.cloud.storage.Storage.BucketField;
 import com.google.cloud.storage.Storage.BucketGetOption;
+import com.google.cloud.storage.StorageBatch;
+import com.google.cloud.storage.StorageBatchResult;
 import com.google.cloud.storage.StorageException;
 import com.google.cloud.storage.StorageOptions;
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.nio.file.AccessDeniedException;
@@ -42,6 +47,7 @@ import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
 import org.apache.beam.sdk.extensions.gcp.util.gcsfs.GcsPath;
 import org.apache.beam.sdk.options.DefaultValueFactory;
 import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
@@ -84,9 +90,9 @@ class GcsUtilV2 {
     }
   }
 
-  public Blob getBlob(GcsPath gcsPath, BlobGetOption... blobGetOptions) throws IOException {
+  public Blob getBlob(GcsPath gcsPath, BlobGetOption... options) throws IOException {
     try {
-      Blob blob = storage.get(gcsPath.getBucket(), gcsPath.getObject(), blobGetOptions);
+      Blob blob = storage.get(gcsPath.getBucket(), gcsPath.getObject(), options);
       if (blob == null) {
         throw new FileNotFoundException(
             String.format("The specified file does not exist: %s", gcsPath.toString()));
@@ -101,42 +107,102 @@ class GcsUtilV2 {
     return getBlob(gcsPath, BlobGetOption.fields(BlobField.SIZE)).getSize();
   }
 
+  /** A class that holds either a {@link Blob} or an {@link IOException}. */
+  // It is clear from the name that this class holds either Blob or IOException.
+  @SuppressFBWarnings("NM_CLASS_NOT_EXCEPTION")
+  @AutoValue
+  public abstract static class BlobOrIOException {
+
+    /** Returns the {@link Blob}. */
+    public abstract @Nullable Blob blob();
+
+    /** Returns the {@link IOException}. */
+    public abstract @Nullable IOException ioException();
+
+    @VisibleForTesting
+    public static BlobOrIOException create(Blob blob) {
+      return new AutoValue_GcsUtilV2_BlobOrIOException(
+          checkNotNull(blob, "blob"), null /* ioException */);
+    }
+
+    @VisibleForTesting
+    public static BlobOrIOException create(IOException ioException) {
+      return new AutoValue_GcsUtilV2_BlobOrIOException(
+          null /* blob */, checkNotNull(ioException, "ioException"));
+    }
+  }
+
+  public List<BlobOrIOException> getBlobs(List<GcsPath> gcsPaths, BlobGetOption... options)
+      throws IOException {
+    StorageBatch batch = storage.batch();
+    List<StorageBatchResult<Blob>> batchResultFutures = new ArrayList<>();
+
+    for (GcsPath path : gcsPaths) {
+      batchResultFutures.add(batch.get(path.getBucket(), path.getObject(), options));
+    }
+    batch.submit();
+
+    List<BlobOrIOException> results = new ArrayList<>();
+    for (int i = 0; i < batchResultFutures.size(); i++) {
+      StorageBatchResult<Blob> future = batchResultFutures.get(i);
+      try {
+        Blob blob = future.get();
+        if (blob != null) {
+          results.add(BlobOrIOException.create(blob));
+        } else {
+          results.add(
+              BlobOrIOException.create(
+                  new FileNotFoundException(
+                      String.format(
+                          "The specified file does not exist: %s", gcsPaths.get(i).toString()))));
+        }
+      } catch (StorageException e) {
+        // Populating bucket and object name for better error context
+        GcsPath originalPath = gcsPaths.get(i);
+        results.add(
+            BlobOrIOException.create(
+                translateStorageException(originalPath.getBucket(), originalPath.getObject(), e)));
+      }
+    }
+    return results;
+  }
+
   /** Lists {@link Blob}s given the {@code bucket}, {@code prefix}, {@code pageToken}. */
   public Page<Blob> listBlobs(
       String bucket,
       String prefix,
       @Nullable String pageToken,
       @Nullable String delimiter,
-      BlobListOption... extraOptions)
+      BlobListOption... options)
       throws IOException {
-    List<BlobListOption> options = new ArrayList<>();
-    options.add(BlobListOption.pageSize(MAX_LIST_BLOBS_PER_CALL));
+    List<BlobListOption> blobListOptions = new ArrayList<>();
+    blobListOptions.add(BlobListOption.pageSize(MAX_LIST_BLOBS_PER_CALL));
     if (pageToken != null) {
-      options.add(BlobListOption.pageToken(pageToken));
+      blobListOptions.add(BlobListOption.pageToken(pageToken));
     }
     if (prefix != null) {
-      options.add(BlobListOption.prefix(prefix));
+      blobListOptions.add(BlobListOption.prefix(prefix));
     }
     if (delimiter != null) {
-      options.add(BlobListOption.delimiter(delimiter));
+      blobListOptions.add(BlobListOption.delimiter(delimiter));
     }
-    if (extraOptions != null && extraOptions.length > 0) {
-      for (BlobListOption option : extraOptions) {
-        options.add(option);
+    if (options != null && options.length > 0) {
+      for (BlobListOption option : options) {
+        blobListOptions.add(option);
       }
     }
 
     try {
-      return storage.list(bucket, options.toArray(new BlobListOption[0]));
+      return storage.list(bucket, blobListOptions.toArray(new BlobListOption[0]));
     } catch (StorageException e) {
       throw translateStorageException(bucket, prefix, e);
     }
   }
 
   public Page<Blob> listBlobs(
-      String bucket, String prefix, @Nullable String pageToken, BlobListOption... extraOptions)
+      String bucket, String prefix, @Nullable String pageToken, BlobListOption... options)
       throws IOException {
-    return listBlobs(bucket, prefix, pageToken, null, extraOptions);
+    return listBlobs(bucket, prefix, pageToken, null, options);
   }
 
   /**

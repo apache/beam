@@ -123,6 +123,31 @@ public class GcsUtilIT {
   }
 
   @Test
+  public void testGetObjectsOrGetBlobs() throws IOException {
+    final GcsPath existingPath =
+        GcsPath.fromUri("gs://apache-beam-samples/shakespeare/kinglear.txt");
+    final GcsPath nonExistentPath =
+        GcsPath.fromUri("gs://my-random-test-bucket-12345/unknown-12345.txt");
+    final List<GcsPath> paths = Arrays.asList(existingPath, nonExistentPath);
+
+    if (experiment.equals("use_gcsutil_v2")) {
+      List<GcsUtilV2.BlobOrIOException> results = gcsUtil.getBlobs(paths);
+      assertEquals(2, results.size());
+      assertTrue(results.get(0).blob() != null);
+      assertTrue(results.get(0).ioException() == null);
+      assertTrue(results.get(1).blob() == null);
+      assertTrue(results.get(1).ioException() != null);
+    } else {
+      List<GcsUtil.StorageObjectOrIOException> results = gcsUtil.getObjects(paths);
+      assertEquals(2, results.size());
+      assertTrue(results.get(0).storageObject() != null);
+      assertTrue(results.get(0).ioException() == null);
+      assertTrue(results.get(1).storageObject() == null);
+      assertTrue(results.get(1).ioException() != null);
+    }
+  }
+
+  @Test
   public void testListObjectsOrListBlobs() throws IOException {
     final String bucket = "apache-beam-samples";
     final String prefix = "shakespeare/kingrichard";
