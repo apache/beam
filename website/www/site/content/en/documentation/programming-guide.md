@@ -4066,19 +4066,18 @@ schema for PCollections with `NamedTuple` output types. For example:
 {{< /paragraph >}}
 
 
+
 {{< highlight java >}}
 purchases.apply(Select.fieldNames("shippingAddress.postCode"));
 {{< /highlight >}}
 
-
 {{< highlight py >}}
-class Transaction(typing.NamedTuple):
-  bank: str
-  purchase_amount: float
+import apache_beam as beam
 
-pc = input | beam.Map(lambda ...).with_output_types(Transaction)
+purchases | beam.Select(
+    postCode=lambda row: row.shippingAddress.postCode
+)
 {{< /highlight >}}
-
 
 {{< paragraph class="language-py" >}}
 **beam.Row and Select**
@@ -4091,9 +4090,14 @@ use a lambda that returns instances of `beam.Row`:
 
 {{< highlight py >}}
 input_pc = ... # {"bank": ..., "purchase_amount": ...}
-output_pc = input_pc | beam.Map(lambda item: beam.Row(bank=item["bank"],
-                                                      purchase_amount=item["purchase_amount"])
+output_pc = input_pc | beam.Map(
+    lambda item: beam.Row(
+        bank=item["bank"],
+        purchase_amount=item["purchase_amount"]
+    )
+)
 {{< /highlight >}}
+
 
 {{< paragraph class="language-py" >}}
 Sometimes it can be more concise to express the same logic with the
