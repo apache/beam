@@ -127,10 +127,12 @@ jobs:
                 '-m (not require_docker_in_docker)' ||
                 '-m require_docker_in_docker'
             }}"
-      - uses: codecov/codecov-action@v3
+      - uses: codecov/codecov-action@v5
         with:
           flags: python
-          directory: sdks/python
+          files: "sdks/python/**/coverage.xml"
+          token: ${{ secrets.CODECOV_TOKEN }}
+          fail_ci_if_error: true
       - name: Archive Python Test Results
         uses: actions/upload-artifact@v4
         if: failure()

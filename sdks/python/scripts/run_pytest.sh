@@ -25,7 +25,6 @@
 # $2 - additional arguments not parsed by tox (typically module names or
 #   '-k keyword')
 # $3 - optional arguments to pytest
-#!/bin/bash
 
 envname=${1?First argument required: suite base name}
 posargs=$2
@@ -151,12 +150,19 @@ if [[ $status1 != 0 && $status1 != 5 ]]; then
   exit $status1
 fi
 # Combine coverage data if parallel was used.
-if [ -f .coveragerc ] && grep -q "parallel = True" .coveragerc; then
+# If .coveragerc is not found locally, look for it in the directory of the script or sdk root.
+COVERAGERC_PATH=".coveragerc"
+if [ ! -f "$COVERAGERC_PATH" ]; then
+  COVERAGERC_PATH="$(dirname "$0")/../.coveragerc"
+fi
+
+if [ -f "$COVERAGERC_PATH" ] && grep -q "parallel = True" "$COVERAGERC_PATH"; then
   echo "Combining coverage data..."
-  coverage combine
+  # coverage combine will use the .coveragerc to find data files.
+  coverage combine --rcfile="$COVERAGERC_PATH"
   if [[ $pytest_args == *"--cov-report=xml"* ]]; then
     echo "Generating XML report..."
-    coverage xml
+    coverage xml --rcfile="$COVERAGERC_PATH"
   fi
 fi
 
