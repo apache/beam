@@ -2387,11 +2387,12 @@ public class DoFnSignatures {
       }
 
       if (recommendation != null) {
-        LOG.warn(
-            "DoFn {} declares ValueState '{}' with type {}. "
-                + "Storing collections in ValueState requires reading and writing the entire "
-                + "collection on each access, which can cause performance issues. "
-                + "Consider using {} instead for better performance with large collections.",
+        LOG.info(
+            "DoFn {} declares ValueState '{}' with collection type {}. "
+                + "ValueState reads/writes the entire collection on each access. "
+                + "This is appropriate for small collections or atomic replacement. "
+                + "For large collections or frequent appends, consider using {} instead "
+                + "(if supported by your runner).",
             fnClazz.getSimpleName(),
             stateId,
             rawType.getSimpleName(),
