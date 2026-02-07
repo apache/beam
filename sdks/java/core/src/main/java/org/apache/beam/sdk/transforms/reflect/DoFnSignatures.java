@@ -2350,56 +2350,37 @@ public class DoFnSignatures {
       return;
     }
 
-    try {
-      // Get the type directly and extract ValueState's type parameter
-      Type type = stateType.getType();
-      if (!(type instanceof ParameterizedType)) {
-        return;
-      }
+    // Use TypeDescriptor.resolveType() to extract ValueState's type parameter
+    // This preserves generic type information better than raw Type manipulation
+    TypeDescriptor<?> valueTypeDescriptor =
+        stateType.resolveType(ValueState.class.getTypeParameters()[0]);
 
-      // Find ValueState in the type hierarchy and get its type argument
-      Type valueType = null;
-      ParameterizedType pType = (ParameterizedType) type;
-      if (pType.getRawType() == ValueState.class) {
-        valueType = pType.getActualTypeArguments()[0];
-      } else {
-        // For subtypes of ValueState, we need to resolve the type parameter
-        return;
-      }
+    // Skip if the type has unresolved parameters (e.g., TypeVariable, WildcardType)
+    if (valueTypeDescriptor.hasUnresolvedParameters()) {
+      return;
+    }
 
-      if (valueType == null
-          || valueType instanceof java.lang.reflect.TypeVariable
-          || valueType instanceof java.lang.reflect.WildcardType) {
-        // Cannot determine actual type, skip warning
-        return;
-      }
+    // Use TypeDescriptor.isSubtypeOf() for type checking - stays in TypeDescriptor API
+    String recommendation = null;
+    if (valueTypeDescriptor.isSubtypeOf(TypeDescriptor.of(Map.class))) {
+      recommendation = "MapState";
+    } else if (valueTypeDescriptor.isSubtypeOf(TypeDescriptor.of(List.class))) {
+      recommendation = "BagState or OrderedListState";
+    } else if (valueTypeDescriptor.isSubtypeOf(TypeDescriptor.of(java.util.Set.class))) {
+      recommendation = "SetState";
+    }
 
-      TypeDescriptor<?> valueTypeDescriptor = TypeDescriptor.of(valueType);
-      Class<?> rawType = valueTypeDescriptor.getRawType();
-
-      String recommendation = null;
-      if (Map.class.isAssignableFrom(rawType)) {
-        recommendation = "MapState";
-      } else if (List.class.isAssignableFrom(rawType)) {
-        recommendation = "BagState or OrderedListState";
-      } else if (java.util.Set.class.isAssignableFrom(rawType)) {
-        recommendation = "SetState";
-      }
-
-      if (recommendation != null) {
-        LOG.info(
-            "DoFn {} declares ValueState '{}' with collection type {}. "
-                + "ValueState reads/writes the entire collection on each access. "
-                + "This is appropriate for small collections or atomic replacement. "
-                + "For large collections or frequent appends, consider using {} instead "
-                + "(if supported by your runner).",
-            fnClazz.getSimpleName(),
-            stateId,
-            rawType.getSimpleName(),
-            recommendation);
-      }
-    } catch (Exception e) {
-      // If we can't determine the type, don't warn - it's just an optimization hint
+    if (recommendation != null) {
+      LOG.info(
+          "DoFn {} declares ValueState '{}' with collection type {}. "
+              + "ValueState reads/writes the entire collection on each access. "
+              + "This is appropriate for small collections or atomic replacement. "
+              + "For large collections or frequent appends, consider using {} instead "
+              + "(if supported by your runner).",
+          fnClazz.getSimpleName(),
+          stateId,
+          valueTypeDescriptor.getRawType().getSimpleName(),
+          recommendation);
     }
   }
 
