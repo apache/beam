@@ -4164,13 +4164,30 @@ as schema fields may have different requirements or restrictions from Go exporte
 
 ### 6.6. Using Schema Transforms {#using-schemas}
 
-A schema on a `PCollection` enables a rich variety of relational transforms. The fact that each record is composed of
-named fields allows for simple and readable aggregations that reference fields by name, similar to the aggregations in
-a SQL expression.
-
 {{< paragraph class="language-go">}}
-Beam does not yet support Schema transforms natively in Go. However, it will be implemented with the following behavior.
+In Go, schemas are inferred from struct types. You can use schema-aware
+<code>PCollection</code>s by defining structs and accessing their fields
+directly in transforms. The following example demonstrates extracting
+a nested field from a schema-aware collection.
 {{< /paragraph >}}
+
+{{< highlight go >}}
+type ShippingAddress struct {
+    PostCode string `beam:"postCode"`
+ }
+type Purchase struct {
+    ShippingAddress ShippingAddress `beam:"shippingAddress"`
+ }
+purchases := beam.Create(s,
+    Purchase{
+        ShippingAddress: ShippingAddress{PostCode: "12345"},
+    },
+ )
+postCodes := beam.ParDo(s, func(p Purchase) string {
+    return p.ShippingAddress.PostCode
+}, purchases)
+{{< /highlight >}}
+
 
 #### 6.6.1. Field selection syntax
 
