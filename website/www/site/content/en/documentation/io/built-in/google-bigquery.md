@@ -266,6 +266,34 @@ a BigQuery table using the Beam SDK, apply a `Read` transform on a `BigQuerySour
 {{< /paragraph >}}
 
 ### Reading from a table
+{{< paragraph class="language-py" >}}
+Apache Beam supports reading from BigQuery using the BigQuery Storage Read API
+by setting the <code>method</code> parameter to <code>DIRECT_READ</code>.
+This method is recommended for large-scale reads because it provides
+better performance and parallelism.
+{{< /paragraph >}}
+
+### Reading using BigQuery Storage Read API
+
+
+{{< highlight py >}}
+import apache_beam as beam
+
+with beam.Pipeline() as p:
+    rows = (
+        p
+        | beam.io.ReadFromBigQuery(
+            table="project:dataset.table",
+            method=beam.io.ReadFromBigQuery.Method.DIRECT_READ
+        )
+    )
+{{< /highlight >}}
+
+{{< paragraph class="language-py" >}}
+***Note:*** The BigQuery Storage Read API requires additional permissions
+such as <code>bigquery.readsessions.create</code>.
+{{< /paragraph >}}
+
 
 {{< paragraph class="language-java" >}}
 To read an entire BigQuery table, use the `from` method with a BigQuery table
