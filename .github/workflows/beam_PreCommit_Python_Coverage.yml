@@ -127,16 +127,21 @@ jobs:
                 '-m (not require_docker_in_docker)' ||
                 '-m require_docker_in_docker'
             }}"
-      - uses: codecov/codecov-action@v5
+      - name: Find Coverage Report
+        id: find-coverage
+        run: |
+          # Locate the actual coverage.xml, ignoring JUnit XMLs
+          REPORT=$(find sdks/python -name "coverage.xml" | grep -v "pytest_" | head -n 1)
+          if [ -z "$REPORT" ]; then
+            echo "No coverage.xml found"
+            exit 1
+          fi
+          echo "REPORT_PATH=$REPORT" >> $GITHUB_OUTPUT
+      - uses: codecov/codecov-action@v3
         with:
           flags: python
-          files: "**/sdks/python/**/coverage.xml"
-          token: ${{ secrets.CODECOV_TOKEN }}
+          file: ${{ steps.find-coverage.outputs.REPORT_PATH }}
           fail_ci_if_error: true
-          verbose: true
-          directory: sdks/python
-        env:
-          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
       - name: Archive Python Test Results
         uses: actions/upload-artifact@v4
         if: failure()
