@@ -19,7 +19,7 @@
 
 # Apache Beam Skills
 
-This directory contains skills that help the agent perform specialized tasks in the Apache Beam codebase.
+This directory contains skills that help the agent perform specialized tasks in the Apache Beam codebase. For more information, see the [Agent Skills Documentation](http://antigravity.google/docs/skills).
 
 ## Available Skills
 

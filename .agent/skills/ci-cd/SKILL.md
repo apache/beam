@@ -79,13 +79,8 @@ Apache Beam uses GitHub Actions for CI/CD. Workflows are located in `.github/wor
 - PRs trigger PreCommit tests
 - Merges trigger PostCommit tests
 
-### Manual via PR Comment
-```
-retest this please
-```
-
-### Specific Test Suites
-Use trigger phrases from [catalog](https://github.com/apache/beam/blob/master/.test-infra/jenkins/README.md)
+### Triggering Specific Workflows
+Use [trigger files](https://github.com/apache/beam/blob/master/.github/workflows/README.md#running-workflows-manually) to run specific workflows.
 
 ### Workflow Dispatch
 Most workflows support manual triggering via GitHub UI.
@@ -102,7 +97,7 @@ Most workflows support manual triggering via GitHub UI.
 
 #### Flaky Tests
 - Random failures unrelated to change
-- Solution: Comment `retest this please`
+- Solution: Use [trigger files](https://github.com/apache/beam/blob/master/.github/workflows/README.md#running-workflows-manually) to re-run the specific workflow.
 
 #### Timeout
 - Increase timeout in workflow if justified
