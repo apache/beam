@@ -18,3 +18,9 @@
 [run]
 parallel = True
 omit = target/*
+
+[paths]
+source =
+    apache_beam
+    **/site-packages/apache_beam
+    **/build/srcs/sdks/python/apache_beam

@@ -138,9 +138,11 @@ jobs:
           fi
           echo "REPORT_PATH=$REPORT" >> $GITHUB_OUTPUT
       - uses: codecov/codecov-action@v3
+        if: steps.find-coverage.outputs.REPORT_PATH != ''
         with:
           flags: python
           file: ${{ steps.find-coverage.outputs.REPORT_PATH }}
+          token: ${{ secrets.CODECOV_TOKEN }}
           fail_ci_if_error: true
       - name: Archive Python Test Results
         uses: actions/upload-artifact@v4
