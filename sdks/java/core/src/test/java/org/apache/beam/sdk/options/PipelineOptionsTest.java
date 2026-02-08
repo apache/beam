@@ -37,6 +37,7 @@ import org.junit.runners.JUnit4;
 /** Unit tests for {@link PipelineOptions}. */
 @RunWith(JUnit4.class)
 public class PipelineOptionsTest {
+
   private static final String DEFAULT_USER_AGENT_NAME = "Apache_Beam_SDK_for_Java";
 
   @Rule public ExpectedException expectedException = ExpectedException.none();
@@ -69,7 +70,7 @@ public class PipelineOptionsTest {
     void setIgnoredValue(Set<String> ignoredValue);
   }
 
-  /** Test interface. */
+  /** Base test interface. */
   public interface BaseTestOptions extends PipelineOptions {
     List<Boolean> getBaseValue();
 
@@ -86,6 +87,35 @@ public class PipelineOptionsTest {
     BaseTestOptions options = PipelineOptionsFactory.create().as(BaseTestOptions.class);
     assertNotNull(options);
   }
+
+  // =======================
+  // YOUR NEW TEST (THE FIX)
+  // =======================
+
+  @Test
+  public void testRequiredOptionWithoutDefaultThrows() {
+    RequiredStringOption options = PipelineOptionsFactory.create().as(RequiredStringOption.class);
+
+    try {
+      options.getValue();
+      fail("Expected IllegalStateException to be thrown");
+    } catch (IllegalStateException e) {
+      assertTrue(e.getMessage().contains("getValue"));
+      assertTrue(e.getMessage().contains("required"));
+    }
+  }
+
+  /** Test interface for required (non-nullable) option. */
+  public interface RequiredStringOption extends PipelineOptions {
+    @Validation.Required
+    String getValue();
+
+    void setValue(String value);
+  }
+
+  // =======================
+  // EXISTING TESTS
+  // =======================
 
   /** Test interface. */
   public interface ValueProviderOptions extends PipelineOptions {

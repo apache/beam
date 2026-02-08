@@ -650,11 +650,40 @@ class ProxyInvocationHandler implements InvocationHandler, Serializable {
       return defaultObject;
     }
 
+    if (isRequired(method) && !method.getReturnType().isPrimitive()) {
+      throw new IllegalStateException(
+          String.format(
+              "Pipeline option '%s' is required but was not set. "
+                  + "Either provide a value or remove @Validation.Required annotation.",
+              method.getName()));
+    }
+
     /*
      * We need to make sure that we return something appropriate for the return type. Thus we return
      * a default value as defined by the JLS.
      */
     return Defaults.defaultValue(method.getReturnType());
+  }
+
+  private static boolean isRequired(Method method) {
+    for (Annotation annotation : method.getAnnotations()) {
+      if (annotation
+          .annotationType()
+          .getName()
+          .equals("org.apache.beam.sdk.options.Validation$Required")) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  private static boolean isNullable(Method method) {
+    for (Annotation annotation : method.getAnnotations()) {
+      if (annotation.annotationType().getSimpleName().equals("Nullable")) {
+        return true;
+      }
+    }
+    return false;
   }
 
   /** Helper method to return standard Default cases. */
