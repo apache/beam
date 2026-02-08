@@ -18,3 +18,9 @@
 [run]
 parallel = True
 omit = target/*
+source = apache_beam
+
+[paths]
+source =
+    apache_beam
+    **/site-packages/apache_beam
