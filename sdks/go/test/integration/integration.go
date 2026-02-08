@@ -67,7 +67,7 @@ var directFilters = []string{
 	// The direct runner does not yet support cross-language.
 	"TestXLang.*",
 	"TestKafkaIO.*",
-	"TestBigQueryIO.*",
+	"TestBigQueryIO_[^W].*",
 	"TestBigtableIO.*",
 	"TestSpannerIO.*",
 	"TestDebeziumIO_BasicRead",
@@ -200,7 +200,7 @@ var flinkFilters = []string{
 	"TestTestStreamTimersEventTime",
 
 	"TestTimers_EventTime_WithNoOutputTimestamp", // Encounter error: TimestampCombiner moved element from TIMESTAMP_MAX_VALUE to earlier time (end of global window) for window GlobalWindow
-	"TestTimers_ProcessingTime.*",    // Flink doesn't support processing time timers.
+	"TestTimers_ProcessingTime.*",                // Flink doesn't support processing time timers.
 
 	// no support for BundleFinalizer
 	"TestParDoBundleFinalizer.*",

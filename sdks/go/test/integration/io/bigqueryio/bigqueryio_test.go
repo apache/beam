@@ -161,10 +161,10 @@ func TestBigQueryIO_Write(t *testing.T) {
 			tableID := fmt.Sprintf("%s_temp_%v", "go_bqio_it", time.Now().UnixNano())
 			tableName := fmt.Sprintf("%s.%s", *integration.BigQueryDataset, tableID)
 			if tt.preCreate {
-				newTempTable(t, tableName, ddlTestRowSchema)
+				newTempTable(t, tableName, ddlTestRowSchema, project)
 			}
 			t.Cleanup(func() {
-				deleteTempTable(t, tableName)
+				deleteTempTable(t, tableName, project)
 			})
 			createTestRows := &CreateTestRowsFn{seed: time.Now().UnixNano()}
 			p, s := beam.NewPipelineWithRoot()

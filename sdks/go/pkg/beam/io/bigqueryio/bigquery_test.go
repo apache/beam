@@ -148,3 +148,30 @@ func Test_mustInferSchema(t *testing.T) {
 		})
 	}
 }
+
+func TestWithQueryParameters(t *testing.T) {
+	t.Run("WithQueryParameters sets parameters correctly", func(t *testing.T) {
+		params := []bigquery.QueryParameter{
+			{Name: "param1", Value: "value1"},
+			{Name: "param2", Value: 42},
+		}
+
+		opt := WithQueryParameters(params...)
+		queryOpts := &QueryOptions{}
+		if err := opt(queryOpts); err != nil {
+			t.Fatalf("WithQueryParameters() failed: %v", err)
+		}
+
+		if len(queryOpts.parameters) != 2 {
+			t.Errorf("Expected 2 parameters, got %d", len(queryOpts.parameters))
+		}
+
+		if queryOpts.parameters[0].Name != "param1" {
+			t.Errorf("Expected param1, got %s", queryOpts.parameters[0].Name)
+		}
+
+		if queryOpts.parameters[1].Name != "param2" {
+			t.Errorf("Expected param2, got %s", queryOpts.parameters[1].Name)
+		}
+	})
+}
