@@ -20,11 +20,10 @@ package org.apache.beam.sdk.extensions.sql.meta.provider.iceberg;
 import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
 
+import com.fasterxml.jackson.core.type.TypeReference;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.stream.Collectors;
-
-import com.fasterxml.jackson.core.type.TypeReference;
 import org.apache.beam.sdk.extensions.sql.TableUtils;
 import org.apache.beam.sdk.extensions.sql.impl.TableName;
 import org.apache.beam.sdk.extensions.sql.meta.BeamSqlTable;
@@ -62,9 +61,12 @@ public class IcebergMetastore extends InMemoryMetaStore {
       getProvider(table.getType()).createTable(table);
     } else {
       String identifier = getIdentifier(table);
-      Map<String, String> props = TableUtils.getObjectMapper()
-        .convertValue(table.getProperties(), new TypeReference<Map<String, String>>() {}).entrySet()
-        .stream().filter(p -> !p.getKey().startsWith("beam.")).collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
+      Map<String, String> props =
+          TableUtils.getObjectMapper()
+              .convertValue(table.getProperties(), new TypeReference<Map<String, String>>() {})
+              .entrySet().stream()
+              .filter(p -> !p.getKey().startsWith("beam."))
+              .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
       try {
         catalogConfig.createTable(identifier, table.getSchema(), table.getPartitionFields(), props);
       } catch (TableAlreadyExistsException e) {
