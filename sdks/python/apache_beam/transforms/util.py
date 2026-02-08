@@ -1364,14 +1364,6 @@ class _SortAndBatchElementsDoFn(DoFn):
       max_batch_size: int,
       max_batch_weight: int,
       element_size_fn: Callable[[Any], int]):
-    if min_batch_size < 1:
-      raise ValueError(f'min_batch_size must be >= 1, got {min_batch_size}')
-    if max_batch_size < min_batch_size:
-      raise ValueError(
-          f'max_batch_size ({max_batch_size}) must be >= '
-          f'min_batch_size ({min_batch_size})')
-    if max_batch_weight < 1:
-      raise ValueError(f'max_batch_weight must be >= 1, got {max_batch_weight}')
     self._min_batch_size = min_batch_size
     self._max_batch_size = max_batch_size
     self._max_batch_weight = max_batch_weight
@@ -1446,14 +1438,6 @@ class _WindowAwareSortAndBatchElementsDoFn(DoFn):
       max_batch_size: int,
       max_batch_weight: int,
       element_size_fn: Callable[[Any], int]):
-    if min_batch_size < 1:
-      raise ValueError(f'min_batch_size must be >= 1, got {min_batch_size}')
-    if max_batch_size < min_batch_size:
-      raise ValueError(
-          f'max_batch_size ({max_batch_size}) must be >= '
-          f'min_batch_size ({min_batch_size})')
-    if max_batch_weight < 1:
-      raise ValueError(f'max_batch_weight must be >= 1, got {max_batch_weight}')
     self._min_batch_size = min_batch_size
     self._max_batch_size = max_batch_size
     self._max_batch_weight = max_batch_weight

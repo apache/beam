@@ -1243,6 +1243,139 @@ class SortAndBatchElementsTest(unittest.TestCase):
     self.assertLessEqual(sort_overhead, batch_overhead)
 
 
+class SortAndBatchElementsDoFnDirectTest(unittest.TestCase):
+  """Direct unit tests for DoFn internals to ensure coverage.
+
+  Beam's FnApiRunner executes DoFns in a separate SDK harness process,
+  so coverage tools in the main process cannot capture DoFn code paths.
+  These tests exercise the DoFn methods directly in-process.
+  """
+
+  def test_default_element_size_fn_len(self):
+    from apache_beam.transforms.util import _default_element_size_fn
+    self.assertEqual(_default_element_size_fn('abc'), 3)
+    self.assertEqual(_default_element_size_fn([1, 2]), 2)
+
+  def test_default_element_size_fn_fallback(self):
+    from apache_beam.transforms.util import _default_element_size_fn
+    self.assertEqual(_default_element_size_fn(42), 1)
+    self.assertEqual(_default_element_size_fn(3.14), 1)
+
+  def test_global_dofn_sort_and_batch(self):
+    """Test _SortAndBatchElementsDoFn directly."""
+    from apache_beam.transforms.util import _SortAndBatchElementsDoFn
+    dofn = _SortAndBatchElementsDoFn(
+        min_batch_size=1, max_batch_size=3, max_batch_weight=100,
+        element_size_fn=len)
+    dofn.start_bundle()
+    for elem in ['ccccc', 'bb', 'dddd', 'a', 'eee']:
+      dofn.process(elem)
+    batches = [wv.value for wv in dofn.finish_bundle()]
+    # All elements emitted
+    self.assertEqual(sum(len(b) for b in batches), 5)
+    # Each batch respects max_batch_size=3
+    for batch in batches:
+      self.assertLessEqual(len(batch), 3)
+    # Elements within each batch are sorted by size
+    for batch in batches:
+      lengths = [len(s) for s in batch]
+      self.assertEqual(lengths, sorted(lengths))
+
+  def test_global_dofn_empty_bundle(self):
+    """Test finish_bundle with no elements returns nothing."""
+    from apache_beam.transforms.util import _SortAndBatchElementsDoFn
+    dofn = _SortAndBatchElementsDoFn(
+        min_batch_size=1, max_batch_size=10, max_batch_weight=100,
+        element_size_fn=len)
+    dofn.start_bundle()
+    result = list(dofn.finish_bundle() or [])
+    self.assertEqual(result, [])
+
+  def test_global_dofn_weight_splitting(self):
+    """Test weight-based splitting in the global DoFn."""
+    from apache_beam.transforms.util import _SortAndBatchElementsDoFn
+    # Each element has size 5, max_batch_weight=12 -> 2 per batch
+    dofn = _SortAndBatchElementsDoFn(
+        min_batch_size=1, max_batch_size=100, max_batch_weight=12,
+        element_size_fn=len)
+    dofn.start_bundle()
+    for elem in ['aaaaa', 'bbbbb', 'ccccc', 'ddddd']:
+      dofn.process(elem)
+    batches = [wv.value for wv in dofn.finish_bundle()]
+    self.assertEqual(len(batches), 2)
+    for batch in batches:
+      self.assertEqual(len(batch), 2)
+
+  def test_windowed_dofn_flush_and_finish(self):
+    """Test _WindowAwareSortAndBatchElementsDoFn directly."""
+    from apache_beam.transforms.util import (
+        _WindowAwareSortAndBatchElementsDoFn)
+    dofn = _WindowAwareSortAndBatchElementsDoFn(
+        min_batch_size=1, max_batch_size=10, max_batch_weight=100,
+        element_size_fn=len)
+    dofn.start_bundle()
+    win1 = IntervalWindow(0, 3)
+    win2 = IntervalWindow(3, 6)
+    # Manually add to buffers (bypass process() to avoid DoFn.WindowParam)
+    dofn._buffers[win1].extend(['aa', 'b', 'ccc'])
+    dofn._buffers[win2].extend(['dddd', 'ee'])
+    batches = list(dofn.finish_bundle())
+    # All elements across both windows emitted
+    total_elements = sum(len(wv.value) for wv in batches)
+    self.assertEqual(total_elements, 5)
+    # Each batch has the correct window
+    for wv in batches:
+      self.assertIn(wv.windows[0], (win1, win2))
+
+  def test_windowed_dofn_overflow_flush(self):
+    """Test that exceeding _MAX_LIVE_WINDOWS triggers early flush."""
+    from apache_beam.transforms.util import (
+        _WindowAwareSortAndBatchElementsDoFn)
+    dofn = _WindowAwareSortAndBatchElementsDoFn(
+        min_batch_size=1, max_batch_size=10, max_batch_weight=100,
+        element_size_fn=len)
+    dofn.start_bundle()
+    # Fill up to _MAX_LIVE_WINDOWS
+    for i in range(dofn._MAX_LIVE_WINDOWS):
+      win = IntervalWindow(i * 10, (i + 1) * 10)
+      dofn._buffers[win].append('x' * (i + 1))
+    self.assertEqual(len(dofn._buffers), dofn._MAX_LIVE_WINDOWS)
+    # Adding one more window should trigger overflow flush
+    overflow_win = IntervalWindow(100, 110)
+    results = list(dofn.process('overflow', overflow_win))
+    # One window was flushed, so buffer count stays at _MAX_LIVE_WINDOWS
+    self.assertLessEqual(len(dofn._buffers), dofn._MAX_LIVE_WINDOWS)
+    # The flushed window produced output
+    self.assertGreater(len(results), 0)
+
+  def test_windowed_dofn_flush_empty_window(self):
+    """Test _flush_window with a non-existent window returns nothing."""
+    from apache_beam.transforms.util import (
+        _WindowAwareSortAndBatchElementsDoFn)
+    dofn = _WindowAwareSortAndBatchElementsDoFn(
+        min_batch_size=1, max_batch_size=10, max_batch_weight=100,
+        element_size_fn=len)
+    dofn.start_bundle()
+    result = list(dofn._flush_window(IntervalWindow(0, 10)))
+    self.assertEqual(result, [])
+
+  def test_windowed_dofn_weight_splitting(self):
+    """Test weight-based splitting in the windowed DoFn."""
+    from apache_beam.transforms.util import (
+        _WindowAwareSortAndBatchElementsDoFn)
+    dofn = _WindowAwareSortAndBatchElementsDoFn(
+        min_batch_size=1, max_batch_size=100, max_batch_weight=12,
+        element_size_fn=len)
+    dofn.start_bundle()
+    win = IntervalWindow(0, 10)
+    dofn._buffers[win].extend(['aaaaa', 'bbbbb', 'ccccc', 'ddddd'])
+    batches = list(dofn._flush_window(win))
+    self.assertEqual(len(batches), 2)
+    for wv in batches:
+      self.assertEqual(len(wv.value), 2)
+      self.assertEqual(wv.windows[0], win)
+
+
 class IdentityWindowTest(unittest.TestCase):
   def test_window_preserved(self):
     expected_timestamp = timestamp.Timestamp(5)
