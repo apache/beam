@@ -174,11 +174,19 @@ class TestModelManager(unittest.TestCase):
     def acquire_model_with_timeout():
       return self.manager.acquire_model(model_name, loader)
 
-    with ThreadPoolExecutor(max_workers=1) as executor:
-      future = executor.submit(acquire_model_with_timeout)
+    with ThreadPoolExecutor(max_workers=1000) as executor:
+      futures = [
+          executor.submit(acquire_model_with_timeout) for i in range(1000)
+      ]
       with self.assertRaises(RuntimeError) as context:
-        future.result(timeout=5.0)
+        for future in futures:
+          future.result()
       self.assertIn("Timeout waiting to acquire model", str(context.exception))
+
+    # Release the initially acquired model and try to acquire again
+    # to make sure the manager is still functional
+    self.manager.release_model(model_name, model_name)
+    _ = self.manager.acquire_model(model_name, loader)
 
   def test_model_manager_capacity_check(self):
     """
@@ -333,22 +341,21 @@ class TestModelManager(unittest.TestCase):
     """
     model_name = "fluctuating_model"
     model_cost = 3000.0
-    load_cost = 2500.0
     # Fix random seed for reproducibility
     random.seed(42)
 
     def loader():
-      self.mock_monitor.allocate(load_cost)
+      self.mock_monitor.allocate(model_cost)
       return model_name
 
     model = self.manager.acquire_model(model_name, loader)
     self.manager.release_model(model_name, model)
     initial_est = self.manager._estimator.get_estimate(model_name)
-    self.assertEqual(initial_est, load_cost)
+    self.assertEqual(initial_est, model_cost)
 
     def run_inference():
       model = self.manager.acquire_model(model_name, loader)
-      noise = model_cost - load_cost + random.uniform(-300.0, 300.0)
+      noise = random.uniform(-300.0, 300.0)
       self.mock_monitor.allocate(noise)
       time.sleep(0.1)
       self.mock_monitor.free(noise)
