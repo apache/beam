@@ -35,7 +35,7 @@ set -e
 for dir in apache_beam target/build; do
     if [ -d "${dir}" ]; then
         for ext in pyc c so; do
-            find ${dir} -type f -name "*.${ext}" -delete
+            find ${dir} -type f -name "*.${ext}" -delete || true
         done
     fi
 done
