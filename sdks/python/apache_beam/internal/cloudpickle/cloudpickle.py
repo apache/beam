@@ -1115,8 +1115,8 @@ def _memoryview_reduce(obj):
   return bytes, (obj.tobytes(), )
 
 
-def _module_reduce(obj, config: CloudPickleConfig):
-  if _should_pickle_by_reference(obj, config=config):
+def _module_reduce(obj):
+  if _should_pickle_by_reference(obj):
     return subimport, (obj.__name__, )
   else:
     # Some external libraries can populate the "__builtins__" entry of a
@@ -1348,6 +1348,7 @@ class Pickler(pickle.Pickler):
   _dispatch_table[types.GetSetDescriptorType] = _getset_descriptor_reduce
   _dispatch_table[types.MethodType] = _method_reduce
   _dispatch_table[types.MappingProxyType] = _mappingproxy_reduce
+  _dispatch_table[types.ModuleType] = _module_reduce
   _dispatch_table[weakref.WeakSet] = _weakset_reduce
   _dispatch_table[_collections_abc.dict_keys] = _dict_keys_reduce
   _dispatch_table[_collections_abc.dict_values] = _dict_values_reduce
@@ -1554,8 +1555,6 @@ class Pickler(pickle.Pickler):
         return _code_reduce(obj, self.config)
       elif isinstance(obj, types.FunctionType):
         return self._function_reduce(obj)
-      elif isinstance(obj, types.ModuleType):
-        return _module_reduce(obj, self.config)
       else:
         # fallback to save_global, including the Pickler's
         # dispatch_table
@@ -1681,12 +1680,6 @@ class Pickler(pickle.Pickler):
       self.save_reduce(*rv, obj=obj)
 
     dispatch[types.FunctionType] = save_function
-
-    def save_module(self, obj, name=None):
-      """Handle module objects with access to config."""
-      return self.save_reduce(*_module_reduce(obj, self.config), obj=obj)
-
-    dispatch[types.ModuleType] = save_module
 
 
 # Shorthands similar to pickle.dump/pickle.dumps
