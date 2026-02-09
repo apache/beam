@@ -26,17 +26,17 @@ from typing import Tuple
 from typing import Type
 from typing import Union
 
-from apache_beam.ml.rag.types import Chunk
+from apache_beam.ml.rag.types import EmbeddableItem
 
 
-def chunk_embedding_fn(chunk: Chunk) -> str:
+def chunk_embedding_fn(chunk: EmbeddableItem) -> str:
   """Convert embedding to PostgreSQL array string.
 
     Formats dense embedding as a PostgreSQL-compatible array string.
     Example: [1.0, 2.0] -> '{1.0,2.0}'
 
     Args:
-        chunk: Input Chunk object.
+        chunk: Input EmbeddableItem object.
 
     Returns:
         str: PostgreSQL array string representation of the embedding.
@@ -51,13 +51,15 @@ def chunk_embedding_fn(chunk: Chunk) -> str:
 
 @dataclass
 class ColumnSpec:
-  """Specification for mapping Chunk fields to SQL columns for insertion.
+  """Specification for mapping EmbeddableItem fields to SQL
+  columns for insertion.
 
-    Defines how to extract and format values from Chunks into database columns,
+    Defines how to extract and format values from
+    EmbeddableItems into database columns,
     handling the full pipeline from Python value to SQL insertion.
 
     The insertion process works as follows:
-    - value_fn extracts a value from the Chunk and formats it as needed
+    - value_fn extracts a value from the EmbeddableItem and formats it as needed
     - The value is stored in a NamedTuple field with the specified python_type
     - During SQL insertion, the value is bound to a ? placeholder
 
@@ -66,8 +68,9 @@ class ColumnSpec:
         python_type: Python type for the NamedTuple field that will hold the
             value. Must be compatible with must be compatible with
             :class:`~apache_beam.coders.row_coder.RowCoder`.
-        value_fn: Function to extract and format the value from a Chunk.
-            Takes a Chunk and returns a value of python_type.
+        value_fn: Function to extract and format the value
+            from an EmbeddableItem.
+            Takes an EmbeddableItem and returns a value of python_type.
         sql_typecast: Optional SQL type cast to append to the ? placeholder.
             Common examples:
             - "::float[]" for vector arrays
@@ -109,7 +112,7 @@ class ColumnSpec:
     """
   column_name: str
   python_type: Type
-  value_fn: Callable[[Chunk], Any]
+  value_fn: Callable[[EmbeddableItem], Any]
   sql_typecast: Optional[str] = None
 
   @property
@@ -119,19 +122,22 @@ class ColumnSpec:
 
   @classmethod
   def text(
-      cls, column_name: str, value_fn: Callable[[Chunk], Any]) -> 'ColumnSpec':
+      cls, column_name: str, value_fn: Callable[[EmbeddableItem],
+                                                Any]) -> 'ColumnSpec':
     """Create a text column specification."""
     return cls(column_name, str, value_fn)
 
   @classmethod
   def integer(
-      cls, column_name: str, value_fn: Callable[[Chunk], Any]) -> 'ColumnSpec':
+      cls, column_name: str, value_fn: Callable[[EmbeddableItem],
+                                                Any]) -> 'ColumnSpec':
     """Create an integer column specification."""
     return cls(column_name, int, value_fn)
 
   @classmethod
   def float(
-      cls, column_name: str, value_fn: Callable[[Chunk], Any]) -> 'ColumnSpec':
+      cls, column_name: str, value_fn: Callable[[EmbeddableItem],
+                                                Any]) -> 'ColumnSpec':
     """Create a float column specification."""
     return cls(column_name, float, value_fn)
 
@@ -139,13 +145,15 @@ class ColumnSpec:
   def vector(
       cls,
       column_name: str,
-      value_fn: Callable[[Chunk], Any] = chunk_embedding_fn) -> 'ColumnSpec':
+      value_fn: Callable[[EmbeddableItem], Any] = chunk_embedding_fn
+  ) -> 'ColumnSpec':
     """Create a vector column specification."""
     return cls(column_name, str, value_fn, "::float[]")
 
   @classmethod
   def jsonb(
-      cls, column_name: str, value_fn: Callable[[Chunk], Any]) -> 'ColumnSpec':
+      cls, column_name: str, value_fn: Callable[[EmbeddableItem],
+                                                Any]) -> 'ColumnSpec':
     """Create a JSONB column specification."""
     return cls(column_name, str, value_fn, "::jsonb")
 
@@ -187,7 +195,7 @@ class ColumnSpecsBuilder:
             ...     convert_fn=lambda id: int(id.split('_')[1])
             ... )
         """
-    def value_fn(chunk: Chunk) -> Any:
+    def value_fn(chunk: EmbeddableItem) -> Any:
       value = chunk.id
       return convert_fn(value) if convert_fn else value
 
@@ -224,7 +232,7 @@ class ColumnSpecsBuilder:
           ...     convert_fn=len  # Store content length instead of content
           ... )
       """
-    def value_fn(chunk: Chunk) -> Any:
+    def value_fn(chunk: EmbeddableItem) -> Any:
       if chunk.content.text is None:
         raise ValueError(f'Expected chunk to contain content. {chunk}')
       value = chunk.content.text
@@ -264,7 +272,7 @@ class ColumnSpecsBuilder:
           ...     sql_typecast="::text[]"
           ... )
       """
-    def value_fn(chunk: Chunk) -> Any:
+    def value_fn(chunk: EmbeddableItem) -> Any:
       if convert_fn:
         return convert_fn(chunk.metadata)
       return json.dumps(
@@ -300,7 +308,7 @@ class ColumnSpecsBuilder:
           ...       for x in values) + '}'
           ... )
       """
-    def value_fn(chunk: Chunk) -> Any:
+    def value_fn(chunk: EmbeddableItem) -> Any:
       if chunk.embedding is None or chunk.embedding.dense_embedding is None:
         raise ValueError(f'Expected chunk to contain embedding. {chunk}')
       values = chunk.embedding.dense_embedding
@@ -334,7 +342,7 @@ class ColumnSpecsBuilder:
           ...     convert_fn=lambda sparse: dict(zip(sparse[0], sparse[1]))
           ... )
       """
-    def value_fn(chunk: Chunk) -> Any:
+    def value_fn(chunk: EmbeddableItem) -> Any:
       if chunk.embedding is None or chunk.embedding.sparse_embedding is None:
         raise ValueError(f'Expected chunk to contain sparse embedding. {chunk}')
       sparse_embedding = chunk.embedding.sparse_embedding
@@ -389,7 +397,7 @@ class ColumnSpecsBuilder:
 
             >>> builder.add_metadata_field(
             ...     field="confidence",
-            ...     python_type=intfloat,
+            ...     python_type=float,
             ...     convert_fn=lambda x: round(float(x), 2),
             ...     default=0.0
             ... )
@@ -398,14 +406,14 @@ class ColumnSpecsBuilder:
 
             >>> builder.add_metadata_field(
             ...     field="created_at",
-            ...     python_type=intstr,
+            ...     python_type=str,
             ...     convert_fn=lambda ts: ts.replace('T', ' '),
             ...     sql_typecast="::timestamp"
             ... )
         """
     name = column_name or field
 
-    def value_fn(chunk: Chunk) -> Any:
+    def value_fn(chunk: EmbeddableItem) -> Any:
       value = chunk.metadata.get(field, default)
       if value is not None and convert_fn is not None:
         value = convert_fn(value)

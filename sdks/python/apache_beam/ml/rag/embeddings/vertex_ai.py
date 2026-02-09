@@ -27,7 +27,7 @@ from google.auth.credentials import Credentials
 
 import apache_beam as beam
 from apache_beam.ml.inference.base import RunInference
-from apache_beam.ml.rag.embeddings.base import create_rag_adapter
+from apache_beam.ml.rag.embeddings.base import create_text_adapter
 from apache_beam.ml.rag.types import Chunk
 from apache_beam.ml.transforms.base import EmbeddingsManager
 from apache_beam.ml.transforms.base import _TextEmbeddingHandler
@@ -69,7 +69,7 @@ class VertexAITextEmbeddings(EmbeddingsManager):
           "vertexai is required to use VertexAITextEmbeddings. "
           "Please install it with `pip install google-cloud-aiplatform`")
 
-    super().__init__(type_adapter=create_rag_adapter(), **kwargs)
+    super().__init__(type_adapter=create_text_adapter(), **kwargs)
     self.model_name = model_name
     self.title = title
     self.task_type = task_type

@@ -76,21 +76,22 @@ from apache_beam.coders import registry
 from apache_beam.coders.row_coder import RowCoder
 from apache_beam.io.gcp import spanner
 from apache_beam.ml.rag.ingestion.base import VectorDatabaseWriteConfig
-from apache_beam.ml.rag.types import Chunk
+from apache_beam.ml.rag.types import EmbeddableItem
 
 
 @dataclass
 class SpannerColumnSpec:
   """Column specification for Spanner vector writes.
-  
-  Defines how to extract and format values from Chunks for insertion into
+
+  Defines how to extract and format values from EmbeddableItems
+  for insertion into
   Spanner table columns. Each spec maps to one column in the target table.
-  
+
   Attributes:
       column_name: Name of the Spanner table column
       python_type: Python type for the NamedTuple field (required for RowCoder)
-      value_fn: Function to extract value from a Chunk
-  
+      value_fn: Function to extract value from an EmbeddableItem
+
   Examples:
       String column:
       >>> SpannerColumnSpec(
@@ -98,7 +99,7 @@ class SpannerColumnSpec:
       ...     python_type=str,
       ...     value_fn=lambda chunk: chunk.id
       ... )
-      
+
       Array column with conversion:
       >>> SpannerColumnSpec(
       ...     column_name="embedding",
@@ -108,7 +109,7 @@ class SpannerColumnSpec:
   """
   column_name: str
   python_type: Type
-  value_fn: Callable[[Chunk], Any]
+  value_fn: Callable[[EmbeddableItem], Any]
 
 
 def _extract_and_convert(extract_fn, convert_fn, chunk):
@@ -119,11 +120,11 @@ def _extract_and_convert(extract_fn, convert_fn, chunk):
 
 class SpannerColumnSpecsBuilder:
   """Builder for creating Spanner column specifications.
-  
+
   Provides a fluent API for defining table schemas and how to populate them
-  from Chunk objects. Supports standard Chunk fields (id, embedding, content,
+  from EmbeddableItem objects. Supports standard EmbeddableItem fields (id, embedding, content,
   metadata) and flattening metadata fields into dedicated columns.
-  
+
   Example:
       >>> specs = (
       ...     SpannerColumnSpecsBuilder()
@@ -141,13 +142,13 @@ class SpannerColumnSpecsBuilder:
   @staticmethod
   def with_defaults() -> 'SpannerColumnSpecsBuilder':
     """Create builder with default schema.
-    
+
     Default schema includes:
-    - id (STRING): Chunk ID
+    - id (STRING): EmbeddableItem ID
     - embedding (ARRAY<FLOAT32>): Dense embedding vector
-    - content (STRING): Chunk content text
+    - content (STRING): EmbeddableItem content text
     - metadata (JSON): Full metadata as JSON
-    
+
     Returns:
         Builder with default column specifications
     """
@@ -219,9 +220,9 @@ class SpannerColumnSpecsBuilder:
         ...     convert_fn=lambda vec: [round(x, 4) for x in vec]
         ... )
     """
-    def extract_fn(chunk: Chunk) -> List[float]:
+    def extract_fn(chunk: EmbeddableItem) -> List[float]:
       if chunk.embedding is None or chunk.embedding.dense_embedding is None:
-        raise ValueError(f'Chunk must contain embedding: {chunk}')
+        raise ValueError(f'EmbeddableItem must contain embedding: {chunk}')
       return chunk.embedding.dense_embedding
 
     self._specs.append(
@@ -264,9 +265,9 @@ class SpannerColumnSpecsBuilder:
         ...     convert_fn=lambda text: text[:1000]
         ... )
     """
-    def extract_fn(chunk: Chunk) -> str:
+    def extract_fn(chunk: EmbeddableItem) -> str:
       if chunk.content.text is None:
-        raise ValueError(f'Chunk must contain content: {chunk}')
+        raise ValueError(f'EmbeddableItem must contain content: {chunk}')
       return chunk.content.text
 
     self._specs.append(
@@ -355,7 +356,7 @@ class SpannerColumnSpecsBuilder:
     """
     name = column_name or field
 
-    def value_fn(chunk: Chunk) -> Any:
+    def value_fn(chunk: EmbeddableItem) -> Any:
       return chunk.metadata.get(field, default)
 
     self._specs.append(
@@ -370,7 +371,7 @@ class SpannerColumnSpecsBuilder:
       self,
       column_name: str,
       python_type: Type,
-      value_fn: Callable[[Chunk], Any]) -> 'SpannerColumnSpecsBuilder':
+      value_fn: Callable[[EmbeddableItem], Any]) -> 'SpannerColumnSpecsBuilder':
     """Add a custom column with full control.
     
     Args:
@@ -444,13 +445,13 @@ class _SpannerSchemaBuilder:
     # Register coder
     registry.register_coder(self.record_type, RowCoder)
 
-  def create_converter(self) -> Callable[[Chunk], NamedTuple]:
-    """Create converter function from Chunk to NamedTuple record.
-    
+  def create_converter(self) -> Callable[[EmbeddableItem], NamedTuple]:
+    """Create converter function from EmbeddableItem to NamedTuple record.
+
     Returns:
-        Function that converts a Chunk to a NamedTuple record
+        Function that converts an EmbeddableItem to a NamedTuple record
     """
-    def convert(chunk: Chunk) -> self.record_type:  # type: ignore
+    def convert(chunk: EmbeddableItem) -> self.record_type:  # type: ignore
       values = {
           col.column_name: col.value_fn(chunk)
           for col in self.column_specs
@@ -608,11 +609,11 @@ class _WriteToSpannerVectorDatabase(beam.PTransform):
     self.config = config
     self.schema_builder = config.schema_builder
 
-  def expand(self, pcoll: beam.PCollection[Chunk]):
+  def expand(self, pcoll: beam.PCollection[EmbeddableItem]):
     """Expand the transform.
-    
+
     Args:
-        pcoll: PCollection of Chunks to write
+        pcoll: PCollection of EmbeddableItems to write
     """
     # Select appropriate Spanner write transform based on write_mode
     write_transform_class = {

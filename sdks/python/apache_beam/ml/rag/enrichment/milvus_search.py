@@ -34,7 +34,7 @@ from pymilvus import MilvusClient
 from pymilvus import SearchResult
 from pymilvus.exceptions import MilvusException
 
-from apache_beam.ml.rag.types import Chunk
+from apache_beam.ml.rag.types import EmbeddableItem
 from apache_beam.ml.rag.types import Embedding
 from apache_beam.ml.rag.utils import MilvusConnectionParameters
 from apache_beam.ml.rag.utils import MilvusHelpers
@@ -293,7 +293,8 @@ class MilvusSearchResult:
   fields: List[Dict[str, Any]] = field(default_factory=list)
 
 
-InputT, OutputT = Union[Chunk, List[Chunk]], List[Tuple[Chunk, Dict[str, Any]]]
+InputT, OutputT = (Union[EmbeddableItem, List[EmbeddableItem]],
+                    List[Tuple[EmbeddableItem, Dict[str, Any]]])
 
 
 class MilvusSearchEnrichmentHandler(EnrichmentSourceHandler[InputT, OutputT]):
@@ -412,8 +413,11 @@ class MilvusSearchEnrichmentHandler(EnrichmentSourceHandler[InputT, OutputT]):
           exception_types=(MilvusException, ))
     return self
 
-  def __call__(self, request: Union[Chunk, List[Chunk]], *args,
-               **kwargs) -> List[Tuple[Chunk, Dict[str, Any]]]:
+  def __call__(
+      self,
+      request: Union[EmbeddableItem, List[EmbeddableItem]],
+      *args,
+      **kwargs) -> List[Tuple[EmbeddableItem, Dict[str, Any]]]:
     reqs = request if isinstance(request, list) else [request]
     # Early return for empty requests to avoid unnecessary connection attempts
     if not reqs:
@@ -421,7 +425,7 @@ class MilvusSearchEnrichmentHandler(EnrichmentSourceHandler[InputT, OutputT]):
     search_result = self._search_documents(reqs)
     return self._get_call_response(reqs, search_result)
 
-  def _search_documents(self, chunks: List[Chunk]):
+  def _search_documents(self, chunks: List[EmbeddableItem]):
     if isinstance(self.search_strategy, HybridSearchParameters):
       data = self._get_hybrid_search_data(chunks)
       return self._client.hybrid_search(
@@ -460,7 +464,7 @@ class MilvusSearchEnrichmentHandler(EnrichmentSourceHandler[InputT, OutputT]):
       raise ValueError(
           f"Not supported search strategy yet: {self.search_strategy}")
 
-  def _get_hybrid_search_data(self, chunks: List[Chunk]):
+  def _get_hybrid_search_data(self, chunks: List[EmbeddableItem]):
     vector_search_data = list(map(self._get_vector_search_data, chunks))
     keyword_search_data = list(map(self._get_keyword_search_data, chunks))
 
@@ -481,30 +485,29 @@ class MilvusSearchEnrichmentHandler(EnrichmentSourceHandler[InputT, OutputT]):
     reqs = [vector_search_req, keyword_search_req]
     return reqs
 
-  def _get_vector_search_data(self, chunk: Chunk):
+  def _get_vector_search_data(self, chunk: EmbeddableItem):
     if not chunk.dense_embedding:
       raise ValueError(
-          f"Chunk {chunk.id} missing dense embedding required for vector search"
-      )
+          f"Item {chunk.id} missing dense embedding required for vector search")
     return chunk.dense_embedding
 
-  def _get_keyword_search_data(self, chunk: Chunk):
+  def _get_keyword_search_data(self, chunk: EmbeddableItem):
     if not chunk.content.text and not chunk.sparse_embedding:
       raise ValueError(
-          f"Chunk {chunk.id} missing both text content and sparse embedding "
+          f"Item {chunk.id} missing both text content and sparse embedding "
           "required for keyword search")
     sparse_embedding = MilvusHelpers.sparse_embedding(chunk.sparse_embedding)
     return chunk.content.text or sparse_embedding
 
   def _get_call_response(
-      self, chunks: List[Chunk], search_result: SearchResult[Hits]):
+      self, chunks: List[EmbeddableItem], search_result: SearchResult[Hits]):
     response = []
     for i in range(len(chunks)):
       chunk = chunks[i]
       hits: Hits = search_result[i]
       result = MilvusSearchResult()
-      for i in range(len(hits)):
-        hit: Hit = hits[i]
+      for j in range(len(hits)):
+        hit: Hit = hits[j]
         normalized_fields = self._normalize_milvus_fields(hit.fields)
         result.id.append(hit.id)
         result.distance.append(hit.distance)
