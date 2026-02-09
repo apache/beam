@@ -1330,6 +1330,29 @@ class _PostProcessingModelHandler(Generic[ExampleT,
     return self._base.get_postprocess_fns() + [self._postprocess_fn]
 
 
+class OOMProtectedFn:
+  def __init__(self, func):
+    self.func = func
+
+  def __call__(self, *args, **kwargs):
+    try:
+      return self.func(*args, **kwargs)
+    except Exception as e:
+      # Check string to avoid hard import dependency
+      if 'out of memory' in str(e) and 'CUDA' in str(e):
+        logging.warning("Caught CUDA OOM during operation. Cleaning memory.")
+        try:
+          import gc
+          import torch
+          gc.collect()
+          torch.cuda.empty_cache()
+        except ImportError:
+          pass
+        except Exception as cleanup_error:
+          logging.error("Failed to clean up CUDA memory: %s", cleanup_error)
+      raise e
+
+
 class RunInference(beam.PTransform[beam.PCollection[Union[ExampleT,
                                                           Iterable[ExampleT]]],
                                    beam.PCollection[PredictionT]]):
@@ -1831,7 +1854,9 @@ class _ProxyLoader:
     unique_tag = self.model_tag + '_' + uuid.uuid4().hex
     # Ensure that each model loaded in a different process for parallelism
     multi_process_shared.MultiProcessShared(
-        self.loader_func, tag=unique_tag, always_proxy=True,
+        OOMProtectedFn(self.loader_func),
+        tag=unique_tag,
+        always_proxy=True,
         spawn_process=True).acquire()
     # Only return the tag to avoid pickling issues with the model itself.
     return unique_tag
@@ -2021,7 +2046,7 @@ class _RunInferenceDoFn(beam.DoFn, Generic[ExampleT, PredictionT]):
         unique_tag = model
         model = multi_process_shared.MultiProcessShared(
             lambda: None, tag=model, always_proxy=True).acquire()
-      result_generator = self._model_handler.run_inference(
+      result_generator = (OOMProtectedFn(self._model_handler.run_inference))(
           batch, model, inference_args)
       if self.use_model_manager:
         self._model.release_model(self._model_tag, unique_tag)
