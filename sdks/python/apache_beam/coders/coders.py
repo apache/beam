@@ -1512,7 +1512,7 @@ class _OrderedUnionCoder(FastCoder):
 
   def is_deterministic(self) -> bool:
     return (
-        all(c.is_deterministic for _, c in self._coder_types) and (
+        all(c.is_deterministic() for _, c in self._coder_types) and (
             self._fallback_coder is None or
             self._fallback_coder.is_deterministic()))
 
