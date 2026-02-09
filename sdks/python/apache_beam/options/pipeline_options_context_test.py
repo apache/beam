@@ -26,9 +26,9 @@ import threading
 import unittest
 
 import apache_beam as beam
+from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.options.pipeline_options_context import get_pipeline_options
 from apache_beam.options.pipeline_options_context import scoped_pipeline_options
-from apache_beam.options.pipeline_options import PipelineOptions
 
 
 class PipelineConstructionOptionsTest(unittest.TestCase):
