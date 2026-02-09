@@ -195,12 +195,12 @@ public class GcsUtilIT {
   }
 
   @Test
-  public void testGetBucketOrGetBucketV2() throws IOException {
+  public void testGetBucketOrGetBucketWithOptions() throws IOException {
     final GcsPath existingPath = GcsPath.fromUri("gs://apache-beam-samples");
 
     String bucket;
     if (experiment.equals("use_gcsutil_v2")) {
-      bucket = gcsUtil.getBucketV2(existingPath).getName();
+      bucket = gcsUtil.getBucketWithOptions(existingPath).getName();
     } else {
       bucket = gcsUtil.getBucket(existingPath).getName();
     }
@@ -210,8 +210,9 @@ public class GcsUtilIT {
     final GcsPath forbiddenPath = GcsPath.fromUri("gs://test-bucket");
 
     if (experiment.equals("use_gcsutil_v2")) {
-      assertThrows(FileNotFoundException.class, () -> gcsUtil.getBucketV2(nonExistentPath));
-      assertThrows(AccessDeniedException.class, () -> gcsUtil.getBucketV2(forbiddenPath));
+      assertThrows(
+          FileNotFoundException.class, () -> gcsUtil.getBucketWithOptions(nonExistentPath));
+      assertThrows(AccessDeniedException.class, () -> gcsUtil.getBucketWithOptions(forbiddenPath));
     } else {
       assertThrows(FileNotFoundException.class, () -> gcsUtil.getBucket(nonExistentPath));
       assertThrows(AccessDeniedException.class, () -> gcsUtil.getBucket(forbiddenPath));

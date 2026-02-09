@@ -381,13 +381,13 @@ public class GcsUtil {
     }
   }
 
-  /** @deprecated use {@link #getBucketV2(GcsPath, BucketGetOption...)} . */
+  /** @deprecated use {@link #getBucketWithOptions(GcsPath, BucketGetOption...)} . */
   @Deprecated
   public @Nullable Bucket getBucket(GcsPath path) throws IOException {
     return delegate.getBucket(path);
   }
 
-  public com.google.cloud.storage.@Nullable Bucket getBucketV2(
+  public com.google.cloud.storage.@Nullable Bucket getBucketWithOptions(
       GcsPath path, BucketGetOption... options) throws IOException {
     if (delegateV2 != null) {
       return delegateV2.getBucket(path, options);
