@@ -61,10 +61,14 @@
 
 * New highly anticipated feature X added to Python SDK ([#X](https://github.com/apache/beam/issues/X)).
 * New highly anticipated feature Y added to Java SDK ([#Y](https://github.com/apache/beam/issues/Y)).
+* Flink 2.0 support for Java Classic and Portable Flink Runners ([#36947](https://github.com/apache/beam/issues/36947)),
+  experimental support for other SDK languages including Python.
+
 
 ## I/Os
 
-* Add support for Datadog IO (Java) ([#37318](https://github.com/apache/beam/issues/37318)).
+* Add Datadog IO support (Java) ([#37318](https://github.com/apache/beam/issues/37318)).
+* Remove Pubsublite IO support, since service will be deprecated in March 2026. ([#37375](https://github.com/apache/beam/issues/37375)).
 
 ## New Features / Improvements
 
