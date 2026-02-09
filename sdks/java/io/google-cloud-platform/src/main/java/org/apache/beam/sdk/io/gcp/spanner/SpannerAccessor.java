@@ -63,7 +63,7 @@ public class SpannerAccessor implements AutoCloseable {
    */
   private static final String USER_AGENT_PREFIX = "Apache_Beam_Java";
 
-  static final java.time.Duration DEFAULT_SESSION_WAIT_DURATION = java.time.Duration.ofMinutes(5);
+  static final java.time.Duration DEFAULT_SESSION_WAIT_DURATION = java.time.Duration.ofMinutes(0);
 
   /** Instance ID to use when connecting to an experimental host. */
   public static final String EXPERIMENTAL_HOST_INSTANCE_ID = "default";
@@ -274,14 +274,14 @@ public class SpannerAccessor implements AutoCloseable {
       builder.setCredentials(credentials.get());
     }
 
-    // ValueProvider<java.time.Duration> waitForSessionCreationDuration =
-    //     spannerConfig.getWaitForSessionCreationDuration();
-    // java.time.Duration waitDuration =
-    //     Optional.ofNullable(waitForSessionCreationDuration)
-    //         .map(ValueProvider::get)
-    //         .orElse(DEFAULT_SESSION_WAIT_DURATION);
-    // builder.setSessionPoolOption(
-    //     SessionPoolOptions.newBuilder().setWaitForMinSessionsDuration(waitDuration).build());
+    ValueProvider<java.time.Duration> waitForSessionCreationDuration =
+        spannerConfig.getWaitForSessionCreationDuration();
+    java.time.Duration waitDuration =
+        Optional.ofNullable(waitForSessionCreationDuration)
+            .map(ValueProvider::get)
+            .orElse(DEFAULT_SESSION_WAIT_DURATION);
+    builder.setSessionPoolOption(
+        SessionPoolOptions.newBuilder().setWaitForMinSessionsDuration(waitDuration).build());
 
     return builder.build();
   }
