@@ -21,6 +21,7 @@ import static org.apache.beam.sdk.io.gcp.spanner.changestreams.model.PartitionMe
 import static org.junit.Assert.assertEquals;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -140,17 +141,17 @@ public class ReadChangeStreamPartitionDoFnTest {
     when(actionFactory.partitionEventRecordAction(partitionMetadataDao, metrics))
         .thenReturn(partitionEventRecordAction);
     when(actionFactory.queryChangeStreamAction(
-            changeStreamDao,
-            partitionMetadataDao,
-            changeStreamRecordMapper,
-            partitionMetadataMapper,
-            dataChangeRecordAction,
-            heartbeatRecordAction,
-            childPartitionsRecordAction,
-            partitionStartRecordAction,
-            partitionEndRecordAction,
-            partitionEventRecordAction,
-            metrics,
+            eq(changeStreamDao),
+            eq(partitionMetadataDao),
+            eq(changeStreamRecordMapper),
+            eq(partitionMetadataMapper),
+            eq(dataChangeRecordAction),
+            eq(heartbeatRecordAction),
+            eq(childPartitionsRecordAction),
+            eq(partitionStartRecordAction),
+            eq(partitionEndRecordAction),
+            eq(partitionEventRecordAction),
+            eq(metrics),
             anyBoolean()))
         .thenReturn(queryChangeStreamAction);
 
