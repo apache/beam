@@ -61,8 +61,8 @@
 
 * New highly anticipated feature X added to Python SDK ([#X](https://github.com/apache/beam/issues/X)).
 * New highly anticipated feature Y added to Java SDK ([#Y](https://github.com/apache/beam/issues/Y)).
-* Flink 2.0 support for Java classic Flink runner ([#36947](https://github.com/apache/beam/issues/36947)).
-  Also added intial, experimental support for Portable Flink runner since this Beam version.
+* Flink 2.0 support for Java Classic and Portable Flink Runners ([#36947](https://github.com/apache/beam/issues/36947)),
+  experimental support for other SDK languages including Python.
 
 
 ## I/Os
