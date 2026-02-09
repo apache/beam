@@ -32,6 +32,7 @@ import java.util.Collection;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
+import org.apache.beam.runners.core.CausedByDrain;
 import org.apache.beam.runners.core.SideInputReader;
 import org.apache.beam.runners.core.StateNamespaces;
 import org.apache.beam.runners.core.StateTag;
@@ -338,7 +339,7 @@ public class EvaluationContextTest implements Serializable {
             new Instant(100L),
             new Instant(100L),
             TimeDomain.EVENT_TIME,
-            TimerData.CausedByDrain.NORMAL);
+            CausedByDrain.NORMAL);
     TransformResult<?> timerResult =
         StepTransformResult.withoutHold(downstreamProducer)
             .withState(CopyOnAccessInMemoryStateInternals.withUnderlying(key, null))

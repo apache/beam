@@ -318,7 +318,7 @@ public class SimplePushbackSideInputDoFnRunnerTest {
                 timestamp,
                 timestamp,
                 TimeDomain.EVENT_TIME,
-                TimerData.CausedByDrain.NORMAL)));
+                CausedByDrain.NORMAL)));
   }
 
   private static class TestDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, OutputT> {
@@ -361,7 +361,7 @@ public class SimplePushbackSideInputDoFnRunnerTest {
               timestamp,
               outputTimestamp,
               timeDomain,
-              TimerData.CausedByDrain.NORMAL));
+              CausedByDrain.NORMAL));
     }
 
     @Override

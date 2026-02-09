@@ -23,6 +23,7 @@ import static org.junit.Assert.assertEquals;
 
 import java.io.IOException;
 import java.util.List;
+import org.apache.beam.runners.core.CausedByDrain;
 import org.apache.beam.runners.core.StateNamespace;
 import org.apache.beam.runners.core.StateNamespaceForTest;
 import org.apache.beam.runners.core.StateNamespaces;
@@ -144,17 +145,13 @@ public class WindmillTagEncodingV1Test {
               List<TimerData> anonymousTimers =
                   ImmutableList.of(
                       TimerData.of(
-                          namespace,
-                          timestamp,
-                          timestamp,
-                          timeDomain,
-                          TimerData.CausedByDrain.NORMAL),
+                          namespace, timestamp, timestamp, timeDomain, CausedByDrain.NORMAL),
                       TimerData.of(
                           namespace,
                           timestamp,
                           timestamp.minus(Duration.millis(1)),
                           timeDomain,
-                          TimerData.CausedByDrain.NORMAL));
+                          CausedByDrain.NORMAL));
               for (TimerData timer : anonymousTimers) {
                 Instant expectedTimestamp =
                     timer.getOutputTimestamp().isBefore(BoundedWindow.TIMESTAMP_MIN_VALUE)
@@ -178,7 +175,7 @@ public class WindmillTagEncodingV1Test {
                         timestamp,
                         expectedTimestamp,
                         timer.getDomain(),
-                        TimerData.CausedByDrain.NORMAL);
+                        CausedByDrain.NORMAL);
 
                 assertThat(computed, equalTo(expected));
               }
@@ -192,7 +189,7 @@ public class WindmillTagEncodingV1Test {
                             timestamp,
                             timestamp,
                             timeDomain,
-                            TimerData.CausedByDrain.NORMAL),
+                            CausedByDrain.NORMAL),
                         TimerData.of(
                             timerId, "family", namespace, timestamp, timestamp, timeDomain),
                         TimerData.of(
@@ -201,7 +198,7 @@ public class WindmillTagEncodingV1Test {
                             timestamp,
                             timestamp.minus(Duration.millis(1)),
                             timeDomain,
-                            TimerData.CausedByDrain.NORMAL),
+                            CausedByDrain.NORMAL),
                         TimerData.of(
                             timerId,
                             "family",

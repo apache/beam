@@ -49,7 +49,7 @@ public class KeyedWorkItemCoderTest {
                 new Instant(500L),
                 new Instant(500L),
                 TimeDomain.EVENT_TIME,
-                TimerData.CausedByDrain.NORMAL));
+                CausedByDrain.NORMAL));
     Iterable<WindowedValue<Integer>> elements =
         ImmutableList.of(
             WindowedValues.valueInGlobalWindow(1),

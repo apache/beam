@@ -18,6 +18,7 @@
 package org.apache.beam.runners.samza.runtime;
 
 import java.io.ByteArrayOutputStream;
+import org.apache.beam.runners.core.CausedByDrain;
 import org.apache.beam.runners.core.StateNamespaces;
 import org.apache.beam.runners.core.TimerInternals;
 import org.apache.beam.sdk.coders.Coder;
@@ -47,7 +48,7 @@ public class KeyedTimerDataTest {
             TIMESTAMP,
             TIMESTAMP,
             TimeDomain.EVENT_TIME,
-            TimerInternals.TimerData.CausedByDrain.NORMAL);
+            CausedByDrain.NORMAL);
 
     final String key = "timer-key";
     final ByteArrayOutputStream baos = new ByteArrayOutputStream();

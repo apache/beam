@@ -26,6 +26,7 @@ import static org.mockito.Mockito.when;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Set;
+import org.apache.beam.runners.core.CausedByDrain;
 import org.apache.beam.runners.core.InMemoryStateInternals;
 import org.apache.beam.runners.core.SideInputReader;
 import org.apache.beam.runners.core.StateInternals;
@@ -211,7 +212,7 @@ public class StreamingSideInputFetcherTest {
         new Instant(timestamp),
         new Instant(timestamp),
         TimeDomain.EVENT_TIME,
-        TimerData.CausedByDrain.NORMAL);
+        CausedByDrain.NORMAL);
   }
 
   private IntervalWindow createWindow(long timestamp) {

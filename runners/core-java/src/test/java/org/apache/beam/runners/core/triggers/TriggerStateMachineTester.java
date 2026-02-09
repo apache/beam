@@ -31,6 +31,7 @@ import java.util.Map;
 import java.util.Set;
 import org.apache.beam.runners.core.ActiveWindowSet;
 import org.apache.beam.runners.core.ActiveWindowSet.MergeCallback;
+import org.apache.beam.runners.core.CausedByDrain;
 import org.apache.beam.runners.core.InMemoryTimerInternals;
 import org.apache.beam.runners.core.MergingActiveWindowSet;
 import org.apache.beam.runners.core.NonMergingActiveWindowSet;
@@ -401,22 +402,19 @@ public class TriggerStateMachineTester<InputT, W extends BoundedWindow> {
     @Override
     public void setTimer(Instant timestamp, TimeDomain timeDomain) {
       timerInternals.setTimer(
-          TimerData.of(
-              namespace, timestamp, timestamp, timeDomain, TimerData.CausedByDrain.NORMAL));
+          TimerData.of(namespace, timestamp, timestamp, timeDomain, CausedByDrain.NORMAL));
     }
 
     @Override
     public void setTimer(Instant timestamp, Instant outputTimestamp, TimeDomain timeDomain) {
       timerInternals.setTimer(
-          TimerData.of(
-              namespace, timestamp, outputTimestamp, timeDomain, TimerData.CausedByDrain.NORMAL));
+          TimerData.of(namespace, timestamp, outputTimestamp, timeDomain, CausedByDrain.NORMAL));
     }
 
     @Override
     public void deleteTimer(Instant timestamp, TimeDomain timeDomain) {
       timerInternals.deleteTimer(
-          TimerData.of(
-              namespace, timestamp, timestamp, timeDomain, TimerData.CausedByDrain.NORMAL));
+          TimerData.of(namespace, timestamp, timestamp, timeDomain, CausedByDrain.NORMAL));
     }
 
     @Override

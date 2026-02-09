@@ -29,6 +29,7 @@ import java.util.List;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
+import org.apache.beam.runners.core.CausedByDrain;
 import org.apache.beam.runners.core.StateNamespace;
 import org.apache.beam.runners.core.StateNamespaces;
 import org.apache.beam.runners.core.StateNamespaces.GlobalNamespace;
@@ -325,7 +326,7 @@ public class WindmillTagEncodingV2Test {
                   new Instant(123),
                   new Instant(456),
                   timeDomain,
-                  TimerData.CausedByDrain.NORMAL);
+                  CausedByDrain.NORMAL);
       assertEquals(expectedBytes, WindmillTagEncodingV2.instance().timerTag(prefix, timerData));
     }
   }

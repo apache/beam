@@ -19,6 +19,7 @@ package org.apache.beam.runners.samza.runtime;
 
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
+import org.apache.beam.runners.core.CausedByDrain;
 import org.apache.beam.runners.core.StateNamespaces;
 import org.apache.beam.runners.core.TimerInternals;
 import org.apache.beam.sdk.state.TimeDomain;
@@ -105,7 +106,7 @@ public class PortableBundleManager<OutT> implements BundleManager<OutT> {
             nextBundleCheckTime,
             nextBundleCheckTime,
             TimeDomain.PROCESSING_TIME,
-            TimerInternals.TimerData.CausedByDrain.NORMAL);
+            CausedByDrain.NORMAL);
     bundleTimerScheduler.schedule(
         new KeyedTimerData<>(new byte[0], null, timerData), nextBundleCheckTime.getMillis());
   }

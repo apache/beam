@@ -23,6 +23,7 @@ import static org.mockito.Mockito.when;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Set;
+import org.apache.beam.runners.core.CausedByDrain;
 import org.apache.beam.runners.core.DoFnRunner;
 import org.apache.beam.runners.core.InMemoryStateInternals;
 import org.apache.beam.runners.core.KeyedWorkItem;
@@ -167,7 +168,7 @@ public class StreamingKeyedWorkItemSideInputDoFnRunnerTest {
         timestamp,
         timestamp,
         type == Windmill.Timer.Type.WATERMARK ? TimeDomain.EVENT_TIME : TimeDomain.PROCESSING_TIME,
-        TimerData.CausedByDrain.NORMAL);
+        CausedByDrain.NORMAL);
   }
 
   private IntervalWindow window(long start, long end) {

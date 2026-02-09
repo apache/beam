@@ -168,10 +168,6 @@ public interface TimerInternals {
   /** Data about a timer as represented within {@link TimerInternals}. */
   @AutoValue
   abstract class TimerData implements Comparable<TimerData> {
-    public enum CausedByDrain {
-      CAUSED_BY_DRAIN,
-      NORMAL
-    }
 
     public abstract String getTimerId();
 
@@ -245,7 +241,7 @@ public interface TimerInternals {
           timestamp,
           outputTimestamp,
           domain,
-          TimerData.CausedByDrain.NORMAL);
+          CausedByDrain.NORMAL);
     }
 
     /**
@@ -355,7 +351,7 @@ public interface TimerInternals {
           timestamp,
           outputTimestamp,
           domain,
-          TimerData.CausedByDrain.NORMAL);
+          CausedByDrain.NORMAL);
     }
 
     @Override
@@ -401,8 +397,7 @@ public interface TimerInternals {
           StateNamespaces.fromString(STRING_CODER.decode(inStream), windowCoder);
       Instant timestamp = INSTANT_CODER.decode(inStream);
       TimeDomain domain = TimeDomain.valueOf(STRING_CODER.decode(inStream));
-      return TimerData.of(
-          timerId, namespace, timestamp, timestamp, domain, TimerData.CausedByDrain.NORMAL);
+      return TimerData.of(timerId, namespace, timestamp, timestamp, domain, CausedByDrain.NORMAL);
     }
 
     @Override

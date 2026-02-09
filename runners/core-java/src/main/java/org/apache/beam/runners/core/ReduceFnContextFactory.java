@@ -136,22 +136,19 @@ class ReduceFnContextFactory<K, InputT, OutputT, W extends BoundedWindow> {
     @Override
     public void setTimer(Instant timestamp, TimeDomain timeDomain) {
       timerInternals.setTimer(
-          TimerData.of(
-              namespace, timestamp, timestamp, timeDomain, TimerData.CausedByDrain.NORMAL));
+          TimerData.of(namespace, timestamp, timestamp, timeDomain, CausedByDrain.NORMAL));
     }
 
     @Override
     public void setTimer(Instant timestamp, Instant outputTimestamp, TimeDomain timeDomain) {
       timerInternals.setTimer(
-          TimerData.of(
-              namespace, timestamp, outputTimestamp, timeDomain, TimerData.CausedByDrain.NORMAL));
+          TimerData.of(namespace, timestamp, outputTimestamp, timeDomain, CausedByDrain.NORMAL));
     }
 
     @Override
     public void deleteTimer(Instant timestamp, TimeDomain timeDomain) {
       timerInternals.deleteTimer(
-          TimerData.of(
-              namespace, timestamp, timestamp, timeDomain, TimerData.CausedByDrain.NORMAL));
+          TimerData.of(namespace, timestamp, timestamp, timeDomain, CausedByDrain.NORMAL));
     }
 
     @Override

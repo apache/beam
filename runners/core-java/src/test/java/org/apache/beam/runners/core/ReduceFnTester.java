@@ -578,7 +578,7 @@ public class ReduceFnTester<InputT, OutputT, W extends BoundedWindow> {
             timestamp,
             timestamp,
             domain,
-            TimerData.CausedByDrain.NORMAL));
+            CausedByDrain.NORMAL));
     runner.onTimers(timers);
     runner.persist();
   }
@@ -593,7 +593,7 @@ public class ReduceFnTester<InputT, OutputT, W extends BoundedWindow> {
               timer.getTimestamp(),
               timer.getTimestamp(),
               timer.getValue(),
-              TimerData.CausedByDrain.NORMAL));
+              CausedByDrain.NORMAL));
     }
     runner.onTimers(timerData);
     runner.persist();

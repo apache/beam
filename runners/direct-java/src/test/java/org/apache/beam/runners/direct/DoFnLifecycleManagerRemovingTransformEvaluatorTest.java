@@ -26,6 +26,7 @@ import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 
+import org.apache.beam.runners.core.CausedByDrain;
 import org.apache.beam.runners.core.StateNamespaces;
 import org.apache.beam.runners.core.TimerInternals.TimerData;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
@@ -111,7 +112,7 @@ public class DoFnLifecycleManagerRemovingTransformEvaluatorTest {
               new Instant(0),
               new Instant(0),
               TimeDomain.EVENT_TIME,
-              TimerData.CausedByDrain.NORMAL),
+              CausedByDrain.NORMAL),
           "",
           GlobalWindow.INSTANCE);
     } catch (Exception e) {

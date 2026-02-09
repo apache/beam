@@ -702,7 +702,7 @@ public class SimpleDoFnRunnerTest {
               context.fireTimestamp(),
               context.timestamp(),
               context.timeDomain(),
-              TimerData.CausedByDrain.NORMAL));
+              CausedByDrain.NORMAL));
     }
   }
 

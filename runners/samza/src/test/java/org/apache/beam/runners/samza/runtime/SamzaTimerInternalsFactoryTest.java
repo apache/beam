@@ -32,6 +32,7 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import org.apache.beam.runners.core.CausedByDrain;
 import org.apache.beam.runners.core.StateNamespace;
 import org.apache.beam.runners.core.StateNamespaces;
 import org.apache.beam.runners.core.TimerInternals;
@@ -156,7 +157,7 @@ public class SamzaTimerInternalsFactoryTest {
             new Instant(10),
             new Instant(10),
             TimeDomain.EVENT_TIME,
-            TimerInternals.TimerData.CausedByDrain.NORMAL);
+            CausedByDrain.NORMAL);
     timerInternals.setTimer(timer1);
 
     final TimerInternals.TimerData timer2 =
@@ -166,7 +167,7 @@ public class SamzaTimerInternalsFactoryTest {
             new Instant(100),
             new Instant(100),
             TimeDomain.EVENT_TIME,
-            TimerInternals.TimerData.CausedByDrain.NORMAL);
+            CausedByDrain.NORMAL);
     timerInternals.setTimer(timer2);
 
     timerInternalsFactory.setInputWatermark(new Instant(5));
@@ -205,7 +206,7 @@ public class SamzaTimerInternalsFactoryTest {
             new Instant(10),
             new Instant(10),
             TimeDomain.EVENT_TIME,
-            TimerInternals.TimerData.CausedByDrain.NORMAL);
+            CausedByDrain.NORMAL);
     timerInternals.setTimer(timer1);
 
     store.close();
@@ -231,7 +232,7 @@ public class SamzaTimerInternalsFactoryTest {
             new Instant(200),
             new Instant(200),
             TimeDomain.EVENT_TIME,
-            TimerInternals.TimerData.CausedByDrain.NORMAL);
+            CausedByDrain.NORMAL);
     restoredTimerInternals.setTimer(timer2);
 
     // Timer 2 should be added to the Event buffer
@@ -272,7 +273,7 @@ public class SamzaTimerInternalsFactoryTest {
             new Instant(10),
             new Instant(10),
             TimeDomain.EVENT_TIME,
-            TimerInternals.TimerData.CausedByDrain.NORMAL);
+            CausedByDrain.NORMAL);
     timerInternals.setTimer(timer1);
 
     final TimerInternals.TimerData timer2 =
@@ -282,7 +283,7 @@ public class SamzaTimerInternalsFactoryTest {
             new Instant(100),
             new Instant(100),
             TimeDomain.EVENT_TIME,
-            TimerInternals.TimerData.CausedByDrain.NORMAL);
+            CausedByDrain.NORMAL);
     timerInternals.setTimer(timer2);
 
     store.close();
@@ -328,7 +329,7 @@ public class SamzaTimerInternalsFactoryTest {
             new Instant(10),
             new Instant(10),
             TimeDomain.PROCESSING_TIME,
-            TimerInternals.TimerData.CausedByDrain.NORMAL);
+            CausedByDrain.NORMAL);
     timerInternals.setTimer(timer1);
 
     final TimerInternals.TimerData timer2 =
@@ -338,7 +339,7 @@ public class SamzaTimerInternalsFactoryTest {
             new Instant(100),
             new Instant(100),
             TimeDomain.PROCESSING_TIME,
-            TimerInternals.TimerData.CausedByDrain.NORMAL);
+            CausedByDrain.NORMAL);
     timerInternals.setTimer(timer2);
 
     final TimerInternals.TimerData timer3 =
@@ -389,7 +390,7 @@ public class SamzaTimerInternalsFactoryTest {
             new Instant(10),
             new Instant(10),
             TimeDomain.EVENT_TIME,
-            TimerInternals.TimerData.CausedByDrain.NORMAL);
+            CausedByDrain.NORMAL);
     timerInternals.setTimer(timer1);
 
     // this timer should override the first timer
@@ -400,7 +401,7 @@ public class SamzaTimerInternalsFactoryTest {
             new Instant(100),
             new Instant(100),
             TimeDomain.EVENT_TIME,
-            TimerInternals.TimerData.CausedByDrain.NORMAL);
+            CausedByDrain.NORMAL);
     timerInternals.setTimer(timer2);
 
     final TimerInternals.TimerData timer3 =
@@ -410,7 +411,7 @@ public class SamzaTimerInternalsFactoryTest {
             new Instant(200),
             new Instant(200),
             TimeDomain.EVENT_TIME,
-            TimerInternals.TimerData.CausedByDrain.NORMAL);
+            CausedByDrain.NORMAL);
     timerInternals.setTimer(timer3);
 
     // this timer shouldn't override since it has a different id
@@ -470,7 +471,7 @@ public class SamzaTimerInternalsFactoryTest {
               new Instant(i),
               new Instant(i),
               TimeDomain.EVENT_TIME,
-              TimerInternals.TimerData.CausedByDrain.NORMAL);
+              CausedByDrain.NORMAL);
       timerInternals.setTimer(timer);
     }
 

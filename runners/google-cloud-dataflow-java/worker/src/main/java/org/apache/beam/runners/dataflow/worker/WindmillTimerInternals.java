@@ -24,6 +24,7 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.function.Consumer;
+import org.apache.beam.runners.core.CausedByDrain;
 import org.apache.beam.runners.core.StateNamespace;
 import org.apache.beam.runners.core.TimerInternals;
 import org.apache.beam.runners.dataflow.worker.streaming.Watermarks;
@@ -108,7 +109,7 @@ class WindmillTimerInternals implements TimerInternals {
             timestamp,
             outputTimestamp,
             timeDomain,
-            TimerData.CausedByDrain.NORMAL);
+            CausedByDrain.NORMAL);
     setTimer(timer);
   }
 
@@ -146,7 +147,7 @@ class WindmillTimerInternals implements TimerInternals {
             BoundedWindow.TIMESTAMP_MIN_VALUE,
             BoundedWindow.TIMESTAMP_MAX_VALUE,
             timeDomain,
-            TimerData.CausedByDrain.NORMAL));
+            CausedByDrain.NORMAL));
   }
 
   @Override

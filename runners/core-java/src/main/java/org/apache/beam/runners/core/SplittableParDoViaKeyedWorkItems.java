@@ -604,7 +604,7 @@ public class SplittableParDoViaKeyedWorkItems {
               wakeupTime,
               wakeupTime,
               TimeDomain.PROCESSING_TIME,
-              TimerInternals.TimerData.CausedByDrain.NORMAL));
+              CausedByDrain.NORMAL));
     }
 
     private DoFnInvoker.ArgumentProvider<InputT, OutputT> wrapOptionsAsSetup(

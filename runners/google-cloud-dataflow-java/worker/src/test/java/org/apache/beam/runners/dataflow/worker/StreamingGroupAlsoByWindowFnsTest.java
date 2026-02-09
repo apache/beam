@@ -30,6 +30,7 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi;
+import org.apache.beam.runners.core.CausedByDrain;
 import org.apache.beam.runners.core.DoFnRunner;
 import org.apache.beam.runners.core.DoFnRunners;
 import org.apache.beam.runners.core.InMemoryStateInternals;
@@ -159,7 +160,7 @@ public class StreamingGroupAlsoByWindowFnsTest {
                         type == Windmill.Timer.Type.WATERMARK
                             ? TimeDomain.EVENT_TIME
                             : TimeDomain.PROCESSING_TIME,
-                        TimerData.CausedByDrain.NORMAL)))
+                        CausedByDrain.NORMAL)))
         .setTimestamp(WindmillTimeUtils.harnessToWindmillTimestamp(timestamp))
         .setType(type)
         .setStateFamily(STATE_FAMILY);
