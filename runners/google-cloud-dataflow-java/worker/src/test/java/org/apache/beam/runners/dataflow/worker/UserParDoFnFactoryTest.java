@@ -31,7 +31,6 @@ import static org.mockito.Mockito.when;
 
 import java.util.Collections;
 import java.util.List;
-import org.apache.beam.runners.core.CausedByDrain;
 import org.apache.beam.runners.core.InMemoryStateInternals;
 import org.apache.beam.runners.core.NullSideInputReader;
 import org.apache.beam.runners.core.StateInternals;
@@ -66,6 +65,7 @@ import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.util.DoFnInfo;
 import org.apache.beam.sdk.util.SerializableUtils;
 import org.apache.beam.sdk.util.StringUtils;
+import org.apache.beam.sdk.values.CausedByDrain;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.WindowedValues;

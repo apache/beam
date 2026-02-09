@@ -23,6 +23,7 @@ import static org.hamcrest.Matchers.nullValue;
 
 import org.apache.beam.runners.core.TimerInternals.TimerData;
 import org.apache.beam.sdk.state.TimeDomain;
+import org.apache.beam.sdk.values.CausedByDrain;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.junit.Test;

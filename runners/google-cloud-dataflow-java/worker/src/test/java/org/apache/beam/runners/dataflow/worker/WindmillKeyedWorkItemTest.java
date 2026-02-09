@@ -24,7 +24,6 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.Iterator;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi;
-import org.apache.beam.runners.core.CausedByDrain;
 import org.apache.beam.runners.core.KeyedWorkItem;
 import org.apache.beam.runners.core.StateNamespace;
 import org.apache.beam.runners.core.StateNamespaces;
@@ -44,6 +43,7 @@ import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo.Timing;
+import org.apache.beam.sdk.values.CausedByDrain;
 import org.apache.beam.sdk.values.WindowedValue;
 import org.apache.beam.sdk.values.WindowedValues;
 import org.apache.beam.vendor.grpc.v1p69p0.com.google.protobuf.ByteString;
@@ -266,8 +266,8 @@ public class WindmillKeyedWorkItemTest {
             true);
 
     Iterator<WindowedValue<String>> iterator = keyedWorkItem.elementsIterable().iterator();
-    Assert.assertTrue(iterator.next().causedByDrain());
-    Assert.assertFalse(iterator.next().causedByDrain());
+    Assert.assertEquals(CausedByDrain.CAUSED_BY_DRAIN, iterator.next().causedByDrain());
+    Assert.assertEquals(CausedByDrain.NORMAL, iterator.next().causedByDrain());
 
     // todo add assert for draining once timerdata is filled
     // (https://github.com/apache/beam/issues/36884)

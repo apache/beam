@@ -31,6 +31,7 @@ import org.apache.beam.sdk.coders.StructuredCoder;
 import org.apache.beam.sdk.state.TimeDomain;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
+import org.apache.beam.sdk.values.CausedByDrain;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ComparisonChain;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Instant;
