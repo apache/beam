@@ -56,7 +56,7 @@ require (
 	github.com/xitongsys/parquet-go-source v0.0.0-20241021075129-b732d2ac9c9b
 	go.mongodb.org/mongo-driver v1.17.8
 	golang.org/x/net v0.49.0
-	golang.org/x/oauth2 v0.34.0
+	golang.org/x/oauth2 v0.35.0
 	golang.org/x/sync v0.19.0
 	golang.org/x/sys v0.40.0
 	golang.org/x/text v0.33.0
