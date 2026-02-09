@@ -211,7 +211,7 @@ public class GcsUtil {
     if (delegateV2 != null) {
       return delegateV2.getBlob(gcsPath, options);
     }
-    throw new IOException("GcsUtil2 not initialized.");
+    throw new IOException("GcsUtil V2 not initialized.");
   }
 
   /** @deprecated use {@link #getBlobs(List, BlobGetOption...)}. */
@@ -228,7 +228,7 @@ public class GcsUtil {
     if (delegateV2 != null) {
       return delegateV2.getBlobs(gcsPaths, options);
     }
-    throw new IOException("GcsUtil2 not initialized.");
+    throw new IOException("GcsUtil V2 not initialized.");
   }
 
   /** @deprecated use {@link #listBlobs(String, String, String, BlobListOption...)}. */
@@ -252,7 +252,7 @@ public class GcsUtil {
     if (delegateV2 != null) {
       return delegateV2.listBlobs(bucket, prefix, pageToken, options);
     }
-    throw new IOException("GcsUtil2 not initialized.");
+    throw new IOException("GcsUtil V2 not initialized.");
   }
 
   public Page<Blob> listBlobs(
@@ -265,7 +265,7 @@ public class GcsUtil {
     if (delegateV2 != null) {
       return delegateV2.listBlobs(bucket, prefix, pageToken, delimiter, options);
     }
-    throw new IOException("GcsUtil2 not initialized.");
+    throw new IOException("GcsUtil V2 not initialized.");
   }
 
   @VisibleForTesting
@@ -377,7 +377,7 @@ public class GcsUtil {
     if (delegateV2 != null) {
       delegateV2.createBucket(bucketInfo);
     } else {
-      throw new IOException("GcsUtil2 not initialized.");
+      throw new IOException("GcsUtil V2 not initialized.");
     }
   }
 
@@ -392,7 +392,7 @@ public class GcsUtil {
     if (delegateV2 != null) {
       return delegateV2.getBucket(path, options);
     }
-    throw new IOException("GcsUtil2 not initialized.");
+    throw new IOException("GcsUtil V2 not initialized.");
   }
 
   /** @deprecated use {@link #removeBucket(BucketInfo)}. */
@@ -405,7 +405,7 @@ public class GcsUtil {
     if (delegateV2 != null) {
       delegateV2.removeBucket(bucketInfo);
     } else {
-      throw new IOException("GcsUtil2 not initialized.");
+      throw new IOException("GcsUtil V2 not initialized.");
     }
   }
 

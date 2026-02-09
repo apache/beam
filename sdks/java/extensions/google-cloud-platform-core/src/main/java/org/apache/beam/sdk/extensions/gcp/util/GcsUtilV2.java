@@ -166,10 +166,11 @@ class GcsUtilV2 {
                 BlobOrIOException.create(
                     new FileNotFoundException(
                         String.format(
-                            "The specified file does not exist: %s", gcsPaths.get(i).toString()))));
+                            "The specified file does not exist: %s",
+                            pathPartition.get(i).toString()))));
           }
         } catch (StorageException e) {
-          results.add(BlobOrIOException.create(translateStorageException(gcsPaths.get(i), e)));
+          results.add(BlobOrIOException.create(translateStorageException(pathPartition.get(i), e)));
         }
       }
     }
@@ -316,13 +317,11 @@ class GcsUtilV2 {
   }
 
   public void removeBucket(BucketInfo bucketInfo) throws IOException {
-    Bucket bucket =
-        getBucket(
-            GcsPath.fromComponents(bucketInfo.getName(), null),
-            BucketGetOption.fields(BucketField.NAME));
-
     try {
-      bucket.delete();
+      if (!storage.delete(bucketInfo.getName())) {
+        throw new FileNotFoundException(
+            String.format("The specified bucket does not exist: gs://%s", bucketInfo.getName()));
+      }
     } catch (StorageException e) {
       throw translateStorageException(bucketInfo.getName(), null, e);
     }
