@@ -32,18 +32,18 @@ if TYPE_CHECKING:
 
 # The contextvar holding the current pipeline's options.
 # Each thread and each asyncio task gets its own isolated copy.
-_current_pipeline_options: ContextVar[Optional['PipelineOptions']] = ContextVar(
-    'current_pipeline_options', default=None)
+_pipeline_options: ContextVar[Optional['PipelineOptions']] = ContextVar(
+    'pipeline_options', default=None)
 
 
-def get_current_pipeline_options() -> Optional['PipelineOptions']:
+def get_pipeline_options() -> Optional['PipelineOptions']:
   """Get the current pipeline's options from the context.
 
   Returns:
     The PipelineOptions for the currently executing pipeline operation,
     or None if called outside of a pipeline context.
   """
-  return _current_pipeline_options.get()
+  return _pipeline_options.get()
 
 
 @contextmanager
@@ -53,8 +53,8 @@ def scoped_pipeline_options(options: Optional['PipelineOptions']):
   Args:
     options: The PipelineOptions to make available during this scope.
   """
-  token = _current_pipeline_options.set(options)
+  token = _pipeline_options.set(options)
   try:
     yield
   finally:
-    _current_pipeline_options.reset(token)
+    _pipeline_options.reset(token)

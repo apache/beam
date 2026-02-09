@@ -26,7 +26,7 @@ import threading
 import unittest
 
 import apache_beam as beam
-from apache_beam.options.pipeline_construction_options import get_current_pipeline_options
+from apache_beam.options.pipeline_construction_options import get_pipeline_options
 from apache_beam.options.pipeline_construction_options import scoped_pipeline_options
 from apache_beam.options.pipeline_options import PipelineOptions
 
@@ -38,14 +38,14 @@ class PipelineConstructionOptionsTest(unittest.TestCase):
     inner_options = PipelineOptions(['--runner=DataflowRunner'])
 
     with scoped_pipeline_options(outer_options):
-      self.assertIs(get_current_pipeline_options(), outer_options)
+      self.assertIs(get_pipeline_options(), outer_options)
 
       with scoped_pipeline_options(inner_options):
-        self.assertIs(get_current_pipeline_options(), inner_options)
+        self.assertIs(get_pipeline_options(), inner_options)
 
-      self.assertIs(get_current_pipeline_options(), outer_options)
+      self.assertIs(get_pipeline_options(), outer_options)
 
-    self.assertIsNone(get_current_pipeline_options())
+    self.assertIsNone(get_pipeline_options())
 
   def test_exception_in_scope_restores_options(self):
     """Test that options are restored even when an exception is raised."""
@@ -55,12 +55,12 @@ class PipelineConstructionOptionsTest(unittest.TestCase):
     with scoped_pipeline_options(outer_options):
       try:
         with scoped_pipeline_options(inner_options):
-          self.assertIs(get_current_pipeline_options(), inner_options)
+          self.assertIs(get_pipeline_options(), inner_options)
           raise ValueError("Test exception")
       except ValueError:
         pass
 
-      self.assertIs(get_current_pipeline_options(), outer_options)
+      self.assertIs(get_pipeline_options(), outer_options)
 
   def test_thread_isolation(self):
     """Test that different threads see their own isolated options."""
@@ -74,12 +74,12 @@ class PipelineConstructionOptionsTest(unittest.TestCase):
         with scoped_pipeline_options(options):
           barrier.wait(timeout=5)
 
-          current = get_current_pipeline_options()
+          current = get_pipeline_options()
           results[thread_id] = current.get_all_options()['runner']
           import time
           time.sleep(0.01)
 
-          current_after = get_current_pipeline_options()
+          current_after = get_pipeline_options()
           if current_after is not current:
             errors.append(
                 f"Thread {thread_id}: options changed during execution")
@@ -107,10 +107,10 @@ class PipelineConstructionOptionsTest(unittest.TestCase):
       with scoped_pipeline_options(options):
         ready_event.set()
         await go_event.wait()
-        current = get_current_pipeline_options()
+        current = get_pipeline_options()
         results[task_id] = current.get_all_options()['runner']
         await asyncio.sleep(0.01)
-        current_after = get_current_pipeline_options()
+        current_after = get_pipeline_options()
         assert current_after is current, \
             f"Task {task_id}: options changed during execution"
 
@@ -146,7 +146,7 @@ class PipelineConstructionOptionsTest(unittest.TestCase):
 
       def expand(self, pcoll):
         # This runs during pipeline construction
-        self.captured_options = get_current_pipeline_options()
+        self.captured_options = get_pipeline_options()
         return pcoll | beam.Map(lambda x: x)
 
     options = PipelineOptions(['--job_name=test_job_123'])
@@ -199,7 +199,7 @@ class PipelineConstructionOptionsTest(unittest.TestCase):
         return False
 
       def as_deterministic_coder(self, step_label, error_message=None):
-        opts = get_current_pipeline_options()
+        opts = get_pipeline_options()
         if opts is not None:
           results = OptionsCapturingKeyCoder.shared_handle.acquire(WeakRefDict)
           job_name = opts.get_all_options().get('job_name')
@@ -224,7 +224,7 @@ class PipelineConstructionOptionsTest(unittest.TestCase):
         results.get('Worker1'),
         job_name,
         f"Worker1 saw wrong options: {results}")
-    self.assertFalse(get_current_pipeline_options() == options)
+    self.assertFalse(get_pipeline_options() == options)
 
   def test_barrier_inside_default_type_hints(self):
     """Test race condition detection with barrier inside default_type_hints.
@@ -254,7 +254,7 @@ class PipelineConstructionOptionsTest(unittest.TestCase):
 
       def default_type_hints(self):
         self.barrier.wait(timeout=5)
-        opts = get_current_pipeline_options()
+        opts = get_pipeline_options()
         if opts is not None:
           job_name = opts.get_all_options().get('job_name')
           if self.worker_id not in self.results_dict:
