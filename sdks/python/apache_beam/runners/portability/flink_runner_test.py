@@ -18,6 +18,7 @@
 
 import argparse
 import logging
+import platform
 import shlex
 import typing
 import unittest
@@ -139,6 +140,7 @@ class FlinkRunnerTest(portable_runner_test.PortableRunnerTest):
       cls.test_metrics_path = path.join(cls.conf_dir, 'test-metrics.txt')
 
       # path to write Flink configuration to
+      # Flink 1.x conf:
       conf_path = path.join(cls.conf_dir, 'flink-conf.yaml')
       file_reporter = 'org.apache.beam.runners.flink.metrics.FileReporter'
       with open(conf_path, 'w') as f:
@@ -149,6 +151,19 @@ class FlinkRunnerTest(portable_runner_test.PortableRunnerTest):
                 'metrics.reporter.file.path: %s' % cls.test_metrics_path,
                 'metrics.scope.operator: <operator_name>',
             ]))
+      # Flink 2.x conf:
+      conf_path_2 = path.join(cls.conf_dir, 'config.yaml')
+      with open(conf_path_2, 'w') as f:
+        f.write(
+            '''metrics:
+  reporters: file
+  reporter:
+    file:
+      class: %s
+      path: %s
+  scope:
+    operator: <operator_name>
+''' % (file_reporter, cls.test_metrics_path))
 
   @classmethod
   def _subprocess_command(cls, job_port, expansion_port):
@@ -158,11 +173,12 @@ class FlinkRunnerTest(portable_runner_test.PortableRunnerTest):
 
     cls._create_conf_dir()
     cls.expansion_port = expansion_port
-
+    platform_specific_opts = []
+    if platform.system() == 'Linux':
+      # UseContainerSupport is supported in Linux and turned on by default
+      platform_specific_opts.append('-XX:-UseContainerSupport')
     try:
-      return [
-          'java',
-          '-XX:-UseContainerSupport',
+      return ['java'] + platform_specific_opts + [
           '--add-opens=java.base/java.lang=ALL-UNNAMED',
           '--add-opens=java.base/java.nio=ALL-UNNAMED',
           '--add-opens=java.base/java.util=ALL-UNNAMED',
