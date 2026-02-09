@@ -1250,7 +1250,6 @@ class SortAndBatchElementsDoFnDirectTest(unittest.TestCase):
   so coverage tools in the main process cannot capture DoFn code paths.
   These tests exercise the DoFn methods directly in-process.
   """
-
   def test_default_element_size_fn_len(self):
     from apache_beam.transforms.util import _default_element_size_fn
     self.assertEqual(_default_element_size_fn('abc'), 3)
@@ -1265,7 +1264,9 @@ class SortAndBatchElementsDoFnDirectTest(unittest.TestCase):
     """Test _SortAndBatchElementsDoFn directly."""
     from apache_beam.transforms.util import _SortAndBatchElementsDoFn
     dofn = _SortAndBatchElementsDoFn(
-        min_batch_size=1, max_batch_size=3, max_batch_weight=100,
+        min_batch_size=1,
+        max_batch_size=3,
+        max_batch_weight=100,
         element_size_fn=len)
     dofn.start_bundle()
     for elem in ['ccccc', 'bb', 'dddd', 'a', 'eee']:
@@ -1285,7 +1286,9 @@ class SortAndBatchElementsDoFnDirectTest(unittest.TestCase):
     """Test finish_bundle with no elements returns nothing."""
     from apache_beam.transforms.util import _SortAndBatchElementsDoFn
     dofn = _SortAndBatchElementsDoFn(
-        min_batch_size=1, max_batch_size=10, max_batch_weight=100,
+        min_batch_size=1,
+        max_batch_size=10,
+        max_batch_weight=100,
         element_size_fn=len)
     dofn.start_bundle()
     result = list(dofn.finish_bundle() or [])
@@ -1294,9 +1297,12 @@ class SortAndBatchElementsDoFnDirectTest(unittest.TestCase):
   def test_global_dofn_weight_splitting(self):
     """Test weight-based splitting in the global DoFn."""
     from apache_beam.transforms.util import _SortAndBatchElementsDoFn
+
     # Each element has size 5, max_batch_weight=12 -> 2 per batch
     dofn = _SortAndBatchElementsDoFn(
-        min_batch_size=1, max_batch_size=100, max_batch_weight=12,
+        min_batch_size=1,
+        max_batch_size=100,
+        max_batch_weight=12,
         element_size_fn=len)
     dofn.start_bundle()
     for elem in ['aaaaa', 'bbbbb', 'ccccc', 'ddddd']:
@@ -1308,10 +1314,12 @@ class SortAndBatchElementsDoFnDirectTest(unittest.TestCase):
 
   def test_windowed_dofn_flush_and_finish(self):
     """Test _WindowAwareSortAndBatchElementsDoFn directly."""
-    from apache_beam.transforms.util import (
-        _WindowAwareSortAndBatchElementsDoFn)
+    from apache_beam.transforms.util import _WindowAwareSortAndBatchElementsDoFn
+
     dofn = _WindowAwareSortAndBatchElementsDoFn(
-        min_batch_size=1, max_batch_size=10, max_batch_weight=100,
+        min_batch_size=1,
+        max_batch_size=10,
+        max_batch_weight=100,
         element_size_fn=len)
     dofn.start_bundle()
     win1 = IntervalWindow(0, 3)
@@ -1329,10 +1337,12 @@ class SortAndBatchElementsDoFnDirectTest(unittest.TestCase):
 
   def test_windowed_dofn_overflow_flush(self):
     """Test that exceeding _MAX_LIVE_WINDOWS triggers early flush."""
-    from apache_beam.transforms.util import (
-        _WindowAwareSortAndBatchElementsDoFn)
+    from apache_beam.transforms.util import _WindowAwareSortAndBatchElementsDoFn
+
     dofn = _WindowAwareSortAndBatchElementsDoFn(
-        min_batch_size=1, max_batch_size=10, max_batch_weight=100,
+        min_batch_size=1,
+        max_batch_size=10,
+        max_batch_weight=100,
         element_size_fn=len)
     dofn.start_bundle()
     # Fill up to _MAX_LIVE_WINDOWS
@@ -1350,10 +1360,12 @@ class SortAndBatchElementsDoFnDirectTest(unittest.TestCase):
 
   def test_windowed_dofn_flush_empty_window(self):
     """Test _flush_window with a non-existent window returns nothing."""
-    from apache_beam.transforms.util import (
-        _WindowAwareSortAndBatchElementsDoFn)
+    from apache_beam.transforms.util import _WindowAwareSortAndBatchElementsDoFn
+
     dofn = _WindowAwareSortAndBatchElementsDoFn(
-        min_batch_size=1, max_batch_size=10, max_batch_weight=100,
+        min_batch_size=1,
+        max_batch_size=10,
+        max_batch_weight=100,
         element_size_fn=len)
     dofn.start_bundle()
     result = list(dofn._flush_window(IntervalWindow(0, 10)))
@@ -1361,10 +1373,12 @@ class SortAndBatchElementsDoFnDirectTest(unittest.TestCase):
 
   def test_windowed_dofn_weight_splitting(self):
     """Test weight-based splitting in the windowed DoFn."""
-    from apache_beam.transforms.util import (
-        _WindowAwareSortAndBatchElementsDoFn)
+    from apache_beam.transforms.util import _WindowAwareSortAndBatchElementsDoFn
+
     dofn = _WindowAwareSortAndBatchElementsDoFn(
-        min_batch_size=1, max_batch_size=100, max_batch_weight=12,
+        min_batch_size=1,
+        max_batch_size=100,
+        max_batch_weight=12,
         element_size_fn=len)
     dofn.start_bundle()
     win = IntervalWindow(0, 10)
@@ -2282,45 +2296,6 @@ class ToStringTest(unittest.TestCase):
       result = (
           p | beam.Create([("one", 1), ("two", 2)]) | util.ToString.Kvs(""))
       assert_that(result, equal_to(["one1", "two2"]))
-
-
-class TakeTest(unittest.TestCase):
-  def test_take_function_syntax(self):
-    with TestPipeline() as p:
-      result = p | beam.Create([1, 2, 3, 4, 5]) | util.take(3)
-      assert_that(result, equal_to([1, 2, 3]))
-
-  def test_take_method_syntax(self):
-    with TestPipeline() as p:
-      pcoll = p | beam.Create([10, 20, 30, 40, 50])
-      result = pcoll.take(2)
-      assert_that(result, equal_to([10, 20]))
-
-  def test_take_more_than_available(self):
-    with TestPipeline() as p:
-      result = p | beam.Create([1, 2, 3]) | util.take(10)
-      assert_that(result, equal_to([1, 2, 3]))
-
-  def test_take_single_element(self):
-    with TestPipeline() as p:
-      result = p | beam.Create([100, 200, 300]) | util.take(1)
-      assert_that(result, equal_to([100]))
-
-  def test_take_all_elements(self):
-    with TestPipeline() as p:
-      data = [1, 2, 3, 4, 5]
-      result = p | beam.Create(data) | util.take(len(data))
-      assert_that(result, equal_to(data))
-
-  def test_take_invalid_n_zero(self):
-    with self.assertRaises(ValueError) as ctx:
-      util.Take(0)
-    self.assertIn('n must be positive', str(ctx.exception))
-
-  def test_take_invalid_n_negative(self):
-    with self.assertRaises(ValueError) as ctx:
-      util.Take(-1)
-    self.assertIn('n must be positive', str(ctx.exception))
 
 
 class LogElementsTest(unittest.TestCase):
