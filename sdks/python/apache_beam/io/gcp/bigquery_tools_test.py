@@ -1248,6 +1248,7 @@ class TestGeographyTypeSupport(unittest.TestCase):
     self.assertIsInstance(result, str)
 
 
+@unittest.skipIf(HttpError is None, 'GCP dependencies are not installed')
 class TestTypeOverrides(unittest.TestCase):
   """Tests for type_overrides parameter in BigQuery type mappings."""
   def test_type_overrides_enables_unsupported_types(self):

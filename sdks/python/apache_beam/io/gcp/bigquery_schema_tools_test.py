@@ -337,7 +337,8 @@ class TestBigQueryToSchema(unittest.TestCase):
     self.assertEqual(usertype.__annotations__, expected_annotations)
 
 
-class TypeOverridesSchemaToolsTest(unittest.TestCase):
+@unittest.skipIf(HttpError is None, 'GCP dependencies are not installed')
+class TestTypeOverridesSchemaTools(unittest.TestCase):
   """Tests for type_overrides parameter in bigquery_schema_tools."""
   def test_bq_field_to_type_with_overrides(self):
     """Test bq_field_to_type function with type_overrides."""
