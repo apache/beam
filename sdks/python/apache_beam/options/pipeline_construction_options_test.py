@@ -62,7 +62,7 @@ class PipelineConstructionOptionsTest(unittest.TestCase):
 
       self.assertIs(get_pipeline_options(), outer_options)
 
-  def test_thread_isolation(self):
+  def test_different_threads_see_their_own_isolated_options(self):
     """Test that different threads see their own isolated options."""
     results = {}
     errors = []
