@@ -214,7 +214,7 @@ public class GcsUtil {
     throw new IOException("GcsUtil V2 not initialized.");
   }
 
-  /** @deprecated use {@link #getBlobs(List, BlobGetOption...)}. */
+  /** @deprecated use {@link #getBlobs(Iterable, BlobGetOption...)}. */
   @Deprecated
   public List<StorageObjectOrIOException> getObjects(List<GcsPath> gcsPaths) throws IOException {
     List<GcsUtilV1.StorageObjectOrIOException> legacy = delegate.getObjects(gcsPaths);
@@ -223,7 +223,7 @@ public class GcsUtil {
         .collect(java.util.stream.Collectors.toList());
   }
 
-  public List<BlobOrIOException> getBlobs(List<GcsPath> gcsPaths, BlobGetOption... options)
+  public List<BlobOrIOException> getBlobs(Iterable<GcsPath> gcsPaths, BlobGetOption... options)
       throws IOException {
     if (delegateV2 != null) {
       return delegateV2.getBlobs(gcsPaths, options);

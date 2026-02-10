@@ -138,7 +138,7 @@ class GcsUtilV2 {
     }
   }
 
-  public List<BlobOrIOException> getBlobs(List<GcsPath> gcsPaths, BlobGetOption... options)
+  public List<BlobOrIOException> getBlobs(Iterable<GcsPath> gcsPaths, BlobGetOption... options)
       throws IOException {
 
     List<BlobOrIOException> results = new ArrayList<>();
