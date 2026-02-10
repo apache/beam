@@ -101,11 +101,6 @@ public class SqlAlterCatalog extends SqlAlter implements BeamSqlParser.Executabl
 
   @Override
   public void unparseAlterOperation(SqlWriter writer, int left, int right) {
-    unparse(writer, left, right);
-  }
-
-  @Override
-  public void unparse(SqlWriter writer, int left, int right) {
     writer.keyword("ALTER");
     writer.keyword("CATALOG");
     name.unparse(writer, left, right);
