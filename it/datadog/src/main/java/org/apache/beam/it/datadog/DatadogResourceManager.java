@@ -177,16 +177,6 @@ public class DatadogResourceManager extends TestContainerResourceManager<MockSer
   }
 
   /**
-   * Helper method for converting the given DatadogLogEntry into JSON format.
-   *
-   * @param event The DatadogLogEntry to parse.
-   * @return JSON String.
-   */
-  private static String datadogEventToJson(DatadogLogEntry event) {
-    return new JSONObject(datadogEntryToMap(event)).toString();
-  }
-
-  /**
    * Sends the given HTTP event to the mock Datadog server.
    *
    * @param event The {@link DatadogLogEntry} to send to the API.
