@@ -220,7 +220,7 @@ platform_identifiers_map.each { platform, idsuffix ->
              args '-c', ". ${envdir}/bin/activate && " +
                  // note: sync cibuildwheel version with GitHub Action
                  // .github/workflows/build_wheel.yml:build_wheels "Install cibuildwheel" step
-                 "pip install cibuildwheel setuptools && " +
+                 "pip install cibuildwheel==${it == '3.10' ? '2.23.3' : '3.3.1'} setuptools && " +
                  "cibuildwheel --print-build-identifiers --platform ${platform} --archs ${archs} && " +
                  "cibuildwheel --output-dir ${buildDir} --platform ${platform} --archs ${archs} "
            }
