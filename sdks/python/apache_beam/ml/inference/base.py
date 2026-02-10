@@ -2046,10 +2046,13 @@ class _RunInferenceDoFn(beam.DoFn, Generic[ExampleT, PredictionT]):
         unique_tag = model
         model = multi_process_shared.MultiProcessShared(
             lambda: None, tag=model, always_proxy=True).acquire()
-      result_generator = (OOMProtectedFn(self._model_handler.run_inference))(
-          batch, model, inference_args)
-      if self.use_model_manager:
-        self._model.release_model(self._model_tag, unique_tag)
+      try:
+        result_generator = (OOMProtectedFn(self._model_handler.run_inference))(
+            batch, model, inference_args)
+      finally:
+        # Always release the model so that it can be reloaded.
+        if self.use_model_manager:
+          self._model.release_model(self._model_tag, unique_tag)
     except BaseException as e:
       if self._metrics_collector:
         self._metrics_collector.failed_batches_counter.inc()
