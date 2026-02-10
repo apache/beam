@@ -334,7 +334,9 @@ class ModelManager:
       verbose_logging: bool = False):
 
     self._estimator = ResourceEstimator(
-        min_data_points=min_data_points, smoothing_factor=smoothing_factor)
+        min_data_points=min_data_points,
+        smoothing_factor=smoothing_factor,
+        verbose_logging=verbose_logging)
     self._monitor = monitor if monitor else GPUMonitor(
         poll_interval=poll_interval, peak_window_seconds=peak_window_seconds)
     self._slack_percentage = slack_percentage
