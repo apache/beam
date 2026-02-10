@@ -574,8 +574,9 @@ if __name__ == '__main__':
               'docstring-parser>=0.15,<1.0',
               'jinja2>=3.0,<3.2',
               'virtualenv-clone>=0.5,<1.0',
-              # https://github.com/PiotrDabkowski/Js2Py/issues/317
-              'js2py>=0.74,<1; python_version<"3.12"',
+              # pythonmonkey is used for Javascript mapping support
+              # Please install NPM and Node.js before installing PythonMonkey.
+              'pythonmonkey>=1.0.0; python_version>="3.8"',
               'jsonschema>=4.0.0,<5.0.0',
           ] + dataframe_dependency,
           # Keep the following dependencies in line with what we test against
