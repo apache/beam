@@ -128,6 +128,56 @@ task setupDockerContainer(type: Exec) {
     """echo '[params]\n  branch_repo = "${getBranchRepo()}"' > /tmp/_config_branch_repo.toml"""
 }
 
+def performanceLooksOutDir = "$dockerSourceDir/site/static/images/performance/looks"
+def gcpCredsInContainer = "/tmp/gcp-key.json"
+
+task copyGcpCredsToContainer(type: Exec) {
+  dependsOn setupDockerContainer
+
+  def gcpCredsHost = providers.gradleProperty("gcpCredsFile").orNull
+  if (gcpCredsHost) {
+    commandLine 'docker', 'cp', gcpCredsHost, "${->startDockerContainer.containerId()}:${gcpCredsInContainer}"
+  } else {
+    println "[performance_looks] -PgcpCredsFile not provided, skipping copy"
+  }
+}
+
+task downloadPerformanceLooks(type: Exec) {
+  dependsOn setupDockerContainer, copyGcpCredsToContainer
+
+  def gcpCredsHost = providers.gradleProperty("gcpCredsFile").orNull
+  if (gcpCredsHost) {
+    commandLine 'docker', 'exec',
+      "${-> setupDockerContainer.containerId()}", '/bin/bash', '-lc',
+      """
+      set -u
+
+      SRC="gs://public_looker_explores_us_a3853f40"
+      OUT_DIR="${performanceLooksOutDir}"
+
+      export HOME=/tmp
+      export CLOUDSDK_CONFIG=/tmp/gcloud
+      export GSUTIL_CONFIG_DIR=/tmp/gsutil
+      export GOOGLE_APPLICATION_CREDENTIALS="${gcpCredsInContainer}"
+
+      gcloud auth activate-service-account --key-file="\$GOOGLE_APPLICATION_CREDENTIALS" --no-user-output-enabled
+
+      mkdir -p "\$OUT_DIR"
+
+      echo "[performance_looks] Syncing looks..."
+
+      if gsutil -m rsync -r "\$SRC" "\$OUT_DIR"; then
+        echo "[performance_looks] Download completed successfully"
+      else
+        echo "[performance_looks][WARNING] Failed to sync looks from GCS"
+        echo "[performance_looks][WARNING] Website build will continue without updated images"
+      fi
+    """
+  } else {
+    println "[performance_looks] Skipping download of performance looks"
+  }
+}
+
 task stopAndRemoveDockerContainer(type: Exec) {
   commandLine 'docker', 'rm', '-f', "${->createDockerContainer.containerId()}"
 }
@@ -147,6 +197,7 @@ def createBuildTask = {
   BuildTaskConfiguration config = it as BuildTaskConfiguration
   task "build${config.name}Website" (type:Exec) {
     dependsOn setupDockerContainer
+    dependsOn downloadPerformanceLooks
     finalizedBy stopAndRemoveDockerContainer
 
     def configs = "$dockerSourceDir/site/config.toml"
