@@ -1343,6 +1343,7 @@ class OOMProtectedFn:
         logging.warning("Caught CUDA OOM during operation. Cleaning memory.")
         try:
           import gc
+
           import torch
           gc.collect()
           torch.cuda.empty_cache()
