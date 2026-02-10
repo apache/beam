@@ -14,6 +14,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
+import importlib
 import logging
 import os
 import shutil
@@ -30,8 +31,6 @@ from apache_beam.testing.util import equal_to
 from apache_beam.yaml.yaml_mapping import py_value_to_js_dict
 from apache_beam.yaml.yaml_provider import dicts_to_rows
 from apache_beam.yaml.yaml_transform import YamlTransform
-
-import importlib
 
 # We use find_spec to check for pythonmonkey availability without importing it.
 # Importing pythonmonkey initializes the engine and binds it to the current
