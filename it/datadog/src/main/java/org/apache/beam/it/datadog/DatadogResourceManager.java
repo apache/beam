@@ -17,7 +17,6 @@
  */
 package org.apache.beam.it.datadog;
 
-import static org.apache.beam.it.datadog.DatadogResourceManagerUtils.datadogEntryToMap;
 import static org.apache.beam.it.datadog.DatadogResourceManagerUtils.generateApiKey;
 import static org.mockserver.model.HttpRequest.request;
 import static org.mockserver.model.HttpResponse.response;
@@ -43,7 +42,6 @@ import org.apache.http.client.methods.CloseableHttpResponse;
 import org.apache.http.client.methods.HttpPost;
 import org.apache.http.entity.StringEntity;
 import org.apache.http.impl.client.CloseableHttpClient;
-import org.json.JSONObject;
 import org.mockserver.client.MockServerClient;
 import org.mockserver.model.HttpRequest;
 import org.mockserver.model.MediaType;
