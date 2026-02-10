@@ -38,7 +38,6 @@ dependencies {
     implementation "org.apache.httpcomponents:httpcore:4.4.14"
     implementation library.java.google_code_gson
     implementation library.java.vendored_guava_32_1_2_jre
-    implementation "com.google.guava:guava:33.1.0-jre"
     implementation "org.slf4j:slf4j-api:2.0.16"
     compileOnly library.java.auto_value_annotations
 

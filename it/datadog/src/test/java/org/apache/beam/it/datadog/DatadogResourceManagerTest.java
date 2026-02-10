@@ -45,7 +45,7 @@ import org.mockserver.client.MockServerClient;
 import org.mockserver.model.HttpRequest;
 import org.testcontainers.containers.MockServerContainer;
 
-/** Unit tests for {@link com.google.cloud.teleport.it.datadog.DatadogResourceManager}. */
+/** Unit tests for {@link org.apache.beam.it.datadog.DatadogResourceManager}. */
 @RunWith(JUnit4.class)
 public class DatadogResourceManagerTest {
 
