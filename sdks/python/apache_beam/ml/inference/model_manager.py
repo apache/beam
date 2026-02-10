@@ -688,8 +688,12 @@ class ModelManager:
     if isinstance(instance, str):
       # If the instance is a string, it's a uuid used
       # to retrieve the model from MultiProcessShared
-      multi_process_shared.MultiProcessShared(
-          lambda: "N/A", tag=instance).unsafe_hard_delete()
+      try:
+        multi_process_shared.MultiProcessShared(
+            lambda: "N/A", tag=instance).unsafe_hard_delete()
+      except (EOFError, OSError, BrokenPipeError):
+        # This can happen even in normal operation.
+        pass
     if hasattr(instance, 'mock_model_unsafe_hard_delete'):
       # Call the mock unsafe hard delete method for testing
       instance.mock_model_unsafe_hard_delete()
