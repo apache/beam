@@ -22,7 +22,6 @@ import static org.mockserver.model.HttpRequest.request;
 import static org.mockserver.model.HttpResponse.response;
 import static org.mockserver.model.JsonSchemaBody.jsonSchema;
 
-import com.google.common.annotations.VisibleForTesting;
 import com.google.gson.Gson;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
@@ -37,6 +36,7 @@ import java.util.Optional;
 import org.apache.beam.it.common.ResourceManager;
 import org.apache.beam.it.testcontainers.TestContainerResourceManager;
 import org.apache.beam.it.testcontainers.TestContainerResourceManagerException;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.http.client.entity.GzipCompressingEntity;
 import org.apache.http.client.methods.CloseableHttpResponse;
 import org.apache.http.client.methods.HttpPost;

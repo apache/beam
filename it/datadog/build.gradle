@@ -33,10 +33,11 @@ dependencies {
     implementation "org.testcontainers:testcontainers:1.19.7"
     implementation "org.mock-server:mockserver-client-java:5.10.0"
     implementation "org.mock-server:mockserver-core:5.10.0"
-    implementation library.java.json_org
+
     implementation "org.apache.httpcomponents:httpclient:4.5.13"
     implementation "org.apache.httpcomponents:httpcore:4.4.14"
     implementation library.java.google_code_gson
+
     implementation library.java.vendored_guava_32_1_2_jre
     implementation "org.slf4j:slf4j-api:2.0.16"
     compileOnly library.java.auto_value_annotations
