@@ -576,7 +576,7 @@ if __name__ == '__main__':
               'virtualenv-clone>=0.5,<1.0',
               # pythonmonkey is used for Javascript mapping support
               # Please install NPM and Node.js before installing PythonMonkey.
-              'pythonmonkey>=1.0.0; python_version>="3.8"',
+              'pythonmonkey>=1.3.0; python_version>="3.8"',
               'jsonschema>=4.0.0,<5.0.0',
           ] + dataframe_dependency,
           # Keep the following dependencies in line with what we test against
