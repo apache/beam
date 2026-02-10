@@ -30,6 +30,7 @@ import com.google.cloud.storage.Blob;
 import com.google.cloud.storage.BucketInfo;
 import com.google.cloud.storage.Storage.BlobGetOption;
 import com.google.cloud.storage.Storage.BlobListOption;
+import com.google.cloud.storage.Storage.BlobSourceOption;
 import com.google.cloud.storage.Storage.BucketGetOption;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.io.IOException;
@@ -40,7 +41,9 @@ import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.function.Supplier;
 import org.apache.beam.sdk.extensions.gcp.options.GcsOptions;
+import org.apache.beam.sdk.extensions.gcp.util.GcsUtilV1.StorageObjectOrIOException;
 import org.apache.beam.sdk.extensions.gcp.util.GcsUtilV2.BlobResult;
+import org.apache.beam.sdk.extensions.gcp.util.GcsUtilV2.CopyStrategy;
 import org.apache.beam.sdk.extensions.gcp.util.gcsfs.GcsPath;
 import org.apache.beam.sdk.io.fs.MoveOptions;
 import org.apache.beam.sdk.options.DefaultValueFactory;
@@ -433,6 +436,15 @@ public class GcsUtil {
     delegate.copy(srcFilenames, destFilenames);
   }
 
+  public void copy(Iterable<GcsPath> srcPaths, Iterable<GcsPath> dstPaths, CopyStrategy strategy)
+      throws IOException {
+    if (delegateV2 != null) {
+      delegateV2.copy(srcPaths, dstPaths, strategy);
+    } else {
+      throw new IOException("GcsUtil V2 not initialized.");
+    }
+  }
+
   public void rename(
       Iterable<String> srcFilenames, Iterable<String> destFilenames, MoveOptions... moveOptions)
       throws IOException {
@@ -467,6 +479,14 @@ public class GcsUtil {
 
   public void remove(Collection<String> filenames) throws IOException {
     delegate.remove(filenames);
+  }
+
+  public void remove(Iterable<GcsPath> paths, BlobSourceOption... options) throws IOException {
+    if (delegateV2 != null) {
+      delegateV2.remove(paths, options);
+    } else {
+      throw new IOException("GcsUtil V2 not initialized.");
+    }
   }
 
   @SuppressFBWarnings("NM_CLASS_NOT_EXCEPTION")

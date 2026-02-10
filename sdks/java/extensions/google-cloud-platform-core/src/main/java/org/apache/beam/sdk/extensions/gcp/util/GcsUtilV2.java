@@ -18,19 +18,25 @@
 package org.apache.beam.sdk.extensions.gcp.util;
 
 import static org.apache.beam.sdk.io.FileSystemUtils.wildcardToRegexp;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkNotNull;
 
 import com.google.api.gax.paging.Page;
 import com.google.auto.value.AutoValue;
 import com.google.cloud.storage.Blob;
+import com.google.cloud.storage.BlobId;
+import com.google.cloud.storage.BlobInfo;
 import com.google.cloud.storage.Bucket;
 import com.google.cloud.storage.BucketInfo;
+import com.google.cloud.storage.CopyWriter;
 import com.google.cloud.storage.Storage;
 import com.google.cloud.storage.Storage.BlobField;
 import com.google.cloud.storage.Storage.BlobGetOption;
 import com.google.cloud.storage.Storage.BlobListOption;
+import com.google.cloud.storage.Storage.BlobSourceOption;
 import com.google.cloud.storage.Storage.BucketField;
 import com.google.cloud.storage.Storage.BucketGetOption;
+import com.google.cloud.storage.Storage.CopyRequest;
 import com.google.cloud.storage.StorageBatch;
 import com.google.cloud.storage.StorageBatchResult;
 import com.google.cloud.storage.StorageException;
@@ -70,6 +76,12 @@ class GcsUtilV2 {
 
   /** Maximum number of requests permitted in a GCS batch request. */
   private static final int MAX_REQUESTS_PER_BATCH = 100;
+
+  /**
+   * Limit the number of bytes Cloud Storage will attempt to copy before responding to an individual
+   * request. If you see Read Timeout errors, try reducing this value.
+   */
+  private static final long MEGABYTES_COPIED_PER_CHUNK = 2048L;
 
   GcsUtilV2(PipelineOptions options) {
     String projectId = options.as(GcpOptions.class).getProject();
@@ -257,6 +269,99 @@ class GcsUtilV2 {
       }
     }
     return results;
+  }
+
+  public void remove(Iterable<GcsPath> paths, BlobSourceOption... options) throws IOException {
+    for (List<GcsPath> pathPartition :
+        Lists.partition(Lists.newArrayList(paths), MAX_REQUESTS_PER_BATCH)) {
+
+      // Create a new empty batch every time
+      StorageBatch batch = storage.batch();
+      List<StorageBatchResult<Boolean>> batchResultFutures = new ArrayList<>();
+
+      for (GcsPath path : pathPartition) {
+        batchResultFutures.add(batch.delete(path.getBucket(), path.getObject(), options));
+      }
+      batch.submit();
+
+      for (int i = 0; i < batchResultFutures.size(); i++) {
+        StorageBatchResult<Boolean> future = batchResultFutures.get(i);
+        try {
+          Boolean deleted = future.get();
+          if (!deleted) {
+            throw new FileNotFoundException(
+                String.format(
+                    "The specified file does not exist: %s", pathPartition.get(i).toString()));
+          }
+        } catch (StorageException e) {
+          throw translateStorageException(pathPartition.get(i), e);
+        }
+      }
+    }
+  }
+
+  public enum CopyStrategy {
+    NO_OVERWRITE, // Fail if target exists
+    SAFE_OVERWRITE, // Overwrite only if the generation matches (atomic)
+    UNSAFE_OVERWRITE // Overwrite regardless of state
+  }
+
+  public void copy(Iterable<GcsPath> srcPaths, Iterable<GcsPath> dstPaths, CopyStrategy strategy)
+      throws IOException {
+    List<GcsPath> srcList = Lists.newArrayList(srcPaths);
+    List<GcsPath> dstList = Lists.newArrayList(dstPaths);
+    checkArgument(
+        srcList.size() == dstList.size(),
+        "Number of source files %s must equal number of destination files %s",
+        srcList.size(),
+        dstList.size());
+
+    for (int i = 0; i < srcList.size(); i++) {
+      GcsPath srcPath = srcList.get(i);
+      GcsPath dstPath = dstList.get(i);
+      BlobId srcId = BlobId.of(srcPath.getBucket(), srcPath.getObject());
+      BlobId dstId = BlobId.of(dstPath.getBucket(), dstPath.getObject());
+
+      CopyRequest.Builder copyRequestBuilder =
+          CopyRequest.newBuilder()
+              .setSource(srcId)
+              .setMegabytesCopiedPerChunk(MEGABYTES_COPIED_PER_CHUNK); // 2GiB
+
+      if (strategy == CopyStrategy.UNSAFE_OVERWRITE) {
+        copyRequestBuilder.setTarget(dstId);
+      } else {
+        // Both NO_OVERWRITE and SAFE_OVERWRITE require checking the existing blob
+        BlobInfo existingTarget = null;
+        try {
+          existingTarget = storage.get(dstId);
+        } catch (StorageException e) {
+          throw translateStorageException(dstPath, e);
+        }
+
+        Storage.BlobTargetOption precondition;
+        if (existingTarget == null) {
+          precondition = Storage.BlobTargetOption.doesNotExist();
+        } else if (strategy == CopyStrategy.SAFE_OVERWRITE) {
+          // SAFE_OVERWRITE: match the generation of the existing object
+          precondition = Storage.BlobTargetOption.generationMatch(existingTarget.getGeneration());
+        } else {
+          // Target exists and we aren't allowed to overwrite (strategy == NO_OVERWRITE)
+          throw new FileAlreadyExistsException(
+              srcPath.toString(),
+              dstPath.toString(),
+              "Target object already exists and CopyStrategy is NO_OVERWRITE");
+        }
+        copyRequestBuilder.setTarget(dstId, precondition);
+      }
+
+      CopyWriter copyWriter = storage.copy(copyRequestBuilder.build());
+
+      try {
+        copyWriter.getResult();
+      } catch (StorageException e) {
+        throw translateStorageException(srcPath, e);
+      }
+    }
   }
 
   /** Get the {@link Bucket} from Cloud Storage path or propagates an exception. */
