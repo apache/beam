@@ -330,13 +330,13 @@ public class GcsUtilParameterizedIT {
         srcPaths.stream()
             .map(o -> GcsPath.fromComponents(existingBucket, o.getObject()))
             .collect(Collectors.toList());
-    gcsUtil.copy(srcPaths, dstPaths, OverwriteStrategy.SAFE_OVERWRITE);
+    gcsUtil.copyV2(srcPaths, dstPaths);
     assertExists(dstPaths.get(0));
     assertExists(dstPaths.get(1));
 
     // copy from existing files to an existing bucket
     // No exception on SAFE_OVERWRITE and UNSAFE_OVERWRITE
-    gcsUtil.copy(srcPaths, dstPaths, OverwriteStrategy.SAFE_OVERWRITE);
+    gcsUtil.copyV2(srcPaths, dstPaths);
     gcsUtil.copy(srcPaths, dstPaths, OverwriteStrategy.UNSAFE_OVERWRITE);
 
     // raise exception on NO_OVERWRITE
@@ -345,11 +345,11 @@ public class GcsUtilParameterizedIT {
         () -> gcsUtil.copy(srcPaths, dstPaths, OverwriteStrategy.NO_OVERWRITE));
 
     // remove the existing files
-    gcsUtil.remove(dstPaths, MissingStrategy.IGNORE_MISSING_TARGET);
+    gcsUtil.removeV2(dstPaths);
 
     // remove the already-deleted files
     // No exception on IGNORE_MISSING_TARGET
-    gcsUtil.remove(dstPaths, MissingStrategy.IGNORE_MISSING_TARGET);
+    gcsUtil.removeV2(dstPaths);
 
     // raise exception on FAIL_ON_MISSING_TARGET
     assertThrows(
@@ -362,12 +362,10 @@ public class GcsUtilParameterizedIT {
             .collect(Collectors.toList());
 
     // copy from existing files to an nonexistent bucket. Raise exception.
-    assertThrows(
-        FileNotFoundException.class,
-        () -> gcsUtil.copy(srcPaths, wrongDstPaths, OverwriteStrategy.SAFE_OVERWRITE));
+    assertThrows(FileNotFoundException.class, () -> gcsUtil.copyV2(srcPaths, wrongDstPaths));
 
     // remove files from an nonexistent bucket. No exception.
-    gcsUtil.remove(wrongDstPaths, MissingStrategy.IGNORE_MISSING_TARGET);
+    gcsUtil.removeV2(wrongDstPaths);
 
     final List<GcsPath> wrongSrcPaths =
         Arrays.asList(GcsPath.fromUri("gs://apache-beam-samples/shakespeare/some-random-name.txt"));

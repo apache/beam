@@ -431,9 +431,18 @@ public class GcsUtil {
     return legacyBatch;
   }
 
+  /**
+   * @deprecated use {@link #copyV2(Iterable, Iterable)} or {@link #copy(Iterable, Iterable,
+   *     OverwriteStrategy)}.
+   */
+  @Deprecated
   public void copy(Iterable<String> srcFilenames, Iterable<String> destFilenames)
       throws IOException {
     delegate.copy(srcFilenames, destFilenames);
+  }
+
+  public void copyV2(Iterable<GcsPath> srcPaths, Iterable<GcsPath> dstPaths) throws IOException {
+    copy(srcPaths, dstPaths, OverwriteStrategy.SAFE_OVERWRITE);
   }
 
   public void copy(
@@ -478,8 +487,14 @@ public class GcsUtil {
     return delegate.makeRemoveBatches(filenames);
   }
 
+  /** @deprecated use {@link #removeV2(Iterable)} or {@link #remove(Iterable, MissingStrategy)}. */
+  @Deprecated
   public void remove(Collection<String> filenames) throws IOException {
     delegate.remove(filenames);
+  }
+
+  public void removeV2(Iterable<GcsPath> paths) throws IOException {
+    remove(paths, MissingStrategy.IGNORE_MISSING_TARGET);
   }
 
   public void remove(Iterable<GcsPath> paths, MissingStrategy strategy) throws IOException {
