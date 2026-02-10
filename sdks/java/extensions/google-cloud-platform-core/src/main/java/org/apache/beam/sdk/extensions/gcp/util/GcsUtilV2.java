@@ -33,7 +33,6 @@ import com.google.cloud.storage.Storage;
 import com.google.cloud.storage.Storage.BlobField;
 import com.google.cloud.storage.Storage.BlobGetOption;
 import com.google.cloud.storage.Storage.BlobListOption;
-import com.google.cloud.storage.Storage.BlobSourceOption;
 import com.google.cloud.storage.Storage.BucketField;
 import com.google.cloud.storage.Storage.BucketGetOption;
 import com.google.cloud.storage.Storage.CopyRequest;
@@ -89,12 +88,15 @@ class GcsUtilV2 {
   }
 
   @SuppressWarnings({
-    "nullness" // For Creating AccessDeniedException and FileAlreadyExistsException with null.
+    "nullness" // For Creating AccessDeniedException FileNotFoundException, and
+    // FileAlreadyExistsException with null.
   })
   private IOException translateStorageException(GcsPath gcsPath, StorageException e) {
     switch (e.getCode()) {
       case 403:
         return new AccessDeniedException(gcsPath.toString(), null, e.getMessage());
+      case 404:
+        return new FileNotFoundException(e.getMessage());
       case 409:
         return new FileAlreadyExistsException(gcsPath.toString(), null, e.getMessage());
       default:
@@ -271,7 +273,12 @@ class GcsUtilV2 {
     return results;
   }
 
-  public void remove(Iterable<GcsPath> paths, BlobSourceOption... options) throws IOException {
+  public enum MissingStrategy {
+    IGNORE_MISSING_TARGET,
+    FAIL_ON_MISSING_TARGET,
+  }
+
+  public void remove(Iterable<GcsPath> paths, MissingStrategy strategy) throws IOException {
     for (List<GcsPath> pathPartition :
         Lists.partition(Lists.newArrayList(paths), MAX_REQUESTS_PER_BATCH)) {
 
@@ -280,7 +287,7 @@ class GcsUtilV2 {
       List<StorageBatchResult<Boolean>> batchResultFutures = new ArrayList<>();
 
       for (GcsPath path : pathPartition) {
-        batchResultFutures.add(batch.delete(path.getBucket(), path.getObject(), options));
+        batchResultFutures.add(batch.delete(path.getBucket(), path.getObject()));
       }
       batch.submit();
 
@@ -289,9 +296,13 @@ class GcsUtilV2 {
         try {
           Boolean deleted = future.get();
           if (!deleted) {
-            throw new FileNotFoundException(
-                String.format(
-                    "The specified file does not exist: %s", pathPartition.get(i).toString()));
+            if (strategy == MissingStrategy.FAIL_ON_MISSING_TARGET) {
+              throw new FileNotFoundException(
+                  String.format(
+                      "The specified file does not exist: %s", pathPartition.get(i).toString()));
+            } else {
+              LOG.warn("Ignoring failed deletion on file {}.", pathPartition.get(i).toString());
+            }
           }
         } catch (StorageException e) {
           throw translateStorageException(pathPartition.get(i), e);
@@ -300,13 +311,14 @@ class GcsUtilV2 {
     }
   }
 
-  public enum CopyStrategy {
+  public enum OverwriteStrategy {
     NO_OVERWRITE, // Fail if target exists
     SAFE_OVERWRITE, // Overwrite only if the generation matches (atomic)
     UNSAFE_OVERWRITE // Overwrite regardless of state
   }
 
-  public void copy(Iterable<GcsPath> srcPaths, Iterable<GcsPath> dstPaths, CopyStrategy strategy)
+  public void copy(
+      Iterable<GcsPath> srcPaths, Iterable<GcsPath> dstPaths, OverwriteStrategy strategy)
       throws IOException {
     List<GcsPath> srcList = Lists.newArrayList(srcPaths);
     List<GcsPath> dstList = Lists.newArrayList(dstPaths);
@@ -327,7 +339,7 @@ class GcsUtilV2 {
               .setSource(srcId)
               .setMegabytesCopiedPerChunk(MEGABYTES_COPIED_PER_CHUNK); // 2GiB
 
-      if (strategy == CopyStrategy.UNSAFE_OVERWRITE) {
+      if (strategy == OverwriteStrategy.UNSAFE_OVERWRITE) {
         copyRequestBuilder.setTarget(dstId);
       } else {
         // Both NO_OVERWRITE and SAFE_OVERWRITE require checking the existing blob
@@ -341,7 +353,7 @@ class GcsUtilV2 {
         Storage.BlobTargetOption precondition;
         if (existingTarget == null) {
           precondition = Storage.BlobTargetOption.doesNotExist();
-        } else if (strategy == CopyStrategy.SAFE_OVERWRITE) {
+        } else if (strategy == OverwriteStrategy.SAFE_OVERWRITE) {
           // SAFE_OVERWRITE: match the generation of the existing object
           precondition = Storage.BlobTargetOption.generationMatch(existingTarget.getGeneration());
         } else {
@@ -354,9 +366,8 @@ class GcsUtilV2 {
         copyRequestBuilder.setTarget(dstId, precondition);
       }
 
-      CopyWriter copyWriter = storage.copy(copyRequestBuilder.build());
-
       try {
+        CopyWriter copyWriter = storage.copy(copyRequestBuilder.build());
         copyWriter.getResult();
       } catch (StorageException e) {
         throw translateStorageException(srcPath, e);

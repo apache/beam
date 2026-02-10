@@ -37,6 +37,8 @@ import java.util.Collections;
 import java.util.List;
 import java.util.stream.Collectors;
 import org.apache.beam.sdk.extensions.gcp.options.GcsOptions;
+import org.apache.beam.sdk.extensions.gcp.util.GcsUtilV2.MissingStrategy;
+import org.apache.beam.sdk.extensions.gcp.util.GcsUtilV2.OverwriteStrategy;
 import org.apache.beam.sdk.extensions.gcp.util.gcsfs.GcsPath;
 import org.apache.beam.sdk.options.ExperimentalOptions;
 import org.apache.beam.sdk.testing.TestPipeline;
@@ -295,6 +297,159 @@ public class GcsUtilParameterizedIT {
         } catch (IOException e) {
         }
       }
+    }
+  }
+
+  @Test
+  public void testCopyAndRemove() throws IOException {
+    String existingBucket = "apache-beam-temp-bucket-12345";
+    List<GcsPath> srcPaths =
+        Arrays.asList(
+            GcsPath.fromUri("gs://apache-beam-samples/shakespeare/kingrichardii.txt"),
+            GcsPath.fromUri("gs://apache-beam-samples/shakespeare/kingrichardiii.txt"));
+
+    // create a bucket first
+    try {
+      createBucketHelper(existingBucket);
+      if (experiment.equals("use_gcsutil_v2")) {
+        testCopyAndRemoveV2(existingBucket, srcPaths);
+      } else {
+        testCopyAndRemoveV1(existingBucket, srcPaths);
+      }
+    } catch (IOException e) {
+      throw e;
+    } finally {
+      tearDownBucketHelper(existingBucket);
+    }
+  }
+
+  private void testCopyAndRemoveV2(String existingBucket, List<GcsPath> srcPaths)
+      throws IOException {
+    String nonExistentBucket = "my-random-test-bucket-12345";
+    List<GcsPath> dstPaths =
+        srcPaths.stream()
+            .map(o -> GcsPath.fromComponents(existingBucket, o.getObject()))
+            .collect(Collectors.toList());
+    gcsUtil.copy(srcPaths, dstPaths, OverwriteStrategy.SAFE_OVERWRITE);
+    assertExists(dstPaths.get(0));
+    assertExists(dstPaths.get(1));
+
+    // copy from existing files to an existing bucket
+    // No exception on SAFE_OVERWRITE and UNSAFE_OVERWRITE
+    gcsUtil.copy(srcPaths, dstPaths, OverwriteStrategy.SAFE_OVERWRITE);
+    gcsUtil.copy(srcPaths, dstPaths, OverwriteStrategy.UNSAFE_OVERWRITE);
+
+    // raise exception on NO_OVERWRITE
+    assertThrows(
+        FileAlreadyExistsException.class,
+        () -> gcsUtil.copy(srcPaths, dstPaths, OverwriteStrategy.NO_OVERWRITE));
+
+    // remove the existing files
+    gcsUtil.remove(dstPaths, MissingStrategy.IGNORE_MISSING_TARGET);
+
+    // remove the already-deleted files
+    // No exception on IGNORE_MISSING_TARGET
+    gcsUtil.remove(dstPaths, MissingStrategy.IGNORE_MISSING_TARGET);
+
+    // raise exception on FAIL_ON_MISSING_TARGET
+    assertThrows(
+        FileNotFoundException.class,
+        () -> gcsUtil.remove(dstPaths, MissingStrategy.FAIL_ON_MISSING_TARGET));
+
+    final List<GcsPath> wrongDstPaths =
+        srcPaths.stream()
+            .map(o -> GcsPath.fromComponents(nonExistentBucket, o.getObject()))
+            .collect(Collectors.toList());
+
+    // copy from existing files to an nonexistent bucket. Raise exception.
+    assertThrows(
+        FileNotFoundException.class,
+        () -> gcsUtil.copy(srcPaths, wrongDstPaths, OverwriteStrategy.SAFE_OVERWRITE));
+
+    // remove files from an nonexistent bucket. No exception.
+    gcsUtil.remove(wrongDstPaths, MissingStrategy.IGNORE_MISSING_TARGET);
+
+    final List<GcsPath> wrongSrcPaths =
+        Arrays.asList(GcsPath.fromUri("gs://apache-beam-samples/shakespeare/some-random-name.txt"));
+
+    // missing source file. Raise exception.
+    assertThrows(
+        FileNotFoundException.class,
+        () -> gcsUtil.copy(wrongSrcPaths, wrongSrcPaths, OverwriteStrategy.SAFE_OVERWRITE));
+  }
+
+  private void testCopyAndRemoveV1(String existingBucket, List<GcsPath> srcPaths)
+      throws IOException {
+    String nonExistentBucket = "my-random-test-bucket-12345";
+    List<String> srcList = srcPaths.stream().map(o -> o.toString()).collect(Collectors.toList());
+
+    // copy from existing files to an existing bucket
+    List<String> dstList =
+        srcPaths.stream()
+            .map(o -> String.format("gs://%s/%s", existingBucket, o.getObject()))
+            .collect(Collectors.toList());
+    gcsUtil.copy(srcList, dstList);
+
+    assertExists(GcsPath.fromUri(dstList.get(0)));
+    assertExists(GcsPath.fromUri(dstList.get(1)));
+
+    // copy from existing files to an existing bucket, but target files exist. No exception.
+    gcsUtil.copy(srcList, dstList);
+
+    // remove the existing files
+    gcsUtil.remove(dstList);
+
+    // remove the already-deleted files. No exception.
+    gcsUtil.remove(dstList);
+
+    final List<String> wrongDstList =
+        srcPaths.stream()
+            .map(o -> String.format("gs://%s/%s", nonExistentBucket, o.getObject()))
+            .collect(Collectors.toList());
+
+    // copy from existing files to an nonexistent bucket. Raise exception.
+    assertThrows(FileNotFoundException.class, () -> gcsUtil.copy(srcList, wrongDstList));
+
+    // remove files from an nonexistent bucket. No exception.
+    gcsUtil.remove(dstList);
+
+    final List<String> wrongSrcList =
+        Arrays.asList("gs://apache-beam-samples/shakespeare/some-random-name.txt");
+
+    // missing source file, Raise exception
+    assertThrows(FileNotFoundException.class, () -> gcsUtil.copy(wrongSrcList, wrongSrcList));
+  }
+
+  private void createBucketHelper(String bucketName) throws IOException {
+    if (experiment.equals("use_gcsutil_v2")) {
+      gcsUtil.createBucket(BucketInfo.of(bucketName));
+    } else {
+      GcsOptions gcsOptions = options.as(GcsOptions.class);
+      gcsUtil.createBucket(gcsOptions.getProject(), new Bucket().setName(bucketName));
+    }
+  }
+
+  private void tearDownBucketHelper(String bucketName) {
+    try {
+      // Use "**" in the pattern to match any characters including "/".
+      List<GcsPath> paths =
+          gcsUtil.expand(GcsPath.fromUri(String.format("gs://%s/**", bucketName)));
+      if (experiment.equals("use_gcsutil_v2")) {
+        gcsUtil.remove(paths, MissingStrategy.IGNORE_MISSING_TARGET);
+        gcsUtil.removeBucket(BucketInfo.of(bucketName));
+      } else {
+        gcsUtil.remove(paths.stream().map(GcsPath::toString).collect(Collectors.toList()));
+        gcsUtil.removeBucket(new Bucket().setName(bucketName));
+      }
+    } catch (IOException e) {
+    }
+  }
+
+  private void assertExists(GcsPath path) throws IOException {
+    if (experiment.equals("use_gcsutil_v2")) {
+      gcsUtil.getBlob(path);
+    } else {
+      gcsUtil.getObject(path);
     }
   }
 }
