@@ -16,8 +16,14 @@
 #
 
 """This module defines the basic MapToFields operation."""
+import atexit
+import importlib
 import itertools
+import os
+import queue
 import re
+import threading
+import uuid
 from collections import abc
 from collections.abc import Callable
 from collections.abc import Collection
@@ -52,13 +58,6 @@ from apache_beam.yaml.yaml_errors import map_errors_to_standard_format
 from apache_beam.yaml.yaml_errors import maybe_with_exception_handling
 from apache_beam.yaml.yaml_errors import maybe_with_exception_handling_transform_fn
 from apache_beam.yaml.yaml_provider import dicts_to_rows
-
-import atexit
-import importlib
-import os
-import queue
-import threading
-import uuid
 
 _str_expression_fields = {
     'AssignTimestamps': 'timestamp',
