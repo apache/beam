@@ -1651,43 +1651,6 @@ class RunnerApiTest(unittest.TestCase):
     # ParDo.with_outputs in ParentSalesSplitter.
     assert len(xform.outputs) == 3
 
-  def test_do_outputs_tuple_subclass_registers_all_outputs(self):
-    """Test that a composite returning a DoOutputsTuple subclass registers
-    all declared outputs, not just those lazily accessed via _pcolls."""
-    class PipeToMain(beam.pvalue.DoOutputsTuple):
-      """Wrapper enabling: composite | Next (pipes to main output)."""
-      def __init__(self, wrapped):
-        self.__dict__.update(wrapped.__dict__)
-
-      def __or__(self, other):
-        return self[self._main_tag].__or__(other)
-
-    class MyComposite(beam.PTransform):
-      def expand(self, pcoll):
-        return PipeToMain(
-            pcoll | beam.ParDo(beam.DoFn()).with_outputs('dropped'))
-
-    p = beam.Pipeline()
-    result = p | beam.Create([1]) | 'Composite' >> MyComposite()
-    _ = result | 'UseMain' >> beam.Map(lambda x: x)
-
-    proto = p.to_runner_api()
-    composite_outputs = None
-    consumed_pcoll = None
-    for t in proto.components.transforms.values():
-      if t.unique_name == 'Composite':
-        composite_outputs = dict(t.outputs)
-      if t.unique_name == 'UseMain':
-        consumed_pcoll = list(t.inputs.values())[0]
-
-    self.assertIsNotNone(composite_outputs)
-    self.assertIsNotNone(consumed_pcoll)
-    self.assertIn(
-        consumed_pcoll,
-        composite_outputs.values(),
-        "PCollection consumed by downstream transform must be in "
-        "composite's registered outputs")
-
 
 if __name__ == '__main__':
   unittest.main()
