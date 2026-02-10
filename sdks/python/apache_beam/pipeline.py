@@ -715,7 +715,7 @@ class Pipeline(HasDisplayData):
       label: Optional[str] = None) -> pvalue.PValue:
     """Internal implementation of apply(), called within scoped options."""
     if isinstance(transform, ptransform._NamedPTransform):
-      return self._apply_internal(
+      return self.apply(
           transform.transform, pvalueish, label or transform.label)
 
     if not label and isinstance(transform, ptransform._PTransformFnPTransform):
@@ -730,7 +730,7 @@ class Pipeline(HasDisplayData):
       # (e.g. to produce error messages for type hint violations).
       old_label, transform.label = transform.label, label
       try:
-        return self._apply_internal(transform, pvalueish)
+        return self.apply(transform, pvalueish)
       finally:
         transform.label = old_label
 
@@ -753,7 +753,7 @@ class Pipeline(HasDisplayData):
             'updating a pipeline or reloading the job state. '
             'This is not recommended for streaming jobs.')
         unique_label = self._generate_unique_label(transform)
-        return self._apply_internal(transform, pvalueish, unique_label)
+        return self.apply(transform, pvalueish, unique_label)
       else:
         raise RuntimeError(
             'A transform with label "%s" already exists in the pipeline. '

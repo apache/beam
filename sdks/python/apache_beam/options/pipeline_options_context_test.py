@@ -297,5 +297,39 @@ class PipelineConstructionOptionsTest(unittest.TestCase):
         f"Worker 2 saw wrong options: {results}")
 
 
+class PipelineSubclassApplyTest(unittest.TestCase):
+  def test_subclass_apply_called_on_recursive_paths(self):
+    """Test that Pipeline subclass overrides of apply() are respected.
+
+    _apply_internal's recursive calls must go through self.apply(), not
+    self._apply_internal(), so that subclass interceptions are not skipped.
+    """
+    apply_calls = []
+
+    class TrackingPipeline(beam.Pipeline):
+      def apply(self, transform, pvalueish=None, label=None):
+        apply_calls.append(label or transform.label)
+        return super().apply(transform, pvalueish, label)
+
+    options = PipelineOptions(['--job_name=subclass_test'])
+    with TrackingPipeline(options=options) as p:
+      # "my_label" >> transform creates a _NamedPTransform, which triggers
+      # two recursive apply() calls: one to unwrap _NamedPTransform, and
+      # one to handle the label argument.
+      _ = p | beam.Create([1, 2, 3]) | "my_label" >> beam.Map(lambda x: x)
+
+    # beam.Create goes through apply() once (no recursion).
+    # "my_label" >> Map triggers: apply(_NamedPTransform) -> apply(Map,
+    # label="my_label") -> apply(Map). That's 3 calls through apply().
+    # Total: 1 (Create) + 3 (Map) = 4 calls minimum.
+    map_calls = [c for c in apply_calls if c == 'my_label' or c == 'Map']
+    self.assertGreaterEqual(
+        len(map_calls),
+        3,
+        f"Expected at least 3 apply() calls for the Map transform "
+        f"(NamedPTransform unwrap + label handling + final), "
+        f"got {len(map_calls)}. All calls: {apply_calls}")
+
+
 if __name__ == '__main__':
   unittest.main()
