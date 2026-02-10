@@ -55,6 +55,13 @@ def new_pipeline():
           pickle_library='cloudpickle'))
 
 
+def new_pipeline_expand_test():
+  return beam.Pipeline(
+      runner='FnApiRunner',
+      options=beam.options.pipeline_options.PipelineOptions(
+          pickle_library='cloudpickle'))
+
+
 @unittest.skipIf(jsonschema is None, "Yaml dependencies not installed")
 class MainTest(unittest.TestCase):
   def assertYaml(self, expected, result):
@@ -1048,7 +1055,7 @@ class ExpandPipelineTest(unittest.TestCase):
               elements: [1,2,3]
           - type: LogForTesting
     '''
-    with new_pipeline() as p:
+    with new_pipeline_expand_test() as p:
       expand_pipeline(p, spec, validate_schema=None)
 
   def test_expand_pipeline_with_pipeline_and_option_keys(self):
@@ -1063,7 +1070,7 @@ class ExpandPipelineTest(unittest.TestCase):
       options:
         streaming: false
     '''
-    with new_pipeline() as p:
+    with new_pipeline_expand_test() as p:
       expand_pipeline(p, spec, validate_schema=None)
 
   def test_expand_pipeline_with_extra_top_level_keys(self):
@@ -1082,7 +1089,7 @@ class ExpandPipelineTest(unittest.TestCase):
 
       other_metadata: "This is an ignored comment."
     '''
-    with new_pipeline() as p:
+    with new_pipeline_expand_test() as p:
       expand_pipeline(p, spec, validate_schema=None)
 
   def test_expand_pipeline_with_incorrect_pipelines_key_fails(self):
@@ -1095,7 +1102,7 @@ class ExpandPipelineTest(unittest.TestCase):
               elements: [1,2,3]
           - type: LogForTesting
     '''
-    with new_pipeline() as p:
+    with new_pipeline_expand_test() as p:
       with self.assertRaises(KeyError):
         expand_pipeline(p, spec, validate_schema=None)
 
@@ -1110,7 +1117,7 @@ class ExpandPipelineTest(unittest.TestCase):
               elements: [1,2,3]
           - type: LogForTesting
     '''
-    with new_pipeline() as p:
+    with new_pipeline_expand_test() as p:
       expand_pipeline(p, spec, validate_schema='generic')
 
   @unittest.skipIf(jsonschema is None, "Yaml dependencies not installed")
@@ -1124,7 +1131,7 @@ class ExpandPipelineTest(unittest.TestCase):
               elements: [1,2,3]
           - type: LogForTesting
     '''
-    with new_pipeline() as p:
+    with new_pipeline_expand_test() as p:
       with self.assertRaises(jsonschema.ValidationError):
         expand_pipeline(p, spec, validate_schema='generic')
 

@@ -86,6 +86,7 @@ class _SingletonProxy:
   def singletonProxy_unsafe_hard_delete(self):
     assert self._SingletonProxy_valid
     self._SingletonProxy_entry.unsafe_hard_delete()
+    self._SingletonProxy_valid = False
 
   def __getattr__(self, name):
     if not self._SingletonProxy_valid:
