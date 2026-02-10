@@ -31,10 +31,18 @@ from apache_beam.yaml.yaml_mapping import py_value_to_js_dict
 from apache_beam.yaml.yaml_provider import dicts_to_rows
 from apache_beam.yaml.yaml_transform import YamlTransform
 
+import importlib
+
+# We use find_spec to check for pythonmonkey availability without importing it.
+# Importing pythonmonkey initializes the engine and binds it to the current
+# thread (MainThread). This causes "too much recursion" errors when the
+# Dispatcher later tries to use it from a background thread.
 try:
-  import pythonmonkey as pm
+  pm_available = importlib.util.find_spec("pythonmonkey") is not None
 except ImportError:
-  pm = None
+  pm_available = False
+
+if not pm_available:
   logging.warning('pythonmonkey is not installed; some tests will be skipped.')
 
 
@@ -63,7 +71,7 @@ class YamlUDFMappingTest(unittest.TestCase):
   def tearDown(self):
     shutil.rmtree(self.tmpdir)
 
-  @unittest.skipIf(pm is None, 'pythonmonkey not installed.')
+  @unittest.skipIf(not pm_available, 'pythonmonkey not installed.')
   def test_map_to_fields_filter_inline_js(self):
     with beam.Pipeline(options=beam.options.pipeline_options.PipelineOptions(
         pickle_library='cloudpickle', yaml_experimental_features=['javascript'
@@ -197,7 +205,7 @@ class YamlUDFMappingTest(unittest.TestCase):
               beam.Row(label='389a', timestamp=2, label_copy="389a"),
           ]))
 
-  @unittest.skipIf(pm is None, 'pythonmonkey not installed.')
+  @unittest.skipIf(not pm_available, 'pythonmonkey not installed.')
   def test_filter_inline_js(self):
     with beam.Pipeline(options=beam.options.pipeline_options.PipelineOptions(
         pickle_library='cloudpickle', yaml_experimental_features=['javascript'
@@ -252,7 +260,7 @@ class YamlUDFMappingTest(unittest.TestCase):
                   row=beam.Row(rank=2, values=[7, 8, 9])),
           ]))
 
-  @unittest.skipIf(pm is None, 'pythonmonkey not installed.')
+  @unittest.skipIf(not pm_available, 'pythonmonkey not installed.')
   def test_filter_expression_js(self):
     with beam.Pipeline(options=beam.options.pipeline_options.PipelineOptions(
         pickle_library='cloudpickle', yaml_experimental_features=['javascript'
@@ -296,7 +304,7 @@ class YamlUDFMappingTest(unittest.TestCase):
                   row=beam.Row(rank=0, values=[1, 2, 3])),
           ]))
 
-  @unittest.skipIf(pm is None, 'pythonmonkey not installed.')
+  @unittest.skipIf(not pm_available, 'pythonmonkey not installed.')
   def test_filter_inline_js_file(self):
     data = '''
     function f(x) {
