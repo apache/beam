@@ -515,7 +515,7 @@ class SideInputsTest(unittest.TestCase):
         return [StringIDWindow(str(assign_context.element))]
 
       def get_window_coder(self):
-        return None  # temp value
+        return None
 
     mapping_fn = sideinputs.default_window_mapping_fn(StringIDWindows())
     source_window = StringIDWindows().assign(
