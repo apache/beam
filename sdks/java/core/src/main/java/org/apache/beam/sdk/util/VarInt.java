@@ -17,11 +17,11 @@
  */
 package org.apache.beam.sdk.util;
 
-import com.google.protobuf.CodedOutputStream;
 import java.io.EOFException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import org.apache.beam.vendor.grpc.v1p69p0.com.google.protobuf.CodedOutputStream;
 
 /**
  * Variable-length encoding for integers.
