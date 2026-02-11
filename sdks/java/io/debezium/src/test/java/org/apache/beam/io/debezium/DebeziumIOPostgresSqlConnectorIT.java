@@ -56,7 +56,7 @@ public class DebeziumIOPostgresSqlConnectorIT {
   @ClassRule
   public static final PostgreSQLContainer<?> POSTGRES_SQL_CONTAINER =
       new PostgreSQLContainer<>(
-              DockerImageName.parse("quay.io/debezium/example-postgres:3.1.1.Final")
+              DockerImageName.parse("quay.io/debezium/example-postgres:3.1.3.Final")
                   .asCompatibleSubstituteFor("postgres"))
           .withPassword("dbz")
           .withUsername("debezium")
@@ -180,7 +180,7 @@ public class DebeziumIOPostgresSqlConnectorIT {
                 .withMaxNumberOfRecords(30)
                 .withCoder(StringUtf8Coder.of()));
     String expected =
-        "{\"metadata\":{\"connector\":\"postgresql\",\"version\":\"3.1.1.Final\",\"name\":\"beam-debezium-connector\","
+        "{\"metadata\":{\"connector\":\"postgresql\",\"version\":\"3.1.3.Final\",\"name\":\"beam-debezium-connector\","
             + "\"database\":\"inventory\",\"schema\":\"inventory\",\"table\":\"customers\"},\"before\":null,"
             + "\"after\":{\"fields\":{\"last_name\":\"Thomas\",\"id\":1001,\"first_name\":\"Sally\","
             + "\"email\":\"sally.thomas@acme.com\"}}}";
