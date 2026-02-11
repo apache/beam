@@ -22,6 +22,7 @@ import itertools
 import os
 import queue
 import re
+import sys
 import threading
 import uuid
 from collections import abc
@@ -190,6 +191,13 @@ def py_value_to_js_dict(py_value):
 
 
 class PythonMonkeyDispatcher:
+  """Dispatcher for executing JavaScript code using pythonmonkey.
+
+  This class manages a worker thread to execute JavaScript, ensuring that
+  pythonmonkey is only imported and used within that thread. It also handles
+  process shutdown carefully to avoid segmentation faults known to occur
+  when pythonmonkey is present during standard Python interpreter finalization.
+  """
   def __init__(self):
     self._req_queue = queue.Queue()
     self._resp_events = {}
@@ -197,18 +205,32 @@ class PythonMonkeyDispatcher:
     self._lock = threading.Lock()
     self._thread = threading.Thread(target=self._worker, daemon=True)
     self._started = False
+    # Register the stop method to be called on exit.
+    # atexit handlers are executed in LIFO order. By registering at import time,
+    # we ensure this handler runs last, allowing other cleanup handlers
+    # (registered later) to execute first.
+    atexit.register(self.stop)
 
   def start(self):
     with self._lock:
       if not self._started:
         self._thread.start()
         self._started = True
-        atexit.register(self.stop)
 
   def stop(self):
     # This method is called on process exit.
-    # We force an immediate exit to avoid a segmentation fault that often occur
-    # with pythonmonkey during standard Python interpreter finalization.
+    if not self._started:
+      return
+    # Flush standard streams before forced exit to avoid data loss.
+    try:
+      sys.stdout.flush()
+      sys.stderr.flush()
+    except Exception:
+      pass
+    # Force an immediate exit to avoid a segmentation fault that occurs with
+    # pythonmonkey during standard interpreter finalization.
+    # Since this runs as one of the last atexit handlers (due to import-time
+    # registration), most other cleanup should have already completed.
     os._exit(0)
 
   def _worker(self):
@@ -274,7 +296,7 @@ _pythonmonkey_dispatcher = PythonMonkeyDispatcher()
 
 
 class JavaScriptCallable:
-  def __init__(self, source, original_fields=None, name=None):
+  def __init__(self, source, name=None):
     self._source = source
     self._name = name
 
@@ -311,8 +333,6 @@ def _finalize_js_result(obj):
   """Coerce pythonmonkey objects to native Python objects (specifically
   strings).
   """
-  if type(obj) is str:
-    return obj
   if isinstance(obj, str):
     return str(obj)
   if isinstance(obj, list):
