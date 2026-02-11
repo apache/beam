@@ -51,7 +51,7 @@ cloud-sql-python-connector==1.20.0
 cloudpickle==3.1.2
 compressed-tensors==0.10.2
 crcmod==1.7
-cryptography==46.0.3
+cryptography==46.0.5
 cupy-cuda12x==13.6.0
 Cython==3.2.4
 depyf==0.19.0
