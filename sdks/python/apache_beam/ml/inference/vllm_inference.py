@@ -163,6 +163,8 @@ class _VLLMModelServer():
             'dynamo.vllm',
             '--model',
             self._model_name,
+            '--kv-events-config',
+            '{"enable_kv_cache_events": false}',
           ]
           for k, v in self._vllm_server_kwargs.items():
             server_cmd.append(f'--{k}')
