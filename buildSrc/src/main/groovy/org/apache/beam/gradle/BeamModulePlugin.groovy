@@ -726,6 +726,7 @@ class BeamModulePlugin implements Plugin<Project> {
         commons_logging                             : "commons-logging:commons-logging:1.2",
         commons_math3                               : "org.apache.commons:commons-math3:3.6.1",
         dbcp2                                       : "org.apache.commons:commons-dbcp2:$dbcp2_version",
+        envoy_control_plane_api                     : "io.envoyproxy.controlplane:api:1.0.49",
         error_prone_annotations                     : "com.google.errorprone:error_prone_annotations:$errorprone_version",
         failsafe                                    : "dev.failsafe:failsafe:3.3.0",
         flogger_system_backend                      : "com.google.flogger:flogger-system-backend:0.7.4",
