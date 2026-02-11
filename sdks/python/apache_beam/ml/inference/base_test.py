@@ -2353,6 +2353,9 @@ class ModelManagerTest(unittest.TestCase):
         for example in batch:
           yield model.predict(example)
 
+      def batch_elements_kwargs(self):
+        return {'min_batch_size': 1, 'max_batch_size': 1}
+
     with self.assertRaises(Exception):
       with TestPipeline() as pipeline:
         examples = [1, 5, 3, 10]
