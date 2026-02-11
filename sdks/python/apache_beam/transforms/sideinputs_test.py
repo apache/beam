@@ -501,6 +501,10 @@ class SideInputsTest(unittest.TestCase):
         super().__init__(self._getTimestampFromProto())
         self.id = window_id
 
+      @staticmethod
+      def _getTimestampFromProto() -> Timestamp:
+        return Timestamp(micros=0)
+
     class StringIDWindows(window.NonMergingWindowFn):
       """ A windowing function that assigns each element a window with ID."""
       def assign(
@@ -509,6 +513,9 @@ class SideInputsTest(unittest.TestCase):
         if assign_context.element is None:
           return [assign_context.window]
         return [StringIDWindow(str(assign_context.element))]
+
+      def get_window_coder(self):
+        return None  # temp value
 
     mapping_fn = sideinputs.default_window_mapping_fn(StringIDWindows())
     source_window = StringIDWindows().assign(
