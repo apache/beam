@@ -178,6 +178,8 @@ class ModelHandler(Generic[ExampleT, PredictionT, ModelT]):
       max_batch_duration_secs: Optional[int] = None,
       max_batch_weight: Optional[int] = None,
       element_size_fn: Optional[Callable[[Any], int]] = None,
+      length_fn: Optional[Callable[[Any], int]] = None,
+      bucket_boundaries: Optional[list[int]] = None,
       large_model: bool = False,
       model_copies: Optional[int] = None,
       **kwargs):
@@ -190,6 +192,11 @@ class ModelHandler(Generic[ExampleT, PredictionT, ModelT]):
         before emitting; used in streaming contexts.
       max_batch_weight: the maximum weight of a batch. Requires element_size_fn.
       element_size_fn: a function that returns the size (weight) of an element.
+      length_fn: a callable mapping an element to its length. When set with
+        max_batch_duration_secs, enables length-aware bucketed keying so
+        elements of similar length are batched together.
+      bucket_boundaries: sorted list of positive boundary values for length
+        bucketing. Requires length_fn.
       large_model: set to true if your model is large enough to run into
         memory pressure if you load multiple copies.
       model_copies: The exact number of models that you would like loaded
@@ -209,6 +216,10 @@ class ModelHandler(Generic[ExampleT, PredictionT, ModelT]):
       self._batching_kwargs['max_batch_weight'] = max_batch_weight
     if element_size_fn is not None:
       self._batching_kwargs['element_size_fn'] = element_size_fn
+    if length_fn is not None:
+      self._batching_kwargs['length_fn'] = length_fn
+    if bucket_boundaries is not None:
+      self._batching_kwargs['bucket_boundaries'] = bucket_boundaries
     self._large_model = large_model
     self._model_copies = model_copies
     self._share_across_processes = large_model or (model_copies is not None)

@@ -65,6 +65,7 @@ from apache_beam.testing.util import TestWindowedValue
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import contains_in_any_order
 from apache_beam.testing.util import equal_to
+from apache_beam.testing.util import is_not_empty
 from apache_beam.transforms import trigger
 from apache_beam.transforms import util
 from apache_beam.transforms import window
@@ -1024,6 +1025,236 @@ class BatchElementsTest(unittest.TestCase):
               clock=FakeClock())
           | beam.Map(len))
       assert_that(res, equal_to([1, 1, 2, 4, 8, 16, 32, 50, 50]))
+
+  def test_length_bucket_assignment(self):
+    """WithLengthBucketKey assigns correct bucket indices."""
+    boundaries = [10, 50, 100]
+    dofn = util.WithLengthBucketKey(length_fn=len, bucket_boundaries=boundaries)
+    # bisect_left: length < 10 -> bucket 0, 10 <= length < 50 -> bucket 1, etc.
+    self.assertEqual(dofn._get_bucket(5), 0)
+    self.assertEqual(dofn._get_bucket(10), 0)
+    self.assertEqual(dofn._get_bucket(11), 1)
+    self.assertEqual(dofn._get_bucket(50), 1)
+    self.assertEqual(dofn._get_bucket(51), 2)
+    self.assertEqual(dofn._get_bucket(100), 2)
+    self.assertEqual(dofn._get_bucket(101), 3)
+    self.assertEqual(dofn._get_bucket(999), 3)
+
+  def test_stateful_length_aware_constant_batch(self):
+    """Elements in distinct length groups produce separate batches."""
+    # Create short strings (len 1-5) and long strings (len 50-55)
+    short = ['x' * i for i in range(1, 6)] * 4  # 20 short strings
+    long = ['y' * i for i in range(50, 56)] * 4  # 24 long strings
+    elements = short + long
+
+    p = TestPipeline('FnApiRunner')
+    batches = (
+        p
+        | beam.Create(elements)
+        | util.BatchElements(
+            min_batch_size=5,
+            max_batch_size=10,
+            max_batch_duration_secs=100,
+            length_fn=len,
+            bucket_boundaries=[10, 50]))
+
+    # Verify that no batch mixes short and long elements
+    def check_no_mixing(batch):
+      lengths = [len(s) for s in batch]
+      min_len, max_len = min(lengths), max(lengths)
+      # Within a bucket, all elements should have similar length
+      assert max_len - min_len < 50, (
+          f'Batch mixed short and long: lengths {lengths}')
+      return True
+
+    checks = batches | beam.Map(check_no_mixing)
+    assert_that(checks, is_not_empty())
+    res = p.run()
+    res.wait_until_finish()
+
+  def test_stateful_length_aware_default_boundaries(self):
+    """Default boundaries [16, 32, 64, 128, 256, 512] are applied."""
+    be = util.BatchElements(max_batch_duration_secs=100, length_fn=len)
+    self.assertEqual(be._bucket_boundaries, [16, 32, 64, 128, 256, 512])
+
+  def test_length_aware_requires_length_fn(self):
+    """bucket_boundaries without length_fn raises ValueError."""
+    with self.assertRaises(ValueError):
+      util.BatchElements(
+          max_batch_duration_secs=100, bucket_boundaries=[10, 20])
+
+  def test_bucket_boundaries_must_be_sorted(self):
+    """Unsorted boundaries raise ValueError."""
+    with self.assertRaises(ValueError):
+      util.BatchElements(
+          max_batch_duration_secs=100,
+          length_fn=len,
+          bucket_boundaries=[50, 10, 100])
+
+  def test_bucket_boundaries_must_be_positive(self):
+    """Non-positive boundaries raise ValueError."""
+    with self.assertRaises(ValueError):
+      util.BatchElements(
+          max_batch_duration_secs=100,
+          length_fn=len,
+          bucket_boundaries=[0, 10, 100])
+
+  def test_length_fn_without_stateful_is_ignored(self):
+    """length_fn without max_batch_duration_secs uses non-stateful path."""
+    with TestPipeline() as p:
+      res = (
+          p
+          | beam.Create(['a', 'bb', 'ccc'])
+          | util.BatchElements(
+              min_batch_size=3, max_batch_size=3, length_fn=len)
+          | beam.Map(len))
+      assert_that(res, equal_to([3]))
+
+  def test_padding_efficiency_bimodal(self):
+    """Benchmark: length-aware bucketing yields better padding efficiency
+    than unbucketed batching on a bimodal length distribution.
+
+    Padding efficiency per batch = sum(lengths) / (max_len * batch_size).
+    With bucketing, short and long elements land in separate batches,
+    so each batch pads to a smaller max, improving efficiency.
+    """
+    random.seed(42)
+    short = ['x' * random.randint(5, 30) for _ in range(500)]
+    long = ['y' * random.randint(200, 512) for _ in range(500)]
+    elements = short + long
+    batch_size = 32
+
+    def batch_efficiency(batch):
+      """Returns (useful_tokens, padded_tokens) for one batch."""
+      lengths = [len(s) for s in batch]
+      return (sum(lengths), max(lengths) * len(lengths))
+
+    # Run WITH bucketing — collect (useful, padded) per batch
+    p_bucketed = TestPipeline('FnApiRunner')
+    bucketed_eff = (
+        p_bucketed
+        | 'CreateBucketed' >> beam.Create(elements)
+        | 'BatchBucketed' >> util.BatchElements(
+            min_batch_size=batch_size,
+            max_batch_size=batch_size,
+            max_batch_duration_secs=100,
+            length_fn=len,
+            bucket_boundaries=[16, 32, 64, 128, 256, 512])
+        | 'EffBucketed' >> beam.Map(batch_efficiency)
+        | 'SumBucketed' >> beam.CombineGlobally(
+            lambda pairs: (sum(p[0] for p in pairs), sum(p[1] for p in pairs))))
+
+    # Run WITHOUT bucketing
+    p_unbucketed = TestPipeline('FnApiRunner')
+    unbucketed_eff = (
+        p_unbucketed
+        | 'CreateUnbucketed' >> beam.Create(elements)
+        | 'BatchUnbucketed' >> util.BatchElements(
+            min_batch_size=batch_size,
+            max_batch_size=batch_size,
+            max_batch_duration_secs=100)
+        | 'EffUnbucketed' >> beam.Map(batch_efficiency)
+        | 'SumUnbucketed' >> beam.CombineGlobally(
+            lambda pairs: (sum(p[0] for p in pairs), sum(p[1] for p in pairs))))
+
+    def check_bucketed_above_threshold(totals):
+      useful, padded = totals[0]
+      eff = useful / padded if padded else 0
+      assert eff > 0.70, (
+          f'Bucketed padding efficiency {eff:.2%} should be > 70%')
+
+    def check_unbucketed_below_bucketed(totals):
+      useful, padded = totals[0]
+      eff = useful / padded if padded else 0
+      # With bimodal data in a single key, short elements get padded
+      # to the max of each batch which often includes long elements.
+      assert eff < 0.70, (
+          f'Unbucketed efficiency {eff:.2%} expected < 70% for '
+          f'bimodal distribution (sanity check)')
+
+    assert_that(bucketed_eff, check_bucketed_above_threshold)
+    res = p_bucketed.run()
+    res.wait_until_finish()
+
+    assert_that(unbucketed_eff, check_unbucketed_below_bucketed)
+    res = p_unbucketed.run()
+    res.wait_until_finish()
+
+  def test_with_length_bucket_key_setup_and_process(self):
+    """WithLengthBucketKey.setup() and process() work correctly in pipeline."""
+    boundaries = [10, 50]
+    elements = ['short', 'x' * 30, 'y' * 60]
+
+    with TestPipeline('FnApiRunner') as p:
+      result = (
+          p
+          | beam.Create(elements)
+          | beam.ParDo(util.WithLengthBucketKey(len, boundaries)))
+
+      def check_keys(keyed_elements):
+        # Each element should have format ((worker_key, bucket), element)
+        for (key, bucket), elem in keyed_elements:
+          # Verify key is a UUID string
+          assert isinstance(key, str) and len(key) > 0
+          # Verify bucket is correct
+          if len(elem) < 10:
+            assert bucket == 0, f'Expected bucket 0 for {elem}'
+          elif len(elem) < 50:
+            assert bucket == 1, f'Expected bucket 1 for {elem}'
+          else:
+            assert bucket == 2, f'Expected bucket 2 for {elem}'
+
+      assert_that(result, check_keys)
+
+  def test_bucket_boundaries_empty_list(self):
+    """Empty bucket_boundaries list raises ValueError."""
+    with self.assertRaises(ValueError):
+      util.BatchElements(
+          max_batch_duration_secs=100, length_fn=len, bucket_boundaries=[])
+
+  def test_with_custom_bucket_boundaries(self):
+    """Custom bucket_boundaries are used instead of defaults."""
+    custom_boundaries = [5, 15, 25]
+    be = util.BatchElements(
+        max_batch_duration_secs=100,
+        length_fn=len,
+        bucket_boundaries=custom_boundaries)
+    self.assertEqual(be._bucket_boundaries, custom_boundaries)
+
+  def test_length_fn_applied_in_pipeline(self):
+    """Verify length_fn is used for bucketing in stateful batching."""
+    # Create strings of different lengths that should go to different buckets
+    short_strings = ['x' * i for i in range(1, 5)]  # lengths 1-4, bucket 0
+    medium_strings = ['y' * i for i in range(20, 24)]  # lengths 20-23, bucket 1
+    elements = short_strings + medium_strings
+
+    with TestPipeline('FnApiRunner') as p:
+      batches = (
+          p
+          | beam.Create(elements)
+          | util.BatchElements(
+              min_batch_size=2,
+              max_batch_size=10,
+              max_batch_duration_secs=100,
+              length_fn=len,
+              bucket_boundaries=[10, 30]))
+
+      def check_batch_homogeneity(batch):
+        """Batches should contain elements of similar length."""
+        lengths = [len(s) for s in batch]
+        # If bucketing works, all elements should be in same bucket
+        # (either all < 10 or all between 10 and 30)
+        min_len, max_len = min(lengths), max(lengths)
+        if min_len < 10:
+          # Short bucket: all should be < 10
+          assert max_len < 10, f'Mixed batch: {lengths}'
+        else:
+          # Medium bucket: all should be >= 10
+          assert min_len >= 10, f'Mixed batch: {lengths}'
+        return True
+
+      checks = batches | beam.Map(check_batch_homogeneity)
+      assert_that(checks, is_not_empty())
 
 
 class IdentityWindowTest(unittest.TestCase):
