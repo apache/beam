@@ -56,6 +56,7 @@ import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.util.IdentitySideInputWindowFn;
+import org.apache.beam.sdk.values.CausedByDrain;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
@@ -318,7 +319,7 @@ public class SimplePushbackSideInputDoFnRunnerTest {
                 timestamp,
                 timestamp,
                 TimeDomain.EVENT_TIME,
-                TimerData.CausedByDrain.NORMAL)));
+                CausedByDrain.NORMAL)));
   }
 
   private static class TestDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, OutputT> {
@@ -361,7 +362,7 @@ public class SimplePushbackSideInputDoFnRunnerTest {
               timestamp,
               outputTimestamp,
               timeDomain,
-              TimerData.CausedByDrain.NORMAL));
+              CausedByDrain.NORMAL));
     }
 
     @Override

@@ -47,6 +47,7 @@ import org.apache.beam.sdk.state.ValueState;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
+import org.apache.beam.sdk.values.CausedByDrain;
 import org.apache.beam.vendor.grpc.v1p69p0.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.joda.time.Duration;
@@ -325,7 +326,7 @@ public class WindmillTagEncodingV2Test {
                   new Instant(123),
                   new Instant(456),
                   timeDomain,
-                  TimerData.CausedByDrain.NORMAL);
+                  CausedByDrain.NORMAL);
       assertEquals(expectedBytes, WindmillTagEncodingV2.instance().timerTag(prefix, timerData));
     }
   }
