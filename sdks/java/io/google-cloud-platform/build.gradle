@@ -158,6 +158,7 @@ dependencies {
   testImplementation project(path: ":runners:direct-java", configuration: "shadow")
   testImplementation project(":sdks:java:managed")
   testImplementation project(path: ":sdks:java:io:common")
+  implementation project(":sdks:java:io:components")
   testImplementation project(path: ":sdks:java:testing:test-utils")
   testImplementation library.java.commons_math3
   testImplementation library.java.google_cloud_bigquery

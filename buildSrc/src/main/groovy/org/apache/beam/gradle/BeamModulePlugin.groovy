@@ -727,6 +727,7 @@ class BeamModulePlugin implements Plugin<Project> {
         commons_math3                               : "org.apache.commons:commons-math3:3.6.1",
         dbcp2                                       : "org.apache.commons:commons-dbcp2:$dbcp2_version",
         error_prone_annotations                     : "com.google.errorprone:error_prone_annotations:$errorprone_version",
+        envoy_control_plane_api                     : "io.envoyproxy.controlplane:api:1.0.49",
         failsafe                                    : "dev.failsafe:failsafe:3.3.0",
         flogger_system_backend                      : "com.google.flogger:flogger-system-backend:0.7.4",
         gax                                         : "com.google.api:gax", // google_cloud_platform_libraries_bom sets version

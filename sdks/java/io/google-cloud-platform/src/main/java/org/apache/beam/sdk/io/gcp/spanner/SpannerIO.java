@@ -77,6 +77,7 @@ import org.apache.beam.runners.core.metrics.ServiceCallMetric;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.SerializableCoder;
 import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
+import org.apache.beam.sdk.io.components.ratelimiter.RateLimiter;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.ChangeStreamMetrics;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.ChangeStreamsConstants;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.MetadataSpannerConfigFactory;
@@ -1291,6 +1292,8 @@ public class SpannerIO {
 
     abstract @Nullable PCollectionView<Dialect> getDialectView();
 
+    abstract @Nullable RateLimiter getRateLimiter();
+
     abstract Builder toBuilder();
 
     @AutoValue.Builder
@@ -1311,6 +1314,8 @@ public class SpannerIO {
       abstract Builder setGroupingFactor(int groupingFactor);
 
       abstract Builder setDialectView(PCollectionView<Dialect> dialect);
+
+      abstract Builder setRateLimiter(RateLimiter rateLimiter);
 
       abstract Write build();
     }
@@ -1393,6 +1398,11 @@ public class SpannerIO {
     public Write withUsingPlainTextChannel(ValueProvider<Boolean> plainText) {
       SpannerConfig config = getSpannerConfig();
       return withSpannerConfig(config.withUsingPlainTextChannel(plainText));
+    }
+
+    /** Specifies the {@link RateLimiter} to use to throttle IO. */
+    public Write withRateLimiter(RateLimiter rateLimiter) {
+      return toBuilder().setRateLimiter(rateLimiter).build();
     }
 
     /**
@@ -1699,7 +1709,10 @@ public class SpannerIO {
               "Write batches to Spanner",
               ParDo.of(
                       new WriteToSpannerFn(
-                          spec.getSpannerConfig(), spec.getFailureMode(), FAILED_MUTATIONS_TAG))
+                          spec.getSpannerConfig(),
+                          spec.getFailureMode(),
+                          FAILED_MUTATIONS_TAG,
+                          spec.getRateLimiter()))
                   .withOutputTags(MAIN_OUT_TAG, TupleTagList.of(FAILED_MUTATIONS_TAG)));
 
       return new SpannerWriteResult(
@@ -2462,11 +2475,17 @@ public class SpannerIO {
     private transient FluentBackoff bundleWriteBackoff;
     private transient LoadingCache<String, ServiceCallMetric> writeMetricsByTableName;
 
+    private final @Nullable RateLimiter rateLimiter;
+
     WriteToSpannerFn(
-        SpannerConfig spannerConfig, FailureMode failureMode, TupleTag<MutationGroup> failedTag) {
+        SpannerConfig spannerConfig,
+        FailureMode failureMode,
+        TupleTag<MutationGroup> failedTag,
+        @Nullable RateLimiter rateLimiter) {
       this.spannerConfig = spannerConfig;
       this.failureMode = failureMode;
       this.failedTag = failedTag;
+      this.rateLimiter = rateLimiter;
     }
 
     @Setup
@@ -2495,8 +2514,11 @@ public class SpannerIO {
     }
 
     @Teardown
-    public void teardown() {
+    public void teardown() throws Exception {
       spannerAccessor.close();
+      if (rateLimiter != null) {
+        rateLimiter.close();
+      }
     }
 
     @ProcessElement
@@ -2622,7 +2644,7 @@ public class SpannerIO {
 
     /** Write the Mutations to Spanner, handling DEADLINE_EXCEEDED with backoff/retries. */
     private void writeMutations(Iterable<Mutation> mutationIterable)
-        throws SpannerException, IOException {
+        throws SpannerException, IOException, InterruptedException {
       BackOff backoff = bundleWriteBackoff.backoff();
       List<Mutation> mutations = ImmutableList.copyOf(mutationIterable);
 
@@ -2630,6 +2652,9 @@ public class SpannerIO {
         Stopwatch timer = Stopwatch.createStarted();
         // loop is broken on success, timeout backoff/retry attempts exceeded, or other failure.
         try {
+          if (rateLimiter != null) {
+            rateLimiter.allow(1);
+          }
           spannerWriteWithRetryIfSchemaChange(mutations);
           spannerWriteSuccess.inc();
           return;

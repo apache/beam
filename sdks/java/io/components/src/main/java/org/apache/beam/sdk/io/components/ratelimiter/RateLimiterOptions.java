@@ -1,0 +1,64 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+package org.apache.beam.sdk.io.components.ratelimiter;
+
+import com.google.auto.value.AutoValue;
+import java.io.Serializable;
+import java.time.Duration;
+import javax.annotation.Nullable;
+import org.apache.beam.sdk.schemas.AutoValueSchema;
+import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
+
+/** Configuration options for {@link RateLimiterFactory}. */
+@DefaultSchema(AutoValueSchema.class)
+@AutoValue
+public abstract class RateLimiterOptions implements Serializable {
+  public abstract String getAddress();
+
+  @Nullable
+  public abstract Integer getMaxRetries();
+
+  public abstract Duration getTimeout();
+
+  public static Builder builder() {
+    return new AutoValue_RateLimiterOptions.Builder().setTimeout(Duration.ofSeconds(5));
+  }
+
+  @AutoValue.Builder
+  public abstract static class Builder {
+    public abstract Builder setAddress(String address);
+
+    public abstract Builder setMaxRetries(Integer maxRetries);
+
+    public abstract Builder setTimeout(Duration timeout);
+
+    abstract RateLimiterOptions autoBuild();
+
+    public RateLimiterOptions build() {
+      RateLimiterOptions options = autoBuild();
+      Preconditions.checkArgument(
+          options.getTimeout().compareTo(Duration.ZERO) > 0, "Timeout must be positive");
+      Integer maxRetries = options.getMaxRetries();
+      if (maxRetries != null) {
+        Preconditions.checkArgument(maxRetries >= 0, "MaxRetries must be non-negative");
+      }
+      return options;
+    }
+  }
+}
