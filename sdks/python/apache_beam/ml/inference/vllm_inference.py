@@ -113,16 +113,15 @@ class _VLLMModelServer():
       self,
       model_name: str,
       vllm_server_kwargs: dict[str, str],
-      vllm_executable: Optional[str] = None):
+      use_dynamo: bool = False):
     self._model_name = model_name
     self._vllm_server_kwargs = vllm_server_kwargs
     self._server_started = False
     self._server_process = None
+    self._dynamo_process = None
     self._server_port: int = -1
     self._server_process_lock = threading.RLock()
-    self._vllm_executable = 'vllm.entrypoints.openai.api_server'
-    if vllm_executable is not None:
-      self._vllm_executable = vllm_executable
+    self._use_dynamo = use_dynamo
 
     self.start_server()
 
@@ -132,7 +131,7 @@ class _VLLMModelServer():
         server_cmd = [
             sys.executable,
             '-m',
-            self._vllm_executable,
+            'vllm.entrypoints.openai.api_server',
             '--model',
             self._model_name,
             '--port',
@@ -143,7 +142,34 @@ class _VLLMModelServer():
           # Only add values for commands with value part.
           if v is not None:
             server_cmd.append(v)
+        if self._use_dynamo:
+          # Dynamo requires a different server command
+          server_cmd = [
+            sys.executable,
+            '-m',
+            'dynamo.frontend',
+            '--http-port',
+            '{{PORT}}',
+          ]
         self._server_process, self._server_port = start_process(server_cmd)
+
+        if self._use_dynamo:
+          # we need to independently start the openai server and run dynamo.
+          # We started the server above, so running dynamo is left.
+          # See https://github.com/ai-dynamo/dynamo?tab=readme-ov-file#run-dynamo
+          server_cmd = [
+            sys.executable,
+            '-m',
+            'dynamo.vllm',
+            '--model',
+            self._model_name,
+          ]
+          for k, v in self._vllm_server_kwargs.items():
+            server_cmd.append(f'--{k}')
+            # Only add values for commands with value part.
+            if v is not None:
+              server_cmd.append(v)
+          self._dynamo_process, _ = start_process(server_cmd)
 
       self.check_connectivity(retries)
 
@@ -154,7 +180,7 @@ class _VLLMModelServer():
 
   def check_connectivity(self, retries=3):
     with getVLLMClient(self._server_port) as client:
-      while self._server_process.poll() is None:
+      while self._server_process.poll() is None and (self._dynamo_process is None or self._dynamo_process.poll() is None):
         try:
           models = client.models.list().data
           logging.info('models: %s' % models)
@@ -209,15 +235,13 @@ class VLLMCompletionsModelHandler(ModelHandler[str,
     self._model_name = model_name
     self._vllm_server_kwargs: dict[str, str] = vllm_server_kwargs or {}
     self._env_vars = {}
-    self._vllm_executable = None
-    if use_dynamo:
-      self._vllm_executable = 'dynamo.vllm'
+    self._use_dynamo = use_dynamo
 
   def load_model(self) -> _VLLMModelServer:
     return _VLLMModelServer(
       self._model_name,
       self._vllm_server_kwargs,
-      self._vllm_executable)
+      self._use_dynamo)
 
   async def _async_run_inference(
       self,
@@ -304,8 +328,7 @@ class VLLMChatModelHandler(ModelHandler[Sequence[OpenAIChatMessage],
     self._env_vars = {}
     self._chat_template_path = chat_template_path
     self._chat_file = f'template-{uuid.uuid4().hex}.jinja'
-    if use_dynamo:
-      self._vllm_executable = 'dynamo.vllm'
+    self._use_dynamo = use_dynamo
 
   def load_model(self) -> _VLLMModelServer:
     chat_template_contents = ''
@@ -321,7 +344,7 @@ class VLLMChatModelHandler(ModelHandler[Sequence[OpenAIChatMessage],
     return _VLLMModelServer(
       self._model_name,
       self._vllm_server_kwargs,
-      self._vllm_executable)
+      self._use_dynamo)
 
   async def _async_run_inference(
       self,
