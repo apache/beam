@@ -51,6 +51,7 @@ import org.apache.beam.sdk.util.construction.ReplacementOutputs;
 import org.apache.beam.sdk.util.construction.SplittableParDo;
 import org.apache.beam.sdk.util.construction.SplittableParDo.ProcessKeyedElements;
 import org.apache.beam.sdk.util.construction.TransformPayloadTranslatorRegistrar;
+import org.apache.beam.sdk.values.CausedByDrain;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
@@ -604,7 +605,7 @@ public class SplittableParDoViaKeyedWorkItems {
               wakeupTime,
               wakeupTime,
               TimeDomain.PROCESSING_TIME,
-              TimerInternals.TimerData.CausedByDrain.NORMAL));
+              CausedByDrain.NORMAL));
     }
 
     private DoFnInvoker.ArgumentProvider<InputT, OutputT> wrapOptionsAsSetup(

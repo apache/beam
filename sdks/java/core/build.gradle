@@ -125,7 +125,6 @@ dependencies {
   shadowTest library.java.guava_testlib
   shadowTest library.java.mockito_core
   shadowTest library.java.hamcrest
-  shadowTest "com.esotericsoftware.kryo:kryo:2.21"
   shadowTest library.java.quickcheck_core
   shadowTest library.java.quickcheck_generators
   shadowTest library.java.zstd_jni

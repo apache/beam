@@ -68,8 +68,11 @@ except ImportError:
 try:
   # pylint: disable=wrong-import-order, wrong-import-position
   import resource
+
+  from apache_beam.ml.inference.model_manager import ModelManager
 except ImportError:
   resource = None  # type: ignore[assignment]
+  ModelManager = None  # type: ignore[assignment]
 
 _NANOSECOND_TO_MILLISECOND = 1_000_000
 _NANOSECOND_TO_MICROSECOND = 1_000
@@ -533,11 +536,12 @@ class RemoteModelHandler(ABC, ModelHandler[ExampleT, PredictionT, ModelT]):
     raise NotImplementedError(type(self))
 
 
-class _ModelManager:
+class _ModelHandlerManager:
   """
-  A class for efficiently managing copies of multiple models. Will load a
-  single copy of each model into a multi_process_shared object and then
-  return a lookup key for that object.
+  A class for efficiently managing copies of multiple model handlers.
+  Will load a single copy of each model from the model handler into a
+  multi_process_shared object and then return a lookup key for that
+  object. Used for KeyedModelHandler only.
   """
   def __init__(self, mh_map: dict[str, ModelHandler]):
     """
@@ -602,8 +606,9 @@ class _ModelManager:
 
   def increment_max_models(self, increment: int):
     """
-    Increments the number of models that this instance of a _ModelManager is
-    able to hold. If it is never called, no limit is imposed.
+    Increments the number of models that this instance of a
+    _ModelHandlerManager is able to hold. If it is never called,
+    no limit is imposed.
     Args:
       increment: the amount by which we are incrementing the number of models.
     """
@@ -656,7 +661,7 @@ class KeyModelMapping(Generic[KeyT, ExampleT, PredictionT, ModelT]):
 class KeyedModelHandler(Generic[KeyT, ExampleT, PredictionT, ModelT],
                         ModelHandler[tuple[KeyT, ExampleT],
                                      tuple[KeyT, PredictionT],
-                                     Union[ModelT, _ModelManager]]):
+                                     Union[ModelT, _ModelHandlerManager]]):
   def __init__(
       self,
       unkeyed: Union[ModelHandler[ExampleT, PredictionT, ModelT],
@@ -809,15 +814,15 @@ class KeyedModelHandler(Generic[KeyT, ExampleT, PredictionT, ModelT],
               'to exactly one model handler.')
         self._key_to_id_map[key] = keys[0]
 
-  def load_model(self) -> Union[ModelT, _ModelManager]:
+  def load_model(self) -> Union[ModelT, _ModelHandlerManager]:
     if self._single_model:
       return self._unkeyed.load_model()
-    return _ModelManager(self._id_to_mh_map)
+    return _ModelHandlerManager(self._id_to_mh_map)
 
   def run_inference(
       self,
       batch: Sequence[tuple[KeyT, ExampleT]],
-      model: Union[ModelT, _ModelManager],
+      model: Union[ModelT, _ModelHandlerManager],
       inference_args: Optional[dict[str, Any]] = None
   ) -> Iterable[tuple[KeyT, PredictionT]]:
     if self._single_model:
@@ -919,7 +924,7 @@ class KeyedModelHandler(Generic[KeyT, ExampleT, PredictionT, ModelT],
 
   def update_model_paths(
       self,
-      model: Union[ModelT, _ModelManager],
+      model: Union[ModelT, _ModelHandlerManager],
       model_paths: list[KeyModelPathMapping[KeyT]] = None):
     # When there are many models, the keyed model handler is responsible for
     # reorganizing the model handlers into cohorts and telling the model
@@ -1338,6 +1343,8 @@ class RunInference(beam.PTransform[beam.PCollection[Union[ExampleT,
       model_metadata_pcoll: beam.PCollection[ModelMetadata] = None,
       watch_model_pattern: Optional[str] = None,
       model_identifier: Optional[str] = None,
+      use_model_manager: bool = False,
+      model_manager_args: Optional[dict[str, Any]] = None,
       **kwargs):
     """
     A transform that takes a PCollection of examples (or features) for use
@@ -1378,6 +1385,8 @@ class RunInference(beam.PTransform[beam.PCollection[Union[ExampleT,
     self._exception_handling_timeout = None
     self._timeout = None
     self._watch_model_pattern = watch_model_pattern
+    self._use_model_manager = use_model_manager
+    self._model_manager_args = model_manager_args
     self._kwargs = kwargs
     # Generate a random tag to use for shared.py and multi_process_shared.py to
     # allow us to effectively disambiguate in multi-model settings. Only use
@@ -1490,7 +1499,9 @@ class RunInference(beam.PTransform[beam.PCollection[Union[ExampleT,
             self._clock,
             self._metrics_namespace,
             load_model_at_runtime,
-            self._model_tag),
+            self._model_tag,
+            self._use_model_manager,
+            self._model_manager_args),
         self._inference_args,
         beam.pvalue.AsSingleton(
             self._model_metadata_pcoll,
@@ -1803,21 +1814,55 @@ def load_model_status(
   return shared.Shared().acquire(lambda: _ModelStatus(False), tag=tag)
 
 
+class _ProxyLoader:
+  """
+  A helper callable to wrap the loader for MultiProcessShared.
+  """
+  def __init__(self, loader_func, model_tag):
+    self.loader_func = loader_func
+    self.model_tag = model_tag
+
+  def __call__(self):
+    # Generate a unique tag for the model being loaded so that
+    # we will have unique instances of the model in multi_process_shared
+    # space instead of reusing the same instance over. The instance will
+    # be initialized and left running as a separate process, which then
+    # can be grabbed again using the unique tag if needed during inference.
+    unique_tag = self.model_tag + '_' + uuid.uuid4().hex
+    # Ensure that each model loaded in a different process for parallelism
+    multi_process_shared.MultiProcessShared(
+        self.loader_func, tag=unique_tag, always_proxy=True,
+        spawn_process=True).acquire()
+    # Only return the tag to avoid pickling issues with the model itself.
+    return unique_tag
+
+
 class _SharedModelWrapper():
   """A router class to map incoming calls to the correct model.
 
     This allows us to round robin calls to models sitting in different
     processes so that we can more efficiently use resources (e.g. GPUs).
   """
-  def __init__(self, models: list[Any], model_tag: str):
+  def __init__(
+      self,
+      models: Union[list[Any], ModelManager],
+      model_tag: str,
+      loader_func: Optional[Callable[[], Any]] = None):
     self.models = models
-    if len(models) > 1:
+    self.use_model_manager = not isinstance(models, list)
+    self.model_tag = model_tag
+    self.loader_func = loader_func
+    if not self.use_model_manager and len(models) > 1:
       self.model_router = multi_process_shared.MultiProcessShared(
           lambda: _ModelRoutingStrategy(),
           tag=f'{model_tag}_counter',
           always_proxy=True).acquire()
 
   def next_model(self):
+    if self.use_model_manager:
+      loader_wrapper = _ProxyLoader(self.loader_func, self.model_tag)
+      return self.models.acquire_model(self.model_tag, loader_wrapper)
+
     if len(self.models) == 1:
       # Short circuit if there's no routing strategy needed in order to
       # avoid the cross-process call
@@ -1825,8 +1870,18 @@ class _SharedModelWrapper():
 
     return self.models[self.model_router.next_model_index(len(self.models))]
 
+  def release_model(self, model_tag: str, model: Any):
+    if self.use_model_manager:
+      self.models.release_model(model_tag, model)
+
   def all_models(self):
+    if self.use_model_manager:
+      return self.models.all_models()[self.model_tag]
     return self.models
+
+  def force_reset(self):
+    if self.use_model_manager:
+      self.models.force_reset()
 
 
 class _RunInferenceDoFn(beam.DoFn, Generic[ExampleT, PredictionT]):
@@ -1836,7 +1891,9 @@ class _RunInferenceDoFn(beam.DoFn, Generic[ExampleT, PredictionT]):
       clock,
       metrics_namespace,
       load_model_at_runtime: bool = False,
-      model_tag: str = "RunInference"):
+      model_tag: str = "RunInference",
+      use_model_manager: bool = False,
+      model_manager_args: Optional[dict[str, Any]] = None):
     """A DoFn implementation generic to frameworks.
 
       Args:
@@ -1860,6 +1917,8 @@ class _RunInferenceDoFn(beam.DoFn, Generic[ExampleT, PredictionT]):
     # _cur_tag is the tag of the actually loaded model
     self._model_tag = model_tag
     self._cur_tag = model_tag
+    self.use_model_manager = use_model_manager
+    self._model_manager_args = model_manager_args or {}
 
   def _load_model(
       self,
@@ -1894,7 +1953,15 @@ class _RunInferenceDoFn(beam.DoFn, Generic[ExampleT, PredictionT]):
       model_tag = side_input_model_path
     # Ensure the tag we're loading is valid, if not replace it with a valid tag
     self._cur_tag = self._model_metadata.get_valid_tag(model_tag)
-    if self._model_handler.share_model_across_processes():
+    if self.use_model_manager:
+      logging.info("Using Model Manager to manage models automatically.")
+      model_manager = multi_process_shared.MultiProcessShared(
+          lambda: ModelManager(**self._model_manager_args),
+          tag='model_manager',
+          always_proxy=True).acquire()
+      model_wrapper = _SharedModelWrapper(
+          model_manager, self._cur_tag, self._model_handler.load_model)
+    elif self._model_handler.share_model_across_processes():
       models = []
       for copy_tag in _get_tags_for_copies(self._cur_tag,
                                            self._model_handler.model_copies()):
@@ -1949,8 +2016,15 @@ class _RunInferenceDoFn(beam.DoFn, Generic[ExampleT, PredictionT]):
     start_time = _to_microseconds(self._clock.time_ns())
     try:
       model = self._model.next_model()
+      if isinstance(model, str):
+        # ModelManager with MultiProcessShared returns the model tag
+        unique_tag = model
+        model = multi_process_shared.MultiProcessShared(
+            lambda: None, tag=model, always_proxy=True).acquire()
       result_generator = self._model_handler.run_inference(
           batch, model, inference_args)
+      if self.use_model_manager:
+        self._model.release_model(self._model_tag, unique_tag)
     except BaseException as e:
       if self._metrics_collector:
         self._metrics_collector.failed_batches_counter.inc()

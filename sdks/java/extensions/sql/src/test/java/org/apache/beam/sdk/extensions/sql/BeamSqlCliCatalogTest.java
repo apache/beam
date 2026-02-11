@@ -27,6 +27,7 @@ import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 
 import java.util.Map;
+import org.apache.beam.sdk.extensions.sql.impl.parser.SqlAlterCatalog;
 import org.apache.beam.sdk.extensions.sql.meta.Table;
 import org.apache.beam.sdk.extensions.sql.meta.catalog.Catalog;
 import org.apache.beam.sdk.extensions.sql.meta.catalog.InMemoryCatalogManager;
@@ -35,6 +36,13 @@ import org.apache.beam.sdk.extensions.sql.meta.store.MetaStore;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.runtime.CalciteContextException;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.sql.SqlIdentifier;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.sql.SqlLiteral;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.sql.SqlNode;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.sql.SqlNodeList;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.sql.dialect.AnsiSqlDialect;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.sql.parser.SqlParserPos;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.sql.pretty.SqlPrettyWriter;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.junit.Before;
 import org.junit.Rule;
@@ -329,5 +337,90 @@ public class BeamSqlCliCatalogTest {
     // drop the table while using catalog_2
     cli.execute("DROP TABLE catalog_1.db_1.person");
     assertNull(metastoreDb1.getTable("person"));
+  }
+
+  @Test
+  public void testAlterCatalog() {
+    cli.execute("CREATE CATALOG my_catalog TYPE 'local' PROPERTIES('foo'='abc', 'bar'='xyz')");
+    cli.execute("USE CATALOG my_catalog");
+    assertEquals(
+        ImmutableMap.of("foo", "abc", "bar", "xyz"), catalogManager.currentCatalog().properties());
+    cli.execute("ALTER CATALOG my_catalog SET ('foo'='123', 'new'='val')");
+    assertEquals(
+        ImmutableMap.of("foo", "123", "bar", "xyz", "new", "val"),
+        catalogManager.currentCatalog().properties());
+    cli.execute("ALTER CATALOG my_catalog RESET ('foo', 'bar')");
+    assertEquals(ImmutableMap.of("new", "val"), catalogManager.currentCatalog().properties());
+  }
+
+  @Test
+  public void testUnparse_SetProperties() {
+    SqlNode catalogName = new SqlIdentifier("test_catalog", POS);
+
+    SqlNodeList setProps = new SqlNodeList(POS);
+    setProps.add(createPropertyPair("k1", "v1"));
+    setProps.add(createPropertyPair("k2", "v2"));
+
+    SqlAlterCatalog alterCatalog = new SqlAlterCatalog(POS, null, catalogName, setProps, null);
+
+    String expectedSql = "ALTER CATALOG `test_catalog` SET ('k1' = 'v1', 'k2' = 'v2')";
+    assertEquals(expectedSql, toSql(alterCatalog));
+  }
+
+  @Test
+  public void testUnparse_ResetProperties() {
+    SqlNode catalogName = new SqlIdentifier("test_catalog", POS);
+
+    SqlNodeList resetProps = new SqlNodeList(POS);
+    resetProps.add(SqlLiteral.createCharString("k1", POS));
+    resetProps.add(SqlLiteral.createCharString("k2", POS));
+
+    SqlAlterCatalog alterCatalog = new SqlAlterCatalog(POS, null, catalogName, null, resetProps);
+
+    String expectedSql = "ALTER CATALOG `test_catalog` RESET ('k1', 'k2')";
+    assertEquals(expectedSql, toSql(alterCatalog));
+  }
+
+  @Test
+  public void testUnparse_SetAndResetProperties() {
+    SqlNode catalogName = new SqlIdentifier("my_cat", POS);
+
+    SqlNodeList setProps = new SqlNodeList(POS);
+    setProps.add(createPropertyPair("k1", "v1"));
+
+    SqlNodeList resetProps = new SqlNodeList(POS);
+    resetProps.add(SqlLiteral.createCharString("k2", POS));
+
+    SqlAlterCatalog alterCatalog =
+        new SqlAlterCatalog(POS, null, catalogName, setProps, resetProps);
+
+    String expectedSql = "ALTER CATALOG `my_cat` SET ('k1' = 'v1') RESET ('k2')";
+    assertEquals(expectedSql, toSql(alterCatalog));
+  }
+
+  private static final SqlParserPos POS = SqlParserPos.ZERO;
+
+  /**
+   * Helper to execute the unparse mechanism using a PrettyWriter. This triggers SqlAlter.unparse ->
+   * SqlAlterCatalog.unparseAlterOperation.
+   */
+  private String toSql(SqlAlterCatalog node) {
+    SqlPrettyWriter writer = new SqlPrettyWriter(AnsiSqlDialect.DEFAULT);
+    writer.setAlwaysUseParentheses(false);
+    writer.setSelectListItemsOnSeparateLines(false);
+    writer.setIndentation(0);
+    node.unparse(writer, 0, 0);
+    return writer.toSqlString().getSql();
+  }
+
+  /**
+   * Helper to create the structure expected by SqlAlterCatalog for K=V pairs. Expects a SqlNodeList
+   * containing two literals [Key, Value].
+   */
+  private SqlNodeList createPropertyPair(String key, String value) {
+    SqlNodeList pair = new SqlNodeList(POS);
+    pair.add(SqlLiteral.createCharString(key, POS));
+    pair.add(SqlLiteral.createCharString(value, POS));
+    return pair;
   }
 }

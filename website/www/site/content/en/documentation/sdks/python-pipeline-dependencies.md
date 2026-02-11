@@ -134,6 +134,20 @@ However unlike with the `--requirements_file` option, when you use the `--setup_
 Only the pipeline package is staged. If they aren't already provided in the runtime environment,
 the package dependencies are installed from PyPI at runtime.
 
+**Note:** When using the install_requires argument, ensure that the listed packages are compatible with the version of setuptools used by the runner's environment.
+If your dependencies require a backward-compatible version of setuptools to build successfully, you can force a specific version requirement using the setup_requires argument.
+
+For instance, to ensure compatibility with packages that still rely on (now deprecated) `pkg_resources` module:
+
+        import setuptools
+
+        setuptools.setup(
+            name='PACKAGE-NAME',
+            version='PACKAGE-VERSION',
+            setup_requires=['setuptools<82.0.0'],
+            install_requires=['incompatible-package', ...],
+            packages=setuptools.find_packages()
+        )
 
 ## Non-Python Dependencies or PyPI Dependencies with Non-Python Dependencies {#nonpython}
 

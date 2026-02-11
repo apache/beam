@@ -19,11 +19,14 @@ package org.apache.beam.sdk.io;
 
 import static org.apache.beam.sdk.io.fs.ResolveOptions.StandardResolveOptions.RESOLVE_FILE;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.MoreObjects.firstNonNull;
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.isA;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
+import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
@@ -38,7 +41,9 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
 import java.nio.file.attribute.FileTime;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
 import java.util.zip.GZIPOutputStream;
@@ -46,6 +51,7 @@ import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.io.fs.EmptyMatchTreatment;
 import org.apache.beam.sdk.io.fs.MatchResult;
+import org.apache.beam.sdk.io.fs.MatchResult.Metadata;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.state.StateSpec;
 import org.apache.beam.sdk.state.StateSpecs;
@@ -53,23 +59,30 @@ import org.apache.beam.sdk.state.ValueState;
 import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
+import org.apache.beam.sdk.testing.UsesUnboundedPCollections;
 import org.apache.beam.sdk.testing.UsesUnboundedSplittableParDo;
 import org.apache.beam.sdk.transforms.Contextful;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.MapElements;
+import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.Requirements;
 import org.apache.beam.sdk.transforms.SerializableFunctions;
 import org.apache.beam.sdk.transforms.View;
 import org.apache.beam.sdk.transforms.Watch;
+import org.apache.beam.sdk.transforms.windowing.AfterWatermark;
+import org.apache.beam.sdk.transforms.windowing.FixedWindows;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
+import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.PCollection.IsBounded;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.sdk.values.TypeDescriptors;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
 import org.joda.time.Duration;
 import org.junit.Rule;
 import org.junit.Test;
@@ -546,5 +559,131 @@ public class FileIOTest implements Serializable {
     assertTrue(
         "Output file shard 0 exists after pipeline completes",
         new File(outputFileName + "-0").exists());
+  }
+
+  @Test
+  @Category({NeedsRunner.class, UsesUnboundedPCollections.class})
+  public void testWriteUnboundedWithCustomBatchSize() throws IOException {
+    File root = tmpFolder.getRoot();
+    List<String> inputs = Arrays.asList("one", "two", "three", "four", "five", "six");
+
+    PTransform<PCollection<String>, PCollection<String>> transform =
+        Window.<String>into(FixedWindows.of(Duration.standardSeconds(10)))
+            .triggering(AfterWatermark.pastEndOfWindow())
+            .withAllowedLateness(Duration.ZERO)
+            .discardingFiredPanes();
+
+    FileIO.Write<Void, String> write =
+        FileIO.<String>write()
+            .via(TextIO.sink())
+            .to(root.getAbsolutePath())
+            .withPrefix("output")
+            .withSuffix(".txt")
+            .withAutoSharding()
+            .withBatchSize(3)
+            .withBatchSizeBytes(1024 * 1024) // Set high to avoid triggering flushing by byte count.
+            .withBatchMaxBufferingDuration(
+                Duration.standardMinutes(1)); // Set high to avoid triggering flushing by duration.
+
+    // Prepare timestamps for the elements.
+    List<Long> timestamps = new ArrayList<>();
+    for (long i = 0; i < inputs.size(); i++) {
+      timestamps.add(i + 1);
+    }
+
+    p.apply(Create.timestamped(inputs, timestamps).withCoder(StringUtf8Coder.of()))
+        .setIsBoundedInternal(IsBounded.UNBOUNDED)
+        .apply(transform)
+        .apply(write);
+    p.run().waitUntilFinish();
+
+    // Verify that the custom batch parameters are set.
+    assertEquals(3, write.getBatchSize().intValue());
+    assertEquals(1024 * 1024, write.getBatchSizeBytes().intValue());
+    assertEquals(Duration.standardMinutes(1), write.getBatchMaxBufferingDuration());
+
+    // Verify file contents.
+    checkFileContents(root, "output", inputs);
+
+    // With auto-sharding, we can't assert on the exact number of output files, but because
+    // batch size is 3 and there are 6 elements, we expect at least 2 files.
+    final String pattern = new File(root, "output").getAbsolutePath() + "*";
+    List<Metadata> metadata =
+        FileSystems.match(Collections.singletonList(pattern)).get(0).metadata();
+    assertTrue(metadata.size() >= 2);
+  }
+
+  @Test
+  @Category({NeedsRunner.class, UsesUnboundedPCollections.class})
+  public void testWriteUnboundedWithCustomBatchSizeBytes() throws IOException {
+    File root = tmpFolder.getRoot();
+    // The elements plus newline characters give a total of 4+4+6+5+5+4=28 bytes.
+    List<String> inputs = Arrays.asList("one", "two", "three", "four", "five", "six");
+    // Assign timestamps so that all elements fall into the same 10s window.
+    List<Long> timestamps = Arrays.asList(1L, 2L, 3L, 4L, 5L, 6L);
+
+    FileIO.Write<Void, String> write =
+        FileIO.<String>write()
+            .via(TextIO.sink())
+            .to(root.getAbsolutePath())
+            .withPrefix("output")
+            .withSuffix(".txt")
+            .withAutoSharding()
+            .withBatchSize(1000) // Set high to avoid flushing by record count.
+            .withBatchSizeBytes(10)
+            .withBatchMaxBufferingDuration(
+                Duration.standardMinutes(1)); // Set high to avoid flushing by duration.
+
+    p.apply(Create.timestamped(inputs, timestamps).withCoder(StringUtf8Coder.of()))
+        .setIsBoundedInternal(IsBounded.UNBOUNDED)
+        .apply(
+            Window.<String>into(FixedWindows.of(Duration.standardSeconds(10)))
+                .triggering(AfterWatermark.pastEndOfWindow())
+                .withAllowedLateness(Duration.ZERO)
+                .discardingFiredPanes())
+        .apply(write);
+
+    p.run().waitUntilFinish();
+
+    // Verify that the custom batch parameters are set.
+    assertEquals(1000, write.getBatchSize().intValue());
+    assertEquals(10, write.getBatchSizeBytes().intValue());
+    assertEquals(Duration.standardMinutes(1), write.getBatchMaxBufferingDuration());
+    checkFileContents(root, "output", inputs);
+
+    // With auto-sharding, we cannot assert on the exact number of output files. The BatchSizeBytes
+    // acts as a threshold for flushing; once buffer size reaches 10 bytes, a flush is triggered,
+    // but more items may be added before it completes. With 28 bytes total, we can only guarantee
+    // at least 2 files are produced.
+    final String pattern = new File(root, "output").getAbsolutePath() + "*";
+    List<Metadata> metadata =
+        FileSystems.match(Collections.singletonList(pattern)).get(0).metadata();
+    assertTrue(metadata.size() >= 2);
+  }
+
+  static void checkFileContents(File rootDir, String prefix, List<String> inputs)
+      throws IOException {
+    List<File> outputFiles = Lists.newArrayList();
+    final String pattern = new File(rootDir, prefix).getAbsolutePath() + "*";
+    List<Metadata> metadata =
+        FileSystems.match(Collections.singletonList(pattern)).get(0).metadata();
+    for (Metadata meta : metadata) {
+      outputFiles.add(new File(meta.resourceId().toString()));
+    }
+    assertFalse("Should have produced at least 1 output file", outputFiles.isEmpty());
+
+    List<String> actual = Lists.newArrayList();
+    for (File outputFile : outputFiles) {
+      List<String> actualShard = Lists.newArrayList();
+      try (BufferedReader reader =
+          Files.newBufferedReader(outputFile.toPath(), StandardCharsets.UTF_8)) {
+        String line;
+        while ((line = reader.readLine()) != null) {
+          actualShard.add(line);
+        }
+      }
+      actual.addAll(actualShard);
+    }
+    assertThat(actual, containsInAnyOrder(inputs.toArray()));
   }
 }
