@@ -131,7 +131,7 @@ public class GcsUtilParameterizedIT {
     final List<GcsPath> paths = Arrays.asList(existingPath, nonExistentPath);
 
     if (experiment.equals("use_gcsutil_v2")) {
-      List<GcsUtilV2.BlobOrIOException> results = gcsUtil.getBlobs(paths);
+      List<GcsUtilV2.BlobResult> results = gcsUtil.getBlobs(paths);
       assertEquals(2, results.size());
       assertTrue(results.get(0).blob() != null);
       assertTrue(results.get(0).ioException() == null);

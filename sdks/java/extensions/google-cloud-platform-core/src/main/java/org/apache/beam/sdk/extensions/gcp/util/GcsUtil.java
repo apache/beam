@@ -40,7 +40,7 @@ import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.function.Supplier;
 import org.apache.beam.sdk.extensions.gcp.options.GcsOptions;
-import org.apache.beam.sdk.extensions.gcp.util.GcsUtilV2.BlobOrIOException;
+import org.apache.beam.sdk.extensions.gcp.util.GcsUtilV2.BlobResult;
 import org.apache.beam.sdk.extensions.gcp.util.gcsfs.GcsPath;
 import org.apache.beam.sdk.io.fs.MoveOptions;
 import org.apache.beam.sdk.options.DefaultValueFactory;
@@ -99,8 +99,7 @@ public class GcsUtil {
               gcsOptions.getEnableBucketWriteMetricCounter()
                   ? gcsOptions.getGcsWriteCounterPrefix()
                   : null),
-          gcsOptions,
-          ExperimentalOptions.hasExperiment(options, "use_gcsutil_v2"));
+          gcsOptions);
     }
   }
 
@@ -134,35 +133,11 @@ public class GcsUtil {
             rewriteDataOpBatchLimit,
             gcsCountersOptions.delegate,
             gcsOptions);
-    this.delegateV2 = null;
-  }
 
-  @VisibleForTesting
-  GcsUtil(
-      Storage storageClient,
-      HttpRequestInitializer httpRequestInitializer,
-      ExecutorService executorService,
-      Boolean shouldUseGrpc,
-      Credentials credentials,
-      @Nullable Integer uploadBufferSizeBytes,
-      @Nullable Integer rewriteDataOpBatchLimit,
-      GcsCountersOptions gcsCountersOptions,
-      GcsOptions gcsOptions,
-      Boolean shouldUseV2) {
-    this.delegate =
-        new GcsUtilV1(
-            storageClient,
-            httpRequestInitializer,
-            executorService,
-            shouldUseGrpc,
-            credentials,
-            uploadBufferSizeBytes,
-            rewriteDataOpBatchLimit,
-            gcsCountersOptions.delegate,
-            gcsOptions);
-
-    if (shouldUseV2) {
+    if (ExperimentalOptions.hasExperiment(gcsOptions, "use_gcsutil_v2")) {
       this.delegateV2 = new GcsUtilV2(gcsOptions);
+    } else {
+      this.delegateV2 = null;
     }
   }
 
@@ -223,7 +198,7 @@ public class GcsUtil {
         .collect(java.util.stream.Collectors.toList());
   }
 
-  public List<BlobOrIOException> getBlobs(Iterable<GcsPath> gcsPaths, BlobGetOption... options)
+  public List<BlobResult> getBlobs(Iterable<GcsPath> gcsPaths, BlobGetOption... options)
       throws IOException {
     if (delegateV2 != null) {
       return delegateV2.getBlobs(gcsPaths, options);

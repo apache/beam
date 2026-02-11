@@ -35,7 +35,6 @@ import com.google.cloud.storage.StorageBatch;
 import com.google.cloud.storage.StorageBatchResult;
 import com.google.cloud.storage.StorageException;
 import com.google.cloud.storage.StorageOptions;
-import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.nio.file.AccessDeniedException;
@@ -114,10 +113,8 @@ class GcsUtilV2 {
   }
 
   /** A class that holds either a {@link Blob} or an {@link IOException}. */
-  // It is clear from the name that this class holds either Blob or IOException.
-  @SuppressFBWarnings("NM_CLASS_NOT_EXCEPTION")
   @AutoValue
-  public abstract static class BlobOrIOException {
+  public abstract static class BlobResult {
 
     /** Returns the {@link Blob}. */
     public abstract @Nullable Blob blob();
@@ -126,22 +123,21 @@ class GcsUtilV2 {
     public abstract @Nullable IOException ioException();
 
     @VisibleForTesting
-    public static BlobOrIOException create(Blob blob) {
-      return new AutoValue_GcsUtilV2_BlobOrIOException(
-          checkNotNull(blob, "blob"), null /* ioException */);
+    public static BlobResult create(Blob blob) {
+      return new AutoValue_GcsUtilV2_BlobResult(checkNotNull(blob, "blob"), null /* ioException */);
     }
 
     @VisibleForTesting
-    public static BlobOrIOException create(IOException ioException) {
-      return new AutoValue_GcsUtilV2_BlobOrIOException(
+    public static BlobResult create(IOException ioException) {
+      return new AutoValue_GcsUtilV2_BlobResult(
           null /* blob */, checkNotNull(ioException, "ioException"));
     }
   }
 
-  public List<BlobOrIOException> getBlobs(Iterable<GcsPath> gcsPaths, BlobGetOption... options)
+  public List<BlobResult> getBlobs(Iterable<GcsPath> gcsPaths, BlobGetOption... options)
       throws IOException {
 
-    List<BlobOrIOException> results = new ArrayList<>();
+    List<BlobResult> results = new ArrayList<>();
 
     for (List<GcsPath> pathPartition :
         Lists.partition(Lists.newArrayList(gcsPaths), MAX_REQUESTS_PER_BATCH)) {
@@ -160,17 +156,17 @@ class GcsUtilV2 {
         try {
           Blob blob = future.get();
           if (blob != null) {
-            results.add(BlobOrIOException.create(blob));
+            results.add(BlobResult.create(blob));
           } else {
             results.add(
-                BlobOrIOException.create(
+                BlobResult.create(
                     new FileNotFoundException(
                         String.format(
                             "The specified file does not exist: %s",
                             pathPartition.get(i).toString()))));
           }
         } catch (StorageException e) {
-          results.add(BlobOrIOException.create(translateStorageException(pathPartition.get(i), e)));
+          results.add(BlobResult.create(translateStorageException(pathPartition.get(i), e)));
         }
       }
     }
