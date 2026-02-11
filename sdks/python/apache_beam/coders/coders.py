@@ -1512,7 +1512,7 @@ class _OrderedUnionCoder(FastCoder):
 
   def is_deterministic(self) -> bool:
     return (
-        all(c.is_deterministic for _, c in self._coder_types) and (
+        all(c.is_deterministic() for _, c in self._coder_types) and (
             self._fallback_coder is None or
             self._fallback_coder.is_deterministic()))
 
@@ -1575,7 +1575,7 @@ class WindowedValueCoder(FastCoder):
   def __repr__(self):
     return (
         f'WindowedValueCoder[window_coder={self.window_coder}, '
-        f'value_coder={self.value_coder()}]')
+        f'wrapped_value_coder={self.wrapped_value_coder}]')
 
   def __eq__(self, other):
     return (

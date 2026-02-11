@@ -60,6 +60,8 @@ public class WindmillStateCacheTest {
   private static final long MEGABYTES = 1024 * 1024;
   DataflowWorkerHarnessOptions options;
 
+  WindmillTagEncoding windmillTagEncoding;
+
   private static class TestStateTag implements StateTag<TestState> {
 
     final String id;
@@ -150,21 +152,20 @@ public class WindmillStateCacheTest {
     return WindmillComputationKey.create(computationId, ByteString.copyFromUtf8(key), shardingKey);
   }
 
-  private static <T extends State> Optional<T> getFromCache(
+  private <T extends State> Optional<T> getFromCache(
       WindmillStateCache.ForKeyAndFamily keyCache, StateNamespace namespace, StateTag<T> address) {
     return (Optional<T>)
         Optional.ofNullable(
-            keyCache.get(namespace, WindmillStateTagUtil.instance().encodeKey(namespace, address)));
+            keyCache.get(namespace, windmillTagEncoding.stateTag(namespace, address)));
   }
 
-  private static <T extends State> void putInCache(
+  private <T extends State> void putInCache(
       WindmillStateCache.ForKeyAndFamily keyCache,
       StateNamespace namespace,
       StateTag<? extends T> tag,
       T value,
       long weight) {
-    keyCache.put(
-        namespace, WindmillStateTagUtil.instance().encodeKey(namespace, tag), value, weight);
+    keyCache.put(namespace, windmillTagEncoding.stateTag(namespace, tag), value, weight);
   }
 
   WindmillStateCache cache;
@@ -172,6 +173,7 @@ public class WindmillStateCacheTest {
   @Before
   public void setUp() {
     options = PipelineOptionsFactory.as(DataflowWorkerHarnessOptions.class);
+    windmillTagEncoding = WindmillTagEncodingV1.instance();
     cache = WindmillStateCache.builder().setSizeMb(400).build();
     assertEquals(0, cache.getWeight());
   }
@@ -188,14 +190,14 @@ public class WindmillStateCacheTest {
     WindmillValue<String> userValue =
         new WindmillValue<>(
             StateNamespaces.global(),
-            WindmillStateTagUtil.instance().encodeKey(StateNamespaces.global(), userTag),
+            windmillTagEncoding.stateTag(StateNamespaces.global(), userTag),
             STATE_FAMILY,
             StringUtf8Coder.of(),
             false);
     WindmillValue<String> systemValue =
         new WindmillValue<>(
             StateNamespaces.global(),
-            WindmillStateTagUtil.instance().encodeKey(StateNamespaces.global(), systemTag),
+            windmillTagEncoding.stateTag(StateNamespaces.global(), systemTag),
             STATE_FAMILY,
             StringUtf8Coder.of(),
             false);

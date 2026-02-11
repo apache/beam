@@ -43,6 +43,14 @@ from apache_beam.typehints import typehints
 RETURN_NONE_PARTIAL_WARNING = "Process method returned None"
 
 
+class TestDoFn0(beam.DoFn):
+  """Returning without a value is allowed"""
+  def process(self, element):
+    if not element:
+      return
+    yield element
+
+
 class TestDoFn1(beam.DoFn):
   def process(self, element):
     yield element
@@ -174,6 +182,7 @@ class CreateTest(unittest.TestCase):
 
     with self._caplog.at_level(logging.WARNING):
       assert beam.ParDo(sum)
+      assert beam.ParDo(TestDoFn0())
       assert beam.ParDo(TestDoFn1())
       assert beam.ParDo(TestDoFn2())
       assert beam.ParDo(TestDoFn4())

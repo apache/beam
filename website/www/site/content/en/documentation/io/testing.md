@@ -387,14 +387,6 @@ Guidelines for creating a Beam data store Kubernetes script:
         1.  Official Docker images, because they have security fixes and guaranteed maintenance.
         1.  Non-official Docker images, or images from other providers that have good maintainers (e.g. [quay.io](https://quay.io/)).
 
-#### Jenkins jobs {#jenkins-jobs}
-
-You can find examples of existing IOIT jenkins job definitions in [.test-infra/jenkins](https://github.com/apache/beam/tree/master/.test-infra/jenkins) directory. Look for files called job_PerformanceTest_*.groovy. The most prominent examples are:
-* [JDBC](https://github.com/apache/beam/blob/master/.test-infra/jenkins/job_PerformanceTests_JDBC.groovy) IOIT job
-* [MongoDB](https://github.com/apache/beam/blob/master/.test-infra/jenkins/job_PerformanceTests_MongoDBIO_IT.groovy) IOIT job
-* [File-based](https://github.com/apache/beam/blob/master/.test-infra/jenkins/job_PerformanceTests_FileBasedIO_IT.groovy) IOIT jobs
-
-Notice that there is a utility class helpful in creating the jobs easily without forgetting important steps or repeating code. See [Kubernetes.groovy](https://github.com/apache/beam/blob/master/.test-infra/jenkins/Kubernetes.groovy) for more details.
 
 ### Small Scale and Large Scale Integration Tests {#small-scale-and-large-scale-integration-tests}
 

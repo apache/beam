@@ -286,6 +286,7 @@ public class AvroCoderTest {
 
     // Kryo instantiation
     Kryo kryo = new Kryo();
+    kryo.setRegistrationRequired(false);
     kryo.setInstantiatorStrategy(new StdInstantiatorStrategy());
     kryo.addDefaultSerializer(AvroCoder.SerializableSchemaSupplier.class, JavaSerializer.class);
 

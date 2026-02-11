@@ -205,7 +205,7 @@ import org.slf4j.LoggerFactory;
 })
 public class ElasticsearchIO {
 
-  private static final List<Integer> VALID_CLUSTER_VERSIONS = Arrays.asList(5, 6, 7, 8);
+  private static final List<Integer> VALID_CLUSTER_VERSIONS = Arrays.asList(5, 6, 7, 8, 9);
   private static final Set<Integer> DEPRECATED_CLUSTER_VERSIONS =
       new HashSet<>(Arrays.asList(5, 6));
   private static final List<String> VERSION_TYPES =
@@ -2811,14 +2811,23 @@ public class ElasticsearchIO {
       }
 
       private boolean isRetryableClientException(Throwable t) {
-        // RestClient#performRequest only throws wrapped IOException so we must inspect the
+        // RestClient#performRequest mainly throws wrapped IOException so we must inspect the
         // exception cause to determine if the exception is likely transient i.e. retryable or
-        // not.
+        // not. One exception is the ResponseException that is thrown when attempting to parse the
+        // response. This exception is not wrapped.
+
+        // ResponseException should not be wrapped, but check the cause to be safe for future
+        // changes
+        ResponseException re = null;
+        if (t instanceof ResponseException) {
+          re = (ResponseException) t;
+        } else if (t.getCause() instanceof ResponseException) {
+          re = (ResponseException) t.getCause();
+        }
 
         // Retry for 500-range response code except for 501.
-        if (t.getCause() instanceof ResponseException) {
-          ResponseException ex = (ResponseException) t.getCause();
-          int statusCode = ex.getResponse().getStatusLine().getStatusCode();
+        if (re != null) {
+          int statusCode = re.getResponse().getStatusLine().getStatusCode();
           return statusCode >= 500 && statusCode != 501;
         }
         return t.getCause() instanceof ConnectTimeoutException
@@ -2893,7 +2902,16 @@ public class ElasticsearchIO {
               && spec.getRetryConfiguration().getRetryPredicate().test(responseEntity)) {
             LOG.warn("ES Cluster is responding with HTP 429 - TOO_MANY_REQUESTS.");
           }
-          responseEntity = handleRetry("POST", endPoint, Collections.emptyMap(), requestBody);
+          try {
+            responseEntity = handleRetry("POST", endPoint, Collections.emptyMap(), requestBody);
+          } catch (java.io.IOException ex) {
+            // No more retry attempts, determine what to do using throwWriteErrors
+            if (spec.getThrowWriteErrors()) {
+              throw ex;
+            } else {
+              elasticResponseExceptionMessage = ex.getMessage();
+            }
+          }
         }
 
         List<Document> responses;

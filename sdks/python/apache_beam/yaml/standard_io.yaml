@@ -97,44 +97,6 @@
           'ReadFromKafka': '2.65.0'
           'WriteToKafka': '2.65.0'
 
-# PubSub
-- type: renaming
-  transforms:
-    'ReadFromPubSubLite': 'ReadFromPubSubLite'
-    'WriteToPubSubLite': 'WriteToPubSubLite'
-  config:
-    mappings:
-      'ReadFromPubSubLite':
-        'project': 'project'
-        'schema': 'schema'
-        'format': 'format'
-        'subscription_name': 'subscription_name'
-        'location': 'location'
-        'attributes': 'attributes'
-        'attribute_map': 'attribute_map'
-        'attribute_id': 'attribute_id'
-        'error_handling': 'error_handling'
-        'file_descriptor_path': 'file_descriptor_path'
-        'message_name': 'message_name'
-      'WriteToPubSubLite':
-        'project': 'project'
-        'format': 'format'
-        'topic_name': 'topic_name'
-        'location': 'location'
-        'attributes': 'attributes'
-        'attribute_id': 'attribute_id'
-        'error_handling': 'error_handling'
-        'file_descriptor_path': 'file_descriptor_path'
-        'message_name': 'message_name'
-        'schema': 'schema'
-    underlying_provider:
-      type: beamJar
-      transforms:
-        'ReadFromPubSubLite': 'beam:schematransform:org.apache.beam:pubsublite_read:v1'
-        'WriteToPubSubLite': 'beam:schematransform:org.apache.beam:pubsublite_write:v1'
-      config:
-        gradle_target: 'sdks:java:io:google-cloud-platform:expansion-service:shadowJar'
-
 # TODO(yaml): Tests are assuming python providers are before java ones, hence
 # the order below.  This should be fixed in the future.
 
@@ -403,3 +365,31 @@
         'WriteToBigTable': 'beam:schematransform:org.apache.beam:bigtable_write:v1'
       config:
         gradle_target: 'sdks:java:io:google-cloud-platform:expansion-service:shadowJar'
+
+#IcebergCDC
+- type: renaming
+  transforms:
+    'ReadFromIcebergCDC': 'ReadFromIcebergCDC'
+  config:
+    mappings:
+      'ReadFromIcebergCDC':
+        table: 'table'
+        catalog_name: 'catalog_name'
+        catalog_properties: 'catalog_properties'
+        config_properties: 'config_properties'
+        drop: 'drop'
+        filter: 'filter'
+        from_snapshot: 'from_snapshot'
+        from_timestamp: 'from_timestamp'
+        keep: 'keep'
+        poll_interval_seconds: 'poll_interval_seconds'
+        starting_strategy: 'starting_strategy'
+        streaming: 'streaming'
+        to_snapshot: 'to_snapshot'
+        to_timestamp: 'to_timestamp'
+    underlying_provider:
+      type: beamJar
+      transforms:
+        'ReadFromIcebergCDC': 'beam:schematransform:org.apache.beam:iceberg_cdc_read:v1'
+      config:
+        gradle_target: 'sdks:java:io:expansion-service:shadowJar'

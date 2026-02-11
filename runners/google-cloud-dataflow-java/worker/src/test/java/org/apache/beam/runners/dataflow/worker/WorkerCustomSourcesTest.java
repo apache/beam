@@ -204,6 +204,7 @@ public class WorkerCustomSourcesTest {
         watermarks,
         Work.createProcessingContext(
             COMPUTATION_ID, new FakeGetDataClient(), ignored -> {}, mock(HeartbeatSender.class)),
+        false,
         Instant::now);
   }
 
@@ -1014,6 +1015,7 @@ public class WorkerCustomSourcesTest {
                 new FakeGetDataClient(),
                 ignored -> {},
                 mock(HeartbeatSender.class)),
+            false,
             Instant::now);
     context.start(
         "key",

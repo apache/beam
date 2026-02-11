@@ -19,13 +19,13 @@ import com.gradle.enterprise.gradleplugin.internal.extension.BuildScanExtensionW
 
 pluginManagement {
     plugins {
-        id("org.javacc.javacc") version "3.0.3" // enable the JavaCC parser generator
+        id("org.javacc.javacc") version "4.0.3" // enable the JavaCC parser generator
     }
 }
 
 plugins {
     id("com.gradle.develocity") version "3.19"
-    id("com.gradle.common-custom-user-data-gradle-plugin") version "2.2.1"
+    id("com.gradle.common-custom-user-data-gradle-plugin") version "2.4.0"
 }
 
 
@@ -106,6 +106,7 @@ include(":playground:kafka-emulator")
 include(":it:cassandra")
 include(":it:common")
 include(":it:conditions")
+include(":it:datadog")
 include(":it:elasticsearch")
 include(":it:google-cloud-platform")
 include(":it:jdbc")
@@ -127,18 +128,12 @@ include(":runners:extensions-java:metrics")
   * verify versions in website/www/site/content/en/documentation/runners/flink.md
   * verify version in sdks/python/apache_beam/runners/interactive/interactive_beam.py
  */
-// Flink 1.17
-include(":runners:flink:1.17")
-include(":runners:flink:1.17:job-server")
-include(":runners:flink:1.17:job-server-container")
-// Flink 1.18
-include(":runners:flink:1.18")
-include(":runners:flink:1.18:job-server")
-include(":runners:flink:1.18:job-server-container")
-// Flink 1.19
-include(":runners:flink:1.19")
-include(":runners:flink:1.19:job-server")
-include(":runners:flink:1.19:job-server-container")
+val flink_versions: String by settings
+for (version in flink_versions.split(',')) {
+    include(":runners:flink:${version}")
+    include(":runners:flink:${version}:job-server")
+    include(":runners:flink:${version}:job-server-container")
+}
 /* End Flink Runner related settings */
 include(":runners:twister2")
 include(":runners:google-cloud-dataflow-java")
@@ -218,18 +213,21 @@ include(":sdks:java:io:azure-cosmos")
 include(":sdks:java:io:cassandra")
 include(":sdks:java:io:clickhouse")
 include(":sdks:java:io:common")
+include(":sdks:java:io:components")
 include(":sdks:java:io:contextualtextio")
 include(":sdks:java:io:debezium")
 include(":sdks:java:io:debezium:expansion-service")
 include(":sdks:java:io:elasticsearch")
 include(":sdks:java:io:elasticsearch-tests:elasticsearch-tests-7")
 include(":sdks:java:io:elasticsearch-tests:elasticsearch-tests-8")
+include(":sdks:java:io:elasticsearch-tests:elasticsearch-tests-9")
 include(":sdks:java:io:elasticsearch-tests:elasticsearch-tests-common")
 include(":sdks:java:io:expansion-service")
 include(":sdks:java:io:file-based-io-tests")
 include(":sdks:java:io:bigquery-io-perf-tests")
 include(":sdks:java:io:cdap")
 include(":sdks:java:io:csv")
+include(":sdks:java:io:datadog")
 include(":sdks:java:io:file-schema-transform")
 include(":sdks:java:io:google-ads")
 include(":sdks:java:io:google-cloud-platform")
@@ -269,6 +267,8 @@ include(":sdks:java:javadoc")
 include(":sdks:java:maven-archetypes:examples")
 include(":sdks:java:maven-archetypes:gcp-bom-examples")
 include(":sdks:java:maven-archetypes:starter")
+include(":sdks:java:ml:inference:remote")
+include(":sdks:java:ml:inference:openai")
 include(":sdks:java:testing:nexmark")
 include(":sdks:java:testing:expansion-service")
 include(":sdks:java:testing:jpms-tests")
@@ -286,44 +286,37 @@ include(":sdks:python")
 include(":sdks:python:apache_beam:testing:load_tests")
 include(":sdks:python:apache_beam:testing:benchmarks:nexmark")
 include(":sdks:python:container")
-include(":sdks:python:container:py39")
 include(":sdks:python:container:py310")
 include(":sdks:python:container:py311")
 include(":sdks:python:container:py312")
 include(":sdks:python:container:py313")
 include(":sdks:python:container:distroless")
-include(":sdks:python:container:distroless:py39")
 include(":sdks:python:container:distroless:py310")
 include(":sdks:python:container:distroless:py311")
 include(":sdks:python:container:distroless:py312")
 include(":sdks:python:container:distroless:py313")
 include(":sdks:python:container:ml")
-include(":sdks:python:container:ml:py39")
 include(":sdks:python:container:ml:py310")
 include(":sdks:python:container:ml:py311")
 include(":sdks:python:container:ml:py312")
 include(":sdks:python:container:ml:py313")
 include(":sdks:python:expansion-service-container")
 include(":sdks:python:test-suites:dataflow")
-include(":sdks:python:test-suites:dataflow:py39")
 include(":sdks:python:test-suites:dataflow:py310")
 include(":sdks:python:test-suites:dataflow:py311")
 include(":sdks:python:test-suites:dataflow:py312")
 include(":sdks:python:test-suites:dataflow:py313")
 include(":sdks:python:test-suites:direct")
-include(":sdks:python:test-suites:direct:py39")
 include(":sdks:python:test-suites:direct:py310")
 include(":sdks:python:test-suites:direct:py311")
 include(":sdks:python:test-suites:direct:py312")
 include(":sdks:python:test-suites:direct:py313")
 include(":sdks:python:test-suites:direct:xlang")
-include(":sdks:python:test-suites:portable:py39")
 include(":sdks:python:test-suites:portable:py310")
 include(":sdks:python:test-suites:portable:py311")
 include(":sdks:python:test-suites:portable:py312")
 include(":sdks:python:test-suites:portable:py313")
 include(":sdks:python:test-suites:tox:pycommon")
-include(":sdks:python:test-suites:tox:py39")
 include(":sdks:python:test-suites:tox:py310")
 include(":sdks:python:test-suites:tox:py311")
 include(":sdks:python:test-suites:tox:py312")
@@ -344,8 +337,6 @@ include("beam-test-infra-mock-apis")
 project(":beam-test-infra-mock-apis").projectDir = file(".test-infra/mock-apis")
 include("beam-test-tools")
 project(":beam-test-tools").projectDir = file(".test-infra/tools")
-include("beam-test-jenkins")
-project(":beam-test-jenkins").projectDir = file(".test-infra/jenkins")
 include("beam-test-gha")
 project(":beam-test-gha").projectDir = file(".github")
 include("beam-validate-runner")

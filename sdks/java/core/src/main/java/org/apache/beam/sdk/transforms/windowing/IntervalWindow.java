@@ -186,8 +186,7 @@ public class IntervalWindow extends BoundedWindow implements Comparable<Interval
 
     @Override
     public boolean isRegisterByteSizeObserverCheap(IntervalWindow value) {
-      return instantCoder.isRegisterByteSizeObserverCheap(value.end)
-          && durationCoder.isRegisterByteSizeObserverCheap(new Duration(value.start, value.end));
+      return true;
     }
 
     @Override

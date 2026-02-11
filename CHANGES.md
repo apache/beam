@@ -20,10 +20,6 @@
 <!--
 # [2.XX.X] - Unreleased
 
-## Beam 3.0.0 Development Highlights
-
-* New highly anticipated feature ([X](https://github.com/apache/beam/issues/X)) to address Milestone Y ([#Y](https://github.com/apache/beam/issues/Y)).
-
 ## Highlights
 
 * New highly anticipated feature X added to Python SDK ([#X](https://github.com/apache/beam/issues/X)).
@@ -59,22 +55,25 @@
 * ([#X](https://github.com/apache/beam/issues/X)).
 -->
 
-# [2.70.0] - Unreleased
+# [2.72.0] - Unreleased
 
 ## Highlights
 
 * New highly anticipated feature X added to Python SDK ([#X](https://github.com/apache/beam/issues/X)).
 * New highly anticipated feature Y added to Java SDK ([#Y](https://github.com/apache/beam/issues/Y)).
+* Flink 2.0 support for Java Classic and Portable Flink Runners ([#36947](https://github.com/apache/beam/issues/36947)),
+  experimental support for other SDK languages including Python.
+
 
 ## I/Os
 
-* Support for X source added (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
+* Add Datadog IO support (Java) ([#37318](https://github.com/apache/beam/issues/37318)).
+* Remove Pubsublite IO support, since service will be deprecated in March 2026. ([#37375](https://github.com/apache/beam/issues/37375)).
 
 ## New Features / Improvements
 
+* (Python) Added exception chaining to preserve error context in CloudSQLEnrichmentHandler, processes utilities, and core transforms ([#37422](https://github.com/apache/beam/issues/37422)).
 * X feature added (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
-* Python examples added for Milvus search enrichment handler on [Beam Website](https://beam.apache.org/documentation/transforms/python/elementwise/enrichment-milvus/)
-  including jupyter notebook example (Python) ([#36176](https://github.com/apache/beam/issues/36176)).
 
 ## Breaking Changes
 
@@ -83,15 +82,62 @@
 ## Deprecations
 
 * X behavior is deprecated and will be removed in X versions ([#X](https://github.com/apache/beam/issues/X)).
-* (Python) Python 3.9 reached EOL in October 2025 and support for the lanugage version has been removed. ([#36665](https://github.com/apache/beam/issues/36665)).
 
 ## Bugfixes
 
 * Fixed X (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
 
+## Security Fixes
+
+* Fixed [CVE-YYYY-NNNN](https://www.cve.org/CVERecord?id=CVE-YYYY-NNNN) (Java/Python/Go) ([#X](https://github.com/apache/beam/issues/X)).
+
 ## Known Issues
 
+[comment]: # ( When updating known issues after release, make sure also update website blog in website/www/site/content/blog.)
 * ([#X](https://github.com/apache/beam/issues/X)).
+
+# [2.71.0] - 2026-01-22
+
+## I/Os
+
+* (Java) Elasticsearch 9 Support ([#36491](https://github.com/apache/beam/issues/36491)).
+* (Java) Upgraded HCatalogIO to Hive 4.0.1 ([#32189](https://github.com/apache/beam/issues/32189)).
+
+## New Features / Improvements
+
+* Support configuring Firestore database on ReadFn transforms (Java) ([#36904](https://github.com/apache/beam/issues/36904)).
+* (Python) Inference args are now allowed in most model handlers, except where they are explicitly/intentionally disallowed ([#37093](https://github.com/apache/beam/issues/37093)).
+* (Python) Add support for EnvoyRateLimiter, to allow rate limiting in DoFns ([#37135](https://github.com/apache/beam/pull/37135)).
+* (Python) Add support for RateLimiting in Remote Model Handler ([#37218](https://github.com/apache/beam/pull/37218)).
+
+## Bugfixes
+
+* Fixed FirestoreV1 Beam connectors allow configuring inconsistent project/database IDs between RPC requests and routing headers #36895 (Java) ([#36895](https://github.com/apache/beam/issues/36895)).
+* Logical type and coder registry are saved for pipelines in the case of default pickler ([#36271](https://github.com/apache/beam/issues/36271)). This fixes a side effect of switching to cloudpickle as default pickler in Beam 2.65.0 (Python) ([#35738](https://github.com/apache/beam/issues/35738)).
+
+## Known Issues
+
+
+# [2.70.0] - 2025-12-16
+
+## Highlights
+
+* Flink 1.20 support added ([#32647](https://github.com/apache/beam/issues/32647)).
+
+## New Features / Improvements
+
+* Python examples added for Milvus search enrichment handler on [Beam Website](https://beam.apache.org/documentation/transforms/python/elementwise/enrichment-milvus/)
+  including jupyter notebook example (Python) ([#36176](https://github.com/apache/beam/issues/36176)).
+* Milvus sink I/O connector added (Python) ([#36702](https://github.com/apache/beam/issues/36702)).
+Now Beam has full support for Milvus integration including Milvus enrichment and sink operations.
+
+## Breaking Changes
+
+* (Python) Some Python dependencies have been split out into extras. To ensure all previously installed dependencies are installed, when installing Beam you can `pip install apache-beam[gcp,interactive,yaml,redis,hadoop,tfrecord]`, though most users will not need all of these extras ([#34554](https://github.com/apache/beam/issues/34554)).
+
+## Deprecations
+
+* (Python) Python 3.9 reached EOL in October 2025 and support for the language version has been removed. ([#36665](https://github.com/apache/beam/issues/36665)).
 
 # [2.69.0] - 2025-10-28
 
@@ -120,7 +166,7 @@
   - This change only affects pipelines that explicitly use the `pickle_library=dill` pipeline option.
   - While `dill==0.3.1.1` is still pre-installed on the official Beam SDK base images, it is no longer a direct dependency of the apache-beam Python package. This means it can be overridden by other dependencies in your environment.
   - If your pipeline uses `pickle_library=dill`, you must manually ensure `dill==0.3.1.1` is installed in both your submission and runtime environments.
-    - Submission environment: Install the dill extra in your local environment `pip install apache-beam[gcpdill]`.
+    - Submission environment: Install the dill extra in your local environment `pip install apache-beam[gcp,dill]`.
     - Runtime (worker) environment: Your action depends on how you manage your worker's environment.
       - If using default containers or custom containers with the official Beam base image e.g. `FROM apache/beam_python3.10_sdk:2.69.0`
         - Add `dill==0.3.1.1` to your worker's requirements file (e.g., requirements.txt)
@@ -134,6 +180,9 @@
 * (Python) The deterministic fallback coder for complex types like NamedTuple, Enum, and dataclasses now normalizes filepaths for better determinism guarantees. This affects streaming pipelines updating from 2.68 to 2.69 that utilize this fallback coder. If your pipeline is affected, you may see a warning like: "Using fallback deterministic coder for type X...". To update safely sepcify the pipeline option `--update_compatibility_version=2.68.0` ([#36345](https://github.com/apache/beam/pull/36345)).
 * (Python) Fixed transform naming conflict when executing DataTransform on a dictionary of PColls ([#30445](https://github.com/apache/beam/issues/30445)).
   This may break update compatibility if you don't provide a `--transform_name_mapping`.
+* (Python) Split some extras out from the core Beam package. ([#30445](https://github.com/apache/beam/issues/30445)).
+  - If you use Enrichment with redis, Hadoop FileSystem, TFRecord, or some other packages, you may need to install some extras.
+  - To retain identical behavior to before, instead of `pip install apache-beam`, use `pip install apache-beam[hadoop,gcp,interactive,redis,test,tfrecord]`.
 * Removed deprecated Hadoop versions (2.10.2 and 3.2.4) that are no longer supported for [Iceberg](https://github.com/apache/iceberg/issues/10940) from IcebergIO ([#36282](https://github.com/apache/beam/issues/36282)).
 * (Go) Coder construction on SDK side is more faithful to the specs from runners without stripping length-prefix. This may break streaming pipeline update as the underlying coder could be changed ([#36387](https://github.com/apache/beam/issues/36387)).
 * Minimum Go version for Beam Go updated to 1.25.2 ([#36461](https://github.com/apache/beam/issues/36461)).
@@ -152,7 +201,7 @@
 
 ## Highlights
 
-* [Python] Prism runner now enabled by default for most Python pipelines using the direct runner ([#34612](https://github.com/apache/beam/pull/34612)). This may break some tests, see https://github.com/apache/beam/pull/34612 for details on how to handle issues.
+* (Python) Prism runner now enabled by default for most Python pipelines using the direct runner ([#34612](https://github.com/apache/beam/pull/34612)). This may break some tests, see https://github.com/apache/beam/pull/34612 for details on how to handle issues.
 
 ## I/Os
 
@@ -168,7 +217,7 @@
   Beam now supports data enrichment capabilities using SQL databases, with built-in support for:
   - Managed PostgreSQL, MySQL, and Microsoft SQL Server instances on CloudSQL
   - Unmanaged SQL database instances not hosted on CloudSQL (e.g., self-hosted or on-premises databases)
-* [Python] Added the `ReactiveThrottler` and `ThrottlingSignaler` classes to streamline throttling behavior in DoFns, expose throttling mechanisms for users ([#35984](https://github.com/apache/beam/pull/35984))
+* (Python) Added the `ReactiveThrottler` and `ThrottlingSignaler` classes to streamline throttling behavior in DoFns, expose throttling mechanisms for users ([#35984](https://github.com/apache/beam/pull/35984))
 * Added a pipeline option to specify the processing timeout for a single element by any PTransform (Java/Python/Go) ([#35174](https://github.com/apache/beam/issues/35174)).
   - When specified, the SDK harness automatically restarts if an element takes too long to process. Beam runner may then retry processing of the same work item.
   - Use the `--element_processing_timeout_minutes` option to reduce the chance of having stalled pipelines due to unexpected cases of slow processing, where slowness might not happen again if processing of the same element is retried.

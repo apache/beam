@@ -113,10 +113,24 @@ if dataclasses is not None:
     a: Any
     b: int
 
+  @dataclasses.dataclass(frozen=True, kw_only=True)
+  class FrozenKwOnlyDataClass:
+    c: int
+    d: int
+
   @dataclasses.dataclass
   class UnFrozenDataClass:
     x: int
     y: int
+
+  @dataclasses.dataclass(frozen=True, kw_only=True)
+  class FrozenUnInitKwOnlyDataClass:
+    side: int
+    area: int = dataclasses.field(init=False)
+
+    def __post_init__(self):
+      # Hack to update an attribute in a frozen dataclass.
+      object.__setattr__(self, 'area', self.side**2)
 
 
 # These tests need to all be run in the same process due to the asserts
@@ -303,9 +317,13 @@ class CodersTest(unittest.TestCase):
 
     if dataclasses is not None:
       self.check_coder(deterministic_coder, FrozenDataClass(1, 2))
+      self.check_coder(deterministic_coder, FrozenKwOnlyDataClass(c=1, d=2))
+      self.check_coder(
+          deterministic_coder, FrozenUnInitKwOnlyDataClass(side=11))
 
       with self.assertRaises(TypeError):
         self.check_coder(deterministic_coder, UnFrozenDataClass(1, 2))
+
       with self.assertRaises(TypeError):
         self.check_coder(
             deterministic_coder, FrozenDataClass(UnFrozenDataClass(1, 2), 3))
@@ -742,6 +760,8 @@ class CodersTest(unittest.TestCase):
         from apache_beam.coders.coders_test_common import DefinesGetState
         from apache_beam.coders.coders_test_common import DefinesGetAndSetState
         from apache_beam.coders.coders_test_common import FrozenDataClass
+        from apache_beam.coders.coders_test_common import FrozenKwOnlyDataClass
+        from apache_beam.coders.coders_test_common import FrozenUnInitKwOnlyDataClass
 
 
         from apache_beam.coders import proto2_coder_test_messages_pb2 as test_message
@@ -777,6 +797,8 @@ class CodersTest(unittest.TestCase):
         test_cases.extend([
             ("frozen_dataclass", FrozenDataClass(1, 2)),
             ("frozen_dataclass_list", [FrozenDataClass(1, 2), FrozenDataClass(3, 4)]),
+            ("frozen_kwonly_dataclass", FrozenKwOnlyDataClass(c=1, d=2)),
+            ("frozen_kwonly_dataclass_list", [FrozenKwOnlyDataClass(c=1, d=2), FrozenUnInitKwOnlyDataClass(side=3)]),
         ])
 
         compat_version = {'"'+ compat_version +'"' if compat_version else None}
@@ -1059,6 +1081,20 @@ class CodersTest(unittest.TestCase):
     self.check_coder(test_coder, 's')
     self.check_coder(test_coder, 123)
     self.check_coder(test_coder, 1.5)
+
+  def test_OrderedUnionCoderDeterministic(self):
+    # CustomCoder is not deterministic therefore test_coder is not
+    # deterministic
+    test_coder = coders._OrderedUnionCoder((str, coders.StrUtf8Coder()),
+                                           (int, CustomCoder()),
+                                           fallback_coder=coders.FloatCoder())
+
+    self.assertFalse(test_coder.is_deterministic())
+
+    test_coder = coders._OrderedUnionCoder((str, coders.StrUtf8Coder()),
+                                           (int, coders.VarIntCoder()),
+                                           fallback_coder=coders.FloatCoder())
+    self.assertTrue(test_coder.is_deterministic())
 
 
 if __name__ == '__main__':

@@ -23,6 +23,7 @@ import com.google.protobuf.ByteString;
 import com.google.protobuf.Descriptors.Descriptor;
 import com.google.protobuf.Descriptors.FieldDescriptor;
 import com.google.protobuf.DynamicMessage;
+import com.google.protobuf.Int64Value;
 import java.math.BigDecimal;
 import java.nio.ByteBuffer;
 import java.time.Instant;
@@ -44,6 +45,7 @@ import org.apache.beam.sdk.schemas.Schema.LogicalType;
 import org.apache.beam.sdk.schemas.Schema.TypeName;
 import org.apache.beam.sdk.schemas.logicaltypes.EnumerationType;
 import org.apache.beam.sdk.schemas.logicaltypes.SqlTypes;
+import org.apache.beam.sdk.schemas.logicaltypes.Timestamp;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Functions;
@@ -235,6 +237,9 @@ public class BeamRowToStorageApiProto {
         TableFieldSchema elementFieldSchema =
             fieldDescriptorFromBeamField(Field.of(field.getName(), elementType));
         builder = builder.setType(elementFieldSchema.getType());
+        if (elementFieldSchema.hasTimestampPrecision()) {
+          builder = builder.setTimestampPrecision(elementFieldSchema.getTimestampPrecision());
+        }
         builder.addAllFields(elementFieldSchema.getFieldsList());
         builder = builder.setMode(TableFieldSchema.Mode.REPEATED);
         break;
@@ -243,9 +248,24 @@ public class BeamRowToStorageApiProto {
         if (logicalType == null) {
           throw new RuntimeException("Unexpected null logical type " + field.getType());
         }
-        @Nullable TableFieldSchema.Type type = LOGICAL_TYPES.get(logicalType.getIdentifier());
-        if (type == null) {
-          throw new RuntimeException("Unsupported logical type " + field.getType());
+        @Nullable TableFieldSchema.Type type;
+        if (logicalType.getIdentifier().equals(Timestamp.IDENTIFIER)) {
+          int precision =
+              Preconditions.checkNotNull(
+                  logicalType.getArgument(),
+                  "Expected logical type argument for timestamp precision.");
+          if (precision != 9) {
+            throw new RuntimeException(
+                "Unsupported precision for Timestamp logical type " + precision);
+          }
+          // Map Timestamp.NANOS logical type to BigQuery TIMESTAMP(12) for nanosecond precision
+          type = TableFieldSchema.Type.TIMESTAMP;
+          builder.setTimestampPrecision(Int64Value.newBuilder().setValue(12L).build());
+        } else {
+          type = LOGICAL_TYPES.get(logicalType.getIdentifier());
+          if (type == null) {
+            throw new RuntimeException("Unsupported logical type " + field.getType());
+          }
         }
         builder = builder.setType(type);
         break;
@@ -341,16 +361,38 @@ public class BeamRowToStorageApiProto {
                         fieldDescriptor.getMessageType(), keyType, valueType, entry))
             .collect(Collectors.toList());
       default:
-        return scalarToProtoValue(beamFieldType, value);
+        return scalarToProtoValue(fieldDescriptor, beamFieldType, value);
     }
   }
 
+  private static DynamicMessage buildTimestampPicosMessage(
+      Descriptor timestampPicosDescriptor, Instant instant) {
+    long seconds = instant.getEpochSecond();
+    long picoseconds = instant.getNano() * 1000L; // nanos → picos
+
+    return DynamicMessage.newBuilder(timestampPicosDescriptor)
+        .setField(
+            Preconditions.checkNotNull(timestampPicosDescriptor.findFieldByName("seconds")),
+            seconds)
+        .setField(
+            Preconditions.checkNotNull(timestampPicosDescriptor.findFieldByName("picoseconds")),
+            picoseconds)
+        .build();
+  }
+
   @VisibleForTesting
-  static Object scalarToProtoValue(FieldType beamFieldType, Object value) {
+  static Object scalarToProtoValue(
+      @Nullable FieldDescriptor fieldDescriptor, FieldType beamFieldType, Object value) {
     if (beamFieldType.getTypeName() == TypeName.LOGICAL_TYPE) {
       @Nullable LogicalType<?, ?> logicalType = beamFieldType.getLogicalType();
       if (logicalType == null) {
         throw new RuntimeException("Unexpectedly null logical type " + beamFieldType);
+      }
+      if (logicalType.getIdentifier().equals(Timestamp.IDENTIFIER)) {
+        Instant instant = (Instant) value;
+        Descriptor timestampPicosDescriptor =
+            Preconditions.checkNotNull(fieldDescriptor).getMessageType();
+        return buildTimestampPicosMessage(timestampPicosDescriptor, instant);
       }
       @Nullable
       BiFunction<LogicalType<?, ?>, Object, Object> logicalTypeEncoder =

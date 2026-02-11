@@ -96,7 +96,6 @@ import org.apache.beam.sdk.io.gcp.pubsub.PubsubMessageWithAttributesAndMessageId
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubMessageWithAttributesCoder;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubUnboundedSink;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubUnboundedSource;
-import org.apache.beam.sdk.io.gcp.pubsublite.internal.SubscribeTransform;
 import org.apache.beam.sdk.io.kafka.KafkaIO;
 import org.apache.beam.sdk.options.ExperimentalOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
@@ -659,12 +658,11 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
 
       try {
         overridesBuilder.add(KafkaIO.Read.KAFKA_READ_OVERRIDE);
+        overridesBuilder.add(KafkaIO.Read.KAFKA_REDISTRIBUTE_OVERRIDE);
       } catch (NoClassDefFoundError e) {
         // Do nothing. io-kafka is an optional dependency of runners-google-cloud-dataflow-java
         // and only needed when KafkaIO is used in the pipeline.
       }
-
-      overridesBuilder.add(SubscribeTransform.V1_READ_OVERRIDE);
 
       if (!hasExperiment(options, "enable_file_dynamic_sharding")) {
         overridesBuilder.add(

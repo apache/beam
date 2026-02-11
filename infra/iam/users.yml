@@ -12,7 +12,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-    
+
 # IAM policy for project apache-beam-testing
 # Generated on 2025-10-09 19:30:30 UTC
 
@@ -35,6 +35,7 @@
   email: abdelrahman.ibrahim@akvelon.us
   member_type: user
   permissions:
+  - role: roles/artifactregistry.admin
   - role: roles/bigquery.admin
   - role: roles/container.admin
   - role: roles/editor
@@ -212,6 +213,7 @@
   permissions:
   - role: roles/artifactregistry.createOnPushWriter
   - role: roles/artifactregistry.reader
+  - role: roles/artifactregistry.writer
   - role: roles/autoscaling.metricsWriter
   - role: roles/bigquery.dataEditor
   - role: roles/bigtable.admin
@@ -1234,3 +1236,9 @@
   member_type: user
   permissions:
   - role: roles/editor
+- username: yalah5084
+  email: yalahuangfeng@gmail.com
+  member_type: user
+  permissions:
+  - role: projects/apache-beam-testing/roles/beam_viewer
+  - role: projects/apache-beam-testing/roles/beam_writer

@@ -261,9 +261,7 @@ public class FakeDatasetService implements DatasetService, WriteStreamService, S
       Map<String, TableContainer> dataset =
           tables.get(tableRef.getProjectId(), tableRef.getDatasetId());
       if (dataset == null) {
-        throwNotFound(
-            "Tried to get a dataset %s:%s, but no such dataset was set",
-            tableRef.getProjectId(), tableRef.getDatasetId());
+        return null;
       }
       TableContainer tableContainer = dataset.get(tableRef.getTableId());
 

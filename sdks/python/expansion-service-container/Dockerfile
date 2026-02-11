@@ -62,7 +62,7 @@ COPY  target/go-licenses/* /opt/apache/beam/third_party_licenses/golang/
 
 COPY target/license_scripts /tmp/license_scripts/
 RUN if [ "$pull_licenses" = "true" ] ; then \
-      pip install 'pip-licenses<5' pyyaml tenacity && \
+      pip install 'pip-licenses<6' pyyaml tenacity && \
       python /tmp/license_scripts/pull_licenses_py.py ; \
     fi
 

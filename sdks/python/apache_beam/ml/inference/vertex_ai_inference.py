@@ -15,7 +15,9 @@
 # limitations under the License.
 #
 
+import json
 import logging
+from collections.abc import Callable
 from collections.abc import Iterable
 from collections.abc import Mapping
 from collections.abc import Sequence
@@ -63,10 +65,13 @@ class VertexAIModelHandlerJSON(RemoteModelHandler[Any,
       experiment: Optional[str] = None,
       network: Optional[str] = None,
       private: bool = False,
+      invoke_route: Optional[str] = None,
       *,
       min_batch_size: Optional[int] = None,
       max_batch_size: Optional[int] = None,
       max_batch_duration_secs: Optional[int] = None,
+      max_batch_weight: Optional[int] = None,
+      element_size_fn: Optional[Callable[[Any], int]] = None,
       **kwargs):
     """Implementation of the ModelHandler interface for Vertex AI.
     **NOTE:** This API and its implementation are under development and
@@ -95,21 +100,35 @@ class VertexAIModelHandlerJSON(RemoteModelHandler[Any,
       private: optional. if the deployed Vertex AI endpoint is
         private, set to true. Requires a network to be provided
         as well.
+      invoke_route: optional. the custom route path to use when invoking
+        endpoints with arbitrary prediction routes. When specified, uses
+        `Endpoint.invoke()` instead of `Endpoint.predict()`. The route
+        should start with a forward slash, e.g., "/predict/v1".
+        See https://cloud.google.com/vertex-ai/docs/predictions/use-arbitrary-custom-routes
+        for more information.
       min_batch_size: optional. the minimum batch size to use when batching
         inputs.
       max_batch_size: optional. the maximum batch size to use when batching
         inputs.
-      max_batch_duration_secs: optional. the maximum amount of time to buffer 
+      max_batch_duration_secs: optional. the maximum amount of time to buffer
         a batch before emitting; used in streaming contexts.
+      max_batch_weight: optional. the maximum total weight of a batch.
+      element_size_fn: optional. a function that returns the size (weight)
+        of an element.
     """
     self._batching_kwargs = {}
     self._env_vars = kwargs.get('env_vars', {})
+    self._invoke_route = invoke_route
     if min_batch_size is not None:
       self._batching_kwargs["min_batch_size"] = min_batch_size
     if max_batch_size is not None:
       self._batching_kwargs["max_batch_size"] = max_batch_size
     if max_batch_duration_secs is not None:
       self._batching_kwargs["max_batch_duration_secs"] = max_batch_duration_secs
+    if max_batch_weight is not None:
+      self._batching_kwargs["max_batch_weight"] = max_batch_weight
+    if element_size_fn is not None:
+      self._batching_kwargs['element_size_fn'] = element_size_fn
 
     if private and network is None:
       raise ValueError(
@@ -203,12 +222,66 @@ class VertexAIModelHandlerJSON(RemoteModelHandler[Any,
     Returns:
       An iterable of Predictions.
     """
-    prediction = model.predict(instances=list(batch), parameters=inference_args)
-    return utils._convert_to_result(
-        batch, prediction.predictions, prediction.deployed_model_id)
+    if self._invoke_route:
+      # Use invoke() for endpoints with custom prediction routes
+      request_body: dict[str, Any] = {"instances": list(batch)}
+      if inference_args:
+        request_body["parameters"] = inference_args
+      response = model.invoke(
+          request_path=self._invoke_route,
+          body=json.dumps(request_body).encode("utf-8"),
+          headers={"Content-Type": "application/json"})
+      if hasattr(response, "content"):
+        return self._parse_invoke_response(batch, response.content)
+      return self._parse_invoke_response(batch, bytes(response))
+    else:
+      prediction = model.predict(
+          instances=list(batch), parameters=inference_args)
+      return utils._convert_to_result(
+          batch, prediction.predictions, prediction.deployed_model_id)
 
-  def validate_inference_args(self, inference_args: Optional[dict[str, Any]]):
-    pass
+  def _parse_invoke_response(self, batch: Sequence[Any],
+                             response: bytes) -> Iterable[PredictionResult]:
+    """Parses the response from Endpoint.invoke() into PredictionResults.
+
+    Args:
+      batch: the original batch of inputs.
+      response: the raw bytes response from invoke().
+
+    Returns:
+      An iterable of PredictionResults.
+    """
+    try:
+      response_json = json.loads(response.decode("utf-8"))
+    except (json.JSONDecodeError, UnicodeDecodeError) as e:
+      LOGGER.warning(
+          "Failed to decode invoke response as JSON, returning raw bytes: %s",
+          e)
+      # Return raw response for each batch item
+      return [
+          PredictionResult(example=example, inference=response)
+          for example in batch
+      ]
+
+    # Handle standard Vertex AI response format with "predictions" key
+    if isinstance(response_json, dict) and "predictions" in response_json:
+      predictions = response_json["predictions"]
+      model_id = response_json.get("deployedModelId")
+      return utils._convert_to_result(batch, predictions, model_id)
+
+    # Handle response as a list of predictions (one per input)
+    if isinstance(response_json, list) and len(response_json) == len(batch):
+      return utils._convert_to_result(batch, response_json, None)
+
+    # Handle single prediction response
+    if len(batch) == 1:
+      return [PredictionResult(example=batch[0], inference=response_json)]
+
+    # Fallback: return the full response for each batch item
+    return [
+        PredictionResult(example=example, inference=response_json)
+        for example in batch
+    ]
 
   def batch_elements_kwargs(self) -> Mapping[str, Any]:
     return self._batching_kwargs

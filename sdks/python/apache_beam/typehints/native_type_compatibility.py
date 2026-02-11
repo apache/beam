@@ -22,6 +22,7 @@
 import collections
 import collections.abc
 import logging
+import sys
 import types
 import typing
 from typing import Generic
@@ -94,7 +95,7 @@ def _get_args(typ):
     A tuple of args.
   """
   try:
-    if typ.__args__ is None:
+    if typ.__args__ is None or not isinstance(typ.__args__, tuple):
       return ()
     return typ.__args__
   except AttributeError:

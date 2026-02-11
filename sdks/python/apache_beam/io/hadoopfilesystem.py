@@ -26,8 +26,6 @@ import posixpath
 import re
 from typing import BinaryIO  # pylint: disable=unused-import
 
-import hdfs
-
 from apache_beam.io import filesystemio
 from apache_beam.io.filesystem import BeamIOError
 from apache_beam.io.filesystem import CompressedFile
@@ -36,6 +34,11 @@ from apache_beam.io.filesystem import FileMetadata
 from apache_beam.io.filesystem import FileSystem
 from apache_beam.options.pipeline_options import HadoopFileSystemOptions
 from apache_beam.options.pipeline_options import PipelineOptions
+
+try:
+  import hdfs
+except ImportError:
+  hdfs = None
 
 __all__ = ['HadoopFileSystem']
 
@@ -108,6 +111,10 @@ class HadoopFileSystem(FileSystem):
     See :class:`~apache_beam.options.pipeline_options.HadoopFileSystemOptions`.
     """
     super().__init__(pipeline_options)
+    if hdfs is None:
+      raise ImportError(
+          'Failed to import hdfs. You can ensure it is '
+          'installed by installing the hadoop beam extra')
     logging.getLogger('hdfs.client').setLevel(logging.WARN)
     if pipeline_options is None:
       raise ValueError('pipeline_options is not set')

@@ -22,6 +22,7 @@ from typing import Dict
 from typing import List
 from typing import Literal
 from typing import Optional
+from typing import Tuple
 from typing import Type
 from typing import Union
 
@@ -309,6 +310,42 @@ class ColumnSpecsBuilder:
 
     self._specs.append(
         ColumnSpec.vector(column_name=column_name, value_fn=value_fn))
+    return self
+
+  def with_sparse_embedding_spec(
+      self,
+      column_name: str = "sparse_embedding",
+      conv_fn: Optional[Callable[[Tuple[List[int], List[float]]], Any]] = None
+  ) -> 'ColumnSpecsBuilder':
+    """Add sparse embedding :class:`.ColumnSpec` with optional conversion.
+
+      Args:
+          column_name: Name for the sparse embedding column
+            (defaults to "sparse_embedding")
+          conv_fn: Optional function to convert the sparse embedding tuple
+                      If None, converts to PostgreSQL-compatible JSON format
+
+      Returns:
+          Self for method chaining
+
+      Example:
+          >>> builder.with_sparse_embedding_spec(
+          ...     column_name="sparse_vector",
+          ...     convert_fn=lambda sparse: dict(zip(sparse[0], sparse[1]))
+          ... )
+      """
+    def value_fn(chunk: Chunk) -> Any:
+      if chunk.embedding is None or chunk.embedding.sparse_embedding is None:
+        raise ValueError(f'Expected chunk to contain sparse embedding. {chunk}')
+      sparse_embedding = chunk.embedding.sparse_embedding
+      if conv_fn:
+        return conv_fn(sparse_embedding)
+      # Default: convert to dict format for JSON storage.
+      indices, values = sparse_embedding
+      return json.dumps(dict(zip(indices, values)))
+
+    self._specs.append(
+        ColumnSpec.jsonb(column_name=column_name, value_fn=value_fn))
     return self
 
   def add_metadata_field(

@@ -145,7 +145,7 @@ if sys.platform == 'win32' and sys.maxsize <= 2**32:
   pyarrow_dependency = ['']
 else:
   pyarrow_dependency = [
-      'pyarrow>=3.0.0,<19.0.0',
+      'pyarrow>=6.0.1,<24.0.0',
       # NOTE(https://github.com/apache/beam/issues/29392): We can remove this
       # once Beam increases the pyarrow lower bound to a version that fixes CVE.
       # (lower bound >= 14.0.1)
@@ -374,17 +374,20 @@ if __name__ == '__main__':
       ext_modules=extensions,
       install_requires=[
           'cryptography>=39.0.0,<48.0.0',
+          # reconcile envoy-data-plane dependency for python < 3.12 and >= 3.13
+          # when grpcio unpinned, check for protobuf version compatibility
+          'envoy-data-plane>=1.0.3,<2; python_version >= "3.13"',
+          'envoy-data-plane<0.3.0; python_version < "3.13"',
           'fastavro>=0.23.6,<2',
           'fasteners>=0.3,<1.0',
           # TODO(https://github.com/grpc/grpc/issues/37710): Unpin grpc
           'grpcio>=1.33.1,<2,!=1.48.0,!=1.59.*,!=1.60.*,!=1.61.*,!=1.62.0,!=1.62.1,<1.66.0; python_version <= "3.12"',  # pylint: disable=line-too-long
           'grpcio>=1.67.0; python_version >= "3.13"',
-          'hdfs>=2.1.0,<3.0.0',
-          'httplib2>=0.8,<0.23.0',
+          'httplib2>=0.8,<0.32.0',
           'jsonpickle>=3.0.0,<4.0.0',
           # numpy can have breaking changes in minor versions.
           # Use a strict upper bound.
-          'numpy>=1.14.3,<2.3.0',  # Update pyproject.toml as well.
+          'numpy>=1.14.3,<2.5.0',  # Update pyproject.toml as well.
           'objsize>=0.6.1,<0.8.0',
           'packaging>=22.0',
           'pymongo>=3.8.0,<5.0.0',
@@ -402,13 +405,12 @@ if __name__ == '__main__':
           'protobuf>=3.20.3,<7.0.0.dev0,!=4.0.*,!=4.21.*,!=4.22.0,!=4.23.*,!=4.24.*',  # pylint: disable=line-too-long
           'python-dateutil>=2.8.0,<3',
           'pytz>=2018.3',
-          'redis>=5.0.0,<6',
           'requests>=2.32.4,<3.0.0',
           'sortedcontainers>=2.4.0',
           'typing-extensions>=3.7.0',
           'zstandard>=0.18.0,<1',
           'pyyaml>=3.12,<7.0.0',
-          'beartype>=0.21.0,<0.22.0',
+          'beartype>=0.21.0,<0.23.0',
           # Dynamic dependencies must be specified in a separate list, otherwise
           # Dependabot won't be able to parse the main list. Any dynamic
           # dependencies will not receive updates from Dependabot.
@@ -450,12 +452,14 @@ if __name__ == '__main__':
               'pytest>=7.1.2,<9.0',
               'pytest-xdist>=2.5.0,<4',
               'pytest-timeout>=2.1.0,<3',
-              'scikit-learn>=0.20.0',
+              'scikit-learn>=0.20.0,<1.8.0',
               'sqlalchemy>=1.3,<3.0',
               'psycopg2-binary>=2.8.5,<3.0',
               'testcontainers[mysql,kafka,milvus]>=4.0.0,<5.0.0',
               'cryptography>=41.0.2',
-              'hypothesis>5.0.0,<7.0.0',
+              # TODO(https://github.com/apache/beam/issues/36951): need to
+              # further investigate the cause
+              'hypothesis>5.0.0,<6.148.4',
               'virtualenv-clone>=0.5,<1.0',
               'python-tds>=1.16.1',
               'sqlalchemy-pytds>=1.0.2',
@@ -475,16 +479,17 @@ if __name__ == '__main__':
               'google-auth-httplib2>=0.1.0,<0.3.0',
               'google-cloud-datastore>=2.0.0,<3',
               'google-cloud-pubsub>=2.1.0,<3',
-              'google-cloud-pubsublite>=1.2.0,<2',
               'google-cloud-storage>=2.18.2,<3',
               # GCP packages required by tests
               'google-cloud-bigquery>=2.0.0,<4',
               'google-cloud-bigquery-storage>=2.6.3,<3',
               'google-cloud-core>=2.0.0,<3',
               'google-cloud-bigtable>=2.19.0,<3',
+              'google-cloud-build>=3.35.0,<4',
               'google-cloud-spanner>=3.0.0,<4',
               # GCP Packages required by ML functionality
               'google-cloud-dlp>=3.0.0,<4',
+              'google-cloud-kms>=3.0.0,<4',
               'google-cloud-language>=2.0,<3',
               'google-cloud-secret-manager>=2.0,<3',
               'google-cloud-videointelligence>=2.0,<3',
@@ -564,6 +569,7 @@ if __name__ == '__main__':
               # `--update` / `-U` flag to replace the dask release brought in
               # by distributed.
           ],
+          'hadoop': ['hdfs>=2.1.0,<3.0.0'],
           'yaml': [
               'docstring-parser>=0.15,<1.0',
               'jinja2>=3.0,<3.2',
@@ -588,6 +594,7 @@ if __name__ == '__main__':
               'torch==2.8.0+cpu',
               'transformers>=4.28.0,<4.56.0'
           ],
+          'redis': ['redis>=5.0.0,<6'],
           'tft': [
               'tensorflow_transform>=1.14.0,<1.15.0'
               # tensorflow-transform requires dill, but doesn't set dill as a

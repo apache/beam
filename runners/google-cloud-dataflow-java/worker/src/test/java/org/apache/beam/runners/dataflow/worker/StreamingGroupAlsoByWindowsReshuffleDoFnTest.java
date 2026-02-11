@@ -35,6 +35,7 @@ import org.apache.beam.runners.dataflow.worker.util.ListOutputManager;
 import org.apache.beam.runners.dataflow.worker.util.ValueInEmptyWindows;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.InputMessageBundle;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.WorkItem;
+import org.apache.beam.runners.dataflow.worker.windmill.state.WindmillTagEncodingV1;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.Coder.Context;
 import org.apache.beam.sdk.coders.CollectionCoder;
@@ -132,7 +133,13 @@ public class StreamingGroupAlsoByWindowsReshuffleDoFnTest {
     return new ValueInEmptyWindows<>(
         (KeyedWorkItem<String, T>)
             new WindmillKeyedWorkItem<>(
-                KEY, workItem.build(), windowCoder, wildcardWindowsCoder, valueCoder));
+                KEY,
+                workItem.build(),
+                windowCoder,
+                wildcardWindowsCoder,
+                valueCoder,
+                WindmillTagEncodingV1.instance(),
+                false));
   }
 
   @Test

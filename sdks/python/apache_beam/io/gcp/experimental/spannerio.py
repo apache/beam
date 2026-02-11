@@ -196,7 +196,6 @@ from apache_beam.utils.annotations import deprecated
 # pylint: disable=wrong-import-order, wrong-import-position, ungrouped-imports
 # pylint: disable=unused-import
 try:
-  from apitools.base.py.exceptions import HttpError
   from google.api_core.exceptions import ClientError
   from google.api_core.exceptions import GoogleAPICallError
   from google.cloud.spanner import Client
@@ -437,9 +436,6 @@ class _NaiveSpannerReadDoFn(DoFn):
       except (ClientError, GoogleAPICallError) as e:
         metric_action(metric_id, e.code.value)
         raise
-      except HttpError as e:
-        metric_action(metric_id, e)
-        raise
 
 
 @with_input_types(ReadOperation)
@@ -667,9 +663,6 @@ class _ReadFromPartitionFn(DoFn):
       self.service_metric.call('ok')
     except (ClientError, GoogleAPICallError) as e:
       self.service_metric(str(e.code.value))
-      raise
-    except HttpError as e:
-      self.service_metric(str(e))
       raise
 
   def teardown(self):
@@ -1270,10 +1263,6 @@ class _WriteToSpannerDoFn(DoFn):
     except (ClientError, GoogleAPICallError) as e:
       for service_metric in self.service_metrics.values():
         service_metric.call(str(e.code.value))
-      raise
-    except HttpError as e:
-      for service_metric in self.service_metrics.values():
-        service_metric.call(str(e))
       raise
     else:
       for service_metric in self.service_metrics.values():
