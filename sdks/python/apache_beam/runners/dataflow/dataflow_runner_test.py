@@ -269,8 +269,9 @@ class DataflowRunnerTest(unittest.TestCase, ExtraAssertionsMixin):
         (values_enum.JOB_STATE_DRAINED, PipelineState.DRAINED),
         (values_enum.JOB_STATE_PENDING, PipelineState.PENDING),
         (values_enum.JOB_STATE_CANCELLING, PipelineState.CANCELLING),
-        (values_enum.JOB_STATE_RESOURCE_CLEANING_UP,
-         PipelineState.RESOURCE_CLEANING_UP),
+        (
+            values_enum.JOB_STATE_RESOURCE_CLEANING_UP,
+            PipelineState.RESOURCE_CLEANING_UP),
         (values_enum.JOB_STATE_PAUSING, PipelineState.PAUSING),
         (values_enum.JOB_STATE_PAUSED, PipelineState.PAUSED),
     ]
