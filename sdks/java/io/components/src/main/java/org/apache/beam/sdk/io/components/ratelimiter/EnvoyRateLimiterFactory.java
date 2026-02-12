@@ -217,7 +217,7 @@ public class EnvoyRateLimiterFactory implements RateLimiterFactory {
         long jitter =
             (long)
                 (java.util.concurrent.ThreadLocalRandom.current().nextDouble()
-                    * (0.01 * sleepMillis));
+                    * (0.1 * sleepMillis));
         sleepMillis += jitter;
 
         LOG.warn("Throttled by RLS, sleeping for {} ms", sleepMillis);
