@@ -37,6 +37,8 @@ import org.slf4j.LoggerFactory;
 public class RateLimiterClientCache {
   private static final Logger LOG = LoggerFactory.getLogger(RateLimiterClientCache.class);
   private static final Map<String, RateLimiterClientCache> CACHE = new ConcurrentHashMap<>();
+  private static final int KEEP_ALIVE_TIME_SECONDS = 60;
+  private static final int KEEP_ALIVE_TIMEOUT_SECONDS = 15;
 
   private final ManagedChannel channel;
   private final String address;
@@ -45,7 +47,13 @@ public class RateLimiterClientCache {
   private RateLimiterClientCache(String address) {
     this.address = address;
     LOG.info("Creating new ManagedChannel for RLS at {}", address);
-    this.channel = ManagedChannelBuilder.forTarget(address).usePlaintext().build();
+    this.channel =
+        ManagedChannelBuilder.forTarget(address)
+            .usePlaintext()
+            .keepAliveTime(KEEP_ALIVE_TIME_SECONDS, TimeUnit.SECONDS)
+            .keepAliveTimeout(KEEP_ALIVE_TIMEOUT_SECONDS, TimeUnit.SECONDS)
+            .keepAliveWithoutCalls(true)
+            .build();
   }
 
   /**
