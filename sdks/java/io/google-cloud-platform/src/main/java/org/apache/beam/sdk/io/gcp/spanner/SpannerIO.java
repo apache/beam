@@ -537,6 +537,8 @@ public class SpannerIO {
         .setRpcPriority(DEFAULT_RPC_PRIORITY)
         .setInclusiveStartAt(DEFAULT_INCLUSIVE_START_AT)
         .setInclusiveEndAt(DEFAULT_INCLUSIVE_END_AT)
+        .setCdcTimeIncrement(Duration.standardMinutes(2))
+        .setHeartbeatMillis(2000)
         .build();
   }
 
@@ -1761,6 +1763,10 @@ public class SpannerIO {
 
     abstract @Nullable ValueProvider<Boolean> getPlainText();
 
+    abstract Duration getCdcTimeIncrement();
+
+    abstract Integer getHeartbeatMillis();
+
     abstract Builder toBuilder();
 
     @AutoValue.Builder
@@ -1789,6 +1795,17 @@ public class SpannerIO {
       abstract Builder setExperimentalHost(ValueProvider<String> experimentalHost);
 
       abstract Builder setPlainText(ValueProvider<Boolean> plainText);
+
+      abstract Builder setCdcTimeIncrement(Duration cdcTimeIncrement);
+
+      /**
+       * Heartbeat interval for all change stream queries.
+       *
+       * <p>Be careful when changing this interval, as it needs to be less than the checkpointing
+       * interval in Dataflow. Otherwise, if there are no records within checkpoint intervals, the
+       * consuming of a change stream query might get stuck.
+       */
+      abstract Builder setHeartbeatMillis(Integer heartbeatMillis);
 
       abstract ReadChangeStream build();
     }
@@ -1912,6 +1929,13 @@ public class SpannerIO {
       return withUsingPlainTextChannel(ValueProvider.StaticValueProvider.of(plainText));
     }
 
+    public ReadChangeStream withLowLatency() {
+      return toBuilder()
+          .setCdcTimeIncrement(Duration.standardSeconds(1))
+          .setHeartbeatMillis(100)
+          .build();
+    }
+
     @Override
     public PCollection<DataChangeRecord> expand(PBegin input) {
       checkArgument(
@@ -2018,13 +2042,19 @@ public class SpannerIO {
           MoreObjects.firstNonNull(getWatermarkRefreshRate(), DEFAULT_WATERMARK_REFRESH_RATE);
       final CacheFactory cacheFactory = new CacheFactory(daoFactory, watermarkRefreshRate);
 
+      final long heartbeatMillis = getHeartbeatMillis().longValue();
+
       final InitializeDoFn initializeDoFn =
-          new InitializeDoFn(daoFactory, mapperFactory, startTimestamp, endTimestamp);
+          new InitializeDoFn(
+              daoFactory, mapperFactory, startTimestamp, endTimestamp, heartbeatMillis);
       final DetectNewPartitionsDoFn detectNewPartitionsDoFn =
           new DetectNewPartitionsDoFn(
               daoFactory, mapperFactory, actionFactory, cacheFactory, metrics);
+      final Duration cdcTimeIncrement = getCdcTimeIncrement();
+
       final ReadChangeStreamPartitionDoFn readChangeStreamPartitionDoFn =
-          new ReadChangeStreamPartitionDoFn(daoFactory, mapperFactory, actionFactory, metrics);
+          new ReadChangeStreamPartitionDoFn(
+              daoFactory, mapperFactory, actionFactory, metrics, cdcTimeIncrement);
       final PostProcessingMetricsDoFn postProcessingMetricsDoFn =
           new PostProcessingMetricsDoFn(metrics);
 

@@ -96,6 +96,6 @@ public class HeartbeatRecordAction {
     watermarkEstimator.setWatermark(timestampInstant);
 
     LOG.debug("[{}] Heartbeat record action completed successfully", token);
-    return Optional.empty();
+    return Optional.of(ProcessContinuation.resume());
   }
 }

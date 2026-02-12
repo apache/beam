@@ -53,11 +53,16 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * A SDF (Splittable DoFn) class which is responsible for performing a change stream query for a
- * given partition. A different action will be taken depending on the type of record received from
- * the query. This component will also reflect the partition state in the partition metadata tables.
+ * A SDF (Splittable DoFn) class which is responsible for performing a change
+ * stream query for a
+ * given partition. A different action will be taken depending on the type of
+ * record received from
+ * the query. This component will also reflect the partition state in the
+ * partition metadata tables.
  *
- * <p>The processing of a partition is delegated to the {@link QueryChangeStreamAction}.
+ * <p>
+ * The processing of a partition is delegated to the
+ * {@link QueryChangeStreamAction}.
  */
 // Allows for transient QueryChangeStreamAction
 @SuppressWarnings("initialization.fields.uninitialized")
@@ -76,36 +81,47 @@ public class ReadChangeStreamPartitionDoFn extends DoFn<PartitionMetadata, DataC
   private final boolean isMutableChangeStream;
   /**
    * Needs to be set through the {@link
-   * ReadChangeStreamPartitionDoFn#setThroughputEstimator(BytesThroughputEstimator)} call.
+   * ReadChangeStreamPartitionDoFn#setThroughputEstimator(BytesThroughputEstimator)}
+   * call.
    */
   private ThroughputEstimator<DataChangeRecord> throughputEstimator;
+
+  private final Duration cdcTimeIncrement;
 
   private transient QueryChangeStreamAction queryChangeStreamAction;
 
   /**
-   * This class needs a {@link DaoFactory} to build DAOs to access the partition metadata tables and
-   * to perform the change streams query. It uses mappers to transform database rows into the {@link
-   * org.apache.beam.sdk.io.gcp.spanner.changestreams.model.ChangeStreamRecord} model. It uses the
-   * {@link ActionFactory} to construct the action dispatchers, which will perform the change stream
-   * query and process each type of record received. It emits metrics for the partition using the
+   * This class needs a {@link DaoFactory} to build DAOs to access the partition
+   * metadata tables and
+   * to perform the change streams query. It uses mappers to transform database
+   * rows into the {@link
+   * org.apache.beam.sdk.io.gcp.spanner.changestreams.model.ChangeStreamRecord}
+   * model. It uses the
+   * {@link ActionFactory} to construct the action dispatchers, which will perform
+   * the change stream
+   * query and process each type of record received. It emits metrics for the
+   * partition using the
    * {@link ChangeStreamMetrics}.
    *
-   * @param daoFactory the {@link DaoFactory} to construct {@link PartitionMetadataDao}s and {@link
-   *     ChangeStreamDao}s
-   * @param mapperFactory the {@link MapperFactory} to construct {@link ChangeStreamRecordMapper}s
-   * @param actionFactory the {@link ActionFactory} to construct actions
-   * @param metrics the {@link ChangeStreamMetrics} to emit partition related metrics
+   * @param daoFactory       the {@link DaoFactory} to construct
+   *                         {@link PartitionMetadataDao}s and {@link
+   *                         ChangeStreamDao}s
+   * @param mapperFactory    the {@link MapperFactory} to construct
+   *                         {@link ChangeStreamRecordMapper}s
+   * @param actionFactory    the {@link ActionFactory} to construct actions
+   * @param metrics          the {@link ChangeStreamMetrics} to emit partition
+   *                         related metrics
+   * @param cdcTimeIncrement duration to be used for the next end timestamp
    */
   public ReadChangeStreamPartitionDoFn(
       DaoFactory daoFactory,
       MapperFactory mapperFactory,
       ActionFactory actionFactory,
-      ChangeStreamMetrics metrics) {
-    this.daoFactory = daoFactory;
+      Duration cdcTimeIncrement) {
     this.mapperFactory = mapperFactory;
-    this.actionFactory = actionFactory;
     this.metrics = metrics;
     this.isMutableChangeStream = daoFactory.isMutableChangeStream();
+    this.cdcTimeIncrement = cdcTimeIncrement;
     this.throughputEstimator = new NullThroughputEstimator<>();
   }
 
@@ -121,28 +137,31 @@ public class ReadChangeStreamPartitionDoFn extends DoFn<PartitionMetadata, DataC
   }
 
   /**
-   * The restriction for a partition will be defined from the start and end timestamp to query the
-   * partition for. The {@link TimestampRange} restriction represents a closed-open interval, while
-   * the start / end timestamps represent a closed-closed interval, so we add 1 nanosecond to the
+   * The restriction for a partition will be defined from the start and end
+   * timestamp to query the
+   * partition for. The {@link TimestampRange} restriction represents a
+   * closed-open interval, while
+   * the start / end timestamps represent a closed-closed interval, so we add 1
+   * nanosecond to the
    * end timestamp to convert it to closed-open.
    *
-   * <p>In this function we also update the partition state to {@link
+   * <p>
+   * In this function we also update the partition state to {@link
    * PartitionMetadata.State#RUNNING}.
    *
    * @param partition the partition to be queried
-   * @return the timestamp range from the partition start timestamp to the partition end timestamp +
-   *     1 nanosecond
+   * @return the timestamp range from the partition start timestamp to the
+   *         partition end timestamp +
+   *         1 nanosecond
    */
   @GetInitialRestriction
   public TimestampRange initialRestriction(@Element PartitionMetadata partition) {
     final String token = partition.getPartitionToken();
     final com.google.cloud.Timestamp startTimestamp = partition.getStartTimestamp();
     // Range represents closed-open interval
-    final com.google.cloud.Timestamp endTimestamp =
-        TimestampUtils.next(partition.getEndTimestamp());
+    final com.google.cloud.Timestamp endTimestamp = TimestampUtils.next(partition.getEndTimestamp());
     final com.google.cloud.Timestamp partitionScheduledAt = partition.getScheduledAt();
-    final com.google.cloud.Timestamp partitionRunningAt =
-        daoFactory.getPartitionMetadataDao().updateToRunning(token);
+    final com.google.cloud.Timestamp partitionRunningAt = daoFactory.getPartitionMetadataDao().updateToRunning(token);
 
     if (partitionScheduledAt != null && partitionRunningAt != null) {
       metrics.updatePartitionScheduledToRunning(
@@ -158,15 +177,14 @@ public class ReadChangeStreamPartitionDoFn extends DoFn<PartitionMetadata, DataC
   @GetSize
   public double getSize(@Element PartitionMetadata partition, @Restriction TimestampRange range)
       throws Exception {
-    final BigDecimal timeGapInSeconds =
-        BigDecimal.valueOf(newTracker(partition, range).getProgress().getWorkRemaining());
+    final BigDecimal timeGapInSeconds = BigDecimal
+        .valueOf(newTracker(partition, range).getProgress().getWorkRemaining());
     final BigDecimal throughput = BigDecimal.valueOf(this.throughputEstimator.get());
-    final double size =
-        timeGapInSeconds
-            .multiply(throughput)
-            // Cap it at Double.MAX_VALUE to avoid an overflow.
-            .min(MAX_DOUBLE)
-            .doubleValue();
+    final double size = timeGapInSeconds
+        .multiply(throughput)
+        // Cap it at Double.MAX_VALUE to avoid an overflow.
+        .min(MAX_DOUBLE)
+        .doubleValue();
     LOG.debug(
         "getSize() = {} ({} timeGapInSeconds * {} throughput)", size, timeGapInSeconds, throughput);
     return size;
@@ -179,8 +197,10 @@ public class ReadChangeStreamPartitionDoFn extends DoFn<PartitionMetadata, DataC
   }
 
   /**
-   * Constructs instances for the {@link PartitionMetadataDao}, {@link ChangeStreamDao}, {@link
-   * ChangeStreamRecordMapper}, {@link PartitionMetadataMapper}, {@link DataChangeRecordAction},
+   * Constructs instances for the {@link PartitionMetadataDao},
+   * {@link ChangeStreamDao}, {@link
+   * ChangeStreamRecordMapper}, {@link PartitionMetadataMapper},
+   * {@link DataChangeRecordAction},
    * {@link HeartbeatRecordAction}, {@link ChildPartitionsRecordAction}, {@link
    * PartitionStartRecordAction}, {@link PartitionEndRecordAction}, {@link
    * PartitionEventRecordAction} and {@link QueryChangeStreamAction}.
@@ -189,52 +209,56 @@ public class ReadChangeStreamPartitionDoFn extends DoFn<PartitionMetadata, DataC
   public void setup() {
     final PartitionMetadataDao partitionMetadataDao = daoFactory.getPartitionMetadataDao();
     final ChangeStreamDao changeStreamDao = daoFactory.getChangeStreamDao();
-    final ChangeStreamRecordMapper changeStreamRecordMapper =
-        mapperFactory.changeStreamRecordMapper();
+    final ChangeStreamRecordMapper changeStreamRecordMapper = mapperFactory.changeStreamRecordMapper();
     final PartitionMetadataMapper partitionMetadataMapper = mapperFactory.partitionMetadataMapper();
-    final DataChangeRecordAction dataChangeRecordAction =
-        actionFactory.dataChangeRecordAction(throughputEstimator);
-    final HeartbeatRecordAction heartbeatRecordAction =
-        actionFactory.heartbeatRecordAction(metrics);
-    final ChildPartitionsRecordAction childPartitionsRecordAction =
-        actionFactory.childPartitionsRecordAction(partitionMetadataDao, metrics);
-    final PartitionStartRecordAction partitionStartRecordAction =
-        actionFactory.partitionStartRecordAction(partitionMetadataDao, metrics);
-    final PartitionEndRecordAction partitionEndRecordAction =
-        actionFactory.partitionEndRecordAction(partitionMetadataDao, metrics);
-    final PartitionEventRecordAction partitionEventRecordAction =
-        actionFactory.partitionEventRecordAction(partitionMetadataDao, metrics);
+    final DataChangeRecordAction dataChangeRecordAction = actionFactory.dataChangeRecordAction(throughputEstimator);
+    final HeartbeatRecordAction heartbeatRecordAction = actionFactory.heartbeatRecordAction(metrics);
+    final ChildPartitionsRecordAction childPartitionsRecordAction = actionFactory
+        .childPartitionsRecordAction(partitionMetadataDao, metrics);
+    final PartitionStartRecordAction partitionStartRecordAction = actionFactory
+        .partitionStartRecordAction(partitionMetadataDao, metrics);
+    final PartitionEndRecordAction partitionEndRecordAction = actionFactory
+        .partitionEndRecordAction(partitionMetadataDao, metrics);
+    final PartitionEventRecordAction partitionEventRecordAction = actionFactory
+        .partitionEventRecordAction(partitionMetadataDao, metrics);
 
-    this.queryChangeStreamAction =
-        actionFactory.queryChangeStreamAction(
-            changeStreamDao,
-            partitionMetadataDao,
-            changeStreamRecordMapper,
-            partitionMetadataMapper,
-            dataChangeRecordAction,
-            heartbeatRecordAction,
-            childPartitionsRecordAction,
-            partitionStartRecordAction,
-            partitionEndRecordAction,
-            partitionEventRecordAction,
-            metrics,
-            isMutableChangeStream);
+    this.queryChangeStreamAction = actionFactory.queryChangeStreamAction(
+        changeStreamDao,
+        partitionMetadataDao,
+        changeStreamRecordMapper,
+        partitionMetadataMapper,
+        dataChangeRecordAction,
+        heartbeatRecordAction,
+        childPartitionsRecordAction,
+        partitionStartRecordAction,
+        partitionEndRecordAction,
+        partitionEventRecordAction,
+        metrics,
+        isMutableChangeStream,
+        cdcTimeIncrement);
   }
 
   /**
-   * Performs a change stream query for a given partition. A different action will be taken
-   * depending on the type of record received from the query. This component will also reflect the
+   * Performs a change stream query for a given partition. A different action will
+   * be taken
+   * depending on the type of record received from the query. This component will
+   * also reflect the
    * partition state in the partition metadata tables.
    *
-   * <p>The processing of a partition is delegated to the {@link QueryChangeStreamAction}.
+   * <p>
+   * The processing of a partition is delegated to the
+   * {@link QueryChangeStreamAction}.
    *
-   * @param partition the partition to be queried
-   * @param tracker an instance of {@link ReadChangeStreamPartitionRangeTracker}
-   * @param receiver a {@link DataChangeRecord} {@link OutputReceiver}
-   * @param watermarkEstimator a {@link ManualWatermarkEstimator} of {@link Instant}
-   * @param bundleFinalizer the bundle finalizer
-   * @return a {@link ProcessContinuation#stop()} if a record timestamp could not be claimed or if
-   *     the partition processing has finished
+   * @param partition          the partition to be queried
+   * @param tracker            an instance of
+   *                           {@link ReadChangeStreamPartitionRangeTracker}
+   * @param receiver           a {@link DataChangeRecord} {@link OutputReceiver}
+   * @param watermarkEstimator a {@link ManualWatermarkEstimator} of
+   *                           {@link Instant}
+   * @param bundleFinalizer    the bundle finalizer
+   * @return a {@link ProcessContinuation#stop()} if a record timestamp could not
+   *         be claimed or if
+   *         the partition processing has finished
    */
   @ProcessElement
   public ProcessContinuation processElement(
@@ -253,7 +277,8 @@ public class ReadChangeStreamPartitionDoFn extends DoFn<PartitionMetadata, DataC
   }
 
   /**
-   * Sets the estimator to calculate the backlog of this function. Must be called after the
+   * Sets the estimator to calculate the backlog of this function. Must be called
+   * after the
    * initialization of this DoFn.
    *
    * @param throughputEstimator an estimator to calculate local throughput.
