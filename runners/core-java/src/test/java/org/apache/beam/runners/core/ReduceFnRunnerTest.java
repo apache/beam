@@ -40,9 +40,11 @@ import static org.mockito.Mockito.withSettings;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.BitSet;
 import java.util.List;
 import java.util.Random;
 import java.util.concurrent.ThreadLocalRandom;
+import org.apache.beam.runners.core.ReduceFnContextFactory.StateStyle;
 import org.apache.beam.runners.core.metrics.MetricsContainerImpl;
 import org.apache.beam.runners.core.triggers.DefaultTriggerStateMachine;
 import org.apache.beam.runners.core.triggers.TriggerStateMachine;
@@ -2342,5 +2344,51 @@ public class ReduceFnRunnerTest {
     int getValue();
 
     void setValue(int value);
+  }
+
+  @Test
+  public void testNewWindowOptimization() throws Exception {
+    WindowingStrategy<?, IntervalWindow> strategy =
+        WindowingStrategy.of(FixedWindows.of(Duration.millis(10)))
+            .withTrigger(AfterPane.elementCountAtLeast(2))
+            .withMode(AccumulationMode.ACCUMULATING_FIRED_PANES);
+
+    ReduceFnTester<Integer, Iterable<Integer>, IntervalWindow> tester =
+        ReduceFnTester.nonCombining(strategy);
+
+    IntervalWindow window = new IntervalWindow(new Instant(0), new Instant(10));
+
+    // 1. First element for a new window.
+    tester.injectElements(TimestampedValue.of(1, new Instant(1)));
+
+    // Verify sentinel bit is written.
+    BitSet bitSet =
+        tester
+            .createRunner()
+            .getTriggerRunner()
+            .getFinishedBits(
+                tester.createRunner().getContextFactory().base(window, StateStyle.DIRECT).state());
+
+    // We expect the bitset to be empty (the sentinel bit is no longer used).
+    assertTrue("Bitset should be empty", bitSet.isEmpty());
+    // And trigger not finished.
+    assertFalse("Trigger should not be finished", bitSet.get(0));
+
+    // And verify that it is no longer "new".
+    assertFalse(
+        "Window should no longer be new",
+        tester
+            .createRunner()
+            .getTriggerRunner()
+            .isNew(
+                tester.createRunner().getContextFactory().base(window, StateStyle.DIRECT).state()));
+
+    // 2. Second element for the same window.
+    // We want to verify it doesn't clear the first element.
+    tester.injectElements(TimestampedValue.of(2, new Instant(2)));
+
+    // Extract output.
+    List<WindowedValue<Iterable<Integer>>> output = tester.extractOutput();
+    assertThat(output, contains(isSingleWindowedValue(containsInAnyOrder(1, 2), 9, 0, 10)));
   }
 }

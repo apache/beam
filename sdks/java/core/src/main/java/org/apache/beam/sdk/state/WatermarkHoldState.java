@@ -38,4 +38,14 @@ public interface WatermarkHoldState extends GroupingState<Instant, Instant> {
 
   @Override
   WatermarkHoldState readLater();
+
+  /**
+   * <b><i>For internal use only; no backwards-compatibility guarantees.</i></b>
+   *
+   * <p>Permit marking the state as empty locally, without necessarily clearing it in the backend.
+   *
+   * <p>This may be used by runners to optimize out unnecessary state reads.
+   */
+  @Internal
+  default void setKnownEmpty() {}
 }

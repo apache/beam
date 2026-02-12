@@ -3038,6 +3038,43 @@ public class WindmillStateInternalsTest {
   }
 
   @Test
+  public void testWatermarkSetKnownEmptyBeforeRead() throws Exception {
+    StateTag<WatermarkHoldState> addr =
+        StateTags.watermarkStateInternal("watermark", TimestampCombiner.EARLIEST);
+
+    WatermarkHoldState bag = underTest.state(NAMESPACE, addr);
+
+    bag.setKnownEmpty();
+    assertThat(bag.read(), Matchers.nullValue());
+
+    bag.add(new Instant(300));
+    assertThat(bag.read(), Matchers.equalTo(new Instant(300)));
+
+    // Shouldn't need to read from windmill because the value is already available.
+    Mockito.verifyNoMoreInteractions(mockReader);
+  }
+
+  @Test
+  public void testWatermarkSetKnownEmptyPersist() throws Exception {
+    StateTag<WatermarkHoldState> addr =
+        StateTags.watermarkStateInternal("watermark", TimestampCombiner.EARLIEST);
+
+    WatermarkHoldState bag = underTest.state(NAMESPACE, addr);
+
+    bag.add(new Instant(1000));
+    bag.setKnownEmpty();
+
+    Windmill.WorkItemCommitRequest.Builder commitBuilder =
+        Windmill.WorkItemCommitRequest.newBuilder();
+    underTest.persist(commitBuilder);
+
+    // Should be a no-op, no reset, no adds.
+    assertEquals(0, commitBuilder.getWatermarkHoldsCount());
+
+    Mockito.verifyNoMoreInteractions(mockReader);
+  }
+
+  @Test
   public void testWatermarkPersistEarliest() throws Exception {
     StateTag<WatermarkHoldState> addr =
         StateTags.watermarkStateInternal("watermark", TimestampCombiner.EARLIEST);
