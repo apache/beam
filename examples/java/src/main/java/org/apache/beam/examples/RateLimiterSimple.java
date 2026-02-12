@@ -91,7 +91,7 @@ public class RateLimiterSimple {
         try {
           rateLimiter.close();
         } catch (Exception e) {
-          throw new RuntimeException("Failed to close RateLimiter", e);
+          LOG.warn("Failed to close RateLimiter", e);
         }
       }
     }
