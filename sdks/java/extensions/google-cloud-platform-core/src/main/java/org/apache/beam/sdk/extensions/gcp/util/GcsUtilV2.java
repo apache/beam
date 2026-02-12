@@ -391,6 +391,11 @@ class GcsUtilV2 {
           storage.get(srcId).delete();
         }
       } catch (StorageException e) {
+        if (e.getCode() == 404 && srcMissing == MissingStrategy.SKIP_IF_MISSING) {
+          LOG.warn(
+              "Ignoring rewriting from {} to {} because source does not exist.", srcPath, dstPath);
+          continue;
+        }
         throw translateStorageException(srcPath, e);
       }
     }
