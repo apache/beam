@@ -434,20 +434,17 @@ public class GcsUtil {
     return legacyBatch;
   }
 
-  /**
-   * @deprecated use {@link #copyV2(Iterable, Iterable)} or {@link #copy(Iterable, Iterable,
-   *     OverwriteStrategy)}.
-   */
-  @Deprecated
   public void copy(Iterable<String> srcFilenames, Iterable<String> destFilenames)
       throws IOException {
     delegate.copy(srcFilenames, destFilenames);
   }
 
+  /** experimental */
   public void copyV2(Iterable<GcsPath> srcPaths, Iterable<GcsPath> dstPaths) throws IOException {
     copy(srcPaths, dstPaths, OverwriteStrategy.SAFE_OVERWRITE);
   }
 
+  /** experimental */
   public void copy(
       Iterable<GcsPath> srcPaths, Iterable<GcsPath> dstPaths, OverwriteStrategy strategy)
       throws IOException {
@@ -464,6 +461,7 @@ public class GcsUtil {
     delegate.rename(srcFilenames, destFilenames, moveOptions);
   }
 
+  /** experimental */
   public void renameV2(
       Iterable<GcsPath> srcPaths, Iterable<GcsPath> dstPaths, MoveOptions... moveOptions)
       throws IOException {
@@ -490,6 +488,7 @@ public class GcsUtil {
     }
   }
 
+  /** experimental */
   public void rename(
       Iterable<GcsPath> srcPaths,
       Iterable<GcsPath> dstPaths,
@@ -529,16 +528,16 @@ public class GcsUtil {
     return delegate.makeRemoveBatches(filenames);
   }
 
-  /** @deprecated use {@link #removeV2(Iterable)} or {@link #remove(Iterable, MissingStrategy)}. */
-  @Deprecated
   public void remove(Collection<String> filenames) throws IOException {
     delegate.remove(filenames);
   }
 
+  /** experimental */
   public void removeV2(Iterable<GcsPath> paths) throws IOException {
     remove(paths, MissingStrategy.SKIP_IF_MISSING);
   }
 
+  /** experimental */
   public void remove(Iterable<GcsPath> paths, MissingStrategy strategy) throws IOException {
     if (delegateV2 != null) {
       delegateV2.remove(paths, strategy);
