@@ -1687,7 +1687,8 @@ class ParDo(PTransformWithSideInputs):
         error_handler,
         on_failure_callback,
         allow_unsafe_userstate_in_process,
-        self.get_resource_hints())
+        self.get_resource_hints(),
+        self.get_type_hints())
 
   def with_error_handler(self, error_handler, **exception_handling_kwargs):
     """An alias for `with_exception_handling(error_handler=error_handler, ...)`
@@ -1978,6 +1979,15 @@ class _MultiParDo(PTransform):
         self._tags,
         self._main_tag,
         self._allow_unknown_tags)
+
+  def with_exception_handling(self, main_tag=None, **kwargs):
+    if main_tag is None:
+      main_tag = self._main_tag or 'good'
+    named = self._do_transform.with_exception_handling(
+        main_tag=main_tag, **kwargs)
+    # named is _NamedPTransform wrapping _ExceptionHandlingWrapper
+    named.transform._extra_tags = self._tags
+    return named
 
 
 class DoFnInfo(object):
@@ -2320,7 +2330,8 @@ class _ExceptionHandlingWrapper(ptransform.PTransform):
       error_handler,
       on_failure_callback,
       allow_unsafe_userstate_in_process,
-      resource_hints):
+      resource_hints,
+      pardo_type_hints=None):
     if partial and use_subprocess:
       raise ValueError('partial and use_subprocess are mutually incompatible.')
     self._fn = fn
@@ -2338,8 +2349,17 @@ class _ExceptionHandlingWrapper(ptransform.PTransform):
     self._on_failure_callback = on_failure_callback
     self._allow_unsafe_userstate_in_process = allow_unsafe_userstate_in_process
     self._resource_hints = resource_hints
+    self._pardo_type_hints = pardo_type_hints
+    self._extra_tags = None
 
-  def expand(self, pcoll):
+  def with_outputs(self, *tags, main=None):
+    self._extra_tags = tags
+    if main is not None:
+      self._main_tag = main
+    return self
+
+  def _build_pardo(self, pcoll):
+    """Build the inner ParDo with the exception-handling wrapper DoFn."""
     if self._allow_unsafe_userstate_in_process:
       if self._use_subprocess or self._timeout:
         # TODO(https://github.com/apache/beam/issues/35976): Implement this
@@ -2366,15 +2386,11 @@ class _ExceptionHandlingWrapper(ptransform.PTransform):
         *self._args,
         **self._kwargs,
     )
-    # This is the fix: propagate hints.
     pardo.get_resource_hints().update(self._resource_hints)
+    return pardo
 
-    result = pcoll | pardo.with_outputs(
-        self._dead_letter_tag, main=self._main_tag, allow_unknown_tags=True)
-    #TODO(BEAM-18957): Fix when type inference supports tagged outputs.
-    result[self._main_tag].element_type = self._fn.infer_output_type(
-        pcoll.element_type)
-
+  def _post_process_result(self, pcoll, result):
+    """Apply threshold checking and error handler logic to the result."""
     if self._threshold < 1.0:
 
       class MaybeWindow(ptransform.PTransform):
@@ -2408,9 +2424,53 @@ class _ExceptionHandlingWrapper(ptransform.PTransform):
 
     if self._error_handler:
       self._error_handler.add_error_pcollection(result[self._dead_letter_tag])
+      if self._extra_tags:
+        return result
       return result[self._main_tag]
     else:
       return result
+
+  def expand_2_71_0(self, pcoll):
+    """Pre-2.72.0 behavior: manual element_type override, no with_output_types.
+    """
+    pardo = self._build_pardo(pcoll)
+    result = pcoll | pardo.with_outputs(
+        self._dead_letter_tag, main=self._main_tag, allow_unknown_tags=True)
+    #TODO(BEAM-18957): Fix when type inference supports tagged outputs.
+    result[self._main_tag].element_type = self._fn.infer_output_type(
+        pcoll.element_type)
+
+    return self._post_process_result(pcoll, result)
+
+  def expand(self, pcoll):
+    if pcoll.pipeline.options.is_compat_version_prior_to("2.72.0"):
+      return self.expand_2_71_0(pcoll)
+
+    pardo = self._build_pardo(pcoll)
+
+    if (self._pardo_type_hints and self._pardo_type_hints._has_output_types()):
+      main_output_type = self._pardo_type_hints.simple_output_type(self.label)
+      tagged_type_hints = dict(self._pardo_type_hints.tagged_output_types())
+    else:
+      main_output_type = self._fn.infer_output_type(pcoll.element_type)
+      tagged_type_hints = dict(self._fn.get_type_hints().tagged_output_types())
+
+    # Dead letter format: Tuple[element, Tuple[exception_type, repr, traceback]]
+    dead_letter_type = typehints.Tuple[pcoll.element_type,
+                                       typehints.Tuple[type,
+                                                       str,
+                                                       typehints.List[str]]]
+
+    tagged_type_hints[self._dead_letter_tag] = dead_letter_type
+    pardo = pardo.with_output_types(main_output_type, **tagged_type_hints)
+
+    all_tags = tuple(set(self._extra_tags or ()) | {self._dead_letter_tag})
+    result = pcoll | pardo.with_outputs(
+        *all_tags,
+        main=self._main_tag,
+        allow_unknown_tags=True if self._extra_tags is None else None)
+
+    return self._post_process_result(pcoll, result)
 
 
 class _ExceptionHandlingWrapperDoFn(DoFn):
