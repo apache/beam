@@ -878,7 +878,6 @@ class YamlProviders:
     if not isinstance(elements, Iterable) or isinstance(elements, (dict, str)):
       raise TypeError('elements must be a list of elements')
 
-    # Validated that we have some elements.
     if elements:
       # Normalize elements to be all dicts or all primitives.
       # If we have a mix, we want to treat them all as dicts for the purpose
