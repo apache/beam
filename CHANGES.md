@@ -74,6 +74,7 @@
 
 * (Python) Added exception chaining to preserve error context in CloudSQLEnrichmentHandler, processes utilities, and core transforms ([#37422](https://github.com/apache/beam/issues/37422)).
 * X feature added (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
+* OpenAI text embeddings notebook added (Python) ([#37344](https://github.com/apache/beam/issues/37344)).
 
 ## Breaking Changes
 

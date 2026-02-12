@@ -55,10 +55,11 @@ You can use `MLTransform` to generate text embeddings and to perform various dat
 You can use `MLTranform` to generate embeddings that you can use to push data into vector databases or to run inference.
 
 {{< table >}}
-| Transform name | Description |
-| ------- | ---------------|
-| SentenceTransformerEmbeddings | Uses the Hugging Face [`sentence-transformers`](https://huggingface.co/sentence-transformers) models to generate text embeddings.
-| VertexAITextEmbeddings | Uses models from the [the Vertex AI text-embeddings API](https://cloud.google.com/vertex-ai/docs/generative-ai/embeddings/get-text-embeddings) to generate text embeddings.
+| Transform name | Description | Notebook |
+| ------- | ---------------| -------- |
+| SentenceTransformerEmbeddings | Uses the Hugging Face [`sentence-transformers`](https://huggingface.co/sentence-transformers) models to generate text embeddings. | [Hugging Face Text Embeddings](https://colab.research.google.com/github/apache/beam/blob/master/examples/notebooks/beam-ml/data_preprocessing/huggingface_text_embeddings.ipynb) |
+| VertexAITextEmbeddings | Uses models from the [the Vertex AI text-embeddings API](https://cloud.google.com/vertex-ai/docs/generative-ai/embeddings/get-text-embeddings) to generate text embeddings. | [Vertex AI Text Embeddings](https://colab.research.google.com/github/apache/beam/blob/master/examples/notebooks/beam-ml/data_preprocessing/vertex_ai_text_embeddings.ipynb) |
+| OpenAITextEmbeddings | Uses [OpenAI's embedding models](https://platform.openai.com/docs/guides/embeddings) to generate text embeddings. | [OpenAI Text Embeddings](https://colab.research.google.com/github/apache/beam/blob/master/examples/notebooks/beam-ml/data_preprocessing/open_ai_text_embeddings.ipynb) |
 {{< /table >}}
 
 
