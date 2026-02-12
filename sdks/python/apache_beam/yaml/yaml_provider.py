@@ -878,6 +878,23 @@ class YamlProviders:
     if not isinstance(elements, Iterable) or isinstance(elements, (dict, str)):
       raise TypeError('elements must be a list of elements')
 
+    # Validated that we have some elements.
+    if elements:
+      # Normalize elements to be all dicts or all primitives.
+      # If we have a mix, we want to treat them all as dicts for the purpose
+      # of schema inference (so we can have a schema like
+      # Row(element=..., other_field=...)).
+      # Note that we don't want to change the elements themselves if they
+      # are already all dicts or all primitives, as that would change the
+      # resulting schema (e.g. from int to Row(element=int)).
+      is_dict = [isinstance(e, dict) for e in elements]
+      if not all(is_dict) and any(is_dict):
+        elements = [
+            e if isinstance(e, dict) else {
+                'element': e
+            } for e in elements
+        ]
+
     # Check if elements have different keys
     updated_elements = elements
     if elements and all(isinstance(e, dict) for e in elements):
