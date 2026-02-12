@@ -46,21 +46,21 @@ LOOKS_TO_DOWNLOAD = [
 
     # PyTorch Image Classification EfficientNet-B0 Streaming (Right-fit) CPU
     ("92", ["289", "290", "291", "292", "293"]),
-    #TODO: PyTorch Image Classification EfficientNet-B0 Streaming (Right-fit) GPU
-    #TODO: PyTorch Image Classification EfficientNet-B0 Streaming (Right-fit Exactly-once) CPU
-    #TODO: PyTorch Image Classification EfficientNet-B0 Streaming (Right-fit Exactly-once) GPU
+    ("97", ["306", "307", "308", "309", "310"]),
+    ("98", ["311", "312", "313", "314", "315"]),
+    ("99", ["316", "317", "318", "319", "320"]),
 
     # PyTorch Image Object Detection Faster R-CNN ResNet-50 Batch CPU
     ("93", ["294", "295", "296", "298", "299"]),
-    #TODO: PyTorch Image Object Detection Faster R-CNN ResNet-50 Batch GPU
-    #TODO: PyTorch Image Object Detection Faster R-CNN ResNet-50 Streaming CPU
-    #TODO: PyTorch Image Object Detection Faster R-CNN ResNet-50 Streaming GPU
+    ("100", ["321", "322", "323", "324", "325"]),
+    ("101", ["326", "327", "328", "329", "330"]),
+    ("102", ["331", "332", "333", "334", "335"]),
 
     # PyTorch Image Captioning BLIP + CLIP Batch CPU
     ("94", ["297", "300", "301", "302", "303"]),
-    #TODO: PyTorch Image Captioning BLIP + CLIP Batch GPU
-    #TODO: PyTorch Image Captioning BLIP + CLIP Streaming CPU
-    #TODO: PyTorch Image Captioning BLIP + CLIP Streaming GPU
+    ("103", ["336", "337", "338", "339", "340"]),
+    ("104", ["341", "342", "343", "344", "345"]),
+    ("105", ["346", "347", "348", "349", "350"]),
 ]
 
 
