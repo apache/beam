@@ -1082,6 +1082,20 @@ class CodersTest(unittest.TestCase):
     self.check_coder(test_coder, 123)
     self.check_coder(test_coder, 1.5)
 
+  def test_OrderedUnionCoderDeterministic(self):
+    # CustomCoder is not deterministic therefore test_coder is not
+    # deterministic
+    test_coder = coders._OrderedUnionCoder((str, coders.StrUtf8Coder()),
+                                           (int, CustomCoder()),
+                                           fallback_coder=coders.FloatCoder())
+
+    self.assertFalse(test_coder.is_deterministic())
+
+    test_coder = coders._OrderedUnionCoder((str, coders.StrUtf8Coder()),
+                                           (int, coders.VarIntCoder()),
+                                           fallback_coder=coders.FloatCoder())
+    self.assertTrue(test_coder.is_deterministic())
+
 
 if __name__ == '__main__':
   logging.getLogger().setLevel(logging.INFO)

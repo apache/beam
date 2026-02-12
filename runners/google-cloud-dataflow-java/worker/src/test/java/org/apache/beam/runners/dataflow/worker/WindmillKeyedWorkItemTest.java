@@ -43,6 +43,7 @@ import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo.Timing;
+import org.apache.beam.sdk.values.CausedByDrain;
 import org.apache.beam.sdk.values.WindowedValue;
 import org.apache.beam.sdk.values.WindowedValues;
 import org.apache.beam.vendor.grpc.v1p69p0.com.google.protobuf.ByteString;
@@ -202,7 +203,8 @@ public class WindmillKeyedWorkItemTest {
                     ns,
                     new Instant(timestamp),
                     new Instant(timestamp),
-                    timerTypeToTimeDomain(type))))
+                    timerTypeToTimeDomain(type),
+                    CausedByDrain.NORMAL)))
         .setTimestamp(WindmillTimeUtils.harnessToWindmillTimestamp(new Instant(timestamp)))
         .setType(type)
         .setStateFamily(STATE_FAMILY)
@@ -210,7 +212,8 @@ public class WindmillKeyedWorkItemTest {
   }
 
   private static TimerData makeTimer(StateNamespace ns, long timestamp, TimeDomain domain) {
-    return TimerData.of(ns, new Instant(timestamp), new Instant(timestamp), domain);
+    return TimerData.of(
+        ns, new Instant(timestamp), new Instant(timestamp), domain, CausedByDrain.NORMAL);
   }
 
   @Test
@@ -263,8 +266,8 @@ public class WindmillKeyedWorkItemTest {
             true);
 
     Iterator<WindowedValue<String>> iterator = keyedWorkItem.elementsIterable().iterator();
-    Assert.assertTrue(iterator.next().causedByDrain());
-    Assert.assertFalse(iterator.next().causedByDrain());
+    Assert.assertEquals(CausedByDrain.CAUSED_BY_DRAIN, iterator.next().causedByDrain());
+    Assert.assertEquals(CausedByDrain.NORMAL, iterator.next().causedByDrain());
 
     // todo add assert for draining once timerdata is filled
     // (https://github.com/apache/beam/issues/36884)

@@ -289,6 +289,7 @@ class MultiProcessSharedSpawnProcessTest(unittest.TestCase):
     for tag in ['basic',
                 'main',
                 'to_delete',
+                'to_keep',
                 'mix1',
                 'mix2',
                 'test_process_exit',
@@ -310,7 +311,7 @@ class MultiProcessSharedSpawnProcessTest(unittest.TestCase):
 
   def test_call(self):
     shared = multi_process_shared.MultiProcessShared(
-        Counter, tag='basic', always_proxy=True, spawn_process=True).acquire()
+        Counter, tag='main', always_proxy=True, spawn_process=True).acquire()
     self.assertEqual(shared.get(), 0)
     self.assertEqual(shared.increment(), 1)
     self.assertEqual(shared.increment(10), 11)
@@ -323,7 +324,8 @@ class MultiProcessSharedSpawnProcessTest(unittest.TestCase):
     shared2 = multi_process_shared.MultiProcessShared(
         Counter, tag='to_delete', always_proxy=True, spawn_process=True)
     counter3 = multi_process_shared.MultiProcessShared(
-        Counter, tag='basic', always_proxy=True, spawn_process=True).acquire()
+        Counter, tag='to_keep', always_proxy=True,
+        spawn_process=True).acquire()
 
     counter1 = shared1.acquire()
     counter2 = shared2.acquire()
