@@ -886,8 +886,17 @@ class YamlProviders:
       # Note that we don't want to change the elements themselves if they
       # are already all dicts or all primitives, as that would change the
       # resulting schema (e.g. from int to Row(element=int)).
-      is_dict = [isinstance(e, dict) for e in elements]
-      if not all(is_dict) and any(is_dict):
+      has_dict = False
+      has_non_dict = False
+      for e in elements:
+        if isinstance(e, dict):
+          has_dict = True
+        else:
+          has_non_dict = True
+        if has_dict and has_non_dict:
+          break
+
+      if has_dict and has_non_dict:
         elements = [
             e if isinstance(e, dict) else {
                 'element': e
