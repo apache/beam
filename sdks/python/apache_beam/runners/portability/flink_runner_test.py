@@ -18,6 +18,7 @@
 
 import argparse
 import logging
+import platform
 import shlex
 import typing
 import unittest
@@ -106,6 +107,12 @@ class FlinkRunnerTest(portable_runner_test.PortableRunnerTest):
             'For PROCESS: process_command (required), process_variables '
             '(optional, comma-separated)\n '
             'For EXTERNAL: external_service_address (required)'))
+    parser.add_argument(
+        '--use_data_stream_for_batch',
+        help=(
+            'Use Flink DataStream API for batch pipeline. Only effective for '
+            'Flink 1.x. DataStream API always uses DataStream API.'),
+        action='store_true')
     known_args, unknown_args = parser.parse_known_args(
         shlex.split(test_pipeline_options))
     if unknown_args:
@@ -117,6 +124,7 @@ class FlinkRunnerTest(portable_runner_test.PortableRunnerTest):
             FlinkRunnerOptions.PUBLISHED_FLINK_VERSIONS[-1])))
     self.environment_type = known_args.environment_type
     self.environment_options = known_args.environment_options
+    self.use_data_stream_for_batch = known_args.use_data_stream_for_batch
 
   @classmethod
   def tearDownClass(cls):
@@ -158,11 +166,12 @@ class FlinkRunnerTest(portable_runner_test.PortableRunnerTest):
 
     cls._create_conf_dir()
     cls.expansion_port = expansion_port
-
+    platform_specific_opts = []
+    if platform.system() == 'Linux':
+       # UseContainerSupport is supported in Linux and turned on by default
+       platform_specific_opts.append('-XX:-UseContainerSupport')
     try:
-      return [
-          'java',
-          '-XX:-UseContainerSupport',
+      return ['java'] + platform_specific_opts + [
           '--add-opens=java.base/java.lang=ALL-UNNAMED',
           '--add-opens=java.base/java.nio=ALL-UNNAMED',
           '--add-opens=java.base/java.util=ALL-UNNAMED',
@@ -210,6 +219,8 @@ class FlinkRunnerTest(portable_runner_test.PortableRunnerTest):
       options._all_options['checkpointing_interval'] = 3000
       options._all_options['shutdown_sources_after_idle_ms'] = 60000
       options._all_options['number_of_execution_retries'] = 1
+    if self.use_data_stream_for_batch:
+      options._all_options['use_data_stream_for_batch'] = True
 
     return options
 

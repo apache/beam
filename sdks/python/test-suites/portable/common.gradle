@@ -29,13 +29,17 @@ ext {
   pythonContainerTask = ":sdks:python:container:py${pythonVersionSuffix}:docker"
 }
 
-def createFlinkRunnerTestTask(String workerType) {
+def createFlinkRunnerTestTask(String workerType, boolean useDataStreamForBatch = false) {
   def taskName = "flinkCompatibilityMatrix${workerType}"
   // project(":runners:flink:${latestFlinkVersion}:job-server").shadowJar.archivePath is not resolvable until runtime, so hard-code it here.
   def jobServerJar = "${rootDir}/runners/flink/${latestFlinkVersion}/job-server/build/libs/beam-runners-flink-${latestFlinkVersion}-job-server-${version}.jar"
   def options = "--flink_job_server_jar=${jobServerJar} --environment_type=${workerType}"
   if (workerType == 'PROCESS') {
     options += " --environment_options=process_command=${buildDir.absolutePath}/sdk_worker.sh"
+  }
+  if (useDataStreamForBatch) {
+    options += " --use_data_stream_for_batch"
+    taskName += "_DATASTREAM"
   }
   def task = toxTask(taskName, 'flink-runner-test', options)
   // Through the Flink job server, we transitively add dependencies on the expansion services needed in tests.
@@ -56,6 +60,7 @@ def createFlinkRunnerTestTask(String workerType) {
 createFlinkRunnerTestTask('DOCKER')
 createFlinkRunnerTestTask('PROCESS')
 createFlinkRunnerTestTask('LOOPBACK')
+createFlinkRunnerTestTask('LOOPBACK', true)
 
 task flinkValidatesRunner() {
   dependsOn 'flinkCompatibilityMatrixLOOPBACK'
