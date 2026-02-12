@@ -2372,6 +2372,8 @@ class ExecutionStageState(_messages.Message):
         indicates that the batch job's associated resources are currently
         being cleaned up after a successful run. Currently, this is an opt-in
         feature, please reach out to Cloud support team if you are interested.
+      JOB_STATE_PAUSING: `JOB_STATE_PAUSING` is not implemented yet.
+      JOB_STATE_PAUSED: `JOB_STATE_PAUSED` is not implemented yet.
     """
     JOB_STATE_UNKNOWN = 0
     JOB_STATE_STOPPED = 1
@@ -2386,6 +2388,8 @@ class ExecutionStageState(_messages.Message):
     JOB_STATE_CANCELLING = 10
     JOB_STATE_QUEUED = 11
     JOB_STATE_RESOURCE_CLEANING_UP = 12
+    JOB_STATE_PAUSING = 13
+    JOB_STATE_PAUSED = 14
 
   currentStateTime = _messages.StringField(1)
   executionStageName = _messages.StringField(2)
@@ -3166,6 +3170,8 @@ class Job(_messages.Message):
         indicates that the batch job's associated resources are currently
         being cleaned up after a successful run. Currently, this is an opt-in
         feature, please reach out to Cloud support team if you are interested.
+      JOB_STATE_PAUSING: `JOB_STATE_PAUSING` is not implemented yet.
+      JOB_STATE_PAUSED: `JOB_STATE_PAUSED` is not implemented yet.
     """
     JOB_STATE_UNKNOWN = 0
     JOB_STATE_STOPPED = 1
@@ -3180,6 +3186,8 @@ class Job(_messages.Message):
     JOB_STATE_CANCELLING = 10
     JOB_STATE_QUEUED = 11
     JOB_STATE_RESOURCE_CLEANING_UP = 12
+    JOB_STATE_PAUSING = 13
+    JOB_STATE_PAUSED = 14
 
   class RequestedStateValueValuesEnum(_messages.Enum):
     r"""The job's requested state. Applies to `UpdateJob` requests. Set
@@ -3240,6 +3248,8 @@ class Job(_messages.Message):
         indicates that the batch job's associated resources are currently
         being cleaned up after a successful run. Currently, this is an opt-in
         feature, please reach out to Cloud support team if you are interested.
+      JOB_STATE_PAUSING: `JOB_STATE_PAUSING` is not implemented yet.
+      JOB_STATE_PAUSED: `JOB_STATE_PAUSED` is not implemented yet.
     """
     JOB_STATE_UNKNOWN = 0
     JOB_STATE_STOPPED = 1
@@ -3254,6 +3264,8 @@ class Job(_messages.Message):
     JOB_STATE_CANCELLING = 10
     JOB_STATE_QUEUED = 11
     JOB_STATE_RESOURCE_CLEANING_UP = 12
+    JOB_STATE_PAUSING = 13
+    JOB_STATE_PAUSED = 14
 
   class TypeValueValuesEnum(_messages.Enum):
     r"""Optional. The type of Dataflow job.
