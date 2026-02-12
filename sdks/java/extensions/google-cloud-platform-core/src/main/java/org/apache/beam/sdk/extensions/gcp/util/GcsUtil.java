@@ -461,6 +461,16 @@ public class GcsUtil {
     delegate.rename(srcFilenames, destFilenames, moveOptions);
   }
 
+  public void renameV2(
+      Iterable<GcsPath> srcPaths, Iterable<GcsPath> dstPaths, MoveOptions... moveOptions)
+      throws IOException {
+    if (delegateV2 != null) {
+      delegateV2.move(srcPaths, dstPaths, moveOptions);
+    } else {
+      throw new IOException("GcsUtil V2 not initialized.");
+    }
+  }
+
   @VisibleForTesting
   @SuppressWarnings("JdkObsolete") // for LinkedList
   java.util.LinkedList<GcsUtilV1.RewriteOp> makeRewriteOps(
@@ -494,7 +504,7 @@ public class GcsUtil {
   }
 
   public void removeV2(Iterable<GcsPath> paths) throws IOException {
-    remove(paths, MissingStrategy.IGNORE_MISSING_TARGET);
+    remove(paths, MissingStrategy.SKIP_IF_MISSING);
   }
 
   public void remove(Iterable<GcsPath> paths, MissingStrategy strategy) throws IOException {

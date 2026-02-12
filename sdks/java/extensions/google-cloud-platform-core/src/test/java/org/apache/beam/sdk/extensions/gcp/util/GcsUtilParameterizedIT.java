@@ -335,26 +335,26 @@ public class GcsUtilParameterizedIT {
     assertExists(dstPaths.get(1));
 
     // copy from existing files to an existing bucket
-    // No exception on SAFE_OVERWRITE and UNSAFE_OVERWRITE
+    // No exception on SAFE_OVERWRITE and ALWAYS_OVERWRITE
     gcsUtil.copyV2(srcPaths, dstPaths);
-    gcsUtil.copy(srcPaths, dstPaths, OverwriteStrategy.UNSAFE_OVERWRITE);
+    gcsUtil.copy(srcPaths, dstPaths, OverwriteStrategy.ALWAYS_OVERWRITE);
 
-    // raise exception on NO_OVERWRITE
+    // raise exception on FAIL_IF_EXISTS
     assertThrows(
         FileAlreadyExistsException.class,
-        () -> gcsUtil.copy(srcPaths, dstPaths, OverwriteStrategy.NO_OVERWRITE));
+        () -> gcsUtil.copy(srcPaths, dstPaths, OverwriteStrategy.FAIL_IF_EXISTS));
 
     // remove the existing files
     gcsUtil.removeV2(dstPaths);
 
     // remove the already-deleted files
-    // No exception on IGNORE_MISSING_TARGET
+    // No exception on IGNORE_IF_MISSING
     gcsUtil.removeV2(dstPaths);
 
-    // raise exception on FAIL_ON_MISSING_TARGET
+    // raise exception on FAIL_IF_MISSING
     assertThrows(
         FileNotFoundException.class,
-        () -> gcsUtil.remove(dstPaths, MissingStrategy.FAIL_ON_MISSING_TARGET));
+        () -> gcsUtil.remove(dstPaths, MissingStrategy.FAIL_IF_MISSING));
 
     final List<GcsPath> wrongDstPaths =
         srcPaths.stream()
@@ -433,7 +433,7 @@ public class GcsUtilParameterizedIT {
       List<GcsPath> paths =
           gcsUtil.expand(GcsPath.fromUri(String.format("gs://%s/**", bucketName)));
       if (experiment.equals("use_gcsutil_v2")) {
-        gcsUtil.remove(paths, MissingStrategy.IGNORE_MISSING_TARGET);
+        gcsUtil.remove(paths, MissingStrategy.SKIP_IF_MISSING);
         gcsUtil.removeBucket(BucketInfo.of(bucketName));
       } else {
         gcsUtil.remove(paths.stream().map(GcsPath::toString).collect(Collectors.toList()));

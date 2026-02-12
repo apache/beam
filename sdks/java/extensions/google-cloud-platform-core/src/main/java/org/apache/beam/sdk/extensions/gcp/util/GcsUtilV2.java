@@ -46,14 +46,19 @@ import java.nio.file.AccessDeniedException;
 import java.nio.file.FileAlreadyExistsException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
 import java.util.regex.Pattern;
 import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
+import org.apache.beam.sdk.extensions.gcp.util.GcsUtilV2.MissingStrategy;
 import org.apache.beam.sdk.extensions.gcp.util.gcsfs.GcsPath;
+import org.apache.beam.sdk.io.fs.MoveOptions;
+import org.apache.beam.sdk.io.fs.MoveOptions.StandardMoveOptions;
 import org.apache.beam.sdk.options.DefaultValueFactory;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Sets;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 class GcsUtilV2 {
@@ -274,8 +279,8 @@ class GcsUtilV2 {
   }
 
   public enum MissingStrategy {
-    IGNORE_MISSING_TARGET,
-    FAIL_ON_MISSING_TARGET,
+    FAIL_IF_MISSING,
+    SKIP_IF_MISSING,
   }
 
   public void remove(Iterable<GcsPath> paths, MissingStrategy strategy) throws IOException {
@@ -296,7 +301,7 @@ class GcsUtilV2 {
         try {
           Boolean deleted = future.get();
           if (!deleted) {
-            if (strategy == MissingStrategy.FAIL_ON_MISSING_TARGET) {
+            if (strategy == MissingStrategy.FAIL_IF_MISSING) {
               throw new FileNotFoundException(
                   String.format(
                       "The specified file does not exist: %s", pathPartition.get(i).toString()));
@@ -312,13 +317,18 @@ class GcsUtilV2 {
   }
 
   public enum OverwriteStrategy {
-    NO_OVERWRITE, // Fail if target exists
+    FAIL_IF_EXISTS, // Fail if target exists
+    SKIP_IF_EXISTS, // Skip if target exists
     SAFE_OVERWRITE, // Overwrite only if the generation matches (atomic)
-    UNSAFE_OVERWRITE // Overwrite regardless of state
+    ALWAYS_OVERWRITE // Overwrite regardless of state
   }
 
-  public void copy(
-      Iterable<GcsPath> srcPaths, Iterable<GcsPath> dstPaths, OverwriteStrategy strategy)
+  private void rewriteHelper(
+      Iterable<GcsPath> srcPaths,
+      Iterable<GcsPath> dstPaths,
+      boolean deleteSrc,
+      MissingStrategy srcMissing,
+      OverwriteStrategy dstOverwrite)
       throws IOException {
     List<GcsPath> srcList = Lists.newArrayList(srcPaths);
     List<GcsPath> dstList = Lists.newArrayList(dstPaths);
@@ -337,42 +347,81 @@ class GcsUtilV2 {
       CopyRequest.Builder copyRequestBuilder =
           CopyRequest.newBuilder()
               .setSource(srcId)
-              .setMegabytesCopiedPerChunk(MEGABYTES_COPIED_PER_CHUNK); // 2GiB
+              .setMegabytesCopiedPerChunk(MEGABYTES_COPIED_PER_CHUNK);
 
-      if (strategy == OverwriteStrategy.UNSAFE_OVERWRITE) {
+      if (dstOverwrite == OverwriteStrategy.ALWAYS_OVERWRITE) {
         copyRequestBuilder.setTarget(dstId);
       } else {
-        // Both NO_OVERWRITE and SAFE_OVERWRITE require checking the existing blob
-        BlobInfo existingTarget = null;
+        // FAIL_IF_EXISTS, SKIP_IF_EXISTS and SAFE_OVERWRITE require checking the target blob
+        BlobInfo existingTarget;
         try {
           existingTarget = storage.get(dstId);
         } catch (StorageException e) {
           throw translateStorageException(dstPath, e);
         }
 
-        Storage.BlobTargetOption precondition;
         if (existingTarget == null) {
-          precondition = Storage.BlobTargetOption.doesNotExist();
-        } else if (strategy == OverwriteStrategy.SAFE_OVERWRITE) {
-          // SAFE_OVERWRITE: match the generation of the existing object
-          precondition = Storage.BlobTargetOption.generationMatch(existingTarget.getGeneration());
+          copyRequestBuilder.setTarget(dstId, Storage.BlobTargetOption.doesNotExist());
         } else {
-          // Target exists and we aren't allowed to overwrite (strategy == NO_OVERWRITE)
-          throw new FileAlreadyExistsException(
-              srcPath.toString(),
-              dstPath.toString(),
-              "Target object already exists and CopyStrategy is NO_OVERWRITE");
+          switch (dstOverwrite) {
+            case SKIP_IF_EXISTS:
+              LOG.warn("Ignoring rewriting from {} to {} because target exists.", srcPath, dstPath);
+              continue; // Skip to next file in for-loop
+
+            case SAFE_OVERWRITE:
+              copyRequestBuilder.setTarget(
+                  dstId, Storage.BlobTargetOption.generationMatch(existingTarget.getGeneration()));
+              break;
+
+            case FAIL_IF_EXISTS:
+            default:
+              throw new FileAlreadyExistsException(
+                  srcPath.toString(),
+                  dstPath.toString(),
+                  "Target object already exists and strategy is FAIL_IF_EXISTS");
+          }
         }
-        copyRequestBuilder.setTarget(dstId, precondition);
       }
 
       try {
         CopyWriter copyWriter = storage.copy(copyRequestBuilder.build());
         copyWriter.getResult();
+
+        if (deleteSrc) {
+          storage.get(srcId).delete();
+        }
       } catch (StorageException e) {
         throw translateStorageException(srcPath, e);
       }
     }
+  }
+
+  public void copy(
+      Iterable<GcsPath> srcPaths, Iterable<GcsPath> dstPaths, OverwriteStrategy strategy)
+      throws IOException {
+    rewriteHelper(srcPaths, dstPaths, false, MissingStrategy.FAIL_IF_MISSING, strategy);
+  }
+
+  public void move(
+      Iterable<GcsPath> srcPaths, Iterable<GcsPath> dstPaths, MoveOptions... moveOptions)
+      throws IOException {
+    Set<MoveOptions> moveOptionSet = Sets.newHashSet(moveOptions);
+    final MissingStrategy srcMissing;
+    final OverwriteStrategy dstOverwrite;
+
+    if (moveOptionSet.contains(StandardMoveOptions.IGNORE_MISSING_FILES)) {
+      srcMissing = MissingStrategy.SKIP_IF_MISSING;
+    } else {
+      srcMissing = MissingStrategy.FAIL_IF_MISSING;
+    }
+
+    if (moveOptionSet.contains(StandardMoveOptions.SKIP_IF_DESTINATION_EXISTS)) {
+      dstOverwrite = OverwriteStrategy.SKIP_IF_EXISTS;
+    } else {
+      dstOverwrite = OverwriteStrategy.SAFE_OVERWRITE;
+    }
+
+    rewriteHelper(srcPaths, dstPaths, true, srcMissing, dstOverwrite);
   }
 
   /** Get the {@link Bucket} from Cloud Storage path or propagates an exception. */
