@@ -20,8 +20,12 @@ package org.apache.beam.sdk.io.gcp.spanner;
 import static java.util.stream.Collectors.toList;
 import static org.apache.beam.sdk.io.gcp.spanner.MutationUtils.isPointDelete;
 import static org.apache.beam.sdk.io.gcp.spanner.changestreams.ChangeStreamsConstants.DEFAULT_CHANGE_STREAM_NAME;
+import static org.apache.beam.sdk.io.gcp.spanner.changestreams.ChangeStreamsConstants.DEFAULT_HEARTBEAT_MILLIS;
 import static org.apache.beam.sdk.io.gcp.spanner.changestreams.ChangeStreamsConstants.DEFAULT_INCLUSIVE_END_AT;
 import static org.apache.beam.sdk.io.gcp.spanner.changestreams.ChangeStreamsConstants.DEFAULT_INCLUSIVE_START_AT;
+import static org.apache.beam.sdk.io.gcp.spanner.changestreams.ChangeStreamsConstants.DEFAULT_LOW_LATENCY_HEARTBEAT_MILLIS;
+import static org.apache.beam.sdk.io.gcp.spanner.changestreams.ChangeStreamsConstants.DEFAULT_LOW_LATENCY_REAL_TIME_CHECKPOINT_INTERVAL;
+import static org.apache.beam.sdk.io.gcp.spanner.changestreams.ChangeStreamsConstants.DEFAULT_REAL_TIME_CHECKPOINT_INTERVAL;
 import static org.apache.beam.sdk.io.gcp.spanner.changestreams.ChangeStreamsConstants.DEFAULT_RPC_PRIORITY;
 import static org.apache.beam.sdk.io.gcp.spanner.changestreams.ChangeStreamsConstants.DEFAULT_WATERMARK_REFRESH_RATE;
 import static org.apache.beam.sdk.io.gcp.spanner.changestreams.ChangeStreamsConstants.MAX_INCLUSIVE_END_AT;
@@ -537,8 +541,8 @@ public class SpannerIO {
         .setRpcPriority(DEFAULT_RPC_PRIORITY)
         .setInclusiveStartAt(DEFAULT_INCLUSIVE_START_AT)
         .setInclusiveEndAt(DEFAULT_INCLUSIVE_END_AT)
-        .setCdcTimeIncrement(Duration.standardMinutes(2))
-        .setHeartbeatMillis(2000)
+        .setRealTimeCheckpointInterval(DEFAULT_REAL_TIME_CHECKPOINT_INTERVAL)
+        .setHeartbeatMillis(DEFAULT_HEARTBEAT_MILLIS)
         .build();
   }
 
@@ -1763,7 +1767,7 @@ public class SpannerIO {
 
     abstract @Nullable ValueProvider<Boolean> getPlainText();
 
-    abstract Duration getCdcTimeIncrement();
+    abstract Duration getRealTimeCheckpointInterval();
 
     abstract Integer getHeartbeatMillis();
 
@@ -1796,15 +1800,14 @@ public class SpannerIO {
 
       abstract Builder setPlainText(ValueProvider<Boolean> plainText);
 
-      abstract Builder setCdcTimeIncrement(Duration cdcTimeIncrement);
-
       /**
-       * Heartbeat interval for all change stream queries.
-       *
-       * <p>Be careful when changing this interval, as it needs to be less than the checkpointing
-       * interval in Dataflow. Otherwise, if there are no records within checkpoint intervals, the
-       * consuming of a change stream query might get stuck.
+       * When caught up to real-time, checkpoint processing of change stream this often. This sets a
+       * bound on latency of processing if a steady trickle of elements prevents the heartbeat
+       * interval from triggering.
        */
+      abstract Builder setRealTimeCheckpointInterval(Duration realTimeCheckpointInterval);
+
+      /** Heartbeat interval for all change stream queries. */
       abstract Builder setHeartbeatMillis(Integer heartbeatMillis);
 
       abstract ReadChangeStream build();
@@ -1929,10 +1932,14 @@ public class SpannerIO {
       return withUsingPlainTextChannel(ValueProvider.StaticValueProvider.of(plainText));
     }
 
+    /**
+     * Configures the change stream to checkpoint and flush output targeting low latency at the cost
+     * of higher rpc rate and cpu usage.
+     */
     public ReadChangeStream withLowLatency() {
       return toBuilder()
-          .setCdcTimeIncrement(Duration.standardSeconds(1))
-          .setHeartbeatMillis(100)
+          .setRealTimeCheckpointInterval(DEFAULT_LOW_LATENCY_REAL_TIME_CHECKPOINT_INTERVAL)
+          .setHeartbeatMillis(DEFAULT_LOW_LATENCY_HEARTBEAT_MILLIS)
           .build();
     }
 
@@ -2050,11 +2057,11 @@ public class SpannerIO {
       final DetectNewPartitionsDoFn detectNewPartitionsDoFn =
           new DetectNewPartitionsDoFn(
               daoFactory, mapperFactory, actionFactory, cacheFactory, metrics);
-      final Duration cdcTimeIncrement = getCdcTimeIncrement();
+      final Duration realTimeCheckpointInterval = getRealTimeCheckpointInterval();
 
       final ReadChangeStreamPartitionDoFn readChangeStreamPartitionDoFn =
           new ReadChangeStreamPartitionDoFn(
-              daoFactory, mapperFactory, actionFactory, metrics, cdcTimeIncrement);
+              daoFactory, mapperFactory, actionFactory, metrics, realTimeCheckpointInterval);
       final PostProcessingMetricsDoFn postProcessingMetricsDoFn =
           new PostProcessingMetricsDoFn(metrics);
 
