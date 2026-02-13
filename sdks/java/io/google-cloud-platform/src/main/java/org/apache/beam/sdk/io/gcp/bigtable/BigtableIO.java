@@ -29,11 +29,13 @@ import com.google.api.gax.rpc.ApiException;
 import com.google.api.gax.rpc.InvalidArgumentException;
 import com.google.api.gax.rpc.NotFoundException;
 import com.google.auto.value.AutoValue;
+import com.google.bigtable.v2.ColumnRange;
 import com.google.bigtable.v2.MutateRowResponse;
 import com.google.bigtable.v2.Mutation;
 import com.google.bigtable.v2.Row;
 import com.google.bigtable.v2.RowFilter;
 import com.google.cloud.bigtable.config.BigtableOptions;
+import com.google.cloud.bigtable.data.v2.internal.ByteStringComparator;
 import com.google.cloud.bigtable.data.v2.models.ChangeStreamMutation;
 import com.google.cloud.bigtable.data.v2.models.ChangeStreamRecord;
 import com.google.cloud.bigtable.data.v2.models.KeyOffset;
@@ -47,6 +49,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.Queue;
+import java.util.TreeSet;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ExecutionException;
@@ -54,6 +57,8 @@ import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.function.BiFunction;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import org.apache.beam.sdk.PipelineRunner;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.extensions.protobuf.ProtoCoder;
@@ -98,6 +103,7 @@ import org.apache.beam.sdk.values.TupleTagList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.MoreObjects;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.MoreObjects.ToStringHelper;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Splitter;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Maps;
@@ -608,6 +614,35 @@ public class BigtableIO {
      */
     public Read withRowFilter(RowFilter filter) {
       return withRowFilter(StaticValueProvider.of(filter));
+    }
+
+    /**
+     * Convenient method to return a new {@link BigtableIO.Read} that will filter the rows read from
+     * Cloud Bigtable using the given columns. The columns should be in the format of
+     * "family1:*,family2:!{qualifier1|qualifier2}".
+     *
+     * <ul>
+     *   <li>Use "*" to include all the qualifiers in a family. For example, "cf1:*" includes all
+     *       the qualifiers in family "cf1".
+     *   <li>Use "!" to exclude some qualifiers from a family. Qualifiers are delimited by "|". For
+     *       example, "cf1:!{q1|q2}" excludes qualifier "q1" and "q2" from family "cf1".
+     *   <li>"cf1:{q1|q2}" includes qualifier "q1" and "q2" from family "cf1".
+     *   <li>Family and qualifier groups are delimited by ",".
+     *   <li>Only specified families are included.
+     *   <li>If there's a "," or "|" in the qualifier name, escape it with "\". For example,
+     *       "cf1:{q1_a\\,q1_b\\|q1_c} selects qualifier "q1_a,q1_b|q1_c" from family "cf1".
+     * </ul>
+     *
+     * If {@link #withRowFilter(RowFilter)} is also present, the filter will be chained.
+     *
+     * <p>Does not modify this object.
+     */
+    public Read withColumns(ValueProvider<String> columns) {
+      checkArgumentNotNull(columns, "columns cannot be null");
+      BigtableReadOptions readOptions = getBigtableReadOptions();
+      return toBuilder()
+          .setBigtableReadOptions(readOptions.toBuilder().setColumns(columns).build())
+          .build();
     }
 
     /**
@@ -1568,6 +1603,10 @@ public class BigtableIO {
     }
 
     ////// Private state and internal implementation details //////
+    private static final Pattern COLUMN_REGEX =
+        Pattern.compile("(?<family>[^:]+):(?<qualifier>.*)");
+    private static final Pattern QUALIFIER_REGEX = Pattern.compile("!?\\{(?<q>.*)\\}");
+
     private final BigtableConfig config;
     private final BigtableReadOptions readOptions;
     private @Nullable Long estimatedSizeBytes;
@@ -1938,8 +1977,106 @@ public class BigtableIO {
     }
 
     public @Nullable RowFilter getRowFilter() {
-      ValueProvider<RowFilter> rowFilter = readOptions.getRowFilter();
-      return rowFilter != null && rowFilter.isAccessible() ? rowFilter.get() : null;
+      RowFilter rowFilter = null;
+      if (readOptions.getRowFilter() != null && readOptions.getRowFilter().isAccessible()) {
+        rowFilter = readOptions.getRowFilter().get();
+      }
+
+      RowFilter columnsFilter = null;
+      if (readOptions.getColumns() != null && readOptions.getColumns().isAccessible()) {
+        columnsFilter = parseColumns(readOptions.getColumns().get());
+      }
+
+      if (rowFilter != null && columnsFilter != null) {
+        return RowFilter.newBuilder()
+            .setChain(RowFilter.Chain.newBuilder().addFilters(rowFilter).addFilters(columnsFilter))
+            .build();
+      } else if (rowFilter != null) {
+        return rowFilter;
+      } else if (columnsFilter != null) {
+        return columnsFilter;
+      }
+      return null;
+    }
+
+    private RowFilter parseColumns(String input) {
+      RowFilter.Interleave.Builder filterBuilder = RowFilter.Interleave.newBuilder();
+      // qualifier can contain ",", the content "," should be escaped
+      Iterable<String> columns = Splitter.onPattern("(?<!\\\\),").split(input);
+
+      for (String column : columns) {
+        Matcher matcher = COLUMN_REGEX.matcher(column);
+        checkArgument(matcher.matches(), "Invalid column format: %s", column);
+        String family = matcher.group("family");
+        String qualifiersStr = matcher.group("qualifiers");
+        if (qualifiersStr.equals("*")) {
+          filterBuilder.addFilters(RowFilter.newBuilder().setFamilyNameRegexFilter(family).build());
+        } else {
+          boolean exclude = qualifiersStr.startsWith("!");
+          Matcher qualifierMatcher = QUALIFIER_REGEX.matcher(qualifiersStr);
+          checkArgument(qualifierMatcher.matches(), "Invalid qualifier format: %s", column);
+          Iterable<String> qualifiers = Splitter.onPattern("(?<!\\\\)\\|").split(input);
+          if (exclude) {
+            addExcludeQualifiers(filterBuilder, family, qualifiers);
+          } else {
+            addIncludeQualifiers(filterBuilder, family, qualifiers);
+          }
+        }
+      }
+      return RowFilter.newBuilder().setInterleave(filterBuilder.build()).build();
+    }
+
+    private void addExcludeQualifiers(
+        RowFilter.Interleave.Builder builder, String family, Iterable<String> qualifiers) {
+      TreeSet<String> sorted =
+          new TreeSet<>(
+              (a, b) -> {
+                ByteString a1 = ByteString.copyFromUtf8(a);
+                ByteString b1 = ByteString.copyFromUtf8(b);
+                return ByteStringComparator.INSTANCE.compare(a1, b1);
+              });
+      qualifiers.forEach(sorted::add);
+
+      ByteString prev = ByteString.EMPTY;
+
+      for (String q : qualifiers) {
+        q = cleanupQualifier(q);
+        builder.addFilters(
+            RowFilter.newBuilder()
+                .setColumnRangeFilter(
+                    ColumnRange.newBuilder()
+                        .setFamilyName(family)
+                        .setStartQualifierOpen(prev)
+                        .setEndQualifierOpen(ByteString.copyFromUtf8(q))
+                        .build()));
+        prev = ByteString.copyFromUtf8(q);
+      }
+      builder.addFilters(
+          RowFilter.newBuilder()
+              .setColumnRangeFilter(
+                  ColumnRange.newBuilder()
+                      .setFamilyName(family)
+                      .setStartQualifierOpen(prev)
+                      .build()));
+    }
+
+    private void addIncludeQualifiers(
+        RowFilter.Interleave.Builder builder, String family, Iterable<String> qualifiers) {
+      for (String q : qualifiers) {
+        q = cleanupQualifier(q);
+        builder.addFilters(
+            RowFilter.newBuilder()
+                .setColumnRangeFilter(
+                    ColumnRange.newBuilder()
+                        .setFamilyName(family)
+                        .setStartQualifierClosed(ByteString.copyFromUtf8(q))
+                        .setEndQualifierClosed(ByteString.copyFromUtf8(q))
+                        .build()));
+      }
+    }
+
+    private String cleanupQualifier(String input) {
+      return input.replace("\\|", "|").replace("\\,", ",");
     }
 
     public @Nullable Integer getMaxBufferElementCount() {

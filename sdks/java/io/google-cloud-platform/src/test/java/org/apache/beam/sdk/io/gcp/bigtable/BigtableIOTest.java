@@ -44,6 +44,7 @@ import com.google.api.gax.rpc.ApiException;
 import com.google.auto.value.AutoValue;
 import com.google.bigtable.v2.Cell;
 import com.google.bigtable.v2.Column;
+import com.google.bigtable.v2.ColumnRange;
 import com.google.bigtable.v2.Family;
 import com.google.bigtable.v2.MutateRowResponse;
 import com.google.bigtable.v2.Mutation;
@@ -677,9 +678,154 @@ public class BigtableIOTest {
     service.setupSampleRowKeys(table, 5, 10L);
 
     runReadTest(
-        defaultRead.withTableId(table).withRowFilter(StaticValueProvider.of(filter)),
-        Lists.newArrayList(filteredRows));
+        defaultRead.withTableId(table).withRowFilter(filter), Lists.newArrayList(filteredRows));
   }
+
+  @Test
+  public void testParseColumnFilter() {
+    String test1 = "cf1:*,cf2:*";
+    RowFilter expected1 =
+        RowFilter.newBuilder()
+            .setInterleave(
+                RowFilter.Interleave.newBuilder()
+                    .addFilters(RowFilter.newBuilder().setFamilyNameRegexFilter("cf1").build())
+                    .addFilters(RowFilter.newBuilder().setFamilyNameRegexFilter("cf2").build()))
+            .build();
+    BigtableSource source =
+        new BigtableSource(
+            factory,
+            configId,
+            config,
+            BigtableReadOptions.builder().setColumns(StaticValueProvider.of(test1)).build(),
+            null);
+    assertEquals(expected1, source.getRowFilter());
+
+    String test2 = "cf1:*,cf2:!{b|a}";
+    RowFilter expected2 =
+        RowFilter.newBuilder()
+            .setInterleave(
+                RowFilter.Interleave.newBuilder()
+                    .addFilters(RowFilter.newBuilder().setFamilyNameRegexFilter("cf1").build())
+                    .addFilters(
+                        RowFilter.newBuilder()
+                            .setColumnRangeFilter(
+                                ColumnRange.newBuilder()
+                                    .setFamilyName("cf2")
+                                    .setStartQualifierOpen(ByteString.EMPTY)
+                                    .setEndQualifierOpen(ByteString.copyFromUtf8("a"))
+                                    .build()))
+                    .addFilters(
+                        RowFilter.newBuilder()
+                            .setColumnRangeFilter(
+                                ColumnRange.newBuilder()
+                                    .setFamilyName("cf2")
+                                    .setStartQualifierOpen(ByteString.copyFromUtf8("a"))
+                                    .setEndQualifierOpen(ByteString.copyFromUtf8("b"))
+                                    .build()))
+                    .addFilters(
+                        RowFilter.newBuilder()
+                            .setColumnRangeFilter(
+                                ColumnRange.newBuilder()
+                                    .setFamilyName("cf2")
+                                    .setStartQualifierOpen(ByteString.copyFromUtf8("b"))
+                                    .build()))
+                    .build())
+            .build();
+
+    source =
+        new BigtableSource(
+            factory,
+            configId,
+            config,
+            BigtableReadOptions.builder().setColumns(StaticValueProvider.of(test2)).build(),
+            null);
+    assertEquals(expected2, source.getRowFilter());
+
+    String test3 = "cf1:{a|b},cf2:*,cf3:!{a\\,b\\|c}";
+    RowFilter expected3 =
+        RowFilter.newBuilder()
+            .setInterleave(
+                RowFilter.Interleave.newBuilder()
+                    .addFilters(
+                        RowFilter.newBuilder()
+                            .setColumnRangeFilter(
+                                ColumnRange.newBuilder()
+                                    .setFamilyName("cf1")
+                                    .setStartQualifierClosed(ByteString.copyFromUtf8("a"))
+                                    .setEndQualifierClosed(ByteString.copyFromUtf8("a"))
+                                    .build()))
+                    .addFilters(
+                        RowFilter.newBuilder()
+                            .setColumnRangeFilter(
+                                ColumnRange.newBuilder()
+                                    .setFamilyName("cf1")
+                                    .setStartQualifierClosed(ByteString.copyFromUtf8("b"))
+                                    .setEndQualifierClosed(ByteString.copyFromUtf8("b"))
+                                    .build()))
+                    .addFilters(RowFilter.newBuilder().setFamilyNameRegexFilter("cf2").build())
+                    .addFilters(
+                        RowFilter.newBuilder()
+                            .setColumnRangeFilter(
+                                ColumnRange.newBuilder()
+                                    .setFamilyName("cf3")
+                                    .setStartQualifierOpen(ByteString.EMPTY)
+                                    .setEndQualifierOpen(ByteString.copyFromUtf8("a,b|c"))
+                                    .build())
+                            .build())
+                    .addFilters(
+                        RowFilter.newBuilder()
+                            .setColumnRangeFilter(
+                                ColumnRange.newBuilder()
+                                    .setFamilyName("cf3")
+                                    .setStartQualifierOpen(ByteString.copyFromUtf8("a,b|c"))
+                                    .build()))
+                    .build())
+            .build();
+    source =
+        new BigtableSource(
+            factory,
+            configId,
+            config,
+            BigtableReadOptions.builder().setColumns(StaticValueProvider.of(test3)).build(),
+            null);
+    assertEquals(expected3, source.getRowFilter());
+
+    String test4Columns = "cf:*";
+    RowFilter test4Filter =
+        RowFilter.newBuilder().setRowKeyRegexFilter(ByteString.copyFromUtf8(".*")).build();
+    RowFilter expected4 =
+        RowFilter.newBuilder()
+            .setChain(
+                RowFilter.Chain.newBuilder()
+                    .addFilters(
+                        RowFilter.newBuilder()
+                            .setRowKeyRegexFilter(ByteString.copyFromUtf8(".*"))
+                            .build())
+                    .addFilters(
+                        RowFilter.newBuilder()
+                            .setInterleave(
+                                RowFilter.Interleave.newBuilder()
+                                    .addFilters(
+                                        RowFilter.newBuilder()
+                                            .setFamilyNameRegexFilter("cf")
+                                            .build())
+                                    .build()))
+                    .build())
+            .build();
+    source =
+        new BigtableSource(
+            factory,
+            configId,
+            config,
+            BigtableReadOptions.builder()
+                .setRowFilter(StaticValueProvider.of(test4Filter))
+                .setColumns(StaticValueProvider.of(test4Columns))
+                .build(),
+            null);
+
+    assertEquals(expected4, source.getRowFilter());
+  }
+
   /** Tests dynamic work rebalancing exhaustively. */
   @Test
   public void testReadingSplitAtFractionExhaustive() throws Exception {

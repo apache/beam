@@ -43,6 +43,8 @@ abstract class BigtableReadOptions implements Serializable {
   /** Returns the row filter to use. */
   abstract @Nullable ValueProvider<RowFilter> getRowFilter();
 
+  abstract @Nullable ValueProvider<String> getColumns();
+
   /** Returns the key ranges to read. */
   abstract @Nullable ValueProvider<List<ByteKeyRange>> getKeyRanges();
 
@@ -72,6 +74,8 @@ abstract class BigtableReadOptions implements Serializable {
     abstract Builder setTableId(ValueProvider<String> tableId);
 
     abstract Builder setRowFilter(ValueProvider<RowFilter> rowFilter);
+
+    abstract Builder setColumns(ValueProvider<String> columns);
 
     abstract Builder setMaxBufferElementCount(@Nullable Integer maxBufferElementCount);
 
@@ -110,6 +114,7 @@ abstract class BigtableReadOptions implements Serializable {
     builder
         .addIfNotNull(DisplayData.item("tableId", getTableId()).withLabel("Bigtable Table Id"))
         .addIfNotNull(DisplayData.item("rowFilter", getRowFilter()).withLabel("Row Filter"))
+        .addIfNotNull(DisplayData.item("columns", getColumns()).withLabel("Columns to read"))
         .addIfNotNull(DisplayData.item("keyRanges", getKeyRanges()).withLabel("Key Ranges"))
         .addIfNotNull(
             DisplayData.item("attemptTimeout", getAttemptTimeout())
@@ -127,6 +132,11 @@ abstract class BigtableReadOptions implements Serializable {
     if (getRowFilter() != null && getRowFilter().isAccessible()) {
       checkArgument(getRowFilter().get() != null, "rowFilter can not be null");
     }
+
+    if (getColumns() != null && getColumns().isAccessible()) {
+      checkArgument(getColumns().get() != null, "columns cannot be null");
+    }
+
     if (getMaxBufferElementCount() != null) {
       checkArgument(
           getMaxBufferElementCount() > 0, "maxBufferElementCount can not be zero or negative");
