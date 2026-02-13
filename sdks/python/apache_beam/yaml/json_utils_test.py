@@ -208,6 +208,46 @@ class JsonUtilsTest(unittest.TestCase):
               }
           })
 
+  def test_validate_compatible_map(self):
+    from apache_beam.yaml.json_utils import _validate_compatible
+
+    # Compatible maps
+    _validate_compatible(
+        {
+            'type': 'object', 'additionalProperties': {
+                'type': 'string'
+            }
+        }, {
+            'type': 'object', 'additionalProperties': {
+                'type': 'string'
+            }
+        })
+
+    # Incompatible map values
+    with self.assertRaisesRegex(ValueError, 'Incompatible types'):
+      _validate_compatible(
+          {
+              'type': 'object', 'additionalProperties': {
+                  'type': 'string'
+              }
+          }, {
+              'type': 'object', 'additionalProperties': {
+                  'type': 'integer'
+              }
+          })
+
+    # Map vs Object
+    with self.assertRaisesRegex(ValueError,
+                                'Incompatible types: map vs object'):
+      _validate_compatible(
+          {
+              'type': 'object', 'additionalProperties': {
+                  'type': 'string'
+              }
+          }, {
+              'type': 'object', 'properties': {}, 'additionalProperties': False
+          })
+
 
 if __name__ == '__main__':
   unittest.main()

@@ -318,6 +318,12 @@ def _validate_compatible(weak_schema, strong_schema):
   if weak_schema['type'] == 'array':
     _validate_compatible(weak_schema['items'], strong_schema['items'])
   elif weak_schema['type'] == 'object':
+    if 'additionalProperties' in weak_schema:
+      if not strong_schema.get('additionalProperties'):
+        raise ValueError('Incompatible types: map vs object')
+      _validate_compatible(
+          weak_schema['additionalProperties'],
+          strong_schema['additionalProperties'])
     for required in strong_schema.get('required', []):
       if required not in weak_schema['properties']:
         raise ValueError(f"Missing or unknown property '{required}'")
