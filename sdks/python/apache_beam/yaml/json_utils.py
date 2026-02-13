@@ -318,7 +318,7 @@ def _validate_compatible(weak_schema, strong_schema):
   if weak_schema['type'] == 'array':
     _validate_compatible(weak_schema['items'], strong_schema['items'])
   elif weak_schema['type'] == 'object':
-    if 'additionalProperties' in weak_schema:
+    if weak_schema.get('additionalProperties'):
       if not strong_schema.get('additionalProperties'):
         raise ValueError('Incompatible types: map vs object')
       _validate_compatible(
