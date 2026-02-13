@@ -368,8 +368,7 @@ if __name__ == '__main__':
 
 class YamlProvidersCreateTest(unittest.TestCase):
   def test_create_mixed_types(self):
-    with beam.Pipeline(options=beam.options.pipeline_options.PipelineOptions(
-        pickle_library='cloudpickle')) as p:
+    with beam.Pipeline() as p:
       # A mix of a primitive (Row(element=1)) and a dict (Row(a=2))
       result = p | YamlProviders.create([1, {"a": 2}])
       assert_that(

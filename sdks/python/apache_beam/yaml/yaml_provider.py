@@ -864,6 +864,19 @@ class YamlProviders:
                 str: "bar"
                  values: [4, 5, 6]
 
+    If the elements are a mix of dicts and non-dicts, the non-dict elements
+    will be wrapped in a Row with a single field "element". For example::
+
+        type: Create
+        config:
+          elements: [1, {"a": 2}]
+
+    will result in an output with two elements with a schema of
+    Row(element=int, a=int) looking like:
+
+        Row(element=1, a=None)
+        Row(element=None, a=2)
+
     Args:
         elements: The set of elements that should belong to the PCollection.
             YAML/JSON-style mappings will be interpreted as Beam rows.
@@ -880,12 +893,6 @@ class YamlProviders:
 
     if elements:
       # Normalize elements to be all dicts or all primitives.
-      # If we have a mix, we want to treat them all as dicts for the purpose
-      # of schema inference (so we can have a schema like
-      # Row(element=..., other_field=...)).
-      # Note that we don't want to change the elements themselves if they
-      # are already all dicts or all primitives, as that would change the
-      # resulting schema (e.g. from int to Row(element=int)).
       has_dict = False
       has_non_dict = False
       for e in elements:
