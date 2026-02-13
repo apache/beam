@@ -24,7 +24,6 @@ import random
 import re
 import sys
 import tempfile
-import typing
 import unittest
 
 import mock
