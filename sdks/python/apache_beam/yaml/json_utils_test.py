@@ -152,6 +152,62 @@ class JsonUtilsTest(unittest.TestCase):
     with self.assertRaises(KeyError):
       converter(json_data)
 
+  def test_validate_compatible(self):
+    from apache_beam.yaml.json_utils import _validate_compatible
+
+    # Compatible cases
+    _validate_compatible({'type': 'string'}, {'type': 'string'})
+    _validate_compatible(
+        {
+            'type': 'object', 'properties': {
+                'f': {
+                    'type': 'string'
+                }
+            }
+        }, {
+            'type': 'object', 'properties': {
+                'f': {
+                    'type': 'string'
+                }
+            }
+        })
+
+    # Incompatible types
+    with self.assertRaisesRegex(ValueError, 'Incompatible types'):
+      _validate_compatible({'type': 'string'}, {'type': 'integer'})
+
+    # Missing property
+    with self.assertRaisesRegex(ValueError, 'Missing or unknown property'):
+      _validate_compatible({
+          'type': 'object', 'properties': {}
+      },
+                           {
+                               'type': 'object',
+                               'properties': {
+                                   'f': {
+                                       'type': 'string'
+                                   }
+                               },
+                               'required': ['f']
+                           })
+
+    # Incompatible property type
+    with self.assertRaisesRegex(ValueError, 'Incompatible schema for \'f\''):
+      _validate_compatible(
+          {
+              'type': 'object', 'properties': {
+                  'f': {
+                      'type': 'integer'
+                  }
+              }
+          }, {
+              'type': 'object', 'properties': {
+                  'f': {
+                      'type': 'string'
+                  }
+              }
+          })
+
 
 if __name__ == '__main__':
   unittest.main()
