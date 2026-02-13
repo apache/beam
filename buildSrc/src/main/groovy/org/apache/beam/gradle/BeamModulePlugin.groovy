@@ -651,7 +651,7 @@ class BeamModulePlugin implements Plugin<Project> {
     def spark2_version = "2.4.8"
     def spark3_version = "3.5.0"
     def spotbugs_version = "4.8.3"
-    def testcontainers_version = "1.19.7"
+    def testcontainers_version = "1.21.4"
     // [bomupgrader] determined by: org.apache.arrow:arrow-memory-core, consistent with: google_cloud_platform_libraries_bom
     def arrow_version = "17.0.0"
     def jmh_version = "1.34"
