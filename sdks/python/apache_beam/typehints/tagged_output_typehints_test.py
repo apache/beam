@@ -39,8 +39,13 @@ from typing import Iterable
 from typing import Literal
 from typing import Union
 
+from parameterized import param
+from parameterized import parameterized
+
 import apache_beam as beam
+from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.pvalue import TaggedOutput
+from apache_beam.typehints import Any
 from apache_beam.typehints import with_output_types
 from apache_beam.typehints.decorators import IOTypeHints
 
@@ -350,6 +355,36 @@ class AnnotationStyleTaggedOutputTest(unittest.TestCase):
 
       self.assertEqual(results.main.element_type, int)
       self.assertEqual(results.errors.element_type, str)
+
+  @parameterized.expand([
+      param(compat_version=None),
+      param(compat_version="2.71.0"),
+  ])
+  def test_pardo_annotation_process_method_update_compatible(
+      self, compat_version):
+    """Test DoFn with process method annotation preserves update compatibility.
+    Pre 2.72.0 the main output is the union of all types, and tagged pcols
+      Any"""
+    class AnnotatedDoFn(beam.DoFn):
+      def process(self, element: int) -> Iterable[int | TaggedOutput]:
+        if element < 0:
+          yield beam.pvalue.TaggedOutput('errors', f'Negative: {element}')
+        else:
+          yield element * 2
+
+    with beam.Pipeline(options=PipelineOptions(
+        update_compatibility_version=compat_version)) as p:
+      results = (
+          p
+          | beam.Create([-1, 0, 1, 2])
+          | beam.ParDo(AnnotatedDoFn()).with_outputs('errors', main='main'))
+      if compat_version:
+        self.assertEqual(
+            results.main.element_type.union_types, [TaggedOutput, int])
+        self.assertEqual(results.errors.element_type, Any)
+      else:
+        self.assertEqual(results.main.element_type, int)
+        self.assertEqual(results.errors.element_type, Any)
 
 
 if __name__ == '__main__':

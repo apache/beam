@@ -98,6 +98,7 @@ from typing import Union
 from typing import get_args
 from typing import get_origin
 
+from apache_beam.options.pipeline_options_context import get_pipeline_options
 from apache_beam.pvalue import TaggedOutput
 from apache_beam.typehints import native_type_compatibility
 from apache_beam.typehints import typehints
@@ -546,12 +547,21 @@ class IOTypeHints(NamedTuple):
       A copy of this instance with TaggedOutput members moved from the main
       output type into the output kwargs dict.
     """
+    opts = get_pipeline_options()
+    if opts and opts.is_compat_version_prior_to("2.72.0"):
+      return self
     if self.output_types is None or not self.has_simple_output_type():
       return self
-    output_type = self.output_types[0][0]
+    # Tags already set via decorator/chain style — nothing to extract.
+    if self.output_types[1]:
+      return self
 
+    output_type = self.output_types[0][0]
     clean_type, extracted_tags = _extract_tagged_from_type(output_type)
-    if not extracted_tags:
+
+    # Bare TaggedOutput e.g. if -> int | TaggedOutput then clean_type = int
+    # and extracted_tags = {}
+    if not extracted_tags and clean_type == output_type:
       return self
     if clean_type is _NO_MAIN_TYPE:
       clean_type = typehints.Any
