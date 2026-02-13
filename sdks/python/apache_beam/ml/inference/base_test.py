@@ -20,6 +20,7 @@ import math
 import multiprocessing
 import os
 import pickle
+import random
 import sys
 import tempfile
 import time
@@ -2337,6 +2338,31 @@ class ModelManagerTest(unittest.TestCase):
               'smoothing_factor': 0.5
           })
       assert_that(actual, equal_to(expected), label='assert:inferences')
+
+  @unittest.skipIf(
+      not try_import_model_manager(), 'Model Manager not available')
+  def test_run_inference_impl_with_model_manager_oom(self):
+    class OOMFakeModelHandler(SimpleFakeModelHandler):
+      def run_inference(
+          self,
+          batch: Sequence[int],
+          model: FakeModel,
+          inference_args=None) -> Iterable[int]:
+        if random.random() < 0.8:
+          raise MemoryError("Simulated OOM")
+        for example in batch:
+          yield model.predict(example)
+
+      def batch_elements_kwargs(self):
+        return {'min_batch_size': 1, 'max_batch_size': 1}
+
+    with self.assertRaises(Exception):
+      with TestPipeline() as pipeline:
+        examples = [1, 5, 3, 10]
+        pcoll = pipeline | 'start' >> beam.Create(examples)
+        actual = pcoll | base.RunInference(
+            OOMFakeModelHandler(), use_model_manager=True)
+        assert_that(actual, equal_to([2, 6, 4, 11]), label='assert:inferences')
 
 
 if __name__ == '__main__':

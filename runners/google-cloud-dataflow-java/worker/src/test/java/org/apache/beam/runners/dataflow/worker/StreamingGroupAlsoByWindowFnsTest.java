@@ -75,6 +75,7 @@ import org.apache.beam.sdk.transforms.windowing.TimestampCombiner;
 import org.apache.beam.sdk.util.AppliedCombineFn;
 import org.apache.beam.sdk.util.ByteStringOutputStream;
 import org.apache.beam.sdk.util.WindowedValueReceiver;
+import org.apache.beam.sdk.values.CausedByDrain;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.WindowedValue;
@@ -159,7 +160,7 @@ public class StreamingGroupAlsoByWindowFnsTest {
                         type == Windmill.Timer.Type.WATERMARK
                             ? TimeDomain.EVENT_TIME
                             : TimeDomain.PROCESSING_TIME,
-                        TimerData.CausedByDrain.NORMAL)))
+                        CausedByDrain.NORMAL)))
         .setTimestamp(WindmillTimeUtils.harnessToWindmillTimestamp(timestamp))
         .setType(type)
         .setStateFamily(STATE_FAMILY);

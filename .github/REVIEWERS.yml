@@ -50,7 +50,6 @@ labels:
   - name: kafka
     reviewers:
       - johnjcasey
-      - fozzie15
       - Dippatel98
       - sjvanrossum
   - name: Build

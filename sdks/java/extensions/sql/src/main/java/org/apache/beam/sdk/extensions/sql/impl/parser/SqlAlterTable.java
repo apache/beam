@@ -154,11 +154,6 @@ public class SqlAlterTable extends SqlAlter implements BeamSqlParser.ExecutableS
 
   @Override
   public void unparseAlterOperation(SqlWriter writer, int left, int right) {
-    unparse(writer, left, right);
-  }
-
-  @Override
-  public void unparse(SqlWriter writer, int left, int right) {
     writer.keyword("ALTER");
     writer.keyword("TABLE");
     name.unparse(writer, left, right);

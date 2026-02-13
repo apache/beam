@@ -20,11 +20,17 @@ package org.apache.beam.sdk.extensions.gcp.util;
 import com.google.api.client.http.HttpRequestInitializer;
 import com.google.api.client.util.BackOff;
 import com.google.api.client.util.Sleeper;
+import com.google.api.gax.paging.Page;
 import com.google.api.services.storage.Storage;
 import com.google.api.services.storage.model.Bucket;
 import com.google.api.services.storage.model.Objects;
 import com.google.api.services.storage.model.StorageObject;
 import com.google.auth.Credentials;
+import com.google.cloud.storage.Blob;
+import com.google.cloud.storage.BucketInfo;
+import com.google.cloud.storage.Storage.BlobGetOption;
+import com.google.cloud.storage.Storage.BlobListOption;
+import com.google.cloud.storage.Storage.BucketGetOption;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.io.IOException;
 import java.nio.channels.SeekableByteChannel;
@@ -34,6 +40,7 @@ import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.function.Supplier;
 import org.apache.beam.sdk.extensions.gcp.options.GcsOptions;
+import org.apache.beam.sdk.extensions.gcp.util.GcsUtilV2.BlobResult;
 import org.apache.beam.sdk.extensions.gcp.util.gcsfs.GcsPath;
 import org.apache.beam.sdk.io.fs.MoveOptions;
 import org.apache.beam.sdk.options.DefaultValueFactory;
@@ -44,6 +51,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 
 public class GcsUtil {
   @VisibleForTesting GcsUtilV1 delegate;
+  @VisibleForTesting @Nullable GcsUtilV2 delegateV2;
 
   public static class GcsCountersOptions {
     final GcsUtilV1.GcsCountersOptions delegate;
@@ -96,11 +104,11 @@ public class GcsUtil {
   }
 
   public static String getNonWildcardPrefix(String globExp) {
-    return GcsUtilV1.getNonWildcardPrefix(globExp);
+    return GcsPath.getNonWildcardPrefix(globExp);
   }
 
   public static boolean isWildcard(GcsPath spec) {
-    return GcsUtilV1.isWildcard(spec);
+    return GcsPath.isWildcard(spec);
   }
 
   @VisibleForTesting
@@ -125,6 +133,12 @@ public class GcsUtil {
             rewriteDataOpBatchLimit,
             gcsCountersOptions.delegate,
             gcsOptions);
+
+    if (ExperimentalOptions.hasExperiment(gcsOptions, "use_gcsutil_v2")) {
+      this.delegateV2 = new GcsUtilV2(gcsOptions);
+    } else {
+      this.delegateV2 = null;
+    }
   }
 
   protected void setStorageClient(Storage storageClient) {
@@ -136,6 +150,9 @@ public class GcsUtil {
   }
 
   public List<GcsPath> expand(GcsPath gcsPattern) throws IOException {
+    if (delegateV2 != null) {
+      return delegateV2.expand(gcsPattern);
+    }
     return delegate.expand(gcsPattern);
   }
 
@@ -146,18 +163,34 @@ public class GcsUtil {
   }
 
   public long fileSize(GcsPath path) throws IOException {
+    if (delegateV2 != null) {
+      return delegateV2.fileSize(path);
+    }
     return delegate.fileSize(path);
   }
 
+  /** @deprecated use {@link #getBlob(GcsPath)}. */
+  @Deprecated
   public StorageObject getObject(GcsPath gcsPath) throws IOException {
     return delegate.getObject(gcsPath);
   }
 
+  /** @deprecated use {@link #getBlob(GcsPath, BlobGetOption...)}. */
+  @Deprecated
   @VisibleForTesting
   StorageObject getObject(GcsPath gcsPath, BackOff backoff, Sleeper sleeper) throws IOException {
     return delegate.getObject(gcsPath, backoff, sleeper);
   }
 
+  public Blob getBlob(GcsPath gcsPath, BlobGetOption... options) throws IOException {
+    if (delegateV2 != null) {
+      return delegateV2.getBlob(gcsPath, options);
+    }
+    throw new IOException("GcsUtil V2 not initialized.");
+  }
+
+  /** @deprecated use {@link #getBlobs(Iterable, BlobGetOption...)}. */
+  @Deprecated
   public List<StorageObjectOrIOException> getObjects(List<GcsPath> gcsPaths) throws IOException {
     List<GcsUtilV1.StorageObjectOrIOException> legacy = delegate.getObjects(gcsPaths);
     return legacy.stream()
@@ -165,15 +198,49 @@ public class GcsUtil {
         .collect(java.util.stream.Collectors.toList());
   }
 
+  public List<BlobResult> getBlobs(Iterable<GcsPath> gcsPaths, BlobGetOption... options)
+      throws IOException {
+    if (delegateV2 != null) {
+      return delegateV2.getBlobs(gcsPaths, options);
+    }
+    throw new IOException("GcsUtil V2 not initialized.");
+  }
+
+  /** @deprecated use {@link #listBlobs(String, String, String, BlobListOption...)}. */
+  @Deprecated
   public Objects listObjects(String bucket, String prefix, @Nullable String pageToken)
       throws IOException {
     return delegate.listObjects(bucket, prefix, pageToken);
   }
 
+  /** @deprecated use {@link #listBlobs(String, String, String, String, BlobListOption...)}. */
+  @Deprecated
   public Objects listObjects(
       String bucket, String prefix, @Nullable String pageToken, @Nullable String delimiter)
       throws IOException {
     return delegate.listObjects(bucket, prefix, pageToken, delimiter);
+  }
+
+  public Page<Blob> listBlobs(
+      String bucket, String prefix, @Nullable String pageToken, BlobListOption... options)
+      throws IOException {
+    if (delegateV2 != null) {
+      return delegateV2.listBlobs(bucket, prefix, pageToken, options);
+    }
+    throw new IOException("GcsUtil V2 not initialized.");
+  }
+
+  public Page<Blob> listBlobs(
+      String bucket,
+      String prefix,
+      @Nullable String pageToken,
+      @Nullable String delimiter,
+      BlobListOption... options)
+      throws IOException {
+    if (delegateV2 != null) {
+      return delegateV2.listBlobs(bucket, prefix, pageToken, delimiter, options);
+    }
+    throw new IOException("GcsUtil V2 not initialized.");
   }
 
   @VisibleForTesting
@@ -254,27 +321,67 @@ public class GcsUtil {
   }
 
   public void verifyBucketAccessible(GcsPath path) throws IOException {
+    if (delegateV2 != null) {
+      delegateV2.verifyBucketAccessible(path);
+      return;
+    }
     delegate.verifyBucketAccessible(path);
   }
 
   public boolean bucketAccessible(GcsPath path) throws IOException {
+    if (delegateV2 != null) {
+      return delegateV2.bucketAccessible(path);
+    }
     return delegate.bucketAccessible(path);
   }
 
   public long bucketOwner(GcsPath path) throws IOException {
+    if (delegateV2 != null) {
+      return delegateV2.bucketProject(path);
+    }
     return delegate.bucketOwner(path);
   }
 
+  /** @deprecated use {@link #createBucket(BucketInfo)}. */
+  @Deprecated
   public void createBucket(String projectId, Bucket bucket) throws IOException {
     delegate.createBucket(projectId, bucket);
   }
 
+  public void createBucket(BucketInfo bucketInfo) throws IOException {
+    if (delegateV2 != null) {
+      delegateV2.createBucket(bucketInfo);
+    } else {
+      throw new IOException("GcsUtil V2 not initialized.");
+    }
+  }
+
+  /** @deprecated use {@link #getBucketWithOptions(GcsPath, BucketGetOption...)} . */
+  @Deprecated
   public @Nullable Bucket getBucket(GcsPath path) throws IOException {
     return delegate.getBucket(path);
   }
 
+  public com.google.cloud.storage.@Nullable Bucket getBucketWithOptions(
+      GcsPath path, BucketGetOption... options) throws IOException {
+    if (delegateV2 != null) {
+      return delegateV2.getBucket(path, options);
+    }
+    throw new IOException("GcsUtil V2 not initialized.");
+  }
+
+  /** @deprecated use {@link #removeBucket(BucketInfo)}. */
+  @Deprecated
   public void removeBucket(Bucket bucket) throws IOException {
     delegate.removeBucket(bucket);
+  }
+
+  public void removeBucket(BucketInfo bucketInfo) throws IOException {
+    if (delegateV2 != null) {
+      delegateV2.removeBucket(bucketInfo);
+    } else {
+      throw new IOException("GcsUtil V2 not initialized.");
+    }
   }
 
   @VisibleForTesting

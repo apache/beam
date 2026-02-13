@@ -651,7 +651,7 @@ class BeamModulePlugin implements Plugin<Project> {
     def spark2_version = "2.4.8"
     def spark3_version = "3.5.0"
     def spotbugs_version = "4.8.3"
-    def testcontainers_version = "1.19.7"
+    def testcontainers_version = "1.21.4"
     // [bomupgrader] determined by: org.apache.arrow:arrow-memory-core, consistent with: google_cloud_platform_libraries_bom
     def arrow_version = "17.0.0"
     def jmh_version = "1.34"
@@ -767,6 +767,7 @@ class BeamModulePlugin implements Plugin<Project> {
         google_cloud_spanner_bom                    : "com.google.cloud:google-cloud-spanner-bom:$google_cloud_spanner_version",
         google_cloud_spanner                        : "com.google.cloud:google-cloud-spanner", // google_cloud_platform_libraries_bom sets version
         google_cloud_spanner_test                   : "com.google.cloud:google-cloud-spanner:$google_cloud_spanner_version:tests",
+        google_cloud_storage                        : "com.google.cloud:google-cloud-storage", // google_cloud_platform_libraries_bom sets version
         google_cloud_tink                           : "com.google.crypto.tink:tink:1.19.0",
         google_cloud_vertexai                       : "com.google.cloud:google-cloud-vertexai", // google_cloud_platform_libraries_bom sets version
         google_code_gson                            : "com.google.code.gson:gson:$google_code_gson_version",
