@@ -135,6 +135,10 @@ jobs:
       matrix:
         os: [[self-hosted, ubuntu-20.04, main], macos-latest, windows-latest]
         python: ["3.10", "3.11", "3.12", "3.13", "3.14"]
+        exlude:
+          # There isn't a valid 3.14 - Ubuntu 20.04 configuration
+          - os: [self-hosted, ubuntu-20.04, main]
+          - python: "3.14"
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
