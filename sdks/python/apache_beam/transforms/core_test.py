@@ -531,9 +531,9 @@ class ExceptionHandlingWithOutputsTest(unittest.TestCase):
         if element % 2 == 0:
           raise ValueError(f'Even numbers not allowed {element}')
         if element % 3 == 0:
-          yield beam.pvalue.TaggedOutput('threes', element)
+          yield beam.pvalue.TaggedOutput('threes', element)  # type: ignore[misc]
         elif element % 5 == 0:
-          yield beam.pvalue.TaggedOutput('fives', str(element))
+          yield beam.pvalue.TaggedOutput('fives', str(element))  # type: ignore[misc]
         else:
           yield element
 
