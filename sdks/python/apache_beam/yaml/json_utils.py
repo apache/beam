@@ -63,12 +63,12 @@ def json_schema_to_beam_schema(
 
   json_type = json_schema.get('type', None)
   if json_type != 'object':
-    raise ValueError('Expected object type, got {json_type}.')
+    raise ValueError(f'Expected object type, got {json_type}.')
   if 'properties' not in json_schema:
     # Technically this is a valid (vacuous) schema, but as it's not generally
     # meaningful, throw an informative error instead.
     # (We could add a flag to allow this degenerate case.)
-    raise ValueError('Missing properties for {json_schema}.')
+    raise ValueError(f'Missing properties for {json_schema}.')
   required = set(json_schema.get('required', []))
   return schema_pb2.Schema(
       fields=[
@@ -315,14 +315,14 @@ def _validate_compatible(weak_schema, strong_schema):
   if weak_schema['type'] != strong_schema['type']:
     raise ValueError(
         'Incompatible types: %r vs %r' %
-        (weak_schema['type'] != strong_schema['type']))
+        (weak_schema['type'], strong_schema['type']))
   if weak_schema['type'] == 'array':
     _validate_compatible(weak_schema['items'], strong_schema['items'])
-  elif weak_schema == 'object':
+  elif weak_schema['type'] == 'object':
     for required in strong_schema.get('required', []):
       if required not in weak_schema['properties']:
         raise ValueError('Missing or unkown property %r' % required)
-    for name, spec in weak_schema.get('properties', {}):
+    for name, spec in weak_schema.get('properties', {}).items():
       if name in strong_schema['properties']:
         try:
           _validate_compatible(spec, strong_schema['properties'][name])
@@ -330,7 +330,7 @@ def _validate_compatible(weak_schema, strong_schema):
           raise ValueError('Incompatible schema for %r' % name) from exn
       elif not strong_schema.get('additionalProperties'):
         raise ValueError(
-            'Prohibited property: {property}; '
+            f'Prohibited property: {name}; '
             'perhaps additionalProperties: False is missing?')
 
 
