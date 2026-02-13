@@ -138,7 +138,7 @@ jobs:
         exclude:
           # There isn't a valid 3.14 - Ubuntu 20.04 configuration
           - os: [self-hosted, ubuntu-20.04, main]
-          - python: "3.14"
+            python: "3.14"
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
