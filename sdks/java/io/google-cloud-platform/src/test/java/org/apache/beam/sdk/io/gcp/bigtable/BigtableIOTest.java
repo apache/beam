@@ -680,6 +680,36 @@ public class BigtableIOTest {
         defaultRead.withTableId(table).withRowFilter(StaticValueProvider.of(filter)),
         Lists.newArrayList(filteredRows));
   }
+
+  @Test
+  public void testReadingWithSerializedRowFilter() throws Exception {
+    final String table = "TEST-FILTER-TABLE";
+    final int numRows = 1001;
+    List<Row> testRows = makeTableData(table, numRows);
+    String regex = ".*17.*";
+    final KeyMatchesRegex keyPredicate = new KeyMatchesRegex(regex);
+    Iterable<Row> filteredRows =
+        testRows.stream()
+            .filter(
+                input -> {
+                  verifyNotNull(input, "input");
+                  return keyPredicate.apply(input.getKey());
+                })
+            .collect(Collectors.toList());
+
+    RowFilter filter =
+        RowFilter.newBuilder().setRowKeyRegexFilter(ByteString.copyFromUtf8(regex)).build();
+    String serializedFilter = RowUtils.encodeRowFilter(filter);
+
+    service.setupSampleRowKeys(table, 5, 10L);
+
+    runReadTest(
+        defaultRead
+            .withTableId(table)
+            .withEncodedRowFilter(StaticValueProvider.of(serializedFilter)),
+        Lists.newArrayList(filteredRows));
+  }
+
   /** Tests dynamic work rebalancing exhaustively. */
   @Test
   public void testReadingSplitAtFractionExhaustive() throws Exception {

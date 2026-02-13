@@ -38,6 +38,7 @@ import com.google.cloud.bigtable.data.v2.models.ChangeStreamMutation;
 import com.google.cloud.bigtable.data.v2.models.ChangeStreamRecord;
 import com.google.cloud.bigtable.data.v2.models.KeyOffset;
 import com.google.protobuf.ByteString;
+import com.google.protobuf.InvalidProtocolBufferException;
 import java.io.IOException;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
@@ -608,6 +609,21 @@ public class BigtableIO {
      */
     public Read withRowFilter(RowFilter filter) {
       return withRowFilter(StaticValueProvider.of(filter));
+    }
+
+    /**
+     * Returns a new {@link BigtableIO.Read} that will filter the rows read from Cloud Bigtable
+     * using the given row filter encoded with {@link RowUtils#encodeRowFilter(RowFilter)}.
+     *
+     * <p>Does not modify this object.
+     */
+    public Read withEncodedRowFilter(ValueProvider<String> filter) {
+      checkArgumentNotNull(filter, "filter can not be null");
+      BigtableReadOptions bigtableReadOptions = getBigtableReadOptions();
+      return toBuilder()
+          .setBigtableReadOptions(
+              getBigtableReadOptions().toBuilder().setEncodedRowFilter(filter).build())
+          .build();
     }
 
     /**
@@ -1939,7 +1955,19 @@ public class BigtableIO {
 
     public @Nullable RowFilter getRowFilter() {
       ValueProvider<RowFilter> rowFilter = readOptions.getRowFilter();
-      return rowFilter != null && rowFilter.isAccessible() ? rowFilter.get() : null;
+      if (rowFilter != null && rowFilter.isAccessible()) {
+        return rowFilter.get();
+      }
+      ValueProvider<String> serializedRowFilter = readOptions.getEncodedRowFilter();
+      if (serializedRowFilter != null && serializedRowFilter.isAccessible()) {
+        String filterString = serializedRowFilter.get();
+        try {
+          return RowUtils.decodeRowFilter(filterString);
+        } catch (InvalidProtocolBufferException e) {
+          throw new RuntimeException("Failed to deserialize row filter string", e);
+        }
+      }
+      return null;
     }
 
     public @Nullable Integer getMaxBufferElementCount() {

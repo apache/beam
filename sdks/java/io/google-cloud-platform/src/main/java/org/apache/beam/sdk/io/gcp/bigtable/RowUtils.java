@@ -17,7 +17,10 @@
  */
 package org.apache.beam.sdk.io.gcp.bigtable;
 
+import com.google.bigtable.v2.RowFilter;
 import com.google.protobuf.ByteString;
+import com.google.protobuf.InvalidProtocolBufferException;
+import java.util.Base64;
 
 public class RowUtils {
   public static final String KEY = "key";
@@ -32,5 +35,16 @@ public class RowUtils {
 
   public static ByteString byteStringUtf8(String value) {
     return ByteString.copyFromUtf8(value);
+  }
+
+  /** Encode a row filter with Base64 encoding. */
+  public static String encodeRowFilter(RowFilter filter) {
+    return Base64.getEncoder().encodeToString(filter.toByteArray());
+  }
+
+  /** Decode a base64 encoded row filter string. */
+  public static RowFilter decodeRowFilter(String serialized) throws InvalidProtocolBufferException {
+    byte[] decoded = Base64.getDecoder().decode(serialized);
+    return RowFilter.parseFrom(decoded);
   }
 }

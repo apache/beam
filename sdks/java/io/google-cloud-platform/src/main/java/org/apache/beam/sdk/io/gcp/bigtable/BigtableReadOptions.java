@@ -43,6 +43,9 @@ abstract class BigtableReadOptions implements Serializable {
   /** Returns the row filter to use. */
   abstract @Nullable ValueProvider<RowFilter> getRowFilter();
 
+  /** Returns the row filter string encoded with {@link RowUtils#encodeRowFilter(RowFilter)}. */
+  abstract @Nullable ValueProvider<String> getEncodedRowFilter();
+
   /** Returns the key ranges to read. */
   abstract @Nullable ValueProvider<List<ByteKeyRange>> getKeyRanges();
 
@@ -72,6 +75,8 @@ abstract class BigtableReadOptions implements Serializable {
     abstract Builder setTableId(ValueProvider<String> tableId);
 
     abstract Builder setRowFilter(ValueProvider<RowFilter> rowFilter);
+
+    abstract Builder setEncodedRowFilter(ValueProvider<String> serializedRowFilter);
 
     abstract Builder setMaxBufferElementCount(@Nullable Integer maxBufferElementCount);
 
@@ -110,6 +115,9 @@ abstract class BigtableReadOptions implements Serializable {
     builder
         .addIfNotNull(DisplayData.item("tableId", getTableId()).withLabel("Bigtable Table Id"))
         .addIfNotNull(DisplayData.item("rowFilter", getRowFilter()).withLabel("Row Filter"))
+        .addIfNotNull(
+            DisplayData.item("serializedRowFilter", getEncodedRowFilter())
+                .withLabel("Serialized Row Filter"))
         .addIfNotNull(DisplayData.item("keyRanges", getKeyRanges()).withLabel("Key Ranges"))
         .addIfNotNull(
             DisplayData.item("attemptTimeout", getAttemptTimeout())
