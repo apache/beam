@@ -116,8 +116,8 @@ abstract class BigtableReadOptions implements Serializable {
         .addIfNotNull(DisplayData.item("tableId", getTableId()).withLabel("Bigtable Table Id"))
         .addIfNotNull(DisplayData.item("rowFilter", getRowFilter()).withLabel("Row Filter"))
         .addIfNotNull(
-            DisplayData.item("serializedRowFilter", getEncodedRowFilter())
-                .withLabel("Serialized Row Filter"))
+            DisplayData.item("encodedRowFilter", getEncodedRowFilter())
+                .withLabel("Encoded Row Filter"))
         .addIfNotNull(DisplayData.item("keyRanges", getKeyRanges()).withLabel("Key Ranges"))
         .addIfNotNull(
             DisplayData.item("attemptTimeout", getAttemptTimeout())

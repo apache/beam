@@ -613,7 +613,9 @@ public class BigtableIO {
 
     /**
      * Returns a new {@link BigtableIO.Read} that will filter the rows read from Cloud Bigtable
-     * using the given row filter encoded with {@link RowUtils#encodeRowFilter(RowFilter)}.
+     * using the given row filter encoded with {@link RowUtils#encodeRowFilter(RowFilter)}. If
+     * {@link #withRowFilter(RowFilter)} is also set, it'll use the row filter specified in {@link
+     * #withRowFilter(RowFilter)}.
      *
      * <p>Does not modify this object.
      */
@@ -622,7 +624,7 @@ public class BigtableIO {
       BigtableReadOptions bigtableReadOptions = getBigtableReadOptions();
       return toBuilder()
           .setBigtableReadOptions(
-              getBigtableReadOptions().toBuilder().setEncodedRowFilter(filter).build())
+              bigtableReadOptions.toBuilder().setEncodedRowFilter(filter).build())
           .build();
     }
 
@@ -1958,13 +1960,13 @@ public class BigtableIO {
       if (rowFilter != null && rowFilter.isAccessible()) {
         return rowFilter.get();
       }
-      ValueProvider<String> serializedRowFilter = readOptions.getEncodedRowFilter();
-      if (serializedRowFilter != null && serializedRowFilter.isAccessible()) {
-        String filterString = serializedRowFilter.get();
+      ValueProvider<String> encoded = readOptions.getEncodedRowFilter();
+      if (encoded != null && encoded.isAccessible()) {
+        String filterString = encoded.get();
         try {
           return RowUtils.decodeRowFilter(filterString);
         } catch (InvalidProtocolBufferException e) {
-          throw new RuntimeException("Failed to deserialize row filter string", e);
+          throw new RuntimeException("Failed to decode row filter string", e);
         }
       }
       return null;
