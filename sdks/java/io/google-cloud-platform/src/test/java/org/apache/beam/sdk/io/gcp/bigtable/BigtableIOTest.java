@@ -682,7 +682,7 @@ public class BigtableIOTest {
   }
 
   @Test
-  public void testReadingWithSerializedRowFilter() throws Exception {
+  public void testReadingWithEncodedRowFilter() throws Exception {
     final String table = "TEST-FILTER-TABLE";
     final int numRows = 1001;
     List<Row> testRows = makeTableData(table, numRows);
