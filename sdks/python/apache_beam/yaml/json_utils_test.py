@@ -160,7 +160,8 @@ class JsonUtilsTest(unittest.TestCase):
                 type=schema_pb2.FieldType(atomic_type=schema_pb2.STRING))
         ])
     json_schema = {
-        'type': 'object', 'properties': {
+        'type': 'object',
+        'properties': {
             'f': {
                 'type': 'integer'
             }
@@ -170,9 +171,11 @@ class JsonUtilsTest(unittest.TestCase):
       json_utils.row_validator(beam_schema, json_schema)
 
   def test_json_schema_to_beam_schema_errors(self):
-    with self.assertRaisesRegex(ValueError, "Expected object type, got not_object"):
+    with self.assertRaisesRegex(
+        ValueError, "Expected object type, got not_object"):
       json_utils.json_schema_to_beam_schema({'type': 'not_object'})
-    with self.assertRaisesRegex(ValueError, "Missing properties for"):
+    with self.assertRaisesRegex(
+        ValueError, "Missing properties for"):
       json_utils.json_schema_to_beam_schema({'type': 'object'})
 
 

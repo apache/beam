@@ -314,20 +314,20 @@ def _validate_compatible(weak_schema, strong_schema):
     return
   if weak_schema['type'] != strong_schema['type']:
     raise ValueError(
-        'Incompatible types: %r vs %r' %
-        (weak_schema['type'], strong_schema['type']))
+        f"Incompatible types: {weak_schema['type']!r} vs "
+        f"{strong_schema['type']!r}")
   if weak_schema['type'] == 'array':
     _validate_compatible(weak_schema['items'], strong_schema['items'])
   elif weak_schema['type'] == 'object':
     for required in strong_schema.get('required', []):
       if required not in weak_schema['properties']:
-        raise ValueError('Missing or unkown property %r' % required)
+        raise ValueError(f'Missing or unknown property {required!r}')
     for name, spec in weak_schema.get('properties', {}).items():
       if name in strong_schema['properties']:
         try:
           _validate_compatible(spec, strong_schema['properties'][name])
         except Exception as exn:
-          raise ValueError('Incompatible schema for %r' % name) from exn
+          raise ValueError(f'Incompatible schema for {name!r}') from exn
       elif not strong_schema.get('additionalProperties'):
         raise ValueError(
             f'Prohibited property: {name}; '
