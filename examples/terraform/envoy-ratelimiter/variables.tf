@@ -89,7 +89,7 @@ variable "min_replicas" {
 variable "max_replicas" {
   description = "Maximum number of replicas for rate limit deployment"
   type        = number
-  default     = 5
+  default     = 100
 }
 
 variable "hpa_cpu_target_percentage" {
@@ -128,6 +128,19 @@ variable "ratelimit_log_level" {
   default     = "debug"
 }
 
+variable "ratelimit_grpc_max_connection_age" {
+  description = "Duration a connection may exist before it will be closed by sending a GoAway"
+  type        = string
+  default     = "5m"
+}
+
+variable "ratelimit_grpc_max_connection_age_grace" {
+  description = "Period after MaxConnectionAge after which the connection will be forcibly closed"
+  type        = string
+  default     = "1m"
+}
+
+
 variable "redis_resources" {
   description = "Compute resources for Redis container"
   type = object({
@@ -136,11 +149,11 @@ variable "redis_resources" {
   })
   default = {
     requests = {
-      cpu    = "100m"
+      cpu    = "250m"
       memory = "128Mi"
     }
     limits = {
-      cpu    = "500m"
+      cpu    = "1000m"
       memory = "512Mi"
     }
   }
@@ -154,8 +167,8 @@ variable "ratelimit_resources" {
   })
   default = {
     requests = {
-      cpu    = "250m"
-      memory = "256Mi"
+      cpu    = "150m"
+      memory = "128Mi"
     }
     limits = {
       cpu    = "500m"
