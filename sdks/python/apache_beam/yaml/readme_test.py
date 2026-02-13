@@ -87,7 +87,7 @@ class FakeSql(beam.PTransform):
         # Handle optionals more gracefully.
         if (str(typ).startswith('typing.Union[') or
             str(typ).startswith('typing.Optional[') or
-            isinstance(typ, typing.Union)):
+            '|' in str(typ)):
           if len(typ.__args__) == 2 and type(None) in typ.__args__:
             typ, = [t for t in typ.__args__ if t is not type(None)]
       return name, typ
