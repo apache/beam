@@ -559,8 +559,9 @@ class IOTypeHints(NamedTuple):
     output_type = self.output_types[0][0]
     clean_type, extracted_tags = _extract_tagged_from_type(output_type)
 
-    # Bare TaggedOutput e.g. if -> int | TaggedOutput then clean_type = int
-    # and extracted_tags = {}
+    # If no tags were extracted, only return if the type is also unchanged.
+    # A bare `TaggedOutput` (e.g. in `int | TaggedOutput`) results in no
+    # extracted tags, but `clean_type` is modified, so we should proceed.
     if not extracted_tags and clean_type == output_type:
       return self
     if clean_type is _NO_MAIN_TYPE:
