@@ -152,6 +152,8 @@ public class BigtableReadIT {
 
   @Test
   public void testE2EBigtableReadWithSkippingLargeRows() {
+    tableAdminClient.createTable(CreateTableRequest.of(tableId).addFamily(COLUMN_FAMILY_NAME));
+
     // Write a few rows first
     int numRows = 20;
     int numLargeRows = 3;
