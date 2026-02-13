@@ -318,8 +318,10 @@ def _validate_compatible(weak_schema, strong_schema):
   if weak_schema['type'] == 'array':
     _validate_compatible(weak_schema['items'], strong_schema['items'])
   elif weak_schema['type'] == 'object':
+    # If the weak schema allows for arbitrary keys (is a map),
+    # the strong schema must also allow for arbitrary keys.
     if weak_schema.get('additionalProperties'):
-      if not strong_schema.get('additionalProperties'):
+      if not strong_schema.get('additionalProperties', True):
         raise ValueError('Incompatible types: map vs object')
       _validate_compatible(
           weak_schema['additionalProperties'],
@@ -328,12 +330,15 @@ def _validate_compatible(weak_schema, strong_schema):
       if required not in weak_schema['properties']:
         raise ValueError(f"Missing or unknown property '{required}'")
     for name, spec in weak_schema.get('properties', {}).items():
+
       if name in strong_schema['properties']:
         try:
           _validate_compatible(spec, strong_schema['properties'][name])
         except Exception as exn:
           raise ValueError(f"Incompatible schema for '{name}'") from exn
-      elif not strong_schema.get('additionalProperties'):
+      elif not strong_schema.get('additionalProperties', True):
+        # The property is not explicitly in the strong schema, and the strong
+        # schema does not allow for extra properties.
         raise ValueError(
             f"Prohibited property: '{name}'; "
             "perhaps additionalProperties: False is missing?")

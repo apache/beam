@@ -248,6 +248,34 @@ class JsonUtilsTest(unittest.TestCase):
               'type': 'object', 'properties': {}, 'additionalProperties': False
           })
 
+  def test_validate_compatible_extra_properties(self):
+    from apache_beam.yaml.json_utils import _validate_compatible
+
+    # Extra properties in weak_schema should be allowed if strong_schema
+    # doesn't explicitly forbid them (default additionalProperties=True).
+    _validate_compatible({
+        'type': 'object', 'properties': {
+            'extra': {
+                'type': 'string'
+            }
+        }
+    }, {
+        'type': 'object', 'properties': {}
+    })
+
+    # But if strong_schema says additionalProperties: False, it should raise.
+    with self.assertRaisesRegex(ValueError, 'Prohibited property'):
+      _validate_compatible(
+          {
+              'type': 'object', 'properties': {
+                  'extra': {
+                      'type': 'string'
+                  }
+              }
+          }, {
+              'type': 'object', 'properties': {}, 'additionalProperties': False
+          })
+
 
 if __name__ == '__main__':
   unittest.main()
