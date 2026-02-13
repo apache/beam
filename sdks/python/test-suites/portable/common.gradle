@@ -253,7 +253,7 @@ tasks.register("prismTriggerTranscript") {
 
 project.tasks.register("preCommitPy${pythonVersionSuffix}") {
   dependsOn = [":sdks:python:container:py${pythonVersionSuffix}:docker",
-               ":runners:flink:${latestFlink1Version}:job-server:shadowJar",
+               ":runners:flink:${latestFlinkVersion}:job-server:shadowJar",
                'portableWordCountFlinkRunnerBatch',
                'portableWordCountFlinkRunnerStreaming']
 }
@@ -509,15 +509,15 @@ addTestJavaJarCreator("SparkRunner", tasks.getByPath(":runners:spark:3:job-serve
 
 def addTestFlinkUberJar(boolean saveMainSession) {
   project.tasks.register("testUberJarFlinkRunner${saveMainSession ? 'SaveMainSession' : ''}") {
-    dependsOn ":runners:flink:${latestFlink1Version}:job-server:shadowJar"
-    dependsOn ":runners:flink:${latestFlink1Version}:job-server:miniCluster"
+    dependsOn ":runners:flink:${latestFlinkVersion}:job-server:shadowJar"
+    dependsOn ":runners:flink:${latestFlinkVersion}:job-server:miniCluster"
     dependsOn pythonContainerTask
     doLast{
       exec {
         executable "sh"
         def options = [
-            "--flink_job_server_jar ${tasks.getByPath(":runners:flink:${latestFlink1Version}:job-server:shadowJar").archivePath}",
-            "--flink_mini_cluster_jar ${tasks.getByPath(":runners:flink:${latestFlink1Version}:job-server:miniCluster").archivePath}",
+            "--flink_job_server_jar ${tasks.getByPath(":runners:flink:${latestFlinkVersion}:job-server:shadowJar").archivePath}",
+            "--flink_mini_cluster_jar ${tasks.getByPath(":runners:flink:${latestFlinkVersion}:job-server:miniCluster").archivePath}",
             "--env_dir ${project.rootProject.buildDir}/gradleenv/${project.path.hashCode()}",
             "--python_root_dir ${project.rootDir}/sdks/python",
             "--python_version ${project.ext.pythonVersion}",
