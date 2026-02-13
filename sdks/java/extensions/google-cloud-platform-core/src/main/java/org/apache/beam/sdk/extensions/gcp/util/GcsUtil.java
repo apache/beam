@@ -438,12 +438,12 @@ public class GcsUtil {
     delegate.copy(srcFilenames, destFilenames);
   }
 
-  /** experimental */
+  /** experimental api. */
   public void copyV2(Iterable<GcsPath> srcPaths, Iterable<GcsPath> dstPaths) throws IOException {
     copy(srcPaths, dstPaths, OverwriteStrategy.SAFE_OVERWRITE);
   }
 
-  /** experimental */
+  /** experimental api. */
   public void copy(
       Iterable<GcsPath> srcPaths, Iterable<GcsPath> dstPaths, OverwriteStrategy strategy)
       throws IOException {
@@ -460,7 +460,7 @@ public class GcsUtil {
     delegate.rename(srcFilenames, destFilenames, moveOptions);
   }
 
-  /** experimental */
+  /** experimental api. */
   public void renameV2(
       Iterable<GcsPath> srcPaths, Iterable<GcsPath> dstPaths, MoveOptions... moveOptions)
       throws IOException {
@@ -487,7 +487,7 @@ public class GcsUtil {
     }
   }
 
-  /** experimental */
+  /** experimental api. */
   public void rename(
       Iterable<GcsPath> srcPaths,
       Iterable<GcsPath> dstPaths,
@@ -531,12 +531,12 @@ public class GcsUtil {
     delegate.remove(filenames);
   }
 
-  /** experimental */
+  /** experimental api. */
   public void removeV2(Iterable<GcsPath> paths) throws IOException {
     remove(paths, MissingStrategy.SKIP_IF_MISSING);
   }
 
-  /** experimental */
+  /** experimental api. */
   public void remove(Iterable<GcsPath> paths, MissingStrategy strategy) throws IOException {
     if (delegateV2 != null) {
       delegateV2.remove(paths, strategy);
