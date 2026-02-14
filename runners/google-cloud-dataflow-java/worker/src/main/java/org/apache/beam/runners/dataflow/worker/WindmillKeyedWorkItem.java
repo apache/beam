@@ -17,6 +17,8 @@
  */
 package org.apache.beam.runners.dataflow.worker;
 
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkState;
+
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -25,6 +27,7 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Objects;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi;
+import org.apache.beam.repackaged.core.org.apache.commons.lang3.tuple.Pair;
 import org.apache.beam.runners.core.KeyedWorkItem;
 import org.apache.beam.runners.core.KeyedWorkItemCoder;
 import org.apache.beam.runners.core.TimerInternals.TimerData;
@@ -101,12 +104,12 @@ public class WindmillKeyedWorkItem<K, ElemT> implements KeyedWorkItem<K, ElemT> 
     return eventTimers
         .append(nonEventTimers)
         .transform(
-            timer ->
-                windmillTagEncoding.windmillTimerToTimerData(
-                    WindmillNamespacePrefix.SYSTEM_NAMESPACE_PREFIX,
-                    timer,
-                    windowCoder,
-                    drainMode));
+            timer -> {
+              Pair<WindmillTimerType, TimerData> pair =
+                  windmillTagEncoding.windmillTimerToTimerData(timer, windowCoder, drainMode);
+              checkState(pair.getLeft() == WindmillTimerType.SYSTEM_TIMER);
+              return pair.getRight();
+            });
   }
 
   @Override

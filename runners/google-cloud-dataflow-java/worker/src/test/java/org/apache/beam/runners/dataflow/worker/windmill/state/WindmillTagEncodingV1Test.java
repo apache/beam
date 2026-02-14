@@ -23,13 +23,14 @@ import static org.junit.Assert.assertEquals;
 
 import java.io.IOException;
 import java.util.List;
+import org.apache.beam.repackaged.core.org.apache.commons.lang3.tuple.Pair;
 import org.apache.beam.runners.core.StateNamespace;
 import org.apache.beam.runners.core.StateNamespaceForTest;
 import org.apache.beam.runners.core.StateNamespaces;
 import org.apache.beam.runners.core.StateTag;
 import org.apache.beam.runners.core.StateTags;
 import org.apache.beam.runners.core.TimerInternals.TimerData;
-import org.apache.beam.runners.dataflow.worker.WindmillNamespacePrefix;
+import org.apache.beam.runners.dataflow.worker.WindmillTimerType;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.InternedByteString;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.Timer;
 import org.apache.beam.sdk.coders.Coder;
@@ -140,7 +141,7 @@ public class WindmillTagEncodingV1Test {
         StateNamespace namespace = coderAndNamespace.getValue();
 
         for (TimeDomain timeDomain : TimeDomain.values()) {
-          for (WindmillNamespacePrefix prefix : WindmillNamespacePrefix.values()) {
+          for (WindmillTimerType prefix : WindmillTimerType.values()) {
             for (Instant timestamp : TEST_TIMESTAMPS) {
               List<TimerData> anonymousTimers =
                   ImmutableList.of(
@@ -157,16 +158,17 @@ public class WindmillTagEncodingV1Test {
                     timer.getOutputTimestamp().isBefore(BoundedWindow.TIMESTAMP_MIN_VALUE)
                         ? BoundedWindow.TIMESTAMP_MIN_VALUE
                         : timer.getOutputTimestamp();
-                TimerData computed =
+                Pair<WindmillTimerType, TimerData> computedPair =
                     WindmillTagEncodingV1.instance()
                         .windmillTimerToTimerData(
-                            prefix,
                             WindmillTagEncodingV1.instance()
                                 .buildWindmillTimerFromTimerData(
                                     stateFamily, prefix, timer, Timer.newBuilder())
                                 .build(),
                             coder,
                             false);
+                TimerData computed = computedPair.getRight();
+                assertEquals(prefix, computedPair.getLeft());
                 // The function itself bounds output, so we dont expect the original input as the
                 // output, we expect it to be bounded
                 TimerData expected =
@@ -221,17 +223,17 @@ public class WindmillTagEncodingV1Test {
                           timer.getTimestamp(),
                           expectedTimestamp,
                           timer.getDomain());
-                  assertThat(
+                  Pair<WindmillTimerType, TimerData> computedPair =
                       WindmillTagEncodingV1.instance()
                           .windmillTimerToTimerData(
-                              prefix,
                               WindmillTagEncodingV1.instance()
                                   .buildWindmillTimerFromTimerData(
                                       stateFamily, prefix, timer, Timer.newBuilder())
                                   .build(),
                               coder,
-                              false),
-                      equalTo(expected));
+                              false);
+                  assertEquals(prefix, computedPair.getLeft());
+                  assertThat(computedPair.getRight(), equalTo(expected));
                 }
               }
             }

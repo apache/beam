@@ -798,7 +798,7 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext<Step
       this.systemTimerInternals =
           new WindmillTimerInternals(
               stateFamily,
-              WindmillNamespacePrefix.SYSTEM_NAMESPACE_PREFIX,
+              WindmillTimerType.SYSTEM_TIMER,
               processingTime,
               watermarks,
               windmillTagEncoding,
@@ -807,7 +807,7 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext<Step
       this.userTimerInternals =
           new WindmillTimerInternals(
               stateFamily,
-              WindmillNamespacePrefix.USER_NAMESPACE_PREFIX,
+              WindmillTimerType.USER_TIMER,
               processingTime,
               watermarks,
               windmillTagEncoding,
@@ -832,17 +832,13 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext<Step
       if (cachedFiredSystemTimers == null) {
         cachedFiredSystemTimers =
             FluentIterable.from(StreamingModeExecutionContext.this.getFiredTimers())
-                .filter(
-                    timer ->
-                        WindmillTimerInternals.isSystemTimer(timer)
-                            && timer.getStateFamily().equals(stateFamily))
+                .filter(timer -> timer.getStateFamily().equals(stateFamily))
                 .transform(
                     timer ->
                         windmillTagEncoding.windmillTimerToTimerData(
-                            WindmillNamespacePrefix.SYSTEM_NAMESPACE_PREFIX,
-                            timer,
-                            windowCoder,
-                            getDrainMode()))
+                            timer, windowCoder, getDrainMode()))
+                .filter(pair -> pair.getLeft() == WindmillTimerType.SYSTEM_TIMER)
+                .transform(pair -> pair.getRight())
                 .iterator();
       }
 
@@ -895,17 +891,13 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext<Step
         cachedFiredUserTimers =
             Iterators.peekingIterator(
                 FluentIterable.from(StreamingModeExecutionContext.this.getFiredTimers())
-                    .filter(
-                        timer ->
-                            WindmillTimerInternals.isUserTimer(timer)
-                                && timer.getStateFamily().equals(stateFamily))
+                    .filter(timer -> timer.getStateFamily().equals(stateFamily))
                     .transform(
                         timer ->
                             windmillTagEncoding.windmillTimerToTimerData(
-                                WindmillNamespacePrefix.USER_NAMESPACE_PREFIX,
-                                timer,
-                                windowCoder,
-                                getDrainMode()))
+                                timer, windowCoder, getDrainMode()))
+                    .filter(pair -> pair.getLeft() == WindmillTimerType.USER_TIMER)
+                    .transform(pair -> pair.getRight())
                     .iterator());
       }
 

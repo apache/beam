@@ -20,27 +20,24 @@ package org.apache.beam.runners.dataflow.worker;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.vendor.grpc.v1p69p0.com.google.protobuf.ByteString;
 
-/**
- * A prefix for a Windmill state or timer tag to separate user state and timers from system state
- * and timers.
- */
+/** A type for a Windmill timer to separate user state and timers from system state and timers. */
 @Internal
-public enum WindmillNamespacePrefix {
-  USER_NAMESPACE_PREFIX {
+public enum WindmillTimerType {
+  USER_TIMER {
     @Override
-    public ByteString byteString() {
+    public ByteString namespacePrefix() {
       return USER_NAMESPACE_BYTESTRING;
     }
   },
 
-  SYSTEM_NAMESPACE_PREFIX {
+  SYSTEM_TIMER {
     @Override
-    public ByteString byteString() {
+    public ByteString namespacePrefix() {
       return SYSTEM_NAMESPACE_BYTESTRING;
     }
   };
 
-  public abstract ByteString byteString();
+  public abstract ByteString namespacePrefix();
 
   private static final ByteString USER_NAMESPACE_BYTESTRING = ByteString.copyFromUtf8("/u");
   private static final ByteString SYSTEM_NAMESPACE_BYTESTRING = ByteString.copyFromUtf8("/s");

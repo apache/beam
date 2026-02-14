@@ -17,16 +17,15 @@
  */
 package org.apache.beam.runners.dataflow.worker.windmill.state;
 
-import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
-
 import java.io.IOException;
 import javax.annotation.concurrent.ThreadSafe;
+import org.apache.beam.repackaged.core.org.apache.commons.lang3.tuple.Pair;
 import org.apache.beam.runners.core.StateNamespace;
 import org.apache.beam.runners.core.StateNamespaces;
 import org.apache.beam.runners.core.StateTag;
 import org.apache.beam.runners.core.TimerInternals.TimerData;
-import org.apache.beam.runners.dataflow.worker.WindmillNamespacePrefix;
 import org.apache.beam.runners.dataflow.worker.WindmillTimeUtils;
+import org.apache.beam.runners.dataflow.worker.WindmillTimerType;
 import org.apache.beam.runners.dataflow.worker.util.ThreadLocalByteStringOutputStream;
 import org.apache.beam.runners.dataflow.worker.util.ThreadLocalByteStringOutputStream.StreamHandle;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.InternedByteString;
@@ -71,11 +70,11 @@ public class WindmillTagEncodingV1 extends WindmillTagEncoding {
   /** {@inheritDoc} */
   @Override
   public ByteString timerHoldTag(
-      WindmillNamespacePrefix prefix, TimerData timerData, ByteString unusedTimerTag) {
+      WindmillTimerType windmillTimerType, TimerData timerData, ByteString unusedTimerTag) {
     String tagString;
     if ("".equals(timerData.getTimerFamilyId())) {
       tagString =
-          prefix.byteString().toStringUtf8()
+          windmillTimerType.namespacePrefix().toStringUtf8()
               + // this never ends with a slash
               TIMER_HOLD_PREFIX
               + // this never ends with a slash
@@ -86,7 +85,7 @@ public class WindmillTagEncodingV1 extends WindmillTagEncoding {
       ;
     } else {
       tagString =
-          prefix.byteString().toStringUtf8()
+          windmillTimerType.namespacePrefix().toStringUtf8()
               + // this never ends with a slash
               TIMER_HOLD_PREFIX
               + // this never ends with a slash
@@ -105,11 +104,11 @@ public class WindmillTagEncodingV1 extends WindmillTagEncoding {
 
   /** {@inheritDoc} */
   @Override
-  public ByteString timerTag(WindmillNamespacePrefix prefix, TimerData timerData) {
+  public ByteString timerTag(WindmillTimerType windmillTimerType, TimerData timerData) {
     String tagString;
     if (useNewTimerTagEncoding(timerData)) {
       tagString =
-          prefix.byteString().toStringUtf8()
+          windmillTimerType.namespacePrefix().toStringUtf8()
               + // this never ends with a slash
               timerData.getNamespace().stringKey()
               + // this must begin and end with a slash
@@ -121,7 +120,7 @@ public class WindmillTagEncodingV1 extends WindmillTagEncoding {
     } else {
       // Timers without timerFamily would have timerFamily would be an empty string
       tagString =
-          prefix.byteString().toStringUtf8()
+          windmillTimerType.namespacePrefix().toStringUtf8()
               + // this never ends with a slash
               timerData.getNamespace().stringKey()
               + // this must begin and end with a slash
@@ -134,11 +133,8 @@ public class WindmillTagEncodingV1 extends WindmillTagEncoding {
 
   /** {@inheritDoc} */
   @Override
-  public TimerData windmillTimerToTimerData(
-      WindmillNamespacePrefix prefix,
-      Timer timer,
-      Coder<? extends BoundedWindow> windowCoder,
-      boolean draining) {
+  public Pair<WindmillTimerType, TimerData> windmillTimerToTimerData(
+      Timer timer, Coder<? extends BoundedWindow> windowCoder, boolean draining) {
 
     // The tag is a path-structure string but cheaper to parse than a proper URI. It follows
     // this pattern, where no component but the ID can contain a slash
@@ -159,17 +155,21 @@ public class WindmillTagEncodingV1 extends WindmillTagEncoding {
     //    - the Global StateNamespace is different, and becomes "/"
     //  - the id is totally arbitrary; currently unescaped though that could change
 
-    ByteString tag = timer.getTag();
-    checkArgument(
-        tag.startsWith(prefix.byteString()),
-        "Expected timer tag %s to start with prefix %s",
-        tag,
-        prefix.byteString());
+    ByteString tag = ByteString.copyFrom(timer.getTag().asReadOnlyByteBuffer());
+    WindmillTimerType timerType;
+    if (tag.startsWith(WindmillTimerType.SYSTEM_TIMER.namespacePrefix())) {
+      timerType = WindmillTimerType.SYSTEM_TIMER;
+    } else if (tag.startsWith(WindmillTimerType.USER_TIMER.namespacePrefix())) {
+      timerType = WindmillTimerType.USER_TIMER;
+    } else {
+      throw new IllegalArgumentException("Unknown timer tag prefix: " + tag.toStringUtf8());
+    }
 
     Instant timestamp = WindmillTimeUtils.windmillToHarnessTimestamp(timer.getTimestamp());
 
     // Parse the namespace.
-    int namespaceStart = prefix.byteString().size(); // drop the prefix, leave the begin slash
+    int namespaceStart =
+        timerType.namespacePrefix().size(); // drop the prefix, leave the begin slash
     int namespaceEnd = namespaceStart;
     while (namespaceEnd < tag.size() && tag.byteAt(namespaceEnd) != '+') {
       namespaceEnd++;
@@ -225,15 +225,16 @@ public class WindmillTagEncodingV1 extends WindmillTagEncoding {
     }
 
     StateNamespace namespace = StateNamespaces.fromString(namespaceString, windowCoder);
-    return TimerData.of(
-        timerId,
-        timerFamily,
-        namespace,
-        timestamp,
-        outputTimestamp,
-        timerTypeToTimeDomain(timer.getType()));
+    return Pair.of(
+        timerType,
+        TimerData.of(
+            timerId,
+            timerFamily,
+            namespace,
+            timestamp,
+            outputTimestamp,
+            timerTypeToTimeDomain(timer.getType())));
     // todo add draining (https://github.com/apache/beam/issues/36884)
-
   }
 
   private static boolean useNewTimerTagEncoding(TimerData timerData) {

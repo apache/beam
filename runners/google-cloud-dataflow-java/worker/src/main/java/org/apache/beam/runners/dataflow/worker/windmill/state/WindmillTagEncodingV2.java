@@ -17,11 +17,10 @@
  */
 package org.apache.beam.runners.dataflow.worker.windmill.state;
 
-import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkState;
-
 import java.io.IOException;
 import java.io.InputStream;
 import javax.annotation.concurrent.ThreadSafe;
+import org.apache.beam.repackaged.core.org.apache.commons.lang3.tuple.Pair;
 import org.apache.beam.runners.core.StateNamespace;
 import org.apache.beam.runners.core.StateNamespaces;
 import org.apache.beam.runners.core.StateNamespaces.GlobalNamespace;
@@ -30,8 +29,8 @@ import org.apache.beam.runners.core.StateNamespaces.WindowNamespace;
 import org.apache.beam.runners.core.StateTag;
 import org.apache.beam.runners.core.StateTags;
 import org.apache.beam.runners.core.TimerInternals.TimerData;
-import org.apache.beam.runners.dataflow.worker.WindmillNamespacePrefix;
 import org.apache.beam.runners.dataflow.worker.WindmillTimeUtils;
+import org.apache.beam.runners.dataflow.worker.WindmillTimerType;
 import org.apache.beam.runners.dataflow.worker.util.ThreadLocalByteStringOutputStream;
 import org.apache.beam.runners.dataflow.worker.util.ThreadLocalByteStringOutputStream.StreamHandle;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.InternedByteString;
@@ -219,7 +218,7 @@ public class WindmillTagEncodingV2 extends WindmillTagEncoding {
   /** {@inheritDoc} */
   @Override
   public ByteString timerHoldTag(
-      WindmillNamespacePrefix prefix, TimerData timerData, ByteString timerTag) {
+      WindmillTimerType windmillTimerType, TimerData timerData, ByteString timerTag) {
     // Same encoding for timer tag and timer hold tag.
     // They are put in different places and won't collide.
     return timerTag;
@@ -227,16 +226,16 @@ public class WindmillTagEncodingV2 extends WindmillTagEncoding {
 
   /** {@inheritDoc} */
   @Override
-  public ByteString timerTag(WindmillNamespacePrefix prefix, TimerData timerData) {
+  public ByteString timerTag(WindmillTimerType windmillTimerType, TimerData timerData) {
     try (StreamHandle streamHandle = ThreadLocalByteStringOutputStream.acquire()) {
       ByteStringOutputStream stream = streamHandle.stream();
       encodeNamespace(timerData.getNamespace(), stream);
-      if (WindmillNamespacePrefix.SYSTEM_NAMESPACE_PREFIX.equals(prefix)) {
+      if (WindmillTimerType.SYSTEM_TIMER.equals(windmillTimerType)) {
         stream.write(SYSTEM_TIMER_BYTE);
-      } else if (WindmillNamespacePrefix.USER_NAMESPACE_PREFIX.equals(prefix)) {
+      } else if (WindmillTimerType.USER_TIMER.equals(windmillTimerType)) {
         stream.write(USER_TIMER_BYTE);
       } else {
-        throw new IllegalStateException("Unexpected WindmillNamespacePrefix" + prefix);
+        throw new IllegalStateException("Unexpected WindmillTimerType" + windmillTimerType);
       }
       StringUtf8Coder.of().encode(timerData.getTimerFamilyId(), stream);
       StringUtf8Coder.of().encode(timerData.getTimerId(), stream);
@@ -248,21 +247,19 @@ public class WindmillTagEncodingV2 extends WindmillTagEncoding {
 
   /** {@inheritDoc} */
   @Override
-  public TimerData windmillTimerToTimerData(
-      WindmillNamespacePrefix prefix,
-      Timer timer,
-      Coder<? extends BoundedWindow> windowCoder,
-      boolean draining) {
+  public Pair<WindmillTimerType, TimerData> windmillTimerToTimerData(
+      Timer timer, Coder<? extends BoundedWindow> windowCoder, boolean draining) {
 
     InputStream stream = timer.getTag().newInput();
 
     try {
       StateNamespace stateNamespace = decodeNamespace(stream, windowCoder);
       int nextByte = stream.read();
+      WindmillTimerType timerType;
       if (nextByte == SYSTEM_TIMER_BYTE) {
-        checkState(WindmillNamespacePrefix.SYSTEM_NAMESPACE_PREFIX.equals(prefix));
+        timerType = WindmillTimerType.SYSTEM_TIMER;
       } else if (nextByte == USER_TIMER_BYTE) {
-        checkState(WindmillNamespacePrefix.USER_NAMESPACE_PREFIX.equals(prefix));
+        timerType = WindmillTimerType.USER_TIMER;
       } else {
         throw new IllegalStateException("Unexpected timer tag byte: " + nextByte);
       }
@@ -282,13 +279,15 @@ public class WindmillTagEncodingV2 extends WindmillTagEncoding {
         }
       }
 
-      return TimerData.of(
-          timerId,
-          timerFamilyId,
-          stateNamespace,
-          timestamp,
-          outputTimestamp,
-          timerTypeToTimeDomain(timer.getType()));
+      return Pair.of(
+          timerType,
+          TimerData.of(
+              timerId,
+              timerFamilyId,
+              stateNamespace,
+              timestamp,
+              outputTimestamp,
+              timerTypeToTimeDomain(timer.getType())));
 
     } catch (IOException e) {
       throw new RuntimeException(e);
