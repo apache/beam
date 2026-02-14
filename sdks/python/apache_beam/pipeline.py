@@ -990,7 +990,11 @@ class Pipeline(HasDisplayData):
           input_element_types_tuple[0] if len(input_element_types_tuple) == 1
           else typehints.Union[input_element_types_tuple])
       type_hints = transform.get_type_hints()
-      declared_output_type = type_hints.simple_output_type(transform.label)
+      if not result_pcollection.tag:
+        declared_output_type = type_hints.simple_output_type(transform.label)
+      else:
+        declared_output_type = type_hints.tagged_output_types().get(
+            result_pcollection.tag, typehints.Any)
 
       if declared_output_type:
         input_types = type_hints.input_types
