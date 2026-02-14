@@ -18,7 +18,7 @@
 # This workflow will update python dependencies as part of the release process
 # And commit the changes into the branch release, creating a PR into the branch
 
-name: Update Python Depedencies
+name: Update Python Dependencies
 
 on:
   schedule:

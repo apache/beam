@@ -222,6 +222,52 @@ public class PortableRunnerTest implements Serializable {
     server.start();
   }
 
+  @Test
+  public void deduplicatesAttemptedAndCommittedMetrics() throws Exception {
+    Map<String, String> labelMap = new HashMap<>();
+    labelMap.put(NAMESPACE_LABEL, NAMESPACE);
+    labelMap.put(METRIC_NAME_LABEL, METRIC_NAME);
+    labelMap.put(STEP_NAME_LABEL, STEP_NAME);
+
+    // attempted counter (value 7) and committed counter (value 10) with same identity
+    MetricsApi.MonitoringInfo attemptedCounter =
+        MetricsApi.MonitoringInfo.newBuilder()
+            .setType(COUNTER_TYPE)
+            .putAllLabels(labelMap)
+            .setPayload(encodeInt64Counter(7L))
+            .build();
+
+    MetricsApi.MonitoringInfo committedCounter =
+        MetricsApi.MonitoringInfo.newBuilder()
+            .setType(COUNTER_TYPE)
+            .putAllLabels(labelMap)
+            .setPayload(encodeInt64Counter(10L))
+            .build();
+
+    JobApi.MetricResults metricResults =
+        JobApi.MetricResults.newBuilder()
+            .addAttempted(attemptedCounter)
+            .addCommitted(committedCounter)
+            .build();
+
+    createJobServer(JobState.Enum.DONE, metricResults);
+    PortableRunner runner = PortableRunner.create(options, ManagedChannelFactory.createInProcess());
+    PipelineResult result = runner.run(p);
+    result.waitUntilFinish();
+
+    Iterable<org.apache.beam.sdk.metrics.MetricResult<Long>> counters =
+        result.metrics().allMetrics().getCounters();
+    ImmutableList<org.apache.beam.sdk.metrics.MetricResult<Long>> list =
+        ImmutableList.copyOf(counters);
+
+    // Only one MetricResult should be present for the same identity.
+    assertThat(list.size(), is(1));
+    org.apache.beam.sdk.metrics.MetricResult<Long> r = list.get(0);
+
+    // Committed value should be present and equal to the committed payload (10).
+    assertThat(r.getCommitted(), is(10L));
+  }
+
   private static PipelineOptions createPipelineOptions() {
     PortablePipelineOptions options =
         PipelineOptionsFactory.create().as(PortablePipelineOptions.class);

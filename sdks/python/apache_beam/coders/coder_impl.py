@@ -316,6 +316,9 @@ class ProtoCoderImpl(SimpleCoderImpl):
     proto_message.ParseFromString(encoded)  # This is in effect "ParsePartial".
     return proto_message
 
+  def estimate_size(self, value, nested=False):
+    return self._get_nested_size(value.ByteSize(), nested)
+
 
 class DeterministicProtoCoderImpl(ProtoCoderImpl):
   """For internal use only; no backwards-compatibility guarantees."""
@@ -334,6 +337,9 @@ class ProtoPlusCoderImpl(SimpleCoderImpl):
 
   def decode(self, value):
     return self.proto_plus_type.deserialize(value)
+
+  def estimate_size(self, value, nested=False):
+    return self._get_nested_size(type(value).pb(value).ByteSize(), nested)
 
 
 UNKNOWN_TYPE = 0xFF
@@ -354,6 +360,7 @@ DATACLASS_TYPE = 101
 NAMED_TUPLE_TYPE = 102
 ENUM_TYPE = 103
 NESTED_STATE_TYPE = 104
+DATACLASS_KW_ONLY_TYPE = 105
 
 # Types that can be encoded as iterables, but are not literally
 # lists, etc. due to being lazy.  The actual type is not preserved
@@ -497,18 +504,25 @@ class FastPrimitivesCoderImpl(StreamCoderImpl):
       self.encode_type(type(value), stream)
       stream.write(value.SerializePartialToString(deterministic=True), True)
     elif dataclasses and dataclasses.is_dataclass(value):
-      stream.write_byte(DATACLASS_TYPE)
       if not type(value).__dataclass_params__.frozen:
         raise TypeError(
             "Unable to deterministically encode non-frozen '%s' of type '%s' "
             "for the input of '%s'" %
             (value, type(value), self.requires_deterministic_step_label))
-      self.encode_type(type(value), stream)
-      values = [
-          getattr(value, field.name) for field in dataclasses.fields(value)
-      ]
+      init_fields = [field for field in dataclasses.fields(value) if field.init]
       try:
-        self.iterable_coder_impl.encode_to_stream(values, stream, True)
+        if any(field.kw_only for field in init_fields):
+          stream.write_byte(DATACLASS_KW_ONLY_TYPE)
+          self.encode_type(type(value), stream)
+          stream.write_var_int64(len(init_fields))
+          for field in init_fields:
+            stream.write(field.name.encode("utf-8"), True)
+            self.encode_to_stream(getattr(value, field.name), stream, True)
+        else:  # Not using kw_only, we can pass parameters by position.
+          stream.write_byte(DATACLASS_TYPE)
+          self.encode_type(type(value), stream)
+          values = [getattr(value, field.name) for field in init_fields]
+          self.iterable_coder_impl.encode_to_stream(values, stream, True)
       except Exception as e:
         raise TypeError(self._deterministic_encoding_error_msg(value)) from e
     elif isinstance(value, tuple) and hasattr(type(value), '_fields'):
@@ -616,6 +630,14 @@ class FastPrimitivesCoderImpl(StreamCoderImpl):
       msg = cls()
       msg.ParseFromString(stream.read_all(True))
       return msg
+    elif t == DATACLASS_KW_ONLY_TYPE:
+      cls = self.decode_type(stream)
+      vlen = stream.read_var_int64()
+      fields = {}
+      for _ in range(vlen):
+        field_name = stream.read_all(True).decode('utf-8')
+        fields[field_name] = self.decode_from_stream(stream, True)
+      return cls(**fields)
     elif t == DATACLASS_TYPE or t == NAMED_TUPLE_TYPE:
       cls = self.decode_type(stream)
       return cls(*self.iterable_coder_impl.decode_from_stream(stream, True))

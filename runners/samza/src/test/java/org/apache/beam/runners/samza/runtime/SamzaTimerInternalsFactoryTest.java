@@ -43,6 +43,7 @@ import org.apache.beam.runners.samza.runtime.SamzaStoreStateInternals.StateValue
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.state.TimeDomain;
+import org.apache.beam.sdk.values.CausedByDrain;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.samza.config.MapConfig;
@@ -151,12 +152,22 @@ public class SamzaTimerInternalsFactoryTest {
     final TimerInternals timerInternals = timerInternalsFactory.timerInternalsForKey("testKey");
     final TimerInternals.TimerData timer1 =
         TimerInternals.TimerData.of(
-            "timer1", nameSpace, new Instant(10), new Instant(10), TimeDomain.EVENT_TIME);
+            "timer1",
+            nameSpace,
+            new Instant(10),
+            new Instant(10),
+            TimeDomain.EVENT_TIME,
+            CausedByDrain.NORMAL);
     timerInternals.setTimer(timer1);
 
     final TimerInternals.TimerData timer2 =
         TimerInternals.TimerData.of(
-            "timer2", nameSpace, new Instant(100), new Instant(100), TimeDomain.EVENT_TIME);
+            "timer2",
+            nameSpace,
+            new Instant(100),
+            new Instant(100),
+            TimeDomain.EVENT_TIME,
+            CausedByDrain.NORMAL);
     timerInternals.setTimer(timer2);
 
     timerInternalsFactory.setInputWatermark(new Instant(5));
@@ -190,7 +201,12 @@ public class SamzaTimerInternalsFactoryTest {
     final TimerInternals timerInternals = timerInternalsFactory.timerInternalsForKey(key);
     final TimerInternals.TimerData timer1 =
         TimerInternals.TimerData.of(
-            "timer1", nameSpace, new Instant(10), new Instant(10), TimeDomain.EVENT_TIME);
+            "timer1",
+            nameSpace,
+            new Instant(10),
+            new Instant(10),
+            TimeDomain.EVENT_TIME,
+            CausedByDrain.NORMAL);
     timerInternals.setTimer(timer1);
 
     store.close();
@@ -211,7 +227,12 @@ public class SamzaTimerInternalsFactoryTest {
     final TimerInternals restoredTimerInternals = restoredFactory.timerInternalsForKey(key);
     final TimerInternals.TimerData timer2 =
         TimerInternals.TimerData.of(
-            "timer2", nameSpace, new Instant(200), new Instant(200), TimeDomain.EVENT_TIME);
+            "timer2",
+            nameSpace,
+            new Instant(200),
+            new Instant(200),
+            TimeDomain.EVENT_TIME,
+            CausedByDrain.NORMAL);
     restoredTimerInternals.setTimer(timer2);
 
     // Timer 2 should be added to the Event buffer
@@ -247,12 +268,22 @@ public class SamzaTimerInternalsFactoryTest {
     final TimerInternals timerInternals = timerInternalsFactory.timerInternalsForKey(key);
     final TimerInternals.TimerData timer1 =
         TimerInternals.TimerData.of(
-            "timer1", nameSpace, new Instant(10), new Instant(10), TimeDomain.EVENT_TIME);
+            "timer1",
+            nameSpace,
+            new Instant(10),
+            new Instant(10),
+            TimeDomain.EVENT_TIME,
+            CausedByDrain.NORMAL);
     timerInternals.setTimer(timer1);
 
     final TimerInternals.TimerData timer2 =
         TimerInternals.TimerData.of(
-            "timer2", nameSpace, new Instant(100), new Instant(100), TimeDomain.EVENT_TIME);
+            "timer2",
+            nameSpace,
+            new Instant(100),
+            new Instant(100),
+            TimeDomain.EVENT_TIME,
+            CausedByDrain.NORMAL);
     timerInternals.setTimer(timer2);
 
     store.close();
@@ -293,12 +324,22 @@ public class SamzaTimerInternalsFactoryTest {
     final TimerInternals timerInternals = timerInternalsFactory.timerInternalsForKey("testKey");
     final TimerInternals.TimerData timer1 =
         TimerInternals.TimerData.of(
-            "timer1", nameSpace, new Instant(10), new Instant(10), TimeDomain.PROCESSING_TIME);
+            "timer1",
+            nameSpace,
+            new Instant(10),
+            new Instant(10),
+            TimeDomain.PROCESSING_TIME,
+            CausedByDrain.NORMAL);
     timerInternals.setTimer(timer1);
 
     final TimerInternals.TimerData timer2 =
         TimerInternals.TimerData.of(
-            "timer2", nameSpace, new Instant(100), new Instant(100), TimeDomain.PROCESSING_TIME);
+            "timer2",
+            nameSpace,
+            new Instant(100),
+            new Instant(100),
+            TimeDomain.PROCESSING_TIME,
+            CausedByDrain.NORMAL);
     timerInternals.setTimer(timer2);
 
     final TimerInternals.TimerData timer3 =
@@ -344,18 +385,33 @@ public class SamzaTimerInternalsFactoryTest {
     final TimerInternals timerInternals = timerInternalsFactory.timerInternalsForKey("testKey");
     final TimerInternals.TimerData timer1 =
         TimerInternals.TimerData.of(
-            "timerId", nameSpace, new Instant(10), new Instant(10), TimeDomain.EVENT_TIME);
+            "timerId",
+            nameSpace,
+            new Instant(10),
+            new Instant(10),
+            TimeDomain.EVENT_TIME,
+            CausedByDrain.NORMAL);
     timerInternals.setTimer(timer1);
 
     // this timer should override the first timer
     final TimerInternals.TimerData timer2 =
         TimerInternals.TimerData.of(
-            "timerId", nameSpace, new Instant(100), new Instant(100), TimeDomain.EVENT_TIME);
+            "timerId",
+            nameSpace,
+            new Instant(100),
+            new Instant(100),
+            TimeDomain.EVENT_TIME,
+            CausedByDrain.NORMAL);
     timerInternals.setTimer(timer2);
 
     final TimerInternals.TimerData timer3 =
         TimerInternals.TimerData.of(
-            "timerId2", nameSpace, new Instant(200), new Instant(200), TimeDomain.EVENT_TIME);
+            "timerId2",
+            nameSpace,
+            new Instant(200),
+            new Instant(200),
+            TimeDomain.EVENT_TIME,
+            CausedByDrain.NORMAL);
     timerInternals.setTimer(timer3);
 
     // this timer shouldn't override since it has a different id
@@ -410,7 +466,12 @@ public class SamzaTimerInternalsFactoryTest {
     for (int i = 0; i < totalNumberOfTimersInStore; i++) {
       timer =
           TimerInternals.TimerData.of(
-              "timer" + i, nameSpace, new Instant(i), new Instant(i), TimeDomain.EVENT_TIME);
+              "timer" + i,
+              nameSpace,
+              new Instant(i),
+              new Instant(i),
+              TimeDomain.EVENT_TIME,
+              CausedByDrain.NORMAL);
       timerInternals.setTimer(timer);
     }
 

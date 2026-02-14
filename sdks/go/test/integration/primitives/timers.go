@@ -36,8 +36,29 @@ import (
 func init() {
 	register.DoFn2x0[[]byte, func(string, int)](&inputFn[string, int]{})
 	register.DoFn6x0[beam.Window, state.Provider, timers.Provider, string, int, func(kv[string, int])](&eventTimeFn{})
+	register.DoFn5x0[beam.Window, timers.Provider, string, int, func(int)](&eventTimeFnWithOutputTimestamp{})
+	register.DoFn3x0[beam.EventTime, int, func(int)](&checkTimestampFn{})
 	register.Emitter2[string, int]()
-	register.Emitter1[kv[string, int]]()
+	register.Emitter1[int]()
+}
+
+// checkTimestampFn validates that elements arrived at the expected timestamp.
+type checkTimestampFn struct {
+	Timestamp          int64 // millisecond epoch
+	ExpectMaxTimestamp bool
+}
+
+func (fn *checkTimestampFn) ProcessElement(ts beam.EventTime, val int, emit func(int)) {
+	if fn.ExpectMaxTimestamp {
+		if mtime.Time(ts) != mtime.MaxTimestamp {
+			panic(fmt.Errorf("timestamp mismatch: got %v, want %v (MaxTimestamp)", ts, mtime.MaxTimestamp))
+		}
+	} else {
+		if got := int64(ts); got != int64(mtime.FromMilliseconds(fn.Timestamp)) {
+			panic(fmt.Errorf("timestamp mismatch: got %v, want %v (as mtime)", got, fn.Timestamp))
+		}
+	}
+	emit(val)
 }
 
 type kv[K, V any] struct {
@@ -152,6 +173,97 @@ func TimersEventTimeUnbounded(s beam.Scope) {
 		now := time.Now()
 		return periodic.Impulse(s, now, now.Add(10*time.Second), 0, false)
 	})(s)
+}
+
+type eventTimeFnWithOutputTimestamp struct {
+	Callback timers.EventTime
+
+	Offset            int
+	TimerOutput       int
+	OutputTimestamp   int64 // millisecond epoch
+	NoOutputTimestamp bool
+}
+
+func (fn *eventTimeFnWithOutputTimestamp) ProcessElement(w beam.Window, tp timers.Provider, key string, value int, emit func(int)) {
+	if fn.NoOutputTimestamp {
+		fn.Callback.Set(tp, w.MaxTimestamp().ToTime(), timers.WithNoOutputTimestamp())
+	} else {
+		fn.Callback.Set(tp, w.MaxTimestamp().ToTime(), timers.WithOutputTimestamp(time.UnixMilli(fn.OutputTimestamp)))
+	}
+}
+
+func (fn *eventTimeFnWithOutputTimestamp) OnTimer(ctx context.Context, ts beam.EventTime, tp timers.Provider, key string, timer timers.Context, emit func(int)) {
+	if fn.Callback.Family != timer.Family || timer.Tag != "" {
+		panic("unexpected timer, family: " + timer.Family + " tag:" + timer.Tag + " want: " + fn.Callback.Family + ", for key:" + key)
+	}
+	emit(fn.TimerOutput)
+}
+
+// timersEventTimePipelineBuilderWithOutputTimestamp validates EventTime timers with explicit output timestamp.
+func timersEventTimePipelineBuilderWithOutputTimestamp(makeImp func(s beam.Scope) beam.PCollection) func(s beam.Scope) {
+	return func(s beam.Scope) {
+		var inputs []kv[string, int]
+
+		offset := 5000
+		timerOutput := 4093
+		outputTimestamp := int64(1234567890000)
+
+		inputs = append(inputs, kvfn("key", 0))
+		imp := makeImp(s)
+
+		keyed := beam.ParDo(s, &inputFn[string, int]{
+			Inputs: inputs,
+		}, imp)
+		times := beam.ParDo(s, &eventTimeFnWithOutputTimestamp{
+			Offset:          offset,
+			TimerOutput:     timerOutput,
+			OutputTimestamp: outputTimestamp,
+			Callback:        timers.InEventTime("Callback"),
+		}, keyed)
+
+		// Check that the output element has the expected timestamp.
+		validatedTimestamps := beam.ParDo(s, &checkTimestampFn{Timestamp: outputTimestamp}, times)
+		wantOutputs := []int{timerOutput}
+		passert.EqualsList(s, validatedTimestamps, wantOutputs)
+	}
+}
+
+// timersEventTimePipelineBuilderWithNoOutputTimestamp validates EventTime timers with no output timestamp.
+func timersEventTimePipelineBuilderWithNoOutputTimestamp(makeImp func(s beam.Scope) beam.PCollection) func(s beam.Scope) {
+	return func(s beam.Scope) {
+		var inputs []kv[string, int]
+
+		offset := 5000
+		timerOutput := 4093
+		inputs = append(inputs, kvfn("key", 0))
+
+		imp := makeImp(s)
+
+		keyed := beam.ParDo(s, &inputFn[string, int]{
+			Inputs: inputs,
+		}, imp)
+		times := beam.ParDo(s, &eventTimeFnWithOutputTimestamp{
+			Offset:            offset,
+			TimerOutput:       timerOutput,
+			NoOutputTimestamp: true,
+			Callback:          timers.InEventTime("Callback"),
+		}, keyed)
+
+		// Check that the output element has MaxTimestamp.
+		validatedTimestamps := beam.ParDo(s, &checkTimestampFn{ExpectMaxTimestamp: true}, times)
+		wantOutputs := []int{timerOutput}
+		passert.EqualsList(s, validatedTimestamps, wantOutputs)
+	}
+}
+
+// TimersEventTime_WithOutputTimestamp validates event time timers with explicit output timestamp.
+func TimersEventTime_WithOutputTimestamp(s beam.Scope) {
+	timersEventTimePipelineBuilderWithOutputTimestamp(beam.Impulse)(s)
+}
+
+// TimersEventTime_WithNoOutputTimestamp validates event time timers with no output timestamp.
+func TimersEventTime_WithNoOutputTimestamp(s beam.Scope) {
+	timersEventTimePipelineBuilderWithNoOutputTimestamp(beam.Impulse)(s)
 }
 
 // Below here are tests for ProcessingTime timers.

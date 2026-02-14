@@ -1073,6 +1073,10 @@ message StandardCoders {
     // Components: None
     ROW = 13 [(beam_urn) = "beam:coder:row:v1"];
 
+    // Similar to ROW above, but for arbitrary types that can be converted
+    // to and from row objects, which can then be encoded with a schema.
+    SCHEMA = 18 [(beam_urn) = "beam:coder:schema:v1"];
+
     // Encodes a user key and a shard id which is an opaque byte string.
     //
     // The encoding for a sharded key consists of a shard id byte string and the

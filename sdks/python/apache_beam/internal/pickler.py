@@ -91,6 +91,14 @@ def load_session(file_path):
   return desired_pickle_lib.load_session(file_path)
 
 
+def is_currently_dill():
+  return desired_pickle_lib == dill_pickler
+
+
+def is_currently_cloudpickle():
+  return desired_pickle_lib == cloudpickle_pickler
+
+
 def set_library(selected_library=DEFAULT_PICKLE_LIB):
   """ Sets pickle library that will be used. """
   global desired_pickle_lib
@@ -108,12 +116,11 @@ def set_library(selected_library=DEFAULT_PICKLE_LIB):
         "Pipeline option pickle_library=dill_unsafe is set, but dill is not "
         "installed. Install dill in job submission and runtime environments.")
 
-  is_currently_dill = (desired_pickle_lib == dill_pickler)
   dill_is_requested = (
       selected_library == USE_DILL or selected_library == USE_DILL_UNSAFE)
 
   # If switching to or from dill, update the pickler hook overrides.
-  if is_currently_dill != dill_is_requested:
+  if is_currently_dill() != dill_is_requested:
     dill_pickler.override_pickler_hooks(selected_library == USE_DILL)
 
   if dill_is_requested:

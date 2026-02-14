@@ -96,6 +96,51 @@ export function suite(runner: beam.Runner = directRunner()) {
       });
     });
 
+    it("runs a filter", async function () {
+      await runner.run((root) => {
+        root
+          .apply(beam.create([1, 2, 3, 4, 5, 6]))
+          .filter((x) => x % 2 === 0)
+          .apply(testing.assertDeepEqual([2, 4, 6]));
+      });
+    });
+
+    it("runs a filter with predicate returning false for all", async function () {
+      await runner.run((root) => {
+        root
+          .apply(beam.create([1, 3, 5, 7]))
+          .filter((x) => x % 2 === 0)
+          .apply(testing.assertDeepEqual([]));
+      });
+    });
+
+    it("runs a filter with predicate returning true for all", async function () {
+      await runner.run((root) => {
+        root
+          .apply(beam.create([2, 4, 6, 8]))
+          .filter((x) => x % 2 === 0)
+          .apply(testing.assertDeepEqual([2, 4, 6, 8]));
+      });
+    });
+
+    it("runs a filter with context", async function () {
+      await runner.run((root) => {
+        root
+          .apply(beam.create([1, 2, 3, 4, 5, 6, 7, 8, 9, 10]))
+          .filter((x: number, threshold: number) => x > threshold, 5)
+          .apply(testing.assertDeepEqual([6, 7, 8, 9, 10]));
+      });
+    });
+
+    it("runs a filter on strings", async function () {
+      await runner.run((root) => {
+        root
+          .apply(beam.create(["apple", "banana", "apricot", "cherry"]))
+          .filter((s) => s.startsWith("a"))
+          .apply(testing.assertDeepEqual(["apple", "apricot"]));
+      });
+    });
+
     it("runs a Splitter", async function () {
       await runner.run((root) => {
         const pcolls = root

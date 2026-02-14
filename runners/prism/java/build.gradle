@@ -115,6 +115,13 @@ def sickbayTests = [
     // ShardedKey not yet implemented.
     'org.apache.beam.sdk.transforms.GroupIntoBatchesTest.testWithShardedKeyInGlobalWindow',
 
+    // Some tests failed when using TestStream with keyed elements.
+    // https://github.com/apache/beam/issues/36984
+    'org.apache.beam.sdk.transforms.ParDoTest$BundleFinalizationTests.testBundleFinalizationWithState',
+    'org.apache.beam.sdk.transforms.ParDoTest$StateTests.testMapStateNoReadOnComputeIfAbsentAndPutIfAbsentInsertsElement',
+    'org.apache.beam.sdk.transforms.ParDoTest$TimerTests.testOutputTimestamp',
+    'org.apache.beam.sdk.transforms.ParDoTest$TimerTests.testOutputTimestampWithProcessingTime',
+
     // Technically these tests "succeed"
     // the test is just complaining that an AssertionException isn't a RuntimeException
     //

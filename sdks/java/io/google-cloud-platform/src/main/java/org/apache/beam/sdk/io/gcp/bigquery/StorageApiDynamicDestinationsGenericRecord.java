@@ -24,7 +24,6 @@ import com.google.protobuf.Descriptors.Descriptor;
 import com.google.protobuf.Message;
 import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericRecord;
-import org.apache.beam.sdk.extensions.avro.schemas.utils.AvroUtils;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServices.DatasetService;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.checkerframework.checker.nullness.qual.NonNull;
@@ -63,13 +62,11 @@ class StorageApiDynamicDestinationsGenericRecord<T, DestinationT extends @NonNul
 
     final com.google.cloud.bigquery.storage.v1.TableSchema protoTableSchema;
     final Schema avroSchema;
-    final TableSchema bqTableSchema;
     final Descriptor descriptor;
     final @javax.annotation.Nullable Descriptor cdcDescriptor;
 
     GenericRecordConverter(DestinationT destination) throws Exception {
       avroSchema = schemaFactory.apply(getSchema(destination));
-      bqTableSchema = BigQueryUtils.toTableSchema(AvroUtils.toBeamSchema(avroSchema));
       protoTableSchema =
           AvroGenericRecordToStorageApiProto.protoTableSchemaFromAvroSchema(avroSchema);
       descriptor =
@@ -112,7 +109,7 @@ class StorageApiDynamicDestinationsGenericRecord<T, DestinationT extends @NonNul
         return formatRecordOnFailureFunction.apply(null, element);
       } else {
         return BigQueryUtils.convertGenericRecordToTableRow(
-            toGenericRecord.apply(new AvroWriteRequest<>(element, avroSchema)), bqTableSchema);
+            toGenericRecord.apply(new AvroWriteRequest<>(element, avroSchema)));
       }
     }
 

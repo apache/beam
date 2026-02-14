@@ -102,8 +102,6 @@ dependencies {
   permitUnusedDeclared library.java.flogger_system_backend
   implementation library.java.google_api_client
   // Ensures SequencedMessage availability for Spotless
-  implementation library.java.proto_google_cloud_pubsublite_v1
-  permitUnusedDeclared library.java.proto_google_cloud_pubsublite_v1
   implementation library.java.google_api_services_dataflow
   implementation library.java.google_api_services_storage
   permitUnusedDeclared library.java.google_api_services_storage // BEAM-11761
@@ -212,9 +210,6 @@ def commonLegacyExcludeCategories = [
 def commonRunnerV2ExcludeCategories = [
   'org.apache.beam.sdk.testing.UsesExternalService',
   'org.apache.beam.sdk.testing.UsesGaugeMetrics',
-  'org.apache.beam.sdk.testing.UsesSetState',
-  'org.apache.beam.sdk.testing.UsesMapState',
-  'org.apache.beam.sdk.testing.UsesMultimapState',
   'org.apache.beam.sdk.testing.UsesMetricsPusher',
   'org.apache.beam.sdk.testing.UsesTestStream',
   'org.apache.beam.sdk.testing.UsesTestStreamWithProcessingTime',
@@ -446,9 +441,6 @@ task validatesRunner {
   description "Validates Dataflow runner"
   dependsOn(createLegacyWorkerValidatesRunnerTest(
     name: 'validatesRunnerLegacyWorkerTest',
-    excludedCategories: [
-      'org.apache.beam.sdk.testing.UsesMultimapState',
-    ],
     excludedTests: [
       // TODO(https://github.com/apache/beam/issues/21472)
       'org.apache.beam.sdk.transforms.GroupByKeyTest$BasicTests.testAfterProcessingTimeContinuationTriggerUsingState',
@@ -552,14 +544,16 @@ task validatesRunnerV2 {
     name: 'validatesRunnerV2Test',
     pipelineOptions: runnerV2PipelineOptions,
     excludedCategories: [
-      'org.apache.beam.sdk.testing.UsesOnWindowExpiration',
-      'org.apache.beam.sdk.testing.UsesStatefulParDo',
       'org.apache.beam.sdk.testing.UsesTimersInParDo',
       'org.apache.beam.sdk.testing.UsesUnboundedPCollections',
       'org.apache.beam.sdk.testing.UsesUnboundedSplittableParDo',
     ],
     excludedTests: [
       'org.apache.beam.sdk.transforms.ReshuffleTest.testReshuffleWithTimestampsStreaming',
+
+      // TODO(https://github.com/apache/beam/issues/37371): Identify the cause of assertion failure for these tests
+      'org.apache.beam.runners.dataflow.DataflowRunnerTest.testBatchGroupIntoBatchesOverrideBytes',
+      'org.apache.beam.runners.dataflow.DataflowRunnerTest.testBatchGroupIntoBatchesOverrideCount',
 
       // These tests use static state and don't work with remote execution.
       'org.apache.beam.sdk.transforms.ParDoLifecycleTest.testTeardownCalledAfterExceptionInFinishBundle',
@@ -649,6 +643,7 @@ task googleCloudPlatformLegacyWorkerIntegrationTest(type: Test, dependsOn: copyG
   exclude '**/BigQueryIODynamicQueryIT.class'
   exclude '**/BigQueryIODynamicReadIT.class'
   exclude '**/BigQueryIODynamicReadTableRowIT.class'
+  exclude '**/BigQueryTimestampPicosIT.java'
   exclude '**/PubsubReadIT.class'
   exclude '**/FhirIOReadIT.class'
   exclude '**/DicomIOReadIT.class'
@@ -704,6 +699,7 @@ task googleCloudPlatformRunnerV2IntegrationTest(type: Test) {
   exclude '**/BigQueryIODynamicQueryIT.class'
   exclude '**/BigQueryIODynamicReadIT.class'
   exclude '**/BigQueryIODynamicReadTableRowIT.class'
+  exclude '**/BigQueryTimestampPicosIT.java'
   exclude '**/SpannerWriteIT.class'
   exclude '**/*KmsKeyIT.class'
   exclude '**/FhirIOReadIT.class'

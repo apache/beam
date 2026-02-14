@@ -28,10 +28,16 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
 
 import java.io.IOException;
 import java.net.URLEncoder;
 import java.nio.ByteBuffer;
+import java.time.Duration;
+import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
@@ -39,6 +45,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.logicaltypes.SqlTypes;
 import org.apache.beam.sdk.values.Row;
@@ -59,6 +66,10 @@ import org.apache.iceberg.catalog.Catalog;
 import org.apache.iceberg.catalog.Namespace;
 import org.apache.iceberg.catalog.TableIdentifier;
 import org.apache.iceberg.hadoop.HadoopCatalog;
+import org.apache.iceberg.io.FileIO;
+import org.apache.iceberg.io.InputFile;
+import org.apache.iceberg.io.OutputFile;
+import org.apache.iceberg.io.PositionOutputStream;
 import org.apache.iceberg.transforms.Transform;
 import org.apache.iceberg.types.Conversions;
 import org.apache.iceberg.types.Type;
@@ -77,6 +88,7 @@ import org.junit.rules.TemporaryFolder;
 import org.junit.rules.TestName;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
+import org.mockito.Mockito;
 
 /** Test class for {@link RecordWriterManager}. */
 @RunWith(JUnit4.class)
@@ -102,7 +114,7 @@ public class RecordWriterManagerTest {
     windowedDestination =
         getWindowedDestination("table_" + testName.getMethodName(), PARTITION_SPEC);
     catalog = new HadoopCatalog(new Configuration(), warehouse.location);
-    RecordWriterManager.TABLE_CACHE.invalidateAll();
+    RecordWriterManager.LAST_REFRESHED_TABLE_CACHE.invalidateAll();
   }
 
   private WindowedValue<IcebergDestination> getWindowedDestination(
@@ -451,10 +463,15 @@ public class RecordWriterManagerTest {
     assertThat(dataFile.path().toString(), containsString("bool=true"));
 
     // table is cached
-    assertEquals(1, RecordWriterManager.TABLE_CACHE.size());
+    assertEquals(1, RecordWriterManager.LAST_REFRESHED_TABLE_CACHE.size());
 
     // update spec
     table.updateSpec().addField("id").removeField("bool").commit();
+    // Make the cached table stale to force reloading its metadata.
+    RecordWriterManager.LAST_REFRESHED_TABLE_CACHE.getIfPresent(
+                windowedDestination.getValue().getTableIdentifier())
+            .lastRefreshTime =
+        Instant.EPOCH;
 
     // write a second data file
     // should refresh the table and use the new partition spec
@@ -937,5 +954,153 @@ public class RecordWriterManagerTest {
           throw new IllegalStateException("Unexpected column index: " + i);
       }
     }
+  }
+
+  @Test
+  public void testRecordWriterKeepsFileIOOpenUntilClose() throws IOException {
+    TableIdentifier tableId =
+        TableIdentifier.of(
+            "default",
+            "table_"
+                + testName.getMethodName()
+                + "_"
+                + UUID.randomUUID().toString().replace("-", "").substring(0, 6));
+    Table table = warehouse.createTable(tableId, ICEBERG_SCHEMA);
+
+    CloseTrackingFileIO trackingFileIO = new CloseTrackingFileIO(table.io());
+    Table spyTable = Mockito.spy(table);
+    Mockito.doReturn(trackingFileIO).when(spyTable).io();
+
+    PartitionKey partitionKey = new PartitionKey(spyTable.spec(), spyTable.schema());
+    RecordWriter writer =
+        new RecordWriter(spyTable, FileFormat.PARQUET, "file.parquet", partitionKey);
+
+    Row row = Row.withSchema(BEAM_SCHEMA).addValues(1, "aaa", true).build();
+
+    writer.write(IcebergUtils.beamRowToIcebergRecord(ICEBERG_SCHEMA, row));
+    writer.close();
+
+    assertTrue("FileIO should be closed after writer close", trackingFileIO.closed);
+  }
+
+  private static final class CloseTrackingFileIO implements FileIO {
+    private final FileIO delegate;
+    volatile boolean closed = false;
+
+    CloseTrackingFileIO(FileIO delegate) {
+      this.delegate = delegate;
+    }
+
+    @Override
+    public InputFile newInputFile(String path) {
+      return delegate.newInputFile(path);
+    }
+
+    @Override
+    public OutputFile newOutputFile(String path) {
+      OutputFile underlying = delegate.newOutputFile(path);
+      return new CloseAwareOutputFile(underlying, this);
+    }
+
+    @Override
+    public void deleteFile(String path) {
+      delegate.deleteFile(path);
+    }
+
+    @Override
+    public Map<String, String> properties() {
+      return delegate.properties();
+    }
+
+    @Override
+    public void close() {
+      closed = true;
+      delegate.close();
+    }
+  }
+
+  private static final class CloseAwareOutputFile implements OutputFile {
+    private final OutputFile delegate;
+    private final CloseTrackingFileIO io;
+
+    CloseAwareOutputFile(OutputFile delegate, CloseTrackingFileIO io) {
+      this.delegate = delegate;
+      this.io = io;
+    }
+
+    @Override
+    public PositionOutputStream create() {
+      if (io.closed) {
+        throw new IllegalStateException("Connection pool shut down");
+      }
+      return delegate.create();
+    }
+
+    @Override
+    public PositionOutputStream createOrOverwrite() {
+      if (io.closed) {
+        throw new IllegalStateException("Connection pool shut down");
+      }
+      return delegate.createOrOverwrite();
+    }
+
+    @Override
+    public String location() {
+      return delegate.location();
+    }
+
+    @Override
+    public InputFile toInputFile() {
+      return delegate.toInputFile();
+    }
+  }
+
+  @Test
+  public void testGetOrCreateTable_refreshLogic() {
+    Table mockTable = mock(Table.class);
+    TableIdentifier identifier = TableIdentifier.of("db", "table");
+    IcebergDestination destination =
+        IcebergDestination.builder()
+            .setTableIdentifier(identifier)
+            .setFileFormat(FileFormat.PARQUET)
+            .setTableCreateConfig(
+                IcebergTableCreateConfig.builder()
+                    .setPartitionFields(null)
+                    .setSchema(BEAM_SCHEMA)
+                    .build())
+            .build();
+    // The schema is only used if the table is created, so a null is fine for this
+    // test.
+    Schema beamSchema = null;
+
+    // Instantiate a RecordWriterManager with a dummy catalog.
+    RecordWriterManager writer = new RecordWriterManager(null, "p", 1L, 1);
+
+    // Clean up cache before test
+    RecordWriterManager.LAST_REFRESHED_TABLE_CACHE.invalidateAll();
+
+    // --- 1. Test the fast path (entry is not stale) ---
+    Instant freshTimestamp = Instant.now().minus(Duration.ofMinutes(1));
+    RecordWriterManager.LastRefreshedTable freshEntry =
+        new RecordWriterManager.LastRefreshedTable(mockTable, freshTimestamp);
+    RecordWriterManager.LAST_REFRESHED_TABLE_CACHE.put(identifier, freshEntry);
+
+    // Access the table
+    writer.getOrCreateTable(destination, beamSchema);
+
+    // Verify that refresh() was NOT called because the entry is fresh.
+    verify(mockTable, never()).refresh();
+
+    // --- 2. Test the stale path (entry is stale) ---
+    Instant staleTimestamp = Instant.now().minus(Duration.ofMinutes(5));
+    RecordWriterManager.LastRefreshedTable staleEntry =
+        new RecordWriterManager.LastRefreshedTable(mockTable, staleTimestamp);
+    RecordWriterManager.LAST_REFRESHED_TABLE_CACHE.put(identifier, staleEntry);
+
+    // Access the table again
+    writer.getOrCreateTable(destination, beamSchema);
+
+    // Verify that refresh() WAS called exactly once because the entry was stale.
+    verify(mockTable, times(1)).refresh();
   }
 }

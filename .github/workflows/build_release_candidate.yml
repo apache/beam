@@ -260,7 +260,6 @@ jobs:
         # tasks as they are added.
         images_to_publish: [
           {"gradle_task": ":pushAllRunnersDockerImages", "include_skip_flags": "-Pinclude-ml -Pinclude-distroless"},
-          {"gradle_task": ":sdks:python:container:push39", "include_skip_flags": "-Pinclude-ml -Pinclude-distroless"},
           {"gradle_task": ":sdks:python:container:push310", "include_skip_flags": "-Pinclude-ml -Pinclude-distroless"},
           {"gradle_task": ":sdks:python:container:push311", "include_skip_flags": "-Pinclude-ml -Pinclude-distroless"},
           {"gradle_task": ":sdks:python:container:push312", "include_skip_flags": "-Pinclude-ml -Pinclude-distroless"},

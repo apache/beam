@@ -27,6 +27,7 @@ import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.lang.reflect.Method;
 import java.math.BigDecimal;
+import java.math.BigInteger;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
@@ -81,6 +82,7 @@ import org.apache.beam.sdk.schemas.logicaltypes.FixedBytes;
 import org.apache.beam.sdk.schemas.logicaltypes.FixedString;
 import org.apache.beam.sdk.schemas.logicaltypes.OneOfType;
 import org.apache.beam.sdk.schemas.logicaltypes.SqlTypes;
+import org.apache.beam.sdk.schemas.logicaltypes.Timestamp;
 import org.apache.beam.sdk.schemas.logicaltypes.VariableBytes;
 import org.apache.beam.sdk.schemas.logicaltypes.VariableString;
 import org.apache.beam.sdk.schemas.utils.ByteBuddyUtils.ConvertType;
@@ -137,6 +139,7 @@ import org.joda.time.ReadableInstant;
  *   LogicalTypes.TimestampMillis   <-----> DATETIME
  *   LogicalTypes.TimestampMicros   ------> Long
  *   LogicalTypes.TimestampMicros   <------ LogicalType(urn="beam:logical_type:micros_instant:v1")
+ *   LogicalTypes.TimestampNanos   <------> LogicalType(TIMESTAMP(9))
  *   LogicalTypes.Decimal           <-----> DECIMAL
  * </pre>
  *
@@ -163,6 +166,8 @@ public class AvroUtils {
   private static final ForLoadedType JODA_INSTANT = new ForLoadedType(Instant.class);
 
   private static final GenericData GENERIC_DATA_WITH_DEFAULT_CONVERSIONS;
+
+  private static final String TIMESTAMP_NANOS_LOGICAL_TYPE = "timestamp-nanos";
 
   static {
     GENERIC_DATA_WITH_DEFAULT_CONVERSIONS = new GenericData();
@@ -1027,6 +1032,11 @@ public class AvroUtils {
         fieldType = FieldType.DATETIME;
       }
     }
+    // TODO: Remove once Avro 1.12+ has timestamp-nanos
+    if (fieldType == null
+        && TIMESTAMP_NANOS_LOGICAL_TYPE.equals(avroSchema.getProp("logicalType"))) {
+      fieldType = FieldType.logicalType(Timestamp.NANOS);
+    }
 
     if (fieldType == null) {
       switch (type.type.getType()) {
@@ -1186,6 +1196,14 @@ public class AvroUtils {
         } else if (SqlTypes.TIMESTAMP.getIdentifier().equals(identifier)) {
           baseType =
               LogicalTypes.timestampMicros().addToSchema(org.apache.avro.Schema.create(Type.LONG));
+        } else if (Timestamp.IDENTIFIER.equals(identifier)) {
+          int precision = checkNotNull(logicalType.getArgument());
+          if (precision != 9) {
+            throw new RuntimeException(
+                "Timestamp logical type precision not supported:" + precision);
+          }
+          baseType = org.apache.avro.Schema.create(Type.LONG);
+          baseType.addProp("logicalType", TIMESTAMP_NANOS_LOGICAL_TYPE);
         } else {
           throw new RuntimeException(
               "Unhandled logical type " + checkNotNull(fieldType.getLogicalType()).getIdentifier());
@@ -1340,6 +1358,16 @@ public class AvroUtils {
           java.time.Instant instant = (java.time.Instant) value;
           return TimeUnit.SECONDS.toMicros(instant.getEpochSecond())
               + TimeUnit.NANOSECONDS.toMicros(instant.getNano());
+        } else if (Timestamp.IDENTIFIER.equals(identifier)) {
+          java.time.Instant instant = (java.time.Instant) value;
+          // Use BigInteger to work around long overflows so that epochNanos = Long.MIN_VALUE can be
+          // supported. Instant always stores nanos as positive adjustment so the math will silently
+          // overflow with regular int64.
+          BigInteger epochSeconds = BigInteger.valueOf(instant.getEpochSecond());
+          BigInteger nanosOfSecond = BigInteger.valueOf(instant.getNano());
+          BigInteger epochNanos =
+              epochSeconds.multiply(BigInteger.valueOf(1_000_000_000L)).add(nanosOfSecond);
+          return epochNanos.longValueExact();
         } else {
           throw new RuntimeException("Unhandled logical type " + identifier);
         }
@@ -1387,6 +1415,24 @@ public class AvroUtils {
       @Nonnull FieldType fieldType,
       @Nonnull GenericData genericData) {
     TypeWithNullability type = new TypeWithNullability(avroSchema);
+
+    // TODO: Remove this workaround once Avro is upgraded to 1.12+ where timestamp-nanos
+    if (TIMESTAMP_NANOS_LOGICAL_TYPE.equals(type.type.getProp("logicalType"))) {
+      if (type.type.getType() == Type.LONG) {
+        Long nanos = (Long) value;
+        // Check if Beam expects Timestamp logical type
+        if (fieldType.getTypeName() == TypeName.LOGICAL_TYPE
+            && org.apache.beam.sdk.schemas.logicaltypes.Timestamp.IDENTIFIER.equals(
+                fieldType.getLogicalType().getIdentifier())) {
+          long seconds = Math.floorDiv(nanos, 1_000_000_000L);
+          long nanoAdjustment = Math.floorMod(nanos, 1_000_000_000L);
+          return java.time.Instant.ofEpochSecond(seconds, nanoAdjustment);
+        } else {
+          return nanos;
+        }
+      }
+    }
+
     LogicalType logicalType = LogicalTypes.fromSchema(type.type);
     if (logicalType == null) {
       return null;

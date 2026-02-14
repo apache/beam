@@ -61,10 +61,18 @@ from apache_beam.utils import retry
 from apache_beam.utils import shared
 
 try:
+  from apache_beam.io.components.rate_limiter import RateLimiter
+except ImportError:
+  RateLimiter = None
+
+try:
   # pylint: disable=wrong-import-order, wrong-import-position
   import resource
+
+  from apache_beam.ml.inference.model_manager import ModelManager
 except ImportError:
   resource = None  # type: ignore[assignment]
+  ModelManager = None  # type: ignore[assignment]
 
 _NANOSECOND_TO_MILLISECOND = 1_000_000
 _NANOSECOND_TO_MICROSECOND = 1_000
@@ -100,6 +108,11 @@ PredictionResult.example.__doc__ = """The input example."""
 PredictionResult.inference.__doc__ = """Results for the inference on the model
   for the given example."""
 PredictionResult.model_id.__doc__ = """Model ID used to run the prediction."""
+
+
+class RateLimitExceeded(RuntimeError):
+  """RateLimit Exceeded to process a batch of requests."""
+  pass
 
 
 class ModelMetadata(NamedTuple):
@@ -157,10 +170,48 @@ class KeyModelPathMapping(Generic[KeyT]):
 
 class ModelHandler(Generic[ExampleT, PredictionT, ModelT]):
   """Has the ability to load and apply an ML model."""
-  def __init__(self):
-    """Environment variables are set using a dict named 'env_vars' before
-    loading the model. Child classes can accept this dict as a kwarg."""
-    self._env_vars = {}
+  def __init__(
+      self,
+      *,
+      min_batch_size: Optional[int] = None,
+      max_batch_size: Optional[int] = None,
+      max_batch_duration_secs: Optional[int] = None,
+      max_batch_weight: Optional[int] = None,
+      element_size_fn: Optional[Callable[[Any], int]] = None,
+      large_model: bool = False,
+      model_copies: Optional[int] = None,
+      **kwargs):
+    """Initializes the ModelHandler.
+
+    Args:
+      min_batch_size: the minimum batch size to use when batching inputs.
+      max_batch_size: the maximum batch size to use when batching inputs.
+      max_batch_duration_secs: the maximum amount of time to buffer a batch
+        before emitting; used in streaming contexts.
+      max_batch_weight: the maximum weight of a batch. Requires element_size_fn.
+      element_size_fn: a function that returns the size (weight) of an element.
+      large_model: set to true if your model is large enough to run into
+        memory pressure if you load multiple copies.
+      model_copies: The exact number of models that you would like loaded
+        onto your machine.
+      kwargs: 'env_vars' can be used to set environment variables
+        before loading the model.
+    """
+    self._env_vars = kwargs.get('env_vars', {})
+    self._batching_kwargs: dict[str, Any] = {}
+    if min_batch_size is not None:
+      self._batching_kwargs['min_batch_size'] = min_batch_size
+    if max_batch_size is not None:
+      self._batching_kwargs['max_batch_size'] = max_batch_size
+    if max_batch_duration_secs is not None:
+      self._batching_kwargs['max_batch_duration_secs'] = max_batch_duration_secs
+    if max_batch_weight is not None:
+      self._batching_kwargs['max_batch_weight'] = max_batch_weight
+    if element_size_fn is not None:
+      self._batching_kwargs['element_size_fn'] = element_size_fn
+    self._large_model = large_model
+    self._model_copies = model_copies
+    self._share_across_processes = large_model or (model_copies is not None)
 
   def load_model(self) -> ModelT:
     """Loads and initializes a model for processing."""
@@ -210,18 +261,15 @@ class ModelHandler(Generic[ExampleT, PredictionT, ModelT]):
     Returns:
        kwargs suitable for beam.BatchElements.
     """
-    return {}
+    return getattr(self, '_batching_kwargs', {})
 
   def validate_inference_args(self, inference_args: Optional[dict[str, Any]]):
-    """Validates inference_args passed in the inference call.
-
-    Because most frameworks do not need extra arguments in their predict() call,
-    the default behavior is to error out if inference_args are present.
     """
-    if inference_args:
-      raise ValueError(
-          'inference_args were provided, but should be None because this '
-          'framework does not expect extra arguments on inferences.')
+    Allows model handlers to provide some validation to make sure passed in
+    inference args are valid. Some ModelHandlers throw here to disallow
+    inference args altogether.
+    """
+    pass
 
   def update_model_path(self, model_path: Optional[str] = None):
     """
@@ -318,14 +366,14 @@ class ModelHandler(Generic[ExampleT, PredictionT, ModelT]):
     memory. Multi-process support may vary by runner, but this will fallback to
     loading per process as necessary. See
     https://beam.apache.org/releases/pydoc/current/apache_beam.utils.multi_process_shared.html"""
-    return False
+    return getattr(self, '_share_across_processes', False)
 
   def model_copies(self) -> int:
     """Returns the maximum number of model copies that should be loaded at one
     time. This only impacts model handlers that are using
     share_model_across_processes to share their model across processes instead
     of being loaded per process."""
-    return 1
+    return getattr(self, '_model_copies', None) or 1
 
   def override_metrics(self, metrics_namespace: str = '') -> bool:
     """Returns a boolean representing whether or not a model handler will
@@ -352,7 +400,8 @@ class RemoteModelHandler(ABC, ModelHandler[ExampleT, PredictionT, ModelT]):
       *,
       window_ms: int = 1 * _MILLISECOND_TO_SECOND,
       bucket_ms: int = 1 * _MILLISECOND_TO_SECOND,
-      overload_ratio: float = 2):
+      overload_ratio: float = 2,
+      rate_limiter: Optional[RateLimiter] = None):
     """Initializes a ReactiveThrottler class for enabling
     client-side throttling for remote calls to an inference service. Also wraps
     provided calls to the service with retry logic.
@@ -375,6 +424,7 @@ class RemoteModelHandler(ABC, ModelHandler[ExampleT, PredictionT, ModelT]):
       overload_ratio: the target ratio between requests sent and successful
         requests. This is "K" in the formula in
         https://landing.google.com/sre/book/chapters/handling-overload.html.
+      rate_limiter: A RateLimiter object for setting a global rate limit.
     """
     # Configure ReactiveThrottler for client-side throttling behavior.
     self.throttler = ReactiveThrottler(
@@ -386,6 +436,9 @@ class RemoteModelHandler(ABC, ModelHandler[ExampleT, PredictionT, ModelT]):
     self.logger = logging.getLogger(namespace)
     self.num_retries = num_retries
     self.retry_filter = retry_filter
+    self._rate_limiter = rate_limiter
+    self._shared_rate_limiter = None
+    self._shared_handle = shared.Shared()
 
   def __init_subclass__(cls):
     if cls.load_model is not RemoteModelHandler.load_model:
@@ -434,6 +487,19 @@ class RemoteModelHandler(ABC, ModelHandler[ExampleT, PredictionT, ModelT]):
     Returns:
       An Iterable of Predictions.
     """
+    if self._rate_limiter:
+      if self._shared_rate_limiter is None:
+
+        def init_limiter():
+          return self._rate_limiter
+
+        self._shared_rate_limiter = self._shared_handle.acquire(init_limiter)
+
+      if not self._shared_rate_limiter.allow(hits_added=len(batch)):
+        raise RateLimitExceeded(
+            "Rate Limit Exceeded, "
+            "Could not process this batch.")
+
     self.throttler.throttle()
 
     try:
@@ -470,11 +536,12 @@ class RemoteModelHandler(ABC, ModelHandler[ExampleT, PredictionT, ModelT]):
     raise NotImplementedError(type(self))
 
 
-class _ModelManager:
+class _ModelHandlerManager:
   """
-  A class for efficiently managing copies of multiple models. Will load a
-  single copy of each model into a multi_process_shared object and then
-  return a lookup key for that object.
+  A class for efficiently managing copies of multiple model handlers.
+  Will load a single copy of each model from the model handler into a
+  multi_process_shared object and then return a lookup key for that
+  object. Used for KeyedModelHandler only.
   """
   def __init__(self, mh_map: dict[str, ModelHandler]):
     """
@@ -539,8 +606,9 @@ class _ModelManager:
 
   def increment_max_models(self, increment: int):
     """
-    Increments the number of models that this instance of a _ModelManager is
-    able to hold. If it is never called, no limit is imposed.
+    Increments the number of models that this instance of a
+    _ModelHandlerManager is able to hold. If it is never called,
+    no limit is imposed.
     Args:
       increment: the amount by which we are incrementing the number of models.
     """
@@ -593,7 +661,7 @@ class KeyModelMapping(Generic[KeyT, ExampleT, PredictionT, ModelT]):
 class KeyedModelHandler(Generic[KeyT, ExampleT, PredictionT, ModelT],
                         ModelHandler[tuple[KeyT, ExampleT],
                                      tuple[KeyT, PredictionT],
-                                     Union[ModelT, _ModelManager]]):
+                                     Union[ModelT, _ModelHandlerManager]]):
   def __init__(
       self,
       unkeyed: Union[ModelHandler[ExampleT, PredictionT, ModelT],
@@ -746,15 +814,15 @@ class KeyedModelHandler(Generic[KeyT, ExampleT, PredictionT, ModelT],
               'to exactly one model handler.')
         self._key_to_id_map[key] = keys[0]
 
-  def load_model(self) -> Union[ModelT, _ModelManager]:
+  def load_model(self) -> Union[ModelT, _ModelHandlerManager]:
     if self._single_model:
       return self._unkeyed.load_model()
-    return _ModelManager(self._id_to_mh_map)
+    return _ModelHandlerManager(self._id_to_mh_map)
 
   def run_inference(
       self,
       batch: Sequence[tuple[KeyT, ExampleT]],
-      model: Union[ModelT, _ModelManager],
+      model: Union[ModelT, _ModelHandlerManager],
       inference_args: Optional[dict[str, Any]] = None
   ) -> Iterable[tuple[KeyT, PredictionT]]:
     if self._single_model:
@@ -856,7 +924,7 @@ class KeyedModelHandler(Generic[KeyT, ExampleT, PredictionT, ModelT],
 
   def update_model_paths(
       self,
-      model: Union[ModelT, _ModelManager],
+      model: Union[ModelT, _ModelHandlerManager],
       model_paths: list[KeyModelPathMapping[KeyT]] = None):
     # When there are many models, the keyed model handler is responsible for
     # reorganizing the model handlers into cohorts and telling the model
@@ -1262,6 +1330,30 @@ class _PostProcessingModelHandler(Generic[ExampleT,
     return self._base.get_postprocess_fns() + [self._postprocess_fn]
 
 
+class OOMProtectedFn:
+  def __init__(self, func):
+    self.func = func
+
+  def __call__(self, *args, **kwargs):
+    try:
+      return self.func(*args, **kwargs)
+    except Exception as e:
+      # Check string to avoid hard import dependency
+      if 'out of memory' in str(e) and 'CUDA' in str(e):
+        logging.warning("Caught CUDA OOM during operation. Cleaning memory.")
+        try:
+          import gc
+
+          import torch
+          gc.collect()
+          torch.cuda.empty_cache()
+        except ImportError:
+          pass
+        except Exception as cleanup_error:
+          logging.error("Failed to clean up CUDA memory: %s", cleanup_error)
+      raise e
+
+
 class RunInference(beam.PTransform[beam.PCollection[Union[ExampleT,
                                                           Iterable[ExampleT]]],
                                    beam.PCollection[PredictionT]]):
@@ -1275,6 +1367,8 @@ class RunInference(beam.PTransform[beam.PCollection[Union[ExampleT,
       model_metadata_pcoll: beam.PCollection[ModelMetadata] = None,
       watch_model_pattern: Optional[str] = None,
       model_identifier: Optional[str] = None,
+      use_model_manager: bool = False,
+      model_manager_args: Optional[dict[str, Any]] = None,
       **kwargs):
     """
     A transform that takes a PCollection of examples (or features) for use
@@ -1315,6 +1409,8 @@ class RunInference(beam.PTransform[beam.PCollection[Union[ExampleT,
     self._exception_handling_timeout = None
     self._timeout = None
     self._watch_model_pattern = watch_model_pattern
+    self._use_model_manager = use_model_manager
+    self._model_manager_args = model_manager_args
     self._kwargs = kwargs
     # Generate a random tag to use for shared.py and multi_process_shared.py to
     # allow us to effectively disambiguate in multi-model settings. Only use
@@ -1427,7 +1523,9 @@ class RunInference(beam.PTransform[beam.PCollection[Union[ExampleT,
             self._clock,
             self._metrics_namespace,
             load_model_at_runtime,
-            self._model_tag),
+            self._model_tag,
+            self._use_model_manager,
+            self._model_manager_args),
         self._inference_args,
         beam.pvalue.AsSingleton(
             self._model_metadata_pcoll,
@@ -1740,21 +1838,57 @@ def load_model_status(
   return shared.Shared().acquire(lambda: _ModelStatus(False), tag=tag)
 
 
+class _ProxyLoader:
+  """
+  A helper callable to wrap the loader for MultiProcessShared.
+  """
+  def __init__(self, loader_func, model_tag):
+    self.loader_func = loader_func
+    self.model_tag = model_tag
+
+  def __call__(self):
+    # Generate a unique tag for the model being loaded so that
+    # we will have unique instances of the model in multi_process_shared
+    # space instead of reusing the same instance over. The instance will
+    # be initialized and left running as a separate process, which then
+    # can be grabbed again using the unique tag if needed during inference.
+    unique_tag = self.model_tag + '_' + uuid.uuid4().hex
+    # Ensure that each model loaded in a different process for parallelism
+    multi_process_shared.MultiProcessShared(
+        OOMProtectedFn(self.loader_func),
+        tag=unique_tag,
+        always_proxy=True,
+        spawn_process=True).acquire()
+    # Only return the tag to avoid pickling issues with the model itself.
+    return unique_tag
+
+
 class _SharedModelWrapper():
   """A router class to map incoming calls to the correct model.
 
     This allows us to round robin calls to models sitting in different
     processes so that we can more efficiently use resources (e.g. GPUs).
   """
-  def __init__(self, models: list[Any], model_tag: str):
+  def __init__(
+      self,
+      models: Union[list[Any], ModelManager],
+      model_tag: str,
+      loader_func: Optional[Callable[[], Any]] = None):
     self.models = models
-    if len(models) > 1:
+    self.use_model_manager = not isinstance(models, list)
+    self.model_tag = model_tag
+    self.loader_func = loader_func
+    if not self.use_model_manager and len(models) > 1:
       self.model_router = multi_process_shared.MultiProcessShared(
           lambda: _ModelRoutingStrategy(),
           tag=f'{model_tag}_counter',
           always_proxy=True).acquire()
 
   def next_model(self):
+    if self.use_model_manager:
+      loader_wrapper = _ProxyLoader(self.loader_func, self.model_tag)
+      return self.models.acquire_model(self.model_tag, loader_wrapper)
+
     if len(self.models) == 1:
       # Short circuit if there's no routing strategy needed in order to
       # avoid the cross-process call
@@ -1762,8 +1896,18 @@ class _SharedModelWrapper():
 
     return self.models[self.model_router.next_model_index(len(self.models))]
 
+  def release_model(self, model_tag: str, model: Any):
+    if self.use_model_manager:
+      self.models.release_model(model_tag, model)
+
   def all_models(self):
+    if self.use_model_manager:
+      return self.models.all_models()[self.model_tag]
     return self.models
+
+  def force_reset(self):
+    if self.use_model_manager:
+      self.models.force_reset()
 
 
 class _RunInferenceDoFn(beam.DoFn, Generic[ExampleT, PredictionT]):
@@ -1773,7 +1917,9 @@ class _RunInferenceDoFn(beam.DoFn, Generic[ExampleT, PredictionT]):
       clock,
       metrics_namespace,
       load_model_at_runtime: bool = False,
-      model_tag: str = "RunInference"):
+      model_tag: str = "RunInference",
+      use_model_manager: bool = False,
+      model_manager_args: Optional[dict[str, Any]] = None):
     """A DoFn implementation generic to frameworks.
 
       Args:
@@ -1797,6 +1943,8 @@ class _RunInferenceDoFn(beam.DoFn, Generic[ExampleT, PredictionT]):
     # _cur_tag is the tag of the actually loaded model
     self._model_tag = model_tag
     self._cur_tag = model_tag
+    self.use_model_manager = use_model_manager
+    self._model_manager_args = model_manager_args or {}
 
   def _load_model(
       self,
@@ -1831,7 +1979,15 @@ class _RunInferenceDoFn(beam.DoFn, Generic[ExampleT, PredictionT]):
       model_tag = side_input_model_path
     # Ensure the tag we're loading is valid, if not replace it with a valid tag
     self._cur_tag = self._model_metadata.get_valid_tag(model_tag)
-    if self._model_handler.share_model_across_processes():
+    if self.use_model_manager:
+      logging.info("Using Model Manager to manage models automatically.")
+      model_manager = multi_process_shared.MultiProcessShared(
+          lambda: ModelManager(**self._model_manager_args),
+          tag='model_manager',
+          always_proxy=True).acquire()
+      model_wrapper = _SharedModelWrapper(
+          model_manager, self._cur_tag, self._model_handler.load_model)
+    elif self._model_handler.share_model_across_processes():
       models = []
       for copy_tag in _get_tags_for_copies(self._cur_tag,
                                            self._model_handler.model_copies()):
@@ -1886,8 +2042,18 @@ class _RunInferenceDoFn(beam.DoFn, Generic[ExampleT, PredictionT]):
     start_time = _to_microseconds(self._clock.time_ns())
     try:
       model = self._model.next_model()
-      result_generator = self._model_handler.run_inference(
-          batch, model, inference_args)
+      if isinstance(model, str):
+        # ModelManager with MultiProcessShared returns the model tag
+        unique_tag = model
+        model = multi_process_shared.MultiProcessShared(
+            lambda: None, tag=model, always_proxy=True).acquire()
+      try:
+        result_generator = (OOMProtectedFn(self._model_handler.run_inference))(
+            batch, model, inference_args)
+      finally:
+        # Always release the model so that it can be reloaded.
+        if self.use_model_manager:
+          self._model.release_model(self._model_tag, unique_tag)
     except BaseException as e:
       if self._metrics_collector:
         self._metrics_collector.failed_batches_counter.inc()

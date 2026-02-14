@@ -75,6 +75,7 @@ tasks.rat {
     "**/Gemfile.lock",
     "**/Rakefile",
     "**/.htaccess",
+    "website/www/site/assets/css/**/*",
     "website/www/site/assets/scss/_bootstrap.scss",
     "website/www/site/assets/scss/bootstrap/**/*",
     "website/www/site/assets/js/**/*",
@@ -217,7 +218,10 @@ tasks.rat {
     "learning/prompts/**/*.md",
 
     // Ignore terraform lock files
-    "**/.terraform.lock.hcl"
+    "**/.terraform.lock.hcl",
+
+    // Ignore pytest cache files
+    "**/.pytest_cache/**"
   )
 
   // Add .gitignore excludes to the Apache Rat exclusion list. We re-create the behavior
@@ -321,6 +325,8 @@ tasks.register("javaPreCommit") {
   dependsOn(":sdks:java:io:xml:build")
   dependsOn(":sdks:java:javadoc:allJavadoc")
   dependsOn(":sdks:java:managed:build")
+  dependsOn("sdks:java:ml:inference:remote:build")
+  dependsOn("sdks:java:ml:inference:openai:build")
   dependsOn(":sdks:java:testing:expansion-service:build")
   dependsOn(":sdks:java:testing:jpms-tests:build")
   dependsOn(":sdks:java:testing:junit:build")
@@ -341,6 +347,7 @@ tasks.register("javaioPreCommit") {
   dependsOn(":sdks:java:io:csv:build")
   dependsOn(":sdks:java:io:cdap:build")
   dependsOn(":sdks:java:io:clickhouse:build")
+  dependsOn(":sdks:java:io:datadog:build")
   dependsOn(":sdks:java:io:debezium:expansion-service:build")
   dependsOn(":sdks:java:io:debezium:build")
   dependsOn(":sdks:java:io:elasticsearch:build")
@@ -774,7 +781,7 @@ tasks.register("validateChanges") {
     println("Found ${errors.size} errors")
 
     if (errors.isNotEmpty()) {
-      throw GradleException("CHANGES.md validation failed with the following errors:\n${errors.joinToString("\n")}\n\nYou can run ./gradlew formatChanges to correct some issues.")
+      throw GradleException("CHANGES.md validation failed with the following errors:\n${errors.joinToString("\n")}\n\nYou can run `./gradlew formatChanges` to correct some issues.")
     }
 
     println("CHANGES.md validation successful")

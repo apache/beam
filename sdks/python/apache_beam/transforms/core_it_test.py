@@ -38,6 +38,11 @@ try:
 except ImportError:
   secretmanager = None  # type: ignore[assignment]
 
+try:
+  from google.cloud import kms
+except ImportError:
+  kms = None  # type: ignore[assignment]
+
 
 class GbekIT(unittest.TestCase):
   @classmethod
@@ -74,6 +79,42 @@ class GbekIT(unittest.TestCase):
       cls.gcp_secret = GcpSecret(version_name)
       cls.secret_option = f'type:GcpSecret;version_name:{version_name}'
 
+    if kms is not None:
+      cls.kms_client = kms.KeyManagementServiceClient()
+      cls.location_id = 'global'
+      py_version = f'_py{sys.version_info.major}{sys.version_info.minor}'
+      secret_postfix = datetime.now().strftime('%m%d_%H%M%S') + py_version
+      cls.key_ring_id = 'gbekit_key_ring_tests'
+      cls.key_ring_path = cls.kms_client.key_ring_path(
+          cls.project_id, cls.location_id, cls.key_ring_id)
+      try:
+        cls.kms_client.get_key_ring(request={'name': cls.key_ring_path})
+      except Exception:
+        parent = f'projects/{cls.project_id}/locations/{cls.location_id}'
+        cls.kms_client.create_key_ring(
+            request={
+                'parent': parent,
+                'key_ring_id': cls.key_ring_id,
+            })
+      cls.key_id = 'gbekit_key_tests'
+      cls.key_path = cls.kms_client.crypto_key_path(
+          cls.project_id, cls.location_id, cls.key_ring_id, cls.key_id)
+      try:
+        cls.kms_client.get_crypto_key(request={'name': cls.key_path})
+      except Exception:
+        cls.kms_client.create_crypto_key(
+            request={
+                'parent': cls.key_ring_path,
+                'crypto_key_id': cls.key_id,
+                'crypto_key': {
+                    'purpose': kms.CryptoKey.CryptoKeyPurpose.ENCRYPT_DECRYPT
+                }
+            })
+      cls.hsm_secret_option = (
+          f'type:GcpHsmGeneratedSecret;project_id:{cls.project_id};'
+          f'location_id:{cls.location_id};key_ring_id:{cls.key_ring_id};'
+          f'key_id:{cls.key_id};job_name:{secret_postfix}')
+
   @classmethod
   def tearDownClass(cls):
     if secretmanager is not None:
@@ -84,6 +125,22 @@ class GbekIT(unittest.TestCase):
   def test_gbk_with_gbek_it(self):
     pipeline = TestPipeline(is_integration_test=True)
     pipeline.options.view_as(SetupOptions).gbek = self.secret_option
+
+    pcoll_1 = pipeline | 'Start 1' >> beam.Create([('a', 1), ('a', 2), ('b', 3),
+                                                   ('c', 4)])
+    result = (pcoll_1) | beam.GroupByKey()
+    sorted_result = result | beam.Map(lambda x: (x[0], sorted(x[1])))
+    assert_that(
+        sorted_result, equal_to([('a', ([1, 2])), ('b', ([3])), ('c', ([4]))]))
+
+    pipeline.run().wait_until_finish()
+
+  @pytest.mark.it_postcommit
+  @unittest.skipIf(secretmanager is None, 'GCP dependencies are not installed')
+  @unittest.skipIf(kms is None, 'GCP dependencies are not installed')
+  def test_gbk_with_gbek_hsm_it(self):
+    pipeline = TestPipeline(is_integration_test=True)
+    pipeline.options.view_as(SetupOptions).gbek = self.hsm_secret_option
 
     pcoll_1 = pipeline | 'Start 1' >> beam.Create([('a', 1), ('a', 2), ('b', 3),
                                                    ('c', 4)])

@@ -32,6 +32,11 @@ import (
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/util/execx"
 )
 
+var (
+	// Whether to append "--no-build-isolation" flag to pip install command
+	pipNoBuildIsolation bool
+)
+
 const pipLogFlushInterval time.Duration = 15 * time.Second
 const unrecoverableURL string = "https://beam.apache.org/documentation/sdks/python-unrecoverable-errors/index.html#pip-dependency-resolution-failures"
 
@@ -112,6 +117,9 @@ func pipInstallPackage(ctx context.Context, logger *tools.Logger, files []string
 				// installed if necessary.  This achieves our goal outlined above.
 				args := []string{"-m", "pip", "install", "--no-cache-dir", "--disable-pip-version-check", "--upgrade", "--force-reinstall", "--no-deps",
 					filepath.Join(dir, packageSpec)}
+				if pipNoBuildIsolation {
+					args = append(args, "--no-build-isolation")
+				}
 				err := execx.ExecuteEnvWithIO(nil, os.Stdin, bufLogger, bufLogger, pythonVersion, args...)
 				if err != nil {
 					bufLogger.FlushAtError(ctx)
@@ -120,6 +128,9 @@ func pipInstallPackage(ctx context.Context, logger *tools.Logger, files []string
 					bufLogger.FlushAtDebug(ctx)
 				}
 				args = []string{"-m", "pip", "install", "--no-cache-dir", "--disable-pip-version-check", filepath.Join(dir, packageSpec)}
+				if pipNoBuildIsolation {
+					args = append(args, "--no-build-isolation")
+				}
 				err = execx.ExecuteEnvWithIO(nil, os.Stdin, bufLogger, bufLogger, pythonVersion, args...)
 				if err != nil {
 					bufLogger.FlushAtError(ctx)
@@ -131,6 +142,9 @@ func pipInstallPackage(ctx context.Context, logger *tools.Logger, files []string
 
 			// Case when we do not perform a forced reinstall.
 			args := []string{"-m", "pip", "install", "--no-cache-dir", "--disable-pip-version-check", filepath.Join(dir, packageSpec)}
+			if pipNoBuildIsolation {
+				args = append(args, "--no-build-isolation")
+			}
 			err := execx.ExecuteEnvWithIO(nil, os.Stdin, bufLogger, bufLogger, pythonVersion, args...)
 			if err != nil {
 				bufLogger.FlushAtError(ctx)

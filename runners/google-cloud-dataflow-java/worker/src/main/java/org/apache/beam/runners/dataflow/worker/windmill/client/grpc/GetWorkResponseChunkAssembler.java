@@ -124,7 +124,8 @@ final class GetWorkResponseChunkAssembler {
           metadataProto.getComputationId(),
           WindmillTimeUtils.windmillToHarnessWatermark(metadataProto.getInputDataWatermark()),
           WindmillTimeUtils.windmillToHarnessWatermark(
-              metadataProto.getDependentRealtimeInputWatermark()));
+              metadataProto.getDependentRealtimeInputWatermark()),
+          metadataProto.getDrainMode());
     }
 
     abstract String computationId();
@@ -132,6 +133,8 @@ final class GetWorkResponseChunkAssembler {
     abstract @Nullable Instant inputDataWatermark();
 
     abstract @Nullable Instant synchronizedProcessingTime();
+
+    abstract boolean drainMode();
   }
 
   @AutoValue
