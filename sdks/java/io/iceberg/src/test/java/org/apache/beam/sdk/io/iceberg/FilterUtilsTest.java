@@ -170,6 +170,21 @@ public class FilterUtilsTest {
   }
 
   @Test
+  public void testNestedField() {
+    // nested integer
+    TestCase.expecting(lessThan("nested.field", 30))
+        .fromFilter("\"nested\".\"field\" < 30")
+        .withSchema(
+            new Schema(
+                Types.NestedField.required(
+                    1,
+                    "nested",
+                    Types.StructType.of(
+                        Types.NestedField.required(2, "field", Types.IntegerType.get())))))
+        .validate();
+  }
+
+  @Test
   public void testLessThanOrEqual() {
     // integer
     TestCase.expecting(lessThanOrEqual("field_1", 30))
