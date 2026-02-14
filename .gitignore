@@ -3,7 +3,6 @@
 # This is typically in files named 'src.xml' throughout this repository.
 
 # Ignore IDE files
-.agent/
 .codex/
 .trae/
 .cursor/
