@@ -41,6 +41,7 @@ import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.kafka.clients.consumer.Consumer;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.consumer.OffsetAndMetadata;
+import org.apache.kafka.common.errors.RetriableException;
 import org.checkerframework.checker.nullness.qual.MonotonicNonNull;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
@@ -62,6 +63,8 @@ public class KafkaCommitOffset<K, V>
 
   static class CommitOffsetDoFn extends DoFn<KV<KafkaSourceDescriptor, Long>, Void> {
     private static final Logger LOG = LoggerFactory.getLogger(CommitOffsetDoFn.class);
+    private static final int MAX_RETRIES = 3;
+    private static final long INITIAL_BACKOFF_MS = 500;
     private final Map<String, Object> consumerConfig;
     private final SerializableFunction<Map<String, Object>, Consumer<byte[], byte[]>>
         consumerFactoryFn;
@@ -79,14 +82,37 @@ public class KafkaCommitOffset<K, V>
       Map<String, Object> updatedConsumerConfig =
           overrideBootstrapServersConfig(consumerConfig, element.getKey());
       try (Consumer<byte[], byte[]> consumer = consumerFactoryFn.apply(updatedConsumerConfig)) {
-        try {
-          consumer.commitSync(
-              Collections.singletonMap(
-                  element.getKey().getTopicPartition(),
-                  new OffsetAndMetadata(element.getValue() + 1)));
-        } catch (Exception e) {
-          // TODO: consider retrying.
-          LOG.warn("Getting exception when committing offset: {}", e.getMessage());
+        for (int attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+          try {
+            consumer.commitSync(
+                Collections.singletonMap(
+                    element.getKey().getTopicPartition(),
+                    new OffsetAndMetadata(element.getValue() + 1)));
+            return;
+          } catch (RetriableException e) {
+            if (attempt < MAX_RETRIES) {
+              long backoffMs = INITIAL_BACKOFF_MS * (1L << attempt);
+              LOG.warn(
+                  "Retriable exception committing offset (attempt {}/{}), retrying in {} ms: {}",
+                  attempt + 1,
+                  MAX_RETRIES + 1,
+                  backoffMs,
+                  e.getMessage());
+              try {
+                Thread.sleep(backoffMs);
+              } catch (InterruptedException ie) {
+                Thread.currentThread().interrupt();
+                LOG.warn("Interrupted while retrying offset commit: {}", ie.getMessage());
+                return;
+              }
+            } else {
+              LOG.warn(
+                  "Failed to commit offset after {} attempts: {}", MAX_RETRIES + 1, e.getMessage());
+            }
+          } catch (Exception e) {
+            LOG.warn("Getting exception when committing offset: {}", e.getMessage());
+            return;
+          }
         }
       }
     }
