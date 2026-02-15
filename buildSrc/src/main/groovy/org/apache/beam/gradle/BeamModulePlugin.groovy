@@ -649,7 +649,7 @@ class BeamModulePlugin implements Plugin<Project> {
     def spark2_version = "2.4.8"
     def spark3_version = "3.5.0"
     def spotbugs_version = "4.8.3"
-    def testcontainers_version = "1.19.7"
+    def testcontainers_version = "1.21.4"
     // [bomupgrader] determined by: org.apache.arrow:arrow-memory-core, consistent with: google_cloud_platform_libraries_bom
     def arrow_version = "17.0.0"
     def jmh_version = "1.34"
@@ -724,6 +724,7 @@ class BeamModulePlugin implements Plugin<Project> {
         commons_logging                             : "commons-logging:commons-logging:1.2",
         commons_math3                               : "org.apache.commons:commons-math3:3.6.1",
         dbcp2                                       : "org.apache.commons:commons-dbcp2:$dbcp2_version",
+        envoy_control_plane_api                     : "io.envoyproxy.controlplane:api:1.0.49",
         error_prone_annotations                     : "com.google.errorprone:error_prone_annotations:$errorprone_version",
         failsafe                                    : "dev.failsafe:failsafe:3.3.0",
         flogger_system_backend                      : "com.google.flogger:flogger-system-backend:0.7.4",
@@ -761,6 +762,7 @@ class BeamModulePlugin implements Plugin<Project> {
         google_cloud_platform_libraries_bom         : "com.google.cloud:libraries-bom:26.75.0",
         google_cloud_secret_manager                 : "com.google.cloud:google-cloud-secretmanager", // google_cloud_platform_libraries_bom sets version
         google_cloud_spanner                        : "com.google.cloud:google-cloud-spanner", // google_cloud_platform_libraries_bom sets version
+        google_cloud_storage                        : "com.google.cloud:google-cloud-storage", // google_cloud_platform_libraries_bom sets version
         google_cloud_tink                           : "com.google.crypto.tink:tink:1.19.0",
         google_cloud_vertexai                       : "com.google.cloud:google-cloud-vertexai", // google_cloud_platform_libraries_bom sets version
         google_code_gson                            : "com.google.code.gson:gson:$google_code_gson_version",
