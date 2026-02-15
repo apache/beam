@@ -80,9 +80,9 @@ import org.slf4j.LoggerFactory;
  *
  * <h4>Deduplication</h4>
  *
- * Deduplication is performed by ClickHouse if inserting to <a
- * href="https://clickhouse.yandex/docs/en/single/#data-replication">ReplicatedMergeTree</a> or <a
- * href="https://clickhouse.yandex/docs/en/single/#distributed">Distributed</a> table on top of
+ * <p>Deduplication is performed by ClickHouse if inserting to
+ * href="https://clickhouse.com/docs/engines/table-engines/mergetree-family/replication">ReplicatedMergeTree</a> or
+ * href="https://clickhouse.com/docs/engines/table-engines/special/distributed">Distributed</a> table on top of
  * ReplicatedMergeTree. Without replication, inserting into regular MergeTree can produce
  * duplicates, if insert fails, and then successfully retries. However, each block is inserted
  * atomically, and you can configure block size with {@link Write#withMaxInsertBlockSize(long)}.
