@@ -20,7 +20,6 @@ package org.apache.beam.sdk.io.clickhouse;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
-import java.sql.SQLException;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import org.apache.beam.sdk.Pipeline;
@@ -55,7 +54,7 @@ public class AtomicInsertTest extends BaseClickHouseTest {
 
   /** With sufficient block size, ClickHouse will atomically insert all or nothing. */
   @Test
-  public void testAtomicInsert() throws SQLException {
+  public void testAtomicInsert() throws Exception {
     int size = 100000;
     int done = 0;
 
@@ -72,7 +71,7 @@ public class AtomicInsertTest extends BaseClickHouseTest {
         // make sure we get one big bundle
         .apply(RangeBundle.of(size))
         .apply(
-            ClickHouseIO.<Row>write(clickHouse.getJdbcUrl(), "test_atomic_insert")
+            ClickHouseIO.<Row>write(clickHouseUrl, database, "test_atomic_insert")
                 .withMaxInsertBlockSize(size)
                 .withInitialBackoff(Duration.millis(1))
                 .withMaxRetries(2));
@@ -93,7 +92,7 @@ public class AtomicInsertTest extends BaseClickHouseTest {
    * replicated tables, it will deduplicate blocks.
    */
   @Test
-  public void testIdempotentInsert() throws SQLException {
+  public void testIdempotentInsert() throws Exception {
     int size = 100000;
 
     // inserts to such table fail with 60% chance for 1M batch size
@@ -110,7 +109,7 @@ public class AtomicInsertTest extends BaseClickHouseTest {
         // make sure we get one big bundle
         .apply(RangeBundle.of(size))
         .apply(
-            ClickHouseIO.<Row>write(clickHouse.getJdbcUrl(), "test_idempotent_insert")
+            ClickHouseIO.<Row>write(clickHouseUrl, database, "test_idempotent_insert")
                 .withMaxInsertBlockSize(size)
                 .withInitialBackoff(Duration.millis(1))
                 .withMaxRetries(2));
