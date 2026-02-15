@@ -49,6 +49,7 @@ public class BaseClickHouseTest {
 
   @BeforeClass
   public static void setup() throws IOException, InterruptedException {
+    System.setProperty("api.version", "1.44");
     network = Network.newNetwork();
 
     zookeeper =
