@@ -121,7 +121,12 @@ public class SpannerWriteIT {
       project = options.as(GcpOptions.class).getProject();
     }
 
-    spanner = SpannerOptions.newBuilder().setProjectId(project).disableGrpcGcpExtension().build().getService();
+    spanner =
+        SpannerOptions.newBuilder()
+            .setProjectId(project)
+            .disableGrpcGcpExtension()
+            .build()
+            .getService();
 
     databaseName = generateDatabaseName();
     pgDatabaseName = "pg-" + databaseName;
