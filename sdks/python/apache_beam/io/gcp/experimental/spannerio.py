@@ -22,6 +22,11 @@ Deprecated; use apache_beam.io.gcp.spanner module instead.
 This is an experimental module for reading and writing data from Google Cloud
 Spanner. Visit: https://cloud.google.com/spanner for more details.
 
+.. deprecated:: 2.68
+   Native Python SpannerIO is deprecated and will be removed in Beam 3.0.
+   Use the cross-language SpannerIO available in apache_beam.io.gcp.spanner instead.
+
+
 Reading Data from Cloud Spanner.
 
 To read from Cloud Spanner apply ReadFromSpanner transformation. It will
@@ -169,6 +174,7 @@ mutation groups together to process. If the Mutation references a table or
 column does not exits, it will cause a exception and fails the entire pipeline.
 """
 import typing
+import warnings
 from collections import deque
 from collections import namedtuple
 
@@ -218,6 +224,12 @@ except ImportError:
     # Ignoring for environments where the Spanner library is not available.
     pass
 
+_DEPRECATION_MESSAGE = (
+    "Native Python SpannerIO is deprecated and will be removed in Beam 3.0. "
+    "Use the cross-language SpannerIO available in apache_beam.io.gcp.spanner instead."
+)
+warnings.warn(_DEPRECATION_MESSAGE, DeprecationWarning)
+
 __all__ = [
     'create_transaction',
     'ReadFromSpanner',
@@ -241,8 +253,11 @@ class ReadOperation(namedtuple(
   """
   Encapsulates a spanner read operation.
   """
-
   __slots__ = ()
+
+  @deprecated(since='2.68', extra_message=_DEPRECATION_MESSAGE)
+  def __new__(cls, *args, **kwargs):
+    return super(ReadOperation, cls).__new__(cls, *args, **kwargs)
 
   @classmethod
   def query(cls, sql, params=None, param_types=None):
@@ -535,6 +550,7 @@ class _CreateTransactionFn(DoFn):
     return [_SPANNER_TRANSACTION(self._snapshot.to_dict())]
 
 
+@deprecated(since='2.68', extra_message=_DEPRECATION_MESSAGE)
 @ptransform_fn
 def create_transaction(
     pbegin,
@@ -670,7 +686,10 @@ class _ReadFromPartitionFn(DoFn):
       self._snapshot.close()
 
 
-@deprecated(since='2.68', current='apache_beam.io.gcp.spanner.ReadFromSpanner')
+@deprecated(
+    since='2.68',
+    current='apache_beam.io.gcp.spanner.ReadFromSpanner',
+    extra_message=_DEPRECATION_MESSAGE)
 class ReadFromSpanner(PTransform):
   """
   A PTransform to perform reads from cloud spanner.
@@ -822,7 +841,9 @@ class ReadFromSpanner(PTransform):
 
 
 @deprecated(
-    since='2.68', current='apache_beam.io.gcp.spanner.WriteToSpannerSchema')
+    since='2.68',
+    current='apache_beam.io.gcp.spanner',
+    extra_message=_DEPRECATION_MESSAGE)
 class WriteToSpanner(PTransform):
   def __init__(
       self,
@@ -915,6 +936,10 @@ class MutationGroup(deque):
   """
   A Bundle of Spanner Mutations (_Mutator).
   """
+  @deprecated(since='2.68', extra_message=_DEPRECATION_MESSAGE)
+  def __init__(self, *args, **kwargs):
+    super(MutationGroup, self).__init__(*args, **kwargs)
+
   @property
   def info(self):
     cells = 0
@@ -938,6 +963,7 @@ class WriteMutation(object):
   _OPERATION_REPLACE = "replace"
   _OPERATION_UPDATE = "update"
 
+  @deprecated(since='2.68', extra_message=_DEPRECATION_MESSAGE)
   def __init__(
       self,
       insert=None,
