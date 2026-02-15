@@ -114,7 +114,7 @@ public class SpannerReadIT {
       project = options.as(GcpOptions.class).getProject();
     }
 
-    spanner = SpannerOptions.newBuilder().setProjectId(project).build().getService();
+    spanner = SpannerOptions.newBuilder().setProjectId(project).disableGrpcGcpExtension().build().getService();
 
     databaseName = generateDatabaseName();
     pgDatabaseName = "pg-" + databaseName;
