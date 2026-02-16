@@ -65,6 +65,7 @@
 ## I/Os
 
 * Add support for Datadog IO (Java) ([#37318](https://github.com/apache/beam/issues/37318)).
+* S3-compatible storage support added for Iceberg managed I/O (Java) ([#37614](https://github.com/apache/beam/issues/37614)).
 
 ## New Features / Improvements
 
