@@ -178,6 +178,21 @@ SqlNode Property() :
     }
 }
 
+SqlNodeList ArgList() :
+{
+    SqlNodeList list = new SqlNodeList(getPos());
+    SqlNode property;
+}
+{
+    property = StringLiteral() { list.add(property); }
+    (
+        <COMMA> property = StringLiteral() { list.add(property); }
+    )*
+    {
+        return list;
+    }
+}
+
 /**
  * CREATE CATALOG ( IF NOT EXISTS )? catalog_name
  *   TYPE type_name
@@ -243,6 +258,41 @@ SqlCall SqlUseCatalog(Span s, String scope) :
             s.end(this),
             scope,
             catalogName);
+    }
+}
+
+
+/**
+ * ALTER CATALOG catalog_name
+ *   [ SET (key1=val1, key2=val2, ...) ]
+ *   [ (RESET | UNSET) (key1, key2, ...) ]
+ */
+SqlCall SqlAlterCatalog(Span s, String scope) :
+{
+    final SqlNode catalogName;
+    SqlNodeList setProps = null;
+    SqlNodeList resetProps = null;
+}
+{
+    <ALTER> {
+        s.add(this);
+    }
+    <CATALOG>
+    (
+        catalogName = CompoundIdentifier()
+        |
+        catalogName = StringLiteral()
+    )
+    [ <SET> <LPAREN> setProps = PropertyList() <RPAREN> ]
+    [ (<RESET> | <UNSET>) <LPAREN> resetProps = ArgList() <RPAREN> ]
+
+    {
+        return new SqlAlterCatalog(
+            s.end(this),
+            scope,
+            catalogName,
+            setProps,
+            resetProps);
     }
 }
 
@@ -464,6 +514,18 @@ SqlCall SqlShowCurrent(Span s) :
     }
 }
 
+SqlNodeList PartitionFieldsParens() :
+{
+    final SqlNodeList partitions;
+}
+{
+    <LPAREN>
+    partitions = PartitionFieldList()
+    <RPAREN>
+    {
+        return partitions;
+    }
+}
 
 SqlNodeList PartitionFieldList() :
 {
@@ -517,7 +579,7 @@ SqlCreate SqlCreateExternalTable(Span s, boolean replace) :
     |
         type = SimpleIdentifier()
     )
-    [ <PARTITIONED> <BY> <LPAREN> partitionFields = PartitionFieldList() <RPAREN> ]
+    [ <PARTITIONED> <BY> partitionFields = PartitionFieldsParens() ]
     [ <COMMENT> comment = StringLiteral() ]
     [ <LOCATION> location = StringLiteral() ]
     [ <TBLPROPERTIES> tblProperties = StringLiteral() ]
@@ -534,6 +596,62 @@ SqlCreate SqlCreateExternalTable(Span s, boolean replace) :
                 comment,
                 location,
                 tblProperties);
+    }
+}
+
+/**
+ * Loosely following Flink's grammar: https://nightlies.apache.org/flink/flink-docs-release-1.20/docs/dev/table/sql/alter/#alter-table
+ * ALTER TABLE table_name
+ *   [ ADD COLUMNS <column_def, column_def, ...> ]
+ *   [ DROP COLUMNS <column_name, column_name> ]
+ *   [ ADD PARTITIONS <partition_field, partition_field, ...> ]
+ *   [ DROP PARTITIONS <partition_field, partition_field, ...> ]
+ *   [ SET (key1=val1, key2=val2, ...) ]
+ *   [ (RESET | UNSET) (key1, key2, ...) ]
+ */
+SqlCall SqlAlterTable(Span s, String scope) :
+{
+    final SqlNode tableName;
+    SqlNodeList columnsToDrop = null;
+    List<Schema.Field> columnsToAdd = null;
+    SqlNodeList partitionsToDrop = null;
+    SqlNodeList partitionsToAdd = null;
+    SqlNodeList setProps = null;
+    SqlNodeList resetProps = null;
+}
+{
+    <ALTER> {
+        s.add(this);
+    }
+    <TABLE>
+    tableName = CompoundIdentifier()
+
+    [ <DROP> (
+      <COLUMNS> columnsToDrop = ParenthesizedSimpleIdentifierList()
+        |
+      <PARTITIONS> partitionsToDrop = ParenthesizedLiteralOptionCommaList()
+    ) ]
+
+    [ <ADD> (
+      <COLUMNS> columnsToAdd = FieldListParens()
+        |
+      <PARTITIONS> partitionsToAdd = ParenthesizedLiteralOptionCommaList()
+    ) ]
+
+    [ (<RESET> | <UNSET>) <LPAREN> resetProps = ArgList() <RPAREN> ]
+    [ <SET> <LPAREN> setProps = PropertyList() <RPAREN> ]
+
+    {
+        return new SqlAlterTable(
+            s.end(this),
+            scope,
+            tableName,
+            columnsToAdd,
+            columnsToDrop,
+            partitionsToAdd,
+            partitionsToDrop,
+            setProps,
+            resetProps);
     }
 }
 

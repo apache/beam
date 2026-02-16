@@ -187,7 +187,8 @@ public class ActionFactory implements Serializable {
       PartitionStartRecordAction partitionStartRecordAction,
       PartitionEndRecordAction partitionEndRecordAction,
       PartitionEventRecordAction partitionEventRecordAction,
-      ChangeStreamMetrics metrics) {
+      ChangeStreamMetrics metrics,
+      boolean isMutableChangeStream) {
     if (queryChangeStreamActionInstance == null) {
       queryChangeStreamActionInstance =
           new QueryChangeStreamAction(
@@ -201,7 +202,8 @@ public class ActionFactory implements Serializable {
               partitionStartRecordAction,
               partitionEndRecordAction,
               partitionEventRecordAction,
-              metrics);
+              metrics,
+              isMutableChangeStream);
     }
     return queryChangeStreamActionInstance;
   }

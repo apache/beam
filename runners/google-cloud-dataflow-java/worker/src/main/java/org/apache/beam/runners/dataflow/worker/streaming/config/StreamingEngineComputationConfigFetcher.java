@@ -25,6 +25,7 @@ import com.google.api.services.dataflow.model.StreamingComputationConfig;
 import com.google.api.services.dataflow.model.StreamingConfigTask;
 import com.google.api.services.dataflow.model.WorkItem;
 import java.io.IOException;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
@@ -61,6 +62,7 @@ import org.slf4j.LoggerFactory;
 @Internal
 @ThreadSafe
 public final class StreamingEngineComputationConfigFetcher implements ComputationConfig.Fetcher {
+
   private static final Logger LOG =
       LoggerFactory.getLogger(StreamingEngineComputationConfigFetcher.class);
   private static final String CONFIG_REFRESHER_THREAD_NAME = "GlobalPipelineConfigRefresher";
@@ -207,6 +209,14 @@ public final class StreamingEngineComputationConfigFetcher implements Computatio
         LOG.error("Parsing UserWorkerRunnerV1Settings failed", e);
       }
       pipelineConfig.setUserWorkerJobSettings(settings);
+    }
+
+    Integer tagEncodingVersion = config.getStreamingEngineStateTagEncodingVersion();
+    if (tagEncodingVersion != null) {
+      Preconditions.checkState(tagEncodingVersion <= 2);
+    }
+    if (Objects.equals(2, tagEncodingVersion)) {
+      pipelineConfig.setEnableStateTagEncodingV2(true);
     }
 
     return pipelineConfig.build();

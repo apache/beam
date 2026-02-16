@@ -33,10 +33,13 @@ public abstract class StreamingGlobalConfig {
     return new AutoValue_StreamingGlobalConfig.Builder()
         .setWindmillServiceEndpoints(ImmutableSet.of())
         .setUserWorkerJobSettings(UserWorkerRunnerV1Settings.newBuilder().build())
-        .setOperationalLimits(OperationalLimits.builder().build());
+        .setOperationalLimits(OperationalLimits.builder().build())
+        .setEnableStateTagEncodingV2(false);
   }
 
   public abstract OperationalLimits operationalLimits();
+
+  public abstract boolean enableStateTagEncodingV2();
 
   public abstract ImmutableSet<HostAndPort> windmillServiceEndpoints();
 
@@ -50,6 +53,8 @@ public abstract class StreamingGlobalConfig {
     public abstract Builder setOperationalLimits(OperationalLimits operationalLimits);
 
     public abstract Builder setUserWorkerJobSettings(UserWorkerRunnerV1Settings settings);
+
+    public abstract Builder setEnableStateTagEncodingV2(boolean enable);
 
     public abstract StreamingGlobalConfig build();
   }

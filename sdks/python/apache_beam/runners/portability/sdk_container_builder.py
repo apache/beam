@@ -262,10 +262,11 @@ class _SdkContainerImageCloudBuilder(SdkContainerImageBuilder):
     build.steps.append(step)
 
     source = cloud_build_types.Source()
-    source.storageSource = cloud_build_types.StorageSource()
+    storage_source = cloud_build_types.StorageSource()
     gcs_bucket, gcs_object = self._get_gcs_bucket_and_name(gcs_location)
-    source.storageSource.bucket = os.path.join(gcs_bucket)
-    source.storageSource.object = gcs_object
+    storage_source.bucket = os.path.join(gcs_bucket)
+    storage_source.object_ = gcs_object
+    source.storage_source = storage_source
     build.source = source
     # TODO(zyichi): make timeout configurable
     build.timeout = '7200s'
@@ -325,15 +326,22 @@ class _SdkContainerImageCloudBuilder(SdkContainerImageBuilder):
     _LOGGER.info('Completed GCS upload to %s.', gcs_location)
 
   def _get_cloud_build_id_and_log_url(self, metadata):
+    # google-cloud-build 3.35+
+    if getattr(metadata, 'build', None):
+      build = metadata.build
+      return (build.id, build.log_url)
+    # Fallback for older clients that use additionalProperties.
     id = None
     log_url = None
-    for item in metadata.additionalProperties:
-      if item.key == 'build':
-        for field in item.value.object_value.properties:
-          if field.key == 'logUrl':
-            log_url = field.value.string_value
-          if field.key == 'id':
-            id = field.value.string_value
+    additional_props = getattr(metadata, 'additionalProperties', None)
+    if additional_props:
+      for item in additional_props:
+        if item.key == 'build':
+          for field in item.value.object_value.properties:
+            if field.key == 'logUrl':
+              log_url = field.value.string_value
+            if field.key == 'id':
+              id = field.value.string_value
     return id, log_url
 
   @staticmethod
