@@ -29,7 +29,10 @@ import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.logicaltypes.FixedBytes;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
-/** A descriptor for ClickHouse table schema. */
+/**
+ * A descriptor for ClickHouse table schema. To be updated with ClickHouse table schema API -
+ * https://github.com/apache/beam/issues/37613
+ */
 @AutoValue
 @SuppressWarnings({
   "nullness" // TODO(https://github.com/apache/beam/issues/20497)
