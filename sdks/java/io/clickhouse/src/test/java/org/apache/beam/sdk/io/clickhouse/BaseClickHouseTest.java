@@ -47,6 +47,8 @@ public class BaseClickHouseTest {
   public static String database;
   public static Network network;
   public static GenericContainer zookeeper;
+  final int CLIENT_TIMEOUT = 30;
+
   private static final Logger LOG = LoggerFactory.getLogger(BaseClickHouseTest.class);
 
   private Client client;
@@ -126,7 +128,7 @@ public class BaseClickHouseTest {
    */
   boolean executeSql(String sql) throws Exception {
     try {
-      client.query(sql).get(30, TimeUnit.SECONDS);
+      client.query(sql).get(CLIENT_TIMEOUT, TimeUnit.SECONDS);
       return true;
     } catch (Exception e) {
       LOG.error("Failed to execute SQL: {}", sql, e);
@@ -143,7 +145,7 @@ public class BaseClickHouseTest {
    */
   Records executeQuery(String sql) throws Exception {
     try {
-      return client.queryRecords(sql).get(30, TimeUnit.SECONDS);
+      return client.queryRecords(sql).get(CLIENT_TIMEOUT, TimeUnit.SECONDS);
     } catch (Exception e) {
       LOG.error("Failed to execute query: {}", sql, e);
       throw e;
