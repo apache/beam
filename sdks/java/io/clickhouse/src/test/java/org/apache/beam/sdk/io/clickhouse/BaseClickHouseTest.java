@@ -47,7 +47,7 @@ public class BaseClickHouseTest {
   public static String database;
   public static Network network;
   public static GenericContainer zookeeper;
-  final int CLIENT_TIMEOUT = 30;
+  static final int CLIENT_TIMEOUT = 30;
 
   private static final Logger LOG = LoggerFactory.getLogger(BaseClickHouseTest.class);
 

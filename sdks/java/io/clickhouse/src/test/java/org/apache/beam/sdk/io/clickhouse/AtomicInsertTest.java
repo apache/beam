@@ -47,7 +47,7 @@ public class AtomicInsertTest extends BaseClickHouseTest {
 
   private static final int MIN_ATTEMPTS = 2;
   private static final int MAX_ATTEMPTS = 20; // should be enough to succeed at least once
-  final int TEST_BATCH_SIZE = 100000;
+  static final int TEST_BATCH_SIZE = 100000;
 
   private static boolean shouldAttempt(int i, long count) {
     return i < MIN_ATTEMPTS || (count == 0 && i < MAX_ATTEMPTS);
