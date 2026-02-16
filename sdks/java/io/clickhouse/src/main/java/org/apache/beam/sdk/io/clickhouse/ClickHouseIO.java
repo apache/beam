@@ -100,7 +100,9 @@ import org.slf4j.LoggerFactory;
  * inserted atomically, and you can configure block size with {@link
  * Write#withMaxInsertBlockSize(long)}.
  *
- * <p>Deduplication is performed using checksums of inserted blocks.
+ * <p>Deduplication is performed using checksums of inserted blocks. For <a
+ * href="https://clickhouse.com/docs/engines/table-engines/mergetree-family/shared-merge-tree">SharedMergeTree</a>
+ * tables in ClickHouse Cloud, deduplication behavior is similar to ReplicatedMergeTree.
  *
  * <h4>Mapping between Beam and ClickHouse types</h4>
  *
