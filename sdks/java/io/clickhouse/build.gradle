@@ -31,7 +31,7 @@ applyJavaNature(
 )
 
 description = "Apache Beam :: SDKs :: Java :: IO :: ClickHouse"
-ext.summary = "IO to write to ClickHouse (https://clickhouse.yandex)."
+ext.summary = "IO to write to ClickHouse (https://clickhouse.com)."
 
 // Match the output directory for generated code with the package, to be more tool-friendly
 def generatedJavaccSourceDir = "${project.buildDir}/generated/javacc"
