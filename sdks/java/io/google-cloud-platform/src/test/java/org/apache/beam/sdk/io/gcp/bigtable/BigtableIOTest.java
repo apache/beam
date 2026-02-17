@@ -680,6 +680,32 @@ public class BigtableIOTest {
         defaultRead.withTableId(table).withRowFilter(StaticValueProvider.of(filter)),
         Lists.newArrayList(filteredRows));
   }
+
+  /** Tests reading rows using a text proto filter provided through ValueProvider. */
+  @Test
+  public void testReadingWithRowFilterTextProto() throws Exception {
+    final String table = "TEST-FILTER-TABLE";
+    final int numRows = 1001;
+    List<Row> testRows = makeTableData(table, numRows);
+    String regex = ".*17.*";
+    final KeyMatchesRegex keyPredicate = new KeyMatchesRegex(regex);
+    Iterable<Row> filteredRows =
+        testRows.stream()
+            .filter(
+                input -> {
+                  verifyNotNull(input, "input");
+                  return keyPredicate.apply(input.getKey());
+                })
+            .collect(Collectors.toList());
+
+    String filter = "row_key_regex_filter: \".*17.*\"";
+    service.setupSampleRowKeys(table, 5, 10L);
+
+    runReadTest(
+        defaultRead.withTableId(table).withRowFilterTextProto(StaticValueProvider.of(filter)),
+        Lists.newArrayList(filteredRows));
+  }
+
   /** Tests dynamic work rebalancing exhaustively. */
   @Test
   public void testReadingSplitAtFractionExhaustive() throws Exception {
