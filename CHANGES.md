@@ -189,7 +189,7 @@ Now Beam has full support for Milvus integration including Milvus enrichment and
 * Minimum Go version for Beam Go updated to 1.25.2 ([#36461](https://github.com/apache/beam/issues/36461)).
 * (Java) DoFn OutputReceiver now requires implementing a builder method as part of extended metadata support for elements ([#34902](https://github.com/apache/beam/issues/34902)).
 * (Java) Removed ProcessContext outputWindowedValue introduced in 2.68 that allowed setting offset and record Id. Use OutputReceiver's builder to set those field ([#36523](https://github.com/apache/beam/pull/36523)).
-* (Python) The pip version used by ensurepip is upgraded to 25.3, which enables build isolation by default. As a result, pip needs internet access to download setuptools and set up an isolated virtual environment to build wheels when installing packages. If the user environment does not have internet access, it could lead to a timeout error. See ([#37331](https://github.com/apache/beam/pull/37331)) for more details.
+* (Python) The pip version used by ensurepip is upgraded to 25.3, which enables build isolation by default. As a result, pip needs internet access to download setuptools and set up an isolated virtual environment to build wheels when installing packages. If the user environment does not have internet access, it could lead to a timeout error. See ([#37331](https://github.com/apache/beam/pull/37331)) for more details and workarounds.
 
 ## Bugfixes
 
