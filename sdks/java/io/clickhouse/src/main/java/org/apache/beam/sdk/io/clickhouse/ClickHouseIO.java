@@ -129,7 +129,8 @@ import org.slf4j.LoggerFactory;
  * <tr><td>{@link TableSchema.TypeName#TUPLE}</td> <td>{@link Schema.TypeName#ROW}</td></tr>
  * </table>
  *
- * <p>Nullable row columns are supported through Nullable type in ClickHouse. Low cardinality hint
+ * <p>Nullable row columns are supported through <a href="https://clickhouse.com/docs/sql-reference/data-types/nullable">Nullable type</a> in ClickHouse.
+ * <a href="https://clickhouse.com/docs/sql-reference/data-types/LowCardinality"> Low cardinality hint </a>
  * is supported through LowCardinality DataType in ClickHouse.
  *
  * <p>Nested rows should be unnested using {@link Select#flattenedSchema()}. Type casting should be
