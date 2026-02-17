@@ -279,7 +279,7 @@ public class ClickHouseIO {
      *
      * @param value number of rows
      * @return a {@link PTransform} writing data to ClickHouse
-     * @see <a href="https://clickhouse.yandex/docs/en/single/#max_insert_block_size">ClickHouse
+     * @see <a href="https://clickhouse.com/docs/operations/settings/settings#max_insert_block_size">ClickHouse
      *     documentation</a>
      */
     public Write<T> withMaxInsertBlockSize(long value) {
@@ -305,7 +305,7 @@ public class ClickHouseIO {
      *
      * @param value number of replicas, 0 for disabling, null for server default
      * @return a {@link PTransform} writing data to ClickHouse
-     * @see <a href="https://clickhouse.yandex/docs/en/single/#insert_quorum">ClickHouse
+     * @see <a href="https://clickhouse.com/docs/operations/settings/settings#insert_quorum">ClickHouse
      *     documentation</a>
      */
     public Write<T> withInsertQuorum(@Nullable Long value) {
