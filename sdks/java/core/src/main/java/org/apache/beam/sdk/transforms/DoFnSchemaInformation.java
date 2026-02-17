@@ -33,6 +33,7 @@ import org.apache.beam.sdk.schemas.utils.SelectHelpers.RowSelectorContainer;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
+import org.checkerframework.dataflow.qual.Pure;
 
 /** Represents information about how a DoFn extracts schemas. */
 @AutoValue
@@ -46,12 +47,15 @@ public abstract class DoFnSchemaInformation implements Serializable {
    * The schema of the @Element parameter. If the Java type does not match the input PCollection but
    * the schemas are compatible, Beam will automatically convert between the Java types.
    */
+  @Pure
   public abstract List<SerializableFunction<?, ?>> getElementConverters();
 
   /** Effective FieldAccessDescriptor applied by DoFn. */
+  @Pure
   public abstract FieldAccessDescriptor getFieldAccessDescriptor();
 
   /** Create an instance. */
+  @Pure
   public static DoFnSchemaInformation create() {
     return new AutoValue_DoFnSchemaInformation.Builder()
         .setElementConverters(Collections.emptyList())
@@ -66,9 +70,11 @@ public abstract class DoFnSchemaInformation implements Serializable {
 
     abstract Builder setFieldAccessDescriptor(FieldAccessDescriptor descriptor);
 
+    @Pure
     abstract DoFnSchemaInformation build();
   }
 
+  @Pure
   public abstract Builder toBuilder();
 
   /**
@@ -224,7 +230,7 @@ public abstract class DoFnSchemaInformation implements Serializable {
       this.rowSelector = new RowSelectorContainer(inputSchema, selectDescriptor, true);
     }
 
-    public static <InputT, OutputT> UnboxingConversionFunction of(
+    public static <InputT> UnboxingConversionFunction of(
         Schema inputSchema,
         SerializableFunction<InputT, Row> toRowFunction,
         FieldAccessDescriptor selectDescriptor,

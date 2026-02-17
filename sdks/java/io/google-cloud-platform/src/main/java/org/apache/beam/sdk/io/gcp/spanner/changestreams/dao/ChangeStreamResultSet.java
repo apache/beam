@@ -20,6 +20,7 @@ package org.apache.beam.sdk.io.gcp.spanner.changestreams.dao;
 import com.google.cloud.Timestamp;
 import com.google.cloud.spanner.ResultSet;
 import com.google.cloud.spanner.Struct;
+import com.google.protobuf.InvalidProtocolBufferException;
 import org.joda.time.Duration;
 
 /**
@@ -106,6 +107,56 @@ public class ChangeStreamResultSet implements AutoCloseable {
   public Struct getCurrentRowAsStruct() {
     recordReadAt = Timestamp.now();
     return resultSet.getCurrentRowAsStruct();
+  }
+
+  /**
+   * Returns the only change stream record proto at the current pointer of the result set. It also
+   * updates the timestamp at which the record was read. This function enhances the getProtoMessage
+   * function but only focus on the ChangeStreamRecord type.
+   *
+   * <p>Should only be used for GoogleSQL databases when the change stream record is delivered as
+   * proto.
+   *
+   * @return a change stream record as a proto or null
+   */
+  public com.google.spanner.v1.ChangeStreamRecord getProtoChangeStreamRecord() {
+    recordReadAt = Timestamp.now();
+    return resultSet.getProtoMessage(
+        0, com.google.spanner.v1.ChangeStreamRecord.getDefaultInstance());
+  }
+
+  /** Returns true if the result set at the current pointer contain only one proto change record. */
+  public boolean isProtoChangeRecord() {
+    return resultSet.getColumnCount() == 1
+        && !resultSet.isNull(0)
+        && resultSet.getColumnType(0).getCode() == com.google.cloud.spanner.Type.Code.PROTO;
+  }
+
+  /**
+   * Returns the change stream record at the current pointer by parsing the bytes column. It also
+   * updates the timestamp at which the record was read.
+   *
+   * <p>Should only be used for PostgreSQL databases when the change stream record is delivered as
+   * proto bytes.
+   *
+   * @return a change stream record as a proto or null
+   */
+  public com.google.spanner.v1.ChangeStreamRecord getBytes(int index) {
+    recordReadAt = Timestamp.now();
+    try {
+      // Use getBytes(0) for the BYTES column returned by read_proto_bytes_ TVF
+      return com.google.spanner.v1.ChangeStreamRecord.parseFrom(
+          resultSet.getBytes(index).toByteArray());
+    } catch (InvalidProtocolBufferException e) {
+      throw new RuntimeException("Failed to parse the proto bytes to ChangeStreamRecord proto", e);
+    }
+  }
+
+  /** Returns true if the result set at the current pointer contain only one bytes change record. */
+  public boolean isProtoBytesChangeRecord() {
+    return resultSet.getColumnCount() == 1
+        && !resultSet.isNull(0)
+        && resultSet.getColumnType(0).getCode() == com.google.cloud.spanner.Type.Code.BYTES;
   }
 
   /**

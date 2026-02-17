@@ -34,10 +34,10 @@ from string import ascii_letters
 from string import digits
 
 import numpy as np
-from hypothesis import strategies as st
 from hypothesis import assume
 from hypothesis import given
 from hypothesis import settings
+from hypothesis import strategies as st
 from pytz import utc
 
 from apache_beam.coders import FloatCoder

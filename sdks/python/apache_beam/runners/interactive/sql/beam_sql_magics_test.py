@@ -31,10 +31,10 @@ from apache_beam.runners.interactive.cache_manager import FileBasedCacheManager
 from apache_beam.runners.interactive.caching.cacheable import CacheKey
 
 try:
+  from apache_beam.runners.interactive.sql.beam_sql_magics import BeamSqlParser
   from apache_beam.runners.interactive.sql.beam_sql_magics import _build_query_components
   from apache_beam.runners.interactive.sql.beam_sql_magics import _generate_output_name
   from apache_beam.runners.interactive.sql.beam_sql_magics import cache_output
-  from apache_beam.runners.interactive.sql.beam_sql_magics import BeamSqlParser
 except (ImportError, NameError):
   pass  # The test is to be skipped because [interactive] dep not installed.
 

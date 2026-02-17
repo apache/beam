@@ -22,6 +22,7 @@
 import logging
 import unittest
 
+import pytest
 from hamcrest import assert_that
 from hamcrest import contains_string
 from hamcrest import only_contains
@@ -243,6 +244,48 @@ class SetupTest(unittest.TestCase):
   def test_is_service_runner(self, runner, options, expected):
     validator = PipelineOptionsValidator(PipelineOptions(options), runner)
     self.assertEqual(validator.is_service_runner(), expected)
+
+  def test_pickle_library_dill_not_installed_returns_error(self):
+    runner = MockRunners.OtherRunner()
+    # Remove default region for this test.
+    options = PipelineOptions(['--pickle_library=dill'])
+    validator = PipelineOptionsValidator(options, runner)
+    errors = validator.validate()
+    self.assertEqual(len(errors), 1, errors)
+    self.assertIn("Option pickle_library=dill requires dill", errors[0])
+
+  @pytest.mark.uses_dill
+  def test_pickle_library_dill_installed_returns_no_error(self):
+    pytest.importorskip("dill")
+    runner = MockRunners.OtherRunner()
+    # Remove default region for this test.
+    options = PipelineOptions(['--pickle_library=dill'])
+    validator = PipelineOptionsValidator(options, runner)
+    errors = validator.validate()
+    self.assertEqual(len(errors), 0, errors)
+
+  @pytest.mark.uses_dill
+  def test_pickle_library_dill_installed_returns_wrong_version(self):
+    pytest.importorskip("dill")
+    with unittest.mock.patch('dill.__version__', '0.3.6'):
+      runner = MockRunners.OtherRunner()
+      # Remove default region for this test.
+      options = PipelineOptions(['--pickle_library=dill'])
+      validator = PipelineOptionsValidator(options, runner)
+      errors = validator.validate()
+      self.assertEqual(len(errors), 1, errors)
+      self.assertIn("Dill version 0.3.1.1 is required when using ", errors[0])
+
+  @pytest.mark.uses_dill
+  def test_pickle_library_dill_unsafe_no_error(self):
+    pytest.importorskip("dill")
+    with unittest.mock.patch('dill.__version__', '0.3.6'):
+      runner = MockRunners.OtherRunner()
+      # Remove default region for this test.
+      options = PipelineOptions(['--pickle_library=dill_unsafe'])
+      validator = PipelineOptionsValidator(options, runner)
+      errors = validator.validate()
+      self.assertEqual(len(errors), 0, errors)
 
   def test_dataflow_job_file_and_template_location_mutually_exclusive(self):
     runner = MockRunners.OtherRunner()

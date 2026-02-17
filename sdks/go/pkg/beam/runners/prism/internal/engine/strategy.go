@@ -73,14 +73,58 @@ func (ws WinStrat) IsNeverTrigger() bool {
 	return ok
 }
 
+func getAfterProcessingTimeTriggers(t Trigger) []*TriggerAfterProcessingTime {
+	if t == nil {
+		return nil
+	}
+	var triggers []*TriggerAfterProcessingTime
+	switch at := t.(type) {
+	case *TriggerAfterProcessingTime:
+		return []*TriggerAfterProcessingTime{at}
+	case *TriggerAfterAll:
+		for _, st := range at.SubTriggers {
+			triggers = append(triggers, getAfterProcessingTimeTriggers(st)...)
+		}
+		return triggers
+	case *TriggerAfterAny:
+		for _, st := range at.SubTriggers {
+			triggers = append(triggers, getAfterProcessingTimeTriggers(st)...)
+		}
+		return triggers
+	case *TriggerAfterEach:
+		for _, st := range at.SubTriggers {
+			triggers = append(triggers, getAfterProcessingTimeTriggers(st)...)
+		}
+		return triggers
+	case *TriggerAfterEndOfWindow:
+		triggers = append(triggers, getAfterProcessingTimeTriggers(at.Early)...)
+		triggers = append(triggers, getAfterProcessingTimeTriggers(at.Late)...)
+		return triggers
+	case *TriggerOrFinally:
+		triggers = append(triggers, getAfterProcessingTimeTriggers(at.Main)...)
+		triggers = append(triggers, getAfterProcessingTimeTriggers(at.Finally)...)
+		return triggers
+	case *TriggerRepeatedly:
+		return getAfterProcessingTimeTriggers(at.Repeated)
+	default:
+		return nil
+	}
+}
+
+// GetAfterProcessingTimeTriggers returns all AfterProcessingTime triggers within the trigger.
+func (ws WinStrat) GetAfterProcessingTimeTriggers() []*TriggerAfterProcessingTime {
+	return getAfterProcessingTimeTriggers(ws.Trigger)
+}
+
 func (ws WinStrat) String() string {
 	return fmt.Sprintf("WinStrat[AllowedLateness:%v Trigger:%v]", ws.AllowedLateness, ws.Trigger)
 }
 
 // triggerInput represents a Key + window + stage's trigger conditions.
 type triggerInput struct {
-	newElementCount    int  // The number of new elements since the last check.
-	endOfWindowReached bool // Whether or not the end of the window has been reached.
+	newElementCount    int        // The number of new elements since the last check.
+	endOfWindowReached bool       // Whether or not the end of the window has been reached.
+	emNow              mtime.Time // The current processing time in the runner.
 }
 
 // Trigger represents a trigger for a windowing strategy.  A trigger determines when
@@ -302,15 +346,23 @@ func (t *TriggerAfterEach) onFire(state *StateData) {
 	if !t.shouldFire(state) {
 		return
 	}
-	for _, sub := range t.SubTriggers {
+	for i, sub := range t.SubTriggers {
 		if state.getTriggerState(sub).finished {
 			continue
 		}
 		sub.onFire(state)
+		// If the sub-trigger didn't finish, we return, waiting for it to finish on a subsequent call.
 		if !state.getTriggerState(sub).finished {
 			return
 		}
+
+		// If the sub-trigger finished, we check if it's the last one.
+		// If it's not the last one, we return, waiting for the next onFire call to advance to the next sub-trigger.
+		if i < len(t.SubTriggers)-1 {
+			return
+		}
 	}
+	// clear and reset when all sub-triggers have fired.
 	triggerClearAndFinish(t, state)
 }
 
@@ -573,4 +625,137 @@ func (t *TriggerDefault) String() string {
 	return "Default"
 }
 
-// TODO https://github.com/apache/beam/issues/31438 Handle TriggerAfterProcessingTime
+// TimestampTransform is the engine's representation of a processing time transform.
+type TimestampTransform struct {
+	Delay         time.Duration
+	AlignToPeriod time.Duration
+	AlignToOffset time.Duration
+}
+
+// TriggerAfterProcessingTime fires once after a specified amount of processing time
+// has passed since an element was first seen.
+// Uses the extra state field to track the processing time of the first element.
+type TriggerAfterProcessingTime struct {
+	Transforms []TimestampTransform
+}
+
+type afterProcessingTimeState struct {
+	emNow              mtime.Time
+	firingTime         mtime.Time
+	endOfWindowReached bool
+}
+
+func (t *TriggerAfterProcessingTime) onElement(input triggerInput, state *StateData) {
+	ts := state.getTriggerState(t)
+	if ts.finished {
+		return
+	}
+
+	if ts.extra == nil {
+		ts.extra = afterProcessingTimeState{
+			emNow:              input.emNow,
+			firingTime:         t.applyTimestampTransforms(input.emNow),
+			endOfWindowReached: input.endOfWindowReached,
+		}
+	} else {
+		s, _ := ts.extra.(afterProcessingTimeState)
+		s.emNow = input.emNow
+		s.endOfWindowReached = input.endOfWindowReached
+		ts.extra = s
+	}
+
+	state.setTriggerState(t, ts)
+}
+
+func (t *TriggerAfterProcessingTime) applyTimestampTransforms(start mtime.Time) mtime.Time {
+	ret := start
+	for _, transform := range t.Transforms {
+		ret = ret + mtime.Time(transform.Delay/time.Millisecond)
+		if transform.AlignToPeriod > 0 {
+			// timestamp - (timestamp % period) + period
+			// And with an offset, we adjust before and after.
+			tsMs := ret
+			periodMs := mtime.Time(transform.AlignToPeriod / time.Millisecond)
+			offsetMs := mtime.Time(transform.AlignToOffset / time.Millisecond)
+
+			adjustedMs := tsMs - offsetMs
+			alignedMs := adjustedMs - (adjustedMs % periodMs) + periodMs + offsetMs
+			ret = alignedMs
+		}
+	}
+	return ret
+}
+
+func (t *TriggerAfterProcessingTime) shouldFire(state *StateData) bool {
+	ts := state.getTriggerState(t)
+	if ts.extra == nil || ts.finished {
+		return false
+	}
+	s := ts.extra.(afterProcessingTimeState)
+	return s.emNow >= s.firingTime
+}
+
+func (t *TriggerAfterProcessingTime) onFire(state *StateData) {
+	ts := state.getTriggerState(t)
+	if ts.finished {
+		return
+	}
+
+	// We don't reset the state here, only mark it as finished
+	ts.finished = true
+	state.setTriggerState(t, ts)
+}
+
+func (t *TriggerAfterProcessingTime) reset(state *StateData) {
+	ts := state.getTriggerState(t)
+	if ts.extra != nil {
+		if ts.extra.(afterProcessingTimeState).endOfWindowReached {
+			delete(state.Trigger, t)
+			return
+		}
+	}
+
+	// Not reaching the end of window yet.
+	// We keep the state (especially the next possible firing time) in case the trigger is called again
+	ts.finished = false
+	if ts.extra != nil {
+		s := ts.extra.(afterProcessingTimeState)
+		s.firingTime = t.applyTimestampTransforms(s.emNow) // compute next possible firing time
+		ts.extra = s
+	}
+	state.setTriggerState(t, ts)
+}
+
+func (t *TriggerAfterProcessingTime) String() string {
+	return fmt.Sprintf("AfterProcessingTime[%v]", t.Transforms)
+}
+
+// TriggerAfterSynchronizedProcessingTime is supposed to fires once when processing
+// time across multiple workers synchronizes with the first element's processing time.
+// It is a no-op in the current prism single-node architecture, because we only have
+// one worker/machine. Therefore, the trigger just fires once it receives the data.
+type TriggerAfterSynchronizedProcessingTime struct{}
+
+func (t *TriggerAfterSynchronizedProcessingTime) onElement(triggerInput, *StateData) {}
+
+func (t *TriggerAfterSynchronizedProcessingTime) shouldFire(state *StateData) bool {
+	ts := state.getTriggerState(t)
+	return !ts.finished
+}
+
+func (t *TriggerAfterSynchronizedProcessingTime) onFire(state *StateData) {
+	if !t.shouldFire(state) {
+		return
+	}
+	ts := state.getTriggerState(t)
+	ts.finished = true
+	state.setTriggerState(t, ts)
+}
+
+func (t *TriggerAfterSynchronizedProcessingTime) reset(state *StateData) {
+	delete(state.Trigger, t)
+}
+
+func (t *TriggerAfterSynchronizedProcessingTime) String() string {
+	return "AfterSynchronizedProcessingTime"
+}

@@ -34,12 +34,12 @@ try:
   from apache_beam.testing.analyzers.perf_analysis_utils import BigQueryMetricsFetcher
   from apache_beam.testing.analyzers.perf_analysis_utils import MetricContainer
   from apache_beam.testing.analyzers.perf_analysis_utils import TestConfigContainer
-  from apache_beam.testing.analyzers.perf_analysis_utils import is_change_point_in_valid_window
-  from apache_beam.testing.analyzers.perf_analysis_utils import is_sibling_change_point
   from apache_beam.testing.analyzers.perf_analysis_utils import e_divisive
   from apache_beam.testing.analyzers.perf_analysis_utils import filter_change_points_by_median_threshold
   from apache_beam.testing.analyzers.perf_analysis_utils import find_change_points
   from apache_beam.testing.analyzers.perf_analysis_utils import find_latest_change_point_index
+  from apache_beam.testing.analyzers.perf_analysis_utils import is_change_point_in_valid_window
+  from apache_beam.testing.analyzers.perf_analysis_utils import is_sibling_change_point
   from apache_beam.testing.analyzers.perf_analysis_utils import validate_config
   from apache_beam.testing.load_tests import load_test_metrics_utils
 

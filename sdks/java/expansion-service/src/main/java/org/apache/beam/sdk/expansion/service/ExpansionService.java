@@ -396,7 +396,7 @@ public class ExpansionService extends ExpansionServiceGrpc.ExpansionServiceImplB
     return configurationClass;
   }
 
-  static <ConfigT> Row decodeConfigObjectRow(SchemaApi.Schema schema, ByteString payload) {
+  static Row decodeConfigObjectRow(SchemaApi.Schema schema, ByteString payload) {
     Schema payloadSchema = SchemaTranslation.schemaFromProto(schema);
 
     if (payloadSchema.getFieldCount() == 0) {
@@ -647,6 +647,20 @@ public class ExpansionService extends ExpansionServiceGrpc.ExpansionServiceImplB
       } else {
         throw new UnsupportedOperationException("Unknown urn: " + urn);
       }
+    }
+
+    // Use expansion config file provided in commandLineOptions if not available
+    // in the expansion request options.
+    String configFileFromPipelineOptions =
+        pipeline.getOptions().as(ExpansionServiceOptions.class).getExpansionServiceConfigFile();
+    String configFileFromCommandLineOptions =
+        commandLineOptions.as(ExpansionServiceOptions.class).getExpansionServiceConfigFile();
+
+    if (configFileFromPipelineOptions == null && configFileFromCommandLineOptions != null) {
+      pipeline
+          .getOptions()
+          .as(ExpansionServiceOptions.class)
+          .setExpansionServiceConfigFile(configFileFromCommandLineOptions);
     }
 
     List<String> classpathResources =

@@ -275,7 +275,7 @@ public class TestJavaBeans {
           && Arrays.equals(bytes, that.bytes)
           && Objects.equals(byteBuffer, that.byteBuffer)
           && Objects.equals(bigDecimal, that.bigDecimal)
-          && Objects.equals(stringBuilder, that.stringBuilder);
+          && Objects.equals(stringBuilder.toString(), that.stringBuilder.toString());
     }
 
     @Override
@@ -462,7 +462,7 @@ public class TestJavaBeans {
           && Arrays.equals(bytes, that.bytes)
           && Objects.equals(byteBuffer, that.byteBuffer)
           && Objects.equals(bigDecimal, that.bigDecimal)
-          && Objects.equals(stringBuilder, that.stringBuilder);
+          && Objects.equals(stringBuilder.toString(), that.stringBuilder.toString());
     }
 
     @Override

@@ -17,7 +17,6 @@
  */
 package org.apache.beam.sdk.io.components.deadletterqueue.sinks;
 
-
 import org.apache.beam.repackaged.core.org.apache.commons.lang3.ObjectUtils.Null;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
@@ -38,7 +37,7 @@ public class ThrowingSink<T> extends PTransform<@NonNull PCollection<T>, @NonNul
   public class ThrowingDoFn extends DoFn<T, Null> {
 
     @ProcessElement
-    public void processElement(@Element @NonNull T element){
+    public void processElement(@Element @NonNull T element) {
       throw new RuntimeException(element.toString());
     }
   }

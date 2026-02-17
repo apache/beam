@@ -41,7 +41,7 @@ public class Task {
     private static final Logger LOG = LoggerFactory.getLogger(Task.class);
 
     public interface MyOptions extends PipelineOptions {
-        // Default value if [--output] equal null
+        // Default value if [--inputFile] equal null
         @Description("Path of the file to read from")
         @Default.String("gs://apache-beam-samples/shakespeare/kinglear.txt")
         String getInputFile();

@@ -31,8 +31,9 @@ from apache_beam.typehints.decorators import TypeCheckError
 
 # Protect against environments where vision lib is not available.
 try:
-  from google.cloud.vision import ImageAnnotatorClient
   from google.cloud import vision
+  from google.cloud.vision import ImageAnnotatorClient
+
   from apache_beam.ml.gcp import visionml
 except ImportError:
   ImageAnnotatorClient = None

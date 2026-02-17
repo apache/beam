@@ -69,7 +69,7 @@ public class BundleSplitterTest {
 
     bundleSizes.stream()
         .map(range -> range.getTo() - range.getFrom())
-        .forEach(size -> assertEquals(expectedBundleSize, size.intValue()));
+        .forEach(size -> assertEquals(expectedBundleSize, size.longValue()));
   }
 
   @Test
@@ -83,7 +83,7 @@ public class BundleSplitterTest {
 
     bundleSizes.stream()
         .map(range -> range.getTo() - range.getFrom())
-        .forEach(size -> assertEquals(expectedBundleSize, size.intValue()));
+        .forEach(size -> assertEquals(expectedBundleSize, size.longValue()));
   }
 
   @Test

@@ -33,6 +33,8 @@ def loadTestArgsProperty = "loadTest.args"
 
 def runnerProperty = "runner"
 
+def sdkLocationOverrideProperty = "sdkLocationOverride"
+
 def requirementsTxtFileProperty = "loadTest.requirementsTxtFile"
 
 task run(type: Exec, dependsOn: installGcpTest) {
@@ -40,8 +42,11 @@ task run(type: Exec, dependsOn: installGcpTest) {
 
     def runnerArg = project.findProperty(runnerProperty) ?: ""
     if (runnerArg == 'DataflowRunner' || runnerArg == 'TestDataflowRunner') {
-        dependsOn ':sdks:python:sdist'
-        loadTestArgs +=" --sdk_location=${files(configurations.distTarBall.files).singleFile}"
+        def sdkLocationOverride = Boolean.parseBoolean(project.findProperty(sdkLocationOverrideProperty) ?: 'true')
+        if (sdkLocationOverride) {
+            dependsOn ':sdks:python:sdist'
+            loadTestArgs +=" --sdk_location=${files(configurations.distTarBall.files).singleFile}"
+        }
     }
 
     String requirementsTxtFileArg = project.findProperty(requirementsTxtFileProperty) ?: null

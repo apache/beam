@@ -35,7 +35,6 @@ import org.apache.beam.sdk.state.ValueState;
 import org.apache.beam.sdk.state.WatermarkHoldState;
 import org.apache.beam.sdk.transforms.Combine.CombineFn;
 import org.apache.beam.sdk.transforms.CombineWithContext.CombineFnWithContext;
-import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.TimestampCombiner;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Equivalence;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.MoreObjects;
@@ -145,6 +144,8 @@ public class StateTags {
 
   private interface SystemStateTag<StateT extends State> {
     StateTag<StateT> asKind(StateKind kind);
+
+    StateKind getKind();
   }
 
   /** Create a state tag for the given id and spec. */
@@ -223,7 +224,7 @@ public class StateTags {
   }
 
   /** Create a state tag for holding the watermark. */
-  public static <W extends BoundedWindow> StateTag<WatermarkHoldState> watermarkStateInternal(
+  public static StateTag<WatermarkHoldState> watermarkStateInternal(
       String id, TimestampCombiner timestampCombiner) {
     return new SimpleStateTag<>(
         new StructuredId(id), StateSpecs.watermarkStateInternal(timestampCombiner));
@@ -242,6 +243,16 @@ public class StateTags {
     @SuppressWarnings("unchecked")
     SystemStateTag<StateT> typedTag = (SystemStateTag<StateT>) tag;
     return typedTag.asKind(StateKind.SYSTEM);
+  }
+
+  /*
+   * Returns true if the tag is a system internal tag.
+   */
+  public static <StateT extends State> boolean isSystemTagInternal(StateTag<StateT> tag) {
+    if (!(tag instanceof SystemStateTag)) {
+      return false;
+    }
+    return StateKind.SYSTEM.equals(((SystemStateTag<?>) tag).getKind());
   }
 
   public static <InputT, AccumT, OutputT> StateTag<BagState<AccumT>> convertToBagTagInternal(
@@ -357,6 +368,11 @@ public class StateTags {
     @Override
     public StateTag<StateT> asKind(StateKind kind) {
       return new SimpleStateTag<>(id.asKind(kind), spec);
+    }
+
+    @Override
+    public StateKind getKind() {
+      return id.kind;
     }
 
     @Override

@@ -41,6 +41,8 @@ applyJavaNature(
   ],
   // javacc generated code produces lint warnings
   disableLintWarnings: ['dep-ann', 'rawtypes'],
+  // Disable SpotBugs due to ASM bytecode analysis issue with BeamCalcRel class
+  enableSpotbugs: false,
 )
 
 description = "Apache Beam :: SDKs :: Java :: Extensions :: SQL"
@@ -72,12 +74,8 @@ dependencies {
   javacc "net.java.dev.javacc:javacc:4.0"
   fmppTask "com.googlecode.fmpp-maven-plugin:fmpp-maven-plugin:1.0"
   fmppTask "org.freemarker:freemarker:2.3.31"
-  fmppTemplates library.java.vendored_calcite_1_28_0
+  fmppTemplates library.java.vendored_calcite_1_40_0
   implementation project(path: ":sdks:java:core", configuration: "shadow")
-  implementation project(":sdks:java:managed")
-  implementation project(":sdks:java:io:iceberg")
-  runtimeOnly project(":sdks:java:io:iceberg:bqms")
-  runtimeOnly project(":sdks:java:io:iceberg:hive")
   implementation project(":sdks:java:extensions:avro")
   implementation project(":sdks:java:extensions:join-library")
   permitUnusedDeclared project(":sdks:java:extensions:join-library") // BEAM-11761
@@ -87,11 +85,14 @@ dependencies {
   implementation library.java.commons_csv
   implementation library.java.jackson_databind
   implementation library.java.joda_time
-  implementation library.java.vendored_calcite_1_28_0
+  implementation library.java.vendored_calcite_1_40_0
   implementation "org.codehaus.janino:janino:3.0.11"
   implementation "org.codehaus.janino:commons-compiler:3.0.11"
   implementation library.java.jackson_core
   implementation library.java.mongo_java_driver
+  permitUnusedDeclared library.java.mongo_java_driver
+  implementation library.java.mongo_bson
+  implementation library.java.mongodb_driver_core
   implementation library.java.slf4j_api
   implementation library.java.joda_time
   implementation library.java.vendored_guava_32_1_2_jre
@@ -102,12 +103,8 @@ dependencies {
   implementation library.java.proto_google_cloud_bigtable_v2
   implementation library.java.google_api_services_bigquery
   permitUnusedDeclared library.java.google_api_services_bigquery
-  implementation library.java.proto_google_cloud_pubsublite_v1
-  implementation library.java.google_cloud_pubsublite
   implementation project(":sdks:java:io:mongodb")
   implementation library.java.avro
-  implementation library.java.protobuf_java
-  implementation library.java.protobuf_java_util
   provided project(":sdks:java:io:parquet")
   provided library.java.jackson_dataformat_xml
   permitUnusedDeclared library.java.jackson_dataformat_xml
@@ -115,9 +112,7 @@ dependencies {
   permitUnusedDeclared library.java.hadoop_client
   provided library.java.kafka_clients
 
-  testImplementation "org.apache.iceberg:iceberg-api:1.6.1"
-  testImplementation "org.apache.iceberg:iceberg-core:1.6.1"
-  testImplementation library.java.vendored_calcite_1_28_0
+  testImplementation library.java.vendored_calcite_1_40_0
   testImplementation library.java.vendored_guava_32_1_2_jre
   testImplementation library.java.junit
   testImplementation library.java.quickcheck_core
@@ -131,6 +126,7 @@ dependencies {
   testImplementation library.java.kafka_clients
   testImplementation project(":sdks:java:io:kafka")
   testImplementation project(path: ":sdks:java:io:mongodb", configuration: "testRuntimeMigration")
+  testImplementation library.java.mongo_java_driver
   testImplementation project(path: ":sdks:java:io:thrift", configuration: "testRuntimeMigration")
   testImplementation project(path: ":sdks:java:extensions:protobuf", configuration: "testRuntimeMigration")
   testCompileOnly project(":sdks:java:extensions:sql:udf-test-provider")
@@ -164,11 +160,15 @@ task copyFmppTemplatesFromCalciteCore(type: Copy) {
   into "${project.buildDir}/templates-fmpp"
   filter{
     line ->
-      line.replace('import org.apache.calcite.', 'import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.')
+      line.replace('import org.apache.calcite.', 'import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.')
   }
   filter{
     line ->
-      line.replace('import static org.apache.calcite.', 'import static org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.')
+      line.replace('import static org.apache.calcite.', 'import static org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.')
+  }
+  filter{
+    line ->
+      line.replace('import com.google.common.', 'import org.apache.beam.vendor.calcite.v1_40_0.com.google.common.')
   }
 }
 

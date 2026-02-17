@@ -293,11 +293,11 @@ $ wordcount --input gs://dataflow-samples/shakespeare/kinglear.txt \
 
 {{if (eq .Sdk "java")}}
 
-##### Non portable
+##### Portable
 1. Start the JobService endpoint:
     * with Docker (preferred): docker run --net=host apache/beam_spark_job_server:latest
     * or from Beam source code: ./gradlew :runners:spark:3:job-server:runShadow
-2. Submit the Python pipeline to the above endpoint by using the PortableRunner, job_endpoint set to localhost:8099 (this is the default address of the JobService), and environment_type set to LOOPBACK. For example:
+2. Submit the pipeline to the above endpoint by using the PortableRunner, job_endpoint set to localhost:8099 (this is the default address of the JobService), and environment_type set to LOOPBACK. For example:
 
 Console:
 ```
@@ -307,7 +307,7 @@ mvn compile exec:java -Dexec.mainClass=org.apache.beam.examples.WordCount \
 
 ##### Non Portable
 
-When using Java, you must specify your dependency on the Cloud Dataflow Runner in your `pom.xml`.
+When using Java, you must specify your dependency on the Apache Spark Runner in your `pom.xml`.
 
 ```
 <dependency>

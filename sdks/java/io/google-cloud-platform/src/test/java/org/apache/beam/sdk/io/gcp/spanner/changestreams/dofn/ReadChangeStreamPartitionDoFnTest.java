@@ -20,6 +20,8 @@ package org.apache.beam.sdk.io.gcp.spanner.changestreams.dofn;
 import static org.apache.beam.sdk.io.gcp.spanner.changestreams.model.PartitionMetadata.State.SCHEDULED;
 import static org.junit.Assert.assertEquals;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyBoolean;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -31,6 +33,9 @@ import org.apache.beam.sdk.io.gcp.spanner.changestreams.action.ActionFactory;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.action.ChildPartitionsRecordAction;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.action.DataChangeRecordAction;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.action.HeartbeatRecordAction;
+import org.apache.beam.sdk.io.gcp.spanner.changestreams.action.PartitionEndRecordAction;
+import org.apache.beam.sdk.io.gcp.spanner.changestreams.action.PartitionEventRecordAction;
+import org.apache.beam.sdk.io.gcp.spanner.changestreams.action.PartitionStartRecordAction;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.action.QueryChangeStreamAction;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.dao.ChangeStreamDao;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.dao.DaoFactory;
@@ -73,6 +78,9 @@ public class ReadChangeStreamPartitionDoFnTest {
   private DataChangeRecordAction dataChangeRecordAction;
   private HeartbeatRecordAction heartbeatRecordAction;
   private ChildPartitionsRecordAction childPartitionsRecordAction;
+  private PartitionStartRecordAction partitionStartRecordAction;
+  private PartitionEndRecordAction partitionEndRecordAction;
+  private PartitionEventRecordAction partitionEventRecordAction;
   private QueryChangeStreamAction queryChangeStreamAction;
 
   @Before
@@ -90,6 +98,9 @@ public class ReadChangeStreamPartitionDoFnTest {
     dataChangeRecordAction = mock(DataChangeRecordAction.class);
     heartbeatRecordAction = mock(HeartbeatRecordAction.class);
     childPartitionsRecordAction = mock(ChildPartitionsRecordAction.class);
+    partitionStartRecordAction = mock(PartitionStartRecordAction.class);
+    partitionEndRecordAction = mock(PartitionEndRecordAction.class);
+    partitionEventRecordAction = mock(PartitionEventRecordAction.class);
     queryChangeStreamAction = mock(QueryChangeStreamAction.class);
 
     doFn = new ReadChangeStreamPartitionDoFn(daoFactory, mapperFactory, actionFactory, metrics);
@@ -123,15 +134,25 @@ public class ReadChangeStreamPartitionDoFnTest {
     when(actionFactory.heartbeatRecordAction(metrics)).thenReturn(heartbeatRecordAction);
     when(actionFactory.childPartitionsRecordAction(partitionMetadataDao, metrics))
         .thenReturn(childPartitionsRecordAction);
+    when(actionFactory.partitionStartRecordAction(partitionMetadataDao, metrics))
+        .thenReturn(partitionStartRecordAction);
+    when(actionFactory.partitionEndRecordAction(partitionMetadataDao, metrics))
+        .thenReturn(partitionEndRecordAction);
+    when(actionFactory.partitionEventRecordAction(partitionMetadataDao, metrics))
+        .thenReturn(partitionEventRecordAction);
     when(actionFactory.queryChangeStreamAction(
-            changeStreamDao,
-            partitionMetadataDao,
-            changeStreamRecordMapper,
-            partitionMetadataMapper,
-            dataChangeRecordAction,
-            heartbeatRecordAction,
-            childPartitionsRecordAction,
-            metrics))
+            eq(changeStreamDao),
+            eq(partitionMetadataDao),
+            eq(changeStreamRecordMapper),
+            eq(partitionMetadataMapper),
+            eq(dataChangeRecordAction),
+            eq(heartbeatRecordAction),
+            eq(childPartitionsRecordAction),
+            eq(partitionStartRecordAction),
+            eq(partitionEndRecordAction),
+            eq(partitionEventRecordAction),
+            eq(metrics),
+            anyBoolean()))
         .thenReturn(queryChangeStreamAction);
 
     doFn.setup();
@@ -152,6 +173,9 @@ public class ReadChangeStreamPartitionDoFnTest {
     verify(dataChangeRecordAction, never()).run(any(), any(), any(), any(), any(), any());
     verify(heartbeatRecordAction, never()).run(any(), any(), any(), any(), any());
     verify(childPartitionsRecordAction, never()).run(any(), any(), any(), any(), any());
+    verify(partitionStartRecordAction, never()).run(any(), any(), any(), any(), any());
+    verify(partitionEndRecordAction, never()).run(any(), any(), any(), any(), any());
+    verify(partitionEventRecordAction, never()).run(any(), any(), any(), any(), any());
     verify(tracker, never()).tryClaim(any());
   }
 

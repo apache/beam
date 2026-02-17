@@ -117,7 +117,11 @@ public class GrpcWindmillServerTest {
   private final long clientId = 10L;
   private final Set<ManagedChannel> openedChannels = new HashSet<>();
   private final MutableHandlerRegistry serviceRegistry = new MutableHandlerRegistry();
-  @Rule public transient Timeout globalTimeout = Timeout.seconds(600);
+
+  @Rule
+  public transient Timeout globalTimeout =
+      Timeout.builder().withTimeout(10, TimeUnit.MINUTES).withLookingForStuckThread(true).build();
+
   @Rule public GrpcCleanupRule grpcCleanup = new GrpcCleanupRule();
   @Rule public ErrorCollector errorCollector = new ErrorCollector();
   private Server server;
@@ -332,6 +336,7 @@ public class GrpcWindmillServerTest {
             (String computation,
                 @Nullable Instant inputDataWatermark,
                 Instant synchronizedProcessingTime,
+                boolean drainMode,
                 WorkItem workItem,
                 long serializedWorkItemSize,
                 ImmutableList<LatencyAttribution> getWorkStreamLatencies) -> {
@@ -408,7 +413,8 @@ public class GrpcWindmillServerTest {
                                 ComputationWorkItemMetadata.newBuilder()
                                     .setComputationId("comp")
                                     .setDependentRealtimeInputWatermark(17000)
-                                    .setInputDataWatermark(18000));
+                                    .setInputDataWatermark(18000)
+                                    .setDrainMode(true));
                     int loopVariant = loop % 3;
                     if (loopVariant < 1) {
                       responseChunk.addSerializedWorkItem(serializedResponses.pop());
@@ -465,12 +471,14 @@ public class GrpcWindmillServerTest {
             (String computation,
                 @Nullable Instant inputDataWatermark,
                 Instant synchronizedProcessingTime,
+                boolean drainMode,
                 WorkItem workItem,
                 long serializedWorkItemSize,
                 ImmutableList<LatencyAttribution> getWorkStreamLatencies) -> {
               assertEquals(inputDataWatermark, new Instant(18));
               assertEquals(synchronizedProcessingTime, new Instant(17));
               assertEquals(workItem.getKey(), ByteString.copyFromUtf8("somewhat_long_key"));
+              assertTrue(drainMode);
               assertTrue(sentResponseIds.containsKey(workItem.getWorkToken()));
               sentResponseIds.remove(workItem.getWorkToken());
               latch.countDown();
@@ -482,7 +490,6 @@ public class GrpcWindmillServerTest {
   }
 
   @Test
-  @SuppressWarnings("FutureReturnValueIgnored")
   public void testStreamingGetData() throws Exception {
     // This server responds to GetDataRequests with responses that mirror the requests.
     serviceRegistry.addService(
@@ -623,7 +630,7 @@ public class GrpcWindmillServerTest {
     for (int i = 0; i < 100; ++i) {
       final String key = "key" + i;
       final String s = i % 5 == 0 ? largeString(i) : "tag";
-      executor.submit(
+      executor.execute(
           () -> {
             try {
               errorCollector.checkThat(

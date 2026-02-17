@@ -29,6 +29,8 @@ For each of the assigned windows the extracted value is accumulated using a user
  a key/window pair.
 -->
 
+**Note:** Beam Euphoria support has been deprecated ([details](https://github.com/apache/beam/issues/29451)) and may be removed in a future version.
+
 ## What is Euphoria
 Easy to use Java 8 API build on top of the Beam's Java SDK. API provides a [high-level abstraction](#operator-reference) of data transformations, with focus on the Java 8 language features (e.g. lambdas and streams). It is fully inter-operable with existing Beam SDK and convertible back and forth. It allows fast prototyping through use of (optional) [Kryo](https://github.com/EsotericSoftware/kryo) based coders, lambdas and high level operators and can be seamlessly integrated into existing Beam `Pipelines`.
 

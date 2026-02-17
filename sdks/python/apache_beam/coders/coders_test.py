@@ -26,8 +26,8 @@ from google.protobuf import message
 
 import apache_beam as beam
 from apache_beam import typehints
-from apache_beam.coders import proto2_coder_test_messages_pb2 as test_message
 from apache_beam.coders import coders
+from apache_beam.coders import proto2_coder_test_messages_pb2 as test_message
 from apache_beam.coders.avro_record import AvroRecord
 from apache_beam.coders.typecoders import registry as coders_registry
 from apache_beam.testing.test_pipeline import TestPipeline
@@ -267,7 +267,7 @@ class NumpyIntAsKeyTest(unittest.TestCase):
     # this type is not supported as the key
     import numpy as np
 
-    with self.assertRaises(TypeError):
+    with self.assertRaisesRegex(Exception, "Unable to deterministically"):
       with TestPipeline() as p:
         indata = p | "Create" >> beam.Create([(a, int(a))
                                               for a in np.arange(3)])

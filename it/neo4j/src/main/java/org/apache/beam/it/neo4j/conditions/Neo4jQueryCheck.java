@@ -34,6 +34,8 @@ public abstract class Neo4jQueryCheck extends ConditionCheck {
 
   abstract List<Map<String, Object>> expectedResult();
 
+  abstract String databaseName();
+
   abstract String query();
 
   abstract @Nullable Map<String, Object> parameters();
@@ -49,9 +51,9 @@ public abstract class Neo4jQueryCheck extends ConditionCheck {
   protected CheckResult check() {
     List<Map<String, Object>> actualResult;
     if (parameters() != null) {
-      actualResult = resourceManager().run(query(), parameters());
+      actualResult = resourceManager().run(query(), databaseName(), parameters());
     } else {
-      actualResult = resourceManager().run(query());
+      actualResult = resourceManager().run(query(), databaseName());
     }
     List<Map<String, Object>> expectedResult = expectedResult();
     if (actualResult == null) {
@@ -79,6 +81,8 @@ public abstract class Neo4jQueryCheck extends ConditionCheck {
   public abstract static class Builder {
 
     public abstract Builder setResourceManager(Neo4jResourceManager resourceManager);
+
+    public abstract Builder setDatabaseName(String databaseName);
 
     public abstract Builder setQuery(String query);
 

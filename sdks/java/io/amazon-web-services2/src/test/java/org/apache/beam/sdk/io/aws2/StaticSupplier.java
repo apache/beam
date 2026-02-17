@@ -45,6 +45,7 @@ public class StaticSupplier<V, T extends StaticSupplier<V, T>>
   }
 
   @Override
+  @SuppressWarnings("Finalize")
   protected void finalize() {
     if (cleanup) {
       objects.remove(id);

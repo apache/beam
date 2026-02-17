@@ -220,11 +220,11 @@ class BigQueryVectorSearchParameters:
       # Create embeddings subquery for this group
       embedding_unions = []
       for chunk in group_chunks:
-        if chunk.embedding is None or chunk.embedding.dense_embedding is None:
+        if not chunk.dense_embedding:
           raise ValueError(f"Chunk {chunk.id} missing embedding")
         embedding_str = (
             f"SELECT '{chunk.id}' as id, "
-            f"{[float(x) for x in chunk.embedding.dense_embedding]} "
+            f"{[float(x) for x in chunk.dense_embedding]} "
             f"as embedding")
         embedding_unions.append(embedding_str)
       group_embeddings = " UNION ALL ".join(embedding_unions)

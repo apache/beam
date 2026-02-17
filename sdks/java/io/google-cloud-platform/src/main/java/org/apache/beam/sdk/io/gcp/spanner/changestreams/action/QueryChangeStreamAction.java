@@ -17,6 +17,8 @@
  */
 package org.apache.beam.sdk.io.gcp.spanner.changestreams.action;
 
+import static org.apache.beam.sdk.io.gcp.spanner.changestreams.ChangeStreamsConstants.MAX_INCLUSIVE_END_AT;
+
 import com.google.cloud.Timestamp;
 import com.google.cloud.spanner.ErrorCode;
 import com.google.cloud.spanner.SpannerException;
@@ -32,7 +34,11 @@ import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.ChangeStreamRecord
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.ChildPartitionsRecord;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.DataChangeRecord;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.HeartbeatRecord;
+import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.InitialPartition;
+import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.PartitionEndRecord;
+import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.PartitionEventRecord;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.PartitionMetadata;
+import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.PartitionStartRecord;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.restriction.RestrictionInterrupter;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.restriction.TimestampRange;
 import org.apache.beam.sdk.transforms.DoFn.BundleFinalizer;
@@ -50,8 +56,9 @@ import org.slf4j.LoggerFactory;
 /**
  * Main action class for querying a partition change stream. This class will perform the change
  * stream query and depending on the record type received, it will dispatch the processing of it to
- * one of the following: {@link ChildPartitionsRecordAction}, {@link HeartbeatRecordAction} or
- * {@link DataChangeRecordAction}.
+ * one of the following: {@link ChildPartitionsRecordAction}, {@link HeartbeatRecordAction}, {@link
+ * DataChangeRecordAction}, {@link PartitionStartRecordAction}, {@link PartitionEndRecordAction} or
+ * {@link PartitionEventRecordAction}.
  *
  * <p>This class will also make sure to mirror the current watermark (event timestamp processed) in
  * the Connector's metadata tables, by registering a bundle after commit action.
@@ -79,7 +86,11 @@ public class QueryChangeStreamAction {
   private final DataChangeRecordAction dataChangeRecordAction;
   private final HeartbeatRecordAction heartbeatRecordAction;
   private final ChildPartitionsRecordAction childPartitionsRecordAction;
+  private final PartitionStartRecordAction partitionStartRecordAction;
+  private final PartitionEndRecordAction partitionEndRecordAction;
+  private final PartitionEventRecordAction partitionEventRecordAction;
   private final ChangeStreamMetrics metrics;
+  private final boolean isMutableChangeStream;
 
   /**
    * Constructs an action class for performing a change stream query for a given partition.
@@ -93,7 +104,11 @@ public class QueryChangeStreamAction {
    * @param dataChangeRecordAction action class to process {@link DataChangeRecord}s
    * @param heartbeatRecordAction action class to process {@link HeartbeatRecord}s
    * @param childPartitionsRecordAction action class to process {@link ChildPartitionsRecord}s
+   * @param PartitionStartRecordAction action class to process {@link PartitionStartRecord}s
+   * @param PartitionEndRecordAction action class to process {@link PartitionEndRecord}s
+   * @param PartitionEventRecordAction action class to process {@link PartitionEventRecord}s
    * @param metrics metrics gathering class
+   * @param isMutableChangeStream whether the change stream is mutable or not
    */
   QueryChangeStreamAction(
       ChangeStreamDao changeStreamDao,
@@ -103,7 +118,11 @@ public class QueryChangeStreamAction {
       DataChangeRecordAction dataChangeRecordAction,
       HeartbeatRecordAction heartbeatRecordAction,
       ChildPartitionsRecordAction childPartitionsRecordAction,
-      ChangeStreamMetrics metrics) {
+      PartitionStartRecordAction partitionStartRecordAction,
+      PartitionEndRecordAction partitionEndRecordAction,
+      PartitionEventRecordAction partitionEventRecordAction,
+      ChangeStreamMetrics metrics,
+      boolean isMutableChangeStream) {
     this.changeStreamDao = changeStreamDao;
     this.partitionMetadataDao = partitionMetadataDao;
     this.changeStreamRecordMapper = changeStreamRecordMapper;
@@ -111,7 +130,11 @@ public class QueryChangeStreamAction {
     this.dataChangeRecordAction = dataChangeRecordAction;
     this.heartbeatRecordAction = heartbeatRecordAction;
     this.childPartitionsRecordAction = childPartitionsRecordAction;
+    this.partitionStartRecordAction = partitionStartRecordAction;
+    this.partitionEndRecordAction = partitionEndRecordAction;
+    this.partitionEventRecordAction = partitionEventRecordAction;
     this.metrics = metrics;
+    this.isMutableChangeStream = isMutableChangeStream;
   }
 
   /**
@@ -150,7 +173,6 @@ public class QueryChangeStreamAction {
    * @return a {@link ProcessContinuation#stop()} if a record timestamp could not be claimed or if
    *     the partition processing has finished
    */
-  @SuppressWarnings("nullness")
   @VisibleForTesting
   public ProcessContinuation run(
       PartitionMetadata partition,
@@ -159,8 +181,6 @@ public class QueryChangeStreamAction {
       ManualWatermarkEstimator<Instant> watermarkEstimator,
       BundleFinalizer bundleFinalizer) {
     final String token = partition.getPartitionToken();
-    final Timestamp startTimestamp = tracker.currentRestriction().getFrom();
-    final Timestamp endTimestamp = partition.getEndTimestamp();
 
     // TODO: Potentially we can avoid this fetch, by enriching the runningAt timestamp when the
     // ReadChangeStreamPartitionDoFn#processElement is called
@@ -176,16 +196,36 @@ public class QueryChangeStreamAction {
     RestrictionInterrupter<Timestamp> interrupter =
         RestrictionInterrupter.withSoftTimeout(RESTRICTION_TRACKER_TIMEOUT);
 
+    final Timestamp startTimestamp = tracker.currentRestriction().getFrom();
+    final Timestamp endTimestamp = partition.getEndTimestamp();
+    final boolean isBoundedRestriction = !endTimestamp.equals(MAX_INCLUSIVE_END_AT);
+    final Timestamp changeStreamQueryEndTimestamp =
+        isBoundedRestriction
+            ? getBoundedQueryEndTimestamp(endTimestamp)
+            : getNextReadChangeStreamEndTimestamp();
+
+    // Once the changeStreamQuery completes we may need to resume reading from the partition if we
+    // had an unbounded restriction for which we set an arbitrary query end timestamp and for which
+    // we didn't  encounter any indications that the partition is done (explicit end records or
+    // exceptions about being out of timestamp range). We also special case the InitialPartition,
+    // which always stops after the query succeeds.
+    boolean stopAfterQuerySucceeds = false;
+    if (InitialPartition.isInitialPartition(partition.getPartitionToken())) {
+      stopAfterQuerySucceeds = true;
+    } else {
+      stopAfterQuerySucceeds =
+          isBoundedRestriction && changeStreamQueryEndTimestamp.equals(endTimestamp);
+    }
+
     try (ChangeStreamResultSet resultSet =
         changeStreamDao.changeStreamQuery(
-            token, startTimestamp, endTimestamp, partition.getHeartbeatMillis())) {
+            token, startTimestamp, changeStreamQueryEndTimestamp, partition.getHeartbeatMillis())) {
 
       metrics.incQueryCounter();
       while (resultSet.next()) {
         final List<ChangeStreamRecord> records =
             changeStreamRecordMapper.toChangeStreamRecords(
                 updatedPartition, resultSet, resultSet.getMetadata());
-
         Optional<ProcessContinuation> maybeContinuation;
         for (final ChangeStreamRecord record : records) {
           if (record instanceof DataChangeRecord) {
@@ -213,6 +253,37 @@ public class QueryChangeStreamAction {
                     tracker,
                     interrupter,
                     watermarkEstimator);
+            // Child Partition records indicate that the partition has ended. There may be
+            // additional ChildPartitionRecords but they will share the same timestamp and
+            // will be returned by the query and processed if it finishes successfully.
+            stopAfterQuerySucceeds = true;
+          } else if (record instanceof PartitionStartRecord) {
+            maybeContinuation =
+                partitionStartRecordAction.run(
+                    updatedPartition,
+                    (PartitionStartRecord) record,
+                    tracker,
+                    interrupter,
+                    watermarkEstimator);
+          } else if (record instanceof PartitionEndRecord) {
+            maybeContinuation =
+                partitionEndRecordAction.run(
+                    updatedPartition,
+                    (PartitionEndRecord) record,
+                    tracker,
+                    interrupter,
+                    watermarkEstimator);
+            // The PartitionEndRecord indicates that there are no more records expected
+            // for this partition.
+            stopAfterQuerySucceeds = true;
+          } else if (record instanceof PartitionEventRecord) {
+            maybeContinuation =
+                partitionEventRecordAction.run(
+                    updatedPartition,
+                    (PartitionEventRecord) record,
+                    tracker,
+                    interrupter,
+                    watermarkEstimator);
           } else {
             LOG.error("[{}] Unknown record type {}", token, record.getClass());
             throw new IllegalArgumentException("Unknown record type " + record.getClass());
@@ -227,10 +298,6 @@ public class QueryChangeStreamAction {
           }
         }
       }
-      bundleFinalizer.afterBundleCommit(
-          Instant.now().plus(BUNDLE_FINALIZER_TIMEOUT),
-          updateWatermarkCallback(token, watermarkEstimator));
-
     } catch (SpannerException e) {
       /*
       If there is a split when a partition is supposed to be finished, the residual will try
@@ -238,16 +305,16 @@ public class QueryChangeStreamAction {
       here, and the residual should be able to claim the end of the timestamp range, finishing
       the partition.
       */
-      if (isTimestampOutOfRange(e)) {
-        LOG.info(
-            "[{}] query change stream is out of range for {} to {}, finishing stream.",
-            token,
-            startTimestamp,
-            endTimestamp,
-            e);
-      } else {
+      if (!isTimestampOutOfRange(e)) {
         throw e;
       }
+      LOG.info(
+          "[{}] query change stream is out of range for {} to {}, finishing stream.",
+          token,
+          startTimestamp,
+          endTimestamp,
+          e);
+      stopAfterQuerySucceeds = true;
     } catch (Exception e) {
       LOG.error(
           "[{}] query change stream had exception processing range {} to {}.",
@@ -258,13 +325,40 @@ public class QueryChangeStreamAction {
       throw e;
     }
 
-    LOG.debug("[{}] change stream completed successfully", token);
-    if (tracker.tryClaim(endTimestamp)) {
-      LOG.debug("[{}] Finishing partition", token);
-      partitionMetadataDao.updateToFinished(token);
-      metrics.decActivePartitionReadCounter();
-      LOG.info("[{}] After attempting to finish the partition", token);
+    LOG.debug(
+        "[{}] change stream completed successfully up to {}", token, changeStreamQueryEndTimestamp);
+
+    if (!stopAfterQuerySucceeds) {
+      // Records stopped being returned for the query due to our artificial query end timestamp but
+      // we want to continue processing the partition, resuming from changeStreamQueryEndTimestamp.
+      if (!tracker.tryClaim(changeStreamQueryEndTimestamp)) {
+        return ProcessContinuation.stop();
+      }
+      bundleFinalizer.afterBundleCommit(
+          Instant.now().plus(BUNDLE_FINALIZER_TIMEOUT),
+          updateWatermarkCallback(token, watermarkEstimator));
+      LOG.debug("[{}] Rescheduling partition to resume reading", token);
+      return ProcessContinuation.resume();
     }
+
+    // Otherwise we have finished processing the partition, either due to:
+    //   1. reading to the bounded restriction end timestamp
+    //   2. encountering a ChildPartitionRecord or EndPartitionRecord indicating there are no more
+    //      elements in the partition
+    //   3. encountering a exception indicating the start timestamp is out of bounds of the
+    //      partition
+    // We claim the restriction completely to satisfy internal sanity checks and do not reschedule
+    // the restriction.
+    if (!tracker.tryClaim(endTimestamp)) {
+      return ProcessContinuation.stop();
+    }
+
+    LOG.debug("[{}] Finishing partition", token);
+    // TODO: This should be performed after the commit succeeds.  Since bundle finalizers are not
+    // guaranteed to be called, this needs to be performed in a subsequent fused stage.
+    partitionMetadataDao.updateToFinished(token);
+    metrics.decActivePartitionReadCounter();
+    LOG.info("[{}] After attempting to finish the partition", token);
     return ProcessContinuation.stop();
   }
 
@@ -280,7 +374,7 @@ public class QueryChangeStreamAction {
         if (e.getErrorCode() == ErrorCode.NOT_FOUND) {
           LOG.debug("[{}] Unable to update the current watermark, partition NOT FOUND", token);
         } else {
-          LOG.error("[{}] Error updating the current watermark: {}", token, e.getMessage(), e);
+          LOG.error("[{}] Error updating the current watermark", token, e);
         }
       }
     };
@@ -291,5 +385,23 @@ public class QueryChangeStreamAction {
             || e.getErrorCode() == ErrorCode.OUT_OF_RANGE)
         && e.getMessage() != null
         && e.getMessage().contains(OUT_OF_RANGE_ERROR_MESSAGE);
+  }
+
+  // Return (now + 2 mins) as the end timestamp for reading change streams. This is only used if
+  // users want to run the connector forever. If the end timestamp is reached, we will resume
+  // processing from that timestamp on a subsequent DoFn execution.
+  private Timestamp getNextReadChangeStreamEndTimestamp() {
+    final Timestamp current = Timestamp.now();
+    return Timestamp.ofTimeSecondsAndNanos(current.getSeconds() + 2 * 60, current.getNanos());
+  }
+
+  // For Mutable Change Stream bounded queries, update the query end timestamp to be within 2
+  // minutes in the future.
+  private Timestamp getBoundedQueryEndTimestamp(Timestamp endTimestamp) {
+    if (this.isMutableChangeStream) {
+      Timestamp nextTimestamp = getNextReadChangeStreamEndTimestamp();
+      return nextTimestamp.compareTo(endTimestamp) < 0 ? nextTimestamp : endTimestamp;
+    }
+    return endTimestamp;
   }
 }

@@ -119,7 +119,7 @@ class FlinkBatchPipelineTranslator extends FlinkPipelineTranslator {
   }
 
   /** A translator of a {@link PTransform}. */
-  public interface BatchTransformTranslator<TransformT extends PTransform> {
+  public interface BatchTransformTranslator<TransformT extends PTransform<?, ?>> {
 
     default boolean canTranslate(TransformT transform, FlinkBatchTranslationContext context) {
       return true;

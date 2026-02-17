@@ -136,7 +136,7 @@ public class TextIOIT {
 
     PCollection<String> consolidatedHashcode =
         testFilenames
-            .apply("Match all files", FileIO.matchAll())
+            .apply("Match all files", FileIO.matchAll().withOutputParallelization(false))
             .apply(
                 "Read matches",
                 FileIO.readMatches().withDirectoryTreatment(DirectoryTreatment.PROHIBIT))

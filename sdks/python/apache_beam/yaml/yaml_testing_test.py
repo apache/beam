@@ -22,6 +22,8 @@ import unittest
 
 # isort is fighting with yapf here.
 # isort: off
+from apache_beam.options.pipeline_options import StandardOptions
+from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.yaml import yaml_testing
 
 # Note that executing this pipeline will actually fail if the untested
@@ -199,7 +201,6 @@ class YamlTestingTest(unittest.TestCase):
   def test_create(self):
     with tempfile.TemporaryDirectory() as tmpdir:
       input_path = os.path.join(tmpdir, 'input.csv')
-      input_path = os.path.join('.', 'input.csv')
       with open(input_path, 'w') as fout:
         fout.write('a,b,c\n')
         for ix in range(1000):
@@ -223,6 +224,175 @@ class YamlTestingTest(unittest.TestCase):
     self.assertEqual(len(test_spec['mock_outputs']), 1)
     self.assertEqual(len(test_spec['expected_inputs']), 1)
     self.assertGreaterEqual(len(test_spec['expected_inputs'][0]['elements']), 5)
+    yaml_testing.run_test(pipeline, test_spec)
+
+  @unittest.skipIf(
+      TestPipeline().get_pipeline_options().view_as(StandardOptions).runner
+      is None,
+      'Do not run this test on precommit suites.')
+  def test_join_transform_serialization(self):
+    """Test that Join transforms work with YAML testing framework
+    and cloudpickle.
+    
+    This test validates the fix for the grpc channel serialization issue
+    that was causing TypeError: no default __reduce__ due to non-trivial
+    __cinit__ when using Join transforms with the YAML testing framework.
+    """
+    join_pipeline = '''
+      pipeline:
+        transforms:
+        - type: Create
+          name: Create1
+          config:
+            elements:
+            - ride_id: "1"
+              pickup_location: "downtown"
+            - ride_id: "2"
+              pickup_location: "airport"
+
+        - type: Create
+          name: Create2
+          config:
+            elements:
+            - ride_id: "1"
+              dropoff_location: "mall"
+            - ride_id: "2"
+              dropoff_location: "hotel"
+
+        - type: Join
+          name: JoinRides
+          input:
+            pickup: Create1
+            dropoff: Create2
+          config:
+            equalities: ride_id
+            type: inner
+            fields:
+              pickup: [ride_id, pickup_location]
+              dropoff: [dropoff_location]
+
+        - type: LogForTesting
+          name: LogResult
+          input: JoinRides
+      '''
+
+    # Test with expected_inputs to validate the Join transform output
+    yaml_testing.run_test(
+        join_pipeline,
+        {
+            'expected_inputs': [{
+                'name': 'LogResult',
+                'elements': [{
+                    'ride_id': '1',
+                    'pickup_location': 'downtown',
+                    'dropoff_location': 'mall'
+                },
+                             {
+                                 'ride_id': '2',
+                                 'pickup_location': 'airport',
+                                 'dropoff_location': 'hotel'
+                             }]
+            }]
+        })
+
+    # Test with mock_outputs to validate Join transform can handle mocked inputs
+    yaml_testing.run_test(
+        join_pipeline,
+        {
+            'mock_outputs': [{
+                'name': 'Create1',
+                'elements': [{
+                    'ride_id': '3', 'pickup_location': 'station'
+                }]
+            },
+                             {
+                                 'name': 'Create2',
+                                 'elements': [{
+                                     'ride_id': '3',
+                                     'dropoff_location': 'office'
+                                 }]
+                             }],
+            'expected_inputs': [{
+                'name': 'LogResult',
+                'elements': [{
+                    'ride_id': '3',
+                    'pickup_location': 'station',
+                    'dropoff_location': 'office'
+                }]
+            }]
+        })
+
+  def test_toplevel_providers(self):
+    yaml_testing.run_test(
+        '''
+        pipeline:
+          type: chain
+          transforms:
+            - type: Create
+              config:
+                elements: [1, 2, 3]
+            - type: MyDoubler
+        providers:
+          - type: yaml
+            transforms:
+              MyDoubler:
+                body:
+                  type: MapToFields
+                  config:
+                    language: python
+                    fields:
+                      doubled: element * 2
+        ''',
+        {
+            'expected_outputs': [{
+                'name': 'MyDoubler',
+                'elements': [{
+                    'doubled': 2
+                }, {
+                    'doubled': 4
+                }, {
+                    'doubled': 6
+                }]
+            }]
+        })
+
+  def test_create_with_external_providers(self):
+    """Test that create_test works with external providers defined in the
+    pipeline spec.
+
+    This test validates the fix for issue #37136 where external providers
+    defined in YAML files were not recognized when running tests.
+    """
+    pipeline = '''
+    pipeline:
+      type: chain
+      transforms:
+        - type: Create
+          config:
+            elements:
+              - {a: 1, b: 2}
+              - {a: 2, b: 3}
+              - {a: 3, b: 4}
+              - {a: 4, b: 5}
+              - {a: 5, b: 6}
+        - type: MyCustomTransform
+        - type: LogForTesting
+    providers:
+      - type: yaml
+        transforms:
+          MyCustomTransform:
+            body:
+              type: MapToFields
+              config:
+                language: python
+                fields:
+                  sum_ab: a + b
+    '''
+    test_spec = yaml_testing.create_test(
+        pipeline, max_num_inputs=10, min_num_outputs=3)
+
+    self.assertEqual(len(test_spec['expected_inputs']), 1)
+    self.assertGreaterEqual(len(test_spec['expected_inputs'][0]['elements']), 3)
     yaml_testing.run_test(pipeline, test_spec)
 
 

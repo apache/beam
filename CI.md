@@ -33,7 +33,7 @@ to use and develop for, so we decided to use it firstly for a few workflows then
 migrated all workflows previously run on Jenkins.
 
 For this reason there are mainly two types of GHA workflows running
-- Self-hosted runner GHAs. These were mifrated from Jenkins with workflow name
+- Self-hosted runner GHAs. These were migrated from Jenkins with workflow name
   prefix (beam_*.yml) as well as new workflows added following the same naming
   convention, including PreCommit, PostCommit, LoadTest, PerformanceTest, and
   several infrastructure jobs. See [.github/workflow/README](.github/workflow/README.md)

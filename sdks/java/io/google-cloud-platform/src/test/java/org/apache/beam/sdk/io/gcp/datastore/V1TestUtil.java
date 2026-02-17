@@ -293,7 +293,7 @@ class V1TestUtil {
     }
 
     // commit the list of entities to datastore
-    private void flushBatch() throws DatastoreException, IOException, InterruptedException {
+    private void flushBatch() throws DatastoreException, InterruptedException {
       LOG.info("Writing batch of {} entities", entities.size());
       Sleeper sleeper = Sleeper.DEFAULT;
       BackOff backoff =
@@ -316,10 +316,7 @@ class V1TestUtil {
           // Break if the commit threw no exception.
           break;
         } catch (DatastoreException exception) {
-          LOG.error(
-              "Error writing to the Datastore ({}): {}",
-              exception.getCode(),
-              exception.getMessage());
+          LOG.error("Error writing to the Datastore ({})", exception.getCode(), exception);
           if (!BackOffUtils.next(sleeper, backoff)) {
             LOG.error("Aborting after {} retries.", MAX_RETRIES);
             throw exception;

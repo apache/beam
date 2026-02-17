@@ -459,7 +459,7 @@ def vllmTests = tasks.create("vllmTests") {
     // TODO(https://github.com/apache/beam/issues/22651): Build docker image for VLLM tests during Run time.
     // This would also enable to use wheel "--sdk_location" as other tasks, and eliminate distTarBall dependency
     // declaration for this project.
-    // Right now, this is built from https://github.com/apache/beam/blob/master/sdks/python/apache_beam/ml/inference/test_resources/vllm.dockerfile
+    // Right now, this is built from https://github.com/apache/beam/blob/master/sdks/python/apache_beam/ml/inference/test_resources/vllm.dockerfile.old
     "sdk_container_image": "us.gcr.io/apache-beam-testing/python-postcommit-it/vllm:latest",
     "sdk_location": files(configurations.distTarBall.files).singleFile,
     "project": "apache-beam-testing",
@@ -575,7 +575,7 @@ task tftTests {
 task mockAPITests {
   dependsOn 'initializeForDataflowJob'
   dependsOn ':sdks:python:sdist'
-
+  def requirementsFile = "${rootDir}/sdks/python/apache_beam/transforms/enrichment_tests_requirements.txt"
  doLast {
   def testOpts = basicTestOpts
   def argMap = [
@@ -584,11 +584,12 @@ task mockAPITests {
     "runner": "TestDataflowRunner",
     "project": "apache-beam-testing",
     "region": "us-west1",
+    "requirements_file": "$requirementsFile"
   ]
   def cmdArgs = mapToArgString(argMap)
   exec {
     executable 'sh'
-	args '-c', ". ${envdir}/bin/activate && ${runScriptsDir}/run_integration_test.sh $cmdArgs"
+	args '-c', ". ${envdir}/bin/activate && pip install -r $requirementsFile && ${runScriptsDir}/run_integration_test.sh $cmdArgs"
   }
  }
 }

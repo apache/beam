@@ -28,7 +28,7 @@ When writing data to Kafka using Apache Beam, it is important to ensure that the
 For detailed [information](https://beam.apache.org/releases/javadoc/2.0.0/org/apache/beam/sdk/io/kafka/KafkaIO.html)
 {{if (eq .Sdk "go")}}
 ```
-data := pubsubio.Read(s, "pubsub-public-data", "taxirides-realtime", nil)
+data := pubsubio.Read(s, "pubsub-public-data", pubsubio.ReadOptions{Topic: "taxirides-realtime"})
 kvData := beam.ParDo(s, func(elm []byte) ([]byte, []byte) { return []byte(""), elm }, data)
 windowed := beam.WindowInto(s, window.NewFixedWindows(15*time.Second), kvData)
 kafkaio.Write(s, *expansionAddr, *bootstrapServers, *topic, windowed)

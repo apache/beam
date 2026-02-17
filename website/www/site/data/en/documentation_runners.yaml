@@ -32,6 +32,6 @@
   icon: icons/documentation/runners/nemo-icon.svg
   description: Runs on <a target="_blank" href="https://nemo.apache.org">Apache Nemo</a>.
 - name: { text: "JetRunner:", link: /documentation/runners/jet/ }
-  description: Runs on <a  target="_blank" href="https://jet.hazelcast.org/">Hazelcast Jet</a>.
+  description: Runs on <a  target="_blank" href="https://hazelcast.com/">Hazelcast Jet</a>.
 - name: { text: "Twister2Runner:", link: /documentation/runners/twister2/ }
   description: Runs on <a target="_blank" href="https://twister2.org/">Twister2</a>.

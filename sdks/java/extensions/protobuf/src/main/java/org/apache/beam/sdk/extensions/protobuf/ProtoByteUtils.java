@@ -319,7 +319,7 @@ public class ProtoByteUtils {
       List<ResourceId> rId =
           result.metadata().stream().map(MatchResult.Metadata::resourceId).collect(toList());
 
-      checkArgument(rId.size() == 1, "Expected exactly 1 file, but got " + rId.size() + " files.");
+      checkArgument(rId.size() == 1, "Expected exactly 1 file, but got %s files.", rId.size());
       return FileSystems.open(rId.get(0));
     } catch (IOException e) {
       throw new RuntimeException("Error when finding: " + filePath, e);

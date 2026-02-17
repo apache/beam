@@ -46,6 +46,7 @@ class YamlTestCase(unittest.TestCase):
     self._test_spec = test_spec
     self._options = options
     self._fix_tests = fix_tests
+    self._fixes = None
 
   def runTest(self):
     self._fixes = run_test(
@@ -73,12 +74,15 @@ class YamlTestCase(unittest.TestCase):
 
 def run_test(pipeline_spec, test_spec, options=None, fix_failures=False):
   if isinstance(pipeline_spec, str):
-    pipeline_spec = yaml.load(pipeline_spec, Loader=yaml_utils.SafeLineLoader)
+    pipeline_spec_dict = yaml.load(
+        pipeline_spec, Loader=yaml_utils.SafeLineLoader)
+  else:
+    pipeline_spec_dict = pipeline_spec
 
-  pipeline_spec = _preprocess_for_testing(pipeline_spec)
+  processed_pipeline_spec = _preprocess_for_testing(pipeline_spec_dict)
 
   transform_spec, recording_ids = inject_test_tranforms(
-      pipeline_spec,
+      processed_pipeline_spec,
       test_spec,
       fix_failures)
 
@@ -96,12 +100,18 @@ def run_test(pipeline_spec, test_spec, options=None, fix_failures=False):
     options = beam.options.pipeline_options.PipelineOptions(
         pickle_library='cloudpickle',
         **yaml_transform.SafeLineLoader.strip_metadata(
-            pipeline_spec.get('options', {})))
+            pipeline_spec_dict.get('options', {})))
+
+  providers = yaml_provider.merge_providers(
+      yaml_provider.parse_providers(
+          '', pipeline_spec_dict.get('providers', [])),
+      {
+          'AssertEqualAndRecord': yaml_provider.as_provider_list(
+              'AssertEqualAndRecord', AssertEqualAndRecord)
+      })
 
   with beam.Pipeline(options=options) as p:
-    _ = p | yaml_transform.YamlTransform(
-        transform_spec,
-        providers={'AssertEqualAndRecord': AssertEqualAndRecord})
+    _ = p | yaml_transform.YamlTransform(transform_spec, providers=providers)
 
   if fix_failures:
     fixes = {}
@@ -361,18 +371,30 @@ class AssertEqualAndRecord(beam.PTransform):
     self._recording_id = recording_id
 
   def expand(self, pcoll):
-    equal_to_matcher = equal_to(yaml_provider.dicts_to_rows(self._elements))
+    # Convert elements to rows outside the matcher to avoid capturing
+    # any grpc channels that might be created during the conversion
+    expected_rows = yaml_provider.dicts_to_rows(self._elements)
+    recording_id = self._recording_id
 
-    def matcher(actual):
-      try:
-        equal_to_matcher(actual)
-      except Exception:
-        if self._recording_id:
-          AssertEqualAndRecord.store_recorded_result(
-              tuple(self._recording_id), actual)
-        else:
-          raise
+    # Create a serializable matcher function that doesn't capture
+    # any external references that might contain grpc channels
+    class SerializableMatcher:
+      def __init__(self, expected_rows, recording_id):
+        self.expected_rows = expected_rows
+        self.recording_id = recording_id
+        self.equal_to_matcher = equal_to(expected_rows)
 
+      def __call__(self, actual):
+        try:
+          self.equal_to_matcher(actual)
+        except Exception:
+          if self.recording_id:
+            AssertEqualAndRecord.store_recorded_result(
+                tuple(self.recording_id), actual)
+          else:
+            raise
+
+    matcher = SerializableMatcher(expected_rows, recording_id)
     return assert_that(
         pcoll | beam.Map(lambda row: beam.Row(**row._asdict())), matcher)
 
@@ -389,6 +411,13 @@ def create_test(
         pickle_library='cloudpickle',
         **yaml_transform.SafeLineLoader.strip_metadata(
             pipeline_spec.get('options', {})))
+
+  providers = yaml_provider.merge_providers(
+      yaml_provider.parse_providers('', pipeline_spec.get('providers', [])),
+      {
+          'AssertEqualAndRecord': yaml_provider.as_provider_list(
+              'AssertEqualAndRecord', AssertEqualAndRecord)
+      })
 
   def get_name(transform):
     if 'name' in transform:
@@ -407,7 +436,8 @@ def create_test(
   mock_outputs = [{
       'name': get_name(t),
       'elements': [
-          _try_row_as_dict(row) for row in _first_n(t, options, max_num_inputs)
+          _try_row_as_dict(row)
+          for row in _first_n(t, options, max_num_inputs, providers)
       ],
   } for t in input_transforms]
 
@@ -483,15 +513,18 @@ class RecordElements(beam.PTransform):
     return pcoll | beam.Map(record)
 
 
-def _first_n(transform_spec, options, n):
+def _first_n(transform_spec, options, n, providers=None):
   recorder = RecordElements(n)
+  if providers is None:
+    providers = {
+        'AssertEqualAndRecord': yaml_provider.as_provider_list(
+            'AssertEqualAndRecord', AssertEqualAndRecord)
+    }
   try:
     with beam.Pipeline(options=options) as p:
       _ = (
           p
-          | yaml_transform.YamlTransform(
-              transform_spec,
-              providers={'AssertEqualAndRecord': AssertEqualAndRecord})
+          | yaml_transform.YamlTransform(transform_spec, providers=providers)
           | recorder)
   except _DoneException:
     pass

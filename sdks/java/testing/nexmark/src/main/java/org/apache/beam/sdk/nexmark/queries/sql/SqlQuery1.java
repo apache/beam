@@ -35,7 +35,7 @@ import org.apache.beam.sdk.values.Row;
  * Query 1, 'Currency Conversion'. Convert each bid value from dollars to euros. In CQL syntax:
  *
  * <pre>
- * SELECT Istream(auction, DOLTOEUR(price), bidder, datetime)
+ * SELECT Istream(auction, DOLTOEUR(price), bidder, `datetime`)
  * FROM bid [ROWS UNBOUNDED];
  * </pre>
  *
@@ -46,7 +46,7 @@ public class SqlQuery1 extends NexmarkQueryTransform<Bid> {
 
   private static final PTransform<PInput, PCollection<Row>> QUERY =
       SqlTransform.query(
-              "SELECT auction, bidder, DolToEur(price) as price, dateTime, extra FROM PCOLLECTION")
+              "SELECT auction, bidder, DolToEur(price) as price, `dateTime`, extra FROM PCOLLECTION")
           .registerUdf("DolToEur", new DolToEur());
 
   /** Dollar to Euro conversion. */

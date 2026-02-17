@@ -1119,6 +1119,11 @@ public class BigQueryServicesImplTest {
   public void testInsertWithinRequestByteSizeLimitsErrorsOut() throws Exception {
     TableReference ref =
         new TableReference().setProjectId("project").setDatasetId("dataset").setTableId("tablersl");
+    TableSchema schema =
+        new TableSchema()
+            .setFields(ImmutableList.of(new TableFieldSchema().setName("rows").setType("STRING")));
+    Table testTable = new Table().setTableReference(ref).setSchema(schema);
+
     List<FailsafeValueInSingleWindow<TableRow, TableRow>> rows =
         ImmutableList.of(
             wrapValue(new TableRow().set("row", Strings.repeat("abcdefghi", 1024 * 1025))),
@@ -1133,11 +1138,13 @@ public class BigQueryServicesImplTest {
           when(response.getContentType()).thenReturn(Json.MEDIA_TYPE);
           when(response.getStatusCode()).thenReturn(200);
           when(response.getContent()).thenReturn(toStream(allRowsSucceeded));
+          when(response.getContent()).thenReturn(toStream(testTable));
         },
         response -> {
           when(response.getContentType()).thenReturn(Json.MEDIA_TYPE);
           when(response.getStatusCode()).thenReturn(200);
           when(response.getContent()).thenReturn(toStream(allRowsSucceeded));
+          when(response.getContent()).thenReturn(toStream(testTable));
         });
 
     DatasetServiceImpl dataService =
@@ -1164,7 +1171,78 @@ public class BigQueryServicesImplTest {
                     false,
                     successfulRows));
 
-    assertThat(e.getMessage(), containsString("exceeded BigQueryIO limit of 9MB."));
+    assertThat(e.getMessage(), containsString("exceeding the BigQueryIO limit"));
+  }
+
+  /**
+   * Tests that {@link DatasetServiceImpl#insertAll} does not go over limit of rows per request and
+   * schema difference check.
+   */
+  @SuppressWarnings("InlineMeInliner") // inline `Strings.repeat()` - Java 11+ API only
+  @Test
+  public void testInsertWithinRequestByteSizeLimitsWithBadSchemaErrorsOut() throws Exception {
+    TableReference ref =
+        new TableReference().setProjectId("project").setDatasetId("dataset").setTableId("tablersl");
+
+    TableSchema schema =
+        new TableSchema()
+            .setFields(ImmutableList.of(new TableFieldSchema().setName("row").setType("STRING")));
+    Table testTable = new Table().setTableReference(ref).setSchema(schema);
+
+    List<FailsafeValueInSingleWindow<TableRow, TableRow>> rows =
+        ImmutableList.of(
+            wrapValue(
+                new TableRow()
+                    .set("row", Strings.repeat("abcdefghi", 1024 * 1025))
+                    .set("badField", "goodValue")),
+            wrapValue(new TableRow().set("row", "a")),
+            wrapValue(new TableRow().set("row", "b")));
+    List<String> insertIds = ImmutableList.of("a", "b", "c");
+
+    final TableDataInsertAllResponse allRowsSucceeded = new TableDataInsertAllResponse();
+
+    setupMockResponses(
+        response -> {
+          when(response.getContentType()).thenReturn(Json.MEDIA_TYPE);
+          when(response.getStatusCode()).thenReturn(200);
+          when(response.getContent()).thenReturn(toStream(allRowsSucceeded));
+          when(response.getContent()).thenReturn(toStream(testTable));
+        },
+        response -> {
+          when(response.getContentType()).thenReturn(Json.MEDIA_TYPE);
+          when(response.getStatusCode()).thenReturn(200);
+          when(response.getContent()).thenReturn(toStream(allRowsSucceeded));
+          when(response.getContent()).thenReturn(toStream(testTable));
+        });
+
+    DatasetServiceImpl dataService =
+        new DatasetServiceImpl(
+            bigquery, PipelineOptionsFactory.fromArgs("--maxStreamingBatchSize=15").create());
+    List<ValueInSingleWindow<TableRow>> failedInserts = Lists.newArrayList();
+    List<ValueInSingleWindow<TableRow>> successfulRows = Lists.newArrayList();
+    RuntimeException e =
+        assertThrows(
+            RuntimeException.class,
+            () ->
+                dataService.<TableRow>insertAll(
+                    ref,
+                    rows,
+                    insertIds,
+                    BackOffAdapter.toGcpBackOff(TEST_BACKOFF.backoff()),
+                    TEST_BACKOFF,
+                    new MockSleeper(),
+                    InsertRetryPolicy.alwaysRetry(),
+                    failedInserts,
+                    ErrorContainer.TABLE_ROW_ERROR_CONTAINER,
+                    false,
+                    false,
+                    false,
+                    successfulRows));
+
+    assertThat(e.getMessage(), containsString("exceeding the BigQueryIO limit"));
+    assertThat(
+        e.getMessage(),
+        containsString("Problematic row had extra schema fields: {Unknown fields: badField}"));
   }
 
   @SuppressWarnings("InlineMeInliner") // inline `Strings.repeat()` - Java 11+ API only

@@ -243,8 +243,12 @@ public class PartialGroupByKeyParDoFns {
     public Object createGroupingKey(WindowedValue<K> key) throws Exception {
       // Ignore timestamp for grouping purposes.
       // The PGBK output will inherit the timestamp of one of its inputs.
-      return WindowedValues.of(
-          coder.structuralValue(key.getValue()), ignored, key.getWindows(), key.getPaneInfo());
+      return WindowedValues.builder(key)
+          .withValue(coder.structuralValue(key.getValue()))
+          .setTimestamp(ignored)
+          .setWindows(key.getWindows())
+          .setPaneInfo(key.getPaneInfo())
+          .build();
     }
   }
 

@@ -133,12 +133,20 @@ abstract class BigQuerySourceBase<T> extends BoundedSource<T> {
       String bqLocation =
           BigQueryHelpers.getDatasetLocation(
               datasetService, tableToExtract.getProjectId(), tableToExtract.getDatasetId());
+      String bqProjectId =
+          checkArgumentNotNull(
+              bqOptions.getBigQueryProject() != null
+                  ? bqOptions.getBigQueryProject()
+                  : bqOptions.getProject(),
+              "Cannot export data from table "
+                  + tableToExtract
+                  + " without a valid billing project. Check that either --bigQueryProject or --project has been set.");
       List<ResourceId> tempFiles =
           executeExtract(
               extractJobId,
               tableToExtract,
               jobService,
-              bqOptions.getProject(),
+              bqProjectId,
               extractDestinationDir,
               bqLocation,
               useAvroLogicalTypes);
@@ -221,8 +229,7 @@ abstract class BigQuerySourceBase<T> extends BoundedSource<T> {
       // The error messages thrown in this case are generic and misleading, so leave this breadcrumb
       // in case it's the root cause.
       LOG.warn(
-          "Error extracting table: {} "
-              + "Note that external tables cannot be exported: "
+          "Error extracting table. Note that external tables cannot be exported: "
               + "https://cloud.google.com/bigquery/docs/external-tables#external_table_limitations",
           exn);
       throw exn;

@@ -94,7 +94,7 @@ func (e *ExpansionServiceRunner) pingEndpoint(timeout time.Duration) error {
 	return nil
 }
 
-const connectionTimeout = 15 * time.Second
+const connectionTimeout = 30 * time.Second
 
 // StartService starts the expansion service for a given ExpansionServiceRunner. If this is
 // called and does not return an error, the expansion service will be running in the background

@@ -309,7 +309,6 @@ class BeamJob(abstract_job_service.AbstractBeamJob):
                 message_text=traceback.format_exc()))
         _LOGGER.exception('Error running pipeline.')
         self.set_state(beam_job_api_pb2.JobState.FAILED)
-        raise
 
   def _invoke_runner(self):
     self.set_state(beam_job_api_pb2.JobState.RUNNING)

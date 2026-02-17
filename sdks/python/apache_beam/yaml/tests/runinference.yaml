@@ -29,7 +29,7 @@ pipelines:
             model_handler: 
               type: "VertexAIModelHandlerJSON"
               config:
-                endpoint_id: 9157860935048626176
+                endpoint_id: 1870474887521370112
                 project: "apache-beam-testing"
                 location: "us-central1"
                 preprocess:

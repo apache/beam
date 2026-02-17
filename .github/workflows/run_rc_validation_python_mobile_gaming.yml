@@ -79,7 +79,7 @@ jobs:
       RELEASE_VERSION: ${{ github.event.inputs.RELEASE_VER }}
       RC_NUM: ${{ github.event.inputs.RC_NUM }}
       RC_TAG: "v${{github.event.inputs.RELEASE_VER}}-RC${{github.event.inputs.RC_NUM}}"
-      PYTHON_VERSION: '3.9'
+      PYTHON_VERSION: '3.10'
       BEAM_PYTHON_SDK_TAR_GZ: apache_beam-${{ github.event.inputs.RELEASE_VER }}.tar.gz
       BEAM_SOURCE_ZIP: apache-beam-${{ github.event.inputs.RELEASE_VER }}-source-release.zip
       APACHE_DIST_URL_BASE: https://dist.apache.org/repos/dist/dev/beam/${{ github.event.inputs.RELEASE_VER }}
@@ -115,7 +115,7 @@ jobs:
         shell: bash
 
       - name: Set up Cloud SDK
-        uses: google-github-actions/setup-gcloud@v2
+        uses: google-github-actions/setup-gcloud@v3
 
       - name: Download RC Artifacts
         run: |

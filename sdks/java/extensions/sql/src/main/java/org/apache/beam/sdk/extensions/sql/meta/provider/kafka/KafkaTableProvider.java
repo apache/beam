@@ -35,6 +35,7 @@ import org.apache.beam.sdk.extensions.sql.meta.BeamSqlTable;
 import org.apache.beam.sdk.extensions.sql.meta.Table;
 import org.apache.beam.sdk.extensions.sql.meta.provider.InMemoryMetaTableProvider;
 import org.apache.beam.sdk.extensions.sql.meta.provider.TableProvider;
+import org.apache.beam.sdk.io.kafka.TimestampPolicyFactory;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.io.payloads.PayloadSerializer;
 import org.apache.beam.sdk.schemas.io.payloads.PayloadSerializers;
@@ -43,6 +44,8 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Strings;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
 import org.checkerframework.checker.nullness.qual.Nullable;
+import org.joda.time.Duration;
+import org.joda.time.format.PeriodFormat;
 
 /**
  * Kafka table provider.
@@ -117,6 +120,33 @@ public class KafkaTableProvider extends InMemoryMetaTableProvider {
             ? Optional.of(properties.get("format").asText())
             : Optional.empty();
 
+    TimestampPolicyFactory timestampPolicyFactory = TimestampPolicyFactory.withProcessingTime();
+    if (properties.has("watermark.type")) {
+      String type = properties.get("watermark.type").asText().toUpperCase();
+
+      switch (type) {
+        case "PROCESSINGTIME":
+          timestampPolicyFactory = TimestampPolicyFactory.withProcessingTime();
+          break;
+        case "LOGAPPENDTIME":
+          timestampPolicyFactory = TimestampPolicyFactory.withLogAppendTime();
+          break;
+        case "CREATETIME":
+          Duration delay = Duration.ZERO;
+          if (properties.has("watermark.delay")) {
+            String delayStr = properties.get("watermark.delay").asText();
+            delay = PeriodFormat.getDefault().parsePeriod(delayStr).toStandardDuration();
+          }
+          timestampPolicyFactory = TimestampPolicyFactory.withCreateTime(delay);
+          break;
+        default:
+          throw new IllegalArgumentException(
+              "Unknown watermark type: "
+                  + type
+                  + ". Supported types are ProcessingTime, LogAppendTime, CreateTime.");
+      }
+    }
+
     BeamKafkaTable kafkaTable = null;
     if (Schemas.isNestedSchema(schema)) {
       Optional<PayloadSerializer> serializer =
@@ -126,7 +156,9 @@ public class KafkaTableProvider extends InMemoryMetaTableProvider {
                       format,
                       checkArgumentNotNull(schema.getField(PAYLOAD_FIELD).getType().getRowSchema()),
                       TableUtils.convertNode2Map(properties)));
-      kafkaTable = new NestedPayloadKafkaTable(schema, bootstrapServers, topics, serializer);
+      kafkaTable =
+          new NestedPayloadKafkaTable(
+              schema, bootstrapServers, topics, serializer, timestampPolicyFactory);
     } else {
       /*
        * CSV is handled separately because multiple rows can be produced from a single message, which
@@ -135,12 +167,15 @@ public class KafkaTableProvider extends InMemoryMetaTableProvider {
        * rows.
        */
       if (payloadFormat.orElse("csv").equals("csv")) {
-        kafkaTable = new BeamKafkaCSVTable(schema, bootstrapServers, topics);
+        kafkaTable =
+            new BeamKafkaCSVTable(schema, bootstrapServers, topics, timestampPolicyFactory);
       } else {
         PayloadSerializer serializer =
             PayloadSerializers.getSerializer(
                 payloadFormat.get(), schema, TableUtils.convertNode2Map(properties));
-        kafkaTable = new PayloadSerializerKafkaTable(schema, bootstrapServers, topics, serializer);
+        kafkaTable =
+            new PayloadSerializerKafkaTable(
+                schema, bootstrapServers, topics, serializer, timestampPolicyFactory);
       }
     }
 

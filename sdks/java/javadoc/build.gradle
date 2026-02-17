@@ -62,16 +62,14 @@ task aggregateJavadoc(type: Javadoc) {
   source exportedJavadocProjects.collect { project(it).sourceSets.main.allJava }
   classpath = files(exportedJavadocProjects.collect { project(it).sourceSets.main.compileClasspath })
   destinationDir = file("${buildDir}/docs/javadoc")
+  // many external link fails, this is expected.
   failOnError = false
 
   exclude "org/apache/beam/examples/*"
   exclude "org/apache/beam/fn/harness/*"
   exclude "org/apache/beam/runners/core/*"
-  exclude "org/apache/beam/runners/dataflow/internal/*"
   exclude "org/apache/beam/runners/flink/examples/*"
-  exclude "org/apache/beam/runners/flink/translation/*"
   exclude "org/apache/beam/runners/spark/examples/*"
-  exclude "org/apache/beam/runners/spark/translation/*"
   exclude "org/apache/beam/sdk/transforms/reflect/*"
   exclude "org/apache/beam/sdk/runners/*"
   exclude "org/apache/beam/sdk/util/*"
@@ -81,6 +79,24 @@ task aggregateJavadoc(type: Javadoc) {
     overview 'overview.html'
     for (dep in project.library.java.values()) {
       links createJavadocIOUrlForDependency(dep)
+    }
+  }
+
+  // certain projects need generated sources for javadoc generation
+  // Part of flink sources came from custom copySourceOverrides target
+  dependsOn ":runners:flink:${flink_versions.split(",").first()}:copySourceOverrides"
+  // Auto value class appeared in class annotation (jackson)
+  dependsOn ':sdks:java:io:solace:compileJava'
+  source project(':sdks:java:io:solace').layout.buildDirectory.dir('generated/sources/annotationProcessor/java/main')
+  dependsOn ':sdks:java:io:amazon-web-services2:compileJava'
+  source project(':sdks:java:io:amazon-web-services2').layout.buildDirectory.dir('generated/sources/annotationProcessor/java/main')
+
+  doLast {
+    File myFile = new File(layout.buildDirectory.dir("docs/javadoc/index.html").get().toString())
+
+    // Because we set failOnError false, Check if the doc successfully generated
+    if (!myFile.exists()) {
+      throw new GradleException("Javadoc not generated. Check logs for errors")
     }
   }
 }

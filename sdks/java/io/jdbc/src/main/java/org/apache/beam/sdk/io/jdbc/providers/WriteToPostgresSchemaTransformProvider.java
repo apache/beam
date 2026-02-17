@@ -18,20 +18,30 @@
 package org.apache.beam.sdk.io.jdbc.providers;
 
 import static org.apache.beam.sdk.io.jdbc.JdbcUtil.POSTGRES;
+import static org.apache.beam.sdk.util.construction.BeamUrns.getUrn;
 
 import com.google.auto.service.AutoService;
+import java.util.Collections;
+import java.util.List;
+import org.apache.beam.model.pipeline.v1.ExternalTransforms;
 import org.apache.beam.sdk.io.jdbc.JdbcWriteSchemaTransformProvider;
+import org.apache.beam.sdk.schemas.transforms.SchemaTransform;
 import org.apache.beam.sdk.schemas.transforms.SchemaTransformProvider;
 import org.checkerframework.checker.initialization.qual.Initialized;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.UnknownKeyFor;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 @AutoService(SchemaTransformProvider.class)
 public class WriteToPostgresSchemaTransformProvider extends JdbcWriteSchemaTransformProvider {
 
+  private static final Logger LOG =
+      LoggerFactory.getLogger(WriteToPostgresSchemaTransformProvider.class);
+
   @Override
   public @UnknownKeyFor @NonNull @Initialized String identifier() {
-    return "beam:schematransform:org.apache.beam:postgres_write:v1";
+    return getUrn(ExternalTransforms.ManagedTransforms.Urns.POSTGRES_WRITE);
   }
 
   @Override
@@ -42,5 +52,35 @@ public class WriteToPostgresSchemaTransformProvider extends JdbcWriteSchemaTrans
   @Override
   protected String jdbcType() {
     return POSTGRES;
+  }
+
+  @Override
+  public @UnknownKeyFor @NonNull @Initialized SchemaTransform from(
+      JdbcWriteSchemaTransformConfiguration configuration) {
+    String jdbcType = configuration.getJdbcType();
+    if (jdbcType != null && !jdbcType.isEmpty() && !jdbcType.equals(jdbcType())) {
+      LOG.warn(
+          "Wrong JDBC type. Expected '{}' but got '{}'. Overriding with '{}'.",
+          jdbcType(),
+          jdbcType,
+          jdbcType());
+      configuration = configuration.toBuilder().setJdbcType(jdbcType()).build();
+    }
+
+    List<@org.checkerframework.checker.nullness.qual.Nullable String> connectionInitSql =
+        configuration.getConnectionInitSql();
+    if (connectionInitSql != null && !connectionInitSql.isEmpty()) {
+      throw new IllegalArgumentException("Postgres does not support connectionInitSql.");
+    }
+
+    // Override "connectionInitSql" for postgres
+    configuration = configuration.toBuilder().setConnectionInitSql(Collections.emptyList()).build();
+    return new PostgresWriteSchemaTransform(configuration);
+  }
+
+  public static class PostgresWriteSchemaTransform extends JdbcWriteSchemaTransform {
+    public PostgresWriteSchemaTransform(JdbcWriteSchemaTransformConfiguration config) {
+      super(config, POSTGRES);
+    }
   }
 }

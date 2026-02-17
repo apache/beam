@@ -202,7 +202,7 @@ class KafkaWriter<K, V> extends DoFn<ProducerRecord<K, V>, Void> {
         }
         numSendFailures++;
         // don't log exception stacktrace here, exception will be propagated up.
-        LOG.warn("send failed : '{}'", exception.getMessage());
+        LOG.warn("send failed", exception);
       }
     }
   }

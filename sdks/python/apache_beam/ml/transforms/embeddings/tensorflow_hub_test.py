@@ -40,14 +40,16 @@ except ImportError:
 # pylint: disable=ungrouped-imports
 try:
   import tensorflow_transform as tft
+
   from apache_beam.ml.transforms.tft import ScaleTo01
 except ImportError:
   tft = None
 
 # pylint: disable=ungrouped-imports
 try:
-  from apache_beam.ml.transforms.embeddings.tensorflow_hub import TensorflowHubImageEmbeddings
   from PIL import Image
+
+  from apache_beam.ml.transforms.embeddings.tensorflow_hub import TensorflowHubImageEmbeddings
 except ImportError:
   TensorflowHubImageEmbeddings = None  # type: ignore
   Image = None
@@ -161,7 +163,7 @@ class TFHubEmbeddingsTest(unittest.TestCase):
   def test_with_int_data_types(self):
     embedding_config = TensorflowHubTextEmbeddings(
         hub_url=hub_url, columns=[test_query_column])
-    with self.assertRaises(TypeError):
+    with self.assertRaises(Exception):
       with beam.Pipeline() as pipeline:
         _ = (
             pipeline

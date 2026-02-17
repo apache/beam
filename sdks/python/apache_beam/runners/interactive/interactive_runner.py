@@ -33,9 +33,9 @@ from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.options.pipeline_options import WorkerOptions
 from apache_beam.pipeline import PipelineVisitor
 from apache_beam.runners.direct import direct_runner
+from apache_beam.runners.interactive import background_caching_job
 from apache_beam.runners.interactive import interactive_environment as ie
 from apache_beam.runners.interactive import pipeline_instrument as inst
-from apache_beam.runners.interactive import background_caching_job
 from apache_beam.runners.interactive.dataproc.types import ClusterMetadata
 from apache_beam.runners.interactive.display import pipeline_graph
 from apache_beam.runners.interactive.options import capture_control
@@ -80,6 +80,8 @@ class InteractiveRunner(runners.PipelineRunner):
     """
     self._underlying_runner = (
         underlying_runner or direct_runner.DirectRunner())
+    if hasattr(self._underlying_runner, 'is_interactive'):
+      self._underlying_runner.is_interactive()
     self._render_option = render_option
     self._in_session = False
     self._skip_display = skip_display

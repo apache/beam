@@ -67,10 +67,12 @@ In addition, type-hints can be used to implement run-time type-checking via the
 
 import copy
 import logging
-import sys
 import types
 import typing
 from collections import abc
+
+from beartype.door import is_subhint
+from beartype.roar import BeartypeDoorException
 
 __all__ = [
     'Any',
@@ -389,9 +391,8 @@ def validate_composite_type_param(type_param, error_msg_prefix):
       not isinstance(type_param, tuple(possible_classes)) and
       type_param is not None and
       getattr(type_param, '__module__', None) != 'typing')
-  if sys.version_info.major == 3 and sys.version_info.minor >= 10:
-    if isinstance(type_param, types.UnionType):
-      is_not_type_constraint = False
+  if isinstance(type_param, types.UnionType):
+    is_not_type_constraint = False
 
   if is_not_type_constraint:
     raise TypeError(
@@ -1483,7 +1484,7 @@ _KNOWN_PRIMITIVE_TYPES.update({
 })
 
 
-def is_consistent_with(sub, base):
+def is_consistent_with(sub, base, use_beartype: bool = False) -> bool:
   """Checks whether sub a is consistent with base.
 
   This is according to the terminology of PEP 483/484.  This relationship is
@@ -1522,7 +1523,13 @@ def is_consistent_with(sub, base):
     # Cannot check unsupported parameterized generic which will cause issubclass
     # to fail with an exception.
     return False
-  return issubclass(sub, base)
+  if use_beartype:
+    try:
+      return is_subhint(sub, base)
+    except (BeartypeDoorException):
+      return False
+  else:
+    return issubclass(sub, base)
 
 
 def regex_consistency(sub, base) -> bool:

@@ -61,8 +61,9 @@ class PartitioningSession(Session):
   For testing only.
   """
   def evaluate(self, expr):
-    import pandas as pd
     import collections
+
+    import pandas as pd
 
     def is_scalar(expr):
       return not isinstance(expr.proxy(), pd.core.generic.NDFrame)

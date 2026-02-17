@@ -46,13 +46,24 @@ public interface GcsOptions extends ApplicationNameOptions, GcpOptions, Pipeline
 
   void setGcsUtil(GcsUtil value);
 
+  class GcsReadOptionsFactory implements DefaultValueFactory<GoogleCloudStorageReadOptions> {
+    @Override
+    public GoogleCloudStorageReadOptions create(PipelineOptions options) {
+      return GoogleCloudStorageReadOptions.DEFAULT;
+    }
+  }
+
+  /** @deprecated This option will be removed in a future release. */
   @JsonIgnore
   @Description(
       "The GoogleCloudStorageReadOptions instance that should be used to read from Google Cloud Storage.")
-  @Default.InstanceFactory(GcsUtil.GcsReadOptionsFactory.class)
+  @Default.InstanceFactory(GcsReadOptionsFactory.class)
   @Hidden
+  @Deprecated
   GoogleCloudStorageReadOptions getGoogleCloudStorageReadOptions();
 
+  /** @deprecated This option will be removed in a future release. */
+  @Deprecated
   void setGoogleCloudStorageReadOptions(GoogleCloudStorageReadOptions value);
 
   /**
@@ -76,7 +87,6 @@ public interface GcsOptions extends ApplicationNameOptions, GcpOptions, Pipeline
   void setExecutorService(ExecutorService value);
 
   /** GCS endpoint to use. If unspecified, uses the default endpoint. */
-  @JsonIgnore
   @Hidden
   @Description("The URL for the GCS API.")
   String getGcsEndpoint();

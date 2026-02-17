@@ -17,7 +17,7 @@
  */
 package org.apache.beam.sdk.extensions.sql.impl.parser;
 
-import static org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.util.Static.RESOURCE;
+import static org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.util.Static.RESOURCE;
 
 import java.lang.reflect.Method;
 import java.util.Arrays;
@@ -28,21 +28,21 @@ import org.apache.beam.sdk.extensions.sql.impl.LazyAggregateCombineFn;
 import org.apache.beam.sdk.extensions.sql.impl.ScalarFnReflector;
 import org.apache.beam.sdk.extensions.sql.impl.ScalarFunctionImpl;
 import org.apache.beam.sdk.extensions.sql.udf.ScalarFn;
-import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.jdbc.CalcitePrepare;
-import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.jdbc.CalciteSchema;
-import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.schema.Function;
-import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.schema.SchemaPlus;
-import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.sql.SqlCharStringLiteral;
-import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.sql.SqlCreate;
-import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.sql.SqlIdentifier;
-import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.sql.SqlKind;
-import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.sql.SqlNode;
-import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.sql.SqlOperator;
-import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.sql.SqlSpecialOperator;
-import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.sql.SqlUtil;
-import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.sql.SqlWriter;
-import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.sql.parser.SqlParserPos;
-import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.util.Pair;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.jdbc.CalcitePrepare;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.jdbc.CalciteSchema;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.schema.Function;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.schema.SchemaPlus;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.sql.SqlCharStringLiteral;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.sql.SqlCreate;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.sql.SqlIdentifier;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.sql.SqlKind;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.sql.SqlNode;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.sql.SqlOperator;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.sql.SqlSpecialOperator;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.sql.SqlUtil;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.sql.SqlWriter;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.sql.parser.SqlParserPos;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.util.Pair;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 
 /** Parse tree for {@code CREATE FUNCTION} statement. */

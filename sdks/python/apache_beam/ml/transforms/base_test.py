@@ -23,6 +23,7 @@ import tempfile
 import time
 import unittest
 from collections.abc import Sequence
+from dataclasses import dataclass
 from typing import Any
 from typing import Optional
 
@@ -498,7 +499,7 @@ class TextEmbeddingHandlerTest(unittest.TestCase):
     }, {
         'x': ['Apache Beam', 'Hello world'],
     }]
-    with self.assertRaises(TypeError):
+    with self.assertRaisesRegex(Exception, "Embeddings can only be generated"):
       with beam.Pipeline() as p:
         _ = (
             p
@@ -613,6 +614,122 @@ class TestImageEmbeddingHandler(unittest.TestCase):
         },
         {
             'x': img_two
+        },
+    ]
+    expected_data = [{key: value for key, value in d.items()} for d in data]
+    with beam.Pipeline() as p:
+      result = (
+          p
+          | beam.Create(data)
+          | base.MLTransform(
+              write_artifact_location=self.artifact_location).with_transform(
+                  self.embedding_config))
+      assert_that(
+          result,
+          equal_to(expected_data),
+      )
+
+
+@dataclass
+class FakeMultiModalInput:
+  image: Optional[PIL_Image] = None
+  video: Optional[Any] = None
+  text: Optional[str] = None
+
+
+class FakeMultiModalModel:
+  def __call__(self,
+               example: list[FakeMultiModalInput]) -> list[FakeMultiModalInput]:
+    for i in range(len(example)):
+      if not isinstance(example[i], FakeMultiModalInput):
+        raise TypeError('Input must be a MultiModalInput')
+    return example
+
+
+class FakeMultiModalModelHandler(ModelHandler):
+  def run_inference(
+      self,
+      batch: Sequence[FakeMultiModalInput],
+      model: Any,
+      inference_args: Optional[dict[str, Any]] = None):
+    return model(batch)
+
+  def load_model(self):
+    return FakeMultiModalModel()
+
+
+class FakeMultiModalEmbeddingsManager(base.EmbeddingsManager):
+  def __init__(self, columns, **kwargs):
+    super().__init__(columns=columns, **kwargs)
+
+  def get_model_handler(self) -> ModelHandler:
+    FakeModelHandler.__repr__ = lambda x: 'FakeMultiModalEmbeddingsManager'  # type: ignore[method-assign]
+    return FakeMultiModalModelHandler()
+
+  def get_ptransform_for_processing(self, **kwargs) -> beam.PTransform:
+    return (RunInference(model_handler=base._MultiModalEmbeddingHandler(self)))
+
+  def __repr__(self):
+    return 'FakeMultiModalEmbeddingsManager'
+
+
+class TestMultiModalEmbeddingHandler(unittest.TestCase):
+  def setUp(self) -> None:
+    self.embedding_config = FakeMultiModalEmbeddingsManager(columns=['x'])
+    self.artifact_location = tempfile.mkdtemp()
+
+  def tearDown(self) -> None:
+    shutil.rmtree(self.artifact_location)
+
+  @unittest.skipIf(PIL is None, 'PIL module is not installed.')
+  def test_handler_with_non_dict_datatype(self):
+    image_handler = base._MultiModalEmbeddingHandler(
+        embeddings_manager=self.embedding_config)
+    data = [
+        ('x', 'hi there'),
+        ('x', 'not an image'),
+        ('x', 'image_path.jpg'),
+    ]
+    with self.assertRaises(TypeError):
+      image_handler.run_inference(data, None, None)
+
+  @unittest.skipIf(PIL is None, 'PIL module is not installed.')
+  def test_handler_with_incorrect_datatype(self):
+    image_handler = base._MultiModalEmbeddingHandler(
+        embeddings_manager=self.embedding_config)
+    data = [
+        {
+            'x': 'hi there'
+        },
+        {
+            'x': 'not an image'
+        },
+        {
+            'x': 'image_path.jpg'
+        },
+    ]
+    with self.assertRaises(TypeError):
+      image_handler.run_inference(data, None, None)
+
+  @unittest.skipIf(PIL is None, 'PIL module is not installed.')
+  def test_handler_with_dict_inputs(self):
+    input_one = FakeMultiModalInput(
+        image=PIL.Image.new(mode='RGB', size=(1, 1)), text="test image one")
+    input_two = FakeMultiModalInput(
+        image=PIL.Image.new(mode='RGB', size=(1, 1)), text="test image two")
+    input_three = FakeMultiModalInput(
+        image=PIL.Image.new(mode='RGB', size=(1, 1)),
+        video=bytes.fromhex('2Ef0 F1f2  '),
+        text="test image three with video")
+    data = [
+        {
+            'x': input_one
+        },
+        {
+            'x': input_two
+        },
+        {
+            'x': input_three
         },
     ]
     expected_data = [{key: value for key, value in d.items()} for d in data]

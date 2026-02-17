@@ -18,6 +18,7 @@
 
 import argparse
 import logging
+import platform
 import shlex
 import typing
 import unittest
@@ -139,6 +140,7 @@ class FlinkRunnerTest(portable_runner_test.PortableRunnerTest):
       cls.test_metrics_path = path.join(cls.conf_dir, 'test-metrics.txt')
 
       # path to write Flink configuration to
+      # Flink 1.x conf:
       conf_path = path.join(cls.conf_dir, 'flink-conf.yaml')
       file_reporter = 'org.apache.beam.runners.flink.metrics.FileReporter'
       with open(conf_path, 'w') as f:
@@ -149,6 +151,19 @@ class FlinkRunnerTest(portable_runner_test.PortableRunnerTest):
                 'metrics.reporter.file.path: %s' % cls.test_metrics_path,
                 'metrics.scope.operator: <operator_name>',
             ]))
+      # Flink 2.x conf:
+      conf_path_2 = path.join(cls.conf_dir, 'config.yaml')
+      with open(conf_path_2, 'w') as f:
+        f.write(
+            '''metrics:
+  reporters: file
+  reporter:
+    file:
+      class: %s
+      path: %s
+  scope:
+    operator: <operator_name>
+''' % (file_reporter, cls.test_metrics_path))
 
   @classmethod
   def _subprocess_command(cls, job_port, expansion_port):
@@ -158,11 +173,19 @@ class FlinkRunnerTest(portable_runner_test.PortableRunnerTest):
 
     cls._create_conf_dir()
     cls.expansion_port = expansion_port
-
+    platform_specific_opts = []
+    if platform.system() == 'Linux':
+      # UseContainerSupport is supported in Linux and turned on by default
+      platform_specific_opts.append('-XX:-UseContainerSupport')
     try:
-      return [
-          'java',
-          '-Dorg.slf4j.simpleLogger.defaultLogLevel=warn',
+      return ['java'] + platform_specific_opts + [
+          '--add-opens=java.base/java.lang=ALL-UNNAMED',
+          '--add-opens=java.base/java.nio=ALL-UNNAMED',
+          '--add-opens=java.base/java.util=ALL-UNNAMED',
+          '-Dslf4j.provider=org.slf4j.simple.SimpleServiceProvider',
+          '-Dorg.slf4j.simpleLogger.log.org.apache.flink.metrics=error',
+          '-Dorg.slf4j.simpleLogger.log.org.apache.flink.runtime=error',
+          '-Dorg.slf4j.simpleLogger.log.org.apache.flink.streaming=error',
           '-jar',
           cls.flink_job_server_jar,
           '--flink-master',
@@ -209,6 +232,14 @@ class FlinkRunnerTest(portable_runner_test.PortableRunnerTest):
 
     return options
 
+  def test_batch_rebatch_pardos(self):
+    if self.environment_type == 'DOCKER':
+      pytest.skip(
+          "Skipping test_batch_rebatch_pardos for DOCKER environment in "
+          "FlinkRunnerTest as warnings are not propagated back when Python SDK "
+          "is run in Docker.")
+    super().test_batch_rebatch_pardos()
+
   # Can't read host files from within docker, read a "local" file there.
   def test_read(self):
     print('name:', __name__)
@@ -220,6 +251,11 @@ class FlinkRunnerTest(portable_runner_test.PortableRunnerTest):
     raise unittest.SkipTest("BEAM-4781")
 
   def test_external_transform(self):
+    if self.environment_type == 'PROCESS':
+      self.skipTest(
+          "Skipping external transform test in PROCESS mode due to "
+          "https://github.com/apache/beam/issues/19461 (Flink expansion "
+          "service incompatibility).")
     with self.create_pipeline() as p:
       res = (
           p
@@ -229,6 +265,11 @@ class FlinkRunnerTest(portable_runner_test.PortableRunnerTest):
       assert_that(res, equal_to([i for i in range(1, 10)]))
 
   def test_expand_kafka_read(self):
+    if self.environment_type == 'PROCESS':
+      self.skipTest(
+          "Skipping Kafka read test in PROCESS mode due to "
+          "https://github.com/apache/beam/issues/19461 (Flink expansion "
+          "service incompatibility).")
     # We expect to fail here because we do not have a Kafka cluster handy.
     # Nevertheless, we check that the transform is expanded by the
     # ExpansionService and that the pipeline fails during execution.
@@ -263,6 +304,11 @@ class FlinkRunnerTest(portable_runner_test.PortableRunnerTest):
         'failed due to:\n%s' % str(ctx.exception))
 
   def test_expand_kafka_write(self):
+    if self.environment_type == 'PROCESS':
+      self.skipTest(
+          "Skipping Kafka write test in PROCESS mode due to "
+          "https://github.com/apache/beam/issues/19461 (Flink expansion "
+          "service incompatibility).")
     # We just test the expansion but do not execute.
     # pylint: disable=expression-not-assigned
     (
@@ -283,6 +329,11 @@ class FlinkRunnerTest(portable_runner_test.PortableRunnerTest):
             expansion_service=self.get_expansion_service()))
 
   def test_sql(self):
+    if self.environment_type == 'PROCESS':
+      self.skipTest(
+          "Skipping SQL test in PROCESS mode due to "
+          "https://github.com/apache/beam/issues/19461 (Flink expansion "
+          "service incompatibility).")
     with self.create_pipeline() as p:
       output = (
           p

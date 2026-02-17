@@ -175,8 +175,7 @@ public class ResourceManagerUtils {
       throw new RuntimeException("Error cleaning up resources", bubbleException);
     } else if (bubbleException != null) {
       LOG.warn(
-          "Error cleaning up resources. This is not configured to fail the test: {}",
-          bubbleException.getMessage());
+          "Error cleaning up resources. This is not configured to fail the test", bubbleException);
     }
   }
 

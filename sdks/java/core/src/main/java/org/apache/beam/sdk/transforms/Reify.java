@@ -136,6 +136,7 @@ public class Reify {
       KvCoder<K, V> coder = (KvCoder<K, V>) input.getCoder();
       return input
           .apply(
+              // todo #33176 specify additional metadata in the future
               ParDo.of(
                   new DoFn<KV<K, V>, KV<K, ValueInSingleWindow<V>>>() {
                     @ProcessElement
@@ -272,7 +273,7 @@ public class Reify {
    * Returns a {@link PCollection} consisting of a single element, containing the value of the given
    * view in the global window.
    */
-  public static <K, V> PTransform<PBegin, PCollection<V>> viewInGlobalWindow(
+  public static <V> PTransform<PBegin, PCollection<V>> viewInGlobalWindow(
       PCollectionView<V> view, Coder<V> coder) {
     return new ReifyViewInGlobalWindow<>(view, coder);
   }

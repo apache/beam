@@ -27,9 +27,11 @@ from apache_beam.testing.util import equal_to
 
 # Protect against environments where Google Cloud Vision client is not
 # available.
+# pylint: disable=ungrouped-imports
 try:
-  from apache_beam.ml.gcp.visionml import AnnotateImage
   from google.cloud import vision
+
+  from apache_beam.ml.gcp.visionml import AnnotateImage
 except ImportError:
   vision = None
 

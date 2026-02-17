@@ -334,7 +334,7 @@ If you modified/added new Jenkins job definitions in your Pull Request, run the 
 
 As mentioned before, we measure the performance of IOITs by gathering test execution times from Jenkins jobs that run periodically. The consequent results are stored in a database (BigQuery), therefore we can display them in a form of plots.
 
-The dashboard gathering all the results is available here: [Performance Testing Dashboard](http://35.193.202.176/d/1/getting-started?orgId=1&viewPanel=123125)
+The dashboard gathering all the results is available here: [Performance Testing Dashboard](https://metrics.beam.apache.org/d/1/getting-started?orgId=1&viewPanel=123125)
 
 ### Implementing Integration Tests {#implementing-integration-tests}
 
@@ -387,14 +387,6 @@ Guidelines for creating a Beam data store Kubernetes script:
         1.  Official Docker images, because they have security fixes and guaranteed maintenance.
         1.  Non-official Docker images, or images from other providers that have good maintainers (e.g. [quay.io](https://quay.io/)).
 
-#### Jenkins jobs {#jenkins-jobs}
-
-You can find examples of existing IOIT jenkins job definitions in [.test-infra/jenkins](https://github.com/apache/beam/tree/master/.test-infra/jenkins) directory. Look for files called job_PerformanceTest_*.groovy. The most prominent examples are:
-* [JDBC](https://github.com/apache/beam/blob/master/.test-infra/jenkins/job_PerformanceTests_JDBC.groovy) IOIT job
-* [MongoDB](https://github.com/apache/beam/blob/master/.test-infra/jenkins/job_PerformanceTests_MongoDBIO_IT.groovy) IOIT job
-* [File-based](https://github.com/apache/beam/blob/master/.test-infra/jenkins/job_PerformanceTests_FileBasedIO_IT.groovy) IOIT jobs
-
-Notice that there is a utility class helpful in creating the jobs easily without forgetting important steps or repeating code. See [Kubernetes.groovy](https://github.com/apache/beam/blob/master/.test-infra/jenkins/Kubernetes.groovy) for more details.
 
 ### Small Scale and Large Scale Integration Tests {#small-scale-and-large-scale-integration-tests}
 

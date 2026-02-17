@@ -17,11 +17,11 @@
  */
 
 plugins { id 'org.apache.beam.module' }
+applyPythonNature()
 
 description = "Apache Beam :: SDKs :: Python :: Container :: Distroless"
-// Keep these values in sync with sdks/python/container/build.gradle.
-int min_python_version=9
-int max_python_version=12
+int min_python_version=project.ext.minPythonVersion
+int max_python_version=project.ext.maxPythonVersion
 
 
 tasks.register("buildAll") {
@@ -38,7 +38,9 @@ for(int i=min_python_version; i<=max_python_version; ++i) {
         if (cur != min_version) {
             // Enforce ordering to allow the prune step to happen between runs.
             // This will ensure we don't use up too much space (especially in CI environments)
-            mustRunAfter(":sdks:python:container:distroless:push" + prev)
+            if (!project.hasProperty("skip-python-3" + prev + "-images")) {
+                mustRunAfter(":sdks:python:container:distroless:push" + prev)
+            }
         }
         dependsOn ':sdks:python:container:distroless:py' + cur + ':docker'
 
@@ -55,6 +57,8 @@ for(int i=min_python_version; i<=max_python_version; ++i) {
 
 tasks.register("pushAll") {
     for(int ver=min_python_version; ver<=max_python_version; ++ver) {
-        dependsOn ':sdks:python:container:distroless:push3' + ver
+        if (!project.hasProperty("skip-python-3" + ver + "-images")) {
+            dependsOn ':sdks:python:container:distroless:push3' + ver
+        }
     }
 }

@@ -169,7 +169,7 @@ public class ProcessManager {
   public void stopProcess(String id) {
     checkNotNull(id, "Process id must not be null");
     try {
-      Process process = checkNotNull(processes.remove(id), "Process for id does not exist: " + id);
+      Process process = checkNotNull(processes.remove(id), "Process for id does not exist: %s", id);
       stopProcess(id, process);
     } finally {
       synchronized (ALL_PROCESS_MANAGERS) {

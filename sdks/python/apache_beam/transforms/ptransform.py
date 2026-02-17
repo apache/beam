@@ -88,9 +88,9 @@ from apache_beam.utils import python_callable
 if TYPE_CHECKING:
   from apache_beam import coders
   from apache_beam.pipeline import Pipeline
+  from apache_beam.portability.api import beam_runner_api_pb2
   from apache_beam.runners.pipeline_context import PipelineContext
   from apache_beam.transforms.core import Windowing
-  from apache_beam.portability.api import beam_runner_api_pb2
 
 __all__ = [
     'PTransform',
@@ -228,6 +228,9 @@ class _AddMaterializationTransforms(_PValueishTransform):
     from apache_beam import ParDo
 
     class _MaterializeValuesDoFn(DoFn):
+      def __init__(self):
+        self.is_materialize_values_do_fn = True
+
       def process(self, element):
         result.elements.append(element)
 
@@ -411,12 +414,15 @@ class PTransform(WithTypeHints, HasDisplayData, Generic[InputT, OutputT]):
         input_type_hint, 'Type hints for a PTransform')
     return super().with_input_types(input_type_hint)
 
-  def with_output_types(self, type_hint):
+  def with_output_types(self, type_hint, **tagged_type_hints):
     """Annotates the output type of a :class:`PTransform` with a type-hint.
 
     Args:
       type_hint (type): An instance of an allowed built-in type, a custom class,
-        or a :class:`~apache_beam.typehints.typehints.TypeConstraint`.
+        or a :class:`~apache_beam.typehints.typehints.TypeConstraint`. This is
+        the type hint for the main output.
+      **tagged_type_hints: Type hints for tagged outputs. Each keyword argument
+        specifies the type for a tagged output e.g., ``errors=str``.
 
     Raises:
       TypeError: If **type_hint** is not a valid type-hint. See
@@ -427,10 +433,22 @@ class PTransform(WithTypeHints, HasDisplayData, Generic[InputT, OutputT]):
       PTransform: A reference to the instance of this particular
       :class:`PTransform` object. This allows chaining type-hinting related
       methods.
+
+    Example::
+      result = pcoll | beam.ParDo(MyDoFn()).with_output_types(
+          int,  # main output type
+          errors=str,  # 'errors' tagged output type
+          warnings=str  # 'warnings' tagged output type
+      ).with_outputs('errors', 'warnings', main='main')
     """
     type_hint = native_type_compatibility.convert_to_beam_type(type_hint)
     validate_composite_type_param(type_hint, 'Type hints for a PTransform')
-    return super().with_output_types(type_hint)
+    for tag, hint in tagged_type_hints.items():
+      tagged_type_hints[tag] = native_type_compatibility.convert_to_beam_type(
+          hint)
+      validate_composite_type_param(
+          tagged_type_hints[tag], f'Tagged output type hint for {tag!r}')
+    return super().with_output_types(type_hint, **tagged_type_hints)
 
   def with_resource_hints(self, **kwargs):  # type: (...) -> PTransform
     """Adds resource hints to the :class:`PTransform`.
@@ -476,10 +494,11 @@ class PTransform(WithTypeHints, HasDisplayData, Generic[InputT, OutputT]):
     if hints is None or not any(hints):
       return
     arg_hints, kwarg_hints = hints
-    if arg_hints and kwarg_hints:
+    # Output types can have kwargs for tagged output types.
+    if arg_hints and kwarg_hints and input_or_output != 'output':
       raise TypeCheckError(
-          'PTransform cannot have both positional and keyword type hints '
-          'without overriding %s._type_check_%s()' %
+          'PTransform cannot have both positional and keyword input type hints'
+          ' without overriding %s._type_check_%s()' %
           (self.__class__, input_or_output))
     root_hint = (
         arg_hints[0] if len(arg_hints) == 1 else arg_hints or kwarg_hints)
@@ -564,6 +583,7 @@ class PTransform(WithTypeHints, HasDisplayData, Generic[InputT, OutputT]):
     else:
       from apache_beam.transforms.core import Windowing
       from apache_beam.transforms.window import GlobalWindows
+
       # TODO(robertwb): Return something compatible with every windowing?
       return Windowing(GlobalWindows())
 
@@ -587,6 +607,7 @@ class PTransform(WithTypeHints, HasDisplayData, Generic[InputT, OutputT]):
       # pylint: disable=wrong-import-order, wrong-import-position
       from apache_beam import pipeline
       from apache_beam.options.pipeline_options import PipelineOptions
+
       # pylint: enable=wrong-import-order, wrong-import-position
       p = pipeline.Pipeline('DirectRunner', PipelineOptions(sys.argv))
     else:
@@ -607,6 +628,7 @@ class PTransform(WithTypeHints, HasDisplayData, Generic[InputT, OutputT]):
       deferred = not getattr(p.runner, 'is_eager', False)
     # pylint: disable=wrong-import-order, wrong-import-position
     from apache_beam.transforms.core import Create
+
     # pylint: enable=wrong-import-order, wrong-import-position
     replacements = {
         id(v): p | 'CreatePInput%s' % ix >> Create(v, reshuffle=False)
@@ -636,6 +658,7 @@ class PTransform(WithTypeHints, HasDisplayData, Generic[InputT, OutputT]):
     """
     # pylint: disable=wrong-import-order
     from apache_beam import pipeline
+
     # pylint: enable=wrong-import-order
     if isinstance(pvalueish, pipeline.Pipeline):
       pvalueish = pvalue.PBegin(pvalueish)
@@ -744,6 +767,7 @@ class PTransform(WithTypeHints, HasDisplayData, Generic[InputT, OutputT]):
   def to_runner_api(self, context, has_parts=False, **extra_kwargs):
     # type: (PipelineContext, bool, Any) -> beam_runner_api_pb2.FunctionSpec
     from apache_beam.portability.api import beam_runner_api_pb2
+
     # typing: only ParDo supports extra_kwargs
     urn, typed_param = self.to_runner_api_parameter(context, **extra_kwargs)
     if urn == python_urns.GENERIC_COMPOSITE_TRANSFORM and not has_parts:
@@ -789,6 +813,8 @@ class PTransform(WithTypeHints, HasDisplayData, Generic[InputT, OutputT]):
             self,
             enable_best_effort_determinism=context.
             enable_best_effort_deterministic_pickling,
+            enable_stable_code_identifier_pickling=context.
+            enable_stable_code_identifier_pickling,
         ),
     )
 
@@ -872,12 +898,19 @@ class PTransformWithSideInputs(PTransform):
 
     # Ensure fn and side inputs are picklable for remote execution.
     try:
-      self.fn = pickler.loads(pickler.dumps(self.fn))
-    except RuntimeError as e:
-      raise RuntimeError('Unable to pickle fn %s: %s' % (self.fn, e))
+      self.fn = pickler.roundtrip(self.fn)
+    except (RuntimeError, TypeError, Exception) as e:
+      raise RuntimeError(
+          'Unable to pickle fn %s: %s. '
+          'User code must be serializable (picklable) for distributed '
+          'execution. This usually happens when lambdas or closures capture '
+          'non-serializable objects like file handles, database connections, '
+          'or thread locks. Try: (1) using module-level functions instead of '
+          'lambdas, (2) initializing resources in setup() methods, '
+          '(3) checking what your closure captures.' % (self.fn, e)) from e
 
-    self.args = pickler.loads(pickler.dumps(self.args))
-    self.kwargs = pickler.loads(pickler.dumps(self.kwargs))
+    self.args = pickler.roundtrip(self.args)
+    self.kwargs = pickler.roundtrip(self.kwargs)
 
     # For type hints, because loads(dumps(class)) != class.
     self.fn = self._cached_fn
@@ -999,6 +1032,7 @@ class _PTransformFnPTransform(PTransform):
     self._fn = fn
     self._args = args
     self._kwargs = kwargs
+    self._use_backwards_compatible_label = True
 
   def display_data(self):
     res = {
@@ -1027,11 +1061,28 @@ class _PTransformFnPTransform(PTransform):
       pass
     return self._fn(pcoll, *args, **kwargs)
 
-  def default_label(self):
+  def set_options(self, options):
+    self._use_backwards_compatible_label = options.is_compat_version_prior_to(
+        '2.68.0')
+
+  def default_label(self) -> str:
+    # Attempt to give a reasonable name to this transform.
+    # We want it to be reasonably unique, but also not sensitive to
+    # irrelevent parameters to minimize pipeline-to-pipeline variance.
+    # For now, use only the first argument (if any), iff it would not make
+    # the name unwieldy.
     if self._args:
-      return '%s(%s)' % (
-          label_from_callable(self._fn), label_from_callable(self._args[0]))
-    return label_from_callable(self._fn)
+      first_arg_string = label_from_callable(self._args[0])
+      if (self._use_backwards_compatible_label or
+          not isinstance(first_arg_string, str) or len(first_arg_string) <= 19):
+        suffix = '(%s)' % first_arg_string
+      else:
+        suffix = ('(%s...%s)' %
+                  (first_arg_string[:10], first_arg_string[-6:])).replace(
+                      '\n', ' ')
+    else:
+      suffix = ''
+    return label_from_callable(self._fn) + suffix
 
 
 def ptransform_fn(fn):
@@ -1140,6 +1191,10 @@ class _NamedPTransform(PTransform):
 
   def __rrshift__(self, label):
     return _NamedPTransform(self.transform, label)
+
+  def with_resource_hints(self, **kwargs):
+    self.transform.with_resource_hints(**kwargs)
+    return self
 
   def __getattr__(self, attr):
     transform_attr = getattr(self.transform, attr)

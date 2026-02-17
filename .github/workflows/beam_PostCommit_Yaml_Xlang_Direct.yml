@@ -76,11 +76,11 @@ jobs:
           python-version: default
           java-version: '11'
       - name: Set up Cloud SDK
-        uses: google-github-actions/setup-gcloud@v2
+        uses: google-github-actions/setup-gcloud@v3
       - name: run PostCommit Yaml Xlang Direct script
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
-          gradle-command: :sdks:python:postCommitYamlIntegrationTests -PyamlTestSet=${{ matrix.test_set }} -PbeamPythonExtra=ml_test
+          gradle-command: :sdks:python:postCommitYamlIntegrationTests -PyamlTestSet=${{ matrix.test_set }} -PbeamPythonExtra=ml_test,yaml
       - name: Archive Python Test Results
         uses: actions/upload-artifact@v4
         if: failure()

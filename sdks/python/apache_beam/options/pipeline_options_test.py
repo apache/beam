@@ -34,6 +34,7 @@ from apache_beam.options.pipeline_options import GoogleCloudOptions
 from apache_beam.options.pipeline_options import JobServerOptions
 from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.options.pipeline_options import ProfilingOptions
+from apache_beam.options.pipeline_options import StandardOptions
 from apache_beam.options.pipeline_options import TypeOptions
 from apache_beam.options.pipeline_options import WorkerOptions
 from apache_beam.options.pipeline_options import _BeamArgumentParser
@@ -237,6 +238,19 @@ class PipelineOptionsTest(unittest.TestCase):
         options.view_as(PipelineOptionsTest.MockOptions).mock_multi_option,
         expected['mock_multi_option'])
 
+  def test_get_superclass_options(self):
+    flags = ["--mock_option", "mock", "--fake_option", "fake"]
+    options = PipelineOptions(flags=flags).view_as(
+        PipelineOptionsTest.FakeOptions)
+    items = options.get_all_options(current_only=True).items()
+    print(items)
+    self.assertTrue(('fake_option', 'fake') in items)
+    self.assertFalse(('mock_option', 'mock') in items)
+    items = options.view_as(PipelineOptionsTest.MockOptions).get_all_options(
+        current_only=True).items()
+    self.assertFalse(('fake_option', 'fake') in items)
+    self.assertTrue(('mock_option', 'mock') in items)
+
   @parameterized.expand(TEST_CASES)
   def test_subclasses_of_pipeline_options_can_be_instantiated(
       self, flags, expected, _):
@@ -307,6 +321,26 @@ class PipelineOptionsTest(unittest.TestCase):
     result = options_from_dict.get_all_options()
     self.assertEqual(result['test_arg_int'], 5)
     self.assertEqual(result['test_arg_none'], None)
+
+  def test_merging_options(self):
+    opts = PipelineOptions(flags=['--num_workers', '5'])
+    actual_opts = PipelineOptions.from_runner_api(opts.to_runner_api())
+    actual = actual_opts.view_as(WorkerOptions).num_workers
+    self.assertEqual(5, actual)
+
+  def test_merging_options_with_overriden_options(self):
+    opts = PipelineOptions(flags=['--num_workers', '5'])
+    base = PipelineOptions(flags=['--num_workers', '2'])
+    actual_opts = PipelineOptions.from_runner_api(opts.to_runner_api(), base)
+    actual = actual_opts.view_as(WorkerOptions).num_workers
+    self.assertEqual(5, actual)
+
+  def test_merging_options_with_overriden_runner(self):
+    opts = PipelineOptions(flags=['--runner', 'FnApiRunner'])
+    base = PipelineOptions(flags=['--runner', 'Direct'])
+    actual_opts = PipelineOptions.from_runner_api(opts.to_runner_api(), base)
+    actual = actual_opts.view_as(StandardOptions).runner
+    self.assertEqual('Direct', actual)
 
   def test_from_kwargs(self):
     class MyOptions(PipelineOptions):
@@ -405,10 +439,18 @@ class PipelineOptionsTest(unittest.TestCase):
     self.assertEqual(options.get_all_options()['experiments'], None)
 
   def test_worker_options(self):
-    options = PipelineOptions(['--machine_type', 'abc', '--disk_type', 'def'])
+    options = PipelineOptions([
+        '--machine_type',
+        'abc',
+        '--disk_type',
+        'def',
+        '--element_processing_timeout_minutes',
+        '10',
+    ])
     worker_options = options.view_as(WorkerOptions)
     self.assertEqual(worker_options.machine_type, 'abc')
     self.assertEqual(worker_options.disk_type, 'def')
+    self.assertEqual(worker_options.element_processing_timeout_minutes, 10)
 
     options = PipelineOptions(
         ['--worker_machine_type', 'abc', '--worker_disk_type', 'def'])
@@ -723,8 +765,7 @@ class PipelineOptionsTest(unittest.TestCase):
             "store_true. It would be confusing "
             "to the user. Please specify the dest as the "
             "flag_name instead."))
-    from apache_beam.options.pipeline_options import (
-        _FLAG_THAT_SETS_FALSE_VALUE)
+    from apache_beam.options.pipeline_options import _FLAG_THAT_SETS_FALSE_VALUE
 
     self.assertDictEqual(
         _FLAG_THAT_SETS_FALSE_VALUE,
@@ -892,6 +933,124 @@ class PipelineOptionsTest(unittest.TestCase):
           'Invalid GCS path (badGSpath), given for the option: ' \
             'staging_location.'
         ])
+
+  def test_comma_separated_experiments(self):
+    """Test that comma-separated experiments are parsed correctly."""
+    # Test single experiment
+    options = PipelineOptions(['--experiments=abc'])
+    self.assertEqual(['abc'], options.get_all_options()['experiments'])
+
+    # Test comma-separated experiments
+    options = PipelineOptions(['--experiments=abc,def,ghi'])
+    self.assertEqual(['abc', 'def', 'ghi'],
+                     options.get_all_options()['experiments'])
+
+    # Test multiple flags with comma-separated values
+    options = PipelineOptions(
+        ['--experiments=abc,def', '--experiments=ghi,jkl'])
+    self.assertEqual(['abc', 'def', 'ghi', 'jkl'],
+                     options.get_all_options()['experiments'])
+
+    # Test with spaces around commas
+    options = PipelineOptions(['--experiments=abc, def , ghi'])
+    self.assertEqual(['abc', 'def', 'ghi'],
+                     options.get_all_options()['experiments'])
+
+    # Test empty values are filtered out
+    options = PipelineOptions(['--experiments=abc,,def,'])
+    self.assertEqual(['abc', 'def'], options.get_all_options()['experiments'])
+
+  def test_comma_separated_dataflow_service_options(self):
+    """Test that comma-separated dataflow service options are parsed
+    correctly."""
+    # Test single option
+    options = PipelineOptions(['--dataflow_service_options=option1=value1'])
+    self.assertEqual(['option1=value1'],
+                     options.get_all_options()['dataflow_service_options'])
+
+    # Test comma-separated options
+    options = PipelineOptions([
+        '--dataflow_service_options=option1=value1,option2=value2,'
+        'option3=value3'
+    ])
+    self.assertEqual(['option1=value1', 'option2=value2', 'option3=value3'],
+                     options.get_all_options()['dataflow_service_options'])
+
+    # Test multiple flags with comma-separated values
+    options = PipelineOptions([
+        '--dataflow_service_options=option1=value1,option2=value2',
+        '--dataflow_service_options=option3=value3,option4=value4'
+    ])
+    self.assertEqual([
+        'option1=value1', 'option2=value2', 'option3=value3', 'option4=value4'
+    ],
+                     options.get_all_options()['dataflow_service_options'])
+
+
+class CompatVersionTest(unittest.TestCase):
+  def test_is_compat_version_prior_to(self):
+    test_cases = [
+        # Basic comparison cases
+        ("1.0.0", "2.0.0", True),  # v1 < v2 in major
+        ("2.0.0", "1.0.0", False),  # v1 > v2 in major
+        ("1.1.0", "1.2.0", True),  # v1 < v2 in minor
+        ("1.2.0", "1.1.0", False),  # v1 > v2 in minor
+        ("1.0.1", "1.0.2", True),  # v1 < v2 in patch
+        ("1.0.2", "1.0.1", False),  # v1 > v2 in patch
+
+        # Equal versions
+        ("1.0.0", "1.0.0", False),  # Identical
+        ("0.0.0", "0.0.0", False),  # Both zero
+
+        # Different lengths - shorter vs longer
+        ("1.0", "1.0.0", False),  # Should be equal (1.0 = 1.0.0)
+        ("1.0", "1.0.1", True),  # 1.0.0 < 1.0.1
+        ("1.2", "1.2.0", False),  # Should be equal (1.2 = 1.2.0)
+        ("1.2", "1.2.3", True),  # 1.2.0 < 1.2.3
+        ("2", "2.0.0", False),  # Should be equal (2 = 2.0.0)
+        ("2", "2.0.1", True),  # 2.0.0 < 2.0.1
+        ("1", "2.0", True),  # 1.0.0 < 2.0.0
+
+        # Different lengths - longer vs shorter
+        ("1.0.0", "1.0", False),  # Should be equal
+        ("1.0.1", "1.0", False),  # 1.0.1 > 1.0.0
+        ("1.2.0", "1.2", False),  # Should be equal
+        ("1.2.3", "1.2", False),  # 1.2.3 > 1.2.0
+        ("2.0.0", "2", False),  # Should be equal
+        ("2.0.1", "2", False),  # 2.0.1 > 2.0.0
+        ("2.0", "1", False),  # 2.0.0 > 1.0.0
+
+        # Mixed length comparisons
+        ("1.0", "2.0.0", True),  # 1.0.0 < 2.0.0
+        ("2.0", "1.0.0", False),  # 2.0.0 > 1.0.0
+        ("1", "1.0.1", True),  # 1.0.0 < 1.0.1
+        ("1.1", "1.0.9", False),  # 1.1.0 > 1.0.9
+
+        # Large numbers
+        ("1.9.9", "2.0.0", True),  # 1.9.9 < 2.0.0
+        ("10.0.0", "9.9.9", False),  # 10.0.0 > 9.9.9
+        ("1.10.0", "1.9.0", False),  # 1.10.0 > 1.9.0
+        ("1.2.10", "1.2.9", False),  # 1.2.10 > 1.2.9
+
+        # Sequential versions
+        ("1.0.0", "1.0.1", True),
+        ("1.0.1", "1.0.2", True),
+        ("1.0.9", "1.1.0", True),
+        ("1.9.9", "2.0.0", True),
+    ]
+
+    for v1, v2, expected in test_cases:
+      options = PipelineOptions(update_compatibility_version=v1)
+      self.assertEqual(
+          options.is_compat_version_prior_to(v2),
+          expected,
+          msg=f"Failed {v1} < {v2} == {expected}")
+
+    # None case: no update_compatibility_version set
+    options_no_compat = PipelineOptions()
+    self.assertFalse(
+        options_no_compat.is_compat_version_prior_to("1.0.0"),
+        msg="Should return False when update_compatibility_version is not set")
 
 
 if __name__ == '__main__':

@@ -36,6 +36,8 @@ configurations {
 }
 
 dependencies {
+    // TODO(https://github.com/apache/beam/issues/34098) remove when Beam moved to avro 1.12
+    dockerDependency "org.apache.avro:avro:1.12.0"
     dockerDependency project(path: ":sdks:java:extensions:schemaio-expansion-service", configuration: "shadow")
     dockerDependency project(path: ":sdks:java:io:expansion-service", configuration: "shadow")
     dockerDependency project(path: ":sdks:java:io:google-cloud-platform:expansion-service", configuration: "shadow")
@@ -48,6 +50,8 @@ goBuild {
 
 task copyDockerfileDependencies(type: Copy) {
     from configurations.dockerDependency
+    // TODO(https://github.com/apache/beam/issues/34098) remove when Beam moved to avro 1.12
+    rename 'avro-.*.jar', 'avro.jar'
     rename 'beam-sdks-java-extensions-schemaio-expansion-service-.*.jar', 'beam-sdks-java-extensions-schemaio-expansion-service.jar'
     rename 'beam-sdks-java-io-expansion-service-.*.jar', 'beam-sdks-java-io-expansion-service.jar'
     rename 'beam-sdks-java-io-google-cloud-platform-expansion-service-.*.jar', 'beam-sdks-java-io-google-cloud-platform-expansion-service.jar'

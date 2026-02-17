@@ -55,6 +55,7 @@ import org.junit.BeforeClass;
 import org.junit.ClassRule;
 import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.Timeout;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 import org.slf4j.Logger;
@@ -66,6 +67,8 @@ public class SpannerChangeStreamOrderedWithinKeyGloballyIT {
 
   private static final Logger LOG =
       LoggerFactory.getLogger(SpannerChangeStreamOrderedWithinKeyGloballyIT.class);
+
+  @Rule public transient Timeout globalTimeout = Timeout.seconds(3600);
 
   @ClassRule public static final IntegrationTestEnv ENV = new IntegrationTestEnv();
   @Rule public final transient TestPipeline pipeline = TestPipeline.create();

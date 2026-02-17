@@ -33,16 +33,18 @@ from apache_beam.testing.util import equal_to
 
 # pylint: disable=ungrouped-imports
 try:
-  from apache_beam.ml.transforms.embeddings.huggingface import SentenceTransformerEmbeddings
-  from apache_beam.ml.transforms.embeddings.huggingface import InferenceAPIEmbeddings
-  from PIL import Image
   import torch
+  from PIL import Image
+
+  from apache_beam.ml.transforms.embeddings.huggingface import InferenceAPIEmbeddings
+  from apache_beam.ml.transforms.embeddings.huggingface import SentenceTransformerEmbeddings
 except ImportError:
   SentenceTransformerEmbeddings = None  # type: ignore
 
 # pylint: disable=ungrouped-imports
 try:
   import tensorflow_transform as tft
+
   from apache_beam.ml.transforms.tft import ScaleTo01
 except ImportError:
   tft = None
@@ -181,7 +183,7 @@ class SentenceTransformerEmbeddingsTest(unittest.TestCase):
     model_name = DEFAULT_MODEL_NAME
     embedding_config = SentenceTransformerEmbeddings(
         model_name=model_name, columns=[test_query_column])
-    with self.assertRaises(TypeError):
+    with self.assertRaisesRegex(Exception, "Embeddings can only be generated"):
       with beam.Pipeline() as pipeline:
         _ = (
             pipeline
@@ -316,7 +318,7 @@ class SentenceTransformerEmbeddingsTest(unittest.TestCase):
         model_name=IMAGE_MODEL_NAME,
         columns=[test_query_column],
         image_model=True)
-    with self.assertRaises(TypeError):
+    with self.assertRaisesRegex(Exception, "Embeddings can only be generated"):
       with beam.Pipeline() as pipeline:
         _ = (
             pipeline

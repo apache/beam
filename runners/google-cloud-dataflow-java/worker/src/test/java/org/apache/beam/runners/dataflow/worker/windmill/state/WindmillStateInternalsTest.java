@@ -128,6 +128,7 @@ public class WindmillStateInternalsTest {
   private WindmillStateInternals<String> underTest;
   private WindmillStateInternals<String> underTestNewKey;
   private WindmillStateInternals<String> underTestMapViaMultimap;
+  private WindmillTagEncoding windmillTagEncoding;
   private WindmillStateCache cache;
   private WindmillStateCache cacheViaMultimap;
   @Mock private Supplier<Closeable> readStateSupplier;
@@ -216,6 +217,7 @@ public class WindmillStateInternalsTest {
 
   public void resetUnderTest() {
     workToken++;
+    windmillTagEncoding = WindmillTagEncodingV1.instance();
     underTest =
         new WindmillStateInternals<>(
             "dummyKey",
@@ -230,6 +232,7 @@ public class WindmillStateInternalsTest {
                     17L,
                     workToken)
                 .forFamily(STATE_FAMILY),
+            windmillTagEncoding,
             readStateSupplier);
     underTestNewKey =
         new WindmillStateInternals<String>(
@@ -245,6 +248,7 @@ public class WindmillStateInternalsTest {
                     17L,
                     workToken)
                 .forFamily(STATE_FAMILY),
+            windmillTagEncoding,
             readStateSupplier);
     underTestMapViaMultimap =
         new WindmillStateInternals<String>(
@@ -260,6 +264,7 @@ public class WindmillStateInternalsTest {
                     17L,
                     workToken)
                 .forFamily(STATE_FAMILY),
+            windmillTagEncoding,
             readStateSupplier);
   }
 
@@ -272,16 +277,12 @@ public class WindmillStateInternalsTest {
   }
 
   private <T> void waitAndSet(final SettableFuture<T> future, final T value, final long millis) {
-    new Thread(
-            () -> {
-              try {
-                sleepMillis(millis);
-              } catch (InterruptedException e) {
-                throw new RuntimeException("Interrupted before setting", e);
-              }
-              future.set(value);
-            })
-        .run();
+    try {
+      sleepMillis(millis);
+    } catch (InterruptedException e) {
+      throw new RuntimeException("Interrupted before setting", e);
+    }
+    future.set(value);
   }
 
   private WeightedList<String> weightedList(String... elems) {

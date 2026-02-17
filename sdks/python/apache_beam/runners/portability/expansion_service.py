@@ -56,16 +56,8 @@ class ExpansionServiceServicer(
   def Expand(self, request, context=None):
     try:
       options = copy.deepcopy(self._options)
-      request_options = pipeline_options.PipelineOptions.from_runner_api(
-          request.pipeline_options)
-      # TODO(https://github.com/apache/beam/issues/20090): Figure out the
-      # correct subset of options to apply to expansion.
-      if request_options.view_as(
-          pipeline_options.StreamingOptions).update_compatibility_version:
-        options.view_as(
-            pipeline_options.StreamingOptions
-        ).update_compatibility_version = request_options.view_as(
-            pipeline_options.StreamingOptions).update_compatibility_version
+      options = pipeline_options.PipelineOptions.from_runner_api(
+          request.pipeline_options, options)
       pipeline = beam_pipeline.Pipeline(options=options)
 
       def with_pipeline(component, pcoll_id=None):

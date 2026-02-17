@@ -373,6 +373,7 @@ public class FileIO {
   public static MatchAll matchAll() {
     return new AutoValue_FileIO_MatchAll.Builder()
         .setConfiguration(MatchConfiguration.create(EmptyMatchTreatment.ALLOW_IF_WILDCARD))
+        .setOutputParallelization(true)
         .build();
   }
 
@@ -677,11 +678,17 @@ public class FileIO {
       abstract Builder setConfiguration(MatchConfiguration configuration);
 
       abstract MatchAll build();
+
+      abstract Builder setOutputParallelization(boolean b);
     }
 
     /** Like {@link Match#withConfiguration}. */
     public MatchAll withConfiguration(MatchConfiguration configuration) {
       return toBuilder().setConfiguration(configuration).build();
+    }
+    /** Like {@link Match#withOutputParallelization}. */
+    public MatchAll withOutputParallelization(boolean outputParallelization) {
+      return toBuilder().setOutputParallelization(outputParallelization).build();
     }
 
     /** Like {@link Match#withEmptyMatchTreatment}. */
@@ -723,8 +730,15 @@ public class FileIO {
           res = input.apply(createWatchTransform(new ExtractFilenameFn())).apply(Values.create());
         }
       }
-      return res.apply(Reshuffle.viaRandomKey());
+      // Apply Reshuffle conditionally based on the flag
+      if (getOutputParallelization()) {
+        return res.apply(Reshuffle.viaRandomKey());
+      } else {
+        return res;
+      }
     }
+    /** Returns whether to avoid the reshuffle operation. */
+    public abstract boolean getOutputParallelization();
 
     @Override
     public void populateDisplayData(DisplayData.Builder builder) {
@@ -1045,6 +1059,12 @@ public class FileIO {
 
     abstract @Nullable Integer getMaxNumWritersPerBundle();
 
+    abstract @Nullable Integer getBatchSize();
+
+    abstract @Nullable Integer getBatchSizeBytes();
+
+    abstract @Nullable Duration getBatchMaxBufferingDuration();
+
     abstract @Nullable ErrorHandler<BadRecord, ?> getBadRecordErrorHandler();
 
     abstract Builder<DestinationT, UserT> toBuilder();
@@ -1097,6 +1117,13 @@ public class FileIO {
 
       abstract Builder<DestinationT, UserT> setMaxNumWritersPerBundle(
           @Nullable Integer maxNumWritersPerBundle);
+
+      abstract Builder<DestinationT, UserT> setBatchSize(@Nullable Integer batchSize);
+
+      abstract Builder<DestinationT, UserT> setBatchSizeBytes(@Nullable Integer batchSizeBytes);
+
+      abstract Builder<DestinationT, UserT> setBatchMaxBufferingDuration(
+          @Nullable Duration batchMaxBufferingDuration);
 
       abstract Builder<DestinationT, UserT> setBadRecordErrorHandler(
           @Nullable ErrorHandler<BadRecord, ?> badRecordErrorHandler);
@@ -1287,6 +1314,7 @@ public class FileIO {
      */
     public Write<DestinationT, UserT> withNumShards(int numShards) {
       checkArgument(numShards >= 0, "numShards must be non-negative, but was: %s", numShards);
+      checkArgument(!getAutoSharding(), "Cannot set numShards when withAutoSharding() is used");
       if (numShards == 0) {
         return withNumShards(null);
       }
@@ -1297,6 +1325,7 @@ public class FileIO {
      * Like {@link #withNumShards(int)}. Specifying {@code null} means runner-determined sharding.
      */
     public Write<DestinationT, UserT> withNumShards(@Nullable ValueProvider<Integer> numShards) {
+      checkArgument(!getAutoSharding(), "Cannot set numShards when withAutoSharding() is used");
       return toBuilder().setNumShards(numShards).build();
     }
 
@@ -1307,6 +1336,7 @@ public class FileIO {
     public Write<DestinationT, UserT> withSharding(
         PTransform<PCollection<UserT>, PCollectionView<Integer>> sharding) {
       checkArgument(sharding != null, "sharding can not be null");
+      checkArgument(!getAutoSharding(), "Cannot set sharding when withAutoSharding() is used");
       return toBuilder().setSharding(sharding).build();
     }
 
@@ -1323,6 +1353,9 @@ public class FileIO {
     }
 
     public Write<DestinationT, UserT> withAutoSharding() {
+      checkArgument(
+          getNumShards() == null && getSharding() == null,
+          "Cannot use withAutoSharding() when withNumShards() or withSharding() is set");
       return toBuilder().setAutoSharding(true).build();
     }
 
@@ -1350,6 +1383,44 @@ public class FileIO {
     public Write<DestinationT, UserT> withBadRecordErrorHandler(
         ErrorHandler<BadRecord, ?> errorHandler) {
       return toBuilder().setBadRecordErrorHandler(errorHandler).build();
+    }
+
+    /**
+     * Returns a new {@link Write} that will batch the input records using specified batch size. The
+     * default value is {@link WriteFiles#FILE_TRIGGERING_RECORD_COUNT}.
+     *
+     * <p>This option is used only for writing unbounded data with auto-sharding.
+     */
+    public Write<DestinationT, UserT> withBatchSize(@Nullable Integer batchSize) {
+      checkArgument(batchSize > 0, "batchSize must be positive, but was: %s", batchSize);
+      return toBuilder().setBatchSize(batchSize).build();
+    }
+
+    /**
+     * Returns a new {@link Write} that will batch the input records using specified batch size in
+     * bytes. The default value is {@link WriteFiles#FILE_TRIGGERING_BYTE_COUNT}.
+     *
+     * <p>This option is used only for writing unbounded data with auto-sharding.
+     */
+    public Write<DestinationT, UserT> withBatchSizeBytes(@Nullable Integer batchSizeBytes) {
+      checkArgument(
+          batchSizeBytes > 0, "batchSizeBytes must be positive, but was: %s", batchSizeBytes);
+      return toBuilder().setBatchSizeBytes(batchSizeBytes).build();
+    }
+
+    /**
+     * Returns a new {@link Write} that will batch the input records using specified max buffering
+     * duration. The default value is {@link WriteFiles#FILE_TRIGGERING_RECORD_BUFFERING_DURATION}.
+     *
+     * <p>This option is used only for writing unbounded data with auto-sharding.
+     */
+    public Write<DestinationT, UserT> withBatchMaxBufferingDuration(
+        @Nullable Duration batchMaxBufferingDuration) {
+      checkArgument(
+          batchMaxBufferingDuration.isLongerThan(Duration.ZERO),
+          "batchMaxBufferingDuration must be positive, but was: %s",
+          batchMaxBufferingDuration);
+      return toBuilder().setBatchMaxBufferingDuration(batchMaxBufferingDuration).build();
     }
 
     @VisibleForTesting
@@ -1467,6 +1538,15 @@ public class FileIO {
       }
       if (getBadRecordErrorHandler() != null) {
         writeFiles = writeFiles.withBadRecordErrorHandler(getBadRecordErrorHandler());
+      }
+      if (getBatchSize() != null) {
+        writeFiles = writeFiles.withBatchSize(getBatchSize());
+      }
+      if (getBatchSizeBytes() != null) {
+        writeFiles = writeFiles.withBatchSizeBytes(getBatchSizeBytes());
+      }
+      if (getBatchMaxBufferingDuration() != null) {
+        writeFiles = writeFiles.withBatchMaxBufferingDuration(getBatchMaxBufferingDuration());
       }
       return input.apply(writeFiles);
     }

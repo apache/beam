@@ -98,10 +98,10 @@ import org.apache.beam.runners.core.metrics.MonitoringInfoConstants;
 import org.apache.beam.runners.core.metrics.MonitoringInfoMetricName;
 import org.apache.beam.sdk.extensions.gcp.auth.TestCredential;
 import org.apache.beam.sdk.extensions.gcp.options.GcsOptions;
-import org.apache.beam.sdk.extensions.gcp.util.GcsUtil.BatchInterface;
 import org.apache.beam.sdk.extensions.gcp.util.GcsUtil.CreateOptions;
-import org.apache.beam.sdk.extensions.gcp.util.GcsUtil.RewriteOp;
 import org.apache.beam.sdk.extensions.gcp.util.GcsUtil.StorageObjectOrIOException;
+import org.apache.beam.sdk.extensions.gcp.util.GcsUtilV1.BatchInterface;
+import org.apache.beam.sdk.extensions.gcp.util.GcsUtilV1.RewriteOp;
 import org.apache.beam.sdk.extensions.gcp.util.gcsfs.GcsPath;
 import org.apache.beam.sdk.io.fs.MoveOptions.StandardMoveOptions;
 import org.apache.beam.sdk.metrics.MetricName;
@@ -166,7 +166,9 @@ public class GcsUtilTest {
   public void testCreationWithExecutorServiceProvided() {
     GcsOptions pipelineOptions = gcsOptionsWithTestCredential();
     pipelineOptions.setExecutorService(Executors.newCachedThreadPool());
-    assertSame(pipelineOptions.getExecutorService(), pipelineOptions.getGcsUtil().executorService);
+    assertSame(
+        pipelineOptions.getExecutorService(),
+        pipelineOptions.getGcsUtil().delegate.executorService);
   }
 
   @Test
@@ -193,7 +195,7 @@ public class GcsUtilTest {
     GoogleCloudStorage googleCloudStorageMock = Mockito.spy(GoogleCloudStorage.class);
     Mockito.when(googleCloudStorageMock.open(Mockito.any(), Mockito.any()))
         .thenReturn(Mockito.mock(SeekableByteChannel.class));
-    gcsUtil.setCloudStorageImpl(googleCloudStorageMock);
+    gcsUtil.delegate.setCloudStorageImpl(googleCloudStorageMock);
 
     assertEquals(readOptions, pipelineOptions.getGoogleCloudStorageReadOptions());
 
@@ -1000,8 +1002,16 @@ public class GcsUtilTest {
     GcsUtil gcsUtil = pipelineOptions.getGcsUtil();
     GoogleCloudStorageReadOptions readOptions =
         GoogleCloudStorageReadOptions.builder().setFastFailOnNotFound(false).build();
-    SeekableByteChannel channel =
-        gcsUtil.open(GcsPath.fromComponents("testbucket", "testobject"), readOptions);
+
+    gcsUtil.delegate.setCloudStorageImpl(
+        GoogleCloudStorageOptions.builder()
+            .setAppName("Beam")
+            .setGrpcEnabled(true)
+            .setProjectId("my_project")
+            .setReadChannelOptions(readOptions)
+            .build());
+
+    SeekableByteChannel channel = gcsUtil.open(GcsPath.fromComponents("testbucket", "testobject"));
     channel.close();
     channel.close();
   }
@@ -1010,17 +1020,17 @@ public class GcsUtilTest {
   public void testGCSReadMetricsIsSet() {
     GcsOptions pipelineOptions = gcsOptionsWithTestCredential();
     GcsUtil gcsUtil = pipelineOptions.getGcsUtil();
-    gcsUtil.setCloudStorageImpl(
+    GoogleCloudStorageReadOptions readOptions =
+        GoogleCloudStorageReadOptions.builder().setFastFailOnNotFound(true).build();
+    gcsUtil.delegate.setCloudStorageImpl(
         GoogleCloudStorageOptions.builder()
             .setAppName("Beam")
             .setGrpcEnabled(true)
             .setProjectId("my_project")
+            .setReadChannelOptions(readOptions)
             .build());
-    GoogleCloudStorageReadOptions readOptions =
-        GoogleCloudStorageReadOptions.builder().setFastFailOnNotFound(true).build();
     assertThrows(
-        IOException.class,
-        () -> gcsUtil.open(GcsPath.fromComponents("testbucket", "testbucket"), readOptions));
+        IOException.class, () -> gcsUtil.open(GcsPath.fromComponents("testbucket", "testbucket")));
     verifyMetricWasSet("my_project", "testbucket", "GcsGet", "permission_denied", 1);
   }
 
@@ -1029,7 +1039,7 @@ public class GcsUtilTest {
     GcsOptions pipelineOptions = gcsOptionsWithTestCredential();
     GcsUtil gcsUtil = pipelineOptions.getGcsUtil();
     GoogleCloudStorage mockStorage = Mockito.mock(GoogleCloudStorage.class);
-    gcsUtil.setCloudStorageImpl(
+    gcsUtil.delegate.setCloudStorageImpl(
         GoogleCloudStorageOptions.builder()
             .setAppName("Beam")
             .setGrpcEnabled(true)
@@ -1154,7 +1164,7 @@ public class GcsUtilTest {
   public void testMakeRewriteOpsWithOptions() throws IOException {
     GcsOptions gcsOptions = gcsOptionsWithTestCredential();
     GcsUtil gcsUtil = gcsOptions.getGcsUtil();
-    gcsUtil.maxBytesRewrittenPerCall = 1337L;
+    gcsUtil.delegate.maxBytesRewrittenPerCall = 1337L;
 
     LinkedList<RewriteOp> rewrites =
         gcsUtil.makeRewriteOps(makeStrings("s", 1), makeStrings("d", 1), false, false, false);
@@ -1617,11 +1627,67 @@ public class GcsUtilTest {
 
   public static class GcsUtilMock extends GcsUtil {
 
-    public GoogleCloudStorage googleCloudStorage;
-
     public static GcsUtilMock createMockWithMockStorage(PipelineOptions options, byte[] readPayload)
         throws IOException {
       GcsUtilMock gcsUtilMock = createMock(options);
+
+      GcsUtilV1Mock mockLegacy = GcsUtilV1Mock.createMockWithMockStorage(options, readPayload);
+      gcsUtilMock.delegate = mockLegacy;
+
+      return gcsUtilMock;
+    }
+
+    public static GcsUtilMock createMock(PipelineOptions options) {
+      GcsOptions gcsOptions = options.as(GcsOptions.class);
+      Storage.Builder storageBuilder = Transport.newStorageClient(gcsOptions);
+      return new GcsUtilMock(
+          storageBuilder.build(),
+          storageBuilder.getHttpRequestInitializer(),
+          gcsOptions.getExecutorService(),
+          hasExperiment(options, "use_grpc_for_gcs"),
+          gcsOptions.getGcpCredential(),
+          gcsOptions.getGcsUploadBufferSizeBytes(),
+          gcsOptions.getGcsRewriteDataOpBatchLimit(),
+          GcsUtil.GcsCountersOptions.create(
+              gcsOptions.getEnableBucketReadMetricCounter()
+                  ? gcsOptions.getGcsReadCounterPrefix()
+                  : null,
+              gcsOptions.getEnableBucketWriteMetricCounter()
+                  ? gcsOptions.getGcsWriteCounterPrefix()
+                  : null),
+          gcsOptions);
+    }
+
+    private GcsUtilMock(
+        Storage storageClient,
+        HttpRequestInitializer httpRequestInitializer,
+        ExecutorService executorService,
+        Boolean shouldUseGrpc,
+        Credentials credentials,
+        @Nullable Integer uploadBufferSizeBytes,
+        @Nullable Integer rewriteDataOpBatchLimit,
+        GcsUtil.GcsCountersOptions gcsCountersOptions,
+        GcsOptions gcsOptions) {
+      super(
+          storageClient,
+          httpRequestInitializer,
+          executorService,
+          shouldUseGrpc,
+          credentials,
+          uploadBufferSizeBytes,
+          rewriteDataOpBatchLimit,
+          gcsCountersOptions,
+          gcsOptions);
+    }
+  }
+
+  public static class GcsUtilV1Mock extends GcsUtilV1 {
+
+    public GoogleCloudStorage googleCloudStorage;
+
+    public static GcsUtilV1Mock createMockWithMockStorage(
+        PipelineOptions options, byte[] readPayload) throws IOException {
+      GcsUtilV1Mock gcsUtilMock = createMock(options);
       GoogleCloudStorage googleCloudStorageMock = Mockito.mock(GoogleCloudStorage.class);
       gcsUtilMock.googleCloudStorage = googleCloudStorageMock;
       // set the mock in the super object as well
@@ -1639,10 +1705,10 @@ public class GcsUtilTest {
       return gcsUtilMock;
     }
 
-    public static GcsUtilMock createMock(PipelineOptions options) {
+    public static GcsUtilV1Mock createMock(PipelineOptions options) {
       GcsOptions gcsOptions = options.as(GcsOptions.class);
       Storage.Builder storageBuilder = Transport.newStorageClient(gcsOptions);
-      return new GcsUtilMock(
+      return new GcsUtilV1Mock(
           storageBuilder.build(),
           storageBuilder.getHttpRequestInitializer(),
           gcsOptions.getExecutorService(),
@@ -1650,7 +1716,7 @@ public class GcsUtilTest {
           gcsOptions.getGcpCredential(),
           gcsOptions.getGcsUploadBufferSizeBytes(),
           gcsOptions.getGcsRewriteDataOpBatchLimit(),
-          GcsCountersOptions.create(
+          GcsUtilV1.GcsCountersOptions.create(
               gcsOptions.getEnableBucketReadMetricCounter()
                   ? gcsOptions.getGcsReadCounterPrefix()
                   : null,
@@ -1660,7 +1726,7 @@ public class GcsUtilTest {
           gcsOptions.getGoogleCloudStorageReadOptions());
     }
 
-    private GcsUtilMock(
+    private GcsUtilV1Mock(
         Storage storageClient,
         HttpRequestInitializer httpRequestInitializer,
         ExecutorService executorService,
@@ -1668,7 +1734,7 @@ public class GcsUtilTest {
         Credentials credentials,
         @Nullable Integer uploadBufferSizeBytes,
         @Nullable Integer rewriteDataOpBatchLimit,
-        GcsCountersOptions gcsCountersOptions,
+        GcsUtilV1.GcsCountersOptions gcsCountersOptions,
         GoogleCloudStorageReadOptions gcsReadOptions) {
       super(
           storageClient,
@@ -1698,7 +1764,9 @@ public class GcsUtilTest {
     GoogleCloudStorage mockStorage = Mockito.mock(GoogleCloudStorage.class);
     WritableByteChannel mockChannel = Mockito.mock(WritableByteChannel.class);
 
-    gcsUtil.googleCloudStorage = mockStorage;
+    GcsUtilV1Mock mockLegacy = GcsUtilV1Mock.createMock(gcsOptions);
+    mockLegacy.googleCloudStorage = mockStorage;
+    gcsUtil.delegate = mockLegacy;
 
     when(mockStorage.create(any(), any())).thenReturn(mockChannel);
 
@@ -1716,7 +1784,9 @@ public class GcsUtilTest {
 
     GoogleCloudStorage mockStorage = Mockito.mock(GoogleCloudStorage.class);
 
-    gcsUtil.googleCloudStorage = mockStorage;
+    GcsUtilV1Mock mockLegacy = GcsUtilV1Mock.createMock(gcsOptions);
+    mockLegacy.googleCloudStorage = mockStorage;
+    gcsUtil.delegate = mockLegacy;
 
     when(mockStorage.create(any(), any())).thenThrow(new RuntimeException("testException"));
 
@@ -1762,13 +1832,15 @@ public class GcsUtilTest {
     GcsOptions gcsOptions = PipelineOptionsFactory.create().as(GcsOptions.class);
     gcsOptions.setEnableBucketReadMetricCounter(enabled);
     gcsOptions.setGcsReadCounterPrefix("test_counter");
+    if (readOptions != null) {
+      gcsOptions.setGoogleCloudStorageReadOptions(readOptions);
+    }
     byte[] payload = "some_bytes".getBytes(StandardCharsets.UTF_8);
     GcsUtilMock gcsUtil = GcsUtilMock.createMockWithMockStorage(gcsOptions, payload);
     String bucketName = "some_bucket";
     GcsPath gcsPath = new GcsPath(null, bucketName, "o1");
     // act
-    try (SeekableByteChannel byteChannel =
-        readOptions != null ? gcsUtil.open(gcsPath, readOptions) : gcsUtil.open(gcsPath)) {
+    try (SeekableByteChannel byteChannel = gcsUtil.open(gcsPath)) {
       int bytesReadReportedByChannel = byteChannel.read(ByteBuffer.allocate(payload.length));
       long bytesReadReportedByMetric =
           testMetricsContainer

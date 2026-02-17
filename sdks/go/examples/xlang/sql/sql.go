@@ -98,7 +98,7 @@ func main() {
 
 	// Options for the sql transform have to be defined before the Transform call.
 	var opts []sql.Option
-	// Dialect options are "calcite" and "zetasql"
+	// Dialect options is always "calcite"
 	opts = append(opts, sql.Dialect("calcite"))
 	// The expansion address can be specified per-call here or overwritten for all
 	// calls using xlangx.RegisterOverrideForUrn(sqlx.Urn, *expansionAddr).

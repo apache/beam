@@ -30,6 +30,7 @@ import (
 	"os/signal"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"strings"
 	"sync"
 	"syscall"
@@ -116,6 +117,37 @@ func main() {
 	}
 }
 
+// The json string of pipeline options is in the following format.
+// We only focus on experiments here.
+//
+//	{
+//		 "display_data": [
+//		  	{...},
+//		 ],
+//		 "options": {
+//		  	...
+//			  "experiments": [
+//				...
+//			 ],
+//		 }
+//	}
+type PipelineOptionsData struct {
+	Options OptionsData `json:"options"`
+}
+
+type OptionsData struct {
+	Experiments []string `json:"experiments"`
+}
+
+func getExperiments(options string) []string {
+	var opts PipelineOptionsData
+	err := json.Unmarshal([]byte(options), &opts)
+	if err != nil {
+		return nil
+	}
+	return opts.Options.Experiments
+}
+
 func launchSDKProcess() error {
 	ctx := grpcx.WriteWorkerID(context.Background(), *id)
 
@@ -155,6 +187,13 @@ func launchSDKProcess() error {
 		logger.Fatalf(ctx, "Failed to convert pipeline options: %v", err)
 	}
 
+	experiments := getExperiments(options)
+	pipNoBuildIsolation = false
+	if slices.Contains(experiments, "pip_no_build_isolation") {
+		pipNoBuildIsolation = true
+		logger.Printf(ctx, "Disabled build isolation when installing packages with pip")
+	}
+
 	// (2) Retrieve and install the staged packages.
 	//
 	// No log.Fatalf() from here on, otherwise deferred cleanups will not be called!
@@ -188,7 +227,7 @@ func launchSDKProcess() error {
 	if err != nil {
 		fmtErr := fmt.Errorf("failed to retrieve staged files: %v", err)
 		// Send error message to logging service before returning up the call stack
-		logger.Errorf(ctx, fmtErr.Error())
+		logger.Errorf(ctx, "%s", fmtErr.Error())
 		// No need to fail the job if submission_environment_dependencies.txt cannot be loaded
 		if strings.Contains(fmtErr.Error(), "submission_environment_dependencies.txt") {
 			logger.Printf(ctx, "Ignore the error when loading submission_environment_dependencies.txt.")
@@ -214,7 +253,7 @@ func launchSDKProcess() error {
 	if setupErr := installSetupPackages(ctx, logger, fileNames, dir, requirementsFiles); setupErr != nil {
 		fmtErr := fmt.Errorf("failed to install required packages: %v", setupErr)
 		// Send error message to logging service before returning up the call stack
-		logger.Errorf(ctx, fmtErr.Error())
+		logger.Errorf(ctx, "%s", fmtErr.Error())
 		return fmtErr
 	}
 
@@ -500,6 +539,6 @@ func logSubmissionEnvDependencies(ctx context.Context, bufLogger *tools.Buffered
 	if err != nil {
 		return err
 	}
-	bufLogger.Printf(ctx, string(content))
+	bufLogger.Printf(ctx, "%s", string(content))
 	return nil
 }

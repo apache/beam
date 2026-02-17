@@ -73,12 +73,12 @@ public class GcsUtilIT {
         gcsOptions.getGcpTempLocation()
             + String.format(
                 "/GcsUtilIT-%tF-%<tH-%<tM-%<tS-%<tL.testRewriteMultiPart.copy", new Date());
-    gcsUtil.maxBytesRewrittenPerCall = 50L * 1024 * 1024;
-    gcsUtil.numRewriteTokensUsed = new AtomicInteger();
+    gcsUtil.delegate.maxBytesRewrittenPerCall = 50L * 1024 * 1024;
+    gcsUtil.delegate.numRewriteTokensUsed = new AtomicInteger();
 
     gcsUtil.copy(Lists.newArrayList(srcFilename), Lists.newArrayList(dstFilename));
 
-    assertThat(gcsUtil.numRewriteTokensUsed.get(), equalTo(3));
+    assertThat(gcsUtil.delegate.numRewriteTokensUsed.get(), equalTo(3));
     assertThat(
         gcsUtil.getObject(GcsPath.fromUri(srcFilename)).getMd5Hash(),
         equalTo(gcsUtil.getObject(GcsPath.fromUri(dstFilename)).getMd5Hash()));

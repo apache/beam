@@ -17,7 +17,7 @@
 
 """Google Cloud Spanner IO
 
-Experimental; no backwards-compatibility guarantees.
+Deprecated; use apache_beam.io.gcp.spanner module instead.
 
 This is an experimental module for reading and writing data from Google Cloud
 Spanner. Visit: https://cloud.google.com/spanner for more details.
@@ -190,17 +190,18 @@ from apache_beam.transforms import window
 from apache_beam.transforms.display import DisplayDataItem
 from apache_beam.typehints import with_input_types
 from apache_beam.typehints import with_output_types
+from apache_beam.utils.annotations import deprecated
 
 # Protect against environments where spanner library is not available.
 # pylint: disable=wrong-import-order, wrong-import-position, ungrouped-imports
 # pylint: disable=unused-import
 try:
+  from google.api_core.exceptions import ClientError
+  from google.api_core.exceptions import GoogleAPICallError
   from google.cloud.spanner import Client
   from google.cloud.spanner import KeySet
   from google.cloud.spanner_v1 import batch
   from google.cloud.spanner_v1.database import BatchSnapshot
-  from google.api_core.exceptions import ClientError, GoogleAPICallError
-  from apitools.base.py.exceptions import HttpError
 except ImportError:
   Client = None
   KeySet = None
@@ -356,8 +357,8 @@ class _NaiveSpannerReadDoFn(DoFn):
     labels = {
         **self.base_labels,
         monitoring_infos.RESOURCE_LABEL: resource,
-        monitoring_infos.SPANNER_TABLE_ID: table_id
     }
+    if table_id: labels[monitoring_infos.SPANNER_TABLE_ID] = table_id
     service_call_metric = ServiceCallMetric(
         request_count_urn=monitoring_infos.API_REQUEST_COUNT_URN,
         base_labels=labels)
@@ -434,9 +435,6 @@ class _NaiveSpannerReadDoFn(DoFn):
         metric_action(metric_id, 'ok')
       except (ClientError, GoogleAPICallError) as e:
         metric_action(metric_id, e.code.value)
-        raise
-      except HttpError as e:
-        metric_action(metric_id, e)
         raise
 
 
@@ -612,8 +610,8 @@ class _ReadFromPartitionFn(DoFn):
     labels = {
         **self.base_labels,
         monitoring_infos.RESOURCE_LABEL: resource,
-        monitoring_infos.SPANNER_TABLE_ID: table_id
     }
+    if table_id: labels[monitoring_infos.SPANNER_TABLE_ID] = table_id
     service_call_metric = ServiceCallMetric(
         request_count_urn=monitoring_infos.API_REQUEST_COUNT_URN,
         base_labels=labels)
@@ -666,15 +664,13 @@ class _ReadFromPartitionFn(DoFn):
     except (ClientError, GoogleAPICallError) as e:
       self.service_metric(str(e.code.value))
       raise
-    except HttpError as e:
-      self.service_metric(str(e))
-      raise
 
   def teardown(self):
     if self._snapshot:
       self._snapshot.close()
 
 
+@deprecated(since='2.68', current='apache_beam.io.gcp.spanner.ReadFromSpanner')
 class ReadFromSpanner(PTransform):
   """
   A PTransform to perform reads from cloud spanner.
@@ -825,6 +821,8 @@ class ReadFromSpanner(PTransform):
     return res
 
 
+@deprecated(
+    since='2.68', current='apache_beam.io.gcp.spanner.WriteToSpannerSchema')
 class WriteToSpanner(PTransform):
   def __init__(
       self,
@@ -1224,8 +1222,8 @@ class _WriteToSpannerDoFn(DoFn):
     labels = {
         **self.base_labels,
         monitoring_infos.RESOURCE_LABEL: resource,
-        monitoring_infos.SPANNER_TABLE_ID: table_id
     }
+    if table_id: labels[monitoring_infos.SPANNER_TABLE_ID] = table_id
     service_call_metric = ServiceCallMetric(
         request_count_urn=monitoring_infos.API_REQUEST_COUNT_URN,
         base_labels=labels)
@@ -1265,10 +1263,6 @@ class _WriteToSpannerDoFn(DoFn):
     except (ClientError, GoogleAPICallError) as e:
       for service_metric in self.service_metrics.values():
         service_metric.call(str(e.code.value))
-      raise
-    except HttpError as e:
-      for service_metric in self.service_metrics.values():
-        service_metric.call(str(e))
       raise
     else:
       for service_metric in self.service_metrics.values():

@@ -42,7 +42,7 @@ public class CombineFnUtil {
    *
    * <p>The returned {@link CombineFn} cannot be serialized.
    */
-  public static <K, InputT, AccumT, OutputT> CombineFn<InputT, AccumT, OutputT> bindContext(
+  public static <InputT, AccumT, OutputT> CombineFn<InputT, AccumT, OutputT> bindContext(
       CombineFnWithContext<InputT, AccumT, OutputT> combineFn, StateContext<?> stateContext) {
     Context context = CombineContextFactory.createFromStateContext(stateContext);
     return new NonSerializableBoundedCombineFn<>(combineFn, context);

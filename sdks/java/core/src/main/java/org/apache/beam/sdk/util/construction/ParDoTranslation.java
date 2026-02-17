@@ -800,7 +800,7 @@ public class ParDoTranslation {
         .build();
   }
 
-  private static <T> ParDoPayload getParDoPayload(AppliedPTransform<?, ?, ?> transform)
+  private static ParDoPayload getParDoPayload(AppliedPTransform<?, ?, ?> transform)
       throws IOException {
     SdkComponents components = SdkComponents.create(transform.getPipeline().getOptions());
     RunnerApi.PTransform parDoPTransform =

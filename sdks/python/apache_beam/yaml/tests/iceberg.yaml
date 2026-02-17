@@ -26,12 +26,16 @@ pipelines:
         - type: Create
           config:
             elements:
-              - {label: "11a", rank: 0}
-              - {label: "37a", rank: 1}
-              - {label: "389a", rank: 2}
+              - {label: "11a", rank: 0, bool: true}
+              - {label: "37a", rank: 1, bool: false}
+              - {label: "389a", rank: 2, bool: false}
+              - {label: "3821b", rank: 3, bool: true}
         - type: WriteToIceberg
           config:
             table: "default.table"
+            partition_fields:
+              - "bool"
+              - "truncate(label, 2)"
             catalog_name: "some_catalog"
             catalog_properties:
               type: "hadoop"
@@ -44,12 +48,13 @@ pipelines:
           config:
             table: "default.table"
             catalog_name: "some_catalog"
+            filter: "bool = true"
+            keep: ["label"]
             catalog_properties:
               type: "hadoop"
               warehouse: "{TEMP_DIR}/dir"
         - type: AssertEqual
           config:
             elements:
-              - {label: "11a", rank: 0}
-              - {label: "37a", rank: 1}
-              - {label: "389a", rank: 2}
+              - {label: "11a"}
+              - {label: "3821b"}

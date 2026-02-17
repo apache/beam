@@ -29,6 +29,8 @@ import time
 import traceback
 import types
 import typing
+from collections import defaultdict
+from functools import wraps
 from itertools import dropwhile
 
 from apache_beam import coders
@@ -37,6 +39,7 @@ from apache_beam import typehints
 from apache_beam.coders import typecoders
 from apache_beam.internal import pickler
 from apache_beam.internal import util
+from apache_beam.options.pipeline_options import SetupOptions
 from apache_beam.options.pipeline_options import TypeOptions
 from apache_beam.portability import common_urns
 from apache_beam.portability import python_urns
@@ -75,6 +78,7 @@ from apache_beam.utils.timestamp import Duration
 
 if typing.TYPE_CHECKING:
   from google.protobuf import message  # pylint: disable=ungrouped-imports
+
   from apache_beam.io import iobase
   from apache_beam.pipeline import Pipeline
   from apache_beam.runners.pipeline_context import PipelineContext
@@ -820,6 +824,7 @@ class DoFn(WithTypeHints, HasDisplayData, urns.RunnerApiFn):
       process_type_hints = process_type_hints.strip_iterable()
     except ValueError as e:
       raise ValueError('Return value not iterable: %s: %s' % (self, e))
+    process_type_hints = process_type_hints.extract_tagged_outputs()
 
     # Prefer class decorator type hints for backwards compatibility.
     return get_type_hints(self.__class__).with_defaults(process_type_hints)
@@ -1035,6 +1040,7 @@ class CallableWrapperDoFn(DoFn):
       raise TypeCheckError(
           'Return value not iterable: %s: %s' %
           (self.display_data()['fn'].value, e))
+    type_hints = type_hints.extract_tagged_outputs()
     return type_hints
 
   def infer_output_type(self, input_type):
@@ -1504,25 +1510,29 @@ def _check_fn_use_yield_and_return(fn):
     source_code = _get_function_body_without_inners(fn)
     has_yield = False
     has_return = False
-    return_none_warning = (
-        "No iterator is returned by the process method in %s.",
-        fn.__self__.__class__)
+    has_return_none = False
     for line in source_code.split("\n"):
       lstripped_line = line.lstrip()
       if lstripped_line.startswith("yield ") or lstripped_line.startswith(
           "yield("):
         has_yield = True
-      if lstripped_line.startswith("return ") or lstripped_line.startswith(
+      elif lstripped_line.rstrip() == "return":
+        # Return is likely used to exit the function - ok to use with 'yield'.
+        pass
+      elif lstripped_line.startswith("return ") or lstripped_line.startswith(
           "return("):
+        if lstripped_line.rstrip() == "return None" or lstripped_line.rstrip(
+        ) == "return(None)":
+          has_return_none = True
         has_return = True
-        if lstripped_line.startswith(
-            "return None") or lstripped_line.rstrip() == "return":
-          _LOGGER.warning(return_none_warning)
       if has_yield and has_return:
         return True
 
-    if not has_yield and not has_return:
-      _LOGGER.warning(return_none_warning)
+    if has_return_none:
+      _LOGGER.warning(
+          "Process method returned None (element won't be emitted): %s."
+          " Check if intended.",
+          fn.__self__.__class__)
 
     return False
   except Exception as e:
@@ -1595,7 +1605,8 @@ class ParDo(PTransformWithSideInputs):
       timeout=None,
       error_handler=None,
       on_failure_callback: typing.Optional[typing.Callable[
-          [Exception, typing.Any], None]] = None):
+          [Exception, typing.Any], None]] = None,
+      allow_unsafe_userstate_in_process=False):
     """Automatically provides a dead letter output for saving bad inputs.
     This can allow a pipeline to continue successfully rather than fail or
     continuously throw errors on retry when bad elements are encountered.
@@ -1652,6 +1663,13 @@ class ParDo(PTransformWithSideInputs):
           the exception will be of type `TimeoutError`. Be careful with this
           callback - if you set a timeout, it will not apply to the callback,
           and if the callback fails it will not be retried.
+      allow_unsafe_userstate_in_process: If False, user state will not be
+          permitted in the DoFn's process method. This is disabled by default
+          because user state is potentially unsafe with exception handling
+          since it can be successfully stored or cleared even if the associated
+          element fails and is routed to a dead letter queue. Semantics around
+          state in this kind of failure scenario are not well defined and are
+          subject to change.
     """
     args, kwargs = self.raw_side_inputs
     return self.label >> _ExceptionHandlingWrapper(
@@ -1667,7 +1685,9 @@ class ParDo(PTransformWithSideInputs):
         threshold_windowing,
         timeout,
         error_handler,
-        on_failure_callback)
+        on_failure_callback,
+        allow_unsafe_userstate_in_process,
+        self.get_resource_hints())
 
   def with_error_handler(self, error_handler, **exception_handling_kwargs):
     """An alias for `with_exception_handling(error_handler=error_handler, ...)`
@@ -1816,6 +1836,17 @@ class ParDo(PTransformWithSideInputs):
       raise ValueError(
           'Main output tag %r must be different from side output tags %r.' %
           (main, tags))
+    type_hints = self.get_type_hints()
+    declared_tags = set(type_hints.tagged_output_types().keys())
+    requested_tags = set(tags)
+
+    unknown = requested_tags - declared_tags
+    if unknown and declared_tags:  # Only warn if type hints exist
+      logging.warning(
+          "Tags %s requested in with_outputs() but not declared "
+          "in type hints. Declared tags: %s",
+          unknown,
+          declared_tags)
     return _MultiParDo(self, tags, main, allow_unknown_tags)
 
   def _do_fn_info(self):
@@ -2102,8 +2133,14 @@ def Map(fn, *args, **kwargs):  # pylint: disable=invalid-name
             wrapper)
   output_hint = type_hints.simple_output_type(label)
   if output_hint:
+    tagged = {
+        k: typehints.Iterable[v]
+        for k, v in type_hints.tagged_output_types().items()
+    }
     wrapper = with_output_types(
-        typehints.Iterable[_strip_output_annotations(output_hint)])(
+        typehints.Iterable[_strip_output_annotations(
+            output_hint, strip_tagged_output=False)],
+        **tagged)(
             wrapper)
   # pylint: disable=protected-access
   wrapper._argspec_fn = fn
@@ -2171,8 +2208,14 @@ def MapTuple(fn, *args, **kwargs):  # pylint: disable=invalid-name
     pass
   output_hint = type_hints.simple_output_type(label)
   if output_hint:
+    tagged = {
+        k: typehints.Iterable[v]
+        for k, v in type_hints.tagged_output_types().items()
+    }
     wrapper = with_output_types(
-        typehints.Iterable[_strip_output_annotations(output_hint)])(
+        typehints.Iterable[_strip_output_annotations(
+            output_hint, strip_tagged_output=False)],
+        **tagged)(
             wrapper)
 
   # Replace the first (args) component.
@@ -2243,7 +2286,10 @@ def FlatMapTuple(fn, *args, **kwargs):  # pylint: disable=invalid-name
     pass
   output_hint = type_hints.simple_output_type(label)
   if output_hint:
-    wrapper = with_output_types(_strip_output_annotations(output_hint))(wrapper)
+    wrapper = with_output_types(
+        _strip_output_annotations(output_hint, strip_tagged_output=False),
+        **type_hints.tagged_output_types())(
+            wrapper)
 
   # Replace the first (args) component.
   modified_arg_names = ['tuple_element'] + arg_names[-num_defaults:]
@@ -2272,7 +2318,9 @@ class _ExceptionHandlingWrapper(ptransform.PTransform):
       threshold_windowing,
       timeout,
       error_handler,
-      on_failure_callback):
+      on_failure_callback,
+      allow_unsafe_userstate_in_process,
+      resource_hints):
     if partial and use_subprocess:
       raise ValueError('partial and use_subprocess are mutually incompatible.')
     self._fn = fn
@@ -2288,24 +2336,41 @@ class _ExceptionHandlingWrapper(ptransform.PTransform):
     self._timeout = timeout
     self._error_handler = error_handler
     self._on_failure_callback = on_failure_callback
+    self._allow_unsafe_userstate_in_process = allow_unsafe_userstate_in_process
+    self._resource_hints = resource_hints
 
   def expand(self, pcoll):
+    if self._allow_unsafe_userstate_in_process:
+      if self._use_subprocess or self._timeout:
+        # TODO(https://github.com/apache/beam/issues/35976): Implement this
+        raise Exception(
+            'allow_unsafe_userstate_in_process is incompatible with ' +
+            'exception handling done with subprocesses or timeouts. If you ' +
+            'need this feature, comment in ' +
+            'https://github.com/apache/beam/issues/35976')
     if self._use_subprocess:
       wrapped_fn = _SubprocessDoFn(self._fn, timeout=self._timeout)
     elif self._timeout:
       wrapped_fn = _TimeoutDoFn(self._fn, timeout=self._timeout)
     else:
       wrapped_fn = self._fn
-    result = pcoll | ParDo(
+    pardo = ParDo(
         _ExceptionHandlingWrapperDoFn(
             wrapped_fn,
             self._dead_letter_tag,
             self._exc_class,
             self._partial,
-            self._on_failure_callback),
+            self._on_failure_callback,
+            self._allow_unsafe_userstate_in_process,
+        ),
         *self._args,
-        **self._kwargs).with_outputs(
-            self._dead_letter_tag, main=self._main_tag, allow_unknown_tags=True)
+        **self._kwargs,
+    )
+    # This is the fix: propagate hints.
+    pardo.get_resource_hints().update(self._resource_hints)
+
+    result = pcoll | pardo.with_outputs(
+        self._dead_letter_tag, main=self._main_tag, allow_unknown_tags=True)
     #TODO(BEAM-18957): Fix when type inference supports tagged outputs.
     result[self._main_tag].element_type = self._fn.infer_output_type(
         pcoll.element_type)
@@ -2320,11 +2385,15 @@ class _ExceptionHandlingWrapper(ptransform.PTransform):
           else:
             return pcoll
 
+      # Map(lambda) produces a label formatted like this, but it cannot be
+      # changed without breaking update compat. Here, we pin to the transform
+      # name used in the 2.68 release to avoid breaking changes when the line
+      # number changes. Context: https://github.com/apache/beam/pull/36381
       input_count_view = pcoll | 'CountTotal' >> (
-          MaybeWindow() | Map(lambda _: 1)
+          MaybeWindow() | "Map(<lambda at core.py:2346>)" >> Map(lambda _: 1)
           | CombineGlobally(sum).as_singleton_view())
       bad_count_pcoll = result[self._dead_letter_tag] | 'CountBad' >> (
-          MaybeWindow() | Map(lambda _: 1)
+          MaybeWindow() | "Map(<lambda at core.py:2349>)" >> Map(lambda _: 1)
           | CombineGlobally(sum).without_defaults())
 
       def check_threshold(bad, total, threshold, window=DoFn.WindowParam):
@@ -2346,12 +2415,43 @@ class _ExceptionHandlingWrapper(ptransform.PTransform):
 
 class _ExceptionHandlingWrapperDoFn(DoFn):
   def __init__(
-      self, fn, dead_letter_tag, exc_class, partial, on_failure_callback):
+      self,
+      fn,
+      dead_letter_tag,
+      exc_class,
+      partial,
+      on_failure_callback,
+      allow_unsafe_userstate_in_process):
     self._fn = fn
     self._dead_letter_tag = dead_letter_tag
     self._exc_class = exc_class
     self._partial = partial
     self._on_failure_callback = on_failure_callback
+
+    # Wrap process and expose any top level state params so that process can
+    # handle state and timers.
+    if allow_unsafe_userstate_in_process:
+
+      @wraps(self._fn.process)
+      def process_wrapper(self, *args, **kwargs):
+        return self.exception_handling_wrapper_do_fn_custom_process(
+            *args, **kwargs)
+
+      self.process = types.MethodType(process_wrapper, self)
+    else:
+      self.process = self.exception_handling_wrapper_do_fn_custom_process
+      process_sig = inspect.signature(self._fn.process)
+      for name, param in process_sig.parameters.items():
+        if isinstance(param.default, (DoFn.StateParam, DoFn.TimerParam)):
+          logging.warning(
+              'State or timer parameter {} detected in process method of ' +
+              '{}. State and timers are unsupported when using ' +
+              'with_exception_handling and may lead to errors. To enable ' +
+              'state and timers with limited consistency guarantees, pass ' +
+              'in the allow_unsafe_userstate_in_process parameters to the ' +
+              'with_exception_handling method.',
+              name,
+              self.fn)
 
   def __getattribute__(self, name):
     if (name.startswith('__') or name in self.__dict__ or
@@ -2360,7 +2460,7 @@ class _ExceptionHandlingWrapperDoFn(DoFn):
     else:
       return getattr(self._fn, name)
 
-  def process(self, *args, **kwargs):
+  def exception_handling_wrapper_do_fn_custom_process(self, *args, **kwargs):
     try:
       result = self._fn.process(*args, **kwargs)
       if not self._partial:
@@ -2372,7 +2472,8 @@ class _ExceptionHandlingWrapperDoFn(DoFn):
         try:
           self._on_failure_callback(exn, args[0])
         except Exception as e:
-          logging.warning('on_failure_callback failed with error: %s', e)
+          logging.warning(
+              'on_failure_callback failed with error: %s', e, exc_info=True)
       yield pvalue.TaggedOutput(
           self._dead_letter_tag,
           (
@@ -2608,7 +2709,8 @@ class _TimeoutDoFn(DoFn):
       self._pool = concurrent.futures.ThreadPoolExecutor(10)
 
     # Import here to avoid circular dependency
-    from apache_beam.runners.worker.statesampler import get_current_tracker, set_current_tracker
+    from apache_beam.runners.worker.statesampler import get_current_tracker
+    from apache_beam.runners.worker.statesampler import set_current_tracker
 
     # State sampler/tracker is stored as a thread local variable, and is used
     # when incrementing counter metrics.
@@ -2927,6 +3029,21 @@ class CombinePerKey(PTransformWithSideInputs):
   Returns:
     A PObject holding the result of the combine operation.
   """
+  def __new__(cls, *args, **kwargs):
+    def has_side_inputs():
+      return (
+          any(isinstance(arg, pvalue.AsSideInput) for arg in args) or
+          any(isinstance(arg, pvalue.AsSideInput) for arg in kwargs.values()))
+
+    if has_side_inputs():
+      # If the CombineFn has deferred side inputs, the python SDK
+      # doesn't implement it.
+      # Use a ParDo-based CombinePerKey instead.
+      from apache_beam.transforms.combiners import LiftedCombinePerKey
+      combine_fn, *args = args
+      return LiftedCombinePerKey(combine_fn, args, kwargs)
+    return super(CombinePerKey, cls).__new__(cls)
+
   def with_hot_key_fanout(self, fanout):
     """A per-key combine operation like self but with two levels of aggregation.
 
@@ -2975,6 +3092,10 @@ class CombinePerKey(PTransformWithSideInputs):
     return lambda element, *args, **kwargs: None
 
   def expand(self, pcoll):
+    # When using gbek, don't allow overriding default implementation
+    gbek_option = (pcoll.pipeline._options.view_as(SetupOptions).gbek)
+    self._using_gbek = (gbek_option is not None and len(gbek_option) > 0)
+
     args, kwargs = util.insert_values_in_args(
         self.args, self.kwargs, self.side_inputs)
     return pcoll | GroupByKey() | 'Combine' >> CombineValues(
@@ -3000,7 +3121,9 @@ class CombinePerKey(PTransformWithSideInputs):
       self,
       context,  # type: PipelineContext
   ):
-    # type: (...) -> typing.Tuple[str, beam_runner_api_pb2.CombinePayload]
+    # type: (...) -> tuple[str, typing.Optional[typing.Union[message.Message, bytes, str]]]
+    if getattr(self, '_using_gbek', False):
+      return super().to_runner_api_parameter(context)
     if self.args or self.kwargs:
       from apache_beam.transforms.combiners import curry_combine_fn
       combine_fn = curry_combine_fn(self.fn, self.args, self.kwargs)
@@ -3178,7 +3301,7 @@ class _CombinePerKeyWithHotKeyFanout(PTransform):
         try:
           self._combine_fn_copy = copy.deepcopy(combine_fn)
         except Exception:
-          self._combine_fn_copy = pickler.loads(pickler.dumps(combine_fn))
+          self._combine_fn_copy = pickler.roundtrip(combine_fn)
 
         self.setup = self._combine_fn_copy.setup
         self.create_accumulator = self._combine_fn_copy.create_accumulator
@@ -3199,7 +3322,7 @@ class _CombinePerKeyWithHotKeyFanout(PTransform):
         try:
           self._combine_fn_copy = copy.deepcopy(combine_fn)
         except Exception:
-          self._combine_fn_copy = pickler.loads(pickler.dumps(combine_fn))
+          self._combine_fn_copy = pickler.roundtrip(combine_fn)
 
         self.setup = self._combine_fn_copy.setup
         self.create_accumulator = self._combine_fn_copy.create_accumulator
@@ -3246,6 +3369,11 @@ class GroupByKey(PTransform):
 
   The implementation here is used only when run on the local direct runner.
   """
+  def __init__(self, label=None):
+    self._replaced_by_gbek = False
+    self._inside_gbek = False
+    super().__init__(label)
+
   class ReifyWindows(DoFn):
     def process(
         self, element, window=DoFn.WindowParam, timestamp=DoFn.TimestampParam):
@@ -3263,7 +3391,29 @@ class GroupByKey(PTransform):
       return typehints.KV[
           key_type, typehints.WindowedValue[value_type]]  # type: ignore[misc]
 
+  def get_windowing(self, inputs):
+    # Switch to the continuation trigger associated with the current trigger.
+    windowing = inputs[0].windowing
+    triggerfn = windowing.triggerfn.get_continuation_trigger()
+    return Windowing(
+        windowfn=windowing.windowfn,
+        triggerfn=triggerfn,
+        accumulation_mode=windowing.accumulation_mode,
+        timestamp_combiner=windowing.timestamp_combiner,
+        allowed_lateness=windowing.allowed_lateness,
+        environment_id=windowing.environment_id)
+
   def expand(self, pcoll):
+    replace_with_gbek_secret = (
+        pcoll.pipeline._options.view_as(SetupOptions).gbek)
+    if replace_with_gbek_secret is not None and not self._inside_gbek:
+      self._replaced_by_gbek = True
+      from apache_beam.transforms.util import GroupByEncryptedKey
+      from apache_beam.transforms.util import Secret
+
+      secret = Secret.parse_secret_option(replace_with_gbek_secret)
+      return (pcoll | "Group by encrypted key" >> GroupByEncryptedKey(secret))
+
     from apache_beam.transforms.trigger import DataLossReason
     from apache_beam.transforms.trigger import DefaultTrigger
     windowing = pcoll.windowing
@@ -3310,7 +3460,11 @@ class GroupByKey(PTransform):
     return typehints.KV[key_type, typehints.Iterable[value_type]]
 
   def to_runner_api_parameter(self, unused_context):
-    # type: (PipelineContext) -> typing.Tuple[str, None]
+    # type: (PipelineContext) -> tuple[str, typing.Optional[typing.Union[message.Message, bytes, str]]]
+    # if we're containing a GroupByEncryptedKey, don't allow runners to
+    # recognize this transform as a GBEK so that it doesn't get replaced.
+    if self._replaced_by_gbek:
+      return super().to_runner_api_parameter(unused_context)
     return common_urns.primitives.GROUP_BY_KEY.urn, None
 
   @staticmethod
@@ -3429,9 +3583,14 @@ class GroupBy(PTransform):
 
   def expand(self, pcoll):
     input_type = pcoll.element_type or typing.Any
+    # Map(lambda) produces a label formatted like this, but it cannot be
+    # changed without breaking update compat. Here, we pin to the transform
+    # name used in the 2.68 release to avoid breaking changes when the line
+    # number changes. Context: https://github.com/apache/beam/pull/36381
     return (
         pcoll
-        | Map(lambda x: (self._key_func()(x), x)).with_output_types(
+        | "Map(<lambda at core.py:3503>)" >>
+        Map(lambda x: (self._key_func()(x), x)).with_output_types(
             typehints.Tuple[self._key_type_hint(input_type), input_type])
         | GroupByKey())
 
@@ -3486,14 +3645,19 @@ class _GroupAndAggregate(PTransform):
     key_type_hint = self._grouping.force_tuple_keys(True)._key_type_hint(
         pcoll.element_type)
 
+    # Map(lambda) produces a label formatted like this, but it cannot be
+    # changed without breaking update compat. Here, we pin to the transform
+    # name used in the 2.68 release to avoid breaking changes when the line
+    # number changes. Context: https://github.com/apache/beam/pull/36381
     return (
         pcoll
-        | Map(lambda x: (key_func(x), value_func(x))).with_output_types(
+        | "Map(<lambda at core.py:3560>)" >>
+        Map(lambda x: (key_func(x), value_func(x))).with_output_types(
             typehints.Tuple[key_type_hint, typing.Any])
         | CombinePerKey(
             TupleCombineFn(
                 *[combine_fn for _, combine_fn, __ in self._aggregations]))
-        | MapTuple(
+        | "MapTuple(<lambda at core.py:3565>)" >> MapTuple(
             lambda key, value: _dynamic_named_tuple('Result', result_fields)
             (*(key + value))))
 
@@ -3509,7 +3673,7 @@ class Select(PTransform):
 
   is the same as
 
-      pcoll | beam.Map(lambda x: beam.Row(a=x.a, b=foo(x)))
+      pcoll | 'label' >> beam.Map(lambda x: beam.Row(a=x.a, b=foo(x)))
   """
   def __init__(
       self,
@@ -3531,8 +3695,13 @@ class Select(PTransform):
     return 'ToRows(%s)' % ', '.join(name for name, _ in self._fields)
 
   def expand(self, pcoll):
+    # Map(lambda) produces a label formatted like this, but it cannot be
+    # changed without breaking update compat. Here, we pin to the transform
+    # name used in the 2.68 release to avoid breaking changes when the line
+    # number changes. Context: https://github.com/apache/beam/pull/36381
     return (
-        _MaybePValueWithErrors(pcoll, self._exception_handling_args) | Map(
+        _MaybePValueWithErrors(pcoll, self._exception_handling_args)
+        | "Map(<lambda at core.py:3605>)" >> Map(
             lambda x: pvalue.Row(
                 **{
                     name: expr(x)
@@ -3573,7 +3742,13 @@ class Partition(PTransformWithSideInputs):
     """A DoFn that applies a PartitionFn."""
     def process(self, element, partitionfn, n, *args, **kwargs):
       partition = partitionfn.partition_for(element, n, *args, **kwargs)
-      if not 0 <= partition < n:
+      import numbers
+      if isinstance(partition,
+                    bool) or not isinstance(partition, numbers.Integral):
+        raise ValueError(
+            f"PartitionFn yielded a '{type(partition).__name__}' "
+            "when it should only yield integers")
+      if not 0 <= int(partition) < n:
         raise ValueError(
             'PartitionFn specified out-of-bounds partition index: '
             '%d not in [0, %d)' % (partition, n))
@@ -3619,7 +3794,9 @@ class Windowing(object):
     """
     global AccumulationMode, DefaultTrigger  # pylint: disable=global-variable-not-assigned
     # pylint: disable=wrong-import-order, wrong-import-position
-    from apache_beam.transforms.trigger import AccumulationMode, DefaultTrigger
+    from apache_beam.transforms.trigger import AccumulationMode
+    from apache_beam.transforms.trigger import DefaultTrigger
+
     # pylint: enable=wrong-import-order, wrong-import-position
     if triggerfn is None:
       triggerfn = DefaultTrigger()
@@ -3849,6 +4026,15 @@ class Flatten(PTransform):
       raise ValueError(
           'Input to Flatten must be an iterable. '
           'Got a value of type %s instead.' % type(pvalueish))
+
+    # Spot check to see if any of the items are iterables of PCollections
+    # and raise an error if so. This is always a user-error
+    for idx, item in enumerate(pvalueish):
+      if isinstance(item, (list, tuple)) and any(
+          isinstance(sub_item, pvalue.PCollection) for sub_item in item):
+        raise TypeError(
+            'Inputs to Flatten cannot include an iterable of PCollections. '
+            f'(input at index {idx}: "{item}")')
     return pvalueish, pvalueish
 
   def expand(self, pcolls):
@@ -3946,9 +4132,41 @@ class Create(PTransform):
   def infer_output_type(self, unused_input_type):
     if not self.values:
       return typehints.Any
-    return typehints.Union[[
-        trivial_inference.instance_to_type(v) for v in self.values
-    ]]
+
+    # No field data - just use default Union.
+    if not hasattr(self.values[0], 'as_dict'):
+      return typehints.Union[[
+          trivial_inference.instance_to_type(v) for v in self.values
+      ]]
+
+    first_fields = self.values[0].as_dict().keys()
+
+    # Save field types for each field
+    field_types_by_field = defaultdict(set)
+    for row in self.values:
+      row_dict = row.as_dict()
+      for field in first_fields:
+        field_types_by_field[field].add(
+            trivial_inference.instance_to_type(row_dict.get(field)))
+
+    # Determine the appropriate type for each field
+    final_fields = []
+    for field in first_fields:
+      field_types = field_types_by_field[field]
+      non_none_types = {t for t in field_types if t is not type(None)}
+
+      if len(non_none_types) > 1:
+        final_type = typehints.Union[tuple(non_none_types)]
+      elif len(non_none_types) == 1 and len(field_types) == 1:
+        final_type = non_none_types.pop()
+      elif len(non_none_types) == 1 and len(field_types) == 2:
+        final_type = typehints.Optional[non_none_types.pop()]
+      else:
+        raise TypeError("No types found for field %s", field)
+
+      final_fields.append((field, final_type))
+
+    return row_type.RowTypeConstraint.from_fields(final_fields)
 
   def get_output_type(self):
     return (
@@ -3972,10 +4190,15 @@ class Create(PTransform):
         else:
           return pcoll
 
+    # Map(lambda) produces a label formatted like this, but it cannot be
+    # changed without breaking update compat. Here, we pin to the transform
+    # name used in the 2.68 release to avoid breaking changes when the line
+    # number changes. Context: https://github.com/apache/beam/pull/36381
     return (
         pbegin
         | Impulse()
-        | FlatMap(lambda _: serialized_values).with_output_types(bytes)
+        | "FlatMap(<lambda at core.py:4094>)" >>
+        FlatMap(lambda _: serialized_values).with_output_types(bytes)
         | MaybeReshuffle().with_output_types(bytes)
         | Map(self._coder.decode).with_output_types(self.get_output_type()))
 
@@ -4027,12 +4250,15 @@ class Impulse(PTransform):
     return Impulse()
 
 
-def _strip_output_annotations(type_hint):
+def _strip_output_annotations(type_hint, strip_tagged_output=True):
   # TODO(robertwb): These should be parameterized types that the
   # type inferencer understands.
   # Then we can replace them with the correct element types instead of
   # using Any. Refer to typehints.WindowedValue when doing this.
-  annotations = (TimestampedValue, WindowedValue, pvalue.TaggedOutput)
+  annotations = [TimestampedValue, WindowedValue]
+  if strip_tagged_output:
+    annotations.append(pvalue.TaggedOutput)
+  annotations = tuple(annotations)
 
   contains_annotation = False
 

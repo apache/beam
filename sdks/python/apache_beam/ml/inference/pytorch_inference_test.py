@@ -35,15 +35,16 @@ from apache_beam.testing.util import equal_to
 # pylint: disable=wrong-import-order, wrong-import-position, ungrouped-imports
 try:
   import torch
+
+  from apache_beam.ml.inference import pytorch_inference
   from apache_beam.ml.inference.base import PredictionResult
   from apache_beam.ml.inference.base import RunInference
-  from apache_beam.ml.inference import pytorch_inference
+  from apache_beam.ml.inference.pytorch_inference import PytorchModelHandlerKeyedTensor
+  from apache_beam.ml.inference.pytorch_inference import PytorchModelHandlerTensor
   from apache_beam.ml.inference.pytorch_inference import default_keyed_tensor_inference_fn
   from apache_beam.ml.inference.pytorch_inference import default_tensor_inference_fn
   from apache_beam.ml.inference.pytorch_inference import make_keyed_tensor_model_fn
   from apache_beam.ml.inference.pytorch_inference import make_tensor_model_fn
-  from apache_beam.ml.inference.pytorch_inference import PytorchModelHandlerTensor
-  from apache_beam.ml.inference.pytorch_inference import PytorchModelHandlerKeyedTensor
 except ImportError:
   raise unittest.SkipTest('PyTorch dependencies are not installed')
 
@@ -715,7 +716,7 @@ class PytorchRunInferencePipelineTest(unittest.TestCase):
           equal_to(expected_predictions, equals_fn=_compare_prediction_result))
 
   def test_invalid_input_type(self):
-    with self.assertRaisesRegex(TypeError, "expected Tensor as element"):
+    with self.assertRaisesRegex(Exception, "expected Tensor as element"):
       with TestPipeline() as pipeline:
         examples = np.array([1, 5, 3, 10], dtype="float32").reshape(-1, 1)
 

@@ -18,7 +18,10 @@
 package org.apache.beam.sdk.expansion.service;
 
 import static org.apache.beam.sdk.util.Preconditions.checkArgumentNotNull;
+import static org.apache.beam.sdk.util.construction.BeamUrns.getUrn;
 
+import java.io.ByteArrayInputStream;
+import java.io.IOException;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -27,11 +30,14 @@ import java.util.stream.Collectors;
 import org.apache.beam.model.pipeline.v1.ExternalTransforms;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.sdk.coders.RowCoder;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PortablePipelineOptions;
+import org.apache.beam.sdk.schemas.SchemaTranslation;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.util.construction.BeamUrns;
 import org.apache.beam.sdk.util.construction.Environments;
+import org.apache.beam.sdk.util.construction.PTransformTranslation;
 import org.apache.beam.sdk.util.construction.resources.PipelineResources;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionList;
@@ -40,6 +46,7 @@ import org.apache.beam.sdk.values.PDone;
 import org.apache.beam.sdk.values.PInput;
 import org.apache.beam.sdk.values.POutput;
 import org.apache.beam.sdk.values.PValue;
+import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.vendor.grpc.v1p69p0.com.google.protobuf.InvalidProtocolBufferException;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
@@ -127,7 +134,30 @@ public interface TransformProvider<InputT extends PInput, OutputT extends POutpu
       ExternalTransforms.SchemaTransformPayload payload;
       try {
         payload = ExternalTransforms.SchemaTransformPayload.parseFrom(spec.getPayload());
-        return payload.getIdentifier();
+        if (PTransformTranslation.MANAGED_TRANSFORM_URN.equals(payload.getIdentifier())) {
+          try {
+            // ManagedSchemaTransform includes a schema field transform_identifier that includes the
+            // underlying schema
+            // transform ID so we special case that here.
+            Row configRow =
+                RowCoder.of(SchemaTranslation.schemaFromProto(payload.getConfigurationSchema()))
+                    .decode(new ByteArrayInputStream(payload.getConfigurationRow().toByteArray()));
+
+            for (String field : configRow.getSchema().getFieldNames()) {
+              if (field.equals("transform_identifier")) {
+                return configRow.getValue(field);
+              }
+            }
+            throw new RuntimeException(
+                "Expected the ManagedTransform schema to include a field named "
+                    + "'transform_identifier' but received "
+                    + configRow);
+          } catch (IOException e) {
+            throw new RuntimeException(e);
+          }
+        } else {
+          return payload.getIdentifier();
+        }
       } catch (InvalidProtocolBufferException e) {
         throw new IllegalArgumentException(
             "Invalid payload type for URN "
@@ -142,7 +172,28 @@ public interface TransformProvider<InputT extends PInput, OutputT extends POutpu
     ExpansionServiceConfig config =
         options.as(ExpansionServiceOptions.class).getExpansionServiceConfig();
     String transformUniqueID = getTransformUniqueID(spec);
-    if (config.getDependencies().containsKey(transformUniqueID)) {
+
+    boolean isManagedExpansion = false;
+    if (getUrn(ExternalTransforms.ExpansionMethods.Enum.SCHEMA_TRANSFORM).equals(spec.getUrn())) {
+      try {
+        ExternalTransforms.SchemaTransformPayload schemaTransformPayload =
+            ExternalTransforms.SchemaTransformPayload.parseFrom(spec.getPayload());
+        isManagedExpansion =
+            PTransformTranslation.MANAGED_TRANSFORM_URN.equals(
+                schemaTransformPayload.getIdentifier());
+      } catch (InvalidProtocolBufferException e) {
+        throw new RuntimeException(e);
+      }
+    }
+
+    // Providing specific dependencies for expansion if possible.
+    // For managed transforms expansion, we only do this if useExpansionServiceConfigForDependencies
+    // option
+    // is specified.
+    if (transformUniqueID != null
+        && config.getDependencies().containsKey(transformUniqueID)
+        && (!isManagedExpansion
+            || options.as(ExpansionServiceOptions.class).getUseConfigDependenciesForManaged())) {
       List<String> updatedDependencies =
           config.getDependencies().get(transformUniqueID).stream()
               .map(dependency -> dependency.getPath())

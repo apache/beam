@@ -59,10 +59,13 @@ import org.slf4j.LoggerFactory;
 /**
  * A {@link PipelineRunner} that executes the operations in the {@link Pipeline} into an equivalent
  * Samza plan.
+ *
+ * @deprecated The support for Samza is scheduled for removal in Beam 3.0.
  */
 @SuppressWarnings({
   "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
+@Deprecated
 public class SamzaRunner extends PipelineRunner<SamzaPipelineResult> {
   private static final Logger LOG = LoggerFactory.getLogger(SamzaRunner.class);
   private static final String BEAM_DOT_GRAPH = "beamDotGraph";

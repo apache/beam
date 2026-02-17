@@ -1,0 +1,12 @@
+{
+  "name": "jamm",
+  "enabled": true,
+  "options": {
+    "java_arguments": [
+      "--add-modules=jamm",
+      "--module-path=/opt/apache/beam/jars/jamm.jar",
+      "--add-opens=java.base/java.lang=jamm",
+      "--add-opens=java.base/java.util=jamm"
+    ]
+  }
+}

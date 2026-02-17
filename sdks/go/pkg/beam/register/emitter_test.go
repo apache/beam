@@ -103,7 +103,7 @@ func TestEmitter3(t *testing.T) {
 
 func TestEmit1(t *testing.T) {
 	e := &emit1[int]{n: &elementProcessor{}}
-	e.Init(context.Background(), []typex.Window{}, mtime.ZeroTimestamp)
+	e.Init(context.Background(), typex.NoFiringPane(), []typex.Window{}, mtime.ZeroTimestamp)
 	fn := e.Value().(func(int))
 	fn(3)
 	if got, want := e.n.(*elementProcessor).inFV.Elm, 3; got != want {
@@ -119,7 +119,7 @@ func TestEmit1(t *testing.T) {
 
 func TestEmit2(t *testing.T) {
 	e := &emit2[int, string]{n: &elementProcessor{}}
-	e.Init(context.Background(), []typex.Window{}, mtime.ZeroTimestamp)
+	e.Init(context.Background(), typex.NoFiringPane(), []typex.Window{}, mtime.ZeroTimestamp)
 	fn := e.Value().(func(int, string))
 	fn(3, "hello")
 	if got, want := e.n.(*elementProcessor).inFV.Elm, 3; got != want {
@@ -135,7 +135,7 @@ func TestEmit2(t *testing.T) {
 
 func TestEmit1WithTimestamp(t *testing.T) {
 	e := &emit1WithTimestamp[int]{n: &elementProcessor{}}
-	e.Init(context.Background(), []typex.Window{}, mtime.ZeroTimestamp)
+	e.Init(context.Background(), typex.NoFiringPane(), []typex.Window{}, mtime.ZeroTimestamp)
 	fn := e.Value().(func(typex.EventTime, int))
 	fn(mtime.MaxTimestamp, 3)
 	if got, want := e.n.(*elementProcessor).inFV.Elm, 3; got != want {
@@ -151,7 +151,7 @@ func TestEmit1WithTimestamp(t *testing.T) {
 
 func TestEmit2WithTimestamp(t *testing.T) {
 	e := &emit2WithTimestamp[int, string]{n: &elementProcessor{}}
-	e.Init(context.Background(), []typex.Window{}, mtime.ZeroTimestamp)
+	e.Init(context.Background(), typex.NoFiringPane(), []typex.Window{}, mtime.ZeroTimestamp)
 	fn := e.Value().(func(typex.EventTime, int, string))
 	fn(mtime.MaxTimestamp, 3, "hello")
 	if got, want := e.n.(*elementProcessor).inFV.Elm, 3; got != want {

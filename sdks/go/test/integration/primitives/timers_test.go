@@ -32,6 +32,16 @@ func TestTimers_EventTime_Unbounded(t *testing.T) {
 	ptest.BuildAndRun(t, TimersEventTimeUnbounded)
 }
 
+func TestTimers_EventTime_WithOutputTimestamp(t *testing.T) {
+	integration.CheckFilters(t)
+	ptest.BuildAndRun(t, TimersEventTime_WithOutputTimestamp)
+}
+
+func TestTimers_EventTime_WithNoOutputTimestamp(t *testing.T) {
+	integration.CheckFilters(t)
+	ptest.BuildAndRun(t, TimersEventTime_WithNoOutputTimestamp)
+}
+
 func TestTimers_ProcessingTime_Infinity(t *testing.T) {
 	integration.CheckFilters(t)
 	ptest.BuildAndRun(t, TimersProcessingTimeTestStream_Infinity)
@@ -40,4 +50,9 @@ func TestTimers_ProcessingTime_Infinity(t *testing.T) {
 func TestTimers_ProcessingTime_Bounded(t *testing.T) {
 	integration.CheckFilters(t)
 	ptest.BuildAndRun(t, TimersProcessingTime_Bounded)
+}
+
+func TestTimers_ProcessingTime_Unbounded(t *testing.T) {
+	integration.CheckFilters(t)
+	ptest.BuildAndRun(t, TimersProcessingTime_Unbounded)
 }

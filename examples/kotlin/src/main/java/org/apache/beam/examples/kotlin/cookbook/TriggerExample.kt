@@ -486,10 +486,8 @@ object TriggerExample {
 
         @ProcessElement
         @Throws(Exception::class)
-        @SuppressFBWarnings("DMI_RANDOM_USED_ONLY_ONCE")
         fun processElement(c: ProcessContext) {
             var timestamp = Instant.now()
-            val random = Random()
             if (random.nextDouble() < THRESHOLD) {
                 val range = MAX_DELAY - MIN_DELAY
                 val delayInMinutes = random.nextInt(range) + MIN_DELAY
@@ -504,6 +502,7 @@ object TriggerExample {
             // MIN_DELAY and MAX_DELAY in minutes.
             private const val MIN_DELAY = 1
             private const val MAX_DELAY = 100
+            private val random = Random()
         }
     }
 

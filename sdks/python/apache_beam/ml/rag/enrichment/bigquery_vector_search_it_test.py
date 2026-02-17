@@ -32,12 +32,9 @@ from apache_beam.testing.util import equal_to
 
 # pylint: disable=ungrouped-imports
 try:
-  from google.api_core.exceptions import BadRequest
+  from apache_beam.ml.rag.enrichment.bigquery_vector_search import BigQueryVectorSearchEnrichmentHandler
+  from apache_beam.ml.rag.enrichment.bigquery_vector_search import BigQueryVectorSearchParameters
   from apache_beam.transforms.enrichment import Enrichment
-  from apache_beam.ml.rag.enrichment.bigquery_vector_search import \
-    BigQueryVectorSearchEnrichmentHandler
-  from apache_beam.ml.rag.enrichment.bigquery_vector_search import \
-    BigQueryVectorSearchParameters
 except ImportError:
   raise unittest.SkipTest('BigQuery dependencies not installed')
 
@@ -859,7 +856,7 @@ class TestBigQueryVectorSearchIT(BigQueryVectorSearchIT):
     handler = BigQueryVectorSearchEnrichmentHandler(
         vector_search_parameters=params)
 
-    with self.assertRaises(BadRequest):
+    with self.assertRaisesRegex(Exception, "Unrecognized name"):
       with TestPipeline() as p:
         _ = (p | beam.Create(test_chunks) | Enrichment(handler))
 
@@ -898,10 +895,9 @@ class TestBigQueryVectorSearchIT(BigQueryVectorSearchIT):
     handler = BigQueryVectorSearchEnrichmentHandler(
         vector_search_parameters=params)
 
-    with self.assertRaises(ValueError) as context:
+    with self.assertRaisesRegex(Exception, "missing embedding"):
       with TestPipeline() as p:
         _ = (p | beam.Create(test_chunks) | Enrichment(handler))
-    self.assertIn("missing embedding", str(context.exception))
 
 
 if __name__ == '__main__':

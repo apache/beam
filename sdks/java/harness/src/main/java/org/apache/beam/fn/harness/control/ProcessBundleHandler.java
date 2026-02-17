@@ -445,8 +445,17 @@ public class ProcessBundleHandler {
                     String timerFamilyId,
                     org.apache.beam.sdk.coders.Coder<Timer<T>> coder,
                     FnDataReceiver<Timer<T>> receiver) {
+                  ExecutionStateSampler.ExecutionState executionState =
+                      pCollectionConsumerRegistry.getProcessingExecutionState(
+                          pTransformId, pTransform.getUniqueName());
+                  FnDataReceiver<Timer<T>> wrappedReceiver =
+                      (Timer<T> timer) -> {
+                        try (AutoCloseable ignored = executionState.scopedActivate()) {
+                          receiver.accept(timer);
+                        }
+                      };
                   addTimerEndpoint.accept(
-                      TimerEndpoint.create(pTransformId, timerFamilyId, coder, receiver));
+                      TimerEndpoint.create(pTransformId, timerFamilyId, coder, wrappedReceiver));
                 }
 
                 @Override
@@ -589,10 +598,10 @@ public class ProcessBundleHandler {
       return BeamFnApi.InstructionResponse.newBuilder().setProcessBundle(response);
     } catch (Exception e) {
       LOG.debug(
-          "Error processing bundle {} with bundleProcessor for {} after exception: {}",
+          "Error processing bundle {} with bundleProcessor for {} after exception",
           request.getInstructionId(),
           request.getProcessBundle().getProcessBundleDescriptorId(),
-          e.getMessage());
+          e);
       if (bundleProcessor != null) {
         // Make sure we clean up from the active set of bundle processors.
         bundleProcessorCache.discard(bundleProcessor);

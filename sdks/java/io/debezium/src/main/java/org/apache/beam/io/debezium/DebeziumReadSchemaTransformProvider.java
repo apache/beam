@@ -23,7 +23,6 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
-import java.util.Objects;
 import java.util.stream.Collectors;
 import org.apache.beam.sdk.coders.RowCoder;
 import org.apache.beam.sdk.schemas.Schema;
@@ -97,8 +96,7 @@ public class DebeziumReadSchemaTransformProvider
                   + ". Unable to select a JDBC driver for it. Supported Databases are: "
                   + String.join(", ", connectors));
         }
-        Class<?> connectorClass =
-            Objects.requireNonNull(Connectors.valueOf(configuration.getDatabase())).getConnector();
+        Class<?> connectorClass = Connectors.valueOf(configuration.getDatabase()).getConnector();
         DebeziumIO.ConnectorConfiguration connectorConfiguration =
             DebeziumIO.ConnectorConfiguration.create()
                 .withUsername(configuration.getUsername())

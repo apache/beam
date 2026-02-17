@@ -22,6 +22,7 @@ import java.util.Collections;
 import java.util.Objects;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
+import org.apache.beam.sdk.values.CausedByDrain;
 import org.apache.beam.sdk.values.WindowedValue;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.MoreObjects;
 import org.checkerframework.checker.nullness.qual.Nullable;
@@ -47,6 +48,21 @@ public class ValueInEmptyWindows<T> implements WindowedValue<T> {
   @Override
   public PaneInfo getPaneInfo() {
     return PaneInfo.NO_FIRING;
+  }
+
+  @Override
+  public @Nullable String getRecordId() {
+    return null;
+  }
+
+  @Override
+  public @Nullable Long getRecordOffset() {
+    return null;
+  }
+
+  @Override
+  public CausedByDrain causedByDrain() {
+    return CausedByDrain.NORMAL;
   }
 
   @Override

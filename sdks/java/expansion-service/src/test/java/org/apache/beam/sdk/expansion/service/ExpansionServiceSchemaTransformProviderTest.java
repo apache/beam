@@ -23,14 +23,18 @@ import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertTrue;
 
 import com.google.auto.service.AutoService;
+import java.net.URL;
 import java.util.ArrayList;
 import java.util.List;
 import org.apache.beam.model.expansion.v1.ExpansionApi;
+import org.apache.beam.model.jobmanagement.v1.ArtifactApi;
 import org.apache.beam.model.pipeline.v1.ExternalTransforms;
 import org.apache.beam.model.pipeline.v1.ExternalTransforms.ExpansionMethods;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
+import org.apache.beam.runners.fnexecution.artifact.ArtifactRetrievalService;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.CoderException;
+import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.schemas.JavaFieldSchema;
 import org.apache.beam.sdk.schemas.Schema;
@@ -51,14 +55,18 @@ import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.util.CoderUtils;
 import org.apache.beam.sdk.util.construction.PTransformTranslation;
 import org.apache.beam.sdk.util.construction.ParDoTranslation;
+import org.apache.beam.sdk.util.construction.PipelineOptionsTranslation;
 import org.apache.beam.sdk.util.construction.PipelineTranslation;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionRowTuple;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.grpc.v1p69p0.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.grpc.v1p69p0.com.google.protobuf.InvalidProtocolBufferException;
+import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.stub.StreamObserver;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.io.Resources;
+import org.junit.Before;
 import org.junit.Test;
 
 /** Tests for {@link ExpansionServiceSchemaTransformProvider}. */
@@ -85,7 +93,9 @@ public class ExpansionServiceSchemaTransformProviderTest {
           Field.of("int2", FieldType.INT32),
           Field.of("int1", FieldType.INT32));
 
-  private ExpansionService expansionService = new ExpansionService();
+  private ExpansionService expansionService = null;
+  private ArtifactRetrievalService artifactRetrievalService = null;
+  private static final int TEST_BUFFER_SIZE = 1 << 10;
 
   @DefaultSchema(JavaFieldSchema.class)
   public static class TestSchemaTransformConfiguration {
@@ -301,6 +311,17 @@ public class ExpansionServiceSchemaTransformProviderTest {
     }
   }
 
+  @Before
+  public void setUp() {
+    PipelineOptions options = PipelineOptionsFactory.create();
+    URL expansionServiceConfigFile = Resources.getResource("./test_expansion_service_config.yaml");
+    String configPath = expansionServiceConfigFile.getPath();
+    options.as(ExpansionServiceOptions.class).setExpansionServiceConfigFile(configPath);
+
+    expansionService = new ExpansionService(options);
+    artifactRetrievalService = new ArtifactRetrievalService(TEST_BUFFER_SIZE);
+  }
+
   @Test
   public void testSchemaTransformDiscovery() {
     ExpansionApi.DiscoverSchemaTransformRequest discoverRequest =
@@ -372,6 +393,73 @@ public class ExpansionServiceSchemaTransformProviderTest {
     assertEquals(1, expandedTransform.getInputsCount());
     assertEquals(1, expandedTransform.getOutputsCount());
     verifyLeafTransforms(response, 1);
+  }
+
+  @Test
+  public void testDependenciesFromConfig() throws Exception {
+    Pipeline p = Pipeline.create();
+
+    p.getOptions().as(ExpansionServiceOptions.class).setUseConfigDependenciesForManaged(true);
+
+    p.apply(Impulse.create());
+    RunnerApi.Pipeline pipelineProto = PipelineTranslation.toProto(p);
+
+    String inputPcollId =
+        Iterables.getOnlyElement(
+            Iterables.getOnlyElement(pipelineProto.getComponents().getTransformsMap().values())
+                .getOutputsMap()
+                .values());
+    Row configRow =
+        Row.withSchema(TEST_SCHEMATRANSFORM_CONFIG_SCHEMA)
+            .withFieldValue("int1", 111)
+            .withFieldValue("int2", 222)
+            .withFieldValue("str1", "aaa")
+            .withFieldValue("str2", "bbb")
+            .build();
+
+    ExpansionApi.ExpansionRequest request =
+        ExpansionApi.ExpansionRequest.newBuilder()
+            .setComponents(pipelineProto.getComponents())
+            .setPipelineOptions(PipelineOptionsTranslation.toProto(p.getOptions()))
+            .setTransform(
+                RunnerApi.PTransform.newBuilder()
+                    .setUniqueName(TEST_NAME)
+                    .setSpec(createSpec("dummy_id", configRow))
+                    .putInputs("input1", inputPcollId))
+            .setNamespace(TEST_NAMESPACE)
+            .build();
+
+    ExpansionApi.ExpansionResponse response = expansionService.expand(request);
+    RunnerApi.Environment environment =
+        response.getComponents().getEnvironmentsMap().get("namespacebeam:env:docker:v1");
+    RunnerApi.ArtifactInformation artifact = environment.getDependencies(0);
+    ArtifactApi.ResolveArtifactsRequest artifactRequest =
+        ArtifactApi.ResolveArtifactsRequest.newBuilder().addArtifacts(artifact).build();
+    List<RunnerApi.ArtifactInformation> resolved = new ArrayList<>();
+
+    StreamObserver<ArtifactApi.ResolveArtifactsResponse> responseObserver =
+        new StreamObserver<ArtifactApi.ResolveArtifactsResponse>() {
+          @Override
+          public void onNext(ArtifactApi.ResolveArtifactsResponse resolveArtifactsResponse) {
+            resolved.addAll(resolveArtifactsResponse.getReplacementsList());
+          }
+
+          @Override
+          public void onError(Throwable throwable) {
+            throw new RuntimeException("Unexpected error");
+          }
+
+          @Override
+          public void onCompleted() {}
+        };
+
+    artifactRetrievalService.resolveArtifacts(artifactRequest, responseObserver);
+    assertEquals(1, resolved.size());
+
+    RunnerApi.ArtifactFilePayload payload =
+        RunnerApi.ArtifactFilePayload.parseFrom(resolved.get(0).getTypePayload());
+
+    assertEquals("beam_testing_mock_artifact/my_dummy_schematransform_dep1.jar", payload.getPath());
   }
 
   @Test

@@ -92,4 +92,48 @@ pipelines:
               - {name: "Alice", age: 30, score: 95.5}
               - {name: "Bob", age: 25, score: 88.0}
 
-
+  # Validate a Beam Row with a predefined schema, nulls, and error handling
+  - pipeline:
+      type: composite
+      transforms:
+        - type: Create
+          config:
+            elements:
+              - {name: "Alice", age: 30, score: 95.5}
+              - {name: "Bob", age: 25}
+              - {name: "Charlie", age: 27, score: "apple"}
+        - type: ValidateWithSchema
+          input: Create
+          config:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                age:
+                  type: integer
+                score:
+                  type: number
+            error_handling:
+              output: invalid_rows
+        # ValidateWithSchema outputs the element, error msg, and traceback, so
+        # MapToFields is needed to easily assert downstream.
+        - type: MapToFields
+          input: ValidateWithSchema.invalid_rows
+          config:
+            language: python
+            fields:
+              name: "element.name"
+              age: "element.age"
+              score: "element.score"
+        - type: AssertEqual
+          input: ValidateWithSchema
+          config:
+            elements:
+              - {name: "Alice", age: 30, score: 95.5}
+              - {name: "Bob", age: 25}
+        - type: AssertEqual
+          input: MapToFields
+          config:
+            elements:
+              - {name: "Charlie", age: 27, score: "apple"}

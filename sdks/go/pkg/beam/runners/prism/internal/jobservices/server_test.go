@@ -20,6 +20,7 @@ import (
 	"errors"
 	"sync"
 	"testing"
+	"time"
 
 	jobpb "github.com/apache/beam/sdks/v2/go/pkg/beam/model/jobmanagement_v1"
 	pipepb "github.com/apache/beam/sdks/v2/go/pkg/beam/model/pipeline_v1"
@@ -81,15 +82,28 @@ func TestServer_JobLifecycle(t *testing.T) {
 
 // Validates that invoking Cancel cancels a running job.
 func TestServer_RunThenCancel(t *testing.T) {
-	var called sync.WaitGroup
-	called.Add(1)
+	var canceled sync.WaitGroup
+	var running sync.WaitGroup
+	canceled.Add(1)
+	running.Add(1)
 	undertest := NewServer(0, func(j *Job) {
-		defer called.Done()
-		j.state.Store(jobpb.JobState_RUNNING)
-		if errors.Is(context.Cause(j.RootCtx), ErrCancel) {
-			j.SendMsg("pipeline canceled " + j.String())
-			j.Canceled()
-			return
+		defer canceled.Done()
+		j.Running()
+		running.Done()
+		for {
+			select {
+			case <-j.RootCtx.Done():
+				// The context was canceled. The goroutine "woke up."
+				// We check the reason for the cancellation.
+				if errors.Is(context.Cause(j.RootCtx), ErrCancel) {
+					j.SendMsg("pipeline canceled " + j.String())
+					j.Canceled()
+				}
+				return
+
+			case <-time.After(1 * time.Second):
+				// Just wait a little bit to receive the cancel signal
+			}
 		}
 	})
 	ctx := context.Background()
@@ -121,6 +135,9 @@ func TestServer_RunThenCancel(t *testing.T) {
 		t.Fatalf("server.Run() = returned empty preparation ID, want non-empty")
 	}
 
+	// wait until the job is running (i.e. j.Running() is called)
+	running.Wait()
+
 	cancelResp, err := undertest.Cancel(ctx, &jobpb.CancelJobRequest{
 		JobId: runResp.GetJobId(),
 	})
@@ -132,7 +149,8 @@ func TestServer_RunThenCancel(t *testing.T) {
 		t.Fatalf("server.Canceling() = %v, want %v", cancelResp.State, jobpb.JobState_CANCELLING)
 	}
 
-	called.Wait()
+	// wait until the job is canceled (i.e. j.Canceled() is called)
+	canceled.Wait()
 
 	stateResp, err := undertest.GetState(ctx, &jobpb.GetJobStateRequest{JobId: runResp.GetJobId()})
 	if err != nil {

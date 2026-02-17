@@ -57,7 +57,8 @@ class ParquetTable extends SchemaBaseBeamTable implements Serializable {
   @Override
   public PCollection<Row> buildIOReader(PBegin begin) {
     final Schema schema = AvroUtils.toAvroSchema(table.getSchema());
-    Read read = ParquetIO.read(schema).withBeamSchemas(true).from(table.getLocation() + "/*");
+    String filePattern = resolveFilePattern(table.getLocation());
+    Read read = ParquetIO.read(schema).withBeamSchemas(true).from(filePattern);
     return begin.apply("ParquetIORead", read).apply("ToRows", Convert.toRows());
   }
 
@@ -65,7 +66,8 @@ class ParquetTable extends SchemaBaseBeamTable implements Serializable {
   public PCollection<Row> buildIOReader(
       PBegin begin, BeamSqlTableFilter filters, List<String> fieldNames) {
     final Schema schema = AvroUtils.toAvroSchema(table.getSchema());
-    Read read = ParquetIO.read(schema).withBeamSchemas(true).from(table.getLocation() + "/*");
+    String filePattern = resolveFilePattern(table.getLocation());
+    Read read = ParquetIO.read(schema).withBeamSchemas(true).from(filePattern);
     if (!fieldNames.isEmpty()) {
       Schema projectionSchema = projectSchema(schema, fieldNames);
       LOG.info("Projecting fields schema: {}", projectionSchema);
@@ -121,5 +123,12 @@ class ParquetTable extends SchemaBaseBeamTable implements Serializable {
   @Override
   public ProjectSupport supportsProjects() {
     return ProjectSupport.WITH_FIELD_REORDERING;
+  }
+
+  private String resolveFilePattern(String location) {
+    if (location.endsWith("/")) {
+      return location + "*";
+    }
+    return location;
   }
 }

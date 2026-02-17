@@ -95,9 +95,7 @@ class HBaseRowMutationsCoder extends StructuredCoder<RowMutations> implements Se
    * @throws @UnknownKeyFor@NonNull@Initialized NonDeterministicException
    */
   @Override
-  public void verifyDeterministic() {
-    return;
-  }
+  public void verifyDeterministic() {}
 
   private static MutationType getType(Mutation mutation) {
     if (mutation instanceof Put) {

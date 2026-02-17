@@ -123,13 +123,11 @@ public class StreamingWordExtract {
     Pipeline pipeline = Pipeline.create(options);
 
     String tableSpec =
-        new StringBuilder()
-            .append(options.getProject())
-            .append(":")
-            .append(options.getBigQueryDataset())
-            .append(".")
-            .append(options.getBigQueryTable())
-            .toString();
+        options.getProject()
+            + ":"
+            + options.getBigQueryDataset()
+            + "."
+            + options.getBigQueryTable();
     pipeline
         .apply("ReadLines", TextIO.read().from(options.getInputFile()))
         .apply(ParDo.of(new ExtractWords()))

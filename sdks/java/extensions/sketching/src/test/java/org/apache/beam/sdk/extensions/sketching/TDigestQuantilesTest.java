@@ -122,7 +122,7 @@ public class TDigestQuantilesTest {
     Assert.assertEquals(3000, res.size());
   }
 
-  private <T> boolean encodeDecodeEquals(MergingDigest tDigest) throws IOException {
+  private boolean encodeDecodeEquals(MergingDigest tDigest) throws IOException {
     MergingDigest decoded = CoderUtils.clone(new MergingDigestCoder(), tDigest);
 
     boolean equal = true;

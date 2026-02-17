@@ -35,6 +35,7 @@ public interface WorkItemScheduler {
    * @param workItem {@link WorkItem} to be processed.
    * @param watermarks processing watermarks for the workItem.
    * @param processingContext for processing the workItem.
+   * @param drainMode is job is draining.
    * @param getWorkStreamLatencies Latencies per processing stage for the WorkItem for reporting
    *     back to Streaming Engine backend.
    */
@@ -43,5 +44,6 @@ public interface WorkItemScheduler {
       long serializedWorkItemSize,
       Watermarks watermarks,
       Work.ProcessingContext processingContext,
+      boolean drainMode,
       ImmutableList<LatencyAttribution> getWorkStreamLatencies);
 }

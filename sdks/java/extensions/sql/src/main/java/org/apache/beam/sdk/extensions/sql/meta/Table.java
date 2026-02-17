@@ -24,6 +24,7 @@ import java.util.List;
 import org.apache.beam.sdk.extensions.sql.TableUtils;
 import org.apache.beam.sdk.schemas.Schema;
 import org.checkerframework.checker.nullness.qual.Nullable;
+import org.checkerframework.dataflow.qual.Pure;
 
 /** Represents the metadata of a {@code BeamSqlTable}. */
 @AutoValue
@@ -39,7 +40,7 @@ public abstract class Table implements Serializable {
 
   public abstract @Nullable String getComment();
 
-  public abstract @Nullable String getLocation();
+  public abstract @Pure @Nullable String getLocation();
 
   public abstract ObjectNode getProperties();
 

@@ -34,6 +34,7 @@ func init() {
 	register.DoFn3x1[state.Provider, string, int, string](&valueStateClearFn{})
 	register.DoFn3x1[state.Provider, string, int, string](&bagStateFn{})
 	register.DoFn3x1[state.Provider, string, int, string](&bagStateClearFn{})
+	register.DoFn3x1[state.Provider, string, int, string](&bagStateBlindWriteFn{})
 	register.DoFn3x1[state.Provider, string, int, string](&combiningStateFn{})
 	register.DoFn3x1[state.Provider, string, int, string](&mapStateFn{})
 	register.DoFn3x1[state.Provider, string, int, string](&mapStateClearFn{})
@@ -209,6 +210,45 @@ func BagStateParDoClear(s beam.Scope) {
 	keyed := beam.ParDo(s, pairWithOne, in)
 	counts := beam.ParDo(s, &bagStateClearFn{State1: state.MakeBagState[int]("key1")}, keyed)
 	passert.Equals(s, counts, "apple: 0", "pear: 0", "apple: 1", "apple: 2", "pear: 1", "apple: 3", "apple: 0", "pear: 2", "pear: 3", "pear: 0", "apple: 1", "pear: 1")
+}
+
+type bagStateBlindWriteFn struct {
+	State1 state.Bag[int]
+}
+
+func (f *bagStateBlindWriteFn) ProcessElement(s state.Provider, w string, c int) string {
+	err := f.State1.Add(s, 1)
+	if err != nil {
+		panic(err)
+	}
+	i, ok, err := f.State1.Read(s)
+	if err != nil {
+		panic(err)
+	}
+	if !ok {
+		i = []int{}
+	}
+	sum := 0
+	for _, val := range i {
+		sum += val
+	}
+
+	// Bonus "non-blind" write
+	err = f.State1.Add(s, 1)
+	if err != nil {
+		panic(err)
+	}
+
+	return fmt.Sprintf("%s: %v", w, sum)
+}
+
+// BagStateBlindWriteParDo tests a DoFn that uses bag state, but performs a
+// blind write to the state before reading.
+func BagStateBlindWriteParDo(s beam.Scope) {
+	in := beam.Create(s, "apple", "pear", "peach", "apple", "apple", "pear")
+	keyed := beam.ParDo(s, pairWithOne, in)
+	counts := beam.ParDo(s, &bagStateBlindWriteFn{}, keyed)
+	passert.Equals(s, counts, "apple: 1", "pear: 1", "peach: 1", "apple: 3", "apple: 5", "pear: 3")
 }
 
 type combiningStateFn struct {

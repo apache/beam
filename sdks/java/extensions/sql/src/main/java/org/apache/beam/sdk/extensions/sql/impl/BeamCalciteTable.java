@@ -27,39 +27,36 @@ import org.apache.beam.sdk.extensions.sql.impl.rel.BeamLogicalConvention;
 import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils;
 import org.apache.beam.sdk.extensions.sql.meta.BeamSqlTable;
 import org.apache.beam.sdk.options.PipelineOptions;
-import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.adapter.java.AbstractQueryableTable;
-import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.linq4j.QueryProvider;
-import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.linq4j.Queryable;
-import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.plan.RelOptCluster;
-import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.plan.RelOptTable;
-import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.prepare.Prepare;
-import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rel.RelNode;
-import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rel.core.TableModify;
-import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rel.type.RelDataType;
-import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rel.type.RelDataTypeFactory;
-import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rex.RexNode;
-import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.schema.ModifiableTable;
-import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.schema.SchemaPlus;
-import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.schema.TranslatableTable;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.adapter.java.AbstractQueryableTable;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.linq4j.QueryProvider;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.linq4j.Queryable;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.plan.RelOptCluster;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.plan.RelOptTable;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.prepare.Prepare;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.rel.RelNode;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.rel.core.TableModify;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.rel.type.RelDataType;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.rel.type.RelDataTypeFactory;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.rex.RexNode;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.schema.ModifiableTable;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.schema.SchemaPlus;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.schema.TranslatableTable;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** Adapter from {@link BeamSqlTable} to a calcite Table. */
-@SuppressWarnings({
-  "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
-  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
-})
 public class BeamCalciteTable extends AbstractQueryableTable
     implements ModifiableTable, TranslatableTable {
   private final BeamSqlTable beamTable;
   // These two options should be unified.
   // https://issues.apache.org/jira/projects/BEAM/issues/BEAM-7590
   private final Map<String, String> pipelineOptionsMap;
-  private PipelineOptions pipelineOptions;
+  private @Nullable PipelineOptions pipelineOptions;
 
   BeamCalciteTable(
       BeamSqlTable beamTable,
       Map<String, String> pipelineOptionsMap,
-      PipelineOptions pipelineOptions) {
+      @Nullable PipelineOptions pipelineOptions) {
     super(Object[].class);
     this.beamTable = beamTable;
     this.pipelineOptionsMap = pipelineOptionsMap;
@@ -117,7 +114,7 @@ public class BeamCalciteTable extends AbstractQueryableTable
   }
 
   @Override
-  public Collection getModifiableCollection() {
+  public @Nullable Collection getModifiableCollection() {
     return null;
   }
 
@@ -128,8 +125,8 @@ public class BeamCalciteTable extends AbstractQueryableTable
       Prepare.CatalogReader catalogReader,
       RelNode child,
       TableModify.Operation operation,
-      List<String> updateColumnList,
-      List<RexNode> sourceExpressionList,
+      @Nullable List<String> updateColumnList,
+      @Nullable List<RexNode> sourceExpressionList,
       boolean flattened) {
     return new BeamIOSinkRel(
         cluster,

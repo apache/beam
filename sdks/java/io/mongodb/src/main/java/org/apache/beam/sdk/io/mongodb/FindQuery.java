@@ -21,7 +21,7 @@ import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Pr
 
 import com.google.auto.value.AutoValue;
 import com.mongodb.BasicDBObject;
-import com.mongodb.MongoClient;
+import com.mongodb.MongoClientSettings;
 import com.mongodb.client.MongoCollection;
 import com.mongodb.client.MongoCursor;
 import com.mongodb.client.model.Projections;
@@ -79,7 +79,8 @@ public abstract class FindQuery
 
   /** Convert the Bson filters into a BsonDocument via default encoding. */
   static BsonDocument bson2BsonDocument(Bson filters) {
-    return filters.toBsonDocument(BasicDBObject.class, MongoClient.getDefaultCodecRegistry());
+    return filters.toBsonDocument(
+        BasicDBObject.class, MongoClientSettings.getDefaultCodecRegistry());
   }
 
   /** Sets the filters to find. */

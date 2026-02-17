@@ -28,7 +28,7 @@ import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TimestampedValue;
-import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.util.Pair;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.util.Pair;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 

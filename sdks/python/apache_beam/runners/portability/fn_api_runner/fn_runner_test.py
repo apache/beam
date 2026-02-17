@@ -69,8 +69,10 @@ from apache_beam.testing.synthetic_pipeline import SyntheticSDFAsSource
 from apache_beam.testing.test_stream import TestStream
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
+from apache_beam.testing.util import has_at_least_one
 from apache_beam.tools import utils
 from apache_beam.transforms import environments
+from apache_beam.transforms import trigger
 from apache_beam.transforms import userstate
 from apache_beam.transforms import window
 from apache_beam.transforms.periodicsequence import PeriodicImpulse
@@ -1258,6 +1260,21 @@ class FnApiRunnerTest(unittest.TestCase):
     finally:
       os.unlink(temp_file.name)
 
+  def test_sliding_windows(self):
+    data = [(timestamp.Timestamp(i), i) for i in range(1, 10)]
+    with self.create_pipeline() as p:
+      ret = (
+          p
+          | PeriodicImpulse(data=data, fire_interval=1)
+          | beam.WithKeys(0)
+          | beam.WindowInto(beam.transforms.window.SlidingWindows(6, 3))
+          | beam.GroupByKey())
+      assert_that(
+          ret,
+          equal_to([(0, [1, 2]), (0, [1, 2, 3, 4, 5]), (0, [3, 4, 5, 6, 7, 8]),
+                    (0, [6, 7, 8, 9]), (0, [9])],
+                   lambda x, y: x[0] == y[0] and sorted(x[1]) == sorted(y[1])))
+
   def test_windowing(self):
     with self.create_pipeline() as p:
       res = (
@@ -1578,6 +1595,22 @@ class FnApiRunnerTest(unittest.TestCase):
           | beam.Filter(lambda x: False)
           | beam.GroupByKey())
       assert_that(res, equal_to([]))
+
+  def test_first_pane(self):
+    with self.create_pipeline() as p:
+      res = (
+          p | beam.Create([1, 2])
+          | beam.WithKeys(0)
+          | beam.WindowInto(
+              window.GlobalWindows(),
+              trigger=trigger.Repeatedly(trigger.AfterCount(1)),
+              accumulation_mode=trigger.AccumulationMode.ACCUMULATING,
+              allowed_lateness=0,
+          )
+          | beam.GroupByKey()
+          | beam.Values())
+      has_at_least_one(res, lambda e, t, w, p: p.is_first)
+      has_at_least_one(res, lambda e, t, w, p: p.index == 0)
 
 
 # These tests are kept in a separate group so that they are
@@ -2017,6 +2050,9 @@ class FnApiRunnerTestWithMultiWorkers(FnApiRunnerTest):
   def test_register_finalizations(self):
     raise unittest.SkipTest("This test is for a single worker only.")
 
+  def test_sliding_windows(self):
+    raise unittest.SkipTest("This test is for a single worker only.")
+
 
 class FnApiRunnerTestWithGrpcAndMultiWorkers(FnApiRunnerTest):
   def create_pipeline(self, is_drain=False):
@@ -2045,6 +2081,9 @@ class FnApiRunnerTestWithGrpcAndMultiWorkers(FnApiRunnerTest):
     raise unittest.SkipTest("This test is for a single worker only.")
 
   def test_register_finalizations(self):
+    raise unittest.SkipTest("This test is for a single worker only.")
+
+  def test_sliding_windows(self):
     raise unittest.SkipTest("This test is for a single worker only.")
 
 
@@ -2083,6 +2122,9 @@ class FnApiRunnerTestWithBundleRepeatAndMultiWorkers(FnApiRunnerTest):
     raise unittest.SkipTest("This test is for a single worker only.")
 
   def test_sdf_with_dofn_as_watermark_estimator(self):
+    raise unittest.SkipTest("This test is for a single worker only.")
+
+  def test_sliding_windows(self):
     raise unittest.SkipTest("This test is for a single worker only.")
 
 

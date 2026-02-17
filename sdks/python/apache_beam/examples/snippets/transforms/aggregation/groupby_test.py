@@ -152,8 +152,7 @@ def check_groupby_attr_result(grouped):
                       fruit='banana',
                       quantity=3,
                       unit_price=1.00),
-              ]),
-          #[END groupby_attr_result]
+              ]),  #[END groupby_attr_result]
       ]))
 
 
@@ -205,8 +204,7 @@ def check_groupby_attr_expr_result(grouped):
                       fruit='banana',
                       quantity=3,
                       unit_price=1.00),
-              ]),
-          #[END groupby_attr_expr_result]
+              ]),  #[END groupby_attr_expr_result]
       ]))
 
 

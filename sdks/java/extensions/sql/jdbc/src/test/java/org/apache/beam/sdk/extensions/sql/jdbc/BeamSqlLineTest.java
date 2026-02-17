@@ -168,7 +168,8 @@ public class BeamSqlLineTest {
     List<List<String>> lines = toLines(byteArrayOutputStream);
     assertThat(
         Arrays.asList(
-            Arrays.asList("2018-07-01 21:26:06", "1"), Arrays.asList("2018-07-01 21:26:07", "1")),
+            Arrays.asList("2018-07-01 21:26:06.000000", "1"),
+            Arrays.asList("2018-07-01 21:26:07.000000", "1")),
         everyItem(is(oneOf(lines.toArray()))));
   }
 
@@ -190,11 +191,11 @@ public class BeamSqlLineTest {
     List<List<String>> lines = toLines(byteArrayOutputStream);
     assertThat(
         Arrays.asList(
-            Arrays.asList("2018-07-01 21:26:07", "1"),
-            Arrays.asList("2018-07-01 21:26:08", "2"),
-            Arrays.asList("2018-07-01 21:26:09", "2"),
-            Arrays.asList("2018-07-01 21:26:10", "2"),
-            Arrays.asList("2018-07-01 21:26:11", "1")),
+            Arrays.asList("2018-07-01 21:26:07.000000", "1"),
+            Arrays.asList("2018-07-01 21:26:08.000000", "2"),
+            Arrays.asList("2018-07-01 21:26:09.000000", "2"),
+            Arrays.asList("2018-07-01 21:26:10.000000", "2"),
+            Arrays.asList("2018-07-01 21:26:11.000000", "1")),
         everyItem(is(oneOf(lines.toArray()))));
   }
 }

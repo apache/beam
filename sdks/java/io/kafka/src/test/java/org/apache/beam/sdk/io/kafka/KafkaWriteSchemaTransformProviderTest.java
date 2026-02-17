@@ -18,17 +18,27 @@
 package org.apache.beam.sdk.io.kafka;
 
 import static org.apache.beam.sdk.io.kafka.KafkaWriteSchemaTransformProvider.getRowToRawBytesFunction;
+import static org.junit.Assert.assertEquals;
 
 import java.io.UnsupportedEncodingException;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
+import org.apache.avro.generic.GenericData;
+import org.apache.avro.generic.GenericRecord;
 import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.sdk.coders.ByteArrayCoder;
+import org.apache.beam.sdk.coders.KvCoder;
+import org.apache.beam.sdk.extensions.avro.coders.AvroCoder;
+import org.apache.beam.sdk.extensions.avro.schemas.utils.AvroUtils;
 import org.apache.beam.sdk.extensions.protobuf.ProtoByteUtils;
 import org.apache.beam.sdk.io.kafka.KafkaWriteSchemaTransformProvider.KafkaWriteSchemaTransform.ErrorCounterFn;
+import org.apache.beam.sdk.io.kafka.KafkaWriteSchemaTransformProvider.KafkaWriteSchemaTransform.GenericRecordErrorCounterFn;
 import org.apache.beam.sdk.managed.Managed;
+import org.apache.beam.sdk.schemas.NoSuchSchemaException;
 import org.apache.beam.sdk.schemas.Schema;
+import org.apache.beam.sdk.schemas.SchemaRegistry;
 import org.apache.beam.sdk.schemas.transforms.providers.ErrorHandling;
 import org.apache.beam.sdk.schemas.utils.JsonUtils;
 import org.apache.beam.sdk.schemas.utils.YamlUtils;
@@ -53,6 +63,8 @@ public class KafkaWriteSchemaTransformProviderTest {
 
   private static final TupleTag<KV<byte[], byte[]>> OUTPUT_TAG =
       KafkaWriteSchemaTransformProvider.OUTPUT_TAG;
+  private static final TupleTag<KV<byte[], GenericRecord>> RECORD_OUTPUT_TAG =
+      KafkaWriteSchemaTransformProvider.RECORD_OUTPUT_TAG;
   private static final TupleTag<Row> ERROR_TAG = KafkaWriteSchemaTransformProvider.ERROR_TAG;
 
   private static final Schema BEAMSCHEMA =
@@ -126,7 +138,8 @@ public class KafkaWriteSchemaTransformProviderTest {
                   getClass().getResource("/proto_byte/file_descriptor/proto_byte_utils.pb"))
               .getPath(),
           "MyMessage");
-
+  final SerializableFunction<Row, GenericRecord> recordValueMapper =
+      AvroUtils.getRowToGenericRecordFunction(AvroUtils.toAvroSchema(BEAMSCHEMA));
   @Rule public transient TestPipeline p = TestPipeline.create();
 
   @Test
@@ -199,6 +212,38 @@ public class KafkaWriteSchemaTransformProviderTest {
           + "}";
 
   @Test
+  public void testKafkaRecordErrorFnSuccess() throws Exception {
+    org.apache.avro.Schema avroSchema = AvroUtils.toAvroSchema(BEAMSCHEMA);
+
+    GenericRecord record1 = new GenericData.Record(avroSchema);
+    GenericRecord record2 = new GenericData.Record(avroSchema);
+    GenericRecord record3 = new GenericData.Record(avroSchema);
+    record1.put("name", "a");
+    record2.put("name", "b");
+    record3.put("name", "c");
+
+    List<KV<byte[], GenericRecord>> msg =
+        Arrays.asList(
+            KV.of(new byte[1], record1), KV.of(new byte[1], record2), KV.of(new byte[1], record3));
+
+    PCollection<Row> input = p.apply(Create.of(ROWS));
+    Schema errorSchema = ErrorHandling.errorSchema(BEAMSCHEMA);
+    PCollectionTuple output =
+        input.apply(
+            ParDo.of(
+                    new GenericRecordErrorCounterFn(
+                        "Kafka-write-error-counter", recordValueMapper, errorSchema, true))
+                .withOutputTags(RECORD_OUTPUT_TAG, TupleTagList.of(ERROR_TAG)));
+
+    output.get(ERROR_TAG).setRowSchema(errorSchema);
+    output
+        .get(RECORD_OUTPUT_TAG)
+        .setCoder(KvCoder.of(ByteArrayCoder.of(), AvroCoder.of(avroSchema)));
+    PAssert.that(output.get(RECORD_OUTPUT_TAG)).containsInAnyOrder(msg);
+    p.run().waitUntilFinish();
+  }
+
+  @Test
   public void testBuildTransformWithManaged() {
     List<String> configs =
         Arrays.asList(
@@ -224,5 +269,68 @@ public class KafkaWriteSchemaTransformProviderTest {
               Pipeline.create()
                   .apply(Create.empty(Schema.builder().addByteArrayField("bytes").build())));
     }
+  }
+
+  @Test
+  public void testKafkaWriteSchemaTransformConfigurationSchema() throws NoSuchSchemaException {
+    Schema schema =
+        SchemaRegistry.createDefault()
+            .getSchema(
+                KafkaWriteSchemaTransformProvider.KafkaWriteSchemaTransformConfiguration.class);
+
+    System.out.println("schema = " + schema);
+
+    assertEquals(8, schema.getFieldCount());
+
+    // Check field name, type, and nullability. Descriptions are not checked as they are not
+    // critical for serialization.
+    assertEquals(
+        Schema.Field.of("format", Schema.FieldType.STRING)
+            .withDescription(schema.getField(0).getDescription()),
+        schema.getField(0));
+
+    assertEquals(
+        Schema.Field.of("topic", Schema.FieldType.STRING)
+            .withDescription(schema.getField(1).getDescription()),
+        schema.getField(1));
+
+    assertEquals(
+        Schema.Field.of("bootstrapServers", Schema.FieldType.STRING)
+            .withDescription(schema.getField(2).getDescription()),
+        schema.getField(2));
+
+    assertEquals(
+        Schema.Field.nullable(
+                "producerConfigUpdates",
+                Schema.FieldType.map(Schema.FieldType.STRING, Schema.FieldType.STRING))
+            .withDescription(schema.getField(3).getDescription()),
+        schema.getField(3));
+
+    Schema actualRowSchemaForErrorHandling = schema.getField(4).getType().getRowSchema();
+    assertEquals(
+        Schema.Field.nullable(
+                "errorHandling",
+                Schema.FieldType.row(
+                    Schema.of(
+                        Schema.Field.of("output", Schema.FieldType.STRING)
+                            .withDescription(
+                                actualRowSchemaForErrorHandling.getField(0).getDescription()))))
+            .withDescription(schema.getField(4).getDescription()),
+        schema.getField(4));
+
+    assertEquals(
+        Schema.Field.nullable("fileDescriptorPath", Schema.FieldType.STRING)
+            .withDescription(schema.getField(5).getDescription()),
+        schema.getField(5));
+
+    assertEquals(
+        Schema.Field.nullable("messageName", Schema.FieldType.STRING)
+            .withDescription(schema.getField(6).getDescription()),
+        schema.getField(6));
+
+    assertEquals(
+        Schema.Field.nullable("schema", Schema.FieldType.STRING)
+            .withDescription(schema.getField(7).getDescription()),
+        schema.getField(7));
   }
 }

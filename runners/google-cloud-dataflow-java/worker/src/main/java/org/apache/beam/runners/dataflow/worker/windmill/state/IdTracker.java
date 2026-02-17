@@ -24,7 +24,6 @@ import java.util.SortedSet;
 import java.util.concurrent.ExecutionException;
 import java.util.function.BiConsumer;
 import org.apache.beam.runners.core.StateNamespace;
-import org.apache.beam.runners.core.StateTable;
 import org.apache.beam.runners.core.StateTag;
 import org.apache.beam.runners.core.StateTags;
 import org.apache.beam.sdk.coders.InstantCoder;
@@ -95,7 +94,7 @@ final class IdTracker {
   // here.
   private final ValueState<Map<Range<Instant>, RangeSet<Instant>>> subRangeDeletionsValue;
 
-  IdTracker(StateTable stateTable, StateNamespace namespace, StateTag<?> spec) {
+  IdTracker(CachingStateTable stateTable, StateNamespace namespace, StateTag<?> spec) {
     StateTag<ValueState<Map<Range<Instant>, RangeSet<Long>>>> idsAvailableTag =
         StateTags.makeSystemTagInternal(
             StateTags.value(spec.getId() + IDS_AVAILABLE_STR, IDS_AVAILABLE_CODER));

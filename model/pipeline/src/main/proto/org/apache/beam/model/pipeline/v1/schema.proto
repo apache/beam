@@ -48,7 +48,7 @@ message Field {
   // OPTIONAL. Human readable description of this field, such as the query that generated it.
   string description = 2;
   FieldType type = 3;
-  
+
   int32 id = 4;
    // OPTIONAL. The position of this field's data when encoded, e.g. with beam:coder:row:v1.
    // Either no fields in a given row are have encoding position populated,
@@ -236,4 +236,24 @@ message MapTypeEntry {
 
 message LogicalTypeValue {
   FieldValue value = 1;
+}
+
+// Information needed to represent a Coder of type SCHEMA.
+message SchemaCoderPayload {
+  // The schema to use for encoding corresponding Row types.
+  Schema schema = 1;
+
+  // Function mapping from underlying object to Row type.
+  FunctionSpec to_row_fn = 2;
+
+  // Function mapping from Row type to underlying object.
+  FunctionSpec from_row_fn = 3;
+
+  // Any additional information SDKs need to encode/decode elements.
+  repeated AdditionalCoderInfo additional_coder_infos = 4;
+
+  message AdditionalCoderInfo {
+    string urn = 1;
+    bytes payload = 2;
+  }
 }

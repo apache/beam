@@ -36,4 +36,25 @@ public interface MemoryMonitorOptions extends PipelineOptions {
   Double getGCThrashingPercentagePerPeriod();
 
   void setGCThrashingPercentagePerPeriod(Double value);
+
+  /**
+   * A remote file system to upload captured heap dumps to. If not provided defaults to
+   * --tempLocation.
+   *
+   * <p>This can be a path of any file system.
+   */
+  @Description("A remote file system to upload captured heap dumps to.")
+  String getRemoteHeapDumpLocation();
+
+  void setRemoteHeapDumpLocation(String value);
+
+  /**
+   * Controls if heap dumps that are copied to remote destination are gzipped compressed. This can
+   * greatly reduce the data copied and speed up the time to copy heap dumps.
+   */
+  @Description("A remote file system to upload captured heap dumps to.")
+  @Default.Boolean(true)
+  boolean getGzipCompressHeapDumps();
+
+  void setGzipCompressHeapDumps(boolean value);
 }

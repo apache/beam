@@ -213,13 +213,15 @@ class Stager(object):
     # if we know we are using a dependency pre-installed sdk container image.
     if not skip_prestaged_dependencies:
       requirements_cache_path = (
-          os.path.join(tempfile.gettempdir(), 'dataflow-requirements-cache') if
+          os.path.join(tempfile.gettempdir(), 'beam-requirements-cache') if
           (setup_options.requirements_cache
            is None) else setup_options.requirements_cache)
       if (setup_options.requirements_cache != SKIP_REQUIREMENTS_CACHE and
           not os.path.exists(requirements_cache_path)):
-        os.makedirs(requirements_cache_path)
+        os.makedirs(requirements_cache_path, exist_ok=True)
 
+      # Track packages to stage for this specific run.
+      packages_to_stage = set()
       # Stage a requirements file if present.
       if setup_options.requirements_file is not None:
         if not os.path.isfile(setup_options.requirements_file):
@@ -245,12 +247,16 @@ class Stager(object):
               'such as --requirements_file. ')
 
         if setup_options.requirements_cache != SKIP_REQUIREMENTS_CACHE:
-          (
+          populate_cache_callable = (
               populate_requirements_cache if populate_requirements_cache else
-              Stager._populate_requirements_cache)(
-                  setup_options.requirements_file,
-                  requirements_cache_path,
-                  setup_options.requirements_cache_only_sources)
+              Stager._populate_requirements_cache)
+
+          downloaded_packages = populate_cache_callable(
+              setup_options.requirements_file,
+              requirements_cache_path,
+              setup_options.requirements_cache_only_sources)
+          if downloaded_packages:
+            packages_to_stage.update(downloaded_packages)
 
       if pypi_requirements:
         tf = tempfile.NamedTemporaryFile(mode='w', delete=False)
@@ -260,18 +266,23 @@ class Stager(object):
         # Populate cache with packages from PyPI requirements and stage
         # the files in the cache.
         if setup_options.requirements_cache != SKIP_REQUIREMENTS_CACHE:
-          (
+          populate_cache_callable = (
               populate_requirements_cache if populate_requirements_cache else
-              Stager._populate_requirements_cache)(
-                  tf.name,
-                  requirements_cache_path,
-                  setup_options.requirements_cache_only_sources)
+              Stager._populate_requirements_cache)
+          downloaded_packages = populate_cache_callable(
+              tf.name,
+              requirements_cache_path,
+              setup_options.requirements_cache_only_sources)
+          if downloaded_packages:
+            packages_to_stage.update(downloaded_packages)
 
       if (setup_options.requirements_cache != SKIP_REQUIREMENTS_CACHE) and (
           setup_options.requirements_file is not None or pypi_requirements):
-        for pkg in glob.glob(os.path.join(requirements_cache_path, '*')):
-          resources.append(
-              Stager._create_file_stage_to_artifact(pkg, os.path.basename(pkg)))
+        for pkg in packages_to_stage:
+          pkg_path = os.path.join(requirements_cache_path, pkg)
+          if os.path.exists(pkg_path):
+            resources.append(
+                Stager._create_file_stage_to_artifact(pkg_path, pkg))
 
       # Handle a setup file if present.
       # We will build the setup package locally and then copy it to the staging
@@ -376,7 +387,6 @@ class Stager(object):
       pickled_session_file = os.path.join(
           temp_dir, names.PICKLED_MAIN_SESSION_FILE)
       pickler.dump_session(pickled_session_file)
-      # for pickle_library: cloudpickle, dump_session is no op
       if os.path.exists(pickled_session_file):
         resources.append(
             Stager._create_file_stage_to_artifact(
@@ -742,12 +752,17 @@ class Stager(object):
     # the requirements file and will download package dependencies.
 
     # The apache-beam dependency  is excluded from requirements cache population
-    # because we  stage the SDK separately.
+    # because we stage the SDK separately.
     with tempfile.TemporaryDirectory() as temp_directory:
       tmp_requirements_filepath = Stager._remove_dependency_from_requirements(
           requirements_file=requirements_file,
           dependency_to_remove='apache-beam',
           temp_directory_path=temp_directory)
+
+      # Download to a temporary directory first, then copy to cache.
+      # This allows us to track exactly which packages are needed for this
+      # requirements file.
+      download_dir = tempfile.mkdtemp(dir=temp_directory)
 
       cmd_args = [
           Stager._get_python_executable(),
@@ -755,6 +770,8 @@ class Stager(object):
           'pip',
           'download',
           '--dest',
+          download_dir,
+          '--find-links',
           cache_dir,
           '-r',
           tmp_requirements_filepath,
@@ -781,6 +798,18 @@ class Stager(object):
         ])
       _LOGGER.info('Executing command: %s', cmd_args)
       processes.check_output(cmd_args, stderr=processes.STDOUT)
+
+      # Get list of downloaded packages and copy them to the cache
+      downloaded_packages = set()
+      for pkg_file in os.listdir(download_dir):
+        downloaded_packages.add(pkg_file)
+        src_path = os.path.join(download_dir, pkg_file)
+        dest_path = os.path.join(cache_dir, pkg_file)
+        # Only copy if not already in cache
+        if not os.path.exists(dest_path):
+          shutil.copy2(src_path, dest_path)
+
+      return downloaded_packages
 
   @staticmethod
   def _build_setup_package(

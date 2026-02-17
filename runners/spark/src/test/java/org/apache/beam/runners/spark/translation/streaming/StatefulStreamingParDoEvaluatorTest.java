@@ -20,24 +20,32 @@ package org.apache.beam.runners.spark.translation.streaming;
 import static org.apache.beam.runners.spark.translation.streaming.CreateStreamTest.streamingOptions;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.MoreObjects.firstNonNull;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertThrows;
+import static org.junit.Assert.assertTrue;
 
+import java.io.Serializable;
 import org.apache.beam.runners.spark.SparkPipelineOptions;
 import org.apache.beam.runners.spark.StreamingTest;
 import org.apache.beam.runners.spark.io.CreateStream;
 import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.state.StateSpec;
 import org.apache.beam.sdk.state.StateSpecs;
 import org.apache.beam.sdk.state.TimeDomain;
+import org.apache.beam.sdk.state.Timer;
 import org.apache.beam.sdk.state.TimerSpec;
 import org.apache.beam.sdk.state.TimerSpecs;
 import org.apache.beam.sdk.state.ValueState;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
+import org.apache.beam.sdk.testing.UsesProcessingTimeTimers;
 import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.Flatten;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
@@ -46,6 +54,8 @@ import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TimestampedValue;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.junit.Rule;
@@ -53,7 +63,7 @@ import org.junit.Test;
 import org.junit.experimental.categories.Category;
 
 @SuppressWarnings({"unchecked", "unused"})
-public class StatefulStreamingParDoEvaluatorTest {
+public class StatefulStreamingParDoEvaluatorTest implements Serializable {
 
   @Rule public final transient TestPipeline p = TestPipeline.fromOptions(streamingOptions());
 
@@ -110,23 +120,92 @@ public class StatefulStreamingParDoEvaluatorTest {
     return createStream.advanceNextBatchWatermarkToInfinity();
   }
 
-  private static class StatefulWithTimerDoFn<InputT> extends DoFn<InputT, Void> {
-    @StateId("some-state")
-    private final StateSpec<ValueState<String>> someStringStateSpec =
-        StateSpecs.value(StringUtf8Coder.of());
+  private abstract static class AbstractStatefulWithTimer<KeyT, ValueT, OutputT>
+      extends DoFn<KV<KeyT, ValueT>, OutputT> {
+    @StateId("current-key")
+    private final StateSpec<ValueState<KeyT>> currentKeyStateSpec;
+
+    @StateId("timer-set")
+    private final StateSpec<ValueState<Boolean>> timerSetStateSpec = StateSpecs.value();
 
     @TimerId("some-timer")
-    private final TimerSpec someTimerSpec = TimerSpecs.timer(TimeDomain.PROCESSING_TIME);
+    private final TimerSpec someTimerSpec;
+
+    private @Nullable OutputT shouldBeOutput;
+
+    private AbstractStatefulWithTimer(
+        TimeDomain timeDomain, Coder<KeyT> keyCoder, @Nullable OutputT shouldBeOutput) {
+      this.someTimerSpec = TimerSpecs.timer(timeDomain);
+      this.currentKeyStateSpec = StateSpecs.value(keyCoder);
+      this.shouldBeOutput = shouldBeOutput;
+    }
 
     @ProcessElement
     public void process(
-        @Element InputT element, @StateId("some-state") ValueState<String> someStringStage) {
-      // ignore...
+        @Element KV<KeyT, ValueT> element,
+        @StateId("timer-set") ValueState<Boolean> timerSetState,
+        @StateId("current-key") ValueState<KeyT> currentKeyState,
+        @TimerId("some-timer") Timer someTimer) {
+      @Nullable KeyT currentKey = currentKeyState.read();
+      if (currentKey == null) {
+        currentKeyState.write(element.getKey());
+      }
+
+      final boolean isTimerSet = firstNonNull(timerSetState.read(), false);
+
+      if (!isTimerSet) {
+        timerSetState.write(true);
+        someTimer.offset(Duration.millis(500L)).setRelative();
+      }
     }
 
     @OnTimer("some-timer")
-    public void onTimer() {
-      // ignore...
+    public void onTimer(
+        OnTimerContext context,
+        @StateId("timer-set") ValueState<Boolean> timerSetState,
+        @StateId("current-key") ValueState<KeyT> currentKeyState,
+        @TimerId("some-timer") Timer timer) {
+      if (this.shouldBeOutput != null) {
+        context.output(shouldBeOutput);
+      }
+      assertNotNull(timerSetState.read());
+      assertTrue(timerSetState.read());
+    }
+  }
+
+  private static class StatefulWithEventTimeTimerDoFn<KeyT, ValueT>
+      extends AbstractStatefulWithTimer<KeyT, ValueT, Void> {
+
+    private StatefulWithEventTimeTimerDoFn(Coder<KeyT> keyCoder) {
+      super(TimeDomain.EVENT_TIME, keyCoder, null);
+    }
+  }
+
+  private static class StatefulWithProcessingTimeTimerDoFn<KeyT, ValueT, OutputT>
+      extends AbstractStatefulWithTimer<KeyT, ValueT, OutputT> {
+
+    private StatefulWithProcessingTimeTimerDoFn(
+        Coder<KeyT> keyCoder, @Nullable OutputT shouldBeOutput) {
+      super(TimeDomain.PROCESSING_TIME, keyCoder, shouldBeOutput);
+    }
+  }
+
+  private static class StatefulWithProcessingTimeTimerForWithValidateSparseKey<
+          KeyT, ValueT, OutputT>
+      extends AbstractStatefulWithTimer<KeyT, ValueT, OutputT> {
+
+    private StatefulWithProcessingTimeTimerForWithValidateSparseKey(Coder<KeyT> keyCoder) {
+      super(TimeDomain.PROCESSING_TIME, keyCoder, null);
+    }
+
+    @Override
+    public void onTimer(
+        OnTimerContext context,
+        ValueState<Boolean> timerSetState,
+        ValueState<KeyT> currentKeyState,
+        Timer timer) {
+      final KeyT currentKey = currentKeyState.read();
+      context.output((OutputT) currentKey);
     }
   }
 
@@ -152,17 +231,75 @@ public class StatefulStreamingParDoEvaluatorTest {
 
   @Category(StreamingTest.class)
   @Test
-  public void shouldRejectTimer() {
-    p.apply(createStreamingSource(p)).apply(ParDo.of(new StatefulWithTimerDoFn<>()));
+  public void shouldRejectEventTimeTimer() {
+    p.apply(createStreamingSource(p))
+        .apply(ParDo.of(new StatefulWithEventTimeTimerDoFn<>(VarIntCoder.of())));
 
-    final UnsupportedOperationException exception =
-        assertThrows(UnsupportedOperationException.class, p::run);
+    final IllegalStateException exception = assertThrows(IllegalStateException.class, p::run);
 
     assertEquals(
-        "Found TimerId annotations on "
-            + StatefulWithTimerDoFn.class.getName()
-            + ", but DoFn cannot yet be used with timers in the SparkRunner.",
+        TimeDomain.EVENT_TIME
+            + " not yet supported in streaming mode: "
+            + StatefulWithEventTimeTimerDoFn.class.getName(),
         exception.getMessage());
+  }
+
+  @Category({StreamingTest.class, UsesProcessingTimeTimers.class})
+  @Test
+  public void shouldTriggerProcessingTimeTimer() {
+    final String shouldBeOutput = "some-result";
+    final PCollection<String> result =
+        p.apply(createStreamingSource(p))
+            .apply(
+                ParDo.of(
+                    new StatefulWithProcessingTimeTimerDoFn<>(VarIntCoder.of(), shouldBeOutput)))
+            .setCoder(StringUtf8Coder.of());
+
+    PAssert.that(result)
+        .satisfies(
+            (Iterable<String> iter) -> {
+              assertFalse(Iterables.isEmpty(iter));
+              for (String timerOutput : iter) {
+                assertEquals(shouldBeOutput, timerOutput);
+              }
+              return null;
+            });
+
+    p.run().waitUntilFinish();
+  }
+
+  @Category({StreamingTest.class, UsesProcessingTimeTimers.class})
+  @Test
+  public void shouldTriggerProcessingTimeTimerWithSparseKey() {
+    final int sparseKey = 3;
+    KvCoder<Integer, Integer> coder = KvCoder.of(VarIntCoder.of(), VarIntCoder.of());
+    Instant instant = new Instant(0);
+    CreateStream<KV<Integer, Integer>> sparseStream =
+        CreateStream.of(coder, batchDuration(p)).advanceWatermarkForNextBatch(instant);
+
+    sparseStream =
+        sparseStream.nextBatch(
+            TimestampedValue.of(KV.of(sparseKey, 0), instant.plus(Duration.millis(1000L))));
+
+    final PCollection<KV<Integer, Integer>> sparsePCollection =
+        p.apply("Create Sparse Key Stream", sparseStream);
+
+    final PCollection<KV<Integer, Integer>> nonSparsePCollection =
+        p.apply("Create Non Sparse Key Stream", createStreamingSource(p, 3));
+
+    final PCollection<Integer> result =
+        sparsePCollection
+            .apply(Flatten.with(nonSparsePCollection))
+            .apply(
+                ParDo.of(
+                    new StatefulWithProcessingTimeTimerForWithValidateSparseKey<
+                        /*KeyT*/ Integer, /*ValueT*/ Integer, /*OutputT*/ Integer>(
+                        VarIntCoder.of())))
+            .setCoder(VarIntCoder.of());
+
+    PAssert.that(result).containsInAnyOrder(1, 2, sparseKey);
+
+    p.run().waitUntilFinish();
   }
 
   @Category(StreamingTest.class)

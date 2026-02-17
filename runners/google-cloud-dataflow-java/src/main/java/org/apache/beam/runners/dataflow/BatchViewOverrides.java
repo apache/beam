@@ -64,6 +64,7 @@ import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.util.CoderUtils;
 import org.apache.beam.sdk.util.SystemDoFnInternal;
+import org.apache.beam.sdk.values.CausedByDrain;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollection.IsBounded;
@@ -215,8 +216,7 @@ class BatchViewOverrides {
       return this.applyInternal(input);
     }
 
-    private <W extends BoundedWindow> PCollectionView<Map<K, V>> applyInternal(
-        PCollection<KV<K, V>> input) {
+    private PCollectionView<Map<K, V>> applyInternal(PCollection<KV<K, V>> input) {
       try {
         return BatchViewAsMultimap.applyForMapLike(runner, input, view, true /* unique keys */);
       } catch (NonDeterministicException e) {
@@ -704,8 +704,7 @@ class BatchViewOverrides {
       return this.applyInternal(input);
     }
 
-    private <W extends BoundedWindow> PCollectionView<Map<K, Iterable<V>>> applyInternal(
-        PCollection<KV<K, V>> input) {
+    private PCollectionView<Map<K, Iterable<V>>> applyInternal(PCollection<KV<K, V>> input) {
       try {
         return applyForMapLike(runner, input, view, false /* unique keys not expected */);
       } catch (NonDeterministicException e) {
@@ -1381,6 +1380,11 @@ class BatchViewOverrides {
     }
 
     @Override
+    public CausedByDrain causedByDrain() {
+      return CausedByDrain.NORMAL;
+    }
+
+    @Override
     public Instant getTimestamp() {
       return BoundedWindow.TIMESTAMP_MIN_VALUE;
     }
@@ -1393,6 +1397,16 @@ class BatchViewOverrides {
     @Override
     public PaneInfo getPaneInfo() {
       return PaneInfo.NO_FIRING;
+    }
+
+    @Override
+    public @Nullable String getRecordId() {
+      return null;
+    }
+
+    @Override
+    public @Nullable Long getRecordOffset() {
+      return null;
     }
 
     @Override

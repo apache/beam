@@ -108,7 +108,9 @@ public class BagUserState<T> {
         "Bag user state is no longer usable because it is closed for %s",
         request.getStateKey());
     isCleared = true;
-    newValues = new ArrayList<>();
+    if (!newValues.isEmpty()) {
+      newValues = new ArrayList<>();
+    }
   }
 
   @SuppressWarnings("FutureReturnValueIgnored")

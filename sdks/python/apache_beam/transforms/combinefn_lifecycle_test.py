@@ -59,7 +59,12 @@ class CombineFnLifecycleTest(unittest.TestCase):
     {'runner': fn_api_runner.FnApiRunner, 'pickler': 'dill'},
     {'runner': fn_api_runner.FnApiRunner, 'pickler': 'cloudpickle'},
     ])  # yapf: disable
+@pytest.mark.uses_dill
 class LocalCombineFnLifecycleTest(unittest.TestCase):
+  def setUp(self):
+    if self.pickler == 'dill':
+      pytest.importorskip("dill")
+
   def tearDown(self):
     CallSequenceEnforcingCombineFn.instances.clear()
 

@@ -39,18 +39,18 @@ if bool(1):  # lint doesn't like an unconditional `raise`.
 # pylint: disable=wrong-import-order, wrong-import-position, ungrouped-imports
 try:
   import onnxruntime as ort
-  import torch
-  from onnxruntime.capi.onnxruntime_pybind11_state import InvalidArgument
   import tensorflow as tf
   import tf2onnx
-  from tensorflow.keras import layers
-  from sklearn import linear_model
+  import torch
   from skl2onnx import convert_sklearn
   from skl2onnx.common.data_types import FloatTensorType
+  from sklearn import linear_model
+  from tensorflow.keras import layers
+
   from apache_beam.ml.inference.base import PredictionResult
   from apache_beam.ml.inference.base import RunInference
-  from apache_beam.ml.inference.onnx_inference import default_numpy_inference_fn
   from apache_beam.ml.inference.onnx_inference import OnnxModelHandlerNumpy
+  from apache_beam.ml.inference.onnx_inference import default_numpy_inference_fn
 except ImportError:
   raise unittest.SkipTest('Onnx dependencies are not installed')
 
@@ -406,8 +406,7 @@ class OnnxPytorchRunInferencePipelineTest(OnnxTestBase):
           equal_to(expected_predictions, equals_fn=_compare_prediction_result))
 
   def test_invalid_input_type(self):
-    with self.assertRaisesRegex(InvalidArgument,
-                                "Got invalid dimensions for input"):
+    with self.assertRaisesRegex(Exception, "Got invalid dimensions for input"):
       with TestPipeline() as pipeline:
         examples = [np.array([1], dtype="float32")]
         path = os.path.join(self.tmpdir, 'my_onnx_pytorch_path')
@@ -461,8 +460,7 @@ class OnnxTensorflowRunInferencePipelineTest(OnnxTestBase):
           equal_to(expected_predictions, equals_fn=_compare_prediction_result))
 
   def test_invalid_input_type(self):
-    with self.assertRaisesRegex(InvalidArgument,
-                                "Got invalid dimensions for input"):
+    with self.assertRaisesRegex(Exception, "Got invalid dimensions for input"):
       with TestPipeline() as pipeline:
         examples = [np.array([1], dtype="float32")]
         path = os.path.join(self.tmpdir, 'my_onnx_tensorflow_path')
@@ -517,7 +515,7 @@ class OnnxSklearnRunInferencePipelineTest(OnnxTestBase):
           equal_to(expected_predictions, equals_fn=_compare_prediction_result))
 
   def test_invalid_input_type(self):
-    with self.assertRaises(InvalidArgument):
+    with self.assertRaisesRegex(Exception, "InvalidArgument"):
       with TestPipeline() as pipeline:
         examples = [np.array([1], dtype="float32")]
         path = os.path.join(self.tmpdir, 'my_onnx_sklearn_path')

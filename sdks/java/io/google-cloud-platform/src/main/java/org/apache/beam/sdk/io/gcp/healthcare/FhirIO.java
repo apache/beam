@@ -1531,7 +1531,6 @@ public class FhirIO {
               SUCCESSFUL_BUNDLES, FhirBundleResponse.of(context.element(), bundle.toString()));
         }
         EXECUTE_BUNDLE_SUCCESS.inc();
-        return;
       }
 
       // parseBundleStatus parses out the status code from a Bundle.entry.response.status string,

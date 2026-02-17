@@ -119,6 +119,7 @@ class SpannerReadPerfTest(LoadTest):
 
     def make_insert_mutations(element):
       import uuid
+
       from apache_beam.io.gcp.experimental.spannerio import WriteMutation
       ins_mutation = WriteMutation.insert(
           table='test_data',

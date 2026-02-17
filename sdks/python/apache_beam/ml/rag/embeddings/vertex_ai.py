@@ -37,7 +37,7 @@ from apache_beam.ml.transforms.embeddings.vertex_ai import _VertexAITextEmbeddin
 try:
   import vertexai
 except ImportError:
-  vertexai = None
+  vertexai = None  # type: ignore[assignment]
 
 
 class VertexAITextEmbeddings(EmbeddingsManager):

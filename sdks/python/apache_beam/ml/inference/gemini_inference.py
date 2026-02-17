@@ -21,9 +21,13 @@ from collections.abc import Iterable
 from collections.abc import Sequence
 from typing import Any
 from typing import Optional
+from typing import Union
 
 from google import genai
 from google.genai import errors
+from google.genai.types import HttpOptions
+from google.genai.types import Part
+from PIL.Image import Image
 
 from apache_beam.ml.inference import utils
 from apache_beam.ml.inference.base import PredictionResult
@@ -56,6 +60,41 @@ def generate_from_string(
     batch: Sequence[str],
     model: genai.Client,
     inference_args: dict[str, Any]):
+  """ Request function that expects inputs to be composed of strings, then
+  sends requests to Gemini to generate text responses based on the text
+  prompts.
+
+  Args:
+    model_name: the Gemini model to use for the request. This model should be
+      a text generation model.
+    batch: the string inputs to be send to Gemini for text generation.
+    model: the genai Client
+    inference_args: any additional arguments passed to the generate_content
+      call.
+  """
+  return model.models.generate_content(
+      model=model_name, contents=batch, **inference_args)
+
+
+def generate_image_from_strings_and_images(
+    model_name: str,
+    batch: Sequence[list[Union[str, Image, Part]]],
+    model: genai.Client,
+    inference_args: dict[str, Any]):
+  """ Request function that expects inputs to be composed of lists of strings
+  and PIL Image instances, then sends requests to Gemini to generate images
+  based on the text prompts and contextual images. This is currently intended
+  to be used with the gemini-2.5-flash-image model (AKA Nano Banana.)
+
+  Args:
+    model_name: the Gemini model to use for the request. This model should be
+      an image generation model such as gemini-2.5-flash-image.
+    batch: the inputs to be send to Gemini for image generation as prompts.
+      Composed of text prompts and contextual pillow Images.
+    model: the genai Client
+    inference_args: any additional arguments passed to the generate_content
+      call.
+  """
   return model.models.generate_content(
       model=model_name, contents=batch, **inference_args)
 
@@ -70,10 +109,13 @@ class GeminiModelHandler(RemoteModelHandler[Any, PredictionResult,
       api_key: Optional[str] = None,
       project: Optional[str] = None,
       location: Optional[str] = None,
+      use_vertex_flex_api: Optional[bool] = False,
       *,
       min_batch_size: Optional[int] = None,
       max_batch_size: Optional[int] = None,
       max_batch_duration_secs: Optional[int] = None,
+      max_batch_weight: Optional[int] = None,
+      element_size_fn: Optional[Callable[[Any], int]] = None,
       **kwargs):
     """Implementation of the ModelHandler interface for Google Gemini.
     **NOTE:** This API and its implementation are under development and
@@ -96,15 +138,25 @@ class GeminiModelHandler(RemoteModelHandler[Any, PredictionResult,
       project: the GCP project to use for Vertex AI requests. Setting this
         parameter routes requests to Vertex AI. If this paramter is provided,
         location must also be provided and api_key should not be set.
-      location: the GCP project to use for Vertex AI requests. Setting this 
+      location: the GCP project to use for Vertex AI requests. Setting this
         parameter routes requests to Vertex AI. If this paramter is provided,
         project must also be provided and api_key should not be set.
+      use_vertex_flex_api: if true, use the Vertex Flex API. This is a
+        cost-effective option for accessing Gemini models if you can tolerate
+        longer response times and throttling. This is often beneficial for
+        data processing workloads which usually have higher latency tolerance
+        than live serving paths. See
+        https://docs.cloud.google.com/vertex-ai/generative-ai/docs/flex-paygo
+        for more details.
       min_batch_size: optional. the minimum batch size to use when batching
         inputs.
       max_batch_size: optional. the maximum batch size to use when batching
         inputs.
-      max_batch_duration_secs: optional. the maximum amount of time to buffer 
+      max_batch_duration_secs: optional. the maximum amount of time to buffer
         a batch before emitting; used in streaming contexts.
+      max_batch_weight: optional. the maximum total weight of a batch.
+      element_size_fn: optional. a function that returns the size (weight)
+        of an element.
     """
     self._batching_kwargs = {}
     self._env_vars = kwargs.get('env_vars', {})
@@ -114,6 +166,10 @@ class GeminiModelHandler(RemoteModelHandler[Any, PredictionResult,
       self._batching_kwargs["max_batch_size"] = max_batch_size
     if max_batch_duration_secs is not None:
       self._batching_kwargs["max_batch_duration_secs"] = max_batch_duration_secs
+    if max_batch_weight is not None:
+      self._batching_kwargs["max_batch_weight"] = max_batch_weight
+    if element_size_fn is not None:
+      self._batching_kwargs['element_size_fn'] = element_size_fn
 
     self.model_name = model_name
     self.request_fn = request_fn
@@ -131,10 +187,15 @@ class GeminiModelHandler(RemoteModelHandler[Any, PredictionResult,
       self.location = location
       self.use_vertex = True
 
+    self.use_vertex_flex_api = use_vertex_flex_api
+
     super().__init__(
         namespace='GeminiModelHandler',
         retry_filter=_retry_on_appropriate_service_error,
         **kwargs)
+
+  def batch_elements_kwargs(self):
+    return self._batching_kwargs
 
   def create_client(self) -> genai.Client:
     """Creates the GenAI client used to send requests. Creates a version for
@@ -142,8 +203,19 @@ class GeminiModelHandler(RemoteModelHandler[Any, PredictionResult,
     provided when the GeminiModelHandler class is instantiated.
     """
     if self.use_vertex:
-      return genai.Client(
-          vertexai=True, project=self.project, location=self.location)
+      if self.use_vertex_flex_api:
+        return genai.Client(
+            vertexai=True,
+            project=self.project,
+            location=self.location,
+            http_options=HttpOptions(
+                api_version="v1",
+                headers={"X-Vertex-AI-LLM-Request-Type": "flex"},
+                # Set timeout in the unit of millisecond.
+                timeout=600000))
+      else:
+        return genai.Client(
+            vertexai=True, project=self.project, location=self.location)
     return genai.Client(api_key=self.api_key)
 
   def request(
@@ -168,5 +240,7 @@ class GeminiModelHandler(RemoteModelHandler[Any, PredictionResult,
     """
     if inference_args is None:
       inference_args = {}
-    responses = self.request_fn(self.model_name, batch, model, inference_args)
+    # Wrap the responses in a list to prevent zip() call from treating the
+    # response itself as an iterable of individual responses.
+    responses = [self.request_fn(self.model_name, batch, model, inference_args)]
     return utils._convert_to_result(batch, responses, self.model_name)

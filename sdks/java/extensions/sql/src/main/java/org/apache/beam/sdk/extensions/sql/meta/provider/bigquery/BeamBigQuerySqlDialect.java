@@ -19,17 +19,17 @@ package org.apache.beam.sdk.extensions.sql.meta.provider.bigquery;
 
 import java.util.List;
 import java.util.Map;
-import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.avatica.util.Casing;
-import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.config.NullCollation;
-import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rel.type.RelDataTypeSystem;
-import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.sql.SqlAbstractDateTimeLiteral;
-import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.sql.SqlCall;
-import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.sql.SqlDialect;
-import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.sql.SqlIntervalLiteral;
-import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.sql.SqlNode;
-import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.sql.SqlTimestampLiteral;
-import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.sql.SqlWriter;
-import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.sql.dialect.BigQuerySqlDialect;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.avatica.util.Casing;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.config.NullCollation;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.rel.type.RelDataTypeSystem;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.sql.SqlAbstractDateTimeLiteral;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.sql.SqlCall;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.sql.SqlDialect;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.sql.SqlIntervalLiteral;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.sql.SqlNode;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.sql.SqlTimestampLiteral;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.sql.SqlWriter;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.sql.dialect.BigQuerySqlDialect;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 

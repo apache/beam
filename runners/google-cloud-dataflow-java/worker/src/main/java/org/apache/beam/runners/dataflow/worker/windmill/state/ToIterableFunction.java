@@ -64,13 +64,13 @@ public class ToIterableFunction<ContinuationT, ResultT>
                   valuesAndContPosition.getContinuationPosition())
               .toBuilder();
       if (stateTag.getSortedListRange() != null) {
-        continuationTBuilder.setSortedListRange(stateTag.getSortedListRange()).build();
+        continuationTBuilder.setSortedListRange(stateTag.getSortedListRange());
       }
       if (stateTag.getMultimapKey() != null) {
-        continuationTBuilder.setMultimapKey(stateTag.getMultimapKey()).build();
+        continuationTBuilder.setMultimapKey(stateTag.getMultimapKey());
       }
       if (stateTag.getOmitValues() != null) {
-        continuationTBuilder.setOmitValues(stateTag.getOmitValues()).build();
+        continuationTBuilder.setOmitValues(stateTag.getOmitValues());
       }
       return new PagingIterable<>(
           reader, valuesAndContPosition.getValues(), continuationTBuilder.build(), coder);

@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.extensions.sql.meta.provider.kafka;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 
@@ -29,6 +30,7 @@ import org.apache.beam.sdk.extensions.protobuf.PayloadMessages;
 import org.apache.beam.sdk.extensions.sql.TableUtils;
 import org.apache.beam.sdk.extensions.sql.meta.BeamSqlTable;
 import org.apache.beam.sdk.extensions.sql.meta.Table;
+import org.apache.beam.sdk.io.kafka.TimestampPolicyFactory;
 import org.apache.beam.sdk.io.thrift.payloads.SimpleThriftMessage;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
@@ -297,5 +299,85 @@ public class KafkaTableProviderTest {
         .type("kafka")
         .properties(properties)
         .build();
+  }
+
+  @Test
+  public void testBuildsTableWithLogAppendTimeWatermark() throws Exception {
+    Table table =
+        Table.builder()
+            .name("TestTable")
+            .type("kafka")
+            .location("localhost:9092/test_topic")
+            .schema(Schema.builder().addStringField("name").build())
+            .properties(properties("watermark.type", "LogAppendTime"))
+            .build();
+
+    BeamKafkaTable beamKafkaTable = (BeamKafkaTable) provider.buildBeamSqlTable(table);
+
+    TimestampPolicyFactory policyFactory = beamKafkaTable.getTimestampPolicyFactory();
+
+    TimestampPolicyFactory expected = TimestampPolicyFactory.withLogAppendTime();
+    assertEquals(
+        "The configured policy should be for LogAppendTime",
+        expected.getClass(),
+        policyFactory.getClass());
+  }
+
+  @Test
+  public void testBuildsTableWithCreateTimeWatermarkAndDelay() throws Exception {
+    Table table =
+        Table.builder()
+            .name("TestTable")
+            .type("kafka")
+            .location("localhost:9092/test_topic")
+            .schema(Schema.builder().addStringField("name").build())
+            .properties(properties("watermark.type", "CreateTime", "watermark.delay", "30 seconds"))
+            .build();
+
+    BeamKafkaTable beamKafkaTable = (BeamKafkaTable) provider.buildBeamSqlTable(table);
+
+    TimestampPolicyFactory policyFactory = beamKafkaTable.getTimestampPolicyFactory();
+
+    TimestampPolicyFactory processingTimeFactory = TimestampPolicyFactory.withProcessingTime();
+    TimestampPolicyFactory logAppendTimeFactory = TimestampPolicyFactory.withLogAppendTime();
+
+    assertNotEquals(
+        "Policy class should not be ProcessingTime",
+        processingTimeFactory.getClass(),
+        policyFactory.getClass());
+    assertNotEquals(
+        "Policy class should not be LogAppendTime",
+        logAppendTimeFactory.getClass(),
+        policyFactory.getClass());
+  }
+
+  @Test
+  public void testBuildsTableWithProcessingTimeWatermark() throws Exception {
+    Table table =
+        Table.builder()
+            .name("TestTable")
+            .type("kafka")
+            .location("localhost:9092/test_topic")
+            .schema(Schema.builder().addStringField("name").build())
+            .properties(properties("watermark.type", "ProcessingTime"))
+            .build();
+
+    BeamKafkaTable beamKafkaTable = (BeamKafkaTable) provider.buildBeamSqlTable(table);
+    TimestampPolicyFactory policyFactory = beamKafkaTable.getTimestampPolicyFactory();
+
+    TimestampPolicyFactory expected = TimestampPolicyFactory.withProcessingTime();
+    assertEquals(
+        "The configured policy should be for ProcessingTime",
+        expected.getClass(),
+        policyFactory.getClass());
+  }
+
+  private ObjectNode properties(String... kvs) {
+    // Re-uses the existing TableUtils to avoid new dependencies
+    ObjectNode objectNode = TableUtils.emptyProperties();
+    for (int i = 0; i < kvs.length; i += 2) {
+      objectNode.put(kvs[i], kvs[i + 1]);
+    }
+    return objectNode;
   }
 }

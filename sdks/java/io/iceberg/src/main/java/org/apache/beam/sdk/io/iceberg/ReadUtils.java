@@ -39,6 +39,7 @@ import org.apache.iceberg.Snapshot;
 import org.apache.iceberg.Table;
 import org.apache.iceberg.TableProperties;
 import org.apache.iceberg.data.IdentityPartitionConverters;
+import org.apache.iceberg.data.InternalRecordWrapper;
 import org.apache.iceberg.data.Record;
 import org.apache.iceberg.data.parquet.GenericParquetReaders;
 import org.apache.iceberg.encryption.EncryptedFiles;
@@ -198,10 +199,12 @@ public class ReadUtils {
 
   public static CloseableIterable<Record> maybeApplyFilter(
       CloseableIterable<Record> iterable, IcebergScanConfig scanConfig) {
+    InternalRecordWrapper wrapper =
+        new InternalRecordWrapper(scanConfig.getRequiredSchema().asStruct());
     Expression filter = scanConfig.getFilter();
     Evaluator evaluator = scanConfig.getEvaluator();
     if (filter != null && evaluator != null && filter.op() != Expression.Operation.TRUE) {
-      return CloseableIterable.filter(iterable, evaluator::eval);
+      return CloseableIterable.filter(iterable, record -> evaluator.eval(wrapper.wrap(record)));
     }
     return iterable;
   }

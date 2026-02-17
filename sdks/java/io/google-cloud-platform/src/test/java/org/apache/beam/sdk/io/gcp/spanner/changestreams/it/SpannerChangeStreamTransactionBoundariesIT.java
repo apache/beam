@@ -51,6 +51,7 @@ import org.junit.BeforeClass;
 import org.junit.ClassRule;
 import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.Timeout;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 import org.slf4j.Logger;
@@ -59,6 +60,8 @@ import org.slf4j.LoggerFactory;
 /** End-to-end test of Cloud Spanner Change Streams Transaction Boundaries. */
 @RunWith(JUnit4.class)
 public class SpannerChangeStreamTransactionBoundariesIT {
+
+  @Rule public transient Timeout globalTimeout = Timeout.seconds(3600);
 
   private static final Logger LOG =
       LoggerFactory.getLogger(SpannerChangeStreamTransactionBoundariesIT.class);

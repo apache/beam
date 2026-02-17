@@ -317,6 +317,26 @@ class TransformTest(unittest.TestCase):
           lambda x: {'res': 3 * x}, proxy, yield_elements='pandas')
       assert_that(res['res'], equal_to_series(three_series), 'CheckDictOut')
 
+  def test_multiple_dataframes_transforms(self):
+    expected_output = ["Bryan", "DKER2"]
+
+    def transform_func(a, b):
+      b["name"] = "DKER2"
+      return a, b
+
+    with beam.Pipeline() as p:
+      pcol1 = p | "Create1" >> beam.Create([beam.Row(name="Bryan")])
+      pcol2 = p | "Create2" >> beam.Create([beam.Row(name="common")])
+
+      result = ({
+          "a": pcol1, "b": pcol2
+      }
+                |
+                "TransformDF" >> transforms.DataframeTransform(transform_func)
+                | "Flatten" >> beam.Flatten()
+                | transforms.DataframeTransform(lambda df: df.name))
+      assert_that(result, equal_to(expected_output))
+
   def test_cat(self):
     # verify that cat works with a List[Series] since this is
     # missing from doctests

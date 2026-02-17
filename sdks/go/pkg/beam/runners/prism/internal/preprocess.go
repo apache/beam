@@ -182,6 +182,20 @@ func (p *preprocessor) preProcessGraph(comps *pipepb.Components, j *jobservices.
 			return nil
 		}
 	}
+	var stageDetails []any
+	for i, stg := range stages {
+		var transformNames []string
+		for _, tid := range stg.transforms {
+			transformNames = append(transformNames, comps.GetTransforms()[tid].GetUniqueName())
+		}
+		stageDetails = append(stageDetails,
+			slog.Group(fmt.Sprintf("stage-%03d", i),
+				slog.String("environment", stg.envID),
+				slog.Any("transforms", transformNames),
+			),
+		)
+	}
+	slog.Debug("preProcessGraph: all stages and transforms", stageDetails...)
 	return stages
 }
 

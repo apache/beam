@@ -27,11 +27,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.concurrent.Executor;
-import java.util.concurrent.Executors;
-import java.util.concurrent.RejectedExecutionException;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
+import java.util.function.Supplier;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.io.kafka.KafkaIO.ReadSourceDescriptors;
 import org.apache.beam.sdk.io.kafka.KafkaIOUtils.MovingAvg;
@@ -49,9 +45,11 @@ import org.apache.beam.sdk.transforms.splittabledofn.ManualWatermarkEstimator;
 import org.apache.beam.sdk.transforms.splittabledofn.OffsetRangeTracker;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker.HasProgress;
+import org.apache.beam.sdk.transforms.splittabledofn.UnsplittableRestrictionTracker;
 import org.apache.beam.sdk.transforms.splittabledofn.WatermarkEstimator;
 import org.apache.beam.sdk.transforms.splittabledofn.WatermarkEstimators.MonotonicallyIncreasing;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
+import org.apache.beam.sdk.util.ExpiringMemoizingSerializableSupplier;
 import org.apache.beam.sdk.util.MemoizingPerInstantiationSerializableSupplier;
 import org.apache.beam.sdk.util.Preconditions;
 import org.apache.beam.sdk.util.SerializableSupplier;
@@ -78,7 +76,10 @@ import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.common.config.ConfigDef;
 import org.apache.kafka.common.errors.SerializationException;
 import org.apache.kafka.common.serialization.Deserializer;
+import org.checkerframework.checker.nullness.qual.EnsuresNonNull;
+import org.checkerframework.checker.nullness.qual.MonotonicNonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
+import org.checkerframework.checker.nullness.qual.RequiresNonNull;
 import org.joda.time.Instant;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -107,6 +108,15 @@ import org.slf4j.LoggerFactory;
  * </ul>
  *
  * <h4>Splitting</h4>
+ *
+ * <p>Consumer group members must not consume from the same {@link TopicPartition} simultaneously
+ * when {@code enable.auto.commit} is set. Doing so may arbitrarily overwrite a consumer group's
+ * committed offset for a {@link TopicPartition}. Restriction trackers for a {@link
+ * KafkaSourceDescriptor} are wrapped as {@link UnsplittableRestrictionTracker<OffsetRange, Long>}
+ * and will only return a non-null {@link org.apache.beam.sdk.transforms.splittabledofn.SplitResult}
+ * for a checkpoint. To the extent possible in the SDK, this reduces the risk of overwriting
+ * committed offsets when {@code enable.auto.commit} is set and prevents concurrent use of
+ * per-{@TopicPartition} cached {@link Consumer} resources.
  *
  * <p>TODO(https://github.com/apache/beam/issues/20280): Add support for initial splitting.
  *
@@ -316,6 +326,16 @@ abstract class ReadFromKafkaDoFn<K, V>
   private final SerializableSupplier<LoadingCache<KafkaSourceDescriptor, Consumer<byte[], byte[]>>>
       pollConsumerCacheSupplier;
 
+  private transient @MonotonicNonNull LoadingCache<KafkaSourceDescriptor, MovingAvg>
+      avgRecordSizeCache;
+
+  private transient @MonotonicNonNull LoadingCache<
+          KafkaSourceDescriptor, KafkaLatestOffsetEstimator>
+      latestOffsetEstimatorCache;
+
+  private transient @MonotonicNonNull LoadingCache<KafkaSourceDescriptor, Consumer<byte[], byte[]>>
+      pollConsumerCache;
+
   // Valid between bundle start and bundle finish.
   private transient @Nullable Deserializer<K> keyDeserializerInstance = null;
   private transient @Nullable Deserializer<V> valueDeserializerInstance = null;
@@ -335,107 +355,47 @@ abstract class ReadFromKafkaDoFn<K, V>
    */
   private static class KafkaLatestOffsetEstimator
       implements GrowableOffsetRangeTracker.RangeEndEstimator, Closeable {
-    private static final AtomicReferenceFieldUpdater<KafkaLatestOffsetEstimator, @Nullable Runnable>
-        CURRENT_REFRESH_TASK =
-            (AtomicReferenceFieldUpdater<KafkaLatestOffsetEstimator, @Nullable Runnable>)
-                AtomicReferenceFieldUpdater.newUpdater(
-                    KafkaLatestOffsetEstimator.class, Runnable.class, "currentRefreshTask");
-    private final Executor executor;
     private final Consumer<byte[], byte[]> offsetConsumer;
-    private final TopicPartition topicPartition;
-    // TODO(sjvanrossum): Use VarHandle.setOpaque/getOpaque when Java 8 support is dropped
-    private long lastRefreshEndOffset;
-    // TODO(sjvanrossum): Use VarHandle.setOpaque/getOpaque when Java 8 support is dropped
-    private long nextRefreshNanos;
-    private volatile @Nullable Runnable currentRefreshTask;
-
-    /*
-    Periodic refreshes of lastRefreshEndOffset and nextRefreshNanos are guarded by the volatile
-    field currentRefreshTask. This guard's correctness depends on specific ordering of reads and
-    writes (loads and stores).
-
-    To validate the behavior of this guard please read the Java Memory Model (JMM) specification.
-    For the current context consider the following oversimplifications of the JMM:
-      - Writes to a non-volatile long or double field are non-atomic.
-      - Writes to a non-volatile field may never become visible to another core.
-      - Writes to a volatile field are atomic and will become visible to another core.
-      - Lazy writes to a volatile field are atomic and will become visible to another core for
-        reads of that volatile field.
-      - Writes preceeding writes or lazy writes to a volatile field are visible to another core.
-
-    In short, the contents of this class' guarded fields are visible if the guard field is (lazily)
-    written last and read first. The contents of the volatile guard may be stale in comparison to
-    the contents of the guarded fields. For this method it is important that no more than one
-    thread will schedule a refresh task. Using currentRefreshTask as the guard field ensures that
-    lastRefreshEndOffset and nextRefreshNanos are at least as stale as currentRefreshTask.
-    It's fine if lastRefreshEndOffset and nextRefreshNanos are less stale than currentRefreshTask.
-
-    Removing currentRefreshTask by guarding on nextRefreshNanos is possible, but executing
-    currentRefreshTask == null is practically free (measured in cycles) compared to executing
-    nextRefreshNanos < System.nanoTime() (measured in nanoseconds).
-
-    Note that the JMM specifies that writes to a long or double are not guaranteed to be atomic.
-    In practice, every 64-bit JVM will treat them as atomic (and the JMM encourages this).
-    There's no way to force atomicity without visibility in Java 8 so atomicity guards have been
-    omitted. Java 9 introduces VarHandle with "opaque" getters/setters which do provide this.
-    */
+    private final Supplier<Long> offsetSupplier;
 
     KafkaLatestOffsetEstimator(
         final Consumer<byte[], byte[]> offsetConsumer, final TopicPartition topicPartition) {
-      this.executor = Executors.newSingleThreadExecutor();
       this.offsetConsumer = offsetConsumer;
-      this.topicPartition = topicPartition;
-      this.lastRefreshEndOffset = -1L;
-      this.nextRefreshNanos = Long.MIN_VALUE;
-      this.currentRefreshTask = null;
+      this.offsetSupplier =
+          new ExpiringMemoizingSerializableSupplier<>(
+              () -> {
+                try {
+                  return offsetConsumer
+                      .endOffsets(Collections.singleton(topicPartition))
+                      .getOrDefault(topicPartition, Long.MIN_VALUE);
+                } catch (Throwable t) {
+                  LOG.error("Failed to get end offset for {}", topicPartition, t);
+                  return Long.MIN_VALUE;
+                }
+              },
+              Duration.ofSeconds(1),
+              Long.MIN_VALUE,
+              Duration.ZERO);
     }
 
     @Override
     public long estimate() {
-      final @Nullable Runnable task = currentRefreshTask; // volatile load (acquire)
-
-      final long currentNanos;
-      if (task == null
-          && nextRefreshNanos < (currentNanos = System.nanoTime()) // normal load
-          && CURRENT_REFRESH_TASK.compareAndSet(this, null, this::refresh)) { // volatile load/store
-        try {
-          executor.execute(this::refresh);
-        } catch (RejectedExecutionException ex) {
-          LOG.error("Execution of end offset refresh rejected for {}", topicPartition, ex);
-          nextRefreshNanos = currentNanos + TimeUnit.SECONDS.toNanos(1); // normal store
-          CURRENT_REFRESH_TASK.lazySet(this, null); // ordered store (release)
-        }
-      }
-
-      return lastRefreshEndOffset; // normal load
+      return offsetSupplier.get();
     }
 
     @Override
     public void close() {
       offsetConsumer.close();
     }
-
-    private void refresh() {
-      try {
-        @Nullable
-        Long endOffset =
-            offsetConsumer.endOffsets(Collections.singleton(topicPartition)).get(topicPartition);
-        if (endOffset == null) {
-          LOG.warn("No end offset found for partition {}.", topicPartition);
-        } else {
-          lastRefreshEndOffset = endOffset; // normal store
-        }
-        nextRefreshNanos = System.nanoTime() + TimeUnit.SECONDS.toNanos(1); // normal store
-      } finally {
-        CURRENT_REFRESH_TASK.lazySet(this, null); // ordered store (release)
-      }
-    }
   }
 
   @GetInitialRestriction
+  @RequiresNonNull({"pollConsumerCache"})
   public OffsetRange initialRestriction(@Element KafkaSourceDescriptor kafkaSourceDescriptor) {
-    final Consumer<byte[], byte[]> consumer =
-        pollConsumerCacheSupplier.get().getUnchecked(kafkaSourceDescriptor);
+    final LoadingCache<KafkaSourceDescriptor, Consumer<byte[], byte[]>> pollConsumerCache =
+        this.pollConsumerCache;
+
+    final Consumer<byte[], byte[]> consumer = pollConsumerCache.getUnchecked(kafkaSourceDescriptor);
 
     final long startOffset;
     final long stopOffset;
@@ -513,12 +473,16 @@ abstract class ReadFromKafkaDoFn<K, V>
   }
 
   @GetSize
+  @RequiresNonNull({"avgRecordSizeCache", "latestOffsetEstimatorCache"})
   public double getSize(
       @Element KafkaSourceDescriptor kafkaSourceDescriptor, @Restriction OffsetRange offsetRange) {
+    final LoadingCache<KafkaSourceDescriptor, MovingAvg> avgRecordSizeCache =
+        this.avgRecordSizeCache;
+
     // If present, estimates the record size to offset gap ratio. Compacted topics may hold less
     // records than the estimated offset range due to record deletion within a partition.
     final @Nullable MovingAvg avgRecordSize =
-        avgRecordSizeCacheSupplier.get().getIfPresent(kafkaSourceDescriptor);
+        avgRecordSizeCache.getIfPresent(kafkaSourceDescriptor);
     // The tracker estimates the offset range by subtracting the last claimed position from the
     // currently observed end offset for the partition belonging to this split.
     final double estimatedOffsetRange =
@@ -533,32 +497,43 @@ abstract class ReadFromKafkaDoFn<K, V>
   }
 
   @NewTracker
-  public OffsetRangeTracker restrictionTracker(
+  @RequiresNonNull({"latestOffsetEstimatorCache"})
+  public UnsplittableRestrictionTracker<OffsetRange, Long> restrictionTracker(
       @Element KafkaSourceDescriptor kafkaSourceDescriptor, @Restriction OffsetRange restriction) {
+    final LoadingCache<KafkaSourceDescriptor, KafkaLatestOffsetEstimator>
+        latestOffsetEstimatorCache = this.latestOffsetEstimatorCache;
+
     if (restriction.getTo() < Long.MAX_VALUE) {
-      return new OffsetRangeTracker(restriction);
+      return new UnsplittableRestrictionTracker<>(new OffsetRangeTracker(restriction));
     }
 
     // OffsetEstimators are cached for each topic-partition because they hold a stateful connection,
     // so we want to minimize the amount of connections that we start and track with Kafka. Another
     // point is that it has a memoized backlog, and this should make that more reusable estimations.
-    return new GrowableOffsetRangeTracker(
-        restriction.getFrom(),
-        latestOffsetEstimatorCacheSupplier.get().getUnchecked(kafkaSourceDescriptor));
+    return new UnsplittableRestrictionTracker<>(
+        new GrowableOffsetRangeTracker(
+            restriction.getFrom(), latestOffsetEstimatorCache.getUnchecked(kafkaSourceDescriptor)));
   }
 
   @ProcessElement
+  @RequiresNonNull({"avgRecordSizeCache", "latestOffsetEstimatorCache", "pollConsumerCache"})
   public ProcessContinuation processElement(
       @Element KafkaSourceDescriptor kafkaSourceDescriptor,
       RestrictionTracker<OffsetRange, Long> tracker,
       WatermarkEstimator<Instant> watermarkEstimator,
       MultiOutputReceiver receiver)
       throws Exception {
-    final MovingAvg avgRecordSize = avgRecordSizeCacheSupplier.get().get(kafkaSourceDescriptor);
+    final LoadingCache<KafkaSourceDescriptor, MovingAvg> avgRecordSizeCache =
+        this.avgRecordSizeCache;
+    final LoadingCache<KafkaSourceDescriptor, KafkaLatestOffsetEstimator>
+        latestOffsetEstimatorCache = this.latestOffsetEstimatorCache;
+    final LoadingCache<KafkaSourceDescriptor, Consumer<byte[], byte[]>> pollConsumerCache =
+        this.pollConsumerCache;
+
+    final MovingAvg avgRecordSize = avgRecordSizeCache.get(kafkaSourceDescriptor);
     final KafkaLatestOffsetEstimator latestOffsetEstimator =
-        latestOffsetEstimatorCacheSupplier.get().get(kafkaSourceDescriptor);
-    final Consumer<byte[], byte[]> consumer =
-        pollConsumerCacheSupplier.get().get(kafkaSourceDescriptor);
+        latestOffsetEstimatorCache.get(kafkaSourceDescriptor);
+    final Consumer<byte[], byte[]> consumer = pollConsumerCache.get(kafkaSourceDescriptor);
     final Deserializer<K> keyDeserializerInstance =
         Preconditions.checkStateNotNull(this.keyDeserializerInstance);
     final Deserializer<V> valueDeserializerInstance =
@@ -588,6 +563,7 @@ abstract class ReadFromKafkaDoFn<K, V>
               topicPartition, Optional.ofNullable(watermarkEstimator.currentWatermark()));
     }
 
+    Duration remainingTimeout = this.consumerPollingTimeout;
     long expectedOffset = tracker.currentRestriction().getFrom();
     consumer.resume(Collections.singleton(topicPartition));
     consumer.seek(topicPartition, expectedOffset);
@@ -595,16 +571,21 @@ abstract class ReadFromKafkaDoFn<K, V>
 
     final KafkaMetrics kafkaMetrics = KafkaSinkMetrics.kafkaMetrics();
     try {
-      while (true) {
+      while (Duration.ZERO.compareTo(remainingTimeout) < 0) {
         // TODO: Remove this timer and use the existing fetch-latency-avg	metric.
         // A consumer will often have prefetches waiting to be returned immediately in which case
         // this timer may contribute more latency than it measures.
         // See https://shipilev.net/blog/2014/nanotrusting-nanotime/ for more information.
         pollTimer.reset().start();
         // Fetch the next records.
-        final ConsumerRecords<byte[], byte[]> rawRecords =
-            consumer.poll(this.consumerPollingTimeout);
-        kafkaMetrics.updateSuccessfulRpcMetrics(topicPartition.topic(), pollTimer.elapsed());
+        final ConsumerRecords<byte[], byte[]> rawRecords = consumer.poll(remainingTimeout);
+        final Duration elapsed = pollTimer.elapsed();
+        try {
+          remainingTimeout = remainingTimeout.minus(elapsed);
+        } catch (ArithmeticException e) {
+          remainingTimeout = Duration.ZERO;
+        }
+        kafkaMetrics.updateSuccessfulRpcMetrics(topicPartition.topic(), elapsed);
 
         // No progress when the polling timeout expired.
         // Self-checkpoint and move to process the next element.
@@ -624,56 +605,69 @@ abstract class ReadFromKafkaDoFn<K, V>
 
         // Visible progress within the consumer polling timeout.
         // Partially or fully claim and process records in this batch.
-        for (ConsumerRecord<byte[], byte[]> rawRecord : rawRecords) {
-          if (!tracker.tryClaim(rawRecord.offset())) {
-            consumer.seek(topicPartition, rawRecord.offset());
-            consumer.pause(Collections.singleton(topicPartition));
+        long rawSizesSum = 0L;
+        long rawSizesCount = 0L;
+        long rawSizesMin = Long.MAX_VALUE;
+        long rawSizesMax = Long.MIN_VALUE;
+        try {
+          for (ConsumerRecord<byte[], byte[]> rawRecord : rawRecords) {
+            if (!tracker.tryClaim(rawRecord.offset())) {
+              consumer.seek(topicPartition, rawRecord.offset());
+              consumer.pause(Collections.singleton(topicPartition));
 
-            return ProcessContinuation.stop();
+              return ProcessContinuation.stop();
+            }
+            expectedOffset = rawRecord.offset() + 1;
+            try {
+              KafkaRecord<K, V> kafkaRecord =
+                  new KafkaRecord<>(
+                      rawRecord.topic(),
+                      rawRecord.partition(),
+                      rawRecord.offset(),
+                      ConsumerSpEL.getRecordTimestamp(rawRecord),
+                      ConsumerSpEL.getRecordTimestampType(rawRecord),
+                      ConsumerSpEL.hasHeaders() ? rawRecord.headers() : null,
+                      ConsumerSpEL.deserializeKey(keyDeserializerInstance, rawRecord),
+                      ConsumerSpEL.deserializeValue(valueDeserializerInstance, rawRecord));
+              int recordSize =
+                  (rawRecord.key() == null ? 0 : rawRecord.key().length)
+                      + (rawRecord.value() == null ? 0 : rawRecord.value().length);
+              rawSizesSum = rawSizesSum + recordSize;
+              rawSizesCount = rawSizesCount + 1L;
+              rawSizesMin = Math.min(rawSizesMin, recordSize);
+              rawSizesMax = Math.max(rawSizesMax, recordSize);
+              Instant outputTimestamp;
+              // The outputTimestamp and watermark will be computed by timestampPolicy, where the
+              // WatermarkEstimator should be a manual one.
+              if (timestampPolicy != null) {
+                TimestampPolicyContext context =
+                    updateWatermarkManually(timestampPolicy, watermarkEstimator, tracker);
+                outputTimestamp = timestampPolicy.getTimestampForRecord(context, kafkaRecord);
+              } else {
+                Preconditions.checkStateNotNull(this.extractOutputTimestampFn);
+                outputTimestamp = extractOutputTimestampFn.apply(kafkaRecord);
+              }
+              receiver
+                  .get(recordTag)
+                  .outputWithTimestamp(KV.of(kafkaSourceDescriptor, kafkaRecord), outputTimestamp);
+            } catch (SerializationException e) {
+              // This exception should only occur during the key and value deserialization when
+              // creating the Kafka Record
+              badRecordRouter.route(
+                  receiver,
+                  rawRecord,
+                  null,
+                  e,
+                  "Failure deserializing Key or Value of Kakfa record reading from Kafka");
+              if (timestampPolicy != null) {
+                updateWatermarkManually(timestampPolicy, watermarkEstimator, tracker);
+              }
+            }
           }
-          expectedOffset = rawRecord.offset() + 1;
-          try {
-            KafkaRecord<K, V> kafkaRecord =
-                new KafkaRecord<>(
-                    rawRecord.topic(),
-                    rawRecord.partition(),
-                    rawRecord.offset(),
-                    ConsumerSpEL.getRecordTimestamp(rawRecord),
-                    ConsumerSpEL.getRecordTimestampType(rawRecord),
-                    ConsumerSpEL.hasHeaders() ? rawRecord.headers() : null,
-                    ConsumerSpEL.deserializeKey(keyDeserializerInstance, rawRecord),
-                    ConsumerSpEL.deserializeValue(valueDeserializerInstance, rawRecord));
-            int recordSize =
-                (rawRecord.key() == null ? 0 : rawRecord.key().length)
-                    + (rawRecord.value() == null ? 0 : rawRecord.value().length);
-            avgRecordSize.update(recordSize);
-            rawSizes.update(recordSize);
-            Instant outputTimestamp;
-            // The outputTimestamp and watermark will be computed by timestampPolicy, where the
-            // WatermarkEstimator should be a manual one.
-            if (timestampPolicy != null) {
-              TimestampPolicyContext context =
-                  updateWatermarkManually(timestampPolicy, watermarkEstimator, tracker);
-              outputTimestamp = timestampPolicy.getTimestampForRecord(context, kafkaRecord);
-            } else {
-              Preconditions.checkStateNotNull(this.extractOutputTimestampFn);
-              outputTimestamp = extractOutputTimestampFn.apply(kafkaRecord);
-            }
-            receiver
-                .get(recordTag)
-                .outputWithTimestamp(KV.of(kafkaSourceDescriptor, kafkaRecord), outputTimestamp);
-          } catch (SerializationException e) {
-            // This exception should only occur during the key and value deserialization when
-            // creating the Kafka Record
-            badRecordRouter.route(
-                receiver,
-                rawRecord,
-                null,
-                e,
-                "Failure deserializing Key or Value of Kakfa record reading from Kafka");
-            if (timestampPolicy != null) {
-              updateWatermarkManually(timestampPolicy, watermarkEstimator, tracker);
-            }
+        } finally {
+          if (rawSizesCount > 0L) {
+            avgRecordSize.update(rawSizesSum, rawSizesCount);
+            rawSizes.update(rawSizesSum, rawSizesCount, rawSizesMin, rawSizesMax);
           }
         }
 
@@ -703,6 +697,12 @@ abstract class ReadFromKafkaDoFn<K, V>
             kafkaSourceDescriptor.getPartition(),
             estimatedBacklogBytes);
       }
+
+      if (timestampPolicy != null) {
+        updateWatermarkManually(timestampPolicy, watermarkEstimator, tracker);
+      }
+
+      return ProcessContinuation.resume();
     } finally {
       kafkaMetrics.flushBufferedMetrics();
     }
@@ -734,7 +734,12 @@ abstract class ReadFromKafkaDoFn<K, V>
   }
 
   @Setup
+  @EnsuresNonNull({"avgRecordSizeCache", "latestOffsetEstimatorCache", "pollConsumerCache"})
   public void setup() throws Exception {
+    avgRecordSizeCache = avgRecordSizeCacheSupplier.get();
+    latestOffsetEstimatorCache = latestOffsetEstimatorCacheSupplier.get();
+    pollConsumerCache = pollConsumerCacheSupplier.get();
+
     keyDeserializerInstance = keyDeserializerProvider.getDeserializer(consumerConfig, true);
     valueDeserializerInstance = valueDeserializerProvider.getDeserializer(consumerConfig, false);
     if (checkStopReadingFn != null) {
@@ -743,7 +748,15 @@ abstract class ReadFromKafkaDoFn<K, V>
   }
 
   @Teardown
+  @RequiresNonNull({"avgRecordSizeCache", "latestOffsetEstimatorCache", "pollConsumerCache"})
   public void teardown() throws Exception {
+    final LoadingCache<KafkaSourceDescriptor, MovingAvg> avgRecordSizeCache =
+        this.avgRecordSizeCache;
+    final LoadingCache<KafkaSourceDescriptor, KafkaLatestOffsetEstimator>
+        latestOffsetEstimatorCache = this.latestOffsetEstimatorCache;
+    final LoadingCache<KafkaSourceDescriptor, Consumer<byte[], byte[]>> pollConsumerCache =
+        this.pollConsumerCache;
+
     try {
       if (valueDeserializerInstance != null) {
         Closeables.close(valueDeserializerInstance, true);
@@ -761,9 +774,9 @@ abstract class ReadFromKafkaDoFn<K, V>
     }
 
     // Allow the cache to perform clean up tasks when this instance is about to be deleted.
-    avgRecordSizeCacheSupplier.get().cleanUp();
-    latestOffsetEstimatorCacheSupplier.get().cleanUp();
-    pollConsumerCacheSupplier.get().cleanUp();
+    avgRecordSizeCache.cleanUp();
+    latestOffsetEstimatorCache.cleanUp();
+    pollConsumerCache.cleanUp();
   }
 
   private static Instant ensureTimestampWithinBounds(Instant timestamp) {

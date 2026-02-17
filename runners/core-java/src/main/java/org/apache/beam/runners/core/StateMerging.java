@@ -76,8 +76,7 @@ public class StateMerging {
   /**
    * Merge all bag state in {@code sources} (which may include {@code result}) into {@code result}.
    */
-  public static <T, W extends BoundedWindow> void mergeBags(
-      Collection<BagState<T>> sources, BagState<T> result) {
+  public static <T> void mergeBags(Collection<BagState<T>> sources, BagState<T> result) {
     if (sources.isEmpty()) {
       // Nothing to merge.
       return;
@@ -117,8 +116,7 @@ public class StateMerging {
   /**
    * Merge all set state in {@code sources} (which may include {@code result}) into {@code result}.
    */
-  public static <T, W extends BoundedWindow> void mergeSets(
-      Collection<SetState<T>> sources, SetState<T> result) {
+  public static <T> void mergeSets(Collection<SetState<T>> sources, SetState<T> result) {
     if (sources.isEmpty()) {
       // Nothing to merge.
       return;
@@ -172,7 +170,7 @@ public class StateMerging {
    * Merge all value state from {@code sources} (which may include {@code result}) into {@code
    * result}.
    */
-  public static <InputT, AccumT, OutputT, W extends BoundedWindow> void mergeCombiningValues(
+  public static <InputT, AccumT, OutputT> void mergeCombiningValues(
       Collection<CombiningState<InputT, AccumT, OutputT>> sources,
       CombiningState<InputT, AccumT, OutputT> result) {
     if (sources.isEmpty()) {

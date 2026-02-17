@@ -119,6 +119,15 @@ class PipelineOptionsValidator(object):
   ERR_REPEATABLE_OPTIONS_NOT_SET_AS_LIST = (
       '(%s) is a string. Programmatically set PipelineOptions like (%s) '
       'options need to be specified as a list.')
+  ERR_DILL_NOT_INSTALLED = (
+      'Option pickle_library=dill requires dill==0.3.1.1. Install apache-beam '
+      'with the dill extra e.g. apache-beam[gcp, dill]. Dill package was not '
+      'found')
+  ERR_UNSAFE_DILL_VERSION = (
+      'Dill version 0.3.1.1 is required when using pickle_library=dill. Other '
+      'versions of dill are untested with Apache Beam. To install the supported'
+      ' dill version instal apache-beam[dill] extra. To use an unsupported '
+      'dill version, use pickle_library=dill_unsafe. %s')
 
   # GCS path specific patterns.
   GCS_URI = '(?P<SCHEME>[^:]+)://(?P<BUCKET>[^/]+)(/(?P<OBJECT>.*))?'
@@ -194,6 +203,25 @@ class PipelineOptionsValidator(object):
       return self._validate_error(self.ERR_INVALID_GCS_BUCKET, arg, arg_name)
     if gcs_object is None or '\n' in gcs_object or '\r' in gcs_object:
       return self._validate_error(self.ERR_INVALID_GCS_OBJECT, arg, arg_name)
+    return []
+
+  def validate_pickle_library(self, view):
+    """Validates the pickle_library option."""
+    if view.pickle_library == 'default' or view.pickle_library == 'cloudpickle':
+      return []
+
+    if view.pickle_library == 'dill_unsafe':
+      return []
+
+    if view.pickle_library == 'dill':
+      try:
+        import dill
+        if dill.__version__ != "0.3.1.1":
+          return self._validate_error(
+              self.ERR_UNSAFE_DILL_VERSION,
+              f"Dill version found {dill.__version__}")
+      except ImportError:
+        return self._validate_error(self.ERR_DILL_NOT_INSTALLED)
     return []
 
   def validate_cloud_options(self, view):

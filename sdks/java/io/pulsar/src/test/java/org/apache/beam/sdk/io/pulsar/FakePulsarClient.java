@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.io.pulsar;
 
+import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
@@ -31,11 +32,13 @@ import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Range;
 import org.apache.pulsar.client.api.Reader;
 import org.apache.pulsar.client.api.ReaderBuilder;
+import org.apache.pulsar.client.api.ReaderInterceptor;
 import org.apache.pulsar.client.api.ReaderListener;
 import org.apache.pulsar.client.api.Schema;
+import org.apache.pulsar.client.api.TableViewBuilder;
 import org.apache.pulsar.client.api.transaction.TransactionBuilder;
 
-@SuppressWarnings({"rawtypes"})
+@SuppressWarnings("rawtypes")
 public class FakePulsarClient implements PulsarClient {
 
   private MockReaderBuilder readerBuilder;
@@ -87,6 +90,11 @@ public class FakePulsarClient implements PulsarClient {
   }
 
   @Override
+  public <T> TableViewBuilder<T> newTableViewBuilder(Schema<T> schema) {
+    return null;
+  }
+
+  @Override
   public void updateServiceUrl(String serviceUrl) throws PulsarClientException {}
 
   public void serviceUrl(String serviceUrl) {}
@@ -134,7 +142,8 @@ public class FakePulsarClient implements PulsarClient {
       if (this.reader != null) {
         return this.reader;
       }
-      this.reader = new FakePulsarReader(this.topic, this.numberOfMessages);
+      this.reader =
+          new FakePulsarReader(this.topic, this.numberOfMessages, Instant.now().toEpochMilli());
       return this.reader;
     }
 
@@ -145,7 +154,7 @@ public class FakePulsarClient implements PulsarClient {
 
     @Override
     public ReaderBuilder<byte[]> clone() {
-      return null;
+      return this;
     }
 
     @Override
@@ -162,77 +171,114 @@ public class FakePulsarClient implements PulsarClient {
     @Override
     public ReaderBuilder<byte[]> startMessageFromRollbackDuration(
         long rollbackDuration, TimeUnit timeunit) {
-      return null;
+      return this;
     }
 
     @Override
     public ReaderBuilder<byte[]> startMessageIdInclusive() {
-      return null;
+      return this;
     }
 
     @Override
     public ReaderBuilder<byte[]> readerListener(ReaderListener readerListener) {
-      return null;
+      return this;
     }
 
     @Override
     public ReaderBuilder<byte[]> cryptoKeyReader(CryptoKeyReader cryptoKeyReader) {
-      return null;
+      return this;
     }
 
     @Override
     public ReaderBuilder<byte[]> defaultCryptoKeyReader(String privateKey) {
-      return null;
+      return this;
     }
 
     @Override
     public ReaderBuilder<byte[]> cryptoFailureAction(ConsumerCryptoFailureAction action) {
-      return null;
+      return this;
     }
 
     @Override
     public ReaderBuilder<byte[]> receiverQueueSize(int receiverQueueSize) {
-      return null;
+      return this;
     }
 
     @Override
     public ReaderBuilder<byte[]> readerName(String readerName) {
-      return null;
+      return this;
     }
 
     @Override
     public ReaderBuilder<byte[]> subscriptionRolePrefix(String subscriptionRolePrefix) {
-      return null;
+      return this;
     }
 
     @Override
     public ReaderBuilder<byte[]> subscriptionName(String subscriptionName) {
-      return null;
+      return this;
     }
 
     @Override
     public ReaderBuilder<byte[]> readCompacted(boolean readCompacted) {
-      return null;
+      return this;
     }
 
     @Override
     public ReaderBuilder<byte[]> keyHashRange(Range... ranges) {
-      return null;
+      return this;
+    }
+
+    @Override
+    public ReaderBuilder<byte[]> poolMessages(boolean poolMessages) {
+      return this;
+    }
+
+    @Override
+    public ReaderBuilder<byte[]> autoUpdatePartitions(boolean autoUpdate) {
+      return this;
+    }
+
+    @Override
+    public ReaderBuilder<byte[]> autoUpdatePartitionsInterval(int interval, TimeUnit unit) {
+      return this;
+    }
+
+    @Override
+    public ReaderBuilder<byte[]> intercept(ReaderInterceptor<byte[]>... interceptors) {
+      return this;
+    }
+
+    @Override
+    public ReaderBuilder<byte[]> maxPendingChunkedMessage(int maxPendingChunkedMessage) {
+      return this;
+    }
+
+    @Override
+    public ReaderBuilder<byte[]> autoAckOldestChunkedMessageOnQueueFull(
+        boolean autoAckOldestChunkedMessageOnQueueFull) {
+      return this;
     }
 
     @Override
     public ReaderBuilder<byte[]> defaultCryptoKeyReader(Map privateKeys) {
-      return null;
+      return this;
     }
 
     @Override
     public ReaderBuilder<byte[]> topics(List topicNames) {
-      return null;
+      return this;
     }
 
     @Override
     public ReaderBuilder<byte[]> loadConf(Map config) {
-      return null;
+      return this;
+    }
+
+    @Override
+    public ReaderBuilder<byte[]> expireTimeOfIncompleteChunkedMessage(
+        long duration, TimeUnit unit) {
+      return this;
     }
   }
 }

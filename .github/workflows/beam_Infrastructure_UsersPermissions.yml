@@ -1,0 +1,93 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+
+# This workflow modifies the GCP User Roles when the infra/users.yml file is updated.
+# It applies the changes using Terraform to manage the IAM roles for users defined in the users.yml
+# If the workflow is triggered by a pull request, it will post the Terraform plan as a comment on the PR
+# as a code block for easy review.
+
+name: Modify the GCP User Roles according to the infra/users.yml file
+
+on:
+  workflow_dispatch:
+  pull_request_target:
+    types: [opened, synchronize, reopened, closed]
+    paths:
+      - 'infra/iam/users.yml'
+
+# This allows a subsequently queued workflow run to interrupt previous runs
+concurrency:
+  group: '${{ github.workflow }} @ ${{ github.event.issue.number || github.sha || github.head_ref || github.ref }}-${{ github.event.schedule || github.event.comment.id || github.event.sender.login }}'
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  beam_UserRoles:
+    name: Apply user roles changes
+    runs-on: [self-hosted, ubuntu-20.04, main]
+    timeout-minutes: 30
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.merged == true && github.base_ref || github.event.pull_request.head.sha }}
+      - name: Setup gcloud
+        uses: google-github-actions/setup-gcloud@v3
+      - name: Install Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.12.2
+      - name: Initialize Terraform
+        working-directory: ./infra/iam
+        run: terraform init
+      - name: Terraform Plan
+        working-directory: ./infra/iam
+        run: terraform plan -out=tfplan
+
+      - name: Convert plan to plaintext
+        if: github.event.action == 'opened' || github.event.action == 'synchronize' || github.event.action == 'reopened'
+        working-directory: ./infra/iam
+        run: terraform show -no-color tfplan > tfplan.txt
+
+      - name: Create comment body
+        if: github.event.action == 'opened' || github.event.action == 'synchronize' || github.event.action == 'reopened'
+        run: |
+          PLAN_SIZE=$(wc -c < ./infra/iam/tfplan.txt)
+          if [ "$PLAN_SIZE" -gt 60000 ]; then
+            echo "### Terraform Plan for User Roles Changes" > comment_body.txt
+            echo "Plan is too big, review in Github Action Logs" >> comment_body.txt
+          else
+            echo "### Terraform Plan for User Roles Changes" > comment_body.txt
+            echo '```' >> comment_body.txt
+            cat ./infra/iam/tfplan.txt >> comment_body.txt
+            echo '```' >> comment_body.txt
+          fi
+
+      - name: Upload plan as a comment to PR
+        if: github.event.action == 'opened' || github.event.action == 'synchronize' || github.event.action == 'reopened'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+        run: gh pr comment ${{ github.event.pull_request.number }} --body-file comment_body.txt
+
+      - name: Terraform Apply
+        if: github.event.pull_request.merged == true
+        working-directory: ./infra/iam
+        run: terraform apply -auto-approve tfplan

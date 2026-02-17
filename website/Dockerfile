@@ -44,6 +44,23 @@ RUN apt-get update \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
+# Install Google Cloud SDK (gsutil)
+RUN apt-get update \
+    && apt-get install -y apt-transport-https \
+    # Download the key and save it directly to the keyring file (skipping apt-key)
+    && curl https://packages.cloud.google.com/apt/doc/apt-key.gpg \
+       | gpg --dearmor -o /usr/share/keyrings/cloud.google.gpg \
+    # Add the repo source using the signed-by tag
+    && echo "deb [signed-by=/usr/share/keyrings/cloud.google.gpg] https://packages.cloud.google.com/apt cloud-sdk main" \
+       | tee /etc/apt/sources.list.d/google-cloud-sdk.list \
+    && apt-get update \
+    && apt-get install -y google-cloud-cli \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
+
+ENV CLOUDSDK_CONFIG=/opt/gcloud-config
+RUN mkdir -p /opt/gcloud-config && chmod 777 /opt/gcloud-config
+
 # Install node LTS environment
 RUN curl -sL https://deb.nodesource.com/setup_lts.x | bash - \
     && apt-get update \
@@ -51,20 +68,17 @@ RUN curl -sL https://deb.nodesource.com/setup_lts.x | bash - \
         nodejs \
     && apt-get autoremove -yqq --purge \
     && apt-get clean \
-    && rm -rf /var/lib/apt/lists/* 
+    && rm -rf /var/lib/apt/lists/*
 
 RUN npm update -g npm
-    
-RUN npm install postcss postcss-cli autoprefixer 
+
+RUN npm install postcss postcss-cli autoprefixer
 
 # Install yarn
-RUN curl -sS https://dl.yarnpkg.com/debian/pubkey.gpg | apt-key add - \
-    && echo "deb https://dl.yarnpkg.com/debian/ stable main" | tee /etc/apt/sources.list.d/yarn.list \
-    && apt-get update \
-    && apt-get install -y --no-install-recommends yarn \
-    && apt-get autoremove -yqq --purge \
-    && apt-get clean \
-    && rm -rf /var/lib/apt/lists/*
+ENV COREPACK_HOME=/usr/local/share/corepack
+RUN mkdir -p "$COREPACK_HOME" \
+ && corepack enable \
+ && corepack prepare yarn@1.22.22 --activate
 
 # Install hugo extended version v0.117.0
 RUN HUGOHOME="$(mktemp -d)" \

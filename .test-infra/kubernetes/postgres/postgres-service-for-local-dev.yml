@@ -43,6 +43,8 @@ spec:
       labels:
         name: postgres
     spec:
+      securityContext:
+        fsGroup: 999
       containers:
         - name: postgres
           image: postgres
@@ -50,6 +52,17 @@ spec:
             - name: POSTGRES_PASSWORD
               value: uuinkks
             - name: PGDATA
-              value: /var/lib/postgresql/data/pgdata
+              value: /pgdata/data
           ports:
             - containerPort: 5432
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 999
+            runAsGroup: 999
+            allowPrivilegeEscalation: false
+          volumeMounts:
+            - name: pgdata
+              mountPath: /pgdata
+      volumes:
+        - name: pgdata
+          emptyDir: {}

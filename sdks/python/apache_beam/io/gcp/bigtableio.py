@@ -60,8 +60,9 @@ MAX_ROW_BYTES = 5242880  # 5MB
 
 try:
   from google.cloud.bigtable import Client
-  from google.cloud.bigtable.row import Cell, PartialRowData
   from google.cloud.bigtable.batcher import MutationsBatcher
+  from google.cloud.bigtable.row import Cell
+  from google.cloud.bigtable.row import PartialRowData
 
 except ImportError:
   _LOGGER.warning(
@@ -357,7 +358,8 @@ class ReadFromBigtable(PTransform):
         rearrange_based_on_discovery=True,
         table_id=self._table_id,
         instance_id=self._instance_id,
-        project_id=self._project_id)
+        project_id=self._project_id,
+        flatten=False)
 
     return (
         input.pipeline

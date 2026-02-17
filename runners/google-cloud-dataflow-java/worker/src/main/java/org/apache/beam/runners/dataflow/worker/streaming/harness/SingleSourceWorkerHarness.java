@@ -27,6 +27,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Function;
+import javax.annotation.Nullable;
 import org.apache.beam.runners.dataflow.worker.WindmillTimeUtils;
 import org.apache.beam.runners.dataflow.worker.streaming.ComputationState;
 import org.apache.beam.runners.dataflow.worker.streaming.Watermarks;
@@ -66,6 +67,7 @@ public final class SingleSourceWorkerHarness implements StreamingWorkerHarness {
   private final Function<String, Optional<ComputationState>> computationStateFetcher;
   private final ExecutorService workProviderExecutor;
   private final GetWorkSender getWorkSender;
+  @Nullable private WindmillStream.GetWorkStream getWorkStream;
 
   SingleSourceWorkerHarness(
       WorkCommitter workCommitter,
@@ -140,16 +142,20 @@ public final class SingleSourceWorkerHarness implements StreamingWorkerHarness {
       LOG.warn("Unable to shutdown {}", getClass());
     }
     workCommitter.stop();
+    if (getWorkStream != null) {
+      getWorkStream.shutdown();
+    }
   }
 
   private void streamingEngineDispatchLoop(
       Function<WorkItemReceiver, WindmillStream.GetWorkStream> getWorkStreamFactory) {
     while (isRunning.get()) {
-      WindmillStream.GetWorkStream stream =
+      getWorkStream =
           getWorkStreamFactory.apply(
               (computationId,
                   inputDataWatermark,
                   synchronizedProcessingTime,
+                  drainMode,
                   workItem,
                   serializedWorkItemSize,
                   getWorkStreamLatencies) ->
@@ -173,14 +179,17 @@ public final class SingleSourceWorkerHarness implements StreamingWorkerHarness {
                                     getDataClient,
                                     workCommitter::commit,
                                     heartbeatSender),
+                                drainMode,
                                 getWorkStreamLatencies);
                           }));
       try {
         // Reconnect every now and again to enable better load balancing.
         // If at any point the server closes the stream, we will reconnect immediately; otherwise
         // we half-close the stream after some time and create a new one.
-        if (!stream.awaitTermination(GET_WORK_STREAM_TIMEOUT_MINUTES, TimeUnit.MINUTES)) {
-          stream.halfClose();
+        if (getWorkStream != null) {
+          if (!getWorkStream.awaitTermination(GET_WORK_STREAM_TIMEOUT_MINUTES, TimeUnit.MINUTES)) {
+            Preconditions.checkNotNull(getWorkStream).halfClose();
+          }
         }
       } catch (InterruptedException e) {
         // Continue processing until !running.get()
@@ -232,6 +241,7 @@ public final class SingleSourceWorkerHarness implements StreamingWorkerHarness {
               watermarks.setOutputDataWatermark(workItem.getOutputDataWatermark()).build(),
               Work.createProcessingContext(
                   computationId, getDataClient, workCommitter::commit, heartbeatSender),
+              computationWork.getDrainMode(),
               /* getWorkStreamLatencies= */ ImmutableList.of());
         }
       }

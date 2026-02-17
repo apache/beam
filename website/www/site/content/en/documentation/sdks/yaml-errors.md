@@ -40,7 +40,7 @@ the following code will write all "good" processed records to one file and
 any "bad" records, along with metadata about what error was encountered,
 to a separate file.
 
-```
+```yaml
 pipeline:
   transforms:
     - type: ReadFromCsv
@@ -87,7 +87,7 @@ Some transforms allow for extra arguments in their error_handling config, e.g.
 for Python functions one can give a `threshold` which limits the relative number
 of records that can be bad before considering the entire pipeline a failure
 
-```
+```yaml
 pipeline:
   transforms:
     - type: ReadFromCsv
@@ -122,7 +122,7 @@ pipeline:
 One can do arbitrary further processing on these failed records if desired,
 e.g.
 
-```
+```yaml
 pipeline:
   transforms:
     - type: ReadFromCsv
@@ -176,7 +176,7 @@ pipeline:
 When using the `chain` syntax, the required error consumption can happen
 in an `extra_transforms` block.
 
-```
+```yaml
 pipeline:
   type: chain
   transforms:
@@ -217,3 +217,63 @@ pipeline:
       config:
         path: /path/to/errors.json
 ```
+
+## Error Handling with Custom Providers
+Custom transforms, such as those defined in separate YAML files via a `YamlProvider`, can also expose error outputs from their underlying transforms.
+
+Consider a file `my_transforms.yaml` that defines a `RaiseElementToPower` transform:
+```yaml
+# my_transforms.yaml
+- type: yaml
+  transforms:
+    RaiseElementToPower:
+      config_schema:
+        properties:
+          n: {type: integer}
+      body:
+        type: MapToFields
+        config:
+          language: python
+          append: true
+          fields:
+            power: "element ** {{n}}"
+          # This transform internally defines and exposes an error output.
+          error_handling:
+            output: my_error
+```
+This transform takes a numeric element and raises it to the power of `n`. If the element is not a number, it will produce an error. The error output from the internal `MapToFields` is named `my_error`. This error output is automatically exposed by the `RaiseElementToPower` transform.
+
+When using this transform in a pipeline, you can access this error output and handle it. The main output of the transform will contain only the successfully processed elements.
+
+```yaml
+pipeline:
+  transforms:
+    - type: Create
+      config:
+        elements: [2, 'bad', 3]
+    - type: RaiseElementToPower
+      input: Create
+      config:
+        n: 2
+    - type: WriteToJson
+      name: WriteGood
+      # The main output contains successfully processed elements.
+      input: RaiseElementToPower
+      config:
+        path: /path/to/good
+    - type: WriteToJson
+      name: WriteBad
+      # The error output is accessed by its name.
+      input: RaiseElementToPower.my_error
+      config:
+        path: /path/to/bad
+
+  providers:
+    - include: my_transforms.yaml
+
+```
+In this example, the pipeline separates the good and bad records coming from the custom `RaiseElementToPower` transform. The good records are written to one location, and the error records are written to another.
+
+A pipeline will fail at construction time if an error output is declared (either in a built-in transform or a custom one) but not consumed. This helps ensure that all error paths are considered.
+
+See YAML schema [info](https://beam.apache.org/documentation/sdks/yaml-schema/) for another use of error_handling in a schema context.

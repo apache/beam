@@ -100,6 +100,7 @@ jobs:
           gradle-command: |
             :sdks:java:io:elasticsearch-tests:elasticsearch-tests-7:build \
             :sdks:java:io:elasticsearch-tests:elasticsearch-tests-8:build \
+            :sdks:java:io:elasticsearch-tests:elasticsearch-tests-9:build \
             :sdks:java:io:elasticsearch-tests:elasticsearch-tests-common:build \
           arguments: |
             -PdisableSpotlessCheck=true \

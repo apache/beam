@@ -70,27 +70,30 @@ class ReifyTimestampAndWindowsParDoFnFactory implements ParDoFnFactory {
     public void processElement(Object untypedElem) throws Exception {
       WindowedValue<KV<?, ?>> typedElem = (WindowedValue<KV<?, ?>>) untypedElem;
 
-      receiver.process(
-          WindowedValues.of(
+      WindowedValues.builder(typedElem)
+          .withValue(
               KV.of(
                   typedElem.getValue().getKey(),
                   WindowedValues.of(
                       typedElem.getValue().getValue(),
                       typedElem.getTimestamp(),
                       typedElem.getWindows(),
-                      typedElem.getPaneInfo())),
-              typedElem.getTimestamp(),
-              typedElem.getWindows(),
-              typedElem.getPaneInfo()));
+                      typedElem.getPaneInfo())))
+          .setReceiver(receiver::process)
+          .output();
     }
 
     @Override
     public void processTimers() {}
 
     @Override
-    public void finishBundle() throws Exception {}
+    public void finishBundle() throws Exception {
+      this.receiver = null;
+    }
 
     @Override
-    public void abort() throws Exception {}
+    public void abort() throws Exception {
+      this.receiver = null;
+    }
   }
 }

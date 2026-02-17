@@ -50,8 +50,6 @@ import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transformservice.launcher.TransformServiceLauncher;
 import org.apache.beam.sdk.util.ReleaseInfo;
 import org.apache.beam.sdk.util.construction.PTransformTranslation.TransformPayloadTranslator;
-import org.apache.beam.sdk.values.PInput;
-import org.apache.beam.sdk.values.POutput;
 import org.apache.beam.vendor.grpc.v1p69p0.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.grpc.v1p69p0.com.google.protobuf.InvalidProtocolBufferException;
 import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.ManagedChannelBuilder;
@@ -188,16 +186,12 @@ public class TransformUpgrader implements AutoCloseable {
     return pipeline;
   }
 
-  private <
-          InputT extends PInput,
-          OutputT extends POutput,
-          TransformT extends org.apache.beam.sdk.transforms.PTransform<InputT, OutputT>>
-      RunnerApi.Pipeline updateTransformViaTransformService(
-          RunnerApi.Pipeline runnerAPIpipeline,
-          String transformId,
-          Endpoints.ApiServiceDescriptor transformServiceEndpoint,
-          PipelineOptions options)
-          throws IOException {
+  private RunnerApi.Pipeline updateTransformViaTransformService(
+      RunnerApi.Pipeline runnerAPIpipeline,
+      String transformId,
+      Endpoints.ApiServiceDescriptor transformServiceEndpoint,
+      PipelineOptions options)
+      throws IOException {
     RunnerApi.PTransform transformToUpgrade =
         runnerAPIpipeline.getComponents().getTransformsMap().get(transformId);
     if (transformToUpgrade == null) {

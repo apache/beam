@@ -188,7 +188,7 @@ public class ApproximateDistinctTest implements Serializable {
     @Override
     public Void apply(Iterable<Long> input) {
       for (Long estimate : input) {
-        boolean isAccurate = Math.abs(estimate - expectedCard) / expectedCard < expectedError;
+        boolean isAccurate = Math.abs(0.0 + estimate - expectedCard) / expectedCard < expectedError;
         Assert.assertTrue(
             "not accurate enough : \nExpected Cardinality : "
                 + expectedCard

@@ -26,6 +26,7 @@ import java.util.List;
 import java.util.Optional;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.io.kafka.KafkaRecord;
+import org.apache.beam.sdk.io.kafka.TimestampPolicyFactory;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.schemas.Schema.TypeName;
@@ -56,7 +57,21 @@ class NestedPayloadKafkaTable extends BeamKafkaTable {
       String bootstrapServers,
       List<String> topics,
       Optional<PayloadSerializer> payloadSerializer) {
-    super(beamSchema, bootstrapServers, topics);
+    this(
+        beamSchema,
+        bootstrapServers,
+        topics,
+        payloadSerializer,
+        TimestampPolicyFactory.withLogAppendTime());
+  }
+
+  public NestedPayloadKafkaTable(
+      Schema beamSchema,
+      String bootstrapServers,
+      List<String> topics,
+      Optional<PayloadSerializer> payloadSerializer,
+      TimestampPolicyFactory timestampPolicyFactory) {
+    super(beamSchema, bootstrapServers, topics, timestampPolicyFactory);
 
     checkArgument(Schemas.isNestedSchema(schema));
     Schemas.validateNestedSchema(schema);

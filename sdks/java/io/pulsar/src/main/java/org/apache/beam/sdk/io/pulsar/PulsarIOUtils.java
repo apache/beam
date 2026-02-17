@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.io.pulsar;
 
 import org.apache.beam.sdk.transforms.SerializableFunction;
+import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.slf4j.Logger;
@@ -26,19 +27,27 @@ import org.slf4j.LoggerFactory;
 final class PulsarIOUtils {
 
   private static final Logger LOG = LoggerFactory.getLogger(PulsarIOUtils.class);
-  public static final String SERVICE_HTTP_URL = "http://localhost:8080";
-  public static final String SERVICE_URL = "pulsar://localhost:6650";
+  static final String LOCAL_SERVICE_URL = "pulsar://localhost:6650";
+  static final long DEFAULT_CONSUMER_POLLING_TIMEOUT = 2L;
 
   static final SerializableFunction<String, PulsarClient> PULSAR_CLIENT_SERIALIZABLE_FUNCTION =
-      new SerializableFunction<String, PulsarClient>() {
-        @Override
-        public PulsarClient apply(String input) {
-          try {
-            return PulsarClient.builder().serviceUrl(input).build();
-          } catch (PulsarClientException e) {
-            LOG.error(e.getMessage());
-            throw new RuntimeException(e);
-          }
+      input -> {
+        try {
+          return PulsarClient.builder().serviceUrl(input).build();
+        } catch (PulsarClientException e) {
+          throw new RuntimeException(e);
+        }
+      };
+
+  static final SerializableFunction<String, PulsarAdmin> PULSAR_ADMIN_SERIALIZABLE_FUNCTION =
+      input -> {
+        try {
+          return PulsarAdmin.builder()
+              .serviceHttpUrl(input)
+              .allowTlsInsecureConnection(false)
+              .build();
+        } catch (PulsarClientException e) {
+          throw new RuntimeException(e);
         }
       };
 }

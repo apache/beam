@@ -155,7 +155,10 @@ func main() {
 	s := p.Root()
 
 	// Read from Pubsub and write to Kafka.
-	data := pubsubio.Read(s, "pubsub-public-data", "taxirides-realtime", nil)
+	opts := pubsubio.ReadOptions{
+		Topic: "taxirides-realtime",
+	}
+	data := pubsubio.Read(s, "pubsub-public-data", opts)
 	kvData := beam.ParDo(s, func(elm []byte) ([]byte, []byte) { return []byte(""), elm }, data)
 	windowed := beam.WindowInto(s, window.NewFixedWindows(15*time.Second), kvData)
 	kafkaio.Write(s, *expansionAddr, *bootstrapServers, *topic, windowed)

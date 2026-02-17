@@ -519,11 +519,11 @@ public class CommonCoderTest {
         ImmutableBiMap.copyOf(new ModelCoderRegistrar().getCoderURNs())
             .inverse()
             .get(coder.getUrn());
-    checkNotNull(coderType, "Unknown coder URN: " + coder.getUrn());
+    checkNotNull(coderType, "Unknown coder URN: %s", coder.getUrn());
 
     CoderTranslator<?> translator = new ModelCoderRegistrar().getCoderTranslators().get(coderType);
     checkNotNull(
-        translator, "No translator found for common coder class: " + coderType.getSimpleName());
+        translator, "No translator found for common coder class: %s", coderType.getSimpleName());
 
     return translator.fromComponents(components, coder.getPayload(), new TranslationContext() {});
   }

@@ -75,11 +75,11 @@ jobs:
         # TODO(https://github.com/apache/beam/issues/32208) move to Java11 after bump to Samza 1.8
         with:
           java-version: |
-            11
             8
+            11
       - name: run Go Samza ValidatesRunner script
         env:
           CLOUDSDK_CONFIG: ${{ env.KUBELET_GCLOUD_CONFIG_PATH}}
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
-          gradle-command: :sdks:go:test:samzaValidatesRunner -Pjava11Home=$JAVA_HOME_11_X64
+          gradle-command: :sdks:go:test:samzaValidatesRunner -Pjava8Home=$JAVA_HOME_8_X64 -PtestJavaVersion=8

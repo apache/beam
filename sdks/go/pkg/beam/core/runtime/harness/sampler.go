@@ -17,9 +17,9 @@ package harness
 
 import (
 	"context"
-	"time"
-
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/metrics"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/internal/errors"
+	"time"
 )
 
 type stateSampler struct {
@@ -27,21 +27,24 @@ type stateSampler struct {
 	sampler metrics.StateSampler
 }
 
-func newSampler(store *metrics.Store) *stateSampler {
-	return &stateSampler{sampler: metrics.NewSampler(store), done: make(chan int)}
+func newSampler(store *metrics.Store, elementProcessingTimeout time.Duration) *stateSampler {
+	return &stateSampler{sampler: metrics.NewSampler(store, elementProcessingTimeout), done: make(chan int)}
 }
 
-func (s *stateSampler) start(ctx context.Context, t time.Duration) {
+func (s *stateSampler) start(ctx context.Context, t time.Duration) error {
 	ticker := time.NewTicker(t)
 	defer ticker.Stop()
 	for {
 		select {
 		case <-s.done:
-			return
+			return nil
 		case <-ctx.Done():
-			return
+			return nil
 		case <-ticker.C:
-			s.sampler.Sample(ctx, t)
+			err := s.sampler.Sample(ctx, t)
+			if err != nil {
+				return errors.Errorf("Failed to sample: %v", err)
+			}
 		}
 	}
 }

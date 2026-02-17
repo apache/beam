@@ -26,8 +26,8 @@ from apache_beam.pipeline import PipelineVisitor
 from apache_beam.runners.interactive import cache_manager as cache
 from apache_beam.runners.interactive import interactive_beam as ib
 from apache_beam.runners.interactive import interactive_environment as ie
-from apache_beam.runners.interactive import pipeline_instrument as instr
 from apache_beam.runners.interactive import interactive_runner
+from apache_beam.runners.interactive import pipeline_instrument as instr
 from apache_beam.runners.interactive import utils
 from apache_beam.runners.interactive.caching.cacheable import Cacheable
 from apache_beam.runners.interactive.caching.cacheable import CacheKey

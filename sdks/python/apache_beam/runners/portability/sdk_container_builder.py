@@ -27,6 +27,7 @@ to build the new image.
 import json
 import logging
 import os
+import posixpath
 import shutil
 import subprocess
 import sys
@@ -40,14 +41,12 @@ from google.protobuf.json_format import MessageToJson
 
 from apache_beam import version as beam_version
 from apache_beam.internal.gcp.auth import get_service_credentials
-from apache_beam.internal.http_client import get_new_http
 from apache_beam.options.pipeline_options import GoogleCloudOptions
 from apache_beam.options.pipeline_options import PipelineOptions  # pylint: disable=unused-import
 from apache_beam.options.pipeline_options import SetupOptions
 from apache_beam.options.pipeline_options import WorkerOptions
 from apache_beam.portability import common_urns
 from apache_beam.portability.api import beam_runner_api_pb2
-from apache_beam.runners.dataflow.internal.clients import cloudbuild
 from apache_beam.runners.portability.stager import Stager
 from apache_beam.utils import plugin
 
@@ -81,7 +80,7 @@ class SdkContainerImageBuilder(plugin.BeamPlugin):
 
   def _build(self):
     container_image_tag = str(uuid.uuid4())
-    container_image_name = os.path.join(
+    container_image_name = posixpath.join(
         self._docker_registry_push_url or '',
         'beam_python_prebuilt_sdk:%s' % container_image_tag)
     with tempfile.TemporaryDirectory() as temp_folder:
@@ -93,7 +92,8 @@ class SdkContainerImageBuilder(plugin.BeamPlugin):
 
   def _prepare_dependencies(self):
     with tempfile.TemporaryDirectory() as tmp:
-      artifacts = Stager.create_job_resources(self._options, tmp)
+      artifacts = Stager.create_job_resources(
+          self._options, tmp, log_submission_env_dependencies=False)
       resources = Stager.extract_staging_tuple_iter(artifacts)
       # make a copy of the staged artifacts into the temp source folder.
       file_names = []
@@ -212,11 +212,10 @@ class _SdkContainerImageCloudBuilder(SdkContainerImageBuilder):
     from apache_beam.io.gcp.gcsio import create_storage_client
     self._storage_client = create_storage_client(
         options, not self._google_cloud_options.no_auth)
-    self._cloudbuild_client = cloudbuild.CloudbuildV1(
-        credentials=credentials,
-        get_credentials=(not self._google_cloud_options.no_auth),
-        http=get_new_http(),
-        response_encoding='utf8')
+
+    from google.cloud.devtools.cloudbuild_v1.services import cloud_build
+    self._cloudbuild_client = cloud_build.CloudBuildClient(
+        credentials=credentials)
     if not self._docker_registry_push_url:
       self._docker_registry_push_url = (
           'gcr.io/%s/prebuilt_beam_sdk' % self._google_cloud_options.project)
@@ -226,6 +225,7 @@ class _SdkContainerImageCloudBuilder(SdkContainerImageBuilder):
     return 'cloud_build'
 
   def _invoke_docker_build_and_push(self, container_image_name):
+    from google.cloud.devtools.cloudbuild_v1 import types as cloud_build_types
     project_id = self._google_cloud_options.project
     temp_location = self._google_cloud_options.temp_location
     # google cloud build service expects all the build source file to be
@@ -241,12 +241,12 @@ class _SdkContainerImageCloudBuilder(SdkContainerImageBuilder):
         temp_location, '%s-%s.tgz' % (SOURCE_FOLDER, container_image_tag))
     self._upload_to_gcs(tarball_path, gcs_location)
 
-    build = cloudbuild.Build()
+    build = cloud_build_types.Build()
     if self._cloud_build_machine_type:
-      build.options = cloudbuild.BuildOptions()
+      build.options = cloud_build_types.BuildOptions()
       build.options.machineType = self._cloud_build_machine_type
     build.steps = []
-    step = cloudbuild.BuildStep()
+    step = cloud_build_types.BuildStep()
     step.name = 'quay.io/buildah/stable:latest'
     step.entrypoint = 'sh'
     step.args = [
@@ -261,20 +261,21 @@ class _SdkContainerImageCloudBuilder(SdkContainerImageBuilder):
     step.dir = SOURCE_FOLDER
     build.steps.append(step)
 
-    source = cloudbuild.Source()
-    source.storageSource = cloudbuild.StorageSource()
+    source = cloud_build_types.Source()
+    storage_source = cloud_build_types.StorageSource()
     gcs_bucket, gcs_object = self._get_gcs_bucket_and_name(gcs_location)
-    source.storageSource.bucket = os.path.join(gcs_bucket)
-    source.storageSource.object = gcs_object
+    storage_source.bucket = os.path.join(gcs_bucket)
+    storage_source.object_ = gcs_object
+    source.storage_source = storage_source
     build.source = source
     # TODO(zyichi): make timeout configurable
     build.timeout = '7200s'
 
     now = time.time()
     # operation = client.create_build(project_id=project_id, build=build)
-    request = cloudbuild.CloudbuildProjectsBuildsCreateRequest(
-        projectId=project_id, build=build)
-    build = self._cloudbuild_client.projects_builds.Create(request)
+    request = cloud_build_types.CreateBuildRequest(
+        project_id=project_id, build=build)
+    build = self._cloudbuild_client.create_build(request)
     build_id, log_url = self._get_cloud_build_id_and_log_url(build.metadata)
     _LOGGER.info(
         'Building sdk container with Google Cloud Build, this may '
@@ -282,18 +283,17 @@ class _SdkContainerImageCloudBuilder(SdkContainerImageBuilder):
 
     # block until build finish, if build fails exception will be raised and
     # stops the job submission.
-    response = self._cloudbuild_client.projects_builds.Get(
-        cloudbuild.CloudbuildProjectsBuildsGetRequest(
-            id=build_id, projectId=project_id))
-    while response.status in [cloudbuild.Build.StatusValueValuesEnum.QUEUED,
-                              cloudbuild.Build.StatusValueValuesEnum.PENDING,
-                              cloudbuild.Build.StatusValueValuesEnum.WORKING]:
+    response = self._cloudbuild_client.get_build(
+        request=cloud_build_types.GetBuildRequest(
+            id=build_id, project_id=project_id))
+    while response.status in [cloud_build_types.Build.Status.QUEUED,
+                              cloud_build_types.Build.Status.PENDING,
+                              cloud_build_types.Build.Status.WORKING]:
       time.sleep(10)
-      response = self._cloudbuild_client.projects_builds.Get(
-          cloudbuild.CloudbuildProjectsBuildsGetRequest(
-              id=build_id, projectId=project_id))
+      response = self._cloudbuild_client.get_build(
+          cloud_build_types.GetBuildRequest(id=build_id, project_id=project_id))
 
-    if response.status != cloudbuild.Build.StatusValueValuesEnum.SUCCESS:
+    if response.status != cloud_build_types.Build.Status.SUCCESS:
       raise RuntimeError(
           'Failed to build python sdk container image on google cloud build, '
           'please check build log for error.')
@@ -326,15 +326,22 @@ class _SdkContainerImageCloudBuilder(SdkContainerImageBuilder):
     _LOGGER.info('Completed GCS upload to %s.', gcs_location)
 
   def _get_cloud_build_id_and_log_url(self, metadata):
+    # google-cloud-build 3.35+
+    if getattr(metadata, 'build', None):
+      build = metadata.build
+      return (build.id, build.log_url)
+    # Fallback for older clients that use additionalProperties.
     id = None
     log_url = None
-    for item in metadata.additionalProperties:
-      if item.key == 'build':
-        for field in item.value.object_value.properties:
-          if field.key == 'logUrl':
-            log_url = field.value.string_value
-          if field.key == 'id':
-            id = field.value.string_value
+    additional_props = getattr(metadata, 'additionalProperties', None)
+    if additional_props:
+      for item in additional_props:
+        if item.key == 'build':
+          for field in item.value.object_value.properties:
+            if field.key == 'logUrl':
+              log_url = field.value.string_value
+            if field.key == 'id':
+              id = field.value.string_value
     return id, log_url
 
   @staticmethod
@@ -348,16 +355,15 @@ class _SdkContainerImageCloudBuilder(SdkContainerImageBuilder):
 
   @staticmethod
   def _get_cloud_build_machine_type_enum(machine_type: str):
+    from google.cloud.devtools.cloudbuild_v1 import types as cloud_build_types
     if not machine_type:
       return None
     mappings = {
-        'n1-highcpu-8': cloudbuild.BuildOptions.MachineTypeValueValuesEnum.
-        N1_HIGHCPU_8,
-        'n1-highcpu-32': cloudbuild.BuildOptions.MachineTypeValueValuesEnum.
+        'n1-highcpu-8': cloud_build_types.BuildOptions.MachineType.N1_HIGHCPU_8,
+        'n1-highcpu-32': cloud_build_types.BuildOptions.MachineType.
         N1_HIGHCPU_32,
-        'e2-highcpu-8': cloudbuild.BuildOptions.MachineTypeValueValuesEnum.
-        E2_HIGHCPU_8,
-        'e2-highcpu-32': cloudbuild.BuildOptions.MachineTypeValueValuesEnum.
+        'e2-highcpu-8': cloud_build_types.BuildOptions.MachineType.E2_HIGHCPU_8,
+        'e2-highcpu-32': cloud_build_types.BuildOptions.MachineType.
         E2_HIGHCPU_32
     }
     if machine_type.lower() in mappings:

@@ -19,10 +19,8 @@ import unittest
 from parameterized import parameterized
 
 try:
-  from apache_beam.transforms.enrichment_handlers.feast_feature_store import \
-    FeastFeatureStoreEnrichmentHandler
-  from apache_beam.transforms.enrichment_handlers.feast_feature_store_it_test \
-    import _entity_row_fn
+  from apache_beam.transforms.enrichment_handlers.feast_feature_store import FeastFeatureStoreEnrichmentHandler
+  from apache_beam.transforms.enrichment_handlers.feast_feature_store_it_test import _entity_row_fn
 except ImportError:
   raise unittest.SkipTest(
       'Feast feature store test dependencies are not installed.')

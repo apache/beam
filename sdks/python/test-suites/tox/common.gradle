@@ -29,12 +29,14 @@ test.dependsOn "testPy${pythonVersionSuffix}Cloud"
 toxTask "testPy${pythonVersionSuffix}ML", "py${pythonVersionSuffix}-ml", "${posargs}"
 test.dependsOn "testPy${pythonVersionSuffix}ML"
 
+toxTask "testPy${pythonVersionSuffix}Dill", "py${pythonVersionSuffix}-dill", "${posargs}"
+test.dependsOn "testPy${pythonVersionSuffix}Dill"
+
 // toxTask "testPy${pythonVersionSuffix}Dask", "py${pythonVersionSuffix}-dask", "${posargs}"
 // test.dependsOn "testPy${pythonVersionSuffix}Dask"
+// Since codecoverage reports will always be generated for py39,
+// all tests will be exercised.
 project.tasks.register("preCommitPy${pythonVersionSuffix}") {
-		// Since codecoverage reports will always be generated for py39,
-		// all tests will be exercised.
-		// dependsOn = ["testPy${pythonVersionSuffix}Cloud", "testPython${pythonVersionSuffix}"]
 		dependsOn = ["testPy${pythonVersionSuffix}Cloud", "testPython${pythonVersionSuffix}"]
 
 }

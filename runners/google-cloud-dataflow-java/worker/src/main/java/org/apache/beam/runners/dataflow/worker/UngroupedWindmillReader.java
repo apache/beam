@@ -24,6 +24,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.util.Collection;
 import java.util.Map;
+import org.apache.beam.model.fnexecution.v1.BeamFnApi;
 import org.apache.beam.runners.dataflow.util.CloudObject;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.NativeReader;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
@@ -32,6 +33,7 @@ import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
+import org.apache.beam.sdk.values.CausedByDrain;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.WindowedValue;
 import org.apache.beam.sdk.values.WindowedValues;
@@ -117,6 +119,19 @@ class UngroupedWindmillReader<T> extends NativeReader<WindowedValue<T>> {
       Collection<? extends BoundedWindow> windows =
           WindmillSink.decodeMetadataWindows(windowsCoder, message.getMetadata());
       PaneInfo paneInfo = WindmillSink.decodeMetadataPane(message.getMetadata());
+      /**
+       * https://s.apache.org/beam-drain-mode - propagate drain bit if aggregation/expiry induced by
+       * drain happened upstream
+       */
+      CausedByDrain drainingValueFromUpstream = CausedByDrain.NORMAL;
+      if (WindowedValues.WindowedValueCoder.isMetadataSupported()) {
+        BeamFnApi.Elements.ElementMetadata elementMetadata =
+            WindmillSink.decodeAdditionalMetadata(windowsCoder, message.getMetadata());
+        drainingValueFromUpstream =
+            elementMetadata.getDrain() == BeamFnApi.Elements.DrainMode.Enum.DRAINING
+                ? CausedByDrain.CAUSED_BY_DRAIN
+                : CausedByDrain.NORMAL;
+      }
       if (valueCoder instanceof KvCoder) {
         KvCoder<?, ?> kvCoder = (KvCoder<?, ?>) valueCoder;
         InputStream key = context.getSerializedKey().newInput();
@@ -125,10 +140,18 @@ class UngroupedWindmillReader<T> extends NativeReader<WindowedValue<T>> {
         @SuppressWarnings("unchecked")
         T result =
             (T) KV.of(decode(kvCoder.getKeyCoder(), key), decode(kvCoder.getValueCoder(), data));
-        return WindowedValues.of(result, timestampMillis, windows, paneInfo);
+        return WindowedValues.of(
+            result, timestampMillis, windows, paneInfo, null, null, drainingValueFromUpstream);
       } else {
         notifyElementRead(data.available() + metadata.available());
-        return WindowedValues.of(decode(valueCoder, data), timestampMillis, windows, paneInfo);
+        return WindowedValues.of(
+            decode(valueCoder, data),
+            timestampMillis,
+            windows,
+            paneInfo,
+            null,
+            null,
+            drainingValueFromUpstream);
       }
     }
 

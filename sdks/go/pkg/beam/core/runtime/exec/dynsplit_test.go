@@ -376,10 +376,10 @@ func (rt *splitTestRTracker) TryClaim(pos any) bool {
 		rt.claim <- struct{}{}
 	}
 
-	rt.mu.Lock()
 	if i == rt.blockInd {
 		rt.blockClaim <- struct{}{}
 	}
+	rt.mu.Lock()
 	result := rt.rt.TryClaim(pos)
 	rt.mu.Unlock()
 
@@ -396,9 +396,9 @@ func (rt *splitTestRTracker) GetError() error {
 }
 
 func (rt *splitTestRTracker) TrySplit(fraction float64) (any, any, error) {
+	rt.blockSplit <- struct{}{}
 	rt.mu.Lock()
 	defer rt.mu.Unlock()
-	rt.blockSplit <- struct{}{}
 	return rt.rt.TrySplit(fraction)
 }
 

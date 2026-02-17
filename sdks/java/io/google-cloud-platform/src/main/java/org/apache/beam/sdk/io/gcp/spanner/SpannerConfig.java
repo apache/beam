@@ -48,6 +48,9 @@ public abstract class SpannerConfig implements Serializable {
   private static final Duration DEFAULT_COMMIT_DEADLINE = Duration.standardSeconds(15);
   // Total allowable backoff time.
   private static final Duration DEFAULT_MAX_CUMULATIVE_BACKOFF = Duration.standardMinutes(15);
+  // Instance id of experimental hosts
+  private static final ValueProvider<String> EXPERIMENTAL_HOST_INSTANCE_ID =
+      ValueProvider.StaticValueProvider.of("default");
   // A default priority for batch traffic.
   static final RpcPriority DEFAULT_RPC_PRIORITY = RpcPriority.MEDIUM;
 
@@ -67,6 +70,8 @@ public abstract class SpannerConfig implements Serializable {
   }
 
   public abstract @Nullable ValueProvider<String> getEmulatorHost();
+
+  public abstract @Nullable ValueProvider<String> getExperimentalHost();
 
   public abstract @Nullable ValueProvider<Boolean> getIsLocalChannelProvider();
 
@@ -89,6 +94,8 @@ public abstract class SpannerConfig implements Serializable {
   public abstract @Nullable ValueProvider<Duration> getPartitionQueryTimeout();
 
   public abstract @Nullable ValueProvider<Duration> getPartitionReadTimeout();
+
+  public abstract @Nullable ValueProvider<Boolean> getPlainText();
 
   @VisibleForTesting
   abstract @Nullable ServiceFactory<Spanner, SpannerOptions> getServiceFactory();
@@ -149,6 +156,8 @@ public abstract class SpannerConfig implements Serializable {
 
     abstract Builder setEmulatorHost(ValueProvider<String> emulatorHost);
 
+    abstract Builder setExperimentalHost(ValueProvider<String> experimentalHost);
+
     abstract Builder setIsLocalChannelProvider(ValueProvider<Boolean> isLocalChannelProvider);
 
     abstract Builder setCommitDeadline(ValueProvider<Duration> commitDeadline);
@@ -177,6 +186,8 @@ public abstract class SpannerConfig implements Serializable {
     abstract Builder setPartitionReadTimeout(ValueProvider<Duration> partitionReadTimeout);
 
     abstract Builder setCredentials(ValueProvider<Credentials> credentials);
+
+    abstract Builder setPlainText(ValueProvider<Boolean> plainText);
 
     public abstract SpannerConfig build();
   }
@@ -344,5 +355,38 @@ public abstract class SpannerConfig implements Serializable {
   /** Specifies the credentials. */
   public SpannerConfig withCredentials(ValueProvider<Credentials> credentials) {
     return toBuilder().setCredentials(credentials).build();
+  }
+
+  /** Specifies the experimental host to set on SpannerOptions (setExperimentalHost). */
+  public SpannerConfig withExperimentalHost(ValueProvider<String> experimentalHost) {
+    return toBuilder()
+        .setInstanceId(EXPERIMENTAL_HOST_INSTANCE_ID)
+        .setExperimentalHost(experimentalHost)
+        .build();
+  }
+
+  /** Specifies the experimental host to set on SpannerOptions (setExperimentalHost). */
+  public SpannerConfig withExperimentalHost(String experimentalHost) {
+    return withExperimentalHost(ValueProvider.StaticValueProvider.of(experimentalHost));
+  }
+
+  /**
+   * Specifies whether to use plaintext channel.
+   *
+   * <p>Note: This parameter is only valid when using an experimental host (set via {@code
+   * withExperimentalHost}).
+   */
+  public SpannerConfig withUsingPlainTextChannel(ValueProvider<Boolean> plainText) {
+    return toBuilder().setPlainText(plainText).build();
+  }
+
+  /**
+   * Specifies whether to use plaintext channel.
+   *
+   * <p>Note: This parameter is only valid when using an experimental host (set via {@code
+   * withExperimentalHost}).
+   */
+  public SpannerConfig withUsingPlainTextChannel(boolean plainText) {
+    return withUsingPlainTextChannel(ValueProvider.StaticValueProvider.of(plainText));
   }
 }

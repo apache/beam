@@ -33,11 +33,12 @@ try:
 except ImportError:
   dlp_v2 = None
 else:
+  from google.cloud.dlp_v2.types import dlp
+
   from apache_beam.ml.gcp.cloud_dlp import InspectForDetails
   from apache_beam.ml.gcp.cloud_dlp import MaskDetectedDetails
   from apache_beam.ml.gcp.cloud_dlp import _DeidentifyFn
   from apache_beam.ml.gcp.cloud_dlp import _InspectFn
-  from google.cloud.dlp_v2.types import dlp
 # pylint: enable=wrong-import-order, wrong-import-position, ungrouped-imports
 
 _LOGGER = logging.getLogger(__name__)

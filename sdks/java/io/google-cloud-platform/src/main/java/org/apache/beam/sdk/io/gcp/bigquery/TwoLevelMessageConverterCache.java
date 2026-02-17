@@ -20,6 +20,7 @@ package org.apache.beam.sdk.io.gcp.bigquery;
 import java.io.Serializable;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServices.DatasetService;
 import org.apache.beam.sdk.io.gcp.bigquery.StorageApiDynamicDestinations.MessageConverter;
+import org.apache.beam.sdk.util.ShardedKey;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.cache.Cache;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.cache.CacheBuilder;
@@ -70,5 +71,9 @@ class TwoLevelMessageConverterCache<DestinationT extends @NonNull Object, Elemen
                 CACHED_MESSAGE_CONVERTERS.get(
                     KV.of(operationName, destination),
                     () -> dynamicDestinations.getMessageConverter(destination, datasetService)));
+  }
+
+  public KV<String, ShardedKey<?>> getAppendClientKey(ShardedKey<DestinationT> shardedKey) {
+    return KV.of(operationName, shardedKey);
   }
 }

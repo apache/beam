@@ -29,6 +29,7 @@ import org.apache.beam.runners.core.StateNamespaces;
 import org.apache.beam.runners.core.TimerInternals;
 import org.apache.beam.sdk.state.TimeDomain;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
+import org.apache.beam.sdk.values.CausedByDrain;
 import org.apache.beam.sdk.values.WindowedValue;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
@@ -117,7 +118,8 @@ public class ClassicBundleManager<OutT> implements BundleManager<OutT> {
             StateNamespaces.global(),
             nextBundleCheckTime,
             nextBundleCheckTime,
-            TimeDomain.PROCESSING_TIME);
+            TimeDomain.PROCESSING_TIME,
+            CausedByDrain.NORMAL);
     bundleTimerScheduler.schedule(
         new KeyedTimerData<>(new byte[0], null, timerData), nextBundleCheckTime.getMillis());
   }

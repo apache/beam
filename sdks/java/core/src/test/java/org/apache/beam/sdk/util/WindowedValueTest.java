@@ -33,6 +33,7 @@ import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo.Timing;
+import org.apache.beam.sdk.values.CausedByDrain;
 import org.apache.beam.sdk.values.WindowedValue;
 import org.apache.beam.sdk.values.WindowedValues;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
@@ -75,6 +76,36 @@ public class WindowedValueTest {
     Assert.assertEquals(value.getValue(), decodedValue.getValue());
     Assert.assertEquals(value.getTimestamp(), decodedValue.getTimestamp());
     Assert.assertArrayEquals(value.getWindows().toArray(), decodedValue.getWindows().toArray());
+  }
+
+  @Test
+  public void testWindowedValueWithElementMetadataCoder() throws CoderException {
+    WindowedValues.WindowedValueCoder.setMetadataSupported();
+    Instant timestamp = new Instant(1234);
+    WindowedValue<String> value =
+        WindowedValues.of(
+            "abc",
+            new Instant(1234),
+            Arrays.asList(
+                new IntervalWindow(timestamp, timestamp.plus(Duration.millis(1000))),
+                new IntervalWindow(
+                    timestamp.plus(Duration.millis(1000)), timestamp.plus(Duration.millis(2000)))),
+            PaneInfo.NO_FIRING,
+            null,
+            null,
+            CausedByDrain.CAUSED_BY_DRAIN); // drain is persisted as part of metadata
+
+    Coder<WindowedValue<String>> windowedValueCoder =
+        WindowedValues.getFullCoder(StringUtf8Coder.of(), IntervalWindow.getCoder());
+
+    byte[] encodedValue = CoderUtils.encodeToByteArray(windowedValueCoder, value);
+    WindowedValue<String> decodedValue =
+        CoderUtils.decodeFromByteArray(windowedValueCoder, encodedValue);
+
+    Assert.assertEquals(value.getValue(), decodedValue.getValue());
+    Assert.assertEquals(value.getTimestamp(), decodedValue.getTimestamp());
+    Assert.assertArrayEquals(value.getWindows().toArray(), decodedValue.getWindows().toArray());
+    Assert.assertEquals(CausedByDrain.CAUSED_BY_DRAIN, value.causedByDrain());
   }
 
   @Test

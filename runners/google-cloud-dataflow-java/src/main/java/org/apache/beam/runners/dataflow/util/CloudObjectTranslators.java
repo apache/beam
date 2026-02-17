@@ -290,7 +290,7 @@ class CloudObjectTranslators {
       @Override
       public FullWindowedValueCoder fromCloudObject(CloudObject object) {
         List<Coder<?>> components = getComponents(object);
-        checkArgument(components.size() == 2, "Expecting 2 components, got " + components.size());
+        checkArgument(components.size() == 2, "Expecting 2 components, got %s", components.size());
         @SuppressWarnings("unchecked")
         Coder<? extends BoundedWindow> window = (Coder<? extends BoundedWindow>) components.get(1);
         return FullWindowedValueCoder.of(components.get(0), window);

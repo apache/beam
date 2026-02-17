@@ -913,12 +913,14 @@ public class Create<T> {
 
     private static class ConvertWindowedValues<T> extends DoFn<WindowedValue<T>, T> {
       @ProcessElement
-      public void processElement(@Element WindowedValue<T> element, OutputReceiver<T> r) {
-        r.outputWindowedValue(
-            element.getValue(),
-            element.getTimestamp(),
-            element.getWindows(),
-            element.getPaneInfo());
+      public void processElement(
+          @Element WindowedValue<T> element, OutputReceiver<T> outputReceiver) {
+        outputReceiver
+            .builder(element.getValue())
+            .setTimestamp(element.getTimestamp())
+            .setWindows(element.getWindows())
+            .setPaneInfo(element.getPaneInfo())
+            .output();
       }
     }
   }

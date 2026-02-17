@@ -31,7 +31,8 @@ import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.core.IsInstanceOf.instanceOf;
 
 import com.mongodb.BasicDBObject;
-import com.mongodb.MongoClient;
+import com.mongodb.client.MongoClient;
+import com.mongodb.client.MongoClients;
 import com.mongodb.client.MongoCollection;
 import com.mongodb.client.MongoDatabase;
 import com.mongodb.client.model.Filters;
@@ -128,14 +129,14 @@ public class MongoDbReadWriteIT {
             .build();
     mongodExecutable = mongodStarter.prepare(mongodConfig);
     mongodProcess = mongodExecutable.start();
-    client = new MongoClient(hostname, port);
+    client = MongoClients.create("mongodb://" + hostname + ":" + port);
 
     mongoSqlUrl = String.format("mongodb://%s:%d/%s/%s", hostname, port, database, collection);
   }
 
   @AfterClass
   public static void tearDown() throws Exception {
-    client.dropDatabase(database);
+    client.getDatabase(database).drop();
     client.close();
     mongodProcess.stop();
     mongodExecutable.stop();

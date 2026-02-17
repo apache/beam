@@ -19,6 +19,7 @@ import collections
 import glob
 import logging
 import os
+import shutil
 import tempfile
 import unittest
 
@@ -28,6 +29,13 @@ from apache_beam.testing.util import equal_to
 from apache_beam.utils import python_callable
 from apache_beam.yaml import yaml_provider
 from apache_beam.yaml.yaml_transform import YamlTransform
+
+try:
+  import jsonschema
+except ImportError:
+  jsonschema = None
+
+_LOGGER = logging.getLogger(__name__)
 
 
 class CreateTimestamped(beam.PTransform):
@@ -83,6 +91,7 @@ TEST_PROVIDERS = {
 }
 
 
+@unittest.skipIf(jsonschema is None, "Yaml dependencies not installed")
 class YamlTransformE2ETest(unittest.TestCase):
   def test_composite(self):
     with beam.Pipeline(options=beam.options.pipeline_options.PipelineOptions(
@@ -238,6 +247,10 @@ class YamlTransformE2ETest(unittest.TestCase):
       input = os.path.join(tmpdir, 'input.csv')
       output = os.path.join(tmpdir, 'output.json')
       data.to_csv(input, index=False)
+      with open(input, 'r') as f:
+        lines = f.readlines()
+      _LOGGER.debug("input.csv has these {lines} lines.")
+      self.assertEqual(len(lines), len(data) + 1)  # +1 for header
 
       with beam.Pipeline() as p:
         result = p | YamlTransform(
@@ -250,9 +263,11 @@ class YamlTransformE2ETest(unittest.TestCase):
               - type: WriteToJson
                 config:
                     path: %s
-                num_shards: 1
+                    num_shards: 1
+              - type: LogForTesting
             ''' % (repr(input), repr(output)))
-
+      all_output = list(glob.glob(output + "*"))
+      self.assertEqual(len(all_output), 1)
       output_shard = list(glob.glob(output + "*"))[0]
       result = pd.read_json(
           output_shard, orient='records',
@@ -477,6 +492,330 @@ class YamlTransformE2ETest(unittest.TestCase):
         b'1000000000',
         proto)
 
+  def test_flatten_unifies_schemas(self):
+    with beam.Pipeline(options=beam.options.pipeline_options.PipelineOptions(
+        pickle_library='cloudpickle')) as p:
+      _ = p | YamlTransform(
+          '''
+            type: composite
+            transforms:
+              - type: Create
+                name: Create1
+                config:
+                  elements:
+                    - {ride_id: '1', passenger_count: 1}
+                    - {ride_id: '2', passenger_count: 2}
+              - type: Create
+                name: Create2
+                config:
+                  elements:
+                    - {ride_id: '3'}
+                    - {ride_id: '4'}
+              - type: Flatten
+                input: [Create1, Create2]
+              - type: AssertEqual
+                input: Flatten
+                config:
+                  elements:
+                    - {ride_id: '1', passenger_count: 1}
+                    - {ride_id: '2', passenger_count: 2}
+                    - {ride_id: '3'}
+                    - {ride_id: '4'}
+          ''')
+
+  def test_flatten_unifies_optional_fields(self):
+    """Test that Flatten correctly unifies schemas with optional fields."""
+    with beam.Pipeline(options=beam.options.pipeline_options.PipelineOptions(
+        pickle_library='cloudpickle')) as p:
+      _ = p | YamlTransform(
+          '''
+            type: composite
+            transforms:
+              - type: Create
+                name: Create1
+                config:
+                  elements:
+                    - {id: '1', name: 'Alice', age: 30}
+                    - {id: '2', name: 'Bob', age: 25}
+              - type: Create
+                name: Create2
+                config:
+                  elements:
+                    - {id: '3', name: 'Charlie'}
+                    - {id: '4', name: 'Diana'}
+              - type: Flatten
+                input: [Create1, Create2]
+              - type: AssertEqual
+                input: Flatten
+                config:
+                  elements:
+                    - {id: '1', name: 'Alice', age: 30}
+                    - {id: '2', name: 'Bob', age: 25}
+                    - {id: '3', name: 'Charlie'}
+                    - {id: '4', name: 'Diana'}
+          ''')
+
+  def test_flatten_unifies_different_types(self):
+    """Test that Flatten correctly unifies schemas with different
+    field types."""
+    with beam.Pipeline(options=beam.options.pipeline_options.PipelineOptions(
+        pickle_library='cloudpickle')) as p:
+      _ = p | YamlTransform(
+          '''
+            type: composite
+            transforms:
+              - type: Create
+                name: Create1
+                config:
+                  elements:
+                    - {id: 1, value: 100}
+                    - {id: 2, value: 200}
+              - type: Create
+                name: Create2
+                config:
+                  elements:
+                    - {id: '3', value: 'text'}
+                    - {id: '4', value: 'data'}
+              - type: Flatten
+                input: [Create1, Create2]
+              - type: AssertEqual
+                input: Flatten
+                config:
+                  elements:
+                    - {id: 1, value: 100}
+                    - {id: 2, value: 200}
+                    - {id: '3', value: 'text'}
+                    - {id: '4', value: 'data'}
+          ''')
+
+  def test_flatten_unifies_list_fields(self):
+    """Test that Flatten correctly unifies schemas with list fields."""
+    with beam.Pipeline(options=beam.options.pipeline_options.PipelineOptions(
+        pickle_library='cloudpickle')) as p:
+      _ = p | YamlTransform(
+          '''
+            type: composite
+            transforms:
+              - type: Create
+                name: Create1
+                config:
+                  elements:
+                    - {id: '1', tags: ['red', 'blue']}
+                    - {id: '2', tags: ['green']}
+              - type: Create
+                name: Create2
+                config:
+                  elements:
+                    - {id: '3', tags: ['yellow', 'purple', 'orange']}
+                    - {id: '4', tags: []}
+              - type: Flatten
+                input: [Create1, Create2]
+              - type: AssertEqual
+                input: Flatten
+                config:
+                  elements:
+                    - {id: '1', tags: ['red', 'blue']}
+                    - {id: '2', tags: ['green']}
+                    - {id: '3', tags: ['yellow', 'purple', 'orange']}
+                    - {id: '4', tags: []}
+          ''')
+
+  def test_flatten_unifies_with_missing_fields(self):
+    """Test that Flatten correctly unifies schemas when some inputs have
+    missing fields."""
+    with beam.Pipeline(options=beam.options.pipeline_options.PipelineOptions(
+        pickle_library='cloudpickle')) as p:
+      _ = p | YamlTransform(
+          '''
+            type: composite
+            transforms:
+              - type: Create
+                name: Create1
+                config:
+                  elements:
+                    - {id: '1', name: 'Alice', department: 'Engineering',
+                       salary: 75000}
+                    - {id: '2', name: 'Bob', department: 'Marketing',
+                       salary: 65000}
+              - type: Create
+                name: Create2
+                config:
+                  elements:
+                    - {id: '3', name: 'Charlie', department: 'Sales'}
+                    - {id: '4', name: 'Diana'}
+              - type: Flatten
+                input: [Create1, Create2]
+              - type: AssertEqual
+                input: Flatten
+                config:
+                  elements:
+                    - {id: '1', name: 'Alice', department: 'Engineering',
+                       salary: 75000}
+                    - {id: '2', name: 'Bob', department: 'Marketing',
+                       salary: 65000}
+                    - {id: '3', name: 'Charlie', department: 'Sales'}
+                    - {id: '4', name: 'Diana'}
+          ''')
+
+  def test_flatten_unifies_complex_mixed_schemas(self):
+    """Test that Flatten correctly unifies complex mixed
+    schemas."""
+    with beam.Pipeline(options=beam.options.pipeline_options.PipelineOptions(
+        pickle_library='cloudpickle')) as p:
+      _ = p | YamlTransform(
+          '''
+            type: composite
+            transforms:
+              - type: Create
+                name: Create1
+                config:
+                  elements:
+                    - {id: 1, name: 'Product A', price: 29.99,
+                       categories: ['electronics', 'gadgets']}
+                    - {id: 2, name: 'Product B', price: 15.50,
+                       categories: ['books']}
+              - type: Create
+                name: Create2
+                config:
+                  elements:
+                    - {id: 3, name: 'Product C', categories: ['clothing']}
+                    - {id: 4, name: 'Product D', price: 99.99}
+              - type: Create
+                name: Create3
+                config:
+                  elements:
+                    - {id: 5, name: 'Product E', price: 5.00,
+                       categories: []}
+              - type: Flatten
+                input: [Create1, Create2, Create3]
+              - type: AssertEqual
+                input: Flatten
+                config:
+                  elements:
+                    - {id: 1, name: 'Product A', price: 29.99,
+                       categories: ['electronics', 'gadgets']}
+                    - {id: 2, name: 'Product B', price: 15.50,
+                       categories: ['books']}
+                    - {id: 3, name: 'Product C', categories: ['clothing']}
+                    - {id: 4, name: 'Product D', price: 99.99}
+                    - {id: 5, name: 'Product E', price: 5.00,
+                       categories: []}
+          ''')
+
+  def test_output_schema_success(self):
+    """Test that optional output_schema works."""
+    with beam.Pipeline(options=beam.options.pipeline_options.PipelineOptions(
+        pickle_library='cloudpickle')) as p:
+      _ = p | YamlTransform(
+          '''
+            type: composite
+            transforms:
+              - type: Create
+                name: MyCreate
+                config:
+                  elements:
+                    - {sdk: 'Beam', year: 2016}
+                    - {sdk: 'Flink', year: 2015}
+                  output_schema:
+                    type: object
+                    properties:
+                      sdk: 
+                        type: string
+                      year: 
+                        type: integer
+              - type: AssertEqual
+                name: CheckGood
+                input: MyCreate
+                config:
+                  elements:
+                    - {sdk: 'Beam', year: 2016}
+                    - {sdk: 'Flink', year: 2015}
+          ''')
+
+  def test_output_schema_fails(self):
+    """
+    Test that optional output_schema works by failing the pipeline since main
+    transform doesn't have error_handling config.
+    """
+    with self.assertRaises(Exception) as e:
+      with beam.Pipeline(options=beam.options.pipeline_options.PipelineOptions(
+          pickle_library='cloudpickle')) as p:
+        _ = p | YamlTransform(
+            '''
+                type: composite
+                transforms:
+                  - type: Create
+                    name: MyCreate
+                    config:
+                      elements:
+                        - {sdk: 'Beam', year: 2016}
+                        - {sdk: 'Spark', year: 'date'}
+                        - {sdk: 'Flink', year: 2015}
+                      output_schema:
+                        type: object
+                        properties:
+                          sdk: 
+                            type: string
+                          year: 
+                            type: integer
+                  - type: AssertEqual
+                    name: CheckGood
+                    input: MyCreate
+                    config:
+                      elements:
+                        - {sdk: 'Beam', year: 2016}
+                        - {sdk: 'Flink', year: 2015}
+              ''')
+    self.assertIn("'date' is not of type 'integer'", str(e.exception))
+
+  def test_output_schema_with_main_transform_error_handling_success(self):
+    """Test that optional output_schema works in conjunction with main transform
+    error handling."""
+    with beam.Pipeline(options=beam.options.pipeline_options.PipelineOptions(
+        pickle_library='cloudpickle')) as p:
+      _ = p | YamlTransform(
+          '''
+            type: composite
+            transforms:
+              - type: Create
+                name: CreateVisits
+                config:
+                  elements:
+                    - {user: alice, timestamp: "not-valid"}
+                    - {user: bob, timestamp: 3}
+              - type: AssignTimestamps
+                input: CreateVisits
+                config:
+                  timestamp: timestamp
+                  error_handling:
+                    output: invalid_rows
+                  output_schema:
+                    type: object
+                    properties:
+                      user:
+                        type: string
+                      timestamp:
+                        type: boolean
+              - type: MapToFields
+                name: ExtractInvalidTimestamp
+                input: AssignTimestamps.invalid_rows
+                config:
+                  language: python
+                  fields:
+                    user: "element.user"
+                    timestamp: "element.timestamp"
+              - type: AssertEqual
+                input: ExtractInvalidTimestamp
+                config:
+                  elements:
+                    - {user: "alice", timestamp: "not-valid"}
+                    - {user: bob, timestamp: 3}
+              - type: AssertEqual
+                input: AssignTimestamps
+                config:
+                  elements: []
+          ''')
+
 
 class ErrorHandlingTest(unittest.TestCase):
   def test_error_handling_outputs(self):
@@ -573,6 +912,60 @@ class ErrorHandlingTest(unittest.TestCase):
             ''',
             providers=TEST_PROVIDERS)
 
+  def test_error_handling_log_combined_errors(self):
+    with beam.Pipeline(options=beam.options.pipeline_options.PipelineOptions(
+        pickle_library='cloudpickle')) as p:
+      result = p | YamlTransform(
+          '''
+          type: composite
+          transforms:
+            - type: Create
+              name: Input1
+              config:
+                  elements: [1, 2, 0]
+            - type: Create
+              name: Input2
+              config:
+                  elements: [3, 'a', 5]
+            - type: MapToFields
+              name: Inverse
+              input: Input1
+              config:
+                  language: python
+                  fields:
+                    inverse: "1 / element"
+                  error_handling:
+                    output: errors
+            - type: MapToFields
+              name: Square
+              input: Input2
+              config:
+                  language: python
+                  fields:
+                    square: "element * element"
+                  error_handling:
+                    output: errors
+            - type: LogForTesting
+              input:
+                - Inverse.errors
+                - Square.errors
+            - type: Flatten
+              name: GoodData
+              input:
+                - Inverse
+                - Square
+          output: GoodData
+          ''',
+          providers=TEST_PROVIDERS)
+      assert_that(
+          result,
+          equal_to([
+              beam.Row(inverse=1.0, square=None),
+              beam.Row(inverse=0.5, square=None),
+              beam.Row(square=9, inverse=None),
+              beam.Row(square=25, inverse=None)
+          ]))
+
   def test_mapping_errors(self):
     with beam.Pipeline(options=beam.options.pipeline_options.PipelineOptions(
         pickle_library='cloudpickle')) as p:
@@ -662,6 +1055,61 @@ class YamlWindowingTest(unittest.TestCase):
           ''',
           providers=TEST_PROVIDERS)
       assert_that(result, equal_to([6, 9]))
+
+  def test_explicit_window_into_with_json_string_config_one_line(self):
+    with beam.Pipeline(options=beam.options.pipeline_options.PipelineOptions(
+        pickle_library='cloudpickle')) as p:
+      result = p | YamlTransform(
+          '''
+          type: chain
+          transforms:
+            - type: CreateTimestamped
+              config:
+                  elements: [0, 1, 2, 3, 4, 5]
+            - type: WindowInto
+              config:
+                windowing: {"type": "fixed", "size": "4s"}
+            - type: SumGlobally
+          ''',
+          providers=TEST_PROVIDERS)
+      assert_that(result, equal_to([6, 9]))
+
+  def test_explicit_window_into_with_json_string_config_multi_line(self):
+    with beam.Pipeline(options=beam.options.pipeline_options.PipelineOptions(
+        pickle_library='cloudpickle')) as p:
+      result = p | YamlTransform(
+          '''
+          type: chain
+          transforms:
+            - type: CreateTimestamped
+              config:
+                  elements: [0, 1, 2, 3, 4, 5]
+            - type: WindowInto
+              config:
+                windowing: |
+                  {"type": "fixed", "size": "4s"}
+            - type: SumGlobally
+          ''',
+          providers=TEST_PROVIDERS)
+      assert_that(result, equal_to([6, 9]))
+
+  def test_explicit_window_into_with_string_config_fails(self):
+    with self.assertRaisesRegex(ValueError, 'Error parsing windowing config'):
+      with beam.Pipeline(options=beam.options.pipeline_options.PipelineOptions(
+          pickle_library='cloudpickle')) as p:
+        _ = p | YamlTransform(
+            '''
+            type: chain
+            transforms:
+              - type: CreateTimestamped
+                config:
+                    elements: [0, 1, 2, 3, 4, 5]
+              - type: WindowInto
+                config:
+                  windowing: |
+                    'not a valid yaml'
+            ''',
+            providers=TEST_PROVIDERS)
 
   def test_windowing_on_input(self):
     with beam.Pipeline(options=beam.options.pipeline_options.PipelineOptions(
@@ -902,6 +1350,106 @@ class ProviderAffinityTest(unittest.TestCase):
           result3,
           equal_to([('provider3', 'provider3', 'provider4', 'provider4')]),
           label='StartWith3')
+
+
+class TestExternalYamlProvider(unittest.TestCase):
+  def setUp(self):
+    self.temp_dir = tempfile.mkdtemp()
+    self.provider_path = os.path.join(self.temp_dir, 'power_provider.yaml')
+    with open(self.provider_path, 'w') as f:
+      f.write(
+          """
+- type: yaml
+  transforms:
+    RaiseElementToPower:
+      config_schema:
+        properties:
+          n: {type: integer}
+      body:
+        type: MapToFields
+        config:
+          language: python
+          append: true
+          fields:
+            power: "element ** {{n}}"
+          error_handling:
+            output: my_error
+""")
+
+  def tearDown(self):
+    shutil.rmtree(self.temp_dir)
+
+  def test_provider_with_error_handling(self):
+    loaded_providers = yaml_provider.load_providers(self.provider_path)
+    test_providers = yaml_provider.InlineProvider(TEST_PROVIDERS)
+    merged_providers = yaml_provider.merge_providers(
+        loaded_providers, [test_providers])
+
+    with beam.Pipeline(options=beam.options.pipeline_options.PipelineOptions(
+        pickle_library='cloudpickle')) as p:
+      results = p | YamlTransform(
+          '''
+          type: composite
+          transforms:
+            - type: Create
+              config:
+                elements: [2, 'bad', 3]
+            - type: RaiseElementToPower
+              input: Create
+              config:
+                n: 2
+            - type: PyMap
+              name: TrimErrors
+              input: RaiseElementToPower.my_error
+              config:
+                  fn: "lambda x: x.msg"
+          output:
+            good: RaiseElementToPower.good
+            bad: TrimErrors
+          ''',
+          providers=merged_providers)
+
+      assert_that(
+          results['good'],
+          equal_to([beam.Row(element=2, power=4), beam.Row(element=3,
+                                                           power=9)]),
+          label="CheckGood")
+      assert_that(
+          results['bad'],
+          equal_to([
+              'TypeError("unsupported operand type(s) for ** or pow(): ' +
+              '\'str\' and \'int\'")'
+          ]),
+          label="CheckBad")
+
+  def test_must_consume_error_output(self):
+    # By adding a dummy error_handling block here, we signal to the static
+    # checker that this transform has an error output that must be consumed.
+    # The framework is able to handle the "nesting" where the provider for
+    # RaiseElementToPower also defines error handling internally.
+    loaded_providers = yaml_provider.load_providers(self.provider_path)
+    test_providers = yaml_provider.InlineProvider(TEST_PROVIDERS)
+    merged_providers = yaml_provider.merge_providers(
+        loaded_providers, [test_providers])
+
+    with self.assertRaisesRegex(Exception, 'Unconsumed error output.*'):
+      with beam.Pipeline(options=beam.options.pipeline_options.PipelineOptions(
+          pickle_library='cloudpickle')) as p:
+        _ = p | YamlTransform(
+            '''
+            type: composite
+            transforms:
+              - type: Create
+                config:
+                  elements: [2, 'bad', 3]
+              - type: RaiseElementToPower
+                input: Create
+                config:
+                  n: 2
+                  error_handling:
+                    output: my_error
+            ''',
+            providers=merged_providers)
 
 
 @beam.transforms.ptransform.annotate_yaml

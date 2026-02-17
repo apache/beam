@@ -22,6 +22,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.checkerframework.checker.initialization.qual.NotOnlyInitialized;
 import org.checkerframework.checker.initialization.qual.UnknownInitialization;
+import org.checkerframework.checker.nullness.qual.MonotonicNonNull;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
@@ -36,7 +37,8 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * inner factory, so the schema comparison only need happen on the first lookup.
  */
 public class CachingFactory<CreatedT extends @NonNull Object> implements Factory<CreatedT> {
-  private transient @Nullable ConcurrentHashMap<TypeDescriptor<?>, CreatedT> cache = null;
+  private transient volatile @MonotonicNonNull ConcurrentHashMap<TypeDescriptor<?>, CreatedT>
+      cache = null;
 
   private final @NotOnlyInitialized Factory<CreatedT> innerFactory;
 
@@ -45,10 +47,16 @@ public class CachingFactory<CreatedT extends @NonNull Object> implements Factory
   }
 
   private ConcurrentHashMap<TypeDescriptor<?>, CreatedT> getCache() {
-    if (cache == null) {
-      cache = new ConcurrentHashMap<>();
+    ConcurrentHashMap<TypeDescriptor<?>, CreatedT> value = cache;
+    if (value == null) {
+      synchronized (this) {
+        value = cache;
+        if (value == null) {
+          cache = value = new ConcurrentHashMap<>();
+        }
+      }
     }
-    return cache;
+    return value;
   }
 
   @Override

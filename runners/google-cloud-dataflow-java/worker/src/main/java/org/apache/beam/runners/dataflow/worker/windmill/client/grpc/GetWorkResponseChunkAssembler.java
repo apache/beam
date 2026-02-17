@@ -51,6 +51,7 @@ final class GetWorkResponseChunkAssembler {
 
   private final GetWorkTimingInfosTracker workTimingInfosTracker;
   private @Nullable ComputationMetadata metadata;
+  private final WorkItem.Builder workItemBuilder; // Reused to reduce GC overhead.
   private ByteString data;
   private long bufferedSize;
 
@@ -59,6 +60,7 @@ final class GetWorkResponseChunkAssembler {
     data = ByteString.EMPTY;
     bufferedSize = 0;
     metadata = null;
+    workItemBuilder = WorkItem.newBuilder();
   }
 
   /**
@@ -94,15 +96,17 @@ final class GetWorkResponseChunkAssembler {
    */
   private Optional<AssembledWorkItem> flushToWorkItem() {
     try {
+      workItemBuilder.mergeFrom(data);
       return Optional.of(
           AssembledWorkItem.create(
-              WorkItem.parseFrom(data.newInput()),
+              workItemBuilder.build(),
               Preconditions.checkNotNull(metadata),
               workTimingInfosTracker.getLatencyAttributions(),
               bufferedSize));
     } catch (IOException e) {
       LOG.error("Failed to parse work item from stream: ", e);
     } finally {
+      workItemBuilder.clear();
       workTimingInfosTracker.reset();
       data = ByteString.EMPTY;
       bufferedSize = 0;
@@ -120,14 +124,17 @@ final class GetWorkResponseChunkAssembler {
           metadataProto.getComputationId(),
           WindmillTimeUtils.windmillToHarnessWatermark(metadataProto.getInputDataWatermark()),
           WindmillTimeUtils.windmillToHarnessWatermark(
-              metadataProto.getDependentRealtimeInputWatermark()));
+              metadataProto.getDependentRealtimeInputWatermark()),
+          metadataProto.getDrainMode());
     }
 
     abstract String computationId();
 
-    abstract Instant inputDataWatermark();
+    abstract @Nullable Instant inputDataWatermark();
 
-    abstract Instant synchronizedProcessingTime();
+    abstract @Nullable Instant synchronizedProcessingTime();
+
+    abstract boolean drainMode();
   }
 
   @AutoValue

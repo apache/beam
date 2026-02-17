@@ -25,11 +25,14 @@ from collections.abc import Callable
 from typing import Any
 from typing import Optional
 
-import jsonschema
-
 import apache_beam as beam
 from apache_beam.portability.api import schema_pb2
 from apache_beam.typehints import schemas
+
+try:
+  import jsonschema
+except ImportError:
+  pass
 
 JSON_ATOMIC_TYPES_TO_BEAM = {
     'boolean': schema_pb2.BOOLEAN,
@@ -60,7 +63,7 @@ def json_schema_to_beam_schema(
 
   json_type = json_schema.get('type', None)
   if json_type != 'object':
-    raise ValueError('Expected object type, got {json_type}.')
+    raise ValueError(f'Expected object type, got {json_type}.')
   if 'properties' not in json_schema:
     # Technically this is a valid (vacuous) schema, but as it's not generally
     # meaningful, throw an informative error instead.
@@ -167,6 +170,13 @@ def json_to_row(beam_type: schema_pb2.FieldType) -> Callable[[Any], Any]:
   The input to the returned callable is expected to conform to the Json schema
   corresponding to this Beam type.
   """
+  if beam_type.nullable:
+    non_null_type = schema_pb2.FieldType()
+    non_null_type.CopyFrom(beam_type)
+    non_null_type.nullable = False
+    non_null_converter = json_to_row(non_null_type)
+    return lambda value: None if value is None else non_null_converter(value)
+
   type_info = beam_type.WhichOneof("type_info")
   if type_info == "atomic_type":
     return lambda value: value
@@ -184,14 +194,28 @@ def json_to_row(beam_type: schema_pb2.FieldType) -> Callable[[Any], Any]:
     value_converter = json_to_row(beam_type.map_type.value_type)
     return lambda value: {k: value_converter(v) for (k, v) in value.items()}
   elif type_info == "row_type":
+    field_nullable_status = {
+        field.name: field.type.nullable
+        for field in beam_type.row_type.schema.fields
+    }
+
     converters = {
         field.name: json_to_row(field.type)
         for field in beam_type.row_type.schema.fields
     }
-    return lambda value: beam.Row(
-        **
-        {name: convert(value[name])
-         for (name, convert) in converters.items()})
+
+    def convert_row(value):
+      kwargs = {}
+      for name, convert in converters.items():
+        if name in value:
+          kwargs[name] = convert(value[name])
+        elif field_nullable_status[name]:
+          kwargs[name] = convert(None)
+        else:
+          raise KeyError(f"Missing required field: {name}")
+      return beam.Row(**kwargs)
+
+    return convert_row
   elif type_info == "logical_type":
     return lambda value: value
   else:
@@ -266,8 +290,10 @@ def row_to_json(beam_type: schema_pb2.FieldType) -> Callable[[Any], Any]:
         for field in beam_type.row_type.schema.fields
     }
     return lambda row: {
-        name: convert(getattr(row, name))
+        name: converted
         for (name, convert) in converters.items()
+        # To filter out nullable fields in rows
+        if (converted := convert(getattr(row, name, None))) is not None
     }
   elif type_info == "logical_type":
     return lambda value: value
@@ -288,24 +314,34 @@ def _validate_compatible(weak_schema, strong_schema):
     return
   if weak_schema['type'] != strong_schema['type']:
     raise ValueError(
-        'Incompatible types: %r vs %r' %
-        (weak_schema['type'] != strong_schema['type']))
+        f"Incompatible types: {weak_schema['type']} vs {strong_schema['type']}")
   if weak_schema['type'] == 'array':
     _validate_compatible(weak_schema['items'], strong_schema['items'])
-  elif weak_schema == 'object':
+  elif weak_schema['type'] == 'object':
+    # If the weak schema allows for arbitrary keys (is a map),
+    # the strong schema must also allow for arbitrary keys.
+    if weak_schema.get('additionalProperties'):
+      if not strong_schema.get('additionalProperties', True):
+        raise ValueError('Incompatible types: map vs object')
+      _validate_compatible(
+          weak_schema['additionalProperties'],
+          strong_schema['additionalProperties'])
     for required in strong_schema.get('required', []):
       if required not in weak_schema['properties']:
-        raise ValueError('Missing or unkown property %r' % required)
-    for name, spec in weak_schema.get('properties', {}):
+        raise ValueError(f"Missing or unknown property '{required}'")
+    for name, spec in weak_schema.get('properties', {}).items():
+
       if name in strong_schema['properties']:
         try:
           _validate_compatible(spec, strong_schema['properties'][name])
         except Exception as exn:
-          raise ValueError('Incompatible schema for %r' % name) from exn
-      elif not strong_schema.get('additionalProperties'):
+          raise ValueError(f"Incompatible schema for '{name}'") from exn
+      elif not strong_schema.get('additionalProperties', True):
+        # The property is not explicitly in the strong schema, and the strong
+        # schema does not allow for extra properties.
         raise ValueError(
-            'Prohibited property: {property}; '
-            'perhaps additionalProperties: False is missing?')
+            f"Prohibited property: '{name}'; "
+            "perhaps additionalProperties: False is missing?")
 
 
 def row_validator(beam_schema: schema_pb2.Schema,
@@ -327,6 +363,9 @@ def row_validator(beam_schema: schema_pb2.Schema,
     nonlocal validator
     if validator is None:
       validator = jsonschema.validators.validator_for(json_schema)(json_schema)
+    # NOTE: A row like BeamSchema_...(name='Bob', score=None, age=25) needs to
+    # have any fields that are None to be filtered out or the validator will
+    # fail (e.g. {'age': 25, 'name': 'Bob'}).
     validator.validate(convert(row))
 
   return validate

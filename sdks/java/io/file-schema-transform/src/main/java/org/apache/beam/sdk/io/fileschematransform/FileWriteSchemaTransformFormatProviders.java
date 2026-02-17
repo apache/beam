@@ -80,7 +80,7 @@ public final class FileWriteSchemaTransformFormatProviders {
   //    mapFn: the mapping function for mapping from Beam row to other data types.
   //    outputTag: TupleTag for output. Used to direct output to correct output source, or in the
   //        case of error, a DLQ.
-  static class BeamRowMapperWithDlq<OutputT extends Object> extends DoFn<Row, OutputT> {
+  static class BeamRowMapperWithDlq<OutputT> extends DoFn<Row, OutputT> {
     private SerializableFunction<Row, OutputT> mapFn;
     private Counter errorCounter;
     private TupleTag<OutputT> outputTag;

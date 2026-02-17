@@ -40,8 +40,10 @@ _LOGGER = logging.getLogger(__name__)
 try:
   from apitools.base.py.exceptions import HttpError
   from google.cloud.bigtable import client
+  from google.cloud.bigtable.row import Cell
+  from google.cloud.bigtable.row import DirectRow
+  from google.cloud.bigtable.row import PartialRowData
   from google.cloud.bigtable.row_filters import TimestampRange
-  from google.cloud.bigtable.row import DirectRow, PartialRowData, Cell
   from google.cloud.bigtable.table import Table
   from google.cloud.bigtable_admin_v2.types import instance
 except ImportError as e:

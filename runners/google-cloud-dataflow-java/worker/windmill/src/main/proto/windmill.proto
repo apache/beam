@@ -958,6 +958,12 @@ message UserWorkerGrpcFlowControlSettings {
   optional int32 on_ready_threshold_bytes = 3;
 }
 
+enum ConnectivityType {
+  CONNECTIVITY_TYPE_DEFAULT = 0;
+  CONNECTIVITY_TYPE_CLOUDPATH = 1;
+  CONNECTIVITY_TYPE_DIRECTPATH = 2;
+}
+
 // Settings to control runtime behavior of the java runner v1 user worker.
 message UserWorkerRunnerV1Settings {
   // If true, use separate channels for each windmill RPC.
@@ -967,6 +973,9 @@ message UserWorkerRunnerV1Settings {
   optional bool use_separate_windmill_heartbeat_streams = 2 [default = true];
 
   optional UserWorkerGrpcFlowControlSettings flow_control_settings = 3;
+
+  optional ConnectivityType connectivity_type = 4
+    [default = CONNECTIVITY_TYPE_DEFAULT];
 }
 
 service WindmillAppliance {

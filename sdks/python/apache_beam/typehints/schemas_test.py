@@ -30,8 +30,8 @@ from typing import NamedTuple
 from typing import Optional
 from typing import Sequence
 
-import dill
 import numpy as np
+import pytest
 from hypothesis import given
 from hypothesis import settings
 from parameterized import parameterized
@@ -711,13 +711,19 @@ class HypothesisTest(unittest.TestCase):
         'pickler': pickle,
     },
     {
-        'pickler': dill,
+        'pickler': 'dill',
     },
     {
         'pickler': cloudpickle,
     },
 ])
+@pytest.mark.uses_dill
 class PickleTest(unittest.TestCase):
+  def setUp(self):
+    # pylint: disable=access-member-before-definition
+    if self.pickler == 'dill':
+      self.pickler = pytest.importorskip("dill")
+
   def test_generated_class_pickle_instance(self):
     schema = schema_pb2.Schema(
         id="some-uuid",
@@ -733,7 +739,7 @@ class PickleTest(unittest.TestCase):
     self.assertEqual(instance, self.pickler.loads(self.pickler.dumps(instance)))
 
   def test_generated_class_pickle(self):
-    if self.pickler in [pickle, dill]:
+    if self.pickler in [pickle, pytest.importorskip("dill")]:
       self.skipTest('https://github.com/apache/beam/issues/22714')
 
     schema = schema_pb2.Schema(

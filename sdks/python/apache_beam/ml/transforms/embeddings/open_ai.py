@@ -21,16 +21,17 @@ from typing import Optional
 from typing import TypeVar
 from typing import Union
 
-import apache_beam as beam
 import openai
+from openai import APIError
+from openai import RateLimitError
+
+import apache_beam as beam
 from apache_beam.ml.inference.base import RemoteModelHandler
 from apache_beam.ml.inference.base import RunInference
 from apache_beam.ml.transforms.base import EmbeddingsManager
 from apache_beam.ml.transforms.base import _TextEmbeddingHandler
 from apache_beam.pvalue import PCollection
 from apache_beam.pvalue import Row
-from openai import APIError
-from openai import RateLimitError
 
 __all__ = ["OpenAITextEmbeddings"]
 

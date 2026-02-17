@@ -278,7 +278,11 @@ public class ChannelzServlet extends BaseStatusServlet implements DebugCapture.C
 
       @Override
       public void onCompleted() {
-        future.set(response);
+        if (response == null) {
+          future.setException(new IllegalStateException("No response"));
+        } else {
+          future.set(response);
+        }
       }
     };
   }

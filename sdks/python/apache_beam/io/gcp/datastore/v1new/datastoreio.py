@@ -53,8 +53,8 @@ from apache_beam.utils import retry
 # Protect against environments where datastore library is not available.
 # pylint: disable=wrong-import-order, wrong-import-position
 try:
-  from apitools.base.py.exceptions import HttpError
-  from google.api_core.exceptions import ClientError, GoogleAPICallError
+  from google.api_core.exceptions import ClientError
+  from google.api_core.exceptions import GoogleAPICallError
 except ImportError:
   pass
 
@@ -308,9 +308,6 @@ class ReadFromDatastore(PTransform):
         # e.code.value contains the numeric http status code.
         service_call_metric.call(e.code.value)
         raise
-      except HttpError as e:
-        service_call_metric.call(e)
-        raise
 
 
 class _Mutate(PTransform):
@@ -466,10 +463,6 @@ class _Mutate(PTransform):
         self._batch = None
         # e.code.value contains the numeric http status code.
         service_call_metric.call(e.code.value)
-        rpc_stats_callback(errors=1)
-        raise
-      except HttpError as e:
-        service_call_metric.call(e)
         rpc_stats_callback(errors=1)
         raise
 

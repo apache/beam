@@ -97,7 +97,7 @@ class DockerCommand {
       if (LOG.isDebugEnabled()) {
         LOG.debug("Unable to pull docker image {}", imageTag, e);
       } else {
-        LOG.warn("Unable to pull docker image {}, cause: {}", imageTag, e.getMessage());
+        LOG.warn("Unable to pull docker image {}", imageTag, e);
       }
     }
     // TODO: Validate args?

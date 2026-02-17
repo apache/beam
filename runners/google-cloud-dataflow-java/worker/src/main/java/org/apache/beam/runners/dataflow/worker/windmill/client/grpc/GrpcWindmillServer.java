@@ -22,7 +22,6 @@ import static org.apache.beam.runners.dataflow.worker.windmill.client.grpc.stubs
 import static org.apache.beam.runners.dataflow.worker.windmill.client.grpc.stubs.WindmillChannels.localhostChannel;
 
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
-import java.io.IOException;
 import java.io.PrintWriter;
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -291,10 +290,8 @@ public final class GrpcWindmillServer extends WindmillServerStub {
           if (!BackOffUtils.next(Sleeper.DEFAULT, backoff)) {
             throw new WindmillRpcException(e);
           }
-        } catch (IOException | InterruptedException i) {
-          if (i instanceof InterruptedException) {
-            Thread.currentThread().interrupt();
-          }
+        } catch (InterruptedException i) {
+          Thread.currentThread().interrupt();
           WindmillRpcException rpcException = new WindmillRpcException(e);
           rpcException.addSuppressed(i);
           throw rpcException;

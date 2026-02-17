@@ -27,7 +27,6 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertThrows;
-import static org.junit.Assert.fail;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.same;
@@ -41,7 +40,6 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collection;
 import java.util.List;
 import org.apache.beam.sdk.coders.AtomicCoder;
 import org.apache.beam.sdk.coders.CoderException;
@@ -78,6 +76,8 @@ import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.util.UserCodeException;
+import org.apache.beam.sdk.values.OutputBuilder;
+import org.apache.beam.sdk.values.WindowedValues;
 import org.joda.time.Instant;
 import org.junit.Before;
 import org.junit.Rule;
@@ -549,25 +549,16 @@ public class DoFnInvokersTest {
           }
 
           @Override
-          public OutputReceiver outputReceiver(DoFn doFn) {
+          public OutputReceiver<SomeRestriction> outputReceiver(DoFn doFn) {
             return new OutputReceiver<SomeRestriction>() {
               @Override
-              public void output(SomeRestriction output) {
-                outputs.add(output);
-              }
-
-              @Override
-              public void outputWithTimestamp(SomeRestriction output, Instant timestamp) {
-                fail("Unexpected output with timestamp");
-              }
-
-              @Override
-              public void outputWindowedValue(
-                  SomeRestriction output,
-                  Instant timestamp,
-                  Collection<? extends BoundedWindow> windows,
-                  PaneInfo paneInfo) {
-                fail("Unexpected outputWindowedValue");
+              public OutputBuilder<SomeRestriction> builder(SomeRestriction value) {
+                return WindowedValues.<SomeRestriction>builder()
+                    .setValue(value)
+                    .setTimestamp(mockTimestamp)
+                    .setWindow(mockWindow)
+                    .setPaneInfo(PaneInfo.NO_FIRING)
+                    .setReceiver(windowedValue -> outputs.add(windowedValue.getValue()));
               }
             };
           }
@@ -801,28 +792,18 @@ public class DoFnInvokersTest {
               private boolean invoked;
 
               @Override
-              public void output(String output) {
-                assertFalse(invoked);
-                invoked = true;
-                assertEquals("foo", output);
-              }
-
-              @Override
-              public void outputWithTimestamp(String output, Instant instant) {
-                assertFalse(invoked);
-                invoked = true;
-                assertEquals("foo", output);
-              }
-
-              @Override
-              public void outputWindowedValue(
-                  String output,
-                  Instant timestamp,
-                  Collection<? extends BoundedWindow> windows,
-                  PaneInfo paneInfo) {
-                assertFalse(invoked);
-                invoked = true;
-                assertEquals("foo", output);
+              public OutputBuilder<String> builder(String value) {
+                return WindowedValues.<String>builder()
+                    .setValue(value)
+                    .setTimestamp(mockTimestamp)
+                    .setWindow(mockWindow)
+                    .setPaneInfo(PaneInfo.NO_FIRING)
+                    .setReceiver(
+                        windowedValue -> {
+                          assertFalse(invoked);
+                          invoked = true;
+                          assertEquals("foo", windowedValue.getValue());
+                        });
               }
             };
           }

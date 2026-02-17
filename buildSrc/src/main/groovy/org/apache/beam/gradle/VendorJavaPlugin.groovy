@@ -80,7 +80,7 @@ class VendorJavaPlugin implements Plugin<Project> {
         config.version += '-SNAPSHOT'
       }
 
-      project.apply plugin: 'com.github.johnrengelman.shadow'
+      project.apply plugin: 'com.gradleup.shadow'
 
       project.apply plugin: 'java'
 

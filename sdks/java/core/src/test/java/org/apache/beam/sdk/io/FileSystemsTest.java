@@ -311,6 +311,7 @@ public class FileSystemsTest {
     assertEquals("file", FileSystems.matchNewResource("c:\\tmp\\f1", false).getScheme());
   }
 
+  @SuppressWarnings("JUnitIncompatibleType")
   @Test(expected = IllegalArgumentException.class)
   public void testInvalidSchemaMatchNewResource() {
     assertEquals("file", FileSystems.matchNewResource("invalidschema://tmp/f1", false));

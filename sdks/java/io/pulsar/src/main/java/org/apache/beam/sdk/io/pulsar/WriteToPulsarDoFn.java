@@ -18,33 +18,39 @@
 package org.apache.beam.sdk.io.pulsar;
 
 import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.pulsar.client.api.CompressionType;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 
-/**
- * Transform for writing to Apache Pulsar. Support is currently incomplete, and there may be bugs;
- * see https://github.com/apache/beam/issues/31078 for more info, and comment in that issue if you
- * run into issues with this IO.
- */
-@DoFn.UnboundedPerElement
-@SuppressWarnings({"rawtypes", "nullness"})
+/** DoFn for writing to Apache Pulsar. */
+@SuppressWarnings({"nullness"})
 public class WriteToPulsarDoFn extends DoFn<byte[], Void> {
-
-  private Producer<byte[]> producer;
-  private PulsarClient client;
+  private final SerializableFunction<String, PulsarClient> clientFn;
+  private transient Producer<byte[]> producer;
+  private transient PulsarClient client;
   private String clientUrl;
   private String topic;
 
   WriteToPulsarDoFn(PulsarIO.Write transform) {
     this.clientUrl = transform.getClientUrl();
     this.topic = transform.getTopic();
+    this.clientFn = transform.getPulsarClient();
   }
 
   @Setup
-  public void setup() throws PulsarClientException {
-    client = PulsarClient.builder().serviceUrl(clientUrl).build();
+  public void setup() {
+    if (client == null) {
+      if (clientUrl == null) {
+        clientUrl = PulsarIOUtils.LOCAL_SERVICE_URL;
+      }
+      client = clientFn.apply(clientUrl);
+    }
+  }
+
+  @StartBundle
+  public void startBundle() throws PulsarClientException {
     producer = client.newProducer().topic(topic).compressionType(CompressionType.LZ4).create();
   }
 
@@ -53,9 +59,13 @@ public class WriteToPulsarDoFn extends DoFn<byte[], Void> {
     producer.send(messageToSend);
   }
 
+  @FinishBundle
+  public void finishBundle() throws PulsarClientException {
+    producer.close();
+  }
+
   @Teardown
   public void teardown() throws PulsarClientException {
-    producer.close();
     client.close();
   }
 }

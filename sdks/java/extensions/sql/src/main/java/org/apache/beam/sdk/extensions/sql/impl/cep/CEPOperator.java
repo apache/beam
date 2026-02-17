@@ -19,8 +19,8 @@ package org.apache.beam.sdk.extensions.sql.impl.cep;
 
 import java.io.Serializable;
 import java.util.Map;
-import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.sql.SqlKind;
-import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.sql.SqlOperator;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.sql.SqlKind;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.sql.SqlOperator;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 
 /**

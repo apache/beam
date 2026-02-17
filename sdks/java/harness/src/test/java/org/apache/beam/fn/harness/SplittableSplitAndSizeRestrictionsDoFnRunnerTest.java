@@ -17,9 +17,11 @@
  */
 package org.apache.beam.fn.harness;
 
+import static org.apache.beam.runners.core.WindowMatchers.isSingleWindowedValue;
+import static org.apache.beam.runners.core.WindowMatchers.isValueInGlobalWindow;
+import static org.apache.beam.runners.core.WindowMatchers.isWindowedValue;
 import static org.apache.beam.sdk.values.WindowedValues.valueInGlobalWindow;
 import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.empty;
 import static org.junit.Assert.assertTrue;
@@ -214,20 +216,20 @@ public class SplittableSplitAndSizeRestrictionsDoFnRunnerTest implements Seriali
             KV.of("2", KV.of(new OffsetRange(0, 2), GlobalWindow.TIMESTAMP_MIN_VALUE))));
     assertThat(
         mainOutputValues,
-        contains(
-            valueInGlobalWindow(
+        containsInAnyOrder(
+            isValueInGlobalWindow(
                 KV.of(
                     KV.of("5", KV.of(new OffsetRange(0, 2), GlobalWindow.TIMESTAMP_MIN_VALUE)),
                     2.0)),
-            valueInGlobalWindow(
+            isValueInGlobalWindow(
                 KV.of(
                     KV.of("5", KV.of(new OffsetRange(2, 5), GlobalWindow.TIMESTAMP_MIN_VALUE)),
                     3.0)),
-            valueInGlobalWindow(
+            isValueInGlobalWindow(
                 KV.of(
                     KV.of("2", KV.of(new OffsetRange(0, 1), GlobalWindow.TIMESTAMP_MIN_VALUE)),
                     1.0)),
-            valueInGlobalWindow(
+            isValueInGlobalWindow(
                 KV.of(
                     KV.of("2", KV.of(new OffsetRange(1, 2), GlobalWindow.TIMESTAMP_MIN_VALUE)),
                     1.0))));
@@ -325,59 +327,60 @@ public class SplittableSplitAndSizeRestrictionsDoFnRunnerTest implements Seriali
     // Since the DoFn observes the window and it may affect the output, each input is processed
     // separately and each
     // output is per-window.
+
     assertThat(
         mainOutputValues,
-        contains(
-            WindowedValues.of(
+        containsInAnyOrder(
+            isSingleWindowedValue(
                 KV.of(
                     KV.of("5", KV.of(new OffsetRange(0, 2), GlobalWindow.TIMESTAMP_MIN_VALUE)),
                     2.0),
                 firstValue.getTimestamp(),
                 window1,
                 firstValue.getPaneInfo()),
-            WindowedValues.of(
+            isSingleWindowedValue(
                 KV.of(
                     KV.of("5", KV.of(new OffsetRange(2, 5), GlobalWindow.TIMESTAMP_MIN_VALUE)),
                     3.0),
                 firstValue.getTimestamp(),
                 window1,
                 firstValue.getPaneInfo()),
-            WindowedValues.of(
+            isSingleWindowedValue(
                 KV.of(
                     KV.of("5", KV.of(new OffsetRange(0, 2), GlobalWindow.TIMESTAMP_MIN_VALUE)),
                     2.0),
                 firstValue.getTimestamp(),
                 window2,
                 firstValue.getPaneInfo()),
-            WindowedValues.of(
+            isSingleWindowedValue(
                 KV.of(
                     KV.of("5", KV.of(new OffsetRange(2, 5), GlobalWindow.TIMESTAMP_MIN_VALUE)),
                     3.0),
                 firstValue.getTimestamp(),
                 window2,
                 firstValue.getPaneInfo()),
-            WindowedValues.of(
+            isSingleWindowedValue(
                 KV.of(
                     KV.of("2", KV.of(new OffsetRange(0, 1), GlobalWindow.TIMESTAMP_MIN_VALUE)),
                     1.0),
                 secondValue.getTimestamp(),
                 window1,
                 secondValue.getPaneInfo()),
-            WindowedValues.of(
+            isSingleWindowedValue(
                 KV.of(
                     KV.of("2", KV.of(new OffsetRange(1, 2), GlobalWindow.TIMESTAMP_MIN_VALUE)),
                     1.0),
                 secondValue.getTimestamp(),
                 window1,
                 secondValue.getPaneInfo()),
-            WindowedValues.of(
+            isSingleWindowedValue(
                 KV.of(
                     KV.of("2", KV.of(new OffsetRange(0, 1), GlobalWindow.TIMESTAMP_MIN_VALUE)),
                     1.0),
                 secondValue.getTimestamp(),
                 window2,
                 secondValue.getPaneInfo()),
-            WindowedValues.of(
+            isSingleWindowedValue(
                 KV.of(
                     KV.of("2", KV.of(new OffsetRange(1, 2), GlobalWindow.TIMESTAMP_MIN_VALUE)),
                     1.0),
@@ -470,29 +473,29 @@ public class SplittableSplitAndSizeRestrictionsDoFnRunnerTest implements Seriali
     // Ensure that each output element is in all the windows and not one per window.
     assertThat(
         mainOutputValues,
-        contains(
-            WindowedValues.of(
+        containsInAnyOrder(
+            isWindowedValue(
                 KV.of(
                     KV.of("5", KV.of(new OffsetRange(0, 2), GlobalWindow.TIMESTAMP_MIN_VALUE)),
                     2.0),
                 firstValue.getTimestamp(),
                 ImmutableList.of(window1, window2),
                 firstValue.getPaneInfo()),
-            WindowedValues.of(
+            isWindowedValue(
                 KV.of(
                     KV.of("5", KV.of(new OffsetRange(2, 5), GlobalWindow.TIMESTAMP_MIN_VALUE)),
                     3.0),
                 firstValue.getTimestamp(),
                 ImmutableList.of(window1, window2),
                 firstValue.getPaneInfo()),
-            WindowedValues.of(
+            isWindowedValue(
                 KV.of(
                     KV.of("2", KV.of(new OffsetRange(0, 1), GlobalWindow.TIMESTAMP_MIN_VALUE)),
                     1.0),
                 firstValue.getTimestamp(),
                 ImmutableList.of(window1, window2),
                 firstValue.getPaneInfo()),
-            WindowedValues.of(
+            isWindowedValue(
                 KV.of(
                     KV.of("2", KV.of(new OffsetRange(1, 2), GlobalWindow.TIMESTAMP_MIN_VALUE)),
                     1.0),

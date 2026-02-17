@@ -21,6 +21,7 @@ import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Pr
 
 import com.google.api.core.ApiFuture;
 import com.google.api.core.ApiFutures;
+import com.google.api.services.bigquery.model.TableReference;
 import com.google.api.services.bigquery.model.TableRow;
 import com.google.cloud.bigquery.storage.v1.AppendRowsRequest;
 import com.google.cloud.bigquery.storage.v1.AppendRowsResponse;
@@ -182,11 +183,11 @@ public class StorageApiWritesShardedRecords<DestinationT extends @NonNull Object
     }
   };
 
-  private static final Cache<ShardedKey<?>, AppendClientInfo> APPEND_CLIENTS =
+  private static final Cache<KV<String, ShardedKey<?>>, AppendClientInfo> APPEND_CLIENTS =
       CacheBuilder.newBuilder()
           .expireAfterAccess(5, TimeUnit.MINUTES)
           .removalListener(
-              (RemovalNotification<ShardedKey<?>, AppendClientInfo> removal) -> {
+              (RemovalNotification<KV<String, ShardedKey<?>>, AppendClientInfo> removal) -> {
                 final @Nullable AppendClientInfo appendClientInfo = removal.getValue();
                 if (appendClientInfo != null) {
                   appendClientInfo.close();
@@ -481,6 +482,7 @@ public class StorageApiWritesShardedRecords<DestinationT extends @NonNull Object
               });
       final String tableId = tableDestination.getTableUrn(bigQueryOptions);
       final String shortTableId = tableDestination.getShortTableUrn();
+      final TableReference tableReference = tableDestination.getTableReference();
       final DatasetService datasetService = getDatasetService(pipelineOptions);
       final WriteStreamService writeStreamService = getWriteStreamService(pipelineOptions);
 
@@ -580,14 +582,18 @@ public class StorageApiWritesShardedRecords<DestinationT extends @NonNull Object
           };
 
       AtomicReference<AppendClientInfo> appendClientInfo =
-          new AtomicReference<>(APPEND_CLIENTS.get(element.getKey(), getAppendClientInfo));
+          new AtomicReference<>(
+              APPEND_CLIENTS.get(
+                  messageConverters.getAppendClientKey(element.getKey()), getAppendClientInfo));
       String currentStream = getOrCreateStream.get();
       if (!currentStream.equals(appendClientInfo.get().getStreamName())) {
         // Cached append client is inconsistent with persisted state. Throw away cached item and
         // force it to be
         // recreated.
-        APPEND_CLIENTS.invalidate(element.getKey());
-        appendClientInfo.set(APPEND_CLIENTS.get(element.getKey(), getAppendClientInfo));
+        APPEND_CLIENTS.invalidate(messageConverters.getAppendClientKey(element.getKey()));
+        appendClientInfo.set(
+            APPEND_CLIENTS.get(
+                messageConverters.getAppendClientKey(element.getKey()), getAppendClientInfo));
       }
 
       TableSchema updatedSchemaValue = updatedSchema.read();
@@ -596,8 +602,9 @@ public class StorageApiWritesShardedRecords<DestinationT extends @NonNull Object
           appendClientInfo.set(
               AppendClientInfo.of(
                   updatedSchemaValue, appendClientInfo.get().getCloseAppendClient(), false));
-          APPEND_CLIENTS.invalidate(element.getKey());
-          APPEND_CLIENTS.put(element.getKey(), appendClientInfo.get());
+          APPEND_CLIENTS.invalidate(messageConverters.getAppendClientKey(element.getKey()));
+          APPEND_CLIENTS.put(
+              messageConverters.getAppendClientKey(element.getKey()), appendClientInfo.get());
         }
       }
 
@@ -608,12 +615,14 @@ public class StorageApiWritesShardedRecords<DestinationT extends @NonNull Object
           new SplittingIterable(
               element.getValue(),
               splitSize,
-              (fields, ignore) -> appendClientInfo.get().encodeUnknownFields(fields, ignore),
+              (bytes, tableRow) ->
+                  appendClientInfo.get().mergeNewFields(bytes, tableRow, ignoreUnknownValues),
               bytes -> appendClientInfo.get().toTableRow(bytes, Predicates.alwaysTrue()),
               (failedRow, errorMessage) -> {
                 o.get(failedRowsTag)
                     .outputWithTimestamp(
-                        new BigQueryStorageApiInsertError(failedRow.getValue(), errorMessage),
+                        new BigQueryStorageApiInsertError(
+                            failedRow.getValue(), errorMessage, tableReference),
                         failedRow.getTimestamp());
                 rowsSentToFailedRowsCollection.inc();
                 BigQuerySinkMetrics.appendRowsRowStatusCounter(
@@ -623,7 +632,6 @@ public class StorageApiWritesShardedRecords<DestinationT extends @NonNull Object
                     .inc(1);
               },
               autoUpdateSchema,
-              ignoreUnknownValues,
               elementTs);
 
       // Initialize stream names and offsets for all contexts. This will be called initially, but
@@ -664,9 +672,10 @@ public class StorageApiWritesShardedRecords<DestinationT extends @NonNull Object
 
       Consumer<Iterable<AppendRowsContext>> clearClients =
           contexts -> {
-            APPEND_CLIENTS.invalidate(element.getKey());
+            APPEND_CLIENTS.invalidate(messageConverters.getAppendClientKey(element.getKey()));
             appendClientInfo.set(appendClientInfo.get().withNoAppendClient());
-            APPEND_CLIENTS.put(element.getKey(), appendClientInfo.get());
+            APPEND_CLIENTS.put(
+                messageConverters.getAppendClientKey(element.getKey()), appendClientInfo.get());
             for (AppendRowsContext context : contexts) {
               if (context.client != null) {
                 // Unpin in a different thread, as it may execute a blocking close.
@@ -733,7 +742,9 @@ public class StorageApiWritesShardedRecords<DestinationT extends @NonNull Object
                 o.get(failedRowsTag)
                     .outputWithTimestamp(
                         new BigQueryStorageApiInsertError(
-                            failedRow, error.getRowIndexToErrorMessage().get(failedIndex)),
+                            failedRow,
+                            error.getRowIndexToErrorMessage().get(failedIndex),
+                            tableReference),
                         timestamp);
               }
               int failedRows = failedRowIndices.size();
@@ -904,7 +915,9 @@ public class StorageApiWritesShardedRecords<DestinationT extends @NonNull Object
             o.get(failedRowsTag)
                 .outputWithTimestamp(
                     new BigQueryStorageApiInsertError(
-                        failedRow, "Row payload too large. Maximum size " + maxRequestSize),
+                        failedRow,
+                        "Row payload too large. Maximum size " + maxRequestSize,
+                        tableReference),
                     timestamp);
           }
           int numRowsFailed = splitValue.getProtoRows().getSerializedRowsCount();
@@ -960,8 +973,9 @@ public class StorageApiWritesShardedRecords<DestinationT extends @NonNull Object
               appendClientInfo.set(
                   AppendClientInfo.of(
                       newSchema.get(), appendClientInfo.get().getCloseAppendClient(), false));
-              APPEND_CLIENTS.invalidate(element.getKey());
-              APPEND_CLIENTS.put(element.getKey(), appendClientInfo.get());
+              APPEND_CLIENTS.invalidate(messageConverters.getAppendClientKey(element.getKey()));
+              APPEND_CLIENTS.put(
+                  messageConverters.getAppendClientKey(element.getKey()), appendClientInfo.get());
               LOG.debug(
                   "Fetched updated schema for table {}:\n\t{}", tableId, updatedSchemaReturned);
               updatedSchema.write(newSchema.get());
@@ -993,7 +1007,7 @@ public class StorageApiWritesShardedRecords<DestinationT extends @NonNull Object
         streamName.clear();
         streamOffset.clear();
         // Make sure that the stream object is closed.
-        APPEND_CLIENTS.invalidate(key);
+        APPEND_CLIENTS.invalidate(messageConverters.getAppendClientKey(key));
       }
     }
 

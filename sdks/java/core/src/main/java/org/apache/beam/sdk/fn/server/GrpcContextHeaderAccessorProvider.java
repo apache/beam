@@ -66,7 +66,7 @@ public class GrpcContextHeaderAccessorProvider {
   private static class GrpcHeaderAccessor implements HeaderAccessor {
 
     @Override
-    /** This method should be called from the request method. */
+    // This method should be called from the request method.
     public String getSdkWorkerId() {
       return Preconditions.checkNotNull(
           SDK_WORKER_CONTEXT_KEY.get(), "No worker_id header provided in client headers.");

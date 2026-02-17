@@ -328,13 +328,15 @@ type emitNative struct {
 	est   *sdf.WatermarkEstimator
 
 	ctx context.Context
+	pn typex.PaneInfo
 	ws  []typex.Window
 	et  typex.EventTime
 	value exec.FullValue
 }
 
-func (e *emitNative) Init(ctx context.Context, ws []typex.Window, et typex.EventTime) error {
+func (e *emitNative) Init(ctx context.Context, pn typex.PaneInfo, ws []typex.Window, et typex.EventTime) error {
 	e.ctx = ctx
+	e.pn = pn
 	e.ws = ws
 	e.et = et
 	return nil
@@ -357,7 +359,7 @@ func emitMaker{{$x.Name}}(n exec.ElementProcessor) exec.ReusableEmitter {
 }
 
 func (e *emitNative) invoke{{$x.Name}}({{if $x.Time -}} t typex.EventTime, {{end}}{{if $x.Key}}key {{$x.Key}}, {{end}}val {{$x.Val}}) {
-	e.value = exec.FullValue{Windows: e.ws, Timestamp: {{- if $x.Time}} t{{else}} e.et{{end}}, {{- if $x.Key}} Elm: key, Elm2: val {{else}} Elm: val{{end -}} }
+	e.value = exec.FullValue{Pane: e.pn, Windows: e.ws, Timestamp: {{- if $x.Time}} t{{else}} e.et{{end}}, {{- if $x.Key}} Elm: key, Elm2: val {{else}} Elm: val{{end -}} }
 	if e.est != nil {
 		(*e.est).(sdf.TimestampObservingEstimator).ObserveTimestamp({{- if $x.Time}} t.ToTime(){{else}} e.et.ToTime(){{end}})
 	}

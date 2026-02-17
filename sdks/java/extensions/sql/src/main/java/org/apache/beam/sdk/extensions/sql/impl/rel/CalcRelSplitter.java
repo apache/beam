@@ -24,32 +24,32 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Set;
-import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.plan.RelOptCluster;
-import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.plan.RelOptPlanner;
-import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.plan.RelTraitSet;
-import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rel.RelNode;
-import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rel.core.Calc;
-import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rel.logical.LogicalCalc;
-import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rel.type.RelDataType;
-import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rel.type.RelDataTypeFactory;
-import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rex.RexCall;
-import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rex.RexDynamicParam;
-import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rex.RexFieldAccess;
-import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rex.RexInputRef;
-import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rex.RexLiteral;
-import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rex.RexLocalRef;
-import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rex.RexNode;
-import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rex.RexProgram;
-import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rex.RexShuttle;
-import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rex.RexUtil;
-import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rex.RexVisitorImpl;
-import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.tools.RelBuilder;
-import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.util.Litmus;
-import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.util.Util;
-import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.util.graph.DefaultDirectedGraph;
-import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.util.graph.DefaultEdge;
-import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.util.graph.DirectedGraph;
-import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.util.graph.TopologicalOrderIterator;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.plan.RelOptCluster;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.plan.RelOptPlanner;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.plan.RelTraitSet;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.rel.RelNode;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.rel.core.Calc;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.rel.logical.LogicalCalc;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.rel.type.RelDataType;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.rel.type.RelDataTypeFactory;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.rex.RexCall;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.rex.RexDynamicParam;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.rex.RexFieldAccess;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.rex.RexInputRef;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.rex.RexLiteral;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.rex.RexLocalRef;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.rex.RexNode;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.rex.RexProgram;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.rex.RexShuttle;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.rex.RexUtil;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.rex.RexVisitorImpl;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.tools.RelBuilder;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.util.Litmus;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.util.Util;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.util.graph.DefaultDirectedGraph;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.util.graph.DefaultEdge;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.util.graph.DirectedGraph;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.util.graph.TopologicalOrderIterator;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.primitives.Ints;
 import org.checkerframework.checker.nullness.qual.Nullable;
@@ -60,7 +60,7 @@ import org.slf4j.Logger;
  * cannot all be implemented by a single concrete {@link RelNode}.
  *
  * <p>This is a copy of {@link
- * org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rel.rules.CalcRelSplitter} modified to
+ * org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.rel.rules.CalcRelSplitter} modified to
  * work with Beam. TODO(CALCITE-4538) consider contributing these changes back upstream.
  *
  * <p>For example, the Java and Fennel calculator do not implement an identical set of operators.

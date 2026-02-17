@@ -410,7 +410,7 @@ public class DoFnSignatures {
      * Returns the specified {@link Parameter} if it is known in this context. Throws {@link
      * IllegalStateException} if there is more than one instance of the parameter.
      */
-    public @Nullable <T extends Parameter> Optional<T> findParameter(Class<T> type) {
+    public <T extends Parameter> Optional<T> findParameter(Class<T> type) {
       List<T> parameters = findParameters(type);
       switch (parameters.size()) {
         case 0:

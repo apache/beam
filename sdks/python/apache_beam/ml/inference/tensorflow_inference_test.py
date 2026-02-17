@@ -43,9 +43,11 @@ from apache_beam.testing.util import equal_to
 # pylint: disable=ungrouped-imports
 try:
   import tensorflow as tf
-  from apache_beam.ml.inference.sklearn_inference_test import _compare_prediction_result
-  from apache_beam.ml.inference.tensorflow_inference import TFModelHandlerNumpy, TFModelHandlerTensor
+
   from apache_beam.ml.inference import tensorflow_inference
+  from apache_beam.ml.inference.sklearn_inference_test import _compare_prediction_result
+  from apache_beam.ml.inference.tensorflow_inference import TFModelHandlerNumpy
+  from apache_beam.ml.inference.tensorflow_inference import TFModelHandlerTensor
 except ImportError:
   raise unittest.SkipTest(
       'Tensorflow dependencies are not installed. ' +
@@ -128,7 +130,8 @@ class TFRunInferenceTest(unittest.TestCase):
     model = _create_mult2_model()
     model_path = os.path.join(self.tmpdir, f'mult2_{uuid.uuid4()}.keras')
     tf.keras.models.save_model(model, model_path)
-    with TestPipeline() as pipeline:
+    # FnApiRunner guarantees large batches, which this pipeline assumes
+    with TestPipeline('FnApiRunner') as pipeline:
 
       def fake_batching_inference_fn(
           model: tf.Module,

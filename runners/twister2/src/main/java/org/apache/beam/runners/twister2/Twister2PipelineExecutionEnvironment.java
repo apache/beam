@@ -49,7 +49,7 @@ public class Twister2PipelineExecutionEnvironment {
     options.setTSetEnvironment(new BeamBatchTSetEnvironment());
   }
 
-  /** translate the pipline into Twister2 TSet graph. */
+  /** translate the pipeline into Twister2 TSet graph. */
   public void translate(Pipeline pipeline) {
 
     TranslationModeDetector detector = new TranslationModeDetector();

@@ -84,7 +84,7 @@ public class AutoValueSchemaTest {
             BYTE_ARRAY,
             BYTE_ARRAY,
             BigDecimal.ONE,
-            new StringBuilder(name).append("builder").toString())
+            name + "builder")
         .build();
   }
 

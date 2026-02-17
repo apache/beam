@@ -34,15 +34,17 @@ from apache_beam.pipeline import PipelineOptions
 from apache_beam.runners.worker import statesampler
 from apache_beam.utils import counters
 
-# pylint: disable=wrong-import-order, wrong-import-position
+# pylint: disable=wrong-import-order, wrong-import-position, ungrouped-imports
 
 try:
+  from google.cloud.exceptions import BadRequest
+  from google.cloud.exceptions import NotFound
+
   from apache_beam.io.gcp import gcsio
   from apache_beam.io.gcp.gcsio_retry import DEFAULT_RETRY_WITH_THROTTLING_COUNTER
-  from google.cloud.exceptions import BadRequest, NotFound
 except ImportError:
   NotFound = None
-# pylint: enable=wrong-import-order, wrong-import-position
+# pylint: enable=wrong-import-order, wrong-import-position, ungrouped-imports
 
 DEFAULT_GCP_PROJECT = 'apache-beam-testing'
 
@@ -174,7 +176,8 @@ class FakeBucket(object):
     if name in bucket.blobs:
       return bucket.blobs[name]
     else:
-      return bucket.create_blob(name)
+      new_blob = bucket._create_blob(name)
+      return bucket.add_blob(new_blob)
 
   def set_default_kms_key_name(self, name):
     self.default_kms_key_name = name
@@ -680,7 +683,7 @@ class TestGCSIO(unittest.TestCase):
       self.gcs.open(file_name, 'w')
       writer.assert_called()
 
-  def test_list_prefix(self):
+  def test_list_files(self):
     bucket_name = 'gcsio-test'
     objects = [
         ('cow/cat/fish', 2),
@@ -713,8 +716,7 @@ class TestGCSIO(unittest.TestCase):
       expected_file_names = [('gs://%s/%s' % (bucket_name, object_name), size)
                              for (object_name, size) in expected_object_names]
       self.assertEqual(
-          set(self.gcs.list_prefix(file_pattern).items()),
-          set(expected_file_names))
+          set(self.gcs.list_files(file_pattern)), set(expected_file_names))
 
   def test_downloader_fail_non_existent_object(self):
     file_name = 'gs://gcsio-metrics-test/dummy_mode_file'

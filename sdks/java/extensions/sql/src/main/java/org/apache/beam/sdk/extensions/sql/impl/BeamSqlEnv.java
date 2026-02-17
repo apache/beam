@@ -18,7 +18,6 @@
 package org.apache.beam.sdk.extensions.sql.impl;
 
 import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
-import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkNotNull;
 
 import java.sql.SQLException;
 import java.util.AbstractMap.SimpleEntry;
@@ -41,16 +40,16 @@ import org.apache.beam.sdk.extensions.sql.meta.catalog.InMemoryCatalogManager;
 import org.apache.beam.sdk.extensions.sql.meta.provider.ReadOnlyTableProvider;
 import org.apache.beam.sdk.extensions.sql.meta.provider.TableProvider;
 import org.apache.beam.sdk.extensions.sql.meta.provider.UdfUdafProvider;
+import org.apache.beam.sdk.extensions.sql.meta.store.MetaStore;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.transforms.Combine.CombineFn;
 import org.apache.beam.sdk.transforms.SerializableFunction;
-import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.jdbc.CalcitePrepare;
-import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.plan.RelOptUtil;
-import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.schema.Function;
-import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.sql.SqlKind;
-import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.tools.RuleSet;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Strings;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.jdbc.CalcitePrepare;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.plan.RelOptUtil;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.schema.Function;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.sql.SqlKind;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.tools.RuleSet;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
@@ -58,10 +57,6 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * query/validate/optimize/translate SQL statements.
  */
 @Internal
-@SuppressWarnings({
-  "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
-  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
-})
 public class BeamSqlEnv {
   JdbcConnection connection;
   QueryPlanner planner;
@@ -150,20 +145,21 @@ public class BeamSqlEnv {
     private static final String CALCITE_PLANNER =
         "org.apache.beam.sdk.extensions.sql.impl.CalciteQueryPlanner";
     private String queryPlannerClassName;
-    private @Nullable TableProvider defaultTableProvider;
     private CatalogManager catalogManager;
-    private String currentSchemaName;
+    private @Nullable String currentSchemaName = null;
     private Map<String, TableProvider> schemaMap;
     private Set<Map.Entry<String, Function>> functionSet;
     private boolean autoLoadUdfs;
-    private PipelineOptions pipelineOptions;
+    private @Nullable PipelineOptions pipelineOptions;
     private Collection<RuleSet> ruleSets;
 
     private BeamSqlEnvBuilder(TableProvider tableProvider) {
-      checkNotNull(tableProvider, "Table provider for the default schema must be sets.");
-
-      defaultTableProvider = tableProvider;
-      catalogManager = new InMemoryCatalogManager();
+      if (tableProvider instanceof MetaStore) {
+        catalogManager = new InMemoryCatalogManager((MetaStore) tableProvider);
+      } else {
+        catalogManager = new InMemoryCatalogManager();
+        catalogManager.registerTableProvider(tableProvider);
+      }
       queryPlannerClassName = CALCITE_PLANNER;
       schemaMap = new HashMap<>();
       functionSet = new HashSet<>();
@@ -173,8 +169,6 @@ public class BeamSqlEnv {
     }
 
     private BeamSqlEnvBuilder(CatalogManager catalogManager) {
-      checkNotNull(catalogManager, "Catalog manager for the default schema must be set.");
-
       this.catalogManager = catalogManager;
       this.queryPlannerClassName = CALCITE_PLANNER;
       this.schemaMap = new HashMap<>();
@@ -264,12 +258,7 @@ public class BeamSqlEnv {
     public BeamSqlEnv build() {
       checkStateNotNull(pipelineOptions);
 
-      JdbcConnection jdbcConnection;
-      if (defaultTableProvider != null) {
-        jdbcConnection = JdbcDriver.connect(defaultTableProvider, pipelineOptions);
-      } else {
-        jdbcConnection = JdbcDriver.connect(catalogManager, pipelineOptions);
-      }
+      JdbcConnection jdbcConnection = JdbcDriver.connect(catalogManager, pipelineOptions);
 
       configureSchemas(jdbcConnection);
 
@@ -289,7 +278,9 @@ public class BeamSqlEnv {
       // Does not update the current default schema.
       schemaMap.forEach(jdbcConnection::setSchema);
 
-      if (Strings.isNullOrEmpty(currentSchemaName)) {
+      // Fix it in a local variable so static analysis knows it cannot be mutated.
+      @Nullable String currentSchemaName = this.currentSchemaName;
+      if (currentSchemaName == null || currentSchemaName.isEmpty()) {
         return;
       }
 
@@ -330,9 +321,18 @@ public class BeamSqlEnv {
             "Cannot find requested QueryPlanner class: " + queryPlannerClassName, exc);
       }
 
+      // This try/catch kept deliberately tight to ensure that we _only_ catch exceptions due to
+      // this reflective access.
       QueryPlanner.Factory factory;
       try {
-        factory = (QueryPlanner.Factory) queryPlannerClass.getField("FACTORY").get(null);
+        // See https://github.com/typetools/jdk/pull/235#pullrequestreview-3400922783
+        @SuppressWarnings("nullness")
+        Object queryPlannerFactoryObj =
+            checkStateNotNull(
+                queryPlannerClass.getField("FACTORY").get(null),
+                "Static field %s.FACTORY is null. It must be a QueryPlanner.Factory instance.",
+                queryPlannerClass);
+        factory = (QueryPlanner.Factory) queryPlannerFactoryObj;
       } catch (NoSuchFieldException | IllegalAccessException exc) {
         throw new RuntimeException(
             String.format(

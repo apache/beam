@@ -159,6 +159,13 @@ public class MoreFutures {
         nothing -> Arrays.stream(f).map(CompletableFuture::join).collect(Collectors.toList()));
   }
 
+  public static <T> CompletionStage<Void> allOf(
+      Collection<? extends CompletionStage<? extends T>> futures) {
+    // CompletableFuture.allOf completes exceptionally if any of the futures do.
+    CompletableFuture<? extends T>[] f = futuresToCompletableFutures(futures);
+    return CompletableFuture.allOf(f);
+  }
+
   /**
    * An object that represents either a result or an exceptional termination.
    *

@@ -17,40 +17,52 @@
  */
 package org.apache.beam.sdk.io.pulsar;
 
+import com.google.auto.value.AutoValue;
+import java.util.Map;
+import org.apache.beam.sdk.schemas.AutoValueSchema;
+import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
+import org.apache.pulsar.client.api.Message;
+import org.checkerframework.checker.nullness.qual.Nullable;
+
 /**
  * Class representing a Pulsar Message record. Each PulsarMessage contains a single message basic
  * message data and Message record to access directly.
  */
-@SuppressWarnings("initialization.fields.uninitialized")
-public class PulsarMessage {
-  private String topic;
-  private Long publishTimestamp;
-  private Object messageRecord;
+@DefaultSchema(AutoValueSchema.class)
+@AutoValue
+public abstract class PulsarMessage {
+  public abstract @Nullable String getTopic();
 
-  public PulsarMessage(String topic, Long publishTimestamp, Object messageRecord) {
-    this.topic = topic;
-    this.publishTimestamp = publishTimestamp;
-    this.messageRecord = messageRecord;
+  public abstract long getPublishTimestamp();
+
+  public abstract @Nullable String getKey();
+
+  @SuppressWarnings("mutable")
+  public abstract byte[] getValue();
+
+  public abstract @Nullable Map<String, String> getProperties();
+
+  @SuppressWarnings("mutable")
+  public abstract byte[] getMessageId();
+
+  public static PulsarMessage create(
+      @Nullable String topicName,
+      long publishTimestamp,
+      @Nullable String key,
+      byte[] value,
+      @Nullable Map<String, String> properties,
+      byte[] messageId) {
+    return new AutoValue_PulsarMessage(
+        topicName, publishTimestamp, key, value, properties, messageId);
   }
 
-  public PulsarMessage(String topic, Long publishTimestamp) {
-    this.topic = topic;
-    this.publishTimestamp = publishTimestamp;
-  }
-
-  public String getTopic() {
-    return topic;
-  }
-
-  public Long getPublishTimestamp() {
-    return publishTimestamp;
-  }
-
-  public void setMessageRecord(Object messageRecord) {
-    this.messageRecord = messageRecord;
-  }
-
-  public Object getMessageRecord() {
-    return messageRecord;
+  public static PulsarMessage create(Message<byte[]> message) {
+    return create(
+        message.getTopicName(),
+        message.getPublishTime(),
+        message.getKey(),
+        message.getValue(),
+        message.getProperties(),
+        message.getMessageId().toByteArray());
   }
 }

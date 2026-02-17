@@ -262,7 +262,7 @@ func WaitForCompletion(ctx context.Context, client *df.Service, project, region,
 		if err != nil {
 			return err
 		}
-		log.Infof(ctx, msg)
+		log.Infof(ctx, "%s", msg)
 		if terminal {
 			return nil
 		}
@@ -322,7 +322,7 @@ func GetRunningJobByName(client *df.Service, project, region string, name string
 	jobsListCall := client.Projects.Locations.Jobs.List(project, region)
 	jobsListCall.Filter("ACTIVE")
 	jobsResponse, err := jobsListCall.Do()
-	for len(jobsResponse.Jobs) > 0 {
+	for {
 		if err != nil {
 			return nil, err
 		}
@@ -331,7 +331,9 @@ func GetRunningJobByName(client *df.Service, project, region string, name string
 				return job, nil
 			}
 		}
-
+		if jobsResponse.NextPageToken == "" {
+			break
+		}
 		jobsListCall.PageToken(jobsResponse.NextPageToken)
 		jobsResponse, err = jobsListCall.Do()
 	}

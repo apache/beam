@@ -30,9 +30,9 @@ from apache_beam.utils import retry
 
 # google.auth is only available when Beam is installed with the gcp extra.
 try:
-  from google.auth import impersonated_credentials
   import google.auth
   import google_auth_httplib2
+  from google.auth import impersonated_credentials
   _GOOGLE_AUTH_AVAILABLE = True
 except ImportError:
   _GOOGLE_AUTH_AVAILABLE = False

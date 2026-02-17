@@ -23,16 +23,17 @@ import com.google.auto.value.AutoValue;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.PriorityQueue;
-import java.util.concurrent.Callable;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.locks.Condition;
+import java.util.concurrent.locks.ReentrantLock;
+import javax.annotation.Nullable;
+import javax.annotation.concurrent.GuardedBy;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.FinalizeBundleResponse;
 import org.apache.beam.sdk.transforms.DoFn.BundleFinalizer;
-import org.apache.beam.sdk.values.TimestampedValue;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 
@@ -45,14 +46,11 @@ import org.joda.time.Instant;
  * <p>See <a href="https://s.apache.org/beam-finalizing-bundles">Apache Beam Portability API: How to
  * Finalize Bundles</a> for further details.
  */
-@SuppressWarnings({
-  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
-})
 public class FinalizeBundleHandler {
 
   /** A {@link BundleFinalizer.Callback} and expiry time pair. */
   @AutoValue
-  abstract static class CallbackRegistration {
+  public abstract static class CallbackRegistration {
     public static CallbackRegistration create(
         Instant expiryTime, BundleFinalizer.Callback callback) {
       return new AutoValue_FinalizeBundleHandler_CallbackRegistration(expiryTime, callback);
@@ -63,77 +61,100 @@ public class FinalizeBundleHandler {
     public abstract BundleFinalizer.Callback getCallback();
   }
 
-  private final ConcurrentMap<String, Collection<CallbackRegistration>> bundleFinalizationCallbacks;
-  private final PriorityQueue<TimestampedValue<String>> cleanUpQueue;
+  private static class FinalizationInfo {
+    FinalizationInfo(
+        String id, Instant expiryTimestamp, Collection<CallbackRegistration> callbacks) {
+      this.id = id;
+      this.expiryTimestamp = expiryTimestamp;
+      this.callbacks = callbacks;
+    }
 
-  @SuppressWarnings("unused")
-  private final Future<Void> cleanUpResult;
+    final String id;
+    final Instant expiryTimestamp;
+    final Collection<CallbackRegistration> callbacks;
 
+    Instant getExpiryTimestamp() {
+      return expiryTimestamp;
+    }
+  }
+
+  private final ReentrantLock lock = new ReentrantLock();
+  private final Condition queueMinChanged = lock.newCondition();
+
+  @GuardedBy("lock")
+  private final HashMap<String, FinalizationInfo> bundleFinalizationCallbacks;
+
+  @GuardedBy("lock")
+  private final PriorityQueue<FinalizationInfo> cleanUpQueue;
+
+  @SuppressWarnings("methodref.receiver.bound")
   public FinalizeBundleHandler(ExecutorService executorService) {
-    this.bundleFinalizationCallbacks = new ConcurrentHashMap<>();
+    this.bundleFinalizationCallbacks = new HashMap<>();
     this.cleanUpQueue =
-        new PriorityQueue<>(11, Comparator.comparing(TimestampedValue::getTimestamp));
-    // Wait until we have at least one element. We are notified on each element
-    // being added.
-    // Wait until the current time has past the expiry time for the head of the
-    // queue.
-    // We are notified on each element being added.
-    // Wait until we have at least one element. We are notified on each element
-    // being added.
-    // Wait until the current time has past the expiry time for the head of the
-    // queue.
-    // We are notified on each element being added.
-    cleanUpResult =
-        executorService.submit(
-            (Callable<Void>)
-                () -> {
-                  while (true) {
-                    synchronized (cleanUpQueue) {
-                      TimestampedValue<String> expiryTime = cleanUpQueue.peek();
+        new PriorityQueue<>(11, Comparator.comparing(FinalizationInfo::getExpiryTimestamp));
+    executorService.execute(this::cleanupThreadBody);
+  }
 
-                      // Wait until we have at least one element. We are notified on each element
-                      // being added.
-                      while (expiryTime == null) {
-                        cleanUpQueue.wait();
-                        expiryTime = cleanUpQueue.peek();
-                      }
+  private void cleanupThreadBody() {
+    lock.lock();
+    try {
+      while (true) {
+        final @Nullable FinalizationInfo minValue = cleanUpQueue.peek();
+        if (minValue == null) {
+          // Wait for an element to be added and loop to re-examine the min.
+          queueMinChanged.await();
+          continue;
+        }
 
-                      // Wait until the current time has past the expiry time for the head of the
-                      // queue.
-                      // We are notified on each element being added.
-                      Instant now = Instant.now();
-                      while (expiryTime.getTimestamp().isAfter(now)) {
-                        Duration timeDifference = new Duration(now, expiryTime.getTimestamp());
-                        cleanUpQueue.wait(timeDifference.getMillis());
-                        expiryTime = cleanUpQueue.peek();
-                        now = Instant.now();
-                      }
-
-                      bundleFinalizationCallbacks.remove(cleanUpQueue.poll().getValue());
-                    }
-                  }
-                });
+        Instant now = Instant.now();
+        Duration timeDifference = new Duration(now, minValue.expiryTimestamp);
+        if (timeDifference.getMillis() < 0
+            || (queueMinChanged.await(timeDifference.getMillis(), TimeUnit.MILLISECONDS)
+                && cleanUpQueue.peek() == minValue)) {
+          // The minimum element has an expiry time before now, either because it had elapsed when
+          // we pulled it or because we awaited it and it is still the minimum.
+          checkState(minValue == cleanUpQueue.poll());
+          checkState(bundleFinalizationCallbacks.remove(minValue.id) == minValue);
+        }
+      }
+    } catch (InterruptedException e) {
+      // We're being shutdown.
+    } finally {
+      lock.unlock();
+    }
   }
 
   public void registerCallbacks(String bundleId, Collection<CallbackRegistration> callbacks) {
     if (callbacks.isEmpty()) {
       return;
     }
-
-    Collection<CallbackRegistration> priorCallbacks =
-        bundleFinalizationCallbacks.putIfAbsent(bundleId, callbacks);
-    checkState(
-        priorCallbacks == null,
-        "Expected to not have any past callbacks for bundle %s but found %s.",
-        bundleId,
-        priorCallbacks);
-    long expiryTimeMillis = Long.MIN_VALUE;
+    Instant maxExpiryTime = Instant.EPOCH;
     for (CallbackRegistration callback : callbacks) {
-      expiryTimeMillis = Math.max(expiryTimeMillis, callback.getExpiryTime().getMillis());
+      Instant callbackExpiry = callback.getExpiryTime();
+      if (callbackExpiry.isAfter(maxExpiryTime)) {
+        maxExpiryTime = callbackExpiry;
+      }
     }
-    synchronized (cleanUpQueue) {
-      cleanUpQueue.offer(TimestampedValue.of(bundleId, new Instant(expiryTimeMillis)));
-      cleanUpQueue.notify();
+    final FinalizationInfo info = new FinalizationInfo(bundleId, maxExpiryTime, callbacks);
+
+    lock.lock();
+    try {
+      FinalizationInfo existingInfo = bundleFinalizationCallbacks.put(bundleId, info);
+      if (existingInfo != null) {
+        throw new IllegalStateException(
+            "Expected to not have any past callbacks for bundle "
+                + bundleId
+                + " but had "
+                + existingInfo.callbacks);
+      }
+      cleanUpQueue.add(info);
+      @SuppressWarnings("ReferenceEquality")
+      boolean newMin = cleanUpQueue.peek() == info;
+      if (newMin) {
+        queueMinChanged.signal();
+      }
+    } finally {
+      lock.unlock();
     }
   }
 
@@ -141,16 +162,24 @@ public class FinalizeBundleHandler {
       throws Exception {
     String bundleId = request.getFinalizeBundle().getInstructionId();
 
-    Collection<CallbackRegistration> callbacks = bundleFinalizationCallbacks.remove(bundleId);
-
-    if (callbacks == null) {
+    @Nullable FinalizationInfo info;
+    lock.lock();
+    try {
+      info = bundleFinalizationCallbacks.remove(bundleId);
+      if (info != null) {
+        checkState(cleanUpQueue.remove(info));
+      }
+    } finally {
+      lock.unlock();
+    }
+    if (info == null) {
       // We have already processed the callbacks on a prior bundle finalization attempt
       return BeamFnApi.InstructionResponse.newBuilder()
           .setFinalizeBundle(FinalizeBundleResponse.getDefaultInstance());
     }
 
     Collection<Exception> failures = new ArrayList<>();
-    for (CallbackRegistration callback : callbacks) {
+    for (CallbackRegistration callback : info.callbacks) {
       try {
         callback.getCallback().onBundleSuccess();
       } catch (Exception e) {
@@ -169,5 +198,14 @@ public class FinalizeBundleHandler {
 
     return BeamFnApi.InstructionResponse.newBuilder()
         .setFinalizeBundle(FinalizeBundleResponse.getDefaultInstance());
+  }
+
+  int cleanupQueueSize() {
+    lock.lock();
+    try {
+      return cleanUpQueue.size();
+    } finally {
+      lock.unlock();
+    }
   }
 }

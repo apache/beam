@@ -158,6 +158,16 @@ public final class ByteStringOutputStream extends OutputStream implements Append
     return rval;
   }
 
+  /*
+   * Resets the output stream to be re-used possibly re-using any existing buffers.
+   */
+  public void reset() {
+    if (size() == 0) {
+      return;
+    }
+    toByteStringAndReset();
+  }
+
   /**
    * Creates a byte string with the given size containing the prefix of the contents of this output
    * stream.

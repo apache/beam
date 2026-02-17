@@ -72,9 +72,10 @@ dependencies {
     // Exclude Avro dependencies from "core" since Avro support moved to this extension
     exclude group: "org.apache.avro", module: "avro"
   }
-  testImplementation library.java.avro_tests
+  testImplementation project(path: ":sdks:java:extensions:avro:vendored-test", configuration: "shadowTest")
   testImplementation library.java.junit
   testImplementation "org.tukaani:xz:1.9" // marked as optional in avro
+  testImplementation "com.esotericsoftware:kryo:5.6.2" // Used by Avro coder test
   testRuntimeOnly project(path: ":runners:direct-java", configuration: "shadow")
   testRuntimeOnly library.java.slf4j_jdk14
   avroVersions.each { k,v ->
@@ -86,6 +87,7 @@ dependencies {
     "avroVersion$k" project(path: ":runners:direct-java", configuration: "shadow")
     "avroVersion$k" library.java.slf4j_jdk14
     "avroVersion$k" "org.tukaani:xz:1.9" // marked as optional in avro
+    "avroVersion$k" "com.esotericsoftware:kryo:5.6.2" // Used by Avro coder test
     "avroVersion$k" library.java.zstd_jni // marked as optional in avro
     "avroVersion$k" "org.apache.avro:avro:$v:tests"
     "avroVersion${k}Generate" "org.apache.avro:avro-tools:$v"

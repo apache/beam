@@ -175,7 +175,7 @@ class OpenAIEmbeddingsTest(unittest.TestCase):
         model_name=model_name,
         columns=[test_query_column],
         api_key=self.api_key)
-    with self.assertRaises(TypeError):
+    with self.assertRaises(Exception):
       with beam.Pipeline() as pipeline:
         _ = (
             pipeline

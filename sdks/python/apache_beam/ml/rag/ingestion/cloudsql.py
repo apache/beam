@@ -21,12 +21,12 @@ from typing import Dict
 from typing import List
 from typing import Optional
 
+from apache_beam.ml.rag.ingestion import mysql
+from apache_beam.ml.rag.ingestion import mysql_common
+from apache_beam.ml.rag.ingestion import postgres
+from apache_beam.ml.rag.ingestion import postgres_common
 from apache_beam.ml.rag.ingestion.jdbc_common import ConnectionConfig
 from apache_beam.ml.rag.ingestion.jdbc_common import WriteConfig
-from apache_beam.ml.rag.ingestion.postgres import ColumnSpecsBuilder
-from apache_beam.ml.rag.ingestion.postgres import PostgresVectorWriterConfig
-from apache_beam.ml.rag.ingestion.postgres_common import ColumnSpec
-from apache_beam.ml.rag.ingestion.postgres_common import ConflictResolution
 
 
 @dataclass
@@ -138,7 +138,7 @@ class _PostgresConnectorConfig(LanguageConnectorConfig):
     return cls(**asdict(config))
 
 
-class CloudSQLPostgresVectorWriterConfig(PostgresVectorWriterConfig):
+class CloudSQLPostgresVectorWriterConfig(postgres.PostgresVectorWriterConfig):
   def __init__(
       self,
       connection_config: LanguageConnectorConfig,
@@ -146,10 +146,11 @@ class CloudSQLPostgresVectorWriterConfig(PostgresVectorWriterConfig):
       *,
       # pylint: disable=dangerous-default-value
       write_config: WriteConfig = WriteConfig(),
-      column_specs: List[ColumnSpec] = ColumnSpecsBuilder.with_defaults().build(
-      ),
-      conflict_resolution: Optional[ConflictResolution] = ConflictResolution(
-          on_conflict_fields=[], action='IGNORE')):
+      column_specs: List[postgres_common.ColumnSpec] = postgres_common.
+      ColumnSpecsBuilder.with_defaults().build(),
+      conflict_resolution: Optional[
+          postgres_common.ConflictResolution] = postgres_common.
+      ConflictResolution(on_conflict_fields=[], action='IGNORE')):
     """Configuration for writing vectors to ClouSQL Postgres.
     
     Supports flexible schema configuration through column specifications and
@@ -211,6 +212,48 @@ class CloudSQLPostgresVectorWriterConfig(PostgresVectorWriterConfig):
         ... )
     """
     self.connector_config = _PostgresConnectorConfig.from_base_config(
+        connection_config)
+    super().__init__(
+        connection_config=self.connector_config.to_connection_config(),
+        write_config=write_config,
+        table_name=table_name,
+        column_specs=column_specs,
+        conflict_resolution=conflict_resolution)
+
+
+@dataclass
+class _MySQLConnectorConfig(LanguageConnectorConfig):
+  def to_jdbc_url(self) -> str:
+    """Convert options to a properly formatted MySQL JDBC URL."""
+    return self._build_jdbc_url(
+        socketFactory="com.google.cloud.sql.mysql.SocketFactory",
+        database_type="mysql")
+
+  def additional_jdbc_args(self) -> Dict[str, List[Any]]:
+    return {
+        'classpath': [
+            "mysql:mysql-connector-java:8.0.22",
+            "com.google.cloud.sql:mysql-socket-factory-connector-j-8:1.25.0"
+        ]
+    }
+
+  @classmethod
+  def from_base_config(cls, config: LanguageConnectorConfig):
+    return cls(**asdict(config))
+
+
+class CloudSQLMySQLVectorWriterConfig(mysql.MySQLVectorWriterConfig):
+  def __init__(
+      self,
+      connection_config: LanguageConnectorConfig,
+      table_name: str,
+      *,
+      write_config: WriteConfig = WriteConfig(),
+      # pylint: disable=dangerous-default-value
+      column_specs: List[mysql_common.ColumnSpec] = mysql_common.
+      ColumnSpecsBuilder.with_defaults().build(),
+      conflict_resolution: Optional[mysql_common.ConflictResolution] = None):
+    self.connector_config = _MySQLConnectorConfig.from_base_config(
         connection_config)
     super().__init__(
         connection_config=self.connector_config.to_connection_config(),

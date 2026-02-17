@@ -132,7 +132,7 @@ public class BigQueryStreamingLT extends IOLoadTestBase {
     String expectedTable =
         TestProperties.getProperty("expectedTable", "", TestProperties.Type.PROPERTY);
     if (!Strings.isNullOrEmpty(expectedTable)) {
-      config.toBuilder().setExpectedTable(expectedTable).build();
+      config = config.toBuilder().setExpectedTable(expectedTable).build();
     }
 
     crashIntervalSeconds =
@@ -396,7 +396,7 @@ public class BigQueryStreamingLT extends IOLoadTestBase {
       } catch (Exception e) {
         // Just log the error. Don't re-throw because we have accuracy checks that are more
         // important below
-        LOG.error("Encountered an error while exporting metrics to BigQuery:\n{}", e);
+        LOG.error("Encountered an error while exporting metrics to BigQuery:", e);
       }
     }
     // If we're not publishing metrics, just run the pipeline normally

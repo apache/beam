@@ -80,14 +80,14 @@ limitations under the License. See accompanying LICENSE file.
                 </div>
             </a>
             {{ else }}
-            <div class="case-study-used-by-card case-study-used-by-card--responsive">
+            <a class="case-study-used-by-card case-study-used-by-card--responsive" href="{{ .RelPermalink }}">
                 <div class="case-study-used-by-card-img">
                     <img src="{{.Params.icon}}" loading="lazy"></i>
                 </div>
                 <div class="case-study-used-by-card-description">
                     {{ .Params.cardDescription | safeHTML }}
                 </div>
-            </div>
+            </a>
             {{ end }}
         {{ end }}
     </div>

@@ -16,8 +16,9 @@
  * limitations under the License.
  */
 
-const { Octokit } = require("@octokit/rest");
-const nodemailer = require('nodemailer');
+import { Octokit } from "@octokit/rest";
+import nodemailer from 'nodemailer';
+import fetch from 'node-fetch';
 
 const ONE_HOUR = 60 * 60 * 1000;
 
@@ -58,7 +59,11 @@ function getDateAge(updated_at) {
 }
 
 async function generateReport() {
-    const octokit = new Octokit();
+    const octokit = new Octokit({
+        request: {
+            fetch,
+        },
+    });
 
     let shouldSend = false;
     let report = `This is your summary of Beam's current high priority issues that may need attention.

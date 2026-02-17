@@ -62,11 +62,24 @@ public class CombineTranslation {
     }
 
     @Override
+    public String getUrn(Combine.PerKey<?, ?, ?> transform) {
+      if (transform.shouldSkipReplacement()) {
+        return "beam:transform:combine_per_key_wrapper:v1";
+      }
+      return PTransformTranslation.COMBINE_PER_KEY_TRANSFORM_URN;
+    }
+
+    @Override
     public FunctionSpec translate(
         AppliedPTransform<?, ?, Combine.PerKey<?, ?, ?>> transform, SdkComponents components)
         throws IOException {
-      if (transform.getTransform().getSideInputs().isEmpty()) {
-        GlobalCombineFn<?, ?, ?> combineFn = transform.getTransform().getFn();
+      Combine.PerKey underlyingCombine = transform.getTransform();
+      if (underlyingCombine.shouldSkipReplacement()) {
+        // Can use null for spec for generic composite.
+        return null;
+      }
+      if (underlyingCombine.getSideInputs().isEmpty()) {
+        GlobalCombineFn<?, ?, ?> combineFn = underlyingCombine.getFn();
         Coder<?> accumulatorCoder =
             extractAccumulatorCoder(combineFn, (AppliedPTransform) transform);
         return FunctionSpec.newBuilder()

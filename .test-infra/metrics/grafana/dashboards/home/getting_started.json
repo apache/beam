@@ -77,19 +77,6 @@
       ],
       "title": "Performance tests metrics",
       "type": "dashlist"
-    },
-    {
-      "datasource": null,
-      "gridPos": {
-        "h": 15,
-        "w": 6,
-        "x": 18,
-        "y": 2
-      },
-      "id": 123124,
-      "links": [],
-      "title": "Useful links",
-      "type": "homelinks"
     }
   ],
   "schemaVersion": 22,

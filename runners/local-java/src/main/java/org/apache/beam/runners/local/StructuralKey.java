@@ -20,6 +20,7 @@ package org.apache.beam.runners.local;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.util.CoderUtils;
+import org.checkerframework.checker.nullness.qual.MonotonicNonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
@@ -57,19 +58,34 @@ public abstract class StructuralKey<K> {
 
   private static class CoderStructuralKey<K> extends StructuralKey<K> {
     private final Coder<K> coder;
-    private final Object structuralValue;
-    private final byte[] encoded;
+    private final K key;
 
-    private CoderStructuralKey(Coder<K> coder, K key) throws Exception {
+    private byte @MonotonicNonNull [] encoded;
+    private @MonotonicNonNull Object structuralValue;
+
+    private CoderStructuralKey(Coder<K> coder, K key) {
       this.coder = coder;
-      this.structuralValue = coder.structuralValue(key);
-      this.encoded = CoderUtils.encodeToByteArray(coder, key);
+      this.key = key;
+    }
+
+    private byte[] getEncoded() throws CoderException {
+      if (encoded == null) {
+        this.encoded = CoderUtils.encodeToByteArray(coder, this.key);
+      }
+      return encoded;
+    }
+
+    private Object getStructuralValue() {
+      if (structuralValue == null) {
+        this.structuralValue = coder.structuralValue(this.key);
+      }
+      return structuralValue;
     }
 
     @Override
     public K getKey() {
       try {
-        return CoderUtils.decodeFromByteArray(coder, encoded);
+        return CoderUtils.decodeFromByteArray(coder, getEncoded());
       } catch (CoderException e) {
         throw new IllegalArgumentException(
             "Could not decode Key with coder of type " + coder.getClass().getSimpleName(), e);
@@ -83,14 +99,14 @@ public abstract class StructuralKey<K> {
       }
       if (other instanceof CoderStructuralKey) {
         CoderStructuralKey<?> that = (CoderStructuralKey<?>) other;
-        return structuralValue.equals(that.structuralValue);
+        return getStructuralValue().equals(that.getStructuralValue());
       }
       return false;
     }
 
     @Override
     public int hashCode() {
-      return structuralValue.hashCode();
+      return getStructuralValue().hashCode();
     }
   }
 }

@@ -34,6 +34,9 @@ from apache_beam.runners.interactive.testing.mock_env import isolated_env
 _module_name = 'apache_beam.runners.interactive.interactive_environment_test'
 
 
+@unittest.skipIf(
+    not ie.current_env().is_interactive_ready,
+    '[interactive] dependency is not installed.')
 @isolated_env
 class InteractiveEnvironmentTest(unittest.TestCase):
   def setUp(self):
@@ -340,6 +343,44 @@ class InteractiveEnvironmentTest(unittest.TestCase):
     cache_root = 'gs://'
     with self.assertRaises(ValueError):
       env._get_gcs_cache_dir(p, cache_root)
+
+  def test_pcollection_computing_state(self):
+    env = ie.InteractiveEnvironment()
+    p = beam.Pipeline()
+    pcoll1 = p | 'Create1' >> beam.Create([1])
+    pcoll2 = p | 'Create2' >> beam.Create([2])
+
+    self.assertFalse(env.is_pcollection_computing(pcoll1))
+    self.assertFalse(env.is_pcollection_computing(pcoll2))
+    self.assertEqual(env.computing_pcollections, set())
+
+    env.mark_pcollection_computing({pcoll1})
+    self.assertTrue(env.is_pcollection_computing(pcoll1))
+    self.assertFalse(env.is_pcollection_computing(pcoll2))
+    self.assertEqual(env.computing_pcollections, {pcoll1})
+
+    env.mark_pcollection_computing({pcoll2})
+    self.assertTrue(env.is_pcollection_computing(pcoll1))
+    self.assertTrue(env.is_pcollection_computing(pcoll2))
+    self.assertEqual(env.computing_pcollections, {pcoll1, pcoll2})
+
+    env.unmark_pcollection_computing({pcoll1})
+    self.assertFalse(env.is_pcollection_computing(pcoll1))
+    self.assertTrue(env.is_pcollection_computing(pcoll2))
+    self.assertEqual(env.computing_pcollections, {pcoll2})
+
+    env.unmark_pcollection_computing({pcoll2})
+    self.assertFalse(env.is_pcollection_computing(pcoll1))
+    self.assertFalse(env.is_pcollection_computing(pcoll2))
+    self.assertEqual(env.computing_pcollections, set())
+
+  def test_mark_unmark_empty(self):
+    env = ie.InteractiveEnvironment()
+    # Ensure no errors with empty sets
+    env.mark_pcollection_computing(set())
+    self.assertEqual(env.computing_pcollections, set())
+    env.unmark_pcollection_computing(set())
+    self.assertEqual(env.computing_pcollections, set())
 
 
 if __name__ == '__main__':

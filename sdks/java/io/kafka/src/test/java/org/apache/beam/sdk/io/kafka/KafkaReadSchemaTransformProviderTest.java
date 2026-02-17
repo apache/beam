@@ -30,6 +30,9 @@ import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.managed.Managed;
+import org.apache.beam.sdk.schemas.NoSuchSchemaException;
+import org.apache.beam.sdk.schemas.Schema;
+import org.apache.beam.sdk.schemas.SchemaRegistry;
 import org.apache.beam.sdk.schemas.transforms.SchemaTransform;
 import org.apache.beam.sdk.schemas.transforms.SchemaTransformProvider;
 import org.apache.beam.sdk.schemas.utils.YamlUtils;
@@ -130,7 +133,12 @@ public class KafkaReadSchemaTransformProviderTest {
             "error_handling",
             "file_descriptor_path",
             "message_name",
-            "max_read_time_seconds"),
+            "max_read_time_seconds",
+            "redistributed",
+            "allow_duplicates",
+            "offset_deduplication",
+            "redistribute_num_keys",
+            "redistribute_by_record_key"),
         kafkaProvider.configurationSchema().getFields().stream()
             .map(field -> field.getName())
             .collect(Collectors.toSet()));
@@ -152,6 +160,26 @@ public class KafkaReadSchemaTransformProviderTest {
             .setTopic("anytopic")
             .setBootstrapServers("anybootstrap")
             .setSchema(AVRO_SCHEMA)
+            .build());
+  }
+
+  @Test
+  public void testBuildTransformWithAvroSchemaRegistry() {
+    ServiceLoader<SchemaTransformProvider> serviceLoader =
+        ServiceLoader.load(SchemaTransformProvider.class);
+    List<SchemaTransformProvider> providers =
+        StreamSupport.stream(serviceLoader.spliterator(), false)
+            .filter(provider -> provider.getClass() == KafkaReadSchemaTransformProvider.class)
+            .collect(Collectors.toList());
+    KafkaReadSchemaTransformProvider kafkaProvider =
+        (KafkaReadSchemaTransformProvider) providers.get(0);
+    kafkaProvider.from(
+        KafkaReadSchemaTransformConfiguration.builder()
+            .setFormat("AVRO")
+            .setTopic("anytopic")
+            .setBootstrapServers("anybootstrap")
+            .setConfluentSchemaRegistryUrl("anyschemaregistryurl")
+            .setConfluentSchemaRegistrySubject("anysubject")
             .build());
   }
 
@@ -194,6 +222,24 @@ public class KafkaReadSchemaTransformProviderTest {
             .setTopic("anytopic")
             .setBootstrapServers("anybootstrap")
             .setFormat("RAW")
+            .build());
+  }
+
+  @Test
+  public void testBuildTransformWithStringFormat() {
+    ServiceLoader<SchemaTransformProvider> serviceLoader =
+        ServiceLoader.load(SchemaTransformProvider.class);
+    List<SchemaTransformProvider> providers =
+        StreamSupport.stream(serviceLoader.spliterator(), false)
+            .filter(provider -> provider.getClass() == KafkaReadSchemaTransformProvider.class)
+            .collect(Collectors.toList());
+    KafkaReadSchemaTransformProvider kafkaProvider =
+        (KafkaReadSchemaTransformProvider) providers.get(0);
+    kafkaProvider.from(
+        KafkaReadSchemaTransformConfiguration.builder()
+            .setTopic("anytopic")
+            .setBootstrapServers("anybootstrap")
+            .setFormat("STRING")
             .build());
   }
 
@@ -300,15 +346,16 @@ public class KafkaReadSchemaTransformProviderTest {
     List<String> configs =
         Arrays.asList(
             "topic: topic_1\n" + "bootstrap_servers: some bootstrap\n" + "format: RAW",
-            "topic: topic_2\n"
+            "topic: topic_2\n" + "bootstrap_servers: some bootstrap\n" + "format: STRING",
+            "topic: topic_3\n"
                 + "bootstrap_servers: some bootstrap\n"
                 + "schema: '{\"type\":\"record\",\"name\":\"my_record\",\"fields\":[{\"name\":\"bool\",\"type\":\"boolean\"}]}'",
-            "topic: topic_3\n"
+            "topic: topic_4\n"
                 + "bootstrap_servers: some bootstrap\n"
                 + "schema_registry_url: some-url\n"
                 + "schema_registry_subject: some-subject\n"
                 + "format: RAW",
-            "topic: topic_4\n"
+            "topic: topic_5\n"
                 + "bootstrap_servers: some bootstrap\n"
                 + "format: PROTO\n"
                 + "schema: '"
@@ -322,5 +369,114 @@ public class KafkaReadSchemaTransformProviderTest {
           .withConfig(YamlUtils.yamlStringToMap(config))
           .expand(PBegin.in(Pipeline.create()));
     }
+  }
+
+  // This test verifies that the schema for KafkaReadSchemaTransformConfiguration is correctly
+  // generated. This schema is used when KafkaReadSchemaTransformConfiguration are
+  // serialized/deserialized with
+  // SchemaCoder.
+  @Test
+  public void testKafkaReadSchemaTransformConfigurationSchema() throws NoSuchSchemaException {
+    Schema schema =
+        SchemaRegistry.createDefault().getSchema(KafkaReadSchemaTransformConfiguration.class);
+
+    assertEquals(17, schema.getFieldCount());
+
+    // Check field name, type, and nullability. Descriptions are not checked as they are not
+    // critical for serialization.
+    assertEquals(
+        Schema.Field.of("bootstrapServers", Schema.FieldType.STRING)
+            .withDescription(schema.getField(0).getDescription()),
+        schema.getField(0));
+
+    assertEquals(
+        Schema.Field.nullable("confluentSchemaRegistryUrl", Schema.FieldType.STRING)
+            .withDescription(schema.getField(1).getDescription()),
+        schema.getField(1));
+
+    assertEquals(
+        Schema.Field.nullable("format", Schema.FieldType.STRING)
+            .withDescription(schema.getField(2).getDescription()),
+        schema.getField(2));
+
+    assertEquals(
+        Schema.Field.nullable("confluentSchemaRegistrySubject", Schema.FieldType.STRING)
+            .withDescription(schema.getField(3).getDescription()),
+        schema.getField(3));
+
+    assertEquals(
+        Schema.Field.nullable("schema", Schema.FieldType.STRING)
+            .withDescription(schema.getField(4).getDescription()),
+        schema.getField(4));
+
+    assertEquals(
+        Schema.Field.nullable("fileDescriptorPath", Schema.FieldType.STRING)
+            .withDescription(schema.getField(5).getDescription()),
+        schema.getField(5));
+
+    assertEquals(
+        Schema.Field.nullable("messageName", Schema.FieldType.STRING)
+            .withDescription(schema.getField(6).getDescription()),
+        schema.getField(6));
+
+    assertEquals(
+        Schema.Field.nullable("autoOffsetResetConfig", Schema.FieldType.STRING)
+            .withDescription(schema.getField(7).getDescription()),
+        schema.getField(7));
+
+    assertEquals(
+        Schema.Field.nullable(
+                "consumerConfigUpdates",
+                Schema.FieldType.map(Schema.FieldType.STRING, Schema.FieldType.STRING))
+            .withDescription(schema.getField(8).getDescription()),
+        schema.getField(8));
+
+    assertEquals(
+        Schema.Field.of("topic", Schema.FieldType.STRING)
+            .withDescription(schema.getField(9).getDescription()),
+        schema.getField(9));
+
+    assertEquals(
+        Schema.Field.nullable("maxReadTimeSeconds", Schema.FieldType.INT32)
+            .withDescription(schema.getField(10).getDescription()),
+        schema.getField(10));
+
+    Schema actualRowSchemaForErrorHandling = schema.getField(11).getType().getRowSchema();
+
+    assertEquals(
+        Schema.Field.nullable(
+                "errorHandling",
+                Schema.FieldType.row(
+                    Schema.of(
+                        Schema.Field.of("output", Schema.FieldType.STRING)
+                            .withDescription(
+                                actualRowSchemaForErrorHandling.getField(0).getDescription()))))
+            .withDescription(schema.getField(11).getDescription()),
+        schema.getField(11));
+
+    assertEquals(
+        Schema.Field.nullable("redistributed", Schema.FieldType.BOOLEAN)
+            .withDescription(schema.getField(12).getDescription()),
+        schema.getField(12));
+
+    assertEquals(
+        Schema.Field.nullable("allowDuplicates", Schema.FieldType.BOOLEAN)
+            .withDescription(schema.getField(13).getDescription()),
+        schema.getField(13));
+
+    assertEquals(
+        Schema.Field.nullable("redistributeNumKeys", Schema.FieldType.INT32)
+            .withDescription(schema.getField(14).getDescription()),
+        schema.getField(14));
+
+    assertEquals(
+        Schema.Field.nullable("offsetDeduplication", Schema.FieldType.BOOLEAN)
+            .withDescription(schema.getField(15).getDescription()),
+        schema.getField(15));
+
+    assertEquals(
+        Schema.Field.nullable("redistributeByRecordKey", Schema.FieldType.BOOLEAN)
+            .withDescription(schema.getField(16).getDescription()),
+        schema.getField(16));
   }
 }

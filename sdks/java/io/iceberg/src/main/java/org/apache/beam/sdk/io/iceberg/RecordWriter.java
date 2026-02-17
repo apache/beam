@@ -22,7 +22,6 @@ import org.apache.beam.sdk.metrics.Counter;
 import org.apache.beam.sdk.metrics.Metrics;
 import org.apache.iceberg.DataFile;
 import org.apache.iceberg.FileFormat;
-import org.apache.iceberg.MetricsConfig;
 import org.apache.iceberg.PartitionKey;
 import org.apache.iceberg.Table;
 import org.apache.iceberg.avro.Avro;
@@ -35,6 +34,7 @@ import org.apache.iceberg.io.DataWriter;
 import org.apache.iceberg.io.FileIO;
 import org.apache.iceberg.io.OutputFile;
 import org.apache.iceberg.parquet.Parquet;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -47,6 +47,7 @@ class RecordWriter {
   private final Table table;
   private final String absoluteFilename;
   private final FileFormat fileFormat;
+  private @Nullable FileIO io;
 
   RecordWriter(
       Catalog catalog, IcebergDestination destination, String filename, PartitionKey partitionKey)
@@ -62,7 +63,6 @@ class RecordWriter {
       throws IOException {
     this.table = table;
     this.fileFormat = fileFormat;
-    MetricsConfig metricsConfig = MetricsConfig.forTable(table);
 
     if (table.spec().isUnpartitioned()) {
       absoluteFilename =
@@ -74,22 +74,22 @@ class RecordWriter {
     }
     OutputFile outputFile;
     EncryptionKeyMetadata keyMetadata;
-    try (FileIO io = table.io()) {
-      OutputFile tmpFile = io.newOutputFile(absoluteFilename);
-      EncryptedOutputFile encryptedOutputFile = table.encryption().encrypt(tmpFile);
-      outputFile = encryptedOutputFile.encryptingOutputFile();
-      keyMetadata = encryptedOutputFile.keyMetadata();
-    }
+    // Keep FileIO open for the lifetime of this writer to avoid
+    // premature shutdown of underlying client pools (e.g., S3),
+    // which manifests as "Connection pool shut down" (Issue #36438).
+    this.io = table.io();
+    OutputFile tmpFile = io.newOutputFile(absoluteFilename);
+    EncryptedOutputFile encryptedOutputFile = table.encryption().encrypt(tmpFile);
+    outputFile = encryptedOutputFile.encryptingOutputFile();
+    keyMetadata = encryptedOutputFile.keyMetadata();
 
     switch (fileFormat) {
       case AVRO:
         icebergDataWriter =
             Avro.writeData(outputFile)
+                .forTable(table)
                 .createWriterFunc(org.apache.iceberg.data.avro.DataWriter::create)
-                .schema(table.schema())
-                .withSpec(table.spec())
                 .withPartition(partitionKey)
-                .metricsConfig(metricsConfig)
                 .withKeyMetadata(keyMetadata)
                 .overwrite()
                 .build();
@@ -97,11 +97,9 @@ class RecordWriter {
       case PARQUET:
         icebergDataWriter =
             Parquet.writeData(outputFile)
-                .createWriterFunc(GenericParquetWriter::buildWriter)
-                .schema(table.schema())
-                .withSpec(table.spec())
+                .forTable(table)
+                .createWriterFunc(GenericParquetWriter::create)
                 .withPartition(partitionKey)
-                .metricsConfig(metricsConfig)
                 .withKeyMetadata(keyMetadata)
                 .overwrite()
                 .build();
@@ -126,16 +124,38 @@ class RecordWriter {
   }
 
   public void close() throws IOException {
+    IOException closeError = null;
     try {
       icebergDataWriter.close();
     } catch (IOException e) {
-      throw new IOException(
-          String.format(
-              "Failed to close %s writer for table %s, path: %s",
-              fileFormat, table.name(), absoluteFilename),
-          e);
+      closeError =
+          new IOException(
+              String.format(
+                  "Failed to close %s writer for table %s, path: %s",
+                  fileFormat, table.name(), absoluteFilename),
+              e);
+    } finally {
+      // Always attempt to close FileIO and decrement metrics
+      if (io != null) {
+        try {
+          io.close();
+        } catch (Exception ioCloseError) {
+          if (closeError != null) {
+            closeError.addSuppressed(ioCloseError);
+          } else {
+            closeError = new IOException("Failed to close FileIO", ioCloseError);
+          }
+        } finally {
+          io = null;
+        }
+      }
+      activeIcebergWriters.dec();
     }
-    activeIcebergWriters.dec();
+
+    if (closeError != null) {
+      throw closeError;
+    }
+
     DataFile dataFile = icebergDataWriter.toDataFile();
     LOG.info(
         "Closed {} writer for table '{}' ({} records, {} bytes), path: {}",

@@ -22,6 +22,12 @@ applyPythonNature()
 
 description = "Apache Beam :: SDKs :: Go :: Test"
 
+def testJavaVersion = project.findProperty('testJavaVersion')
+String fork_java_home = null
+if (testJavaVersion) {
+  fork_java_home = project.findProperty("java${testJavaVersion}Home")
+}
+
 // ValidatesRunner tests for Dataflow. Runs tests in the integration directory
 // with Dataflow to validate that the runner behaves as expected.
 task dataflowValidatesRunner() {
@@ -34,6 +40,9 @@ task dataflowValidatesRunner() {
         "--runner dataflow",
     ]
     exec {
+      if (fork_java_home) {
+        environment "JAVA_HOME_JOB_SERVER", fork_java_home
+      }
       executable "sh"
       args "-c", "./run_validatesrunner_tests.sh ${options.join(' ')}"
     }
@@ -56,6 +65,9 @@ task dataflowValidatesRunnerARM64() {
         "--pipeline_opts \"${pipelineOptions.join(' ')}\"",
     ]
     exec {
+      if (fork_java_home) {
+        environment "JAVA_HOME_JOB_SERVER", fork_java_home
+      }
       executable "sh"
       args "-c", "./run_validatesrunner_tests.sh ${options.join(' ')}"
     }
@@ -67,21 +79,37 @@ task dataflowValidatesRunnerARM64() {
 task flinkValidatesRunner {
   group = "Verification"
 
+  // TODO(https://github.com/apache/beam/issues/37600) use project.ext.latestFlinkVersion after resolved
+  def flinkVersion = '1.20'
+
   dependsOn ":sdks:go:test:goBuild"
   dependsOn ":sdks:go:container:docker"
   dependsOn ":sdks:java:container:${project.ext.currentJavaVersion}:docker"
-  dependsOn ":runners:flink:${project.ext.latestFlinkVersion}:job-server:shadowJar"
+  dependsOn ":runners:flink:${flinkVersion}:job-server:shadowJar"
   dependsOn ":sdks:java:testing:expansion-service:buildTestExpansionServiceJar"
+  doFirst {
+    // Copy Flink conf file
+    copy {
+      from "${project.rootDir}/runners/flink/2.0/src/test/resources/flink-test-config.yaml"
+      into "${project.buildDir}/flink-conf"
+
+      // Rename the file during the copy process
+      rename 'flink-test-config.yaml', 'config.yaml'
+    }
+  }
   doLast {
     def pipelineOptions = [  // Pipeline options piped directly to Go SDK flags.
         "--expansion_jar=test:${project(":sdks:java:testing:expansion-service").buildTestExpansionServiceJar.archivePath}",
     ]
     def options = [
         "--runner flink",
-        "--flink_job_server_jar ${project(":runners:flink:${project.ext.latestFlinkVersion}:job-server").shadowJar.archivePath}",
+        "--flink_job_server_jar ${project(":runners:flink:${flinkVersion}:job-server").shadowJar.archivePath}",
         "--pipeline_opts \"${pipelineOptions.join(' ')}\"",
     ]
     exec {
+      if (fork_java_home) {
+        environment "JAVA_HOME_JOB_SERVER", fork_java_home
+      }
       executable "sh"
       args "-c", "./run_validatesrunner_tests.sh ${options.join(' ')}"
     }
@@ -96,6 +124,7 @@ task samzaValidatesRunner {
   dependsOn ":sdks:java:container:${project.ext.currentJavaVersion}:docker"
   dependsOn ":runners:samza:job-server:shadowJar"
   dependsOn ":sdks:java:testing:expansion-service:buildTestExpansionServiceJar"
+
   doLast {
     def pipelineOptions = [  // Pipeline options piped directly to Go SDK flags.
         "--expansion_jar=test:${project(":sdks:java:testing:expansion-service").buildTestExpansionServiceJar.archivePath}",
@@ -106,6 +135,9 @@ task samzaValidatesRunner {
         "--pipeline_opts \"${pipelineOptions.join(' ')}\"",
     ]
     exec {
+      if (fork_java_home) {
+        environment "JAVA_HOME_JOB_SERVER", fork_java_home
+      }
       executable "sh"
       args "-c", "./run_validatesrunner_tests.sh ${options.join(' ')}"
     }
@@ -131,6 +163,9 @@ task sparkValidatesRunner {
         "--pipeline_opts \"${pipelineOptions.join(' ')}\"",
     ]
     exec {
+      if (fork_java_home) {
+        environment "JAVA_HOME_JOB_SERVER", fork_java_home
+      }
       executable "sh"
       args "-c", "./run_validatesrunner_tests.sh ${options.join(' ')}"
     }
@@ -167,6 +202,9 @@ tasks.register("ulrValidatesRunner") {
       args "-c", ". ${envdir}/bin/activate && pip install -e ."
     }
     exec {
+      if (fork_java_home) {
+        environment "JAVA_HOME_JOB_SERVER", fork_java_home
+      }
       executable "sh"
       args "-c", ". ${envdir}/bin/activate && ./run_validatesrunner_tests.sh ${options.join(' ')}"
     }
@@ -191,6 +229,9 @@ task prismValidatesRunner {
         "--pipeline_opts \"${pipelineOptions.join(' ')}\"",
     ]
     exec {
+      if (fork_java_home) {
+        environment "JAVA_HOME_JOB_SERVER", fork_java_home
+      }
       executable "sh"
       args "-c", "./run_validatesrunner_tests.sh ${options.join(' ')}"
     }
@@ -233,6 +274,9 @@ ext.goIoValidatesRunnerTask = { proj, name, scriptOpts, pipelineOpts ->
       options.addAll(scriptOpts)
       logger.info("Running the command: sh -c ./run_validatesrunner_tests.sh ${options.join(' ')}")
       exec {
+        if (fork_java_home) {
+          environment "JAVA_HOME_JOB_SERVER", fork_java_home
+        }
         executable "sh"
         args "-c", "./run_validatesrunner_tests.sh ${options.join(' ')}"
       }

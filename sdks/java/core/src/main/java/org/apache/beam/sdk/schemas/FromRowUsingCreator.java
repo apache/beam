@@ -53,7 +53,7 @@ class FromRowUsingCreator<T> implements SerializableFunction<Row, T>, Function<R
   private final Factory<SchemaUserTypeCreator> schemaTypeCreatorFactory;
 
   @SuppressFBWarnings("SE_TRANSIENT_FIELD_NOT_RESTORED")
-  private transient @MonotonicNonNull Function[] fieldConverters;
+  private transient volatile @MonotonicNonNull Function[] fieldConverters;
 
   public FromRowUsingCreator(
       TypeDescriptor<T> typeDescriptor, GetterBasedSchemaProvider schemaProvider) {

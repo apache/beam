@@ -141,6 +141,14 @@ public final class PipelineOperator {
     return waitForConditionAndExecute(config, conditionCheck, this::cancelJobAndFinish);
   }
 
+  /**
+   * Similar to {@link #waitForConditionAndCancel(Config, Supplier...)} but force-cancels the job.
+   */
+  public Result waitForConditionAndForceCancel(Config config, Supplier<Boolean>... conditionCheck)
+      throws IOException {
+    return waitForConditionAndExecute(config, conditionCheck, this::forceCancelJobAndFinish);
+  }
+
   private Result waitForConditionAndExecute(
       Config config,
       Supplier<Boolean>[] conditionCheck,
@@ -171,6 +179,12 @@ public final class PipelineOperator {
     return waitUntilDone(config);
   }
 
+  /** Similar to {@link #cancelJobAndFinish(Config)} but force-cancels the job. */
+  public Result forceCancelJobAndFinish(Config config) throws IOException {
+    client.forceCancelJob(config.project(), config.region(), config.jobId());
+    return waitUntilDone(config);
+  }
+
   private static Result finishOrTimeout(
       Config config, Supplier<Boolean>[] conditionCheck, Supplier<Boolean>... stopChecking) {
     Instant start = Instant.now();
@@ -188,7 +202,7 @@ public final class PipelineOperator {
         LOG.warn("Error happened when checking for condition", e);
       }
 
-      LOG.info("Condition was not met yet. Checking if job is finished.");
+      LOG.debug("Condition was not met yet. Checking if job is finished.");
       if (launchFinished) {
         LOG.info("Launch was finished, stop checking.");
         return Result.LAUNCH_FINISHED;
@@ -198,11 +212,15 @@ public final class PipelineOperator {
         LOG.info("Detected that launch was finished, checking conditions once more.");
         launchFinished = true;
       } else {
-        LOG.info(
-            "Job not finished and conditions not met. Will check again in {} seconds (total wait: {}s of max {}s)",
-            config.checkAfter().getSeconds(),
-            Duration.between(start, Instant.now()).getSeconds(),
-            config.timeoutAfter().getSeconds());
+        long checkSec = config.checkAfter().getSeconds();
+        long waitSec = Duration.between(start, Instant.now()).getSeconds();
+        if (checkSec > 0 && (waitSec / checkSec) % 5 == 0) { // reduce log spam
+          LOG.info(
+              "Job not finished and conditions not met. Will check again in {} seconds (total wait: {}s of max {}s)",
+              checkSec,
+              waitSec,
+              config.timeoutAfter().getSeconds());
+        }
       }
       try {
         Thread.sleep(config.checkAfter().toMillis());

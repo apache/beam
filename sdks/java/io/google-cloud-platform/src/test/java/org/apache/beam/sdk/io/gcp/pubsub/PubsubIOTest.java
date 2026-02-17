@@ -125,15 +125,10 @@ public class PubsubIOTest {
     PubsubIO.readStrings().fromTopic("projects/my-project/topics/AbC-1234-_.~%+-_.~%+-_.~%+-abc");
     PubsubIO.readStrings()
         .fromTopic(
-            new StringBuilder()
-                .append("projects/my-project/topics/A-really-long-one-")
-                .append(
-                    "111111111111111111111111111111111111111111111111111111111111111111111111111111111")
-                .append(
-                    "111111111111111111111111111111111111111111111111111111111111111111111111111111111")
-                .append(
-                    "11111111111111111111111111111111111111111111111111111111111111111111111111")
-                .toString());
+            "projects/my-project/topics/A-really-long-one-"
+                + "111111111111111111111111111111111111111111111111111111111111111111111111111111111"
+                + "111111111111111111111111111111111111111111111111111111111111111111111111111111111"
+                + "11111111111111111111111111111111111111111111111111111111111111111111111111");
   }
 
   @Test
@@ -147,15 +142,10 @@ public class PubsubIOTest {
     thrown.expect(IllegalArgumentException.class);
     PubsubIO.readStrings()
         .fromTopic(
-            new StringBuilder()
-                .append("projects/my-project/topics/A-really-long-one-")
-                .append(
-                    "111111111111111111111111111111111111111111111111111111111111111111111111111111111")
-                .append(
-                    "111111111111111111111111111111111111111111111111111111111111111111111111111111111")
-                .append(
-                    "1111111111111111111111111111111111111111111111111111111111111111111111111111")
-                .toString());
+            "projects/my-project/topics/A-really-long-one-"
+                + "111111111111111111111111111111111111111111111111111111111111111111111111111111111"
+                + "111111111111111111111111111111111111111111111111111111111111111111111111111111111"
+                + "1111111111111111111111111111111111111111111111111111111111111111111111111111");
   }
 
   @Test
@@ -1008,10 +998,8 @@ public class PubsubIOTest {
     PubsubIO.writeStrings().to("projects/my-project/topics/AbC-1234-_.~%+-_.~%+-_.~%+-abc");
     PubsubIO.writeStrings()
         .to(
-            new StringBuilder()
-                .append("projects/my-project/topics/A-really-long-one-")
-                .append(RandomStringUtils.randomAlphanumeric(100))
-                .toString());
+            "projects/my-project/topics/A-really-long-one-"
+                + RandomStringUtils.randomAlphanumeric(100));
   }
 
   @Test
@@ -1025,10 +1013,8 @@ public class PubsubIOTest {
     thrown.expect(IllegalArgumentException.class);
     PubsubIO.writeStrings()
         .to(
-            new StringBuilder()
-                .append("projects/my-project/topics/A-really-long-one-")
-                .append(RandomStringUtils.randomAlphanumeric(1000))
-                .toString());
+            "projects/my-project/topics/A-really-long-one-"
+                + RandomStringUtils.randomAlphanumeric(1000));
   }
 
   @Test

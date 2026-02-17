@@ -37,6 +37,8 @@ public abstract class StreamObserverFactory {
       Function<StreamObserver<ResponseT>, StreamObserver<RequestT>> clientFactory,
       StreamObserver<ResponseT> responseObserver);
 
+  public abstract long getDeadlineSeconds();
+
   private static class Direct extends StreamObserverFactory {
     private final long deadlineSeconds;
     private final int messagesBetweenIsReadyChecks;
@@ -58,6 +60,11 @@ public abstract class StreamObserverFactory {
                       inboundObserver, phaser::arrive, phaser::forceTermination));
       return new DirectStreamObserver<>(
           phaser, outboundObserver, deadlineSeconds, messagesBetweenIsReadyChecks);
+    }
+
+    @Override
+    public long getDeadlineSeconds() {
+      return deadlineSeconds;
     }
   }
 }
