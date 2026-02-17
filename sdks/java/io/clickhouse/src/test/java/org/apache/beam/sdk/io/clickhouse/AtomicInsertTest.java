@@ -93,24 +93,23 @@ public class AtomicInsertTest extends BaseClickHouseTest {
    */
   @Test
   public void testIdempotentInsert() throws Exception {
-    int size = 100000;
 
     // inserts to such table fail with 60% chance for 1M batch size
     executeSql(
         "CREATE TABLE test_idempotent_insert ("
             + "  f0 Int64, "
             + "  f1 Int64 MATERIALIZED CAST(if((rand() % "
-            + size
+            + TEST_BATCH_SIZE
             + ") = 0, '', '1') AS Int64)"
             + ") ENGINE=ReplicatedMergeTree('/clickHouse/tables/0/test_idempotent_insert', 'replica_0') "
             + "ORDER BY (f0)");
 
     pipeline
         // make sure we get one big bundle
-        .apply(RangeBundle.of(size))
+        .apply(RangeBundle.of(TEST_BATCH_SIZE))
         .apply(
             ClickHouseIO.<Row>write(clickHouseUrl, database, "test_idempotent_insert")
-                .withMaxInsertBlockSize(size)
+                .withMaxInsertBlockSize(TEST_BATCH_SIZE)
                 .withInitialBackoff(Duration.millis(1))
                 .withMaxRetries(2));
 
@@ -121,7 +120,7 @@ public class AtomicInsertTest extends BaseClickHouseTest {
     }
 
     // inserts should be deduplicated, so we get exactly `size` elements
-    assertEquals(size, count);
+    assertEquals(TEST_BATCH_SIZE, count);
     assertTrue("insert didn't succeed after " + MAX_ATTEMPTS + " attempts", count > 0L);
   }
 
