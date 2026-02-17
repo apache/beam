@@ -104,10 +104,17 @@ class BigtableServiceImpl implements BigtableService {
   private static final double WATERMARK_PERCENTAGE = .1;
   private static final long MIN_BYTE_BUFFER_SIZE = 100 * 1024 * 1024; // 100MB
 
+  private final boolean skipLargeRows;
+
   BigtableServiceImpl(BigtableDataSettings settings) throws IOException {
+    this(settings, false);
+  }
+
+  BigtableServiceImpl(BigtableDataSettings settings, boolean skipLargeRows) throws IOException {
     this.projectId = settings.getProjectId();
     this.instanceId = settings.getInstanceId();
     this.client = BigtableDataClient.create(settings);
+    this.skipLargeRows = skipLargeRows;
     LOG.info("Started Bigtable service with settings {}", settings);
   }
 
@@ -142,6 +149,7 @@ class BigtableServiceImpl implements BigtableService {
     private ServerStream<Row> stream;
 
     private boolean exhausted;
+    private final boolean skipLargeRows;
 
     @VisibleForTesting
     BigtableReaderImpl(
@@ -150,13 +158,15 @@ class BigtableServiceImpl implements BigtableService {
         String instanceId,
         String tableId,
         List<ByteKeyRange> ranges,
-        @Nullable RowFilter rowFilter) {
+        @Nullable RowFilter rowFilter,
+        boolean skipLargeRows) {
       this.client = client;
       this.projectId = projectId;
       this.instanceId = instanceId;
       this.tableId = tableId;
       this.ranges = ranges;
       this.rowFilter = rowFilter;
+      this.skipLargeRows = skipLargeRows;
     }
 
     @Override
@@ -173,11 +183,19 @@ class BigtableServiceImpl implements BigtableService {
       if (rowFilter != null) {
         query.filter(Filters.FILTERS.fromProto(rowFilter));
       }
+
       try {
-        stream =
-            client
-                .readRowsCallable(new BigtableRowProtoAdapter())
-                .call(query, GrpcCallContext.createDefault());
+        if (skipLargeRows) {
+          stream =
+              client
+                  .skipLargeRowsCallable(new BigtableRowProtoAdapter())
+                  .call(query, GrpcCallContext.createDefault());
+        } else {
+          stream =
+              client
+                  .readRowsCallable(new BigtableRowProtoAdapter())
+                  .call(query, GrpcCallContext.createDefault());
+        }
         results = stream.iterator();
         serviceCallMetric.call("ok");
       } catch (StatusRuntimeException e) {
@@ -667,7 +685,8 @@ class BigtableServiceImpl implements BigtableService {
           instanceId,
           source.getTableId().get(),
           source.getRanges(),
-          source.getRowFilter());
+          source.getRowFilter(),
+          skipLargeRows);
     }
   }
 

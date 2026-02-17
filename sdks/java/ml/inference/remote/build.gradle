@@ -17,10 +17,14 @@
  */
 plugins {
   id 'org.apache.beam.module'
-  id 'java-library'
 }
+applyJavaNature(
+  automaticModuleName: 'org.apache.beam.sdk.ml.inference.remote',
+  requireJavaVersion: JavaVersion.VERSION_11
+)
 
 description = "Apache Beam :: SDKs :: Java :: ML :: Inference :: Remote"
+ext.summary = "Base framework for remote ml inference"
 
 dependencies {
   // Core Beam SDK

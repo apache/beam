@@ -61,15 +61,19 @@
 
 * New highly anticipated feature X added to Python SDK ([#X](https://github.com/apache/beam/issues/X)).
 * New highly anticipated feature Y added to Java SDK ([#Y](https://github.com/apache/beam/issues/Y)).
+* Flink 2.0 support ([#36947](https://github.com/apache/beam/issues/36947)).
+
 
 ## I/Os
 
-* Add support for Datadog IO (Java) ([#37318](https://github.com/apache/beam/issues/37318)).
+* Add Datadog IO support (Java) ([#37318](https://github.com/apache/beam/issues/37318)).
+* Remove Pubsublite IO support, since service will be deprecated in March 2026. ([#37375](https://github.com/apache/beam/issues/37375)).
 * (Java) ClickHouse - migrating from the legacy JDBC driver (v0.6.3) to ClickHouse Java Client v2 (v0.9.6). See the [class documentation](https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/clickhouse/ClickHouseIO.html) for migration guide   ([#37611](https://github.com/apache/beam/pull/37611)).
 
 ## New Features / Improvements
 
 * (Python) Added exception chaining to preserve error context in CloudSQLEnrichmentHandler, processes utilities, and core transforms ([#37422](https://github.com/apache/beam/issues/37422)).
+* (Python) Added a pipeline option `--experiments=pip_no_build_isolation` to disable build isolation when installing dependencies in the runtime environment ([#37331](https://github.com/apache/beam/issues/37331)).
 * X feature added (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
 
 ## Breaking Changes
@@ -185,6 +189,7 @@ Now Beam has full support for Milvus integration including Milvus enrichment and
 * Minimum Go version for Beam Go updated to 1.25.2 ([#36461](https://github.com/apache/beam/issues/36461)).
 * (Java) DoFn OutputReceiver now requires implementing a builder method as part of extended metadata support for elements ([#34902](https://github.com/apache/beam/issues/34902)).
 * (Java) Removed ProcessContext outputWindowedValue introduced in 2.68 that allowed setting offset and record Id. Use OutputReceiver's builder to set those field ([#36523](https://github.com/apache/beam/pull/36523)).
+* (Python) The pip version used by ensurepip is upgraded to 25.3, which enables build isolation by default. As a result, pip needs internet access to download setuptools and set up an isolated virtual environment to build wheels when installing packages. If the user environment does not have internet access, it could lead to a timeout error. See ([#37331](https://github.com/apache/beam/pull/37331)) for more details and workarounds.
 
 ## Bugfixes
 

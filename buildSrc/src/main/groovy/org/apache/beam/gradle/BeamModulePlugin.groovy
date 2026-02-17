@@ -552,8 +552,7 @@ class BeamModulePlugin implements Plugin<Project> {
     project.ext.currentJavaVersion = getSupportedJavaVersion()
 
     project.ext.allFlinkVersions = project.flink_versions.split(',')
-    // TODO(https://github.com/apache/beam/issues/36947): Move to use project.ext.allFlinkVersions.last() when Flink 2 support completed
-    project.ext.latestFlinkVersion = '1.20'
+    project.ext.latestFlinkVersion = project.ext.allFlinkVersions.last()
 
     project.ext.nativeArchitecture = {
       // Best guess as to this system's normalized native architecture name.
@@ -613,8 +612,6 @@ class BeamModulePlugin implements Plugin<Project> {
     def google_ads_version = "33.0.0"
     def google_clients_version = "2.0.0"
     def google_cloud_bigdataoss_version = "2.2.26"
-    // [bomupgrader] determined by: com.google.cloud:google-cloud-spanner, consistent with: google_cloud_platform_libraries_bom
-    def google_cloud_spanner_version = "6.104.0"
     def google_code_gson_version = "2.10.1"
     def google_oauth_clients_version = "1.34.1"
     // [bomupgrader] determined by: io.grpc:grpc-netty, consistent with: google_cloud_platform_libraries_bom
@@ -651,7 +648,7 @@ class BeamModulePlugin implements Plugin<Project> {
     def spark2_version = "2.4.8"
     def spark3_version = "3.5.0"
     def spotbugs_version = "4.8.3"
-    def testcontainers_version = "1.19.7"
+    def testcontainers_version = "1.21.4"
     // [bomupgrader] determined by: org.apache.arrow:arrow-memory-core, consistent with: google_cloud_platform_libraries_bom
     def arrow_version = "17.0.0"
     def jmh_version = "1.34"
@@ -726,6 +723,7 @@ class BeamModulePlugin implements Plugin<Project> {
         commons_logging                             : "commons-logging:commons-logging:1.2",
         commons_math3                               : "org.apache.commons:commons-math3:3.6.1",
         dbcp2                                       : "org.apache.commons:commons-dbcp2:$dbcp2_version",
+        envoy_control_plane_api                     : "io.envoyproxy.controlplane:api:1.0.49",
         error_prone_annotations                     : "com.google.errorprone:error_prone_annotations:$errorprone_version",
         failsafe                                    : "dev.failsafe:failsafe:3.3.0",
         flogger_system_backend                      : "com.google.flogger:flogger-system-backend:0.7.4",
@@ -762,10 +760,8 @@ class BeamModulePlugin implements Plugin<Project> {
         // libraries-bom version on sdks/java/container/license_scripts/dep_urls_java.yaml
         google_cloud_platform_libraries_bom         : "com.google.cloud:libraries-bom:26.75.0",
         google_cloud_secret_manager                 : "com.google.cloud:google-cloud-secretmanager", // google_cloud_platform_libraries_bom sets version
-        // TODO(#35868) remove pinned google_cloud_spanner_bom after tests or upstream fixed
-        google_cloud_spanner_bom                    : "com.google.cloud:google-cloud-spanner-bom:$google_cloud_spanner_version",
         google_cloud_spanner                        : "com.google.cloud:google-cloud-spanner", // google_cloud_platform_libraries_bom sets version
-        google_cloud_spanner_test                   : "com.google.cloud:google-cloud-spanner:$google_cloud_spanner_version:tests",
+        google_cloud_storage                        : "com.google.cloud:google-cloud-storage", // google_cloud_platform_libraries_bom sets version
         google_cloud_tink                           : "com.google.crypto.tink:tink:1.19.0",
         google_cloud_vertexai                       : "com.google.cloud:google-cloud-vertexai", // google_cloud_platform_libraries_bom sets version
         google_code_gson                            : "com.google.code.gson:gson:$google_code_gson_version",

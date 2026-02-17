@@ -47,7 +47,6 @@ from apache_beam import coders
 from apache_beam import pvalue
 from apache_beam import typehints
 from apache_beam.metrics import Metrics
-from apache_beam.options import pipeline_options
 from apache_beam.portability import common_urns
 from apache_beam.portability.api import beam_runner_api_pb2
 from apache_beam.pvalue import AsSideInput
@@ -1350,27 +1349,6 @@ class _IdentityWindowFn(NonMergingWindowFn):
     return self._window_coder
 
 
-def is_v1_prior_to_v2(*, v1, v2):
-  if v1 is None:
-    return False
-
-  v1_parts = (v1.split('.') + ['0', '0', '0'])[:3]
-  v2_parts = (v2.split('.') + ['0', '0', '0'])[:3]
-  return tuple(map(int, v1_parts)) < tuple(map(int, v2_parts))
-
-
-def is_compat_version_prior_to(options, breaking_change_version):
-  # This function is used in a branch statement to determine whether we should
-  # keep the old behavior prior to a breaking change or use the new behavior.
-  # - If update_compatibility_version < breaking_change_version, we will return
-  #   True and keep the old behavior.
-  update_compatibility_version = options.view_as(
-      pipeline_options.StreamingOptions).update_compatibility_version
-
-  return is_v1_prior_to_v2(
-      v1=update_compatibility_version, v2=breaking_change_version)
-
-
 def reify_metadata_default_window(
     element, timestamp=DoFn.TimestampParam, pane_info=DoFn.PaneInfoParam):
   key, value = element
@@ -1448,8 +1426,8 @@ class ReshufflePerKey(PTransform):
             for (value, timestamp) in values
         ]
 
-      if is_compat_version_prior_to(pcoll.pipeline.options,
-                                    RESHUFFLE_TYPEHINT_BREAKING_CHANGE_VERSION):
+      if pcoll.pipeline.options.is_compat_version_prior_to(
+          RESHUFFLE_TYPEHINT_BREAKING_CHANGE_VERSION):
         pre_gbk_map = Map(reify_timestamps).with_output_types(Any)
       else:
         pre_gbk_map = Map(reify_timestamps).with_input_types(
@@ -1468,8 +1446,8 @@ class ReshufflePerKey(PTransform):
         key, windowed_values = element
         return [wv.with_value((key, wv.value)) for wv in windowed_values]
 
-      if is_compat_version_prior_to(pcoll.pipeline.options,
-                                    RESHUFFLE_TYPEHINT_BREAKING_CHANGE_VERSION):
+      if pcoll.pipeline.options.is_compat_version_prior_to(
+          RESHUFFLE_TYPEHINT_BREAKING_CHANGE_VERSION):
         pre_gbk_map = Map(reify_timestamps).with_output_types(Any)
       else:
         pre_gbk_map = Map(reify_timestamps).with_input_types(
@@ -1493,7 +1471,7 @@ class ReshufflePerKey(PTransform):
     return result
 
   def expand(self, pcoll):
-    if is_compat_version_prior_to(pcoll.pipeline.options, "2.65.0"):
+    if pcoll.pipeline.options.is_compat_version_prior_to("2.65.0"):
       return self.expand_2_64_0(pcoll)
 
     windowing_saved = pcoll.windowing
@@ -1550,8 +1528,8 @@ class Reshuffle(PTransform):
 
   def expand(self, pcoll):
     # type: (pvalue.PValue) -> pvalue.PCollection
-    if is_compat_version_prior_to(pcoll.pipeline.options,
-                                  RESHUFFLE_TYPEHINT_BREAKING_CHANGE_VERSION):
+    if pcoll.pipeline.options.is_compat_version_prior_to(
+        RESHUFFLE_TYPEHINT_BREAKING_CHANGE_VERSION):
       reshuffle_step = ReshufflePerKey()
     else:
       reshuffle_step = ReshufflePerKey().with_input_types(

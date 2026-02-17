@@ -99,7 +99,7 @@ public class WindowedValues {
     private @MonotonicNonNull Collection<? extends BoundedWindow> windows;
     private @Nullable String recordId;
     private @Nullable Long recordOffset;
-    private boolean causedByDrain;
+    private CausedByDrain causedByDrain = CausedByDrain.NORMAL;
 
     @Override
     public Builder<T> setValue(T value) {
@@ -144,7 +144,7 @@ public class WindowedValues {
     }
 
     @Override
-    public Builder<T> setCausedByDrain(boolean causedByDrain) {
+    public Builder<T> setCausedByDrain(CausedByDrain causedByDrain) {
       this.causedByDrain = causedByDrain;
       return this;
     }
@@ -198,7 +198,7 @@ public class WindowedValues {
     }
 
     @Override
-    public boolean causedByDrain() {
+    public CausedByDrain causedByDrain() {
       return causedByDrain;
     }
 
@@ -255,7 +255,7 @@ public class WindowedValues {
 
   public static <T> WindowedValue<T> of(
       T value, Instant timestamp, Collection<? extends BoundedWindow> windows, PaneInfo paneInfo) {
-    return of(value, timestamp, windows, paneInfo, null, null, false);
+    return of(value, timestamp, windows, paneInfo, null, null, CausedByDrain.NORMAL);
   }
 
   /** Returns a {@code WindowedValue} with the given value, timestamp, and windows. */
@@ -266,7 +266,7 @@ public class WindowedValues {
       PaneInfo paneInfo,
       @Nullable String currentRecordId,
       @Nullable Long currentRecordOffset,
-      boolean causedByDrain) {
+      CausedByDrain causedByDrain) {
     checkArgument(paneInfo != null, "WindowedValue requires PaneInfo, but it was null");
     checkArgument(windows.size() > 0, "WindowedValue requires windows, but there were none");
 
@@ -285,7 +285,7 @@ public class WindowedValues {
       Instant timestamp,
       Collection<? extends BoundedWindow> windows,
       PaneInfo paneInfo,
-      boolean causedByDrain) {
+      CausedByDrain causedByDrain) {
     if (windows.size() == 1) {
       return of(value, timestamp, windows.iterator().next(), paneInfo, causedByDrain);
     } else {
@@ -299,12 +299,16 @@ public class WindowedValues {
       T value, Instant timestamp, BoundedWindow window, PaneInfo paneInfo) {
     checkArgument(paneInfo != null, "WindowedValue requires PaneInfo, but it was null");
 
-    return of(value, timestamp, window, paneInfo, false);
+    return of(value, timestamp, window, paneInfo, CausedByDrain.NORMAL);
   }
 
   /** Returns a {@code WindowedValue} with the given value, timestamp, and window. */
   public static <T> WindowedValue<T> of(
-      T value, Instant timestamp, BoundedWindow window, PaneInfo paneInfo, boolean causedByDrain) {
+      T value,
+      Instant timestamp,
+      BoundedWindow window,
+      PaneInfo paneInfo,
+      CausedByDrain causedByDrain) {
     checkArgument(paneInfo != null, "WindowedValue requires PaneInfo, but it was null");
 
     boolean isGlobal = GlobalWindow.INSTANCE.equals(window);
@@ -324,7 +328,7 @@ public class WindowedValues {
    * default timestamp and pane.
    */
   public static <T> WindowedValue<T> valueInGlobalWindow(T value) {
-    return new ValueInGlobalWindow<>(value, PaneInfo.NO_FIRING, null, null, false);
+    return new ValueInGlobalWindow<>(value, PaneInfo.NO_FIRING, null, null, CausedByDrain.NORMAL);
   }
 
   /**
@@ -332,7 +336,7 @@ public class WindowedValues {
    * default timestamp and the specified pane.
    */
   public static <T> WindowedValue<T> valueInGlobalWindow(T value, PaneInfo paneInfo) {
-    return new ValueInGlobalWindow<>(value, paneInfo, null, null, false);
+    return new ValueInGlobalWindow<>(value, paneInfo, null, null, CausedByDrain.NORMAL);
   }
 
   /**
@@ -344,7 +348,7 @@ public class WindowedValues {
       return valueInGlobalWindow(value);
     } else {
       return new TimestampedValueInGlobalWindow<>(
-          value, timestamp, PaneInfo.NO_FIRING, null, null, false);
+          value, timestamp, PaneInfo.NO_FIRING, null, null, CausedByDrain.NORMAL);
     }
   }
 
@@ -357,7 +361,8 @@ public class WindowedValues {
     if (paneInfo.equals(PaneInfo.NO_FIRING)) {
       return timestampedValueInGlobalWindow(value, timestamp);
     } else {
-      return new TimestampedValueInGlobalWindow<>(value, timestamp, paneInfo, null, null, false);
+      return new TimestampedValueInGlobalWindow<>(
+          value, timestamp, paneInfo, null, null, CausedByDrain.NORMAL);
     }
   }
 
@@ -425,7 +430,7 @@ public class WindowedValues {
     private final PaneInfo paneInfo;
     private final @Nullable String currentRecordId;
     private final @Nullable Long currentRecordOffset;
-    private final boolean causedByDrain;
+    private final CausedByDrain causedByDrain;
 
     @Override
     public @Nullable String getRecordId() {
@@ -438,7 +443,7 @@ public class WindowedValues {
     }
 
     @Override
-    public boolean causedByDrain() {
+    public CausedByDrain causedByDrain() {
       return causedByDrain;
     }
 
@@ -447,7 +452,7 @@ public class WindowedValues {
         PaneInfo paneInfo,
         @Nullable String currentRecordId,
         @Nullable Long currentRecordOffset,
-        boolean causedByDrain) {
+        CausedByDrain causedByDrain) {
       this.value = value;
       this.paneInfo = checkNotNull(paneInfo);
       this.currentRecordId = currentRecordId;
@@ -501,7 +506,7 @@ public class WindowedValues {
         PaneInfo pane,
         @Nullable String currentRecordId,
         @Nullable Long currentRecordOffset,
-        boolean causedByDrain) {
+        CausedByDrain causedByDrain) {
       super(value, pane, currentRecordId, currentRecordOffset, causedByDrain);
     }
 
@@ -520,7 +525,7 @@ public class WindowedValues {
         PaneInfo paneInfo,
         @Nullable String currentRecordId,
         @Nullable Long currentRecordOffset,
-        boolean causedByDrain) {
+        CausedByDrain causedByDrain) {
       super(value, paneInfo, currentRecordId, currentRecordOffset, causedByDrain);
     }
 
@@ -576,7 +581,7 @@ public class WindowedValues {
         PaneInfo paneInfo,
         @Nullable String currentRecordId,
         @Nullable Long currentRecordOffset,
-        boolean causedByDrain) {
+        CausedByDrain causedByDrain) {
       super(value, paneInfo, currentRecordId, currentRecordOffset, causedByDrain);
       this.timestamp = checkNotNull(timestamp);
     }
@@ -600,7 +605,7 @@ public class WindowedValues {
         PaneInfo paneInfo,
         @Nullable String currentRecordId,
         @Nullable Long currentRecordOffset,
-        boolean causedByDrain) {
+        CausedByDrain causedByDrain) {
       super(value, timestamp, paneInfo, currentRecordId, currentRecordOffset, causedByDrain);
     }
 
@@ -673,7 +678,7 @@ public class WindowedValues {
         PaneInfo paneInfo,
         @Nullable String currentRecordId,
         @Nullable Long currentRecordOffset,
-        boolean causedByDrain) {
+        CausedByDrain causedByDrain) {
       super(value, timestamp, paneInfo, currentRecordId, currentRecordOffset, causedByDrain);
       this.window = checkNotNull(window);
     }
@@ -745,7 +750,7 @@ public class WindowedValues {
         PaneInfo paneInfo,
         @Nullable String currentRecordId,
         @Nullable Long currentRecordOffset,
-        boolean causedByDrain) {
+        CausedByDrain causedByDrain) {
       super(value, timestamp, paneInfo, currentRecordId, currentRecordOffset, causedByDrain);
       this.windows = checkNotNull(windows);
     }
@@ -921,7 +926,7 @@ public class WindowedValues {
         BeamFnApi.Elements.ElementMetadata em =
             builder
                 .setDrain(
-                    windowedElem.causedByDrain()
+                    windowedElem.causedByDrain() == CausedByDrain.CAUSED_BY_DRAIN
                         ? BeamFnApi.Elements.DrainMode.Enum.DRAINING
                         : BeamFnApi.Elements.DrainMode.Enum.NOT_DRAINING)
                 .build();
@@ -942,15 +947,14 @@ public class WindowedValues {
       Instant timestamp = InstantCoder.of().decode(inStream);
       Collection<? extends BoundedWindow> windows = windowsCoder.decode(inStream);
       PaneInfo paneInfo = PaneInfoCoder.INSTANCE.decode(inStream);
-      boolean causedByDrain = false;
+      CausedByDrain causedByDrain = CausedByDrain.NORMAL;
       if (isMetadataSupported() && paneInfo.isElementMetadata()) {
         BeamFnApi.Elements.ElementMetadata elementMetadata =
             BeamFnApi.Elements.ElementMetadata.parseFrom(ByteArrayCoder.of().decode(inStream));
-        boolean b = elementMetadata.hasDrain();
         causedByDrain =
-            b
-                ? elementMetadata.getDrain().equals(BeamFnApi.Elements.DrainMode.Enum.DRAINING)
-                : false;
+            elementMetadata.getDrain().equals(BeamFnApi.Elements.DrainMode.Enum.DRAINING)
+                ? CausedByDrain.CAUSED_BY_DRAIN
+                : CausedByDrain.NORMAL;
       }
       T value = valueCoder.decode(inStream, context);
 

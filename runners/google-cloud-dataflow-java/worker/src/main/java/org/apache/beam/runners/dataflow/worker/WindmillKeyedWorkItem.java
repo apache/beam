@@ -37,6 +37,7 @@ import org.apache.beam.sdk.coders.StructuredCoder;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.util.common.ElementByteSizeObserver;
+import org.apache.beam.sdk.values.CausedByDrain;
 import org.apache.beam.sdk.values.WindowedValue;
 import org.apache.beam.sdk.values.WindowedValues;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Predicate;
@@ -124,12 +125,14 @@ public class WindmillKeyedWorkItem<K, ElemT> implements KeyedWorkItem<K, ElemT> 
                  * https://s.apache.org/beam-drain-mode - propagate drain bit if aggregation/expiry
                  * induced by drain happened upstream
                  */
-                boolean drainingValueFromUpstream = false;
+                CausedByDrain drainingValueFromUpstream = CausedByDrain.NORMAL;
                 if (WindowedValues.WindowedValueCoder.isMetadataSupported()) {
                   BeamFnApi.Elements.ElementMetadata elementMetadata =
                       WindmillSink.decodeAdditionalMetadata(windowsCoder, message.getMetadata());
                   drainingValueFromUpstream =
-                      elementMetadata.getDrain() == BeamFnApi.Elements.DrainMode.Enum.DRAINING;
+                      elementMetadata.getDrain() == BeamFnApi.Elements.DrainMode.Enum.DRAINING
+                          ? CausedByDrain.CAUSED_BY_DRAIN
+                          : CausedByDrain.NORMAL;
                 }
                 InputStream inputStream = message.getData().newInput();
                 ElemT value = valueCoder.decode(inputStream, Coder.Context.OUTER);

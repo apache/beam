@@ -40,6 +40,7 @@ import org.apache.beam.sdk.state.TimeDomain;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
+import org.apache.beam.sdk.values.CausedByDrain;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.checkerframework.checker.nullness.qual.Nullable;
@@ -143,9 +144,14 @@ public class WindmillTagEncodingV1Test {
             for (Instant timestamp : TEST_TIMESTAMPS) {
               List<TimerData> anonymousTimers =
                   ImmutableList.of(
-                      TimerData.of(namespace, timestamp, timestamp, timeDomain),
                       TimerData.of(
-                          namespace, timestamp, timestamp.minus(Duration.millis(1)), timeDomain));
+                          namespace, timestamp, timestamp, timeDomain, CausedByDrain.NORMAL),
+                      TimerData.of(
+                          namespace,
+                          timestamp,
+                          timestamp.minus(Duration.millis(1)),
+                          timeDomain,
+                          CausedByDrain.NORMAL));
               for (TimerData timer : anonymousTimers) {
                 Instant expectedTimestamp =
                     timer.getOutputTimestamp().isBefore(BoundedWindow.TIMESTAMP_MIN_VALUE)
@@ -165,7 +171,11 @@ public class WindmillTagEncodingV1Test {
                 // output, we expect it to be bounded
                 TimerData expected =
                     TimerData.of(
-                        timer.getNamespace(), timestamp, expectedTimestamp, timer.getDomain());
+                        timer.getNamespace(),
+                        timestamp,
+                        expectedTimestamp,
+                        timer.getDomain(),
+                        CausedByDrain.NORMAL);
 
                 assertThat(computed, equalTo(expected));
               }
@@ -173,7 +183,13 @@ public class WindmillTagEncodingV1Test {
               for (String timerId : TEST_TIMER_IDS) {
                 List<TimerData> timers =
                     ImmutableList.of(
-                        TimerData.of(timerId, namespace, timestamp, timestamp, timeDomain),
+                        TimerData.of(
+                            timerId,
+                            namespace,
+                            timestamp,
+                            timestamp,
+                            timeDomain,
+                            CausedByDrain.NORMAL),
                         TimerData.of(
                             timerId, "family", namespace, timestamp, timestamp, timeDomain),
                         TimerData.of(
@@ -181,7 +197,8 @@ public class WindmillTagEncodingV1Test {
                             namespace,
                             timestamp,
                             timestamp.minus(Duration.millis(1)),
-                            timeDomain),
+                            timeDomain,
+                            CausedByDrain.NORMAL),
                         TimerData.of(
                             timerId,
                             "family",

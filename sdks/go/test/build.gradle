@@ -79,18 +79,31 @@ task dataflowValidatesRunnerARM64() {
 task flinkValidatesRunner {
   group = "Verification"
 
+  // TODO(https://github.com/apache/beam/issues/37600) use project.ext.latestFlinkVersion after resolved
+  def flinkVersion = '1.20'
+
   dependsOn ":sdks:go:test:goBuild"
   dependsOn ":sdks:go:container:docker"
   dependsOn ":sdks:java:container:${project.ext.currentJavaVersion}:docker"
-  dependsOn ":runners:flink:${project.ext.latestFlinkVersion}:job-server:shadowJar"
+  dependsOn ":runners:flink:${flinkVersion}:job-server:shadowJar"
   dependsOn ":sdks:java:testing:expansion-service:buildTestExpansionServiceJar"
+  doFirst {
+    // Copy Flink conf file
+    copy {
+      from "${project.rootDir}/runners/flink/2.0/src/test/resources/flink-test-config.yaml"
+      into "${project.buildDir}/flink-conf"
+
+      // Rename the file during the copy process
+      rename 'flink-test-config.yaml', 'config.yaml'
+    }
+  }
   doLast {
     def pipelineOptions = [  // Pipeline options piped directly to Go SDK flags.
         "--expansion_jar=test:${project(":sdks:java:testing:expansion-service").buildTestExpansionServiceJar.archivePath}",
     ]
     def options = [
         "--runner flink",
-        "--flink_job_server_jar ${project(":runners:flink:${project.ext.latestFlinkVersion}:job-server").shadowJar.archivePath}",
+        "--flink_job_server_jar ${project(":runners:flink:${flinkVersion}:job-server").shadowJar.archivePath}",
         "--pipeline_opts \"${pipelineOptions.join(' ')}\"",
     ]
     exec {

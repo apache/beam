@@ -33,6 +33,7 @@ import org.apache.beam.runners.dataflow.worker.windmill.state.WindmillTagEncodin
 import org.apache.beam.sdk.state.TimeDomain;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
+import org.apache.beam.sdk.values.CausedByDrain;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
@@ -101,7 +102,14 @@ class WindmillTimerInternals implements TimerInternals {
       Instant outputTimestamp,
       TimeDomain timeDomain) {
     TimerData timer =
-        TimerData.of(timerId, timerFamilyId, namespace, timestamp, outputTimestamp, timeDomain);
+        TimerData.of(
+            timerId,
+            timerFamilyId,
+            namespace,
+            timestamp,
+            outputTimestamp,
+            timeDomain,
+            CausedByDrain.NORMAL);
     setTimer(timer);
   }
 
@@ -138,7 +146,8 @@ class WindmillTimerInternals implements TimerInternals {
             namespace,
             BoundedWindow.TIMESTAMP_MIN_VALUE,
             BoundedWindow.TIMESTAMP_MAX_VALUE,
-            timeDomain));
+            timeDomain,
+            CausedByDrain.NORMAL));
   }
 
   @Override
