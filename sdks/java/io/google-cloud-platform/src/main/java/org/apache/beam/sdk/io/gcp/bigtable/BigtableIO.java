@@ -1964,8 +1964,7 @@ public class BigtableIO {
       ValueProvider<String> rowFilterTextProto = readOptions.getRowFilterTextProto();
       if (rowFilterTextProto != null && rowFilterTextProto.isAccessible()) {
         try {
-          RowFilter parsed = TextFormat.parse(rowFilterTextProto.get(), RowFilter.class);
-          return parsed;
+          return TextFormat.parse(rowFilterTextProto.get(), RowFilter.class);
         } catch (TextFormat.ParseException e) {
           throw new RuntimeException("Failed to parse row filter text proto", e);
         }
