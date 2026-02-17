@@ -34,7 +34,7 @@ public class AvroGenericCoderTranslator implements CoderTranslator<AvroGenericCo
   }
 
   @Override
-  public byte[] getPayload(AvroGenericCoder from) {
+  public byte[] getPayload(AvroGenericCoder from, TranslationContext context) {
     return from.getSchema().toString().getBytes(StandardCharsets.UTF_8);
   }
 

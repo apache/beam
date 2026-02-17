@@ -602,7 +602,7 @@ public class ExpansionService extends ExpansionServiceGrpc.ExpansionServiceImplB
           pipeline.getOptions().as(ExperimentalOptions.class), "use_sdf_read");
     } else {
       LOG.warn(
-          "Using use_depreacted_read in portable runners is runner-dependent. The "
+          "Using use_deprecated_read in portable runners is runner-dependent. The "
               + "ExpansionService will respect that, but if your runner does not have support for "
               + "native Read transform, your Pipeline will fail during Pipeline submission.");
     }
@@ -675,6 +675,8 @@ public class ExpansionService extends ExpansionServiceGrpc.ExpansionServiceImplB
             inputs);
 
     // Needed to find which transform was new...
+    // This SdkComponents comes from rehydratedComponents, but doesn't take into account any
+    // additional translation options specified in PipelineOptions.
     SdkComponents sdkComponents =
         rehydratedComponents
             .getSdkComponents(request.getRequirementsList())

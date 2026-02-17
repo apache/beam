@@ -1327,13 +1327,13 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
     // with the SDK harness image (which implements Fn API).
     //
     // The same Environment is used in different and contradictory ways, depending on whether
-    // it is a v1 or v2 job submission.
+    // it is a portable or non-portable job submission.
     RunnerApi.Environment defaultEnvironmentForDataflow =
         Environments.createDockerEnvironment(workerHarnessContainerImageURL);
 
-    // The SdkComponents for portable an non-portable job submission must be kept distinct. Both
+    // The SdkComponents for portable and non-portable job submission must be kept distinct. Both
     // need the default environment.
-    SdkComponents portableComponents = SdkComponents.create();
+    SdkComponents portableComponents = SdkComponents.create(options);
     portableComponents.registerEnvironment(
         defaultEnvironmentForDataflow
             .toBuilder()
@@ -1372,7 +1372,7 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
       replaceV1Transforms(pipeline);
     }
     // Capture the SdkComponents for look up during step translations
-    SdkComponents dataflowV1Components = SdkComponents.create();
+    SdkComponents dataflowV1Components = SdkComponents.create(options);
     dataflowV1Components.registerEnvironment(
         defaultEnvironmentForDataflow
             .toBuilder()

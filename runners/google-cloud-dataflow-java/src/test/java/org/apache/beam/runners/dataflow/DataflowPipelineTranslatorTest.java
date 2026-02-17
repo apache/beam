@@ -46,6 +46,7 @@ import com.google.api.services.dataflow.Dataflow;
 import com.google.api.services.dataflow.model.Job;
 import com.google.api.services.dataflow.model.Step;
 import com.google.api.services.dataflow.model.WorkerPool;
+import com.google.auto.value.AutoValue;
 import java.io.File;
 import java.io.IOException;
 import java.io.Serializable;
@@ -89,7 +90,10 @@ import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.CreateDisposition;
 import org.apache.beam.sdk.io.range.OffsetRange;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
+import org.apache.beam.sdk.options.StreamingOptions;
 import org.apache.beam.sdk.options.ValueProvider;
+import org.apache.beam.sdk.schemas.AutoValueSchema;
+import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
 import org.apache.beam.sdk.state.StateSpec;
 import org.apache.beam.sdk.state.StateSpecs;
 import org.apache.beam.sdk.state.ValueState;
@@ -153,7 +157,7 @@ public class DataflowPipelineTranslatorTest implements Serializable {
   @Rule public transient ExpectedException thrown = ExpectedException.none();
 
   private SdkComponents createSdkComponents(PipelineOptions options) {
-    SdkComponents sdkComponents = SdkComponents.create();
+    SdkComponents sdkComponents = SdkComponents.create(options);
 
     String containerImageURL =
         DataflowRunner.getContainerImageForJob(options.as(DataflowPipelineOptions.class));
@@ -1125,7 +1129,7 @@ public class DataflowPipelineTranslatorTest implements Serializable {
     file1.deleteOnExit();
     File file2 = File.createTempFile("file2-", ".txt");
     file2.deleteOnExit();
-    SdkComponents sdkComponents = SdkComponents.create();
+    SdkComponents sdkComponents = SdkComponents.create(options);
     sdkComponents.registerEnvironment(
         Environments.createDockerEnvironment(DataflowRunner.getContainerImageForJob(options))
             .toBuilder()
@@ -1697,6 +1701,55 @@ public class DataflowPipelineTranslatorTest implements Serializable {
     @GetInitialRestriction
     public OffsetRange getInitialRange(@Element String element) {
       return null;
+    }
+  }
+
+  @AutoValue
+  @DefaultSchema(AutoValueSchema.class)
+  public abstract static class SimpleAutoValue {
+    public abstract String getString();
+
+    public abstract Integer getInt32();
+
+    public abstract Long getInt64();
+
+    public static DataflowPipelineTranslatorTest.SimpleAutoValue of(
+        String string, Integer int32, Long int64) {
+      return new AutoValue_DataflowPipelineTranslatorTest_SimpleAutoValue(string, int32, int64);
+    }
+  }
+
+  @Test
+  public void testSchemaCoderTranslation() throws Exception {
+    DataflowPipelineOptions options = buildPipelineOptions();
+    Pipeline pipeline = Pipeline.create(options);
+    pipeline
+        .apply(Impulse.create())
+        .apply(
+            MapElements.via(
+                new SimpleFunction<byte[], SimpleAutoValue>() {
+                  @Override
+                  public SimpleAutoValue apply(byte[] input) {
+                    return SimpleAutoValue.of("foo", 5, 10L);
+                  }
+                }))
+        .apply(Window.into(FixedWindows.of(Duration.standardMinutes(1))));
+    {
+      SdkComponents sdkComponents = createSdkComponents(options);
+      RunnerApi.Pipeline pipelineProto = PipelineTranslation.toProto(pipeline, sdkComponents, true);
+      Map<String, RunnerApi.Coder> coders = pipelineProto.getComponents().getCodersMap();
+      assertTrue(coders.containsKey("SchemaCoder"));
+      assertEquals("beam:coder:schema:v1", coders.get("SchemaCoder").getSpec().getUrn());
+    }
+
+    // Prior to version 2.72, SchemaCoders are translated as custom java coders.
+    {
+      options.as(StreamingOptions.class).setUpdateCompatibilityVersion("2.71");
+      SdkComponents sdkComponents = createSdkComponents(options);
+      RunnerApi.Pipeline pipelineProto = PipelineTranslation.toProto(pipeline, sdkComponents, true);
+      Map<String, RunnerApi.Coder> coders = pipelineProto.getComponents().getCodersMap();
+      assertTrue(coders.containsKey("SchemaCoder"));
+      assertEquals("beam:coders:javasdk:0.1", coders.get("SchemaCoder").getSpec().getUrn());
     }
   }
 }

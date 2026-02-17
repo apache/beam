@@ -137,7 +137,7 @@ public class DataflowPipelineTranslator {
   private static byte[] serializeWindowingStrategy(
       WindowingStrategy<?, ?> windowingStrategy, PipelineOptions options) {
     try {
-      SdkComponents sdkComponents = SdkComponents.create();
+      SdkComponents sdkComponents = SdkComponents.create(options);
 
       String workerHarnessContainerImageURL =
           DataflowRunner.getContainerImageForJob(options.as(DataflowPipelineOptions.class));
