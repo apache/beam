@@ -30,6 +30,7 @@ import com.google.cloud.spanner.BatchClient;
 import com.google.cloud.spanner.DatabaseAdminClient;
 import com.google.cloud.spanner.DatabaseClient;
 import com.google.cloud.spanner.DatabaseId;
+import com.google.cloud.spanner.SessionPoolOptions;
 import com.google.cloud.spanner.Spanner;
 import com.google.cloud.spanner.SpannerOptions;
 import com.google.cloud.spanner.v1.stub.SpannerStubSettings;
@@ -38,6 +39,7 @@ import com.google.spanner.v1.CommitResponse;
 import com.google.spanner.v1.ExecuteSqlRequest;
 import com.google.spanner.v1.PartialResultSet;
 import java.util.HashSet;
+import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import org.apache.beam.sdk.options.ValueProvider;
@@ -60,6 +62,8 @@ public class SpannerAccessor implements AutoCloseable {
    * workload is coming from Dataflow and to potentially apply performance optimizations
    */
   private static final String USER_AGENT_PREFIX = "Apache_Beam_Java";
+
+  static final java.time.Duration DEFAULT_SESSION_WAIT_DURATION = java.time.Duration.ofMinutes(5);
 
   /** Instance ID to use when connecting to an experimental host. */
   public static final String EXPERIMENTAL_HOST_INSTANCE_ID = "default";
@@ -269,6 +273,15 @@ public class SpannerAccessor implements AutoCloseable {
     if (credentials != null && credentials.get() != null) {
       builder.setCredentials(credentials.get());
     }
+
+     ValueProvider<java.time.Duration> waitForSessionCreationDuration =
+         spannerConfig.getWaitForSessionCreationDuration();
+     java.time.Duration waitDuration =
+         Optional.ofNullable(waitForSessionCreationDuration)
+             .map(ValueProvider::get)
+             .orElse(DEFAULT_SESSION_WAIT_DURATION);
+     builder.setSessionPoolOption(
+       SessionPoolOptions.newBuilder().setWaitForMinSessionsDuration( waitDuration).build());
 
     return builder.build();
   }
