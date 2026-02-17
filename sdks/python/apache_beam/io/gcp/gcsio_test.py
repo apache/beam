@@ -683,7 +683,7 @@ class TestGCSIO(unittest.TestCase):
       self.gcs.open(file_name, 'w')
       writer.assert_called()
 
-  def test_list_prefix(self):
+  def test_list_files(self):
     bucket_name = 'gcsio-test'
     objects = [
         ('cow/cat/fish', 2),
@@ -716,8 +716,7 @@ class TestGCSIO(unittest.TestCase):
       expected_file_names = [('gs://%s/%s' % (bucket_name, object_name), size)
                              for (object_name, size) in expected_object_names]
       self.assertEqual(
-          set(self.gcs.list_prefix(file_pattern).items()),
-          set(expected_file_names))
+          set(self.gcs.list_files(file_pattern)), set(expected_file_names))
 
   def test_downloader_fail_non_existent_object(self):
     file_name = 'gs://gcsio-metrics-test/dummy_mode_file'
