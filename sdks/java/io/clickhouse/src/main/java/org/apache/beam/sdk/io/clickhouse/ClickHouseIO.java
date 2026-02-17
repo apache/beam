@@ -378,25 +378,46 @@ public class ClickHouseIO {
     /**
      * Set connection properties (user, password, etc.).
      *
-     * <p>Properties set via this method will override any properties previously set, including
-     * those extracted from JDBC URLs in the deprecated write method.
+     * <p><b>Important:</b> If using the deprecated JDBC URL-based {@link #write(String, String)}
+     * method, this will fail if any properties specified here conflict with properties already
+     * extracted from the JDBC URL. This prevents accidental property conflicts.
+     *
+     * <p>For the new API {@link #write(String, String, String)}, properties can be set freely since
+     * there are no URL-embedded properties to conflict with.
      *
      * @param properties connection properties
      * @return a {@link PTransform} writing data to ClickHouse
+     * @throws IllegalArgumentException if properties is null or if any property conflicts with
+     *     existing properties (e.g., from JDBC URL)
      */
     public Write<T> withProperties(Properties properties) {
-
       if (properties == null) {
         throw new IllegalArgumentException("Properties cannot be null");
       }
 
-      // Merge properties: new properties override existing ones
+      // Check for conflicts with existing properties
+      Properties existing = properties();
+      for (String key : properties.stringPropertyNames()) {
+        if (existing.containsKey(key)) {
+          String existingValue = existing.getProperty(key);
+          String newValue = properties.getProperty(key);
+          if (!existingValue.equals(newValue)) {
+            throw new IllegalArgumentException(
+                String.format(
+                    "Property conflict: '%s' is already set to '%s' (likely from JDBC URL), "
+                        + "but attempting to set it to '%s'. "
+                        + "Please use either JDBC URL properties OR withProperties(), not both for the same keys.",
+                    key, existingValue, newValue));
+          }
+        }
+      }
+
+      // Merge properties: new properties are added to existing ones
       Properties merged = new Properties();
-      merged.putAll(properties()); // Start with existing properties
-      merged.putAll(properties); // Override with new properties
+      merged.putAll(existing);
+      merged.putAll(properties);
       return toBuilder().properties(merged).build();
     }
-
     /** Builder for {@link Write}. */
     @AutoValue.Builder
     abstract static class Builder<T> {

@@ -18,6 +18,8 @@
 package org.apache.beam.sdk.io.clickhouse;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
 import java.util.Properties;
 import org.apache.beam.sdk.io.clickhouse.ClickHouseIO.Write;
@@ -25,17 +27,17 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/** Tests for property merging in ClickHouseIO. */
+/** Tests for property conflict detection in ClickHouseIO. */
 @RunWith(JUnit4.class)
 public class ClickHouseIOPropertyMergingTest {
 
   @Test
+  @SuppressWarnings("deprecation")
   public void testDeprecatedWriteExtractsPropertiesFromJdbcUrl() {
     String jdbcUrl =
         "jdbc:clickhouse://localhost:8123/testdb?user=admin&password=secret&compress=true";
     String table = "test_table";
 
-    @SuppressWarnings("deprecation")
     Write<?> write = ClickHouseIO.write(jdbcUrl, table);
 
     Properties props = write.properties();
@@ -44,63 +46,50 @@ public class ClickHouseIOPropertyMergingTest {
     assertEquals("true", props.getProperty("compress"));
   }
 
-  @Test
-  public void testWithPropertiesOverridesJdbcUrlProperties() {
+  @Test(expected = IllegalArgumentException.class)
+  @SuppressWarnings("deprecation")
+  public void testWithPropertiesConflictThrows() {
     String jdbcUrl = "jdbc:clickhouse://localhost:8123/testdb?user=admin&password=old_secret";
     String table = "test_table";
 
-    Properties newProps = new Properties();
-    newProps.setProperty("password", "new_secret");
-    newProps.setProperty("socket_timeout", "30000");
+    Properties conflictingProps = new Properties();
+    conflictingProps.setProperty("password", "new_secret"); // Conflicts!
 
-    @SuppressWarnings("deprecation")
-    Write<?> write = ClickHouseIO.write(jdbcUrl, table).withProperties(newProps);
-
-    Properties finalProps = write.properties();
-    assertEquals("admin", finalProps.getProperty("user")); // From JDBC URL
-    assertEquals("new_secret", finalProps.getProperty("password")); // Overridden
-    assertEquals("30000", finalProps.getProperty("socket_timeout")); // Added
+    ClickHouseIO.write(jdbcUrl, table).withProperties(conflictingProps); // Should throw
   }
 
   @Test
-  public void testWithPropertiesPreservesExistingProperties() {
-    String jdbcUrl = "jdbc:clickhouse://localhost:8123/testdb?user=admin&compress=true";
+  @SuppressWarnings("deprecation")
+  public void testWithPropertiesNoConflictWhenSameValue() {
+    String jdbcUrl = "jdbc:clickhouse://localhost:8123/testdb?user=admin&password=secret";
     String table = "test_table";
 
-    Properties additionalProps = new Properties();
-    additionalProps.setProperty("socket_timeout", "30000");
+    Properties sameProps = new Properties();
+    sameProps.setProperty("user", "admin"); // Same value - OK
+    sameProps.setProperty("password", "secret"); // Same value - OK
 
-    @SuppressWarnings("deprecation")
-    Write<?> write = ClickHouseIO.write(jdbcUrl, table).withProperties(additionalProps);
+    Write<?> write = ClickHouseIO.write(jdbcUrl, table).withProperties(sameProps);
 
-    Properties finalProps = write.properties();
-    assertEquals("admin", finalProps.getProperty("user")); // Preserved from JDBC URL
-    assertEquals("true", finalProps.getProperty("compress")); // Preserved from JDBC URL
-    assertEquals("30000", finalProps.getProperty("socket_timeout")); // Added
+    assertEquals("admin", write.properties().getProperty("user"));
+    assertEquals("secret", write.properties().getProperty("password"));
   }
 
   @Test
-  public void testMultipleWithPropertiesCalls() {
+  @SuppressWarnings("deprecation")
+  public void testWithPropertiesAddsNewPropertiesWithoutConflict() {
     String jdbcUrl = "jdbc:clickhouse://localhost:8123/testdb?user=admin";
     String table = "test_table";
 
-    Properties props1 = new Properties();
-    props1.setProperty("password", "secret1");
-    props1.setProperty("compress", "true");
+    Properties additionalProps = new Properties();
+    additionalProps.setProperty("socket_timeout", "30000"); // New property - OK
+    additionalProps.setProperty("compress", "true"); // New property - OK
 
-    Properties props2 = new Properties();
-    props2.setProperty("password", "secret2"); // Override
-    props2.setProperty("socket_timeout", "30000"); // Add
-
-    @SuppressWarnings("deprecation")
-    Write<?> write =
-        ClickHouseIO.write(jdbcUrl, table).withProperties(props1).withProperties(props2);
+    Write<?> write = ClickHouseIO.write(jdbcUrl, table).withProperties(additionalProps);
 
     Properties finalProps = write.properties();
-    assertEquals("admin", finalProps.getProperty("user")); // From JDBC URL
-    assertEquals("secret2", finalProps.getProperty("password")); // Last one wins
-    assertEquals("true", finalProps.getProperty("compress")); // From first withProperties
-    assertEquals("30000", finalProps.getProperty("socket_timeout")); // From second withProperties
+    assertEquals("admin", finalProps.getProperty("user"));
+    assertEquals("30000", finalProps.getProperty("socket_timeout"));
+    assertEquals("true", finalProps.getProperty("compress"));
   }
 
   @Test
@@ -118,13 +107,13 @@ public class ClickHouseIOPropertyMergingTest {
   }
 
   @Test
+  @SuppressWarnings("deprecation")
   public void testEmptyPropertiesDoesNotAffectExisting() {
     String jdbcUrl = "jdbc:clickhouse://localhost:8123/testdb?user=admin&password=secret";
     String table = "test_table";
 
     Properties emptyProps = new Properties();
 
-    @SuppressWarnings("deprecation")
     Write<?> write = ClickHouseIO.write(jdbcUrl, table).withProperties(emptyProps);
 
     Properties finalProps = write.properties();
@@ -133,84 +122,90 @@ public class ClickHouseIOPropertyMergingTest {
   }
 
   @Test
-  public void testPropertyPrecedenceOrder() {
-    // Test that explicitly set properties take precedence over JDBC URL properties
-    String jdbcUrl =
-        "jdbc:clickhouse://localhost:8123/testdb?"
-            + "user=url_user&"
-            + "password=url_pass&"
-            + "compress=false";
+  @SuppressWarnings("deprecation")
+  public void testWithPropertiesConflictHasDetailedMessage() {
+    String jdbcUrl = "jdbc:clickhouse://localhost:8123/testdb?compress=false";
     String table = "test_table";
 
-    Properties explicitProps = new Properties();
-    explicitProps.setProperty("user", "explicit_user");
-    explicitProps.setProperty("password", "explicit_pass");
-    // compress not set, should remain from URL
+    Properties conflictingProps = new Properties();
+    conflictingProps.setProperty("compress", "true"); // Different value
 
-    @SuppressWarnings("deprecation")
-    Write<?> write = ClickHouseIO.write(jdbcUrl, table).withProperties(explicitProps);
+    try {
+      ClickHouseIO.write(jdbcUrl, table).withProperties(conflictingProps);
+      fail("Expected IllegalArgumentException for property conflict");
+    } catch (IllegalArgumentException e) {
+      // Verify error message is helpful
+      assertTrue(e.getMessage().contains("compress"));
+      assertTrue(e.getMessage().contains("false"));
+      assertTrue(e.getMessage().contains("true"));
+      assertTrue(e.getMessage().contains("conflict"));
+    }
+  }
 
-    Properties finalProps = write.properties();
-    assertEquals("explicit_user", finalProps.getProperty("user"));
-    assertEquals("explicit_pass", finalProps.getProperty("password"));
-    assertEquals("false", finalProps.getProperty("compress"));
+  @Test(expected = IllegalArgumentException.class)
+  @SuppressWarnings("deprecation")
+  public void testMultipleWithPropertiesCallsWithConflict() {
+    String jdbcUrl = "jdbc:clickhouse://localhost:8123/testdb?password=original";
+    String table = "test_table";
+
+    Properties props1 = new Properties();
+    props1.setProperty("compress", "true"); // New property - OK
+
+    Properties props2 = new Properties();
+    props2.setProperty("password", "secret2"); // Conflicts with JDBC URL!
+
+    ClickHouseIO.write(jdbcUrl, table).withProperties(props1).withProperties(props2);
   }
 
   @Test
-  public void testNullPropertyValueHandling() {
+  @SuppressWarnings("deprecation")
+  public void testMultipleWithPropertiesCallsWithoutConflict() {
     String jdbcUrl = "jdbc:clickhouse://localhost:8123/testdb?user=admin";
     String table = "test_table";
 
-    Properties props = new Properties();
-    props.setProperty("user", "new_user");
-    // Explicitly setting to empty string
-    props.setProperty("password", "");
+    Properties props1 = new Properties();
+    props1.setProperty("compress", "true"); // New property - OK
 
-    @SuppressWarnings("deprecation")
-    Write<?> write = ClickHouseIO.write(jdbcUrl, table).withProperties(props);
+    Properties props2 = new Properties();
+    props2.setProperty("socket_timeout", "30000"); // New property - OK
+
+    Write<?> write =
+        ClickHouseIO.write(jdbcUrl, table).withProperties(props1).withProperties(props2);
 
     Properties finalProps = write.properties();
-    assertEquals("new_user", finalProps.getProperty("user"));
-    assertEquals("", finalProps.getProperty("password"));
+    assertEquals("admin", finalProps.getProperty("user")); // From JDBC URL
+    assertEquals("true", finalProps.getProperty("compress")); // From first withProperties
+    assertEquals("30000", finalProps.getProperty("socket_timeout")); // From second withProperties
+  }
+
+  @Test(expected = IllegalArgumentException.class)
+  @SuppressWarnings("deprecation")
+  public void testCannotOverrideJdbcUrlProperties() {
+    // This test verifies the NEW behavior: conflicts are not allowed
+    String jdbcUrl = "jdbc:clickhouse://localhost:8123/testdb?user=url_user&password=url_pass";
+    String table = "test_table";
+
+    Properties conflictingProps = new Properties();
+    conflictingProps.setProperty("user", "explicit_user"); // Conflict!
+
+    ClickHouseIO.write(jdbcUrl, table).withProperties(conflictingProps); // Should throw
   }
 
   @Test
-  public void testComplexBackwardCompatibilityScenario() {
-    // Real-world scenario: legacy JDBC URL with properties, plus additional configuration
-    String legacyJdbcUrl =
-        "jdbc:clickhouse://prod.example.com:8123/analytics?"
-            + "user=analytics_ro&"
-            + "password=legacy_pass&"
-            + "compress=true&"
-            + "socket_timeout=60000";
+  @SuppressWarnings("deprecation")
+  public void testCanAddPropertiesToJdbcUrlWithoutConflict() {
+    String jdbcUrl = "jdbc:clickhouse://localhost:8123/testdb?user=admin";
+    String table = "test_table";
 
-    String table = "events";
+    Properties additionalProps = new Properties();
+    additionalProps.setProperty("password", "secret"); // New - no conflict
+    additionalProps.setProperty("compress", "true"); // New - no conflict
 
-    // User wants to override credentials but keep other settings
-    Properties newCredentials = new Properties();
-    newCredentials.setProperty("user", "analytics_rw");
-    newCredentials.setProperty("password", "new_secure_pass");
-    newCredentials.setProperty("connection_timeout", "10000"); // Add new property
-
-    @SuppressWarnings("deprecation")
-    Write<?> write = ClickHouseIO.write(legacyJdbcUrl, table).withProperties(newCredentials);
+    Write<?> write = ClickHouseIO.write(jdbcUrl, table).withProperties(additionalProps);
 
     Properties finalProps = write.properties();
-
-    // Overridden properties
-    assertEquals("analytics_rw", finalProps.getProperty("user"));
-    assertEquals("new_secure_pass", finalProps.getProperty("password"));
-
-    // Preserved from JDBC URL
+    assertEquals("admin", finalProps.getProperty("user"));
+    assertEquals("secret", finalProps.getProperty("password"));
     assertEquals("true", finalProps.getProperty("compress"));
-    assertEquals("60000", finalProps.getProperty("socket_timeout"));
-
-    // Newly added
-    assertEquals("10000", finalProps.getProperty("connection_timeout"));
-
-    // Connection details should match parsed JDBC URL
-    assertEquals("http://prod.example.com:8123", write.clickHouseUrl());
-    assertEquals("analytics", write.database());
-    assertEquals(table, write.table());
   }
 }
