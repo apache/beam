@@ -145,6 +145,7 @@
         path: 'path'
       'WriteToJson':
         path: 'path'
+        num_shards: 'num_shards'
       'ReadFromParquet':
         path: 'file_pattern'
       'WriteToParquet':
