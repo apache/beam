@@ -491,7 +491,7 @@ class MilvusSearchEnrichmentHandler(EnrichmentSourceHandler[InputT, OutputT]):
     if not embeddable_item.dense_embedding:
       raise ValueError(
           f"Item {embeddable_item.id} missing dense embedding required for"
-          "vector search")
+          " vector search")
     return embeddable_item.dense_embedding
 
   def _get_keyword_search_data(self, embeddable_item: EmbeddableItem):
