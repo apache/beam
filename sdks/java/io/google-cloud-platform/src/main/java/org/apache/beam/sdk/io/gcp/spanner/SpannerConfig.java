@@ -192,7 +192,7 @@ public abstract class SpannerConfig implements Serializable {
     abstract Builder setPlainText(ValueProvider<Boolean> plainText);
 
     abstract Builder setWaitForSessionCreationDuration(
-      ValueProvider<java.time.Duration> waitForSessionCreationDuration);
+        ValueProvider<java.time.Duration> waitForSessionCreationDuration);
 
     public abstract SpannerConfig build();
   }
@@ -405,13 +405,13 @@ public abstract class SpannerConfig implements Serializable {
    * @return {@link SpannerConfig}
    */
   public SpannerConfig withWaitForSessionCreationDuration(
-    ValueProvider<java.time.Duration> waitForSessionCreationDuration) {
+      ValueProvider<java.time.Duration> waitForSessionCreationDuration) {
     return toBuilder().setWaitForSessionCreationDuration(waitForSessionCreationDuration).build();
   }
 
   public SpannerConfig withWaitForSessionCreationDuration(
-    java.time.Duration waitForSessionCreationDuration) {
+      java.time.Duration waitForSessionCreationDuration) {
     return withWaitForSessionCreationDuration(
-      ValueProvider.StaticValueProvider.of(waitForSessionCreationDuration));
+        ValueProvider.StaticValueProvider.of(waitForSessionCreationDuration));
   }
 }

@@ -274,14 +274,14 @@ public class SpannerAccessor implements AutoCloseable {
       builder.setCredentials(credentials.get());
     }
 
-     ValueProvider<java.time.Duration> waitForSessionCreationDuration =
-         spannerConfig.getWaitForSessionCreationDuration();
-     java.time.Duration waitDuration =
-         Optional.ofNullable(waitForSessionCreationDuration)
-             .map(ValueProvider::get)
-             .orElse(DEFAULT_SESSION_WAIT_DURATION);
-     builder.setSessionPoolOption(
-       SessionPoolOptions.newBuilder().setWaitForMinSessionsDuration( waitDuration).build());
+    ValueProvider<java.time.Duration> waitForSessionCreationDuration =
+        spannerConfig.getWaitForSessionCreationDuration();
+    java.time.Duration waitDuration =
+        Optional.ofNullable(waitForSessionCreationDuration)
+            .map(ValueProvider::get)
+            .orElse(DEFAULT_SESSION_WAIT_DURATION);
+    builder.setSessionPoolOption(
+        SessionPoolOptions.newBuilder().setWaitForMinSessionsDuration(waitDuration).build());
 
     return builder.build();
   }
