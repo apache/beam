@@ -722,7 +722,8 @@ def _decompose_typevar(obj, config: CloudPickleConfig):
 def _typevar_reduce(obj, config: CloudPickleConfig):
   # TypeVar instances require the module information hence why we
   # are not using the _should_pickle_by_reference directly
-  module_and_name = _lookup_module_and_qualname(obj, name=obj.__name__, config=config)
+  module_and_name = _lookup_module_and_qualname(
+      obj, name=obj.__name__, config=config)
 
   if module_and_name is None:
     return (_make_typevar, _decompose_typevar(obj, config))
