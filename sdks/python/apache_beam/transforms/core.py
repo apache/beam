@@ -2424,7 +2424,7 @@ class _ExceptionHandlingWrapper(ptransform.PTransform):
 
     if self._error_handler:
       self._error_handler.add_error_pcollection(result[self._dead_letter_tag])
-      if self._extra_tags:
+      if self._extra_tags is not None:
         return result
       return result[self._main_tag]
     else:
@@ -2466,9 +2466,7 @@ class _ExceptionHandlingWrapper(ptransform.PTransform):
 
     all_tags = tuple(set(self._extra_tags or ()) | {self._dead_letter_tag})
     result = pcoll | pardo.with_outputs(
-        *all_tags,
-        main=self._main_tag,
-        allow_unknown_tags=True if self._extra_tags is None else None)
+        *all_tags, main=self._main_tag, allow_unknown_tags=True)
 
     return self._post_process_result(pcoll, result)
 
