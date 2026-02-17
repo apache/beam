@@ -25,9 +25,12 @@ Apache Beam pipelines often process data at massive scale, which can easily over
 
 This Terraform module deploys a **centralized Rate Limit Service (RLS)** using Envoy. Beam workers can query this service to coordinate global quotas across thousands of distributed workers, ensuring you stay within safe API limits without hitting `429 Too Many Requests` errors.
 
-Example Beam Pipelines using it:
+Example Beam Python Pipelines using it:
 *   [Simple DoFn RateLimiter](https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/rate_limiter_simple.py)
 *   [Vertex AI RateLimiter](https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/inference/rate_limiter_vertex_ai.py)
+
+Example Beam Java Pipelines using it:
+*   [Simple DoFn RateLimiter](https://github.com/apache/beam/blob/master/examples/java/src/main/java/org/apache/beam/examples/RateLimiterSimple.java)
 
 ## Architectures:
 - **GKE Autopilot**: Fully managed, serverless Kubernetes environment.
@@ -78,6 +81,8 @@ region                = "us-central1"               # GCP Region for deployment
 cluster_name          = "ratelimit-cluster"         # Name of the GKE cluster
 deletion_protection   = true                        # Prevent accidental cluster deletion (set "true" for prod)
 control_plane_cidr    = "172.16.0.0/28"             # CIDR for GKE control plane (must not overlap with subnet)
+namespace             = "envoy-ratelimiter"           # Kubernetes namespace for deployment
+enable_statsd         = false                       # Deploy statsd-exporter sidecar
 ratelimit_replicas    = 1                           # Initial number of Rate Limit pods
 min_replicas          = 1                           # Minimum HPA replicas
 max_replicas          = 5                           # Maximum HPA replicas
@@ -163,6 +168,8 @@ terraform destroy
 |region                 |GCP Region for deployment                            |us-central1                      |
 |control_plane_cidr     |CIDR block for GKE control plane                     |172.16.0.0/28                    |
 |cluster_name           |Name of the GKE cluster                              |ratelimit-cluster                |
+|namespace              |Kubernetes namespace to deploy resources into        |envoy-ratelimiter                |
+|enable_statsd          |Deploy statsd-exporter sidecar                       |false                            |
 |deletion_protection    |Prevent accidental cluster deletion                  |false                            |
 |ratelimit_replicas     |Initial number of Rate Limit pods                    |1                                |
 |min_replicas           |Minimum HPA replicas                                 |1                                |
