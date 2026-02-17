@@ -66,11 +66,10 @@ class ColumnSpec:
     Attributes:
         column_name: The column name in the database table.
         python_type: Python type for the NamedTuple field that will hold the
-            value. Must be compatible with must be compatible with
+            value. Must be compatible with
             :class:`~apache_beam.coders.row_coder.RowCoder`.
-        value_fn: Function to extract and format the value
-            from an EmbeddableItem.
-            Takes an EmbeddableItem and returns a value of python_type.
+        value_fn: Function to extract and format the value from an
+            EmbeddableItem.
         sql_typecast: Optional SQL type cast to append to the ? placeholder.
             Common examples:
             - "::float[]" for vector arrays

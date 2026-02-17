@@ -82,8 +82,8 @@ class MilvusHelpers:
   """Utility class providing helper methods for Milvus vector db operations."""
   @staticmethod
   def sparse_embedding(
-      sparse_vector: Tuple[List[int],
-                           List[float]]) -> Optional[Dict[int, float]]:
+      sparse_vector: Optional[Tuple[List[int], List[float]]]
+  ) -> Optional[Dict[int, float]]:
     if not sparse_vector:
       return None
     # Converts sparse embedding from (indices, values) tuple format to

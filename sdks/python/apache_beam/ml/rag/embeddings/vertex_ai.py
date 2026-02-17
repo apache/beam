@@ -28,7 +28,7 @@ from google.auth.credentials import Credentials
 import apache_beam as beam
 from apache_beam.ml.inference.base import RunInference
 from apache_beam.ml.rag.embeddings.base import create_text_adapter
-from apache_beam.ml.rag.types import Chunk
+from apache_beam.ml.rag.types import EmbeddableItem
 from apache_beam.ml.transforms.base import EmbeddingsManager
 from apache_beam.ml.transforms.base import _TextEmbeddingHandler
 from apache_beam.ml.transforms.embeddings.vertex_ai import DEFAULT_TASK_TYPE
@@ -90,8 +90,9 @@ class VertexAITextEmbeddings(EmbeddingsManager):
 
   def get_ptransform_for_processing(
       self, **kwargs
-  ) -> beam.PTransform[beam.PCollection[Chunk], beam.PCollection[Chunk]]:
+  ) -> beam.PTransform[beam.PCollection[EmbeddableItem],
+                       beam.PCollection[EmbeddableItem]]:
     """Returns PTransform that uses the RAG adapter."""
     return RunInference(
         model_handler=_TextEmbeddingHandler(self),
-        inference_args=self.inference_args).with_output_types(Chunk)
+        inference_args=self.inference_args).with_output_types(EmbeddableItem)

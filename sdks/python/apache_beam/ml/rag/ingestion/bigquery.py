@@ -172,8 +172,8 @@ class _WriteToBigQueryVectorDatabase(beam.PTransform):
         if self.config.schema_config else _default_embeddable_to_dict_fn)
     return (
         pcoll
-        | "Chunk to dict" >> beam.Map(embeddable_to_dict_fn)
-        | "Chunk dict to schema'd row" >> beam.Map(
+        | "EmbeddableItem to dict" >> beam.Map(embeddable_to_dict_fn)
+        | "EmbeddableItem dict to schema'd row" >> beam.Map(
             lambda chunk_dict: beam_row_from_dict(
                 row=chunk_dict, schema=schema)).with_output_types(
                     RowTypeConstraint.from_fields(

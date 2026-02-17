@@ -58,7 +58,7 @@ class BigQueryVectorSearchParameters:
     ... )
     >>> # Use in pipeline
     >>> enriched = (
-    ...     chunks
+    ...     embeddable_items
     ...     | "Generate Embeddings" >> MLTransform(...)
     ...     | "Find Similar" >> Enrichment(
     ...         BigQueryVectorSearchEnrichmentHandler(
@@ -89,11 +89,11 @@ class BigQueryVectorSearchParameters:
         ...     columns=['content', 'language'],
         ...     neighbor_count=5,
         ...     # For column 'language', value comes from 
-        ...     # chunk.metadata['language']
+        ...     # embeddable_item.metadata['language']
         ...     metadata_restriction_template="language = '{language}'"
         ... )
-        >>> # When processing a chunk with metadata={'language': 'en'},
-        >>> # generates: WHERE language = 'en'
+        >>> # When processing a embeddable_item with
+        >>> # metadata={'language': 'en'}, generates: WHERE language = 'en'
 
     Example with nested repeated metadata:
     
@@ -113,12 +113,14 @@ class BigQueryVectorSearchParameters:
         ...     embedding_column='embedding',
         ...     columns=['content', 'metadata'],
         ...     neighbor_count=5,
-        ...     # check_metadata(field_name, key_to_search, value_from_chunk)
+        ...     # check_metadata(field_name, key_to_search,
+        ...     # value_from_embeddable_item)
         ...     metadata_restriction_template=(
         ...         "check_metadata(metadata, 'language', '{language}')"
         ...     )
         ... )
-        >>> # When processing a chunk with metadata={'language': 'en'},
+        >>> # When processing a embeddable_item with
+        >>> # metadata={'language': 'en'},
         >>> # generates: WHERE check_metadata(metadata, 'language', 'en')
         >>> # Searches for {key: 'language', value: 'en'} in metadata array
 
@@ -134,13 +136,13 @@ class BigQueryVectorSearchParameters:
             1. For flattened metadata columns: 
                ``column_name = '{metadata_key}'`` where column_name is the 
                BigQuery column and metadata_key is used to get the value from 
-               chunk.metadata[metadata_key].
+               embeddable_item.metadata[metadata_key].
             2. For nested repeated metadata (ARRAY<STRUCT<key,value>>):
                ``check_metadata(field_name, 'key_to_match', '{metadata_key}')``
                where field_name is the ARRAY<STRUCT> column in BigQuery,
                key_to_match is the literal key to search for in the array, and
                metadata_key is used to get value from
-               chunk.metadata[metadata_key].
+               embeddable_item.metadata[metadata_key].
             
             Multiple conditions can be combined using AND/OR operators. For
             example::
@@ -150,7 +152,8 @@ class BigQueryVectorSearchParameters:
                 ...     "check_metadata(metadata, 'language', '{language}') "
                 ...     "AND source = '{source}'"
                 ... )
-                >>> # When chunk.metadata = {'language': 'en', 'source': 'web'}
+                >>> # When embeddable_item.metadata = {'language': 'en',
+                >>> # 'source': 'web'}
                 >>> # Generates: WHERE 
                 >>> #             check_metadata(metadata, 'language', 'en')
                 >>> #           AND source = 'web'
@@ -238,7 +241,7 @@ class BigQueryVectorSearchParameters:
                 ARRAY_AGG(
                     STRUCT({"distance, " if self.include_distance else ""}\
  {base_columns_str})
-                ) as chunks
+                ) as embeddable_items
             FROM VECTOR_SEARCH(
                 (SELECT {columns_str}, {self.embedding_column}
                  FROM `{self.table_name}`
@@ -299,7 +302,7 @@ class BigQueryVectorSearchEnrichmentHandler(
       ...     enriched = (
       ...         p 
       ...         | beam.Create([
-      ...             Chunk(
+      ...             EmbeddableItem(
       ...                 id='query1',
       ...                 embedding=Embedding(dense_embedding=[0.1, 0.2, 0.3]),
       ...                 content=Content(text='test query'),
@@ -311,16 +314,16 @@ class BigQueryVectorSearchEnrichmentHandler(
 
   Args:
       vector_search_parameters: Configuration for the vector search query
-      min_batch_size: Minimum number of chunks to batch before processing
-      max_batch_size: Maximum number of chunks to process in one batch
+      min_batch_size: Minimum number of items to process in one batch
+      max_batch_size: Maximum number of items to process in one batch
       log_query: Debug option to log the BigQuery query
       **kwargs: Additional arguments passed to bigquery.Client
 
   The handler will:
-  1. Batch incoming chunks according to batch size parameters
+  1. Batch incoming embeddable_items according to batch size parameters
   2. Format and execute vector search query for each batch
-  3. Join results back to original chunks
-  4. Return tuples of (original_chunk, search_results)
+  3. Join results back to original embeddable_items
+  4. Return tuples of (original_embeddable_item, search_results)
   """
   def __init__(
       self,
@@ -368,17 +371,18 @@ class BigQueryVectorSearchEnrichmentHandler(
     query_job = self.client.query(query)
     results = query_job.result()
 
-    # Create results dict with empty chunks list as default
+    # Create results dict with empty embeddable_items list as default
     results_by_id = {}
     for result_row in results:
       result_dict = dict(result_row.items())
       results_by_id[result_row.id] = result_dict
 
-    # Return all chunks in original order, with empty results if no matches
+    # Return all embeddable_items in original order, with empty results if
+    # no matches
     response = []
-    for chunk in requests:
-      result_dict = results_by_id.get(chunk.id, {})
-      response.append((chunk, result_dict))
+    for embeddable_item in requests:
+      result_dict = results_by_id.get(embeddable_item.id, {})
+      response.append((embeddable_item, result_dict))
 
     return response
 
