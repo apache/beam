@@ -82,7 +82,7 @@ cluster_name          = "ratelimit-cluster"         # Name of the GKE cluster
 deletion_protection   = true                        # Prevent accidental cluster deletion (set "true" for prod)
 control_plane_cidr    = "172.16.0.0/28"             # CIDR for GKE control plane (must not overlap with subnet)
 namespace             = "envoy-ratelimiter"           # Kubernetes namespace for deployment
-enable_statsd         = false                       # Deploy statsd-exporter sidecar
+enable_metrics        = false                       # Deploy statsd-exporter sidecar
 ratelimit_replicas    = 1                           # Initial number of Rate Limit pods
 min_replicas          = 1                           # Minimum HPA replicas
 max_replicas          = 5                           # Maximum HPA replicas
@@ -169,7 +169,7 @@ terraform destroy
 |control_plane_cidr     |CIDR block for GKE control plane                     |172.16.0.0/28                    |
 |cluster_name           |Name of the GKE cluster                              |ratelimit-cluster                |
 |namespace              |Kubernetes namespace to deploy resources into        |envoy-ratelimiter                |
-|enable_statsd          |Deploy statsd-exporter sidecar                       |false                            |
+|enable_metrics         |Deploy statsd-exporter sidecar                       |false                            |
 |deletion_protection    |Prevent accidental cluster deletion                  |false                            |
 |ratelimit_replicas     |Initial number of Rate Limit pods                    |1                                |
 |min_replicas           |Minimum HPA replicas                                 |1                                |

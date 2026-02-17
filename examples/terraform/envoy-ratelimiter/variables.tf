@@ -182,7 +182,7 @@ variable "namespace" {
   default     = "envoy-ratelimiter"
 }
 
-variable "enable_statsd" {
+variable "enable_metrics" {
   description = "Whether to deploy the statsd-exporter sidecar for Prometheus metrics"
   type        = bool
   default     = false

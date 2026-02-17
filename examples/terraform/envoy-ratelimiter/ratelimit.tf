@@ -161,7 +161,11 @@ resource "kubernetes_deployment" "ratelimit" {
 
           env {
             name  = "USE_STATSD"
-            value = var.enable_statsd ? "true" : "false"
+            value = var.enable_metrics ? "true" : "false"
+          }
+          env {
+            name  = "DISABLE_STATS"
+            value = var.enable_metrics ? "false" : "true"
           }
           env {
             name  = "LOG_FORMAT"
@@ -228,21 +232,21 @@ resource "kubernetes_deployment" "ratelimit" {
         }
 
         dynamic "container" {
-          for_each = var.enable_statsd ? [1] : []
+          for_each = var.enable_metrics ? [1] : []
           content {
             name  = "statsd-exporter"
             image = var.statsd_exporter_image
             args  = ["--log.format=json"]
 
             dynamic "port" {
-              for_each = var.enable_statsd ? [1] : []
+              for_each = var.enable_metrics ? [1] : []
               content {
                 name           = "metrics"
                 container_port = 9102
               }
             }
             dynamic "port" {
-              for_each = var.enable_statsd ? [1] : []
+              for_each = var.enable_metrics ? [1] : []
               content {
                 name           = "statsd-udp"
                 container_port = 9125
@@ -354,7 +358,7 @@ resource "kubernetes_service" "ratelimit" {
       target_port = 6070
     }
     dynamic "port" {
-      for_each = var.enable_statsd ? [1] : []
+      for_each = var.enable_metrics ? [1] : []
       content {
         name        = "metrics"
         port        = 9102
@@ -395,7 +399,7 @@ resource "kubernetes_service" "ratelimit_external" {
       target_port = 6070
     }
     dynamic "port" {
-      for_each = var.enable_statsd ? [1] : []
+      for_each = var.enable_metrics ? [1] : []
       content {
         name        = "metrics"
         port        = 9102
