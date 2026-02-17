@@ -68,7 +68,7 @@
 
 * Add Datadog IO support (Java) ([#37318](https://github.com/apache/beam/issues/37318)).
 * Remove Pubsublite IO support, since service will be deprecated in March 2026. ([#37375](https://github.com/apache/beam/issues/37375)).
-* (Java) ClickHouse - migrating from the legacy JDBC driver (v0.6.3) to ClickHouse Java Client v2 (v0.9.6). See the [class documentation](https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/clickhouse/ClickHouseIO.html) for migration guide   ([#37611](https://github.com/apache/beam/pull/37611)).
+* (Java) ClickHouse - migrating from the legacy JDBC driver (v0.6.3) to ClickHouse Java Client v2 (v0.9.6). See the [class documentation](https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/clickhouse/ClickHouseIO.html) for migration guide   ([#37610](https://github.com/apache/beam/issues/37610)).
 
 ## New Features / Improvements
 
