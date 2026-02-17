@@ -82,7 +82,7 @@
 
 ## Deprecations
 
-* Removed previously deprecated list_prefix method ([#37587](https://github.com/apache/beam/issues/37587)).
+* (Python) Removed previously deprecated list_prefix method for filesystem interfaces ([#37587](https://github.com/apache/beam/issues/37587)).
 
 ## Bugfixes
 
