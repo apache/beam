@@ -49,55 +49,52 @@ def chunk_embedding_fn(chunk: EmbeddableItem) -> str:
 
 @dataclass
 class ColumnSpec:
-  """Specification for mapping EmbeddableItem fields to MySQL
-  columns for insertion.
+  """Mapping of EmbeddableItem fields to SQL columns for insertion.
 
-    Defines how to extract and format values from
-    EmbeddableItems into MySQL database
-    columns, handling the full pipeline from Python value to SQL insertion.
+  Defines how to extract and format values from EmbeddableItems into MySQL
+  database columns, handling the full pipeline from Python value to SQL
+  insertion.
 
-    The insertion process works as follows:
-    - value_fn extracts a value from the EmbeddableItem and formats it as needed
-    - The value is stored in a NamedTuple field with the specified python_type
-    - During SQL insertion, the value is bound to a ? placeholder
+  The insertion process works as follows:
+  - value_fn extracts a value from the EmbeddableItem and formats it as needed
+  - The value is stored in a NamedTuple field with the specified python_type
+  - During SQL insertion, the value is bound to a ? placeholder
 
-    Attributes:
-        column_name: The column name in the database table.
-        python_type: Python type for the NamedTuple field that will hold the
-            value. Must be compatible with
-            :class:`~apache_beam.coders.row_coder.RowCoder`.
-        value_fn: Function to extract and format the value
-            from an EmbeddableItem.
-            Takes an EmbeddableItem and returns a value of python_type.
-        placeholder: Optional placeholder to apply typecasts or functions to
-            value ? placeholder e.g. "string_to_vector(?)" for vector columns.
-    
-    Examples:
+  Attributes:
+      column_name: The column name in the database table.
+      python_type: :class:`~apache_beam.coders.row_coder.RowCoder` compatible
+          python type.
+      value_fn: Function to extract and format the value from an
+          EmbeddableItem.
+      placeholder: Optional placeholder to apply typecasts or functions to
+          value ? placeholder e.g. "string_to_vector(?)" for vector columns.
+  
+  Examples:
 
-        Basic text column (uses standard JDBC type mapping):
+      Basic text column (uses standard JDBC type mapping):
 
-        >>> ColumnSpec.text(
-        ...     column_name="content",
-        ...     value_fn=lambda chunk: chunk.content.text
-        ... )
-        ... # Results in: INSERT INTO table (content) VALUES (?)
+      >>> ColumnSpec.text(
+      ...     column_name="content",
+      ...     value_fn=lambda chunk: chunk.content.text
+      ... )
+      ... # Results in: INSERT INTO table (content) VALUES (?)
 
-        Timestamp from metadata:
+      Timestamp from metadata:
 
-        >>> ColumnSpec(
-        ...     column_name="created_at",
-        ...     python_type=str,
-        ...     value_fn=lambda chunk: chunk.metadata.get("timestamp")
-        ... )
-        ... # Results in: INSERT INTO table (created_at) VALUES (?)
+      >>> ColumnSpec(
+      ...     column_name="created_at",
+      ...     python_type=str,
+      ...     value_fn=lambda chunk: chunk.metadata.get("timestamp")
+      ... )
+      ... # Results in: INSERT INTO table (created_at) VALUES (?)
 
 
-    Factory Methods:
-        text: Creates a text column specification.
-        integer: Creates an integer column specification.
-        float: Creates a float column specification.
-        vector: Creates a vector column specification with string_to_vector().
-        json: Creates a JSON column specification.
+  Factory Methods:
+      text: Creates a text column specification.
+      integer: Creates an integer column specification.
+      float: Creates a float column specification.
+      vector: Creates a vector column specification with string_to_vector().
+      json: Creates a JSON column specification.
     """
   column_name: str
   python_type: Type

@@ -51,64 +51,62 @@ def chunk_embedding_fn(chunk: EmbeddableItem) -> str:
 
 @dataclass
 class ColumnSpec:
-  """Specification for mapping EmbeddableItem fields to SQL
-  columns for insertion.
+  """Mapping of EmbeddableItem fields to SQL columns for insertion.
 
-    Defines how to extract and format values from
-    EmbeddableItems into database columns,
-    handling the full pipeline from Python value to SQL insertion.
+  Defines how to extract and format values from EmbeddableItems into
+  database columns, handling the full pipeline from Python value to
+  SQL insertion.
 
-    The insertion process works as follows:
-    - value_fn extracts a value from the EmbeddableItem and formats it as needed
-    - The value is stored in a NamedTuple field with the specified python_type
-    - During SQL insertion, the value is bound to a ? placeholder
+  The insertion process works as follows:
+  - value_fn extracts a value from the EmbeddableItem and formats it as needed
+  - The value is stored in a NamedTuple field with the specified python_type
+  - During SQL insertion, the value is bound to a ? placeholder
 
-    Attributes:
-        column_name: The column name in the database table.
-        python_type: Python type for the NamedTuple field that will hold the
-            value. Must be compatible with
-            :class:`~apache_beam.coders.row_coder.RowCoder`.
-        value_fn: Function to extract and format the value from an
-            EmbeddableItem.
-        sql_typecast: Optional SQL type cast to append to the ? placeholder.
-            Common examples:
-            - "::float[]" for vector arrays
-            - "::jsonb" for JSON data
+  Attributes:
+      column_name: The column name in the database table.
+      python_type: :class:`~apache_beam.coders.row_coder.RowCoder` compatible
+          python type.
+      value_fn: Function to extract and format the value from an
+          EmbeddableItem.
+      sql_typecast: Optional SQL type cast to append to the ? placeholder.
+          Common examples:
+          - "::float[]" for vector arrays
+          - "::jsonb" for JSON data
 
-    Examples:
-        Basic text column (uses standard JDBC type mapping):
-        >>> ColumnSpec.text(
-        ...     column_name="content",
-        ...     value_fn=lambda chunk: chunk.content.text
-        ... )
-        # Results in: INSERT INTO table (content) VALUES (?)
+  Examples:
+      Basic text column (uses standard JDBC type mapping):
+      >>> ColumnSpec.text(
+      ...     column_name="content",
+      ...     value_fn=lambda chunk: chunk.content.text
+      ... )
+      # Results in: INSERT INTO table (content) VALUES (?)
 
-        Vector column with explicit array casting:
-        >>> ColumnSpec.vector(
-        ...     column_name="embedding",
-        ...     value_fn=lambda chunk: '{' +
-        ...         ','.join(map(str, chunk.embedding.dense_embedding)) + '}'
-        ... )
-        # Results in: INSERT INTO table (embedding) VALUES (?::float[])
-        # The value_fn formats [1.0, 2.0] as '{1.0,2.0}' for PostgreSQL array
+      Vector column with explicit array casting:
+      >>> ColumnSpec.vector(
+      ...     column_name="embedding",
+      ...     value_fn=lambda chunk: '{' +
+      ...         ','.join(map(str, chunk.embedding.dense_embedding)) + '}'
+      ... )
+      # Results in: INSERT INTO table (embedding) VALUES (?::float[])
+      # The value_fn formats [1.0, 2.0] as '{1.0,2.0}' for PostgreSQL array
 
-        Timestamp from metadata with explicit casting:
-        >>> ColumnSpec(
-        ...     column_name="created_at",
-        ...     python_type=str,
-        ...     value_fn=lambda chunk: chunk.metadata.get("timestamp"),
-        ...     sql_typecast="::timestamp"
-        ... )
-        # Results in: INSERT INTO table (created_at) VALUES (?::timestamp)
-        # Allows inserting string timestamps with proper PostgreSQL casting
+      Timestamp from metadata with explicit casting:
+      >>> ColumnSpec(
+      ...     column_name="created_at",
+      ...     python_type=str,
+      ...     value_fn=lambda chunk: chunk.metadata.get("timestamp"),
+      ...     sql_typecast="::timestamp"
+      ... )
+      # Results in: INSERT INTO table (created_at) VALUES (?::timestamp)
+      # Allows inserting string timestamps with proper PostgreSQL casting
 
-    Factory Methods:
-        text: Creates a text column specification (no type cast).
-        integer: Creates an integer column specification (no type cast).
-        float: Creates a float column specification (no type cast).
-        vector: Creates a vector column specification with float[] casting.
-        jsonb: Creates a JSONB column specification with jsonb casting.
-    """
+  Factory Methods:
+      text: Creates a text column specification (no type cast).
+      integer: Creates an integer column specification (no type cast).
+      float: Creates a float column specification (no type cast).
+      vector: Creates a vector column specification with float[] casting.
+      jsonb: Creates a JSONB column specification with jsonb casting.
+  """
   column_name: str
   python_type: Type
   value_fn: Callable[[EmbeddableItem], Any]
