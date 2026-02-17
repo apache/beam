@@ -102,7 +102,10 @@ import org.slf4j.LoggerFactory;
  *
  * <p>Deduplication is performed using checksums of inserted blocks. For <a
  * href="https://clickhouse.com/docs/engines/table-engines/mergetree-family/shared-merge-tree">SharedMergeTree</a>
- * tables in ClickHouse Cloud, deduplication behavior is similar to ReplicatedMergeTree.
+ * tables in ClickHouse Cloud, deduplication behavior is similar to ReplicatedMergeTree. For more
+ * information about deduplication, please visit the <a
+ * href="https://clickhouse.com/docs/guides/developer/deduplication">Deduplication strategies
+ * documentation</a>
  *
  * <h4>Mapping between Beam and ClickHouse types</h4>
  *
