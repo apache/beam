@@ -266,10 +266,8 @@ class SpannerColumnSpecsBuilder:
         ...     convert_fn=lambda text: text[:1000]
         ... )
     """
-    def extract_fn(embeddable: EmbeddableItem) -> str:
-      if embeddable.content.text is None:
-        raise ValueError(f'EmbeddableItem must contain content: {embeddable}')
-      return embeddable.content.text
+    def extract_fn(embeddable: EmbeddableItem) -> Optional[str]:
+      return embeddable.content_string
 
     self._specs.append(
         SpannerColumnSpec(
