@@ -56,7 +56,7 @@ env:
 jobs:
   beam_PreCommit_RAT:
     name: ${{ matrix.job_name }} (${{ matrix.job_phrase }})
-    runs-on: [self-hosted, ubuntu-20.04, main]
+    runs-on: [self-hosted, ubuntu-24.04, main]
     strategy:
       matrix:
         job_name: [beam_PreCommit_RAT]
