@@ -129,9 +129,10 @@ import org.slf4j.LoggerFactory;
  * <tr><td>{@link TableSchema.TypeName#TUPLE}</td> <td>{@link Schema.TypeName#ROW}</td></tr>
  * </table>
  *
- * <p>Nullable row columns are supported through <a href="https://clickhouse.com/docs/sql-reference/data-types/nullable">Nullable type</a> in ClickHouse.
- * <a href="https://clickhouse.com/docs/sql-reference/data-types/LowCardinality"> Low cardinality hint </a>
- * is supported through LowCardinality DataType in ClickHouse.
+ * <p>Nullable row columns are supported through <a
+ * href="https://clickhouse.com/docs/sql-reference/data-types/nullable">Nullable type</a> in
+ * ClickHouse. <a href="https://clickhouse.com/docs/sql-reference/data-types/LowCardinality">Low
+ * cardinality hint </a> is supported through LowCardinality DataType in ClickHouse.
  *
  * <p>Nested rows should be unnested using {@link Select#flattenedSchema()}. Type casting should be
  * done using {@link org.apache.beam.sdk.schemas.transforms.Cast} before {@link ClickHouseIO}.
@@ -279,7 +280,8 @@ public class ClickHouseIO {
      *
      * @param value number of rows
      * @return a {@link PTransform} writing data to ClickHouse
-     * @see <a href="https://clickhouse.com/docs/operations/settings/settings#max_insert_block_size">ClickHouse
+     * @see <a
+     *     href="https://clickhouse.com/docs/operations/settings/settings#max_insert_block_size">ClickHouse
      *     documentation</a>
      */
     public Write<T> withMaxInsertBlockSize(long value) {
@@ -305,7 +307,8 @@ public class ClickHouseIO {
      *
      * @param value number of replicas, 0 for disabling, null for server default
      * @return a {@link PTransform} writing data to ClickHouse
-     * @see <a href="https://clickhouse.com/docs/operations/settings/settings#insert_quorum">ClickHouse
+     * @see <a
+     *     href="https://clickhouse.com/docs/operations/settings/settings#insert_quorum">ClickHouse
      *     documentation</a>
      */
     public Write<T> withInsertQuorum(@Nullable Long value) {

@@ -188,7 +188,8 @@ public abstract class TableSchema implements Serializable {
   /**
    * An enumeration of possible kinds of default values in ClickHouse.
    *
-   * @see <a href="https://clickhouse.com/docs/sql-reference/statements/create/table#default_values">ClickHouse
+   * @see <a
+   *     href="https://clickhouse.com/docs/sql-reference/statements/create/table#default_values">ClickHouse
    *     documentation</a>
    */
   public enum DefaultType {
