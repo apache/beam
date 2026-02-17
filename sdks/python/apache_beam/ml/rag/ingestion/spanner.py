@@ -97,14 +97,14 @@ class SpannerColumnSpec:
       >>> SpannerColumnSpec(
       ...     column_name="id",
       ...     python_type=str,
-      ...     value_fn=lambda chunk: chunk.id
+      ...     value_fn=lambda embeddable: embeddable.id
       ... )
 
       Array column with conversion:
       >>> SpannerColumnSpec(
       ...     column_name="embedding",
       ...     python_type=List[float],
-      ...     value_fn=lambda chunk: chunk.embedding.dense_embedding
+      ...     value_fn=lambda embeddable: embeddable.embedding.dense_embedding
       ... )
   """
   column_name: str
@@ -112,10 +112,10 @@ class SpannerColumnSpec:
   value_fn: Callable[[EmbeddableItem], Any]
 
 
-def _extract_and_convert(extract_fn, convert_fn, chunk):
+def _extract_and_convert(extract_fn, convert_fn, embeddable):
   if convert_fn:
-    return convert_fn(extract_fn(chunk))
-  return extract_fn(chunk)
+    return convert_fn(extract_fn(embeddable))
+  return extract_fn(embeddable)
 
 
 class SpannerColumnSpecsBuilder:
@@ -188,7 +188,8 @@ class SpannerColumnSpecsBuilder:
             column_name=column_name,
             python_type=python_type,
             value_fn=functools.partial(
-                _extract_and_convert, lambda chunk: chunk.id, convert_fn)))
+                _extract_and_convert, lambda embeddable: embeddable.id,
+                convert_fn)))
     return self
 
   def with_embedding_spec(
@@ -220,10 +221,10 @@ class SpannerColumnSpecsBuilder:
         ...     convert_fn=lambda vec: [round(x, 4) for x in vec]
         ... )
     """
-    def extract_fn(chunk: EmbeddableItem) -> List[float]:
-      if chunk.embedding is None or chunk.embedding.dense_embedding is None:
-        raise ValueError(f'EmbeddableItem must contain embedding: {chunk}')
-      return chunk.embedding.dense_embedding
+    def extract_fn(embeddable: EmbeddableItem) -> List[float]:
+      if not embeddable.dense_embedding:
+        raise ValueError(f'EmbeddableItem must contain embedding: {embeddable}')
+      return embeddable.dense_embedding
 
     self._specs.append(
         SpannerColumnSpec(
@@ -265,10 +266,10 @@ class SpannerColumnSpecsBuilder:
         ...     convert_fn=lambda text: text[:1000]
         ... )
     """
-    def extract_fn(chunk: EmbeddableItem) -> str:
-      if chunk.content.text is None:
-        raise ValueError(f'EmbeddableItem must contain content: {chunk}')
-      return chunk.content.text
+    def extract_fn(embeddable: EmbeddableItem) -> str:
+      if embeddable.content.text is None:
+        raise ValueError(f'EmbeddableItem must contain content: {embeddable}')
+      return embeddable.content.text
 
     self._specs.append(
         SpannerColumnSpec(
@@ -293,7 +294,7 @@ class SpannerColumnSpecsBuilder:
     Note:
         Metadata is automatically converted to JSON string using json.dumps()
     """
-    value_fn = lambda chunk: json.dumps(chunk.metadata)
+    value_fn = lambda embeddable: json.dumps(embeddable.metadata)
     self._specs.append(
         SpannerColumnSpec(
             column_name=column_name, python_type=str, value_fn=value_fn))
@@ -308,11 +309,11 @@ class SpannerColumnSpecsBuilder:
       default: Any = None) -> 'SpannerColumnSpecsBuilder':
     """Flatten a metadata field into its own column.
     
-    Extracts a specific field from chunk.metadata and stores it in a
+    Extracts a specific field from embeddable.metadata and stores it in a
     dedicated table column.
     
     Args:
-        field: Key in chunk.metadata to extract
+        field: Key in embeddable.metadata to extract
         python_type: Python type (must be explicitly specified)
         column_name: Column name (default: same as field)
         convert_fn: Optional converter for type casting/transformation
@@ -356,8 +357,8 @@ class SpannerColumnSpecsBuilder:
     """
     name = column_name or field
 
-    def value_fn(chunk: EmbeddableItem) -> Any:
-      return chunk.metadata.get(field, default)
+    def value_fn(embeddable: EmbeddableItem) -> Any:
+      return embeddable.metadata.get(field, default)
 
     self._specs.append(
         SpannerColumnSpec(
@@ -387,14 +388,14 @@ class SpannerColumnSpecsBuilder:
         >>> builder.add_column(
         ...     column_name="has_code",
         ...     python_type=bool,
-        ...     value_fn=lambda chunk: "```" in chunk.content.text
+        ...     value_fn=lambda embeddable: "```" in embeddable.content.text
         ... )
         
         Computed value:
         >>> builder.add_column(
         ...     column_name="word_count",
         ...     python_type=int,
-        ...     value_fn=lambda chunk: len(chunk.content.text.split())
+        ...     value_fn=lambda embeddable: len(embeddable.content.text.split())
         ... )
     """
     self._specs.append(
@@ -451,9 +452,9 @@ class _SpannerSchemaBuilder:
     Returns:
         Function that converts an EmbeddableItem to a NamedTuple record
     """
-    def convert(chunk: EmbeddableItem) -> self.record_type:  # type: ignore
+    def convert(embeddable: EmbeddableItem) -> self.record_type:  # type: ignore
       values = {
-          col.column_name: col.value_fn(chunk)
+          col.column_name: col.value_fn(embeddable)
           for col in self.column_specs
       }
       return self.record_type(**values)  # type: ignore

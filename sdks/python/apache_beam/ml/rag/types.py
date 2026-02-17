@@ -55,11 +55,9 @@ class Embedding:
   Args:
       dense_embedding: Dense vector representation.
       sparse_embedding: Optional sparse vector representation for hybrid search.
-      metadata: Optional metadata associated with this embedding.
   """
   dense_embedding: Optional[List[float]] = None
   sparse_embedding: Optional[Tuple[List[int], List[float]]] = None
-  metadata: Dict[str, Any] = field(default_factory=dict)
 
 
 @dataclass
