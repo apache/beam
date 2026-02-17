@@ -39,8 +39,9 @@ import org.slf4j.LoggerFactory;
 /** A {@link RateLimiterFactory} for Envoy Rate Limit Service. */
 public class EnvoyRateLimiterFactory implements RateLimiterFactory {
   private static final Logger LOG = LoggerFactory.getLogger(EnvoyRateLimiterFactory.class);
-  private static final int RPC_RETRY_COUNT = 5;
-  private static final long RPC_RETRY_DELAY_MILLIS = 1000;
+  // Retry up to 1 min rather than failing fast and asking runner to retry full bundle.
+  private static final int RPC_RETRY_COUNT = 10;
+  private static final long RPC_RETRY_DELAY_MILLIS = 6000;
 
   private final RateLimiterOptions options;
 

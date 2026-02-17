@@ -189,6 +189,14 @@ resource "kubernetes_deployment" "ratelimit" {
             name  = "STATSD_PORT"
             value = "9125"
           }
+          env {
+            name  = "GRPC_MAX_CONNECTION_AGE"
+            value = var.ratelimit_grpc_max_connection_age
+          }
+          env {
+            name  = "GRPC_MAX_CONNECTION_AGE_GRACE"
+            value = var.ratelimit_grpc_max_connection_age_grace
+          }
 
           resources {
             requests = var.ratelimit_resources.requests
@@ -213,6 +221,17 @@ resource "kubernetes_deployment" "ratelimit" {
             name           = "statsd-udp"
             container_port = 9125
             protocol       = "UDP"
+          }
+          # statsd-exporter does not use much resources, so setting resources to the minimum
+          resources {
+            requests = {
+              cpu    = "50m"
+              memory = "64Mi"
+            }
+            limits = {
+              cpu    = "100m"
+              memory = "128Mi"
+            }
           }
         }
 
