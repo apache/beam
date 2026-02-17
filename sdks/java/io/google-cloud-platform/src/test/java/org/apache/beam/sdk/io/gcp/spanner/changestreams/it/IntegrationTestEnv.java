@@ -77,7 +77,12 @@ public class IntegrationTestEnv extends ExternalResource {
     instanceId = options.getInstanceId();
     generateDatabaseIds(options);
     spanner =
-        SpannerOptions.newBuilder().setProjectId(projectId).setHost(host).build().getService();
+        SpannerOptions.newBuilder()
+            .setProjectId(projectId)
+            .setHost(host)
+            .disableGrpcGcpExtension()
+            .build()
+            .getService();
     databaseAdminClient = spanner.getDatabaseAdminClient();
     metadataTableName = generateTableName(METADATA_TABLE_NAME_PREFIX);
 
