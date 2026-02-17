@@ -41,8 +41,8 @@ from typing import Union
 
 import apache_beam as beam
 from apache_beam.pvalue import TaggedOutput
-from apache_beam.typehints import with_output_types
 from apache_beam.typehints import Any
+from apache_beam.typehints import with_output_types
 from apache_beam.typehints.decorators import IOTypeHints
 
 
