@@ -52,7 +52,7 @@ try:
   from google.cloud import dataflow
 except ImportError:
   apiclient = None  # type: ignore
-  dataflow = None # type: ignore
+  dataflow = None  # type: ignore
 # pylint: enable=wrong-import-order, wrong-import-position
 
 FAKE_PIPELINE_URL = "gs://invalid-bucket/anywhere"
@@ -138,7 +138,9 @@ class UtilTest(unittest.TestCase):
         pipeline_options,
         '2.0.0',  #any environment version
         FAKE_PIPELINE_URL)
-    self.assertEqual(env.proto.flex_resource_scheduling_goal, dataflow.FlexResourceSchedulingGoal.FLEXRS_UNSPECIFIED)
+    self.assertEqual(
+        env.proto.flex_resource_scheduling_goal,
+        dataflow.FlexResourceSchedulingGoal.FLEXRS_UNSPECIFIED)
 
   def test_flexrs_cost(self):
     pipeline_options = PipelineOptions([
@@ -466,7 +468,6 @@ class UtilTest(unittest.TestCase):
     regexp = 'beamapp-.*-[0-9]{10}-[0-9]{6}-[a-z0-9]{8}$'
     self.assertRegex(job_name, regexp)
 
-
   def test_translate_distribution_using_accumulator(self):
     metric_update = dataflow.MetricUpdate()
     accumulator = mock.Mock()
@@ -478,21 +479,18 @@ class UtilTest(unittest.TestCase):
     self.assertEqual(metric_update.distribution['min'], accumulator.min)
     self.assertEqual(metric_update.distribution['max'], accumulator.max)
     self.assertEqual(metric_update.distribution['sum'], accumulator.sum)
-    self.assertEqual(
-        metric_update.distribution['count'], accumulator.count)
+    self.assertEqual(metric_update.distribution['count'], accumulator.count)
 
   def test_translate_distribution_using_distribution_data(self):
     metric_update = dataflow.MetricUpdate()
     distribution_update = DistributionData(16, 2, 1, 15)
     apiclient.translate_distribution(distribution_update, metric_update)
-    self.assertEqual(
-        metric_update.distribution['min'], distribution_update.min)
-    self.assertEqual(
-        metric_update.distribution['max'], distribution_update.max)
-    self.assertEqual(
-        metric_update.distribution['sum'], distribution_update.sum)
+    self.assertEqual(metric_update.distribution['min'], distribution_update.min)
+    self.assertEqual(metric_update.distribution['max'], distribution_update.max)
+    self.assertEqual(metric_update.distribution['sum'], distribution_update.sum)
     self.assertEqual(
         metric_update.distribution['count'], distribution_update.count)
+
 
 #   def test_translate_distribution_using_dataflow_distribution_counter(self):
 #     counter_update = DataflowDistributionCounter()
@@ -529,8 +527,7 @@ class UtilTest(unittest.TestCase):
     apiclient.MetricUpdateTranslators.translate_scalar_mean_float(
         accumulator, metric_update)
     self.assertEqual(metric_update.mean_sum, accumulator.sum)
-    self.assertEqual(
-        metric_update.mean_count, accumulator.count)
+    self.assertEqual(metric_update.mean_count, accumulator.count)
 
   def test_translate_means_using_distribution_accumulator(self):
     # This is the special case for MeanByteCount.
@@ -552,8 +549,7 @@ class UtilTest(unittest.TestCase):
     apiclient.MetricUpdateTranslators.translate_scalar_mean_float(
         accumulator, metric_update)
     self.assertEqual(metric_update.mean_sum, accumulator.sum)
-    self.assertEqual(
-        metric_update.mean_count, accumulator.count)
+    self.assertEqual(metric_update.mean_count, accumulator.count)
 
   def test_default_ip_configuration(self):
     pipeline_options = PipelineOptions(
@@ -1448,7 +1444,9 @@ class UtilTest(unittest.TestCase):
         pipeline_options,
         '2.0.0',  #any environment version
         FAKE_PIPELINE_URL)
-    self.assertEqual(env.proto.debug_options, dataflow.DebugOptions(enable_hot_key_logging=False))
+    self.assertEqual(
+        env.proto.debug_options,
+        dataflow.DebugOptions(enable_hot_key_logging=False))
 
     # Now test that it is set when given.
     pipeline_options = PipelineOptions([
@@ -1789,7 +1787,6 @@ class UtilTest(unittest.TestCase):
           mock_stage_file.assert_not_called()
           mock_sleep.assert_not_called()
           mock_file_open.assert_not_called()
-
 
 if __name__ == '__main__':
   unittest.main()
