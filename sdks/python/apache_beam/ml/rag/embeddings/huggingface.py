@@ -40,7 +40,7 @@ except ImportError:
 try:
   from PIL import Image as PILImage
 except ImportError:
-  PILImage = None
+  PILImage = None  # type: ignore[assignment]
 
 
 class HuggingfaceTextEmbeddings(EmbeddingsManager):

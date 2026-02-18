@@ -73,7 +73,7 @@ def generate_from_string(
       call.
   """
   return model.models.generate_content(
-      model=model_name, contents=batch, **inference_args)
+      model=model_name, contents=list(batch), **inference_args)
 
 
 def generate_image_from_strings_and_images(
@@ -96,7 +96,7 @@ def generate_image_from_strings_and_images(
       call.
   """
   return model.models.generate_content(
-      model=model_name, contents=batch, **inference_args)
+      model=model_name, contents=list(batch), **inference_args)
 
 
 class GeminiModelHandler(RemoteModelHandler[Any, PredictionResult,
