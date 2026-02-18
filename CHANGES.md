@@ -55,14 +55,43 @@
 * ([#X](https://github.com/apache/beam/issues/X)).
 -->
 
-# [2.72.0] - Unreleased
+# [2.73.0] - Unreleased
 
 ## Highlights
 
 * New highly anticipated feature X added to Python SDK ([#X](https://github.com/apache/beam/issues/X)).
 * New highly anticipated feature Y added to Java SDK ([#Y](https://github.com/apache/beam/issues/Y)).
-* Flink 2.0 support ([#36947](https://github.com/apache/beam/issues/36947)).
 
+## I/Os
+
+* Support for X source added (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
+
+## New Features / Improvements
+
+* X feature added (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
+
+## Breaking Changes
+
+* X behavior was changed ([#X](https://github.com/apache/beam/issues/X)).
+
+## Deprecations
+
+* X behavior is deprecated and will be removed in X versions ([#X](https://github.com/apache/beam/issues/X)).
+
+## Bugfixes
+
+* Fixed X (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
+
+## Known Issues
+
+[comment]: # ( When updating known issues after release, make sure also update website blog in website/www/site/content/blog.)
+* ([#X](https://github.com/apache/beam/issues/X)).
+
+# [2.72.0] - 2026-02-??
+
+## Highlights
+
+* Flink 2.0 support ([#36947](https://github.com/apache/beam/issues/36947)).
 
 ## I/Os
 
@@ -76,10 +105,6 @@
 * (Python) Added exception chaining to preserve error context in CloudSQLEnrichmentHandler, processes utilities, and core transforms ([#37422](https://github.com/apache/beam/issues/37422)).
 * (Python) Added a pipeline option `--experiments=pip_no_build_isolation` to disable build isolation when installing dependencies in the runtime environment ([#37331](https://github.com/apache/beam/issues/37331)).
 
-## Breaking Changes
-
-* X behavior was changed ([#X](https://github.com/apache/beam/issues/X)).
-
 ## Deprecations
 
 * (Python) Removed previously deprecated list_prefix method for filesystem interfaces ([#37587](https://github.com/apache/beam/issues/37587)).
@@ -92,11 +117,6 @@
 ## Security Fixes
 
 * Fixed [CVE-2024-28397](https://www.cve.org/CVERecord?id=CVE-2024-28397) by switching from js2py to pythonmonkey (Yaml) ([#37560](https://github.com/apache/beam/issues/37560)).
-
-## Known Issues
-
-[comment]: # ( When updating known issues after release, make sure also update website blog in website/www/site/content/blog.)
-* ([#X](https://github.com/apache/beam/issues/X)).
 
 # [2.71.0] - 2026-01-22
 
