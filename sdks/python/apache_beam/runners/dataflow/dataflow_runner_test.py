@@ -22,8 +22,6 @@ import unittest
 
 import mock
 
-from google.cloud import dataflow as dataflow_api
-
 import apache_beam as beam
 import apache_beam.transforms as ptransform
 from apache_beam.options.pipeline_options import DebugOptions
@@ -55,8 +53,10 @@ from apache_beam.typehints import typehints
 # pylint: disable=wrong-import-order, wrong-import-position
 try:
   from apache_beam.runners.dataflow.internal import apiclient
+  from google.cloud import dataflow as dataflow_api
 except ImportError:
   apiclient = None  # type: ignore
+  dataflow_api = None # type: ignore
 # pylint: enable=wrong-import-order, wrong-import-position
 
 
