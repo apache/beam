@@ -608,7 +608,7 @@ class BeamModulePlugin implements Plugin<Project> {
     def dbcp2_version = "2.9.0"
     def errorprone_version = "2.31.0"
     // [bomupgrader] determined by: com.google.api:gax, consistent with: google_cloud_platform_libraries_bom
-    def gax_version = "2.74.0"
+    def gax_version = "2.74.1"
     def google_ads_version = "33.0.0"
     def google_clients_version = "2.0.0"
     def google_cloud_bigdataoss_version = "2.2.26"
@@ -745,7 +745,7 @@ class BeamModulePlugin implements Plugin<Project> {
         google_auth_library_oauth2_http             : "com.google.auth:google-auth-library-oauth2-http", // google_cloud_platform_libraries_bom sets version
         google_cloud_bigquery                       : "com.google.cloud:google-cloud-bigquery", // google_cloud_platform_libraries_bom sets version
         google_cloud_bigquery_storage               : "com.google.cloud:google-cloud-bigquerystorage", // google_cloud_platform_libraries_bom sets version
-        google_cloud_bigtable                       : "com.google.cloud:google-cloud-bigtable", // google_cloud_platform_libraries_bom sets version
+        google_cloud_bigtable                       : "com.google.cloud:google-cloud-bigtable:2.73.1", // TODO: remove pinned version once the new libraries_bom is released
         google_cloud_bigtable_client_core_config    : "com.google.cloud.bigtable:bigtable-client-core-config:1.28.0",
         google_cloud_bigtable_emulator              : "com.google.cloud:google-cloud-bigtable-emulator", // google_cloud_platform_libraries_bom sets version
         google_cloud_core                           : "com.google.cloud:google-cloud-core", // google_cloud_platform_libraries_bom sets version
@@ -758,7 +758,7 @@ class BeamModulePlugin implements Plugin<Project> {
         google_cloud_pubsub                         : "com.google.cloud:google-cloud-pubsub", // google_cloud_platform_libraries_bom sets version
         // [bomupgrader] the BOM version is set by scripts/tools/bomupgrader.py. If update manually, also update
         // libraries-bom version on sdks/java/container/license_scripts/dep_urls_java.yaml
-        google_cloud_platform_libraries_bom         : "com.google.cloud:libraries-bom:26.75.0",
+        google_cloud_platform_libraries_bom         : "com.google.cloud:libraries-bom:26.76.0",
         google_cloud_secret_manager                 : "com.google.cloud:google-cloud-secretmanager", // google_cloud_platform_libraries_bom sets version
         google_cloud_spanner                        : "com.google.cloud:google-cloud-spanner", // google_cloud_platform_libraries_bom sets version
         google_cloud_storage                        : "com.google.cloud:google-cloud-storage", // google_cloud_platform_libraries_bom sets version
