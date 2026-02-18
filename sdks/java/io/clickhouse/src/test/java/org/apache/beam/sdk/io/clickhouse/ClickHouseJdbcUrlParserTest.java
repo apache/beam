@@ -117,7 +117,7 @@ public class ClickHouseJdbcUrlParserTest {
   @Test
   public void testJdbcUrlWithMultipleParameters() {
     String jdbcUrl =
-        "jdbc:clickhouse://localhost:8123/mydb?user=admin&password=secret&compress=true";
+      "jdbc:clickhouse://localhost:8123/mydb?user=admin&password=secret&compress=true";
     ParsedJdbcUrl parsed = ClickHouseJdbcUrlParser.parse(jdbcUrl);
 
     assertEquals("http://localhost:8123", parsed.getClickHouseUrl());
@@ -177,11 +177,11 @@ public class ClickHouseJdbcUrlParserTest {
   @Test
   public void testJdbcUrlWithComplexQueryString() {
     String jdbcUrl =
-        "jdbc:clickhouse://localhost:8123/mydb?"
-            + "user=admin&password=secret&"
-            + "socket_timeout=30000&"
-            + "connection_timeout=10000&"
-            + "compress=true";
+      "jdbc:clickhouse://localhost:8123/mydb?"
+        + "user=admin&password=secret&"
+        + "socket_timeout=30000&"
+        + "connection_timeout=10000&"
+        + "compress=true";
     ParsedJdbcUrl parsed = ClickHouseJdbcUrlParser.parse(jdbcUrl);
 
     Properties props = parsed.getProperties();
@@ -290,11 +290,11 @@ public class ClickHouseJdbcUrlParserTest {
   public void testBackwardCompatibilityScenario() {
     // Simulating a real-world legacy JDBC URL
     String legacyJdbcUrl =
-        "jdbc:clickhouse://prod-clickhouse.internal:8123/analytics?"
-            + "user=analytics_user&"
-            + "password=secure123&"
-            + "compress=true&"
-            + "socket_timeout=60000";
+      "jdbc:clickhouse://prod-clickhouse.internal:8123/analytics?"
+        + "user=analytics_user&"
+        + "password=secure123&"
+        + "compress=true&"
+        + "socket_timeout=60000";
 
     ParsedJdbcUrl parsed = ClickHouseJdbcUrlParser.parse(legacyJdbcUrl);
 
@@ -337,5 +337,93 @@ public class ClickHouseJdbcUrlParserTest {
     Properties props = parsed.getProperties();
     assertEquals("", props.getProperty("user"));
     assertEquals("secret", props.getProperty("password"));
+  }
+
+  @Test
+  public void testJdbcUrlWithSslParameter() {
+    String jdbcUrl = "jdbc:clickhouse://localhost:8443/mydb?ssl=true&user=admin";
+    ParsedJdbcUrl parsed = ClickHouseJdbcUrlParser.parse(jdbcUrl);
+
+    assertEquals("https://localhost:8443", parsed.getClickHouseUrl());
+    assertEquals("mydb", parsed.getDatabase());
+    assertEquals("admin", parsed.getProperties().getProperty("user"));
+    assertEquals("true", parsed.getProperties().getProperty("ssl"));
+  }
+
+  @Test
+  public void testJdbcUrlWithPort8443DefaultsToHttps() {
+    String jdbcUrl = "jdbc:clickhouse://myhost:8443/mydb";
+    ParsedJdbcUrl parsed = ClickHouseJdbcUrlParser.parse(jdbcUrl);
+
+    assertEquals("https://myhost:8443", parsed.getClickHouseUrl());
+    assertEquals("mydb", parsed.getDatabase());
+  }
+
+  @Test
+  public void testClickHouseCloudUrl() {
+    String jdbcUrl =
+      "jdbc:clickhouse://someservice.clickhouse.cloud:8443/default?"
+        + "user=default&password=secret&ssl=true&sslmode=NONE";
+    ParsedJdbcUrl parsed = ClickHouseJdbcUrlParser.parse(jdbcUrl);
+
+    assertEquals("https://someservice.clickhouse.cloud:8443", parsed.getClickHouseUrl());
+    assertEquals("default", parsed.getDatabase());
+    assertEquals("default", parsed.getProperties().getProperty("user"));
+    assertEquals("secret", parsed.getProperties().getProperty("password"));
+    assertEquals("true", parsed.getProperties().getProperty("ssl"));
+  }
+
+  @Test
+  public void testJdbcUrlPort8123DefaultsToHttp() {
+    String jdbcUrl = "jdbc:clickhouse://localhost:8123/mydb";
+    ParsedJdbcUrl parsed = ClickHouseJdbcUrlParser.parse(jdbcUrl);
+
+    assertEquals("http://localhost:8123", parsed.getClickHouseUrl());
+  }
+
+  @Test
+  public void testHttpSchemeUpgradedToHttpsWhenSslTrue() {
+    String jdbcUrl = "jdbc:clickhouse:http://localhost:8443/mydb?ssl=true";
+    ParsedJdbcUrl parsed = ClickHouseJdbcUrlParser.parse(jdbcUrl);
+
+    // Should upgrade http to https because ssl=true
+    assertEquals("https://localhost:8443", parsed.getClickHouseUrl());
+  }
+
+  @Test
+  public void testSslTrueTriggersHttps() {
+    String jdbcUrl = "jdbc:clickhouse://localhost:8123/mydb?ssl=true";
+    ParsedJdbcUrl parsed = ClickHouseJdbcUrlParser.parse(jdbcUrl);
+
+    // Should use https because ssl=true, even though port is 8123
+    assertEquals("https://localhost:8123", parsed.getClickHouseUrl());
+  }
+
+  @Test
+  public void testPort8443TriggersHttps() {
+    String jdbcUrl = "jdbc:clickhouse://localhost:8443/mydb";
+    ParsedJdbcUrl parsed = ClickHouseJdbcUrlParser.parse(jdbcUrl);
+
+    // Should use https because port is 8443
+    assertEquals("https://localhost:8443", parsed.getClickHouseUrl());
+  }
+
+  @Test
+  public void testClickHouseCloudUrlWithSsl() {
+    String jdbcUrl =
+      "jdbc:clickhouse://someservice.clickhouse.cloud:8443/default?"
+        + "user=default&password=secret&ssl=true&sslmode=NONE";
+    ParsedJdbcUrl parsed = ClickHouseJdbcUrlParser.parse(jdbcUrl);
+
+    assertEquals("https://someservice.clickhouse.cloud:8443", parsed.getClickHouseUrl());
+    assertEquals("default", parsed.getDatabase());
+  }
+
+  @Test
+  public void testExplicitHttpsPreserved() {
+    String jdbcUrl = "jdbc:clickhouse:https://localhost:8443/mydb";
+    ParsedJdbcUrl parsed = ClickHouseJdbcUrlParser.parse(jdbcUrl);
+
+    assertEquals("https://localhost:8443", parsed.getClickHouseUrl());
   }
 }
