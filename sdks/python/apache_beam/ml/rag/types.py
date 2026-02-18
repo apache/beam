@@ -163,7 +163,9 @@ class EmbeddableItem:
       return self.content.text
     if isinstance(self.content.image, str):
       return self.content.image
-    raise ValueError(f'EmbeddableItem does not contain text content. {self}')
+    raise ValueError(
+        f'EmbeddableItem does not contain storable string content'
+        f' (text or image URI). {self}')
 
 
 # Backward compatibility alias. Existing code using Chunk continues to work

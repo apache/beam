@@ -16,6 +16,7 @@
 
 """Tests for apache_beam.ml.rag.embeddings.huggingface."""
 
+import io
 import os
 import shutil
 import tempfile
@@ -235,7 +236,6 @@ class HuggingfaceImageEmbeddingsTest(unittest.TestCase):
 
 def _create_png_bytes():
   """Create a small valid RGB PNG image."""
-  import io
   from PIL import Image
   img = Image.new('RGB', (10, 10), color=(128, 64, 32))
   buf = io.BytesIO()

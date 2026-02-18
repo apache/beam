@@ -121,8 +121,8 @@ class ContentStringTest(unittest.TestCase):
 
   def test_image_bytes_raises(self):
     item = EmbeddableItem.from_image(b'\x89PNG\r\n', id='img2')
-    with self.assertRaisesRegex(
-        ValueError, "EmbeddableItem does not contain text content.*"):
+    with self.assertRaisesRegex(ValueError,
+                                "EmbeddableItem does not contain.*"):
       item.content_string
 
 

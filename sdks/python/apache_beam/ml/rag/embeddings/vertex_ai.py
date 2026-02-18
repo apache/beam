@@ -58,31 +58,18 @@ class VertexAITextEmbeddings(EmbeddingsManager):
       credentials: Optional[Credentials] = None,
       **kwargs):
     """Utilizes Vertex AI text embeddings for semantic search and RAG
-        pipelines.
-        
-        Args:
-            model_name: Name of the Vertex AI text embedding model
-            title: Optional title for the text content
-            task_type: Task type for embeddings (default: RETRIEVAL_DOCUMENT)
-            project: GCP project ID
-            location: GCP location
-            credentials: Optional GCP credentials
-            **kwargs: Additional arguments passed to
-            :class:`~apache_beam.ml.transforms.base.EmbeddingsManager`,
-            including:
+    pipelines.
 
-            - ``load_model_args``: dict passed to
-              ``SentenceTransformer()`` constructor
-              (e.g. ``device``, ``cache_folder``,
-              ``trust_remote_code``).
-            - ``min_batch_size`` / ``max_batch_size``:
-              Control batching for inference.
-            - ``large_model``: If True, share the model
-              across processes to reduce memory usage.
-            - ``inference_args``: dict passed to
-              ``model.encode()``
-              (e.g. ``normalize_embeddings``).
-        """
+    Args:
+        model_name: Name of the Vertex AI text embedding model
+        title: Optional title for the text content
+        task_type: Task type for embeddings (default: RETRIEVAL_DOCUMENT)
+        project: GCP project ID
+        location: GCP location
+        credentials: Optional GCP credentials
+        **kwargs: Additional arguments passed to
+            :class:`~apache_beam.ml.transforms.base.EmbeddingsManager`.
+    """
     if not vertexai:
       raise ImportError(
           "vertexai is required to use VertexAITextEmbeddings. "
@@ -172,20 +159,7 @@ class VertexAIImageEmbeddings(EmbeddingsManager):
         location: GCP location.
         credentials: Optional GCP credentials.
         **kwargs: Additional arguments passed to
-            :class:`~apache_beam.ml.transforms.base.EmbeddingsManager`,
-            including:
-
-            - ``load_model_args``: dict passed to
-              ``SentenceTransformer()`` constructor
-              (e.g. ``device``, ``cache_folder``,
-              ``trust_remote_code``).
-            - ``min_batch_size`` / ``max_batch_size``:
-              Control batching for inference.
-            - ``large_model``: If True, share the model
-              across processes to reduce memory usage.
-            - ``inference_args``: dict passed to
-              ``model.encode()``
-              (e.g. ``normalize_embeddings``).
+            :class:`~apache_beam.ml.transforms.base.EmbeddingsManager`.
     """
     if not vertexai:
       raise ImportError(
