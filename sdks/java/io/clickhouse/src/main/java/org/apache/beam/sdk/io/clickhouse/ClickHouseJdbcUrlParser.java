@@ -138,8 +138,8 @@ class ClickHouseJdbcUrlParser {
       actualUrl = urlWithoutJdbc.substring(3);
     } else {
       throw new IllegalArgumentException(
-        "Invalid JDBC URL format. Expected 'jdbc:clickhouse:' or 'jdbc:ch:' prefix. Got: "
-          + jdbcUrl);
+          "Invalid JDBC URL format. Expected 'jdbc:clickhouse:' or 'jdbc:ch:' prefix. Got: "
+              + jdbcUrl);
     }
 
     boolean useHttps = false;
@@ -168,7 +168,7 @@ class ClickHouseJdbcUrlParser {
         return actualUrl;
       } else {
         throw new IllegalArgumentException(
-          "Invalid scheme in JDBC URL. Expected 'http' or 'https'. Got: " + scheme);
+            "Invalid scheme in JDBC URL. Expected 'http' or 'https'. Got: " + scheme);
       }
     }
 
@@ -191,7 +191,7 @@ class ClickHouseJdbcUrlParser {
   private static void validateScheme(String scheme) {
     if (scheme == null || (!scheme.equals("http") && !scheme.equals("https"))) {
       throw new IllegalArgumentException(
-        "Invalid scheme. Expected 'http' or 'https'. Got: " + scheme);
+          "Invalid scheme. Expected 'http' or 'https'. Got: " + scheme);
     }
   }
 

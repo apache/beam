@@ -117,7 +117,7 @@ public class ClickHouseJdbcUrlParserTest {
   @Test
   public void testJdbcUrlWithMultipleParameters() {
     String jdbcUrl =
-      "jdbc:clickhouse://localhost:8123/mydb?user=admin&password=secret&compress=true";
+        "jdbc:clickhouse://localhost:8123/mydb?user=admin&password=secret&compress=true";
     ParsedJdbcUrl parsed = ClickHouseJdbcUrlParser.parse(jdbcUrl);
 
     assertEquals("http://localhost:8123", parsed.getClickHouseUrl());
@@ -177,11 +177,11 @@ public class ClickHouseJdbcUrlParserTest {
   @Test
   public void testJdbcUrlWithComplexQueryString() {
     String jdbcUrl =
-      "jdbc:clickhouse://localhost:8123/mydb?"
-        + "user=admin&password=secret&"
-        + "socket_timeout=30000&"
-        + "connection_timeout=10000&"
-        + "compress=true";
+        "jdbc:clickhouse://localhost:8123/mydb?"
+            + "user=admin&password=secret&"
+            + "socket_timeout=30000&"
+            + "connection_timeout=10000&"
+            + "compress=true";
     ParsedJdbcUrl parsed = ClickHouseJdbcUrlParser.parse(jdbcUrl);
 
     Properties props = parsed.getProperties();
@@ -290,11 +290,11 @@ public class ClickHouseJdbcUrlParserTest {
   public void testBackwardCompatibilityScenario() {
     // Simulating a real-world legacy JDBC URL
     String legacyJdbcUrl =
-      "jdbc:clickhouse://prod-clickhouse.internal:8123/analytics?"
-        + "user=analytics_user&"
-        + "password=secure123&"
-        + "compress=true&"
-        + "socket_timeout=60000";
+        "jdbc:clickhouse://prod-clickhouse.internal:8123/analytics?"
+            + "user=analytics_user&"
+            + "password=secure123&"
+            + "compress=true&"
+            + "socket_timeout=60000";
 
     ParsedJdbcUrl parsed = ClickHouseJdbcUrlParser.parse(legacyJdbcUrl);
 
@@ -362,8 +362,8 @@ public class ClickHouseJdbcUrlParserTest {
   @Test
   public void testClickHouseCloudUrl() {
     String jdbcUrl =
-      "jdbc:clickhouse://someservice.clickhouse.cloud:8443/default?"
-        + "user=default&password=secret&ssl=true&sslmode=NONE";
+        "jdbc:clickhouse://someservice.clickhouse.cloud:8443/default?"
+            + "user=default&password=secret&ssl=true&sslmode=NONE";
     ParsedJdbcUrl parsed = ClickHouseJdbcUrlParser.parse(jdbcUrl);
 
     assertEquals("https://someservice.clickhouse.cloud:8443", parsed.getClickHouseUrl());
@@ -411,8 +411,8 @@ public class ClickHouseJdbcUrlParserTest {
   @Test
   public void testClickHouseCloudUrlWithSsl() {
     String jdbcUrl =
-      "jdbc:clickhouse://someservice.clickhouse.cloud:8443/default?"
-        + "user=default&password=secret&ssl=true&sslmode=NONE";
+        "jdbc:clickhouse://someservice.clickhouse.cloud:8443/default?"
+            + "user=default&password=secret&ssl=true&sslmode=NONE";
     ParsedJdbcUrl parsed = ClickHouseJdbcUrlParser.parse(jdbcUrl);
 
     assertEquals("https://someservice.clickhouse.cloud:8443", parsed.getClickHouseUrl());
