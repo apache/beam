@@ -1956,35 +1956,28 @@ public class BigtableIO {
     }
 
     public @Nullable RowFilter getRowFilter() {
+      RowFilter.Chain.Builder chain = RowFilter.Chain.newBuilder();
       ValueProvider<RowFilter> rowFilterValueProvider = readOptions.getRowFilter();
-      RowFilter rowFilter = null;
       if (rowFilterValueProvider != null && rowFilterValueProvider.isAccessible()) {
-        rowFilter = rowFilterValueProvider.get();
+        chain.addFilters(rowFilterValueProvider.get());
       }
-
       ValueProvider<String> textFilterValueProvider = readOptions.getRowFilterTextProto();
-      RowFilter textFilter = null;
       if (textFilterValueProvider != null && textFilterValueProvider.isAccessible()) {
         try {
-          textFilter = TextFormat.parse(textFilterValueProvider.get(), RowFilter.class);
+          chain.addFilters(TextFormat.parse(textFilterValueProvider.get(), RowFilter.class));
         } catch (TextFormat.ParseException e) {
           throw new RuntimeException("Failed to parse row filter text proto", e);
         }
       }
 
-      if (rowFilter != null && textFilter != null) {
-        RowFilter.Chain chain =
-            RowFilter.Chain.newBuilder().addFilters(rowFilter).addFilters(textFilter).build();
-        return RowFilter.newBuilder().setChain(chain).build();
+      switch (chain.getFiltersCount()) {
+        case 0:
+          return null;
+        case 1:
+          return chain.getFilters(0);
+        default:
+          return RowFilter.newBuilder().setChain(chain.build()).build();
       }
-      if (rowFilter != null) {
-        return rowFilter;
-      }
-      if (textFilter != null) {
-        return textFilter;
-      }
-
-      return null;
     }
 
     public @Nullable Integer getMaxBufferElementCount() {
