@@ -231,8 +231,8 @@ class Environment(object):
           get_container_image_from_options(options))
     elif len(pool.sdk_harness_container_images) == 1:
       # Dataflow expects a value here when there is only one environment.
-      pool.workerHarnessContainerImage = (
-          pool.sdkHarnessContainerImages[0].containerImage)
+      pool.worker_harness_container_image = (
+          pool.sdk_harness_container_images[0].container_image)
 
     if self.debug_options.number_of_worker_harness_threads:
       pool.num_threads_per_worker = (
