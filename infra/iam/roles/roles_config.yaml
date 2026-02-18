@@ -52,7 +52,7 @@ roles:
       - iap
       - meshconfig
       - monitoring
-      - pubsub
+      - pubsub. # TODO: Remove '.' after Pubsublite GCP service is fully deprecated.
       - redis
       - resourcemanager
       - secretmanager

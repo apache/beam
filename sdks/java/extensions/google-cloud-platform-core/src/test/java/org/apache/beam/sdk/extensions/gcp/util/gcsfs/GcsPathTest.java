@@ -348,4 +348,24 @@ public class GcsPathTest {
     a.subpath(1, 1); // throws IllegalArgumentException
     Assert.fail();
   }
+
+  @Test
+  public void testIsWildcard() {
+    assertTrue(GcsPath.isWildcard(GcsPath.fromUri("gs://bucket/foo*")));
+    assertTrue(GcsPath.isWildcard(GcsPath.fromUri("gs://bucket/foo?")));
+    assertTrue(GcsPath.isWildcard(GcsPath.fromUri("gs://bucket/foo[a-z]")));
+    assertFalse(GcsPath.isWildcard(GcsPath.fromUri("gs://bucket/foo")));
+  }
+
+  @Test
+  public void testGetNonWildcardPrefix() {
+    assertEquals("gs://bucket/foo", GcsPath.getNonWildcardPrefix("gs://bucket/foo*"));
+    assertEquals("gs://bucket/foo", GcsPath.getNonWildcardPrefix("gs://bucket/foo?"));
+    assertEquals("gs://bucket/foo", GcsPath.getNonWildcardPrefix("gs://bucket/foo[a-z]"));
+  }
+
+  @Test(expected = IllegalArgumentException.class)
+  public void testGetNonWildcardPrefix_noWildcard() {
+    GcsPath.getNonWildcardPrefix("gs://bucket/foo/bar");
+  }
 }

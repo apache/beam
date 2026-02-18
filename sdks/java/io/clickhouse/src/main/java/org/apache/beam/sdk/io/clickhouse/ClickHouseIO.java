@@ -17,18 +17,17 @@
  */
 package org.apache.beam.sdk.io.clickhouse;
 
-import com.clickhouse.client.ClickHouseRequest;
+import com.clickhouse.client.api.Client;
+import com.clickhouse.client.api.insert.InsertResponse;
+import com.clickhouse.client.api.query.GenericRecord;
+import com.clickhouse.client.api.query.Records;
 import com.clickhouse.data.ClickHouseFormat;
-import com.clickhouse.jdbc.ClickHouseConnection;
-import com.clickhouse.jdbc.ClickHouseDataSource;
-import com.clickhouse.jdbc.ClickHouseStatement;
 import com.google.auto.value.AutoValue;
-import java.sql.ResultSet;
-import java.sql.SQLException;
-import java.sql.Statement;
+import java.io.ByteArrayOutputStream;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 import java.util.Properties;
 import java.util.stream.Collectors;
 import org.apache.beam.sdk.io.clickhouse.TableSchema.ColumnType;
@@ -63,15 +62,27 @@ import org.slf4j.LoggerFactory;
  *
  * <h3>Writing to ClickHouse</h3>
  *
- * <p>To write to ClickHouse, use {@link ClickHouseIO#write(String, String)}, which writes elements
- * from input {@link PCollection}. It's required that your ClickHouse cluster already has table you
- * are going to insert into.
+ * <p>To write to ClickHouse, use {@link ClickHouseIO#write(String, String, String)}, which writes
+ * elements from input {@link PCollection}. It's required that your ClickHouse cluster already has
+ * table you are going to insert into.
  *
  * <pre>{@code
+ * // New way (recommended):
+ * Properties props = new Properties();
+ * props.setProperty("user", "admin");
+ * props.setProperty("password", "secret");
+ *
  * pipeline
  *   .apply(...)
  *   .apply(
- *     ClickHouseIO.<POJO>write("jdbc:clickhouse:localhost:8123/default", "my_table"));
+ *     ClickHouseIO.<POJO>write("http://localhost:8123", "default", "my_table")
+ *       .withProperties(props));
+ *
+ * // Old way (deprecated):
+ * pipeline
+ *   .apply(...)
+ *   .apply(
+ *     ClickHouseIO.<POJO>write("jdbc:clickhouse://localhost:8123/default", "my_table"));
  * }</pre>
  *
  * <p>Optionally, you can provide connection settings, for instance, specify insert block size with
@@ -80,14 +91,21 @@ import org.slf4j.LoggerFactory;
  *
  * <h4>Deduplication</h4>
  *
- * Deduplication is performed by ClickHouse if inserting to <a
- * href="https://clickhouse.yandex/docs/en/single/#data-replication">ReplicatedMergeTree</a> or <a
- * href="https://clickhouse.yandex/docs/en/single/#distributed">Distributed</a> table on top of
- * ReplicatedMergeTree. Without replication, inserting into regular MergeTree can produce
- * duplicates, if insert fails, and then successfully retries. However, each block is inserted
- * atomically, and you can configure block size with {@link Write#withMaxInsertBlockSize(long)}.
+ * <p>Deduplication is performed by ClickHouse if inserting to <a
+ * href="https://clickhouse.com/docs/engines/table-engines/mergetree-family/replication">ReplicatedMergeTree</a>
+ * or <a
+ * href="https://clickhouse.com/docs/engines/table-engines/special/distributed">Distributed</a>
+ * table on top of ReplicatedMergeTree. Without replication, inserting into regular MergeTree can
+ * produce duplicates, if insert fails, and then successfully retries. However, each block is
+ * inserted atomically, and you can configure block size with {@link
+ * Write#withMaxInsertBlockSize(long)}.
  *
- * <p>Deduplication is performed using checksums of inserted blocks.
+ * <p>Deduplication is performed using checksums of inserted blocks. For <a
+ * href="https://clickhouse.com/docs/engines/table-engines/mergetree-family/shared-merge-tree">SharedMergeTree</a>
+ * tables in ClickHouse Cloud, deduplication behavior is similar to ReplicatedMergeTree. For more
+ * information about deduplication, please visit the <a
+ * href="https://clickhouse.com/docs/guides/developer/deduplication">Deduplication strategies
+ * documentation</a>
  *
  * <h4>Mapping between Beam and ClickHouse types</h4>
  *
@@ -114,8 +132,10 @@ import org.slf4j.LoggerFactory;
  * <tr><td>{@link TableSchema.TypeName#TUPLE}</td> <td>{@link Schema.TypeName#ROW}</td></tr>
  * </table>
  *
- * Nullable row columns are supported through Nullable type in ClickHouse. Low cardinality hint is
- * supported through LowCardinality DataType in ClickHouse.
+ * <p>Nullable row columns are supported through <a
+ * href="https://clickhouse.com/docs/sql-reference/data-types/nullable">Nullable type</a> in
+ * ClickHouse. <a href="https://clickhouse.com/docs/sql-reference/data-types/LowCardinality">Low
+ * cardinality hint </a> is supported through LowCardinality DataType in ClickHouse.
  *
  * <p>Nested rows should be unnested using {@link Select#flattenedSchema()}. Type casting should be
  * done using {@link org.apache.beam.sdk.schemas.transforms.Cast} before {@link ClickHouseIO}.
@@ -130,9 +150,57 @@ public class ClickHouseIO {
   public static final Duration DEFAULT_MAX_CUMULATIVE_BACKOFF = Duration.standardDays(1000);
   public static final Duration DEFAULT_INITIAL_BACKOFF = Duration.standardSeconds(5);
 
+  /**
+   * Creates a write transform using a JDBC URL format.
+   *
+   * <p><b>Deprecated:</b> Use {@link #write(String, String, String)} instead with separate URL,
+   * database, and table parameters.
+   *
+   * <p>This method is provided for backward compatibility. It parses the JDBC URL to extract the
+   * connection URL, database name, and any connection properties specified in the query string.
+   * Properties can be overridden later using {@link Write#withProperties(Properties)}.
+   *
+   * <p>Example:
+   *
+   * <pre>{@code
+   * // Old way (deprecated):
+   * ClickHouseIO.write("jdbc:clickhouse://localhost:8123/mydb?user=admin&password=secret", "table")
+   *
+   * // New way:
+   * ClickHouseIO.write("http://localhost:8123", "mydb", "table")
+   *   .withProperties(props)
+   * }</pre>
+   *
+   * <p><b>Property Precedence:</b> Properties from the JDBC URL can be overridden by calling {@link
+   * Write#withProperties(Properties)}. Later calls to withProperties() override earlier settings.
+   *
+   * @param jdbcUrl JDBC connection URL (e.g., jdbc:clickhouse://host:port/database?param=value)
+   * @param table table name
+   * @return a {@link PTransform} writing data to ClickHouse
+   * @deprecated Use {@link #write(String, String, String)} with explicit URL, database, and table
+   */
+  @Deprecated
   public static <T> Write<T> write(String jdbcUrl, String table) {
+    ClickHouseJdbcUrlParser.ParsedJdbcUrl parsed = ClickHouseJdbcUrlParser.parse(jdbcUrl);
+
     return new AutoValue_ClickHouseIO_Write.Builder<T>()
-        .jdbcUrl(jdbcUrl)
+        .clickHouseUrl(parsed.getClickHouseUrl())
+        .database(parsed.getDatabase())
+        .table(table)
+        .properties(parsed.getProperties()) // Start with JDBC URL properties
+        .maxInsertBlockSize(DEFAULT_MAX_INSERT_BLOCK_SIZE)
+        .initialBackoff(DEFAULT_INITIAL_BACKOFF)
+        .maxRetries(DEFAULT_MAX_RETRIES)
+        .maxCumulativeBackoff(DEFAULT_MAX_CUMULATIVE_BACKOFF)
+        .build()
+        .withInsertDeduplicate(true)
+        .withInsertDistributedSync(true);
+  }
+
+  public static <T> Write<T> write(String clickHouseUrl, String database, String table) {
+    return new AutoValue_ClickHouseIO_Write.Builder<T>()
+        .clickHouseUrl(clickHouseUrl)
+        .database(database)
         .table(table)
         .properties(new Properties())
         .maxInsertBlockSize(DEFAULT_MAX_INSERT_BLOCK_SIZE)
@@ -148,7 +216,9 @@ public class ClickHouseIO {
   @AutoValue
   public abstract static class Write<T> extends PTransform<PCollection<T>, PDone> {
 
-    public abstract String jdbcUrl();
+    public abstract String clickHouseUrl();
+
+    public abstract String database();
 
     public abstract String table();
 
@@ -176,7 +246,7 @@ public class ClickHouseIO {
     public PDone expand(PCollection<T> input) {
       TableSchema tableSchema = tableSchema();
       if (tableSchema == null) {
-        tableSchema = getTableSchema(jdbcUrl(), table());
+        tableSchema = getTableSchema(clickHouseUrl(), database(), table(), properties());
       }
 
       String sdkVersion = ReleaseInfo.getReleaseInfo().getSdkVersion();
@@ -192,7 +262,8 @@ public class ClickHouseIO {
 
       WriteFn<T> fn =
           new AutoValue_ClickHouseIO_WriteFn.Builder<T>()
-              .jdbcUrl(jdbcUrl())
+              .clickHouseUrl(clickHouseUrl())
+              .database(database())
               .table(table())
               .maxInsertBlockSize(maxInsertBlockSize())
               .schema(tableSchema)
@@ -212,7 +283,8 @@ public class ClickHouseIO {
      *
      * @param value number of rows
      * @return a {@link PTransform} writing data to ClickHouse
-     * @see <a href="https://clickhouse.yandex/docs/en/single/#max_insert_block_size">ClickHouse
+     * @see <a
+     *     href="https://clickhouse.com/docs/operations/settings/settings#max_insert_block_size">ClickHouse
      *     documentation</a>
      */
     public Write<T> withMaxInsertBlockSize(long value) {
@@ -238,7 +310,8 @@ public class ClickHouseIO {
      *
      * @param value number of replicas, 0 for disabling, null for server default
      * @return a {@link PTransform} writing data to ClickHouse
-     * @see <a href="https://clickhouse.yandex/docs/en/single/#insert_quorum">ClickHouse
+     * @see <a
+     *     href="https://clickhouse.com/docs/operations/settings/settings#insert_quorum">ClickHouse
      *     documentation</a>
      */
     public Write<T> withInsertQuorum(@Nullable Long value) {
@@ -305,11 +378,56 @@ public class ClickHouseIO {
       return toBuilder().tableSchema(tableSchema).build();
     }
 
+    /**
+     * Set connection properties (user, password, etc.).
+     *
+     * <p><b>Important:</b> If using the deprecated JDBC URL-based {@link #write(String, String)}
+     * method, this will fail if any properties specified here conflict with properties already
+     * extracted from the JDBC URL. This prevents accidental property conflicts.
+     *
+     * <p>For the new API {@link #write(String, String, String)}, properties can be set freely since
+     * there are no URL-embedded properties to conflict with.
+     *
+     * @param properties connection properties
+     * @return a {@link PTransform} writing data to ClickHouse
+     * @throws IllegalArgumentException if properties is null or if any property conflicts with
+     *     existing properties (e.g., from JDBC URL)
+     */
+    public Write<T> withProperties(Properties properties) {
+      if (properties == null) {
+        throw new IllegalArgumentException("Properties cannot be null");
+      }
+
+      // Check for conflicts with existing properties
+      Properties existing = properties();
+      for (String key : properties.stringPropertyNames()) {
+        if (existing.containsKey(key)) {
+          String existingValue = existing.getProperty(key);
+          String newValue = properties.getProperty(key);
+          if (!existingValue.equals(newValue)) {
+            throw new IllegalArgumentException(
+                String.format(
+                    "Property conflict: '%s' is already set to '%s' (likely from JDBC URL), "
+                        + "but attempting to set it to '%s'. "
+                        + "Please use either JDBC URL properties OR withProperties(), not both for the same keys.",
+                    key, existingValue, newValue));
+          }
+        }
+      }
+
+      // Merge properties: new properties are added to existing ones
+      Properties merged = new Properties();
+      merged.putAll(existing);
+      merged.putAll(properties);
+      return toBuilder().properties(merged).build();
+    }
     /** Builder for {@link Write}. */
     @AutoValue.Builder
     abstract static class Builder<T> {
 
-      public abstract Builder<T> jdbcUrl(String jdbcUrl);
+      public abstract Builder<T> clickHouseUrl(String clickHouseUrl);
+
+      public abstract Builder<T> database(String database);
 
       public abstract Builder<T> table(String table);
 
@@ -348,7 +466,7 @@ public class ClickHouseIO {
     private static final String RETRY_ATTEMPT_LOG =
         "Error writing to ClickHouse. Retry attempt[{}]";
 
-    private ClickHouseConnection connection;
+    private Client client;
     private FluentBackoff retryBackoff;
     private final List<Row> buffer = new ArrayList<>();
     private final Distribution batchSize = Metrics.distribution(Write.class, "batch_size");
@@ -360,7 +478,9 @@ public class ClickHouseIO {
     @FieldAccess("filterFields")
     final FieldAccessDescriptor fieldAccessDescriptor = FieldAccessDescriptor.withAllFields();
 
-    public abstract String jdbcUrl();
+    public abstract String clickHouseUrl();
+
+    public abstract String database();
 
     public abstract String table();
 
@@ -387,9 +507,36 @@ public class ClickHouseIO {
     }
 
     @Setup
-    public void setup() throws SQLException {
+    public void setup() throws Exception {
 
-      connection = new ClickHouseDataSource(jdbcUrl(), properties()).getConnection();
+      String user = properties().getProperty("user", "default");
+      String password = properties().getProperty("password", "");
+
+      // add the options to the client builder
+      Map<String, String> options =
+          properties().stringPropertyNames().stream()
+              .filter(key -> !key.equals("user") && !key.equals("password"))
+              .collect(Collectors.toMap(key -> key, properties()::getProperty));
+
+      // Create ClickHouse Java Client
+      Client.Builder clientBuilder =
+          new Client.Builder()
+              .addEndpoint(clickHouseUrl())
+              .setUsername(user)
+              .setPassword(password)
+              .setDefaultDatabase(database())
+              .setOptions(options)
+              .setClientName(
+                  String.format("Apache Beam/%s", ReleaseInfo.getReleaseInfo().getSdkVersion()));
+
+      // Add optional compression if specified in properties
+      String compress = properties().getProperty("compress", "false");
+      if (Boolean.parseBoolean(compress)) {
+        clientBuilder.compressServerResponse(true);
+        clientBuilder.compressClientRequest(true);
+      }
+
+      client = clientBuilder.build();
 
       retryBackoff =
           FluentBackoff.DEFAULT
@@ -400,7 +547,9 @@ public class ClickHouseIO {
 
     @Teardown
     public void tearDown() throws Exception {
-      connection.close();
+      if (client != null) {
+        client.close();
+      }
     }
 
     @StartBundle
@@ -431,25 +580,46 @@ public class ClickHouseIO {
       }
 
       batchSize.update(buffer.size());
+
+      // Serialize rows to RowBinary format
+      ByteArrayOutputStream byteStream = new ByteArrayOutputStream();
+
+      // Wrap ByteArrayOutputStream with ClickHouseOutputStream
+      try (com.clickhouse.data.ClickHouseOutputStream outputStream =
+          com.clickhouse.data.ClickHouseOutputStream.of(byteStream)) {
+        for (Row row : buffer) {
+          ClickHouseWriter.writeRow(outputStream, schema(), row);
+        }
+        outputStream.flush();
+      }
+      byte[] data = byteStream.toByteArray();
+
       while (true) {
-        try (ClickHouseStatement statement = connection.createStatement()) {
-          statement
-              .unwrap(ClickHouseRequest.class)
-              .write()
-              .table(table())
-              .format(ClickHouseFormat.RowBinary)
-              .data(
-                  out -> {
-                    for (Row row : buffer) {
-                      ClickHouseWriter.writeRow(out, schema(), row);
-                    }
-                  })
-              .executeAndWait(); // query happens in a separate thread
+        try {
+
+          // Perform the insert using ClickHouse Java Client
+          InsertResponse response =
+              client
+                  .insert(
+                      table(), new java.io.ByteArrayInputStream(data), ClickHouseFormat.RowBinary)
+                  .get();
+
+          if (response != null) {
+            LOG.debug(
+                "Successfully inserted {} rows out of {} into table {}. total size written {} bytes",
+                response.getWrittenRows(),
+                buffer.size(),
+                table(),
+                response.getWrittenBytes());
+          } else {
+            LOG.debug("Successfully inserted {} rows into table {}", buffer.size(), table());
+          }
+
           buffer.clear();
           break;
-        } catch (SQLException e) {
+        } catch (Exception e) {
           if (!BackOffUtils.next(Sleeper.DEFAULT, backOff)) {
-            throw e;
+            throw new RuntimeException("Failed to write to ClickHouse after retries", e);
           } else {
             retries.inc();
             LOG.warn(RETRY_ATTEMPT_LOG, attempt, e);
@@ -462,7 +632,9 @@ public class ClickHouseIO {
     @AutoValue.Builder
     abstract static class Builder<T> {
 
-      public abstract Builder<T> jdbcUrl(String jdbcUrl);
+      public abstract Builder<T> clickHouseUrl(String clickHouseUrl);
+
+      public abstract Builder<T> database(String database);
 
       public abstract Builder<T> table(String table);
 
@@ -491,57 +663,106 @@ public class ClickHouseIO {
         String.join(",", l).trim().replaceAll("Tuple\\(", "Tuple('").replaceAll(",", ",'");
     return content;
   }
+
   /**
-   * Returns {@link TableSchema} for a given table.
+   * Returns {@link TableSchema} for a given table using JDBC URL format.
    *
-   * @param jdbcUrl jdbc connection url
+   * <p><b>Deprecated:</b> Use {@link #getTableSchema(String, String, String, Properties)} instead
+   * with separate URL, database, table, and properties parameters.
+   *
+   * <p>This method parses the JDBC URL to extract connection details and properties. For new code,
+   * use the explicit parameter version for better clarity and control.
+   *
+   * <p>Example migration:
+   *
+   * <pre>{@code
+   * // Old way (deprecated):
+   * TableSchema schema = ClickHouseIO.getTableSchema(
+   *     "jdbc:clickhouse://localhost:8123/mydb?user=admin", "my_table");
+   *
+   * // New way:
+   * Properties props = new Properties();
+   * props.setProperty("user", "admin");
+   * TableSchema schema = ClickHouseIO.getTableSchema(
+   *     "http://localhost:8123", "mydb", "my_table", props);
+   * }</pre>
+   *
+   * @param jdbcUrl JDBC connection URL (e.g., jdbc:clickhouse://host:port/database?param=value)
    * @param table table name
    * @return table schema
+   * @deprecated Use {@link #getTableSchema(String, String, String, Properties)} with explicit
+   *     parameters
    */
+  @Deprecated
   public static TableSchema getTableSchema(String jdbcUrl, String table) {
+    ClickHouseJdbcUrlParser.ParsedJdbcUrl parsed = ClickHouseJdbcUrlParser.parse(jdbcUrl);
+    return getTableSchema(
+        parsed.getClickHouseUrl(), parsed.getDatabase(), table, parsed.getProperties());
+  }
+
+  /**
+   * Returns {@link TableSchema} for a given table using ClickHouse Java Client.
+   *
+   * @param clickHouseUrl ClickHouse connection url
+   * @param database ClickHouse database
+   * @param table table name
+   * @param properties connection properties
+   * @return table schema
+   * @since 2.72.0
+   */
+  public static TableSchema getTableSchema(
+      String clickHouseUrl, String database, String table, Properties properties) {
     List<TableSchema.Column> columns = new ArrayList<>();
 
-    try (ClickHouseConnection connection = new ClickHouseDataSource(jdbcUrl).getConnection();
-        Statement statement = connection.createStatement()) {
+    try {
+      String user = properties.getProperty("user", "default");
+      String password = properties.getProperty("password", "");
 
-      ResultSet rs = null; // try-finally is used because findbugs doesn't like try-with-resource
-      try {
-        rs = statement.executeQuery("DESCRIBE TABLE " + quoteIdentifier(table));
+      // Create ClickHouse Java Client
+      Client.Builder clientBuilder =
+          new Client.Builder()
+              .addEndpoint(clickHouseUrl)
+              .setUsername(user)
+              .setPassword(password)
+              .setDefaultDatabase(database)
+              .setClientName(
+                  String.format("Apache Beam/%s", ReleaseInfo.getReleaseInfo().getSdkVersion()));
 
-        while (rs.next()) {
-          String name = rs.getString("name");
-          String type = rs.getString("type");
-          String defaultTypeStr = rs.getString("default_type");
-          String defaultExpression = rs.getString("default_expression");
+      try (Client client = clientBuilder.build()) {
+        String query = "DESCRIBE TABLE " + quoteIdentifier(table);
 
-          ColumnType columnType = null;
-          if (type.toLowerCase().trim().startsWith("tuple(")) {
-            String content = tuplePreprocessing(type);
-            columnType = ColumnType.parse(content);
-          } else {
-            columnType = ColumnType.parse(type);
+        try (Records records = client.queryRecords(query).get()) {
+          for (GenericRecord record : records) {
+            String name = record.getString("name");
+            String type = record.getString("type");
+            String defaultTypeStr = record.getString("default_type");
+            String defaultExpression = record.getString("default_expression");
+
+            ColumnType columnType;
+            if (type.toLowerCase().trim().startsWith("tuple(")) {
+              String content = tuplePreprocessing(type);
+              columnType = ColumnType.parse(content);
+            } else {
+              columnType = ColumnType.parse(type);
+            }
+            DefaultType defaultType = DefaultType.parse(defaultTypeStr).orElse(null);
+
+            Object defaultValue;
+            if (DefaultType.DEFAULT.equals(defaultType)
+                && !Strings.isNullOrEmpty(defaultExpression)) {
+              defaultValue = ColumnType.parseDefaultExpression(columnType, defaultExpression);
+            } else {
+              defaultValue = null;
+            }
+
+            columns.add(TableSchema.Column.of(name, columnType, defaultType, defaultValue));
           }
-          DefaultType defaultType = DefaultType.parse(defaultTypeStr).orElse(null);
-
-          Object defaultValue;
-          if (DefaultType.DEFAULT.equals(defaultType)
-              && !Strings.isNullOrEmpty(defaultExpression)) {
-            defaultValue = ColumnType.parseDefaultExpression(columnType, defaultExpression);
-          } else {
-            defaultValue = null;
-          }
-
-          columns.add(TableSchema.Column.of(name, columnType, defaultType, defaultValue));
-        }
-      } finally {
-        if (rs != null) {
-          rs.close();
         }
       }
 
       return TableSchema.of(columns.toArray(new TableSchema.Column[0]));
-    } catch (SQLException e) {
-      throw new RuntimeException(e);
+    } catch (Exception e) {
+      throw new RuntimeException("Failed to get table schema for table: " + table, e);
     }
   }
 

@@ -93,3 +93,26 @@ pipelines:
         - type: PyTransform
           config:
             constructor: apache_beam.transforms.util.LogElements
+
+  # Test calcite_connection_properties option with PostgreSQL functions
+  - pipeline:
+      type: chain
+      transforms:
+        - type: Create
+          name: CreateData
+          config:
+            elements:
+              - {id: 1, text: "hello world"}
+              - {id: 2, text: "foo bar baz"}
+        - type: Sql
+          name: SqlWithPostgresFunction
+          config:
+            query: "SELECT id, INITCAP(text) as title_text FROM PCOLLECTION"
+        - type: AssertEqual
+          config:
+            elements:
+              - {id: 1, title_text: "Hello World"}
+              - {id: 2, title_text: "Foo Bar Baz"}
+    options:
+      calcite_connection_properties:
+        fun: "postgresql"

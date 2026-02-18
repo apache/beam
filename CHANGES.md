@@ -55,21 +55,26 @@
 * ([#X](https://github.com/apache/beam/issues/X)).
 -->
 
-
 # [2.72.0] - Unreleased
 
 ## Highlights
 
 * New highly anticipated feature X added to Python SDK ([#X](https://github.com/apache/beam/issues/X)).
 * New highly anticipated feature Y added to Java SDK ([#Y](https://github.com/apache/beam/issues/Y)).
+* Flink 2.0 support ([#36947](https://github.com/apache/beam/issues/36947)).
+
 
 ## I/Os
 
-* Support for X source added (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
+* Add Datadog IO support (Java) ([#37318](https://github.com/apache/beam/issues/37318)).
+* Remove Pubsublite IO support, since service will be deprecated in March 2026. ([#37375](https://github.com/apache/beam/issues/37375)).
+* (Java) ClickHouse - migrating from the legacy JDBC driver (v0.6.3) to ClickHouse Java Client v2 (v0.9.6). See the [class documentation](https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/clickhouse/ClickHouseIO.html) for migration guide   ([#37610](https://github.com/apache/beam/issues/37610)).
+* (Java) Upgraded GoogleAdsIO to use GoogleAdsIO API v23 ([#37620](https://github.com/apache/beam/issues/37620)).
 
 ## New Features / Improvements
 
-* X feature added (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
+* (Python) Added exception chaining to preserve error context in CloudSQLEnrichmentHandler, processes utilities, and core transforms ([#37422](https://github.com/apache/beam/issues/37422)).
+* (Python) Added a pipeline option `--experiments=pip_no_build_isolation` to disable build isolation when installing dependencies in the runtime environment ([#37331](https://github.com/apache/beam/issues/37331)).
 
 ## Breaking Changes
 
@@ -77,22 +82,23 @@
 
 ## Deprecations
 
-* X behavior is deprecated and will be removed in X versions ([#X](https://github.com/apache/beam/issues/X)).
+* (Python) Removed previously deprecated list_prefix method for filesystem interfaces ([#37587](https://github.com/apache/beam/issues/37587)).
 
 ## Bugfixes
 
-* Fixed X (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
+* Fixed (Yaml) issue with validate compatible method ([#37588](https://github.com/apache/beam/issues/37588)).
+* Fixed (Yaml) issue with Create transform dealing with different type elements ([#37585](https://github.com/apache/beam/issues/37585)).
 
 ## Security Fixes
 
-* Fixed [CVE-YYYY-NNNN](https://www.cve.org/CVERecord?id=CVE-YYYY-NNNN) (Java/Python/Go) ([#X](https://github.com/apache/beam/issues/X)).
+* Fixed [CVE-2024-28397](https://www.cve.org/CVERecord?id=CVE-2024-28397) by switching from js2py to pythonmonkey (Yaml) ([#37560](https://github.com/apache/beam/issues/37560)).
 
 ## Known Issues
 
 [comment]: # ( When updating known issues after release, make sure also update website blog in website/www/site/content/blog.)
 * ([#X](https://github.com/apache/beam/issues/X)).
 
-# [2.71.0] - Unreleased
+# [2.71.0] - 2026-01-22
 
 ## I/Os
 
@@ -109,9 +115,10 @@
 ## Bugfixes
 
 * Fixed FirestoreV1 Beam connectors allow configuring inconsistent project/database IDs between RPC requests and routing headers #36895 (Java) ([#36895](https://github.com/apache/beam/issues/36895)).
-* Logical type and coder registry are saved for pipelines in the case of default pickler. This fixes a side effect of switching to cloudpickle as default pickler in Beam 2.65.0 (Python) ([#35738](https://github.com/apache/beam/issues/35738)).
+* Logical type and coder registry are saved for pipelines in the case of default pickler ([#36271](https://github.com/apache/beam/issues/36271)). This fixes a side effect of switching to cloudpickle as default pickler in Beam 2.65.0 (Python) ([#35738](https://github.com/apache/beam/issues/35738)).
 
 ## Known Issues
+
 
 # [2.70.0] - 2025-12-16
 
@@ -183,6 +190,7 @@ Now Beam has full support for Milvus integration including Milvus enrichment and
 * Minimum Go version for Beam Go updated to 1.25.2 ([#36461](https://github.com/apache/beam/issues/36461)).
 * (Java) DoFn OutputReceiver now requires implementing a builder method as part of extended metadata support for elements ([#34902](https://github.com/apache/beam/issues/34902)).
 * (Java) Removed ProcessContext outputWindowedValue introduced in 2.68 that allowed setting offset and record Id. Use OutputReceiver's builder to set those field ([#36523](https://github.com/apache/beam/pull/36523)).
+* (Python) The pip version used by ensurepip is upgraded to 25.3, which enables build isolation by default. As a result, pip needs internet access to download setuptools and set up an isolated virtual environment to build wheels when installing packages. If the user environment does not have internet access, it could lead to a timeout error. See ([#37331](https://github.com/apache/beam/pull/37331)) for more details and workarounds.
 
 ## Bugfixes
 
@@ -196,7 +204,7 @@ Now Beam has full support for Milvus integration including Milvus enrichment and
 
 ## Highlights
 
-* [Python] Prism runner now enabled by default for most Python pipelines using the direct runner ([#34612](https://github.com/apache/beam/pull/34612)). This may break some tests, see https://github.com/apache/beam/pull/34612 for details on how to handle issues.
+* (Python) Prism runner now enabled by default for most Python pipelines using the direct runner ([#34612](https://github.com/apache/beam/pull/34612)). This may break some tests, see https://github.com/apache/beam/pull/34612 for details on how to handle issues.
 
 ## I/Os
 
@@ -212,7 +220,7 @@ Now Beam has full support for Milvus integration including Milvus enrichment and
   Beam now supports data enrichment capabilities using SQL databases, with built-in support for:
   - Managed PostgreSQL, MySQL, and Microsoft SQL Server instances on CloudSQL
   - Unmanaged SQL database instances not hosted on CloudSQL (e.g., self-hosted or on-premises databases)
-* [Python] Added the `ReactiveThrottler` and `ThrottlingSignaler` classes to streamline throttling behavior in DoFns, expose throttling mechanisms for users ([#35984](https://github.com/apache/beam/pull/35984))
+* (Python) Added the `ReactiveThrottler` and `ThrottlingSignaler` classes to streamline throttling behavior in DoFns, expose throttling mechanisms for users ([#35984](https://github.com/apache/beam/pull/35984))
 * Added a pipeline option to specify the processing timeout for a single element by any PTransform (Java/Python/Go) ([#35174](https://github.com/apache/beam/issues/35174)).
   - When specified, the SDK harness automatically restarts if an element takes too long to process. Beam runner may then retry processing of the same work item.
   - Use the `--element_processing_timeout_minutes` option to reduce the chance of having stalled pipelines due to unexpected cases of slow processing, where slowness might not happen again if processing of the same element is retried.

@@ -145,7 +145,7 @@ if sys.platform == 'win32' and sys.maxsize <= 2**32:
   pyarrow_dependency = ['']
 else:
   pyarrow_dependency = [
-      'pyarrow>=3.0.0,<19.0.0',
+      'pyarrow>=6.0.1,<24.0.0',
       # NOTE(https://github.com/apache/beam/issues/29392): We can remove this
       # once Beam increases the pyarrow lower bound to a version that fixes CVE.
       # (lower bound >= 14.0.1)
@@ -479,13 +479,13 @@ if __name__ == '__main__':
               'google-auth-httplib2>=0.1.0,<0.3.0',
               'google-cloud-datastore>=2.0.0,<3',
               'google-cloud-pubsub>=2.1.0,<3',
-              'google-cloud-pubsublite>=1.2.0,<2',
               'google-cloud-storage>=2.18.2,<3',
               # GCP packages required by tests
               'google-cloud-bigquery>=2.0.0,<4',
               'google-cloud-bigquery-storage>=2.6.3,<3',
               'google-cloud-core>=2.0.0,<3',
               'google-cloud-bigtable>=2.19.0,<3',
+              'google-cloud-build>=3.35.0,<4',
               'google-cloud-spanner>=3.0.0,<4',
               # GCP Packages required by ML functionality
               'google-cloud-dlp>=3.0.0,<4',
@@ -574,8 +574,9 @@ if __name__ == '__main__':
               'docstring-parser>=0.15,<1.0',
               'jinja2>=3.0,<3.2',
               'virtualenv-clone>=0.5,<1.0',
-              # https://github.com/PiotrDabkowski/Js2Py/issues/317
-              'js2py>=0.74,<1; python_version<"3.12"',
+              # pythonmonkey is used for Javascript mapping support
+              # Please install NPM and Node.js before installing PythonMonkey.
+              'pythonmonkey>=1.3.0',
               'jsonschema>=4.0.0,<5.0.0',
           ] + dataframe_dependency,
           # Keep the following dependencies in line with what we test against

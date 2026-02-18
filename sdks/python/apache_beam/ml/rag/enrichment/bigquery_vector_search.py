@@ -28,7 +28,7 @@ from typing import Union
 
 from google.cloud import bigquery
 
-from apache_beam.ml.rag.types import Chunk
+from apache_beam.ml.rag.types import EmbeddableItem
 from apache_beam.ml.rag.types import Embedding
 from apache_beam.transforms.enrichment import EnrichmentSourceHandler
 
@@ -41,13 +41,13 @@ class BigQueryVectorSearchParameters:
 
     This class is used by BigQueryVectorSearchEnrichmentHandler to perform
     vector similarity search using BigQuery's VECTOR_SEARCH function. It
-    processes :class:`~apache_beam.ml.rag.types.Chunk` objects that contain
-    :class:`~apache_beam.ml.rag.types.Embedding` and returns similar vectors
-    from a BigQuery table.
+    processes :class:`~apache_beam.ml.rag.types.EmbeddableItem` objects that
+    contain :class:`~apache_beam.ml.rag.types.Embedding` and returns similar
+    vectors from a BigQuery table.
 
     BigQueryVectorSearchEnrichmentHandler is used with
     :class:`~apache_beam.transforms.enrichment.Enrichment` transform to enrich
-    Chunks with similar content from a vector database. For example:
+    EmbeddableItems with similar content from a vector database. For example:
 
     >>> # Create search parameters
     >>> params = BigQueryVectorSearchParameters(
@@ -58,7 +58,7 @@ class BigQueryVectorSearchParameters:
     ... )
     >>> # Use in pipeline
     >>> enriched = (
-    ...     chunks
+    ...     embeddable_items
     ...     | "Generate Embeddings" >> MLTransform(...)
     ...     | "Find Similar" >> Enrichment(
     ...         BigQueryVectorSearchEnrichmentHandler(
@@ -89,11 +89,11 @@ class BigQueryVectorSearchParameters:
         ...     columns=['content', 'language'],
         ...     neighbor_count=5,
         ...     # For column 'language', value comes from 
-        ...     # chunk.metadata['language']
+        ...     # embeddable_item.metadata['language']
         ...     metadata_restriction_template="language = '{language}'"
         ... )
-        >>> # When processing a chunk with metadata={'language': 'en'},
-        >>> # generates: WHERE language = 'en'
+        >>> # When processing a embeddable_item with
+        >>> # metadata={'language': 'en'}, generates: WHERE language = 'en'
 
     Example with nested repeated metadata:
     
@@ -113,12 +113,14 @@ class BigQueryVectorSearchParameters:
         ...     embedding_column='embedding',
         ...     columns=['content', 'metadata'],
         ...     neighbor_count=5,
-        ...     # check_metadata(field_name, key_to_search, value_from_chunk)
+        ...     # check_metadata(field_name, key_to_search,
+        ...     # value_from_embeddable_item)
         ...     metadata_restriction_template=(
         ...         "check_metadata(metadata, 'language', '{language}')"
         ...     )
         ... )
-        >>> # When processing a chunk with metadata={'language': 'en'},
+        >>> # When processing a embeddable_item with
+        >>> # metadata={'language': 'en'},
         >>> # generates: WHERE check_metadata(metadata, 'language', 'en')
         >>> # Searches for {key: 'language', value: 'en'} in metadata array
 
@@ -134,13 +136,13 @@ class BigQueryVectorSearchParameters:
             1. For flattened metadata columns: 
                ``column_name = '{metadata_key}'`` where column_name is the 
                BigQuery column and metadata_key is used to get the value from 
-               chunk.metadata[metadata_key].
+               embeddable_item.metadata[metadata_key].
             2. For nested repeated metadata (ARRAY<STRUCT<key,value>>):
                ``check_metadata(field_name, 'key_to_match', '{metadata_key}')``
                where field_name is the ARRAY<STRUCT> column in BigQuery,
                key_to_match is the literal key to search for in the array, and
                metadata_key is used to get value from
-               chunk.metadata[metadata_key].
+               embeddable_item.metadata[metadata_key].
             
             Multiple conditions can be combined using AND/OR operators. For
             example::
@@ -150,7 +152,8 @@ class BigQueryVectorSearchParameters:
                 ...     "check_metadata(metadata, 'language', '{language}') "
                 ...     "AND source = '{source}'"
                 ... )
-                >>> # When chunk.metadata = {'language': 'en', 'source': 'web'}
+                >>> # When embeddable_item.metadata = {'language': 'en',
+                >>> # 'source': 'web'}
                 >>> # Generates: WHERE 
                 >>> #             check_metadata(metadata, 'language', 'en')
                 >>> #           AND source = 'web'
@@ -165,23 +168,24 @@ class BigQueryVectorSearchParameters:
   embedding_column: str
   columns: List[str]
   neighbor_count: int
-  metadata_restriction_template: Optional[Union[str, Callable[[Chunk],
-                                                              str]]] = None
+  metadata_restriction_template: Optional[Union[str,
+                                                Callable[[EmbeddableItem],
+                                                         str]]] = None
   distance_type: Optional[str] = None
   options: Optional[Dict[str, Any]] = None
   include_distance: bool = False
 
-  def _format_restrict(self, chunk: Chunk) -> str:
+  def _format_restrict(self, item: EmbeddableItem) -> str:
     assert self.metadata_restriction_template is not None, (
         "metadata_restriction_template cannot be None when formatting. "
         "This indicates a logical error in the code."
     )
 
     if callable(self.metadata_restriction_template):
-      return self.metadata_restriction_template(chunk)
-    return self.metadata_restriction_template.format(**chunk.metadata)
+      return self.metadata_restriction_template(item)
+    return self.metadata_restriction_template.format(**item.metadata)
 
-  def format_query(self, chunks: List[Chunk]) -> str:
+  def format_query(self, items: List[EmbeddableItem]) -> str:
     """Format the vector search query template."""
     base_columns_str = ", ".join(f"base.{col}" for col in self.columns)
     columns_str = ", ".join(self.columns)
@@ -204,27 +208,27 @@ class BigQueryVectorSearchParameters:
         ));
     """ if self.metadata_restriction_template else ""
 
-    # Group chunks by their metadata conditions
+    # Group items by their metadata conditions
     condition_groups = defaultdict(list)
     if self.metadata_restriction_template:
-      for chunk in chunks:
-        condition = self._format_restrict(chunk)
-        condition_groups[condition].append(chunk)
+      for item in items:
+        condition = self._format_restrict(item)
+        condition_groups[condition].append(item)
     else:
-      # No metadata filtering - all chunks in one group
-      condition_groups[""] = chunks
+      # No metadata filtering - all items in one group
+      condition_groups[""] = items
 
     # Generate VECTOR_SEARCH subqueries for each condition group
     vector_searches = []
-    for condition, group_chunks in condition_groups.items():
+    for condition, group_items in condition_groups.items():
       # Create embeddings subquery for this group
       embedding_unions = []
-      for chunk in group_chunks:
-        if not chunk.dense_embedding:
-          raise ValueError(f"Chunk {chunk.id} missing embedding")
+      for item in group_items:
+        if not item.dense_embedding:
+          raise ValueError(f"Item {item.id} missing embedding")
         embedding_str = (
-            f"SELECT '{chunk.id}' as id, "
-            f"{[float(x) for x in chunk.dense_embedding]} "
+            f"SELECT '{item.id}' as id, "
+            f"{[float(x) for x in item.dense_embedding]} "
             f"as embedding")
         embedding_unions.append(embedding_str)
       group_embeddings = " UNION ALL ".join(embedding_unions)
@@ -235,10 +239,11 @@ class BigQueryVectorSearchParameters:
             SELECT 
                 query.id,
                 ARRAY_AGG(
-                    STRUCT({"distance, " if self.include_distance else ""} {base_columns_str})
-                ) as chunks
+                    STRUCT({"distance, " if self.include_distance else ""}\
+ {base_columns_str})
+                ) as embeddable_items
             FROM VECTOR_SEARCH(
-                (SELECT {columns_str}, {self.embedding_column} 
+                (SELECT {columns_str}, {self.embedding_column}
                  FROM `{self.table_name}`
                  {where_clause}),
                 '{self.embedding_column}',
@@ -262,16 +267,18 @@ class BigQueryVectorSearchParameters:
 
 
 class BigQueryVectorSearchEnrichmentHandler(
-    EnrichmentSourceHandler[Union[Chunk, List[Chunk]],
-                            List[Tuple[Chunk, Dict[str, Any]]]]):
+    EnrichmentSourceHandler[Union[EmbeddableItem, List[EmbeddableItem]],
+                            List[Tuple[EmbeddableItem, Dict[str, Any]]]]):
   """Enrichment handler that performs vector similarity search using BigQuery.
   
-  This handler enriches Chunks by finding similar vectors in a BigQuery table
-  using the VECTOR_SEARCH function. It supports batching requests for efficiency
-  and preserves the original Chunk metadata while adding the search results.
+  This handler enriches EmbeddableItems by finding similar vectors in a
+  BigQuery table using the VECTOR_SEARCH function. It supports batching
+  requests for efficiency and preserves the original metadata while adding
+  the search results.
 
   Example:
-      >>> from apache_beam.ml.rag.types import Chunk, Content, Embedding
+      >>> from apache_beam.ml.rag.types import EmbeddableItem
+      >>> from apache_beam.ml.rag.types import Content, Embedding
       >>> 
       >>> # Configure vector search
       >>> params = BigQueryVectorSearchParameters(
@@ -295,7 +302,7 @@ class BigQueryVectorSearchEnrichmentHandler(
       ...     enriched = (
       ...         p 
       ...         | beam.Create([
-      ...             Chunk(
+      ...             EmbeddableItem(
       ...                 id='query1',
       ...                 embedding=Embedding(dense_embedding=[0.1, 0.2, 0.3]),
       ...                 content=Content(text='test query'),
@@ -307,16 +314,16 @@ class BigQueryVectorSearchEnrichmentHandler(
 
   Args:
       vector_search_parameters: Configuration for the vector search query
-      min_batch_size: Minimum number of chunks to batch before processing
-      max_batch_size: Maximum number of chunks to process in one batch
+      min_batch_size: Minimum number of items to process in one batch
+      max_batch_size: Maximum number of items to process in one batch
       log_query: Debug option to log the BigQuery query
       **kwargs: Additional arguments passed to bigquery.Client
 
   The handler will:
-  1. Batch incoming chunks according to batch size parameters
+  1. Batch incoming embeddable_items according to batch size parameters
   2. Format and execute vector search query for each batch
-  3. Join results back to original chunks
-  4. Return tuples of (original_chunk, search_results)
+  3. Join results back to original embeddable_items
+  4. Return tuples of (original_embeddable_item, search_results)
   """
   def __init__(
       self,
@@ -339,17 +346,20 @@ class BigQueryVectorSearchEnrichmentHandler(
   def __enter__(self):
     self.client = bigquery.Client(project=self.project, **self.kwargs)
 
-  def __call__(self, request: Union[Chunk, List[Chunk]], *args,
-               **kwargs) -> List[Tuple[Chunk, Dict[str, Any]]]:
+  def __call__(
+      self,
+      request: Union[EmbeddableItem, List[EmbeddableItem]],
+      *args,
+      **kwargs) -> List[Tuple[EmbeddableItem, Dict[str, Any]]]:
     """Process request(s) using BigQuery vector search.
         
         Args:
-            request: Single Chunk with embedding or list of Chunk's with
-            embeddings to process
-            
+            request: Single EmbeddableItem with embedding or list of
+            EmbeddableItems with embeddings to process
+
         Returns:
-            Chunk(s) where chunk.metadata['enrichment_output'] contains the
-            data retrieved via BigQuery VECTOR_SEARCH.
+            EmbeddableItem(s) where metadata['enrichment_output'] contains
+            the data retrieved via BigQuery VECTOR_SEARCH.
         """
     # Convert single request to list for uniform processing
     requests = request if isinstance(request, list) else [request]
@@ -361,17 +371,18 @@ class BigQueryVectorSearchEnrichmentHandler(
     query_job = self.client.query(query)
     results = query_job.result()
 
-    # Create results dict with empty chunks list as default
+    # Create results dict with empty embeddable_items list as default
     results_by_id = {}
     for result_row in results:
       result_dict = dict(result_row.items())
       results_by_id[result_row.id] = result_dict
 
-    # Return all chunks in original order, with empty results if no matches
+    # Return all embeddable_items in original order, with empty results if
+    # no matches
     response = []
-    for chunk in requests:
-      result_dict = results_by_id.get(chunk.id, {})
-      response.append((chunk, result_dict))
+    for embeddable_item in requests:
+      result_dict = results_by_id.get(embeddable_item.id, {})
+      response.append((embeddable_item, result_dict))
 
     return response
 

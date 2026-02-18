@@ -16,9 +16,16 @@
 #
 
 """Core types for RAG pipelines.
+
 This module contains the core dataclasses used throughout the RAG pipeline
-implementation, including Chunk and Embedding types that define the data
-contracts between different stages of the pipeline.
+implementation. The primary type is EmbeddableItem, which represents any
+content that can be embedded and stored in a vector database.
+
+Types:
+  - Content: Container for embeddable content
+  - Embedding: Vector embedding with optional metadata
+  - EmbeddableItem: Universal container for embeddable content
+  - Chunk: Alias for EmbeddableItem (backward compatibility)
 """
 
 import uuid
@@ -33,49 +40,88 @@ from typing import Tuple
 
 @dataclass
 class Content:
-  """Container for embeddable content. Add new types as when as necessary.
+  """Container for embeddable content.
 
-    Args:
-        text: Text content to be embedded
-    """
+  Args:
+      text: Text content to be embedded.
+  """
   text: Optional[str] = None
 
 
 @dataclass
 class Embedding:
-  """Represents vector embeddings.
+  """Represents vector embeddings with optional metadata.
 
-    Args:
-        dense_embedding: Dense vector representation
-        sparse_embedding: Optional sparse vector representation for hybrid
-          search
-    """
+  Args:
+      dense_embedding: Dense vector representation.
+      sparse_embedding: Optional sparse vector representation for hybrid search.
+  """
   dense_embedding: Optional[List[float]] = None
-  # For hybrid search
   sparse_embedding: Optional[Tuple[List[int], List[float]]] = None
 
 
 @dataclass
-class Chunk:
-  """Represents a chunk of embeddable content with metadata.
+class EmbeddableItem:
+  """Universal container for embeddable content.
 
-    Args:
-        content: The actual content of the chunk
-        id: Unique identifier for the chunk
-        index: Index of this chunk within the original document
-        metadata: Additional metadata about the chunk (e.g., document source)
-        embedding: Vector embeddings of the content
-    """
+  Represents any content that can be embedded and stored in a vector database.
+  Use factory methods for convenient construction, or construct directly with
+  a Content object.
+
+  Examples:
+      Text (via factory):
+          item = EmbeddableItem.from_text(
+              "hello world", metadata={'src': 'doc'})
+
+      Text (direct, equivalent to old Chunk usage):
+          item = EmbeddableItem(content=Content(text="hello"), index=3)
+
+  Args:
+      content: The content to embed.
+      id: Unique identifier.
+      index: Position within source document (for chunking use cases).
+      metadata: Additional metadata (e.g., document source, language).
+      embedding: Embedding populated by the embedding step.
+  """
   content: Content
   id: str = field(default_factory=lambda: str(uuid.uuid4()))
   index: int = 0
   metadata: Dict[str, Any] = field(default_factory=dict)
   embedding: Optional[Embedding] = None
 
+  @classmethod
+  def from_text(
+      cls,
+      text: str,
+      *,
+      id: Optional[str] = None,
+      index: int = 0,
+      metadata: Optional[Dict[str, Any]] = None,
+  ) -> 'EmbeddableItem':
+    """Create an EmbeddableItem with text content.
+
+    Args:
+        text: The text content to embed
+        id: Unique identifier (auto-generated if not provided)
+        index: Position within source document (for chunking)
+        metadata: Additional metadata
+    """
+    return cls(
+        content=Content(text=text),
+        id=id or str(uuid.uuid4()),
+        index=index,
+        metadata=metadata or {},
+    )
+
   @property
-  def dense_embedding(self):
+  def dense_embedding(self) -> Optional[List[float]]:
     return self.embedding.dense_embedding if self.embedding else None
 
   @property
-  def sparse_embedding(self):
+  def sparse_embedding(self) -> Optional[Tuple[List[int], List[float]]]:
     return self.embedding.sparse_embedding if self.embedding else None
+
+
+# Backward compatibility alias. Existing code using Chunk continues to work
+# unchanged since Chunk IS EmbeddableItem.
+Chunk = EmbeddableItem

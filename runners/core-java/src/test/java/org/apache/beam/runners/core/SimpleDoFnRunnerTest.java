@@ -46,6 +46,7 @@ import org.apache.beam.sdk.transforms.windowing.GlobalWindows;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
 import org.apache.beam.sdk.util.UserCodeException;
 import org.apache.beam.sdk.util.WindowedValueMultiReceiver;
+import org.apache.beam.sdk.values.CausedByDrain;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.WindowedValue;
@@ -701,7 +702,8 @@ public class SimpleDoFnRunnerTest {
               StateNamespaces.window(windowCoder, (W) context.window()),
               context.fireTimestamp(),
               context.timestamp(),
-              context.timeDomain()));
+              context.timeDomain(),
+              CausedByDrain.NORMAL));
     }
   }
 
