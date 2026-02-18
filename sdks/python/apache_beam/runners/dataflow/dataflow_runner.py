@@ -59,7 +59,7 @@ from apache_beam.utils.plugin import BeamPlugin
 try:
   from google.cloud import dataflow as dataflow_api
 except ImportError:
-  dataflow_api = None # type: ignore
+  dataflow_api = None  # type: ignore
 # pylint: enable=wrong-import-order, wrong-import-position
 
 if TYPE_CHECKING:
@@ -157,14 +157,14 @@ class DataflowRunner(PipelineRunner):
       # If get() is called very soon after Create() the response may not contain
       # an initialized 'current_state' field.
       if response.current_state is not None:
-        if response.current_sttate != last_job_state:
+        if response.current_state != last_job_state:
           if state_update_callback:
             state_update_callback(response.current_state)
           _LOGGER.info('Job %s is in state %s', job_id, response.current_state)
           last_job_state = response.current_state
         if str(response.current_state) not in ('JOB_STATE_RUNNING',
-                                              'JOB_STATE_PAUSED',
-                                              'JOB_STATE_PAUSING'):
+                                               'JOB_STATE_PAUSED',
+                                               'JOB_STATE_PAUSING'):
           # Stop checking for new messages on timeout, explanatory
           # message received, success, or a terminal job state caused
           # by the user that therefore doesn't require explanation.
@@ -191,7 +191,8 @@ class DataflowRunner(PipelineRunner):
         messages, page_token = runner.dataflow_client.list_messages(
             job_id, page_token=page_token, start_time=last_message_time)
         for m in messages:
-          message = '%s: %s: %s' % (m.time, m.message_importance, m.message_text)
+          message = '%s: %s: %s' % (
+              m.time, m.message_importance, m.message_text)
 
           if not last_message_time or m.time > last_message_time:
             last_message_time = m.time
@@ -205,9 +206,9 @@ class DataflowRunner(PipelineRunner):
           else:
             current_seen_messages.add(message)
           # Skip empty messages.
-          if m.messageImportance is None:
+          if m.message_importance is None:
             continue
-          message_importance = str(m.messageImportance)
+          message_importance = str(m.message_importance)
           if (message_importance == 'JOB_MESSAGE_DEBUG' or
               message_importance == 'JOB_MESSAGE_DETAILED'):
             _LOGGER.debug(message)
@@ -217,9 +218,9 @@ class DataflowRunner(PipelineRunner):
             _LOGGER.warning(message)
           elif message_importance == 'JOB_MESSAGE_ERROR':
             _LOGGER.error(message)
-            if rank_error(m.messageText) >= last_error_rank:
-              last_error_rank = rank_error(m.messageText)
-              last_error_msg = m.messageText
+            if rank_error(m.message_text) >= last_error_rank:
+              last_error_rank = rank_error(m.message_text)
+              last_error_msg = m.message_text
           else:
             _LOGGER.info(message)
         if not page_token:
