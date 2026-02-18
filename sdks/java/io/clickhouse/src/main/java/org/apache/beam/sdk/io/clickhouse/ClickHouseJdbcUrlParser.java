@@ -117,6 +117,8 @@ class ClickHouseJdbcUrlParser {
   /**
    * Extracts and normalizes the HTTP/HTTPS URL from a JDBC URL.
    *
+   * <p>Automatically detects HTTPS based on port 8443 or ssl=true parameter.
+   *
    * @param jdbcUrl the JDBC URL to process
    * @return normalized HTTP/HTTPS URL
    * @throws IllegalArgumentException if the URL format is invalid
@@ -140,10 +142,16 @@ class ClickHouseJdbcUrlParser {
               + jdbcUrl);
     }
 
-    // Check if URL already has a scheme and validate it
-    if (actualUrl.toLowerCase().startsWith("http://")
-        || actualUrl.toLowerCase().startsWith("https://")) {
-      return actualUrl;
+    boolean useHttps = false;
+
+    // Check if port suggests HTTPS (8443 is default HTTPS port for ClickHouse)
+    if (actualUrl.contains(":8443")) {
+      useHttps = true;
+    }
+
+    // Check if ssl=true in query string
+    if (actualUrl.toLowerCase().contains("ssl=true")) {
+      useHttps = true;
     }
 
     // Check for invalid schemes before prepending http://
@@ -151,17 +159,24 @@ class ClickHouseJdbcUrlParser {
       // Extract the scheme part
       int schemeEnd = actualUrl.indexOf("://");
       String scheme = actualUrl.substring(0, schemeEnd).toLowerCase();
-      if (!scheme.equals("http") && !scheme.equals("https")) {
+
+      if (scheme.equals("http") || scheme.equals("https")) {
+        // If http:// but ssl=true detected, upgrade to https://
+        if (scheme.equals("http") && useHttps) {
+          actualUrl = "https://" + actualUrl.substring(schemeEnd + 3);
+        }
+        return actualUrl;
+      } else {
         throw new IllegalArgumentException(
             "Invalid scheme in JDBC URL. Expected 'http' or 'https'. Got: " + scheme);
       }
     }
 
-    // If URL doesn't start with http:// or https://, assume http://
+    // If URL doesn't start with http:// or https://, add the appropriate scheme
     if (actualUrl.startsWith("//")) {
-      actualUrl = "http:" + actualUrl;
+      actualUrl = (useHttps ? "https:" : "http:") + actualUrl;
     } else {
-      actualUrl = "http://" + actualUrl;
+      actualUrl = (useHttps ? "https://" : "http://") + actualUrl;
     }
 
     return actualUrl;
