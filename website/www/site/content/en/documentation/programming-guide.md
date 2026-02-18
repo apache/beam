@@ -6717,6 +6717,10 @@ _ = (p | 'Read per user' >> ReadPerUser()
        | 'Set state pardo' >> beam.ParDo(OrderedListStateDoFn()))
 {{< /highlight >}}
 
+{{< highlight go >}}
+{{< code_sample "sdks/go/examples/snippets/04transforms.go" ordered_list_state >}}
+{{< /highlight >}}
+
 #### MultimapState {#multimap-state}
 `MultimapState` allow one key mapped to different values but the key value could be unordered.
 

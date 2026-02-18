@@ -69,6 +69,7 @@
 ## New Features / Improvements
 
 * X feature added (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
+* Added OrderedListState support to the Go SDK stateful DoFn API (Go) ([#37629](https://github.com/apache/beam/pull/37629).
 
 ## Breaking Changes
 
