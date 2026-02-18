@@ -32,6 +32,7 @@
 #    --tests -> A space-seperated list of targets for "go test", written with
 #        beam/sdks/go as the working directory. Defaults to all packages in the
 #        integration and regression directories.
+#    --run -> To select which tests to run
 #    --timeout -> Timeout for the go test command, on a per-package level.
 #    --simultaneous -> Number of simultaneous packages to test.
 #        Controls the -p flag for the go test command.
@@ -126,6 +127,11 @@ case $key in
         ;;
     --runner)
         RUNNER="$2"
+        shift # past argument
+        shift # past value
+        ;;
+    --run)
+        TEST_RUN="$2"
         shift # past argument
         shift # past value
         ;;
@@ -229,8 +235,8 @@ case $key in
         shift # past argument
         shift # past value
         ;;
-    --java11_home)
-        JAVA11_HOME="$2"
+    --prebuild_go_docker_tag)
+        PREBUILD_GO_DOCKER_TAG="$2"
         shift # past argument
         shift # past value
         ;;
@@ -427,8 +433,12 @@ if [[ "$RUNNER" == "dataflow" ]]; then
     fi
   fi
 else
-  TAG=dev
-  ./gradlew :sdks:go:container:docker -Pdocker-tag=$TAG
+  if [[ -n {PREBUILD_GO_DOCKER_TAG} ]]; then
+    TAG=$PREBUILD_GO_DOCKER_TAG
+  else
+    TAG=dev
+    ./gradlew :sdks:go:container:docker -Pdocker-tag=$TAG
+  fi
   CONTAINER=apache/beam_go_sdk
 fi
 
@@ -447,6 +457,9 @@ ARGS="$ARGS --environment_config=$CONTAINER:$TAG"
 ARGS="$ARGS --staging_location=$GCS_LOCATION/staging-validatesrunner-test/$GCS_SUBFOLDER"
 ARGS="$ARGS --temp_location=$GCS_LOCATION/temp-validatesrunner-test/$GCS_SUBFOLDER"
 ARGS="$ARGS --endpoint=$ENDPOINT"
+if [[ -n "$TEST_RUN" ]]; then
+  ARGS="$ARGS -run $TEST_RUN"
+fi
 if [[ -n "$TEST_EXPANSION_ADDR" ]]; then
   ARGS="$ARGS --test_expansion_addr=$TEST_EXPANSION_ADDR"
 fi
