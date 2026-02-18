@@ -75,7 +75,7 @@
 * (Python) Added exception chaining to preserve error context in CloudSQLEnrichmentHandler, processes utilities, and core transforms ([#37422](https://github.com/apache/beam/issues/37422)).
 * (Python) Added a pipeline option `--experiments=pip_no_build_isolation` to disable build isolation when installing dependencies in the runtime environment ([#37331](https://github.com/apache/beam/issues/37331)).
 * X feature added (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
-* Added OrderedListState support to the Go SDK stateful DoFn API (Go) ([#X](https://github.com/apache/beam/issues/X)).
+* Added OrderedListState support to the Go SDK stateful DoFn API (Go) ([#37629](https://github.com/apache/beam/pull/37629).
 
 ## Breaking Changes
 
