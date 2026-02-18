@@ -16,8 +16,10 @@
 package exec
 
 import (
+	"encoding/json"
 	"fmt"
 	"math/rand"
+	"reflect"
 	"strconv"
 	"strings"
 
@@ -25,10 +27,12 @@ import (
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/coder"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/window"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime/graphx"
 	v1pb "github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime/graphx/v1"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/timers"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/typex"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/util/jsonx"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/util/protox"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/internal/errors"
 	fnpb "github.com/apache/beam/sdks/v2/go/pkg/beam/model/fnexecution_v1"
@@ -275,6 +279,27 @@ func unmarshalWindowFn(wfn *pipepb.FunctionSpec) (*window.Fn, error) {
 		gap := gapPB.AsDuration()
 		return window.NewSessions(gap), nil
 
+	case graphx.URNCustomWindowFn:
+		var envelope struct {
+			Type    string          `json:"type"`
+			Payload json.RawMessage `json:"payload"`
+		}
+		if err := json.Unmarshal(wfn.GetPayload(), &envelope); err != nil {
+			return nil, errors.Wrapf(err, "unmarshaling custom WindowFn envelope")
+		}
+		t, ok := runtime.LookupType(envelope.Type)
+		if !ok {
+			return nil, errors.Errorf("custom WindowFn type key %q not found in registry", envelope.Type)
+		}
+		if window.LookupWindowFnMeta(t) == nil {
+			return nil, errors.Errorf("type %v is not registered via window.RegisterWindowFn", t)
+		}
+		val := reflect.New(t)
+		if err := jsonx.Unmarshal(val.Interface(), envelope.Payload); err != nil {
+			return nil, errors.Wrapf(err, "unmarshaling custom WindowFn %v", t)
+		}
+		return window.NewCustom(val.Interface()), nil
+
 	default:
 		return nil, errors.Errorf("unsupported window type: %v", urn)
 	}
@@ -312,6 +337,30 @@ func unmarshalAndMakeWindowMapping(wmfn *pipepb.FunctionSpec) (WindowMapper, err
 		}
 		size := sizePB.AsDuration()
 		return &windowMapper{wfn: window.NewSlidingWindows(period, size)}, nil
+	case graphx.URNWindowMappingCustom:
+		var envelope struct {
+			Type    string          `json:"type"`
+			Payload json.RawMessage `json:"payload"`
+		}
+		if err := json.Unmarshal(wmfn.GetPayload(), &envelope); err != nil {
+			return nil, errors.Wrapf(err, "unmarshaling custom window mapping envelope")
+		}
+		t, ok := runtime.LookupType(envelope.Type)
+		if !ok {
+			return nil, errors.Errorf("custom WindowFn type key %q not found in registry", envelope.Type)
+		}
+		meta := window.LookupWindowFnMeta(t)
+		if meta == nil {
+			return nil, errors.Errorf("type %v is not registered via window.RegisterWindowFn", t)
+		}
+		if meta.NeedsElement() {
+			return nil, errors.Errorf("element-aware custom WindowFn %v cannot be used for side input window mapping", t)
+		}
+		val := reflect.New(t)
+		if err := jsonx.Unmarshal(val.Interface(), envelope.Payload); err != nil {
+			return nil, errors.Wrapf(err, "unmarshaling custom WindowFn %v for window mapping", t)
+		}
+		return &windowMapper{wfn: window.NewCustom(val.Interface())}, nil
 	default:
 		return nil, fmt.Errorf("unsupported window mapping fn URN %v", urn)
 	}
