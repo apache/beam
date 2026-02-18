@@ -17,12 +17,7 @@
  */
 package org.apache.beam.sdk.io.gcp.spanner.changestreams.it;
 
-import com.google.cloud.spanner.DatabaseAdminClient;
-import com.google.cloud.spanner.DatabaseClient;
-import com.google.cloud.spanner.DatabaseId;
-import com.google.cloud.spanner.Dialect;
-import com.google.cloud.spanner.Spanner;
-import com.google.cloud.spanner.SpannerOptions;
+import com.google.cloud.spanner.*;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -81,6 +76,10 @@ public class IntegrationTestEnv extends ExternalResource {
             .setProjectId(projectId)
             .setHost(host)
             .disableGrpcGcpExtension()
+            .setSessionPoolOption(
+                SessionPoolOptions.newBuilder()
+                    .setWaitForMinSessionsDuration(java.time.Duration.ofMinutes(5))
+                    .build())
             .build()
             .getService();
     databaseAdminClient = spanner.getDatabaseAdminClient();
