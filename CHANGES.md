@@ -69,12 +69,12 @@
 * Add Datadog IO support (Java) ([#37318](https://github.com/apache/beam/issues/37318)).
 * Remove Pubsublite IO support, since service will be deprecated in March 2026. ([#37375](https://github.com/apache/beam/issues/37375)).
 * (Java) ClickHouse - migrating from the legacy JDBC driver (v0.6.3) to ClickHouse Java Client v2 (v0.9.6). See the [class documentation](https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/clickhouse/ClickHouseIO.html) for migration guide   ([#37610](https://github.com/apache/beam/issues/37610)).
+* (Java) Upgraded GoogleAdsIO to use GoogleAdsIO API v23 ([#37620](https://github.com/apache/beam/issues/37620)).
 
 ## New Features / Improvements
 
 * (Python) Added exception chaining to preserve error context in CloudSQLEnrichmentHandler, processes utilities, and core transforms ([#37422](https://github.com/apache/beam/issues/37422)).
 * (Python) Added a pipeline option `--experiments=pip_no_build_isolation` to disable build isolation when installing dependencies in the runtime environment ([#37331](https://github.com/apache/beam/issues/37331)).
-* X feature added (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
 
 ## Breaking Changes
 
@@ -82,15 +82,16 @@
 
 ## Deprecations
 
-* X behavior is deprecated and will be removed in X versions ([#X](https://github.com/apache/beam/issues/X)).
+* (Python) Removed previously deprecated list_prefix method for filesystem interfaces ([#37587](https://github.com/apache/beam/issues/37587)).
 
 ## Bugfixes
 
-* Fixed X (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
+* Fixed (Yaml) issue with validate compatible method ([#37588](https://github.com/apache/beam/issues/37588)).
+* Fixed (Yaml) issue with Create transform dealing with different type elements ([#37585](https://github.com/apache/beam/issues/37585)).
 
 ## Security Fixes
 
-* Fixed [CVE-YYYY-NNNN](https://www.cve.org/CVERecord?id=CVE-YYYY-NNNN) (Java/Python/Go) ([#X](https://github.com/apache/beam/issues/X)).
+* Fixed [CVE-2024-28397](https://www.cve.org/CVERecord?id=CVE-2024-28397) by switching from js2py to pythonmonkey (Yaml) ([#37560](https://github.com/apache/beam/issues/37560)).
 
 ## Known Issues
 
