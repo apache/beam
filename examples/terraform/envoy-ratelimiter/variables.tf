@@ -107,7 +107,7 @@ variable "hpa_memory_target_percentage" {
 variable "ratelimit_image" {
   description = "Docker image for Envoy Rate Limit service"
   type        = string
-  default     = "envoyproxy/ratelimit:e9ce92cc" 
+  default     = "envoyproxy/ratelimit:e9ce92cc"
 }
 
 variable "redis_image" {
@@ -125,7 +125,7 @@ variable "statsd_exporter_image" {
 variable "ratelimit_log_level" {
   description = "Log level for ratelimit service"
   type        = string
-  default     = "debug"
+  default     = "info"
 }
 
 variable "ratelimit_grpc_max_connection_age" {
@@ -175,4 +175,15 @@ variable "ratelimit_resources" {
       memory = "512Mi"
     }
   }
+}
+variable "namespace" {
+  description = "The Kubernetes namespace to deploy resources into"
+  type        = string
+  default     = "envoy-ratelimiter"
+}
+
+variable "enable_metrics" {
+  description = "Whether to deploy the statsd-exporter sidecar for Prometheus metrics"
+  type        = bool
+  default     = false
 }
