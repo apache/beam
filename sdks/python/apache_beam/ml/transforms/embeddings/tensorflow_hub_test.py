@@ -52,7 +52,7 @@ try:
   from apache_beam.ml.transforms.embeddings.tensorflow_hub import TensorflowHubImageEmbeddings
 except ImportError:
   TensorflowHubImageEmbeddings = None  # type: ignore
-  Image = None
+  Image = None  # type: ignore[assignment]
 
 
 @unittest.skipIf(
