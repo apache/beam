@@ -31,7 +31,6 @@ from apache_beam.ml.inference.base import RunInference
 from apache_beam.ml.rag.embeddings.base import _add_embedding_fn
 from apache_beam.ml.rag.embeddings.base import create_text_adapter
 from apache_beam.ml.rag.types import EmbeddableItem
-from apache_beam.ml.rag.types import Chunk
 from apache_beam.ml.transforms.base import EmbeddingsManager
 from apache_beam.ml.transforms.base import EmbeddingTypeAdapter
 from apache_beam.ml.transforms.base import _ImageEmbeddingHandler
@@ -68,8 +67,21 @@ class VertexAITextEmbeddings(EmbeddingsManager):
             project: GCP project ID
             location: GCP location
             credentials: Optional GCP credentials
-            **kwargs: Additional arguments passed to EmbeddingsManager including
-            ModelHandler inference_args.
+            **kwargs: Additional arguments passed to
+            :class:`~apache_beam.ml.transforms.base.EmbeddingsManager`,
+            including:
+
+            - ``load_model_args``: dict passed to
+              ``SentenceTransformer()`` constructor
+              (e.g. ``device``, ``cache_folder``,
+              ``trust_remote_code``).
+            - ``min_batch_size`` / ``max_batch_size``:
+              Control batching for inference.
+            - ``large_model``: If True, share the model
+              across processes to reduce memory usage.
+            - ``inference_args``: dict passed to
+              ``model.encode()``
+              (e.g. ``normalize_embeddings``).
         """
     if not vertexai:
       raise ImportError(
@@ -97,11 +109,12 @@ class VertexAITextEmbeddings(EmbeddingsManager):
 
   def get_ptransform_for_processing(
       self, **kwargs
-  ) -> beam.PTransform[beam.PCollection[Chunk], beam.PCollection[Chunk]]:
+  ) -> beam.PTransform[beam.PCollection[EmbeddableItem],
+                       beam.PCollection[EmbeddableItem]]:
     """Returns PTransform that uses the RAG adapter."""
     return RunInference(
         model_handler=_TextEmbeddingHandler(self),
-        inference_args=self.inference_args).with_output_types(Chunk)
+        inference_args=self.inference_args).with_output_types(EmbeddableItem)
 
 
 def _extract_images(items: Sequence[EmbeddableItem]) -> list:
@@ -159,7 +172,20 @@ class VertexAIImageEmbeddings(EmbeddingsManager):
         location: GCP location.
         credentials: Optional GCP credentials.
         **kwargs: Additional arguments passed to
-            EmbeddingsManager.
+            :class:`~apache_beam.ml.transforms.base.EmbeddingsManager`,
+            including:
+
+            - ``load_model_args``: dict passed to
+              ``SentenceTransformer()`` constructor
+              (e.g. ``device``, ``cache_folder``,
+              ``trust_remote_code``).
+            - ``min_batch_size`` / ``max_batch_size``:
+              Control batching for inference.
+            - ``large_model``: If True, share the model
+              across processes to reduce memory usage.
+            - ``inference_args``: dict passed to
+              ``model.encode()``
+              (e.g. ``normalize_embeddings``).
     """
     if not vertexai:
       raise ImportError(

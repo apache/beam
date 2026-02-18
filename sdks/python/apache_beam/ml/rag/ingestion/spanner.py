@@ -266,7 +266,7 @@ class SpannerColumnSpecsBuilder:
         ...     convert_fn=lambda text: text[:1000]
         ... )
     """
-    def extract_fn(embeddable: EmbeddableItem) -> Optional[str]:
+    def extract_fn(embeddable: EmbeddableItem) -> str:
       return embeddable.content_string
 
     self._specs.append(

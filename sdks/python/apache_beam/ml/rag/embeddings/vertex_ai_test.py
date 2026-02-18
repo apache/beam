@@ -18,8 +18,10 @@
 
 import os
 import shutil
+import struct
 import tempfile
 import unittest
+import zlib
 
 import apache_beam as beam
 from apache_beam.ml.rag.types import Chunk
@@ -128,24 +130,7 @@ class VertexAIImageAdapterTest(unittest.TestCase):
 
   def test_image_adapter_bytes_input(self):
     adapter = _create_image_adapter()
-    # Create a minimal valid PNG
-    import struct
-    import zlib
-    png_sig = b'\x89PNG\r\n\x1a\n'
-    ihdr_data = struct.pack('>IIBBBBB', 1, 1, 8, 2, 0, 0, 0)
-    ihdr_crc = zlib.crc32(b'IHDR' + ihdr_data)
-    ihdr = (
-        struct.pack('>I', 13) + b'IHDR' + ihdr_data +
-        struct.pack('>I', ihdr_crc))
-    raw = zlib.compress(b'\x00\x00\x00\x00')
-    idat_crc = zlib.crc32(b'IDAT' + raw)
-    idat = (
-        struct.pack('>I', len(raw)) + b'IDAT' + raw +
-        struct.pack('>I', idat_crc))
-    iend_crc = zlib.crc32(b'IEND')
-    iend = (struct.pack('>I', 0) + b'IEND' + struct.pack('>I', iend_crc))
-    png_bytes = png_sig + ihdr + idat + iend
-
+    png_bytes = _create_png_bytes()
     item = EmbeddableItem.from_image(png_bytes, id='img2')
     images = adapter.input_fn([item])
     self.assertEqual(len(images), 1)
@@ -170,28 +155,8 @@ class VertexAIImageEmbeddingsTest(unittest.TestCase):
   def tearDown(self) -> None:
     shutil.rmtree(self.artifact_location)
 
-  @staticmethod
-  def _create_png_bytes():
-    """Create a minimal valid 1x1 PNG image."""
-    import struct
-    import zlib
-    png_sig = b'\x89PNG\r\n\x1a\n'
-    ihdr_data = struct.pack('>IIBBBBB', 1, 1, 8, 2, 0, 0, 0)
-    ihdr_crc = zlib.crc32(b'IHDR' + ihdr_data)
-    ihdr = (
-        struct.pack('>I', 13) + b'IHDR' + ihdr_data +
-        struct.pack('>I', ihdr_crc))
-    raw = zlib.compress(b'\x00\x00\x00\x00')
-    idat_crc = zlib.crc32(b'IDAT' + raw)
-    idat = (
-        struct.pack('>I', len(raw)) + b'IDAT' + raw +
-        struct.pack('>I', idat_crc))
-    iend_crc = zlib.crc32(b'IEND')
-    iend = (struct.pack('>I', 0) + b'IEND' + struct.pack('>I', iend_crc))
-    return png_sig + ihdr + idat + iend
-
   def test_image_embedding_pipeline(self):
-    png_bytes = self._create_png_bytes()
+    png_bytes = _create_png_bytes()
 
     test_items = [
         EmbeddableItem.from_image(
@@ -219,7 +184,7 @@ class VertexAIImageEmbeddingsTest(unittest.TestCase):
           embeddings, equal_to(expected, equals_fn=chunk_approximately_equals))
 
   def test_image_embedding_pipeline_from_path(self):
-    png_bytes = self._create_png_bytes()
+    png_bytes = _create_png_bytes()
     img_path = os.path.join(self.artifact_location, 'test_img.png')
     with open(img_path, 'wb') as f:
       f.write(png_bytes)
@@ -252,6 +217,22 @@ class VertexAIImageEmbeddingsTest(unittest.TestCase):
             equal_to(expected, equals_fn=chunk_approximately_equals))
     finally:
       shutil.rmtree(artifact_location)
+
+
+def _create_png_bytes():
+  """Create a minimal valid 1x1 RGB PNG image (no PIL dependency)."""
+  png_sig = b'\x89PNG\r\n\x1a\n'
+  ihdr_data = struct.pack('>IIBBBBB', 1, 1, 8, 2, 0, 0, 0)
+  ihdr_crc = zlib.crc32(b'IHDR' + ihdr_data)
+  ihdr = struct.pack('>I', 13) + b'IHDR' + ihdr_data + struct.pack(
+      '>I', ihdr_crc)
+  raw = zlib.compress(b'\x00\x00\x00\x00')
+  idat_crc = zlib.crc32(b'IDAT' + raw)
+  idat = struct.pack('>I', len(raw)) + b'IDAT' + raw + struct.pack(
+      '>I', idat_crc)
+  iend_crc = zlib.crc32(b'IEND')
+  iend = struct.pack('>I', 0) + b'IEND' + struct.pack('>I', iend_crc)
+  return png_sig + ihdr + idat + iend
 
 
 if __name__ == '__main__':

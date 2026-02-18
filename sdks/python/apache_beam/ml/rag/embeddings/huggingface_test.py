@@ -119,7 +119,8 @@ class HuggingfaceTextEmbeddingsTest(unittest.TestCase):
 
 @pytest.mark.uses_transformers
 @unittest.skipIf(
-    not SENTENCE_TRANSFORMERS_AVAILABLE, "sentence-transformers not available")
+    not SENTENCE_TRANSFORMERS_AVAILABLE or not PIL_AVAILABLE,
+    "sentence-transformers or PIL not available")
 class HuggingfaceImageAdapterTest(unittest.TestCase):
   def test_image_adapter_missing_content(self):
     adapter = _create_hf_image_adapter()

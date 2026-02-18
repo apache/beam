@@ -21,6 +21,7 @@ from collections.abc import Sequence
 from typing import Optional
 
 import apache_beam as beam
+from apache_beam.io.filesystems import FileSystems
 from apache_beam.ml.inference.base import RunInference
 from apache_beam.ml.rag.embeddings.base import _add_embedding_fn
 from apache_beam.ml.rag.embeddings.base import create_text_adapter
@@ -97,7 +98,11 @@ class HuggingfaceTextEmbeddings(EmbeddingsManager):
 
 
 def _extract_images(items: Sequence[EmbeddableItem]) -> list:
-  """Extract images from items and convert to PIL.Image objects."""
+  """Extract images from items and convert to PIL.Image objects.
+
+  Supports raw bytes, local file paths, and remote URIs
+  (e.g. gs://, s3://) via Beam's FileSystems.
+  """
   images = []
   for item in items:
     if not item.content.image:
@@ -109,7 +114,9 @@ def _extract_images(items: Sequence[EmbeddableItem]) -> list:
     if isinstance(img_data, bytes):
       img = PILImage.open(io.BytesIO(img_data))
     else:
-      img = PILImage.open(img_data)
+      with FileSystems.open(img_data, 'rb') as f:
+        img = PILImage.open(f)
+        img.load()
     images.append(img.convert('RGB'))
   return images
 

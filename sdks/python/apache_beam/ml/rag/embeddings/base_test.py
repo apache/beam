@@ -119,7 +119,7 @@ class ContentStringTest(unittest.TestCase):
     item = EmbeddableItem.from_image('gs://bucket/img.jpg', id='img1')
     self.assertEqual(item.content_string, 'gs://bucket/img.jpg')
 
-  def test_image_bytes_returns_none(self):
+  def test_image_bytes_raises(self):
     item = EmbeddableItem.from_image(b'\x89PNG\r\n', id='img2')
     with self.assertRaisesRegex(
         ValueError, "EmbeddableItem does not contain text content.*"):
