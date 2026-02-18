@@ -21,24 +21,36 @@ import java.util.Map;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.apache.iceberg.catalog.Catalog;
 import org.apache.iceberg.rest.RESTCatalog;
+import org.junit.After;
 import org.junit.BeforeClass;
 
 /** Tests for {@link org.apache.iceberg.rest.RESTCatalog} using BigLake Metastore. */
 public class RESTCatalogBLMSIT extends IcebergCatalogBaseIT {
   private static Map<String, String> catalogProps;
 
+  // Using a special bucket for this test class because
+  // BigLake does not support using subfolders as a warehouse (yet)
+  private static final String BIGLAKE_WAREHOUSE = "gs://managed-iceberg-biglake-its";
+
   @BeforeClass
   public static void setup() {
+    warehouse = BIGLAKE_WAREHOUSE;
     catalogProps =
         ImmutableMap.<String, String>builder()
             .put("type", "rest")
             .put("uri", "https://biglake.googleapis.com/iceberg/v1/restcatalog")
-            .put("warehouse", warehouse(RESTCatalogBLMSIT.class))
+            .put("warehouse", BIGLAKE_WAREHOUSE)
             .put("header.x-goog-user-project", OPTIONS.getProject())
             .put("rest-metrics-reporting-enabled", "false")
             .put("io-impl", "org.apache.iceberg.gcp.gcs.GCSFileIO")
             .put("rest.auth.type", "org.apache.iceberg.gcp.auth.GoogleAuthManager")
             .build();
+  }
+
+  @After
+  public void after() {
+    // making sure the cleanup path is directed at the correct warehouse
+    warehouse = BIGLAKE_WAREHOUSE;
   }
 
   @Override
