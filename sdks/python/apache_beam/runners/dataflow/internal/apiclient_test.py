@@ -29,7 +29,6 @@ import time
 import unittest
 
 import mock
-from google.cloud import dataflow
 
 from apache_beam.io.filesystems import FileSystems
 from apache_beam.metrics.cells import DistributionData
@@ -40,7 +39,7 @@ from apache_beam.portability import common_urns
 from apache_beam.portability.api import beam_runner_api_pb2
 from apache_beam.runners.dataflow.internal import names
 from apache_beam.transforms import Create
-from apache_beam.transforms import DataflowDistributionCounter
+# from apache_beam.transforms import DataflowDistributionCounter
 from apache_beam.transforms import DoFn
 from apache_beam.transforms import ParDo
 from apache_beam.transforms.environments import DockerEnvironment
@@ -50,8 +49,10 @@ from apache_beam.utils import retry
 # pylint: disable=wrong-import-order, wrong-import-position, ungrouped-imports
 try:
   from apache_beam.runners.dataflow.internal import apiclient
+  from google.cloud import dataflow
 except ImportError:
   apiclient = None  # type: ignore
+  dataflow = None # type: ignore
 # pylint: enable=wrong-import-order, wrong-import-position
 
 FAKE_PIPELINE_URL = "gs://invalid-bucket/anywhere"

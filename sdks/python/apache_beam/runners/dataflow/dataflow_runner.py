@@ -32,8 +32,6 @@ from subprocess import DEVNULL
 from typing import TYPE_CHECKING
 from typing import List
 
-from google.cloud import dataflow as dataflow_api
-
 import apache_beam as beam
 from apache_beam import coders
 from apache_beam.options.pipeline_options import DebugOptions
@@ -45,7 +43,6 @@ from apache_beam.options.pipeline_options import TypeOptions
 from apache_beam.options.pipeline_options import WorkerOptions
 from apache_beam.portability import common_urns
 from apache_beam.portability.api import beam_runner_api_pb2
-#from apache_beam.runners.dataflow.internal.clients import dataflow as dataflow_api
 from apache_beam.runners.pipeline_utils import group_by_key_input_visitor
 from apache_beam.runners.pipeline_utils import merge_common_environments
 from apache_beam.runners.pipeline_utils import merge_superset_dep_environments
@@ -57,6 +54,13 @@ from apache_beam.typehints import typehints
 from apache_beam.utils import processes
 from apache_beam.utils.interactive_utils import is_in_notebook
 from apache_beam.utils.plugin import BeamPlugin
+
+# pylint: disable=wrong-import-order, wrong-import-position, ungrouped-imports
+try:
+  from google.cloud import dataflow as dataflow_api
+except ImportError:
+  dataflow_api = None # type: ignore
+# pylint: enable=wrong-import-order, wrong-import-position
 
 if TYPE_CHECKING:
   from apache_beam.pipeline import PTransformOverride
