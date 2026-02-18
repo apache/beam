@@ -817,4 +817,3 @@ func MakeOrderedListState[T any](k string) OrderedList[T] {
 		Key: k,
 	}
 }
-
