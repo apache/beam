@@ -64,7 +64,6 @@
 * Flink 2.0 support for Java Classic and Portable Flink Runners ([#36947](https://github.com/apache/beam/issues/36947)),
   experimental support for other SDK languages including Python.
 
-
 ## I/Os
 
 * Add Datadog IO support (Java) ([#37318](https://github.com/apache/beam/issues/37318)).
