@@ -17,11 +17,13 @@
  */
 package org.apache.beam.sdk.io.clickhouse;
 
+import static org.testcontainers.containers.ClickHouseContainer.HTTP_PORT;
+
+import com.clickhouse.client.api.Client;
+import com.clickhouse.client.api.query.GenericRecord;
+import com.clickhouse.client.api.query.Records;
 import java.io.IOException;
-import java.sql.Connection;
-import java.sql.ResultSet;
-import java.sql.SQLException;
-import java.sql.Statement;
+import java.util.concurrent.TimeUnit;
 import org.junit.After;
 import org.junit.AfterClass;
 import org.junit.Before;
@@ -41,14 +43,19 @@ import org.testcontainers.containers.Network;
 public class BaseClickHouseTest {
 
   public static ClickHouseContainer clickHouse;
+  public static String clickHouseUrl;
+  public static String database;
   public static Network network;
   public static GenericContainer zookeeper;
+  static final int CLIENT_TIMEOUT = 30;
+
   private static final Logger LOG = LoggerFactory.getLogger(BaseClickHouseTest.class);
 
-  private Connection connection;
+  private Client client;
 
   @BeforeClass
   public static void setup() throws IOException, InterruptedException {
+    System.setProperty("api.version", "1.44");
     network = Network.newNetwork();
 
     zookeeper =
@@ -72,45 +79,130 @@ public class BaseClickHouseTest {
     ;
     clickHouse.start();
     LOG.info("Start Clickhouse");
+    clickHouseUrl = "http://" + clickHouse.getHost() + ":" + clickHouse.getMappedPort(HTTP_PORT);
+    database = "default";
   }
 
   @AfterClass
   public static void tearDown() {
-    clickHouse.close();
-    zookeeper.close();
+    if (clickHouse != null) {
+      clickHouse.close();
+    }
+    if (zookeeper != null) {
+      zookeeper.close();
+    }
   }
 
   @Before
-  public void setUp() throws SQLException {
-    connection = clickHouse.createConnection("");
+  public void setUp() throws Exception {
+    // Create ClickHouse Java Client
+    Client.Builder clientBuilder =
+        new Client.Builder()
+            .addEndpoint(clickHouseUrl)
+            .setUsername(clickHouse.getUsername())
+            .setPassword(clickHouse.getPassword())
+            .setDefaultDatabase(database);
+
+    client = clientBuilder.build();
   }
 
   @After
   public void after() {
-    if (connection != null) {
+    if (client != null) {
       try {
-        connection.close();
-      } catch (SQLException e) {
-        // failed to close connection, ignore
+        client.close();
+      } catch (Exception e) {
+        LOG.warn("Failed to close ClickHouse client", e);
       } finally {
-        connection = null;
+        client = null;
       }
     }
   }
 
-  boolean executeSql(String sql) throws SQLException {
-    Statement statement = connection.createStatement();
-    return statement.execute(sql);
+  /**
+   * Executes a SQL statement (DDL, DML, etc.).
+   *
+   * @param sql SQL statement to execute
+   * @return true if execution was successful
+   * @throws Exception if execution fails
+   */
+  boolean executeSql(String sql) throws Exception {
+    try {
+      client.query(sql).get(CLIENT_TIMEOUT, TimeUnit.SECONDS);
+      return true;
+    } catch (Exception e) {
+      LOG.error("Failed to execute SQL: {}", sql, e);
+      throw e;
+    }
   }
 
-  ResultSet executeQuery(String sql) throws SQLException {
-    Statement statement = connection.createStatement();
-    return statement.executeQuery(sql);
+  /**
+   * Executes a query and returns the results.
+   *
+   * @param sql SQL query to execute
+   * @return Records containing query results
+   * @throws Exception if query fails
+   */
+  Records executeQuery(String sql) throws Exception {
+    try {
+      return client.queryRecords(sql).get(CLIENT_TIMEOUT, TimeUnit.SECONDS);
+    } catch (Exception e) {
+      LOG.error("Failed to execute query: {}", sql, e);
+      throw e;
+    }
   }
 
-  long executeQueryAsLong(String sql) throws SQLException {
-    ResultSet rs = executeQuery(sql);
-    rs.next();
-    return rs.getLong(1);
+  /**
+   * Executes a query and returns the first column of the first row as a long. Useful for COUNT
+   * queries or other single-value results.
+   *
+   * @param sql SQL query to execute
+   * @return long value from first column of first row
+   * @throws Exception if query fails or result is empty
+   */
+  long executeQueryAsLong(String sql) throws Exception {
+    try (Records records = executeQuery(sql)) {
+      for (GenericRecord record : records) {
+        // Get the first column value - assuming it's numeric
+        return record.getLong(1); // Column index is 1-based
+      }
+      throw new IllegalStateException("Query returned no results: " + sql);
+    } catch (Exception e) {
+      LOG.error("Failed to execute query as long: {}", sql, e);
+      throw e;
+    }
+  }
+
+  /**
+   * Executes a query and returns the first column of the first row as a String.
+   *
+   * @param sql SQL query to execute
+   * @return String value from first column of first row
+   * @throws Exception if query fails or result is empty
+   */
+  String executeQueryAsString(String sql) throws Exception {
+    try (Records records = executeQuery(sql)) {
+      for (GenericRecord record : records) {
+        return record.getString(1); // Column index is 1-based
+      }
+      throw new IllegalStateException("Query returned no results: " + sql);
+    } catch (Exception e) {
+      LOG.error("Failed to execute query as string: {}", sql, e);
+      throw e;
+    }
+  }
+
+  /**
+   * Checks if the ClickHouse server is alive and responsive.
+   *
+   * @return true if server responds to ping
+   */
+  boolean isServerAlive() {
+    try {
+      return client != null && client.ping();
+    } catch (Exception e) {
+      LOG.warn("Server ping failed", e);
+      return false;
+    }
   }
 }
