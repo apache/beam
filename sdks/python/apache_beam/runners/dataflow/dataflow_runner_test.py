@@ -56,7 +56,7 @@ try:
   from google.cloud import dataflow as dataflow_api
 except ImportError:
   apiclient = None  # type: ignore
-  dataflow_api = None # type: ignore
+  dataflow_api = None  # type: ignore
 # pylint: enable=wrong-import-order, wrong-import-position
 
 
@@ -674,8 +674,7 @@ class DataflowRunnerTest(unittest.TestCase, ExtraAssertionsMixin):
     with beam.Pipeline(options=options) as p:
       _ = p | beam.io.ReadFromPubSub('projects/some-project/topics/some-topic')
     self.assertEqual(
-        p.result.job.proto.type,
-        apiclient.dataflow.JobType.JOB_TYPE_STREAMING)
+        p.result.job.proto.type, apiclient.dataflow.JobType.JOB_TYPE_STREAMING)
 
   @unittest.skipIf(apiclient is None, 'GCP dependencies are not installed')
   @mock.patch(
@@ -693,8 +692,7 @@ class DataflowRunnerTest(unittest.TestCase, ExtraAssertionsMixin):
     with beam.Pipeline(options=options) as p:
       _ = p | beam.Create([1, 2, 3])
     self.assertEqual(
-        p.result.job.proto.type,
-        apiclient.dataflow.JobType.JOB_TYPE_BATCH)
+        p.result.job.proto.type, apiclient.dataflow.JobType.JOB_TYPE_BATCH)
 
   @unittest.skipIf(apiclient is None, 'GCP dependencies are not installed')
   @mock.patch(
@@ -713,8 +711,7 @@ class DataflowRunnerTest(unittest.TestCase, ExtraAssertionsMixin):
     with beam.Pipeline(options=options) as p:
       _ = p | beam.Create([1, 2, 3])
     self.assertEqual(
-        p.result.job.proto.type,
-        apiclient.dataflow.JobType.JOB_TYPE_STREAMING)
+        p.result.job.proto.type, apiclient.dataflow.JobType.JOB_TYPE_STREAMING)
 
 
 if __name__ == '__main__':

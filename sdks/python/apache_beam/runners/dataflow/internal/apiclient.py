@@ -117,7 +117,7 @@ class Environment(object):
     self._proto_pipeline = proto_pipeline
 
     if self.google_cloud_options.service_account_email:
-      self.proto.service_accountE_email = (
+      self.proto.service_account_email = (
           self.google_cloud_options.service_account_email)
     if self.google_cloud_options.dataflow_kms_key:
       self.proto.service_kms_key_name = self.google_cloud_options.dataflow_kms_key
@@ -843,6 +843,7 @@ class DataflowApplicationClient(object):
     request.job = job.proto
 
     try:
+      print(request)
       response = self._jobs_client.create_job(request=request)
     except exceptions.BadStatusCodeError as e:
       _LOGGER.error(
@@ -991,7 +992,7 @@ class DataflowApplicationClient(object):
     request = dataflow.ListJobMessagesRequest(
         job_id=job_id,
         location=self.google_cloud_options.region,
-        projectId=self.google_cloud_options.project)
+        project_id=self.google_cloud_options.project)
     if page_token is not None:
       request.page_token = page_token
     if start_time is not None:
@@ -1019,7 +1020,7 @@ class DataflowApplicationClient(object):
             'Unexpected value for minimum_importance argument: %r' %
             minimum_importance)
     response = self._messages_client.list_job_messages(request=request)
-    return response.jobs, response.next_page_token
+    return response.job_messages, response.next_page_token
 
   def job_id_for_name(self, job_name):
     token = None
@@ -1107,7 +1108,8 @@ class DataflowJobAlreadyExistsError(retry.PermanentException):
 
 # TODO: Used in legacy batch worker. Move under MetricUpdateTranslators
 # after Runner V2 transition.
-def translate_distribution(distribution_update, metric_update_proto: dataflow.MetricUpdate):
+def translate_distribution(
+    distribution_update, metric_update_proto: dataflow.MetricUpdate):
   """Translate metrics DistributionUpdate to dataflow distribution update.
 
   Args:
