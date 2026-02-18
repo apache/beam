@@ -455,7 +455,7 @@ def vllmTests = tasks.create("vllmTests") {
   def testOpts = basicPytestOpts
   def argMap = [
     "runner": "DataflowRunner",
-    "machine_type":"n1-standard-4",
+    "machine_type":"g2-standard-4",
     // TODO(https://github.com/apache/beam/issues/22651): Build docker image for VLLM tests during Run time.
     // This would also enable to use wheel "--sdk_location" as other tasks, and eliminate distTarBall dependency
     // declaration for this project.
@@ -464,23 +464,23 @@ def vllmTests = tasks.create("vllmTests") {
     "sdk_location": files(configurations.distTarBall.files).singleFile,
     "project": "apache-beam-testing",
     "region": "us-central1",
-    "model": "facebook/opt-125m",
+    "model": "Qwen/Qwen3-0.6B",
     "output": "gs://apache-beam-ml/outputs/vllm_predictions.txt",
     "disk_size_gb": 75
   ]
   def cmdArgs = mapToArgString(argMap)
   // Exec one version with and one version without the chat option
+  // exec {
+  //   executable 'sh'
+  //   args '-c', ". ${envdir}/bin/activate && pip install openai && python -m apache_beam.examples.inference.vllm_text_completion $cmdArgs --experiment='worker_accelerator=type:nvidia-tesla-t4;count:1;install-nvidia-driver:5xx'"
+  // }
+  // exec {
+  //   executable 'sh'
+  //   args '-c', ". ${envdir}/bin/activate && pip install openai && python -m apache_beam.examples.inference.vllm_text_completion $cmdArgs --chat true --chat_template 'gs://apache-beam-ml/additional_files/sample_chat_template.jinja' --experiment='worker_accelerator=type:nvidia-tesla-t4;count:1;install-nvidia-driver:5xx'"
+  // }
   exec {
     executable 'sh'
-    args '-c', ". ${envdir}/bin/activate && pip install openai && python -m apache_beam.examples.inference.vllm_text_completion $cmdArgs --experiment='worker_accelerator=type:nvidia-tesla-t4;count:1;install-nvidia-driver:5xx'"
-  }
-  exec {
-    executable 'sh'
-    args '-c', ". ${envdir}/bin/activate && pip install openai && python -m apache_beam.examples.inference.vllm_text_completion $cmdArgs --chat true --chat_template 'gs://apache-beam-ml/additional_files/sample_chat_template.jinja' --experiment='worker_accelerator=type:nvidia-tesla-t4;count:1;install-nvidia-driver:5xx'"
-  }
-  exec {
-    executable 'sh'
-    args '-c', ". ${envdir}/bin/activate && pip install openai && python -m apache_beam.examples.inference.vllm_text_completion $cmdArgs --use_dynamo=T --experiment='worker_accelerator=type:nvidia-tesla-t4;count:1;install-nvidia-driver:5xx'"
+    args '-c', ". ${envdir}/bin/activate && pip install openai && python -m apache_beam.examples.inference.vllm_text_completion $cmdArgs --use_dynamo=T --experiment='worker_accelerator=type:nvidia-l4;count:1;install-nvidia-driver:5xx'"
   }
  }
 }
