@@ -480,11 +480,7 @@ public class GcsUtil {
       dstOverwrite = OverwriteStrategy.SAFE_OVERWRITE;
     }
 
-    if (delegateV2 != null) {
-      delegateV2.move(srcPaths, dstPaths, srcMissing, dstOverwrite);
-    } else {
-      throw new IOException("GcsUtil V2 not initialized.");
-    }
+    rename(srcPaths, dstPaths, srcMissing, dstOverwrite);
   }
 
   /** experimental api. */

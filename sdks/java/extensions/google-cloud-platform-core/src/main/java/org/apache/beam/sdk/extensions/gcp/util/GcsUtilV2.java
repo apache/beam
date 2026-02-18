@@ -369,11 +369,12 @@ class GcsUtilV2 {
               break;
 
             case FAIL_IF_EXISTS:
-            default:
               throw new FileAlreadyExistsException(
                   srcPath.toString(),
                   dstPath.toString(),
                   "Target object already exists and strategy is FAIL_IF_EXISTS");
+            default:
+              throw new IllegalStateException("Unknown OverwriteStrategy: " + dstOverwrite);
           }
         }
       }
@@ -383,7 +384,13 @@ class GcsUtilV2 {
         copyWriter.getResult();
 
         if (deleteSrc) {
-          storage.get(srcId).delete();
+          if (!storage.delete(srcId)) {
+            // This may happen if the source file is deleted by another process after copy.
+            LOG.warn(
+                "Source file {} could not be deleted after move to {}. It may not have existed.",
+                srcPath,
+                dstPath);
+          }
         }
       } catch (StorageException e) {
         if (e.getCode() == 404 && srcMissing == MissingStrategy.SKIP_IF_MISSING) {

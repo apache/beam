@@ -344,6 +344,8 @@ public class GcsUtilParameterizedIT {
         gcsUtil.removeBucket(new Bucket().setName(bucketName));
       }
     } catch (IOException e) {
+      System.err.println(
+          "Error during tear down of test bucket " + bucketName + ": " + e.getMessage());
     }
   }
 
@@ -410,8 +412,6 @@ public class GcsUtilParameterizedIT {
         // (4) raise exception when the source files are nonexistent.
         assertThrows(FileNotFoundException.class, () -> gcsUtil.copy(errList, dstList));
       }
-    } catch (IOException e) {
-      throw e;
     } finally {
       tearDownTestBucketHelper(existingBucket);
     }
@@ -474,8 +474,6 @@ public class GcsUtilParameterizedIT {
         // (3) when the files are from an nonexistent bucket, no exception
         gcsUtil.remove(errList);
       }
-    } catch (IOException e) {
-      throw e;
     } finally {
       tearDownTestBucketHelper(existingBucket);
     }
@@ -569,8 +567,6 @@ public class GcsUtilParameterizedIT {
         assertExists(dstPaths.get(0));
         assertExists(dstPaths.get(1));
       }
-    } catch (IOException e) {
-      throw e;
     } finally {
       tearDownTestBucketHelper(existingBucket);
     }
