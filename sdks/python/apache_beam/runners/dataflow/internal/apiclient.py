@@ -843,7 +843,6 @@ class DataflowApplicationClient(object):
     request.job = job.proto
 
     try:
-      print(request)
       response = self._jobs_client.create_job(request=request)
     except exceptions.BadStatusCodeError as e:
       _LOGGER.error(
