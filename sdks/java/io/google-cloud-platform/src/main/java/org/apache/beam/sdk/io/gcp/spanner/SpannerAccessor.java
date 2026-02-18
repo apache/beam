@@ -64,7 +64,7 @@ public class SpannerAccessor implements AutoCloseable {
   private static final String USER_AGENT_PREFIX = "Apache_Beam_Java";
 
   // Default wait time for session creation
-  static final java.time.Duration DEFAULT_SESSION_WAIT_DURATION = java.time.Duration.ofMinutes(5);
+  static final java.time.Duration DEFAULT_SESSION_WAIT_DURATION = java.time.Duration.ofMinutes(0);
 
   /** Instance ID to use when connecting to an experimental host. */
   public static final String EXPERIMENTAL_HOST_INSTANCE_ID = "default";

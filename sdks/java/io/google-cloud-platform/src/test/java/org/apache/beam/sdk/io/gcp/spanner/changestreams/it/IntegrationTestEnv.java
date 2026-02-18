@@ -84,7 +84,7 @@ public class IntegrationTestEnv extends ExternalResource {
             .disableGrpcGcpExtension()
             .setSessionPoolOption(
                 SessionPoolOptions.newBuilder()
-                    .setWaitForMinSessionsDuration(java.time.Duration.ofMinutes(5))
+                    .setWaitForMinSessionsDuration(java.time.Duration.ofMinutes(0))
                     .build())
             .build()
             .getService();
