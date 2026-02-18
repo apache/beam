@@ -573,7 +573,7 @@ func (f *orderedListStateFn) ProcessElement(s state.Provider, w string, c int) s
 		panic(err)
 	}
 	if !ok {
-		cur = []state.TimestampedValue[int]{}
+		cur = []state.OrderedListValue[int]{}
 	}
 
 	// Add element with sort key = count * 100.

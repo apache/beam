@@ -1282,16 +1282,16 @@ func TestOrderedListRead(t *testing.T) {
 		vs    OrderedList[int]
 		start int64
 		end   int64
-		val   []TimestampedValue[int]
+		val   []OrderedListValue[int]
 		ok    bool
 		err   error
 	}{
-		{"no_transactions", MakeOrderedListState[int]("no_transactions"), math.MinInt64, math.MaxInt64, []TimestampedValue[int]{{100, 1}, {200, 2}}, true, nil},
-		{"basic_append", MakeOrderedListState[int]("basic_append"), math.MinInt64, math.MaxInt64, []TimestampedValue[int]{{50, 5}}, true, nil},
-		{"multi_append_sorted", MakeOrderedListState[int]("multi_append"), math.MinInt64, math.MaxInt64, []TimestampedValue[int]{{50, 5}, {100, 1}, {150, 15}}, true, nil},
+		{"no_transactions", MakeOrderedListState[int]("no_transactions"), math.MinInt64, math.MaxInt64, []OrderedListValue[int]{{100, 1}, {200, 2}}, true, nil},
+		{"basic_append", MakeOrderedListState[int]("basic_append"), math.MinInt64, math.MaxInt64, []OrderedListValue[int]{{50, 5}}, true, nil},
+		{"multi_append_sorted", MakeOrderedListState[int]("multi_append"), math.MinInt64, math.MaxInt64, []OrderedListValue[int]{{50, 5}, {100, 1}, {150, 15}}, true, nil},
 		{"basic_clear", MakeOrderedListState[int]("basic_clear"), math.MinInt64, math.MaxInt64, nil, false, nil},
-		{"clear_range", MakeOrderedListState[int]("clear_range"), math.MinInt64, math.MaxInt64, []TimestampedValue[int]{{100, 1}, {300, 3}}, true, nil},
-		{"read_range", MakeOrderedListState[int]("no_transactions"), 150, 250, []TimestampedValue[int]{{200, 2}}, true, nil},
+		{"clear_range", MakeOrderedListState[int]("clear_range"), math.MinInt64, math.MaxInt64, []OrderedListValue[int]{{100, 1}, {300, 3}}, true, nil},
+		{"read_range", MakeOrderedListState[int]("no_transactions"), 150, 250, []OrderedListValue[int]{{200, 2}}, true, nil},
 		{"err", MakeOrderedListState[int]("err"), math.MinInt64, math.MaxInt64, nil, false, errFake},
 	}
 
@@ -1320,13 +1320,13 @@ func TestOrderedListRead(t *testing.T) {
 func TestOrderedListAdd(t *testing.T) {
 	tests := []struct {
 		name string
-		adds []TimestampedValue[int]
-		val  []TimestampedValue[int]
+		adds []OrderedListValue[int]
+		val  []OrderedListValue[int]
 		ok   bool
 	}{
 		{"empty", nil, nil, false},
-		{"single", []TimestampedValue[int]{{100, 1}}, []TimestampedValue[int]{{100, 1}}, true},
-		{"sorted", []TimestampedValue[int]{{200, 2}, {100, 1}}, []TimestampedValue[int]{{100, 1}, {200, 2}}, true},
+		{"single", []OrderedListValue[int]{{100, 1}}, []OrderedListValue[int]{{100, 1}}, true},
+		{"sorted", []OrderedListValue[int]{{200, 2}, {100, 1}}, []OrderedListValue[int]{{100, 1}, {200, 2}}, true},
 	}
 
 	for _, tt := range tests {
@@ -1364,10 +1364,10 @@ func TestOrderedListAdd(t *testing.T) {
 func TestOrderedListClear(t *testing.T) {
 	tests := []struct {
 		name string
-		adds []TimestampedValue[int]
+		adds []OrderedListValue[int]
 	}{
 		{"empty", nil},
-		{"with_data", []TimestampedValue[int]{{100, 1}, {200, 2}}},
+		{"with_data", []OrderedListValue[int]{{100, 1}, {200, 2}}},
 	}
 
 	for _, tt := range tests {
@@ -1415,7 +1415,7 @@ func TestOrderedListClearRange(t *testing.T) {
 	if !ok {
 		t.Fatal("OrderedList.Read() returned ok=false, want true")
 	}
-	want := []TimestampedValue[int]{{100, 1}, {300, 3}}
+	want := []OrderedListValue[int]{{100, 1}, {300, 3}}
 	if len(val) != len(want) {
 		t.Fatalf("OrderedList.Read()=%v, want %v", val, want)
 	}

@@ -699,8 +699,8 @@ type OrderedListEntry struct {
 	Value   any
 }
 
-// TimestampedValue is a typed sort-key/value pair returned to the user.
-type TimestampedValue[T any] struct {
+// OrderedListValue is a typed sort-key/value pair returned to the user.
+type OrderedListValue[T any] struct {
 	SortKey int64
 	Value   T
 }
@@ -723,12 +723,12 @@ func (s *OrderedList[T]) Add(p Provider, sortKey int64, val T) error {
 }
 
 // Read returns all elements in this ordered list state, sorted by sort key.
-func (s *OrderedList[T]) Read(p Provider) ([]TimestampedValue[T], bool, error) {
+func (s *OrderedList[T]) Read(p Provider) ([]OrderedListValue[T], bool, error) {
 	return s.ReadRange(p, math.MinInt64, math.MaxInt64)
 }
 
 // ReadRange returns elements in the half-open interval [start, end), sorted by sort key.
-func (s *OrderedList[T]) ReadRange(p Provider, start, end int64) ([]TimestampedValue[T], bool, error) {
+func (s *OrderedList[T]) ReadRange(p Provider, start, end int64) ([]OrderedListValue[T], bool, error) {
 	initialValue, bufferedTransactions, err := p.ReadOrderedListState(s.Key)
 	if err != nil {
 		return nil, false, err
@@ -769,9 +769,9 @@ func (s *OrderedList[T]) ReadRange(p Provider, start, end int64) ([]TimestampedV
 		return cmp.Compare(a.SortKey, b.SortKey)
 	})
 
-	result := make([]TimestampedValue[T], len(entries))
+	result := make([]OrderedListValue[T], len(entries))
 	for i, e := range entries {
-		result[i] = TimestampedValue[T]{SortKey: e.SortKey, Value: e.Value.(T)}
+		result[i] = OrderedListValue[T]{SortKey: e.SortKey, Value: e.Value.(T)}
 	}
 	return result, true, nil
 }
