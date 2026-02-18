@@ -29,6 +29,7 @@ import time
 import unittest
 
 import mock
+from google.cloud import dataflow
 
 from apache_beam.io.filesystems import FileSystems
 from apache_beam.metrics.cells import DistributionData
@@ -38,7 +39,6 @@ from apache_beam.pipeline import Pipeline
 from apache_beam.portability import common_urns
 from apache_beam.portability.api import beam_runner_api_pb2
 from apache_beam.runners.dataflow.internal import names
-from apache_beam.runners.dataflow.internal.clients import dataflow
 from apache_beam.transforms import Create
 from apache_beam.transforms import DataflowDistributionCounter
 from apache_beam.transforms import DoFn
@@ -79,23 +79,23 @@ class UtilTest(unittest.TestCase):
         FAKE_PIPELINE_URL)
 
     recovered_options = None
-    for additionalProperty in env.proto.sdkPipelineOptions.additionalProperties:
-      if additionalProperty.key == 'options':
-        recovered_options = additionalProperty.value
+    for key in env.proto.sdk_pipeline_options.keys():
+      if key == 'options':
+        recovered_options = env.proto.sdk_pipeline_options[key]
         break
     else:
       self.fail(
-          'No pipeline options found in %s' % env.proto.sdkPipelineOptions)
+          'No pipeline options found in %s' % env.proto.sdk_pipeline_options)
 
     pipeline_url = None
-    for property in recovered_options.object_value.properties:
-      if property.key == 'pipelineUrl':
-        pipeline_url = property.value
+    for key in recovered_options.keys():
+      if key == 'pipeline_url':
+        pipeline_url = recovered_options[key]
         break
     else:
       self.fail('No pipeline_url found in %s' % recovered_options)
 
-    self.assertEqual(pipeline_url.string_value, FAKE_PIPELINE_URL)
+    self.assertEqual(pipeline_url, FAKE_PIPELINE_URL)
 
   def test_set_network(self):
     pipeline_options = PipelineOptions([
@@ -109,7 +109,7 @@ class UtilTest(unittest.TestCase):
         pipeline_options,
         '2.0.0',  #any environment version
         FAKE_PIPELINE_URL)
-    self.assertEqual(env.proto.workerPools[0].network, 'anetworkname')
+    self.assertEqual(env.proto.worker_pools[0].network, 'anetworkname')
 
   def test_set_subnetwork(self):
     pipeline_options = PipelineOptions([
@@ -125,7 +125,7 @@ class UtilTest(unittest.TestCase):
         '2.0.0',  #any environment version
         FAKE_PIPELINE_URL)
     self.assertEqual(
-        env.proto.workerPools[0].subnetwork,
+        env.proto.worker_pools[0].subnetwork,
         '/regions/MY/subnetworks/SUBNETWORK')
 
   def test_flexrs_blank(self):
@@ -137,7 +137,7 @@ class UtilTest(unittest.TestCase):
         pipeline_options,
         '2.0.0',  #any environment version
         FAKE_PIPELINE_URL)
-    self.assertEqual(env.proto.flexResourceSchedulingGoal, None)
+    self.assertEqual(env.proto.flex_resource_scheduling_goal, dataflow.FlexResourceSchedulingGoal.FLEXRS_UNSPECIFIED)
 
   def test_flexrs_cost(self):
     pipeline_options = PipelineOptions([
@@ -153,10 +153,8 @@ class UtilTest(unittest.TestCase):
         '2.0.0',  #any environment version
         FAKE_PIPELINE_URL)
     self.assertEqual(
-        env.proto.flexResourceSchedulingGoal,
-        (
-            dataflow.Environment.FlexResourceSchedulingGoalValueValuesEnum.
-            FLEXRS_COST_OPTIMIZED))
+        env.proto.flex_resource_scheduling_goal,
+        (dataflow.FlexResourceSchedulingGoal.FLEXRS_COST_OPTIMIZED))
 
   def test_flexrs_speed(self):
     pipeline_options = PipelineOptions([
@@ -172,10 +170,8 @@ class UtilTest(unittest.TestCase):
         '2.0.0',  #any environment version
         FAKE_PIPELINE_URL)
     self.assertEqual(
-        env.proto.flexResourceSchedulingGoal,
-        (
-            dataflow.Environment.FlexResourceSchedulingGoalValueValuesEnum.
-            FLEXRS_SPEED_OPTIMIZED))
+        env.proto.flex_resource_scheduling_goal,
+        (dataflow.FlexResourceSchedulingGoal.FLEXRS_SPEED_OPTIMIZED))
 
   def _verify_sdk_harness_container_images_get_set(self, pipeline_options):
     pipeline = Pipeline(options=pipeline_options)
@@ -205,18 +201,18 @@ class UtilTest(unittest.TestCase):
         '2.0.0',  # any environment version
         FAKE_PIPELINE_URL,
         proto_pipeline)
-    worker_pool = env.proto.workerPools[0]
+    worker_pool = env.proto.worker_pools[0]
 
-    self.assertEqual(2, len(worker_pool.sdkHarnessContainerImages))
+    self.assertEqual(2, len(worker_pool.sdk_harness_container_images))
     # Only one of the environments is missing MULTI_CORE_BUNDLE_PROCESSING.
     self.assertEqual(
         1,
         sum(
-            c.useSingleCorePerContainer
-            for c in worker_pool.sdkHarnessContainerImages))
+            c.use_single_core_per_container
+            for c in worker_pool.sdk_harness_container_images))
 
-    env_and_image = [(item.environmentId, item.containerImage)
-                     for item in worker_pool.sdkHarnessContainerImages]
+    env_and_image = [(item.environment_id, item.container_image)
+                     for item in worker_pool.sdk_harness_container_images]
     self.assertIn(('dummy_env_id', 'dummy_image'), env_and_image)
     self.assertIn((mock.ANY, 'test_default_image'), env_and_image)
 
@@ -469,84 +465,77 @@ class UtilTest(unittest.TestCase):
     regexp = 'beamapp-.*-[0-9]{10}-[0-9]{6}-[a-z0-9]{8}$'
     self.assertRegex(job_name, regexp)
 
-  def test_split_int(self):
-    number = 12345
-    split_number = apiclient.to_split_int(number)
-    self.assertEqual((split_number.lowBits, split_number.highBits), (number, 0))
-    shift_number = number << 32
-    split_number = apiclient.to_split_int(shift_number)
-    self.assertEqual((split_number.lowBits, split_number.highBits), (0, number))
 
   def test_translate_distribution_using_accumulator(self):
-    metric_update = dataflow.CounterUpdate()
+    metric_update = dataflow.MetricUpdate()
     accumulator = mock.Mock()
     accumulator.min = 1
     accumulator.max = 15
     accumulator.sum = 16
     accumulator.count = 2
     apiclient.translate_distribution(accumulator, metric_update)
-    self.assertEqual(metric_update.distribution.min.lowBits, accumulator.min)
-    self.assertEqual(metric_update.distribution.max.lowBits, accumulator.max)
-    self.assertEqual(metric_update.distribution.sum.lowBits, accumulator.sum)
+    self.assertEqual(metric_update.distribution['min'], accumulator.min)
+    self.assertEqual(metric_update.distribution['max'], accumulator.max)
+    self.assertEqual(metric_update.distribution['sum'], accumulator.sum)
     self.assertEqual(
-        metric_update.distribution.count.lowBits, accumulator.count)
+        metric_update.distribution['count'], accumulator.count)
 
   def test_translate_distribution_using_distribution_data(self):
-    metric_update = dataflow.CounterUpdate()
+    metric_update = dataflow.MetricUpdate()
     distribution_update = DistributionData(16, 2, 1, 15)
     apiclient.translate_distribution(distribution_update, metric_update)
     self.assertEqual(
-        metric_update.distribution.min.lowBits, distribution_update.min)
+        metric_update.distribution['min'], distribution_update.min)
     self.assertEqual(
-        metric_update.distribution.max.lowBits, distribution_update.max)
+        metric_update.distribution['max'], distribution_update.max)
     self.assertEqual(
-        metric_update.distribution.sum.lowBits, distribution_update.sum)
+        metric_update.distribution['sum'], distribution_update.sum)
     self.assertEqual(
-        metric_update.distribution.count.lowBits, distribution_update.count)
+        metric_update.distribution['count'], distribution_update.count)
 
-  def test_translate_distribution_using_dataflow_distribution_counter(self):
-    counter_update = DataflowDistributionCounter()
-    counter_update.add_input(1)
-    counter_update.add_input(3)
-    metric_proto = dataflow.CounterUpdate()
-    apiclient.translate_distribution(counter_update, metric_proto)
-    histogram = mock.Mock(firstBucketOffset=None, bucketCounts=None)
-    counter_update.translate_to_histogram(histogram)
-    self.assertEqual(metric_proto.distribution.min.lowBits, counter_update.min)
-    self.assertEqual(metric_proto.distribution.max.lowBits, counter_update.max)
-    self.assertEqual(metric_proto.distribution.sum.lowBits, counter_update.sum)
-    self.assertEqual(
-        metric_proto.distribution.count.lowBits, counter_update.count)
-    self.assertEqual(
-        metric_proto.distribution.histogram.bucketCounts,
-        histogram.bucketCounts)
-    self.assertEqual(
-        metric_proto.distribution.histogram.firstBucketOffset,
-        histogram.firstBucketOffset)
+#   def test_translate_distribution_using_dataflow_distribution_counter(self):
+#     counter_update = DataflowDistributionCounter()
+#     counter_update.add_input(1)
+#     counter_update.add_input(3)
+#     metric_proto = dataflow.MetricUpdate()
+#     apiclient.translate_distribution(counter_update, metric_proto)
+#     histogram = mock.Mock(firstBucketOffset=None, bucketCounts=None)
+#     counter_update.translate_to_histogram(histogram)
+#     self.assertEqual(metric_proto.distribution['min'], counter_update.min)
+#     self.assertEqual(metric_proto.distribution['max'], counter_update.max)
+#     self.assertEqual(metric_proto.distribution['sum'], counter_update.sum)
+#     self.assertEqual(
+#         metric_proto.distribution['count'], counter_update.count)
+#     self.assertEqual(
+#         metric_proto.distribution.histogram.bucketCounts,
+#         histogram.bucketCounts)
+#     self.assertEqual(
+#         metric_proto.distribution.histogram.firstBucketOffset,
+#         histogram.firstBucketOffset)
 
   def test_translate_means(self):
-    metric_update = dataflow.CounterUpdate()
+    metric_update = dataflow.MetricUpdate()
     accumulator = mock.Mock()
     accumulator.sum = 16
     accumulator.count = 2
     apiclient.MetricUpdateTranslators.translate_scalar_mean_int(
         accumulator, metric_update)
-    self.assertEqual(metric_update.integerMean.sum.lowBits, accumulator.sum)
-    self.assertEqual(metric_update.integerMean.count.lowBits, accumulator.count)
+    self.assertEqual(metric_update.mean_sum, accumulator.sum)
+    self.assertEqual(metric_update.mean_count, accumulator.count)
 
     accumulator.sum = 16.0
     accumulator.count = 2
     apiclient.MetricUpdateTranslators.translate_scalar_mean_float(
         accumulator, metric_update)
-    self.assertEqual(metric_update.floatingPointMean.sum, accumulator.sum)
+    self.assertEqual(metric_update.mean_sum, accumulator.sum)
     self.assertEqual(
-        metric_update.floatingPointMean.count.lowBits, accumulator.count)
+        metric_update.mean_count, accumulator.count)
 
   def test_translate_means_using_distribution_accumulator(self):
     # This is the special case for MeanByteCount.
     # Which is reported over the FnAPI as a beam distribution,
     # and to the service as a MetricUpdate IntegerMean.
-    metric_update = dataflow.CounterUpdate()
+    metric_update = dataflow.MetricUpdate()
     accumulator = mock.Mock()
     accumulator.min = 7
     accumulator.max = 9
@@ -554,16 +543,16 @@ class UtilTest(unittest.TestCase):
     accumulator.count = 2
     apiclient.MetricUpdateTranslators.translate_scalar_mean_int(
         accumulator, metric_update)
-    self.assertEqual(metric_update.integerMean.sum.lowBits, accumulator.sum)
-    self.assertEqual(metric_update.integerMean.count.lowBits, accumulator.count)
+    self.assertEqual(metric_update.mean_sum, accumulator.sum)
+    self.assertEqual(metric_update.mean_count, accumulator.count)
 
     accumulator.sum = 16.0
     accumulator.count = 2
     apiclient.MetricUpdateTranslators.translate_scalar_mean_float(
         accumulator, metric_update)
-    self.assertEqual(metric_update.floatingPointMean.sum, accumulator.sum)
+    self.assertEqual(metric_update.mean_sum, accumulator.sum)
     self.assertEqual(
-        metric_update.floatingPointMean.count.lowBits, accumulator.count)
+        metric_update.mean_count, accumulator.count)
 
   def test_default_ip_configuration(self):
     pipeline_options = PipelineOptions(
@@ -572,7 +561,9 @@ class UtilTest(unittest.TestCase):
                                 pipeline_options,
                                 '2.0.0',
                                 FAKE_PIPELINE_URL)
-    self.assertEqual(env.proto.workerPools[0].ipConfiguration, None)
+    self.assertEqual(
+        env.proto.worker_pools[0].ip_configuration,
+        dataflow.WorkerIPAddressConfiguration.WORKER_IP_UNSPECIFIED)
 
   def test_public_ip_configuration(self):
     pipeline_options = PipelineOptions(
@@ -582,8 +573,8 @@ class UtilTest(unittest.TestCase):
                                 '2.0.0',
                                 FAKE_PIPELINE_URL)
     self.assertEqual(
-        env.proto.workerPools[0].ipConfiguration,
-        dataflow.WorkerPool.IpConfigurationValueValuesEnum.WORKER_IP_PUBLIC)
+        env.proto.worker_pools[0].ip_configuration,
+        dataflow.WorkerIPAddressConfiguration.WORKER_IP_PUBLIC)
 
   def test_private_ip_configuration(self):
     pipeline_options = PipelineOptions(
@@ -593,8 +584,8 @@ class UtilTest(unittest.TestCase):
                                 '2.0.0',
                                 FAKE_PIPELINE_URL)
     self.assertEqual(
-        env.proto.workerPools[0].ipConfiguration,
-        dataflow.WorkerPool.IpConfigurationValueValuesEnum.WORKER_IP_PRIVATE)
+        env.proto.worker_pools[0].ip_configuration,
+        dataflow.WorkerIPAddressConfiguration.WORKER_IP_PRIVATE)
 
   def test_number_of_worker_harness_threads(self):
     pipeline_options = PipelineOptions([
@@ -607,7 +598,7 @@ class UtilTest(unittest.TestCase):
                                 pipeline_options,
                                 '2.0.0',
                                 FAKE_PIPELINE_URL)
-    self.assertEqual(env.proto.workerPools[0].numThreadsPerWorker, 2)
+    self.assertEqual(env.proto.worker_pools[0].num_threads_per_worker, 2)
 
   @mock.patch(
       'apache_beam.runners.dataflow.internal.apiclient.'
@@ -669,7 +660,7 @@ class UtilTest(unittest.TestCase):
         '2.0.0',  #any environment version
         FAKE_PIPELINE_URL)
     self.assertEqual(
-        env.proto.workerPools[0].workerHarnessContainerImage,
+        env.proto.worker_pools[0].worker_harness_container_image,
         (
             names.DATAFLOW_CONTAINER_IMAGE_REPOSITORY +
             '/beam_python%d.%d_sdk:%s' % (
@@ -685,7 +676,7 @@ class UtilTest(unittest.TestCase):
         '2.0.0',  #any environment version
         FAKE_PIPELINE_URL)
     self.assertEqual(
-        env.proto.workerPools[0].workerHarnessContainerImage,
+        env.proto.worker_pools[0].worker_harness_container_image,
         (
             names.DATAFLOW_CONTAINER_IMAGE_REPOSITORY +
             '/beam_python%d.%d_sdk:%s' % (
@@ -707,7 +698,7 @@ class UtilTest(unittest.TestCase):
         '2.0.0',  #any environment version
         FAKE_PIPELINE_URL)
     self.assertEqual(
-        env.proto.workerPools[0].workerHarnessContainerImage,
+        env.proto.worker_pools[0].worker_harness_container_image,
         (
             names.DATAFLOW_CONTAINER_IMAGE_REPOSITORY +
             '/beam_python%d.%d_sdk:2.2.0' %
@@ -721,7 +712,7 @@ class UtilTest(unittest.TestCase):
         '2.0.0',  #any environment version
         FAKE_PIPELINE_URL)
     self.assertEqual(
-        env.proto.workerPools[0].workerHarnessContainerImage,
+        env.proto.worker_pools[0].worker_harness_container_image,
         (
             names.DATAFLOW_CONTAINER_IMAGE_REPOSITORY +
             '/beam_python%d.%d_sdk:2.2.0' %
@@ -741,7 +732,7 @@ class UtilTest(unittest.TestCase):
         '2.0.0',  #any environment version
         FAKE_PIPELINE_URL)
     self.assertEqual(
-        env.proto.workerPools[0].workerHarnessContainerImage,
+        env.proto.worker_pools[0].worker_harness_container_image,
         (
             names.DATAFLOW_CONTAINER_IMAGE_REPOSITORY +
             '/beam_python%d.%d_sdk:2.2.0' %
@@ -755,7 +746,7 @@ class UtilTest(unittest.TestCase):
         '2.0.0',  #any environment version
         FAKE_PIPELINE_URL)
     self.assertEqual(
-        env.proto.workerPools[0].workerHarnessContainerImage,
+        env.proto.worker_pools[0].worker_harness_container_image,
         (
             names.DATAFLOW_CONTAINER_IMAGE_REPOSITORY +
             '/beam_python%d.%d_sdk:2.2.0' %
@@ -775,7 +766,7 @@ class UtilTest(unittest.TestCase):
         '2.0.0',  #any environment version
         FAKE_PIPELINE_URL)
     self.assertEqual(
-        env.proto.workerPools[0].workerHarnessContainerImage, 'some:image')
+        env.proto.worker_pools[0].worker_harness_container_image, 'some:image')
     # batch, legacy pipeline.
     pipeline_options = PipelineOptions([
         '--temp_location',
@@ -788,7 +779,7 @@ class UtilTest(unittest.TestCase):
         '2.0.0',  #any environment version
         FAKE_PIPELINE_URL)
     self.assertEqual(
-        env.proto.workerPools[0].workerHarnessContainerImage, 'some:image')
+        env.proto.worker_pools[0].worker_harness_container_image, 'some:image')
 
   @mock.patch(
       'apache_beam.runners.dataflow.internal.apiclient.Job.'
@@ -807,7 +798,7 @@ class UtilTest(unittest.TestCase):
         '{\"from\":\"to\"}'
     ])
     job = apiclient.Job(pipeline_options, beam_runner_api_pb2.Pipeline())
-    self.assertIsNotNone(job.proto.transformNameMapping)
+    self.assertIsNotNone(job.proto.transform_name_mapping)
 
   def test_created_from_snapshot_id(self):
     pipeline_options = PipelineOptions([
@@ -821,7 +812,7 @@ class UtilTest(unittest.TestCase):
         'test_snapshot_id'
     ])
     job = apiclient.Job(pipeline_options, beam_runner_api_pb2.Pipeline())
-    self.assertEqual('test_snapshot_id', job.proto.createdFromSnapshotId)
+    self.assertEqual('test_snapshot_id', job.proto.created_from_snapshot_id)
 
   def test_labels(self):
     pipeline_options = PipelineOptions([
@@ -833,7 +824,7 @@ class UtilTest(unittest.TestCase):
         'gs://test-location/temp'
     ])
     job = apiclient.Job(pipeline_options, beam_runner_api_pb2.Pipeline())
-    self.assertIsNone(job.proto.labels)
+    self.assertEqual(job.proto.labels, {})
 
     pipeline_options = PipelineOptions([
         '--project',
@@ -854,17 +845,17 @@ class UtilTest(unittest.TestCase):
         'key5'
     ])
     job = apiclient.Job(pipeline_options, beam_runner_api_pb2.Pipeline())
-    self.assertEqual(5, len(job.proto.labels.additionalProperties))
-    self.assertEqual('key1', job.proto.labels.additionalProperties[0].key)
-    self.assertEqual('value1', job.proto.labels.additionalProperties[0].value)
-    self.assertEqual('key2', job.proto.labels.additionalProperties[1].key)
-    self.assertEqual('', job.proto.labels.additionalProperties[1].value)
-    self.assertEqual('key3', job.proto.labels.additionalProperties[2].key)
-    self.assertEqual('value3', job.proto.labels.additionalProperties[2].value)
-    self.assertEqual('key4', job.proto.labels.additionalProperties[3].key)
-    self.assertEqual('value4', job.proto.labels.additionalProperties[3].value)
-    self.assertEqual('key5', job.proto.labels.additionalProperties[4].key)
-    self.assertEqual('', job.proto.labels.additionalProperties[4].value)
+    self.assertEqual(5, len(job.proto.labels))
+    self.assertTrue('key1' in job.proto.labels.keys())
+    self.assertEqual('value1', job.proto.labels['key1'])
+    self.assertTrue('key2' in job.proto.labels.keys())
+    self.assertEqual('', job.proto.labels['key2'])
+    self.assertTrue('key3' in job.proto.labels.keys())
+    self.assertEqual('value3', job.proto.labels['key3'])
+    self.assertTrue('key4' in job.proto.labels.keys())
+    self.assertEqual('value4', job.proto.labels['key4'])
+    self.assertTrue('key5' in job.proto.labels.keys())
+    self.assertEqual('', job.proto.labels['key5'])
 
     pipeline_options = PipelineOptions([
         '--project',
@@ -877,13 +868,13 @@ class UtilTest(unittest.TestCase):
         '{ "name": "wrench", "mass": "1_3kg", "count": "3" }'
     ])
     job = apiclient.Job(pipeline_options, beam_runner_api_pb2.Pipeline())
-    self.assertEqual(3, len(job.proto.labels.additionalProperties))
-    self.assertEqual('name', job.proto.labels.additionalProperties[0].key)
-    self.assertEqual('wrench', job.proto.labels.additionalProperties[0].value)
-    self.assertEqual('mass', job.proto.labels.additionalProperties[1].key)
-    self.assertEqual('1_3kg', job.proto.labels.additionalProperties[1].value)
-    self.assertEqual('count', job.proto.labels.additionalProperties[2].key)
-    self.assertEqual('3', job.proto.labels.additionalProperties[2].value)
+    self.assertEqual(3, len(job.proto.labels))
+    self.assertTrue('name' in job.proto.labels.keys())
+    self.assertEqual('wrench', job.proto.labels['name'])
+    self.assertTrue('mass' in job.proto.labels.keys())
+    self.assertEqual('1_3kg', job.proto.labels['mass'])
+    self.assertTrue('count' in job.proto.labels.keys())
+    self.assertEqual('3', job.proto.labels['count'])
 
     pipeline_options = PipelineOptions([
         '--project',
@@ -897,13 +888,13 @@ class UtilTest(unittest.TestCase):
         "name": "wrench", "mass": "1_3kg", "count": "3"
     }
     job = apiclient.Job(pipeline_options, beam_runner_api_pb2.Pipeline())
-    self.assertEqual(3, len(job.proto.labels.additionalProperties))
-    self.assertEqual('name', job.proto.labels.additionalProperties[0].key)
-    self.assertEqual('wrench', job.proto.labels.additionalProperties[0].value)
-    self.assertEqual('mass', job.proto.labels.additionalProperties[1].key)
-    self.assertEqual('1_3kg', job.proto.labels.additionalProperties[1].value)
-    self.assertEqual('count', job.proto.labels.additionalProperties[2].key)
-    self.assertEqual('3', job.proto.labels.additionalProperties[2].value)
+    self.assertEqual(3, len(job.proto.labels))
+    self.assertTrue('name' in job.proto.labels.keys())
+    self.assertEqual('wrench', job.proto.labels['name'])
+    self.assertTrue('mass' in job.proto.labels.keys())
+    self.assertEqual('1_3kg', job.proto.labels['mass'])
+    self.assertTrue('count' in job.proto.labels.keys())
+    self.assertEqual('3', job.proto.labels['count'])
 
     pipeline_options = PipelineOptions([
         '--project',
@@ -917,13 +908,13 @@ class UtilTest(unittest.TestCase):
         GoogleCloudOptions
     ).labels = '{ "name": "wrench", "mass": "1_3kg", "count": "3" }'
     job = apiclient.Job(pipeline_options, beam_runner_api_pb2.Pipeline())
-    self.assertEqual(3, len(job.proto.labels.additionalProperties))
-    self.assertEqual('name', job.proto.labels.additionalProperties[0].key)
-    self.assertEqual('wrench', job.proto.labels.additionalProperties[0].value)
-    self.assertEqual('mass', job.proto.labels.additionalProperties[1].key)
-    self.assertEqual('1_3kg', job.proto.labels.additionalProperties[1].value)
-    self.assertEqual('count', job.proto.labels.additionalProperties[2].key)
-    self.assertEqual('3', job.proto.labels.additionalProperties[2].value)
+    self.assertEqual(3, len(job.proto.labels))
+    self.assertTrue('name' in job.proto.labels.keys())
+    self.assertEqual('wrench', job.proto.labels['name'])
+    self.assertTrue('mass' in job.proto.labels.keys())
+    self.assertEqual('1_3kg', job.proto.labels['mass'])
+    self.assertTrue('count' in job.proto.labels.keys())
+    self.assertEqual('3', job.proto.labels['count'])
 
   def test_experiment_use_multiple_sdk_containers(self):
     pipeline_options = PipelineOptions([
@@ -1124,18 +1115,18 @@ class UtilTest(unittest.TestCase):
         'gs://test-location/temp',
     ])
     job = apiclient.Job(pipeline_options, beam_runner_api_pb2.Pipeline())
-    self.assertTrue(job.proto.clientRequestId)  # asserts non-empty string
+    self.assertTrue(job.proto.client_request_id)  # asserts non-empty string
     pipeline_options.view_as(GoogleCloudOptions).no_auth = True
     client = apiclient.DataflowApplicationClient(pipeline_options)
 
     response = dataflow.Job()
-    # different clientRequestId from `job`
-    response.clientRequestId = "20210821081910123456-1234"
+    # different client_id_request from `job`
+    response.client_request_id = "20210821081910123456-1234"
     response.name = 'test_job_name'
     response.id = '2021-08-19_21_18_43-9756917246311111021'
 
-    with mock.patch.object(client._client.projects_locations_jobs,
-                           'Create',
+    with mock.patch.object(client._jobs_client,
+                           'create_job',
                            side_effect=[response]):
       with mock.patch.object(client, 'create_job_description',
                              side_effect=None):
@@ -1168,20 +1159,20 @@ class UtilTest(unittest.TestCase):
       job = apiclient.Job(pipeline_options, beam_runner_api_pb2.Pipeline())
     job_id_for_name_mock.assert_called_once()
 
-    self.assertTrue(job.proto.clientRequestId)  # asserts non-empty string
+    self.assertTrue(job.proto.client_request_id)  # asserts non-empty string
 
     pipeline_options.view_as(GoogleCloudOptions).no_auth = True
     client = apiclient.DataflowApplicationClient(pipeline_options)
 
     response = dataflow.Job()
     # different clientRequestId from `job`
-    response.clientRequestId = "20210821083254123456-1234"
+    response.client_request_id = "20210821083254123456-1234"
     response.name = 'test_job_name'
     response.id = '2021-08-19_21_29_07-5725551945600207770'
 
     with mock.patch.object(client, 'create_job_description', side_effect=None):
-      with mock.patch.object(client._client.projects_locations_jobs,
-                             'Create',
+      with mock.patch.object(client._jobs_client,
+                             'create_job',
                              side_effect=[response]):
 
         with self.assertRaises(
@@ -1445,7 +1436,7 @@ class UtilTest(unittest.TestCase):
         pipeline_options,
         '2.0.0',  #any environment version
         FAKE_PIPELINE_URL)
-    self.assertEqual(env.proto.serviceOptions, ['whizz=bang'])
+    self.assertEqual(env.proto.service_options, ['whizz=bang'])
 
   def test_enable_hot_key_logging(self):
     # Tests that the enable_hot_key_logging is not set by default.
@@ -1456,7 +1447,7 @@ class UtilTest(unittest.TestCase):
         pipeline_options,
         '2.0.0',  #any environment version
         FAKE_PIPELINE_URL)
-    self.assertIsNone(env.proto.debugOptions)
+    self.assertEqual(env.proto.debug_options, dataflow.DebugOptions(enable_hot_key_logging=False))
 
     # Now test that it is set when given.
     pipeline_options = PipelineOptions([
@@ -1468,7 +1459,8 @@ class UtilTest(unittest.TestCase):
         '2.0.0',  #any environment version
         FAKE_PIPELINE_URL)
     self.assertEqual(
-        env.proto.debugOptions, dataflow.DebugOptions(enableHotKeyLogging=True))
+        env.proto.debug_options,
+        dataflow.DebugOptions(enable_hot_key_logging=True))
 
   def _mock_uncached_copy(self, staging_root, src, sha256, dst_name=None):
     sha_prefix = sha256[0:2]

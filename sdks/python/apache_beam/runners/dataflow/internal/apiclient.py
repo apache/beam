@@ -48,13 +48,13 @@ from copy import copy
 from datetime import datetime
 from datetime import timezone
 
-from apitools.base.py import encoding
 from apitools.base.py import exceptions
+from google.cloud import dataflow
+from google.protobuf import json_format
+from google.protobuf.struct_pb2 import Struct
 
 from apache_beam import version as beam_version
 from apache_beam.internal.gcp.auth import get_service_credentials
-from apache_beam.internal.gcp.json_value import to_json_value
-from apache_beam.internal.http_client import get_new_http
 from apache_beam.io.filesystems import FileSystems
 from apache_beam.io.gcp.gcsfilesystem import GCSFileSystem
 from apache_beam.io.gcp.gcsio import create_storage_client
@@ -65,7 +65,6 @@ from apache_beam.options.pipeline_options import WorkerOptions
 from apache_beam.portability import common_urns
 from apache_beam.portability.api import beam_runner_api_pb2
 from apache_beam.runners.dataflow.internal import names
-from apache_beam.runners.dataflow.internal.clients import dataflow
 from apache_beam.runners.internal import names as shared_names
 from apache_beam.runners.pipeline_utils import validate_pipeline_graph
 from apache_beam.runners.portability.stager import Stager
@@ -102,46 +101,38 @@ class Environment(object):
     self.debug_options = options.view_as(DebugOptions)
     self.pipeline_url = proto_pipeline_staged_url
     self.proto = dataflow.Environment()
-    self.proto.clusterManagerApiService = GoogleCloudOptions.COMPUTE_API_SERVICE
+    self.proto.cluster_manager_api_service = GoogleCloudOptions.COMPUTE_API_SERVICE
     self.proto.dataset = '{}/cloud_dataflow'.format(
         GoogleCloudOptions.BIGQUERY_API_SERVICE)
-    self.proto.tempStoragePrefix = (
+    self.proto.temp_storage_prefix = (
         self.google_cloud_options.temp_location.replace(
             'gs:/', GoogleCloudOptions.STORAGE_API_SERVICE))
     if self.worker_options.worker_region:
-      self.proto.workerRegion = self.worker_options.worker_region
+      self.proto.worker_region = self.worker_options.worker_region
     if self.worker_options.worker_zone:
-      self.proto.workerZone = self.worker_options.worker_zone
+      self.proto.worker_zone = self.worker_options.worker_zone
     # User agent information.
-    self.proto.userAgent = dataflow.Environment.UserAgentValue()
+    self.proto.user_agent = Struct()
     self.local = 'localhost' in self.google_cloud_options.dataflow_endpoint
     self._proto_pipeline = proto_pipeline
 
     if self.google_cloud_options.service_account_email:
-      self.proto.serviceAccountEmail = (
+      self.proto.service_accountE_email = (
           self.google_cloud_options.service_account_email)
     if self.google_cloud_options.dataflow_kms_key:
-      self.proto.serviceKmsKeyName = self.google_cloud_options.dataflow_kms_key
+      self.proto.service_kms_key_name = self.google_cloud_options.dataflow_kms_key
 
-    self.proto.userAgent.additionalProperties.extend([
-        dataflow.Environment.UserAgentValue.AdditionalProperty(
-            key='name', value=to_json_value(self._get_python_sdk_name())),
-        dataflow.Environment.UserAgentValue.AdditionalProperty(
-            key='version', value=to_json_value(beam_version.__version__))
-    ])
+    self.proto.user_agent.update({'name': self._get_python_sdk_name()})
+    self.proto.user_agent.update({'version': beam_version.__version__})
     # Version information.
-    self.proto.version = dataflow.Environment.VersionValue()
+    self.proto.version = Struct()
     _verify_interpreter_version_is_supported(options)
     if self.standard_options.streaming:
       job_type = 'FNAPI_STREAMING'
     else:
       job_type = 'FNAPI_BATCH'
-    self.proto.version.additionalProperties.extend([
-        dataflow.Environment.VersionValue.AdditionalProperty(
-            key='job_type', value=to_json_value(job_type)),
-        dataflow.Environment.VersionValue.AdditionalProperty(
-            key='major', value=to_json_value(environment_version))
-    ])
+    self.proto.version.update({'job_type': job_type})
+    self.proto.version.update({'major': environment_version})
     # TODO: Use enumerated type instead of strings for job types.
     if job_type.startswith('FNAPI_'):
       self.debug_options.experiments = self.debug_options.experiments or []
@@ -156,13 +147,11 @@ class Environment(object):
         debug_options_experiments.append('use_multiple_sdk_containers')
     # FlexRS
     if self.google_cloud_options.flexrs_goal == 'COST_OPTIMIZED':
-      self.proto.flexResourceSchedulingGoal = (
-          dataflow.Environment.FlexResourceSchedulingGoalValueValuesEnum.
-          FLEXRS_COST_OPTIMIZED)
+      self.proto.flex_resource_scheduling_goal = (
+          dataflow.FlexResourceSchedulingGoal.FLEXRS_COST_OPTIMIZED)
     elif self.google_cloud_options.flexrs_goal == 'SPEED_OPTIMIZED':
-      self.proto.flexResourceSchedulingGoal = (
-          dataflow.Environment.FlexResourceSchedulingGoalValueValuesEnum.
-          FLEXRS_SPEED_OPTIMIZED)
+      self.proto.flex_resource_scheduling_goal = (
+          dataflow.FlexResourceSchedulingGoal.FLEXRS_SPEED_OPTIMIZED)
     # Experiments
     if self.debug_options.experiments:
       for experiment in self.debug_options.experiments:
@@ -181,30 +170,30 @@ class Environment(object):
     pool = dataflow.WorkerPool(
         kind='local' if self.local else 'harness',
         packages=package_descriptors,
-        taskrunnerSettings=dataflow.TaskRunnerSettings(
-            parallelWorkerSettings=dataflow.WorkerSettings(
-                baseUrl=GoogleCloudOptions.DATAFLOW_ENDPOINT,
-                servicePath=self.google_cloud_options.dataflow_endpoint)))
+        taskrunner_settings=dataflow.TaskRunnerSettings(
+            parallel_worker_settings=dataflow.WorkerSettings(
+                base_url=GoogleCloudOptions.DATAFLOW_ENDPOINT,
+                service_path=self.google_cloud_options.dataflow_endpoint)))
 
-    pool.autoscalingSettings = dataflow.AutoscalingSettings()
+    pool.autoscaling_settings = dataflow.AutoscalingSettings()
     # Set worker pool options received through command line.
     if self.worker_options.num_workers:
-      pool.numWorkers = self.worker_options.num_workers
+      pool.num_workers = self.worker_options.num_workers
     if self.worker_options.max_num_workers:
-      pool.autoscalingSettings.maxNumWorkers = (
+      pool.autoscaling_settings.max_num_workers = (
           self.worker_options.max_num_workers)
     if self.worker_options.autoscaling_algorithm:
-      values_enum = dataflow.AutoscalingSettings.AlgorithmValueValuesEnum
-      pool.autoscalingSettings.algorithm = {
+      values_enum = dataflow.AutoscalingSettings.algorithm
+      pool.autoscaling_settings.algorithm = {
           'NONE': values_enum.AUTOSCALING_ALGORITHM_NONE,
           'THROUGHPUT_BASED': values_enum.AUTOSCALING_ALGORITHM_BASIC,
       }.get(self.worker_options.autoscaling_algorithm)
     if self.worker_options.machine_type:
-      pool.machineType = self.worker_options.machine_type
+      pool.machine_type = self.worker_options.machine_type
     if self.worker_options.disk_size_gb:
-      pool.diskSizeGb = self.worker_options.disk_size_gb
+      pool.disk_size_gb = self.worker_options.disk_size_gb
     if self.worker_options.disk_type:
-      pool.diskType = self.worker_options.disk_type
+      pool.disk_type = self.worker_options.disk_type
     if self.worker_options.zone:
       pool.zone = self.worker_options.zone
     if self.worker_options.network:
@@ -228,75 +217,70 @@ class Environment(object):
       container_image_url = environment_payload.container_image
 
       container_image = dataflow.SdkHarnessContainerImage()
-      container_image.containerImage = container_image_url
-      container_image.useSingleCorePerContainer = (
+      container_image.container_image = container_image_url
+      container_image.use_single_core_per_container = (
           common_urns.protocols.MULTI_CORE_BUNDLE_PROCESSING.urn
           not in environment.capabilities)
-      container_image.environmentId = id
+      container_image.environment_id = id
       for capability in environment.capabilities:
         container_image.capabilities.append(capability)
-      pool.sdkHarnessContainerImages.append(container_image)
+      pool.sdk_harness_container_images.append(container_image)
 
-    if not pool.sdkHarnessContainerImages:
-      pool.workerHarnessContainerImage = (
+    if not pool.sdk_harness_container_images:
+      pool.worker_harness_container_image = (
           get_container_image_from_options(options))
-    elif len(pool.sdkHarnessContainerImages) == 1:
+    elif len(pool.sdk_harness_container_images) == 1:
       # Dataflow expects a value here when there is only one environment.
       pool.workerHarnessContainerImage = (
           pool.sdkHarnessContainerImages[0].containerImage)
 
     if self.debug_options.number_of_worker_harness_threads:
-      pool.numThreadsPerWorker = (
+      pool.num_threads_per_worker = (
           self.debug_options.number_of_worker_harness_threads)
     if self.worker_options.use_public_ips is not None:
       if self.worker_options.use_public_ips:
-        pool.ipConfiguration = (
-            dataflow.WorkerPool.IpConfigurationValueValuesEnum.WORKER_IP_PUBLIC)
+        pool.ip_configuration = (
+            dataflow.WorkerIPAddressConfiguration.WORKER_IP_PUBLIC)
       else:
-        pool.ipConfiguration = (
-            dataflow.WorkerPool.IpConfigurationValueValuesEnum.WORKER_IP_PRIVATE
-        )
+        pool.ip_configuration = (
+            dataflow.WorkerIPAddressConfiguration.WORKER_IP_PRIVATE)
 
     if self.standard_options.streaming:
       # Use separate data disk for streaming.
       disk = dataflow.Disk()
       if self.local:
-        disk.diskType = 'local'
+        disk.disk_type = 'local'
       if self.worker_options.disk_type:
-        disk.diskType = self.worker_options.disk_type
-      pool.dataDisks.append(disk)
-    self.proto.workerPools.append(pool)
+        disk.disk_type = self.worker_options.disk_type
+      pool.data_disks.append(disk)
+    self.proto.worker_pools.append(pool)
 
     sdk_pipeline_options = options.get_all_options(retain_unknown_options=True)
     if sdk_pipeline_options:
-      self.proto.sdkPipelineOptions = (
-          dataflow.Environment.SdkPipelineOptionsValue())
+      self.proto.sdk_pipeline_options = Struct()
 
       options_dict = {
           k: v
           for k, v in sdk_pipeline_options.items() if v is not None
       }
-      options_dict["pipelineUrl"] = proto_pipeline_staged_url
+      options_dict["pipeline_url"] = proto_pipeline_staged_url
       # Don't pass impersonate_service_account through to the harness.
       # Though impersonation should start a job, the workers should
       # not try to modify their credentials.
       options_dict.pop('impersonate_service_account', None)
-      self.proto.sdkPipelineOptions.additionalProperties.append(
-          dataflow.Environment.SdkPipelineOptionsValue.AdditionalProperty(
-              key='options', value=to_json_value(options_dict)))
+      self.proto.sdk_pipeline_options.update({'options': options_dict})
 
       dd = DisplayData.create_from_options(options)
       items = [item.get_dict() for item in dd.items]
-      self.proto.sdkPipelineOptions.additionalProperties.append(
-          dataflow.Environment.SdkPipelineOptionsValue.AdditionalProperty(
-              key='display_data', value=to_json_value(items)))
+      self.proto.sdk_pipeline_options.update({'display_data': items})
 
     if self.google_cloud_options.dataflow_service_options:
       for option in self.google_cloud_options.dataflow_service_options:
-        self.proto.serviceOptions.append(option)
+        self.proto.service_options.append(option)
 
     if self.google_cloud_options.enable_hot_key_logging:
-      self.proto.debugOptions = dataflow.DebugOptions(enableHotKeyLogging=True)
+      self.proto.debug_options = dataflow.DebugOptions(
+          enable_hot_key_logging=True)
 
   def _get_environments_from_tranforms(self):
     if not self._proto_pipeline:
@@ -352,7 +336,7 @@ class Job(object):
     # further modify it to not output too-long strings, aimed at the
     # 10,000+ character hex-encoded "serialized_fn" values.
     return json.dumps(
-        json.loads(encoding.MessageToJson(self.proto)),
+        json.loads(json_format.MessageToJson(self.proto._pb)),
         indent=2,
         sort_keys=True)
 
@@ -428,25 +412,22 @@ class Job(object):
 
     self.proto = dataflow.Job(name=self.google_cloud_options.job_name)
     if self.options.view_as(StandardOptions).streaming:
-      self.proto.type = dataflow.Job.TypeValueValuesEnum.JOB_TYPE_STREAMING
+      self.proto.type_ = dataflow.JobType.JOB_TYPE_STREAMING
     else:
-      self.proto.type = dataflow.Job.TypeValueValuesEnum.JOB_TYPE_BATCH
+      self.proto.type_ = dataflow.JobType.JOB_TYPE_BATCH
     if self.google_cloud_options.update:
-      self.proto.replaceJobId = self.job_id_for_name(self.proto.name)
+      self.proto.replace_job_id = self.job_id_for_name(self.proto.name)
       if self.google_cloud_options.transform_name_mapping:
-        self.proto.transformNameMapping = (
-            dataflow.Job.TransformNameMappingValue())
+        self.proto.transform_name_mapping = Struct()
         for _, (key, value) in enumerate(
             self.google_cloud_options.transform_name_mapping.items()):
-          self.proto.transformNameMapping.additionalProperties.append(
-              dataflow.Job.TransformNameMappingValue.AdditionalProperty(
-                  key=key, value=value))
+          self.proto.transform_name_mapping.update({key: value})
     if self.google_cloud_options.create_from_snapshot:
-      self.proto.createdFromSnapshotId = (
+      self.proto.created_from_snapshot_id = (
           self.google_cloud_options.create_from_snapshot)
     # Labels.
     if self.google_cloud_options.labels:
-      self.proto.labels = dataflow.Job.LabelsValue()
+      self.proto.labels = Struct()
       labels = self.google_cloud_options.labels
       if isinstance(labels, str):
         labels = [labels]
@@ -456,18 +437,15 @@ class Job(object):
         if '{' in label:
           label = ast.literal_eval(label)
           for key, value in label.items():
-            self.proto.labels.additionalProperties.append(
-                dataflow.Job.LabelsValue.AdditionalProperty(
-                    key=key, value=value))
+            self.proto.labels.update({key: value})
         else:
           parts = label.split('=', 1)
           key = parts[0]
           value = parts[1] if len(parts) > 1 else ''
-          self.proto.labels.additionalProperties.append(
-              dataflow.Job.LabelsValue.AdditionalProperty(key=key, value=value))
+          self.proto.labels.update({key: value})
 
     # Client Request ID
-    self.proto.clientRequestId = '{}-{}'.format(
+    self.proto.client_request_id = '{}-{}'.format(
         datetime.now(timezone.utc).strftime('%Y%m%d%H%M%S%f'),
         random.randrange(9000) + 1000)
 
@@ -479,7 +457,7 @@ class Job(object):
         self.google_cloud_options).job_id_for_name(job_name)
 
   def json(self):
-    return encoding.MessageToJson(self.proto)
+    return json_format.MessageToJson(self.proto._pb)
 
   def __reduce__(self):
     """Reduce hook for pickling the Job class more easily."""
@@ -508,13 +486,11 @@ class DataflowApplicationClient(object):
     else:
       credentials = get_service_credentials(options)
 
-    http_client = get_new_http()
-    self._client = dataflow.DataflowV1b3(
-        url=self.google_cloud_options.dataflow_endpoint,
-        credentials=credentials,
-        get_credentials=(not self.google_cloud_options.no_auth),
-        http=http_client,
-        response_encoding=get_response_encoding())
+    self._jobs_client = dataflow.JobsV1Beta3Client(credentials=credentials)
+    self._messages_client = dataflow.MessagesV1Beta3Client(
+        credentials=credentials)
+    self._metrics_client = dataflow.MetricsV1Beta3Client(
+        credentials=credentials)
     self._storage_client = create_storage_client(
         options, not self.google_cloud_options.no_auth)
     self._sdk_image_overrides = self._get_sdk_image_overrides(options)
@@ -732,7 +708,7 @@ class DataflowApplicationClient(object):
           "stream_or_path is unsupported.")
 
   @retry.no_retries  # Using no_retries marks this as an integration point.
-  def create_job(self, job):
+  def create_job(self, job: Job):
     """Creates job description. May stage and/or submit for remote execution."""
     self.create_job_description(job)
 
@@ -747,7 +723,7 @@ class DataflowApplicationClient(object):
           "dataflow_graph.json",
           io.BytesIO(job.json().encode('utf-8')))
       del job.proto.steps[:]
-      job.proto.stepsLocation = FileSystems.join(
+      job.proto.steps_location = FileSystems.join(
           job.options.view_as(GoogleCloudOptions).staging_location,
           "dataflow_graph.json")
 
@@ -820,7 +796,7 @@ class DataflowApplicationClient(object):
       new_payload.container_image = new_container_image
       environment.payload = new_payload.SerializeToString()
 
-  def create_job_description(self, job):
+  def create_job_description(self, job: Job):
     """Creates a job described by the workflow proto."""
     DataflowApplicationClient._apply_sdk_environment_overrides(
         job.proto_pipeline, self._sdk_image_overrides, job.options)
@@ -845,13 +821,13 @@ class DataflowApplicationClient(object):
     _LOGGER.debug('JOB: %s', job)
 
   @retry.with_exponential_backoff(num_retries=3, initial_delay_secs=3)
-  def get_job_metrics(self, job_id):
-    request = dataflow.DataflowProjectsLocationsJobsGetMetricsRequest()
-    request.jobId = job_id
+  def get_job_metrics(self, job_id) -> dataflow.JobMetrics:
+    request = dataflow.GetJobMetricsRequest()
+    request.job_id = job_id
     request.location = self.google_cloud_options.region
-    request.projectId = self.google_cloud_options.project
+    request.project_id = self.google_cloud_options.project
     try:
-      response = self._client.projects_locations_jobs.GetMetrics(request)
+      response = self._metrics_client.get_job_metrics(request)
     except exceptions.BadStatusCodeError as e:
       _LOGGER.error(
           'HTTP status %d. Unable to query metrics', e.response.status)
@@ -859,15 +835,15 @@ class DataflowApplicationClient(object):
     return response
 
   @retry.with_exponential_backoff(num_retries=3)
-  def submit_job_description(self, job):
+  def submit_job_description(self, job: Job) -> dataflow.Job:
     """Creates and excutes a job request."""
-    request = dataflow.DataflowProjectsLocationsJobsCreateRequest()
-    request.projectId = self.google_cloud_options.project
+    request = dataflow.CreateJobRequest()
+    request.project_id = self.google_cloud_options.project
     request.location = self.google_cloud_options.region
     request.job = job.proto
 
     try:
-      response = self._client.projects_locations_jobs.Create(request)
+      response = self._jobs_client.create_job(request=request)
     except exceptions.BadStatusCodeError as e:
       _LOGGER.error(
           'HTTP status %d trying to create job'
@@ -877,13 +853,13 @@ class DataflowApplicationClient(object):
       _LOGGER.fatal('details of server error: %s', e)
       raise
 
-    if response.clientRequestId and \
-        response.clientRequestId != job.proto.clientRequestId:
+    if response.client_request_id and \
+        response.client_request_id != job.proto.client_request_id:
       if self.google_cloud_options.update:
         raise DataflowJobAlreadyExistsError(
             "The job named %s with id: %s has already been updated into job "
             "id: %s and cannot be updated again." %
-            (response.name, job.proto.replaceJobId, response.id))
+            (response.name, job.proto.replace_job_id, response.id))
       else:
         raise DataflowJobAlreadyExistsError(
             'There is already active job named %s with id: %s. If you want to '
@@ -904,7 +880,7 @@ class DataflowApplicationClient(object):
     return response
 
   @retry.with_exponential_backoff()  # Using retry defaults from utils/retry.py
-  def modify_job_state(self, job_id, new_state):
+  def modify_job_state(self, job_id, new_state) -> bool:
     """Modify the run state of the job.
 
     Args:
@@ -916,27 +892,27 @@ class DataflowApplicationClient(object):
       True if the job was modified successfully.
     """
     if new_state == 'JOB_STATE_DONE':
-      new_state = dataflow.Job.RequestedStateValueValuesEnum.JOB_STATE_DONE
+      new_state = dataflow.JobState.JOB_STATE_DONE
     elif new_state == 'JOB_STATE_CANCELLED':
-      new_state = dataflow.Job.RequestedStateValueValuesEnum.JOB_STATE_CANCELLED
+      new_state = dataflow.JobState.JOB_STATE_CANCELLED
     elif new_state == 'JOB_STATE_DRAINING':
-      new_state = dataflow.Job.RequestedStateValueValuesEnum.JOB_STATE_DRAINING
+      new_state = dataflow.JobState.JOB_STATE_DRAINING
     else:
       # Other states could only be set by the service.
       return False
 
-    request = dataflow.DataflowProjectsLocationsJobsUpdateRequest()
-    request.jobId = job_id
-    request.projectId = self.google_cloud_options.project
+    request = dataflow.UpdateJobRequest()
+    request.job_id = job_id
+    request.project_id = self.google_cloud_options.project
     request.location = self.google_cloud_options.region
-    request.job = dataflow.Job(requestedState=new_state)
+    request.job = dataflow.Job(requested_state=new_state)
 
-    self._client.projects_locations_jobs.Update(request)
+    self._jobs_client.update_job(request=request)
     return True
 
   @retry.with_exponential_backoff(
       retry_filter=retry.retry_on_server_errors_and_notfound_filter)
-  def get_job(self, job_id):
+  def get_job(self, job_id) -> dataflow.Job:
     """Gets the job status for a submitted job.
 
     Args:
@@ -957,11 +933,11 @@ class DataflowApplicationClient(object):
         (e.g. '2015-03-10T00:01:53.074Z')
       currentStateTime: UTC time for the current state of the job.
     """
-    request = dataflow.DataflowProjectsLocationsJobsGetRequest()
-    request.jobId = job_id
-    request.projectId = self.google_cloud_options.project
+    request = dataflow.GetJobRequest()
+    request.job_id = job_id
+    request.project_id = self.google_cloud_options.project
     request.location = self.google_cloud_options.region
-    response = self._client.projects_locations_jobs.Get(request)
+    response = self._jobs_client.get_job(request)
     return response
 
   @retry.with_exponential_backoff(
@@ -1012,58 +988,53 @@ class DataflowApplicationClient(object):
         JOB_MESSAGE_WARNING, JOB_MESSAGE_ERROR.
      messageText: A message string.
     """
-    request = dataflow.DataflowProjectsLocationsJobsMessagesListRequest(
-        jobId=job_id,
+    request = dataflow.ListJobMessagesRequest(
+        job_id=job_id,
         location=self.google_cloud_options.region,
         projectId=self.google_cloud_options.project)
     if page_token is not None:
-      request.pageToken = page_token
+      request.page_token = page_token
     if start_time is not None:
-      request.startTime = start_time
+      request.start_time = start_time
     if end_time is not None:
-      request.endTime = end_time
+      request.end_time = end_time
     if minimum_importance is not None:
       if minimum_importance == 'JOB_MESSAGE_DEBUG':
-        request.minimumImportance = (
-            dataflow.DataflowProjectsLocationsJobsMessagesListRequest.
-            MinimumImportanceValueValuesEnum.JOB_MESSAGE_DEBUG)
+        request.minimum_importance = (
+            dataflow.JobMessageImportance.JOB_MESSAGE_DEBUG)
       elif minimum_importance == 'JOB_MESSAGE_DETAILED':
         request.minimumImportance = (
-            dataflow.DataflowProjectsLocationsJobsMessagesListRequest.
-            MinimumImportanceValueValuesEnum.JOB_MESSAGE_DETAILED)
+            dataflow.JobMessageImportance.JOB_MESSAGE_DETAILED)
       elif minimum_importance == 'JOB_MESSAGE_BASIC':
         request.minimumImportance = (
-            dataflow.DataflowProjectsLocationsJobsMessagesListRequest.
-            MinimumImportanceValueValuesEnum.JOB_MESSAGE_BASIC)
+            dataflow.JobMessageImportance.JOB_MESSAGE_BASIC)
       elif minimum_importance == 'JOB_MESSAGE_WARNING':
         request.minimumImportance = (
-            dataflow.DataflowProjectsLocationsJobsMessagesListRequest.
-            MinimumImportanceValueValuesEnum.JOB_MESSAGE_WARNING)
+            dataflow.JobMessageImportance.JOB_MESSAGE_WARNING)
       elif minimum_importance == 'JOB_MESSAGE_ERROR':
         request.minimumImportance = (
-            dataflow.DataflowProjectsLocationsJobsMessagesListRequest.
-            MinimumImportanceValueValuesEnum.JOB_MESSAGE_ERROR)
+            dataflow.JobMessageImportance.JOB_MESSAGE_ERROR)
       else:
         raise RuntimeError(
             'Unexpected value for minimum_importance argument: %r' %
             minimum_importance)
-    response = self._client.projects_locations_jobs_messages.List(request)
-    return response.jobMessages, response.nextPageToken
+    response = self._messages_client.list_job_messages(request=request)
+    return response.jobs, response.next_page_token
 
   def job_id_for_name(self, job_name):
     token = None
     while True:
-      request = dataflow.DataflowProjectsLocationsJobsListRequest(
-          projectId=self.google_cloud_options.project,
+      request = dataflow.ListJobsRequest(
+          project_id=self.google_cloud_options.project,
           location=self.google_cloud_options.region,
-          pageToken=token)
-      response = self._client.projects_locations_jobs.List(request)
-      for job in response.jobs:
-        if (job.name == job_name and job.currentState
-            in [dataflow.Job.CurrentStateValueValuesEnum.JOB_STATE_RUNNING,
-                dataflow.Job.CurrentStateValueValuesEnum.JOB_STATE_DRAINING]):
+          page_token=token)
+      response = self._jobs_client.list_jobs(request)
+      for job in response:
+        if (job.name == job_name and
+            job.current_state in [dataflow.JobState.JOB_STATE_RUNNING,
+                                  dataflow.JobState.JOB_STATE_DRAINING]):
           return job.id
-      token = response.nextPageToken
+      token = response.next_page_token
       if token is None:
         raise ValueError("No running job found with name '%s'" % job_name)
 
@@ -1071,39 +1042,43 @@ class DataflowApplicationClient(object):
 class MetricUpdateTranslators(object):
   """Translators between accumulators and dataflow metric updates."""
   @staticmethod
-  def translate_boolean(accumulator, metric_update_proto):
-    metric_update_proto.boolean = accumulator.value
+  def translate_boolean(
+      accumulator, metric_update_proto: dataflow.MetricUpdate):
+    metric_update_proto.scalar = accumulator.value
 
   @staticmethod
-  def translate_scalar_mean_int(accumulator, metric_update_proto):
+  def translate_scalar_mean_int(
+      accumulator, metric_update_proto: dataflow.MetricUpdate):
     if accumulator.count:
-      metric_update_proto.integerMean = dataflow.IntegerMean()
-      metric_update_proto.integerMean.sum = to_split_int(accumulator.sum)
-      metric_update_proto.integerMean.count = to_split_int(accumulator.count)
+      metric_update_proto.kind = 'Mean'
+      metric_update_proto.mean_sum = accumulator.sum
+      metric_update_proto.mean_count = accumulator.count
     else:
-      metric_update_proto.nameAndKind.kind = None
+      metric_update_proto.kind = None
 
   @staticmethod
-  def translate_scalar_mean_float(accumulator, metric_update_proto):
+  def translate_scalar_mean_float(
+      accumulator, metric_update_proto: dataflow.MetricUpdate):
     if accumulator.count:
-      metric_update_proto.floatingPointMean = dataflow.FloatingPointMean()
-      metric_update_proto.floatingPointMean.sum = accumulator.sum
-      metric_update_proto.floatingPointMean.count = to_split_int(
-          accumulator.count)
+      metric_update_proto.kind = 'Mean'
+      metric_update_proto.mean_sum = accumulator.sum
+      metric_update_proto.mean_count = accumulator.count
     else:
-      metric_update_proto.nameAndKind.kind = None
+      metric_update_proto.kind = None
 
   @staticmethod
-  def translate_scalar_counter_int(accumulator, metric_update_proto):
-    metric_update_proto.integer = to_split_int(accumulator.value)
+  def translate_scalar_counter_int(
+      accumulator, metric_update_proto: dataflow.MetricUpdate):
+    metric_update_proto.scalar = accumulator.value
 
   @staticmethod
-  def translate_scalar_counter_float(accumulator, metric_update_proto):
-    metric_update_proto.floatingPoint = accumulator.value
+  def translate_scalar_counter_float(
+      accumulator, metric_update_proto: dataflow.MetricUpdate):
+    metric_update_proto.scalar = accumulator.value
 
 
 class _LegacyDataflowStager(Stager):
-  def __init__(self, dataflow_application_client):
+  def __init__(self, dataflow_application_client: DataflowApplicationClient):
     super().__init__()
     self._dataflow_application_client = dataflow_application_client
 
@@ -1130,16 +1105,9 @@ class DataflowJobAlreadyExistsError(retry.PermanentException):
   pass
 
 
-def to_split_int(n):
-  res = dataflow.SplitInt64()
-  res.lowBits = n & 0xffffffff
-  res.highBits = n >> 32
-  return res
-
-
 # TODO: Used in legacy batch worker. Move under MetricUpdateTranslators
 # after Runner V2 transition.
-def translate_distribution(distribution_update, metric_update_proto):
+def translate_distribution(distribution_update, metric_update_proto: dataflow.MetricUpdate):
   """Translate metrics DistributionUpdate to dataflow distribution update.
 
   Args:
@@ -1147,21 +1115,21 @@ def translate_distribution(distribution_update, metric_update_proto):
     DistributionInt64Accumulator or DataflowDistributionCounter.
     metric_update_proto: Used for report metrics.
   """
-  dist_update_proto = dataflow.DistributionUpdate()
-  dist_update_proto.min = to_split_int(distribution_update.min)
-  dist_update_proto.max = to_split_int(distribution_update.max)
-  dist_update_proto.count = to_split_int(distribution_update.count)
-  dist_update_proto.sum = to_split_int(distribution_update.sum)
+  dist_update_proto = Struct()
+  dist_update_proto.update({"min": distribution_update.min})
+  dist_update_proto.update({"max": distribution_update.max})
+  dist_update_proto.update({"count": distribution_update.count})
+  dist_update_proto.update({"sum": distribution_update.sum})
   # DataflowDistributionCounter needs to translate histogram
-  if isinstance(distribution_update, DataflowDistributionCounter):
-    dist_update_proto.histogram = dataflow.Histogram()
-    distribution_update.translate_to_histogram(dist_update_proto.histogram)
+  # if isinstance(distribution_update, DataflowDistributionCounter):
+  #   dist_update_proto.histogram = dataflow.Histogram()
+  #   distribution_update.translate_to_histogram(dist_update_proto.histogram)
   metric_update_proto.distribution = dist_update_proto
 
 
 # TODO: Used in legacy batch worker. Delete after Runner V2 transition.
-def translate_value(value, metric_update_proto):
-  metric_update_proto.integer = to_split_int(value)
+def translate_value(value, metric_update_proto: dataflow.MetricUpdate):
+  metric_update_proto.scalar = value
 
 
 def _get_container_image_tag():
@@ -1248,84 +1216,56 @@ def _verify_interpreter_version_is_supported(pipeline_options):
 # is used.
 structured_counter_translations = {
     cy_combiners.CountCombineFn: (
-        dataflow.CounterMetadata.KindValueValuesEnum.SUM,
-        MetricUpdateTranslators.translate_scalar_counter_int),
+        'Sum', MetricUpdateTranslators.translate_scalar_counter_int),
     cy_combiners.SumInt64Fn: (
-        dataflow.CounterMetadata.KindValueValuesEnum.SUM,
-        MetricUpdateTranslators.translate_scalar_counter_int),
+        'Sum', MetricUpdateTranslators.translate_scalar_counter_int),
     cy_combiners.MinInt64Fn: (
-        dataflow.CounterMetadata.KindValueValuesEnum.MIN,
-        MetricUpdateTranslators.translate_scalar_counter_int),
+        'Min', MetricUpdateTranslators.translate_scalar_counter_int),
     cy_combiners.MaxInt64Fn: (
-        dataflow.CounterMetadata.KindValueValuesEnum.MAX,
-        MetricUpdateTranslators.translate_scalar_counter_int),
+        'Max', MetricUpdateTranslators.translate_scalar_counter_int),
     cy_combiners.MeanInt64Fn: (
-        dataflow.CounterMetadata.KindValueValuesEnum.MEAN,
-        MetricUpdateTranslators.translate_scalar_mean_int),
+        'Mean', MetricUpdateTranslators.translate_scalar_mean_int),
     cy_combiners.SumFloatFn: (
-        dataflow.CounterMetadata.KindValueValuesEnum.SUM,
-        MetricUpdateTranslators.translate_scalar_counter_float),
+        'Sum', MetricUpdateTranslators.translate_scalar_counter_float),
     cy_combiners.MinFloatFn: (
-        dataflow.CounterMetadata.KindValueValuesEnum.MIN,
-        MetricUpdateTranslators.translate_scalar_counter_float),
+        'Min', MetricUpdateTranslators.translate_scalar_counter_float),
     cy_combiners.MaxFloatFn: (
-        dataflow.CounterMetadata.KindValueValuesEnum.MAX,
-        MetricUpdateTranslators.translate_scalar_counter_float),
+        'Max', MetricUpdateTranslators.translate_scalar_counter_float),
     cy_combiners.MeanFloatFn: (
-        dataflow.CounterMetadata.KindValueValuesEnum.MEAN,
-        MetricUpdateTranslators.translate_scalar_mean_float),
+        'Mean', MetricUpdateTranslators.translate_scalar_mean_float),
     cy_combiners.AllCombineFn: (
-        dataflow.CounterMetadata.KindValueValuesEnum.AND,
-        MetricUpdateTranslators.translate_boolean),
+        'And', MetricUpdateTranslators.translate_boolean),
     cy_combiners.AnyCombineFn: (
-        dataflow.CounterMetadata.KindValueValuesEnum.OR,
-        MetricUpdateTranslators.translate_boolean),
+        'Or', MetricUpdateTranslators.translate_boolean),
     cy_combiners.DataflowDistributionCounterFn: (
-        dataflow.CounterMetadata.KindValueValuesEnum.DISTRIBUTION,
-        translate_distribution),
-    cy_combiners.DistributionInt64Fn: (
-        dataflow.CounterMetadata.KindValueValuesEnum.DISTRIBUTION,
-        translate_distribution),
+        'Distribution', translate_distribution),
+    cy_combiners.DistributionInt64Fn: ('Distribution', translate_distribution),
 }
 
 counter_translations = {
     cy_combiners.CountCombineFn: (
-        dataflow.NameAndKind.KindValueValuesEnum.SUM,
-        MetricUpdateTranslators.translate_scalar_counter_int),
+        'Sum', MetricUpdateTranslators.translate_scalar_counter_int),
     cy_combiners.SumInt64Fn: (
-        dataflow.NameAndKind.KindValueValuesEnum.SUM,
-        MetricUpdateTranslators.translate_scalar_counter_int),
+        'Sum', MetricUpdateTranslators.translate_scalar_counter_int),
     cy_combiners.MinInt64Fn: (
-        dataflow.NameAndKind.KindValueValuesEnum.MIN,
-        MetricUpdateTranslators.translate_scalar_counter_int),
+        'Min', MetricUpdateTranslators.translate_scalar_counter_int),
     cy_combiners.MaxInt64Fn: (
-        dataflow.NameAndKind.KindValueValuesEnum.MAX,
-        MetricUpdateTranslators.translate_scalar_counter_int),
+        'Max', MetricUpdateTranslators.translate_scalar_counter_int),
     cy_combiners.MeanInt64Fn: (
-        dataflow.NameAndKind.KindValueValuesEnum.MEAN,
-        MetricUpdateTranslators.translate_scalar_mean_int),
+        'Mean', MetricUpdateTranslators.translate_scalar_mean_int),
     cy_combiners.SumFloatFn: (
-        dataflow.NameAndKind.KindValueValuesEnum.SUM,
-        MetricUpdateTranslators.translate_scalar_counter_float),
+        'Sum', MetricUpdateTranslators.translate_scalar_counter_float),
     cy_combiners.MinFloatFn: (
-        dataflow.NameAndKind.KindValueValuesEnum.MIN,
-        MetricUpdateTranslators.translate_scalar_counter_float),
+        'Min', MetricUpdateTranslators.translate_scalar_counter_float),
     cy_combiners.MaxFloatFn: (
-        dataflow.NameAndKind.KindValueValuesEnum.MAX,
-        MetricUpdateTranslators.translate_scalar_counter_float),
+        'Max', MetricUpdateTranslators.translate_scalar_counter_float),
     cy_combiners.MeanFloatFn: (
-        dataflow.NameAndKind.KindValueValuesEnum.MEAN,
-        MetricUpdateTranslators.translate_scalar_mean_float),
+        'Mean', MetricUpdateTranslators.translate_scalar_mean_float),
     cy_combiners.AllCombineFn: (
-        dataflow.NameAndKind.KindValueValuesEnum.AND,
-        MetricUpdateTranslators.translate_boolean),
+        'And', MetricUpdateTranslators.translate_boolean),
     cy_combiners.AnyCombineFn: (
-        dataflow.NameAndKind.KindValueValuesEnum.OR,
-        MetricUpdateTranslators.translate_boolean),
+        'Or', MetricUpdateTranslators.translate_boolean),
     cy_combiners.DataflowDistributionCounterFn: (
-        dataflow.NameAndKind.KindValueValuesEnum.DISTRIBUTION,
-        translate_distribution),
-    cy_combiners.DistributionInt64Fn: (
-        dataflow.CounterMetadata.KindValueValuesEnum.DISTRIBUTION,
-        translate_distribution),
+        'Distribution', translate_distribution),
+    cy_combiners.DistributionInt64Fn: ('Distribution', translate_distribution),
 }
