@@ -95,10 +95,9 @@ const (
 	URNEnvDocker   = "beam:env:docker:v1"
 
 	// Userstate URNs.
-	URNBagUserState             = "beam:user_state:bag:v1"
-	URNMultiMapUserState        = "beam:user_state:multimap:v1"
-	URNOrderedListUserState     = "beam:user_state:ordered_list:v1"
-	URNOrderedListStateProtocol = "beam:protocol:ordered_list_state:v1"
+	URNBagUserState         = "beam:user_state:bag:v1"
+	URNMultiMapUserState    = "beam:user_state:multimap:v1"
+	URNOrderedListUserState = "beam:user_state:ordered_list:v1"
 
 	// Base version URNs are to allow runners to make distinctions between different releases
 	// in a way that won't change based on actual releases, in particular for FnAPI behaviors.
@@ -116,7 +115,6 @@ func goCapabilities() []string {
 		URNToString,
 		URNDataSampling,
 		URNSDKConsumingReceivedData,
-		URNOrderedListStateProtocol,
 	}
 	return append(capabilities, knownStandardCoders()...)
 }
