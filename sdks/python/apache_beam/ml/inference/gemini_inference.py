@@ -22,6 +22,7 @@ from collections.abc import Sequence
 from typing import Any
 from typing import Optional
 from typing import Union
+from typing import cast
 
 from google import genai
 from google.genai import errors
@@ -73,7 +74,7 @@ def generate_from_string(
       call.
   """
   return model.models.generate_content(
-      model=model_name, contents=list(batch), **inference_args)
+      model=model_name, contents=cast(Any, batch), **inference_args)
 
 
 def generate_image_from_strings_and_images(
@@ -96,7 +97,7 @@ def generate_image_from_strings_and_images(
       call.
   """
   return model.models.generate_content(
-      model=model_name, contents=list(batch), **inference_args)
+      model=model_name, contents=cast(Any, batch), **inference_args)
 
 
 class GeminiModelHandler(RemoteModelHandler[Any, PredictionResult,
