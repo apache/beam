@@ -615,7 +615,7 @@ public class BigtableIO {
     /**
      * Returns a new {@link BigtableIO.Read} that will filter the rows read from Cloud Bigtable
      * using the given {@link TextFormat} row filter. If {@link #withRowFilter(RowFilter)} is also
-     * set, {@link #withRowFilter(RowFilter)} is used.
+     * set, the filters are chained.
      *
      * <p>Does not modify this object.
      */
@@ -1956,18 +1956,32 @@ public class BigtableIO {
     }
 
     public @Nullable RowFilter getRowFilter() {
-      ValueProvider<RowFilter> rowFilter = readOptions.getRowFilter();
-      if (rowFilter != null && rowFilter.isAccessible()) {
-        return rowFilter.get();
+      ValueProvider<RowFilter> rowFilterValueProvider = readOptions.getRowFilter();
+      RowFilter rowFilter = null;
+      if (rowFilterValueProvider != null && rowFilterValueProvider.isAccessible()) {
+        rowFilter = rowFilterValueProvider.get();
       }
 
-      ValueProvider<String> rowFilterTextProto = readOptions.getRowFilterTextProto();
-      if (rowFilterTextProto != null && rowFilterTextProto.isAccessible()) {
+      ValueProvider<String> textFilterValueProvider = readOptions.getRowFilterTextProto();
+      RowFilter textFilter = null;
+      if (textFilterValueProvider != null && textFilterValueProvider.isAccessible()) {
         try {
-          return TextFormat.parse(rowFilterTextProto.get(), RowFilter.class);
+          textFilter = TextFormat.parse(textFilterValueProvider.get(), RowFilter.class);
         } catch (TextFormat.ParseException e) {
           throw new RuntimeException("Failed to parse row filter text proto", e);
         }
+      }
+
+      if (rowFilter != null && textFilter != null) {
+        RowFilter.Chain chain =
+            RowFilter.Chain.newBuilder().addFilters(rowFilter).addFilters(textFilter).build();
+        return RowFilter.newBuilder().setChain(chain).build();
+      }
+      if (rowFilter != null) {
+        return rowFilter;
+      }
+      if (textFilter != null) {
+        return textFilter;
       }
 
       return null;
