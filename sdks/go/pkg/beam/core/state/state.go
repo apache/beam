@@ -17,8 +17,11 @@
 package state
 
 import (
+	"cmp"
 	"fmt"
+	"math"
 	"reflect"
+	"slices"
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/util/reflectx"
 )
@@ -46,6 +49,8 @@ const (
 	TypeMap TypeEnum = 3
 	// TypeSet represents a set state
 	TypeSet TypeEnum = 4
+	// TypeOrderedList represents an ordered list state
+	TypeOrderedList TypeEnum = 5
 )
 
 var (
@@ -84,6 +89,9 @@ type Provider interface {
 	WriteMapState(val Transaction) error
 	ClearMapStateKey(val Transaction) error
 	ClearMapState(val Transaction) error
+	ReadOrderedListState(userStateID string) ([]any, []Transaction, error)
+	WriteOrderedListState(val Transaction) error
+	ClearOrderedListState(val Transaction) error
 }
 
 // PipelineState is an interface representing different kinds of PipelineState (currently just state.Value).
@@ -684,3 +692,129 @@ func MakeSetState[K comparable](k string) Set[K] {
 		Key: k,
 	}
 }
+
+// OrderedListEntry is an untyped sort-key/value pair used at the Provider boundary.
+type OrderedListEntry struct {
+	SortKey int64
+	Value   any
+}
+
+// TimestampedValue is a typed sort-key/value pair returned to the user.
+type TimestampedValue[T any] struct {
+	SortKey int64
+	Value   T
+}
+
+// OrderedList is used to read and write global pipeline state representing an ordered list of elements.
+// Elements are ordered by a sort key (int64, typically representing a timestamp in milliseconds).
+// Key represents the key used to lookup this state.
+type OrderedList[T any] struct {
+	Key string
+}
+
+// Add appends a value with the given sort key to this ordered list state.
+func (s *OrderedList[T]) Add(p Provider, sortKey int64, val T) error {
+	return p.WriteOrderedListState(Transaction{
+		Key:    s.Key,
+		Type:   TransactionTypeAppend,
+		MapKey: sortKey,
+		Val:    val,
+	})
+}
+
+// Read returns all elements in this ordered list state, sorted by sort key.
+func (s *OrderedList[T]) Read(p Provider) ([]TimestampedValue[T], bool, error) {
+	return s.ReadRange(p, math.MinInt64, math.MaxInt64)
+}
+
+// ReadRange returns elements in the half-open interval [start, end), sorted by sort key.
+func (s *OrderedList[T]) ReadRange(p Provider, start, end int64) ([]TimestampedValue[T], bool, error) {
+	initialValue, bufferedTransactions, err := p.ReadOrderedListState(s.Key)
+	if err != nil {
+		return nil, false, err
+	}
+
+	// Collect initial entries that fall in [start, end).
+	var entries []OrderedListEntry
+	for _, v := range initialValue {
+		e := v.(OrderedListEntry)
+		if e.SortKey >= start && e.SortKey < end {
+			entries = append(entries, e)
+		}
+	}
+
+	// Replay transactions.
+	for _, t := range bufferedTransactions {
+		switch t.Type {
+		case TransactionTypeAppend:
+			sk := t.MapKey.(int64)
+			if sk >= start && sk < end {
+				entries = append(entries, OrderedListEntry{SortKey: sk, Value: t.Val})
+			}
+		case TransactionTypeClear:
+			r := t.MapKey.([2]int64)
+			cStart, cEnd := r[0], r[1]
+			entries = slices.DeleteFunc(entries, func(e OrderedListEntry) bool {
+				return e.SortKey >= cStart && e.SortKey < cEnd
+			})
+		}
+	}
+
+	if len(entries) == 0 {
+		return nil, false, nil
+	}
+
+	// Stable sort by sort key.
+	slices.SortStableFunc(entries, func(a, b OrderedListEntry) int {
+		return cmp.Compare(a.SortKey, b.SortKey)
+	})
+
+	result := make([]TimestampedValue[T], len(entries))
+	for i, e := range entries {
+		result[i] = TimestampedValue[T]{SortKey: e.SortKey, Value: e.Value.(T)}
+	}
+	return result, true, nil
+}
+
+// Clear removes all elements from this ordered list state.
+func (s *OrderedList[T]) Clear(p Provider) error {
+	return s.ClearRange(p, math.MinInt64, math.MaxInt64)
+}
+
+// ClearRange removes elements in the half-open interval [start, end).
+func (s *OrderedList[T]) ClearRange(p Provider, start, end int64) error {
+	return p.ClearOrderedListState(Transaction{
+		Key:    s.Key,
+		Type:   TransactionTypeClear,
+		MapKey: [2]int64{start, end},
+	})
+}
+
+// StateKey returns the key for this pipeline state entry.
+func (s OrderedList[T]) StateKey() string {
+	return s.Key
+}
+
+// KeyCoderType returns nil since OrderedList types aren't keyed.
+func (s OrderedList[T]) KeyCoderType() reflect.Type {
+	return nil
+}
+
+// CoderType returns the element type which should be used for a coder.
+func (s OrderedList[T]) CoderType() reflect.Type {
+	var t T
+	return reflect.TypeOf(t)
+}
+
+// StateType returns the type of the state (in this case always OrderedList).
+func (s OrderedList[T]) StateType() TypeEnum {
+	return TypeOrderedList
+}
+
+// MakeOrderedListState is a factory function to create an instance of OrderedListState with the given key.
+func MakeOrderedListState[T any](k string) OrderedList[T] {
+	return OrderedList[T]{
+		Key: k,
+	}
+}
+
