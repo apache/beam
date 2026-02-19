@@ -95,7 +95,7 @@ def create_harness(environment, dry_run=False):
 
   options_json = environment.get('PIPELINE_OPTIONS')
 
-  #We check if options are stored in the file.
+  # We check if options are stored in the file.
   if 'PIPELINE_OPTIONS_FILE' in environment:
     options_file = environment['PIPELINE_OPTIONS_FILE']
     try:
