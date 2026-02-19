@@ -29,7 +29,6 @@ import java.util.List;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
-import org.apache.beam.repackaged.core.org.apache.commons.lang3.tuple.Pair;
 import org.apache.beam.runners.core.StateNamespace;
 import org.apache.beam.runners.core.StateNamespaces;
 import org.apache.beam.runners.core.StateNamespaces.GlobalNamespace;
@@ -223,7 +222,7 @@ public class WindmillTagEncodingV2Test {
 
     @Parameters(
         name =
-            "{index}: namespace={0} prefix={1} expectedBytes={2} includeTimerId={3}"
+            "{index}: namespace={0} windmillTimerType={1} expectedBytes={2} includeTimerId={3}"
                 + " includeTimerFamilyId={4} timeDomain={4}")
     public static Collection<Object[]> data() {
       List<Object[]> data = new ArrayList<>();
@@ -299,7 +298,7 @@ public class WindmillTagEncodingV2Test {
     public StateNamespace namespace;
 
     @Parameter(1)
-    public WindmillTimerType prefix;
+    public WindmillTimerType windmillTimerType;
 
     @Parameter(2)
     public ByteString expectedBytes;
@@ -328,14 +327,15 @@ public class WindmillTagEncodingV2Test {
                   new Instant(456),
                   timeDomain,
                   CausedByDrain.NORMAL);
-      assertEquals(expectedBytes, WindmillTagEncodingV2.instance().timerTag(prefix, timerData));
+      assertEquals(
+          expectedBytes, WindmillTagEncodingV2.instance().timerTag(windmillTimerType, timerData));
     }
   }
 
   @RunWith(Parameterized.class)
   public static class TimerDataFromTimerTest {
 
-    @Parameters(name = "{index}: namespace={0} prefix={1} draining={4} timeDomain={5}")
+    @Parameters(name = "{index}: namespace={0} windmillTimerType={1} draining={4} timeDomain={5}")
     public static Collection<Object[]> data() {
       List<Object[]> tests =
           ImmutableList.of(
@@ -416,7 +416,7 @@ public class WindmillTagEncodingV2Test {
     public StateNamespace namespace;
 
     @Parameter(1)
-    public WindmillTimerType prefix;
+    public WindmillTimerType windmillTimerType;
 
     @Parameter(2)
     public ByteString timerTag;
@@ -445,10 +445,10 @@ public class WindmillTagEncodingV2Test {
               .setMetadataTimestamp(WindmillTimeUtils.harnessToWindmillTimestamp(outputTimestamp))
               .setType(timerType(timeDomain))
               .build();
-      Pair<WindmillTimerType, TimerData> computedPair =
+      WindmillTimerData windmillTimerData =
           encoding.windmillTimerToTimerData(timer, windowCoder, draining);
-      assertEquals(prefix, computedPair.getLeft());
-      assertEquals(timerData, computedPair.getRight());
+      assertEquals(windmillTimerType, windmillTimerData.getWindmillTimerType());
+      assertEquals(timerData, windmillTimerData.getTimerData());
     }
   }
 

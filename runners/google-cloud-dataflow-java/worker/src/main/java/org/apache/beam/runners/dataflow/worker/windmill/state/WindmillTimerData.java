@@ -15,13 +15,20 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.runners.dataflow.worker;
+package org.apache.beam.runners.dataflow.worker.windmill.state;
 
-import org.apache.beam.sdk.annotations.Internal;
+import com.google.auto.value.AutoValue;
+import org.apache.beam.runners.core.TimerInternals.TimerData;
+import org.apache.beam.runners.dataflow.worker.WindmillTimerType;
 
-/** A type for a Windmill timer to separate user state and timers from system state and timers. */
-@Internal
-public enum WindmillTimerType {
-  USER_TIMER,
-  SYSTEM_TIMER
+@AutoValue
+public abstract class WindmillTimerData {
+
+  public abstract WindmillTimerType getWindmillTimerType();
+
+  public abstract TimerData getTimerData();
+
+  public static WindmillTimerData create(WindmillTimerType windmillTimerType, TimerData timerData) {
+    return new AutoValue_WindmillTimerData(windmillTimerType, timerData);
+  }
 }

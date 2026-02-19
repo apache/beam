@@ -66,6 +66,7 @@ import org.apache.beam.runners.dataflow.worker.windmill.state.WindmillStateReade
 import org.apache.beam.runners.dataflow.worker.windmill.state.WindmillTagEncoding;
 import org.apache.beam.runners.dataflow.worker.windmill.state.WindmillTagEncodingV1;
 import org.apache.beam.runners.dataflow.worker.windmill.state.WindmillTagEncodingV2;
+import org.apache.beam.runners.dataflow.worker.windmill.state.WindmillTimerData;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.io.UnboundedSource;
@@ -837,8 +838,10 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext<Step
                     timer ->
                         windmillTagEncoding.windmillTimerToTimerData(
                             timer, windowCoder, getDrainMode()))
-                .filter(pair -> pair.getLeft() == WindmillTimerType.SYSTEM_TIMER)
-                .transform(pair -> pair.getRight())
+                .filter(
+                    windmillTimerData ->
+                        windmillTimerData.getWindmillTimerType() == WindmillTimerType.SYSTEM_TIMER)
+                .transform(WindmillTimerData::getTimerData)
                 .iterator();
       }
 
@@ -896,8 +899,11 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext<Step
                         timer ->
                             windmillTagEncoding.windmillTimerToTimerData(
                                 timer, windowCoder, getDrainMode()))
-                    .filter(pair -> pair.getLeft() == WindmillTimerType.USER_TIMER)
-                    .transform(pair -> pair.getRight())
+                    .filter(
+                        windmillTimerData ->
+                            windmillTimerData.getWindmillTimerType()
+                                == WindmillTimerType.USER_TIMER)
+                    .transform(WindmillTimerData::getTimerData)
                     .iterator());
       }
 

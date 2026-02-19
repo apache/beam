@@ -20,7 +20,6 @@ package org.apache.beam.runners.dataflow.worker.windmill.state;
 import java.io.IOException;
 import java.io.InputStream;
 import javax.annotation.concurrent.ThreadSafe;
-import org.apache.beam.repackaged.core.org.apache.commons.lang3.tuple.Pair;
 import org.apache.beam.runners.core.StateNamespace;
 import org.apache.beam.runners.core.StateNamespaces;
 import org.apache.beam.runners.core.StateNamespaces.GlobalNamespace;
@@ -247,7 +246,7 @@ public class WindmillTagEncodingV2 extends WindmillTagEncoding {
 
   /** {@inheritDoc} */
   @Override
-  public Pair<WindmillTimerType, TimerData> windmillTimerToTimerData(
+  public WindmillTimerData windmillTimerToTimerData(
       Timer timer, Coder<? extends BoundedWindow> windowCoder, boolean draining) {
 
     InputStream stream = timer.getTag().newInput();
@@ -279,7 +278,7 @@ public class WindmillTagEncodingV2 extends WindmillTagEncoding {
         }
       }
 
-      return Pair.of(
+      return WindmillTimerData.create(
           timerType,
           TimerData.of(
               timerId,

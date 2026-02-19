@@ -66,7 +66,7 @@ class WindmillTimerInternals implements TimerInternals {
 
   public WindmillTimerInternals(
       String stateFamily, // unique identifies a step
-      WindmillTimerType type, // partitions user and system namespaces into "/u" and "/s"
+      WindmillTimerType type,
       Instant processingTime,
       Watermarks watermarks,
       WindmillTagEncoding windmillTagEncoding,

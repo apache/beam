@@ -18,7 +18,6 @@
 package org.apache.beam.runners.dataflow.worker.windmill.state;
 
 import javax.annotation.concurrent.ThreadSafe;
-import org.apache.beam.repackaged.core.org.apache.commons.lang3.tuple.Pair;
 import org.apache.beam.runners.core.StateNamespace;
 import org.apache.beam.runners.core.StateTag;
 import org.apache.beam.runners.core.TimerInternals.TimerData;
@@ -62,15 +61,14 @@ public abstract class WindmillTagEncoding {
       WindmillTimerType windmillTimerType, TimerData timerData, ByteString timerTag);
 
   /**
-   * Produce a tag that is guaranteed to be unique for the given prefix, namespace, domain and
-   * timestamp.
+   * Produce a tag that is guaranteed to be unique for the given timer type and TimerData
    *
    * <p>This is necessary because Windmill will deduplicate based only on this tag.
    */
   public abstract ByteString timerTag(WindmillTimerType windmillTimerType, TimerData timerData);
 
-  /** Converts Windmill Timer to beam TimerData */
-  public abstract Pair<WindmillTimerType, TimerData> windmillTimerToTimerData(
+  /** Converts Windmill Timer to TimerData */
+  public abstract WindmillTimerData windmillTimerToTimerData(
       Timer timer, Coder<? extends BoundedWindow> windowCoder, boolean draining);
 
   /**

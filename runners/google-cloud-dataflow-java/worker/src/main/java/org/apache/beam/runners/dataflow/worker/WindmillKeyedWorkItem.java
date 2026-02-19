@@ -27,13 +27,13 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Objects;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi;
-import org.apache.beam.repackaged.core.org.apache.commons.lang3.tuple.Pair;
 import org.apache.beam.runners.core.KeyedWorkItem;
 import org.apache.beam.runners.core.KeyedWorkItemCoder;
 import org.apache.beam.runners.core.TimerInternals.TimerData;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.Timer;
 import org.apache.beam.runners.dataflow.worker.windmill.state.WindmillTagEncoding;
+import org.apache.beam.runners.dataflow.worker.windmill.state.WindmillTimerData;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.StructuredCoder;
@@ -105,10 +105,11 @@ public class WindmillKeyedWorkItem<K, ElemT> implements KeyedWorkItem<K, ElemT> 
         .append(nonEventTimers)
         .transform(
             timer -> {
-              Pair<WindmillTimerType, TimerData> pair =
+              WindmillTimerData windmillTimerData =
                   windmillTagEncoding.windmillTimerToTimerData(timer, windowCoder, drainMode);
-              checkState(pair.getLeft() == WindmillTimerType.SYSTEM_TIMER);
-              return pair.getRight();
+              checkState(
+                  windmillTimerData.getWindmillTimerType() == WindmillTimerType.SYSTEM_TIMER);
+              return windmillTimerData.getTimerData();
             });
   }
 
