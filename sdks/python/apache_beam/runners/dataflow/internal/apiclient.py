@@ -102,7 +102,7 @@ class Environment(object):
     self.debug_options = options.view_as(DebugOptions)
     self.pipeline_url = proto_pipeline_staged_url
     self.proto = dataflow.Environment()
-    self.proto.cluster_manager_api_service = GoogleCloudOptions.COMPUTE_API_SERVICE # pylint: disable=line-too-long
+    self.proto.cluster_manager_api_service = GoogleCloudOptions.COMPUTE_API_SERVICE  # pylint: disable=line-too-long
     self.proto.dataset = '{}/cloud_dataflow'.format(
         GoogleCloudOptions.BIGQUERY_API_SERVICE)
     self.proto.temp_storage_prefix = (
@@ -125,7 +125,7 @@ class Environment(object):
       self.proto.service_account_email = (
           self.google_cloud_options.service_account_email)
     if self.google_cloud_options.dataflow_kms_key:
-      self.proto.service_kms_key_name = self.google_cloud_options.dataflow_kms_key # pylint: disable=line-too-long
+      self.proto.service_kms_key_name = self.google_cloud_options.dataflow_kms_key  # pylint: disable=line-too-long
 
     self.proto.user_agent = user_agent
 
