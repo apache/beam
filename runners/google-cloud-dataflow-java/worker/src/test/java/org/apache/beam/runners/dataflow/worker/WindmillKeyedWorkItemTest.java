@@ -198,7 +198,7 @@ public class WindmillKeyedWorkItemTest {
     return Windmill.Timer.newBuilder()
         .setTag(
             windmillTagEncoding.timerTag(
-                WindmillNamespacePrefix.SYSTEM_NAMESPACE_PREFIX,
+                WindmillTimerType.SYSTEM_TIMER,
                 TimerData.of(
                     ns,
                     new Instant(timestamp),
