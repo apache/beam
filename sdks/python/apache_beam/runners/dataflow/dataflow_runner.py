@@ -157,27 +157,26 @@ class DataflowRunner(PipelineRunner):
       # If get() is called very soon after Create() the response may not contain
       # an initialized 'current_state' field.
       if response.current_state is not None:
-        if response.current_state != last_job_state:
+        current_state = response.current_state.name
+        if current_state != last_job_state:
           if state_update_callback:
-            state_update_callback(response.current_state)
-          _LOGGER.info('Job %s is in state %s', job_id, response.current_state)
-          last_job_state = response.current_state
-        if str(response.current_state) not in ('JOB_STATE_RUNNING',
-                                               'JOB_STATE_PAUSED',
-                                               'JOB_STATE_PAUSING'):
+            state_update_callback(current_state)
+          _LOGGER.info('Job %s is in state %s', job_id, current_state)
+          last_job_state = current_state
+        if str(current_state) not in ('JOB_STATE_RUNNING'):
           # Stop checking for new messages on timeout, explanatory
           # message received, success, or a terminal job state caused
           # by the user that therefore doesn't require explanation.
           if (final_countdown_timer_secs <= 0.0 or last_error_msg is not None or
-              str(response.current_state) == 'JOB_STATE_DONE' or
-              str(response.current_state) == 'JOB_STATE_CANCELLED' or
-              str(response.current_state) == 'JOB_STATE_UPDATED' or
-              str(response.current_state) == 'JOB_STATE_DRAINED'):
+              str(current_state) == 'JOB_STATE_DONE' or
+              str(current_state) == 'JOB_STATE_CANCELLED' or
+              str(current_state) == 'JOB_STATE_UPDATED' or
+              str(current_state) == 'JOB_STATE_DRAINED'):
             break
 
           # Check that job is in a post-preparation state before starting the
           # final countdown.
-          if (str(response.current_state)
+          if (str(current_state)
               not in ('JOB_STATE_PENDING', 'JOB_STATE_QUEUED')):
             # The job has failed; ensure we see any final error messages.
             sleep_secs = 1.0  # poll faster during the final countdown
