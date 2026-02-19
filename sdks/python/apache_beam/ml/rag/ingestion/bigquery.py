@@ -14,8 +14,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import warnings
 from collections.abc import Callable
-from dataclasses import dataclass
 from typing import Any
 from typing import Dict
 from typing import Optional
@@ -28,41 +28,56 @@ from apache_beam.ml.rag.types import EmbeddableItem
 from apache_beam.typehints.row_type import RowTypeConstraint
 
 EmbeddableToDictFn = Callable[[EmbeddableItem], Dict[str, any]]
+# Backward compatibility alias.
+ChunkToDictFn = EmbeddableToDictFn
 
 
-@dataclass
 class SchemaConfig:
-  """Configuration for custom BigQuery schema and row conversion.
-  
-  Allows overriding the default schema and row conversion logic for BigQuery
-  vector storage. This enables custom table schemas beyond the default
-  id/embedding/content/metadata structure.
+  def __init__(
+      self,
+      schema: Dict,
+      embeddable_to_dict_fn: Optional[EmbeddableToDictFn] = None,
+      **kwargs):
+    """Configuration for custom BigQuery schema and row conversion.
 
-  Attributes:
-      schema: BigQuery TableSchema dict defining the table structure.
-          Example:
-          >>> {
-          ...   'fields': [
-          ...     {'name': 'id', 'type': 'STRING'},
-          ...     {'name': 'embedding', 'type': 'FLOAT64', 'mode': 'REPEATED'},
-          ...     {'name': 'custom_field', 'type': 'STRING'}
-          ...   ]
-          ... }
-      embeddable_to_dict_fn: Function that converts an
-          EmbeddableItem to a dict matching the schema.
-          Takes an EmbeddableItem and returns
-          Dict[str, Any] with keys matching
-          schema fields.
-          Example:
-          >>> def embeddable_to_dict(item: EmbeddableItem) -> Dict[str, Any]:
-          ...     return {
-          ...         'id': item.id,
-          ...         'embedding': item.embedding.dense_embedding,
-          ...         'custom_field': item.metadata.get('custom_field')
-          ...     }
-  """
-  schema: Dict
-  embeddable_to_dict_fn: EmbeddableToDictFn
+    Allows overriding the default schema and row conversion logic for BigQuery
+    vector storage. This enables custom table schemas beyond the default
+    id/embedding/content/metadata structure.
+
+    Args:
+        schema: BigQuery TableSchema dict defining the table structure.
+        embeddable_to_dict_fn: Function that converts an EmbeddableItem to a
+            dict matching the schema. Takes an EmbeddableItem and returns
+            Dict[str, Any] with keys matching schema fields.
+
+    Example with custom schema:
+      >>> schema_config = SchemaConfig(
+      ...   schema={
+      ...     'fields': [
+      ...       {'name': 'id', 'type': 'STRING'},
+      ...       {'name': 'embedding', 'type': 'FLOAT64', 'mode': 'REPEATED'},
+      ...       {'name': 'source_url', 'type': 'STRING'}
+      ...     ]
+      ...   },
+      ...   embeddable_to_dict_fn=lambda item: {
+      ...       'id': item.id,
+      ...       'embedding': item.embedding.dense_embedding,
+      ...       'source_url': item.metadata.get('url')
+      ...   }
+      ... )
+    """
+    self.schema = schema
+    if 'chunk_to_dict_fn' in kwargs:
+      warnings.warn(
+          "chunk_to_dict_fn is deprecated, use embeddable_to_dict_fn",
+          DeprecationWarning,
+          stacklevel=2)
+      embeddable_to_dict_fn = kwargs.pop('chunk_to_dict_fn')
+    if kwargs:
+      raise TypeError(f"Unexpected keyword arguments: {', '.join(kwargs)}")
+    if embeddable_to_dict_fn is None:
+      raise TypeError("SchemaConfig requires embeddable_to_dict_fn")
+    self.embeddable_to_dict_fn = embeddable_to_dict_fn
 
 
 class BigQueryVectorWriterConfig(VectorDatabaseWriteConfig):

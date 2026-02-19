@@ -241,7 +241,7 @@ class BigQueryVectorSearchParameters:
                 ARRAY_AGG(
                     STRUCT({"distance, " if self.include_distance else ""}\
  {base_columns_str})
-                ) as embeddable_items
+                ) as chunks
             FROM VECTOR_SEARCH(
                 (SELECT {columns_str}, {self.embedding_column}
                  FROM `{self.table_name}`
