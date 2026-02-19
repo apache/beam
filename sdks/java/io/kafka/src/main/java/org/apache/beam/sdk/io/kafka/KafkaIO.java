@@ -3381,7 +3381,10 @@ public class KafkaIO {
     public WriteRecords<K, V> withEOSTriggerConfig(int numElements, Duration timeout) {
       checkArgument(numElements >= 1, "numElements should be >= 1");
       checkArgument(timeout != null, "timeout is required for exactly-once sink");
-      return toBuilder().setEosTriggerNumElements(numElements).setEosTriggerTimeout(timeout).build();
+      return toBuilder()
+          .setEosTriggerNumElements(numElements)
+          .setEosTriggerTimeout(timeout)
+          .build();
     }
 
     /**
