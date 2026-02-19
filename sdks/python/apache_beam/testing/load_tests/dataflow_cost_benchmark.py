@@ -177,7 +177,9 @@ class DataflowCostBenchmark(LoadTest):
       logging.warning(
           'Could not determine worker time interval. '
           'start_time=%s, end_time=%s, total messages=%d',
-          start_time, end_time, len(all_messages))
+          start_time,
+          end_time,
+          len(all_messages))
     return start_time, end_time
 
   def _get_throughput_metrics(
@@ -226,10 +228,7 @@ class DataflowCostBenchmark(LoadTest):
     return metrics
 
   def _get_streaming_throughput_metrics(
-      self,
-      project: str,
-      start_time: str,
-      end_time: str) -> dict[str, float]:
+      self, project: str, start_time: str, end_time: str) -> dict[str, float]:
     if not self.subscription:
       return {'AvgThroughputBytes': 0.0, 'AvgThroughputElements': 0.0}
 
@@ -261,8 +260,7 @@ class DataflowCostBenchmark(LoadTest):
 
     metrics = {}
     for key, req in requests.items():
-      time_series = list(
-          self.monitoring_client.list_time_series(request=req))
+      time_series = list(self.monitoring_client.list_time_series(request=req))
       values = [
           point.value.double_value for series in time_series
           for point in series.points
@@ -299,7 +297,9 @@ class DataflowCostBenchmark(LoadTest):
         logging.warning(
             'No throughput data for PCollection "%s". Check Dataflow job %s '
             'graph for actual PCollection names (Runner v2 may use different '
-            'naming).', self.pcollection, job_id)
+            'naming).',
+            self.pcollection,
+            job_id)
     return {
         **throughput_metrics,
         "JobRuntimeSeconds": runtime_seconds,

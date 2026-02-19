@@ -64,11 +64,11 @@ def create_sample_model(output_path: str, num_features: int = 3):
   with open(output_path, 'wb') as f:
     pickle.dump(model, f)
 
-  logging.info(f'Sample model saved to {output_path}')
+  logging.info('Sample model saved to %s', output_path)
 
 
-def generate_sample_data(
-    num_rows: int = 100, num_features: int = 3) -> list[dict]:
+def generate_sample_data(num_rows: int = 100,
+                         num_features: int = 3) -> list[dict]:
   """Generate sample table row data for testing.
 
   Args:
@@ -104,7 +104,7 @@ def write_data_to_file(data: list[dict], output_path: str):
     for row in data:
       f.write(json.dumps(row) + '\n')
 
-  logging.info(f'Wrote {len(data)} rows to {output_path}')
+  logging.info('Wrote %d rows to %s', len(data), output_path)
 
 
 def publish_to_pubsub(
@@ -130,15 +130,15 @@ def publish_to_pubsub(
 
   for i, row in enumerate(data):
     message = json.dumps(row).encode('utf-8')
-    future = publisher.publish(topic_path, message)
+    publisher.publish(topic_path, message)
 
     if (i + 1) % 100 == 0:
-      logging.info(f'Published {i + 1} messages')
+      logging.info('Published %d messages', i + 1)
 
     if delay > 0:
       time.sleep(delay)
 
-  logging.info(f'Published {len(data)} messages to {topic_path}')
+  logging.info('Published %d messages to %s', len(data), topic_path)
 
 
 def ensure_pubsub_topic(project: str, topic_name: str) -> str:
@@ -159,10 +159,10 @@ def ensure_pubsub_topic(project: str, topic_name: str) -> str:
 
   try:
     publisher.get_topic(request={'topic': topic_path})
-    logging.info(f'Topic {topic_name} already exists')
+    logging.info('Topic %s already exists', topic_name)
   except Exception:
     publisher.create_topic(name=topic_path)
-    logging.info(f'Created topic {topic_name}')
+    logging.info('Created topic %s', topic_name)
 
   return topic_path
 
@@ -190,11 +190,10 @@ def ensure_pubsub_subscription(
 
   try:
     subscriber.get_subscription(request={'subscription': subscription_path})
-    logging.info(f'Subscription {subscription_name} already exists')
+    logging.info('Subscription %s already exists', subscription_name)
   except Exception:
-    subscriber.create_subscription(
-        name=subscription_path, topic=topic_path)
-    logging.info(f'Created subscription {subscription_name}')
+    subscriber.create_subscription(name=subscription_path, topic=topic_path)
+    logging.info('Created subscription %s', subscription_name)
 
   return subscription_path
 
@@ -217,17 +216,18 @@ def cleanup_pubsub_resources(
   if subscription_name:
     subscription_path = subscriber.subscription_path(project, subscription_name)
     try:
-      subscriber.delete_subscription(request={'subscription': subscription_path})
-      logging.info(f'Deleted subscription {subscription_name}')
+      subscriber.delete_subscription(
+          request={'subscription': subscription_path})
+      logging.info('Deleted subscription %s', subscription_name)
     except Exception as e:
-      logging.warning(f'Failed to delete subscription: {e}')
+      logging.warning('Failed to delete subscription: %s', e)
 
   topic_path = publisher.topic_path(project, topic_name)
   try:
     publisher.delete_topic(request={'topic': topic_path})
-    logging.info(f'Deleted topic {topic_name}')
+    logging.info('Deleted topic %s', topic_name)
   except Exception as e:
-    logging.warning(f'Failed to delete topic: {e}')
+    logging.warning('Failed to delete topic: %s', e)
 
 
 if __name__ == '__main__':
@@ -240,8 +240,12 @@ if __name__ == '__main__':
       '--action',
       required=True,
       choices=[
-          'create_model', 'generate_data', 'publish_data', 'create_topic',
-          'create_subscription', 'cleanup'
+          'create_model',
+          'generate_data',
+          'publish_data',
+          'create_topic',
+          'create_subscription',
+          'cleanup'
       ],
       help='Action to perform')
   parser.add_argument('--project', help='GCP project ID')
@@ -251,14 +255,9 @@ if __name__ == '__main__':
   parser.add_argument(
       '--num_rows', type=int, default=100, help='Number of rows to generate')
   parser.add_argument(
-      '--num_features',
-      type=int,
-      default=3,
-      help='Number of features per row')
+      '--num_features', type=int, default=3, help='Number of features per row')
   parser.add_argument(
-      '--rate_limit',
-      type=float,
-      help='Rate limit for publishing (rows/sec)')
+      '--rate_limit', type=float, help='Rate limit for publishing (rows/sec)')
 
   args = parser.parse_args()
 
@@ -287,8 +286,8 @@ if __name__ == '__main__':
   elif args.action == 'create_subscription':
     if not args.project or not args.topic or not args.subscription:
       raise ValueError(
-          '--project, --topic, and --subscription required for create_subscription'
-      )
+          '--project, --topic, and --subscription required for '
+          'create_subscription')
     ensure_pubsub_subscription(args.project, args.topic, args.subscription)
 
   elif args.action == 'cleanup':

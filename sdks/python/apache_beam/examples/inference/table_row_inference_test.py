@@ -28,13 +28,29 @@ import numpy as np
 from apache_beam.examples.inference.table_row_inference import FormatTableOutput
 from apache_beam.examples.inference.table_row_inference import TableRowModelHandler
 from apache_beam.examples.inference.table_row_inference import build_output_schema
-from apache_beam.examples.inference.table_row_inference import parse_json_to_table_row
+from apache_beam.examples.inference.table_row_inference import (
+    parse_json_to_table_row)
 from apache_beam.ml.inference.base import KeyedModelHandler
 from apache_beam.ml.inference.base import PredictionResult
 from apache_beam.ml.inference.base import RunInference
 from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.testing.util import assert_that
-from apache_beam.testing.util import equal_to
+
+# Module-level matcher for assert_that (must be picklable; no closure over self).
+REQUIRED_OUTPUT_KEYS = (
+    'row_key', 'prediction', 'input_feature1', 'input_feature2',
+    'input_feature3')
+
+
+def _assert_table_inference_outputs(outputs):
+  """Asserts pipeline output has expected structure. Used in assert_that."""
+  if len(outputs) != 2:
+    raise AssertionError(f'Expected 2 outputs, got {len(outputs)}')
+  for output in outputs:
+    for key in REQUIRED_OUTPUT_KEYS:
+      if key not in output:
+        raise AssertionError(f'Missing key {key!r} in output {output}')
+
 
 try:
   from sklearn.linear_model import LinearRegression
@@ -54,26 +70,23 @@ class TableRowInferenceTest(unittest.TestCase):
   def setUp(self):
     self.tmp_dir = tempfile.mkdtemp()
     self.model_path = os.path.join(self.tmp_dir, 'test_model.pkl')
-    
+
     model = LinearRegression()
     X_train = np.array([[1, 2, 3], [4, 5, 6], [7, 8, 9]])
     y_train = np.array([6, 15, 24])
     model.fit(X_train, y_train)
-    
+
     with open(self.model_path, 'wb') as f:
       pickle.dump(model, f)
 
   def test_parse_json_to_table_row(self):
     json_data = json.dumps({
-        'id': 'test_1',
-        'feature1': 1.0,
-        'feature2': 2.0,
-        'feature3': 3.0
+        'id': 'test_1', 'feature1': 1.0, 'feature2': 2.0, 'feature3': 3.0
     }).encode('utf-8')
-    
+
     key, row = parse_json_to_table_row(
         json_data, schema_fields=['feature1', 'feature2', 'feature3'])
-    
+
     self.assertEqual(key, 'test_1')
     self.assertEqual(row.feature1, 1.0)
     self.assertEqual(row.feature2, 2.0)
@@ -82,28 +95,32 @@ class TableRowInferenceTest(unittest.TestCase):
   def test_build_output_schema(self):
     feature_cols = ['feature1', 'feature2', 'feature3']
     schema = build_output_schema(feature_cols)
-    
+
     expected_fields = [
-        'row_key', 'prediction', 'model_id', 'input_feature1',
-        'input_feature2', 'input_feature3'
+        'row_key',
+        'prediction',
+        'model_id',
+        'input_feature1',
+        'input_feature2',
+        'input_feature3'
     ]
-    
+
     for field in expected_fields:
       self.assertIn(field, schema)
 
   def test_table_row_model_handler(self):
     model_handler = TableRowModelHandler(
         model_uri=self.model_path, feature_columns=['f1', 'f2', 'f3'])
-    
+
     model = model_handler.load_model()
-    
+
     test_rows = [
         beam.Row(f1=1.0, f2=2.0, f3=3.0),
         beam.Row(f1=4.0, f2=5.0, f3=6.0),
     ]
-    
+
     results = list(model_handler.run_inference(test_rows, model))
-    
+
     self.assertEqual(len(results), 2)
     self.assertIsInstance(results[0], PredictionResult)
     self.assertEqual(results[0].example, test_rows[0])
@@ -113,16 +130,16 @@ class TableRowInferenceTest(unittest.TestCase):
     row = beam.Row(feature1=1.0, feature2=2.0, feature3=3.0)
     prediction_result = PredictionResult(
         example=row, inference=6.0, model_id='test_model')
-    
+
     keyed_result = ('test_key', prediction_result)
-    
+
     feature_columns = ['feature1', 'feature2', 'feature3']
     formatter = FormatTableOutput(feature_columns=feature_columns)
     outputs = list(formatter.process(keyed_result))
-    
+
     self.assertEqual(len(outputs), 1)
     output = outputs[0]
-    
+
     self.assertEqual(output['row_key'], 'test_key')
     self.assertEqual(output['prediction'], 6.0)
     self.assertEqual(output['model_id'], 'test_model')
@@ -139,11 +156,11 @@ class TableRowInferenceTest(unittest.TestCase):
             'id': 'row_2', 'feature1': 4.0, 'feature2': 5.0, 'feature3': 6.0
         }),
     ]
-    
+
     feature_columns = ['feature1', 'feature2', 'feature3']
     model_handler = TableRowModelHandler(
         model_uri=self.model_path, feature_columns=feature_columns)
-    
+
     with TestPipeline() as p:
       input_data = (
           p
@@ -151,40 +168,25 @@ class TableRowInferenceTest(unittest.TestCase):
           | beam.Map(
               lambda line: parse_json_to_table_row(
                   line.encode('utf-8'), feature_columns)))
-      
+
       predictions = (
           input_data
           | RunInference(KeyedModelHandler(model_handler))
           | beam.ParDo(FormatTableOutput(feature_columns=feature_columns)))
-      
-      def check_outputs(outputs):
-        self.assertEqual(len(outputs), 2)
-        
-        for output in outputs:
-          self.assertIn('row_key', output)
-          self.assertIn('prediction', output)
-          self.assertIn('input_feature1', output)
-          self.assertIn('input_feature2', output)
-          self.assertIn('input_feature3', output)
-      
-      assert_that(predictions, check_outputs)
+
+      assert_that(predictions, _assert_table_inference_outputs)
 
 
 class TableRowInferenceNoSklearnTest(unittest.TestCase):
   """Tests that don't require sklearn."""
   def test_parse_json_without_schema(self):
     json_data = json.dumps({'id': 'test', 'value': 123}).encode('utf-8')
-    
+
     key, row = parse_json_to_table_row(json_data)
-    
+
     self.assertEqual(key, 'test')
     self.assertTrue(hasattr(row, 'value'))
 
 
 if __name__ == '__main__':
   unittest.main()
-
-
-
-
-

@@ -89,8 +89,8 @@ class BatchTableRowModelHandler(SklearnModelHandlerNumpy):
     super().__init__(model_uri=model_uri)
     self.feature_columns = feature_columns
     logging.info(
-        f'Initialized BatchTableRowModelHandler with features: {feature_columns}'
-    )
+        'Initialized BatchTableRowModelHandler with features: %s',
+        feature_columns)
 
   def run_inference(
       self,
@@ -160,7 +160,8 @@ class FormatBatchOutput(beam.DoFn):
     yield output
 
 
-def parse_jsonl_line(line: str, schema_fields: list[str]) -> tuple[str, beam.Row]:
+def parse_jsonl_line(line: str,
+                     schema_fields: list[str]) -> tuple[str, beam.Row]:
   """Parse a JSONL line to (key, beam.Row) format.
 
   Args:
@@ -178,7 +179,8 @@ def parse_jsonl_line(line: str, schema_fields: list[str]) -> tuple[str, beam.Row
   for field in schema_fields:
     if field in data:
       value = data[field]
-      row_fields[field] = float(value) if isinstance(value, (int, float)) else value
+      row_fields[field] = float(value) if isinstance(
+          value, (int, float)) else value
 
   return row_id, beam.Row(**row_fields)
 
@@ -228,20 +230,20 @@ def run_batch_inference(
   model_handler = BatchTableRowModelHandler(
       model_uri=model_path, feature_columns=feature_columns)
 
-  logging.info(f'Starting batch inference pipeline')
-  logging.info(f'  Input: {input_file}')
-  logging.info(f'  Model: {model_path}')
-  logging.info(f'  Features: {feature_columns}')
+  logging.info('Starting batch inference pipeline')
+  logging.info('  Input: %s', input_file)
+  logging.info('  Model: %s', model_path)
+  logging.info('  Features: %s', feature_columns)
   logging.info(
-      f'  Output: {output_table if output_table else output_file}')
+      '  Output: %s', output_table if output_table else output_file)
 
   with beam.Pipeline(options=pipeline_options) as pipeline:
 
     input_data = (
         pipeline
         | 'ReadInputFile' >> beam.io.ReadFromText(input_file)
-        | 'ParseToRows' >> beam.Map(
-            lambda line: parse_jsonl_line(line, feature_columns)))
+        | 'ParseToRows' >>
+        beam.Map(lambda line: parse_jsonl_line(line, feature_columns)))
 
     predictions = (
         input_data
@@ -290,7 +292,8 @@ def main(argv=None):
   parser.add_argument(
       '--feature_columns',
       required=True,
-      help='Comma-separated list of feature column names to extract from input rows.'
+      help=
+      'Comma-separated list of feature column names to extract from input rows.'
   )
 
   parser.add_argument(
@@ -306,7 +309,9 @@ def main(argv=None):
   if not known_args.output_table and not known_args.output_file:
     parser.error('Must specify either --output_table or --output_file')
 
-  feature_columns = [col.strip() for col in known_args.feature_columns.split(',')]
+  feature_columns = [
+      col.strip() for col in known_args.feature_columns.split(',')
+  ]
 
   pipeline_options = PipelineOptions(pipeline_args)
   pipeline_options.view_as(SetupOptions).save_main_session = True

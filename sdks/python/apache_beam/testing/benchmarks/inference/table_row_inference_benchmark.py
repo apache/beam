@@ -41,7 +41,6 @@ class TableRowInferenceOptions(
     DebugOptions,
     SetupOptions,
 ):
-
   @classmethod
   def _add_argparse_args(cls, parser):
     parser.add_argument('--mode', default='batch')
@@ -73,8 +72,8 @@ class TableRowInferenceBenchmarkTest(DataflowCostBenchmark):
         metrics_namespace=self.metrics_namespace,
         is_streaming=False,
         pcollection='RunInference/BeamML_RunInference_Postprocess-0.out0')
-    self.is_streaming = (
-        (self.pipeline.get_option('mode') or 'batch') == 'streaming')
+    self.is_streaming = ((self.pipeline.get_option('mode') or
+                          'batch') == 'streaming')
     if self.is_streaming:
       self.subscription = self.pipeline.get_option('input_subscription')
 

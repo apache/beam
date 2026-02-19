@@ -15,12 +15,12 @@
 # limitations under the License.
 #
 
-"""A pipeline that uses RunInference to perform inference on continuous table rows.
+"""A pipeline that uses RunInference to perform inference on table rows.
 
-This pipeline demonstrates ML Pipelines #18: handling continuous new table rows
-with RunInference using table input models. It reads structured data (table rows)
-from a streaming source, performs inference while preserving the table schema,
-and writes results to a table output.
+This pipeline demonstrates ML Pipelines #18: handling continuous new table
+rows with RunInference using table input models. It reads structured data
+(table rows) from a streaming source, performs inference while preserving
+the table schema, and writes results to a table output.
 
 The pipeline supports both streaming and batch modes:
 - Streaming: Reads from Pub/Sub, applies windowing, writes via streaming inserts
@@ -96,7 +96,8 @@ class TableRowModelHandler(SklearnModelHandlerNumpy):
       self,
       batch: list[beam.Row],
       model: Any,
-      inference_args: Optional[dict[str, Any]] = None) -> Iterable[PredictionResult]:
+      inference_args: Optional[dict[str, Any]] = None
+  ) -> Iterable[PredictionResult]:
     """Run inference on a batch of beam.Row objects.
 
     Args:
@@ -218,11 +219,9 @@ def parse_known_args(argv):
   parser.add_argument(
       '--output_table',
       help='BigQuery output table (format: PROJECT:DATASET.TABLE)')
+  parser.add_argument('--model_path', help='Path to saved model file')
   parser.add_argument(
-      '--model_path', help='Path to saved model file')
-  parser.add_argument(
-      '--feature_columns',
-      help='Comma-separated list of feature column names')
+      '--feature_columns', help='Comma-separated list of feature column names')
   parser.add_argument(
       '--window_size_sec',
       type=int,
@@ -282,8 +281,8 @@ def run(
         pipeline
         | 'ReadFromPubSub' >>
         beam.io.ReadFromPubSub(subscription=known_args.input_subscription)
-        | 'ParseToTableRows' >> beam.Map(
-            lambda msg: parse_json_to_table_row(msg, feature_columns))
+        | 'ParseToTableRows' >>
+        beam.Map(lambda msg: parse_json_to_table_row(msg, feature_columns))
         | 'WindowedData' >> beam.WindowInto(
             beam.window.FixedWindows(known_args.window_size_sec),
             trigger=beam.trigger.AfterProcessingTime(
@@ -295,13 +294,11 @@ def run(
     read_lines = (
         pipeline
         | 'ReadFromFile' >> beam.io.ReadFromText(known_args.input_file))
-    expand_factor = getattr(
-        known_args, 'input_expand_factor', 1) or 1
+    expand_factor = getattr(known_args, 'input_expand_factor', 1) or 1
     if expand_factor > 1:
       read_lines = (
           read_lines
-          | 'ExpandInput' >> beam.FlatMap(
-              lambda line: [line] * expand_factor))
+          | 'ExpandInput' >> beam.FlatMap(lambda line: [line] * expand_factor))
     input_data = (
         read_lines
         | 'ParseToTableRows' >> beam.Map(
@@ -310,8 +307,7 @@ def run(
     write_method = beam.io.WriteToBigQuery.Method.FILE_LOADS
 
   write_disposition = (
-      beam.io.BigQueryDisposition.WRITE_APPEND
-      if known_args.mode == 'streaming'
+      beam.io.BigQueryDisposition.WRITE_APPEND if known_args.mode == 'streaming'
       else beam.io.BigQueryDisposition.WRITE_TRUNCATE)
   _ = (
       input_data
