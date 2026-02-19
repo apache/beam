@@ -54,11 +54,11 @@ class SchemaConfig:
           Dict[str, Any] with keys matching
           schema fields.
           Example:
-          >>> def embeddable_to_dict(chunk: EmbeddableItem) -> Dict[str, Any]:
+          >>> def embeddable_to_dict(item: EmbeddableItem) -> Dict[str, Any]:
           ...     return {
-          ...         'id': chunk.id,
-          ...         'embedding': chunk.embedding.dense_embedding,
-          ...         'custom_field': chunk.metadata.get('custom_field')
+          ...         'id': item.id,
+          ...         'embedding': item.embedding.dense_embedding,
+          ...         'custom_field': item.metadata.get('custom_field')
           ...     }
   """
   schema: Dict
@@ -89,10 +89,10 @@ class BigQueryVectorWriterConfig(VectorDatabaseWriteConfig):
       ...       {'name': 'source_url', 'type': 'STRING'}
       ...     ]
       ...   },
-      ...   embeddable_to_dict_fn=lambda chunk: {
-      ...       'id': chunk.id,
-      ...       'embedding': chunk.embedding.dense_embedding,
-      ...       'source_url': chunk.metadata.get('url')
+      ...   embeddable_to_dict_fn=lambda item: {
+      ...       'id': item.id,
+      ...       'embedding': item.embedding.dense_embedding,
+      ...       'source_url': item.metadata.get('url')
       ...   }
       ... )
       >>> config = BigQueryVectorWriterConfig(
@@ -123,16 +123,16 @@ class BigQueryVectorWriterConfig(VectorDatabaseWriteConfig):
     return _WriteToBigQueryVectorDatabase(self)
 
 
-def _default_embeddable_to_dict_fn(chunk: EmbeddableItem):
-  if chunk.embedding is None or chunk.embedding.dense_embedding is None:
-    raise ValueError("chunk must contain dense embedding")
+def _default_embeddable_to_dict_fn(item: EmbeddableItem):
+  if item.embedding is None or item.embedding.dense_embedding is None:
+    raise ValueError("EmbeddableItem must contain dense embedding")
   return {
-      'id': chunk.id,
-      'embedding': chunk.embedding.dense_embedding,
-      'content': chunk.content.text,
+      'id': item.id,
+      'embedding': item.embedding.dense_embedding,
+      'content': item.content_string,
       'metadata': [{
           "key": k, "value": str(v)
-      } for k, v in chunk.metadata.items()]
+      } for k, v in item.metadata.items()]
   }
 
 
@@ -174,8 +174,8 @@ class _WriteToBigQueryVectorDatabase(beam.PTransform):
         pcoll
         | "EmbeddableItem to dict" >> beam.Map(embeddable_to_dict_fn)
         | "EmbeddableItem dict to schema'd row" >> beam.Map(
-            lambda chunk_dict: beam_row_from_dict(
-                row=chunk_dict, schema=schema)).with_output_types(
+            lambda embeddable_item_dict: beam_row_from_dict(
+                row=embeddable_item_dict, schema=schema)).with_output_types(
                     RowTypeConstraint.from_fields(
                         get_beam_typehints_from_tableschema(schema)))
         | "Write to BigQuery" >> beam.managed.Write(

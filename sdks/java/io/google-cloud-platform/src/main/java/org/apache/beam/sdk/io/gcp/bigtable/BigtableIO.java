@@ -22,6 +22,7 @@ import static org.apache.beam.sdk.options.ValueProvider.StaticValueProvider;
 import static org.apache.beam.sdk.transforms.errorhandling.BadRecordRouter.BAD_RECORD_TAG;
 import static org.apache.beam.sdk.util.Preconditions.checkArgumentNotNull;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkNotNull;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkState;
 
 import com.google.api.gax.batching.BatchingException;
@@ -38,6 +39,7 @@ import com.google.cloud.bigtable.data.v2.models.ChangeStreamMutation;
 import com.google.cloud.bigtable.data.v2.models.ChangeStreamRecord;
 import com.google.cloud.bigtable.data.v2.models.KeyOffset;
 import com.google.protobuf.ByteString;
+import com.google.protobuf.TextFormat;
 import java.io.IOException;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
@@ -608,6 +610,22 @@ public class BigtableIO {
      */
     public Read withRowFilter(RowFilter filter) {
       return withRowFilter(StaticValueProvider.of(filter));
+    }
+
+    /**
+     * Returns a new {@link BigtableIO.Read} that will filter the rows read from Cloud Bigtable
+     * using the given {@link TextFormat} row filter. If {@link #withRowFilter(RowFilter)} is also
+     * set, the filters are chained.
+     *
+     * <p>Does not modify this object.
+     */
+    public Read withRowFilterTextProto(ValueProvider<String> filter) {
+      checkNotNull(filter, "filter can not be null");
+      BigtableReadOptions bigtableReadOptions = getBigtableReadOptions();
+      return toBuilder()
+          .setBigtableReadOptions(
+              bigtableReadOptions.toBuilder().setRowFilterTextProto(filter).build())
+          .build();
     }
 
     /**
@@ -1938,8 +1956,28 @@ public class BigtableIO {
     }
 
     public @Nullable RowFilter getRowFilter() {
-      ValueProvider<RowFilter> rowFilter = readOptions.getRowFilter();
-      return rowFilter != null && rowFilter.isAccessible() ? rowFilter.get() : null;
+      RowFilter.Chain.Builder chain = RowFilter.Chain.newBuilder();
+      ValueProvider<RowFilter> rowFilterValueProvider = readOptions.getRowFilter();
+      if (rowFilterValueProvider != null && rowFilterValueProvider.isAccessible()) {
+        chain.addFilters(rowFilterValueProvider.get());
+      }
+      ValueProvider<String> textFilterValueProvider = readOptions.getRowFilterTextProto();
+      if (textFilterValueProvider != null && textFilterValueProvider.isAccessible()) {
+        try {
+          chain.addFilters(TextFormat.parse(textFilterValueProvider.get(), RowFilter.class));
+        } catch (TextFormat.ParseException e) {
+          throw new RuntimeException("Failed to parse row filter text proto", e);
+        }
+      }
+
+      switch (chain.getFiltersCount()) {
+        case 0:
+          return null;
+        case 1:
+          return chain.getFilters(0);
+        default:
+          return RowFilter.newBuilder().setChain(chain.build()).build();
+      }
     }
 
     public @Nullable Integer getMaxBufferElementCount() {

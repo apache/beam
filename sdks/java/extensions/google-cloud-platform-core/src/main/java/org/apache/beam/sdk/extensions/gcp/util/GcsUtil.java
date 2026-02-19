@@ -37,16 +37,21 @@ import java.nio.channels.SeekableByteChannel;
 import java.nio.channels.WritableByteChannel;
 import java.util.Collection;
 import java.util.List;
+import java.util.Set;
 import java.util.concurrent.ExecutorService;
 import java.util.function.Supplier;
 import org.apache.beam.sdk.extensions.gcp.options.GcsOptions;
 import org.apache.beam.sdk.extensions.gcp.util.GcsUtilV2.BlobResult;
+import org.apache.beam.sdk.extensions.gcp.util.GcsUtilV2.MissingStrategy;
+import org.apache.beam.sdk.extensions.gcp.util.GcsUtilV2.OverwriteStrategy;
 import org.apache.beam.sdk.extensions.gcp.util.gcsfs.GcsPath;
 import org.apache.beam.sdk.io.fs.MoveOptions;
+import org.apache.beam.sdk.io.fs.MoveOptions.StandardMoveOptions;
 import org.apache.beam.sdk.options.DefaultValueFactory;
 import org.apache.beam.sdk.options.ExperimentalOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Sets;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 public class GcsUtil {
@@ -433,10 +438,63 @@ public class GcsUtil {
     delegate.copy(srcFilenames, destFilenames);
   }
 
+  /** experimental api. */
+  public void copyV2(Iterable<GcsPath> srcPaths, Iterable<GcsPath> dstPaths) throws IOException {
+    copy(srcPaths, dstPaths, OverwriteStrategy.SAFE_OVERWRITE);
+  }
+
+  /** experimental api. */
+  public void copy(
+      Iterable<GcsPath> srcPaths, Iterable<GcsPath> dstPaths, OverwriteStrategy strategy)
+      throws IOException {
+    if (delegateV2 != null) {
+      delegateV2.copy(srcPaths, dstPaths, strategy);
+    } else {
+      throw new IOException("GcsUtil V2 not initialized.");
+    }
+  }
+
   public void rename(
       Iterable<String> srcFilenames, Iterable<String> destFilenames, MoveOptions... moveOptions)
       throws IOException {
     delegate.rename(srcFilenames, destFilenames, moveOptions);
+  }
+
+  /** experimental api. */
+  public void renameV2(
+      Iterable<GcsPath> srcPaths, Iterable<GcsPath> dstPaths, MoveOptions... moveOptions)
+      throws IOException {
+    Set<MoveOptions> moveOptionSet = Sets.newHashSet(moveOptions);
+    final MissingStrategy srcMissing;
+    final OverwriteStrategy dstOverwrite;
+
+    if (moveOptionSet.contains(StandardMoveOptions.IGNORE_MISSING_FILES)) {
+      srcMissing = MissingStrategy.SKIP_IF_MISSING;
+    } else {
+      srcMissing = MissingStrategy.FAIL_IF_MISSING;
+    }
+
+    if (moveOptionSet.contains(StandardMoveOptions.SKIP_IF_DESTINATION_EXISTS)) {
+      dstOverwrite = OverwriteStrategy.SKIP_IF_EXISTS;
+    } else {
+      dstOverwrite = OverwriteStrategy.SAFE_OVERWRITE;
+    }
+
+    rename(srcPaths, dstPaths, srcMissing, dstOverwrite);
+  }
+
+  /** experimental api. */
+  public void rename(
+      Iterable<GcsPath> srcPaths,
+      Iterable<GcsPath> dstPaths,
+      MissingStrategy srcMissing,
+      OverwriteStrategy dstOverwrite)
+      throws IOException {
+    if (delegateV2 != null) {
+      delegateV2.move(srcPaths, dstPaths, srcMissing, dstOverwrite);
+    } else {
+      throw new IOException("GcsUtil V2 not initialized.");
+    }
   }
 
   @VisibleForTesting
@@ -467,6 +525,20 @@ public class GcsUtil {
 
   public void remove(Collection<String> filenames) throws IOException {
     delegate.remove(filenames);
+  }
+
+  /** experimental api. */
+  public void removeV2(Iterable<GcsPath> paths) throws IOException {
+    remove(paths, MissingStrategy.SKIP_IF_MISSING);
+  }
+
+  /** experimental api. */
+  public void remove(Iterable<GcsPath> paths, MissingStrategy strategy) throws IOException {
+    if (delegateV2 != null) {
+      delegateV2.remove(paths, strategy);
+    } else {
+      throw new IOException("GcsUtil V2 not initialized.");
+    }
   }
 
   @SuppressFBWarnings("NM_CLASS_NOT_EXCEPTION")

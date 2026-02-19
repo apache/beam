@@ -168,7 +168,6 @@ ml_base = [
     'langchain',
     'sentence-transformers>=2.2.2',
     'skl2onnx',
-    'pillow',
     'pyod',
     'tensorflow',
     'tensorflow-hub',
@@ -390,6 +389,7 @@ if __name__ == '__main__':
           'numpy>=1.14.3,<2.5.0',  # Update pyproject.toml as well.
           'objsize>=0.6.1,<0.8.0',
           'packaging>=22.0',
+          'pillow',
           'pymongo>=3.8.0,<5.0.0',
           'proto-plus>=1.7.1,<2',
           # 1. Use a tighter upper bound in protobuf dependency to make sure

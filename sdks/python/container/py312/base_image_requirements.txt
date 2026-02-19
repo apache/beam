@@ -21,6 +21,7 @@
 # https://s.apache.org/beam-python-dev-wiki
 # Reach out to a committer if you need help.
 
+aiodns==4.0.0
 aiofiles==25.1.0
 aiohappyeyeballs==2.6.1
 aiohttp==3.13.3
@@ -29,9 +30,11 @@ annotated-types==0.7.0
 anyio==4.12.1
 asn1crypto==1.5.1
 attrs==25.4.0
+backports.zstd==1.3.0
 beartype==0.22.9
 beautifulsoup4==4.14.3
 betterproto==2.0.0b7
+brotli==1.2.0
 bs4==0.0.2
 build==1.4.0
 cachetools==6.2.6
@@ -134,8 +137,10 @@ packaging==26.0
 pandas==2.2.3
 parameterized==0.9.0
 pg8000==1.31.5
+pillow==12.1.1
 pip==26.0.1
 pluggy==1.6.0
+pminit==1.3.0
 propcache==0.4.1
 proto-plus==1.27.1
 protobuf==5.29.6
@@ -144,6 +149,7 @@ pyarrow==23.0.1
 pyarrow-hotfix==0.7
 pyasn1==0.6.2
 pyasn1_modules==0.4.2
+pycares==5.0.1
 pycparser==3.0
 pydantic==2.12.5
 pydantic_core==2.41.5
@@ -160,6 +166,7 @@ pytest-xdist==3.8.0
 python-dateutil==2.9.0.post0
 python-dotenv==1.2.1
 python-tds==1.17.1
+pythonmonkey==1.3.0
 pytz==2025.2
 PyYAML==6.0.3
 referencing==0.37.0
