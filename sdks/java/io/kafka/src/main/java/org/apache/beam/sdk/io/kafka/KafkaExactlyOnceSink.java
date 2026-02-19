@@ -51,7 +51,9 @@ import org.apache.beam.sdk.transforms.GroupByKey;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.SerializableFunction;
+import org.apache.beam.sdk.transforms.windowing.AfterFirst;
 import org.apache.beam.sdk.transforms.windowing.AfterPane;
+import org.apache.beam.sdk.transforms.windowing.AfterProcessingTime;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindows;
 import org.apache.beam.sdk.transforms.windowing.Repeatedly;
 import org.apache.beam.sdk.transforms.windowing.Window;
@@ -84,6 +86,7 @@ import org.apache.kafka.common.serialization.ByteArrayDeserializer;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.DateTimeUtils;
 import org.joda.time.DateTimeZone;
+import org.joda.time.Duration;
 import org.joda.time.format.DateTimeFormat;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -159,7 +162,8 @@ class KafkaExactlyOnceSink<K, V>
   @Override
   public PCollection<Void> expand(PCollection<ProducerRecord<K, V>> input) {
     String topic = Preconditions.checkStateNotNull(spec.getTopic());
-
+    int numElements = spec.getNumElements();
+    Duration timeout = spec.getTimeout();
     int numShards = spec.getNumShards();
     if (numShards <= 0) {
       try (Consumer<?, ?> consumer = openConsumer(spec)) {
@@ -176,13 +180,27 @@ class KafkaExactlyOnceSink<K, V>
     return input
         .apply(
             Window.<ProducerRecord<K, V>>into(new GlobalWindows()) // Everything into global window.
-                .triggering(Repeatedly.forever(AfterPane.elementCountAtLeast(1)))
+                .triggering(
+                    Repeatedly.forever(
+                        AfterFirst.of(
+                            AfterPane.elementCountAtLeast(numElements),
+                            AfterProcessingTime.pastFirstElementInPane().plusDelayOf(timeout))))
                 .discardingFiredPanes())
         .apply(
             String.format("Shuffle across %d shards", numShards),
             ParDo.of(new Reshard<>(numShards)))
         .apply("Persist sharding", GroupByKey.create())
         .apply("Assign sequential ids", ParDo.of(new Sequencer<>()))
+        .apply(
+            "Windowing",
+            Window.<KV<Integer, KV<Long, TimestampedValue<ProducerRecord<K, V>>>>>into(
+                    new GlobalWindows()) // Everything into global window.
+                .triggering(
+                    Repeatedly.forever(
+                        AfterFirst.of(
+                            AfterPane.elementCountAtLeast(numElements),
+                            AfterProcessingTime.pastFirstElementInPane().plusDelayOf(timeout))))
+                .discardingFiredPanes())
         .apply("Persist ids", GroupByKey.create())
         .apply(
             String.format("Write to Kafka topic '%s'", spec.getTopic()),
