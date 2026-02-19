@@ -757,6 +757,7 @@ class BeamModulePlugin implements Plugin<Project> {
         google_cloud_datastore_v1_proto_client      : "com.google.cloud.datastore:datastore-v1-proto-client:2.34.0",   // [bomupgrader] sets version
         google_cloud_firestore                      : "com.google.cloud:google-cloud-firestore", // google_cloud_platform_libraries_bom sets version
         google_cloud_kms                            : "com.google.cloud:google-cloud-kms", // google_cloud_platform_libraries_bom sets version
+        google_cloud_logging                        : "com.google.cloud:google-cloud-logging", // google_cloud_platform_libraries_bom sets version
         google_cloud_pubsub                         : "com.google.cloud:google-cloud-pubsub", // google_cloud_platform_libraries_bom sets version
         // [bomupgrader] the BOM version is set by scripts/tools/bomupgrader.py. If update manually, also update
         // libraries-bom version on sdks/java/container/license_scripts/dep_urls_java.yaml
@@ -772,7 +773,6 @@ class BeamModulePlugin implements Plugin<Project> {
         google_http_client_apache_v2                : "com.google.http-client:google-http-client-apache-v2", // google_cloud_platform_libraries_bom sets version
         google_http_client_gson                     : "com.google.http-client:google-http-client-gson", // google_cloud_platform_libraries_bom sets version
         google_http_client_jackson                  : "com.google.http-client:google-http-client-jackson:1.29.2",
-        google_http_client_gson                     : "com.google.http-client:google-http-client-gson", // google_cloud_platform_libraries_bom sets version
         google_http_client_protobuf                 : "com.google.http-client:google-http-client-protobuf", // google_cloud_platform_libraries_bom sets version
         google_oauth_client                         : "com.google.oauth-client:google-oauth-client:$google_oauth_clients_version",
         google_oauth_client_java6                   : "com.google.oauth-client:google-oauth-client-java6:$google_oauth_clients_version",
