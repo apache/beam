@@ -1597,9 +1597,6 @@ class DecoratorHelpers(TypeHintTestCase):
     self.assertFalse(is_consistent_with(str, NonBuiltInGeneric[str]))
 
   def test_hint_helper_pipe_union(self):
-    # GH issue: https://github.com/apache/beam/issues/36592
-    # Python 3.10+ pipe operator union types (types.UnionType) should work
-    # in is_consistent_with just like typing.Union.
     pipe_union = int | None  # pylint: disable=unsupported-binary-operation
     typing_union = Union[int, None]
     self.assertTrue(is_consistent_with(int, pipe_union))
@@ -1954,8 +1951,6 @@ class TestPTransformAnnotations(unittest.TestCase):
         native_type_compatibility.convert_to_beam_type(type_b))
 
   def test_normalize_pipe_union(self):
-    # GH issue: https://github.com/apache/beam/issues/36592
-    # normalize() should convert types.UnionType to Beam's UnionConstraint.
     pipe_union = int | None  # pylint: disable=unsupported-binary-operation
     normalized = typehints.normalize(pipe_union)
     self.assertIsInstance(normalized, typehints.UnionConstraint)
