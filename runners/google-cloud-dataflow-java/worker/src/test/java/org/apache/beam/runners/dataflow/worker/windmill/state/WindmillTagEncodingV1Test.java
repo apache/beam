@@ -166,8 +166,7 @@ public class WindmillTagEncodingV1Test {
                                 .build(),
                             coder,
                             false);
-                TimerData computed = windmillTimerData.getTimerData();
-                assertEquals(windmillTimerData, windmillTimerData.getWindmillTimerType());
+                assertEquals(windmillTimerType, windmillTimerData.getWindmillTimerType());
                 // The function itself bounds output, so we dont expect the original input as the
                 // output, we expect it to be bounded
                 TimerData expected =
