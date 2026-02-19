@@ -73,6 +73,10 @@ def _import_beam_plugins(plugins):
 def create_harness(environment, dry_run=False):
   """Creates SDK Fn Harness."""
 
+  # Bootstrap log level to capture startup events until pipeline options are
+  # parsed and the actual log level is set.
+  logging.getLogger().setLevel(logging.INFO)
+  
   deferred_exception = None
   if 'LOGGING_API_SERVICE_DESCRIPTOR' in environment:
     try:
