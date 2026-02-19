@@ -1462,6 +1462,12 @@ def normalize(x, none_as_type=False):
   # Convert bare builtin types to correct type hints directly
   elif x in _KNOWN_PRIMITIVE_TYPES:
     return _KNOWN_PRIMITIVE_TYPES[x]
+  elif isinstance(x, types.UnionType):
+    beam_type = native_type_compatibility.convert_to_beam_type(x)
+    if beam_type != x:
+      return beam_type
+    else:
+      return Any
   elif getattr(x, '__module__',
                None) in ('typing', 'collections', 'collections.abc') or getattr(
                    x, '__origin__', None) in _KNOWN_PRIMITIVE_TYPES:

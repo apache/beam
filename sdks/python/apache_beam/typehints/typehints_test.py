@@ -1596,6 +1596,25 @@ class DecoratorHelpers(TypeHintTestCase):
     self.assertFalse(is_consistent_with(Union[str, int], str))
     self.assertFalse(is_consistent_with(str, NonBuiltInGeneric[str]))
 
+  def test_hint_helper_pipe_union(self):
+    # GH issue: https://github.com/apache/beam/issues/36592
+    # Python 3.10+ pipe operator union types (types.UnionType) should work
+    # in is_consistent_with just like typing.Union.
+    pipe_union = int | None  # pylint: disable=unsupported-binary-operation
+    typing_union = Union[int, None]
+    self.assertTrue(is_consistent_with(int, pipe_union))
+    self.assertTrue(is_consistent_with(type(None), pipe_union))
+    self.assertFalse(is_consistent_with(str, pipe_union))
+    self.assertTrue(
+        is_consistent_with(int, pipe_union) ==
+        is_consistent_with(int, typing_union))
+    self.assertTrue(
+        is_consistent_with(str, pipe_union) ==
+        is_consistent_with(str, typing_union))
+    pipe_union_2 = int | float  # pylint: disable=unsupported-binary-operation
+    self.assertTrue(is_consistent_with(int, pipe_union_2))
+    self.assertTrue(is_consistent_with(float, pipe_union_2))
+
   def test_positional_arg_hints(self):
     self.assertEqual(typehints.Any, _positional_arg_hints('x', {}))
     self.assertEqual(int, _positional_arg_hints('x', {'x': int}))
@@ -1933,6 +1952,16 @@ class TestPTransformAnnotations(unittest.TestCase):
     self.assertEqual(
         native_type_compatibility.convert_to_beam_type(type_a),
         native_type_compatibility.convert_to_beam_type(type_b))
+
+  def test_normalize_pipe_union(self):
+    # GH issue: https://github.com/apache/beam/issues/36592
+    # normalize() should convert types.UnionType to Beam's UnionConstraint.
+    pipe_union = int | None  # pylint: disable=unsupported-binary-operation
+    normalized = typehints.normalize(pipe_union)
+    self.assertIsInstance(normalized, typehints.UnionConstraint)
+    pipe_union_2 = int | float  # pylint: disable=unsupported-binary-operation
+    normalized_2 = typehints.normalize(pipe_union_2)
+    self.assertIsInstance(normalized_2, typehints.UnionConstraint)
 
 
 class TestNonBuiltInGenerics(unittest.TestCase):
