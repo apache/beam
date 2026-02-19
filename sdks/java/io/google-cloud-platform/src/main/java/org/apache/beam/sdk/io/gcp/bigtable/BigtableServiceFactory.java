@@ -54,6 +54,8 @@ class BigtableServiceFactory implements Serializable {
   private static final String BIGTABLE_ENABLE_CLIENT_SIDE_METRICS =
       "bigtable_enable_client_side_metrics";
 
+  private static final String BIGTABLE_ENABLE_SKIP_LARGE_ROWS = "bigtable_enable_skip_large_rows";
+
   @AutoValue
   abstract static class ConfigId implements Serializable {
 
@@ -133,7 +135,10 @@ class BigtableServiceFactory implements Serializable {
         BigtableDataSettings.enableBuiltinMetrics();
       }
 
-      BigtableService service = new BigtableServiceImpl(settings);
+      boolean skipLargeRows =
+          ExperimentalOptions.hasExperiment(pipelineOptions, BIGTABLE_ENABLE_SKIP_LARGE_ROWS);
+
+      BigtableService service = new BigtableServiceImpl(settings, skipLargeRows);
       entry = BigtableServiceEntry.create(configId, service);
       entries.put(configId.id(), entry);
       refCounts.put(configId.id(), new AtomicInteger(1));

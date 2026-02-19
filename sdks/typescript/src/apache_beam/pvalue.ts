@@ -163,6 +163,55 @@ export class PCollection<T> {
     );
   }
 
+  /**
+   * Returns a PCollection containing only elements that satisfy the given
+   * predicate function.
+   *
+   * This is analogous to JavaScript's `Array.filter()` method.
+   *
+   * Example usage:
+   * ```
+   * const evens = pcoll.filter(x => x % 2 === 0);
+   * const positives = pcoll.filter(x => x > 0);
+   * ```
+   *
+   * @param fn A predicate function that returns true for elements to keep,
+   *           false for elements to filter out. The function receives the
+   *           element and optionally a context object.
+   * @param context Optional context object to pass to the predicate function.
+   * @returns A new PCollection containing only the elements for which the
+   *          predicate returned true.
+   */
+  filter<ContextT extends Object | undefined = undefined>(
+    fn:
+      | (ContextT extends undefined ? (element: T) => boolean : never)
+      | ((element: T, context: ContextT) => boolean),
+    context: ContextT = undefined!,
+  ): PCollection<T> {
+    if (extractContext(fn)) {
+      context = { ...extractContext(fn), ...context };
+    }
+    return this.apply(
+      withName(
+        "filter(" + extractName(fn) + ")",
+        parDo<T, T, ContextT>(
+          {
+            process: function (element: T, context: ContextT) {
+              // Return the element wrapped in an array if predicate is true,
+              // otherwise return an empty array to filter it out.
+              const keep =
+                context === null || context === undefined
+                  ? (fn as (element: T) => boolean)(element)
+                  : fn(element, context);
+              return keep ? [element] : [];
+            },
+          },
+          context,
+        ),
+      ),
+    );
+  }
+
   root(): Root {
     return new Root(this.pipeline);
   }

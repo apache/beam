@@ -24,10 +24,10 @@ import apache_beam as beam
 from apache_beam.io.gcp.bigquery_tools import beam_row_from_dict
 from apache_beam.io.gcp.bigquery_tools import get_beam_typehints_from_tableschema
 from apache_beam.ml.rag.ingestion.base import VectorDatabaseWriteConfig
-from apache_beam.ml.rag.types import Chunk
+from apache_beam.ml.rag.types import EmbeddableItem
 from apache_beam.typehints.row_type import RowTypeConstraint
 
-ChunkToDictFn = Callable[[Chunk], Dict[str, any]]
+EmbeddableToDictFn = Callable[[EmbeddableItem], Dict[str, any]]
 
 
 @dataclass
@@ -48,19 +48,21 @@ class SchemaConfig:
           ...     {'name': 'custom_field', 'type': 'STRING'}
           ...   ]
           ... }
-      chunk_to_dict_fn: Function that converts a Chunk to a dict matching the
-          schema. Takes a Chunk and returns Dict[str, Any] with keys matching
+      embeddable_to_dict_fn: Function that converts an
+          EmbeddableItem to a dict matching the schema.
+          Takes an EmbeddableItem and returns
+          Dict[str, Any] with keys matching
           schema fields.
           Example:
-          >>> def chunk_to_dict(chunk: Chunk) -> Dict[str, Any]:
+          >>> def embeddable_to_dict(item: EmbeddableItem) -> Dict[str, Any]:
           ...     return {
-          ...         'id': chunk.id,
-          ...         'embedding': chunk.embedding.dense_embedding,
-          ...         'custom_field': chunk.metadata.get('custom_field')
+          ...         'id': item.id,
+          ...         'embedding': item.embedding.dense_embedding,
+          ...         'custom_field': item.metadata.get('custom_field')
           ...     }
   """
   schema: Dict
-  chunk_to_dict_fn: ChunkToDictFn
+  embeddable_to_dict_fn: EmbeddableToDictFn
 
 
 class BigQueryVectorWriterConfig(VectorDatabaseWriteConfig):
@@ -87,10 +89,10 @@ class BigQueryVectorWriterConfig(VectorDatabaseWriteConfig):
       ...       {'name': 'source_url', 'type': 'STRING'}
       ...     ]
       ...   },
-      ...   chunk_to_dict_fn=lambda chunk: {
-      ...       'id': chunk.id,
-      ...       'embedding': chunk.embedding.dense_embedding,
-      ...       'source_url': chunk.metadata.get('url')
+      ...   embeddable_to_dict_fn=lambda item: {
+      ...       'id': item.id,
+      ...       'embedding': item.embedding.dense_embedding,
+      ...       'source_url': item.metadata.get('url')
       ...   }
       ... )
       >>> config = BigQueryVectorWriterConfig(
@@ -121,16 +123,16 @@ class BigQueryVectorWriterConfig(VectorDatabaseWriteConfig):
     return _WriteToBigQueryVectorDatabase(self)
 
 
-def _default_chunk_to_dict_fn(chunk: Chunk):
-  if chunk.embedding is None or chunk.embedding.dense_embedding is None:
-    raise ValueError("chunk must contain dense embedding")
+def _default_embeddable_to_dict_fn(item: EmbeddableItem):
+  if item.embedding is None or item.embedding.dense_embedding is None:
+    raise ValueError("EmbeddableItem must contain dense embedding")
   return {
-      'id': chunk.id,
-      'embedding': chunk.embedding.dense_embedding,
-      'content': chunk.content.text,
+      'id': item.id,
+      'embedding': item.embedding.dense_embedding,
+      'content': item.content_string,
       'metadata': [{
           "key": k, "value": str(v)
-      } for k, v in chunk.metadata.items()]
+      } for k, v in item.metadata.items()]
   }
 
 
@@ -161,19 +163,19 @@ class _WriteToBigQueryVectorDatabase(beam.PTransform):
   def __init__(self, config: BigQueryVectorWriterConfig):
     self.config = config
 
-  def expand(self, pcoll: beam.PCollection[Chunk]):
+  def expand(self, pcoll: beam.PCollection[EmbeddableItem]):
     schema = (
         self.config.schema_config.schema
         if self.config.schema_config else _default_schema())
-    chunk_to_dict_fn = (
-        self.config.schema_config.chunk_to_dict_fn
-        if self.config.schema_config else _default_chunk_to_dict_fn)
+    embeddable_to_dict_fn = (
+        self.config.schema_config.embeddable_to_dict_fn
+        if self.config.schema_config else _default_embeddable_to_dict_fn)
     return (
         pcoll
-        | "Chunk to dict" >> beam.Map(chunk_to_dict_fn)
-        | "Chunk dict to schema'd row" >> beam.Map(
-            lambda chunk_dict: beam_row_from_dict(
-                row=chunk_dict, schema=schema)).with_output_types(
+        | "EmbeddableItem to dict" >> beam.Map(embeddable_to_dict_fn)
+        | "EmbeddableItem dict to schema'd row" >> beam.Map(
+            lambda embeddable_item_dict: beam_row_from_dict(
+                row=embeddable_item_dict, schema=schema)).with_output_types(
                     RowTypeConstraint.from_fields(
                         get_beam_typehints_from_tableschema(schema)))
         | "Write to BigQuery" >> beam.managed.Write(

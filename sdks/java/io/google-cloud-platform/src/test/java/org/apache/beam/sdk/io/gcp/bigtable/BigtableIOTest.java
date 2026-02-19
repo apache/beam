@@ -680,6 +680,69 @@ public class BigtableIOTest {
         defaultRead.withTableId(table).withRowFilter(StaticValueProvider.of(filter)),
         Lists.newArrayList(filteredRows));
   }
+
+  /** Tests reading rows using a text proto filter provided through ValueProvider. */
+  @Test
+  public void testReadingWithRowFilterTextProto() throws Exception {
+    final String table = "TEST-FILTER-TABLE";
+    final int numRows = 1001;
+    List<Row> testRows = makeTableData(table, numRows);
+    String regex = ".*17.*";
+    final KeyMatchesRegex keyPredicate = new KeyMatchesRegex(regex);
+    Iterable<Row> filteredRows =
+        testRows.stream()
+            .filter(
+                input -> {
+                  verifyNotNull(input, "input");
+                  return keyPredicate.apply(input.getKey());
+                })
+            .collect(Collectors.toList());
+
+    String filter = "row_key_regex_filter: \".*17.*\"";
+    service.setupSampleRowKeys(table, 5, 10L);
+
+    runReadTest(
+        defaultRead.withTableId(table).withRowFilterTextProto(StaticValueProvider.of(filter)),
+        Lists.newArrayList(filteredRows));
+  }
+
+  /** Tests reading rows using both filter providers. */
+  @Test
+  public void testReadingWithBothTextFilterAndRowFilter() throws Exception {
+    final String table = "TEST-FILTER-TABLE";
+    final int numRows = 1001;
+    List<Row> testRows = makeTableData(table, numRows);
+    String regex1 = ".*17.*";
+    String regex2 = ".*2.*";
+    final KeyMatchesRegex keyPredicate1 = new KeyMatchesRegex(regex1);
+    final KeyMatchesRegex keyPredicate2 = new KeyMatchesRegex(regex2);
+    Iterable<Row> filteredRows =
+        testRows.stream()
+            .filter(
+                input -> {
+                  verifyNotNull(input, "input");
+                  return keyPredicate1.apply(input.getKey());
+                })
+            .filter(
+                input -> {
+                  verifyNotNull(input, "input");
+                  return keyPredicate2.apply(input.getKey());
+                })
+            .collect(Collectors.toList());
+
+    String filter = "row_key_regex_filter: \".*17.*\"";
+    RowFilter rowFilter =
+        RowFilter.newBuilder().setRowKeyRegexFilter(ByteString.copyFromUtf8(regex2)).build();
+    service.setupSampleRowKeys(table, 5, 10L);
+
+    runReadTest(
+        defaultRead
+            .withTableId(table)
+            .withRowFilterTextProto(StaticValueProvider.of(filter))
+            .withRowFilter(rowFilter),
+        Lists.newArrayList(filteredRows));
+  }
+
   /** Tests dynamic work rebalancing exhaustively. */
   @Test
   public void testReadingSplitAtFractionExhaustive() throws Exception {
@@ -1778,17 +1841,27 @@ public class BigtableIOTest {
     private final FakeBigtableService service;
     private Iterator<Map.Entry<ByteString, ByteString>> rows;
     private Row currentRow;
-    private final Predicate<ByteString> filter;
+    private final List<Predicate<ByteString>> filters = new ArrayList<>();
 
     public FakeBigtableReader(BigtableSource source, FakeBigtableService service) {
       this.source = source;
       this.service = service;
       if (source.getRowFilter() == null) {
-        filter = Predicates.alwaysTrue();
+        filters.add(Predicates.alwaysTrue());
       } else {
-        ByteString keyRegex = source.getRowFilter().getRowKeyRegexFilter();
-        checkArgument(!keyRegex.isEmpty(), "Only RowKeyRegexFilter is supported");
-        filter = new KeyMatchesRegex(keyRegex.toStringUtf8());
+        RowFilter rowFilter = source.getRowFilter();
+        if (rowFilter.hasChain()) {
+          RowFilter.Chain chain = rowFilter.getChain();
+          for (RowFilter filter : chain.getFiltersList()) {
+            ByteString keyRegex = filter.getRowKeyRegexFilter();
+            checkArgument(!keyRegex.isEmpty(), "Only RowKeyRegexFilter is supported");
+            filters.add(new KeyMatchesRegex(keyRegex.toStringUtf8()));
+          }
+        } else {
+          ByteString keyRegex = source.getRowFilter().getRowKeyRegexFilter();
+          checkArgument(!keyRegex.isEmpty(), "Only RowKeyRegexFilter is supported");
+          filters.add(new KeyMatchesRegex(keyRegex.toStringUtf8()));
+        }
       }
       service.verifyTableExists(source.getTableId().get());
     }
@@ -1809,7 +1882,13 @@ public class BigtableIOTest {
       Map.Entry<ByteString, ByteString> entry = null;
       while (rows.hasNext()) {
         entry = rows.next();
-        if (!filter.apply(entry.getKey())
+        boolean predicateMatched = true;
+        for (Predicate<ByteString> predicate : filters) {
+          if (!predicate.apply(entry.getKey())) {
+            predicateMatched = false;
+          }
+        }
+        if (!predicateMatched
             || !rangesContainsKey(source.getRanges(), makeByteKey(entry.getKey()))) {
           // Does not match row filter or does not match source range. Skip.
           entry = null;

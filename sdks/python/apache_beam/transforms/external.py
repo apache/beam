@@ -48,7 +48,6 @@ from apache_beam.runners import pipeline_context
 from apache_beam.runners.portability import artifact_service
 from apache_beam.transforms import environments
 from apache_beam.transforms import ptransform
-from apache_beam.transforms.util import is_compat_version_prior_to
 from apache_beam.typehints import WithTypeHints
 from apache_beam.typehints import native_type_compatibility
 from apache_beam.typehints import row_type
@@ -499,9 +498,9 @@ class SchemaAwareExternalTransform(ptransform.PTransform):
     expansion_service = self._expansion_service
 
     if self._managed_replacement:
-      compat_version_prior_to_current = is_compat_version_prior_to(
-          pcolls.pipeline._options,
-          self._managed_replacement.update_compatibility_version)
+      compat_version_prior_to_current = (
+          pcolls.pipeline._options.is_compat_version_prior_to(
+              self._managed_replacement.update_compatibility_version))
       if not compat_version_prior_to_current:
         payload_builder = self._managed_payload_builder
         expansion_service = self._managed_expansion_service

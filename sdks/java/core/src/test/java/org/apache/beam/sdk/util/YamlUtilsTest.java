@@ -258,4 +258,34 @@ public class YamlUtilsTest {
 
     assertEquals(expectedRow, convertedRow);
   }
+
+  @Test
+  public void testYamlStringFromMapWithNonSerializableObject() {
+    // Create a map with ImmutableMap.Builder which cannot be serialized
+    Map<String, Object> configWithBuilder = new java.util.HashMap<>();
+    configWithBuilder.put("good_key", "valid_value");
+    configWithBuilder.put(
+        "bad_key",
+        org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap
+            .builder()); // Not yet built!
+
+    // We expect an IllegalArgumentException with a helpful message
+    thrown.expect(IllegalArgumentException.class);
+    thrown.expectMessage("Failed to convert configuration map to YAML");
+    thrown.expectMessage("bad_key");
+    thrown.expectMessage("ImmutableMap$Builder");
+
+    YamlUtils.yamlStringFromMap(configWithBuilder);
+  }
+
+  @Test
+  public void testYamlStringFromMapWithValidMap() {
+    Map<String, Object> config =
+        org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap.of(
+            "string_key", "value", "int_key", 123, "boolean_key", true);
+
+    String yaml = YamlUtils.yamlStringFromMap(config);
+    org.junit.Assert.assertNotNull(yaml);
+    org.junit.Assert.assertTrue(yaml.contains("string_key"));
+  }
 }

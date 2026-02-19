@@ -32,7 +32,6 @@ For internal use only; no backwards-compatibility guarantees.
 
 import decimal
 import enum
-import functools
 import itertools
 import json
 import logging
@@ -317,6 +316,9 @@ class ProtoCoderImpl(SimpleCoderImpl):
     proto_message.ParseFromString(encoded)  # This is in effect "ParsePartial".
     return proto_message
 
+  def estimate_size(self, value, nested=False):
+    return self._get_nested_size(value.ByteSize(), nested)
+
 
 class DeterministicProtoCoderImpl(ProtoCoderImpl):
   """For internal use only; no backwards-compatibility guarantees."""
@@ -335,6 +337,9 @@ class ProtoPlusCoderImpl(SimpleCoderImpl):
 
   def decode(self, value):
     return self.proto_plus_type.deserialize(value)
+
+  def estimate_size(self, value, nested=False):
+    return self._get_nested_size(type(value).pb(value).ByteSize(), nested)
 
 
 UNKNOWN_TYPE = 0xFF
@@ -374,18 +379,6 @@ def _verify_dill_compat():
     raise RuntimeError(base_error + ". Dill is not installed.")
   if dill.__version__ != "0.3.1.1":
     raise RuntimeError(base_error + f". Found dill version '{dill.__version__}")
-
-
-dataclass_uses_kw_only: Callable[[Any], bool]
-if dataclasses:
-  # Cache the result to avoid multiple checks for the same dataclass type.
-  @functools.cache
-  def dataclass_uses_kw_only(cls) -> bool:
-    return any(
-        field.init and field.kw_only for field in dataclasses.fields(cls))
-
-else:
-  dataclass_uses_kw_only = lambda cls: False
 
 
 class FastPrimitivesCoderImpl(StreamCoderImpl):
@@ -518,7 +511,7 @@ class FastPrimitivesCoderImpl(StreamCoderImpl):
             (value, type(value), self.requires_deterministic_step_label))
       init_fields = [field for field in dataclasses.fields(value) if field.init]
       try:
-        if dataclass_uses_kw_only(type(value)):
+        if any(field.kw_only for field in init_fields):
           stream.write_byte(DATACLASS_KW_ONLY_TYPE)
           self.encode_type(type(value), stream)
           stream.write_var_int64(len(init_fields))

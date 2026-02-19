@@ -24,11 +24,16 @@ https://beam.apache.org/.
 
 ## About
 
-The Beam website is built using [Hugo](https://gohugo.io/) and the Hugo theme [Docsy](https://www.docsy.dev/). For additional formatting capabilities, this website uses [Twitter Bootstrap](https://getbootstrap.com/).
+The Apache Beam website is built using [Hugo](https://gohugo.io/), a fast and flexible static site generator, and uses the [Docsy](https://www.docsy.dev/) theme, which is designed specifically for technical documentation and open-source projects.
 
-Documentation generated from source code, such as Javadoc and Pydoc, is stored
-separately on the [beam-site
-repository](https://github.com/apache/beam-site/tree/release-docs).
+For additional layout, styling, and responsive design capabilities, the site integrates [Twitter Bootstrap](https://getbootstrap.com/). This allows the documentation to maintain a consistent appearance across different devices and screen sizes.
+
+The website content is primarily written in Markdown and organized according to Hugo’s content structure, making it easy for contributors to add or update documentation.
+
+Documentation generated directly from source code—such as **Javadoc** for Java APIs and **Pydoc** for Python APIs—is stored and maintained separately in the
+[beam-site repository](https://github.com/apache/beam-site/tree/release-docs).
+This separation ensures that API reference documentation remains versioned and consistent with official releases.
+
 
 ## Getting started
 

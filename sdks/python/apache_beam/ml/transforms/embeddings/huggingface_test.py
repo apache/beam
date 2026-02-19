@@ -53,7 +53,7 @@ except ImportError:
 try:
   from PIL import Image
 except ImportError:
-  Image = None
+  Image = None  # type: ignore[assignment]
 
 _HF_TOKEN = os.environ.get('HF_INFERENCE_TOKEN')
 test_query = "This is a test"

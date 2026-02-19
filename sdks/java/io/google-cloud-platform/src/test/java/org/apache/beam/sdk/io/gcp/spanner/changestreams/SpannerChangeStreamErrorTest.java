@@ -331,6 +331,7 @@ public class SpannerChangeStreamErrorTest implements Serializable {
         Timestamp.ofTimeSecondsAndNanos(startTimestamp.getSeconds(), startTimestamp.getNanos() + 1);
 
     mockGetDialect();
+    mockChangeStreamOptions();
     mockTableExists();
     mockGetWatermark(startTimestamp);
     ResultSet getPartitionResultSet = mockGetParentPartition(startTimestamp, endTimestamp);
@@ -380,6 +381,38 @@ public class SpannerChangeStreamErrorTest implements Serializable {
       assertThat(
           mockSpannerService.countRequestsOfType(ExecuteSqlRequest.class), Matchers.greaterThan(0));
     }
+  }
+
+  private void mockChangeStreamOptions() {
+    Statement changeStreamOptionsStatement =
+        Statement.newBuilder(
+                "select option_value\n"
+                    + "from information_schema.change_stream_options\n"
+                    + "where change_stream_name = @changeStreamName and  option_name = 'partition_mode'")
+            .bind("changeStreamName")
+            .to(TEST_CHANGE_STREAM)
+            .build();
+    ResultSetMetadata changeStreamOptionsResultSetMetadata =
+        ResultSetMetadata.newBuilder()
+            .setRowType(
+                StructType.newBuilder()
+                    .addFields(
+                        Field.newBuilder()
+                            .setName("option_value")
+                            .setType(Type.newBuilder().setCode(TypeCode.STRING).build())
+                            .build())
+                    .build())
+            .build();
+    ResultSet changeStreamOptionsResultSet =
+        ResultSet.newBuilder()
+            .addRows(
+                ListValue.newBuilder()
+                    .addValues(Value.newBuilder().setStringValue("NEW_VALUES").build())
+                    .build())
+            .setMetadata(changeStreamOptionsResultSetMetadata)
+            .build();
+    mockSpannerService.putPartialStatementResult(
+        StatementResult.query(changeStreamOptionsStatement, changeStreamOptionsResultSet));
   }
 
   private void mockInvalidChangeStreamRecordReceived(Timestamp now, Timestamp after3Seconds) {

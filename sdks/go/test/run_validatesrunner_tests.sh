@@ -273,9 +273,13 @@ if [[ "$RUNNER" == "flink" || "$RUNNER" == "spark" || "$RUNNER" == "samza" || "$
     echo "No endpoint specified; starting a new $RUNNER job server on $ENDPOINT"
     if [[ "$RUNNER" == "flink" ]]; then
       "$JAVA_CMD" \
+          -Dslf4j.provider=org.slf4j.simple.SimpleServiceProvider \
+          -Dorg.slf4j.simpleLogger.log.org.apache.flink.metrics=error \
+          -Dorg.slf4j.simpleLogger.log.org.apache.flink.runtime=error \
+          -Dorg.slf4j.simpleLogger.log.org.apache.flink.streaming=error \
           -jar $FLINK_JOB_SERVER_JAR \
           --flink-master [local] \
-          --flink-conf-dir $CURRENT_DIRECTORY/../../../runners/flink/src/test/resources \
+          --flink-conf-dir $CURRENT_DIRECTORY/build/flink-conf/ \
           --job-port $JOB_PORT \
           --expansion-port 0 \
           --artifact-port 0 &
