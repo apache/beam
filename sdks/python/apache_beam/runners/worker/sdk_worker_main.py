@@ -102,9 +102,11 @@ def create_harness(environment, dry_run=False):
       with open(options_file, 'r') as f:
         options_json = f.read()
         _LOGGER.info('Load pipeline options from file: %s', options_file)
-    except:
+    except Exception:
       _LOGGER.error(
-          'Failed to load pipeline options from file: %s', options_file)
+          'Failed to load pipeline options from file: %s',
+          options_file,
+          exc_info=True)
       raise
 
   pipeline_options_dict = _load_pipeline_options(options_json)
