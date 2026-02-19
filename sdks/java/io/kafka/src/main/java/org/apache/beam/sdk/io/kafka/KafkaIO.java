@@ -648,8 +648,8 @@ public class KafkaIO {
     return new AutoValue_KafkaIO_WriteRecords.Builder<K, V>()
         .setProducerConfig(WriteRecords.DEFAULT_PRODUCER_PROPERTIES)
         .setEOS(false)
-        .setNumElements(100)
-        .setTimeout(Duration.standardSeconds(1))
+        .setEosTriggerNumElements(100)
+        .setEosTriggerTimeout(Duration.standardSeconds(1))
         .setNumShards(0)
         .setConsumerFactoryFn(KafkaIOUtils.KAFKA_CONSUMER_FACTORY_FN)
         .setBadRecordRouter(BadRecordRouter.THROWING_ROUTER)
@@ -3187,9 +3187,9 @@ public class KafkaIO {
     @Pure
     public abstract boolean isEOS();
 
-    public abstract int getNumElements();
+    public abstract int getEosTriggerNumElements();
 
-    public abstract Duration getTimeout();
+    public abstract Duration getEosTriggerTimeout();
 
     @Pure
     public abstract @Nullable String getSinkGroupId();
@@ -3227,9 +3227,9 @@ public class KafkaIO {
 
       abstract Builder<K, V> setEOS(boolean eosEnabled);
 
-      abstract Builder<K, V> setNumElements(int numElements);
+      abstract Builder<K, V> setEosTriggerNumElements(int numElements);
 
-      abstract Builder<K, V> setTimeout(Duration timeout);
+      abstract Builder<K, V> setEosTriggerTimeout(Duration timeout);
 
       abstract Builder<K, V> setSinkGroupId(String sinkGroupId);
 
@@ -3381,7 +3381,7 @@ public class KafkaIO {
     public WriteRecords<K, V> withEOSTriggerConfig(int numElements, Duration timeout) {
       checkArgument(numElements >= 1, "numElements should be >= 1");
       checkArgument(timeout != null, "timeout is required for exactly-once sink");
-      return toBuilder().setNumElements(numElements).setTimeout(timeout).build();
+      return toBuilder().setEosTriggerNumElements(numElements).setEosTriggerTimeout(timeout).build();
     }
 
     /**

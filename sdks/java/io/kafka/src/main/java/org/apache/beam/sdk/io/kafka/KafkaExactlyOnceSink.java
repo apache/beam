@@ -162,8 +162,8 @@ class KafkaExactlyOnceSink<K, V>
   @Override
   public PCollection<Void> expand(PCollection<ProducerRecord<K, V>> input) {
     String topic = Preconditions.checkStateNotNull(spec.getTopic());
-    int numElements = spec.getNumElements();
-    Duration timeout = spec.getTimeout();
+    int numElements = spec.getEosTriggerNumElements();
+    Duration timeout = spec.getEosTriggerTimeout();
     int numShards = spec.getNumShards();
     if (numShards <= 0) {
       try (Consumer<?, ?> consumer = openConsumer(spec)) {
