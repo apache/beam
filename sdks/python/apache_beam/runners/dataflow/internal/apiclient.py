@@ -48,10 +48,11 @@ from copy import copy
 from datetime import datetime
 from datetime import timezone
 
-from apitools.base.py import exceptions
+from google.api_core import exceptions
 from google.cloud import dataflow
 from google.protobuf import json_format
 from google.protobuf.struct_pb2 import Struct
+from google.protobuf.struct_pb2 import Value
 
 from apache_beam import version as beam_version
 from apache_beam.internal.gcp.auth import get_service_credentials
@@ -112,7 +113,11 @@ class Environment(object):
     if self.worker_options.worker_zone:
       self.proto.worker_zone = self.worker_options.worker_zone
     # User agent information.
-    self.proto.user_agent = Struct()
+    user_agent = Struct(
+        fields={
+            'name': Value(string_value=self._get_python_sdk_name()),
+            'version': Value(string_value=beam_version.__version__)
+        })
     self.local = 'localhost' in self.google_cloud_options.dataflow_endpoint
     self._proto_pipeline = proto_pipeline
 
@@ -122,17 +127,20 @@ class Environment(object):
     if self.google_cloud_options.dataflow_kms_key:
       self.proto.service_kms_key_name = self.google_cloud_options.dataflow_kms_key
 
-    self.proto.user_agent.update({'name': self._get_python_sdk_name()})
-    self.proto.user_agent.update({'version': beam_version.__version__})
+    self.proto.user_agent = user_agent
+
     # Version information.
-    self.proto.version = Struct()
     _verify_interpreter_version_is_supported(options)
     if self.standard_options.streaming:
       job_type = 'FNAPI_STREAMING'
     else:
       job_type = 'FNAPI_BATCH'
-    self.proto.version.update({'job_type': job_type})
-    self.proto.version.update({'major': environment_version})
+    version = Struct(
+        fields={
+            'job_type': Value(string_value=job_type),
+            'major': Value(string_value=environment_version)
+        })
+    self.proto.version = version
     # TODO: Use enumerated type instead of strings for job types.
     if job_type.startswith('FNAPI_'):
       self.debug_options.experiments = self.debug_options.experiments or []
@@ -257,22 +265,25 @@ class Environment(object):
 
     sdk_pipeline_options = options.get_all_options(retain_unknown_options=True)
     if sdk_pipeline_options:
-      self.proto.sdk_pipeline_options = Struct()
 
       options_dict = {
           k: v
           for k, v in sdk_pipeline_options.items() if v is not None
       }
-      options_dict["pipeline_url"] = proto_pipeline_staged_url
+      options_dict["pipelineUrl"] = proto_pipeline_staged_url
       # Don't pass impersonate_service_account through to the harness.
       # Though impersonation should start a job, the workers should
       # not try to modify their credentials.
       options_dict.pop('impersonate_service_account', None)
-      self.proto.sdk_pipeline_options.update({'options': options_dict})
 
       dd = DisplayData.create_from_options(options)
       items = [item.get_dict() for item in dd.items]
-      self.proto.sdk_pipeline_options.update({'display_data': items})
+
+      self.proto.sdk_pipeline_options = Struct(
+          fields={
+              'options': Value(struct_value=options_dict),
+              'display_data': Value(list_value=items)
+          })
 
     if self.google_cloud_options.dataflow_service_options:
       for option in self.google_cloud_options.dataflow_service_options:
@@ -828,9 +839,8 @@ class DataflowApplicationClient(object):
     request.project_id = self.google_cloud_options.project
     try:
       response = self._metrics_client.get_job_metrics(request)
-    except exceptions.BadStatusCodeError as e:
-      _LOGGER.error(
-          'HTTP status %d. Unable to query metrics', e.response.status)
+    except exceptions.GoogleAPICallError as e:
+      _LOGGER.error('HTTP status %d. Unable to query metrics', e.code)
       raise
     return response
 
@@ -844,11 +854,11 @@ class DataflowApplicationClient(object):
 
     try:
       response = self._jobs_client.create_job(request=request)
-    except exceptions.BadStatusCodeError as e:
+    except exceptions.GoogleAPICallError as e:
       _LOGGER.error(
           'HTTP status %d trying to create job'
           ' at dataflow service endpoint %s',
-          e.response.status,
+          e.code,
           self.google_cloud_options.dataflow_endpoint)
       _LOGGER.fatal('details of server error: %s', e)
       raise
