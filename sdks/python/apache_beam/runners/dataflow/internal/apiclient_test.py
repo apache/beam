@@ -90,11 +90,11 @@ class UtilTest(unittest.TestCase):
 
     pipeline_url = None
     for key in recovered_options.keys():
-      if key == 'pipeline_url':
+      if key == 'pipelineUrl':
         pipeline_url = recovered_options[key]
         break
     else:
-      self.fail('No pipeline_url found in %s' % recovered_options)
+      self.fail('No pipelineUrl found in %s' % recovered_options)
 
     self.assertEqual(pipeline_url, FAKE_PIPELINE_URL)
 
@@ -926,7 +926,7 @@ class UtilTest(unittest.TestCase):
     ])
     environment = apiclient.Environment([],
                                         pipeline_options,
-                                        1,
+                                        '1',
                                         FAKE_PIPELINE_URL)
     self.assertIn('use_multiple_sdk_containers', environment.proto.experiments)
 
@@ -944,7 +944,7 @@ class UtilTest(unittest.TestCase):
     ])
     environment = apiclient.Environment([],
                                         pipeline_options,
-                                        1,
+                                        '1',
                                         FAKE_PIPELINE_URL)
     self.assertIn('use_multiple_sdk_containers', environment.proto.experiments)
 
@@ -962,7 +962,7 @@ class UtilTest(unittest.TestCase):
     ])
     environment = apiclient.Environment([],
                                         pipeline_options,
-                                        1,
+                                        '1',
                                         FAKE_PIPELINE_URL)
     self.assertNotIn(
         'use_multiple_sdk_containers', environment.proto.experiments)
@@ -985,7 +985,7 @@ class UtilTest(unittest.TestCase):
     ])
     environment = apiclient.Environment([],
                                         pipeline_options,
-                                        1,
+                                        '1',
                                         FAKE_PIPELINE_URL)
     self.assertEqual(
         'Apache Beam Python 3.9 SDK', environment._get_python_sdk_name())
