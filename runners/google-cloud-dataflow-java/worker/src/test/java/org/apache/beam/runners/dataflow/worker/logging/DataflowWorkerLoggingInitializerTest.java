@@ -29,6 +29,8 @@ import static org.hamcrest.Matchers.hasItem;
 import static org.hamcrest.Matchers.instanceOf;
 import static org.hamcrest.Matchers.not;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 
 import java.io.File;
@@ -84,6 +86,7 @@ public class DataflowWorkerLoggingInitializerTest {
     LogManager.getLogManager().reset();
     DataflowWorkerLoggingInitializer.reset();
     DataflowWorkerLoggingInitializer.initialize();
+    DataflowWorkerLoggingInitializer.testDirectLoggingInterceptor = (e) -> {};
   }
 
   @After
@@ -102,7 +105,7 @@ public class DataflowWorkerLoggingInitializerTest {
     Logger rootLogger = LogManager.getLogManager().getLogger("");
     assertEquals(1, rootLogger.getHandlers().length);
     assertEquals(Level.INFO, rootLogger.getLevel());
-    assertIsDataflowWorkerLoggingHandler(rootLogger.getHandlers()[0], Level.ALL);
+    assertIsDataflowWorkerLoggingHandler(rootLogger.getHandlers()[0]);
   }
 
   @Test
@@ -116,7 +119,7 @@ public class DataflowWorkerLoggingInitializerTest {
     Logger rootLogger = LogManager.getLogManager().getLogger("");
     assertEquals(1, rootLogger.getHandlers().length);
     assertEquals(Level.WARNING, rootLogger.getLevel());
-    assertIsDataflowWorkerLoggingHandler(rootLogger.getHandlers()[0], Level.ALL);
+    assertIsDataflowWorkerLoggingHandler(rootLogger.getHandlers()[0]);
   }
 
   @Test
@@ -129,7 +132,7 @@ public class DataflowWorkerLoggingInitializerTest {
     Logger rootLogger = LogManager.getLogManager().getLogger("");
     assertEquals(1, rootLogger.getHandlers().length);
     assertEquals(Level.WARNING, rootLogger.getLevel());
-    assertIsDataflowWorkerLoggingHandler(rootLogger.getHandlers()[0], Level.ALL);
+    assertIsDataflowWorkerLoggingHandler(rootLogger.getHandlers()[0]);
   }
 
   @Test
@@ -155,6 +158,26 @@ public class DataflowWorkerLoggingInitializerTest {
   }
 
   @Test
+  public void testWithDirectLogging() {
+    DataflowWorkerLoggingOptions options =
+        PipelineOptionsFactory.as(DataflowWorkerLoggingOptions.class);
+    options.setDefaultWorkerLogLevel(DataflowWorkerLoggingOptions.Level.WARN);
+    options.setDefaultWorkerDirectLoggerLevel(DataflowWorkerLoggingOptions.Level.DEBUG);
+
+    DataflowWorkerLoggingInitializer.configure(options);
+
+    Logger rootLogger = LogManager.getLogManager().getLogger("");
+    assertEquals(1, rootLogger.getHandlers().length);
+    assertEquals(Level.FINE, rootLogger.getLevel());
+    DataflowWorkerLoggingHandler handler =
+        assertIsDataflowWorkerLoggingHandler(rootLogger.getHandlers()[0]);
+    assertTrue(handler.isConfiguredDirectLog(new LogRecord(Level.FINE, "")));
+    assertTrue(handler.isConfiguredDirectLog(new LogRecord(Level.INFO, "")));
+    assertFalse(handler.isConfiguredDirectLog(new LogRecord(Level.WARNING, "")));
+    assertFalse(handler.isConfiguredDirectLog(new LogRecord(Level.SEVERE, "")));
+  }
+
+  @Test
   public void testWithSdkHarnessCustomLogLevels() {
     SdkHarnessOptions options = PipelineOptionsFactory.as(SdkHarnessOptions.class);
     options.setSdkHarnessLogLevelOverrides(
@@ -175,9 +198,71 @@ public class DataflowWorkerLoggingInitializerTest {
     assertTrue(aLogger.getUseParentHandlers());
   }
 
-  private void assertIsDataflowWorkerLoggingHandler(Handler handler, Level level) {
+  @Test
+  public void testWithSdkHarnessCustomLogLevelsWithDirect() {
+    SdkHarnessOptions options = PipelineOptionsFactory.as(SdkHarnessOptions.class);
+    options.setDefaultSdkHarnessLogLevel(SdkHarnessOptions.LogLevel.WARN);
+    String a = "testWithSdkHarnessCustomLogLevelsWithDirectA";
+    String b = "testWithSdkHarnessCustomLogLevelsWithDirectB";
+    String c = "testWithSdkHarnessCustomLogLevelsWithDirectC";
+    String d = "testWithSdkHarnessCustomLogLevelsWithDirectD";
+    options.setSdkHarnessLogLevelOverrides(
+        new SdkHarnessLogLevelOverrides()
+            .addOverrideForName(a, SdkHarnessOptions.LogLevel.INFO)
+            .addOverrideForName(b, SdkHarnessOptions.LogLevel.ERROR)
+            .addOverrideForName(c, SdkHarnessOptions.LogLevel.WARN));
+    DataflowWorkerLoggingOptions loggingOptions = options.as(DataflowWorkerLoggingOptions.class);
+    loggingOptions.setDefaultWorkerDirectLoggerLevel(DataflowWorkerLoggingOptions.Level.DEBUG);
+    loggingOptions.setWorkerDirectLogLevelOverrides(
+        new WorkerLogLevelOverrides()
+            .addOverrideForName(b, DataflowWorkerLoggingOptions.Level.TRACE)
+            .addOverrideForName(c, DataflowWorkerLoggingOptions.Level.ERROR)
+            .addOverrideForName(d, DataflowWorkerLoggingOptions.Level.INFO));
+
+    DataflowWorkerLoggingInitializer.configure(loggingOptions);
+
+    {
+      Logger aLogger = LogManager.getLogManager().getLogger(a);
+      assertNoHandlersButParent(aLogger);
+      assertEquals(Level.FINE, aLogger.getLevel());
+      assertEquals(
+          DataflowWorkerLoggingHandler.resourceBundleForNonDirectLogLevelHint(Level.INFO),
+          aLogger.getResourceBundle());
+    }
+
+    {
+      Logger bLogger = LogManager.getLogManager().getLogger(b);
+      assertNoHandlersButParent(bLogger);
+      assertEquals(Level.FINEST, bLogger.getLevel());
+      assertEquals(
+          DataflowWorkerLoggingHandler.resourceBundleForNonDirectLogLevelHint(Level.SEVERE),
+          bLogger.getResourceBundle());
+    }
+
+    {
+      Logger cLogger = LogManager.getLogManager().getLogger(c);
+      assertNoHandlersButParent(cLogger);
+      assertEquals(Level.WARNING, cLogger.getLevel());
+      assertNull(cLogger.getResourceBundle());
+    }
+
+    {
+      Logger dLogger = LogManager.getLogManager().getLogger(d);
+      assertNoHandlersButParent(dLogger);
+      assertEquals(Level.INFO, dLogger.getLevel());
+      assertNull(dLogger.getResourceBundle());
+    }
+  }
+
+  private DataflowWorkerLoggingHandler assertIsDataflowWorkerLoggingHandler(Handler handler) {
     assertThat(handler, instanceOf(DataflowWorkerLoggingHandler.class));
-    assertEquals(level, handler.getLevel());
+    assertEquals(Level.ALL, handler.getLevel());
+    return (DataflowWorkerLoggingHandler) handler;
+  }
+
+  private void assertNoHandlersButParent(Logger logger) {
+    assertTrue(logger.getUseParentHandlers());
+    assertEquals(0, logger.getHandlers().length);
   }
 
   @Test

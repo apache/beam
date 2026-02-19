@@ -193,6 +193,7 @@ dependencies {
 
     implementation library.java.google_auth_library_credentials
     implementation library.java.proto_google_common_protos
+    implementation library.java.google_cloud_logging
 
     // Conscrypt shouldn't be included here because Conscrypt won't work when being shaded.
     // (Context: https://github.com/apache/beam/pull/13846)

@@ -24,16 +24,19 @@ import static org.apache.beam.runners.dataflow.options.DataflowWorkerLoggingOpti
 import static org.apache.beam.runners.dataflow.options.DataflowWorkerLoggingOptions.Level.TRACE;
 import static org.apache.beam.runners.dataflow.options.DataflowWorkerLoggingOptions.Level.WARN;
 
+import com.google.cloud.logging.LogEntry;
 import java.io.File;
 import java.io.IOException;
 import java.io.PrintStream;
 import java.nio.charset.Charset;
+import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
+import java.util.function.Consumer;
 import java.util.logging.ErrorManager;
 import java.util.logging.Level;
 import java.util.logging.LogManager;
 import java.util.logging.Logger;
+import javax.annotation.Nullable;
 import org.apache.beam.runners.dataflow.options.DataflowWorkerLoggingOptions;
 import org.apache.beam.sdk.options.SdkHarnessOptions;
 import org.apache.beam.sdk.options.SdkHarnessOptions.LogLevel;
@@ -77,8 +80,8 @@ public class DataflowWorkerLoggingInitializer {
 
   private static final String FILESIZE_MB_PROPERTY = "dataflow.worker.logging.filesize_mb";
 
-  private static final String SYSTEM_OUT_LOG_NAME = "System.out";
-  private static final String SYSTEM_ERR_LOG_NAME = "System.err";
+  static final String SYSTEM_OUT_LOG_NAME = "System.out";
+  static final String SYSTEM_ERR_LOG_NAME = "System.err";
 
   static final ImmutableBiMap<Level, DataflowWorkerLoggingOptions.Level> LEVELS =
       ImmutableBiMap.<Level, DataflowWorkerLoggingOptions.Level>builder()
@@ -108,6 +111,7 @@ public class DataflowWorkerLoggingInitializer {
   private static PrintStream originalStdOut;
   private static PrintStream originalStdErr = System.err;
   private static boolean initialized = false;
+  @VisibleForTesting static @Nullable Consumer<LogEntry> testDirectLoggingInterceptor = null;
 
   // This is the same as ErrorManager except that it uses the provided
   // print stream.
@@ -174,10 +178,13 @@ public class DataflowWorkerLoggingInitializer {
       originalStdErr = System.err;
       System.setOut(
           JulHandlerPrintStreamAdapterFactory.create(
-              loggingHandler, SYSTEM_OUT_LOG_NAME, Level.INFO, Charset.defaultCharset()));
+              loggingHandler::publish, SYSTEM_OUT_LOG_NAME, Level.INFO, Charset.defaultCharset()));
       System.setErr(
           JulHandlerPrintStreamAdapterFactory.create(
-              loggingHandler, SYSTEM_ERR_LOG_NAME, Level.SEVERE, Charset.defaultCharset()));
+              loggingHandler::publish,
+              SYSTEM_ERR_LOG_NAME,
+              Level.SEVERE,
+              Charset.defaultCharset()));
 
       // Initialize the SDK Logging Handler, which will only be used for the LoggingService
       sdkLoggingHandler = makeLoggingHandler(SDK_FILEPATH_PROPERTY, DEFAULT_SDK_LOGGING_LOCATION);
@@ -185,6 +192,40 @@ public class DataflowWorkerLoggingInitializer {
       initialized = true;
     } catch (SecurityException | IOException | NumberFormatException e) {
       throw new ExceptionInInitializerError(e);
+    }
+  }
+
+  private static class LevelOverrides {
+    LevelOverrides(Level disk, Level direct) {
+      this.direct = direct;
+      this.disk = disk;
+    }
+
+    final Level disk;
+    final Level direct;
+
+    LevelOverrides merge(@Nullable Level disk, @Nullable Level direct) {
+      return new LevelOverrides(
+          disk == null ? this.disk : disk, direct == null ? this.direct : direct);
+    }
+  }
+
+  private static void applyOverridesToLogger(
+      Logger logger, LevelOverrides overrides, Level defaultNonDirectLogLevel) {
+    if (overrides.direct.intValue() < overrides.disk.intValue()) {
+      logger.setLevel(overrides.direct);
+      // Only set the resource if the value is different from the default non-direct level.
+      if (overrides.disk.intValue() != defaultNonDirectLogLevel.intValue()) {
+        logger.setResourceBundle(
+            DataflowWorkerLoggingHandler.resourceBundleForNonDirectLogLevelHint(overrides.disk));
+      }
+    } else {
+      if (overrides.direct.intValue() != Level.OFF.intValue()) {
+        LOG.warn(
+            "Ignoring direct logging for {} as the configured disk logging level is of greater or equal value.",
+            logger.getName());
+      }
+      logger.setLevel(overrides.disk);
     }
   }
 
@@ -200,30 +241,94 @@ public class DataflowWorkerLoggingInitializer {
     SdkHarnessOptions harnessOptions = options.as(SdkHarnessOptions.class);
     boolean usedDeprecated = false;
 
-    // default value for both DefaultSdkHarnessLogLevel and DefaultWorkerLogLevel are INFO
-    Level overrideLevel = getJulLevel(harnessOptions.getDefaultSdkHarnessLogLevel());
+    // default value for both DefaultSdkHarnessLogLevel and DefaultWorkerLogLevel are INFO for disk
+    // logging and OFF
+    // for direct logging.
+    LevelOverrides defaultOverrides = new LevelOverrides(Level.INFO, Level.OFF);
     if (options.getDefaultWorkerLogLevel() != null && options.getDefaultWorkerLogLevel() != INFO) {
-      overrideLevel = getJulLevel(options.getDefaultWorkerLogLevel());
+      defaultOverrides =
+          defaultOverrides.merge(getJulLevel(options.getDefaultWorkerLogLevel()), null);
       usedDeprecated = true;
+    } else {
+      defaultOverrides =
+          defaultOverrides.merge(getJulLevel(harnessOptions.getDefaultSdkHarnessLogLevel()), null);
     }
-    LogManager.getLogManager().getLogger(ROOT_LOGGER_NAME).setLevel(overrideLevel);
-
-    if (options.getWorkerLogLevelOverrides() != null) {
-      for (Map.Entry<String, DataflowWorkerLoggingOptions.Level> loggerOverride :
-          options.getWorkerLogLevelOverrides().entrySet()) {
-        Logger logger = Logger.getLogger(loggerOverride.getKey());
-        logger.setLevel(getJulLevel(loggerOverride.getValue()));
-        configuredLoggers.add(logger);
+    if (options.getDefaultWorkerDirectLoggerLevel() != null
+        && options.getDefaultWorkerDirectLoggerLevel() != OFF) {
+      Level diskLevel = defaultOverrides.disk;
+      Level directLevel = getJulLevel(options.getDefaultWorkerDirectLoggerLevel());
+      LOG.info(
+          "Enabling sending logs directly to Cloud Logging between severity {} and severity {}.",
+          directLevel,
+          diskLevel);
+      try {
+        loggingHandler.enableDirectLogging(options, diskLevel, testDirectLoggingInterceptor);
+        LOG.info("Configuring sending to cloud logging directly succeeded.");
+        defaultOverrides = defaultOverrides.merge(null, directLevel);
+      } catch (RuntimeException e) {
+        LOG.error("Unable to configure logs to be sent directly to cloud logging", e);
       }
+    }
+
+    final LevelOverrides finalDefaultOverrides = defaultOverrides;
+
+    HashMap<String, LevelOverrides> loggerLevelOverrides = new HashMap<>();
+    if (options.getWorkerLogLevelOverrides() != null) {
+      options
+          .getWorkerLogLevelOverrides()
+          .forEach(
+              (k, v) -> {
+                loggerLevelOverrides.compute(
+                    k,
+                    (lk, lv) -> {
+                      if (lv == null) {
+                        lv = finalDefaultOverrides;
+                      }
+                      return lv.merge(getJulLevel(v), null);
+                    });
+              });
       usedDeprecated = true;
     } else if (harnessOptions.getSdkHarnessLogLevelOverrides() != null) {
-      for (Map.Entry<String, SdkHarnessOptions.LogLevel> loggerOverride :
-          harnessOptions.getSdkHarnessLogLevelOverrides().entrySet()) {
-        Logger logger = Logger.getLogger(loggerOverride.getKey());
-        logger.setLevel(getJulLevel(loggerOverride.getValue()));
-        configuredLoggers.add(logger);
-      }
+      harnessOptions
+          .getSdkHarnessLogLevelOverrides()
+          .forEach(
+              (k, v) -> {
+                loggerLevelOverrides.compute(
+                    k,
+                    (lk, lv) -> {
+                      if (lv == null) {
+                        lv = finalDefaultOverrides;
+                      }
+                      return lv.merge(getJulLevel(v), null);
+                    });
+              });
     }
+    if (options.getWorkerDirectLogLevelOverrides() != null) {
+      options
+          .getWorkerDirectLogLevelOverrides()
+          .forEach(
+              (k, v) -> {
+                loggerLevelOverrides.compute(
+                    k,
+                    (lk, lv) -> {
+                      if (lv == null) {
+                        lv = finalDefaultOverrides;
+                      }
+                      return lv.merge(null, getJulLevel(v));
+                    });
+              });
+    }
+
+    applyOverridesToLogger(
+        LogManager.getLogManager().getLogger(ROOT_LOGGER_NAME),
+        defaultOverrides,
+        finalDefaultOverrides.disk);
+    loggerLevelOverrides.forEach(
+        (loggerName, levelOverrides) -> {
+          Logger logger = Logger.getLogger(loggerName);
+          applyOverridesToLogger(logger, levelOverrides, finalDefaultOverrides.disk);
+          configuredLoggers.add(logger);
+        });
 
     // If the options specify a level for messages logged to System.out/err, we need to reconfigure
     // the corresponding stream adapter.
@@ -231,7 +336,7 @@ public class DataflowWorkerLoggingInitializer {
       System.out.close();
       System.setOut(
           JulHandlerPrintStreamAdapterFactory.create(
-              loggingHandler,
+              loggingHandler::publishStdOut,
               SYSTEM_OUT_LOG_NAME,
               getJulLevel(options.getWorkerSystemOutMessageLevel()),
               Charset.defaultCharset()));
@@ -241,13 +346,14 @@ public class DataflowWorkerLoggingInitializer {
       System.err.close();
       System.setErr(
           JulHandlerPrintStreamAdapterFactory.create(
-              loggingHandler,
+              loggingHandler::publishStdErr,
               SYSTEM_ERR_LOG_NAME,
               getJulLevel(options.getWorkerSystemErrMessageLevel()),
               Charset.defaultCharset()));
     }
 
     if (harnessOptions.getLogMdc()) {
+      LOG.info("Due to logMdc option, MDC fields will be added to custom_data field of logs.");
       loggingHandler.setLogMdc(true);
     }
 
