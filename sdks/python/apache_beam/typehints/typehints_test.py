@@ -1606,11 +1606,11 @@ class DecoratorHelpers(TypeHintTestCase):
     self.assertTrue(is_consistent_with(type(None), pipe_union))
     self.assertFalse(is_consistent_with(str, pipe_union))
     self.assertTrue(
-        is_consistent_with(int, pipe_union) ==
-        is_consistent_with(int, typing_union))
+        is_consistent_with(int, pipe_union) == is_consistent_with(
+            int, typing_union))
     self.assertTrue(
-        is_consistent_with(str, pipe_union) ==
-        is_consistent_with(str, typing_union))
+        is_consistent_with(str, pipe_union) == is_consistent_with(
+            str, typing_union))
     pipe_union_2 = int | float  # pylint: disable=unsupported-binary-operation
     self.assertTrue(is_consistent_with(int, pipe_union_2))
     self.assertTrue(is_consistent_with(float, pipe_union_2))
