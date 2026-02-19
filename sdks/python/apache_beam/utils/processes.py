@@ -44,19 +44,6 @@ if TYPE_CHECKING:
 
 else:
 
-  def _pip_package_from_args(args):
-    """Return a safe string for the package field in pip error messages.
-
-    Avoids IndexError when the command list is shorter than 7 elements
-    (e.g. ['python', '-m', 'pip', 'install', 'pkg']).
-    """
-    if not isinstance(args, tuple) or not args:
-      return "see output below"
-    cmd = args[0]
-    if not isinstance(cmd, (list, tuple)) or len(cmd) <= 6:
-      return "see output below"
-    return cmd[6]
-
   def call(*args, **kwargs):
     if force_shell:
       kwargs['shell'] = True
@@ -65,16 +52,12 @@ else:
     except OSError as e:
       raise RuntimeError("Executable {} not found".format(args[0])) from e
     except subprocess.CalledProcessError as error:
-      if isinstance(args, tuple) and len(args[0]) > 2 and args[0][2] == "pip":
-        raise RuntimeError( \
-          "Full traceback: {}\n Pip install failed for package: {} \
-          \n Output from execution of subprocess: {}" \
-          .format(traceback.format_exc(),
-                  _pip_package_from_args(args), error.output)) from error
-      else:
-        raise RuntimeError("Full trace: {}\
-           \n Output of the failed child process: {} " \
-          .format(traceback.format_exc(), error.output)) from error
+      raise RuntimeError(
+          "Command that failed: {}\nFull trace: {}\nOutput of the failed "
+          "child process: {}".format(
+              args, traceback.format_exc(),
+              error.output if error.output is not None else "(not captured)")
+      ) from error
     return out
 
   def check_call(*args, **kwargs):
@@ -85,16 +68,12 @@ else:
     except OSError as e:
       raise RuntimeError("Executable {} not found".format(args[0])) from e
     except subprocess.CalledProcessError as error:
-      if isinstance(args, tuple) and len(args[0]) > 2 and args[0][2] == "pip":
-        raise RuntimeError( \
-          "Full traceback: {} \n Pip install failed for package: {} \
-          \n Output from execution of subprocess: {}" \
-          .format(traceback.format_exc(),
-                  _pip_package_from_args(args), error.output)) from error
-      else:
-        raise RuntimeError("Full trace: {} \
-          \n Output of the failed child process: {}" \
-          .format(traceback.format_exc(), error.output)) from error
+      raise RuntimeError(
+          "Command that failed: {}\nFull trace: {}\nOutput of the failed "
+          "child process: {}".format(
+              args, traceback.format_exc(),
+              error.output if error.output is not None else "(not captured)")
+      ) from error
     return out
 
   def check_output(*args, **kwargs):
@@ -105,16 +84,12 @@ else:
     except OSError as e:
       raise RuntimeError("Executable {} not found".format(args[0])) from e
     except subprocess.CalledProcessError as error:
-      if isinstance(args, tuple) and len(args[0]) > 2 and args[0][2] == "pip":
-        raise RuntimeError( \
-          "Full traceback: {} \n Pip install failed for package: {} \
-          \n Output from execution of subprocess: {}" \
-          .format(traceback.format_exc(),
-                  _pip_package_from_args(args), error.output)) from error
-      else:
-        raise RuntimeError("Full trace: {}, \
-           output of the failed child process {} "\
-          .format(traceback.format_exc(), error.output)) from error
+      raise RuntimeError(
+          "Command that failed: {}\nFull trace: {}\nOutput of the failed "
+          "child process: {}".format(
+              args, traceback.format_exc(),
+              error.output if error.output is not None else "(not captured)")
+      ) from error
     return out
 
   def Popen(*args, **kwargs):

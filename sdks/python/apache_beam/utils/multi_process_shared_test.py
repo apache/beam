@@ -24,8 +24,6 @@ import threading
 import unittest
 from typing import Any
 
-import pytest
-
 from apache_beam.utils import multi_process_shared
 
 
@@ -87,7 +85,6 @@ class CounterWithBadAttr(object):
       return object.__getattribute__(self, __name)
 
 
-@pytest.mark.no_xdist
 class MultiProcessSharedTest(unittest.TestCase):
   @classmethod
   def setUpClass(cls):
