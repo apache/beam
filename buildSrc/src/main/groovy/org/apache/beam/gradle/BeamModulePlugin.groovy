@@ -3121,10 +3121,11 @@ class BeamModulePlugin implements Plugin<Project> {
             // TODO: https://github.com/apache/beam/issues/29022
             // pip 23.3 is failing due to Hash mismatch between expected SHA of the packaged and actual SHA.
             // until it is resolved on pip's side, don't use pip's cache.
-            // pip 25.1 casues :sdks:python:installGcpTest stuck. Pin to 25.0.1 for now.
+            // Use pip 26.0.1 for improved resolution performance and bug fixes. See #34798.
             args '-c', ". ${project.ext.envdir}/bin/activate && " +
-                "pip install --pre --retries 10 --upgrade pip==25.0.1 --no-cache-dir && " +
-                "pip install --pre --retries 10 --upgrade tox --no-cache-dir"
+                "pip install --pre --retries 10 --upgrade pip==26.0.1 --no-cache-dir && " +
+                "pip install --pre --retries 10 --upgrade tox --no-cache-dir && " +
+                "pip install uv"
           }
         }
         // Gradle will delete outputs whenever it thinks they are stale. Putting a
@@ -3169,9 +3170,18 @@ class BeamModulePlugin implements Plugin<Project> {
             packages += ",${extra}"
           }
 
+          def pythonSdkDir = project.project(":sdks:python").projectDir
+          def constraintsPath = "${pythonSdkDir}/constraints.txt"
+          def constraintFile = project.file(constraintsPath)
+          def constraintFlag = constraintFile.exists() ? "--constraint ${constraintsPath}" : ""
+
+          // Use uv instead of pip - pip was hitting resolution-too-deep on tensorflow->keras->namex/optree.
+          // Include namex/optree as explicit deps to constrain resolution.
+          def anchorPkgs = "namex==0.0.9 optree==0.16.0"
+          def installCmd = ". ${project.ext.envdir}/bin/activate && uv pip install ${constraintFlag} ${anchorPkgs} ${distTarBall}[${packages}]".replaceAll(/  +/, ' ').trim()
           project.exec {
             executable 'sh'
-            args '-c', ". ${project.ext.envdir}/bin/activate && pip install --pre --retries 10 ${distTarBall}[${packages}]"
+            args '-c', installCmd
           }
         }
       }

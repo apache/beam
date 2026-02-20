@@ -541,6 +541,9 @@ if __name__ == '__main__':
               # tensorflow-transform requires dill, but doesn't set dill as a
               # hard requirement in setup.py.
               'dill',
+              # keras pulls in namex/optree without version bounds - pin to avoid resolver issues
+              'namex==0.0.9',
+              'optree==0.16.0',
               'tensorflow-transform',
               # Comment out xgboost as it is breaking presubmit python ml
               # tests due to tag check introduced since pip 24.2
@@ -549,8 +552,13 @@ if __name__ == '__main__':
           ] + ml_base,
           'p312_ml_test': [
               'datatable',
+              'namex==0.0.9',
+              'optree==0.16.0',
           ] + ml_base,
-          'p313_ml_test': ml_base,
+          'p313_ml_test': [
+              'namex==0.0.9',
+              'optree==0.16.0',
+          ] + ml_base,
           'aws': ['boto3>=1.9,<2'],
           'azure': [
               'azure-storage-blob>=12.3.2,<13',
