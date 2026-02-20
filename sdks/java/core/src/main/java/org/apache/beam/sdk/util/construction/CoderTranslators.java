@@ -205,27 +205,32 @@ class CoderTranslators {
         return ImmutableList.of();
       }
 
-      @Override
-      public String getUrn(SchemaCoder<T> from, TranslationContext context) {
+      // Used for backwards compatibility with older versions of the SDK.
+      private boolean encodeAsJavaSerializedCoder(TranslationContext context) {
         if (context instanceof TranslationContextWithOptions) {
           PipelineOptions options =
               ((TranslationContextWithOptions) context).pipelineOptions().get();
           if (StreamingOptions.updateCompatibilityVersionLessThan(options, "2.72")) {
-            return CoderTranslation.JAVA_SERIALIZED_CODER_URN;
+            return true;
           }
         }
-        return CoderTranslation.getKnownCoderUrns()
+        return false;
+      }
+
+      @Override
+      public String getUrn(SchemaCoder<T> from, TranslationContext context) {
+        if (encodeAsJavaSerializedCoder(context)) {
+          return CoderTranslation.JAVA_SERIALIZED_CODER_URN;
+        } else {
+          return CoderTranslation.getKnownCoderUrns()
             .getOrDefault(from.getClass(), CoderTranslation.JAVA_SERIALIZED_CODER_URN);
+        }
       }
 
       @Override
       public byte[] getPayload(SchemaCoder<T> from, TranslationContext context) {
-        if (context instanceof TranslationContextWithOptions) {
-          PipelineOptions options =
-              ((TranslationContextWithOptions) context).pipelineOptions().get();
-          if (StreamingOptions.updateCompatibilityVersionLessThan(options, "2.72")) {
-            return SerializableUtils.serializeToByteArray(from);
-          }
+        if (encodeAsJavaSerializedCoder(context)) {
+          return SerializableUtils.serializeToByteArray(from);
         }
         SchemaApi.SchemaCoderPayload.Builder payload = SchemaApi.SchemaCoderPayload.newBuilder();
         payload.setSchema(SchemaTranslation.schemaToProto(from.getSchema(), true));
@@ -252,9 +257,10 @@ class CoderTranslators {
 
       @Override
       public SchemaCoder<T> fromComponents(
-          List<Coder<?>> components, byte[] payload, CoderTranslation.TranslationContext context) {
+          List<Coder<?>> components, byte[] payload, TranslationContext context) {
         checkArgument(
             components.isEmpty(), "Expected empty component list, but received: %s", components);
+        checkArgument(!encodeAsJavaSerializedCoder(context), "This translator should not be used for Java serialized coders.");
         try {
           SchemaApi.SchemaCoderPayload schemaCoderPayload =
               SchemaApi.SchemaCoderPayload.parseFrom(payload);

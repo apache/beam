@@ -675,8 +675,6 @@ public class ExpansionService extends ExpansionServiceGrpc.ExpansionServiceImplB
             inputs);
 
     // Needed to find which transform was new...
-    // This SdkComponents comes from rehydratedComponents, but doesn't take into account any
-    // additional translation options specified in PipelineOptions.
     SdkComponents sdkComponents =
         rehydratedComponents
             .getSdkComponents(request.getRequirementsList())
