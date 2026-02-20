@@ -56,6 +56,7 @@ import org.apache.beam.sdk.transforms.windowing.AfterPane;
 import org.apache.beam.sdk.transforms.windowing.AfterProcessingTime;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindows;
 import org.apache.beam.sdk.transforms.windowing.Repeatedly;
+import org.apache.beam.sdk.transforms.windowing.Trigger;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.util.Preconditions;
 import org.apache.beam.sdk.values.KV;
@@ -176,30 +177,33 @@ class KafkaExactlyOnceSink<K, V>
       }
     }
     checkState(numShards > 0, "Could not set number of shards");
-
+    Trigger.OnceTrigger trigger = null;
+    if (timeout != null) {
+      trigger =
+          AfterFirst.of(
+              AfterPane.elementCountAtLeast(numElements),
+              AfterProcessingTime.pastFirstElementInPane().plusDelayOf(timeout));
+    } else {
+      // fallback to default
+      trigger = AfterPane.elementCountAtLeast(numElements);
+    }
     return input
         .apply(
             Window.<ProducerRecord<K, V>>into(new GlobalWindows()) // Everything into global window.
-                .triggering(
-                    Repeatedly.forever(
-                        AfterFirst.of(
-                            AfterPane.elementCountAtLeast(numElements),
-                            AfterProcessingTime.pastFirstElementInPane().plusDelayOf(timeout))))
+                .triggering(Repeatedly.forever(trigger))
                 .discardingFiredPanes())
         .apply(
             String.format("Shuffle across %d shards", numShards),
             ParDo.of(new Reshard<>(numShards)))
         .apply("Persist sharding", GroupByKey.create())
         .apply("Assign sequential ids", ParDo.of(new Sequencer<>()))
+        // Reapply the windowing configuration as the continuation trigger doesn't maintain the
+        // desired batching.
         .apply(
             "Windowing",
             Window.<KV<Integer, KV<Long, TimestampedValue<ProducerRecord<K, V>>>>>into(
                     new GlobalWindows()) // Everything into global window.
-                .triggering(
-                    Repeatedly.forever(
-                        AfterFirst.of(
-                            AfterPane.elementCountAtLeast(numElements),
-                            AfterProcessingTime.pastFirstElementInPane().plusDelayOf(timeout))))
+                .triggering(Repeatedly.forever(trigger))
                 .discardingFiredPanes())
         .apply("Persist ids", GroupByKey.create())
         .apply(

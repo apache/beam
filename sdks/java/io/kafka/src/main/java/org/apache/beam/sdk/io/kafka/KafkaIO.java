@@ -648,8 +648,8 @@ public class KafkaIO {
     return new AutoValue_KafkaIO_WriteRecords.Builder<K, V>()
         .setProducerConfig(WriteRecords.DEFAULT_PRODUCER_PROPERTIES)
         .setEOS(false)
-        .setEosTriggerNumElements(100)
-        .setEosTriggerTimeout(Duration.standardSeconds(1))
+        .setEosTriggerNumElements(1) // keep default numElements
+        .setEosTriggerTimeout(null) // keep default trigger (timeout)
         .setNumShards(0)
         .setConsumerFactoryFn(KafkaIOUtils.KAFKA_CONSUMER_FACTORY_FN)
         .setBadRecordRouter(BadRecordRouter.THROWING_ROUTER)
@@ -3189,7 +3189,7 @@ public class KafkaIO {
 
     public abstract int getEosTriggerNumElements();
 
-    public abstract Duration getEosTriggerTimeout();
+    public abstract @Nullable Duration getEosTriggerTimeout();
 
     @Pure
     public abstract @Nullable String getSinkGroupId();
@@ -3229,7 +3229,7 @@ public class KafkaIO {
 
       abstract Builder<K, V> setEosTriggerNumElements(int numElements);
 
-      abstract Builder<K, V> setEosTriggerTimeout(Duration timeout);
+      abstract Builder<K, V> setEosTriggerTimeout(@Nullable Duration timeout);
 
       abstract Builder<K, V> setSinkGroupId(String sinkGroupId);
 
