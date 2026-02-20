@@ -304,7 +304,6 @@ def filter_change_points_by_median_threshold(
   value of threshold is 0.05.
   """
   valid_change_points = []
-  epsilon = 1e-10  # needed to avoid division by zero.
 
   for idx in change_points:
     if idx == 0 or idx == len(data):
