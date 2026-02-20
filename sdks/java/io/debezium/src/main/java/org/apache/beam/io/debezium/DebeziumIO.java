@@ -63,11 +63,6 @@ import org.slf4j.LoggerFactory;
  *
  * <h3>Usage example</h3>
  *
- * <p>Support is currently experimental. One of the known issues is that the connector does not
- * preserve the offset on a worker crash or restart, causing it to retrieve all the data from the
- * beginning again. See <a href="https://github.com/apache/beam/issues/28248">Issue #28248</a> for
- * details.
- *
  * <p>Connect to a Debezium - MySQL database and run a Pipeline
  *
  * <pre>
@@ -147,6 +142,8 @@ public class DebeziumIO {
 
     abstract @Nullable Long getMaxTimeToRun();
 
+    abstract @Nullable Long getPollingTimeout();
+
     abstract @Nullable Coder<T> getCoder();
 
     abstract Builder<T> toBuilder();
@@ -162,6 +159,8 @@ public class DebeziumIO {
       abstract Builder<T> setMaxNumberOfRecords(Integer maxNumberOfRecords);
 
       abstract Builder<T> setMaxTimeToRun(Long miliseconds);
+
+      abstract Builder<T> setPollingTimeout(Long miliseconds);
 
       abstract Read<T> build();
     }
@@ -222,12 +221,18 @@ public class DebeziumIO {
       return toBuilder().setMaxTimeToRun(miliseconds).build();
     }
 
+    /**
+     * Sets the timeout in milliseconds for consumer polling request in the {@link
+     * KafkaSourceConsumerFn}. A lower timeout optimizes for latency. Increase the timeout if the
+     * consumer is not fetching any records. The default is 1000 milliseconds.
+     */
+    public Read<T> withPollingTimeout(Long miliseconds) {
+      return toBuilder().setPollingTimeout(miliseconds).build();
+    }
+
     protected Schema getRecordSchema() {
       KafkaSourceConsumerFn<T> fn =
-          new KafkaSourceConsumerFn<>(
-              getConnectorConfiguration().getConnectorClass().get(),
-              getFormatFunction(),
-              getMaxNumberOfRecords());
+          new KafkaSourceConsumerFn<>(getConnectorConfiguration().getConnectorClass().get(), this);
       fn.register(
           new KafkaSourceConsumerFn.OffsetTracker(
               new KafkaSourceConsumerFn.OffsetHolder(null, null, 0)));
@@ -267,10 +272,7 @@ public class DebeziumIO {
           .apply(
               ParDo.of(
                   new KafkaSourceConsumerFn<>(
-                      getConnectorConfiguration().getConnectorClass().get(),
-                      getFormatFunction(),
-                      getMaxNumberOfRecords(),
-                      getMaxTimeToRun())))
+                      getConnectorConfiguration().getConnectorClass().get(), this)))
           .setCoder(getCoder());
     }
   }
