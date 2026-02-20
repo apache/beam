@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.options;
 
 import static java.util.Locale.ROOT;
+import static org.apache.beam.sdk.util.Preconditions.checkArgumentNotNull;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkNotNull;
 
@@ -277,7 +278,7 @@ public class PipelineOptionsFactory {
      * PipelineOptionsFactory#printHelp(PrintStream, Class)}.
      */
     public Builder fromArgs(String... args) {
-      checkNotNull(args, "Arguments should not be null.");
+      checkArgumentNotNull(args, "Arguments should not be null.");
       return new Builder(args, validation, strictParsing, true);
     }
 

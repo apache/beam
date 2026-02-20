@@ -17,6 +17,9 @@
  */
 package org.apache.beam.sdk.metrics;
 
+// import static
+// org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.beam.sdk.util.Preconditions.checkArgumentNotNull;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkNotNull;
 
 import com.google.auto.value.AutoValue;
@@ -41,7 +44,7 @@ public abstract class MetricNameFilter {
   }
 
   public static MetricNameFilter named(String namespace, String name) {
-    checkNotNull(name, "Must specify a name");
+    checkArgumentNotNull(name, "Must specify a name");
     return new AutoValue_MetricNameFilter(namespace, name);
   }
 
