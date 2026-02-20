@@ -91,7 +91,7 @@ class DataflowCostBenchmark(LoadTest):
 
       logging.info(self.extra_metrics)
       self._metrics_monitor.publish_metrics(self.result, self.extra_metrics)
-    except Exception as e:
+    except Exception:
       raise
     finally:
       self.cleanup()
@@ -188,7 +188,8 @@ class DataflowCostBenchmark(LoadTest):
       job_id: str,
       start_time: str,
       end_time: str,
-      pcollection_name: Optional[str] = None) -> dict[str, float]:
+      pcollection_name: Optional[str] = None,
+  ) -> dict[str, float]:
     """Query Cloud Monitoring for per-PCollection throughput."""
     name = pcollection_name if pcollection_name is not None else self.pcollection
     interval = monitoring_v3.TimeInterval(
