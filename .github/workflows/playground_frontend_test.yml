@@ -89,10 +89,9 @@ jobs:
         working-directory: playground/frontend
         run: flutter test
 
-#TODO: fix integration test
-#      - uses: nanasess/setup-chromedriver@v2
+      - uses: nanasess/setup-chromedriver@v2
 
-#      - name: 'Integration tests'
-#        run: |
-#          chromedriver --port=4444 &
-#          ./gradlew :playground:frontend:integrationTest -PdeviceId=web-server
+      - name: 'Integration tests'
+        run: |
+          chromedriver --port=4444 &
+          ./gradlew :playground:frontend:integrationTest -PdeviceId=web-server
