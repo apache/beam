@@ -380,7 +380,7 @@ if __name__ == '__main__':
           # Known grpcio versions that had issues:
           # 1.48.x, 1.59.0-1.62.1, 1.66-1.78.0.
           # Not adding these constraints to simplify the requrirements.
-          'grpcio>=1.33.1,<2',
+          'grpcio==1.78.1',
           'httplib2>=0.8,<0.32.0',
           'jsonpickle>=3.0.0,<4.0.0',
           # numpy can have breaking changes in minor versions.
