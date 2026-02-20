@@ -38,7 +38,10 @@ from apache_beam.testing.util import assert_that
 
 # Module-level matcher for assert_that (must be picklable; no closure over self).
 REQUIRED_OUTPUT_KEYS = (
-    'row_key', 'prediction', 'input_feature1', 'input_feature2',
+    'row_key',
+    'prediction',
+    'input_feature1',
+    'input_feature2',
     'input_feature3')
 
 

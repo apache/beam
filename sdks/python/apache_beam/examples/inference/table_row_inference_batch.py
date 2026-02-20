@@ -234,8 +234,7 @@ def run_batch_inference(
   logging.info('  Input: %s', input_file)
   logging.info('  Model: %s', model_path)
   logging.info('  Features: %s', feature_columns)
-  logging.info(
-      '  Output: %s', output_table if output_table else output_file)
+  logging.info('  Output: %s', output_table if output_table else output_file)
 
   with beam.Pipeline(options=pipeline_options) as pipeline:
 
