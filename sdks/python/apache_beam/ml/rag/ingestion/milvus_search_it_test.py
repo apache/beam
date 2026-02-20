@@ -22,12 +22,6 @@ from typing import Callable
 from typing import cast
 
 import pytest
-from pymilvus import CollectionSchema
-from pymilvus import DataType
-from pymilvus import FieldSchema
-from pymilvus import MilvusClient
-from pymilvus.exceptions import MilvusException
-from pymilvus.milvus_client import IndexParams
 
 import apache_beam as beam
 from apache_beam.ml.rag.ingestion.jdbc_common import WriteConfig
@@ -41,11 +35,21 @@ from apache_beam.ml.rag.utils import retry_with_backoff
 from apache_beam.ml.rag.utils import unpack_dataclass_with_kwargs
 from apache_beam.testing.test_pipeline import TestPipeline
 
+# pylint: disable=wrong-import-order, wrong-import-position, ungrouped-imports
 try:
+  from pymilvus import CollectionSchema
+  from pymilvus import DataType
+  from pymilvus import FieldSchema
+  from pymilvus import MilvusClient
+
+  from pymilvus.exceptions import MilvusException
+  from pymilvus.milvus_client import IndexParams
   from apache_beam.ml.rag.ingestion.milvus_search import MilvusVectorWriterConfig
   from apache_beam.ml.rag.ingestion.milvus_search import MilvusWriteConfig
-except ImportError as e:
-  raise unittest.SkipTest(f'Milvus dependencies not installed: {str(e)}')
+  PYMILVUS_AVAILABLE = True
+except ImportError:
+  PYMILVUS_AVAILABLE = False
+# pylint: enable=wrong-import-order, wrong-import-position, ungrouped-imports
 
 
 def _construct_index_params():
@@ -158,6 +162,7 @@ def drop_collection(client: MilvusClient, collection_name: str):
 
 
 @pytest.mark.require_docker_in_docker
+@unittest.skipIf(not PYMILVUS_AVAILABLE, 'pymilvus is not installed.')
 @unittest.skipUnless(
     platform.system() == "Linux",
     "Test runs only on Linux due to lack of support, as yet, for nested "
