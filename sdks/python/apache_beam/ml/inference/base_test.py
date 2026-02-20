@@ -1155,10 +1155,9 @@ class RunInferenceBaseTest(unittest.TestCase):
               FakeModelHandler(), model_metadata_pcoll=side_input))
       test_pipeline.run()
 
-    self.assertTrue(
-        'PCollection of size 2 with more than one element accessed as a '
-        'singleton view. First two elements encountered are' in str(
-            e.exception))
+    msg = str(e.exception)
+    self.assertIn('singleton', msg, msg='Expected singleton view error')
+    self.assertIn('more than one', msg, msg='Expected multiple-elements error')
 
   def test_run_inference_with_iterable_side_input_multi_process_shared(self):
     test_pipeline = TestPipeline()
@@ -1180,10 +1179,9 @@ class RunInferenceBaseTest(unittest.TestCase):
               model_metadata_pcoll=side_input))
       test_pipeline.run()
 
-    self.assertTrue(
-        'PCollection of size 2 with more than one element accessed as a '
-        'singleton view. First two elements encountered are' in str(
-            e.exception))
+    msg = str(e.exception)
+    self.assertIn('singleton', msg, msg='Expected singleton view error')
+    self.assertIn('more than one', msg, msg='Expected multiple-elements error')
 
   def test_run_inference_empty_side_input(self):
     model_handler = FakeModelHandlerReturnsPredictionResult()

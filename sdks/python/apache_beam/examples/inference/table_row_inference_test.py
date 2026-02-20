@@ -36,7 +36,8 @@ from apache_beam.ml.inference.base import RunInference
 from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.testing.util import assert_that
 
-# Module-level matcher for assert_that (must be picklable; no closure over self).
+# Module-level matcher for assert_that (must be picklable; no closure over
+# self).
 REQUIRED_OUTPUT_KEYS = (
     'row_key',
     'prediction',
