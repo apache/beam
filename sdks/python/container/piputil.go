@@ -191,16 +191,12 @@ func installExtraPackages(ctx context.Context, logger *tools.Logger, files []str
 	return nil
 }
 
-func findBeamSdkWhl(ctx context.Context, logger *tools.Logger, files []string, acceptableWhlSpecs []string) string {
+func findBeamSdkWhl(ctx context.Context, logger *tools.Logger, files []string) string {
 	bufLogger := tools.NewBufferedLoggerWithFlushInterval(ctx, logger, pipLogFlushInterval)
 	for _, file := range files {
-		if strings.HasPrefix(file, "apache_beam") {
-			for _, s := range acceptableWhlSpecs {
-				if strings.HasSuffix(file, s) {
-					bufLogger.Printf(ctx, "Found Apache Beam SDK wheel: %v", file)
-					return file
-				}
-			}
+		if strings.HasPrefix(file, "apache_beam") && strings.HasSuffix(file, ".whl") {
+			bufLogger.Printf(ctx, "Found Apache Beam SDK wheel: %v", file)
+			return file
 		}
 	}
 	return ""
@@ -211,8 +207,8 @@ func findBeamSdkWhl(ctx context.Context, logger *tools.Logger, files []string, a
 // assume that the pipleine was started with the Beam SDK found in the wheel
 // file, and we try to install it. If not successful, we fall back to installing
 // SDK from source tarball provided in sdkSrcFile.
-func installSdk(ctx context.Context, logger *tools.Logger, files []string, workDir string, sdkSrcFile string, acceptableWhlSpecs []string, required bool) error {
-	sdkWhlFile := findBeamSdkWhl(ctx, logger, files, acceptableWhlSpecs)
+func installSdk(ctx context.Context, logger *tools.Logger, files []string, workDir string, sdkSrcFile string, required bool) error {
+	sdkWhlFile := findBeamSdkWhl(ctx, logger, files)
 	bufLogger := tools.NewBufferedLoggerWithFlushInterval(ctx, logger, pipLogFlushInterval)
 	if sdkWhlFile != "" {
 		// by default, pip rejects to install wheel if same version already installed
