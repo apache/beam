@@ -110,7 +110,7 @@ class RecordWriter {
         throw new RuntimeException("Unknown File Format: " + fileFormat);
     }
     activeIcebergWriters.inc();
-    LOG.info(
+    LOG.debug(
         "Opened {} writer for table '{}', partition {}. Writing to path: {}",
         fileFormat,
         table.name(),
@@ -157,7 +157,7 @@ class RecordWriter {
     }
 
     DataFile dataFile = icebergDataWriter.toDataFile();
-    LOG.info(
+    LOG.debug(
         "Closed {} writer for table '{}' ({} records, {} bytes), path: {}",
         fileFormat,
         table.name(),
