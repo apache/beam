@@ -48,7 +48,7 @@ runs:
   steps:
     - name: Install Python
       if: ${{ inputs.python-version != '' }}
-      uses: actions/setup-python@v5
+      uses: actions/setup-python@v6
       with:
         python-version: ${{ inputs.python-version == 'default' && '3.10' || inputs.python-version }}
         cache: ${{ inputs.python-cache && 'pip' || 'none' }}

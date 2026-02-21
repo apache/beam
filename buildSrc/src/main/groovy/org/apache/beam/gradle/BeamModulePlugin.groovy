@@ -3101,7 +3101,7 @@ class BeamModulePlugin implements Plugin<Project> {
 
       // Set min/max python versions used for containers and supported versions.
       project.ext.minPythonVersion = 10
-      project.ext.maxPythonVersion = 13
+      project.ext.maxPythonVersion = 14
 
       def setupVirtualenv = project.tasks.register('setupVirtualenv')  {
         doLast {
