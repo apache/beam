@@ -21,10 +21,11 @@ import (
 	"bytes"
 	"context"
 	"flag"
+	"fmt"
 	"os"
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam"
-	dotlib "github.com/apache/beam/sdks/v2/go/pkg/beam/core/util/dot"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime/graphx"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/internal/errors"
 )
 
@@ -42,14 +43,65 @@ func Execute(ctx context.Context, p *beam.Pipeline) (beam.PipelineResult, error)
 		return nil, errors.New("must supply dot_file argument")
 	}
 
-	edges, nodes, err := p.Build()
+	edges, _, err := p.Build()
 	if err != nil {
 		return nil, errors.New("can't get data to render")
 	}
 
-	var buf bytes.Buffer
-	if err := dotlib.Render(edges, nodes, &buf); err != nil {
+	pipeline, err := graphx.Marshal(edges, &graphx.Options{})
+	if err != nil {
 		return nil, err
 	}
+
+	var buf bytes.Buffer
+	buf.WriteString("digraph G {\n")
+
+	components := pipeline.GetComponents()
+	if components == nil {
+		return nil, errors.New("pipeline has no components")
+	}
+
+	transforms := components.GetTransforms()
+
+	// Build reverse input index: PCollectionID -> []TransformID
+	consumers := make(map[string][]string)
+	for tid, t := range transforms {
+		// Skip composite transforms
+		if len(t.GetSubtransforms()) != 0 {
+			continue
+		}
+
+		for _, pcollID := range t.GetInputs() {
+			consumers[pcollID] = append(consumers[pcollID], tid)
+		}
+	}
+
+	// Generate edges
+	for _, t := range transforms {
+		// Skip composite transforms
+		if len(t.GetSubtransforms()) != 0 {
+			continue
+		}
+
+		from := t.GetUniqueName()
+
+		for _, pcollID := range t.GetOutputs() {
+			for _, consumerID := range consumers[pcollID] {
+
+				consumer := transforms[consumerID]
+
+				// Skip composite consumers
+				if len(consumer.GetSubtransforms()) != 0 {
+					continue
+				}
+
+				to := consumer.GetUniqueName()
+				fmt.Fprintf(&buf, "\"%s\" -> \"%s\";\n", from, to)
+			}
+		}
+	}
+
+	buf.WriteString("}\n")
+
 	return nil, os.WriteFile(*dotFile, buf.Bytes(), 0644)
 }
