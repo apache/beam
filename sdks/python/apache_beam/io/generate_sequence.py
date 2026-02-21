@@ -57,7 +57,6 @@ class GenerateSequence(beam.PTransform):
       # Generate integers [10, 20)
       p | GenerateSequence(start=10, stop=20)
   """
-
   def __init__(self, start, stop=None):
     """Initializes GenerateSequence.
 
@@ -73,15 +72,14 @@ class GenerateSequence(beam.PTransform):
     if start < 0:
       raise ValueError('start must be >= 0, got %s' % start)
     if stop is not None and stop < start:
-      raise ValueError(
-          'stop (%s) must be >= start (%s)' % (stop, start))
+      raise ValueError('stop (%s) must be >= start (%s)' % (stop, start))
     self._start = start
     self._stop = stop
 
   def expand(self, pbegin):
     if self._stop is not None:
-      return pbegin | iobase.Read(_BoundedCountingSource(self._start,
-                                                         self._stop))
+      return pbegin | iobase.Read(
+          _BoundedCountingSource(self._start, self._stop))
     else:
       raise NotImplementedError(
           'Unbounded GenerateSequence is not yet implemented. '
@@ -101,7 +99,6 @@ class _BoundedCountingSource(iobase.BoundedSource):
   for generating a sequence of integers. Users should use the
   GenerateSequence PTransform instead of using this class directly.
   """
-
   def __init__(self, start, stop):
     """Initializes _BoundedCountingSource.
 

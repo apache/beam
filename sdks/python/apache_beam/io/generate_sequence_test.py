@@ -19,7 +19,6 @@
 
 import unittest
 
-import apache_beam as beam
 from apache_beam.io.generate_sequence import GenerateSequence
 from apache_beam.io.generate_sequence import _BoundedCountingSource
 from apache_beam.testing.test_pipeline import TestPipeline
