@@ -27,8 +27,8 @@ import mock
 
 from apache_beam.io.filesystem import BeamIOError
 from apache_beam.io.filesystem import FileMetadata
-from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.io.filesystems import FileSystems
+from apache_beam.options.pipeline_options import PipelineOptions
 
 # Protect against environments where apitools library is not available.
 # pylint: disable=wrong-import-order, wrong-import-position
@@ -36,6 +36,11 @@ try:
   from apache_beam.io.gcp import gcsfilesystem
 except ImportError:
   gcsfilesystem = None  # type: ignore
+
+try:
+  from apache_beam.io.gcp import gcsio
+except ImportError:
+  gcsio = None  # type: ignore
 # pylint: enable=wrong-import-order, wrong-import-position
 
 
@@ -45,13 +50,17 @@ class GCSFileSystemLazyLoadTest(unittest.TestCase):
     self.assertEqual(fs.scheme(), 'gs')
 
 
-@unittest.skipIf(gcsfilesystem is None, 'GCP dependencies are not installed')
+@unittest.skipIf(
+    gcsfilesystem is None or gcsio is None,
+    'GCP dependencies are not installed')
 class GCSFileSystemTest(unittest.TestCase):
   def setUp(self):
+    assert gcsfilesystem is not None
     pipeline_options = PipelineOptions()
     self.fs = gcsfilesystem.GCSFileSystem(pipeline_options=pipeline_options)
 
   def test_scheme(self):
+    assert gcsfilesystem is not None
     self.assertEqual(self.fs.scheme(), 'gs')
     self.assertEqual(gcsfilesystem.GCSFileSystem.scheme(), 'gs')
 
