@@ -134,6 +134,7 @@ type PipelineOptionsData struct {
 
 type OptionsData struct {
 	Experiments []string `json:"experiments"`
+	SdkLocation string   `json:"sdk_location"`
 }
 
 func getExperiments(options string) []string {
@@ -143,6 +144,15 @@ func getExperiments(options string) []string {
 		return nil
 	}
 	return opts.Options.Experiments
+}
+
+func getSdkLocation(options string) string {
+	var opts PipelineOptionsData
+	err := json.Unmarshal([]byte(options), &opts)
+	if err != nil {
+		return ""
+	}
+	return opts.Options.SdkLocation
 }
 
 func launchSDKProcess() error {
@@ -185,6 +195,7 @@ func launchSDKProcess() error {
 	}
 
 	experiments := getExperiments(options)
+	sdkLocation := getSdkLocation(options)
 	pipNoBuildIsolation = false
 	if slices.Contains(experiments, "pip_no_build_isolation") {
 		pipNoBuildIsolation = true
@@ -247,7 +258,7 @@ func launchSDKProcess() error {
 		}
 	}
 
-	if setupErr := installSetupPackages(ctx, logger, fileNames, dir, requirementsFiles); setupErr != nil {
+	if setupErr := installSetupPackages(ctx, logger, fileNames, dir, requirementsFiles, sdkLocation); setupErr != nil {
 		fmtErr := fmt.Errorf("failed to install required packages: %v", setupErr)
 		// Send error message to logging service before returning up the call stack
 		logger.Errorf(ctx, "%s", fmtErr.Error())
@@ -379,10 +390,14 @@ func StartCommandEnv(env map[string]string, stdin io.Reader, stdout, stderr io.W
 // setupVenv initializes a local Python venv and sets the corresponding env variables
 func setupVenv(ctx context.Context, logger *tools.Logger, baseDir, workerId string) (string, error) {
 	dir := filepath.Join(baseDir, "beam-venv-worker-"+workerId)
-	logger.Printf(ctx, "Initializing temporary Python venv in %v", dir)
+	if logger != nil {
+		logger.Printf(ctx, "Initializing temporary Python venv in %v", dir)
+	}
 	if _, err := os.Stat(dir); !os.IsNotExist(err) {
 		// Probably leftovers from a previous run
-		logger.Printf(ctx, "Cleaning up previous venv ...")
+		if logger != nil {
+			logger.Printf(ctx, "Cleaning up previous venv ...")
+		}
 		if err := os.RemoveAll(dir); err != nil {
 			return "", err
 		}
@@ -404,15 +419,18 @@ func setupVenv(ctx context.Context, logger *tools.Logger, baseDir, workerId stri
 }
 
 // installSetupPackages installs Beam SDK and user dependencies.
-func installSetupPackages(ctx context.Context, logger *tools.Logger, files []string, workDir string, requirementsFiles []string) error {
+func installSetupPackages(ctx context.Context, logger *tools.Logger, files []string, workDir string, requirementsFiles []string, sdkLocation string) error {
 	bufLogger := tools.NewBufferedLogger(logger)
 	bufLogger.Printf(ctx, "Installing setup packages ...")
 
-	// Install the Dataflow Python SDK if one was staged. In released
+	// Install the Dataflow Python SDK if one was specified. In released
 	// container images, SDK is already installed, but can be overriden
 	// using the --sdk_location pipeline option.
-	if err := installSdk(ctx, logger, files, workDir, sdkSrcFile, false); err != nil {
-		return fmt.Errorf("failed to install SDK: %v", err)
+	if sdkLocation != "" && sdkLocation != "default" && sdkLocation != "container" {
+		sdkFileName := filepath.Base(sdkLocation)
+		if err := installSdk(ctx, logger, files, workDir, sdkFileName, sdkSrcFile); err != nil {
+			return fmt.Errorf("failed to install SDK: %v", err)
+		}
 	}
 	pkgName := "apache-beam"
 	isSdkInstalled := isPackageInstalled(pkgName)
@@ -478,7 +496,7 @@ func processArtifactsInSetupOnlyMode() {
 		}
 		files[i] = filePayload.GetPath()
 	}
-	if setupErr := installSetupPackages(context.Background(), nil, files, workDir, []string{requirementsFile}); setupErr != nil {
+	if setupErr := installSetupPackages(context.Background(), nil, files, workDir, []string{requirementsFile}, sdkSrcFile); setupErr != nil {
 		log.Fatalf("Failed to install required packages: %v", setupErr)
 	}
 }

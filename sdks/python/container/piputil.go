@@ -191,40 +191,27 @@ func installExtraPackages(ctx context.Context, logger *tools.Logger, files []str
 	return nil
 }
 
-func findBeamSdkWhl(ctx context.Context, logger *tools.Logger, files []string) string {
-	bufLogger := tools.NewBufferedLoggerWithFlushInterval(ctx, logger, pipLogFlushInterval)
-	for _, file := range files {
-		if strings.HasPrefix(file, "apache_beam") && strings.HasSuffix(file, ".whl") {
-			bufLogger.Printf(ctx, "Found Apache Beam SDK wheel: %v", file)
-			return file
-		}
-	}
-	return ""
-}
 
-// InstallSdk installs Beam SDK: First, we try to find a compiled
-// wheel distribution of Apache Beam among staged files. If we find it, we
-// assume that the pipleine was started with the Beam SDK found in the wheel
-// file, and we try to install it. If not successful, we fall back to installing
+// InstallSdk installs Beam SDK from the specified sdkFile.
+// If the specified sdkFile is not found, it falls back to installing
 // SDK from source tarball provided in sdkSrcFile.
-func installSdk(ctx context.Context, logger *tools.Logger, files []string, workDir string, sdkSrcFile string, required bool) error {
-	sdkWhlFile := findBeamSdkWhl(ctx, logger, files)
+func installSdk(ctx context.Context, logger *tools.Logger, files []string, workDir string, sdkFile string, sdkSrcFile string) error {
 	bufLogger := tools.NewBufferedLoggerWithFlushInterval(ctx, logger, pipLogFlushInterval)
-	if sdkWhlFile != "" {
-		// by default, pip rejects to install wheel if same version already installed
-		isDev := strings.Contains(sdkWhlFile, ".dev")
-		err := pipInstallPackage(ctx, logger, files, workDir, sdkWhlFile, isDev, false, []string{"gcp"})
-		if err == nil {
-			return nil
-		}
-		bufLogger.Printf(ctx, "Could not install Apache Beam SDK from a wheel: %v, proceeding to install SDK from source tarball.", err)
-	}
-	if !required {
-		_, err := os.Stat(filepath.Join(workDir, sdkSrcFile))
-		if os.IsNotExist(err) {
-			return nil
+
+	// If the specified sdkFile is not found, fall back to sdkSrcFile.
+	found := false
+	for _, f := range files {
+		if f == sdkFile {
+			found = true
+			break
 		}
 	}
-	err := pipInstallPackage(ctx, logger, files, workDir, sdkSrcFile, false, false, []string{"gcp"})
-	return err
+	if !found {
+		bufLogger.Printf(ctx, "Specified SDK file %v not found, falling back to %v", sdkFile, sdkSrcFile)
+		sdkFile = sdkSrcFile
+	}
+
+	// by default, pip rejects to install wheel if same version already installed
+	force := strings.Contains(sdkFile, ".dev")
+	return pipInstallPackage(ctx, logger, files, workDir, sdkFile, force, false, []string{"gcp"})
 }
