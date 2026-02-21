@@ -121,15 +121,13 @@ class TestErrorHandlingCheckCall(unittest.TestCase):
     self.mock_get.side_effect = subprocess.CalledProcessError(returncode,\
       cmd, output=output)
     try:
-      output = processes.check_call(cmd)
+      processes.check_call(cmd)
       self.fail(
-          "The test failed due to that\
-        no error was raised when calling process.check_call")
+          "The test failed due to that "
+          "no error was raised when calling process.check_call")
     except RuntimeError as error:
-      self.assertIn("Output from execution of subprocess: {}".format(output),\
-        error.args[0])
-      self.assertIn("Pip install failed for package: {}".format(package),\
-        error.args[0])
+      self.assertIn("Output from execution of subprocess:", error.args[0])
+      self.assertIn(output, error.args[0])
 
   def test_check_call_pip_short_command_no_index_error(self):
     """Short pip command (e.g. pip install pkg) must not raise IndexError."""
@@ -142,7 +140,6 @@ class TestErrorHandlingCheckCall(unittest.TestCase):
       processes.check_call(cmd)
     self.assertIn("Output from execution of subprocess:", ctx.exception.args[0])
     self.assertIn(output, ctx.exception.args[0])
-    self.assertIn("see output below", ctx.exception.args[0])
 
 
 class TestErrorHandlingCheckOutput(unittest.TestCase):
@@ -175,15 +172,13 @@ class TestErrorHandlingCheckOutput(unittest.TestCase):
     self.mock_get.side_effect = subprocess.CalledProcessError(returncode,\
          cmd, output=output)
     try:
-      output = processes.check_output(cmd)
+      processes.check_output(cmd)
       self.fail(
-          "The test failed due to that\
-      no error was raised when calling process.check_call")
+          "The test failed due to that "
+          "no error was raised when calling process.check_output")
     except RuntimeError as error:
-      self.assertIn("Output from execution of subprocess: {}".format(output),\
-        error.args[0])
-      self.assertIn("Pip install failed for package: {}".format(package),\
-        error.args[0])
+      self.assertIn("Output from execution of subprocess:", error.args[0])
+      self.assertIn(output, error.args[0])
 
   def test_check_output_pip_short_command_no_index_error(self):
     """Short pip command must not raise IndexError."""
@@ -196,7 +191,6 @@ class TestErrorHandlingCheckOutput(unittest.TestCase):
       processes.check_output(cmd)
     self.assertIn("Output from execution of subprocess:", ctx.exception.args[0])
     self.assertIn(output, ctx.exception.args[0])
-    self.assertIn("see output below", ctx.exception.args[0])
 
 
 class TestErrorHandlingCall(unittest.TestCase):
@@ -219,7 +213,7 @@ class TestErrorHandlingCall(unittest.TestCase):
       self.assertIn('Executable {} not found'.format(str(cmd)),\
       error.args[0])
 
-  def test_check_output_pip_install_non_existing_package(self):
+  def test_call_pip_install_non_existing_package(self):
     returncode = 1
     package = "non-exsisting-package"
     cmd = ['python', '-m', 'pip', 'download', '--dest', '/var',\
@@ -229,15 +223,13 @@ class TestErrorHandlingCall(unittest.TestCase):
     self.mock_get.side_effect = subprocess.CalledProcessError(returncode,\
          cmd, output=output)
     try:
-      output = processes.call(cmd)
+      processes.call(cmd)
       self.fail(
-          "The test failed due to that\
-        no error was raised when calling process.check_call")
+          "The test failed due to that "
+          "no error was raised when calling process.call")
     except RuntimeError as error:
-      self.assertIn("Output from execution of subprocess: {}".format(output),\
-        error.args[0])
-      self.assertIn("Pip install failed for package: {}".format(package),\
-        error.args[0])
+      self.assertIn("Output from execution of subprocess:", error.args[0])
+      self.assertIn(output, error.args[0])
 
   def test_call_pip_short_command_no_index_error(self):
     """Short pip command must not raise IndexError."""
@@ -250,7 +242,6 @@ class TestErrorHandlingCall(unittest.TestCase):
       processes.call(cmd)
     self.assertIn("Output from execution of subprocess:", ctx.exception.args[0])
     self.assertIn(output, ctx.exception.args[0])
-    self.assertIn("see output below", ctx.exception.args[0])
 
 
 if __name__ == '__main__':

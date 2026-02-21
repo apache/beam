@@ -53,10 +53,10 @@ else:
       raise RuntimeError("Executable {} not found".format(args[0])) from e
     except subprocess.CalledProcessError as error:
       raise RuntimeError(
-          "Command that failed: {}\nFull trace: {}\nOutput of the failed "
-          "child process: {}".format(
-              args, traceback.format_exc(),
-              error.output if error.output is not None else "(not captured)")
+          "Output from execution of subprocess: {}\n"
+          "Command that failed: {}\nFull trace: {}".format(
+              error.output if error.output is not None else "(not captured)",
+              args, traceback.format_exc())
       ) from error
     return out
 
@@ -69,10 +69,10 @@ else:
       raise RuntimeError("Executable {} not found".format(args[0])) from e
     except subprocess.CalledProcessError as error:
       raise RuntimeError(
-          "Command that failed: {}\nFull trace: {}\nOutput of the failed "
-          "child process: {}".format(
-              args, traceback.format_exc(),
-              error.output if error.output is not None else "(not captured)")
+          "Output from execution of subprocess: {}\n"
+          "Command that failed: {}\nFull trace: {}".format(
+              error.output if error.output is not None else "(not captured)",
+              args, traceback.format_exc())
       ) from error
     return out
 
@@ -85,10 +85,10 @@ else:
       raise RuntimeError("Executable {} not found".format(args[0])) from e
     except subprocess.CalledProcessError as error:
       raise RuntimeError(
-          "Command that failed: {}\nFull trace: {}\nOutput of the failed "
-          "child process: {}".format(
-              args, traceback.format_exc(),
-              error.output if error.output is not None else "(not captured)")
+          "Output from execution of subprocess: {}\n"
+          "Command that failed: {}\nFull trace: {}".format(
+              error.output if error.output is not None else "(not captured)",
+              args, traceback.format_exc())
       ) from error
     return out
 
