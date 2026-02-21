@@ -36,27 +36,49 @@
 
 import apache_beam as beam
 
-# [START groupby_table]
 GROCERY_LIST = [
     beam.Row(recipe='pie', fruit='raspberry', quantity=1, unit_price=3.50),
     beam.Row(recipe='pie', fruit='blackberry', quantity=1, unit_price=4.00),
     beam.Row(recipe='pie', fruit='blueberry', quantity=1, unit_price=2.00),
     beam.Row(recipe='muffin', fruit='blueberry', quantity=2, unit_price=2.00),
     beam.Row(recipe='muffin', fruit='banana', quantity=3, unit_price=1.00),
+    beam.Row(recipe='pie', fruit='strawberry', quantity=3, unit_price=1.50),
 ]
-# [END groupby_table]
 
 
 def simple_aggregate(test=None):
+  def to_grocery_row(x):
+    # If it's already a Beam Row / schema object, keep it
+    if hasattr(x, 'recipe') and hasattr(x, 'fruit') and hasattr(
+        x, 'quantity') and hasattr(x, 'unit_price'):
+      return beam.Row(
+          recipe=x.recipe,
+          fruit=x.fruit,
+          quantity=x.quantity,
+          unit_price=x.unit_price)
+
+    # If dict
+    if isinstance(x, dict):
+      return beam.Row(
+          recipe=x['recipe'],
+          fruit=x['fruit'],
+          quantity=x['quantity'],
+          unit_price=x['unit_price'],
+      )
+
+    # If tuple/list (recipe, fruit, quantity, unit_price)
+    return beam.Row(recipe=x[0], fruit=x[1], quantity=x[2], unit_price=x[3])
+
   with beam.Pipeline() as p:
     # [START simple_aggregate]
     grouped = (
         p
         | beam.Create(GROCERY_LIST)
+        | 'ToGroceryRows' >> beam.Map(to_grocery_row)
         | beam.GroupBy('fruit').aggregate_field(
-            'quantity', sum, 'total_quantity')
-        | beam.Map(print))
+            'quantity', sum, 'total_quantity'))
     # [END simple_aggregate]
+
     if test:
       test(grouped)
 
