@@ -46,7 +46,6 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Throwables;
 import org.checkerframework.checker.nullness.qual.MonotonicNonNull;
 import org.joda.time.Duration;
 
@@ -614,33 +613,10 @@ class Call<RequestT, ResponseT> extends PTransform<PCollection<RequestT>, Result
   private static <T> void parseAndThrow(Future<T> future, ExecutionException e)
       throws UserCodeExecutionException {
     future.cancel(true);
-
-    try {
-      UserCodeExecutionException genericException = null;
-      for (Throwable throwable : Throwables.getCausalChain(e)) {
-        if (throwable instanceof UserCodeQuotaException) {
-          throw (UserCodeQuotaException) throwable;
-        } else if (throwable instanceof UserCodeTimeoutException) {
-          throw (UserCodeTimeoutException) throwable;
-        } else if (throwable instanceof UserCodeRemoteSystemException) {
-          throw (UserCodeRemoteSystemException) throwable;
-        } else if (genericException == null && throwable instanceof UserCodeExecutionException) {
-          genericException = (UserCodeExecutionException) throwable;
-        }
-      }
-      if (genericException != null) {
-        throw genericException;
-      }
-    } catch (IllegalArgumentException iae) {
-      // Circular reference detected in causal chain
-      throw new UserCodeExecutionException(
-          "circular reference detected in exception causal chain", e);
-    }
-
     Throwable cause = e.getCause();
-    if (cause == null) {
-      throw new UserCodeExecutionException(e);
+    if (cause instanceof UserCodeExecutionException) {
+      throw (UserCodeExecutionException) cause;
     }
-    throw new UserCodeExecutionException(cause);
+    throw new UserCodeExecutionException(cause == null ? e : cause);
   }
 }
