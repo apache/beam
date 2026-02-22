@@ -52,7 +52,6 @@ from apache_beam.runners import sdf_utils
 from apache_beam.transforms import core
 from apache_beam.transforms.display import DisplayDataItem
 from apache_beam.transforms.window import TimestampedValue
-from apache_beam.utils.timestamp import Duration
 from apache_beam.utils.timestamp import Timestamp
 
 __all__ = ['GenerateSequence']
@@ -315,7 +314,7 @@ def _unbounded_sequence_backlog_bytes(element, now, offset_range):
   Returns:
     Estimated backlog in bytes.
   """
-  start, elements_per_period, period = element
+  _, elements_per_period, period = element
 
   if period is None or period == 0 or elements_per_period is None:
     # No rate limiting
