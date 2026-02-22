@@ -2371,11 +2371,10 @@ public class DoFnSignatures {
     }
 
     if (recommendation != null) {
-      LOG.info(
+      LOG.warn(
           "DoFn {} declares ValueState '{}' with collection type {}. "
               + "ValueState reads/writes the entire collection on each access. "
-              + "This is appropriate for small collections or atomic replacement. "
-              + "For large collections or frequent appends, consider using {} instead "
+              + "For large or frequently-updated collections, consider using {} instead "
               + "(if supported by your runner).",
           fnClazz.getSimpleName(),
           stateId,
