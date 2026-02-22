@@ -82,7 +82,7 @@ cluster_name          = "ratelimit-cluster"         # Name of the GKE cluster
 deletion_protection   = true                        # Prevent accidental cluster deletion (set "true" for prod)
 control_plane_cidr    = "172.16.0.0/28"             # CIDR for GKE control plane (must not overlap with subnet)
 namespace             = "envoy-ratelimiter"         # Kubernetes namespace for deployment
-enable_metrics        = false                       # Deploy statsd-exporter sidecar
+enable_metrics        = true                        # Enable metrics export to Google Cloud Monitoring
 ratelimit_replicas    = 1                           # Initial number of Rate Limit pods
 min_replicas          = 1                           # Minimum HPA replicas
 max_replicas          = 5                           # Maximum HPA replicas
@@ -115,10 +115,21 @@ EOF
 terraform init
 ```
 
-2. Plan and apply the changes:
+2. **Deploy (Recommended)**:
+Run the helper script to handle the 
+deployment process automatically:
 ```bash
-terraform plan -out=tfplan
-terraform apply tfplan
+./deploy.sh
+```
+
+3. **Deploy (Manual Alternative)**:
+If you prefer running Terraform manually, you must apply in two steps:
+```bash
+# Step 1: Create Cluster
+terraform apply -target=time_sleep.wait_for_cluster
+
+# Step 2: Create Resources
+terraform apply
 ```
 
 3. Connect to the service:
@@ -150,11 +161,44 @@ The service is accessible **only from within the VPC** (e.g., via Dataflow worke
    ```
 
 
+# Observability & Metrics:
+This module supports native Prometheus metrics export to **Google Cloud Managed Prometheus**.
+
+### Enabling Metrics
+ `enable_metrics` is set to `true` by default.
+
+### Available Metrics
+Once enabled, the Envoy Rate Limiter exports metrics to Google Cloud Monitoring. You can view them in **Metrics Explorer** by searching for `ratelimit`.
+
+### Sample Metrics
+| Metric Name | Description |
+| :--- | :--- |
+| `ratelimit_service_rate_limit_total_hits` | Total rate limit requests received. |
+| `ratelimit_service_rate_limit_over_limit` | Requests that exceeded the limit (HTTP 429). |
+| `ratelimit_service_rate_limit_near_limit` | Requests that are approaching the limit. |
+| `ratelimit_service_call_should_rate_limit` | Total valid gRPC calls to the service. |
+
+*Note: You will also see many other Go runtime metrics (`go_*`) and Redis client metrics (`redis_*`).*
+
+### Viewing in Google Cloud Console
+1. Go to **Monitoring** > **Metrics Explorer**.
+2. Click **Select a metric**.
+3. Search for `ratelimit` and select **Prometheus Target** > **ratelimit**.
+4. Select a metric (e.g., `ratelimit_service_rate_limit_over_limit`) and click **Apply**.
+5. Use **Filters** to drill down by `domain`, `key`, or `value` (e.g., `key=database`, `value=users`).
+
 # Clean up resources:
 To destroy the cluster and all created resources:
+
+```bash
+./deploy.sh destroy
+```
+
+Alternatively:
 ```bash
 terraform destroy
 ```
+
 *Note: If `deletion_protection` was enabled, you must set it to `false` in `terraform.tfvars` before destroying.*
 
 # Variables description:
@@ -169,7 +213,7 @@ terraform destroy
 |control_plane_cidr     |CIDR block for GKE control plane                     |172.16.0.0/28                    |
 |cluster_name           |Name of the GKE cluster                              |ratelimit-cluster                |
 |namespace              |Kubernetes namespace to deploy resources into        |envoy-ratelimiter                |
-|enable_metrics         |Deploy statsd-exporter sidecar                       |false                            |
+|enable_metrics         |Enable metrics export to Google Cloud Monitoring     |true                             |
 |deletion_protection    |Prevent accidental cluster deletion                  |false                            |
 |ratelimit_replicas     |Initial number of Rate Limit pods                    |1                                |
 |min_replicas           |Minimum HPA replicas                                 |1                                |
