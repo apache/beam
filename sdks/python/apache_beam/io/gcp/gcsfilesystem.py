@@ -147,11 +147,7 @@ class GCSFileSystem(FileSystem):
       raise BeamIOError("List operation failed", {dir_or_prefix: e})
 
   def _gcsIO(self):
-    if gcsio is None:
-      from apache_beam.io.gcp import gcsio as _gcsio  # pylint: disable=g-import-not-at-top
-    else:
-      _gcsio = gcsio
-    return _gcsio.GcsIO(pipeline_options=self._pipeline_options)
+    return gcsio.GcsIO(pipeline_options=self._pipeline_options)
 
   def _path_open(
       self,
@@ -382,9 +378,8 @@ class GCSFileSystem(FileSystem):
 
   def report_lineage(self, path, lineage):
     try:
-      from apache_beam.io.gcp import gcsio as _gcsio  # pylint: disable=g-import-not-at-top
-      components = _gcsio.parse_gcs_path(path, object_optional=True)
-    except ValueError:
+      components = gcsio.parse_gcs_path(path, object_optional=True)
+    except (ValueError, AttributeError):
       # report lineage is fail-safe
       traceback.print_exc()
       return
