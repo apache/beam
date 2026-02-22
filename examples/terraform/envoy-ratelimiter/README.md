@@ -110,19 +110,15 @@ EOF
 ```
 
 # Deploy Envoy Rate Limiter:
-1. Initialize Terraform to download providers and modules:
-```bash
-terraform init
-```
 
-2. **Deploy (Recommended)**:
-Run the helper script to handle the 
-deployment process automatically:
+1. **Deploy (Recommended)**:
+Run the helper script to handle the deployment process automatically:
 ```bash
+chmod +x deploy.sh
 ./deploy.sh
 ```
 
-3. **Deploy (Manual Alternative)**:
+2. **Deploy (Manual Alternative)**:
 If you prefer running Terraform manually, you must apply in two steps:
 ```bash
 # Step 1: Create Cluster

@@ -5,23 +5,29 @@ COMMAND=${1:-"apply"}
 
 if [ "$COMMAND" = "destroy" ]; then
     echo "Destroying Envoy Rate Limiter Resources..."
-    echo "Note: If 'deletion_protection = true', this will fail for the cluster."
+    echo "Note: If 'deletion_protection = true',this operation will fail for the cluster."
     terraform destroy
     exit $?
 fi
 
 if [ "$COMMAND" = "apply" ]; then
+    # Auto-initialize if needed
+    if [ ! -d ".terraform" ]; then
+        echo "Initializing Terraform..."
+        terraform init
+    fi
+
     echo "Deploying Envoy Rate Limiter..."
 
     echo "--------------------------------------------------"
-    echo "Step 1: Creating GKE Cluster..."
+    echo "Creating GKE Cluster..."
     echo "--------------------------------------------------"
     # Deploy the cluster in step-1 before deploying the application resources.
     terraform apply -target=time_sleep.wait_for_cluster -auto-approve
 
     echo ""
     echo "--------------------------------------------------"
-    echo "Step 2: Deploying Application Resources..."
+    echo "Deploying Application Resources..."
     echo "--------------------------------------------------"
     # Deploy the application resources in step-2.
     terraform apply -auto-approve
