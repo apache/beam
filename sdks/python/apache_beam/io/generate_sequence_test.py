@@ -17,10 +17,13 @@
 
 """Tests for GenerateSequence transform."""
 
+import sys
 import unittest
 
 from apache_beam.io.generate_sequence import GenerateSequence
 from apache_beam.io.generate_sequence import _BoundedCountingSource
+from apache_beam.io.generate_sequence import _UnboundedCountingRestrictionProvider
+from apache_beam.io.restriction_trackers import OffsetRange
 from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
@@ -61,10 +64,17 @@ class GenerateSequenceTest(unittest.TestCase):
       result = p | GenerateSequence(start=0, stop=1000)
       assert_that(result, equal_to(list(range(1000))))
 
-  def test_unbounded_not_implemented(self):
-    with self.assertRaises(NotImplementedError):
-      with TestPipeline() as p:
-        _ = p | GenerateSequence(start=0)
+  def test_invalid_elements_per_period(self):
+    with self.assertRaises(ValueError):
+      GenerateSequence(start=0, elements_per_period=0)
+
+  def test_invalid_negative_elements_per_period(self):
+    with self.assertRaises(ValueError):
+      GenerateSequence(start=0, elements_per_period=-1)
+
+  def test_invalid_negative_period(self):
+    with self.assertRaises(ValueError):
+      GenerateSequence(start=0, period=-1.0)
 
 
 class BoundedCountingSourceTest(unittest.TestCase):
@@ -154,13 +164,103 @@ class BoundedCountingSourceTest(unittest.TestCase):
 
 class GenerateSequenceDisplayDataTest(unittest.TestCase):
 
-  def test_display_data(self):
+  def test_display_data_bounded(self):
     transform = GenerateSequence(start=5, stop=50)
     display_data = transform.display_data()
     self.assertIn('start', display_data)
     self.assertIn('stop', display_data)
     self.assertEqual(display_data['start'].value, 5)
     self.assertEqual(display_data['stop'].value, 50)
+
+  def test_display_data_unbounded(self):
+    transform = GenerateSequence(start=10)
+    display_data = transform.display_data()
+    self.assertIn('start', display_data)
+    self.assertIn('unbounded', display_data)
+    self.assertEqual(display_data['start'].value, 10)
+    self.assertEqual(display_data['unbounded'].value, True)
+    self.assertNotIn('stop', display_data)
+
+  def test_display_data_unbounded_with_rate(self):
+    transform = GenerateSequence(
+        start=0, elements_per_period=10, period=1.0)
+    display_data = transform.display_data()
+    self.assertIn('start', display_data)
+    self.assertIn('unbounded', display_data)
+    self.assertIn('elements_per_period', display_data)
+    self.assertIn('period', display_data)
+    self.assertEqual(display_data['elements_per_period'].value, 10)
+    self.assertEqual(display_data['period'].value, 1.0)
+
+
+class UnboundedCountingRestrictionProviderTest(unittest.TestCase):
+
+  def test_initial_restriction(self):
+    provider = _UnboundedCountingRestrictionProvider()
+    element = (10, None, None)  # start=10, no rate limiting
+    restriction = provider.initial_restriction(element)
+    self.assertEqual(restriction.start, 10)
+    self.assertEqual(restriction.stop, sys.maxsize)
+
+  def test_initial_restriction_with_rate_limiting(self):
+    provider = _UnboundedCountingRestrictionProvider()
+    element = (0, 10, 1.0)  # start=0, 10 elements per 1 second
+    restriction = provider.initial_restriction(element)
+    self.assertEqual(restriction.start, 0)
+    self.assertEqual(restriction.stop, sys.maxsize)
+
+  def test_create_tracker(self):
+    provider = _UnboundedCountingRestrictionProvider()
+    restriction = OffsetRange(0, 100)
+    tracker = provider.create_tracker(restriction)
+    self.assertIsNotNone(tracker)
+
+  def test_restriction_size_no_rate_limiting(self):
+    provider = _UnboundedCountingRestrictionProvider()
+    element = (0, None, None)
+    restriction = OffsetRange(0, 1000)
+    size = provider.restriction_size(element, restriction)
+    # 1000 elements * 8 bytes = 8000
+    self.assertEqual(size, 8000)
+
+  def test_restriction_size_capped(self):
+    provider = _UnboundedCountingRestrictionProvider()
+    element = (0, None, None)
+    restriction = OffsetRange(0, sys.maxsize)
+    size = provider.restriction_size(element, restriction)
+    # Should be capped at 1000000 * 8 bytes
+    self.assertEqual(size, 1000000 * 8)
+
+  def test_truncate_returns_none(self):
+    provider = _UnboundedCountingRestrictionProvider()
+    element = (0, None, None)
+    restriction = OffsetRange(0, 100)
+    result = provider.truncate(element, restriction)
+    self.assertIsNone(result)
+
+
+class UnboundedGenerateSequenceTest(unittest.TestCase):
+  """Tests for unbounded GenerateSequence.
+
+  Note: Full integration tests for unbounded sources require streaming
+  pipelines which are complex to set up in unit tests. These tests
+  focus on validation and basic functionality.
+  """
+
+  def test_unbounded_creates_without_error(self):
+    # Should not raise - unbounded mode is now implemented
+    transform = GenerateSequence(start=0)
+    self.assertIsNotNone(transform)
+
+  def test_unbounded_with_rate_limiting_creates_without_error(self):
+    transform = GenerateSequence(
+        start=0, elements_per_period=10, period=1.0)
+    self.assertIsNotNone(transform)
+
+  def test_unbounded_with_start_value(self):
+    transform = GenerateSequence(start=100)
+    self.assertEqual(transform._start, 100)
+    self.assertIsNone(transform._stop)
 
 
 if __name__ == '__main__':

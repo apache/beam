@@ -17,8 +17,8 @@
 
 """A native Python implementation of GenerateSequence transform.
 
-This module provides a PTransform that generates a bounded sequence of
-integers, equivalent to Java SDK's GenerateSequence/CountingSource.
+This module provides a PTransform that generates a bounded or unbounded
+sequence of integers, equivalent to Java SDK's GenerateSequence/CountingSource.
 
 For the external (Flink-only) version that uses Java expansion service,
 see apache_beam.io.external.generate_sequence.
@@ -28,68 +28,125 @@ Example usage::
     import apache_beam as beam
     from apache_beam.io.generate_sequence import GenerateSequence
 
+    # Bounded mode
     with beam.Pipeline() as p:
         numbers = p | GenerateSequence(start=0, stop=100)
 
+    # Unbounded mode (streaming)
+    with beam.Pipeline() as p:
+        numbers = p | GenerateSequence(start=0)
+
 """
+
+import sys
+import time
 
 import apache_beam as beam
 from apache_beam import coders
 from apache_beam.io import iobase
 from apache_beam.io.range_trackers import OffsetRangeTracker
+from apache_beam.io.restriction_trackers import OffsetRange
+from apache_beam.io.restriction_trackers import OffsetRestrictionTracker
+from apache_beam.io.watermark_estimators import ManualWatermarkEstimator
+from apache_beam.runners import sdf_utils
+from apache_beam.transforms import core
 from apache_beam.transforms.display import DisplayDataItem
+from apache_beam.transforms.window import TimestampedValue
+from apache_beam.utils.timestamp import Duration
+from apache_beam.utils.timestamp import Timestamp
 
 __all__ = ['GenerateSequence']
 
 
 class GenerateSequence(beam.PTransform):
-  """A PTransform that generates a bounded sequence of integers.
+  """A PTransform that generates a bounded or unbounded sequence of integers.
 
   This transform produces integers from ``start`` (inclusive) to ``stop``
-  (exclusive). It is the native Python equivalent of Java SDK's
+  (exclusive) in bounded mode, or from ``start`` up to Long.MAX_VALUE in
+  unbounded mode. It is the native Python equivalent of Java SDK's
   GenerateSequence transform.
 
   Example usage::
 
-      # Generate integers [0, 100)
+      # Bounded mode: Generate integers [0, 100)
       p | GenerateSequence(start=0, stop=100)
 
-      # Generate integers [10, 20)
+      # Bounded mode: Generate integers [10, 20)
       p | GenerateSequence(start=10, stop=20)
+
+      # Unbounded mode: Generate integers starting from 0
+      p | GenerateSequence(start=0)
+
+      # Unbounded mode with rate limiting: 10 elements per second
+      p | GenerateSequence(start=0, elements_per_period=10, period=1.0)
   """
-  def __init__(self, start, stop=None):
+  def __init__(
+      self,
+      start,
+      stop=None,
+      elements_per_period=None,
+      period=None):
     """Initializes GenerateSequence.
 
     Args:
       start: The first integer to generate (inclusive). Must be >= 0.
-      stop: The upper bound (exclusive). If None, unbounded mode will be
-          used (not yet implemented).
+      stop: The upper bound (exclusive). If None, unbounded mode is used
+          which generates integers up to sys.maxsize.
+      elements_per_period: For unbounded mode, the number of elements to
+          produce per period. Must be > 0 if specified.
+      period: For unbounded mode, the duration of each period in seconds.
+          Must be >= 0 if specified. If 0, elements are produced as fast
+          as possible.
 
     Raises:
-      ValueError: If start < 0 or stop < start.
+      ValueError: If start < 0, stop < start, elements_per_period <= 0,
+          or period < 0.
     """
     super().__init__()
     if start < 0:
       raise ValueError('start must be >= 0, got %s' % start)
     if stop is not None and stop < start:
       raise ValueError('stop (%s) must be >= start (%s)' % (stop, start))
+    if elements_per_period is not None and elements_per_period <= 0:
+      raise ValueError(
+          'elements_per_period must be > 0, got %s' % elements_per_period)
+    if period is not None and period < 0:
+      raise ValueError('period must be >= 0, got %s' % period)
+
     self._start = start
     self._stop = stop
+    self._elements_per_period = elements_per_period
+    self._period = period
 
   def expand(self, pbegin):
     if self._stop is not None:
+      # Bounded mode: use BoundedSource
       return pbegin | iobase.Read(
           _BoundedCountingSource(self._start, self._stop))
     else:
-      raise NotImplementedError(
-          'Unbounded GenerateSequence is not yet implemented. '
-          'Please specify a stop value for bounded mode.')
+      # Unbounded mode: use SDF-based approach
+      return (
+          pbegin
+          | beam.Create([(
+              self._start,
+              self._elements_per_period,
+              self._period)])
+          | beam.ParDo(_UnboundedCountingDoFn()))
 
   def display_data(self):
-    return {
+    display = {
         'start': DisplayDataItem(self._start, label='Start'),
-        'stop': DisplayDataItem(self._stop, label='Stop'),
     }
+    if self._stop is not None:
+      display['stop'] = DisplayDataItem(self._stop, label='Stop')
+    else:
+      display['unbounded'] = DisplayDataItem(True, label='Unbounded')
+    if self._elements_per_period is not None:
+      display['elements_per_period'] = DisplayDataItem(
+          self._elements_per_period, label='Elements Per Period')
+    if self._period is not None:
+      display['period'] = DisplayDataItem(self._period, label='Period (sec)')
+    return display
 
 
 class _BoundedCountingSource(iobase.BoundedSource):
@@ -193,3 +250,154 @@ class _BoundedCountingSource(iobase.BoundedSource):
         'start': DisplayDataItem(self._start, label='Start'),
         'stop': DisplayDataItem(self._stop, label='Stop'),
     }
+
+
+class _UnboundedCountingRestrictionProvider(core.RestrictionProvider):
+  """RestrictionProvider for unbounded counting source.
+
+  This provider creates OffsetRange restrictions for the unbounded sequence,
+  starting from the given start value up to sys.maxsize.
+  """
+
+  def initial_restriction(self, element):
+    """Creates the initial restriction for the unbounded sequence.
+
+    Args:
+      element: A tuple of (start, elements_per_period, period).
+
+    Returns:
+      An OffsetRange from start to sys.maxsize.
+    """
+    start, _, _ = element
+    return OffsetRange(start, sys.maxsize)
+
+  def create_tracker(self, restriction):
+    """Creates a tracker for the given restriction."""
+    return OffsetRestrictionTracker(restriction)
+
+  def restriction_size(self, element, restriction):
+    """Estimates the size of work remaining in the restriction.
+
+    For rate-limited sources, this is based on how much data should have
+    been produced by now. For unlimited sources, returns a large value.
+
+    Args:
+      element: A tuple of (start, elements_per_period, period).
+      restriction: The current OffsetRange restriction.
+
+    Returns:
+      Estimated size in bytes (8 bytes per element).
+    """
+    _, elements_per_period, period = element
+    if period is None or period == 0 or elements_per_period is None:
+      # No rate limiting - return remaining elements * 8 bytes
+      # Cap at a reasonable size to avoid overflow
+      remaining = min(restriction.stop - restriction.start, 1000000)
+      return remaining * 8
+
+    # With rate limiting, estimate based on expected output
+    return _unbounded_sequence_backlog_bytes(
+        element, time.time(), restriction)
+
+  def truncate(self, element, restriction):
+    """On drain, stop producing new elements."""
+    return None
+
+
+def _unbounded_sequence_backlog_bytes(element, now, offset_range):
+  """Calculates backlog bytes for rate-limited unbounded sequence.
+
+  Args:
+    element: A tuple of (start, elements_per_period, period).
+    now: Current time in seconds since epoch.
+    offset_range: The current OffsetRange.
+
+  Returns:
+    Estimated backlog in bytes.
+  """
+  start, elements_per_period, period = element
+
+  if period is None or period == 0 or elements_per_period is None:
+    # No rate limiting
+    return 8 * min(offset_range.stop - offset_range.start, 1000000)
+
+  # Calculate how many elements should have been produced by now
+  # This is a simplified model - in practice the reader tracks first_started
+  elements_expected = elements_per_period * (now / period) if period > 0 else 0
+  current_pos = offset_range.start
+
+  if elements_expected < current_pos:
+    return 0
+
+  backlog = min(offset_range.stop, int(elements_expected)) - current_pos
+  return 8 * max(0, backlog)
+
+
+class _UnboundedCountingDoFn(beam.DoFn):
+  """A DoFn that generates an unbounded sequence of integers.
+
+  This DoFn uses the Splittable DoFn (SDF) framework to generate an
+  unbounded stream of integers. It supports optional rate limiting
+  through elements_per_period and period parameters.
+
+  Each output element is a TimestampedValue with the integer value and
+  a timestamp corresponding to when the element was produced.
+  """
+
+  @beam.DoFn.unbounded_per_element()
+  def process(
+      self,
+      element,
+      restriction_tracker=beam.DoFn.RestrictionParam(
+          _UnboundedCountingRestrictionProvider()),
+      watermark_estimator=beam.DoFn.WatermarkEstimatorParam(
+          ManualWatermarkEstimator.default_provider())):
+    """Generates integers from the unbounded sequence.
+
+    Args:
+      element: A tuple of (start, elements_per_period, period).
+      restriction_tracker: The restriction tracker for this element.
+      watermark_estimator: The watermark estimator for this element.
+
+    Yields:
+      TimestampedValue containing the integer and its timestamp.
+    """
+    start, elements_per_period, period = element
+
+    assert isinstance(restriction_tracker, sdf_utils.RestrictionTrackerView)
+
+    current_value = restriction_tracker.current_restriction().start
+    first_started = time.time()
+
+    while True:
+      # Check if we should wait due to rate limiting
+      if period is not None and period > 0 and elements_per_period is not None:
+        elements_produced = current_value - start
+        expected_time = first_started + (
+            elements_produced / elements_per_period) * period
+
+        if expected_time > time.time():
+          # We're ahead of schedule, defer remainder
+          restriction_tracker.defer_remainder(
+              Timestamp.of(expected_time))
+          break
+
+      if not restriction_tracker.try_claim(current_value):
+        # Nothing more to claim
+        break
+
+      # Generate timestamp for this element (processing time)
+      current_timestamp = Timestamp.now()
+
+      # Update watermark
+      current_watermark = watermark_estimator.current_watermark()
+      if current_watermark is None or current_timestamp > current_watermark:
+        watermark_estimator.set_watermark(current_timestamp)
+
+      yield TimestampedValue(current_value, current_timestamp)
+
+      current_value += 1
+
+      # Safety check to prevent infinite loop in bounded testing scenarios
+      if current_value >= sys.maxsize:
+        break
