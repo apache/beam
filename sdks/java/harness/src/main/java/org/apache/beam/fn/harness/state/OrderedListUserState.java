@@ -309,6 +309,11 @@ public class OrderedListUserState<T> {
       pendingRemoves.clear();
     }
 
+    if (hasNoState) {
+      pendingAdds.clear();
+      return;
+    }
+
     if (!pendingAdds.isEmpty()) {
       ByteStringOutputStream outStream = new ByteStringOutputStream();
 
