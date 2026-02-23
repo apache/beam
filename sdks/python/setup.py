@@ -541,7 +541,7 @@ if __name__ == '__main__':
               # tensorflow-transform requires dill, but doesn't set dill as a
               # hard requirement in setup.py.
               'dill',
-              # keras pulls in namex/optree without version bounds - pin to avoid resolver issues
+              # keras deps namex/optree lack version bounds - pin to avoid resolver issues
               'namex==0.0.9',
               'optree==0.16.0',
               'tensorflow-transform',
