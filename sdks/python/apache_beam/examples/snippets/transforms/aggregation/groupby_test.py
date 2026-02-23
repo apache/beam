@@ -38,10 +38,6 @@ from .groupby_global_aggregate import global_aggregate
 from .groupby_simple_aggregate import simple_aggregate
 from .groupby_two_exprs import groupby_two_exprs
 
-#
-# TODO: Remove early returns in check functions
-#  https://github.com/apache/beam/issues/30778
-skip_due_to_30778 = False
 
 
 class UnorderedList(object):
@@ -80,8 +76,6 @@ NamedTuple = beam.Row
 
 
 def check_groupby_expr_result(grouped):
-  if skip_due_to_30778:
-    return
   assert_that(
       grouped | beam.MapTuple(normalize_kv),
       equal_to([
@@ -94,8 +88,6 @@ def check_groupby_expr_result(grouped):
 
 
 def check_groupby_two_exprs_result(grouped):
-  if skip_due_to_30778:
-    return
   assert_that(
       grouped | beam.MapTuple(normalize_kv),
       equal_to([
@@ -109,8 +101,6 @@ def check_groupby_two_exprs_result(grouped):
 
 
 def check_groupby_attr_result(grouped):
-  if skip_due_to_30778:
-    return
   assert_that(
       grouped | beam.MapTuple(normalize_kv),
       equal_to([
@@ -157,8 +147,6 @@ def check_groupby_attr_result(grouped):
 
 
 def check_groupby_attr_expr_result(grouped):
-  if skip_due_to_30778:
-    return
   assert_that(
       grouped | beam.MapTuple(normalize_kv),
       equal_to([
@@ -209,8 +197,6 @@ def check_groupby_attr_expr_result(grouped):
 
 
 def check_simple_aggregate_result(grouped):
-  if skip_due_to_30778:
-    return
   assert_that(
       grouped,
       equal_to([
@@ -225,8 +211,6 @@ def check_simple_aggregate_result(grouped):
 
 
 def check_expr_aggregate_result(grouped):
-  if skip_due_to_30778:
-    return
   assert_that(
       grouped | beam.Map(normalize),
       equal_to([
@@ -238,8 +222,6 @@ def check_expr_aggregate_result(grouped):
 
 
 def check_global_aggregate_result(grouped):
-  if skip_due_to_30778:
-    return
   assert_that(
       grouped | beam.Map(normalize),
       equal_to([

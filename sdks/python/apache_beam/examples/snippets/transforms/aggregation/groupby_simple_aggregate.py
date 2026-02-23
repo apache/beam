@@ -36,6 +36,7 @@
 
 import apache_beam as beam
 
+# [START groupby_table]
 GROCERY_LIST = [
     beam.Row(recipe='pie', fruit='raspberry', quantity=1, unit_price=3.50),
     beam.Row(recipe='pie', fruit='blackberry', quantity=1, unit_price=4.00),
@@ -44,6 +45,7 @@ GROCERY_LIST = [
     beam.Row(recipe='muffin', fruit='banana', quantity=3, unit_price=1.00),
     beam.Row(recipe='pie', fruit='strawberry', quantity=3, unit_price=1.50),
 ]
+# [END groupby_table]
 
 
 def simple_aggregate(test=None):
