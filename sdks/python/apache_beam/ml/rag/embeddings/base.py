@@ -14,42 +14,56 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+"""RAG-specific embedding adapters.
+
+This module provides adapters for extracting content from
+EmbeddableItem instances and mapping embeddings back. Adapters
+are used by EmbeddingsManager to support various input types.
+"""
+
 from collections.abc import Sequence
 from typing import List
 
-from apache_beam.ml.rag.types import Chunk
+from apache_beam.ml.rag.types import EmbeddableItem
 from apache_beam.ml.rag.types import Embedding
 from apache_beam.ml.transforms.base import EmbeddingTypeAdapter
 
 
-def create_rag_adapter() -> EmbeddingTypeAdapter[Chunk, Chunk]:
-  """Creates adapter for converting between Chunk and Embedding types.
-    
-    The adapter:
-    - Extracts text from Chunk.content.text for embedding
-    - Creates Embedding objects from model output
-    - Sets Embedding in Chunk.embedding
-    
-    Returns:
-        EmbeddingTypeAdapter configured for RAG pipeline types
-    """
+def create_text_adapter(
+) -> EmbeddingTypeAdapter[EmbeddableItem, EmbeddableItem]:
+  """Creates adapter for text content embedding.
+
+  Works with any EmbeddableItem that has text content
+  (content.text). Extracts text for embedding and maps
+  results back as Embedding objects.
+
+  Returns:
+      EmbeddingTypeAdapter configured for text embedding
+  """
   return EmbeddingTypeAdapter(
-      input_fn=_extract_chunk_text, output_fn=_add_embedding_fn)
+      input_fn=_extract_text, output_fn=_add_embedding_fn)
 
 
-def _extract_chunk_text(chunks: Sequence[Chunk]) -> List[str]:
-  """Extract text from chunks for embedding."""
-  chunk_texts = []
-  for chunk in chunks:
-    if not chunk.content.text:
-      raise ValueError("Expected chunk text content.")
-    chunk_texts.append(chunk.content.text)
-  return chunk_texts
+# Backward compatibility alias.
+create_rag_adapter = create_text_adapter
+
+
+def _extract_text(items: Sequence[EmbeddableItem]) -> List[str]:
+  """Extract text from items for embedding."""
+  texts = []
+  for item in items:
+    if not item.content.text:
+      raise ValueError(
+          f"Expected text content in {type(item).__name__} {item.id}, "
+          "got None")
+    texts.append(item.content.text)
+  return texts
 
 
 def _add_embedding_fn(
-    chunks: Sequence[Chunk], embeddings: Sequence[List[float]]) -> List[Chunk]:
-  """Create Embeddings from chunks and embedding vectors."""
-  for chunk, embedding in zip(chunks, embeddings):
-    chunk.embedding = Embedding(dense_embedding=embedding)
-  return list(chunks)
+    items: Sequence[EmbeddableItem],
+    embeddings: Sequence[List[float]]) -> List[EmbeddableItem]:
+  """Create Embeddings from items and embedding vectors."""
+  for item, embedding in zip(items, embeddings):
+    item.embedding = Embedding(dense_embedding=embedding)
+  return list(items)

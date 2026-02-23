@@ -73,6 +73,10 @@ def _import_beam_plugins(plugins):
 def create_harness(environment, dry_run=False):
   """Creates SDK Fn Harness."""
 
+  # Bootstrap log level to capture startup events until pipeline options are
+  # parsed and the actual log level is set.
+  logging.getLogger().setLevel(logging.INFO)
+
   deferred_exception = None
   if 'LOGGING_API_SERVICE_DESCRIPTOR' in environment:
     try:
@@ -93,8 +97,24 @@ def create_harness(environment, dry_run=False):
   else:
     fn_log_handler = None
 
-  pipeline_options_dict = _load_pipeline_options(
-      environment.get('PIPELINE_OPTIONS'))
+  options_json = environment.get('PIPELINE_OPTIONS')
+
+  # We check if options are stored in the file.
+  if 'PIPELINE_OPTIONS_FILE' in environment:
+    options_file = environment['PIPELINE_OPTIONS_FILE']
+    try:
+      with open(options_file, 'r') as f:
+        options_json = f.read()
+        _LOGGER.info('Load pipeline options from file: %s', options_file)
+    except Exception:
+      _LOGGER.error(
+          'Failed to load pipeline options from file: %s',
+          options_file,
+          exc_info=True)
+      raise
+
+  pipeline_options_dict = _load_pipeline_options(options_json)
+
   default_log_level = _get_log_level_from_options_dict(pipeline_options_dict)
   logging.getLogger().setLevel(default_log_level)
   _set_log_level_overrides(pipeline_options_dict)
@@ -239,6 +259,7 @@ def terminate_sdk_harness():
 
 
 def _load_pipeline_options(options_json):
+  """Deserialize the pipeline options from a JSON string into a dictionary."""
   if options_json is None:
     return {}
   options = json.loads(options_json)
@@ -256,6 +277,8 @@ def _load_pipeline_options(options_json):
 
 
 def _parse_pipeline_options(options_json):
+  """Parses the pipeline options from a JSON string into a PipelineOptions 
+  object."""
   return PipelineOptions.from_dictionary(_load_pipeline_options(options_json))
 
 

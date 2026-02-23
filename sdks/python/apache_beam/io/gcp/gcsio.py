@@ -49,7 +49,6 @@ from apache_beam.io.gcp import gcsio_retry
 from apache_beam.metrics.metric import Metrics
 from apache_beam.options.pipeline_options import GoogleCloudOptions
 from apache_beam.options.pipeline_options import PipelineOptions
-from apache_beam.utils.annotations import deprecated
 
 __all__ = ['GcsIO', 'create_storage_client']
 
@@ -459,7 +458,7 @@ class GcsIO(object):
     """
     assert src.endswith('/')
     assert dest.endswith('/')
-    for entry in self.list_prefix(src):
+    for entry, _ in self.list_files(src):
       rel_path = entry[len(src):]
       self.copy(entry, dest + rel_path)
 
@@ -564,27 +563,6 @@ class GcsIO(object):
     else:
       raise NotFound('Object %s not found', path)
 
-  @deprecated(since='2.45.0', current='list_files')
-  def list_prefix(self, path, with_metadata=False):
-    """Lists files matching the prefix.
-
-    ``list_prefix`` has been deprecated. Use `list_files` instead, which returns
-    a generator of file information instead of a dict.
-
-    Args:
-      path: GCS file path pattern in the form gs://<bucket>/[name].
-      with_metadata: Experimental. Specify whether returns file metadata.
-
-    Returns:
-      If ``with_metadata`` is False: dict of file name -> size; if
-        ``with_metadata`` is True: dict of file name -> tuple(size, timestamp).
-    """
-    file_info = {}
-    for file_metadata in self.list_files(path, with_metadata):
-      file_info[file_metadata[0]] = file_metadata[1]
-
-    return file_info
-
   def list_files(self, path, with_metadata=False):
     """Lists files matching the prefix.
 
@@ -627,7 +605,7 @@ class GcsIO(object):
           yield file_name, item.size
 
     _LOGGER.log(
-        # do not spam logs when list_prefix is likely used to check empty folder
+        # do not spam logs when list_files is likely used to check empty folder
         logging.INFO if counter > 0 else logging.DEBUG,
         "Finished listing %s files in %s seconds.",
         counter,

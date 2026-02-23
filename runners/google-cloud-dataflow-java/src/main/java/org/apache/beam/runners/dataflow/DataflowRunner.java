@@ -1301,14 +1301,6 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
 
       if (useUnifiedWorker(options)) {
         options.setEnableStreamingEngine(true);
-        List<String> experiments =
-            new ArrayList<>(options.getExperiments()); // non-null if useUnifiedWorker is true
-        if (!experiments.contains("enable_streaming_engine")) {
-          experiments.add("enable_streaming_engine");
-        }
-        if (!experiments.contains("enable_windmill_service")) {
-          experiments.add("enable_windmill_service");
-        }
       }
     }
 

@@ -17,6 +17,8 @@
  */
 package org.apache.beam.runners.dataflow.worker;
 
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkState;
+
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -31,6 +33,7 @@ import org.apache.beam.runners.core.TimerInternals.TimerData;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.Timer;
 import org.apache.beam.runners.dataflow.worker.windmill.state.WindmillTagEncoding;
+import org.apache.beam.runners.dataflow.worker.windmill.state.WindmillTimerData;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.StructuredCoder;
@@ -101,12 +104,13 @@ public class WindmillKeyedWorkItem<K, ElemT> implements KeyedWorkItem<K, ElemT> 
     return eventTimers
         .append(nonEventTimers)
         .transform(
-            timer ->
-                windmillTagEncoding.windmillTimerToTimerData(
-                    WindmillNamespacePrefix.SYSTEM_NAMESPACE_PREFIX,
-                    timer,
-                    windowCoder,
-                    drainMode));
+            timer -> {
+              WindmillTimerData windmillTimerData =
+                  windmillTagEncoding.windmillTimerToTimerData(timer, windowCoder, drainMode);
+              checkState(
+                  windmillTimerData.getWindmillTimerType() == WindmillTimerType.SYSTEM_TIMER);
+              return windmillTimerData.getTimerData();
+            });
   }
 
   @Override

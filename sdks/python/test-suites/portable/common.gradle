@@ -23,24 +23,32 @@ import org.apache.tools.ant.taskdefs.condition.Os
 def pythonRootDir = "${rootDir}/sdks/python"
 def pythonVersionSuffix = project.ext.pythonVersion.replace('.', '')
 def latestFlinkVersion = project.ext.latestFlinkVersion
+// TODO(https://github.com/apache/beam/issues/36947): Remove when dropping Flink 1.x support
+def latestFlink1Version = '1.20'
 def currentJavaVersion = project.ext.currentJavaVersion
 
 ext {
   pythonContainerTask = ":sdks:python:container:py${pythonVersionSuffix}:docker"
 }
 
-def createFlinkRunnerTestTask(String workerType) {
-  def taskName = "flinkCompatibilityMatrix${workerType}"
-  // project(":runners:flink:${latestFlinkVersion}:job-server").shadowJar.archivePath is not resolvable until runtime, so hard-code it here.
-  def jobServerJar = "${rootDir}/runners/flink/${latestFlinkVersion}/job-server/build/libs/beam-runners-flink-${latestFlinkVersion}-job-server-${version}.jar"
+def createFlinkRunnerTestTask(String workerType, String flinkVersion) {
+  String taskName
+
+  // project(":runners:flink:${flinkVersion}:job-server").shadowJar.archivePath is not resolvable until runtime, so hard-code it here.
+  def jobServerJar = "${rootDir}/runners/flink/${flinkVersion}/job-server/build/libs/beam-runners-flink-${flinkVersion}-job-server-${version}.jar"
   def options = "--flink_job_server_jar=${jobServerJar} --environment_type=${workerType}"
+  if (flinkVersion.startsWith('1')) {
+    taskName = "flink1CompatibilityMatrix${workerType}"
+  } else {
+    taskName = "flinkCompatibilityMatrix${workerType}"
+  }
   if (workerType == 'PROCESS') {
     options += " --environment_options=process_command=${buildDir.absolutePath}/sdk_worker.sh"
   }
   def task = toxTask(taskName, 'flink-runner-test', options)
   // Through the Flink job server, we transitively add dependencies on the expansion services needed in tests.
   task.configure {
-    dependsOn ":runners:flink:${latestFlinkVersion}:job-server:shadowJar"
+    dependsOn ":runners:flink:${flinkVersion}:job-server:shadowJar"
     // The Java SDK worker is required to execute external transforms.
     def suffix = getSupportedJavaVersion()
     dependsOn ":sdks:java:container:${suffix}:docker"
@@ -53,31 +61,19 @@ def createFlinkRunnerTestTask(String workerType) {
   return task
 }
 
-createFlinkRunnerTestTask('DOCKER')
-createFlinkRunnerTestTask('PROCESS')
-createFlinkRunnerTestTask('LOOPBACK')
+createFlinkRunnerTestTask('DOCKER', latestFlinkVersion)
+createFlinkRunnerTestTask('PROCESS', latestFlinkVersion)
+createFlinkRunnerTestTask('LOOPBACK', latestFlinkVersion)
+createFlinkRunnerTestTask('DOCKER', latestFlink1Version)
+createFlinkRunnerTestTask('PROCESS', latestFlink1Version)
+createFlinkRunnerTestTask('LOOPBACK', latestFlink1Version)
+
+task flink1ValidatesRunner() {
+  dependsOn 'flink1CompatibilityMatrixLOOPBACK'
+}
 
 task flinkValidatesRunner() {
   dependsOn 'flinkCompatibilityMatrixLOOPBACK'
-}
-
-// TODO(https://github.com/apache/beam/issues/19962): Enable on pre-commit.
-tasks.register("flinkTriggerTranscript") {
-  dependsOn 'setupVirtualenv'
-  dependsOn ":runners:flink:${latestFlinkVersion}:job-server:shadowJar"
-  doLast {
-    exec {
-      executable 'sh'
-      args '-c', """
-          . ${envdir}/bin/activate \\
-          && cd ${pythonRootDir} \\
-          && pip install -e .[test] \\
-          && pytest \\
-              apache_beam/transforms/trigger_test.py::WeakTestStreamTranscriptTest \\
-              --test-pipeline-options='--runner=FlinkRunner --environment_type=LOOPBACK --flink_job_server_jar=${project(":runners:flink:${latestFlinkVersion}:job-server:").shadowJar.archivePath}'
-          """
-    }
-  }
 }
 
 // Verifies BEAM-10702.
@@ -276,7 +272,7 @@ project.tasks.register("flinkExamples") {
   dependsOn = [
           'setupVirtualenv',
           'installGcpTest',
-          ":runners:flink:${latestFlinkVersion}:job-server:shadowJar"
+          ":runners:flink:${latestFlink1Version}:job-server:shadowJar"
   ]
   doLast {
     def testOpts = [
@@ -288,7 +284,7 @@ project.tasks.register("flinkExamples") {
             "--project=apache-beam-testing",
             "--environment_type=LOOPBACK",
             "--temp_location=gs://temp-storage-for-end-to-end-tests/temp-it",
-            "--flink_job_server_jar=${project(":runners:flink:${latestFlinkVersion}:job-server").shadowJar.archivePath}",
+            "--flink_job_server_jar=${project(":runners:flink:${latestFlink1Version}:job-server").shadowJar.archivePath}",
             "--flink_conf_dir=${flink_conf_dir}",
             '--sdk_harness_log_level_overrides=' +
                 // suppress info level flink.runtime log flood
@@ -388,7 +384,7 @@ project.tasks.register("postCommitPy${pythonVersionSuffix}IT") {
   dependsOn = [
           'setupVirtualenv',
           'installGcpTest',
-          ":runners:flink:${latestFlinkVersion}:job-server:shadowJar",
+          ":runners:flink:${latestFlink1Version}:job-server:shadowJar",
           ":sdks:java:container:${fork_java_version}:docker",
           ':sdks:java:testing:kafka-service:buildTestKafkaServiceJar',
           ':sdks:java:io:expansion-service:shadowJar',
@@ -412,7 +408,7 @@ project.tasks.register("postCommitPy${pythonVersionSuffix}IT") {
         "--project=apache-beam-testing",
         "--environment_type=LOOPBACK",
         "--temp_location=gs://temp-storage-for-end-to-end-tests/temp-it",
-        "--flink_job_server_jar=${project(":runners:flink:${latestFlinkVersion}:job-server").shadowJar.archivePath}",
+        "--flink_job_server_jar=${project(":runners:flink:${latestFlink1Version}:job-server").shadowJar.archivePath}",
         "--flink_conf_dir=${flink_conf_dir}",
         '--sdk_harness_log_level_overrides=' +
             // suppress info level flink.runtime log flood
@@ -444,7 +440,7 @@ project.tasks.register("xlangSpannerIOIT") {
   dependsOn = [
           'setupVirtualenv',
           'installGcpTest',
-          ":runners:flink:${latestFlinkVersion}:job-server:shadowJar",
+          ":runners:flink:${latestFlink1Version}:job-server:shadowJar",
           ":sdks:java:container:${currentJavaVersion}:docker",
           ':sdks:java:io:expansion-service:shadowJar',
           ':sdks:java:io:google-cloud-platform:expansion-service:shadowJar',
@@ -463,7 +459,7 @@ project.tasks.register("xlangSpannerIOIT") {
         "--project=apache-beam-testing",
         "--environment_type=LOOPBACK",
         "--temp_location=gs://temp-storage-for-end-to-end-tests/temp-it",
-        "--flink_job_server_jar=${project(":runners:flink:${latestFlinkVersion}:job-server").shadowJar.archivePath}",
+        "--flink_job_server_jar=${project(":runners:flink:${latestFlink1Version}:job-server").shadowJar.archivePath}",
         '--sdk_harness_log_level_overrides=' +
             // suppress info level flink.runtime log flood
             '{\\"org.apache.flink.runtime\\":\\"WARN\\",' +
@@ -508,7 +504,7 @@ def addTestJavaJarCreator(String runner, Task jobServerJarTask) {
 }
 
 // TODO(BEAM-11333) Update and test multiple Flink versions.
-addTestJavaJarCreator("FlinkRunner", tasks.getByPath(":runners:flink:${latestFlinkVersion}:job-server:shadowJar"))
+addTestJavaJarCreator("FlinkRunner", tasks.getByPath(":runners:flink:${latestFlink1Version}:job-server:shadowJar"))
 addTestJavaJarCreator("SparkRunner", tasks.getByPath(":runners:spark:3:job-server:shadowJar"))
 
 def addTestFlinkUberJar(boolean saveMainSession) {
