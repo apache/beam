@@ -185,6 +185,7 @@ def find_by_ext(root_dir, ext):
 
 
 # We must generate protos after setup_requires are installed.
+# Add some comments here.
 def generate_protos_first():
   try:
     # Pyproject toml build happens in isolated environemnts. In those envs,
