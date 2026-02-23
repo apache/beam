@@ -1365,7 +1365,8 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
     dataflowOptions.setPipelineUrl(stagedPipeline.getLocation());
 
     if (useUnifiedWorker(options)) {
-      LOG.info("Skipping non-portable transform replacements since job will run on portable worker.");
+      LOG.info(
+          "Skipping non-portable transform replacements since job will run on portable worker.");
     } else {
       // Now rewrite things to be as needed for non-portable (mutates the pipeline).
       // This way the job submitted is valid for portable and non-portable, simultaneously.
@@ -1406,7 +1407,11 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
 
     JobSpecification jobSpecification =
         translator.translate(
-            pipeline, dataflowNonPortablePipelineProto, dataflowNonPortableComponents, this, packages);
+            pipeline,
+            dataflowNonPortablePipelineProto,
+            dataflowNonPortableComponents,
+            this,
+            packages);
 
     if (!isNullOrEmpty(dataflowOptions.getDataflowWorkerJar()) && !useUnifiedWorker(options)) {
       List<String> experiments =

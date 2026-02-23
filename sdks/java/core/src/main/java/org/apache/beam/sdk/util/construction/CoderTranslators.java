@@ -223,7 +223,7 @@ class CoderTranslators {
           return CoderTranslation.JAVA_SERIALIZED_CODER_URN;
         } else {
           return CoderTranslation.getKnownCoderUrns()
-            .getOrDefault(from.getClass(), CoderTranslation.JAVA_SERIALIZED_CODER_URN);
+              .getOrDefault(from.getClass(), CoderTranslation.JAVA_SERIALIZED_CODER_URN);
         }
       }
 
@@ -260,7 +260,9 @@ class CoderTranslators {
           List<Coder<?>> components, byte[] payload, TranslationContext context) {
         checkArgument(
             components.isEmpty(), "Expected empty component list, but received: %s", components);
-        checkArgument(!encodeAsJavaSerializedCoder(context), "This translator should not be used for Java serialized coders.");
+        checkArgument(
+            !encodeAsJavaSerializedCoder(context),
+            "This translator should not be used for Java serialized coders.");
         try {
           SchemaApi.SchemaCoderPayload schemaCoderPayload =
               SchemaApi.SchemaCoderPayload.parseFrom(payload);
