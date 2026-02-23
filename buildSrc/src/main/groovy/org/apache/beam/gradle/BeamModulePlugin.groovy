@@ -3178,7 +3178,7 @@ class BeamModulePlugin implements Plugin<Project> {
           // Use uv instead of pip - pip was hitting resolution-too-deep on tensorflow->keras->namex/optree.
           // Include namex/optree as explicit deps to constrain resolution.
           // --prerelease allow: envoy-data-plane depends on betterproto==2.0.0b6 (beta).
-          def anchorPkgs = "namex>=0.0.9,<0.2.0 optree>=0.16.0,<0.19.0"
+          def anchorPkgs = "namex==0.0.9 optree==0.16.0"
           def installCmd = ". ${project.ext.envdir}/bin/activate && uv pip install --prerelease allow ${constraintFlag} ${anchorPkgs} ${distTarBall}[${packages}]".replaceAll(/  +/, ' ').trim()
           project.exec {
             executable 'sh'
