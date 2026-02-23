@@ -373,15 +373,13 @@ if __name__ == '__main__':
       ext_modules=extensions,
       install_requires=[
           'cryptography>=39.0.0,<48.0.0',
-          # reconcile envoy-data-plane dependency for python < 3.12 and >= 3.13
-          # when grpcio unpinned, check for protobuf version compatibility
-          'envoy-data-plane>=1.0.3,<2; python_version >= "3.13"',
-          'envoy-data-plane<0.3.0; python_version < "3.13"',
+          'envoy-data-plane>=0.2.0,<2',
           'fastavro>=0.23.6,<2',
           'fasteners>=0.3,<1.0',
-          # TODO(https://github.com/grpc/grpc/issues/37710): Unpin grpc
-          'grpcio>=1.33.1,<2,!=1.48.0,!=1.59.*,!=1.60.*,!=1.61.*,!=1.62.0,!=1.62.1,<1.66.0; python_version <= "3.12"',  # pylint: disable=line-too-long
-          'grpcio>=1.67.0; python_version >= "3.13"',
+          # Known grpcio versions that had issues:
+          # 1.48.x, 1.59.0-1.62.1, 1.66-1.78.0.
+          # Not adding these constraints to simplify the requrirements.
+          'grpcio>=1.33.1,<2',
           'httplib2>=0.8,<0.32.0',
           'jsonpickle>=3.0.0,<4.0.0',
           # numpy can have breaking changes in minor versions.
