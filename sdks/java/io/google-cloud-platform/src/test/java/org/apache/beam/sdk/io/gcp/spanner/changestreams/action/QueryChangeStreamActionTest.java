@@ -121,7 +121,7 @@ public class QueryChangeStreamActionTest {
             partitionEventRecordAction,
             metrics,
             false,
-            org.joda.time.Duration.standardMinutes(2));
+            Duration.standardMinutes(2));
     final Struct row = mock(Struct.class);
     partition =
         PartitionMetadata.newBuilder()

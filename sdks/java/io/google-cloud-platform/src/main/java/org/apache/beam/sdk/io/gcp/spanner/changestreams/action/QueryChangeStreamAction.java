@@ -395,11 +395,8 @@ public class QueryChangeStreamAction {
   // used if  users want to run the connector forever. If the end timestamp is reached, we
   // will resume processing from that timestamp on a subsequent DoFn execution.
   private Timestamp getNextReadChangeStreamEndTimestamp() {
-    final Timestamp current = Timestamp.now();
-    long seconds = current.getSeconds() + realTimeCheckpointInterval.getStandardSeconds();
-    int nanos =
-        current.getNanos() + (int) ((realTimeCheckpointInterval.getMillis() % 1000) * 1_000_000);
-    return Timestamp.ofTimeSecondsAndNanos(seconds, nanos);
+    return Timestamp.ofTimeMicroseconds(
+        Instant.now().plus(realTimeCheckpointInterval).getMillis() * 1000L);
   }
 
   // For Mutable Change Stream bounded queries, update the query end timestamp to be within 2
