@@ -191,7 +191,10 @@ class DataflowCostBenchmark(LoadTest):
       pcollection_name: Optional[str] = None,
   ) -> dict[str, float]:
     """Query Cloud Monitoring for per-PCollection throughput."""
-    name = pcollection_name if pcollection_name is not None else self.pcollection
+    name = (
+        pcollection_name
+        if pcollection_name is not None
+        else self.pcollection)
     interval = monitoring_v3.TimeInterval(
         start_time=start_time, end_time=end_time)
     aggregation = monitoring_v3.Aggregation(
