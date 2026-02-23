@@ -3171,16 +3171,14 @@ class BeamModulePlugin implements Plugin<Project> {
           }
 
           def pythonSdkDir = project.project(":sdks:python").projectDir
-          // Python 3.13 requires numpy>=2.1.0; constraints.txt pins numpy<2 for py310-312.
-          def constraintsName = "3.13".equals(project.ext.pythonVersion) ? "constraints_py313.txt" : "constraints.txt"
-          def constraintsPath = "${pythonSdkDir}/${constraintsName}"
+          def constraintsPath = "${pythonSdkDir}/constraints.txt"
           def constraintFile = project.file(constraintsPath)
           def constraintFlag = constraintFile.exists() ? "--constraint ${constraintsPath}" : ""
 
           // Use uv instead of pip - pip was hitting resolution-too-deep on tensorflow->keras->namex/optree.
           // Include namex/optree as explicit deps to constrain resolution.
           // --prerelease allow: envoy-data-plane depends on betterproto==2.0.0b6 (beta).
-          def anchorPkgs = "namex==0.0.9 optree==0.16.0"
+          def anchorPkgs = "namex>=0.0.9,<0.2.0 optree>=0.16.0,<0.19.0"
           def installCmd = ". ${project.ext.envdir}/bin/activate && uv pip install --prerelease allow ${constraintFlag} ${anchorPkgs} ${distTarBall}[${packages}]".replaceAll(/  +/, ' ').trim()
           project.exec {
             executable 'sh'

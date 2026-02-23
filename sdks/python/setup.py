@@ -384,9 +384,10 @@ if __name__ == '__main__':
           'grpcio>=1.67.0; python_version >= "3.13"',
           'httplib2>=0.8,<0.32.0',
           'jsonpickle>=3.0.0,<4.0.0',
-          # numpy can have breaking changes in minor versions.
-          # Use a strict upper bound.
-          'numpy>=1.14.3,<2.5.0',  # Update pyproject.toml as well.
+          # numpy can have breaking changes in minor versions. py310-312: use 1.x
+          # to avoid pandas ABI mismatch. py313: NumPy 1.x doesn't support Python 3.13.
+          'numpy>=1.26.0,<2.0.0; python_version < "3.13"',
+          'numpy>=2.1.0; python_version >= "3.13"',
           'objsize>=0.6.1,<0.8.0',
           'packaging>=22.0',
           'pillow',
@@ -541,9 +542,9 @@ if __name__ == '__main__':
               # tensorflow-transform requires dill, but doesn't set dill as a
               # hard requirement in setup.py.
               'dill',
-              # keras deps namex/optree lack version bounds - pin to avoid resolver issues
-              'namex==0.0.9',
-              'optree==0.16.0',
+              # keras deps namex/optree lack version bounds - constrain to avoid resolver issues
+              'namex>=0.0.9,<0.2.0',
+              'optree>=0.16.0,<0.19.0',
               'tensorflow-transform',
               # Comment out xgboost as it is breaking presubmit python ml
               # tests due to tag check introduced since pip 24.2
@@ -552,12 +553,12 @@ if __name__ == '__main__':
           ] + ml_base,
           'p312_ml_test': [
               'datatable',
-              'namex==0.0.9',
-              'optree==0.16.0',
+              'namex>=0.0.9,<0.2.0',
+              'optree>=0.16.0,<0.19.0',
           ] + ml_base,
           'p313_ml_test': [
-              'namex==0.0.9',
-              'optree==0.16.0',
+              'namex>=0.0.9,<0.2.0',
+              'optree>=0.16.0,<0.19.0',
           ] + ml_base,
           'aws': ['boto3>=1.9,<2'],
           'azure': [
