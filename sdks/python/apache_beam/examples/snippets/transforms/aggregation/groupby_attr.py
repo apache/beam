@@ -47,14 +47,11 @@ GROCERY_LIST = [
 ]
 # [END groupby_table]
 
+
 def groupby_attr(test=None):
   with beam.Pipeline() as p:
     # [START groupby_attr]
-    grouped = (
-        p
-        | beam.Create(GROCERY_LIST)
-        | beam.GroupBy('recipe')
-    )
+    grouped = (p | beam.Create(GROCERY_LIST) | beam.GroupBy('recipe'))
     # [END groupby_attr]
 
     if test:

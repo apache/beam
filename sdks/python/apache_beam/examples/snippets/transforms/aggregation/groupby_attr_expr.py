@@ -53,8 +53,7 @@ def groupby_attr_expr(test=None):
     grouped = (
         p
         | beam.Create(GROCERY_LIST)
-        | beam.GroupBy('recipe', is_berry=lambda x: 'berry' in x.fruit)
-    )
+        | beam.GroupBy('recipe', is_berry=lambda x: 'berry' in x.fruit))
 
     if test:
       test(grouped)

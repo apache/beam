@@ -36,6 +36,7 @@
 
 import apache_beam as beam
 
+
 def groupby_expr(test=None):
   with beam.Pipeline() as p:
     # [START groupby_expr]

@@ -48,6 +48,7 @@ GROCERY_LIST = [
 ]
 # [END groupby_table]
 
+
 def global_aggregate(test=None):
   with beam.Pipeline() as p:
     # [START global_aggregate]
@@ -63,7 +64,6 @@ def global_aggregate(test=None):
       test(grouped)
     else:
       grouped | beam.Map(print)
-
 
 
 if __name__ == '__main__':

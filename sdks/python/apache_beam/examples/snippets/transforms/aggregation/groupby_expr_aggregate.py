@@ -47,16 +47,16 @@ GROCERY_LIST = [
 ]
 # [END groupby_table]
 
+
 def expr_aggregate(test=None):
   with beam.Pipeline() as p:
     # [START expr_aggregate]
     grouped = (
         p
         | beam.Create(GROCERY_LIST)
-        | beam.GroupBy('recipe')
-            .aggregate_field('quantity', sum, 'total_quantity')
-            .aggregate_field(lambda x: x.quantity * x.unit_price, sum, 'price')
-    )
+        | beam.GroupBy('recipe').aggregate_field(
+            'quantity', sum, 'total_quantity').aggregate_field(
+                lambda x: x.quantity * x.unit_price, sum, 'price'))
     # [END expr_aggregate]
 
     if test:
