@@ -309,7 +309,7 @@ public class OrderedListUserState<T> {
       pendingRemoves.clear();
     }
 
-    if (hasNoState) {
+    if (onlyBundleForKeys) {
       pendingAdds.clear();
       return;
     }
