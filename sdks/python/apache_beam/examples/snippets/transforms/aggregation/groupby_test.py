@@ -41,7 +41,7 @@ from .groupby_two_exprs import groupby_two_exprs
 #
 # TODO: Remove early returns in check functions
 #  https://github.com/apache/beam/issues/30778
-skip_due_to_30778 = True
+skip_due_to_30778 = False
 
 
 class UnorderedList(object):
@@ -212,7 +212,7 @@ def check_simple_aggregate_result(grouped):
   if skip_due_to_30778:
     return
   assert_that(
-      grouped | beam.MapTuple(normalize_kv),
+      grouped,
       equal_to([
           #[START simple_aggregate_result]
           NamedTuple(fruit='strawberry', total_quantity=3),

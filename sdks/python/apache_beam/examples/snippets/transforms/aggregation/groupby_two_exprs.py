@@ -39,14 +39,18 @@ import apache_beam as beam
 
 def groupby_two_exprs(test=None):
   with beam.Pipeline() as p:
+    # [START groupby_two_exprs]
     grouped = (
         p
         | beam.Create(
             ['strawberry', 'raspberry', 'blueberry', 'blackberry', 'banana'])
         | beam.GroupBy(letter=lambda s: s[0], is_berry=lambda s: 'berry' in s))
+    # [END groupby_two_exprs]
 
     if test:
       test(grouped)
+    else:
+      grouped | beam.Map(print)
 
 
 if __name__ == '__main__':

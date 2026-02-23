@@ -47,34 +47,11 @@ GROCERY_LIST = [
 
 
 def simple_aggregate(test=None):
-  def to_grocery_row(x):
-    # If it's already a Beam Row / schema object, keep it
-    if hasattr(x, 'recipe') and hasattr(x, 'fruit') and hasattr(
-        x, 'quantity') and hasattr(x, 'unit_price'):
-      return beam.Row(
-          recipe=x.recipe,
-          fruit=x.fruit,
-          quantity=x.quantity,
-          unit_price=x.unit_price)
-
-    # If dict
-    if isinstance(x, dict):
-      return beam.Row(
-          recipe=x['recipe'],
-          fruit=x['fruit'],
-          quantity=x['quantity'],
-          unit_price=x['unit_price'],
-      )
-
-    # If tuple/list (recipe, fruit, quantity, unit_price)
-    return beam.Row(recipe=x[0], fruit=x[1], quantity=x[2], unit_price=x[3])
-
   with beam.Pipeline() as p:
     # [START simple_aggregate]
     grouped = (
         p
         | beam.Create(GROCERY_LIST)
-        | 'ToGroceryRows' >> beam.Map(to_grocery_row)
         | beam.GroupBy('fruit').aggregate_field(
             'quantity', sum, 'total_quantity'))
     # [END simple_aggregate]
