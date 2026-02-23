@@ -72,6 +72,8 @@ public class MultimapUserState<K, V> {
 
   private boolean isClosed;
   private boolean isCleared;
+  private final boolean hasNoState;
+  private final boolean onlyBundleForKeys;
   // Pending updates to persistent storage
   private HashMap<Object, K> pendingRemoves = Maps.newHashMap();
   private HashMap<Object, KV<K, List<V>>> pendingAdds = Maps.newHashMap();
@@ -84,7 +86,9 @@ public class MultimapUserState<K, V> {
       String instructionId,
       StateKey stateKey,
       Coder<K> mapKeyCoder,
-      Coder<V> valueCoder) {
+      Coder<V> valueCoder,
+      boolean hasNoState,
+      boolean onlyBundleForKeys) {
     checkArgument(
         stateKey.hasMultimapKeysUserState(),
         "Expected MultimapKeysUserState StateKey but received %s.",
@@ -93,6 +97,8 @@ public class MultimapUserState<K, V> {
     this.beamFnStateClient = beamFnStateClient;
     this.mapKeyCoder = mapKeyCoder;
     this.valueCoder = valueCoder;
+    this.hasNoState = hasNoState;
+    this.onlyBundleForKeys = onlyBundleForKeys;
 
     // Note: These StateRequest protos are constructed even if we never try to read the
     // corresponding state type. Consider constructing them lazily, as needed.
@@ -100,7 +106,7 @@ public class MultimapUserState<K, V> {
         StateRequest.newBuilder().setInstructionId(instructionId).setStateKey(stateKey).build();
     this.persistedKeys =
         StateFetchingIterators.readAllAndDecodeStartingFrom(
-            cache, beamFnStateClient, keysStateRequest, mapKeyCoder);
+            cache, beamFnStateClient, keysStateRequest, mapKeyCoder, hasNoState);
 
     StateRequest.Builder userStateRequestBuilder = StateRequest.newBuilder();
     userStateRequestBuilder
@@ -128,7 +134,8 @@ public class MultimapUserState<K, V> {
             Caches.subCache(this.cache, "AllEntries"),
             beamFnStateClient,
             entriesStateRequest,
-            KvCoder.of(mapKeyCoder, IterableCoder.of(valueCoder)));
+            KvCoder.of(mapKeyCoder, IterableCoder.of(valueCoder)),
+            hasNoState);
   }
 
   public void clear() {
@@ -542,7 +549,8 @@ public class MultimapUserState<K, V> {
                           request.getStateKey().getMultimapUserState().getMapKey()),
                       beamFnStateClient,
                       request,
-                      valueCoder));
+                      valueCoder,
+                      hasNoState));
             })
         .getValue();
   }

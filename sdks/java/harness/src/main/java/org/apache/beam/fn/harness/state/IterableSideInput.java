@@ -40,7 +40,8 @@ public class IterableSideInput<T> implements IterableView<T> {
       BeamFnStateClient beamFnStateClient,
       String instructionId,
       StateKey stateKey,
-      Coder<T> valueCoder) {
+      Coder<T> valueCoder,
+      boolean hasNoState) {
     checkArgument(
         stateKey.hasIterableSideInput(),
         "Expected IterableSideInput StateKey but received %s.",
@@ -50,7 +51,8 @@ public class IterableSideInput<T> implements IterableView<T> {
             cache,
             beamFnStateClient,
             StateRequest.newBuilder().setInstructionId(instructionId).setStateKey(stateKey).build(),
-            valueCoder);
+            valueCoder,
+            hasNoState);
   }
 
   @Override

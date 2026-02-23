@@ -160,6 +160,18 @@ public interface PTransformRunnerFactory {
      * instant provides the timeout on how long the finalization callback is valid for.
      */
     DoFn.BundleFinalizer getBundleFinalizer();
+
+    /**
+     * Returns true if the runner has no state for the keys in the ProcessBundleRequest. If true,
+     * the SDK can begin stateful processing with an initial empty state.
+     */
+    boolean getHasNoState();
+
+    /**
+     * Returns true if the runner will never process another bundle for the keys it contains.
+     * Therefore, the generated state need not be included in the bundle commit.
+     */
+    boolean getOnlyBundleForKeys();
   }
 
   /**
