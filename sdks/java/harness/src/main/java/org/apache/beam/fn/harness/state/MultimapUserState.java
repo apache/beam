@@ -445,7 +445,7 @@ public class MultimapUserState<K, V> {
     }
 
     // Persist pending key-values
-    if (!pendingAdds.isEmpty()) {
+    if (!pendingAdds.isEmpty() && !onlyBundleForKeys) {
       for (KV<K, List<V>> entry : pendingAdds.values()) {
         StateRequest request = createUserStateRequest(entry.getKey());
         beamFnStateClient.handle(

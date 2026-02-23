@@ -515,7 +515,8 @@ public class StateFetchingIterators {
 
       public CachingStateIterator() {
         this.underlyingStateFetchingIterator =
-            new LazyBlockingStateFetchingIterator(beamFnStateClient, stateRequestForFirstChunk);
+            new LazyBlockingStateFetchingIterator(beamFnStateClient, stateRequestForFirstChunk,
+              hasNoState);
         this.dataStreamDecoder =
             new DataStreamDecoder<>(valueCoder, underlyingStateFetchingIterator);
         this.currentBlock =
