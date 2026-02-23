@@ -648,6 +648,8 @@ public class KafkaIO {
     return new AutoValue_KafkaIO_WriteRecords.Builder<K, V>()
         .setProducerConfig(WriteRecords.DEFAULT_PRODUCER_PROPERTIES)
         .setEOS(false)
+        .setEosTriggerNumElements(1) // keep default numElements
+        .setEosTriggerTimeout(null) // keep default trigger (timeout)
         .setNumShards(0)
         .setConsumerFactoryFn(KafkaIOUtils.KAFKA_CONSUMER_FACTORY_FN)
         .setBadRecordRouter(BadRecordRouter.THROWING_ROUTER)
@@ -3185,6 +3187,10 @@ public class KafkaIO {
     @Pure
     public abstract boolean isEOS();
 
+    public abstract int getEosTriggerNumElements();
+
+    public abstract @Nullable Duration getEosTriggerTimeout();
+
     @Pure
     public abstract @Nullable String getSinkGroupId();
 
@@ -3220,6 +3226,10 @@ public class KafkaIO {
           KafkaPublishTimestampFunction<ProducerRecord<K, V>> timestampFunction);
 
       abstract Builder<K, V> setEOS(boolean eosEnabled);
+
+      abstract Builder<K, V> setEosTriggerNumElements(int numElements);
+
+      abstract Builder<K, V> setEosTriggerTimeout(@Nullable Duration timeout);
 
       abstract Builder<K, V> setSinkGroupId(String sinkGroupId);
 
@@ -3366,6 +3376,15 @@ public class KafkaIO {
       checkArgument(numShards >= 1, "numShards should be >= 1");
       checkArgument(sinkGroupId != null, "sinkGroupId is required for exactly-once sink");
       return toBuilder().setEOS(true).setNumShards(numShards).setSinkGroupId(sinkGroupId).build();
+    }
+
+    public WriteRecords<K, V> withEOSTriggerConfig(int numElements, Duration timeout) {
+      checkArgument(numElements >= 1, "numElements should be >= 1");
+      checkArgument(timeout != null, "timeout is required for exactly-once sink");
+      return toBuilder()
+          .setEosTriggerNumElements(numElements)
+          .setEosTriggerTimeout(timeout)
+          .build();
     }
 
     /**
@@ -3651,6 +3670,19 @@ public class KafkaIO {
      */
     public Write<K, V> withEOS(int numShards, String sinkGroupId) {
       return withWriteRecordsTransform(getWriteRecordsTransform().withEOS(numShards, sinkGroupId));
+    }
+
+    /**
+     * Set the frequency and numElements threshold at which messages are triggered.
+     *
+     * <p>This is only applicable when the write method is set to EOS.
+     *
+     * <p>Every timeout duration, or numElements (repeated, after first condition is met) collection
+     * of elements written.
+     */
+    public Write<K, V> withEOSTriggerConfig(int numElements, Duration timeout) {
+      return withWriteRecordsTransform(
+          getWriteRecordsTransform().withEOSTriggerConfig(numElements, timeout));
     }
 
     /**

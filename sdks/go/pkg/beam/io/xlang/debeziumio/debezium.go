@@ -75,6 +75,7 @@ type readFromDebeziumSchema struct {
 	Host                 string
 	Port                 string
 	MaxNumberOfRecords   *int64
+	MaxTimeToRun         *int64
 	ConnectionProperties []string
 }
 
@@ -130,6 +131,13 @@ func Read(s beam.Scope, username, password, host, port string, connectorClass Dr
 func MaxRecord(r int64) readOption {
 	return func(cfg *debeziumConfig) {
 		cfg.readSchema.MaxNumberOfRecords = &r
+	}
+}
+
+// MaxTimeToRun specifies maximum number of milliseconds to run before stop.
+func MaxTimeToRun(r int64) readOption {
+	return func(cfg *debeziumConfig) {
+		cfg.readSchema.MaxTimeToRun = &r
 	}
 }
 
