@@ -354,6 +354,56 @@ public class FileSystemsTest {
     }
   }
 
+  @Test
+  public void testEscapeGlobWildcards() {
+    // Test escaping asterisk
+    assertEquals("file\\*.txt", FileSystems.escapeGlobWildcards("file*.txt"));
+
+    // Test escaping question mark
+    assertEquals("file\\?.txt", FileSystems.escapeGlobWildcards("file?.txt"));
+
+    // Test escaping braces
+    assertEquals("file\\{1,2\\}.txt", FileSystems.escapeGlobWildcards("file{1,2}.txt"));
+
+    // Test escaping multiple characters
+    assertEquals("\\*\\?\\{\\}.txt", FileSystems.escapeGlobWildcards("*?{}.txt"));
+
+    // Test string with no glob characters
+    assertEquals("file.txt", FileSystems.escapeGlobWildcards("file.txt"));
+
+    // Test empty string
+    assertEquals("", FileSystems.escapeGlobWildcards(""));
+  }
+
+  @Test
+  public void testUnescapeGlobWildcards() {
+    // Test unescaping asterisk
+    assertEquals("file*.txt", FileSystems.unescapeGlobWildcards("file\\*.txt"));
+
+    // Test unescaping question mark
+    assertEquals("file?.txt", FileSystems.unescapeGlobWildcards("file\\?.txt"));
+
+    // Test unescaping braces
+    assertEquals("file{1,2}.txt", FileSystems.unescapeGlobWildcards("file\\{1,2\\}.txt"));
+
+    // Test unescaping multiple characters
+    assertEquals("*?{}.txt", FileSystems.unescapeGlobWildcards("\\*\\?\\{\\}.txt"));
+
+    // Test string with no escaped characters
+    assertEquals("file.txt", FileSystems.unescapeGlobWildcards("file.txt"));
+
+    // Test empty string
+    assertEquals("", FileSystems.unescapeGlobWildcards(""));
+  }
+
+  @Test
+  public void testEscapeUnescapeRoundTrip() {
+    String original = "file*test?.txt";
+    String escaped = FileSystems.escapeGlobWildcards(original);
+    String unescaped = FileSystems.unescapeGlobWildcards(escaped);
+    assertEquals(original, unescaped);
+  }
+
   private LocalResourceId toLocalResourceId(String str) throws Exception {
     boolean isDirectory;
     if (SystemUtils.IS_OS_WINDOWS) {
