@@ -259,7 +259,11 @@ func launchSDKProcess() error {
 
 	// (3) Invoke python
 
-	os.Setenv("PIPELINE_OPTIONS", options)
+	// Write the JSON string of pipeline options into a file to prevent "argument list too long" error.
+	if err := tools.MakePipelineOptionsFileAndEnvVar(options); err != nil {
+		logger.Fatalf(ctx, "Failed to load pipeline options to worker: %v", err)
+	}
+
 	os.Setenv("SEMI_PERSISTENT_DIRECTORY", *semiPersistDir)
 	os.Setenv("LOGGING_API_SERVICE_DESCRIPTOR", (&pipepb.ApiServiceDescriptor{Url: *loggingEndpoint}).String())
 	os.Setenv("CONTROL_API_SERVICE_DESCRIPTOR", (&pipepb.ApiServiceDescriptor{Url: *controlEndpoint}).String())

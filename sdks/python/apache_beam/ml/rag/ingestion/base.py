@@ -19,7 +19,7 @@ from abc import abstractmethod
 from typing import Any
 
 import apache_beam as beam
-from apache_beam.ml.rag.types import Chunk
+from apache_beam.ml.rag.types import EmbeddableItem
 
 
 class VectorDatabaseWriteConfig(ABC):
@@ -32,7 +32,7 @@ class VectorDatabaseWriteConfig(ABC):
   The configuration flow:
   1. Subclass provides database-specific configuration (table names, etc)
   2. create_write_transform() creates appropriate PTransform for writing
-  3. Transform handles converting Chunks to database-specific format
+  3. Transform handles converting EmbeddableItems to database-specific format
 
   Example implementation:
     >>> class BigQueryVectorWriterConfig(VectorDatabaseWriteConfig):
@@ -45,14 +45,15 @@ class VectorDatabaseWriteConfig(ABC):
     ...         )
   """
   @abstractmethod
-  def create_write_transform(self) -> beam.PTransform[Chunk, Any]:
+  def create_write_transform(self) -> beam.PTransform[EmbeddableItem, Any]:
     """Creates a PTransform that writes embeddings to the vector database.
-    
+
     Returns:
-        A PTransform that accepts PCollection[Chunk] and writes the chunks'
-        embeddings and metadata to the configured vector database.
+        A PTransform that accepts PCollection[EmbeddableItem]
+        and writes the embeddings
+        and metadata to the configured vector database.
         The transform should handle:
-        - Converting Chunk format to database schema
+        - Converting EmbeddableItem format to database schema
         - Setting up database connection/client
         - Writing with appropriate batching/error handling
     """
@@ -71,10 +72,10 @@ class VectorDatabaseWriteTransform(beam.PTransform):
     ...     table='project.dataset.embeddings',
     ...     embedding_column='embedding'
     ... )
-    >>> 
+    >>>
     >>> with beam.Pipeline() as p:
-    ...     chunks = p | beam.Create([...])  # PCollection[Chunk]
-    ...     chunks | VectorDatabaseWriteTransform(config)
+    ...     items = p | beam.Create([...])  # PCollection[EmbeddableItem]
+    ...     items | VectorDatabaseWriteTransform(config)
 
   Args:
       database_config: Configuration for the target vector database.
@@ -96,17 +97,18 @@ class VectorDatabaseWriteTransform(beam.PTransform):
           f"got {type(database_config)}")
     self.database_config = database_config
 
-  def expand(self,
-             pcoll: beam.PCollection[Chunk]) -> beam.PTransform[Chunk, Any]:
+  def expand(
+      self, pcoll: beam.PCollection[EmbeddableItem]
+  ) -> beam.PTransform[EmbeddableItem, Any]:
     """Creates and applies the database-specific write transform.
-    
+
     Args:
-        pcoll: PCollection of Chunks with embeddings to write to the
-            vector database. Each Chunk must have:
+        pcoll: PCollection of EmbeddableItems with embeddings to write to the
+            vector database. Each EmbeddableItem must have:
             - An embedding
             - An ID
             - Metadata used to filter results as specified by database config
-            
+
     Returns:
         Result of writing to database (implementation specific).
     """

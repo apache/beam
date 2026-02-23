@@ -22,15 +22,15 @@ import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
 
 import com.google.ads.googleads.lib.GoogleAdsClient;
-import com.google.ads.googleads.v19.errors.GoogleAdsError;
-import com.google.ads.googleads.v19.errors.GoogleAdsException;
-import com.google.ads.googleads.v19.errors.GoogleAdsFailure;
-import com.google.ads.googleads.v19.errors.InternalErrorEnum;
-import com.google.ads.googleads.v19.errors.QuotaErrorEnum;
-import com.google.ads.googleads.v19.services.GoogleAdsRow;
-import com.google.ads.googleads.v19.services.GoogleAdsServiceClient;
-import com.google.ads.googleads.v19.services.SearchGoogleAdsStreamRequest;
-import com.google.ads.googleads.v19.services.SearchGoogleAdsStreamResponse;
+import com.google.ads.googleads.v23.errors.GoogleAdsError;
+import com.google.ads.googleads.v23.errors.GoogleAdsException;
+import com.google.ads.googleads.v23.errors.GoogleAdsFailure;
+import com.google.ads.googleads.v23.errors.InternalErrorEnum;
+import com.google.ads.googleads.v23.errors.QuotaErrorEnum;
+import com.google.ads.googleads.v23.services.GoogleAdsRow;
+import com.google.ads.googleads.v23.services.GoogleAdsServiceClient;
+import com.google.ads.googleads.v23.services.SearchGoogleAdsStreamRequest;
+import com.google.ads.googleads.v23.services.SearchGoogleAdsStreamResponse;
 import com.google.auto.value.AutoValue;
 import com.google.protobuf.Message;
 import com.google.protobuf.util.Durations;
@@ -57,7 +57,7 @@ import org.checkerframework.checker.nullness.qual.RequiresNonNull;
 import org.joda.time.Duration;
 
 /**
- * {@link GoogleAdsV19} provides an API to read Google Ads API v19 reports.
+ * {@link GoogleAdsV23} provides an API to read Google Ads API v23 reports.
  *
  * <p>No backward compatibility guaranteed. Do not use directly. Use {@link GoogleAdsIO#current()}
  * to access GoogleAdsIO instead.
@@ -79,15 +79,15 @@ import org.joda.time.Duration;
  *   --googleAdsDeveloperToken=your-developer-token
  * </pre>
  *
- * <p>Use {@link GoogleAdsV19#read()} to read either a bounded or unbounded {@link PCollection} of
+ * <p>Use {@link GoogleAdsV23#read()} to read either a bounded or unbounded {@link PCollection} of
  * {@link GoogleAdsRow} from a single <a
  * href="https://developers.google.com/google-ads/api/docs/query/overview">Google Ads Query
  * Language</a> query using {@link Read#withQuery(String)} and a {@link PCollection} of customer
- * IDs. Alternatively, use {@link GoogleAdsV19#readAll()} to read either a bounded or unbounded
+ * IDs. Alternatively, use {@link GoogleAdsV23#readAll()} to read either a bounded or unbounded
  * {@link PCollection} of {@link GoogleAdsRow} from a {@link PCollection} of {@link
  * SearchGoogleAdsStreamRequest} potentially containing many different queries.
  *
- * <p>For example, using {@link GoogleAdsV19#read()}:
+ * <p>For example, using {@link GoogleAdsV23#read()}:
  *
  * <pre>{@code
  * Pipeline p = Pipeline.create();
@@ -107,7 +107,7 @@ import org.joda.time.Duration;
  * p.run();
  * }</pre>
  *
- * <p>Alternatively, using {@link GoogleAdsV19#readAll()} to execute requests from a {@link
+ * <p>Alternatively, using {@link GoogleAdsV23#readAll()} to execute requests from a {@link
  * PCollection} of {@link SearchGoogleAdsStreamRequest}:
  *
  * <pre>{@code
@@ -132,7 +132,7 @@ import org.joda.time.Duration;
  *
  * <h2>Client-side rate limiting</h2>
  *
- * On construction of a {@link GoogleAdsV19#read()} or {@link GoogleAdsV19#readAll()} transform a
+ * On construction of a {@link GoogleAdsV23#read()} or {@link GoogleAdsV23#readAll()} transform a
  * rate limiting policy must be specified to stay well under the assigned quota for the Google Ads
  * API. The Google Ads API enforces global rate limits from the developer token down to the customer
  * ID and depending on the access level of the developer token a limit on the total number of
@@ -161,21 +161,21 @@ import org.joda.time.Duration;
  * @see <a href="https://developers.google.com/google-ads/api/docs/best-practices/overview">Best
  *     Practices in the Google Ads documentation</a>
  */
-public class GoogleAdsV19 extends GoogleAdsIO<GoogleAdsRow, SearchGoogleAdsStreamRequest> {
-  static final GoogleAdsV19 INSTANCE = new GoogleAdsV19();
+public class GoogleAdsV23 extends GoogleAdsIO<GoogleAdsRow, SearchGoogleAdsStreamRequest> {
+  static final GoogleAdsV23 INSTANCE = new GoogleAdsV23();
 
-  private GoogleAdsV19() {}
+  private GoogleAdsV23() {}
 
   @Override
   public Read read() {
-    return new AutoValue_GoogleAdsV19_Read.Builder()
+    return new AutoValue_GoogleAdsV23_Read.Builder()
         .setGoogleAdsClientFactory(DefaultGoogleAdsClientFactory.getInstance())
         .build();
   }
 
   @Override
   public ReadAll readAll() {
-    return new AutoValue_GoogleAdsV19_ReadAll.Builder()
+    return new AutoValue_GoogleAdsV23_ReadAll.Builder()
         .setGoogleAdsClientFactory(DefaultGoogleAdsClientFactory.getInstance())
         .build();
   }
@@ -450,13 +450,13 @@ public class GoogleAdsV19 extends GoogleAdsIO<GoogleAdsRow, SearchGoogleAdsStrea
 
       @VisibleForTesting static Sleeper sleeper = Sleeper.DEFAULT;
 
-      private final GoogleAdsV19.ReadAll spec;
+      private final GoogleAdsV23.ReadAll spec;
 
       private transient @Nullable GoogleAdsClient googleAdsClient;
       private transient @Nullable GoogleAdsServiceClient googleAdsServiceClient;
       private transient @Nullable RateLimitPolicy<GoogleAdsError> rateLimitPolicy;
 
-      ReadAllFn(GoogleAdsV19.ReadAll spec) {
+      ReadAllFn(GoogleAdsV23.ReadAll spec) {
         this.spec = spec;
       }
 
@@ -470,7 +470,7 @@ public class GoogleAdsV19 extends GoogleAdsIO<GoogleAdsRow, SearchGoogleAdsStrea
                 .newGoogleAdsClient(
                     adsOptions, spec.getDeveloperToken(), null, spec.getLoginCustomerId());
         final GoogleAdsServiceClient googleAdsServiceClient =
-            googleAdsClient.getVersion19().createGoogleAdsServiceClient();
+            googleAdsClient.getVersion23().createGoogleAdsServiceClient();
         final RateLimitPolicy<GoogleAdsError> rateLimitPolicy =
             checkStateNotNull(spec.getRateLimitPolicyFactory()).getRateLimitPolicy();
 
@@ -578,17 +578,17 @@ public class GoogleAdsV19 extends GoogleAdsIO<GoogleAdsRow, SearchGoogleAdsStrea
    * global (per pipeline or otherwise) rate limit to requests and should not be used in deployments
    * where the Google Ads API quota is shared between multiple applications.
    *
-   * <p>This policy can be used to limit requests across all {@link GoogleAdsV19.Read} or {@link
-   * GoogleAdsV19.ReadAll} transforms by defining and using a {@link
-   * GoogleAdsV19.RateLimitPolicyFactory} which holds a shared static {@link
-   * GoogleAdsV19.SimpleRateLimitPolicy}. Note that the desired rate must be divided by the expected
+   * <p>This policy can be used to limit requests across all {@link GoogleAdsV23.Read} or {@link
+   * GoogleAdsV23.ReadAll} transforms by defining and using a {@link
+   * GoogleAdsV23.RateLimitPolicyFactory} which holds a shared static {@link
+   * GoogleAdsV23.SimpleRateLimitPolicy}. Note that the desired rate must be divided by the expected
    * maximum number of workers for the pipeline, otherwise the pipeline may exceed the desired rate
    * after an upscaling event.
    *
    * <pre>{@code
    * public class SimpleRateLimitPolicyFactory implements GoogleAdsIO.RateLimitPolicyFactory {
    *   private static final GoogleAdsIO.RateLimitPolicy POLICY =
-   *       new GoogleAdsV19.SimpleRateLimitPolicy(1.0 / 1000.0);
+   *       new GoogleAdsV23.SimpleRateLimitPolicy(1.0 / 1000.0);
    *
    *   @Override
    *   public GoogleAdsIO.RateLimitPolicy getRateLimitPolicy() {

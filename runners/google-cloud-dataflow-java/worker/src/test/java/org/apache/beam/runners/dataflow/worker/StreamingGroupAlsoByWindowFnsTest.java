@@ -152,7 +152,7 @@ public class StreamingGroupAlsoByWindowFnsTest {
         .setTag(
             WindmillTagEncodingV1.instance()
                 .timerTag(
-                    WindmillNamespacePrefix.SYSTEM_NAMESPACE_PREFIX,
+                    WindmillTimerType.SYSTEM_TIMER,
                     TimerData.of(
                         namespace,
                         timestamp,

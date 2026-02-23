@@ -113,6 +113,11 @@ public class SpannerAccessor implements AutoCloseable {
   static SpannerOptions buildSpannerOptions(SpannerConfig spannerConfig) {
     SpannerOptions.Builder builder = SpannerOptions.newBuilder();
 
+    // TODO(https://github.com/apache/beam/issues/37451) Disable gRPC gcp extension which was
+    // causing the application thread to stall.
+    // Remove this once Spanner fixes the hanging issue
+    builder.disableGrpcGcpExtension();
+
     Set<Code> retryableCodes = new HashSet<>();
     if (spannerConfig.getRetryableCodes() != null) {
       retryableCodes.addAll(spannerConfig.getRetryableCodes());
