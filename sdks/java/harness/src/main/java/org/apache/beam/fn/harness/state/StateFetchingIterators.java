@@ -729,7 +729,7 @@ public class StateFetchingIterators {
 
     @Override
     public void prefetch() {
-      if (continuationToken != null && prefetchedResponse == null) {
+      if (continuationToken != null && prefetchedResponse == null && !hasNoState) {
         prefetchedResponse = loadPrefetchedResponse(continuationToken);
       }
     }
