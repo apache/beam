@@ -44,6 +44,7 @@ try:
 
   from pymilvus.exceptions import MilvusException
   from pymilvus.milvus_client import IndexParams
+
   from apache_beam.ml.rag.ingestion.milvus_search import MilvusVectorWriterConfig
   from apache_beam.ml.rag.ingestion.milvus_search import MilvusWriteConfig
   PYMILVUS_AVAILABLE = True
