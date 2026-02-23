@@ -389,7 +389,7 @@ if __name__ == '__main__':
           'numpy>=1.14.3,<2.5.0',  # Update pyproject.toml as well.
           'objsize>=0.6.1,<0.8.0',
           'packaging>=22.0',
-          'pillow',
+          'pillow>=12.1.1,<13',
           'pymongo>=3.8.0,<5.0.0',
           'proto-plus>=1.7.1,<2',
           # 1. Use a tighter upper bound in protobuf dependency to make sure
@@ -466,7 +466,7 @@ if __name__ == '__main__':
               'pg8000>=1.31.5',
               "PyMySQL>=1.1.0",
               'oracledb>=3.1.1'
-          ] + milvus_dependency,
+          ],
           'gcp': [
               'cachetools>=3.1.0,<7',
               'google-api-core>=2.0.0,<3',
@@ -546,7 +546,7 @@ if __name__ == '__main__':
               # tests due to tag check introduced since pip 24.2
               # https://github.com/apache/beam/issues/31285
               # 'xgboost<2.0',  # https://github.com/apache/beam/issues/31252
-          ] + ml_base,
+          ] + ml_base + milvus_dependency,
           'p312_ml_test': [
               'datatable',
           ] + ml_base,
@@ -574,9 +574,6 @@ if __name__ == '__main__':
               'docstring-parser>=0.15,<1.0',
               'jinja2>=3.0,<3.2',
               'virtualenv-clone>=0.5,<1.0',
-              # pythonmonkey is used for Javascript mapping support
-              # Please install NPM and Node.js before installing PythonMonkey.
-              'pythonmonkey>=1.3.0',
               'jsonschema>=4.0.0,<5.0.0',
           ] + dataframe_dependency,
           # Keep the following dependencies in line with what we test against

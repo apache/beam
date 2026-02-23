@@ -154,7 +154,6 @@ Markdown==3.10.2
 markdown-it-py==4.0.0
 MarkupSafe==3.0.3
 mdurl==0.1.2
-milvus-lite==2.5.1
 mistral_common==1.9.1
 ml_dtypes==0.5.4
 mmh3==5.2.0
@@ -228,7 +227,6 @@ pydantic-settings==2.13.1
 pydantic_core==2.41.5
 Pygments==2.19.2
 PyHamcrest==2.1.0
-pymilvus==2.5.18
 pymongo==4.16.0
 PyMySQL==1.1.2
 pyparsing==3.3.2
@@ -295,7 +293,6 @@ typer==0.24.1
 typing-inspection==0.4.2
 typing_extensions==4.15.0
 tzdata==2025.3
-ujson==5.11.0
 uritemplate==4.2.0
 urllib3==2.6.3
 uvicorn==0.41.0
