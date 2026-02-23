@@ -41,7 +41,6 @@ try:
   from pymilvus import DataType
   from pymilvus import FieldSchema
   from pymilvus import MilvusClient
-
   from pymilvus.exceptions import MilvusException
   from pymilvus.milvus_client import IndexParams
 
