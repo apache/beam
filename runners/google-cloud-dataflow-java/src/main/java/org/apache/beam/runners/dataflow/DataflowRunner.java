@@ -1320,8 +1320,6 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
         if (!experiments.contains("enable_windmill_service")) {
           experiments.add("enable_windmill_service");
         }
-        // TODO: The experiments added above are not included in the list of experiments sent to the
-        // backend, an options.setExperiments call is missing.
       }
     }
 
