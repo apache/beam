@@ -56,8 +56,8 @@ else:
           "Output from execution of subprocess: {}\n"
           "Command that failed: {}\nFull trace: {}".format(
               error.output if error.output is not None else "(not captured)",
-              args, traceback.format_exc())
-      ) from error
+              args,
+              traceback.format_exc())) from error
     return out
 
   def check_call(*args, **kwargs):
@@ -72,8 +72,8 @@ else:
           "Output from execution of subprocess: {}\n"
           "Command that failed: {}\nFull trace: {}".format(
               error.output if error.output is not None else "(not captured)",
-              args, traceback.format_exc())
-      ) from error
+              args,
+              traceback.format_exc())) from error
     return out
 
   def check_output(*args, **kwargs):
@@ -88,8 +88,8 @@ else:
           "Output from execution of subprocess: {}\n"
           "Command that failed: {}\nFull trace: {}".format(
               error.output if error.output is not None else "(not captured)",
-              args, traceback.format_exc())
-      ) from error
+              args,
+              traceback.format_exc())) from error
     return out
 
   def Popen(*args, **kwargs):
