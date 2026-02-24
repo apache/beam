@@ -133,7 +133,7 @@ public class BagUserState<T> {
       beamFnStateClient.handle(
           request.toBuilder().setClear(StateClearRequest.getDefaultInstance()));
     }
-    if (!newValues.isEmpty()) {
+    if (!onlyBundleForKeys && !newValues.isEmpty()) {
       // Batch values up to a arbitrary limit to reduce overhead of write
       // requests. We treat this limit as strict to ensure that large elements
       // are not batched as they may otherwise exceed runner limits.
@@ -141,7 +141,7 @@ public class BagUserState<T> {
       for (T newValue : newValues) {
         int previousSize = out.size();
         valueCoder.encode(newValue, out);
-        if (out.size() > BAG_APPEND_BATCHING_LIMIT && previousSize > 0 && !onlyBundleForKeys) {
+        if (out.size() > BAG_APPEND_BATCHING_LIMIT && previousSize > 0) {
           // Respect the batching limit by outputting the previous batch of
           // elements.
           beamFnStateClient.handle(
@@ -151,7 +151,7 @@ public class BagUserState<T> {
                       StateAppendRequest.newBuilder()
                           .setData(out.consumePrefixToByteString(previousSize))));
         }
-        if (out.size() > BAG_APPEND_BATCHING_LIMIT && !onlyBundleForKeys) {
+        if (out.size() > BAG_APPEND_BATCHING_LIMIT) {
           // The last element was over the batching limit by itself. To avoid
           // exceeding runner state limits due to large elements, we output
           // without additional batching.
@@ -161,7 +161,7 @@ public class BagUserState<T> {
                   .setAppend(StateAppendRequest.newBuilder().setData(out.toByteStringAndReset())));
         }
       }
-      if (out.size() > 0 && !onlyBundleForKeys) {
+      if (out.size() > 0) {
         beamFnStateClient.handle(
             request
                 .toBuilder()
