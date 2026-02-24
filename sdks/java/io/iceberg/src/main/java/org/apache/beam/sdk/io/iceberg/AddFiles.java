@@ -22,6 +22,7 @@ import org.apache.beam.sdk.schemas.SchemaCoder;
 import org.apache.beam.sdk.schemas.SchemaRegistry;
 import org.apache.beam.sdk.schemas.transforms.SchemaTransform;
 import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.Filter;
 import org.apache.beam.sdk.transforms.GroupIntoBatches;
 import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.ParDo;
@@ -77,7 +78,6 @@ public class AddFiles extends SchemaTransform {
       @Nullable String locationPrefix,
       @Nullable Integer numFilesTrigger,
       @Nullable Duration intervalTrigger) {
-    System.out.println("got catalog config: " + catalogConfig);
     this.catalogConfig = catalogConfig;
     this.tableIdentifier = tableIdentifier;
     this.intervalTrigger = intervalTrigger != null ? intervalTrigger : DEFAULT_TRIGGER_INTERVAL;
@@ -91,12 +91,13 @@ public class AddFiles extends SchemaTransform {
     Schema inputSchema = filePaths.getSchema();
     Preconditions.checkState(
         inputSchema.getFieldCount() == 1
-            && inputSchema.getField(0).getType().getTypeName().equals(Schema.TypeName.STRING)
-            && !inputSchema.getField(0).getType().getNullable(),
-        "Incoming Row Schema contain only one (required) field of type String.");
+            && inputSchema.getField(0).getType().getTypeName().equals(Schema.TypeName.STRING),
+        "Incoming Row Schema must contain only one field of type String. Instead, got schema: %s",
+        inputSchema);
 
     PCollectionTuple dataFiles =
         filePaths
+            .apply("Filter empty paths", Filter.by(row -> row.getString(0) != null))
             .apply(
                 "ExtractPaths",
                 MapElements.into(TypeDescriptors.strings())
@@ -112,7 +113,7 @@ public class AddFiles extends SchemaTransform {
     } catch (Exception e) {
       throw new RuntimeException(e);
     }
-    dataFiles.get(ERRORS).setRowSchema(ERROR_SCHEMA);
+
     PCollection<Row> snapshots =
         dataFiles
             .get(DATA_FILES)
@@ -125,7 +126,8 @@ public class AddFiles extends SchemaTransform {
             .apply("AddFilesToIceberg", ParDo.of(new AddFilesDoFn(catalogConfig, tableIdentifier)))
             .setRowSchema(SnapshotInfo.getSchema());
 
-    return PCollectionRowTuple.of("snapshots", snapshots);
+    return PCollectionRowTuple.of(
+        "snapshots", snapshots, "errors", dataFiles.get(ERRORS).setRowSchema(ERROR_SCHEMA));
   }
 
   static class ConvertToDataFile extends DoFn<String, SerializableDataFile> {

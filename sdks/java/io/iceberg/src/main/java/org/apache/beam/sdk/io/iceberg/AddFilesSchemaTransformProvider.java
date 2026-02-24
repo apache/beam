@@ -17,8 +17,11 @@
  */
 package org.apache.beam.sdk.io.iceberg;
 
+import static org.apache.beam.sdk.io.iceberg.AddFilesSchemaTransformProvider.Configuration;
+
 import com.google.auto.service.AutoService;
 import com.google.auto.value.AutoValue;
+import java.util.Map;
 import org.apache.beam.sdk.schemas.AutoValueSchema;
 import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
 import org.apache.beam.sdk.schemas.annotations.SchemaFieldDescription;
@@ -26,10 +29,6 @@ import org.apache.beam.sdk.schemas.transforms.SchemaTransformProvider;
 import org.apache.beam.sdk.schemas.transforms.TypedSchemaTransformProvider;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
-
-import java.util.Map;
-
-import static org.apache.beam.sdk.io.iceberg.AddFilesSchemaTransformProvider.Configuration;
 
 @AutoService(SchemaTransformProvider.class)
 public class AddFilesSchemaTransformProvider extends TypedSchemaTransformProvider<Configuration> {
