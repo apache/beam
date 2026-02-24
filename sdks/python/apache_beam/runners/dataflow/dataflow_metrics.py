@@ -203,8 +203,11 @@ class DataflowMetrics(MetricResults):
     if metric is None:
       return None
 
-    if metric.scalar is not None:
-      return metric.scalar
+    scalar_values = metric.scalar.struct_value.values()
+
+    if len(scalar_values) != 0:
+      # This will always be a single value if there is any data in the field.
+      return scalar_values[0]
     elif metric.distribution is not None:
       dist_count = _get_match(
           metric.distribution.object_value.properties['count'],
@@ -268,9 +271,9 @@ class DataflowMetrics(MetricResults):
   def query(self, filter=None):
     metric_results = []
     response = self._get_metrics_from_dataflow()
-    # print(response)
+    print("Metrics Response: \n")
+    print(response)
     self._populate_metrics(response, metric_results, user_metrics=True)
-    print(metric_results)
     return {
         self.COUNTERS: [
             elm for elm in metric_results if self.matches(filter, elm.key) and
