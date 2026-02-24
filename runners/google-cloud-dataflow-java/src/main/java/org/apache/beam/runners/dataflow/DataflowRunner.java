@@ -1299,6 +1299,17 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
     if (shouldActAsStreaming(pipeline)) {
       options.setStreaming(true);
 
+      {
+        List<String> experiments =
+            options.getExperiments() == null
+                ? new ArrayList<>()
+                : new ArrayList<>(options.getExperiments());
+        // Experiment marking that the harness supports tag encoding v2
+        // Backend will enable tag encoding v2 only if the harness supports it.
+        experiments.add("streaming_engine_state_tag_encoding_v2_supported");
+        options.setExperiments(ImmutableList.copyOf(experiments));
+      }
+
       if (useUnifiedWorker(options)) {
         options.setEnableStreamingEngine(true);
       }
