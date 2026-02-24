@@ -26,11 +26,11 @@ from unittest.mock import patch
 from apache_beam.utils import multi_process_shared
 
 try:
+  from apache_beam.metrics.execution import MetricsEnvironment
+  from apache_beam.metrics.metricbase import MetricName
   from apache_beam.ml.inference.model_manager import GPUMonitor
   from apache_beam.ml.inference.model_manager import ModelManager
   from apache_beam.ml.inference.model_manager import ResourceEstimator
-  from apache_beam.metrics.execution import MetricsEnvironment
-  from apache_beam.metrics.metricbase import MetricName
 except ImportError as e:
   raise unittest.SkipTest("Model Manager dependencies are not installed")
 
