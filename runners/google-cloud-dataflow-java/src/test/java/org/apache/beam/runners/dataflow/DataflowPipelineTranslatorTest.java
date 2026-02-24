@@ -1742,9 +1742,9 @@ public class DataflowPipelineTranslatorTest implements Serializable {
       assertEquals("beam:coder:schema:v1", coders.get("SchemaCoder").getSpec().getUrn());
     }
 
-    // Prior to version 2.72, SchemaCoders are translated as custom java coders.
+    // Prior to version 2.73, SchemaCoders are translated as custom java coders.
     {
-      options.as(StreamingOptions.class).setUpdateCompatibilityVersion("2.71");
+      options.as(StreamingOptions.class).setUpdateCompatibilityVersion("2.72");
       SdkComponents sdkComponents = createSdkComponents(options);
       RunnerApi.Pipeline pipelineProto = PipelineTranslation.toProto(pipeline, sdkComponents, true);
       Map<String, RunnerApi.Coder> coders = pipelineProto.getComponents().getCodersMap();

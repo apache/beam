@@ -210,7 +210,7 @@ class CoderTranslators {
         if (context instanceof TranslationContextWithOptions) {
           PipelineOptions options =
               ((TranslationContextWithOptions) context).pipelineOptions().get();
-          if (StreamingOptions.updateCompatibilityVersionLessThan(options, "2.72")) {
+          if (StreamingOptions.updateCompatibilityVersionLessThan(options, "2.73")) {
             return true;
           }
         }

@@ -80,8 +80,6 @@
   - Fixes [36496](https://github.com/apache/beam/issues/36496), [30276](https://github.com/apache/beam/issues/30276), [29245](https://github.com/apache/beam/issues/29245).
 * The Python SDK container's `boot.go` now passes pipeline options through a file instead of the `PIPELINE_OPTIONS` environment variable. If a user pairs a new Python SDK container with an older SDK version (which does not support the file-based approach), the pipeline options will not be recognized and the pipeline will fail. Users must ensure their SDK and container versions are synchronized ([#37370](https://github.com/apache/beam/issues/37370)).
 
->>>>>>> fd08df28b21a5b5e6d8a519ca000b963c53e46a2
-
 ## Deprecations
 
 * X behavior is deprecated and will be removed in X versions ([#X](https://github.com/apache/beam/issues/X)).
