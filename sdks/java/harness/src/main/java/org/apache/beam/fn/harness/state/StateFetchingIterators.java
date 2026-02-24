@@ -675,14 +675,12 @@ public class StateFetchingIterators {
     private final StateRequest stateRequestForFirstChunk;
     private ByteString continuationToken;
     private CompletableFuture<StateResponse> prefetchedResponse;
-    private boolean hasNoState;
 
     LazyBlockingStateFetchingIterator(
         BeamFnStateClient beamFnStateClient, StateRequest stateRequestForFirstChunk) {
       this.beamFnStateClient = beamFnStateClient;
       this.stateRequestForFirstChunk = stateRequestForFirstChunk;
       this.continuationToken = stateRequestForFirstChunk.getGet().getContinuationToken();
-      this.hasNoState = false;
     }
 
     LazyBlockingStateFetchingIterator(
@@ -690,8 +688,7 @@ public class StateFetchingIterators {
       boolean hasNoState) {
       this.beamFnStateClient = beamFnStateClient;
       this.stateRequestForFirstChunk = stateRequestForFirstChunk;
-      this.continuationToken = stateRequestForFirstChunk.getGet().getContinuationToken();
-      this.hasNoState = hasNoState;
+      this.continuationToken = hasNoState ? null : stateRequestForFirstChunk.getGet().getContinuationToken();
     }
 
     /**
@@ -730,7 +727,7 @@ public class StateFetchingIterators {
 
     @Override
     public void prefetch() {
-      if (continuationToken != null && prefetchedResponse == null && !hasNoState) {
+      if (continuationToken != null && prefetchedResponse == null) {
         prefetchedResponse = loadPrefetchedResponse(continuationToken);
       }
     }
@@ -766,8 +763,6 @@ public class StateFetchingIterators {
         }
         Throwables.throwIfUnchecked(e.getCause());
         throw new IllegalStateException(e.getCause());
-      } catch (NullPointerException e) {
-        throw new NoSuchElementException();
       }
       prefetchedResponse = null;
 
