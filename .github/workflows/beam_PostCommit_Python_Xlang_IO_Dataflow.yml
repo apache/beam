@@ -81,6 +81,7 @@ jobs:
         with:
           gradle-command: :sdks:python:test-suites:dataflow:ioCrossLanguagePostCommit
           arguments: |
+            -PpythonVersion=3.13
             -PuseWheelDistribution \
             -PkafkaBootstrapServer=10.128.0.40:9094,10.128.0.28:9094,10.128.0.165:9094 \
       - name: Archive Python Test Results

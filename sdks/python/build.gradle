@@ -200,7 +200,7 @@ platform_identifiers_map.each { platform, idsuffix ->
   }
   getVersionsAsList('python_versions').each { it ->
     def pyversion = it.replace('.', '')
-    def cibuildwheel_version = it == '310' ? '2.23.3' : '3.3.1'
+    def cibuildwheel_version = it == '3.10' ? '2.23.3' : '3.3.1'
 
     project.tasks.register("bdistPy${pyversion}${platform}") {
       description "Build a Python wheel distribution for Py${pyversion} ${platform}"
