@@ -69,7 +69,6 @@ from apache_beam.runners.dataflow.internal import names
 from apache_beam.runners.internal import names as shared_names
 from apache_beam.runners.pipeline_utils import validate_pipeline_graph
 from apache_beam.runners.portability.stager import Stager
-# from apache_beam.transforms import DataflowDistributionCounter
 from apache_beam.transforms import cy_combiners
 from apache_beam.transforms.display import DisplayData
 from apache_beam.transforms.environments import is_apache_beam_container
@@ -1064,7 +1063,7 @@ class MetricUpdateTranslators(object):
       metric_update_proto.mean_sum = accumulator.sum
       metric_update_proto.mean_count = accumulator.count
     else:
-      metric_update_proto.kind = None # type: ignore
+      metric_update_proto.kind = None  # type: ignore
 
   @staticmethod
   def translate_scalar_mean_float(
