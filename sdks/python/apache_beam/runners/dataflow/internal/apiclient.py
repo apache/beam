@@ -1066,7 +1066,7 @@ class MetricUpdateTranslators(object):
       metric_update_proto.mean_sum = accumulator.sum
       metric_update_proto.mean_count = accumulator.count
     else:
-      metric_update_proto.kind = None
+      metric_update_proto.kind = None # type: ignore
 
   @staticmethod
   def translate_scalar_mean_float(
@@ -1076,7 +1076,7 @@ class MetricUpdateTranslators(object):
       metric_update_proto.mean_sum = accumulator.sum
       metric_update_proto.mean_count = accumulator.count
     else:
-      metric_update_proto.kind = None
+      metric_update_proto.kind = None  # type: ignore
 
   @staticmethod
   def translate_scalar_counter_int(
