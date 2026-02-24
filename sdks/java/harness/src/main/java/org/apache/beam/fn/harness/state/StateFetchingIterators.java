@@ -766,6 +766,8 @@ public class StateFetchingIterators {
         }
         Throwables.throwIfUnchecked(e.getCause());
         throw new IllegalStateException(e.getCause());
+      } catch (NullPointerException e) {
+        throw new NoSuchElementException();
       }
       prefetchedResponse = null;
 
