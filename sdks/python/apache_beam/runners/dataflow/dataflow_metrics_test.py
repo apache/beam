@@ -73,7 +73,7 @@ class TestDataflowMetrics(unittest.TestCase):
           {
               "name": {
                   "context": {
-                      "additionalProperties": [{
+                      "properties": [{
                           "key": "namespace",
                           "value": "__main__.WordExtractingDoFn"
                       }, {
@@ -96,7 +96,7 @@ class TestDataflowMetrics(unittest.TestCase):
           {
               "name": {
                   "context": {
-                      "additionalProperties": [{
+                      "properties": [{
                           "key": "namespace",
                           "value": "__main__.WordExtractingDoFn"
                       }, {
@@ -115,7 +115,7 @@ class TestDataflowMetrics(unittest.TestCase):
           {
               "name": {
                   "context": {
-                      "additionalProperties": [{
+                      "properties": [{
                           "key": "namespace",
                           "value": "__main__.WordExtractingDoFn"
                       }, {
@@ -138,7 +138,7 @@ class TestDataflowMetrics(unittest.TestCase):
           {
               "name": {
                   "context": {
-                      "additionalProperties": [{
+                      "properties": [{
                           "key": "namespace",
                           "value": "__main__.WordExtractingDoFn"
                       }, {
@@ -161,7 +161,7 @@ class TestDataflowMetrics(unittest.TestCase):
           {
               "name": {
                   "context": {
-                      "additionalProperties": [{
+                      "properties": [{
                           "key": "namespace",
                           "value": "__main__.WordExtractingDoFn"
                       }, {
@@ -184,7 +184,7 @@ class TestDataflowMetrics(unittest.TestCase):
           {
               "name": {
                   "context": {
-                      "additionalProperties": [{
+                      "properties": [{
                           "key": "namespace",
                           "value": "__main__.WordExtractingDoFn"
                       }, {
@@ -203,7 +203,7 @@ class TestDataflowMetrics(unittest.TestCase):
           {
               "name": {
                   "context": {
-                      "additionalProperties": [{
+                      "properties": [{
                           "key": "namespace",
                           "value": "__main__.WordExtractingDoFn"
                       }, {
@@ -254,7 +254,7 @@ class TestDataflowMetrics(unittest.TestCase):
           {
               "name": {
                   "context": {
-                      "additionalProperties": [{
+                      "properties": [{
                           "key": "namespace",
                           "value": "__main__.WordExtractingDoFn"
                       }, {
@@ -306,7 +306,7 @@ class TestDataflowMetrics(unittest.TestCase):
           {
               "name": {
                   "context": {
-                      "additionalProperties": [
+                      "properties": [
                           {
                               "key": "original_name",
                               "value": "ToIsmRecordForMultimap-out0-ElementCount"
@@ -329,7 +329,7 @@ class TestDataflowMetrics(unittest.TestCase):
           {
               "name": {
                   "context": {
-                      "additionalProperties": [
+                      "properties": [
                           {
                               "key": "original_name",
                               "value": "ToIsmRecordForMultimap-out0-ElementCount"
@@ -356,7 +356,7 @@ class TestDataflowMetrics(unittest.TestCase):
           {
               "name": {
                   "context": {
-                      "additionalProperties": [
+                      "properties": [
                           {
                               "key": "original_name",
                               "value": "Read-out0-MeanByteCount"
@@ -379,7 +379,7 @@ class TestDataflowMetrics(unittest.TestCase):
           {
               "name": {
                   "context": {
-                      "additionalProperties": [
+                      "properties": [
                           {
                               "key": "original_name",
                               "value": "Read-out0-MeanByteCount"
@@ -405,7 +405,7 @@ class TestDataflowMetrics(unittest.TestCase):
           {
               "name": {
                   "context": {
-                      "additionalProperties": [
+                      "properties": [
                           {
                               "key": "step", "value": "write/Write/Write"
                           },
@@ -423,7 +423,7 @@ class TestDataflowMetrics(unittest.TestCase):
           {
               "name": {
                   "context": {
-                      "additionalProperties": [{
+                      "properties": [{
                           "key": "step", "value": "write/Write/Write"
                       },
                                                {

@@ -113,7 +113,7 @@ class DataflowMetrics(MetricResults):
         step = _get_match(
             self._job_graph.proto.steps, lambda x: x.name == internal_name)
         user_step_name = _get_match(
-            step.properties.additionalProperties,
+            step.properties.properties,
             lambda x: x.key == 'user_name').value.string_value
       except ValueError:
         pass  # Exception is handled below.
@@ -136,7 +136,7 @@ class DataflowMetrics(MetricResults):
       # 2. Unable to unpack [step] or [namespace]; which should only happen
       #   for unstructured names.
       step = _get_match(
-          metric.name.context.additionalProperties,
+          metric.name.context.properties,
           lambda x: x.key == STEP_LABEL).value
       step = self._translate_step_name(step)
     except ValueError:
@@ -145,12 +145,12 @@ class DataflowMetrics(MetricResults):
     namespace = "dataflow/v1b3"  # Try to extract namespace or add a default.
     try:
       namespace = _get_match(
-          metric.name.context.additionalProperties,
+          metric.name.context.properties,
           lambda x: x.key == 'namespace').value
     except ValueError:
       pass
 
-    for kv in metric.name.context.additionalProperties:
+    for kv in metric.name.context.properties:
       if kv.key in STRUCTURED_NAME_LABELS:
         labels[kv.key] = kv.value
     # Package everything besides namespace and name the labels as well,
@@ -186,7 +186,7 @@ class DataflowMetrics(MetricResults):
         # The second way is only useful for the UI, and should be ignored.
         continue
       is_tentative = [
-          prop for prop in metric.name.context.additionalProperties
+          prop for prop in metric.name.context.properties
           if prop.key == 'tentative' and prop.value == 'true'
       ]
       tentative_or_committed = 'tentative' if is_tentative else 'committed'
