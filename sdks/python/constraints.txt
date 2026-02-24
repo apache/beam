@@ -16,8 +16,9 @@
 #
 
 # Pins for installGcpTest. numpy handled via setup.py python_version markers.
-googleapis-common-protos==1.63.0
+# Use google-api-core 2.29.0 for py313 compat (2.16.2 lacks it).
+googleapis-common-protos==1.72.0
 grpc-google-iam-v1>=0.12.4,<1.0.0
-google-api-core==2.16.2
+google-api-core==2.29.0
 optree==0.16.0
 namex==0.0.9

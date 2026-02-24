@@ -384,8 +384,8 @@ if __name__ == '__main__':
           'grpcio>=1.67.0; python_version >= "3.13"',
           'httplib2>=0.8,<0.32.0',
           'jsonpickle>=3.0.0,<4.0.0',
-          # numpy can have breaking changes in minor versions. py310-312: use 1.x
-          # to avoid pandas ABI mismatch. py313: NumPy 1.x doesn't support Python 3.13.
+          # numpy: py310-312 use 1.x; py313 needs 2.x (1.x unsupported; avoids  # pylint: disable=line-too-long
+          # pandas ABI mismatch).
           'numpy>=1.26.0,<2.0.0; python_version < "3.13"',
           'numpy>=2.1.0; python_version >= "3.13"',
           'objsize>=0.6.1,<0.8.0',
@@ -542,7 +542,7 @@ if __name__ == '__main__':
               # tensorflow-transform requires dill, but doesn't set dill as a
               # hard requirement in setup.py.
               'dill',
-              # keras deps namex/optree lack version bounds - pin to avoid resolver issues
+              # namex/optree: pin to avoid resolver issues (lack version bounds)  # pylint: disable=line-too-long
               'namex==0.0.9',
               'optree==0.16.0',
               'tensorflow-transform',
