@@ -64,63 +64,49 @@ class TestDataflowMetrics(unittest.TestCase):
           {
               "name": {
                   "context": {
-                    "namespace": "__main__.WordExtractingDoFn",
-                    "step": "s2",
-                    "tentative": "true"
+                      "namespace": "__main__.WordExtractingDoFn",
+                      "step": "s2",
+                      "tentative": "true"
                   },
                   "name": "words",
                   "origin": "user"
               },
-              "scalar": {
-                  "integer_value": 26185
-              },
-              "distribution": None,
+              "scalar": 26185,
               "updateTime": "2017-03-22T18:47:06.402Z"
           },
           {
               "name": {
                   "context": {
-                    "namespace": "__main__.WordExtractingDoFn",
-                    "step": "s2"
+                      "namespace": "__main__.WordExtractingDoFn", "step": "s2"
                   },
                   "name": "words",
                   "origin": "user"
               },
-              "scalar": {
-                  "integer_value": 26181
-              },
-              "distribution": None,
+              "scalar": 26181,
               "updateTime": "2017-03-22T18:47:06.402Z"
           },
           {
               "name": {
                   "context": {
-                    "namespace": "__main__.WordExtractingDoFn",
-                    "step": "s2",
-                    "tentative": "true"
+                      "namespace": "__main__.WordExtractingDoFn",
+                      "step": "s2",
+                      "tentative": "true"
                   },
                   "name": "empty_lines",
                   "origin": "user"
               },
-              "scalar": {
-                  "integer_value": 1080
-              },
-              "distribution": None,
+              "scalar": 1080,
               "updateTime": "2017-03-22T18:47:06.402Z"
           },
           {
               "name": {
                   "context": {
-                    "namespace": "__main__.WordExtractingDoFn",
-                    "step": "s2"
+                      "namespace": "__main__.WordExtractingDoFn", "step": "s2"
                   },
                   "name": "empty_lines",
                   "origin": "user"
               },
-              "scalar": {
-                  "integer_value": 1080
-              },
-              "distribution": None,
+              "scalar": 1080,
               "updateTime": "2017-03-22T18:47:06.402Z"
           },
       ]
@@ -130,118 +116,60 @@ class TestDataflowMetrics(unittest.TestCase):
           {
               "name": {
                   "context": {
-                    "namespace": "__main__.WordExtractingDoFn",
-                    "step": "s2",
-                    "tentative": "true"
+                      "namespace": "__main__.WordExtractingDoFn",
+                      "step": "s2",
+                      "tentative": "true"
                   },
                   "name": "word_lengths",
                   "origin": "user"
               },
-              "scalar": {
-                  "integer_value": 109475
-              },
-              "distribution": None,
+              "scalar": 109475,
               "updateTime": "2017-03-22T18:47:06.402Z"
           },
           {
               "name": {
                   "context": {
-                    "namespace": "__main__.WordExtractingDoFn",
-                    "step": "s2"
+                      "namespace": "__main__.WordExtractingDoFn", "step": "s2"
                   },
                   "name": "word_lengths",
                   "origin": "user"
               },
-              "scalar": {
-                  "integer_value": 109475
-              },
-              "distribution": None,
+              "scalar": 109475,
               "updateTime": "2017-03-22T18:47:06.402Z"
           },
           {
               "name": {
                   "context": {
-                    "namespace": "__main__.WordExtractingDoFn",
-                    "step": "s2",
-                    "tentative": "true"
+                      "namespace": "__main__.WordExtractingDoFn",
+                      "step": "s2",
+                      "tentative": "true"
                   },
                   "name": "word_length_dist",
                   "origin": "user"
               },
-              "scalar": None,
               "distribution": {
-                  "object_value": {
-                      "properties": [
-                          {
-                              "key": "min", "value": {
-                                  "integer_value": 2
-                              }
-                          },
-                          {
-                              "key": "max", "value": {
-                                  "integer_value": 16
-                              }
-                          },
-                          {
-                              "key": "count", "value": {
-                                  "integer_value": 2
-                              }
-                          },
-                          {
-                              "key": "mean", "value": {
-                                  "integer_value": 9
-                              }
-                          },
-                          {
-                              "key": "sum", "value": {
-                                  "integer_value": 18
-                              }
-                          },
-                      ]
-                  }
+                  "min": 2,
+                  "max": 16,
+                  "count": 2,
+                  "mean": 9,
+                  "sum": 18,
               },
               "updateTime": "2017-03-22T18:47:06.402Z"
           },
           {
               "name": {
                   "context": {
-                    "namespace": "__main__.WordExtractingDoFn",
-                    "step": "s2"
+                      "namespace": "__main__.WordExtractingDoFn", "step": "s2"
                   },
                   "name": "word_length_dist",
                   "origin": "user"
               },
-              "scalar": None,
               "distribution": {
-                  "object_value": {
-                      "properties": [
-                          {
-                              "key": "min", "value": {
-                                  "integer_value": 2
-                              }
-                          },
-                          {
-                              "key": "max", "value": {
-                                  "integer_value": 16
-                              }
-                          },
-                          {
-                              "key": "count", "value": {
-                                  "integer_value": 2
-                              }
-                          },
-                          {
-                              "key": "mean", "value": {
-                                  "integer_value": 9
-                              }
-                          },
-                          {
-                              "key": "sum", "value": {
-                                  "integer_value": 18
-                              }
-                          },
-                      ]
-                  }
+                  "min": 2,
+                  "max": 16,
+                  "count": 2,
+                  "mean": 9,
+                  "sum": 18,
               },
               "updateTime": "2017-03-22T18:47:06.402Z"
           },
@@ -253,94 +181,75 @@ class TestDataflowMetrics(unittest.TestCase):
           {
               "name": {
                   "context": {
-                    "original_name": "ToIsmRecordForMultimap-out0-ElementCount",
-                    "output_user_name": "ToIsmRecordForMultimap-out0"
+                      "original_name": "ToIsmRecordForMultimap-out0-ElementCount",
+                      "output_user_name": "ToIsmRecordForMultimap-out0"
                   },
                   "name": "ElementCount",
                   "origin": "dataflow/v1b3"
               },
-              "scalar": {
-                  "integer_value": 42
-              },
-              "distribution": None,
+              "scalar": 42.0,
               "updateTime": "2017-03-22T18:47:06.402Z"
           },
           {
               "name": {
                   "context": {
-                    "original_name": "ToIsmRecordForMultimap-out0-ElementCount",
-                    "output_user_name": "ToIsmRecordForMultimap-out0",
-                    "tentative": "true"
+                      "original_name": "ToIsmRecordForMultimap-out0-ElementCount",
+                      "output_user_name": "ToIsmRecordForMultimap-out0",
+                      "tentative": "true"
                   },
                   "name": "ElementCount",
                   "origin": "dataflow/v1b3"
               },
-              "scalar": {
-                  "integer_value": 42
-              },
-              "distribution": None,
+              "scalar": 42.0,
               "updateTime": "2017-03-22T18:47:06.402Z"
           },
           # MeanByteCount
           {
               "name": {
                   "context": {
-                    "original_name": "Read-out0-MeanByteCount",
-                    "output_user_name": "GroupByKey/Read-out0"
+                      "original_name": "Read-out0-MeanByteCount",
+                      "output_user_name": "GroupByKey/Read-out0"
                   },
                   "name": "MeanByteCount",
                   "origin": "dataflow/v1b3"
               },
-              "scalar": {
-                  "integer_value": 31
-              },
-              "distribution": None,
+              "scalar": 31.0,
               "updateTime": "2017-03-22T18:47:06.402Z"
           },
           {
               "name": {
                   "context": {
-                    "original_name": "Read-out0-MeanByteCount",
-                    "output_user_name": "GroupByKey/Read-out0",
-                    "tentative": "true"
+                      "original_name": "Read-out0-MeanByteCount",
+                      "output_user_name": "GroupByKey/Read-out0",
+                      "tentative": "true"
                   },
                   "name": "MeanByteCount",
                   "origin": "dataflow/v1b3"
               },
-              "scalar": {
-                  "integer_value": 31
-              },
-              "distribution": None,
+              "scalar": 31.0,
               "updateTime": "2017-03-22T18:47:06.402Z"
           },
           # ExecutionTime
           {
               "name": {
                   "context": {
-                    "step": "write/Write/Write"
+                      "step": "write/Write/Write"
                   },
                   "name": "ExecutionTime_ProcessElement",
                   "origin": "dataflow/v1b3"
               },
-              "scalar": {
-                  "integer_value": 1000
-              },
-              "distribution": None,
+              "scalar": 1000.0,
               "updateTime": "2017-03-22T18:47:06.402Z"
           },
           {
               "name": {
                   "context": {
-                    "step": "write/Write/Write",
-                    "tentative": "true"
+                      "step": "write/Write/Write", "tentative": "true"
                   },
                   "name": "ExecutionTime_ProcessElement",
                   "origin": "dataflow/v1b3"
               },
-              "scalar": {
-                  "integer_value": 1000
-              },
-              "distribution": None,
+              "scalar": 1000.0,
               "updateTime": "2017-03-22T18:47:06.402Z"
           },
       ]
@@ -348,7 +257,9 @@ class TestDataflowMetrics(unittest.TestCase):
 
   def setup_mock_client_result(self, counter_list=None):
     mock_client = mock.Mock()
-    mock_query_result = json_format.ParseDict(counter_list, dataflow.JobMetrics()._pb)
+    mock_query_result = json_format.ParseDict(
+        counter_list, dataflow.JobMetrics()._pb)
+    print("mock_query_result: ", mock_query_result)
     mock_client.get_job_metrics.return_value = mock_query_result
     mock_job_result = mock.Mock()
     mock_job_result.job_id.return_value = 1
@@ -453,6 +364,8 @@ class TestDataflowMetrics(unittest.TestCase):
     test_object = dataflow_metrics.DataflowMetrics(mock_client, mock_job_result)
     all_metrics = test_object.all_metrics()
 
+    print(all_metrics)
+
     matchers = [
         MetricResultMatcher(
             name='ElementCount',
@@ -460,21 +373,21 @@ class TestDataflowMetrics(unittest.TestCase):
                 'original_name': 'ToIsmRecordForMultimap-out0-ElementCount',
                 'output_user_name': 'ToIsmRecordForMultimap-out0'
             },
-            attempted=42,
-            committed=42),
+            attempted=42.0,
+            committed=42.0),
         MetricResultMatcher(
             name='MeanByteCount',
             labels={
                 'original_name': 'Read-out0-MeanByteCount',
                 'output_user_name': 'GroupByKey/Read-out0'
             },
-            attempted=31,
-            committed=31),
+            attempted=31.0,
+            committed=31.0),
         MetricResultMatcher(
             name='ExecutionTime_ProcessElement',
             step='write/Write/Write',
-            attempted=1000,
-            committed=1000)
+            attempted=1000.0,
+            committed=1000.0)
     ]
     errors = metric_result_matchers.verify_all(all_metrics, matchers)
     self.assertFalse(errors, errors)
