@@ -684,8 +684,9 @@ public class StateFetchingIterators {
     }
 
     LazyBlockingStateFetchingIterator(
-      BeamFnStateClient beamFnStateClient, StateRequest stateRequestForFirstChunk,
-      boolean hasNoState) {
+        BeamFnStateClient beamFnStateClient,
+        StateRequest stateRequestForFirstChunk,
+        boolean hasNoState) {
       this.beamFnStateClient = beamFnStateClient;
       this.stateRequestForFirstChunk = stateRequestForFirstChunk;
       this.continuationToken = hasNoState ? null : stateRequestForFirstChunk.getGet().getContinuationToken();
