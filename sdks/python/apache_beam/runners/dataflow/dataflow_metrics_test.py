@@ -52,6 +52,7 @@ try:
   from google.cloud import dataflow
 except ImportError:
   apiclient = None  # type: ignore
+  dataflow = None  # type: ignore
 # pylint: enable=wrong-import-order, wrong-import-position
 
 
@@ -266,6 +267,7 @@ class TestDataflowMetrics(unittest.TestCase):
     mock_job_result.is_in_terminal_state.return_value = False
     return mock_client, mock_job_result
 
+  @unittest.skipIf(apiclient is None, 'GCP dependencies are not installed')
   def test_cache_functions(self):
     mock_client, mock_job_result = self.setup_mock_client_result(
         self.STRUCTURED_COUNTER_LIST)
@@ -283,6 +285,7 @@ class TestDataflowMetrics(unittest.TestCase):
     dm.query()
     self.assertTrue(dm._cached_metrics)
 
+  @unittest.skipIf(apiclient is None, 'GCP dependencies are not installed')
   def test_query_structured_metrics(self):
     mock_client, mock_job_result = self.setup_mock_client_result(
         self.STRUCTURED_COUNTER_LIST)
@@ -335,6 +338,7 @@ class TestDataflowMetrics(unittest.TestCase):
         'MyTestParDo',
         dm._translate_step_name('ref_AppliedPTransform_MyTestParDo_14'))
 
+  @unittest.skipIf(apiclient is None, 'GCP dependencies are not installed')
   def test_query_counters(self):
     mock_client, mock_job_result = self.setup_mock_client_result(
         self.ONLY_COUNTERS_LIST)
@@ -358,6 +362,7 @@ class TestDataflowMetrics(unittest.TestCase):
         sorted(query_result['counters'], key=lambda x: x.key.metric.name),
         sorted(expected_counters, key=lambda x: x.key.metric.name))
 
+  @unittest.skipIf(apiclient is None, 'GCP dependencies are not installed')
   def test_system_counters_set_labels_and_step_name(self):
     mock_client, mock_job_result = self.setup_mock_client_result(
         self.SYSTEM_COUNTERS_LIST)
