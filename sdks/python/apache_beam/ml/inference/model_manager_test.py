@@ -338,46 +338,63 @@ class TestModelManager(unittest.TestCase):
     self.manager.release_model(model_name, instance)
 
   def test_model_manager_metric_gauge(self):
-    """Test that the model count gauges are updated correctly with tags."""
+    """Test that gauge metrics are updated correctly."""
     tag1 = "model1"
     tag2 = "model2"
-    self.manager._estimator.set_initial_estimate(tag1, 1000.0)
-    self.manager._estimator.set_initial_estimate(tag2, 1000.0)
 
-    def _get_gauge_value(tag):
+    def _get_count_gauge_value(tag):
       gauge = MetricsEnvironment.process_wide_container().get_gauge(
           MetricName('BeamML_ModelManager', f'num_loaded_models_{tag}'))
       return gauge.get_cumulative().value
 
+    def _get_est_gauge_value(tag):
+      gauge = MetricsEnvironment.process_wide_container().get_gauge(
+          MetricName('BeamML_ModelManager', f'memory_estimate_mb_{tag}'))
+      return gauge.get_cumulative().value
+
+    # Verify that initial estimates correctly export int metrics
+    self.manager._estimator.set_initial_estimate(tag1, 1000.5)
+    self.assertEqual(_get_est_gauge_value(tag1), 1000)
+
+    self.manager._estimator.set_initial_estimate(tag2, 2000.9)
+    self.assertEqual(_get_est_gauge_value(tag2), 2000)
+
     # 1. Acquire a model
     self.manager.acquire_model(
         tag1, lambda: MockModel(tag1, 1000.0, self.mock_monitor))
-    self.assertEqual(_get_gauge_value(tag1), 1)
+    self.assertEqual(_get_count_gauge_value(tag1), 1)
+    self.assertEqual(_get_est_gauge_value(tag1), 1000)
 
     # 2. Acquire another instance of same model
     self.manager.acquire_model(
         tag1, lambda: MockModel(tag1, 1000.0, self.mock_monitor))
-    self.assertEqual(_get_gauge_value(tag1), 2)
+    self.assertEqual(_get_count_gauge_value(tag1), 2)
+    self.assertEqual(_get_est_gauge_value(tag1), 1000)
 
     # 3. Acquire a different model
     self.manager.acquire_model(
-        tag2, lambda: MockModel(tag2, 1000.0, self.mock_monitor))
-    self.assertEqual(_get_gauge_value(tag2), 1)
+        tag2, lambda: MockModel(tag2, 2000.0, self.mock_monitor))
+    self.assertEqual(_get_count_gauge_value(tag2), 1)
+    self.assertEqual(_get_est_gauge_value(tag2), 2000)
     # tag1 count should remain 2
-    self.assertEqual(_get_gauge_value(tag1), 2)
+    self.assertEqual(_get_count_gauge_value(tag1), 2)
+    self.assertEqual(_get_est_gauge_value(tag1), 1000)
 
     # 4. Delete all models
     self.manager._delete_all_models()
-    self.assertEqual(_get_gauge_value(tag1), 0)
-    self.assertEqual(_get_gauge_value(tag2), 0)
+    self.assertEqual(_get_count_gauge_value(tag1), 0)
+    self.assertEqual(_get_count_gauge_value(tag2), 0)
+    # Note: Memory estimates are intentionally not cleared on delete
+    self.assertEqual(_get_est_gauge_value(tag1), 1000)
+    self.assertEqual(_get_est_gauge_value(tag2), 2000)
 
     # 5. Repopulate and force reset
     self.manager.acquire_model(
         tag1, lambda: MockModel(tag1, 1000.0, self.mock_monitor))
-    self.assertEqual(_get_gauge_value(tag1), 1)
+    self.assertEqual(_get_count_gauge_value(tag1), 1)
 
     self.manager._force_reset()
-    self.assertEqual(_get_gauge_value(tag1), 0)
+    self.assertEqual(_get_count_gauge_value(tag1), 0)
 
   def test_single_model_convergence_with_fluctuations(self):
     """
