@@ -57,7 +57,6 @@ def _get_match(proto, filter_fn):
 
 
 # V1b3 MetricStructuredName keys to accept and copy to the MetricKey labels.
-STEP_LABEL = 'step'
 STRUCTURED_NAME_LABELS = set(
     ['execution_step', 'original_name', 'output_user_name'])
 
@@ -135,7 +134,7 @@ class DataflowMetrics(MetricResults):
       #   step name (only happens for unstructured-named metrics).
       # 2. Unable to unpack [step] or [namespace]; which should only happen
       #   for unstructured names.
-      step = metric.name.context[STEP_LABEL],
+      step = metric.name.context['step']
       step = self._translate_step_name(step)
     except ValueError:
       pass
@@ -203,36 +202,14 @@ class DataflowMetrics(MetricResults):
     if metric is None:
       return None
 
-    scalar_values = metric.scalar.struct_value.values()
-
-    if len(scalar_values) != 0:
+    if metric.HasField('scalar'):
       # This will always be a single value if there is any data in the field.
-      return scalar_values[0]
-    elif metric.distribution is not None:
-      dist_count = _get_match(
-          metric.distribution.object_value.properties['count'],
-          lambda x: x.key == 'count').value['integer_value']
-      dist_min = _get_match(
-          metric.distribution.object_value.properties,
-          lambda x: x.key == 'min').value['integer_value']
-      dist_max = _get_match(
-          metric.distribution.object_value.properties,
-          lambda x: x.key == 'max').value['integer_value']
-      dist_sum = _get_match(
-          metric.distribution.object_value.properties,
-          lambda x: x.key == 'sum').value['integer_value']
-      if dist_sum is None:
-        # distribution metric is not meant to use on large values, but in case
-        # it is, the value can overflow and become double_value, the correctness
-        # of the value may not be guaranteed.
-        _LOGGER.info(
-            "Distribution metric sum value seems to have "
-            "overflowed integer_value range, the correctness of sum or mean "
-            "value may not be guaranteed: %s" % metric.distribution)
-        dist_sum = int(
-            _get_match(
-                metric.distribution.object_value.properties,
-                lambda x: x.key == 'sum').value.double_value)
+      return metric.scalar.number_value
+    elif metric.HasField('distribution'):
+      dist_count = metric.distribution.struct_value.fields['count'].number_value
+      dist_min = metric.distribution.struct_value.fields['min'].number_value
+      dist_max = metric.distribution.struct_value.fields['max'].number_value
+      dist_sum = metric.distribution.struct_value.fields['sum'].number_value
       return DistributionResult(
           DistributionData(dist_sum, dist_count, dist_min, dist_max))
       #TODO(https://github.com/apache/beam/issues/31788) support StringSet after
@@ -271,8 +248,6 @@ class DataflowMetrics(MetricResults):
   def query(self, filter=None):
     metric_results = []
     response = self._get_metrics_from_dataflow()
-    print("Metrics Response: \n")
-    print(response)
     self._populate_metrics(response, metric_results, user_metrics=True)
     return {
         self.COUNTERS: [
