@@ -37,7 +37,7 @@ require (
 	github.com/aws/aws-sdk-go-v2/credentials v1.19.7
 	github.com/aws/aws-sdk-go-v2/feature/s3/manager v1.21.1
 	github.com/aws/aws-sdk-go-v2/service/s3 v1.96.0
-	github.com/aws/smithy-go v1.24.0
+	github.com/aws/smithy-go v1.24.1
 	github.com/docker/go-connections v0.6.0
 	github.com/dustin/go-humanize v1.0.1
 	github.com/go-sql-driver/mysql v1.9.3
@@ -54,7 +54,7 @@ require (
 	github.com/tetratelabs/wazero v1.11.0
 	github.com/xitongsys/parquet-go v1.6.2
 	github.com/xitongsys/parquet-go-source v0.0.0-20241021075129-b732d2ac9c9b
-	go.mongodb.org/mongo-driver v1.17.8
+	go.mongodb.org/mongo-driver v1.17.9
 	golang.org/x/net v0.50.0
 	golang.org/x/oauth2 v0.35.0
 	golang.org/x/sync v0.19.0
