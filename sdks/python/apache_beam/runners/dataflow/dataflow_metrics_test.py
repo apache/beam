@@ -28,6 +28,8 @@ import unittest
 
 import mock
 
+from google.protobuf import json_format
+
 from apache_beam import DoFn
 from apache_beam import ParDo
 from apache_beam.metrics.cells import DistributionData
@@ -47,21 +49,10 @@ from apache_beam.transforms.environments import DockerEnvironment
 # pylint: disable=wrong-import-order, wrong-import-position
 try:
   from apache_beam.runners.dataflow.internal import apiclient
+  from google.cloud import dataflow
 except ImportError:
   apiclient = None  # type: ignore
 # pylint: enable=wrong-import-order, wrong-import-position
-
-
-class DictToObject(object):
-  """Translate from a dict(list()) structure to an object structure"""
-  def __init__(self, data):
-    for name, value in data.items():
-      setattr(self, name, self._wrap(value))
-
-  def _wrap(self, value):
-    if isinstance(value, (tuple, list, set, frozenset)):
-      return type(value)([self._wrap(v) for v in value])
-    return DictToObject(value) if isinstance(value, dict) else value
 
 
 class TestDataflowMetrics(unittest.TestCase):
@@ -73,16 +64,9 @@ class TestDataflowMetrics(unittest.TestCase):
           {
               "name": {
                   "context": {
-                      "properties": [{
-                          "key": "namespace",
-                          "value": "__main__.WordExtractingDoFn"
-                      }, {
-                          "key": "step", "value": "s2"
-                      },
-                                               {
-                                                   "key": "tentative",
-                                                   "value": "true"
-                                               }]
+                    "namespace": "__main__.WordExtractingDoFn",
+                    "step": "s2",
+                    "tentative": "true"
                   },
                   "name": "words",
                   "origin": "user"
@@ -96,12 +80,8 @@ class TestDataflowMetrics(unittest.TestCase):
           {
               "name": {
                   "context": {
-                      "properties": [{
-                          "key": "namespace",
-                          "value": "__main__.WordExtractingDoFn"
-                      }, {
-                          "key": "step", "value": "s2"
-                      }]
+                    "namespace": "__main__.WordExtractingDoFn",
+                    "step": "s2"
                   },
                   "name": "words",
                   "origin": "user"
@@ -115,16 +95,9 @@ class TestDataflowMetrics(unittest.TestCase):
           {
               "name": {
                   "context": {
-                      "properties": [{
-                          "key": "namespace",
-                          "value": "__main__.WordExtractingDoFn"
-                      }, {
-                          "key": "step", "value": "s2"
-                      },
-                                               {
-                                                   "key": "tentative",
-                                                   "value": "true"
-                                               }]
+                    "namespace": "__main__.WordExtractingDoFn",
+                    "step": "s2",
+                    "tentative": "true"
                   },
                   "name": "empty_lines",
                   "origin": "user"
@@ -138,12 +111,8 @@ class TestDataflowMetrics(unittest.TestCase):
           {
               "name": {
                   "context": {
-                      "properties": [{
-                          "key": "namespace",
-                          "value": "__main__.WordExtractingDoFn"
-                      }, {
-                          "key": "step", "value": "s2"
-                      }]
+                    "namespace": "__main__.WordExtractingDoFn",
+                    "step": "s2"
                   },
                   "name": "empty_lines",
                   "origin": "user"
@@ -161,16 +130,9 @@ class TestDataflowMetrics(unittest.TestCase):
           {
               "name": {
                   "context": {
-                      "properties": [{
-                          "key": "namespace",
-                          "value": "__main__.WordExtractingDoFn"
-                      }, {
-                          "key": "step", "value": "s2"
-                      },
-                                               {
-                                                   "key": "tentative",
-                                                   "value": "true"
-                                               }]
+                    "namespace": "__main__.WordExtractingDoFn",
+                    "step": "s2",
+                    "tentative": "true"
                   },
                   "name": "word_lengths",
                   "origin": "user"
@@ -184,12 +146,8 @@ class TestDataflowMetrics(unittest.TestCase):
           {
               "name": {
                   "context": {
-                      "properties": [{
-                          "key": "namespace",
-                          "value": "__main__.WordExtractingDoFn"
-                      }, {
-                          "key": "step", "value": "s2"
-                      }]
+                    "namespace": "__main__.WordExtractingDoFn",
+                    "step": "s2"
                   },
                   "name": "word_lengths",
                   "origin": "user"
@@ -203,16 +161,9 @@ class TestDataflowMetrics(unittest.TestCase):
           {
               "name": {
                   "context": {
-                      "properties": [{
-                          "key": "namespace",
-                          "value": "__main__.WordExtractingDoFn"
-                      }, {
-                          "key": "step", "value": "s2"
-                      },
-                                               {
-                                                   "key": "tentative",
-                                                   "value": "true"
-                                               }]
+                    "namespace": "__main__.WordExtractingDoFn",
+                    "step": "s2",
+                    "tentative": "true"
                   },
                   "name": "word_length_dist",
                   "origin": "user"
@@ -254,12 +205,8 @@ class TestDataflowMetrics(unittest.TestCase):
           {
               "name": {
                   "context": {
-                      "properties": [{
-                          "key": "namespace",
-                          "value": "__main__.WordExtractingDoFn"
-                      }, {
-                          "key": "step", "value": "s2"
-                      }]
+                    "namespace": "__main__.WordExtractingDoFn",
+                    "step": "s2"
                   },
                   "name": "word_length_dist",
                   "origin": "user"
@@ -306,16 +253,8 @@ class TestDataflowMetrics(unittest.TestCase):
           {
               "name": {
                   "context": {
-                      "properties": [
-                          {
-                              "key": "original_name",
-                              "value": "ToIsmRecordForMultimap-out0-ElementCount"
-                          },  # yapf: disable
-                          {
-                              "key": "output_user_name",
-                              "value": "ToIsmRecordForMultimap-out0"
-                          }
-                      ]
+                    "original_name": "ToIsmRecordForMultimap-out0-ElementCount",
+                    "output_user_name": "ToIsmRecordForMultimap-out0"
                   },
                   "name": "ElementCount",
                   "origin": "dataflow/v1b3"
@@ -329,19 +268,9 @@ class TestDataflowMetrics(unittest.TestCase):
           {
               "name": {
                   "context": {
-                      "properties": [
-                          {
-                              "key": "original_name",
-                              "value": "ToIsmRecordForMultimap-out0-ElementCount"
-                          },  # yapf: disable
-                          {
-                              "key": "output_user_name",
-                              "value": "ToIsmRecordForMultimap-out0"
-                          },
-                          {
-                              "key": "tentative", "value": "true"
-                          }
-                      ]
+                    "original_name": "ToIsmRecordForMultimap-out0-ElementCount",
+                    "output_user_name": "ToIsmRecordForMultimap-out0",
+                    "tentative": "true"
                   },
                   "name": "ElementCount",
                   "origin": "dataflow/v1b3"
@@ -356,16 +285,8 @@ class TestDataflowMetrics(unittest.TestCase):
           {
               "name": {
                   "context": {
-                      "properties": [
-                          {
-                              "key": "original_name",
-                              "value": "Read-out0-MeanByteCount"
-                          },
-                          {
-                              "key": "output_user_name",
-                              "value": "GroupByKey/Read-out0"
-                          }
-                      ]
+                    "original_name": "Read-out0-MeanByteCount",
+                    "output_user_name": "GroupByKey/Read-out0"
                   },
                   "name": "MeanByteCount",
                   "origin": "dataflow/v1b3"
@@ -379,18 +300,9 @@ class TestDataflowMetrics(unittest.TestCase):
           {
               "name": {
                   "context": {
-                      "properties": [
-                          {
-                              "key": "original_name",
-                              "value": "Read-out0-MeanByteCount"
-                          },
-                          {
-                              "key": "output_user_name",
-                              "value": "GroupByKey/Read-out0"
-                          }, {
-                              "key": "tentative", "value": "true"
-                          }
-                      ]
+                    "original_name": "Read-out0-MeanByteCount",
+                    "output_user_name": "GroupByKey/Read-out0",
+                    "tentative": "true"
                   },
                   "name": "MeanByteCount",
                   "origin": "dataflow/v1b3"
@@ -405,11 +317,7 @@ class TestDataflowMetrics(unittest.TestCase):
           {
               "name": {
                   "context": {
-                      "properties": [
-                          {
-                              "key": "step", "value": "write/Write/Write"
-                          },
-                      ]
+                    "step": "write/Write/Write"
                   },
                   "name": "ExecutionTime_ProcessElement",
                   "origin": "dataflow/v1b3"
@@ -423,13 +331,8 @@ class TestDataflowMetrics(unittest.TestCase):
           {
               "name": {
                   "context": {
-                      "properties": [{
-                          "key": "step", "value": "write/Write/Write"
-                      },
-                                               {
-                                                   "key": "tentative",
-                                                   "value": "true"
-                                               }]
+                    "step": "write/Write/Write",
+                    "tentative": "true"
                   },
                   "name": "ExecutionTime_ProcessElement",
                   "origin": "dataflow/v1b3"
@@ -445,7 +348,7 @@ class TestDataflowMetrics(unittest.TestCase):
 
   def setup_mock_client_result(self, counter_list=None):
     mock_client = mock.Mock()
-    mock_query_result = DictToObject(counter_list)
+    mock_query_result = json_format.ParseDict(counter_list, dataflow.JobMetrics()._pb)
     mock_client.get_job_metrics.return_value = mock_query_result
     mock_job_result = mock.Mock()
     mock_job_result.job_id.return_value = 1
