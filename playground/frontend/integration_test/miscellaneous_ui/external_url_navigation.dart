@@ -90,32 +90,19 @@ Future<void> _checkMenuItems(WidgetTester wt) async {
 }
 
 Future<void> _checkExampleDescription(WidgetTester wt) async {
-
   final url = wt.findPlaygroundController().selectedExample?.urlVcs;
-
-  // Open description popover
-  await wt.tapAndSettle(find.descriptionPopoverButton());
-
-  final githubButtonFinder = find.descendant(
-    of: find.descriptionPopover(),
-    matching: find.byType(GithubButton),
-  );
-
-  if (url == null) {
-    // No selected example, no VCS link, Github button should be absent.
-    expect(githubButtonFinder, findsNothing);
-    return;
-  }
-
-  // If URL is available, button must exist and navigation event must be fired.
-  expect(githubButtonFinder, findsOneWidget);
+  expect(url, isNotNull);
 
   await _tapAndExpectNavigationEvent(
     wt,
     [
-      () => githubButtonFinder,
+      find.descriptionPopoverButton,
+      () => find.descendant(
+            of: find.descriptionPopover(),
+            matching: find.byType(GithubButton),
+          ),
     ],
-    url,
+    url!,
   );
 }
 
