@@ -1347,9 +1347,9 @@ class Pickler(pickle.Pickler):
   _dispatch_table[staticmethod] = _classmethod_reduce
   _dispatch_table[CellType] = _cell_reduce
   _dispatch_table[types.GetSetDescriptorType] = _getset_descriptor_reduce
+  _dispatch_table[types.ModuleType] = _module_reduce
   _dispatch_table[types.MethodType] = _method_reduce
   _dispatch_table[types.MappingProxyType] = _mappingproxy_reduce
-  _dispatch_table[types.ModuleType] = _module_reduce
   _dispatch_table[weakref.WeakSet] = _weakset_reduce
   _dispatch_table[_collections_abc.dict_keys] = _dict_keys_reduce
   _dispatch_table[_collections_abc.dict_values] = _dict_values_reduce
