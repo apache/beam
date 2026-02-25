@@ -50,7 +50,7 @@ from apache_beam.transforms import environments
 from apache_beam.typehints import typehints
 
 # Protect against environments where apitools library is not available.
-# pylint: disable=wrong-import-order, wrong-import-position
+# pylint: disable=wrong-import-order, wrong-import-position, ungrouped-imports
 try:
   from google.cloud import dataflow as dataflow_api
 
@@ -58,7 +58,7 @@ try:
 except ImportError:
   apiclient = None  # type: ignore
   dataflow_api = None  # type: ignore
-# pylint: enable=wrong-import-order, wrong-import-position
+# pylint: enable=wrong-import-order, wrong-import-position, ungrouped-imports
 
 
 # SpecialParDo and SpecialDoFn are used in test_remote_runner_display_data.
