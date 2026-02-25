@@ -108,11 +108,6 @@ func Execute(ctx context.Context, p *beam.Pipeline) (beam.PipelineResult, error)
 					continue // Defensively skip if the consumer transform is missing
 				}
 
-				// Skip composite consumers
-				if len(consumer.GetSubtransforms()) != 0 {
-					continue
-				}
-
 				to := consumer.GetUniqueName()
 				fmt.Fprintf(&buf, "\"%s\" -> \"%s\";\n", from, to)
 			}
