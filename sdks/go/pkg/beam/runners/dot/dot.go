@@ -23,11 +23,15 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"sort"
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime/graphx"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime/pipelinex"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/internal/errors"
 )
+
+var errNoComponents = errors.New("pipeline has no components")
 
 func init() {
 	beam.RegisterRunner("dot", Execute)
@@ -58,7 +62,7 @@ func Execute(ctx context.Context, p *beam.Pipeline) (beam.PipelineResult, error)
 
 	components := pipeline.GetComponents()
 	if components == nil {
-		return nil, errors.New("pipeline has no components")
+		return nil, errNoComponents
 	}
 
 	transforms := components.GetTransforms()
@@ -76,8 +80,19 @@ func Execute(ctx context.Context, p *beam.Pipeline) (beam.PipelineResult, error)
 		}
 	}
 
+	// Ensure deterministic ordering of consumer lists
+	for pcollID := range consumers {
+		sort.Strings(consumers[pcollID])
+	}
+
+	// Topologically sort transforms for deterministic emission.
+	// We use the same ordering utility as Prism to ensure stable and execution-consistent graph traversal.
+	roots := pipeline.GetRootTransformIds()
+	ordered := pipelinex.TopologicalSort(transforms, roots)
+
 	// Generate edges
-	for _, t := range transforms {
+	for _, tid := range ordered {
+		t := transforms[tid]
 		// Skip composite transforms
 		if len(t.GetSubtransforms()) != 0 {
 			continue
@@ -88,7 +103,10 @@ func Execute(ctx context.Context, p *beam.Pipeline) (beam.PipelineResult, error)
 		for _, pcollID := range t.GetOutputs() {
 			for _, consumerID := range consumers[pcollID] {
 
-				consumer := transforms[consumerID]
+				consumer, ok := transforms[consumerID]
+				if !ok {
+					continue // Defensively skip if the consumer transform is missing
+				}
 
 				// Skip composite consumers
 				if len(consumer.GetSubtransforms()) != 0 {
