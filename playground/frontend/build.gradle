@@ -190,7 +190,7 @@ tasks.register("integrationTest") {
   dependsOn("integrationTest_standalone_default_examples")
   dependsOn("integrationTest_standalone_editing")
   dependsOn("integrationTest_standalone_example_selector")
-  //TODO: Fix assert not null
+  //TODO: (https://github.com/apache/beam/issues/37698) Fix assert not null
   //dependsOn("integrationTest_standalone_miscellaneous_ui")
   dependsOn("integrationTest_standalone_run_shortcuts")
   dependsOn("integrationTest_standalone_share_code")
