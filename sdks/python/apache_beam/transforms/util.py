@@ -1223,7 +1223,9 @@ class WithLengthBucketKey(DoFn):
         load_shared_key, "WithLengthBucketKey").key
 
   def _get_bucket(self, length):
-    return bisect.bisect_left(self._bucket_boundaries, length)
+    # bisect_right: boundaries are lower-inclusive.
+    # e.g., for boundaries [10, 50], buckets are (-inf, 10), [10, 50), [50, inf)
+    return bisect.bisect_right(self._bucket_boundaries, length)
 
   def process(self, element):
     length = self._length_fn(element)
@@ -1291,14 +1293,14 @@ class BatchElements(PTransform):
     record_metrics: (optional) whether or not to record beam metrics on
         distributions of the batch size. Defaults to True.
     length_fn: (optional) a callable mapping an element to its length (int).
-        When set together with max_batch_duration_secs, enables length-aware
-        bucketed keying on the stateful path so that elements of similar length
-        are routed to the same batch, reducing padding waste.
+        When set together with bucket_boundaries, enables length-aware bucketed
+        keying on the stateful path so that elements of similar length are
+        routed to the same batch, reducing padding waste.
     bucket_boundaries: (optional) a sorted list of positive boundary values
-        for length bucketing. Elements with length < boundaries[i] go to
-        bucket i; overflow goes to bucket len(boundaries). Defaults to
-        [16, 32, 64, 128, 256, 512] when length_fn is set. Requires
-        length_fn.
+        for length bucketing. Boundaries are lower-inclusive (bisect_right
+        semantics): e.g., for boundaries [10, 50], buckets are (-inf, 10),
+        [10, 50), [50, inf). Defaults to [16, 32, 64, 128, 256, 512] when
+        length_fn is set. Requires length_fn.
   """
   _DEFAULT_BUCKET_BOUNDARIES = [16, 32, 64, 128, 256, 512]
 

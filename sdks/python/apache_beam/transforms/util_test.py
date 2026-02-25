@@ -1030,13 +1030,15 @@ class BatchElementsTest(unittest.TestCase):
     """WithLengthBucketKey assigns correct bucket indices."""
     boundaries = [10, 50, 100]
     dofn = util.WithLengthBucketKey(length_fn=len, bucket_boundaries=boundaries)
-    # bisect_left: length < 10 -> bucket 0, 10 <= length < 50 -> bucket 1, etc.
+    # bisect_right: boundaries are lower-inclusive.
+    # e.g., for boundaries [10, 50, 100], buckets are:
+    #   (-inf, 10), [10, 50), [50, 100), [100, inf)
     self.assertEqual(dofn._get_bucket(5), 0)
-    self.assertEqual(dofn._get_bucket(10), 0)
+    self.assertEqual(dofn._get_bucket(10), 1)
     self.assertEqual(dofn._get_bucket(11), 1)
-    self.assertEqual(dofn._get_bucket(50), 1)
+    self.assertEqual(dofn._get_bucket(50), 2)
     self.assertEqual(dofn._get_bucket(51), 2)
-    self.assertEqual(dofn._get_bucket(100), 2)
+    self.assertEqual(dofn._get_bucket(100), 3)
     self.assertEqual(dofn._get_bucket(101), 3)
     self.assertEqual(dofn._get_bucket(999), 3)
 
