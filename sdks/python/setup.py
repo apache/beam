@@ -551,7 +551,7 @@ if __name__ == '__main__':
           'p312_ml_test': [
               'datatable',
           ] + ml_base,
-          'p313_ml_test': ml_base,
+          'p313_ml_test': ml_base + milvus_dependency,
           'aws': ['boto3>=1.9,<2'],
           'azure': [
               'azure-storage-blob>=12.3.2,<13',
