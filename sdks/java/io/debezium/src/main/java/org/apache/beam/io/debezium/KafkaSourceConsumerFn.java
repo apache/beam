@@ -217,6 +217,13 @@ public class KafkaSourceConsumerFn<T> extends DoFn<Map<String, String>, T> {
       @Element Map<String, String> element,
       RestrictionTracker<OffsetHolder, Map<String, Object>> tracker,
       OutputReceiver<T> receiver) {
+
+    if (spec.getMaxNumberOfRecords() != null
+        && tracker.currentRestriction().fetchedRecords != null
+        && tracker.currentRestriction().fetchedRecords >= spec.getMaxNumberOfRecords()) {
+      return ProcessContinuation.stop();
+    }
+
     Map<String, String> configuration = new HashMap<>(element);
 
     // Adding the current restriction to the class object to be found by the database history
@@ -243,20 +250,23 @@ public class KafkaSourceConsumerFn<T> extends DoFn<Map<String, String>, T> {
 
       task.initialize(new BeamSourceTaskContext(consumerOffset));
       task.start(connector.taskConfigs(1).get(0));
-
-      List<SourceRecord> records = task.poll();
-
-      if (records == null) {
-        LOG.debug("-------- Pulled records null");
-        return ProcessContinuation.stop();
-      }
-
-      LOG.debug("-------- {} records found", records.size());
       final Stopwatch pollTimer = Stopwatch.createUnstarted();
 
-      while (Duration.ZERO.compareTo(remainingTimeout) < 0
-          && records != null
-          && !records.isEmpty()) {
+      while (Duration.ZERO.compareTo(remainingTimeout) < 0) {
+        pollTimer.reset().start();
+        List<SourceRecord> records = task.poll();
+
+        try {
+          remainingTimeout = remainingTimeout.minus(pollTimer.elapsed());
+        } catch (ArithmeticException e) {
+          remainingTimeout = Duration.ZERO;
+        }
+
+        if (records == null || records.isEmpty()) {
+          LOG.debug("-------- Pulled records null or empty");
+          break;
+        }
+
         for (SourceRecord record : records) {
           LOG.debug("-------- Record found: {}", record);
 
@@ -273,15 +283,7 @@ public class KafkaSourceConsumerFn<T> extends DoFn<Map<String, String>, T> {
           Instant recordInstant = debeziumRecordInstant(record);
           receiver.outputWithTimestamp(json, recordInstant);
         }
-        pollTimer.reset().start();
         task.commit();
-        records = task.poll();
-        final Duration elapsed = pollTimer.elapsed();
-        try {
-          remainingTimeout = remainingTimeout.minus(elapsed);
-        } catch (ArithmeticException e) {
-          remainingTimeout = Duration.ZERO;
-        }
       }
     } catch (Exception ex) {
       throw new RuntimeException("Error occurred when consuming changes from Database. ", ex);
@@ -439,15 +441,19 @@ public class KafkaSourceConsumerFn<T> extends DoFn<Map<String, String>, T> {
     public boolean tryClaim(Map<String, Object> position) {
       LOG.debug("-------------- Claiming {} used to have: {}", position, restriction.offset);
       int fetchedRecords =
-          this.restriction.fetchedRecords == null ? 0 : this.restriction.fetchedRecords + 1;
+          this.restriction.fetchedRecords == null ? 0 : this.restriction.fetchedRecords;
       LOG.debug("------------Fetched records {} / {}", fetchedRecords, this.restriction.maxRecords);
       this.restriction.offset = position;
-      this.restriction.fetchedRecords = fetchedRecords;
       LOG.debug("-------------- History: {}", this.restriction.history);
 
       // If we've reached the maximum number of records, we reject the attempt to claim.
       // Otherwise, we approve the claim.
-      return (this.restriction.maxRecords == null || fetchedRecords < this.restriction.maxRecords);
+      boolean claimed =
+          (this.restriction.maxRecords == null || fetchedRecords < this.restriction.maxRecords);
+      if (claimed) {
+        this.restriction.fetchedRecords = fetchedRecords + 1;
+      }
+      return claimed;
     }
 
     @Override
