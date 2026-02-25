@@ -48,8 +48,9 @@ from apache_beam.transforms.environments import DockerEnvironment
 # Protect against environments where apitools library is not available.
 # pylint: disable=wrong-import-order, wrong-import-position
 try:
-  from apache_beam.runners.dataflow.internal import apiclient
   from google.cloud import dataflow
+
+  from apache_beam.runners.dataflow.internal import apiclient
 except ImportError:
   apiclient = None  # type: ignore
   dataflow = None  # type: ignore
