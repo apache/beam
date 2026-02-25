@@ -60,7 +60,7 @@ def groupby_attr_expr(test=None):
     if test:
       test(grouped)
     else:
-      grouped | beam.Map(print)
+      _ = grouped | beam.Map(print)
 
 
 if __name__ == '__main__':
