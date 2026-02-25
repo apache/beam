@@ -3091,6 +3091,7 @@ class BeamModulePlugin implements Plugin<Project> {
       // virtualenv activated properly. So instead of include project name in the path,
       // we use the hash value.
       project.ext.envdir = "${project.rootProject.buildDir}/gradleenv/${project.path.hashCode()}"
+      project.ext.cibwEnvdir = "${project.rootProject.buildDir}/cibwenv/${project.path.hashCode()}"
       def pythonRootDir = "${project.rootDir}/sdks/python"
 
       // Python interpreter version for virtualenv setup and test run. This value can be
@@ -3131,6 +3132,27 @@ class BeamModulePlugin implements Plugin<Project> {
         // specific binary here could make gradle delete it while pip will believe
         // the package is fully installed.
         outputs.dirs(project.ext.envdir)
+        outputs.upToDateWhen { false }
+      }
+
+      def setupCibuildwheelVirtualenv = project.tasks.register('setupCibuildwheelVirtualenv')  {
+        doLast {
+          project.exec {
+            executable 'sh'
+            args '-c', [
+              "python3.13 -m venv --clear ${project.ext.cibwEnvdir}",
+            ].join(' ')
+          }
+          project.exec {
+            executable 'sh'
+            args '-c', ". ${project.ext.cibwEnvdir}/bin/activate && " +
+              "pip install --pre --retries 10 --upgrade pip==25.0.1 --no-cache-dir && " +
+              "pip install --retries 10 --upgrade setuptools --no-cache-dir && " +
+              "pip install --retries 10 cibuildwheel==3.3.1 --no-cache-dir"
+          }
+        }
+
+        outputs.dirs(project.ext.cibwEnvdir)
         outputs.upToDateWhen { false }
       }
 
