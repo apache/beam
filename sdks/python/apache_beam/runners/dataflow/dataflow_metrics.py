@@ -210,10 +210,10 @@ class DataflowMetrics(MetricResults):
       return metric.scalar
     elif metric.distribution is not None:
       print("Treating as distribution: ", metric.distribution)
-      dist_count = metric.distribution.struct_value.fields['count'].number_value
-      dist_min = metric.distribution.struct_value.fields['min'].number_value
-      dist_max = metric.distribution.struct_value.fields['max'].number_value
-      dist_sum = metric.distribution.struct_value.fields['sum'].number_value
+      dist_count = metric.distribution['count']
+      dist_min = metric.distribution['min']
+      dist_max = metric.distribution['max']
+      dist_sum = metric.distribution['sum']
       return DistributionResult(
           DistributionData(dist_sum, dist_count, dist_min, dist_max))
       #TODO(https://github.com/apache/beam/issues/31788) support StringSet after
