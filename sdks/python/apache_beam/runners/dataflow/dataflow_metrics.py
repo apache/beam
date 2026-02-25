@@ -202,14 +202,10 @@ class DataflowMetrics(MetricResults):
     if metric is None:
       return None
 
-    print("Scalar: ", metric.scalar)
-    print("Distribution: ", metric.distribution)
     if metric.scalar is not None:
       # This will always be a single value if there is any data in the field.
-      print("Treating as scalar: ", metric.scalar)
       return metric.scalar
     elif metric.distribution is not None:
-      print("Treating as distribution: ", metric.distribution)
       dist_count = metric.distribution['count']
       dist_min = metric.distribution['min']
       dist_max = metric.distribution['max']

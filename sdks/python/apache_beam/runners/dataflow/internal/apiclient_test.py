@@ -39,7 +39,6 @@ from apache_beam.portability import common_urns
 from apache_beam.portability.api import beam_runner_api_pb2
 from apache_beam.runners.dataflow.internal import names
 from apache_beam.transforms import Create
-# from apache_beam.transforms import DataflowDistributionCounter
 from apache_beam.transforms import DoFn
 from apache_beam.transforms import ParDo
 from apache_beam.transforms.environments import DockerEnvironment
@@ -48,8 +47,9 @@ from apache_beam.utils import retry
 # Protect against environments where apitools library is not available.
 # pylint: disable=wrong-import-order, wrong-import-position, ungrouped-imports
 try:
-  from apache_beam.runners.dataflow.internal import apiclient
   from google.cloud import dataflow
+
+  from apache_beam.runners.dataflow.internal import apiclient
 except ImportError:
   apiclient = None  # type: ignore
   dataflow = None  # type: ignore

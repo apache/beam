@@ -52,8 +52,9 @@ from apache_beam.typehints import typehints
 # Protect against environments where apitools library is not available.
 # pylint: disable=wrong-import-order, wrong-import-position
 try:
-  from apache_beam.runners.dataflow.internal import apiclient
   from google.cloud import dataflow as dataflow_api
+
+  from apache_beam.runners.dataflow.internal import apiclient
 except ImportError:
   apiclient = None  # type: ignore
   dataflow_api = None  # type: ignore
