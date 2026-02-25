@@ -261,8 +261,8 @@ class TestDataflowMetrics(unittest.TestCase):
 
   def setup_mock_client_result(self, counter_list=None):
     mock_client = mock.Mock()
-    mock_query_result = json_format.ParseDict(
-        counter_list, dataflow.JobMetrics()._pb)
+    mock_query_result = dataflow.JobMetrics()
+    json_format.ParseDict(counter_list, mock_query_result._pb)
     mock_client.get_job_metrics.return_value = mock_query_result
     mock_job_result = mock.Mock()
     mock_job_result.job_id.return_value = 1
