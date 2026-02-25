@@ -148,6 +148,7 @@ class TestDataflowMetrics(unittest.TestCase):
                   "name": "word_length_dist",
                   "origin": "user"
               },
+              "scalar": None,
               "distribution": {
                   "min": 2,
                   "max": 16,
@@ -165,6 +166,7 @@ class TestDataflowMetrics(unittest.TestCase):
                   "name": "word_length_dist",
                   "origin": "user"
               },
+              "scalar": None,
               "distribution": {
                   "min": 2,
                   "max": 16,
@@ -260,7 +262,6 @@ class TestDataflowMetrics(unittest.TestCase):
     mock_client = mock.Mock()
     mock_query_result = json_format.ParseDict(
         counter_list, dataflow.JobMetrics()._pb)
-    print("mock_query_result: ", mock_query_result)
     mock_client.get_job_metrics.return_value = mock_query_result
     mock_job_result = mock.Mock()
     mock_job_result.job_id.return_value = 1
