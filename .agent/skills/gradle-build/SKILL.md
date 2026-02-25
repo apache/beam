@@ -165,9 +165,10 @@ applyJavaNature(
 
 If a `:docker` task produces logs that contain the following:
 
-```WARNING: No output specified with docker-container driver.
+```
+WARNING: No output specified with docker-container driver.
 Build result will only remain in the build cache.
-```,
+```
 
 then you must use `-PuseDockerBuildx` when running `:docker` tasks
 in this environment. For example:
