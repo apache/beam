@@ -166,11 +166,13 @@ applyJavaNature(
 If a `:docker` task produces logs that contain the following:
 
 ```WARNING: No output specified with docker-container driver.
-Build result will only remain in the build cache.```,
+Build result will only remain in the build cache.
+```,
 
 then you must use `-PuseDockerBuildx` when running `:docker` tasks
 in this environment. For example:
 
+```
 # Build and push a go container into a custom repository
 ./gradlew :sdks:go:container:docker \
   -Pdocker-repository-root=gcr.io/project \
