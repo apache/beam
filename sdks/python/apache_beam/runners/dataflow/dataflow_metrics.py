@@ -206,8 +206,8 @@ class DataflowMetrics(MetricResults):
     print("Distribution: ", metric.distribution)
     if metric.scalar is not None:
       # This will always be a single value if there is any data in the field.
-      print("Treating as scalar: ", metric.scalar.number_value)
-      return metric.scalar.number_value
+      print("Treating as scalar: ", metric.scalar)
+      return metric.scalar
     elif metric.distribution is not None:
       print("Treating as distribution: ", metric.distribution)
       dist_count = metric.distribution.struct_value.fields['count'].number_value
