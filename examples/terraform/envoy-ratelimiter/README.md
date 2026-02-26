@@ -114,7 +114,6 @@ EOF
 1. **Deploy (Recommended)**:
 Run the helper script to handle the deployment process automatically:
 ```bash
-chmod +x deploy.sh
 ./deploy.sh
 ```
 
@@ -158,12 +157,10 @@ The service is accessible **only from within the VPC** (e.g., via Dataflow worke
 
 
 # Observability & Metrics:
-This module supports native Prometheus metrics export to **Google Cloud Managed Prometheus**.
+This module supports exporting native Prometheus metrics to **Google Cloud Monitoring**.
 
-### Enabling Metrics
  `enable_metrics` is set to `true` by default.
 
-### Available Metrics
 Once enabled, the Envoy Rate Limiter exports metrics to Google Cloud Monitoring. You can view them in **Metrics Explorer** by searching for `ratelimit`.
 
 ### Sample Metrics
@@ -181,7 +178,7 @@ Once enabled, the Envoy Rate Limiter exports metrics to Google Cloud Monitoring.
 2. Click **Select a metric**.
 3. Search for `ratelimit` and select **Prometheus Target** > **ratelimit**.
 4. Select a metric (e.g., `ratelimit_service_rate_limit_over_limit`) and click **Apply**.
-5. Use **Filters** to drill down by `domain`, `key`, or `value` (e.g., `key=database`, `value=users`).
+5. Use **Filters** to drill down by `domain`, `key`, and `value` (e.g., `key=database`, `value=users`).
 
 # Clean up resources:
 To destroy the cluster and all created resources:

@@ -1,35 +1,56 @@
 #!/bin/bash
+#
+# Licensed to the Apache Software Foundation (ASF) under one or more
+# contributor license agreements.  See the NOTICE file distributed with
+# this work for additional information regarding copyright ownership.
+# The ASF licenses this file to You under the Apache License, Version 2.0
+# (the "License"); you may not use this file except in compliance with
+# the License.  You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
+# This script simply the deployment of the Envoy Rate Limiter on GKE.
+
 set -e
 
 COMMAND=${1:-"apply"}
 
+# 1. Initialize Terraform
+if [ ! -d ".terraform" ]; then
+    echo "Initializing Terraform..."
+    terraform init
+else
+    # Run init to ensure providers are up to date
+    terraform init -upgrade=false >/dev/null 2>&1 || terraform init
+fi
+
 if [ "$COMMAND" = "destroy" ]; then
     echo "Destroying Envoy Rate Limiter Resources..."
-    echo "Note: If 'deletion_protection = true',this operation will fail for the cluster."
-    terraform destroy
+    terraform destroy -auto-approve
     exit $?
 fi
 
 if [ "$COMMAND" = "apply" ]; then
-    # Auto-initialize if needed
-    if [ ! -d ".terraform" ]; then
-        echo "Initializing Terraform..."
-        terraform init
-    fi
-
     echo "Deploying Envoy Rate Limiter..."
 
     echo "--------------------------------------------------"
-    echo "Creating GKE Cluster..."
+    echo "Creating/Updating GKE Cluster..."
     echo "--------------------------------------------------"
-    # Deploy the cluster in step-1 before deploying the application resources.
+    # Deploy the cluster and wait for it to be ready.
     terraform apply -target=time_sleep.wait_for_cluster -auto-approve
 
     echo ""
     echo "--------------------------------------------------"
     echo "Deploying Application Resources..."
     echo "--------------------------------------------------"
-    # Deploy the application resources in step-2.
+    # Deploy the rest of the resources
     terraform apply -auto-approve
 
     echo ""
@@ -39,7 +60,7 @@ if [ "$COMMAND" = "apply" ]; then
     exit 0
 fi
 
-echo "Detailed Usage:"
-echo "  ./deploy.sh [apply]    # Deploy resources (Default)"
+echo "Usage:"
+echo "  ./deploy.sh [apply]    # Initialize and deploy resources (Default)"
 echo "  ./deploy.sh destroy    # Destroy resources"
 exit 1
