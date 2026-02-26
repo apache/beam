@@ -183,7 +183,7 @@ variable "namespace" {
 }
 
 variable "enable_metrics" {
-  description = "Whether to deploy the statsd-exporter sidecar for Prometheus metrics"
+  description = "Enable metrics export to Google Cloud Monitoring"
   type        = bool
-  default     = false
+  default     = true
 }

@@ -158,10 +158,35 @@ resource "kubernetes_deployment" "ratelimit" {
           port {
             container_port = 6070
           }
+          dynamic "port" {
+            for_each = var.enable_metrics ? [1] : []
+            content {
+              name           = "metrics"
+              container_port = 9090
+            }
+          }
 
           env {
-            name  = "USE_STATSD"
+            name  = "USE_PROMETHEUS"
             value = var.enable_metrics ? "true" : "false"
+          }
+          dynamic "env" {
+            for_each = var.enable_metrics ? [1] : []
+            content {
+              name  = "PROMETHEUS_ADDR"
+              value = ":9090"
+            }
+          }
+          dynamic "env" {
+            for_each = var.enable_metrics ? [1] : []
+            content {
+              name  = "PROMETHEUS_PATH"
+              value = "/metrics"
+            }
+          }
+          env {
+            name  = "USE_STATSD"
+            value = "false"
           }
           env {
             name  = "DISABLE_STATS"
@@ -204,14 +229,6 @@ resource "kubernetes_deployment" "ratelimit" {
             value = "FILE"
           }
           env {
-            name  = "STATSD_HOST"
-            value = "localhost"
-          }
-          env {
-            name  = "STATSD_PORT"
-            value = "9125"
-          }
-          env {
             name  = "GRPC_MAX_CONNECTION_AGE"
             value = var.ratelimit_grpc_max_connection_age
           }
@@ -231,41 +248,7 @@ resource "kubernetes_deployment" "ratelimit" {
           }
         }
 
-        dynamic "container" {
-          for_each = var.enable_metrics ? [1] : []
-          content {
-            name  = "statsd-exporter"
-            image = var.statsd_exporter_image
-            args  = ["--log.format=json"]
 
-            dynamic "port" {
-              for_each = var.enable_metrics ? [1] : []
-              content {
-                name           = "metrics"
-                container_port = 9102
-              }
-            }
-            dynamic "port" {
-              for_each = var.enable_metrics ? [1] : []
-              content {
-                name           = "statsd-udp"
-                container_port = 9125
-                protocol       = "UDP"
-              }
-            }
-            # statsd-exporter does not use much resources, so setting resources to the minimum
-            resources {
-              requests = {
-                cpu    = "50m"
-                memory = "64Mi"
-              }
-              limits = {
-                cpu    = "100m"
-                memory = "128Mi"
-              }
-            }
-          }
-        }
 
         volume {
           name = "config-volume"
@@ -361,8 +344,8 @@ resource "kubernetes_service" "ratelimit" {
       for_each = var.enable_metrics ? [1] : []
       content {
         name        = "metrics"
-        port        = 9102
-        target_port = 9102
+        port        = 9090
+        target_port = 9090
       }
     }
   }
@@ -398,15 +381,38 @@ resource "kubernetes_service" "ratelimit_external" {
       port        = 6070
       target_port = 6070
     }
-    dynamic "port" {
-      for_each = var.enable_metrics ? [1] : []
-      content {
-        name        = "metrics"
-        port        = 9102
-        target_port = 9102
-      }
-    }
+
   }
 
   depends_on = [kubernetes_namespace.ratelimit_namespace]
+}
+
+# Pod Monitoring
+resource "kubernetes_manifest" "ratelimit_pod_monitoring" {
+  manifest = {
+    apiVersion = "monitoring.googleapis.com/v1"
+    kind       = "PodMonitoring"
+    metadata = {
+      name      = "ratelimit-monitoring"
+      namespace = var.namespace
+    }
+    spec = {
+      selector = {
+        matchLabels = {
+          app = "ratelimit"
+        }
+      }
+      endpoints = [
+        {
+          port = "metrics"
+          path = "/metrics"
+          interval = "15s"
+        }
+      ]
+    }
+  }
+  depends_on = [
+    kubernetes_deployment.ratelimit,
+    time_sleep.wait_for_cluster
+  ]
 }
