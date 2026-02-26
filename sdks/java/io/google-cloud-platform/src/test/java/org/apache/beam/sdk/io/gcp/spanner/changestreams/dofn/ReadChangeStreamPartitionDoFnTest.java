@@ -106,7 +106,7 @@ public class ReadChangeStreamPartitionDoFnTest {
 
     doFn =
         new ReadChangeStreamPartitionDoFn(
-            daoFactory, mapperFactory, actionFactory, metrics, Duration.standardMinutes(2));
+            daoFactory, mapperFactory, actionFactory, metrics, Duration.standardMinutes(2), false);
     doFn.setThroughputEstimator(throughputEstimator);
 
     partition =
@@ -134,7 +134,7 @@ public class ReadChangeStreamPartitionDoFnTest {
 
     when(actionFactory.dataChangeRecordAction(throughputEstimator))
         .thenReturn(dataChangeRecordAction);
-    when(actionFactory.heartbeatRecordAction(metrics)).thenReturn(heartbeatRecordAction);
+    when(actionFactory.heartbeatRecordAction(metrics, false)).thenReturn(heartbeatRecordAction);
     when(actionFactory.childPartitionsRecordAction(partitionMetadataDao, metrics))
         .thenReturn(childPartitionsRecordAction);
     when(actionFactory.partitionStartRecordAction(partitionMetadataDao, metrics))
@@ -175,7 +175,7 @@ public class ReadChangeStreamPartitionDoFnTest {
         .run(partition, tracker, receiver, watermarkEstimator, bundleFinalizer);
 
     verify(dataChangeRecordAction, never()).run(any(), any(), any(), any(), any(), any());
-    verify(heartbeatRecordAction, never()).run(any(), any(), any(), any(), any());
+    verify(heartbeatRecordAction, never()).run(any(), any(), any(), any(), any(), any());
     verify(childPartitionsRecordAction, never()).run(any(), any(), any(), any(), any());
     verify(partitionStartRecordAction, never()).run(any(), any(), any(), any(), any());
     verify(partitionEndRecordAction, never()).run(any(), any(), any(), any(), any());

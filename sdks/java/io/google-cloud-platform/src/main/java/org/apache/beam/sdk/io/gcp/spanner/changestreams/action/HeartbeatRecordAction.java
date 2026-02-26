@@ -41,14 +41,16 @@ import org.slf4j.LoggerFactory;
 public class HeartbeatRecordAction {
   private static final Logger LOG = LoggerFactory.getLogger(HeartbeatRecordAction.class);
   private final ChangeStreamMetrics metrics;
+  private final boolean cancelQueryOnHeartbeat;
 
   /**
    * Constructs an action class for handling {@link HeartbeatRecord}s.
    *
    * @param metrics metrics gathering class
    */
-  HeartbeatRecordAction(ChangeStreamMetrics metrics) {
+  HeartbeatRecordAction(ChangeStreamMetrics metrics, boolean cancelQueryOnHeartbeat) {
     this.metrics = metrics;
+    this.cancelQueryOnHeartbeat = cancelQueryOnHeartbeat;
   }
 
   /**
@@ -76,7 +78,8 @@ public class HeartbeatRecordAction {
       HeartbeatRecord record,
       RestrictionTracker<TimestampRange, Timestamp> tracker,
       RestrictionInterrupter<Timestamp> interrupter,
-      ManualWatermarkEstimator<Instant> watermarkEstimator) {
+      ManualWatermarkEstimator<Instant> watermarkEstimator,
+      Timestamp endTimestamp) {
 
     final String token = partition.getPartitionToken();
     LOG.debug("[{}] Processing heartbeat record {}", token, record);
@@ -96,6 +99,11 @@ public class HeartbeatRecordAction {
     watermarkEstimator.setWatermark(timestampInstant);
 
     LOG.debug("[{}] Heartbeat record action completed successfully", token);
-    return Optional.empty();
+    if (timestamp.equals(endTimestamp)) {
+      // this is probably last element in query, let it finish query
+      return Optional.empty();
+    }
+    // no new data, finish reading data
+    return Optional.of(ProcessContinuation.resume());
   }
 }

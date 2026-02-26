@@ -248,7 +248,8 @@ public class QueryChangeStreamAction {
                     (HeartbeatRecord) record,
                     tracker,
                     interrupter,
-                    watermarkEstimator);
+                    watermarkEstimator,
+                    endTimestamp);
           } else if (record instanceof ChildPartitionsRecord) {
             maybeContinuation =
                 childPartitionsRecordAction.run(

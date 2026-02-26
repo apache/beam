@@ -71,9 +71,10 @@ public class ActionFactory implements Serializable {
    * @param metrics metrics gathering class
    * @return singleton instance of the {@link HeartbeatRecordAction}
    */
-  public synchronized HeartbeatRecordAction heartbeatRecordAction(ChangeStreamMetrics metrics) {
+  public synchronized HeartbeatRecordAction heartbeatRecordAction(
+      ChangeStreamMetrics metrics, boolean cancelQueryOnHeartbeat) {
     if (heartbeatRecordActionInstance == null) {
-      heartbeatRecordActionInstance = new HeartbeatRecordAction(metrics);
+      heartbeatRecordActionInstance = new HeartbeatRecordAction(metrics, cancelQueryOnHeartbeat);
     }
     return heartbeatRecordActionInstance;
   }
