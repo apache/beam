@@ -27,7 +27,7 @@ redundant-condition = "ignore"
 untyped-import = "ignore"
 # Beam-specific supressions to keep pyrefly green
 # These are in descending order of instances, e.g there are 
-# fewer "bad-override" violations than "bad-param-name-override"
+# fewer violations for the check on line 40 than for the check on line 35.
 # violations.
 #
 # TODO(https://github.com/apache/beam/issues/37699): Reduce the number of
