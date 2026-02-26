@@ -170,13 +170,19 @@ resource "kubernetes_deployment" "ratelimit" {
             name  = "USE_PROMETHEUS"
             value = var.enable_metrics ? "true" : "false"
           }
-          env {
-            name  = "PROMETHEUS_ADDR"
-            value = ":9090"
+          dynamic "env" {
+            for_each = var.enable_metrics ? [1] : []
+            content {
+              name  = "PROMETHEUS_ADDR"
+              value = ":9090"
+            }
           }
-          env {
-            name  = "PROMETHEUS_PATH"
-            value = "/metrics"
+          dynamic "env" {
+            for_each = var.enable_metrics ? [1] : []
+            content {
+              name  = "PROMETHEUS_PATH"
+              value = "/metrics"
+            }
           }
           env {
             name  = "USE_STATSD"
