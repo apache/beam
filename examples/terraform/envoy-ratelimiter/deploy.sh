@@ -27,7 +27,7 @@ if [ ! -d ".terraform" ]; then
     echo "Initializing Terraform..."
     terraform init
 else
-    # Run init to ensure providers are up to date
+    # Verify terraform initialization is valid, or re-initialize
     terraform init -upgrade=false >/dev/null 2>&1 || terraform init
 fi
 
