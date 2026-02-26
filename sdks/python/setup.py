@@ -168,8 +168,9 @@ ml_base = [
     'langchain',
     'sentence-transformers>=2.2.2',
     'skl2onnx',
-    'pyod',
+    'pyod>=0.7.6', # 0.7.5 crashes setuptools
     'tensorflow',
+    'absl-py>=0.12.0', # tensorflow transient dependency, lower versions not compatible with Python3.10+
     'tensorflow-hub',
     'tf2onnx',
     'torch',
@@ -584,7 +585,10 @@ if __name__ == '__main__':
           # For more info, see
           # https://docs.google.com/document/d/1c84Gc-cZRCfrU8f7kWGsNR2o8oSRjCM-dGHO9KvPWPw/edit?usp=sharing
           'torch': ['torch>=1.9.0,<2.8.0'],
-          'tensorflow': ['tensorflow>=2.12rc1,<2.21'],
+          'tensorflow': [
+              'tensorflow>=2.12rc1,<2.21',
+              'absl-py>=0.12.0' # tensorflow transient dependency, lower versions not compatible with Python3.10+
+          ],
           'transformers': [
               'transformers>=4.28.0,<4.56.0',
               'tensorflow>=2.12.0',
@@ -593,7 +597,8 @@ if __name__ == '__main__':
           'ml_cpu': [
               'tensorflow>=2.12.0',
               'torch==2.8.0+cpu',
-              'transformers>=4.28.0,<4.56.0'
+              'transformers>=4.28.0,<4.56.0',
+              'absl-py>=0.12.0' # tensorflow transient dependency, lower versions not compatible with Python3.10+
           ],
           'redis': ['redis>=5.0.0,<6'],
           'tft': [
@@ -610,7 +615,8 @@ if __name__ == '__main__':
               'tensorflow==2.11.0',
               'tf2onnx==1.13.0',
               'skl2onnx==1.13',
-              'transformers==4.25.1'
+              'transformers==4.25.1',
+              'absl-py>=0.12.0' # tensorflow transient dependency, lower versions not compatible with Python3.10+
           ],
           'xgboost': ['xgboost>=1.6.0,<2.1.3', 'datatable==1.0.0'],
           'tensorflow-hub': ['tensorflow-hub>=0.14.0,<0.16.0'],
