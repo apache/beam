@@ -154,12 +154,32 @@ applyJavaNature(
 ./gradlew :sdks:java:container:java11:docker
 
 # Build Python SDK container
-./gradlew :sdks:python:container:py39:docker
+./gradlew :sdks:python:container:py312:docker
 
-# With custom repository
+# Build and push a container into a custom repository
 ./gradlew :sdks:java:container:java11:docker \
   -Pdocker-repository-root=gcr.io/project \
-  -Pdocker-tag=custom
+  -Pdocker-tag=custom \
+  -Ppush-containers
+```
+
+If a `:docker` task produces logs that contain the following:
+
+```
+WARNING: No output specified with docker-container driver.
+Build result will only remain in the build cache.
+```
+
+then you must use `-PuseDockerBuildx` when running `:docker` tasks
+in this environment. For example:
+
+```
+# Build and push a go container into a custom repository
+./gradlew :sdks:go:container:docker \
+  -Pdocker-repository-root=gcr.io/project \
+  -Pdocker-tag=custom \
+  -Ppush-containers \
+  -PuseDockerBuildx
 ```
 
 ## Dependency Management

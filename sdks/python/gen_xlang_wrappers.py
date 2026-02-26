@@ -137,7 +137,8 @@ def generate_transforms_config(input_services, output_file):
     # use dynamic provider to discover and populate wrapper details
     provider = ExternalTransformProvider(BeamJarExpansionService(target))
     discovered: Dict[str, ExternalTransform] = provider.get_all()
-    for identifier, wrapper in discovered.items():
+    for identifier in sorted(discovered.keys()):
+      wrapper = discovered[identifier]
       if identifier in transforms_to_skip:
         continue
 
@@ -153,7 +154,8 @@ def generate_transforms_config(input_services, output_file):
       name = modified_transform.get('name', wrapper.__name__)
 
       fields = []
-      for param in wrapper.configuration_schema.values():
+      for param_name in sorted(wrapper.configuration_schema.keys()):
+        param = wrapper.configuration_schema[param_name]
         (tp, nullable) = pretty_type(param.type)
         field_info = {
             'name': param.original_name,

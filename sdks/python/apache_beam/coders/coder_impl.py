@@ -316,9 +316,6 @@ class ProtoCoderImpl(SimpleCoderImpl):
     proto_message.ParseFromString(encoded)  # This is in effect "ParsePartial".
     return proto_message
 
-  def estimate_size(self, value, nested=False):
-    return self._get_nested_size(value.ByteSize(), nested)
-
 
 class DeterministicProtoCoderImpl(ProtoCoderImpl):
   """For internal use only; no backwards-compatibility guarantees."""
@@ -337,9 +334,6 @@ class ProtoPlusCoderImpl(SimpleCoderImpl):
 
   def decode(self, value):
     return self.proto_plus_type.deserialize(value)
-
-  def estimate_size(self, value, nested=False):
-    return self._get_nested_size(type(value).pb(value).ByteSize(), nested)
 
 
 UNKNOWN_TYPE = 0xFF
