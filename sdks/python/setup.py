@@ -163,14 +163,15 @@ dataframe_dependency = [
 milvus_dependency = ['pymilvus>=2.5.10,<3.0.0']
 
 ml_base = [
-    'embeddings',
+    'embeddings>=0.0.4', # 0.0.3 crashes setuptools
     'onnxruntime',
     'langchain',
     'sentence-transformers>=2.2.2',
     'skl2onnx',
     'pyod>=0.7.6', # 0.7.5 crashes setuptools
     'tensorflow',
-    'absl-py>=0.12.0', # tensorflow transient dependency, lower versions not compatible with Python3.10+
+    # tensorflow transient dep, lower versions not compatible with Python3.10+
+    'absl-py>=0.12.0',
     'tensorflow-hub',
     'tf2onnx',
     'torch',
@@ -548,10 +549,12 @@ if __name__ == '__main__':
               # tests due to tag check introduced since pip 24.2
               # https://github.com/apache/beam/issues/31285
               # 'xgboost<2.0',  # https://github.com/apache/beam/issues/31252
-          ] + ml_base + milvus_dependency,
+          ] + ml_base,
           'p312_ml_test': [
               'datatable',
           ] + ml_base,
+          # maintainer: milvus tests only run with this extension. Make sure it
+          # is covered by docker-in-docker test when changing py version
           'p313_ml_test': ml_base + milvus_dependency,
           'aws': ['boto3>=1.9,<2'],
           'azure': [
@@ -587,7 +590,8 @@ if __name__ == '__main__':
           'torch': ['torch>=1.9.0,<2.8.0'],
           'tensorflow': [
               'tensorflow>=2.12rc1,<2.21',
-              'absl-py>=0.12.0' # tensorflow transient dependency, lower versions not compatible with Python3.10+
+              # tensorflow transitive dep
+              'absl-py>=0.12.0'
           ],
           'transformers': [
               'transformers>=4.28.0,<4.56.0',
@@ -598,7 +602,8 @@ if __name__ == '__main__':
               'tensorflow>=2.12.0',
               'torch==2.8.0+cpu',
               'transformers>=4.28.0,<4.56.0',
-              'absl-py>=0.12.0' # tensorflow transient dependency, lower versions not compatible with Python3.10+
+              # tensorflow transient dep
+              'absl-py>=0.12.0'
           ],
           'redis': ['redis>=5.0.0,<6'],
           'tft': [
@@ -616,7 +621,8 @@ if __name__ == '__main__':
               'tf2onnx==1.13.0',
               'skl2onnx==1.13',
               'transformers==4.25.1',
-              'absl-py>=0.12.0' # tensorflow transient dependency, lower versions not compatible with Python3.10+
+               # tensorflow transient dep
+              'absl-py>=0.12.0'
           ],
           'xgboost': ['xgboost>=1.6.0,<2.1.3', 'datatable==1.0.0'],
           'tensorflow-hub': ['tensorflow-hub>=0.14.0,<0.16.0'],
