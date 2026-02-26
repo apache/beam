@@ -38,7 +38,7 @@ Example Beam Java Pipelines using it:
   - **Cloud NAT (Prerequisite)**: Allows private nodes to pull Docker images.
 - **Envoy Rate Limit Service**: A stateless Go/gRPC service that handles rate limit logic.
 - **Redis**: Stores the rate limit counters.
-- **StatsD Exporter**: Sidecar container that converts StatsD metrics to Prometheus format, exposed on port `9102`.
+- **Prometheus Metrics**: Exposes Prometheus metrics on port `9102`. These metrics are exported to Google Cloud Monitoring.
 - **Internal Load Balancer**: A Google Cloud TCP Load Balancer exposing the Rate Limit service internally within the VPC.
 
 ## Prerequisites:
@@ -163,7 +163,6 @@ The service is accessible **only from within the VPC** (e.g., via Dataflow worke
 This module supports exporting native Prometheus metrics to **Google Cloud Monitoring**.
 
  `enable_metrics` is set to `true` by default.
-
 
 ### Sample Metrics
 | Metric Name | Description |
