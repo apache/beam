@@ -292,7 +292,6 @@ project.tasks.register("flinkExamples") {
             '--job_server_jvm_properties=-Dorg.slf4j.simpleLogger.log.org.apache.flink.runtime=error',
             '--job_server_jvm_properties=-Dorg.slf4j.simpleLogger.log.org.apache.beam.runners.flink.FlinkPipelineRunner=warn',
             '--job_server_jvm_properties=-Dorg.slf4j.simpleLogger.log.org.apache.beam.runners.fnexecution.control=warn',
-            '--job_server_jvm_properties=-Dorg.slf4j.simpleLogger.log.org.apache.beam.runners.flink.FlinkPipelineRunner=warn',
     ]
     def cmdArgs = mapToArgString([
             "test_opts": testOpts,
@@ -418,7 +417,6 @@ project.tasks.register("postCommitPy${pythonVersionSuffix}IT") {
         '--job_server_jvm_properties=-Dorg.slf4j.simpleLogger.log.org.apache.flink.runtime=error',
         '--job_server_jvm_properties=-Dorg.slf4j.simpleLogger.log.org.apache.beam.runners.flink.FlinkPipelineRunner=warn',
         '--job_server_jvm_properties=-Dorg.slf4j.simpleLogger.log.org.apache.beam.runners.fnexecution.control=warn',
-        '--job_server_jvm_properties=-Dorg.slf4j.simpleLogger.log.org.apache.beam.runners.flink.FlinkPipelineRunner=warn',
     ]
     def cmdArgs = mapToArgString([
             "test_opts": testOpts,
@@ -468,7 +466,6 @@ project.tasks.register("xlangSpannerIOIT") {
         '--job_server_jvm_properties=-Dorg.slf4j.simpleLogger.log.org.apache.flink.runtime=error',
         '--job_server_jvm_properties=-Dorg.slf4j.simpleLogger.log.org.apache.beam.runners.flink.FlinkPipelineRunner=warn',
         '--job_server_jvm_properties=-Dorg.slf4j.simpleLogger.log.org.apache.beam.runners.fnexecution.control=warn',
-        '--job_server_jvm_properties=-Dorg.slf4j.simpleLogger.log.org.apache.beam.runners.flink.FlinkPipelineRunner=warn',
     ]
     def cmdArgs = mapToArgString([
             "test_opts": testOpts,
