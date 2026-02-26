@@ -129,7 +129,7 @@ public class AfterWatermark {
     @Override
     public boolean isCompatibleWithCombinerLifting() {
       return earlyTrigger.isCompatibleWithCombinerLifting()
-          && lateTrigger.isCompatibleWithCombinerLifting();
+          && (lateTrigger == null || lateTrigger.isCompatibleWithCombinerLifting());
     }
 
     @Override
