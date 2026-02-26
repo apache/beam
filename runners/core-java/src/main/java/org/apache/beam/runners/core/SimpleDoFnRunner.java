@@ -310,9 +310,14 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
     public String getErrorContext() {
       return "SimpleDoFnRunner/StartBundle";
     }
+
+    @Override
+    public BundleFinalizer bundleFinalizer() {
+      return stepContext.bundleFinalizer();
+    }
   }
 
-  /** An {@link DoFnInvoker.ArgumentProvider} for {@link DoFn.StartBundle @StartBundle}. */
+  /** An {@link DoFnInvoker.ArgumentProvider} for {@link DoFn.FinishBundle @FinishBundle}. */
   private class DoFnFinishBundleArgumentProvider
       extends DoFnInvoker.BaseArgumentProvider<InputT, OutputT> {
     /** A concrete implementation of {@link DoFn.FinishBundleContext}. */
@@ -354,6 +359,11 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
     @Override
     public String getErrorContext() {
       return "SimpleDoFnRunner/FinishBundle";
+    }
+
+    @Override
+    public BundleFinalizer bundleFinalizer() {
+      return stepContext.bundleFinalizer();
     }
   }
 
@@ -1005,7 +1015,7 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
     @Override
     public BundleFinalizer bundleFinalizer() {
       throw new UnsupportedOperationException(
-          "Bundle finalization is not supported in non-portable pipelines.");
+          "Bundle finalization is not supported in OnTimer calls.");
     }
   }
 
@@ -1259,7 +1269,7 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
     @Override
     public BundleFinalizer bundleFinalizer() {
       throw new UnsupportedOperationException(
-          "Bundle finalization is not supported in non-portable pipelines.");
+          "Bundle finalization is not supported in OnWindowExpiration calls.");
     }
   }
 

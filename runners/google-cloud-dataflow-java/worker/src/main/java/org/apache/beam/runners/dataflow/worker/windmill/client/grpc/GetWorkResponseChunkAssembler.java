@@ -54,6 +54,7 @@ final class GetWorkResponseChunkAssembler {
   private final WorkItem.Builder workItemBuilder; // Reused to reduce GC overhead.
   private ByteString data;
   private long bufferedSize;
+  private final List<Long> appliedFinalizeIds;
 
   GetWorkResponseChunkAssembler() {
     workTimingInfosTracker = new GetWorkTimingInfosTracker(System::currentTimeMillis);
@@ -61,6 +62,7 @@ final class GetWorkResponseChunkAssembler {
     bufferedSize = 0;
     metadata = null;
     workItemBuilder = WorkItem.newBuilder();
+    appliedFinalizeIds = new ArrayList<>();
   }
 
   /**
@@ -72,6 +74,7 @@ final class GetWorkResponseChunkAssembler {
       metadata = ComputationMetadata.fromProto(chunk.getComputationMetadata());
     }
     workTimingInfosTracker.addTimingInfo(chunk.getPerWorkItemTimingInfosList());
+    appliedFinalizeIds.addAll(chunk.getAppliedFinalizeIdsList());
 
     List<AssembledWorkItem> response = new ArrayList<>();
     for (int i = 0; i < chunk.getSerializedWorkItemList().size(); i++) {
@@ -90,7 +93,7 @@ final class GetWorkResponseChunkAssembler {
   }
 
   /**
-   * Attempt to flush the {@link #data} bytes into a {@link WorkItem} w/ it's metadata. Resets the
+   * Attempt to flush the {@link #data} bytes into a {@link WorkItem} w/ its metadata. Resets the
    * data byte string and tracking metadata afterwards, whether the {@link WorkItem} deserialization
    * was successful or not.
    */
@@ -102,7 +105,8 @@ final class GetWorkResponseChunkAssembler {
               workItemBuilder.build(),
               Preconditions.checkNotNull(metadata),
               workTimingInfosTracker.getLatencyAttributions(),
-              bufferedSize));
+              bufferedSize,
+              appliedFinalizeIds));
     } catch (IOException e) {
       LOG.error("Failed to parse work item from stream: ", e);
     } finally {
@@ -110,6 +114,7 @@ final class GetWorkResponseChunkAssembler {
       workTimingInfosTracker.reset();
       data = ByteString.EMPTY;
       bufferedSize = 0;
+      appliedFinalizeIds.clear();
     }
 
     return Optional.empty();
@@ -144,7 +149,9 @@ final class GetWorkResponseChunkAssembler {
         WorkItem workItem,
         ComputationMetadata computationMetadata,
         ImmutableList<LatencyAttribution> latencyAttributions,
-        long size) {
+        long size,
+        List<Long> appliedFinalizeIds) {
+      workItem = workItem.toBuilder().addAllAppliedFinalizeIds(appliedFinalizeIds).build();
       return new AutoValue_GetWorkResponseChunkAssembler_AssembledWorkItem(
           workItem, computationMetadata, latencyAttributions, size);
     }
