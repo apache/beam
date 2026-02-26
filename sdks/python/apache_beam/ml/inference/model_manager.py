@@ -206,10 +206,10 @@ class ResourceEstimator:
     with self._lock:
       self.estimates[model_tag] = cost
       self.known_models.add(model_tag)
-      Metrics.gauge(
+      Metrics.distribution(
           "BeamML_ModelManager",
           f"memory_estimate_mb_{model_tag}",
-          process_wide=True).set(int(cost))
+          process_wide=True).update(int(cost))
       self.logging_info("Initial Profile for %s: %s MB", model_tag, cost)
 
   def add_observation(
@@ -297,10 +297,10 @@ class ResourceEstimator:
         self.logging_info(
             "Updated Estimate for %s: %.1f MB", model, self.estimates[model])
 
-        Metrics.gauge(
+        Metrics.distribution(
             "BeamML_ModelManager",
             f"memory_estimate_mb_{model}",
-            process_wide=True).set(int(self.estimates[model]))
+            process_wide=True).update(int(self.estimates[model]))
       self.logging_info("System Bias: %s MB", bias)
 
     except Exception as e:
@@ -386,15 +386,15 @@ class ModelManager:
 
   def _update_model_count_metric(self):
     for tag, instances in self._models.items():
-      Metrics.gauge(
+      Metrics.distribution(
           "BeamML_ModelManager", f"num_loaded_models_{tag}",
-          process_wide=True).set(len(instances))
+          process_wide=True).update(len(instances))
 
   def _clear_all_model_metrics(self):
     for tag in self._models:
-      Metrics.gauge(
+      Metrics.distribution(
           "BeamML_ModelManager", f"num_loaded_models_{tag}",
-          process_wide=True).set(0)
+          process_wide=True).update(0)
 
   def logging_info(self, message: str, *args):
     if self._verbose_logging:
