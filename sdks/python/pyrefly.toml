@@ -1,0 +1,62 @@
+#
+# Licensed to the Apache Software Foundation (ASF) under one or more
+# contributor license agreements.  See the NOTICE file distributed with
+# this work for additional information regarding copyright ownership.
+# The ASF licenses this file to You under the Apache License, Version 2.0
+# (the "License"); you may not use this file except in compliance with
+# the License.  You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
+project-includes = ["apache_beam"]
+python-version = "3.10.0"
+ignore-missing-imports = ["*"]
+untyped-def-behavior = "skip-and-infer-return-any"
+
+[errors]
+missing-attribute = "ignore"
+invalid-annotation = "ignore"
+redundant-condition = "ignore"
+untyped-import = "ignore"
+# Beam-specific supressions to keep pyrefly green
+# These are in descending order of instances, e.g there are 
+# fewer violations for the check on line 40 than for the check on line 35.
+# violations.
+#
+# TODO(https://github.com/apache/beam/issues/37699): Reduce the number of
+# ignored checks.
+bad-param-name-override = "ignore"
+bad-override = "ignore"
+bad-argument-type = "ignore"
+unsupported-operation = "ignore"
+implicit-import = "ignore"
+bad-function-definition = "ignore"
+bad-return = "ignore"
+unbound-name = "ignore"
+no-matching-overload = "ignore"
+bad-assignment = "ignore"
+missing-argument = "ignore"
+bad-index = "ignore"
+invalid-type-var = "ignore"
+unknown-name = "ignore"
+not-a-type = "ignore"
+deprecated = "ignore"
+not-callable = "ignore"
+invalid-argument = "ignore"
+invalid-inheritance = "ignore"
+not-iterable = "ignore"
+unexpected-keyword = "ignore"
+bad-specialization = "ignore"
+bad-context-manager = "ignore"
+invalid-yield = "ignore"
+bad-argument-count = "ignore"
+bad-typed-dict-key = "ignore"
+no-access = "ignore"
+bad-unpacking = "ignore"
