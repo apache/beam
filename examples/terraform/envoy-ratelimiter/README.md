@@ -111,30 +111,33 @@ EOF
 
 # Deploy Envoy Rate Limiter:
 
-1. **Deploy (Recommended)**:
+1. **Deploy Script (Recommended)**:
 Run the helper script to handle the deployment process automatically:
 ```bash
 ./deploy.sh
 ```
+The script will provide the ip address of the load balancer once the deployment is complete.
 
 2. **Deploy (Manual Alternative)**:
-If you prefer running Terraform manually, you must apply in two steps:
+If you prefer running Terraform manually, you can use the following commands:
 ```bash
-# Step 1: Create Cluster
+# Step 1: Initialize Terraform
+terraform init
+
+# Step 2: Create Cluster
 terraform apply -target=time_sleep.wait_for_cluster
 
-# Step 2: Create Resources
+# Step 3: Create Resources
 terraform apply
 ```
 
-3. Connect to the service:
 After deployment, get the **Internal** IP address:
 ```bash
 terraform output load_balancer_ip
 ```
 The service is accessible **only from within the VPC** (e.g., via Dataflow workers or GCE instances in the same network) at `<INTERNAL_IP>:8081`.
 
-4. **Test with Dataflow Workflow**:
+3. **Test with Dataflow Workflow**:
    Verify connectivity and rate limiting logic by running the example Dataflow pipeline.
 
    ```bash
@@ -161,7 +164,6 @@ This module supports exporting native Prometheus metrics to **Google Cloud Monit
 
  `enable_metrics` is set to `true` by default.
 
-Once enabled, the Envoy Rate Limiter exports metrics to Google Cloud Monitoring. You can view them in **Metrics Explorer** by searching for `ratelimit`.
 
 ### Sample Metrics
 | Metric Name | Description |
@@ -171,7 +173,7 @@ Once enabled, the Envoy Rate Limiter exports metrics to Google Cloud Monitoring.
 | `ratelimit_service_rate_limit_near_limit` | Requests that are approaching the limit. |
 | `ratelimit_service_call_should_rate_limit` | Total valid gRPC calls to the service. |
 
-*Note: You will also see many other Go runtime metrics (`go_*`) and Redis client metrics (`redis_*`).*
+*Note: You will also see many other Go runtime metrics (`go_*`) and Redis client metrics (`redis_*`)
 
 ### Viewing in Google Cloud Console
 1. Go to **Monitoring** > **Metrics Explorer**.

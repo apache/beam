@@ -16,7 +16,7 @@
 # limitations under the License.
 #
 
-# This script simply the deployment of the Envoy Rate Limiter on GKE.
+# This script deploys the Envoy Rate Limiter on GKE.
 
 set -e
 

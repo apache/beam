@@ -398,7 +398,7 @@ resource "kubernetes_manifest" "ratelimit_pod_monitoring" {
       }
       endpoints = [
         {
-          port = "metrics" # Matches the port name in the service/deployment
+          port = "metrics"
           path = "/metrics"
           interval = "15s"
         }
