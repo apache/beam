@@ -41,7 +41,6 @@ import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.DoFnSchemaInformation;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
-import org.apache.beam.sdk.values.CausedByDrain;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
@@ -107,7 +106,7 @@ public class StatefulParDoP<OutputT>
         timer.getTimestamp(),
         timer.getOutputTimestamp(),
         timer.getDomain(),
-        CausedByDrain.NORMAL);
+        timer.causedByDrain());
   }
 
   @Override

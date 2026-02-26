@@ -116,16 +116,10 @@ public class SimplePushbackSideInputDoFnRunner<InputT, OutputT>
       BoundedWindow window,
       Instant timestamp,
       Instant outputTimestamp,
-      TimeDomain timeDomain) {
+      TimeDomain timeDomain,
+      CausedByDrain causedByDrain) {
     underlying.onTimer(
-        timerId,
-        timerFamilyId,
-        key,
-        window,
-        timestamp,
-        outputTimestamp,
-        timeDomain,
-        CausedByDrain.NORMAL);
+        timerId, timerFamilyId, key, window, timestamp, outputTimestamp, timeDomain, causedByDrain);
   }
 
   @Override

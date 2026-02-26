@@ -328,7 +328,7 @@ public class CommonCoderTest {
           new Instant(((Number) kvMap.get("fireTimestamp")).longValue()),
           new Instant(((Number) kvMap.get("holdTimestamp")).longValue()),
           paneInfo,
-          CausedByDrain.NORMAL);
+          CausedByDrain.NORMAL); // todo - add tests once causedByDrain is added to proto
     } else if (s.equals(getUrn(StandardCoders.Enum.INTERVAL_WINDOW))) {
       Map<String, Object> kvMap = (Map<String, Object>) value;
       Instant end = new Instant(((Number) kvMap.get("end")).longValue());

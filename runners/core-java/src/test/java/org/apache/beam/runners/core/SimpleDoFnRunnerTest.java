@@ -268,7 +268,7 @@ public class SimpleDoFnRunnerTest {
         currentTime.plus(offset),
         currentTime.plus(offset),
         TimeDomain.EVENT_TIME,
-        CausedByDrain.NORMAL);
+        CausedByDrain.CAUSED_BY_DRAIN);
 
     assertThat(
         fn.onTimerInvocations,
@@ -280,7 +280,7 @@ public class SimpleDoFnRunnerTest {
                 currentTime.plus(offset),
                 currentTime.plus(offset),
                 TimeDomain.EVENT_TIME,
-                CausedByDrain.NORMAL)));
+                CausedByDrain.CAUSED_BY_DRAIN)));
   }
 
   /**

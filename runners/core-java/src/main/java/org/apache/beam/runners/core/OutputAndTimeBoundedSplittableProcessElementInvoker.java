@@ -399,7 +399,7 @@ public class OutputAndTimeBoundedSplittableProcessElementInvoker<
 
     @Override
     public CausedByDrain causedByDrain() {
-      return CausedByDrain.NORMAL;
+      return element.causedByDrain();
     }
 
     @Override
