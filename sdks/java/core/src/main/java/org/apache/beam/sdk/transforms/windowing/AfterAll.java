@@ -59,6 +59,11 @@ public class AfterAll extends OnceTrigger {
   }
 
   @Override
+  public boolean isCompatibleWithCombinerLifting() {
+    return subTriggers.stream().allMatch(Trigger::isCompatibleWithCombinerLifting);
+  }
+
+  @Override
   protected OnceTrigger getContinuationTrigger(List<Trigger> continuationTriggers) {
     return new AfterAll(continuationTriggers);
   }

@@ -54,6 +54,11 @@ public class ReshuffleTrigger<W extends BoundedWindow> extends Trigger {
   }
 
   @Override
+  public boolean isCompatibleWithCombinerLifting() {
+    return false;
+  }
+
+  @Override
   public String toString() {
     return "ReshuffleTrigger()";
   }

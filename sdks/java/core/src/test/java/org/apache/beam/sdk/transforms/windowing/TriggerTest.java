@@ -73,6 +73,11 @@ public class TriggerTest {
     public boolean mayFinish() {
       return false;
     }
+
+    @Override
+    public boolean isCompatibleWithCombinerLifting() {
+      return false;
+    }
   }
 
   private static class Trigger2 extends Trigger {
@@ -93,6 +98,11 @@ public class TriggerTest {
 
     @Override
     public boolean mayFinish() {
+      return false;
+    }
+
+    @Override
+    public boolean isCompatibleWithCombinerLifting() {
       return false;
     }
   }

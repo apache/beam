@@ -48,4 +48,9 @@ abstract class StubTrigger extends Trigger.OnceTrigger {
   public Instant getWatermarkThatGuaranteesFiring(BoundedWindow window) {
     return null;
   }
+
+  @Override
+  public boolean isCompatibleWithCombinerLifting() {
+    return false;
+  }
 }

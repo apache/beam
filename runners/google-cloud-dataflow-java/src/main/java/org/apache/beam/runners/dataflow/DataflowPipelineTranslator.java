@@ -88,7 +88,6 @@ import org.apache.beam.sdk.transforms.display.HasDisplayData;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignatures;
 import org.apache.beam.sdk.transforms.resourcehints.ResourceHint;
 import org.apache.beam.sdk.transforms.resourcehints.ResourceHints;
-import org.apache.beam.sdk.transforms.windowing.DefaultTrigger;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.util.AppliedCombineFn;
 import org.apache.beam.sdk.util.CoderUtils;
@@ -970,8 +969,8 @@ public class DataflowPipelineTranslator {
                     && windowingStrategy.getWindowFn().assignsToOneWindow();
             if (isStreaming) {
               allowCombinerLifting &= transform.fewKeys();
-              // TODO: Allow combiner lifting on the non-default trigger, as appropriate.
-              allowCombinerLifting &= (windowingStrategy.getTrigger() instanceof DefaultTrigger);
+              allowCombinerLifting &=
+                  windowingStrategy.getTrigger().isCompatibleWithCombinerLifting();
             }
             stepContext.addInput(PropertyNames.DISALLOW_COMBINER_LIFTING, !allowCombinerLifting);
             stepContext.addInput(

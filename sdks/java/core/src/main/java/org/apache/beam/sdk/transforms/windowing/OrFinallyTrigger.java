@@ -65,6 +65,12 @@ public class OrFinallyTrigger extends Trigger {
   }
 
   @Override
+  public boolean isCompatibleWithCombinerLifting() {
+    return subTriggers.get(ACTUAL).isCompatibleWithCombinerLifting()
+        && subTriggers.get(UNTIL).isCompatibleWithCombinerLifting();
+  }
+
+  @Override
   protected Trigger getContinuationTrigger(List<Trigger> continuationTriggers) {
     // Use OrFinallyTrigger instead of AfterFirst because the continuation of ACTUAL
     // may not be a OnceTrigger.

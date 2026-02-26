@@ -76,6 +76,11 @@ public class AfterEach extends Trigger {
   }
 
   @Override
+  public boolean isCompatibleWithCombinerLifting() {
+    return subTriggers.stream().allMatch(trigger -> trigger.isCompatibleWithCombinerLifting());
+  }
+
+  @Override
   public String toString() {
     StringBuilder builder = new StringBuilder("AfterEach.inOrder(");
     Joiner.on(", ").appendTo(builder, subTriggers);

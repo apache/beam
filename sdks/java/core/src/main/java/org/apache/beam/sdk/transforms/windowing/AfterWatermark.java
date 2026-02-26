@@ -127,6 +127,12 @@ public class AfterWatermark {
     }
 
     @Override
+    public boolean isCompatibleWithCombinerLifting() {
+      return earlyTrigger.isCompatibleWithCombinerLifting()
+          && lateTrigger.isCompatibleWithCombinerLifting();
+    }
+
+    @Override
     public String toString() {
       StringBuilder builder = new StringBuilder(TO_STRING);
 
@@ -175,6 +181,11 @@ public class AfterWatermark {
     @Override
     protected FromEndOfWindow getContinuationTrigger(List<Trigger> continuationTriggers) {
       return this;
+    }
+
+    @Override
+    public boolean isCompatibleWithCombinerLifting() {
+      return true;
     }
 
     @Override

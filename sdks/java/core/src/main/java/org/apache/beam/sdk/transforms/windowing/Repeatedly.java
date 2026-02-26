@@ -74,6 +74,11 @@ public class Repeatedly extends Trigger {
   }
 
   @Override
+  public boolean isCompatibleWithCombinerLifting() {
+    return subTriggers.get(REPEATED).isCompatibleWithCombinerLifting();
+  }
+
+  @Override
   protected Trigger getContinuationTrigger(List<Trigger> continuationTriggers) {
     return new Repeatedly(continuationTriggers.get(REPEATED));
   }

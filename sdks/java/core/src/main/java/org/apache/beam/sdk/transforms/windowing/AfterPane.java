@@ -60,6 +60,12 @@ public class AfterPane extends OnceTrigger {
   }
 
   @Override
+  public boolean isCompatibleWithCombinerLifting() {
+    // Combiner lifting not supported for count triggers.
+    return false;
+  }
+
+  @Override
   protected OnceTrigger getContinuationTrigger(List<Trigger> continuationTriggers) {
     return AfterPane.elementCountAtLeast(1);
   }

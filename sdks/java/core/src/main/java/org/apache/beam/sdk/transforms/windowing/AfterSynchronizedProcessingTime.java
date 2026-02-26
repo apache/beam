@@ -50,6 +50,11 @@ public class AfterSynchronizedProcessingTime extends OnceTrigger {
   }
 
   @Override
+  public boolean isCompatibleWithCombinerLifting() {
+    return true;
+  }
+
+  @Override
   protected Trigger getContinuationTrigger(List<Trigger> continuationTriggers) {
     return this;
   }

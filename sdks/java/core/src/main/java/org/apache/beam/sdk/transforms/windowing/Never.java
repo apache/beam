@@ -56,5 +56,11 @@ public final class Never {
     public Instant getWatermarkThatGuaranteesFiring(BoundedWindow window) {
       return BoundedWindow.TIMESTAMP_MAX_VALUE;
     }
+
+    @Override
+    public boolean isCompatibleWithCombinerLifting() {
+      // Should we allow this here?
+      return true;
+    }
   }
 }
