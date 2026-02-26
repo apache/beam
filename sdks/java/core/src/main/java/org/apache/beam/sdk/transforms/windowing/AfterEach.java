@@ -67,7 +67,7 @@ public class AfterEach extends Trigger {
 
   @Override
   public boolean mayFinish() {
-    return subTriggers.stream().allMatch(trigger -> trigger.mayFinish());
+    return subTriggers.stream().allMatch(Trigger::mayFinish);
   }
 
   @Override
@@ -77,7 +77,7 @@ public class AfterEach extends Trigger {
 
   @Override
   public boolean isCompatibleWithCombinerLifting() {
-    return subTriggers.stream().allMatch(trigger -> trigger.isCompatibleWithCombinerLifting());
+    return subTriggers.stream().allMatch(Trigger::isCompatibleWithCombinerLifting);
   }
 
   @Override
