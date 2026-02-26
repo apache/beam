@@ -27,7 +27,6 @@ import types
 import unittest
 
 import mock
-
 from google.protobuf import json_format
 
 from apache_beam import DoFn
