@@ -3124,7 +3124,8 @@ class BeamModulePlugin implements Plugin<Project> {
             // pip 25.1 casues :sdks:python:installGcpTest stuck. Pin to 25.0.1 for now.
             args '-c', ". ${project.ext.envdir}/bin/activate && " +
                 "pip install --pre --retries 10 --upgrade pip==25.0.1 --no-cache-dir && " +
-                "pip install --pre --retries 10 --upgrade tox --no-cache-dir"
+                "pip install --pre --retries 10 --upgrade tox --no-cache-dir && " +
+                "pip install --pre --retries 10 --upgrade setuptools build --no-cache-dir"
           }
         }
         // Gradle will delete outputs whenever it thinks they are stale. Putting a
