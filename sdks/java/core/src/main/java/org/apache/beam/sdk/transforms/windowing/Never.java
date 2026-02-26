@@ -59,7 +59,6 @@ public final class Never {
 
     @Override
     public boolean isCompatibleWithCombinerLifting() {
-      // Should we allow this here?
       return true;
     }
   }
