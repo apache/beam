@@ -35,8 +35,8 @@ import org.apache.beam.runners.core.StateNamespaces.GlobalNamespace;
 import org.apache.beam.runners.core.StateTag;
 import org.apache.beam.runners.core.StateTags;
 import org.apache.beam.runners.core.TimerInternals.TimerData;
-import org.apache.beam.runners.dataflow.worker.WindmillNamespacePrefix;
 import org.apache.beam.runners.dataflow.worker.WindmillTimeUtils;
+import org.apache.beam.runners.dataflow.worker.WindmillTimerType;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.Timer;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.InstantCoder;
@@ -47,6 +47,7 @@ import org.apache.beam.sdk.state.ValueState;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
+import org.apache.beam.sdk.values.CausedByDrain;
 import org.apache.beam.vendor.grpc.v1p69p0.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.joda.time.Duration;
@@ -221,7 +222,7 @@ public class WindmillTagEncodingV2Test {
 
     @Parameters(
         name =
-            "{index}: namespace={0} prefix={1} expectedBytes={2} includeTimerId={3}"
+            "{index}: namespace={0} windmillTimerType={1} expectedBytes={2} includeTimerId={3}"
                 + " includeTimerFamilyId={4} timeDomain={4}")
     public static Collection<Object[]> data() {
       List<Object[]> data = new ArrayList<>();
@@ -234,52 +235,52 @@ public class WindmillTagEncodingV2Test {
             ImmutableList.of(
                 new Object[] {
                   GLOBAL_NAMESPACE,
-                  WindmillNamespacePrefix.USER_NAMESPACE_PREFIX,
+                  WindmillTimerType.USER_TIMER,
                   GLOBAL_NAMESPACE_BYTES.concat(expectedUserTimerBytes)
                 },
                 new Object[] {
                   GLOBAL_NAMESPACE,
-                  WindmillNamespacePrefix.SYSTEM_NAMESPACE_PREFIX,
+                  WindmillTimerType.SYSTEM_TIMER,
                   GLOBAL_NAMESPACE_BYTES.concat(expectedSystemTimerBytes)
                 },
                 new Object[] {
                   INTERVAL_WINDOW_NAMESPACE,
-                  WindmillNamespacePrefix.USER_NAMESPACE_PREFIX,
+                  WindmillTimerType.USER_TIMER,
                   INTERVAL_WINDOW_NAMESPACE_BYTES.concat(expectedUserTimerBytes)
                 },
                 new Object[] {
                   INTERVAL_WINDOW_NAMESPACE,
-                  WindmillNamespacePrefix.SYSTEM_NAMESPACE_PREFIX,
+                  WindmillTimerType.SYSTEM_TIMER,
                   INTERVAL_WINDOW_NAMESPACE_BYTES.concat(expectedSystemTimerBytes)
                 },
                 new Object[] {
                   OTHER_WINDOW_NAMESPACE,
-                  WindmillNamespacePrefix.USER_NAMESPACE_PREFIX,
+                  WindmillTimerType.USER_TIMER,
                   OTHER_WINDOW_NAMESPACE_BYTES.concat(expectedUserTimerBytes)
                 },
                 new Object[] {
                   OTHER_WINDOW_NAMESPACE,
-                  WindmillNamespacePrefix.SYSTEM_NAMESPACE_PREFIX,
+                  WindmillTimerType.SYSTEM_TIMER,
                   OTHER_WINDOW_NAMESPACE_BYTES.concat(expectedSystemTimerBytes)
                 },
                 new Object[] {
                   INTERVAL_WINDOW_AND_TRIGGER_NAMESPACE,
-                  WindmillNamespacePrefix.USER_NAMESPACE_PREFIX,
+                  WindmillTimerType.USER_TIMER,
                   INTERVAL_WINDOW_AND_TRIGGER_NAMESPACE_BYTES.concat(expectedUserTimerBytes)
                 },
                 new Object[] {
                   INTERVAL_WINDOW_AND_TRIGGER_NAMESPACE,
-                  WindmillNamespacePrefix.SYSTEM_NAMESPACE_PREFIX,
+                  WindmillTimerType.SYSTEM_TIMER,
                   INTERVAL_WINDOW_AND_TRIGGER_NAMESPACE_BYTES.concat(expectedSystemTimerBytes)
                 },
                 new Object[] {
                   OTHER_WINDOW_AND_TRIGGER_NAMESPACE,
-                  WindmillNamespacePrefix.USER_NAMESPACE_PREFIX,
+                  WindmillTimerType.USER_TIMER,
                   OTHER_WINDOW_AND_TRIGGER_NAMESPACE_BYTES.concat(expectedUserTimerBytes)
                 },
                 new Object[] {
                   OTHER_WINDOW_AND_TRIGGER_NAMESPACE,
-                  WindmillNamespacePrefix.SYSTEM_NAMESPACE_PREFIX,
+                  WindmillTimerType.SYSTEM_TIMER,
                   OTHER_WINDOW_AND_TRIGGER_NAMESPACE_BYTES.concat(expectedSystemTimerBytes)
                 });
 
@@ -297,7 +298,7 @@ public class WindmillTagEncodingV2Test {
     public StateNamespace namespace;
 
     @Parameter(1)
-    public WindmillNamespacePrefix prefix;
+    public WindmillTimerType windmillTimerType;
 
     @Parameter(2)
     public ByteString expectedBytes;
@@ -319,75 +320,82 @@ public class WindmillTagEncodingV2Test {
                   new Instant(123),
                   new Instant(456),
                   timeDomain)
-              : TimerData.of(TIMER_ID, namespace, new Instant(123), new Instant(456), timeDomain);
-      assertEquals(expectedBytes, WindmillTagEncodingV2.instance().timerTag(prefix, timerData));
+              : TimerData.of(
+                  TIMER_ID,
+                  namespace,
+                  new Instant(123),
+                  new Instant(456),
+                  timeDomain,
+                  CausedByDrain.NORMAL);
+      assertEquals(
+          expectedBytes, WindmillTagEncodingV2.instance().timerTag(windmillTimerType, timerData));
     }
   }
 
   @RunWith(Parameterized.class)
   public static class TimerDataFromTimerTest {
 
-    @Parameters(name = "{index}: namespace={0} prefix={1} draining={4} timeDomain={5}")
+    @Parameters(name = "{index}: namespace={0} windmillTimerType={1} draining={4} timeDomain={5}")
     public static Collection<Object[]> data() {
       List<Object[]> tests =
           ImmutableList.of(
               new Object[] {
                 GLOBAL_NAMESPACE,
-                WindmillNamespacePrefix.USER_NAMESPACE_PREFIX,
+                WindmillTimerType.USER_TIMER,
                 GLOBAL_NAMESPACE_BYTES.concat(USER_TIMER_BYTES),
                 GlobalWindow.Coder.INSTANCE
               },
               new Object[] {
                 GLOBAL_NAMESPACE,
-                WindmillNamespacePrefix.SYSTEM_NAMESPACE_PREFIX,
+                WindmillTimerType.SYSTEM_TIMER,
                 GLOBAL_NAMESPACE_BYTES.concat(SYSTEM_TIMER_BYTES),
                 GlobalWindow.Coder.INSTANCE
               },
               new Object[] {
                 INTERVAL_WINDOW_NAMESPACE,
-                WindmillNamespacePrefix.USER_NAMESPACE_PREFIX,
+                WindmillTimerType.USER_TIMER,
                 INTERVAL_WINDOW_NAMESPACE_BYTES.concat(USER_TIMER_BYTES),
                 IntervalWindow.getCoder()
               },
               new Object[] {
                 INTERVAL_WINDOW_NAMESPACE,
-                WindmillNamespacePrefix.SYSTEM_NAMESPACE_PREFIX,
+                WindmillTimerType.SYSTEM_TIMER,
                 INTERVAL_WINDOW_NAMESPACE_BYTES.concat(SYSTEM_TIMER_BYTES),
                 IntervalWindow.getCoder()
               },
               new Object[] {
                 OTHER_WINDOW_NAMESPACE,
-                WindmillNamespacePrefix.USER_NAMESPACE_PREFIX,
+                WindmillTimerType.USER_TIMER,
                 OTHER_WINDOW_NAMESPACE_BYTES.concat(USER_TIMER_BYTES),
                 new CustomWindow.CustomWindowCoder()
               },
               new Object[] {
                 OTHER_WINDOW_NAMESPACE,
-                WindmillNamespacePrefix.SYSTEM_NAMESPACE_PREFIX,
+                WindmillTimerType.SYSTEM_TIMER,
                 OTHER_WINDOW_NAMESPACE_BYTES.concat(SYSTEM_TIMER_BYTES),
                 new CustomWindow.CustomWindowCoder()
               },
               new Object[] {
                 INTERVAL_WINDOW_AND_TRIGGER_NAMESPACE,
-                WindmillNamespacePrefix.USER_NAMESPACE_PREFIX,
+                WindmillTimerType.USER_TIMER,
                 INTERVAL_WINDOW_AND_TRIGGER_NAMESPACE_BYTES.concat(USER_TIMER_BYTES),
                 IntervalWindow.getCoder()
               },
               new Object[] {
                 INTERVAL_WINDOW_AND_TRIGGER_NAMESPACE,
-                WindmillNamespacePrefix.SYSTEM_NAMESPACE_PREFIX,
+                WindmillTimerType.SYSTEM_TIMER,
                 INTERVAL_WINDOW_AND_TRIGGER_NAMESPACE_BYTES.concat(SYSTEM_TIMER_BYTES),
                 IntervalWindow.getCoder()
               },
               new Object[] {
                 OTHER_WINDOW_AND_TRIGGER_NAMESPACE,
-                WindmillNamespacePrefix.USER_NAMESPACE_PREFIX,
+                WindmillTimerType.USER_TIMER,
                 OTHER_WINDOW_AND_TRIGGER_NAMESPACE_BYTES.concat(USER_TIMER_BYTES),
                 new CustomWindow.CustomWindowCoder()
               },
               new Object[] {
                 OTHER_WINDOW_AND_TRIGGER_NAMESPACE,
-                WindmillNamespacePrefix.SYSTEM_NAMESPACE_PREFIX,
+                WindmillTimerType.SYSTEM_TIMER,
                 OTHER_WINDOW_AND_TRIGGER_NAMESPACE_BYTES.concat(SYSTEM_TIMER_BYTES),
                 new CustomWindow.CustomWindowCoder()
               });
@@ -408,7 +416,7 @@ public class WindmillTagEncodingV2Test {
     public StateNamespace namespace;
 
     @Parameter(1)
-    public WindmillNamespacePrefix prefix;
+    public WindmillTimerType windmillTimerType;
 
     @Parameter(2)
     public ByteString timerTag;
@@ -437,8 +445,10 @@ public class WindmillTagEncodingV2Test {
               .setMetadataTimestamp(WindmillTimeUtils.harnessToWindmillTimestamp(outputTimestamp))
               .setType(timerType(timeDomain))
               .build();
-      assertEquals(
-          timerData, encoding.windmillTimerToTimerData(prefix, timer, windowCoder, draining));
+      WindmillTimerData windmillTimerData =
+          encoding.windmillTimerToTimerData(timer, windowCoder, draining);
+      assertEquals(windmillTimerType, windmillTimerData.getWindmillTimerType());
+      assertEquals(timerData, windmillTimerData.getTimerData());
     }
   }
 
@@ -460,7 +470,7 @@ public class WindmillTagEncodingV2Test {
       ByteString timerTag = ByteString.copyFrom(bytes);
       assertEquals(
           WindmillTagEncodingV2.instance()
-              .timerHoldTag(WindmillNamespacePrefix.SYSTEM_NAMESPACE_PREFIX, timerData, timerTag),
+              .timerHoldTag(WindmillTimerType.SYSTEM_TIMER, timerData, timerTag),
           timerTag);
     }
   }

@@ -145,7 +145,7 @@ if sys.platform == 'win32' and sys.maxsize <= 2**32:
   pyarrow_dependency = ['']
 else:
   pyarrow_dependency = [
-      'pyarrow>=3.0.0,<19.0.0',
+      'pyarrow>=6.0.1,<24.0.0',
       # NOTE(https://github.com/apache/beam/issues/29392): We can remove this
       # once Beam increases the pyarrow lower bound to a version that fixes CVE.
       # (lower bound >= 14.0.1)
@@ -168,7 +168,6 @@ ml_base = [
     'langchain',
     'sentence-transformers>=2.2.2',
     'skl2onnx',
-    'pillow',
     'pyod',
     'tensorflow',
     'tensorflow-hub',
@@ -380,9 +379,10 @@ if __name__ == '__main__':
           'envoy-data-plane<0.3.0; python_version < "3.13"',
           'fastavro>=0.23.6,<2',
           'fasteners>=0.3,<1.0',
-          # TODO(https://github.com/grpc/grpc/issues/37710): Unpin grpc
-          'grpcio>=1.33.1,<2,!=1.48.0,!=1.59.*,!=1.60.*,!=1.61.*,!=1.62.0,!=1.62.1,<1.66.0; python_version <= "3.12"',  # pylint: disable=line-too-long
-          'grpcio>=1.67.0; python_version >= "3.13"',
+          'grpcio>=1.33.1,<2,!=1.48.0,!=1.59.*,!=1.60.*,!=1.61.*,!=1.62.0,!=1.62.1,!=1.66.*,!=1.67.*,!=1.68.*,!=1.69.*,!=1.70.*,!=1.71.*,!=1.72.*,!=1.73.*,!=1.74.*,!=1.75.*,!=1.76.*,!=1.77.*,!=1.78.0; python_version <= "3.12"',  # pylint: disable=line-too-long
+          # TODO(https://github.com/grpc/grpc/issues/37710): Consolidate bounds
+          # across python versions once 1.78.1 is avaliable.
+          'grpcio>=1.67.0,<2; python_version >= "3.13"',
           'httplib2>=0.8,<0.32.0',
           'jsonpickle>=3.0.0,<4.0.0',
           # numpy can have breaking changes in minor versions.
@@ -390,6 +390,7 @@ if __name__ == '__main__':
           'numpy>=1.14.3,<2.5.0',  # Update pyproject.toml as well.
           'objsize>=0.6.1,<0.8.0',
           'packaging>=22.0',
+          'pillow>=12.1.1,<13',
           'pymongo>=3.8.0,<5.0.0',
           'proto-plus>=1.7.1,<2',
           # 1. Use a tighter upper bound in protobuf dependency to make sure
@@ -466,7 +467,7 @@ if __name__ == '__main__':
               'pg8000>=1.31.5',
               "PyMySQL>=1.1.0",
               'oracledb>=3.1.1'
-          ] + milvus_dependency,
+          ],
           'gcp': [
               'cachetools>=3.1.0,<7',
               'google-api-core>=2.0.0,<3',
@@ -479,13 +480,13 @@ if __name__ == '__main__':
               'google-auth-httplib2>=0.1.0,<0.3.0',
               'google-cloud-datastore>=2.0.0,<3',
               'google-cloud-pubsub>=2.1.0,<3',
-              'google-cloud-pubsublite>=1.2.0,<2',
               'google-cloud-storage>=2.18.2,<3',
               # GCP packages required by tests
               'google-cloud-bigquery>=2.0.0,<4',
               'google-cloud-bigquery-storage>=2.6.3,<3',
               'google-cloud-core>=2.0.0,<3',
               'google-cloud-bigtable>=2.19.0,<3',
+              'google-cloud-build>=3.35.0,<4',
               'google-cloud-spanner>=3.0.0,<4',
               # GCP Packages required by ML functionality
               'google-cloud-dlp>=3.0.0,<4',
@@ -546,11 +547,11 @@ if __name__ == '__main__':
               # tests due to tag check introduced since pip 24.2
               # https://github.com/apache/beam/issues/31285
               # 'xgboost<2.0',  # https://github.com/apache/beam/issues/31252
-          ] + ml_base,
+          ] + ml_base + milvus_dependency,
           'p312_ml_test': [
               'datatable',
           ] + ml_base,
-          'p313_ml_test': ml_base,
+          'p313_ml_test': ml_base + milvus_dependency,
           'aws': ['boto3>=1.9,<2'],
           'azure': [
               'azure-storage-blob>=12.3.2,<13',

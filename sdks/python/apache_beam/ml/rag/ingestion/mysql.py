@@ -33,7 +33,7 @@ from apache_beam.ml.rag.ingestion.jdbc_common import WriteConfig
 from apache_beam.ml.rag.ingestion.mysql_common import ColumnSpec
 from apache_beam.ml.rag.ingestion.mysql_common import ColumnSpecsBuilder
 from apache_beam.ml.rag.ingestion.mysql_common import ConflictResolution
-from apache_beam.ml.rag.types import Chunk
+from apache_beam.ml.rag.types import EmbeddableItem
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -96,7 +96,7 @@ class _MySQLQueryBuilder:
       *,
       column_specs: List[ColumnSpec],
       conflict_resolution: Optional[ConflictResolution] = None):
-    """Builds SQL queries for writing Chunks with Embeddings to MySQL.
+    """Builds SQL queries for writing EmbeddableItems with Embeddings to MySQL.
     """
     self.table_name = table_name
 
@@ -132,9 +132,9 @@ class _MySQLQueryBuilder:
     _LOGGER.info("MySQL Query with placeholders %s", query)
     return query
 
-  def create_converter(self) -> Callable[[Chunk], NamedTuple]:
-    """Creates a function to convert Chunks to records."""
-    def convert(chunk: Chunk) -> self.record_type:  # type: ignore
+  def create_converter(self) -> Callable[[EmbeddableItem], NamedTuple]:
+    """Creates a function to convert EmbeddableItems to records."""
+    def convert(chunk: EmbeddableItem) -> self.record_type:  # type: ignore
       return self.record_type(
           **{col.column_name: col.value_fn(chunk)
              for col in self.column_specs})  # type: ignore
@@ -167,7 +167,8 @@ class MySQLVectorWriterConfig(VectorDatabaseWriteConfig):
         column_specs:
             Use :class:`~.mysql_common.ColumnSpecsBuilder` to configure how
             embeddings and metadata are written to the database
-            schema. If None, uses default Chunk schema with MySQL vector
+            schema. If None, uses default EmbeddableItem
+            schema with MySQL vector
             functions.
         conflict_resolution: Optional
             :class:`~.mysql_common.ConflictResolution`
@@ -248,7 +249,7 @@ class _WriteToMySQLVectorDatabase(beam.PTransform):
     self.connection_config = config.connection_config
     self.write_config = config.write_config
 
-  def expand(self, pcoll: beam.PCollection[Chunk]):
+  def expand(self, pcoll: beam.PCollection[EmbeddableItem]):
     return (
         pcoll
         |

@@ -668,6 +668,25 @@ class PipelineOptions(HasDisplayData):
     view._all_options = self._all_options
     return view
 
+  def is_compat_version_prior_to(self, breaking_change_version):
+    """Check if update_compatibility_version is prior to a breaking change.
+
+    Returns True if the pipeline should use old behavior (i.e., the
+    update_compatibility_version is set and is earlier than the given version).
+    Returns False if update_compatibility_version is not set or is >= the
+    breaking change version.
+
+    Args:
+      breaking_change_version: Version string (e.g., "2.72.0") at which
+        the breaking change was introduced.
+    """
+    v1 = self.view_as(StreamingOptions).update_compatibility_version
+    if v1 is None:
+      return False
+    v1_parts = (v1.split('.') + ['0', '0', '0'])[:3]
+    v2_parts = (breaking_change_version.split('.') + ['0', '0', '0'])[:3]
+    return tuple(map(int, v1_parts)) < tuple(map(int, v2_parts))
+
   def _visible_option_list(self) -> List[str]:
     return sorted(
         option for option in dir(self._visible_options) if option[0] != '_')

@@ -96,7 +96,6 @@ import org.apache.beam.sdk.io.gcp.pubsub.PubsubMessageWithAttributesAndMessageId
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubMessageWithAttributesCoder;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubUnboundedSink;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubUnboundedSource;
-import org.apache.beam.sdk.io.gcp.pubsublite.internal.SubscribeTransform;
 import org.apache.beam.sdk.io.kafka.KafkaIO;
 import org.apache.beam.sdk.options.ExperimentalOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
@@ -664,8 +663,6 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
         // Do nothing. io-kafka is an optional dependency of runners-google-cloud-dataflow-java
         // and only needed when KafkaIO is used in the pipeline.
       }
-
-      overridesBuilder.add(SubscribeTransform.V1_READ_OVERRIDE);
 
       if (!hasExperiment(options, "enable_file_dynamic_sharding")) {
         overridesBuilder.add(
@@ -1302,16 +1299,19 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
     if (shouldActAsStreaming(pipeline)) {
       options.setStreaming(true);
 
+      {
+        List<String> experiments =
+            options.getExperiments() == null
+                ? new ArrayList<>()
+                : new ArrayList<>(options.getExperiments());
+        // Experiment marking that the harness supports tag encoding v2
+        // Backend will enable tag encoding v2 only if the harness supports it.
+        experiments.add("streaming_engine_state_tag_encoding_v2_supported");
+        options.setExperiments(ImmutableList.copyOf(experiments));
+      }
+
       if (useUnifiedWorker(options)) {
         options.setEnableStreamingEngine(true);
-        List<String> experiments =
-            new ArrayList<>(options.getExperiments()); // non-null if useUnifiedWorker is true
-        if (!experiments.contains("enable_streaming_engine")) {
-          experiments.add("enable_streaming_engine");
-        }
-        if (!experiments.contains("enable_windmill_service")) {
-          experiments.add("enable_windmill_service");
-        }
       }
     }
 

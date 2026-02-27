@@ -46,6 +46,8 @@ import com.google.cloud.spanner.Mutation.Op;
 import com.google.cloud.spanner.Options;
 import com.google.cloud.spanner.Options.RpcPriority;
 import com.google.cloud.spanner.PartitionOptions;
+import com.google.cloud.spanner.ReadOnlyTransaction;
+import com.google.cloud.spanner.ResultSet;
 import com.google.cloud.spanner.Spanner;
 import com.google.cloud.spanner.SpannerException;
 import com.google.cloud.spanner.SpannerOptions;
@@ -1975,11 +1977,6 @@ public class SpannerIO {
               + changeStreamDatabaseId
               + " has dialect "
               + changeStreamDatabaseDialect);
-      LOG.info(
-          "The Spanner database "
-              + fullPartitionMetadataDatabaseId
-              + " has dialect "
-              + metadataDatabaseDialect);
       PartitionMetadataTableNames partitionMetadataTableNames =
           Optional.ofNullable(getMetadataTable())
               .map(
@@ -1998,6 +1995,12 @@ public class SpannerIO {
       final MapperFactory mapperFactory = new MapperFactory(changeStreamDatabaseDialect);
       final ChangeStreamMetrics metrics = new ChangeStreamMetrics();
       final RpcPriority rpcPriority = MoreObjects.firstNonNull(getRpcPriority(), RpcPriority.HIGH);
+      final SpannerAccessor spannerAccessor =
+          SpannerAccessor.getOrCreate(changeStreamSpannerConfig);
+      final boolean isMutableChangeStream =
+          isMutableChangeStream(
+              spannerAccessor.getDatabaseClient(), changeStreamDatabaseDialect, changeStreamName);
+      LOG.info("The change stream " + changeStreamName + " is mutable: " + isMutableChangeStream);
       final DaoFactory daoFactory =
           new DaoFactory(
               changeStreamSpannerConfig,
@@ -2007,7 +2010,8 @@ public class SpannerIO {
               rpcPriority,
               input.getPipeline().getOptions().getJobName(),
               changeStreamDatabaseDialect,
-              metadataDatabaseDialect);
+              metadataDatabaseDialect,
+              isMutableChangeStream);
       final ActionFactory actionFactory = new ActionFactory();
 
       final Duration watermarkRefreshRate =
@@ -2688,5 +2692,59 @@ public class SpannerIO {
             || config.getProjectId().get().isEmpty()
         ? SpannerOptions.getDefaultProjectId()
         : config.getProjectId().get();
+  }
+
+  @VisibleForTesting
+  static boolean isMutableChangeStream(
+      DatabaseClient databaseClient, Dialect dialect, String changeStreamName) {
+    String fetchedPartitionMode = fetchPartitionMode(databaseClient, dialect, changeStreamName);
+    if (fetchedPartitionMode.isEmpty()
+        || fetchedPartitionMode.equalsIgnoreCase("IMMUTABLE_KEY_RANGE")) {
+      return false;
+    }
+    return true;
+  }
+
+  private static String fetchPartitionMode(
+      DatabaseClient databaseClient, Dialect dialect, String changeStreamName) {
+    try (ReadOnlyTransaction tx = databaseClient.readOnlyTransaction()) {
+      Statement statement;
+      if (dialect == Dialect.POSTGRESQL) {
+        statement =
+            Statement.newBuilder(
+                    "select option_value\n"
+                        + "from information_schema.change_stream_options\n"
+                        + "where change_stream_name = $1 and option_name = 'partition_mode'")
+                .bind("p1")
+                .to(changeStreamName)
+                .build();
+      } else {
+        statement =
+            Statement.newBuilder(
+                    "select option_value\n"
+                        + "from information_schema.change_stream_options\n"
+                        + "where change_stream_name = @changeStreamName and  option_name = 'partition_mode'")
+                .bind("changeStreamName")
+                .to(changeStreamName)
+                .build();
+      }
+      ResultSet resultSet = tx.executeQuery(statement);
+      while (resultSet.next()) {
+        String value = resultSet.getString(0);
+        if (value != null) {
+          return value;
+        }
+      }
+      return "";
+    } catch (RuntimeException e) {
+      // Log the failure (with stack trace) but rethrow so the caller still observes
+      // the error.
+      LOG.warn(
+          "Failed to fetch partition_mode for change stream '{}', dialect={} - will propagate exception",
+          changeStreamName,
+          dialect,
+          e);
+      throw e;
+    }
   }
 }

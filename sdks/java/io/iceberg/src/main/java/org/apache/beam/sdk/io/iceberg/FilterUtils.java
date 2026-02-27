@@ -66,8 +66,6 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 /**
  * Utilities that convert between a SQL filter expression and an Iceberg {@link Expression}. Uses
  * Apache Calcite semantics.
- *
- * <p>Note: Only supports top-level fields (i.e. cannot reference nested fields).
  */
 @Internal
 public class FilterUtils {
@@ -112,7 +110,7 @@ public class FilterUtils {
 
   private static void extractFieldNames(SqlNode node, Set<String> fieldNames) {
     if (node instanceof SqlIdentifier) {
-      fieldNames.add(((SqlIdentifier) node).getSimple());
+      fieldNames.add(getFieldName((SqlIdentifier) node));
     } else if (node instanceof SqlBasicCall) {
       // recursively check operands
       SqlBasicCall call = (SqlBasicCall) node;
@@ -133,9 +131,6 @@ public class FilterUtils {
   /**
    * parses a SQL filter expression string into an Iceberg {@link Expression} that can be used for
    * data pruning.
-   *
-   * <p>Note: This utility currently supports only top-level fields within the filter expression.
-   * Nested field references are not supported.
    */
   static Expression convert(@Nullable String filter, Schema schema) {
     if (filter == null) {
@@ -154,7 +149,7 @@ public class FilterUtils {
 
   private static Expression convert(SqlNode expression, Schema schema) throws SqlParseException {
     if (expression instanceof SqlIdentifier) {
-      String fieldName = ((SqlIdentifier) expression).getSimple();
+      String fieldName = getFieldName((SqlIdentifier) expression);
       Types.NestedField field = schema.caseInsensitiveFindField(fieldName);
       if (field.type().equals(Types.BooleanType.get())) {
         return Expressions.equal(field.name(), true);
@@ -242,7 +237,14 @@ public class FilterUtils {
     SqlNode ref = call.operand(0);
     Preconditions.checkState(
         ref instanceof SqlIdentifier, "Expected operand '%s' to be a reference.", ref);
-    return ((SqlIdentifier) ref).getSimple();
+    return getFieldName((SqlIdentifier) ref);
+  }
+
+  private static String getFieldName(SqlIdentifier identifier) {
+    if (identifier.isSimple()) {
+      return identifier.getSimple();
+    }
+    return String.join(".", identifier.names);
   }
 
   private static SqlNode getLeftChild(SqlBasicCall call) {
@@ -285,9 +287,9 @@ public class FilterUtils {
     checkArgument(
         value instanceof SqlNodeList,
         "Expected right hand side to be a list but got " + value.getClass());
-    String caseInsensitiveName = ((SqlIdentifier) term).getSimple();
+    String caseInsensitiveName = getFieldName((SqlIdentifier) term);
     Types.NestedField field = schema.caseInsensitiveFindField(caseInsensitiveName);
-    String name = field.name();
+    String name = schema.findColumnName(field.fieldId());
     TypeID type = field.type().typeId();
     List<SqlNode> list =
         ((SqlNodeList) value)
@@ -313,16 +315,16 @@ public class FilterUtils {
     SqlNode left = getLeftChild(call);
     SqlNode right = getRightChild(call);
     if (left instanceof SqlIdentifier && right instanceof SqlLiteral) {
-      String caseInsensitiveName = ((SqlIdentifier) left).getSimple();
+      String caseInsensitiveName = getFieldName((SqlIdentifier) left);
       Types.NestedField field = schema.caseInsensitiveFindField(caseInsensitiveName);
-      String name = field.name();
+      String name = schema.findColumnName(field.fieldId());
       TypeID type = field.type().typeId();
       Object value = convertLiteral((SqlLiteral) right, name, type);
       return convertLR.apply(name, value);
     } else if (left instanceof SqlLiteral && right instanceof SqlIdentifier) {
-      String caseInsensitiveName = ((SqlIdentifier) right).getSimple();
+      String caseInsensitiveName = getFieldName((SqlIdentifier) right);
       Types.NestedField field = schema.caseInsensitiveFindField(caseInsensitiveName);
-      String name = field.name();
+      String name = schema.findColumnName(field.fieldId());
       TypeID type = field.type().typeId();
       Object value = convertLiteral((SqlLiteral) left, name, type);
       return convertRL.apply(name, value);

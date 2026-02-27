@@ -17,8 +17,10 @@
 
 """Tests for apache_beam.ml.base."""
 import math
+import multiprocessing
 import os
 import pickle
+import random
 import sys
 import tempfile
 import time
@@ -1599,13 +1601,13 @@ class RunInferenceBaseTest(unittest.TestCase):
       actual = pcoll | base.RunInference(FakeModelHandlerNoEnvVars())
       assert_that(actual, equal_to(expected), label='assert:inferences')
 
-  def test_model_manager_loads_shared_model(self):
+  def test_model_handler_manager_loads_shared_model(self):
     mhs = {
         'key1': FakeModelHandler(state=1),
         'key2': FakeModelHandler(state=2),
         'key3': FakeModelHandler(state=3)
     }
-    mm = base._ModelManager(mh_map=mhs)
+    mm = base._ModelHandlerManager(mh_map=mhs)
     tag1 = mm.load('key1').model_tag
     # Use bad_mh's load function to make sure we're actually loading the
     # version already stored
@@ -1623,12 +1625,12 @@ class RunInferenceBaseTest(unittest.TestCase):
     self.assertEqual(2, model2.predict(10))
     self.assertEqual(3, model3.predict(10))
 
-  def test_model_manager_evicts_models(self):
+  def test_model_handler_manager_evicts_models(self):
     mh1 = FakeModelHandler(state=1)
     mh2 = FakeModelHandler(state=2)
     mh3 = FakeModelHandler(state=3)
     mhs = {'key1': mh1, 'key2': mh2, 'key3': mh3}
-    mm = base._ModelManager(mh_map=mhs)
+    mm = base._ModelHandlerManager(mh_map=mhs)
     mm.increment_max_models(2)
     tag1 = mm.load('key1').model_tag
     sh1 = multi_process_shared.MultiProcessShared(mh1.load_model, tag=tag1)
@@ -1667,10 +1669,10 @@ class RunInferenceBaseTest(unittest.TestCase):
         mh3.load_model, tag=tag3).acquire()
     self.assertEqual(8, model3.predict(10))
 
-  def test_model_manager_evicts_models_after_update(self):
+  def test_model_handler_manager_evicts_models_after_update(self):
     mh1 = FakeModelHandler(state=1)
     mhs = {'key1': mh1}
-    mm = base._ModelManager(mh_map=mhs)
+    mm = base._ModelHandlerManager(mh_map=mhs)
     tag1 = mm.load('key1').model_tag
     sh1 = multi_process_shared.MultiProcessShared(mh1.load_model, tag=tag1)
     model1 = sh1.acquire()
@@ -1697,13 +1699,12 @@ class RunInferenceBaseTest(unittest.TestCase):
     self.assertEqual(6, model1.predict(10))
     sh1.release(model1)
 
-  def test_model_manager_evicts_correct_num_of_models_after_being_incremented(
-      self):
+  def test_model_handler_manager_evicts_models_after_being_incremented(self):
     mh1 = FakeModelHandler(state=1)
     mh2 = FakeModelHandler(state=2)
     mh3 = FakeModelHandler(state=3)
     mhs = {'key1': mh1, 'key2': mh2, 'key3': mh3}
-    mm = base._ModelManager(mh_map=mhs)
+    mm = base._ModelHandlerManager(mh_map=mhs)
     mm.increment_max_models(1)
     mm.increment_max_models(1)
     tag1 = mm.load('key1').model_tag
@@ -2131,6 +2132,237 @@ class RunInferenceRemoteTest(unittest.TestCase):
 
     with self.assertRaises(base.RateLimitExceeded):
       model_handler.run_inference([1], FakeModel())
+
+
+class FakeModelHandlerForSizing(base.ModelHandler[int, int, FakeModel]):
+  """A ModelHandler used to test element sizing behavior."""
+  def __init__(
+      self,
+      max_batch_size: int = 10,
+      max_batch_weight: Optional[int] = None,
+      element_size_fn=None):
+    super().__init__(
+        max_batch_size=max_batch_size,
+        max_batch_weight=max_batch_weight,
+        element_size_fn=element_size_fn)
+
+  def load_model(self) -> FakeModel:
+    return FakeModel()
+
+  def run_inference(self, batch, model, inference_args=None):
+    return [model.predict(x) for x in batch]
+
+
+class RunInferenceSizeTest(unittest.TestCase):
+  """Tests for ModelHandler.batch_elements_kwargs with element_size_fn."""
+  def test_kwargs_are_passed_correctly(self):
+    """Adds element_size_fn without clobbering existing kwargs."""
+    def size_fn(x):
+      return 10
+
+    sized_handler = FakeModelHandlerForSizing(
+        max_batch_size=20, max_batch_weight=100, element_size_fn=size_fn)
+
+    kwargs = sized_handler.batch_elements_kwargs()
+
+    self.assertEqual(kwargs['max_batch_size'], 20)
+    self.assertEqual(kwargs['max_batch_weight'], 100)
+    self.assertIn('element_size_fn', kwargs)
+    self.assertEqual(kwargs['element_size_fn'](1), 10)
+
+  def test_sizing_with_edge_cases(self):
+    """Allows extreme values from element_size_fn."""
+    zero_size_fn = lambda x: 0
+    sized_handler = FakeModelHandlerForSizing(
+        max_batch_size=1, element_size_fn=zero_size_fn)
+    kwargs = sized_handler.batch_elements_kwargs()
+    self.assertEqual(kwargs['element_size_fn'](999), 0)
+
+    large_size_fn = lambda x: 1000000
+    sized_handler = FakeModelHandlerForSizing(
+        max_batch_size=1, element_size_fn=large_size_fn)
+    kwargs = sized_handler.batch_elements_kwargs()
+    self.assertEqual(kwargs['element_size_fn'](1), 1000000)
+
+
+class FakeModelHandlerForBatching(base.ModelHandler[int, int, FakeModel]):
+  """A ModelHandler used to test batching behavior via base class __init__."""
+  def __init__(self, **kwargs):
+    super().__init__(**kwargs)
+
+  def load_model(self) -> FakeModel:
+    return FakeModel()
+
+  def run_inference(self, batch, model, inference_args=None):
+    return [model.predict(x) for x in batch]
+
+
+class ModelHandlerBatchingArgsTest(unittest.TestCase):
+  """Tests for ModelHandler.__init__ batching parameters."""
+  def test_batch_elements_kwargs_all_args(self):
+    """All batching args passed to __init__ are in batch_elements_kwargs."""
+    def size_fn(x):
+      return 10
+
+    handler = FakeModelHandlerForBatching(
+        min_batch_size=5,
+        max_batch_size=20,
+        max_batch_duration_secs=30,
+        max_batch_weight=100,
+        element_size_fn=size_fn)
+
+    kwargs = handler.batch_elements_kwargs()
+
+    self.assertEqual(kwargs['min_batch_size'], 5)
+    self.assertEqual(kwargs['max_batch_size'], 20)
+    self.assertEqual(kwargs['max_batch_duration_secs'], 30)
+    self.assertEqual(kwargs['max_batch_weight'], 100)
+    self.assertIn('element_size_fn', kwargs)
+    self.assertEqual(kwargs['element_size_fn'](1), 10)
+
+  def test_batch_elements_kwargs_partial_args(self):
+    """Only provided batching args are included in kwargs."""
+    handler = FakeModelHandlerForBatching(max_batch_size=50)
+    kwargs = handler.batch_elements_kwargs()
+
+    self.assertEqual(kwargs, {'max_batch_size': 50})
+
+  def test_batch_elements_kwargs_empty_when_no_args(self):
+    """No batching kwargs when none are provided."""
+    handler = FakeModelHandlerForBatching()
+    kwargs = handler.batch_elements_kwargs()
+
+    self.assertEqual(kwargs, {})
+
+  def test_large_model_sets_share_across_processes(self):
+    """Setting large_model=True enables share_model_across_processes."""
+    handler = FakeModelHandlerForBatching(large_model=True)
+
+    self.assertTrue(handler.share_model_across_processes())
+
+  def test_model_copies_sets_share_across_processes(self):
+    """Setting model_copies enables share_model_across_processes."""
+    handler = FakeModelHandlerForBatching(model_copies=2)
+
+    self.assertTrue(handler.share_model_across_processes())
+    self.assertEqual(handler.model_copies(), 2)
+
+  def test_default_share_across_processes_is_false(self):
+    """Default share_model_across_processes is False."""
+    handler = FakeModelHandlerForBatching()
+
+    self.assertFalse(handler.share_model_across_processes())
+
+  def test_default_model_copies_is_one(self):
+    """Default model_copies is 1."""
+    handler = FakeModelHandlerForBatching()
+
+    self.assertEqual(handler.model_copies(), 1)
+
+  def test_env_vars_from_kwargs(self):
+    """Environment variables can be passed via kwargs."""
+    handler = FakeModelHandlerForBatching(env_vars={'MY_VAR': 'value'})
+
+    self.assertEqual(handler._env_vars, {'MY_VAR': 'value'})
+
+  def test_min_batch_size_only(self):
+    """min_batch_size can be passed alone."""
+    handler = FakeModelHandlerForBatching(min_batch_size=10)
+    kwargs = handler.batch_elements_kwargs()
+
+    self.assertEqual(kwargs, {'min_batch_size': 10})
+
+  def test_max_batch_duration_secs_only(self):
+    """max_batch_duration_secs can be passed alone."""
+    handler = FakeModelHandlerForBatching(max_batch_duration_secs=60)
+    kwargs = handler.batch_elements_kwargs()
+
+    self.assertEqual(kwargs, {'max_batch_duration_secs': 60})
+
+
+class SimpleFakeModelHandler(base.ModelHandler[int, int, FakeModel]):
+  def load_model(self):
+    return FakeModel()
+
+  def run_inference(
+      self,
+      batch: Sequence[int],
+      model: FakeModel,
+      inference_args=None) -> Iterable[int]:
+    for example in batch:
+      yield model.predict(example)
+
+
+def try_import_model_manager():
+  try:
+    # pylint: disable=unused-import
+    from apache_beam.ml.inference.model_manager import ModelManager
+    return True
+  except ImportError:
+    return False
+
+
+class ModelManagerTest(unittest.TestCase):
+  """Tests for RunInference with Model Manager integration."""
+  def tearDown(self):
+    for p in multiprocessing.active_children():
+      p.terminate()
+      p.join()
+
+  @unittest.skipIf(
+      not try_import_model_manager(), 'Model Manager not available')
+  def test_run_inference_impl_with_model_manager(self):
+    with TestPipeline() as pipeline:
+      examples = [1, 5, 3, 10]
+      expected = [example + 1 for example in examples]
+      pcoll = pipeline | 'start' >> beam.Create(examples)
+      actual = pcoll | base.RunInference(
+          SimpleFakeModelHandler(), use_model_manager=True)
+      assert_that(actual, equal_to(expected), label='assert:inferences')
+
+  @unittest.skipIf(
+      not try_import_model_manager(), 'Model Manager not available')
+  def test_run_inference_impl_with_model_manager_args(self):
+    with TestPipeline() as pipeline:
+      examples = [1, 5, 3, 10]
+      expected = [example + 1 for example in examples]
+      pcoll = pipeline | 'start' >> beam.Create(examples)
+      actual = pcoll | base.RunInference(
+          SimpleFakeModelHandler(),
+          use_model_manager=True,
+          model_manager_args={
+              'slack_percentage': 0.2,
+              'poll_interval': 1.0,
+              'peak_window_seconds': 10.0,
+              'min_data_points': 10,
+              'smoothing_factor': 0.5
+          })
+      assert_that(actual, equal_to(expected), label='assert:inferences')
+
+  @unittest.skipIf(
+      not try_import_model_manager(), 'Model Manager not available')
+  def test_run_inference_impl_with_model_manager_oom(self):
+    class OOMFakeModelHandler(SimpleFakeModelHandler):
+      def run_inference(
+          self,
+          batch: Sequence[int],
+          model: FakeModel,
+          inference_args=None) -> Iterable[int]:
+        if random.random() < 0.8:
+          raise MemoryError("Simulated OOM")
+        for example in batch:
+          yield model.predict(example)
+
+      def batch_elements_kwargs(self):
+        return {'min_batch_size': 1, 'max_batch_size': 1}
+
+    with self.assertRaises(Exception):
+      with TestPipeline() as pipeline:
+        examples = [1, 5, 3, 10]
+        pcoll = pipeline | 'start' >> beam.Create(examples)
+        actual = pcoll | base.RunInference(
+            OOMFakeModelHandler(), use_model_manager=True)
+        assert_that(actual, equal_to([2, 6, 4, 11]), label='assert:inferences')
 
 
 if __name__ == '__main__':

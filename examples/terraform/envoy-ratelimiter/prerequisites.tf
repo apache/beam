@@ -21,6 +21,7 @@ resource "google_project_service" "required" {
     "container",
     "iam",
     "compute",
+    "monitoring",
   ])
 
   service            = "${each.key}.googleapis.com"

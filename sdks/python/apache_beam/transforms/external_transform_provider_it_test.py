@@ -392,9 +392,17 @@ class AutoGenerationScriptIT(unittest.TestCase):
               'r') as f:
       standard_config = yaml.safe_load(f)
 
+    def _normalize(cfg):
+      # Sort each transform's fields deterministically
+      for t in cfg:
+        if "fields" in t and isinstance(t["fields"], list):
+          t["fields"] = sorted(t["fields"], key=lambda f: f.get("name", ""))
+      # Sort transforms deterministically
+      return sorted(cfg, key=lambda t: t.get("identifier", ""))
+
     self.assertEqual(
-        test_config,
-        standard_config,
+        _normalize(test_config),
+        _normalize(standard_config),
         "The standard xlang transforms config file "
         "\"standard_external_transforms.yaml\" is out of sync! Please update "
         "by running './gradlew generateExternalTransformsConfig' "

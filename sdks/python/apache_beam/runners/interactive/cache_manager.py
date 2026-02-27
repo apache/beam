@@ -200,7 +200,7 @@ class FileBasedCacheManager(CacheManager):
       if 'gs://' in matched_path[0]:
         from apache_beam.io.gcp import gcsio
         return sum(
-            sum(gcsio.GcsIO().list_prefix(path).values())
+            sum(s for _, s in gcsio.GcsIO().list_files(path))
             for path in matched_path)
       return sum(os.path.getsize(path) for path in matched_path)
     return 0

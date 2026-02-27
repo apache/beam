@@ -33,6 +33,7 @@ import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
+import org.apache.beam.sdk.values.CausedByDrain;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.WindowedValue;
 import org.apache.beam.sdk.values.WindowedValues;
@@ -122,12 +123,14 @@ class UngroupedWindmillReader<T> extends NativeReader<WindowedValue<T>> {
        * https://s.apache.org/beam-drain-mode - propagate drain bit if aggregation/expiry induced by
        * drain happened upstream
        */
-      boolean drainingValueFromUpstream = false;
+      CausedByDrain drainingValueFromUpstream = CausedByDrain.NORMAL;
       if (WindowedValues.WindowedValueCoder.isMetadataSupported()) {
         BeamFnApi.Elements.ElementMetadata elementMetadata =
             WindmillSink.decodeAdditionalMetadata(windowsCoder, message.getMetadata());
         drainingValueFromUpstream =
-            elementMetadata.getDrain() == BeamFnApi.Elements.DrainMode.Enum.DRAINING;
+            elementMetadata.getDrain() == BeamFnApi.Elements.DrainMode.Enum.DRAINING
+                ? CausedByDrain.CAUSED_BY_DRAIN
+                : CausedByDrain.NORMAL;
       }
       if (valueCoder instanceof KvCoder) {
         KvCoder<?, ?> kvCoder = (KvCoder<?, ?>) valueCoder;
