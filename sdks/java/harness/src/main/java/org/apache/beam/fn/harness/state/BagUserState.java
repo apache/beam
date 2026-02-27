@@ -54,27 +54,33 @@ public class BagUserState<T> {
   private List<T> newValues;
   private boolean isCleared;
   private boolean isClosed;
+  private final boolean hasNoState;
+  private final boolean onlyBundleForKeys;
 
   static final int BAG_APPEND_BATCHING_LIMIT = 10 * 1024 * 1024;
 
   /** The cache must be namespaced for this state object accordingly. */
   public BagUserState(
-      Cache<?, ?> cache,
-      BeamFnStateClient beamFnStateClient,
-      String instructionId,
-      StateKey stateKey,
-      Coder<T> valueCoder) {
+    Cache<?, ?> cache,
+    BeamFnStateClient beamFnStateClient,
+    String instructionId,
+    StateKey stateKey,
+    Coder<T> valueCoder,
+    boolean hasNoState,
+    boolean onlyBundleForKeys) {
     checkArgument(
         stateKey.hasBagUserState(), "Expected BagUserState StateKey but received %s.", stateKey);
     this.cache = cache;
     this.beamFnStateClient = beamFnStateClient;
     this.valueCoder = valueCoder;
+    this.hasNoState = hasNoState;
+    this.onlyBundleForKeys = onlyBundleForKeys;
     this.request =
         StateRequest.newBuilder().setInstructionId(instructionId).setStateKey(stateKey).build();
 
     this.oldValues =
         StateFetchingIterators.readAllAndDecodeStartingFrom(
-            this.cache, beamFnStateClient, request, valueCoder);
+            this.cache, beamFnStateClient, request, valueCoder, hasNoState);
     this.newValues = new ArrayList<>();
   }
 
@@ -127,7 +133,7 @@ public class BagUserState<T> {
       beamFnStateClient.handle(
           request.toBuilder().setClear(StateClearRequest.getDefaultInstance()));
     }
-    if (!newValues.isEmpty()) {
+    if (!onlyBundleForKeys && !newValues.isEmpty()) {
       // Batch values up to a arbitrary limit to reduce overhead of write
       // requests. We treat this limit as strict to ensure that large elements
       // are not batched as they may otherwise exceed runner limits.

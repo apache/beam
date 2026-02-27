@@ -55,6 +55,7 @@ public class MultimapSideInput<K, V> implements MultimapView<K, V> {
   private final Coder<V> valueCoder;
   private volatile Function<ByteString, Iterable<V>> bulkReadResult;
   private final boolean useBulkRead;
+  private final boolean hasNoState;
 
   public MultimapSideInput(
       Cache<?, ?> cache,
@@ -63,7 +64,8 @@ public class MultimapSideInput<K, V> implements MultimapView<K, V> {
       StateKey stateKey,
       Coder<K> keyCoder,
       Coder<V> valueCoder,
-      boolean useBulkRead) {
+      boolean useBulkRead,
+      boolean hasNoState) {
     checkArgument(
         stateKey.hasMultimapKeysSideInput(),
         "Expected MultimapKeysSideInput StateKey but received %s.",
@@ -75,12 +77,13 @@ public class MultimapSideInput<K, V> implements MultimapView<K, V> {
     this.keyCoder = keyCoder;
     this.valueCoder = valueCoder;
     this.useBulkRead = useBulkRead;
+    this.hasNoState = hasNoState;
   }
 
   @Override
   public Iterable<K> get() {
     return StateFetchingIterators.readAllAndDecodeStartingFrom(
-        cache, beamFnStateClient, keysRequest, keyCoder);
+      cache, beamFnStateClient, keysRequest, keyCoder, hasNoState);
   }
 
   @Override
@@ -120,7 +123,8 @@ public class MultimapSideInput<K, V> implements MultimapView<K, V> {
                           Caches.noop(),
                           beamFnStateClient,
                           bulkReadRequest,
-                          KvCoder.of(keyCoder, IterableCoder.of(valueCoder)))
+                          KvCoder.of(keyCoder, IterableCoder.of(valueCoder)),
+                          hasNoState)
                       .iterator();
               while (bulkRead.size() < BULK_READ_SIZE && entries.hasNext()) {
                 KV<K, Iterable<V>> entry = entries.next();
@@ -169,7 +173,11 @@ public class MultimapSideInput<K, V> implements MultimapView<K, V> {
 
     StateRequest request = keysRequest.toBuilder().setStateKey(stateKey).build();
     return StateFetchingIterators.readAllAndDecodeStartingFrom(
-        Caches.subCache(cache, "ValuesForKey", encodedKey), beamFnStateClient, request, valueCoder);
+        Caches.subCache(cache, "ValuesForKey", encodedKey),
+        beamFnStateClient,
+        request,
+        valueCoder,
+        hasNoState);
   }
 
   private ByteString encodeKey(K k) {

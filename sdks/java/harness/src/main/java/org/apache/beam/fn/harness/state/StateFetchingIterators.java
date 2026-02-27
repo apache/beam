@@ -86,12 +86,14 @@ public class StateFetchingIterators {
       Cache<?, ?> cache,
       BeamFnStateClient beamFnStateClient,
       StateRequest stateRequestForFirstChunk,
-      Coder<T> valueCoder) {
+      Coder<T> valueCoder,
+      boolean hasNoState) {
     return new CachingStateIterable<>(
         (Cache<IterableCacheKey, Blocks<T>>) cache,
         beamFnStateClient,
         stateRequestForFirstChunk,
-        valueCoder);
+        valueCoder,
+        hasNoState);
   }
 
   /**
@@ -328,16 +330,19 @@ public class StateFetchingIterators {
     private final BeamFnStateClient beamFnStateClient;
     private final StateRequest stateRequestForFirstChunk;
     private final Coder<T> valueCoder;
+    private final boolean hasNoState;
 
     public CachingStateIterable(
         Cache<IterableCacheKey, Blocks<T>> cache,
         BeamFnStateClient beamFnStateClient,
         StateRequest stateRequestForFirstChunk,
-        Coder<T> valueCoder) {
+        Coder<T> valueCoder,
+        boolean hasNoState) {
       this.cache = cache;
       this.beamFnStateClient = beamFnStateClient;
       this.stateRequestForFirstChunk = stateRequestForFirstChunk;
       this.valueCoder = valueCoder;
+      this.hasNoState = hasNoState;
     }
 
     /**
@@ -510,7 +515,8 @@ public class StateFetchingIterators {
 
       public CachingStateIterator() {
         this.underlyingStateFetchingIterator =
-            new LazyBlockingStateFetchingIterator(beamFnStateClient, stateRequestForFirstChunk);
+            new LazyBlockingStateFetchingIterator(beamFnStateClient, stateRequestForFirstChunk,
+              hasNoState);
         this.dataStreamDecoder =
             new DataStreamDecoder<>(valueCoder, underlyingStateFetchingIterator);
         this.currentBlock =
@@ -675,6 +681,15 @@ public class StateFetchingIterators {
       this.beamFnStateClient = beamFnStateClient;
       this.stateRequestForFirstChunk = stateRequestForFirstChunk;
       this.continuationToken = stateRequestForFirstChunk.getGet().getContinuationToken();
+    }
+
+    LazyBlockingStateFetchingIterator(
+        BeamFnStateClient beamFnStateClient,
+        StateRequest stateRequestForFirstChunk,
+        boolean hasNoState) {
+      this.beamFnStateClient = beamFnStateClient;
+      this.stateRequestForFirstChunk = stateRequestForFirstChunk;
+      this.continuationToken = hasNoState ? null : stateRequestForFirstChunk.getGet().getContinuationToken();
     }
 
     /**
