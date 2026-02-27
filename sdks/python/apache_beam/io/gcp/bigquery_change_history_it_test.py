@@ -418,18 +418,18 @@ class EndToEndTest(BigQueryChangeHistoryIntegrationBase):
     """ReadBigQueryChangeHistory PTransform with polling SDF."""
     table_str = f'{self.project}:{self.dataset}.{self.test_table_id}'
     start_time = self.insert_time - 120  # 2 min before insert
-    stop_time = time.time()
+    stop_time = time.time() + 15
 
     with beam.Pipeline(argv=self.args) as p:
       rows = (
           p
           | ReadBigQueryChangeHistory(
               table=table_str,
-              poll_interval_sec=10,
+              poll_interval_sec=15,
               start_time=start_time,
               stop_time=stop_time,
               change_function='APPENDS',
-              buffer_sec=0,
+              buffer_sec=10,
               project=self.project,
               temp_dataset=self.temp_dataset))
 

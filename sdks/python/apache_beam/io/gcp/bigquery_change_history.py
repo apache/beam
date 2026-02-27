@@ -1076,7 +1076,7 @@ class ReadBigQueryChangeHistory(beam.PTransform):
       raise ValueError(
           f"change_function must be 'CHANGES' or 'APPENDS', "
           f"got '{change_function}'")
-    if poll_interval_sec <= 15:
+    if poll_interval_sec < 15:
       raise ValueError(
           f'poll_interval_sec must be >= 15, got {poll_interval_sec}')
     if buffer_sec < 0:
