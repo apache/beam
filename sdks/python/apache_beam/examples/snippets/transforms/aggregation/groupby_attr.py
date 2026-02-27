@@ -43,6 +43,7 @@ GROCERY_LIST = [
     beam.Row(recipe='pie', fruit='blueberry', quantity=1, unit_price=2.00),
     beam.Row(recipe='muffin', fruit='blueberry', quantity=2, unit_price=2.00),
     beam.Row(recipe='muffin', fruit='banana', quantity=3, unit_price=1.00),
+    beam.Row(recipe='pie', fruit='strawberry', quantity=3, unit_price=1.50),
 ]
 # [END groupby_table]
 
@@ -50,15 +51,13 @@ GROCERY_LIST = [
 def groupby_attr(test=None):
   with beam.Pipeline() as p:
     # [START groupby_attr]
-    grouped = (
-        p
-        | beam.Create(GROCERY_LIST)
-        | beam.GroupBy('recipe')
-        | beam.Map(print))
+    grouped = (p | beam.Create(GROCERY_LIST) | beam.GroupBy('recipe'))
     # [END groupby_attr]
 
-  if test:
-    test(grouped)
+    if test:
+      test(grouped)
+    else:
+      _ = grouped | beam.Map(print)
 
 
 if __name__ == '__main__':
