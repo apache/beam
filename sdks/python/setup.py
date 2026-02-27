@@ -160,7 +160,10 @@ dataframe_dependency = [
     'pandas>=1.4.3,!=1.5.0,!=1.5.1,<2.3',
 ]
 
-milvus_dependency = ['pymilvus>=2.5.10,<3.0.0']
+milvus_dependency = [
+  'setuptools<82.0.0'
+  'pymilvus>=2.5.10,<3.0.0'
+]
 
 ml_base = [
     'embeddings',
