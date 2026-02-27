@@ -52,6 +52,8 @@ import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.coders.CoderRegistry;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.io.BoundedSource;
+import org.apache.beam.sdk.io.FileSystems;
+import org.apache.beam.sdk.io.fs.ResourceId;
 import org.apache.beam.sdk.io.hadoop.SerializableConfiguration;
 import org.apache.beam.sdk.io.hadoop.WritableCoder;
 import org.apache.beam.sdk.options.PipelineOptions;
@@ -97,6 +99,7 @@ import org.apache.hadoop.mapreduce.TaskAttemptContext;
 import org.apache.hadoop.mapreduce.TaskAttemptID;
 import org.apache.hadoop.mapreduce.TaskID;
 import org.apache.hadoop.mapreduce.lib.db.DBConfiguration;
+import org.apache.hadoop.mapreduce.lib.input.FileSplit;
 import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
 import org.apache.hadoop.mapreduce.task.JobContextImpl;
 import org.apache.hadoop.mapreduce.task.TaskAttemptContextImpl;
@@ -725,6 +728,7 @@ public class HadoopFormatIO {
         return ImmutableList.of(this);
       }
       computeSplitsIfNecessary();
+      reportSourceLineage(inputSplits);
       LOG.info(
           "Generated {} splits. Size of first split is {} ",
           inputSplits.size(),
@@ -742,6 +746,19 @@ public class HadoopFormatIO {
                       skipKeyClone,
                       skipValueClone))
           .collect(Collectors.toList());
+    }
+
+    /** Report only file-based sources. */
+    private void reportSourceLineage(final List<SerializableSplit> inputSplits) {
+      List<ResourceId> fileResources =
+          inputSplits.stream()
+              .map(SerializableSplit::getSplit)
+              .filter(FileSplit.class::isInstance)
+              .map(FileSplit.class::cast)
+              .map(fileSplit -> FileSystems.matchNewResource(fileSplit.getPath().toString(), false))
+              .collect(Collectors.toList());
+
+      FileSystems.reportSourceLineage(fileResources);
     }
 
     @Override
