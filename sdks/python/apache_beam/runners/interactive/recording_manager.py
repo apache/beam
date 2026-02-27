@@ -849,7 +849,8 @@ class RecordingManager:
       max_duration: Union[int, str],
       runner: runner.PipelineRunner = None,
       options: pipeline_options.PipelineOptions = None,
-      force_compute: bool = False) -> Recording:
+      force_compute: bool = False,
+      wait_for_inputs: bool = True) -> Recording:
     # noqa: F821
 
     """Records the given PCollections."""
@@ -886,10 +887,11 @@ class RecordingManager:
     # Start a pipeline fragment to start computing the PCollections.
     uncomputed_pcolls = set(pcolls).difference(computed_pcolls)
     if uncomputed_pcolls:
-      if not self._wait_for_dependencies(uncomputed_pcolls):
-        raise RuntimeError(
-            'Cannot record because a dependency failed to compute'
-            ' asynchronously.')
+      if wait_for_inputs:
+        if not self._wait_for_dependencies(uncomputed_pcolls):
+          raise RuntimeError(
+              'Cannot record because a dependency failed to compute'
+              ' asynchronously.')
 
       self._clear()
 
