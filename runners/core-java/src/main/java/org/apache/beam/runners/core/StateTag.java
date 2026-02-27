@@ -55,6 +55,22 @@ public interface StateTag<StateT extends State> extends Serializable {
   /** An identifier for the state cell that this tag references. */
   String getId();
 
+  /**
+   * Returns the full state identifier including the system/user prefix.
+   *
+   * <p>This is used to distinguish between system-defined and user-defined state tags and prevent
+   * collisions in state tables when tags have the same raw ID but different prefixes.
+   */
+  default String getIdWithPrefix() {
+    StringBuilder sb = new StringBuilder();
+    try {
+      appendTo(sb);
+    } catch (IOException e) {
+      throw new RuntimeException("Failed to get prefixed ID", e);
+    }
+    return sb.toString();
+  }
+
   /** The specification for the state stored in the referenced cell. */
   StateSpec<StateT> getSpec();
 
