@@ -33,6 +33,12 @@ from apache_beam.io.gcp.bigquery_change_history import build_changes_query
 from apache_beam.io.gcp.bigquery_change_history import compute_ranges
 from apache_beam.io.gcp.internal.clients import bigquery
 
+# Protect against environments where apitools is not available.
+try:
+  from apitools.base.py.exceptions import HttpError
+except ImportError:
+  HttpError = None  # type: ignore
+
 
 class BuildChangesQueryTest(unittest.TestCase):
   """Tests for build_changes_query()."""
@@ -181,6 +187,7 @@ class ComputeRangesTest(unittest.TestCase):
     self.assertEqual(len(ranges), 2)
 
 
+@unittest.skipIf(HttpError is None, 'GCP dependencies are not installed')
 class TableKeyTest(unittest.TestCase):
   """Tests for _table_key()."""
   def test_conversion(self):
@@ -189,6 +196,7 @@ class TableKeyTest(unittest.TestCase):
     self.assertEqual(_table_key(ref), 'proj.ds.tbl')
 
 
+@unittest.skipIf(HttpError is None, 'GCP dependencies are not installed')
 class ValidationTest(unittest.TestCase):
   """Tests for ReadBigQueryChangeHistory validation."""
   def test_invalid_change_function(self):
