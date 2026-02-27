@@ -375,6 +375,92 @@ public class KafkaIOExternalTest {
     assertThat(spec.getValueSerializer().getName(), Matchers.is(valueSerializer));
   }
 
+  @Test
+  public void testConstructKafkaWriteWithHeaders() throws Exception {
+    String topic = "topic";
+    String keySerializer = "org.apache.kafka.common.serialization.ByteArraySerializer";
+    String valueSerializer = "org.apache.kafka.common.serialization.ByteArraySerializer";
+    ImmutableMap<String, String> producerConfig =
+        ImmutableMap.<String, String>builder()
+            .put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, "server1:port,server2:port")
+            .put("retries", "3")
+            .build();
+
+    ExternalTransforms.ExternalConfigurationPayload payload =
+        encodeRow(
+            Row.withSchema(
+                    Schema.of(
+                        Field.of("topic", FieldType.STRING),
+                        Field.of(
+                            "producer_config", FieldType.map(FieldType.STRING, FieldType.STRING)),
+                        Field.of("key_serializer", FieldType.STRING),
+                        Field.of("value_serializer", FieldType.STRING)))
+                .withFieldValue("topic", topic)
+                .withFieldValue("producer_config", producerConfig)
+                .withFieldValue("key_serializer", keySerializer)
+                .withFieldValue("value_serializer", valueSerializer)
+                .build());
+
+    Schema rowSchema =
+        Schema.of(Field.of("key", FieldType.BYTES), Field.of("value", FieldType.BYTES));
+    Row inputRow = Row.withSchema(rowSchema).addValues(new byte[0], new byte[0]).build();
+
+    Pipeline p = Pipeline.create();
+    p.apply(Create.of(inputRow).withRowSchema(rowSchema));
+    RunnerApi.Pipeline pipelineProto = PipelineTranslation.toProto(p);
+    String inputPCollection =
+        Iterables.getOnlyElement(
+            Iterables.getLast(pipelineProto.getComponents().getTransformsMap().values())
+                .getOutputsMap()
+                .values());
+
+    ExpansionApi.ExpansionRequest request =
+        ExpansionApi.ExpansionRequest.newBuilder()
+            .setComponents(pipelineProto.getComponents())
+            .setTransform(
+                RunnerApi.PTransform.newBuilder()
+                    .setUniqueName("test")
+                    .putInputs("input", inputPCollection)
+                    .setSpec(
+                        RunnerApi.FunctionSpec.newBuilder()
+                            .setUrn(
+                                org.apache.beam.sdk.io.kafka.KafkaIO.Write.External
+                                    .URN_WITH_HEADERS)
+                            .setPayload(payload.toByteString())))
+            .setNamespace("test_namespace")
+            .build();
+
+    ExpansionService expansionService = new ExpansionService();
+    TestStreamObserver<ExpansionApi.ExpansionResponse> observer = new TestStreamObserver<>();
+    expansionService.expand(request, observer);
+
+    ExpansionApi.ExpansionResponse result = observer.result;
+    RunnerApi.PTransform transform = result.getTransform();
+    assertThat(
+        transform.getSubtransformsList(),
+        Matchers.hasItem(MatchesPattern.matchesPattern(".*Row-to-ProducerRecord.*")));
+    assertThat(
+        transform.getSubtransformsList(),
+        Matchers.hasItem(MatchesPattern.matchesPattern(".*KafkaIO-WriteRecords.*")));
+    assertThat(transform.getInputsCount(), Matchers.is(1));
+    assertThat(transform.getOutputsCount(), Matchers.is(0));
+
+    RunnerApi.PTransform writeComposite =
+        result.getComponents().getTransformsOrThrow(transform.getSubtransforms(1));
+    RunnerApi.PTransform writeParDo =
+        result.getComponents().getTransformsOrThrow(writeComposite.getSubtransforms(0));
+
+    RunnerApi.ParDoPayload parDoPayload =
+        RunnerApi.ParDoPayload.parseFrom(writeParDo.getSpec().getPayload());
+    KafkaWriter<?, ?> kafkaWriter = (KafkaWriter<?, ?>) ParDoTranslation.getDoFn(parDoPayload);
+    KafkaIO.WriteRecords<?, ?> spec = kafkaWriter.getSpec();
+
+    assertThat(spec.getProducerConfig(), Matchers.is(producerConfig));
+    assertThat(spec.getTopic(), Matchers.is(topic));
+    assertThat(spec.getKeySerializer().getName(), Matchers.is(keySerializer));
+    assertThat(spec.getValueSerializer().getName(), Matchers.is(valueSerializer));
+  }
+
   private static ExternalConfigurationPayload encodeRow(Row row) {
     ByteStringOutputStream outputStream = new ByteStringOutputStream();
     try {

@@ -124,6 +124,8 @@ import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.common.PartitionInfo;
 import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.common.config.SaslConfigs;
+import org.apache.kafka.common.header.Header;
+import org.apache.kafka.common.header.internals.RecordHeader;
 import org.apache.kafka.common.serialization.ByteArrayDeserializer;
 import org.apache.kafka.common.serialization.Deserializer;
 import org.apache.kafka.common.serialization.Serializer;
@@ -3554,12 +3556,17 @@ public class KafkaIO {
     public static class External implements ExternalTransformRegistrar {
 
       public static final String URN = "beam:transform:org.apache.beam:kafka_write:v1";
+      public static final String URN_WITH_HEADERS =
+          "beam:transform:org.apache.beam:kafka_write_with_headers:v1";
 
       @Override
       public Map<String, Class<? extends ExternalTransformBuilder<?, ?, ?>>> knownBuilders() {
         return ImmutableMap.of(
             URN,
-            (Class<KafkaIO.Write.Builder<?, ?>>) (Class<?>) AutoValue_KafkaIO_Write.Builder.class);
+            (Class<KafkaIO.Write.Builder<?, ?>>) (Class<?>) AutoValue_KafkaIO_Write.Builder.class,
+            URN_WITH_HEADERS,
+            (Class<? extends ExternalTransformBuilder<?, ?, ?>>)
+                (Class<?>) WriteWithHeaders.Builder.class);
       }
 
       /** Parameters class to expose the Write transform to an external SDK. */
@@ -3854,6 +3861,137 @@ public class KafkaIO {
     @Override
     public T decode(InputStream inStream) {
       return null;
+    }
+  }
+
+  /**
+   * A {@link PTransform} to write to Kafka with support for record headers.
+   *
+   * <p>This transform accepts {@link Row} elements with the following schema:
+   *
+   * <ul>
+   *   <li>key: bytes (required) - The key of the record.
+   *   <li>value: bytes (required) - The value of the record.
+   *   <li>headers: List&lt;Row(key=str, value=bytes)&gt; (optional) - Record headers.
+   *   <li>topic: str (optional) - Per-record topic override.
+   *   <li>partition: int (optional) - Per-record partition.
+   *   <li>timestamp: long (optional) - Per-record timestamp in milliseconds.
+   * </ul>
+   *
+   * <p>This class is primarily used as a cross-language transform.
+   */
+  static class WriteWithHeaders extends PTransform<PCollection<Row>, PDone> {
+    private static final String FIELD_KEY = "key";
+    private static final String FIELD_VALUE = "value";
+    private static final String FIELD_HEADERS = "headers";
+    private static final String FIELD_TOPIC = "topic";
+    private static final String FIELD_PARTITION = "partition";
+    private static final String FIELD_TIMESTAMP = "timestamp";
+    private static final String HEADER_FIELD_KEY = "key";
+    private static final String HEADER_FIELD_VALUE = "value";
+
+    private final WriteRecords<byte[], byte[]> writeRecords;
+
+    WriteWithHeaders(WriteRecords<byte[], byte[]> writeRecords) {
+      this.writeRecords = writeRecords;
+    }
+
+    static class Builder
+        implements ExternalTransformBuilder<Write.External.Configuration, PCollection<Row>, PDone> {
+
+      @Override
+      @SuppressWarnings("unchecked")
+      public PTransform<PCollection<Row>, PDone> buildExternal(
+          Write.External.Configuration configuration) {
+        Map<String, Object> producerConfig = new HashMap<>(configuration.producerConfig);
+        Class<Serializer<byte[]>> keySerializer =
+            (Class<Serializer<byte[]>>) resolveClass(configuration.keySerializer);
+        Class<Serializer<byte[]>> valueSerializer =
+            (Class<Serializer<byte[]>>) resolveClass(configuration.valueSerializer);
+
+        WriteRecords<byte[], byte[]> writeRecords =
+            KafkaIO.<byte[], byte[]>writeRecords()
+                .withProducerConfigUpdates(producerConfig)
+                .withKeySerializer(keySerializer)
+                .withValueSerializer(valueSerializer);
+
+        if (configuration.topic != null) {
+          writeRecords = writeRecords.withTopic(configuration.topic);
+        }
+
+        return new WriteWithHeaders(writeRecords);
+      }
+    }
+
+    @Override
+    public PDone expand(PCollection<Row> input) {
+      final @Nullable String defaultTopic = writeRecords.getTopic();
+      return input
+          .apply(
+              "Row to ProducerRecord",
+              MapElements.via(
+                  new SimpleFunction<Row, ProducerRecord<byte[], byte[]>>() {
+                    @Override
+                    public ProducerRecord<byte[], byte[]> apply(Row row) {
+                      return toProducerRecord(row, defaultTopic);
+                    }
+                  }))
+          .setCoder(
+              ProducerRecordCoder.of(
+                  NullableCoder.of(ByteArrayCoder.of()), NullableCoder.of(ByteArrayCoder.of())))
+          .apply(writeRecords);
+    }
+
+    @Override
+    public void populateDisplayData(DisplayData.Builder builder) {
+      super.populateDisplayData(builder);
+      writeRecords.populateDisplayData(builder);
+    }
+
+    @SuppressWarnings("argument")
+    private static ProducerRecord<byte[], byte[]> toProducerRecord(
+        Row row, @Nullable String defaultTopic) {
+      String topic = defaultTopic;
+      if (row.getSchema().hasField(FIELD_TOPIC)) {
+        String rowTopic = row.getString(FIELD_TOPIC);
+        if (rowTopic != null) {
+          topic = rowTopic;
+        }
+      }
+      checkArgument(
+          topic != null, "Row is missing field '%s' and no default topic configured", FIELD_TOPIC);
+
+      byte[] key = row.getBytes(FIELD_KEY);
+      byte[] value = row.getBytes(FIELD_VALUE);
+      Integer partition =
+          row.getSchema().hasField(FIELD_PARTITION) ? row.getInt32(FIELD_PARTITION) : null;
+      Long timestamp =
+          row.getSchema().hasField(FIELD_TIMESTAMP) ? row.getInt64(FIELD_TIMESTAMP) : null;
+
+      boolean hasHeaders = ConsumerSpEL.hasHeaders();
+      Iterable<Header> headers = Collections.emptyList();
+      if (hasHeaders && row.getSchema().hasField(FIELD_HEADERS)) {
+        Iterable<Row> headerRows = row.getArray(FIELD_HEADERS);
+        if (headerRows != null) {
+          List<Header> headerList = new ArrayList<>();
+          for (Row headerRow : headerRows) {
+            String headerKey = headerRow.getString(HEADER_FIELD_KEY);
+            checkArgument(headerKey != null, "Header key is required");
+            byte[] headerValue = headerRow.getBytes(HEADER_FIELD_VALUE);
+            headerList.add(new RecordHeader(headerKey, headerValue));
+          }
+          headers = headerList;
+        }
+      } else if (!hasHeaders && row.getSchema().hasField(FIELD_HEADERS)) {
+        // Log warning when headers are present but Kafka client doesn't support them
+        LOG.warn(
+            "Dropping headers from Kafka record because the Kafka client version "
+                + "does not support headers (requires Kafka 0.11+).");
+      }
+
+      return hasHeaders
+          ? new ProducerRecord<>(topic, partition, timestamp, key, value, headers)
+          : new ProducerRecord<>(topic, partition, timestamp, key, value);
     }
   }
 
