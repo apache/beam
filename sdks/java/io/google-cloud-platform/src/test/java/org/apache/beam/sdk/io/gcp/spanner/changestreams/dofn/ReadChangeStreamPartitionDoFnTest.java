@@ -53,6 +53,7 @@ import org.apache.beam.sdk.transforms.DoFn.ProcessContinuation;
 import org.apache.beam.sdk.transforms.splittabledofn.ManualWatermarkEstimator;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Sets;
+import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.junit.Before;
 import org.junit.Test;
@@ -103,7 +104,9 @@ public class ReadChangeStreamPartitionDoFnTest {
     partitionEventRecordAction = mock(PartitionEventRecordAction.class);
     queryChangeStreamAction = mock(QueryChangeStreamAction.class);
 
-    doFn = new ReadChangeStreamPartitionDoFn(daoFactory, mapperFactory, actionFactory, metrics);
+    doFn =
+        new ReadChangeStreamPartitionDoFn(
+            daoFactory, mapperFactory, actionFactory, metrics, Duration.standardMinutes(2));
     doFn.setThroughputEstimator(throughputEstimator);
 
     partition =
@@ -152,7 +155,8 @@ public class ReadChangeStreamPartitionDoFnTest {
             eq(partitionEndRecordAction),
             eq(partitionEventRecordAction),
             eq(metrics),
-            anyBoolean()))
+            anyBoolean(),
+            eq(Duration.standardMinutes(2))))
         .thenReturn(queryChangeStreamAction);
 
     doFn.setup();

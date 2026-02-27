@@ -58,6 +58,7 @@ import org.apache.beam.sdk.transforms.DoFn.ProcessContinuation;
 import org.apache.beam.sdk.transforms.splittabledofn.ManualWatermarkEstimator;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Sets;
+import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.junit.Before;
 import org.junit.Test;
@@ -119,7 +120,8 @@ public class QueryChangeStreamActionTest {
             partitionEndRecordAction,
             partitionEventRecordAction,
             metrics,
-            false);
+            false,
+            Duration.standardMinutes(2));
     final Struct row = mock(Struct.class);
     partition =
         PartitionMetadata.newBuilder()
@@ -935,7 +937,8 @@ public class QueryChangeStreamActionTest {
             partitionEndRecordAction,
             partitionEventRecordAction,
             metrics,
-            true);
+            true,
+            Duration.standardMinutes(2));
 
     // Set endTimestamp to 60 minutes in the future
     Timestamp now = Timestamp.now();
@@ -983,7 +986,8 @@ public class QueryChangeStreamActionTest {
             partitionEndRecordAction,
             partitionEventRecordAction,
             metrics,
-            true);
+            true,
+            Duration.standardMinutes(2));
 
     // Set endTimestamp to only 10 seconds in the future
     Timestamp now = Timestamp.now();

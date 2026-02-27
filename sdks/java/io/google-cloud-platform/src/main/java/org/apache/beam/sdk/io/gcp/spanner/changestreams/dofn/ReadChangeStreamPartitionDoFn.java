@@ -80,6 +80,8 @@ public class ReadChangeStreamPartitionDoFn extends DoFn<PartitionMetadata, DataC
    */
   private ThroughputEstimator<DataChangeRecord> throughputEstimator;
 
+  private final Duration realTimeCheckpointInterval;
+
   private transient QueryChangeStreamAction queryChangeStreamAction;
 
   /**
@@ -95,17 +97,20 @@ public class ReadChangeStreamPartitionDoFn extends DoFn<PartitionMetadata, DataC
    * @param mapperFactory the {@link MapperFactory} to construct {@link ChangeStreamRecordMapper}s
    * @param actionFactory the {@link ActionFactory} to construct actions
    * @param metrics the {@link ChangeStreamMetrics} to emit partition related metrics
+   * @param realTimeCheckpointInterval duration to be used for the next end timestamp
    */
   public ReadChangeStreamPartitionDoFn(
       DaoFactory daoFactory,
       MapperFactory mapperFactory,
       ActionFactory actionFactory,
-      ChangeStreamMetrics metrics) {
+      ChangeStreamMetrics metrics,
+      Duration realTimeCheckpointInterval) {
     this.daoFactory = daoFactory;
-    this.mapperFactory = mapperFactory;
     this.actionFactory = actionFactory;
+    this.mapperFactory = mapperFactory;
     this.metrics = metrics;
     this.isMutableChangeStream = daoFactory.isMutableChangeStream();
+    this.realTimeCheckpointInterval = realTimeCheckpointInterval;
     this.throughputEstimator = new NullThroughputEstimator<>();
   }
 
@@ -218,7 +223,8 @@ public class ReadChangeStreamPartitionDoFn extends DoFn<PartitionMetadata, DataC
             partitionEndRecordAction,
             partitionEventRecordAction,
             metrics,
-            isMutableChangeStream);
+            isMutableChangeStream,
+            realTimeCheckpointInterval);
   }
 
   /**
