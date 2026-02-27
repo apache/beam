@@ -34,6 +34,7 @@ import org.apache.beam.sdk.coders.RowCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.TimestampPrefixingWindowCoder;
 import org.apache.beam.sdk.coders.VarLongCoder;
+import org.apache.beam.sdk.schemas.SchemaCoder;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.IntervalWindow.IntervalWindowCoder;
 import org.apache.beam.sdk.util.ShardedKey;
@@ -71,6 +72,7 @@ public class ModelCoderRegistrar implements CoderTranslatorRegistrar {
               ModelCoders.PARAM_WINDOWED_VALUE_CODER_URN)
           .put(DoubleCoder.class, ModelCoders.DOUBLE_CODER_URN)
           .put(RowCoder.class, ModelCoders.ROW_CODER_URN)
+          .put(SchemaCoder.class, ModelCoders.SCHEMA_CODER_URN)
           .put(ShardedKey.Coder.class, ModelCoders.SHARDED_KEY_CODER_URN)
           .put(TimestampPrefixingWindowCoder.class, ModelCoders.CUSTOM_WINDOW_CODER_URN)
           .put(NullableCoder.class, ModelCoders.NULLABLE_CODER_URN)
@@ -96,6 +98,7 @@ public class ModelCoderRegistrar implements CoderTranslatorRegistrar {
                   CoderTranslators.paramWindowedValue())
               .put(DoubleCoder.class, CoderTranslators.atomic(DoubleCoder.class))
               .put(RowCoder.class, CoderTranslators.row())
+              .put(SchemaCoder.class, CoderTranslators.schema())
               .put(ShardedKey.Coder.class, CoderTranslators.shardedKey())
               .put(TimestampPrefixingWindowCoder.class, CoderTranslators.timestampPrefixingWindow())
               .put(NullableCoder.class, CoderTranslators.nullable())

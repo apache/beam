@@ -1330,13 +1330,13 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
     // with the SDK harness image (which implements Fn API).
     //
     // The same Environment is used in different and contradictory ways, depending on whether
-    // it is a v1 or v2 job submission.
+    // it is a portable or non-portable job submission.
     RunnerApi.Environment defaultEnvironmentForDataflow =
         Environments.createDockerEnvironment(workerHarnessContainerImageURL);
 
-    // The SdkComponents for portable an non-portable job submission must be kept distinct. Both
+    // The SdkComponents for portable and non-portable job submission must be kept distinct. Both
     // need the default environment.
-    SdkComponents portableComponents = SdkComponents.create();
+    SdkComponents portableComponents = SdkComponents.create(options);
     portableComponents.registerEnvironment(
         defaultEnvironmentForDataflow
             .toBuilder()
@@ -1368,28 +1368,29 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
     dataflowOptions.setPipelineUrl(stagedPipeline.getLocation());
 
     if (useUnifiedWorker(options)) {
-      LOG.info("Skipping v1 transform replacements since job will run on v2.");
+      LOG.info(
+          "Skipping non-portable transform replacements since job will run on portable worker.");
     } else {
-      // Now rewrite things to be as needed for v1 (mutates the pipeline)
-      // This way the job submitted is valid for v1 and v2, simultaneously
+      // Now rewrite things to be as needed for non-portable (mutates the pipeline).
+      // This way the job submitted is valid for portable and non-portable, simultaneously.
       replaceV1Transforms(pipeline);
     }
-    // Capture the SdkComponents for look up during step translations
-    SdkComponents dataflowV1Components = SdkComponents.create();
-    dataflowV1Components.registerEnvironment(
+    // Capture the SdkComponents for look up during step translations.
+    SdkComponents dataflowNonPortableComponents = SdkComponents.create(options);
+    dataflowNonPortableComponents.registerEnvironment(
         defaultEnvironmentForDataflow
             .toBuilder()
             .addAllDependencies(getDefaultArtifacts())
             .addAllCapabilities(Environments.getJavaCapabilities())
             .build());
-    // No need to perform transform upgrading for the Runner v1 proto.
-    RunnerApi.Pipeline dataflowV1PipelineProto =
-        PipelineTranslation.toProto(pipeline, dataflowV1Components, true, false);
+    // No need to perform transform upgrading for the non-portable runner proto.
+    RunnerApi.Pipeline dataflowNonPortablePipelineProto =
+        PipelineTranslation.toProto(pipeline, dataflowNonPortableComponents, true, false);
 
     if (LOG.isDebugEnabled()) {
       LOG.debug(
-          "Dataflow v1 pipeline proto:\n{}",
-          TextFormat.printer().printToString(dataflowV1PipelineProto));
+          "Dataflow non-portable worker pipeline proto:\n{}",
+          TextFormat.printer().printToString(dataflowNonPortablePipelineProto));
     }
 
     // Set a unique client_request_id in the CreateJob request.
@@ -1409,7 +1410,11 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
 
     JobSpecification jobSpecification =
         translator.translate(
-            pipeline, dataflowV1PipelineProto, dataflowV1Components, this, packages);
+            pipeline,
+            dataflowNonPortablePipelineProto,
+            dataflowNonPortableComponents,
+            this,
+            packages);
 
     if (!isNullOrEmpty(dataflowOptions.getDataflowWorkerJar()) && !useUnifiedWorker(options)) {
       List<String> experiments =

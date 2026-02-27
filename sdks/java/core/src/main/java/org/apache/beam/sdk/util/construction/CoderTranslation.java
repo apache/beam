@@ -26,6 +26,7 @@ import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi.FunctionSpec;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.util.SerializableUtils;
+import org.apache.beam.sdk.util.construction.CoderTranslators.TranslationContextWithOptions;
 import org.apache.beam.vendor.grpc.v1p69p0.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.BiMap;
@@ -131,12 +132,13 @@ public class CoderTranslation {
       throws IOException {
     CoderTranslator translator = getKnownTranslators().get(coder.getClass());
     List<String> componentIds = registerComponents(coder, translator, components);
+    TranslationContextWithOptions context = () -> components::getPipelineOptions;
     return RunnerApi.Coder.newBuilder()
         .addAllComponentCoderIds(componentIds)
         .setSpec(
             FunctionSpec.newBuilder()
-                .setUrn(getKnownCoderUrns().get(coder.getClass()))
-                .setPayload(ByteString.copyFrom(translator.getPayload(coder))))
+                .setUrn(translator.getUrn(coder, context))
+                .setPayload(ByteString.copyFrom(translator.getPayload(coder, context))))
         .build();
   }
 

@@ -62,6 +62,9 @@
 * New highly anticipated feature X added to Python SDK ([#X](https://github.com/apache/beam/issues/X)).
 * New highly anticipated feature Y added to Java SDK ([#Y](https://github.com/apache/beam/issues/Y)).
 
+* Flink 2.0 support for Java Classic and Portable Flink Runners ([#36947](https://github.com/apache/beam/issues/36947)),
+  experimental support for other SDK languages including Python.
+
 ## I/Os
 
 * Support for X source added (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
@@ -72,6 +75,9 @@
 
 ## Breaking Changes
 
+* Portable Java SDK now encodes SchemaCoders in a portable way ([34672](https://github.com/apache/beam/issues/34672)).
+  - Original custom Java coder encoding can still be obtained using [StreamingOptions.setUpdateCompatibilityVersion("2.71")](https://github.com/apache/beam/blob/2cf0930e7ae1aa389c26ce6639b584877a3e31d9/sdks/java/core/src/main/java/org/apache/beam/sdk/options/StreamingOptions.java#L47).
+  - Fixes [36496](https://github.com/apache/beam/issues/36496), [30276](https://github.com/apache/beam/issues/30276), [29245](https://github.com/apache/beam/issues/29245).
 * The Python SDK container's `boot.go` now passes pipeline options through a file instead of the `PIPELINE_OPTIONS` environment variable. If a user pairs a new Python SDK container with an older SDK version (which does not support the file-based approach), the pipeline options will not be recognized and the pipeline will fail. Users must ensure their SDK and container versions are synchronized ([#37370](https://github.com/apache/beam/issues/37370)).
 
 ## Deprecations

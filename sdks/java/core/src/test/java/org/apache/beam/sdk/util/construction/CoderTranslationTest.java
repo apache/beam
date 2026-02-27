@@ -22,6 +22,7 @@ import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.hasItems;
 import static org.hamcrest.Matchers.not;
 
+import com.google.auto.value.AutoValue;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -45,14 +46,20 @@ import org.apache.beam.sdk.coders.SerializableCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.TimestampPrefixingWindowCoder;
 import org.apache.beam.sdk.coders.VarLongCoder;
+import org.apache.beam.sdk.schemas.AutoValueSchema;
+import org.apache.beam.sdk.schemas.NoSuchSchemaException;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.Field;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
+import org.apache.beam.sdk.schemas.SchemaCoder;
+import org.apache.beam.sdk.schemas.SchemaRegistry;
+import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
 import org.apache.beam.sdk.schemas.logicaltypes.FixedBytes;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.IntervalWindow.IntervalWindowCoder;
 import org.apache.beam.sdk.util.ShardedKey;
 import org.apache.beam.sdk.util.construction.CoderTranslation.TranslationContext;
+import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.sdk.values.WindowedValues;
 import org.apache.beam.sdk.values.WindowedValues.FullWindowedValueCoder;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
@@ -70,6 +77,34 @@ import org.junit.runners.Parameterized.Parameters;
   "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
 })
 public class CoderTranslationTest {
+  @AutoValue
+  @DefaultSchema(AutoValueSchema.class)
+  public abstract static class SimpleAutoValue {
+    public abstract String getString();
+
+    public abstract Integer getInt32();
+
+    public abstract Long getInt64();
+
+    public static SimpleAutoValue of(String string, Integer int32, Long int64) {
+      return new AutoValue_CoderTranslationTest_SimpleAutoValue(string, int32, int64);
+    }
+  }
+
+  private static final SchemaRegistry REGISTRY = SchemaRegistry.createDefault();
+
+  private static SchemaCoder schemaCoderFrom(TypeDescriptor typeDescriptor) {
+    try {
+      return SchemaCoder.of(
+          REGISTRY.getSchema(typeDescriptor),
+          typeDescriptor,
+          REGISTRY.getToRowFunction(typeDescriptor),
+          REGISTRY.getFromRowFunction(typeDescriptor));
+    } catch (NoSuchSchemaException e) {
+      throw new RuntimeException(e);
+    }
+  }
+
   private static final Set<Coder<?>> KNOWN_CODERS =
       ImmutableSet.<Coder<?>>builder()
           .add(ByteArrayCoder.of())
@@ -94,6 +129,7 @@ public class CoderTranslationTest {
                       Field.of("array", FieldType.array(FieldType.STRING)),
                       Field.of("map", FieldType.map(FieldType.STRING, FieldType.INT32)),
                       Field.of("bar", FieldType.logicalType(FixedBytes.of(123))))))
+          .add(schemaCoderFrom(TypeDescriptor.of(SimpleAutoValue.class)))
           .add(ShardedKey.Coder.of(StringUtf8Coder.of()))
           .add(TimestampPrefixingWindowCoder.of(IntervalWindowCoder.of()))
           .add(NullableCoder.of(ByteArrayCoder.of()))
