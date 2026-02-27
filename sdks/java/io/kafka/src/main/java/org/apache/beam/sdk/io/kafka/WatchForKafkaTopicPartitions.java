@@ -18,7 +18,6 @@
 package org.apache.beam.sdk.io.kafka;
 
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.MoreObjects.firstNonNull;
-import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkState;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -45,6 +44,8 @@ import org.apache.kafka.common.TopicPartition;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * A {@link PTransform} for continuously querying Kafka for new partitions, and emitting those
@@ -57,6 +58,7 @@ import org.joda.time.Instant;
  */
 class WatchForKafkaTopicPartitions extends PTransform<PBegin, PCollection<KafkaSourceDescriptor>> {
 
+  private static final Logger LOG = LoggerFactory.getLogger(WatchForKafkaTopicPartitions.class);
   private static final Duration DEFAULT_CHECK_DURATION = Duration.standardHours(1);
   private static final String COUNTER_NAMESPACE = "watch_kafka_topic_partition";
 
@@ -191,12 +193,13 @@ class WatchForKafkaTopicPartitions extends PTransform<PBegin, PCollection<KafkaS
       if (topics != null && !topics.isEmpty()) {
         for (String topic : topics) {
           List<PartitionInfo> partitionInfoList = kafkaConsumer.partitionsFor(topic);
-          checkState(
-              partitionInfoList != null && !partitionInfoList.isEmpty(),
-              "Could not find any partitions info for topic "
-                  + topic
-                  + ". Please check Kafka configuration and make sure "
-                  + "that provided topics exist.");
+          if (partitionInfoList == null || partitionInfoList.isEmpty()) {
+            LOG.warn(
+                "Could not find any partitions info for topic {}. Please check Kafka "
+                    + "configuration and make sure that the provided topics exist.",
+                topic);
+            continue;
+          }
           for (PartitionInfo partition : partitionInfoList) {
             current.add(new TopicPartition(topic, partition.partition()));
           }
