@@ -248,6 +248,7 @@ public class PubsubUnboundedSink extends PTransform<PCollection<PubsubMessage>, 
     private final @Nullable ValueProvider<TopicPath> topic;
     private final String timestampAttribute;
     private final String idAttribute;
+    private final int publishBatchSize;
     private final int publishBatchBytes;
 
     private final String pubsubRootUrl;
@@ -270,6 +271,7 @@ public class PubsubUnboundedSink extends PTransform<PCollection<PubsubMessage>, 
       this.topic = topic;
       this.timestampAttribute = timestampAttribute;
       this.idAttribute = idAttribute;
+      this.publishBatchSize = publishBatchSize;
       this.publishBatchBytes = publishBatchBytes;
       this.pubsubRootUrl = null;
     }
@@ -279,12 +281,14 @@ public class PubsubUnboundedSink extends PTransform<PCollection<PubsubMessage>, 
         @Nullable ValueProvider<TopicPath> topic,
         String timestampAttribute,
         String idAttribute,
+        int publishBatchSize,
         int publishBatchBytes,
         String pubsubRootUrl) {
       this.pubsubFactory = pubsubFactory;
       this.topic = topic;
       this.timestampAttribute = timestampAttribute;
       this.idAttribute = idAttribute;
+      this.publishBatchSize = publishBatchSize;
       this.publishBatchBytes = publishBatchBytes;
       this.pubsubRootUrl = pubsubRootUrl;
     }
@@ -354,13 +358,14 @@ public class PubsubUnboundedSink extends PTransform<PCollection<PubsubMessage>, 
         if (currentBatch == null) {
           currentBatch = new OutgoingData();
           orderingKeyBatches.put(currentOrderingKey, currentBatch);
-        } else if (currentBatch.bytes + message.getMessage().getData().size() > publishBatchBytes) {
+        } else if (currentBatch.messages.size() >= publishBatchSize
+            || currentBatch.bytes + message.getMessage().getData().size() > publishBatchBytes) {
           // TODO(sjvanrossum): https://github.com/apache/beam/issues/31800
 
-          // Break large (in bytes) batches into smaller.
-          // (We've already broken by batch size using the trigger below, though that may
-          // run slightly over the actual PUBLISH_BATCH_SIZE. We'll consider that ok since
-          // the hard limit from Pubsub is by bytes rather than number of messages.)
+          // Break large batches into smaller by message count or byte size.
+          // The trigger below breaks by batch size, but may run slightly over.
+          // Pubsub has hard limits on both bytes and number of messages per batch.
+          // See https://cloud.google.com/pubsub/quotas#resource_limits for details.
           // BLOCKS until published.
           publishBatch(currentBatch.messages, currentBatch.bytes);
           currentBatch.messages.clear();
@@ -659,6 +664,7 @@ public class PubsubUnboundedSink extends PTransform<PCollection<PubsubMessage>, 
                       outer.topic,
                       outer.timestampAttribute,
                       outer.idAttribute,
+                      outer.publishBatchSize,
                       outer.publishBatchBytes,
                       outer.pubsubRootUrl)));
       return PDone.in(input.getPipeline());
@@ -711,6 +717,7 @@ public class PubsubUnboundedSink extends PTransform<PCollection<PubsubMessage>, 
                       outer.topic,
                       outer.timestampAttribute,
                       outer.idAttribute,
+                      outer.publishBatchSize,
                       outer.publishBatchBytes,
                       outer.pubsubRootUrl)));
       return PDone.in(input.getPipeline());
