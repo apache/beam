@@ -192,7 +192,7 @@ rich==14.3.3
 rpds-py==0.30.0
 rsa==4.9.1
 safetensors==0.7.0
-scikit-learn==1.7.2
+scikit-learn==1.8.0
 scipy==1.15.3
 scramp==1.4.8
 SecretStorage==3.5.0
