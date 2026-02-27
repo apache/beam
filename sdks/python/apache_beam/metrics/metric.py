@@ -125,7 +125,7 @@ class Metrics(object):
           or should be calculated for the entire process.
 
     Returns:
-      A Distribution object.
+      A Gauge object.
     """
     namespace = Metrics.get_namespace(namespace)
     return Metrics.DelegatingGauge(
