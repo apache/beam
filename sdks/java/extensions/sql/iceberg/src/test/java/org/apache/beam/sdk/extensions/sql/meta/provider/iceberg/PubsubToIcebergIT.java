@@ -156,7 +156,7 @@ public class PubsubToIcebergIT implements Serializable {
             + ") \n"
             + "TYPE 'iceberg' \n"
             + "PARTITIONED BY('id', 'truncate(name, 3)') \n"
-            + "TBLPROPERTIES '{ \"triggering_frequency_seconds\" : 10 }'";
+            + "TBLPROPERTIES '{ \"beam.write.triggering_frequency_seconds\" : 10 }'";
     String insertStatement =
         format("INSERT INTO %s \n", tableIdentifier)
             + "SELECT \n"
@@ -211,7 +211,7 @@ public class PubsubToIcebergIT implements Serializable {
             + "   name VARCHAR \n "
             + ") \n"
             + "TYPE 'iceberg' \n"
-            + "TBLPROPERTIES '{ \"triggering_frequency_seconds\" : 10 }'";
+            + "TBLPROPERTIES '{ \"beam.write.triggering_frequency_seconds\" : 10 }'";
     String insertStatement =
         format("INSERT INTO %s \n", tableIdentifier)
             + "SELECT \n"

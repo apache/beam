@@ -19,6 +19,7 @@ package org.apache.beam.sdk.extensions.sql.meta.provider.iceberg;
 
 import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import java.util.HashMap;
 import java.util.List;
@@ -56,6 +57,8 @@ class IcebergTable extends SchemaBaseBeamTable {
   @VisibleForTesting static final String CATALOG_PROPERTIES_FIELD = "catalog_properties";
   @VisibleForTesting static final String HADOOP_CONFIG_PROPERTIES_FIELD = "config_properties";
   @VisibleForTesting static final String CATALOG_NAME_FIELD = "catalog_name";
+  static final String BEAM_WRITE_PROPERTY = "beam.write.";
+  static final String BEAM_READ_PROPERTY = "beam.read.";
 
   @VisibleForTesting
   static final String TRIGGERING_FREQUENCY_FIELD = "triggering_frequency_seconds";
@@ -71,9 +74,21 @@ class IcebergTable extends SchemaBaseBeamTable {
     this.tableIdentifier = tableIdentifier;
     this.catalogConfig = catalogConfig;
     ObjectNode properties = table.getProperties();
-    if (properties.has(TRIGGERING_FREQUENCY_FIELD)) {
-      this.triggeringFrequency = properties.get(TRIGGERING_FREQUENCY_FIELD).asInt();
+    for (Map.Entry<String, JsonNode> property : properties.properties()) {
+      String name = property.getKey();
+      if (name.startsWith(BEAM_WRITE_PROPERTY)) {
+        String prop = name.substring(BEAM_WRITE_PROPERTY.length());
+        if (prop.equals(TRIGGERING_FREQUENCY_FIELD)) {
+          this.triggeringFrequency = property.getValue().asInt();
+        } else {
+          throw new IllegalArgumentException("Unknown Beam write property: " + name);
+        }
+      } else if (name.startsWith(BEAM_READ_PROPERTY)) {
+        // none supported yet
+        throw new IllegalArgumentException("Unknown Beam read property: " + name);
+      }
     }
+
     this.partitionFields = table.getPartitionFields();
   }
 
