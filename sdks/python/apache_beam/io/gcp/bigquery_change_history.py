@@ -298,7 +298,7 @@ class _PollWatermarkEstimatorProvider(WatermarkEstimatorProvider):
     return _PollWatermarkEstimator(estimator_state)
 
 
-def _table_key(table_ref: bigquery.TableReference) -> str:
+def _table_key(table_ref: 'bigquery.TableReference') -> str:
   """Convert a TableReference to a 'project.dataset.table' string."""
   return f'{table_ref.projectId}.{table_ref.datasetId}.{table_ref.tableId}'
 
@@ -853,7 +853,7 @@ class _ReadStorageStreamsSDF(beam.DoFn,
               total_streams,
           ))
 
-  def _create_read_session(self, table_ref: bigquery.TableReference) -> Any:
+  def _create_read_session(self, table_ref: 'bigquery.TableReference') -> Any:
     """Create a BigQuery Storage ReadSession for the given table."""
     table_path = (
         f'projects/{table_ref.projectId}/'
@@ -1076,10 +1076,11 @@ class ReadBigQueryChangeHistory(beam.PTransform):
       raise ValueError(
           f"change_function must be 'CHANGES' or 'APPENDS', "
           f"got '{change_function}'")
-    if poll_interval_sec <= 0:
+    if poll_interval_sec <= 15:
       raise ValueError(
-          f'poll_interval_sec must be positive, got {poll_interval_sec}')
-
+          f'poll_interval_sec must be >= 15, got {poll_interval_sec}')
+    if buffer_sec < 0:
+      raise ValueError(f'buffer_sec must be >= 10, got {buffer_sec}')
     self._table = table
     self._poll_interval_sec = poll_interval_sec
     self._start_time = start_time
