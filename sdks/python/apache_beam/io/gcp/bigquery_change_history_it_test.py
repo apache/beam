@@ -418,14 +418,14 @@ class EndToEndTest(BigQueryChangeHistoryIntegrationBase):
     """ReadBigQueryChangeHistory PTransform with polling SDF."""
     table_str = f'{self.project}:{self.dataset}.{self.test_table_id}'
     start_time = self.insert_time - 120  # 2 min before insert
-    stop_time = time.time() + 5  # Short run for test
+    stop_time = time.time()
 
     with beam.Pipeline(argv=self.args) as p:
       rows = (
           p
           | ReadBigQueryChangeHistory(
               table=table_str,
-              poll_interval_sec=60,
+              poll_interval_sec=10,
               start_time=start_time,
               stop_time=stop_time,
               change_function='APPENDS',
@@ -461,63 +461,6 @@ class EndToEndTest(BigQueryChangeHistoryIntegrationBase):
             f'Row mismatch:\n  got:      {got}\n  expected: {expected}')
 
       assert_that(rows, check_rows)
-
-
-def insert_test_rows(project, dataset, table, n, bq_wrapper=None):
-  """Insert n test rows into a BigQuery table.
-
-  Args:
-    project: GCP project ID.
-    dataset: BigQuery dataset ID.
-    table: BigQuery table ID.
-    n: Number of rows to insert.
-    bq_wrapper: Optional BigQueryWrapper instance (creates one if None).
-
-  Returns:
-    List of inserted row dicts.
-  """
-  if bq_wrapper is None:
-    bq_wrapper = BigQueryWrapper()
-  rows = [{'id': i, 'name': f'row_{i}', 'value': float(i)} for i in range(n)]
-  bq_wrapper.insert_rows(project, dataset, table, rows)
-  return rows
-
-
-def create_change_history_table(project, dataset, table_id, bq_wrapper=None):
-  """Create a table with enable_change_history via DDL.
-
-  Args:
-    project: GCP project ID.
-    dataset: BigQuery dataset ID.
-    table_id: Table name to create.
-    bq_wrapper: Optional BigQueryWrapper instance.
-
-  Returns:
-    bigquery.TableReference for the created table.
-  """
-  if bq_wrapper is None:
-    bq_wrapper = BigQueryWrapper()
-
-  ddl = (
-      f'CREATE TABLE IF NOT EXISTS '
-      f'`{project}.{dataset}.{table_id}` '
-      f'(id INT64, name STRING, value FLOAT64) '
-      f'OPTIONS (enable_change_history = true)')
-
-  job_id = f'beam_ch_ddl_{uuid.uuid4().hex[:8]}'
-  reference = bigquery.JobReference(jobId=job_id, projectId=project)
-  request = bigquery.BigqueryJobsInsertRequest(
-      projectId=project,
-      job=bigquery.Job(
-          configuration=bigquery.JobConfiguration(
-              query=bigquery.JobConfigurationQuery(
-                  query=ddl, useLegacySql=False)),
-          jobReference=reference))
-  response = bq_wrapper._start_job(request)
-  bq_wrapper.wait_for_bq_job(response.jobReference, sleep_duration_sec=2)
-
-  return bigquery.TableReference(
-      projectId=project, datasetId=dataset, tableId=table_id)
 
 
 if __name__ == '__main__':

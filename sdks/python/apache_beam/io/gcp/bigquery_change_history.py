@@ -71,6 +71,11 @@ from apache_beam.utils.timestamp import MAX_TIMESTAMP
 from apache_beam.utils.timestamp import Timestamp
 
 try:
+  from apitools.base.py.exceptions import HttpError
+except ImportError:
+  HttpError = None  # type: ignore
+
+try:
   from google.cloud import bigquery_storage_v1 as bq_storage
 except ImportError:
   bq_storage = None  # type: ignore
@@ -101,10 +106,6 @@ _DEFAULT_MAX_STREAMS = 10
 # (e.g. pipeline crash before cleanup runs).
 _DEFAULT_TABLE_EXPIRATION_MS = 24 * 60 * 60 * 1000
 
-# =============================================================================
-# Helpers and data classes
-# =============================================================================
-
 
 @dataclasses.dataclass
 class _QueryResult:
@@ -118,9 +119,9 @@ class _QueryResult:
   The Read SDF uses range_start to set an initial watermark hold so the runner
   doesn't advance the watermark past the data's timestamps.
   """
-  temp_table_ref: Optional[bigquery.TableReference] = None
-  range_start: float = 0.0
-  range_end: float = 0.0
+  temp_table_ref: bigquery.TableReference
+  range_start: float
+  range_end: float
 
 
 @dataclasses.dataclass
@@ -436,9 +437,10 @@ class _PollChangeHistoryFn(beam.DoFn, beam.transforms.core.RestrictionProvider):
 
   def create_tracker(
       self, restriction: OffsetRange) -> _NonSplittableOffsetTracker:
-    # When stop_time has passed, return an empty-range tracker so
-    # try_claim() fails immediately and check_done() passes (empty range).
-    if time.time() >= self._stop_time:
+    # Guarantee at least one poll cycle: restriction.start == 0 on the first
+    # invocation (from initial_restriction).  After the first try_claim(0) +
+    # defer_remainder, subsequent invocations arrive with start >= 1.
+    if restriction.start > 0 and time.time() >= self._stop_time:
       _LOGGER.info(
           '[Poll] create_tracker: stop_time reached, '
           'returning empty range to terminate SDF')
@@ -471,10 +473,6 @@ class _PollChangeHistoryFn(beam.DoFn, beam.transforms.core.RestrictionProvider):
       now: float,
       watermark_estimator: _PollWatermarkEstimator) -> Iterable[_QueryRange]:
     """Compute and yield _QueryRange elements, advancing estimator state."""
-    if self._stop_time != MAX_TIMESTAMP and now >= self._stop_time:
-      _LOGGER.info('[Poll] Stop time reached')
-      return
-
     ranges = compute_ranges(start_ts, end_ts, self._change_function)
     _LOGGER.info(
         '[Poll] %d chunks for [%s, %s)',
@@ -506,7 +504,7 @@ class _PollChangeHistoryFn(beam.DoFn, beam.transforms.core.RestrictionProvider):
 
     now = time.time()
     start_ts = watermark_estimator.poll_cursor()
-    end_ts = now - self._buffer_sec
+    end_ts = min(now - self._buffer_sec, self._stop_time)
 
     defer_to = self._next_poll_time(start_ts, now)
     if defer_to is not None:
@@ -581,7 +579,9 @@ class _ExecuteQueryFn(beam.DoFn):
           '[Query] Temp dataset %s.%s already exists',
           self._project,
           self._temp_dataset)
-    except Exception:
+    except HttpError as e:
+      if e.status_code != 404:
+        raise
       _LOGGER.info(
           '[Query] Creating temp dataset %s.%s with '
           '24h table expiration, location=%s',
@@ -863,9 +863,9 @@ class _ReadStorageStreamsSDF(beam.DoFn,
     requested_session = bq_storage.types.ReadSession()
     requested_session.table = table_path
     requested_session.data_format = bq_storage.types.DataFormat.ARROW
-    requested_session.read_options \
-        .arrow_serialization_options.buffer_compression = \
-        bq_storage.types.ArrowSerializationOptions.CompressionCodec.LZ4_FRAME
+    read_options = requested_session.read_options
+    read_options.arrow_serialization_options.buffer_compression = (
+        bq_storage.types.ArrowSerializationOptions.CompressionCodec.LZ4_FRAME)
 
     session = self._storage_client.create_read_session(
         parent=f'projects/{table_ref.projectId}',
