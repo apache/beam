@@ -1873,7 +1873,7 @@ class FnApiRunnerMetricsTest(unittest.TestCase):
           max=hamcrest.greater_than(0),
           sum=hamcrest.greater_than(0),
           count=hamcrest.greater_than(0))
-    except:
+    except Exception:
       print(res._monitoring_infos_by_stage)
       raise
 
@@ -1996,7 +1996,7 @@ class FnApiRunnerMetricsTest(unittest.TestCase):
           postgbk_mis, monitoring_infos.ELEMENT_COUNT_URN, labels, value=5)
       self.assert_has_distribution(
           postgbk_mis, monitoring_infos.SAMPLED_BYTE_SIZE_URN, labels)
-    except:
+    except Exception:
       print(res._monitoring_infos_by_stage)
       raise
 

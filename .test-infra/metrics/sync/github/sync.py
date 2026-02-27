@@ -99,7 +99,7 @@ def initDBConnection():
       conn = psycopg2.connect(
           f"dbname='{DB_NAME}' user='{DB_USER_NAME}' host='{DB_HOST}'"
           f" port='{DB_PORT}' password='{DB_PASSWORD}'")
-    except:
+    except Exception:
       print('Failed to connect to DB; retrying in 1 minute')
       sys.stdout.flush()
       time.sleep(60)
@@ -452,7 +452,7 @@ def fetchNewData():
       data = None
       try:
         data = jsonData["data"]["search"]["edges"]
-      except:
+      except Exception:
         # TODO This means that API returned error.
         # We might want to bring this to stderr or utilize other means of logging.
         # Examples: we hit throttling, etc

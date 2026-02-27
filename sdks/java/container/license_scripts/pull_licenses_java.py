@@ -144,7 +144,7 @@ def pull_source_code(base_url, dir_name, dep):
     try:
       soup = BeautifulSoup(urlopen(Request(base_url, headers={
         'User-Agent': 'Apache Beam'})).read(), "html.parser")
-    except:
+    except Exception:
       logging.error('Error reading source base from {base_url}'.format(base_url=base_url))
       raise
     source_count = 0
@@ -173,7 +173,7 @@ def write_to_csv(csv_list):
             writer.writeheader()
             for data in csv_list:
                 writer.writerow(data)
-    except:
+    except Exception:
         traceback.print_exc()
         raise
 
@@ -210,10 +210,10 @@ def execute(dep):
         # pull license
         try:
             license_url = dep_config[name][version]['license']
-        except:
+        except Exception:
             try:
                 license_url = dep['moduleLicenseUrl']
-            except:
+            except Exception:
                 # url cannot be found, add to no_licenses and skip to pull.
                 with thread_lock:
                     no_licenses.append(name_version)
@@ -230,12 +230,12 @@ def execute(dep):
         try:
             notice_url = dep_config[name][version]['notice']
             pull_from_url(dir_name + '/NOTICE', notice_url, name_version)
-        except:
+        except Exception:
             pass
     else:
         try:
             license_url = dep['moduleLicenseUrl']
-        except:
+        except Exception:
             license_url = ''
         logging.debug(
             'License/notice for {name_version} were pulled automatically.'.
@@ -244,10 +244,10 @@ def execute(dep):
     # get license_type to decide if pull source code.
     try:
         license_type = dep['moduleLicense']
-    except:
+    except Exception:
         try:
             license_type = dep_config[name][version]['type']
-        except:
+        except Exception:
             license_type = 'no_license_type'
             with thread_lock:
                 no_license_type.append(name_version)
@@ -256,7 +256,7 @@ def execute(dep):
     if any(x in license_type.lower() for x in SOURCE_CODE_REQUIRED_LICENSES):
         try:
             base_url = dep_config[name][version]['source']
-        except:
+        except Exception:
             module = dep['moduleName'].split(':')[0].replace('.', '/')
             base_url = maven_url_temp.format(module=module + '/' + name,
                                              version=version)
@@ -281,7 +281,7 @@ def read_cached_licenses():
     try:
         CACHED_LICENSES=set(os.listdir(cached_license_path))
         logging.info("Read %d licenses from cache.", len(CACHED_LICENSES))
-    except:
+    except Exception:
         logging.warning("Error occurred when reading cached licenses.")
         traceback.print_exc()
 

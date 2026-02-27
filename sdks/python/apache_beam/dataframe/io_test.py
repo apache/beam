@@ -213,7 +213,7 @@ A     B
             actual = actual.rename(
                 columns=dict(zip(actual.columns, expected.columns)))
           return assert_frame_equal(expected, actual, check_like=True)
-        except:
+        except Exception:
           print("EXPECTED")
           print(expected)
           print("ACTUAL")
@@ -240,7 +240,7 @@ A     B
                 p | getattr(io, 'read_%s' % format)(dest + '*', **read_kwargs),
                 yield_elements='pandas')
             assert_that(result, frame_equal_to(df, **check_options))
-        except:
+        except Exception:
           os.system('head -n 100 ' + dest + '*')
           raise
 

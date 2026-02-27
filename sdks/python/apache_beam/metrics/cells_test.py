@@ -367,7 +367,7 @@ class TestBoundedTrieNode(unittest.TestCase):
       segments = self.random_segments(**params, rand=random.Random(seed))
       try:
         self.run_test(segments)
-      except:
+      except Exception:
         print("SEED", seed)
         raise
 

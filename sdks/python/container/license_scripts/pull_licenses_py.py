@@ -141,7 +141,7 @@ def license_url(name, project_url, dep_config):
       with urlopen(url) as a:
         if a.getcode() == 200:
           return url
-    except:
+    except Exception:
       pass
   return project_url
 

@@ -39,7 +39,7 @@ class DataFramesTest(BaseTestCase):
       WebDriverWait(self.driver, 5).until(
           expected_conditions.presence_of_element_located((By.ID, 'test-done')))
     # pylint: disable=bare-except
-    except:
+    except Exception:
       pass  # The test will be ignored.
 
   def test_dataframes(self):

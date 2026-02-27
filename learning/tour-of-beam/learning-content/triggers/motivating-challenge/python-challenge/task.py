@@ -60,7 +60,7 @@ def tryParseTaxiRideCost(line,index):
     if(len(line) > index):
       try:
         yield float(line[index])
-      except:
+      except Exception:
         yield float(0)
     else:
         yield float(0)

@@ -183,5 +183,5 @@ class LoadTest(object):
       return default
     try:
       return type(default)(option)
-    except:
+    except Exception:
       raise

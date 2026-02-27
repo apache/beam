@@ -123,7 +123,7 @@ def convert_to_timestamp(date_string):
     date_format = "%a, %d %b %Y %H:%M:%S %z"
     datetime_obj = datetime.datetime.strptime(date_string, date_format)
     return datetime_obj.timestamp()
-  except:
+  except Exception:
     return None
 
 
@@ -238,7 +238,7 @@ def find_google_docs_links(mbox_file, doc_messages, doc_urls):
       title = get_google_doc_title(doc_url)
       try:
         sender = extract_name_re(str(message["From"]))
-      except:
+      except Exception:
         print("Something is wrong: ", message["From"])
         sender = None
       if not sender:

@@ -107,7 +107,7 @@ def main():
             # Sanity check the installation.
             subprocess.run([venv_python, '-c', 'import apache_beam'],
                            check=True)
-        except:
+        except Exception:
             shutil.rmtree(venv_dir)
             raise
 

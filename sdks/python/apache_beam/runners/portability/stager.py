@@ -326,7 +326,7 @@ class Stager(object):
                     sdk_remote_location=setup_options.sdk_location,
                     temp_dir=temp_dir,
                 ))
-          except:
+          except Exception:
             raise RuntimeError(
                 'The --sdk_location option was used with an unsupported '
                 'type of location: %s' % sdk_location)
