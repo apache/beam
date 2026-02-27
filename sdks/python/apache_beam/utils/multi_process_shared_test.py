@@ -19,10 +19,12 @@
 import logging
 import multiprocessing
 import os
+import shutil
 import tempfile
 import threading
 import unittest
 from typing import Any
+from unittest import mock
 
 from apache_beam.utils import multi_process_shared
 
@@ -460,6 +462,118 @@ class MultiProcessSharedSpawnProcessTest(unittest.TestCase):
       shared2.unsafe_hard_delete()
     except Exception:
       pass
+
+
+class WaitForServerReadinessTest(unittest.TestCase):
+  def test_wait_for_server_readiness_timeout_raises(self):
+    with mock.patch.object(multi_process_shared.socket,
+                           'create_connection',
+                           side_effect=OSError('connection refused')):
+      with self.assertRaises(RuntimeError) as ctx:
+        multi_process_shared._wait_for_server_readiness(('localhost', 12345),
+                                                        timeout=0.2)
+      self.assertIn('failed to accept connections', str(ctx.exception))
+
+  def test_wait_for_server_readiness_success(self):
+    mock_socket = mock.Mock()
+    with mock.patch.object(multi_process_shared.socket,
+                           'create_connection',
+                           return_value=mock_socket):
+      multi_process_shared._wait_for_server_readiness(('localhost', 12345),
+                                                      timeout=1.0)
+    mock_socket.close.assert_called_once()
+
+  def test_wait_for_server_readiness_retries_on_oserror_then_succeeds(self):
+    mock_socket = mock.Mock()
+    with mock.patch.object(multi_process_shared.socket,
+                           'create_connection',
+                           side_effect=[OSError('refused'),
+                                        OSError('refused'),
+                                        mock_socket]):
+      multi_process_shared._wait_for_server_readiness(('localhost', 12345),
+                                                      timeout=2.0)
+    mock_socket.close.assert_called_once()
+
+
+class AutoProxyWrapperUnsafeHardDeleteTest(unittest.TestCase):
+  def test_wrapper_unsafe_hard_delete(self):
+    shared = multi_process_shared.MultiProcessShared(
+        Counter, tag='test_wrapper_unsafe_hard_delete', always_proxy=True)
+    obj = shared.acquire()
+    self.assertEqual(obj.get(), 0)
+    obj.increment()
+    try:
+      obj.unsafe_hard_delete()
+    except Exception:
+      pass
+    with self.assertRaises(Exception):
+      obj.get()
+
+
+class GetManagerRetryTest(unittest.TestCase):
+  def setUp(self):
+    self.tempdir = tempfile.mkdtemp()
+    self.addCleanup(shutil.rmtree, self.tempdir, ignore_errors=True)
+
+  def test_get_manager_retries_on_connection_error_then_succeeds(self):
+    address_file = os.path.join(self.tempdir, 'tag_retry') + '.address'
+    with open(address_file, 'w') as f:
+      f.write('127.0.0.1:0')
+    shared = multi_process_shared.MultiProcessShared(
+        Counter, tag='tag_retry', path=self.tempdir, always_proxy=True)
+    with mock.patch.object(multi_process_shared._SingletonRegistrar,
+                           'connect',
+                           side_effect=[ConnectionError('refused'), None]):
+      manager = shared._get_manager()
+    self.assertIsNotNone(manager)
+
+  def test_get_manager_raises_when_connection_fails_no_spawn(self):
+    address_file = os.path.join(self.tempdir, 'tag_fail') + '.address'
+    with open(address_file, 'w') as f:
+      f.write('127.0.0.1:99999')
+    shared = multi_process_shared.MultiProcessShared(
+        Counter,
+        tag='tag_fail',
+        path=self.tempdir,
+        always_proxy=True,
+        spawn_process=False)
+
+    with mock.patch.object(multi_process_shared._SingletonRegistrar,
+                           'connect',
+                           side_effect=ConnectionError('refused')):
+      with self.assertRaises((ConnectionError, OSError)):
+        shared._get_manager()
+
+  def test_get_manager_unlinks_when_spawn_connection_fails(self):
+    address_file = os.path.join(self.tempdir, 'tag_spawn_fail') + '.address'
+    with open(address_file, 'w') as f:
+      f.write('127.0.0.1:99999')
+    shared = multi_process_shared.MultiProcessShared(
+        Counter,
+        tag='tag_spawn_fail',
+        path=self.tempdir,
+        always_proxy=False,
+        spawn_process=True)
+    unlink_calls = []
+
+    def track_unlink(path):
+      unlink_calls.append(path)
+      os.unlink(path)
+
+    def mock_create_server(_):
+      multi_process_shared._process_level_singleton_manager.register_singleton(
+          Counter, shared._tag)
+      shared._manager = multi_process_shared._process_level_singleton_manager
+
+    with mock.patch.object(multi_process_shared._SingletonRegistrar,
+                           'connect',
+                           side_effect=ConnectionError('refused')):
+      with mock.patch.object(multi_process_shared.os,
+                             'unlink',
+                             side_effect=track_unlink):
+        with mock.patch.object(shared, '_create_server', mock_create_server):
+          shared._get_manager()
+    self.assertGreater(len(unlink_calls), 0)
 
 
 if __name__ == '__main__':

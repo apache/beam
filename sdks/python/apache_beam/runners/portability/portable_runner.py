@@ -218,14 +218,12 @@ class JobServiceHandle(object):
     """Run the job"""
     try:
       state_stream = self.job_service.GetStateStream(
-          beam_job_api_pb2.GetJobStateRequest(job_id=preparation_id),
-          timeout=self.timeout)
+          beam_job_api_pb2.GetJobStateRequest(job_id=preparation_id))
       # If there's an error, we don't always get it until we try to read.
       # Fortunately, there's always an immediate current state published.
       state_stream = itertools.chain([next(state_stream)], state_stream)
       message_stream = self.job_service.GetMessageStream(
-          beam_job_api_pb2.JobMessagesRequest(job_id=preparation_id),
-          timeout=self.timeout)
+          beam_job_api_pb2.JobMessagesRequest(job_id=preparation_id))
     except Exception:
       # TODO(https://github.com/apache/beam/issues/19284): Unify preparation_id
       # and job_id for all runners.

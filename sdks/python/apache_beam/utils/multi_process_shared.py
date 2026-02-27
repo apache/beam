@@ -26,6 +26,7 @@ import atexit
 import logging
 import multiprocessing.managers
 import os
+import socket
 import tempfile
 import threading
 import time
@@ -85,6 +86,7 @@ class _SingletonProxy:
   def singletonProxy_unsafe_hard_delete(self):
     assert self._SingletonProxy_valid
     self._SingletonProxy_entry.unsafe_hard_delete()
+    self._SingletonProxy_valid = False
 
   def __getattr__(self, name):
     if not self._SingletonProxy_valid:
@@ -231,6 +233,26 @@ class _AutoProxyWrapper:
     self._proxyObject.unsafe_hard_delete()
 
 
+def _wait_for_server_readiness(address, timeout=60):
+  start = time.time()
+  wait_secs = 0.1
+
+  while time.time() - start < timeout:
+    try:
+      s = socket.create_connection(address, timeout=wait_secs)
+      s.close()
+      return
+    except OSError:
+      wait_secs *= 1.2
+      logging.log(
+          logging.WARNING if wait_secs > 1 else logging.DEBUG,
+          'Waiting for server to be ready at %s',
+          address)
+
+  raise RuntimeError(
+      f"Server at {address} failed to accept connections within {timeout}s")
+
+
 def _run_server_process(address_file, tag, constructor, authkey, life_line):
   """
     Runs in a separate process.
@@ -292,9 +314,14 @@ def _run_server_process(address_file, tag, constructor, authkey, life_line):
     logging.info(
         'Process %s: Proxy serving %s at %s', os.getpid(), tag, server.address)
 
-    with open(address_file + '.tmp', 'w') as fout:
-      fout.write('%s:%d' % server.address)
-    os.rename(address_file + '.tmp', address_file)
+    def publish_address():
+      _wait_for_server_readiness(server.address)
+      with open(address_file + '.tmp', 'w') as fout:
+        fout.write('%s:%d' % server.address)
+      os.rename(address_file + '.tmp', address_file)
+
+    t_pub = threading.Thread(target=publish_address)
+    t_pub.start()
 
     server.serve_forever()
 
@@ -392,12 +419,30 @@ class MultiProcessShared(Generic[T]):
               manager = _SingletonRegistrar(
                   address=(host, int(port)), authkey=AUTH_KEY)
               multiprocessing.current_process().authkey = AUTH_KEY
-              try:
-                manager.connect()
-                self._manager = manager
-              except ConnectionError:
-                # The server is no longer good, assume it died.
-                os.unlink(address_file)
+              last_error = None
+              for attempt in range(
+                  3):  # Retry transient connection failures (e.g. CI)
+                try:
+                  manager.connect()
+                  self._manager = manager
+                  last_error = None
+                  break
+                except (ConnectionError, OSError) as e:
+                  last_error = e
+                  if attempt < 2:
+                    time.sleep(0.2 * (attempt + 1))
+              if self._manager is None and last_error is not None:
+                # Only unlink and retry from scratch if we use a separate server
+                # process; in-process server state would be stale and re-entry
+                # would raise.
+                if self._spawn_process:
+                  logging.warning(
+                      'Connection to proxy at %s failed after retries: %s',
+                      address,
+                      last_error)
+                  os.unlink(address_file)
+                else:
+                  raise last_error
 
     return self._manager
 
@@ -497,7 +542,12 @@ class MultiProcessShared(Generic[T]):
               "Shared Server Process died unexpectedly"
               f" with exit code {exit_code}")
 
-        if time.time() - last_log > 300:
+        if time.time() - start_time > 60:
+          if p.is_alive(): p.terminate()
+          raise RuntimeError(
+              "Shared Server Process failed to initialize within 60 seconds")
+
+        if time.time() - last_log > 5:
           logging.warning(
               "Still waiting for %s to initialize... %ss elapsed)",
               self._tag,
@@ -522,9 +572,12 @@ class MultiProcessShared(Generic[T]):
           'Starting proxy server at %s for shared %s',
           self._server.address,
           self._tag)
+      t = threading.Thread(target=self._server.serve_forever, daemon=True)
+      t.start()
+
+      _wait_for_server_readiness(self._server.address)
+
       with open(address_file + '.tmp', 'w') as fout:
         fout.write('%s:%d' % self._server.address)
       os.rename(address_file + '.tmp', address_file)
-      t = threading.Thread(target=self._server.serve_forever, daemon=True)
-      t.start()
       logging.info('Done starting server')
