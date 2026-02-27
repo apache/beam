@@ -104,6 +104,7 @@ __all__ = [
     'RemoveDuplicates',
     'Reshuffle',
     'Secret',
+    'SortAndBatchElements',
     'ToString',
     'Tee',
     'Values',
@@ -1372,6 +1373,274 @@ class BatchElements(PTransform):
       return pcoll | ParDo(
           _WindowAwareBatchingDoFn(
               self._batch_size_estimator, self._element_size_fn))
+
+
+def _default_element_size_fn(element: Any) -> int:
+  """Default element size function that tries len(), falls back to 1.
+
+  This function attempts to compute the size of an element using len().
+  If the element does not support len() (e.g., integers), it falls back to 1.
+
+  Args:
+    element: The element to compute the size of.
+
+  Returns:
+    The size of the element, or 1 if len() is not supported.
+  """
+  try:
+    return len(element)
+  except TypeError:
+    return 1
+
+
+class _SortAndBatchElementsDoFn(DoFn):
+  """DoFn that buffers, sorts by element size, and batches elements.
+
+  This DoFn is used internally by ``SortAndBatchElements`` for
+  PCollections with the default (global) window. It accumulates all
+  elements in the current bundle, sorts them by size in ascending order,
+  and emits optimally-sized batches on ``finish_bundle``.
+
+  Args:
+    min_batch_size: The minimum number of elements per batch. Must be >= 1.
+    max_batch_size: The maximum number of elements per batch.
+        Must be >= ``min_batch_size``.
+    max_batch_weight: The maximum total weight of elements in a batch,
+        where weight is computed by ``element_size_fn``. Must be >= 1.
+    element_size_fn: A callable mapping an element to its integer
+        size/weight.
+  """
+  def __init__(
+      self,
+      min_batch_size: int,
+      max_batch_size: int,
+      max_batch_weight: int,
+      element_size_fn: Callable[[Any], int]):
+    self._min_batch_size = min_batch_size
+    self._max_batch_size = max_batch_size
+    self._max_batch_weight = max_batch_weight
+    self._element_size_fn = element_size_fn
+    self._buffer = []
+
+  def start_bundle(self):
+    self._buffer = []
+
+  def process(self, element):
+    self._buffer.append(element)
+
+  def finish_bundle(self):
+    if not self._buffer:
+      return
+
+    # Sort elements by size (ascending) for optimal batching
+    # Elements of similar sizes will be grouped together
+    sorted_elements = sorted(self._buffer, key=self._element_size_fn)
+
+    batch = []
+    batch_weight = 0
+
+    for element in sorted_elements:
+      element_size = self._element_size_fn(element)
+
+      # Check if adding this element would exceed limits
+      would_exceed_count = len(batch) >= self._max_batch_size
+      would_exceed_weight = (
+          batch_weight + element_size >= self._max_batch_weight and batch)
+
+      if would_exceed_count or would_exceed_weight:
+        # Emit current batch
+        yield window.GlobalWindows.windowed_value_at_end_of_window(batch)
+        batch = []
+        batch_weight = 0
+
+      batch.append(element)
+      batch_weight += element_size
+
+    # Emit remaining elements
+    if batch:
+      yield window.GlobalWindows.windowed_value_at_end_of_window(batch)
+
+    self._buffer = None
+
+
+class _WindowAwareSortAndBatchElementsDoFn(DoFn):
+  """DoFn that buffers, sorts by element size, and batches elements per window.
+
+  This DoFn is used internally by ``SortAndBatchElements`` for
+  PCollections with non-default (e.g. fixed, sliding, or session) windows.
+  Elements are buffered per window and each window is flushed independently.
+  To prevent unbounded memory growth, when the number of live windows
+  exceeds ``_MAX_LIVE_WINDOWS`` the largest window buffer is flushed early.
+
+  Args:
+    min_batch_size: The minimum number of elements per batch. Must be >= 1.
+    max_batch_size: The maximum number of elements per batch.
+        Must be >= ``min_batch_size``.
+    max_batch_weight: The maximum total weight of elements in a batch,
+        where weight is computed by ``element_size_fn``. Must be >= 1.
+    element_size_fn: A callable mapping an element to its integer
+        size/weight.
+  """
+
+  _MAX_LIVE_WINDOWS = 10
+
+  def __init__(
+      self,
+      min_batch_size: int,
+      max_batch_size: int,
+      max_batch_weight: int,
+      element_size_fn: Callable[[Any], int]):
+    self._min_batch_size = min_batch_size
+    self._max_batch_size = max_batch_size
+    self._max_batch_weight = max_batch_weight
+    self._element_size_fn = element_size_fn
+    self._buffers = collections.defaultdict(list)
+
+  def start_bundle(self):
+    self._buffers = collections.defaultdict(list)
+
+  def process(self, element, window=DoFn.WindowParam):
+    self._buffers[window].append(element)
+
+    # If we have too many live windows, flush the largest one
+    if len(self._buffers) > self._MAX_LIVE_WINDOWS:
+      largest_window = max(
+          self._buffers.keys(), key=lambda w: len(self._buffers[w]))
+      yield from self._flush_window(largest_window)
+
+  def _flush_window(self, win):
+    """Flush all elements for a given window."""
+    buffer = self._buffers.pop(win, [])
+    if not buffer:
+      return
+
+    # Sort elements by size (ascending)
+    sorted_elements = sorted(buffer, key=self._element_size_fn)
+
+    batch = []
+    batch_weight = 0
+
+    for element in sorted_elements:
+      element_size = self._element_size_fn(element)
+
+      would_exceed_count = len(batch) >= self._max_batch_size
+      would_exceed_weight = (
+          batch_weight + element_size >= self._max_batch_weight and batch)
+
+      if would_exceed_count or would_exceed_weight:
+        yield windowed_value.WindowedValue(batch, win.max_timestamp(), (win, ))
+        batch = []
+        batch_weight = 0
+
+      batch.append(element)
+      batch_weight += element_size
+
+    if batch:
+      yield windowed_value.WindowedValue(batch, win.max_timestamp(), (win, ))
+
+  def finish_bundle(self):
+    for win in list(self._buffers.keys()):
+      yield from self._flush_window(win)
+    self._buffers = None
+
+
+@typehints.with_input_types(T)
+@typehints.with_output_types(list[T])
+class SortAndBatchElements(PTransform):
+  """A Transform that sorts elements by size before batching.
+
+  This transform is designed to optimize batch processing by grouping elements
+  of similar sizes together. This is particularly useful for ML inference
+  workloads where input sequences of varying lengths need to be padded to the
+  maximum length in the batch - by sorting elements by size before batching,
+  padding overhead is minimized.
+
+  The transform consumes a PCollection of element type T and produces a
+  PCollection of element type list[T], where elements within each batch are
+  sorted by their size (as determined by element_size_fn).
+
+  Elements are batched per-window and batches emitted in the window
+  corresponding to its contents. Each batch is emitted with a timestamp at
+  the end of their window.
+
+  Unlike BatchElements which emits batches as soon as size limits are reached,
+  SortAndBatchElements buffers all elements in a bundle, sorts them by size,
+  and then creates optimally-sized batches. This trade-off of increased memory
+  usage for better batch homogeneity can significantly reduce padding overhead.
+
+  Args:
+    min_batch_size: The minimum number of elements in a batch. Must be >= 1.
+    max_batch_size: The maximum number of elements in a batch.
+        Must be >= min_batch_size.
+    max_batch_weight: The maximum total weight of elements in a batch,
+        where weight is computed by element_size_fn. Must be >= 1.
+    element_size_fn: (optional) A function mapping an element to its
+        size/weight.
+        If not provided, defaults to trying len(element) and falling back to 1
+        if the element doesn't support len(). This default allows sorting to
+        work for common types like strings, lists, and arrays.
+
+  Example usage::
+
+      # Batch strings by total character count
+      strings = ['a', 'bb', 'ccc', 'dddd', 'eeeee']
+      batched = strings | SortAndBatchElements(
+          min_batch_size=1,
+          max_batch_size=3,
+          max_batch_weight=10)
+      # Possible output: [['a', 'bb', 'ccc'], ['dddd', 'eeeee']]
+      # Elements are sorted by length and batched optimally
+
+      # Batch with custom size function
+      data = [{'text': 'short'}, {'text': 'medium text'},
+              {'text': 'long text here'}]
+      batched = data | SortAndBatchElements(
+          min_batch_size=1,
+          max_batch_size=10,
+          max_batch_weight=100,
+          element_size_fn=lambda x: len(x['text']))
+  """
+  def __init__(
+      self,
+      min_batch_size: int,
+      max_batch_size: int,
+      max_batch_weight: int,
+      element_size_fn: Optional[Callable[[Any], int]] = None):
+    if min_batch_size < 1:
+      raise ValueError(f'min_batch_size must be >= 1, got {min_batch_size}')
+    if max_batch_size < min_batch_size:
+      raise ValueError(
+          f'max_batch_size ({max_batch_size}) must be >= '
+          f'min_batch_size ({min_batch_size})')
+    if max_batch_weight < 1:
+      raise ValueError(f'max_batch_weight must be >= 1, got {max_batch_weight}')
+    if element_size_fn is not None and not callable(element_size_fn):
+      raise TypeError('element_size_fn must be callable')
+
+    self._min_batch_size = min_batch_size
+    self._max_batch_size = max_batch_size
+    self._max_batch_weight = max_batch_weight
+
+    # Smart default: try len(), fallback to 1 when len() is unsupported
+    self._element_size_fn: Callable[[Any], int] = (
+        element_size_fn
+        if element_size_fn is not None else _default_element_size_fn)
+
+  def expand(self, pcoll):
+    if pcoll.windowing.is_default():
+      return pcoll | ParDo(
+          _SortAndBatchElementsDoFn(
+              self._min_batch_size,
+              self._max_batch_size,
+              self._max_batch_weight,
+              self._element_size_fn))
+    else:
+      return pcoll | ParDo(
+          _WindowAwareSortAndBatchElementsDoFn(
+              self._min_batch_size,
+              self._max_batch_size,
+              self._max_batch_weight,
+              self._element_size_fn))
 
 
 class _IdentityWindowFn(NonMergingWindowFn):
