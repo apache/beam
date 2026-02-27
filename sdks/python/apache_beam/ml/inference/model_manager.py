@@ -49,6 +49,7 @@ from apache_beam.metrics.metric import Metrics
 from apache_beam.utils import multi_process_shared
 
 logger = logging.getLogger(__name__)
+_MODEL_MANAGER_METRICS_NAMESPACE = "BeamML_ModelManager"
 
 
 class GPUMonitor:
@@ -207,7 +208,7 @@ class ResourceEstimator:
       self.estimates[model_tag] = cost
       self.known_models.add(model_tag)
       Metrics.distribution(
-          "BeamML_ModelManager",
+          _MODEL_MANAGER_METRICS_NAMESPACE,
           f"memory_estimate_mb_{model_tag}",
           process_wide=True).update(int(cost))
       self.logging_info("Initial Profile for %s: %s MB", model_tag, cost)
@@ -298,7 +299,7 @@ class ResourceEstimator:
             "Updated Estimate for %s: %.1f MB", model, self.estimates[model])
 
         Metrics.distribution(
-            "BeamML_ModelManager",
+            _MODEL_MANAGER_METRICS_NAMESPACE,
             f"memory_estimate_mb_{model}",
             process_wide=True).update(int(self.estimates[model]))
       self.logging_info("System Bias: %s MB", bias)
@@ -387,13 +388,15 @@ class ModelManager:
   def _update_model_count_metric(self):
     for tag, instances in self._models.items():
       Metrics.distribution(
-          "BeamML_ModelManager", f"num_loaded_models_{tag}",
+          _MODEL_MANAGER_METRICS_NAMESPACE,
+          f"num_loaded_models_{tag}",
           process_wide=True).update(len(instances))
 
   def _clear_all_model_metrics(self):
     for tag in self._models:
       Metrics.distribution(
-          "BeamML_ModelManager", f"num_loaded_models_{tag}",
+          _MODEL_MANAGER_METRICS_NAMESPACE,
+          f"num_loaded_models_{tag}",
           process_wide=True).update(0)
 
   def logging_info(self, message: str, *args):
