@@ -2685,6 +2685,11 @@ class FlexTemplateRuntimeEnvironment(_messages.Message):
       zone](https://cloud.google.com/compute/docs/regions-zones/regions-zones)
       for launching worker instances to run your pipeline. In the future,
       worker_zone will take precedence.
+    diskProvisionedIops: Provisioned IOPS for the root disk for VMs. If zero or
+      unspecified, the service will attempt to choose a reasonable default.
+    diskProvisionedThroughputMibps: Provisioned throughput for the root disk
+      for VMs. If zero or unspecified, the service will attempt to choose a
+      reasonable default.
   """
 
   class AutoscalingAlgorithmValueValuesEnum(_messages.Enum):
@@ -2804,6 +2809,10 @@ class FlexTemplateRuntimeEnvironment(_messages.Message):
   workerRegion = _messages.StringField(24)
   workerZone = _messages.StringField(25)
   zone = _messages.StringField(26)
+   diskProvisionedIops = _messages.IntegerField(
+      27, variant=_messages.Variant.INT64)
+  diskProvisionedThroughputMibps = _messages.IntegerField(
+      28, variant=_messages.Variant.INT64)
 
 
 class FloatingPointList(_messages.Message):
@@ -7957,6 +7966,10 @@ class WorkerPool(_messages.Message):
   teardownPolicy = _messages.EnumField('TeardownPolicyValueValuesEnum', 20)
   workerHarnessContainerImage = _messages.StringField(21)
   zone = _messages.StringField(22)
+  diskProvisionedIops = _messages.IntegerField(
+      23, variant=_messages.Variant.INT64)
+  diskProvisionedThroughputMibps = _messages.IntegerField(
+      24, variant=_messages.Variant.INT64)
 
 
 class WorkerSettings(_messages.Message):

@@ -205,6 +205,12 @@ class Environment(object):
       pool.diskSizeGb = self.worker_options.disk_size_gb
     if self.worker_options.disk_type:
       pool.diskType = self.worker_options.disk_type
+    if self.worker_options.disk_provisioned_iops:
+      pool.diskProvisionedIops = self.worker_options.disk_provisioned_iops
+    if self.worker_options.disk_provisioned_throughput_mibps:
+      pool.diskProvisionedThroughputMibps = (
+          self.worker_options.disk_provisioned_throughput_mibps
+      )
     if self.worker_options.zone:
       pool.zone = self.worker_options.zone
     if self.worker_options.network:
