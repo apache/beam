@@ -37,6 +37,7 @@ import org.joda.time.Instant;
   "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public class WindmillWatermarkHold extends WindmillState implements WatermarkHoldState {
+
   // The encoded size of an Instant.
   private static final int ENCODED_SIZE = 8;
 
@@ -46,6 +47,7 @@ public class WindmillWatermarkHold extends WindmillState implements WatermarkHol
   private final String stateFamily;
 
   private boolean cleared = false;
+  private boolean knownEmpty = false;
   /**
    * If non-{@literal null}, the known current hold value, or absent if we know there are no output
    * watermark holds. If {@literal null}, the current hold value could depend on holds in Windmill
@@ -75,6 +77,13 @@ public class WindmillWatermarkHold extends WindmillState implements WatermarkHol
     cleared = true;
     cachedValue = Optional.absent();
     localAdditions = null;
+  }
+
+  @Override
+  public void setKnownEmpty() {
+    cachedValue = Optional.absent();
+    localAdditions = null;
+    knownEmpty = true;
   }
 
   @Override
@@ -133,7 +142,7 @@ public class WindmillWatermarkHold extends WindmillState implements WatermarkHol
 
     Future<Windmill.WorkItemCommitRequest> result;
 
-    if (!cleared && localAdditions == null) {
+    if (!knownEmpty && !cleared && localAdditions == null) {
       // No changes, so no need to update Windmill and no need to cache any value.
       return Futures.immediateFuture(Windmill.WorkItemCommitRequest.newBuilder().buildPartial());
     }
@@ -166,15 +175,19 @@ public class WindmillWatermarkHold extends WindmillState implements WatermarkHol
     } else if (!cleared && localAdditions != null) {
       // Otherwise, we need to combine the local additions with the already persisted data
       result = combineWithPersisted();
+    } else if (knownEmpty) {
+      result = Futures.immediateFuture(Windmill.WorkItemCommitRequest.newBuilder().buildPartial());
     } else {
       throw new IllegalStateException("Unreachable condition");
     }
 
     final int estimatedByteSize = ENCODED_SIZE + stateKey.byteString().size();
+
     return Futures.lazyTransform(
         result,
         result1 -> {
           cleared = false;
+          knownEmpty = false;
           localAdditions = null;
           if (cachedValue != null) {
             cache.put(namespace, stateKey, WindmillWatermarkHold.this, estimatedByteSize);

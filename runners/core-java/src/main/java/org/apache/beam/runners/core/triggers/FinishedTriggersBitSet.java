@@ -18,6 +18,7 @@
 package org.apache.beam.runners.core.triggers;
 
 import java.util.BitSet;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** A {@link FinishedTriggers} implementation based on an underlying {@link BitSet}. */
 public class FinishedTriggersBitSet implements FinishedTriggers {
@@ -59,5 +60,18 @@ public class FinishedTriggersBitSet implements FinishedTriggers {
   @Override
   public FinishedTriggersBitSet copy() {
     return new FinishedTriggersBitSet((BitSet) bitSet.clone());
+  }
+
+  @Override
+  public boolean equals(@Nullable Object obj) {
+    if (!(obj instanceof FinishedTriggersBitSet)) {
+      return false;
+    }
+    return bitSet.equals(((FinishedTriggersBitSet) obj).bitSet);
+  }
+
+  @Override
+  public int hashCode() {
+    return bitSet.hashCode();
   }
 }

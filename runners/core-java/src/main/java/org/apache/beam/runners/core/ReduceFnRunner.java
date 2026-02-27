@@ -274,6 +274,16 @@ public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow> {
     return activeWindows.getActiveAndNewWindows().isEmpty();
   }
 
+  @VisibleForTesting
+  TriggerStateMachineRunner<W> getTriggerRunner() {
+    return triggerRunner;
+  }
+
+  @VisibleForTesting
+  ReduceFnContextFactory<K, InputT, OutputT, W> getContextFactory() {
+    return contextFactory;
+  }
+
   private Set<W> windowsThatAreOpen(Collection<W> windows) {
     Set<W> result = new HashSet<>();
     for (W window : windows) {
@@ -602,6 +612,14 @@ public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow> {
       ReduceFn<K, InputT, OutputT, W>.ProcessValueContext renamedContext =
           contextFactory.forValue(
               window, value.getValue(), value.getTimestamp(), StateStyle.RENAMED);
+
+      if (triggerRunner.isNew(directContext.state())) {
+        // Blindly clear state to ensure Windmill doesn't do unnecessary reads.
+        reduceFn.clearState(renamedContext);
+        paneInfoTracker.clear(directContext.state());
+        watermarkHold.setKnownEmpty(renamedContext);
+        nonEmptyPanes.clearPane(renamedContext.state());
+      }
 
       nonEmptyPanes.recordContent(renamedContext.state());
       scheduleGarbageCollectionTimer(directContext);
