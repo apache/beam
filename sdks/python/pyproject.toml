@@ -19,7 +19,7 @@
 # this is the minimum requirements for the build system to execute.
 [build-system]
 requires = [
-    "setuptools",
+    "setuptools<82.0.0",
     "wheel>=0.36.0",
     "grpcio-tools==1.62.1; python_version <= '3.12'",
     "grpcio-tools==1.71.0; python_version >= '3.13'",
