@@ -27,45 +27,38 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import java.util.Collections;
 import java.util.Map;
+import java.util.concurrent.TimeUnit;
 import org.apache.beam.runners.dataflow.worker.util.BoundedQueueExecutor;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.util.concurrent.ThreadFactoryBuilder;
 import org.apache.commons.lang3.tuple.Pair;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
-import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
-import org.mockito.ArgumentCaptor;
-import org.mockito.ArgumentMatchers;
 
 @RunWith(JUnit4.class)
 public class StreamingCommitFinalizerTest {
 
   private StreamingCommitFinalizer finalizer;
-  private BoundedQueueExecutor mockExecutor;
-  private Runnable backgroundCleanupRunnable;
-  private Thread backgroundThread;
+  private BoundedQueueExecutor executor;
 
   @Before
   public void setUp() {
-    mockExecutor = mock(BoundedQueueExecutor.class);
-    ArgumentCaptor<Runnable> runnableCaptor = ArgumentCaptor.forClass(Runnable.class);
-    finalizer = StreamingCommitFinalizer.create(mockExecutor);
-    verify(mockExecutor).execute(runnableCaptor.capture(), ArgumentMatchers.eq(0L));
-    backgroundCleanupRunnable = runnableCaptor.getValue();
-
-    backgroundThread = new Thread(backgroundCleanupRunnable);
-    backgroundThread.setDaemon(true);
-    backgroundThread.start();
-  }
-
-  @After
-  public void tearDown() throws Exception {
-    if (backgroundThread != null) {
-      backgroundThread.interrupt();
-      backgroundThread.join();
-    }
+    executor =
+        new BoundedQueueExecutor(
+            10,
+            60,
+            TimeUnit.SECONDS,
+            10,
+            10000000,
+            new ThreadFactoryBuilder()
+                .setNameFormat("FinalizationCallback-%d")
+                .setDaemon(true)
+                .build(),
+            /*useFairMonitor=*/ false);
+    finalizer = StreamingCommitFinalizer.create(executor);
   }
 
   @Test
@@ -95,23 +88,29 @@ public class StreamingCommitFinalizerTest {
   }
 
   @Test
-  public void testFinalizeCommits() {
+  public void testFinalizeCommits() throws Exception {
     Runnable callback = mock(Runnable.class);
     finalizer.cacheCommitFinalizers(
         ImmutableMap.of(1L, Pair.of(Instant.now().plus(Duration.standardHours(1)), callback)));
     finalizer.finalizeCommits(Collections.singletonList(1L));
-
+    // The executor always has the cleanup thread running. So elementsOutstanding == 2 while we're
+    // waiting for the finalization callback to run.
+    while (executor.elementsOutstanding() > 1) {
+      Thread.sleep(500);
+    }
     verify(callback).run();
     assertEquals(0, finalizer.cleanupQueueSize());
   }
 
   @Test
-  public void testIgnoresUnknownIds() {
+  public void testIgnoresUnknownIds() throws Exception {
     Runnable callback = mock(Runnable.class);
     finalizer.cacheCommitFinalizers(
         ImmutableMap.of(1L, Pair.of(Instant.now().plus(Duration.standardHours(1)), callback)));
     finalizer.finalizeCommits(Collections.singletonList(2L));
-
+    while (executor.elementsOutstanding() > 1) {
+      Thread.sleep(500);
+    }
     verify(callback, never()).run();
     assertEquals(1, finalizer.cleanupQueueSize());
   }
@@ -137,10 +136,16 @@ public class StreamingCommitFinalizerTest {
     }
     // We can call finalize even though these were already cleaned up.
     finalizer.finalizeCommits(ImmutableList.of(2L, 3L));
+    while (executor.elementsOutstanding() > 1) {
+      Thread.sleep(500);
+    }
     verify(callback2, never()).run();
     verify(callback3, never()).run();
 
     finalizer.finalizeCommits(Collections.singletonList(1L));
+    while (executor.elementsOutstanding() > 1) {
+      Thread.sleep(500);
+    }
     verify(callback).run();
     assertEquals(0, finalizer.cleanupQueueSize());
   }

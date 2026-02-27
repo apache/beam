@@ -20,8 +20,10 @@ package org.apache.beam.runners.dataflow.worker.windmill.work.processing;
 import static com.google.common.base.Preconditions.checkState;
 
 import com.google.auto.value.AutoValue;
+import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.PriorityQueue;
 import java.util.concurrent.TimeUnit;
@@ -67,7 +69,10 @@ final class StreamingCommitFinalizer {
   private final PriorityQueue<FinalizationInfo> cleanUpQueue =
       new PriorityQueue<>(11, Comparator.comparing(FinalizationInfo::getExpiryTime));
 
+  private final BoundedQueueExecutor finalizationExecutor;
+
   private StreamingCommitFinalizer(BoundedQueueExecutor finalizationCleanupExecutor) {
+    finalizationExecutor = finalizationCleanupExecutor;
     finalizationCleanupExecutor.execute(this::cleanupThreadBody, 0);
   }
 
@@ -143,23 +148,24 @@ final class StreamingCommitFinalizer {
    * is still cached it is invoked.
    */
   public void finalizeCommits(Iterable<Long> finalizeIds) {
-    for (long finalizeId : finalizeIds) {
-      @Nullable FinalizationInfo info;
-      lock.lock();
-      try {
-        info = commitFinalizationCallbacks.remove(finalizeId);
+    List<Runnable> callbacksToExecute = new ArrayList<>();
+    lock.lock();
+    try {
+      for (long finalizeId : finalizeIds) {
+        @Nullable FinalizationInfo info = commitFinalizationCallbacks.remove(finalizeId);
         if (info != null) {
           checkState(cleanUpQueue.remove(info));
+          callbacksToExecute.add(info.getCallback());
         }
-      } finally {
-        lock.unlock();
       }
-      if (info != null) {
-        try {
-          info.getCallback().run();
-        } catch (Throwable t) {
-          LOG.error("Commit finalization failed:", t);
-        }
+    } finally {
+      lock.unlock();
+    }
+    for (Runnable callback : callbacksToExecute) {
+      try {
+        finalizationExecutor.execute(callback, 0);
+      } catch (Throwable t) {
+        LOG.error("Commit finalization failed:", t);
       }
     }
   }
