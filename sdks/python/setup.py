@@ -161,7 +161,7 @@ dataframe_dependency = [
 ]
 
 milvus_dependency = [
-  'setuptools<82.0.0'
+  'setuptools<82.0.0',
   'pymilvus>=2.5.10,<3.0.0'
 ]
 
