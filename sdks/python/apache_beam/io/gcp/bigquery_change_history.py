@@ -60,9 +60,9 @@ from typing import Union
 import apache_beam as beam
 from apache_beam.io.gcp import bigquery_tools
 from apache_beam.io.gcp.internal.clients import bigquery
+from apache_beam.io.iobase import WatermarkEstimator
 from apache_beam.io.restriction_trackers import OffsetRange
 from apache_beam.io.restriction_trackers import OffsetRestrictionTracker
-from apache_beam.io.iobase import WatermarkEstimator
 from apache_beam.io.watermark_estimators import ManualWatermarkEstimator
 from apache_beam.metrics import Metrics
 from apache_beam.transforms.core import WatermarkEstimatorProvider
@@ -119,7 +119,7 @@ class _QueryResult:
   The Read SDF uses range_start to set an initial watermark hold so the runner
   doesn't advance the watermark past the data's timestamps.
   """
-  temp_table_ref: bigquery.TableReference
+  temp_table_ref: 'bigquery.TableReference'
   range_start: float
   range_end: float
 
