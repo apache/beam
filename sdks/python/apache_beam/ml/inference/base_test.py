@@ -2279,6 +2279,45 @@ class ModelHandlerBatchingArgsTest(unittest.TestCase):
 
     self.assertEqual(kwargs, {'max_batch_duration_secs': 60})
 
+  def test_batch_length_fn_and_batch_bucket_boundaries(self):
+    """batch_length_fn and batch_bucket_boundaries passed through to kwargs."""
+    handler = FakeModelHandlerForBatching(
+        batch_length_fn=len, batch_bucket_boundaries=[16, 32, 64])
+    kwargs = handler.batch_elements_kwargs()
+
+    self.assertIs(kwargs['length_fn'], len)
+    self.assertEqual(kwargs['bucket_boundaries'], [16, 32, 64])
+
+  def test_batch_length_fn_only(self):
+    """batch_length_fn alone is passed through without bucket_boundaries."""
+    handler = FakeModelHandlerForBatching(batch_length_fn=len)
+    kwargs = handler.batch_elements_kwargs()
+
+    self.assertIs(kwargs['length_fn'], len)
+    self.assertNotIn('bucket_boundaries', kwargs)
+
+  def test_batch_bucket_boundaries_without_batch_length_fn(self):
+    """Passing batch_bucket_boundaries without batch_length_fn should fail in
+    BatchElements.
+
+    Note: ModelHandler.__init__ doesn't validate this; the error is raised
+    by BatchElements when batch_elements_kwargs are used."""
+    handler = FakeModelHandlerForBatching(batch_bucket_boundaries=[10, 20])
+    kwargs = handler.batch_elements_kwargs()
+    # The kwargs are stored, but BatchElements will reject them
+    self.assertEqual(kwargs['bucket_boundaries'], [10, 20])
+    self.assertNotIn('length_fn', kwargs)
+
+  def test_batching_kwargs_none_values_omitted(self):
+    """None values for batch_length_fn and batch_bucket_boundaries are not in
+    kwargs."""
+    handler = FakeModelHandlerForBatching(
+        min_batch_size=5, batch_length_fn=None, batch_bucket_boundaries=None)
+    kwargs = handler.batch_elements_kwargs()
+    self.assertNotIn('length_fn', kwargs)
+    self.assertNotIn('bucket_boundaries', kwargs)
+    self.assertEqual(kwargs['min_batch_size'], 5)
+
 
 class SimpleFakeModelHandler(base.ModelHandler[int, int, FakeModel]):
   def load_model(self):
