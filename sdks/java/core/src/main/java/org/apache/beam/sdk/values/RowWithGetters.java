@@ -44,14 +44,19 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 @SuppressWarnings("rawtypes")
 public class RowWithGetters<T extends @NonNull Object> extends Row {
   private final T getterTarget;
+  private final TypeDescriptor<?> getterTargetType;
   private final List<FieldValueGetter<T, Object>> getters;
   private @Nullable Map<Integer, @Nullable Object> cache = null;
 
   RowWithGetters(
-      Schema schema, Factory<List<FieldValueGetter<T, Object>>> getterFactory, T getterTarget) {
+      Schema schema,
+      Factory<List<FieldValueGetter<T, Object>>> getterFactory,
+      T getterTarget,
+      TypeDescriptor<?> getterTargetType) {
     super(schema);
     this.getterTarget = getterTarget;
-    this.getters = getterFactory.create(TypeDescriptor.of(getterTarget.getClass()), schema);
+    this.getterTargetType = getterTargetType;
+    this.getters = getterFactory.create(getterTargetType, schema);
   }
 
   @Override
@@ -88,6 +93,10 @@ public class RowWithGetters<T extends @NonNull Object> extends Row {
       throw new RuntimeException("Null value set on non-nullable field " + field);
     }
     return (W) fieldValue;
+  }
+
+  public TypeDescriptor<?> getGetterTargetType() {
+    return getterTargetType;
   }
 
   private boolean cacheFieldType(Field field) {

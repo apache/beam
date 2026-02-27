@@ -20,16 +20,20 @@ package org.apache.beam.sdk.schemas;
 import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.schemas.Schema.LogicalType;
 import org.apache.beam.sdk.schemas.Schema.TypeName;
 import org.apache.beam.sdk.schemas.logicaltypes.EnumerationType;
 import org.apache.beam.sdk.schemas.logicaltypes.OneOfType;
+import org.apache.beam.sdk.schemas.utils.ReflectUtils;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TypeDescriptor;
@@ -117,9 +121,11 @@ public abstract class GetterBasedSchemaProvider implements SchemaProvider {
       implements SerializableFunction<T, Row> {
     private final Schema schema;
     private final Factory<List<FieldValueGetter<T, Object>>> getterFactory;
+    private final TypeDescriptor getterTargetType;
 
-    public ToRowWithValueGetters(Schema schema) {
+    public ToRowWithValueGetters(Schema schema, TypeDescriptor getterTargetType) {
       this.schema = schema;
+      this.getterTargetType = getterTargetType;
       // Since we know that this factory is always called from inside the lambda with the same
       // schema, return a caching factory that caches the first value seen for each class. This
       // prevents having to lookup the getter list each time createGetters is called.
@@ -128,13 +134,13 @@ public abstract class GetterBasedSchemaProvider implements SchemaProvider {
               (Factory<List<FieldValueGetter<T, Object>>>)
                   (typeDescriptor, schema1) ->
                       (List)
-                          GetterBasedSchemaProvider.this.fieldValueGetters(
-                              typeDescriptor, schema1));
+                          GetterBasedSchemaProvider.this.fieldValueGetters(typeDescriptor, schema1),
+              GetterBasedSchemaProvider.this::fieldValueTypeInformations);
     }
 
     @Override
     public Row apply(T input) {
-      return Row.withSchema(schema).withFieldValueGetters(getterFactory, input);
+      return Row.withSchema(schema).withFieldValueGetters(getterFactory, input, getterTargetType);
     }
 
     private GetterBasedSchemaProvider getOuter() {
@@ -172,7 +178,7 @@ public abstract class GetterBasedSchemaProvider implements SchemaProvider {
         Verify.verifyNotNull(
             schemaFor(typeDescriptor), "can't create a ToRowFunction with null schema");
 
-    return new ToRowWithValueGetters<>(schema);
+    return new ToRowWithValueGetters<>(schema, typeDescriptor);
   }
 
   @Override
@@ -193,16 +199,21 @@ public abstract class GetterBasedSchemaProvider implements SchemaProvider {
   private static class RowValueGettersFactory<T extends @NonNull Object>
       implements Factory<List<FieldValueGetter<T, Object>>> {
     private final Factory<List<FieldValueGetter<T, Object>>> gettersFactory;
+    private final Factory<List<FieldValueTypeInformation>> typeInfoFactory;
     private final @NotOnlyInitialized Factory<List<FieldValueGetter<T, Object>>>
         cachingGettersFactory;
 
     static <T extends @NonNull Object> Factory<List<FieldValueGetter<T, Object>>> of(
-        Factory<List<FieldValueGetter<T, Object>>> gettersFactory) {
-      return new RowValueGettersFactory<>(gettersFactory).cachingGettersFactory;
+        Factory<List<FieldValueGetter<T, Object>>> gettersFactory,
+        Factory<List<FieldValueTypeInformation>> typeInfoFactory) {
+      return new RowValueGettersFactory(gettersFactory, typeInfoFactory).cachingGettersFactory;
     }
 
-    RowValueGettersFactory(Factory<List<FieldValueGetter<T, Object>>> gettersFactory) {
+    RowValueGettersFactory(
+        Factory<List<FieldValueGetter<T, Object>>> gettersFactory,
+        Factory<List<FieldValueTypeInformation>> typeInfoFactory) {
       this.gettersFactory = gettersFactory;
+      this.typeInfoFactory = typeInfoFactory;
       this.cachingGettersFactory = new CachingFactory<>(this);
     }
 
@@ -210,9 +221,17 @@ public abstract class GetterBasedSchemaProvider implements SchemaProvider {
     public List<FieldValueGetter<T, Object>> create(
         TypeDescriptor<?> typeDescriptor, Schema schema) {
       List<FieldValueGetter<T, Object>> getters = gettersFactory.create(typeDescriptor, schema);
+      Map<String, FieldValueTypeInformation> typeInfoByName =
+          typeInfoFactory.create(typeDescriptor, schema).stream()
+              .collect(Collectors.toMap(FieldValueTypeInformation::getName, Function.identity()));
       List<FieldValueGetter<T, Object>> rowGetters = new ArrayList<>(getters.size());
       for (int i = 0; i < getters.size(); i++) {
-        rowGetters.add(rowValueGetter(getters.get(i), schema.getField(i).getType()));
+        FieldValueGetter getter = Verify.verifyNotNull(getters.get(i));
+        rowGetters.add(
+            rowValueGetter(
+                getter,
+                schema.getField(i).getType(),
+                Verify.verifyNotNull(typeInfoByName.get(getter.name())).getType()));
       }
       return rowGetters;
     }
@@ -228,26 +247,49 @@ public abstract class GetterBasedSchemaProvider implements SchemaProvider {
                   || needsConversion(Verify.verifyNotNull(type.getMapValueType()))));
     }
 
-    FieldValueGetter<T, Object> rowValueGetter(FieldValueGetter base, FieldType type) {
+    FieldValueGetter<T, Object> rowValueGetter(
+        FieldValueGetter base, FieldType type, @Nullable TypeDescriptor<?> getterReturnType) {
       TypeName typeName = type.getTypeName();
       if (!needsConversion(type)) {
         return base;
       }
       if (typeName.equals(TypeName.ROW)) {
-        return new GetRow(base, Verify.verifyNotNull(type.getRowSchema()), cachingGettersFactory);
-      } else if (typeName.equals(TypeName.ARRAY)) {
+        return new GetRow(
+            base,
+            getterReturnType,
+            Verify.verifyNotNull(type.getRowSchema()),
+            cachingGettersFactory);
+      } else if (typeName.equals(TypeName.ARRAY) || typeName.equals(TypeName.ITERABLE)) {
         FieldType elementType = Verify.verifyNotNull(type.getCollectionElementType());
-        return elementType.getTypeName().equals(TypeName.ROW)
-            ? new GetEagerCollection(base, converter(elementType))
-            : new GetCollection(base, converter(elementType));
-      } else if (typeName.equals(TypeName.ITERABLE)) {
-        return new GetIterable(
-            base, converter(Verify.verifyNotNull(type.getCollectionElementType())));
+        TypeDescriptor<?> elementTypeDescriptor =
+            Optional.ofNullable(getterReturnType)
+                .map(ReflectUtils::getIterableComponentType)
+                .orElse(null);
+        if (TypeName.ARRAY == typeName) {
+          return TypeName.ROW == elementType.getTypeName()
+              ? new GetEagerCollection(base, converter(elementType, elementTypeDescriptor))
+              : new GetCollection(base, converter(elementType, elementTypeDescriptor));
+        } else { // TypeName.ITERABLE
+          return new GetIterable(base, converter(elementType, elementTypeDescriptor));
+        }
       } else if (typeName.equals(TypeName.MAP)) {
+        @Nullable
+        TypeDescriptor[] resolvedKeyValueTypes =
+            Optional.ofNullable(getterReturnType)
+                .<@Nullable TypeDescriptor[]>map(
+                    getterType ->
+                        Arrays.stream(Map.class.getTypeParameters())
+                            .<@Nullable TypeDescriptor>map(
+                                typeVar -> {
+                                  TypeDescriptor resolved = getterType.resolveType(typeVar);
+                                  return resolved.hasUnresolvedParameters() ? null : resolved;
+                                })
+                            .<@Nullable TypeDescriptor>toArray(TypeDescriptor[]::new))
+                .orElse(new TypeDescriptor[] {null, null});
         return new GetMap(
             base,
-            converter(Verify.verifyNotNull(type.getMapKeyType())),
-            converter(Verify.verifyNotNull(type.getMapValueType())));
+            converter(Verify.verifyNotNull(type.getMapKeyType()), resolvedKeyValueTypes[0]),
+            converter(Verify.verifyNotNull(type.getMapValueType()), resolvedKeyValueTypes[1]));
       } else if (type.isLogicalType(OneOfType.IDENTIFIER)) {
         OneOfType oneOfType = type.getLogicalType(OneOfType.class);
         Schema oneOfSchema = oneOfType.getOneOfSchema();
@@ -257,7 +299,7 @@ public abstract class GetterBasedSchemaProvider implements SchemaProvider {
             Maps.newHashMapWithExpectedSize(values.size());
         for (Map.Entry<String, Integer> kv : values.entrySet()) {
           FieldType fieldType = oneOfSchema.getField(kv.getKey()).getType();
-          FieldValueGetter<?, ?> converter = converter(fieldType);
+          FieldValueGetter<?, ?> converter = converter(fieldType, null);
           converters.put(kv.getValue(), converter);
         }
 
@@ -268,27 +310,35 @@ public abstract class GetterBasedSchemaProvider implements SchemaProvider {
       return base;
     }
 
-    FieldValueGetter<?, ?> converter(FieldType type) {
-      return rowValueGetter(IDENTITY, type);
+    FieldValueGetter<?, ?> converter(FieldType type, @Nullable TypeDescriptor<?> getterReturnType) {
+      return rowValueGetter(IDENTITY, type, getterReturnType);
     }
 
     static class GetRow<T extends @NonNull Object, V extends @NonNull Object>
         extends Converter<T, V> {
       final Schema schema;
       final Factory<List<FieldValueGetter<V, Object>>> factory;
+      final @Nullable TypeDescriptor<?> valueType;
 
       GetRow(
           FieldValueGetter<T, V> getter,
+          @Nullable TypeDescriptor<?> getterReturnType,
           Schema schema,
           Factory<List<FieldValueGetter<V, Object>>> factory) {
         super(getter);
         this.schema = schema;
         this.factory = factory;
+        this.valueType = getterReturnType;
       }
 
       @Override
       Object convert(V value) {
-        return Row.withSchema(schema).withFieldValueGetters(factory, value);
+        return Row.withSchema(schema)
+            .withFieldValueGetters(
+                factory,
+                value,
+                Optional.ofNullable(valueType)
+                    .orElse((TypeDescriptor) TypeDescriptor.of(value.getClass())));
       }
     }
 
