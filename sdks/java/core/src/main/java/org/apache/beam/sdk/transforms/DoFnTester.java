@@ -51,6 +51,7 @@ import org.apache.beam.sdk.util.OutputBuilderSupplier;
 import org.apache.beam.sdk.util.OutputBuilderSuppliers;
 import org.apache.beam.sdk.util.SerializableUtils;
 import org.apache.beam.sdk.util.UserCodeException;
+import org.apache.beam.sdk.values.CausedByDrain;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TimestampedValue;
 import org.apache.beam.sdk.values.TupleTag;
@@ -587,6 +588,11 @@ public class DoFnTester<InputT, OutputT> implements AutoCloseable {
     @Override
     public Long currentRecordOffset() {
       return element.getCurrentRecordOffset();
+    }
+
+    @Override
+    public CausedByDrain causedByDrain() {
+      return CausedByDrain.NORMAL;
     }
 
     @Override

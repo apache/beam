@@ -47,6 +47,7 @@ import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.util.OutputBuilderSuppliers;
 import org.apache.beam.sdk.util.WindowedValueMultiReceiver;
+import org.apache.beam.sdk.values.CausedByDrain;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.Row;
@@ -394,6 +395,11 @@ public class OutputAndTimeBoundedSplittableProcessElementInvoker<
     @Override
     public @Nullable Long currentRecordOffset() {
       return element.getRecordOffset();
+    }
+
+    @Override
+    public CausedByDrain causedByDrain() {
+      return element.causedByDrain();
     }
 
     @Override

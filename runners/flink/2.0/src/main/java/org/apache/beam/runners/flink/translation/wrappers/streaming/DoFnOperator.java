@@ -1200,7 +1200,8 @@ public class DoFnOperator<PreInputT, InputT, OutputT>
         window,
         timerData.getTimestamp(),
         timerData.getOutputTimestamp(),
-        timerData.getDomain());
+        timerData.getDomain(),
+        timerData.causedByDrain());
   }
 
   @SuppressWarnings("unchecked")

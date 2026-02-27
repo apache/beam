@@ -974,10 +974,10 @@ public class DoFnOperator<PreInputT, InputT, OutputT>
    * of finishing a bundle in snapshot() first.
    *
    * <p>In order to avoid having {@link DoFnRunner#processElement(WindowedValue)} or {@link
-   * DoFnRunner#onTimer(String, String, Object, BoundedWindow, Instant, Instant, TimeDomain)} not
-   * between StartBundle and FinishBundle, this method needs to be called in each processElement and
-   * each processWatermark and onProcessingTime. Do not need to call in onEventTime, because it has
-   * been guaranteed in the processWatermark.
+   * DoFnRunner#onTimer(String, String, Object, BoundedWindow, Instant, Instant, TimeDomain,
+   * CausedByDrain)} not between StartBundle and FinishBundle, this method needs to be called in
+   * each processElement and each processWatermark and onProcessingTime. Do not need to call in
+   * onEventTime, because it has been guaranteed in the processWatermark.
    */
   private void checkInvokeStartBundle() {
     if (!bundleStarted) {
@@ -1195,6 +1195,7 @@ public class DoFnOperator<PreInputT, InputT, OutputT>
     BoundedWindow window = ((WindowNamespace) namespace).getWindow();
     timerInternals.onFiredOrDeletedTimer(timerData);
 
+    // hej
     pushbackDoFnRunner.onTimer(
         timerData.getTimerId(),
         timerData.getTimerFamilyId(),
@@ -1202,7 +1203,8 @@ public class DoFnOperator<PreInputT, InputT, OutputT>
         window,
         timerData.getTimestamp(),
         timerData.getOutputTimestamp(),
-        timerData.getDomain());
+        timerData.getDomain(),
+        timerData.causedByDrain());
   }
 
   @SuppressWarnings("unchecked")
