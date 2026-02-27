@@ -45,9 +45,11 @@ import numpy as np
 import torch
 from scipy.optimize import nnls
 
+from apache_beam.metrics.metric import Metrics
 from apache_beam.utils import multi_process_shared
 
 logger = logging.getLogger(__name__)
+_MODEL_MANAGER_METRICS_NAMESPACE = "BeamML_ModelManager"
 
 
 class GPUMonitor:
@@ -205,6 +207,10 @@ class ResourceEstimator:
     with self._lock:
       self.estimates[model_tag] = cost
       self.known_models.add(model_tag)
+      Metrics.distribution(
+          _MODEL_MANAGER_METRICS_NAMESPACE,
+          f"memory_estimate_mb_{model_tag}",
+          process_wide=True).update(int(cost))
       self.logging_info("Initial Profile for %s: %s MB", model_tag, cost)
 
   def add_observation(
@@ -291,6 +297,11 @@ class ResourceEstimator:
 
         self.logging_info(
             "Updated Estimate for %s: %.1f MB", model, self.estimates[model])
+
+        Metrics.distribution(
+            _MODEL_MANAGER_METRICS_NAMESPACE,
+            f"memory_estimate_mb_{model}",
+            process_wide=True).update(int(self.estimates[model]))
       self.logging_info("System Bias: %s MB", bias)
 
     except Exception as e:
@@ -373,6 +384,20 @@ class ModelManager:
     self._cv = threading.Condition()
 
     self._monitor.start()
+
+  def _update_model_count_metric(self):
+    for tag, instances in self._models.items():
+      Metrics.distribution(
+          _MODEL_MANAGER_METRICS_NAMESPACE,
+          f"num_loaded_models_{tag}",
+          process_wide=True).update(len(instances))
+
+  def _clear_all_model_metrics(self):
+    for tag in self._models:
+      Metrics.distribution(
+          _MODEL_MANAGER_METRICS_NAMESPACE,
+          f"num_loaded_models_{tag}",
+          process_wide=True).update(0)
 
   def logging_info(self, message: str, *args):
     if self._verbose_logging:
@@ -719,6 +744,7 @@ class ModelManager:
     self._monitor.reset_peak()
     curr, _, _ = self._monitor.get_stats()
     self.logging_info("Resource Usage After Eviction: %.1f MB", curr)
+    self._update_model_count_metric()
 
   def _spawn_new_model(
       self,
@@ -741,6 +767,7 @@ class ModelManager:
           self._pending_reservations = max(
               0.0, self._pending_reservations - est_cost)
         self._models[tag].append(instance)
+        self._update_model_count_metric()
       return instance
 
     except Exception as e:
@@ -758,6 +785,7 @@ class ModelManager:
       raise e
 
   def _delete_all_models(self):
+    self._clear_all_model_metrics()
     self._idle_lru.clear()
     for _, instances in self._models.items():
       for instance in instances:
