@@ -42,3 +42,53 @@ func MakePipelineOptionsFileAndEnvVar(options string) error {
 	os.Setenv("PIPELINE_OPTIONS_FILE", f.Name())
 	return nil
 }
+
+type PipelineOptionsData struct {
+	Options     LegacyOptionsData `json:"options"`
+	Experiments []string          `json:"beam:option:experiments:v1"`
+}
+
+type LegacyOptionsData struct {
+	Experiments []string `json:"experiments"`
+}
+
+// GetExperiments extracts a string array of experiments from the pipeline
+// options string (in JSON format)
+//
+// The JSON string can be in two styles:
+//
+// Legacy style:
+//
+//	{
+//		"display_data": [
+//			{...},
+//		],
+//		"options": {
+//			...
+//			"experiments": [
+//				...
+//			],
+//		}
+//	}
+//
+// URN style:
+//
+//	{
+//		"beam:option:experiments:v1": [
+//			...
+//		]
+//	}
+func GetExperiments(options string) []string {
+	var opts PipelineOptionsData
+	err := json.Unmarshal([]byte(options), &opts)
+	if err != nil {
+		return nil
+	}
+
+	// Check the legacy style experiments first
+	if opts.Options.Experiments != nil {
+		return opts.Options.Experiments
+	}
+
+	return opts.Experiments
+}
