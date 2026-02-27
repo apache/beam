@@ -49,29 +49,9 @@ project.tasks.register("postCommitPyDep") {}
 // For versions that we would like to prioritize for testing,
 // for example versions released in a timeframe of last 1-2 years.
 
-toxTask "testPy310pyarrow-9", "py310-pyarrow-9", "${posargs}"
-test.dependsOn "testPy310pyarrow-9"
-postCommitPyDep.dependsOn "testPy310pyarrow-9"
-
-toxTask "testPy310pyarrow-10", "py310-pyarrow-10", "${posargs}"
-test.dependsOn "testPy310pyarrow-10"
-postCommitPyDep.dependsOn "testPy310pyarrow-10"
-
-toxTask "testPy310pyarrow-11", "py310-pyarrow-11", "${posargs}"
-test.dependsOn "testPy310pyarrow-11"
-postCommitPyDep.dependsOn "testPy310pyarrow-11"
-
-toxTask "testPy310pyarrow-12", "py310-pyarrow-12", "${posargs}"
-test.dependsOn "testPy310pyarrow-12"
-postCommitPyDep.dependsOn "testPy310pyarrow-12"
-
-toxTask "testPy310pyarrow-13", "py310-pyarrow-13", "${posargs}"
-test.dependsOn "testPy310pyarrow-13"
-postCommitPyDep.dependsOn "testPy310pyarrow-13"
-
-toxTask "testPy310pyarrow-14", "py310-pyarrow-14", "${posargs}"
-test.dependsOn "testPy310pyarrow-14"
-postCommitPyDep.dependsOn "testPy310pyarrow-14"
+toxTask "testPy310pyarrow-6", "py310-pyarrow-6", "${posargs}"
+test.dependsOn "testPy310pyarrow-6"
+postCommitPyDep.dependsOn "testPy310pyarrow-6"
 
 toxTask "testPy310pyarrow-15", "py310-pyarrow-15", "${posargs}"
 test.dependsOn "testPy310pyarrow-15"
@@ -88,6 +68,26 @@ postCommitPyDep.dependsOn "testPy310pyarrow-17"
 toxTask "testPy310pyarrow-18", "py310-pyarrow-18", "${posargs}"
 test.dependsOn "testPy310pyarrow-18"
 postCommitPyDep.dependsOn "testPy310pyarrow-18"
+
+toxTask "testPy310pyarrow-19", "py310-pyarrow-19", "${posargs}"
+test.dependsOn "testPy310pyarrow-19"
+postCommitPyDep.dependsOn "testPy310pyarrow-19"
+
+toxTask "testPy310pyarrow-20", "py310-pyarrow-20", "${posargs}"
+test.dependsOn "testPy310pyarrow-20"
+postCommitPyDep.dependsOn "testPy310pyarrow-20"
+
+toxTask "testPy310pyarrow-21", "py310-pyarrow-21", "${posargs}"
+test.dependsOn "testPy310pyarrow-21"
+postCommitPyDep.dependsOn "testPy310pyarrow-21"
+
+toxTask "testPy310pyarrow-22", "py310-pyarrow-22", "${posargs}"
+test.dependsOn "testPy310pyarrow-22"
+postCommitPyDep.dependsOn "testPy310pyarrow-22"
+
+toxTask "testPy310pyarrow-23", "py310-pyarrow-23", "${posargs}"
+test.dependsOn "testPy310pyarrow-23"
+postCommitPyDep.dependsOn "testPy310pyarrow-23"
 
 // Create a test task for each supported minor version of pandas
 toxTask "testPy310pandas-14", "py310-pandas-14", "${posargs}"
