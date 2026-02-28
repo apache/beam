@@ -53,7 +53,6 @@ import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.Preconditions;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Stopwatch;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterators;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.io.Closeables;
@@ -411,7 +410,6 @@ class KafkaUnboundedReader<K, V> extends UnboundedReader<KafkaRecord<K, V>> {
   private static Instant initialWatermark = BoundedWindow.TIMESTAMP_MIN_VALUE;
 
   private KafkaMetrics kafkaResults = KafkaSinkMetrics.kafkaMetrics();
-  private Stopwatch stopwatch = Stopwatch.createUnstarted();
 
   private Set<String> kafkaTopics;
 
@@ -580,13 +578,12 @@ class KafkaUnboundedReader<K, V> extends UnboundedReader<KafkaRecord<K, V>> {
       while (!closed.get()) {
         try {
           if (records.isEmpty()) {
-            stopwatch.start();
+            long startMillis = System.currentTimeMillis();
             records = consumer.poll(KAFKA_POLL_TIMEOUT.getMillis());
-            stopwatch.stop();
+            long elapsedMillis = System.currentTimeMillis() - startMillis;
             for (String kafkaTopic : kafkaTopics) {
               kafkaResults.updateSuccessfulRpcMetrics(
-                  kafkaTopic,
-                  java.time.Duration.ofMillis(stopwatch.elapsed(TimeUnit.MILLISECONDS)));
+                  kafkaTopic, java.time.Duration.ofMillis(elapsedMillis));
             }
           } else if (availableRecordsQueue.offer(
               records, RECORDS_ENQUEUE_POLL_TIMEOUT.getMillis(), TimeUnit.MILLISECONDS)) {

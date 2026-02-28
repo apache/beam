@@ -58,7 +58,6 @@ import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Joiner;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.MoreObjects;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Stopwatch;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.cache.CacheBuilder;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.cache.CacheLoader;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.cache.LoadingCache;
@@ -567,19 +566,14 @@ abstract class ReadFromKafkaDoFn<K, V>
     long expectedOffset = tracker.currentRestriction().getFrom();
     consumer.resume(Collections.singleton(topicPartition));
     consumer.seek(topicPartition, expectedOffset);
-    final Stopwatch pollTimer = Stopwatch.createUnstarted();
 
     final KafkaMetrics kafkaMetrics = KafkaSinkMetrics.kafkaMetrics();
     try {
       while (Duration.ZERO.compareTo(remainingTimeout) < 0) {
-        // TODO: Remove this timer and use the existing fetch-latency-avg	metric.
-        // A consumer will often have prefetches waiting to be returned immediately in which case
-        // this timer may contribute more latency than it measures.
-        // See https://shipilev.net/blog/2014/nanotrusting-nanotime/ for more information.
-        pollTimer.reset().start();
+        long startMillis = System.currentTimeMillis();
         // Fetch the next records.
         final ConsumerRecords<byte[], byte[]> rawRecords = consumer.poll(remainingTimeout);
-        final Duration elapsed = pollTimer.elapsed();
+        final Duration elapsed = Duration.ofMillis(System.currentTimeMillis() - startMillis);
         try {
           remainingTimeout = remainingTimeout.minus(elapsed);
         } catch (ArithmeticException e) {
