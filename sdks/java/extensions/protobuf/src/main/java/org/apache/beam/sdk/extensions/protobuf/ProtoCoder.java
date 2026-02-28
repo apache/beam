@@ -293,23 +293,64 @@ public class ProtoCoder<T extends Message> extends CustomCoder<T> {
     this.extensionHostClasses = extensionHostClasses;
   }
 
-  /** Get the memoized {@link Parser}, possibly initializing it lazily. */
+  /**
+   * Get the memoized {@link Parser}, possibly initializing it lazily. Attempts to use {@code
+   * getDefaultInstance()} first, falling back to instantiation if necessary, with clear error
+   * handling for unsupported cases.
+   */
   protected synchronized Parser<T> getParser() {
     if (memoizedParser == null) {
       try {
         if (DynamicMessage.class.equals(protoMessageClass)) {
           throw new IllegalArgumentException(
               "DynamicMessage is not supported by the ProtoCoder, use the DynamicProtoCoder.");
+        } else if (Message.class.equals(protoMessageClass)) {
+          throw new IllegalArgumentException(
+              "ProtoCoder does not support the raw Message interface. Use a concrete Protobuf-generated class.");
         } else {
-          @SuppressWarnings("unchecked")
-          T protoMessageInstance =
-              (T) protoMessageClass.getMethod("getDefaultInstance").invoke(null);
-          @SuppressWarnings("unchecked")
-          Parser<T> tParser = (Parser<T>) protoMessageInstance.getParserForType();
-          memoizedParser = tParser;
+          // Try using getDefaultInstance() first (preferred for generated Protobuf classes)
+          try {
+            @SuppressWarnings("unchecked")
+            T protoMessageInstance =
+                (T) protoMessageClass.getMethod("getDefaultInstance").invoke(null);
+            @SuppressWarnings("unchecked")
+            Parser<T> tParser = (Parser<T>) protoMessageInstance.getParserForType();
+            memoizedParser = tParser;
+          } catch (NoSuchMethodException e) {
+            // Fallback: instantiate directly if getDefaultInstance() isn’t available
+            try {
+              @SuppressWarnings("unchecked")
+              T protoMessageInstance = protoMessageClass.getDeclaredConstructor().newInstance();
+              @SuppressWarnings("unchecked")
+              Parser<T> tParser = (Parser<T>) protoMessageInstance.getParserForType();
+              memoizedParser = tParser;
+            } catch (NoSuchMethodException e2) {
+              throw new IllegalArgumentException(
+                  "Class "
+                      + protoMessageClass.getName()
+                      + " lacks both getDefaultInstance() and a no-arg constructor. "
+                      + "Ensure it is a concrete Protobuf-generated class.",
+                  e2);
+            } catch (InstantiationException e2) {
+              throw new IllegalArgumentException(
+                  "Class "
+                      + protoMessageClass.getName()
+                      + " is abstract or cannot be instantiated. "
+                      + "Ensure it is a concrete Protobuf-generated class.",
+                  e2);
+            } catch (IllegalAccessException | InvocationTargetException e2) {
+              throw new IllegalArgumentException(
+                  "Failed to instantiate "
+                      + protoMessageClass.getName()
+                      + " due to access or runtime issues. "
+                      + "Ensure it is a concrete Protobuf-generated class with an accessible constructor.",
+                  e2);
+            }
+          }
         }
-      } catch (IllegalAccessException | InvocationTargetException | NoSuchMethodException e) {
-        throw new IllegalArgumentException(e);
+      } catch (IllegalAccessException | InvocationTargetException e) {
+        throw new IllegalArgumentException(
+            "Failed to access getDefaultInstance() for " + protoMessageClass.getName(), e);
       }
     }
     return memoizedParser;
