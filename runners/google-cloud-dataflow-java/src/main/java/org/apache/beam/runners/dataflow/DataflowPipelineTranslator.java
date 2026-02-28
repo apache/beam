@@ -146,9 +146,7 @@ public class DataflowPipelineTranslator {
   private static final Logger LOG = LoggerFactory.getLogger(DataflowPipelineTranslator.class);
   private static final ObjectMapper MAPPER = new ObjectMapper();
 
-  /**
-   * Checks to see whether the Trigger tree is compatible with combiner lifting.
-   */
+  /** Checks to see whether the Trigger tree is compatible with combiner lifting. */
   private static class TriggerCombinerLiftingCompatibility implements TriggerVisitor<Boolean> {
     @Override
     public Boolean visit(DefaultTrigger trigger) {
