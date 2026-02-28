@@ -75,8 +75,8 @@ public class TriggerTest {
     }
 
     @Override
-    public boolean isCompatibleWithCombinerLifting() {
-      return false;
+    public <OutputT> OutputT accept(TriggerVisitor<OutputT> visitor) {
+      return null;
     }
   }
 
@@ -102,8 +102,8 @@ public class TriggerTest {
     }
 
     @Override
-    public boolean isCompatibleWithCombinerLifting() {
-      return false;
+    public <OutputT> OutputT accept(TriggerVisitor<OutputT> visitor) {
+      return null;
     }
   }
 }

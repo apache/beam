@@ -60,9 +60,8 @@ public class AfterPane extends OnceTrigger {
   }
 
   @Override
-  public boolean isCompatibleWithCombinerLifting() {
-    // Combiner lifting not supported for count triggers.
-    return false;
+  public <OutputT> OutputT accept(TriggerVisitor<OutputT> visitor) {
+    return visitor.visit(this);
   }
 
   @Override

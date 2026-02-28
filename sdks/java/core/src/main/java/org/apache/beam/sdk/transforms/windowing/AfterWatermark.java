@@ -102,6 +102,11 @@ public class AfterWatermark {
     }
 
     @Override
+    public <OutputT> OutputT accept(TriggerVisitor<OutputT> visitor) {
+      return visitor.visit(this);
+    }
+
+    @Override
     public Trigger getContinuationTrigger() {
       return new AfterWatermarkEarlyAndLate(
           earlyTrigger.getContinuationTrigger(),
@@ -124,12 +129,6 @@ public class AfterWatermark {
     @Override
     public boolean mayFinish() {
       return lateTrigger == null;
-    }
-
-    @Override
-    public boolean isCompatibleWithCombinerLifting() {
-      return earlyTrigger.isCompatibleWithCombinerLifting()
-          && (lateTrigger == null || lateTrigger.isCompatibleWithCombinerLifting());
     }
 
     @Override
@@ -184,8 +183,8 @@ public class AfterWatermark {
     }
 
     @Override
-    public boolean isCompatibleWithCombinerLifting() {
-      return true;
+    public <OutputT> OutputT accept(TriggerVisitor<OutputT> visitor) {
+      return visitor.visit(this);
     }
 
     @Override

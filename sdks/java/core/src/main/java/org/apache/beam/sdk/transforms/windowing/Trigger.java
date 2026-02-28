@@ -109,8 +109,7 @@ public abstract class Trigger implements Serializable {
     return getContinuationTrigger(subTriggerContinuations);
   }
 
-  /** Returns whether this trigger is compatible with combiner lifting. */
-  public abstract boolean isCompatibleWithCombinerLifting();
+  public abstract <OutputT> OutputT accept(TriggerVisitor<OutputT> visitor);
 
   /**
    * Subclasses should override this to return the {@link #getContinuationTrigger} of this {@link

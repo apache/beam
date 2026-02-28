@@ -108,8 +108,8 @@ public class AfterProcessingTime extends OnceTrigger {
   }
 
   @Override
-  public boolean isCompatibleWithCombinerLifting() {
-    return true;
+  public <OutputT> OutputT accept(TriggerVisitor<OutputT> visitor) {
+    return visitor.visit(this);
   }
 
   @Override

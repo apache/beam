@@ -65,9 +65,8 @@ public class OrFinallyTrigger extends Trigger {
   }
 
   @Override
-  public boolean isCompatibleWithCombinerLifting() {
-    return subTriggers.get(ACTUAL).isCompatibleWithCombinerLifting()
-        && subTriggers.get(UNTIL).isCompatibleWithCombinerLifting();
+  public <OutputT> OutputT accept(TriggerVisitor<OutputT> visitor) {
+    return visitor.visit(this);
   }
 
   @Override

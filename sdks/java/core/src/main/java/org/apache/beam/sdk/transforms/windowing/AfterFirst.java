@@ -59,8 +59,8 @@ public class AfterFirst extends OnceTrigger {
   }
 
   @Override
-  public boolean isCompatibleWithCombinerLifting() {
-    return subTriggers.stream().allMatch(Trigger::isCompatibleWithCombinerLifting);
+  public <OutputT> OutputT accept(TriggerVisitor<OutputT> visitor) {
+    return visitor.visit(this);
   }
 
   @Override

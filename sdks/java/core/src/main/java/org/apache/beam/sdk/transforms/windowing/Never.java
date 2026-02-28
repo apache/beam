@@ -58,8 +58,8 @@ public final class Never {
     }
 
     @Override
-    public boolean isCompatibleWithCombinerLifting() {
-      return true;
+    public <OutputT> OutputT accept(TriggerVisitor<OutputT> visitor) {
+      return visitor.visit(this);
     }
   }
 }

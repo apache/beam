@@ -50,7 +50,7 @@ abstract class StubTrigger extends Trigger.OnceTrigger {
   }
 
   @Override
-  public boolean isCompatibleWithCombinerLifting() {
-    return false;
+  public <OutputT> OutputT accept(TriggerVisitor<OutputT> visitor) {
+    return null;
   }
 }
