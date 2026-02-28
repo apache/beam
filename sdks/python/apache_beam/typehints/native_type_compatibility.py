@@ -25,6 +25,7 @@ import logging
 import sys
 import types
 import typing
+import dataclasses
 from typing import Generic
 from typing import TypeVar
 
@@ -173,6 +174,10 @@ def match_is_named_tuple(user_type):
   return (
       _safe_issubclass(user_type, typing.Tuple) and
       hasattr(user_type, '__annotations__') and hasattr(user_type, '_fields'))
+
+
+def match_is_dataclass(user_type):
+  return dataclasses.is_dataclass(user_type) and isinstance(user_type, type)
 
 
 def _match_is_optional(user_type):
@@ -418,6 +423,7 @@ def convert_to_beam_type(typ):
       # This MUST appear before the entry for the normal Tuple.
       _TypeMapEntry(
           match=match_is_named_tuple, arity=0, beam_type=typehints.Any),
+      _TypeMapEntry(match=match_is_dataclass, arity=0, beam_type=typehints.Any),
       _TypeMapEntry(
           match=_match_is_primitive(tuple), arity=-1,
           beam_type=typehints.Tuple),

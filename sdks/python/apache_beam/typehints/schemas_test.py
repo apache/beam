@@ -19,6 +19,7 @@
 
 # pytype: skip-file
 
+import dataclasses
 import itertools
 import pickle
 import unittest
@@ -388,6 +389,24 @@ class SchemaTest(unittest.TestCase):
     self.assertIsInstance(roundtripped, row_type.RowTypeConstraint)
     self.assert_namedtuple_equivalent(roundtripped.user_type, user_type)
 
+  def test_dataclass_roundtrip(self):
+    @dataclasses.dataclass
+    class SimpleDataclass:
+      id: np.int64
+      name: str
+
+    roundtripped = typing_from_runner_api(
+        typing_to_runner_api(
+            SimpleDataclass, schema_registry=SchemaTypeRegistry()),
+        schema_registry=SchemaTypeRegistry())
+
+    self.assertIsInstance(roundtripped, row_type.RowTypeConstraint)
+    # The roundtripped user_type is generated as a NamedTuple, so we can't test
+    # equivalence directly with the dataclass.
+    # Instead, let's verify annotations.
+    self.assertEqual(
+        roundtripped.user_type.__annotations__, SimpleDataclass.__annotations__)
+
   def test_row_type_constraint_to_schema(self):
     result_type = typing_to_runner_api(
         row_type.RowTypeConstraint.from_fields([
@@ -645,6 +664,48 @@ class SchemaTest(unittest.TestCase):
     self.assertEqual(
         expected.row_type.schema.fields,
         typing_to_runner_api(MyCuteClass).row_type.schema.fields)
+
+  def test_trivial_example_dataclass(self):
+    @dataclasses.dataclass
+    class MyCuteDataclass:
+      name: str
+      age: Optional[int]
+      interests: List[str]
+      height: float
+      blob: ByteString
+
+    expected = schema_pb2.FieldType(
+        row_type=schema_pb2.RowType(
+            schema=schema_pb2.Schema(
+                fields=[
+                    schema_pb2.Field(
+                        name='name',
+                        type=schema_pb2.FieldType(
+                            atomic_type=schema_pb2.STRING),
+                    ),
+                    schema_pb2.Field(
+                        name='age',
+                        type=schema_pb2.FieldType(
+                            nullable=True, atomic_type=schema_pb2.INT64)),
+                    schema_pb2.Field(
+                        name='interests',
+                        type=schema_pb2.FieldType(
+                            array_type=schema_pb2.ArrayType(
+                                element_type=schema_pb2.FieldType(
+                                    atomic_type=schema_pb2.STRING)))),
+                    schema_pb2.Field(
+                        name='height',
+                        type=schema_pb2.FieldType(
+                            atomic_type=schema_pb2.DOUBLE)),
+                    schema_pb2.Field(
+                        name='blob',
+                        type=schema_pb2.FieldType(
+                            atomic_type=schema_pb2.BYTES)),
+                ])))
+
+    self.assertEqual(
+        expected.row_type.schema.fields,
+        typing_to_runner_api(MyCuteDataclass).row_type.schema.fields)
 
   def test_user_type_annotated_with_id_after_conversion(self):
     MyCuteClass = NamedTuple('MyCuteClass', [
