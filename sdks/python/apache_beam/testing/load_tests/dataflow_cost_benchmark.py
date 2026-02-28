@@ -156,7 +156,7 @@ class DataflowCostBenchmark(LoadTest):
 
     start_time, end_time = None, None
     for message in messages:
-      text = message.messageText
+      text = message.message_text
       if text:
         if self.WORKER_START_PATTERN.match(text):
           start_time = message.time

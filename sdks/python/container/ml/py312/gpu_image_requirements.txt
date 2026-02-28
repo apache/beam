@@ -90,6 +90,7 @@ google-cloud-bigquery-storage==2.36.2
 google-cloud-bigtable==2.35.0
 google-cloud-build==3.35.0
 google-cloud-core==2.5.0
+google-cloud-dataflow-client==0.11.0
 google-cloud-datastore==2.23.0
 google-cloud-dlp==3.34.0
 google-cloud-kms==3.11.0
