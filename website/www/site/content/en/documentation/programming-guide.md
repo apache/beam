@@ -4065,14 +4065,19 @@ and restricting it to a particular type. Beam will automatically infer the
 schema for PCollections with `NamedTuple` output types. For example:
 {{< /paragraph >}}
 
-{{< highlight py >}}
-class Transaction(typing.NamedTuple):
-  bank: str
-  purchase_amount: float
 
-pc = input | beam.Map(lambda ...).with_output_types(Transaction)
+
+{{< highlight java >}}
+purchases.apply(Select.fieldNames("shippingAddress.postCode"));
 {{< /highlight >}}
 
+{{< highlight py >}}
+import apache_beam as beam
+
+purchases | beam.Select(
+    postCode=lambda row: row.shippingAddress.postCode
+)
+{{< /highlight >}}
 
 {{< paragraph class="language-py" >}}
 **beam.Row and Select**
@@ -4085,9 +4090,14 @@ use a lambda that returns instances of `beam.Row`:
 
 {{< highlight py >}}
 input_pc = ... # {"bank": ..., "purchase_amount": ...}
-output_pc = input_pc | beam.Map(lambda item: beam.Row(bank=item["bank"],
-                                                      purchase_amount=item["purchase_amount"])
+output_pc = input_pc | beam.Map(
+    lambda item: beam.Row(
+        bank=item["bank"],
+        purchase_amount=item["purchase_amount"]
+    )
+)
 {{< /highlight >}}
+
 
 {{< paragraph class="language-py" >}}
 Sometimes it can be more concise to express the same logic with the
@@ -4215,14 +4225,14 @@ Individual nested fields can be specified using the dot operator. For example, t
  shipping address one would write
 {{< /paragraph >}}
 
-{{< highlight java >}}
-purchases.apply(Select.fieldNames("shippingAddress.postCode"));
+{{< highlight py >}}
+import apache_beam as beam
+
+purchases | beam.Select(
+    postCode=lambda row: row.shippingAddress.postCode
+)
 {{< /highlight >}}
 
-<!-- {{< highlight py >}}
-input_pc = ... # {"user_id": ..., "shipping_address": "post_code": ..., "bank": ..., "purchase_amount": ...}
-output_pc = input_pc | beam.Select(post_code=lambda item: str(item["shipping_address.post_code"]))
-{{< /highlight >}} -->
 ##### **Wildcards**
 
 {{< paragraph class="language-py" >}}
