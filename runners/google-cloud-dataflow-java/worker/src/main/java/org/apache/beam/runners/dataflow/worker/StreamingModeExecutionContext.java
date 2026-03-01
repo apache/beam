@@ -24,6 +24,7 @@ import com.google.api.services.dataflow.model.CounterUpdate;
 import com.google.api.services.dataflow.model.SideInputInfo;
 import java.io.Closeable;
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.Iterator;
@@ -73,6 +74,7 @@ import org.apache.beam.sdk.io.UnboundedSource;
 import org.apache.beam.sdk.io.UnboundedSource.UnboundedReader;
 import org.apache.beam.sdk.metrics.MetricsContainer;
 import org.apache.beam.sdk.state.TimeDomain;
+import org.apache.beam.sdk.transforms.DoFn.BundleFinalizer;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.ByteStringOutputStream;
 import org.apache.beam.sdk.values.PCollectionView;
@@ -88,6 +90,7 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterat
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.PeekingIterator;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Sets;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Table;
+import org.apache.commons.lang3.tuple.Pair;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
@@ -446,11 +449,29 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext<Step
     }
   }
 
-  public Map<Long, Runnable> flushState() {
-    Map<Long, Runnable> callbacks = new HashMap<>();
+  public Map<Long, Pair<Instant, Runnable>> flushState() {
+    Map<Long, Pair<Instant, Runnable>> callbacks = new HashMap<>();
 
+    List<Pair<Instant, BundleFinalizer.Callback>> bundleFinalizers = new ArrayList<>();
     for (StepContext stepContext : getAllStepContexts()) {
       stepContext.flushState();
+      bundleFinalizers.addAll(stepContext.getBundleFinalizerCallbacks());
+      stepContext.clearBundleFinalizerCallbacks();
+    }
+    for (Pair<Instant, BundleFinalizer.Callback> bundleFinalizer : bundleFinalizers) {
+      long id = ThreadLocalRandom.current().nextLong();
+      callbacks.put(
+          id,
+          Pair.of(
+              bundleFinalizer.getLeft(),
+              () -> {
+                try {
+                  bundleFinalizer.getRight().onBundleSuccess();
+                } catch (Exception e) {
+                  throw new RuntimeException("Exception while running bundle finalizer", e);
+                }
+              }));
+      outputBuilder.addFinalizeIds(id);
     }
 
     if (activeReader != null) {
@@ -462,13 +483,15 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext<Step
       sourceStateBuilder.addFinalizeIds(id);
       callbacks.put(
           id,
-          () -> {
-            try {
-              checkpointMark.finalizeCheckpoint();
-            } catch (IOException e) {
-              throw new RuntimeException("Exception while finalizing checkpoint", e);
-            }
-          });
+          Pair.of(
+              Instant.now().plus(Duration.standardMinutes(5)),
+              () -> {
+                try {
+                  checkpointMark.finalizeCheckpoint();
+                } catch (IOException e) {
+                  throw new RuntimeException("Exception while finalizing checkpoint", e);
+                }
+              }));
 
       @SuppressWarnings("unchecked")
       Coder<UnboundedSource.CheckpointMark> checkpointCoder =
@@ -699,6 +722,11 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext<Step
     public DataflowStepContext namespacedToUser() {
       return this;
     }
+
+    @Override
+    public BundleFinalizer bundleFinalizer() {
+      return wrapped.bundleFinalizer();
+    }
   }
 
   /** A {@link SideInputReader} that fetches side inputs from the streaming worker's cache. */
@@ -771,6 +799,7 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext<Step
     // A list of timer keys that were modified by user processing earlier in this bundle. This
     // serves a tombstone, so that we know not to fire any bundle timers that were modified.
     private Table<String, StateNamespace, TimerData> modifiedUserTimerKeys = null;
+    private final WindmillBundleFinalizer bundleFinalizer = new WindmillBundleFinalizer();
 
     public StepContext(DataflowOperationContext operationContext) {
       super(operationContext.nameContext());
@@ -1043,9 +1072,41 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext<Step
       return checkNotNull(systemTimerInternals);
     }
 
+    @Override
+    public BundleFinalizer bundleFinalizer() {
+      return bundleFinalizer;
+    }
+
     public TimerInternals userTimerInternals() {
       ensureStateful("Tried to access user timers");
       return checkNotNull(userTimerInternals);
+    }
+
+    public List<Pair<Instant, BundleFinalizer.Callback>> getBundleFinalizerCallbacks() {
+      return bundleFinalizer.getCallbacks();
+    }
+
+    public void clearBundleFinalizerCallbacks() {
+      bundleFinalizer.clearCallbacks();
+    }
+  }
+
+  private static class WindmillBundleFinalizer implements BundleFinalizer {
+    private List<Pair<Instant, Callback>> callbacks = new ArrayList<>();
+
+    private WindmillBundleFinalizer() {}
+
+    private List<Pair<Instant, Callback>> getCallbacks() {
+      return callbacks;
+    }
+
+    private void clearCallbacks() {
+      callbacks.clear();
+    }
+
+    @Override
+    public void afterBundleCommit(Instant callbackExpiry, Callback callback) {
+      callbacks.add(Pair.of(callbackExpiry, callback));
     }
   }
 }

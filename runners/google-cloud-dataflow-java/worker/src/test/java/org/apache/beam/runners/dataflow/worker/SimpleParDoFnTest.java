@@ -36,20 +36,24 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicInteger;
 import org.apache.beam.runners.core.NullSideInputReader;
 import org.apache.beam.runners.core.SideInputReader;
 import org.apache.beam.runners.core.metrics.ExecutionStateTracker;
 import org.apache.beam.runners.core.metrics.MetricsContainerImpl;
 import org.apache.beam.runners.dataflow.options.DataflowPipelineDebugOptions;
+import org.apache.beam.runners.dataflow.worker.DataflowExecutionContext.DataflowStepContext;
 import org.apache.beam.runners.dataflow.worker.counters.CounterFactory.CounterDistribution;
 import org.apache.beam.runners.dataflow.worker.counters.CounterName;
 import org.apache.beam.runners.dataflow.worker.counters.CounterSet;
 import org.apache.beam.runners.dataflow.worker.counters.DataflowCounterUpdateExtractor;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.ParDoFn;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.Receiver;
+import org.apache.beam.sdk.coders.VarLongCoder;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.DoFn.BundleFinalizer;
 import org.apache.beam.sdk.transforms.DoFnSchemaInformation;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
@@ -62,12 +66,15 @@ import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
+import org.joda.time.Duration;
+import org.joda.time.Instant;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
+import org.mockito.Mockito;
 
 /** Tests for {@link SimpleParDoFn}. */
 @RunWith(JUnit4.class)
@@ -631,6 +638,119 @@ public class SimpleParDoFnTest {
     @Override
     public <T> T get(PCollectionView<T> view, final BoundedWindow window) {
       throw new IllegalArgumentException("calling getSideInput() with unknown view");
+    }
+  }
+
+  @Test
+  public void testBundleFinalizer() throws Exception {
+    bundleSuccessCount.set(0);
+    DoFnInfo<Long, String> fnInfo =
+        DoFnInfo.forFn(
+            new WithBundleFinalizerDoFn(),
+            WindowingStrategy.globalDefault(),
+            null /* side input views */,
+            VarLongCoder.of(),
+            MAIN_OUTPUT,
+            DoFnSchemaInformation.create(),
+            Collections.emptyMap());
+    DataflowExecutionContext.DataflowStepContext userStepContext =
+        Mockito.mock(
+            DataflowExecutionContext.DataflowStepContext.class,
+            invocation -> {
+              if (invocation.getMethod().getName().equals("bundleFinalizer")) {
+                return new BundleFinalizer() {
+                  @Override
+                  public void afterBundleCommit(Instant expiry, Callback callback) {
+                    try {
+                      callback.onBundleSuccess();
+                    } catch (Exception e) {
+                      throw new RuntimeException(e);
+                    }
+                  }
+                };
+              }
+              return invocation.getMethod().invoke(stepContext, invocation.getArguments());
+            });
+
+    DataflowStepContext stepContextWithBundleFinalizer =
+        Mockito.mock(
+            DataflowStepContext.class,
+            invocation -> {
+              if (invocation.getMethod().getName().equals("bundleFinalizer")) {
+                return new BundleFinalizer() {
+                  @Override
+                  public void afterBundleCommit(Instant expiry, Callback callback) {
+                    try {
+                      callback.onBundleSuccess();
+                    } catch (Exception e) {
+                      throw new RuntimeException(e);
+                    }
+                  }
+                };
+              }
+              if (invocation.getMethod().getName().equals("namespacedToUser")) {
+                return userStepContext;
+              }
+              return invocation.getMethod().invoke(stepContext, invocation.getArguments());
+            });
+
+    ParDoFn parDoFn =
+        new SimpleParDoFn<>(
+            options,
+            DoFnInstanceManagers.singleInstance(fnInfo),
+            new EmptySideInputReader(),
+            MAIN_OUTPUT,
+            ImmutableMap.of(MAIN_OUTPUT, 0),
+            stepContextWithBundleFinalizer,
+            operationContext,
+            DoFnSchemaInformation.create(),
+            Collections.emptyMap(),
+            SimpleDoFnRunnerFactory.INSTANCE);
+
+    parDoFn.startBundle(new TestReceiver());
+
+    // Process a few elements
+    for (int i = 0; i < 5; i++) {
+      parDoFn.processElement(WindowedValues.valueInGlobalWindow(1L));
+    }
+
+    parDoFn.finishBundle();
+
+    // The counter increases by 1 in StartBundle, 5 in ProcessElement, and 1 in FinishBundle.
+    // Total should be 7.
+    assertThat(getBundleSuccessCount(), equalTo(7));
+  }
+
+  private static final AtomicInteger bundleSuccessCount = new AtomicInteger(0);
+
+  static void increaseBundleSuccessCount() {
+    bundleSuccessCount.incrementAndGet();
+  }
+
+  static int getBundleSuccessCount() {
+    return bundleSuccessCount.get();
+  }
+
+  static class WithBundleFinalizerDoFn extends DoFn<Long, String> {
+    @StartBundle
+    public void startBundle(StartBundleContext context, BundleFinalizer bundleFinalizer) {
+      bundleFinalizer.afterBundleCommit(
+          Instant.now().plus(Duration.standardMinutes(5)),
+          SimpleParDoFnTest::increaseBundleSuccessCount);
+    }
+
+    @ProcessElement
+    public void processElement(ProcessContext c, BundleFinalizer bundleFinalizer) {
+      bundleFinalizer.afterBundleCommit(
+          Instant.now().plus(Duration.standardMinutes(5)),
+          SimpleParDoFnTest::increaseBundleSuccessCount);
+    }
+
+    @FinishBundle
+    public void finishBundle(FinishBundleContext context, BundleFinalizer bundleFinalizer) {
+      bundleFinalizer.afterBundleCommit(
+          Instant.now().plus(Duration.standardMinutes(5)),
+          SimpleParDoFnTest::increaseBundleSuccessCount);
     }
   }
 }

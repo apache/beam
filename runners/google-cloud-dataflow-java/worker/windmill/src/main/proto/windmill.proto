@@ -447,6 +447,10 @@ message WorkItem {
   // elements mapped to a single key to impact pipeline performance. When
   // present, this field includes metadata associated with any hot key.
   optional HotKeyInfo hot_key_info = 11;
+
+  repeated int64 applied_finalize_ids = 16;
+
+  reserved 12, 13, 14, 15;
 }
 
 message ComputationWorkItems {
@@ -653,10 +657,16 @@ message WorkItemCommitRequest {
   // Collected work item processing state durations.
   repeated LatencyAttribution per_work_item_latency_attributions = 27;
 
+  // Ids that will be passed back as applied_finalize_ids in a subsequent
+  // GetWorkResponse once the state in this request has been persisted to disk
+  // successfully. This is best-effort; it is possible that state is persisted
+  // but the finalize ids are not sent to the worker.
+  repeated int64 finalize_ids = 19 [packed = true];
+
   // DEPRECATED
   repeated GlobalDataId global_data_id_requests = 9;
 
-  reserved 6, 19, 23;
+  reserved 6, 23;
 }
 
 message ComputationCommitWorkRequest {
@@ -791,11 +801,14 @@ message StreamingGetWorkResponseChunk {
   // from other stream_ids may be interleaved on the physical stream.
   optional fixed64 stream_id = 4;
 
+  // Finalize ids associated with successfully applied work from this worker
+  repeated int64 applied_finalize_ids = 6 [packed = true];
+
   // Timing infos for the work item. Windmill Dispatcher and user worker should
   // propagate critical event timings if the list is not empty.
   repeated GetWorkStreamTimingInfo per_work_item_timing_infos = 8;
 
-  // reserved field 5
+  reserved 5, 7;
 }
 
 message ComputationWorkItemMetadata {
