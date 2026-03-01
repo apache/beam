@@ -22,6 +22,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 import org.apache.beam.sdk.coders.CannotProvideCoderException;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
@@ -41,6 +42,7 @@ import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.consumer.MockConsumer;
 import org.apache.kafka.clients.consumer.OffsetAndMetadata;
 import org.apache.kafka.clients.consumer.OffsetResetStrategy;
+import org.apache.kafka.clients.consumer.RetriableCommitFailedException;
 import org.apache.kafka.common.TopicPartition;
 import org.junit.Assert;
 import org.junit.Rule;
@@ -59,6 +61,8 @@ public class KafkaCommitOffsetTest {
       new KafkaCommitOffsetMockConsumer(null, false);
   private final KafkaCommitOffsetMockConsumer errorConsumer =
       new KafkaCommitOffsetMockConsumer(null, true);
+  private final KafkaRetriableMockConsumer retriableConsumer =
+      new KafkaRetriableMockConsumer(null, 2);
 
   private static final KafkaCommitOffsetMockConsumer COMPOSITE_CONSUMER =
       new KafkaCommitOffsetMockConsumer(null, false);
@@ -189,6 +193,32 @@ public class KafkaCommitOffsetTest {
   }
 
   @Test
+  public void testCommitOffsetRetriableErrorSucceedsAfterRetry() {
+    Map<String, Object> configMap = new HashMap<>();
+    configMap.put(ConsumerConfig.GROUP_ID_CONFIG, "group1");
+
+    ReadSourceDescriptors<Object, Object> descriptors =
+        ReadSourceDescriptors.read()
+            .withBootstrapServers("bootstrap_server")
+            .withConsumerConfigUpdates(configMap)
+            .withConsumerFactoryFn(
+                (SerializableFunction<Map<String, Object>, Consumer<byte[], byte[]>>)
+                    input -> {
+                      Assert.assertEquals("group1", input.get(ConsumerConfig.GROUP_ID_CONFIG));
+                      return retriableConsumer;
+                    });
+    CommitOffsetDoFn doFn = new CommitOffsetDoFn(descriptors);
+
+    final TopicPartition partition = new TopicPartition("topic", 0);
+    doFn.processElement(
+        KV.of(KafkaSourceDescriptor.of(partition, null, null, null, null, null), 5L));
+
+    expectedLogs.verifyWarn("Retriable exception committing offset (attempt 1/4)");
+    expectedLogs.verifyWarn("Retriable exception committing offset (attempt 2/4)");
+    Assert.assertEquals(6L, (long) retriableConsumer.commitOffsets.get(partition));
+  }
+
+  @Test
   public void testCommitOffsetError() {
     Map<String, Object> configMap = new HashMap<>();
     configMap.put(ConsumerConfig.GROUP_ID_CONFIG, "group1");
@@ -233,6 +263,37 @@ public class KafkaCommitOffsetTest {
         offsets.forEach(
             (topic, offsetMetadata) -> commitOffsets.put(topic, offsetMetadata.offset()));
       }
+    }
+
+    @Override
+    public synchronized void close(long timeout, TimeUnit unit) {
+      // Ignore closing since we're using a single consumer.
+    }
+  }
+
+  /**
+   * A mock consumer that throws {@link RetriableCommitFailedException} for the first N attempts,
+   * then succeeds.
+   */
+  private static class KafkaRetriableMockConsumer extends MockConsumer<byte[], byte[]> {
+
+    public final HashMap<TopicPartition, Long> commitOffsets = new HashMap<>();
+    private final int failuresBeforeSuccess;
+    private final AtomicInteger attemptCount = new AtomicInteger(0);
+
+    public KafkaRetriableMockConsumer(
+        OffsetResetStrategy offsetResetStrategy, int failuresBeforeSuccess) {
+      super(offsetResetStrategy);
+      this.failuresBeforeSuccess = failuresBeforeSuccess;
+    }
+
+    @Override
+    public synchronized void commitSync(Map<TopicPartition, OffsetAndMetadata> offsets) {
+      if (attemptCount.getAndIncrement() < failuresBeforeSuccess) {
+        throw new RetriableCommitFailedException("Transient failure");
+      }
+      commitAsync(offsets, null);
+      offsets.forEach((topic, offsetMetadata) -> commitOffsets.put(topic, offsetMetadata.offset()));
     }
 
     @Override
