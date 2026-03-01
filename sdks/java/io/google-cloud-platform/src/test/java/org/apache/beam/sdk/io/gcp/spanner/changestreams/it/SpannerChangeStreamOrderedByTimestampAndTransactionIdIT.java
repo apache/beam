@@ -106,7 +106,7 @@ public class SpannerChangeStreamOrderedByTimestampAndTransactionIdIT {
     // Commit a initial transaction to get the timestamp to start reading from.
     List<Mutation> mutations = new ArrayList<>();
     mutations.add(insertRecordMutation(0, "FirstName0", "LastName0"));
-    final long timeIncrementInSeconds = 2;
+    final long timeIncrementInSeconds = 10;
     final Timestamp startTimestamp = databaseClient.write(mutations);
     writeTransactionsToDatabase();
 

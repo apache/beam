@@ -99,7 +99,7 @@ public class SpannerChangeStreamOrderedWithinKeyGloballyIT {
             .withDatabaseId(databaseId);
 
     // Get the time increment interval at which to flush data changes ordered by key.
-    final long timeIncrementInSeconds = 2;
+    final long timeIncrementInSeconds = 10;
 
     // Commit a initial transaction to get the timestamp to start reading from.
     List<Mutation> mutations = new ArrayList<>();
