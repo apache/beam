@@ -20,24 +20,37 @@ package org.apache.beam.sdk.io.kafka;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
+import java.nio.ByteBuffer;
 import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
+import java.util.stream.Collectors;
 import org.apache.beam.sdk.io.UnboundedSource;
 import org.apache.beam.sdk.io.UnboundedSource.UnboundedReader;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
+import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.util.concurrent.Uninterruptibles;
 import org.apache.kafka.clients.consumer.Consumer;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
+import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.consumer.MockConsumer;
 import org.apache.kafka.clients.consumer.OffsetAndMetadata;
 import org.apache.kafka.clients.consumer.OffsetResetStrategy;
+import org.apache.kafka.common.PartitionInfo;
 import org.apache.kafka.common.TopicPartition;
+import org.apache.kafka.common.record.TimestampType;
 import org.apache.kafka.common.serialization.IntegerDeserializer;
 import org.apache.kafka.common.serialization.LongDeserializer;
+import org.joda.time.Duration;
+import org.joda.time.Instant;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -46,25 +59,26 @@ import org.junit.runners.JUnit4;
 @RunWith(JUnit4.class)
 public class KafkaUnboundedReaderIdlePartitionTest {
 
+  private static final Instant LOG_APPEND_START_TIME = new Instant(100000);
+
   /**
    * Verifies that idle partitions (partitions with no offset changes) are not committed repeatedly,
    * reducing load on Kafka brokers.
    */
   @Test
   public void testIdlePartitionsNotCommittedRepeatedly() throws Exception {
+    int numElements = 50;
     int numPartitions = 10;
-    int numElements = 50; // Only first 5 partitions will have data (numElements / numPartitions)
-
     List<String> topics = ImmutableList.of("test_topic");
 
-    // Create a mock consumer factory that tracks commit calls
-    TrackingMockConsumerFactory consumerFactory =
-        new TrackingMockConsumerFactory(topics, numPartitions, numElements);
+    // Create a tracking consumer factory
+    TrackingConsumerFactory consumerFactory =
+        new TrackingConsumerFactory(topics, numPartitions, numElements);
 
     // Create a Kafka source with commit offsets enabled
     UnboundedSource<KafkaRecord<Integer, Long>, KafkaCheckpointMark> source =
         KafkaIO.<Integer, Long>read()
-            .withBootstrapServers("test")
+            .withBootstrapServers("test_server")
             .withTopics(topics)
             .withConsumerFactoryFn(consumerFactory)
             .withKeyDeserializer(IntegerDeserializer.class)
@@ -79,9 +93,9 @@ public class KafkaUnboundedReaderIdlePartitionTest {
     UnboundedReader<KafkaRecord<Integer, Long>> reader = source.createReader(null, null);
 
     // Read some elements
+    assertTrue("Reader should start", reader.start());
     for (int i = 0; i < 10; i++) {
-      assertTrue(
-          "Reader should have more elements", reader.advance() || (i == 0 && reader.start()));
+      assertTrue("Reader should have more elements", reader.advance());
     }
 
     // Get first checkpoint and finalize it
@@ -91,8 +105,7 @@ public class KafkaUnboundedReaderIdlePartitionTest {
     // Allow commit to happen (it's async)
     Thread.sleep(2000);
 
-    int initialCommitCount = consumerFactory.mainConsumer.commitCount;
-
+    int initialCommitCount = consumerFactory.commitCounter.get();
     assertTrue("Should have committed at least once", initialCommitCount > 0);
 
     // Create another checkpoint without reading more data (all partitions idle)
@@ -102,10 +115,9 @@ public class KafkaUnboundedReaderIdlePartitionTest {
     // Allow commit attempt to happen
     Thread.sleep(2000);
 
-    int secondCommitCount = consumerFactory.mainConsumer.commitCount;
+    int secondCommitCount = consumerFactory.commitCounter.get();
 
     // Verify that no new commits happened for idle partitions
-    // The commit count should be the same since all partitions are idle
     assertEquals(
         "Idle partitions should not trigger additional commits",
         initialCommitCount,
@@ -123,7 +135,7 @@ public class KafkaUnboundedReaderIdlePartitionTest {
     // Allow commit to happen
     Thread.sleep(2000);
 
-    int thirdCommitCount = consumerFactory.mainConsumer.commitCount;
+    int thirdCommitCount = consumerFactory.commitCounter.get();
 
     // Verify that commits happened for partitions with new data
     assertTrue("Active partitions should trigger commits", thirdCommitCount > secondCommitCount);
@@ -131,88 +143,131 @@ public class KafkaUnboundedReaderIdlePartitionTest {
     reader.close();
   }
 
-  /** Mock consumer factory that creates a tracking consumer for testing. */
-  private static class TrackingMockConsumerFactory
-      implements org.apache.beam.sdk.transforms.SerializableFunction<
-          Map<String, Object>, Consumer<byte[], byte[]>> {
+  /** Consumer factory that creates a mock consumer with commit tracking. */
+  private static class TrackingConsumerFactory
+      implements SerializableFunction<Map<String, Object>, Consumer<byte[], byte[]>> {
 
     private final List<String> topics;
-    private final int numPartitions;
+    private final int partitionsPerTopic;
     private final int numElements;
-    final TrackingMockConsumer mainConsumer;
+    final AtomicInteger commitCounter = new AtomicInteger(0);
 
-    TrackingMockConsumerFactory(List<String> topics, int numPartitions, int numElements) {
+    TrackingConsumerFactory(List<String> topics, int partitionsPerTopic, int numElements) {
       this.topics = topics;
-      this.numPartitions = numPartitions;
+      this.partitionsPerTopic = partitionsPerTopic;
       this.numElements = numElements;
-      this.mainConsumer = new TrackingMockConsumer(OffsetResetStrategy.EARLIEST);
-      initializeConsumer(mainConsumer);
     }
 
     @Override
     public Consumer<byte[], byte[]> apply(Map<String, Object> config) {
-      // Return the same consumer instance to track commits
-      return mainConsumer;
+      return createMockConsumer(
+          topics,
+          partitionsPerTopic,
+          numElements,
+          config,
+          i -> ByteBuffer.wrap(new byte[4]).putInt(i).array(),
+          i -> ByteBuffer.wrap(new byte[8]).putLong((long) i).array());
     }
 
-    private void initializeConsumer(MockConsumer<byte[], byte[]> consumer) {
-      List<TopicPartition> partitions = new ArrayList<>();
+    private MockConsumer<byte[], byte[]> createMockConsumer(
+        List<String> topics,
+        int partitionsPerTopic,
+        int numElements,
+        Map<String, Object> config,
+        SerializableFunction<Integer, byte[]> keyFunction,
+        SerializableFunction<Integer, byte[]> valueFunction) {
+
+      final List<TopicPartition> partitions = new ArrayList<>();
+      final Map<TopicPartition, List<ConsumerRecord<byte[], byte[]>>> records = new HashMap<>();
+      Map<String, List<PartitionInfo>> partitionMap = new HashMap<>();
+
       for (String topic : topics) {
-        for (int i = 0; i < numPartitions; i++) {
-          partitions.add(new TopicPartition(topic, i));
+        List<PartitionInfo> partIds = new ArrayList<>(partitionsPerTopic);
+        for (int i = 0; i < partitionsPerTopic; i++) {
+          TopicPartition tp = new TopicPartition(topic, i);
+          partitions.add(tp);
+          partIds.add(new PartitionInfo(topic, i, null, null, null));
+          records.put(tp, new ArrayList<>());
         }
+        partitionMap.put(topic, partIds);
       }
 
-      // Assign partitions
-      consumer.assign(partitions);
+      int numPartitions = partitions.size();
+      final long[] offsets = new long[numPartitions];
 
-      // Set beginning offsets
-      Map<TopicPartition, Long> beginningOffsets = new HashMap<>();
-      for (TopicPartition tp : partitions) {
-        beginningOffsets.put(tp, 0L);
-      }
-      consumer.updateBeginningOffsets(beginningOffsets);
-
-      // Set end offsets (distribute elements across partitions)
-      Map<TopicPartition, Long> endOffsets = new HashMap<>();
-      int elementsPerPartition = numElements / numPartitions;
-      for (TopicPartition tp : partitions) {
-        endOffsets.put(tp, (long) elementsPerPartition);
-      }
-      consumer.updateEndOffsets(endOffsets);
-
-      // Add test records
       for (int i = 0; i < numElements; i++) {
-        int partition = i % numPartitions;
-        TopicPartition tp = new TopicPartition(topics.get(0), partition);
-        consumer.addRecord(
-            new org.apache.kafka.clients.consumer.ConsumerRecord<>(
-                topics.get(0), partition, i / numPartitions, new byte[0], new byte[0]));
+        int pIdx = i % numPartitions;
+        TopicPartition tp = partitions.get(pIdx);
+
+        byte[] key = keyFunction.apply(i);
+        byte[] value = valueFunction.apply(i);
+
+        records
+            .get(tp)
+            .add(
+                new ConsumerRecord<>(
+                    tp.topic(),
+                    tp.partition(),
+                    offsets[pIdx]++,
+                    LOG_APPEND_START_TIME.getMillis() + Duration.standardSeconds(i).getMillis(),
+                    TimestampType.LOG_APPEND_TIME,
+                    0,
+                    key.length,
+                    value.length,
+                    key,
+                    value));
       }
-    }
-  }
 
-  /** Mock consumer that tracks commit calls. */
-  private static class TrackingMockConsumer extends MockConsumer<byte[], byte[]> {
-    int commitCount = 0;
-    final Map<TopicPartition, Long> committedOffsets = new HashMap<>();
+      final AtomicReference<List<TopicPartition>> assignedPartitions =
+          new AtomicReference<>(Collections.emptyList());
 
-    TrackingMockConsumer(OffsetResetStrategy offsetResetStrategy) {
-      super(offsetResetStrategy);
-    }
+      final MockConsumer<byte[], byte[]> consumer =
+          new MockConsumer<byte[], byte[]>(OffsetResetStrategy.EARLIEST) {
+            @Override
+            public synchronized void assign(final Collection<TopicPartition> assigned) {
+              super.assign(assigned);
+              assignedPartitions.set(ImmutableList.copyOf(assigned));
+            }
 
-    @Override
-    public synchronized void commitSync(Map<TopicPartition, OffsetAndMetadata> offsets) {
-      if (!offsets.isEmpty()) {
-        commitCount++;
-        offsets.forEach((tp, metadata) -> committedOffsets.put(tp, metadata.offset()));
-      }
-      super.commitSync(offsets);
-    }
+            @Override
+            public synchronized void commitSync(Map<TopicPartition, OffsetAndMetadata> offsets) {
+              if (!offsets.isEmpty()) {
+                commitCounter.incrementAndGet();
+              }
+              super.commitSync(offsets);
+            }
+          };
 
-    @Override
-    public synchronized void close(long timeout, TimeUnit unit) {
-      // Don't actually close for testing
+      partitionMap.forEach(consumer::updatePartitions);
+      consumer.updateBeginningOffsets(
+          records.entrySet().stream().collect(Collectors.toMap(Map.Entry::getKey, e -> 0L)));
+      consumer.updateEndOffsets(
+          records.entrySet().stream()
+              .collect(Collectors.toMap(Map.Entry::getKey, e -> (long) e.getValue().size())));
+
+      Runnable recordEnqueueTask =
+          new Runnable() {
+            @Override
+            public void run() {
+              int recordsAdded = 0;
+              for (TopicPartition tp : assignedPartitions.get()) {
+                long curPos = consumer.position(tp);
+                for (ConsumerRecord<byte[], byte[]> r : records.get(tp)) {
+                  if (r.offset() >= curPos) {
+                    consumer.addRecord(r);
+                    recordsAdded++;
+                  }
+                }
+              }
+              if (recordsAdded == 0) {
+                Uninterruptibles.sleepUninterruptibly(10, TimeUnit.MILLISECONDS);
+              }
+              consumer.schedulePollTask(this);
+            }
+          };
+
+      consumer.schedulePollTask(recordEnqueueTask);
+      return consumer;
     }
   }
 }
