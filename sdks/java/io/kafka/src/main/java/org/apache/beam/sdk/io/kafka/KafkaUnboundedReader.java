@@ -23,6 +23,7 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -78,6 +79,11 @@ import org.slf4j.LoggerFactory;
  * partitions. See {@link KafkaIO} for user visible documentation and example usage.
  */
 class KafkaUnboundedReader<K, V> extends UnboundedReader<KafkaRecord<K, V>> {
+
+  // Track last successfully committed offsets to suppress no-op commits for idle partitions.
+  private final Map<TopicPartition, Long> lastCommittedOffsets = new HashMap<>();
+  // Track last commit time per partition to ensure periodic commits for time lag monitoring.
+  private final Map<TopicPartition, Instant> lastCommitTimes = new HashMap<>();
 
   ///////////////////// Reader API ////////////////////////////////////////////////////////////
   @SuppressWarnings("FutureReturnValueIgnored")
@@ -375,6 +381,8 @@ class KafkaUnboundedReader<K, V> extends UnboundedReader<KafkaRecord<K, V>> {
   private static final Duration RECORDS_DEQUEUE_POLL_TIMEOUT_MAX = Duration.millis(20);
   private static final Duration RECORDS_ENQUEUE_POLL_TIMEOUT = Duration.millis(100);
   private static final Duration MIN_COMMIT_FAIL_LOG_INTERVAL = Duration.standardMinutes(10);
+  // Maximum time between commits for idle partitions (for time lag monitoring).
+  private static final Duration MAX_IDLE_COMMIT_INTERVAL = Duration.standardMinutes(10);
 
   // Use a separate thread to read Kafka messages. Kafka Consumer does all its work including
   // network I/O inside poll(). Polling only inside #advance(), especially with a small timeout
@@ -611,37 +619,88 @@ class KafkaUnboundedReader<K, V> extends UnboundedReader<KafkaRecord<K, V>> {
 
   private void commitCheckpointMark() {
     KafkaCheckpointMark checkpointMark = finalizedCheckpointMark.getAndSet(null);
-    if (checkpointMark != null) {
-      LOG.debug("{}: Committing finalized checkpoint {}", this, checkpointMark);
-      Consumer<byte[], byte[]> consumer = Preconditions.checkStateNotNull(this.consumer);
-      Instant now = Instant.now();
+    if (checkpointMark == null) {
+      return;
+    }
 
-      try {
-        consumer.commitSync(
-            checkpointMark.getPartitions().stream()
-                .filter(p -> p.getNextOffset() != UNINITIALIZED_OFFSET)
-                .collect(
-                    Collectors.toMap(
-                        p -> new TopicPartition(p.getTopic(), p.getPartition()),
-                        p -> new OffsetAndMetadata(p.getNextOffset()))));
+    LOG.debug("{}: Committing finalized checkpoint {}", this, checkpointMark);
+    Consumer<byte[], byte[]> consumer = Preconditions.checkStateNotNull(this.consumer);
+    Instant now = Instant.now();
+
+    try {
+      // Commit only partitions whose offsets have advanced since the last successful commit
+      // for this reader, or partitions that haven't been committed within MAX_IDLE_COMMIT_INTERVAL.
+      // This suppresses no-op commits for idle partitions while ensuring periodic commits
+      // for time lag monitoring.
+      Map<TopicPartition, OffsetAndMetadata> toCommit =
+          checkpointMark.getPartitions().stream()
+              .filter(p -> p.getNextOffset() != UNINITIALIZED_OFFSET)
+              .filter(
+                  p -> {
+                    TopicPartition tp = new TopicPartition(p.getTopic(), p.getPartition());
+                    Long prev = lastCommittedOffsets.get(tp);
+                    long next = p.getNextOffset();
+                    Instant lastCommitTime = lastCommitTimes.get(tp);
+
+                    // Commit if offset has advanced
+                    if (prev == null || next > prev) {
+                      return true;
+                    }
+
+                    // Also commit if partition hasn't been committed within max idle interval
+                    if (lastCommitTime == null
+                        || now.isAfter(lastCommitTime.plus(MAX_IDLE_COMMIT_INTERVAL))) {
+                      return true;
+                    }
+
+                    return false;
+                  })
+              .collect(
+                  Collectors.toMap(
+                      p -> new TopicPartition(p.getTopic(), p.getPartition()),
+                      p -> new OffsetAndMetadata(p.getNextOffset())));
+
+      int totalPartitions = checkpointMark.getPartitions().size();
+      int idlePartitions = totalPartitions - toCommit.size();
+      if (idlePartitions > 0) {
+        LOG.debug(
+            "{}: Skipping commit for {} idle partitions ({} of {} partitions active)",
+            this,
+            idlePartitions,
+            toCommit.size(),
+            totalPartitions);
+      }
+
+      if (toCommit.isEmpty()) {
+        // Nothing advanced since last successful commit; avoid noisy commitSync().
+        return;
+      }
+
+      consumer.commitSync(toCommit);
+
+      // Only update after a successful commit.
+      for (Map.Entry<TopicPartition, OffsetAndMetadata> e : toCommit.entrySet()) {
+        lastCommittedOffsets.put(e.getKey(), e.getValue().offset());
+        lastCommitTimes.put(e.getKey(), now);
+      }
+
+      nextAllowedCommitFailLogTime = now.plus(MIN_COMMIT_FAIL_LOG_INTERVAL);
+    } catch (Exception e) {
+      // Log but ignore the exception. Committing consumer offsets to Kafka is not critical for
+      // KafkaIO because it relies on the offsets stored in KafkaCheckpointMark.
+      if (now.isAfter(nextAllowedCommitFailLogTime)) {
+        LOG.warn(
+            String.format(
+                "%s: Did not successfully commit finalized checkpoint for > %s. Current checkpoint: %s",
+                this, MIN_COMMIT_FAIL_LOG_INTERVAL, checkpointMark),
+            e);
         nextAllowedCommitFailLogTime = now.plus(MIN_COMMIT_FAIL_LOG_INTERVAL);
-      } catch (Exception e) {
-        // Log but ignore the exception. Committing consumer offsets to Kafka is not critical for
-        // KafkaIO because it relies on the offsets stored in KafkaCheckpointMark.
-        if (now.isAfter(nextAllowedCommitFailLogTime)) {
-          LOG.warn(
-              String.format(
-                  "%s: Did not successfully commit finalized checkpoint for > %s. Current checkpoint: %s",
-                  this, MIN_COMMIT_FAIL_LOG_INTERVAL, checkpointMark),
-              e);
-          nextAllowedCommitFailLogTime = now.plus(MIN_COMMIT_FAIL_LOG_INTERVAL);
-        } else {
-          LOG.info(
-              String.format(
-                  "%s: Could not commit finalized checkpoint. Commit will be retried with subsequent reads. Current checkpoint: %s",
-                  this, checkpointMark),
-              e);
-        }
+      } else {
+        LOG.info(
+            String.format(
+                "%s: Could not commit finalized checkpoint. Commit will be retried with subsequent reads. Current checkpoint: %s",
+                this, checkpointMark),
+            e);
       }
     }
   }
