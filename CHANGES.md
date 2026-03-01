@@ -68,6 +68,7 @@
 
 ## New Features / Improvements
 
+* Added native Python GenerateSequence transform for generating bounded sequences of integers (Python) ([#18088](https://github.com/apache/beam/issues/18088)).
 * Added support for large pipeline options via a file (Python) ([#37370](https://github.com/apache/beam/issues/37370)).
 
 ## Breaking Changes
