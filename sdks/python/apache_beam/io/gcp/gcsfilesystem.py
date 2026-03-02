@@ -379,7 +379,8 @@ class GCSFileSystem(FileSystem):
 
   def report_lineage(self, path, lineage):
     try:
-      components = gcsio.parse_gcs_path(path, object_optional=True)
+      from apache_beam.io.gcp import gcsio as _gcsio
+      components = _gcsio.parse_gcs_path(path, object_optional=True)
     except (ValueError, AttributeError):
       # report lineage is fail-safe
       traceback.print_exc()
