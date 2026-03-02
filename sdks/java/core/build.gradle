@@ -117,7 +117,7 @@ dependencies {
   shadowTest library.java.everit_json_schema
   provided library.java.junit
   provided library.java.hamcrest
-  provided 'io.airlift:aircompressor:0.18'
+  provided library.java.aircompressor
   provided 'com.facebook.presto.hadoop:hadoop-apache2:3.2.0-1'
   provided library.java.zstd_jni
   permitUnusedDeclared 'com.facebook.presto.hadoop:hadoop-apache2:3.2.0-1'
