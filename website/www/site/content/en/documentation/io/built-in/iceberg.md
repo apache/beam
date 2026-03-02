@@ -63,8 +63,8 @@ Additional resources:
 
 ### Catalogs
 
-A catalog is a top-level entity used to manage and access Iceberg tables. There are numerous catalog implementations out there.
-In this guide, we'll be using the REST-based BigLake catalog implemented by Google.
+A catalog is a top-level entity used to manage and access Iceberg tables. There are many catalog implementations out there;
+this guide focuses on the Hadoop catalog for easy local testing and BigLake REST catalog for cloud-scale development.
 
 ### Namespaces
 
@@ -77,7 +77,8 @@ The actual entity containing data, and is described by a schema and partition sp
 ### Snapshots
 
 A new snapshot is created whenever a change is made to an Iceberg table. Each snapshot provides a summary of the change
-and references its parent snapshot. An Iceberg table's history is essentially a list of snapshots.
+and references its parent snapshot. An Iceberg table's history is a chronological list of snapshots, enabling features
+like time travel and ACID-compliant concurrent writes.
 
 ## Quickstart Guide
 
@@ -95,7 +96,7 @@ Beam supports a wide variety of Iceberg catalogs, but this guide focuses on two 
 
   <br/>
   {{< highlight sql >}}
-    CREATE CATALOG quickstart_local TYPE 'iceberg'
+    CREATE CATALOG my_catalog TYPE 'iceberg'
     PROPERTIES (
       'type' = 'hadoop',
       'warehouse' = 'file://tmp/beam-iceberg-local-quickstart',
@@ -119,7 +120,7 @@ built-in credential delegation and unified metadata management. It requires a fe
 
 {{% /section %}}
   {{< highlight sql>}}
-  CREATE CATALOG quickstart_catalog TYPE 'iceberg'
+  CREATE CATALOG my_catalog TYPE 'iceberg'
   PROPERTIES (
     'type' = 'rest',
     'uri' = 'https://biglake.googleapis.com/iceberg/v1/restcatalog',
@@ -144,7 +145,7 @@ built-in credential delegation and unified metadata management. It requires a fe
     header.x-goog-user-project: "$PROJECT_ID"
     rest.auth.type: "google"
     io-impl: "org.apache.iceberg.gcp.gcs.GCSFileIO"
-    header.X-Iceberg-Access-Delegation = "vended-credentials"
+    header.X-Iceberg-Access-Delegation: "vended-credentials"
   {{< /highlight >}}
 {{< /tab >}}
 
@@ -152,16 +153,18 @@ built-in credential delegation and unified metadata management. It requires a fe
 
 You can use Beam SQL to create a new namespace through an explicit DDL statement:
 ```sql
-CREATE DATABASE quickstart_local.my_db;
+CREATE DATABASE my_catalog.my_db;
 ```
 
-Or you can leave it up to the IcebergIO sink, which will automatically create missing namespaces at runtime. This is
-particularly useful when writing to dynamic destinations, where namespace names are determined by input data.
+Alternatively, the IcebergIO sink can handle namespace creation automatically at runtime.
+This is ideal for dynamic pipelines where destinations are determined by the incoming data
 
 ### Create a Table
+Tables are defined by a schema and an optional partition spec.
+You can create a table using SQL DDL or by configuring the Iceberg destination in your Beam pipeline.
 
 {{< highlight sql>}}
-CREATE EXTERNAL TABLE quickstart_local.my_db.my_table (
+CREATE EXTERNAL TABLE my_catalog.my_db.my_table (
     id BIGINT,
     name VARCHAR,
     age INTEGER
@@ -176,20 +179,22 @@ TYPE 'iceberg'
 {{< /highlight >}}
 {{< highlight yaml >}}
 - type: WriteToIceberg
-  input: Create
   config:
-  table: "my_db.my_table"
-  catalog_properties: *catalog_props
+    table: "my_db.my_table"
+    catalog_properties: *catalog_props
+
+# Note: The table will get created when inserting data (see below)
 {{< /highlight >}}
 
 ### Insert Data
+Once your table is defined, you can write data using standard SQL `INSERT` or by calling the IcebergIO sink in your SDK of choice.
+
 
 {{< highlight sql>}}
-INSERT INTO quickstart_local.my_db.my_table VALUES
+INSERT INTO my_catalog.my_db.my_table VALUES
     (1, 'Mark', 32),
     (2, 'Omar', 24),
-    (3, 'Rachel', 27)
-);
+    (3, 'Rachel', 27);
 {{< /highlight >}}
 {{< highlight java>}}
 {{< code_sample "examples/java/src/main/java/org/apache/beam/examples/snippets/transforms/io/iceberg/Quickstart.java" managed_iceberg_insert >}}
@@ -199,6 +204,7 @@ INSERT INTO quickstart_local.my_db.my_table VALUES
 {{< /highlight >}}
 {{< highlight yaml >}}
 pipeline:
+  type: chain
   transforms:
     - type: Create
       config:
@@ -213,7 +219,6 @@ pipeline:
             name: "Rachel"
             age: 27
     - type: WriteToIceberg
-      input: Create
       config:
         table: "my_db.my_table"
         catalog_properties: *catalog_props
@@ -223,16 +228,16 @@ pipeline:
 
 You can use Beam SQL to view the newly created resources:
 ```sql
-SHOW DATABASES quickstart_catalog;
+SHOW DATABASES my_catalog;
 ```
 ```sql
-SHOW TABLES quickstart_catalog.my_db;
+SHOW TABLES my_catalog.my_db;
 ```
 
 ### Query Data
 
 {{< highlight sql>}}
-SELECT * FROM quickstart_local.my_db.my_table;
+SELECT * FROM my_catalog.my_db.my_table;
 {{< /highlight >}}
 {{< highlight java>}}
 {{< code_sample "examples/java/src/main/java/org/apache/beam/examples/snippets/transforms/io/iceberg/Quickstart.java" managed_iceberg_read >}}
@@ -242,13 +247,13 @@ SELECT * FROM quickstart_local.my_db.my_table;
 {{< /highlight >}}
 {{< highlight yaml >}}
 pipeline:
+  type: chain
   transforms:
     - type: ReadFromIceberg
       config:
         table: "my_db.my_table"
         catalog_properties: *catalog_props
     - type: LogForTesting
-      input: ReadFromIceberg
 {{< /highlight >}}
 
 
@@ -319,3 +324,8 @@ pipeline:
               items:
                 type: integer
 {{< /highlight >}}
+
+## Further steps
+
+Check out the full [IcebergIO configuration](https://beam.apache.org/documentation/io/managed-io/#iceberg-write) to make
+use of other features like applying a partition spec, table properties, row filtering, column pruning, etc.
