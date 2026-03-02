@@ -56,7 +56,8 @@ class GCSFileSystem(FileSystem):
   @property
   def CHUNK_SIZE(self):
     """Chunk size in batch operations."""
-    return self._gcsIO().MAX_BATCH_OPERATION_SIZE
+    from apache_beam.io.gcp import gcsio
+    return gcsio.MAX_BATCH_OPERATION_SIZE
 
   @classmethod
   def scheme(cls):
