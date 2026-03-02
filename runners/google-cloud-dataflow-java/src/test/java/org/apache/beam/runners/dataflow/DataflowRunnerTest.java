@@ -207,7 +207,8 @@ import org.mockito.Mockito;
  * <p>Implements {@link Serializable} because it is caught in closures.
  */
 @RunWith(JUnit4.class)
-// TODO(https://github.com/apache/beam/issues/21230): Remove when new version of errorprone is
+// TODO(https://github.com/apache/beam/issues/21230): Remove when new version of
+// errorprone is
 // released (2.11.0)
 @SuppressWarnings("unused")
 public class DataflowRunnerTest implements Serializable {
@@ -372,7 +373,8 @@ public class DataflowRunnerTest implements Serializable {
     options.setProject(PROJECT_ID);
     options.setTempLocation(VALID_TEMP_BUCKET);
     options.setRegion(REGION_ID);
-    // Set FILES_PROPERTY to empty to prevent a default value calculated from classpath.
+    // Set FILES_PROPERTY to empty to prevent a default value calculated from
+    // classpath.
     options.setFilesToStage(new ArrayList<>());
     options.setDataflowClient(buildMockDataflow(mockJobs));
     options.setGcsUtil(mockGcsUtil);
@@ -462,7 +464,8 @@ public class DataflowRunnerTest implements Serializable {
   public void testSettingOfSdkPipelineOptions() throws IOException {
     DataflowPipelineOptions options = buildPipelineOptions();
 
-    // These options are important only for this test, and need not be global to the test class
+    // These options are important only for this test, and need not be global to the
+    // test class
     options.setAppName(DataflowRunnerTest.class.getSimpleName());
     options.setJobName("some-job-name");
 
@@ -1153,7 +1156,8 @@ public class DataflowRunnerTest implements Serializable {
   public void testNoProjectFails() throws IOException {
     DataflowPipelineOptions options = buildPipelineOptions();
 
-    // Explicitly set to null to prevent the default instance factory from reading credentials
+    // Explicitly set to null to prevent the default instance factory from reading
+    // credentials
     // from a user's environment, causing this test to fail.
     options.setProject(null);
 
@@ -1577,8 +1581,10 @@ public class DataflowRunnerTest implements Serializable {
     streamingOptions.setRunner(DataflowRunner.class);
     Pipeline p = Pipeline.create(streamingOptions);
 
-    // Instantiation of a runner prior to run() currently has a side effect of mutating the options.
-    // This could be tested by DataflowRunner.fromOptions(streamingOptions) but would not ensure
+    // Instantiation of a runner prior to run() currently has a side effect of
+    // mutating the options.
+    // This could be tested by DataflowRunner.fromOptions(streamingOptions) but
+    // would not ensure
     // that the pipeline itself had the expected options set.
     p.run();
 
@@ -1866,7 +1872,8 @@ public class DataflowRunnerTest implements Serializable {
     CompositeTransformRecorder recorder = new CompositeTransformRecorder();
     p.traverseTopologically(recorder);
 
-    // The recorder will also have seen a Create.Values composite as well, but we can't obtain that
+    // The recorder will also have seen a Create.Values composite as well, but we
+    // can't obtain that
     // transform.
     assertThat(
         "Expected to have seen CreateTimestamped composite transform.",
@@ -2314,6 +2321,16 @@ public class DataflowRunnerTest implements Serializable {
   }
 
   @Test
+  public void testBatchGroupIntoBatchesWithShardedKeyOverrideCountV2() throws IOException {
+    PipelineOptions options = buildPipelineOptions();
+    options
+        .as(DataflowPipelineOptions.class)
+        .setExperiments(Arrays.asList("use_runner_v2", "use_unified_worker"));
+    Pipeline p = Pipeline.create(options);
+    verifyGroupIntoBatchesOverrideCount(p, true, true);
+  }
+
+  @Test
   public void testBatchGroupIntoBatchesWithShardedKeyOverrideBytes() throws IOException {
     PipelineOptions options = buildPipelineOptions();
     Pipeline p = Pipeline.create(options);
@@ -2533,7 +2550,8 @@ public class DataflowRunnerTest implements Serializable {
     PCollection<KV<String, Integer>> output = input.apply(Redistribute.byKey());
     pipeline.run();
 
-    // The DataflowRedistributeByKey transform translated from Redistribute should have
+    // The DataflowRedistributeByKey transform translated from Redistribute should
+    // have
     // allowDuplicates set to true.
     AtomicBoolean redistributeAllowDuplicates = new AtomicBoolean(false);
     pipeline.traverseTopologically(
