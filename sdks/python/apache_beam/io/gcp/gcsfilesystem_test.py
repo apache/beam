@@ -48,6 +48,14 @@ class GCSFileSystemTest(unittest.TestCase):
     self.assertEqual(self.fs.scheme(), 'gs')
     self.assertEqual(gcsfilesystem.GCSFileSystem.scheme(), 'gs')
 
+  @mock.patch('apache_beam.io.gcp.gcsfilesystem.gcsio', None)
+  def test_get_filesystem_does_not_require_gcp_extra(self):
+    # Verifies that GCSFileSystem can be looked up without GCP deps installed.
+    # GCP dependency errors should only be raised at usage time, not lookup.
+    from apache_beam.io.filesystems import FileSystems
+    fs = FileSystems.get_filesystem('gs://test-bucket/path')
+    self.assertEqual(fs.scheme(), 'gs')
+
   def test_join(self):
     self.assertEqual(
         'gs://bucket/path/to/file',

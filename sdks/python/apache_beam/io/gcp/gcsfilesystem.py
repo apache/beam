@@ -34,7 +34,11 @@ from apache_beam.io.filesystem import CompressedFile
 from apache_beam.io.filesystem import CompressionTypes
 from apache_beam.io.filesystem import FileMetadata
 from apache_beam.io.filesystem import FileSystem
-from apache_beam.io.gcp import gcsio
+
+try:
+  from apache_beam.io.gcp import gcsio
+except ImportError:
+  gcsio = None  # type: ignore[assignment]
 
 __all__ = ['GCSFileSystem']
 
@@ -43,12 +47,16 @@ class GCSFileSystem(FileSystem):
   """A GCS ``FileSystem`` implementation for accessing files on GCS.
   """
 
-  CHUNK_SIZE = gcsio.MAX_BATCH_OPERATION_SIZE  # Chuck size in batch operations
   GCS_PREFIX = 'gs://'
 
   def __init__(self, pipeline_options):
     super().__init__(pipeline_options)
     self._pipeline_options = pipeline_options
+
+  @property
+  def CHUNK_SIZE(self):
+    """Chunk size in batch operations."""
+    return self._gcsIO().MAX_BATCH_OPERATION_SIZE
 
   @classmethod
   def scheme(cls):
@@ -371,7 +379,7 @@ class GCSFileSystem(FileSystem):
   def report_lineage(self, path, lineage):
     try:
       components = gcsio.parse_gcs_path(path, object_optional=True)
-    except ValueError:
+    except (ValueError, AttributeError):
       # report lineage is fail-safe
       traceback.print_exc()
       return
