@@ -66,6 +66,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
+import java.util.function.Function;
 import java.util.function.Supplier;
 import org.apache.beam.fn.harness.BeamFnDataReadRunner;
 import org.apache.beam.fn.harness.Cache;
@@ -150,6 +151,8 @@ import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.vendor.grpc.v1p69p0.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.stub.StreamObserver;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.cache.LoadingCache;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Maps;
@@ -2067,5 +2070,158 @@ public class ProcessBundleHandlerTest {
 
   private static void throwException() {
     throw new IllegalStateException("TestException");
+  }
+
+  @Test
+  public void testTopologicalOrderRespectsDependency() throws Exception {
+    // Build a descriptor A -> B -> C
+    ProcessBundleDescriptor processBundleDescriptor =
+        ProcessBundleDescriptor.newBuilder()
+            .putTransforms(
+                "A",
+                PTransform.newBuilder()
+                    .setSpec(FunctionSpec.newBuilder().setUrn(DATA_INPUT_URN).build())
+                    .putOutputs("A-out", "A-out-pc")
+                    .build())
+            .putTransforms(
+                "B",
+                PTransform.newBuilder()
+                    .setSpec(FunctionSpec.newBuilder().setUrn(DATA_OUTPUT_URN).build())
+                    .putInputs("B-in", "A-out-pc")
+                    .putOutputs("B-out", "B-out-pc")
+                    .build())
+            .putTransforms(
+                "C",
+                PTransform.newBuilder()
+                    .setSpec(FunctionSpec.newBuilder().setUrn(DATA_OUTPUT_URN).build())
+                    .putInputs("C-in", "B-out-pc")
+                    .build())
+            .putPcollections("A-out-pc", PCollection.getDefaultInstance())
+            .putPcollections("B-out-pc", PCollection.getDefaultInstance())
+            .build();
+
+    Map<String, ProcessBundleDescriptor> registry =
+        ImmutableMap.of("chain", processBundleDescriptor);
+    final AtomicInteger calls = new AtomicInteger(0);
+    Function<String, ProcessBundleDescriptor> fnApiRegistry =
+        id -> {
+          calls.incrementAndGet();
+          return registry.get(id);
+        };
+
+    ProcessBundleHandler handler =
+        new ProcessBundleHandler(
+            PipelineOptionsFactory.create(),
+            Collections.emptySet(),
+            fnApiRegistry::apply,
+            beamFnDataClient,
+            null,
+            null,
+            new ShortIdMap(),
+            executionStateSampler,
+            ImmutableMap.of(DATA_INPUT_URN, (context) -> {}, DATA_OUTPUT_URN, (context) -> {}),
+            Caches.noop(),
+            new BundleProcessorCache(Duration.ZERO),
+            null);
+
+    // Access the private topologicalOrderCache and verify ordering
+    java.lang.reflect.Field f =
+        ProcessBundleHandler.class.getDeclaredField("topologicalOrderCache");
+    f.setAccessible(true);
+    @SuppressWarnings("unchecked")
+    LoadingCache<String, ?> cache = (LoadingCache<String, ?>) f.get(handler);
+
+    // Cache holds a TopologyCacheEntry; extract its 'order' field reflectively.
+    Object entry = cache.get("chain");
+    java.lang.reflect.Field orderField = entry.getClass().getDeclaredField("order");
+    orderField.setAccessible(true);
+    @SuppressWarnings("unchecked")
+    ImmutableList<String> topo = (ImmutableList<String>) orderField.get(entry);
+
+    // Cover all transforms
+    assertEquals(processBundleDescriptor.getTransformsMap().size(), topo.size());
+    // Ensure producer -> consumer ordering: A before B before C
+    assertTrue(topo.indexOf("A") >= 0);
+    assertTrue(topo.indexOf("B") >= 0);
+    assertTrue(topo.indexOf("C") >= 0);
+    assertTrue(topo.indexOf("A") < topo.indexOf("B"));
+    assertTrue(topo.indexOf("B") < topo.indexOf("C"));
+    // Loader should have invoked fnApiRegistry exactly once.
+    assertEquals(1, calls.get());
+  }
+
+  @Test
+  public void testProcessBundleCreatesRunnersForAllTransformsUsingTopologicalCache()
+      throws Exception {
+    // Build a descriptor A -> B -> C
+    ProcessBundleDescriptor processBundleDescriptor =
+        ProcessBundleDescriptor.newBuilder()
+            .putTransforms(
+                "A",
+                PTransform.newBuilder()
+                    .setSpec(FunctionSpec.newBuilder().setUrn(DATA_INPUT_URN).build())
+                    .putOutputs("A-out", "A-out-pc")
+                    .build())
+            .putTransforms(
+                "B",
+                PTransform.newBuilder()
+                    .setSpec(FunctionSpec.newBuilder().setUrn(DATA_OUTPUT_URN).build())
+                    .putInputs("B-in", "A-out-pc")
+                    .putOutputs("B-out", "B-out-pc")
+                    .build())
+            .putTransforms(
+                "C",
+                PTransform.newBuilder()
+                    .setSpec(FunctionSpec.newBuilder().setUrn(DATA_OUTPUT_URN).build())
+                    .putInputs("C-in", "B-out-pc")
+                    .build())
+            .putPcollections("A-out-pc", PCollection.getDefaultInstance())
+            .putPcollections("B-out-pc", PCollection.getDefaultInstance())
+            .build();
+
+    Map<String, ProcessBundleDescriptor> registry =
+        ImmutableMap.of("chain", processBundleDescriptor);
+    final AtomicInteger calls = new AtomicInteger(0);
+    Function<String, ProcessBundleDescriptor> fnApiRegistry =
+        id -> {
+          calls.incrementAndGet();
+          return registry.get(id);
+        };
+
+    // Record which transforms had runners created.
+    final List<String> transformsProcessed = new ArrayList<>();
+    PTransformRunnerFactory recorderFactory =
+        (context) -> transformsProcessed.add(context.getPTransformId());
+
+    ProcessBundleHandler handler =
+        new ProcessBundleHandler(
+            PipelineOptionsFactory.create(),
+            Collections.emptySet(),
+            fnApiRegistry::apply,
+            beamFnDataClient,
+            null,
+            null,
+            new ShortIdMap(),
+            executionStateSampler,
+            ImmutableMap.of(DATA_INPUT_URN, recorderFactory, DATA_OUTPUT_URN, recorderFactory),
+            Caches.noop(),
+            new BundleProcessorCache(Duration.ZERO),
+            null);
+
+    // processBundle should cause creation of runners for all transforms
+    handler.processBundle(
+        InstructionRequest.newBuilder()
+            .setInstructionId("instr-chain")
+            .setProcessBundle(
+                ProcessBundleRequest.newBuilder().setProcessBundleDescriptorId("chain"))
+            .build());
+
+    // All transforms should have had their runner factory invoked.
+    assertEquals(processBundleDescriptor.getTransformsMap().size(), transformsProcessed.size());
+    assertTrue(transformsProcessed.contains("A"));
+    assertTrue(transformsProcessed.contains("B"));
+    assertTrue(transformsProcessed.contains("C"));
+    // fnApiRegistry should have been consulted exactly once for the descriptor during cache load.
+    assertEquals(1, calls.get());
   }
 }
