@@ -79,6 +79,7 @@ import org.mockito.Mockito;
 /** Tests for {@link SimpleParDoFn}. */
 @RunWith(JUnit4.class)
 public class SimpleParDoFnTest {
+
   @Rule public ExpectedException thrown = ExpectedException.none();
 
   private PipelineOptions options;
@@ -102,6 +103,7 @@ public class SimpleParDoFnTest {
 
   // TODO: Replace TestDoFn usages with a mock DoFn to reduce boilerplate.
   static class TestDoFn extends DoFn<Integer, String> {
+
     enum State {
       UNSTARTED,
       SET_UP,
@@ -163,6 +165,7 @@ public class SimpleParDoFnTest {
   }
 
   static class TestErrorDoFn extends DoFn<Integer, String> {
+
     // Used to test nested stack traces.
     private void nestedFunctionBeta(String s) {
       throw new RuntimeException(s);
@@ -189,6 +192,7 @@ public class SimpleParDoFnTest {
   }
 
   static class TestReceiver implements Receiver {
+
     List<Object> receivedElems = new ArrayList<>();
 
     @Override
@@ -570,10 +574,10 @@ public class SimpleParDoFnTest {
    * @param inputData Input elements to process. For each element X, the DoFn will output a string
    *     repeated X times.
    * @return Delta counter updates extracted after execution.
-   * @throws Exception
    */
   private List<CounterUpdate> executeParDoFnCounterTest(int... inputData) throws Exception {
     class RepeaterDoFn extends DoFn<Integer, String> {
+
       /** Takes as input the number of times to output a message. */
       @ProcessElement
       public void processElement(ProcessContext c) {
@@ -623,6 +627,7 @@ public class SimpleParDoFnTest {
    * conversion according to the {@link PCollectionView} and projection to a particular window.
    */
   private static class EmptySideInputReader implements SideInputReader {
+
     private EmptySideInputReader() {}
 
     @Override
@@ -643,7 +648,9 @@ public class SimpleParDoFnTest {
 
   @Test
   public void testBundleFinalizer() throws Exception {
-    bundleSuccessCount.set(0);
+    startBundleCount.set(0);
+    processElementCount.set(0);
+    finishBundleCount.set(0);
     DoFnInfo<Long, String> fnInfo =
         DoFnInfo.forFn(
             new WithBundleFinalizerDoFn(),
@@ -676,18 +683,6 @@ public class SimpleParDoFnTest {
         Mockito.mock(
             DataflowStepContext.class,
             invocation -> {
-              if (invocation.getMethod().getName().equals("bundleFinalizer")) {
-                return new BundleFinalizer() {
-                  @Override
-                  public void afterBundleCommit(Instant expiry, Callback callback) {
-                    try {
-                      callback.onBundleSuccess();
-                    } catch (Exception e) {
-                      throw new RuntimeException(e);
-                    }
-                  }
-                };
-              }
               if (invocation.getMethod().getName().equals("namespacedToUser")) {
                 return userStepContext;
               }
@@ -716,41 +711,36 @@ public class SimpleParDoFnTest {
 
     parDoFn.finishBundle();
 
-    // The counter increases by 1 in StartBundle, 5 in ProcessElement, and 1 in FinishBundle.
-    // Total should be 7.
-    assertThat(getBundleSuccessCount(), equalTo(7));
+    assertThat(startBundleCount.get(), equalTo(1));
+    assertThat(processElementCount.get(), equalTo(5));
+    assertThat(finishBundleCount.get(), equalTo(1));
   }
 
-  private static final AtomicInteger bundleSuccessCount = new AtomicInteger(0);
-
-  static void increaseBundleSuccessCount() {
-    bundleSuccessCount.incrementAndGet();
-  }
-
-  static int getBundleSuccessCount() {
-    return bundleSuccessCount.get();
-  }
+  private static final AtomicInteger startBundleCount = new AtomicInteger(0);
+  private static final AtomicInteger processElementCount = new AtomicInteger(0);
+  private static final AtomicInteger finishBundleCount = new AtomicInteger(0);
 
   static class WithBundleFinalizerDoFn extends DoFn<Long, String> {
+
     @StartBundle
     public void startBundle(StartBundleContext context, BundleFinalizer bundleFinalizer) {
       bundleFinalizer.afterBundleCommit(
           Instant.now().plus(Duration.standardMinutes(5)),
-          SimpleParDoFnTest::increaseBundleSuccessCount);
+          () -> SimpleParDoFnTest.startBundleCount.incrementAndGet());
     }
 
     @ProcessElement
     public void processElement(ProcessContext c, BundleFinalizer bundleFinalizer) {
       bundleFinalizer.afterBundleCommit(
           Instant.now().plus(Duration.standardMinutes(5)),
-          SimpleParDoFnTest::increaseBundleSuccessCount);
+          () -> SimpleParDoFnTest.processElementCount.incrementAndGet());
     }
 
     @FinishBundle
     public void finishBundle(FinishBundleContext context, BundleFinalizer bundleFinalizer) {
       bundleFinalizer.afterBundleCommit(
           Instant.now().plus(Duration.standardMinutes(5)),
-          SimpleParDoFnTest::increaseBundleSuccessCount);
+          () -> SimpleParDoFnTest.finishBundleCount.incrementAndGet());
     }
   }
 }

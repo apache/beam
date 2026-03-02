@@ -170,8 +170,7 @@ final class StreamingCommitFinalizer {
     }
   }
 
-  // Only exposed for tests.
-  public int cleanupQueueSize() {
+  int cleanupQueueSize() {
     lock.lock();
     try {
       return cleanUpQueue.size();
