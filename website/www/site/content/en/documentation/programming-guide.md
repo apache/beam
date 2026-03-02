@@ -4163,14 +4163,17 @@ as schema fields may have different requirements or restrictions from Go exporte
 {{< /paragraph >}}
 
 ### 6.6. Using Schema Transforms {#using-schemas}
-
 A schema on a `PCollection` enables a rich variety of relational transforms. The fact that each record is composed of
 named fields allows for simple and readable aggregations that reference fields by name, similar to the aggregations in
 a SQL expression.
 
+
 {{< paragraph class="language-go">}}
-Beam does not yet support Schema transforms natively in Go. However, it will be implemented with the following behavior.
+Support for Schema Transforms hasn't been developed for the Go SDK yet.
 {{< /paragraph >}}
+
+
+
 
 #### 6.6.1. Field selection syntax
 
