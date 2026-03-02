@@ -438,7 +438,15 @@ public class OutputAndTimeBoundedSplittableProcessElementInvoker<
     @Override
     public <T> void outputWithTimestamp(TupleTag<T> tag, T value, Instant timestamp) {
       outputReceiver.output(
-          tag, WindowedValues.of(value, timestamp, element.getWindows(), element.getPaneInfo()));
+          tag,
+          WindowedValues.of(
+              value,
+              timestamp,
+              element.getWindows(),
+              element.getPaneInfo(),
+              element.getRecordId(),
+              element.getRecordOffset(),
+              element.causedByDrain()));
     }
 
     @Override
@@ -452,7 +460,16 @@ public class OutputAndTimeBoundedSplittableProcessElementInvoker<
       if (watermarkEstimator instanceof TimestampObservingWatermarkEstimator) {
         ((TimestampObservingWatermarkEstimator) watermarkEstimator).observeTimestamp(timestamp);
       }
-      outputReceiver.output(tag, WindowedValues.of(value, timestamp, windows, paneInfo));
+      outputReceiver.output(
+          tag,
+          WindowedValues.of(
+              value,
+              timestamp,
+              windows,
+              paneInfo,
+              element.getRecordId(),
+              element.getRecordOffset(),
+              element.causedByDrain()));
     }
 
     private void noteOutput() {

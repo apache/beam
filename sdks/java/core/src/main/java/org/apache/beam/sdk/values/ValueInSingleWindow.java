@@ -66,6 +66,8 @@ public abstract class ValueInSingleWindow<T> {
 
   public abstract @Nullable Long getCurrentRecordOffset();
 
+  public abstract CausedByDrain getCausedByDrain();
+
   // todo #33176 specify additional metadata in the future
   public static <T> ValueInSingleWindow<T> of(
       T value,
@@ -73,14 +75,15 @@ public abstract class ValueInSingleWindow<T> {
       BoundedWindow window,
       PaneInfo paneInfo,
       @Nullable String currentRecordId,
-      @Nullable Long currentRecordOffset) {
+      @Nullable Long currentRecordOffset,
+      CausedByDrain causedByDrain) {
     return new AutoValue_ValueInSingleWindow<>(
-        value, timestamp, window, paneInfo, currentRecordId, currentRecordOffset);
+        value, timestamp, window, paneInfo, currentRecordId, currentRecordOffset, causedByDrain);
   }
 
   public static <T> ValueInSingleWindow<T> of(
       T value, Instant timestamp, BoundedWindow window, PaneInfo paneInfo) {
-    return of(value, timestamp, window, paneInfo, null, null);
+    return of(value, timestamp, window, paneInfo, null, null, CausedByDrain.NORMAL);
   }
 
   /** A coder for {@link ValueInSingleWindow}. */
@@ -138,13 +141,20 @@ public abstract class ValueInSingleWindow<T> {
       Instant timestamp = InstantCoder.of().decode(inStream);
       BoundedWindow window = windowCoder.decode(inStream);
       PaneInfo paneInfo = PaneInfo.PaneInfoCoder.INSTANCE.decode(inStream);
+      CausedByDrain causedByDrain = CausedByDrain.NORMAL;
       if (WindowedValues.WindowedValueCoder.isMetadataSupported() && paneInfo.isElementMetadata()) {
-        BeamFnApi.Elements.ElementMetadata.parseFrom(ByteArrayCoder.of().decode(inStream));
+        BeamFnApi.Elements.ElementMetadata elementMetadata =
+            BeamFnApi.Elements.ElementMetadata.parseFrom(ByteArrayCoder.of().decode(inStream));
+        causedByDrain =
+            elementMetadata.getDrain() == BeamFnApi.Elements.DrainMode.Enum.DRAINING
+                ? CausedByDrain.CAUSED_BY_DRAIN
+                : CausedByDrain.NORMAL;
       }
 
       T value = valueCoder.decode(inStream, context);
       // todo #33176 specify additional metadata in the future
-      return new AutoValue_ValueInSingleWindow<>(value, timestamp, window, paneInfo, null, null);
+      return new AutoValue_ValueInSingleWindow<>(
+          value, timestamp, window, paneInfo, null, null, causedByDrain);
     }
 
     @Override

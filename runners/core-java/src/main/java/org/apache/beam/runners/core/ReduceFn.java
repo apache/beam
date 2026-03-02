@@ -22,6 +22,7 @@ import org.apache.beam.sdk.state.ReadableState;
 import org.apache.beam.sdk.state.Timers;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
+import org.apache.beam.sdk.values.CausedByDrain;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.joda.time.Instant;
 
@@ -59,6 +60,7 @@ public abstract class ReduceFn<K, InputT, OutputT, W extends BoundedWindow>
     /** Return the actual value being processed. */
     public abstract InputT value();
 
+    public abstract CausedByDrain causedByDrain();
     /** Return the timestamp associated with the value. */
     public abstract Instant timestamp();
   }
@@ -75,6 +77,7 @@ public abstract class ReduceFn<K, InputT, OutputT, W extends BoundedWindow>
     /** Returns the {@link PaneInfo} for the trigger firing being processed. */
     public abstract PaneInfo paneInfo();
 
+    public abstract CausedByDrain causedByDrain();
     /** Output the given value in the current window. */
     public abstract void output(OutputT value);
   }

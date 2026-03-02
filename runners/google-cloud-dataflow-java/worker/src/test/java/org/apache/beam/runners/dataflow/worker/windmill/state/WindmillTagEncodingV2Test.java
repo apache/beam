@@ -437,7 +437,13 @@ public class WindmillTagEncodingV2Test {
       Instant outputTimestamp = timestamp.plus(Duration.standardSeconds(1));
       TimerData timerData =
           TimerData.of(
-              TIMER_ID, TIMER_FAMILY_ID, namespace, timestamp, outputTimestamp, timeDomain);
+              TIMER_ID,
+              TIMER_FAMILY_ID,
+              namespace,
+              timestamp,
+              outputTimestamp,
+              timeDomain,
+              draining ? CausedByDrain.CAUSED_BY_DRAIN : CausedByDrain.NORMAL);
       Timer timer =
           Timer.newBuilder()
               .setTag(timerTag)

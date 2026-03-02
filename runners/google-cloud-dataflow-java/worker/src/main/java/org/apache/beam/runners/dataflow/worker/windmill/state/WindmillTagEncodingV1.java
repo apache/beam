@@ -34,6 +34,7 @@ import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.ByteStringOutputStream;
 import org.apache.beam.sdk.util.VarInt;
+import org.apache.beam.sdk.values.CausedByDrain;
 import org.apache.beam.vendor.grpc.v1p69p0.com.google.protobuf.ByteString;
 import org.joda.time.Instant;
 
@@ -232,8 +233,8 @@ public class WindmillTagEncodingV1 extends WindmillTagEncoding {
             namespace,
             timestamp,
             outputTimestamp,
-            timerTypeToTimeDomain(timer.getType())));
-    // todo add draining (https://github.com/apache/beam/issues/36884)
+            timerTypeToTimeDomain(timer.getType()),
+            draining ? CausedByDrain.CAUSED_BY_DRAIN : CausedByDrain.NORMAL));
   }
 
   private static boolean useNewTimerTagEncoding(TimerData timerData) {
