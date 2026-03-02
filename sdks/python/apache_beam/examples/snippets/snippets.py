@@ -1076,6 +1076,75 @@ def model_bigqueryio_xlang(
       method=beam.io.WriteToBigQuery.Method.STORAGE_WRITE_API)
   # [END model_bigqueryio_write_with_storage_write_api]
 
+def model_managed_iceberg():
+  """Examples for Managed Iceberg sources and sinks."""
+  # [START hadoop_catalog_config]
+  hadoop_catalog_props = {
+    'type': 'hadoop',
+    'warehouse': 'file://tmp/beam-iceberg-local-quickstart'
+  }
+  # [END hadoop_catalog_config]
+
+  # [START managed_iceberg_config]
+  managed_config = {
+    'table': 'my_db.my_table',
+    'catalog_properties': hadoop_catalog_props
+  }
+  # Note: The table will get created when inserting data (see below)
+  # [END managed_iceberg_config]
+
+  # [START managed_iceberg_insert]
+  with beam.Pipeline() as p:
+    (p
+     | beam.Create([beam.Row(1, "Mark", 32),
+                    beam.Row(2, "Omar", 24),
+                    beam.Row(3, "Rachel", 27)])
+     | beam.managed.Write("iceberg", config=managed_config))
+  # [END managed_iceberg_insert]
+
+  # [START managed_iceberg_read]
+  with beam.Pipeline() as p:
+    (p
+     | beam.managed.Read("iceberg", config=managed_config)
+     | beam.LogElements())
+  # [END managed_iceberg_read]
+
+
+
+
+  # [START biglake_catalog_config]
+  biglake_catalog_config = {
+    'type': 'rest',
+    'uri': 'https://biglake.googleapis.com/iceberg/v1/restcatalog',
+    'warehouse': 'gs://biglake-public-nyc-taxi-iceberg',
+    'header.x-goog-user-project': '$PROJECT_ID',
+    'rest.auth.type': 'google',
+    'io-impl': 'org.apache.iceberg.gcp.gcs.GCSFileIO',
+    'header.X-Iceberg-Access-Delegation': 'vended-credentials'
+  }
+  # [END biglake_catalog_config]
+
+  # [START model_managed_iceberg_data_types]
+  from decimal import Decimal
+  import apache_beam as beam
+  from apache_beam.utils.timestamp import Timestamp
+
+  row = beam.Row(
+    boolean_field=True,
+    int_field=1,
+    float_field=2.3,
+    numeric_field=Decimal('34'),
+    bytes_field=b'value',
+    string_field="value",
+    timestamptz_field=Timestamp(4, 5),
+    array_field=[1, 2, 3],
+    map_field={"a": 1, "b": 2},
+    struct_field=beam.Row(
+      nested_field="nested_value",
+      nested_field2=123)
+  )
+  # [END model_managed_iceberg_data_types]
+
 
 def model_composite_transform_example(contents, output_path):
   """Example of a composite transform.
