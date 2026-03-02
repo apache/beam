@@ -65,6 +65,11 @@ public class OrFinallyTrigger extends Trigger {
   }
 
   @Override
+  public <OutputT> OutputT accept(TriggerVisitor<OutputT> visitor) {
+    return visitor.visit(this);
+  }
+
+  @Override
   protected Trigger getContinuationTrigger(List<Trigger> continuationTriggers) {
     // Use OrFinallyTrigger instead of AfterFirst because the continuation of ACTUAL
     // may not be a OnceTrigger.
