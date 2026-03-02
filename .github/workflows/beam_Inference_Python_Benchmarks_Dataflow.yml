@@ -13,7 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-name: Inference Python Benchmarks Dataflow
+name: Inference Python Benchmarks Dataflow (1 part)
 
 on:
   schedule:
@@ -95,24 +95,6 @@ jobs:
       # The env variables are created and populated in the test-arguments-action as "<github.job>_test_arguments_<argument_file_paths_index>"
       - name: get current time
         run: echo "NOW_UTC=$(date '+%m%d%H%M%S' --utc)" >> $GITHUB_ENV
-      - name: Build VLLM Development Image
-        id: build_vllm_image
-        uses: ./.github/actions/build-push-docker-action
-        with:
-          dockerfile_path: 'sdks/python/apache_beam/ml/inference/test_resources/vllm.dockerfile'
-          image_name: 'us-docker.pkg.dev/apache-beam-testing/beam-temp/beam-vllm-gpu-base'
-          image_tag: ${{ github.sha }}
-      - name: Run VLLM Gemma Batch Test
-        uses: ./.github/actions/gradle-command-self-hosted-action
-        timeout-minutes: 180
-        with:
-          gradle-command: :sdks:python:apache_beam:testing:load_tests:run
-          arguments: |
-            -PloadTest.mainClass=apache_beam.testing.benchmarks.inference.vllm_gemma_benchmarks \
-            -Prunner=DataflowRunner \
-            -PsdkLocationOverride=false \
-            -PpythonVersion=3.10 \
-            -PloadTest.requirementsTxtFile=apache_beam/ml/inference/vllm_tests_requirements.txt '-PloadTest.args=${{ env.beam_Inference_Python_Benchmarks_Dataflow_test_arguments_8 }} --mode=batch --job_name=benchmark-tests-vllm-with-gemma-2b-it-batch-${{env.NOW_UTC}} --sdk_container_image=${{ steps.build_vllm_image.outputs.image_url }}'
       - name: run Pytorch Sentiment Streaming using Hugging Face distilbert-base-uncased model
         uses: ./.github/actions/gradle-command-self-hosted-action
         timeout-minutes: 180
@@ -189,4 +171,22 @@ jobs:
             -Prunner=DataflowRunner \
             -PpythonVersion=3.10 \
             -PloadTest.requirementsTxtFile=apache_beam/ml/inference/torch_tests_requirements.txt \
-            '-PloadTest.args=${{ env.beam_Inference_Python_Benchmarks_Dataflow_test_arguments_5 }} --job_name=benchmark-tests-pytorch-imagenet-python-gpu-${{env.NOW_UTC}} --output=gs://temp-storage-for-end-to-end-tests/torch/result_resnet152_gpu-${{env.NOW_UTC}}.txt'
+            '-PloadTest.args=${{ env.beam_Inference_Python_Benchmarks_Dataflow_test_arguments_5 }} --job_name=benchmark-tests-pytorch-imagenet-python-gpu-${{env.NOW_UTC}} --output=gs://temp-storage-for-end-to-end-tests/torch/result_resnet152_gpu-${{env.NOW_UTC}}.txt' \
+      - name: Build VLLM Development Image
+        id: build_vllm_image
+        uses: ./.github/actions/build-push-docker-action
+        with:
+          dockerfile_path: 'sdks/python/apache_beam/ml/inference/test_resources/vllm.dockerfile'
+          image_name: 'us-docker.pkg.dev/apache-beam-testing/beam-temp/beam-vllm-gpu-base'
+          image_tag: ${{ github.sha }}
+      - name: Run VLLM Gemma Batch Test
+        uses: ./.github/actions/gradle-command-self-hosted-action
+        timeout-minutes: 180
+        with:
+          gradle-command: :sdks:python:apache_beam:testing:load_tests:run
+          arguments: |
+            -PloadTest.mainClass=apache_beam.testing.benchmarks.inference.vllm_gemma_benchmarks \
+            -Prunner=DataflowRunner \
+            -PsdkLocationOverride=false \
+            -PpythonVersion=3.10 \
+            -PloadTest.requirementsTxtFile=apache_beam/ml/inference/vllm_tests_requirements.txt '-PloadTest.args=${{ env.beam_Inference_Python_Benchmarks_Dataflow_test_arguments_8 }} --mode=batch --job_name=benchmark-tests-vllm-with-gemma-2b-it-batch-${{env.NOW_UTC}} --sdk_container_image=${{ steps.build_vllm_image.outputs.image_url }}'

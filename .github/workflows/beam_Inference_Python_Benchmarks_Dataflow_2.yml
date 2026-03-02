@@ -1,0 +1,224 @@
+# Licensed to the Apache Software Foundation (ASF) under one or more
+# contributor license agreements.  See the NOTICE file distributed with
+# this work for additional information regarding copyright ownership.
+# The ASF licenses this file to You under the Apache License, Version 2.0
+# (the "License"); you may not use this file except in compliance with
+# the License.  You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+name: Inference Python Benchmarks Dataflow (2 part)
+
+on:
+  schedule:
+    - cron: '50 19 * * *'
+  workflow_dispatch:
+
+#Setting explicit permissions for the action to avoid the default permissions which are `write-all` in case of pull_request_target event
+permissions:
+  actions: write
+  pull-requests: read
+  checks: read
+  contents: read
+  deployments: read
+  id-token: none
+  issues: read
+  discussions: read
+  packages: read
+  pages: read
+  repository-projects: read
+  security-events: read
+  statuses: read
+
+# This allows a subsequently queued workflow run to interrupt previous runs
+concurrency:
+  group: '${{ github.workflow }} @ ${{ github.event.issue.number || github.sha || github.head_ref || github.ref }}-${{ github.event.schedule || github.event.comment.id || github.event.sender.login }}'
+  cancel-in-progress: true
+
+env:
+  DEVELOCITY_ACCESS_KEY: ${{ secrets.DEVELOCITY_ACCESS_KEY }}
+  GRADLE_ENTERPRISE_CACHE_USERNAME: ${{ secrets.GE_CACHE_USERNAME }}
+  GRADLE_ENTERPRISE_CACHE_PASSWORD: ${{ secrets.GE_CACHE_PASSWORD }}
+  INFLUXDB_USER: ${{ secrets.INFLUXDB_USER }}
+  INFLUXDB_USER_PASSWORD: ${{ secrets.INFLUXDB_USER_PASSWORD }}
+
+jobs:
+  beam_Inference_Python_Benchmarks_Dataflow_2:
+    if: |
+      github.event_name == 'workflow_dispatch' ||
+      (github.event_name == 'schedule' && github.repository == 'apache/beam') ||
+      github.event.comment.body == 'Run Inference Benchmarks 2'
+    runs-on: [self-hosted, ubuntu-20.04, main]
+    timeout-minutes: 1000
+    name: ${{ matrix.job_name }} (${{ matrix.job_phrase }})
+    strategy:
+      matrix:
+        job_name: ["beam_Inference_Python_Benchmarks_Dataflow_2"]
+        job_phrase: ["Run Inference Benchmarks 2"]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup repository
+        uses: ./.github/actions/setup-action
+        with:
+          comment_phrase: ${{ matrix.job_phrase }}
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          github_job: ${{ matrix.job_name }} (${{ matrix.job_phrase }})
+      - name: Setup Python environment
+        uses: ./.github/actions/setup-environment-action
+        with:
+          java-version: default
+          python-version: '3.10'
+      - name: Package Python SDK using Gradle
+        run: ./gradlew :sdks:python:sdist -PpythonVersion=3.10
+      - name: Configure Docker for Artifact Registry
+        run: gcloud auth configure-docker us-docker.pkg.dev
+      - name: Prepare test arguments
+        uses: ./.github/actions/test-arguments-action
+        with:
+          test-type: load
+          test-language: python
+          argument-file-paths: |
+            ${{ github.workspace }}/.github/workflows/load-tests-pipeline-options/beam_Inference_Python_Benchmarks_Dataflow_2_Pytorch_Image_Classification_Rightfit.txt
+            ${{ github.workspace }}/.github/workflows/load-tests-pipeline-options/beam_Inference_Python_Benchmarks_Dataflow_2_Pytorch_Image_Object_Detection.txt
+            ${{ github.workspace }}/.github/workflows/load-tests-pipeline-options/beam_Inference_Python_Benchmarks_Dataflow_2_Pytorch_Image_Captioning.txt
+      # The env variables are created and populated in the test-arguments-action as "<github.job>_test_arguments_<argument_file_paths_index>"
+      - name: get current time
+        run: echo "NOW_UTC=$(date '+%m%d%H%M%S' --utc)" >> $GITHUB_ENV
+      - name: run PyTorch Image Object Detection Faster R-CNN ResNet-50 Batch CPU
+        uses: ./.github/actions/gradle-command-self-hosted-action
+        timeout-minutes: 180
+        with:
+          gradle-command: :sdks:python:apache_beam:testing:load_tests:run
+          arguments: |
+            -PloadTest.mainClass=apache_beam.testing.benchmarks.inference.pytorch_image_object_detection_benchmarks \
+            -Prunner=DataflowRunner \
+            -PpythonVersion=3.10 \
+            -PloadTest.requirementsTxtFile=apache_beam/ml/inference/pytorch_image_object_detection_requirements.txt \
+            '-PloadTest.args=${{ env.beam_Inference_Python_Benchmarks_Dataflow_2_test_arguments_2 }} --device=CPU --mode=batch --job_name=benchmark-tests-pytorch-image-object-detection-batch-${{env.NOW_UTC}} --metrics_table=torch_inference_image_object_detection_batch_cpu --output_table=apache-beam-testing.beam_run_inference.result_torch_inference_image_object_detection_batch_cpu' \
+      - name: run PyTorch Image Captioning BLIP + CLIP Batch CPU
+        uses: ./.github/actions/gradle-command-self-hosted-action
+        timeout-minutes: 180
+        with:
+          gradle-command: :sdks:python:apache_beam:testing:load_tests:run
+          arguments: |
+            -PloadTest.mainClass=apache_beam.testing.benchmarks.inference.pytorch_image_captioning_benchmarks \
+            -Prunner=DataflowRunner \
+            -PpythonVersion=3.10 \
+            -PloadTest.requirementsTxtFile=apache_beam/ml/inference/pytorch_image_captioning_requirements.txt \
+            '-PloadTest.args=${{ env.beam_Inference_Python_Benchmarks_Dataflow_2_test_arguments_3 }} --device=CPU --mode=batch --job_name=benchmark-tests-pytorch-image-captioning-batch-${{env.NOW_UTC}} --metrics_table=torch_inference_image_captioning_batch_cpu --output_table=apache-beam-testing.beam_run_inference.result_torch_inference_image_captioning_batch_cpu'
+      - name: run PyTorch Image Object Detection Faster R-CNN ResNet-50 Batch GPU
+        uses: ./.github/actions/gradle-command-self-hosted-action
+        timeout-minutes: 180
+        with:
+          gradle-command: :sdks:python:apache_beam:testing:load_tests:run
+          arguments: |
+            -PloadTest.mainClass=apache_beam.testing.benchmarks.inference.pytorch_image_object_detection_benchmarks \
+            -Prunner=DataflowRunner \
+            -PpythonVersion=3.10 \
+            -PloadTest.requirementsTxtFile=apache_beam/ml/inference/pytorch_image_object_detection_requirements.txt \
+            '-PloadTest.args=${{ env.beam_Inference_Python_Benchmarks_Dataflow_2_test_arguments_2 }} --device=GPU --worker_accelerator=type=nvidia-tesla-t4,count=1,install-nvidia-driver=true --mode=batch --job_name=benchmark-tests-pytorch-image-object-detection-batch-${{env.NOW_UTC}} --metrics_table=torch_inference_image_object_detection_batch_gpu --output_table=apache-beam-testing.beam_run_inference.result_torch_inference_image_object_detection_batch_gpu' \
+      - name: run PyTorch Image Captioning BLIP + CLIP Batch GPU
+        uses: ./.github/actions/gradle-command-self-hosted-action
+        timeout-minutes: 180
+        with:
+          gradle-command: :sdks:python:apache_beam:testing:load_tests:run
+          arguments: |
+            -PloadTest.mainClass=apache_beam.testing.benchmarks.inference.pytorch_image_captioning_benchmarks \
+            -Prunner=DataflowRunner \
+            -PpythonVersion=3.10 \
+            -PloadTest.requirementsTxtFile=apache_beam/ml/inference/pytorch_image_captioning_requirements.txt \
+            '-PloadTest.args=${{ env.beam_Inference_Python_Benchmarks_Dataflow_2_test_arguments_3 }} --device=GPU --worker_accelerator=type=nvidia-tesla-t4,count=1,install-nvidia-driver=true --mode=batch --job_name=benchmark-tests-pytorch-image-captioning-batch-${{env.NOW_UTC}} --metrics_table=torch_inference_image_captioning_batch_gpu --output_table=apache-beam-testing.beam_run_inference.result_torch_inference_image_captioning_batch_gpu' \
+      - name: run PyTorch Image Object Detection Faster R-CNN ResNet-50 Streaming CPU
+        uses: ./.github/actions/gradle-command-self-hosted-action
+        timeout-minutes: 180
+        with:
+          gradle-command: :sdks:python:apache_beam:testing:load_tests:run
+          arguments: |
+            -PloadTest.mainClass=apache_beam.testing.benchmarks.inference.pytorch_image_object_detection_benchmarks \
+            -Prunner=DataflowRunner \
+            -PpythonVersion=3.10 \
+            -PloadTest.requirementsTxtFile=apache_beam/ml/inference/pytorch_image_object_detection_requirements.txt \
+            '-PloadTest.args=${{ env.beam_Inference_Python_Benchmarks_Dataflow_2_test_arguments_2 }} --device=CPU --mode=streaming --job_name=benchmark-tests-pytorch-image-object-detection-streaming-${{env.NOW_UTC}} --metrics_table=torch_inference_image_object_detection_streaming_cpu --output_table=apache-beam-testing.beam_run_inference.result_torch_inference_image_object_detection_streaming_cpu' \
+      - name: run PyTorch Image Captioning BLIP + CLIP Streaming CPU
+        uses: ./.github/actions/gradle-command-self-hosted-action
+        timeout-minutes: 180
+        with:
+          gradle-command: :sdks:python:apache_beam:testing:load_tests:run
+          arguments: |
+            -PloadTest.mainClass=apache_beam.testing.benchmarks.inference.pytorch_image_captioning_benchmarks \
+            -Prunner=DataflowRunner \
+            -PpythonVersion=3.10 \
+            -PloadTest.requirementsTxtFile=apache_beam/ml/inference/pytorch_image_captioning_requirements.txt \
+            '-PloadTest.args=${{ env.beam_Inference_Python_Benchmarks_Dataflow_2_test_arguments_3 }} --device=CPU --mode=streaming --job_name=benchmark-tests-pytorch-image-captioning-streaming-${{env.NOW_UTC}} --metrics_table=torch_inference_image_captioning_streaming_cpu --output_table=apache-beam-testing.beam_run_inference.result_torch_inference_image_captioning_streaming_cpu'
+      - name: run PyTorch Image Object Detection Faster R-CNN ResNet-50 Streaming GPU
+        uses: ./.github/actions/gradle-command-self-hosted-action
+        timeout-minutes: 180
+        with:
+          gradle-command: :sdks:python:apache_beam:testing:load_tests:run
+          arguments: |
+            -PloadTest.mainClass=apache_beam.testing.benchmarks.inference.pytorch_image_object_detection_benchmarks \
+            -Prunner=DataflowRunner \
+            -PpythonVersion=3.10 \
+            -PloadTest.requirementsTxtFile=apache_beam/ml/inference/pytorch_image_object_detection_requirements.txt \
+            '-PloadTest.args=${{ env.beam_Inference_Python_Benchmarks_Dataflow_2_test_arguments_2 }} --device=GPU --worker_accelerator=type=nvidia-tesla-t4,count=1,install-nvidia-driver=true --mode=streaming --job_name=benchmark-tests-pytorch-image-object-detection-streaming-${{env.NOW_UTC}} --metrics_table=torch_inference_image_object_detection_streaming_gpu --output_table=apache-beam-testing.beam_run_inference.result_torch_inference_image_object_detection_streaming_gpu' \
+      - name: run PyTorch Image Captioning BLIP + CLIP Streaming GPU
+        uses: ./.github/actions/gradle-command-self-hosted-action
+        timeout-minutes: 180
+        with:
+          gradle-command: :sdks:python:apache_beam:testing:load_tests:run
+          arguments: |
+            -PloadTest.mainClass=apache_beam.testing.benchmarks.inference.pytorch_image_captioning_benchmarks \
+            -Prunner=DataflowRunner \
+            -PpythonVersion=3.10 \
+            -PloadTest.requirementsTxtFile=apache_beam/ml/inference/pytorch_image_captioning_requirements.txt \
+            '-PloadTest.args=${{ env.beam_Inference_Python_Benchmarks_Dataflow_2_test_arguments_3 }} --device=GPU --worker_accelerator=type=nvidia-tesla-t4,count=1,install-nvidia-driver=true --mode=streaming --job_name=benchmark-tests-pytorch-image-captioning-streaming-${{env.NOW_UTC}} --metrics_table=torch_inference_image_captioning_streaming_gpu --output_table=apache-beam-testing.beam_run_inference.result_torch_inference_image_captioning_streaming_gpu' \
+      - name: run PyTorch Image Classification EfficientNet-B0 Streaming (Right-fitting) CPU
+        uses: ./.github/actions/gradle-command-self-hosted-action
+        timeout-minutes: 180
+        with:
+          gradle-command: :sdks:python:apache_beam:testing:load_tests:run
+          arguments: |
+            -PloadTest.mainClass=apache_beam.testing.benchmarks.inference.pytorch_imagenet_rightfit_benchmarks \
+            -Prunner=DataflowRunner \
+            -PpythonVersion=3.10 \
+            -PloadTest.requirementsTxtFile=apache_beam/ml/inference/pytorch_rightfit_requirements.txt \
+            '-PloadTest.args=${{ env.beam_Inference_Python_Benchmarks_Dataflow_2_test_arguments_1 }} --device=CPU --enable_dedup=false --mode=streaming --job_name=benchmark-tests-pytorch-imagenet-rightfit-streaming-${{env.NOW_UTC}} --metrics_table=torch_inference_imagenet_stream_rightfit_cpu --output_table=apache-beam-testing.beam_run_inference.result_torch_inference_imagenet_stream_rightfit_cpu' \
+      - name: run PyTorch Image Classification EfficientNet-B0 Streaming (Right-fitting Exactly-once) CPU
+        uses: ./.github/actions/gradle-command-self-hosted-action
+        timeout-minutes: 180
+        with:
+          gradle-command: :sdks:python:apache_beam:testing:load_tests:run
+          arguments: |
+            -PloadTest.mainClass=apache_beam.testing.benchmarks.inference.pytorch_imagenet_rightfit_benchmarks \
+            -Prunner=DataflowRunner \
+            -PpythonVersion=3.10 \
+            -PloadTest.requirementsTxtFile=apache_beam/ml/inference/pytorch_rightfit_requirements.txt \
+            '-PloadTest.args=${{ env.beam_Inference_Python_Benchmarks_Dataflow_2_test_arguments_1 }} --device=CPU --enable_dedup=true --mode=streaming --job_name=benchmark-tests-pytorch-imagenet-rightfit-streaming-${{env.NOW_UTC}} --metrics_table=torch_inference_imagenet_stream_rightfit_once_cpu --output_table=apache-beam-testing.beam_run_inference.result_torch_inference_imagenet_stream_rightfit_once_cpu' \
+      - name: run PyTorch Image Classification EfficientNet-B0 Streaming (Right-fitting) GPU
+        uses: ./.github/actions/gradle-command-self-hosted-action
+        timeout-minutes: 180
+        with:
+          gradle-command: :sdks:python:apache_beam:testing:load_tests:run
+          arguments: |
+            -PloadTest.mainClass=apache_beam.testing.benchmarks.inference.pytorch_imagenet_rightfit_benchmarks \
+            -Prunner=DataflowRunner \
+            -PpythonVersion=3.10 \
+            -PloadTest.requirementsTxtFile=apache_beam/ml/inference/pytorch_rightfit_requirements.txt \
+            '-PloadTest.args=${{ env.beam_Inference_Python_Benchmarks_Dataflow_2_test_arguments_1 }} --device=GPU --experiments=worker_accelerator=type:nvidia-tesla-t4;count:1;install-nvidia-driver:5xx --enable_dedup=false --mode=streaming --job_name=benchmark-tests-pytorch-imagenet-rightfit-streaming-${{env.NOW_UTC}} --metrics_table=torch_inference_imagenet_stream_rightfit_gpu --output_table=apache-beam-testing.beam_run_inference.result_torch_inference_imagenet_stream_rightfit_gpu' \
+      - name: run PyTorch Image Classification EfficientNet-B0 Streaming (Right-fitting Exactly-once) GPU
+        uses: ./.github/actions/gradle-command-self-hosted-action
+        timeout-minutes: 180
+        with:
+          gradle-command: :sdks:python:apache_beam:testing:load_tests:run
+          arguments: |
+            -PloadTest.mainClass=apache_beam.testing.benchmarks.inference.pytorch_imagenet_rightfit_benchmarks \
+            -Prunner=DataflowRunner \
+            -PpythonVersion=3.10 \
+            -PloadTest.requirementsTxtFile=apache_beam/ml/inference/pytorch_rightfit_requirements.txt \
+            '-PloadTest.args=${{ env.beam_Inference_Python_Benchmarks_Dataflow_2_test_arguments_1 }} --device=GPU --experiments=worker_accelerator=type:nvidia-tesla-t4;count:1;install-nvidia-driver:5xx --enable_dedup=true --mode=streaming --job_name=benchmark-tests-pytorch-imagenet-rightfit-streaming-${{env.NOW_UTC}} --metrics_table=torch_inference_imagenet_stream_rightfit_once_gpu --output_table=apache-beam-testing.beam_run_inference.result_torch_inference_imagenet_stream_rightfit_once_gpu'
