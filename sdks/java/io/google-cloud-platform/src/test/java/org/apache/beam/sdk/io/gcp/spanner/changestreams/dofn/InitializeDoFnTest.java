@@ -62,7 +62,8 @@ public class InitializeDoFnTest {
             daoFactory,
             mapperFactory,
             Timestamp.ofTimeMicroseconds(1L),
-            Timestamp.ofTimeMicroseconds(2L));
+            Timestamp.ofTimeMicroseconds(2L),
+            2000L);
   }
 
   @Test

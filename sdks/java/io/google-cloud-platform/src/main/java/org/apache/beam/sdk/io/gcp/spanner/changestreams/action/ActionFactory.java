@@ -71,9 +71,10 @@ public class ActionFactory implements Serializable {
    * @param metrics metrics gathering class
    * @return singleton instance of the {@link HeartbeatRecordAction}
    */
-  public synchronized HeartbeatRecordAction heartbeatRecordAction(ChangeStreamMetrics metrics) {
+  public synchronized HeartbeatRecordAction heartbeatRecordAction(
+      ChangeStreamMetrics metrics, boolean cancelQueryOnHeartbeat) {
     if (heartbeatRecordActionInstance == null) {
-      heartbeatRecordActionInstance = new HeartbeatRecordAction(metrics);
+      heartbeatRecordActionInstance = new HeartbeatRecordAction(metrics, cancelQueryOnHeartbeat);
     }
     return heartbeatRecordActionInstance;
   }
@@ -174,6 +175,7 @@ public class ActionFactory implements Serializable {
    * @param partitionEventRecordAction action class to process {@link
    *     org.apache.beam.sdk.io.gcp.spanner.changestreams.model.PartitionEventRecord}s
    * @param metrics metrics gathering class
+   * @param realTimeCheckpointInterval the duration added to current time for the end timestamp
    * @return single instance of the {@link QueryChangeStreamAction}
    */
   public synchronized QueryChangeStreamAction queryChangeStreamAction(
@@ -188,7 +190,8 @@ public class ActionFactory implements Serializable {
       PartitionEndRecordAction partitionEndRecordAction,
       PartitionEventRecordAction partitionEventRecordAction,
       ChangeStreamMetrics metrics,
-      boolean isMutableChangeStream) {
+      boolean isMutableChangeStream,
+      Duration realTimeCheckpointInterval) {
     if (queryChangeStreamActionInstance == null) {
       queryChangeStreamActionInstance =
           new QueryChangeStreamAction(
@@ -203,7 +206,8 @@ public class ActionFactory implements Serializable {
               partitionEndRecordAction,
               partitionEventRecordAction,
               metrics,
-              isMutableChangeStream);
+              isMutableChangeStream,
+              realTimeCheckpointInterval);
     }
     return queryChangeStreamActionInstance;
   }

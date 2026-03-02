@@ -91,6 +91,7 @@ public class QueryChangeStreamAction {
   private final PartitionEventRecordAction partitionEventRecordAction;
   private final ChangeStreamMetrics metrics;
   private final boolean isMutableChangeStream;
+  private final Duration realTimeCheckpointInterval;
 
   /**
    * Constructs an action class for performing a change stream query for a given partition.
@@ -109,6 +110,7 @@ public class QueryChangeStreamAction {
    * @param PartitionEventRecordAction action class to process {@link PartitionEventRecord}s
    * @param metrics metrics gathering class
    * @param isMutableChangeStream whether the change stream is mutable or not
+   * @param realTimeCheckpointInterval duration to add to current time
    */
   QueryChangeStreamAction(
       ChangeStreamDao changeStreamDao,
@@ -122,7 +124,8 @@ public class QueryChangeStreamAction {
       PartitionEndRecordAction partitionEndRecordAction,
       PartitionEventRecordAction partitionEventRecordAction,
       ChangeStreamMetrics metrics,
-      boolean isMutableChangeStream) {
+      boolean isMutableChangeStream,
+      Duration realTimeCheckpointInterval) {
     this.changeStreamDao = changeStreamDao;
     this.partitionMetadataDao = partitionMetadataDao;
     this.changeStreamRecordMapper = changeStreamRecordMapper;
@@ -135,6 +138,7 @@ public class QueryChangeStreamAction {
     this.partitionEventRecordAction = partitionEventRecordAction;
     this.metrics = metrics;
     this.isMutableChangeStream = isMutableChangeStream;
+    this.realTimeCheckpointInterval = realTimeCheckpointInterval;
   }
 
   /**
@@ -244,7 +248,8 @@ public class QueryChangeStreamAction {
                     (HeartbeatRecord) record,
                     tracker,
                     interrupter,
-                    watermarkEstimator);
+                    watermarkEstimator,
+                    endTimestamp);
           } else if (record instanceof ChildPartitionsRecord) {
             maybeContinuation =
                 childPartitionsRecordAction.run(
@@ -387,12 +392,12 @@ public class QueryChangeStreamAction {
         && e.getMessage().contains(OUT_OF_RANGE_ERROR_MESSAGE);
   }
 
-  // Return (now + 2 mins) as the end timestamp for reading change streams. This is only used if
-  // users want to run the connector forever. If the end timestamp is reached, we will resume
-  // processing from that timestamp on a subsequent DoFn execution.
+  // Return (now + config duration) as the end timestamp for reading change streams. This is only
+  // used if  users want to run the connector forever. If the end timestamp is reached, we
+  // will resume processing from that timestamp on a subsequent DoFn execution.
   private Timestamp getNextReadChangeStreamEndTimestamp() {
-    final Timestamp current = Timestamp.now();
-    return Timestamp.ofTimeSecondsAndNanos(current.getSeconds() + 2 * 60, current.getNanos());
+    return Timestamp.ofTimeMicroseconds(
+        Instant.now().plus(realTimeCheckpointInterval).getMillis() * 1000L);
   }
 
   // For Mutable Change Stream bounded queries, update the query end timestamp to be within 2

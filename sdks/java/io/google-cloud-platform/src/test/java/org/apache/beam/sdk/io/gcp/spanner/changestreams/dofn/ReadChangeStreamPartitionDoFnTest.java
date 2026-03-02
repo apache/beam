@@ -53,6 +53,7 @@ import org.apache.beam.sdk.transforms.DoFn.ProcessContinuation;
 import org.apache.beam.sdk.transforms.splittabledofn.ManualWatermarkEstimator;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Sets;
+import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.junit.Before;
 import org.junit.Test;
@@ -103,7 +104,9 @@ public class ReadChangeStreamPartitionDoFnTest {
     partitionEventRecordAction = mock(PartitionEventRecordAction.class);
     queryChangeStreamAction = mock(QueryChangeStreamAction.class);
 
-    doFn = new ReadChangeStreamPartitionDoFn(daoFactory, mapperFactory, actionFactory, metrics);
+    doFn =
+        new ReadChangeStreamPartitionDoFn(
+            daoFactory, mapperFactory, actionFactory, metrics, Duration.standardMinutes(2), false);
     doFn.setThroughputEstimator(throughputEstimator);
 
     partition =
@@ -131,7 +134,7 @@ public class ReadChangeStreamPartitionDoFnTest {
 
     when(actionFactory.dataChangeRecordAction(throughputEstimator))
         .thenReturn(dataChangeRecordAction);
-    when(actionFactory.heartbeatRecordAction(metrics)).thenReturn(heartbeatRecordAction);
+    when(actionFactory.heartbeatRecordAction(metrics, false)).thenReturn(heartbeatRecordAction);
     when(actionFactory.childPartitionsRecordAction(partitionMetadataDao, metrics))
         .thenReturn(childPartitionsRecordAction);
     when(actionFactory.partitionStartRecordAction(partitionMetadataDao, metrics))
@@ -152,7 +155,8 @@ public class ReadChangeStreamPartitionDoFnTest {
             eq(partitionEndRecordAction),
             eq(partitionEventRecordAction),
             eq(metrics),
-            anyBoolean()))
+            anyBoolean(),
+            eq(Duration.standardMinutes(2))))
         .thenReturn(queryChangeStreamAction);
 
     doFn.setup();
@@ -171,7 +175,7 @@ public class ReadChangeStreamPartitionDoFnTest {
         .run(partition, tracker, receiver, watermarkEstimator, bundleFinalizer);
 
     verify(dataChangeRecordAction, never()).run(any(), any(), any(), any(), any(), any());
-    verify(heartbeatRecordAction, never()).run(any(), any(), any(), any(), any());
+    verify(heartbeatRecordAction, never()).run(any(), any(), any(), any(), any(), any());
     verify(childPartitionsRecordAction, never()).run(any(), any(), any(), any(), any());
     verify(partitionStartRecordAction, never()).run(any(), any(), any(), any(), any());
     verify(partitionEndRecordAction, never()).run(any(), any(), any(), any(), any());
