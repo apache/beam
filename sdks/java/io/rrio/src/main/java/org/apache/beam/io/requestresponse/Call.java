@@ -613,13 +613,10 @@ class Call<RequestT, ResponseT> extends PTransform<PCollection<RequestT>, Result
   private static <T> void parseAndThrow(Future<T> future, ExecutionException e)
       throws UserCodeExecutionException {
     future.cancel(true);
-    if (e.getCause() == null) {
-      throw new UserCodeExecutionException(e);
+    Throwable cause = e.getCause();
+    if (cause instanceof UserCodeExecutionException) {
+      throw (UserCodeExecutionException) cause;
     }
-    Throwable cause = checkStateNotNull(e.getCause());
-    if (cause instanceof UserCodeQuotaException) {
-      throw new UserCodeQuotaException(cause);
-    }
-    throw new UserCodeExecutionException(cause);
+    throw new UserCodeExecutionException(cause == null ? e : cause);
   }
 }
