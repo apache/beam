@@ -18,13 +18,18 @@ limitations under the License.
 
 # Beam SQL DDL Overview
 
-Beam SQL provides a robust hierarchy for managing metadata for external data sources. Instead of treating all tables as flat objects, Beam SQL utilizes a three-tier namespace system:
-1. Catalog: The highest level container (e.g. a Glue Catalog connected to S3 or a BigLake Catalog connected to GCS).
-2. Database: A logical namespace within a Catalog (often maps to "namespace" in systems like Iceberg).
-3. Table: The actual data entity containing schema and rows.
+Beam SQL provides a standard three-level hierarchy to manage metadata across external data sources,
+enabling structured discovery and cross-source interoperability.
+1. Catalog: The top-level container representing an external metadata provider. Examples include a Hive Metastore, AWS Glue, or a BigLake Catalog.
+2. Database: A logical grouping within a Catalog. This typically maps to a "Schema" in traditional RDBMS or a "Namespace" in systems like Apache Iceberg
+3. Table: The leaf node containing the schema definition and the underlying data.
 
-This structure allows users to connect to multiple disparate systems (e.g., a production BigQuery catalog and a dev Iceberg catalog) simultaneously and switch contexts seamlessly.
-It also allows interactions between these systems via cross-catalog queries.
+This structure enables Federated Querying. Because Beam can resolve multiple catalogs simultaneously,
+you can execute complex pipelines that bridge disparate environments within a single SQL statement (e.g.
+joining a production BigQuery table with a developmental Iceberg dataset in GCS).
+
+By using fully qualified names (e.g., catalog.database.table), you can perform cross-catalog joins or
+migrate data between clouds without manual schema mapping or intermediate storage.
 
 Click below to learn about metadata management at each level:
 

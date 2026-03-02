@@ -55,9 +55,9 @@ PROPERTIES (
     'uri'            = 'https://biglake.googleapis.com/iceberg/v1/restcatalog',
     'warehouse'      = 'gs://my-company-bucket/warehouse',
     'header.x-goog-user-project' = 'my_prod_project',
-    'rest.auth.type' = 'org.apache.iceberg.gcp.auth.GoogleAuthManager',
+    'rest.auth.type' = 'google',
     'io-impl'        = 'org.apache.iceberg.gcp.gcs.GCSFileIO',
-    'rest-metrics-reporting-enabled' = 'false'
+    'header.X-Iceberg-Access-Delegation' = 'vended-credentials'
 );
 ```
 
