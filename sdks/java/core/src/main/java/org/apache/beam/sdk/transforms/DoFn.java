@@ -45,7 +45,6 @@ import org.apache.beam.sdk.transforms.splittabledofn.WatermarkEstimator;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.transforms.windowing.Window;
-import org.apache.beam.sdk.values.CausedByDrain;
 import org.apache.beam.sdk.values.OutputBuilder;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
@@ -333,7 +332,7 @@ public abstract class DoFn<InputT extends @Nullable Object, OutputT extends @Nul
     public abstract @Nullable Long currentRecordOffset();
 
     @Pure
-    public abstract CausedByDrain causedByDrain();
+    public abstract org.apache.beam.sdk.values.CausedByDrain causedByDrain();
   }
 
   /** Information accessible when running a {@link DoFn.OnTimer} method. */
@@ -352,7 +351,7 @@ public abstract class DoFn<InputT extends @Nullable Object, OutputT extends @Nul
     public abstract TimeDomain timeDomain();
 
     @Pure
-    public abstract CausedByDrain causedByDrain();
+    public abstract org.apache.beam.sdk.values.CausedByDrain causedByDrain();
   }
 
   public abstract class OnWindowExpirationContext extends WindowedContext {

@@ -99,13 +99,19 @@ class ReduceFnContextFactory<K, InputT, OutputT, W extends BoundedWindow> {
   }
 
   public ReduceFn<K, InputT, OutputT, W>.ProcessValueContext forValue(
-      W window, InputT value, Instant timestamp, StateStyle style) {
-    return new ProcessValueContextImpl(stateAccessor(window, style), value, timestamp);
+      W window, InputT value, Instant timestamp, StateStyle style, CausedByDrain causedByDrain) {
+    return new ProcessValueContextImpl(
+        stateAccessor(window, style), value, timestamp, causedByDrain);
   }
 
   public ReduceFn<K, InputT, OutputT, W>.OnTriggerContext forTrigger(
-      W window, PaneInfo paneInfo, StateStyle style, OnTriggerCallbacks<OutputT> callbacks) {
-    return new OnTriggerContextImpl(stateAccessor(window, style), paneInfo, callbacks);
+      W window,
+      PaneInfo paneInfo,
+      StateStyle style,
+      OnTriggerCallbacks<OutputT> callbacks,
+      CausedByDrain causedByDrain) {
+    return new OnTriggerContextImpl(
+        stateAccessor(window, style), paneInfo, callbacks, causedByDrain);
   }
 
   public ReduceFn<K, InputT, OutputT, W>.OnMergeContext forMerge(
@@ -358,14 +364,19 @@ class ReduceFnContextFactory<K, InputT, OutputT, W extends BoundedWindow> {
     private final Instant timestamp;
     private final StateAccessorImpl<K, W> state;
     private final TimersImpl timers;
+    private final CausedByDrain causedByDrain;
 
     private ProcessValueContextImpl(
-        StateAccessorImpl<K, W> state, InputT value, Instant timestamp) {
+        StateAccessorImpl<K, W> state,
+        InputT value,
+        Instant timestamp,
+        CausedByDrain causedByDrain) {
       reduceFn.super();
       this.state = state;
       this.value = value;
       this.timestamp = timestamp;
       this.timers = new TimersImpl(state.namespace());
+      this.causedByDrain = causedByDrain;
     }
 
     @Override
@@ -394,6 +405,11 @@ class ReduceFnContextFactory<K, InputT, OutputT, W extends BoundedWindow> {
     }
 
     @Override
+    public CausedByDrain causedByDrain() {
+      return causedByDrain;
+    }
+
+    @Override
     public Instant timestamp() {
       return timestamp;
     }
@@ -409,14 +425,19 @@ class ReduceFnContextFactory<K, InputT, OutputT, W extends BoundedWindow> {
     private final PaneInfo paneInfo;
     private final OnTriggerCallbacks<OutputT> callbacks;
     private final TimersImpl timers;
+    private final CausedByDrain causedByDrain;
 
     private OnTriggerContextImpl(
-        StateAccessorImpl<K, W> state, PaneInfo paneInfo, OnTriggerCallbacks<OutputT> callbacks) {
+        StateAccessorImpl<K, W> state,
+        PaneInfo paneInfo,
+        OnTriggerCallbacks<OutputT> callbacks,
+        CausedByDrain causedByDrain) {
       reduceFn.super();
       this.state = state;
       this.paneInfo = paneInfo;
       this.callbacks = callbacks;
       this.timers = new TimersImpl(state.namespace());
+      this.causedByDrain = causedByDrain;
     }
 
     @Override
@@ -442,6 +463,11 @@ class ReduceFnContextFactory<K, InputT, OutputT, W extends BoundedWindow> {
     @Override
     public PaneInfo paneInfo() {
       return paneInfo;
+    }
+
+    @Override
+    public CausedByDrain causedByDrain() {
+      return causedByDrain;
     }
 
     @Override

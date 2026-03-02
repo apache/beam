@@ -216,6 +216,11 @@ public class WindmillKeyedWorkItemTest {
         ns, new Instant(timestamp), new Instant(timestamp), domain, CausedByDrain.NORMAL);
   }
 
+  private static TimerData makeDrainingTimer(StateNamespace ns, long timestamp, TimeDomain domain) {
+    return TimerData.of(
+        ns, new Instant(timestamp), new Instant(timestamp), domain, CausedByDrain.CAUSED_BY_DRAIN);
+  }
+
   @Test
   public void testCoderIsSerializableWithWellKnownCoderType() {
     CoderProperties.coderSerializable(
@@ -269,11 +274,9 @@ public class WindmillKeyedWorkItemTest {
     Assert.assertEquals(CausedByDrain.CAUSED_BY_DRAIN, iterator.next().causedByDrain());
     Assert.assertEquals(CausedByDrain.NORMAL, iterator.next().causedByDrain());
 
-    // todo add assert for draining once timerdata is filled
-    // (https://github.com/apache/beam/issues/36884)
     assertThat(
         keyedWorkItem.timersIterable(),
-        Matchers.contains(makeTimer(STATE_NAMESPACE_2, 3, TimeDomain.EVENT_TIME)));
+        Matchers.contains(makeDrainingTimer(STATE_NAMESPACE_2, 3, TimeDomain.EVENT_TIME)));
   }
 
   private static TimeDomain timerTypeToTimeDomain(Windmill.Timer.Type type) {
