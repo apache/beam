@@ -65,13 +65,15 @@ RUN cd /opt/playground/backend/kafka-emulator/ && tar -xvf kafka-emulator.tar &&
     mv kafka-emulator/*.jar . && rmdir kafka-emulator/ &&\
     mv beam-playground-kafka-emulator-*.jar beam-playground-kafka-emulator.jar
 RUN apt-get update && \
-    apt install openjdk-17-jre-headless -y 
+    apt install openjdk-17-jre-headless -y
 
 # Create a user group `appgroup` and a user `appuser`
 RUN groupadd --gid 20000 appgroup \
   && useradd --uid 20000 --gid appgroup --shell /bin/bash --create-home appuser
 
 RUN mkdir -p /opt/playground/backend/executable_files/
+
+RUN pip install apache-beam[gcp,interactive]==$BEAM_VERSION
 
 # Chown all required files to the `appuser`.
 RUN chown -R appuser:appgroup /opt/playground/backend/executable_files/ && chmod +x /entrypoint.sh
