@@ -220,5 +220,92 @@ class UseSdfBoundedSourcesTests(unittest.TestCase):
     self._run_sdf_wrapper_pipeline(RangeSource(0, 4), [0, 1, 2, 3])
 
 
+class UnboundedSourceTest(unittest.TestCase):
+  """Basic tests for UnboundedSource, UnboundedReader, and CheckpointMark.
+  
+  These tests verify the foundational API structure. Full integration with
+  Read transform and SDF wrappers will be tested in future implementation.
+  """
+  def test_checkpoint_mark_finalize(self):
+    """Test that CheckpointMark can be subclassed and finalized."""
+    class TestCheckpointMark(iobase.CheckpointMark):
+      def __init__(self):
+        self.finalized = False
+
+      def finalize(self):
+        self.finalized = True
+
+    checkpoint = TestCheckpointMark()
+    self.assertFalse(checkpoint.finalized)
+    checkpoint.finalize()
+    self.assertTrue(checkpoint.finalized)
+
+  def test_unbounded_source_basic_interface(self):
+    """Test that UnboundedSource can be subclassed with basic methods."""
+    from apache_beam.utils import timestamp
+    
+    class TestUnboundedSource(iobase.UnboundedSource):
+      def reader(self, checkpoint=None):
+        return TestUnboundedReader()
+
+      def default_output_coder(self):
+        return beam.coders.VarIntCoder()
+
+    class TestUnboundedReader(iobase.UnboundedReader):
+      def __init__(self):
+        self.index = -1
+        self.data = [1, 2, 3]
+
+      def start(self):
+        self.index = 0
+        return True
+
+      def advance(self):
+        self.index += 1
+        return self.index < len(self.data)
+
+      def get_current(self):
+        return self.data[self.index]
+
+      def get_current_timestamp(self):
+        return timestamp.Timestamp.of(self.index)
+
+      def get_watermark(self):
+        return timestamp.Timestamp.of(self.index)
+
+      def get_checkpoint_mark(self):
+        return iobase.CheckpointMark()
+
+    source = TestUnboundedSource()
+    self.assertFalse(source.is_bounded())
+    
+    # Test reader basic operations
+    reader = source.reader()
+    self.assertTrue(reader.start())
+    self.assertEqual(1, reader.get_current())
+    self.assertEqual(timestamp.Timestamp.of(0), reader.get_current_timestamp())
+    
+    self.assertTrue(reader.advance())
+    self.assertEqual(2, reader.get_current())
+    
+    self.assertTrue(reader.advance())
+    self.assertEqual(3, reader.get_current())
+    
+    self.assertFalse(reader.advance())
+
+  def test_unbounded_source_split_default(self):
+    """Test that UnboundedSource.split() returns [self] by default."""
+    class SimpleUnboundedSource(iobase.UnboundedSource):
+      def reader(self, checkpoint=None):
+        pass
+
+      def default_output_coder(self):
+        return beam.coders.VarIntCoder()
+
+    source = SimpleUnboundedSource()
+    splits = source.split(desired_num_splits=10)
+    self.assertEqual([source], splits)
+
+
 if __name__ == '__main__':
   unittest.main()

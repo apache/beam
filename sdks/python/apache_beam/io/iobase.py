@@ -66,10 +66,13 @@ from apache_beam.utils.windowed_value import WindowedValue
 
 __all__ = [
     'BoundedSource',
+    'CheckpointMark',
     'RangeTracker',
     'Read',
     'RestrictionProgress',
     'RestrictionTracker',
+    'UnboundedReader',
+    'UnboundedSource',
     'WatermarkEstimator',
     'Sink',
     'Write',
@@ -239,6 +242,213 @@ class BoundedSource(SourceBase):
 
   def is_bounded(self):
     return True
+
+
+class CheckpointMark(object):
+  """Represents a checkpoint for an UnboundedReader.
+
+  A CheckpointMark is a position in an unbounded source that allows the reader
+  to resume reading from where it left off. When a checkpoint is finalized,
+  the reader acknowledges that all records up to this point have been
+  successfully processed.
+
+  Implementations must be serializable so they can be persisted and restored
+  across pipeline restarts.
+
+  Example:
+    class MyCheckpointMark(CheckpointMark):
+      def __init__(self, offset):
+        self.offset = offset
+
+      def finalize(self):
+        # Acknowledge records up to offset
+        pass
+  """
+  def finalize(self) -> None:
+    """Called when all records up to this checkpoint have been processed.
+
+    This method should acknowledge or commit the position, ensuring that
+    records up to this point won't be re-read. This may involve:
+    - Acknowledging messages in a message queue
+    - Committing offsets in a log-based system
+    - Updating a cursor in a database
+
+    Raises:
+      Exception: if finalization fails
+    """
+    pass
+
+
+class UnboundedReader(object):
+  """A reader that reads an unbounded amount of input.
+
+  An UnboundedReader is similar to an iterator but designed for continuous
+  data streams. The reader repeatedly calls start() and advance() to fetch
+  new records, and returns False when no data is currently available
+  (but may become available later).
+
+  Lifecycle:
+    1. start() - begins reading, returns True if a record is available
+    2. advance() - moves to next record, returns True if available
+    3. get_current_timestamp() - gets timestamp of current record
+    4. get_checkpoint_mark() - creates a checkpoint for resuming
+
+  Example:
+    reader = source.reader()
+    if reader.start():
+      process(reader.get_current())
+    while reader.advance():
+      process(reader.get_current())
+  """
+  def start(self) -> bool:
+    """Initializes the reader and reads the first record.
+
+    Returns:
+      True if a record was read, False if no data is currently available.
+
+    Raises:
+      Exception: if reading fails
+    """
+    raise NotImplementedError
+
+  def advance(self) -> bool:
+    """Advances to the next record.
+
+    Returns:
+      True if a record was read, False if no data is currently available.
+
+    Raises:
+      Exception: if reading fails
+    """
+    raise NotImplementedError
+
+  def get_current(self) -> Any:
+    """Returns the current record.
+
+    Should only be called after start() or advance() returns True.
+
+    Returns:
+      The current record.
+    """
+    raise NotImplementedError
+
+  def get_current_timestamp(self) -> timestamp.Timestamp:
+    """Returns the timestamp of the current record.
+
+    Should only be called after start() or advance() returns True.
+    The timestamp represents the event time of the record.
+
+    Returns:
+      A Timestamp object representing when the record was created.
+    """
+    raise NotImplementedError
+
+  def get_watermark(self) -> timestamp.Timestamp:
+    """Returns the current watermark.
+
+    The watermark is a lower bound on timestamps of future records.
+    It signals that no records with earlier timestamps will be produced.
+
+    Returns:
+      A Timestamp representing the current watermark.
+    """
+    raise NotImplementedError
+
+  def get_checkpoint_mark(self) -> CheckpointMark:
+    """Returns a checkpoint mark for the current position.
+
+    This checkpoint can be used to resume reading from this position in case
+    of failures or restarts. The checkpoint represents all records that have
+    been read up to this point.
+
+    Returns:
+      A CheckpointMark for the current read position.
+    """
+    raise NotImplementedError
+
+  def close(self) -> None:
+    """Closes the reader and releases resources.
+
+    Should be called when reading is complete to clean up connections,
+    file handles, or other resources.
+    """
+    pass
+
+
+class UnboundedSource(SourceBase):
+  """A source that reads an unbounded amount of input.
+
+  An UnboundedSource represents a continuous stream of data, such as:
+  - Message queues (Kafka, Pub/Sub, Kinesis)
+  - Database change streams
+  - Event logs
+  - Real-time sensors or feeds
+
+  Unlike BoundedSource which reads a finite dataset, UnboundedSource continues
+  producing data indefinitely. The source is responsible for:
+  - Creating readers that fetch data continuously
+  - Tracking watermarks for event time progress
+  - Supporting checkpointing for fault tolerance
+  - Splitting into multiple parallel readers if possible
+
+  Example:
+    class MyUnboundedSource(UnboundedSource):
+      def reader(self, checkpoint=None):
+        return MyUnboundedReader(checkpoint)
+
+      def split(self, desired_num_splits):
+        # Return sub-sources for parallel reading
+        return [MyUnboundedSource(shard) for shard in shards]
+
+  Note: This is a foundational API. Integration with Read transform and
+  Splittable DoFn wrappers will be implemented in future work.
+  """
+  def reader(
+      self,
+      checkpoint: Optional[CheckpointMark] = None,
+  ) -> UnboundedReader:
+    """Returns a reader for this source.
+
+    Args:
+      checkpoint: Optional checkpoint to resume reading from. If None,
+        reading starts from the beginning or the default position.
+
+    Returns:
+      An UnboundedReader that reads from this source.
+
+    Raises:
+      Exception: if reader creation fails
+    """
+    raise NotImplementedError
+
+  def split(
+      self,
+      desired_num_splits: int,
+  ) -> list['UnboundedSource']:
+    """Splits this source into approximately desired_num_splits sub-sources.
+
+    Splitting allows parallel reading of the source by creating multiple
+    independent sub-sources that each read a portion of the data.
+    For example, a Kafka source might split by partition, or a Pub/Sub
+    source might split by subscription.
+
+    Args:
+      desired_num_splits: The desired number of sub-sources. The actual number
+        returned may be more or less based on the source's characteristics.
+
+    Returns:
+      A list of UnboundedSource objects that together cover the same data
+      as this source. Returning [self] is valid for sources that cannot split.
+
+    Raises:
+      Exception: if splitting fails
+    """
+    # Default implementation: source cannot be split
+    return [self]
+
+  def is_bounded(self) -> bool:
+    """Returns False to indicate this is an unbounded source."""
+    return False
 
 
 class RangeTracker(object):
