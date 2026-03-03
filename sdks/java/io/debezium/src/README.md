@@ -155,12 +155,7 @@ There are two ways of initializing KSC:
 *  Restricted by number of records
 *  Restricted by amount of time (minutes)
 
-By default, DebeziumIO initializes it with the former, though user may choose the latter by setting the amount of minutes as a parameter:
-
-|Function|Param|Description|
-|-|-|-|
-|`KafkaSourceConsumerFn(connectorClass, recordMapper, maxRecords)`|_Class, SourceRecordMapper, Int_|Restrict run by number of records (Default).|
-|`KafkaSourceConsumerFn(connectorClass, recordMapper, timeToRun)`|_Class, SourceRecordMapper, Long_|Restrict run by amount of time (in minutes).|
+By default, DebeziumIO initializes it with the former, though user may choose the latter by setting the amount of minutes as a parameter for DebeziumIO.Read transform.
 
 ### Requirements and Supported versions
 

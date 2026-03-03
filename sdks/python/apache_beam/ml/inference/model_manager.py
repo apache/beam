@@ -45,9 +45,11 @@ import numpy as np
 import torch
 from scipy.optimize import nnls
 
+from apache_beam.metrics.metric import Metrics
 from apache_beam.utils import multi_process_shared
 
 logger = logging.getLogger(__name__)
+_MODEL_MANAGER_METRICS_NAMESPACE = "BeamML_ModelManager"
 
 
 class GPUMonitor:
@@ -176,13 +178,22 @@ class ResourceEstimator:
   individual models based on aggregate system memory readings and the
   configuration of active models at that time.
   """
-  def __init__(self, smoothing_factor: float = 0.2, min_data_points: int = 5):
+  def __init__(
+      self,
+      smoothing_factor: float = 0.2,
+      min_data_points: int = 5,
+      verbose_logging: bool = False):
     self.smoothing_factor = smoothing_factor
     self.min_data_points = min_data_points
+    self.verbose_logging = verbose_logging
     self.estimates: Dict[str, float] = {}
     self.history = defaultdict(lambda: deque(maxlen=20))
     self.known_models = set()
     self._lock = threading.Lock()
+
+  def logging_info(self, message: str, *args):
+    if self.verbose_logging:
+      logger.info(message, *args)
 
   def is_unknown(self, model_tag: str) -> bool:
     with self._lock:
@@ -196,7 +207,11 @@ class ResourceEstimator:
     with self._lock:
       self.estimates[model_tag] = cost
       self.known_models.add(model_tag)
-      logger.info("Initial Profile for %s: %s MB", model_tag, cost)
+      Metrics.distribution(
+          _MODEL_MANAGER_METRICS_NAMESPACE,
+          f"memory_estimate_mb_{model_tag}",
+          process_wide=True).update(int(cost))
+      self.logging_info("Initial Profile for %s: %s MB", model_tag, cost)
 
   def add_observation(
       self, active_snapshot: Dict[str, int], peak_memory: float):
@@ -207,7 +222,7 @@ class ResourceEstimator:
     else:
       model_list = "\t- None"
 
-    logger.info(
+    self.logging_info(
         "Adding Observation:\n PeakMemory: %.1f MB\n  Instances:\n%s",
         peak_memory,
         model_list)
@@ -256,7 +271,7 @@ class ResourceEstimator:
       # Not enough data to solve yet
       return
 
-    logger.info(
+    self.logging_info(
         "Solving with %s total observations for %s models.",
         len(A),
         len(unique))
@@ -280,12 +295,28 @@ class ResourceEstimator:
         else:
           self.estimates[model] = calculated_cost
 
-        logger.info(
+        self.logging_info(
             "Updated Estimate for %s: %.1f MB", model, self.estimates[model])
-      logger.info("System Bias: %s MB", bias)
+
+        Metrics.distribution(
+            _MODEL_MANAGER_METRICS_NAMESPACE,
+            f"memory_estimate_mb_{model}",
+            process_wide=True).update(int(self.estimates[model]))
+      self.logging_info("System Bias: %s MB", bias)
 
     except Exception as e:
       logger.error("Solver failed: %s", e)
+
+
+class QueueTicket:
+  def __init__(self, priority, ticket_num, tag):
+    self.priority = priority
+    self.ticket_num = ticket_num
+    self.tag = tag
+    self.wake_event = threading.Event()
+
+  def __lt__(self, other):
+    return (self.priority, self.ticket_num) < (other.priority, other.ticket_num)
 
 
 class ModelManager:
@@ -310,10 +341,13 @@ class ModelManager:
       eviction_cooldown_seconds: float = 10.0,
       min_model_copies: int = 1,
       wait_timeout_seconds: float = 300.0,
-      lock_timeout_seconds: float = 60.0):
+      lock_timeout_seconds: float = 60.0,
+      verbose_logging: bool = False):
 
     self._estimator = ResourceEstimator(
-        min_data_points=min_data_points, smoothing_factor=smoothing_factor)
+        min_data_points=min_data_points,
+        smoothing_factor=smoothing_factor,
+        verbose_logging=verbose_logging)
     self._monitor = monitor if monitor else GPUMonitor(
         poll_interval=poll_interval, peak_window_seconds=peak_window_seconds)
     self._slack_percentage = slack_percentage
@@ -322,6 +356,7 @@ class ModelManager:
     self._min_model_copies = min_model_copies
     self._wait_timeout_seconds = wait_timeout_seconds
     self._lock_timeout_seconds = lock_timeout_seconds
+    self._verbose_logging = verbose_logging
 
     # Resource State
     self._models = defaultdict(list)
@@ -343,11 +378,30 @@ class ModelManager:
     # and also priority for unknown models.
     self._wait_queue = []
     self._ticket_counter = itertools.count()
+    self._cancelled_tickets = set()
     # TODO: Consider making the wait to be smarter, i.e.
     # splitting read/write etc. to avoid potential contention.
     self._cv = threading.Condition()
 
     self._monitor.start()
+
+  def _update_model_count_metric(self):
+    for tag, instances in self._models.items():
+      Metrics.distribution(
+          _MODEL_MANAGER_METRICS_NAMESPACE,
+          f"num_loaded_models_{tag}",
+          process_wide=True).update(len(instances))
+
+  def _clear_all_model_metrics(self):
+    for tag in self._models:
+      Metrics.distribution(
+          _MODEL_MANAGER_METRICS_NAMESPACE,
+          f"num_loaded_models_{tag}",
+          process_wide=True).update(0)
+
+  def logging_info(self, message: str, *args):
+    if self._verbose_logging:
+      logger.info(message, *args)
 
   def all_models(self, tag) -> list[Any]:
     return self._models[tag]
@@ -355,14 +409,14 @@ class ModelManager:
   # Should hold _cv lock when calling
   def try_enter_isolation_mode(self, tag: str, ticket_num: int) -> bool:
     if self._total_active_jobs > 0:
-      logger.info(
+      self.logging_info(
           "Waiting to enter isolation: tag=%s ticket num=%s", tag, ticket_num)
       self._cv.wait(timeout=self._lock_timeout_seconds)
       # return False since we have waited and need to re-evaluate
       # in caller to make sure our priority is still valid.
       return False
 
-    logger.info("Unknown model %s detected. Flushing GPU.", tag)
+    self.logging_info("Unknown model %s detected. Flushing GPU.", tag)
     self._delete_all_models()
 
     self._isolation_mode = True
@@ -400,7 +454,7 @@ class ModelManager:
     for _, instances in self._models.items():
       total_model_count += len(instances)
     curr, _, _ = self._monitor.get_stats()
-    logger.info(
+    self.logging_info(
         "Waiting for resources to free up: "
         "tag=%s ticket num%s model count=%s "
         "idle count=%s resource usage=%.1f MB "
@@ -417,10 +471,28 @@ class ModelManager:
     self._cv.wait(timeout=self._lock_timeout_seconds)
     return False
 
+  def _wake_next_in_queue(self):
+    if self._wait_queue:
+      # Clean up cancelled tickets at head of queue
+      while self._wait_queue and self._wait_queue[
+          0].ticket_num in self._cancelled_tickets:
+        self._cancelled_tickets.remove(self._wait_queue[0].ticket_num)
+        heapq.heappop(self._wait_queue)
+      next_inline = self._wait_queue[0]
+      next_inline.wake_event.set()
+
+  def _wait_in_queue(self, ticket: QueueTicket):
+    self._cv.release()
+    try:
+      ticket.wake_event.wait(timeout=self._lock_timeout_seconds)
+      ticket.wake_event.clear()
+    finally:
+      self._cv.acquire()
+
   def acquire_model(self, tag: str, loader_func: Callable[[], Any]) -> Any:
     current_priority = 0 if self._estimator.is_unknown(tag) else 1
     ticket_num = next(self._ticket_counter)
-    my_id = object()
+    my_ticket = QueueTicket(current_priority, ticket_num, tag)
 
     with self._cv:
       # FAST PATH: Grab from idle LRU if available
@@ -432,15 +504,14 @@ class ModelManager:
       # SLOW PATH: Enqueue and wait for turn to acquire model,
       # with unknown models having priority and order enforced
       # by ticket number as FIFO.
-      logger.info(
+      self.logging_info(
           "Acquire Queued: tag=%s, priority=%d "
           "total models count=%s ticket num=%s",
           tag,
           current_priority,
           len(self._models[tag]),
           ticket_num)
-      heapq.heappush(
-          self._wait_queue, (current_priority, ticket_num, my_id, tag))
+      heapq.heappush(self._wait_queue, my_ticket)
 
       est_cost = 0.0
       is_unknown = False
@@ -453,10 +524,11 @@ class ModelManager:
             raise RuntimeError(
                 f"Timeout waiting to acquire model: {tag} "
                 f"after {wait_time_elapsed:.1f} seconds.")
-          if not self._wait_queue or self._wait_queue[0][2] is not my_id:
-            logger.info(
+          if not self._wait_queue or self._wait_queue[
+              0].ticket_num != ticket_num:
+            self.logging_info(
                 "Waiting for its turn: tag=%s ticket num=%s", tag, ticket_num)
-            self._cv.wait(timeout=self._lock_timeout_seconds)
+            self._wait_in_queue(my_ticket)
             continue
 
           # Re-evaluate priority in case model became known during wait
@@ -467,9 +539,9 @@ class ModelManager:
           if current_priority != real_priority:
             heapq.heappop(self._wait_queue)
             current_priority = real_priority
-            heapq.heappush(
-                self._wait_queue, (current_priority, ticket_num, my_id, tag))
-            self._cv.notify_all()
+            my_ticket = QueueTicket(current_priority, ticket_num, tag)
+            heapq.heappush(self._wait_queue, my_ticket)
+            self._wake_next_in_queue()
             continue
 
           # Try grab from LRU again in case model was released during wait
@@ -490,11 +562,11 @@ class ModelManager:
           # Path B: Concurrent
           else:
             if self._isolation_mode:
-              logger.info(
+              self.logging_info(
                   "Waiting due to isolation in progress: tag=%s ticket num%s",
                   tag,
                   ticket_num)
-              self._cv.wait(timeout=self._lock_timeout_seconds)
+              self._wait_in_queue(my_ticket)
               continue
 
             if self.should_spawn_model(tag, ticket_num):
@@ -508,19 +580,12 @@ class ModelManager:
 
       finally:
         # Remove self from wait queue once done
-        if self._wait_queue and self._wait_queue[0][2] is my_id:
+        if self._wait_queue and self._wait_queue[0].ticket_num == ticket_num:
           heapq.heappop(self._wait_queue)
         else:
-          logger.warning(
-              "Item not at head of wait queue during cleanup"
-              ", this is not expected: tag=%s ticket num=%s",
-              tag,
-              ticket_num)
-          for i, item in enumerate(self._wait_queue):
-            if item[2] is my_id:
-              self._wait_queue.pop(i)
-              heapq.heapify(self._wait_queue)
-        self._cv.notify_all()
+          # Marked as cancelled so that we skip when we reach head later
+          self._cancelled_tickets.add(ticket_num)
+        self._wake_next_in_queue()
 
       return self._spawn_new_model(tag, loader_func, is_unknown, est_cost)
 
@@ -553,6 +618,7 @@ class ModelManager:
             self._estimator.add_observation(snapshot, peak_during_job)
 
       finally:
+        self._wake_next_in_queue()
         self._cv.notify_all()
 
   def _try_grab_from_lru(self, tag: str) -> Any:
@@ -572,7 +638,7 @@ class ModelManager:
       self._total_active_jobs += 1
       return target_instance
 
-    logger.info("No idle model found for tag: %s", tag)
+    self.logging_info("No idle model found for tag: %s", tag)
     return None
 
   def _evict_to_make_space(
@@ -596,7 +662,7 @@ class ModelManager:
     # TODO: Also factor in the active counts to avoid thrashing
     demand_map = Counter()
     for item in self._wait_queue:
-      demand_map[item[3]] += 1
+      demand_map[item.tag] += 1
 
     my_demand = demand_map[requesting_tag]
     am_i_starving = len(self._models[requesting_tag]) == 0
@@ -647,17 +713,21 @@ class ModelManager:
     if isinstance(instance, str):
       # If the instance is a string, it's a uuid used
       # to retrieve the model from MultiProcessShared
-      multi_process_shared.MultiProcessShared(
-          lambda: "N/A", tag=instance).unsafe_hard_delete()
+      try:
+        multi_process_shared.MultiProcessShared(
+            lambda: "N/A", tag=instance).unsafe_hard_delete()
+      except (EOFError, OSError, BrokenPipeError):
+        # This can happen even in normal operation.
+        pass
     if hasattr(instance, 'mock_model_unsafe_hard_delete'):
       # Call the mock unsafe hard delete method for testing
       instance.mock_model_unsafe_hard_delete()
     del instance
 
   def _perform_eviction(self, key: str, tag: str, instance: Any, score: int):
-    logger.info("Evicting Model: %s (Score %d)", tag, score)
+    self.logging_info("Evicting Model: %s (Score %d)", tag, score)
     curr, _, _ = self._monitor.get_stats()
-    logger.info("Resource Usage Before Eviction: %.1f MB", curr)
+    self.logging_info("Resource Usage Before Eviction: %.1f MB", curr)
 
     if key in self._idle_lru:
       del self._idle_lru[key]
@@ -673,7 +743,8 @@ class ModelManager:
     self._monitor.refresh()
     self._monitor.reset_peak()
     curr, _, _ = self._monitor.get_stats()
-    logger.info("Resource Usage After Eviction: %.1f MB", curr)
+    self.logging_info("Resource Usage After Eviction: %.1f MB", curr)
+    self._update_model_count_metric()
 
   def _spawn_new_model(
       self,
@@ -683,7 +754,7 @@ class ModelManager:
       est_cost: float) -> Any:
     try:
       with self._cv:
-        logger.info("Loading Model: %s (Unknown: %s)", tag, is_unknown)
+        self.logging_info("Loading Model: %s (Unknown: %s)", tag, is_unknown)
         baseline_snap, _, _ = self._monitor.get_stats()
         instance = loader_func()
         _, peak_during_load, _ = self._monitor.get_stats()
@@ -696,6 +767,7 @@ class ModelManager:
           self._pending_reservations = max(
               0.0, self._pending_reservations - est_cost)
         self._models[tag].append(instance)
+        self._update_model_count_metric()
       return instance
 
     except Exception as e:
@@ -713,6 +785,7 @@ class ModelManager:
       raise e
 
   def _delete_all_models(self):
+    self._clear_all_model_metrics()
     self._idle_lru.clear()
     for _, instances in self._models.items():
       for instance in instances:

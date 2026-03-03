@@ -47,6 +47,7 @@ import org.apache.beam.sdk.transforms.splittabledofn.WatermarkEstimator;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.util.OutputBuilderSupplier;
+import org.apache.beam.sdk.values.CausedByDrain;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.OutputBuilder;
 import org.apache.beam.sdk.values.PCollection;
@@ -511,6 +512,11 @@ public class SplittableParDoNaiveBounded {
       @Override
       public Object key() {
         throw new UnsupportedOperationException();
+      }
+
+      @Override
+      public CausedByDrain causedByDrain() {
+        return outerContext.causedByDrain();
       }
 
       @Override

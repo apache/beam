@@ -330,6 +330,9 @@ public abstract class DoFn<InputT extends @Nullable Object, OutputT extends @Nul
 
     @Pure
     public abstract @Nullable Long currentRecordOffset();
+
+    @Pure
+    public abstract org.apache.beam.sdk.values.CausedByDrain causedByDrain();
   }
 
   /** Information accessible when running a {@link DoFn.OnTimer} method. */
@@ -346,6 +349,9 @@ public abstract class DoFn<InputT extends @Nullable Object, OutputT extends @Nul
 
     /** Returns the time domain of the current timer. */
     public abstract TimeDomain timeDomain();
+
+    @Pure
+    public abstract org.apache.beam.sdk.values.CausedByDrain causedByDrain();
   }
 
   public abstract class OnWindowExpirationContext extends WindowedContext {

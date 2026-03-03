@@ -145,6 +145,7 @@ import org.apache.beam.sdk.util.construction.ModelCoders;
 import org.apache.beam.sdk.util.construction.PTransformTranslation;
 import org.apache.beam.sdk.util.construction.ParDoTranslation;
 import org.apache.beam.sdk.util.construction.Timer;
+import org.apache.beam.sdk.values.CausedByDrain;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.vendor.grpc.v1p69p0.com.google.protobuf.ByteString;
@@ -1129,7 +1130,8 @@ public class ProcessBundleHandlerTest {
                 Collections.singletonList(GlobalWindow.INSTANCE),
                 Instant.ofEpochMilli(1L),
                 Instant.ofEpochMilli(1L),
-                PaneInfo.ON_TIME_AND_ONLY_FIRING),
+                PaneInfo.ON_TIME_AND_ONLY_FIRING,
+                CausedByDrain.NORMAL),
             encodedTimer);
     Elements elements =
         Elements.newBuilder()
@@ -1248,7 +1250,8 @@ public class ProcessBundleHandlerTest {
                 Collections.singletonList(GlobalWindow.INSTANCE),
                 Instant.ofEpochMilli(1L),
                 Instant.ofEpochMilli(1L),
-                PaneInfo.ON_TIME_AND_ONLY_FIRING),
+                PaneInfo.ON_TIME_AND_ONLY_FIRING,
+                CausedByDrain.NORMAL),
             encodedTimer);
 
     assertThrows(
@@ -1342,7 +1345,8 @@ public class ProcessBundleHandlerTest {
                 Collections.singletonList(GlobalWindow.INSTANCE),
                 Instant.ofEpochMilli(1L),
                 Instant.ofEpochMilli(1L),
-                PaneInfo.ON_TIME_AND_ONLY_FIRING),
+                PaneInfo.ON_TIME_AND_ONLY_FIRING,
+                CausedByDrain.NORMAL),
             encodedTimer);
 
     InstructionResponse.Builder builder =
@@ -1961,7 +1965,8 @@ public class ProcessBundleHandlerTest {
                 Collections.singletonList(GlobalWindow.INSTANCE),
                 Instant.ofEpochMilli(1L),
                 Instant.ofEpochMilli(1L),
-                PaneInfo.ON_TIME_AND_ONLY_FIRING),
+                PaneInfo.ON_TIME_AND_ONLY_FIRING,
+                CausedByDrain.NORMAL),
             encodedTimer);
     Elements elements =
         Elements.newBuilder()

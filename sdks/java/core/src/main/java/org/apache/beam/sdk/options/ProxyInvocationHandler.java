@@ -17,8 +17,8 @@
  */
 package org.apache.beam.sdk.options;
 
+import static org.apache.beam.sdk.util.Preconditions.checkArgumentNotNull;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
-import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkNotNull;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.core.JsonGenerator;
@@ -82,9 +82,9 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * introspection of the proxy class to store and retrieve values based off of the property name.
  *
  * <p>Unset properties use the {@code @Default} metadata on the getter to return values. If there is
- * no {@code @Default} annotation on the getter, then a <a
- * href="https://docs.oracle.com/javase/tutorial/java/nutsandbolts/datatypes.html">default</a> as
- * per the Java Language Specification for the expected return type is returned.
+ * no {@code @Default} annotation on the getter, then a <a href=
+ * "https://docs.oracle.com/javase/tutorial/java/nutsandbolts/datatypes.html">default</a> as per the
+ * Java Language Specification for the expected return type is returned.
  *
  * <p>In addition to the getter/setter pairs, this proxy invocation handler supports {@link
  * Object#equals(Object)}, {@link Object#hashCode()}, {@link Object#toString()} and {@link
@@ -122,7 +122,8 @@ class ProxyInvocationHandler implements InvocationHandler, Serializable {
     <T extends PipelineOptions> ComputedProperties updated(
         Class<T> iface, T instance, List<PropertyDescriptor> propertyDescriptors) {
 
-      // these all use mutable maps and then copyOf, rather than a builder because builders enforce
+      // these all use mutable maps and then copyOf, rather than a builder because
+      // builders enforce
       // all keys are unique, and its possible they are not here.
       Map<String, String> allNewGetters = Maps.newHashMap(gettersToPropertyNames);
       Map<String, String> allNewSetters = Maps.newHashMap(settersToPropertyNames);
@@ -147,7 +148,8 @@ class ProxyInvocationHandler implements InvocationHandler, Serializable {
   @SuppressFBWarnings("SE_BAD_FIELD")
   private volatile ComputedProperties computedProperties;
 
-  // ProxyInvocationHandler implements Serializable only for the sake of throwing an informative
+  // ProxyInvocationHandler implements Serializable only for the sake of throwing
+  // an informative
   // exception in writeObject()
   /**
    * Enumerating {@code options} must always be done on a copy made before accessing or deriving
@@ -217,7 +219,8 @@ class ProxyInvocationHandler implements InvocationHandler, Serializable {
     ComputedProperties properties = computedProperties;
     if (properties.gettersToPropertyNames.containsKey(methodName)) {
       String propertyName = properties.gettersToPropertyNames.get(methodName);
-      // we can't use computeIfAbsent here because evaluating the default may cause more properties
+      // we can't use computeIfAbsent here because evaluating the default may cause
+      // more properties
       // to be evaluated, and computeIfAbsent is not re-entrant.
       if (!options.containsKey(propertyName)) {
         // Lazy bind the default to the method.
@@ -286,7 +289,7 @@ class ProxyInvocationHandler implements InvocationHandler, Serializable {
    * @return An object that implements the interface {@code <T>}.
    */
   <T extends PipelineOptions> T as(Class<T> iface) {
-    checkNotNull(iface);
+    checkArgumentNotNull(iface);
     checkArgument(iface.isInterface(), "Not an interface: %s", iface);
 
     T existingOption = computedProperties.interfaceToProxyCache.getInstance(iface);
@@ -376,8 +379,10 @@ class ProxyInvocationHandler implements InvocationHandler, Serializable {
      */
     @Override
     public void populateDisplayData(DisplayData.Builder builder) {
-      // We must first make a copy of the current options because a concurrent modification
-      // may add a new option after we have derived optionSpecs but before we have enumerated
+      // We must first make a copy of the current options because a concurrent
+      // modification
+      // may add a new option after we have derived optionSpecs but before we have
+      // enumerated
       // all the pipeline options.
       Map<String, BoundValue> copiedOptions = new HashMap<>(options);
       Set<PipelineOptionSpec> optionSpecs =
@@ -396,8 +401,10 @@ class ProxyInvocationHandler implements InvocationHandler, Serializable {
 
         for (PipelineOptionSpec optionSpec : specs) {
           if (!optionSpec.shouldSerialize()) {
-            // Options that are excluded for serialization (i.e. those with @JsonIgnore) are also
-            // excluded from display data. These options are generally not useful for display.
+            // Options that are excluded for serialization (i.e. those with @JsonIgnore) are
+            // also
+            // excluded from display data. These options are generally not useful for
+            // display.
             continue;
           }
 
@@ -481,7 +488,8 @@ class ProxyInvocationHandler implements InvocationHandler, Serializable {
         return Arrays.deepToString((Object[]) value);
       }
 
-      // At this point, we have some type of primitive array. Arrays.deepToString(..) requires an
+      // At this point, we have some type of primitive array. Arrays.deepToString(..)
+      // requires an
       // Object array, but will unwrap nested primitive arrays.
       String wrapped = Arrays.deepToString(new Object[] {value});
       return wrapped.substring(1, wrapped.length() - 1);
@@ -514,12 +522,17 @@ class ProxyInvocationHandler implements InvocationHandler, Serializable {
     // Filter out overridden options
     for (Map.Entry<String, Collection<PipelineOptionSpec>> entry : optionsMap.asMap().entrySet()) {
 
-      /* Compare all interfaces for an option pairwise (iface1, iface2) to look for type
-      hierarchies. If one is the base-class of the other, remove it from the output and continue
-      iterating.
-
-      This is an N^2 operation per-option, but the number of interfaces defining an option
-      should always be small (usually 1). */
+      /*
+       * Compare all interfaces for an option pairwise (iface1, iface2) to look for
+       * type
+       * hierarchies. If one is the base-class of the other, remove it from the output
+       * and continue
+       * iterating.
+       *
+       * This is an N^2 operation per-option, but the number of interfaces defining an
+       * option
+       * should always be small (usually 1).
+       */
       List<PipelineOptionSpec> specs = Lists.newArrayList(entry.getValue());
       if (specs.size() < 2) {
         // Only one known implementing interface, no need to check for inheritance
@@ -600,9 +613,9 @@ class ProxyInvocationHandler implements InvocationHandler, Serializable {
 
   /**
    * Returns a default value for the method based upon {@code @Default} metadata on the getter to
-   * return values. If there is no {@code @Default} annotation on the getter, then a <a
-   * href="https://docs.oracle.com/javase/tutorial/java/nutsandbolts/datatypes.html">default</a> as
-   * per the Java Language Specification for the expected return type is returned.
+   * return values. If there is no {@code @Default} annotation on the getter, then a <a href=
+   * "https://docs.oracle.com/javase/tutorial/java/nutsandbolts/datatypes.html">default</a> as per
+   * the Java Language Specification for the expected return type is returned.
    *
    * @param proxy The proxy object for which we are attempting to get the default.
    * @param method The getter method that was invoked.
@@ -651,7 +664,8 @@ class ProxyInvocationHandler implements InvocationHandler, Serializable {
     }
 
     /*
-     * We need to make sure that we return something appropriate for the return type. Thus we return
+     * We need to make sure that we return something appropriate for the return
+     * type. Thus we return
      * a default value as defined by the JLS.
      */
     return Defaults.defaultValue(method.getReturnType());
@@ -750,7 +764,8 @@ class ProxyInvocationHandler implements InvocationHandler, Serializable {
         throws IOException {
       ProxyInvocationHandler handler = (ProxyInvocationHandler) Proxy.getInvocationHandler(value);
       PipelineOptionsFactory.Cache cache = PipelineOptionsFactory.CACHE.get();
-      // We first copy and then filter out any properties that have been modified since
+      // We first copy and then filter out any properties that have been modified
+      // since
       // the last serialization of this PipelineOptions and then verify that
       // they are all serializable.
       Map<String, BoundValue> filteredOptions = Maps.newHashMap(handler.options);

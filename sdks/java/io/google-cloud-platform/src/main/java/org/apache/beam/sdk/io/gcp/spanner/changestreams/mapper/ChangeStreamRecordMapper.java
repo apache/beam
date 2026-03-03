@@ -218,18 +218,27 @@ public class ChangeStreamRecordMapper {
    * @param resultSet the change stream result set
    * @param resultSetMetadata the metadata generated when reading the change stream row
    * @return a {@link List} of {@link ChangeStreamRecord} subclasses
+   * @throws InvalidProtocolBufferException
    */
   public List<ChangeStreamRecord> toChangeStreamRecords(
       PartitionMetadata partition,
       ChangeStreamResultSet resultSet,
       ChangeStreamResultSetMetadata resultSetMetadata) {
     if (this.isPostgres()) {
-      // In PostgresQL, change stream records are returned as JsonB.
+      // For `MUTABLE_KEY_RANGE` option, change stream records are returned as protos.
+      if (resultSet.isProtoBytesChangeRecord()) {
+        return Arrays.asList(
+            toChangeStreamRecord(partition, resultSet.getBytes(0), resultSetMetadata));
+      }
+
+      // For `IMMUTABLE_KEY_RANGE` option, change stream records are returned as
+      // JsonB.
       return Collections.singletonList(
           toChangeStreamRecordJson(partition, resultSet.getPgJsonb(0), resultSetMetadata));
     }
 
-    // In GoogleSQL, for `MUTABLE_KEY_RANGE` option, change stream records are returned as Protos.
+    // In GoogleSQL, for `MUTABLE_KEY_RANGE` option, change stream records are
+    // returned as Protos.
     if (resultSet.isProtoChangeRecord()) {
       return Arrays.asList(
           toChangeStreamRecord(

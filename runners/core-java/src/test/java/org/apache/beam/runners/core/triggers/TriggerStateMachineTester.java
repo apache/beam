@@ -48,6 +48,7 @@ import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
 import org.apache.beam.sdk.util.WindowTracing;
+import org.apache.beam.sdk.values.CausedByDrain;
 import org.apache.beam.sdk.values.TimestampedValue;
 import org.apache.beam.sdk.values.WindowedValue;
 import org.apache.beam.sdk.values.WindowedValues;
@@ -401,22 +402,19 @@ public class TriggerStateMachineTester<InputT, W extends BoundedWindow> {
     @Override
     public void setTimer(Instant timestamp, TimeDomain timeDomain) {
       timerInternals.setTimer(
-          TimerData.of(
-              namespace, timestamp, timestamp, timeDomain, TimerData.CausedByDrain.NORMAL));
+          TimerData.of(namespace, timestamp, timestamp, timeDomain, CausedByDrain.NORMAL));
     }
 
     @Override
     public void setTimer(Instant timestamp, Instant outputTimestamp, TimeDomain timeDomain) {
       timerInternals.setTimer(
-          TimerData.of(
-              namespace, timestamp, outputTimestamp, timeDomain, TimerData.CausedByDrain.NORMAL));
+          TimerData.of(namespace, timestamp, outputTimestamp, timeDomain, CausedByDrain.NORMAL));
     }
 
     @Override
     public void deleteTimer(Instant timestamp, TimeDomain timeDomain) {
       timerInternals.deleteTimer(
-          TimerData.of(
-              namespace, timestamp, timestamp, timeDomain, TimerData.CausedByDrain.NORMAL));
+          TimerData.of(namespace, timestamp, timestamp, timeDomain, CausedByDrain.NORMAL));
     }
 
     @Override

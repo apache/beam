@@ -73,11 +73,7 @@ async function isSlowReview(pull: any): Promise<boolean> {
     })
   ).data;
   for (const comment of comments) {
-    if (
-      comments.some(
-        ({ user: login }) => login !== pullAuthor && login !== BOT_NAME
-      )
-    ) {
+    if (comment.user.login !== pullAuthor && comment.user.login !== BOT_NAME) {
       return false;
     }
   }
@@ -90,11 +86,7 @@ async function isSlowReview(pull: any): Promise<boolean> {
     })
   ).data;
   for (const comment of reviewComments) {
-    if (
-      comments.some(
-        ({ user: login }) => login !== pullAuthor && login !== BOT_NAME
-      )
-    ) {
+    if (comment.user.login !== pullAuthor && comment.user.login !== BOT_NAME) {
       return false;
     }
   }
@@ -110,7 +102,10 @@ async function assignToNewReviewers(
   let prState = await stateClient.getPrState(pull.number);
   let reviewerStateToUpdate = {};
   const labelObjects = pull.labels;
-  let reviewersToExclude = Object.values(prState.reviewersAssignedForLabels);
+  let reviewersToExclude: string[] = Object.values(prState.reviewersAssignedForLabels) as string[];
+  if (pull.requested_reviewers) {
+    reviewersToExclude = reviewersToExclude.concat(pull.requested_reviewers.map((r: any) => r.login));
+  }
   reviewersToExclude.push(pull.user.login);
   const reviewersForLabels: { [key: string]: string[] } =
     reviewerConfig.getReviewersForLabels(labelObjects, reviewersToExclude);
@@ -189,14 +184,19 @@ async function processPull(
 
   if (await isSlowReview(pull)) {
     const client = github.getGitHubClient();
-    const currentReviewers = prState.reviewersAssignedForLabels;
-    if (currentReviewers && Object.values(currentReviewers).length > 0) {
+    let reviewersToPing = Object.values(prState.reviewersAssignedForLabels || {});
+    if (pull.requested_reviewers) {
+      reviewersToPing = reviewersToPing.concat(pull.requested_reviewers.map((r: any) => r.login));
+    }
+    reviewersToPing = [...new Set(reviewersToPing as string[])];
+
+    if (reviewersToPing.length > 0) {
       console.log(
-        `Flagging pr ${pull.number} as slow. Tagging reviewers ${currentReviewers}`
+        `Flagging pr ${pull.number} as slow. Tagging reviewers ${reviewersToPing}`
       );
       await github.addPrComment(
         pull.number,
-        commentStrings.slowReview(Object.values(currentReviewers))
+        commentStrings.slowReview(reviewersToPing)
       );
       await client.rest.issues.addLabels({
         owner: REPO_OWNER,
