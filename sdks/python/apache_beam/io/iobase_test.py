@@ -24,14 +24,15 @@ import unittest
 import mock
 
 import apache_beam as beam
-from apache_beam.io.concat_source import ConcatSource
-from apache_beam.io.concat_source_test import RangeSource
 from apache_beam.io import iobase
 from apache_beam.io import range_trackers
+from apache_beam.io.concat_source import ConcatSource
+from apache_beam.io.concat_source_test import RangeSource
 from apache_beam.io.iobase import SourceBundle
 from apache_beam.options.pipeline_options import DebugOptions
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
+from apache_beam.utils import timestamp
 
 
 class SDFBoundedSourceRestrictionProviderTest(unittest.TestCase):
@@ -242,8 +243,6 @@ class UnboundedSourceTest(unittest.TestCase):
 
   def test_unbounded_source_basic_interface(self):
     """Test that UnboundedSource can be subclassed with basic methods."""
-    from apache_beam.utils import timestamp
-    
     class TestUnboundedSource(iobase.UnboundedSource):
       def reader(self, checkpoint=None):
         return TestUnboundedReader()
