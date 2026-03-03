@@ -1540,6 +1540,7 @@ public class FhirIO {
         try {
           statusCode = Integer.parseInt(status.substring(0, 3));
         } catch (IndexOutOfBoundsException | NumberFormatException ignored) {
+          // Ignore parsing exception so we can return the default 404
         }
         return statusCode;
       }

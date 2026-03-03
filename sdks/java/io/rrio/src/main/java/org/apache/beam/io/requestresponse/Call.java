@@ -297,6 +297,7 @@ class Call<RequestT, ResponseT> extends PTransform<PCollection<RequestT>, Result
       try {
         boolean ignored = executor.awaitTermination(3L, TimeUnit.SECONDS);
       } catch (InterruptedException ignored) {
+        // Ignore the interrupt during teardown.
       }
     }
 
@@ -352,6 +353,7 @@ class Call<RequestT, ResponseT> extends PTransform<PCollection<RequestT>, Result
           incIfPresent(sleeperCounter);
           sleeper.sleep(backOff.nextBackOffMillis());
         } catch (InterruptedException ignored) {
+          // Ignore the interrupt and try again.
         }
       }
     }
