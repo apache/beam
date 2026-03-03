@@ -680,6 +680,8 @@ public class WorkerCustomSources {
         if (fractionConsumed != null) {
           progress.setFractionConsumed(fractionConsumed);
         }
+      } catch (OutOfMemoryError oom) {
+        throw oom;
       } catch (Throwable t) {
         LOG.warn("Error estimating fraction consumed from reader {}", reader, t);
       }
@@ -689,6 +691,8 @@ public class WorkerCustomSources {
         if (parallelism != null) {
           progress.setConsumedParallelism(parallelism);
         }
+      } catch (OutOfMemoryError oom) {
+        throw oom;
       } catch (Throwable t) {
         LOG.warn("Error estimating consumed parallelism from reader {}", reader, t);
       }
@@ -698,6 +702,8 @@ public class WorkerCustomSources {
         if (parallelism != null) {
           progress.setRemainingParallelism(parallelism);
         }
+      } catch (OutOfMemoryError oom) {
+        throw oom;
       } catch (Throwable t) {
         LOG.warn("Error estimating remaining parallelism from reader {}", reader, t);
       }

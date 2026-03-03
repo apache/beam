@@ -292,6 +292,8 @@ public abstract class WorkProgressUpdater {
           checkpointState = CheckpointState.CHECKPOINT_SUCCESSFUL;
           return true;
         }
+      } catch (OutOfMemoryError oom) {
+        throw oom;
       } catch (Throwable e) {
         LOG.warn("Error trying to checkpoint the worker: ", e);
       }
@@ -305,6 +307,8 @@ public abstract class WorkProgressUpdater {
     LOG.debug("Updating progress on work item {}", workString());
     try {
       reportProgressHelper();
+    } catch (OutOfMemoryError oom) {
+      throw oom;
     } catch (InterruptedException e) {
       LOG.info("Cancelling workitem execution: {}", workString(), e);
       worker.abort();

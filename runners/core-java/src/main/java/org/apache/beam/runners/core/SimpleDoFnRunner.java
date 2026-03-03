@@ -176,6 +176,8 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
     // This can contain user code. Wrap it in case it throws an exception.
     try {
       invoker.invokeStartBundle(new DoFnStartBundleArgumentProvider());
+    } catch (OutOfMemoryError oom) {
+      throw oom;
     } catch (Throwable t) {
       // Exception in user code.
       throw wrapUserCodeException(t);
@@ -215,8 +217,10 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
     // This can contain user code. Wrap it in case it throws an exception.
     try {
       invoker.invokeProcessElement(new DoFnProcessContext(elem));
-    } catch (Exception ex) {
-      throw wrapUserCodeException(ex);
+    } catch (OutOfMemoryError oom) {
+      throw oom;
+    } catch (Throwable t) {
+      throw wrapUserCodeException(t);
     }
   }
 
@@ -225,8 +229,9 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
     // This can contain user code. Wrap it in case it throws an exception.
     try {
       invoker.invokeFinishBundle(new DoFnFinishBundleArgumentProvider());
+    } catch (OutOfMemoryError oom) {
+      throw oom;
     } catch (Throwable t) {
-      // Exception in user code.
       throw wrapUserCodeException(t);
     }
   }

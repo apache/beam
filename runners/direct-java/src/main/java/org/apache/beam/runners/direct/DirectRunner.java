@@ -219,10 +219,9 @@ public class DirectRunner extends PipelineRunner<DirectPipelineResult> {
           result.waitUntilFinish();
         } catch (UserCodeException userException) {
           throw new PipelineExecutionException(userException.getCause());
+        } catch (RuntimeException | OutOfMemoryError e) {
+          throw e;
         } catch (Throwable t) {
-          if (t instanceof RuntimeException) {
-            throw (RuntimeException) t;
-          }
           throw new RuntimeException(t);
         }
       }

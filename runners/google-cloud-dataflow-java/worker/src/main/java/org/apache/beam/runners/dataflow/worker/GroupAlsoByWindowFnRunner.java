@@ -92,11 +92,9 @@ public class GroupAlsoByWindowFnRunner<InputT, OutputT> implements DoFnRunner<In
     // This can contain user code. Wrap it in case it throws an exception.
     try {
       fn.processElement(elem.getValue(), options, stepContext, sideInputReader, outputManager);
+    } catch (RuntimeException ex) {
+      throw ex;
     } catch (Exception ex) {
-      if (ex instanceof RuntimeException) {
-        throw (RuntimeException) ex;
-      }
-
       throw new RuntimeException(ex);
     }
   }

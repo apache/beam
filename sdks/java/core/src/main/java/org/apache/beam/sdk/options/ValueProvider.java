@@ -269,6 +269,8 @@ public interface ValueProvider<T> extends Serializable {
           return result.get();
         }
         return defaultValue;
+      } catch (OutOfMemoryError oom) {
+        throw oom;
       } catch (Throwable e) {
         throw new RuntimeException("Unable to load runtime value.", e);
       }
