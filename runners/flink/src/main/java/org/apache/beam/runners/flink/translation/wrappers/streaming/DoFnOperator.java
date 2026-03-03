@@ -598,9 +598,9 @@ public class DoFnOperator<PreInputT, InputT, OutputT>
   }
 
   /**
-   * Retrieve a keyed state backend that should be used to buffer elements for {@link @{code @}
-   * RequiresStableInput} functionality. By default this is the default keyed backend, but can be
-   * override in @{link ExecutableStageDoFnOperator}.
+   * Retrieve a keyed state backend that should be used to buffer elements for
+   * {@code @RequiresStableInput} functionality. By default this is the default keyed backend, but
+   * can be override in {@link ExecutableStageDoFnOperator}.
    *
    * @return the keyed backend to use for element buffering
    */

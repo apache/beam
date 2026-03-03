@@ -1555,7 +1555,6 @@ class BeamModulePlugin implements Plugin<Project> {
             "JavaTimeDefaultTimeZone",
             "JavaUtilDate",
             "JodaConstructors",
-            "MalformedInlineTag",
             "MissingSummary",
             "MixedMutabilityReturnType",
             "PreferJavaTimeOverload",
