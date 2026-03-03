@@ -68,7 +68,7 @@
 
 ## New Features / Improvements
 
-* (Python) Added foundation for UnboundedSource API: CheckpointMark, UnboundedReader, and UnboundedSource abstract base classes enabling support for continuous data streams in Apache Beam ([#37442](https://github.com/apache/beam/issues/37442)).
+* (Python) Added foundation for UnboundedSource API: CheckpointMark, UnboundedReader, and UnboundedSource abstract base classes enabling support for continuous data streams in Apache Beam ([#19137](https://github.com/apache/beam/issues/19137)).
 * (Python) Added exception chaining to preserve error context in CloudSQLEnrichmentHandler, processes utilities, and core transforms ([#37422](https://github.com/apache/beam/issues/37422)).
 * (Python) Added `take(n)` convenience for PCollection: `beam.take(n)` and `pcoll.take(n)` to get the first N elements deterministically without Top.Of + FlatMap ([#X](https://github.com/apache/beam/issues/37429)).
 * X feature added (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
