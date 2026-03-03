@@ -1540,7 +1540,6 @@ class BeamModulePlugin implements Plugin<Project> {
             "ComparableType",
             "DoNotMockAutoValue",
             "EmptyBlockTag",
-
             "EqualsGetClass",
             "EqualsUnsafeCast",
             "EscapedEntity",
