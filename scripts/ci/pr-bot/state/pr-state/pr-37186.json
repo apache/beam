@@ -1,9 +1,9 @@
 {
   "commentedAboutFailingChecks": false,
   "reviewersAssignedForLabels": {
-    "python": "claudevdm",
-    "build": "liferoad",
-    "website": "shunping"
+    "python": "jrmccluskey",
+    "build": "damccorm",
+    "website": "damccorm"
   },
   "nextAction": "Reviewers",
   "stopReviewerNotifications": false,
