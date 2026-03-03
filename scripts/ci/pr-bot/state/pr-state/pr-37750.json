@@ -1,0 +1,12 @@
+{
+  "commentedAboutFailingChecks": false,
+  "reviewersAssignedForLabels": {
+    "python": "tvalentyn",
+    "java": "ahmedabu98",
+    "go": "jrmccluskey"
+  },
+  "nextAction": "Reviewers",
+  "stopReviewerNotifications": false,
+  "remindAfterTestsPass": [],
+  "committerAssigned": false
+}
