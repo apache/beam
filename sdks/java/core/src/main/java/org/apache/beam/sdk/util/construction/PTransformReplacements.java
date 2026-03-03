@@ -52,9 +52,9 @@ public class PTransformReplacements {
             mainInput,
             input.getValue());
         checkArgument(
-            input.getValue() instanceof PCollection,
+            input.getValue() != null,
             "Unexpected input type %s",
-            input.getValue().getClass());
+            input.getValue() == null ? "null" : input.getValue().getClass());
         mainInput = (PCollection<T>) input.getValue();
       }
     }

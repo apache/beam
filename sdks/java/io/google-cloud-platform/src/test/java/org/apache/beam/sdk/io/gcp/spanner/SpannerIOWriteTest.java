@@ -213,7 +213,7 @@ public class SpannerIOWriteTest implements Serializable {
 
                   @Override
                   public boolean matches(Statement argument) {
-                    if (!(argument instanceof Statement)) {
+                    if (argument == null) {
                       return false;
                     }
                     Statement st = (Statement) argument;
@@ -236,7 +236,7 @@ public class SpannerIOWriteTest implements Serializable {
 
                   @Override
                   public boolean matches(Statement argument) {
-                    if (!(argument instanceof Statement)) {
+                    if (argument == null) {
                       return false;
                     }
                     Statement st = (Statement) argument;
@@ -259,7 +259,7 @@ public class SpannerIOWriteTest implements Serializable {
 
                   @Override
                   public boolean matches(Statement argument) {
-                    if (!(argument instanceof Statement)) {
+                    if (argument == null) {
                       return false;
                     }
                     Statement st = (Statement) argument;
@@ -1657,7 +1657,7 @@ public class SpannerIOWriteTest implements Serializable {
 
           @Override
           public boolean matches(Iterable<Mutation> argument) {
-            if (!(argument instanceof Iterable)) {
+            if (argument == null) {
               return false;
             }
             ImmutableSet<Mutation> actual = ImmutableSet.copyOf((Iterable) argument);

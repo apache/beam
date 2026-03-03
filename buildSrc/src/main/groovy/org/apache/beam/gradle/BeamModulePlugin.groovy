@@ -1535,7 +1535,7 @@ class BeamModulePlugin implements Plugin<Project> {
             "AutoValueImmutableFields",
             "AutoValueSubclassLeaked",
             "BadImport",
-            "BadInstanceof",
+
             "BigDecimalEquals",
             "ComparableType",
             "DoNotMockAutoValue",
