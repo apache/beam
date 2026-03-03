@@ -27,7 +27,7 @@ import pytest
 def _is_vertex_ai_available() -> bool:
   """Return True if Vertex AI client dependencies are importable."""
   try:
-    import vertexai
+    import vertexai  # pylint: disable=unused-import
   except ImportError:
     return False
   return True
