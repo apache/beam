@@ -91,7 +91,7 @@ public class DataChangeRecordAction {
     LOG.debug("[{}] Processing data record {}", token, record.getCommitTimestamp());
 
     final Timestamp commitTimestamp = record.getCommitTimestamp();
-    final Instant commitInstant = new Instant(commitTimestamp.toSqlTimestamp().getTime());
+    final Instant commitInstant = Instant.ofEpochMilli(commitTimestamp.toSqlTimestamp().getTime());
     if (interrupter.tryInterrupt(commitTimestamp)) {
       LOG.debug(
           "[{}] Soft deadline reached with data change record at {}, rescheduling",

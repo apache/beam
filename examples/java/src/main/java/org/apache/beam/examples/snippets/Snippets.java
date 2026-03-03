@@ -802,21 +802,21 @@ public class Snippets {
                   Create.timestamped(
                       TimestampedValue.of(
                           new TableRow().set("user", "mobile").set("score", 12).set("gap", 5),
-                          new Instant()),
+                          Instant.now()),
                       TimestampedValue.of(
-                          new TableRow().set("user", "desktop").set("score", 4), new Instant()),
+                          new TableRow().set("user", "desktop").set("score", 4), Instant.now()),
                       TimestampedValue.of(
                           new TableRow().set("user", "mobile").set("score", -3).set("gap", 5),
-                          new Instant().plus(Duration.millis(2000))),
+                          Instant.now().plus(Duration.millis(2000))),
                       TimestampedValue.of(
                           new TableRow().set("user", "mobile").set("score", 2).set("gap", 5),
-                          new Instant().plus(Duration.millis(9000))),
+                          Instant.now().plus(Duration.millis(9000))),
                       TimestampedValue.of(
                           new TableRow().set("user", "mobile").set("score", 7).set("gap", 5),
-                          new Instant().plus(Duration.millis(12000))),
+                          Instant.now().plus(Duration.millis(12000))),
                       TimestampedValue.of(
                           new TableRow().set("user", "desktop").set("score", 10),
-                          new Instant().plus(Duration.millis(12000)))));
+                          Instant.now().plus(Duration.millis(12000)))));
       // [END CustomSessionWindow5]
 
       // [START CustomSessionWindow6]

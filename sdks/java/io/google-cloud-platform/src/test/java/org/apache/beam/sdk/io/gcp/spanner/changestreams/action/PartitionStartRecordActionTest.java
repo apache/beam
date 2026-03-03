@@ -86,7 +86,8 @@ public class PartitionStartRecordActionTest {
         action.run(partition, record, tracker, interrupter, watermarkEstimator);
 
     assertEquals(Optional.empty(), maybeContinuation);
-    verify(watermarkEstimator).setWatermark(new Instant(startTimestamp.toSqlTimestamp().getTime()));
+    verify(watermarkEstimator)
+        .setWatermark(Instant.ofEpochMilli(startTimestamp.toSqlTimestamp().getTime()));
     verify(transaction)
         .insert(
             PartitionMetadata.newBuilder()

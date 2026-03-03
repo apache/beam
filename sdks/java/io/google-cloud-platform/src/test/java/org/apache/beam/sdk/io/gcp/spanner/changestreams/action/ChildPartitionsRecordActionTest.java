@@ -97,7 +97,8 @@ public class ChildPartitionsRecordActionTest {
         action.run(partition, record, tracker, interrupter, watermarkEstimator);
 
     assertEquals(Optional.empty(), maybeContinuation);
-    verify(watermarkEstimator).setWatermark(new Instant(startTimestamp.toSqlTimestamp().getTime()));
+    verify(watermarkEstimator)
+        .setWatermark(Instant.ofEpochMilli(startTimestamp.toSqlTimestamp().getTime()));
     verify(transaction)
         .insert(
             PartitionMetadata.newBuilder()
@@ -148,7 +149,8 @@ public class ChildPartitionsRecordActionTest {
         action.run(partition, record, tracker, interrupter, watermarkEstimator);
 
     assertEquals(Optional.empty(), maybeContinuation);
-    verify(watermarkEstimator).setWatermark(new Instant(startTimestamp.toSqlTimestamp().getTime()));
+    verify(watermarkEstimator)
+        .setWatermark(Instant.ofEpochMilli(startTimestamp.toSqlTimestamp().getTime()));
   }
 
   @Test
@@ -177,7 +179,8 @@ public class ChildPartitionsRecordActionTest {
         action.run(partition, record, tracker, interrupter, watermarkEstimator);
 
     assertEquals(Optional.empty(), maybeContinuation);
-    verify(watermarkEstimator).setWatermark(new Instant(startTimestamp.toSqlTimestamp().getTime()));
+    verify(watermarkEstimator)
+        .setWatermark(Instant.ofEpochMilli(startTimestamp.toSqlTimestamp().getTime()));
     verify(transaction)
         .insert(
             PartitionMetadata.newBuilder()
@@ -217,7 +220,8 @@ public class ChildPartitionsRecordActionTest {
         action.run(partition, record, tracker, interrupter, watermarkEstimator);
 
     assertEquals(Optional.empty(), maybeContinuation);
-    verify(watermarkEstimator).setWatermark(new Instant(startTimestamp.toSqlTimestamp().getTime()));
+    verify(watermarkEstimator)
+        .setWatermark(Instant.ofEpochMilli(startTimestamp.toSqlTimestamp().getTime()));
     verify(transaction, never()).insert(any());
   }
 

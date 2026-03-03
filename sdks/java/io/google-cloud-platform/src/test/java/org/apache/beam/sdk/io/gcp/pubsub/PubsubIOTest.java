@@ -636,9 +636,9 @@ public class PubsubIOTest {
     List<GenericClass> inputs =
         Lists.newArrayList(
             new GenericClass(
-                1, "foo", new DateTime().withDate(2019, 10, 1).withZone(DateTimeZone.UTC)),
+                1, "foo", DateTime.now().withDate(2019, 10, 1).withZone(DateTimeZone.UTC)),
             new GenericClass(
-                2, "bar", new DateTime().withDate(1986, 10, 1).withZone(DateTimeZone.UTC)));
+                2, "bar", DateTime.now().withDate(1986, 10, 1).withZone(DateTimeZone.UTC)));
     setupTestClient(inputs, coder);
     PCollection<GenericClass> read =
         pipeline.apply(

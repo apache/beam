@@ -184,7 +184,7 @@ public class SyntheticUnboundedSource
     public boolean advance() {
       currentOffset++;
 
-      processingTime = new Instant();
+      processingTime = Instant.now();
       eventTime = processingTime.minus(sourceOptions.nextProcessingTimeDelay(currentOffset));
 
       SyntheticSourceOptions.Record record =

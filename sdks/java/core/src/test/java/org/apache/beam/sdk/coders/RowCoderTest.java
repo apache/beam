@@ -65,7 +65,7 @@ public class RowCoderTest {
             .build();
 
     DateTime dateTime =
-        new DateTime().withDate(1979, 3, 14).withTime(1, 2, 3, 4).withZone(DateTimeZone.UTC);
+        DateTime.now().withDate(1979, 3, 14).withTime(1, 2, 3, 4).withZone(DateTimeZone.UTC);
     Row row =
         Row.withSchema(schema)
             .addValues(

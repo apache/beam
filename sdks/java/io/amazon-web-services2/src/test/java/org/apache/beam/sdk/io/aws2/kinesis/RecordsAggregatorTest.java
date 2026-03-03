@@ -44,7 +44,7 @@ public class RecordsAggregatorTest {
   private static final String HASH_KEY = "12345";
   private static final int HASH_KEY_OVERHEAD = 2 + HASH_KEY.length();
 
-  private RecordsAggregator aggregator = new RecordsAggregator(MAX_BYTES_PER_RECORD, new Instant());
+  private RecordsAggregator aggregator = new RecordsAggregator(MAX_BYTES_PER_RECORD, Instant.now());
 
   @Test
   public void testAggregationCompatibilityWithKcl() {
@@ -129,7 +129,7 @@ public class RecordsAggregatorTest {
 
   @Test
   public void testRejectRecordIfSizeExceeded() {
-    aggregator = new RecordsAggregator(BASE_OVERHEAD + PARTITION_KEY_OVERHEAD + 100, new Instant());
+    aggregator = new RecordsAggregator(BASE_OVERHEAD + PARTITION_KEY_OVERHEAD + 100, Instant.now());
     // adding record fails due to encoding overhead
     assertThat(aggregator.addRecord(PARTITION_KEY, null, new byte[95])).isFalse();
     // but can fit if size is reduced
@@ -138,7 +138,7 @@ public class RecordsAggregatorTest {
 
   @Test
   public void testHasCapacity() {
-    aggregator = new RecordsAggregator(BASE_OVERHEAD + PARTITION_KEY_OVERHEAD + 100, new Instant());
+    aggregator = new RecordsAggregator(BASE_OVERHEAD + PARTITION_KEY_OVERHEAD + 100, Instant.now());
     assertThat(aggregator.addRecord(PARTITION_KEY, null, new byte[30])).isTrue();
     assertThat(aggregator.hasCapacity()).isTrue(); // can fit next record of avg size
     assertThat(aggregator.addRecord(PARTITION_KEY, null, new byte[30])).isTrue();

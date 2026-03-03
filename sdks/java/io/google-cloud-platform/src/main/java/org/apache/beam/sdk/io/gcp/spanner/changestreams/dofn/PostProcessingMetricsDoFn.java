@@ -72,7 +72,7 @@ public class PostProcessingMetricsDoFn extends DoFn<DataChangeRecord, DataChange
   public void processElement(
       @Element DataChangeRecord dataChangeRecord, OutputReceiver<DataChangeRecord> receiver) {
     final Instant commitInstant =
-        new Instant(dataChangeRecord.getCommitTimestamp().toSqlTimestamp().getTime());
+        Instant.ofEpochMilli(dataChangeRecord.getCommitTimestamp().toSqlTimestamp().getTime());
 
     metrics.incDataRecordCounter();
     measureCommitTimestampToEmittedMillis(dataChangeRecord);

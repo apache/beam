@@ -86,7 +86,7 @@ public class PartitionEventRecordAction {
     LOG.debug("[{}] Processing partition event record {}", token, record);
 
     final Timestamp timestamp = record.getCommitTimestamp();
-    final Instant timestampInstant = new Instant(timestamp.toSqlTimestamp().getTime());
+    final Instant timestampInstant = Instant.ofEpochMilli(timestamp.toSqlTimestamp().getTime());
     if (interrupter.tryInterrupt(timestamp)) {
       LOG.debug(
           "[{}] Soft deadline reached with partition event record at {}, rescheduling",

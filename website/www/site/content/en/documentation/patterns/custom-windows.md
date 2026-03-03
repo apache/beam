@@ -67,12 +67,12 @@ The following test data tallies two users' scores with and without the `gap` att
 
 ```
 .apply("Create data", Create.timestamped(
-            TimestampedValue.of("{\"user\":\"user-1\",\"score\":\"12\",\"gap\":\"5\"}", new Instant()),
-            TimestampedValue.of("{\"user\":\"user-2\",\"score\":\"4\"}", new Instant()),
-            TimestampedValue.of("{\"user\":\"user-1\",\"score\":\"-3\",\"gap\":\"5\"}", new Instant().plus(2000)),
-            TimestampedValue.of("{\"user\":\"user-1\",\"score\":\"2\",\"gap\":\"5\"}", new Instant().plus(9000)),
-            TimestampedValue.of("{\"user\":\"user-1\",\"score\":\"7\",\"gap\":\"5\"}", new Instant().plus(12000)),
-            TimestampedValue.of("{\"user\":\"user-2\",\"score\":\"10\"}", new Instant().plus(12000)))
+            TimestampedValue.of("{\"user\":\"user-1\",\"score\":\"12\",\"gap\":\"5\"}", Instant.now()),
+            TimestampedValue.of("{\"user\":\"user-2\",\"score\":\"4\"}", Instant.now()),
+            TimestampedValue.of("{\"user\":\"user-1\",\"score\":\"-3\",\"gap\":\"5\"}", Instant.now().plus(2000)),
+            TimestampedValue.of("{\"user\":\"user-1\",\"score\":\"2\",\"gap\":\"5\"}", Instant.now().plus(9000)),
+            TimestampedValue.of("{\"user\":\"user-1\",\"score\":\"7\",\"gap\":\"5\"}", Instant.now().plus(12000)),
+            TimestampedValue.of("{\"user\":\"user-2\",\"score\":\"10\"}", Instant.now().plus(12000)))
         .withCoder(StringUtf8Coder.of()))
 ```
 

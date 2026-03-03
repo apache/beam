@@ -74,7 +74,7 @@ public class OrderedEventProcessorGlobalSequenceTest extends OrderedEventProcess
         EMISSION_FREQUENCY_ON_EVERY_ELEMENT,
         INITIAL_SEQUENCE_OF_0,
         LARGE_MAX_RESULTS_PER_OUTPUT,
-        ContiguousSequenceRange.of(0, 6, new Instant()));
+        ContiguousSequenceRange.of(0, 6, Instant.now()));
   }
 
   @Test
@@ -108,7 +108,7 @@ public class OrderedEventProcessorGlobalSequenceTest extends OrderedEventProcess
         EMISSION_FREQUENCY_ON_EVERY_ELEMENT,
         INITIAL_SEQUENCE_OF_0,
         LARGE_MAX_RESULTS_PER_OUTPUT,
-        ContiguousSequenceRange.of(0, 9, new Instant()));
+        ContiguousSequenceRange.of(0, 9, Instant.now()));
   }
 
   @Test
@@ -147,7 +147,7 @@ public class OrderedEventProcessorGlobalSequenceTest extends OrderedEventProcess
         EMISSION_FREQUENCY_ON_EVERY_ELEMENT,
         INITIAL_SEQUENCE_OF_0,
         LARGE_MAX_RESULTS_PER_OUTPUT,
-        ContiguousSequenceRange.of(0, 4, new Instant()));
+        ContiguousSequenceRange.of(0, 4, Instant.now()));
   }
 
   @Test
@@ -186,7 +186,7 @@ public class OrderedEventProcessorGlobalSequenceTest extends OrderedEventProcess
         EMISSION_FREQUENCY_ON_EVERY_ELEMENT,
         INITIAL_SEQUENCE_OF_0,
         LARGE_MAX_RESULTS_PER_OUTPUT,
-        ContiguousSequenceRange.of(0, 4, new Instant()));
+        ContiguousSequenceRange.of(0, 4, Instant.now()));
   }
 
   @Test
@@ -224,7 +224,7 @@ public class OrderedEventProcessorGlobalSequenceTest extends OrderedEventProcess
         // Sequence matcher doesn't know if the element is valid or not.
         // That's why the elements that are get rejected in the processor still count  when
         // calculating the global sequence
-        ContiguousSequenceRange.of(0, 4, new Instant()));
+        ContiguousSequenceRange.of(0, 4, Instant.now()));
   }
 
   @Test
@@ -251,7 +251,7 @@ public class OrderedEventProcessorGlobalSequenceTest extends OrderedEventProcess
         EMISSION_FREQUENCY_ON_EVERY_OTHER_EVENT,
         INITIAL_SEQUENCE_OF_0,
         LARGE_MAX_RESULTS_PER_OUTPUT,
-        ContiguousSequenceRange.of(0, 6, new Instant()));
+        ContiguousSequenceRange.of(0, 6, Instant.now()));
   }
 
   @Test
@@ -285,7 +285,7 @@ public class OrderedEventProcessorGlobalSequenceTest extends OrderedEventProcess
         EMISSION_FREQUENCY_ON_EVERY_ELEMENT,
         1L /* This dataset assumes 1 as the starting sequence */,
         maxResultsPerOutput,
-        ContiguousSequenceRange.of(1, sequences.length + 1, new Instant()));
+        ContiguousSequenceRange.of(1, sequences.length + 1, Instant.now()));
   }
 
   @Test
@@ -318,7 +318,7 @@ public class OrderedEventProcessorGlobalSequenceTest extends OrderedEventProcess
         EMISSION_FREQUENCY_ON_EVERY_ELEMENT,
         1L /* This dataset assumes 1 as the starting sequence */,
         maxResultsPerOutput,
-        ContiguousSequenceRange.of(1, 11, new Instant()));
+        ContiguousSequenceRange.of(1, 11, Instant.now()));
   }
 
   @Test
@@ -374,7 +374,7 @@ public class OrderedEventProcessorGlobalSequenceTest extends OrderedEventProcess
         EMISSION_FREQUENCY_ON_EVERY_ELEMENT,
         INITIAL_SEQUENCE_OF_0,
         LARGE_MAX_RESULTS_PER_OUTPUT,
-        ContiguousSequenceRange.of(0, 3, new Instant()));
+        ContiguousSequenceRange.of(0, 3, Instant.now()));
   }
 
   private void testGlobalSequenceProcessing(

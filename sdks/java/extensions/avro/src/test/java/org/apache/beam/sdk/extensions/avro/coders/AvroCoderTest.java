@@ -110,9 +110,9 @@ import org.objenesis.strategy.StdInstantiatorStrategy;
 public class AvroCoderTest {
 
   public static final DateTime DATETIME_A =
-      new DateTime().withDate(1994, 10, 31).withZone(DateTimeZone.UTC);
+      DateTime.now().withDate(1994, 10, 31).withZone(DateTimeZone.UTC);
   public static final DateTime DATETIME_B =
-      new DateTime().withDate(1997, 4, 25).withZone(DateTimeZone.UTC);
+      DateTime.now().withDate(1997, 4, 25).withZone(DateTimeZone.UTC);
   private static final TestAvroNested AVRO_NESTED_SPECIFIC_RECORD = new TestAvroNested(true, 42);
   private static final TestAvro AVRO_SPECIFIC_RECORD =
       TestAvroFactory.newInstance(
@@ -125,7 +125,7 @@ public class AvroCoderTest {
           ByteBuffer.wrap(new byte[] {1, 2, 3, 4}),
           new fixed4(new byte[] {1, 2, 3, 4}),
           new LocalDate(1979, 3, 14),
-          new DateTime().withDate(1979, 3, 14).withTime(1, 2, 3, 4),
+          DateTime.now().withDate(1979, 3, 14).withTime(1, 2, 3, 4),
           TestEnum.abc,
           AVRO_NESTED_SPECIFIC_RECORD,
           ImmutableList.of(AVRO_NESTED_SPECIFIC_RECORD, AVRO_NESTED_SPECIFIC_RECORD),

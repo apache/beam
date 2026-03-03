@@ -106,7 +106,8 @@ public class FlatMapTranslator<InputT, OutputT>
     public void collect(DoFn<InputT, OutputT>.ProcessContext ctx, OutputT out) {
       if (eventTimeExtractor != null) {
         InputT element = ctx.element();
-        ctx.outputWithTimestamp(out, new Instant(eventTimeExtractor.extractTimestamp(element)));
+        ctx.outputWithTimestamp(
+            out, Instant.ofEpochMilli(eventTimeExtractor.extractTimestamp(element)));
       } else {
         ctx.output(out);
       }

@@ -86,7 +86,7 @@ public class PartitionEndRecordAction {
     LOG.debug("[{}] Processing partition end record {}", token, record);
 
     final Timestamp timestamp = record.getEndTimestamp();
-    final Instant timestampInstant = new Instant(timestamp.toSqlTimestamp().getTime());
+    final Instant timestampInstant = Instant.ofEpochMilli(timestamp.toSqlTimestamp().getTime());
     if (interrupter.tryInterrupt(timestamp)) {
       LOG.debug(
           "[{}] Soft deadline reached with partition end record at {}, rescheduling",

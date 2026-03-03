@@ -205,7 +205,8 @@ public class SpannerChangeStreamTransactionBoundariesIT {
                 .collect(Collectors.toList());
 
         final Instant commitInstant =
-            new Instant(sortedRecords.get(0).getCommitTimestamp().toSqlTimestamp().getTime());
+            Instant.ofEpochMilli(
+                sortedRecords.get(0).getCommitTimestamp().toSqlTimestamp().getTime());
         context.outputWithTimestamp(
             KV.of(
                 new SpannerChangeStreamTransactionBoundariesIT.SortKey(

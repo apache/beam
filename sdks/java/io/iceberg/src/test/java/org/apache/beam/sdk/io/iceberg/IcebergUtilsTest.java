@@ -139,7 +139,7 @@ public class IcebergUtilsTest {
 
       // Schema.FieldType.DATETIME
       DateTime dateTime =
-          new DateTime().withDate(1979, 03, 14).withTime(1, 2, 3, 4).withZone(DateTimeZone.UTC);
+          DateTime.now().withDate(1979, 03, 14).withTime(1, 2, 3, 4).withZone(DateTimeZone.UTC);
       checkRowValueToRecordValue(
           Schema.FieldType.DATETIME,
           dateTime,
@@ -348,7 +348,7 @@ public class IcebergUtilsTest {
 
       // Schema.FieldType.DATETIME
       DateTime dateTime =
-          new DateTime().withDate(1979, 03, 14).withTime(1, 2, 3, 4).withZone(DateTimeZone.UTC);
+          DateTime.now().withDate(1979, 03, 14).withTime(1, 2, 3, 4).withZone(DateTimeZone.UTC);
       checkRecordValueToRowValue(
           Types.TimestampType.withoutZone(),
           dateTime.getMillis() * 1000L,

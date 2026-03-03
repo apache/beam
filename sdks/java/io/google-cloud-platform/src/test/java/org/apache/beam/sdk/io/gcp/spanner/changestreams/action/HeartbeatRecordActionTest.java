@@ -73,7 +73,8 @@ public class HeartbeatRecordActionTest {
             watermarkEstimator);
 
     assertEquals(Optional.empty(), maybeContinuation);
-    verify(watermarkEstimator).setWatermark(new Instant(timestamp.toSqlTimestamp().getTime()));
+    verify(watermarkEstimator)
+        .setWatermark(Instant.ofEpochMilli(timestamp.toSqlTimestamp().getTime()));
   }
 
   @Test

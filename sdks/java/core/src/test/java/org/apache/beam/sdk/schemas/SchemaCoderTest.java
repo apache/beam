@@ -235,13 +235,13 @@ public class SchemaCoderTest {
                         "foo",
                         9001,
                         0L,
-                        new DateTime().withDate(1979, 3, 14).withTime(10, 30, 0, 0)),
+                        DateTime.now().withDate(1979, 3, 14).withTime(10, 30, 0, 0)),
                 () ->
                     SimpleAutoValue.of(
                         "bar",
                         9002,
                         1L,
-                        new DateTime().withDate(1989, 3, 14).withTime(10, 30, 0, 0))),
+                        DateTime.now().withDate(1989, 3, 14).withTime(10, 30, 0, 0))),
             true
           },
           new Object[] {
@@ -252,13 +252,13 @@ public class SchemaCoderTest {
                         "foo",
                         9001,
                         0L,
-                        new DateTime().withDate(1979, 3, 14).withTime(10, 30, 0, 0)),
+                        DateTime.now().withDate(1979, 3, 14).withTime(10, 30, 0, 0)),
                 () ->
                     new SimpleBean(
                         "bar",
                         9002,
                         1L,
-                        new DateTime().withDate(1989, 3, 14).withTime(10, 30, 0, 0))),
+                        DateTime.now().withDate(1989, 3, 14).withTime(10, 30, 0, 0))),
             true
           },
           new Object[] {
@@ -269,13 +269,13 @@ public class SchemaCoderTest {
                         "foo",
                         9001,
                         0L,
-                        new DateTime().withDate(1979, 3, 14).withTime(10, 30, 0, 0)),
+                        DateTime.now().withDate(1979, 3, 14).withTime(10, 30, 0, 0)),
                 () ->
                     new SimplePojo(
                         "bar",
                         9002,
                         1L,
-                        new DateTime().withDate(1989, 3, 14).withTime(10, 30, 0, 0))),
+                        DateTime.now().withDate(1989, 3, 14).withTime(10, 30, 0, 0))),
             true
           },
           new Object[] {

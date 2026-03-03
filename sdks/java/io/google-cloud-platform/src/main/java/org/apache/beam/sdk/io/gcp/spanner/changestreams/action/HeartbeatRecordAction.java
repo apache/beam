@@ -82,7 +82,7 @@ public class HeartbeatRecordAction {
     LOG.debug("[{}] Processing heartbeat record {}", token, record);
 
     final Timestamp timestamp = record.getTimestamp();
-    final Instant timestampInstant = new Instant(timestamp.toSqlTimestamp().getTime());
+    final Instant timestampInstant = Instant.ofEpochMilli(timestamp.toSqlTimestamp().getTime());
     if (interrupter.tryInterrupt(timestamp)) {
       LOG.debug(
           "[{}] Soft deadline reached with heartbeat record at {}, rescheduling", token, timestamp);

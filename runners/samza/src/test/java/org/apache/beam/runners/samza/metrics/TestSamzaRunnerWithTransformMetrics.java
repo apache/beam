@@ -176,9 +176,9 @@ public class TestSamzaRunnerWithTransformMetrics {
   @Test
   public void testSamzaInputAndOutputMetricOp() {
     final WindowedValue<String> windowedValue =
-        WindowedValues.timestampedValueInGlobalWindow("value-1", new Instant());
+        WindowedValues.timestampedValueInGlobalWindow("value-1", Instant.now());
     final WindowedValue<String> windowedValue2 =
-        WindowedValues.timestampedValueInGlobalWindow("value-2", new Instant());
+        WindowedValues.timestampedValueInGlobalWindow("value-2", Instant.now());
     final WatermarkMessage watermarkMessage =
         new WatermarkMessage(BoundedWindow.TIMESTAMP_MAX_VALUE.getMillis());
 
@@ -253,9 +253,9 @@ public class TestSamzaRunnerWithTransformMetrics {
   @Test
   public void testSamzaInputAndOutputGBKMetricOp() {
     final WindowedValue<String> windowedValue =
-        WindowedValues.timestampedValueInGlobalWindow("value-1", new Instant());
+        WindowedValues.timestampedValueInGlobalWindow("value-1", Instant.now());
     final WindowedValue<String> windowedValue2 =
-        WindowedValues.timestampedValueInGlobalWindow("value-2", new Instant());
+        WindowedValues.timestampedValueInGlobalWindow("value-2", Instant.now());
     final WatermarkMessage watermarkMessage =
         new WatermarkMessage(BoundedWindow.TIMESTAMP_MAX_VALUE.getMillis());
 

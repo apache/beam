@@ -62,7 +62,7 @@ import org.joda.time.Instant;
 public class SideInputLoadTest extends LoadTest<SideInputLoadTest.Options> {
 
   private static final String METRICS_NAMESPACE = "sideinput";
-  private static final Instant TIME = new Instant();
+  private static final Instant TIME = Instant.now();
 
   public SideInputLoadTest(String[] args) throws IOException {
     super(args, Options.class, METRICS_NAMESPACE);

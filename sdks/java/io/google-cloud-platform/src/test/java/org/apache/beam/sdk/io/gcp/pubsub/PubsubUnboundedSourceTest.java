@@ -364,7 +364,8 @@ public class PubsubUnboundedSourceTest {
       // No duplicate messages.
       assertNotNull(messageNum);
       // Preserve timestamp.
-      assertEquals(new Instant(messageNumToTimestamp(messageNum)), reader.getCurrentTimestamp());
+      assertEquals(
+          Instant.ofEpochMilli(messageNumToTimestamp(messageNum)), reader.getCurrentTimestamp());
       // Preserve record id.
       String recid = String.format("recordid_%d", messageNum);
       assertArrayEquals(recid.getBytes(StandardCharsets.UTF_8), reader.getCurrentRecordId());

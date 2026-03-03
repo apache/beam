@@ -369,7 +369,7 @@ public class TranslationContext {
           producer.send(id, new OutgoingMessageEnvelope(sysStream, 0, null, msg));
         };
     final WindowedValue<String> windowedValue =
-        WindowedValues.timestampedValueInGlobalWindow("dummy", new Instant());
+        WindowedValues.timestampedValueInGlobalWindow("dummy", Instant.now());
 
     sendFn.accept(OpMessage.ofElement(windowedValue));
     sendFn.accept(new WatermarkMessage(BoundedWindow.TIMESTAMP_MAX_VALUE.getMillis()));

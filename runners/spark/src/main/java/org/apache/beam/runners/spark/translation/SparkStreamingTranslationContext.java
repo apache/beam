@@ -37,7 +37,7 @@ public class SparkStreamingTranslationContext extends SparkTranslationContext {
     super(jsc, options, jobInfo);
     Duration batchDuration = new Duration(options.getBatchIntervalMillis());
     this.streamingContext = new JavaStreamingContext(jsc, batchDuration);
-    this.firstTimestamp = new Instant();
+    this.firstTimestamp = Instant.now();
   }
 
   public JavaStreamingContext getStreamingContext() {

@@ -1003,7 +1003,7 @@ public class JdbcIOTest implements Serializable {
                 20.5D,
                 15.5F,
                 10,
-                new DateTime(),
+                DateTime.now(),
                 (short) 5,
                 Byte.parseByte("1", 2))
             .build();

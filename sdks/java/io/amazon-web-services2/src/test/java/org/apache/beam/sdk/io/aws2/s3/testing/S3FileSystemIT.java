@@ -91,7 +91,7 @@ public class S3FileSystemIT {
   }
 
   static class S3Bucket extends ExternalResource {
-    public final String name = "beam-s3io-it-" + new DateTime().toString("yyyyMMdd-HHmmss");
+    public final String name = "beam-s3io-it-" + DateTime.now().toString("yyyyMMdd-HHmmss");
 
     @Override
     protected void before() throws Throwable {

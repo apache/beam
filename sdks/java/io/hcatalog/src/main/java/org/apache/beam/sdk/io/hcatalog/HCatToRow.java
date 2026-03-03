@@ -31,7 +31,8 @@ import org.joda.time.Instant;
 
 /** Utilities to convert {@link HCatRecord HCatRecords} to {@link Row Rows}. */
 @SuppressWarnings({
-  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+  "nullness", // TODO(https://github.com/apache/beam/issues/20497)
+  "JodaConstructors"
 })
 public class HCatToRow {
 

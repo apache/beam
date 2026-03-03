@@ -117,7 +117,7 @@ public class ChildPartitionsRecordAction {
     LOG.debug("[{}] Processing child partition record {}", token, record);
 
     final Timestamp startTimestamp = record.getStartTimestamp();
-    final Instant startInstant = new Instant(startTimestamp.toSqlTimestamp().getTime());
+    final Instant startInstant = Instant.ofEpochMilli(startTimestamp.toSqlTimestamp().getTime());
     if (interrupter.tryInterrupt(startTimestamp)) {
       LOG.debug(
           "[{}] Soft deadline reached with child partitions record at {}, rescheduling",

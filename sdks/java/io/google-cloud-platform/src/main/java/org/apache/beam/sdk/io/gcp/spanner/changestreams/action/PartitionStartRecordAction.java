@@ -117,7 +117,8 @@ public class PartitionStartRecordAction {
       LOG.debug("[{}] Could not claim queryChangeStream({}), stopping", token, startTimestamp);
       return Optional.of(ProcessContinuation.stop());
     }
-    watermarkEstimator.setWatermark(new Instant(startTimestamp.toSqlTimestamp().getTime()));
+    watermarkEstimator.setWatermark(
+        Instant.ofEpochMilli(startTimestamp.toSqlTimestamp().getTime()));
     for (String startPartitionToken : record.getPartitionTokens()) {
       processStartPartition(partition, record, startPartitionToken);
     }

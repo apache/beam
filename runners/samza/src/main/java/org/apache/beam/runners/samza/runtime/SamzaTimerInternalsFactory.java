@@ -381,7 +381,7 @@ public class SamzaTimerInternalsFactory<K> implements TimerInternalsFactory<K> {
 
     @Override
     public Instant currentProcessingTime() {
-      return new Instant();
+      return Instant.now();
     }
 
     @Override

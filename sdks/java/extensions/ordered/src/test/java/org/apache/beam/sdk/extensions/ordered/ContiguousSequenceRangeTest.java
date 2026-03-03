@@ -31,25 +31,25 @@ public class ContiguousSequenceRangeTest extends TestCase {
     assertEquals(
         "Empty range is smaller than another",
         -1,
-        ContiguousSequenceRange.EMPTY.compareTo(ContiguousSequenceRange.of(0, 5, new Instant())));
+        ContiguousSequenceRange.EMPTY.compareTo(ContiguousSequenceRange.of(0, 5, Instant.now())));
 
     assertEquals(
         "First range is smaller than the second",
         -1,
-        ContiguousSequenceRange.of(0, 2, new Instant())
-            .compareTo(ContiguousSequenceRange.of(0, 5, new Instant())));
+        ContiguousSequenceRange.of(0, 2, Instant.now())
+            .compareTo(ContiguousSequenceRange.of(0, 5, Instant.now())));
 
     assertEquals(
         "First range is larger than the second",
         1,
-        ContiguousSequenceRange.of(0, 10, new Instant())
-            .compareTo(ContiguousSequenceRange.of(0, 5, new Instant())));
+        ContiguousSequenceRange.of(0, 10, Instant.now())
+            .compareTo(ContiguousSequenceRange.of(0, 5, Instant.now())));
 
     assertEquals(
         "Ranges are equal",
         0,
-        ContiguousSequenceRange.of(0, 10, new Instant())
-            .compareTo(ContiguousSequenceRange.of(0, 10, new Instant())));
+        ContiguousSequenceRange.of(0, 10, Instant.now())
+            .compareTo(ContiguousSequenceRange.of(0, 10, Instant.now())));
   }
 
   public void testLargestRange() {
@@ -59,9 +59,9 @@ public class ContiguousSequenceRangeTest extends TestCase {
         ContiguousSequenceRange.largestRange(Collections.EMPTY_LIST));
 
     ContiguousSequenceRange one = ContiguousSequenceRange.EMPTY;
-    ContiguousSequenceRange two = ContiguousSequenceRange.of(0, 5, new Instant());
-    ContiguousSequenceRange three = ContiguousSequenceRange.of(0, 22, new Instant());
-    ContiguousSequenceRange four = ContiguousSequenceRange.of(0, 10, new Instant());
+    ContiguousSequenceRange two = ContiguousSequenceRange.of(0, 5, Instant.now());
+    ContiguousSequenceRange three = ContiguousSequenceRange.of(0, 22, Instant.now());
+    ContiguousSequenceRange four = ContiguousSequenceRange.of(0, 10, Instant.now());
     assertEquals(
         "third range",
         three,

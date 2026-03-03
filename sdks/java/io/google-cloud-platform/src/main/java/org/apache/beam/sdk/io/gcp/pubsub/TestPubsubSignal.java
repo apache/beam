@@ -316,10 +316,10 @@ public class TestPubsubSignal implements TestRule {
             .build();
     subscriber.startAsync();
 
-    DateTime startTime = new DateTime();
+    DateTime startTime = DateTime.now();
     int timeoutSeconds = timeoutDuration.toStandardSeconds().getSeconds();
     while (result.get() == null
-        && Seconds.secondsBetween(startTime, new DateTime()).getSeconds() < timeoutSeconds) {
+        && Seconds.secondsBetween(startTime, DateTime.now()).getSeconds() < timeoutSeconds) {
       try {
         Thread.sleep(1000);
       } catch (InterruptedException ignored) {

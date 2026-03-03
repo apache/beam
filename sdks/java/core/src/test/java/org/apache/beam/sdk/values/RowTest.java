@@ -128,7 +128,7 @@ public class RowTest {
             .build();
 
     DateTime dateTime =
-        new DateTime().withDate(1979, 03, 14).withTime(1, 2, 3, 4).withZone(DateTimeZone.UTC);
+        DateTime.now().withDate(1979, 03, 14).withTime(1, 2, 3, 4).withZone(DateTimeZone.UTC);
     Row row =
         Row.withSchema(schema)
             .addValues(
@@ -572,7 +572,7 @@ public class RowTest {
             .collect(toSchema());
 
     DateTime dateTime =
-        new DateTime().withDate(1979, 03, 14).withTime(1, 2, 3, 4).withZone(DateTimeZone.UTC);
+        DateTime.now().withDate(1979, 03, 14).withTime(1, 2, 3, 4).withZone(DateTimeZone.UTC);
     byte[] bytes = new byte[] {1, 2, 3, 4};
 
     Row row =

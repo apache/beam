@@ -35,7 +35,7 @@ public class InMemoryBundleFinalizerTest {
     InMemoryBundleFinalizer finalizer = new InMemoryBundleFinalizer();
     // Check when nothing has been registered
     assertThat(finalizer.getAndClearFinalizations(), is(empty()));
-    finalizer.afterBundleCommit(new Instant(), () -> {});
+    finalizer.afterBundleCommit(Instant.now(), () -> {});
     assertThat(finalizer.getAndClearFinalizations(), hasSize(1));
     // Check that it is empty
     assertThat(finalizer.getAndClearFinalizations(), is(empty()));

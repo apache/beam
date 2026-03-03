@@ -124,7 +124,7 @@ public class PortableBundleManagerTest {
 
   @Test
   public void testProcessWatermarkWhenBundleNotStarted() {
-    Instant watermark = new Instant();
+    Instant watermark = Instant.now();
     portableBundleManager =
         new PortableBundleManager<>(bundleProgressListener, 4, 1, bundleTimerScheduler, TIMER_ID);
     portableBundleManager.processWatermark(watermark, emitter);
@@ -133,7 +133,7 @@ public class PortableBundleManagerTest {
 
   @Test
   public void testQueueWatermarkWhenBundleStarted() {
-    Instant watermark = new Instant();
+    Instant watermark = Instant.now();
     portableBundleManager =
         new PortableBundleManager<>(bundleProgressListener, 1, 1, bundleTimerScheduler, TIMER_ID);
 

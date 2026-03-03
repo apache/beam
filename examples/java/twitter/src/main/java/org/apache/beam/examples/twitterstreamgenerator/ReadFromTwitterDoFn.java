@@ -45,7 +45,7 @@ final class ReadFromTwitterDoFn extends DoFn<TwitterConfig, String> {
   private final DateTime startTime;
 
   ReadFromTwitterDoFn() {
-    this.startTime = new DateTime();
+    this.startTime = DateTime.now();
   }
   /* Logger for class.*/
   private static final Logger LOG = LoggerFactory.getLogger(ReadFromTwitterDoFn.class);

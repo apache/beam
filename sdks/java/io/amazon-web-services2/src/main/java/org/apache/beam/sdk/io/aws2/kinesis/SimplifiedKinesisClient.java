@@ -166,7 +166,7 @@ class SimplifiedKinesisClient implements AutoCloseable {
    */
   public long getBacklogBytes(String streamName, Instant countSince)
       throws TransientKinesisException {
-    return getBacklogBytes(streamName, countSince, new Instant());
+    return getBacklogBytes(streamName, countSince, Instant.now());
   }
 
   /**

@@ -333,10 +333,10 @@ public class TestPubsub implements TestRule {
             .build();
     subscriber.startAsync();
 
-    DateTime startTime = new DateTime();
+    DateTime startTime = DateTime.now();
     int timeoutSeconds = timeoutDuration.toStandardSeconds().getSeconds();
     while (receivedMessages.size() < n
-        && Seconds.secondsBetween(startTime, new DateTime()).getSeconds() < timeoutSeconds) {
+        && Seconds.secondsBetween(startTime, DateTime.now()).getSeconds() < timeoutSeconds) {
       try {
         Thread.sleep(1000);
       } catch (InterruptedException ignored) {
@@ -411,10 +411,10 @@ public class TestPubsub implements TestRule {
       throw new IllegalArgumentException(String.format("timeoutDuration should be greater than 0"));
     }
 
-    DateTime startTime = new DateTime();
+    DateTime startTime = DateTime.now();
     int sizeOfSubscriptionList = 0;
     while (sizeOfSubscriptionList == 0
-        && Seconds.secondsBetween(startTime, new DateTime()).getSeconds()
+        && Seconds.secondsBetween(startTime, DateTime.now()).getSeconds()
             < timeoutDuration.toStandardSeconds().getSeconds()) {
       // Sleep 1 sec
       Thread.sleep(1000);

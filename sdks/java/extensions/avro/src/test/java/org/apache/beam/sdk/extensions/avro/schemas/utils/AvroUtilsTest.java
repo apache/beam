@@ -457,7 +457,7 @@ public class AvroUtilsTest {
 
   private static final byte[] BYTE_ARRAY = new byte[] {1, 2, 3, 4};
   private static final DateTime DATE_TIME =
-      new DateTime().withDate(1979, 3, 14).withTime(1, 2, 3, 4).withZone(DateTimeZone.UTC);
+      DateTime.now().withDate(1979, 3, 14).withTime(1, 2, 3, 4).withZone(DateTimeZone.UTC);
   private static final BigDecimal BIG_DECIMAL = new BigDecimal(3600);
 
   private Row getBeamRow() {

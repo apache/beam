@@ -62,7 +62,7 @@ public class WatermarkEstimatorsTest {
     try {
       DateTimeUtils.setCurrentMillisFixed(BoundedWindow.TIMESTAMP_MIN_VALUE.getMillis());
       WatermarkEstimator<Instant> watermarkEstimator =
-          new WatermarkEstimators.WallTime(new Instant());
+          new WatermarkEstimators.WallTime(Instant.now());
       DateTimeUtils.setCurrentMillisFixed(
           BoundedWindow.TIMESTAMP_MIN_VALUE.plus(Duration.millis(1)).getMillis());
       assertEquals(

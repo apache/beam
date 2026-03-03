@@ -65,7 +65,7 @@ public class DataChangeRecordActionTest {
   public void testRestrictionClaimed() {
     final String partitionToken = "partitionToken";
     final Timestamp timestamp = Timestamp.ofTimeMicroseconds(10L);
-    final Instant instant = new Instant(timestamp.toSqlTimestamp().getTime());
+    final Instant instant = Instant.ofEpochMilli(timestamp.toSqlTimestamp().getTime());
     final DataChangeRecord record = mock(DataChangeRecord.class);
     when(record.getCommitTimestamp()).thenReturn(timestamp);
     when(tracker.tryClaim(timestamp)).thenReturn(true);

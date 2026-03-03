@@ -102,7 +102,7 @@ class TestHelpers {
     final Instant now = DateTime.now().toInstant();
     Function<Integer, List<Record>> dataStream =
         shard -> {
-          RecordsAggregator aggregator = new RecordsAggregator(1024, new org.joda.time.Instant());
+          RecordsAggregator aggregator = new RecordsAggregator(1024, org.joda.time.Instant.now());
           List<Record> records =
               range(0, events).mapToObj(off -> record(now, shard, off)).collect(toList());
           for (Record record : records) {
@@ -256,7 +256,7 @@ class TestHelpers {
   }
 
   static SubscribeToShardEvent eventWithAggRecords(int startSeqNumber, int numRecords) {
-    RecordsAggregator aggregator = new RecordsAggregator(1024, new org.joda.time.Instant());
+    RecordsAggregator aggregator = new RecordsAggregator(1024, org.joda.time.Instant.now());
     for (int i = startSeqNumber; i < startSeqNumber + numRecords; i++) {
       aggregator.addRecord("foo", null, String.valueOf(i).getBytes(UTF_8));
     }
