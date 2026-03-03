@@ -550,10 +550,7 @@ class InteractiveRunnerTest(unittest.TestCase):
         underlying_runner=mock_underlying)
 
     # Should fallback to the base class implementation without crashing
-    self.assertEqual(
-        runner.default_pickle_library_override(),
-        super(interactive_runner.InteractiveRunner,
-              runner).default_pickle_library_override())
+    self.assertIsNone(runner.default_pickle_library_override())
 
 
 @unittest.skipIf(
