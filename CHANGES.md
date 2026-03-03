@@ -72,6 +72,7 @@
 
 ## Breaking Changes
 
+* Minimum Go version for Beam Go updated to 1.26.0.
 * The Python SDK container's `boot.go` now passes pipeline options through a file instead of the `PIPELINE_OPTIONS` environment variable. If a user pairs a new Python SDK container with an older SDK version (which does not support the file-based approach), the pipeline options will not be recognized and the pipeline will fail. Users must ensure their SDK and container versions are synchronized ([#37370](https://github.com/apache/beam/issues/37370)).
 
 ## Deprecations
@@ -104,10 +105,6 @@
 
 * (Python) Added exception chaining to preserve error context in CloudSQLEnrichmentHandler, processes utilities, and core transforms ([#37422](https://github.com/apache/beam/issues/37422)).
 * (Python) Added a pipeline option `--experiments=pip_no_build_isolation` to disable build isolation when installing dependencies in the runtime environment ([#37331](https://github.com/apache/beam/issues/37331)).
-
-## Breaking Changes
-
-* Minimum Go version for Beam Go updated to 1.26.0.
 
 ## Deprecations
 
