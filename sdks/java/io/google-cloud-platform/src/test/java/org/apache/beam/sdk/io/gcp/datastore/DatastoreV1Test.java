@@ -761,6 +761,52 @@ public class DatastoreV1Test {
               .containsAll(Arrays.asList(expectedRequest1, expectedRequest2)));
     }
 
+    /**
+     * Tests that three mutations for the same entity key result in three separate batches, each
+     * containing at most one mutation per key.
+     */
+    @Test
+    public void testDatastoreWriterFnWithTripleDuplicateEntities() throws Exception {
+      List<Mutation> mutations = new ArrayList<>();
+      for (int i : Arrays.asList(0, 1, 0, 0)) {
+        mutations.add(
+            makeUpsert(
+                    Entity.newBuilder()
+                        .setKey(makeKey("key" + i))
+                        .putProperties("value", makeValue(UUID.randomUUID().toString()).build())
+                        .build())
+                .build());
+      }
+
+      ArgumentCaptor<CommitRequest> requestCaptor = ArgumentCaptor.forClass(CommitRequest.class);
+      CommitResponse response = CommitResponse.getDefaultInstance();
+      when(mockDatastore.commit(requestCaptor.capture()))
+          .thenReturn(response)
+          .thenReturn(response)
+          .thenReturn(response);
+
+      DatastoreWriterFn datastoreWriter =
+          new DatastoreWriterFn(
+              StaticValueProvider.of(PROJECT_ID),
+              null,
+              mockDatastoreFactory,
+              new FakeWriteBatcher());
+      DoFnTester<Mutation, DatastoreV1.WriteSuccessSummary> doFnTester =
+          DoFnTester.of(datastoreWriter);
+      doFnTester.setCloningBehavior(CloningBehavior.DO_NOT_CLONE);
+      doFnTester.processBundle(mutations);
+
+      // Verify that no commit request contains multiple mutations for the same entity key.
+      for (CommitRequest req : requestCaptor.getAllValues()) {
+        long distinctKeys =
+            req.getMutationsList().stream().map(m -> m.getUpsert().getKey()).distinct().count();
+        assertEquals(
+            "Commit request must not contain duplicate entity keys",
+            req.getMutationsCount(),
+            distinctKeys);
+      }
+    }
+
     /** Tests {@link DatastoreWriterFn} with a failed request which is retried. */
     @Test
     public void testDatastoreWriterFnRetriesErrors() throws Exception {
