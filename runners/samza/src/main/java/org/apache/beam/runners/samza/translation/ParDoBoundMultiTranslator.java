@@ -145,7 +145,7 @@ class ParDoBoundMultiTranslator<InT, OutT>
       final Map.Entry<TupleTag<?>, PCollection<?>> taggedOutput = outputs.get(index);
       tagToIndexMap.put(taggedOutput.getKey(), index);
 
-      if (!(taggedOutput.getValue() != null)) {
+      if (taggedOutput.getValue() == null) {
         throw new IllegalArgumentException(
             "Expected side output to be PCollection, but was: " + taggedOutput.getValue());
       }
