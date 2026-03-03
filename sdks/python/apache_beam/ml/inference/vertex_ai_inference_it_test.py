@@ -27,6 +27,7 @@ import apache_beam as beam
 from apache_beam.io.filesystems import FileSystems
 from apache_beam.ml.inference.base import RunInference
 from apache_beam.testing.test_pipeline import TestPipeline
+from apache_beam.testing.vertex_ai_skip import skip_if_vertex_ai_disabled
 
 # pylint: disable=ungrouped-imports
 try:
@@ -53,8 +54,9 @@ _INVOKE_ROUTE = "/predict"
 _INVOKE_OUTPUT_DIR = "gs://apache-beam-ml/testing/outputs/vertex_invoke"
 
 
+@skip_if_vertex_ai_disabled
+@pytest.mark.vertex_ai_postcommit
 class VertexAIInference(unittest.TestCase):
-  @pytest.mark.vertex_ai_postcommit
   def test_vertex_ai_run_flower_image_classification(self):
     output_file = '/'.join([_OUTPUT_DIR, str(uuid.uuid4()), 'output.txt'])
 
@@ -73,7 +75,6 @@ class VertexAIInference(unittest.TestCase):
         test_pipeline.get_full_options_as_args(**extra_opts))
     self.assertEqual(FileSystems().exists(output_file), True)
 
-  @pytest.mark.vertex_ai_postcommit
   @unittest.skipIf(
       not _INVOKE_ENDPOINT_ID,
       "Invoke endpoint not configured. Set _INVOKE_ENDPOINT_ID.")

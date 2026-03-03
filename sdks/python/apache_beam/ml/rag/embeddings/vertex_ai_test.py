@@ -34,6 +34,7 @@ from apache_beam.ml.transforms.base import MLTransform
 from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
+from apache_beam.testing.vertex_ai_skip import skip_if_vertex_ai_disabled
 
 # pylint: disable=ungrouped-imports
 try:
@@ -60,6 +61,7 @@ def chunk_approximately_equals(expected, actual):
       all(isinstance(x, float) for x in actual.embedding.dense_embedding))
 
 
+@skip_if_vertex_ai_disabled
 @pytest.mark.vertex_ai_postcommit
 @unittest.skipIf(
     not VERTEX_AI_AVAILABLE, "Vertex AI dependencies not available")
@@ -149,6 +151,7 @@ class VertexAIImageAdapterTest(unittest.TestCase):
     self.assertEqual(result[0].embedding.dense_embedding, [0.1, 0.2, 0.3])
 
 
+@skip_if_vertex_ai_disabled
 @pytest.mark.vertex_ai_postcommit
 @unittest.skipIf(
     not VERTEX_AI_AVAILABLE, "Vertex AI dependencies not available")
