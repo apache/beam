@@ -87,7 +87,7 @@ public class TestStreamTest implements Serializable {
   @Test
   @Category({ValidatesRunner.class, UsesTestStream.class})
   public void testLateDataAccumulating() {
-    Instant instant = new Instant(0);
+    Instant instant = Instant.ofEpochMilli(0);
     TestStream<Long> source =
         TestStream.create(VarLongCoder.of())
             .addElements(
@@ -161,10 +161,10 @@ public class TestStreamTest implements Serializable {
     TestStream<Long> source =
         TestStream.create(VarLongCoder.of())
             .addElements(
-                TimestampedValue.of(1L, new Instant(1000L)),
-                TimestampedValue.of(2L, new Instant(2000L)))
+                TimestampedValue.of(1L, Instant.ofEpochMilli(1000L)),
+                TimestampedValue.of(2L, Instant.ofEpochMilli(2000L)))
             .advanceProcessingTime(Duration.standardMinutes(12))
-            .addElements(TimestampedValue.of(3L, new Instant(3000L)))
+            .addElements(TimestampedValue.of(3L, Instant.ofEpochMilli(3000L)))
             .advanceProcessingTime(Duration.standardMinutes(6))
             .advanceWatermarkToInfinity();
 
@@ -191,15 +191,15 @@ public class TestStreamTest implements Serializable {
   public void testDiscardingMode() {
     TestStream<String> stream =
         TestStream.create(StringUtf8Coder.of())
-            .advanceWatermarkTo(new Instant(0))
+            .advanceWatermarkTo(Instant.ofEpochMilli(0))
             .addElements(
-                TimestampedValue.of("firstPane", new Instant(100)),
-                TimestampedValue.of("alsoFirstPane", new Instant(200)))
-            .addElements(TimestampedValue.of("onTimePane", new Instant(500)))
-            .advanceWatermarkTo(new Instant(1000L))
+                TimestampedValue.of("firstPane", Instant.ofEpochMilli(100)),
+                TimestampedValue.of("alsoFirstPane", Instant.ofEpochMilli(200)))
+            .addElements(TimestampedValue.of("onTimePane", Instant.ofEpochMilli(500)))
+            .advanceWatermarkTo(Instant.ofEpochMilli(1000L))
             .addElements(
-                TimestampedValue.of("finalLatePane", new Instant(750)),
-                TimestampedValue.of("alsoFinalLatePane", new Instant(250)))
+                TimestampedValue.of("finalLatePane", Instant.ofEpochMilli(750)),
+                TimestampedValue.of("alsoFinalLatePane", Instant.ofEpochMilli(250)))
             .advanceWatermarkToInfinity();
 
     FixedWindows windowFn = FixedWindows.of(Duration.millis(1000L));
@@ -219,7 +219,7 @@ public class TestStreamTest implements Serializable {
             .apply(Values.create())
             .apply(Flatten.iterables());
 
-    IntervalWindow window = windowFn.assignWindow(new Instant(100));
+    IntervalWindow window = windowFn.assignWindow(Instant.ofEpochMilli(100));
     PAssert.that(values)
         .inWindow(window)
         .containsInAnyOrder(
@@ -241,9 +241,9 @@ public class TestStreamTest implements Serializable {
     Instant lateElementTimestamp = new Instant(-1_000_000);
     TestStream<String> stream =
         TestStream.create(StringUtf8Coder.of())
-            .advanceWatermarkTo(new Instant(0))
+            .advanceWatermarkTo(Instant.ofEpochMilli(0))
             .addElements(TimestampedValue.of("late", lateElementTimestamp))
-            .addElements(TimestampedValue.of("onTime", new Instant(100)))
+            .addElements(TimestampedValue.of("onTime", Instant.ofEpochMilli(100)))
             .advanceWatermarkToInfinity();
 
     FixedWindows windowFn = FixedWindows.of(Duration.millis(1000L));
@@ -262,7 +262,7 @@ public class TestStreamTest implements Serializable {
 
     PAssert.that(values).inWindow(windowFn.assignWindow(lateElementTimestamp)).empty();
     PAssert.that(values)
-        .inWindow(windowFn.assignWindow(new Instant(100)))
+        .inWindow(windowFn.assignWindow(Instant.ofEpochMilli(100)))
         .containsInAnyOrder("onTime");
 
     p.run();
@@ -343,9 +343,9 @@ public class TestStreamTest implements Serializable {
   @Test
   public void testAdvanceWatermarkNonMonotonicThrows() {
     TestStream.Builder<Integer> stream =
-        TestStream.create(VarIntCoder.of()).advanceWatermarkTo(new Instant(0L));
+        TestStream.create(VarIntCoder.of()).advanceWatermarkTo(Instant.ofEpochMilli(0L));
     thrown.expect(IllegalArgumentException.class);
-    stream.advanceWatermarkTo(new Instant(-1L));
+    stream.advanceWatermarkTo(Instant.ofEpochMilli(-1L));
   }
 
   @Test
@@ -362,11 +362,11 @@ public class TestStreamTest implements Serializable {
   public void testEarlyPanesOfWindow() {
     TestStream<Long> source =
         TestStream.create(VarLongCoder.of())
-            .addElements(TimestampedValue.of(1L, new Instant(1000L)))
+            .addElements(TimestampedValue.of(1L, Instant.ofEpochMilli(1000L)))
             .advanceProcessingTime(Duration.standardMinutes(6)) // Fire early paneInfo
-            .addElements(TimestampedValue.of(2L, new Instant(2000L)))
+            .addElements(TimestampedValue.of(2L, Instant.ofEpochMilli(2000L)))
             .advanceProcessingTime(Duration.standardMinutes(6)) // Fire early paneInfo
-            .addElements(TimestampedValue.of(3L, new Instant(3000L)))
+            .addElements(TimestampedValue.of(3L, Instant.ofEpochMilli(3000L)))
             .advanceProcessingTime(Duration.standardMinutes(6)) // Fire early paneInfo
             .advanceWatermarkToInfinity(); // Fire on-time paneInfo
 
@@ -388,7 +388,8 @@ public class TestStreamTest implements Serializable {
             .apply(Sum.longsPerKey());
 
     IntervalWindow window =
-        new IntervalWindow(new Instant(0L), new Instant(0L).plus(Duration.standardMinutes(30)));
+        new IntervalWindow(
+            Instant.ofEpochMilli(0L), Instant.ofEpochMilli(0L).plus(Duration.standardMinutes(30)));
 
     PAssert.that(sum)
         .inEarlyPane(window)

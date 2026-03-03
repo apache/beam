@@ -384,7 +384,7 @@ public class SchemaTranslationTest {
           .add(simpleRow(FieldType.map(FieldType.STRING, FieldType.INT32), map))
           .add(simpleRow(FieldType.array(FieldType.STRING), list))
           .add(simpleRow(FieldType.row(row.getSchema()), row))
-          .add(simpleRow(FieldType.DATETIME, new Instant(23L)))
+          .add(simpleRow(FieldType.DATETIME, Instant.ofEpochMilli(23L)))
           .add(simpleRow(FieldType.DECIMAL, BigDecimal.valueOf(100000)))
           .add(simpleRow(FieldType.logicalType(new PortableNullArgLogicalType()), "str"))
           .add(simpleRow(FieldType.logicalType(new DateTime()), LocalDateTime.of(2000, 1, 3, 3, 1)))

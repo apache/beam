@@ -154,7 +154,7 @@ public class StreamingSideInputDoFnRunnerTest {
 
     assertTrue(outputManager.getOutput(mainOutputTag).isEmpty());
 
-    IntervalWindow window = new IntervalWindow(new Instant(0), new Instant(10));
+    IntervalWindow window = new IntervalWindow(Instant.ofEpochMilli(0), Instant.ofEpochMilli(10));
 
     // Verify that we added the element to an appropriate tag list, and that we buffered the element
     ValueState<Map<IntervalWindow, Set<GlobalDataRequest>>> blockedMapState =
@@ -180,7 +180,7 @@ public class StreamingSideInputDoFnRunnerTest {
     assertThat(
         sideInputFetcher.elementBag(createWindow(0)).read(),
         Matchers.contains(createDatum("e", 0)));
-    assertEquals(sideInputFetcher.watermarkHold(createWindow(0)).read(), new Instant(0));
+    assertEquals(sideInputFetcher.watermarkHold(createWindow(0)).read(), Instant.ofEpochMilli(0));
   }
 
   @Test
@@ -204,8 +204,8 @@ public class StreamingSideInputDoFnRunnerTest {
             views,
             sideInputFetcher);
 
-    IntervalWindow window1 = new IntervalWindow(new Instant(0), new Instant(10));
-    IntervalWindow window2 = new IntervalWindow(new Instant(-5), new Instant(5));
+    IntervalWindow window1 = new IntervalWindow(Instant.ofEpochMilli(0), Instant.ofEpochMilli(10));
+    IntervalWindow window2 = new IntervalWindow(Instant.ofEpochMilli(-5), Instant.ofEpochMilli(5));
     long timestamp = 1L;
 
     WindowedValue<String> elem =
@@ -275,7 +275,7 @@ public class StreamingSideInputDoFnRunnerTest {
   public void testSideInputNotification() throws Exception {
     PCollectionView<String> view = createView();
 
-    IntervalWindow window = new IntervalWindow(new Instant(0), new Instant(10));
+    IntervalWindow window = new IntervalWindow(Instant.ofEpochMilli(0), Instant.ofEpochMilli(10));
     Windmill.GlobalDataId id =
         Windmill.GlobalDataId.newBuilder()
             .setTag(view.getTagInternal().getId())
@@ -300,7 +300,7 @@ public class StreamingSideInputDoFnRunnerTest {
     StreamingSideInputFetcher<String, IntervalWindow> sideInputFetcher = createFetcher(views);
     StreamingSideInputDoFnRunner<String, String, IntervalWindow> runner =
         createRunner(outputManager, views, sideInputFetcher);
-    sideInputFetcher.watermarkHold(createWindow(0)).add(new Instant(0));
+    sideInputFetcher.watermarkHold(createWindow(0)).add(Instant.ofEpochMilli(0));
     sideInputFetcher.elementBag(createWindow(0)).add(createDatum("e", 0));
 
     when(stepContext.getSideInputNotifications()).thenReturn(Arrays.asList(id));
@@ -331,7 +331,7 @@ public class StreamingSideInputDoFnRunnerTest {
     PCollectionView<String> view1 = createView();
     PCollectionView<String> view2 = createView();
 
-    IntervalWindow window = new IntervalWindow(new Instant(0), new Instant(10));
+    IntervalWindow window = new IntervalWindow(Instant.ofEpochMilli(0), Instant.ofEpochMilli(10));
     Windmill.GlobalDataId id =
         Windmill.GlobalDataId.newBuilder()
             .setTag(view1.getTagInternal().getId())
@@ -368,7 +368,7 @@ public class StreamingSideInputDoFnRunnerTest {
     StreamingSideInputFetcher<String, IntervalWindow> sideInputFetcher = createFetcher(views);
     StreamingSideInputDoFnRunner<String, String, IntervalWindow> runner =
         createRunner(outputManager, views, sideInputFetcher);
-    sideInputFetcher.watermarkHold(createWindow(0)).add(new Instant(0));
+    sideInputFetcher.watermarkHold(createWindow(0)).add(Instant.ofEpochMilli(0));
     sideInputFetcher.elementBag(createWindow(0)).add(createDatum("e1", 0));
 
     runner.startBundle();

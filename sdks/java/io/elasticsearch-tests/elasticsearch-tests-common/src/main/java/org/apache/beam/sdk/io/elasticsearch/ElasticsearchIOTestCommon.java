@@ -1383,10 +1383,11 @@ class ElasticsearchIOTestCommon {
     Duration stepDuration = Duration.standardSeconds(step);
     Duration offset = Duration.ZERO;
     TestStream.Builder<String> docsBuilder =
-        TestStream.create(StringUtf8Coder.of()).advanceWatermarkTo(new Instant(0));
+        TestStream.create(StringUtf8Coder.of()).advanceWatermarkTo(Instant.ofEpochMilli(0));
 
     for (String doc : data) {
-      docsBuilder = docsBuilder.addElements(TimestampedValue.of(doc, new Instant(0).plus(offset)));
+      docsBuilder =
+          docsBuilder.addElements(TimestampedValue.of(doc, Instant.ofEpochMilli(0).plus(offset)));
       offset = offset.plus(stepDuration);
     }
 
@@ -1412,8 +1413,8 @@ class ElasticsearchIOTestCommon {
       PAssert.that(successfulWrites)
           .inWindow(
               new IntervalWindow(
-                  new Instant(0).plus(windowDuration.multipliedBy(i)),
-                  new Instant(0).plus(windowDuration.multipliedBy(i + 1))))
+                  Instant.ofEpochMilli(0).plus(windowDuration.multipliedBy(i)),
+                  Instant.ofEpochMilli(0).plus(windowDuration.multipliedBy(i + 1))))
           .satisfies(
               windowPreservationValidator(windowSize, i * windowSize, (i + 1) * windowSize - 1));
     }

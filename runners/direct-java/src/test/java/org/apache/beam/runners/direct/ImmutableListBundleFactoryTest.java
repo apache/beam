@@ -134,7 +134,7 @@ public class ImmutableListBundleFactoryTest {
   public void getElementsAfterAddShouldReturnAddedElements() {
     WindowedValue<Integer> firstValue = WindowedValues.valueInGlobalWindow(1);
     WindowedValue<Integer> secondValue =
-        WindowedValues.timestampedValueInGlobalWindow(2, new Instant(1000L));
+        WindowedValues.timestampedValueInGlobalWindow(2, Instant.ofEpochMilli(1000L));
 
     afterCommitGetElementsShouldHaveAddedElements(ImmutableList.of(firstValue, secondValue));
   }
@@ -166,7 +166,7 @@ public class ImmutableListBundleFactoryTest {
   public void withElementsShouldReturnIndependentBundle() {
     WindowedValue<Integer> firstValue = WindowedValues.valueInGlobalWindow(1);
     WindowedValue<Integer> secondValue =
-        WindowedValues.timestampedValueInGlobalWindow(2, new Instant(1000L));
+        WindowedValues.timestampedValueInGlobalWindow(2, Instant.ofEpochMilli(1000L));
 
     CommittedBundle<Integer> committed =
         afterCommitGetElementsShouldHaveAddedElements(ImmutableList.of(firstValue, secondValue));
@@ -174,8 +174,8 @@ public class ImmutableListBundleFactoryTest {
     WindowedValue<Integer> firstReplacement =
         WindowedValues.of(
             9,
-            new Instant(2048L),
-            new IntervalWindow(new Instant(2044L), Instant.now()),
+            Instant.ofEpochMilli(2048L),
+            new IntervalWindow(Instant.ofEpochMilli(2044L), Instant.now()),
             PaneInfo.NO_FIRING);
     WindowedValue<Integer> secondReplacement =
         WindowedValues.timestampedValueInGlobalWindow(-1, Instant.now());
@@ -189,7 +189,7 @@ public class ImmutableListBundleFactoryTest {
     assertThat(
         withed.getSynchronizedProcessingOutputWatermark(),
         equalTo(committed.getSynchronizedProcessingOutputWatermark()));
-    assertThat(withed.getMinimumTimestamp(), equalTo(new Instant(2048L)));
+    assertThat(withed.getMinimumTimestamp(), equalTo(Instant.ofEpochMilli(2048L)));
   }
 
   @Test

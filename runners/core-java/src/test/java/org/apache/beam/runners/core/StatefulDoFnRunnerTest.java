@@ -75,10 +75,10 @@ public class StatefulDoFnRunnerTest {
           .withAllowedLateness(Duration.millis(ALLOWED_LATENESS));
 
   private static final IntervalWindow WINDOW_1 =
-      new IntervalWindow(new Instant(0), new Instant(10));
+      new IntervalWindow(Instant.ofEpochMilli(0), Instant.ofEpochMilli(10));
 
   private static final IntervalWindow WINDOW_2 =
-      new IntervalWindow(new Instant(10), new Instant(20));
+      new IntervalWindow(Instant.ofEpochMilli(10), Instant.ofEpochMilli(20));
 
   private final TupleTag<Integer> outputTag = new TupleTag<>();
 
@@ -141,7 +141,7 @@ public class StatefulDoFnRunnerTest {
   public void testDataDroppedBasedOnInputWatermarkWhenOrdered() throws Exception {
     MetricsContainerImpl container = new MetricsContainerImpl("any");
     MetricsEnvironment.setCurrentContainer(container);
-    Instant timestamp = new Instant(0);
+    Instant timestamp = Instant.ofEpochMilli(0);
 
     MyDoFn fn = MyDoFn.create(true);
 
@@ -192,8 +192,9 @@ public class StatefulDoFnRunnerTest {
 
     runner.startBundle();
 
-    IntervalWindow window = new IntervalWindow(new Instant(0), new Instant(0L + WINDOW_SIZE));
-    Instant timestamp = new Instant(0);
+    IntervalWindow window =
+        new IntervalWindow(Instant.ofEpochMilli(0), new Instant(0L + WINDOW_SIZE));
+    Instant timestamp = Instant.ofEpochMilli(0);
 
     runner.processElement(
         WindowedValues.of(KV.of("hello", 1), timestamp, window, PaneInfo.NO_FIRING));
@@ -210,14 +211,14 @@ public class StatefulDoFnRunnerTest {
   }
 
   private void testGarbageCollect(boolean ordered) throws Exception {
-    timerInternals.advanceInputWatermark(new Instant(1L));
+    timerInternals.advanceInputWatermark(Instant.ofEpochMilli(1L));
 
     MyDoFn fn = MyDoFn.create(ordered);
     StateTag<ValueState<Integer>> stateTag = StateTags.tagForSpec(MyDoFn.STATE_ID, fn.intState());
 
     DoFnRunner<KV<String, Integer>, Integer> runner = createStatefulDoFnRunner(fn);
 
-    Instant elementTime = new Instant(1);
+    Instant elementTime = Instant.ofEpochMilli(1);
 
     // first element, key is hello, WINDOW_1
     runner.processElement(
@@ -295,7 +296,7 @@ public class StatefulDoFnRunnerTest {
           runnerFactory)
       throws Exception {
 
-    timerInternals.advanceInputWatermark(new Instant(1L));
+    timerInternals.advanceInputWatermark(Instant.ofEpochMilli(1L));
 
     MyDoFn fn = MyDoFn.create(ordered);
     StateTag<ValueState<Integer>> stateTag = StateTags.tagForSpec(MyDoFn.STATE_ID, fn.intState());
@@ -304,7 +305,7 @@ public class StatefulDoFnRunnerTest {
     WindowedValueMultiReceiver output = asOutputManager(outputs);
     DoFnRunner<KV<String, Integer>, Integer> runner = runnerFactory.apply(fn, output);
 
-    Instant elementTime = new Instant(5);
+    Instant elementTime = Instant.ofEpochMilli(5);
 
     // write two elements, with descending timestamps
     runner.processElement(

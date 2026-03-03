@@ -40,7 +40,7 @@ class SyntheticWatermark implements Serializable {
   SyntheticWatermark(SyntheticSourceOptions options, long endOffset) {
     this.options = options;
     this.endOffset = endOffset;
-    this.watermark = new Instant(0);
+    this.watermark = Instant.ofEpochMilli(0);
   }
 
   /** Calculates new watermark value and returns it if it's greater than the previous one. */

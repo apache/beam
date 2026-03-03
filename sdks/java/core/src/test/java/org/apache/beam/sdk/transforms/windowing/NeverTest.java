@@ -29,7 +29,7 @@ import org.junit.runners.JUnit4;
 public class NeverTest {
   @Test
   public void testFireDeadline() throws Exception {
-    IntervalWindow window = new IntervalWindow(new Instant(0), new Instant(10));
+    IntervalWindow window = new IntervalWindow(Instant.ofEpochMilli(0), Instant.ofEpochMilli(10));
     assertEquals(
         BoundedWindow.TIMESTAMP_MAX_VALUE, Never.ever().getWatermarkThatGuaranteesFiring(window));
   }

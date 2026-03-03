@@ -49,9 +49,12 @@ public class FixedWindowsTest {
   @Test
   public void testSimpleFixedWindow() throws Exception {
     Map<IntervalWindow, Set<String>> expected = new HashMap<>();
-    expected.put(new IntervalWindow(new Instant(0), new Instant(10)), set(1, 2, 5, 9));
-    expected.put(new IntervalWindow(new Instant(10), new Instant(20)), set(10, 11));
-    expected.put(new IntervalWindow(new Instant(100), new Instant(110)), set(100));
+    expected.put(
+        new IntervalWindow(Instant.ofEpochMilli(0), Instant.ofEpochMilli(10)), set(1, 2, 5, 9));
+    expected.put(
+        new IntervalWindow(Instant.ofEpochMilli(10), Instant.ofEpochMilli(20)), set(10, 11));
+    expected.put(
+        new IntervalWindow(Instant.ofEpochMilli(100), Instant.ofEpochMilli(110)), set(100));
     assertEquals(
         expected,
         runWindowFn(
@@ -61,9 +64,10 @@ public class FixedWindowsTest {
   @Test
   public void testFixedOffsetWindow() throws Exception {
     Map<IntervalWindow, Set<String>> expected = new HashMap<>();
-    expected.put(new IntervalWindow(new Instant(-5), new Instant(5)), set(1, 2));
-    expected.put(new IntervalWindow(new Instant(5), new Instant(15)), set(5, 9, 10, 11));
-    expected.put(new IntervalWindow(new Instant(95), new Instant(105)), set(100));
+    expected.put(new IntervalWindow(Instant.ofEpochMilli(-5), Instant.ofEpochMilli(5)), set(1, 2));
+    expected.put(
+        new IntervalWindow(Instant.ofEpochMilli(5), Instant.ofEpochMilli(15)), set(5, 9, 10, 11));
+    expected.put(new IntervalWindow(Instant.ofEpochMilli(95), Instant.ofEpochMilli(105)), set(100));
     assertEquals(
         expected,
         runWindowFn(
@@ -74,8 +78,12 @@ public class FixedWindowsTest {
   @Test
   public void testTimeUnit() throws Exception {
     Map<IntervalWindow, Set<String>> expected = new HashMap<>();
-    expected.put(new IntervalWindow(new Instant(-5000), new Instant(5000)), set(1, 2, 1000));
-    expected.put(new IntervalWindow(new Instant(5000), new Instant(15000)), set(5000, 5001, 10000));
+    expected.put(
+        new IntervalWindow(Instant.ofEpochMilli(-5000), Instant.ofEpochMilli(5000)),
+        set(1, 2, 1000));
+    expected.put(
+        new IntervalWindow(Instant.ofEpochMilli(5000), Instant.ofEpochMilli(15000)),
+        set(5000, 5001, 10000));
     assertEquals(
         expected,
         runWindowFn(
@@ -93,12 +101,13 @@ public class FixedWindowsTest {
             new BoundedWindow() {
               @Override
               public Instant maxTimestamp() {
-                return new Instant(100L);
+                return Instant.ofEpochMilli(100L);
               }
             }),
         equalTo(
             new IntervalWindow(
-                new Instant(0L), new Instant(0L).plus(Duration.standardMinutes(20L)))));
+                Instant.ofEpochMilli(0L),
+                Instant.ofEpochMilli(0L).plus(Duration.standardMinutes(20L)))));
     assertThat(mapping.maximumLookback(), equalTo(Duration.ZERO));
   }
 

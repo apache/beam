@@ -60,7 +60,7 @@ public class AfterFirstStateMachineTest {
             FixedWindows.of(Duration.millis(10)));
 
     tester.injectElements(1);
-    IntervalWindow window = new IntervalWindow(new Instant(0), new Instant(10));
+    IntervalWindow window = new IntervalWindow(Instant.ofEpochMilli(0), Instant.ofEpochMilli(10));
 
     when(mockTrigger1.shouldFire(anyTriggerContext())).thenReturn(false);
     when(mockTrigger2.shouldFire(anyTriggerContext())).thenReturn(false);
@@ -76,7 +76,7 @@ public class AfterFirstStateMachineTest {
             AfterFirstStateMachine.of(mockTrigger1, mockTrigger2),
             FixedWindows.of(Duration.millis(10)));
     tester.injectElements(1);
-    IntervalWindow window = new IntervalWindow(new Instant(1), new Instant(11));
+    IntervalWindow window = new IntervalWindow(Instant.ofEpochMilli(1), Instant.ofEpochMilli(11));
 
     when(mockTrigger1.shouldFire(anyTriggerContext())).thenReturn(true);
     when(mockTrigger2.shouldFire(anyTriggerContext())).thenReturn(false);
@@ -94,7 +94,7 @@ public class AfterFirstStateMachineTest {
             AfterFirstStateMachine.of(mockTrigger1, mockTrigger2),
             FixedWindows.of(Duration.millis(10)));
     tester.injectElements(1);
-    IntervalWindow window = new IntervalWindow(new Instant(1), new Instant(11));
+    IntervalWindow window = new IntervalWindow(Instant.ofEpochMilli(1), Instant.ofEpochMilli(11));
 
     when(mockTrigger1.shouldFire(anyTriggerContext())).thenReturn(false);
     when(mockTrigger2.shouldFire(anyTriggerContext())).thenReturn(true);
@@ -111,7 +111,7 @@ public class AfterFirstStateMachineTest {
             AfterFirstStateMachine.of(mockTrigger1, mockTrigger2),
             FixedWindows.of(Duration.millis(10)));
     tester.injectElements(1);
-    IntervalWindow window = new IntervalWindow(new Instant(1), new Instant(11));
+    IntervalWindow window = new IntervalWindow(Instant.ofEpochMilli(1), Instant.ofEpochMilli(11));
 
     when(mockTrigger1.shouldFire(anyTriggerContext())).thenReturn(true);
     when(mockTrigger2.shouldFire(anyTriggerContext())).thenReturn(true);
@@ -138,20 +138,23 @@ public class AfterFirstStateMachineTest {
 
     // Finished the AfterFirst in the first window
     tester.injectElements(1);
-    IntervalWindow firstWindow = new IntervalWindow(new Instant(1), new Instant(11));
+    IntervalWindow firstWindow =
+        new IntervalWindow(Instant.ofEpochMilli(1), Instant.ofEpochMilli(11));
     assertFalse(tester.shouldFire(firstWindow));
-    tester.advanceInputWatermark(new Instant(11));
+    tester.advanceInputWatermark(Instant.ofEpochMilli(11));
     assertTrue(tester.shouldFire(firstWindow));
     tester.fireIfShouldFire(firstWindow);
 
     // Set up second window where it is not done
     tester.injectElements(5);
-    IntervalWindow secondWindow = new IntervalWindow(new Instant(5), new Instant(15));
+    IntervalWindow secondWindow =
+        new IntervalWindow(Instant.ofEpochMilli(5), Instant.ofEpochMilli(15));
     assertFalse(tester.shouldFire(secondWindow));
 
     // Merge them, if the merged window were on the second trigger, it would be ready
     tester.mergeWindows();
-    IntervalWindow mergedWindow = new IntervalWindow(new Instant(1), new Instant(15));
+    IntervalWindow mergedWindow =
+        new IntervalWindow(Instant.ofEpochMilli(1), Instant.ofEpochMilli(15));
     assertFalse(tester.shouldFire(mergedWindow));
 
     // Now adding 3 more makes the AfterFirst ready to fire

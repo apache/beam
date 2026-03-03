@@ -60,9 +60,15 @@ public class PaneExtractorsTest {
     Iterable<ValueInSingleWindow<Integer>> onlyFiring =
         ImmutableList.of(
             ValueInSingleWindow.of(
-                2, new Instant(0L), GlobalWindow.INSTANCE, PaneInfo.ON_TIME_AND_ONLY_FIRING),
+                2,
+                Instant.ofEpochMilli(0L),
+                GlobalWindow.INSTANCE,
+                PaneInfo.ON_TIME_AND_ONLY_FIRING),
             ValueInSingleWindow.of(
-                1, new Instant(0L), GlobalWindow.INSTANCE, PaneInfo.ON_TIME_AND_ONLY_FIRING));
+                1,
+                Instant.ofEpochMilli(0L),
+                GlobalWindow.INSTANCE,
+                PaneInfo.ON_TIME_AND_ONLY_FIRING));
 
     assertThat(extractor.apply(onlyFiring), containsInAnyOrder(2, 1));
   }
@@ -75,17 +81,17 @@ public class PaneExtractorsTest {
         ImmutableList.of(
             ValueInSingleWindow.of(
                 4,
-                new Instant(0L),
+                Instant.ofEpochMilli(0L),
                 GlobalWindow.INSTANCE,
                 PaneInfo.createPane(true, false, Timing.EARLY)),
             ValueInSingleWindow.of(
                 2,
-                new Instant(0L),
+                Instant.ofEpochMilli(0L),
                 GlobalWindow.INSTANCE,
                 PaneInfo.createPane(false, false, Timing.ON_TIME, 1L, 0L)),
             ValueInSingleWindow.of(
                 1,
-                new Instant(0L),
+                Instant.ofEpochMilli(0L),
                 GlobalWindow.INSTANCE,
                 PaneInfo.createPane(false, false, Timing.LATE, 2L, 1L)));
 
@@ -101,12 +107,12 @@ public class PaneExtractorsTest {
         ImmutableList.of(
             ValueInSingleWindow.of(
                 4,
-                new Instant(0L),
+                Instant.ofEpochMilli(0L),
                 GlobalWindow.INSTANCE,
                 PaneInfo.createPane(false, false, Timing.ON_TIME, 1L, 0L)),
             ValueInSingleWindow.of(
                 2,
-                new Instant(0L),
+                Instant.ofEpochMilli(0L),
                 GlobalWindow.INSTANCE,
                 PaneInfo.createPane(false, false, Timing.ON_TIME, 1L, 0L)));
 
@@ -121,22 +127,22 @@ public class PaneExtractorsTest {
         ImmutableList.of(
             ValueInSingleWindow.of(
                 8,
-                new Instant(0L),
+                Instant.ofEpochMilli(0L),
                 GlobalWindow.INSTANCE,
                 PaneInfo.createPane(false, false, Timing.LATE, 2L, 1L)),
             ValueInSingleWindow.of(
                 4,
-                new Instant(0L),
+                Instant.ofEpochMilli(0L),
                 GlobalWindow.INSTANCE,
                 PaneInfo.createPane(false, false, Timing.ON_TIME, 1L, 0L)),
             ValueInSingleWindow.of(
                 2,
-                new Instant(0L),
+                Instant.ofEpochMilli(0L),
                 GlobalWindow.INSTANCE,
                 PaneInfo.createPane(false, false, Timing.ON_TIME, 1L, 0L)),
             ValueInSingleWindow.of(
                 1,
-                new Instant(0L),
+                Instant.ofEpochMilli(0L),
                 GlobalWindow.INSTANCE,
                 PaneInfo.createPane(true, false, Timing.EARLY)));
 
@@ -149,17 +155,17 @@ public class PaneExtractorsTest {
         ImmutableList.of(
             ValueInSingleWindow.of(
                 8,
-                new Instant(0L),
+                Instant.ofEpochMilli(0L),
                 GlobalWindow.INSTANCE,
                 PaneInfo.createPane(false, false, Timing.LATE, 2L, 1L)),
             ValueInSingleWindow.of(
                 4,
-                new Instant(0L),
+                Instant.ofEpochMilli(0L),
                 GlobalWindow.INSTANCE,
                 PaneInfo.createPane(false, false, Timing.ON_TIME, 1L, 0L)),
             ValueInSingleWindow.of(
                 1,
-                new Instant(0L),
+                Instant.ofEpochMilli(0L),
                 GlobalWindow.INSTANCE,
                 PaneInfo.createPane(true, false, Timing.EARLY)));
 
@@ -184,17 +190,17 @@ public class PaneExtractorsTest {
         ImmutableList.of(
             ValueInSingleWindow.of(
                 8,
-                new Instant(0L),
+                Instant.ofEpochMilli(0L),
                 GlobalWindow.INSTANCE,
                 PaneInfo.createPane(false, true, Timing.LATE, 2L, 1L)),
             ValueInSingleWindow.of(
                 4,
-                new Instant(0L),
+                Instant.ofEpochMilli(0L),
                 GlobalWindow.INSTANCE,
                 PaneInfo.createPane(false, false, Timing.ON_TIME, 1L, 0L)),
             ValueInSingleWindow.of(
                 1,
-                new Instant(0L),
+                Instant.ofEpochMilli(0L),
                 GlobalWindow.INSTANCE,
                 PaneInfo.createPane(true, false, Timing.EARLY)));
 
@@ -209,17 +215,17 @@ public class PaneExtractorsTest {
         ImmutableList.of(
             ValueInSingleWindow.of(
                 8,
-                new Instant(0L),
+                Instant.ofEpochMilli(0L),
                 GlobalWindow.INSTANCE,
                 PaneInfo.createPane(false, false, Timing.LATE, 2L, 1L)),
             ValueInSingleWindow.of(
                 4,
-                new Instant(0L),
+                Instant.ofEpochMilli(0L),
                 GlobalWindow.INSTANCE,
                 PaneInfo.createPane(false, false, Timing.ON_TIME, 1L, 0L)),
             ValueInSingleWindow.of(
                 1,
-                new Instant(0L),
+                Instant.ofEpochMilli(0L),
                 GlobalWindow.INSTANCE,
                 PaneInfo.createPane(true, false, Timing.EARLY)));
 
@@ -233,11 +239,20 @@ public class PaneExtractorsTest {
     Iterable<ValueInSingleWindow<Integer>> onlyOnTime =
         ImmutableList.of(
             ValueInSingleWindow.of(
-                8, new Instant(0L), GlobalWindow.INSTANCE, PaneInfo.ON_TIME_AND_ONLY_FIRING),
+                8,
+                Instant.ofEpochMilli(0L),
+                GlobalWindow.INSTANCE,
+                PaneInfo.ON_TIME_AND_ONLY_FIRING),
             ValueInSingleWindow.of(
-                4, new Instant(0L), GlobalWindow.INSTANCE, PaneInfo.ON_TIME_AND_ONLY_FIRING),
+                4,
+                Instant.ofEpochMilli(0L),
+                GlobalWindow.INSTANCE,
+                PaneInfo.ON_TIME_AND_ONLY_FIRING),
             ValueInSingleWindow.of(
-                2, new Instant(0L), GlobalWindow.INSTANCE, PaneInfo.ON_TIME_AND_ONLY_FIRING));
+                2,
+                Instant.ofEpochMilli(0L),
+                GlobalWindow.INSTANCE,
+                PaneInfo.ON_TIME_AND_ONLY_FIRING));
 
     assertThat(extractor.apply(onlyOnTime), containsInAnyOrder(2, 4, 8));
   }
@@ -250,12 +265,12 @@ public class PaneExtractorsTest {
         ImmutableList.of(
             ValueInSingleWindow.of(
                 8,
-                new Instant(0L),
+                Instant.ofEpochMilli(0L),
                 GlobalWindow.INSTANCE,
                 PaneInfo.createPane(true, false, Timing.EARLY)),
             ValueInSingleWindow.of(
                 4,
-                new Instant(0L),
+                Instant.ofEpochMilli(0L),
                 GlobalWindow.INSTANCE,
                 PaneInfo.createPane(true, false, Timing.EARLY)));
 
@@ -270,7 +285,7 @@ public class PaneExtractorsTest {
         ImmutableList.of(
             ValueInSingleWindow.of(
                 8,
-                new Instant(0L),
+                Instant.ofEpochMilli(0L),
                 GlobalWindow.INSTANCE,
                 PaneInfo.createPane(false, false, Timing.LATE, 0L, 0L)));
 
@@ -285,18 +300,19 @@ public class PaneExtractorsTest {
         ImmutableList.of(
             ValueInSingleWindow.of(
                 8,
-                new Instant(0L),
+                Instant.ofEpochMilli(0L),
                 GlobalWindow.INSTANCE,
                 PaneInfo.createPane(false, false, Timing.LATE, 2L, 1L)),
-            ValueInSingleWindow.of(7, new Instant(0L), GlobalWindow.INSTANCE, PaneInfo.NO_FIRING),
+            ValueInSingleWindow.of(
+                7, Instant.ofEpochMilli(0L), GlobalWindow.INSTANCE, PaneInfo.NO_FIRING),
             ValueInSingleWindow.of(
                 4,
-                new Instant(0L),
+                Instant.ofEpochMilli(0L),
                 GlobalWindow.INSTANCE,
                 PaneInfo.createPane(false, false, Timing.ON_TIME, 1L, 0L)),
             ValueInSingleWindow.of(
                 1,
-                new Instant(0L),
+                Instant.ofEpochMilli(0L),
                 GlobalWindow.INSTANCE,
                 PaneInfo.createPane(true, false, Timing.EARLY)));
 
@@ -310,11 +326,20 @@ public class PaneExtractorsTest {
     Iterable<ValueInSingleWindow<Integer>> onlyOnTime =
         ImmutableList.of(
             ValueInSingleWindow.of(
-                8, new Instant(0L), GlobalWindow.INSTANCE, PaneInfo.ON_TIME_AND_ONLY_FIRING),
+                8,
+                Instant.ofEpochMilli(0L),
+                GlobalWindow.INSTANCE,
+                PaneInfo.ON_TIME_AND_ONLY_FIRING),
             ValueInSingleWindow.of(
-                4, new Instant(0L), GlobalWindow.INSTANCE, PaneInfo.ON_TIME_AND_ONLY_FIRING),
+                4,
+                Instant.ofEpochMilli(0L),
+                GlobalWindow.INSTANCE,
+                PaneInfo.ON_TIME_AND_ONLY_FIRING),
             ValueInSingleWindow.of(
-                2, new Instant(0L), GlobalWindow.INSTANCE, PaneInfo.ON_TIME_AND_ONLY_FIRING));
+                2,
+                Instant.ofEpochMilli(0L),
+                GlobalWindow.INSTANCE,
+                PaneInfo.ON_TIME_AND_ONLY_FIRING));
 
     assertThat(extractor.apply(onlyOnTime), containsInAnyOrder(2, 4, 8));
   }
@@ -327,17 +352,17 @@ public class PaneExtractorsTest {
         ImmutableList.of(
             ValueInSingleWindow.of(
                 8,
-                new Instant(0L),
+                Instant.ofEpochMilli(0L),
                 GlobalWindow.INSTANCE,
                 PaneInfo.createPane(false, false, Timing.LATE, 2L, 1L)),
             ValueInSingleWindow.of(
                 4,
-                new Instant(0L),
+                Instant.ofEpochMilli(0L),
                 GlobalWindow.INSTANCE,
                 PaneInfo.createPane(false, false, Timing.ON_TIME, 1L, 0L)),
             ValueInSingleWindow.of(
                 1,
-                new Instant(0L),
+                Instant.ofEpochMilli(0L),
                 GlobalWindow.INSTANCE,
                 PaneInfo.createPane(true, false, Timing.EARLY)));
 

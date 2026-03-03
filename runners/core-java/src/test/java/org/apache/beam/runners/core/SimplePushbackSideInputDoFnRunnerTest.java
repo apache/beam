@@ -93,10 +93,10 @@ public class SimplePushbackSideInputDoFnRunnerTest {
   private static final long ALLOWED_LATENESS = 1;
 
   private static final IntervalWindow WINDOW_1 =
-      new IntervalWindow(new Instant(0), new Instant(10));
+      new IntervalWindow(Instant.ofEpochMilli(0), Instant.ofEpochMilli(10));
 
   private static final IntervalWindow WINDOW_2 =
-      new IntervalWindow(new Instant(10), new Instant(20));
+      new IntervalWindow(Instant.ofEpochMilli(10), Instant.ofEpochMilli(20));
 
   private static final WindowingStrategy<?, ?> WINDOWING_STRATEGY =
       WindowingStrategy.of(FixedWindows.of(Duration.millis(WINDOW_SIZE)))
@@ -185,8 +185,8 @@ public class SimplePushbackSideInputDoFnRunnerTest {
     WindowedValue<Integer> oneWindow =
         WindowedValues.of(
             2,
-            new Instant(-2),
-            new IntervalWindow(new Instant(-500L), new Instant(0L)),
+            Instant.ofEpochMilli(-2),
+            new IntervalWindow(Instant.ofEpochMilli(-500L), Instant.ofEpochMilli(0L)),
             PaneInfo.ON_TIME_AND_ONLY_FIRING);
     Iterable<WindowedValue<Integer>> oneWindowPushback =
         runner.processElementInReadyWindows(oneWindow);
@@ -205,10 +205,10 @@ public class SimplePushbackSideInputDoFnRunnerTest {
     WindowedValue<Integer> multiWindow =
         WindowedValues.of(
             2,
-            new Instant(-2),
+            Instant.ofEpochMilli(-2),
             ImmutableList.of(
-                new IntervalWindow(new Instant(-500L), new Instant(0L)),
-                new IntervalWindow(BoundedWindow.TIMESTAMP_MIN_VALUE, new Instant(250L)),
+                new IntervalWindow(Instant.ofEpochMilli(-500L), Instant.ofEpochMilli(0L)),
+                new IntervalWindow(BoundedWindow.TIMESTAMP_MIN_VALUE, Instant.ofEpochMilli(250L)),
                 GlobalWindow.INSTANCE),
             PaneInfo.ON_TIME_AND_ONLY_FIRING);
     Iterable<WindowedValue<Integer>> multiWindowPushback =
@@ -229,27 +229,29 @@ public class SimplePushbackSideInputDoFnRunnerTest {
     SimplePushbackSideInputDoFnRunner<Integer, Integer> runner =
         createRunner(ImmutableList.of(singletonView));
 
-    IntervalWindow littleWindow = new IntervalWindow(new Instant(-500L), new Instant(0L));
+    IntervalWindow littleWindow =
+        new IntervalWindow(Instant.ofEpochMilli(-500L), Instant.ofEpochMilli(0L));
     IntervalWindow bigWindow =
-        new IntervalWindow(BoundedWindow.TIMESTAMP_MIN_VALUE, new Instant(250L));
+        new IntervalWindow(BoundedWindow.TIMESTAMP_MIN_VALUE, Instant.ofEpochMilli(250L));
     WindowedValue<Integer> multiWindow =
         WindowedValues.of(
             2,
-            new Instant(-2),
+            Instant.ofEpochMilli(-2),
             ImmutableList.of(littleWindow, bigWindow, GlobalWindow.INSTANCE),
             PaneInfo.NO_FIRING);
     Iterable<WindowedValue<Integer>> multiWindowPushback =
         runner.processElementInReadyWindows(multiWindow);
     assertThat(
         multiWindowPushback,
-        containsInAnyOrder(WindowedValues.timestampedValueInGlobalWindow(2, new Instant(-2L))));
+        containsInAnyOrder(
+            WindowedValues.timestampedValueInGlobalWindow(2, Instant.ofEpochMilli(-2L))));
     assertThat(
         underlying.inputElems,
         containsInAnyOrder(
             WindowedValues.of(
-                2, new Instant(-2), ImmutableList.of(littleWindow), PaneInfo.NO_FIRING),
+                2, Instant.ofEpochMilli(-2), ImmutableList.of(littleWindow), PaneInfo.NO_FIRING),
             WindowedValues.of(
-                2, new Instant(-2), ImmutableList.of(bigWindow), PaneInfo.NO_FIRING)));
+                2, Instant.ofEpochMilli(-2), ImmutableList.of(bigWindow), PaneInfo.NO_FIRING)));
   }
 
   @Test
@@ -263,10 +265,10 @@ public class SimplePushbackSideInputDoFnRunnerTest {
     WindowedValue<Integer> multiWindow =
         WindowedValues.of(
             2,
-            new Instant(-2),
+            Instant.ofEpochMilli(-2),
             ImmutableList.of(
-                new IntervalWindow(new Instant(-500L), new Instant(0L)),
-                new IntervalWindow(BoundedWindow.TIMESTAMP_MIN_VALUE, new Instant(250L)),
+                new IntervalWindow(Instant.ofEpochMilli(-500L), Instant.ofEpochMilli(0L)),
+                new IntervalWindow(BoundedWindow.TIMESTAMP_MIN_VALUE, Instant.ofEpochMilli(250L)),
                 GlobalWindow.INSTANCE),
             PaneInfo.ON_TIME_AND_ONLY_FIRING);
     Iterable<WindowedValue<Integer>> multiWindowPushback =
@@ -284,10 +286,10 @@ public class SimplePushbackSideInputDoFnRunnerTest {
     WindowedValue<Integer> multiWindow =
         WindowedValues.of(
             2,
-            new Instant(-2),
+            Instant.ofEpochMilli(-2),
             ImmutableList.of(
-                new IntervalWindow(new Instant(-500L), new Instant(0L)),
-                new IntervalWindow(BoundedWindow.TIMESTAMP_MIN_VALUE, new Instant(250L)),
+                new IntervalWindow(Instant.ofEpochMilli(-500L), Instant.ofEpochMilli(0L)),
+                new IntervalWindow(BoundedWindow.TIMESTAMP_MIN_VALUE, Instant.ofEpochMilli(250L)),
                 GlobalWindow.INSTANCE),
             PaneInfo.ON_TIME_AND_ONLY_FIRING);
     Iterable<WindowedValue<Integer>> multiWindowPushback =
@@ -303,8 +305,8 @@ public class SimplePushbackSideInputDoFnRunnerTest {
     PushbackSideInputDoFnRunner<Integer, Integer> runner = createRunner(ImmutableList.of());
 
     String timerId = "fooTimer";
-    IntervalWindow window = new IntervalWindow(new Instant(4), new Instant(16));
-    Instant timestamp = new Instant(72);
+    IntervalWindow window = new IntervalWindow(Instant.ofEpochMilli(4), Instant.ofEpochMilli(16));
+    Instant timestamp = Instant.ofEpochMilli(72);
 
     // Mocking is not easily compatible with annotation analysis, so we manually record
     // the method call.
@@ -412,8 +414,9 @@ public class SimplePushbackSideInputDoFnRunnerTest {
     WindowedValue<Integer> multiWindow =
         WindowedValues.of(
             1,
-            new Instant(0),
-            ImmutableList.of(new IntervalWindow(new Instant(0), new Instant(0L + WINDOW_SIZE))),
+            Instant.ofEpochMilli(0),
+            ImmutableList.of(
+                new IntervalWindow(Instant.ofEpochMilli(0), new Instant(0L + WINDOW_SIZE))),
             PaneInfo.ON_TIME_AND_ONLY_FIRING);
 
     runner.processElementInReadyWindows(multiWindow);
@@ -432,7 +435,7 @@ public class SimplePushbackSideInputDoFnRunnerTest {
   @Test
   @Category({ValidatesRunner.class})
   public void testGarbageCollectForStatefulDoFnRunner() throws Exception {
-    timerInternals.advanceInputWatermark(new Instant(1L));
+    timerInternals.advanceInputWatermark(Instant.ofEpochMilli(1L));
 
     MyDoFn fn = new MyDoFn();
     StateTag<ValueState<Integer>> stateTag = StateTags.tagForSpec(fn.stateId, fn.intState);
@@ -440,7 +443,7 @@ public class SimplePushbackSideInputDoFnRunnerTest {
     PushbackSideInputDoFnRunner runner =
         createRunner(statefulRunner, ImmutableList.of(singletonView));
 
-    Instant elementTime = new Instant(1);
+    Instant elementTime = Instant.ofEpochMilli(1);
 
     when(reader.isReady(Mockito.eq(singletonView), Mockito.any(BoundedWindow.class)))
         .thenReturn(true);

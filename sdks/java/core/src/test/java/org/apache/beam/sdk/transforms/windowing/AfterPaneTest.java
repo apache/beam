@@ -33,7 +33,8 @@ public class AfterPaneTest {
     assertEquals(
         BoundedWindow.TIMESTAMP_MAX_VALUE,
         AfterPane.elementCountAtLeast(1)
-            .getWatermarkThatGuaranteesFiring(new IntervalWindow(new Instant(0), new Instant(10))));
+            .getWatermarkThatGuaranteesFiring(
+                new IntervalWindow(Instant.ofEpochMilli(0), Instant.ofEpochMilli(10))));
   }
 
   @Test

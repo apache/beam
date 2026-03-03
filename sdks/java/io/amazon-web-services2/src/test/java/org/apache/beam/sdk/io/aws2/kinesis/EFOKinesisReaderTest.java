@@ -135,7 +135,7 @@ public class EFOKinesisReaderTest {
 
   @Test
   public void returnsCurrentWatermark() throws IOException {
-    Instant expectedWatermark = new Instant(123456L);
+    Instant expectedWatermark = Instant.ofEpochMilli(123456L);
     when(subscribersPool.getWatermark()).thenReturn(expectedWatermark);
 
     reader.start();

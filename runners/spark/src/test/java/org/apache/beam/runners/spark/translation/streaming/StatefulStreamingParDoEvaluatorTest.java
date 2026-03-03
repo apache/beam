@@ -69,7 +69,7 @@ public class StatefulStreamingParDoEvaluatorTest implements Serializable {
 
   private PTransform<PBegin, PCollection<KV<Integer, Integer>>> createStreamingSource(
       Pipeline pipeline) {
-    Instant instant = new Instant(0);
+    Instant instant = Instant.ofEpochMilli(0);
     final KvCoder<Integer, Integer> coder = KvCoder.of(VarIntCoder.of(), VarIntCoder.of());
     final Duration batchDuration = batchDuration(pipeline);
     return CreateStream.of(coder, batchDuration)
@@ -89,7 +89,7 @@ public class StatefulStreamingParDoEvaluatorTest implements Serializable {
 
   private PTransform<PBegin, PCollection<KV<Integer, Integer>>> createStreamingSource(
       Pipeline pipeline, int iterCount) {
-    Instant instant = new Instant(0);
+    Instant instant = Instant.ofEpochMilli(0);
     final KvCoder<Integer, Integer> coder = KvCoder.of(VarIntCoder.of(), VarIntCoder.of());
     final Duration batchDuration = batchDuration(pipeline);
 
@@ -273,7 +273,7 @@ public class StatefulStreamingParDoEvaluatorTest implements Serializable {
   public void shouldTriggerProcessingTimeTimerWithSparseKey() {
     final int sparseKey = 3;
     KvCoder<Integer, Integer> coder = KvCoder.of(VarIntCoder.of(), VarIntCoder.of());
-    Instant instant = new Instant(0);
+    Instant instant = Instant.ofEpochMilli(0);
     CreateStream<KV<Integer, Integer>> sparseStream =
         CreateStream.of(coder, batchDuration(p)).advanceWatermarkForNextBatch(instant);
 

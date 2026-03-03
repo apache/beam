@@ -34,9 +34,10 @@ public class DefaultTriggerTest {
   @Test
   public void testFireDeadline() throws Exception {
     assertEquals(
-        new Instant(9),
+        Instant.ofEpochMilli(9),
         DefaultTrigger.of()
-            .getWatermarkThatGuaranteesFiring(new IntervalWindow(new Instant(0), new Instant(10))));
+            .getWatermarkThatGuaranteesFiring(
+                new IntervalWindow(Instant.ofEpochMilli(0), Instant.ofEpochMilli(10))));
     assertEquals(
         GlobalWindow.INSTANCE.maxTimestamp(),
         DefaultTrigger.of().getWatermarkThatGuaranteesFiring(GlobalWindow.INSTANCE));

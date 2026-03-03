@@ -148,24 +148,25 @@ public class MapFnRunnersTest {
     assertThat(
         context.getPCollectionConsumers().keySet(), containsInAnyOrder("inputPC", "outputPC"));
 
-    IntervalWindow firstWindow = new IntervalWindow(new Instant(0L), Duration.standardMinutes(10L));
+    IntervalWindow firstWindow =
+        new IntervalWindow(Instant.ofEpochMilli(0L), Duration.standardMinutes(10L));
     IntervalWindow secondWindow =
-        new IntervalWindow(new Instant(-10L), Duration.standardSeconds(22L));
+        new IntervalWindow(Instant.ofEpochMilli(-10L), Duration.standardSeconds(22L));
     context
         .getPCollectionConsumer("inputPC")
         .accept(
             WindowedValues.of(
                 "abc",
-                new Instant(12),
+                Instant.ofEpochMilli(12),
                 ImmutableSet.of(firstWindow, GlobalWindow.INSTANCE, secondWindow),
                 PaneInfo.NO_FIRING));
 
     assertThat(
         outputConsumer,
         containsInAnyOrder(
-            WindowedValues.timestampedValueInGlobalWindow("ABC", new Instant(12)),
-            WindowedValues.of("ABC", new Instant(12), secondWindow, PaneInfo.NO_FIRING),
-            WindowedValues.of("ABC", new Instant(12), firstWindow, PaneInfo.NO_FIRING)));
+            WindowedValues.timestampedValueInGlobalWindow("ABC", Instant.ofEpochMilli(12)),
+            WindowedValues.of("ABC", Instant.ofEpochMilli(12), secondWindow, PaneInfo.NO_FIRING),
+            WindowedValues.of("ABC", Instant.ofEpochMilli(12), firstWindow, PaneInfo.NO_FIRING)));
   }
 
   public ThrowingFunction<WindowedValue<String>, WindowedValue<String>>

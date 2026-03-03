@@ -122,9 +122,9 @@ public class BatchViewOverridesTest {
                 new BatchViewOverrides.BatchViewAsList.ToIsmRecordForNonGlobalWindowDoFn<
                     Long, IntervalWindow>(IntervalWindow.getCoder()));
 
-    IntervalWindow windowA = new IntervalWindow(new Instant(0), new Instant(10));
-    IntervalWindow windowB = new IntervalWindow(new Instant(10), new Instant(20));
-    IntervalWindow windowC = new IntervalWindow(new Instant(20), new Instant(30));
+    IntervalWindow windowA = new IntervalWindow(Instant.ofEpochMilli(0), Instant.ofEpochMilli(10));
+    IntervalWindow windowB = new IntervalWindow(Instant.ofEpochMilli(10), Instant.ofEpochMilli(20));
+    IntervalWindow windowC = new IntervalWindow(Instant.ofEpochMilli(20), Instant.ofEpochMilli(30));
 
     Iterable<KV<Integer, Iterable<KV<IntervalWindow, WindowedValue<Long>>>>> inputElements =
         ImmutableList.of(
@@ -134,20 +134,24 @@ public class BatchViewOverridesTest {
                     ImmutableList.of(
                         KV.of(
                             windowA,
-                            WindowedValues.of(110L, new Instant(1), windowA, PaneInfo.NO_FIRING)),
+                            WindowedValues.of(
+                                110L, Instant.ofEpochMilli(1), windowA, PaneInfo.NO_FIRING)),
                         KV.of(
                             windowA,
-                            WindowedValues.of(111L, new Instant(3), windowA, PaneInfo.NO_FIRING)),
+                            WindowedValues.of(
+                                111L, Instant.ofEpochMilli(3), windowA, PaneInfo.NO_FIRING)),
                         KV.of(
                             windowA,
-                            WindowedValues.of(112L, new Instant(4), windowA, PaneInfo.NO_FIRING)),
-                        KV.of(
-                            windowB,
-                            WindowedValues.of(120L, new Instant(12), windowB, PaneInfo.NO_FIRING)),
+                            WindowedValues.of(
+                                112L, Instant.ofEpochMilli(4), windowA, PaneInfo.NO_FIRING)),
                         KV.of(
                             windowB,
                             WindowedValues.of(
-                                121L, new Instant(14), windowB, PaneInfo.NO_FIRING)))),
+                                120L, Instant.ofEpochMilli(12), windowB, PaneInfo.NO_FIRING)),
+                        KV.of(
+                            windowB,
+                            WindowedValues.of(
+                                121L, Instant.ofEpochMilli(14), windowB, PaneInfo.NO_FIRING)))),
             KV.of(
                 2,
                 (Iterable<KV<IntervalWindow, WindowedValue<Long>>>)
@@ -155,7 +159,7 @@ public class BatchViewOverridesTest {
                         KV.of(
                             windowC,
                             WindowedValues.of(
-                                210L, new Instant(25), windowC, PaneInfo.NO_FIRING)))));
+                                210L, Instant.ofEpochMilli(25), windowC, PaneInfo.NO_FIRING)))));
 
     // The order of the output elements is important relative to processing order
     assertThat(
@@ -163,22 +167,22 @@ public class BatchViewOverridesTest {
         contains(
             IsmRecord.of(
                 ImmutableList.of(windowA, 0L),
-                WindowedValues.of(110L, new Instant(1), windowA, PaneInfo.NO_FIRING)),
+                WindowedValues.of(110L, Instant.ofEpochMilli(1), windowA, PaneInfo.NO_FIRING)),
             IsmRecord.of(
                 ImmutableList.of(windowA, 1L),
-                WindowedValues.of(111L, new Instant(3), windowA, PaneInfo.NO_FIRING)),
+                WindowedValues.of(111L, Instant.ofEpochMilli(3), windowA, PaneInfo.NO_FIRING)),
             IsmRecord.of(
                 ImmutableList.of(windowA, 2L),
-                WindowedValues.of(112L, new Instant(4), windowA, PaneInfo.NO_FIRING)),
+                WindowedValues.of(112L, Instant.ofEpochMilli(4), windowA, PaneInfo.NO_FIRING)),
             IsmRecord.of(
                 ImmutableList.of(windowB, 0L),
-                WindowedValues.of(120L, new Instant(12), windowB, PaneInfo.NO_FIRING)),
+                WindowedValues.of(120L, Instant.ofEpochMilli(12), windowB, PaneInfo.NO_FIRING)),
             IsmRecord.of(
                 ImmutableList.of(windowB, 1L),
-                WindowedValues.of(121L, new Instant(14), windowB, PaneInfo.NO_FIRING)),
+                WindowedValues.of(121L, Instant.ofEpochMilli(14), windowB, PaneInfo.NO_FIRING)),
             IsmRecord.of(
                 ImmutableList.of(windowC, 0L),
-                WindowedValues.of(210L, new Instant(25), windowC, PaneInfo.NO_FIRING))));
+                WindowedValues.of(210L, Instant.ofEpochMilli(25), windowC, PaneInfo.NO_FIRING))));
   }
 
   @Test
@@ -210,9 +214,9 @@ public class BatchViewOverridesTest {
                     ismCoder,
                     false /* unique keys */));
 
-    IntervalWindow windowA = new IntervalWindow(new Instant(0), new Instant(10));
-    IntervalWindow windowB = new IntervalWindow(new Instant(10), new Instant(20));
-    IntervalWindow windowC = new IntervalWindow(new Instant(20), new Instant(30));
+    IntervalWindow windowA = new IntervalWindow(Instant.ofEpochMilli(0), Instant.ofEpochMilli(10));
+    IntervalWindow windowB = new IntervalWindow(Instant.ofEpochMilli(10), Instant.ofEpochMilli(20));
+    IntervalWindow windowC = new IntervalWindow(Instant.ofEpochMilli(20), Instant.ofEpochMilli(30));
 
     Iterable<KV<Integer, Iterable<KV<KV<Long, IntervalWindow>, WindowedValue<Long>>>>>
         inputElements =
@@ -224,27 +228,27 @@ public class BatchViewOverridesTest {
                             KV.of(
                                 KV.of(1L, windowA),
                                 WindowedValues.of(
-                                    110L, new Instant(1), windowA, PaneInfo.NO_FIRING)),
+                                    110L, Instant.ofEpochMilli(1), windowA, PaneInfo.NO_FIRING)),
                             // same window same key as to previous
                             KV.of(
                                 KV.of(1L, windowA),
                                 WindowedValues.of(
-                                    111L, new Instant(2), windowA, PaneInfo.NO_FIRING)),
+                                    111L, Instant.ofEpochMilli(2), windowA, PaneInfo.NO_FIRING)),
                             // same window different key as to previous
                             KV.of(
                                 KV.of(2L, windowA),
                                 WindowedValues.of(
-                                    120L, new Instant(3), windowA, PaneInfo.NO_FIRING)),
+                                    120L, Instant.ofEpochMilli(3), windowA, PaneInfo.NO_FIRING)),
                             // different window same key as to previous
                             KV.of(
                                 KV.of(2L, windowB),
                                 WindowedValues.of(
-                                    210L, new Instant(11), windowB, PaneInfo.NO_FIRING)),
+                                    210L, Instant.ofEpochMilli(11), windowB, PaneInfo.NO_FIRING)),
                             // different window and different key as to previous
                             KV.of(
                                 KV.of(3L, windowB),
                                 WindowedValues.of(
-                                    220L, new Instant(12), windowB, PaneInfo.NO_FIRING)))),
+                                    220L, Instant.ofEpochMilli(12), windowB, PaneInfo.NO_FIRING)))),
                 KV.of(
                     2,
                     (Iterable<KV<KV<Long, IntervalWindow>, WindowedValue<Long>>>)
@@ -253,7 +257,10 @@ public class BatchViewOverridesTest {
                             KV.of(
                                 KV.of(4L, windowC),
                                 WindowedValues.of(
-                                    330L, new Instant(21), windowC, PaneInfo.NO_FIRING)))));
+                                    330L,
+                                    Instant.ofEpochMilli(21),
+                                    windowC,
+                                    PaneInfo.NO_FIRING)))));
 
     // The order of the output elements is important relative to processing order
     assertThat(
@@ -261,22 +268,22 @@ public class BatchViewOverridesTest {
         contains(
             IsmRecord.of(
                 ImmutableList.of(1L, windowA, 0L),
-                WindowedValues.of(110L, new Instant(1), windowA, PaneInfo.NO_FIRING)),
+                WindowedValues.of(110L, Instant.ofEpochMilli(1), windowA, PaneInfo.NO_FIRING)),
             IsmRecord.of(
                 ImmutableList.of(1L, windowA, 1L),
-                WindowedValues.of(111L, new Instant(2), windowA, PaneInfo.NO_FIRING)),
+                WindowedValues.of(111L, Instant.ofEpochMilli(2), windowA, PaneInfo.NO_FIRING)),
             IsmRecord.of(
                 ImmutableList.of(2L, windowA, 0L),
-                WindowedValues.of(120L, new Instant(3), windowA, PaneInfo.NO_FIRING)),
+                WindowedValues.of(120L, Instant.ofEpochMilli(3), windowA, PaneInfo.NO_FIRING)),
             IsmRecord.of(
                 ImmutableList.of(2L, windowB, 0L),
-                WindowedValues.of(210L, new Instant(11), windowB, PaneInfo.NO_FIRING)),
+                WindowedValues.of(210L, Instant.ofEpochMilli(11), windowB, PaneInfo.NO_FIRING)),
             IsmRecord.of(
                 ImmutableList.of(3L, windowB, 0L),
-                WindowedValues.of(220L, new Instant(12), windowB, PaneInfo.NO_FIRING)),
+                WindowedValues.of(220L, Instant.ofEpochMilli(12), windowB, PaneInfo.NO_FIRING)),
             IsmRecord.of(
                 ImmutableList.of(4L, windowC, 0L),
-                WindowedValues.of(330L, new Instant(21), windowC, PaneInfo.NO_FIRING))));
+                WindowedValues.of(330L, Instant.ofEpochMilli(21), windowC, PaneInfo.NO_FIRING))));
 
     // Verify the number of unique keys per window.
     assertThat(
@@ -342,7 +349,7 @@ public class BatchViewOverridesTest {
                     ismCoder,
                     true /* unique keys */));
 
-    IntervalWindow windowA = new IntervalWindow(new Instant(0), new Instant(10));
+    IntervalWindow windowA = new IntervalWindow(Instant.ofEpochMilli(0), Instant.ofEpochMilli(10));
 
     Iterable<KV<Integer, Iterable<KV<KV<Long, IntervalWindow>, WindowedValue<Long>>>>>
         inputElements =
@@ -354,12 +361,12 @@ public class BatchViewOverridesTest {
                             KV.of(
                                 KV.of(1L, windowA),
                                 WindowedValues.of(
-                                    110L, new Instant(1), windowA, PaneInfo.NO_FIRING)),
+                                    110L, Instant.ofEpochMilli(1), windowA, PaneInfo.NO_FIRING)),
                             // same window same key as to previous
                             KV.of(
                                 KV.of(1L, windowA),
                                 WindowedValues.of(
-                                    111L, new Instant(2), windowA, PaneInfo.NO_FIRING)))));
+                                    111L, Instant.ofEpochMilli(2), windowA, PaneInfo.NO_FIRING)))));
 
     thrown.expect(IllegalStateException.class);
     thrown.expectMessage("Unique keys are expected but found key");
@@ -386,9 +393,9 @@ public class BatchViewOverridesTest {
                 new BatchViewOverrides.BatchViewAsMultimap.ToIsmMetadataRecordForSizeDoFn<
                     Long, Long, IntervalWindow>(windowCoder));
 
-    IntervalWindow windowA = new IntervalWindow(new Instant(0), new Instant(10));
-    IntervalWindow windowB = new IntervalWindow(new Instant(10), new Instant(20));
-    IntervalWindow windowC = new IntervalWindow(new Instant(20), new Instant(30));
+    IntervalWindow windowA = new IntervalWindow(Instant.ofEpochMilli(0), Instant.ofEpochMilli(10));
+    IntervalWindow windowB = new IntervalWindow(Instant.ofEpochMilli(10), Instant.ofEpochMilli(20));
+    IntervalWindow windowC = new IntervalWindow(Instant.ofEpochMilli(20), Instant.ofEpochMilli(30));
 
     Iterable<KV<Integer, Iterable<KV<IntervalWindow, Long>>>> inputElements =
         ImmutableList.of(
@@ -435,9 +442,9 @@ public class BatchViewOverridesTest {
                 new BatchViewOverrides.BatchViewAsMultimap.ToIsmMetadataRecordForKeyDoFn<
                     Long, Long, IntervalWindow>(keyCoder, windowCoder));
 
-    IntervalWindow windowA = new IntervalWindow(new Instant(0), new Instant(10));
-    IntervalWindow windowB = new IntervalWindow(new Instant(10), new Instant(20));
-    IntervalWindow windowC = new IntervalWindow(new Instant(20), new Instant(30));
+    IntervalWindow windowA = new IntervalWindow(Instant.ofEpochMilli(0), Instant.ofEpochMilli(10));
+    IntervalWindow windowB = new IntervalWindow(Instant.ofEpochMilli(10), Instant.ofEpochMilli(20));
+    IntervalWindow windowC = new IntervalWindow(Instant.ofEpochMilli(20), Instant.ofEpochMilli(30));
 
     Iterable<KV<Integer, Iterable<KV<IntervalWindow, Long>>>> inputElements =
         ImmutableList.of(
@@ -484,9 +491,9 @@ public class BatchViewOverridesTest {
                 new BatchViewOverrides.BatchViewAsMap.ToMapDoFn<Long, Long, IntervalWindow>(
                     windowCoder));
 
-    IntervalWindow windowA = new IntervalWindow(new Instant(0), new Instant(10));
-    IntervalWindow windowB = new IntervalWindow(new Instant(10), new Instant(20));
-    IntervalWindow windowC = new IntervalWindow(new Instant(20), new Instant(30));
+    IntervalWindow windowA = new IntervalWindow(Instant.ofEpochMilli(0), Instant.ofEpochMilli(10));
+    IntervalWindow windowB = new IntervalWindow(Instant.ofEpochMilli(10), Instant.ofEpochMilli(20));
+    IntervalWindow windowC = new IntervalWindow(Instant.ofEpochMilli(20), Instant.ofEpochMilli(30));
 
     Iterable<KV<Integer, Iterable<KV<IntervalWindow, WindowedValue<KV<Long, Long>>>>>>
         inputElements =
@@ -498,20 +505,29 @@ public class BatchViewOverridesTest {
                             KV.of(
                                 windowA,
                                 WindowedValues.of(
-                                    KV.of(1L, 11L), new Instant(3), windowA, PaneInfo.NO_FIRING)),
+                                    KV.of(1L, 11L),
+                                    Instant.ofEpochMilli(3),
+                                    windowA,
+                                    PaneInfo.NO_FIRING)),
                             KV.of(
                                 windowA,
                                 WindowedValues.of(
-                                    KV.of(2L, 21L), new Instant(7), windowA, PaneInfo.NO_FIRING)),
+                                    KV.of(2L, 21L),
+                                    Instant.ofEpochMilli(7),
+                                    windowA,
+                                    PaneInfo.NO_FIRING)),
                             KV.of(
                                 windowB,
                                 WindowedValues.of(
-                                    KV.of(2L, 21L), new Instant(13), windowB, PaneInfo.NO_FIRING)),
+                                    KV.of(2L, 21L),
+                                    Instant.ofEpochMilli(13),
+                                    windowB,
+                                    PaneInfo.NO_FIRING)),
                             KV.of(
                                 windowB,
                                 WindowedValues.of(
                                     KV.of(3L, 31L),
-                                    new Instant(15),
+                                    Instant.ofEpochMilli(15),
                                     windowB,
                                     PaneInfo.NO_FIRING)))),
                 KV.of(
@@ -522,7 +538,7 @@ public class BatchViewOverridesTest {
                                 windowC,
                                 WindowedValues.of(
                                     KV.of(4L, 41L),
-                                    new Instant(25),
+                                    Instant.ofEpochMilli(25),
                                     windowC,
                                     PaneInfo.NO_FIRING)))));
 
@@ -558,9 +574,9 @@ public class BatchViewOverridesTest {
                 new BatchViewOverrides.BatchViewAsMultimap.ToMultimapDoFn<
                     Long, Long, IntervalWindow>(windowCoder));
 
-    IntervalWindow windowA = new IntervalWindow(new Instant(0), new Instant(10));
-    IntervalWindow windowB = new IntervalWindow(new Instant(10), new Instant(20));
-    IntervalWindow windowC = new IntervalWindow(new Instant(20), new Instant(30));
+    IntervalWindow windowA = new IntervalWindow(Instant.ofEpochMilli(0), Instant.ofEpochMilli(10));
+    IntervalWindow windowB = new IntervalWindow(Instant.ofEpochMilli(10), Instant.ofEpochMilli(20));
+    IntervalWindow windowC = new IntervalWindow(Instant.ofEpochMilli(20), Instant.ofEpochMilli(30));
 
     Iterable<KV<Integer, Iterable<KV<IntervalWindow, WindowedValue<KV<Long, Long>>>>>>
         inputElements =
@@ -572,30 +588,45 @@ public class BatchViewOverridesTest {
                             KV.of(
                                 windowA,
                                 WindowedValues.of(
-                                    KV.of(1L, 11L), new Instant(3), windowA, PaneInfo.NO_FIRING)),
+                                    KV.of(1L, 11L),
+                                    Instant.ofEpochMilli(3),
+                                    windowA,
+                                    PaneInfo.NO_FIRING)),
                             // [BEAM-5184] Specifically test with a duplicate value to ensure that
                             // duplicate key/values are not lost.
                             KV.of(
                                 windowA,
                                 WindowedValues.of(
-                                    KV.of(1L, 11L), new Instant(3), windowA, PaneInfo.NO_FIRING)),
+                                    KV.of(1L, 11L),
+                                    Instant.ofEpochMilli(3),
+                                    windowA,
+                                    PaneInfo.NO_FIRING)),
                             KV.of(
                                 windowA,
                                 WindowedValues.of(
-                                    KV.of(1L, 12L), new Instant(5), windowA, PaneInfo.NO_FIRING)),
+                                    KV.of(1L, 12L),
+                                    Instant.ofEpochMilli(5),
+                                    windowA,
+                                    PaneInfo.NO_FIRING)),
                             KV.of(
                                 windowA,
                                 WindowedValues.of(
-                                    KV.of(2L, 21L), new Instant(7), windowA, PaneInfo.NO_FIRING)),
+                                    KV.of(2L, 21L),
+                                    Instant.ofEpochMilli(7),
+                                    windowA,
+                                    PaneInfo.NO_FIRING)),
                             KV.of(
                                 windowB,
                                 WindowedValues.of(
-                                    KV.of(2L, 21L), new Instant(13), windowB, PaneInfo.NO_FIRING)),
+                                    KV.of(2L, 21L),
+                                    Instant.ofEpochMilli(13),
+                                    windowB,
+                                    PaneInfo.NO_FIRING)),
                             KV.of(
                                 windowB,
                                 WindowedValues.of(
                                     KV.of(3L, 31L),
-                                    new Instant(15),
+                                    Instant.ofEpochMilli(15),
                                     windowB,
                                     PaneInfo.NO_FIRING)))),
                 KV.of(
@@ -606,7 +637,7 @@ public class BatchViewOverridesTest {
                                 windowC,
                                 WindowedValues.of(
                                     KV.of(4L, 41L),
-                                    new Instant(25),
+                                    Instant.ofEpochMilli(25),
                                     windowC,
                                     PaneInfo.NO_FIRING)))));
 

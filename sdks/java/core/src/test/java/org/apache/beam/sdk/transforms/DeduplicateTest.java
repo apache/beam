@@ -56,7 +56,7 @@ public class DeduplicateTest {
   @Test
   @Category({NeedsRunner.class, UsesTestStream.class})
   public void testInDifferentWindows() {
-    Instant base = new Instant(0);
+    Instant base = Instant.ofEpochMilli(0);
     TestStream<String> values =
         TestStream.create(StringUtf8Coder.of())
             .advanceWatermarkTo(base)
@@ -95,7 +95,7 @@ public class DeduplicateTest {
   @Test
   @Category({NeedsRunner.class, UsesTestStream.class})
   public void testEventTime() {
-    Instant base = new Instant(0);
+    Instant base = Instant.ofEpochMilli(0);
     TestStream<String> values =
         TestStream.create(StringUtf8Coder.of())
             .advanceWatermarkTo(base)
@@ -133,7 +133,7 @@ public class DeduplicateTest {
   @Test
   @Category({NeedsRunner.class, UsesTestStreamWithProcessingTime.class})
   public void testProcessingTime() {
-    Instant base = new Instant(0);
+    Instant base = Instant.ofEpochMilli(0);
     TestStream<String> values =
         TestStream.create(StringUtf8Coder.of())
             .advanceWatermarkTo(base)
@@ -176,7 +176,7 @@ public class DeduplicateTest {
   @Test
   @Category({NeedsRunner.class, UsesTestStreamWithProcessingTime.class})
   public void testRepresentativeValuesWithCoder() {
-    Instant base = new Instant(0);
+    Instant base = Instant.ofEpochMilli(0);
     TestStream<KV<Long, String>> values =
         TestStream.create(KvCoder.of(VarLongCoder.of(), StringUtf8Coder.of()))
             .advanceWatermarkTo(base)
@@ -205,7 +205,7 @@ public class DeduplicateTest {
   @Test
   @Category({NeedsRunner.class, UsesTestStreamWithProcessingTime.class})
   public void testTriggeredRepresentativeValuesWithType() {
-    Instant base = new Instant(0);
+    Instant base = Instant.ofEpochMilli(0);
     TestStream<KV<Long, String>> values =
         TestStream.create(KvCoder.of(VarLongCoder.of(), StringUtf8Coder.of()))
             .advanceWatermarkTo(base)

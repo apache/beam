@@ -88,12 +88,12 @@ public class GroupByKeyTest implements Serializable {
         .apply(
             Create.timestamped(
                 shuffleRandomly(
-                    TimestampedValue.of(KV.of(1, 1), new Instant(1)),
-                    TimestampedValue.of(KV.of(1, 3), new Instant(2)),
-                    TimestampedValue.of(KV.of(1, 5), new Instant(11)),
-                    TimestampedValue.of(KV.of(2, 2), new Instant(3)),
-                    TimestampedValue.of(KV.of(2, 4), new Instant(11)),
-                    TimestampedValue.of(KV.of(2, 6), new Instant(12)))))
+                    TimestampedValue.of(KV.of(1, 1), Instant.ofEpochMilli(1)),
+                    TimestampedValue.of(KV.of(1, 3), Instant.ofEpochMilli(2)),
+                    TimestampedValue.of(KV.of(1, 5), Instant.ofEpochMilli(11)),
+                    TimestampedValue.of(KV.of(2, 2), Instant.ofEpochMilli(3)),
+                    TimestampedValue.of(KV.of(2, 4), Instant.ofEpochMilli(11)),
+                    TimestampedValue.of(KV.of(2, 6), Instant.ofEpochMilli(12)))))
         .apply(Window.into(FixedWindows.of(Duration.millis(10))))
         .apply(GroupByKey.create())
         // Passert do not support multiple kv with same key (because multiple windows)
@@ -114,12 +114,12 @@ public class GroupByKeyTest implements Serializable {
         .apply(
             Create.timestamped(
                 shuffleRandomly(
-                    TimestampedValue.of(KV.of(1, 1), new Instant(5)),
-                    TimestampedValue.of(KV.of(1, 3), new Instant(7)),
-                    TimestampedValue.of(KV.of(1, 5), new Instant(11)),
-                    TimestampedValue.of(KV.of(2, 2), new Instant(5)),
-                    TimestampedValue.of(KV.of(2, 4), new Instant(11)),
-                    TimestampedValue.of(KV.of(2, 6), new Instant(12)))))
+                    TimestampedValue.of(KV.of(1, 1), Instant.ofEpochMilli(5)),
+                    TimestampedValue.of(KV.of(1, 3), Instant.ofEpochMilli(7)),
+                    TimestampedValue.of(KV.of(1, 5), Instant.ofEpochMilli(11)),
+                    TimestampedValue.of(KV.of(2, 2), Instant.ofEpochMilli(5)),
+                    TimestampedValue.of(KV.of(2, 4), Instant.ofEpochMilli(11)),
+                    TimestampedValue.of(KV.of(2, 6), Instant.ofEpochMilli(12)))))
         .apply(Window.into(SlidingWindows.of(Duration.millis(10)).every(Duration.millis(5))))
         .apply(GroupByKey.create())
         // Passert do not support multiple kv with same key (because multiple windows)
@@ -142,12 +142,12 @@ public class GroupByKeyTest implements Serializable {
         .apply(
             Create.timestamped(
                 shuffleRandomly(
-                    TimestampedValue.of(KV.of(1, 1), new Instant(5)),
-                    TimestampedValue.of(KV.of(1, 3), new Instant(7)),
-                    TimestampedValue.of(KV.of(1, 5), new Instant(11)),
-                    TimestampedValue.of(KV.of(2, 2), new Instant(5)),
-                    TimestampedValue.of(KV.of(2, 4), new Instant(11)),
-                    TimestampedValue.of(KV.of(2, 6), new Instant(12)))))
+                    TimestampedValue.of(KV.of(1, 1), Instant.ofEpochMilli(5)),
+                    TimestampedValue.of(KV.of(1, 3), Instant.ofEpochMilli(7)),
+                    TimestampedValue.of(KV.of(1, 5), Instant.ofEpochMilli(11)),
+                    TimestampedValue.of(KV.of(2, 2), Instant.ofEpochMilli(5)),
+                    TimestampedValue.of(KV.of(2, 4), Instant.ofEpochMilli(11)),
+                    TimestampedValue.of(KV.of(2, 6), Instant.ofEpochMilli(12)))))
         .apply(Window.into(Sessions.withGapDuration(Duration.millis(5))))
         .apply(GroupByKey.create())
         // Passert do not support multiple kv with same key (because multiple windows)

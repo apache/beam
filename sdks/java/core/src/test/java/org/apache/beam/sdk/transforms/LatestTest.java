@@ -55,9 +55,9 @@ public class LatestTest implements Serializable {
     PCollection<String> output =
         p.apply(
                 Create.timestamped(
-                    TimestampedValue.of("foo", new Instant(100)),
-                    TimestampedValue.of("bar", new Instant(300)),
-                    TimestampedValue.of("baz", new Instant(200))))
+                    TimestampedValue.of("foo", Instant.ofEpochMilli(100)),
+                    TimestampedValue.of("bar", Instant.ofEpochMilli(300)),
+                    TimestampedValue.of("baz", Instant.ofEpochMilli(200))))
             .apply(Latest.globally());
 
     PAssert.that(output).containsInAnyOrder("bar");
@@ -94,9 +94,9 @@ public class LatestTest implements Serializable {
     PCollection<KV<String, String>> output =
         p.apply(
                 Create.timestamped(
-                    TimestampedValue.of(KV.of("A", "foo"), new Instant(100)),
-                    TimestampedValue.of(KV.of("B", "bar"), new Instant(300)),
-                    TimestampedValue.of(KV.of("A", "baz"), new Instant(200))))
+                    TimestampedValue.of(KV.of("A", "foo"), Instant.ofEpochMilli(100)),
+                    TimestampedValue.of(KV.of("B", "bar"), Instant.ofEpochMilli(300)),
+                    TimestampedValue.of(KV.of("A", "baz"), Instant.ofEpochMilli(200))))
             .apply(Latest.perKey());
 
     PAssert.that(output).containsInAnyOrder(KV.of("B", "bar"), KV.of("A", "baz"));

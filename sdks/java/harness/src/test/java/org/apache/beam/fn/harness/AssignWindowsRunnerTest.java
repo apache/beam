@@ -86,14 +86,14 @@ public class AssignWindowsRunnerTest implements Serializable {
         runner.assignWindows(
             WindowedValues.of(
                 2,
-                new Instant(-10L),
-                new IntervalWindow(new Instant(-120000L), Duration.standardMinutes(3L)),
+                Instant.ofEpochMilli(-10L),
+                new IntervalWindow(Instant.ofEpochMilli(-120000L), Duration.standardMinutes(3L)),
                 PaneInfo.ON_TIME_AND_ONLY_FIRING)),
         equalTo(
             WindowedValues.of(
                 2,
-                new Instant(-10L),
-                windowFn.assignWindow(new Instant(-10L)),
+                Instant.ofEpochMilli(-10L),
+                windowFn.assignWindow(Instant.ofEpochMilli(-10L)),
                 PaneInfo.ON_TIME_AND_ONLY_FIRING)));
   }
 
@@ -106,27 +106,30 @@ public class AssignWindowsRunnerTest implements Serializable {
 
     IntervalWindow firstWindow =
         new IntervalWindow(
-            new Instant(0).minus(Duration.standardMinutes(4L)), Duration.standardMinutes(4L));
+            Instant.ofEpochMilli(0).minus(Duration.standardMinutes(4L)),
+            Duration.standardMinutes(4L));
     IntervalWindow secondWindow =
         new IntervalWindow(
-            new Instant(0).minus(Duration.standardMinutes(2L)), Duration.standardMinutes(4L));
-    IntervalWindow thirdWindow = new IntervalWindow(new Instant(0), Duration.standardMinutes(4L));
+            Instant.ofEpochMilli(0).minus(Duration.standardMinutes(2L)),
+            Duration.standardMinutes(4L));
+    IntervalWindow thirdWindow =
+        new IntervalWindow(Instant.ofEpochMilli(0), Duration.standardMinutes(4L));
 
     WindowedValue<Integer> firstValue =
-        WindowedValues.timestampedValueInGlobalWindow(-3, new Instant(-12));
+        WindowedValues.timestampedValueInGlobalWindow(-3, Instant.ofEpochMilli(-12));
     assertThat(
         runner.assignWindows(firstValue),
         equalTo(
             WindowedValues.of(
                 -3,
-                new Instant(-12),
+                Instant.ofEpochMilli(-12),
                 ImmutableSet.of(firstWindow, secondWindow),
                 firstValue.getPaneInfo())));
     WindowedValue<Integer> secondValue =
         WindowedValues.of(
             3,
-            new Instant(12),
-            new IntervalWindow(new Instant(-12), Duration.standardMinutes(24)),
+            Instant.ofEpochMilli(12),
+            new IntervalWindow(Instant.ofEpochMilli(-12), Duration.standardMinutes(24)),
             PaneInfo.ON_TIME_AND_ONLY_FIRING);
 
     assertThat(
@@ -134,7 +137,7 @@ public class AssignWindowsRunnerTest implements Serializable {
         equalTo(
             WindowedValues.of(
                 3,
-                new Instant(12),
+                Instant.ofEpochMilli(12),
                 ImmutableSet.of(secondWindow, thirdWindow),
                 secondValue.getPaneInfo())));
   }
@@ -148,7 +151,7 @@ public class AssignWindowsRunnerTest implements Serializable {
             c.window();
             return ImmutableSet.of(
                 GlobalWindow.INSTANCE,
-                new IntervalWindow(new Instant(-500), Duration.standardMinutes(3)));
+                new IntervalWindow(Instant.ofEpochMilli(-500), Duration.standardMinutes(3)));
           }
 
           @Override
@@ -208,10 +211,10 @@ public class AssignWindowsRunnerTest implements Serializable {
     WindowedValue<Integer> value =
         WindowedValues.of(
             2,
-            new Instant(-10L),
+            Instant.ofEpochMilli(-10L),
             ImmutableList.of(
-                new IntervalWindow(new Instant(-22L), Duration.standardMinutes(5L)),
-                new IntervalWindow(new Instant(-120000L), Duration.standardMinutes(3L))),
+                new IntervalWindow(Instant.ofEpochMilli(-22L), Duration.standardMinutes(5L)),
+                new IntervalWindow(Instant.ofEpochMilli(-120000L), Duration.standardMinutes(3L))),
             PaneInfo.ON_TIME_AND_ONLY_FIRING);
     context.getPCollectionConsumer("input").accept(value);
     assertThat(
@@ -219,17 +222,17 @@ public class AssignWindowsRunnerTest implements Serializable {
         containsInAnyOrder(
             WindowedValues.of(
                 2,
-                new Instant(-10L),
+                Instant.ofEpochMilli(-10L),
                 ImmutableSet.of(
                     GlobalWindow.INSTANCE,
-                    new IntervalWindow(new Instant(-500), Duration.standardMinutes(3))),
+                    new IntervalWindow(Instant.ofEpochMilli(-500), Duration.standardMinutes(3))),
                 PaneInfo.ON_TIME_AND_ONLY_FIRING),
             WindowedValues.of(
                 2,
-                new Instant(-10L),
+                Instant.ofEpochMilli(-10L),
                 ImmutableSet.of(
                     GlobalWindow.INSTANCE,
-                    new IntervalWindow(new Instant(-500), Duration.standardMinutes(3))),
+                    new IntervalWindow(Instant.ofEpochMilli(-500), Duration.standardMinutes(3))),
                 PaneInfo.ON_TIME_AND_ONLY_FIRING)));
   }
 
@@ -268,10 +271,10 @@ public class AssignWindowsRunnerTest implements Serializable {
     runner.assignWindows(
         WindowedValues.of(
             2,
-            new Instant(-10L),
+            Instant.ofEpochMilli(-10L),
             ImmutableList.of(
-                new IntervalWindow(new Instant(-22L), Duration.standardMinutes(5L)),
-                new IntervalWindow(new Instant(-120000L), Duration.standardMinutes(3L))),
+                new IntervalWindow(Instant.ofEpochMilli(-22L), Duration.standardMinutes(5L)),
+                new IntervalWindow(Instant.ofEpochMilli(-120000L), Duration.standardMinutes(3L))),
             PaneInfo.ON_TIME_AND_ONLY_FIRING));
   }
 
@@ -303,14 +306,14 @@ public class AssignWindowsRunnerTest implements Serializable {
         fn.apply(
             WindowedValues.of(
                 22L,
-                new Instant(5),
-                new IntervalWindow(new Instant(0L), new Instant(20027L)),
+                Instant.ofEpochMilli(5),
+                new IntervalWindow(Instant.ofEpochMilli(0L), Instant.ofEpochMilli(20027L)),
                 PaneInfo.ON_TIME_AND_ONLY_FIRING)),
         equalTo(
             WindowedValues.of(
                 22L,
-                new Instant(5),
-                new TestWindowFn().assignWindow(new Instant(5)),
+                Instant.ofEpochMilli(5),
+                new TestWindowFn().assignWindow(Instant.ofEpochMilli(5)),
                 PaneInfo.ON_TIME_AND_ONLY_FIRING)));
   }
 
@@ -341,8 +344,8 @@ public class AssignWindowsRunnerTest implements Serializable {
         fn.apply(
             WindowedValues.of(
                 22L,
-                new Instant(5),
-                new IntervalWindow(new Instant(0L), new Instant(20027L)),
+                Instant.ofEpochMilli(5),
+                new IntervalWindow(Instant.ofEpochMilli(0L), Instant.ofEpochMilli(20027L)),
                 PaneInfo.ON_TIME_AND_ONLY_FIRING));
 
     assertThat(
@@ -350,8 +353,8 @@ public class AssignWindowsRunnerTest implements Serializable {
         equalTo(
             WindowedValues.of(
                 22L,
-                new Instant(5),
-                new IntervalWindow(new Instant(5L), Duration.standardMinutes(12L)),
+                Instant.ofEpochMilli(5),
+                new IntervalWindow(Instant.ofEpochMilli(5L), Duration.standardMinutes(12L)),
                 PaneInfo.ON_TIME_AND_ONLY_FIRING)));
   }
 

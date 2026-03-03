@@ -80,7 +80,7 @@ public class WindowDoFnOperatorTest {
     testHarness.open();
 
     // process elements
-    IntervalWindow window = new IntervalWindow(new Instant(0), Duration.millis(10_000));
+    IntervalWindow window = new IntervalWindow(Instant.ofEpochMilli(0), Duration.millis(10_000));
     testHarness.processWatermark(0L);
     testHarness.processElement(
         Item.builder().key(1L).timestamp(1L).value(100L).window(window).build().toStreamRecord());
@@ -135,8 +135,8 @@ public class WindowDoFnOperatorTest {
         timerInternals = windowDoFnOperator.timerInternals;
 
     // process elements
-    IntervalWindow window = new IntervalWindow(new Instant(0), Duration.millis(100));
-    IntervalWindow window2 = new IntervalWindow(new Instant(100), Duration.millis(100));
+    IntervalWindow window = new IntervalWindow(Instant.ofEpochMilli(0), Duration.millis(100));
+    IntervalWindow window2 = new IntervalWindow(Instant.ofEpochMilli(100), Duration.millis(100));
     testHarness.processWatermark(0L);
 
     // Use two different keys to check for correct watermark hold calculation
@@ -186,10 +186,13 @@ public class WindowDoFnOperatorTest {
         stripStreamRecordFromWindowedValue(testHarness.getOutput()),
         containsInAnyOrder(
             WindowedValues.of(
-                KV.of(1L, 100L), new Instant(99), window, PaneInfo.createPane(true, true, ON_TIME)),
+                KV.of(1L, 100L),
+                Instant.ofEpochMilli(99),
+                window,
+                PaneInfo.createPane(true, true, ON_TIME)),
             WindowedValues.of(
                 KV.of(2L, 150L),
-                new Instant(199),
+                Instant.ofEpochMilli(199),
                 window2,
                 PaneInfo.createPane(true, true, ON_TIME))));
 

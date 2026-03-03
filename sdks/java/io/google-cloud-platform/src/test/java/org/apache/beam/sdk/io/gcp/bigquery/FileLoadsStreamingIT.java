@@ -240,7 +240,7 @@ public class FileLoadsStreamingIT {
     String tableSpec = maybeCreateTable(bqTableSchema, "");
 
     // set up and build pipeline
-    Instant start = new Instant(0);
+    Instant start = Instant.ofEpochMilli(0);
     GenerateRowFunc generateRowFunc = new GenerateRowFunc(fieldNamesShuffled);
     PCollection<Instant> instants =
         p.apply(
@@ -372,7 +372,7 @@ public class FileLoadsStreamingIT {
     String tablePrefix = table0Id.substring(0, table0Id.length() - 2);
 
     // set up and build pipeline
-    Instant start = new Instant(0);
+    Instant start = Instant.ofEpochMilli(0);
     PCollection<Instant> instants =
         p.apply(
             "Generate Instants",

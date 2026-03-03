@@ -267,10 +267,10 @@ public class MapViewTest implements Serializable {
             .apply(
                 "CreateSideInput",
                 Create.timestamped(
-                    TimestampedValue.of(KV.of("a", 1), new Instant(1)),
-                    TimestampedValue.of(KV.of("a", 1), new Instant(2)),
-                    TimestampedValue.of(KV.of("a", 2), new Instant(7)),
-                    TimestampedValue.of(KV.of("b", 3), new Instant(14))))
+                    TimestampedValue.of(KV.of("a", 1), Instant.ofEpochMilli(1)),
+                    TimestampedValue.of(KV.of("a", 1), Instant.ofEpochMilli(2)),
+                    TimestampedValue.of(KV.of("a", 2), Instant.ofEpochMilli(7)),
+                    TimestampedValue.of(KV.of("b", 3), Instant.ofEpochMilli(14))))
             .apply("SideWindowInto", Window.into(FixedWindows.of(Duration.millis(10))))
             .apply(View.asMultimap());
 
@@ -279,9 +279,9 @@ public class MapViewTest implements Serializable {
             .apply(
                 "CreateMainInput",
                 Create.timestamped(
-                    TimestampedValue.of("apple", new Instant(5)),
-                    TimestampedValue.of("banana", new Instant(13)),
-                    TimestampedValue.of("blackberry", new Instant(16))))
+                    TimestampedValue.of("apple", Instant.ofEpochMilli(5)),
+                    TimestampedValue.of("banana", Instant.ofEpochMilli(13)),
+                    TimestampedValue.of("blackberry", Instant.ofEpochMilli(16))))
             .apply("MainWindowInto", Window.into(FixedWindows.of(Duration.millis(10))))
             .apply(
                 "OutputSideInputs",
@@ -316,10 +316,10 @@ public class MapViewTest implements Serializable {
             .apply(
                 "CreateSideInput",
                 Create.timestamped(
-                    TimestampedValue.of(KV.of("a", 1), new Instant(1)),
-                    TimestampedValue.of(KV.of("a", 1), new Instant(2)),
-                    TimestampedValue.of(KV.of("a", 2), new Instant(7)),
-                    TimestampedValue.of(KV.of("b", 3), new Instant(14))))
+                    TimestampedValue.of(KV.of("a", 1), Instant.ofEpochMilli(1)),
+                    TimestampedValue.of(KV.of("a", 1), Instant.ofEpochMilli(2)),
+                    TimestampedValue.of(KV.of("a", 2), Instant.ofEpochMilli(7)),
+                    TimestampedValue.of(KV.of("b", 3), Instant.ofEpochMilli(14))))
             .apply("SideWindowInto", Window.into(FixedWindows.of(Duration.millis(10))))
             .apply(View.asMultimap());
 
@@ -328,8 +328,8 @@ public class MapViewTest implements Serializable {
             .apply(
                 "CreateMainInput",
                 Create.timestamped(
-                    TimestampedValue.of(1 /* size */, new Instant(5)),
-                    TimestampedValue.of(1 /* size */, new Instant(16))))
+                    TimestampedValue.of(1 /* size */, Instant.ofEpochMilli(5)),
+                    TimestampedValue.of(1 /* size */, Instant.ofEpochMilli(16))))
             .apply("MainWindowInto", Window.into(FixedWindows.of(Duration.millis(10))))
             .apply(
                 "OutputSideInputs",
@@ -364,10 +364,10 @@ public class MapViewTest implements Serializable {
             .apply(
                 "CreateSideInput",
                 Create.timestamped(
-                        TimestampedValue.of(KV.of("a", 1), new Instant(1)),
-                        TimestampedValue.of(KV.of("a", 1), new Instant(2)),
-                        TimestampedValue.of(KV.of("a", 2), new Instant(7)),
-                        TimestampedValue.of(KV.of("b", 3), new Instant(14)))
+                        TimestampedValue.of(KV.of("a", 1), Instant.ofEpochMilli(1)),
+                        TimestampedValue.of(KV.of("a", 1), Instant.ofEpochMilli(2)),
+                        TimestampedValue.of(KV.of("a", 2), Instant.ofEpochMilli(7)),
+                        TimestampedValue.of(KV.of("b", 3), Instant.ofEpochMilli(14)))
                     .withCoder(KvCoder.of(new NonDeterministicStringCoder(), VarIntCoder.of())))
             .apply("SideWindowInto", Window.into(FixedWindows.of(Duration.millis(10))))
             .apply(View.asMultimap());
@@ -377,9 +377,9 @@ public class MapViewTest implements Serializable {
             .apply(
                 "CreateMainInput",
                 Create.timestamped(
-                    TimestampedValue.of("apple", new Instant(5)),
-                    TimestampedValue.of("banana", new Instant(13)),
-                    TimestampedValue.of("blackberry", new Instant(16))))
+                    TimestampedValue.of("apple", Instant.ofEpochMilli(5)),
+                    TimestampedValue.of("banana", Instant.ofEpochMilli(13)),
+                    TimestampedValue.of("blackberry", Instant.ofEpochMilli(16))))
             .apply("MainWindowInto", Window.into(FixedWindows.of(Duration.millis(10))))
             .apply(
                 "OutputSideInputs",
@@ -701,9 +701,9 @@ public class MapViewTest implements Serializable {
             .apply(
                 "CreateSideInput",
                 Create.timestamped(
-                    TimestampedValue.of(KV.of("a", 1), new Instant(1)),
-                    TimestampedValue.of(KV.of("b", 2), new Instant(4)),
-                    TimestampedValue.of(KV.of("b", 3), new Instant(18))))
+                    TimestampedValue.of(KV.of("a", 1), Instant.ofEpochMilli(1)),
+                    TimestampedValue.of(KV.of("b", 2), Instant.ofEpochMilli(4)),
+                    TimestampedValue.of(KV.of("b", 3), Instant.ofEpochMilli(18))))
             .apply("SideWindowInto", Window.into(FixedWindows.of(Duration.millis(10))))
             .apply(View.asMap());
 
@@ -712,9 +712,9 @@ public class MapViewTest implements Serializable {
             .apply(
                 "CreateMainInput",
                 Create.timestamped(
-                    TimestampedValue.of("apple", new Instant(5)),
-                    TimestampedValue.of("banana", new Instant(4)),
-                    TimestampedValue.of("blackberry", new Instant(16))))
+                    TimestampedValue.of("apple", Instant.ofEpochMilli(5)),
+                    TimestampedValue.of("banana", Instant.ofEpochMilli(4)),
+                    TimestampedValue.of("blackberry", Instant.ofEpochMilli(16))))
             .apply("MainWindowInto", Window.into(FixedWindows.of(Duration.millis(10))))
             .apply(
                 "OutputSideInputs",
@@ -745,9 +745,9 @@ public class MapViewTest implements Serializable {
             .apply(
                 "CreateSideInput",
                 Create.timestamped(
-                    TimestampedValue.of(KV.of("a", 1), new Instant(1)),
-                    TimestampedValue.of(KV.of("b", 2), new Instant(4)),
-                    TimestampedValue.of(KV.of("b", 3), new Instant(18))))
+                    TimestampedValue.of(KV.of("a", 1), Instant.ofEpochMilli(1)),
+                    TimestampedValue.of(KV.of("b", 2), Instant.ofEpochMilli(4)),
+                    TimestampedValue.of(KV.of("b", 3), Instant.ofEpochMilli(18))))
             .apply("SideWindowInto", Window.into(FixedWindows.of(Duration.millis(10))))
             .apply(View.asMap());
 
@@ -756,8 +756,8 @@ public class MapViewTest implements Serializable {
             .apply(
                 "CreateMainInput",
                 Create.timestamped(
-                    TimestampedValue.of(2 /* size */, new Instant(5)),
-                    TimestampedValue.of(1 /* size */, new Instant(16))))
+                    TimestampedValue.of(2 /* size */, Instant.ofEpochMilli(5)),
+                    TimestampedValue.of(1 /* size */, Instant.ofEpochMilli(16))))
             .apply("MainWindowInto", Window.into(FixedWindows.of(Duration.millis(10))))
             .apply(
                 "OutputSideInputs",
@@ -788,9 +788,9 @@ public class MapViewTest implements Serializable {
             .apply(
                 "CreateSideInput",
                 Create.timestamped(
-                        TimestampedValue.of(KV.of("a", 1), new Instant(1)),
-                        TimestampedValue.of(KV.of("b", 2), new Instant(4)),
-                        TimestampedValue.of(KV.of("b", 3), new Instant(18)))
+                        TimestampedValue.of(KV.of("a", 1), Instant.ofEpochMilli(1)),
+                        TimestampedValue.of(KV.of("b", 2), Instant.ofEpochMilli(4)),
+                        TimestampedValue.of(KV.of("b", 3), Instant.ofEpochMilli(18)))
                     .withCoder(KvCoder.of(new NonDeterministicStringCoder(), VarIntCoder.of())))
             .apply("SideWindowInto", Window.into(FixedWindows.of(Duration.millis(10))))
             .apply(View.asMap());
@@ -800,9 +800,9 @@ public class MapViewTest implements Serializable {
             .apply(
                 "CreateMainInput",
                 Create.timestamped(
-                    TimestampedValue.of("apple", new Instant(5)),
-                    TimestampedValue.of("banana", new Instant(4)),
-                    TimestampedValue.of("blackberry", new Instant(16))))
+                    TimestampedValue.of("apple", Instant.ofEpochMilli(5)),
+                    TimestampedValue.of("banana", Instant.ofEpochMilli(4)),
+                    TimestampedValue.of("blackberry", Instant.ofEpochMilli(16))))
             .apply("MainWindowInto", Window.into(FixedWindows.of(Duration.millis(10))))
             .apply(
                 "OutputSideInputs",

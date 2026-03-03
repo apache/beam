@@ -55,11 +55,11 @@ public class WindowedValueTest {
 
   @Test
   public void testWindowedValueCoder() throws CoderException {
-    Instant timestamp = new Instant(1234);
+    Instant timestamp = Instant.ofEpochMilli(1234);
     WindowedValue<String> value =
         WindowedValues.of(
             "abc",
-            new Instant(1234),
+            Instant.ofEpochMilli(1234),
             Arrays.asList(
                 new IntervalWindow(timestamp, timestamp.plus(Duration.millis(1000))),
                 new IntervalWindow(
@@ -81,11 +81,11 @@ public class WindowedValueTest {
   @Test
   public void testWindowedValueWithElementMetadataCoder() throws CoderException {
     WindowedValues.WindowedValueCoder.setMetadataSupported();
-    Instant timestamp = new Instant(1234);
+    Instant timestamp = Instant.ofEpochMilli(1234);
     WindowedValue<String> value =
         WindowedValues.of(
             "abc",
-            new Instant(1234),
+            Instant.ofEpochMilli(1234),
             Arrays.asList(
                 new IntervalWindow(timestamp, timestamp.plus(Duration.millis(1000))),
                 new IntervalWindow(

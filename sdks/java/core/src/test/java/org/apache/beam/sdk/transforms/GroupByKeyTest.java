@@ -181,11 +181,11 @@ public class GroupByKeyTest implements Serializable {
       PCollection<Integer> triggeredSums =
           p.apply(
                   TestStream.create(VarIntCoder.of())
-                      .advanceWatermarkTo(new Instant(0))
+                      .advanceWatermarkTo(Instant.ofEpochMilli(0))
                       .addElements(
-                          TimestampedValue.of(2, new Instant(2)),
-                          TimestampedValue.of(5, new Instant(5)))
-                      .advanceWatermarkTo(new Instant(100))
+                          TimestampedValue.of(2, Instant.ofEpochMilli(2)),
+                          TimestampedValue.of(5, Instant.ofEpochMilli(5)))
+                      .advanceWatermarkTo(Instant.ofEpochMilli(100))
                       .advanceProcessingTime(Duration.millis(10))
                       .advanceWatermarkToInfinity())
               .apply(
@@ -219,7 +219,7 @@ public class GroupByKeyTest implements Serializable {
       PCollection<Integer> triggeredSums =
           p.apply(
                   TestStream.create(VarIntCoder.of())
-                      .advanceWatermarkTo(new Instant(0))
+                      .advanceWatermarkTo(Instant.ofEpochMilli(0))
                       .addElements(42)
                       .advanceProcessingTime(Duration.millis(advanceMillis))
                       .advanceProcessingTime(Duration.millis(waitMillis))
@@ -505,13 +505,13 @@ public class GroupByKeyTest implements Serializable {
     public void testTimestampCombinerEarliest() {
       p.apply(
               Create.timestamped(
-                  TimestampedValue.of(KV.of(0, "hello"), new Instant(0)),
-                  TimestampedValue.of(KV.of(0, "goodbye"), new Instant(10))))
+                  TimestampedValue.of(KV.of(0, "hello"), Instant.ofEpochMilli(0)),
+                  TimestampedValue.of(KV.of(0, "goodbye"), Instant.ofEpochMilli(10))))
           .apply(
               Window.<KV<Integer, String>>into(FixedWindows.of(Duration.standardMinutes(10)))
                   .withTimestampCombiner(TimestampCombiner.EARLIEST))
           .apply(GroupByKey.create())
-          .apply(ParDo.of(new AssertTimestamp(new Instant(0))));
+          .apply(ParDo.of(new AssertTimestamp(Instant.ofEpochMilli(0))));
 
       p.run();
     }
@@ -525,13 +525,13 @@ public class GroupByKeyTest implements Serializable {
     public void testTimestampCombinerLatest() {
       p.apply(
               Create.timestamped(
-                  TimestampedValue.of(KV.of(0, "hello"), new Instant(0)),
-                  TimestampedValue.of(KV.of(0, "goodbye"), new Instant(10))))
+                  TimestampedValue.of(KV.of(0, "hello"), Instant.ofEpochMilli(0)),
+                  TimestampedValue.of(KV.of(0, "goodbye"), Instant.ofEpochMilli(10))))
           .apply(
               Window.<KV<Integer, String>>into(FixedWindows.of(Duration.standardMinutes(10)))
                   .withTimestampCombiner(TimestampCombiner.LATEST))
           .apply(GroupByKey.create())
-          .apply(ParDo.of(new AssertTimestamp(new Instant(10))));
+          .apply(ParDo.of(new AssertTimestamp(Instant.ofEpochMilli(10))));
 
       p.run();
     }
@@ -761,12 +761,12 @@ public class GroupByKeyTest implements Serializable {
                   kv("k2", -33),
                   kv("k3", 0)));
       PAssert.that(output)
-          .inWindow(new IntervalWindow(new Instant(0L), Duration.millis(5L)))
+          .inWindow(new IntervalWindow(Instant.ofEpochMilli(0L), Duration.millis(5L)))
           .satisfies(
               containsKvs(
                   kv("k1", 3), kv("k5", Integer.MIN_VALUE, Integer.MAX_VALUE), kv("k2", 66)));
       PAssert.that(output)
-          .inWindow(new IntervalWindow(new Instant(5L), Duration.millis(5L)))
+          .inWindow(new IntervalWindow(Instant.ofEpochMilli(5L), Duration.millis(5L)))
           .satisfies(containsKvs(kv("k1", 4), kv("k2", -33), kv("k3", 0)));
 
       p.run();
@@ -778,9 +778,9 @@ public class GroupByKeyTest implements Serializable {
       PCollection<KV<String, Integer>> windowedInput =
           p.apply(
                   Create.timestamped(
-                      TimestampedValue.of(KV.of("foo", 1), new Instant(1)),
-                      TimestampedValue.of(KV.of("foo", 4), new Instant(4)),
-                      TimestampedValue.of(KV.of("bar", 3), new Instant(3))))
+                      TimestampedValue.of(KV.of("foo", 1), Instant.ofEpochMilli(1)),
+                      TimestampedValue.of(KV.of("foo", 4), Instant.ofEpochMilli(4)),
+                      TimestampedValue.of(KV.of("bar", 3), Instant.ofEpochMilli(3))))
               .apply(
                   Window.into(SlidingWindows.of(Duration.millis(5L)).every(Duration.millis(3L))));
 
@@ -790,13 +790,13 @@ public class GroupByKeyTest implements Serializable {
           .satisfies(
               containsKvs(kv("foo", 1, 4), kv("foo", 1), kv("foo", 4), kv("bar", 3), kv("bar", 3)));
       PAssert.that(output)
-          .inWindow(new IntervalWindow(new Instant(-3L), Duration.millis(5L)))
+          .inWindow(new IntervalWindow(Instant.ofEpochMilli(-3L), Duration.millis(5L)))
           .satisfies(containsKvs(kv("foo", 1)));
       PAssert.that(output)
-          .inWindow(new IntervalWindow(new Instant(0L), Duration.millis(5L)))
+          .inWindow(new IntervalWindow(Instant.ofEpochMilli(0L), Duration.millis(5L)))
           .satisfies(containsKvs(kv("foo", 1, 4), kv("bar", 3)));
       PAssert.that(output)
-          .inWindow(new IntervalWindow(new Instant(3L), Duration.millis(5L)))
+          .inWindow(new IntervalWindow(Instant.ofEpochMilli(3L), Duration.millis(5L)))
           .satisfies(containsKvs(kv("foo", 4), kv("bar", 3)));
 
       p.run();
@@ -808,23 +808,23 @@ public class GroupByKeyTest implements Serializable {
       PCollection<KV<String, Integer>> windowedInput =
           p.apply(
                   Create.timestamped(
-                      TimestampedValue.of(KV.of("foo", 1), new Instant(1)),
-                      TimestampedValue.of(KV.of("foo", 4), new Instant(4)),
-                      TimestampedValue.of(KV.of("bar", 3), new Instant(3)),
-                      TimestampedValue.of(KV.of("foo", 9), new Instant(9))))
+                      TimestampedValue.of(KV.of("foo", 1), Instant.ofEpochMilli(1)),
+                      TimestampedValue.of(KV.of("foo", 4), Instant.ofEpochMilli(4)),
+                      TimestampedValue.of(KV.of("bar", 3), Instant.ofEpochMilli(3)),
+                      TimestampedValue.of(KV.of("foo", 9), Instant.ofEpochMilli(9))))
               .apply(Window.into(Sessions.withGapDuration(Duration.millis(4L))));
 
       PCollection<KV<String, Iterable<Integer>>> output = windowedInput.apply(GroupByKey.create());
 
       PAssert.that(output).satisfies(containsKvs(kv("foo", 1, 4), kv("foo", 9), kv("bar", 3)));
       PAssert.that(output)
-          .inWindow(new IntervalWindow(new Instant(1L), new Instant(8L)))
+          .inWindow(new IntervalWindow(Instant.ofEpochMilli(1L), Instant.ofEpochMilli(8L)))
           .satisfies(containsKvs(kv("foo", 1, 4)));
       PAssert.that(output)
-          .inWindow(new IntervalWindow(new Instant(3L), new Instant(7L)))
+          .inWindow(new IntervalWindow(Instant.ofEpochMilli(3L), Instant.ofEpochMilli(7L)))
           .satisfies(containsKvs(kv("bar", 3)));
       PAssert.that(output)
-          .inWindow(new IntervalWindow(new Instant(9L), new Instant(13L)))
+          .inWindow(new IntervalWindow(Instant.ofEpochMilli(9L), Instant.ofEpochMilli(13L)))
           .satisfies(containsKvs(kv("foo", 9)));
 
       p.run();
@@ -836,10 +836,10 @@ public class GroupByKeyTest implements Serializable {
       PCollection<KV<String, Integer>> input =
           p.apply(
                   Create.timestamped(
-                      TimestampedValue.of(KV.of("foo", 1), new Instant(1)),
-                      TimestampedValue.of(KV.of("foo", 4), new Instant(4)),
-                      TimestampedValue.of(KV.of("bar", 3), new Instant(3)),
-                      TimestampedValue.of(KV.of("foo", 9), new Instant(9))))
+                      TimestampedValue.of(KV.of("foo", 1), Instant.ofEpochMilli(1)),
+                      TimestampedValue.of(KV.of("foo", 4), Instant.ofEpochMilli(4)),
+                      TimestampedValue.of(KV.of("bar", 3), Instant.ofEpochMilli(3)),
+                      TimestampedValue.of(KV.of("foo", 9), Instant.ofEpochMilli(9))))
               .apply(
                   "GlobalWindows",
                   Window.<KV<String, Integer>>configure()
@@ -856,9 +856,9 @@ public class GroupByKeyTest implements Serializable {
               .apply("FixedWindows", Window.into(FixedWindows.of(Duration.millis(1))));
 
       PAssert.that(result)
-          .inWindow(new IntervalWindow(new Instant(9), new Instant(10)))
+          .inWindow(new IntervalWindow(Instant.ofEpochMilli(9), Instant.ofEpochMilli(10)))
           .containsInAnyOrder(KV.of("foo", 14))
-          .inWindow(new IntervalWindow(new Instant(3), new Instant(4)))
+          .inWindow(new IntervalWindow(Instant.ofEpochMilli(3), Instant.ofEpochMilli(4)))
           .containsInAnyOrder(KV.of("bar", 3));
 
       p.run();
@@ -897,10 +897,10 @@ public class GroupByKeyTest implements Serializable {
       PCollection<KV<String, Integer>> windowedInput =
           p.apply(
                   Create.timestamped(
-                      TimestampedValue.of(KV.of("foo", 1), new Instant(1)),
-                      TimestampedValue.of(KV.of("foo", 4), new Instant(4)),
-                      TimestampedValue.of(KV.of("bar", 3), new Instant(3)),
-                      TimestampedValue.of(KV.of("foo", 9), new Instant(9))))
+                      TimestampedValue.of(KV.of("foo", 1), Instant.ofEpochMilli(1)),
+                      TimestampedValue.of(KV.of("foo", 4), Instant.ofEpochMilli(4)),
+                      TimestampedValue.of(KV.of("bar", 3), Instant.ofEpochMilli(3)),
+                      TimestampedValue.of(KV.of("foo", 9), Instant.ofEpochMilli(9))))
               .apply(Window.into(Sessions.withGapDuration(Duration.millis(4L))));
 
       PCollection<KV<String, Iterable<Integer>>> grouped =

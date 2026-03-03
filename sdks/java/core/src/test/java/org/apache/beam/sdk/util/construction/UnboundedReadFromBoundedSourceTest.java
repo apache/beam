@@ -284,7 +284,7 @@ public class UnboundedReadFromBoundedSourceTest {
     PipelineOptions options = PipelineOptionsFactory.create();
 
     List<TimestampedValue<Long>> elements =
-        ImmutableList.of(TimestampedValue.of(1L, new Instant(1L)));
+        ImmutableList.of(TimestampedValue.of(1L, Instant.ofEpochMilli(1L)));
     Checkpoint<Long> checkpoint = new Checkpoint<>(elements, countingSource);
     unboundedSource.createReader(options, checkpoint).getCurrent();
   }

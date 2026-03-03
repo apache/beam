@@ -45,28 +45,28 @@ public class InMemoryTimerInternalsTest {
         TimerData.of(
             ID1,
             NS1,
-            new Instant(19),
-            new Instant(19),
+            Instant.ofEpochMilli(19),
+            Instant.ofEpochMilli(19),
             TimeDomain.EVENT_TIME,
             CausedByDrain.NORMAL);
     TimerData eventTimer2 =
         TimerData.of(
             ID2,
             NS1,
-            new Instant(29),
-            new Instant(29),
+            Instant.ofEpochMilli(29),
+            Instant.ofEpochMilli(29),
             TimeDomain.EVENT_TIME,
             CausedByDrain.NORMAL);
 
     underTest.setTimer(eventTimer1);
     underTest.setTimer(eventTimer2);
 
-    underTest.advanceInputWatermark(new Instant(20));
+    underTest.advanceInputWatermark(Instant.ofEpochMilli(20));
     assertThat(underTest.removeNextEventTimer(), equalTo(eventTimer1));
     assertThat(underTest.removeNextEventTimer(), nullValue());
 
     // Advancing just a little shouldn't refire
-    underTest.advanceInputWatermark(new Instant(21));
+    underTest.advanceInputWatermark(Instant.ofEpochMilli(21));
     assertThat(underTest.removeNextEventTimer(), nullValue());
 
     // Adding the timer and advancing a little should refire
@@ -75,7 +75,7 @@ public class InMemoryTimerInternalsTest {
     assertThat(underTest.removeNextEventTimer(), nullValue());
 
     // And advancing the rest of the way should still have the other timer
-    underTest.advanceInputWatermark(new Instant(30));
+    underTest.advanceInputWatermark(Instant.ofEpochMilli(30));
     assertThat(underTest.removeNextEventTimer(), equalTo(eventTimer2));
     assertThat(underTest.removeNextEventTimer(), nullValue());
   }
@@ -83,10 +83,10 @@ public class InMemoryTimerInternalsTest {
   @Test
   public void testResetById() throws Exception {
     InMemoryTimerInternals underTest = new InMemoryTimerInternals();
-    Instant earlyTimestamp = new Instant(13);
-    Instant laterTimestamp = new Instant(42);
+    Instant earlyTimestamp = Instant.ofEpochMilli(13);
+    Instant laterTimestamp = Instant.ofEpochMilli(42);
 
-    underTest.advanceInputWatermark(new Instant(0));
+    underTest.advanceInputWatermark(Instant.ofEpochMilli(0));
     underTest.setTimer(NS1, ID1, "", earlyTimestamp, earlyTimestamp, TimeDomain.EVENT_TIME);
     underTest.setTimer(NS1, ID1, "", laterTimestamp, laterTimestamp, TimeDomain.EVENT_TIME);
     underTest.advanceInputWatermark(earlyTimestamp.plus(Duration.millis(1L)));
@@ -101,7 +101,7 @@ public class InMemoryTimerInternalsTest {
   @Test
   public void testDeletionIdempotent() throws Exception {
     InMemoryTimerInternals underTest = new InMemoryTimerInternals();
-    Instant timestamp = new Instant(42);
+    Instant timestamp = Instant.ofEpochMilli(42);
     underTest.setTimer(NS1, ID1, ID1, timestamp, timestamp, TimeDomain.EVENT_TIME);
     underTest.deleteTimer(NS1, ID1, ID1);
     underTest.deleteTimer(NS1, ID1, ID1);
@@ -110,12 +110,12 @@ public class InMemoryTimerInternalsTest {
   @Test
   public void testDeletionById() throws Exception {
     InMemoryTimerInternals underTest = new InMemoryTimerInternals();
-    Instant timestamp = new Instant(42);
+    Instant timestamp = Instant.ofEpochMilli(42);
 
-    underTest.advanceInputWatermark(new Instant(0));
+    underTest.advanceInputWatermark(Instant.ofEpochMilli(0));
     underTest.setTimer(NS1, ID1, ID1, timestamp, timestamp, TimeDomain.EVENT_TIME);
     underTest.deleteTimer(NS1, ID1, ID1);
-    underTest.advanceInputWatermark(new Instant(43));
+    underTest.advanceInputWatermark(Instant.ofEpochMilli(43));
 
     assertThat(underTest.removeNextEventTimer(), nullValue());
   }
@@ -126,37 +126,37 @@ public class InMemoryTimerInternalsTest {
     TimerData processingTime1 =
         TimerData.of(
             NS1,
-            new Instant(19),
-            new Instant(19),
+            Instant.ofEpochMilli(19),
+            Instant.ofEpochMilli(19),
             TimeDomain.PROCESSING_TIME,
             CausedByDrain.NORMAL);
     TimerData processingTime2 =
         TimerData.of(
             NS1,
-            new Instant(29),
-            new Instant(29),
+            Instant.ofEpochMilli(29),
+            Instant.ofEpochMilli(29),
             TimeDomain.PROCESSING_TIME,
             CausedByDrain.NORMAL);
 
     underTest.setTimer(processingTime1);
     underTest.setTimer(processingTime2);
 
-    underTest.advanceProcessingTime(new Instant(20));
+    underTest.advanceProcessingTime(Instant.ofEpochMilli(20));
     assertThat(underTest.removeNextProcessingTimer(), equalTo(processingTime1));
     assertThat(underTest.removeNextProcessingTimer(), nullValue());
 
     // Advancing just a little shouldn't refire
-    underTest.advanceProcessingTime(new Instant(21));
+    underTest.advanceProcessingTime(Instant.ofEpochMilli(21));
     assertThat(underTest.removeNextProcessingTimer(), nullValue());
 
     // Adding the timer and advancing a little should fire again
     underTest.setTimer(processingTime1);
-    underTest.advanceProcessingTime(new Instant(21));
+    underTest.advanceProcessingTime(Instant.ofEpochMilli(21));
     assertThat(underTest.removeNextProcessingTimer(), equalTo(processingTime1));
     assertThat(underTest.removeNextProcessingTimer(), nullValue());
 
     // And advancing the rest of the way should still have the other timer
-    underTest.advanceProcessingTime(new Instant(30));
+    underTest.advanceProcessingTime(Instant.ofEpochMilli(30));
     assertThat(underTest.removeNextProcessingTimer(), equalTo(processingTime2));
     assertThat(underTest.removeNextProcessingTimer(), nullValue());
   }
@@ -166,36 +166,44 @@ public class InMemoryTimerInternalsTest {
     InMemoryTimerInternals underTest = new InMemoryTimerInternals();
     TimerData eventTime1 =
         TimerData.of(
-            NS1, new Instant(19), new Instant(19), TimeDomain.EVENT_TIME, CausedByDrain.NORMAL);
+            NS1,
+            Instant.ofEpochMilli(19),
+            Instant.ofEpochMilli(19),
+            TimeDomain.EVENT_TIME,
+            CausedByDrain.NORMAL);
     TimerData processingTime1 =
         TimerData.of(
             NS1,
-            new Instant(19),
-            new Instant(19),
+            Instant.ofEpochMilli(19),
+            Instant.ofEpochMilli(19),
             TimeDomain.PROCESSING_TIME,
             CausedByDrain.NORMAL);
     TimerData synchronizedProcessingTime1 =
         TimerData.of(
             NS1,
-            new Instant(19),
-            new Instant(19),
+            Instant.ofEpochMilli(19),
+            Instant.ofEpochMilli(19),
             TimeDomain.SYNCHRONIZED_PROCESSING_TIME,
             CausedByDrain.NORMAL);
     TimerData eventTime2 =
         TimerData.of(
-            NS1, new Instant(29), new Instant(29), TimeDomain.EVENT_TIME, CausedByDrain.NORMAL);
+            NS1,
+            Instant.ofEpochMilli(29),
+            Instant.ofEpochMilli(29),
+            TimeDomain.EVENT_TIME,
+            CausedByDrain.NORMAL);
     TimerData processingTime2 =
         TimerData.of(
             NS1,
-            new Instant(29),
-            new Instant(29),
+            Instant.ofEpochMilli(29),
+            Instant.ofEpochMilli(29),
             TimeDomain.PROCESSING_TIME,
             CausedByDrain.NORMAL);
     TimerData synchronizedProcessingTime2 =
         TimerData.of(
             NS1,
-            new Instant(29),
-            new Instant(29),
+            Instant.ofEpochMilli(29),
+            Instant.ofEpochMilli(29),
             TimeDomain.SYNCHRONIZED_PROCESSING_TIME,
             CausedByDrain.NORMAL);
 
@@ -207,19 +215,19 @@ public class InMemoryTimerInternalsTest {
     underTest.setTimer(synchronizedProcessingTime2);
 
     assertThat(underTest.removeNextEventTimer(), nullValue());
-    underTest.advanceInputWatermark(new Instant(30));
+    underTest.advanceInputWatermark(Instant.ofEpochMilli(30));
     assertThat(underTest.removeNextEventTimer(), equalTo(eventTime1));
     assertThat(underTest.removeNextEventTimer(), equalTo(eventTime2));
     assertThat(underTest.removeNextEventTimer(), nullValue());
 
     assertThat(underTest.removeNextProcessingTimer(), nullValue());
-    underTest.advanceProcessingTime(new Instant(30));
+    underTest.advanceProcessingTime(Instant.ofEpochMilli(30));
     assertThat(underTest.removeNextProcessingTimer(), equalTo(processingTime1));
     assertThat(underTest.removeNextProcessingTimer(), equalTo(processingTime2));
     assertThat(underTest.removeNextProcessingTimer(), nullValue());
 
     assertThat(underTest.removeNextSynchronizedProcessingTimer(), nullValue());
-    underTest.advanceSynchronizedProcessingTime(new Instant(30));
+    underTest.advanceSynchronizedProcessingTime(Instant.ofEpochMilli(30));
     assertThat(
         underTest.removeNextSynchronizedProcessingTimer(), equalTo(synchronizedProcessingTime1));
     assertThat(
@@ -232,20 +240,24 @@ public class InMemoryTimerInternalsTest {
     InMemoryTimerInternals underTest = new InMemoryTimerInternals();
     TimerData eventTime =
         TimerData.of(
-            NS1, new Instant(19), new Instant(19), TimeDomain.EVENT_TIME, CausedByDrain.NORMAL);
+            NS1,
+            Instant.ofEpochMilli(19),
+            Instant.ofEpochMilli(19),
+            TimeDomain.EVENT_TIME,
+            CausedByDrain.NORMAL);
     TimerData processingTime =
         TimerData.of(
             NS1,
-            new Instant(19),
-            new Instant(19),
+            Instant.ofEpochMilli(19),
+            Instant.ofEpochMilli(19),
             TimeDomain.PROCESSING_TIME,
             CausedByDrain.NORMAL);
     underTest.setTimer(eventTime);
     underTest.setTimer(eventTime);
     underTest.setTimer(processingTime);
     underTest.setTimer(processingTime);
-    underTest.advanceProcessingTime(new Instant(20));
-    underTest.advanceInputWatermark(new Instant(20));
+    underTest.advanceProcessingTime(Instant.ofEpochMilli(20));
+    underTest.advanceInputWatermark(Instant.ofEpochMilli(20));
 
     assertThat(underTest.removeNextProcessingTimer(), equalTo(processingTime));
     assertThat(underTest.removeNextProcessingTimer(), nullValue());

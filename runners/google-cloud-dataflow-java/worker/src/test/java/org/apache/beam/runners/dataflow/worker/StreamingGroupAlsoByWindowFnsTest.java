@@ -230,7 +230,7 @@ public class StreamingGroupAlsoByWindowFnsTest {
             output -> outputManager.output(outputTag, output),
             WindowingStrategy.of(FixedWindows.of(Duration.millis(10))));
 
-    when(mockTimerInternals.currentInputWatermarkTime()).thenReturn(new Instant(0));
+    when(mockTimerInternals.currentInputWatermarkTime()).thenReturn(Instant.ofEpochMilli(0));
 
     runner.startBundle();
 
@@ -241,10 +241,14 @@ public class StreamingGroupAlsoByWindowFnsTest {
     messageBundle.setSourceComputationId(SOURCE_COMPUTATION_ID);
 
     Coder<String> valueCoder = StringUtf8Coder.of();
-    addElement(messageBundle, Arrays.asList(window(0, 10)), new Instant(1), valueCoder, "v1");
-    addElement(messageBundle, Arrays.asList(window(0, 10)), new Instant(2), valueCoder, "v2");
-    addElement(messageBundle, Arrays.asList(window(0, 10)), new Instant(0), valueCoder, "v0");
-    addElement(messageBundle, Arrays.asList(window(10, 20)), new Instant(13), valueCoder, "v3");
+    addElement(
+        messageBundle, Arrays.asList(window(0, 10)), Instant.ofEpochMilli(1), valueCoder, "v1");
+    addElement(
+        messageBundle, Arrays.asList(window(0, 10)), Instant.ofEpochMilli(2), valueCoder, "v2");
+    addElement(
+        messageBundle, Arrays.asList(window(0, 10)), Instant.ofEpochMilli(0), valueCoder, "v0");
+    addElement(
+        messageBundle, Arrays.asList(window(10, 20)), Instant.ofEpochMilli(13), valueCoder, "v3");
 
     runner.processElement(createValue(workItem1, valueCoder));
 
@@ -254,10 +258,10 @@ public class StreamingGroupAlsoByWindowFnsTest {
     WorkItem.Builder workItem2 = WorkItem.newBuilder();
     workItem2.setKey(ByteString.copyFromUtf8(KEY));
     workItem2.setWorkToken(WORK_TOKEN);
-    addTimer(workItem2, window(0, 10), new Instant(9), Timer.Type.WATERMARK);
-    addTimer(workItem2, window(10, 20), new Instant(19), Timer.Type.WATERMARK);
+    addTimer(workItem2, window(0, 10), Instant.ofEpochMilli(9), Timer.Type.WATERMARK);
+    addTimer(workItem2, window(10, 20), Instant.ofEpochMilli(19), Timer.Type.WATERMARK);
 
-    when(mockTimerInternals.currentInputWatermarkTime()).thenReturn(new Instant(20));
+    when(mockTimerInternals.currentInputWatermarkTime()).thenReturn(Instant.ofEpochMilli(20));
     runner.processElement(createValue(workItem2, valueCoder));
 
     runner.finishBundle();
@@ -289,7 +293,7 @@ public class StreamingGroupAlsoByWindowFnsTest {
             output -> outputManager.output(outputTag, output),
             WindowingStrategy.of(FixedWindows.of(Duration.millis(10))));
 
-    when(mockTimerInternals.currentInputWatermarkTime()).thenReturn(new Instant(0));
+    when(mockTimerInternals.currentInputWatermarkTime()).thenReturn(Instant.ofEpochMilli(0));
 
     runner.startBundle();
 
@@ -300,10 +304,14 @@ public class StreamingGroupAlsoByWindowFnsTest {
     messageBundle.setSourceComputationId(SOURCE_COMPUTATION_ID);
 
     Coder<String> valueCoder = StringUtf8Coder.of();
-    addElement(messageBundle, Arrays.asList(window(0, 10)), new Instant(1), valueCoder, "v1");
-    addElement(messageBundle, Arrays.asList(window(0, 10)), new Instant(2), valueCoder, "v2");
-    addElement(messageBundle, Arrays.asList(window(0, 10)), new Instant(0), valueCoder, "v0");
-    addElement(messageBundle, Arrays.asList(window(10, 20)), new Instant(13), valueCoder, "v3");
+    addElement(
+        messageBundle, Arrays.asList(window(0, 10)), Instant.ofEpochMilli(1), valueCoder, "v1");
+    addElement(
+        messageBundle, Arrays.asList(window(0, 10)), Instant.ofEpochMilli(2), valueCoder, "v2");
+    addElement(
+        messageBundle, Arrays.asList(window(0, 10)), Instant.ofEpochMilli(0), valueCoder, "v0");
+    addElement(
+        messageBundle, Arrays.asList(window(10, 20)), Instant.ofEpochMilli(13), valueCoder, "v3");
     runner.processElement(createValue(workItem1, valueCoder));
 
     runner.finishBundle();
@@ -314,8 +322,8 @@ public class StreamingGroupAlsoByWindowFnsTest {
     workItem2.setWorkToken(WORK_TOKEN);
     InputMessageBundle.Builder messageBundle2 = workItem1.addMessageBundlesBuilder();
     messageBundle2.setSourceComputationId(SOURCE_COMPUTATION_ID);
-    addTimer(workItem2, window(0, 10), new Instant(9), Timer.Type.WATERMARK);
-    when(mockTimerInternals.currentInputWatermarkTime()).thenReturn(new Instant(10));
+    addTimer(workItem2, window(0, 10), Instant.ofEpochMilli(9), Timer.Type.WATERMARK);
+    when(mockTimerInternals.currentInputWatermarkTime()).thenReturn(Instant.ofEpochMilli(10));
 
     runner.processElement(createValue(workItem2, valueCoder));
     runner.finishBundle();
@@ -325,9 +333,9 @@ public class StreamingGroupAlsoByWindowFnsTest {
     WorkItem.Builder workItem3 = WorkItem.newBuilder();
     workItem3.setKey(ByteString.copyFromUtf8(KEY));
     workItem3.setWorkToken(WORK_TOKEN);
-    addTimer(workItem3, window(10, 20), new Instant(19), Timer.Type.WATERMARK);
+    addTimer(workItem3, window(10, 20), Instant.ofEpochMilli(19), Timer.Type.WATERMARK);
 
-    when(mockTimerInternals.currentInputWatermarkTime()).thenReturn(new Instant(20));
+    when(mockTimerInternals.currentInputWatermarkTime()).thenReturn(Instant.ofEpochMilli(20));
     runner.processElement(createDrainingValue(workItem3, valueCoder));
     runner.finishBundle();
 
@@ -362,7 +370,7 @@ public class StreamingGroupAlsoByWindowFnsTest {
             WindowingStrategy.of(SlidingWindows.of(Duration.millis(20)).every(Duration.millis(10)))
                 .withTimestampCombiner(TimestampCombiner.EARLIEST));
 
-    when(mockTimerInternals.currentInputWatermarkTime()).thenReturn(new Instant(5));
+    when(mockTimerInternals.currentInputWatermarkTime()).thenReturn(Instant.ofEpochMilli(5));
 
     runner.startBundle();
 
@@ -376,19 +384,19 @@ public class StreamingGroupAlsoByWindowFnsTest {
     addElement(
         messageBundle,
         Arrays.asList(window(-10, 10), window(0, 20)),
-        new Instant(5),
+        Instant.ofEpochMilli(5),
         valueCoder,
         "v1");
     addElement(
         messageBundle,
         Arrays.asList(window(-10, 10), window(0, 20)),
-        new Instant(2),
+        Instant.ofEpochMilli(2),
         valueCoder,
         "v0");
     addElement(
         messageBundle,
         Arrays.asList(window(0, 20), window(10, 30)),
-        new Instant(15),
+        Instant.ofEpochMilli(15),
         valueCoder,
         "v2");
 
@@ -400,10 +408,10 @@ public class StreamingGroupAlsoByWindowFnsTest {
     WorkItem.Builder workItem2 = WorkItem.newBuilder();
     workItem2.setKey(ByteString.copyFromUtf8(KEY));
     workItem2.setWorkToken(WORK_TOKEN);
-    addTimer(workItem2, window(-10, 10), new Instant(9), Timer.Type.WATERMARK);
-    addTimer(workItem2, window(0, 20), new Instant(19), Timer.Type.WATERMARK);
-    addTimer(workItem2, window(10, 30), new Instant(29), Timer.Type.WATERMARK);
-    when(mockTimerInternals.currentInputWatermarkTime()).thenReturn(new Instant(30));
+    addTimer(workItem2, window(-10, 10), Instant.ofEpochMilli(9), Timer.Type.WATERMARK);
+    addTimer(workItem2, window(0, 20), Instant.ofEpochMilli(19), Timer.Type.WATERMARK);
+    addTimer(workItem2, window(10, 30), Instant.ofEpochMilli(29), Timer.Type.WATERMARK);
+    when(mockTimerInternals.currentInputWatermarkTime()).thenReturn(Instant.ofEpochMilli(30));
 
     runner.processElement(createValue(workItem2, valueCoder));
 
@@ -418,15 +426,15 @@ public class StreamingGroupAlsoByWindowFnsTest {
         containsInAnyOrder(
             WindowMatchers.isSingleWindowedValue(
                 isKv(equalTo(KEY), containsInAnyOrder("v0", "v1")),
-                equalTo(new Instant(2)),
+                equalTo(Instant.ofEpochMilli(2)),
                 equalTo(window(-10, 10))),
             WindowMatchers.isSingleWindowedValue(
                 isKv(equalTo(KEY), containsInAnyOrder("v0", "v1", "v2")),
-                equalTo(new Instant(2)),
+                equalTo(Instant.ofEpochMilli(2)),
                 equalTo(window(0, 20))),
             WindowMatchers.isSingleWindowedValue(
                 isKv(equalTo(KEY), containsInAnyOrder("v2")),
-                equalTo(new Instant(15)),
+                equalTo(Instant.ofEpochMilli(15)),
                 equalTo(window(10, 30)))));
   }
 
@@ -448,7 +456,7 @@ public class StreamingGroupAlsoByWindowFnsTest {
         makeRunnerForGabwFn(
             output -> outputManager.output(outputTag, output), windowingStrategy, fn);
 
-    when(mockTimerInternals.currentInputWatermarkTime()).thenReturn(new Instant(15));
+    when(mockTimerInternals.currentInputWatermarkTime()).thenReturn(Instant.ofEpochMilli(15));
 
     runner.startBundle();
 
@@ -462,19 +470,19 @@ public class StreamingGroupAlsoByWindowFnsTest {
     addElement(
         messageBundle,
         Arrays.asList(window(-10, 10), window(0, 20)),
-        new Instant(5),
+        Instant.ofEpochMilli(5),
         valueCoder,
         "v1");
     addElement(
         messageBundle,
         Arrays.asList(window(-10, 10), window(0, 20)),
-        new Instant(2),
+        Instant.ofEpochMilli(2),
         valueCoder,
         "v0");
     addElement(
         messageBundle,
         Arrays.asList(window(0, 20), window(10, 30)),
-        new Instant(15),
+        Instant.ofEpochMilli(15),
         valueCoder,
         "v2");
 
@@ -486,10 +494,10 @@ public class StreamingGroupAlsoByWindowFnsTest {
     WorkItem.Builder workItem2 = WorkItem.newBuilder();
     workItem2.setKey(ByteString.copyFromUtf8(KEY));
     workItem2.setWorkToken(WORK_TOKEN);
-    addTimer(workItem2, window(-10, 10), new Instant(9), Timer.Type.WATERMARK);
-    addTimer(workItem2, window(0, 20), new Instant(19), Timer.Type.WATERMARK);
-    addTimer(workItem2, window(10, 30), new Instant(29), Timer.Type.WATERMARK);
-    when(mockTimerInternals.currentInputWatermarkTime()).thenReturn(new Instant(30));
+    addTimer(workItem2, window(-10, 10), Instant.ofEpochMilli(9), Timer.Type.WATERMARK);
+    addTimer(workItem2, window(0, 20), Instant.ofEpochMilli(19), Timer.Type.WATERMARK);
+    addTimer(workItem2, window(10, 30), Instant.ofEpochMilli(29), Timer.Type.WATERMARK);
+    when(mockTimerInternals.currentInputWatermarkTime()).thenReturn(Instant.ofEpochMilli(30));
 
     runner.processElement(createValue(workItem2, valueCoder));
 
@@ -508,11 +516,11 @@ public class StreamingGroupAlsoByWindowFnsTest {
                 equalTo(window(-10, 10))),
             WindowMatchers.isSingleWindowedValue(
                 isKv(equalTo(KEY), containsInAnyOrder("v0", "v1", "v2")),
-                equalTo(new Instant(2)),
+                equalTo(Instant.ofEpochMilli(2)),
                 equalTo(window(0, 20))),
             WindowMatchers.isSingleWindowedValue(
                 isKv(equalTo(KEY), containsInAnyOrder("v2")),
-                equalTo(new Instant(15)),
+                equalTo(Instant.ofEpochMilli(15)),
                 equalTo(window(10, 30)))));
 
     long droppedValues =
@@ -536,7 +544,7 @@ public class StreamingGroupAlsoByWindowFnsTest {
             WindowingStrategy.of(Sessions.withGapDuration(Duration.millis(10)))
                 .withTimestampCombiner(TimestampCombiner.EARLIEST));
 
-    when(mockTimerInternals.currentInputWatermarkTime()).thenReturn(new Instant(0));
+    when(mockTimerInternals.currentInputWatermarkTime()).thenReturn(Instant.ofEpochMilli(0));
 
     runner.startBundle();
 
@@ -547,11 +555,15 @@ public class StreamingGroupAlsoByWindowFnsTest {
     messageBundle.setSourceComputationId(SOURCE_COMPUTATION_ID);
 
     Coder<String> valueCoder = StringUtf8Coder.of();
-    addElement(messageBundle, Arrays.asList(window(0, 10)), new Instant(0), valueCoder, "v1");
-    addElement(messageBundle, Arrays.asList(window(5, 15)), new Instant(5), valueCoder, "v2");
-    addElement(messageBundle, Arrays.asList(window(15, 25)), new Instant(15), valueCoder, "v3");
+    addElement(
+        messageBundle, Arrays.asList(window(0, 10)), Instant.ofEpochMilli(0), valueCoder, "v1");
+    addElement(
+        messageBundle, Arrays.asList(window(5, 15)), Instant.ofEpochMilli(5), valueCoder, "v2");
+    addElement(
+        messageBundle, Arrays.asList(window(15, 25)), Instant.ofEpochMilli(15), valueCoder, "v3");
 
-    addElement(messageBundle, Arrays.asList(window(3, 13)), new Instant(3), valueCoder, "v0");
+    addElement(
+        messageBundle, Arrays.asList(window(3, 13)), Instant.ofEpochMilli(3), valueCoder, "v0");
 
     runner.processElement(createValue(workItem1, valueCoder));
 
@@ -563,9 +575,9 @@ public class StreamingGroupAlsoByWindowFnsTest {
     workItem2.setWorkToken(WORK_TOKEN);
     // Note that the WATERMARK timer for Instant(9) will have been deleted by
     // ReduceFnRunner when window(0, 10) was merged away.
-    addTimer(workItem2, window(0, 15), new Instant(14), Timer.Type.WATERMARK);
-    addTimer(workItem2, window(15, 25), new Instant(24), Timer.Type.WATERMARK);
-    when(mockTimerInternals.currentInputWatermarkTime()).thenReturn(new Instant(25));
+    addTimer(workItem2, window(0, 15), Instant.ofEpochMilli(14), Timer.Type.WATERMARK);
+    addTimer(workItem2, window(15, 25), Instant.ofEpochMilli(24), Timer.Type.WATERMARK);
+    when(mockTimerInternals.currentInputWatermarkTime()).thenReturn(Instant.ofEpochMilli(25));
 
     runner.processElement(createValue(workItem2, valueCoder));
 
@@ -580,11 +592,11 @@ public class StreamingGroupAlsoByWindowFnsTest {
         containsInAnyOrder(
             WindowMatchers.isSingleWindowedValue(
                 isKv(equalTo(KEY), containsInAnyOrder("v0", "v1", "v2")),
-                equalTo(new Instant(0)),
+                equalTo(Instant.ofEpochMilli(0)),
                 equalTo(window(0, 15))),
             WindowMatchers.isSingleWindowedValue(
                 isKv(equalTo(KEY), containsInAnyOrder("v3")),
-                equalTo(new Instant(15)),
+                equalTo(Instant.ofEpochMilli(15)),
                 equalTo(window(15, 25)))));
   }
 
@@ -653,7 +665,7 @@ public class StreamingGroupAlsoByWindowFnsTest {
             WindowingStrategy.of(Sessions.withGapDuration(Duration.millis(10))),
             appliedCombineFn);
 
-    when(mockTimerInternals.currentInputWatermarkTime()).thenReturn(new Instant(0));
+    when(mockTimerInternals.currentInputWatermarkTime()).thenReturn(Instant.ofEpochMilli(0));
 
     runner.startBundle();
 
@@ -664,10 +676,14 @@ public class StreamingGroupAlsoByWindowFnsTest {
     messageBundle.setSourceComputationId(SOURCE_COMPUTATION_ID);
 
     Coder<Long> valueCoder = BigEndianLongCoder.of();
-    addElement(messageBundle, Arrays.asList(window(0, 10)), new Instant(0), valueCoder, 1L);
-    addElement(messageBundle, Arrays.asList(window(5, 15)), new Instant(5), valueCoder, 2L);
-    addElement(messageBundle, Arrays.asList(window(15, 25)), new Instant(15), valueCoder, 3L);
-    addElement(messageBundle, Arrays.asList(window(3, 13)), new Instant(3), valueCoder, 4L);
+    addElement(
+        messageBundle, Arrays.asList(window(0, 10)), Instant.ofEpochMilli(0), valueCoder, 1L);
+    addElement(
+        messageBundle, Arrays.asList(window(5, 15)), Instant.ofEpochMilli(5), valueCoder, 2L);
+    addElement(
+        messageBundle, Arrays.asList(window(15, 25)), Instant.ofEpochMilli(15), valueCoder, 3L);
+    addElement(
+        messageBundle, Arrays.asList(window(3, 13)), Instant.ofEpochMilli(3), valueCoder, 4L);
 
     runner.processElement(createValue(workItem1, valueCoder));
 
@@ -679,9 +695,9 @@ public class StreamingGroupAlsoByWindowFnsTest {
     workItem2.setWorkToken(WORK_TOKEN);
     // Note that the WATERMARK timer for Instant(9) will have been deleted by
     // ReduceFnRunner when window(0, 10) was merged away.
-    addTimer(workItem2, window(0, 15), new Instant(14), Timer.Type.WATERMARK);
-    addTimer(workItem2, window(15, 25), new Instant(24), Timer.Type.WATERMARK);
-    when(mockTimerInternals.currentInputWatermarkTime()).thenReturn(new Instant(25));
+    addTimer(workItem2, window(0, 15), Instant.ofEpochMilli(14), Timer.Type.WATERMARK);
+    addTimer(workItem2, window(15, 25), Instant.ofEpochMilli(24), Timer.Type.WATERMARK);
+    when(mockTimerInternals.currentInputWatermarkTime()).thenReturn(Instant.ofEpochMilli(25));
 
     runner.processElement(createValue(workItem2, valueCoder));
 

@@ -50,7 +50,7 @@ public class OrFinallyStateMachineTest {
                 AfterPaneStateMachine.elementCountAtLeast(100)),
             FixedWindows.of(Duration.millis(100)));
 
-    IntervalWindow window = new IntervalWindow(new Instant(0), new Instant(100));
+    IntervalWindow window = new IntervalWindow(Instant.ofEpochMilli(0), Instant.ofEpochMilli(100));
 
     // Not yet firing
     tester.injectElements(1);
@@ -77,7 +77,7 @@ public class OrFinallyStateMachineTest {
                 AfterPaneStateMachine.elementCountAtLeast(100)),
             FixedWindows.of(Duration.millis(100)));
 
-    IntervalWindow window = new IntervalWindow(new Instant(0), new Instant(100));
+    IntervalWindow window = new IntervalWindow(Instant.ofEpochMilli(0), Instant.ofEpochMilli(100));
 
     // Not yet firing
     tester.injectElements(1);
@@ -113,20 +113,23 @@ public class OrFinallyStateMachineTest {
 
     // Finished the orFinally in the first window
     tester.injectElements(1);
-    IntervalWindow firstWindow = new IntervalWindow(new Instant(1), new Instant(11));
+    IntervalWindow firstWindow =
+        new IntervalWindow(Instant.ofEpochMilli(1), Instant.ofEpochMilli(11));
     assertFalse(tester.shouldFire(firstWindow));
-    tester.advanceInputWatermark(new Instant(11));
+    tester.advanceInputWatermark(Instant.ofEpochMilli(11));
     assertTrue(tester.shouldFire(firstWindow));
     tester.fireIfShouldFire(firstWindow);
 
     // Set up second window where it is not done
     tester.injectElements(5);
-    IntervalWindow secondWindow = new IntervalWindow(new Instant(5), new Instant(15));
+    IntervalWindow secondWindow =
+        new IntervalWindow(Instant.ofEpochMilli(5), Instant.ofEpochMilli(15));
     assertFalse(tester.shouldFire(secondWindow));
 
     // Merge them, if the merged window were on the second trigger, it would be ready
     tester.mergeWindows();
-    IntervalWindow mergedWindow = new IntervalWindow(new Instant(1), new Instant(15));
+    IntervalWindow mergedWindow =
+        new IntervalWindow(Instant.ofEpochMilli(1), Instant.ofEpochMilli(15));
     assertFalse(tester.shouldFire(mergedWindow));
 
     // Now adding 3 more makes the main trigger ready to fire
@@ -148,7 +151,7 @@ public class OrFinallyStateMachineTest {
                 AfterPaneStateMachine.elementCountAtLeast(3)),
             FixedWindows.of(Duration.millis(10)));
 
-    IntervalWindow window = new IntervalWindow(new Instant(0), new Instant(10));
+    IntervalWindow window = new IntervalWindow(Instant.ofEpochMilli(0), Instant.ofEpochMilli(10));
 
     // Before any firing
     tester.injectElements(1);

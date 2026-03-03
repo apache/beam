@@ -263,20 +263,20 @@ public class CopyOnAccessInMemoryStateInternalsTest {
     WatermarkHoldState underlyingValue = underlying.state(namespace, stateTag);
     assertThat(underlyingValue.read(), nullValue());
 
-    underlyingValue.add(new Instant(250L));
-    assertThat(underlyingValue.read(), equalTo(new Instant(250L)));
+    underlyingValue.add(Instant.ofEpochMilli(250L));
+    assertThat(underlyingValue.read(), equalTo(Instant.ofEpochMilli(250L)));
 
     CopyOnAccessInMemoryStateInternals<String> internals =
         CopyOnAccessInMemoryStateInternals.withUnderlying(key, underlying);
     WatermarkHoldState copyOnAccessState = internals.state(namespace, stateTag);
-    assertThat(copyOnAccessState.read(), equalTo(new Instant(250L)));
+    assertThat(copyOnAccessState.read(), equalTo(Instant.ofEpochMilli(250L)));
 
-    copyOnAccessState.add(new Instant(100L));
-    assertThat(copyOnAccessState.read(), equalTo(new Instant(100L)));
-    assertThat(underlyingValue.read(), equalTo(new Instant(250L)));
+    copyOnAccessState.add(Instant.ofEpochMilli(100L));
+    assertThat(copyOnAccessState.read(), equalTo(Instant.ofEpochMilli(100L)));
+    assertThat(underlyingValue.read(), equalTo(Instant.ofEpochMilli(250L)));
 
-    copyOnAccessState.add(new Instant(500L));
-    assertThat(copyOnAccessState.read(), equalTo(new Instant(100L)));
+    copyOnAccessState.add(Instant.ofEpochMilli(500L));
+    assertThat(copyOnAccessState.read(), equalTo(Instant.ofEpochMilli(100L)));
 
     WatermarkHoldState reReadUnderlyingValue = underlying.state(namespace, stateTag);
     assertThat(underlyingValue.read(), equalTo(reReadUnderlyingValue.read()));
@@ -467,14 +467,14 @@ public class CopyOnAccessInMemoryStateInternalsTest {
         new BoundedWindow() {
           @Override
           public Instant maxTimestamp() {
-            return new Instant(2048L);
+            return Instant.ofEpochMilli(2048L);
           }
         };
     BoundedWindow second =
         new BoundedWindow() {
           @Override
           public Instant maxTimestamp() {
-            return new Instant(689743L);
+            return Instant.ofEpochMilli(689743L);
           }
         };
     CopyOnAccessInMemoryStateInternals<String> internals =
@@ -484,16 +484,16 @@ public class CopyOnAccessInMemoryStateInternalsTest {
         StateTags.watermarkStateInternal("foo", TimestampCombiner.EARLIEST);
     WatermarkHoldState firstHold =
         internals.state(StateNamespaces.window(null, first), firstHoldAddress);
-    firstHold.add(new Instant(22L));
+    firstHold.add(Instant.ofEpochMilli(22L));
 
     StateTag<WatermarkHoldState> secondHoldAddress =
         StateTags.watermarkStateInternal("foo", TimestampCombiner.EARLIEST);
     WatermarkHoldState secondHold =
         internals.state(StateNamespaces.window(null, second), secondHoldAddress);
-    secondHold.add(new Instant(2L));
+    secondHold.add(Instant.ofEpochMilli(2L));
 
     internals.commit();
-    assertThat(internals.getEarliestWatermarkHold(), equalTo(new Instant(2L)));
+    assertThat(internals.getEarliestWatermarkHold(), equalTo(Instant.ofEpochMilli(2L)));
   }
 
   @Test
@@ -502,14 +502,14 @@ public class CopyOnAccessInMemoryStateInternalsTest {
         new BoundedWindow() {
           @Override
           public Instant maxTimestamp() {
-            return new Instant(2048L);
+            return Instant.ofEpochMilli(2048L);
           }
         };
     BoundedWindow second =
         new BoundedWindow() {
           @Override
           public Instant maxTimestamp() {
-            return new Instant(689743L);
+            return Instant.ofEpochMilli(689743L);
           }
         };
     CopyOnAccessInMemoryStateInternals<String> underlying =
@@ -518,7 +518,7 @@ public class CopyOnAccessInMemoryStateInternalsTest {
         StateTags.watermarkStateInternal("foo", TimestampCombiner.EARLIEST);
     WatermarkHoldState firstHold =
         underlying.state(StateNamespaces.window(null, first), firstHoldAddress);
-    firstHold.add(new Instant(22L));
+    firstHold.add(Instant.ofEpochMilli(22L));
 
     CopyOnAccessInMemoryStateInternals<String> internals =
         CopyOnAccessInMemoryStateInternals.withUnderlying("foo", underlying.commit());
@@ -527,10 +527,10 @@ public class CopyOnAccessInMemoryStateInternalsTest {
         StateTags.watermarkStateInternal("foo", TimestampCombiner.EARLIEST);
     WatermarkHoldState secondHold =
         internals.state(StateNamespaces.window(null, second), secondHoldAddress);
-    secondHold.add(new Instant(244L));
+    secondHold.add(Instant.ofEpochMilli(244L));
 
     internals.commit();
-    assertThat(internals.getEarliestWatermarkHold(), equalTo(new Instant(22L)));
+    assertThat(internals.getEarliestWatermarkHold(), equalTo(Instant.ofEpochMilli(22L)));
   }
 
   @Test
@@ -539,14 +539,14 @@ public class CopyOnAccessInMemoryStateInternalsTest {
         new BoundedWindow() {
           @Override
           public Instant maxTimestamp() {
-            return new Instant(2048L);
+            return Instant.ofEpochMilli(2048L);
           }
         };
     BoundedWindow second =
         new BoundedWindow() {
           @Override
           public Instant maxTimestamp() {
-            return new Instant(689743L);
+            return Instant.ofEpochMilli(689743L);
           }
         };
     CopyOnAccessInMemoryStateInternals<String> underlying =
@@ -555,7 +555,7 @@ public class CopyOnAccessInMemoryStateInternalsTest {
         StateTags.watermarkStateInternal("foo", TimestampCombiner.EARLIEST);
     WatermarkHoldState firstHold =
         underlying.state(StateNamespaces.window(null, first), firstHoldAddress);
-    firstHold.add(new Instant(224L));
+    firstHold.add(Instant.ofEpochMilli(224L));
 
     CopyOnAccessInMemoryStateInternals<String> internals =
         CopyOnAccessInMemoryStateInternals.withUnderlying("foo", underlying.commit());
@@ -564,10 +564,10 @@ public class CopyOnAccessInMemoryStateInternalsTest {
         StateTags.watermarkStateInternal("foo", TimestampCombiner.EARLIEST);
     WatermarkHoldState secondHold =
         internals.state(StateNamespaces.window(null, second), secondHoldAddress);
-    secondHold.add(new Instant(24L));
+    secondHold.add(Instant.ofEpochMilli(24L));
 
     internals.commit();
-    assertThat(internals.getEarliestWatermarkHold(), equalTo(new Instant(24L)));
+    assertThat(internals.getEarliestWatermarkHold(), equalTo(Instant.ofEpochMilli(24L)));
   }
 
   @Test
@@ -579,7 +579,7 @@ public class CopyOnAccessInMemoryStateInternalsTest {
         .state(
             StateNamespaces.global(),
             StateTags.watermarkStateInternal("foo", TimestampCombiner.EARLIEST))
-        .add(new Instant(1234L));
+        .add(Instant.ofEpochMilli(1234L));
 
     thrown.expect(IllegalStateException.class);
     thrown.expectMessage(CopyOnAccessInMemoryStateInternals.class.getSimpleName());

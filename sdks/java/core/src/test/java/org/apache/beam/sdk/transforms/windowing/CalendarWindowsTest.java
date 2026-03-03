@@ -260,10 +260,10 @@ public class CalendarWindowsTest {
             new BoundedWindow() {
               @Override
               public Instant maxTimestamp() {
-                return new Instant(100L);
+                return Instant.ofEpochMilli(100L);
               }
             }),
-        equalTo(windowFn.assignWindow(new Instant(100L))));
+        equalTo(windowFn.assignWindow(Instant.ofEpochMilli(100L))));
     assertThat(mapping.maximumLookback(), equalTo(Duration.ZERO));
   }
 

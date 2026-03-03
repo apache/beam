@@ -913,7 +913,7 @@ public class AvroIOTest implements Serializable {
       Path baseDir = Files.createTempDirectory(tmpFolder.getRoot().toPath(), "testwrite");
       final String baseFilename = baseDir.resolve("prefix").toString();
 
-      Instant base = new Instant(0);
+      Instant base = Instant.ofEpochMilli(0);
       ArrayList<GenericClass> allElements = new ArrayList<>();
       ArrayList<TimestampedValue<GenericClass>> firstWindowElements = new ArrayList<>();
       ArrayList<Instant> firstWindowTimestamps =
@@ -950,11 +950,11 @@ public class AvroIOTest implements Serializable {
 
       TestStream<GenericClass> values =
           TestStream.create(AvroCoder.of(GenericClass.class))
-              .advanceWatermarkTo(new Instant(0))
+              .advanceWatermarkTo(Instant.ofEpochMilli(0))
               .addElements(
                   firstWindowArray[0],
                   Arrays.copyOfRange(firstWindowArray, 1, firstWindowArray.length))
-              .advanceWatermarkTo(new Instant(0).plus(Duration.standardMinutes(1)))
+              .advanceWatermarkTo(Instant.ofEpochMilli(0).plus(Duration.standardMinutes(1)))
               .addElements(
                   secondWindowArray[0],
                   Arrays.copyOfRange(secondWindowArray, 1, secondWindowArray.length))
@@ -1005,7 +1005,7 @@ public class AvroIOTest implements Serializable {
       List<File> expectedFiles = new ArrayList<>();
       for (int shard = 0; shard < 2; shard++) {
         for (int window = 0; window < 2; window++) {
-          Instant windowStart = new Instant(0).plus(Duration.standardMinutes(window));
+          Instant windowStart = Instant.ofEpochMilli(0).plus(Duration.standardMinutes(window));
           IntervalWindow iw = new IntervalWindow(windowStart, Duration.standardMinutes(1));
           String baseAndWindow = baseFilename + "-" + iw.start() + "-" + iw.end();
           switch (method) {

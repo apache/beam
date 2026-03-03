@@ -50,9 +50,10 @@ public class SessionsTest {
   @Test
   public void testSimple() throws Exception {
     Map<IntervalWindow, Set<String>> expected = new HashMap<>();
-    expected.put(new IntervalWindow(new Instant(0), new Instant(10)), set(0));
-    expected.put(new IntervalWindow(new Instant(10), new Instant(20)), set(10));
-    expected.put(new IntervalWindow(new Instant(101), new Instant(111)), set(101));
+    expected.put(new IntervalWindow(Instant.ofEpochMilli(0), Instant.ofEpochMilli(10)), set(0));
+    expected.put(new IntervalWindow(Instant.ofEpochMilli(10), Instant.ofEpochMilli(20)), set(10));
+    expected.put(
+        new IntervalWindow(Instant.ofEpochMilli(101), Instant.ofEpochMilli(111)), set(101));
     assertEquals(
         expected,
         runWindowFn(Sessions.withGapDuration(Duration.millis(10)), Arrays.asList(0L, 10L, 101L)));
@@ -61,8 +62,10 @@ public class SessionsTest {
   @Test
   public void testConsecutive() throws Exception {
     Map<IntervalWindow, Set<String>> expected = new HashMap<>();
-    expected.put(new IntervalWindow(new Instant(1), new Instant(19)), set(1, 2, 5, 9));
-    expected.put(new IntervalWindow(new Instant(100), new Instant(111)), set(100, 101));
+    expected.put(
+        new IntervalWindow(Instant.ofEpochMilli(1), Instant.ofEpochMilli(19)), set(1, 2, 5, 9));
+    expected.put(
+        new IntervalWindow(Instant.ofEpochMilli(100), Instant.ofEpochMilli(111)), set(100, 101));
     assertEquals(
         expected,
         runWindowFn(
@@ -73,8 +76,11 @@ public class SessionsTest {
   @Test
   public void testMerging() throws Exception {
     Map<IntervalWindow, Set<String>> expected = new HashMap<>();
-    expected.put(new IntervalWindow(new Instant(1), new Instant(40)), set(1, 10, 15, 22, 30));
-    expected.put(new IntervalWindow(new Instant(95), new Instant(111)), set(95, 100, 101));
+    expected.put(
+        new IntervalWindow(Instant.ofEpochMilli(1), Instant.ofEpochMilli(40)),
+        set(1, 10, 15, 22, 30));
+    expected.put(
+        new IntervalWindow(Instant.ofEpochMilli(95), Instant.ofEpochMilli(111)), set(95, 100, 101));
     assertEquals(
         expected,
         runWindowFn(
@@ -85,9 +91,13 @@ public class SessionsTest {
   @Test
   public void testTimeUnit() throws Exception {
     Map<IntervalWindow, Set<String>> expected = new HashMap<>();
-    expected.put(new IntervalWindow(new Instant(1), new Instant(2000)), set(1, 2, 1000));
-    expected.put(new IntervalWindow(new Instant(5000), new Instant(6001)), set(5000, 5001));
-    expected.put(new IntervalWindow(new Instant(10000), new Instant(11000)), set(10000));
+    expected.put(
+        new IntervalWindow(Instant.ofEpochMilli(1), Instant.ofEpochMilli(2000)), set(1, 2, 1000));
+    expected.put(
+        new IntervalWindow(Instant.ofEpochMilli(5000), Instant.ofEpochMilli(6001)),
+        set(5000, 5001));
+    expected.put(
+        new IntervalWindow(Instant.ofEpochMilli(10000), Instant.ofEpochMilli(11000)), set(10000));
     assertEquals(
         expected,
         runWindowFn(

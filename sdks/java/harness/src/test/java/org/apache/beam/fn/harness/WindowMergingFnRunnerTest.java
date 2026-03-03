@@ -81,14 +81,14 @@ public class WindowMergingFnRunnerTest {
     // 7, 8 and 10 should all be merged. 1 and 20 should remain in the original set.
     BoundedWindow[] expectedToBeMerged =
         new BoundedWindow[] {
-          new IntervalWindow(new Instant(9L), new Instant(11L)),
-          new IntervalWindow(new Instant(10L), new Instant(10L)),
-          new IntervalWindow(new Instant(7L), new Instant(10L))
+          new IntervalWindow(Instant.ofEpochMilli(9L), Instant.ofEpochMilli(11L)),
+          new IntervalWindow(Instant.ofEpochMilli(10L), Instant.ofEpochMilli(10L)),
+          new IntervalWindow(Instant.ofEpochMilli(7L), Instant.ofEpochMilli(10L))
         };
     Iterable<BoundedWindow> expectedToBeUnmerged =
         Sets.newHashSet(
-            new IntervalWindow(new Instant(1L), new Instant(1L)),
-            new IntervalWindow(new Instant(20L), new Instant(20L)));
+            new IntervalWindow(Instant.ofEpochMilli(1L), Instant.ofEpochMilli(1L)),
+            new IntervalWindow(Instant.ofEpochMilli(20L), Instant.ofEpochMilli(20L)));
     KV<Object, Iterable<BoundedWindow>> input =
         KV.of(
             "abc",
@@ -103,14 +103,16 @@ public class WindowMergingFnRunnerTest {
     assertEquals(expectedToBeUnmerged, output.getValue().getKey());
     KV<BoundedWindow, Iterable<BoundedWindow>> mergedOutput =
         Iterables.getOnlyElement(output.getValue().getValue());
-    assertEquals(new IntervalWindow(new Instant(7L), new Instant(11L)), mergedOutput.getKey());
+    assertEquals(
+        new IntervalWindow(Instant.ofEpochMilli(7L), Instant.ofEpochMilli(11L)),
+        mergedOutput.getKey());
     assertThat(mergedOutput.getValue(), containsInAnyOrder(expectedToBeMerged));
 
     // Process a new group of windows, make sure that previous result has been cleaned up.
     BoundedWindow[] expectedToBeMergedGroup2 =
         new BoundedWindow[] {
-          new IntervalWindow(new Instant(15L), new Instant(17L)),
-          new IntervalWindow(new Instant(16L), new Instant(18L))
+          new IntervalWindow(Instant.ofEpochMilli(15L), Instant.ofEpochMilli(17L)),
+          new IntervalWindow(Instant.ofEpochMilli(16L), Instant.ofEpochMilli(18L))
         };
 
     input =
@@ -125,7 +127,9 @@ public class WindowMergingFnRunnerTest {
     assertEquals(input.getKey(), output.getKey());
     assertEquals(expectedToBeUnmerged, output.getValue().getKey());
     mergedOutput = Iterables.getOnlyElement(output.getValue().getValue());
-    assertEquals(new IntervalWindow(new Instant(15L), new Instant(18L)), mergedOutput.getKey());
+    assertEquals(
+        new IntervalWindow(Instant.ofEpochMilli(15L), Instant.ofEpochMilli(18L)),
+        mergedOutput.getKey());
     assertThat(mergedOutput.getValue(), containsInAnyOrder(expectedToBeMergedGroup2));
   }
 

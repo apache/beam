@@ -70,10 +70,12 @@ public class RepeatedlyStateMachineTest {
     setUp(FixedWindows.of(Duration.millis(10)));
 
     when(mockTrigger.shouldFire(anyTriggerContext())).thenReturn(true);
-    assertTrue(tester.shouldFire(new IntervalWindow(new Instant(0), new Instant(10))));
+    assertTrue(
+        tester.shouldFire(new IntervalWindow(Instant.ofEpochMilli(0), Instant.ofEpochMilli(10))));
 
     when(mockTrigger.shouldFire(Mockito.any())).thenReturn(false);
-    assertFalse(tester.shouldFire(new IntervalWindow(new Instant(0), new Instant(10))));
+    assertFalse(
+        tester.shouldFire(new IntervalWindow(Instant.ofEpochMilli(0), Instant.ofEpochMilli(10))));
   }
 
   @Test
@@ -84,16 +86,19 @@ public class RepeatedlyStateMachineTest {
             Sessions.withGapDuration(Duration.millis(10)));
 
     tester.injectElements(1);
-    IntervalWindow firstWindow = new IntervalWindow(new Instant(1), new Instant(11));
+    IntervalWindow firstWindow =
+        new IntervalWindow(Instant.ofEpochMilli(1), Instant.ofEpochMilli(11));
     assertFalse(tester.shouldFire(firstWindow));
 
     tester.injectElements(5);
-    IntervalWindow secondWindow = new IntervalWindow(new Instant(5), new Instant(15));
+    IntervalWindow secondWindow =
+        new IntervalWindow(Instant.ofEpochMilli(5), Instant.ofEpochMilli(15));
     assertFalse(tester.shouldFire(secondWindow));
 
     // Merge them, if the merged window were on the second trigger, it would be ready
     tester.mergeWindows();
-    IntervalWindow mergedWindow = new IntervalWindow(new Instant(1), new Instant(15));
+    IntervalWindow mergedWindow =
+        new IntervalWindow(Instant.ofEpochMilli(1), Instant.ofEpochMilli(15));
     assertTrue(tester.shouldFire(mergedWindow));
   }
 
@@ -135,7 +140,7 @@ public class RepeatedlyStateMachineTest {
     tester.injectElements(1);
     assertFalse(tester.shouldFire(window));
 
-    tester.advanceProcessingTime(new Instant(0).plus(Duration.standardMinutes(15)));
+    tester.advanceProcessingTime(Instant.ofEpochMilli(0).plus(Duration.standardMinutes(15)));
     assertTrue(tester.shouldFire(window));
     tester.fireIfShouldFire(window);
     assertFalse(tester.shouldFire(window));
@@ -173,7 +178,7 @@ public class RepeatedlyStateMachineTest {
     tester.injectElements(1);
     assertFalse(tester.shouldFire(window));
 
-    tester.advanceProcessingTime(new Instant(0).plus(Duration.standardMinutes(15)));
+    tester.advanceProcessingTime(Instant.ofEpochMilli(0).plus(Duration.standardMinutes(15)));
     assertTrue(tester.shouldFire(window));
     tester.fireIfShouldFire(window);
     assertFalse(tester.shouldFire(window));

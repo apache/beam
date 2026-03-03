@@ -498,7 +498,8 @@ public class ExecutableStageDoFnOperatorTest {
     assertThat(operator.getCurrentOutputWatermark(), is(0L));
 
     // Trigger a new bundle
-    IntervalWindow intervalWindow = new IntervalWindow(new Instant(0), new Instant(9));
+    IntervalWindow intervalWindow =
+        new IntervalWindow(Instant.ofEpochMilli(0), Instant.ofEpochMilli(9));
     WindowedValue<KV<String, Integer>> windowedValue =
         WindowedValues.of(KV.of("one", 1), Instant.now(), intervalWindow, PaneInfo.NO_FIRING);
     testHarness.processElement(new StreamRecord<>(windowedValue));
@@ -522,8 +523,8 @@ public class ExecutableStageDoFnOperatorTest {
     assertThat(testHarness.numEventTimeTimers(), is(1)); // cleanup timer
 
     // Set at timer
-    Instant timerTarget = new Instant(5);
-    Instant timerTarget2 = new Instant(6);
+    Instant timerTarget = Instant.ofEpochMilli(5);
+    Instant timerTarget2 = Instant.ofEpochMilli(6);
     operator.getLockToAcquireForStateAccessDuringBundles().lock();
 
     BiConsumer<String, Instant> timerConsumer =
@@ -674,7 +675,7 @@ public class ExecutableStageDoFnOperatorTest {
     KeyedStateBackend keyedStateBackend = Mockito.mock(KeyedStateBackend.class);
     Lock stateBackendLock = Mockito.mock(Lock.class);
     StringUtf8Coder keyCoder = StringUtf8Coder.of();
-    IntervalWindow window = new IntervalWindow(new Instant(0), new Instant(10));
+    IntervalWindow window = new IntervalWindow(Instant.ofEpochMilli(0), Instant.ofEpochMilli(10));
     Coder<IntervalWindow> windowCoder = IntervalWindow.getCoder();
 
     // Test that cleanup timer is set correctly
@@ -772,7 +773,7 @@ public class ExecutableStageDoFnOperatorTest {
 
     KV<String, String> timerInputKey = KV.of("transformId", "timerId");
     AtomicBoolean timerInputReceived = new AtomicBoolean();
-    IntervalWindow window = new IntervalWindow(new Instant(0), new Instant(1000));
+    IntervalWindow window = new IntervalWindow(Instant.ofEpochMilli(0), Instant.ofEpochMilli(1000));
     IntervalWindow.IntervalWindowCoder windowCoder = IntervalWindow.IntervalWindowCoder.of();
     WindowedValue<KV<String, Integer>> windowedValue =
         WindowedValues.of(

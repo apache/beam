@@ -111,11 +111,11 @@ public class AutoCompleteTest implements Serializable {
   public void testWindowedAutoComplete() {
     List<TimestampedValue<String>> words =
         Arrays.asList(
-            TimestampedValue.of("xA", new Instant(1)),
-            TimestampedValue.of("xA", new Instant(1)),
-            TimestampedValue.of("xB", new Instant(1)),
-            TimestampedValue.of("xB", new Instant(2)),
-            TimestampedValue.of("xB", new Instant(2)));
+            TimestampedValue.of("xA", Instant.ofEpochMilli(1)),
+            TimestampedValue.of("xA", Instant.ofEpochMilli(1)),
+            TimestampedValue.of("xB", Instant.ofEpochMilli(1)),
+            TimestampedValue.of("xB", Instant.ofEpochMilli(2)),
+            TimestampedValue.of("xB", Instant.ofEpochMilli(2)));
 
     PCollection<String> input = p.apply(Create.timestamped(words));
 

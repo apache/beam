@@ -73,8 +73,8 @@ public class WithTimestampsTest implements Serializable {
         .containsInAnyOrder(yearTwoThousand, "0", "1234", Integer.toString(Integer.MAX_VALUE));
     PAssert.that(timestampedVals)
         .containsInAnyOrder(
-            KV.of("0", new Instant(0)),
-            KV.of("1234", new Instant(1234L)),
+            KV.of("0", Instant.ofEpochMilli(0)),
+            KV.of("1234", Instant.ofEpochMilli(1234L)),
             KV.of(Integer.toString(Integer.MAX_VALUE), new Instant(Integer.MAX_VALUE)),
             KV.of(yearTwoThousand, new Instant(Long.valueOf(yearTwoThousand))));
 
@@ -136,8 +136,8 @@ public class WithTimestampsTest implements Serializable {
         .containsInAnyOrder(yearTwoThousand, "0", "1234", Integer.toString(Integer.MAX_VALUE));
     PAssert.that(timestampedVals)
         .containsInAnyOrder(
-            KV.of("0", new Instant(0L).minus(skew)),
-            KV.of("1234", new Instant(1234L).minus(skew)),
+            KV.of("0", Instant.ofEpochMilli(0L).minus(skew)),
+            KV.of("1234", Instant.ofEpochMilli(1234L).minus(skew)),
             KV.of(
                 Integer.toString(Integer.MAX_VALUE),
                 new Instant(Long.valueOf(Integer.MAX_VALUE)).minus(skew)),
@@ -201,7 +201,7 @@ public class WithTimestampsTest implements Serializable {
         .containsInAnyOrder(yearTwoThousand, "0", "1234", Integer.toString(Integer.MAX_VALUE));
     PAssert.that(timestampedVals)
         .containsInAnyOrder(
-            KV.of("0", new Instant(0)),
+            KV.of("0", Instant.ofEpochMilli(0)),
             KV.of("1234", new Instant(Long.valueOf("1234"))),
             KV.of(Integer.toString(Integer.MAX_VALUE), new Instant(Integer.MAX_VALUE)),
             KV.of(yearTwoThousand, new Instant(Long.valueOf(yearTwoThousand))));

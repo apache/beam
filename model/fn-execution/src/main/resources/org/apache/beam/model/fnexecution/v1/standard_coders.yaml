@@ -30,7 +30,7 @@
 #
 # Java code snippet to generate example bytes:
 #   Coder<Timer<String>> coder = Timer.Coder.of(StringUtf8Coder.of(), GlobalWindow.Coder.INSTANCE);
-#   Instant now = new Instant(1000L);
+#   Instant now = Instant.ofEpochMilli(1000L);
 #   Timer<String> timer = Timer.of(
 #     "key",
 #     "tag",
@@ -597,7 +597,7 @@ examples:
 
 # Java code snippet to generate example bytes:
 #  TimestampPrefixingWindowCoder<IntervalWindow> coder = TimestampPrefixingWindowCoder.of(IntervalWindowCoder.of());
-#  Instant end = new Instant(-9223372036854410L);
+#  Instant end = Instant.ofEpochMilli(-9223372036854410L);
 #  Duration span = Duration.millis(365L);
 #  IntervalWindow window = new IntervalWindow(end.minus(span), span);
 #  byte[] bytes = CoderUtils.encodeToByteArray(coder, window);

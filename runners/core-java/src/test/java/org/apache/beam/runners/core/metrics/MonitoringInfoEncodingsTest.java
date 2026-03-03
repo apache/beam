@@ -81,7 +81,7 @@ public class MonitoringInfoEncodingsTest {
 
   @Test
   public void testInt64GaugeEncoding() {
-    GaugeData data = GaugeData.create(1L, new Instant(2L));
+    GaugeData data = GaugeData.create(1L, Instant.ofEpochMilli(2L));
     ByteString payload = encodeInt64Gauge(data);
     assertEquals(ByteString.copyFrom(new byte[] {2, 1}), payload);
     assertEquals(data, decodeInt64Gauge(payload));

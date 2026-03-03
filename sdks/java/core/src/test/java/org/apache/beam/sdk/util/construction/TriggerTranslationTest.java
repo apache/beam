@@ -68,11 +68,11 @@ public class TriggerTranslationTest {
             AfterProcessingTime.pastFirstElementInPane().plusDelayOf(Duration.millis(23))),
         toProtoAndBackSpec(
             AfterProcessingTime.pastFirstElementInPane()
-                .alignedTo(Duration.millis(5), new Instant(27))),
+                .alignedTo(Duration.millis(5), Instant.ofEpochMilli(27))),
         toProtoAndBackSpec(
             AfterProcessingTime.pastFirstElementInPane()
                 .plusDelayOf(Duration.standardSeconds(3))
-                .alignedTo(Duration.millis(5), new Instant(27))
+                .alignedTo(Duration.millis(5), Instant.ofEpochMilli(27))
                 .plusDelayOf(Duration.millis(13))),
 
         // Composite triggers

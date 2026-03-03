@@ -89,7 +89,7 @@ public class AvroSchemaIOProviderTest {
 
     TestStream<Row> createEvents =
         TestStream.create(RowCoder.of(SCHEMA))
-            .addElements(TimestampedValue.of(createRow(1L), new Instant(1L)))
+            .addElements(TimestampedValue.of(createRow(1L), Instant.ofEpochMilli(1L)))
             .addElements(TimestampedValue.of(createRow(2L), Instant.ofEpochSecond(120L)))
             .advanceWatermarkToInfinity();
 
@@ -122,7 +122,7 @@ public class AvroSchemaIOProviderTest {
 
     TestStream<Row> createEvents =
         TestStream.create(RowCoder.of(SCHEMA))
-            .addElements(TimestampedValue.of(createRow(1L), new Instant(1L)))
+            .addElements(TimestampedValue.of(createRow(1L), Instant.ofEpochMilli(1L)))
             .addElements(TimestampedValue.of(createRow(2L), Instant.ofEpochSecond(120L)))
             .advanceWatermarkToInfinity();
 

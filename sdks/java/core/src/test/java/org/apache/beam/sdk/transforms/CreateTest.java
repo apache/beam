@@ -177,12 +177,13 @@ public class CreateTest {
     PCollection<TimestampedValue<String>> output =
         p.apply(
             Create.of(
-                TimestampedValue.of("a", new Instant(0)),
-                TimestampedValue.of("b", new Instant(0))));
+                TimestampedValue.of("a", Instant.ofEpochMilli(0)),
+                TimestampedValue.of("b", Instant.ofEpochMilli(0))));
 
     PAssert.that(output)
         .containsInAnyOrder(
-            TimestampedValue.of("a", new Instant(0)), TimestampedValue.of("b", new Instant(0)));
+            TimestampedValue.of("a", Instant.ofEpochMilli(0)),
+            TimestampedValue.of("b", Instant.ofEpochMilli(0)));
 
     p.run();
   }
@@ -267,9 +268,9 @@ public class CreateTest {
   public void testCreateTimestamped() {
     List<TimestampedValue<String>> data =
         Arrays.asList(
-            TimestampedValue.of("a", new Instant(1L)),
-            TimestampedValue.of("b", new Instant(2L)),
-            TimestampedValue.of("c", new Instant(3L)));
+            TimestampedValue.of("a", Instant.ofEpochMilli(1L)),
+            TimestampedValue.of("b", Instant.ofEpochMilli(2L)),
+            TimestampedValue.of("c", Instant.ofEpochMilli(3L)));
 
     PCollection<String> output =
         p.apply(Create.timestamped(data)).apply(ParDo.of(new PrintTimestamps()));
@@ -312,8 +313,8 @@ public class CreateTest {
     PCollection<Record> c =
         p.apply(
             Create.timestamped(
-                TimestampedValue.of(new Record(), new Instant(0)),
-                TimestampedValue.of(new Record2(), new Instant(0))));
+                TimestampedValue.of(new Record(), Instant.ofEpochMilli(0)),
+                TimestampedValue.of(new Record2(), Instant.ofEpochMilli(0))));
 
     p.run();
 
@@ -325,8 +326,8 @@ public class CreateTest {
     Coder<Record> coder = new RecordCoder();
     Create.TimestampedValues<Record> values =
         Create.timestamped(
-                TimestampedValue.of(new Record(), new Instant(0)),
-                TimestampedValue.of(new Record2(), new Instant(0)))
+                TimestampedValue.of(new Record(), Instant.ofEpochMilli(0)),
+                TimestampedValue.of(new Record2(), Instant.ofEpochMilli(0)))
             .withCoder(coder);
     assertThat(p.apply(values).getCoder(), equalTo(coder));
   }
@@ -337,8 +338,8 @@ public class CreateTest {
     p.getCoderRegistry().registerCoderForClass(Record.class, coder);
     Create.TimestampedValues<Record> values =
         Create.timestamped(
-                TimestampedValue.of(new Record(), new Instant(0)),
-                TimestampedValue.of(new Record2(), new Instant(0)))
+                TimestampedValue.of(new Record(), Instant.ofEpochMilli(0)),
+                TimestampedValue.of(new Record2(), Instant.ofEpochMilli(0)))
             .withType(new TypeDescriptor<Record>() {});
     assertThat(p.apply(values).getCoder(), equalTo(coder));
   }
@@ -348,10 +349,15 @@ public class CreateTest {
   public void testCreateWindowedValues() {
     List<WindowedValue<String>> data =
         Arrays.asList(
-            WindowedValues.of("a", new Instant(1L), GlobalWindow.INSTANCE, PaneInfo.NO_FIRING),
-            WindowedValues.of("b", new Instant(2L), GlobalWindow.INSTANCE, PaneInfo.NO_FIRING),
             WindowedValues.of(
-                "c", new Instant(3L), GlobalWindow.INSTANCE, PaneInfo.ON_TIME_AND_ONLY_FIRING));
+                "a", Instant.ofEpochMilli(1L), GlobalWindow.INSTANCE, PaneInfo.NO_FIRING),
+            WindowedValues.of(
+                "b", Instant.ofEpochMilli(2L), GlobalWindow.INSTANCE, PaneInfo.NO_FIRING),
+            WindowedValues.of(
+                "c",
+                Instant.ofEpochMilli(3L),
+                GlobalWindow.INSTANCE,
+                PaneInfo.ON_TIME_AND_ONLY_FIRING));
 
     // The easiest way to directly check the created PCollection with PAssert and without relying on
     // other

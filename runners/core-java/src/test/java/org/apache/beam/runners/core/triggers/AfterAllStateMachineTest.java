@@ -46,7 +46,7 @@ public class AfterAllStateMachineTest {
                 AfterPaneStateMachine.elementCountAtLeast(2)),
             FixedWindows.of(Duration.millis(100)));
 
-    IntervalWindow window = new IntervalWindow(new Instant(0), new Instant(100));
+    IntervalWindow window = new IntervalWindow(Instant.ofEpochMilli(0), Instant.ofEpochMilli(100));
 
     tester.injectElements(1);
     assertFalse(tester.shouldFire(window));
@@ -66,7 +66,7 @@ public class AfterAllStateMachineTest {
                 AfterPaneStateMachine.elementCountAtLeast(1)),
             FixedWindows.of(Duration.millis(100)));
 
-    IntervalWindow window = new IntervalWindow(new Instant(0), new Instant(100));
+    IntervalWindow window = new IntervalWindow(Instant.ofEpochMilli(0), Instant.ofEpochMilli(100));
 
     tester.injectElements(1);
     assertFalse(tester.shouldFire(window));
@@ -93,20 +93,23 @@ public class AfterAllStateMachineTest {
             Sessions.withGapDuration(Duration.millis(10)));
 
     tester.injectElements(1);
-    IntervalWindow firstWindow = new IntervalWindow(new Instant(1), new Instant(11));
+    IntervalWindow firstWindow =
+        new IntervalWindow(Instant.ofEpochMilli(1), Instant.ofEpochMilli(11));
 
     tester.injectElements(5);
-    IntervalWindow secondWindow = new IntervalWindow(new Instant(5), new Instant(15));
+    IntervalWindow secondWindow =
+        new IntervalWindow(Instant.ofEpochMilli(5), Instant.ofEpochMilli(15));
 
     // Finish the AfterAll in the first window
-    tester.advanceInputWatermark(new Instant(11));
+    tester.advanceInputWatermark(Instant.ofEpochMilli(11));
     assertTrue(tester.shouldFire(firstWindow));
     assertFalse(tester.shouldFire(secondWindow));
     tester.fireIfShouldFire(firstWindow);
 
     // Merge them; the AfterAll should not be finished
     tester.mergeWindows();
-    IntervalWindow mergedWindow = new IntervalWindow(new Instant(1), new Instant(15));
+    IntervalWindow mergedWindow =
+        new IntervalWindow(Instant.ofEpochMilli(1), Instant.ofEpochMilli(15));
     assertFalse(tester.isMarkedFinished(mergedWindow));
 
     // Confirm that we are back on the first trigger by probing that it is not ready to fire
@@ -116,7 +119,7 @@ public class AfterAllStateMachineTest {
     assertFalse(tester.shouldFire(mergedWindow));
 
     // Fire the AfterAll in the merged window
-    tester.advanceInputWatermark(new Instant(15));
+    tester.advanceInputWatermark(Instant.ofEpochMilli(15));
     assertTrue(tester.shouldFire(mergedWindow));
     tester.fireIfShouldFire(mergedWindow);
 

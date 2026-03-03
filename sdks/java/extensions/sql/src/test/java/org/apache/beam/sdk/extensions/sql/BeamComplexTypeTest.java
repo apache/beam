@@ -479,7 +479,7 @@ public class BeamComplexTypeTest {
 
   @Test
   public void testDatetimeFields() {
-    Instant current = new Instant(1561671380000L); // Long value corresponds to 27/06/2019
+    Instant current = Instant.ofEpochMilli(1561671380000L); // Long value corresponds to 27/06/2019
 
     Schema dateTimeFieldSchema =
         Schema.builder()

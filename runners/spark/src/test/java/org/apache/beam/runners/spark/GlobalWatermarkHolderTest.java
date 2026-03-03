@@ -45,7 +45,7 @@ public class GlobalWatermarkHolderTest {
 
   @Test
   public void testLowHighWatermarksAdvance() {
-    Instant instant = new Instant(0);
+    Instant instant = Instant.ofEpochMilli(0);
     // low == high.
 
     GlobalWatermarkHolder.add(
@@ -90,7 +90,7 @@ public class GlobalWatermarkHolderTest {
 
   @Test
   public void testSynchronizedTimeMonotonic() {
-    Instant instant = new Instant(0);
+    Instant instant = Instant.ofEpochMilli(0);
 
     GlobalWatermarkHolder.add(
         1,
@@ -111,7 +111,7 @@ public class GlobalWatermarkHolderTest {
 
   @Test
   public void testMultiSource() {
-    Instant instant = new Instant(0);
+    Instant instant = Instant.ofEpochMilli(0);
 
     GlobalWatermarkHolder.add(
         1,

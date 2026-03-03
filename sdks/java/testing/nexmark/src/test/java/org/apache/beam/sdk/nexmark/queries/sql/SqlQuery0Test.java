@@ -36,9 +36,11 @@ import org.junit.runners.JUnit4;
 @RunWith(Enclosed.class)
 public class SqlQuery0Test {
 
-  private static final Bid BID1 = new Bid(5L, 3L, 123123L, new Instant(43234234L), "extra1");
+  private static final Bid BID1 =
+      new Bid(5L, 3L, 123123L, Instant.ofEpochMilli(43234234L), "extra1");
 
-  private static final Bid BID2 = new Bid(6L, 4L, 134123L, new Instant(13234234L), "extra2");
+  private static final Bid BID2 =
+      new Bid(6L, 4L, 134123L, Instant.ofEpochMilli(13234234L), "extra2");
 
   private abstract static class SqlQuery0TestCases {
     protected abstract SqlQuery0 getQuery();

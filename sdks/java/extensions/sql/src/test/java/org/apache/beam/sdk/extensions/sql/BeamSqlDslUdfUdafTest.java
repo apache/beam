@@ -385,7 +385,7 @@ public class BeamSqlDslUdfUdafTest extends BeamSqlDslBase {
   public static class JodaMax extends CombineFn<Instant, Instant, Instant> {
     @Override
     public Instant createAccumulator() {
-      return new Instant(0L);
+      return Instant.ofEpochMilli(0L);
     }
 
     @Override
@@ -395,7 +395,7 @@ public class BeamSqlDslUdfUdafTest extends BeamSqlDslBase {
 
     @Override
     public Instant mergeAccumulators(Iterable<Instant> accumulators) {
-      Instant v = new Instant(0L);
+      Instant v = Instant.ofEpochMilli(0L);
       for (Instant accumulator : accumulators) {
         v = accumulator.isBefore(v) ? v : accumulator;
       }

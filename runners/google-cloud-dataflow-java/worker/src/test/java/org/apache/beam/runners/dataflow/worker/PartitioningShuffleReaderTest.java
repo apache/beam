@@ -50,7 +50,7 @@ import org.junit.runners.JUnit4;
 public class PartitioningShuffleReaderTest {
   private static final List<WindowedValue<KV<Integer, String>>> NO_KVS = Collections.emptyList();
 
-  private static final Instant timestamp = new Instant(123000);
+  private static final Instant timestamp = Instant.ofEpochMilli(123000);
   private static final IntervalWindow window =
       new IntervalWindow(timestamp, timestamp.plus(Duration.millis(1000)));
 

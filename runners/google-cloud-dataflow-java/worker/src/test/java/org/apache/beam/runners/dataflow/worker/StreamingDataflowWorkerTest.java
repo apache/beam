@@ -231,11 +231,11 @@ public class StreamingDataflowWorkerTest {
 
   private static final Logger LOG = LoggerFactory.getLogger(StreamingDataflowWorkerTest.class);
   private static final IntervalWindow DEFAULT_WINDOW =
-      new IntervalWindow(new Instant(1234), Duration.millis(1000));
+      new IntervalWindow(Instant.ofEpochMilli(1234), Duration.millis(1000));
   private static final IntervalWindow WINDOW_AT_ZERO =
-      new IntervalWindow(new Instant(0), new Instant(1000));
+      new IntervalWindow(Instant.ofEpochMilli(0), Instant.ofEpochMilli(1000));
   private static final IntervalWindow WINDOW_AT_ONE_SECOND =
-      new IntervalWindow(new Instant(1000), new Instant(2000));
+      new IntervalWindow(Instant.ofEpochMilli(1000), Instant.ofEpochMilli(2000));
   private static final Coder<IntervalWindow> DEFAULT_WINDOW_CODER = IntervalWindow.getCoder();
   private static final Coder<Collection<IntervalWindow>> DEFAULT_WINDOW_COLLECTION_CODER =
       CollectionCoder.of(DEFAULT_WINDOW_CODER);

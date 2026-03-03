@@ -226,7 +226,7 @@ public class DoFnTesterTest {
   @Test
   public void processTimestampedElement() throws Exception {
     try (DoFnTester<Long, TimestampedValue<Long>> tester = DoFnTester.of(new ReifyTimestamps())) {
-      TimestampedValue<Long> input = TimestampedValue.of(1L, new Instant(100));
+      TimestampedValue<Long> input = TimestampedValue.of(1L, Instant.ofEpochMilli(100));
       tester.processTimestampedElement(input);
       assertThat(tester.takeOutputElements(), contains(input));
     }
@@ -246,15 +246,15 @@ public class DoFnTesterTest {
       tester.processElement(2L);
 
       List<TimestampedValue<String>> peek = tester.peekOutputElementsWithTimestamp();
-      TimestampedValue<String> one = TimestampedValue.of("1", new Instant(1000L));
-      TimestampedValue<String> two = TimestampedValue.of("2", new Instant(2000L));
+      TimestampedValue<String> one = TimestampedValue.of("1", Instant.ofEpochMilli(1000L));
+      TimestampedValue<String> two = TimestampedValue.of("2", Instant.ofEpochMilli(2000L));
       assertThat(peek, hasItems(one, two));
 
       tester.processElement(3L);
       tester.processElement(4L);
 
-      TimestampedValue<String> three = TimestampedValue.of("3", new Instant(3000L));
-      TimestampedValue<String> four = TimestampedValue.of("4", new Instant(4000L));
+      TimestampedValue<String> three = TimestampedValue.of("3", Instant.ofEpochMilli(3000L));
+      TimestampedValue<String> four = TimestampedValue.of("4", Instant.ofEpochMilli(4000L));
       peek = tester.peekOutputElementsWithTimestamp();
       assertThat(peek, hasItems(one, two, three, four));
       List<TimestampedValue<String>> take = tester.takeOutputElementsWithTimestamp();
@@ -282,10 +282,11 @@ public class DoFnTesterTest {
       assertThat(
           tester.peekOutputElementsInWindow(GlobalWindow.INSTANCE),
           containsInAnyOrder(
-              TimestampedValue.of("1", new Instant(1000L)),
-              TimestampedValue.of("2", new Instant(2000L))));
+              TimestampedValue.of("1", Instant.ofEpochMilli(1000L)),
+              TimestampedValue.of("2", Instant.ofEpochMilli(2000L))));
       assertThat(
-          tester.peekOutputElementsInWindow(new IntervalWindow(new Instant(0L), new Instant(10L))),
+          tester.peekOutputElementsInWindow(
+              new IntervalWindow(Instant.ofEpochMilli(0L), Instant.ofEpochMilli(10L))),
           Matchers.emptyIterable());
     }
   }

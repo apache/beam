@@ -89,7 +89,7 @@ public class SparkMetricsSinkTest {
     pipeline.getOptions().as(TestSparkPipelineOptions.class).setStreaming(true);
     assertThat(InMemoryMetrics.valueOf("emptyLines"), is(nullValue()));
 
-    Instant instant = new Instant(0);
+    Instant instant = Instant.ofEpochMilli(0);
     CreateStream<String> source =
         CreateStream.of(
                 StringUtf8Coder.of(),

@@ -38,12 +38,12 @@ public class WindmillTimeUtilsTest {
     assertEquals(BoundedWindow.TIMESTAMP_MAX_VALUE, windmillToHarnessWatermark(Long.MAX_VALUE));
     assertEquals(
         BoundedWindow.TIMESTAMP_MAX_VALUE, windmillToHarnessWatermark(Long.MAX_VALUE - 17));
-    assertEquals(new Instant(16), windmillToHarnessWatermark(16999));
-    assertEquals(new Instant(17), windmillToHarnessWatermark(17120));
-    assertEquals(new Instant(17), windmillToHarnessWatermark(17000));
-    assertEquals(new Instant(-17), windmillToHarnessWatermark(-16987));
-    assertEquals(new Instant(-17), windmillToHarnessWatermark(-17000));
-    assertEquals(new Instant(-18), windmillToHarnessTimestamp(-17001));
+    assertEquals(Instant.ofEpochMilli(16), windmillToHarnessWatermark(16999));
+    assertEquals(Instant.ofEpochMilli(17), windmillToHarnessWatermark(17120));
+    assertEquals(Instant.ofEpochMilli(17), windmillToHarnessWatermark(17000));
+    assertEquals(Instant.ofEpochMilli(-17), windmillToHarnessWatermark(-16987));
+    assertEquals(Instant.ofEpochMilli(-17), windmillToHarnessWatermark(-17000));
+    assertEquals(Instant.ofEpochMilli(-18), windmillToHarnessTimestamp(-17001));
   }
 
   @Test
@@ -51,12 +51,12 @@ public class WindmillTimeUtilsTest {
     assertEquals(BoundedWindow.TIMESTAMP_MAX_VALUE, windmillToHarnessTimestamp(Long.MAX_VALUE));
     assertEquals(
         BoundedWindow.TIMESTAMP_MAX_VALUE, windmillToHarnessTimestamp(Long.MAX_VALUE - 17));
-    assertEquals(new Instant(16), windmillToHarnessWatermark(16999));
-    assertEquals(new Instant(17), windmillToHarnessTimestamp(17120));
-    assertEquals(new Instant(17), windmillToHarnessTimestamp(17000));
-    assertEquals(new Instant(-17), windmillToHarnessTimestamp(-16987));
-    assertEquals(new Instant(-17), windmillToHarnessTimestamp(-17000));
-    assertEquals(new Instant(-18), windmillToHarnessTimestamp(-17001));
+    assertEquals(Instant.ofEpochMilli(16), windmillToHarnessWatermark(16999));
+    assertEquals(Instant.ofEpochMilli(17), windmillToHarnessTimestamp(17120));
+    assertEquals(Instant.ofEpochMilli(17), windmillToHarnessTimestamp(17000));
+    assertEquals(Instant.ofEpochMilli(-17), windmillToHarnessTimestamp(-16987));
+    assertEquals(Instant.ofEpochMilli(-17), windmillToHarnessTimestamp(-17000));
+    assertEquals(Instant.ofEpochMilli(-18), windmillToHarnessTimestamp(-17001));
     assertEquals(BoundedWindow.TIMESTAMP_MIN_VALUE, windmillToHarnessTimestamp(Long.MIN_VALUE + 1));
     assertEquals(BoundedWindow.TIMESTAMP_MIN_VALUE, windmillToHarnessTimestamp(Long.MIN_VALUE + 2));
     // Long.MIN_VALUE = -9223372036854775808, need to add 1808 microseconds to get to next
@@ -71,8 +71,8 @@ public class WindmillTimeUtilsTest {
   @Test
   public void testHarnessToWindmillTimestamp() {
     assertEquals(Long.MAX_VALUE, harnessToWindmillTimestamp(BoundedWindow.TIMESTAMP_MAX_VALUE));
-    assertEquals(-1000, harnessToWindmillTimestamp(new Instant(-1)));
-    assertEquals(1000, harnessToWindmillTimestamp(new Instant(1)));
+    assertEquals(-1000, harnessToWindmillTimestamp(Instant.ofEpochMilli(-1)));
+    assertEquals(1000, harnessToWindmillTimestamp(Instant.ofEpochMilli(1)));
     assertEquals(Long.MIN_VALUE + 1, harnessToWindmillTimestamp(new Instant(Long.MIN_VALUE)));
     assertEquals(
         Long.MIN_VALUE + 1, harnessToWindmillTimestamp(new Instant(Long.MIN_VALUE / 1000 - 1)));

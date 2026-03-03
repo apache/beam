@@ -74,7 +74,7 @@ public class TestStreamEvaluatorFactoryTest {
     TestStream<Integer> testStream =
         TestStream.create(VarIntCoder.of())
             .addElements(1, 2, 3)
-            .advanceWatermarkTo(new Instant(0))
+            .advanceWatermarkTo(Instant.ofEpochMilli(0))
             .addElements(
                 TimestampedValue.atMinimumTimestamp(4),
                 TimestampedValue.atMinimumTimestamp(5),
@@ -118,7 +118,7 @@ public class TestStreamEvaluatorFactoryTest {
         (WindowedValue<TestStreamIndex<Integer>>)
             Iterables.getOnlyElement(secondResult.getUnprocessedElements());
     assertThat(secondResidual.getValue().getIndex(), equalTo(2));
-    assertThat(secondResidual.getTimestamp(), equalTo(new Instant(0)));
+    assertThat(secondResidual.getTimestamp(), equalTo(Instant.ofEpochMilli(0)));
 
     CommittedBundle<TestStreamIndex<Integer>> thirdBundle =
         secondBundle.withElements(Collections.singleton(secondResidual));
@@ -131,7 +131,7 @@ public class TestStreamEvaluatorFactoryTest {
         (WindowedValue<TestStreamIndex<Integer>>)
             Iterables.getOnlyElement(thirdResult.getUnprocessedElements());
     assertThat(thirdResidual.getValue().getIndex(), equalTo(3));
-    assertThat(thirdResidual.getTimestamp(), equalTo(new Instant(0)));
+    assertThat(thirdResidual.getTimestamp(), equalTo(Instant.ofEpochMilli(0)));
 
     Instant start = clock.now();
     CommittedBundle<TestStreamIndex<Integer>> fourthBundle =
@@ -146,7 +146,7 @@ public class TestStreamEvaluatorFactoryTest {
         (WindowedValue<TestStreamIndex<Integer>>)
             Iterables.getOnlyElement(fourthResult.getUnprocessedElements());
     assertThat(fourthResidual.getValue().getIndex(), equalTo(4));
-    assertThat(fourthResidual.getTimestamp(), equalTo(new Instant(0)));
+    assertThat(fourthResidual.getTimestamp(), equalTo(Instant.ofEpochMilli(0)));
 
     CommittedBundle<TestStreamIndex<Integer>> fifthBundle =
         thirdBundle.withElements(Collections.singleton(fourthResidual));

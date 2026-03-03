@@ -50,10 +50,10 @@ public class TestStreamTranslationTest {
     return ImmutableList.of(
         TestStream.create(VarIntCoder.of()).advanceWatermarkToInfinity(),
         TestStream.create(VarIntCoder.of())
-            .advanceWatermarkTo(new Instant(42))
+            .advanceWatermarkTo(Instant.ofEpochMilli(42))
             .advanceWatermarkToInfinity(),
         TestStream.create(VarIntCoder.of())
-            .addElements(TimestampedValue.of(3, new Instant(17)))
+            .addElements(TimestampedValue.of(3, Instant.ofEpochMilli(17)))
             .advanceWatermarkToInfinity(),
         TestStream.create(StringUtf8Coder.of())
             .advanceProcessingTime(Duration.millis(82))

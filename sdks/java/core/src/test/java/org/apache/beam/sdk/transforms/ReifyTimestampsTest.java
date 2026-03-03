@@ -52,10 +52,10 @@ public class ReifyTimestampsTest implements Serializable {
 
     PAssert.that(reified)
         .containsInAnyOrder(
-            KV.of("foo", TimestampedValue.of(0, new Instant(0))),
-            KV.of("foo", TimestampedValue.of(1, new Instant(1))),
-            KV.of("bar", TimestampedValue.of(2, new Instant(2))),
-            KV.of("baz", TimestampedValue.of(3, new Instant(3))));
+            KV.of("foo", TimestampedValue.of(0, Instant.ofEpochMilli(0))),
+            KV.of("foo", TimestampedValue.of(1, Instant.ofEpochMilli(1))),
+            KV.of("bar", TimestampedValue.of(2, Instant.ofEpochMilli(2))),
+            KV.of("baz", TimestampedValue.of(3, Instant.ofEpochMilli(3))));
 
     pipeline.run();
   }
@@ -66,10 +66,10 @@ public class ReifyTimestampsTest implements Serializable {
     PCollection<KV<String, TimestampedValue<Integer>>> preified =
         pipeline.apply(
             Create.of(
-                KV.of("foo", TimestampedValue.of(0, new Instant(0))),
-                KV.of("foo", TimestampedValue.of(1, new Instant(1))),
-                KV.of("bar", TimestampedValue.of(2, new Instant(2))),
-                KV.of("baz", TimestampedValue.of(3, new Instant(3)))));
+                KV.of("foo", TimestampedValue.of(0, Instant.ofEpochMilli(0))),
+                KV.of("foo", TimestampedValue.of(1, Instant.ofEpochMilli(1))),
+                KV.of("bar", TimestampedValue.of(2, Instant.ofEpochMilli(2))),
+                KV.of("baz", TimestampedValue.of(3, Instant.ofEpochMilli(3)))));
 
     PCollection<KV<String, Integer>> timestamped =
         preified.apply(ReifyTimestamps.extractFromValues());
@@ -99,13 +99,17 @@ public class ReifyTimestampsTest implements Serializable {
         pipeline.apply(
             Create.timestamped(
                 TimestampedValue.of(
-                    KV.of("foo", TimestampedValue.of(0, new Instant(0))), new Instant(100)),
+                    KV.of("foo", TimestampedValue.of(0, Instant.ofEpochMilli(0))),
+                    Instant.ofEpochMilli(100)),
                 TimestampedValue.of(
-                    KV.of("foo", TimestampedValue.of(1, new Instant(1))), new Instant(101L)),
+                    KV.of("foo", TimestampedValue.of(1, Instant.ofEpochMilli(1))),
+                    Instant.ofEpochMilli(101L)),
                 TimestampedValue.of(
-                    KV.of("bar", TimestampedValue.of(2, new Instant(2))), new Instant(102L)),
+                    KV.of("bar", TimestampedValue.of(2, Instant.ofEpochMilli(2))),
+                    Instant.ofEpochMilli(102L)),
                 TimestampedValue.of(
-                    KV.of("baz", TimestampedValue.of(3, new Instant(3))), new Instant(103L))));
+                    KV.of("baz", TimestampedValue.of(3, Instant.ofEpochMilli(3))),
+                    Instant.ofEpochMilli(103L))));
 
     PCollection<KV<String, Integer>> timestamped =
         preified.apply(ReifyTimestamps.extractFromValues());

@@ -556,36 +556,36 @@ public class FnApiDoFnRunnerTest implements Serializable {
       mainInput.accept(
           valueInWindows(
               "X",
-              new IntervalWindow(new Instant(0L), Duration.standardMinutes(1)),
-              new IntervalWindow(new Instant(10L), Duration.standardMinutes(1))));
+              new IntervalWindow(Instant.ofEpochMilli(0L), Duration.standardMinutes(1)),
+              new IntervalWindow(Instant.ofEpochMilli(10L), Duration.standardMinutes(1))));
       mainInput.accept(
           valueInWindows(
               "Y",
-              new IntervalWindow(new Instant(1000L), Duration.standardMinutes(1)),
-              new IntervalWindow(new Instant(1010L), Duration.standardMinutes(1))));
+              new IntervalWindow(Instant.ofEpochMilli(1000L), Duration.standardMinutes(1)),
+              new IntervalWindow(Instant.ofEpochMilli(1010L), Duration.standardMinutes(1))));
       // Ensure that each output element is in all the windows and not one per window.
       assertThat(
           mainOutputValues,
           contains(
               valueInWindows(
                   "X:main",
-                  new IntervalWindow(new Instant(0L), Duration.standardMinutes(1)),
-                  new IntervalWindow(new Instant(10L), Duration.standardMinutes(1))),
+                  new IntervalWindow(Instant.ofEpochMilli(0L), Duration.standardMinutes(1)),
+                  new IntervalWindow(Instant.ofEpochMilli(10L), Duration.standardMinutes(1))),
               valueInWindows(
                   "Y:main",
-                  new IntervalWindow(new Instant(1000L), Duration.standardMinutes(1)),
-                  new IntervalWindow(new Instant(1010L), Duration.standardMinutes(1)))));
+                  new IntervalWindow(Instant.ofEpochMilli(1000L), Duration.standardMinutes(1)),
+                  new IntervalWindow(Instant.ofEpochMilli(1010L), Duration.standardMinutes(1)))));
       assertThat(
           additionalOutputValues,
           contains(
               valueInWindows(
                   "X:additional",
-                  new IntervalWindow(new Instant(0L), Duration.standardMinutes(1)),
-                  new IntervalWindow(new Instant(10L), Duration.standardMinutes(1))),
+                  new IntervalWindow(Instant.ofEpochMilli(0L), Duration.standardMinutes(1)),
+                  new IntervalWindow(Instant.ofEpochMilli(10L), Duration.standardMinutes(1))),
               valueInWindows(
                   "Y:additional",
-                  new IntervalWindow(new Instant(1000L), Duration.standardMinutes(1)),
-                  new IntervalWindow(new Instant(1010L), Duration.standardMinutes(1)))));
+                  new IntervalWindow(Instant.ofEpochMilli(1000L), Duration.standardMinutes(1)),
+                  new IntervalWindow(Instant.ofEpochMilli(1010L), Duration.standardMinutes(1)))));
       mainOutputValues.clear();
 
       Iterables.getOnlyElement(context.getFinishBundleFunctions()).run();
@@ -619,8 +619,8 @@ public class FnApiDoFnRunnerTest implements Serializable {
     @Test
     public void testSideInputIsAccessibleForDownstreamCallers() throws Exception {
       FixedWindows windowFn = FixedWindows.of(Duration.millis(1L));
-      IntervalWindow windowA = windowFn.assignWindow(new Instant(1L));
-      IntervalWindow windowB = windowFn.assignWindow(new Instant(2L));
+      IntervalWindow windowA = windowFn.assignWindow(Instant.ofEpochMilli(1L));
+      IntervalWindow windowB = windowFn.assignWindow(Instant.ofEpochMilli(2L));
       ByteString encodedWindowA =
           ByteString.copyFrom(CoderUtils.encodeToByteArray(windowFn.windowCoder(), windowA));
       ByteString encodedWindowB =
@@ -730,8 +730,8 @@ public class FnApiDoFnRunnerTest implements Serializable {
           metricsContainerRegistry.getContainer(TEST_TRANSFORM_ID);
       Closeable closeable = MetricsEnvironment.scopedMetricsContainer(metricsContainer);
       FixedWindows windowFn = FixedWindows.of(Duration.millis(1L));
-      IntervalWindow windowA = windowFn.assignWindow(new Instant(1L));
-      IntervalWindow windowB = windowFn.assignWindow(new Instant(2L));
+      IntervalWindow windowA = windowFn.assignWindow(Instant.ofEpochMilli(1L));
+      IntervalWindow windowB = windowFn.assignWindow(Instant.ofEpochMilli(2L));
       ByteString encodedWindowA =
           ByteString.copyFrom(CoderUtils.encodeToByteArray(windowFn.windowCoder(), windowA));
       ByteString encodedWindowB =
@@ -959,81 +959,101 @@ public class FnApiDoFnRunnerTest implements Serializable {
       // Ensure that the key order does not matter when we traverse over KV pairs.
       FnDataReceiver<WindowedValue<?>> mainInput =
           context.getPCollectionConsumer(inputPCollectionId);
-      mainInput.accept(timestampedValueInGlobalWindow(KV.of("X", "X1"), new Instant(1000L)));
-      mainInput.accept(timestampedValueInGlobalWindow(KV.of("Y", "Y1"), new Instant(1100L)));
-      mainInput.accept(timestampedValueInGlobalWindow(KV.of("X", "X2"), new Instant(1200L)));
-      mainInput.accept(timestampedValueInGlobalWindow(KV.of("Y", "Y2"), new Instant(1300L)));
+      mainInput.accept(
+          timestampedValueInGlobalWindow(KV.of("X", "X1"), Instant.ofEpochMilli(1000L)));
+      mainInput.accept(
+          timestampedValueInGlobalWindow(KV.of("Y", "Y1"), Instant.ofEpochMilli(1100L)));
+      mainInput.accept(
+          timestampedValueInGlobalWindow(KV.of("X", "X2"), Instant.ofEpochMilli(1200L)));
+      mainInput.accept(
+          timestampedValueInGlobalWindow(KV.of("Y", "Y2"), Instant.ofEpochMilli(1300L)));
 
       context
           .getIncomingTimerEndpoint(eventTimer.getTimerFamilyId())
           .getReceiver()
-          .accept(timerInGlobalWindow("A", new Instant(1400L), new Instant(2400L)));
+          .accept(
+              timerInGlobalWindow("A", Instant.ofEpochMilli(1400L), Instant.ofEpochMilli(2400L)));
       context
           .getIncomingTimerEndpoint(eventTimer.getTimerFamilyId())
           .getReceiver()
-          .accept(timerInGlobalWindow("B", new Instant(1500L), new Instant(2500L)));
+          .accept(
+              timerInGlobalWindow("B", Instant.ofEpochMilli(1500L), Instant.ofEpochMilli(2500L)));
       // This will be ignored since there are earlier timers, and the earlier timer will eventually
       // push the timer past 1600L.
       context
           .getIncomingTimerEndpoint(eventTimer.getTimerFamilyId())
           .getReceiver()
-          .accept(timerInGlobalWindow("A", new Instant(1600L), new Instant(2600L)));
+          .accept(
+              timerInGlobalWindow("A", Instant.ofEpochMilli(1600L), Instant.ofEpochMilli(2600L)));
       // This will be ignored since the timer was already cleared in this bundle.
       context
           .getIncomingTimerEndpoint(processingTimer.getTimerFamilyId())
           .getReceiver()
-          .accept(timerInGlobalWindow("X", new Instant(1700L), new Instant(2700L)));
+          .accept(
+              timerInGlobalWindow("X", Instant.ofEpochMilli(1700L), Instant.ofEpochMilli(2700L)));
       context
           .getIncomingTimerEndpoint(processingTimer.getTimerFamilyId())
           .getReceiver()
-          .accept(timerInGlobalWindow("C", new Instant(1800L), new Instant(2800L)));
+          .accept(
+              timerInGlobalWindow("C", Instant.ofEpochMilli(1800L), Instant.ofEpochMilli(2800L)));
       context
           .getIncomingTimerEndpoint(processingTimer.getTimerFamilyId())
           .getReceiver()
-          .accept(timerInGlobalWindow("B", new Instant(1500), new Instant(10032)));
+          .accept(
+              timerInGlobalWindow("B", Instant.ofEpochMilli(1500), Instant.ofEpochMilli(10032)));
       context
           .getIncomingTimerEndpoint(eventFamilyTimer.getTimerFamilyId())
           .getReceiver()
           .accept(
               dynamicTimerInGlobalWindow(
-                  "B", "event-timer2", new Instant(2000L), new Instant(1650L)));
+                  "B", "event-timer2", Instant.ofEpochMilli(2000L), Instant.ofEpochMilli(1650L)));
       context
           .getIncomingTimerEndpoint(processingFamilyTimer.getTimerFamilyId())
           .getReceiver()
           .accept(
               dynamicTimerInGlobalWindow(
-                  "Y", "processing-timer2", new Instant(2100L), new Instant(3100L)));
+                  "Y",
+                  "processing-timer2",
+                  Instant.ofEpochMilli(2100L),
+                  Instant.ofEpochMilli(3100L)));
 
       assertThat(
-          mainOutputValues.get(0), isValueInGlobalWindow("key:X mainX[X0]", new Instant(1000L)));
+          mainOutputValues.get(0),
+          isValueInGlobalWindow("key:X mainX[X0]", Instant.ofEpochMilli(1000L)));
 
       assertThat(
           mainOutputValues,
           containsInAnyOrder(
-              isValueInGlobalWindow("key:X mainX[X0]", new Instant(1000L)),
-              isValueInGlobalWindow("key:Y mainY[]", new Instant(1100L)),
-              isValueInGlobalWindow("key:X mainX[X0, X1]", new Instant(1200L)),
-              isValueInGlobalWindow("key:Y mainY[Y1]", new Instant(1300L)),
-              isValueInGlobalWindow("key:A event[A0]", new Instant(1400L)),
-              isValueInGlobalWindow("key:B event[]", new Instant(1500L)),
-              isValueInGlobalWindow("key:A event[A0, event]", new Instant(1400L)),
-              isValueInGlobalWindow("key:A event[A0, event, event]", new Instant(1400L)),
-              isValueInGlobalWindow("key:A event[A0, event, event, event]", new Instant(1400L)),
+              isValueInGlobalWindow("key:X mainX[X0]", Instant.ofEpochMilli(1000L)),
+              isValueInGlobalWindow("key:Y mainY[]", Instant.ofEpochMilli(1100L)),
+              isValueInGlobalWindow("key:X mainX[X0, X1]", Instant.ofEpochMilli(1200L)),
+              isValueInGlobalWindow("key:Y mainY[Y1]", Instant.ofEpochMilli(1300L)),
+              isValueInGlobalWindow("key:A event[A0]", Instant.ofEpochMilli(1400L)),
+              isValueInGlobalWindow("key:B event[]", Instant.ofEpochMilli(1500L)),
+              isValueInGlobalWindow("key:A event[A0, event]", Instant.ofEpochMilli(1400L)),
+              isValueInGlobalWindow("key:A event[A0, event, event]", Instant.ofEpochMilli(1400L)),
               isValueInGlobalWindow(
-                  "key:A event[A0, event, event, event, event]", new Instant(1400L)),
+                  "key:A event[A0, event, event, event]", Instant.ofEpochMilli(1400L)),
               isValueInGlobalWindow(
-                  "key:A event[A0, event, event, event, event, event]", new Instant(1400L)),
+                  "key:A event[A0, event, event, event, event]", Instant.ofEpochMilli(1400L)),
               isValueInGlobalWindow(
-                  "key:A event[A0, event, event, event, event, event, event]", new Instant(1400L)),
-              isValueInGlobalWindow("key:C processing[C0]", new Instant(1800L)),
-              isValueInGlobalWindow("key:B processing[event]", new Instant(1500L)),
-              isValueInGlobalWindow("key:B event[event, processing]", new Instant(1500)),
-              isValueInGlobalWindow("key:B event[event, processing, event]", new Instant(1500)),
+                  "key:A event[A0, event, event, event, event, event]",
+                  Instant.ofEpochMilli(1400L)),
               isValueInGlobalWindow(
-                  "key:B event[event, processing, event, event]", new Instant(1500)),
+                  "key:A event[A0, event, event, event, event, event, event]",
+                  Instant.ofEpochMilli(1400L)),
+              isValueInGlobalWindow("key:C processing[C0]", Instant.ofEpochMilli(1800L)),
+              isValueInGlobalWindow("key:B processing[event]", Instant.ofEpochMilli(1500L)),
+              isValueInGlobalWindow("key:B event[event, processing]", Instant.ofEpochMilli(1500)),
               isValueInGlobalWindow(
-                  "key:B event-family[event, processing, event, event, event]", new Instant(2000L)),
-              isValueInGlobalWindow("key:Y processing-family[Y1, Y2]", new Instant(2100L))));
+                  "key:B event[event, processing, event]", Instant.ofEpochMilli(1500)),
+              isValueInGlobalWindow(
+                  "key:B event[event, processing, event, event]", Instant.ofEpochMilli(1500)),
+              isValueInGlobalWindow(
+                  "key:B event-family[event, processing, event, event, event]",
+                  Instant.ofEpochMilli(2000L)),
+              isValueInGlobalWindow(
+                  "key:Y processing-family[Y1, Y2]", Instant.ofEpochMilli(2100L))));
 
       mainOutputValues.clear();
 
@@ -1044,49 +1064,64 @@ public class FnApiDoFnRunnerTest implements Serializable {
           aggregator.getOutputTimers().get(eventTimer),
           contains(
               clearedTimerInGlobalWindow("X"),
-              timerInGlobalWindow("Y", new Instant(2100L), new Instant(2181L)),
-              timerInGlobalWindow("A", new Instant(1400L), new Instant(2617L)),
-              timerInGlobalWindow("B", new Instant(2000L), new Instant(2071L)),
-              timerInGlobalWindow("C", new Instant(1800L), new Instant(1861L))));
+              timerInGlobalWindow("Y", Instant.ofEpochMilli(2100L), Instant.ofEpochMilli(2181L)),
+              timerInGlobalWindow("A", Instant.ofEpochMilli(1400L), Instant.ofEpochMilli(2617L)),
+              timerInGlobalWindow("B", Instant.ofEpochMilli(2000L), Instant.ofEpochMilli(2071L)),
+              timerInGlobalWindow("C", Instant.ofEpochMilli(1800L), Instant.ofEpochMilli(1861L))));
       assertThat(
           aggregator.getOutputTimers().get(processingTimer),
           contains(
               clearedTimerInGlobalWindow("X"),
-              timerInGlobalWindow("Y", new Instant(2100L), new Instant(10082L)),
-              timerInGlobalWindow("A", new Instant(1400L), new Instant(10032L)),
-              timerInGlobalWindow("B", new Instant(2000L), new Instant(10072L)),
-              timerInGlobalWindow("C", new Instant(1800L), new Instant(10062L))));
+              timerInGlobalWindow("Y", Instant.ofEpochMilli(2100L), Instant.ofEpochMilli(10082L)),
+              timerInGlobalWindow("A", Instant.ofEpochMilli(1400L), Instant.ofEpochMilli(10032L)),
+              timerInGlobalWindow("B", Instant.ofEpochMilli(2000L), Instant.ofEpochMilli(10072L)),
+              timerInGlobalWindow("C", Instant.ofEpochMilli(1800L), Instant.ofEpochMilli(10062L))));
 
       assertThat(
           aggregator.getOutputTimers().get(eventFamilyTimer),
           containsInAnyOrder(
               dynamicTimerInGlobalWindow(
-                  "X", "event-timer1", new Instant(1200L), new Instant(1203L)),
+                  "X", "event-timer1", Instant.ofEpochMilli(1200L), Instant.ofEpochMilli(1203L)),
               clearedTimerInGlobalWindow("X", "to-delete-event"),
               clearedTimerInGlobalWindow("Y", "to-delete-event"),
               dynamicTimerInGlobalWindow(
-                  "Y", "event-timer1", new Instant(2100L), new Instant(2183L)),
+                  "Y", "event-timer1", Instant.ofEpochMilli(2100L), Instant.ofEpochMilli(2183L)),
               dynamicTimerInGlobalWindow(
-                  "A", "event-timer1", new Instant(1400L), new Instant(2619L)),
+                  "A", "event-timer1", Instant.ofEpochMilli(1400L), Instant.ofEpochMilli(2619L)),
               dynamicTimerInGlobalWindow(
-                  "B", "event-timer1", new Instant(2000L), new Instant(2073L)),
+                  "B", "event-timer1", Instant.ofEpochMilli(2000L), Instant.ofEpochMilli(2073L)),
               dynamicTimerInGlobalWindow(
-                  "C", "event-timer1", new Instant(1800L), new Instant(1863L))));
+                  "C", "event-timer1", Instant.ofEpochMilli(1800L), Instant.ofEpochMilli(1863L))));
       assertThat(
           aggregator.getOutputTimers().get(processingFamilyTimer),
           containsInAnyOrder(
               dynamicTimerInGlobalWindow(
-                  "X", "processing-timer1", new Instant(1200L), new Instant(10004L)),
+                  "X",
+                  "processing-timer1",
+                  Instant.ofEpochMilli(1200L),
+                  Instant.ofEpochMilli(10004L)),
               clearedTimerInGlobalWindow("X", "to-delete-processing"),
               dynamicTimerInGlobalWindow(
-                  "Y", "processing-timer1", new Instant(2100L), new Instant(10084L)),
+                  "Y",
+                  "processing-timer1",
+                  Instant.ofEpochMilli(2100L),
+                  Instant.ofEpochMilli(10084L)),
               clearedTimerInGlobalWindow("Y", "to-delete-processing"),
               dynamicTimerInGlobalWindow(
-                  "A", "processing-timer1", new Instant(1400L), new Instant(10034L)),
+                  "A",
+                  "processing-timer1",
+                  Instant.ofEpochMilli(1400L),
+                  Instant.ofEpochMilli(10034L)),
               dynamicTimerInGlobalWindow(
-                  "B", "processing-timer1", new Instant(2000L), new Instant(10074L)),
+                  "B",
+                  "processing-timer1",
+                  Instant.ofEpochMilli(2000L),
+                  Instant.ofEpochMilli(10074L)),
               dynamicTimerInGlobalWindow(
-                  "C", "processing-timer1", new Instant(1800L), new Instant(10064L))));
+                  "C",
+                  "processing-timer1",
+                  Instant.ofEpochMilli(1800L),
+                  Instant.ofEpochMilli(10064L))));
 
       assertThat(mainOutputValues, empty());
 
@@ -2196,8 +2231,8 @@ public class FnApiDoFnRunnerTest implements Serializable {
           context.getPCollectionConsumer(inputPCollectionId);
       assertThat(mainInput, instanceOf(HandlesSplits.class));
 
-      BoundedWindow window1 = new IntervalWindow(new Instant(5), new Instant(10));
-      BoundedWindow window2 = new IntervalWindow(new Instant(6), new Instant(11));
+      BoundedWindow window1 = new IntervalWindow(Instant.ofEpochMilli(5), Instant.ofEpochMilli(10));
+      BoundedWindow window2 = new IntervalWindow(Instant.ofEpochMilli(6), Instant.ofEpochMilli(11));
       {
         // Check that before processing an element we don't report progress
         assertNoReportedProgress(context.getBundleProgressReporters());
@@ -2687,7 +2722,7 @@ public class FnApiDoFnRunnerTest implements Serializable {
           assertThrows(
                   UserCodeException.class,
                   () -> {
-                    mainInput.accept(timestampedValueInGlobalWindow("1", new Instant(0L)));
+                    mainInput.accept(timestampedValueInGlobalWindow("1", Instant.ofEpochMilli(0L)));
                   })
               .getMessage();
 
@@ -2695,7 +2730,8 @@ public class FnApiDoFnRunnerTest implements Serializable {
           message,
           allOf(
               containsString(
-                  String.format("timestamp %s", new Instant(0).minus(Duration.millis(1L)))),
+                  String.format(
+                      "timestamp %s", Instant.ofEpochMilli(0).minus(Duration.millis(1L)))),
               containsString(
                   String.format(
                       "allowed skew (%s)",
@@ -2744,7 +2780,7 @@ public class FnApiDoFnRunnerTest implements Serializable {
       FnDataReceiver<WindowedValue<?>> mainInput =
           context.getPCollectionConsumer(inputPCollectionId);
       mainInput.accept(valueInGlobalWindow("0"));
-      mainInput.accept(timestampedValueInGlobalWindow("3", new Instant(0L)));
+      mainInput.accept(timestampedValueInGlobalWindow("3", Instant.ofEpochMilli(0L)));
     }
   }
 

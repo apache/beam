@@ -64,7 +64,7 @@ public class StreamingWriteTest {
   private static final String STAGING_BUCKET_NAME = "BUCKET/";
   private static final String STORAGE_INTEGRATION_NAME = "STORAGE_INTEGRATION";
   private static final String SNOW_PIPE = "Snowpipe";
-  private static final Instant START_TIME = new Instant(0);
+  private static final Instant START_TIME = Instant.ofEpochMilli(0);
 
   @Rule public final transient TestPipeline pipeline = TestPipeline.create();
 

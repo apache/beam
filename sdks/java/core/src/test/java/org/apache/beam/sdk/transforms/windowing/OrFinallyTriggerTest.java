@@ -31,24 +31,24 @@ public class OrFinallyTriggerTest {
 
   @Test
   public void testFireDeadline() throws Exception {
-    BoundedWindow window = new IntervalWindow(new Instant(0), new Instant(10));
+    BoundedWindow window = new IntervalWindow(Instant.ofEpochMilli(0), Instant.ofEpochMilli(10));
 
     assertEquals(
-        new Instant(9),
+        Instant.ofEpochMilli(9),
         Repeatedly.forever(AfterWatermark.pastEndOfWindow())
             .getWatermarkThatGuaranteesFiring(window));
     assertEquals(
-        new Instant(9),
+        Instant.ofEpochMilli(9),
         Repeatedly.forever(AfterWatermark.pastEndOfWindow())
             .orFinally(AfterPane.elementCountAtLeast(1))
             .getWatermarkThatGuaranteesFiring(window));
     assertEquals(
-        new Instant(9),
+        Instant.ofEpochMilli(9),
         Repeatedly.forever(AfterPane.elementCountAtLeast(1))
             .orFinally(AfterWatermark.pastEndOfWindow())
             .getWatermarkThatGuaranteesFiring(window));
     assertEquals(
-        new Instant(9),
+        Instant.ofEpochMilli(9),
         AfterPane.elementCountAtLeast(100)
             .orFinally(AfterWatermark.pastEndOfWindow())
             .getWatermarkThatGuaranteesFiring(window));

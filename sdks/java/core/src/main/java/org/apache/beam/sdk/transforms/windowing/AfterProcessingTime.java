@@ -91,10 +91,10 @@ public class AfterProcessingTime extends OnceTrigger {
 
   /**
    * Aligns the time to be the smallest multiple of {@code period} greater than the epoch boundary
-   * (aka {@code new Instant(0)}).
+   * (aka {@code Instant.ofEpochMilli(0)}).
    */
   public AfterProcessingTime alignedTo(final Duration period) {
-    return alignedTo(period, new Instant(0));
+    return alignedTo(period, Instant.ofEpochMilli(0));
   }
 
   @Override

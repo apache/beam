@@ -90,7 +90,7 @@ public class HourlyTeamScoreTest implements Serializable {
   @Test
   public void testUserScoresFilter() throws Exception {
 
-    final Instant startMinTimestamp = new Instant(1447965680000L);
+    final Instant startMinTimestamp = Instant.ofEpochMilli(1447965680000L);
 
     PCollection<String> input = p.apply(Create.of(GAME_EVENTS).withCoder(StringUtf8Coder.of()));
 

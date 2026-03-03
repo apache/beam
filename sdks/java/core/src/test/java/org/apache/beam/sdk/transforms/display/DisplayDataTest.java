@@ -106,7 +106,7 @@ public class DisplayDataTest implements Serializable {
 
     PTransform<?, ?> transform =
         new PTransform<PCollection<String>, PCollection<String>>() {
-          final Instant defaultStartTime = new Instant(0);
+          final Instant defaultStartTime = Instant.ofEpochMilli(0);
           Instant startTime = defaultStartTime;
 
           @Override
@@ -337,9 +337,11 @@ public class DisplayDataTest implements Serializable {
                     .addIfNotDefault(DisplayData.item("defaultBoolean", true), true)
                     .addIfNotDefault(DisplayData.item("notDefaultBoolean", true), false)
                     .addIfNotDefault(
-                        DisplayData.item("defaultInstant", new Instant(0)), new Instant(0))
+                        DisplayData.item("defaultInstant", Instant.ofEpochMilli(0)),
+                        Instant.ofEpochMilli(0))
                     .addIfNotDefault(
-                        DisplayData.item("notDefaultInstant", new Instant(0)), Instant.now())
+                        DisplayData.item("notDefaultInstant", Instant.ofEpochMilli(0)),
+                        Instant.now())
                     .addIfNotDefault(
                         DisplayData.item("defaultDuration", Duration.ZERO), Duration.ZERO)
                     .addIfNotDefault(
@@ -1153,7 +1155,7 @@ public class DisplayDataTest implements Serializable {
                 .add(DisplayData.item("long", intValue))
                 .add(DisplayData.item("double", floatValue))
                 .add(DisplayData.item("boolean", boolValue))
-                .add(DisplayData.item("instant", new Instant(0)))
+                .add(DisplayData.item("instant", Instant.ofEpochMilli(0)))
                 .add(DisplayData.item("duration", Duration.millis(durationMillis)))
                 .add(
                     DisplayData.item("class", DisplayDataTest.class)

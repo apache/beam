@@ -47,8 +47,8 @@ public class KeyedWorkItemCoderTest {
         ImmutableList.of(
             TimerData.of(
                 StateNamespaces.global(),
-                new Instant(500L),
-                new Instant(500L),
+                Instant.ofEpochMilli(500L),
+                Instant.ofEpochMilli(500L),
                 TimeDomain.EVENT_TIME,
                 CausedByDrain.NORMAL));
     Iterable<WindowedValue<Integer>> elements =

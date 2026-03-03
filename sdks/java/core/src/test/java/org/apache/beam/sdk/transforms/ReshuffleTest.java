@@ -126,8 +126,8 @@ public class ReshuffleTest implements Serializable {
             .apply(
                 Create.timestamped(
                         TimestampedValue.of("foo", BoundedWindow.TIMESTAMP_MIN_VALUE),
-                        TimestampedValue.of("foo", new Instant(0)),
-                        TimestampedValue.of("bar", new Instant(33)),
+                        TimestampedValue.of("foo", Instant.ofEpochMilli(0)),
+                        TimestampedValue.of("bar", Instant.ofEpochMilli(33)),
                         TimestampedValue.of("bar", GlobalWindow.INSTANCE.maxTimestamp()))
                     .withCoder(StringUtf8Coder.of()))
             .apply(
@@ -178,12 +178,12 @@ public class ReshuffleTest implements Serializable {
                             PaneInfo.NO_FIRING),
                         WindowedValues.of(
                             "foo",
-                            new Instant(0),
+                            Instant.ofEpochMilli(0),
                             GlobalWindow.INSTANCE,
                             PaneInfo.ON_TIME_AND_ONLY_FIRING),
                         WindowedValues.of(
                             "bar",
-                            new Instant(33),
+                            Instant.ofEpochMilli(33),
                             GlobalWindow.INSTANCE,
                             PaneInfo.createPane(false, false, PaneInfo.Timing.LATE, 1, 1)),
                         WindowedValues.of(
@@ -343,10 +343,10 @@ public class ReshuffleTest implements Serializable {
   public void testReshuffleWithTimestampsStreaming() {
     TestStream<Long> stream =
         TestStream.create(VarLongCoder.of())
-            .advanceWatermarkTo(new Instant(0L).plus(Duration.standardDays(48L)))
+            .advanceWatermarkTo(Instant.ofEpochMilli(0L).plus(Duration.standardDays(48L)))
             .addElements(
-                TimestampedValue.of(0L, new Instant(0L)),
-                TimestampedValue.of(1L, new Instant(0L).plus(Duration.standardDays(48L))),
+                TimestampedValue.of(0L, Instant.ofEpochMilli(0L)),
+                TimestampedValue.of(1L, Instant.ofEpochMilli(0L).plus(Duration.standardDays(48L))),
                 TimestampedValue.of(
                     2L, BoundedWindow.TIMESTAMP_MAX_VALUE.minus(Duration.standardDays(48L))))
             .advanceWatermarkToInfinity();

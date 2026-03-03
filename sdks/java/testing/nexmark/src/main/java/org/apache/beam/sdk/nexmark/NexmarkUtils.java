@@ -354,7 +354,8 @@ public class NexmarkUtils {
    * Instants guaranteed to be strictly before and after all event timestamps, and which won't be
    * subject to underflow/overflow.
    */
-  public static final Instant BEGINNING_OF_TIME = new Instant(0).plus(Duration.standardDays(365));
+  public static final Instant BEGINNING_OF_TIME =
+      Instant.ofEpochMilli(0).plus(Duration.standardDays(365));
 
   public static final Instant END_OF_TIME =
       BoundedWindow.TIMESTAMP_MAX_VALUE.minus(Duration.standardDays(365));

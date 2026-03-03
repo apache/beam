@@ -93,13 +93,16 @@ public class PubsubReaderTest {
     NativeReader.NativeReaderIterator<WindowedValue<String>> iter = reader.iterator();
     assertTrue(iter.start());
     assertEquals(
-        iter.getCurrent(), WindowedValues.timestampedValueInGlobalWindow("e0", new Instant(0)));
+        iter.getCurrent(),
+        WindowedValues.timestampedValueInGlobalWindow("e0", Instant.ofEpochMilli(0)));
     assertTrue(iter.advance());
     assertEquals(
-        iter.getCurrent(), WindowedValues.timestampedValueInGlobalWindow("e1", new Instant(1)));
+        iter.getCurrent(),
+        WindowedValues.timestampedValueInGlobalWindow("e1", Instant.ofEpochMilli(1)));
     assertTrue(iter.advance());
     assertEquals(
-        iter.getCurrent(), WindowedValues.timestampedValueInGlobalWindow("e2", new Instant(2)));
+        iter.getCurrent(),
+        WindowedValues.timestampedValueInGlobalWindow("e2", Instant.ofEpochMilli(2)));
     assertFalse(iter.advance());
   }
 

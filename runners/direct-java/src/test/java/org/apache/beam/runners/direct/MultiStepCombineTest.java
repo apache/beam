@@ -83,22 +83,22 @@ public class MultiStepCombineTest implements Serializable {
         pipeline
             .apply(
                 Create.timestamped(
-                    TimestampedValue.of(KV.of("foo", 1L), new Instant(1L)),
-                    TimestampedValue.of(KV.of("bar", 2L), new Instant(2L)),
-                    TimestampedValue.of(KV.of("bizzle", 3L), new Instant(3L)),
-                    TimestampedValue.of(KV.of("bar", 4L), new Instant(4L)),
-                    TimestampedValue.of(KV.of("bizzle", 11L), new Instant(11L))))
+                    TimestampedValue.of(KV.of("foo", 1L), Instant.ofEpochMilli(1L)),
+                    TimestampedValue.of(KV.of("bar", 2L), Instant.ofEpochMilli(2L)),
+                    TimestampedValue.of(KV.of("bizzle", 3L), Instant.ofEpochMilli(3L)),
+                    TimestampedValue.of(KV.of("bar", 4L), Instant.ofEpochMilli(4L)),
+                    TimestampedValue.of(KV.of("bizzle", 11L), Instant.ofEpochMilli(11L))))
             .apply(Window.into(windowFn))
             .apply(Combine.perKey(new MultiStepCombineFn()));
 
     PAssert.that("Windows should combine only elements in their windows", combined)
-        .inWindow(new IntervalWindow(new Instant(0L), Duration.millis(6L)))
+        .inWindow(new IntervalWindow(Instant.ofEpochMilli(0L), Duration.millis(6L)))
         .containsInAnyOrder(KV.of("foo", 1L), KV.of("bar", 6L), KV.of("bizzle", 3L));
     PAssert.that("Elements should appear in all the windows they are assigned to", combined)
-        .inWindow(new IntervalWindow(new Instant(-3L), Duration.millis(6L)))
+        .inWindow(new IntervalWindow(Instant.ofEpochMilli(-3L), Duration.millis(6L)))
         .containsInAnyOrder(KV.of("foo", 1L), KV.of("bar", 2L));
     PAssert.that(combined)
-        .inWindow(new IntervalWindow(new Instant(6L), Duration.millis(6L)))
+        .inWindow(new IntervalWindow(Instant.ofEpochMilli(6L), Duration.millis(6L)))
         .containsInAnyOrder(KV.of("bizzle", 11L));
     PAssert.that(combined)
         .containsInAnyOrder(
@@ -121,10 +121,10 @@ public class MultiStepCombineTest implements Serializable {
         pipeline
             .apply(
                 Create.timestamped(
-                    TimestampedValue.of(KV.of("foo", 4L), new Instant(1L)),
-                    TimestampedValue.of(KV.of("foo", 1L), new Instant(4L)),
-                    TimestampedValue.of(KV.of("bazzle", 4L), new Instant(4L)),
-                    TimestampedValue.of(KV.of("foo", 12L), new Instant(12L))))
+                    TimestampedValue.of(KV.of("foo", 4L), Instant.ofEpochMilli(1L)),
+                    TimestampedValue.of(KV.of("foo", 1L), Instant.ofEpochMilli(4L)),
+                    TimestampedValue.of(KV.of("bazzle", 4L), Instant.ofEpochMilli(4L)),
+                    TimestampedValue.of(KV.of("foo", 12L), Instant.ofEpochMilli(12L))))
             .apply(
                 Window.<KV<String, Long>>into(FixedWindows.of(Duration.millis(5L)))
                     .withTimestampCombiner(combiner))
@@ -145,9 +145,9 @@ public class MultiStepCombineTest implements Serializable {
 
     PAssert.that(reified)
         .containsInAnyOrder(
-            KV.of("foo", TimestampedValue.of(5L, new Instant(4L))),
-            KV.of("bazzle", TimestampedValue.of(4L, new Instant(4L))),
-            KV.of("foo", TimestampedValue.of(12L, new Instant(12L))));
+            KV.of("foo", TimestampedValue.of(5L, Instant.ofEpochMilli(4L))),
+            KV.of("bazzle", TimestampedValue.of(4L, Instant.ofEpochMilli(4L))),
+            KV.of("foo", TimestampedValue.of(12L, Instant.ofEpochMilli(12L))));
     pipeline.run();
   }
 

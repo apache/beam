@@ -58,7 +58,7 @@ public class AfterEachStateMachineTest {
                     .orFinally(AfterWatermarkStateMachine.pastEndOfWindow())),
             FixedWindows.of(Duration.millis(10)));
 
-    IntervalWindow window = new IntervalWindow(new Instant(0), new Instant(10));
+    IntervalWindow window = new IntervalWindow(Instant.ofEpochMilli(0), Instant.ofEpochMilli(10));
 
     // AfterCount(2) not ready
     tester.injectElements(1);
@@ -89,7 +89,7 @@ public class AfterEachStateMachineTest {
     assertFalse(tester.isMarkedFinished(window));
 
     // This time advance the watermark to finish the whole mess.
-    tester.advanceInputWatermark(new Instant(10));
+    tester.advanceInputWatermark(Instant.ofEpochMilli(10));
     assertTrue(tester.shouldFire(window));
     tester.fireIfShouldFire(window);
     assertTrue(tester.isMarkedFinished(window));

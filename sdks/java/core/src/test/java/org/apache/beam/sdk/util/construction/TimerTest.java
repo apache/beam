@@ -36,8 +36,8 @@ import org.junit.runners.JUnit4;
 /** Tests for {@link Timer}. */
 @RunWith(JUnit4.class)
 public class TimerTest {
-  private static final Instant FIRE_TIME = new Instant(123L);
-  private static final Instant HOLD_TIME = new Instant(456L);
+  private static final Instant FIRE_TIME = Instant.ofEpochMilli(123L);
+  private static final Instant HOLD_TIME = Instant.ofEpochMilli(456L);
 
   @Test
   public void testClearTimer() {

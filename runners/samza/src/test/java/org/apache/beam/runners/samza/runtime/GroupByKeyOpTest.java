@@ -65,11 +65,11 @@ public class GroupByKeyOpTest implements Serializable {
   public void testDefaultGbk() {
     TestStream.Builder<Integer> testStream =
         TestStream.create(VarIntCoder.of())
-            .addElements(TimestampedValue.of(1, new Instant(1000)))
-            .addElements(TimestampedValue.of(2, new Instant(2000)))
-            .advanceWatermarkTo(new Instant(3000))
-            .addElements(TimestampedValue.of(10, new Instant(1000)))
-            .advanceWatermarkTo(new Instant(10000));
+            .addElements(TimestampedValue.of(1, Instant.ofEpochMilli(1000)))
+            .addElements(TimestampedValue.of(2, Instant.ofEpochMilli(2000)))
+            .advanceWatermarkTo(Instant.ofEpochMilli(3000))
+            .addElements(TimestampedValue.of(10, Instant.ofEpochMilli(1000)))
+            .advanceWatermarkTo(Instant.ofEpochMilli(10000));
 
     PCollection<Integer> aggregated =
         pipeline
@@ -88,11 +88,11 @@ public class GroupByKeyOpTest implements Serializable {
   public void testDropLateDataNonKeyed() {
     TestStream.Builder<Integer> testStream =
         TestStream.create(VarIntCoder.of())
-            .addElements(TimestampedValue.of(1, new Instant(1000)))
-            .addElements(TimestampedValue.of(2, new Instant(2000)))
-            .advanceWatermarkTo(new Instant(3000))
-            .addElements(TimestampedValue.of(10, new Instant(1000)))
-            .advanceWatermarkTo(new Instant(10000));
+            .addElements(TimestampedValue.of(1, Instant.ofEpochMilli(1000)))
+            .addElements(TimestampedValue.of(2, Instant.ofEpochMilli(2000)))
+            .advanceWatermarkTo(Instant.ofEpochMilli(3000))
+            .addElements(TimestampedValue.of(10, Instant.ofEpochMilli(1000)))
+            .advanceWatermarkTo(Instant.ofEpochMilli(10000));
 
     PCollection<Integer> aggregated =
         dropLateDataPipeline
@@ -111,12 +111,12 @@ public class GroupByKeyOpTest implements Serializable {
   public void testDropLateDataKeyed() {
     TestStream.Builder<KV<String, Integer>> testStream =
         TestStream.create(KvCoder.of(StringUtf8Coder.of(), VarIntCoder.of()))
-            .addElements(TimestampedValue.of(KV.of("a", 1), new Instant(1000)))
-            .addElements(TimestampedValue.of(KV.of("b", 2), new Instant(2000)))
-            .addElements(TimestampedValue.of(KV.of("a", 3), new Instant(2500)))
-            .advanceWatermarkTo(new Instant(3000))
-            .addElements(TimestampedValue.of(KV.of("a", 10), new Instant(1000)))
-            .advanceWatermarkTo(new Instant(10000));
+            .addElements(TimestampedValue.of(KV.of("a", 1), Instant.ofEpochMilli(1000)))
+            .addElements(TimestampedValue.of(KV.of("b", 2), Instant.ofEpochMilli(2000)))
+            .addElements(TimestampedValue.of(KV.of("a", 3), Instant.ofEpochMilli(2500)))
+            .advanceWatermarkTo(Instant.ofEpochMilli(3000))
+            .addElements(TimestampedValue.of(KV.of("a", 10), Instant.ofEpochMilli(1000)))
+            .advanceWatermarkTo(Instant.ofEpochMilli(10000));
 
     PCollection<KV<String, Integer>> aggregated =
         dropLateDataPipeline

@@ -71,7 +71,7 @@ public class RowStringInterpolatorTest {
 
     interpolator.interpolate(
         ValueInSingleWindow.of(
-            invalidRow, new Instant(0), GlobalWindow.INSTANCE, PaneInfo.NO_FIRING));
+            invalidRow, Instant.ofEpochMilli(0), GlobalWindow.INSTANCE, PaneInfo.NO_FIRING));
   }
 
   @Test
@@ -90,7 +90,7 @@ public class RowStringInterpolatorTest {
 
     interpolator.interpolate(
         ValueInSingleWindow.of(
-            invalidRow, new Instant(0), GlobalWindow.INSTANCE, PaneInfo.NO_FIRING));
+            invalidRow, Instant.ofEpochMilli(0), GlobalWindow.INSTANCE, PaneInfo.NO_FIRING));
   }
 
   @Test
@@ -112,7 +112,7 @@ public class RowStringInterpolatorTest {
 
     interpolator.interpolate(
         ValueInSingleWindow.of(
-            invalidRow, new Instant(0), GlobalWindow.INSTANCE, PaneInfo.NO_FIRING));
+            invalidRow, Instant.ofEpochMilli(0), GlobalWindow.INSTANCE, PaneInfo.NO_FIRING));
   }
 
   private static final Row ROW =
@@ -143,7 +143,8 @@ public class RowStringInterpolatorTest {
 
     String output =
         interpolator.interpolate(
-            ValueInSingleWindow.of(ROW, new Instant(0), GlobalWindow.INSTANCE, PaneInfo.NO_FIRING));
+            ValueInSingleWindow.of(
+                ROW, Instant.ofEpochMilli(0), GlobalWindow.INSTANCE, PaneInfo.NO_FIRING));
 
     assertEquals("foo str_value, bar true, baz 123, xyz ", output);
   }
@@ -155,7 +156,8 @@ public class RowStringInterpolatorTest {
 
     String output =
         interpolator.interpolate(
-            ValueInSingleWindow.of(ROW, new Instant(0), GlobalWindow.INSTANCE, PaneInfo.NO_FIRING));
+            ValueInSingleWindow.of(
+                ROW, Instant.ofEpochMilli(0), GlobalWindow.INSTANCE, PaneInfo.NO_FIRING));
 
     assertEquals("foo str_value, bar nested_str_value, baz 1.234", output);
   }
@@ -168,7 +170,8 @@ public class RowStringInterpolatorTest {
 
     String output =
         interpolator.interpolate(
-            ValueInSingleWindow.of(ROW, new Instant(0), GlobalWindow.INSTANCE, PaneInfo.NO_FIRING));
+            ValueInSingleWindow.of(
+                ROW, Instant.ofEpochMilli(0), GlobalWindow.INSTANCE, PaneInfo.NO_FIRING));
 
     assertEquals("foo str_value, bar doubly_nested_str_value, baz 789", output);
   }

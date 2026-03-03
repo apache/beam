@@ -639,7 +639,7 @@ public class WorkerCustomSourcesTest {
                   .setSourceState(
                       Windmill.SourceState.newBuilder().setState(state).build()) // Source state.
                   .build(),
-              Watermarks.builder().setInputDataWatermark(new Instant(0)).build()),
+              Watermarks.builder().setInputDataWatermark(Instant.ofEpochMilli(0)).build()),
           mock(WindmillStateReader.class),
           mock(SideInputStateFetcher.class),
           Windmill.WorkItemCommitRequest.newBuilder());
@@ -1009,7 +1009,7 @@ public class WorkerCustomSourcesTest {
         Work.create(
             workItem,
             workItem.getSerializedSize(),
-            Watermarks.builder().setInputDataWatermark(new Instant(0)).build(),
+            Watermarks.builder().setInputDataWatermark(Instant.ofEpochMilli(0)).build(),
             Work.createProcessingContext(
                 COMPUTATION_ID,
                 new FakeGetDataClient(),

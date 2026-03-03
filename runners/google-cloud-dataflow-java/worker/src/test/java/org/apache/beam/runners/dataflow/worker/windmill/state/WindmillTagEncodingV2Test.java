@@ -64,7 +64,7 @@ import org.junit.runners.Parameterized.Parameters;
 public class WindmillTagEncodingV2Test {
 
   private static final IntervalWindow INTERVAL_WINDOW =
-      new IntervalWindow(new Instant(10), new Instant(20));
+      new IntervalWindow(Instant.ofEpochMilli(10), Instant.ofEpochMilli(20));
 
   private static final CustomWindow CUSTOM_WINDOW = new CustomWindow(INTERVAL_WINDOW);
 
@@ -317,14 +317,14 @@ public class WindmillTagEncodingV2Test {
                   TIMER_ID,
                   TIMER_FAMILY_ID,
                   namespace,
-                  new Instant(123),
-                  new Instant(456),
+                  Instant.ofEpochMilli(123),
+                  Instant.ofEpochMilli(456),
                   timeDomain)
               : TimerData.of(
                   TIMER_ID,
                   namespace,
-                  new Instant(123),
-                  new Instant(456),
+                  Instant.ofEpochMilli(123),
+                  Instant.ofEpochMilli(456),
                   timeDomain,
                   CausedByDrain.NORMAL);
       assertEquals(
@@ -468,8 +468,8 @@ public class WindmillTagEncodingV2Test {
               TIMER_ID,
               TIMER_FAMILY_ID,
               GLOBAL_NAMESPACE,
-              new Instant(123),
-              new Instant(456),
+              Instant.ofEpochMilli(123),
+              Instant.ofEpochMilli(456),
               TimeDomain.EVENT_TIME);
       byte[] bytes = new byte[16];
       ThreadLocalRandom.current().nextBytes(bytes);

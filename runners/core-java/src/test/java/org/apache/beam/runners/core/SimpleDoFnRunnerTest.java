@@ -139,8 +139,8 @@ public class SimpleDoFnRunnerTest {
         "",
         null,
         GlobalWindow.INSTANCE,
-        new Instant(0),
-        new Instant(0),
+        Instant.ofEpochMilli(0),
+        Instant.ofEpochMilli(0),
         TimeDomain.EVENT_TIME,
         CausedByDrain.NORMAL);
   }
@@ -170,7 +170,7 @@ public class SimpleDoFnRunnerTest {
             Collections.emptyMap());
 
     // Setting the timer needs the current time, as it is set relative
-    Instant currentTime = new Instant(42);
+    Instant currentTime = Instant.ofEpochMilli(42);
     when(mockTimerInternals.currentInputWatermarkTime()).thenReturn(currentTime);
 
     runner.processElement(WindowedValues.valueInGlobalWindow("anyValue"));
@@ -255,7 +255,7 @@ public class SimpleDoFnRunnerTest {
             DoFnSchemaInformation.create(),
             Collections.emptyMap());
 
-    Instant currentTime = new Instant(42);
+    Instant currentTime = Instant.ofEpochMilli(42);
     Duration offset = Duration.millis(37);
 
     // Mocking is not easily compatible with annotation analysis, so we manually record
@@ -308,7 +308,7 @@ public class SimpleDoFnRunnerTest {
     runner.startBundle();
     // An element output at the current timestamp is fine.
     runner.processElement(
-        WindowedValues.timestampedValueInGlobalWindow(Duration.ZERO, new Instant(0)));
+        WindowedValues.timestampedValueInGlobalWindow(Duration.ZERO, Instant.ofEpochMilli(0)));
     Exception exception =
         assertThrows(
             UserCodeException.class,
@@ -316,7 +316,7 @@ public class SimpleDoFnRunnerTest {
               // An element output before (current time - skew) is forbidden
               runner.processElement(
                   WindowedValues.timestampedValueInGlobalWindow(
-                      Duration.millis(1L), new Instant(0)));
+                      Duration.millis(1L), Instant.ofEpochMilli(0)));
             });
 
     assertThat(exception.getCause(), isA(IllegalArgumentException.class));
@@ -326,7 +326,8 @@ public class SimpleDoFnRunnerTest {
             containsString("must be no earlier"),
             containsString(
                 String.format(
-                    "timestamp of the current input or timer (%s)", new Instant(0).toString())),
+                    "timestamp of the current input or timer (%s)",
+                    Instant.ofEpochMilli(0).toString())),
             containsString(
                 String.format(
                     "the allowed skew (%s)",
@@ -360,7 +361,7 @@ public class SimpleDoFnRunnerTest {
     // Outputting between "now" and "now - allowed skew" succeeds.
     runner.processElement(
         WindowedValues.timestampedValueInGlobalWindow(
-            Duration.standardMinutes(5L), new Instant(0)));
+            Duration.standardMinutes(5L), Instant.ofEpochMilli(0)));
 
     Exception exception =
         assertThrows(
@@ -369,7 +370,7 @@ public class SimpleDoFnRunnerTest {
               // Outputting before "now - allowed skew" fails.
               runner.processElement(
                   WindowedValues.timestampedValueInGlobalWindow(
-                      Duration.standardHours(1L), new Instant(0)));
+                      Duration.standardHours(1L), Instant.ofEpochMilli(0)));
             });
 
     assertThat(exception.getCause(), isA(IllegalArgumentException.class));
@@ -379,7 +380,8 @@ public class SimpleDoFnRunnerTest {
             containsString("must be no earlier"),
             containsString(
                 String.format(
-                    "timestamp of the current input or timer (%s)", new Instant(0).toString())),
+                    "timestamp of the current input or timer (%s)",
+                    Instant.ofEpochMilli(0).toString())),
             containsString(
                 String.format(
                     "the allowed skew (%s)",
@@ -411,7 +413,8 @@ public class SimpleDoFnRunnerTest {
 
     runner.startBundle();
     runner.processElement(
-        WindowedValues.timestampedValueInGlobalWindow(Duration.millis(1L), new Instant(0)));
+        WindowedValues.timestampedValueInGlobalWindow(
+            Duration.millis(1L), Instant.ofEpochMilli(0)));
     runner.processElement(
         WindowedValues.timestampedValueInGlobalWindow(
             Duration.millis(1L), BoundedWindow.TIMESTAMP_MIN_VALUE.plus(Duration.millis(1))));
@@ -450,7 +453,8 @@ public class SimpleDoFnRunnerTest {
     runner.startBundle();
     // A timer with output timestamp at the current timestamp is fine.
     runner.processElement(
-        WindowedValues.timestampedValueInGlobalWindow(KV.of("1", Duration.ZERO), new Instant(0)));
+        WindowedValues.timestampedValueInGlobalWindow(
+            KV.of("1", Duration.ZERO), Instant.ofEpochMilli(0)));
 
     Exception exception =
         assertThrows(
@@ -459,7 +463,7 @@ public class SimpleDoFnRunnerTest {
               // A timer with output timestamp before (current time - skew) is forbidden
               runner.processElement(
                   WindowedValues.timestampedValueInGlobalWindow(
-                      KV.of("2", Duration.millis(1L)), new Instant(0)));
+                      KV.of("2", Duration.millis(1L)), Instant.ofEpochMilli(0)));
             });
 
     assertThat(exception.getCause(), isA(IllegalArgumentException.class));
@@ -468,7 +472,8 @@ public class SimpleDoFnRunnerTest {
         allOf(
             containsString("Cannot output timer with"),
             containsString(
-                String.format("output timestamp %s", new Instant(0).minus(Duration.millis(1L)))),
+                String.format(
+                    "output timestamp %s", Instant.ofEpochMilli(0).minus(Duration.millis(1L)))),
             containsString(
                 String.format(
                     "allowed skew (%s)",
@@ -502,7 +507,7 @@ public class SimpleDoFnRunnerTest {
     // Timer with output timestamp between "now" and "now - allowed skew" succeeds.
     runner.processElement(
         WindowedValues.timestampedValueInGlobalWindow(
-            KV.of("1", Duration.standardMinutes(5L)), new Instant(0)));
+            KV.of("1", Duration.standardMinutes(5L)), Instant.ofEpochMilli(0)));
 
     Exception exception =
         assertThrows(
@@ -511,7 +516,7 @@ public class SimpleDoFnRunnerTest {
               // A timer with output timestamp before (current time - skew) is forbidden
               runner.processElement(
                   WindowedValues.timestampedValueInGlobalWindow(
-                      KV.of("2", Duration.standardHours(1L)), new Instant(0)));
+                      KV.of("2", Duration.standardHours(1L)), Instant.ofEpochMilli(0)));
             });
 
     assertThat(exception.getCause(), isA(IllegalArgumentException.class));
@@ -521,7 +526,8 @@ public class SimpleDoFnRunnerTest {
             containsString("Cannot output timer with"),
             containsString(
                 String.format(
-                    "output timestamp %s", new Instant(0).minus(Duration.standardHours(1L)))),
+                    "output timestamp %s",
+                    Instant.ofEpochMilli(0).minus(Duration.standardHours(1L)))),
             containsString(
                 String.format(
                     "allowed skew (%s)",
@@ -554,7 +560,7 @@ public class SimpleDoFnRunnerTest {
     runner.startBundle();
     runner.processElement(
         WindowedValues.timestampedValueInGlobalWindow(
-            KV.of("1", Duration.millis(1L)), new Instant(0)));
+            KV.of("1", Duration.millis(1L)), Instant.ofEpochMilli(0)));
     runner.processElement(
         WindowedValues.timestampedValueInGlobalWindow(
             KV.of("2", Duration.millis(1L)),
@@ -594,8 +600,8 @@ public class SimpleDoFnRunnerTest {
         "",
         null,
         GlobalWindow.INSTANCE,
-        new Instant(0),
-        new Instant(0),
+        Instant.ofEpochMilli(0),
+        Instant.ofEpochMilli(0),
         TimeDomain.EVENT_TIME,
         CausedByDrain.NORMAL);
   }
@@ -627,8 +633,8 @@ public class SimpleDoFnRunnerTest {
                   "",
                   null,
                   GlobalWindow.INSTANCE,
-                  new Instant(0),
-                  new Instant(0),
+                  Instant.ofEpochMilli(0),
+                  Instant.ofEpochMilli(0),
                   TimeDomain.EVENT_TIME,
                   CausedByDrain.NORMAL);
             });
@@ -640,7 +646,8 @@ public class SimpleDoFnRunnerTest {
             containsString("must be no earlier"),
             containsString(
                 String.format(
-                    "timestamp of the current input or timer (%s)", new Instant(0).toString())),
+                    "timestamp of the current input or timer (%s)",
+                    Instant.ofEpochMilli(0).toString())),
             containsString(
                 String.format(
                     "the allowed skew (%s)",
@@ -753,7 +760,7 @@ public class SimpleDoFnRunnerTest {
     public void processElement(ProcessContext context, @TimerId(TIMER_ID) Timer timer) {
       timer
           .withOutputTimestamp(context.timestamp().minus(context.element().getValue()))
-          .set(new Instant(0));
+          .set(Instant.ofEpochMilli(0));
     }
 
     @OnTimer(TIMER_ID)

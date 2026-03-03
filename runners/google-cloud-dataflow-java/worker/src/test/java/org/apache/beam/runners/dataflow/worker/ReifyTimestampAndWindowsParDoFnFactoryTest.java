@@ -64,8 +64,8 @@ public class ReifyTimestampAndWindowsParDoFnFactoryTest {
     verifyReifiedIsInTheSameWindows(
         WindowedValues.of(
             KV.of(42, "bizzle"),
-            new Instant(73),
-            new IntervalWindow(new Instant(5), new Instant(15)),
+            Instant.ofEpochMilli(73),
+            new IntervalWindow(Instant.ofEpochMilli(5), Instant.ofEpochMilli(15)),
             PaneInfo.NO_FIRING));
   }
 
@@ -74,10 +74,10 @@ public class ReifyTimestampAndWindowsParDoFnFactoryTest {
     verifyReifiedIsInTheSameWindows(
         WindowedValues.of(
             KV.of(42, "bizzle"),
-            new Instant(73),
+            Instant.ofEpochMilli(73),
             ImmutableList.of(
-                new IntervalWindow(new Instant(5), new Instant(15)),
-                new IntervalWindow(new Instant(17), new Instant(97))),
+                new IntervalWindow(Instant.ofEpochMilli(5), Instant.ofEpochMilli(15)),
+                new IntervalWindow(Instant.ofEpochMilli(17), Instant.ofEpochMilli(97))),
             PaneInfo.NO_FIRING));
   }
 

@@ -1065,11 +1065,11 @@ public class CombineTest implements Serializable {
           pipeline
               .apply(
                   Create.timestamped(
-                          TimestampedValue.of(KV.of("a", 1), new Instant(0L)),
-                          TimestampedValue.of(KV.of("a", 1), new Instant(1L)),
-                          TimestampedValue.of(KV.of("a", 4), new Instant(6L)),
-                          TimestampedValue.of(KV.of("b", 1), new Instant(7L)),
-                          TimestampedValue.of(KV.of("b", 13), new Instant(8L)))
+                          TimestampedValue.of(KV.of("a", 1), Instant.ofEpochMilli(0L)),
+                          TimestampedValue.of(KV.of("a", 1), Instant.ofEpochMilli(1L)),
+                          TimestampedValue.of(KV.of("a", 4), Instant.ofEpochMilli(6L)),
+                          TimestampedValue.of(KV.of("b", 1), Instant.ofEpochMilli(7L)),
+                          TimestampedValue.of(KV.of("b", 13), Instant.ofEpochMilli(8L)))
                       .withCoder(KvCoder.of(StringUtf8Coder.of(), BigEndianIntegerCoder.of())))
               .apply(Window.into(FixedWindows.of(Duration.millis(2))));
 
@@ -1092,11 +1092,11 @@ public class CombineTest implements Serializable {
           pipeline
               .apply(
                   Create.timestamped(
-                          TimestampedValue.of(KV.of("a", 1), new Instant(0L)),
-                          TimestampedValue.of(KV.of("a", 1), new Instant(1L)),
-                          TimestampedValue.of(KV.of("a", 4), new Instant(6L)),
-                          TimestampedValue.of(KV.of("b", 1), new Instant(7L)),
-                          TimestampedValue.of(KV.of("b", 13), new Instant(8L)))
+                          TimestampedValue.of(KV.of("a", 1), Instant.ofEpochMilli(0L)),
+                          TimestampedValue.of(KV.of("a", 1), Instant.ofEpochMilli(1L)),
+                          TimestampedValue.of(KV.of("a", 4), Instant.ofEpochMilli(6L)),
+                          TimestampedValue.of(KV.of("b", 1), Instant.ofEpochMilli(7L)),
+                          TimestampedValue.of(KV.of("b", 13), Instant.ofEpochMilli(8L)))
                       .withCoder(KvCoder.of(StringUtf8Coder.of(), BigEndianIntegerCoder.of())))
               .apply(Window.into(FixedWindows.of(Duration.millis(2))));
 
@@ -1134,9 +1134,9 @@ public class CombineTest implements Serializable {
           pipeline
               .apply(
                   Create.timestamped(
-                      TimestampedValue.of("a", new Instant(1L)),
-                      TimestampedValue.of("b", new Instant(2L)),
-                      TimestampedValue.of("c", new Instant(3L))))
+                      TimestampedValue.of("a", Instant.ofEpochMilli(1L)),
+                      TimestampedValue.of("b", Instant.ofEpochMilli(2L)),
+                      TimestampedValue.of("c", Instant.ofEpochMilli(3L))))
               .apply(Window.into(SlidingWindows.of(Duration.millis(3)).every(Duration.millis(1L))));
       PCollection<List<String>> combined =
           input.apply(
@@ -1194,11 +1194,11 @@ public class CombineTest implements Serializable {
           pipeline
               .apply(
                   Create.timestamped(
-                          TimestampedValue.of(KV.of("a", 1), new Instant(2L)),
-                          TimestampedValue.of(KV.of("a", 1), new Instant(3L)),
-                          TimestampedValue.of(KV.of("a", 4), new Instant(8L)),
-                          TimestampedValue.of(KV.of("b", 1), new Instant(9L)),
-                          TimestampedValue.of(KV.of("b", 13), new Instant(10L)))
+                          TimestampedValue.of(KV.of("a", 1), Instant.ofEpochMilli(2L)),
+                          TimestampedValue.of(KV.of("a", 1), Instant.ofEpochMilli(3L)),
+                          TimestampedValue.of(KV.of("a", 4), Instant.ofEpochMilli(8L)),
+                          TimestampedValue.of(KV.of("b", 1), Instant.ofEpochMilli(9L)),
+                          TimestampedValue.of(KV.of("b", 13), Instant.ofEpochMilli(10L)))
                       .withCoder(KvCoder.of(StringUtf8Coder.of(), BigEndianIntegerCoder.of())))
               .apply(Window.into(SlidingWindows.of(Duration.millis(2))));
 
@@ -1271,11 +1271,11 @@ public class CombineTest implements Serializable {
           pipeline
               .apply(
                   Create.timestamped(
-                          TimestampedValue.of(KV.of("a", 1), new Instant(0L)),
-                          TimestampedValue.of(KV.of("a", 1), new Instant(4L)),
-                          TimestampedValue.of(KV.of("a", 4), new Instant(7L)),
-                          TimestampedValue.of(KV.of("b", 1), new Instant(10L)),
-                          TimestampedValue.of(KV.of("b", 13), new Instant(16L)))
+                          TimestampedValue.of(KV.of("a", 1), Instant.ofEpochMilli(0L)),
+                          TimestampedValue.of(KV.of("a", 1), Instant.ofEpochMilli(4L)),
+                          TimestampedValue.of(KV.of("a", 4), Instant.ofEpochMilli(7L)),
+                          TimestampedValue.of(KV.of("b", 1), Instant.ofEpochMilli(10L)),
+                          TimestampedValue.of(KV.of("b", 13), Instant.ofEpochMilli(16L)))
                       .withCoder(KvCoder.of(StringUtf8Coder.of(), BigEndianIntegerCoder.of())))
               .apply(Window.into(Sessions.withGapDuration(Duration.millis(5))));
 
@@ -1296,11 +1296,11 @@ public class CombineTest implements Serializable {
       PCollection<KV<String, Integer>> perKeyInput =
           pipeline.apply(
               Create.timestamped(
-                      TimestampedValue.of(KV.of("a", 1), new Instant(0L)),
-                      TimestampedValue.of(KV.of("a", 1), new Instant(4L)),
-                      TimestampedValue.of(KV.of("a", 4), new Instant(7L)),
-                      TimestampedValue.of(KV.of("b", 1), new Instant(10L)),
-                      TimestampedValue.of(KV.of("b", 13), new Instant(16L)))
+                      TimestampedValue.of(KV.of("a", 1), Instant.ofEpochMilli(0L)),
+                      TimestampedValue.of(KV.of("a", 1), Instant.ofEpochMilli(4L)),
+                      TimestampedValue.of(KV.of("a", 4), Instant.ofEpochMilli(7L)),
+                      TimestampedValue.of(KV.of("b", 1), Instant.ofEpochMilli(10L)),
+                      TimestampedValue.of(KV.of("b", 13), Instant.ofEpochMilli(16L)))
                   .withCoder(KvCoder.of(StringUtf8Coder.of(), BigEndianIntegerCoder.of())));
 
       PCollection<Integer> globallyInput = perKeyInput.apply(Values.create());
@@ -1390,12 +1390,12 @@ public class CombineTest implements Serializable {
               .apply(
                   "CreateSideInput",
                   Create.timestamped(
-                      TimestampedValue.of(1, new Instant(100)),
-                      TimestampedValue.of(3, new Instant(100))))
+                      TimestampedValue.of(1, Instant.ofEpochMilli(100)),
+                      TimestampedValue.of(3, Instant.ofEpochMilli(100))))
               .apply("WindowSideInput", Window.into(windowFn))
               .apply("CombineSideInput", Sum.integersGlobally().asSingletonView());
 
-      TimestampedValue<Void> nonEmptyElement = TimestampedValue.of(null, new Instant(100));
+      TimestampedValue<Void> nonEmptyElement = TimestampedValue.of(null, Instant.ofEpochMilli(100));
       TimestampedValue<Void> emptyElement = TimestampedValue.atMinimumTimestamp(null);
       PCollection<Integer> output =
           pipeline

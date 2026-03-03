@@ -154,8 +154,8 @@ public class SamzaTimerInternalsFactoryTest {
         TimerInternals.TimerData.of(
             "timer1",
             nameSpace,
-            new Instant(10),
-            new Instant(10),
+            Instant.ofEpochMilli(10),
+            Instant.ofEpochMilli(10),
             TimeDomain.EVENT_TIME,
             CausedByDrain.NORMAL);
     timerInternals.setTimer(timer1);
@@ -164,22 +164,22 @@ public class SamzaTimerInternalsFactoryTest {
         TimerInternals.TimerData.of(
             "timer2",
             nameSpace,
-            new Instant(100),
-            new Instant(100),
+            Instant.ofEpochMilli(100),
+            Instant.ofEpochMilli(100),
             TimeDomain.EVENT_TIME,
             CausedByDrain.NORMAL);
     timerInternals.setTimer(timer2);
 
-    timerInternalsFactory.setInputWatermark(new Instant(5));
+    timerInternalsFactory.setInputWatermark(Instant.ofEpochMilli(5));
     Collection<KeyedTimerData<String>> readyTimers = timerInternalsFactory.removeReadyTimers();
     assertTrue(readyTimers.isEmpty());
 
-    timerInternalsFactory.setInputWatermark(new Instant(20));
+    timerInternalsFactory.setInputWatermark(Instant.ofEpochMilli(20));
     readyTimers = timerInternalsFactory.removeReadyTimers();
     assertEquals(1, readyTimers.size());
     assertEquals(timer1, readyTimers.iterator().next().getTimerData());
 
-    timerInternalsFactory.setInputWatermark(new Instant(150));
+    timerInternalsFactory.setInputWatermark(Instant.ofEpochMilli(150));
     readyTimers = timerInternalsFactory.removeReadyTimers();
     assertEquals(1, readyTimers.size());
     assertEquals(timer2, readyTimers.iterator().next().getTimerData());
@@ -203,8 +203,8 @@ public class SamzaTimerInternalsFactoryTest {
         TimerInternals.TimerData.of(
             "timer1",
             nameSpace,
-            new Instant(10),
-            new Instant(10),
+            Instant.ofEpochMilli(10),
+            Instant.ofEpochMilli(10),
             TimeDomain.EVENT_TIME,
             CausedByDrain.NORMAL);
     timerInternals.setTimer(timer1);
@@ -218,7 +218,7 @@ public class SamzaTimerInternalsFactoryTest {
         createTimerInternalsFactory(null, "timer", pipelineOptions, store);
     assertEquals(1, restoredFactory.getEventTimeBuffer().size());
 
-    restoredFactory.setInputWatermark(new Instant(150));
+    restoredFactory.setInputWatermark(Instant.ofEpochMilli(150));
     Collection<KeyedTimerData<String>> readyTimers = restoredFactory.removeReadyTimers();
     assertEquals(1, readyTimers.size());
 
@@ -229,8 +229,8 @@ public class SamzaTimerInternalsFactoryTest {
         TimerInternals.TimerData.of(
             "timer2",
             nameSpace,
-            new Instant(200),
-            new Instant(200),
+            Instant.ofEpochMilli(200),
+            Instant.ofEpochMilli(200),
             TimeDomain.EVENT_TIME,
             CausedByDrain.NORMAL);
     restoredTimerInternals.setTimer(timer2);
@@ -241,7 +241,7 @@ public class SamzaTimerInternalsFactoryTest {
     readyTimers = restoredFactory.removeReadyTimers();
     assertEquals(0, readyTimers.size());
 
-    restoredFactory.setInputWatermark(new Instant(250));
+    restoredFactory.setInputWatermark(Instant.ofEpochMilli(250));
 
     // Timer 2 should be ready
     readyTimers = restoredFactory.removeReadyTimers();
@@ -270,8 +270,8 @@ public class SamzaTimerInternalsFactoryTest {
         TimerInternals.TimerData.of(
             "timer1",
             nameSpace,
-            new Instant(10),
-            new Instant(10),
+            Instant.ofEpochMilli(10),
+            Instant.ofEpochMilli(10),
             TimeDomain.EVENT_TIME,
             CausedByDrain.NORMAL);
     timerInternals.setTimer(timer1);
@@ -280,8 +280,8 @@ public class SamzaTimerInternalsFactoryTest {
         TimerInternals.TimerData.of(
             "timer2",
             nameSpace,
-            new Instant(100),
-            new Instant(100),
+            Instant.ofEpochMilli(100),
+            Instant.ofEpochMilli(100),
             TimeDomain.EVENT_TIME,
             CausedByDrain.NORMAL);
     timerInternals.setTimer(timer2);
@@ -293,7 +293,7 @@ public class SamzaTimerInternalsFactoryTest {
     final SamzaTimerInternalsFactory<String> restoredFactory =
         createTimerInternalsFactory(null, "timer", pipelineOptions, store);
 
-    restoredFactory.setInputWatermark(new Instant(150));
+    restoredFactory.setInputWatermark(Instant.ofEpochMilli(150));
     Collection<KeyedTimerData<String>> readyTimers = restoredFactory.removeReadyTimers();
     assertEquals(2, readyTimers.size());
 
@@ -326,8 +326,8 @@ public class SamzaTimerInternalsFactoryTest {
         TimerInternals.TimerData.of(
             "timer1",
             nameSpace,
-            new Instant(10),
-            new Instant(10),
+            Instant.ofEpochMilli(10),
+            Instant.ofEpochMilli(10),
             TimeDomain.PROCESSING_TIME,
             CausedByDrain.NORMAL);
     timerInternals.setTimer(timer1);
@@ -336,8 +336,8 @@ public class SamzaTimerInternalsFactoryTest {
         TimerInternals.TimerData.of(
             "timer2",
             nameSpace,
-            new Instant(100),
-            new Instant(100),
+            Instant.ofEpochMilli(100),
+            Instant.ofEpochMilli(100),
             TimeDomain.PROCESSING_TIME,
             CausedByDrain.NORMAL);
     timerInternals.setTimer(timer2);
@@ -347,8 +347,8 @@ public class SamzaTimerInternalsFactoryTest {
             "timer3",
             "timerFamilyId3",
             nameSpace,
-            new Instant(100),
-            new Instant(100),
+            Instant.ofEpochMilli(100),
+            Instant.ofEpochMilli(100),
             TimeDomain.PROCESSING_TIME);
     timerInternals.setTimer(timer3);
     assertEquals(3, timerRegistry.timers.size());
@@ -387,8 +387,8 @@ public class SamzaTimerInternalsFactoryTest {
         TimerInternals.TimerData.of(
             "timerId",
             nameSpace,
-            new Instant(10),
-            new Instant(10),
+            Instant.ofEpochMilli(10),
+            Instant.ofEpochMilli(10),
             TimeDomain.EVENT_TIME,
             CausedByDrain.NORMAL);
     timerInternals.setTimer(timer1);
@@ -398,8 +398,8 @@ public class SamzaTimerInternalsFactoryTest {
         TimerInternals.TimerData.of(
             "timerId",
             nameSpace,
-            new Instant(100),
-            new Instant(100),
+            Instant.ofEpochMilli(100),
+            Instant.ofEpochMilli(100),
             TimeDomain.EVENT_TIME,
             CausedByDrain.NORMAL);
     timerInternals.setTimer(timer2);
@@ -408,22 +408,22 @@ public class SamzaTimerInternalsFactoryTest {
         TimerInternals.TimerData.of(
             "timerId2",
             nameSpace,
-            new Instant(200),
-            new Instant(200),
+            Instant.ofEpochMilli(200),
+            Instant.ofEpochMilli(200),
             TimeDomain.EVENT_TIME,
             CausedByDrain.NORMAL);
     timerInternals.setTimer(timer3);
 
     // this timer shouldn't override since it has a different id
-    timerInternalsFactory.setInputWatermark(new Instant(50));
+    timerInternalsFactory.setInputWatermark(Instant.ofEpochMilli(50));
     Collection<KeyedTimerData<String>> readyTimers = timerInternalsFactory.removeReadyTimers();
     assertEquals(0, readyTimers.size());
 
-    timerInternalsFactory.setInputWatermark(new Instant(150));
+    timerInternalsFactory.setInputWatermark(Instant.ofEpochMilli(150));
     readyTimers = timerInternalsFactory.removeReadyTimers();
     assertEquals(1, readyTimers.size());
 
-    timerInternalsFactory.setInputWatermark(new Instant(250));
+    timerInternalsFactory.setInputWatermark(Instant.ofEpochMilli(250));
     readyTimers = timerInternalsFactory.removeReadyTimers();
     assertEquals(1, readyTimers.size());
 
@@ -536,7 +536,7 @@ public class SamzaTimerInternalsFactoryTest {
 
     // total number of event time timers to fire equals to the number of timers in store
     Collection<KeyedTimerData<String>> readyTimers;
-    timerInternalsFactory.setInputWatermark(new Instant(3));
+    timerInternalsFactory.setInputWatermark(Instant.ofEpochMilli(3));
     readyTimers = timerInternalsFactory.removeReadyTimers();
     // buffer should reload from store and all timers are supposed to be fired.
     assertEquals(3, readyTimers.size());
@@ -574,7 +574,7 @@ public class SamzaTimerInternalsFactoryTest {
     // timers in memory now are timestamped from 2 - 4;
     // timers in store now are timestamped from 2 - 7.
     Collection<KeyedTimerData<String>> readyTimers;
-    timerInternalsFactory.setInputWatermark(new Instant(1));
+    timerInternalsFactory.setInputWatermark(Instant.ofEpochMilli(1));
     long lastTimestamp = 0;
     readyTimers = timerInternalsFactory.removeReadyTimers();
     for (KeyedTimerData<String> keyedTimerData : readyTimers) {
@@ -593,7 +593,7 @@ public class SamzaTimerInternalsFactoryTest {
       timerInternals.setTimer(
           nameSpace, "timer" + i, "", new Instant(i), new Instant(i), TimeDomain.EVENT_TIME);
     }
-    timerInternalsFactory.setInputWatermark(new Instant(20));
+    timerInternalsFactory.setInputWatermark(Instant.ofEpochMilli(20));
     lastTimestamp = 0;
     readyTimers = timerInternalsFactory.removeReadyTimers();
     for (KeyedTimerData<String> keyedTimerData : readyTimers) {
@@ -631,7 +631,7 @@ public class SamzaTimerInternalsFactoryTest {
     // timers in memory now are timestamped from 2 - 4;
     // timers in store now are timestamped from 2 - 9.
     Collection<KeyedTimerData<String>> readyTimers;
-    timerInternalsFactory.setInputWatermark(new Instant(1));
+    timerInternalsFactory.setInputWatermark(Instant.ofEpochMilli(1));
     long lastTimestamp = 0;
     readyTimers = timerInternalsFactory.removeReadyTimers();
     for (KeyedTimerData<String> keyedTimerData : readyTimers) {
@@ -656,7 +656,7 @@ public class SamzaTimerInternalsFactoryTest {
     // memory will be reloaded once to have 5 to 8 left (reload to have 4 to 8, but 4 is evicted), 5
     // to 9 left in store.
     // all of them are in order for firing.
-    timerInternalsFactory.setInputWatermark(new Instant(5));
+    timerInternalsFactory.setInputWatermark(Instant.ofEpochMilli(5));
     lastTimestamp = 0;
     readyTimers = timerInternalsFactory.removeReadyTimers();
     for (KeyedTimerData<String> keyedTimerData : readyTimers) {
@@ -668,7 +668,7 @@ public class SamzaTimerInternalsFactoryTest {
     assertEquals(4, timerInternalsFactory.getEventTimeBuffer().size());
 
     // watermark 10 comes, so all timers will be evicted in order.
-    timerInternalsFactory.setInputWatermark(new Instant(10));
+    timerInternalsFactory.setInputWatermark(Instant.ofEpochMilli(10));
     readyTimers = timerInternalsFactory.removeReadyTimers();
     for (KeyedTimerData<String> keyedTimerData : readyTimers) {
       final long currentTimeStamp = keyedTimerData.getTimerData().getTimestamp().getMillis();
@@ -704,7 +704,7 @@ public class SamzaTimerInternalsFactoryTest {
 
     // total number of event time timers to fire equals to the number of timers in store
     Collection<KeyedTimerData<String>> readyTimers;
-    timerInternalsFactory.setInputWatermark(new Instant(4));
+    timerInternalsFactory.setInputWatermark(Instant.ofEpochMilli(4));
     readyTimers = timerInternalsFactory.removeReadyTimers();
     assertEquals(5, readyTimers.size());
     // reloaded timer5
@@ -718,7 +718,7 @@ public class SamzaTimerInternalsFactoryTest {
     assertEquals(5, timerInternalsFactory.getEventTimeBuffer().size());
 
     // watermark 10 comes,6 timers will be evicted in order and 2 still in buffer.
-    timerInternalsFactory.setInputWatermark(new Instant(10));
+    timerInternalsFactory.setInputWatermark(Instant.ofEpochMilli(10));
     readyTimers = timerInternalsFactory.removeReadyTimers();
     long lastTimestamp = 0;
     for (KeyedTimerData<String> keyedTimerData : readyTimers) {

@@ -68,10 +68,10 @@ public class TimestampedValueTest {
   public void testEquality() {
     new EqualsTester()
         .addEqualityGroup(
-            TimestampedValue.of("foo", new Instant(1000)),
-            TimestampedValue.of("foo", new Instant(1000)))
-        .addEqualityGroup(TimestampedValue.of("foo", new Instant(2000)))
-        .addEqualityGroup(TimestampedValue.of("bar", new Instant(1000)))
+            TimestampedValue.of("foo", Instant.ofEpochMilli(1000)),
+            TimestampedValue.of("foo", Instant.ofEpochMilli(1000)))
+        .addEqualityGroup(TimestampedValue.of("foo", Instant.ofEpochMilli(2000)))
+        .addEqualityGroup(TimestampedValue.of("bar", Instant.ofEpochMilli(1000)))
         .addEqualityGroup(
             TimestampedValue.of("foo", BoundedWindow.TIMESTAMP_MIN_VALUE),
             TimestampedValue.atMinimumTimestamp("foo"))

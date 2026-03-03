@@ -74,7 +74,7 @@ import org.junit.runners.JUnit4;
 @RunWith(JUnit4.class)
 public class HadoopFormatIOSequenceFileTest {
 
-  private static final Instant START_TIME = new Instant(0);
+  private static final Instant START_TIME = Instant.ofEpochMilli(0);
   private static final String TEST_FOLDER_NAME = "test";
   private static final String LOCKS_FOLDER_NAME = "locks";
   private static final int REDUCERS_COUNT = 2;

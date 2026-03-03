@@ -80,13 +80,14 @@ public class WatermarkCallbackExecutorTest {
     CountDownLatch latch = new CountDownLatch(2);
     WindowFn<Object, IntervalWindow> windowFn = FixedWindows.of(Duration.standardMinutes(10));
     IntervalWindow window =
-        new IntervalWindow(new Instant(0L), new Instant(0L).plus(Duration.standardMinutes(10)));
+        new IntervalWindow(
+            Instant.ofEpochMilli(0L), Instant.ofEpochMilli(0L).plus(Duration.standardMinutes(10)));
     executor.callOnGuaranteedFiring(
         create, window, WindowingStrategy.of(windowFn), new CountDownLatchCallback(latch));
     executor.callOnGuaranteedFiring(
         create, window, WindowingStrategy.of(windowFn), new CountDownLatchCallback(latch));
 
-    executor.fireForWatermark(create, new Instant(0L).plus(Duration.standardMinutes(10)));
+    executor.fireForWatermark(create, Instant.ofEpochMilli(0L).plus(Duration.standardMinutes(10)));
     assertThat(latch.await(500, TimeUnit.MILLISECONDS), equalTo(true));
   }
 
@@ -95,11 +96,12 @@ public class WatermarkCallbackExecutorTest {
     CountDownLatch latch = new CountDownLatch(1);
     WindowFn<Object, IntervalWindow> windowFn = FixedWindows.of(Duration.standardMinutes(10));
     IntervalWindow window =
-        new IntervalWindow(new Instant(0L), new Instant(0L).plus(Duration.standardMinutes(10)));
+        new IntervalWindow(
+            Instant.ofEpochMilli(0L), Instant.ofEpochMilli(0L).plus(Duration.standardMinutes(10)));
     executor.callOnGuaranteedFiring(
         create, window, WindowingStrategy.of(windowFn), new CountDownLatchCallback(latch));
 
-    executor.fireForWatermark(create, new Instant(0L).plus(Duration.standardMinutes(5)));
+    executor.fireForWatermark(create, Instant.ofEpochMilli(0L).plus(Duration.standardMinutes(5)));
     assertThat(latch.await(500, TimeUnit.MILLISECONDS), equalTo(false));
   }
 
@@ -108,11 +110,12 @@ public class WatermarkCallbackExecutorTest {
     CountDownLatch latch = new CountDownLatch(1);
     WindowFn<Object, IntervalWindow> windowFn = FixedWindows.of(Duration.standardMinutes(10));
     IntervalWindow window =
-        new IntervalWindow(new Instant(0L), new Instant(0L).plus(Duration.standardMinutes(10)));
+        new IntervalWindow(
+            Instant.ofEpochMilli(0L), Instant.ofEpochMilli(0L).plus(Duration.standardMinutes(10)));
     executor.callOnGuaranteedFiring(
         sum, window, WindowingStrategy.of(windowFn), new CountDownLatchCallback(latch));
 
-    executor.fireForWatermark(create, new Instant(0L).plus(Duration.standardMinutes(20)));
+    executor.fireForWatermark(create, Instant.ofEpochMilli(0L).plus(Duration.standardMinutes(20)));
     assertThat(latch.await(500, TimeUnit.MILLISECONDS), equalTo(false));
   }
 

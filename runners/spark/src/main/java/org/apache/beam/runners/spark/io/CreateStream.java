@@ -123,7 +123,7 @@ public final class CreateStream<T> extends PTransform<PBegin, PCollection<T>> {
    */
   public static <T> CreateStream<T> of(
       Coder<T> coder, Duration batchDuration, boolean forceWatermarkSync) {
-    return new CreateStream<>(batchDuration, new Instant(0), coder, forceWatermarkSync);
+    return new CreateStream<>(batchDuration, Instant.ofEpochMilli(0), coder, forceWatermarkSync);
   }
 
   /**

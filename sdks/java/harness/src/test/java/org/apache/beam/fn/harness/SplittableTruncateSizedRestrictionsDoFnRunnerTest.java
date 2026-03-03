@@ -277,9 +277,9 @@ public class SplittableTruncateSizedRestrictionsDoFnRunnerTest implements Serial
       assertThat(mainInput, instanceOf(HandlesSplits.class));
 
       mainOutputValues.clear();
-      BoundedWindow window1 = new IntervalWindow(new Instant(5), new Instant(10));
-      BoundedWindow window2 = new IntervalWindow(new Instant(6), new Instant(11));
-      BoundedWindow window3 = new IntervalWindow(new Instant(7), new Instant(12));
+      BoundedWindow window1 = new IntervalWindow(Instant.ofEpochMilli(5), Instant.ofEpochMilli(10));
+      BoundedWindow window2 = new IntervalWindow(Instant.ofEpochMilli(6), Instant.ofEpochMilli(11));
+      BoundedWindow window3 = new IntervalWindow(Instant.ofEpochMilli(7), Instant.ofEpochMilli(12));
       // Setup and launch the trySplit thread.
       ExecutorService executorService = Executors.newSingleThreadExecutor();
       Future<SplitResult> trySplitFuture =
@@ -588,8 +588,10 @@ public class SplittableTruncateSizedRestrictionsDoFnRunnerTest implements Serial
           context.getPCollectionConsumer(inputPCollectionId);
       assertThat(mainInput, instanceOf(HandlesSplits.class));
 
-      IntervalWindow window1 = new IntervalWindow(new Instant(5), new Instant(10));
-      IntervalWindow window2 = new IntervalWindow(new Instant(6), new Instant(11));
+      IntervalWindow window1 =
+          new IntervalWindow(Instant.ofEpochMilli(5), Instant.ofEpochMilli(10));
+      IntervalWindow window2 =
+          new IntervalWindow(Instant.ofEpochMilli(6), Instant.ofEpochMilli(11));
       WindowedValue<?> firstValue =
           valueInWindows(
               KV.of(
@@ -705,8 +707,10 @@ public class SplittableTruncateSizedRestrictionsDoFnRunnerTest implements Serial
           context.getPCollectionConsumer(inputPCollectionId);
       assertThat(mainInput, instanceOf(HandlesSplits.class));
 
-      IntervalWindow window1 = new IntervalWindow(new Instant(5), new Instant(10));
-      IntervalWindow window2 = new IntervalWindow(new Instant(6), new Instant(11));
+      IntervalWindow window1 =
+          new IntervalWindow(Instant.ofEpochMilli(5), Instant.ofEpochMilli(10));
+      IntervalWindow window2 =
+          new IntervalWindow(Instant.ofEpochMilli(6), Instant.ofEpochMilli(11));
       WindowedValue<?> firstValue =
           valueInWindows(
               KV.of(

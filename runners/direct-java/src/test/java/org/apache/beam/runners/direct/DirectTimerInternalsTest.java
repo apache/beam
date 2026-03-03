@@ -56,7 +56,7 @@ public class DirectTimerInternalsTest {
   @Before
   public void setup() {
     MockitoAnnotations.initMocks(this);
-    clock = MockClock.fromInstant(new Instant(0));
+    clock = MockClock.fromInstant(Instant.ofEpochMilli(0));
 
     timerUpdateBuilder = TimerUpdate.builder(StructuralKey.of(1234, VarIntCoder.of()));
 
@@ -68,22 +68,22 @@ public class DirectTimerInternalsTest {
     TimerData eventTimer =
         TimerData.of(
             StateNamespaces.global(),
-            new Instant(20145L),
-            new Instant(20145L),
+            Instant.ofEpochMilli(20145L),
+            Instant.ofEpochMilli(20145L),
             TimeDomain.EVENT_TIME,
             CausedByDrain.NORMAL);
     TimerData processingTimer =
         TimerData.of(
             StateNamespaces.global(),
-            new Instant(125555555L),
-            new Instant(125555555L),
+            Instant.ofEpochMilli(125555555L),
+            Instant.ofEpochMilli(125555555L),
             TimeDomain.PROCESSING_TIME,
             CausedByDrain.NORMAL);
     TimerData synchronizedProcessingTimer =
         TimerData.of(
             StateNamespaces.global(),
-            new Instant(98745632189L),
-            new Instant(98745632189L),
+            Instant.ofEpochMilli(98745632189L),
+            Instant.ofEpochMilli(98745632189L),
             TimeDomain.SYNCHRONIZED_PROCESSING_TIME,
             CausedByDrain.NORMAL);
     internals.setTimer(eventTimer);
@@ -100,22 +100,22 @@ public class DirectTimerInternalsTest {
     TimerData eventTimer =
         TimerData.of(
             StateNamespaces.global(),
-            new Instant(20145L),
-            new Instant(20145L),
+            Instant.ofEpochMilli(20145L),
+            Instant.ofEpochMilli(20145L),
             TimeDomain.EVENT_TIME,
             CausedByDrain.NORMAL);
     TimerData processingTimer =
         TimerData.of(
             StateNamespaces.global(),
-            new Instant(125555555L),
-            new Instant(125555555L),
+            Instant.ofEpochMilli(125555555L),
+            Instant.ofEpochMilli(125555555L),
             TimeDomain.PROCESSING_TIME,
             CausedByDrain.NORMAL);
     TimerData synchronizedProcessingTimer =
         TimerData.of(
             StateNamespaces.global(),
-            new Instant(98745632189L),
-            new Instant(98745632189L),
+            Instant.ofEpochMilli(98745632189L),
+            Instant.ofEpochMilli(98745632189L),
             TimeDomain.SYNCHRONIZED_PROCESSING_TIME,
             CausedByDrain.NORMAL);
     internals.deleteTimer(eventTimer);
@@ -142,19 +142,20 @@ public class DirectTimerInternalsTest {
 
   @Test
   public void getSynchronizedProcessingTimeIsWatermarkSynchronizedInputTime() {
-    when(watermarks.getSynchronizedProcessingInputTime()).thenReturn(new Instant(12345L));
-    assertThat(internals.currentSynchronizedProcessingTime(), equalTo(new Instant(12345L)));
+    when(watermarks.getSynchronizedProcessingInputTime()).thenReturn(Instant.ofEpochMilli(12345L));
+    assertThat(
+        internals.currentSynchronizedProcessingTime(), equalTo(Instant.ofEpochMilli(12345L)));
   }
 
   @Test
   public void getInputWatermarkTimeUsesWatermarkTime() {
-    when(watermarks.getInputWatermark()).thenReturn(new Instant(8765L));
-    assertThat(internals.currentInputWatermarkTime(), equalTo(new Instant(8765L)));
+    when(watermarks.getInputWatermark()).thenReturn(Instant.ofEpochMilli(8765L));
+    assertThat(internals.currentInputWatermarkTime(), equalTo(Instant.ofEpochMilli(8765L)));
   }
 
   @Test
   public void getOutputWatermarkTimeUsesWatermarkTime() {
-    when(watermarks.getOutputWatermark()).thenReturn(new Instant(25525L));
-    assertThat(internals.currentOutputWatermarkTime(), equalTo(new Instant(25525L)));
+    when(watermarks.getOutputWatermark()).thenReturn(Instant.ofEpochMilli(25525L));
+    assertThat(internals.currentOutputWatermarkTime(), equalTo(Instant.ofEpochMilli(25525L)));
   }
 }

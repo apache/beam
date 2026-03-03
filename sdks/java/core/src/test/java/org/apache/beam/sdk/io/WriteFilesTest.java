@@ -378,7 +378,7 @@ public class WriteFilesTest {
     for (int i = 0; i < 30; ++i) {
       elements.add("number: " + i);
     }
-    Instant startInstant = new Instant(0L);
+    Instant startInstant = Instant.ofEpochMilli(0L);
     TestStream<String> testStream =
         TestStream.create(StringUtf8Coder.of())
             // Initialize watermark for timer to be triggered correctly.

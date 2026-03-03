@@ -44,7 +44,7 @@ import org.junit.runners.JUnit4;
 @RunWith(JUnit4.class)
 public class StatefulTeamScoreTest {
 
-  private Instant baseTime = new Instant(0);
+  private Instant baseTime = Instant.ofEpochMilli(0);
 
   @Rule public TestPipeline p = TestPipeline.create();
 

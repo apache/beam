@@ -197,14 +197,15 @@ public class StatefulParDoEvaluatorFactoryTest implements Serializable {
     when(mockSideInputReader.isReady(ArgumentMatchers.any(), ArgumentMatchers.any()))
         .thenReturn(false);
 
-    IntervalWindow firstWindow = new IntervalWindow(new Instant(0), new Instant(9));
+    IntervalWindow firstWindow =
+        new IntervalWindow(Instant.ofEpochMilli(0), Instant.ofEpochMilli(9));
 
     // A single bundle with some elements in the global window; it should register cleanup for the
     // global window state merely by having the evaluator created. The cleanup logic does not
     // depend on the window.
     String key = "hello";
     WindowedValue<KV<String, Integer>> firstKv =
-        WindowedValues.of(KV.of(key, 1), new Instant(3), firstWindow, PaneInfo.NO_FIRING);
+        WindowedValues.of(KV.of(key, 1), Instant.ofEpochMilli(3), firstWindow, PaneInfo.NO_FIRING);
 
     WindowedValue<KeyedWorkItem<String, KV<String, Integer>>> gbkOutputElement =
         firstKv.withValue(

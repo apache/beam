@@ -159,27 +159,27 @@ public class BatchGroupAlsoByWindowReshuffleDoFnTest {
             windowingStrategy,
             "key",
             WindowedValues.of(
-                "v1", new Instant(1), Arrays.asList(window(0, 10)), PaneInfo.NO_FIRING),
+                "v1", Instant.ofEpochMilli(1), Arrays.asList(window(0, 10)), PaneInfo.NO_FIRING),
             WindowedValues.of(
-                "v2", new Instant(2), Arrays.asList(window(0, 10)), PaneInfo.NO_FIRING),
+                "v2", Instant.ofEpochMilli(2), Arrays.asList(window(0, 10)), PaneInfo.NO_FIRING),
             WindowedValues.of(
-                "v3", new Instant(13), Arrays.asList(window(10, 20)), PaneInfo.NO_FIRING));
+                "v3", Instant.ofEpochMilli(13), Arrays.asList(window(10, 20)), PaneInfo.NO_FIRING));
 
     assertThat(result.size(), equalTo(3));
 
     WindowedValue<KV<String, Iterable<String>>> item0 = result.get(0);
     assertThat(item0.getValue().getValue(), contains("v1"));
-    assertThat(item0.getTimestamp(), equalTo(new Instant(1)));
+    assertThat(item0.getTimestamp(), equalTo(Instant.ofEpochMilli(1)));
     assertThat(item0.getWindows(), contains(window(0, 10)));
 
     WindowedValue<KV<String, Iterable<String>>> item1 = result.get(1);
     assertThat(item1.getValue().getValue(), contains("v2"));
-    assertThat(item1.getTimestamp(), equalTo(new Instant(2)));
+    assertThat(item1.getTimestamp(), equalTo(Instant.ofEpochMilli(2)));
     assertThat(item1.getWindows(), contains(window(0, 10)));
 
     WindowedValue<KV<String, Iterable<String>>> item2 = result.get(2);
     assertThat(item2.getValue().getValue(), contains("v3"));
-    assertThat(item2.getTimestamp(), equalTo(new Instant(13)));
+    assertThat(item2.getTimestamp(), equalTo(Instant.ofEpochMilli(13)));
     assertThat(item2.getWindows(), contains(window(10, 20)));
   }
 

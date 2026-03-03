@@ -86,11 +86,14 @@ public class PubsubSinkTest {
     Sink.SinkWriter<WindowedValue<String>> writer = sink.writer();
 
     assertEquals(
-        2, writer.add(WindowedValues.timestampedValueInGlobalWindow("e0", new Instant(0))));
+        2,
+        writer.add(WindowedValues.timestampedValueInGlobalWindow("e0", Instant.ofEpochMilli(0))));
     assertEquals(
-        2, writer.add(WindowedValues.timestampedValueInGlobalWindow("e1", new Instant(1))));
+        2,
+        writer.add(WindowedValues.timestampedValueInGlobalWindow("e1", Instant.ofEpochMilli(1))));
     assertEquals(
-        2, writer.add(WindowedValues.timestampedValueInGlobalWindow("e2", new Instant(2))));
+        2,
+        writer.add(WindowedValues.timestampedValueInGlobalWindow("e2", Instant.ofEpochMilli(2))));
     writer.close();
 
     assertEquals(
@@ -174,10 +177,14 @@ public class PubsubSinkTest {
     assertThrows(
         "encode error",
         CoderException.class,
-        () -> writer.add(WindowedValues.timestampedValueInGlobalWindow("e0", new Instant(0))));
+        () ->
+            writer.add(
+                WindowedValues.timestampedValueInGlobalWindow("e0", Instant.ofEpochMilli(0))));
     assertThrows(
         "encode error",
         CoderException.class,
-        () -> writer.add(WindowedValues.timestampedValueInGlobalWindow("e0", new Instant(0))));
+        () ->
+            writer.add(
+                WindowedValues.timestampedValueInGlobalWindow("e0", Instant.ofEpochMilli(0))));
   }
 }

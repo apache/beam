@@ -308,8 +308,8 @@ public class SplittableSplitAndSizeRestrictionsDoFnRunnerTest implements Seriali
         containsInAnyOrder(inputPCollectionId, outputPCollectionId));
 
     FnDataReceiver<WindowedValue<?>> mainInput = context.getPCollectionConsumer(inputPCollectionId);
-    IntervalWindow window1 = new IntervalWindow(new Instant(5), new Instant(10));
-    IntervalWindow window2 = new IntervalWindow(new Instant(6), new Instant(11));
+    IntervalWindow window1 = new IntervalWindow(Instant.ofEpochMilli(5), Instant.ofEpochMilli(10));
+    IntervalWindow window2 = new IntervalWindow(Instant.ofEpochMilli(6), Instant.ofEpochMilli(11));
     WindowedValue<?> firstValue =
         valueInWindows(
             KV.of("5", KV.of(new OffsetRange(0, 5), GlobalWindow.TIMESTAMP_MIN_VALUE)),
@@ -456,8 +456,8 @@ public class SplittableSplitAndSizeRestrictionsDoFnRunnerTest implements Seriali
         containsInAnyOrder(inputPCollectionId, outputPCollectionId));
 
     FnDataReceiver<WindowedValue<?>> mainInput = context.getPCollectionConsumer(inputPCollectionId);
-    IntervalWindow window1 = new IntervalWindow(new Instant(5), new Instant(10));
-    IntervalWindow window2 = new IntervalWindow(new Instant(6), new Instant(11));
+    IntervalWindow window1 = new IntervalWindow(Instant.ofEpochMilli(5), Instant.ofEpochMilli(10));
+    IntervalWindow window2 = new IntervalWindow(Instant.ofEpochMilli(6), Instant.ofEpochMilli(11));
     WindowedValue<?> firstValue =
         valueInWindows(
             KV.of("5", KV.of(new OffsetRange(0, 5), GlobalWindow.TIMESTAMP_MIN_VALUE)),

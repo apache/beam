@@ -63,17 +63,17 @@ public class WindmillTagEncodingV1Test {
                   IntervalWindow.getCoder(),
                   StateNamespaces.window(
                       IntervalWindow.getCoder(),
-                      new IntervalWindow(new Instant(13), new Instant(47)))));
+                      new IntervalWindow(Instant.ofEpochMilli(13), Instant.ofEpochMilli(47)))));
 
   private static final List<Instant> TEST_TIMESTAMPS =
       ImmutableList.of(
           BoundedWindow.TIMESTAMP_MIN_VALUE,
           BoundedWindow.TIMESTAMP_MAX_VALUE,
           GlobalWindow.INSTANCE.maxTimestamp(),
-          new Instant(0),
-          new Instant(127),
+          Instant.ofEpochMilli(0),
+          Instant.ofEpochMilli(127),
           // The encoding of Instant(716000) ends with '+'.
-          new Instant(716001));
+          Instant.ofEpochMilli(716001));
 
   private static final List<String> TEST_STATE_FAMILIES = ImmutableList.of("", "F24");
 

@@ -2954,16 +2954,16 @@ public class WindmillStateInternalsTest {
 
     bag.readLater();
 
-    bag.add(new Instant(3000));
-    waitAndSet(future, new Instant(2000), 200);
-    assertThat(bag.read(), Matchers.equalTo(new Instant(2000)));
+    bag.add(Instant.ofEpochMilli(3000));
+    waitAndSet(future, Instant.ofEpochMilli(2000), 200);
+    assertThat(bag.read(), Matchers.equalTo(Instant.ofEpochMilli(2000)));
 
     Mockito.verify(mockReader, times(2)).watermarkFuture(key(NAMESPACE, "watermark"), STATE_FAMILY);
     Mockito.verifyNoMoreInteractions(mockReader);
 
     // Adding another value doesn't create another future, but does update the result.
-    bag.add(new Instant(1000));
-    assertThat(bag.read(), Matchers.equalTo(new Instant(1000)));
+    bag.add(Instant.ofEpochMilli(1000));
+    assertThat(bag.read(), Matchers.equalTo(Instant.ofEpochMilli(1000)));
     Mockito.verifyNoMoreInteractions(mockReader);
   }
 
@@ -2981,16 +2981,16 @@ public class WindmillStateInternalsTest {
 
     // Actually reading it will request another future, and get the same one, from
     // WindmillStateReader
-    bag.add(new Instant(3000));
-    waitAndSet(future, new Instant(2000), 200);
-    assertThat(bag.read(), Matchers.equalTo(new Instant(3000)));
+    bag.add(Instant.ofEpochMilli(3000));
+    waitAndSet(future, Instant.ofEpochMilli(2000), 200);
+    assertThat(bag.read(), Matchers.equalTo(Instant.ofEpochMilli(3000)));
 
     Mockito.verify(mockReader, times(2)).watermarkFuture(key(NAMESPACE, "watermark"), STATE_FAMILY);
     Mockito.verifyNoMoreInteractions(mockReader);
 
     // Adding another value doesn't create another future, but does update the result.
-    bag.add(new Instant(3000));
-    assertThat(bag.read(), Matchers.equalTo(new Instant(3000)));
+    bag.add(Instant.ofEpochMilli(3000));
+    assertThat(bag.read(), Matchers.equalTo(Instant.ofEpochMilli(3000)));
     Mockito.verifyNoMoreInteractions(mockReader);
   }
 
@@ -3006,17 +3006,17 @@ public class WindmillStateInternalsTest {
     // Requests a future once
     bag.readLater();
 
-    bag.add(new Instant(3000));
-    waitAndSet(future, new Instant(3000), 200);
+    bag.add(Instant.ofEpochMilli(3000));
+    waitAndSet(future, Instant.ofEpochMilli(3000), 200);
     // read() requests a future again, receiving the same one
-    assertThat(bag.read(), Matchers.equalTo(new Instant(3000)));
+    assertThat(bag.read(), Matchers.equalTo(Instant.ofEpochMilli(3000)));
 
     Mockito.verify(mockReader, times(2)).watermarkFuture(key(NAMESPACE, "watermark"), STATE_FAMILY);
     Mockito.verifyNoMoreInteractions(mockReader);
 
     // Adding another value doesn't create another future, but does update the result.
-    bag.add(new Instant(3000));
-    assertThat(bag.read(), Matchers.equalTo(new Instant(3000)));
+    bag.add(Instant.ofEpochMilli(3000));
+    assertThat(bag.read(), Matchers.equalTo(Instant.ofEpochMilli(3000)));
     Mockito.verifyNoMoreInteractions(mockReader);
   }
 
@@ -3030,8 +3030,8 @@ public class WindmillStateInternalsTest {
     bag.clear();
     assertThat(bag.read(), Matchers.nullValue());
 
-    bag.add(new Instant(300));
-    assertThat(bag.read(), Matchers.equalTo(new Instant(300)));
+    bag.add(Instant.ofEpochMilli(300));
+    assertThat(bag.read(), Matchers.equalTo(Instant.ofEpochMilli(300)));
 
     // Shouldn't need to read from windmill because the value is already available.
     Mockito.verifyNoMoreInteractions(mockReader);
@@ -3043,8 +3043,8 @@ public class WindmillStateInternalsTest {
         StateTags.watermarkStateInternal("watermark", TimestampCombiner.EARLIEST);
     WatermarkHoldState bag = underTest.state(NAMESPACE, addr);
 
-    bag.add(new Instant(1000));
-    bag.add(new Instant(2000));
+    bag.add(Instant.ofEpochMilli(1000));
+    bag.add(Instant.ofEpochMilli(2000));
 
     Windmill.WorkItemCommitRequest.Builder commitBuilder =
         Windmill.WorkItemCommitRequest.newBuilder();
@@ -3067,8 +3067,8 @@ public class WindmillStateInternalsTest {
         StateTags.watermarkStateInternal("watermark", TimestampCombiner.LATEST);
     WatermarkHoldState hold = underTest.state(NAMESPACE, addr);
 
-    hold.add(new Instant(1000));
-    hold.add(new Instant(2000));
+    hold.add(Instant.ofEpochMilli(1000));
+    hold.add(Instant.ofEpochMilli(2000));
 
     when(mockReader.watermarkFuture(key(NAMESPACE, "watermark"), STATE_FAMILY))
         .thenReturn(Futures.immediateFuture(null));
@@ -3095,11 +3095,11 @@ public class WindmillStateInternalsTest {
         StateTags.watermarkStateInternal("watermark", TimestampCombiner.LATEST);
     WatermarkHoldState hold = underTest.state(NAMESPACE, addr);
 
-    hold.add(new Instant(1000));
-    hold.add(new Instant(2000));
+    hold.add(Instant.ofEpochMilli(1000));
+    hold.add(Instant.ofEpochMilli(2000));
 
     when(mockReader.watermarkFuture(key(NAMESPACE, "watermark"), STATE_FAMILY))
-        .thenReturn(Futures.immediateFuture(new Instant(4000)));
+        .thenReturn(Futures.immediateFuture(Instant.ofEpochMilli(4000)));
 
     Windmill.WorkItemCommitRequest.Builder commitBuilder =
         Windmill.WorkItemCommitRequest.newBuilder();
@@ -3123,11 +3123,11 @@ public class WindmillStateInternalsTest {
         StateTags.watermarkStateInternal("watermark", TimestampCombiner.LATEST);
     WatermarkHoldState hold = underTest.state(NAMESPACE, addr);
 
-    hold.add(new Instant(1000));
-    hold.add(new Instant(2000));
+    hold.add(Instant.ofEpochMilli(1000));
+    hold.add(Instant.ofEpochMilli(2000));
 
     when(mockReader.watermarkFuture(key(NAMESPACE, "watermark"), STATE_FAMILY))
-        .thenReturn(Futures.immediateFuture(new Instant(500)));
+        .thenReturn(Futures.immediateFuture(Instant.ofEpochMilli(500)));
 
     Windmill.WorkItemCommitRequest.Builder commitBuilder =
         Windmill.WorkItemCommitRequest.newBuilder();
@@ -3151,8 +3151,8 @@ public class WindmillStateInternalsTest {
         StateTags.watermarkStateInternal("watermark", TimestampCombiner.END_OF_WINDOW);
     WatermarkHoldState hold = underTest.state(NAMESPACE, addr);
 
-    hold.add(new Instant(2000));
-    hold.add(new Instant(2000));
+    hold.add(Instant.ofEpochMilli(2000));
+    hold.add(Instant.ofEpochMilli(2000));
 
     Windmill.WorkItemCommitRequest.Builder commitBuilder =
         Windmill.WorkItemCommitRequest.newBuilder();
@@ -3176,10 +3176,10 @@ public class WindmillStateInternalsTest {
         StateTags.watermarkStateInternal("watermark", TimestampCombiner.EARLIEST);
     WatermarkHoldState hold = underTest.state(NAMESPACE, addr);
 
-    hold.add(new Instant(500));
+    hold.add(Instant.ofEpochMilli(500));
     hold.clear();
-    hold.add(new Instant(1000));
-    hold.add(new Instant(2000));
+    hold.add(Instant.ofEpochMilli(1000));
+    hold.add(Instant.ofEpochMilli(2000));
 
     Windmill.WorkItemCommitRequest.Builder commitBuilder =
         Windmill.WorkItemCommitRequest.newBuilder();
@@ -3203,7 +3203,7 @@ public class WindmillStateInternalsTest {
         StateTags.watermarkStateInternal("watermark", TimestampCombiner.EARLIEST);
     WatermarkHoldState bag = underTest.state(NAMESPACE, addr);
 
-    bag.add(new Instant(500));
+    bag.add(Instant.ofEpochMilli(500));
     bag.clear();
 
     Windmill.WorkItemCommitRequest.Builder commitBuilder =
@@ -3440,9 +3440,9 @@ public class WindmillStateInternalsTest {
 
     hold.readLater();
 
-    hold.add(new Instant(3000));
-    waitAndSet(future, new Instant(2000), 200);
-    assertThat(hold.read(), Matchers.equalTo(new Instant(2000)));
+    hold.add(Instant.ofEpochMilli(3000));
+    waitAndSet(future, Instant.ofEpochMilli(2000), 200);
+    assertThat(hold.read(), Matchers.equalTo(Instant.ofEpochMilli(2000)));
 
     underTest.persist(Windmill.WorkItemCommitRequest.newBuilder());
 
@@ -3450,7 +3450,7 @@ public class WindmillStateInternalsTest {
 
     resetUnderTest();
     hold = underTest.state(NAMESPACE, addr);
-    assertThat(hold.read(), Matchers.equalTo(new Instant(2000)));
+    assertThat(hold.read(), Matchers.equalTo(Instant.ofEpochMilli(2000)));
     hold.clear();
 
     underTest.persist(Windmill.WorkItemCommitRequest.newBuilder());

@@ -48,10 +48,13 @@ public class SlidingWindowsTest {
   @Test
   public void testSimple() throws Exception {
     Map<IntervalWindow, Set<String>> expected = new HashMap<>();
-    expected.put(new IntervalWindow(new Instant(-5), new Instant(5)), set(1, 2));
-    expected.put(new IntervalWindow(new Instant(0), new Instant(10)), set(1, 2, 5, 9));
-    expected.put(new IntervalWindow(new Instant(5), new Instant(15)), set(5, 9, 10, 11));
-    expected.put(new IntervalWindow(new Instant(10), new Instant(20)), set(10, 11));
+    expected.put(new IntervalWindow(Instant.ofEpochMilli(-5), Instant.ofEpochMilli(5)), set(1, 2));
+    expected.put(
+        new IntervalWindow(Instant.ofEpochMilli(0), Instant.ofEpochMilli(10)), set(1, 2, 5, 9));
+    expected.put(
+        new IntervalWindow(Instant.ofEpochMilli(5), Instant.ofEpochMilli(15)), set(5, 9, 10, 11));
+    expected.put(
+        new IntervalWindow(Instant.ofEpochMilli(10), Instant.ofEpochMilli(20)), set(10, 11));
     SlidingWindows windowFn = SlidingWindows.of(Duration.millis(10)).every(Duration.millis(5));
     assertEquals(expected, runWindowFn(windowFn, Arrays.asList(1L, 2L, 5L, 9L, 10L, 11L)));
     assertThat(windowFn.assignsToOneWindow(), is(false));
@@ -60,10 +63,13 @@ public class SlidingWindowsTest {
   @Test
   public void testSlightlyOverlapping() throws Exception {
     Map<IntervalWindow, Set<String>> expected = new HashMap<>();
-    expected.put(new IntervalWindow(new Instant(-5), new Instant(2)), set(1));
-    expected.put(new IntervalWindow(new Instant(0), new Instant(7)), set(1, 2, 5));
-    expected.put(new IntervalWindow(new Instant(5), new Instant(12)), set(5, 9, 10, 11));
-    expected.put(new IntervalWindow(new Instant(10), new Instant(17)), set(10, 11));
+    expected.put(new IntervalWindow(Instant.ofEpochMilli(-5), Instant.ofEpochMilli(2)), set(1));
+    expected.put(
+        new IntervalWindow(Instant.ofEpochMilli(0), Instant.ofEpochMilli(7)), set(1, 2, 5));
+    expected.put(
+        new IntervalWindow(Instant.ofEpochMilli(5), Instant.ofEpochMilli(12)), set(5, 9, 10, 11));
+    expected.put(
+        new IntervalWindow(Instant.ofEpochMilli(10), Instant.ofEpochMilli(17)), set(10, 11));
     SlidingWindows windowFn = SlidingWindows.of(Duration.millis(7)).every(Duration.millis(5));
     assertEquals(expected, runWindowFn(windowFn, Arrays.asList(1L, 2L, 5L, 9L, 10L, 11L)));
     assertThat(windowFn.assignsToOneWindow(), is(false));
@@ -72,9 +78,10 @@ public class SlidingWindowsTest {
   @Test
   public void testEqualSize() throws Exception {
     Map<IntervalWindow, Set<String>> expected = new HashMap<>();
-    expected.put(new IntervalWindow(new Instant(0), new Instant(3)), set(1, 2));
-    expected.put(new IntervalWindow(new Instant(3), new Instant(6)), set(3, 4, 5));
-    expected.put(new IntervalWindow(new Instant(6), new Instant(9)), set(6, 7));
+    expected.put(new IntervalWindow(Instant.ofEpochMilli(0), Instant.ofEpochMilli(3)), set(1, 2));
+    expected.put(
+        new IntervalWindow(Instant.ofEpochMilli(3), Instant.ofEpochMilli(6)), set(3, 4, 5));
+    expected.put(new IntervalWindow(Instant.ofEpochMilli(6), Instant.ofEpochMilli(9)), set(6, 7));
     SlidingWindows windowFn = SlidingWindows.of(Duration.millis(3)).every(Duration.millis(3));
     assertEquals(expected, runWindowFn(windowFn, Arrays.asList(1L, 2L, 3L, 4L, 5L, 6L, 7L)));
     assertThat(windowFn.assignsToOneWindow(), is(true));
@@ -83,9 +90,11 @@ public class SlidingWindowsTest {
   @Test
   public void testElidings() throws Exception {
     Map<IntervalWindow, Set<String>> expected = new HashMap<>();
-    expected.put(new IntervalWindow(new Instant(0), new Instant(3)), set(1, 2));
-    expected.put(new IntervalWindow(new Instant(10), new Instant(13)), set(10, 11));
-    expected.put(new IntervalWindow(new Instant(100), new Instant(103)), set(100));
+    expected.put(new IntervalWindow(Instant.ofEpochMilli(0), Instant.ofEpochMilli(3)), set(1, 2));
+    expected.put(
+        new IntervalWindow(Instant.ofEpochMilli(10), Instant.ofEpochMilli(13)), set(10, 11));
+    expected.put(
+        new IntervalWindow(Instant.ofEpochMilli(100), Instant.ofEpochMilli(103)), set(100));
     SlidingWindows windowFn = SlidingWindows.of(Duration.millis(3)).every(Duration.millis(10));
     assertEquals(
         expected,
@@ -98,10 +107,14 @@ public class SlidingWindowsTest {
   @Test
   public void testOffset() throws Exception {
     Map<IntervalWindow, Set<String>> expected = new HashMap<>();
-    expected.put(new IntervalWindow(new Instant(-8), new Instant(2)), set(1));
-    expected.put(new IntervalWindow(new Instant(-3), new Instant(7)), set(1, 2, 5));
-    expected.put(new IntervalWindow(new Instant(2), new Instant(12)), set(2, 5, 9, 10, 11));
-    expected.put(new IntervalWindow(new Instant(7), new Instant(17)), set(9, 10, 11));
+    expected.put(new IntervalWindow(Instant.ofEpochMilli(-8), Instant.ofEpochMilli(2)), set(1));
+    expected.put(
+        new IntervalWindow(Instant.ofEpochMilli(-3), Instant.ofEpochMilli(7)), set(1, 2, 5));
+    expected.put(
+        new IntervalWindow(Instant.ofEpochMilli(2), Instant.ofEpochMilli(12)),
+        set(2, 5, 9, 10, 11));
+    expected.put(
+        new IntervalWindow(Instant.ofEpochMilli(7), Instant.ofEpochMilli(17)), set(9, 10, 11));
     assertEquals(
         expected,
         runWindowFn(
@@ -114,11 +127,17 @@ public class SlidingWindowsTest {
   @Test
   public void testTimeUnit() throws Exception {
     Map<IntervalWindow, Set<String>> expected = new HashMap<>();
-    expected.put(new IntervalWindow(new Instant(-5000), new Instant(5000)), set(1, 2, 1000));
     expected.put(
-        new IntervalWindow(new Instant(0), new Instant(10000)), set(1, 2, 1000, 5000, 5001));
-    expected.put(new IntervalWindow(new Instant(5000), new Instant(15000)), set(5000, 5001, 10000));
-    expected.put(new IntervalWindow(new Instant(10000), new Instant(20000)), set(10000));
+        new IntervalWindow(Instant.ofEpochMilli(-5000), Instant.ofEpochMilli(5000)),
+        set(1, 2, 1000));
+    expected.put(
+        new IntervalWindow(Instant.ofEpochMilli(0), Instant.ofEpochMilli(10000)),
+        set(1, 2, 1000, 5000, 5001));
+    expected.put(
+        new IntervalWindow(Instant.ofEpochMilli(5000), Instant.ofEpochMilli(15000)),
+        set(5000, 5001, 10000));
+    expected.put(
+        new IntervalWindow(Instant.ofEpochMilli(10000), Instant.ofEpochMilli(20000)), set(10000));
     assertEquals(
         expected,
         runWindowFn(
@@ -184,19 +203,23 @@ public class SlidingWindowsTest {
 
     // Prior
     assertEquals(
-        new IntervalWindow(new Instant(340), new Instant(1340)),
-        mapping.getSideInputWindow(new IntervalWindow(new Instant(0), new Instant(1041))));
+        new IntervalWindow(Instant.ofEpochMilli(340), Instant.ofEpochMilli(1340)),
+        mapping.getSideInputWindow(
+            new IntervalWindow(Instant.ofEpochMilli(0), Instant.ofEpochMilli(1041))));
     assertEquals(
-        new IntervalWindow(new Instant(340), new Instant(1340)),
-        mapping.getSideInputWindow(new IntervalWindow(new Instant(0), new Instant(1339))));
+        new IntervalWindow(Instant.ofEpochMilli(340), Instant.ofEpochMilli(1340)),
+        mapping.getSideInputWindow(
+            new IntervalWindow(Instant.ofEpochMilli(0), Instant.ofEpochMilli(1339))));
     // Align
     assertEquals(
-        new IntervalWindow(new Instant(340), new Instant(1340)),
-        mapping.getSideInputWindow(new IntervalWindow(new Instant(0), new Instant(1340))));
+        new IntervalWindow(Instant.ofEpochMilli(340), Instant.ofEpochMilli(1340)),
+        mapping.getSideInputWindow(
+            new IntervalWindow(Instant.ofEpochMilli(0), Instant.ofEpochMilli(1340))));
     // After
     assertEquals(
-        new IntervalWindow(new Instant(640), new Instant(1640)),
-        mapping.getSideInputWindow(new IntervalWindow(new Instant(0), new Instant(1341))));
+        new IntervalWindow(Instant.ofEpochMilli(640), Instant.ofEpochMilli(1640)),
+        mapping.getSideInputWindow(
+            new IntervalWindow(Instant.ofEpochMilli(0), Instant.ofEpochMilli(1341))));
   }
 
   @Test

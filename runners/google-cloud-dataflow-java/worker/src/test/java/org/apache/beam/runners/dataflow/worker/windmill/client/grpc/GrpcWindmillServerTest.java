@@ -341,8 +341,8 @@ public class GrpcWindmillServerTest {
                 long serializedWorkItemSize,
                 ImmutableList<LatencyAttribution> getWorkStreamLatencies) -> {
               latch.countDown();
-              assertEquals(inputDataWatermark, new Instant(18));
-              assertEquals(synchronizedProcessingTime, new Instant(17));
+              assertEquals(inputDataWatermark, Instant.ofEpochMilli(18));
+              assertEquals(synchronizedProcessingTime, Instant.ofEpochMilli(17));
               assertEquals(workItem.getKey(), ByteString.copyFromUtf8("somewhat_long_key"));
             });
     assertTrue(latch.await(30, TimeUnit.SECONDS));
@@ -475,8 +475,8 @@ public class GrpcWindmillServerTest {
                 WorkItem workItem,
                 long serializedWorkItemSize,
                 ImmutableList<LatencyAttribution> getWorkStreamLatencies) -> {
-              assertEquals(inputDataWatermark, new Instant(18));
-              assertEquals(synchronizedProcessingTime, new Instant(17));
+              assertEquals(inputDataWatermark, Instant.ofEpochMilli(18));
+              assertEquals(synchronizedProcessingTime, Instant.ofEpochMilli(17));
               assertEquals(workItem.getKey(), ByteString.copyFromUtf8("somewhat_long_key"));
               assertTrue(drainMode);
               assertTrue(sentResponseIds.containsKey(workItem.getWorkToken()));

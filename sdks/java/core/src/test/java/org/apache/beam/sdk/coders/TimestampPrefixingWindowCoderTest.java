@@ -119,17 +119,17 @@ public class TimestampPrefixingWindowCoderTest {
 
   private static final List<CustomWindow> CUSTOM_WINDOW_LIST =
       Lists.newArrayList(
-          new CustomWindow(new Instant(0L), new Instant(1L), true),
-          new CustomWindow(new Instant(100L), new Instant(200L), false),
-          new CustomWindow(new Instant(0L), BoundedWindow.TIMESTAMP_MAX_VALUE, true));
+          new CustomWindow(Instant.ofEpochMilli(0L), Instant.ofEpochMilli(1L), true),
+          new CustomWindow(Instant.ofEpochMilli(100L), Instant.ofEpochMilli(200L), false),
+          new CustomWindow(Instant.ofEpochMilli(0L), BoundedWindow.TIMESTAMP_MAX_VALUE, true));
 
   @Test
   public void testEncodeAndDecode() throws Exception {
     List<IntervalWindow> intervalWindowsToTest =
         Lists.newArrayList(
-            new IntervalWindow(new Instant(0L), new Instant(1L)),
-            new IntervalWindow(new Instant(100L), new Instant(200L)),
-            new IntervalWindow(new Instant(0L), BoundedWindow.TIMESTAMP_MAX_VALUE));
+            new IntervalWindow(Instant.ofEpochMilli(0L), Instant.ofEpochMilli(1L)),
+            new IntervalWindow(Instant.ofEpochMilli(100L), Instant.ofEpochMilli(200L)),
+            new IntervalWindow(Instant.ofEpochMilli(0L), BoundedWindow.TIMESTAMP_MAX_VALUE));
     TimestampPrefixingWindowCoder<IntervalWindow> coder1 =
         TimestampPrefixingWindowCoder.of(IntervalWindow.getCoder());
     for (IntervalWindow window : intervalWindowsToTest) {

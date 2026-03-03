@@ -222,20 +222,22 @@ public class PAssertTest implements Serializable {
         pipeline
             .apply(
                 Create.timestamped(
-                        TimestampedValue.of(new NotSerializableObject(), new Instant(250L)),
-                        TimestampedValue.of(new NotSerializableObject(), new Instant(500L)))
+                        TimestampedValue.of(
+                            new NotSerializableObject(), Instant.ofEpochMilli(250L)),
+                        TimestampedValue.of(
+                            new NotSerializableObject(), Instant.ofEpochMilli(500L)))
                     .withCoder(NotSerializableObjectCoder.of()))
             .apply(Window.into(FixedWindows.of(Duration.millis(300L))));
 
     PAssert.that(pcollection)
-        .inWindow(new IntervalWindow(new Instant(0L), new Instant(300L)))
+        .inWindow(new IntervalWindow(Instant.ofEpochMilli(0L), Instant.ofEpochMilli(300L)))
         .satisfies(
             contents -> {
               assertThat(Iterables.isEmpty(contents), is(false));
               return null; // no problem!
             });
     PAssert.that(pcollection)
-        .inWindow(new IntervalWindow(new Instant(300L), new Instant(600L)))
+        .inWindow(new IntervalWindow(Instant.ofEpochMilli(300L), Instant.ofEpochMilli(600L)))
         .satisfies(
             contents -> {
               assertThat(Iterables.isEmpty(contents), is(false));
@@ -335,8 +337,8 @@ public class PAssertTest implements Serializable {
         pipeline
             .apply(
                 Create.timestamped(
-                    TimestampedValue.of(43, new Instant(250L)),
-                    TimestampedValue.of(22, new Instant(-250L))))
+                    TimestampedValue.of(43, Instant.ofEpochMilli(250L)),
+                    TimestampedValue.of(22, Instant.ofEpochMilli(-250L))))
             .apply(Window.into(FixedWindows.of(Duration.millis(500L))))
             // Materialize final panes to be able to check for single element ON_TIME panes,
             // elements might be in EARLY panes otherwise.
@@ -354,10 +356,10 @@ public class PAssertTest implements Serializable {
                     }));
 
     PAssert.thatSingleton(pcollection)
-        .inOnlyPane(new IntervalWindow(new Instant(0L), new Instant(500L)))
+        .inOnlyPane(new IntervalWindow(Instant.ofEpochMilli(0L), Instant.ofEpochMilli(500L)))
         .isEqualTo(43);
     PAssert.thatSingleton(pcollection)
-        .inOnlyPane(new IntervalWindow(new Instant(-500L), new Instant(0L)))
+        .inOnlyPane(new IntervalWindow(Instant.ofEpochMilli(-500L), Instant.ofEpochMilli(0L)))
         .isEqualTo(22);
     pipeline.run();
   }
@@ -472,10 +474,10 @@ public class PAssertTest implements Serializable {
         pipeline
             .apply(
                 Create.timestamped(
-                    TimestampedValue.of(1, new Instant(100L)),
-                    TimestampedValue.of(2, new Instant(200L)),
-                    TimestampedValue.of(3, new Instant(300L)),
-                    TimestampedValue.of(4, new Instant(400L))))
+                    TimestampedValue.of(1, Instant.ofEpochMilli(100L)),
+                    TimestampedValue.of(2, Instant.ofEpochMilli(200L)),
+                    TimestampedValue.of(3, Instant.ofEpochMilli(300L)),
+                    TimestampedValue.of(4, Instant.ofEpochMilli(400L))))
             .apply(
                 Window.into(
                     SlidingWindows.of(Duration.millis(200L))
@@ -483,19 +485,19 @@ public class PAssertTest implements Serializable {
                         .withOffset(Duration.millis(50L))));
 
     PAssert.that(pcollection)
-        .inWindow(new IntervalWindow(new Instant(-50L), new Instant(150L)))
+        .inWindow(new IntervalWindow(Instant.ofEpochMilli(-50L), Instant.ofEpochMilli(150L)))
         .containsInAnyOrder(1);
     PAssert.that(pcollection)
-        .inWindow(new IntervalWindow(new Instant(50L), new Instant(250L)))
+        .inWindow(new IntervalWindow(Instant.ofEpochMilli(50L), Instant.ofEpochMilli(250L)))
         .containsInAnyOrder(2, 1);
     PAssert.that(pcollection)
-        .inWindow(new IntervalWindow(new Instant(150L), new Instant(350L)))
+        .inWindow(new IntervalWindow(Instant.ofEpochMilli(150L), Instant.ofEpochMilli(350L)))
         .containsInAnyOrder(2, 3);
     PAssert.that(pcollection)
-        .inWindow(new IntervalWindow(new Instant(250L), new Instant(450L)))
+        .inWindow(new IntervalWindow(Instant.ofEpochMilli(250L), Instant.ofEpochMilli(450L)))
         .containsInAnyOrder(4, 3);
     PAssert.that(pcollection)
-        .inWindow(new IntervalWindow(new Instant(350L), new Instant(550L)))
+        .inWindow(new IntervalWindow(Instant.ofEpochMilli(350L), Instant.ofEpochMilli(550L)))
         .containsInAnyOrder(4);
     pipeline.run();
   }

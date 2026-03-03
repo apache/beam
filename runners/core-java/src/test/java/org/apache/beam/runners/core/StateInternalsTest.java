@@ -534,14 +534,14 @@ public abstract class StateInternalsTest {
     assertFalse(value.equals(underTest.state(NAMESPACE_2, WATERMARK_EARLIEST_ADDR)));
 
     assertThat(value.read(), Matchers.nullValue());
-    value.add(new Instant(2000));
-    assertThat(value.read(), equalTo(new Instant(2000)));
+    value.add(Instant.ofEpochMilli(2000));
+    assertThat(value.read(), equalTo(Instant.ofEpochMilli(2000)));
 
-    value.add(new Instant(3000));
-    assertThat(value.read(), equalTo(new Instant(2000)));
+    value.add(Instant.ofEpochMilli(3000));
+    assertThat(value.read(), equalTo(Instant.ofEpochMilli(2000)));
 
-    value.add(new Instant(1000));
-    assertThat(value.read(), equalTo(new Instant(1000)));
+    value.add(Instant.ofEpochMilli(1000));
+    assertThat(value.read(), equalTo(Instant.ofEpochMilli(1000)));
 
     value.clear();
     assertThat(value.read(), equalTo(null));
@@ -557,14 +557,14 @@ public abstract class StateInternalsTest {
     assertFalse(value.equals(underTest.state(NAMESPACE_2, WATERMARK_LATEST_ADDR)));
 
     assertThat(value.read(), Matchers.nullValue());
-    value.add(new Instant(2000));
-    assertThat(value.read(), equalTo(new Instant(2000)));
+    value.add(Instant.ofEpochMilli(2000));
+    assertThat(value.read(), equalTo(Instant.ofEpochMilli(2000)));
 
-    value.add(new Instant(3000));
-    assertThat(value.read(), equalTo(new Instant(3000)));
+    value.add(Instant.ofEpochMilli(3000));
+    assertThat(value.read(), equalTo(Instant.ofEpochMilli(3000)));
 
-    value.add(new Instant(1000));
-    assertThat(value.read(), equalTo(new Instant(3000)));
+    value.add(Instant.ofEpochMilli(1000));
+    assertThat(value.read(), equalTo(Instant.ofEpochMilli(3000)));
 
     value.clear();
     assertThat(value.read(), equalTo(null));
@@ -580,8 +580,8 @@ public abstract class StateInternalsTest {
     assertFalse(value.equals(underTest.state(NAMESPACE_2, WATERMARK_EOW_ADDR)));
 
     assertThat(value.read(), Matchers.nullValue());
-    value.add(new Instant(2000));
-    assertThat(value.read(), equalTo(new Instant(2000)));
+    value.add(Instant.ofEpochMilli(2000));
+    assertThat(value.read(), equalTo(Instant.ofEpochMilli(2000)));
 
     value.clear();
     assertThat(value.read(), equalTo(null));
@@ -594,7 +594,7 @@ public abstract class StateInternalsTest {
 
     assertThat(value.isEmpty().read(), Matchers.is(true));
     ReadableState<Boolean> readFuture = value.isEmpty();
-    value.add(new Instant(1000));
+    value.add(Instant.ofEpochMilli(1000));
     assertThat(readFuture.read(), Matchers.is(false));
 
     value.clear();

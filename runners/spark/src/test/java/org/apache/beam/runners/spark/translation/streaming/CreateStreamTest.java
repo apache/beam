@@ -91,7 +91,7 @@ public class CreateStreamTest implements Serializable {
 
   @Test
   public void testLateDataAccumulating() throws IOException {
-    Instant instant = new Instant(0);
+    Instant instant = Instant.ofEpochMilli(0);
     CreateStream<Integer> source =
         CreateStream.of(VarIntCoder.of(), batchDuration())
             .emptyBatch()
@@ -163,14 +163,14 @@ public class CreateStreamTest implements Serializable {
     CreateStream<String> source =
         CreateStream.of(StringUtf8Coder.of(), batchDuration())
             .nextBatch(
-                TimestampedValue.of("firstPane", new Instant(100)),
-                TimestampedValue.of("alsoFirstPane", new Instant(200)))
-            .advanceWatermarkForNextBatch(new Instant(1001L))
-            .nextBatch(TimestampedValue.of("onTimePane", new Instant(500)))
+                TimestampedValue.of("firstPane", Instant.ofEpochMilli(100)),
+                TimestampedValue.of("alsoFirstPane", Instant.ofEpochMilli(200)))
+            .advanceWatermarkForNextBatch(Instant.ofEpochMilli(1001L))
+            .nextBatch(TimestampedValue.of("onTimePane", Instant.ofEpochMilli(500)))
             .advanceNextBatchWatermarkToInfinity()
             .nextBatch(
-                TimestampedValue.of("finalLatePane", new Instant(750)),
-                TimestampedValue.of("alsoFinalLatePane", new Instant(250)));
+                TimestampedValue.of("finalLatePane", Instant.ofEpochMilli(750)),
+                TimestampedValue.of("alsoFinalLatePane", Instant.ofEpochMilli(250)));
 
     FixedWindows windowFn = FixedWindows.of(Duration.millis(1000L));
     Duration allowedLateness = Duration.millis(5000L);
@@ -189,7 +189,7 @@ public class CreateStreamTest implements Serializable {
             .apply(Values.create())
             .apply(Flatten.iterables());
 
-    IntervalWindow window = windowFn.assignWindow(new Instant(100));
+    IntervalWindow window = windowFn.assignWindow(Instant.ofEpochMilli(100));
     PAssert.that(values)
         .inWindow(window)
         .containsInAnyOrder(
@@ -211,11 +211,11 @@ public class CreateStreamTest implements Serializable {
     CreateStream<String> source =
         CreateStream.of(StringUtf8Coder.of(), batchDuration())
             .emptyBatch()
-            .advanceWatermarkForNextBatch(new Instant(0))
+            .advanceWatermarkForNextBatch(Instant.ofEpochMilli(0))
             .emptyBatch()
             .nextBatch(
                 TimestampedValue.of("late", lateElementTimestamp),
-                TimestampedValue.of("onTime", new Instant(100)))
+                TimestampedValue.of("onTime", Instant.ofEpochMilli(100)))
             .advanceNextBatchWatermarkToInfinity();
 
     FixedWindows windowFn = FixedWindows.of(Duration.millis(1000L));
@@ -234,7 +234,7 @@ public class CreateStreamTest implements Serializable {
 
     PAssert.that(values).inWindow(windowFn.assignWindow(lateElementTimestamp)).empty();
     PAssert.that(values)
-        .inWindow(windowFn.assignWindow(new Instant(100)))
+        .inWindow(windowFn.assignWindow(Instant.ofEpochMilli(100)))
         .containsInAnyOrder("onTime");
 
     p.run();
@@ -301,7 +301,7 @@ public class CreateStreamTest implements Serializable {
 
   @Test
   public void testFlattenedWithWatermarkHold() throws IOException {
-    Instant instant = new Instant(0);
+    Instant instant = Instant.ofEpochMilli(0);
     CreateStream<Integer> source1 =
         CreateStream.of(VarIntCoder.of(), batchDuration())
             .emptyBatch()
@@ -362,7 +362,7 @@ public class CreateStreamTest implements Serializable {
    */
   @Test
   public void testMultiOutputParDo() throws IOException {
-    Instant instant = new Instant(0);
+    Instant instant = Instant.ofEpochMilli(0);
     CreateStream<Integer> source1 =
         CreateStream.of(VarIntCoder.of(), batchDuration())
             .emptyBatch()
@@ -408,7 +408,7 @@ public class CreateStreamTest implements Serializable {
    */
   @Test
   public void testParDoCallsSetupAndTeardown() {
-    Instant instant = new Instant(0);
+    Instant instant = Instant.ofEpochMilli(0);
 
     p.apply(
             CreateStream.of(VarIntCoder.of(), batchDuration())
@@ -445,9 +445,11 @@ public class CreateStreamTest implements Serializable {
   public void testAdvanceWatermarkNonMonotonicThrows() {
     CreateStream<Integer> source =
         CreateStream.of(VarIntCoder.of(), batchDuration())
-            .advanceWatermarkForNextBatch(new Instant(0L));
+            .advanceWatermarkForNextBatch(Instant.ofEpochMilli(0L));
     thrown.expect(IllegalArgumentException.class);
-    source.advanceWatermarkForNextBatch(new Instant(-1L)).advanceNextBatchWatermarkToInfinity();
+    source
+        .advanceWatermarkForNextBatch(Instant.ofEpochMilli(-1L))
+        .advanceNextBatchWatermarkToInfinity();
   }
 
   @Test
@@ -462,7 +464,7 @@ public class CreateStreamTest implements Serializable {
 
   @Test
   public void testInStreamingModeCountByKey() throws Exception {
-    Instant instant = new Instant(0);
+    Instant instant = Instant.ofEpochMilli(0);
 
     CreateStream<KV<Integer, Long>> kvSource =
         CreateStream.of(KvCoder.of(VarIntCoder.of(), VarLongCoder.of()), batchDuration())

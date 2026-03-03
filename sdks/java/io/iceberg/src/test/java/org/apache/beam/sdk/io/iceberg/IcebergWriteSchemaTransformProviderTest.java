@@ -255,7 +255,7 @@ public class IcebergWriteSchemaTransformProviderTest {
 
     // use interpolator to fetch destinations identifiers. create iceberg tables beforehand
     RowStringInterpolator interpolator = new RowStringInterpolator(destinationTemplate, beamSchema);
-    Instant first = new Instant(0);
+    Instant first = Instant.ofEpochMilli(0);
     Instant second = first.plus(Duration.standardDays(1));
     Instant third = second.plus(Duration.standardDays(1));
     String identifier0 =

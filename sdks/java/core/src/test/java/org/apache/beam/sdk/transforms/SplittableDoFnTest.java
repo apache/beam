@@ -475,22 +475,22 @@ public class SplittableDoFnTest implements Serializable {
         p.apply(
                 "main",
                 Create.timestamped(
-                    TimestampedValue.of(0, new Instant(0)),
-                    TimestampedValue.of(1, new Instant(1)),
-                    TimestampedValue.of(2, new Instant(2)),
-                    TimestampedValue.of(3, new Instant(3)),
-                    TimestampedValue.of(4, new Instant(4)),
-                    TimestampedValue.of(5, new Instant(5)),
-                    TimestampedValue.of(6, new Instant(6)),
-                    TimestampedValue.of(7, new Instant(7))))
+                    TimestampedValue.of(0, Instant.ofEpochMilli(0)),
+                    TimestampedValue.of(1, Instant.ofEpochMilli(1)),
+                    TimestampedValue.of(2, Instant.ofEpochMilli(2)),
+                    TimestampedValue.of(3, Instant.ofEpochMilli(3)),
+                    TimestampedValue.of(4, Instant.ofEpochMilli(4)),
+                    TimestampedValue.of(5, Instant.ofEpochMilli(5)),
+                    TimestampedValue.of(6, Instant.ofEpochMilli(6)),
+                    TimestampedValue.of(7, Instant.ofEpochMilli(7))))
             .apply("window 2", Window.into(FixedWindows.of(Duration.millis(2))));
 
     PCollectionView<String> sideInput =
         p.apply(
                 "side",
                 Create.timestamped(
-                    TimestampedValue.of("a", new Instant(0)),
-                    TimestampedValue.of("b", new Instant(4))))
+                    TimestampedValue.of("a", Instant.ofEpochMilli(0)),
+                    TimestampedValue.of("b", Instant.ofEpochMilli(4))))
             .apply("window 4", Window.into(FixedWindows.of(Duration.millis(4))))
             .apply("singleton", View.asSingleton());
 
@@ -500,14 +500,14 @@ public class SplittableDoFnTest implements Serializable {
                     sdfWithSideInput(
                         bounded,
                         ImmutableMap.<Instant, String>builder()
-                            .put(new Instant(0), "a")
-                            .put(new Instant(1), "a")
-                            .put(new Instant(2), "a")
-                            .put(new Instant(3), "a")
-                            .put(new Instant(4), "b")
-                            .put(new Instant(5), "b")
-                            .put(new Instant(6), "b")
-                            .put(new Instant(7), "b")
+                            .put(Instant.ofEpochMilli(0), "a")
+                            .put(Instant.ofEpochMilli(1), "a")
+                            .put(Instant.ofEpochMilli(2), "a")
+                            .put(Instant.ofEpochMilli(3), "a")
+                            .put(Instant.ofEpochMilli(4), "b")
+                            .put(Instant.ofEpochMilli(5), "b")
+                            .put(Instant.ofEpochMilli(6), "b")
+                            .put(Instant.ofEpochMilli(7), "b")
                             .build()))
                 .withSideInput("sideInput", sideInput));
 
@@ -667,18 +667,18 @@ public class SplittableDoFnTest implements Serializable {
         p.apply(
                 "main",
                 Create.timestamped(
-                    TimestampedValue.of(0, new Instant(0)),
-                    TimestampedValue.of(1, new Instant(1)),
-                    TimestampedValue.of(2, new Instant(2)),
-                    TimestampedValue.of(3, new Instant(3))))
+                    TimestampedValue.of(0, Instant.ofEpochMilli(0)),
+                    TimestampedValue.of(1, Instant.ofEpochMilli(1)),
+                    TimestampedValue.of(2, Instant.ofEpochMilli(2)),
+                    TimestampedValue.of(3, Instant.ofEpochMilli(3))))
             .apply("window 1", Window.into(FixedWindows.of(Duration.millis(1))));
 
     PCollectionView<String> sideInput =
         p.apply(
                 "side",
                 Create.timestamped(
-                    TimestampedValue.of("a", new Instant(0)),
-                    TimestampedValue.of("b", new Instant(2))))
+                    TimestampedValue.of("a", Instant.ofEpochMilli(0)),
+                    TimestampedValue.of("b", Instant.ofEpochMilli(2))))
             .apply("window 2", Window.into(FixedWindows.of(Duration.millis(2))))
             .apply("singleton", View.asSingleton());
 
@@ -688,10 +688,10 @@ public class SplittableDoFnTest implements Serializable {
                     sdfWithMultipleOutputsPerBlockAndSideInput(
                         bounded,
                         ImmutableMap.<Instant, String>builder()
-                            .put(new Instant(0), "a")
-                            .put(new Instant(1), "a")
-                            .put(new Instant(2), "b")
-                            .put(new Instant(3), "b")
+                            .put(Instant.ofEpochMilli(0), "a")
+                            .put(Instant.ofEpochMilli(1), "a")
+                            .put(Instant.ofEpochMilli(2), "b")
+                            .put(Instant.ofEpochMilli(3), "b")
                             .build(),
                         3 /* numClaimsPerCall */))
                 .withSideInput("sideInput", sideInput));

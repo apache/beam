@@ -121,7 +121,7 @@ public abstract class AfterDelayFromFirstElementStateMachine extends TriggerStat
    * the epoch.
    */
   public AfterDelayFromFirstElementStateMachine alignedTo(final Duration size) {
-    return alignedTo(size, new Instant(0));
+    return alignedTo(size, Instant.ofEpochMilli(0));
   }
 
   /**

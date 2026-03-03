@@ -35,23 +35,23 @@ import org.junit.runners.JUnit4;
 public final class TimeUtilTest {
   @Test
   public void toCloudTimeShouldPrintTimeStrings() {
-    assertEquals("1970-01-01T00:00:00Z", toCloudTime(new Instant(0)));
-    assertEquals("1970-01-01T00:00:00.001Z", toCloudTime(new Instant(1)));
+    assertEquals("1970-01-01T00:00:00Z", toCloudTime(Instant.ofEpochMilli(0)));
+    assertEquals("1970-01-01T00:00:00.001Z", toCloudTime(Instant.ofEpochMilli(1)));
   }
 
   @Test
   public void fromCloudTimeShouldParseTimeStrings() {
-    assertEquals(new Instant(0), fromCloudTime("1970-01-01T00:00:00Z"));
-    assertEquals(new Instant(1), fromCloudTime("1970-01-01T00:00:00.001Z"));
-    assertEquals(new Instant(1), fromCloudTime("1970-01-01T00:00:00.001000Z"));
-    assertEquals(new Instant(1), fromCloudTime("1970-01-01T00:00:00.001001Z"));
-    assertEquals(new Instant(1), fromCloudTime("1970-01-01T00:00:00.001000000Z"));
-    assertEquals(new Instant(1), fromCloudTime("1970-01-01T00:00:00.001000001Z"));
-    assertEquals(new Instant(0), fromCloudTime("1970-01-01T00:00:00.0Z"));
-    assertEquals(new Instant(0), fromCloudTime("1970-01-01T00:00:00.00Z"));
-    assertEquals(new Instant(420), fromCloudTime("1970-01-01T00:00:00.42Z"));
-    assertEquals(new Instant(300), fromCloudTime("1970-01-01T00:00:00.3Z"));
-    assertEquals(new Instant(20), fromCloudTime("1970-01-01T00:00:00.02Z"));
+    assertEquals(Instant.ofEpochMilli(0), fromCloudTime("1970-01-01T00:00:00Z"));
+    assertEquals(Instant.ofEpochMilli(1), fromCloudTime("1970-01-01T00:00:00.001Z"));
+    assertEquals(Instant.ofEpochMilli(1), fromCloudTime("1970-01-01T00:00:00.001000Z"));
+    assertEquals(Instant.ofEpochMilli(1), fromCloudTime("1970-01-01T00:00:00.001001Z"));
+    assertEquals(Instant.ofEpochMilli(1), fromCloudTime("1970-01-01T00:00:00.001000000Z"));
+    assertEquals(Instant.ofEpochMilli(1), fromCloudTime("1970-01-01T00:00:00.001000001Z"));
+    assertEquals(Instant.ofEpochMilli(0), fromCloudTime("1970-01-01T00:00:00.0Z"));
+    assertEquals(Instant.ofEpochMilli(0), fromCloudTime("1970-01-01T00:00:00.00Z"));
+    assertEquals(Instant.ofEpochMilli(420), fromCloudTime("1970-01-01T00:00:00.42Z"));
+    assertEquals(Instant.ofEpochMilli(300), fromCloudTime("1970-01-01T00:00:00.3Z"));
+    assertEquals(Instant.ofEpochMilli(20), fromCloudTime("1970-01-01T00:00:00.02Z"));
     assertNull(fromCloudTime(""));
     assertNull(fromCloudTime("1970-01-01T00:00:00"));
     assertNull(fromCloudTime("1970-01-01T00:00:00.1e3Z"));

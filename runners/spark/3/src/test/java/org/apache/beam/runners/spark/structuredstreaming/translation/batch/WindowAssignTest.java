@@ -50,11 +50,11 @@ public class WindowAssignTest implements Serializable {
         pipeline
             .apply(
                 Create.timestamped(
-                    TimestampedValue.of(1, new Instant(1)),
-                    TimestampedValue.of(2, new Instant(2)),
-                    TimestampedValue.of(3, new Instant(3)),
-                    TimestampedValue.of(4, new Instant(10)),
-                    TimestampedValue.of(5, new Instant(11))))
+                    TimestampedValue.of(1, Instant.ofEpochMilli(1)),
+                    TimestampedValue.of(2, Instant.ofEpochMilli(2)),
+                    TimestampedValue.of(3, Instant.ofEpochMilli(3)),
+                    TimestampedValue.of(4, Instant.ofEpochMilli(10)),
+                    TimestampedValue.of(5, Instant.ofEpochMilli(11))))
             .apply(Window.into(FixedWindows.of(Duration.millis(10))))
             .apply(Sum.integersGlobally().withoutDefaults());
     PAssert.that(input).containsInAnyOrder(6, 9);

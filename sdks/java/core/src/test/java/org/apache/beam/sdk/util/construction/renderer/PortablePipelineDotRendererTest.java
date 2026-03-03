@@ -49,7 +49,7 @@ public class PortablePipelineDotRendererTest {
 
   @Test
   public void testCompositePipeline() {
-    p.apply(Create.timestamped(TimestampedValue.of(KV.of(1, 1), new Instant(1))))
+    p.apply(Create.timestamped(TimestampedValue.of(KV.of(1, 1), Instant.ofEpochMilli(1))))
         .apply(Window.into(FixedWindows.of(Duration.millis(10))))
         .apply(Sum.integersPerKey());
 

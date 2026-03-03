@@ -150,10 +150,10 @@ public class ResumeFromCheckpointStreamingTest implements Serializable {
     // write to Kafka
     produce(
         ImmutableMap.of(
-            "k1", new Instant(100),
-            "k2", new Instant(200),
-            "k3", new Instant(300),
-            "k4", new Instant(400)));
+            "k1", Instant.ofEpochMilli(100),
+            "k2", Instant.ofEpochMilli(200),
+            "k3", Instant.ofEpochMilli(300),
+            "k4", Instant.ofEpochMilli(400)));
 
     MetricsFilter metricsFilter =
         MetricsFilter.builder()
@@ -161,7 +161,7 @@ public class ResumeFromCheckpointStreamingTest implements Serializable {
             .build();
 
     // first run should expect EOT matching the last injected element.
-    SparkPipelineResult res = run(Optional.of(new Instant(400)), 0);
+    SparkPipelineResult res = run(Optional.of(Instant.ofEpochMilli(400)), 0);
 
     assertThat(
         res.metrics().queryMetrics(metricsFilter).getCounters(),
@@ -188,8 +188,8 @@ public class ResumeFromCheckpointStreamingTest implements Serializable {
     // - write a bit more.
     produce(
         ImmutableMap.of(
-            "k5", new Instant(499),
-            "EOF", new Instant(500) // to be dropped from [0, 500).
+            "k5", Instant.ofEpochMilli(499),
+            "EOF", Instant.ofEpochMilli(500) // to be dropped from [0, 500).
             ));
 
     // recovery should resume from last read offset, and read the second batch of input.

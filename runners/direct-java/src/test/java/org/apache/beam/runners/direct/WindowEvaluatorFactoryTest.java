@@ -61,7 +61,7 @@ import org.mockito.MockitoAnnotations;
 /** Tests for {@link WindowEvaluatorFactory}. */
 @RunWith(JUnit4.class)
 public class WindowEvaluatorFactoryTest {
-  private static final Instant EPOCH = new Instant(0);
+  private static final Instant EPOCH = Instant.ofEpochMilli(0);
 
   private PCollection<Long> input;
   private WindowEvaluatorFactory factory;
@@ -71,12 +71,15 @@ public class WindowEvaluatorFactoryTest {
   private BundleFactory bundleFactory;
 
   private WindowedValue<Long> valueInGlobalWindow =
-      WindowedValues.timestampedValueInGlobalWindow(3L, new Instant(2L));
+      WindowedValues.timestampedValueInGlobalWindow(3L, Instant.ofEpochMilli(2L));
 
   private final PaneInfo intervalWindowPane = PaneInfo.createPane(false, false, Timing.LATE, 3, 2);
   private WindowedValue<Long> valueInIntervalWindow =
       WindowedValues.of(
-          2L, new Instant(-10L), new IntervalWindow(new Instant(-100), EPOCH), intervalWindowPane);
+          2L,
+          Instant.ofEpochMilli(-10L),
+          new IntervalWindow(Instant.ofEpochMilli(-100), EPOCH),
+          intervalWindowPane);
 
   private IntervalWindow intervalWindow1 =
       new IntervalWindow(EPOCH, BoundedWindow.TIMESTAMP_MAX_VALUE);
@@ -126,10 +129,10 @@ public class WindowEvaluatorFactoryTest {
         committed.getElements(),
         containsInAnyOrder(
             // value in global window
-            isSingleWindowedValue(3L, new Instant(2L), firstSecondWindow, NO_FIRING),
+            isSingleWindowedValue(3L, Instant.ofEpochMilli(2L), firstSecondWindow, NO_FIRING),
 
             // value in just interval window
-            isSingleWindowedValue(2L, new Instant(-10L), thirdWindow, intervalWindowPane),
+            isSingleWindowedValue(2L, Instant.ofEpochMilli(-10L), thirdWindow, intervalWindowPane),
 
             // value in global window and two interval windows
             isSingleWindowedValue(

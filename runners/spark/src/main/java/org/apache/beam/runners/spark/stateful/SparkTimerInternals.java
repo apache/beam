@@ -63,7 +63,9 @@ public class SparkTimerInternals implements TimerInternals {
         || watermarks.isEmpty()
         || Collections.disjoint(sourceIds, watermarks.keySet())) {
       return new SparkTimerInternals(
-          BoundedWindow.TIMESTAMP_MIN_VALUE, BoundedWindow.TIMESTAMP_MIN_VALUE, new Instant(0));
+          BoundedWindow.TIMESTAMP_MIN_VALUE,
+          BoundedWindow.TIMESTAMP_MIN_VALUE,
+          Instant.ofEpochMilli(0));
     }
     // there might be more than one stream feeding this stream, slowest WM is the right one.
     Instant slowestLowWatermark = BoundedWindow.TIMESTAMP_MAX_VALUE;

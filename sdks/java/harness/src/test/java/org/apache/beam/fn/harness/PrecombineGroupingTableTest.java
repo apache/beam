@@ -124,17 +124,17 @@ public class PrecombineGroupingTableTest {
 
     TestOutputReceiver<WindowedValue<KV<String, Long>>> receiver = new TestOutputReceiver<>();
 
-    table.put(timestampedValueInGlobalWindow(KV.of("A", 1), new Instant(1)), receiver);
-    table.put(timestampedValueInGlobalWindow(KV.of("B", 9), new Instant(21)), receiver);
-    table.put(timestampedValueInGlobalWindow(KV.of("A", 2), new Instant(1)), receiver);
-    table.put(timestampedValueInGlobalWindow(KV.of("B", 2), new Instant(20)), receiver);
-    table.put(timestampedValueInGlobalWindow(KV.of("A", 4), new Instant(1)), receiver);
+    table.put(timestampedValueInGlobalWindow(KV.of("A", 1), Instant.ofEpochMilli(1)), receiver);
+    table.put(timestampedValueInGlobalWindow(KV.of("B", 9), Instant.ofEpochMilli(21)), receiver);
+    table.put(timestampedValueInGlobalWindow(KV.of("A", 2), Instant.ofEpochMilli(1)), receiver);
+    table.put(timestampedValueInGlobalWindow(KV.of("B", 2), Instant.ofEpochMilli(20)), receiver);
+    table.put(timestampedValueInGlobalWindow(KV.of("A", 4), Instant.ofEpochMilli(1)), receiver);
     table.flush(receiver);
     assertThat(
         receiver.outputElems,
         containsInAnyOrder(
-            timestampedValueInGlobalWindow(KV.of("A", 1L + 2 + 4), new Instant(1)),
-            timestampedValueInGlobalWindow(KV.of("B", 9L + 2), new Instant(21))));
+            timestampedValueInGlobalWindow(KV.of("A", 1L + 2 + 4), Instant.ofEpochMilli(1)),
+            timestampedValueInGlobalWindow(KV.of("B", 9L + 2), Instant.ofEpochMilli(21))));
   }
 
   @Test

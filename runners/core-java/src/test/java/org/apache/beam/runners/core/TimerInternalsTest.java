@@ -45,8 +45,8 @@ public class TimerInternalsTest {
         TimerData.of(
             "arbitrary-id",
             StateNamespaces.global(),
-            new Instant(0),
-            new Instant(0),
+            Instant.ofEpochMilli(0),
+            Instant.ofEpochMilli(0),
             TimeDomain.EVENT_TIME,
             CausedByDrain.NORMAL));
 
@@ -56,9 +56,10 @@ public class TimerInternalsTest {
         TimerData.of(
             "another-id",
             StateNamespaces.window(
-                windowCoder, new IntervalWindow(new Instant(0), new Instant(100))),
-            new Instant(99),
-            new Instant(99),
+                windowCoder,
+                new IntervalWindow(Instant.ofEpochMilli(0), Instant.ofEpochMilli(100))),
+            Instant.ofEpochMilli(99),
+            Instant.ofEpochMilli(99),
             TimeDomain.PROCESSING_TIME,
             CausedByDrain.NORMAL));
   }
@@ -70,7 +71,7 @@ public class TimerInternalsTest {
 
   @Test
   public void testCompareEqual() {
-    Instant timestamp = new Instant(100);
+    Instant timestamp = Instant.ofEpochMilli(100);
     StateNamespace namespace = StateNamespaces.global();
     TimerData timer =
         TimerData.of(
@@ -90,8 +91,8 @@ public class TimerInternalsTest {
 
   @Test
   public void testCompareByTimestamp() {
-    Instant firstTimestamp = new Instant(100);
-    Instant secondTimestamp = new Instant(200);
+    Instant firstTimestamp = Instant.ofEpochMilli(100);
+    Instant secondTimestamp = Instant.ofEpochMilli(200);
     StateNamespace namespace = StateNamespaces.global();
 
     TimerData firstTimer =
@@ -110,7 +111,7 @@ public class TimerInternalsTest {
 
   @Test
   public void testCompareByDomain() {
-    Instant timestamp = new Instant(100);
+    Instant timestamp = Instant.ofEpochMilli(100);
     StateNamespace namespace = StateNamespaces.global();
 
     TimerData eventTimer =
@@ -133,9 +134,9 @@ public class TimerInternalsTest {
 
   @Test
   public void testCompareByNamespace() {
-    Instant timestamp = new Instant(100);
-    IntervalWindow firstWindow = new IntervalWindow(new Instant(0), timestamp);
-    IntervalWindow secondWindow = new IntervalWindow(timestamp, new Instant(200));
+    Instant timestamp = Instant.ofEpochMilli(100);
+    IntervalWindow firstWindow = new IntervalWindow(Instant.ofEpochMilli(0), timestamp);
+    IntervalWindow secondWindow = new IntervalWindow(timestamp, Instant.ofEpochMilli(200));
     Coder<IntervalWindow> windowCoder = IntervalWindow.getCoder();
 
     StateNamespace firstWindowNs = StateNamespaces.window(windowCoder, firstWindow);
@@ -153,7 +154,7 @@ public class TimerInternalsTest {
 
   @Test
   public void testCompareByTimerId() {
-    Instant timestamp = new Instant(100);
+    Instant timestamp = Instant.ofEpochMilli(100);
     StateNamespace namespace = StateNamespaces.global();
 
     TimerData id0Timer =

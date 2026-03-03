@@ -54,8 +54,8 @@ public class AbstractInOutIteratorTest {
   private static final String TEST_KEY = "testKey";
   private static final String TIMER_ID = "testTimerId";
   private static final String TIMER_FAMILY_ID = "testTimerFamilyId";
-  private static final Instant TEST_TIMESTAMP = new Instant(42L);
-  private static final Instant TEST_OUTPUT_TIMESTAMP = new Instant(84L);
+  private static final Instant TEST_TIMESTAMP = Instant.ofEpochMilli(42L);
+  private static final Instant TEST_OUTPUT_TIMESTAMP = Instant.ofEpochMilli(84L);
   private static final TimeDomain TEST_TIME_DOMAIN = TimeDomain.EVENT_TIME;
   private static final CausedByDrain TEST_CAUSED_BY_DRAIN = CausedByDrain.CAUSED_BY_DRAIN;
 

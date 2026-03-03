@@ -102,7 +102,7 @@ public class GroupingShuffleReaderTest {
   private static final List<KV<Integer, List<KV<Integer, Integer>>>> NO_KVS =
       Collections.emptyList();
 
-  private static final Instant timestamp = new Instant(123000);
+  private static final Instant timestamp = Instant.ofEpochMilli(123000);
   private static final IntervalWindow window =
       new IntervalWindow(timestamp, timestamp.plus(Duration.millis(1000)));
 

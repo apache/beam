@@ -80,8 +80,8 @@ public class WindowMatchersTest {
   @Test
   public void test_IsValueInGlobalWindow_TimestampedValueInGlobalWindow() {
     assertThat(
-        WindowedValues.timestampedValueInGlobalWindow("foo", new Instant(7)),
-        WindowMatchers.isValueInGlobalWindow("foo", new Instant(7)));
+        WindowedValues.timestampedValueInGlobalWindow("foo", Instant.ofEpochMilli(7)),
+        WindowMatchers.isValueInGlobalWindow("foo", Instant.ofEpochMilli(7)));
 
     assertThat(
         WindowedValues.timestampedValueInGlobalWindow("foo", BoundedWindow.TIMESTAMP_MIN_VALUE),

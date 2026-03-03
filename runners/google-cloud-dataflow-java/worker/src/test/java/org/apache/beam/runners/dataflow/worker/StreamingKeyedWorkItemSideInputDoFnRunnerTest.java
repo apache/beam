@@ -99,7 +99,7 @@ public class StreamingKeyedWorkItemSideInputDoFnRunnerTest {
     when(sideInputFetcher.storeIfBlocked(ArgumentMatchers.<WindowedValue<Integer>>any()))
         .thenReturn(false, true, false)
         .thenThrow(new RuntimeException("Does not expect more calls"));
-    when(mockTimerInternals.currentInputWatermarkTime()).thenReturn(new Instant(15L));
+    when(mockTimerInternals.currentInputWatermarkTime()).thenReturn(Instant.ofEpochMilli(15L));
     ListOutputManager outputManager = new ListOutputManager();
     StreamingKeyedWorkItemSideInputDoFnRunner<String, Integer, KV<String, Integer>, IntervalWindow>
         runner = createRunner(outputManager);
@@ -114,13 +114,13 @@ public class StreamingKeyedWorkItemSideInputDoFnRunnerTest {
 
     runner.processElement(new ValueInEmptyWindows<>(elemsWorkItem));
 
-    when(mockTimerInternals.currentInputWatermarkTime()).thenReturn(new Instant(20));
+    when(mockTimerInternals.currentInputWatermarkTime()).thenReturn(Instant.ofEpochMilli(20));
     runner.processElement(
         new ValueInEmptyWindows<>(
             KeyedWorkItems.<String, Integer>timersWorkItem(
                 "a",
                 ImmutableList.of(
-                    timerData(window(10, 20), new Instant(19), Timer.Type.WATERMARK)))));
+                    timerData(window(10, 20), Instant.ofEpochMilli(19), Timer.Type.WATERMARK)))));
 
     List<WindowedValue<KV<String, Integer>>> result = outputManager.getOutput(mainOutputTag);
     assertEquals(1, result.size());
@@ -144,8 +144,9 @@ public class StreamingKeyedWorkItemSideInputDoFnRunnerTest {
     when(elemsBag.read()).thenReturn(ImmutableList.of(createDatum(13, 13L), createDatum(18, 18L)));
     when(timersBag.read())
         .thenReturn(
-            ImmutableList.of(timerData(window(10, 20), new Instant(19), Timer.Type.WATERMARK)));
-    when(mockTimerInternals.currentInputWatermarkTime()).thenReturn(new Instant(20));
+            ImmutableList.of(
+                timerData(window(10, 20), Instant.ofEpochMilli(19), Timer.Type.WATERMARK)));
+    when(mockTimerInternals.currentInputWatermarkTime()).thenReturn(Instant.ofEpochMilli(20));
 
     runner.startBundle();
 

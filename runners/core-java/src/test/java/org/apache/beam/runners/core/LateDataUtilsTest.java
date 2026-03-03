@@ -44,7 +44,7 @@ public class LateDataUtilsTest {
             .withWindowFn(windowFn)
             .withAllowedLateness(allowedLateness);
 
-    IntervalWindow window = windowFn.assignWindow(new Instant(10));
+    IntervalWindow window = windowFn.assignWindow(Instant.ofEpochMilli(10));
     assertThat(
         LateDataUtils.garbageCollectionTime(window, strategy),
         equalTo(window.maxTimestamp().plus(allowedLateness)));
@@ -71,7 +71,7 @@ public class LateDataUtilsTest {
             .withWindowFn(windowFn)
             .withAllowedLateness(allowedLateness);
 
-    IntervalWindow window = windowFn.assignWindow(new Instant(-100));
+    IntervalWindow window = windowFn.assignWindow(Instant.ofEpochMilli(-100));
     assertThat(
         window.maxTimestamp().plus(allowedLateness),
         Matchers.greaterThan(GlobalWindow.INSTANCE.maxTimestamp()));

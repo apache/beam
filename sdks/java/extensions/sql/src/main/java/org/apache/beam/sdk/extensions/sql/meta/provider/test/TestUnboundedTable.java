@@ -111,7 +111,7 @@ public class TestUnboundedTable extends TestTable {
     TestStream.Builder<Row> values = TestStream.create(schema);
 
     for (Pair<Duration, List<Row>> pair : timestampedRows) {
-      values = values.advanceWatermarkTo(new Instant(0).plus(pair.getKey()));
+      values = values.advanceWatermarkTo(Instant.ofEpochMilli(0).plus(pair.getKey()));
       for (int i = 0; i < pair.getValue().size(); i++) {
         values =
             values.addElements(

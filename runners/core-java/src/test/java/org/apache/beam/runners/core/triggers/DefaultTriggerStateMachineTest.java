@@ -50,16 +50,18 @@ public class DefaultTriggerStateMachineTest {
         1, // [0, 100)
         101); // [100, 200)
 
-    IntervalWindow firstWindow = new IntervalWindow(new Instant(0), new Instant(100));
-    IntervalWindow secondWindow = new IntervalWindow(new Instant(100), new Instant(200));
+    IntervalWindow firstWindow =
+        new IntervalWindow(Instant.ofEpochMilli(0), Instant.ofEpochMilli(100));
+    IntervalWindow secondWindow =
+        new IntervalWindow(Instant.ofEpochMilli(100), Instant.ofEpochMilli(200));
 
     // Advance the watermark almost to the end of the first window.
-    tester.advanceInputWatermark(new Instant(99));
+    tester.advanceInputWatermark(Instant.ofEpochMilli(99));
     assertFalse(tester.shouldFire(firstWindow));
     assertFalse(tester.shouldFire(secondWindow));
 
     // Advance watermark past end of the first window, which is then ready
-    tester.advanceInputWatermark(new Instant(100));
+    tester.advanceInputWatermark(Instant.ofEpochMilli(100));
     assertTrue(tester.shouldFire(firstWindow));
     assertFalse(tester.shouldFire(secondWindow));
 
@@ -69,7 +71,7 @@ public class DefaultTriggerStateMachineTest {
     assertFalse(tester.shouldFire(secondWindow));
 
     // Advance watermark to 200, then both are ready
-    tester.advanceInputWatermark(new Instant(200));
+    tester.advanceInputWatermark(Instant.ofEpochMilli(200));
     assertTrue(tester.shouldFire(firstWindow));
     assertTrue(tester.shouldFire(secondWindow));
 
@@ -88,16 +90,19 @@ public class DefaultTriggerStateMachineTest {
         1, // [-50, 50), [0, 100)
         50); // [0, 100), [50, 150)
 
-    IntervalWindow firstWindow = new IntervalWindow(new Instant(-50), new Instant(50));
-    IntervalWindow secondWindow = new IntervalWindow(new Instant(0), new Instant(100));
-    IntervalWindow thirdWindow = new IntervalWindow(new Instant(50), new Instant(150));
+    IntervalWindow firstWindow =
+        new IntervalWindow(Instant.ofEpochMilli(-50), Instant.ofEpochMilli(50));
+    IntervalWindow secondWindow =
+        new IntervalWindow(Instant.ofEpochMilli(0), Instant.ofEpochMilli(100));
+    IntervalWindow thirdWindow =
+        new IntervalWindow(Instant.ofEpochMilli(50), Instant.ofEpochMilli(150));
 
     assertFalse(tester.shouldFire(firstWindow));
     assertFalse(tester.shouldFire(secondWindow));
     assertFalse(tester.shouldFire(thirdWindow));
 
     // At 50, the first becomes ready; it stays ready after firing
-    tester.advanceInputWatermark(new Instant(50));
+    tester.advanceInputWatermark(Instant.ofEpochMilli(50));
     assertTrue(tester.shouldFire(firstWindow));
     assertFalse(tester.shouldFire(secondWindow));
     assertFalse(tester.shouldFire(thirdWindow));
@@ -107,13 +112,13 @@ public class DefaultTriggerStateMachineTest {
     assertFalse(tester.shouldFire(thirdWindow));
 
     // At 99, the first is still the only one ready
-    tester.advanceInputWatermark(new Instant(99));
+    tester.advanceInputWatermark(Instant.ofEpochMilli(99));
     assertTrue(tester.shouldFire(firstWindow));
     assertFalse(tester.shouldFire(secondWindow));
     assertFalse(tester.shouldFire(thirdWindow));
 
     // At 100, the first and second are ready
-    tester.advanceInputWatermark(new Instant(100));
+    tester.advanceInputWatermark(Instant.ofEpochMilli(100));
     assertTrue(tester.shouldFire(firstWindow));
     assertTrue(tester.shouldFire(secondWindow));
     assertFalse(tester.shouldFire(thirdWindow));
@@ -135,24 +140,27 @@ public class DefaultTriggerStateMachineTest {
         50); // [50, 150)
     tester.mergeWindows();
 
-    IntervalWindow firstWindow = new IntervalWindow(new Instant(1), new Instant(101));
-    IntervalWindow secondWindow = new IntervalWindow(new Instant(50), new Instant(150));
-    IntervalWindow mergedWindow = new IntervalWindow(new Instant(1), new Instant(150));
+    IntervalWindow firstWindow =
+        new IntervalWindow(Instant.ofEpochMilli(1), Instant.ofEpochMilli(101));
+    IntervalWindow secondWindow =
+        new IntervalWindow(Instant.ofEpochMilli(50), Instant.ofEpochMilli(150));
+    IntervalWindow mergedWindow =
+        new IntervalWindow(Instant.ofEpochMilli(1), Instant.ofEpochMilli(150));
 
     // Not ready in any window yet
-    tester.advanceInputWatermark(new Instant(100));
+    tester.advanceInputWatermark(Instant.ofEpochMilli(100));
     assertFalse(tester.shouldFire(firstWindow));
     assertFalse(tester.shouldFire(secondWindow));
     assertFalse(tester.shouldFire(mergedWindow));
 
     // The first window is "ready": the caller owns knowledge of which windows are merged away
-    tester.advanceInputWatermark(new Instant(149));
+    tester.advanceInputWatermark(Instant.ofEpochMilli(149));
     assertTrue(tester.shouldFire(firstWindow));
     assertFalse(tester.shouldFire(secondWindow));
     assertFalse(tester.shouldFire(mergedWindow));
 
     // Now ready on all windows
-    tester.advanceInputWatermark(new Instant(150));
+    tester.advanceInputWatermark(Instant.ofEpochMilli(150));
     assertTrue(tester.shouldFire(firstWindow));
     assertTrue(tester.shouldFire(secondWindow));
     assertTrue(tester.shouldFire(mergedWindow));

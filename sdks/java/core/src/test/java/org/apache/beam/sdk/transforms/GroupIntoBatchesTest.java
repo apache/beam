@@ -343,7 +343,7 @@ public class GroupIntoBatchesTest implements Serializable {
   })
   public void testInStreamingMode() {
     int timestampInterval = 1;
-    Instant startInstant = new Instant(0L);
+    Instant startInstant = Instant.ofEpochMilli(0L);
     TestStream.Builder<KV<String, String>> streamBuilder =
         TestStream.create(KvCoder.of(StringUtf8Coder.of(), StringUtf8Coder.of()))
             .advanceWatermarkTo(startInstant);
@@ -452,7 +452,7 @@ public class GroupIntoBatchesTest implements Serializable {
     final Duration windowDuration = Duration.standardSeconds(4);
     final Duration maxBufferingDuration = Duration.standardSeconds(5);
 
-    Instant startInstant = new Instant(0L);
+    Instant startInstant = Instant.ofEpochMilli(0L);
     TestStream.Builder<KV<String, String>> streamBuilder =
         TestStream.create(KvCoder.of(StringUtf8Coder.of(), StringUtf8Coder.of()))
             .advanceWatermarkTo(startInstant);
@@ -576,7 +576,7 @@ public class GroupIntoBatchesTest implements Serializable {
   public void testBufferingTimerInGlobalWindow() {
     final Duration maxBufferingDuration = Duration.standardSeconds(5);
 
-    Instant startInstant = new Instant(0L);
+    Instant startInstant = Instant.ofEpochMilli(0L);
     long offset = 0L;
     int timestampInterval = 1;
     List<Event<KV<String, String>>> events = new ArrayList<>();

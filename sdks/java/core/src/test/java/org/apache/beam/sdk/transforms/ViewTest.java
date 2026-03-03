@@ -118,8 +118,8 @@ public class ViewTest implements Serializable {
             .apply(
                 "Create47",
                 Create.timestamped(
-                    TimestampedValue.of(47, new Instant(1)),
-                    TimestampedValue.of(48, new Instant(11))))
+                    TimestampedValue.of(47, Instant.ofEpochMilli(1)),
+                    TimestampedValue.of(48, Instant.ofEpochMilli(11))))
             .apply("SideWindowInto", Window.into(FixedWindows.of(Duration.millis(10))))
             .apply(View.asSingleton());
 
@@ -128,9 +128,9 @@ public class ViewTest implements Serializable {
             .apply(
                 "Create123",
                 Create.timestamped(
-                    TimestampedValue.of(1, new Instant(4)),
-                    TimestampedValue.of(2, new Instant(8)),
-                    TimestampedValue.of(3, new Instant(12))))
+                    TimestampedValue.of(1, Instant.ofEpochMilli(4)),
+                    TimestampedValue.of(2, Instant.ofEpochMilli(8)),
+                    TimestampedValue.of(3, Instant.ofEpochMilli(12))))
             .apply("MainWindowInto", Window.into(FixedWindows.of(Duration.millis(10))))
             .apply(
                 "OutputSideInputs",
@@ -154,9 +154,9 @@ public class ViewTest implements Serializable {
     PCollection<KV<Long, Long>> input =
         pipeline.apply(
             TestStream.create(KvCoder.of(VarLongCoder.of(), VarLongCoder.of()))
-                .advanceWatermarkTo(new Instant(0))
-                .addElements(TimestampedValue.of(KV.of(1000L, 1000L), new Instant(1000L)))
-                .advanceWatermarkTo(new Instant(20000))
+                .advanceWatermarkTo(Instant.ofEpochMilli(0))
+                .addElements(TimestampedValue.of(KV.of(1000L, 1000L), Instant.ofEpochMilli(1000L)))
+                .advanceWatermarkTo(Instant.ofEpochMilli(20000))
                 .advanceWatermarkToInfinity());
 
     final PCollectionView<Long> view =
@@ -183,7 +183,7 @@ public class ViewTest implements Serializable {
                     .withSideInputs(view));
 
     PAssert.that(output)
-        .inWindow(new IntervalWindow(new Instant(0), new Instant(10000)))
+        .inWindow(new IntervalWindow(Instant.ofEpochMilli(0), Instant.ofEpochMilli(10000)))
         .containsInAnyOrder(0L);
 
     pipeline.run();
@@ -271,7 +271,8 @@ public class ViewTest implements Serializable {
   @Test
   @Category({ValidatesRunner.class, UsesTriggeredSideInputs.class})
   public void testTriggeredLatestSingleton() {
-    IntervalWindow zeroWindow = new IntervalWindow(new Instant(0), new Instant(1000));
+    IntervalWindow zeroWindow =
+        new IntervalWindow(Instant.ofEpochMilli(0), Instant.ofEpochMilli(1000));
 
     PCollectionView<Long> view =
         pipeline
@@ -293,7 +294,7 @@ public class ViewTest implements Serializable {
     PCollection<Long> pc =
         pipeline
             .apply(Impulse.create())
-            .apply(WithTimestamps.of(impulse -> new Instant(0)))
+            .apply(WithTimestamps.of(impulse -> Instant.ofEpochMilli(0)))
             .apply("Window main input", Window.into(FixedWindows.of(Duration.standardSeconds(1))))
             .apply(
                 ParDo.of(
@@ -426,14 +427,14 @@ public class ViewTest implements Serializable {
             .apply(
                 "CreateSideInput",
                 Create.timestamped(
-                    TimestampedValue.of(11, new Instant(1)),
-                    TimestampedValue.of(13, new Instant(1)),
-                    TimestampedValue.of(17, new Instant(1)),
-                    TimestampedValue.of(23, new Instant(1)),
-                    TimestampedValue.of(31, new Instant(11)),
-                    TimestampedValue.of(33, new Instant(11)),
-                    TimestampedValue.of(37, new Instant(11)),
-                    TimestampedValue.of(43, new Instant(11))))
+                    TimestampedValue.of(11, Instant.ofEpochMilli(1)),
+                    TimestampedValue.of(13, Instant.ofEpochMilli(1)),
+                    TimestampedValue.of(17, Instant.ofEpochMilli(1)),
+                    TimestampedValue.of(23, Instant.ofEpochMilli(1)),
+                    TimestampedValue.of(31, Instant.ofEpochMilli(11)),
+                    TimestampedValue.of(33, Instant.ofEpochMilli(11)),
+                    TimestampedValue.of(37, Instant.ofEpochMilli(11)),
+                    TimestampedValue.of(43, Instant.ofEpochMilli(11))))
             .apply("SideWindowInto", Window.into(FixedWindows.of(Duration.millis(10))))
             .apply(View.asList());
 
@@ -442,8 +443,8 @@ public class ViewTest implements Serializable {
             .apply(
                 "CreateMainInput",
                 Create.timestamped(
-                    TimestampedValue.of(29, new Instant(1)),
-                    TimestampedValue.of(35, new Instant(11))))
+                    TimestampedValue.of(29, Instant.ofEpochMilli(1)),
+                    TimestampedValue.of(35, Instant.ofEpochMilli(11))))
             .apply("MainWindowInto", Window.into(FixedWindows.of(Duration.millis(10))))
             .apply(
                 "OutputSideInputs",
@@ -581,14 +582,14 @@ public class ViewTest implements Serializable {
             .apply(
                 "CreateSideInput",
                 Create.timestamped(
-                    TimestampedValue.of(11, new Instant(1)),
-                    TimestampedValue.of(13, new Instant(1)),
-                    TimestampedValue.of(17, new Instant(1)),
-                    TimestampedValue.of(23, new Instant(1)),
-                    TimestampedValue.of(31, new Instant(11)),
-                    TimestampedValue.of(33, new Instant(11)),
-                    TimestampedValue.of(37, new Instant(11)),
-                    TimestampedValue.of(43, new Instant(11))))
+                    TimestampedValue.of(11, Instant.ofEpochMilli(1)),
+                    TimestampedValue.of(13, Instant.ofEpochMilli(1)),
+                    TimestampedValue.of(17, Instant.ofEpochMilli(1)),
+                    TimestampedValue.of(23, Instant.ofEpochMilli(1)),
+                    TimestampedValue.of(31, Instant.ofEpochMilli(11)),
+                    TimestampedValue.of(33, Instant.ofEpochMilli(11)),
+                    TimestampedValue.of(37, Instant.ofEpochMilli(11)),
+                    TimestampedValue.of(43, Instant.ofEpochMilli(11))))
             .apply("SideWindowInto", Window.into(FixedWindows.of(Duration.millis(10))))
             .apply(View.asIterable());
 
@@ -597,8 +598,8 @@ public class ViewTest implements Serializable {
             .apply(
                 "CreateMainInput",
                 Create.timestamped(
-                    TimestampedValue.of(29, new Instant(1)),
-                    TimestampedValue.of(35, new Instant(11))))
+                    TimestampedValue.of(29, Instant.ofEpochMilli(1)),
+                    TimestampedValue.of(35, Instant.ofEpochMilli(11))))
             .apply("MainWindowInto", Window.into(FixedWindows.of(Duration.millis(10))))
             .apply(
                 "OutputSideInputs",
@@ -690,9 +691,9 @@ public class ViewTest implements Serializable {
             .apply(
                 "CreateSideInput",
                 Create.timestamped(
-                    TimestampedValue.of(1, new Instant(1)),
-                    TimestampedValue.of(2, new Instant(11)),
-                    TimestampedValue.of(3, new Instant(13))))
+                    TimestampedValue.of(1, Instant.ofEpochMilli(1)),
+                    TimestampedValue.of(2, Instant.ofEpochMilli(11)),
+                    TimestampedValue.of(3, Instant.ofEpochMilli(13))))
             .apply("WindowSideInput", Window.into(FixedWindows.of(Duration.millis(10))))
             .apply(Sum.integersGlobally().withoutDefaults())
             .apply(View.asSingleton());
@@ -702,9 +703,9 @@ public class ViewTest implements Serializable {
             .apply(
                 "CreateMainInput",
                 Create.timestamped(
-                    TimestampedValue.of("A", new Instant(4)),
-                    TimestampedValue.of("B", new Instant(15)),
-                    TimestampedValue.of("C", new Instant(7))))
+                    TimestampedValue.of("A", Instant.ofEpochMilli(4)),
+                    TimestampedValue.of("B", Instant.ofEpochMilli(15)),
+                    TimestampedValue.of("C", Instant.ofEpochMilli(7))))
             .apply("WindowMainInput", Window.into(FixedWindows.of(Duration.millis(10))))
             .apply(
                 "OutputMainAndSideInputs",
@@ -731,9 +732,9 @@ public class ViewTest implements Serializable {
             .apply(
                 "CreateSideInput",
                 Create.timestamped(
-                    TimestampedValue.of(1, new Instant(1)),
-                    TimestampedValue.of(2, new Instant(11)),
-                    TimestampedValue.of(3, new Instant(13))))
+                    TimestampedValue.of(1, Instant.ofEpochMilli(1)),
+                    TimestampedValue.of(2, Instant.ofEpochMilli(11)),
+                    TimestampedValue.of(3, Instant.ofEpochMilli(13))))
             .apply("WindowSideInput", Window.into(new GlobalWindows()))
             .apply(Sum.integersGlobally())
             .apply(View.asSingleton());
@@ -743,9 +744,9 @@ public class ViewTest implements Serializable {
             .apply(
                 "CreateMainInput",
                 Create.timestamped(
-                    TimestampedValue.of("A", new Instant(4)),
-                    TimestampedValue.of("B", new Instant(15)),
-                    TimestampedValue.of("C", new Instant(7))))
+                    TimestampedValue.of("A", Instant.ofEpochMilli(4)),
+                    TimestampedValue.of("B", Instant.ofEpochMilli(15)),
+                    TimestampedValue.of("C", Instant.ofEpochMilli(7))))
             .apply("WindowMainInput", Window.into(FixedWindows.of(Duration.millis(10))))
             .apply(
                 "OutputMainAndSideInputs",
@@ -772,8 +773,8 @@ public class ViewTest implements Serializable {
             .apply(
                 "CreateSideInput",
                 Create.timestamped(
-                    TimestampedValue.of(2, new Instant(11)),
-                    TimestampedValue.of(3, new Instant(13))))
+                    TimestampedValue.of(2, Instant.ofEpochMilli(11)),
+                    TimestampedValue.of(3, Instant.ofEpochMilli(13))))
             .apply("WindowSideInput", Window.into(FixedWindows.of(Duration.millis(10))))
             .apply(Sum.integersGlobally().asSingletonView());
 
@@ -782,9 +783,9 @@ public class ViewTest implements Serializable {
             .apply(
                 "CreateMainInput",
                 Create.timestamped(
-                    TimestampedValue.of("A", new Instant(4)),
-                    TimestampedValue.of("B", new Instant(15)),
-                    TimestampedValue.of("C", new Instant(7))))
+                    TimestampedValue.of("A", Instant.ofEpochMilli(4)),
+                    TimestampedValue.of("B", Instant.ofEpochMilli(15)),
+                    TimestampedValue.of("C", Instant.ofEpochMilli(7))))
             .apply("WindowMainInput", Window.into(FixedWindows.of(Duration.millis(10))))
             .apply(
                 "OutputMainAndSideInputs",

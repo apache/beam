@@ -138,7 +138,7 @@ public class DistinctTest {
   @Test
   @Category({NeedsRunner.class, UsesTestStream.class})
   public void testWindowedDistinct() {
-    Instant base = new Instant(0);
+    Instant base = Instant.ofEpochMilli(0);
     TestStream<String> values =
         TestStream.create(StringUtf8Coder.of())
             .advanceWatermarkTo(base)
@@ -180,7 +180,7 @@ public class DistinctTest {
   @Test
   @Category({NeedsRunner.class, UsesTestStreamWithProcessingTime.class})
   public void testTriggeredDistinct() {
-    Instant base = new Instant(0);
+    Instant base = Instant.ofEpochMilli(0);
     TestStream<String> values =
         TestStream.create(StringUtf8Coder.of())
             .advanceWatermarkTo(base)
@@ -216,7 +216,7 @@ public class DistinctTest {
   @Test
   @Category({NeedsRunner.class, UsesTestStreamWithProcessingTime.class})
   public void testTriggeredDistinctRepresentativeValues() {
-    Instant base = new Instant(0);
+    Instant base = Instant.ofEpochMilli(0);
     TestStream<KV<Long, String>> values =
         TestStream.create(KvCoder.of(VarLongCoder.of(), StringUtf8Coder.of()))
             .advanceWatermarkTo(base)
@@ -258,7 +258,7 @@ public class DistinctTest {
   @Test
   @Category({NeedsRunner.class, UsesTestStreamWithProcessingTime.class})
   public void testTriggeredDistinctRepresentativeValuesEmpty() {
-    Instant base = new Instant(0);
+    Instant base = Instant.ofEpochMilli(0);
     TestStream<KV<Long, String>> values =
         TestStream.create(KvCoder.of(VarLongCoder.of(), StringUtf8Coder.of()))
             .advanceWatermarkTo(base)

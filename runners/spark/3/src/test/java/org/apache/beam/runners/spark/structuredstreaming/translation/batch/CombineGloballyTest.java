@@ -67,12 +67,12 @@ public class CombineGloballyTest implements Serializable {
         pipeline
             .apply(
                 Create.timestamped(
-                    TimestampedValue.of(1, new Instant(1)),
-                    TimestampedValue.of(2, new Instant(2)),
-                    TimestampedValue.of(3, new Instant(11)),
-                    TimestampedValue.of(4, new Instant(3)),
-                    TimestampedValue.of(5, new Instant(11)),
-                    TimestampedValue.of(6, new Instant(12))))
+                    TimestampedValue.of(1, Instant.ofEpochMilli(1)),
+                    TimestampedValue.of(2, Instant.ofEpochMilli(2)),
+                    TimestampedValue.of(3, Instant.ofEpochMilli(11)),
+                    TimestampedValue.of(4, Instant.ofEpochMilli(3)),
+                    TimestampedValue.of(5, Instant.ofEpochMilli(11)),
+                    TimestampedValue.of(6, Instant.ofEpochMilli(12))))
             .apply(Window.into(FixedWindows.of(Duration.millis(10))))
             .apply(Sum.integersGlobally().withoutDefaults());
     PAssert.that(input).containsInAnyOrder(7, 14);
@@ -85,12 +85,12 @@ public class CombineGloballyTest implements Serializable {
         pipeline
             .apply(
                 Create.timestamped(
-                    TimestampedValue.of(1, new Instant(1)),
-                    TimestampedValue.of(3, new Instant(2)),
-                    TimestampedValue.of(5, new Instant(3)),
-                    TimestampedValue.of(2, new Instant(1)),
-                    TimestampedValue.of(4, new Instant(2)),
-                    TimestampedValue.of(6, new Instant(3))))
+                    TimestampedValue.of(1, Instant.ofEpochMilli(1)),
+                    TimestampedValue.of(3, Instant.ofEpochMilli(2)),
+                    TimestampedValue.of(5, Instant.ofEpochMilli(3)),
+                    TimestampedValue.of(2, Instant.ofEpochMilli(1)),
+                    TimestampedValue.of(4, Instant.ofEpochMilli(2)),
+                    TimestampedValue.of(6, Instant.ofEpochMilli(3))))
             .apply(Window.into(SlidingWindows.of(Duration.millis(3)).every(Duration.millis(1))))
             .apply(Sum.integersGlobally().withoutDefaults());
     PAssert.that(input)
@@ -104,9 +104,9 @@ public class CombineGloballyTest implements Serializable {
         pipeline
             .apply(
                 Create.timestamped(
-                    TimestampedValue.of(2, new Instant(5)),
-                    TimestampedValue.of(4, new Instant(11)),
-                    TimestampedValue.of(6, new Instant(12))))
+                    TimestampedValue.of(2, Instant.ofEpochMilli(5)),
+                    TimestampedValue.of(4, Instant.ofEpochMilli(11)),
+                    TimestampedValue.of(6, Instant.ofEpochMilli(12))))
             .apply(Window.into(Sessions.withGapDuration(Duration.millis(5))))
             .apply(Sum.integersGlobally().withoutDefaults());
 
@@ -120,9 +120,9 @@ public class CombineGloballyTest implements Serializable {
         pipeline
             .apply(
                 Create.timestamped(
-                    TimestampedValue.of("a", new Instant(1)),
-                    TimestampedValue.of("a", new Instant(2)),
-                    TimestampedValue.of("a", new Instant(2))))
+                    TimestampedValue.of("a", Instant.ofEpochMilli(1)),
+                    TimestampedValue.of("a", Instant.ofEpochMilli(2)),
+                    TimestampedValue.of("a", Instant.ofEpochMilli(2))))
             .apply(Window.into(SlidingWindows.of(Duration.millis(2)).every(Duration.millis(1))));
     PCollection<Long> output =
         input.apply(Combine.globally(Count.<String>combineFn()).withoutDefaults());
@@ -136,9 +136,9 @@ public class CombineGloballyTest implements Serializable {
         pipeline
             .apply(
                 Create.timestamped(
-                    TimestampedValue.of(1, new Instant(1)),
-                    TimestampedValue.of(3, new Instant(2)),
-                    TimestampedValue.of(5, new Instant(3))))
+                    TimestampedValue.of(1, Instant.ofEpochMilli(1)),
+                    TimestampedValue.of(3, Instant.ofEpochMilli(2)),
+                    TimestampedValue.of(5, Instant.ofEpochMilli(3))))
             .apply(Window.into(SlidingWindows.of(Duration.millis(3)).every(Duration.millis(1))))
             .apply(
                 Combine.globally(BinaryCombineFn.<Integer>of((i1, i2) -> i1 > i2 ? i1 : i2))

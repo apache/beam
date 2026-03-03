@@ -45,8 +45,8 @@ public class RepeatedlyTest {
   @Test
   public void testFireDeadline() throws Exception {
     setUp(FixedWindows.of(Duration.millis(10)));
-    IntervalWindow window = new IntervalWindow(new Instant(0), new Instant(10));
-    Instant arbitraryInstant = new Instant(34957849);
+    IntervalWindow window = new IntervalWindow(Instant.ofEpochMilli(0), Instant.ofEpochMilli(10));
+    Instant arbitraryInstant = Instant.ofEpochMilli(34957849);
 
     when(mockTrigger.getWatermarkThatGuaranteesFiring(Mockito.<IntervalWindow>any()))
         .thenReturn(arbitraryInstant);

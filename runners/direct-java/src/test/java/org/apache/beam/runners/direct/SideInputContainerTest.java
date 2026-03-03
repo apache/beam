@@ -70,7 +70,7 @@ public class SideInputContainerTest {
       new BoundedWindow() {
         @Override
         public Instant maxTimestamp() {
-          return new Instant(789541L);
+          return Instant.ofEpochMilli(789541L);
         }
 
         @Override
@@ -83,7 +83,7 @@ public class SideInputContainerTest {
       new BoundedWindow() {
         @Override
         public Instant maxTimestamp() {
-          return new Instant(14564786L);
+          return Instant.ofEpochMilli(14564786L);
         }
 
         @Override
@@ -128,13 +128,19 @@ public class SideInputContainerTest {
         materializeValuesFor(mapView.getPipeline().getOptions(), View.asMap(), KV.of("one", 1))) {
       valuesBuilder.add(
           WindowedValues.of(
-              materializedValue, new Instant(1L), FIRST_WINDOW, PaneInfo.ON_TIME_AND_ONLY_FIRING));
+              materializedValue,
+              Instant.ofEpochMilli(1L),
+              FIRST_WINDOW,
+              PaneInfo.ON_TIME_AND_ONLY_FIRING));
     }
     for (Object materializedValue :
         materializeValuesFor(mapView.getPipeline().getOptions(), View.asMap(), KV.of("two", 2))) {
       valuesBuilder.add(
           WindowedValues.of(
-              materializedValue, new Instant(20L), FIRST_WINDOW, PaneInfo.ON_TIME_AND_ONLY_FIRING));
+              materializedValue,
+              Instant.ofEpochMilli(20L),
+              FIRST_WINDOW,
+              PaneInfo.ON_TIME_AND_ONLY_FIRING));
     }
     container.write(mapView, valuesBuilder.build());
 
@@ -153,7 +159,7 @@ public class SideInputContainerTest {
       valuesBuilder.add(
           WindowedValues.of(
               materializedValue,
-              new Instant(1L),
+              Instant.ofEpochMilli(1L),
               SECOND_WINDOW,
               PaneInfo.createPane(true, false, Timing.EARLY)));
     }
@@ -162,7 +168,7 @@ public class SideInputContainerTest {
       valuesBuilder.add(
           WindowedValues.of(
               materializedValue,
-              new Instant(20L),
+              Instant.ofEpochMilli(20L),
               SECOND_WINDOW,
               PaneInfo.createPane(true, false, Timing.EARLY)));
     }
@@ -180,7 +186,7 @@ public class SideInputContainerTest {
       overwriteValuesBuilder.add(
           WindowedValues.of(
               materializedValue,
-              new Instant(300L),
+              Instant.ofEpochMilli(300L),
               SECOND_WINDOW,
               PaneInfo.createPane(false, false, Timing.EARLY, 1, -1)));
     }
@@ -315,7 +321,7 @@ public class SideInputContainerTest {
       valuesBuilder.add(
           WindowedValues.of(
               materializedValue,
-              new Instant(1L),
+              Instant.ofEpochMilli(1L),
               SECOND_WINDOW,
               PaneInfo.createPane(true, false, Timing.EARLY)));
     }
@@ -324,7 +330,7 @@ public class SideInputContainerTest {
       valuesBuilder.add(
           WindowedValues.of(
               materializedValue,
-              new Instant(20L),
+              Instant.ofEpochMilli(20L),
               SECOND_WINDOW,
               PaneInfo.createPane(true, false, Timing.EARLY)));
     }

@@ -129,7 +129,7 @@ public class StreamingTransformTranslatorTest implements Serializable {
   public void testStreamingSideInputAsIterableView() {
     final PipelineFunction pipelineFunction =
         (PipelineOptions options) -> {
-          final Instant baseTimestamp = new Instant(0);
+          final Instant baseTimestamp = Instant.ofEpochMilli(0);
           final Pipeline p = Pipeline.create(options);
 
           final PCollectionView<Iterable<Long>> streamingSideInput =
@@ -150,7 +150,8 @@ public class StreamingTransformTranslatorTest implements Serializable {
           return p;
         };
 
-    final PipelineResult result = run(pipelineFunction, Optional.of(new Instant(1000)), true);
+    final PipelineResult result =
+        run(pipelineFunction, Optional.of(Instant.ofEpochMilli(1000)), true);
     final Iterable<MetricResult<DistributionResult>> distributions =
         result
             .metrics()
@@ -216,7 +217,7 @@ public class StreamingTransformTranslatorTest implements Serializable {
     final PipelineFunction pipelineFunction =
         (PipelineOptions options) -> {
           Pipeline p = Pipeline.create(options);
-          final Instant baseTimestamp = new Instant(0);
+          final Instant baseTimestamp = Instant.ofEpochMilli(0);
           final PCollection<Long> bounded =
               p.apply(
                       "Bounded",
@@ -238,7 +239,7 @@ public class StreamingTransformTranslatorTest implements Serializable {
           return p;
         };
 
-    PipelineResult res = run(pipelineFunction, Optional.of(new Instant(400)), false);
+    PipelineResult res = run(pipelineFunction, Optional.of(Instant.ofEpochMilli(400)), false);
 
     // Verify metrics for Bounded PCollection (sum of 0-9 = 45, count = 10)
     assertThat(

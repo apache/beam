@@ -35,7 +35,7 @@ public class AfterSynchronizedProcessingTimeTest {
     assertEquals(
         BoundedWindow.TIMESTAMP_MAX_VALUE,
         underTest.getWatermarkThatGuaranteesFiring(
-            new IntervalWindow(new Instant(0), new Instant(10))));
+            new IntervalWindow(Instant.ofEpochMilli(0), Instant.ofEpochMilli(10))));
   }
 
   @Test

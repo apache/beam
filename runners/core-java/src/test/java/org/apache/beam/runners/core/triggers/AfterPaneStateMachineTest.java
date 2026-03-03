@@ -47,7 +47,7 @@ public class AfterPaneStateMachineTest {
             AfterPaneStateMachine.elementCountAtLeast(2), FixedWindows.of(Duration.millis(10)));
 
     tester.injectElements(1); // [0, 10)
-    IntervalWindow window = new IntervalWindow(new Instant(0), new Instant(10));
+    IntervalWindow window = new IntervalWindow(Instant.ofEpochMilli(0), Instant.ofEpochMilli(10));
     assertFalse(tester.shouldFire(window));
 
     tester.injectElements(2); // [0, 10)
@@ -58,7 +58,9 @@ public class AfterPaneStateMachineTest {
     assertTrue(tester.isMarkedFinished(window));
 
     // But don't finish the other window
-    assertFalse(tester.isMarkedFinished(new IntervalWindow(new Instant(10), new Instant(20))));
+    assertFalse(
+        tester.isMarkedFinished(
+            new IntervalWindow(Instant.ofEpochMilli(10), Instant.ofEpochMilli(20))));
   }
 
   @Test
@@ -68,7 +70,7 @@ public class AfterPaneStateMachineTest {
             AfterPaneStateMachine.elementCountAtLeast(2), FixedWindows.of(Duration.millis(10)));
 
     tester.injectElements(1, 2, 3);
-    IntervalWindow window = new IntervalWindow(new Instant(0), new Instant(10));
+    IntervalWindow window = new IntervalWindow(Instant.ofEpochMilli(0), Instant.ofEpochMilli(10));
     tester.clearState(window);
     tester.assertCleared(window);
   }
@@ -84,12 +86,15 @@ public class AfterPaneStateMachineTest {
         1, // in [1, 11)
         2); // in [2, 12)
 
-    assertFalse(tester.shouldFire(new IntervalWindow(new Instant(1), new Instant(11))));
-    assertFalse(tester.shouldFire(new IntervalWindow(new Instant(2), new Instant(12))));
+    assertFalse(
+        tester.shouldFire(new IntervalWindow(Instant.ofEpochMilli(1), Instant.ofEpochMilli(11))));
+    assertFalse(
+        tester.shouldFire(new IntervalWindow(Instant.ofEpochMilli(2), Instant.ofEpochMilli(12))));
 
     tester.mergeWindows();
 
-    IntervalWindow mergedWindow = new IntervalWindow(new Instant(1), new Instant(12));
+    IntervalWindow mergedWindow =
+        new IntervalWindow(Instant.ofEpochMilli(1), Instant.ofEpochMilli(12));
     assertTrue(tester.shouldFire(mergedWindow));
     tester.fireIfShouldFire(mergedWindow);
     assertTrue(tester.isMarkedFinished(mergedWindow));
@@ -102,7 +107,8 @@ public class AfterPaneStateMachineTest {
 
     tester.mergeWindows();
 
-    IntervalWindow newMergedWindow = new IntervalWindow(new Instant(7), new Instant(19));
+    IntervalWindow newMergedWindow =
+        new IntervalWindow(Instant.ofEpochMilli(7), Instant.ofEpochMilli(19));
     assertTrue(tester.shouldFire(newMergedWindow));
     tester.fireIfShouldFire(newMergedWindow);
     assertTrue(tester.isMarkedFinished(newMergedWindow));

@@ -71,7 +71,7 @@ public class StateContextsTest {
 
   @Test
   public void windowOnlyContextThrowsOnOptions() {
-    BoundedWindow window = new IntervalWindow(new Instant(-137), Duration.millis(21L));
+    BoundedWindow window = new IntervalWindow(Instant.ofEpochMilli(-137), Duration.millis(21L));
     StateContext<BoundedWindow> context = StateContexts.windowOnlyContext(window);
     thrown.expect(IllegalArgumentException.class);
     context.getPipelineOptions();
@@ -79,7 +79,7 @@ public class StateContextsTest {
 
   @Test
   public void windowOnlyContextThrowsOnSideInput() {
-    BoundedWindow window = new IntervalWindow(new Instant(-137), Duration.millis(21L));
+    BoundedWindow window = new IntervalWindow(Instant.ofEpochMilli(-137), Duration.millis(21L));
     StateContext<BoundedWindow> context = StateContexts.windowOnlyContext(window);
     thrown.expect(IllegalArgumentException.class);
     context.sideInput(view);
@@ -87,7 +87,7 @@ public class StateContextsTest {
 
   @Test
   public void windowOnlyContextWindowReturnsWindow() {
-    BoundedWindow window = new IntervalWindow(new Instant(-137), Duration.millis(21L));
+    BoundedWindow window = new IntervalWindow(Instant.ofEpochMilli(-137), Duration.millis(21L));
     StateContext<BoundedWindow> context = StateContexts.windowOnlyContext(window);
     assertThat(context.window(), equalTo(window));
   }

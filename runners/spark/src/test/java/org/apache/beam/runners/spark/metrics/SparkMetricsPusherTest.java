@@ -71,7 +71,7 @@ public class SparkMetricsPusherTest {
   public void testInStreamingMode() throws Exception {
     pipeline.getOptions().as(TestSparkPipelineOptions.class).setStreaming(true);
 
-    Instant instant = new Instant(0);
+    Instant instant = Instant.ofEpochMilli(0);
     CreateStream<Integer> source =
         CreateStream.of(VarIntCoder.of(), batchDuration())
             .emptyBatch()

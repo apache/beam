@@ -87,8 +87,8 @@ public class PipelineJsonRendererTest {
 
     p.apply(
             Create.timestamped(
-                TimestampedValue.of(KV.of(1, 1), new Instant(1)),
-                TimestampedValue.of(KV.of(2, 2), new Instant(2))))
+                TimestampedValue.of(KV.of(1, 1), Instant.ofEpochMilli(1)),
+                TimestampedValue.of(KV.of(2, 2), Instant.ofEpochMilli(2))))
         .apply(Window.into(FixedWindows.of(Duration.millis(10))))
         .apply(Sum.integersPerKey());
 

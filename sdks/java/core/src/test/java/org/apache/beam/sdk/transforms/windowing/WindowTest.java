@@ -450,8 +450,8 @@ public class WindowTest implements Serializable {
     pipeline
         .apply(
             Create.timestamped(
-                TimestampedValue.of(KV.of(0, "hello"), new Instant(0)),
-                TimestampedValue.of(KV.of(0, "goodbye"), new Instant(10))))
+                TimestampedValue.of(KV.of(0, "hello"), Instant.ofEpochMilli(0)),
+                TimestampedValue.of(KV.of(0, "goodbye"), Instant.ofEpochMilli(10))))
         .apply(Window.into(FixedWindows.of(Duration.standardMinutes(10))))
         .apply(GroupByKey.create())
         .apply(
@@ -463,8 +463,8 @@ public class WindowTest implements Serializable {
                         c.timestamp(),
                         equalTo(
                             new IntervalWindow(
-                                    new Instant(0),
-                                    new Instant(0).plus(Duration.standardMinutes(10)))
+                                    Instant.ofEpochMilli(0),
+                                    Instant.ofEpochMilli(0).plus(Duration.standardMinutes(10)))
                                 .maxTimestamp()));
                   }
                 }));
@@ -484,8 +484,8 @@ public class WindowTest implements Serializable {
     pipeline
         .apply(
             Create.timestamped(
-                TimestampedValue.of(KV.of(0, "hello"), new Instant(0)),
-                TimestampedValue.of(KV.of(0, "goodbye"), new Instant(10))))
+                TimestampedValue.of(KV.of(0, "hello"), Instant.ofEpochMilli(0)),
+                TimestampedValue.of(KV.of(0, "goodbye"), Instant.ofEpochMilli(10))))
         .apply(
             Window.<KV<Integer, String>>into(FixedWindows.of(Duration.standardMinutes(10)))
                 .withTimestampCombiner(TimestampCombiner.END_OF_WINDOW))
@@ -618,7 +618,7 @@ public class WindowTest implements Serializable {
   @Test
   @Category({ValidatesRunner.class, UsesCustomWindowMerging.class})
   public void testMergingCustomWindows() {
-    Instant startInstant = new Instant(0L);
+    Instant startInstant = Instant.ofEpochMilli(0L);
     PCollection<String> inputCollection =
         pipeline.apply(
             Create.timestamped(
@@ -641,7 +641,7 @@ public class WindowTest implements Serializable {
   @Test
   @Category({ValidatesRunner.class, UsesCustomWindowMerging.class})
   public void testMergingCustomWindowsKeyedCollection() {
-    Instant startInstant = new Instant(0L);
+    Instant startInstant = Instant.ofEpochMilli(0L);
     PCollection<KV<Integer, String>> inputCollection =
         pipeline.apply(
             Create.timestamped(
@@ -666,7 +666,7 @@ public class WindowTest implements Serializable {
   @Test
   @Category({ValidatesRunner.class, UsesCustomWindowMerging.class})
   public void testMergingCustomWindowsWithoutCustomWindowTypes() {
-    Instant startInstant = new Instant(0L);
+    Instant startInstant = Instant.ofEpochMilli(0L);
     PCollection<KV<String, Integer>> inputCollection =
         pipeline.apply(
             Create.timestamped(

@@ -49,7 +49,7 @@ public class TimerUtilsTest {
   @Mock private TimerInternals.TimerData activeTimer;
   @Mock private IntervalWindow mockWindow;
 
-  private static final Instant NOW = new Instant(1000L);
+  private static final Instant NOW = Instant.ofEpochMilli(1000L);
   private static final Duration ALLOWED_LATENESS = Duration.standardMinutes(5);
 
   @Before

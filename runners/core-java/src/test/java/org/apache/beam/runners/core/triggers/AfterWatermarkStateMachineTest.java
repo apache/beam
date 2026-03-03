@@ -95,13 +95,13 @@ public class AfterWatermarkStateMachineTest {
             FixedWindows.of(Duration.millis(100)));
 
     injectElements(1);
-    IntervalWindow window = new IntervalWindow(new Instant(0), new Instant(100));
+    IntervalWindow window = new IntervalWindow(Instant.ofEpochMilli(0), Instant.ofEpochMilli(100));
 
     testRunningAsTrigger(mockEarly, window);
 
     // Fire due to watermark
     when(mockEarly.shouldFire(anyTriggerContext())).thenReturn(false);
-    tester.advanceInputWatermark(new Instant(100));
+    tester.advanceInputWatermark(Instant.ofEpochMilli(100));
     assertTrue(tester.shouldFire(window));
     tester.fireIfShouldFire(window);
     assertTrue(tester.isMarkedFinished(window));
@@ -115,7 +115,7 @@ public class AfterWatermarkStateMachineTest {
 
     assertThat(tester.getNextTimer(TimeDomain.EVENT_TIME), nullValue());
     injectElements(1);
-    IntervalWindow window = new IntervalWindow(new Instant(0), new Instant(100));
+    IntervalWindow window = new IntervalWindow(Instant.ofEpochMilli(0), Instant.ofEpochMilli(100));
     assertThat(tester.getNextTimer(TimeDomain.EVENT_TIME), equalTo(window.maxTimestamp()));
   }
 
@@ -128,7 +128,7 @@ public class AfterWatermarkStateMachineTest {
 
     assertThat(tester.getNextTimer(TimeDomain.EVENT_TIME), nullValue());
     injectElements(1);
-    IntervalWindow window = new IntervalWindow(new Instant(0), new Instant(100));
+    IntervalWindow window = new IntervalWindow(Instant.ofEpochMilli(0), Instant.ofEpochMilli(100));
     assertThat(tester.getNextTimer(TimeDomain.EVENT_TIME), equalTo(window.maxTimestamp()));
   }
 
@@ -140,7 +140,7 @@ public class AfterWatermarkStateMachineTest {
             FixedWindows.of(Duration.millis(100)));
 
     injectElements(1);
-    IntervalWindow window = new IntervalWindow(new Instant(0), new Instant(100));
+    IntervalWindow window = new IntervalWindow(Instant.ofEpochMilli(0), Instant.ofEpochMilli(100));
 
     // No early firing, just double checking
     when(mockEarly.shouldFire(anyTriggerContext())).thenReturn(true);
@@ -150,7 +150,7 @@ public class AfterWatermarkStateMachineTest {
 
     // Fire due to watermark
     when(mockEarly.shouldFire(anyTriggerContext())).thenReturn(false);
-    tester.advanceInputWatermark(new Instant(100));
+    tester.advanceInputWatermark(Instant.ofEpochMilli(100));
     assertTrue(tester.shouldFire(window));
     tester.fireIfShouldFire(window);
     assertFalse(tester.isMarkedFinished(window));
@@ -168,13 +168,13 @@ public class AfterWatermarkStateMachineTest {
             FixedWindows.of(Duration.millis(100)));
 
     injectElements(1);
-    IntervalWindow window = new IntervalWindow(new Instant(0), new Instant(100));
+    IntervalWindow window = new IntervalWindow(Instant.ofEpochMilli(0), Instant.ofEpochMilli(100));
 
     testRunningAsTrigger(mockEarly, window);
 
     // Fire due to watermark
     when(mockEarly.shouldFire(anyTriggerContext())).thenReturn(false);
-    tester.advanceInputWatermark(new Instant(100));
+    tester.advanceInputWatermark(Instant.ofEpochMilli(100));
     assertTrue(tester.shouldFire(window));
     tester.fireIfShouldFire(window);
     assertFalse(tester.isMarkedFinished(window));
@@ -201,12 +201,15 @@ public class AfterWatermarkStateMachineTest {
 
     tester.injectElements(1);
     tester.injectElements(5);
-    IntervalWindow firstWindow = new IntervalWindow(new Instant(1), new Instant(11));
-    IntervalWindow secondWindow = new IntervalWindow(new Instant(5), new Instant(15));
-    IntervalWindow mergedWindow = new IntervalWindow(new Instant(1), new Instant(15));
+    IntervalWindow firstWindow =
+        new IntervalWindow(Instant.ofEpochMilli(1), Instant.ofEpochMilli(11));
+    IntervalWindow secondWindow =
+        new IntervalWindow(Instant.ofEpochMilli(5), Instant.ofEpochMilli(15));
+    IntervalWindow mergedWindow =
+        new IntervalWindow(Instant.ofEpochMilli(1), Instant.ofEpochMilli(15));
 
     // Finish the AfterWatermark.pastEndOfWindow() trigger in both windows
-    tester.advanceInputWatermark(new Instant(15));
+    tester.advanceInputWatermark(Instant.ofEpochMilli(15));
     assertTrue(tester.shouldFire(firstWindow));
     assertTrue(tester.shouldFire(secondWindow));
     tester.fireIfShouldFire(firstWindow);
@@ -249,12 +252,15 @@ public class AfterWatermarkStateMachineTest {
 
     tester.injectElements(1);
     tester.injectElements(5);
-    IntervalWindow firstWindow = new IntervalWindow(new Instant(1), new Instant(11));
-    IntervalWindow secondWindow = new IntervalWindow(new Instant(5), new Instant(15));
-    IntervalWindow mergedWindow = new IntervalWindow(new Instant(1), new Instant(15));
+    IntervalWindow firstWindow =
+        new IntervalWindow(Instant.ofEpochMilli(1), Instant.ofEpochMilli(11));
+    IntervalWindow secondWindow =
+        new IntervalWindow(Instant.ofEpochMilli(5), Instant.ofEpochMilli(15));
+    IntervalWindow mergedWindow =
+        new IntervalWindow(Instant.ofEpochMilli(1), Instant.ofEpochMilli(15));
 
     // Finish the AfterWatermark.pastEndOfWindow() trigger in only the first window
-    tester.advanceInputWatermark(new Instant(11));
+    tester.advanceInputWatermark(Instant.ofEpochMilli(11));
     assertTrue(tester.shouldFire(firstWindow));
     assertFalse(tester.shouldFire(secondWindow));
     tester.fireIfShouldFire(firstWindow);
@@ -274,7 +280,7 @@ public class AfterWatermarkStateMachineTest {
     assertFalse(tester.shouldFire(mergedWindow));
 
     // And confirm that advancing the watermark fires again
-    tester.advanceInputWatermark(new Instant(15));
+    tester.advanceInputWatermark(Instant.ofEpochMilli(15));
     assertTrue(tester.shouldFire(mergedWindow));
   }
 
@@ -297,12 +303,15 @@ public class AfterWatermarkStateMachineTest {
 
     tester.injectElements(1);
     tester.injectElements(5);
-    IntervalWindow firstWindow = new IntervalWindow(new Instant(1), new Instant(11));
-    IntervalWindow secondWindow = new IntervalWindow(new Instant(5), new Instant(15));
-    IntervalWindow mergedWindow = new IntervalWindow(new Instant(1), new Instant(15));
+    IntervalWindow firstWindow =
+        new IntervalWindow(Instant.ofEpochMilli(1), Instant.ofEpochMilli(11));
+    IntervalWindow secondWindow =
+        new IntervalWindow(Instant.ofEpochMilli(5), Instant.ofEpochMilli(15));
+    IntervalWindow mergedWindow =
+        new IntervalWindow(Instant.ofEpochMilli(1), Instant.ofEpochMilli(15));
 
     // Finish the AfterWatermark.pastEndOfWindow() bit of the trigger in both windows
-    tester.advanceInputWatermark(new Instant(15));
+    tester.advanceInputWatermark(Instant.ofEpochMilli(15));
     assertTrue(tester.shouldFire(firstWindow));
     assertTrue(tester.shouldFire(secondWindow));
     tester.fireIfShouldFire(firstWindow);
@@ -364,12 +373,15 @@ public class AfterWatermarkStateMachineTest {
 
     tester.injectElements(1);
     tester.injectElements(5);
-    IntervalWindow firstWindow = new IntervalWindow(new Instant(1), new Instant(11));
-    IntervalWindow secondWindow = new IntervalWindow(new Instant(5), new Instant(15));
-    IntervalWindow mergedWindow = new IntervalWindow(new Instant(1), new Instant(15));
+    IntervalWindow firstWindow =
+        new IntervalWindow(Instant.ofEpochMilli(1), Instant.ofEpochMilli(11));
+    IntervalWindow secondWindow =
+        new IntervalWindow(Instant.ofEpochMilli(5), Instant.ofEpochMilli(15));
+    IntervalWindow mergedWindow =
+        new IntervalWindow(Instant.ofEpochMilli(1), Instant.ofEpochMilli(15));
 
     // Finish the AfterWatermark.pastEndOfWindow() bit of the trigger in only the first window
-    tester.advanceInputWatermark(new Instant(11));
+    tester.advanceInputWatermark(Instant.ofEpochMilli(11));
     assertTrue(tester.shouldFire(firstWindow));
     assertFalse(tester.shouldFire(secondWindow));
     tester.fireIfShouldFire(firstWindow);
@@ -389,7 +401,7 @@ public class AfterWatermarkStateMachineTest {
     assertFalse(tester.shouldFire(mergedWindow));
 
     // And confirm that advancing the watermark fires again
-    tester.advanceInputWatermark(new Instant(15));
+    tester.advanceInputWatermark(Instant.ofEpochMilli(15));
     assertTrue(tester.shouldFire(mergedWindow));
   }
 

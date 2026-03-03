@@ -46,9 +46,10 @@ public class NeverStateMachineTest {
 
   @Test
   public void falseAfterEndOfWindow() throws Exception {
-    triggerTester.injectElements(TimestampedValue.of(1, new Instant(1)));
+    triggerTester.injectElements(TimestampedValue.of(1, Instant.ofEpochMilli(1)));
     IntervalWindow window =
-        new IntervalWindow(new Instant(0), new Instant(0).plus(Duration.standardMinutes(5)));
+        new IntervalWindow(
+            Instant.ofEpochMilli(0), Instant.ofEpochMilli(0).plus(Duration.standardMinutes(5)));
     assertThat(triggerTester.shouldFire(window), is(false));
     triggerTester.advanceInputWatermark(BoundedWindow.TIMESTAMP_MAX_VALUE);
     assertThat(triggerTester.shouldFire(window), is(false));

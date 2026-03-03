@@ -443,7 +443,7 @@ public class OrderedEventProcessorGlobalSequenceTest extends OrderedEventProcess
   @Test
   public void testWindowedProcessing() throws CannotProvideCoderException {
 
-    Instant base = new Instant(0);
+    Instant base = Instant.ofEpochMilli(0);
     TestStream<Event> values =
         TestStream.create(streamingPipeline.getCoderRegistry().getCoder(Event.class))
             .advanceWatermarkTo(base)

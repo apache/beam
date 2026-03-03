@@ -497,7 +497,7 @@ public class DataflowPipelineJobTest {
     Sleeper sleeper = new ZeroSleeper();
     NanoClock nanoClock = mock(NanoClock.class);
 
-    Instant separatingTimestamp = new Instant(42L);
+    Instant separatingTimestamp = Instant.ofEpochMilli(42L);
     JobMessage theMessage = infoMessage(separatingTimestamp, "nothing");
 
     MonitoringUtil mockMonitor = mock(MonitoringUtil.class);

@@ -72,11 +72,11 @@ public class WindmillKeyedWorkItemTest {
 
   private static final Coder<String> VALUE_CODER = StringUtf8Coder.of();
   private static final IntervalWindow WINDOW_1 =
-      new IntervalWindow(new Instant(0), new Instant(10));
+      new IntervalWindow(Instant.ofEpochMilli(0), Instant.ofEpochMilli(10));
   private static final StateNamespace STATE_NAMESPACE_1 =
       StateNamespaces.window(WINDOW_CODER, WINDOW_1);
   private static final IntervalWindow WINDOW_2 =
-      new IntervalWindow(new Instant(10), new Instant(20));
+      new IntervalWindow(Instant.ofEpochMilli(10), Instant.ofEpochMilli(20));
   private static final StateNamespace STATE_NAMESPACE_2 =
       StateNamespaces.window(WINDOW_CODER, WINDOW_2);
 
@@ -113,9 +113,9 @@ public class WindmillKeyedWorkItemTest {
     assertThat(
         keyedWorkItem.elementsIterable(),
         Matchers.contains(
-            WindowedValues.of("hello", new Instant(5), WINDOW_1, paneInfo(0)),
-            WindowedValues.of("world", new Instant(7), WINDOW_2, paneInfo(2)),
-            WindowedValues.of("earth", new Instant(6), WINDOW_1, paneInfo(1))));
+            WindowedValues.of("hello", Instant.ofEpochMilli(5), WINDOW_1, paneInfo(0)),
+            WindowedValues.of("world", Instant.ofEpochMilli(7), WINDOW_2, paneInfo(2)),
+            WindowedValues.of("earth", Instant.ofEpochMilli(6), WINDOW_1, paneInfo(1))));
   }
 
   private void addElement(

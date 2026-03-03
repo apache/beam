@@ -42,11 +42,11 @@ public class IntervalWindowTest {
 
   private static final List<IntervalWindow> TEST_VALUES =
       Lists.newArrayList(
-          new IntervalWindow(new Instant(0), new Instant(0)),
-          new IntervalWindow(new Instant(0), new Instant(1000)),
-          new IntervalWindow(new Instant(-1000), new Instant(735)),
-          new IntervalWindow(new Instant(350), new Instant(60 * 60 * 1000)),
-          new IntervalWindow(new Instant(0), new Instant(24 * 60 * 60 * 1000)),
+          new IntervalWindow(Instant.ofEpochMilli(0), Instant.ofEpochMilli(0)),
+          new IntervalWindow(Instant.ofEpochMilli(0), Instant.ofEpochMilli(1000)),
+          new IntervalWindow(Instant.ofEpochMilli(-1000), Instant.ofEpochMilli(735)),
+          new IntervalWindow(Instant.ofEpochMilli(350), new Instant(60 * 60 * 1000)),
+          new IntervalWindow(Instant.ofEpochMilli(0), new Instant(24 * 60 * 60 * 1000)),
           new IntervalWindow(
               Instant.parse("2015-04-01T00:00:00Z"), Instant.parse("2015-04-01T11:45:13Z")));
 

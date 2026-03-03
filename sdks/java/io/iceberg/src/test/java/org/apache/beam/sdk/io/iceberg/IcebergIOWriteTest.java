@@ -368,7 +368,7 @@ public class IcebergIOWriteTest implements Serializable {
     List<Row> inputRows = TestFixtures.asRows(TestFixtures.FILE1SNAPSHOT1);
     TestStream<Row> stream =
         TestStream.create(IcebergUtils.icebergSchemaToBeamSchema(TestFixtures.SCHEMA))
-            .advanceWatermarkTo(new Instant(0))
+            .advanceWatermarkTo(Instant.ofEpochMilli(0))
             // the first two rows are written within the same triggering interval,
             // so they should both be in the first snapshot
             .addElements(inputRows.get(0))

@@ -117,11 +117,11 @@ public class GroupAlsoByWindowProperties {
             windowingStrategy,
             "key",
             WindowedValues.of(
-                "v1", new Instant(1), Arrays.asList(window(0, 10)), PaneInfo.NO_FIRING),
+                "v1", Instant.ofEpochMilli(1), Arrays.asList(window(0, 10)), PaneInfo.NO_FIRING),
             WindowedValues.of(
-                "v2", new Instant(2), Arrays.asList(window(0, 10)), PaneInfo.NO_FIRING),
+                "v2", Instant.ofEpochMilli(2), Arrays.asList(window(0, 10)), PaneInfo.NO_FIRING),
             WindowedValues.of(
-                "v3", new Instant(13), Arrays.asList(window(10, 20)), PaneInfo.NO_FIRING));
+                "v3", Instant.ofEpochMilli(13), Arrays.asList(window(10, 20)), PaneInfo.NO_FIRING));
 
     assertThat(result, hasSize(2));
 
@@ -156,12 +156,12 @@ public class GroupAlsoByWindowProperties {
             "key",
             WindowedValues.of(
                 "v1",
-                new Instant(5),
+                Instant.ofEpochMilli(5),
                 Arrays.asList(window(-10, 10), window(0, 20)),
                 PaneInfo.NO_FIRING),
             WindowedValues.of(
                 "v2",
-                new Instant(15),
+                Instant.ofEpochMilli(15),
                 Arrays.asList(window(0, 20), window(10, 30)),
                 PaneInfo.NO_FIRING));
 
@@ -170,17 +170,17 @@ public class GroupAlsoByWindowProperties {
     TimestampedValue<KV<String, Iterable<String>>> item0 =
         getOnlyElementInWindow(result, window(-10, 10));
     assertThat(item0.getValue().getValue(), contains("v1"));
-    assertThat(item0.getTimestamp(), equalTo(new Instant(5)));
+    assertThat(item0.getTimestamp(), equalTo(Instant.ofEpochMilli(5)));
 
     TimestampedValue<KV<String, Iterable<String>>> item1 =
         getOnlyElementInWindow(result, window(0, 20));
     assertThat(item1.getValue().getValue(), containsInAnyOrder("v1", "v2"));
-    assertThat(item1.getTimestamp(), equalTo(new Instant(5)));
+    assertThat(item1.getTimestamp(), equalTo(Instant.ofEpochMilli(5)));
 
     TimestampedValue<KV<String, Iterable<String>>> item2 =
         getOnlyElementInWindow(result, window(10, 30));
     assertThat(item2.getValue().getValue(), contains("v2"));
-    assertThat(item2.getTimestamp(), equalTo(new Instant(15)));
+    assertThat(item2.getTimestamp(), equalTo(Instant.ofEpochMilli(15)));
   }
 
   /**
@@ -205,17 +205,17 @@ public class GroupAlsoByWindowProperties {
             "k",
             WindowedValues.of(
                 1L,
-                new Instant(5),
+                Instant.ofEpochMilli(5),
                 Arrays.asList(window(-10, 10), window(0, 20)),
                 PaneInfo.NO_FIRING),
             WindowedValues.of(
                 2L,
-                new Instant(15),
+                Instant.ofEpochMilli(15),
                 Arrays.asList(window(0, 20), window(10, 30)),
                 PaneInfo.NO_FIRING),
             WindowedValues.of(
                 4L,
-                new Instant(18),
+                Instant.ofEpochMilli(18),
                 Arrays.asList(window(0, 20), window(10, 30)),
                 PaneInfo.NO_FIRING));
 
@@ -224,17 +224,17 @@ public class GroupAlsoByWindowProperties {
     TimestampedValue<KV<String, Long>> item0 = getOnlyElementInWindow(result, window(-10, 10));
     assertThat(item0.getValue().getKey(), equalTo("k"));
     assertThat(item0.getValue().getValue(), equalTo(combineFn.apply(ImmutableList.of(1L))));
-    assertThat(item0.getTimestamp(), equalTo(new Instant(5L)));
+    assertThat(item0.getTimestamp(), equalTo(Instant.ofEpochMilli(5L)));
 
     TimestampedValue<KV<String, Long>> item1 = getOnlyElementInWindow(result, window(0, 20));
     assertThat(item1.getValue().getKey(), equalTo("k"));
     assertThat(item1.getValue().getValue(), equalTo(combineFn.apply(ImmutableList.of(1L, 2L, 4L))));
-    assertThat(item1.getTimestamp(), equalTo(new Instant(5L)));
+    assertThat(item1.getTimestamp(), equalTo(Instant.ofEpochMilli(5L)));
 
     TimestampedValue<KV<String, Long>> item2 = getOnlyElementInWindow(result, window(10, 30));
     assertThat(item2.getValue().getKey(), equalTo("k"));
     assertThat(item2.getValue().getValue(), equalTo(combineFn.apply(ImmutableList.of(2L, 4L))));
-    assertThat(item2.getTimestamp(), equalTo(new Instant(15L)));
+    assertThat(item2.getTimestamp(), equalTo(Instant.ofEpochMilli(15L)));
   }
 
   /**
@@ -253,11 +253,11 @@ public class GroupAlsoByWindowProperties {
             windowingStrategy,
             "key",
             WindowedValues.of(
-                "v1", new Instant(1), Arrays.asList(window(0, 5)), PaneInfo.NO_FIRING),
+                "v1", Instant.ofEpochMilli(1), Arrays.asList(window(0, 5)), PaneInfo.NO_FIRING),
             WindowedValues.of(
-                "v2", new Instant(4), Arrays.asList(window(1, 5)), PaneInfo.NO_FIRING),
+                "v2", Instant.ofEpochMilli(4), Arrays.asList(window(1, 5)), PaneInfo.NO_FIRING),
             WindowedValues.of(
-                "v3", new Instant(4), Arrays.asList(window(0, 5)), PaneInfo.NO_FIRING));
+                "v3", Instant.ofEpochMilli(4), Arrays.asList(window(0, 5)), PaneInfo.NO_FIRING));
 
     assertThat(result, hasSize(2));
 
@@ -285,11 +285,11 @@ public class GroupAlsoByWindowProperties {
             windowingStrategy,
             "key",
             WindowedValues.of(
-                "v1", new Instant(0), Arrays.asList(window(0, 10)), PaneInfo.NO_FIRING),
+                "v1", Instant.ofEpochMilli(0), Arrays.asList(window(0, 10)), PaneInfo.NO_FIRING),
             WindowedValues.of(
-                "v2", new Instant(5), Arrays.asList(window(5, 15)), PaneInfo.NO_FIRING),
+                "v2", Instant.ofEpochMilli(5), Arrays.asList(window(5, 15)), PaneInfo.NO_FIRING),
             WindowedValues.of(
-                "v3", new Instant(15), Arrays.asList(window(15, 25)), PaneInfo.NO_FIRING));
+                "v3", Instant.ofEpochMilli(15), Arrays.asList(window(15, 25)), PaneInfo.NO_FIRING));
 
     assertThat(result, hasSize(2));
 
@@ -321,10 +321,12 @@ public class GroupAlsoByWindowProperties {
             gabwFactory,
             windowingStrategy,
             "k",
-            WindowedValues.of(1L, new Instant(0), Arrays.asList(window(0, 10)), PaneInfo.NO_FIRING),
-            WindowedValues.of(2L, new Instant(5), Arrays.asList(window(5, 15)), PaneInfo.NO_FIRING),
             WindowedValues.of(
-                4L, new Instant(15), Arrays.asList(window(15, 25)), PaneInfo.NO_FIRING));
+                1L, Instant.ofEpochMilli(0), Arrays.asList(window(0, 10)), PaneInfo.NO_FIRING),
+            WindowedValues.of(
+                2L, Instant.ofEpochMilli(5), Arrays.asList(window(5, 15)), PaneInfo.NO_FIRING),
+            WindowedValues.of(
+                4L, Instant.ofEpochMilli(15), Arrays.asList(window(15, 25)), PaneInfo.NO_FIRING));
 
     assertThat(result, hasSize(2));
 
@@ -357,11 +359,11 @@ public class GroupAlsoByWindowProperties {
             windowingStrategy,
             "key",
             WindowedValues.of(
-                "v1", new Instant(1), Arrays.asList(window(0, 10)), PaneInfo.NO_FIRING),
+                "v1", Instant.ofEpochMilli(1), Arrays.asList(window(0, 10)), PaneInfo.NO_FIRING),
             WindowedValues.of(
-                "v2", new Instant(2), Arrays.asList(window(0, 10)), PaneInfo.NO_FIRING),
+                "v2", Instant.ofEpochMilli(2), Arrays.asList(window(0, 10)), PaneInfo.NO_FIRING),
             WindowedValues.of(
-                "v3", new Instant(13), Arrays.asList(window(10, 20)), PaneInfo.NO_FIRING));
+                "v3", Instant.ofEpochMilli(13), Arrays.asList(window(10, 20)), PaneInfo.NO_FIRING));
 
     assertThat(result, hasSize(2));
 
@@ -394,23 +396,23 @@ public class GroupAlsoByWindowProperties {
             windowingStrategy,
             "k",
             WindowedValues.of(
-                "v1", new Instant(1), Arrays.asList(window(0, 10)), PaneInfo.NO_FIRING),
+                "v1", Instant.ofEpochMilli(1), Arrays.asList(window(0, 10)), PaneInfo.NO_FIRING),
             WindowedValues.of(
-                "v2", new Instant(2), Arrays.asList(window(0, 10)), PaneInfo.NO_FIRING),
+                "v2", Instant.ofEpochMilli(2), Arrays.asList(window(0, 10)), PaneInfo.NO_FIRING),
             WindowedValues.of(
-                "v3", new Instant(13), Arrays.asList(window(10, 20)), PaneInfo.NO_FIRING));
+                "v3", Instant.ofEpochMilli(13), Arrays.asList(window(10, 20)), PaneInfo.NO_FIRING));
 
     assertThat(result, hasSize(2));
 
     TimestampedValue<KV<String, Iterable<String>>> item0 =
         getOnlyElementInWindow(result, window(0, 10));
     assertThat(item0.getValue().getValue(), containsInAnyOrder("v1", "v2"));
-    assertThat(item0.getTimestamp(), equalTo(new Instant(2)));
+    assertThat(item0.getTimestamp(), equalTo(Instant.ofEpochMilli(2)));
 
     TimestampedValue<KV<String, Iterable<String>>> item1 =
         getOnlyElementInWindow(result, window(10, 20));
     assertThat(item1.getValue().getValue(), contains("v3"));
-    assertThat(item1.getTimestamp(), equalTo(new Instant(13)));
+    assertThat(item1.getTimestamp(), equalTo(Instant.ofEpochMilli(13)));
   }
 
   /**
@@ -430,11 +432,11 @@ public class GroupAlsoByWindowProperties {
             windowingStrategy,
             "k",
             WindowedValues.of(
-                "v1", new Instant(0), Arrays.asList(window(0, 10)), PaneInfo.NO_FIRING),
+                "v1", Instant.ofEpochMilli(0), Arrays.asList(window(0, 10)), PaneInfo.NO_FIRING),
             WindowedValues.of(
-                "v2", new Instant(5), Arrays.asList(window(5, 15)), PaneInfo.NO_FIRING),
+                "v2", Instant.ofEpochMilli(5), Arrays.asList(window(5, 15)), PaneInfo.NO_FIRING),
             WindowedValues.of(
-                "v3", new Instant(15), Arrays.asList(window(15, 25)), PaneInfo.NO_FIRING));
+                "v3", Instant.ofEpochMilli(15), Arrays.asList(window(15, 25)), PaneInfo.NO_FIRING));
 
     assertThat(result, hasSize(2));
 
@@ -467,11 +469,11 @@ public class GroupAlsoByWindowProperties {
             windowingStrategy,
             "k",
             WindowedValues.of(
-                "v1", new Instant(0), Arrays.asList(window(0, 10)), PaneInfo.NO_FIRING),
+                "v1", Instant.ofEpochMilli(0), Arrays.asList(window(0, 10)), PaneInfo.NO_FIRING),
             WindowedValues.of(
-                "v2", new Instant(5), Arrays.asList(window(5, 15)), PaneInfo.NO_FIRING),
+                "v2", Instant.ofEpochMilli(5), Arrays.asList(window(5, 15)), PaneInfo.NO_FIRING),
             WindowedValues.of(
-                "v3", new Instant(15), Arrays.asList(unmergedWindow), PaneInfo.NO_FIRING));
+                "v3", Instant.ofEpochMilli(15), Arrays.asList(unmergedWindow), PaneInfo.NO_FIRING));
 
     assertThat(result, hasSize(2));
 
@@ -479,12 +481,12 @@ public class GroupAlsoByWindowProperties {
     TimestampedValue<KV<String, Iterable<String>>> item0 =
         getOnlyElementInWindow(result, mergedWindow);
     assertThat(item0.getValue().getValue(), containsInAnyOrder("v1", "v2"));
-    assertThat(item0.getTimestamp(), equalTo(new Instant(5)));
+    assertThat(item0.getTimestamp(), equalTo(Instant.ofEpochMilli(5)));
 
     TimestampedValue<KV<String, Iterable<String>>> item1 =
         getOnlyElementInWindow(result, unmergedWindow);
     assertThat(item1.getValue().getValue(), contains("v3"));
-    assertThat(item1.getTimestamp(), equalTo(new Instant(15)));
+    assertThat(item1.getTimestamp(), equalTo(Instant.ofEpochMilli(15)));
   }
 
   /**
@@ -506,10 +508,12 @@ public class GroupAlsoByWindowProperties {
             gabwFactory,
             windowingStrategy,
             "k",
-            WindowedValues.of(1L, new Instant(0), Arrays.asList(window(0, 10)), PaneInfo.NO_FIRING),
-            WindowedValues.of(2L, new Instant(5), Arrays.asList(window(5, 15)), PaneInfo.NO_FIRING),
             WindowedValues.of(
-                4L, new Instant(15), Arrays.asList(secondWindow), PaneInfo.NO_FIRING));
+                1L, Instant.ofEpochMilli(0), Arrays.asList(window(0, 10)), PaneInfo.NO_FIRING),
+            WindowedValues.of(
+                2L, Instant.ofEpochMilli(5), Arrays.asList(window(5, 15)), PaneInfo.NO_FIRING),
+            WindowedValues.of(
+                4L, Instant.ofEpochMilli(15), Arrays.asList(secondWindow), PaneInfo.NO_FIRING));
 
     assertThat(result, hasSize(2));
 

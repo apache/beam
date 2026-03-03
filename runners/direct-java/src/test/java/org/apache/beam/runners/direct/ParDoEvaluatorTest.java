@@ -102,14 +102,15 @@ public class ParDoEvaluatorTest {
 
     ParDoEvaluator<Integer> evaluator = createEvaluator(singletonView, fn, inputPc, output);
 
-    IntervalWindow nonGlobalWindow = new IntervalWindow(new Instant(0), new Instant(10_000L));
+    IntervalWindow nonGlobalWindow =
+        new IntervalWindow(Instant.ofEpochMilli(0), new Instant(10_000L));
     WindowedValue<Integer> first = WindowedValues.valueInGlobalWindow(3);
     WindowedValue<Integer> second =
-        WindowedValues.of(2, new Instant(1234L), nonGlobalWindow, PaneInfo.NO_FIRING);
+        WindowedValues.of(2, Instant.ofEpochMilli(1234L), nonGlobalWindow, PaneInfo.NO_FIRING);
     WindowedValue<Integer> third =
         WindowedValues.of(
             1,
-            new Instant(2468L),
+            Instant.ofEpochMilli(2468L),
             ImmutableList.of(nonGlobalWindow, GlobalWindow.INSTANCE),
             PaneInfo.NO_FIRING);
 
@@ -121,14 +122,16 @@ public class ParDoEvaluatorTest {
     assertThat(
         result.getUnprocessedElements(),
         Matchers.<WindowedValue<?>>containsInAnyOrder(
-            second, WindowedValues.of(1, new Instant(2468L), nonGlobalWindow, PaneInfo.NO_FIRING)));
+            second,
+            WindowedValues.of(
+                1, Instant.ofEpochMilli(2468L), nonGlobalWindow, PaneInfo.NO_FIRING)));
     assertThat(result.getOutputBundles(), Matchers.contains(outputBundle));
     assertThat(fn.processed, containsInAnyOrder(1, 3));
     assertThat(
         Iterables.getOnlyElement(result.getOutputBundles()).commit(Instant.now()).getElements(),
         containsInAnyOrder(
             first.withValue(8),
-            WindowedValues.timestampedValueInGlobalWindow(6, new Instant(2468L))));
+            WindowedValues.timestampedValueInGlobalWindow(6, Instant.ofEpochMilli(2468L))));
   }
 
   private ParDoEvaluator<Integer> createEvaluator(

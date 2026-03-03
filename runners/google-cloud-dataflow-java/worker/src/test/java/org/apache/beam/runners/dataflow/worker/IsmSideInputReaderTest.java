@@ -317,23 +317,26 @@ public class IsmSideInputReaderTest {
 
   @Test
   public void testSingletonMapInWindow() throws Exception {
-    IntervalWindow firstWindow = new IntervalWindow(new Instant(0L), new Instant(100L));
-    IntervalWindow secondWindow = new IntervalWindow(new Instant(50L), new Instant(150L));
-    IntervalWindow emptyWindow = new IntervalWindow(new Instant(75L), new Instant(175L));
+    IntervalWindow firstWindow =
+        new IntervalWindow(Instant.ofEpochMilli(0L), Instant.ofEpochMilli(100L));
+    IntervalWindow secondWindow =
+        new IntervalWindow(Instant.ofEpochMilli(50L), Instant.ofEpochMilli(150L));
+    IntervalWindow emptyWindow =
+        new IntervalWindow(Instant.ofEpochMilli(75L), Instant.ofEpochMilli(175L));
     final Map<IntervalWindow, WindowedValue<Map<String, Long>>> elements =
         ImmutableMap.<IntervalWindow, WindowedValue<Map<String, Long>>>builder()
             .put(
                 firstWindow,
                 WindowedValues.of(
                     ImmutableMap.<String, Long>builder().put("foo", 0L).put("bar", -1L).build(),
-                    new Instant(7),
+                    Instant.ofEpochMilli(7),
                     firstWindow,
                     PaneInfo.NO_FIRING))
             .put(
                 secondWindow,
                 WindowedValues.of(
                     ImmutableMap.<String, Long>builder().put("bar", -1L).put("baz", 1L).build(),
-                    new Instant(53L),
+                    Instant.ofEpochMilli(53L),
                     secondWindow,
                     PaneInfo.NO_FIRING))
             .build();
@@ -395,9 +398,12 @@ public class IsmSideInputReaderTest {
 
   @Test
   public void testSingletonMultimapInWindow() throws Exception {
-    IntervalWindow firstWindow = new IntervalWindow(new Instant(0L), new Instant(100L));
-    IntervalWindow secondWindow = new IntervalWindow(new Instant(50L), new Instant(150L));
-    IntervalWindow emptyWindow = new IntervalWindow(new Instant(75L), new Instant(175L));
+    IntervalWindow firstWindow =
+        new IntervalWindow(Instant.ofEpochMilli(0L), Instant.ofEpochMilli(100L));
+    IntervalWindow secondWindow =
+        new IntervalWindow(Instant.ofEpochMilli(50L), Instant.ofEpochMilli(150L));
+    IntervalWindow emptyWindow =
+        new IntervalWindow(Instant.ofEpochMilli(75L), Instant.ofEpochMilli(175L));
     @SuppressWarnings({"unchecked", "rawtypes"}) // Collection is iterable, and this is immutable
     final Map<IntervalWindow, WindowedValue<Map<String, Iterable<Long>>>> elements =
         ImmutableMap.<IntervalWindow, WindowedValue<Map<String, Iterable<Long>>>>builder()
@@ -411,7 +417,7 @@ public class IsmSideInputReaderTest {
                             .put("bar", -1L)
                             .build()
                             .asMap(),
-                    new Instant(7),
+                    Instant.ofEpochMilli(7),
                     firstWindow,
                     PaneInfo.NO_FIRING))
             .put(
@@ -424,7 +430,7 @@ public class IsmSideInputReaderTest {
                             .put("baz", 3L)
                             .build()
                             .asMap(),
-                    new Instant(53L),
+                    Instant.ofEpochMilli(53L),
                     secondWindow,
                     PaneInfo.NO_FIRING))
             .build();

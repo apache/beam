@@ -81,8 +81,8 @@ public class ImmutabilityCheckingBundleFactoryTest {
     WindowedValue<byte[]> windowedArray =
         WindowedValues.of(
             new byte[] {4, 8, 12},
-            new Instant(891L),
-            new IntervalWindow(new Instant(0), new Instant(1000)),
+            Instant.ofEpochMilli(891L),
+            new IntervalWindow(Instant.ofEpochMilli(0), Instant.ofEpochMilli(1000)),
             PaneInfo.ON_TIME_AND_ONLY_FIRING);
     keyed.add(windowedArray);
 
@@ -97,8 +97,8 @@ public class ImmutabilityCheckingBundleFactoryTest {
     WindowedValue<byte[]> windowedArray =
         WindowedValues.of(
             new byte[] {4, 8, 12},
-            new Instant(891L),
-            new IntervalWindow(new Instant(0), new Instant(1000)),
+            Instant.ofEpochMilli(891L),
+            new IntervalWindow(Instant.ofEpochMilli(0), Instant.ofEpochMilli(1000)),
             PaneInfo.ON_TIME_AND_ONLY_FIRING);
     intermediate.add(windowedArray);
 
@@ -116,8 +116,8 @@ public class ImmutabilityCheckingBundleFactoryTest {
     WindowedValue<byte[]> windowedArray =
         WindowedValues.of(
             array,
-            new Instant(891L),
-            new IntervalWindow(new Instant(0), new Instant(1000)),
+            Instant.ofEpochMilli(891L),
+            new IntervalWindow(Instant.ofEpochMilli(0), Instant.ofEpochMilli(1000)),
             PaneInfo.ON_TIME_AND_ONLY_FIRING);
     keyed.add(windowedArray);
 
@@ -133,8 +133,8 @@ public class ImmutabilityCheckingBundleFactoryTest {
     WindowedValue<byte[]> windowedArray =
         WindowedValues.of(
             array,
-            new Instant(891L),
-            new IntervalWindow(new Instant(0), new Instant(1000)),
+            Instant.ofEpochMilli(891L),
+            new IntervalWindow(Instant.ofEpochMilli(0), Instant.ofEpochMilli(1000)),
             PaneInfo.ON_TIME_AND_ONLY_FIRING);
     array[2] = -3;
     intermediate.add(windowedArray);
@@ -152,8 +152,8 @@ public class ImmutabilityCheckingBundleFactoryTest {
     WindowedValue<byte[]> windowedArray =
         WindowedValues.of(
             array,
-            new Instant(891L),
-            new IntervalWindow(new Instant(0), new Instant(1000)),
+            Instant.ofEpochMilli(891L),
+            new IntervalWindow(Instant.ofEpochMilli(0), Instant.ofEpochMilli(1000)),
             PaneInfo.ON_TIME_AND_ONLY_FIRING);
     keyed.add(windowedArray);
 
@@ -171,8 +171,8 @@ public class ImmutabilityCheckingBundleFactoryTest {
     WindowedValue<byte[]> windowedArray =
         WindowedValues.of(
             array,
-            new Instant(891L),
-            new IntervalWindow(new Instant(0), new Instant(1000)),
+            Instant.ofEpochMilli(891L),
+            new IntervalWindow(Instant.ofEpochMilli(0), Instant.ofEpochMilli(1000)),
             PaneInfo.ON_TIME_AND_ONLY_FIRING);
     intermediate.add(windowedArray);
 

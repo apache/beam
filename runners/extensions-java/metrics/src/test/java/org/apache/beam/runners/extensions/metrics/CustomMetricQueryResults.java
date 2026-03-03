@@ -73,8 +73,8 @@ class CustomMetricQueryResults extends MetricQueryResults {
     return makeResults(
         "s3",
         "n3",
-        GaugeResult.create(100L, new Instant(345862800L)),
-        GaugeResult.create(120L, new Instant(345862800L)));
+        GaugeResult.create(100L, Instant.ofEpochMilli(345862800L)),
+        GaugeResult.create(120L, Instant.ofEpochMilli(345862800L)));
   }
 
   @Override

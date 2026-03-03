@@ -82,7 +82,7 @@ public class ShuffleSinkTest {
           KV.of(4, KV.of("in 4d", 1)),
           KV.of(5, KV.of("in 5", 666)));
 
-  private static final Instant timestamp = new Instant(123000);
+  private static final Instant timestamp = Instant.ofEpochMilli(123000);
   private static final IntervalWindow window =
       new IntervalWindow(timestamp, timestamp.plus(Duration.millis(1000)));
 

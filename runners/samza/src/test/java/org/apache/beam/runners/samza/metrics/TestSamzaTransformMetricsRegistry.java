@@ -125,14 +125,14 @@ public class TestSamzaTransformMetricsRegistry {
         new BoundedWindow() {
           @Override
           public Instant maxTimestamp() {
-            return new Instant(2048L);
+            return Instant.ofEpochMilli(2048L);
           }
         };
     final BoundedWindow second =
         new BoundedWindow() {
           @Override
           public Instant maxTimestamp() {
-            return new Instant(689743L);
+            return Instant.ofEpochMilli(689743L);
           }
         };
 

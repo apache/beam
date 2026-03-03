@@ -421,7 +421,7 @@ public class StorageApiSinkSchemaUpdateIT {
     }
 
     // set up and build pipeline
-    Instant start = new Instant(0);
+    Instant start = Instant.ofEpochMilli(0);
     Duration interval =
         waitLonger ? Duration.standardSeconds(LONG_WAIT_SECONDS) : Duration.millis(1);
     Duration stop =
@@ -683,7 +683,7 @@ public class StorageApiSinkSchemaUpdateIT {
 
     int numRows = TOTAL_N;
     // set up and build pipeline
-    Instant start = new Instant(0);
+    Instant start = Instant.ofEpochMilli(0);
     // We give a healthy waiting period between each element to give Storage API streams a chance to
     // recognize the new schema. Apply on relevant tests.
     Duration interval =

@@ -347,8 +347,10 @@ public class SplittablePairWithRestrictionDoFnRunnerTest implements Serializable
 
       FnDataReceiver<WindowedValue<?>> mainInput =
           context.getPCollectionConsumer(inputPCollectionId);
-      IntervalWindow window1 = new IntervalWindow(new Instant(5), new Instant(10));
-      IntervalWindow window2 = new IntervalWindow(new Instant(6), new Instant(11));
+      IntervalWindow window1 =
+          new IntervalWindow(Instant.ofEpochMilli(5), Instant.ofEpochMilli(10));
+      IntervalWindow window2 =
+          new IntervalWindow(Instant.ofEpochMilli(6), Instant.ofEpochMilli(11));
       WindowedValue<?> firstValue = valueInWindows("5", window1, window2);
       WindowedValue<?> secondValue = valueInWindows("2", window1, window2);
       mainInput.accept(firstValue);
@@ -461,8 +463,10 @@ public class SplittablePairWithRestrictionDoFnRunnerTest implements Serializable
 
       FnDataReceiver<WindowedValue<?>> mainInput =
           context.getPCollectionConsumer(inputPCollectionId);
-      IntervalWindow window1 = new IntervalWindow(new Instant(5), new Instant(10));
-      IntervalWindow window2 = new IntervalWindow(new Instant(6), new Instant(11));
+      IntervalWindow window1 =
+          new IntervalWindow(Instant.ofEpochMilli(5), Instant.ofEpochMilli(10));
+      IntervalWindow window2 =
+          new IntervalWindow(Instant.ofEpochMilli(6), Instant.ofEpochMilli(11));
       WindowedValue<?> firstValue = valueInWindows("5", window1, window2);
       WindowedValue<?> secondValue = valueInWindows("2", window1, window2);
       mainInput.accept(firstValue);

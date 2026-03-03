@@ -149,21 +149,24 @@ public class EvaluationContextTest implements Serializable {
                 IsBounded.BOUNDED,
                 IterableCoder.of(KvCoder.of(VoidCoder.of(), VarIntCoder.of()))),
             view);
-    BoundedWindow window = new TestBoundedWindow(new Instant(1024L));
-    BoundedWindow second = new TestBoundedWindow(new Instant(899999L));
+    BoundedWindow window = new TestBoundedWindow(Instant.ofEpochMilli(1024L));
+    BoundedWindow second = new TestBoundedWindow(Instant.ofEpochMilli(899999L));
     ImmutableList.Builder<WindowedValue<?>> valuesBuilder = ImmutableList.builder();
     for (Object materializedValue :
         materializeValuesFor(view.getPipeline().getOptions(), View.asIterable(), 1)) {
       valuesBuilder.add(
           WindowedValues.of(
-              materializedValue, new Instant(1222), window, PaneInfo.ON_TIME_AND_ONLY_FIRING));
+              materializedValue,
+              Instant.ofEpochMilli(1222),
+              window,
+              PaneInfo.ON_TIME_AND_ONLY_FIRING));
     }
     for (Object materializedValue :
         materializeValuesFor(view.getPipeline().getOptions(), View.asIterable(), 2)) {
       valuesBuilder.add(
           WindowedValues.of(
               materializedValue,
-              new Instant(8766L),
+              Instant.ofEpochMilli(8766L),
               second,
               PaneInfo.createPane(true, false, Timing.ON_TIME, 0, 0)));
     }
@@ -179,7 +182,7 @@ public class EvaluationContextTest implements Serializable {
       overwrittenValuesBuilder.add(
           WindowedValues.of(
               materializedValue,
-              new Instant(8677L),
+              Instant.ofEpochMilli(8677L),
               second,
               PaneInfo.createPane(false, true, Timing.LATE, 1, 1)));
     }
@@ -299,7 +302,7 @@ public class EvaluationContextTest implements Serializable {
         downstream, GlobalWindow.INSTANCE, WindowingStrategy.globalDefault(), callback);
 
     TransformResult<?> result =
-        StepTransformResult.withHold(impulseProducer, new Instant(0)).build();
+        StepTransformResult.withHold(impulseProducer, Instant.ofEpochMilli(0)).build();
 
     context.handleResult(null, ImmutableList.of(), result);
     // Difficult to demonstrate that we took no action in a multithreaded world; poll for a bit
@@ -329,15 +332,15 @@ public class EvaluationContextTest implements Serializable {
   @Test
   public void extractFiredTimersExtractsTimers() {
     TransformResult<?> holdResult =
-        StepTransformResult.withHold(impulseProducer, new Instant(0)).build();
+        StepTransformResult.withHold(impulseProducer, Instant.ofEpochMilli(0)).build();
     context.handleResult(null, ImmutableList.of(), holdResult);
 
     StructuralKey<?> key = StructuralKey.of("foo".length(), VarIntCoder.of());
     TimerData toFire =
         TimerData.of(
             StateNamespaces.global(),
-            new Instant(100L),
-            new Instant(100L),
+            Instant.ofEpochMilli(100L),
+            Instant.ofEpochMilli(100L),
             TimeDomain.EVENT_TIME,
             CausedByDrain.NORMAL);
     TransformResult<?> timerResult =

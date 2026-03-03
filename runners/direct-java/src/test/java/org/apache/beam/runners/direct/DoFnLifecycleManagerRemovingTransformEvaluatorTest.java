@@ -109,8 +109,8 @@ public class DoFnLifecycleManagerRemovingTransformEvaluatorTest {
           TimerData.of(
               "foo",
               StateNamespaces.global(),
-              new Instant(0),
-              new Instant(0),
+              Instant.ofEpochMilli(0),
+              Instant.ofEpochMilli(0),
               TimeDomain.EVENT_TIME,
               CausedByDrain.NORMAL),
           "",

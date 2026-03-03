@@ -43,7 +43,7 @@ import org.junit.runners.JUnit4;
 /** Tests for UngroupedShuffleReader. */
 @RunWith(JUnit4.class)
 public class UngroupedShuffleReaderTest {
-  private static final Instant timestamp = new Instant(123000);
+  private static final Instant timestamp = Instant.ofEpochMilli(123000);
   private static final IntervalWindow window =
       new IntervalWindow(timestamp, timestamp.minus(Duration.millis(1000)));
 

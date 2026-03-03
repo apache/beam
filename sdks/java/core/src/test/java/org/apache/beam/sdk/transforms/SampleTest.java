@@ -230,10 +230,10 @@ public class SampleTest {
       PCollection<Integer> output = input.apply(Sample.any(2));
 
       PAssert.that(output)
-          .inWindow(new IntervalWindow(new Instant(0), Duration.standardSeconds(3)))
+          .inWindow(new IntervalWindow(Instant.ofEpochMilli(0), Duration.standardSeconds(3)))
           .satisfies(new VerifyCorrectSample<>(2, Arrays.asList(0, 1, 2)));
       PAssert.that(output)
-          .inWindow(new IntervalWindow(new Instant(3000), Duration.standardSeconds(3)))
+          .inWindow(new IntervalWindow(Instant.ofEpochMilli(3000), Duration.standardSeconds(3)))
           .satisfies(new VerifyCorrectSample<>(2, Arrays.asList(3, 4, 5)));
       pipeline.run();
     }
@@ -264,10 +264,10 @@ public class SampleTest {
               .apply(Sample.any(0));
 
       PAssert.that(output)
-          .inWindow(new IntervalWindow(new Instant(0), Duration.standardSeconds(3)))
+          .inWindow(new IntervalWindow(Instant.ofEpochMilli(0), Duration.standardSeconds(3)))
           .satisfies(new VerifyCorrectSample<>(0, EMPTY));
       PAssert.that(output)
-          .inWindow(new IntervalWindow(new Instant(3000), Duration.standardSeconds(3)))
+          .inWindow(new IntervalWindow(Instant.ofEpochMilli(3000), Duration.standardSeconds(3)))
           .satisfies(new VerifyCorrectSample<>(0, EMPTY));
       pipeline.run();
     }
@@ -282,7 +282,7 @@ public class SampleTest {
               .apply(Sample.any(10));
 
       PAssert.that(output)
-          .inWindow(new IntervalWindow(new Instant(0), Duration.standardSeconds(3)))
+          .inWindow(new IntervalWindow(Instant.ofEpochMilli(0), Duration.standardSeconds(3)))
           .satisfies(new VerifyCorrectSample<>(0, EMPTY));
       pipeline.run();
     }

@@ -144,8 +144,8 @@ public class KeyedPValueTrackingVisitorTest {
                         "hello",
                         WindowedValues.of(
                             KV.of("hello", 3),
-                            new Instant(0),
-                            new IntervalWindow(new Instant(0), new Instant(9)),
+                            Instant.ofEpochMilli(0),
+                            new IntervalWindow(Instant.ofEpochMilli(0), Instant.ofEpochMilli(9)),
                             PaneInfo.NO_FIRING)))
                 .withCoder(
                     KvCoder.of(

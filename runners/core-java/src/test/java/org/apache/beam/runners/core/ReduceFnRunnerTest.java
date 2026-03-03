@@ -130,7 +130,7 @@ public class ReduceFnRunnerTest {
     PCollectionView<Integer> mockViewUnchecked =
         mock(PCollectionView.class, withSettings().serializable());
     mockView = mockViewUnchecked;
-    firstWindow = new IntervalWindow(new Instant(0), new Instant(10));
+    firstWindow = new IntervalWindow(Instant.ofEpochMilli(0), Instant.ofEpochMilli(10));
   }
 
   private void injectElement(ReduceFnTester<Integer, ?, IntervalWindow> tester, int element)
@@ -183,13 +183,14 @@ public class ReduceFnRunnerTest {
     ReduceFnTester<Integer, Integer, IntervalWindow> tester =
         ReduceFnTester.combining(strategy, Sum.ofIntegers(), VarIntCoder.of());
 
-    tester.advanceProcessingTime(new Instant(5000));
+    tester.advanceProcessingTime(Instant.ofEpochMilli(5000));
     injectElement(tester, 2); // processing timer @ 5000 + 10; EOW timer @ 100
     injectElement(tester, 5);
 
-    tester.advanceProcessingTime(new Instant(10000));
+    tester.advanceProcessingTime(Instant.ofEpochMilli(10000));
 
-    tester.assertHasOnlyGlobalAndStateFor(new IntervalWindow(new Instant(0), new Instant(100)));
+    tester.assertHasOnlyGlobalAndStateFor(
+        new IntervalWindow(Instant.ofEpochMilli(0), Instant.ofEpochMilli(100)));
 
     assertThat(
         tester.extractOutput(),
@@ -289,9 +290,9 @@ public class ReduceFnRunnerTest {
 
     tester.setAutoAdvanceOutputWatermark(true);
 
-    tester.advanceInputWatermark(new Instant(0));
+    tester.advanceInputWatermark(Instant.ofEpochMilli(0));
     injectElement(tester, 1);
-    tester.advanceInputWatermark(new Instant(100));
+    tester.advanceInputWatermark(Instant.ofEpochMilli(100));
 
     assertThat(
         tester.extractOutput(),
@@ -316,9 +317,9 @@ public class ReduceFnRunnerTest {
 
     tester.setAutoAdvanceOutputWatermark(true);
 
-    tester.advanceInputWatermark(new Instant(0));
+    tester.advanceInputWatermark(Instant.ofEpochMilli(0));
     injectElement(tester, 1);
-    tester.advanceInputWatermark(new Instant(100));
+    tester.advanceInputWatermark(Instant.ofEpochMilli(100));
 
     assertThat(
         tester.extractOutput(),
@@ -343,9 +344,9 @@ public class ReduceFnRunnerTest {
 
     tester.setAutoAdvanceOutputWatermark(true);
 
-    tester.advanceInputWatermark(new Instant(0));
+    tester.advanceInputWatermark(Instant.ofEpochMilli(0));
     injectElement(tester, 1);
-    tester.advanceInputWatermark(new Instant(100));
+    tester.advanceInputWatermark(Instant.ofEpochMilli(100));
 
     List<WindowedValue<Iterable<Integer>>> output = tester.extractOutput();
     assertThat(
@@ -370,20 +371,20 @@ public class ReduceFnRunnerTest {
     ReduceFnTester<Integer, Integer, IntervalWindow> tester =
         ReduceFnTester.combining(strategy, Sum.ofIntegers(), VarIntCoder.of());
 
-    tester.advanceInputWatermark(new Instant(0));
+    tester.advanceInputWatermark(Instant.ofEpochMilli(0));
 
     int value1 = 1;
     int value2 = 3;
 
     // A single element that should be in the ON_TIME output
-    tester.injectElements(TimestampedValue.of(value1, new Instant(1)));
+    tester.injectElements(TimestampedValue.of(value1, Instant.ofEpochMilli(1)));
 
     // Should fire ON_TIME
-    tester.advanceInputWatermark(new Instant(10));
+    tester.advanceInputWatermark(Instant.ofEpochMilli(10));
 
     // The DefaultTrigger should cause output labeled LATE, even though it does not have to be
     // labeled as such.
-    tester.injectElements(TimestampedValue.of(value2, new Instant(3)));
+    tester.injectElements(TimestampedValue.of(value2, Instant.ofEpochMilli(3)));
 
     List<WindowedValue<Integer>> output = tester.extractOutput();
     assertEquals(2, output.size());
@@ -450,16 +451,16 @@ public class ReduceFnRunnerTest {
     ReduceFnTester<Integer, Integer, IntervalWindow> tester =
         ReduceFnTester.combining(strategy, Sum.ofIntegers(), VarIntCoder.of());
 
-    tester.advanceProcessingTime(new Instant(5000));
+    tester.advanceProcessingTime(Instant.ofEpochMilli(5000));
     injectElement(tester, 2); // processing timer @ 5000 + 10; EOW timer @ 100
     injectElement(tester, 5);
 
     // After this advancement, the window is expired and only the GC process
     // should be allowed to touch it
-    tester.advanceInputWatermarkNoTimers(new Instant(100));
+    tester.advanceInputWatermarkNoTimers(Instant.ofEpochMilli(100));
 
     // This should not output
-    tester.advanceProcessingTime(new Instant(6000));
+    tester.advanceProcessingTime(Instant.ofEpochMilli(6000));
 
     assertThat(tester.extractOutput(), emptyIterable());
   }
@@ -482,18 +483,18 @@ public class ReduceFnRunnerTest {
     ReduceFnTester<Integer, Integer, IntervalWindow> tester =
         ReduceFnTester.combining(strategy, Sum.ofIntegers(), VarIntCoder.of());
 
-    tester.advanceProcessingTime(new Instant(5000));
+    tester.advanceProcessingTime(Instant.ofEpochMilli(5000));
     injectElement(tester, 2); // processing timer @ 5000 + 10; EOW timer @ 100
     injectElement(tester, 5);
 
-    tester.advanceInputWatermarkNoTimers(new Instant(100));
-    tester.advanceProcessingTimeNoTimers(new Instant(5010));
+    tester.advanceInputWatermarkNoTimers(Instant.ofEpochMilli(100));
+    tester.advanceProcessingTimeNoTimers(Instant.ofEpochMilli(5010));
 
     // Fires the GC/EOW timer at the same time as the processing time timer.
     tester.fireTimers(
-        new IntervalWindow(new Instant(0), new Instant(100)),
-        TimestampedValue.of(TimeDomain.EVENT_TIME, new Instant(100)),
-        TimestampedValue.of(TimeDomain.PROCESSING_TIME, new Instant(5010)));
+        new IntervalWindow(Instant.ofEpochMilli(0), Instant.ofEpochMilli(100)),
+        TimestampedValue.of(TimeDomain.EVENT_TIME, Instant.ofEpochMilli(100)),
+        TimestampedValue.of(TimeDomain.PROCESSING_TIME, Instant.ofEpochMilli(5010)));
 
     assertThat(
         tester.extractOutput(),
@@ -586,12 +587,12 @@ public class ReduceFnRunnerTest {
     ReduceFnTester<Integer, Integer, IntervalWindow> tester =
         ReduceFnTester.combining(strategy, Sum.ofIntegers(), VarIntCoder.of());
 
-    tester.advanceProcessingTime(new Instant(5000));
+    tester.advanceProcessingTime(Instant.ofEpochMilli(5000));
     injectElement(tester, 2); // processing timer @ 5000 + 10; EOW timer @ 100
     injectElement(tester, 5);
 
-    tester.advanceInputWatermark(new Instant(100));
-    tester.advanceProcessingTime(new Instant(5011));
+    tester.advanceInputWatermark(Instant.ofEpochMilli(100));
+    tester.advanceProcessingTime(Instant.ofEpochMilli(5011));
 
     assertThat(
         tester.extractOutput(),
@@ -619,7 +620,7 @@ public class ReduceFnRunnerTest {
     injectElement(tester, 2); // processing timer @ 5000 + 10; EOW timer @ 100
     injectElement(tester, 5);
 
-    tester.advanceInputWatermark(new Instant(1000));
+    tester.advanceInputWatermark(Instant.ofEpochMilli(1000));
 
     assertThat(
         tester.extractOutput(),
@@ -744,10 +745,11 @@ public class ReduceFnRunnerTest {
     assertEquals(null, tester.getOutputWatermark());
 
     // All on time data, verify watermark hold.
-    IntervalWindow expectedWindow = new IntervalWindow(new Instant(0), new Instant(10));
+    IntervalWindow expectedWindow =
+        new IntervalWindow(Instant.ofEpochMilli(0), Instant.ofEpochMilli(10));
     injectElement(tester, 1);
     injectElement(tester, 3);
-    assertEquals(new Instant(1), tester.getWatermarkHold());
+    assertEquals(Instant.ofEpochMilli(1), tester.getWatermarkHold());
     when(mockTriggerStateMachine.shouldFire(anyTriggerContext())).thenReturn(true);
     injectElement(tester, 2);
     List<WindowedValue<Iterable<Integer>>> output = tester.extractOutput();
@@ -756,7 +758,7 @@ public class ReduceFnRunnerTest {
         contains(
             isSingleWindowedValue(
                 containsInAnyOrder(1, 2, 3),
-                equalTo(new Instant(1)),
+                equalTo(Instant.ofEpochMilli(1)),
                 equalTo((BoundedWindow) expectedWindow))));
     assertThat(
         output.get(0).getPaneInfo(),
@@ -774,12 +776,12 @@ public class ReduceFnRunnerTest {
     assertEquals(0, droppedElements);
 
     // Input watermark -> 4, output watermark should advance that far as well
-    tester.advanceInputWatermark(new Instant(4));
-    assertEquals(new Instant(4), tester.getOutputWatermark());
+    tester.advanceInputWatermark(Instant.ofEpochMilli(4));
+    assertEquals(Instant.ofEpochMilli(4), tester.getOutputWatermark());
 
     // Some late, some on time. Verify that we only hold to the minimum of on-time.
     when(mockTriggerStateMachine.shouldFire(anyTriggerContext())).thenReturn(false);
-    tester.advanceInputWatermark(new Instant(4));
+    tester.advanceInputWatermark(Instant.ofEpochMilli(4));
     injectElement(tester, 2);
     injectElement(tester, 3);
 
@@ -790,7 +792,7 @@ public class ReduceFnRunnerTest {
 
     // Now data just ahead of the output watermark arrives and sets an earlier "element" hold
     injectElement(tester, 5);
-    assertEquals(new Instant(5), tester.getWatermarkHold());
+    assertEquals(Instant.ofEpochMilli(5), tester.getWatermarkHold());
 
     when(mockTriggerStateMachine.shouldFire(anyTriggerContext())).thenReturn(true);
     injectElement(tester, 4);
@@ -815,7 +817,7 @@ public class ReduceFnRunnerTest {
     // All behind the output watermark -- hold is at GC time (if we imagine the
     // trigger sets a timer for ON_TIME firing, that is actually when they'll be emitted)
     when(mockTriggerStateMachine.shouldFire(anyTriggerContext())).thenReturn(false);
-    tester.advanceInputWatermark(new Instant(8));
+    tester.advanceInputWatermark(Instant.ofEpochMilli(8));
     injectElement(tester, 6);
     injectElement(tester, 5);
     assertThat(
@@ -865,7 +867,7 @@ public class ReduceFnRunnerTest {
     assertEquals(0, droppedElements);
 
     // Exceed the GC limit, triggering the last pane to be fired
-    tester.advanceInputWatermark(new Instant(50));
+    tester.advanceInputWatermark(Instant.ofEpochMilli(50));
     output = tester.extractOutput();
     // Output time is still end of the window, because the new data (8) was behind
     // the output watermark.
@@ -883,13 +885,13 @@ public class ReduceFnRunnerTest {
                 10))); // window end
     assertThat(
         output.get(0).getPaneInfo(), equalTo(PaneInfo.createPane(false, true, Timing.LATE, 3, 1)));
-    assertEquals(new Instant(50), tester.getOutputWatermark());
+    assertEquals(Instant.ofEpochMilli(50), tester.getOutputWatermark());
     assertEquals(null, tester.getWatermarkHold());
 
     // Late timers are ignored
     tester.fireTimer(
-        new IntervalWindow(new Instant(0), new Instant(10)),
-        new Instant(12),
+        new IntervalWindow(Instant.ofEpochMilli(0), Instant.ofEpochMilli(10)),
+        Instant.ofEpochMilli(12),
         TimeDomain.EVENT_TIME);
 
     // And because we're past the end of window + allowed lateness, everything should be cleaned up.
@@ -914,7 +916,7 @@ public class ReduceFnRunnerTest {
 
     assertEquals(null, tester.getWatermarkHold());
     assertEquals(null, tester.getOutputWatermark());
-    tester.advanceInputWatermark(new Instant(40));
+    tester.advanceInputWatermark(Instant.ofEpochMilli(40));
     injectElements(tester, 1);
     assertThat(tester.getWatermarkHold(), nullValue());
     injectElements(tester, 10);
@@ -938,7 +940,7 @@ public class ReduceFnRunnerTest {
 
     assertEquals(null, tester.getWatermarkHold());
     assertEquals(null, tester.getOutputWatermark());
-    tester.advanceInputWatermark(new Instant(24));
+    tester.advanceInputWatermark(Instant.ofEpochMilli(24));
     injectElements(tester, 1);
     assertThat(tester.getWatermarkHold(), nullValue());
     injectElements(tester, 14);
@@ -946,23 +948,23 @@ public class ReduceFnRunnerTest {
     injectElements(tester, 6, 16);
     // There should now be a watermark hold since the window has extended past the input watermark.
     // The hold should be for the end of the window (last element + gapDuration - 1).
-    assertEquals(tester.getWatermarkHold(), new Instant(25));
+    assertEquals(tester.getWatermarkHold(), Instant.ofEpochMilli(25));
     injectElements(tester, 6, 21);
     // The hold should be extended with the window.
-    assertEquals(tester.getWatermarkHold(), new Instant(30));
+    assertEquals(tester.getWatermarkHold(), Instant.ofEpochMilli(30));
     // Advancing the watermark should remove the hold.
-    tester.advanceInputWatermark(new Instant(31));
+    tester.advanceInputWatermark(Instant.ofEpochMilli(31));
     assertThat(tester.getWatermarkHold(), nullValue());
     // Late elements added to the window should not generate a hold.
     injectElements(tester, 0);
     assertThat(tester.getWatermarkHold(), nullValue());
     // Generate a new window that is ontime.
     injectElements(tester, 32, 40);
-    assertEquals(tester.getWatermarkHold(), new Instant(49));
+    assertEquals(tester.getWatermarkHold(), Instant.ofEpochMilli(49));
     // Join the closed window with the new window.
     injectElements(tester, 24);
-    assertEquals(tester.getWatermarkHold(), new Instant(49));
-    tester.advanceInputWatermark(new Instant(50));
+    assertEquals(tester.getWatermarkHold(), Instant.ofEpochMilli(49));
+    tester.advanceInputWatermark(Instant.ofEpochMilli(50));
     assertThat(tester.getWatermarkHold(), nullValue());
   }
 
@@ -987,16 +989,16 @@ public class ReduceFnRunnerTest {
     assertEquals(null, tester.getWatermarkHold());
     assertEquals(null, tester.getOutputWatermark());
 
-    tester.advanceInputWatermark(new Instant(20));
+    tester.advanceInputWatermark(Instant.ofEpochMilli(20));
     // Add two late elements that cause a window to merge.
     injectElements(tester, Arrays.asList(3));
     assertThat(tester.getWatermarkHold(), nullValue());
     injectElements(tester, Arrays.asList(4));
-    Instant endOfWindow = new Instant(4).plus(gapDuration);
+    Instant endOfWindow = Instant.ofEpochMilli(4).plus(gapDuration);
     // We expect a GC hold to be one less than the end of window plus the allowed lateness.
     Instant expectedGcHold = endOfWindow.plus(allowedLateness).minus(Duration.millis(1));
     assertEquals(expectedGcHold, tester.getWatermarkHold());
-    tester.advanceInputWatermark(new Instant(1000));
+    tester.advanceInputWatermark(Instant.ofEpochMilli(1000));
     assertEquals(expectedGcHold, tester.getWatermarkHold());
   }
 
@@ -1096,35 +1098,38 @@ public class ReduceFnRunnerTest {
     tester.setAutoAdvanceOutputWatermark(false);
 
     // Case: Unobservably "late" relative to input watermark, but on time for output watermark
-    tester.advanceInputWatermark(new Instant(15));
-    tester.advanceOutputWatermark(new Instant(11));
+    tester.advanceInputWatermark(Instant.ofEpochMilli(15));
+    tester.advanceOutputWatermark(Instant.ofEpochMilli(11));
 
-    IntervalWindow expectedWindow = new IntervalWindow(new Instant(10), new Instant(20));
+    IntervalWindow expectedWindow =
+        new IntervalWindow(Instant.ofEpochMilli(10), Instant.ofEpochMilli(20));
     injectElement(tester, 14);
     // Hold was applied, waiting for end-of-window timer.
-    assertEquals(new Instant(14), tester.getWatermarkHold());
+    assertEquals(Instant.ofEpochMilli(14), tester.getWatermarkHold());
 
     // Trigger the end-of-window timer, fire a timer as though the mock trigger set it
     when(mockTriggerStateMachine.shouldFire(anyTriggerContext())).thenReturn(true);
-    tester.advanceInputWatermark(new Instant(20));
+    tester.advanceInputWatermark(Instant.ofEpochMilli(20));
     tester.fireTimer(expectedWindow, expectedWindow.maxTimestamp(), TimeDomain.EVENT_TIME);
 
     when(mockTriggerStateMachine.shouldFire(anyTriggerContext())).thenReturn(false);
     // Hold has been replaced with garbage collection hold. Waiting for garbage collection.
-    assertEquals(new Instant(29), tester.getWatermarkHold());
-    assertEquals(new Instant(29), tester.getNextTimer(TimeDomain.EVENT_TIME));
+    assertEquals(Instant.ofEpochMilli(29), tester.getWatermarkHold());
+    assertEquals(Instant.ofEpochMilli(29), tester.getNextTimer(TimeDomain.EVENT_TIME));
 
     // Case: Maybe late 1
     injectElement(tester, 13);
     // No change to hold or timers.
-    assertEquals(new Instant(29), tester.getWatermarkHold());
-    assertEquals(new Instant(29), tester.getNextTimer(TimeDomain.EVENT_TIME));
+    assertEquals(Instant.ofEpochMilli(29), tester.getWatermarkHold());
+    assertEquals(Instant.ofEpochMilli(29), tester.getNextTimer(TimeDomain.EVENT_TIME));
 
     // Trigger the garbage collection timer.
-    tester.advanceInputWatermark(new Instant(30));
+    tester.advanceInputWatermark(Instant.ofEpochMilli(30));
 
     // Everything should be cleaned up.
-    assertFalse(tester.isMarkedFinished(new IntervalWindow(new Instant(10), new Instant(20))));
+    assertFalse(
+        tester.isMarkedFinished(
+            new IntervalWindow(Instant.ofEpochMilli(10), Instant.ofEpochMilli(20))));
     tester.assertHasOnlyGlobalAndFinishedSetsFor();
   }
 
@@ -1138,7 +1143,7 @@ public class ReduceFnRunnerTest {
             Duration.millis(100),
             ClosingBehavior.FIRE_IF_NON_EMPTY);
 
-    tester.advanceInputWatermark(new Instant(0));
+    tester.advanceInputWatermark(Instant.ofEpochMilli(0));
     when(mockTriggerStateMachine.shouldFire(anyTriggerContext())).thenReturn(true);
     injectElement(tester, 1);
     assertThat(
@@ -1155,7 +1160,7 @@ public class ReduceFnRunnerTest {
 
     when(mockTriggerStateMachine.shouldFire(anyTriggerContext())).thenReturn(false);
     tester.setAutoAdvanceOutputWatermark(false);
-    tester.advanceInputWatermark(new Instant(15));
+    tester.advanceInputWatermark(Instant.ofEpochMilli(15));
 
     when(mockTriggerStateMachine.shouldFire(anyTriggerContext())).thenReturn(true);
     injectElement(tester, 3);
@@ -1197,9 +1202,10 @@ public class ReduceFnRunnerTest {
                 .withTimestampCombiner(TimestampCombiner.EARLIEST)
                 .withClosingBehavior(ClosingBehavior.FIRE_ALWAYS));
 
-    tester.advanceInputWatermark(new Instant(0));
+    tester.advanceInputWatermark(Instant.ofEpochMilli(0));
     tester.injectElements(
-        TimestampedValue.of(1, new Instant(1)), TimestampedValue.of(2, new Instant(2)));
+        TimestampedValue.of(1, Instant.ofEpochMilli(1)),
+        TimestampedValue.of(2, Instant.ofEpochMilli(2)));
 
     List<WindowedValue<Iterable<Integer>>> output = tester.extractOutput();
     assertThat(
@@ -1209,7 +1215,7 @@ public class ReduceFnRunnerTest {
                 PaneInfo.createPane(true, false, Timing.EARLY, 0, -1))));
     assertThat(output, contains(isSingleWindowedValue(containsInAnyOrder(1, 2), 1, 0, 10)));
 
-    tester.advanceInputWatermark(new Instant(50));
+    tester.advanceInputWatermark(Instant.ofEpochMilli(50));
 
     // We should get the ON_TIME pane even though it is empty,
     // because we have an AfterWatermark.pastEndOfWindow() trigger.
@@ -1222,7 +1228,7 @@ public class ReduceFnRunnerTest {
     assertThat(output, contains(isSingleWindowedValue(emptyIterable(), 9, 0, 10)));
 
     // We should get the final pane even though it is empty.
-    tester.advanceInputWatermark(new Instant(150));
+    tester.advanceInputWatermark(Instant.ofEpochMilli(150));
     output = tester.extractOutput();
     assertThat(
         output,
@@ -1245,11 +1251,12 @@ public class ReduceFnRunnerTest {
                 .withTimestampCombiner(TimestampCombiner.EARLIEST)
                 .withClosingBehavior(ClosingBehavior.FIRE_IF_NON_EMPTY));
 
-    tester.advanceInputWatermark(new Instant(0));
+    tester.advanceInputWatermark(Instant.ofEpochMilli(0));
     tester.injectElements(
-        TimestampedValue.of(1, new Instant(1)), TimestampedValue.of(2, new Instant(2)));
-    tester.advanceInputWatermark(new Instant(20));
-    tester.advanceInputWatermark(new Instant(250));
+        TimestampedValue.of(1, Instant.ofEpochMilli(1)),
+        TimestampedValue.of(2, Instant.ofEpochMilli(2)));
+    tester.advanceInputWatermark(Instant.ofEpochMilli(20));
+    tester.advanceInputWatermark(Instant.ofEpochMilli(250));
 
     List<WindowedValue<Iterable<Integer>>> output = tester.extractOutput();
     assertThat(
@@ -1275,11 +1282,12 @@ public class ReduceFnRunnerTest {
                 .withTimestampCombiner(TimestampCombiner.EARLIEST)
                 .withClosingBehavior(ClosingBehavior.FIRE_ALWAYS));
 
-    tester.advanceInputWatermark(new Instant(0));
+    tester.advanceInputWatermark(Instant.ofEpochMilli(0));
     tester.injectElements(
-        TimestampedValue.of(1, new Instant(1)), TimestampedValue.of(2, new Instant(2)));
-    tester.advanceInputWatermark(new Instant(20));
-    tester.advanceInputWatermark(new Instant(250));
+        TimestampedValue.of(1, Instant.ofEpochMilli(1)),
+        TimestampedValue.of(2, Instant.ofEpochMilli(2)));
+    tester.advanceInputWatermark(Instant.ofEpochMilli(20));
+    tester.advanceInputWatermark(Instant.ofEpochMilli(250));
 
     List<WindowedValue<Iterable<Integer>>> output = tester.extractOutput();
     assertThat(
@@ -1311,16 +1319,17 @@ public class ReduceFnRunnerTest {
 
     // First, an element comes in on time in [0, 10) but ReduceFnRunner should
     // not set a hold or timer for 9. That is the trigger's job.
-    IntervalWindow expectedWindow = new IntervalWindow(new Instant(0), new Instant(10));
-    tester.advanceInputWatermark(new Instant(0));
-    tester.advanceProcessingTime(new Instant(0));
+    IntervalWindow expectedWindow =
+        new IntervalWindow(Instant.ofEpochMilli(0), Instant.ofEpochMilli(10));
+    tester.advanceInputWatermark(Instant.ofEpochMilli(0));
+    tester.advanceProcessingTime(Instant.ofEpochMilli(0));
 
-    tester.injectElements(TimestampedValue.of(1, new Instant(1)));
+    tester.injectElements(TimestampedValue.of(1, Instant.ofEpochMilli(1)));
 
     // Since some data arrived, the element hold will be the end of the window.
     assertThat(tester.getWatermarkHold(), equalTo(expectedWindow.maxTimestamp()));
 
-    tester.advanceProcessingTime(new Instant(6000));
+    tester.advanceProcessingTime(Instant.ofEpochMilli(6000));
 
     // Sanity check; we aren't trying to verify output in this test
     assertThat(tester.getOutputSize(), equalTo(1));
@@ -1332,7 +1341,7 @@ public class ReduceFnRunnerTest {
     tester.advanceInputWatermark(expectedWindow.maxTimestamp().plus(Duration.standardHours(1)));
 
     // Now late data arrives
-    tester.injectElements(TimestampedValue.of(3, new Instant(3)));
+    tester.injectElements(TimestampedValue.of(3, Instant.ofEpochMilli(3)));
 
     // The ReduceFnRunner should set a GC hold since the element was too late and its timestamp
     // will be ignored for the purposes of the watermark hold
@@ -1354,9 +1363,10 @@ public class ReduceFnRunnerTest {
                 .withTimestampCombiner(TimestampCombiner.EARLIEST)
                 .withClosingBehavior(ClosingBehavior.FIRE_ALWAYS));
 
-    tester.advanceInputWatermark(new Instant(0));
+    tester.advanceInputWatermark(Instant.ofEpochMilli(0));
     tester.injectElements(
-        TimestampedValue.of(1, new Instant(1)), TimestampedValue.of(2, new Instant(2)));
+        TimestampedValue.of(1, Instant.ofEpochMilli(1)),
+        TimestampedValue.of(2, Instant.ofEpochMilli(2)));
 
     List<WindowedValue<Iterable<Integer>>> output = tester.extractOutput();
     assertThat(
@@ -1366,7 +1376,7 @@ public class ReduceFnRunnerTest {
                 PaneInfo.createPane(true, false, Timing.EARLY, 0, -1))));
     assertThat(output, contains(isSingleWindowedValue(containsInAnyOrder(1, 2), 1, 0, 10)));
 
-    tester.advanceInputWatermark(new Instant(50));
+    tester.advanceInputWatermark(Instant.ofEpochMilli(50));
 
     // We should get the ON_TIME pane even though it is empty,
     // because we have an AfterWatermark.pastEndOfWindow() trigger.
@@ -1379,7 +1389,7 @@ public class ReduceFnRunnerTest {
     assertThat(output, contains(isSingleWindowedValue(containsInAnyOrder(1, 2), 9, 0, 10)));
 
     // We should get the final pane even though it is empty.
-    tester.advanceInputWatermark(new Instant(150));
+    tester.advanceInputWatermark(Instant.ofEpochMilli(150));
     output = tester.extractOutput();
     assertThat(
         output,
@@ -1400,11 +1410,12 @@ public class ReduceFnRunnerTest {
                 .withAllowedLateness(Duration.millis(100))
                 .withClosingBehavior(ClosingBehavior.FIRE_ALWAYS));
 
-    tester.advanceInputWatermark(new Instant(0));
+    tester.advanceInputWatermark(Instant.ofEpochMilli(0));
 
     // Should trigger due to element count
     tester.injectElements(
-        TimestampedValue.of(1, new Instant(1)), TimestampedValue.of(2, new Instant(2)));
+        TimestampedValue.of(1, Instant.ofEpochMilli(1)),
+        TimestampedValue.of(2, Instant.ofEpochMilli(2)));
 
     assertThat(
         tester.extractOutput(),
@@ -1412,7 +1423,7 @@ public class ReduceFnRunnerTest {
             WindowMatchers.valueWithPaneInfo(
                 PaneInfo.createPane(true, false, Timing.EARLY, 0, -1))));
 
-    tester.advanceInputWatermark(new Instant(150));
+    tester.advanceInputWatermark(Instant.ofEpochMilli(150));
     assertThat(
         tester.extractOutput(),
         contains(
@@ -1430,7 +1441,7 @@ public class ReduceFnRunnerTest {
             Duration.millis(100),
             ClosingBehavior.FIRE_IF_NON_EMPTY);
 
-    tester.advanceInputWatermark(new Instant(0));
+    tester.advanceInputWatermark(Instant.ofEpochMilli(0));
     when(mockTriggerStateMachine.shouldFire(anyTriggerContext())).thenReturn(true);
     triggerShouldFinish(mockTriggerStateMachine);
     injectElement(tester, 1);
@@ -1449,7 +1460,7 @@ public class ReduceFnRunnerTest {
             Duration.millis(100),
             ClosingBehavior.FIRE_IF_NON_EMPTY);
 
-    tester.advanceInputWatermark(new Instant(15));
+    tester.advanceInputWatermark(Instant.ofEpochMilli(15));
     when(mockTriggerStateMachine.shouldFire(anyTriggerContext())).thenReturn(true);
     triggerShouldFinish(mockTriggerStateMachine);
     injectElement(tester, 1);
@@ -1473,11 +1484,11 @@ public class ReduceFnRunnerTest {
     // All on time data, verify watermark hold.
     // These two windows should pre-merge immediately to [1, 20)
     tester.injectElements(
-        TimestampedValue.of(1, new Instant(1)), // in [1, 11)
-        TimestampedValue.of(10, new Instant(10))); // in [10, 20)
+        TimestampedValue.of(1, Instant.ofEpochMilli(1)), // in [1, 11)
+        TimestampedValue.of(10, Instant.ofEpochMilli(10))); // in [10, 20)
 
     // And this should fire the end-of-window timer
-    tester.advanceInputWatermark(new Instant(100));
+    tester.advanceInputWatermark(Instant.ofEpochMilli(100));
 
     List<WindowedValue<Iterable<Integer>>> output = tester.extractOutput();
     assertThat(output.size(), equalTo(1));
@@ -1510,16 +1521,16 @@ public class ReduceFnRunnerTest {
 
     // Two elements in two overlapping session windows.
     tester.injectElements(
-        TimestampedValue.of(1, new Instant(1)), // in [1, 11)
-        TimestampedValue.of(10, new Instant(10))); // in [10, 20)
+        TimestampedValue.of(1, Instant.ofEpochMilli(1)), // in [1, 11)
+        TimestampedValue.of(10, Instant.ofEpochMilli(10))); // in [10, 20)
 
     // Close the trigger, but the gargbage collection timer is still pending.
     when(mockTriggerStateMachine.shouldFire(anyTriggerContext())).thenReturn(true);
     triggerShouldFinish(mockTriggerStateMachine);
-    tester.advanceInputWatermark(new Instant(30));
+    tester.advanceInputWatermark(Instant.ofEpochMilli(30));
 
     // Now the garbage collection timer will fire, finding the trigger already closed.
-    tester.advanceInputWatermark(new Instant(100));
+    tester.advanceInputWatermark(Instant.ofEpochMilli(100));
 
     List<WindowedValue<Iterable<Integer>>> output = tester.extractOutput();
     assertThat(output.size(), equalTo(1));
@@ -1548,16 +1559,18 @@ public class ReduceFnRunnerTest {
             ClosingBehavior.FIRE_IF_NON_EMPTY);
 
     // Create a new merged session window.
-    IntervalWindow mergedWindow = new IntervalWindow(new Instant(1), new Instant(12));
+    IntervalWindow mergedWindow =
+        new IntervalWindow(Instant.ofEpochMilli(1), Instant.ofEpochMilli(12));
     tester.injectElements(
-        TimestampedValue.of(1, new Instant(1)), TimestampedValue.of(2, new Instant(2)));
+        TimestampedValue.of(1, Instant.ofEpochMilli(1)),
+        TimestampedValue.of(2, Instant.ofEpochMilli(2)));
 
     // Force the trigger to be closed for the merged window.
     when(mockTriggerStateMachine.shouldFire(anyTriggerContext())).thenReturn(true);
     triggerShouldFinish(mockTriggerStateMachine);
 
     // Fire and end-of-window timer as though the trigger set it
-    tester.advanceInputWatermark(new Instant(13));
+    tester.advanceInputWatermark(Instant.ofEpochMilli(13));
     tester.fireTimer(mergedWindow, mergedWindow.maxTimestamp(), TimeDomain.EVENT_TIME);
 
     // Trigger is now closed.
@@ -1567,7 +1580,8 @@ public class ReduceFnRunnerTest {
 
     // Revisit the same session window.
     tester.injectElements(
-        TimestampedValue.of(1, new Instant(1)), TimestampedValue.of(2, new Instant(2)));
+        TimestampedValue.of(1, Instant.ofEpochMilli(1)),
+        TimestampedValue.of(2, Instant.ofEpochMilli(2)));
 
     // Trigger is still closed.
     assertTrue(tester.isMarkedFinished(mergedWindow));
@@ -1588,26 +1602,27 @@ public class ReduceFnRunnerTest {
             allowedLateness,
             ClosingBehavior.FIRE_IF_NON_EMPTY);
 
-    IntervalWindow mergedWindow = new IntervalWindow(new Instant(1), new Instant(11));
+    IntervalWindow mergedWindow =
+        new IntervalWindow(Instant.ofEpochMilli(1), Instant.ofEpochMilli(11));
 
     // One elements in one session window.
-    tester.injectElements(TimestampedValue.of(1, new Instant(1))); // in [1, 11), gc at 21.
+    tester.injectElements(TimestampedValue.of(1, Instant.ofEpochMilli(1))); // in [1, 11), gc at 21.
 
     // Close the trigger, but the gargbage collection timer is still pending.
     when(mockTriggerStateMachine.shouldFire(anyTriggerContext())).thenReturn(true);
     triggerShouldFinish(mockTriggerStateMachine);
-    tester.advanceInputWatermark(new Instant(15));
+    tester.advanceInputWatermark(Instant.ofEpochMilli(15));
     tester.fireTimer(mergedWindow, mergedWindow.maxTimestamp(), TimeDomain.EVENT_TIME);
 
     // Another element in the same session window.
     // Should be discarded with 'window closed'.
-    tester.injectElements(TimestampedValue.of(1, new Instant(1))); // in [1, 11), gc at 21.
+    tester.injectElements(TimestampedValue.of(1, Instant.ofEpochMilli(1))); // in [1, 11), gc at 21.
 
     // And nothing should be left in the active window state.
     assertTrue(tester.hasNoActiveWindows());
 
     // Now the garbage collection timer will fire, finding the trigger already closed.
-    tester.advanceInputWatermark(new Instant(100));
+    tester.advanceInputWatermark(Instant.ofEpochMilli(100));
 
     List<WindowedValue<Iterable<Integer>>> output = tester.extractOutput();
     assertThat(output.size(), equalTo(1));
@@ -1615,7 +1630,7 @@ public class ReduceFnRunnerTest {
         output.get(0),
         isSingleWindowedValue(
             containsInAnyOrder(1),
-            equalTo(new Instant(1)), // timestamp
+            equalTo(Instant.ofEpochMilli(1)), // timestamp
             equalTo((BoundedWindow) mergedWindow)));
 
     assertThat(
@@ -1642,19 +1657,19 @@ public class ReduceFnRunnerTest {
     when(mockTriggerStateMachine.shouldFire(anyTriggerContext())).thenReturn(true);
     triggerShouldFinish(mockTriggerStateMachine);
     tester.injectElements(
-        TimestampedValue.of(1, new Instant(1)), // in [1, 11), gc at 21.
-        TimestampedValue.of(8, new Instant(8))); // in [8, 18), gc at 28.
+        TimestampedValue.of(1, Instant.ofEpochMilli(1)), // in [1, 11), gc at 21.
+        TimestampedValue.of(8, Instant.ofEpochMilli(8))); // in [8, 18), gc at 28.
 
     // More elements into the same merged session window.
     // It has not yet been gced.
     // Should be discarded with 'window closed'.
     tester.injectElements(
-        TimestampedValue.of(1, new Instant(1)), // in [1, 11), gc at 21.
-        TimestampedValue.of(2, new Instant(2)), // in [2, 12), gc at 22.
-        TimestampedValue.of(8, new Instant(8))); // in [8, 18), gc at 28.
+        TimestampedValue.of(1, Instant.ofEpochMilli(1)), // in [1, 11), gc at 21.
+        TimestampedValue.of(2, Instant.ofEpochMilli(2)), // in [2, 12), gc at 22.
+        TimestampedValue.of(8, Instant.ofEpochMilli(8))); // in [8, 18), gc at 28.
 
     // Now the garbage collection timer will fire, finding the trigger already closed.
-    tester.advanceInputWatermark(new Instant(100));
+    tester.advanceInputWatermark(Instant.ofEpochMilli(100));
 
     List<WindowedValue<Iterable<Integer>>> output = tester.extractOutput();
 
@@ -1687,16 +1702,16 @@ public class ReduceFnRunnerTest {
     // 1 element, force its trigger to close.
     when(mockTriggerStateMachine.shouldFire(anyTriggerContext())).thenReturn(true);
     triggerShouldFinish(mockTriggerStateMachine);
-    tester.injectElements(TimestampedValue.of(2, new Instant(2)));
+    tester.injectElements(TimestampedValue.of(2, Instant.ofEpochMilli(2)));
 
     // 3 elements, one already closed.
     when(mockTriggerStateMachine.shouldFire(anyTriggerContext())).thenReturn(false);
     tester.injectElements(
-        TimestampedValue.of(1, new Instant(1)),
-        TimestampedValue.of(2, new Instant(2)),
-        TimestampedValue.of(3, new Instant(3)));
+        TimestampedValue.of(1, Instant.ofEpochMilli(1)),
+        TimestampedValue.of(2, Instant.ofEpochMilli(2)),
+        TimestampedValue.of(3, Instant.ofEpochMilli(3)));
 
-    tester.advanceInputWatermark(new Instant(100));
+    tester.advanceInputWatermark(Instant.ofEpochMilli(100));
 
     List<WindowedValue<Iterable<Integer>>> output = tester.extractOutput();
     assertThat(output.size(), equalTo(2));
@@ -1739,9 +1754,9 @@ public class ReduceFnRunnerTest {
 
     tester.injectElements(
         // assigned to [-60, 40), [-30, 70), [0, 100)
-        TimestampedValue.of(10, new Instant(23)),
+        TimestampedValue.of(10, Instant.ofEpochMilli(23)),
         // assigned to [-30, 70), [0, 100), [30, 130)
-        TimestampedValue.of(12, new Instant(40)));
+        TimestampedValue.of(12, Instant.ofEpochMilli(40)));
 
     long droppedElements =
         container
@@ -1750,11 +1765,11 @@ public class ReduceFnRunnerTest {
             .getCumulative();
     assertEquals(0, droppedElements);
 
-    tester.advanceInputWatermark(new Instant(70));
+    tester.advanceInputWatermark(Instant.ofEpochMilli(70));
     tester.injectElements(
         // assigned to [-30, 70), [0, 100), [30, 130)
         // but [-30, 70) is closed by the trigger
-        TimestampedValue.of(14, new Instant(60)));
+        TimestampedValue.of(14, Instant.ofEpochMilli(60)));
 
     droppedElements =
         container
@@ -1763,10 +1778,10 @@ public class ReduceFnRunnerTest {
             .getCumulative();
     assertEquals(1, droppedElements);
 
-    tester.advanceInputWatermark(new Instant(130));
+    tester.advanceInputWatermark(Instant.ofEpochMilli(130));
     // assigned to [-30, 70), [0, 100), [30, 130)
     // but they are all closed
-    tester.injectElements(TimestampedValue.of(16, new Instant(40)));
+    tester.injectElements(TimestampedValue.of(16, Instant.ofEpochMilli(40)));
 
     droppedElements =
         container
@@ -1793,15 +1808,15 @@ public class ReduceFnRunnerTest {
     // Inject a couple of on-time elements and fire at the window end.
     injectElement(tester, 1);
     injectElement(tester, 2);
-    tester.advanceInputWatermark(new Instant(12));
+    tester.advanceInputWatermark(Instant.ofEpochMilli(12));
 
     // Fire the on-time paneInfo
     when(mockTriggerStateMachine.shouldFire(anyTriggerContext())).thenReturn(true);
-    tester.fireTimer(firstWindow, new Instant(9), TimeDomain.EVENT_TIME);
+    tester.fireTimer(firstWindow, Instant.ofEpochMilli(9), TimeDomain.EVENT_TIME);
 
     // Fire another timer (with no data, so it's an uninteresting pane that should not be output).
     when(mockTriggerStateMachine.shouldFire(anyTriggerContext())).thenReturn(true);
-    tester.fireTimer(firstWindow, new Instant(9), TimeDomain.EVENT_TIME);
+    tester.fireTimer(firstWindow, Instant.ofEpochMilli(9), TimeDomain.EVENT_TIME);
 
     // Finish it off with another datum.
     when(mockTriggerStateMachine.shouldFire(anyTriggerContext())).thenReturn(true);
@@ -1848,11 +1863,11 @@ public class ReduceFnRunnerTest {
     // Inject a couple of on-time elements and fire at the window end.
     injectElement(tester, 1);
     injectElement(tester, 2);
-    tester.advanceInputWatermark(new Instant(12));
+    tester.advanceInputWatermark(Instant.ofEpochMilli(12));
 
     // Trigger the on-time paneInfo
     when(mockTriggerStateMachine.shouldFire(anyTriggerContext())).thenReturn(true);
-    tester.fireTimer(firstWindow, new Instant(9), TimeDomain.EVENT_TIME);
+    tester.fireTimer(firstWindow, Instant.ofEpochMilli(9), TimeDomain.EVENT_TIME);
     List<WindowedValue<Iterable<Integer>>> output = tester.extractOutput();
     assertThat(output.size(), equalTo(1));
     assertThat(output.get(0), isSingleWindowedValue(containsInAnyOrder(1, 2), 1, 0, 10));
@@ -1863,7 +1878,7 @@ public class ReduceFnRunnerTest {
     // Fire another timer with no data; the empty pane should not be output even though the
     // trigger is ready to fire
     when(mockTriggerStateMachine.shouldFire(anyTriggerContext())).thenReturn(true);
-    tester.fireTimer(firstWindow, new Instant(9), TimeDomain.EVENT_TIME);
+    tester.fireTimer(firstWindow, Instant.ofEpochMilli(9), TimeDomain.EVENT_TIME);
     assertThat(tester.extractOutput().size(), equalTo(0));
 
     // Finish it off with another datum, which is late
@@ -1914,21 +1929,21 @@ public class ReduceFnRunnerTest {
     ReduceFnTester<Integer, Integer, IntervalWindow> tester =
         ReduceFnTester.combining(strategy, Sum.ofIntegers(), VarIntCoder.of());
 
-    tester.advanceInputWatermark(new Instant(0));
-    tester.advanceProcessingTime(new Instant(0));
+    tester.advanceInputWatermark(Instant.ofEpochMilli(0));
+    tester.advanceProcessingTime(Instant.ofEpochMilli(0));
 
     // Processing time timer for 5
     tester.injectElements(
-        TimestampedValue.of(1, new Instant(1)),
-        TimestampedValue.of(1, new Instant(3)),
-        TimestampedValue.of(1, new Instant(7)),
-        TimestampedValue.of(1, new Instant(5)));
+        TimestampedValue.of(1, Instant.ofEpochMilli(1)),
+        TimestampedValue.of(1, Instant.ofEpochMilli(3)),
+        TimestampedValue.of(1, Instant.ofEpochMilli(7)),
+        TimestampedValue.of(1, Instant.ofEpochMilli(5)));
 
     // Should fire early paneInfo
-    tester.advanceProcessingTime(new Instant(6));
+    tester.advanceProcessingTime(Instant.ofEpochMilli(6));
 
     // Should fire empty on time paneInfo
-    tester.advanceInputWatermark(new Instant(11));
+    tester.advanceInputWatermark(Instant.ofEpochMilli(11));
     List<WindowedValue<Integer>> output = tester.extractOutput();
     assertEquals(2, output.size());
 
@@ -1966,21 +1981,21 @@ public class ReduceFnRunnerTest {
     ReduceFnTester<Integer, Integer, IntervalWindow> tester =
         ReduceFnTester.combining(strategy, Sum.ofIntegers(), VarIntCoder.of());
 
-    tester.advanceInputWatermark(new Instant(0));
-    tester.advanceProcessingTime(new Instant(0));
+    tester.advanceInputWatermark(Instant.ofEpochMilli(0));
+    tester.advanceProcessingTime(Instant.ofEpochMilli(0));
 
     // Processing time timer for 5
     tester.injectElements(
-        TimestampedValue.of(1, new Instant(1)),
-        TimestampedValue.of(1, new Instant(3)),
-        TimestampedValue.of(1, new Instant(7)),
-        TimestampedValue.of(1, new Instant(5)));
+        TimestampedValue.of(1, Instant.ofEpochMilli(1)),
+        TimestampedValue.of(1, Instant.ofEpochMilli(3)),
+        TimestampedValue.of(1, Instant.ofEpochMilli(7)),
+        TimestampedValue.of(1, Instant.ofEpochMilli(5)));
 
     // Should fire early paneInfo
-    tester.advanceProcessingTime(new Instant(6));
+    tester.advanceProcessingTime(Instant.ofEpochMilli(6));
 
     // Should not fire empty on time paneInfo
-    tester.advanceInputWatermark(new Instant(11));
+    tester.advanceInputWatermark(Instant.ofEpochMilli(11));
 
     // Should fire final GC paneInfo
     tester.advanceInputWatermark(new Instant(10 + 100));
@@ -2018,13 +2033,13 @@ public class ReduceFnRunnerTest {
     ReduceFnTester<Integer, Integer, IntervalWindow> tester =
         ReduceFnTester.combining(strategy, Sum.ofIntegers(), VarIntCoder.of());
 
-    tester.advanceInputWatermark(new Instant(0));
-    tester.advanceProcessingTime(new Instant(0));
+    tester.advanceInputWatermark(Instant.ofEpochMilli(0));
+    tester.advanceProcessingTime(Instant.ofEpochMilli(0));
 
-    tester.injectElements(TimestampedValue.of(1, new Instant(1)));
+    tester.injectElements(TimestampedValue.of(1, Instant.ofEpochMilli(1)));
 
     // Should fire empty on time isFinished paneInfo
-    tester.advanceInputWatermark(new Instant(11));
+    tester.advanceInputWatermark(Instant.ofEpochMilli(11));
 
     List<WindowedValue<Integer>> output = tester.extractOutput();
     assertEquals(2, output.size());
@@ -2062,24 +2077,24 @@ public class ReduceFnRunnerTest {
     ReduceFnTester<Integer, Integer, IntervalWindow> tester =
         ReduceFnTester.combining(strategy, Sum.ofIntegers(), VarIntCoder.of());
 
-    tester.advanceInputWatermark(new Instant(0));
-    tester.advanceProcessingTime(new Instant(0));
+    tester.advanceInputWatermark(Instant.ofEpochMilli(0));
+    tester.advanceProcessingTime(Instant.ofEpochMilli(0));
 
     // Processing time timer for 5
     tester.injectElements(
-        TimestampedValue.of(1, new Instant(1)),
-        TimestampedValue.of(1, new Instant(3)),
-        TimestampedValue.of(1, new Instant(7)),
-        TimestampedValue.of(1, new Instant(5)));
+        TimestampedValue.of(1, Instant.ofEpochMilli(1)),
+        TimestampedValue.of(1, Instant.ofEpochMilli(3)),
+        TimestampedValue.of(1, Instant.ofEpochMilli(7)),
+        TimestampedValue.of(1, Instant.ofEpochMilli(5)));
 
     // Should fire early paneInfo
-    tester.advanceProcessingTime(new Instant(6));
+    tester.advanceProcessingTime(Instant.ofEpochMilli(6));
 
     // Should not fire empty on time paneInfo
-    tester.advanceInputWatermark(new Instant(11));
+    tester.advanceInputWatermark(Instant.ofEpochMilli(11));
 
     // Processing late data, and should fire late paneInfo
-    tester.injectElements(TimestampedValue.of(1, new Instant(9)));
+    tester.injectElements(TimestampedValue.of(1, Instant.ofEpochMilli(9)));
     tester.advanceProcessingTime(new Instant(6 + 25 + 1));
 
     List<WindowedValue<Integer>> output = tester.extractOutput();
@@ -2121,41 +2136,42 @@ public class ReduceFnRunnerTest {
     ReduceFnTester<Integer, Integer, IntervalWindow> tester =
         ReduceFnTester.combining(strategy, Sum.ofIntegers(), VarIntCoder.of());
 
-    tester.advanceInputWatermark(new Instant(0));
-    tester.advanceProcessingTime(new Instant(0));
+    tester.advanceInputWatermark(Instant.ofEpochMilli(0));
+    tester.advanceProcessingTime(Instant.ofEpochMilli(0));
 
     tester.injectElements(
-        TimestampedValue.of(1, new Instant(1)),
-        TimestampedValue.of(1, new Instant(3)),
-        TimestampedValue.of(1, new Instant(7)),
-        TimestampedValue.of(1, new Instant(5)));
+        TimestampedValue.of(1, Instant.ofEpochMilli(1)),
+        TimestampedValue.of(1, Instant.ofEpochMilli(3)),
+        TimestampedValue.of(1, Instant.ofEpochMilli(7)),
+        TimestampedValue.of(1, Instant.ofEpochMilli(5)));
     // 4 elements all at processing time 0
 
-    tester.advanceProcessingTime(new Instant(6)); // fire [1,3,7,5] since 6 > 0 + 5
+    tester.advanceProcessingTime(Instant.ofEpochMilli(6)); // fire [1,3,7,5] since 6 > 0 + 5
     tester.injectElements(
-        TimestampedValue.of(1, new Instant(8)), TimestampedValue.of(1, new Instant(4)));
+        TimestampedValue.of(1, Instant.ofEpochMilli(8)),
+        TimestampedValue.of(1, Instant.ofEpochMilli(4)));
     // 6 elements
 
-    tester.advanceInputWatermark(new Instant(11)); // fire [1,3,7,5,8,4] since 11 > 9
+    tester.advanceInputWatermark(Instant.ofEpochMilli(11)); // fire [1,3,7,5,8,4] since 11 > 9
     tester.injectElements(
-        TimestampedValue.of(1, new Instant(8)),
-        TimestampedValue.of(1, new Instant(4)),
-        TimestampedValue.of(1, new Instant(5)));
+        TimestampedValue.of(1, Instant.ofEpochMilli(8)),
+        TimestampedValue.of(1, Instant.ofEpochMilli(4)),
+        TimestampedValue.of(1, Instant.ofEpochMilli(5)));
     // 9 elements
 
-    tester.advanceInputWatermark(new Instant(12));
-    tester.injectElements(TimestampedValue.of(1, new Instant(3)));
+    tester.advanceInputWatermark(Instant.ofEpochMilli(12));
+    tester.injectElements(TimestampedValue.of(1, Instant.ofEpochMilli(3)));
     // 10 elements
 
-    tester.advanceProcessingTime(new Instant(15));
-    tester.injectElements(TimestampedValue.of(1, new Instant(5)));
+    tester.advanceProcessingTime(Instant.ofEpochMilli(15));
+    tester.injectElements(TimestampedValue.of(1, Instant.ofEpochMilli(5)));
     // 11 elements
-    tester.advanceProcessingTime(new Instant(32)); // fire since 32 > 6 + 25
+    tester.advanceProcessingTime(Instant.ofEpochMilli(32)); // fire since 32 > 6 + 25
 
-    tester.injectElements(TimestampedValue.of(1, new Instant(3)));
+    tester.injectElements(TimestampedValue.of(1, Instant.ofEpochMilli(3)));
     // 12 elements
     // fire [1,3,7,5,8,4,8,4,5,3,5,3] since 125 > 6 + 25
-    tester.advanceInputWatermark(new Instant(125));
+    tester.advanceInputWatermark(Instant.ofEpochMilli(125));
 
     List<WindowedValue<Integer>> output = tester.extractOutput();
     assertEquals(4, output.size());
@@ -2191,7 +2207,7 @@ public class ReduceFnRunnerTest {
                 .withTrigger(Repeatedly.forever(AfterPane.elementCountAtLeast(3)))
                 .withMode(AccumulationMode.DISCARDING_FIRED_PANES));
 
-    tester.advanceInputWatermark(new Instant(0));
+    tester.advanceInputWatermark(Instant.ofEpochMilli(0));
 
     final int n = 20;
     for (int i = 0; i < n; i++) {
@@ -2269,21 +2285,21 @@ public class ReduceFnRunnerTest {
                 .withAllowedLateness(Duration.millis(100))
                 .withClosingBehavior(ClosingBehavior.FIRE_IF_NON_EMPTY));
 
-    tester.advanceInputWatermark(new Instant(0));
-    tester.advanceOutputWatermark(new Instant(0));
-    tester.injectElements(TimestampedValue.of(1, new Instant(1)));
+    tester.advanceInputWatermark(Instant.ofEpochMilli(0));
+    tester.advanceOutputWatermark(Instant.ofEpochMilli(0));
+    tester.injectElements(TimestampedValue.of(1, Instant.ofEpochMilli(1)));
 
     // Fire ON_TIME pane @ 9 with 1
 
-    tester.advanceInputWatermark(new Instant(109));
-    tester.advanceOutputWatermark(new Instant(109));
-    tester.injectElements(TimestampedValue.of(2, new Instant(2)));
+    tester.advanceInputWatermark(Instant.ofEpochMilli(109));
+    tester.advanceOutputWatermark(Instant.ofEpochMilli(109));
+    tester.injectElements(TimestampedValue.of(2, Instant.ofEpochMilli(2)));
     // We should have set a garbage collection hold for the final pane.
     Instant hold = tester.getWatermarkHold();
-    assertEquals(new Instant(109), hold);
+    assertEquals(Instant.ofEpochMilli(109), hold);
 
-    tester.advanceInputWatermark(new Instant(110));
-    tester.advanceOutputWatermark(new Instant(110));
+    tester.advanceInputWatermark(Instant.ofEpochMilli(110));
+    tester.advanceOutputWatermark(Instant.ofEpochMilli(110));
 
     // Fire final LATE pane @ 9 with 2
 

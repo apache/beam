@@ -219,8 +219,8 @@ public class BigQueryManagedIT {
     if (isStreaming) {
       return p.apply(
               PeriodicImpulse.create()
-                  .startAt(new Instant(0))
-                  .stopAt(new Instant(19))
+                  .startAt(Instant.ofEpochMilli(0))
+                  .stopAt(Instant.ofEpochMilli(19))
                   .withInterval(Duration.millis(1)))
           .apply(MapElements.into(TypeDescriptors.rows()).via(i -> ROW_FUNC.apply(i.getMillis())))
           .setRowSchema(SCHEMA);

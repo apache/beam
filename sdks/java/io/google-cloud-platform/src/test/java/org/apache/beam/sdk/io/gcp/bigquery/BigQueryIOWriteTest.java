@@ -790,7 +790,7 @@ public class BigQueryIOWriteTest implements Serializable {
       elements.add(new TableRow().set("number", i));
     }
 
-    Instant startInstant = new Instant(0L);
+    Instant startInstant = Instant.ofEpochMilli(0L);
     TestStream<TableRow> testStream =
         TestStream.create(TableRowJsonCoder.of())
             // Initialize watermark for timer to be triggered correctly.
@@ -2460,7 +2460,7 @@ public class BigQueryIOWriteTest implements Serializable {
     LongFunction<TableRow> getRow = useSet ? getRowSet : getRowSetF;
 
     TestStream.Builder<Long> testStream =
-        TestStream.create(VarLongCoder.of()).advanceWatermarkTo(new Instant(0));
+        TestStream.create(VarLongCoder.of()).advanceWatermarkTo(Instant.ofEpochMilli(0));
     // These rows contain unknown fields, which should be dropped.
     for (long i = 0; i < 5; i++) {
       testStream = testStream.addElements(i);

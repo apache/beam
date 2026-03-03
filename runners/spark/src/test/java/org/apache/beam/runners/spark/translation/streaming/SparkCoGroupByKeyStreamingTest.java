@@ -64,7 +64,7 @@ public class SparkCoGroupByKeyStreamingTest {
   @Category(StreamingTest.class)
   @Test
   public void testInStreamingMode() throws Exception {
-    Instant instant = new Instant(0);
+    Instant instant = Instant.ofEpochMilli(0);
     CreateStream<KV<Integer, Integer>> source1 =
         CreateStream.of(KvCoder.of(VarIntCoder.of(), VarIntCoder.of()), batchDuration())
             .emptyBatch()

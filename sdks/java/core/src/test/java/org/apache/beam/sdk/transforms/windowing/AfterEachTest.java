@@ -31,10 +31,10 @@ public class AfterEachTest {
 
   @Test
   public void testFireDeadline() throws Exception {
-    BoundedWindow window = new IntervalWindow(new Instant(0), new Instant(10));
+    BoundedWindow window = new IntervalWindow(Instant.ofEpochMilli(0), Instant.ofEpochMilli(10));
 
     assertEquals(
-        new Instant(9),
+        Instant.ofEpochMilli(9),
         AfterEach.inOrder(AfterWatermark.pastEndOfWindow(), AfterPane.elementCountAtLeast(4))
             .getWatermarkThatGuaranteesFiring(window));
 

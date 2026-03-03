@@ -62,7 +62,7 @@ public abstract class TimestampTransform implements Serializable {
    */
   @Internal
   public static TimestampTransform alignTo(Duration period) {
-    return alignTo(period, new Instant(0));
+    return alignTo(period, Instant.ofEpochMilli(0));
   }
 
   /**

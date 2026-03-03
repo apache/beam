@@ -108,11 +108,11 @@ public class WindowingTest implements Serializable {
     PCollection<String> input =
         p.apply(
             Create.timestamped(
-                TimestampedValue.of("a", new Instant(1)),
-                TimestampedValue.of("b", new Instant(2)),
-                TimestampedValue.of("b", new Instant(3)),
-                TimestampedValue.of("c", new Instant(11)),
-                TimestampedValue.of("d", new Instant(11))));
+                TimestampedValue.of("a", Instant.ofEpochMilli(1)),
+                TimestampedValue.of("b", Instant.ofEpochMilli(2)),
+                TimestampedValue.of("b", Instant.ofEpochMilli(3)),
+                TimestampedValue.of("c", Instant.ofEpochMilli(11)),
+                TimestampedValue.of("d", Instant.ofEpochMilli(11))));
 
     PCollection<String> output =
         input.apply(new WindowedCount(FixedWindows.of(Duration.millis(10))));
@@ -133,9 +133,9 @@ public class WindowingTest implements Serializable {
     PCollection<String> input =
         p.apply(
             Create.timestamped(
-                TimestampedValue.of("a", new Instant(1)),
-                TimestampedValue.of("a", new Instant(7)),
-                TimestampedValue.of("b", new Instant(8))));
+                TimestampedValue.of("a", Instant.ofEpochMilli(1)),
+                TimestampedValue.of("a", Instant.ofEpochMilli(7)),
+                TimestampedValue.of("b", Instant.ofEpochMilli(8))));
 
     PCollection<String> output =
         input.apply(
@@ -158,9 +158,9 @@ public class WindowingTest implements Serializable {
     PCollection<String> input =
         p.apply(
             Create.timestamped(
-                TimestampedValue.of("a", new Instant(1)),
-                TimestampedValue.of("a", new Instant(5)),
-                TimestampedValue.of("a", new Instant(20))));
+                TimestampedValue.of("a", Instant.ofEpochMilli(1)),
+                TimestampedValue.of("a", Instant.ofEpochMilli(5)),
+                TimestampedValue.of("a", Instant.ofEpochMilli(20))));
 
     PCollection<String> output =
         input.apply(new WindowedCount(Sessions.withGapDuration(Duration.millis(10))));
@@ -177,15 +177,15 @@ public class WindowingTest implements Serializable {
         p.apply(
             "Create12",
             Create.timestamped(
-                TimestampedValue.of("a", new Instant(1)),
-                TimestampedValue.of("b", new Instant(2))));
+                TimestampedValue.of("a", Instant.ofEpochMilli(1)),
+                TimestampedValue.of("b", Instant.ofEpochMilli(2))));
 
     PCollection<String> input2 =
         p.apply(
             "Create34",
             Create.timestamped(
-                TimestampedValue.of("a", new Instant(3)),
-                TimestampedValue.of("b", new Instant(4))));
+                TimestampedValue.of("a", Instant.ofEpochMilli(3)),
+                TimestampedValue.of("b", Instant.ofEpochMilli(4))));
 
     PCollectionList<String> input = PCollectionList.of(input1).and(input2);
 

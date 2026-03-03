@@ -127,11 +127,11 @@ PTransform:
 
 {{< highlight java >}}
 TestStream<GameActionInfo> createEvents = TestStream.create(AvroCoder.of(GameActionInfo.class))
-    .addElements(new GameActionInfo("sky", "blue", 12, new Instant(0L)),
-                 new GameActionInfo("navy", "blue", 3, new Instant(0L)),
-                 new GameActionInfo("navy", "blue", 3, new Instant(0L).plus(Duration.standardMinutes(3))))
+    .addElements(new GameActionInfo("sky", "blue", 12, Instant.ofEpochMilli(0L)),
+                 new GameActionInfo("navy", "blue", 3, Instant.ofEpochMilli(0L)),
+                 new GameActionInfo("navy", "blue", 3, Instant.ofEpochMilli(0L).plus(Duration.standardMinutes(3))))
     // Move the watermark past the end the end of the window
-    .advanceWatermarkTo(new Instant(0L).plus(TEAM_WINDOW_DURATION)
+    .advanceWatermarkTo(Instant.ofEpochMilli(0L).plus(TEAM_WINDOW_DURATION)
                                        .plus(Duration.standardMinutes(1)))
     .advanceWatermarkToInfinity();
 
@@ -161,10 +161,10 @@ the window
 
 {{< highlight java >}}
 TestStream<GameActionInfo> createEvents = TestStream.create(AvroCoder.of(GameActionInfo.class))
-    .addElements(new GameActionInfo("sky", "blue", 3, new Instant(0L)),
-                 new GameActionInfo("navy", "blue", 3, new Instant(0L).plus(Duration.standardMinutes(3))))
+    .addElements(new GameActionInfo("sky", "blue", 3, Instant.ofEpochMilli(0L)),
+                 new GameActionInfo("navy", "blue", 3, Instant.ofEpochMilli(0L).plus(Duration.standardMinutes(3))))
     // Move the watermark up to "near" the end of the window
-    .advanceWatermarkTo(new Instant(0L).plus(TEAM_WINDOW_DURATION)
+    .advanceWatermarkTo(Instant.ofEpochMilli(0L).plus(TEAM_WINDOW_DURATION)
                                        .minus(Duration.standardMinutes(1)))
     .addElements(new GameActionInfo("sky", "blue", 12, Duration.ZERO))
     .advanceWatermarkToInfinity();
@@ -191,10 +191,10 @@ pane, and then after the late data arrives, a pane that refines the result.
 
 {{< highlight java >}}
 TestStream<GameActionInfo> createEvents = TestStream.create(AvroCoder.of(GameActionInfo.class))
-    .addElements(new GameActionInfo("sky", "blue", 3, new Instant(0L)),
-                 new GameActionInfo("navy", "blue", 3, new Instant(0L).plus(Duration.standardMinutes(3))))
+    .addElements(new GameActionInfo("sky", "blue", 3, Instant.ofEpochMilli(0L)),
+                 new GameActionInfo("navy", "blue", 3, Instant.ofEpochMilli(0L).plus(Duration.standardMinutes(3))))
     // Move the watermark up to "near" the end of the window
-    .advanceWatermarkTo(new Instant(0L).plus(TEAM_WINDOW_DURATION)
+    .advanceWatermarkTo(Instant.ofEpochMilli(0L).plus(TEAM_WINDOW_DURATION)
                                        .minus(Duration.standardMinutes(1)))
     .addElements(new GameActionInfo("sky", "blue", 12, Duration.ZERO))
     .advanceWatermarkToInfinity();
@@ -228,14 +228,14 @@ TestStream<GameActionInfo> createEvents = TestStream.create(AvroCoder.of(GameAct
     .addElements(new GameActionInfo("sky", "blue", 3, Duration.ZERO),
                  new GameActionInfo("navy", "blue", 3, Duration.standardMinutes(3)))
     // Move the watermark up to "near" the end of the window
-    .advanceWatermarkTo(new Instant(0).plus(TEAM_WINDOW_DURATION)
+    .advanceWatermarkTo(Instant.ofEpochMilli(0).plus(TEAM_WINDOW_DURATION)
                                          .plus(ALLOWED_LATENESS)
                                          .plus(Duration.standardMinutes(1)))
     .addElements(new GameActionInfo(
                      "sky",
                      "blue",
                      12,
-                     new Instant(0).plus(TEAM_WINDOW_DURATION).minus(Duration.standardMinutes(1))))
+                     Instant.ofEpochMilli(0).plus(TEAM_WINDOW_DURATION).minus(Duration.standardMinutes(1))))
     .advanceWatermarkToInfinity();
 
 PCollection<KV<String, Integer>> teamScores = p.apply(createEvents)
@@ -261,11 +261,11 @@ apply `CalculateUserScores`
 
 {{< highlight java >}}
 TestStream<GameActionInfo> createEvents = TestStream.create(AvroCoder.of(GameActionInfo.class))
-    .addElements(new GameActionInfo("scarlet", "red", 3, new Instant(0L)),
-                 new GameActionInfo("scarlet", "red", 2, new Instant(0L).plus(Duration.standardMinutes(1))))
+    .addElements(new GameActionInfo("scarlet", "red", 3, Instant.ofEpochMilli(0L)),
+                 new GameActionInfo("scarlet", "red", 2, Instant.ofEpochMilli(0L).plus(Duration.standardMinutes(1))))
     .advanceProcessingTime(Duration.standardMinutes(12))
-    .addElements(new GameActionInfo("oxblood", "red", 2, new Instant(0L)).plus(Duration.standardSeconds(22)),
-                 new GameActionInfo("scarlet", "red", 4, new Instant(0L).plus(Duration.standardMinutes(2))))
+    .addElements(new GameActionInfo("oxblood", "red", 2, Instant.ofEpochMilli(0L)).plus(Duration.standardSeconds(22)),
+                 new GameActionInfo("scarlet", "red", 4, Instant.ofEpochMilli(0L).plus(Duration.standardMinutes(2))))
     .advanceProcessingTime(Duration.standardMinutes(15))
     .advanceWatermarkToInfinity();
 

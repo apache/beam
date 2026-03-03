@@ -49,7 +49,7 @@ class KinesisReader extends UnboundedSource.UnboundedReader<KinesisRecord> {
   private final Duration backlogBytesCheckThreshold;
   private CustomOptional<KinesisRecord> currentRecord = CustomOptional.absent();
   private long lastBacklogBytes;
-  private Instant backlogBytesLastCheckTime = new Instant(0L);
+  private Instant backlogBytesLastCheckTime = Instant.ofEpochMilli(0L);
   private ShardReadersPool shardReadersPool;
 
   KinesisReader(

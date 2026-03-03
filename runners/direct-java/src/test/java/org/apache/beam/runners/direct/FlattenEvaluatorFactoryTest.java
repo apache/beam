@@ -77,12 +77,12 @@ public class FlattenEvaluatorFactoryTest {
     leftSideEvaluator.processElement(WindowedValues.valueInGlobalWindow(1));
     rightSideEvaluator.processElement(WindowedValues.valueInGlobalWindow(-1));
     leftSideEvaluator.processElement(
-        WindowedValues.timestampedValueInGlobalWindow(2, new Instant(1024)));
+        WindowedValues.timestampedValueInGlobalWindow(2, Instant.ofEpochMilli(1024)));
     leftSideEvaluator.processElement(WindowedValues.valueInGlobalWindow(4, PaneInfo.NO_FIRING));
     rightSideEvaluator.processElement(
         WindowedValues.valueInGlobalWindow(2, PaneInfo.ON_TIME_AND_ONLY_FIRING));
     rightSideEvaluator.processElement(
-        WindowedValues.timestampedValueInGlobalWindow(-4, new Instant(-4096)));
+        WindowedValues.timestampedValueInGlobalWindow(-4, Instant.ofEpochMilli(-4096)));
 
     TransformResult<Integer> rightSideResult = rightSideEvaluator.finishBundle();
     TransformResult<Integer> leftSideResult = leftSideEvaluator.finishBundle();
@@ -99,14 +99,14 @@ public class FlattenEvaluatorFactoryTest {
     assertThat(
         flattenedLeftBundle.commit(Instant.now()).getElements(),
         containsInAnyOrder(
-            WindowedValues.timestampedValueInGlobalWindow(2, new Instant(1024)),
+            WindowedValues.timestampedValueInGlobalWindow(2, Instant.ofEpochMilli(1024)),
             WindowedValues.valueInGlobalWindow(4, PaneInfo.NO_FIRING),
             WindowedValues.valueInGlobalWindow(1)));
     assertThat(
         flattenedRightBundle.commit(Instant.now()).getElements(),
         containsInAnyOrder(
             WindowedValues.valueInGlobalWindow(2, PaneInfo.ON_TIME_AND_ONLY_FIRING),
-            WindowedValues.timestampedValueInGlobalWindow(-4, new Instant(-4096)),
+            WindowedValues.timestampedValueInGlobalWindow(-4, Instant.ofEpochMilli(-4096)),
             WindowedValues.valueInGlobalWindow(-1)));
   }
 

@@ -41,7 +41,7 @@ import org.junit.runners.JUnit4;
 /** Unit tests for {@link Latest.LatestFn}. */
 @RunWith(JUnit4.class)
 public class LatestFnTest {
-  private static final Instant INSTANT = new Instant(100);
+  private static final Instant INSTANT = Instant.ofEpochMilli(100);
   private static final long VALUE = 100 * INSTANT.getMillis();
 
   private static final TimestampedValue<Long> TV = TimestampedValue.of(VALUE, INSTANT);

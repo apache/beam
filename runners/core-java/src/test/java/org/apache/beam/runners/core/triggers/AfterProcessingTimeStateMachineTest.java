@@ -48,21 +48,23 @@ public class AfterProcessingTimeStateMachineTest {
                 .plusDelayOf(Duration.millis(5)),
             FixedWindows.of(windowDuration));
 
-    tester.advanceProcessingTime(new Instant(10));
+    tester.advanceProcessingTime(Instant.ofEpochMilli(10));
 
     // Timer at 15
     tester.injectElements(1);
-    IntervalWindow firstWindow = new IntervalWindow(new Instant(0), new Instant(10));
-    tester.advanceProcessingTime(new Instant(12));
+    IntervalWindow firstWindow =
+        new IntervalWindow(Instant.ofEpochMilli(0), Instant.ofEpochMilli(10));
+    tester.advanceProcessingTime(Instant.ofEpochMilli(12));
     assertFalse(tester.shouldFire(firstWindow));
 
     // Load up elements in the next window, timer at 17 for them
     tester.injectElements(11, 12, 13);
-    IntervalWindow secondWindow = new IntervalWindow(new Instant(10), new Instant(20));
+    IntervalWindow secondWindow =
+        new IntervalWindow(Instant.ofEpochMilli(10), Instant.ofEpochMilli(20));
     assertFalse(tester.shouldFire(secondWindow));
 
     // Not quite time to fire
-    tester.advanceProcessingTime(new Instant(14));
+    tester.advanceProcessingTime(Instant.ofEpochMilli(14));
     assertFalse(tester.shouldFire(firstWindow));
     assertFalse(tester.shouldFire(secondWindow));
 
@@ -70,14 +72,14 @@ public class AfterProcessingTimeStateMachineTest {
     tester.injectElements(2, 3);
 
     // Advance past the first timer and fire, finishing the first window
-    tester.advanceProcessingTime(new Instant(16));
+    tester.advanceProcessingTime(Instant.ofEpochMilli(16));
     assertTrue(tester.shouldFire(firstWindow));
     assertFalse(tester.shouldFire(secondWindow));
     tester.fireIfShouldFire(firstWindow);
     assertTrue(tester.isMarkedFinished(firstWindow));
 
     // The next window fires and finishes now
-    tester.advanceProcessingTime(new Instant(18));
+    tester.advanceProcessingTime(Instant.ofEpochMilli(18));
     assertTrue(tester.shouldFire(secondWindow));
     tester.fireIfShouldFire(secondWindow);
     assertTrue(tester.isMarkedFinished(secondWindow));
@@ -96,7 +98,7 @@ public class AfterProcessingTimeStateMachineTest {
             FixedWindows.of(Duration.millis(10)));
 
     tester.injectElements(1, 2, 3);
-    IntervalWindow window = new IntervalWindow(new Instant(0), new Instant(10));
+    IntervalWindow window = new IntervalWindow(Instant.ofEpochMilli(0), Instant.ofEpochMilli(10));
     tester.clearState(window);
     tester.assertCleared(window);
   }
@@ -109,20 +111,23 @@ public class AfterProcessingTimeStateMachineTest {
                 .plusDelayOf(Duration.millis(5)),
             Sessions.withGapDuration(Duration.millis(10)));
 
-    tester.advanceProcessingTime(new Instant(10));
+    tester.advanceProcessingTime(Instant.ofEpochMilli(10));
     tester.injectElements(1); // in [1, 11), timer for 15
-    IntervalWindow firstWindow = new IntervalWindow(new Instant(1), new Instant(11));
+    IntervalWindow firstWindow =
+        new IntervalWindow(Instant.ofEpochMilli(1), Instant.ofEpochMilli(11));
     assertFalse(tester.shouldFire(firstWindow));
 
-    tester.advanceProcessingTime(new Instant(12));
+    tester.advanceProcessingTime(Instant.ofEpochMilli(12));
     tester.injectElements(3); // in [3, 13), timer for 17
-    IntervalWindow secondWindow = new IntervalWindow(new Instant(3), new Instant(13));
+    IntervalWindow secondWindow =
+        new IntervalWindow(Instant.ofEpochMilli(3), Instant.ofEpochMilli(13));
     assertFalse(tester.shouldFire(secondWindow));
 
     tester.mergeWindows();
-    IntervalWindow mergedWindow = new IntervalWindow(new Instant(1), new Instant(13));
+    IntervalWindow mergedWindow =
+        new IntervalWindow(Instant.ofEpochMilli(1), Instant.ofEpochMilli(13));
 
-    tester.advanceProcessingTime(new Instant(16));
+    tester.advanceProcessingTime(Instant.ofEpochMilli(16));
     assertTrue(tester.shouldFire(mergedWindow));
   }
 

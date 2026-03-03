@@ -1459,7 +1459,7 @@ public class WindmillStateReaderTest {
     Instant result = future.get();
     Mockito.verify(mockWindmill).getStateData(COMPUTATION, expectedRequest.build());
 
-    assertThat(result, Matchers.equalTo(new Instant(5000)));
+    assertThat(result, Matchers.equalTo(Instant.ofEpochMilli(5000)));
     assertNoReader(future);
   }
 
@@ -1508,7 +1508,7 @@ public class WindmillStateReaderTest {
     assertThat(keyedRequest.getWatermarkHoldsToFetch(0).getTag(), Matchers.equalTo(STATE_KEY_2));
 
     // Verify the values returned to the user.
-    assertThat(result, Matchers.equalTo(new Instant(5000)));
+    assertThat(result, Matchers.equalTo(Instant.ofEpochMilli(5000)));
     Mockito.verifyNoMoreInteractions(mockWindmill);
 
     assertThat(bagFuture.get(), Matchers.contains(5, 100));
@@ -1740,7 +1740,7 @@ public class WindmillStateReaderTest {
       assertThat(e.toString(), Matchers.containsString("Error parsing tag value prefix"));
     }
 
-    assertThat(watermarkFuture.get(), Matchers.equalTo(new Instant(5000)));
+    assertThat(watermarkFuture.get(), Matchers.equalTo(Instant.ofEpochMilli(5000)));
   }
 
   /**

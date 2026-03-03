@@ -37,7 +37,7 @@ import org.joda.time.ReadableInstant;
   "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public class ClickHouseWriter {
-  private static final Instant EPOCH_INSTANT = new Instant(0L);
+  private static final Instant EPOCH_INSTANT = Instant.ofEpochMilli(0L);
 
   @SuppressWarnings("unchecked")
   static void writeNullableValue(ClickHouseOutputStream stream, ColumnType columnType, Object value)

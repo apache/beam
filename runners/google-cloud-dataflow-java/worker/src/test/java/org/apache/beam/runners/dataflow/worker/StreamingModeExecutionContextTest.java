@@ -165,7 +165,7 @@ public class StreamingModeExecutionContextTest {
         "key",
         createMockWork(
             Windmill.WorkItem.newBuilder().setKey(ByteString.EMPTY).setWorkToken(17L).build(),
-            Watermarks.builder().setInputDataWatermark(new Instant(1000)).build()),
+            Watermarks.builder().setInputDataWatermark(Instant.ofEpochMilli(1000)).build()),
         stateReader,
         sideInputStateFetcher,
         outputBuilder);
@@ -175,8 +175,8 @@ public class StreamingModeExecutionContextTest {
     timerInternals.setTimer(
         TimerData.of(
             new StateNamespaceForTest("key"),
-            new Instant(5000),
-            new Instant(5000),
+            Instant.ofEpochMilli(5000),
+            Instant.ofEpochMilli(5000),
             TimeDomain.EVENT_TIME,
             CausedByDrain.NORMAL));
     executionContext.flushState();
@@ -215,7 +215,7 @@ public class StreamingModeExecutionContextTest {
         "key",
         createMockWork(
             workItemBuilder.build(),
-            Watermarks.builder().setInputDataWatermark(new Instant(1000)).build()),
+            Watermarks.builder().setInputDataWatermark(Instant.ofEpochMilli(1000)).build()),
         stateReader,
         sideInputStateFetcher,
         outputBuilder);
@@ -424,7 +424,7 @@ public class StreamingModeExecutionContextTest {
           "key",
           createMockWork(
               Windmill.WorkItem.newBuilder().setKey(ByteString.EMPTY).setWorkToken(17L).build(),
-              Watermarks.builder().setInputDataWatermark(new Instant(1000)).build()),
+              Watermarks.builder().setInputDataWatermark(Instant.ofEpochMilli(1000)).build()),
           stateReader,
           sideInputStateFetcher,
           outputBuilder);

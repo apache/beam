@@ -39,7 +39,7 @@ public abstract class GaugeResult {
   public static class EmptyGaugeResult extends GaugeResult {
 
     private static final EmptyGaugeResult INSTANCE = new EmptyGaugeResult();
-    private static final Instant EPOCH = new Instant(0);
+    private static final Instant EPOCH = Instant.ofEpochMilli(0);
 
     private EmptyGaugeResult() {}
 

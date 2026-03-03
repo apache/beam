@@ -43,7 +43,8 @@ public class ReshuffleTriggerStateMachineTest {
     TriggerStateMachineTester<Integer, IntervalWindow> tester =
         TriggerStateMachineTester.forTrigger(
             ReshuffleTriggerStateMachine.create(), FixedWindows.of(Duration.millis(100)));
-    IntervalWindow arbitraryWindow = new IntervalWindow(new Instant(300), new Instant(400));
+    IntervalWindow arbitraryWindow =
+        new IntervalWindow(Instant.ofEpochMilli(300), Instant.ofEpochMilli(400));
     assertTrue(tester.shouldFire(arbitraryWindow));
   }
 
@@ -52,7 +53,8 @@ public class ReshuffleTriggerStateMachineTest {
     TriggerStateMachineTester<Integer, IntervalWindow> tester =
         TriggerStateMachineTester.forTrigger(
             ReshuffleTriggerStateMachine.create(), FixedWindows.of(Duration.millis(100)));
-    IntervalWindow arbitraryWindow = new IntervalWindow(new Instant(100), new Instant(200));
+    IntervalWindow arbitraryWindow =
+        new IntervalWindow(Instant.ofEpochMilli(100), Instant.ofEpochMilli(200));
     tester.fireIfShouldFire(arbitraryWindow);
     assertFalse(tester.isMarkedFinished(arbitraryWindow));
   }

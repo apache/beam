@@ -120,7 +120,7 @@ public class DoFnInvokersTest {
   @Before
   public void setUp() {
     mockElement = "element";
-    mockTimestamp = new Instant(0);
+    mockTimestamp = Instant.ofEpochMilli(0);
     MockitoAnnotations.initMocks(this);
     when(mockArgumentProvider.window()).thenReturn(mockWindow);
     // when(mockArgumentProvider.paneInfo(Matchers.<DoFn>any()))
@@ -1350,7 +1350,8 @@ public class DoFnInvokersTest {
   @Test
   public void testOnTimerWithWindow() throws Exception {
     final String timerId = "my-timer-id";
-    final IntervalWindow testWindow = new IntervalWindow(new Instant(0), new Instant(15));
+    final IntervalWindow testWindow =
+        new IntervalWindow(Instant.ofEpochMilli(0), Instant.ofEpochMilli(15));
     when(mockArgumentProvider.window()).thenReturn(testWindow);
 
     class SimpleTimerDoFn extends DoFn<String, String> {

@@ -49,7 +49,7 @@ import org.junit.runners.JUnit4;
 public class LeaderBoardTest implements Serializable {
   private static final Duration ALLOWED_LATENESS = Duration.standardHours(1);
   private static final Duration TEAM_WINDOW_DURATION = Duration.standardMinutes(20);
-  private Instant baseTime = new Instant(0);
+  private Instant baseTime = Instant.ofEpochMilli(0);
 
   @Rule public TestPipeline p = TestPipeline.create();
   /** Some example users, on two separate teams. */

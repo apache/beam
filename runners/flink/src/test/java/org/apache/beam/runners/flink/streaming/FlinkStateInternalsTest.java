@@ -92,21 +92,22 @@ public class FlinkStateInternalsTest extends StateInternalsTest {
     WatermarkHoldState fixedWindow =
         stateInternals.state(
             StateNamespaces.window(
-                IntervalWindow.getCoder(), new IntervalWindow(new Instant(0), new Instant(10))),
+                IntervalWindow.getCoder(),
+                new IntervalWindow(Instant.ofEpochMilli(0), Instant.ofEpochMilli(10))),
             stateTag);
 
     Instant noHold = new Instant(Long.MAX_VALUE);
     assertThat(stateInternals.minWatermarkHoldMs(), is(noHold.getMillis()));
 
-    Instant high = new Instant(10);
+    Instant high = Instant.ofEpochMilli(10);
     globalWindow.add(high);
     assertThat(stateInternals.minWatermarkHoldMs(), is(high.getMillis()));
 
-    Instant middle = new Instant(5);
+    Instant middle = Instant.ofEpochMilli(5);
     fixedWindow.add(middle);
     assertThat(stateInternals.minWatermarkHoldMs(), is(middle.getMillis()));
 
-    Instant low = new Instant(1);
+    Instant low = Instant.ofEpochMilli(1);
     globalWindow.add(low);
     assertThat(stateInternals.minWatermarkHoldMs(), is(low.getMillis()));
 
@@ -145,7 +146,8 @@ public class FlinkStateInternalsTest extends StateInternalsTest {
     fixedWindow =
         stateInternals.state(
             StateNamespaces.window(
-                IntervalWindow.getCoder(), new IntervalWindow(new Instant(0), new Instant(10))),
+                IntervalWindow.getCoder(),
+                new IntervalWindow(Instant.ofEpochMilli(0), Instant.ofEpochMilli(10))),
             stateTag);
 
     // Watermark hold across all keys should be unchanged

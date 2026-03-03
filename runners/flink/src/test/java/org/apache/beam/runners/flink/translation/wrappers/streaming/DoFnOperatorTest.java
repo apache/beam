@@ -277,7 +277,7 @@ public class DoFnOperatorTest {
   @Test
   public void testWatermarkContract() throws Exception {
 
-    final Instant timerTimestamp = new Instant(1000);
+    final Instant timerTimestamp = Instant.ofEpochMilli(1000);
     final Instant timerOutputTimestamp = timerTimestamp.minus(Duration.millis(1));
     final String eventTimeMessage = "Event timer fired: ";
     final String processingTimeMessage = "Processing timer fired";
@@ -311,7 +311,7 @@ public class DoFnOperatorTest {
                 .withOutputTimestamp(timerOutputTimestamp)
                 .set(timerTimestamp);
             processingTimer
-                .withOutputTimestamp(new Instant(10))
+                .withOutputTimestamp(Instant.ofEpochMilli(10))
                 .offset(Duration.millis(timerTimestamp.getMillis()))
                 .setRelative();
           }
@@ -389,11 +389,12 @@ public class DoFnOperatorTest {
     testHarness.processWatermark(499);
     testHarness.setProcessingTime(0);
 
-    IntervalWindow window1 = new IntervalWindow(new Instant(0), Duration.millis(10_000));
+    IntervalWindow window1 = new IntervalWindow(Instant.ofEpochMilli(0), Duration.millis(10_000));
 
     // this should register the two timers above
     testHarness.processElement(
-        new StreamRecord<>(WindowedValues.of(13, new Instant(0), window1, PaneInfo.NO_FIRING)));
+        new StreamRecord<>(
+            WindowedValues.of(13, Instant.ofEpochMilli(0), window1, PaneInfo.NO_FIRING)));
 
     assertThat(stripStreamRecordFromWindowedValue(testHarness.getOutput()), emptyIterable());
 
@@ -425,7 +426,7 @@ public class DoFnOperatorTest {
                 window1,
                 PaneInfo.NO_FIRING),
             WindowedValues.of(
-                processingTimeMessage, new Instant(10), window1, PaneInfo.NO_FIRING)));
+                processingTimeMessage, Instant.ofEpochMilli(10), window1, PaneInfo.NO_FIRING)));
 
     testHarness.close();
   }
@@ -644,15 +645,16 @@ public class DoFnOperatorTest {
 
     testHarness.processWatermark(0);
 
-    IntervalWindow window1 = new IntervalWindow(new Instant(0), Duration.millis(10));
+    IntervalWindow window1 = new IntervalWindow(Instant.ofEpochMilli(0), Duration.millis(10));
 
     // this should not be late
     testHarness.processElement(
-        new StreamRecord<>(WindowedValues.of(13, new Instant(0), window1, PaneInfo.NO_FIRING)));
+        new StreamRecord<>(
+            WindowedValues.of(13, Instant.ofEpochMilli(0), window1, PaneInfo.NO_FIRING)));
 
     assertThat(
         stripStreamRecordFromWindowedValue(testHarness.getOutput()),
-        contains(WindowedValues.of("13", new Instant(0), window1, PaneInfo.NO_FIRING)));
+        contains(WindowedValues.of("13", Instant.ofEpochMilli(0), window1, PaneInfo.NO_FIRING)));
 
     testHarness.getOutput().clear();
 
@@ -660,11 +662,12 @@ public class DoFnOperatorTest {
 
     // this should still not be considered late
     testHarness.processElement(
-        new StreamRecord<>(WindowedValues.of(17, new Instant(0), window1, PaneInfo.NO_FIRING)));
+        new StreamRecord<>(
+            WindowedValues.of(17, Instant.ofEpochMilli(0), window1, PaneInfo.NO_FIRING)));
 
     assertThat(
         stripStreamRecordFromWindowedValue(testHarness.getOutput()),
-        contains(WindowedValues.of("17", new Instant(0), window1, PaneInfo.NO_FIRING)));
+        contains(WindowedValues.of("17", Instant.ofEpochMilli(0), window1, PaneInfo.NO_FIRING)));
 
     testHarness.getOutput().clear();
 
@@ -672,7 +675,8 @@ public class DoFnOperatorTest {
 
     // this should now be considered late
     testHarness.processElement(
-        new StreamRecord<>(WindowedValues.of(17, new Instant(0), window1, PaneInfo.NO_FIRING)));
+        new StreamRecord<>(
+            WindowedValues.of(17, Instant.ofEpochMilli(0), window1, PaneInfo.NO_FIRING)));
 
     assertThat(stripStreamRecordFromWindowedValue(testHarness.getOutput()), emptyIterable());
 
@@ -703,23 +707,25 @@ public class DoFnOperatorTest {
 
     assertEquals(0, testHarness.numKeyedStateEntries());
 
-    IntervalWindow window1 = new IntervalWindow(new Instant(0), Duration.millis(10));
+    IntervalWindow window1 = new IntervalWindow(Instant.ofEpochMilli(0), Duration.millis(10));
 
     testHarness.processElement(
         new StreamRecord<>(
-            WindowedValues.of(KV.of("key1", 5), new Instant(1), window1, PaneInfo.NO_FIRING)));
+            WindowedValues.of(
+                KV.of("key1", 5), Instant.ofEpochMilli(1), window1, PaneInfo.NO_FIRING)));
 
     testHarness.processElement(
         new StreamRecord<>(
-            WindowedValues.of(KV.of("key2", 7), new Instant(3), window1, PaneInfo.NO_FIRING)));
+            WindowedValues.of(
+                KV.of("key2", 7), Instant.ofEpochMilli(3), window1, PaneInfo.NO_FIRING)));
 
     assertThat(
         stripStreamRecordFromWindowedValue(testHarness.getOutput()),
         contains(
             WindowedValues.of(
-                KV.of("key1", 5 + offset), new Instant(1), window1, PaneInfo.NO_FIRING),
+                KV.of("key1", 5 + offset), Instant.ofEpochMilli(1), window1, PaneInfo.NO_FIRING),
             WindowedValues.of(
-                KV.of("key2", 7 + offset), new Instant(3), window1, PaneInfo.NO_FIRING)));
+                KV.of("key2", 7 + offset), Instant.ofEpochMilli(3), window1, PaneInfo.NO_FIRING)));
 
     // 2 entries for the elements and 2 for the pending timers
     assertEquals(4, testHarness.numKeyedStateEntries());
@@ -742,9 +748,9 @@ public class DoFnOperatorTest {
         stripStreamRecordFromWindowedValue(testHarness.getOutput()),
         contains(
             WindowedValues.of(
-                KV.of("key1", timerOutput), new Instant(9), window1, PaneInfo.NO_FIRING),
+                KV.of("key1", timerOutput), Instant.ofEpochMilli(9), window1, PaneInfo.NO_FIRING),
             WindowedValues.of(
-                KV.of("key2", timerOutput), new Instant(9), window1, PaneInfo.NO_FIRING)));
+                KV.of("key2", timerOutput), Instant.ofEpochMilli(9), window1, PaneInfo.NO_FIRING)));
 
     testHarness.close();
   }
@@ -755,7 +761,8 @@ public class DoFnOperatorTest {
 
     KeyedOneInputStreamOperatorTestHarness<
             FlinkKey, WindowedValue<KV<String, Integer>>, WindowedValue<KV<String, Integer>>>
-        testHarness = getHarness(windowingStrategy, 5000, (window) -> new Instant(50), 4092);
+        testHarness =
+            getHarness(windowingStrategy, 5000, (window) -> Instant.ofEpochMilli(50), 4092);
 
     testHarness.open();
 
@@ -768,11 +775,17 @@ public class DoFnOperatorTest {
     testHarness.processElement(
         new StreamRecord<>(
             WindowedValues.of(
-                KV.of("key1", 5), new Instant(23), GlobalWindow.INSTANCE, PaneInfo.NO_FIRING)));
+                KV.of("key1", 5),
+                Instant.ofEpochMilli(23),
+                GlobalWindow.INSTANCE,
+                PaneInfo.NO_FIRING)));
     testHarness.processElement(
         new StreamRecord<>(
             WindowedValues.of(
-                KV.of("key2", 6), new Instant(42), GlobalWindow.INSTANCE, PaneInfo.NO_FIRING)));
+                KV.of("key2", 6),
+                Instant.ofEpochMilli(42),
+                GlobalWindow.INSTANCE,
+                PaneInfo.NO_FIRING)));
 
     // timers set by the transform
     assertThat(testHarness.numEventTimeTimers(), is(2));
@@ -805,7 +818,10 @@ public class DoFnOperatorTest {
     testHarness.processElement(
         new StreamRecord<>(
             WindowedValues.of(
-                KV.of("key2", 6), new Instant(42), GlobalWindow.INSTANCE, PaneInfo.NO_FIRING)));
+                KV.of("key2", 6),
+                Instant.ofEpochMilli(42),
+                GlobalWindow.INSTANCE,
+                PaneInfo.NO_FIRING)));
 
     // Close sends Flink's max watermark and will cleanup again
     testHarness.close();
@@ -944,8 +960,10 @@ public class DoFnOperatorTest {
 
     testHarness.open();
 
-    IntervalWindow firstWindow = new IntervalWindow(new Instant(0), new Instant(100));
-    IntervalWindow secondWindow = new IntervalWindow(new Instant(0), new Instant(500));
+    IntervalWindow firstWindow =
+        new IntervalWindow(Instant.ofEpochMilli(0), Instant.ofEpochMilli(100));
+    IntervalWindow secondWindow =
+        new IntervalWindow(Instant.ofEpochMilli(0), Instant.ofEpochMilli(500));
 
     // test the keep of sideInputs events
     testHarness.processElement2(
@@ -955,7 +973,7 @@ public class DoFnOperatorTest {
                 valuesInWindow(
                     PCollectionViewTesting.materializeValuesFor(
                         view1.getPipeline().getOptions(), View.asIterable(), "hello", "ciao"),
-                    new Instant(0),
+                    Instant.ofEpochMilli(0),
                     firstWindow))));
     testHarness.processElement2(
         new StreamRecord<>(
@@ -964,12 +982,14 @@ public class DoFnOperatorTest {
                 valuesInWindow(
                     PCollectionViewTesting.materializeValuesFor(
                         view2.getPipeline().getOptions(), View.asIterable(), "foo", "bar"),
-                    new Instant(0),
+                    Instant.ofEpochMilli(0),
                     secondWindow))));
 
     // push in a regular elements
-    WindowedValue<String> helloElement = valueInWindow("Hello", new Instant(0), firstWindow);
-    WindowedValue<String> worldElement = valueInWindow("World", new Instant(1000), firstWindow);
+    WindowedValue<String> helloElement =
+        valueInWindow("Hello", Instant.ofEpochMilli(0), firstWindow);
+    WindowedValue<String> worldElement =
+        valueInWindow("World", Instant.ofEpochMilli(1000), firstWindow);
     testHarness.processElement1(new StreamRecord<>(helloElement));
     testHarness.processElement1(new StreamRecord<>(worldElement));
 
@@ -981,7 +1001,7 @@ public class DoFnOperatorTest {
                 valuesInWindow(
                     PCollectionViewTesting.materializeValuesFor(
                         view1.getPipeline().getOptions(), View.asIterable(), "hello", "ciao"),
-                    new Instant(1000),
+                    Instant.ofEpochMilli(1000),
                     firstWindow))));
     testHarness.processElement2(
         new StreamRecord<>(
@@ -990,7 +1010,7 @@ public class DoFnOperatorTest {
                 valuesInWindow(
                     PCollectionViewTesting.materializeValuesFor(
                         view2.getPipeline().getOptions(), View.asIterable(), "foo", "bar"),
-                    new Instant(1000),
+                    Instant.ofEpochMilli(1000),
                     secondWindow))));
 
     assertThat(
@@ -1190,8 +1210,10 @@ public class DoFnOperatorTest {
 
     testHarness.open();
 
-    IntervalWindow firstWindow = new IntervalWindow(new Instant(0), new Instant(100));
-    IntervalWindow secondWindow = new IntervalWindow(new Instant(0), new Instant(500));
+    IntervalWindow firstWindow =
+        new IntervalWindow(Instant.ofEpochMilli(0), Instant.ofEpochMilli(100));
+    IntervalWindow secondWindow =
+        new IntervalWindow(Instant.ofEpochMilli(0), Instant.ofEpochMilli(500));
 
     // push in some side inputs for both windows
     testHarness.processElement2(
@@ -1201,7 +1223,7 @@ public class DoFnOperatorTest {
                 valuesInWindow(
                     PCollectionViewTesting.materializeValuesFor(
                         view1.getPipeline().getOptions(), View.asIterable(), "hello", "ciao"),
-                    new Instant(0),
+                    Instant.ofEpochMilli(0),
                     firstWindow))));
     testHarness.processElement2(
         new StreamRecord<>(
@@ -1210,7 +1232,7 @@ public class DoFnOperatorTest {
                 valuesInWindow(
                     PCollectionViewTesting.materializeValuesFor(
                         view2.getPipeline().getOptions(), View.asIterable(), "foo", "bar"),
-                    new Instant(0),
+                    Instant.ofEpochMilli(0),
                     secondWindow))));
 
     // snapshot state, throw away the operator, then restore and verify that we still match
@@ -1223,8 +1245,10 @@ public class DoFnOperatorTest {
     testHarness.open();
 
     // push in main-input elements
-    WindowedValue<String> helloElement = valueInWindow("Hello", new Instant(0), firstWindow);
-    WindowedValue<String> worldElement = valueInWindow("World", new Instant(1000), firstWindow);
+    WindowedValue<String> helloElement =
+        valueInWindow("Hello", Instant.ofEpochMilli(0), firstWindow);
+    WindowedValue<String> worldElement =
+        valueInWindow("World", Instant.ofEpochMilli(1000), firstWindow);
     testHarness.processElement1(new StreamRecord<>(helloElement));
     testHarness.processElement1(new StreamRecord<>(worldElement));
 
@@ -1336,12 +1360,16 @@ public class DoFnOperatorTest {
 
     testHarness.open();
 
-    IntervalWindow firstWindow = new IntervalWindow(new Instant(0), new Instant(100));
-    IntervalWindow secondWindow = new IntervalWindow(new Instant(0), new Instant(500));
+    IntervalWindow firstWindow =
+        new IntervalWindow(Instant.ofEpochMilli(0), Instant.ofEpochMilli(100));
+    IntervalWindow secondWindow =
+        new IntervalWindow(Instant.ofEpochMilli(0), Instant.ofEpochMilli(500));
 
     // push in main-input elements
-    WindowedValue<String> helloElement = valueInWindow("Hello", new Instant(0), firstWindow);
-    WindowedValue<String> worldElement = valueInWindow("World", new Instant(1000), firstWindow);
+    WindowedValue<String> helloElement =
+        valueInWindow("Hello", Instant.ofEpochMilli(0), firstWindow);
+    WindowedValue<String> worldElement =
+        valueInWindow("World", Instant.ofEpochMilli(1000), firstWindow);
     testHarness.processElement1(new StreamRecord<>(helloElement));
     testHarness.processElement1(new StreamRecord<>(worldElement));
 
@@ -1362,7 +1390,7 @@ public class DoFnOperatorTest {
                 valuesInWindow(
                     PCollectionViewTesting.materializeValuesFor(
                         view1.getPipeline().getOptions(), View.asIterable(), "hello", "ciao"),
-                    new Instant(0),
+                    Instant.ofEpochMilli(0),
                     firstWindow))));
     testHarness.processElement2(
         new StreamRecord<>(
@@ -1371,7 +1399,7 @@ public class DoFnOperatorTest {
                 valuesInWindow(
                     PCollectionViewTesting.materializeValuesFor(
                         view2.getPipeline().getOptions(), View.asIterable(), "foo", "bar"),
-                    new Instant(0),
+                    Instant.ofEpochMilli(0),
                     secondWindow))));
 
     assertThat(
@@ -1383,7 +1411,7 @@ public class DoFnOperatorTest {
 
   @Test
   public void testTimersRestore() throws Exception {
-    final Instant timerTimestamp = new Instant(1000);
+    final Instant timerTimestamp = Instant.ofEpochMilli(1000);
     final String outputMessage = "Timer fired";
 
     WindowingStrategy<Object, IntervalWindow> windowingStrategy =
@@ -1444,11 +1472,12 @@ public class DoFnOperatorTest {
 
     testHarness.processWatermark(0);
 
-    IntervalWindow window1 = new IntervalWindow(new Instant(0), Duration.millis(10_000));
+    IntervalWindow window1 = new IntervalWindow(Instant.ofEpochMilli(0), Duration.millis(10_000));
 
     // this should register a timer
     testHarness.processElement(
-        new StreamRecord<>(WindowedValues.of(13, new Instant(0), window1, PaneInfo.NO_FIRING)));
+        new StreamRecord<>(
+            WindowedValues.of(13, Instant.ofEpochMilli(0), window1, PaneInfo.NO_FIRING)));
 
     assertThat(stripStreamRecordFromWindowedValue(testHarness.getOutput()), emptyIterable());
 

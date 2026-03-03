@@ -158,10 +158,14 @@ public class StreamingGroupAlsoByWindowsReshuffleDoFnTest {
     messageBundle.setSourceComputationId(SOURCE_COMPUTATION_ID);
 
     Coder<String> valueCoder = StringUtf8Coder.of();
-    addElement(messageBundle, Arrays.asList(window(0, 10)), new Instant(1), valueCoder, "v1");
-    addElement(messageBundle, Arrays.asList(window(0, 10)), new Instant(2), valueCoder, "v2");
-    addElement(messageBundle, Arrays.asList(window(0, 10)), new Instant(0), valueCoder, "v0");
-    addElement(messageBundle, Arrays.asList(window(10, 20)), new Instant(13), valueCoder, "v3");
+    addElement(
+        messageBundle, Arrays.asList(window(0, 10)), Instant.ofEpochMilli(1), valueCoder, "v1");
+    addElement(
+        messageBundle, Arrays.asList(window(0, 10)), Instant.ofEpochMilli(2), valueCoder, "v2");
+    addElement(
+        messageBundle, Arrays.asList(window(0, 10)), Instant.ofEpochMilli(0), valueCoder, "v0");
+    addElement(
+        messageBundle, Arrays.asList(window(10, 20)), Instant.ofEpochMilli(13), valueCoder, "v3");
 
     runner.processElement(createValue(workItem, valueCoder));
 
@@ -174,25 +178,25 @@ public class StreamingGroupAlsoByWindowsReshuffleDoFnTest {
     WindowedValue<KV<String, Iterable<String>>> item0 = result.get(0);
     assertEquals(KEY, item0.getValue().getKey());
     assertThat(item0.getValue().getValue(), Matchers.containsInAnyOrder("v1"));
-    assertEquals(new Instant(1), item0.getTimestamp());
+    assertEquals(Instant.ofEpochMilli(1), item0.getTimestamp());
     assertThat(item0.getWindows(), Matchers.<BoundedWindow>contains(window(0, 10)));
 
     WindowedValue<KV<String, Iterable<String>>> item1 = result.get(1);
     assertEquals(KEY, item1.getValue().getKey());
     assertThat(item1.getValue().getValue(), Matchers.containsInAnyOrder("v2"));
-    assertEquals(new Instant(2), item1.getTimestamp());
+    assertEquals(Instant.ofEpochMilli(2), item1.getTimestamp());
     assertThat(item1.getWindows(), Matchers.<BoundedWindow>contains(window(0, 10)));
 
     WindowedValue<KV<String, Iterable<String>>> item2 = result.get(2);
     assertEquals(KEY, item2.getValue().getKey());
     assertThat(item2.getValue().getValue(), Matchers.containsInAnyOrder("v0"));
-    assertEquals(new Instant(0), item2.getTimestamp());
+    assertEquals(Instant.ofEpochMilli(0), item2.getTimestamp());
     assertThat(item2.getWindows(), Matchers.<BoundedWindow>contains(window(0, 10)));
 
     WindowedValue<KV<String, Iterable<String>>> item3 = result.get(3);
     assertEquals(KEY, item3.getValue().getKey());
     assertThat(item3.getValue().getValue(), Matchers.containsInAnyOrder("v3"));
-    assertEquals(new Instant(13), item3.getTimestamp());
+    assertEquals(Instant.ofEpochMilli(13), item3.getTimestamp());
     assertThat(item3.getWindows(), Matchers.<BoundedWindow>contains(window(10, 20)));
   }
 

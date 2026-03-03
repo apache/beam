@@ -345,7 +345,7 @@ public class FlinkSavepointTest implements Serializable {
                         @ProcessElement
                         public void processElement(
                             ProcessContext context, @TimerId("timer") Timer timer) {
-                          timer.set(new Instant(0));
+                          timer.set(Instant.ofEpochMilli(0));
                         }
 
                         @OnTimer("timer")
@@ -359,7 +359,9 @@ public class FlinkSavepointTest implements Serializable {
                           LOG.debug("triggering timer {}", current);
                           nextInteger.write(current + 1);
                           // Trigger timer again and continue to hold back the watermark
-                          timer.withOutputTimestamp(new Instant(0)).set(context.fireTimestamp());
+                          timer
+                              .withOutputTimestamp(Instant.ofEpochMilli(0))
+                              .set(context.fireTimestamp());
                         }
                       }));
     } else {
