@@ -19,7 +19,6 @@ package org.apache.beam.examples.snippets.transforms.io.iceberg;
 
 // [START iceberg_schema_and_row]
 
-import com.google.common.collect.ImmutableMap;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
@@ -29,12 +28,13 @@ import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.logicaltypes.SqlTypes;
 import org.apache.beam.sdk.schemas.logicaltypes.Timestamp;
 import org.apache.beam.sdk.values.Row;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.joda.time.DateTime;
 
 public class IcebergBeamSchemaAndRow {
-  Schema NESTED_SCHEMA =
+  Schema nestedSchema =
       Schema.builder().addStringField("nested_field").addInt32Field("nested_field_2").build();
-  Schema BEAM_SCHEMA =
+  Schema beamSchema =
       Schema.builder()
           .addBooleanField("boolean_field")
           .addInt32Field("int_field")
@@ -50,11 +50,11 @@ public class IcebergBeamSchemaAndRow {
           .addDateTimeField("timestamptz_field")
           .addArrayField("array_field", Schema.FieldType.INT32)
           .addMapField("map_field", Schema.FieldType.STRING, Schema.FieldType.INT32)
-          .addRowField("struct_field", NESTED_SCHEMA)
+          .addRowField("struct_field", nestedSchema)
           .build();
 
   Row beamRow =
-      Row.withSchema(BEAM_SCHEMA)
+      Row.withSchema(beamSchema)
           .withFieldValues(
               ImmutableMap.<String, Object>builder()
                   .put("boolean_field", true)
@@ -73,7 +73,7 @@ public class IcebergBeamSchemaAndRow {
                   .put("map_field", ImmutableMap.of("a", 1, "b", 2))
                   .put(
                       "struct_field",
-                      Row.withSchema(NESTED_SCHEMA).addValues("nested_value", 123).build())
+                      Row.withSchema(nestedSchema).addValues("nested_value", 123).build())
                   .build())
           .build();
 }
