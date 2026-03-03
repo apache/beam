@@ -223,10 +223,11 @@ class UseSdfBoundedSourcesTests(unittest.TestCase):
 
 class UnboundedSourceTest(unittest.TestCase):
   """Basic tests for UnboundedSource, UnboundedReader, and CheckpointMark.
-  
+
   These tests verify the foundational API structure. Full integration with
   Read transform and SDF wrappers will be tested in future implementation.
   """
+
   def test_checkpoint_mark_finalize(self):
     """Test that CheckpointMark can be subclassed and finalized."""
     class TestCheckpointMark(iobase.CheckpointMark):
@@ -277,19 +278,19 @@ class UnboundedSourceTest(unittest.TestCase):
 
     source = TestUnboundedSource()
     self.assertFalse(source.is_bounded())
-    
+
     # Test reader basic operations
     reader = source.reader()
     self.assertTrue(reader.start())
     self.assertEqual(1, reader.get_current())
     self.assertEqual(timestamp.Timestamp.of(0), reader.get_current_timestamp())
-    
+
     self.assertTrue(reader.advance())
     self.assertEqual(2, reader.get_current())
-    
+
     self.assertTrue(reader.advance())
     self.assertEqual(3, reader.get_current())
-    
+
     self.assertFalse(reader.advance())
 
   def test_unbounded_source_split_default(self):
