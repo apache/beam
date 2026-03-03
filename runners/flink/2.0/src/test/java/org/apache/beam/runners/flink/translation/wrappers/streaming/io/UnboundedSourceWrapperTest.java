@@ -974,7 +974,7 @@ public class UnboundedSourceWrapperTest {
           if (currentIdx >= data.size() - 1) {
             return BoundedWindow.TIMESTAMP_MAX_VALUE;
           }
-          return new Instant(currentIdx);
+          return Instant.ofEpochMilli(currentIdx);
         }
 
         @Override
@@ -998,7 +998,7 @@ public class UnboundedSourceWrapperTest {
         @Override
         public Instant getCurrentTimestamp() throws NoSuchElementException {
           if (currentIdx >= 0 && currentIdx < data.size()) {
-            return new Instant(currentIdx);
+            return Instant.ofEpochMilli(currentIdx);
           }
           throw new NoSuchElementException();
         }

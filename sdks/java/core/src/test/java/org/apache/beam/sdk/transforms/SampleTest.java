@@ -215,7 +215,7 @@ public class SampleTest {
     }
 
     private static TimestampedValue<Integer> tv(int i) {
-      return TimestampedValue.of(i, new Instant(i * 1000));
+      return TimestampedValue.of(i, Instant.ofEpochMilli(i * 1000));
     }
 
     @Test

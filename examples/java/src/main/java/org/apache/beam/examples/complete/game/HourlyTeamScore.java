@@ -130,8 +130,9 @@ public class HourlyTeamScore extends UserScore {
     Options options = PipelineOptionsFactory.fromArgs(args).withValidation().as(Options.class);
     Pipeline pipeline = Pipeline.create(options);
 
-    final Instant stopMinTimestamp = new Instant(minFmt.parseMillis(options.getStopMin()));
-    final Instant startMinTimestamp = new Instant(minFmt.parseMillis(options.getStartMin()));
+    final Instant stopMinTimestamp = Instant.ofEpochMilli(minFmt.parseMillis(options.getStopMin()));
+    final Instant startMinTimestamp =
+        Instant.ofEpochMilli(minFmt.parseMillis(options.getStartMin()));
 
     // Read 'gaming' events from a text file.
     pipeline
@@ -161,7 +162,7 @@ public class HourlyTeamScore extends UserScore {
         // Add an element timestamp based on the event log, and apply fixed windowing.
         .apply(
             "AddEventTimestamps",
-            WithTimestamps.of((GameActionInfo i) -> new Instant(i.getTimestamp())))
+            WithTimestamps.of((GameActionInfo i) -> Instant.ofEpochMilli(i.getTimestamp())))
         .apply(
             "FixedWindowsTeam",
             Window.into(FixedWindows.of(Duration.standardMinutes(options.getWindowDuration()))))

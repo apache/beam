@@ -134,7 +134,7 @@ public class BatchGroupAlsoByWindowReshuffleDoFnTest {
   }
 
   private static BoundedWindow window(long start, long end) {
-    return new IntervalWindow(new Instant(start), new Instant(end));
+    return new IntervalWindow(Instant.ofEpochMilli(start), Instant.ofEpochMilli(end));
   }
 
   @Test

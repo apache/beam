@@ -849,10 +849,10 @@ public class ByteBuddyUtils {
       // Otherwise, generate the following code:
       //
       // for ReadableInstant:
-      //   return new Instant(value.getMillis());
+      //   return Instant.ofEpochMilli(value.getMillis());
       //
       // for ReadablePartial:
-      //   return new Instant((value.toDateTime(Instant.EPOCH)).getMillis());
+      //   return Instant.ofEpochMilli((value.toDateTime(Instant.EPOCH)).getMillis());
 
       List<StackManipulation> stackManipulations = new ArrayList<>();
 

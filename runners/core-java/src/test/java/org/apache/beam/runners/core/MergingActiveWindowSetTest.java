@@ -77,7 +77,7 @@ public class MergingActiveWindowSetTest {
 
             @Override
             public Instant timestamp() {
-              return new Instant(instant);
+              return Instant.ofEpochMilli(instant);
             }
 
             @Override
@@ -139,7 +139,7 @@ public class MergingActiveWindowSetTest {
   }
 
   private IntervalWindow window(long start, long size) {
-    return new IntervalWindow(new Instant(start), Duration.millis(size));
+    return new IntervalWindow(Instant.ofEpochMilli(start), Duration.millis(size));
   }
 
   @Test

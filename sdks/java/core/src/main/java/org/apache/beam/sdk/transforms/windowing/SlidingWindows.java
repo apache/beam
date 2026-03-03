@@ -111,7 +111,7 @@ public class SlidingWindows extends NonMergingWindowFn<Object, IntervalWindow> {
     for (long start = lastStart;
         start > timestamp.minus(size).getMillis();
         start -= period.getMillis()) {
-      windows.add(new IntervalWindow(new Instant(start), size));
+      windows.add(new IntervalWindow(Instant.ofEpochMilli(start), size));
     }
     return windows;
   }
@@ -130,7 +130,7 @@ public class SlidingWindows extends NonMergingWindowFn<Object, IntervalWindow> {
               "Attempted to get side input window for GlobalWindow from non-global WindowFn");
         }
         long lastStart = lastStartFor(mainWindow.maxTimestamp().minus(size));
-        return new IntervalWindow(new Instant(lastStart + period.getMillis()), size);
+        return new IntervalWindow(Instant.ofEpochMilli(lastStart + period.getMillis()), size);
       }
     };
   }

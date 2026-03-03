@@ -110,12 +110,12 @@ public class WindowDoFnOperatorTest {
         containsInAnyOrder(
             WindowedValues.of(
                 KV.of(1L, 120L),
-                new Instant(9_999),
+                Instant.ofEpochMilli(9_999),
                 window,
                 PaneInfo.createPane(true, true, ON_TIME)),
             WindowedValues.of(
                 KV.of(2L, 77L),
-                new Instant(9_999),
+                Instant.ofEpochMilli(9_999),
                 window,
                 PaneInfo.createPane(true, true, ON_TIME))));
     // cleanup
@@ -269,7 +269,7 @@ public class WindowDoFnOperatorTest {
 
     StreamRecord<WindowedValue<KV<Long, Long>>> toStreamRecord() {
       WindowedValue<KV<Long, Long>> keyedItem =
-          WindowedValues.of(KV.of(key, value), new Instant(timestamp), window, NO_FIRING);
+          WindowedValues.of(KV.of(key, value), Instant.ofEpochMilli(timestamp), window, NO_FIRING);
       return new StreamRecord<>(keyedItem);
     }
 

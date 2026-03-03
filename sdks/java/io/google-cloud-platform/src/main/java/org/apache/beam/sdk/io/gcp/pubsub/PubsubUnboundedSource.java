@@ -820,7 +820,7 @@ public class PubsubUnboundedSource extends PTransform<PBegin, PCollection<Pubsub
           messageSkew,
           watermarkSkew,
           numLateMessages.get(nowMsSinceEpoch),
-          new Instant(lastWatermarkMsSinceEpoch));
+          Instant.ofEpochMilli(lastWatermarkMsSinceEpoch));
 
       lastLogTimestampMsSinceEpoch = nowMsSinceEpoch;
     }
@@ -904,7 +904,7 @@ public class PubsubUnboundedSource extends PTransform<PBegin, PCollection<Pubsub
       if (current == null) {
         throw new NoSuchElementException();
       }
-      return new Instant(current.timestampMsSinceEpoch());
+      return Instant.ofEpochMilli(current.timestampMsSinceEpoch());
     }
 
     @Override
@@ -982,7 +982,7 @@ public class PubsubUnboundedSource extends PTransform<PBegin, PCollection<Pubsub
       // else: We're not confident enough to estimate a new watermark. Stick with the old one.
       minWatermarkMsSinceEpoch.add(nowMsSinceEpoch, lastWatermarkMsSinceEpoch);
       maxWatermarkMsSinceEpoch.add(nowMsSinceEpoch, lastWatermarkMsSinceEpoch);
-      return new Instant(lastWatermarkMsSinceEpoch);
+      return Instant.ofEpochMilli(lastWatermarkMsSinceEpoch);
     }
 
     @Override

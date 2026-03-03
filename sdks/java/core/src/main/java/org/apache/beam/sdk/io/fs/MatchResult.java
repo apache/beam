@@ -107,7 +107,7 @@ public abstract class MatchResult {
      * PCollection<Metadata> metadataWithTimestamp = p
      *     .apply(FileIO.match().filepattern("hdfs://path/to/*.gz"))
      *     .setCoder(MetadataCoderV2.of())
-     *     .apply(WithTimestamps.of(metadata -> new Instant(metadata.lastModifiedMillis())));
+     *     .apply(WithTimestamps.of(metadata -> Instant.ofEpochMilli(metadata.lastModifiedMillis())));
      * }</pre>
      */
     public abstract long lastModifiedMillis();

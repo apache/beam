@@ -70,7 +70,7 @@ public class SqlQuery7Test {
         auction,
         bidder,
         price,
-        new Instant(432342L + index * config.windowSizeSec * 1000),
+        Instant.ofEpochMilli(432342L + index * config.windowSizeSec * 1000),
         "extra_" + auction);
   }
 }

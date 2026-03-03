@@ -238,7 +238,7 @@ public class TestCountingSource
 
     @Override
     public Instant getCurrentTimestamp() {
-      return new Instant(current);
+      return Instant.ofEpochMilli(current);
     }
 
     @Override
@@ -269,7 +269,7 @@ public class TestCountingSource
 
       // The watermark is a promise about future elements, and the timestamps of elements are
       // strictly increasing for this source.
-      return new Instant(current + 1);
+      return Instant.ofEpochMilli(current + 1);
     }
 
     @Override

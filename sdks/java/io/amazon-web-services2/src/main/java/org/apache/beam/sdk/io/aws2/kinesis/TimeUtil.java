@@ -36,7 +36,9 @@ public final class TimeUtil {
   }
 
   public static Instant toJoda(java.time.Instant instant) {
-    return Optional.ofNullable(instant).map(t -> new Instant(t.toEpochMilli())).orElse(null);
+    return Optional.ofNullable(instant)
+        .map(t -> Instant.ofEpochMilli(t.toEpochMilli()))
+        .orElse(null);
   }
 
   static Instant minTimestamp(Stream<Instant> timestamps) {

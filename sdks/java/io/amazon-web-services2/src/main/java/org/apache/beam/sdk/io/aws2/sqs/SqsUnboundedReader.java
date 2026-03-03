@@ -396,7 +396,7 @@ class SqsUnboundedReader extends UnboundedSource.UnboundedReader<SqsMessage> {
     // else: We're not confident enough to estimate a new watermark. Stick with the old one.
     minWatermarkMsSinceEpoch.add(nowMsSinceEpoch, lastWatermarkMsSinceEpoch);
     maxWatermarkMsSinceEpoch.add(nowMsSinceEpoch, lastWatermarkMsSinceEpoch);
-    return new Instant(lastWatermarkMsSinceEpoch);
+    return Instant.ofEpochMilli(lastWatermarkMsSinceEpoch);
   }
 
   @Override
@@ -413,7 +413,7 @@ class SqsUnboundedReader extends UnboundedSource.UnboundedReader<SqsMessage> {
       throw new NoSuchElementException();
     }
 
-    return new Instant(current.getTimeStamp());
+    return Instant.ofEpochMilli(current.getTimeStamp());
   }
 
   @Override
@@ -946,12 +946,12 @@ class SqsUnboundedReader extends UnboundedSource.UnboundedReader<SqsMessage> {
         messageSkew,
         watermarkSkew,
         numLateMessages.get(nowMsSinceEpoch),
-        new Instant(lastWatermarkMsSinceEpoch),
-        new Instant(minReadTimestampMsSinceEpoch.get(nowMsSinceEpoch)),
+        Instant.ofEpochMilli(lastWatermarkMsSinceEpoch),
+        Instant.ofEpochMilli(minReadTimestampMsSinceEpoch.get(nowMsSinceEpoch)),
         minReadTimestampMsSinceEpoch.isSignificant(),
-        new Instant(minUnreadTimestampMsSinceEpoch.get()),
+        Instant.ofEpochMilli(minUnreadTimestampMsSinceEpoch.get()),
         minUnreadTimestampMsSinceEpoch.isSignificant(),
-        new Instant(lastReceivedMsSinceEpoch));
+        Instant.ofEpochMilli(lastReceivedMsSinceEpoch));
 
     lastLogTimestampMsSinceEpoch = nowMsSinceEpoch;
   }

@@ -44,7 +44,7 @@ import org.junit.runners.JUnit4;
 @RunWith(JUnit4.class)
 public class ReifyTest implements Serializable {
   public static final WithTimestamps<KV<String, Integer>> TIMESTAMP_FROM_V =
-      WithTimestamps.of(input -> new Instant(input.getValue().longValue()));
+      WithTimestamps.of(input -> Instant.ofEpochMilli(input.getValue().longValue()));
   @Rule public transient TestPipeline pipeline = TestPipeline.create();
 
   @Test
@@ -71,7 +71,7 @@ public class ReifyTest implements Serializable {
               @ProcessElement
               public void verifyTimestampsEqualValue(ProcessContext context) {
                 assertThat(
-                    new Instant(context.element().getValue().longValue()),
+                    Instant.ofEpochMilli(context.element().getValue().longValue()),
                     equalTo(context.timestamp()));
               }
             }));
@@ -111,7 +111,7 @@ public class ReifyTest implements Serializable {
               @ProcessElement
               public void verifyTimestampsEqualValue(ProcessContext context) {
                 assertThat(
-                    new Instant(context.element().getValue().longValue()),
+                    Instant.ofEpochMilli(context.element().getValue().longValue()),
                     equalTo(context.timestamp()));
               }
             }));

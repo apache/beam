@@ -79,7 +79,7 @@ public abstract class BoundedWindow {
 
   /** Parses a timestamp from the proto. */
   private static Instant extractTimestampFromProto(RunnerApi.BeamConstants.Constants constant) {
-    return new Instant(
+    return Instant.ofEpochMilli(
         Long.parseLong(
             constant.getValueDescriptor().getOptions().getExtension(RunnerApi.beamConstant)));
   }

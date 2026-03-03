@@ -37,7 +37,7 @@ public class StateNamespacesTest {
   private final Coder<IntervalWindow> intervalCoder = IntervalWindow.getCoder();
 
   private IntervalWindow intervalWindow(long start, long end) {
-    return new IntervalWindow(new Instant(start), new Instant(end));
+    return new IntervalWindow(Instant.ofEpochMilli(start), Instant.ofEpochMilli(end));
   }
 
   /**

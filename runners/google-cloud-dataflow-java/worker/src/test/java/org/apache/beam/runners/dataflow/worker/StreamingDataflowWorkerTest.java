@@ -608,8 +608,8 @@ public class StreamingDataflowWorkerTest {
                         PaneInfo.NO_FIRING,
                         intervalWindowBytes(
                             new IntervalWindow(
-                                new Instant(input),
-                                new Instant(input).plus(Duration.millis(10)))))));
+                                Instant.ofEpochMilli(input),
+                                Instant.ofEpochMilli(input).plus(Duration.millis(10)))))));
       }
       builder.addMessageBundles(messageBuilder);
     }

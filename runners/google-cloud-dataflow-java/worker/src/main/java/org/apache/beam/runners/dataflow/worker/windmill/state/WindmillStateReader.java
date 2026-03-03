@@ -832,7 +832,7 @@ public class WindmillStateReader {
 
     Instant hold = null;
     for (long timestamp : watermarkHold.getTimestampsList()) {
-      Instant instant = new Instant(TimeUnit.MICROSECONDS.toMillis(timestamp));
+      Instant instant = Instant.ofEpochMilli(TimeUnit.MICROSECONDS.toMillis(timestamp));
       // TIMESTAMP_MAX_VALUE represents infinity, and windmill will return it if no hold is set, so
       // don't treat it as a hold here.
       if (instant.isBefore(BoundedWindow.TIMESTAMP_MAX_VALUE)

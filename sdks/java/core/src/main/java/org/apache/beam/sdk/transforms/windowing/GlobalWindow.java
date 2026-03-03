@@ -91,7 +91,7 @@ public class GlobalWindow extends BoundedWindow {
 
   /** Parses the max timestamp for global windows from the proto. */
   private static Instant extractMaxTimestampFromProto() {
-    return new Instant(
+    return Instant.ofEpochMilli(
         Long.parseLong(
             RunnerApi.BeamConstants.Constants.GLOBAL_WINDOW_MAX_TIMESTAMP_MILLIS
                 .getValueDescriptor()

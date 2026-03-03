@@ -105,7 +105,7 @@ public class TopWikipediaSessions {
       String userName = (String) row.get("contributor_username");
       if (userName != null) {
         // Sets the implicit timestamp field to be used in windowing.
-        c.outputWithTimestamp(userName, new Instant(timestamp * 1000L));
+        c.outputWithTimestamp(userName, Instant.ofEpochMilli(timestamp * 1000L));
       }
     }
   }

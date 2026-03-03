@@ -193,7 +193,7 @@ public class StatefulDoFnRunnerTest {
     runner.startBundle();
 
     IntervalWindow window =
-        new IntervalWindow(Instant.ofEpochMilli(0), new Instant(0L + WINDOW_SIZE));
+        new IntervalWindow(Instant.ofEpochMilli(0), Instant.ofEpochMilli(0L + WINDOW_SIZE));
     Instant timestamp = Instant.ofEpochMilli(0);
 
     runner.processElement(

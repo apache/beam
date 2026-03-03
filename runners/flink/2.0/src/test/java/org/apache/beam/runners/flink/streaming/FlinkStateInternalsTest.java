@@ -96,7 +96,7 @@ public class FlinkStateInternalsTest extends StateInternalsTest {
                 new IntervalWindow(Instant.ofEpochMilli(0), Instant.ofEpochMilli(10))),
             stateTag);
 
-    Instant noHold = new Instant(Long.MAX_VALUE);
+    Instant noHold = Instant.ofEpochMilli(Long.MAX_VALUE);
     assertThat(stateInternals.minWatermarkHoldMs(), is(noHold.getMillis()));
 
     Instant high = Instant.ofEpochMilli(10);

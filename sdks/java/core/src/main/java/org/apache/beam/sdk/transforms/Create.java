@@ -295,7 +295,7 @@ public class Create<T> {
     Iterator<T> valueIter = values.iterator();
     Iterator<Long> timestampIter = timestamps.iterator();
     while (valueIter.hasNext() && timestampIter.hasNext()) {
-      elems.add(TimestampedValue.of(valueIter.next(), new Instant(timestampIter.next())));
+      elems.add(TimestampedValue.of(valueIter.next(), Instant.ofEpochMilli(timestampIter.next())));
     }
     checkArgument(
         !valueIter.hasNext() && !timestampIter.hasNext(),

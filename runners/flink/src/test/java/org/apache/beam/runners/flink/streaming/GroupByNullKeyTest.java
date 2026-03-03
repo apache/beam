@@ -81,7 +81,7 @@ public class GroupByNullKeyTest extends AbstractTestBase implements Serializable
       String userName = record.getValue();
       if (userName != null) {
         // Sets the implicit timestamp field to be used in windowing.
-        c.outputWithTimestamp(userName, new Instant(timestamp));
+        c.outputWithTimestamp(userName, Instant.ofEpochMilli(timestamp));
       }
     }
   }

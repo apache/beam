@@ -42,13 +42,15 @@ public class WindowMatchersTest {
     assertThat(
         WindowedValues.of(
             "hello",
-            new Instant(timestamp),
-            new IntervalWindow(new Instant(windowStart), new Instant(windowEnd)),
+            Instant.ofEpochMilli(timestamp),
+            new IntervalWindow(Instant.ofEpochMilli(windowStart), Instant.ofEpochMilli(windowEnd)),
             PaneInfo.NO_FIRING),
         WindowMatchers.isWindowedValue(
             "hello",
-            new Instant(timestamp),
-            ImmutableList.of(new IntervalWindow(new Instant(windowStart), new Instant(windowEnd))),
+            Instant.ofEpochMilli(timestamp),
+            ImmutableList.of(
+                new IntervalWindow(
+                    Instant.ofEpochMilli(windowStart), Instant.ofEpochMilli(windowEnd))),
             PaneInfo.NO_FIRING));
   }
 
@@ -63,17 +65,21 @@ public class WindowMatchersTest {
     assertThat(
         WindowedValues.of(
             "hello",
-            new Instant(timestamp),
+            Instant.ofEpochMilli(timestamp),
             ImmutableList.of(
-                new IntervalWindow(new Instant(windowStart), new Instant(windowEnd)),
-                new IntervalWindow(new Instant(windowStart2), new Instant(windowEnd2))),
+                new IntervalWindow(
+                    Instant.ofEpochMilli(windowStart), Instant.ofEpochMilli(windowEnd)),
+                new IntervalWindow(
+                    Instant.ofEpochMilli(windowStart2), Instant.ofEpochMilli(windowEnd2))),
             PaneInfo.NO_FIRING),
         WindowMatchers.isWindowedValue(
             "hello",
-            new Instant(timestamp),
+            Instant.ofEpochMilli(timestamp),
             ImmutableList.of(
-                new IntervalWindow(new Instant(windowStart), new Instant(windowEnd)),
-                new IntervalWindow(new Instant(windowStart2), new Instant(windowEnd2))),
+                new IntervalWindow(
+                    Instant.ofEpochMilli(windowStart), Instant.ofEpochMilli(windowEnd)),
+                new IntervalWindow(
+                    Instant.ofEpochMilli(windowStart2), Instant.ofEpochMilli(windowEnd2))),
             PaneInfo.NO_FIRING));
   }
 

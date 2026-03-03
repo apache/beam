@@ -240,7 +240,7 @@ public class Generator implements Iterator<TimestampedValue<Event>>, Serializabl
   @Override
   public TimestampedValue<Event> next() {
     NextEvent next = nextEvent();
-    return TimestampedValue.of(next.event, new Instant(next.eventTimestamp));
+    return TimestampedValue.of(next.event, Instant.ofEpochMilli(next.eventTimestamp));
   }
 
   @Override

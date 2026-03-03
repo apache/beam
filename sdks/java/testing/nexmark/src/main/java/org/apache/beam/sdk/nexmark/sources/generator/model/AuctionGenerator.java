@@ -76,8 +76,8 @@ public class AuctionGenerator {
         desc,
         initialBid,
         reserve,
-        new Instant(timestamp),
-        new Instant(expires),
+        Instant.ofEpochMilli(timestamp),
+        Instant.ofEpochMilli(expires),
         seller,
         category,
         extra);

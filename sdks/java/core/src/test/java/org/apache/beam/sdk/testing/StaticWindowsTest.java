@@ -39,9 +39,9 @@ public class StaticWindowsTest {
   @Rule public ExpectedException thrown = ExpectedException.none();
 
   private final IntervalWindow first =
-      new IntervalWindow(Instant.ofEpochMilli(0), new Instant(100_000L));
+      new IntervalWindow(Instant.ofEpochMilli(0), Instant.ofEpochMilli(100_000L));
   private final IntervalWindow second =
-      new IntervalWindow(new Instant(1_000_000L), GlobalWindow.INSTANCE.maxTimestamp());
+      new IntervalWindow(Instant.ofEpochMilli(1_000_000L), GlobalWindow.INSTANCE.maxTimestamp());
 
   @Test
   public void singleWindowSucceeds() throws Exception {

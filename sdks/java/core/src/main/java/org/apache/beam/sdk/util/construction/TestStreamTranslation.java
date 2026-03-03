@@ -139,7 +139,7 @@ public class TestStreamTranslation {
     switch (protoEvent.getEventCase()) {
       case WATERMARK_EVENT:
         return TestStream.WatermarkEvent.advanceTo(
-            new Instant(protoEvent.getWatermarkEvent().getNewWatermark()));
+            Instant.ofEpochMilli(protoEvent.getWatermarkEvent().getNewWatermark()));
       case PROCESSING_TIME_EVENT:
         return TestStream.ProcessingTimeEvent.advanceBy(
             Duration.millis(protoEvent.getProcessingTimeEvent().getAdvanceDuration()));
@@ -150,7 +150,7 @@ public class TestStreamTranslation {
           decodedElements.add(
               TimestampedValue.of(
                   CoderUtils.decodeFromByteArray(coder, element.getEncodedElement().toByteArray()),
-                  new Instant(element.getTimestamp())));
+                  Instant.ofEpochMilli(element.getTimestamp())));
         }
         return TestStream.ElementEvent.add(decodedElements);
       case EVENT_NOT_SET:

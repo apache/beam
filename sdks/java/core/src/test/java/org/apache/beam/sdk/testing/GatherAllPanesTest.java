@@ -54,7 +54,7 @@ public class GatherAllPanesTest implements Serializable {
   public void singlePaneSingleReifiedPane() {
     PCollection<Iterable<ValueInSingleWindow<Iterable<Long>>>> accumulatedPanes =
         p.apply(GenerateSequence.from(0).to(20000))
-            .apply(WithTimestamps.of(input -> new Instant(input * 10)))
+            .apply(WithTimestamps.of(input -> Instant.ofEpochMilli(input * 10)))
             .apply(
                 Window.<Long>into(FixedWindows.of(Duration.standardMinutes(1)))
                     .triggering(AfterWatermark.pastEndOfWindow())
@@ -89,7 +89,7 @@ public class GatherAllPanesTest implements Serializable {
         PCollectionList.of(someElems)
             .and(otherElems)
             .apply(Flatten.pCollections())
-            .apply(WithTimestamps.of(input -> new Instant(input * 10)))
+            .apply(WithTimestamps.of(input -> Instant.ofEpochMilli(input * 10)))
             .apply(
                 Window.<Long>into(FixedWindows.of(Duration.standardMinutes(1)))
                     .triggering(

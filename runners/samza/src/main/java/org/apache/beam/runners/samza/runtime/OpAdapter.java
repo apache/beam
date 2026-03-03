@@ -130,7 +130,7 @@ public class OpAdapter<InT, OutT, K>
   @Override
   public synchronized Collection<OpMessage<OutT>> processWatermark(long time) {
     try {
-      op.processWatermark(new Instant(time), emitter);
+      op.processWatermark(Instant.ofEpochMilli(time), emitter);
     } catch (Exception e) {
       LOG.error(
           "Op {} threw an exception during processing watermark", this.getClass().getName(), e);

@@ -208,7 +208,7 @@ public class WindmillTagEncodingV1 extends WindmillTagEncoding {
     if ((outputTimestampStart < tag.size())) {
       try {
         outputTimestamp =
-            new Instant(
+            Instant.ofEpochMilli(
                 VarInt.decodeLong(
                     tag.substring(outputTimestampStart, outputTimestampEnd).newInput()));
       } catch (IOException e) {

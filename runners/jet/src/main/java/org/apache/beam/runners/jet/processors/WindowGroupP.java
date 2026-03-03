@@ -174,7 +174,7 @@ public class WindowGroupP<K, V> extends AbstractProcessor {
   }
 
   private void advanceWatermark(long millis) {
-    this.latestWatermark = new Instant(millis);
+    this.latestWatermark = Instant.ofEpochMilli(millis);
     Instant now = Instant.now();
     for (KeyManager m : keyManagers.values()) {
       m.advanceWatermark(latestWatermark, now);

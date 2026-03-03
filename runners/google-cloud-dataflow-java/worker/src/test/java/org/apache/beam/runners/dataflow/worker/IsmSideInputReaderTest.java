@@ -1634,11 +1634,14 @@ public class IsmSideInputReaderTest {
 
   WindowedValue<Long> valueInIntervalWindow(long value, long startOfWindow) {
     return WindowedValues.of(
-        value, new Instant(startOfWindow), intervalWindow(startOfWindow), PaneInfo.NO_FIRING);
+        value,
+        Instant.ofEpochMilli(startOfWindow),
+        intervalWindow(startOfWindow),
+        PaneInfo.NO_FIRING);
   }
 
   private static IntervalWindow intervalWindow(long start) {
-    return new IntervalWindow(new Instant(start), new Instant(start + 1));
+    return new IntervalWindow(Instant.ofEpochMilli(start), Instant.ofEpochMilli(start + 1));
   }
 
   private static BoundedWindow windowOf(WindowedValue<?> windowedValue) {

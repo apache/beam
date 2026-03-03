@@ -73,7 +73,7 @@ public class FixedWindows extends PartitioningWindowFn<Object, IntervalWindow> {
   @Override
   public IntervalWindow assignWindow(Instant timestamp) {
     Instant start =
-        new Instant(
+        Instant.ofEpochMilli(
             timestamp.getMillis()
                 - timestamp.plus(size).minus(offset).getMillis() % size.getMillis());
 

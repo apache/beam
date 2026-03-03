@@ -333,7 +333,7 @@ public class StatefulParDoP<OutputT>
     }
 
     public void flushTimers(long watermark) {
-      Instant watermarkInstant = new Instant(watermark);
+      Instant watermarkInstant = Instant.ofEpochMilli(watermark);
       keyedTimerInternals
           .entrySet()
           .forEach(

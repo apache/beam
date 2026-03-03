@@ -181,7 +181,7 @@ public class UnboundedEventSource extends UnboundedSource<Event, GeneratorCheckp
         }
 
         pendingEventWallclockTime = next.wallclockTimestamp;
-        pendingEvent = TimestampedValue.of(next.event, new Instant(next.eventTimestamp));
+        pendingEvent = TimestampedValue.of(next.event, Instant.ofEpochMilli(next.eventTimestamp));
         long newWatermark =
             next.watermark - Duration.standardSeconds(watermarkHoldbackSec).getMillis();
         if (newWatermark > watermark) {
@@ -272,7 +272,7 @@ public class UnboundedEventSource extends UnboundedSource<Event, GeneratorCheckp
 
     @Override
     public Instant getWatermark() {
-      return new Instant(watermark);
+      return Instant.ofEpochMilli(watermark);
     }
 
     @Override

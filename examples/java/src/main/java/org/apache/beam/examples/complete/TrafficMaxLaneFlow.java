@@ -188,7 +188,8 @@ public class TrafficMaxLaneFlow {
       if (items.length > 0) {
         try {
           String timestamp = items[0];
-          c.outputWithTimestamp(c.element(), new Instant(dateTimeFormat.parseMillis(timestamp)));
+          c.outputWithTimestamp(
+              c.element(), Instant.ofEpochMilli(dateTimeFormat.parseMillis(timestamp)));
         } catch (IllegalArgumentException e) {
           // Skip the invalid input.
         }

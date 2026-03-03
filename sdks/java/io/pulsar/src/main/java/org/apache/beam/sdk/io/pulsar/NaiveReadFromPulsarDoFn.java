@@ -74,7 +74,7 @@ public class NaiveReadFromPulsarDoFn<T> extends DoFn<PulsarSourceDescriptor, T> 
   public NaiveReadFromPulsarDoFn(PulsarIO.Read<T> transform) {
     this.extractOutputTimestampFn =
         transform.getTimestampType() == PulsarIO.ReadTimestampType.PUBLISH_TIME
-            ? record -> new Instant(record.getPublishTime())
+            ? record -> Instant.ofEpochMilli(record.getPublishTime())
             : ignored -> Instant.now();
     this.pollingTimeout = Duration.ofSeconds(transform.getConsumerPollingTimeout());
     this.outputFn = transform.getOutputFn();

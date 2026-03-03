@@ -281,7 +281,7 @@ public class TriggerTranslation implements Serializable {
               trigger =
                   trigger.alignedTo(
                       Duration.millis(transform.getAlignTo().getPeriod()),
-                      new Instant(transform.getAlignTo().getOffset()));
+                      Instant.ofEpochMilli(transform.getAlignTo().getOffset()));
               break;
             case DELAY:
               trigger = trigger.plusDelayOf(Duration.millis(transform.getDelay().getDelayMillis()));

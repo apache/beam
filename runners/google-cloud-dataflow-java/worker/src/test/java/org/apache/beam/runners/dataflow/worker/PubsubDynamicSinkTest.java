@@ -121,15 +121,16 @@ public class PubsubDynamicSinkTest {
               .build());
       writer.add(
           WindowedValues.timestampedValueInGlobalWindow(
-              new PubsubMessage(payload1, null).withTopic("topic1"), new Instant(baseTimestamp)));
+              new PubsubMessage(payload1, null).withTopic("topic1"),
+              Instant.ofEpochMilli(baseTimestamp)));
       writer.add(
           WindowedValues.timestampedValueInGlobalWindow(
               new PubsubMessage(payload2, null).withTopic("topic2"),
-              new Instant(baseTimestamp + 1)));
+              Instant.ofEpochMilli(baseTimestamp + 1)));
       writer.add(
           WindowedValues.timestampedValueInGlobalWindow(
               new PubsubMessage(payload3, null).withTopic("topic3"),
-              new Instant(baseTimestamp + 2)));
+              Instant.ofEpochMilli(baseTimestamp + 2)));
     }
     writer.close();
 

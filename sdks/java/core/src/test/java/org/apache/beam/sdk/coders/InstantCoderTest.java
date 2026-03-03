@@ -51,7 +51,7 @@ public class InstantCoderTest {
   static {
     TEST_VALUES = Lists.newArrayList();
     for (long timestamp : TEST_TIMESTAMPS) {
-      TEST_VALUES.add(new Instant(timestamp));
+      TEST_VALUES.add(Instant.ofEpochMilli(timestamp));
     }
   }
 
@@ -69,7 +69,7 @@ public class InstantCoderTest {
 
     List<byte[]> encodings = new ArrayList<>(sortedTimestamps.size());
     for (long timestamp : sortedTimestamps) {
-      encodings.add(CoderUtils.encodeToByteArray(TEST_CODER, new Instant(timestamp)));
+      encodings.add(CoderUtils.encodeToByteArray(TEST_CODER, Instant.ofEpochMilli(timestamp)));
     }
 
     // Verify that the encodings were already sorted, since they were generated

@@ -96,9 +96,10 @@ public class SideInputHandlerTest {
 
     // Adjacent fixed windows
     IntervalWindow firstWindow =
-        new IntervalWindow(Instant.ofEpochMilli(0), new Instant(view1WindowSize));
+        new IntervalWindow(Instant.ofEpochMilli(0), Instant.ofEpochMilli(view1WindowSize));
     IntervalWindow secondWindow =
-        new IntervalWindow(new Instant(view1WindowSize), new Instant(view1WindowSize * 2));
+        new IntervalWindow(
+            Instant.ofEpochMilli(view1WindowSize), Instant.ofEpochMilli(view1WindowSize * 2));
 
     // side input should not yet be ready in first window
     assertFalse(sideInputHandler.isReady(view1, firstWindow));
@@ -135,7 +136,7 @@ public class SideInputHandlerTest {
         new SideInputHandler(ImmutableList.of(view), InMemoryStateInternals.<Void>forKey(null));
 
     IntervalWindow window =
-        new IntervalWindow(Instant.ofEpochMilli(0), new Instant(view1WindowSize));
+        new IntervalWindow(Instant.ofEpochMilli(0), Instant.ofEpochMilli(view1WindowSize));
 
     // add a first value for view
     sideInputHandler.addSideInputValue(
@@ -173,9 +174,10 @@ public class SideInputHandlerTest {
 
     // two windows that we'll later use for adding elements/retrieving side input
     IntervalWindow firstWindow =
-        new IntervalWindow(Instant.ofEpochMilli(0), new Instant(view1WindowSize));
+        new IntervalWindow(Instant.ofEpochMilli(0), Instant.ofEpochMilli(view1WindowSize));
     IntervalWindow secondWindow =
-        new IntervalWindow(new Instant(view1WindowSize), new Instant(view1WindowSize * 2));
+        new IntervalWindow(
+            Instant.ofEpochMilli(view1WindowSize), Instant.ofEpochMilli(view1WindowSize * 2));
 
     // add a first value for view1 in the first window
     sideInputHandler.addSideInputValue(
@@ -220,7 +222,8 @@ public class SideInputHandlerTest {
             ImmutableList.of(view1, view2), InMemoryStateInternals.<Void>forKey(null));
 
     // two windows that we'll later use for adding elements/retrieving side input
-    IntervalWindow window = new IntervalWindow(Instant.ofEpochMilli(0), new Instant(windowSize));
+    IntervalWindow window =
+        new IntervalWindow(Instant.ofEpochMilli(0), Instant.ofEpochMilli(windowSize));
 
     // add value for view1 in the first window
     sideInputHandler.addSideInputValue(

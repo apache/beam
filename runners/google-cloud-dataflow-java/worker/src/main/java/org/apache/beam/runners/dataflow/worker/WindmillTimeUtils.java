@@ -44,7 +44,7 @@ public class WindmillTimeUtils {
   public static Instant windmillToHarnessTimestamp(long timestampUs) {
     // Windmill should never send us an unknown timestamp.
     Preconditions.checkArgument(timestampUs != Long.MIN_VALUE);
-    Instant result = new Instant(divideAndRoundDown(timestampUs, 1000));
+    Instant result = Instant.ofEpochMilli(divideAndRoundDown(timestampUs, 1000));
     if (result.isBefore(BoundedWindow.TIMESTAMP_MIN_VALUE)) {
       return BoundedWindow.TIMESTAMP_MIN_VALUE;
     }

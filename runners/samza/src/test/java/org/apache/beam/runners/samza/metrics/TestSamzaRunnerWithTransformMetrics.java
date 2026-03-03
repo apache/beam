@@ -215,7 +215,8 @@ public class TestSamzaRunnerWithTransformMetrics {
 
     inputMetricOp.processElement(windowedValue, opEmitter);
     inputMetricOp.processElement(windowedValue2, opEmitter);
-    inputMetricOp.processWatermark(new Instant(watermarkMessage.getTimestamp()), opEmitter);
+    inputMetricOp.processWatermark(
+        Instant.ofEpochMilli(watermarkMessage.getTimestamp()), opEmitter);
 
     // Input throughput must be updated
     assertEquals(2, inputCounter.getCount());
@@ -236,7 +237,8 @@ public class TestSamzaRunnerWithTransformMetrics {
 
     outputMetricOp.processElement(windowedValue, opEmitter);
     outputMetricOp.processElement(windowedValue2, opEmitter);
-    outputMetricOp.processWatermark(new Instant(watermarkMessage.getTimestamp()), opEmitter);
+    outputMetricOp.processWatermark(
+        Instant.ofEpochMilli(watermarkMessage.getTimestamp()), opEmitter);
 
     // Output throughput must be updated
     assertEquals(2, outputCounter.getCount());
@@ -292,7 +294,8 @@ public class TestSamzaRunnerWithTransformMetrics {
 
     inputMetricOp.processElement(windowedValue, opEmitter);
     inputMetricOp.processElement(windowedValue2, opEmitter);
-    inputMetricOp.processWatermark(new Instant(watermarkMessage.getTimestamp()), opEmitter);
+    inputMetricOp.processWatermark(
+        Instant.ofEpochMilli(watermarkMessage.getTimestamp()), opEmitter);
 
     // Input throughput must be updated
     assertEquals(2, inputCounter.getCount());
@@ -309,7 +312,8 @@ public class TestSamzaRunnerWithTransformMetrics {
 
     outputMetricOp.processElement(windowedValue, opEmitter);
     outputMetricOp.processElement(windowedValue2, opEmitter);
-    outputMetricOp.processWatermark(new Instant(watermarkMessage.getTimestamp()), opEmitter);
+    outputMetricOp.processWatermark(
+        Instant.ofEpochMilli(watermarkMessage.getTimestamp()), opEmitter);
 
     // Output throughput must be updated
     assertEquals(2, outputCounter.getCount());

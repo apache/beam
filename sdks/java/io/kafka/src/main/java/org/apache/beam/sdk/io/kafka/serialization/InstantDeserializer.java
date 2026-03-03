@@ -35,7 +35,7 @@ public class InstantDeserializer implements Deserializer<Instant> {
 
   @Override
   public Instant deserialize(String topic, byte[] bytes) {
-    return new Instant(LONG_DESERIALIZER.deserialize(topic, bytes));
+    return Instant.ofEpochMilli(LONG_DESERIALIZER.deserialize(topic, bytes));
   }
 
   @Override

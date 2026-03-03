@@ -158,7 +158,8 @@ public class WindowedWordCountIT {
 
     for (int startMinute : ImmutableList.of(0, 10, 20, 30, 40, 50)) {
       final Instant windowStart =
-          new Instant(options.getMinTimestampMillis()).plus(Duration.standardMinutes(startMinute));
+          Instant.ofEpochMilli(options.getMinTimestampMillis())
+              .plus(Duration.standardMinutes(startMinute));
       String filePrefix =
           filenamePolicy.filenamePrefixForWindow(
               new IntervalWindow(windowStart, windowStart.plus(Duration.standardMinutes(10))));

@@ -1143,7 +1143,7 @@ public class CompressedSourceTest {
 
       @Override
       public Instant getCurrentTimestamp() throws NoSuchElementException {
-        return new Instant(getCurrentOffset());
+        return Instant.ofEpochMilli(getCurrentOffset());
       }
     }
   }

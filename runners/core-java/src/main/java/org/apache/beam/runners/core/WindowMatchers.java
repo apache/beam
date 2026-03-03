@@ -123,10 +123,10 @@ public class WindowMatchers {
   public static <T> Matcher<WindowedValue<? extends T>> isSingleWindowedValue(
       Matcher<T> valueMatcher, long timestamp, long windowStart, long windowEnd) {
     IntervalWindow intervalWindow =
-        new IntervalWindow(new Instant(windowStart), new Instant(windowEnd));
+        new IntervalWindow(Instant.ofEpochMilli(windowStart), Instant.ofEpochMilli(windowEnd));
     return WindowMatchers.isSingleWindowedValue(
         valueMatcher,
-        Matchers.describedAs("%0", Matchers.equalTo(new Instant(timestamp)), timestamp),
+        Matchers.describedAs("%0", Matchers.equalTo(Instant.ofEpochMilli(timestamp)), timestamp),
         Matchers.equalTo(intervalWindow),
         Matchers.anything());
   }
@@ -138,10 +138,10 @@ public class WindowMatchers {
       long windowEnd,
       PaneInfo paneInfo) {
     IntervalWindow intervalWindow =
-        new IntervalWindow(new Instant(windowStart), new Instant(windowEnd));
+        new IntervalWindow(Instant.ofEpochMilli(windowStart), Instant.ofEpochMilli(windowEnd));
     return WindowMatchers.isSingleWindowedValue(
         valueMatcher,
-        Matchers.describedAs("%0", Matchers.equalTo(new Instant(timestamp)), timestamp),
+        Matchers.describedAs("%0", Matchers.equalTo(Instant.ofEpochMilli(timestamp)), timestamp),
         Matchers.equalTo(intervalWindow),
         Matchers.equalTo(paneInfo));
   }
@@ -186,7 +186,8 @@ public class WindowMatchers {
   }
 
   public static Matcher<IntervalWindow> intervalWindow(long start, long end) {
-    return Matchers.equalTo(new IntervalWindow(new Instant(start), new Instant(end)));
+    return Matchers.equalTo(
+        new IntervalWindow(Instant.ofEpochMilli(start), Instant.ofEpochMilli(end)));
   }
 
   public static <T> Matcher<WindowedValue<? extends T>> valueWithPaneInfo(final PaneInfo paneInfo) {

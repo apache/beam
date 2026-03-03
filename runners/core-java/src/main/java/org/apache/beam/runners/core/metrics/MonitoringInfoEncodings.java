@@ -101,7 +101,7 @@ public class MonitoringInfoEncodings {
   public static GaugeData decodeInt64Gauge(ByteString payload) {
     InputStream input = payload.newInput();
     try {
-      Instant timestamp = new Instant(VARINT_CODER.decode(input));
+      Instant timestamp = Instant.ofEpochMilli(VARINT_CODER.decode(input));
       return GaugeData.create(VARINT_CODER.decode(input), timestamp);
     } catch (IOException e) {
       throw new RuntimeException(e);

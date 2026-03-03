@@ -7062,7 +7062,7 @@ perUser.apply(ParDo.of(new DoFn<KV<String, ValueT>, OutputT>() {
     // we would keep resetting the timer to the future). If there is no timer set, then set one to expire in a minute.
     Long timerTimestampMs = timerTimestamp.read();
     Instant timerToSet = (timerTimestamp.isEmpty().read())
-        ? Instant.now().plus(Duration.standardMinutes(1)) : new Instant(timerTimestampMs);
+        ? Instant.now().plus(Duration.standardMinutes(1)) : Instant.ofEpochMilli(timerTimestampMs);
     // Setting the outputTimestamp to the minimum timestamp in the bag holds the watermark to that timestamp until the
     // timer fires. This allows outputting all the elements with their timestamp.
     timer.withOutputTimestamp(minTimestamp.read()).s et(timerToSet).

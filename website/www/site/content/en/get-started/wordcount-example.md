@@ -1265,14 +1265,14 @@ static class AddTimestampFn extends DoFn<String, String> {
   @ProcessElement
   public void processElement(ProcessContext c) {
     Instant randomTimestamp =
-      new Instant(
+      Instant.ofEpochMilli(
           ThreadLocalRandom.current()
           .nextLong(minTimestamp.getMillis(), maxTimestamp.getMillis()));
 
     /**
      * Concept #2: Set the data element with that timestamp.
      */
-    c.outputWithTimestamp(c.element(), new Instant(randomTimestamp));
+    c.outputWithTimestamp(c.element(), Instant.ofEpochMilli(randomTimestamp));
   }
 }
 {{< /highlight >}}

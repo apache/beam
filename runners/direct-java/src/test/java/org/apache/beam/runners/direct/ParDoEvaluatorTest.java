@@ -103,7 +103,7 @@ public class ParDoEvaluatorTest {
     ParDoEvaluator<Integer> evaluator = createEvaluator(singletonView, fn, inputPc, output);
 
     IntervalWindow nonGlobalWindow =
-        new IntervalWindow(Instant.ofEpochMilli(0), new Instant(10_000L));
+        new IntervalWindow(Instant.ofEpochMilli(0), Instant.ofEpochMilli(10_000L));
     WindowedValue<Integer> first = WindowedValues.valueInGlobalWindow(3);
     WindowedValue<Integer> second =
         WindowedValues.of(2, Instant.ofEpochMilli(1234L), nonGlobalWindow, PaneInfo.NO_FIRING);

@@ -1701,12 +1701,12 @@ public class DoFnOperator<PreInputT, InputT, OutputT>
 
     @Override
     public Instant currentProcessingTime() {
-      return new Instant(timerService.currentProcessingTime());
+      return Instant.ofEpochMilli(timerService.currentProcessingTime());
     }
 
     @Override
     public @Nullable Instant currentSynchronizedProcessingTime() {
-      return new Instant(timerService.currentProcessingTime());
+      return Instant.ofEpochMilli(timerService.currentProcessingTime());
     }
 
     @Override
@@ -1731,16 +1731,16 @@ public class DoFnOperator<PreInputT, InputT, OutputT>
         // BoundedWindow.TIMESTAMP_MAX_VALUE (9223372036854775)]. To ensure the timestamp visible to
         // the users follow the Beam convention, we just use the Beam range instead.
         return timerService.currentWatermark() == Long.MAX_VALUE
-            ? new Instant(Long.MAX_VALUE)
+            ? Instant.ofEpochMilli(Long.MAX_VALUE)
             : BoundedWindow.TIMESTAMP_MIN_VALUE;
       } else {
-        return new Instant(getEffectiveInputWatermark());
+        return Instant.ofEpochMilli(getEffectiveInputWatermark());
       }
     }
 
     @Override
     public @Nullable Instant currentOutputWatermarkTime() {
-      return new Instant(currentOutputWatermark);
+      return Instant.ofEpochMilli(currentOutputWatermark);
     }
 
     /**

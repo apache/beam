@@ -175,7 +175,7 @@ public class PCollectionTranslationTest {
           new BoundedWindow() {
             @Override
             public Instant maxTimestamp() {
-              return new Instant(c.element().longValue());
+              return Instant.ofEpochMilli(c.element().longValue());
             }
           });
     }
@@ -209,7 +209,7 @@ public class PCollectionTranslationTest {
 
         @Override
         public BoundedWindow decode(InputStream inStream) throws IOException {
-          final Instant ts = new Instant(VarInt.decodeLong(inStream));
+          final Instant ts = Instant.ofEpochMilli(VarInt.decodeLong(inStream));
           return new BoundedWindow() {
             @Override
             public Instant maxTimestamp() {

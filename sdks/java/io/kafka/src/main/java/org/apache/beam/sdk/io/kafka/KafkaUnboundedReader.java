@@ -548,7 +548,7 @@ class KafkaUnboundedReader<K, V> extends UnboundedReader<KafkaRecord<K, V>> {
             partition,
             tp);
         nextOffset = ckptMark.getNextOffset();
-        prevWatermark = Optional.of(new Instant(ckptMark.getWatermarkMillis()));
+        prevWatermark = Optional.of(Instant.ofEpochMilli(ckptMark.getWatermarkMillis()));
       }
 
       states.add(

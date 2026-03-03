@@ -115,7 +115,7 @@ public class SqlQuery3Test {
         "cc_" + id,
         "city_" + id,
         state,
-        new Instant(123123L + id),
+        Instant.ofEpochMilli(123123L + id),
         "extra_" + id);
   }
 
@@ -126,8 +126,8 @@ public class SqlQuery3Test {
         "desc_" + id,
         123 + id,
         200 + id,
-        new Instant(123123L + id),
-        new Instant(223123 + id),
+        Instant.ofEpochMilli(123123L + id),
+        Instant.ofEpochMilli(223123 + id),
         seller,
         category,
         "extra_" + id);

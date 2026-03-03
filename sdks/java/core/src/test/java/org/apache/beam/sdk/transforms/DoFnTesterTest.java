@@ -434,7 +434,7 @@ public class DoFnTesterTest {
     public void processElement(ProcessContext c) throws Exception {
       checkState(state == LifecycleState.INSIDE_BUNDLE, "Wrong state: %s", state);
       agg.inc(c.element());
-      Instant instant = new Instant(1000L * c.element());
+      Instant instant = Instant.ofEpochMilli(1000L * c.element());
       c.outputWithTimestamp(c.element().toString(), instant);
     }
 

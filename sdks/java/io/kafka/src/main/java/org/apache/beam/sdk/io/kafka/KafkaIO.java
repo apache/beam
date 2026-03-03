@@ -3121,7 +3121,7 @@ public class KafkaIO {
               record.getPartition(),
               record.getOffset(),
               record.getTimestampType());
-          return new Instant(record.getTimestamp());
+          return Instant.ofEpochMilli(record.getTimestamp());
         };
       }
 
@@ -3135,7 +3135,7 @@ public class KafkaIO {
               record.getPartition(),
               record.getOffset(),
               record.getTimestampType());
-          return new Instant(record.getTimestamp());
+          return Instant.ofEpochMilli(record.getTimestamp());
         };
       }
     }

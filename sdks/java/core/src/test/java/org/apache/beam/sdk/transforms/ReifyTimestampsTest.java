@@ -45,7 +45,7 @@ public class ReifyTimestampsTest implements Serializable {
     PCollection<KV<String, Integer>> timestamped =
         pipeline
             .apply(Create.of(KV.of("foo", 0), KV.of("foo", 1), KV.of("bar", 2), KV.of("baz", 3)))
-            .apply(WithTimestamps.of(input -> new Instant(input.getValue().longValue())));
+            .apply(WithTimestamps.of(input -> Instant.ofEpochMilli(input.getValue().longValue())));
 
     PCollection<KV<String, TimestampedValue<Integer>>> reified =
         timestamped.apply(ReifyTimestamps.inValues());
@@ -84,7 +84,7 @@ public class ReifyTimestampsTest implements Serializable {
               @ProcessElement
               public void verifyTimestampsEqualValue(ProcessContext context) {
                 assertThat(
-                    new Instant(context.element().getValue().longValue()),
+                    Instant.ofEpochMilli(context.element().getValue().longValue()),
                     equalTo(context.timestamp()));
               }
             }));
@@ -124,7 +124,7 @@ public class ReifyTimestampsTest implements Serializable {
               @ProcessElement
               public void verifyTimestampsEqualValue(ProcessContext context) {
                 assertThat(
-                    new Instant(context.element().getValue().longValue()),
+                    Instant.ofEpochMilli(context.element().getValue().longValue()),
                     equalTo(context.timestamp()));
               }
             }));

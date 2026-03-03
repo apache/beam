@@ -126,7 +126,7 @@ public class WindowedWordCount {
     @ProcessElement
     public void processElement(@Element String element, OutputReceiver<String> receiver) {
       Instant randomTimestamp =
-          new Instant(
+          Instant.ofEpochMilli(
               ThreadLocalRandom.current()
                   .nextLong(minTimestamp.getMillis(), maxTimestamp.getMillis()));
 
@@ -189,8 +189,8 @@ public class WindowedWordCount {
 
   static void runWindowedWordCount(Options options) throws IOException {
     final String output = options.getOutput();
-    final Instant minTimestamp = new Instant(options.getMinTimestampMillis());
-    final Instant maxTimestamp = new Instant(options.getMaxTimestampMillis());
+    final Instant minTimestamp = Instant.ofEpochMilli(options.getMinTimestampMillis());
+    final Instant maxTimestamp = Instant.ofEpochMilli(options.getMaxTimestampMillis());
 
     Pipeline pipeline = Pipeline.create(options);
 

@@ -158,7 +158,7 @@ public class StreamingKeyedWorkItemSideInputDoFnRunnerTest {
   }
 
   private <T> WindowedValue<T> createDatum(T element, long timestampMillis) {
-    Instant timestamp = new Instant(timestampMillis);
+    Instant timestamp = Instant.ofEpochMilli(timestampMillis);
     return WindowedValues.of(
         element, timestamp, Arrays.asList(WINDOW_FN.assignWindow(timestamp)), PaneInfo.NO_FIRING);
   }
@@ -173,7 +173,7 @@ public class StreamingKeyedWorkItemSideInputDoFnRunnerTest {
   }
 
   private IntervalWindow window(long start, long end) {
-    return new IntervalWindow(new Instant(start), new Instant(end));
+    return new IntervalWindow(Instant.ofEpochMilli(start), Instant.ofEpochMilli(end));
   }
 
   @SuppressWarnings("unchecked")

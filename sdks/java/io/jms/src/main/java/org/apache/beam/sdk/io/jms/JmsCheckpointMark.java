@@ -145,7 +145,7 @@ class JmsCheckpointMark implements UnboundedSource.CheckpointMark, Serializable 
               String.format(
                   "Attempting to add message %s to checkpoint that is discarded.", message));
         }
-        Instant currentMessageTimestamp = new Instant(message.getJMSTimestamp());
+        Instant currentMessageTimestamp = Instant.ofEpochMilli(message.getJMSTimestamp());
         if (currentMessageTimestamp.isBefore(oldestMessageTimestamp)) {
           oldestMessageTimestamp = currentMessageTimestamp;
         }

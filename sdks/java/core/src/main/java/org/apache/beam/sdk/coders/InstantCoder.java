@@ -74,7 +74,7 @@ public class InstantCoder extends AtomicCoder<Instant> {
     //
     // This deliberately utilizes the well-defined overflow for {@code long} values.
     // See http://docs.oracle.com/javase/specs/jls/se7/html/jls-15.html#jls-15.18.2
-    return new Instant(shiftedMillis + Long.MIN_VALUE);
+    return Instant.ofEpochMilli(shiftedMillis + Long.MIN_VALUE);
   }
 
   @Override

@@ -117,7 +117,8 @@ final class IdTracker {
 
   private Range<Instant> getTrackedRange(Instant ts) {
     Instant snapped =
-        new Instant(ts.getMillis() - ts.plus(RESOLUTION).getMillis() % RESOLUTION.getMillis());
+        Instant.ofEpochMilli(
+            ts.getMillis() - ts.plus(RESOLUTION).getMillis() % RESOLUTION.getMillis());
     return Range.closedOpen(snapped, snapped.plus(RESOLUTION));
   }
 

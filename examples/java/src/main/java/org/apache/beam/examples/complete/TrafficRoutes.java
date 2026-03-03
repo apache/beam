@@ -192,7 +192,8 @@ public class TrafficRoutes {
       String timestamp = tryParseTimestamp(items);
       if (timestamp != null) {
         try {
-          c.outputWithTimestamp(c.element(), new Instant(dateTimeFormat.parseMillis(timestamp)));
+          c.outputWithTimestamp(
+              c.element(), Instant.ofEpochMilli(dateTimeFormat.parseMillis(timestamp)));
         } catch (IllegalArgumentException e) {
           // Skip the invalid input.
         }

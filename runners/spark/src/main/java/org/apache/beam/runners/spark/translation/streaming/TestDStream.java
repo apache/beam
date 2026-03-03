@@ -108,7 +108,8 @@ public class TestDStream<T> extends InputDStream<WindowedValue<T>> {
 
   private void addWatermark(Time time, WatermarkEvent<T> event) {
     SparkWatermarks watermarks =
-        new SparkWatermarks(lastWatermark, event.getWatermark(), new Instant(time.milliseconds()));
+        new SparkWatermarks(
+            lastWatermark, event.getWatermark(), Instant.ofEpochMilli(time.milliseconds()));
     lastWatermark = event.getWatermark();
     GlobalWatermarkHolder.add(id(), watermarks);
   }

@@ -136,7 +136,7 @@ public class ReduceFnRunnerTest {
   private void injectElement(ReduceFnTester<Integer, ?, IntervalWindow> tester, int element)
       throws Exception {
     doNothing().when(mockTriggerStateMachine).onElement(anyElementContext());
-    tester.injectElements(TimestampedValue.of(element, new Instant(element)));
+    tester.injectElements(TimestampedValue.of(element, Instant.ofEpochMilli(element)));
   }
 
   private void injectElements(
@@ -145,7 +145,7 @@ public class ReduceFnRunnerTest {
     doNothing().when(mockTriggerStateMachine).onElement(anyElementContext());
     List<TimestampedValue<Integer>> timestampedValues = new ArrayList<>();
     for (int value : values) {
-      timestampedValues.add(TimestampedValue.of(value, new Instant(value)));
+      timestampedValues.add(TimestampedValue.of(value, Instant.ofEpochMilli(value)));
     }
     tester.injectElements(timestampedValues);
   }
@@ -1058,22 +1058,24 @@ public class ReduceFnRunnerTest {
           LOG.info("nextWatermark {} {}", nextWatermark, enabled);
           watermark = nextWatermark;
           tester.setAutoAdvanceOutputWatermark(enabled);
-          tester.advanceInputWatermark(new Instant(watermark));
+          tester.advanceInputWatermark(Instant.ofEpochMilli(watermark));
         }
       }
       split = nextSplit;
       Instant hold = tester.getWatermarkHold();
       if (hold != null) {
-        assertThat(hold, greaterThanOrEqualTo(new Instant(watermark)));
+        assertThat(hold, greaterThanOrEqualTo(Instant.ofEpochMilli(watermark)));
         assertThat(watermark, lessThan(maxTs + gapDuration.getMillis()));
       }
     }
     tester.setAutoAdvanceOutputWatermark(true);
     watermark = gapDuration.getMillis() + maxTs;
-    tester.advanceInputWatermark(new Instant(watermark));
+    tester.advanceInputWatermark(Instant.ofEpochMilli(watermark));
     LOG.info("Output {}", tester.extractOutput());
     if (tester.getWatermarkHold() != null) {
-      assertThat(tester.getWatermarkHold(), equalTo(new Instant(watermark).plus(allowedLateness)));
+      assertThat(
+          tester.getWatermarkHold(),
+          equalTo(Instant.ofEpochMilli(watermark).plus(allowedLateness)));
     }
     // Nothing dropped.
     long droppedElements =
@@ -1998,7 +2000,7 @@ public class ReduceFnRunnerTest {
     tester.advanceInputWatermark(Instant.ofEpochMilli(11));
 
     // Should fire final GC paneInfo
-    tester.advanceInputWatermark(new Instant(10 + 100));
+    tester.advanceInputWatermark(Instant.ofEpochMilli(10 + 100));
     List<WindowedValue<Integer>> output = tester.extractOutput();
     assertEquals(2, output.size());
 
@@ -2095,7 +2097,7 @@ public class ReduceFnRunnerTest {
 
     // Processing late data, and should fire late paneInfo
     tester.injectElements(TimestampedValue.of(1, Instant.ofEpochMilli(9)));
-    tester.advanceProcessingTime(new Instant(6 + 25 + 1));
+    tester.advanceProcessingTime(Instant.ofEpochMilli(6 + 25 + 1));
 
     List<WindowedValue<Integer>> output = tester.extractOutput();
     assertEquals(2, output.size());
@@ -2211,7 +2213,7 @@ public class ReduceFnRunnerTest {
 
     final int n = 20;
     for (int i = 0; i < n; i++) {
-      tester.injectElements(TimestampedValue.of(i, new Instant(i)));
+      tester.injectElements(TimestampedValue.of(i, Instant.ofEpochMilli(i)));
     }
 
     List<WindowedValue<Iterable<Integer>>> output = tester.extractOutput();
@@ -2248,10 +2250,10 @@ public class ReduceFnRunnerTest {
 
     final int n = 20;
     for (int i = 0; i < n; i++) {
-      tester.advanceProcessingTime(new Instant(i));
-      tester.injectElements(TimestampedValue.of(i, new Instant(i)));
+      tester.advanceProcessingTime(Instant.ofEpochMilli(i));
+      tester.injectElements(TimestampedValue.of(i, Instant.ofEpochMilli(i)));
     }
-    tester.advanceProcessingTime(new Instant(n + 4));
+    tester.advanceProcessingTime(Instant.ofEpochMilli(n + 4));
     List<WindowedValue<Iterable<Integer>>> output = tester.extractOutput();
     assertEquals((n + 3) / 4, output.size());
     for (int i = 0; i < output.size(); i++) {

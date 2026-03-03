@@ -251,7 +251,7 @@ final class ExecutorServiceParallelExecutor
   public State waitUntilFinish(Duration duration) throws Exception {
     Instant completionTime;
     if (duration.equals(Duration.ZERO)) {
-      completionTime = new Instant(Long.MAX_VALUE);
+      completionTime = Instant.ofEpochMilli(Long.MAX_VALUE);
     } else {
       completionTime = Instant.now().plus(duration);
     }

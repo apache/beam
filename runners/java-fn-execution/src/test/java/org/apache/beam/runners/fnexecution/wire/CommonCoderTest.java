@@ -325,13 +325,13 @@ public class CommonCoderTest {
           convertValue(kvMap.get("userKey"), coderSpec.getComponents().get(0), keyCoder),
           (String) kvMap.get("dynamicTimerTag"),
           windows,
-          new Instant(((Number) kvMap.get("fireTimestamp")).longValue()),
-          new Instant(((Number) kvMap.get("holdTimestamp")).longValue()),
+          Instant.ofEpochMilli(((Number) kvMap.get("fireTimestamp")).longValue()),
+          Instant.ofEpochMilli(((Number) kvMap.get("holdTimestamp")).longValue()),
           paneInfo,
           CausedByDrain.NORMAL); // todo - add tests once causedByDrain is added to proto
     } else if (s.equals(getUrn(StandardCoders.Enum.INTERVAL_WINDOW))) {
       Map<String, Object> kvMap = (Map<String, Object>) value;
-      Instant end = new Instant(((Number) kvMap.get("end")).longValue());
+      Instant end = Instant.ofEpochMilli(((Number) kvMap.get("end")).longValue());
       Duration span = Duration.millis(((Number) kvMap.get("span")).longValue());
       return new IntervalWindow(end.minus(span), span);
     } else if (s.equals(getUrn(StandardCoders.Enum.ITERABLE))
@@ -353,7 +353,7 @@ public class CommonCoderTest {
       Coder windowCoder = ((WindowedValues.FullWindowedValueCoder) coder).getWindowCoder();
       Object windowValue =
           convertValue(kvMap.get("value"), coderSpec.getComponents().get(0), valueCoder);
-      Instant timestamp = new Instant(((Number) kvMap.get("timestamp")).longValue());
+      Instant timestamp = Instant.ofEpochMilli(((Number) kvMap.get("timestamp")).longValue());
       List<BoundedWindow> windows = new ArrayList<>();
       for (Object window : (List<Object>) kvMap.get("windows")) {
         windows.add(
@@ -430,7 +430,7 @@ public class CommonCoderTest {
         return (Boolean) value;
       case DATETIME:
         // convert shifted millis to epoch millis as in InstantCoder
-        return new Instant((Long) value + -9223372036854775808L);
+        return Instant.ofEpochMilli((Long) value + -9223372036854775808L);
       case DECIMAL:
         return new BigDecimal((String) value);
       case BYTES:

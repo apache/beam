@@ -481,13 +481,13 @@ public class UnboundedReadEvaluatorFactoryTest {
    * is the epoch offset by the value of the element.
    */
   private static WindowedValue<Long> tgw(Long elem) {
-    return WindowedValues.timestampedValueInGlobalWindow(elem, new Instant(elem));
+    return WindowedValues.timestampedValueInGlobalWindow(elem, Instant.ofEpochMilli(elem));
   }
 
   private static class LongToInstantFn implements SerializableFunction<Long, Instant> {
     @Override
     public Instant apply(Long input) {
-      return new Instant(input);
+      return Instant.ofEpochMilli(input);
     }
   }
 
@@ -582,7 +582,7 @@ public class UnboundedReadEvaluatorFactoryTest {
         if (index + 1 == elems.size() && TestUnboundedSource.this.advanceWatermarkToInfinity) {
           return BoundedWindow.TIMESTAMP_MAX_VALUE;
         } else {
-          return new Instant(index + getWatermarkCalls);
+          return Instant.ofEpochMilli(index + getWatermarkCalls);
         }
       }
 
@@ -603,7 +603,7 @@ public class UnboundedReadEvaluatorFactoryTest {
 
       @Override
       public Instant getCurrentTimestamp() throws NoSuchElementException {
-        return new Instant(index);
+        return Instant.ofEpochMilli(index);
       }
 
       @Override

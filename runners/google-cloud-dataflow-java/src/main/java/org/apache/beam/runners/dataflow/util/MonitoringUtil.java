@@ -130,7 +130,7 @@ public class MonitoringUtil {
    */
   public List<JobMessage> getJobMessages(String jobId, long startTimestampMs) throws IOException {
     // TODO: Allow filtering messages by importance
-    Instant startTimestamp = new Instant(startTimestampMs);
+    Instant startTimestamp = Instant.ofEpochMilli(startTimestampMs);
     ArrayList<JobMessage> allMessages = new ArrayList<>();
     String pageToken = null;
     while (true) {

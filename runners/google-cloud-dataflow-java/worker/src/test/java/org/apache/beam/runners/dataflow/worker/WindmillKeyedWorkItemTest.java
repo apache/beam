@@ -133,7 +133,7 @@ public class WindmillKeyedWorkItemTest {
             BeamFnApi.Elements.ElementMetadata.newBuilder().build());
     chunk
         .addMessagesBuilder()
-        .setTimestamp(WindmillTimeUtils.harnessToWindmillTimestamp(new Instant(timestamp)))
+        .setTimestamp(WindmillTimeUtils.harnessToWindmillTimestamp(Instant.ofEpochMilli(timestamp)))
         .setData(ByteString.copyFromUtf8(value))
         .setMetadata(encodedMetadata);
   }
@@ -151,7 +151,7 @@ public class WindmillKeyedWorkItemTest {
             WINDOWS_CODER, Collections.singletonList(window), pane, metadata);
     chunk
         .addMessagesBuilder()
-        .setTimestamp(WindmillTimeUtils.harnessToWindmillTimestamp(new Instant(timestamp)))
+        .setTimestamp(WindmillTimeUtils.harnessToWindmillTimestamp(Instant.ofEpochMilli(timestamp)))
         .setData(ByteString.copyFromUtf8(value))
         .setMetadata(encodedMetadata);
   }
@@ -201,11 +201,11 @@ public class WindmillKeyedWorkItemTest {
                 WindmillTimerType.SYSTEM_TIMER,
                 TimerData.of(
                     ns,
-                    new Instant(timestamp),
-                    new Instant(timestamp),
+                    Instant.ofEpochMilli(timestamp),
+                    Instant.ofEpochMilli(timestamp),
                     timerTypeToTimeDomain(type),
                     CausedByDrain.NORMAL)))
-        .setTimestamp(WindmillTimeUtils.harnessToWindmillTimestamp(new Instant(timestamp)))
+        .setTimestamp(WindmillTimeUtils.harnessToWindmillTimestamp(Instant.ofEpochMilli(timestamp)))
         .setType(type)
         .setStateFamily(STATE_FAMILY)
         .build();
@@ -213,12 +213,20 @@ public class WindmillKeyedWorkItemTest {
 
   private static TimerData makeTimer(StateNamespace ns, long timestamp, TimeDomain domain) {
     return TimerData.of(
-        ns, new Instant(timestamp), new Instant(timestamp), domain, CausedByDrain.NORMAL);
+        ns,
+        Instant.ofEpochMilli(timestamp),
+        Instant.ofEpochMilli(timestamp),
+        domain,
+        CausedByDrain.NORMAL);
   }
 
   private static TimerData makeDrainingTimer(StateNamespace ns, long timestamp, TimeDomain domain) {
     return TimerData.of(
-        ns, new Instant(timestamp), new Instant(timestamp), domain, CausedByDrain.CAUSED_BY_DRAIN);
+        ns,
+        Instant.ofEpochMilli(timestamp),
+        Instant.ofEpochMilli(timestamp),
+        domain,
+        CausedByDrain.CAUSED_BY_DRAIN);
   }
 
   @Test

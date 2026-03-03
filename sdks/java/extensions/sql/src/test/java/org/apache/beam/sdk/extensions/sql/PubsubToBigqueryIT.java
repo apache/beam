@@ -178,6 +178,6 @@ public class PubsubToBigqueryIT implements Serializable {
   }
 
   private Instant ts(long millis) {
-    return new Instant(millis);
+    return Instant.ofEpochMilli(millis);
   }
 }

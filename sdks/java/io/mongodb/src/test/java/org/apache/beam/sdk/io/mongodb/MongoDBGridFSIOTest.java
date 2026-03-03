@@ -220,7 +220,7 @@ public class MongoDBGridFSIOTest {
                             long timestamp = scanner.nextLong();
                             String name = scanner.next();
                             int score = scanner.nextInt();
-                            callback.output(KV.of(name, score), new Instant(timestamp));
+                            callback.output(KV.of(name, score), Instant.ofEpochMilli(timestamp));
                           }
                           line = reader.readLine();
                         }

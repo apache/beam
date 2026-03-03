@@ -51,7 +51,8 @@ public class WithTimestampsTest implements Serializable {
   @Category(ValidatesRunner.class)
   public void withTimestampsShouldApplyTimestamps() {
 
-    SerializableFunction<String, Instant> timestampFn = input -> new Instant(Long.valueOf(input));
+    SerializableFunction<String, Instant> timestampFn =
+        input -> Instant.ofEpochMilli(Long.valueOf(input));
 
     String yearTwoThousand = "946684800000";
     PCollection<String> timestamped =
@@ -75,8 +76,8 @@ public class WithTimestampsTest implements Serializable {
         .containsInAnyOrder(
             KV.of("0", Instant.ofEpochMilli(0)),
             KV.of("1234", Instant.ofEpochMilli(1234L)),
-            KV.of(Integer.toString(Integer.MAX_VALUE), new Instant(Integer.MAX_VALUE)),
-            KV.of(yearTwoThousand, new Instant(Long.valueOf(yearTwoThousand))));
+            KV.of(Integer.toString(Integer.MAX_VALUE), Instant.ofEpochMilli(Integer.MAX_VALUE)),
+            KV.of(yearTwoThousand, Instant.ofEpochMilli(Long.valueOf(yearTwoThousand))));
 
     p.run();
   }
@@ -85,9 +86,10 @@ public class WithTimestampsTest implements Serializable {
   @Category(NeedsRunner.class)
   public void withTimestampsBackwardsInTimeShouldThrow() {
 
-    SerializableFunction<String, Instant> timestampFn = input -> new Instant(Long.valueOf(input));
+    SerializableFunction<String, Instant> timestampFn =
+        input -> Instant.ofEpochMilli(Long.valueOf(input));
     SerializableFunction<String, Instant> backInTimeFn =
-        input -> new Instant(Long.valueOf(input)).minus(Duration.millis(1000L));
+        input -> Instant.ofEpochMilli(Long.valueOf(input)).minus(Duration.millis(1000L));
 
     String yearTwoThousand = "946684800000";
 
@@ -106,11 +108,12 @@ public class WithTimestampsTest implements Serializable {
   @Category(ValidatesRunner.class)
   public void withTimestampsBackwardsInTimeAndWithAllowedTimestampSkewShouldSucceed() {
 
-    SerializableFunction<String, Instant> timestampFn = input -> new Instant(Long.valueOf(input));
+    SerializableFunction<String, Instant> timestampFn =
+        input -> Instant.ofEpochMilli(Long.valueOf(input));
 
     final Duration skew = Duration.millis(1000L);
     SerializableFunction<String, Instant> backInTimeFn =
-        input -> new Instant(Long.valueOf(input)).minus(skew);
+        input -> Instant.ofEpochMilli(Long.valueOf(input)).minus(skew);
 
     String yearTwoThousand = "946684800000";
     PCollection<String> timestampedWithSkew =
@@ -140,8 +143,9 @@ public class WithTimestampsTest implements Serializable {
             KV.of("1234", Instant.ofEpochMilli(1234L).minus(skew)),
             KV.of(
                 Integer.toString(Integer.MAX_VALUE),
-                new Instant(Long.valueOf(Integer.MAX_VALUE)).minus(skew)),
-            KV.of(yearTwoThousand, new Instant(Long.valueOf(yearTwoThousand)).minus(skew)));
+                Instant.ofEpochMilli(Long.valueOf(Integer.MAX_VALUE)).minus(skew)),
+            KV.of(
+                yearTwoThousand, Instant.ofEpochMilli(Long.valueOf(yearTwoThousand)).minus(skew)));
 
     p.run();
   }
@@ -185,7 +189,7 @@ public class WithTimestampsTest implements Serializable {
     final String yearTwoThousand = "946684800000";
     PCollection<String> timestamped =
         p.apply(Create.of("1234", "0", Integer.toString(Integer.MAX_VALUE), yearTwoThousand))
-            .apply(WithTimestamps.of((String input) -> new Instant(Long.valueOf(input))));
+            .apply(WithTimestamps.of((String input) -> Instant.ofEpochMilli(Long.valueOf(input))));
 
     PCollection<KV<String, Instant>> timestampedVals =
         timestamped.apply(
@@ -202,9 +206,9 @@ public class WithTimestampsTest implements Serializable {
     PAssert.that(timestampedVals)
         .containsInAnyOrder(
             KV.of("0", Instant.ofEpochMilli(0)),
-            KV.of("1234", new Instant(Long.valueOf("1234"))),
-            KV.of(Integer.toString(Integer.MAX_VALUE), new Instant(Integer.MAX_VALUE)),
-            KV.of(yearTwoThousand, new Instant(Long.valueOf(yearTwoThousand))));
+            KV.of("1234", Instant.ofEpochMilli(Long.valueOf("1234"))),
+            KV.of(Integer.toString(Integer.MAX_VALUE), Instant.ofEpochMilli(Integer.MAX_VALUE)),
+            KV.of(yearTwoThousand, Instant.ofEpochMilli(Long.valueOf(yearTwoThousand))));
 
     p.run();
   }

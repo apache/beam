@@ -99,7 +99,8 @@ public class DataflowWorkProgressUpdaterTest {
     workItem.setProjectId(PROJECT_ID);
     workItem.setJobId(JOB_ID);
     workItem.setId(WORK_ID);
-    workItem.setLeaseExpireTime(toCloudTime(new Instant(clock.currentTimeMillis() + 1000)));
+    workItem.setLeaseExpireTime(
+        toCloudTime(Instant.ofEpochMilli(clock.currentTimeMillis() + 1000)));
     workItem.setReportStatusInterval(toCloudDuration(Duration.millis(300)));
     workItem.setInitialReportIndex(1L);
 
@@ -299,7 +300,7 @@ public class DataflowWorkProgressUpdaterTest {
     WorkItemServiceState responseState = new WorkItemServiceState();
     responseState.setFactory(Transport.getJsonFactory());
     responseState.setLeaseExpireTime(
-        toCloudTime(new Instant(clock.currentTimeMillis() + LEASE_MS)));
+        toCloudTime(Instant.ofEpochMilli(clock.currentTimeMillis() + LEASE_MS)));
     responseState.setReportStatusInterval(toCloudDuration(Duration.millis(millisToNextUpdate)));
 
     if (suggestedStopPosition != null) {

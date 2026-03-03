@@ -579,7 +579,7 @@ public class ExecutableStageDoFnOperatorTest {
     // Watermark is advanced in a blocking fashion on close, not via a timers
     // Create a bundle with a pending timer to simulate that
     testHarness.processElement(new StreamRecord<>(windowedValue));
-    timerConsumer.accept("timer3", new Instant(targetWatermark));
+    timerConsumer.accept("timer3", Instant.ofEpochMilli(targetWatermark));
     assertThat(testHarness.numEventTimeTimers(), is(1));
 
     // This should be blocking until the watermark reaches Long.MAX_VALUE.

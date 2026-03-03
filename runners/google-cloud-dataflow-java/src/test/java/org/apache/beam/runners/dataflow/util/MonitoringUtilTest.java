@@ -62,7 +62,7 @@ public class MonitoringUtilTest {
     for (long i = 0; i < 100; ++i) {
       JobMessage message = new JobMessage();
       message.setId("message_" + i);
-      message.setTime(TimeUtil.toCloudTime(new Instant(i)));
+      message.setTime(TimeUtil.toCloudTime(Instant.ofEpochMilli(i)));
       firstResponse.getJobMessages().add(message);
     }
     String pageToken = "page_token";
@@ -73,7 +73,7 @@ public class MonitoringUtilTest {
     for (long i = 100; i < 150; ++i) {
       JobMessage message = new JobMessage();
       message.setId("message_" + i);
-      message.setTime(TimeUtil.toCloudTime(new Instant(i)));
+      message.setTime(TimeUtil.toCloudTime(Instant.ofEpochMilli(i)));
       secondResponse.getJobMessages().add(message);
     }
 

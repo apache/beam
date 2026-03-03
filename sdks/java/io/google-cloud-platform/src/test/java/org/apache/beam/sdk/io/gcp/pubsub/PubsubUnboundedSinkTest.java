@@ -94,7 +94,7 @@ public class PubsubUnboundedSinkTest implements Serializable {
       c.outputWithTimestamp(
           new PubsubMessage(c.element().getBytes(StandardCharsets.UTF_8), attributes)
               .withOrderingKey(orderingKeyFn.apply(c.element())),
-          new Instant(TIMESTAMP));
+          Instant.ofEpochMilli(TIMESTAMP));
     }
   }
 

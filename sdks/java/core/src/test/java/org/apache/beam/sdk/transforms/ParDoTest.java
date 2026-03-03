@@ -325,7 +325,7 @@ public class ParDoTest implements Serializable {
   static class TestOutputTimestampDoFn<T extends Number> extends DoFn<T, T> {
     @ProcessElement
     public void processElement(@Element T value, OutputReceiver<T> r) {
-      r.outputWithTimestamp(value, new Instant(value.longValue()));
+      r.outputWithTimestamp(value, Instant.ofEpochMilli(value.longValue()));
     }
   }
 
@@ -2031,7 +2031,8 @@ public class ParDoTest implements Serializable {
                             public void processElement(
                                 @Element Integer element, MultiOutputReceiver r) {
                               r.get(additionalOutputTag)
-                                  .outputWithTimestamp(element, new Instant(element.longValue()));
+                                  .outputWithTimestamp(
+                                      element, Instant.ofEpochMilli(element.longValue()));
                             }
                           })
                       .withOutputTags(mainOutputTag, TupleTagList.of(additionalOutputTag)))
@@ -2259,7 +2260,7 @@ public class ParDoTest implements Serializable {
       PAssert.that(noSkew)
           .containsInAnyOrder(
               OUTPUT_ELEMENT
-                  + new Instant(
+                  + Instant.ofEpochMilli(
                       windowDuration
                           .minus(Duration.millis(3L))
                           .minus(Duration.millis(1L))
@@ -5231,7 +5232,7 @@ public class ParDoTest implements Serializable {
               KV.of(3L, Instant.ofEpochMilli(0).plus(Duration.standardSeconds(5))),
               KV.of(
                   42L,
-                  new Instant(
+                  Instant.ofEpochMilli(
                       Duration.standardMinutes(1).minus(Duration.standardSeconds(1)).getMillis())));
       pipeline.run();
     }
@@ -7394,14 +7395,15 @@ public class ParDoTest implements Serializable {
               .mapToObj(
                   r ->
                       IntStream.range(0, r + 1)
-                          .mapToObj(v -> TimestampedValue.of(String.valueOf(v), new Instant(r)))
+                          .mapToObj(
+                              v -> TimestampedValue.of(String.valueOf(v), Instant.ofEpochMilli(r)))
                           .collect(Collectors.toList()))
               .collect(Collectors.toList());
       for (List<TimestampedValue<String>> b : bundles) {
         builder =
             builder
                 .addElements(b.get(0), b.subList(1, b.size()).toArray(new TimestampedValue[] {}))
-                .advanceWatermarkTo(new Instant(b.size()));
+                .advanceWatermarkTo(Instant.ofEpochMilli(b.size()));
       }
       PCollection<Long> result =
           pipeline

@@ -223,6 +223,6 @@ public class StreamingGroupAlsoByWindowsReshuffleDoFnTest {
   }
 
   private IntervalWindow window(long start, long end) {
-    return new IntervalWindow(new Instant(start), new Instant(end));
+    return new IntervalWindow(Instant.ofEpochMilli(start), Instant.ofEpochMilli(end));
   }
 }

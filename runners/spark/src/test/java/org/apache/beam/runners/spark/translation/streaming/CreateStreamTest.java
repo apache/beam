@@ -207,7 +207,7 @@ public class CreateStreamTest implements Serializable {
 
   @Test
   public void testFirstElementLate() throws IOException {
-    Instant lateElementTimestamp = new Instant(-1_000_000);
+    Instant lateElementTimestamp = Instant.ofEpochMilli(-1_000_000);
     CreateStream<String> source =
         CreateStream.of(StringUtf8Coder.of(), batchDuration())
             .emptyBatch()

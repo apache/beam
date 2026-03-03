@@ -416,7 +416,8 @@ public class SimplePushbackSideInputDoFnRunnerTest {
             1,
             Instant.ofEpochMilli(0),
             ImmutableList.of(
-                new IntervalWindow(Instant.ofEpochMilli(0), new Instant(0L + WINDOW_SIZE))),
+                new IntervalWindow(
+                    Instant.ofEpochMilli(0), Instant.ofEpochMilli(0L + WINDOW_SIZE))),
             PaneInfo.ON_TIME_AND_ONLY_FIRING);
 
     runner.processElementInReadyWindows(multiWindow);

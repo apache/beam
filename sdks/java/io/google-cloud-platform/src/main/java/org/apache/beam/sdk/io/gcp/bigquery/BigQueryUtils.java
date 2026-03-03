@@ -1087,7 +1087,7 @@ public class BigQueryUtils {
   }
 
   private static ReadableInstant truncateToMillis(Object value) {
-    return new Instant((long) value / 1000);
+    return Instant.ofEpochMilli((long) value / 1000);
   }
 
   private static Object convertAvroArray(

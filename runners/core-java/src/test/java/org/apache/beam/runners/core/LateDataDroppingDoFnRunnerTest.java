@@ -97,7 +97,7 @@ public class LateDataDroppingDoFnRunnerTest {
   }
 
   private <T> WindowedValue<T> createDatum(T element, long timestampMillis) {
-    Instant timestamp = new Instant(timestampMillis);
+    Instant timestamp = Instant.ofEpochMilli(timestampMillis);
     return WindowedValues.of(
         element, timestamp, Arrays.asList(WINDOW_FN.assignWindow(timestamp)), PaneInfo.NO_FIRING);
   }

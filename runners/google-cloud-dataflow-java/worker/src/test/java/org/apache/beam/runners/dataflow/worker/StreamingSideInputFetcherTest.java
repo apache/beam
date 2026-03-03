@@ -201,7 +201,7 @@ public class StreamingSideInputFetcherTest {
   private WindowedValue<String> createDatum(String element, long timestamp) {
     return WindowedValues.of(
         element,
-        new Instant(timestamp),
+        Instant.ofEpochMilli(timestamp),
         Arrays.asList(createWindow(timestamp)),
         PaneInfo.NO_FIRING);
   }
@@ -209,14 +209,15 @@ public class StreamingSideInputFetcherTest {
   private TimerData createTimer(long timestamp) {
     return TimerData.of(
         StateNamespaces.window(IntervalWindow.getCoder(), createWindow(timestamp)),
-        new Instant(timestamp),
-        new Instant(timestamp),
+        Instant.ofEpochMilli(timestamp),
+        Instant.ofEpochMilli(timestamp),
         TimeDomain.EVENT_TIME,
         CausedByDrain.NORMAL);
   }
 
   private IntervalWindow createWindow(long timestamp) {
     return new IntervalWindow(
-        new Instant(timestamp - timestamp % 10), new Instant(timestamp - timestamp % 10 + 10));
+        Instant.ofEpochMilli(timestamp - timestamp % 10),
+        Instant.ofEpochMilli(timestamp - timestamp % 10 + 10));
   }
 }

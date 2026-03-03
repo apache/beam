@@ -137,13 +137,14 @@ public class WindmillStateCacheTest {
 
   private static StateNamespace windowNamespace(long start) {
     return StateNamespaces.window(
-        IntervalWindow.getCoder(), new IntervalWindow(new Instant(start), new Instant(start + 1)));
+        IntervalWindow.getCoder(),
+        new IntervalWindow(Instant.ofEpochMilli(start), Instant.ofEpochMilli(start + 1)));
   }
 
   private static StateNamespace triggerNamespace(long start, int triggerIdx) {
     return StateNamespaces.windowAndTrigger(
         IntervalWindow.getCoder(),
-        new IntervalWindow(new Instant(start), new Instant(start + 1)),
+        new IntervalWindow(Instant.ofEpochMilli(start), Instant.ofEpochMilli(start + 1)),
         triggerIdx);
   }
 

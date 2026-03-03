@@ -60,7 +60,7 @@ public class WindowFnTestUtils {
       WindowFn<T, W> windowFn, List<Long> timestamps) throws Exception {
     List<TimestampedValue<T>> timestampedValues = new ArrayList<>();
     for (Long timestamp : timestamps) {
-      timestampedValues.add(TimestampedValue.of((T) null, new Instant(timestamp)));
+      timestampedValues.add(TimestampedValue.of((T) null, Instant.ofEpochMilli(timestamp)));
     }
     return runWindowFnWithValue(windowFn, timestampedValues);
   }
@@ -92,7 +92,7 @@ public class WindowFnTestUtils {
   public static <T, W extends BoundedWindow> Collection<W> assignedWindows(
       WindowFn<T, W> windowFn, long timestamp) throws Exception {
     return assignedWindowsWithValue(
-        windowFn, TimestampedValue.of((T) null, new Instant(timestamp)));
+        windowFn, TimestampedValue.of((T) null, Instant.ofEpochMilli(timestamp)));
   }
 
   /**
@@ -106,7 +106,7 @@ public class WindowFnTestUtils {
   }
 
   private static String timestampValue(long timestamp) {
-    return "T" + new Instant(timestamp);
+    return "T" + Instant.ofEpochMilli(timestamp);
   }
 
   /** Test implementation of AssignContext. */
@@ -219,7 +219,7 @@ public class WindowFnTestUtils {
     for (List<Long> timestamps : timestampsPerWindow) {
       List<TimestampedValue<T>> timestampedValues = new ArrayList<>();
       for (Long timestamp : timestamps) {
-        TimestampedValue<T> tv = TimestampedValue.of(null, new Instant(timestamp));
+        TimestampedValue<T> tv = TimestampedValue.of(null, Instant.ofEpochMilli(timestamp));
         timestampedValues.add(tv);
       }
       timestampValuesPerWindow.add(timestampedValues);

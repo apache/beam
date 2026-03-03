@@ -515,7 +515,7 @@ public class TriggerExample {
         int range = MAX_DELAY - MIN_DELAY;
         int delayInMinutes = random.nextInt(range) + MIN_DELAY;
         long delayInMillis = TimeUnit.MINUTES.toMillis(delayInMinutes);
-        timestamp = new Instant(timestamp.getMillis() - delayInMillis);
+        timestamp = Instant.ofEpochMilli(timestamp.getMillis() - delayInMillis);
       }
       c.outputWithTimestamp(c.element(), timestamp);
     }

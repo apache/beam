@@ -537,7 +537,8 @@ class ParDoBoundMultiTranslator<InT, OutT>
 
     @Override
     public Collection<OpMessage<InT>> processWatermark(long watermark) {
-      return Collections.singletonList(OpMessage.ofSideInputWatermark(new Instant(watermark)));
+      return Collections.singletonList(
+          OpMessage.ofSideInputWatermark(Instant.ofEpochMilli(watermark)));
     }
 
     @Override

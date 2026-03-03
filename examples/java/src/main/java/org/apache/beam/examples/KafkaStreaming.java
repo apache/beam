@@ -115,7 +115,7 @@ public class KafkaStreaming {
     // starts.
     Duration windowSize = Duration.standardSeconds(WINDOW_TIME);
     Instant nextWindowStart =
-        new Instant(
+        Instant.ofEpochMilli(
             Instant.now().getMillis()
                 + windowSize.getMillis()
                 - Instant.now().plus(windowSize).getMillis() % windowSize.getMillis());
@@ -156,7 +156,8 @@ public class KafkaStreaming {
               .apply(
                   GenerateSequence.from(0)
                       .withRate(MESSAGES_COUNT, Duration.standardSeconds(WINDOW_TIME))
-                      .withTimestampFn((Long n) -> new Instant(System.currentTimeMillis())))
+                      .withTimestampFn(
+                          (Long n) -> Instant.ofEpochMilli(System.currentTimeMillis())))
               .apply(ParDo.of(new RandomUserScoreGeneratorFn()));
       input.apply(
           KafkaIO.<String, Integer>write()

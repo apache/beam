@@ -200,7 +200,7 @@ public class GenerateSequenceTest {
   private static class ValueAsTimestampFn implements SerializableFunction<Long, Instant> {
     @Override
     public Instant apply(Long input) {
-      return new Instant(input);
+      return Instant.ofEpochMilli(input);
     }
   }
 }

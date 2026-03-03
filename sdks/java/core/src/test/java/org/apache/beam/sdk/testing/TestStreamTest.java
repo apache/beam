@@ -238,7 +238,7 @@ public class TestStreamTest implements Serializable {
   @Test
   @Category({ValidatesRunner.class, UsesTestStream.class})
   public void testFirstElementLate() {
-    Instant lateElementTimestamp = new Instant(-1_000_000);
+    Instant lateElementTimestamp = Instant.ofEpochMilli(-1_000_000);
     TestStream<String> stream =
         TestStream.create(StringUtf8Coder.of())
             .advanceWatermarkTo(Instant.ofEpochMilli(0))

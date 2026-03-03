@@ -139,7 +139,7 @@ public final class TestSparkRunner extends PipelineRunner<SparkPipelineResult> {
             .getMillis();
     Long batchDurationMillis = testSparkPipelineOptions.getBatchIntervalMillis();
     Instant stopPipelineWatermark =
-        new Instant(testSparkPipelineOptions.getStopPipelineWatermark());
+        Instant.ofEpochMilli(testSparkPipelineOptions.getStopPipelineWatermark());
     // we poll for pipeline status in batch-intervals. while this is not in-sync with Spark's
     // execution clock, this is good enough.
     // we break on timeout or end-of-time WM, which ever comes first.

@@ -98,7 +98,7 @@ public class SqlQuery2Test {
   }
 
   private static Bid newBid(long id) {
-    return new Bid(id, 3L, 100L, new Instant(432342L + id), "extra_" + id);
+    return new Bid(id, 3L, 100L, Instant.ofEpochMilli(432342L + id), "extra_" + id);
   }
 
   private static AuctionPrice newAuctionPrice(Bid bid) {

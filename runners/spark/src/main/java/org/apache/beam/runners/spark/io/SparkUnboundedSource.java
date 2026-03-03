@@ -234,7 +234,7 @@ public class SparkUnboundedSource {
             new SparkWatermarks(
                 globalLowWatermarkForBatch,
                 globalHighWatermarkForBatch,
-                new Instant(validTime.milliseconds()));
+                Instant.ofEpochMilli(validTime.milliseconds()));
         // add to watermark queue.
         GlobalWatermarkHolder.add(inputDStreamId, sparkWatermark);
       }

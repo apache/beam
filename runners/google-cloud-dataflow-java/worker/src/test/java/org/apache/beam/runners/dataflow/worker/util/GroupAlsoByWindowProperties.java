@@ -562,7 +562,7 @@ public class GroupAlsoByWindowProperties {
   }
 
   private static BoundedWindow window(long start, long end) {
-    return new IntervalWindow(new Instant(start), new Instant(end));
+    return new IntervalWindow(Instant.ofEpochMilli(start), Instant.ofEpochMilli(end));
   }
 
   private static final class CachingStateInternalsFactory<K> implements StateInternalsFactory<K> {

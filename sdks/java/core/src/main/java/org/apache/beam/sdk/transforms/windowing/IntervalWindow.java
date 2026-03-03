@@ -96,8 +96,8 @@ public class IntervalWindow extends BoundedWindow implements Comparable<Interval
   /** Returns the minimal window that includes both this window and the given window. */
   public IntervalWindow span(IntervalWindow other) {
     return new IntervalWindow(
-        new Instant(Math.min(start.getMillis(), other.start.getMillis())),
-        new Instant(Math.max(end.getMillis(), other.end.getMillis())));
+        Instant.ofEpochMilli(Math.min(start.getMillis(), other.start.getMillis())),
+        Instant.ofEpochMilli(Math.max(end.getMillis(), other.end.getMillis())));
   }
 
   @Override

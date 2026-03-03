@@ -195,7 +195,7 @@ public class KafkaIOTest {
 
   @Rule public ExpectedLogs kafkaIOExpectedLogs = ExpectedLogs.none(KafkaIO.class);
 
-  private static final Instant LOG_APPEND_START_TIME = new Instant(600 * 1000);
+  private static final Instant LOG_APPEND_START_TIME = Instant.ofEpochMilli(600 * 1000);
   private static final String TIMESTAMP_START_MILLIS_CONFIG = "test.timestamp.start.millis";
   private static final String TIMESTAMP_TYPE_CONFIG = "test.timestamp.type";
   static List<String> mkKafkaTopics = ImmutableList.of("topic_a", "topic_b");
@@ -1210,7 +1210,7 @@ public class KafkaIOTest {
                         (tp, prevWatermark) ->
                             new CustomTimestampPolicyWithLimitedDelay<Integer, Long>(
                                 record ->
-                                    new Instant(
+                                    Instant.ofEpochMilli(
                                         TimeUnit.SECONDS.toMillis(record.getKV().getValue())
                                             + customTimestampStartMillis),
                                 Duration.ZERO,
@@ -1288,7 +1288,7 @@ public class KafkaIOTest {
         @Override
         public Instant getTimestampForRecord(PartitionContext ctx, KafkaRecord<K, V> record) {
           lastOffset = record.getOffset();
-          lastTimestamp = new Instant(record.getTimestamp());
+          lastTimestamp = Instant.ofEpochMilli(record.getTimestamp());
           return lastTimestamp;
         }
 
@@ -1436,7 +1436,7 @@ public class KafkaIOTest {
   static class ValueAsTimestampFn implements SerializableFunction<KV<Integer, Long>, Instant> {
     @Override
     public Instant apply(KV<Integer, Long> input) {
-      return new Instant(input.getValue());
+      return Instant.ofEpochMilli(input.getValue());
     }
   }
 
@@ -2234,7 +2234,7 @@ public class KafkaIOTest {
                         null, /*offsetDeduplication*/
                         null, /*topics*/
                         null /*redistributeByRecordKey*/)
-                    .withStartReadTime(new Instant(startTime))
+                    .withStartReadTime(Instant.ofEpochMilli(startTime))
                     .withoutMetadata())
             .apply(Values.create());
 
@@ -2311,7 +2311,7 @@ public class KafkaIOTest {
                     null, /*offsetDeduplication*/
                     null, /*topics*/
                     null /*redistributeByRecordKey*/)
-                .withStartReadTime(new Instant(startTime))
+                .withStartReadTime(Instant.ofEpochMilli(startTime))
                 .withoutMetadata())
         .apply(Values.create());
 

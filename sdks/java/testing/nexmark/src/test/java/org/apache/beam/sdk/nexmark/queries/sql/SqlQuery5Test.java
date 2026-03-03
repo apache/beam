@@ -77,7 +77,7 @@ public class SqlQuery5Test {
         auction,
         3L,
         100L,
-        new Instant(432342L + index * config.windowPeriodSec * 1000),
+        Instant.ofEpochMilli(432342L + index * config.windowPeriodSec * 1000),
         "extra_" + auction);
   }
 }

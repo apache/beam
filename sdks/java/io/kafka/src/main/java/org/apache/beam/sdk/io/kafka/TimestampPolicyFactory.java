@@ -85,7 +85,7 @@ public interface TimestampPolicyFactory<KeyT, ValueT> extends Serializable {
               record.getPartition(),
               record.getOffset(),
               record.getTimestampType());
-          return new Instant(record.getTimestamp());
+          return Instant.ofEpochMilli(record.getTimestamp());
         };
 
     return (tp, previousWatermark) ->
@@ -148,7 +148,7 @@ public interface TimestampPolicyFactory<KeyT, ValueT> extends Serializable {
     @Override
     public Instant getTimestampForRecord(PartitionContext context, KafkaRecord<K, V> record) {
       if (record.getTimestampType().equals(KafkaTimestampType.LOG_APPEND_TIME)) {
-        currentWatermark = new Instant(record.getTimestamp());
+        currentWatermark = Instant.ofEpochMilli(record.getTimestamp());
       } else if (currentWatermark.equals(BoundedWindow.TIMESTAMP_MIN_VALUE)) {
         // This is the first record and it does not have LOG_APPEND_TIME.
         // Most likely the topic is not configured correctly.

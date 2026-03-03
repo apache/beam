@@ -271,8 +271,8 @@ public class SamzaTimerInternalsFactory<K> implements TimerInternalsFactory<K> {
             timerData.getNamespace(),
             timerData.getTimerId(),
             timerData.getTimerFamilyId(),
-            new Instant(lastTimestamp),
-            new Instant(lastTimestamp),
+            Instant.ofEpochMilli(lastTimestamp),
+            Instant.ofEpochMilli(lastTimestamp),
             timerData.getDomain());
       }
 
@@ -651,8 +651,8 @@ public class SamzaTimerInternalsFactory<K> implements TimerInternalsFactory<K> {
               timerKey.getTimerId(),
               timerKey.getTimerFamilyId(),
               timerKey.getStateNamespace(),
-              new Instant(timestamp),
-              new Instant(timestamp),
+              Instant.ofEpochMilli(timestamp),
+              Instant.ofEpochMilli(timestamp),
               domain));
     }
 

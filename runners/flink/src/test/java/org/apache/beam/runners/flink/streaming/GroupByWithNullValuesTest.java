@@ -57,7 +57,7 @@ public class GroupByWithNullValuesTest implements Serializable {
                         new SerializableFunction<Long, Instant>() {
                           @Override
                           public Instant apply(Long input) {
-                            return new Instant(input);
+                            return Instant.ofEpochMilli(input);
                           }
                         }))
             .apply(Window.into(FixedWindows.of(Duration.millis(10))))

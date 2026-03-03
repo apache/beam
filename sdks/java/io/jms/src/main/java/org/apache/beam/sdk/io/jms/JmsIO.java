@@ -683,7 +683,7 @@ public class JmsIO {
         }
 
         currentMessage = this.source.spec.getMessageMapper().mapMessage(message);
-        currentTimestamp = new Instant(message.getJMSTimestamp());
+        currentTimestamp = Instant.ofEpochMilli(message.getJMSTimestamp());
 
         String messageID = message.getJMSMessageID();
         if (messageID != null) {

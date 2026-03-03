@@ -57,7 +57,7 @@ public abstract class NexmarkQueryModel<T extends KnownSize> implements Serializ
     long p = period.getMillis();
     long lim = ts - ts % p;
     long s = size.getMillis();
-    return new Instant(lim - s);
+    return Instant.ofEpochMilli(lim - s);
   }
 
   /** Convert {@code itr} to strings capturing values and timestamps. */

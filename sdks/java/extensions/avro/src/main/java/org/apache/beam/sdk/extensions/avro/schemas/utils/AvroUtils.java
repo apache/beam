@@ -1632,7 +1632,7 @@ public class AvroUtils {
 
   private static Object convertDateTimeStrict(Long value, FieldType fieldType) {
     checkTypeName(fieldType.getTypeName(), TypeName.DATETIME, "dateTime");
-    return new Instant(value);
+    return Instant.ofEpochMilli(value);
   }
 
   private static Object convertFloatStrict(Float value, FieldType fieldType) {

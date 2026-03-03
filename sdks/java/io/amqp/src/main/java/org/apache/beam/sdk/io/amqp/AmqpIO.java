@@ -238,7 +238,7 @@ public class AmqpIO {
     private Messenger messenger;
     private Message current;
     private Instant currentTimestamp;
-    private Instant watermark = new Instant(Long.MIN_VALUE);
+    private Instant watermark = Instant.ofEpochMilli(Long.MIN_VALUE);
     private AmqpCheckpointMark checkpointMark;
 
     public UnboundedAmqpReader(UnboundedAmqpSource source, AmqpCheckpointMark checkpointMark) {
@@ -304,7 +304,7 @@ public class AmqpIO {
       Message message = messenger.get();
       Tracker tracker = messenger.incomingTracker();
       checkpointMark.trackers.add(tracker);
-      currentTimestamp = new Instant(message.getCreationTime());
+      currentTimestamp = Instant.ofEpochMilli(message.getCreationTime());
       watermark = currentTimestamp;
       current = message;
       return true;

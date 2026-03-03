@@ -73,8 +73,10 @@ public class WindmillTimeUtilsTest {
     assertEquals(Long.MAX_VALUE, harnessToWindmillTimestamp(BoundedWindow.TIMESTAMP_MAX_VALUE));
     assertEquals(-1000, harnessToWindmillTimestamp(Instant.ofEpochMilli(-1)));
     assertEquals(1000, harnessToWindmillTimestamp(Instant.ofEpochMilli(1)));
-    assertEquals(Long.MIN_VALUE + 1, harnessToWindmillTimestamp(new Instant(Long.MIN_VALUE)));
     assertEquals(
-        Long.MIN_VALUE + 1, harnessToWindmillTimestamp(new Instant(Long.MIN_VALUE / 1000 - 1)));
+        Long.MIN_VALUE + 1, harnessToWindmillTimestamp(Instant.ofEpochMilli(Long.MIN_VALUE)));
+    assertEquals(
+        Long.MIN_VALUE + 1,
+        harnessToWindmillTimestamp(Instant.ofEpochMilli(Long.MIN_VALUE / 1000 - 1)));
   }
 }

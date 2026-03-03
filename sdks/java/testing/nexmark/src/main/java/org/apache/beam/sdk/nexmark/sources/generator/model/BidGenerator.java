@@ -66,6 +66,6 @@ public class BidGenerator {
     long price = PriceGenerator.nextPrice(random);
     int currentSize = 8 + 8 + 8 + 8;
     String extra = nextExtra(random, currentSize, config.getAvgBidByteSize());
-    return new Bid(auction, bidder, price, new Instant(timestamp), extra);
+    return new Bid(auction, bidder, price, Instant.ofEpochMilli(timestamp), extra);
   }
 }

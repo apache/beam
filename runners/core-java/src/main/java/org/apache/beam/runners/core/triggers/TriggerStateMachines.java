@@ -95,7 +95,7 @@ public class TriggerStateMachines {
           stateMachine =
               stateMachine.alignedTo(
                   Duration.millis(transform.getAlignTo().getPeriod()),
-                  new Instant(transform.getAlignTo().getOffset()));
+                  Instant.ofEpochMilli(transform.getAlignTo().getOffset()));
           break;
         case DELAY:
           stateMachine =

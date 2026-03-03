@@ -96,9 +96,9 @@ public class WindowingTest implements Serializable {
         + ":"
         + timestamp
         + ":["
-        + new Instant(windowStart)
+        + Instant.ofEpochMilli(windowStart)
         + ".."
-        + new Instant(windowEnd)
+        + Instant.ofEpochMilli(windowEnd)
         + ")";
   }
 
@@ -248,7 +248,7 @@ public class WindowingTest implements Serializable {
     public void processElement(ProcessContext c) {
       List<String> words = Splitter.onPattern("[^a-zA-Z0-9']+").splitToList(c.element());
       if (words.size() == 2) {
-        c.outputWithTimestamp(words.get(0), new Instant(Long.parseLong(words.get(1))));
+        c.outputWithTimestamp(words.get(0), Instant.ofEpochMilli(Long.parseLong(words.get(1))));
       }
     }
   }

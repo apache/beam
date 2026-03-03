@@ -210,7 +210,10 @@ public class StreamingSideInputDoFnRunnerTest {
 
     WindowedValue<String> elem =
         WindowedValues.of(
-            "e", new Instant(timestamp), Arrays.asList(window1, window2), PaneInfo.NO_FIRING);
+            "e",
+            Instant.ofEpochMilli(timestamp),
+            Arrays.asList(window1, window2),
+            PaneInfo.NO_FIRING);
 
     runner.startBundle();
     runner.processElement(elem);
@@ -267,8 +270,8 @@ public class StreamingSideInputDoFnRunnerTest {
         sideInputFetcher.elementBag(window2).read(),
         contains(Iterables.get(elem.explodeWindows(), 1)));
 
-    assertEquals(sideInputFetcher.watermarkHold(window1).read(), new Instant(timestamp));
-    assertEquals(sideInputFetcher.watermarkHold(window2).read(), new Instant(timestamp));
+    assertEquals(sideInputFetcher.watermarkHold(window1).read(), Instant.ofEpochMilli(timestamp));
+    assertEquals(sideInputFetcher.watermarkHold(window2).read(), Instant.ofEpochMilli(timestamp));
   }
 
   @Test
@@ -451,13 +454,14 @@ public class StreamingSideInputDoFnRunnerTest {
   private WindowedValue<String> createDatum(String element, long timestamp) {
     return WindowedValues.of(
         element,
-        new Instant(timestamp),
+        Instant.ofEpochMilli(timestamp),
         Arrays.asList(createWindow(timestamp)),
         PaneInfo.NO_FIRING);
   }
 
   private IntervalWindow createWindow(long timestamp) {
     return new IntervalWindow(
-        new Instant(timestamp - timestamp % 10), new Instant(timestamp - timestamp % 10 + 10));
+        Instant.ofEpochMilli(timestamp - timestamp % 10),
+        Instant.ofEpochMilli(timestamp - timestamp % 10 + 10));
   }
 }

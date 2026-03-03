@@ -45,8 +45,8 @@ public class IntervalWindowTest {
           new IntervalWindow(Instant.ofEpochMilli(0), Instant.ofEpochMilli(0)),
           new IntervalWindow(Instant.ofEpochMilli(0), Instant.ofEpochMilli(1000)),
           new IntervalWindow(Instant.ofEpochMilli(-1000), Instant.ofEpochMilli(735)),
-          new IntervalWindow(Instant.ofEpochMilli(350), new Instant(60 * 60 * 1000)),
-          new IntervalWindow(Instant.ofEpochMilli(0), new Instant(24 * 60 * 60 * 1000)),
+          new IntervalWindow(Instant.ofEpochMilli(350), Instant.ofEpochMilli(60 * 60 * 1000)),
+          new IntervalWindow(Instant.ofEpochMilli(0), Instant.ofEpochMilli(24 * 60 * 60 * 1000)),
           new IntervalWindow(
               Instant.parse("2015-04-01T00:00:00Z"), Instant.parse("2015-04-01T11:45:13Z")));
 

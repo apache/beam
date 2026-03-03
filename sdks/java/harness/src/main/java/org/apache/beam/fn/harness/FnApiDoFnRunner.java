@@ -1365,7 +1365,7 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
           break;
         case PROCESSING_TIME:
           // TODO: This should use an injected clock when using TestStream.
-          fireTimestamp = new Instant(DateTimeUtils.currentTimeMillis());
+          fireTimestamp = Instant.ofEpochMilli(DateTimeUtils.currentTimeMillis());
           break;
         default:
           throw new IllegalArgumentException(

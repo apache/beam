@@ -929,7 +929,7 @@ public class BigQueryUtilsTest {
     long millis = 123456789L;
     assertThat(
         BigQueryUtils.convertAvroFormat(FieldType.DATETIME, millis * 1000, REJECT_OPTIONS),
-        equalTo(new Instant(millis)));
+        equalTo(Instant.ofEpochMilli(millis)));
   }
 
   @Test
@@ -937,7 +937,7 @@ public class BigQueryUtilsTest {
     long millis = 123456789L;
     assertThat(
         BigQueryUtils.convertAvroFormat(FieldType.DATETIME, millis * 1000 + 123, TRUNCATE_OPTIONS),
-        equalTo(new Instant(millis)));
+        equalTo(Instant.ofEpochMilli(millis)));
   }
 
   @Test

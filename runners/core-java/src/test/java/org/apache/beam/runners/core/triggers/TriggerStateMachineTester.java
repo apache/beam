@@ -86,7 +86,7 @@ public class TriggerStateMachineTester<InputT, W extends BoundedWindow> {
       List<TimestampedValue<Integer>> timestampedValues =
           Lists.newArrayListWithCapacity(values.length);
       for (int value : values) {
-        timestampedValues.add(TimestampedValue.of(value, new Instant(value)));
+        timestampedValues.add(TimestampedValue.of(value, Instant.ofEpochMilli(value)));
       }
       injectElements(timestampedValues);
     }
