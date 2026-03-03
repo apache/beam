@@ -115,7 +115,7 @@ public class ReferenceCountingExecutableStageContextFactory
   private void scheduleRelease(JobInfo jobInfo) {
     WrappedContext wrapper = getCache().get(jobInfo.jobId());
     Preconditions.checkState(
-        wrapper != null, "Releasing context for unknown job: " + jobInfo.jobId());
+        wrapper != null, "Releasing context for unknown job %s", jobInfo.jobId());
 
     PipelineOptions pipelineOptions =
         PipelineOptionsTranslation.fromProto(jobInfo.pipelineOptions());
