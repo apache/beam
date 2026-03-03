@@ -1,9 +1,9 @@
 {
   "commentedAboutFailingChecks": false,
   "reviewersAssignedForLabels": {
-    "python": "jrmccluskey",
-    "java": "ahmedabu98",
-    "kafka": "johnjcasey"
+    "python": "tvalentyn",
+    "java": "Abacn",
+    "kafka": "tvalentyn"
   },
   "nextAction": "Reviewers",
   "stopReviewerNotifications": false,
