@@ -17,9 +17,9 @@
  */
 package org.apache.beam.sdk.io;
 
-import static org.apache.beam.sdk.TestUtils.LINES2_ARRAY;
-import static org.apache.beam.sdk.TestUtils.LINES_ARRAY;
-import static org.apache.beam.sdk.TestUtils.NO_LINES_ARRAY;
+import static org.apache.beam.sdk.TestUtils.LINES;
+import static org.apache.beam.sdk.TestUtils.LINES2;
+import static org.apache.beam.sdk.TestUtils.NO_LINES;
 import static org.apache.beam.sdk.io.fs.MatchResult.Status.NOT_FOUND;
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasDisplayItem;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.MoreObjects.firstNonNull;
@@ -551,49 +551,49 @@ public class TextIOWriteTest {
   @Test
   @Category(NeedsRunner.class)
   public void testWriteStrings() throws Exception {
-    runTestWrite(LINES_ARRAY);
+    runTestWrite(LINES.toArray(new String[0]));
   }
 
   @Test
   @Category(NeedsRunner.class)
   public void testWriteEmptyStringsNoSharding() throws Exception {
-    runTestWrite(NO_LINES_ARRAY, 0);
+    runTestWrite(NO_LINES.toArray(new String[0]), 0);
   }
 
   @Test
   @Category(NeedsRunner.class)
   public void testWriteEmptyStrings() throws Exception {
-    runTestWrite(NO_LINES_ARRAY);
+    runTestWrite(NO_LINES.toArray(new String[0]));
   }
 
   @Test
   @Category(NeedsRunner.class)
   public void testWriteEmptyStringsSkipIfEmpty() throws Exception {
-    runTestWrite(NO_LINES_ARRAY, null, null, 0, true);
+    runTestWrite(NO_LINES.toArray(new String[0]), null, null, 0, true);
   }
 
   @Test
   @Category(NeedsRunner.class)
   public void testShardedWrite() throws Exception {
-    runTestWrite(LINES_ARRAY, 5);
+    runTestWrite(LINES.toArray(new String[0]), 5);
   }
 
   @Test
   @Category(NeedsRunner.class)
   public void testWriteWithHeader() throws Exception {
-    runTestWrite(LINES_ARRAY, MY_HEADER, null);
+    runTestWrite(LINES.toArray(new String[0]), MY_HEADER, null);
   }
 
   @Test
   @Category(NeedsRunner.class)
   public void testWriteWithFooter() throws Exception {
-    runTestWrite(LINES_ARRAY, null, MY_FOOTER);
+    runTestWrite(LINES.toArray(new String[0]), null, MY_FOOTER);
   }
 
   @Test
   @Category(NeedsRunner.class)
   public void testWriteWithHeaderAndFooter() throws Exception {
-    runTestWrite(LINES_ARRAY, MY_HEADER, MY_FOOTER);
+    runTestWrite(LINES.toArray(new String[0]), MY_HEADER, MY_FOOTER);
   }
 
   @Test
@@ -605,7 +605,8 @@ public class TextIOWriteTest {
         FileSystems.matchNewResource(
             Files.createTempDirectory(tempFolder.getRoot().toPath(), "testwrite").toString(), true);
 
-    PCollection<String> input = p.apply(Create.of(Arrays.asList(LINES2_ARRAY)).withCoder(coder));
+    PCollection<String> input =
+        p.apply(Create.of(Arrays.asList(LINES2.toArray(new String[0]))).withCoder(coder));
 
     final WritableByteChannelFactory writableByteChannelFactory =
         new DrunkWritableByteChannelFactory();
@@ -624,8 +625,8 @@ public class TextIOWriteTest {
 
     p.run();
 
-    final List<String> drunkElems = new ArrayList<>(LINES2_ARRAY.length * 2 + 2);
-    for (String elem : LINES2_ARRAY) {
+    final List<String> drunkElems = new ArrayList<>(LINES2.toArray(new String[0]).length * 2 + 2);
+    for (String elem : LINES2.toArray(new String[0])) {
       drunkElems.add(elem);
       drunkElems.add(elem);
     }
@@ -715,7 +716,7 @@ public class TextIOWriteTest {
         FileBasedSink.convertToFileResourceIfPossible(baseDir.resolve(outputName).toString());
 
     PCollection<String> input =
-        p.apply(Create.of(Arrays.asList(LINES2_ARRAY)).withCoder(coder))
+        p.apply(Create.of(Arrays.asList(LINES2.toArray(new String[0]))).withCoder(coder))
             .setIsBoundedInternal(PCollection.IsBounded.UNBOUNDED)
             .apply(Window.into(FixedWindows.of(Duration.standardSeconds(10))));
 
@@ -741,7 +742,7 @@ public class TextIOWriteTest {
 
     // Now assert file contents irrespective of exact shard indices.
     assertOutputFiles(
-        LINES2_ARRAY,
+        LINES2.toArray(new String[0]),
         null,
         null,
         0, // match all files by prefix

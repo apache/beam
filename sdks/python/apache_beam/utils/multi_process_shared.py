@@ -22,11 +22,14 @@ on it via rpc.
 """
 # pytype: skip-file
 
+import atexit
 import logging
 import multiprocessing.managers
 import os
 import tempfile
 import threading
+import time
+import traceback
 from typing import Any
 from typing import Callable
 from typing import Dict
@@ -79,6 +82,10 @@ class _SingletonProxy:
     assert self._SingletonProxy_valid
     self._SingletonProxy_valid = False
 
+  def singletonProxy_unsafe_hard_delete(self):
+    assert self._SingletonProxy_valid
+    self._SingletonProxy_entry.unsafe_hard_delete()
+
   def __getattr__(self, name):
     if not self._SingletonProxy_valid:
       raise RuntimeError('Entry was released.')
@@ -105,13 +112,16 @@ class _SingletonProxy:
     dir = self._SingletonProxy_entry.obj.__dir__()
     dir.append('singletonProxy_call__')
     dir.append('singletonProxy_release')
+    dir.append('singletonProxy_unsafe_hard_delete')
     return dir
 
 
 class _SingletonEntry:
   """Represents a single, refcounted entry in this process."""
-  def __init__(self, constructor, initialize_eagerly=True):
+  def __init__(
+      self, constructor, initialize_eagerly=True, hard_delete_callback=None):
     self.constructor = constructor
+    self._hard_delete_callback = hard_delete_callback
     self.refcount = 0
     self.lock = threading.Lock()
     if initialize_eagerly:
@@ -141,14 +151,28 @@ class _SingletonEntry:
       if self.initialied:
         del self.obj
         self.initialied = False
+      if self._hard_delete_callback:
+        self._hard_delete_callback()
 
 
 class _SingletonManager:
   entries: Dict[Any, Any] = {}
 
-  def register_singleton(self, constructor, tag, initialize_eagerly=True):
+  def __init__(self):
+    self._hard_delete_callback = None
+
+  def set_hard_delete_callback(self, callback):
+    self._hard_delete_callback = callback
+
+  def register_singleton(
+      self,
+      constructor,
+      tag,
+      initialize_eagerly=True,
+      hard_delete_callback=None):
     assert tag not in self.entries, tag
-    self.entries[tag] = _SingletonEntry(constructor, initialize_eagerly)
+    self.entries[tag] = _SingletonEntry(
+        constructor, initialize_eagerly, hard_delete_callback)
 
   def has_singleton(self, tag):
     return tag in self.entries
@@ -160,7 +184,7 @@ class _SingletonManager:
     return self.entries[tag].release(obj)
 
   def unsafe_hard_delete_singleton(self, tag):
-    return self.entries[tag].unsafe_hard_delete()
+    self.entries[tag].unsafe_hard_delete()
 
 
 _process_level_singleton_manager = _SingletonManager()
@@ -202,6 +226,87 @@ class _AutoProxyWrapper:
 
   def get_auto_proxy_object(self):
     return self._proxyObject
+
+  def unsafe_hard_delete(self):
+    self._proxyObject.unsafe_hard_delete()
+
+
+def _run_server_process(address_file, tag, constructor, authkey, life_line):
+  """
+    Runs in a separate process.
+    Includes a 'Suicide Pact' monitor: If parent dies, I die.
+    """
+  parent_pid = os.getppid()
+
+  def cleanup_files():
+    logging.info("Server process exiting. Deleting files for %s", tag)
+    try:
+      if os.path.exists(address_file):
+        os.remove(address_file)
+      if os.path.exists(address_file + ".error"):
+        os.remove(address_file + ".error")
+    except Exception as e:
+      logging.warning('Failed to cleanup files for tag %s: %s', tag, e)
+
+  def handle_unsafe_hard_delete():
+    cleanup_files()
+    os._exit(0)
+
+  def _monitor_parent():
+    """Checks if parent is alive every second."""
+    while True:
+      try:
+        # This will break if parent dies.
+        life_line.recv_bytes()
+      except (EOFError, OSError, BrokenPipeError):
+        logging.warning(
+            "Process %s detected Parent %s died. Self-destructing.",
+            os.getpid(),
+            parent_pid)
+        cleanup_files()
+        os._exit(0)
+      time.sleep(0.5)
+
+  atexit.register(cleanup_files)
+
+  try:
+    t = threading.Thread(target=_monitor_parent, daemon=True)
+
+    logging.getLogger().setLevel(logging.INFO)
+    multiprocessing.current_process().authkey = authkey
+
+    serving_manager = _SingletonRegistrar(
+        address=('localhost', 0), authkey=authkey)
+    _process_level_singleton_manager.set_hard_delete_callback(
+        handle_unsafe_hard_delete)
+    _process_level_singleton_manager.register_singleton(
+        constructor,
+        tag,
+        initialize_eagerly=True,
+        hard_delete_callback=handle_unsafe_hard_delete)
+    # Start monitoring parent after initialisation is done to avoid
+    # potential race conditions.
+    t.start()
+
+    server = serving_manager.get_server()
+    logging.info(
+        'Process %s: Proxy serving %s at %s', os.getpid(), tag, server.address)
+
+    with open(address_file + '.tmp', 'w') as fout:
+      fout.write('%s:%d' % server.address)
+    os.rename(address_file + '.tmp', address_file)
+
+    server.serve_forever()
+
+  except Exception:
+    tb = traceback.format_exc()
+    try:
+      with open(address_file + ".error.tmp", 'w') as fout:
+        fout.write(tb)
+      os.rename(address_file + ".error.tmp", address_file + ".error")
+    except Exception:
+      logging.error("CRITICAL ERROR IN SHARED SERVER:\n%s", tb)
+    os._exit(1)
 
 
 class MultiProcessShared(Generic[T]):
@@ -252,7 +357,8 @@ class MultiProcessShared(Generic[T]):
       tag: Any,
       *,
       path: str = tempfile.gettempdir(),
-      always_proxy: Optional[bool] = None):
+      always_proxy: Optional[bool] = None,
+      spawn_process: bool = False):
     self._constructor = constructor
     self._tag = tag
     self._path = path
@@ -262,6 +368,7 @@ class MultiProcessShared(Generic[T]):
     self._rpc_address = None
     self._cross_process_lock = fasteners.InterProcessLock(
         os.path.join(self._path, self._tag) + '.lock')
+    self._spawn_process = spawn_process
 
   def _get_manager(self):
     if self._manager is None:
@@ -301,6 +408,11 @@ class MultiProcessShared(Generic[T]):
     # Caveat: They must always agree, as they will be ignored if the object
     # is already constructed.
     singleton = self._get_manager().acquire_singleton(self._tag)
+    # Trigger a sweep of zombie processes.
+    # calling active_children() has the side-effect of joining any finished
+    # processes, effectively reaping zombies from previous unsafe_hard_deletes.
+    if self._spawn_process:
+      multiprocessing.active_children()
     return _AutoProxyWrapper(singleton)
 
   def release(self, obj):
@@ -318,22 +430,101 @@ class MultiProcessShared(Generic[T]):
     self._get_manager().unsafe_hard_delete_singleton(self._tag)
 
   def _create_server(self, address_file):
-    # We need to be able to authenticate with both the manager and the process.
-    self._serving_manager = _SingletonRegistrar(
-        address=('localhost', 0), authkey=AUTH_KEY)
-    multiprocessing.current_process().authkey = AUTH_KEY
-    # Initialize eagerly to avoid acting as the server if there are issues.
-    # Note, however, that _create_server itself is called lazily.
-    _process_level_singleton_manager.register_singleton(
-        self._constructor, self._tag, initialize_eagerly=True)
-    self._server = self._serving_manager.get_server()
-    logging.info(
-        'Starting proxy server at %s for shared %s',
-        self._server.address,
-        self._tag)
-    with open(address_file + '.tmp', 'w') as fout:
-      fout.write('%s:%d' % self._server.address)
-    os.rename(address_file + '.tmp', address_file)
-    t = threading.Thread(target=self._server.serve_forever, daemon=True)
-    t.start()
-    logging.info('Done starting server')
+    if self._spawn_process:
+      error_file = address_file + ".error"
+
+      if os.path.exists(error_file):
+        try:
+          os.remove(error_file)
+        except OSError:
+          pass
+
+      # Create a pipe to connect with child process
+      # used to clean up child process if parent dies
+      reader, writer = multiprocessing.Pipe(duplex=False)
+      self._life_line = writer
+
+      ctx = multiprocessing.get_context('spawn')
+      p = ctx.Process(
+          target=_run_server_process,
+          args=(address_file, self._tag, self._constructor, AUTH_KEY, reader),
+          daemon=False  # Must be False for nested proxies
+      )
+      p.start()
+      logging.info("Parent: Waiting for %s to write address file...", self._tag)
+
+      def cleanup_process():
+        if self._life_line:
+          self._life_line.close()
+        if p.is_alive():
+          logging.info(
+              "Parent: Terminating server process %s for %s", p.pid, self._tag)
+          p.terminate()
+          p.join()
+        try:
+          if os.path.exists(address_file):
+            os.remove(address_file)
+          if os.path.exists(error_file):
+            os.remove(error_file)
+        except Exception as e:
+          logging.warning(
+              'Failed to cleanup files for tag %s in atexit handler: %s',
+              self._tag,
+              e)
+
+      atexit.register(cleanup_process)
+
+      start_time = time.time()
+      last_log = start_time
+      while True:
+        if os.path.exists(address_file):
+          break
+
+        if os.path.exists(error_file):
+          with open(error_file, 'r') as f:
+            error_msg = f.read()
+          try:
+            os.remove(error_file)
+          except OSError:
+            pass
+
+          if p.is_alive(): p.terminate()
+          raise RuntimeError(f"Shared Server Process crashed:\n{error_msg}")
+
+        if not p.is_alive():
+          exit_code = p.exitcode
+          raise RuntimeError(
+              "Shared Server Process died unexpectedly"
+              f" with exit code {exit_code}")
+
+        if time.time() - last_log > 300:
+          logging.warning(
+              "Still waiting for %s to initialize... %ss elapsed)",
+              self._tag,
+              int(time.time() - start_time))
+          last_log = time.time()
+
+        time.sleep(0.05)
+
+      logging.info('External process successfully started for %s', self._tag)
+    else:
+      # We need to be able to authenticate with both the manager
+      # and the process.
+      self._serving_manager = _SingletonRegistrar(
+          address=('localhost', 0), authkey=AUTH_KEY)
+      multiprocessing.current_process().authkey = AUTH_KEY
+      # Initialize eagerly to avoid acting as the server if there are issues.
+      # Note, however, that _create_server itself is called lazily.
+      _process_level_singleton_manager.register_singleton(
+          self._constructor, self._tag, initialize_eagerly=True)
+      self._server = self._serving_manager.get_server()
+      logging.info(
+          'Starting proxy server at %s for shared %s',
+          self._server.address,
+          self._tag)
+      with open(address_file + '.tmp', 'w') as fout:
+        fout.write('%s:%d' % self._server.address)
+      os.rename(address_file + '.tmp', address_file)
+      t = threading.Thread(target=self._server.serve_forever, daemon=True)
+      t.start()
+      logging.info('Done starting server')

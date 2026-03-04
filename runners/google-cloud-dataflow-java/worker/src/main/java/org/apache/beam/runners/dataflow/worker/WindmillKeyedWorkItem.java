@@ -17,6 +17,8 @@
  */
 package org.apache.beam.runners.dataflow.worker;
 
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkState;
+
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -31,12 +33,14 @@ import org.apache.beam.runners.core.TimerInternals.TimerData;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.Timer;
 import org.apache.beam.runners.dataflow.worker.windmill.state.WindmillTagEncoding;
+import org.apache.beam.runners.dataflow.worker.windmill.state.WindmillTimerData;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.StructuredCoder;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.util.common.ElementByteSizeObserver;
+import org.apache.beam.sdk.values.CausedByDrain;
 import org.apache.beam.sdk.values.WindowedValue;
 import org.apache.beam.sdk.values.WindowedValues;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Predicate;
@@ -100,12 +104,13 @@ public class WindmillKeyedWorkItem<K, ElemT> implements KeyedWorkItem<K, ElemT> 
     return eventTimers
         .append(nonEventTimers)
         .transform(
-            timer ->
-                windmillTagEncoding.windmillTimerToTimerData(
-                    WindmillNamespacePrefix.SYSTEM_NAMESPACE_PREFIX,
-                    timer,
-                    windowCoder,
-                    drainMode));
+            timer -> {
+              WindmillTimerData windmillTimerData =
+                  windmillTagEncoding.windmillTimerToTimerData(timer, windowCoder, drainMode);
+              checkState(
+                  windmillTimerData.getWindmillTimerType() == WindmillTimerType.SYSTEM_TIMER);
+              return windmillTimerData.getTimerData();
+            });
   }
 
   @Override
@@ -124,12 +129,14 @@ public class WindmillKeyedWorkItem<K, ElemT> implements KeyedWorkItem<K, ElemT> 
                  * https://s.apache.org/beam-drain-mode - propagate drain bit if aggregation/expiry
                  * induced by drain happened upstream
                  */
-                boolean drainingValueFromUpstream = false;
+                CausedByDrain drainingValueFromUpstream = CausedByDrain.NORMAL;
                 if (WindowedValues.WindowedValueCoder.isMetadataSupported()) {
                   BeamFnApi.Elements.ElementMetadata elementMetadata =
                       WindmillSink.decodeAdditionalMetadata(windowsCoder, message.getMetadata());
                   drainingValueFromUpstream =
-                      elementMetadata.getDrain() == BeamFnApi.Elements.DrainMode.Enum.DRAINING;
+                      elementMetadata.getDrain() == BeamFnApi.Elements.DrainMode.Enum.DRAINING
+                          ? CausedByDrain.CAUSED_BY_DRAIN
+                          : CausedByDrain.NORMAL;
                 }
                 InputStream inputStream = message.getData().newInput();
                 ElemT value = valueCoder.decode(inputStream, Coder.Context.OUTER);

@@ -564,7 +564,7 @@ class TestParquet(unittest.TestCase):
     # count to row_group_size also being sufficiently large (but the required
     # ratio to pass varies for values of row_group_size and, somehow, the
     # version of pyarrow being tested against.)
-    file_name = self._write_data(count=280, row_group_size=20)
+    file_name = self._write_data(count=320, row_group_size=20)
     source = _create_parquet_source(file_name)
 
     splits = [split for split in source.split(desired_bundle_size=float('inf'))]

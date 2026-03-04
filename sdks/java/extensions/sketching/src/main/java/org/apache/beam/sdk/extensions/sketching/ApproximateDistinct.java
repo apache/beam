@@ -583,9 +583,10 @@ public final class ApproximateDistinct {
   }
 
   /**
+   * Returns the Mean squared error of the Estimation of cardinality to expect for the given value
+   * of p.
+   *
    * @param p the precision i.e. the number of bits used for indexing the buckets
-   * @return the Mean squared error of the Estimation of cardinality to expect for the given value
-   *     of p.
    */
   public static double relativeErrorForPrecision(int p) {
     if (p < 4) {

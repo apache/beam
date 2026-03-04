@@ -39,6 +39,7 @@ import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.WindowedValueMultiReceiver;
 import org.apache.beam.sdk.util.WindowedValueReceiver;
 import org.apache.beam.sdk.util.construction.ParDoTranslation;
+import org.apache.beam.sdk.values.CausedByDrain;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
@@ -266,7 +267,8 @@ abstract class DoFnRunnerFactory<InT, T> implements Serializable {
           BoundedWindow window,
           Instant timestamp,
           Instant outputTimestamp,
-          TimeDomain timeDomain) {
+          TimeDomain timeDomain,
+          CausedByDrain causedByDrain) {
         throw new UnsupportedOperationException();
       }
 

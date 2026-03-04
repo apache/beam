@@ -25,6 +25,7 @@ import sys
 import threading
 import time
 import uuid
+from collections.abc import Callable
 from collections.abc import Iterable
 from collections.abc import Sequence
 from dataclasses import dataclass
@@ -175,7 +176,13 @@ class VLLMCompletionsModelHandler(ModelHandler[str,
   def __init__(
       self,
       model_name: str,
-      vllm_server_kwargs: Optional[dict[str, str]] = None):
+      vllm_server_kwargs: Optional[dict[str, str]] = None,
+      *,
+      min_batch_size: Optional[int] = None,
+      max_batch_size: Optional[int] = None,
+      max_batch_duration_secs: Optional[int] = None,
+      max_batch_weight: Optional[int] = None,
+      element_size_fn: Optional[Callable[[Any], int]] = None):
     """Implementation of the ModelHandler interface for vLLM using text as
     input.
 
@@ -194,10 +201,24 @@ class VLLMCompletionsModelHandler(ModelHandler[str,
         `{'echo': 'true'}` to prepend new messages with the previous message.
         For a list of possible kwargs, see
         https://docs.vllm.ai/en/latest/serving/openai_compatible_server.html#extra-parameters-for-completions-api
+      min_batch_size: optional. the minimum batch size to use when batching
+        inputs.
+      max_batch_size: optional. the maximum batch size to use when batching
+        inputs.
+      max_batch_duration_secs: optional. the maximum amount of time to buffer
+        a batch before emitting; used in streaming contexts.
+      max_batch_weight: optional. the maximum total weight of a batch.
+      element_size_fn: optional. a function that returns the size (weight) of
+        an element.
     """
+    super().__init__(
+        min_batch_size=min_batch_size,
+        max_batch_size=max_batch_size,
+        max_batch_duration_secs=max_batch_duration_secs,
+        max_batch_weight=max_batch_weight,
+        element_size_fn=element_size_fn)
     self._model_name = model_name
     self._vllm_server_kwargs: dict[str, str] = vllm_server_kwargs or {}
-    self._env_vars = {}
 
   def load_model(self) -> _VLLMModelServer:
     return _VLLMModelServer(self._model_name, self._vllm_server_kwargs)
@@ -253,7 +274,13 @@ class VLLMChatModelHandler(ModelHandler[Sequence[OpenAIChatMessage],
       self,
       model_name: str,
       chat_template_path: Optional[str] = None,
-      vllm_server_kwargs: Optional[dict[str, str]] = None):
+      vllm_server_kwargs: Optional[dict[str, str]] = None,
+      *,
+      min_batch_size: Optional[int] = None,
+      max_batch_size: Optional[int] = None,
+      max_batch_duration_secs: Optional[int] = None,
+      max_batch_weight: Optional[int] = None,
+      element_size_fn: Optional[Callable[[Any], int]] = None):
     """ Implementation of the ModelHandler interface for vLLM using previous
     messages as input.
 
@@ -277,10 +304,24 @@ class VLLMChatModelHandler(ModelHandler[Sequence[OpenAIChatMessage],
         `{'echo': 'true'}` to prepend new messages with the previous message.
         For a list of possible kwargs, see
         https://docs.vllm.ai/en/latest/serving/openai_compatible_server.html#extra-parameters-for-chat-api
+      min_batch_size: optional. the minimum batch size to use when batching
+        inputs.
+      max_batch_size: optional. the maximum batch size to use when batching
+        inputs.
+      max_batch_duration_secs: optional. the maximum amount of time to buffer
+        a batch before emitting; used in streaming contexts.
+      max_batch_weight: optional. the maximum total weight of a batch.
+      element_size_fn: optional. a function that returns the size (weight) of
+        an element.
     """
+    super().__init__(
+        min_batch_size=min_batch_size,
+        max_batch_size=max_batch_size,
+        max_batch_duration_secs=max_batch_duration_secs,
+        max_batch_weight=max_batch_weight,
+        element_size_fn=element_size_fn)
     self._model_name = model_name
     self._vllm_server_kwargs: dict[str, str] = vllm_server_kwargs or {}
-    self._env_vars = {}
     self._chat_template_path = chat_template_path
     self._chat_file = f'template-{uuid.uuid4().hex}.jinja'
 

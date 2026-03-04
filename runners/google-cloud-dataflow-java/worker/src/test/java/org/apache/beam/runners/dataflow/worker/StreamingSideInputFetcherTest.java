@@ -45,6 +45,7 @@ import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.util.CoderUtils;
+import org.apache.beam.sdk.values.CausedByDrain;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.WindowedValue;
@@ -210,7 +211,8 @@ public class StreamingSideInputFetcherTest {
         StateNamespaces.window(IntervalWindow.getCoder(), createWindow(timestamp)),
         new Instant(timestamp),
         new Instant(timestamp),
-        TimeDomain.EVENT_TIME);
+        TimeDomain.EVENT_TIME,
+        CausedByDrain.NORMAL);
   }
 
   private IntervalWindow createWindow(long timestamp) {

@@ -30,6 +30,7 @@ import org.apache.beam.runners.direct.WatermarkManager.TransformWatermarks;
 import org.apache.beam.runners.local.StructuralKey;
 import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.state.TimeDomain;
+import org.apache.beam.sdk.values.CausedByDrain;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.junit.Before;
@@ -69,19 +70,22 @@ public class DirectTimerInternalsTest {
             StateNamespaces.global(),
             new Instant(20145L),
             new Instant(20145L),
-            TimeDomain.EVENT_TIME);
+            TimeDomain.EVENT_TIME,
+            CausedByDrain.NORMAL);
     TimerData processingTimer =
         TimerData.of(
             StateNamespaces.global(),
             new Instant(125555555L),
             new Instant(125555555L),
-            TimeDomain.PROCESSING_TIME);
+            TimeDomain.PROCESSING_TIME,
+            CausedByDrain.NORMAL);
     TimerData synchronizedProcessingTimer =
         TimerData.of(
             StateNamespaces.global(),
             new Instant(98745632189L),
             new Instant(98745632189L),
-            TimeDomain.SYNCHRONIZED_PROCESSING_TIME);
+            TimeDomain.SYNCHRONIZED_PROCESSING_TIME,
+            CausedByDrain.NORMAL);
     internals.setTimer(eventTimer);
     internals.setTimer(processingTimer);
     internals.setTimer(synchronizedProcessingTimer);
@@ -98,19 +102,22 @@ public class DirectTimerInternalsTest {
             StateNamespaces.global(),
             new Instant(20145L),
             new Instant(20145L),
-            TimeDomain.EVENT_TIME);
+            TimeDomain.EVENT_TIME,
+            CausedByDrain.NORMAL);
     TimerData processingTimer =
         TimerData.of(
             StateNamespaces.global(),
             new Instant(125555555L),
             new Instant(125555555L),
-            TimeDomain.PROCESSING_TIME);
+            TimeDomain.PROCESSING_TIME,
+            CausedByDrain.NORMAL);
     TimerData synchronizedProcessingTimer =
         TimerData.of(
             StateNamespaces.global(),
             new Instant(98745632189L),
             new Instant(98745632189L),
-            TimeDomain.SYNCHRONIZED_PROCESSING_TIME);
+            TimeDomain.SYNCHRONIZED_PROCESSING_TIME,
+            CausedByDrain.NORMAL);
     internals.deleteTimer(eventTimer);
     internals.deleteTimer(processingTimer);
     internals.deleteTimer(synchronizedProcessingTimer);

@@ -495,9 +495,9 @@ public class TextSource extends FileBasedSource<String> {
   }
 
   /**
-   * @see <a
-   *     href="https://en.wikipedia.org/wiki/Knuth%E2%80%93Morris%E2%80%93Pratt_algorithm">Knuth–Morris–Pratt
-   *     algorithm</a>
+   * See <a
+   * href="https://en.wikipedia.org/wiki/Knuth%E2%80%93Morris%E2%80%93Pratt_algorithm">Knuth–Morris–Pratt
+   * algorithm</a>.
    */
   static class KMPDelimiterFinder {
     private final byte[] delimiter;

@@ -227,6 +227,8 @@ class HuggingFaceModelHandlerKeyedTensor(ModelHandler[dict[str,
       max_batch_duration_secs: Optional[int] = None,
       large_model: bool = False,
       model_copies: Optional[int] = None,
+      max_batch_weight: Optional[int] = None,
+      element_size_fn: Optional[Callable[[Any], int]] = None,
       **kwargs):
     """
     Implementation of the ModelHandler interface for HuggingFace with
@@ -262,27 +264,28 @@ class HuggingFaceModelHandlerKeyedTensor(ModelHandler[dict[str,
       model_copies: The exact number of models that you would like loaded
         onto your machine. This can be useful if you exactly know your CPU or
         GPU capacity and want to maximize resource utilization.
+      max_batch_weight: the maximum total weight of a batch.
+      element_size_fn: a function that returns the size (weight) of an element.
       kwargs: 'env_vars' can be used to set environment variables
         before loading the model.
 
     **Supported Versions:** HuggingFaceModelHandler supports
     transformers>=4.18.0.
     """
+    super().__init__(
+        min_batch_size=min_batch_size,
+        max_batch_size=max_batch_size,
+        max_batch_duration_secs=max_batch_duration_secs,
+        max_batch_weight=max_batch_weight,
+        element_size_fn=element_size_fn,
+        large_model=large_model,
+        model_copies=model_copies,
+        **kwargs)
     self._model_uri = model_uri
     self._model_class = model_class
     self._device = device
     self._inference_fn = inference_fn
     self._model_config_args = load_model_args if load_model_args else {}
-    self._batching_kwargs = {}
-    self._env_vars = kwargs.get("env_vars", {})
-    if min_batch_size is not None:
-      self._batching_kwargs["min_batch_size"] = min_batch_size
-    if max_batch_size is not None:
-      self._batching_kwargs["max_batch_size"] = max_batch_size
-    if max_batch_duration_secs is not None:
-      self._batching_kwargs["max_batch_duration_secs"] = max_batch_duration_secs
-    self._share_across_processes = large_model or (model_copies is not None)
-    self._model_copies = model_copies or 1
     self._framework = framework
 
     _validate_constructor_args(
@@ -352,15 +355,6 @@ class HuggingFaceModelHandlerKeyedTensor(ModelHandler[dict[str,
       return sum(
           (el.element_size() for tensor in batch for el in tensor.values()))
 
-  def batch_elements_kwargs(self):
-    return self._batching_kwargs
-
-  def share_model_across_processes(self) -> bool:
-    return self._share_across_processes
-
-  def model_copies(self) -> int:
-    return self._model_copies
-
   def get_metrics_namespace(self) -> str:
     """
     Returns:
@@ -415,6 +409,8 @@ class HuggingFaceModelHandlerTensor(ModelHandler[Union[tf.Tensor, torch.Tensor],
       max_batch_duration_secs: Optional[int] = None,
       large_model: bool = False,
       model_copies: Optional[int] = None,
+      max_batch_weight: Optional[int] = None,
+      element_size_fn: Optional[Callable[[Any], int]] = None,
       **kwargs):
     """
     Implementation of the ModelHandler interface for HuggingFace with
@@ -450,27 +446,28 @@ class HuggingFaceModelHandlerTensor(ModelHandler[Union[tf.Tensor, torch.Tensor],
       model_copies: The exact number of models that you would like loaded
         onto your machine. This can be useful if you exactly know your CPU or
         GPU capacity and want to maximize resource utilization.
+      max_batch_weight: the maximum total weight of a batch.
+      element_size_fn: a function that returns the size (weight) of an element.
       kwargs: 'env_vars' can be used to set environment variables
         before loading the model.
 
     **Supported Versions:** HuggingFaceModelHandler supports
     transformers>=4.18.0.
     """
+    super().__init__(
+        min_batch_size=min_batch_size,
+        max_batch_size=max_batch_size,
+        max_batch_duration_secs=max_batch_duration_secs,
+        max_batch_weight=max_batch_weight,
+        element_size_fn=element_size_fn,
+        large_model=large_model,
+        model_copies=model_copies,
+        **kwargs)
     self._model_uri = model_uri
     self._model_class = model_class
     self._device = device
     self._inference_fn = inference_fn
     self._model_config_args = load_model_args if load_model_args else {}
-    self._batching_kwargs = {}
-    self._env_vars = kwargs.get("env_vars", {})
-    if min_batch_size is not None:
-      self._batching_kwargs["min_batch_size"] = min_batch_size
-    if max_batch_size is not None:
-      self._batching_kwargs["max_batch_size"] = max_batch_size
-    if max_batch_duration_secs is not None:
-      self._batching_kwargs["max_batch_duration_secs"] = max_batch_duration_secs
-    self._share_across_processes = large_model or (model_copies is not None)
-    self._model_copies = model_copies or 1
     self._framework = ""
 
     _validate_constructor_args(
@@ -547,15 +544,6 @@ class HuggingFaceModelHandlerTensor(ModelHandler[Union[tf.Tensor, torch.Tensor],
       return sum(
           (el.element_size() for tensor in batch for el in tensor.values()))
 
-  def batch_elements_kwargs(self):
-    return self._batching_kwargs
-
-  def share_model_across_processes(self) -> bool:
-    return self._share_across_processes
-
-  def model_copies(self) -> int:
-    return self._model_copies
-
   def get_metrics_namespace(self) -> str:
     """
     Returns:
@@ -586,6 +574,8 @@ class HuggingFacePipelineModelHandler(ModelHandler[str,
       max_batch_duration_secs: Optional[int] = None,
       large_model: bool = False,
       model_copies: Optional[int] = None,
+      max_batch_weight: Optional[int] = None,
+      element_size_fn: Optional[Callable[[Any], int]] = None,
       **kwargs):
     """
     Implementation of the ModelHandler interface for Hugging Face Pipelines.
@@ -629,27 +619,28 @@ class HuggingFacePipelineModelHandler(ModelHandler[str,
       model_copies: The exact number of models that you would like loaded
         onto your machine. This can be useful if you exactly know your CPU or
         GPU capacity and want to maximize resource utilization.
+      max_batch_weight: the maximum total weight of a batch.
+      element_size_fn: a function that returns the size (weight) of an element.
       kwargs: 'env_vars' can be used to set environment variables
         before loading the model.
 
     **Supported Versions:** HuggingFacePipelineModelHandler supports
     transformers>=4.18.0.
     """
+    super().__init__(
+        min_batch_size=min_batch_size,
+        max_batch_size=max_batch_size,
+        max_batch_duration_secs=max_batch_duration_secs,
+        max_batch_weight=max_batch_weight,
+        element_size_fn=element_size_fn,
+        large_model=large_model,
+        model_copies=model_copies,
+        **kwargs)
     self._task = task
     self._model = model
     self._inference_fn = inference_fn
     self._load_pipeline_args = load_pipeline_args if load_pipeline_args else {}
-    self._batching_kwargs = {}
     self._framework = "pt"
-    self._env_vars = kwargs.get('env_vars', {})
-    if min_batch_size is not None:
-      self._batching_kwargs['min_batch_size'] = min_batch_size
-    if max_batch_size is not None:
-      self._batching_kwargs['max_batch_size'] = max_batch_size
-    if max_batch_duration_secs is not None:
-      self._batching_kwargs["max_batch_duration_secs"] = max_batch_duration_secs
-    self._share_across_processes = large_model or (model_copies is not None)
-    self._model_copies = model_copies or 1
 
     # Check if the device is specified twice. If true then the device parameter
     # of model handler is overridden.
@@ -725,15 +716,6 @@ class HuggingFacePipelineModelHandler(ModelHandler[str,
       The number of bytes of input batch elements.
     """
     return sum(sys.getsizeof(element) for element in batch)
-
-  def batch_elements_kwargs(self):
-    return self._batching_kwargs
-
-  def share_model_across_processes(self) -> bool:
-    return self._share_across_processes
-
-  def model_copies(self) -> int:
-    return self._model_copies
 
   def get_metrics_namespace(self) -> str:
     """

@@ -44,25 +44,37 @@ public class GcpCoreApiSurfaceTest {
             .pruningPattern("org[.]apache[.]beam[.].*IT")
             .pruningPattern("org[.]checkerframework[.].*[.]qual[.].*")
             .pruningPattern("java[.]lang.*")
-            .pruningPattern("java[.]util.*");
+            .pruningPattern("java[.]util.*")
+            .pruningPattern("jdk[.]internal[.]vm[.]annotation[.].*");
 
     @SuppressWarnings("unchecked")
     final Set<Matcher<Class<?>>> allowedClasses =
         ImmutableSet.of(
+            classesInPackage("com.fasterxml.jackson.annotation"),
             classesInPackage("com.google.api.client.googleapis"),
             classesInPackage("com.google.api.client.http"),
             classesInPackage("com.google.api.client.json"),
             classesInPackage("com.google.api.client.util"),
+            classesInPackage("com.google.api.core"),
+            classesInPackage("com.google.api.gax"),
             classesInPackage("com.google.api.services.storage"),
             classesInPackage("com.google.auth"),
-            classesInPackage("com.fasterxml.jackson.annotation"),
+            classesInPackage("com.google.cloud"),
+            classesInPackage("com.google.errorprone"),
+            classesInPackage("com.google.iam"),
+            classesInPackage("com.google.protobuf"),
+            classesInPackage("com.google.storage"),
+            classesInPackage("com.google.type"),
             classesInPackage("com.google.cloud.hadoop.gcsio"),
             classesInPackage("com.google.common.collect"), // Via gcs-connector ReadOptions builder
+            classesInPackage("io.grpc"),
+            classesInPackage("io.opentelemetry"),
             classesInPackage("java"),
             classesInPackage("javax"),
             classesInPackage("org.apache.beam.model.pipeline.v1"),
             classesInPackage("org.apache.beam.sdk"),
-            classesInPackage("org.joda.time"));
+            classesInPackage("org.joda.time"),
+            classesInPackage("org.threeten.bp"));
 
     assertThat(apiSurface, containsOnlyClassesMatching(allowedClasses));
   }

@@ -228,7 +228,8 @@ public class BeamFlinkDataStreamAdapter {
       DataStream<InputT> flinkInput =
           Preconditions.checkStateNotNull(
               (DataStream<InputT>) inputMap.get(inputId),
-              "missing input referenced in proto: " + inputId);
+              "missing input referenced in proto: %s",
+              inputId);
       context.addDataStream(
           Iterables.getOnlyElement(transform.getOutputsMap().values()),
           flinkInput.process(

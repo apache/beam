@@ -100,6 +100,7 @@ import org.apache.beam.sdk.values.WindowedValues;
 import org.apache.beam.sdk.values.WindowedValues.WindowedValueCoder;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.beam.vendor.grpc.v1p69p0.com.google.protobuf.InvalidProtocolBufferException;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.MoreObjects;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.BiMap;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.HashMultiset;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
@@ -986,8 +987,11 @@ public class FlinkStreamingPortablePipelineTranslator
       // stage
       String sideInputTag = sideInputId.getLocalName();
       String collectionId =
-          components
-              .getTransformsOrThrow(sideInputId.getTransformId())
+          MoreObjects.firstNonNull(
+                  components.getTransformsOrDefault(sideInputId.getTransformId(), null),
+                  // In the case of optimized pipeline, side input transform may not be found in
+                  // component proto
+                  stagePayload.getComponents().getTransformsOrThrow(sideInputId.getTransformId()))
               .getInputsOrThrow(sideInputId.getLocalName());
       RunnerApi.WindowingStrategy windowingStrategyProto =
           components.getWindowingStrategiesOrThrow(
@@ -1044,8 +1048,11 @@ public class FlinkStreamingPortablePipelineTranslator
       tagToIntMapping.put(tag, count);
       count++;
       String collectionId =
-          components
-              .getTransformsOrThrow(sideInput.getKey().getTransformId())
+          MoreObjects.firstNonNull(
+                  components.getTransformsOrDefault(sideInput.getKey().getTransformId(), null),
+                  stagePayload
+                      .getComponents()
+                      .getTransformsOrThrow(sideInput.getKey().getTransformId()))
               .getInputsOrThrow(sideInput.getKey().getLocalName());
       DataStream<Object> sideInputStream = context.getDataStreamOrThrow(collectionId);
       TypeInformation<Object> tpe = sideInputStream.getType();
@@ -1077,7 +1084,11 @@ public class FlinkStreamingPortablePipelineTranslator
       TupleTag<?> tag = sideInput.getValue().getTagInternal();
       final int intTag = tagToIntMapping.get(tag);
       RunnerApi.PTransform pTransform =
-          components.getTransformsOrThrow(sideInput.getKey().getTransformId());
+          MoreObjects.firstNonNull(
+              components.getTransformsOrDefault(sideInput.getKey().getTransformId(), null),
+              stagePayload
+                  .getComponents()
+                  .getTransformsOrThrow(sideInput.getKey().getTransformId()));
       String collectionId = pTransform.getInputsOrThrow(sideInput.getKey().getLocalName());
       DataStream<WindowedValue<?>> sideInputStream = context.getDataStreamOrThrow(collectionId);
 

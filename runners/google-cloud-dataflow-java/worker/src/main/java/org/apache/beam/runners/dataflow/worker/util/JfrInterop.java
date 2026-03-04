@@ -59,6 +59,8 @@ class JfrInterop {
       recordingClose = jfrClass.getMethod("close");
 
       jfrConfig = configClass.getMethod("getConfiguration", String.class).invoke(null, "profile");
+    } catch (OutOfMemoryError oom) {
+      throw oom;
     } catch (Throwable t) {
       throw new RuntimeException(t);
     }

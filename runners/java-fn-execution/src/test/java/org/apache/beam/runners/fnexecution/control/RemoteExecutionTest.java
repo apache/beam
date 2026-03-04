@@ -137,6 +137,7 @@ import org.apache.beam.sdk.util.construction.graph.GreedyPipelineFuser;
 import org.apache.beam.sdk.util.construction.graph.PipelineNode.PTransformNode;
 import org.apache.beam.sdk.util.construction.graph.ProtoOverrides;
 import org.apache.beam.sdk.util.construction.graph.SplittableParDoExpander;
+import org.apache.beam.sdk.values.CausedByDrain;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionList;
@@ -2254,6 +2255,7 @@ public class RemoteExecutionTest implements Serializable {
         Collections.singletonList(GlobalWindow.INSTANCE),
         BoundedWindow.TIMESTAMP_MIN_VALUE.plus(Duration.millis(fireTimestamp)),
         BoundedWindow.TIMESTAMP_MIN_VALUE.plus(Duration.millis(holdTimestamp)),
-        PaneInfo.NO_FIRING);
+        PaneInfo.NO_FIRING,
+        CausedByDrain.NORMAL);
   }
 }

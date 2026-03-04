@@ -179,7 +179,8 @@ public class BigtableServiceImplTest {
             bigtableDataSettings.getInstanceId(),
             mockBigtableSource.getTableId().get(),
             mockBigtableSource.getRanges(),
-            null);
+            null,
+            false);
 
     underTest.start();
     Assert.assertEquals(expectedRow, underTest.getCurrentRow());

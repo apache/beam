@@ -46,6 +46,7 @@ class YamlTestCase(unittest.TestCase):
     self._test_spec = test_spec
     self._options = options
     self._fix_tests = fix_tests
+    self._fixes = None
 
   def runTest(self):
     self._fixes = run_test(
