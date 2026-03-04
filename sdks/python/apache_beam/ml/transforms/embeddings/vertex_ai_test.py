@@ -20,10 +20,13 @@ import tempfile
 import unittest
 import uuid
 
+import pytest
+
 import apache_beam as beam
 from apache_beam.ml.inference.base import RunInference
 from apache_beam.ml.transforms import base
 from apache_beam.ml.transforms.base import MLTransform
+from apache_beam.testing.vertex_ai_skip import skip_if_vertex_ai_disabled
 
 # pylint: disable=ungrouped-imports
 # isort: off
@@ -58,6 +61,8 @@ test_query_column = "feature_1"
 model_name: str = "text-embedding-005"
 
 
+@skip_if_vertex_ai_disabled
+@pytest.mark.vertex_ai_postcommit
 @unittest.skipIf(
     VertexAITextEmbeddings is None, 'Vertex AI Python SDK is not installed.')
 class VertexAIEmbeddingsTest(unittest.TestCase):
@@ -308,6 +313,8 @@ def _make_text_chunk(input: str) -> Chunk:
   return Chunk(content=Content(text=input))
 
 
+@skip_if_vertex_ai_disabled
+@pytest.mark.vertex_ai_postcommit
 @unittest.skipIf(
     VertexAIMultiModalEmbeddings is None,
     'Vertex AI Python SDK is not installed.')
