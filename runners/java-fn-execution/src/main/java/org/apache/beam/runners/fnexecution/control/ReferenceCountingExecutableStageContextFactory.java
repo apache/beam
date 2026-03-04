@@ -180,6 +180,8 @@ public class ReferenceCountingExecutableStageContextFactory
         if (getCache().remove(wrapper.jobInfo.jobId(), wrapper)) {
           try {
             wrapper.closeActual();
+          } catch (OutOfMemoryError oom) {
+            throw oom;
           } catch (Throwable t) {
             LOG.error("Unable to close ExecutableStageContext.", t);
           }
