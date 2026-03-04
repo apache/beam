@@ -1389,10 +1389,6 @@ public class BigQueryIO {
           getDirectReadPicosTimestampPrecision());
     }
 
-    private static final String QUERY_VALIDATION_FAILURE_ERROR =
-        "Validation of query \"%1$s\" failed. If the query depends on an earlier stage of the"
-            + " pipeline, This validation can be disabled using #withoutValidation.";
-
     @Override
     public void validate(PipelineOptions options) {
       // Even if existence validation is disabled, we need to make sure that the BigQueryIO
@@ -1452,7 +1448,11 @@ public class BigQueryIO {
                   getQueryLocation());
             } catch (Exception e) {
               throw new IllegalArgumentException(
-                  String.format(QUERY_VALIDATION_FAILURE_ERROR, getQuery().get()), e);
+                  String.format(
+                      "Validation of query \"%1$s\" failed. If the query depends on an earlier stage of the"
+                          + " pipeline, This validation can be disabled using #withoutValidation.",
+                      getQuery().get()),
+                  e);
             }
 
             // If the user provided a temp dataset, check if the dataset exists before launching the

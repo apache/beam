@@ -1545,7 +1545,6 @@ class BeamModulePlugin implements Plugin<Project> {
             "EqualsUnsafeCast",
             "EscapedEntity",
             "ExtendsAutoValue",
-            "InlineFormatString",
             "InlineMeSuggester",
             "InvalidBlockTag",
             "InvalidInlineTag",
