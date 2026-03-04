@@ -156,7 +156,7 @@ public class JobInvocation {
         executorService);
   }
 
-  /** @return Unique identifier for the job invocation. */
+  /** Returns unique identifier for the job invocation. */
   public String getId() {
     return jobInfo.jobId();
   }

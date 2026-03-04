@@ -270,7 +270,7 @@ public class WindmillTagEncodingV1 extends WindmillTagEncoding {
     }
   }
 
-  /** @return the singleton WindmillStateTagUtil */
+  /** Returns the singleton WindmillStateTagUtil. */
   public static WindmillTagEncodingV1 instance() {
     return INSTANCE;
   }

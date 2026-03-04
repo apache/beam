@@ -110,12 +110,12 @@ public class Split {
       this.negative = Objects.requireNonNull(negative);
     }
 
-    /** @return positive split result */
+    /** Returns positive split result. */
     public PCollection<T> positive() {
       return positive;
     }
 
-    /** @return negative split result */
+    /** Returns negative split result. */
     public PCollection<T> negative() {
       return negative;
     }
