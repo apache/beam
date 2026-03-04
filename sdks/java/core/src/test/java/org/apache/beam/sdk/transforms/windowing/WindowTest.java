@@ -709,7 +709,7 @@ public class WindowTest implements Serializable {
       if (this == o) {
         return true;
       }
-      if (o == null || getClass() != o.getClass()) {
+      if (!(o instanceof CustomWindow)) {
         return false;
       }
       CustomWindow that = (CustomWindow) o;

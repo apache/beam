@@ -140,7 +140,7 @@ public class TrafficRoutes {
       if (object == null) {
         return false;
       }
-      if (object.getClass() != getClass()) {
+      if (!(object instanceof StationSpeed)) {
         return false;
       }
       StationSpeed otherStationSpeed = (StationSpeed) object;

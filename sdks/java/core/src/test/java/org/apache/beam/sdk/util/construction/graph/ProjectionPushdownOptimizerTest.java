@@ -217,7 +217,7 @@ public class ProjectionPushdownOptimizerTest {
       if (this == o) {
         return true;
       }
-      if (o == null || getClass() != o.getClass()) {
+      if (!(o instanceof SchemaSourceTransform)) {
         return false;
       }
       SchemaSourceTransform<?> that = (SchemaSourceTransform<?>) o;
@@ -345,7 +345,7 @@ public class ProjectionPushdownOptimizerTest {
       if (this == o) {
         return true;
       }
-      if (o == null || getClass() != o.getClass()) {
+      if (!(o instanceof MultipleOutputSourceWithPushdown)) {
         return false;
       }
       MultipleOutputSourceWithPushdown that = (MultipleOutputSourceWithPushdown) o;

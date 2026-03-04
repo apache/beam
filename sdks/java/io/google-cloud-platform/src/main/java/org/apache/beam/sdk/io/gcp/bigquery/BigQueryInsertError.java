@@ -68,7 +68,7 @@ public class BigQueryInsertError {
     if (this == o) {
       return true;
     }
-    if (o == null || getClass() != o.getClass()) {
+    if (!(o instanceof BigQueryInsertError)) {
       return false;
     }
     BigQueryInsertError that = (BigQueryInsertError) o;

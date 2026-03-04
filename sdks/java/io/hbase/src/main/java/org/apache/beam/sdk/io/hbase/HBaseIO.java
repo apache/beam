@@ -299,7 +299,7 @@ public class HBaseIO {
       if (this == o) {
         return true;
       }
-      if (o == null || getClass() != o.getClass()) {
+      if (!(o instanceof Read)) {
         return false;
       }
       Read read = (Read) o;
@@ -676,7 +676,7 @@ public class HBaseIO {
       if (this == o) {
         return true;
       }
-      if (o == null || getClass() != o.getClass()) {
+      if (!(o instanceof Write)) {
         return false;
       }
       Write write = (Write) o;
@@ -842,7 +842,7 @@ public class HBaseIO {
       if (this == o) {
         return true;
       }
-      if (o == null || getClass() != o.getClass()) {
+      if (!(o instanceof WriteRowMutations)) {
         return false;
       }
       WriteRowMutations writeRowMutations = (WriteRowMutations) o;

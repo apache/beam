@@ -634,7 +634,7 @@ public class ByteBuddyUtils {
       if (this == o) {
         return true;
       }
-      if (o == null || getClass() != o.getClass()) {
+      if (!(o instanceof TransformingMap)) {
         return false;
       }
       TransformingMap<?, ?, ?, ?> that = (TransformingMap<?, ?, ?, ?>) o;

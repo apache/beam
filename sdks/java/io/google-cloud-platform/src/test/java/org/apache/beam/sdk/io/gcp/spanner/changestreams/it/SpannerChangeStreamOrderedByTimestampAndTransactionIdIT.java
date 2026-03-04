@@ -557,7 +557,7 @@ public class SpannerChangeStreamOrderedByTimestampAndTransactionIdIT {
       if (this == o) {
         return true;
       }
-      if (o == null || getClass() != o.getClass()) {
+      if (!(o instanceof SpannerChangeStreamOrderedByTimestampAndTransactionIdIT.SortKey)) {
         return false;
       }
       SpannerChangeStreamOrderedByTimestampAndTransactionIdIT.SortKey sortKey =

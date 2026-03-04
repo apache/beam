@@ -64,7 +64,7 @@ final class ReadFromTwitterDoFn extends DoFn<TwitterConfig, String> {
       if (this == o) {
         return true;
       }
-      if (o == null || getClass() != o.getClass()) {
+      if (!(o instanceof OffsetHolder)) {
         return false;
       }
       OffsetHolder that = (OffsetHolder) o;

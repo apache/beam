@@ -2174,7 +2174,7 @@ public class PipelineOptionsFactoryTest {
       if (this == o) {
         return true;
       }
-      if (o == null || getClass() != o.getClass()) {
+      if (!(o instanceof ComplexType2)) {
         return false;
       }
       ComplexType2 that = (ComplexType2) o;

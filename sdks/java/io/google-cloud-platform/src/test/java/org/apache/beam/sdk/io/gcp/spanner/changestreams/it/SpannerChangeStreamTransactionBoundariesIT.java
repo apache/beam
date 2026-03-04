@@ -291,7 +291,7 @@ public class SpannerChangeStreamTransactionBoundariesIT {
       if (this == o) {
         return true;
       }
-      if (o == null || getClass() != o.getClass()) {
+      if (!(o instanceof SpannerChangeStreamTransactionBoundariesIT.SortKey)) {
         return false;
       }
       SpannerChangeStreamTransactionBoundariesIT.SortKey sortKey =

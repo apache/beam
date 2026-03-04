@@ -104,7 +104,7 @@ public class CategoryPrice implements KnownSize, Serializable {
     if (this == o) {
       return true;
     }
-    if (o == null || getClass() != o.getClass()) {
+    if (!(o instanceof CategoryPrice)) {
       return false;
     }
     CategoryPrice that = (CategoryPrice) o;

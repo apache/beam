@@ -57,7 +57,7 @@ public class HashingFn extends CombineFn<String, HashingFn.Accum, String> {
       if (this == o) {
         return true;
       }
-      if (o == null || getClass() != o.getClass()) {
+      if (!(o instanceof Accum)) {
         return false;
       }
 
