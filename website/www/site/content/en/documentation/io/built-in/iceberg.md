@@ -43,7 +43,7 @@ To use IcebergIO, install the [Beam SQL Shell](https://beam.apache.org/documenta
 
 {{% section class="language-sql" %}}
 ```shell
-./beam-sql.sh --io
+./beam-sql.sh --io iceberg
 ```
 {{% /section %}}
 
