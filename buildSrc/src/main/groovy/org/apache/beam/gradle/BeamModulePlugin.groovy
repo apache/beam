@@ -1584,7 +1584,6 @@ class BeamModulePlugin implements Plugin<Project> {
             "NarrowCalculation",
             "NullableTypeParameter",
             "NullableWildcard",
-            "StringCharset",
             "SuperCallToObjectMethod",
             "UnnecessaryLongToIntConversion",
             "UnusedVariable",

@@ -17,10 +17,10 @@
  */
 package org.apache.beam.sdk.io.kafka;
 
+import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.apache.beam.sdk.io.kafka.KafkaWriteSchemaTransformProvider.getRowToRawBytesFunction;
 import static org.junit.Assert.assertEquals;
 
-import java.io.UnsupportedEncodingException;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
@@ -114,15 +114,15 @@ public class KafkaWriteSchemaTransformProviderTest {
       RAW_ROWS =
           Arrays.asList(
               Row.withSchema(BEAM_RAW_SCHEMA)
-                  .withFieldValue("payload", "a".getBytes("UTF8"))
+                  .withFieldValue("payload", "a".getBytes(UTF_8))
                   .build(),
               Row.withSchema(BEAM_RAW_SCHEMA)
-                  .withFieldValue("payload", "b".getBytes("UTF8"))
+                  .withFieldValue("payload", "b".getBytes(UTF_8))
                   .build(),
               Row.withSchema(BEAM_RAW_SCHEMA)
-                  .withFieldValue("payload", "c".getBytes("UTF8"))
+                  .withFieldValue("payload", "c".getBytes(UTF_8))
                   .build());
-    } catch (UnsupportedEncodingException e) {
+    } catch (Exception e) {
       throw new RuntimeException(e);
     }
   }
@@ -146,9 +146,9 @@ public class KafkaWriteSchemaTransformProviderTest {
   public void testKafkaErrorFnSuccess() throws Exception {
     List<KV<byte[], byte[]>> msg =
         Arrays.asList(
-            KV.of(new byte[1], "{\"name\":\"a\"}".getBytes("UTF8")),
-            KV.of(new byte[1], "{\"name\":\"b\"}".getBytes("UTF8")),
-            KV.of(new byte[1], "{\"name\":\"c\"}".getBytes("UTF8")));
+            KV.of(new byte[1], "{\"name\":\"a\"}".getBytes(UTF_8)),
+            KV.of(new byte[1], "{\"name\":\"b\"}".getBytes(UTF_8)),
+            KV.of(new byte[1], "{\"name\":\"c\"}".getBytes(UTF_8)));
 
     PCollection<Row> input = p.apply(Create.of(ROWS));
     Schema errorSchema = ErrorHandling.errorSchema(BEAMSCHEMA);
@@ -168,9 +168,9 @@ public class KafkaWriteSchemaTransformProviderTest {
   public void testKafkaErrorFnRawSuccess() throws Exception {
     List<KV<byte[], byte[]>> msg =
         Arrays.asList(
-            KV.of(new byte[1], "a".getBytes("UTF8")),
-            KV.of(new byte[1], "b".getBytes("UTF8")),
-            KV.of(new byte[1], "c".getBytes("UTF8")));
+            KV.of(new byte[1], "a".getBytes(UTF_8)),
+            KV.of(new byte[1], "b".getBytes(UTF_8)),
+            KV.of(new byte[1], "c".getBytes(UTF_8)));
 
     PCollection<Row> input = p.apply(Create.of(RAW_ROWS));
     Schema errorSchema = ErrorHandling.errorSchema(BEAM_RAW_SCHEMA);

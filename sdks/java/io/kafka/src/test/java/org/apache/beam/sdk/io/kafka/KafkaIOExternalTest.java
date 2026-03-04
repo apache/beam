@@ -185,11 +185,13 @@ public class KafkaIOExternalTest {
     assertEquals(12345, byteArrayKafkaRecord.timestamp);
     assertEquals(KafkaTimestampType.LOG_APPEND_TIME.id, byteArrayKafkaRecord.timestampTypeId);
     assertEquals(KafkaTimestampType.LOG_APPEND_TIME.name, byteArrayKafkaRecord.timestampTypeName);
-    assertEquals("dummyKey", new String(byteArrayKafkaRecord.key, "UTF-8"));
-    assertEquals("dummyValue", new String(byteArrayKafkaRecord.value, "UTF-8"));
+    assertEquals("dummyKey", new String(byteArrayKafkaRecord.key, StandardCharsets.UTF_8));
+    assertEquals("dummyValue", new String(byteArrayKafkaRecord.value, StandardCharsets.UTF_8));
     assertEquals(1, byteArrayKafkaRecord.headers.size());
     assertEquals("dummyHeaderKey", byteArrayKafkaRecord.headers.get(0).key);
-    assertEquals("dummyHeaderVal", new String(byteArrayKafkaRecord.headers.get(0).value, "UTF-8"));
+    assertEquals(
+        "dummyHeaderVal",
+        new String(byteArrayKafkaRecord.headers.get(0).value, StandardCharsets.UTF_8));
   }
 
   @Test
@@ -212,7 +214,9 @@ public class KafkaIOExternalTest {
     assertNull(byteArrayKafkaRecord.value);
     assertEquals(1, byteArrayKafkaRecord.headers.size());
     assertEquals("dummyHeaderKey", byteArrayKafkaRecord.headers.get(0).key);
-    assertEquals("dummyHeaderVal", new String(byteArrayKafkaRecord.headers.get(0).value, "UTF-8"));
+    assertEquals(
+        "dummyHeaderVal",
+        new String(byteArrayKafkaRecord.headers.get(0).value, StandardCharsets.UTF_8));
   }
 
   @Test
