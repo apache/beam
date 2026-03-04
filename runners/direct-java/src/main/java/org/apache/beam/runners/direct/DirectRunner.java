@@ -27,6 +27,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.logging.Logger;
 import org.apache.beam.runners.core.SplittableParDoViaKeyedWorkItems;
 import org.apache.beam.runners.direct.DirectRunner.DirectPipelineResult;
 import org.apache.beam.runners.direct.TestStreamEvaluatorFactory.DirectTestStreamFactory;
@@ -185,7 +186,10 @@ public class DirectRunner extends PipelineRunner<DirectPipelineResult> {
 
       DisplayDataValidator.validatePipeline(pipeline);
       DisplayDataValidator.validateOptions(options);
-      SdkHarnessOptions.getConfiguredLoggerFromOptions(options.as(SdkHarnessOptions.class));
+      // Ensure a reference is held on the configured loggers as otherwise they are eligible for
+      // garbage collection as they are internally weak references.
+      List<Logger> loggers =
+          SdkHarnessOptions.getConfiguredLoggerFromOptions(options.as(SdkHarnessOptions.class));
       ExecutorService metricsPool =
           Executors.newCachedThreadPool(
               new ThreadFactoryBuilder()
@@ -226,6 +230,7 @@ public class DirectRunner extends PipelineRunner<DirectPipelineResult> {
           throw new RuntimeException(t);
         }
       }
+      loggers.clear();
       return result;
     } finally {
       MetricsEnvironment.setMetricsSupported(false);
