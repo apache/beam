@@ -17,8 +17,8 @@
  */
 package org.apache.beam.sdk.io;
 
-import static org.apache.beam.sdk.TestUtils.LINES2;
 import static org.apache.beam.sdk.TestUtils.LINES;
+import static org.apache.beam.sdk.TestUtils.LINES2;
 import static org.apache.beam.sdk.TestUtils.NO_LINES;
 import static org.apache.beam.sdk.io.fs.MatchResult.Status.NOT_FOUND;
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasDisplayItem;
@@ -605,7 +605,8 @@ public class TextIOWriteTest {
         FileSystems.matchNewResource(
             Files.createTempDirectory(tempFolder.getRoot().toPath(), "testwrite").toString(), true);
 
-    PCollection<String> input = p.apply(Create.of(Arrays.asList(LINES2.toArray(new String[0]))).withCoder(coder));
+    PCollection<String> input =
+        p.apply(Create.of(Arrays.asList(LINES2.toArray(new String[0]))).withCoder(coder));
 
     final WritableByteChannelFactory writableByteChannelFactory =
         new DrunkWritableByteChannelFactory();
