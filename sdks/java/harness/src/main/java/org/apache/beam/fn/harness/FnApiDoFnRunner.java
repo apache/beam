@@ -2087,9 +2087,8 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
     public OutputReceiver<Row> outputRowReceiver(DoFn<InputT, OutputT> doFn) {
       checkState(
           mainOutputSchemaCoder != null,
-          "Output with tag "
-              + mainOutputTag
-              + " must have a schema in order to call getRowReceiver");
+          "Output with tag %s must have a schema in order to call getRowReceiver",
+          mainOutputTag);
       return mainRowOutputReceiver;
     }
 
@@ -2130,9 +2129,8 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
             if (tag == null || mainOutputTag.equals(tag)) {
               checkState(
                   mainOutputSchemaCoder != null,
-                  "Output with tag "
-                      + mainOutputTag
-                      + " must have a schema in order to call getRowReceiver");
+                  "Output with tag %s must have a schema in order to call getRowReceiver",
+                  mainOutputTag);
               return mainRowOutputReceiver;
             }
 
@@ -2140,7 +2138,8 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
             checkState(outputCoder != null, "No output tag for %s", tag);
             checkState(
                 outputCoder instanceof SchemaCoder,
-                "Output with tag " + tag + " must have a schema in order to call getRowReceiver");
+                "Output with tag %s must have a schema in order to call getRowReceiver",
+                tag);
             return new OutputReceiver<Row>() {
               private SerializableFunction<Row, T> fromRowFunction =
                   ((SchemaCoder) outputCoder).getFromRowFunction();
@@ -2426,9 +2425,8 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
     public OutputReceiver<Row> outputRowReceiver(DoFn<InputT, OutputT> doFn) {
       checkState(
           mainOutputSchemaCoder != null,
-          "Output with tag "
-              + mainOutputTag
-              + " must have a schema in order to call getRowReceiver");
+          "Output with tag %s must have a schema in order to call getRowReceiver",
+          mainOutputTag);
       return mainRowOutputReceiver;
     }
 
@@ -2466,9 +2464,8 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
             if (tag == null || mainOutputTag.equals(tag)) {
               checkState(
                   mainOutputSchemaCoder != null,
-                  "Output with tag "
-                      + mainOutputTag
-                      + " must have a schema in order to call getRowReceiver");
+                  "Output with tag %s must have a schema in order to call getRowReceiver",
+                  mainOutputTag);
               return mainRowOutputReceiver;
             }
 
@@ -2476,7 +2473,8 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
             checkState(outputCoder != null, "No output tag for %s", tag);
             checkState(
                 outputCoder instanceof SchemaCoder,
-                "Output with tag " + tag + " must have a schema in order to call getRowReceiver");
+                "Output with tag %s must have a schema in order to call getRowReceiver",
+                tag);
             return new OutputReceiver<Row>() {
               private SerializableFunction<Row, T> fromRowFunction =
                   ((SchemaCoder) outputCoder).getFromRowFunction();
@@ -2736,9 +2734,8 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
     public OutputReceiver<Row> outputRowReceiver(DoFn<InputT, OutputT> doFn) {
       checkState(
           mainOutputSchemaCoder != null,
-          "Output with tag "
-              + mainOutputTag
-              + " must have a schema in order to call getRowReceiver");
+          "Output with tag %s must have a schema in order to call getRowReceiver",
+          mainOutputTag);
       return mainRowOutputReceiver;
     }
 
@@ -2776,9 +2773,8 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
             if (tag == null || mainOutputTag.equals(tag)) {
               checkState(
                   mainOutputSchemaCoder != null,
-                  "Output with tag "
-                      + mainOutputTag
-                      + " must have a schema in order to call getRowReceiver");
+                  "Output with tag %s must have a schema in order to call getRowReceiver",
+                  mainOutputTag);
               return mainRowOutputReceiver;
             }
 
@@ -2786,7 +2782,8 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
             checkState(outputCoder != null, "No output tag for %s", tag);
             checkState(
                 outputCoder instanceof SchemaCoder,
-                "Output with tag " + tag + " must have a schema in order to call getRowReceiver");
+                "Output with tag %s must have a schema in order to call getRowReceiver",
+                tag);
             return new OutputReceiver<Row>() {
               private SerializableFunction<Row, T> fromRowFunction =
                   ((SchemaCoder) outputCoder).getFromRowFunction();
