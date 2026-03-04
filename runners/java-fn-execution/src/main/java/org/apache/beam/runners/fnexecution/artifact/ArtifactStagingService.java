@@ -486,7 +486,6 @@ public class ArtifactStagingService
       /**
        * Attempts to provide a reasonable filename for the artifact.
        *
-       * @param index a monotonically increasing index, which provides uniqueness
        * @param environment the environment id
        * @param artifact the artifact itself
        */

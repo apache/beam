@@ -1933,7 +1933,7 @@ public class BigQueryIOWriteTest implements Serializable {
     }
   }
 
-  /** Coder for @link{PartitionedGlobalWindow}. */
+  /** Coder for {@link PartitionedGlobalWindow}. */
   private static class PartitionedGlobalWindowCoder extends AtomicCoder<PartitionedGlobalWindow> {
     @Override
     public void encode(PartitionedGlobalWindow window, OutputStream outStream) throws IOException {

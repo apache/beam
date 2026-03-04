@@ -176,10 +176,10 @@ public class EncoderHelpers {
 
   /**
    * Creates a Spark {@link Encoder} for {@link T} of {@link StructType} with fields {@code value},
-   * {@code timestamp}, {@code windows} and {@code pane}.
+   * {@code timestamp}, {@code window} and {@code pane}.
    *
    * @param value {@link Encoder} to encode field `{@code value}`.
-   * @param window {@link Encoder} to encode individual windows in field `{@code windows}`
+   * @param window {@link Encoder} to encode individual windows in field `{@code window}`
    */
   public static <T, W extends BoundedWindow> Encoder<WindowedValue<T>> windowedValueEncoder(
       Encoder<T> value, Encoder<W> window) {
