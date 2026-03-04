@@ -1,7 +1,13 @@
 {
   "commentedAboutFailingChecks": true,
-  "reviewersAssignedForLabels": {},
-  "nextAction": "Author",
+  "reviewersAssignedForLabels": {
+    "java": "kennknowles",
+    "build": "damccorm",
+    "kafka": "johnjcasey",
+    "spanner": "nielm",
+    "bigtable": "mutianf"
+  },
+  "nextAction": "Reviewers",
   "stopReviewerNotifications": false,
   "remindAfterTestsPass": [],
   "committerAssigned": false
