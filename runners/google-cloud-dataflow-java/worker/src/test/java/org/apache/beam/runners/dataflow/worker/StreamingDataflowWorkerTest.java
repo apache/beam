@@ -134,7 +134,6 @@ import org.apache.beam.runners.dataflow.worker.windmill.Windmill.KeyedMessageBun
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.LatencyAttribution;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.LatencyAttribution.State;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.Timer;
-import org.apache.beam.runners.dataflow.worker.windmill.Windmill.Timer.Type;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.WatermarkHold;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.WorkItemCommitRequest;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.WorkerMetadataResponse;
@@ -1643,7 +1642,7 @@ public class StreamingDataflowWorkerTest {
     Timer.Builder builder =
         Timer.newBuilder()
             .setTag(ByteString.copyFromUtf8(tagPrefix + ":" + timestampMillis))
-            .setType(Type.WATERMARK)
+            .setType(Timer.Type.WATERMARK)
             .setStateFamily("MergeWindows");
     if (!delete) {
       builder.setTimestamp(timestampMillis * 1000);
