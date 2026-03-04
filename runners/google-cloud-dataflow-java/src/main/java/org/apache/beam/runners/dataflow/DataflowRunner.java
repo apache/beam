@@ -2739,11 +2739,11 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
     boolean isUnifiedWorker = useUnifiedWorker(options);
     if (DoFnSignatures.usesBundleFinalizer(fn) && !isUnifiedWorker && !streaming) {
       throw new UnsupportedOperationException(
-        String.format(
-          "%s does not currently support %s in batch mode when not using unified worker because it "
-            + "uses BundleFinalizers in its implementation. Set the `--experiments=use_runner_v2` "
-            + "option to use this DoFn.",
-          DataflowRunner.class.getSimpleName(), fn.getClass().getSimpleName()));
+          String.format(
+              "%s does not currently support %s in batch mode when not using unified worker because it "
+                  + "uses BundleFinalizers in its implementation. Set the `--experiments=use_runner_v2` "
+                  + "option to use this DoFn.",
+              DataflowRunner.class.getSimpleName(), fn.getClass().getSimpleName()));
     }
   }
 
