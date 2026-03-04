@@ -593,7 +593,7 @@ public class KafkaIOIT {
   public static class LogFn extends DoFn<String, String> {
     @ProcessElement
     public void processElement(@Element String element, OutputReceiver<String> outputReceiver) {
-      LOG.error(element);
+      LOG.error("{}", element);
       outputReceiver.output(element);
     }
   }

@@ -87,7 +87,7 @@ public class JetPipelineResult implements PipelineResult {
       case SUSPENDED_EXPORTING_SNAPSHOT:
         return State.STOPPED;
       default:
-        LOG.warn("Unhandled " + JobStatus.class.getSimpleName() + ": " + status.name() + "!");
+        LOG.warn("Unhandled {}: {}!", JobStatus.class.getSimpleName(), status.name());
         return State.UNKNOWN;
     }
   }

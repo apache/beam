@@ -677,7 +677,7 @@ public class SolrIO {
 
               } else {
                 // Note: this used in test cases to verify behavior
-                LOG.warn(String.format(RETRY_ATTEMPT_LOG, attempt), exception);
+                LOG.warn("Error writing to Solr. Retry attempt {}", attempt, exception);
               }
             }
           }

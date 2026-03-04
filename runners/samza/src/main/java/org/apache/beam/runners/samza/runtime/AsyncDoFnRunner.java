@@ -69,7 +69,7 @@ public class AsyncDoFnRunner<InT, OutT> implements DoFnRunner<InT, OutT> {
       boolean isStateful,
       SamzaPipelineOptions options) {
 
-    LOG.info("Run DoFn with " + AsyncDoFnRunner.class.getName());
+    LOG.info("Run DoFn with {}", AsyncDoFnRunner.class.getName());
     return new AsyncDoFnRunner<>(runner, emitter, futureCollector, isStateful, options);
   }
 

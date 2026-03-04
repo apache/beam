@@ -138,8 +138,7 @@ public class JobInvocation {
               setState(JobState.Enum.CANCELLED);
               return;
             }
-            String message = String.format("Error during job invocation %s.", getId());
-            LOG.error(message, throwable);
+            LOG.error("Error during job invocation {}.", getId(), throwable);
             sendMessage(
                 JobMessage.newBuilder()
                     .setMessageText(getStackTraceAsString(throwable))

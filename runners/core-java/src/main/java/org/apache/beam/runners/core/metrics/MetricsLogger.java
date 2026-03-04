@@ -61,7 +61,7 @@ public class MetricsLogger extends MetricsContainerImpl {
         long currentTimeMillis = System.currentTimeMillis();
         long lastReported = lastReportedMillis.get();
         if (currentTimeMillis - lastReported > minimumLoggingFrequencyMillis) {
-          LOG.info(generateLogMessage(header, allowedMetricUrns, lastReported));
+          LOG.info("{}", generateLogMessage(header, allowedMetricUrns, lastReported));
           lastReportedMillis.set(currentTimeMillis);
         }
       } finally {

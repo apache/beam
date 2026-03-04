@@ -119,7 +119,7 @@ public class SamzaPipelineResult implements PipelineResult {
       case SuccessfulFinish:
         return new StateInfo(State.DONE);
       case UnsuccessfulFinish:
-        LOG.error(status.getThrowable().getMessage(), status.getThrowable());
+        LOG.error("Pipeline execution failed", status.getThrowable());
         return new StateInfo(
             State.FAILED,
             new Pipeline.PipelineExecutionException(getUserCodeException(status.getThrowable())));

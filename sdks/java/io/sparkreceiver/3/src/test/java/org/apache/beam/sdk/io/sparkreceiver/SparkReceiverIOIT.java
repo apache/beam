@@ -318,7 +318,7 @@ public class SparkReceiverIOIT {
       LOG.error("Can not write to rabbit.", e);
       fail();
     }
-    LOG.info(sourceOptions.numRecords + " records were successfully written to RabbitMQ");
+    LOG.info("{} records were successfully written to RabbitMQ", sourceOptions.numRecords);
 
     // Use streaming pipeline to read RabbitMQ records.
     readPipeline.getOptions().as(Options.class).setStreaming(true);

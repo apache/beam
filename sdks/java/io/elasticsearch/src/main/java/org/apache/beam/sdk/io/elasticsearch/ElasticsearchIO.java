@@ -305,7 +305,7 @@ public class ElasticsearchIO {
     }
 
     if (numErrors > 0) {
-      LOG.error(errorMessages.toString());
+      LOG.error("{}", errorMessages.toString());
       if (throwWriteErrors) {
         throw new IOException(errorMessages.toString());
       }

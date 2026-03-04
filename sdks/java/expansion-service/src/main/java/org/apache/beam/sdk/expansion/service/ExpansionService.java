@@ -172,9 +172,8 @@ public class ExpansionService extends ExpansionServiceGrpc.ExpansionServiceImplB
           urn = translator.getUrn();
           if (urn == null) {
             LOG.debug(
-                "Could not load the TransformPayloadTranslator "
-                    + translator
-                    + " to the Expansion Service since it did not produce a unique URN.");
+                "Could not load the TransformPayloadTranslator {} to the Expansion Service since it did not produce a unique URN.",
+                translator);
             continue;
           } else if (urn.equals(BeamUrns.getUrn(SCHEMA_TRANSFORM))
               && translator instanceof SchemaTransformPayloadTranslator) {
@@ -182,9 +181,8 @@ public class ExpansionService extends ExpansionServiceGrpc.ExpansionServiceImplB
           }
         } catch (Exception e) {
           LOG.info(
-              "Could not load the TransformPayloadTranslator "
-                  + translator
-                  + " to the Expansion Service.",
+              "Could not load the TransformPayloadTranslator {} to the Expansion Service.",
+              translator,
               e);
           continue;
         }

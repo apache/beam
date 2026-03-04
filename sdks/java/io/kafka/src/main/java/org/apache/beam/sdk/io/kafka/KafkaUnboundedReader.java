@@ -630,16 +630,17 @@ class KafkaUnboundedReader<K, V> extends UnboundedReader<KafkaRecord<K, V>> {
         // KafkaIO because it relies on the offsets stored in KafkaCheckpointMark.
         if (now.isAfter(nextAllowedCommitFailLogTime)) {
           LOG.warn(
-              String.format(
-                  "%s: Did not successfully commit finalized checkpoint for > %s. Current checkpoint: %s",
-                  this, MIN_COMMIT_FAIL_LOG_INTERVAL, checkpointMark),
+              "{}: Did not successfully commit finalized checkpoint for > {}. Current checkpoint: {}",
+              this,
+              MIN_COMMIT_FAIL_LOG_INTERVAL,
+              checkpointMark,
               e);
           nextAllowedCommitFailLogTime = now.plus(MIN_COMMIT_FAIL_LOG_INTERVAL);
         } else {
           LOG.info(
-              String.format(
-                  "%s: Could not commit finalized checkpoint. Commit will be retried with subsequent reads. Current checkpoint: %s",
-                  this, checkpointMark),
+              "{}: Could not commit finalized checkpoint. Commit will be retried with subsequent reads. Current checkpoint: {}",
+              this,
+              checkpointMark,
               e);
         }
       }
@@ -681,15 +682,15 @@ class KafkaUnboundedReader<K, V> extends UnboundedReader<KafkaRecord<K, V>> {
       }
       if (recordsDequeuePollTimeout.isLongerThan(RECORDS_DEQUEUE_POLL_TIMEOUT_MIN)) {
         recordsDequeuePollTimeout = recordsDequeuePollTimeout.minus(Duration.millis(1));
-        LOG.debug("Reducing poll timeout for reader to " + recordsDequeuePollTimeout.getMillis());
+        LOG.debug("Reducing poll timeout for reader to {}", recordsDequeuePollTimeout.getMillis());
       }
       return;
     }
 
     if (recordsDequeuePollTimeout.isShorterThan(RECORDS_DEQUEUE_POLL_TIMEOUT_MAX)) {
       recordsDequeuePollTimeout = recordsDequeuePollTimeout.plus(Duration.millis(1));
-      LOG.debug("Increasing poll timeout for reader to " + recordsDequeuePollTimeout.getMillis());
-      LOG.debug("Record count: " + records.count());
+      LOG.debug("Increasing poll timeout for reader to {}", recordsDequeuePollTimeout.getMillis());
+      LOG.debug("Record count: {}", records.count());
     }
 
     partitionStates.forEach(p -> p.recordIter = records.records(p.topicPartition).iterator());
