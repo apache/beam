@@ -19,7 +19,6 @@ package org.apache.beam.runners.spark.util;
 
 import java.util.concurrent.ExecutionException;
 import org.apache.beam.runners.core.SideInputReader;
-
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.cache.Cache;
