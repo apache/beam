@@ -33,7 +33,7 @@ import org.apache.http.params.HttpParams;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/** */
+/** Utility class for fetching Google Compute Engine metadata. */
 public class GceMetadataUtil {
   private static final String BASE_METADATA_URL = "http://metadata/computeMetadata/v1/";
 

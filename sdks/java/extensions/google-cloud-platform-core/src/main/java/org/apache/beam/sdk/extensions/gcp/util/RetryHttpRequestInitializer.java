@@ -289,7 +289,11 @@ public class RetryHttpRequestInitializer implements HttpRequestInitializer {
     this.customHttpErrors = customErrors;
   }
 
-  /** @param writeTimeout in milliseconds. */
+  /**
+   * Sets the write timeout.
+   *
+   * @param writeTimeout in milliseconds.
+   */
   public void setWriteTimeout(int writeTimeout) {
     this.writeTimeout = writeTimeout;
   }
@@ -298,7 +302,11 @@ public class RetryHttpRequestInitializer implements HttpRequestInitializer {
     this.httpHeaders = httpHeaders;
   }
 
-  /** @param readTimeout in milliseconds. */
+  /**
+   * Sets the read timeout.
+   *
+   * @param readTimeout in milliseconds.
+   */
   public void setReadTimeout(int readTimeout) {
     this.readTimeout = readTimeout;
   }

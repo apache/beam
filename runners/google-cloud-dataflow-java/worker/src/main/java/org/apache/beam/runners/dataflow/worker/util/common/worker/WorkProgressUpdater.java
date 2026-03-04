@@ -147,7 +147,11 @@ public abstract class WorkProgressUpdater {
     this.clock = clock;
   }
 
-  /** @param worker workexecutor for the updater. */
+  /**
+   * Sets the worker for the updater.
+   *
+   * @param worker workexecutor for the updater.
+   */
   public void setWorker(WorkExecutor worker) {
     this.worker = worker;
   }

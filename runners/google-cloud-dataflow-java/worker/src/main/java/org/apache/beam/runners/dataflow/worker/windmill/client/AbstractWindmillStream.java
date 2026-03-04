@@ -364,6 +364,8 @@ public abstract class AbstractWindmillStream<RequestT, ResponseT> implements Win
   protected abstract void sendHealthCheck() throws WindmillStreamShutdownException;
 
   /**
+   * Appends a summary of the stream to the given PrintWriter.
+   *
    * @implNote Care is taken that synchronization on this is unnecessary for all status page
    *     information. Blocking sends are made beneath this stream object's lock which could block
    *     status page rendering.

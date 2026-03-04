@@ -232,7 +232,7 @@ class ByteBuddyDoFnInvokerFactory implements DoFnInvokerFactory {
 
   private ByteBuddyDoFnInvokerFactory() {}
 
-  /** @return the {@link DoFnInvoker} for the given {@link DoFn}. */
+  /** Returns the {@link DoFnInvoker} for the given {@link DoFn}. */
   @SuppressWarnings({"unchecked", "rawtypes"})
   public <InputT, OutputT> DoFnInvoker<InputT, OutputT> newByteBuddyInvoker(
       DoFn<InputT, OutputT> fn) {
@@ -309,7 +309,7 @@ class ByteBuddyDoFnInvokerFactory implements DoFnInvokerFactory {
     }
   }
 
-  /** @return the {@link DoFnInvoker} for the given {@link DoFn}. */
+  /** Returns the {@link DoFnInvoker} for the given {@link DoFn}. */
   public <InputT, OutputT> DoFnInvoker<InputT, OutputT> newByteBuddyInvoker(
       DoFnSignature signature, DoFn<InputT, OutputT> fn) {
     checkArgument(

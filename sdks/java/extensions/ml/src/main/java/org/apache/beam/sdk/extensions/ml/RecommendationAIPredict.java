@@ -51,16 +51,16 @@ import org.json.JSONObject;
 public abstract class RecommendationAIPredict
     extends PTransform<PCollection<GenericJson>, PCollectionTuple> {
 
-  /** @return ID of Google Cloud project to be used for creating catalog items. */
+  /** Returns ID of Google Cloud project to be used for creating catalog items. */
   public abstract @Nullable String projectId();
 
-  /** @return Name of the catalog where the catalog items will be created. */
+  /** Returns name of the catalog where the catalog items will be created. */
   public abstract @Nullable String catalogName();
 
-  /** @return Name of the event store where the user events will be created. */
+  /** Returns name of the event store where the user events will be created. */
   public abstract @Nullable String eventStore();
 
-  /** @return ID of the recommendation engine placement. */
+  /** Returns ID of the recommendation engine placement. */
   public abstract String placementId();
 
   public static final TupleTag<PredictResponse.PredictionResult> SUCCESS_TAG =
@@ -70,16 +70,32 @@ public abstract class RecommendationAIPredict
 
   @AutoValue.Builder
   abstract static class Builder {
-    /** @param projectId ID of Google Cloud project to be used for the predictions. */
+    /**
+     * Sets ID of Google Cloud project to be used for the predictions.
+     *
+     * @param projectId ID of Google Cloud project to be used for the predictions.
+     */
     public abstract Builder setProjectId(@Nullable String projectId);
 
-    /** @param catalogName Name of the catalog to be used for predictions. */
+    /**
+     * Sets name of the catalog to be used for predictions.
+     *
+     * @param catalogName Name of the catalog to be used for predictions.
+     */
     public abstract Builder setCatalogName(@Nullable String catalogName);
 
-    /** @param eventStore Name of the event store to be used for predictions. */
+    /**
+     * Sets name of the event store to be used for predictions.
+     *
+     * @param eventStore Name of the event store to be used for predictions.
+     */
     public abstract Builder setEventStore(@Nullable String eventStore);
 
-    /** @param placementId of the recommendation engine placement. */
+    /**
+     * Sets ID of the recommendation engine placement.
+     *
+     * @param placementId of the recommendation engine placement.
+     */
     public abstract Builder setPlacementId(String placementId);
 
     public abstract RecommendationAIPredict build();

@@ -212,7 +212,7 @@ public class GroupIntoBatches<K, InputT>
     return super.toString() + ", params=" + params;
   }
 
-  /** @see #ofSize(long) */
+  /** See {@link #ofSize(long)}. */
   public GroupIntoBatches<K, InputT> withSize(long batchSize) {
     Preconditions.checkState(batchSize < Long.MAX_VALUE);
     return new GroupIntoBatches<>(
@@ -223,7 +223,7 @@ public class GroupIntoBatches<K, InputT>
             params.getMaxBufferingDuration()));
   }
 
-  /** @see #ofByteSize(long) */
+  /** See {@link #ofByteSize(long)}. */
   public GroupIntoBatches<K, InputT> withByteSize(long batchSizeBytes) {
     Preconditions.checkState(batchSizeBytes < Long.MAX_VALUE);
     return new GroupIntoBatches<>(
@@ -234,7 +234,7 @@ public class GroupIntoBatches<K, InputT>
             params.getMaxBufferingDuration()));
   }
 
-  /** @see #ofByteSize(long, SerializableFunction) */
+  /** See {@link #ofByteSize(long, SerializableFunction)}. */
   public GroupIntoBatches<K, InputT> withByteSize(
       long batchSizeBytes, SerializableFunction<InputT, Long> getElementByteSize) {
     Preconditions.checkState(batchSizeBytes < Long.MAX_VALUE);
