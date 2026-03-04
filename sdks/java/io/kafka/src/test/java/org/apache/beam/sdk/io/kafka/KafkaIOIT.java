@@ -827,6 +827,7 @@ public class KafkaIOIT {
     assertNotEquals(PipelineResult.State.FAILED, writeState);
 
     sdfReadPipeline.getOptions().as(Options.class).setStreaming(false);
+    @SuppressWarnings("unused")
     PCollection<KafkaRecord<byte[], byte[]>> rows =
         sdfReadPipeline.apply(
             "Read from bounded Kafka",

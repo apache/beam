@@ -2746,7 +2746,7 @@ public class ElasticsearchIO {
       }
 
       @StartBundle
-      public void startBundle(StartBundleContext context) {
+      public void startBundle(@SuppressWarnings("unused") StartBundleContext context) {
         batch = new ArrayList<>();
         currentBatchSizeBytes = 0;
       }

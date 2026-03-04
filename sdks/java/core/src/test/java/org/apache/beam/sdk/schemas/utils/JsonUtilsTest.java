@@ -94,7 +94,9 @@ public class JsonUtilsTest {
 
   private static class TestCase<T extends RowEncodable> {
 
+    @SuppressWarnings("unused")
     final String name;
+
     final T userT;
     final String jsonString;
     final byte[] jsonBytes;

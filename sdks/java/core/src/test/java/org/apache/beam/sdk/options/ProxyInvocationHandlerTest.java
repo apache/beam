@@ -1247,6 +1247,7 @@ public class ProxyInvocationHandlerTest {
   }
 
   private static class CapturesOptions implements Serializable {
+    @SuppressWarnings("unused")
     PipelineOptions options = PipelineOptionsFactory.create();
   }
 

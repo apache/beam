@@ -1957,7 +1957,8 @@ public class PipelineOptionsFactoryTest {
   }
 
   private static class RegisteredTestRunner extends PipelineRunner<PipelineResult> {
-    public static PipelineRunner<PipelineResult> fromOptions(PipelineOptions options) {
+    public static PipelineRunner<PipelineResult> fromOptions(
+        @SuppressWarnings("unused") PipelineOptions options) {
       return new RegisteredTestRunner();
     }
 

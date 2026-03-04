@@ -1828,12 +1828,14 @@ public class DataflowPipelineTranslatorTest implements Serializable {
   private static class TestSplittableFn extends DoFn<String, Integer> {
 
     @ProcessElement
-    public void process(ProcessContext c, RestrictionTracker<OffsetRange, Long> tracker) {
+    public void process(
+        @SuppressWarnings("unused") ProcessContext c,
+        @SuppressWarnings("unused") RestrictionTracker<OffsetRange, Long> tracker) {
       // noop
     }
 
     @GetInitialRestriction
-    public OffsetRange getInitialRange(@Element String element) {
+    public OffsetRange getInitialRange(@SuppressWarnings("unused") @Element String element) {
       return null;
     }
   }

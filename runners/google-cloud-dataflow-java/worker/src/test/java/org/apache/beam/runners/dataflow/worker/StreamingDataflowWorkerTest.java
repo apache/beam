@@ -224,7 +224,7 @@ import org.slf4j.LoggerFactory;
 
 /** Unit tests for {@link StreamingDataflowWorker}. */
 @RunWith(Parameterized.class)
-@SuppressWarnings("deprecation")
+@SuppressWarnings({"deprecation", "unused"})
 public class StreamingDataflowWorkerTest {
 
   private static final Logger LOG = LoggerFactory.getLogger(StreamingDataflowWorkerTest.class);

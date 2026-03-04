@@ -734,13 +734,14 @@ public class SingleStoreIO {
       }
 
       @GetInitialRestriction
-      public OffsetRange getInitialRange(@Element ParameterT element) throws Exception {
+      public OffsetRange getInitialRange(@SuppressWarnings("unused") @Element ParameterT element)
+          throws Exception {
         return new OffsetRange(0L, getNumPartitions());
       }
 
       @SplitRestriction
       public void splitRange(
-          @Element ParameterT element,
+          @SuppressWarnings("unused") @Element ParameterT element,
           @Restriction OffsetRange range,
           OutputReceiver<OffsetRange> receiver) {
         for (long i = range.getFrom(); i < range.getTo(); i++) {

@@ -173,7 +173,7 @@ public class KafkaUnboundedReaderIdlePartitionTest {
         List<String> topics,
         int partitionsPerTopic,
         int numElements,
-        Map<String, Object> config,
+        @SuppressWarnings("unused") Map<String, Object> config,
         SerializableFunction<Integer, byte[]> keyFunction,
         SerializableFunction<Integer, byte[]> valueFunction) {
 

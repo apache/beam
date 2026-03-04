@@ -32,15 +32,12 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 // TODO(https://github.com/apache/beam/issues/31078) exceptions are currently suppressed
 @SuppressWarnings("Slf4jDoNotLogMessageOfExceptionExplicitly")
 @RunWith(JUnit4.class)
 public class PulsarIOTest implements Serializable {
   @Rule public final transient TestPipeline pipeline = TestPipeline.create();
-  private static final Logger LOG = LoggerFactory.getLogger(PulsarIOTest.class);
 
   private static final String TEST_TOPIC = "TEST_TOPIC";
   // In order to pin fake readers having same set of messages

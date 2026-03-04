@@ -921,6 +921,7 @@ public class AvroCoderTest {
     @AvroSchema(
         "{\"name\": \"bar\", \"type\": \"record\", \"fields\": ["
             + "{\"name\": \"foo\", \"type\": \"int\"}]}")
+    @SuppressWarnings("unused")
     GenericRecord genericRecord;
   }
 
@@ -938,6 +939,7 @@ public class AvroCoderTest {
     @AvroSchema(
         "{\"name\": \"bar\", \"type\": \"record\", \"fields\": ["
             + "{\"name\": \"foo\", \"type\": \"int\"}]}")
+    @SuppressWarnings("unused")
     int withCustomSchema;
   }
 

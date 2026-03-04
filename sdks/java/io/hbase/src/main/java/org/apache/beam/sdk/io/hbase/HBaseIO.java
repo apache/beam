@@ -745,7 +745,7 @@ public class HBaseIO {
       }
 
       @StartBundle
-      public void startBundle(StartBundleContext c) throws IOException {
+      public void startBundle(@SuppressWarnings("unused") StartBundleContext c) throws IOException {
         BufferedMutatorParams params = new BufferedMutatorParams(TableName.valueOf(tableId));
         mutator = connection.getBufferedMutator(params);
         recordsWritten = 0;
@@ -913,7 +913,7 @@ public class HBaseIO {
       }
 
       @StartBundle
-      public void startBundle(StartBundleContext c) throws IOException {
+      public void startBundle(@SuppressWarnings("unused") StartBundleContext c) throws IOException {
         table = connection.getTable(TableName.valueOf(tableId));
         recordsWritten = 0;
       }
