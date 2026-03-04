@@ -1177,8 +1177,7 @@ public abstract class FileBasedSink<UserT, DestinationT, OutputT>
     private final Coder<BoundedWindow> windowCoder;
     private final Coder<DestinationT> destinationCoder;
 
-    protected FileResultCoder(
-        Coder<BoundedWindow> windowCoder, Coder<DestinationT> destinationCoder) {
+    FileResultCoder(Coder<BoundedWindow> windowCoder, Coder<DestinationT> destinationCoder) {
       this.windowCoder = NullableCoder.of(windowCoder);
       this.destinationCoder = destinationCoder;
     }

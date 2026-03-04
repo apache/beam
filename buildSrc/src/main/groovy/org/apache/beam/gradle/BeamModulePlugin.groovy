@@ -1561,7 +1561,6 @@ class BeamModulePlugin implements Plugin<Project> {
             "PreferJavaTimeOverload",
             "MutablePublicArray",
             "NonCanonicalType",
-            "ProtectedMembersInFinalClass",
             "Slf4jFormatShouldBeConst",
             "Slf4jSignOnlyFormat",
             "StaticAssignmentInConstructor",
