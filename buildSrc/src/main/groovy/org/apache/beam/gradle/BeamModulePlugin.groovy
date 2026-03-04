@@ -1574,7 +1574,6 @@ class BeamModulePlugin implements Plugin<Project> {
             "UnnecessaryParentheses",
             "UnrecognisedJavadocTag",
             "UnsafeReflectiveConstructionCast",
-            "UseCorrectAssertInTests",
             // errorprone 3.2.0+ checks
             "DirectInvocationOnMock",
             "Finalize",
