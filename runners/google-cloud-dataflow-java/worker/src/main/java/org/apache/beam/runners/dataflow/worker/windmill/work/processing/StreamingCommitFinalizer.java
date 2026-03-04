@@ -34,6 +34,7 @@ import javax.annotation.concurrent.GuardedBy;
 import javax.annotation.concurrent.ThreadSafe;
 import org.apache.beam.runners.dataflow.worker.util.BoundedQueueExecutor;
 import org.apache.beam.sdk.annotations.Internal;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.commons.lang3.tuple.Pair;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
@@ -170,6 +171,7 @@ final class StreamingCommitFinalizer {
     }
   }
 
+  @VisibleForTesting
   int cleanupQueueSize() {
     lock.lock();
     try {

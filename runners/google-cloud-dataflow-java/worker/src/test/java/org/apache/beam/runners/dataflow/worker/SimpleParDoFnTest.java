@@ -648,9 +648,9 @@ public class SimpleParDoFnTest {
 
   @Test
   public void testBundleFinalizer() throws Exception {
-    startBundleCount.set(0);
-    processElementCount.set(0);
-    finishBundleCount.set(0);
+    WithBundleFinalizerDoFn.startBundleCount.set(0);
+    WithBundleFinalizerDoFn.processElementCount.set(0);
+    WithBundleFinalizerDoFn.finishBundleCount.set(0);
     DoFnInfo<Long, String> fnInfo =
         DoFnInfo.forFn(
             new WithBundleFinalizerDoFn(),
@@ -711,36 +711,35 @@ public class SimpleParDoFnTest {
 
     parDoFn.finishBundle();
 
-    assertThat(startBundleCount.get(), equalTo(1));
-    assertThat(processElementCount.get(), equalTo(5));
-    assertThat(finishBundleCount.get(), equalTo(1));
+    assertThat(WithBundleFinalizerDoFn.startBundleCount.get(), equalTo(1));
+    assertThat(WithBundleFinalizerDoFn.processElementCount.get(), equalTo(5));
+    assertThat(WithBundleFinalizerDoFn.finishBundleCount.get(), equalTo(1));
   }
 
-  private static final AtomicInteger startBundleCount = new AtomicInteger(0);
-  private static final AtomicInteger processElementCount = new AtomicInteger(0);
-  private static final AtomicInteger finishBundleCount = new AtomicInteger(0);
-
   static class WithBundleFinalizerDoFn extends DoFn<Long, String> {
+    private static final AtomicInteger startBundleCount = new AtomicInteger(0);
+    private static final AtomicInteger processElementCount = new AtomicInteger(0);
+    private static final AtomicInteger finishBundleCount = new AtomicInteger(0);
 
     @StartBundle
     public void startBundle(StartBundleContext context, BundleFinalizer bundleFinalizer) {
       bundleFinalizer.afterBundleCommit(
           Instant.now().plus(Duration.standardMinutes(5)),
-          () -> SimpleParDoFnTest.startBundleCount.incrementAndGet());
+          () -> startBundleCount.incrementAndGet());
     }
 
     @ProcessElement
     public void processElement(ProcessContext c, BundleFinalizer bundleFinalizer) {
       bundleFinalizer.afterBundleCommit(
           Instant.now().plus(Duration.standardMinutes(5)),
-          () -> SimpleParDoFnTest.processElementCount.incrementAndGet());
+          () -> processElementCount.incrementAndGet());
     }
 
     @FinishBundle
     public void finishBundle(FinishBundleContext context, BundleFinalizer bundleFinalizer) {
       bundleFinalizer.afterBundleCommit(
           Instant.now().plus(Duration.standardMinutes(5)),
-          () -> SimpleParDoFnTest.finishBundleCount.incrementAndGet());
+          () -> finishBundleCount.incrementAndGet());
     }
   }
 }
