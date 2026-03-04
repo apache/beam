@@ -19,8 +19,8 @@ package org.apache.beam.sdk.io.gcp.testing;
 
 import static org.junit.Assert.assertEquals;
 
-import com.google.api.client.googleapis.json.GoogleJsonResponseException;
 import com.google.api.client.http.HttpHeaders;
+import com.google.api.client.http.HttpResponseException;
 import com.google.api.core.ApiFuture;
 import com.google.api.core.ApiFutures;
 import com.google.api.gax.grpc.GrpcStatusCode;
@@ -810,7 +810,7 @@ public class FakeDatasetService implements DatasetService, WriteStreamService, S
   void throwNotFound(@FormatString String format, Object... args) throws IOException {
     throw new IOException(
         String.format(format, args),
-        new GoogleJsonResponseException.Builder(404, String.format(format, args), new HttpHeaders())
+        new HttpResponseException.Builder(404, String.format(format, args), new HttpHeaders())
             .build());
   }
 }
