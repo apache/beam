@@ -108,6 +108,11 @@ Beam supports a wide variety of Iceberg catalogs, but this guide focuses on two 
   {{< highlight py >}}
     {{< code_sample "sdks/python/apache_beam/examples/snippets/snippets.py" hadoop_catalog_config >}}
   {{< /highlight >}}
+  {{< highlight yaml >}}
+    catalog_props: &catalog_props
+      type: "hadoop"
+      warehouse: "file://tmp/beam-iceberg-local-quickstart"
+  {{< /highlight >}}
 {{< /tab >}}
 {{< tab BigLake >}}
 {{% section %}}
