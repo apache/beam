@@ -1081,7 +1081,8 @@ def model_managed_iceberg():
   """Examples for Managed Iceberg sources and sinks."""
   # [START hadoop_catalog_config]
   hadoop_catalog_props = {
-      'type': 'hadoop', 'warehouse': 'file://tmp/beam-iceberg-local-quickstart'
+      'type': 'hadoop',
+      'warehouse': 'file:///tmp/beam-iceberg-local-quickstart'
   }
   # [END hadoop_catalog_config]
 
@@ -1089,6 +1090,7 @@ def model_managed_iceberg():
   managed_config = {
       'table': 'my_db.my_table', 'catalog_properties': hadoop_catalog_props
   }
+
   # Note: The table will get created when inserting data (see below)
   # [END managed_iceberg_config]
 
@@ -1125,15 +1127,14 @@ def model_managed_iceberg():
   # [END biglake_catalog_config]
 
   # [START model_managed_iceberg_data_types]
-  from decimal import Decimal
   import apache_beam as beam
   from apache_beam.utils.timestamp import Timestamp
 
   row = beam.Row(
       boolean_field=True,
       int_field=1,
-      float_field=2.3,
-      numeric_field=Decimal('34'),
+      long_field=2,
+      float_field=3.45,
       bytes_field=b'value',
       string_field="value",
       timestamptz_field=Timestamp(4, 5),
@@ -1142,6 +1143,23 @@ def model_managed_iceberg():
           "a": 1, "b": 2
       },
       struct_field=beam.Row(nested_field="nested_value", nested_field2=123))
+
+  import numpy as np
+  from apache_beam.typehints.row_type import RowTypeConstraint
+  from typing import Sequence
+
+  # Override data schema by adding `with_output_types` to the transform:
+  beam.Create(row).with_output_types(
+      RowTypeConstraint.from_fields([
+          ('boolean_field', bool), ('int_field', int), ('long_field', np.int64),
+          ('float_field', float), ('bytes_field', bytes), ('string_field', str),
+          ('timestamptz_field', Timestamp), ('array_field', Sequence[int]),
+          ('map_field', dict[str, int]),
+          (
+              'struct_field',
+              RowTypeConstraint.from_fields([('nested_field', str),
+                                             ('nested_field2', int)]))
+      ]))
   # [END model_managed_iceberg_data_types]
 
 

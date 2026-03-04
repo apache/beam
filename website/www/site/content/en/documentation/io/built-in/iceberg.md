@@ -99,7 +99,7 @@ Beam supports a wide variety of Iceberg catalogs, but this guide focuses on two 
     CREATE CATALOG my_catalog TYPE 'iceberg'
     PROPERTIES (
       'type' = 'hadoop',
-      'warehouse' = 'file://tmp/beam-iceberg-local-quickstart',
+      'warehouse' = 'file:///tmp/beam-iceberg-local-quickstart',
     );
   {{< /highlight >}}
   {{< highlight java>}}
@@ -111,7 +111,7 @@ Beam supports a wide variety of Iceberg catalogs, but this guide focuses on two 
   {{< highlight yaml >}}
     catalog_props: &catalog_props
       type: "hadoop"
-      warehouse: "file://tmp/beam-iceberg-local-quickstart"
+      warehouse: "file:///tmp/beam-iceberg-local-quickstart"
   {{< /highlight >}}
 {{< /tab >}}
 {{< tab BigLake >}}
@@ -161,7 +161,7 @@ You can use Beam SQL to create a new namespace through an explicit DDL statement
 CREATE DATABASE my_catalog.my_db;
 ```
 
-Alternatively, the IcebergIO sink can handle namespace creation automatically at runtime.
+Alternatively, the IcebergIO sink can automatically create missing namespaces at runtime.
 This is ideal for dynamic pipelines where destinations are determined by the incoming data
 
 ### Create a Table

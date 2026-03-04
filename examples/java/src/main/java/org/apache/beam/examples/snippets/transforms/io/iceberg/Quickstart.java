@@ -34,7 +34,7 @@ public class Quickstart {
     Map<String, String> catalogProps =
         ImmutableMap.of(
             "type", "hadoop",
-            "warehouse", "file://tmp/beam-iceberg-local-quickstart");
+            "warehouse", "file:///tmp/beam-iceberg-local-quickstart");
     // [END hadoop_catalog_props]
   }
 
@@ -54,6 +54,7 @@ public class Quickstart {
     // [START managed_iceberg_config]
     Map<String, Object> managedConfig =
         ImmutableMap.of("table", "my_db.my_table", "catalog_properties", catalogProps);
+
     // Note: The table will get created when inserting data (see below)
     // [END managed_iceberg_config]
 
