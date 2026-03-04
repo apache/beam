@@ -1579,7 +1579,6 @@ class BeamModulePlugin implements Plugin<Project> {
             "DirectInvocationOnMock",
             "Finalize",
             "JUnitIncompatibleType",
-            "LongDoubleConversion",
             "MockNotUsedInProduction",
             "NarrowCalculation",
             "NullableTypeParameter",
