@@ -186,8 +186,9 @@ public abstract class GetterBasedSchemaProvider implements SchemaProvider {
   }
 
   @Override
+  @SuppressWarnings("EqualsGetClass")
   public boolean equals(@Nullable Object obj) {
-    return obj instanceof GetterBasedSchemaProvider;
+    return obj != null && this.getClass() == obj.getClass();
   }
 
   private static class RowValueGettersFactory<T extends @NonNull Object>
