@@ -61,7 +61,6 @@ def chunk_approximately_equals(expected, actual):
       all(isinstance(x, float) for x in actual.embedding.dense_embedding))
 
 
-@skip_if_vertex_ai_disabled
 @pytest.mark.vertex_ai_postcommit
 @unittest.skipIf(
     not VERTEX_AI_AVAILABLE, "Vertex AI dependencies not available")
