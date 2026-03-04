@@ -261,25 +261,26 @@ public class StreamingDataflowWorkerTest {
   private static final String DEFAULT_DATA_STRING = "data";
   private static final String DEFAULT_DESTINATION_STREAM_ID = "out";
   private static final long MAXIMUM_BYTES_OUTSTANDING = 10000000;
-  private static final Function<GetDataRequest, GetDataResponse> EMPTY_DATA_RESPONDER =
-      (GetDataRequest request) -> {
-        GetDataResponse.Builder builder = GetDataResponse.newBuilder();
-        for (ComputationGetDataRequest compRequest : request.getRequestsList()) {
-          ComputationGetDataResponse.Builder compBuilder =
-              builder.addDataBuilder().setComputationId(compRequest.getComputationId());
-          for (KeyedGetDataRequest keyRequest : compRequest.getRequestsList()) {
-            KeyedGetDataResponse.Builder keyBuilder =
-                compBuilder
-                    .addDataBuilder()
-                    .setKey(keyRequest.getKey())
-                    .setShardingKey(keyRequest.getShardingKey());
-            keyBuilder.addAllValues(keyRequest.getValuesToFetchList());
-            keyBuilder.addAllBags(keyRequest.getBagsToFetchList());
-            keyBuilder.addAllWatermarkHolds(keyRequest.getWatermarkHoldsToFetchList());
-          }
-        }
-        return builder.build();
-      };
+
+  private static GetDataResponse emptyDataResponder(GetDataRequest request) {
+    GetDataResponse.Builder builder = GetDataResponse.newBuilder();
+    for (ComputationGetDataRequest compRequest : request.getRequestsList()) {
+      ComputationGetDataResponse.Builder compBuilder =
+          builder.addDataBuilder().setComputationId(compRequest.getComputationId());
+      for (KeyedGetDataRequest keyRequest : compRequest.getRequestsList()) {
+        KeyedGetDataResponse.Builder keyBuilder =
+            compBuilder
+                .addDataBuilder()
+                .setKey(keyRequest.getKey())
+                .setShardingKey(keyRequest.getShardingKey());
+        keyBuilder.addAllValues(keyRequest.getValuesToFetchList());
+        keyBuilder.addAllBags(keyRequest.getBagsToFetchList());
+        keyBuilder.addAllWatermarkHolds(keyRequest.getWatermarkHoldsToFetchList());
+      }
+    }
+    return builder.build();
+  }
+
   private final boolean streamingEngine;
   private final Supplier<Long> idGenerator =
       new Supplier<Long>() {
@@ -2315,7 +2316,7 @@ public class StreamingDataflowWorkerTest {
     worker.start();
 
     // Respond to any GetData requests with empty state.
-    server.whenGetDataCalled().answerByDefault(EMPTY_DATA_RESPONDER);
+    server.whenGetDataCalled().answerByDefault(StreamingDataflowWorkerTest::emptyDataResponder);
 
     for (int i = 0; i < actions.size(); ++i) {
       Action action = actions.get(i);
@@ -3686,7 +3687,8 @@ public class StreamingDataflowWorkerTest {
                 .build());
     worker.start();
 
-    ActiveWorkRefreshSink awrSink = new ActiveWorkRefreshSink(EMPTY_DATA_RESPONDER);
+    ActiveWorkRefreshSink awrSink =
+        new ActiveWorkRefreshSink(StreamingDataflowWorkerTest::emptyDataResponder);
     server.whenGetDataCalled().answerByDefault(awrSink::getData).delayEachResponseBy(Duration.ZERO);
     server
         .whenGetWorkCalled()
@@ -3723,7 +3725,8 @@ public class StreamingDataflowWorkerTest {
                 .build());
     worker.start();
 
-    ActiveWorkRefreshSink awrSink = new ActiveWorkRefreshSink(EMPTY_DATA_RESPONDER);
+    ActiveWorkRefreshSink awrSink =
+        new ActiveWorkRefreshSink(StreamingDataflowWorkerTest::emptyDataResponder);
     server.whenGetDataCalled().answerByDefault(awrSink::getData).delayEachResponseBy(Duration.ZERO);
     server.whenGetWorkCalled().thenReturn(makeInput(workToken, 0 /* timestamp */));
     server.waitForAndGetCommits(1);
@@ -3760,7 +3763,7 @@ public class StreamingDataflowWorkerTest {
         new ActiveWorkRefreshSink(
             (request) -> {
               clock.sleep(Duration.millis(1000));
-              return EMPTY_DATA_RESPONDER.apply(request);
+              return emptyDataResponder(request);
             });
     server.whenGetDataCalled().answerByDefault(awrSink::getData).delayEachResponseBy(Duration.ZERO);
     server.whenGetWorkCalled().thenReturn(makeInput(workToken, 0 /* timestamp */));
@@ -3801,7 +3804,8 @@ public class StreamingDataflowWorkerTest {
                 .build());
     worker.start();
 
-    ActiveWorkRefreshSink awrSink = new ActiveWorkRefreshSink(EMPTY_DATA_RESPONDER);
+    ActiveWorkRefreshSink awrSink =
+        new ActiveWorkRefreshSink(StreamingDataflowWorkerTest::emptyDataResponder);
     server.whenGetDataCalled().answerByDefault(awrSink::getData).delayEachResponseBy(Duration.ZERO);
     server.whenGetWorkCalled().thenReturn(makeInput(workToken, TimeUnit.MILLISECONDS.toMicros(0)));
     server.waitForAndGetCommits(1);
@@ -3834,7 +3838,8 @@ public class StreamingDataflowWorkerTest {
                 .build());
     worker.start();
 
-    ActiveWorkRefreshSink awrSink = new ActiveWorkRefreshSink(EMPTY_DATA_RESPONDER);
+    ActiveWorkRefreshSink awrSink =
+        new ActiveWorkRefreshSink(StreamingDataflowWorkerTest::emptyDataResponder);
     server.whenGetDataCalled().answerByDefault(awrSink::getData).delayEachResponseBy(Duration.ZERO);
     server.whenGetWorkCalled().thenReturn(makeInput(workToken, 1 /* timestamp */));
     Map<Long, WorkItemCommitRequest> workItemCommitRequest = server.waitForAndGetCommits(1);
@@ -4818,7 +4823,7 @@ public class StreamingDataflowWorkerTest {
           }
         }
       }
-      return EMPTY_DATA_RESPONDER.apply(request);
+      return emptyDataResponder(request);
     }
   }
 
