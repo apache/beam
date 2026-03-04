@@ -20,18 +20,18 @@ package org.apache.beam.sdk.io.googleads;
 import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.when;
 
-import com.google.ads.googleads.v19.errors.AuthenticationErrorEnum.AuthenticationError;
-import com.google.ads.googleads.v19.errors.ErrorCode;
-import com.google.ads.googleads.v19.errors.ErrorDetails;
-import com.google.ads.googleads.v19.errors.GoogleAdsError;
-import com.google.ads.googleads.v19.errors.GoogleAdsException;
-import com.google.ads.googleads.v19.errors.GoogleAdsFailure;
-import com.google.ads.googleads.v19.errors.InternalErrorEnum.InternalError;
-import com.google.ads.googleads.v19.errors.QuotaErrorDetails;
-import com.google.ads.googleads.v19.errors.QuotaErrorEnum.QuotaError;
-import com.google.ads.googleads.v19.services.GoogleAdsRow;
-import com.google.ads.googleads.v19.services.SearchGoogleAdsStreamRequest;
-import com.google.ads.googleads.v19.services.SearchGoogleAdsStreamResponse;
+import com.google.ads.googleads.v23.errors.AuthenticationErrorEnum.AuthenticationError;
+import com.google.ads.googleads.v23.errors.ErrorCode;
+import com.google.ads.googleads.v23.errors.ErrorDetails;
+import com.google.ads.googleads.v23.errors.GoogleAdsError;
+import com.google.ads.googleads.v23.errors.GoogleAdsException;
+import com.google.ads.googleads.v23.errors.GoogleAdsFailure;
+import com.google.ads.googleads.v23.errors.InternalErrorEnum.InternalError;
+import com.google.ads.googleads.v23.errors.QuotaErrorDetails;
+import com.google.ads.googleads.v23.errors.QuotaErrorEnum.QuotaError;
+import com.google.ads.googleads.v23.services.GoogleAdsRow;
+import com.google.ads.googleads.v23.services.SearchGoogleAdsStreamRequest;
+import com.google.ads.googleads.v23.services.SearchGoogleAdsStreamResponse;
 import com.google.api.gax.grpc.GrpcStatusCode;
 import com.google.api.gax.rpc.ApiException;
 import com.google.protobuf.Duration;
@@ -294,15 +294,15 @@ public class GoogleAdsIOTest {
     public void init() {
       GoogleAdsOptions options = pipeline.getOptions().as(GoogleAdsOptions.class);
       options.setGoogleAdsCredentialFactoryClass(NoopCredentialFactory.class);
-      synchronized (GoogleAdsV19.ReadAll.ReadAllFn.class) {
-        GoogleAdsV19.ReadAll.ReadAllFn.sleeper = (long millis) -> {};
+      synchronized (GoogleAdsV23.ReadAll.ReadAllFn.class) {
+        GoogleAdsV23.ReadAll.ReadAllFn.sleeper = (long millis) -> {};
       }
     }
 
     @Test
     @Category(NeedsRunner.class)
     public void testRead() {
-      when(MockGoogleAdsClientFactory.GOOGLE_ADS_SERVICE_STUB_V19
+      when(MockGoogleAdsClientFactory.GOOGLE_ADS_SERVICE_STUB_V23
               .searchStreamCallable()
               .call(any(SearchGoogleAdsStreamRequest.class))
               .iterator())
@@ -331,7 +331,7 @@ public class GoogleAdsIOTest {
     @Test
     @Category(NeedsRunner.class)
     public void testReadWithFailureFromMaxRetriesExceeded() throws Exception {
-      when(MockGoogleAdsClientFactory.GOOGLE_ADS_SERVICE_STUB_V19
+      when(MockGoogleAdsClientFactory.GOOGLE_ADS_SERVICE_STUB_V23
               .searchStreamCallable()
               .call(any(SearchGoogleAdsStreamRequest.class)))
           .thenThrow(
@@ -370,7 +370,7 @@ public class GoogleAdsIOTest {
     @Test
     @Category(NeedsRunner.class)
     public void testReadWithFailureFromNonRetryableError() throws Exception {
-      when(MockGoogleAdsClientFactory.GOOGLE_ADS_SERVICE_STUB_V19
+      when(MockGoogleAdsClientFactory.GOOGLE_ADS_SERVICE_STUB_V23
               .searchStreamCallable()
               .call(any(SearchGoogleAdsStreamRequest.class)))
           .thenThrow(
@@ -403,7 +403,7 @@ public class GoogleAdsIOTest {
               pipeline::run);
       Assert.assertEquals(IOException.class, exception.getCause().getClass());
       Assert.assertEquals(
-          "com.google.ads.googleads.v19.errors.GoogleAdsException: errors {\n"
+          "com.google.ads.googleads.v23.errors.GoogleAdsException: errors {\n"
               + "  error_code {\n"
               + "    authentication_error: OAUTH_TOKEN_REVOKED\n"
               + "  }\n"
@@ -414,7 +414,7 @@ public class GoogleAdsIOTest {
     @Test
     @Category(NeedsRunner.class)
     public void testReadWithRecoveryFromInternalError() throws Exception {
-      when(MockGoogleAdsClientFactory.GOOGLE_ADS_SERVICE_STUB_V19
+      when(MockGoogleAdsClientFactory.GOOGLE_ADS_SERVICE_STUB_V23
               .searchStreamCallable()
               .call(any(SearchGoogleAdsStreamRequest.class))
               .iterator())
@@ -465,7 +465,7 @@ public class GoogleAdsIOTest {
     @Test
     @Category(NeedsRunner.class)
     public void testReadWithRecoveryFromQuotaErrorWithRetryDelay() throws Exception {
-      when(MockGoogleAdsClientFactory.GOOGLE_ADS_SERVICE_STUB_V19
+      when(MockGoogleAdsClientFactory.GOOGLE_ADS_SERVICE_STUB_V23
               .searchStreamCallable()
               .call(any(SearchGoogleAdsStreamRequest.class))
               .iterator())

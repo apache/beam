@@ -348,7 +348,23 @@ public class AvroGenericRecordToStorageApiProtoTest {
         .endRecord();
   }
 
+  private static Schema createRepeatedTimestampNanosSchema() {
+    Schema longSchema = Schema.create(Schema.Type.LONG);
+    longSchema.addProp("logicalType", "timestamp-nanos");
+
+    Schema arraySchema = Schema.createArray(longSchema);
+
+    return SchemaBuilder.record("RepeatedTimestampNanosRecord")
+        .fields()
+        .name("timestampNanosArray")
+        .type(arraySchema)
+        .noDefault()
+        .endRecord();
+  }
+
   private static final Schema TIMESTAMP_NANOS_SCHEMA = createTimestampNanosSchema();
+  private static final Schema REPEATED_TIMESTAMP_NANOS_SCHEMA =
+      createRepeatedTimestampNanosSchema();
 
   private static GenericRecord baseRecord;
   private static GenericRecord rawLogicalTypesRecord;
@@ -883,6 +899,24 @@ public class AvroGenericRecordToStorageApiProtoTest {
     assertEquals(
         com.google.cloud.bigquery.storage.v1.TableFieldSchema.Type.TIMESTAMP, field.getType());
     assertTrue(field.hasTimestampPrecision());
+    assertEquals(12L, field.getTimestampPrecision().getValue());
+  }
+
+  @Test
+  public void testProtoTableSchemaFromAvroSchemaRepeatedTimestampNanos() {
+    com.google.cloud.bigquery.storage.v1.TableSchema protoSchema =
+        AvroGenericRecordToStorageApiProto.protoTableSchemaFromAvroSchema(
+            REPEATED_TIMESTAMP_NANOS_SCHEMA);
+
+    assertEquals(1, protoSchema.getFieldsCount());
+    com.google.cloud.bigquery.storage.v1.TableFieldSchema field = protoSchema.getFields(0);
+
+    assertEquals("timestampnanosarray", field.getName());
+    assertEquals(
+        com.google.cloud.bigquery.storage.v1.TableFieldSchema.Type.TIMESTAMP, field.getType());
+    assertEquals(
+        com.google.cloud.bigquery.storage.v1.TableFieldSchema.Mode.REPEATED, field.getMode());
+
     assertEquals(12L, field.getTimestampPrecision().getValue());
   }
 }

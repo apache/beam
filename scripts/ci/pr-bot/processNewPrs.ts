@@ -164,6 +164,19 @@ async function approvedBy(pull: any): Promise<string[]> {
  * 4) Adding "Next Action: Reviewers label"
  * 5) Storing the state of the pull request/reviewers in a dedicated branch.
  */
+async function isAnyGithubReviewerCommitter(pull: any): Promise<boolean> {
+  let reviewers: string[] = [];
+  if (pull.requested_reviewers && pull.requested_reviewers.length > 0) {
+    reviewers = reviewers.concat(pull.requested_reviewers.map((r: any) => r.login));
+  }
+  for (const reviewer of reviewers) {
+    if (await github.checkIfCommitter(reviewer)) {
+      return true;
+    }
+  }
+  return false;
+}
+
 async function processPull(
   pull: any,
   reviewerConfig: typeof ReviewerConfig,
@@ -177,7 +190,10 @@ async function processPull(
   console.log(`Processing PR ${pull.number}`);
 
   // If reviewers are already assigned, we just need to check if we should assign a committer.
-  if (Object.keys(prState.reviewersAssignedForLabels).length > 0) {
+  const hasReviewersAssignedForLabels = Object.keys(prState.reviewersAssignedForLabels).length > 0;
+  const hasGithubReviewers = pull.requested_reviewers && pull.requested_reviewers.length > 0;
+
+  if (hasReviewersAssignedForLabels || hasGithubReviewers) {
     if (prState.committerAssigned) {
       console.log(
         `Skipping PR ${pull.number} because a committer has been assigned`
@@ -195,12 +211,31 @@ async function processPull(
 
     // TODO(https://github.com/apache/beam/issues/21417) - also check if the author is a committer, if they are don't auto-assign a committer
     for (const approver of approvers) {
-      const labelOfReviewer = prState.getLabelForReviewer(approver);
+      let labelOfReviewer = prState.getLabelForReviewer(approver);
+
+      // If the approver is a GitHub assigned reviewer but not in our label map,
+      // we can try to guess a label from the PR to assign a committer to.
+      if (!labelOfReviewer) {
+        let isGithubReviewer = false;
+        if (pull.requested_reviewers && pull.requested_reviewers.some((r: any) => r.login === approver)) isGithubReviewer = true;
+
+        if (isGithubReviewer && pull.labels && pull.labels.length > 0) {
+          const validLabels = reviewerConfig.getReviewersForAllLabels();
+          const matchingLabel = pull.labels.find(
+            (label) => validLabels[label.name.toLowerCase()]
+          );
+          if (matchingLabel) {
+            labelOfReviewer = matchingLabel.name;
+          }
+        }
+      }
+
       if (labelOfReviewer) {
         if (
           (await github.checkIfCommitter(pull.user.login)) ||
           (await prState.isAnyAssignedReviewerCommitter()) ||
-          (await github.checkIfCommitter(approver))
+          (await github.checkIfCommitter(approver)) ||
+          (await isAnyGithubReviewerCommitter(pull))
         ) {
           console.log(
             "Author or reviewer is committer, not forwarding to another committer"

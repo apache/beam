@@ -18,7 +18,7 @@ package main
 import (
 	"beam.apache.org/playground/backend/internal/external_functions"
 	"context"
-	"fmt"
+	"errors"
 	"github.com/improbable-eng/grpc-web/go/grpcweb"
 	"google.golang.org/grpc"
 	"os"
@@ -153,7 +153,7 @@ func setupSdkCatalog(ctx context.Context, cacheService cache.Cache, db db.Databa
 	if len(sdks) != len(sdkNames) {
 		errMsg := "setupSdkCatalog() database doesn't have all sdks"
 		logger.Error(errMsg)
-		return nil, fmt.Errorf(errMsg)
+		return nil, errors.New(errMsg)
 	}
 	if err = cacheService.SetSdkCatalog(ctx, sdks); err != nil {
 		logger.Errorf("setupSdkCatalog() error during setting sdk catalog to the cache, err: %s", err.Error())

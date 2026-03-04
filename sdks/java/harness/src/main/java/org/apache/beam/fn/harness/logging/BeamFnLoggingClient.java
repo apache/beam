@@ -265,6 +265,8 @@ public class BeamFnLoggingClient implements LoggingClient {
             throw new RuntimeException(e);
           }
         }
+      } catch (OutOfMemoryError oom) {
+        throw oom;
       } catch (Throwable t) {
         thrown = t;
         throw new RuntimeException(t);

@@ -22,7 +22,7 @@ import java.net.ServerSocket;
 
 /** This class contains helper methods for networking related tasks in tests. */
 public class NetworkTestHelper {
-  /** @return Next available port in local interface */
+  /** Returns next available port in local interface. */
   public static synchronized int getAvailableLocalPort() throws IOException {
     try (ServerSocket socket = new ServerSocket(0); ) {
       return socket.getLocalPort();

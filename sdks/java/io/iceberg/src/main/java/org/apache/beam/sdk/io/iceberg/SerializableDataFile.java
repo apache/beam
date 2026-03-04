@@ -141,7 +141,7 @@ abstract class SerializableDataFile {
   static SerializableDataFile from(DataFile f, String partitionPath) {
 
     return SerializableDataFile.builder()
-        .setPath(f.path().toString())
+        .setPath(f.location().toString())
         .setFileFormat(f.format().toString())
         .setRecordCount(f.recordCount())
         .setFileSizeInBytes(f.fileSizeInBytes())

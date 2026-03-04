@@ -18,6 +18,7 @@
 package org.apache.beam.runners.dataflow.worker.streaming.config;
 
 import static com.google.common.truth.Truth.assertThat;
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
@@ -29,7 +30,9 @@ import com.google.api.services.dataflow.model.StreamingComputationConfig;
 import com.google.api.services.dataflow.model.StreamingConfigTask;
 import com.google.api.services.dataflow.model.WorkItem;
 import java.io.IOException;
+import java.util.Arrays;
 import java.util.HashSet;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CountDownLatch;
@@ -47,6 +50,7 @@ import org.mockito.internal.stubbing.answers.Returns;
 
 @RunWith(JUnit4.class)
 public class StreamingEngineComputationConfigFetcherTest {
+
   private final WorkUnitClient mockDataflowServiceClient =
       mock(WorkUnitClient.class, new Returns(Optional.empty()));
   private StreamingEngineComputationConfigFetcher streamingEngineConfigFetcher;
@@ -230,5 +234,39 @@ public class StreamingEngineComputationConfigFetcherTest {
             RuntimeException.class,
             () -> streamingEngineConfigFetcher.fetchConfig("someComputationId"));
     assertThat(fetchConfigError).isSameInstanceAs(e);
+  }
+
+  @Test
+  public void test_streamingEngineStateTagEncodingVersion()
+      throws IOException, InterruptedException {
+    for (Optional<Integer> tagEncoding :
+        Arrays.<Optional<Integer>>asList(Optional.empty(), Optional.of(1), Optional.of(2))) {
+      StreamingConfigTask streamingConfigTask =
+          new StreamingConfigTask().setMaxWorkItemCommitBytes(100L);
+      tagEncoding.ifPresent(
+          version -> streamingConfigTask.setStreamingEngineStateTagEncodingVersion(version));
+      WorkItem initialConfig =
+          new WorkItem().setJobId("job").setStreamingConfigTask(streamingConfigTask);
+      CountDownLatch waitForInitialConfig = new CountDownLatch(1);
+      Set<StreamingGlobalConfig> receivedPipelineConfig = new HashSet<>();
+      when(mockDataflowServiceClient.getGlobalStreamingConfigWorkItem())
+          .thenReturn(Optional.of(initialConfig));
+      StreamingGlobalConfigHandleImpl globalConfigHandle = new StreamingGlobalConfigHandleImpl();
+      globalConfigHandle.registerConfigObserver(
+          config -> {
+            receivedPipelineConfig.add(config);
+            waitForInitialConfig.countDown();
+          });
+      streamingEngineConfigFetcher =
+          createConfigFetcher(/* waitForInitialConfig= */ true, 0, globalConfigHandle);
+      Thread asyncStartConfigLoader = new Thread(streamingEngineConfigFetcher::start);
+      asyncStartConfigLoader.start();
+      waitForInitialConfig.await();
+      asyncStartConfigLoader.join();
+      assertEquals(1, receivedPipelineConfig.size());
+      assertEquals(
+          Objects.equals(2, streamingConfigTask.getStreamingEngineStateTagEncodingVersion()),
+          receivedPipelineConfig.iterator().next().enableStateTagEncodingV2());
+    }
   }
 }

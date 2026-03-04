@@ -33,12 +33,13 @@ from apache_beam.testing.util import equal_to
 _LOGGER = logging.getLogger(__name__)
 
 try:
-  from apitools.base.py.exceptions import HttpError
+  from google.api_core.exceptions import GoogleAPICallError
 except ImportError:
-  HttpError = None
+  GoogleAPICallError = None
 
 
-@unittest.skipIf(HttpError is None, 'GCP dependencies are not installed')
+@unittest.skipIf(
+    GoogleAPICallError is None, 'GCP dependencies are not installed')
 class ReadUsingReadGbqTests(unittest.TestCase):
   @pytest.mark.it_postcommit
   def test_ReadGbq(self):

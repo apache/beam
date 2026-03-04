@@ -63,9 +63,6 @@
 #  skip_transforms:
 #    # generate_sequence is already included in the Java IO expansion service
 #    - 'beam:schematransform:org.apache.beam:generate_sequence:v1'
-#    # Handwritten wrappers exist in apache_beam/io/gcp/pubsublite/
-#    - 'beam:schematransform:org.apache.beam:pubsublite_read:v1'
-#    - 'beam:schematransform:org.apache.beam:pubsublite_write:v1'
 #    # Handwritten wrapper exists in apache_beam/io/gcp/spanner.py
 #    - 'beam:schematransform:org.apache.beam:spanner_write:v1'
 #    # Native IO exists in apache_beam/io/gcp/pubsub.py

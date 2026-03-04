@@ -27,6 +27,7 @@ import com.google.cloud.bigtable.config.BigtableOptions;
 import com.google.cloud.bigtable.data.v2.BigtableDataClient;
 import com.google.cloud.bigtable.data.v2.BigtableDataSettings;
 import com.google.cloud.bigtable.data.v2.models.RowMutation;
+import com.google.cloud.bigtable.data.v2.models.TableId;
 import java.io.IOException;
 import java.util.Date;
 import org.apache.beam.repackaged.core.org.apache.commons.lang3.StringUtils;
@@ -34,6 +35,7 @@ import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
 import org.apache.beam.sdk.metrics.Lineage;
+import org.apache.beam.sdk.options.ExperimentalOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
@@ -144,6 +146,45 @@ public class BigtableReadIT {
                     .withMaxBufferElementCount(10))
             .apply(Count.globally());
     PAssert.thatSingleton(count).isEqualTo(numRows);
+    PipelineResult r = p.run();
+    checkLineageSourceMetric(r, tableId);
+  }
+
+  @Test
+  public void testE2EBigtableReadWithSkippingLargeRows() {
+    tableAdminClient.createTable(CreateTableRequest.of(tableId).addFamily(COLUMN_FAMILY_NAME));
+
+    // Write a few rows first
+    int numRows = 20;
+    int numLargeRows = 3;
+    // Each mutation can't exceed 100 MB. Break it down to 3 columns
+    String value = StringUtils.repeat("v", 90 * 1000 * 1000);
+    for (int i = 0; i < numLargeRows; i++) {
+      for (int j = 0; j < 3; j++) {
+        client.mutateRow(
+            RowMutation.create(TableId.of(tableId), "large_row-" + i)
+                .setCell(COLUMN_FAMILY_NAME, "q" + i, value));
+      }
+    }
+
+    for (int i = 0; i < numRows - numLargeRows; i++) {
+      client.mutateRow(
+          RowMutation.create(TableId.of(tableId), "row-" + i)
+              .setCell(COLUMN_FAMILY_NAME, "q", "value"));
+    }
+
+    ExperimentalOptions.addExperiment(
+        options.as(ExperimentalOptions.class), "bigtable_enable_skip_large_rows");
+
+    Pipeline p = Pipeline.create(options);
+    PCollection<Long> count =
+        p.apply(
+                BigtableIO.read()
+                    .withProjectId(project)
+                    .withInstanceId(options.getInstanceId())
+                    .withTableId(tableId))
+            .apply(Count.globally());
+    PAssert.thatSingleton(count).isEqualTo((long) numRows - numLargeRows);
     PipelineResult r = p.run();
     checkLineageSourceMetric(r, tableId);
   }

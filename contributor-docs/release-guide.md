@@ -588,7 +588,7 @@ Verify that third party licenses are included in Docker. You can do this with a 
           -c 'ls -al /opt/apache/beam/third_party_licenses/ | wc -l'
     done
 
-    for javaver in 8 11 17 21; do
+    for javaver in 11 17 21 25; do
       docker run --rm --entrypoint sh \
           apache/beam_java${javaver}_sdk:${RC_TAG} \
           -c 'ls -al /opt/apache/beam/third_party_licenses/ | wc -l'

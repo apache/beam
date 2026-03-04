@@ -74,8 +74,6 @@ dependencies {
     implementation 'com.google.cloud:google-cloud-spanner'
     implementation 'com.google.cloud:google-cloud-pubsub'
     provided 'com.google.api.grpc:proto-google-cloud-pubsub-v1'
-    implementation 'com.google.cloud:google-cloud-pubsublite'
-    provided 'com.google.api.grpc:proto-google-cloud-pubsublite-v1'
     implementation 'com.google.cloud:google-cloud-datastore'
     implementation 'com.google.cloud:google-cloud-datastream'
     provided 'com.google.api.grpc:proto-google-cloud-datastream-v1'

@@ -59,6 +59,7 @@ import org.apache.beam.sdk.util.SerializableUtils;
 import org.apache.beam.sdk.util.WindowTracing;
 import org.apache.beam.sdk.util.WindowedValueReceiver;
 import org.apache.beam.sdk.util.construction.TriggerTranslation;
+import org.apache.beam.sdk.values.CausedByDrain;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.TimestampedValue;
 import org.apache.beam.sdk.values.WindowedValue;
@@ -574,7 +575,11 @@ public class ReduceFnTester<InputT, OutputT, W extends BoundedWindow> {
     ArrayList<TimerData> timers = new ArrayList<>(1);
     timers.add(
         TimerData.of(
-            StateNamespaces.window(windowFn.windowCoder(), window), timestamp, timestamp, domain));
+            StateNamespaces.window(windowFn.windowCoder(), window),
+            timestamp,
+            timestamp,
+            domain,
+            CausedByDrain.NORMAL));
     runner.onTimers(timers);
     runner.persist();
   }
@@ -588,7 +593,8 @@ public class ReduceFnTester<InputT, OutputT, W extends BoundedWindow> {
               StateNamespaces.window(windowFn.windowCoder(), window),
               timer.getTimestamp(),
               timer.getTimestamp(),
-              timer.getValue()));
+              timer.getValue(),
+              CausedByDrain.NORMAL));
     }
     runner.onTimers(timerData);
     runner.persist();
