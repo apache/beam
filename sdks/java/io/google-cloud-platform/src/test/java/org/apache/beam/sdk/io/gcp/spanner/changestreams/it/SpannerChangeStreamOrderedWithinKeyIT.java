@@ -86,7 +86,7 @@ public class SpannerChangeStreamOrderedWithinKeyIT {
 
   @Test
   public void testOrderedWithinKey() {
-    LOG.info("Test pipeline: " + pipeline.toString());
+    LOG.info("Test pipeline: {}", pipeline);
     final SpannerConfig spannerConfig =
         SpannerConfig.create()
             .withProjectId(projectId)
@@ -319,14 +319,14 @@ public class SpannerChangeStreamOrderedWithinKeyIT {
     mutations.add(insertRecordMutation(1));
     mutations.add(insertRecordMutation(2));
     com.google.cloud.Timestamp t1 = databaseClient.write(mutations);
-    LOG.debug("The first transaction committed with timestamp: " + t1.toString());
+    LOG.debug("The first transaction committed with timestamp: {}", t1);
     mutations.clear();
 
     // 2. Commmit a transaction to insert Singer 4 and remove Singer 1 from the table.
     mutations.add(updateRecordMutation(1));
     mutations.add(insertRecordMutation(4));
     com.google.cloud.Timestamp t2 = databaseClient.write(mutations);
-    LOG.debug("The second transaction committed with timestamp: " + t2.toString());
+    LOG.debug("The second transaction committed with timestamp: {}", t2);
     mutations.clear();
 
     // 3. Commit a transaction to insert Singer 3 and Singer 5.
@@ -335,14 +335,14 @@ public class SpannerChangeStreamOrderedWithinKeyIT {
     mutations.add(insertRecordMutation(5));
     mutations.add(updateRecordMutation(5));
     com.google.cloud.Timestamp t3 = databaseClient.write(mutations);
-    LOG.debug("The third transaction committed with timestamp: " + t3.toString());
+    LOG.debug("The third transaction committed with timestamp: {}", t3);
     mutations.clear();
 
     // 4. Commit a transaction to update Singer 3 and Singer 2 in the table.
     mutations.add(updateRecordMutation(3));
     mutations.add(updateRecordMutation(2));
     com.google.cloud.Timestamp t4 = databaseClient.write(mutations);
-    LOG.debug("The fourth transaction committed with timestamp: " + t4.toString());
+    LOG.debug("The fourth transaction committed with timestamp: {}", t4);
     mutations.clear();
 
     // 5. Commit a transaction to delete 4, insert 1, delete 3, update 5.
@@ -352,7 +352,7 @@ public class SpannerChangeStreamOrderedWithinKeyIT {
     mutations.add(updateRecordMutation(5));
     com.google.cloud.Timestamp t5 = databaseClient.write(mutations);
 
-    LOG.debug("The fifth transaction committed with timestamp: " + t5.toString());
+    LOG.debug("The fifth transaction committed with timestamp: {}", t5);
     mutations.clear();
 
     // 6. Commit a transaction to delete Singers 5, insert singers 6.
@@ -360,7 +360,7 @@ public class SpannerChangeStreamOrderedWithinKeyIT {
     mutations.add(insertRecordMutation(6));
     mutations.add(deleteRecordMutation(6));
     com.google.cloud.Timestamp t6 = databaseClient.write(mutations);
-    LOG.debug("The sixth transaction committed with timestamp: " + t6.toString());
+    LOG.debug("The sixth transaction committed with timestamp: {}", t6);
     mutations.clear();
 
     // 7. Delete remaining rows from database.
@@ -368,7 +368,7 @@ public class SpannerChangeStreamOrderedWithinKeyIT {
     mutations.add(deleteRecordMutation(2));
     mutations.add(deleteRecordMutation(0));
     com.google.cloud.Timestamp t7 = databaseClient.write(mutations);
-    LOG.debug("The seventh transaction committed with timestamp: " + t7.toString());
+    LOG.debug("The seventh transaction committed with timestamp: {}", t7);
 
     return t7;
   }

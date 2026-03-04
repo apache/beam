@@ -121,7 +121,7 @@ abstract class NaiveSpannerRead
         }
       } catch (SpannerException e) {
         serviceCallMetric.call(e.getErrorCode().getGrpcStatusCode().toString());
-        LOG.error("Error while reading operation: " + op, e);
+        LOG.error("Error while reading operation: {}", op, e);
         throw (e);
       }
       serviceCallMetric.call("ok");

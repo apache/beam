@@ -114,7 +114,7 @@ public class SpannerChangeStreamOrderedByTimestampAndTransactionIdIT {
     try {
       Thread.sleep(timeIncrementInSeconds * 1000);
     } catch (InterruptedException e) {
-      LOG.error(e.toString(), e);
+      LOG.error("Interrupted while waiting", e);
     }
 
     // This will be the second batch of transactions that will have strict timestamp ordering
@@ -125,7 +125,7 @@ public class SpannerChangeStreamOrderedByTimestampAndTransactionIdIT {
     try {
       Thread.sleep(timeIncrementInSeconds * 1000);
     } catch (InterruptedException e) {
-      LOG.error(e.toString(), e);
+      LOG.error("Interrupted while waiting", e);
     }
 
     // This will be the final batch of transactions that will have strict timestamp ordering
@@ -413,8 +413,7 @@ public class SpannerChangeStreamOrderedByTimestampAndTransactionIdIT {
         LOG.debug("Setting next timer to {}", nextTimer.toString());
         timer.set(nextTimer);
       } else {
-        LOG.debug(
-            "Timer not being set as exceeded pipeline end time: " + pipelineEndTime.toString());
+        LOG.debug("Timer not being set as exceeded pipeline end time: {}", pipelineEndTime);
       }
     }
   }
@@ -475,27 +474,27 @@ public class SpannerChangeStreamOrderedByTimestampAndTransactionIdIT {
     mutations.add(insertRecordMutation(1, "FirstName1", "LastName2"));
     mutations.add(insertRecordMutation(2, "FirstName2", "LastName2"));
     Timestamp t1 = databaseClient.write(mutations);
-    LOG.debug("The first transaction committed with timestamp: " + t1.toString());
+    LOG.debug("The first transaction committed with timestamp: {}", t1);
     mutations.clear();
 
     // 2. Commmit a transaction to insert Singer 3 and remove Singer 1 from the table.
     mutations.add(insertRecordMutation(3, "FirstName3", "LastName3"));
     mutations.add(deleteRecordMutation(1));
     Timestamp t2 = databaseClient.write(mutations);
-    LOG.debug("The second transaction committed with timestamp: " + t2.toString());
+    LOG.debug("The second transaction committed with timestamp: {}", t2);
     mutations.clear();
 
     // 3. Commit a transaction to delete Singer 2 and Singer 3 from the table.
     mutations.add(deleteRecordMutation(2));
     mutations.add(deleteRecordMutation(3));
     Timestamp t3 = databaseClient.write(mutations);
-    LOG.debug("The third transaction committed with timestamp: " + t3.toString());
+    LOG.debug("The third transaction committed with timestamp: {}", t3);
     mutations.clear();
 
     // 4. Commit a transaction to delete Singer 0.
     mutations.add(deleteRecordMutation(0));
     Timestamp t4 = databaseClient.write(mutations);
-    LOG.debug("The fourth transaction committed with timestamp: " + t4.toString());
+    LOG.debug("The fourth transaction committed with timestamp: {}", t4);
     return t4;
   }
 

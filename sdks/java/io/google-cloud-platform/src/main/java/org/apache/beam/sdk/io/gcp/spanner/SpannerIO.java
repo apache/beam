@@ -1973,10 +1973,9 @@ public class SpannerIO {
       final Dialect metadataDatabaseDialect =
           getDialect(partitionMetadataSpannerConfig, input.getPipeline().getOptions());
       LOG.info(
-          "The Spanner database "
-              + changeStreamDatabaseId
-              + " has dialect "
-              + changeStreamDatabaseDialect);
+          "The Spanner database {} has dialect {}",
+          changeStreamDatabaseId,
+          changeStreamDatabaseDialect);
       PartitionMetadataTableNames partitionMetadataTableNames =
           Optional.ofNullable(getMetadataTable())
               .map(
@@ -2000,7 +1999,7 @@ public class SpannerIO {
       final boolean isMutableChangeStream =
           isMutableChangeStream(
               spannerAccessor.getDatabaseClient(), changeStreamDatabaseDialect, changeStreamName);
-      LOG.info("The change stream " + changeStreamName + " is mutable: " + isMutableChangeStream);
+      LOG.info("The change stream {} is mutable: {}", changeStreamName, isMutableChangeStream);
       final DaoFactory daoFactory =
           new DaoFactory(
               changeStreamSpannerConfig,
@@ -2029,8 +2028,8 @@ public class SpannerIO {
           new PostProcessingMetricsDoFn(metrics);
 
       LOG.info(
-          "Partition metadata table that will be used is "
-              + partitionMetadataTableNames.getTableName());
+          "Partition metadata table that will be used is {}",
+          partitionMetadataTableNames.getTableName());
 
       final PCollection<byte[]> impulseOut = input.apply(Impulse.create());
       final PCollection<PartitionMetadata> partitionsOut =
@@ -2533,7 +2532,7 @@ public class SpannerIO {
           mutationGroupsWriteSuccess.inc();
         } catch (SpannerException e) {
           mutationGroupsWriteFail.inc();
-          LOG.warn("Failed to write the mutation group: " + mg, e);
+          LOG.warn("Failed to write the mutation group: {}", mg, e);
           c.output(failedTag, mg);
         }
       }
