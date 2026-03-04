@@ -15,10 +15,10 @@
 # limitations under the License.
 #
 
-"""Centralized skip for Vertex AI integration tests when dependencies are missing.
+"""Centralized skip for Vertex AI tests when dependencies are missing.
 
-Test modules use skip_if_vertex_ai_disabled on classes that require the Vertex AI
-Python SDK to be installed.
+Test modules use skip_if_vertex_ai_disabled on classes that require
+the Vertex AI Python SDK to be installed.
 """
 
 import pytest
@@ -27,7 +27,7 @@ import pytest
 def _is_vertex_ai_available() -> bool:
   """Return True if Vertex AI client dependencies are importable."""
   try:
-    import vertexai  # type: ignore[import-not-found]  # pylint: disable=unused-import
+    import vertexai  # pylint: disable=unused-import
   except ImportError:
     return False
   return True
