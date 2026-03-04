@@ -666,7 +666,7 @@ abstract class ReadFromKafkaDoFn<K, V>
           }
         } finally {
           if (rawSizesCount > 0L) {
-            avgRecordSize.update(rawSizesSum, rawSizesCount);
+            avgRecordSize.update((double) rawSizesSum, rawSizesCount);
             rawSizes.update(rawSizesSum, rawSizesCount, rawSizesMin, rawSizesMax);
           }
         }
