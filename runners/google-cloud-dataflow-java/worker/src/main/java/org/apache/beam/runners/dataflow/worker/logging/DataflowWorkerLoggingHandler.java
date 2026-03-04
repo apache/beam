@@ -377,7 +377,7 @@ public class DataflowWorkerLoggingHandler extends Handler {
       if (manager != null) {
         manager.error(message, e, code);
       }
-    } catch (Throwable t) {
+    } catch (Exception ex) {
       // Failed to report logging failure. No meaningful action left.
     }
   }

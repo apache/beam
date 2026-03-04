@@ -74,6 +74,8 @@ final class StreamingCommitFinalizer {
             () -> {
               try {
                 finalizeCommit.run();
+              } catch (OutOfMemoryError oom) {
+                throw oom;
               } catch (Throwable t) {
                 LOG.error("Source checkpoint finalization failed:", t);
               }

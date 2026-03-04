@@ -83,7 +83,7 @@ public abstract class OrderedProcessingHandler<
     this.resultTClass = resultTClass;
   }
 
-  /** @return the event examiner instance which will be used by the transform. */
+  /** Returns the event examiner instance which will be used by the transform. */
   public abstract @NonNull EventExaminer<EventT, StateT> getEventExaminer();
 
   /**

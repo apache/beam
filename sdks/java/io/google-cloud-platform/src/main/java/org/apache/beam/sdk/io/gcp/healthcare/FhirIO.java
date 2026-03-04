@@ -342,7 +342,7 @@ public class FhirIO {
     return new Export(StaticValueProvider.of(fhirStore), StaticValueProvider.of(exportUri));
   }
 
-  /** @see FhirIO#exportResources(String, String) */
+  /** See {@link FhirIO#exportResources(String, String)}. */
   public static Export exportResources(
       ValueProvider<String> fhirStore, ValueProvider<String> exportUri) {
     return new Export(fhirStore, exportUri);

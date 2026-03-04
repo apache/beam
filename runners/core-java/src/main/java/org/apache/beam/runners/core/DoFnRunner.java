@@ -64,8 +64,9 @@ public interface DoFnRunner<InputT extends @Nullable Object, OutputT extends @Nu
       BoundedWindow window, Instant timestamp, KeyT key);
 
   /**
+   * Returns the underlying fn instance.
+   *
    * @since 2.5.0
-   * @return the underlying fn instance.
    */
   DoFn<InputT, OutputT> getFn();
 }
