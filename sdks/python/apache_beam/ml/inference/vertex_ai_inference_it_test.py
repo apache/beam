@@ -27,7 +27,8 @@ import apache_beam as beam
 from apache_beam.io.filesystems import FileSystems
 from apache_beam.ml.inference.base import RunInference
 from apache_beam.testing.test_pipeline import TestPipeline
-from apache_beam.testing.vertex_ai_skip import skip_if_vertex_ai_disabled
+
+pytest.importorskip("vertexai", reason="Vertex AI dependencies not available")
 
 # pylint: disable=ungrouped-imports
 try:
@@ -54,7 +55,6 @@ _INVOKE_ROUTE = "/predict"
 _INVOKE_OUTPUT_DIR = "gs://apache-beam-ml/testing/outputs/vertex_invoke"
 
 
-@skip_if_vertex_ai_disabled
 @pytest.mark.vertex_ai_postcommit
 class VertexAIInference(unittest.TestCase):
   def test_vertex_ai_run_flower_image_classification(self):

@@ -159,10 +159,6 @@ toxTask "testPy310transformers-447", "py310-transformers-447", "${posargs}"
 test.dependsOn "testPy310transformers-447"
 postCommitPyDep.dependsOn "testPy310transformers-447"
 
-toxTask "testPy310transformers-448", "py310-transformers-448", "${posargs}"
-test.dependsOn "testPy310transformers-448"
-postCommitPyDep.dependsOn "testPy310transformers-448"
-
 toxTask "testPy310transformers-latest", "py310-transformers-latest", "${posargs}"
 test.dependsOn "testPy310transformers-latest"
 postCommitPyDep.dependsOn "testPy310transformers-latest"

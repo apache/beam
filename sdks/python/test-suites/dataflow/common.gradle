@@ -504,7 +504,7 @@ task vertexAIInferenceTest {
       def cmdArgs = mapToArgString(argMap)
       exec {
         executable 'sh'
-        args '-c', ". ${envdir}/bin/activate && RUN_VERTEX_AI_TESTS=1 ${runScriptsDir}/run_integration_test.sh $cmdArgs"
+        args '-c', ". ${envdir}/bin/activate && ${runScriptsDir}/run_integration_test.sh $cmdArgs"
       }
     }
 }

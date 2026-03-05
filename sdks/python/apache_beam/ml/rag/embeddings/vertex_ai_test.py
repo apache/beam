@@ -34,7 +34,8 @@ from apache_beam.ml.transforms.base import MLTransform
 from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
-from apache_beam.testing.vertex_ai_skip import skip_if_vertex_ai_disabled
+
+pytest.importorskip("vertexai", reason="Vertex AI dependencies not available")
 
 # pylint: disable=ungrouped-imports
 try:
@@ -43,9 +44,10 @@ try:
   from apache_beam.ml.rag.embeddings.vertex_ai import VertexAIImageEmbeddings
   from apache_beam.ml.rag.embeddings.vertex_ai import VertexAITextEmbeddings
   from apache_beam.ml.rag.embeddings.vertex_ai import _create_image_adapter
-  VERTEX_AI_AVAILABLE = True
 except ImportError:
-  VERTEX_AI_AVAILABLE = False
+  VertexAIImageEmbeddings = None  # type: ignore
+  VertexAITextEmbeddings = None  # type: ignore
+  _create_image_adapter = None  # type: ignore
 
 
 def chunk_approximately_equals(expected, actual):
@@ -62,8 +64,6 @@ def chunk_approximately_equals(expected, actual):
 
 
 @pytest.mark.vertex_ai_postcommit
-@unittest.skipIf(
-    not VERTEX_AI_AVAILABLE, "Vertex AI dependencies not available")
 class VertexAITextEmbeddingsTest(unittest.TestCase):
   def setUp(self):
     self.artifact_location = tempfile.mkdtemp(prefix='vertex_ai_')
@@ -117,8 +117,6 @@ class VertexAITextEmbeddingsTest(unittest.TestCase):
           embeddings, equal_to(expected, equals_fn=chunk_approximately_equals))
 
 
-@unittest.skipIf(
-    not VERTEX_AI_AVAILABLE, "Vertex AI dependencies not available")
 class VertexAIImageAdapterTest(unittest.TestCase):
   def test_image_adapter_missing_content(self):
     adapter = _create_image_adapter()
@@ -150,10 +148,7 @@ class VertexAIImageAdapterTest(unittest.TestCase):
     self.assertEqual(result[0].embedding.dense_embedding, [0.1, 0.2, 0.3])
 
 
-@skip_if_vertex_ai_disabled
 @pytest.mark.vertex_ai_postcommit
-@unittest.skipIf(
-    not VERTEX_AI_AVAILABLE, "Vertex AI dependencies not available")
 class VertexAIImageEmbeddingsTest(unittest.TestCase):
   def setUp(self):
     self.artifact_location = tempfile.mkdtemp(prefix='vertex_ai_img_')
