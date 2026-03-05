@@ -269,8 +269,13 @@ class _PollWatermarkEstimator(WatermarkEstimator):
     self._watermark_hold = timestamp
 
   def advance_poll_cursor(self, end_ts: float) -> None:
-    """Record end_ts so the next poll starts from here."""
-    self._last_end_ts = end_ts
+    """Record end_ts so the next poll starts from here.
+
+    Only advances forward: if end_ts is earlier than the current cursor
+    (e.g. BQ clock regression), the cursor stays put so the next poll
+    doesn't re-query an already-covered range.
+    """
+    self._last_end_ts = max(self._last_end_ts, end_ts)
 
   def poll_cursor(self) -> float:
     """Return the start_ts for the next poll."""
