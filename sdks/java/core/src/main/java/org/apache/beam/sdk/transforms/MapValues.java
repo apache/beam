@@ -130,6 +130,7 @@ public class MapValues<K, V1, V2>
    *                 .<String, String>via(word -> 1 / word.length)  // Could throw ArithmeticException
    *                 .exceptionsVia(
    *                     new InferableFunction<ExceptionElement<KV<String, String>>, String>() {
+   *                       @Override
    *                       public String apply(ExceptionElement<KV<String, String>> input) {
    *                         return input.exception().getMessage();
    *                       }
