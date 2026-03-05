@@ -329,7 +329,8 @@ class PollChangeHistoryFnTest(BigQueryChangeHistoryIntegrationBase):
         buffer_sec=0,
         start_time=start_time,
         stop_time=time.time() + 5,
-        poll_interval_sec=60)
+        poll_interval_sec=30,
+        location=self.location)
 
     with beam.Pipeline(argv=self.args) as p:
       ranges = (p | beam.Create([config]) | beam.ParDo(poll_sdf))
@@ -431,7 +432,8 @@ class EndToEndTest(BigQueryChangeHistoryIntegrationBase):
               change_function='APPENDS',
               buffer_sec=10,
               project=self.project,
-              temp_dataset=self.temp_dataset))
+              temp_dataset=self.temp_dataset,
+              location=self.location))
 
       def check_rows(actual):
         assert len(actual) == 3, f'Expected 3 rows, got {len(actual)}'

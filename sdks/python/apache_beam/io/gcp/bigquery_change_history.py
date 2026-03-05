@@ -67,13 +67,9 @@ from apache_beam.io.watermark_estimators import ManualWatermarkEstimator
 from apache_beam.metrics import Metrics
 from apache_beam.transforms.core import WatermarkEstimatorProvider
 from apache_beam.transforms.window import TimestampedValue
+from apache_beam.utils import retry
 from apache_beam.utils.timestamp import MAX_TIMESTAMP
 from apache_beam.utils.timestamp import Timestamp
-
-try:
-  from apitools.base.py.exceptions import HttpError
-except ImportError:
-  HttpError = None  # type: ignore
 
 try:
   from google.cloud import bigquery_storage_v1 as bq_storage
@@ -432,6 +428,36 @@ class _PollChangeHistoryFn(beam.DoFn, beam.transforms.core.RestrictionProvider):
     self._poll_interval_sec = poll_interval_sec
     self._location = location
 
+  def setup(self) -> None:
+    self._bq_wrapper = bigquery_tools.BigQueryWrapper()
+    if self._location is None:
+      table_ref = bigquery_tools.parse_table_reference(
+          self._table, project=self._project)
+      self._location = self._bq_wrapper.get_table_location(
+          table_ref.projectId, table_ref.datasetId, table_ref.tableId)
+      _LOGGER.info(
+          '[Poll] Inferred location=%s from source table %s',
+          self._location,
+          self._table)
+
+  @retry.with_exponential_backoff(
+      num_retries=3,
+      retry_filter=retry.retry_on_server_errors_and_timeout_filter)
+  def _get_bq_timestamp(self) -> float:
+    """Query BigQuery for the current server timestamp.
+
+    Uses BQ's CURRENT_TIMESTAMP instead of the local clock to avoid
+    data loss from clock skew between the worker VM and BigQuery.
+    """
+    request = bigquery.BigqueryJobsQueryRequest(
+        projectId=self._project,
+        queryRequest=bigquery.QueryRequest(
+            query='SELECT UNIX_MICROS(CURRENT_TIMESTAMP()) AS ts',
+            useLegacySql=False,
+            location=self._location))
+    response = self._bq_wrapper.client.jobs.Query(request)
+    return int(response.rows[0].f[0].v.string_value) / 1e6
+
   def initial_restriction(self, element: _PollConfig) -> OffsetRange:
     return OffsetRange(0, sys.maxsize)
 
@@ -470,7 +496,6 @@ class _PollChangeHistoryFn(beam.DoFn, beam.transforms.core.RestrictionProvider):
       self,
       start_ts: float,
       end_ts: float,
-      now: float,
       watermark_estimator: _PollWatermarkEstimator) -> Iterable[_QueryRange]:
     """Compute and yield _QueryRange elements, advancing estimator state."""
     ranges = compute_ranges(start_ts, end_ts, self._change_function)
@@ -504,18 +529,24 @@ class _PollChangeHistoryFn(beam.DoFn, beam.transforms.core.RestrictionProvider):
 
     now = time.time()
     start_ts = watermark_estimator.poll_cursor()
-    end_ts = min(now - self._buffer_sec, self._stop_time)
 
     defer_to = self._next_poll_time(start_ts, now)
     if defer_to is not None:
       restriction_tracker.defer_remainder(defer_to)
       return
 
+    # Use BQ server time instead of local clock to avoid data loss
+    # from clock skew between the worker VM and BigQuery.
+    bq_now = self._get_bq_timestamp()
+    end_ts = min(bq_now - self._buffer_sec, self._stop_time)
+
     _LOGGER.info(
-        '[Poll] Polling: start_ts=%s, end_ts=%s, watermark=%s',
+        '[Poll] Polling: start_ts=%s, end_ts=%s, watermark=%s, '
+        'clock_skew=%.3fs',
         _utc(start_ts),
         _utc(end_ts),
-        _utc(watermark_estimator.current_watermark()))
+        _utc(watermark_estimator.current_watermark()),
+        bq_now - now)
 
     current_index = restriction_tracker.current_restriction().start
 
@@ -524,8 +555,7 @@ class _PollChangeHistoryFn(beam.DoFn, beam.transforms.core.RestrictionProvider):
     restriction_tracker.defer_remainder(
         Timestamp.of(now + self._poll_interval_sec))
 
-    yield from self._emit_query_ranges(
-        start_ts, end_ts, now, watermark_estimator)
+    yield from self._emit_query_ranges(start_ts, end_ts, watermark_estimator)
 
 
 class _ExecuteQueryFn(beam.DoFn):
@@ -563,40 +593,11 @@ class _ExecuteQueryFn(beam.DoFn):
           '[Query] Inferred location=%s from source table %s',
           self._location,
           self._table)
-    self._get_or_create_temp_dataset()
-
-  def _get_or_create_temp_dataset(self) -> None:
-    """Create the temp dataset if it doesn't exist.
-
-    Sets defaultTableExpirationMs so orphaned temp tables are automatically
-    garbage-collected by BigQuery if the pipeline crashes before cleanup.
-    """
-    try:
-      self._bq_wrapper.client.datasets.Get(
-          bigquery.BigqueryDatasetsGetRequest(
-              projectId=self._project, datasetId=self._temp_dataset))
-      _LOGGER.info(
-          '[Query] Temp dataset %s.%s already exists',
-          self._project,
-          self._temp_dataset)
-    except HttpError as e:
-      if e.status_code != 404:
-        raise
-      _LOGGER.info(
-          '[Query] Creating temp dataset %s.%s with '
-          '24h table expiration, location=%s',
-          self._project,
-          self._temp_dataset,
-          self._location)
-      dataset = bigquery.Dataset(
-          datasetReference=bigquery.DatasetReference(
-              projectId=self._project, datasetId=self._temp_dataset))
-      if self._location is not None:
-        dataset.location = self._location
-      dataset.defaultTableExpirationMs = _DEFAULT_TABLE_EXPIRATION_MS
-      self._bq_wrapper.client.datasets.Insert(
-          bigquery.BigqueryDatasetsInsertRequest(
-              projectId=self._project, dataset=dataset))
+    self._bq_wrapper.get_or_create_dataset(
+        self._project,
+        self._temp_dataset,
+        location=self._location,
+        default_table_expiration_ms=_DEFAULT_TABLE_EXPIRATION_MS)
 
   def process(self, qr: _QueryRange) -> Iterable[_QueryResult]:
     """Execute the BQ query described by a _QueryRange and yield _QueryResult.
@@ -1145,7 +1146,8 @@ class ReadBigQueryChangeHistory(beam.PTransform):
                 buffer_sec=self._buffer_sec,
                 start_time=start_time,
                 stop_time=stop_time,
-                poll_interval_sec=self._poll_interval_sec)))
+                poll_interval_sec=self._poll_interval_sec,
+                location=self._location)))
 
     # CommitQueryResults: Reshuffle commits _QueryResult (temp table ref)
     # so that if the Read SDF retries, it re-reads the existing temp table
