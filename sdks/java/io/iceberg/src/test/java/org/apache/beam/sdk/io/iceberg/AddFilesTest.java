@@ -1,0 +1,332 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+package org.apache.beam.sdk.io.iceberg;
+
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
+
+import java.io.File;
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.List;
+import java.util.stream.Collectors;
+import org.apache.beam.sdk.schemas.Schema;
+import org.apache.beam.sdk.testing.PAssert;
+import org.apache.beam.sdk.testing.TestPipeline;
+import org.apache.beam.sdk.testing.TestStream;
+import org.apache.beam.sdk.transforms.Create;
+import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.PCollectionRowTuple;
+import org.apache.beam.sdk.values.Row;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
+import org.apache.hadoop.conf.Configuration;
+import org.apache.iceberg.DataFile;
+import org.apache.iceberg.Files;
+import org.apache.iceberg.PartitionKey;
+import org.apache.iceberg.PartitionSpec;
+import org.apache.iceberg.Snapshot;
+import org.apache.iceberg.StructLike;
+import org.apache.iceberg.Table;
+import org.apache.iceberg.catalog.TableIdentifier;
+import org.apache.iceberg.data.GenericRecord;
+import org.apache.iceberg.data.Record;
+import org.apache.iceberg.data.parquet.GenericParquetWriter;
+import org.apache.iceberg.hadoop.HadoopCatalog;
+import org.apache.iceberg.io.DataWriter;
+import org.apache.iceberg.parquet.Parquet;
+import org.apache.iceberg.types.Types;
+import org.checkerframework.checker.nullness.qual.Nullable;
+import org.joda.time.Duration;
+import org.junit.Before;
+import org.junit.ClassRule;
+import org.junit.Rule;
+import org.junit.Test;
+import org.junit.rules.TemporaryFolder;
+import org.junit.rules.TestName;
+import org.junit.runner.RunWith;
+import org.junit.runners.JUnit4;
+
+@RunWith(JUnit4.class)
+public class AddFilesTest {
+  @Rule public TemporaryFolder temp = new TemporaryFolder();
+  private String root;
+  @Rule public TestPipeline pipeline = TestPipeline.create();
+
+  private HadoopCatalog catalog;
+  private TableIdentifier tableId;
+  private final org.apache.iceberg.Schema icebergSchema =
+      new org.apache.iceberg.Schema(
+          Types.NestedField.required(1, "id", Types.IntegerType.get()),
+          Types.NestedField.required(2, "name", Types.StringType.get()),
+          Types.NestedField.required(3, "age", Types.IntegerType.get()));
+  private final PartitionSpec spec =
+      PartitionSpec.builderFor(icebergSchema).identity("age").truncate("name", 3).build();
+  private final PartitionKey wrapper = new PartitionKey(spec, icebergSchema);
+  private IcebergCatalogConfig catalogConfig;
+  @ClassRule public static final TemporaryFolder TEMPORARY_FOLDER = new TemporaryFolder();
+  @Rule public TestName testName = new TestName();
+
+  @Rule
+  public transient TestDataWarehouse warehouse = new TestDataWarehouse(TEMPORARY_FOLDER, "default");
+
+  private static final Schema INPUT_SCHEMA = Schema.builder().addStringField("filepath").build();
+
+  @Before
+  public void setup() throws Exception {
+    // Root for existing data files:
+    root = temp.getRoot().getAbsolutePath() + "/";
+
+    // Set up a local Hadoop Catalog using the temporary folder
+    catalog = new HadoopCatalog(new Configuration(), warehouse.location);
+    tableId = TableIdentifier.of("default", testName.getMethodName());
+
+    // Create an unpartitioned table by default, and full table metrics enabled
+    catalog.createTable(
+        tableId,
+        icebergSchema,
+        PartitionSpec.unpartitioned(),
+        ImmutableMap.of("write.metadata.metrics.default", "full"));
+
+    catalogConfig =
+        IcebergCatalogConfig.builder()
+            .setCatalogProperties(
+                ImmutableMap.of("type", "hadoop", "warehouse", warehouse.location))
+            .build();
+  }
+
+  @Test
+  public void testPartitionedFilesAreCommitted() throws Exception {
+    testFilesAreCommittedToIceberg(true);
+  }
+
+  @Test
+  public void testUnPartitionedFilesAreCommitted() throws Exception {
+    testFilesAreCommittedToIceberg(false);
+  }
+
+  public void testFilesAreCommittedToIceberg(boolean isPartitioned) throws Exception {
+    if (isPartitioned) {
+      // recreate table with the partition spec
+      catalog.dropTable(tableId);
+      catalog.createTable(
+          tableId, icebergSchema, spec, ImmutableMap.of("write.metadata.metrics.default", "full"));
+    }
+
+    // 1. Generate two local Parquet file.
+    // Include Hive-like partition path if testing partition case
+    String partitionPath1 = isPartitioned ? "age=20/name_trunc=Mar/" : "";
+    String file1 = root + partitionPath1 + "data1.parquet";
+    wrapper.wrap(record(-1, "Mar", 20));
+    DataWriter<Record> writer = createWriter(file1, isPartitioned ? wrapper.copy() : null);
+    writer.write(record(1, "Mark", 20));
+    writer.write(record(2, "Martin", 20));
+    writer.close();
+
+    String partitionPath2 = isPartitioned ? "age=25/name_trunc=Sam/" : "";
+    String file2 = root + partitionPath2 + "data2.parquet";
+    wrapper.wrap(record(-1, "Sam", 25));
+    DataWriter<Record> writer2 = createWriter(file2, isPartitioned ? wrapper.copy() : null);
+    writer2.write(record(3, "Samantha", 25));
+    writer2.write(record(4, "Sammy", 25));
+    writer2.close();
+
+    // 2. Setup the input PCollection
+    Row row1 = Row.withSchema(INPUT_SCHEMA).addValue(file1).build();
+    Row row2 = Row.withSchema(INPUT_SCHEMA).addValue(file2).build();
+    PCollection<Row> inputFiles =
+        pipeline.apply("Create Input", Create.of(row1, row2).withRowSchema(INPUT_SCHEMA));
+
+    // 3. Apply the transform (Trigger aggressively for testing)
+    PCollectionRowTuple output =
+        PCollectionRowTuple.of("input", inputFiles)
+            .apply(
+                new AddFiles(
+                    catalogConfig,
+                    tableId.toString(),
+                    isPartitioned ? root : null,
+                    2, // trigger at 2 files
+                    Duration.standardSeconds(1)));
+
+    // 4. Validate PCollection Outputs
+    PAssert.that(output.get("errors")).empty();
+
+    // 5. Run the pipeline
+    pipeline.run().waitUntilFinish();
+
+    // 6. Validate the Iceberg Table state directly
+    Table table = catalog.loadTable(tableId);
+
+    // Check that we have exactly 1 snapshot with 2 files
+    assertEquals(1, Iterables.size(table.snapshots()));
+
+    List<DataFile> addedFiles =
+        Lists.newArrayList(table.currentSnapshot().addedDataFiles(table.io()));
+    assertEquals(2, addedFiles.size());
+
+    // Verify file paths
+    assertTrue(addedFiles.stream().anyMatch(df -> df.location().contains("data1.parquet")));
+    assertTrue(addedFiles.stream().anyMatch(df -> df.location().contains("data2.parquet")));
+
+    // check metrics metadata is preserved
+    DataFile writtenDf1 = writer.toDataFile();
+    DataFile writtenDf2 = writer2.toDataFile();
+    DataFile addedDf1 =
+        Iterables.getOnlyElement(
+            addedFiles.stream()
+                .filter(df -> df.location().contains("data1.parquet"))
+                .collect(Collectors.toList()));
+    DataFile addedDf2 =
+        Iterables.getOnlyElement(
+            addedFiles.stream()
+                .filter(df -> df.location().contains("data2.parquet"))
+                .collect(Collectors.toList()));
+
+    assertEquals(writtenDf1.lowerBounds(), addedDf1.lowerBounds());
+    assertEquals(writtenDf1.upperBounds(), addedDf1.upperBounds());
+    assertEquals(writtenDf2.lowerBounds(), addedDf2.lowerBounds());
+    assertEquals(writtenDf2.upperBounds(), addedDf2.upperBounds());
+
+    // check partition metadata is preserved
+    assertEquals(writtenDf1.partition(), addedDf1.partition());
+    assertEquals(writtenDf2.partition(), addedDf2.partition());
+  }
+
+  @Test
+  public void testStreamingAdds() throws IOException {
+    List<Row> paths = new ArrayList<>();
+    for (int i = 0; i < 100; i++) {
+      String file = String.format("%sdata_%s.parquet", root, i);
+      DataWriter<Record> writer = createWriter(file);
+      writer.write(record(1, "SomeName", 30));
+      writer.close();
+      paths.add(Row.withSchema(INPUT_SCHEMA).addValue(file).build());
+    }
+
+    PCollection<Row> files =
+        pipeline.apply(
+            TestStream.create(INPUT_SCHEMA)
+                .addElements(
+                    paths.get(0), paths.subList(1, 15).toArray(new Row[] {})) // should commit twice
+                .advanceProcessingTime(Duration.standardSeconds(10))
+                .addElements(
+                    paths.get(15),
+                    paths.subList(16, 40).toArray(new Row[] {})) // should commit 3 times
+                .advanceProcessingTime(Duration.standardSeconds(10))
+                .addElements(
+                    paths.get(40),
+                    paths.subList(41, 45).toArray(new Row[] {})) // should commit once
+                .advanceWatermarkToInfinity());
+
+    PCollectionRowTuple.of("input", files)
+        .apply(
+            new AddFiles(
+                catalogConfig,
+                tableId.toString(),
+                null,
+                10, // trigger at 10 files
+                Duration.standardSeconds(5)));
+    pipeline.run().waitUntilFinish();
+
+    Table table = catalog.loadTable(tableId);
+
+    List<Snapshot> snapshots = Lists.newArrayList(table.snapshots());
+    snapshots.sort(Comparator.comparingLong(Snapshot::timestampMillis));
+
+    assertEquals(6, snapshots.size());
+    assertEquals(10, Iterables.size(snapshots.get(0).addedDataFiles(table.io())));
+    assertEquals(5, Iterables.size(snapshots.get(1).addedDataFiles(table.io())));
+    assertEquals(10, Iterables.size(snapshots.get(2).addedDataFiles(table.io())));
+    assertEquals(10, Iterables.size(snapshots.get(3).addedDataFiles(table.io())));
+    assertEquals(5, Iterables.size(snapshots.get(4).addedDataFiles(table.io())));
+    assertEquals(5, Iterables.size(snapshots.get(5).addedDataFiles(table.io())));
+  }
+
+  @Test
+  public void testUnknownFormatErrors() throws Exception {
+    // Create a dummy text file (unsupported extension)
+    File txtFile = temp.newFile("unsupported.txt");
+    txtFile.createNewFile();
+
+    Row badRow = Row.withSchema(INPUT_SCHEMA).addValue(txtFile.getAbsolutePath()).build();
+    PCollection<Row> inputFiles =
+        pipeline.apply("Create Input", Create.of(badRow).withRowSchema(INPUT_SCHEMA));
+
+    AddFiles addFiles = new AddFiles(catalogConfig, tableId.toString(), null, 1, null);
+    PCollectionRowTuple outputTuple = PCollectionRowTuple.of("input", inputFiles).apply(addFiles);
+
+    // Validate the file ended up in the errors PCollection with the correct schema
+    PAssert.that(outputTuple.get("errors"))
+        .containsInAnyOrder(
+            Row.withSchema(AddFiles.ConvertToDataFile.ERROR_SCHEMA)
+                .addValues(txtFile.getAbsolutePath(), "Could not determine the file's format")
+                .build());
+
+    pipeline.run().waitUntilFinish();
+  }
+
+  @Test
+  public void testPartitionPrefixErrors() throws Exception {
+    // Drop unpartitioned table and create a partitioned one
+    catalog.dropTable(tableId);
+    PartitionSpec spec = PartitionSpec.builderFor(icebergSchema).identity("name").build();
+    catalog.createTable(tableId, icebergSchema, spec);
+
+    String file1 = root + "data1.parquet";
+    wrapper.wrap(record(-1, "And", 30));
+    DataWriter<Record> writer = createWriter(file1, wrapper.copy());
+    writer.write(record(1, "Andrew", 30));
+    writer.close();
+
+    Row row1 = Row.withSchema(INPUT_SCHEMA).addValue(file1).build();
+    PCollection<Row> inputFiles =
+        pipeline.apply("Create Input", Create.of(row1).withRowSchema(INPUT_SCHEMA));
+
+    // Notice locationPrefix is "some/prefix/" but the absolute path doesn't start with it
+    AddFiles addFiles = new AddFiles(catalogConfig, tableId.toString(), "some/prefix/", 1, null);
+    PCollectionRowTuple outputTuple = PCollectionRowTuple.of("input", inputFiles).apply(addFiles);
+
+    PAssert.that(outputTuple.get("errors"))
+        .containsInAnyOrder(
+            Row.withSchema(AddFiles.ConvertToDataFile.ERROR_SCHEMA)
+                .addValues(file1, "File path did not start with the specified prefix")
+                .build());
+
+    pipeline.run().waitUntilFinish();
+  }
+
+  private DataWriter<Record> createWriter(String file) throws IOException {
+    return createWriter(file, null);
+  }
+
+  private DataWriter<Record> createWriter(String file, @Nullable StructLike partition)
+      throws IOException {
+    return Parquet.writeData(Files.localOutput(file))
+        .schema(icebergSchema)
+        .withSpec(partition != null ? spec : PartitionSpec.unpartitioned())
+        .withPartition(partition)
+        .createWriterFunc(GenericParquetWriter::create)
+        .build();
+  }
+
+  private Record record(int id, String name, int age) {
+    return GenericRecord.create(icebergSchema).copy("id", id, "name", name, "age", age);
+  }
+}

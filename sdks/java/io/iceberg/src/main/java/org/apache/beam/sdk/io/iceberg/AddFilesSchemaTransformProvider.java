@@ -77,10 +77,10 @@ public class AddFilesSchemaTransformProvider extends TypedSchemaTransformProvide
 
     @SchemaFieldDescription(
         "The prefix shared among all partitions. For example, a data file may have the following"
-            + " location:\n"
-            + "'file:/Users/user/Documents/tmp/namespace/table_name/data/id=13/name=beam/data_file.parquet'\n\n"
-            + "The provided prefix should go up until the partition information:\n"
-            + "'file:/Users/user/Documents/tmp/namespace/table_name/data/'.\n"
+            + " location:%n"
+            + "'gs://bucket/namespace/table/data/id=13/name=beam/data_file.parquet'%n%n"
+            + "The provided prefix should go up until the partition information:%n"
+            + "'gs://bucket/namespace/table/data/'.%n"
             + "Required if the table is partitioned. ")
     public abstract @Nullable String getLocationPrefix();
 
