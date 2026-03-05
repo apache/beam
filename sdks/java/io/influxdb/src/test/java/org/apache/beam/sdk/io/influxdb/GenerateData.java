@@ -40,7 +40,7 @@ class GenerateData {
       m.addField("field2", random.nextInt(100));
       LocalDateTime time =
           LocalDateTime.of(
-              LocalDate.now(),
+              LocalDate.now(ZoneId.systemDefault()),
               LocalTime.of(
                   random.nextInt(24),
                   random.nextInt(60),
@@ -64,7 +64,7 @@ class GenerateData {
         m.addField("field2", random.nextInt(100));
         LocalDateTime time =
             LocalDateTime.of(
-                LocalDate.now(),
+                LocalDate.now(ZoneId.systemDefault()),
                 LocalTime.of(
                     random.nextInt(24),
                     random.nextInt(60),

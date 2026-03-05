@@ -35,6 +35,7 @@ import java.nio.charset.StandardCharsets;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
+import java.time.ZoneId;
 import java.time.temporal.ChronoUnit;
 import java.util.HashMap;
 import java.util.List;
@@ -252,9 +253,9 @@ public class BeamRowToStorageApiProtoTest {
           .withFieldValue("arrayValue", ImmutableList.of("one", "two", "red", "blue"))
           .withFieldValue("arrayNullValue", null)
           .withFieldValue("iterableValue", ImmutableList.of("blue", "red", "two", "one"))
-          .withFieldValue("sqlDateValue", LocalDate.now())
-          .withFieldValue("sqlTimeValue", LocalTime.now())
-          .withFieldValue("sqlDatetimeValue", LocalDateTime.now())
+          .withFieldValue("sqlDateValue", LocalDate.now(ZoneId.systemDefault()))
+          .withFieldValue("sqlTimeValue", LocalTime.now(ZoneId.systemDefault()))
+          .withFieldValue("sqlDatetimeValue", LocalDateTime.now(ZoneId.systemDefault()))
           .withFieldValue("sqlTimestampValue", java.time.Instant.now().plus(123, ChronoUnit.MICROS))
           .withFieldValue("enumValue", TEST_ENUM.valueOf("RED"))
           .build();
