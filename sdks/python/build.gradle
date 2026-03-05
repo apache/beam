@@ -200,7 +200,6 @@ platform_identifiers_map.each { platform, idsuffix ->
   }
   getVersionsAsList('python_versions').each { it ->
     def pyversion = it.replace('.', '')
-    def cibuildwheel_version = it == '3.10' ? '2.23.3' : '3.3.1'
 
     project.tasks.register("bdistPy${pyversion}${platform}") {
       description "Build a Python wheel distribution for Py${pyversion} ${platform}"
@@ -221,7 +220,7 @@ platform_identifiers_map.each { platform, idsuffix ->
              args '-c', ". ${envdir}/bin/activate && " +
                  // note: sync cibuildwheel version with GitHub Action
                  // .github/workflows/build_wheel.yml:build_wheels "Install cibuildwheel" step
-                 "pip install cibuildwheel==${cibuildwheel_version} setuptools && " +
+                 "pip install cibuildwheel==2.23.3 setuptools && " +
                  "cibuildwheel --print-build-identifiers --platform ${platform} --archs ${archs} && " +
                  "cibuildwheel --output-dir ${buildDir} --platform ${platform} --archs ${archs} "
            }

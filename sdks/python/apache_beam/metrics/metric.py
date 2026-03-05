@@ -92,7 +92,8 @@ class Metrics(object):
   @staticmethod
   def distribution(
       namespace: Union[Type, str],
-      name: str) -> 'Metrics.DelegatingDistribution':
+      name: str,
+      process_wide: bool = False) -> 'Metrics.DelegatingDistribution':
     """Obtains or creates a Distribution metric.
 
     Distribution metrics are restricted to integer-only distributions.
@@ -105,11 +106,14 @@ class Metrics(object):
       A Distribution object.
     """
     namespace = Metrics.get_namespace(namespace)
-    return Metrics.DelegatingDistribution(MetricName(namespace, name))
+    return Metrics.DelegatingDistribution(
+        MetricName(namespace, name), process_wide=process_wide)
 
   @staticmethod
   def gauge(
-      namespace: Union[Type, str], name: str) -> 'Metrics.DelegatingGauge':
+      namespace: Union[Type, str],
+      name: str,
+      process_wide: bool = False) -> 'Metrics.DelegatingGauge':
     """Obtains or creates a Gauge metric.
 
     Gauge metrics are restricted to integer-only values.
@@ -117,12 +121,15 @@ class Metrics(object):
     Args:
       namespace: A class or string that gives the namespace to a metric
       name: A string that gives a unique name to a metric
+      process_wide: Whether or not the metric is specific to the current bundle
+          or should be calculated for the entire process.
 
     Returns:
-      A Distribution object.
+      A Gauge object.
     """
     namespace = Metrics.get_namespace(namespace)
-    return Metrics.DelegatingGauge(MetricName(namespace, name))
+    return Metrics.DelegatingGauge(
+        MetricName(namespace, name), process_wide=process_wide)
 
   @staticmethod
   def string_set(
@@ -210,15 +217,20 @@ class Metrics(object):
 
   class DelegatingDistribution(Distribution):
     """Metrics Distribution Delegates functionality to MetricsEnvironment."""
-    def __init__(self, metric_name: MetricName) -> None:
+    def __init__(
+        self, metric_name: MetricName, process_wide: bool = False) -> None:
       super().__init__(metric_name)
-      self.update = MetricUpdater(cells.DistributionCell, metric_name)  # type: ignore[method-assign]
+      self.update = MetricUpdater(cells.DistributionCell, metric_name, process_wide=process_wide)  # type: ignore[method-assign]
 
   class DelegatingGauge(Gauge):
     """Metrics Gauge that Delegates functionality to MetricsEnvironment."""
-    def __init__(self, metric_name: MetricName) -> None:
+    def __init__(
+        self, metric_name: MetricName, process_wide: bool = False) -> None:
       super().__init__(metric_name)
-      self.set = MetricUpdater(cells.GaugeCell, metric_name)  # type: ignore[method-assign]
+      self.set = MetricUpdater(  # type: ignore[method-assign]
+          cells.GaugeCell,
+          metric_name,
+          process_wide=process_wide)
 
   class DelegatingStringSet(StringSet):
     """Metrics StringSet that Delegates functionality to MetricsEnvironment."""

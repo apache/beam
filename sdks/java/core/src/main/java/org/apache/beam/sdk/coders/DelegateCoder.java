@@ -176,7 +176,7 @@ public final class DelegateCoder<T, IntermediateT> extends CustomCoder<T> {
   // to try to deduce a good type descriptor.
   private final @Nullable TypeDescriptor<T> typeDescriptor;
 
-  protected DelegateCoder(
+  DelegateCoder(
       Coder<IntermediateT> coder,
       CodingFunction<T, IntermediateT> toFn,
       CodingFunction<IntermediateT, T> fromFn,

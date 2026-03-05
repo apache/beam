@@ -291,12 +291,12 @@ public class DoFnSignatures {
               Parameter.PipelineOptionsParameter.class,
               Parameter.SideInputParameter.class);
 
-  /** @return the {@link DoFnSignature} for the given {@link DoFn} instance. */
+  /** Returns the {@link DoFnSignature} for the given {@link DoFn} instance. */
   public static <FnT extends DoFn<?, ?>> DoFnSignature signatureForDoFn(FnT fn) {
     return getSignature(fn.getClass());
   }
 
-  /** @return the {@link DoFnSignature} for the given {@link DoFn} subclass. */
+  /** Returns the {@link DoFnSignature} for the given {@link DoFn} subclass. */
   public static <FnT extends DoFn<?, ?>> DoFnSignature getSignature(Class<FnT> fn) {
     return signatureCache.computeIfAbsent(fn, DoFnSignatures::parseSignature);
   }

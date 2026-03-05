@@ -1,6 +1,6 @@
 ---
 type: languages
-title: "Apache Beam YAML API"
+title: "Apache Beam YAML"
 ---
 <!--
     Licensed to the Apache Software Foundation (ASF) under one
@@ -21,11 +21,13 @@ title: "Apache Beam YAML API"
     under the License.
 -->
 
-# Beam YAML API
+# Beam YAML
 
 Beam YAML is a declarative syntax for describing Apache Beam pipelines by using
 YAML files. You can use Beam YAML to author and run a Beam pipeline without
 writing any code.
+
+For a full transform API reference, see https://beam.apache.org/releases/yamldoc/current/
 
 ## Overview
 

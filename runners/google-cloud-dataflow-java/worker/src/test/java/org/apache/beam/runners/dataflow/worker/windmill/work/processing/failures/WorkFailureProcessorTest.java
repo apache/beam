@@ -18,6 +18,7 @@
 package org.apache.beam.runners.dataflow.worker.windmill.work.processing.failures;
 
 import static com.google.common.truth.Truth.assertThat;
+import static org.junit.Assert.assertThrows;
 import static org.mockito.Mockito.mock;
 
 import java.util.HashSet;
@@ -105,7 +106,7 @@ public class WorkFailureProcessorTest {
   }
 
   @Test
-  public void logAndProcessFailure_doesNotRetryKeyTokenInvalidException() {
+  public void logAndProcessFailure_doesNotRetryKeyTokenInvalidException() throws Throwable {
     Set<Work> executedWork = new HashSet<>();
     ExecutableWork work = createWork(executedWork::add);
     WorkFailureProcessor workFailureProcessor =
@@ -119,7 +120,7 @@ public class WorkFailureProcessorTest {
   }
 
   @Test
-  public void logAndProcessFailure_doesNotRetryWhenWorkItemCancelled() {
+  public void logAndProcessFailure_doesNotRetryWhenWorkItemCancelled() throws Throwable {
     Set<Work> executedWork = new HashSet<>();
     ExecutableWork work = createWork(executedWork::add);
     WorkFailureProcessor workFailureProcessor =
@@ -142,15 +143,18 @@ public class WorkFailureProcessorTest {
     WorkFailureProcessor workFailureProcessor =
         createWorkFailureProcessor(streamingEngineFailureReporter());
     Set<Work> invalidWork = new HashSet<>();
-    workFailureProcessor.logAndProcessFailure(
-        DEFAULT_COMPUTATION_ID, work, new OutOfMemoryError(), invalidWork::add);
+    assertThrows(
+        OutOfMemoryError.class,
+        () ->
+            workFailureProcessor.logAndProcessFailure(
+                DEFAULT_COMPUTATION_ID, work, new OutOfMemoryError(), invalidWork::add));
 
     assertThat(executedWork).isEmpty();
-    assertThat(invalidWork).containsExactly(work.work());
   }
 
   @Test
-  public void logAndProcessFailure_doesNotRetryWhenFailureReporterMarksAsNonRetryable() {
+  public void logAndProcessFailure_doesNotRetryWhenFailureReporterMarksAsNonRetryable()
+      throws Throwable {
     Set<Work> executedWork = new HashSet<>();
     ExecutableWork work = createWork(executedWork::add);
     WorkFailureProcessor workFailureProcessor =
@@ -164,7 +168,7 @@ public class WorkFailureProcessorTest {
   }
 
   @Test
-  public void logAndProcessFailure_doesNotRetryAfterLocalRetryTimeout() {
+  public void logAndProcessFailure_doesNotRetryAfterLocalRetryTimeout() throws Throwable {
     Set<Work> executedWork = new HashSet<>();
     ExecutableWork veryOldWork =
         createWork(() -> Instant.now().minus(Duration.standardDays(30)), executedWork::add);
@@ -180,7 +184,7 @@ public class WorkFailureProcessorTest {
 
   @Test
   public void logAndProcessFailure_retriesOnUncaughtUnhandledException_streamingEngine()
-      throws InterruptedException {
+      throws Throwable {
     CountDownLatch runWork = new CountDownLatch(1);
     ExecutableWork work = createWork(ignored -> runWork.countDown());
     WorkFailureProcessor workFailureProcessor =
@@ -195,7 +199,7 @@ public class WorkFailureProcessorTest {
 
   @Test
   public void logAndProcessFailure_retriesOnUncaughtUnhandledException_streamingAppliance()
-      throws InterruptedException {
+      throws Throwable {
     CountDownLatch runWork = new CountDownLatch(1);
     ExecutableWork work = createWork(ignored -> runWork.countDown());
     WorkFailureProcessor workFailureProcessor =

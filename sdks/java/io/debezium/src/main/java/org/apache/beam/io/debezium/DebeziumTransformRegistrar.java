@@ -77,6 +77,7 @@ public class DebeziumTransformRegistrar implements ExternalTransformRegistrar {
     public static class Configuration extends CrossLanguageConfiguration {
       private @Nullable List<String> connectionProperties;
       private @Nullable Long maxNumberOfRecords;
+      private @Nullable Long maxTimeToRun;
 
       public void setConnectionProperties(@Nullable List<String> connectionProperties) {
         this.connectionProperties = connectionProperties;
@@ -84,6 +85,10 @@ public class DebeziumTransformRegistrar implements ExternalTransformRegistrar {
 
       public void setMaxNumberOfRecords(@Nullable Long maxNumberOfRecords) {
         this.maxNumberOfRecords = maxNumberOfRecords;
+      }
+
+      public void setMaxTimeToRun(@Nullable Long maxTimeToRun) {
+        this.maxTimeToRun = maxTimeToRun;
       }
     }
 
@@ -112,6 +117,10 @@ public class DebeziumTransformRegistrar implements ExternalTransformRegistrar {
       if (configuration.maxNumberOfRecords != null) {
         readTransform =
             readTransform.withMaxNumberOfRecords(configuration.maxNumberOfRecords.intValue());
+      }
+
+      if (configuration.maxTimeToRun != null) {
+        readTransform = readTransform.withMaxTimeToRun(configuration.maxTimeToRun);
       }
 
       return readTransform;

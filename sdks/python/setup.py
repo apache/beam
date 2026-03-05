@@ -163,13 +163,15 @@ dataframe_dependency = [
 milvus_dependency = ['pymilvus>=2.5.10,<3.0.0']
 
 ml_base = [
-    'embeddings',
+    'embeddings>=0.0.4', # 0.0.3 crashes setuptools
     'onnxruntime',
     'langchain',
     'sentence-transformers>=2.2.2',
     'skl2onnx',
-    'pyod',
+    'pyod>=0.7.6', # 0.7.5 crashes setuptools
     'tensorflow',
+    # tensorflow transient dep, lower versions not compatible with Python3.10+
+    'absl-py>=0.12.0',
     'tensorflow-hub',
     'tf2onnx',
     'torch',
@@ -379,9 +381,10 @@ if __name__ == '__main__':
           'envoy-data-plane<0.3.0; python_version < "3.13"',
           'fastavro>=0.23.6,<2',
           'fasteners>=0.3,<1.0',
-          # TODO(https://github.com/grpc/grpc/issues/37710): Unpin grpc
-          'grpcio>=1.33.1,<2,!=1.48.0,!=1.59.*,!=1.60.*,!=1.61.*,!=1.62.0,!=1.62.1,<1.66.0; python_version <= "3.12"',  # pylint: disable=line-too-long
-          'grpcio>=1.67.0; python_version >= "3.13"',
+          'grpcio>=1.33.1,<2,!=1.48.0,!=1.59.*,!=1.60.*,!=1.61.*,!=1.62.0,!=1.62.1,!=1.66.*,!=1.67.*,!=1.68.*,!=1.69.*,!=1.70.*,!=1.71.*,!=1.72.*,!=1.73.*,!=1.74.*,!=1.75.*,!=1.76.*,!=1.77.*,!=1.78.0; python_version <= "3.12"',  # pylint: disable=line-too-long
+          # TODO(https://github.com/grpc/grpc/issues/37710): Consolidate bounds
+          # across python versions once 1.78.1 is avaliable.
+          'grpcio>=1.67.0,<2; python_version >= "3.13"',
           'httplib2>=0.8,<0.32.0',
           'jsonpickle>=3.0.0,<4.0.0',
           # numpy can have breaking changes in minor versions.
@@ -389,7 +392,7 @@ if __name__ == '__main__':
           'numpy>=1.14.3,<2.5.0',  # Update pyproject.toml as well.
           'objsize>=0.6.1,<0.8.0',
           'packaging>=22.0',
-          'pillow',
+          'pillow>=12.1.1,<13',
           'pymongo>=3.8.0,<5.0.0',
           'proto-plus>=1.7.1,<2',
           # 1. Use a tighter upper bound in protobuf dependency to make sure
@@ -466,7 +469,7 @@ if __name__ == '__main__':
               'pg8000>=1.31.5',
               "PyMySQL>=1.1.0",
               'oracledb>=3.1.1'
-          ] + milvus_dependency,
+          ],
           'gcp': [
               'cachetools>=3.1.0,<7',
               'google-api-core>=2.0.0,<3',
@@ -550,7 +553,9 @@ if __name__ == '__main__':
           'p312_ml_test': [
               'datatable',
           ] + ml_base,
-          'p313_ml_test': ml_base,
+          # maintainer: milvus tests only run with this extension. Make sure it
+          # is covered by docker-in-docker test when changing py version
+          'p313_ml_test': ml_base + milvus_dependency,
           'aws': ['boto3>=1.9,<2'],
           'azure': [
               'azure-storage-blob>=12.3.2,<13',
@@ -574,9 +579,8 @@ if __name__ == '__main__':
               'docstring-parser>=0.15,<1.0',
               'jinja2>=3.0,<3.2',
               'virtualenv-clone>=0.5,<1.0',
-              # pythonmonkey is used for Javascript mapping support
-              # Please install NPM and Node.js before installing PythonMonkey.
-              'pythonmonkey>=1.3.0',
+              # https://github.com/PiotrDabkowski/Js2Py/issues/317
+              'js2py>=0.74,<1; python_version<"3.12"',
               'jsonschema>=4.0.0,<5.0.0',
           ] + dataframe_dependency,
           # Keep the following dependencies in line with what we test against
@@ -584,7 +588,11 @@ if __name__ == '__main__':
           # For more info, see
           # https://docs.google.com/document/d/1c84Gc-cZRCfrU8f7kWGsNR2o8oSRjCM-dGHO9KvPWPw/edit?usp=sharing
           'torch': ['torch>=1.9.0,<2.8.0'],
-          'tensorflow': ['tensorflow>=2.12rc1,<2.21'],
+          'tensorflow': [
+              'tensorflow>=2.12rc1,<2.21',
+              # tensorflow transitive dep
+              'absl-py>=0.12.0'
+          ],
           'transformers': [
               'transformers>=4.28.0,<4.56.0',
               'tensorflow>=2.12.0',
@@ -593,7 +601,9 @@ if __name__ == '__main__':
           'ml_cpu': [
               'tensorflow>=2.12.0',
               'torch==2.8.0+cpu',
-              'transformers>=4.28.0,<4.56.0'
+              'transformers>=4.28.0,<4.56.0',
+              # tensorflow transient dep
+              'absl-py>=0.12.0'
           ],
           'redis': ['redis>=5.0.0,<6'],
           'tft': [
@@ -610,7 +620,9 @@ if __name__ == '__main__':
               'tensorflow==2.11.0',
               'tf2onnx==1.13.0',
               'skl2onnx==1.13',
-              'transformers==4.25.1'
+              'transformers==4.25.1',
+               # tensorflow transient dep
+              'absl-py>=0.12.0'
           ],
           'xgboost': ['xgboost>=1.6.0,<2.1.3', 'datatable==1.0.0'],
           'tensorflow-hub': ['tensorflow-hub>=0.14.0,<0.16.0'],

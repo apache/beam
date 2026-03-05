@@ -829,9 +829,10 @@ class Pipeline(HasDisplayData):
 
         assert isinstance(result.producer.inputs, tuple)
         if isinstance(result, pvalue.DoOutputsTuple):
-          for tag, pc in list(result._pcolls.items()):
+          all_tags = [result._main_tag] + list(result._tags)
+          for tag in all_tags:
             if tag not in current.outputs:
-              current.add_output(pc, tag)
+              current.add_output(result[tag], tag)
           continue
 
         # If there is already a tag with the same name, increase a counter for

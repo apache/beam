@@ -455,7 +455,9 @@ public class JdbcUtil {
     return calendar;
   }
 
-  /** @return a {@code JdbcReadPartitionsHelper} instance associated with the given {@param type} */
+  /**
+   * Returns a {@code JdbcReadPartitionsHelper} instance associated with the given {@param type}.
+   */
   static <T> @Nullable JdbcReadWithPartitionsHelper<T> getPartitionsHelper(TypeDescriptor<T> type) {
     // This cast is unchecked, thus this is a small type-checking risk. We just need
     // to make sure that all preset helpers in `JdbcUtil.PRESET_HELPERS` are matched

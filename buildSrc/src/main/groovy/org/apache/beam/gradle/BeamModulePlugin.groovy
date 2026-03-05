@@ -676,6 +676,7 @@ class BeamModulePlugin implements Plugin<Project> {
         activemq_junit                              : "org.apache.activemq.tooling:activemq-junit:$activemq_version",
         activemq_kahadb_store                       : "org.apache.activemq:activemq-kahadb-store:$activemq_version",
         activemq_mqtt                               : "org.apache.activemq:activemq-mqtt:$activemq_version",
+        aircompressor                               : "io.airlift:aircompressor:2.0.3",
         args4j                                      : "args4j:args4j:2.33",
         auto_value_annotations                      : "com.google.auto.value:auto-value-annotations:$autovalue_version",
         // TODO: https://github.com/apache/beam/issues/34993 after stopping supporting Java 8
@@ -1534,7 +1535,6 @@ class BeamModulePlugin implements Plugin<Project> {
             "AutoValueImmutableFields",
             "AutoValueSubclassLeaked",
             "BadImport",
-            "BadInstanceof",
             "BigDecimalEquals",
             "ComparableType",
             "DoNotMockAutoValue",
@@ -1544,7 +1544,6 @@ class BeamModulePlugin implements Plugin<Project> {
             "EqualsUnsafeCast",
             "EscapedEntity",
             "ExtendsAutoValue",
-            "InlineFormatString",
             "InlineMeSuggester",
             "InvalidBlockTag",
             "InvalidInlineTag",
@@ -1555,12 +1554,9 @@ class BeamModulePlugin implements Plugin<Project> {
             "JavaUtilDate",
             "JodaConstructors",
             "MalformedInlineTag",
-            "MissingSummary",
             "MixedMutabilityReturnType",
             "PreferJavaTimeOverload",
-            "MutablePublicArray",
             "NonCanonicalType",
-            "ProtectedMembersInFinalClass",
             "Slf4jFormatShouldBeConst",
             "Slf4jSignOnlyFormat",
             "StaticAssignmentInConstructor",
@@ -1573,7 +1569,6 @@ class BeamModulePlugin implements Plugin<Project> {
             "UnnecessaryParentheses",
             "UnrecognisedJavadocTag",
             "UnsafeReflectiveConstructionCast",
-            "UseCorrectAssertInTests",
             // errorprone 3.2.0+ checks
             "DirectInvocationOnMock",
             "Finalize",
@@ -3124,7 +3119,8 @@ class BeamModulePlugin implements Plugin<Project> {
             // pip 25.1 casues :sdks:python:installGcpTest stuck. Pin to 25.0.1 for now.
             args '-c', ". ${project.ext.envdir}/bin/activate && " +
                 "pip install --pre --retries 10 --upgrade pip==25.0.1 --no-cache-dir && " +
-                "pip install --pre --retries 10 --upgrade tox --no-cache-dir"
+                "pip install --pre --retries 10 --upgrade tox --no-cache-dir && " +
+                "pip install --pre --retries 10 --upgrade setuptools build --no-cache-dir"
           }
         }
         // Gradle will delete outputs whenever it thinks they are stale. Putting a
@@ -3165,13 +3161,15 @@ class BeamModulePlugin implements Plugin<Project> {
           def distTarBall = "${pythonRootDir}/build/apache-beam.tar.gz"
           def packages = "gcp,test,aws,azure,dataframe"
           def extra = project.findProperty('beamPythonExtra')
-          if (extra) {
-            packages += ",${extra}"
-          }
-
           project.exec {
             executable 'sh'
             args '-c', ". ${project.ext.envdir}/bin/activate && pip install --pre --retries 10 ${distTarBall}[${packages}]"
+          }
+          if (extra) {
+            project.exec {
+              executable 'sh'
+              args '-c', ". ${project.ext.envdir}/bin/activate && pip install --pre --retries 10 ${distTarBall}[${extra}]"
+            }
           }
         }
       }
