@@ -1559,7 +1559,6 @@ class BeamModulePlugin implements Plugin<Project> {
             "MixedMutabilityReturnType",
             "PreferJavaTimeOverload",
             "NonCanonicalType",
-            "ProtectedMembersInFinalClass",
             "Slf4jFormatShouldBeConst",
             "Slf4jSignOnlyFormat",
             "StaticAssignmentInConstructor",
