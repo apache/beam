@@ -109,6 +109,7 @@ public abstract class Trigger implements Serializable {
     return getContinuationTrigger(subTriggerContinuations);
   }
 
+  @Internal
   public abstract <OutputT> OutputT accept(TriggerVisitor<OutputT> visitor);
 
   /**

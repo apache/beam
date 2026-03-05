@@ -148,6 +148,8 @@ public class DataflowPipelineTranslator {
 
   /** Checks to see whether the Trigger tree is compatible with combiner lifting. */
   private static class TriggerCombinerLiftingCompatibility implements TriggerVisitor<Boolean> {
+    static TriggerCombinerLiftingCompatibility INSTANCE = new TriggerCombinerLiftingCompatibility();
+
     @Override
     public Boolean visit(DefaultTrigger trigger) {
       return true;
@@ -1052,7 +1054,9 @@ public class DataflowPipelineTranslator {
             if (isStreaming) {
               allowCombinerLifting &= transform.fewKeys();
               allowCombinerLifting &=
-                  windowingStrategy.getTrigger().accept(new TriggerCombinerLiftingCompatibility());
+                  windowingStrategy
+                      .getTrigger()
+                      .accept(TriggerCombinerLiftingCompatibility.INSTANCE);
             }
             stepContext.addInput(PropertyNames.DISALLOW_COMBINER_LIFTING, !allowCombinerLifting);
             stepContext.addInput(

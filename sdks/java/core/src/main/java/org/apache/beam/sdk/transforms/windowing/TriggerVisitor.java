@@ -17,7 +17,10 @@
  */
 package org.apache.beam.sdk.transforms.windowing;
 
+import org.apache.beam.sdk.annotations.Internal;
+
 /** A TriggerVisitor. */
+@Internal
 public interface TriggerVisitor<OutputT> {
   OutputT visit(DefaultTrigger trigger);
 
