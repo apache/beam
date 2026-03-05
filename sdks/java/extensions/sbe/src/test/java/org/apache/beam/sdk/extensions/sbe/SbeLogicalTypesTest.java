@@ -59,7 +59,7 @@ public final class SbeLogicalTypesTest {
 
   @Test
   public void testUtcTimeOnly() {
-    LocalTime time = LocalTime.now(ZoneId.systemDefault());
+    LocalTime time = LocalTime.now(ZoneId.of("UTC"));
     UTCTimeOnly timeOnly = new UTCTimeOnly();
 
     LocalTime afterConversions = timeOnly.toInputType(timeOnly.toBaseType(time));
@@ -79,7 +79,7 @@ public final class SbeLogicalTypesTest {
 
   @Test
   public void testUtcDateOnly() {
-    LocalDate date = LocalDate.now(ZoneId.systemDefault());
+    LocalDate date = LocalDate.now(ZoneId.of("UTC"));
     UTCDateOnly dateOnly = new UTCDateOnly();
 
     LocalDate afterConversions = dateOnly.toInputType(dateOnly.toBaseType(date));
@@ -89,7 +89,7 @@ public final class SbeLogicalTypesTest {
 
   @Test
   public void testLocalMktDate() {
-    LocalDate date = LocalDate.now(ZoneId.systemDefault());
+    LocalDate date = LocalDate.now(ZoneId.of("UTC"));
     LocalMktDate localMktDate = new LocalMktDate();
 
     LocalDate afterConversions = localMktDate.toInputType(localMktDate.toBaseType(date));

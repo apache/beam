@@ -253,9 +253,9 @@ public class BeamRowToStorageApiProtoTest {
           .withFieldValue("arrayValue", ImmutableList.of("one", "two", "red", "blue"))
           .withFieldValue("arrayNullValue", null)
           .withFieldValue("iterableValue", ImmutableList.of("blue", "red", "two", "one"))
-          .withFieldValue("sqlDateValue", LocalDate.now(ZoneId.systemDefault()))
-          .withFieldValue("sqlTimeValue", LocalTime.now(ZoneId.systemDefault()))
-          .withFieldValue("sqlDatetimeValue", LocalDateTime.now(ZoneId.systemDefault()))
+          .withFieldValue("sqlDateValue", LocalDate.now(ZoneId.of("UTC")))
+          .withFieldValue("sqlTimeValue", LocalTime.now(ZoneId.of("UTC")))
+          .withFieldValue("sqlDatetimeValue", LocalDateTime.now(ZoneId.of("UTC")))
           .withFieldValue("sqlTimestampValue", java.time.Instant.now().plus(123, ChronoUnit.MICROS))
           .withFieldValue("enumValue", TEST_ENUM.valueOf("RED"))
           .build();

@@ -71,9 +71,9 @@ public class BeamSqlRowCoderTest {
                 1.1,
                 BigDecimal.ZERO,
                 "hello",
-                LocalTime.now(ZoneId.systemDefault()),
-                LocalDate.now(ZoneId.systemDefault()),
-                LocalDateTime.now(ZoneId.systemDefault()),
+                LocalTime.now(ZoneId.of("UTC")),
+                LocalDate.now(ZoneId.of("UTC")),
+                LocalDateTime.now(ZoneId.of("UTC")),
                 DateTime.now().toInstant(),
                 true)
             .build();

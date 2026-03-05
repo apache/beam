@@ -112,7 +112,7 @@ public class AzureBlobStoreFileSystemTest {
     when(mockedBlobClient.getProperties()).thenReturn(mockedProperties);
     when(mockedProperties.getBlobSize()).thenReturn(Long.valueOf(1));
     when(mockedProperties.getLastModified())
-        .thenReturn(OffsetDateTime.now(java.time.ZoneId.systemDefault()));
+        .thenReturn(OffsetDateTime.now(java.time.ZoneOffset.UTC));
     when(mockedContainerClient.listBlobs(any(ListBlobsOptions.class), any(Duration.class)))
         .thenReturn(mockedPagedIterable);
     when(mockedContainerClient.listBlobsByHierarchy(any(String.class)))
