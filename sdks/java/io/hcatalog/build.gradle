@@ -53,24 +53,40 @@ dependencies {
   provided library.java.jackson_databind
   // Calcite (a dependency of Hive) bundles without repackaging Guava which is why we redeclare it
   // here so that it appears on the compile/test/runtime classpath before Calcite.
+  provided library.java.joda_time
   provided library.java.hadoop_common
-  provided "org.apache.hive:hive-exec:$hive_version"
+  provided(group: "org.apache.hive", name: "hive-exec", version: hive_version, classifier: "core")
   provided(group: "org.apache.hive.hcatalog", name: "hive-hcatalog-core", version: hive_version) {
     exclude group: "org.apache.hive", module: "hive-exec"
-    exclude group: "com.google.protobuf", module: "protobuf-java"
   }
+  testImplementation library.java.joda_time
   testImplementation library.java.commons_io
   testImplementation library.java.junit
   testImplementation library.java.hamcrest
-  testImplementation "org.apache.hive.hcatalog:hive-hcatalog-core:$hive_version:tests"
-  testImplementation "org.apache.hive:hive-exec:$hive_version"
+  testImplementation("org.apache.hive.hcatalog:hive-hcatalog-core:$hive_version:tests") {
+    exclude group: "org.apache.hive", module: "hive-exec"
+  }
+  testImplementation(group: "org.apache.hive", name: "hive-exec", version: hive_version)
+  testImplementation("org.apache.hive:hive-standalone-metastore-common:$hive_version")
+  testImplementation("org.apache.hive:hive-standalone-metastore-server:$hive_version")
+  testImplementation("org.apache.calcite:calcite-core:1.25.0")
+  testImplementation("org.apache.datasketches:datasketches-hive:1.1.0-incubating")
   // datanucleus dependency version should be in alignment with managed dependencies of hive-standalone-metastore
   testRuntimeOnly 'org.datanucleus:datanucleus-api-jdo:5.2.8'
   testRuntimeOnly 'org.datanucleus:datanucleus-rdbms:5.2.10'
   testRuntimeOnly 'org.datanucleus:javax.jdo:3.2.0-release'
-  testImplementation "org.apache.hive:hive-common:$hive_version"
-  testImplementation "org.apache.hive:hive-cli:$hive_version"
-  testImplementation "org.apache.hive.hcatalog:hive-hcatalog-core:$hive_version"
+  testImplementation("org.apache.hive:hive-common:$hive_version") {
+    exclude group: "joda-time", module: "joda-time"
+    exclude group: "org.apache.hive", module: "hive-exec"
+  }
+  testImplementation("org.apache.hive:hive-cli:$hive_version") {
+    exclude group: "joda-time", module: "joda-time"
+    exclude group: "org.apache.hive", module: "hive-exec"
+  }
+  testImplementation("org.apache.hive.hcatalog:hive-hcatalog-core:$hive_version") {
+    exclude group: "joda-time", module: "joda-time"
+    exclude group: "org.apache.hive", module: "hive-exec"
+  }
   testImplementation project(path: ":sdks:java:io:common")
   testRuntimeOnly project(path: ":runners:direct-java", configuration: "shadow")
   hadoopVersions.each {kv ->
@@ -107,5 +123,10 @@ hadoopVersions.each { kv ->
     description = "Runs HCatalog tests with Hadoop version $kv.value"
     classpath = configurations."hadoopVersion$kv.key" + sourceSets.test.runtimeClasspath
     include '**/*Test.class'
+    jvmArgs "--add-opens=java.base/java.net=ALL-UNNAMED"
   }
+}
+
+tasks.withType(Test).configureEach {
+  jvmArgs "--add-opens=java.base/java.net=ALL-UNNAMED"
 }

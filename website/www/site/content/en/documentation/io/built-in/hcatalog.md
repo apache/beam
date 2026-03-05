@@ -93,6 +93,7 @@ The 1.2 jars provide the necessary methods for Beam while remain compatible with
     <groupId>org.apache.hive</groupId>
     <artifactId>hive-exec</artifactId>
     <version>1.2</version>
+    <classifier>core</classifier>
 </dependency>
 <dependency>
     <groupId>org.apache.hive</groupId>
