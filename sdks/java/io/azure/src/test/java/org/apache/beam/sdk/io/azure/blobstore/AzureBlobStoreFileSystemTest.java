@@ -111,7 +111,8 @@ public class AzureBlobStoreFileSystemTest {
     when(mockedBlobClient.getBlockBlobClient()).thenReturn(mockedBlockBlob);
     when(mockedBlobClient.getProperties()).thenReturn(mockedProperties);
     when(mockedProperties.getBlobSize()).thenReturn(Long.valueOf(1));
-    when(mockedProperties.getLastModified()).thenReturn(OffsetDateTime.now());
+    when(mockedProperties.getLastModified())
+        .thenReturn(OffsetDateTime.now(java.time.ZoneId.systemDefault()));
     when(mockedContainerClient.listBlobs(any(ListBlobsOptions.class), any(Duration.class)))
         .thenReturn(mockedPagedIterable);
     when(mockedContainerClient.listBlobsByHierarchy(any(String.class)))

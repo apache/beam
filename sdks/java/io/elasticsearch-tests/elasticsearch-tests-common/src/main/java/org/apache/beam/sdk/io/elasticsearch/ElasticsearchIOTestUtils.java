@@ -343,7 +343,7 @@ class ElasticsearchIOTestUtils {
   static List<String> createDocuments(long numDocs, InjectionMode injectionMode) {
 
     ArrayList<String> data = new ArrayList<>();
-    LocalDateTime baseDateTime = LocalDateTime.now();
+    LocalDateTime baseDateTime = LocalDateTime.now(java.time.ZoneId.systemDefault());
     for (int i = 0; i < numDocs; i++) {
       int index = i % FAMOUS_SCIENTISTS.length;
       // insert 2 malformed documents
