@@ -89,7 +89,7 @@ variable "min_replicas" {
 variable "max_replicas" {
   description = "Maximum number of replicas for rate limit deployment"
   type        = number
-  default     = 5
+  default     = 100
 }
 
 variable "hpa_cpu_target_percentage" {
@@ -107,7 +107,7 @@ variable "hpa_memory_target_percentage" {
 variable "ratelimit_image" {
   description = "Docker image for Envoy Rate Limit service"
   type        = string
-  default     = "envoyproxy/ratelimit:e9ce92cc" 
+  default     = "envoyproxy/ratelimit:e9ce92cc"
 }
 
 variable "redis_image" {
@@ -125,8 +125,21 @@ variable "statsd_exporter_image" {
 variable "ratelimit_log_level" {
   description = "Log level for ratelimit service"
   type        = string
-  default     = "debug"
+  default     = "info"
 }
+
+variable "ratelimit_grpc_max_connection_age" {
+  description = "Duration a connection may exist before it will be closed by sending a GoAway"
+  type        = string
+  default     = "5m"
+}
+
+variable "ratelimit_grpc_max_connection_age_grace" {
+  description = "Period after MaxConnectionAge after which the connection will be forcibly closed"
+  type        = string
+  default     = "1m"
+}
+
 
 variable "redis_resources" {
   description = "Compute resources for Redis container"
@@ -136,11 +149,11 @@ variable "redis_resources" {
   })
   default = {
     requests = {
-      cpu    = "100m"
+      cpu    = "250m"
       memory = "128Mi"
     }
     limits = {
-      cpu    = "500m"
+      cpu    = "1000m"
       memory = "512Mi"
     }
   }
@@ -154,12 +167,23 @@ variable "ratelimit_resources" {
   })
   default = {
     requests = {
-      cpu    = "250m"
-      memory = "256Mi"
+      cpu    = "150m"
+      memory = "128Mi"
     }
     limits = {
       cpu    = "500m"
       memory = "512Mi"
     }
   }
+}
+variable "namespace" {
+  description = "The Kubernetes namespace to deploy resources into"
+  type        = string
+  default     = "envoy-ratelimiter"
+}
+
+variable "enable_metrics" {
+  description = "Enable metrics export to Google Cloud Monitoring"
+  type        = bool
+  default     = true
 }

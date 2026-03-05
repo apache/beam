@@ -186,7 +186,7 @@ class BigQueryXlangStorageWriteIT(unittest.TestCase):
 
     # List objects in the bucket with the constructed prefix
     try:
-      objects = gcs_io.list_prefix(f"gs://{bucket_name}/{search_prefix}")
+      objects = gcs_io.list_files(f"gs://{bucket_name}/{search_prefix}")
       object_count = len(list(objects))
 
       if object_count < expected_count:

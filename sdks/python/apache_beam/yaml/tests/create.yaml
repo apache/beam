@@ -138,3 +138,21 @@ pipelines:
               - {sdk: MapReduce, year: 2004}
               - {sdk: MillWheel, year: 2008}
 
+
+  # Simple Create with mixed types
+  - pipeline:
+      type: chain
+      transforms:
+        - type: Create
+          config:
+            elements:
+              - 1
+              - {a: 2, c: "hello"}
+              - 3
+        - type: AssertEqual
+          config:
+            elements:
+              - {element: 1, a: null, c: null}
+              - {element: null, a: 2, c: "hello"}
+              - {element: 3, a: null, c: null}
+

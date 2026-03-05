@@ -178,6 +178,8 @@ class ModelHandler(Generic[ExampleT, PredictionT, ModelT]):
       max_batch_duration_secs: Optional[int] = None,
       max_batch_weight: Optional[int] = None,
       element_size_fn: Optional[Callable[[Any], int]] = None,
+      batch_length_fn: Optional[Callable[[Any], int]] = None,
+      batch_bucket_boundaries: Optional[list[int]] = None,
       large_model: bool = False,
       model_copies: Optional[int] = None,
       **kwargs):
@@ -190,6 +192,17 @@ class ModelHandler(Generic[ExampleT, PredictionT, ModelT]):
         before emitting; used in streaming contexts.
       max_batch_weight: the maximum weight of a batch. Requires element_size_fn.
       element_size_fn: a function that returns the size (weight) of an element.
+      batch_length_fn: a callable mapping an element to its length (int). When
+        set together with max_batch_duration_secs, enables length-aware bucketed
+        keying so that elements of similar length are batched together, reducing
+        padding waste for variable-length inputs. Bucket assignment uses
+        bisect_right so boundaries are lower-inclusive: e.g., for boundaries
+        [10, 50], buckets are (-inf, 10), [10, 50), [50, inf).
+      batch_bucket_boundaries: a sorted list of positive boundary values for
+        length bucketing. Boundaries are lower-inclusive (bisect_right
+        semantics): bucket i covers lengths in [boundaries[i-1], boundaries[i]).
+        Requires batch_length_fn. Defaults to [16, 32, 64, 128, 256, 512] when
+        batch_length_fn is set.
       large_model: set to true if your model is large enough to run into
         memory pressure if you load multiple copies.
       model_copies: The exact number of models that you would like loaded
@@ -209,6 +222,10 @@ class ModelHandler(Generic[ExampleT, PredictionT, ModelT]):
       self._batching_kwargs['max_batch_weight'] = max_batch_weight
     if element_size_fn is not None:
       self._batching_kwargs['element_size_fn'] = element_size_fn
+    if batch_length_fn is not None:
+      self._batching_kwargs['length_fn'] = batch_length_fn
+    if batch_bucket_boundaries is not None:
+      self._batching_kwargs['bucket_boundaries'] = batch_bucket_boundaries
     self._large_model = large_model
     self._model_copies = model_copies
     self._share_across_processes = large_model or (model_copies is not None)
@@ -1330,6 +1347,30 @@ class _PostProcessingModelHandler(Generic[ExampleT,
     return self._base.get_postprocess_fns() + [self._postprocess_fn]
 
 
+class OOMProtectedFn:
+  def __init__(self, func):
+    self.func = func
+
+  def __call__(self, *args, **kwargs):
+    try:
+      return self.func(*args, **kwargs)
+    except Exception as e:
+      # Check string to avoid hard import dependency
+      if 'out of memory' in str(e) and 'CUDA' in str(e):
+        logging.warning("Caught CUDA OOM during operation. Cleaning memory.")
+        try:
+          import gc
+
+          import torch
+          gc.collect()
+          torch.cuda.empty_cache()
+        except ImportError:
+          pass
+        except Exception as cleanup_error:
+          logging.error("Failed to clean up CUDA memory: %s", cleanup_error)
+      raise e
+
+
 class RunInference(beam.PTransform[beam.PCollection[Union[ExampleT,
                                                           Iterable[ExampleT]]],
                                    beam.PCollection[PredictionT]]):
@@ -1831,7 +1872,9 @@ class _ProxyLoader:
     unique_tag = self.model_tag + '_' + uuid.uuid4().hex
     # Ensure that each model loaded in a different process for parallelism
     multi_process_shared.MultiProcessShared(
-        self.loader_func, tag=unique_tag, always_proxy=True,
+        OOMProtectedFn(self.loader_func),
+        tag=unique_tag,
+        always_proxy=True,
         spawn_process=True).acquire()
     # Only return the tag to avoid pickling issues with the model itself.
     return unique_tag
@@ -2021,10 +2064,13 @@ class _RunInferenceDoFn(beam.DoFn, Generic[ExampleT, PredictionT]):
         unique_tag = model
         model = multi_process_shared.MultiProcessShared(
             lambda: None, tag=model, always_proxy=True).acquire()
-      result_generator = self._model_handler.run_inference(
-          batch, model, inference_args)
-      if self.use_model_manager:
-        self._model.release_model(self._model_tag, unique_tag)
+      try:
+        result_generator = (OOMProtectedFn(self._model_handler.run_inference))(
+            batch, model, inference_args)
+      finally:
+        # Always release the model so that it can be reloaded.
+        if self.use_model_manager:
+          self._model.release_model(self._model_tag, unique_tag)
     except BaseException as e:
       if self._metrics_collector:
         self._metrics_collector.failed_batches_counter.inc()

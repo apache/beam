@@ -151,4 +151,8 @@ public class DaoFactory implements Serializable {
     }
     return changeStreamDaoInstance;
   }
+
+  public boolean isMutableChangeStream() {
+    return this.isMutableChangeStream;
+  }
 }

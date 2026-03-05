@@ -21,7 +21,9 @@ import static org.apache.beam.sdk.io.gcp.spanner.changestreams.ChangeStreamsCons
 import static org.apache.beam.sdk.io.gcp.spanner.changestreams.model.PartitionMetadata.State.SCHEDULED;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotEquals;
+import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
@@ -116,7 +118,8 @@ public class QueryChangeStreamActionTest {
             partitionStartRecordAction,
             partitionEndRecordAction,
             partitionEventRecordAction,
-            metrics);
+            metrics,
+            false);
     final Struct row = mock(Struct.class);
     partition =
         PartitionMetadata.newBuilder()
@@ -914,6 +917,121 @@ public class QueryChangeStreamActionTest {
     verify(partitionEndRecordAction, never()).run(any(), any(), any(), any(), any());
     verify(partitionEventRecordAction, never()).run(any(), any(), any(), any(), any());
     verify(partitionMetadataDao, never()).updateWatermark(any(), any());
+  }
+
+  @Test
+  public void testQueryChangeStreamWithMutableChangeStreamCappedEndTimestamp() {
+    // Initialize action with isMutableChangeStream = true
+    action =
+        new QueryChangeStreamAction(
+            changeStreamDao,
+            partitionMetadataDao,
+            changeStreamRecordMapper,
+            partitionMetadataMapper,
+            dataChangeRecordAction,
+            heartbeatRecordAction,
+            childPartitionsRecordAction,
+            partitionStartRecordAction,
+            partitionEndRecordAction,
+            partitionEventRecordAction,
+            metrics,
+            true);
+
+    // Set endTimestamp to 60 minutes in the future
+    Timestamp now = Timestamp.now();
+    Timestamp endTimestamp =
+        Timestamp.ofTimeSecondsAndNanos(now.getSeconds() + 60 * 60, now.getNanos());
+
+    partition = partition.toBuilder().setEndTimestamp(endTimestamp).build();
+    when(restriction.getTo()).thenReturn(endTimestamp);
+    when(partitionMetadataMapper.from(any())).thenReturn(partition);
+
+    final ChangeStreamResultSet resultSet = mock(ChangeStreamResultSet.class);
+    final ArgumentCaptor<Timestamp> timestampCaptor = ArgumentCaptor.forClass(Timestamp.class);
+    when(changeStreamDao.changeStreamQuery(
+            eq(PARTITION_TOKEN), eq(PARTITION_START_TIMESTAMP),
+            timestampCaptor.capture(), eq(PARTITION_HEARTBEAT_MILLIS)))
+        .thenReturn(resultSet);
+    when(resultSet.next()).thenReturn(false); // Query finishes (reaches cap)
+    when(watermarkEstimator.currentWatermark()).thenReturn(WATERMARK);
+    when(restrictionTracker.tryClaim(any(Timestamp.class))).thenReturn(true);
+
+    final ProcessContinuation result =
+        action.run(
+            partition, restrictionTracker, outputReceiver, watermarkEstimator, bundleFinalizer);
+
+    // Verify query was capped at ~2 minutes
+    long diff = timestampCaptor.getValue().getSeconds() - now.getSeconds();
+    assertTrue("Query should be capped at approx 2 minutes (120s)", Math.abs(diff - 120) < 10);
+
+    // Crucial: Should RESUME to process the rest later
+    assertEquals(ProcessContinuation.resume(), result);
+  }
+
+  @Test
+  public void testQueryChangeStreamWithMutableChangeStreamUncappedEndTimestamp() {
+    action =
+        new QueryChangeStreamAction(
+            changeStreamDao,
+            partitionMetadataDao,
+            changeStreamRecordMapper,
+            partitionMetadataMapper,
+            dataChangeRecordAction,
+            heartbeatRecordAction,
+            childPartitionsRecordAction,
+            partitionStartRecordAction,
+            partitionEndRecordAction,
+            partitionEventRecordAction,
+            metrics,
+            true);
+
+    // Set endTimestamp to only 10 seconds in the future
+    Timestamp now = Timestamp.now();
+    Timestamp endTimestamp = Timestamp.ofTimeSecondsAndNanos(now.getSeconds() + 10, now.getNanos());
+
+    partition = partition.toBuilder().setEndTimestamp(endTimestamp).build();
+    when(restriction.getTo()).thenReturn(endTimestamp);
+    when(partitionMetadataMapper.from(any())).thenReturn(partition);
+
+    final ChangeStreamResultSet resultSet = mock(ChangeStreamResultSet.class);
+    final ArgumentCaptor<Timestamp> timestampCaptor = ArgumentCaptor.forClass(Timestamp.class);
+    when(changeStreamDao.changeStreamQuery(
+            eq(PARTITION_TOKEN), eq(PARTITION_START_TIMESTAMP),
+            timestampCaptor.capture(), eq(PARTITION_HEARTBEAT_MILLIS)))
+        .thenReturn(resultSet);
+    when(resultSet.next()).thenReturn(false);
+    when(watermarkEstimator.currentWatermark()).thenReturn(WATERMARK);
+    when(restrictionTracker.tryClaim(endTimestamp)).thenReturn(true);
+
+    final ProcessContinuation result =
+        action.run(
+            partition, restrictionTracker, outputReceiver, watermarkEstimator, bundleFinalizer);
+
+    // Should use the exact endTimestamp since it is within the limit (10s < 2m)
+    assertEquals(endTimestamp, timestampCaptor.getValue());
+
+    // Should STOP because we reached the actual requested endTimestamp
+    assertEquals(ProcessContinuation.stop(), result);
+  }
+
+  @Test
+  public void testQueryChangeStreamUnboundedResumesCorrectly() {
+    // Unbounded restriction (streaming forever)
+    setupUnboundedPartition();
+
+    final ChangeStreamResultSet resultSet = mock(ChangeStreamResultSet.class);
+    when(changeStreamDao.changeStreamQuery(any(), any(), any(), anyLong())).thenReturn(resultSet);
+    when(resultSet.next()).thenReturn(false);
+    when(watermarkEstimator.currentWatermark()).thenReturn(WATERMARK);
+    when(restrictionTracker.tryClaim(any(Timestamp.class))).thenReturn(true);
+
+    final ProcessContinuation result =
+        action.run(
+            partition, restrictionTracker, outputReceiver, watermarkEstimator, bundleFinalizer);
+
+    // Should return RESUME to continue reading the stream every 2 minutes
+    assertEquals(ProcessContinuation.resume(), result);
+    verify(metrics).incQueryCounter();
   }
 
   private static class BundleFinalizerStub implements BundleFinalizer {

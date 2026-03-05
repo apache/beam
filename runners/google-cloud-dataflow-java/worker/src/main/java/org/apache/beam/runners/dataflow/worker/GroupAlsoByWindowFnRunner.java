@@ -25,6 +25,7 @@ import org.apache.beam.sdk.state.TimeDomain;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.WindowedValueReceiver;
+import org.apache.beam.sdk.values.CausedByDrain;
 import org.apache.beam.sdk.values.WindowedValue;
 import org.joda.time.Instant;
 
@@ -81,7 +82,8 @@ public class GroupAlsoByWindowFnRunner<InputT, OutputT> implements DoFnRunner<In
       BoundedWindow window,
       Instant timestamp,
       Instant outputTimestamp,
-      TimeDomain timeDomain) {
+      TimeDomain timeDomain,
+      CausedByDrain causedByDrain) {
     throw new UnsupportedOperationException(
         String.format("Timers are not supported by %s", GroupAlsoByWindowFn.class.getSimpleName()));
   }

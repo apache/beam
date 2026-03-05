@@ -489,6 +489,25 @@ public abstract class IcebergCatalogBaseIT implements Serializable {
   }
 
   @Test
+  public void testReadWithNestedFieldFilter() throws Exception {
+    Table table = catalog.createTable(TableIdentifier.parse(tableId()), ICEBERG_SCHEMA);
+
+    List<Row> expectedRows =
+        populateTable(table).stream()
+            .filter(row -> row.getRow("row").getInt32("nested_int") < 350)
+            .collect(Collectors.toList());
+
+    Map<String, Object> config = new HashMap<>(managedIcebergConfig(tableId()));
+    config.put("filter", "\"row\".\"nested_int\" < 350");
+
+    PCollection<Row> rows =
+        pipeline.apply(Managed.read(ICEBERG).withConfig(config)).getSinglePCollection();
+
+    PAssert.that(rows).containsInAnyOrder(expectedRows);
+    pipeline.run().waitUntilFinish();
+  }
+
+  @Test
   public void testStreamingReadWithFilter() throws Exception {
     Table table = catalog.createTable(TableIdentifier.parse(tableId()), ICEBERG_SCHEMA);
 

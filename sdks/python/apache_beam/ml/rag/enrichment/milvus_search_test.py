@@ -169,7 +169,7 @@ class TestMilvusVectorSearchEnrichment(unittest.TestCase):
 
       _ = handler._get_vector_search_data(chunk)
 
-    err_msg = "Chunk 1 missing dense embedding required for vector search"
+    err_msg = "Item 1 missing dense embedding required for vector search"
     self.assertIn(err_msg, str(context.exception))
 
 
@@ -228,7 +228,7 @@ class TestMilvusKeywordSearchEnrichment(unittest.TestCase):
       _ = handler._get_keyword_search_data(chunk)
 
     err_msg = (
-        "Chunk 1 missing both text content and sparse embedding "
+        "Item 1 missing both text content and sparse embedding "
         "required for keyword search")
     self.assertIn(err_msg, str(context.exception))
 

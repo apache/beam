@@ -73,6 +73,7 @@ public class ReadChangeStreamPartitionDoFn extends DoFn<PartitionMetadata, DataC
   private final MapperFactory mapperFactory;
   private final ActionFactory actionFactory;
   private final ChangeStreamMetrics metrics;
+  private final boolean isMutableChangeStream;
   /**
    * Needs to be set through the {@link
    * ReadChangeStreamPartitionDoFn#setThroughputEstimator(BytesThroughputEstimator)} call.
@@ -104,6 +105,7 @@ public class ReadChangeStreamPartitionDoFn extends DoFn<PartitionMetadata, DataC
     this.mapperFactory = mapperFactory;
     this.actionFactory = actionFactory;
     this.metrics = metrics;
+    this.isMutableChangeStream = daoFactory.isMutableChangeStream();
     this.throughputEstimator = new NullThroughputEstimator<>();
   }
 
@@ -215,7 +217,8 @@ public class ReadChangeStreamPartitionDoFn extends DoFn<PartitionMetadata, DataC
             partitionStartRecordAction,
             partitionEndRecordAction,
             partitionEventRecordAction,
-            metrics);
+            metrics,
+            isMutableChangeStream);
   }
 
   /**

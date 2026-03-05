@@ -22,6 +22,7 @@ import org.apache.beam.runners.core.KeyedWorkItem;
 import org.apache.beam.sdk.state.TimeDomain;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
+import org.apache.beam.sdk.values.CausedByDrain;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.WindowedValue;
 import org.joda.time.Instant;
@@ -66,14 +67,22 @@ public class DoFnRunnerWithKeyedInternals<InputT, OutputT> implements DoFnRunner
       BoundedWindow window,
       Instant timestamp,
       Instant outputTimestamp,
-      TimeDomain timeDomain) {
+      TimeDomain timeDomain,
+      CausedByDrain causedByDrain) {
     // Note: wrap with KV.of(key, null) as a special use case of setKeyedInternals() to set key
     // directly.
     setKeyedInternals(KV.of(key, null));
 
     try {
       underlying.onTimer(
-          timerId, timerFamilyId, key, window, timestamp, outputTimestamp, timeDomain);
+          timerId,
+          timerFamilyId,
+          key,
+          window,
+          timestamp,
+          outputTimestamp,
+          timeDomain,
+          causedByDrain);
     } finally {
       clearKeyedInternals();
     }
