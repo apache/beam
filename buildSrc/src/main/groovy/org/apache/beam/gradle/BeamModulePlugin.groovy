@@ -1559,7 +1559,6 @@ class BeamModulePlugin implements Plugin<Project> {
             "NonCanonicalType",
             "Slf4jFormatShouldBeConst",
             "Slf4jSignOnlyFormat",
-            "StaticAssignmentInConstructor",
             "ThreadPriorityCheck",
             "TimeUnitConversionChecker",
             "UndefinedEquals",

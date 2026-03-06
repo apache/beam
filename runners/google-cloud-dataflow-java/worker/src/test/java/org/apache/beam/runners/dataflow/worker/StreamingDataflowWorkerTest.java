@@ -4732,17 +4732,18 @@ public class StreamingDataflowWorkerTest {
 
   private static class FakeSlowDoFn extends DoFn<String, String> {
 
-    private static FakeClock clock; // A static variable keeps this DoFn serializable.
+    private static final AtomicReference<FakeClock> clock =
+        new AtomicReference<>(); // A static variable keeps this DoFn serializable.
     private final Duration sleep;
 
     FakeSlowDoFn(FakeClock clock, Duration sleep) {
-      FakeSlowDoFn.clock = clock;
+      FakeSlowDoFn.clock.set(clock);
       this.sleep = sleep;
     }
 
     @ProcessElement
     public void processElement(ProcessContext c) throws Exception {
-      clock.sleep(sleep);
+      clock.get().sleep(sleep);
       c.output(c.element());
     }
   }
