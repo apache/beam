@@ -21,6 +21,7 @@ import static java.util.stream.Collectors.toList;
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasDisplayItem;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.mock;
@@ -61,7 +62,6 @@ import org.apache.parquet.filter2.predicate.FilterPredicate;
 import org.apache.parquet.hadoop.ParquetFileReader;
 import org.apache.parquet.hadoop.ParquetInputFormat;
 import org.apache.parquet.hadoop.metadata.BlockMetaData;
-import org.apache.parquet.hadoop.metadata.ColumnChunkMetaData;
 import org.apache.parquet.hadoop.metadata.ParquetMetadata;
 import org.apache.parquet.hadoop.util.HadoopInputFile;
 import org.apache.parquet.io.api.Binary;
@@ -525,8 +525,6 @@ public class ParquetIOTest implements Serializable {
 
   @Test
   public void testWriteWithWriterProperties() throws Exception {
-    int customPageSize = 256 * 1024; // 256 KB
-    int customMinRowCount = 5;
     List<GenericRecord> records = generateGenericRecords(1000);
 
     mainPipeline
@@ -535,10 +533,10 @@ public class ParquetIOTest implements Serializable {
             FileIO.<GenericRecord>write()
                 .via(
                     ParquetIO.sink(SCHEMA)
-                        .withPageSize(customPageSize)
+                        .withPageSize(256 * 1024)
                         .withDictionaryEncoding(false)
                         .withBloomFilterEnabled(true)
-                        .withMinRowCountForPageSizeCheck(customMinRowCount))
+                        .withMinRowCountForPageSizeCheck(5))
                 .to(temporaryFolder.getRoot().getAbsolutePath()));
     mainPipeline.run().waitUntilFinish();
 
@@ -552,25 +550,20 @@ public class ParquetIOTest implements Serializable {
       ParquetMetadata footer = reader.getFooter();
 
       // Verify bloom filters were written: at least one column should have a bloom filter.
-      boolean hasBloomFilter = false;
-      for (BlockMetaData block : footer.getBlocks()) {
-        for (ColumnChunkMetaData col : block.getColumns()) {
-          if (col.getBloomFilterOffset() >= 0) {
-            hasBloomFilter = true;
-          }
-        }
-      }
+      boolean hasBloomFilter =
+          footer.getBlocks().stream()
+              .flatMap(block -> block.getColumns().stream())
+              .anyMatch(col -> col.getBloomFilterOffset() >= 0);
       assertTrue("Expected bloom filters to be present", hasBloomFilter);
 
-      // Verify dictionary encoding was disabled: no columns should use dictionary pages.
-      for (BlockMetaData block : footer.getBlocks()) {
-        for (ColumnChunkMetaData col : block.getColumns()) {
-          assertEquals(
-              "Expected no dictionary page when dictionary encoding is disabled",
-              0,
-              col.getDictionaryPageOffset());
-        }
-      }
+      // Verify dictionary encoding was disabled: no columns should have dictionary pages.
+      // getDictionaryPageOffset() returns 0 when no dictionary page is present.
+      boolean hasDictionary =
+          footer.getBlocks().stream()
+              .flatMap(block -> block.getColumns().stream())
+              .anyMatch(col -> col.getDictionaryPageOffset() > 0);
+      assertFalse(
+          "Expected no dictionary pages when dictionary encoding is disabled", hasDictionary);
     }
 
     // Verify the data still round-trips correctly.
