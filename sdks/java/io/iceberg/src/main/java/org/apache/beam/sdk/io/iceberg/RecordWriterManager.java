@@ -435,7 +435,7 @@ class RecordWriterManager implements AutoCloseable {
       }
     } finally {
       // Close unique FileIO instances now that all writers are done.
-      // table.io() returns the catalog's shared FileIO; we deduplicate by identity
+      // table.io() may return a shared FileIO; we deduplicate by identity
       // so we close each underlying connection pool exactly once.
       Set<FileIO> closedIOs = new HashSet<>();
       for (DestinationState state : destinations.values()) {

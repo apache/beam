@@ -71,7 +71,7 @@ class RecordWriter {
     }
     OutputFile outputFile;
     EncryptionKeyMetadata keyMetadata;
-    // table.io() returns the catalog's shared FileIO instance.
+    // table.io() may return a shared FileIO instance.
     // FileIO lifecycle is managed by RecordWriterManager.close().
     OutputFile tmpFile = table.io().newOutputFile(absoluteFilename);
     EncryptedOutputFile encryptedOutputFile = table.encryption().encrypt(tmpFile);
