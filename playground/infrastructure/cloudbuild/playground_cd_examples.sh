@@ -97,10 +97,10 @@ LogOutput "Installing python and dependencies."
 export DEBIAN_FRONTEND=noninteractive
 apt update
 apt install -y apt-transport-https ca-certificates software-properties-common curl unzip apt-utils
-add-apt-repository -y ppa:deadsnakes/ppa
 apt update
 apt install -y python3.10 python3.10-venv python3.10-distutils
 apt install -y python3-virtualenv
+python3.10 --version
 python3.10 -m venv play_venv
 source play_venv/bin/activate
 pip install --upgrade google-api-python-client > /dev/null 2>&1
