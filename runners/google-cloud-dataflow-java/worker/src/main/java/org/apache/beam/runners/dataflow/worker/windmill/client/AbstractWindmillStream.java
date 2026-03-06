@@ -61,7 +61,7 @@ import org.slf4j.Logger;
  * stream connection. {@link #onFlushPending(boolean)} to perform any work that must be done when a
  * new stream is created, such as sending headers or retrying requests.
  *
- * <p>{@link #trySend(RequestT)} and {@link #startStream()} should not be called when handling
+ * <p>{@link #trySend(Object)} and {@link #startStream()} should not be called when handling
  * responses; use {@link #executeSafely(Runnable)} instead.
  *
  * <p>Synchronization on this is used to synchronize the gRpc stream state and internal data
