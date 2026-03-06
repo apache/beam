@@ -17,7 +17,6 @@
  */
 package org.apache.beam.runners.core.metrics;
 
-import java.util.Date;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.locks.Lock;
@@ -47,7 +46,8 @@ public class MetricsLogger extends MetricsContainerImpl {
     StringBuilder logMessage = new StringBuilder();
     logMessage.append(header);
     logMessage.append(deltaContainer.getCumulativeString(allowedMetricUrns));
-    logMessage.append(String.format("(last reported at %s)%n", new Date(lastReported)));
+    logMessage.append(
+        String.format("(last reported at %s)%n", java.time.Instant.ofEpochMilli(lastReported)));
 
     lastMetricsSnapshot = nextMetricsSnapshot;
     return logMessage.toString();

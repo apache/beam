@@ -249,6 +249,7 @@ public class JdbcUtil {
               .build());
 
   /** PreparedStatementSetCaller for Schema Field Logical types. * */
+  @SuppressWarnings("JavaUtilDate")
   static JdbcIO.PreparedStatementSetCaller getPreparedStatementSetCaller(
       Schema.FieldType fieldType) {
     switch (fieldType.getTypeName()) {

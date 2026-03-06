@@ -66,7 +66,6 @@ import java.net.URL;
 import java.net.URLDecoder;
 import java.nio.file.Files;
 import java.nio.file.Paths;
-import java.text.ParseException;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
@@ -419,7 +418,6 @@ public class HttpHealthcareApiClient implements HealthcareApiClient, Serializabl
    * @param msgName the msg name
    * @return the message
    * @throws IOException the io exception
-   * @throws ParseException the parse exception
    */
   @Override
   public Message getHL7v2Message(String msgName) throws IOException {
@@ -611,7 +609,6 @@ public class HttpHealthcareApiClient implements HealthcareApiClient, Serializabl
      * @param statusCode the HTTP status code.
      * @param message the error message.
      * @return the healthcare http exception
-     * @throws IOException the io exception
      */
     static HealthcareHttpException of(int statusCode, String message) {
       return new HealthcareHttpException(statusCode, message);

@@ -27,9 +27,9 @@ import java.io.IOException;
 import java.io.Serializable;
 import java.security.PrivateKey;
 import java.sql.SQLException;
-import java.text.SimpleDateFormat;
+import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.util.ArrayList;
-import java.util.Date;
 import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
@@ -476,7 +476,8 @@ public class SnowflakeIO {
     private String makeTmpDirName() {
       return String.format(
           "sf_copy_csv_%s_%s",
-          new SimpleDateFormat("yyyyMMdd_HHmmss").format(new Date()),
+          LocalDateTime.now(ZoneId.of("UTC"))
+              .format(java.time.format.DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss")),
           UUID.randomUUID().toString().subSequence(0, 8) // first 8 chars of UUID should be enough
           );
     }

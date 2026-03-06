@@ -19,7 +19,6 @@ package org.apache.beam.sdk.io.common;
 
 import java.io.IOException;
 import java.util.Collections;
-import java.util.Date;
 import java.util.HashSet;
 import java.util.Set;
 import org.apache.beam.sdk.io.FileSystems;
@@ -38,7 +37,7 @@ public class FileBasedIOITHelper {
   }
 
   public static String appendTimestampSuffix(String text) {
-    return String.format("%s_%s", text, new Date().getTime());
+    return String.format("%s_%s", text, java.time.Instant.now().toEpochMilli());
   }
 
   /** Constructs text lines in files used for testing. */

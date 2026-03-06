@@ -132,7 +132,6 @@ public class SchemasUtils {
    *
    * @param filePath path to file in GCS
    * @return contents of the file as a string
-   * @throws IOException thrown if not able to read file
    */
   public static String getGcsFileAsString(String filePath) {
     MatchResult result;
