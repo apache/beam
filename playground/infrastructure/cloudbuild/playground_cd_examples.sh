@@ -95,10 +95,11 @@ fi
 LogOutput "Installing python and dependencies."
 # set -e  # Exit immediately if any command fails
 export DEBIAN_FRONTEND=noninteractive
-apt install -y apt-transport-https ca-certificates software-properties-common curl unzip apt-utils > /dev/null 2>&1
-add-apt-repository -y ppa:deadsnakes/ppa > /dev/null 2>&1 && apt update > /dev/null 2>&1
-apt install -y python3.10 python3-distutils python3-pip > /dev/null 2>&1
-apt install -y --reinstall python3-distutils > /dev/null 2>&1
+apt update
+apt install -y apt-transport-https ca-certificates software-properties-common curl unzip apt-utils
+add-apt-repository -y ppa:deadsnakes/ppa
+apt update
+apt install -y python3.10 python3.10-venv python3.10-distutils
 apt install -y python3-virtualenv
 python3.10 -m venv play_venv
 source play_venv/bin/activate
@@ -109,7 +110,7 @@ apt install -y python3.10-venv > /dev/null 2>&1
 
 LogOutput "Installing Python packages from beam/playground/infrastructure/requirements.txt"
 cd $BEAM_ROOT_DIR
-python3.10 -m pip install --upgrade pip setuptools wheel
+python -m pip install --upgrade pip setuptools wheel
 pip install -r playground/infrastructure/requirements.txt
 
 LogOutput "Looking for files changed by the merge commit $MERGE_COMMIT"
