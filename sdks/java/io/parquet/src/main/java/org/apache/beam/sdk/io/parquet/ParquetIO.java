@@ -1009,7 +1009,7 @@ public class ParquetIO {
         .setRowGroupSize(ParquetWriter.DEFAULT_BLOCK_SIZE)
         .setPageSize(ParquetWriter.DEFAULT_PAGE_SIZE)
         .setEnableDictionary(ParquetWriter.DEFAULT_IS_DICTIONARY_ENABLED)
-        .setEnableBloomFilter(false)
+        .setEnableBloomFilter(ParquetProperties.DEFAULT_BLOOM_FILTER_ENABLED)
         .setMinRowCountForPageSizeCheck(ParquetProperties.DEFAULT_MINIMUM_RECORD_COUNT_FOR_CHECK)
         .build();
   }

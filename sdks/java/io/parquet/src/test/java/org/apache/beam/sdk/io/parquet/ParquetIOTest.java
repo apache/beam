@@ -524,6 +524,42 @@ public class ParquetIOTest implements Serializable {
   }
 
   @Test
+  public void testWriteWithDefaultWriterProperties() throws Exception {
+    List<GenericRecord> records = generateGenericRecords(1000);
+
+    mainPipeline
+        .apply(Create.of(records).withCoder(AvroCoder.of(SCHEMA)))
+        .apply(
+            FileIO.<GenericRecord>write()
+                .via(ParquetIO.sink(SCHEMA))
+                .to(temporaryFolder.getRoot().getAbsolutePath()));
+    mainPipeline.run().waitUntilFinish();
+
+    File[] outputFiles = temporaryFolder.getRoot().listFiles((dir, name) -> !name.startsWith("."));
+    assertTrue("Expected at least one output file", outputFiles != null && outputFiles.length > 0);
+
+    org.apache.hadoop.fs.Path hadoopPath = new org.apache.hadoop.fs.Path(outputFiles[0].toURI());
+    try (ParquetFileReader reader =
+        ParquetFileReader.open(HadoopInputFile.fromPath(hadoopPath, new Configuration()))) {
+      ParquetMetadata footer = reader.getFooter();
+
+      // Verify bloom filters are absent by default.
+      boolean hasBloomFilter =
+          footer.getBlocks().stream()
+              .flatMap(block -> block.getColumns().stream())
+              .anyMatch(col -> col.getBloomFilterOffset() >= 0);
+      assertFalse("Expected no bloom filters by default", hasBloomFilter);
+
+      // Verify dictionary encoding is enabled by default.
+      boolean hasDictionary =
+          footer.getBlocks().stream()
+              .flatMap(block -> block.getColumns().stream())
+              .anyMatch(col -> col.getDictionaryPageOffset() > 0);
+      assertTrue("Expected dictionary pages to be present by default", hasDictionary);
+    }
+  }
+
+  @Test
   public void testWriteWithWriterProperties() throws Exception {
     List<GenericRecord> records = generateGenericRecords(1000);
 
