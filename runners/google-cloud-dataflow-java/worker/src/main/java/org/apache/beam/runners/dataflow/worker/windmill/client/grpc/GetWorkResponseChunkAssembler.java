@@ -66,7 +66,7 @@ final class GetWorkResponseChunkAssembler {
   }
 
   /**
-   * Appends the response chunk bytes to the {@link #data }byte buffer. Return the assembled
+   * Appends the response chunk bytes to the {@link #data} byte buffer. Return the assembled
    * WorkItem if all response chunks for a WorkItem have been received.
    */
   List<AssembledWorkItem> append(Windmill.StreamingGetWorkResponseChunk chunk) {
@@ -100,13 +100,13 @@ final class GetWorkResponseChunkAssembler {
   private Optional<AssembledWorkItem> flushToWorkItem() {
     try {
       workItemBuilder.mergeFrom(data);
+      workItemBuilder.addAllAppliedFinalizeIds(appliedFinalizeIds);
       return Optional.of(
           AssembledWorkItem.create(
               workItemBuilder.build(),
               Preconditions.checkNotNull(metadata),
               workTimingInfosTracker.getLatencyAttributions(),
-              bufferedSize,
-              appliedFinalizeIds));
+              bufferedSize));
     } catch (IOException e) {
       LOG.error("Failed to parse work item from stream: ", e);
     } finally {
@@ -149,9 +149,7 @@ final class GetWorkResponseChunkAssembler {
         WorkItem workItem,
         ComputationMetadata computationMetadata,
         ImmutableList<LatencyAttribution> latencyAttributions,
-        long size,
-        List<Long> appliedFinalizeIds) {
-      workItem = workItem.toBuilder().addAllAppliedFinalizeIds(appliedFinalizeIds).build();
+        long size) {
       return new AutoValue_GetWorkResponseChunkAssembler_AssembledWorkItem(
           workItem, computationMetadata, latencyAttributions, size);
     }

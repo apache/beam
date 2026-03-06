@@ -17,7 +17,7 @@
  */
 package org.apache.beam.runners.dataflow.worker.windmill.work.processing;
 
-import static com.google.common.base.Preconditions.checkState;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkState;
 
 import com.google.auto.value.AutoValue;
 import java.util.ArrayList;
@@ -35,6 +35,7 @@ import javax.annotation.concurrent.ThreadSafe;
 import org.apache.beam.runners.dataflow.worker.util.BoundedQueueExecutor;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
 import org.apache.commons.lang3.tuple.Pair;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
@@ -149,6 +150,9 @@ final class StreamingCommitFinalizer {
    * is still cached it is invoked.
    */
   public void finalizeCommits(Iterable<Long> finalizeIds) {
+    if (Iterables.isEmpty(finalizeIds)) {
+      return;
+    }
     List<Runnable> callbacksToExecute = new ArrayList<>();
     lock.lock();
     try {
@@ -164,7 +168,7 @@ final class StreamingCommitFinalizer {
     }
     for (Runnable callback : callbacksToExecute) {
       try {
-        finalizationExecutor.execute(callback, 0);
+        finalizationExecutor.forceExecute(callback, 0);
       } catch (OutOfMemoryError oom) {
         throw oom;
       } catch (Throwable t) {

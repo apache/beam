@@ -84,8 +84,10 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.Vi
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Supplier;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.FluentIterable;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.HashBasedTable;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableSet;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterators;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.PeekingIterator;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Sets;
@@ -455,8 +457,7 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext<Step
     List<Pair<Instant, BundleFinalizer.Callback>> bundleFinalizers = new ArrayList<>();
     for (StepContext stepContext : getAllStepContexts()) {
       stepContext.flushState();
-      bundleFinalizers.addAll(stepContext.getBundleFinalizerCallbacks());
-      stepContext.clearBundleFinalizerCallbacks();
+      bundleFinalizers.addAll(stepContext.flushBundleFinalizerCallbacks());
     }
     for (Pair<Instant, BundleFinalizer.Callback> bundleFinalizer : bundleFinalizers) {
       long id = ThreadLocalRandom.current().nextLong();
@@ -1082,26 +1083,22 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext<Step
       return checkNotNull(userTimerInternals);
     }
 
-    public List<Pair<Instant, BundleFinalizer.Callback>> getBundleFinalizerCallbacks() {
-      return bundleFinalizer.getCallbacks();
-    }
-
-    public void clearBundleFinalizerCallbacks() {
-      bundleFinalizer.clearCallbacks();
+    public ImmutableList<Pair<Instant, BundleFinalizer.Callback>> flushBundleFinalizerCallbacks() {
+      return bundleFinalizer.flushCallbacks();
     }
   }
 
   private static class WindmillBundleFinalizer implements BundleFinalizer {
-    private List<Pair<Instant, Callback>> callbacks = new ArrayList<>();
+    private ImmutableList.Builder<Pair<Instant, Callback>> callbacks = ImmutableList.builder();
 
     private WindmillBundleFinalizer() {}
 
-    private List<Pair<Instant, Callback>> getCallbacks() {
-      return callbacks;
-    }
-
-    private void clearCallbacks() {
-      callbacks.clear();
+    private ImmutableList<Pair<Instant, Callback>> flushCallbacks() {
+      ImmutableList<Pair<Instant, Callback>> flushedCallbacks = callbacks.build();
+      if (!Iterables.isEmpty(flushedCallbacks)) {
+        callbacks = ImmutableList.builder();
+      }
+      return flushedCallbacks;
     }
 
     @Override

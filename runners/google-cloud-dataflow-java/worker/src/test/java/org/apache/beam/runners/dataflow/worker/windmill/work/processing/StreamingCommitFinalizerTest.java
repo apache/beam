@@ -136,9 +136,7 @@ public class StreamingCommitFinalizerTest {
     finalizer.cacheCommitFinalizers(
         ImmutableMap.of(1L, Pair.of(Instant.now().plus(Duration.standardHours(1)), callback)));
     finalizer.finalizeCommits(Collections.singletonList(2L));
-    while (executor.elementsOutstanding() > 1) {
-      Thread.sleep(200);
-    }
+    assertEquals(1, executor.elementsOutstanding());
     verify(callback, never()).run();
     assertEquals(1, finalizer.cleanupQueueSize());
   }
@@ -167,11 +165,8 @@ public class StreamingCommitFinalizerTest {
       // Wait until the two 100ms timeouts expire.
       Thread.sleep(200);
     }
-    // We can call finalize even though these were already cleaned up.
+    assertEquals(1, executor.elementsOutstanding());
     finalizer.finalizeCommits(ImmutableList.of(2L, 3L));
-    while (executor.elementsOutstanding() > 1) {
-      Thread.sleep(200);
-    }
     verify(callback2, never()).run();
     verify(callback3, never()).run();
 
