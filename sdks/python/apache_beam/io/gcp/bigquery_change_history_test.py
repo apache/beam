@@ -32,6 +32,8 @@ from apache_beam.io.gcp.bigquery_change_history import _table_key
 from apache_beam.io.gcp.bigquery_change_history import build_changes_query
 from apache_beam.io.gcp.bigquery_change_history import compute_ranges
 from apache_beam.io.gcp.internal.clients import bigquery
+from apache_beam.utils.timestamp import Duration
+from apache_beam.utils.timestamp import Timestamp
 
 # Protect against environments where apitools is not available.
 try:
@@ -39,81 +41,70 @@ try:
 except ImportError:
   HttpError = None  # type: ignore
 
+_DAY = Duration(seconds=86400)
+
+
+def _ts(*args, **kwargs) -> Timestamp:
+  """Create a UTC datetime and return a Beam Timestamp."""
+  dt = datetime.datetime(*args, tzinfo=datetime.timezone.utc, **kwargs)
+  return Timestamp(dt.timestamp())
+
 
 class BuildChangesQueryTest(unittest.TestCase):
   """Tests for build_changes_query()."""
   def test_appends_query_format(self):
-    # Use UTC-aware datetimes to avoid timezone offset issues
-    ts_start = datetime.datetime(
-        2025, 1, 1, 0, 0, 0, tzinfo=datetime.timezone.utc).timestamp()
-    ts_end = datetime.datetime(
-        2025, 1, 1, 1, 0, 0, tzinfo=datetime.timezone.utc).timestamp()
+    start = _ts(2025, 1, 1, 0, 0, 0)
+    end = _ts(2025, 1, 1, 1, 0, 0)
     sql = build_changes_query(
-        'myproject.mydataset.mytable', ts_start, ts_end, 'APPENDS')
+        'myproject.mydataset.mytable', start, end, 'APPENDS')
     self.assertIn('APPENDS', sql)
     self.assertIn('TABLE `myproject.mydataset.mytable`', sql)
     self.assertIn('2025-01-01T00:00:00', sql)
     self.assertIn('2025-01-01T01:00:00', sql)
 
   def test_changes_query_format(self):
-    ts_start = datetime.datetime(
-        2025, 6, 15, 12, 0, 0, tzinfo=datetime.timezone.utc).timestamp()
-    ts_end = datetime.datetime(
-        2025, 6, 15, 18, 0, 0, tzinfo=datetime.timezone.utc).timestamp()
-    sql = build_changes_query('proj.ds.tbl', ts_start, ts_end, 'CHANGES')
+    start = _ts(2025, 6, 15, 12, 0, 0)
+    end = _ts(2025, 6, 15, 18, 0, 0)
+    sql = build_changes_query('proj.ds.tbl', start, end, 'CHANGES')
     self.assertIn('CHANGES', sql)
     self.assertIn('TABLE `proj.ds.tbl`', sql)
 
   def test_columns_select(self):
-    ts_start = datetime.datetime(
-        2025, 1, 1, tzinfo=datetime.timezone.utc).timestamp()
-    ts_end = datetime.datetime(
-        2025, 1, 2, tzinfo=datetime.timezone.utc).timestamp()
+    start = _ts(2025, 1, 1)
+    end = _ts(2025, 1, 2)
     sql = build_changes_query(
-        'proj.ds.tbl', ts_start, ts_end, 'APPENDS', columns=['col_a', 'col_b'])
+        'proj.ds.tbl', start, end, 'APPENDS', columns=['col_a', 'col_b'])
     self.assertIn('SELECT col_a, col_b, _CHANGE_TYPE AS', sql)
     self.assertNotIn('EXCEPT', sql)
 
   def test_columns_none_selects_all(self):
-    ts_start = datetime.datetime(
-        2025, 1, 1, tzinfo=datetime.timezone.utc).timestamp()
-    ts_end = datetime.datetime(
-        2025, 1, 2, tzinfo=datetime.timezone.utc).timestamp()
+    start = _ts(2025, 1, 1)
+    end = _ts(2025, 1, 2)
     sql = build_changes_query(
-        'proj.ds.tbl', ts_start, ts_end, 'APPENDS', columns=None)
+        'proj.ds.tbl', start, end, 'APPENDS', columns=None)
     self.assertIn('SELECT * EXCEPT', sql)
 
   def test_row_filter(self):
-    ts_start = datetime.datetime(
-        2025, 1, 1, tzinfo=datetime.timezone.utc).timestamp()
-    ts_end = datetime.datetime(
-        2025, 1, 2, tzinfo=datetime.timezone.utc).timestamp()
+    start = _ts(2025, 1, 1)
+    end = _ts(2025, 1, 2)
     sql = build_changes_query(
-        'proj.ds.tbl',
-        ts_start,
-        ts_end,
-        'APPENDS',
-        row_filter='status = "active"')
+        'proj.ds.tbl', start, end, 'APPENDS', row_filter='status = "active"')
     self.assertIn('WHERE status = "active"', sql)
 
   def test_no_row_filter(self):
-    ts_start = datetime.datetime(
-        2025, 1, 1, tzinfo=datetime.timezone.utc).timestamp()
-    ts_end = datetime.datetime(
-        2025, 1, 2, tzinfo=datetime.timezone.utc).timestamp()
+    start = _ts(2025, 1, 1)
+    end = _ts(2025, 1, 2)
     sql = build_changes_query(
-        'proj.ds.tbl', ts_start, ts_end, 'APPENDS', row_filter=None)
+        'proj.ds.tbl', start, end, 'APPENDS', row_filter=None)
     self.assertNotIn('WHERE', sql)
 
   def test_columns_and_row_filter(self):
-    ts_start = datetime.datetime(
-        2025, 1, 1, tzinfo=datetime.timezone.utc).timestamp()
-    ts_end = datetime.datetime(
-        2025, 1, 2, tzinfo=datetime.timezone.utc).timestamp()
+    start = _ts(2025, 1, 1)
+    end = _ts(2025, 1, 2)
     sql = build_changes_query(
         'proj.ds.tbl',
-        ts_start,
-        ts_end,
+        start,
+        end,
         'CHANGES',
         columns=['id', 'name'],
         row_filter='id > 100')
@@ -122,40 +113,46 @@ class BuildChangesQueryTest(unittest.TestCase):
     self.assertIn('WHERE id > 100', sql)
 
   def test_colon_normalized_to_dot(self):
-    ts_start = datetime.datetime(
-        2025, 1, 1, tzinfo=datetime.timezone.utc).timestamp()
-    ts_end = datetime.datetime(
-        2025, 1, 2, tzinfo=datetime.timezone.utc).timestamp()
+    start = _ts(2025, 1, 1)
+    end = _ts(2025, 1, 2)
     sql = build_changes_query(
-        'myproject:mydataset.mytable', ts_start, ts_end, 'APPENDS')
+        'myproject:mydataset.mytable', start, end, 'APPENDS')
     self.assertIn('TABLE `myproject.mydataset.mytable`', sql)
     # Verify colon in table ref is normalized (timestamps contain colons)
     table_part = sql.split('TABLE')[1].split(',')[0]
     self.assertNotIn(':', table_part)
+
+  def test_microsecond_precision(self):
+    """Verify sub-second precision is preserved in ISO output."""
+    # 2025-01-01T00:00:00.123456Z
+    start = Timestamp(micros=_ts(2025, 1, 1).micros + 123456)
+    end = start + Duration(seconds=1)
+    sql = build_changes_query('proj.ds.tbl', start, end, 'APPENDS')
+    self.assertIn('2025-01-01T00:00:00.123456Z', sql)
 
 
 class ComputeRangesTest(unittest.TestCase):
   """Tests for compute_ranges()."""
   def test_appends_single_range(self):
     """APPENDS has no chunking — returns single range even for multi-day."""
-    start = 0.0
-    end = 86400.0 * 5  # 5 days
+    start = Timestamp(0)
+    end = Timestamp(0) + _DAY * Duration(seconds=5)
     ranges = compute_ranges(start, end, 'APPENDS')
     self.assertEqual(len(ranges), 1)
     self.assertEqual(ranges[0], (start, end))
 
   def test_changes_single_day(self):
     """CHANGES within 1 day: single range."""
-    start = 0.0
-    end = 86400.0  # exactly 1 day
+    start = Timestamp(0)
+    end = Timestamp(0) + _DAY
     ranges = compute_ranges(start, end, 'CHANGES')
     self.assertEqual(len(ranges), 1)
     self.assertEqual(ranges[0], (start, end))
 
   def test_changes_multi_day(self):
     """CHANGES spanning 3 days: should chunk into 3 ranges."""
-    start = 0.0
-    end = 86400.0 * 3  # 3 days
+    start = Timestamp(0)
+    end = Timestamp(0) + _DAY * Duration(seconds=3)
     ranges = compute_ranges(start, end, 'CHANGES')
     self.assertEqual(len(ranges), 3)
     # Verify no gaps
@@ -166,23 +163,26 @@ class ComputeRangesTest(unittest.TestCase):
 
   def test_changes_partial_day(self):
     """CHANGES spanning 1.5 days: should chunk into 2 ranges."""
-    start = 0.0
-    end = 86400.0 * 1.5
+    start = Timestamp(0)
+    one_day = Timestamp(0) + _DAY
+    end = Timestamp(micros=_DAY.micros + _DAY.micros // 2)
     ranges = compute_ranges(start, end, 'CHANGES')
     self.assertEqual(len(ranges), 2)
-    self.assertEqual(ranges[0], (0.0, 86400.0))
-    self.assertEqual(ranges[1], (86400.0, end))
+    self.assertEqual(ranges[0], (start, one_day))
+    self.assertEqual(ranges[1], (one_day, end))
 
   def test_zero_range(self):
     """end <= start: empty list."""
-    self.assertEqual(compute_ranges(100.0, 100.0, 'CHANGES'), [])
-    self.assertEqual(compute_ranges(100.0, 50.0, 'CHANGES'), [])
-    self.assertEqual(compute_ranges(100.0, 100.0, 'APPENDS'), [])
+    t100 = Timestamp(micros=100)
+    t50 = Timestamp(micros=50)
+    self.assertEqual(compute_ranges(t100, t100, 'CHANGES'), [])
+    self.assertEqual(compute_ranges(t100, t50, 'CHANGES'), [])
+    self.assertEqual(compute_ranges(t100, t100, 'APPENDS'), [])
 
   def test_exact_day_boundary(self):
     """Exactly 2 days: should produce 2 chunks."""
-    start = 0.0
-    end = 86400.0 * 2
+    start = Timestamp(0)
+    end = Timestamp(0) + _DAY * Duration(seconds=2)
     ranges = compute_ranges(start, end, 'CHANGES')
     self.assertEqual(len(ranges), 2)
 

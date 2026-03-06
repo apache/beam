@@ -39,6 +39,8 @@ from apache_beam.io.gcp.internal.clients import bigquery
 from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
+from apache_beam.utils.timestamp import Duration
+from apache_beam.utils.timestamp import Timestamp
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -215,6 +217,7 @@ class ReadStorageStreamsSDFTest(BigQueryChangeHistoryIntegrationBase):
     """SDF reads rows from a real temp table via Storage Read API."""
     table_id = f'sdf_test_{secrets.token_hex(4)}'
     now = time.time()
+    now_ts = Timestamp(now)
     rows = [
         {
             'id': 1,
@@ -242,7 +245,9 @@ class ReadStorageStreamsSDFTest(BigQueryChangeHistoryIntegrationBase):
         table_id, rows, schema=self._READ_SCHEMA)
 
     query_result = _QueryResult(
-        temp_table_ref=table_ref, range_start=now - 60, range_end=now + 60)
+        temp_table_ref=table_ref,
+        range_start=now_ts - 60,
+        range_end=now_ts + 60)
 
     with beam.Pipeline(argv=self.args) as p:
       outputs = (
@@ -261,6 +266,7 @@ class ReadStorageStreamsSDFTest(BigQueryChangeHistoryIntegrationBase):
     """SDF emits cleanup signal with correct counts."""
     table_id = f'sdf_cleanup_{secrets.token_hex(4)}'
     now = time.time()
+    now_ts = Timestamp(now)
     rows = [{
         'id': 1,
         'name': 'a',
@@ -272,7 +278,9 @@ class ReadStorageStreamsSDFTest(BigQueryChangeHistoryIntegrationBase):
         table_id, rows, schema=self._READ_SCHEMA)
 
     query_result = _QueryResult(
-        temp_table_ref=table_ref, range_start=now - 60, range_end=now + 60)
+        temp_table_ref=table_ref,
+        range_start=now_ts - 60,
+        range_end=now_ts + 60)
 
     with beam.Pipeline(argv=self.args) as p:
       outputs = (
@@ -293,12 +301,14 @@ class ReadStorageStreamsSDFTest(BigQueryChangeHistoryIntegrationBase):
   def test_empty_table(self):
     """Empty table produces 0 rows and cleanup signal."""
     table_id = f'sdf_empty_{secrets.token_hex(4)}'
-    now = time.time()
+    now_ts = Timestamp(time.time())
     table_ref = self._create_temp_table_with_data(
         table_id, [], schema=self._READ_SCHEMA)
 
     query_result = _QueryResult(
-        temp_table_ref=table_ref, range_start=now - 60, range_end=now + 60)
+        temp_table_ref=table_ref,
+        range_start=now_ts - 60,
+        range_end=now_ts + 60)
 
     with beam.Pipeline(argv=self.args) as p:
       outputs = (
@@ -318,7 +328,7 @@ class PollChangeHistoryFnTest(BigQueryChangeHistoryIntegrationBase):
   def test_poll_emits_query_ranges(self):
     """Poll SDF emits _QueryRange elements with valid time ranges."""
     table_str = f'{self.project}:{self.dataset}.nonexistent'
-    start_time = time.time() - 120
+    start_time = Timestamp(time.time() - 120)
 
     config = _PollConfig(start_time=start_time)
 
@@ -326,10 +336,10 @@ class PollChangeHistoryFnTest(BigQueryChangeHistoryIntegrationBase):
         table=table_str,
         project=self.project,
         change_function='APPENDS',
-        buffer_sec=0,
+        buffer=Duration(seconds=0),
         start_time=start_time,
-        stop_time=time.time() + 5,
-        poll_interval_sec=30,
+        stop_time=Timestamp(time.time() + 5),
+        poll_interval=Duration(seconds=30),
         location=self.location)
 
     with beam.Pipeline(argv=self.args) as p:
@@ -367,9 +377,9 @@ class ExecuteQueryFnTest(BigQueryChangeHistoryIntegrationBase):
   def test_execute_query_produces_query_result(self):
     """ExecuteQueryFn creates a temp table from a _QueryRange."""
     table_str = f'{self.project}:{self.dataset}.{self.test_table_id}'
-    start_time = self.insert_time - 120
-
-    query_range = _QueryRange(chunk_start=start_time, chunk_end=time.time())
+    query_range = _QueryRange(
+        chunk_start=Timestamp(self.insert_time - 120),
+        chunk_end=Timestamp(time.time()))
 
     with beam.Pipeline(argv=self.args) as p:
       results = (

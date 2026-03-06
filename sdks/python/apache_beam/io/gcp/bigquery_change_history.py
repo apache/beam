@@ -55,7 +55,6 @@ from typing import Iterable
 from typing import List
 from typing import Optional
 from typing import Tuple
-from typing import Union
 
 import apache_beam as beam
 from apache_beam.io.gcp import bigquery_tools
@@ -68,6 +67,7 @@ from apache_beam.metrics import Metrics
 from apache_beam.transforms.core import WatermarkEstimatorProvider
 from apache_beam.transforms.window import TimestampedValue
 from apache_beam.utils import retry
+from apache_beam.utils.timestamp import Duration
 from apache_beam.utils.timestamp import MAX_TIMESTAMP
 from apache_beam.utils.timestamp import Timestamp
 
@@ -85,8 +85,8 @@ _LOGGER = logging.getLogger(__name__)
 
 __all__ = ['ReadBigQueryChangeHistory']
 
-# Max time range for CHANGES() queries: 1 day in seconds.
-_MAX_CHANGES_RANGE_SEC = 86400
+# Max time range for CHANGES() queries: 1 day.
+_MAX_CHANGES_RANGE = Duration(seconds=86400)
 
 # Side output tag for cleanup signals between the Read SDF and Cleanup DoFn.
 _CLEANUP_TAG = 'cleanup'
@@ -111,36 +111,38 @@ class _QueryResult:
   pointing to the temp table containing query results. The Read SDF reads
   rows from that temp table via the Storage Read API.
 
-  range_start/range_end define the time window this query covers.
-  The Read SDF uses range_start to set an initial watermark hold so the runner
-  doesn't advance the watermark past the data's timestamps.
+  range_start/range_end define the time window this query covers as Beam
+  Timestamps (int microseconds internally). The Read SDF uses range_start
+  to set an initial watermark hold so the runner doesn't advance the
+  watermark past the data's timestamps.
   """
   temp_table_ref: 'bigquery.TableReference'
-  range_start: float
-  range_end: float
+  range_start: Timestamp
+  range_end: Timestamp
 
 
 @dataclasses.dataclass
 class _PollConfig:
   """Input element for the polling SDF.
 
-  Only contains start_time, which _PollWatermarkEstimatorProvider uses
-  to initialize the watermark hold. All other config is passed via
-  _PollChangeHistoryFn.__init__.
+  Only contains start_time (Beam Timestamp), which
+  _PollWatermarkEstimatorProvider uses to initialize the watermark hold.
+  All other config is passed via _PollChangeHistoryFn.__init__.
   """
-  start_time: float
+  start_time: Timestamp
 
 
 @dataclasses.dataclass
 class _QueryRange:
   """Lightweight instruction emitted by the polling SDF.
 
-  Contains only the time range to query. Static config (table, project,
-  etc.) is held by _ExecuteQueryFn which receives these after a Reshuffle
-  commit boundary, preventing duplicate queries on SDF re-dispatch.
+  Contains only the time range to query as Beam Timestamps (int microseconds
+  internally). Static config (table, project, etc.) is held by
+  _ExecuteQueryFn which receives these after a Reshuffle commit boundary,
+  preventing duplicate queries on SDF re-dispatch.
   """
-  chunk_start: float
-  chunk_end: float
+  chunk_start: Timestamp
+  chunk_end: Timestamp
 
 
 class _StreamRestriction:
@@ -239,16 +241,17 @@ class _PollWatermarkEstimator(WatermarkEstimator):
   the earliest data timestamp emitted by the current poll. This prevents
   downstream stages from seeing data as late.
 
-  The poll cursor (last_end_ts) tracks where the next poll should start.
+  The poll cursor (last_end) tracks where the next poll should start.
   This is separate from the watermark so we can hold the watermark back
   at start_ts while still advancing the poll cursor to end_ts.
 
-  State is checkpointed as (watermark_hold, last_end_ts) so
+  All timestamps are Beam Timestamps (int microseconds internally).
+
+  State is checkpointed as (watermark_hold, last_end) so
   both values survive SDF re-dispatch.
   """
-  def __init__(self, state: Tuple[Timestamp, float]) -> None:
-    # state is (watermark_hold: Timestamp, last_end_ts: float)
-    self._watermark_hold, self._last_end_ts = state
+  def __init__(self, state: Tuple[Timestamp, Timestamp]) -> None:
+    self._watermark_hold, self._last_end = state
 
   def observe_timestamp(self, timestamp: Timestamp) -> None:
     pass
@@ -256,8 +259,8 @@ class _PollWatermarkEstimator(WatermarkEstimator):
   def current_watermark(self) -> Timestamp:
     return self._watermark_hold
 
-  def get_estimator_state(self) -> Tuple[Timestamp, float]:
-    return (self._watermark_hold, self._last_end_ts)
+  def get_estimator_state(self) -> Tuple[Timestamp, Timestamp]:
+    return (self._watermark_hold, self._last_end)
 
   def set_watermark(self, timestamp: Timestamp) -> None:
     if not isinstance(timestamp, Timestamp):
@@ -268,18 +271,18 @@ class _PollWatermarkEstimator(WatermarkEstimator):
           'Provided %s < current %s' % (timestamp, self._watermark_hold))
     self._watermark_hold = timestamp
 
-  def advance_poll_cursor(self, end_ts: float) -> None:
-    """Record end_ts so the next poll starts from here.
+  def advance_poll_cursor(self, end: Timestamp) -> None:
+    """Record end so the next poll starts from here.
 
-    Only advances forward: if end_ts is earlier than the current cursor
+    Only advances forward: if end is earlier than the current cursor
     (e.g. BQ clock regression), the cursor stays put so the next poll
     doesn't re-query an already-covered range.
     """
-    self._last_end_ts = max(self._last_end_ts, end_ts)
+    self._last_end = max(self._last_end, end)
 
-  def poll_cursor(self) -> float:
-    """Return the start_ts for the next poll."""
-    return self._last_end_ts
+  def poll_cursor(self) -> Timestamp:
+    """Return the start Timestamp for the next poll."""
+    return self._last_end
 
 
 class _PollWatermarkEstimatorProvider(WatermarkEstimatorProvider):
@@ -290,12 +293,12 @@ class _PollWatermarkEstimatorProvider(WatermarkEstimatorProvider):
   """
   def initial_estimator_state(
       self, element: _PollConfig,
-      restriction: OffsetRange) -> Tuple[Timestamp, float]:
-    return (Timestamp(element.start_time), element.start_time)
+      restriction: OffsetRange) -> Tuple[Timestamp, Timestamp]:
+    return (element.start_time, element.start_time)
 
   def create_watermark_estimator(
       self, estimator_state: Tuple[Timestamp,
-                                   float]) -> _PollWatermarkEstimator:
+                                   Timestamp]) -> _PollWatermarkEstimator:
     return _PollWatermarkEstimator(estimator_state)
 
 
@@ -306,8 +309,8 @@ def _table_key(table_ref: 'bigquery.TableReference') -> str:
 
 def build_changes_query(
     table: str,
-    start_ts: float,
-    end_ts: float,
+    start: Timestamp,
+    end: Timestamp,
     change_function: str,
     change_type_column: str = 'change_type',
     change_timestamp_column: str = 'change_timestamp',
@@ -317,8 +320,8 @@ def build_changes_query(
 
   Args:
     table: Table name as 'project.dataset.table' or 'project:dataset.table'.
-    start_ts: Start timestamp (float, seconds since epoch). Inclusive.
-    end_ts: End timestamp (float, seconds since epoch). Exclusive.
+    start: Start timestamp (Beam Timestamp). Inclusive.
+    end: End timestamp (Beam Timestamp). Exclusive.
     change_function: 'CHANGES' or 'APPENDS'.
     change_type_column: Output column name for _CHANGE_TYPE pseudo-column.
     change_timestamp_column: Output column name for _CHANGE_TIMESTAMP
@@ -333,10 +336,8 @@ def build_changes_query(
   """
   # Normalize 'project:dataset.table' to 'project.dataset.table'
   table = table.replace(':', '.')
-  start_iso = datetime.datetime.fromtimestamp(
-      start_ts, tz=datetime.timezone.utc).strftime('%Y-%m-%dT%H:%M:%S.%fZ')
-  end_iso = datetime.datetime.fromtimestamp(
-      end_ts, tz=datetime.timezone.utc).strftime('%Y-%m-%dT%H:%M:%S.%fZ')
+  start_iso = start.to_rfc3339()
+  end_iso = end.to_rfc3339()
   # Pseudo-columns (_CHANGE_TYPE, _CHANGE_TIMESTAMP) can't be written to
   # destination tables with their original names. Rename them so they can
   # be persisted to the temp table for Storage Read API reading.
@@ -356,42 +357,39 @@ def build_changes_query(
   return f"{select} {from_clause}{where}"
 
 
-def compute_ranges(start_ts: float, end_ts: float,
-                   change_function: str) -> List[Tuple[float, float]]:
-  """Split [start_ts, end_ts) into query-safe chunks.
+def compute_ranges(start: Timestamp, end: Timestamp,
+                   change_function: str) -> List[Tuple[Timestamp, Timestamp]]:
+  """Split [start, end) into query-safe chunks.
 
   CHANGES() has a max 1-day range. APPENDS() has no limit.
 
   Args:
-    start_ts: Start timestamp (float, seconds since epoch).
-    end_ts: End timestamp (float, seconds since epoch).
+    start: Start Timestamp. Inclusive.
+    end: End Timestamp. Exclusive.
     change_function: 'CHANGES' or 'APPENDS'.
 
   Returns:
-    List of (start, end) float tuples. Empty if end_ts <= start_ts.
+    List of (start, end) Timestamp tuples. Empty if end <= start.
   """
-  if end_ts <= start_ts:
+  if end <= start:
     return []
 
   if change_function != 'CHANGES':
-    return [(start_ts, end_ts)]
+    return [(start, end)]
 
   # CHANGES: chunk into <=1-day ranges
   ranges = []
-  current = start_ts
-  while current < end_ts:
-    chunk_end = min(current + _MAX_CHANGES_RANGE_SEC, end_ts)
+  current = start
+  while current < end:
+    chunk_end = min(current + _MAX_CHANGES_RANGE, end)
     ranges.append((current, chunk_end))
     current = chunk_end
   return ranges
 
 
-def _utc(ts: Union[float, Timestamp]) -> str:
-  """Format an epoch-seconds float or Timestamp as a UTC string."""
-  if isinstance(ts, Timestamp):
-    ts = ts.seconds()
-  return datetime.datetime.fromtimestamp(
-      ts, tz=datetime.timezone.utc).strftime('%Y-%m-%dT%H:%M:%S')
+def _utc(ts: Timestamp) -> str:
+  """Format a Beam Timestamp as a concise UTC string for logging."""
+  return ts.to_utc_datetime(has_tz=True).strftime('%Y-%m-%dT%H:%M:%S.%f')
 
 
 # =============================================================================
@@ -403,12 +401,15 @@ class _PollChangeHistoryFn(beam.DoFn, beam.transforms.core.RestrictionProvider):
   """SDF that periodically emits _QueryRange instructions.
 
   Uses defer_remainder() for poll timing and _PollWatermarkEstimator to
-  control the watermark. The watermark is initially held at start_time , then
+  control the watermark. The watermark is initially held at start_time, then
   advanced to start_ts of each poll.
+
+  All timestamps are Beam Timestamps (int microseconds internally).
+  Durations (buffer, poll_interval) are Beam Durations.
 
   Derives start_ts from the poll cursor. On each poll:
   1. start_ts = poll cursor (last end_ts, or start_time on first poll)
-  2. end_ts = now - buffer_sec
+  2. end_ts = bq_now - buffer
   3. Computes query chunks, yields _QueryRange per chunk
   4. Advances poll cursor to end_ts (for next poll's start)
   5. Advances watermark to start_ts (earliest data in this poll)
@@ -419,18 +420,18 @@ class _PollChangeHistoryFn(beam.DoFn, beam.transforms.core.RestrictionProvider):
       table: str,
       project: str,
       change_function: str,
-      buffer_sec: float,
-      start_time: float,
-      stop_time: Union[float, Timestamp],
-      poll_interval_sec: float,
+      buffer: Duration,
+      start_time: Timestamp,
+      stop_time: Timestamp,
+      poll_interval: Duration,
       location: Optional[str] = None) -> None:
     self._table = table
     self._project = project
     self._change_function = change_function
-    self._buffer_sec = buffer_sec
+    self._buffer = buffer
     self._start_time = start_time
     self._stop_time = stop_time
-    self._poll_interval_sec = poll_interval_sec
+    self._poll_interval = poll_interval
     self._location = location
 
   def setup(self) -> None:
@@ -448,9 +449,10 @@ class _PollChangeHistoryFn(beam.DoFn, beam.transforms.core.RestrictionProvider):
   @retry.with_exponential_backoff(
       num_retries=3,
       retry_filter=retry.retry_on_server_errors_and_timeout_filter)
-  def _get_bq_timestamp(self) -> float:
+  def _get_bq_timestamp(self) -> Timestamp:
     """Query BigQuery for the current server timestamp.
 
+    Returns a Beam Timestamp created from integer microseconds.
     Uses BQ's CURRENT_TIMESTAMP instead of the local clock to avoid
     data loss from clock skew between the worker VM and BigQuery.
     """
@@ -461,7 +463,7 @@ class _PollChangeHistoryFn(beam.DoFn, beam.transforms.core.RestrictionProvider):
             useLegacySql=False,
             location=self._location))
     response = self._bq_wrapper.client.jobs.Query(request)
-    return int(response.rows[0].f[0].v.string_value) / 1e6
+    return Timestamp(micros=int(response.rows[0].f[0].v.string_value))
 
   def initial_restriction(self, element: _PollConfig) -> OffsetRange:
     return OffsetRange(0, sys.maxsize)
@@ -471,7 +473,7 @@ class _PollChangeHistoryFn(beam.DoFn, beam.transforms.core.RestrictionProvider):
     # Guarantee at least one poll cycle: restriction.start == 0 on the first
     # invocation (from initial_restriction).  After the first try_claim(0) +
     # defer_remainder, subsequent invocations arrive with start >= 1.
-    if restriction.start > 0 and time.time() >= self._stop_time:
+    if restriction.start > 0 and time.time() >= float(self._stop_time):
       _LOGGER.info(
           '[Poll] create_tracker: stop_time reached, '
           'returning empty range to terminate SDF')
@@ -490,17 +492,18 @@ class _PollChangeHistoryFn(beam.DoFn, beam.transforms.core.RestrictionProvider):
   def truncate(self, element: _PollConfig, restriction: OffsetRange) -> None:
     return None
 
-  def _next_poll_time(self, start_ts: float, now: float) -> Optional[Timestamp]:
+  def _next_poll_time(self, start_ts: Timestamp,
+                      now: float) -> Optional[Timestamp]:
     """Return a Timestamp to defer to, or None if we should poll now."""
-    earliest = start_ts + self._buffer_sec + self._poll_interval_sec
-    if now < earliest:
-      return Timestamp.of(earliest)
+    earliest = start_ts + self._buffer + self._poll_interval
+    if now < float(earliest):
+      return earliest
     return None
 
   def _emit_query_ranges(
       self,
-      start_ts: float,
-      end_ts: float,
+      start_ts: Timestamp,
+      end_ts: Timestamp,
       watermark_estimator: _PollWatermarkEstimator) -> Iterable[_QueryRange]:
     """Compute and yield _QueryRange elements, advancing estimator state."""
     ranges = compute_ranges(start_ts, end_ts, self._change_function)
@@ -512,7 +515,7 @@ class _PollChangeHistoryFn(beam.DoFn, beam.transforms.core.RestrictionProvider):
     Metrics.counter('BigQueryChangeHistory', 'polls').inc()
 
     watermark_estimator.advance_poll_cursor(end_ts)
-    watermark_estimator.set_watermark(Timestamp(start_ts))
+    watermark_estimator.set_watermark(start_ts)
     _LOGGER.info(
         '[Poll] Watermark=%s (start_ts), cursor=%s (end_ts)',
         _utc(start_ts),
@@ -520,8 +523,7 @@ class _PollChangeHistoryFn(beam.DoFn, beam.transforms.core.RestrictionProvider):
 
     for chunk_start, chunk_end in ranges:
       yield TimestampedValue(
-          _QueryRange(chunk_start=chunk_start, chunk_end=chunk_end),
-          Timestamp(start_ts))
+          _QueryRange(chunk_start=chunk_start, chunk_end=chunk_end), start_ts)
 
   @beam.DoFn.unbounded_per_element()
   def process(
@@ -543,22 +545,21 @@ class _PollChangeHistoryFn(beam.DoFn, beam.transforms.core.RestrictionProvider):
     # Use BQ server time instead of local clock to avoid data loss
     # from clock skew between the worker VM and BigQuery.
     bq_now = self._get_bq_timestamp()
-    end_ts = min(bq_now - self._buffer_sec, self._stop_time)
+    end_ts = min(bq_now - self._buffer, self._stop_time)
 
     _LOGGER.info(
-        '[Poll] Polling: start_ts=%s, end_ts=%s, watermark=%s, '
+        '[Poll] Polling: start=%s, end=%s, watermark=%s, '
         'clock_skew=%.3fs',
         _utc(start_ts),
         _utc(end_ts),
         _utc(watermark_estimator.current_watermark()),
-        bq_now - now)
+        float(bq_now) - now)
 
     current_index = restriction_tracker.current_restriction().start
 
     if not restriction_tracker.try_claim(current_index):
       return
-    restriction_tracker.defer_remainder(
-        Timestamp.of(now + self._poll_interval_sec))
+    restriction_tracker.defer_remainder(Timestamp.of(now) + self._poll_interval)
 
     yield from self._emit_query_ranges(start_ts, end_ts, watermark_estimator)
 
@@ -677,7 +678,7 @@ class _CDCWatermarkEstimatorProvider(WatermarkEstimatorProvider):
   def initial_estimator_state(
       self, element: _QueryResult,
       restriction: _StreamRestriction) -> Timestamp:
-    return Timestamp(element.range_start)
+    return element.range_start
 
   def create_watermark_estimator(
       self, estimator_state: Timestamp) -> ManualWatermarkEstimator:
@@ -836,7 +837,7 @@ class _ReadStorageStreamsSDF(beam.DoFn,
 
     # Advance watermark to range_end after reading all streams. The
     # initial hold was set to range_start by _CDCWatermarkEstimatorProvider.
-    watermark_estimator.set_watermark(Timestamp(element.range_end))
+    watermark_estimator.set_watermark(element.range_end)
     _LOGGER.info(
         '[Read] Watermark advanced to %s (range_end) for %s',
         _utc(element.range_end),
@@ -1113,8 +1114,12 @@ class ReadBigQueryChangeHistory(beam.PTransform):
           'project must be specified either in ReadBigQueryChangeHistory '
           'or in pipeline options (--project)')
 
-    start_time = self._start_time or time.time()
-    stop_time = self._stop_time or MAX_TIMESTAMP
+    start_time = Timestamp(self._start_time or time.time())
+    stop_time = (
+        Timestamp(self._stop_time)
+        if self._stop_time is not None else MAX_TIMESTAMP)
+    buffer = Duration(seconds=self._buffer_sec)
+    poll_interval = Duration(seconds=self._poll_interval_sec)
 
     temp_dataset = self._temp_dataset
     if temp_dataset is None:
@@ -1137,7 +1142,7 @@ class ReadBigQueryChangeHistory(beam.PTransform):
     # The SDF uses defer_remainder() for poll timing and
     # _PollWatermarkEstimator to hold the watermark at data timestamps.
     # On the first invocation it handles the full historical range
-    # [start_time, now - buffer_sec) in a single poll.
+    # [start_time, now - buffer) in a single poll.
     config = _PollConfig(start_time=start_time)
 
     query_ranges = (
@@ -1148,10 +1153,10 @@ class ReadBigQueryChangeHistory(beam.PTransform):
                 table=self._table,
                 project=project,
                 change_function=self._change_function,
-                buffer_sec=self._buffer_sec,
+                buffer=buffer,
                 start_time=start_time,
                 stop_time=stop_time,
-                poll_interval_sec=self._poll_interval_sec,
+                poll_interval=poll_interval,
                 location=self._location)))
 
     # CommitQueryResults: Reshuffle commits _QueryResult (temp table ref)
