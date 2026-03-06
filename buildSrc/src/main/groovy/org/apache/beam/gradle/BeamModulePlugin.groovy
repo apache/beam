@@ -1580,7 +1580,6 @@ class BeamModulePlugin implements Plugin<Project> {
             "NullableWildcard",
             "StringCharset",
             "SuperCallToObjectMethod",
-            "UnnecessaryLongToIntConversion",
             "UnusedVariable",
             // intended suppressions emerged in newer protobuf versions
             "AutoValueBoxedValues",
