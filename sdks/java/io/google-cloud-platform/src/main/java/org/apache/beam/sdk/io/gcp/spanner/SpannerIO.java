@@ -562,7 +562,7 @@ public class SpannerIO {
 
       abstract Builder setTimestampBound(TimestampBound timestampBound);
 
-      abstract Builder setBatching(Boolean batching);
+      abstract Builder setBatching(boolean batching);
 
       abstract ReadAll build();
     }
@@ -694,7 +694,7 @@ public class SpannerIO {
       return withSpannerConfig(config.withRpcPriority(RpcPriority.HIGH));
     }
 
-    abstract Boolean getBatching();
+    abstract boolean getBatching();
 
     @Override
     public PCollection<Struct> expand(PCollection<ReadOperation> input) {
@@ -776,7 +776,7 @@ public class SpannerIO {
 
     abstract @Nullable PartitionOptions getPartitionOptions();
 
-    abstract Boolean getBatching();
+    abstract boolean getBatching();
 
     abstract @Nullable TypeDescriptor<Struct> getTypeDescriptor();
 
@@ -799,7 +799,7 @@ public class SpannerIO {
 
       abstract Builder setPartitionOptions(PartitionOptions partitionOptions);
 
-      abstract Builder setBatching(Boolean batching);
+      abstract Builder setBatching(boolean batching);
 
       abstract Builder setTypeDescriptor(TypeDescriptor<Struct> typeDescriptor);
 

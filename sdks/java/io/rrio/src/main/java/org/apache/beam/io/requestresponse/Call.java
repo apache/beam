@@ -390,7 +390,7 @@ class Call<RequestT, ResponseT> extends PTransform<PCollection<RequestT>, Result
      * invocations, using the {@link Repeater}, in the setting of {@link
      * RequestResponseIO#REPEATABLE_ERROR_TYPES}. Defaults to false.
      */
-    abstract Boolean getShouldRepeat();
+    abstract boolean getShouldRepeat();
 
     /**
      * The {@link CallShouldBackoff} that determines whether the {@link DoFn} should hold {@link
@@ -441,9 +441,9 @@ class Call<RequestT, ResponseT> extends PTransform<PCollection<RequestT>, Result
       abstract Optional<Duration> getTimeout();
 
       /** See {@link Configuration#getShouldRepeat}. */
-      abstract Builder<RequestT, ResponseT> setShouldRepeat(Boolean value);
+      abstract Builder<RequestT, ResponseT> setShouldRepeat(boolean value);
 
-      abstract Optional<Boolean> getShouldRepeat();
+      abstract boolean getShouldRepeat();
 
       /** See {@link Configuration#getCallShouldBackoff}. */
       abstract Builder<RequestT, ResponseT> setCallShouldBackoff(
@@ -470,10 +470,6 @@ class Call<RequestT, ResponseT> extends PTransform<PCollection<RequestT>, Result
       final Configuration<RequestT, ResponseT> build() {
         if (!getSetupTeardown().isPresent()) {
           setSetupTeardown(new NoopSetupTeardown());
-        }
-
-        if (!getShouldRepeat().isPresent()) {
-          setShouldRepeat(false);
         }
 
         if (!getTimeout().isPresent()) {

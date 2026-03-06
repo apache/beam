@@ -152,7 +152,7 @@ public abstract class FillGaps<ValueT>
 
   abstract Duration getTimeseriesBucketDuration();
 
-  abstract Long getMaxGapFillBuckets();
+  abstract long getMaxGapFillBuckets();
 
   abstract Instant getStopTime();
 
@@ -173,7 +173,7 @@ public abstract class FillGaps<ValueT>
   abstract static class Builder<ValueT> {
     abstract Builder<ValueT> setTimeseriesBucketDuration(Duration value);
 
-    abstract Builder<ValueT> setMaxGapFillBuckets(Long value);
+    abstract Builder<ValueT> setMaxGapFillBuckets(long value);
 
     abstract Builder<ValueT> setStopTime(Instant value);
 
@@ -211,7 +211,7 @@ public abstract class FillGaps<ValueT>
   }
 
   /* The max gap duration that will be filled. The transform will stop filling timeseries buckets after this duration. */
-  public FillGaps<ValueT> withMaxGapFillBuckets(Long value) {
+  public FillGaps<ValueT> withMaxGapFillBuckets(long value) {
     return toBuilder().setMaxGapFillBuckets(value).build();
   }
 

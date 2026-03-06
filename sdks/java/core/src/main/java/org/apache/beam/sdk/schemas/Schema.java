@@ -685,7 +685,7 @@ public class Schema implements Serializable {
     public abstract TypeName getTypeName();
 
     // Whether this type is nullable.
-    public abstract Boolean getNullable();
+    public abstract boolean getNullable();
 
     // For logical types, return the implementing class.
 
@@ -744,7 +744,7 @@ public class Schema implements Serializable {
 
       abstract Builder setCollectionElementType(@Nullable FieldType collectionElementType);
 
-      abstract Builder setNullable(Boolean nullable);
+      abstract Builder setNullable(boolean nullable);
 
       abstract Builder setMapKeyType(@Nullable FieldType mapKeyType);
 
@@ -953,7 +953,7 @@ public class Schema implements Serializable {
         }
       }
       return Objects.equals(getTypeName(), other.getTypeName())
-          && Objects.equals(getNullable(), other.getNullable())
+          && getNullable() == other.getNullable()
           && Objects.equals(getCollectionElementType(), other.getCollectionElementType())
           && Objects.equals(getMapKeyType(), other.getMapKeyType())
           && Objects.equals(getMapValueType(), other.getMapValueType())
@@ -984,7 +984,7 @@ public class Schema implements Serializable {
           return false;
         }
       }
-      if (!Objects.equals(getNullable(), other.getNullable())) {
+      if (getNullable() != other.getNullable()) {
         return false;
       }
       if (!Objects.equals(getMetadata(), other.getMetadata())) {
@@ -1009,7 +1009,7 @@ public class Schema implements Serializable {
     /** Check whether two types are equivalent. */
     public boolean equivalent(FieldType other, EquivalenceNullablePolicy nullablePolicy) {
       if (nullablePolicy == EquivalenceNullablePolicy.SAME
-          && !other.getNullable().equals(getNullable())) {
+          && other.getNullable() != getNullable()) {
         return false;
       } else if (nullablePolicy == EquivalenceNullablePolicy.WEAKEN) {
         if (getNullable() && !other.getNullable()) {

@@ -2051,7 +2051,7 @@ public class ElasticsearchIO {
 
     public abstract @Nullable String getBulkDirective();
 
-    public abstract Boolean getHasError();
+    public abstract boolean getHasError();
 
     public abstract @Nullable String getResponseItemJson();
 

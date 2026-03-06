@@ -97,7 +97,7 @@ public abstract class DatadogEventPublisher {
 
   abstract String apiKey();
 
-  abstract Integer maxElapsedMillis();
+  abstract int maxElapsedMillis();
 
   /**
    * Executes a POST for the list of {@link DatadogEvent} objects into Datadog's Logs API.
@@ -228,9 +228,9 @@ public abstract class DatadogEventPublisher {
 
     abstract String apiKey();
 
-    abstract Builder setMaxElapsedMillis(Integer maxElapsedMillis);
+    abstract Builder setMaxElapsedMillis(int maxElapsedMillis);
 
-    abstract Integer maxElapsedMillis();
+    abstract int maxElapsedMillis();
 
     abstract DatadogEventPublisher autoBuild();
 
@@ -263,7 +263,7 @@ public abstract class DatadogEventPublisher {
      * @param maxElapsedMillis max elapsed time in milliseconds for timeout.
      * @return {@link Builder}
      */
-    public Builder withMaxElapsedMillis(Integer maxElapsedMillis) {
+    public Builder withMaxElapsedMillis(int maxElapsedMillis) {
       checkNotNull(
           maxElapsedMillis, "withMaxElapsedMillis(maxElapsedMillis) called with null input.");
       return setMaxElapsedMillis(maxElapsedMillis);

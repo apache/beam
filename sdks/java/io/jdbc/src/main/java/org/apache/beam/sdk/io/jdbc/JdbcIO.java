@@ -2740,7 +2740,7 @@ public class JdbcIO {
       abstract @Nullable Long getMaxBatchBufferingDuration();
 
       @Pure
-      abstract Boolean getReturnResults();
+      abstract boolean getReturnResults();
 
       @Pure
       static Builder builder() {
@@ -2771,7 +2771,7 @@ public class JdbcIO {
         abstract Builder<T, V> setMaxBatchBufferingDuration(
             @Nullable Long maxBatchBufferingDuration);
 
-        abstract Builder<T, V> setReturnResults(Boolean returnResults);
+        abstract Builder<T, V> setReturnResults(boolean returnResults);
 
         abstract WriteFnSpec<T, V> build();
       }

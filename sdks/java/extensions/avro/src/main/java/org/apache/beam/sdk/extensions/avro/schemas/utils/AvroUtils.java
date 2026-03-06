@@ -1261,7 +1261,7 @@ public class AvroUtils {
   private static @Nullable Object genericFromBeamField(
       FieldType fieldType, org.apache.avro.Schema avroSchema, @Nullable Object value) {
     TypeWithNullability typeWithNullability = new TypeWithNullability(avroSchema);
-    if (!fieldType.getNullable().equals(typeWithNullability.nullable)) {
+    if (fieldType.getNullable() != typeWithNullability.nullable) {
       throw new IllegalArgumentException(
           "FieldType "
               + fieldType

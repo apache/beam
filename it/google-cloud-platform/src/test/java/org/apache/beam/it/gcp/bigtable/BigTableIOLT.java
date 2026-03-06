@@ -214,13 +214,13 @@ public class BigTableIOLT extends IOLoadTestBase {
   /** Options for BigtableIO load test. */
   @AutoValue
   abstract static class Configuration {
-    abstract Long getNumRows();
+    abstract long getNumRows();
 
-    abstract Integer getPipelineTimeout();
+    abstract int getPipelineTimeout();
 
     abstract String getRunner();
 
-    abstract Integer getValueSizeBytes();
+    abstract int getValueSizeBytes();
 
     static Configuration of(long numRows, int pipelineTimeout, String runner, int valueSizeBytes) {
       return new AutoValue_BigTableIOLT_Configuration.Builder()
