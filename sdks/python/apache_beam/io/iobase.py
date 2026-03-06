@@ -66,10 +66,13 @@ from apache_beam.utils.windowed_value import WindowedValue
 
 __all__ = [
     'BoundedSource',
+    'CheckpointMark',
     'RangeTracker',
     'Read',
     'RestrictionProgress',
     'RestrictionTracker',
+    'UnboundedSource',
+    'UnboundedReader',
     'WatermarkEstimator',
     'Sink',
     'Write',
@@ -239,6 +242,227 @@ class BoundedSource(SourceBase):
 
   def is_bounded(self):
     return True
+
+
+class CheckpointMark(object):
+  """A marker representing the progress and state of an UnboundedReader.
+
+  For example, this could be offsets in a set of files being read.
+
+  Implementations of this class should be picklable (serializable).
+  """
+  def finalize_checkpoint(self):
+    """Called by the system to signal that this checkpoint mark has been
+    committed along with all the records which have been read from the
+    UnboundedReader since the previous checkpoint was taken.
+
+    For example, this method could send acknowledgements to an external
+    data source such as Pub/Sub.
+
+    Note that:
+    - This finalize method may be called from any thread.
+    - Checkpoints will not necessarily be finalized as soon as they are
+      created.
+    - It is possible for a checkpoint to be taken but this method never
+      called if the checkpoint could not be committed.
+    """
+    pass
+
+
+class _NoopCheckpointMark(CheckpointMark):
+  """A checkpoint mark that does nothing when finalized."""
+  def finalize_checkpoint(self):
+    pass
+
+
+NOOP_CHECKPOINT_MARK = _NoopCheckpointMark()
+
+
+class UnboundedSource(SourceBase):
+  """A source that reads an unbounded amount of input and supports
+  checkpointing, watermarks, and record ids.
+
+  Example usage::
+
+    class MySource(UnboundedSource):
+      def split(self, desired_num_splits, pipeline_options):
+        return [self]  # Single split
+
+      def create_reader(self, pipeline_options, checkpoint_mark):
+        return MyReader(self, checkpoint_mark)
+
+      def requires_deduping(self):
+        return False
+
+    p | Read(MySource()) | beam.Map(process_element)
+  """
+  def split(self, desired_num_splits, pipeline_options=None):
+    """Returns a list of UnboundedSource objects representing the instances
+    of this source that should be used when executing the workflow.
+
+    Each split should return a separate partition of the input data.
+
+    Args:
+      desired_num_splits: the desired number of splits. The returned list
+        should be as close to this size as possible but does not have to match
+        exactly.
+      pipeline_options: the PipelineOptions for the current pipeline.
+
+    Returns:
+      a list of UnboundedSource objects.
+    """
+    raise NotImplementedError
+
+  def create_reader(self, pipeline_options, checkpoint_mark=None):
+    """Create a new UnboundedReader to read from this source, resuming from
+    the given checkpoint if present.
+
+    Args:
+      pipeline_options: the PipelineOptions for the current pipeline.
+      checkpoint_mark: if not None, a CheckpointMark previously returned by
+        this source's reader, indicating where to resume reading.
+
+    Returns:
+      an UnboundedReader.
+    """
+    raise NotImplementedError
+
+  def get_checkpoint_mark_coder(self):
+    """Returns a Coder for encoding and decoding checkpoint marks for this
+    source.
+
+    Defaults to PickleCoder if not overridden.
+    """
+    return coders.registry.get_coder(object)
+
+  def requires_deduping(self):
+    """Returns whether this source requires explicit deduplication.
+
+    This is needed if the underlying data source can return the same record
+    multiple times, such as a queuing system with a pull-ack model.
+
+    If this returns True, get_current_record_id() must be implemented on
+    the reader.
+    """
+    return False
+
+  def default_output_coder(self):
+    return coders.registry.get_coder(object)
+
+  def is_bounded(self):
+    return False
+
+
+class UnboundedReader(object):
+  """A reader that reads an unbounded amount of input.
+
+  A given UnboundedReader object will only be accessed by a single thread
+  at once.
+
+  Subclasses must implement:
+    - start()
+    - advance()
+    - get_current()
+    - get_current_timestamp()
+    - get_watermark()
+    - get_checkpoint_mark()
+    - close()
+  """
+  BACKLOG_UNKNOWN = -1
+
+  def start(self):
+    """Initializes the reader and advances to the first record.
+
+    If the reader has been restored from a checkpoint then it should
+    advance to the next unread record at the point the checkpoint was taken.
+
+    Returns:
+      True if a record was read, False if there is no more input currently
+      available. Future calls to advance() may return True once more data
+      is available.
+    """
+    raise NotImplementedError
+
+  def advance(self):
+    """Advances the reader to the next valid record.
+
+    Returns:
+      True if a record was read, False if there is no more input available.
+      Future calls to advance() may return True once more data is available.
+    """
+    raise NotImplementedError
+
+  def get_current(self):
+    """Returns the value of the data item that was read by the last
+    successful start() or advance() call.
+
+    Raises:
+      NoSuchElementException: if the reader is at the beginning of the input
+        and start() or advance() wasn't called, or if the last start() or
+        advance() returned False.
+    """
+    raise NotImplementedError
+
+  def get_current_timestamp(self):
+    """Returns the timestamp associated with the current data item.
+
+    Returns:
+      a Timestamp object. If not overridden, returns MIN_TIMESTAMP.
+    """
+    return timestamp.MIN_TIMESTAMP
+
+  def get_current_record_id(self):
+    """Returns a unique identifier for the current record.
+
+    This should be the same for each instance of the same logical record
+    read from the underlying data source. It is only necessary to override
+    this if requires_deduping() returns True.
+
+    Returns:
+      a bytes object of at least 16 bytes to avoid collisions.
+    """
+    return b''
+
+  def get_watermark(self):
+    """Returns a timestamp before or at the timestamps of all future elements
+    read by this reader.
+
+    This can be approximate. If records are read that violate this guarantee,
+    they will be considered late.
+
+    Returns:
+      a Timestamp.
+    """
+    raise NotImplementedError
+
+  def get_checkpoint_mark(self):
+    """Returns a CheckpointMark representing the progress of this reader.
+
+    Returns:
+      a CheckpointMark object.
+    """
+    raise NotImplementedError
+
+  def get_split_backlog_bytes(self):
+    """Returns the size of the backlog of unread data in the underlying
+    data source represented by this split of this source.
+
+    Returns:
+      the estimated backlog in bytes, or BACKLOG_UNKNOWN.
+    """
+    return UnboundedReader.BACKLOG_UNKNOWN
+
+  def get_current_source(self):
+    """Returns the UnboundedSource that created this reader.
+
+    Returns:
+      the UnboundedSource.
+    """
+    raise NotImplementedError
+
+  def close(self):
+    """Closes the reader, releasing any resources."""
+    pass
 
 
 class RangeTracker(object):
@@ -945,6 +1169,19 @@ class Read(ptransform.PTransform):
           | 'EmitSource' >>
           core.Map(lambda _: self.source).with_output_types(BoundedSource)
           | SDFBoundedSourceReader(display_data))
+    elif isinstance(self.source, UnboundedSource):
+      coders.registry.register_coder(UnboundedSource, _MemoizingPickleCoder)
+      display_data = {}
+      if hasattr(self.source, 'display_data'):
+        display_data = self.source.display_data() or {}
+      display_data['source'] = self.source.__class__
+
+      return (
+          pbegin
+          | Impulse()
+          | 'EmitSource' >>
+          core.Map(lambda _: self.source).with_output_types(UnboundedSource)
+          | _SDFUnboundedSourceReader(display_data))
     elif isinstance(self.source, ptransform.PTransform):
       # The Read transform can also admit a full PTransform as an input
       # rather than an anctual source. If the input is a PTransform, then
@@ -994,6 +1231,12 @@ class Read(ptransform.PTransform):
               is_bounded=beam_runner_api_pb2.IsBounded.BOUNDED
               if self.source.is_bounded() else
               beam_runner_api_pb2.IsBounded.UNBOUNDED))
+    elif isinstance(self.source, UnboundedSource):
+      return (
+          common_urns.deprecated_primitives.READ.urn,
+          beam_runner_api_pb2.ReadPayload(
+              source=self.source.to_runner_api(context),
+              is_bounded=beam_runner_api_pb2.IsBounded.UNBOUNDED))
     elif isinstance(self.source, ptransform.PTransform):
       return self.source.to_runner_api_parameter(context)
     raise NotImplementedError(
@@ -1915,6 +2158,440 @@ class SDFBoundedSourceReader(PTransform):
 
   def expand(self, pvalue):
     return pvalue | core.ParDo(self._create_sdf_bounded_source_dofn())
+
+  def get_windowing(self, unused_inputs):
+    return core.Windowing(window.GlobalWindows())
+
+  def display_data(self):
+    return self._data_to_display
+
+
+# ---------------------------------------------------------------------------
+# UnboundedSource SDF wrapper infrastructure
+# ---------------------------------------------------------------------------
+
+_DEFAULT_DESIRED_NUM_SPLITS = 20
+
+
+class _UnboundedSourceRestriction(object):
+  """A restriction representing the state of an UnboundedSource read.
+
+  It wraps:
+    - source: the sub-source (split) to read from
+    - checkpoint: the checkpoint mark (if any) to resume from
+    - watermark: the current watermark of this split
+  """
+  def __init__(self, source, checkpoint=None, watermark=None):
+    self._source = source
+    self._checkpoint = checkpoint
+    self._watermark = watermark or timestamp.MIN_TIMESTAMP
+
+  @property
+  def source(self):
+    return self._source
+
+  @property
+  def checkpoint(self):
+    return self._checkpoint
+
+  @property
+  def watermark(self):
+    return self._watermark
+
+  def __repr__(self):
+    return (
+        '_UnboundedSourceRestriction(source=%r, checkpoint=%r, watermark=%r)' %
+        (self._source, self._checkpoint, self._watermark))
+
+
+class _EmptyUnboundedSource(UnboundedSource):
+  """A marker source representing a completed split. Used by the restriction
+  tracker when a split/checkpoint occurs to mark the primary as done."""
+  def split(self, desired_num_splits, pipeline_options=None):
+    raise UnsupportedOperationError('split is never meant to be invoked.')
+
+  def create_reader(self, pipeline_options, checkpoint_mark=None):
+    return _EmptyUnboundedReader(self, checkpoint_mark)
+
+  def is_bounded(self):
+    return False
+
+
+class _EmptyUnboundedReader(UnboundedReader):
+  """A reader that never produces elements. Used as the reader for an
+  _EmptyUnboundedSource."""
+  def __init__(self, source, checkpoint_mark=None):
+    self._source = source
+    self._checkpoint_mark = checkpoint_mark
+
+  def start(self):
+    return False
+
+  def advance(self):
+    return False
+
+  def get_current(self):
+    raise StopIteration('EmptyUnboundedReader has no elements.')
+
+  def get_current_timestamp(self):
+    raise StopIteration('EmptyUnboundedReader has no elements.')
+
+  def close(self):
+    pass
+
+  def get_watermark(self):
+    return timestamp.MAX_TIMESTAMP
+
+  def get_checkpoint_mark(self):
+    if self._checkpoint_mark is not None:
+      return self._checkpoint_mark
+    return NOOP_CHECKPOINT_MARK
+
+  def get_current_source(self):
+    return self._source
+
+
+_EMPTY_UNBOUNDED_SOURCE = _EmptyUnboundedSource()
+
+
+class _UnboundedSourceRestrictionTracker(RestrictionTracker):
+  """A RestrictionTracker that adapts the UnboundedSource/UnboundedReader API
+  to the Splittable DoFn model.
+
+  The restriction is an _UnboundedSourceRestriction. tryClaim returns the
+  next value from the reader (or None if no data is available yet), and the
+  restriction is updated with the reader's checkpoint on split.
+  """
+  def __init__(self, restriction, pipeline_options=None):
+    self._initial_restriction = restriction
+    self._pipeline_options = pipeline_options
+    self._current_reader = None
+    self._reader_started = False
+    self._current_value = None
+    self._done = False
+
+  def _ensure_reader(self):
+    if self._current_reader is None:
+      self._current_reader = (
+          self._initial_restriction.source.create_reader(
+              self._pipeline_options, self._initial_restriction.checkpoint))
+
+  def current_restriction(self):
+    if self._current_reader is None or not self._reader_started:
+      return self._initial_restriction
+
+    current_watermark = self._current_reader.get_watermark()
+    if not isinstance(current_watermark, timestamp.Timestamp):
+      current_watermark = timestamp.Timestamp.of(current_watermark)
+
+    # Clamp watermark within bounds
+    if current_watermark < timestamp.MIN_TIMESTAMP:
+      current_watermark = timestamp.MIN_TIMESTAMP
+    elif current_watermark > timestamp.MAX_TIMESTAMP:
+      current_watermark = timestamp.MAX_TIMESTAMP
+
+    # If the watermark is MAX_TIMESTAMP, the reader is done - transition
+    # to the empty source marker.
+    if current_watermark == timestamp.MAX_TIMESTAMP:
+      checkpoint = self._current_reader.get_checkpoint_mark()
+      try:
+        self._current_reader.close()
+      except Exception as e:
+        _LOGGER.warning('Failed to close UnboundedReader: %s', e)
+      self._current_reader = _EmptyUnboundedReader(
+          _EMPTY_UNBOUNDED_SOURCE, checkpoint)
+
+    return _UnboundedSourceRestriction(
+        self._current_reader.get_current_source(),
+        self._current_reader.get_checkpoint_mark(),
+        current_watermark)
+
+  def current_progress(self):
+    if isinstance(
+        self._initial_restriction.source, _EmptyUnboundedSource):
+      return RestrictionProgress(completed=1, remaining=0)
+
+    if self._current_reader is not None:
+      backlog = self._current_reader.get_split_backlog_bytes()
+      if backlog != UnboundedReader.BACKLOG_UNKNOWN:
+        return RestrictionProgress(completed=0, remaining=backlog)
+
+    # Unknown progress
+    return RestrictionProgress(completed=0, remaining=1)
+
+  def try_claim(self, position=None):
+    """Attempts to read the next record from the unbounded reader.
+
+    For the unbounded source SDF wrapper, 'position' is not a position in
+    the traditional sense. Instead, we use it as a mutable container (list)
+    to pass the current value, timestamp, watermark and record id back to
+    the process method.
+
+    Args:
+      position: A mutable list of length 1. After a successful claim,
+        position[0] will contain a tuple of (value, timestamp, watermark,
+        record_id), or None if the reader returned no data.
+
+    Returns:
+      True if the claim succeeded (the reader may still have no data, in which
+      case position[0] will be None). False if the reader/source is done.
+    """
+    if self._done:
+      return False
+
+    self._ensure_reader()
+
+    if isinstance(self._current_reader, _EmptyUnboundedReader):
+      return False
+
+    try:
+      if not self._reader_started:
+        self._reader_started = True
+        if not self._current_reader.start():
+          # No data yet but the source is not done
+          if position is not None:
+            position[0] = None
+          return True
+      else:
+        if not self._current_reader.advance():
+          # No data yet but the source is not done
+          if position is not None:
+            position[0] = None
+          return True
+
+      # We have data
+      value = self._current_reader.get_current()
+      ts = self._current_reader.get_current_timestamp()
+      watermark = self._current_reader.get_watermark()
+      record_id = self._current_reader.get_current_record_id()
+      if position is not None:
+        position[0] = (value, ts, watermark, record_id)
+      return True
+    except Exception as e:
+      _LOGGER.error('Error reading from UnboundedSource: %s', e)
+      if self._current_reader is not None:
+        try:
+          self._current_reader.close()
+        except Exception as close_error:
+          _LOGGER.warning('Failed to close reader after error: %s', close_error)
+        self._current_reader = None
+      raise
+
+  def try_split(self, fraction_of_remainder):
+    """Splits the current restriction by checkpointing.
+
+    For unbounded sources, a split means:
+    - Primary: becomes the empty source (we are "done" reading in this bundle)
+    - Residual: the current restriction (which will be resumed later)
+    """
+    current = self.current_restriction()
+
+    if isinstance(current.source, _EmptyUnboundedSource):
+      return None
+
+    if not self._reader_started:
+      return None
+
+    # The primary becomes the empty source, the residual is the current state
+    primary = _UnboundedSourceRestriction(
+        _EMPTY_UNBOUNDED_SOURCE, None, timestamp.MAX_TIMESTAMP)
+
+    residual = current
+
+    # Transition the reader to the empty reader
+    self._current_reader = _EmptyUnboundedReader(
+        _EMPTY_UNBOUNDED_SOURCE, current.checkpoint)
+    self._done = True
+
+    return (primary, residual)
+
+  def check_done(self):
+    return isinstance(
+        getattr(self, '_current_reader', None) or
+        self._initial_restriction.source,
+        (_EmptyUnboundedSource, _EmptyUnboundedReader))
+
+  def is_bounded(self):
+    return False
+
+
+class _UnboundedSourceRestrictionCoder(coders.Coder):
+  """Coder for _UnboundedSourceRestriction objects."""
+  def encode(self, restriction):
+    return pickler.dumps((
+        restriction.source,
+        restriction.checkpoint,
+        restriction.watermark))
+
+  def decode(self, encoded):
+    source, checkpoint, watermark = pickler.loads(encoded)
+    return _UnboundedSourceRestriction(source, checkpoint, watermark)
+
+  def is_deterministic(self):
+    return False
+
+
+class _UnboundedSourceRestrictionProvider(core.RestrictionProvider):
+  """A RestrictionProvider for the UnboundedSource SDF wrapper.
+
+  Produces _UnboundedSourceRestriction objects as restrictions and handles
+  splitting and tracking.
+  """
+  def __init__(self, restriction_coder=None, pipeline_options=None):
+    self._restriction_coder = (
+        restriction_coder or _UnboundedSourceRestrictionCoder())
+    self._pipeline_options = pipeline_options
+
+  def initial_restriction(self, element_source):
+    """Produces the initial restriction for the given UnboundedSource."""
+    if not isinstance(element_source, UnboundedSource):
+      raise RuntimeError(
+          '_UnboundedSourceRestrictionProvider can only utilize '
+          'UnboundedSource. Got %s.' % type(element_source))
+    return _UnboundedSourceRestriction(
+        element_source, None, timestamp.MIN_TIMESTAMP)
+
+  def create_tracker(self, restriction):
+    return _UnboundedSourceRestrictionTracker(
+        restriction, self._pipeline_options)
+
+  def split(self, element, restriction):
+    """Splits by delegating to UnboundedSource.split()."""
+    source = restriction.source
+
+    if isinstance(source, _EmptyUnboundedSource):
+      return
+
+    # The UnboundedSource API does not support splitting after a meaningful
+    # checkpoint has been created.
+    if (restriction.checkpoint is not None and
+        not isinstance(restriction.checkpoint, _NoopCheckpointMark)):
+      yield restriction
+      return
+
+    try:
+      splits = source.split(
+          _DEFAULT_DESIRED_NUM_SPLITS, self._pipeline_options)
+      for split_source in splits:
+        yield _UnboundedSourceRestriction(
+            split_source, None, restriction.watermark)
+    except Exception as e:
+      _LOGGER.warning(
+          'Exception while splitting source: %s. Source not split.', e)
+      yield restriction
+
+  def restriction_size(self, element, restriction):
+    """Returns a size estimate for the given restriction."""
+    if isinstance(restriction.source, _EmptyUnboundedSource):
+      return 0
+    return 1
+
+  def restriction_coder(self):
+    return self._restriction_coder
+
+  def truncate(self, element, restriction):
+    """For unbounded sources, truncate returns None to indicate that the
+    restriction should be processed until a checkpoint is possible when
+    draining."""
+    return None
+
+
+class _SDFUnboundedSourceReader(PTransform):
+  """A PTransform that uses Splittable DoFn to read from each UnboundedSource
+  in a PCollection.
+
+  This is the Python equivalent of Java's UnboundedSourceAsSDFWrapperFn.
+  The source element is the UnboundedSource itself, and the restriction is
+  an _UnboundedSourceRestriction (source + checkpoint + watermark).
+  """
+  def __init__(self, data_to_display=None):
+    self._data_to_display = data_to_display or {}
+    super().__init__()
+
+  def _create_sdf_unbounded_source_dofn(self):
+    from apache_beam.io.watermark_estimators import ManualWatermarkEstimator
+
+    class _ManualWatermarkEstimatorProvider(core.WatermarkEstimatorProvider):
+      def initial_estimator_state(self, element, restriction):
+        return restriction.watermark or timestamp.MIN_TIMESTAMP
+
+      def create_watermark_estimator(self, estimator_state):
+        if estimator_state is None:
+          estimator_state = timestamp.MIN_TIMESTAMP
+        if not isinstance(estimator_state, timestamp.Timestamp):
+          estimator_state = timestamp.Timestamp.of(estimator_state)
+        return ManualWatermarkEstimator(estimator_state)
+
+      def estimator_state_coder(self):
+        return coders.registry.get_coder(object)
+
+    class SDFUnboundedSourceDoFn(core.DoFn):
+      def __init__(self, dd):
+        self._dd = dd
+
+      def display_data(self):
+        return self._dd
+
+      @core.DoFn.unbounded_per_element()
+      def process(
+          self,
+          element,
+          restriction_tracker=core.DoFn.RestrictionParam(
+              _UnboundedSourceRestrictionProvider()),
+          watermark_estimator=core.DoFn.WatermarkEstimatorParam(
+              _ManualWatermarkEstimatorProvider()),
+          bundle_finalizer=core.DoFn.BundleFinalizerParam()):
+        out = [None]
+        while restriction_tracker.try_claim(out):
+          if out[0] is not None:
+            value, ts, watermark, record_id = out[0]
+            # Update the watermark estimator
+            if not isinstance(watermark, timestamp.Timestamp):
+              watermark = timestamp.Timestamp.of(watermark)
+            if watermark < timestamp.MIN_TIMESTAMP:
+              watermark = timestamp.MIN_TIMESTAMP
+            elif watermark > timestamp.MAX_TIMESTAMP:
+              watermark = timestamp.MAX_TIMESTAMP
+            watermark_estimator.set_watermark(watermark)
+
+            if not isinstance(ts, timestamp.Timestamp):
+              ts = timestamp.Timestamp.of(ts)
+            yield window.TimestampedValue(value, ts)
+            out = [None]
+          else:
+            # No data currently available, yield control back to the
+            # runner which will resume this element later.
+            break
+
+        # Register checkpoint finalization if we have a non-trivial
+        # checkpoint
+        current = restriction_tracker.current_restriction()
+        checkpoint = current.checkpoint
+        if (checkpoint is not None and
+            not isinstance(checkpoint, _NoopCheckpointMark)):
+          bundle_finalizer.register(checkpoint.finalize_checkpoint)
+
+        # Update watermark even if no elements were output
+        current_watermark = current.watermark
+        if current_watermark is not None:
+          if not isinstance(current_watermark, timestamp.Timestamp):
+            current_watermark = timestamp.Timestamp.of(
+                current_watermark)
+          if current_watermark >= timestamp.MIN_TIMESTAMP:
+            try:
+              watermark_estimator.set_watermark(current_watermark)
+            except ValueError:
+              pass  # Watermark must be monotonically increasing
+
+        # If the source is the empty marker, we are done.
+        # Otherwise signal the runner to resume later.
+        if not isinstance(current.source, _EmptyUnboundedSource):
+          yield core.ProcessContinuation.resume()
+
+    return SDFUnboundedSourceDoFn(self._data_to_display)
+
+  def expand(self, pcoll):
+    return pcoll | core.ParDo(self._create_sdf_unbounded_source_dofn())
 
   def get_windowing(self, unused_inputs):
     return core.Windowing(window.GlobalWindows())
