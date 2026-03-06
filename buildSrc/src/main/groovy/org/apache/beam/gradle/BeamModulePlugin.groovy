@@ -1564,7 +1564,6 @@ class BeamModulePlugin implements Plugin<Project> {
             "TimeUnitConversionChecker",
             "UndefinedEquals",
             "UnescapedEntity",
-            "UnnecessaryLambda",
             "UnnecessaryMethodReference",
             "UnnecessaryParentheses",
             "UnrecognisedJavadocTag",
