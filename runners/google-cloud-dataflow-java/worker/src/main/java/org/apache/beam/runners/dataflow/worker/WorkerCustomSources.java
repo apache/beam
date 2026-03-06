@@ -661,7 +661,7 @@ public class WorkerCustomSources {
     @VisibleForTesting
     static @Nullable ReportedParallelism longToParallelism(long value) {
       if (value >= 0) {
-        return new ReportedParallelism().setValue(Double.valueOf(value));
+        return new ReportedParallelism().setValue(Double.valueOf((double) value));
       } else {
         return null;
       }

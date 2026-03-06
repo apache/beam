@@ -1003,7 +1003,8 @@ public class BigQueryIO {
 
       private long getDesiredChunkSize(
           PipelineOptions options, BigQueryStorageTableSource<T> output) throws Exception {
-        return Math.max(1 << 20, (long) (1000 * Math.sqrt(output.getEstimatedSizeBytes(options))));
+        return Math.max(
+            1 << 20, (long) (1000 * Math.sqrt((double) output.getEstimatedSizeBytes(options))));
       }
     }
 
@@ -1755,7 +1756,8 @@ public class BigQueryIO {
               desiredChunkSize = 64 << 20; // 64mb
             } else {
               // 1mb --> 1 shard; 1gb --> 32 shards; 1tb --> 1000 shards, 1pb --> 32k shards
-              desiredChunkSize = Math.max(1 << 20, (long) (1000 * Math.sqrt(estimatedSize)));
+              desiredChunkSize =
+                  Math.max(1 << 20, (long) (1000 * Math.sqrt((double) estimatedSize)));
             }
             sources = source.split(desiredChunkSize, bqOptions);
           } catch (Exception e) {
