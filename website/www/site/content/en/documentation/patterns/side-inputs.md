@@ -48,7 +48,40 @@ For instance, the following code sample uses a `Map` to create a `DoFn`. The `Ma
 {{< /highlight >}}
 
 {{< highlight py >}}
-No sample present.
+import apache_beam as beam
+from apache_beam.options.pipeline_options import PipelineOptions
+
+class FetchSideInput(beam.DoFn):
+    def process(self, element):
+        # simulate fetching external data
+        yield {"threshold": 10}
+
+def run():
+    with beam.Pipeline(options=PipelineOptions()) as p:
+
+        main_input = (
+            p
+            | "CreateMainInput" >> beam.Create([1, 5, 10, 20])
+        )
+
+        side_input = (
+            p
+            | "GenerateSignal" >> beam.Create([None])
+            | "FetchSideInput" >> beam.ParDo(FetchSideInput())
+            | beam.combiners.Latest.Globally().without_defaults()
+        )
+
+        result = (
+            main_input
+            | "ApplySideInput" >> beam.Map(
+                lambda x, s: x > s["threshold"],
+                beam.pvalue.AsSingleton(side_input))
+        )
+
+        result | beam.Map(print)
+
+if __name__ == "__main__":
+    run()
 {{< /highlight >}}
 
 
