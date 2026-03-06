@@ -148,7 +148,8 @@ public class DataflowPipelineTranslator {
 
   /** Checks to see whether the Trigger tree is compatible with combiner lifting. */
   private static class TriggerCombinerLiftingCompatibility implements TriggerVisitor<Boolean> {
-    static TriggerCombinerLiftingCompatibility INSTANCE = new TriggerCombinerLiftingCompatibility();
+    static final TriggerCombinerLiftingCompatibility INSTANCE =
+        new TriggerCombinerLiftingCompatibility();
 
     @Override
     public Boolean visit(DefaultTrigger trigger) {
