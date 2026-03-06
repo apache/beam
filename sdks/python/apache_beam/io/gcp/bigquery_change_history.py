@@ -67,8 +67,8 @@ from apache_beam.metrics import Metrics
 from apache_beam.transforms.core import WatermarkEstimatorProvider
 from apache_beam.transforms.window import TimestampedValue
 from apache_beam.utils import retry
-from apache_beam.utils.timestamp import Duration
 from apache_beam.utils.timestamp import MAX_TIMESTAMP
+from apache_beam.utils.timestamp import Duration
 from apache_beam.utils.timestamp import Timestamp
 
 try:
