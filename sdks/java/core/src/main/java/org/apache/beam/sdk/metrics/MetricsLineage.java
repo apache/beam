@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.metrics;
 
+import org.apache.beam.sdk.lineage.LineageBase;
 import org.apache.beam.sdk.metrics.Metrics.MetricsFlag;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 

@@ -30,7 +30,6 @@ import java.util.List;
 import java.util.ServiceLoader;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.metrics.Lineage;
-import org.apache.beam.sdk.metrics.LineageBase;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.TestPipeline;

@@ -15,7 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.metrics;
+package org.apache.beam.sdk.lineage;
 
 import org.apache.beam.sdk.annotations.Internal;
 
@@ -23,10 +23,10 @@ import org.apache.beam.sdk.annotations.Internal;
  * Plugin interface for lineage implementations.
  *
  * <p>This is the core contract that lineage plugins must implement. Plugins should implement this
- * interface and register via {@link org.apache.beam.sdk.lineage.LineageRegistrar}.
+ * interface and register via {@link LineageRegistrar}.
  *
- * <p>End users should use the {@link Lineage} facade class instead of implementing this interface
- * directly.
+ * <p>End users should use the {@link org.apache.beam.sdk.metrics.Lineage} facade class instead of
+ * implementing this interface directly.
  */
 @Internal
 public interface LineageBase {

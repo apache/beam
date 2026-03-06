@@ -19,7 +19,6 @@ package org.apache.beam.sdk.lineage;
 
 import com.google.auto.service.AutoService;
 import org.apache.beam.sdk.metrics.Lineage;
-import org.apache.beam.sdk.metrics.LineageBase;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.checkerframework.checker.nullness.qual.Nullable;
 

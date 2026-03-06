@@ -19,15 +19,9 @@ package org.apache.beam.sdk.lineage;
 
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.metrics.Lineage;
-import org.apache.beam.sdk.metrics.LineageBase;
 import org.apache.beam.sdk.options.PipelineOptions;
 
-/**
- * Interface for discovering and creating lineage plugin implementations.
- *
- * <p>Plugins should return {@link LineageBase} implementations that will be wrapped in {@link
- * Lineage} facade instances for end users.
- */
+/** Interface for discovering and creating lineage plugin implementations. */
 public interface LineageRegistrar {
 
   @Nullable

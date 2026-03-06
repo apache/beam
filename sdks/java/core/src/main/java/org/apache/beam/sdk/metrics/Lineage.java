@@ -28,6 +28,7 @@ import java.util.Set;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.regex.Pattern;
 import org.apache.beam.sdk.annotations.Internal;
+import org.apache.beam.sdk.lineage.LineageBase;
 import org.apache.beam.sdk.lineage.LineageRegistrar;
 import org.apache.beam.sdk.metrics.Metrics.MetricsFlag;
 import org.apache.beam.sdk.options.PipelineOptions;
@@ -44,10 +45,6 @@ import org.slf4j.LoggerFactory;
 
 /**
  * Standard collection of metrics used to record source and sinks information for lineage tracking.
- *
- * <p>This is a facade class that provides utility methods and delegates actual lineage recording to
- * {@link LineageBase} implementations. Plugins should implement {@link LineageBase} and register
- * via {@link org.apache.beam.sdk.lineage.LineageRegistrar}.
  */
 public final class Lineage {
   public static final String LINEAGE_NAMESPACE = "lineage";
