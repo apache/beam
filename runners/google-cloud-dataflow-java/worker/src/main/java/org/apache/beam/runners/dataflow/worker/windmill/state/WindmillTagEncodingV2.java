@@ -296,7 +296,7 @@ public class WindmillTagEncodingV2 extends WindmillTagEncoding {
     // todo add draining (https://github.com/apache/beam/issues/36884)
   }
 
-  /** @return the singleton WindmillStateTagUtil */
+  /** Returns the singleton WindmillStateTagUtil. */
   public static WindmillTagEncodingV2 instance() {
     return INSTANCE;
   }

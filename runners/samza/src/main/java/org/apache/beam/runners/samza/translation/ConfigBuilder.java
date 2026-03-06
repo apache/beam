@@ -87,7 +87,7 @@ public class ConfigBuilder {
     config.putAll(properties);
   }
 
-  /** @return built configuration */
+  /** Returns built configuration. */
   public Config build() {
     try {
       // apply framework configs

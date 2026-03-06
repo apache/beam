@@ -176,9 +176,8 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
     // This can contain user code. Wrap it in case it throws an exception.
     try {
       invoker.invokeStartBundle(new DoFnStartBundleArgumentProvider());
-    } catch (Throwable t) {
-      // Exception in user code.
-      throw wrapUserCodeException(t);
+    } catch (Exception e) {
+      throw wrapUserCodeException(e);
     }
   }
 
@@ -215,8 +214,8 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
     // This can contain user code. Wrap it in case it throws an exception.
     try {
       invoker.invokeProcessElement(new DoFnProcessContext(elem));
-    } catch (Exception ex) {
-      throw wrapUserCodeException(ex);
+    } catch (Exception e) {
+      throw wrapUserCodeException(e);
     }
   }
 
@@ -225,9 +224,8 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
     // This can contain user code. Wrap it in case it throws an exception.
     try {
       invoker.invokeFinishBundle(new DoFnFinishBundleArgumentProvider());
-    } catch (Throwable t) {
-      // Exception in user code.
-      throw wrapUserCodeException(t);
+    } catch (Exception e) {
+      throw wrapUserCodeException(e);
     }
   }
 
@@ -237,8 +235,8 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
         new OnWindowExpirationArgumentProvider<>(window, timestamp, key));
   }
 
-  private RuntimeException wrapUserCodeException(Throwable t) {
-    throw UserCodeException.wrapIf(!isSystemDoFn(), t);
+  private RuntimeException wrapUserCodeException(Exception e) {
+    throw UserCodeException.wrapIf(!isSystemDoFn(), e);
   }
 
   private boolean isSystemDoFn() {

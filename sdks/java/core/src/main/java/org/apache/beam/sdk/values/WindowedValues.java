@@ -416,7 +416,7 @@ public class WindowedValues {
   /** A {@link WindowedValues} which holds exactly single window per value. */
   public interface SingleWindowedValue {
 
-    /** @return the single window associated with this value. */
+    /** Returns the single window associated with this value. */
     BoundedWindow getWindow();
   }
 

@@ -195,19 +195,16 @@ public class InstanceBuilder<T> {
 
       checkState(
           Modifier.isStatic(method.getModifiers()),
-          "Factory method must be a static method for "
-              + factoryClass.getName()
-              + "#"
-              + method.getName());
+          "Factory method %s#%s must be a static method",
+          factoryClass.getName(),
+          method.getName());
 
       checkState(
           type.isAssignableFrom(method.getReturnType()),
-          "Return type for "
-              + factoryClass.getName()
-              + "#"
-              + method.getName()
-              + " must be assignable to "
-              + type.getSimpleName());
+          "Return type for %s#%s must be assignable to %s",
+          factoryClass.getName(),
+          method.getName(),
+          type.getSimpleName());
 
       if (!method.isAccessible()) {
         method.setAccessible(true);
@@ -248,10 +245,9 @@ public class InstanceBuilder<T> {
 
       checkState(
           type.isAssignableFrom(factoryClass),
-          "Instance type "
-              + factoryClass.getName()
-              + " must be assignable to "
-              + type.getSimpleName());
+          "Instance type %s must be assignable to %s",
+          factoryClass.getName(),
+          type.getSimpleName());
 
       if (!constructor.isAccessible()) {
         constructor.setAccessible(true);

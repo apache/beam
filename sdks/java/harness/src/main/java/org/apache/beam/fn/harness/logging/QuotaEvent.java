@@ -51,13 +51,19 @@ public class QuotaEvent {
   }
 
   public static class Builder {
-    /** @param messageText Any additional description for the event. */
+    /**
+     * Sets any additional description for the event.
+     *
+     * @param messageText Any additional description for the event.
+     */
     public Builder withMessageText(String messageText) {
       data.put("quota_event.message_text", messageText);
       return this;
     }
 
     /**
+     * Sets the full path for the resource involved.
+     *
      * @param fullResourceName The full path for the resource involved. For GCP, this would follow
      *     https://google.aip.dev/122#full-resource-names.
      */
@@ -67,6 +73,8 @@ public class QuotaEvent {
     }
 
     /**
+     * Sets the full quota name.
+     *
      * @param quotaName The full quota name. For GCP, this would look like:
      *     example.googleapis.com/quota/name
      */
@@ -75,7 +83,11 @@ public class QuotaEvent {
       return this;
     }
 
-    /** @param operation Name of the operation that generated this quota event, in snake-case. */
+    /**
+     * Sets the name of the operation that generated this quota event.
+     *
+     * @param operation Name of the operation that generated this quota event, in snake-case.
+     */
     public Builder withOperation(String operation) {
       data.put("quota_event.operation", operation);
       return this;

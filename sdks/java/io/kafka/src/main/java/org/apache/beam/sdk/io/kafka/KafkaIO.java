@@ -2132,10 +2132,8 @@ public class KafkaIO {
                 if (logTopicVerification == null || !logTopicVerification) {
                   checkState(
                       partitionInfoList != null && !partitionInfoList.isEmpty(),
-                      "Could not find any partitions info for topic "
-                          + topic
-                          + ". Please check Kafka configuration and make sure "
-                          + "that provided topics exist.");
+                      "Could not find any partitions info for topic %s. Please check Kafka configuration and make sure that provided topics exist.",
+                      topic);
                 } else {
                   LOG.warn(
                       "Could not find any partitions info for topic {}. Please check Kafka configuration "

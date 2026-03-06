@@ -583,6 +583,8 @@ public class ArtifactStagingService
       if (completionFuture.isCompletedExceptionally()) {
         try {
           completionFuture.get();
+        } catch (OutOfMemoryError oom) {
+          throw oom;
         } catch (Throwable th) {
           responseObserver.onError(th);
           return;
