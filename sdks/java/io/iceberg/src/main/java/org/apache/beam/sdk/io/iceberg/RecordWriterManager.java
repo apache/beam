@@ -20,7 +20,6 @@ package org.apache.beam.sdk.io.iceberg;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkState;
 
-import java.io.Closeable;
 import java.io.IOException;
 import java.time.Duration;
 import java.time.Instant;
@@ -441,10 +440,10 @@ class RecordWriterManager implements AutoCloseable {
       Set<FileIO> closedIOs = new HashSet<>();
       for (DestinationState state : destinations.values()) {
         FileIO io = state.table.io();
-        if (io instanceof Closeable && closedIOs.add(io)) {
+        if (io != null && closedIOs.add(io)) {
           try {
-            ((Closeable) io).close();
-          } catch (IOException e) {
+            io.close();
+          } catch (Exception e) {
             LOG.warn("Failed to close FileIO for table '{}'", state.table.name(), e);
           }
         }
