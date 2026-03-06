@@ -44,8 +44,12 @@ import org.slf4j.LoggerFactory;
 
 /**
  * Standard collection of metrics used to record source and sinks information for lineage tracking.
+ *
+ * <p>This is a facade class that provides utility methods and delegates actual lineage recording to
+ * {@link LineageBase} implementations. Plugins should implement {@link LineageBase} and register
+ * via {@link org.apache.beam.sdk.lineage.LineageRegistrar}.
  */
-public abstract class Lineage {
+public final class Lineage {
   public static final String LINEAGE_NAMESPACE = "lineage";
   private static final Logger LOG = LoggerFactory.getLogger(Lineage.class);
   private static final AtomicReference<Lineage> SOURCES = new AtomicReference<>();
@@ -57,12 +61,16 @@ public abstract class Lineage {
   // Reserved characters are backtick, colon, whitespace (space, \t, \n) and dot.
   private static final Pattern RESERVED_CHARS = Pattern.compile("[:\\s.`]");
 
+  private final LineageBase delegate;
+
   public enum LineageDirection {
     SOURCE,
     SINK
   }
 
-  protected Lineage() {}
+  private Lineage(LineageBase delegate) {
+    this.delegate = checkNotNull(delegate, "delegate cannot be null");
+  }
 
   @Internal
   public static void setDefaultPipelineOptions(PipelineOptions options) {
@@ -113,15 +121,15 @@ public abstract class Lineage {
             ServiceLoader.load(LineageRegistrar.class, ReflectHelpers.findClassLoader())));
 
     for (LineageRegistrar registrar : registrars) {
-      Lineage reporter = registrar.fromOptions(options, direction);
+      LineageBase reporter = registrar.fromOptions(options, direction);
       if (reporter != null) {
         LOG.info("Using {} for lineage direction {}", reporter.getClass().getName(), direction);
-        return reporter;
+        return new Lineage(reporter);
       }
     }
 
     LOG.debug("Using default Metrics-based lineage for direction {}", direction);
-    return new MetricsLineage(direction);
+    return new Lineage(new MetricsLineage(direction));
   }
 
   /** {@link Lineage} representing sources and optionally side inputs. */
@@ -219,7 +227,9 @@ public abstract class Lineage {
    *     which is already escaped.
    *     <p>In particular, this means they will often have trailing delimiters.
    */
-  public abstract void add(Iterable<String> rollupSegments);
+  public void add(Iterable<String> rollupSegments) {
+    delegate.add(rollupSegments);
+  }
 
   /**
    * Query {@link BoundedTrie} metrics from {@link MetricResults}.

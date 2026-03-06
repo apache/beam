@@ -19,6 +19,7 @@ package org.apache.beam.sdk.lineage;
 
 import com.google.auto.service.AutoService;
 import org.apache.beam.sdk.metrics.Lineage;
+import org.apache.beam.sdk.metrics.LineageBase;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
@@ -32,7 +33,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 public class TestLineageRegistrar implements LineageRegistrar {
 
   @Override
-  public @Nullable Lineage fromOptions(
+  public @Nullable LineageBase fromOptions(
       PipelineOptions options, Lineage.LineageDirection direction) {
     // Only activate if explicitly enabled via TestLineageOptions
     TestLineageOptions testOptions = options.as(TestLineageOptions.class);

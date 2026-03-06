@@ -20,7 +20,13 @@ package org.apache.beam.sdk.metrics;
 import org.apache.beam.sdk.metrics.Metrics.MetricsFlag;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 
-public class MetricsLineage extends Lineage {
+/**
+ * Default lineage implementation that stores lineage information in Beam metrics.
+ *
+ * <p>This implementation uses either {@link BoundedTrie} or {@link StringSet} metrics depending on
+ * the {@link MetricsFlag#lineageRollupEnabled()} flag.
+ */
+public class MetricsLineage implements LineageBase {
 
   private final Metric metric;
 

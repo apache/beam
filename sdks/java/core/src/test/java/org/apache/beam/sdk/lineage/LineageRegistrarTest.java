@@ -30,6 +30,7 @@ import java.util.List;
 import java.util.ServiceLoader;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.metrics.Lineage;
+import org.apache.beam.sdk.metrics.LineageBase;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.TestPipeline;
@@ -111,13 +112,13 @@ public class LineageRegistrarTest {
         options.setEnableTestLineage(true);
 
         // Test with SOURCE direction
-        Lineage sourceLineage = registrar.fromOptions(options, Lineage.LineageDirection.SOURCE);
+        LineageBase sourceLineage = registrar.fromOptions(options, Lineage.LineageDirection.SOURCE);
         assertThat(sourceLineage, notNullValue());
         assertThat(sourceLineage, instanceOf(TestLineage.class));
         assertEquals(Lineage.LineageDirection.SOURCE, ((TestLineage) sourceLineage).getDirection());
 
         // Test with SINK direction
-        Lineage sinkLineage = registrar.fromOptions(options, Lineage.LineageDirection.SINK);
+        LineageBase sinkLineage = registrar.fromOptions(options, Lineage.LineageDirection.SINK);
         assertThat(sinkLineage, notNullValue());
         assertThat(sinkLineage, instanceOf(TestLineage.class));
         assertEquals(Lineage.LineageDirection.SINK, ((TestLineage) sinkLineage).getDirection());
