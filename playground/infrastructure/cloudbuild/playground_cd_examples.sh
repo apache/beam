@@ -100,7 +100,7 @@ add-apt-repository -y ppa:deadsnakes/ppa > /dev/null 2>&1 && apt update > /dev/n
 apt install -y python3.10 python3-distutils python3-pip > /dev/null 2>&1
 apt install -y --reinstall python3-distutils > /dev/null 2>&1
 apt install -y python3-virtualenv
-virtualenv play_venv
+python3.10 -m venv play_venv
 source play_venv/bin/activate
 pip install --upgrade google-api-python-client > /dev/null 2>&1
 python3.10 -m pip install pip --upgrade > /dev/null 2>&1
@@ -109,8 +109,8 @@ apt install -y python3.10-venv > /dev/null 2>&1
 
 LogOutput "Installing Python packages from beam/playground/infrastructure/requirements.txt"
 cd $BEAM_ROOT_DIR
+python3.10 -m pip install --upgrade pip setuptools wheel
 pip install -r playground/infrastructure/requirements.txt
-pip install setuptools
 
 LogOutput "Looking for files changed by the merge commit $MERGE_COMMIT"
 git fetch origin $MERGE_COMMIT
