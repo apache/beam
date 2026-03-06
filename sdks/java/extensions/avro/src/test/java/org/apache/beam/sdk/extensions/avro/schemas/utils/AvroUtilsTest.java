@@ -93,17 +93,17 @@ public class AvroUtilsTest {
     Iterable<?> data;
     if (VERSION_AVRO.equals("1.8.2")) {
       data =
-          (Iterable<?>)
-              Class.forName("org.apache.avro.RandomData")
-                  .getDeclaredConstructor(org.apache.avro.Schema.class, Integer.TYPE)
-                  .newInstance(schema, maxLength);
+          Class.forName("org.apache.avro.RandomData")
+              .asSubclass(Iterable.class)
+              .getDeclaredConstructor(org.apache.avro.Schema.class, Integer.TYPE)
+              .newInstance(schema, maxLength);
     } else {
       data =
-          (Iterable<?>)
-              Class.forName("org.apache.avro.util.RandomData")
-                  .getDeclaredConstructor(org.apache.avro.Schema.class, Integer.TYPE, Boolean.TYPE)
-                  // force Utf8 in random data to match with String type used in AvroUtils
-                  .newInstance(schema, maxLength, true);
+          Class.forName("org.apache.avro.util.RandomData")
+              .asSubclass(Iterable.class)
+              .getDeclaredConstructor(org.apache.avro.Schema.class, Integer.TYPE, Boolean.TYPE)
+              // force Utf8 in random data to match with String type used in AvroUtils
+              .newInstance(schema, maxLength, true);
     }
     return data;
   }
