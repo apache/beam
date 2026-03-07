@@ -51,7 +51,6 @@ dependencies {
     implementation library.java.joda_time
     implementation "org.apache.parquet:parquet-column:$parquet_version"
     implementation "org.apache.parquet:parquet-hadoop:$parquet_version"
-    implementation "org.apache.parquet:parquet-common:$parquet_version"
     implementation project(":sdks:java:io:parquet")
     implementation "org.apache.orc:orc-core:$orc_version"
     implementation "org.apache.iceberg:iceberg-core:$iceberg_version"
