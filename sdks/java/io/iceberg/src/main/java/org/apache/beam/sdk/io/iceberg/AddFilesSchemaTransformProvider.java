@@ -21,6 +21,7 @@ import static org.apache.beam.sdk.io.iceberg.AddFilesSchemaTransformProvider.Con
 
 import com.google.auto.service.AutoService;
 import com.google.auto.value.AutoValue;
+import java.util.List;
 import java.util.Map;
 import org.apache.beam.sdk.schemas.AutoValueSchema;
 import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
@@ -40,6 +41,8 @@ public class AddFilesSchemaTransformProvider extends TypedSchemaTransformProvide
         configuration.getIcebergCatalog(),
         configuration.getTable(),
         configuration.getLocationPrefix(),
+        configuration.getPartitionFields(),
+        configuration.getTableProperties(),
         configuration.getAppendBatchSize(),
         frequency != null ? Duration.standardSeconds(frequency) : null);
   }
@@ -81,8 +84,28 @@ public class AddFilesSchemaTransformProvider extends TypedSchemaTransformProvide
             + "'gs://bucket/namespace/table/data/id=13/name=beam/data_file.parquet'%n%n"
             + "The provided prefix should go up until the partition information:%n"
             + "'gs://bucket/namespace/table/data/'.%n"
-            + "Required if the table is partitioned. ")
+            + "If not provided, will try determining each DataFile's partition from its metrics metadata.")
     public abstract @Nullable String getLocationPrefix();
+
+    @SchemaFieldDescription(
+        "Fields used to create a partition spec that is applied when tables are created. For a field 'foo', "
+            + "the available partition transforms are:\n\n"
+            + "- `foo`\n"
+            + "- `truncate(foo, N)`\n"
+            + "- `bucket(foo, N)`\n"
+            + "- `hour(foo)`\n"
+            + "- `day(foo)`\n"
+            + "- `month(foo)`\n"
+            + "- `year(foo)`\n"
+            + "- `void(foo)`\n\n"
+            + "For more information on partition transforms, please visit https://iceberg.apache.org/spec/#partition-transforms.")
+    public abstract @Nullable List<String> getPartitionFields();
+
+    @SchemaFieldDescription(
+        "Iceberg table properties to be set on the table when it is created.\n"
+            + "For more information on table properties,"
+            + " please visit https://iceberg.apache.org/docs/latest/configuration/#table-properties.")
+    public abstract @Nullable Map<String, String> getTableProperties();
 
     @AutoValue.Builder
     public abstract static class Builder {
@@ -97,6 +120,10 @@ public class AddFilesSchemaTransformProvider extends TypedSchemaTransformProvide
       public abstract Builder setAppendBatchSize(Integer size);
 
       public abstract Builder setLocationPrefix(String prefix);
+
+      public abstract Builder setPartitionFields(List<String> fields);
+
+      public abstract Builder setTableProperties(Map<String, String> props);
 
       public abstract Configuration build();
     }

@@ -970,10 +970,10 @@ public class ParquetIO {
       }
     }
 
-    private static class BeamParquetInputFile implements InputFile {
+    public static class BeamParquetInputFile implements InputFile {
       private final SeekableByteChannel seekableByteChannel;
 
-      BeamParquetInputFile(SeekableByteChannel seekableByteChannel) {
+      public BeamParquetInputFile(SeekableByteChannel seekableByteChannel) {
         this.seekableByteChannel = seekableByteChannel;
       }
 
