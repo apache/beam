@@ -64,6 +64,40 @@ public class KafkaConnectSchemaTest {
     IllegalArgumentException e =
         assertThrows(
             IllegalArgumentException.class, () -> KafkaConnectUtils.debeziumRecordInstant(record));
-    assertThat(e.getMessage(), Matchers.containsString("Should be STRUCT with ts_ms field"));
+    assertThat(
+        e.getMessage(),
+        Matchers.containsString("Should be STRUCT with ts_ms field or sourceOffset with ts_usec"));
+  }
+
+  @Test
+  public void testDebeziumRecordInstantNullValueSchema() {
+    org.apache.kafka.connect.source.SourceRecord record =
+        new org.apache.kafka.connect.source.SourceRecord(
+            java.util.Collections.singletonMap("server", "test"),
+            java.util.Collections.singletonMap("ts_usec", 1614854400000000L),
+            "test-topic",
+            null,
+            null);
+
+    org.joda.time.Instant instant = KafkaConnectUtils.debeziumRecordInstant(record);
+    assertThat(instant.getMillis(), Matchers.is(1614854400000L));
+  }
+
+  @Test
+  public void testDebeziumRecordInstantMissingTimestamp() {
+    org.apache.kafka.connect.source.SourceRecord record =
+        new org.apache.kafka.connect.source.SourceRecord(
+            java.util.Collections.singletonMap("server", "test"),
+            java.util.Collections.emptyMap(),
+            "test-topic",
+            null,
+            null);
+
+    IllegalArgumentException e =
+        assertThrows(
+            IllegalArgumentException.class, () -> KafkaConnectUtils.debeziumRecordInstant(record));
+    assertThat(
+        e.getMessage(),
+        Matchers.containsString("Should be STRUCT with ts_ms field or sourceOffset with ts_usec"));
   }
 }
