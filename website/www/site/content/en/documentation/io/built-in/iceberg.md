@@ -48,8 +48,11 @@ To use IcebergIO, install the [Beam SQL Shell](https://beam.apache.org/documenta
 {{% /section %}}
 
 {{< paragraph >}}
-Additional resources:
+If you're new to Iceberg, check out the [basics section](#iceberg-basics) under the guide.
 {{< /paragraph >}}
+
+Additional resources:
+
 
 {{< paragraph wrap="span" >}}
 * [IcebergIO configuration parameters](https://beam.apache.org/documentation/io/managed-io/#iceberg-write)
@@ -59,28 +62,95 @@ Additional resources:
 * [Apache Iceberg terms](https://iceberg.apache.org/terms/)
 {{< /paragraph >}}
 
-## Iceberg basics
 
-### Catalogs
+## Quickstart with Public Datasets
 
-A catalog is a top-level entity used to manage and access Iceberg tables. There are many catalog implementations out there;
-this guide focuses on the Hadoop catalog for easy local testing and BigLake REST catalog for cloud-scale development.
+We can jump straight into reading some high-quality public datasets served via Iceberg's REST Catalog.
+These datasets are hosted on Google Cloud's BigLake and are available to read by anyone, making it a good
+resource to experiment with.
 
-### Namespaces
+There are some prerequisites to using the BigLake Catalog:
+- A Google Cloud Project (for authentication). Create an account [here](https://docs.cloud.google.com/docs/get-started) if you don't have one.
+- Standard Google [Application Default Credentials](https://docs.cloud.google.com/docs/authentication/set-up-adc-local-dev-environment#local-user-cred) (ADC) set up in your environment.
+- A [Google Cloud Storage bucket](https://docs.cloud.google.com/storage/docs/creating-buckets)
 
-A namespace lives inside a catalog and may contain a number of Iceberg tables. This is the equivalent of a "database".
+When you've met those prerequisites, start by setting up your catalog:
+{{< highlight sql>}}
+  CREATE CATALOG my_catalog TYPE 'iceberg'
+  PROPERTIES (
+    'type' = 'rest',
+    'uri' = 'https://biglake.googleapis.com/iceberg/v1/restcatalog',
+    'warehouse' = 'gs://biglake-public-nyc-taxi-iceberg',
+    'header.x-goog-user-project' = '$PROJECT_ID',
+    'rest.auth.type' = 'google',
+    'io-impl' = 'org.apache.iceberg.gcp.gcs.GCSFileIO',
+    'header.X-Iceberg-Access-Delegation' = 'vended-credentials'
+  );
+{{< /highlight >}}
+{{< highlight java>}}
+  {{< code_sample "examples/java/src/main/java/org/apache/beam/examples/snippets/transforms/io/iceberg/Quickstart.java" biglake_public_catalog_props >}}
+{{< /highlight >}}
+{{< highlight py >}}
+  {{< code_sample "sdks/python/apache_beam/examples/snippets/snippets.py" biglake_public_catalog_props >}}
+{{< /highlight >}}
+{{< highlight yaml >}}
+catalog_props: &catalog_props
+  type: "rest"
+  uri: "https://biglake.googleapis.com/iceberg/v1/restcatalog"
+  warehouse: "gs://biglake-public-nyc-taxi-iceberg"
+  header.x-goog-user-project: *PROJECT_ID
+  rest.auth.type: "google"
+  io-impl: "org.apache.iceberg.gcp.gcs.GCSFileIO"
+  header.X-Iceberg-Access-Delegation: "vended-credentials"
+{{< /highlight >}}
 
-### Tables
+Now simply query the public dataset:
+{{< highlight sql>}}
+  SELECT
+    passenger_count,
+    COUNT(1) AS num_trips,
+    ROUND(AVG(total_amount), 2) AS avg_fare,
+    ROUND(AVG(trip_distance), 2) AS avg_distance
+  FROM
+    bqms.public_data.nyc_taxicab
+  WHERE
+    data_file_year = 2021
+    AND tip_amount > 100
+  GROUP BY
+    passenger_count
+  ORDER BY
+    num_trips DESC;
+{{< /highlight >}}
+{{< highlight java>}}
+  {{< code_sample "examples/java/src/main/java/org/apache/beam/examples/snippets/transforms/io/iceberg/Quickstart.java" biglake_public_query >}}
+{{< /highlight >}}
+{{< highlight py >}}
+  {{< code_sample "sdks/python/apache_beam/examples/snippets/snippets.py" biglake_public_query >}}
+{{< /highlight >}}
+{{< highlight yaml >}}
+  pipeline:
+    type: chain
+    transforms:
+      - type: ReadFromIceberg
+        config:
+        table: "public_data.nyc_taxicab"
+        catalog_properties: *biglake_catalog_props
+        filter: "data_file_year = 2021 AND tip_amount > 100"
+        keep: [ "passenger_count", "total_amount", "trip_distance" ]
+      - type: Sql
+        config:
+          query: "SELECT
+                    passenger_count,
+                    COUNT(1) AS num_trips,
+                    ROUND(AVG(total_amount), 2) AS avg_fare,
+                    ROUND(AVG(trip_distance), 2) AS avg_distance
+                  FROM
+                    PCOLLECTION
+                  GROUP BY
+                    passenger_count"
+  {{< /highlight >}}
 
-The actual entity containing data, and is described by a schema and partition spec.
-
-### Snapshots
-
-A new snapshot is created whenever a change is made to an Iceberg table. Each snapshot provides a summary of the change
-and references its parent snapshot. An Iceberg table's history is a chronological list of snapshots, enabling features
-like time travel and ACID-compliant concurrent writes.
-
-## Quickstart Guide
+## User Guide
 
 ### Choose Your Catalog
 
@@ -140,14 +210,14 @@ built-in credential delegation and unified metadata management. It requires a fe
   {{< code_sample "examples/java/src/main/java/org/apache/beam/examples/snippets/transforms/io/iceberg/Quickstart.java" biglake_catalog_props >}}
   {{< /highlight >}}
   {{< highlight py >}}
-  {{< code_sample "sdks/python/apache_beam/examples/snippets/snippets.py" biglake_catalog_config >}}
+  {{< code_sample "sdks/python/apache_beam/examples/snippets/snippets.py" biglake_catalog_props >}}
   {{< /highlight >}}
   {{< highlight yaml >}}
   catalog_props: &catalog_props
     type: "rest"
     uri: "https://biglake.googleapis.com/iceberg/v1/restcatalog"
-    warehouse: "gs://$BUCKET_NAME"
-    header.x-goog-user-project: "$PROJECT_ID"
+    warehouse: "gs://" + *BUCKET_NAME
+    header.x-goog-user-project: *PROJECT_ID
     rest.auth.type: "google"
     io-impl: "org.apache.iceberg.gcp.gcs.GCSFileIO"
     header.X-Iceberg-Access-Delegation: "vended-credentials"
@@ -261,7 +331,10 @@ pipeline:
     - type: LogForTesting
 {{< /highlight >}}
 
+## Further steps
 
+Check out the full [IcebergIO configuration](https://beam.apache.org/documentation/io/managed-io/#iceberg-write) to make
+use of other features like applying a partition spec, table properties, row filtering, column pruning, etc.
 
 ## Data Types
 
@@ -273,64 +346,80 @@ other SDKs may have specific constraints on complex or experimental types. The f
 the standard mapping for core data types across SQL, Java, Python, and YAML:
 
 {{< highlight sql >}}
-INSERT INTO catalog.namespace.table VALUES (
-9223372036854775807, -- BIGINT
-2147483647,          -- INTEGER
-1.0,                 -- FLOAT
-1.0,                 -- DOUBLE
-TRUE,                -- BOOLEAN
-TIMESTAMP '2018-05-28 20:17:40.123', -- TIMESTAMP
-'varchar',           -- VARCHAR
-'char',              -- CHAR
-ARRAY['abc', 'xyz'],  -- ARRAY
-ARRAY[CAST(ROW('abc', 123) AS ROW(nested_str VARCHAR, nested_int INTEGER))] -- ARRAY[STRUCT]
-)
+  INSERT INTO catalog.namespace.table VALUES (
+    9223372036854775807, -- BIGINT
+    2147483647,          -- INTEGER
+    1.0,                 -- FLOAT
+    1.0,                 -- DOUBLE
+    TRUE,                -- BOOLEAN
+    TIMESTAMP '2018-05-28 20:17:40.123', -- TIMESTAMP
+    'varchar',           -- VARCHAR
+    'char',              -- CHAR
+    ARRAY['abc', 'xyz'],  -- ARRAY
+    ARRAY[CAST(ROW('abc', 123) AS ROW(nested_str VARCHAR, nested_int INTEGER))] -- ARRAY[STRUCT]
+  )
 {{< /highlight >}}
 {{< highlight java >}}
-{{< code_sample "examples/java/src/main/java/org/apache/beam/examples/snippets/transforms/io/iceberg/IcebergBeamSchemaAndRow.java" iceberg_schema_and_row >}}
+  {{< code_sample "examples/java/src/main/java/org/apache/beam/examples/snippets/transforms/io/iceberg/IcebergBeamSchemaAndRow.java" iceberg_schema_and_row >}}
 {{< /highlight >}}
 {{< highlight py >}}
-{{< code_sample "sdks/python/apache_beam/examples/snippets/snippets.py" model_managed_iceberg_data_types >}}
+  {{< code_sample "sdks/python/apache_beam/examples/snippets/snippets.py" model_managed_iceberg_data_types >}}
 {{< /highlight >}}
 {{< highlight yaml >}}
-pipeline:
-  transforms:
-    - type: Create
-      config:
-        elements:
-          - boolean_field: false
-            integer_field: 123
-            number_field: 4.56
-            string_field: "abc"
-            struct_field:
-              nested_1: a
-              nested_2: 1
-            array_field: [1, 2, 3]
-        output_schema:
-          type: object
-          properties:
-            boolean_field:
-              type: boolean
-            integer_field:
-              type: integer
-            number_field:
-              type: number
-            string_field:
-              type: string
-            struct_field:
-              type: object
-              properties:
-                nested_1:
-                  type: string
-                nested_2:
-                  type: integer
-            array_field:
-              type: array
-              items:
+  pipeline:
+    transforms:
+      - type: Create
+        config:
+          elements:
+            - boolean_field: false
+              integer_field: 123
+              number_field: 4.56
+              string_field: "abc"
+              struct_field:
+                nested_1: a
+                nested_2: 1
+              array_field: [1, 2, 3]
+          output_schema:
+            type: object
+            properties:
+              boolean_field:
+                type: boolean
+              integer_field:
                 type: integer
+              number_field:
+                type: number
+              string_field:
+                type: string
+              struct_field:
+                type: object
+                properties:
+                  nested_1:
+                    type: string
+                  nested_2:
+                    type: integer
+              array_field:
+                type: array
+                items:
+                  type: integer
 {{< /highlight >}}
 
-## Further steps
+## Iceberg basics
 
-Check out the full [IcebergIO configuration](https://beam.apache.org/documentation/io/managed-io/#iceberg-write) to make
-use of other features like applying a partition spec, table properties, row filtering, column pruning, etc.
+### Catalogs
+
+A catalog is a top-level entity used to manage and access Iceberg tables. There are many catalog implementations out there;
+this guide focuses on the Hadoop catalog for easy local testing and BigLake REST catalog for cloud-scale development.
+
+### Namespaces
+
+A namespace lives inside a catalog and may contain a number of Iceberg tables. This is the equivalent of a "database".
+
+### Tables
+
+The actual entity containing data, and is described by a schema and partition spec.
+
+### Snapshots
+
+A new snapshot is created whenever a change is made to an Iceberg table. Each snapshot provides a summary of the change
+and references its parent snapshot. An Iceberg table's history is a chronological list of snapshots, enabling features
+like time travel and ACID-compliant concurrent writes.

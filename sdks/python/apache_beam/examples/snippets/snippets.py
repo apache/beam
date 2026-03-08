@@ -1114,17 +1114,55 @@ def model_managed_iceberg():
         | beam.LogElements())
   # [END managed_iceberg_read]
 
-  # [START biglake_catalog_config]
-  biglake_catalog_config = {
+  BUCKET_NAME = ""
+  PROJECT_ID = ""
+
+  # [START biglake_public_catalog_props]
+  biglake_catalog_props = {
       'type': 'rest',
       'uri': 'https://biglake.googleapis.com/iceberg/v1/restcatalog',
       'warehouse': 'gs://biglake-public-nyc-taxi-iceberg',
-      'header.x-goog-user-project': '$PROJECT_ID',
+      'header.x-goog-user-project': PROJECT_ID,
       'rest.auth.type': 'google',
       'io-impl': 'org.apache.iceberg.gcp.gcs.GCSFileIO',
       'header.X-Iceberg-Access-Delegation': 'vended-credentials'
   }
-  # [END biglake_catalog_config]
+  # [END biglake_public_catalog_props]
+
+  # [START biglake_public_query]
+  from statistics import mean
+
+  config = {
+      "table": "public_data.nyc_taxicab",
+      "catalog_properties": biglake_catalog_props,
+      "filter": "data_file_year = 2021 AND tip_amount > 100",
+      "keep": ["passenger_count", "total_amount", "trip_distance"]
+  }
+
+  with beam.Pipeline() as p:
+    rows = p | beam.managed.Read("iceberg", config=config)
+
+    result = (
+        rows | beam.Select(num_trips=lambda x: 1, *rows.element_type._fields)
+        | beam.GroupBy('passenger_count').aggregate_field(
+            'num_trips', sum, 'total_trips').aggregate_field(
+                'total_amount', mean, 'avg_fare').aggregate_field(
+                    'trip_distance', mean, 'avg_distance'))
+
+    result | beam.Map(print)
+  # [END biglake_public_query]
+
+  # [START biglake_catalog_props]
+  biglake_catalog_config = {
+      'type': 'rest',
+      'uri': 'https://biglake.googleapis.com/iceberg/v1/restcatalog',
+      'warehouse': 'gs://' + BUCKET_NAME,
+      'header.x-goog-user-project': PROJECT_ID,
+      'rest.auth.type': 'google',
+      'io-impl': 'org.apache.iceberg.gcp.gcs.GCSFileIO',
+      'header.X-Iceberg-Access-Delegation': 'vended-credentials'
+  }
+  # [END biglake_catalog_props]
 
   # [START model_managed_iceberg_data_types]
   import apache_beam as beam
