@@ -106,7 +106,8 @@ public class MultimapUserState<K, V> {
         StateRequest.newBuilder().setInstructionId(instructionId).setStateKey(stateKey).build();
     this.persistedKeys =
         hasNoState
-            ? PrefetchableIterables.emptyIterable()
+            ? StateFetchingIterators.emptyCachingStateIterable(
+                beamFnStateClient, keysStateRequest, mapKeyCoder)
             : StateFetchingIterators.readAllAndDecodeStartingFrom(
                 cache, beamFnStateClient, keysStateRequest, mapKeyCoder);
 
@@ -133,7 +134,10 @@ public class MultimapUserState<K, V> {
     this.entriesStateRequest = entriesStateRequestBuilder.build();
     this.persistedEntries =
         hasNoState
-            ? PrefetchableIterables.emptyIterable()
+            ? StateFetchingIterators.emptyCachingStateIterable(
+                beamFnStateClient,
+                entriesStateRequest,
+                KvCoder.of(mapKeyCoder, IterableCoder.of(valueCoder)))
             : StateFetchingIterators.readAllAndDecodeStartingFrom(
                 Caches.subCache(this.cache, "AllEntries"),
                 beamFnStateClient,

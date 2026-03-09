@@ -333,4 +333,60 @@ public class BagUserStateTest {
     }
     return out.toByteString();
   }
+
+  @Test
+  public void testHasNoState() throws Exception {
+    FakeBeamFnStateClient fakeClient =
+        new FakeBeamFnStateClient(
+            StringUtf8Coder.of(), ImmutableMap.of(key("A"), asList("A1", "A2", "A3")));
+    BagUserState<String> userState =
+        new BagUserState<>(
+            Caches.noop(),
+            fakeClient,
+            "instructionId",
+            key("A"),
+            StringUtf8Coder.of(),
+            true, /* hasNoState */
+            false /* onlyBundleForKeys */);
+
+    // Iterating should be empty since hasNoState is true
+    assertFalse(userState.get().iterator().hasNext());
+
+    // We can append new values
+    userState.append("A4");
+    assertArrayEquals(new String[] {"A4"}, Iterables.toArray(userState.get(), String.class));
+    userState.asyncClose();
+
+    // The appended string will be persisted, appended to the old values (since we didn't clear)
+    assertEquals(encode("A1", "A2", "A3", "A4"), fakeClient.getData().get(key("A")));
+  }
+
+  @Test
+  public void testOnlyBundleForKeys() throws Exception {
+    FakeBeamFnStateClient fakeClient =
+        new FakeBeamFnStateClient(StringUtf8Coder.of(), ImmutableMap.of(key("A"), asList("A1")));
+    BagUserState<String> userState =
+        new BagUserState<>(
+            Caches.noop(),
+            fakeClient,
+            "instructionId",
+            key("A"),
+            StringUtf8Coder.of(),
+            false /* hasNoState */,
+            true /* onlyBundleForKeys */);
+
+    // Reads still work
+    assertArrayEquals(new String[] {"A1"}, Iterables.toArray(userState.get(), String.class));
+
+    // Append something
+    userState.append("A2");
+
+    // We can observe the appended value locally
+    assertArrayEquals(new String[] {"A1", "A2"}, Iterables.toArray(userState.get(), String.class));
+
+    userState.asyncClose();
+
+    // But when we close, the data is NOT persisted because onlyBundleForKeys = true
+    assertEquals(encode("A1"), fakeClient.getData().get(key("A")));
+  }
 }

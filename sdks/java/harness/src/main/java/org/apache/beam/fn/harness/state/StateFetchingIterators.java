@@ -94,6 +94,20 @@ public class StateFetchingIterators {
         valueCoder);
   }
 
+  public static <T> CachingStateIterable<T> emptyCachingStateIterable(
+      BeamFnStateClient beamFnStateClient,
+      StateRequest stateRequestForFirstChunk,
+      Coder<T> valueCoder) {
+    CachingStateIterable<T> result =
+        readAllAndDecodeStartingFrom(
+            org.apache.beam.fn.harness.Caches.noop(),
+            beamFnStateClient,
+            stateRequestForFirstChunk,
+            valueCoder);
+    result.clearAndAppend(java.util.Collections.emptyList());
+    return result;
+  }
+
   /**
    * This adapter handles using the continuation token to provide iteration over all the elements
    * returned by the Beam Fn State API using the supplied state client, state request for the first
@@ -672,13 +686,6 @@ public class StateFetchingIterators {
 
     LazyBlockingStateFetchingIterator(
         BeamFnStateClient beamFnStateClient, StateRequest stateRequestForFirstChunk) {
-      this.beamFnStateClient = beamFnStateClient;
-      this.stateRequestForFirstChunk = stateRequestForFirstChunk;
-      this.continuationToken = stateRequestForFirstChunk.getGet().getContinuationToken();
-    }
-
-    LazyBlockingStateFetchingIterator(
-      BeamFnStateClient beamFnStateClient, StateRequest stateRequestForFirstChunk) {
       this.beamFnStateClient = beamFnStateClient;
       this.stateRequestForFirstChunk = stateRequestForFirstChunk;
       this.continuationToken = stateRequestForFirstChunk.getGet().getContinuationToken();

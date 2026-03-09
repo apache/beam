@@ -23,6 +23,7 @@ import static org.hamcrest.Matchers.emptyIterable;
 import static org.hamcrest.core.Is.is;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertThrows;
 
 import java.io.IOException;
@@ -686,6 +687,75 @@ public class OrderedListUserStateTest {
     // Clearing all ranges locally, but A4 should still be returned.
     userState.clear();
     assertEquals(iter.next(), A4);
+  }
+
+  @Test
+  public void testHasNoState() throws Exception {
+    FakeBeamFnStateClient fakeClient =
+        new FakeBeamFnStateClient(
+            timestampedValueCoder,
+            ImmutableMap.of(createOrderedListStateKey("A", 1), Collections.singletonList(A1)));
+    OrderedListUserState<String> userState =
+        new OrderedListUserState<>(
+            Caches.noop(),
+            fakeClient,
+            "instructionId",
+            createOrderedListStateKey("A"),
+            StringUtf8Coder.of(),
+            true, /* hasNoState */
+            false /* onlyBundleForKeys */);
+
+    // Iterating should be empty since hasNoState is true
+    assertThat(userState.read(), is(emptyIterable()));
+
+    // We can add new values
+    userState.add(A2);
+    assertArrayEquals(
+        Collections.singletonList(A2).toArray(),
+        Iterables.toArray(userState.read(), TimestampedValue.class));
+    userState.asyncClose();
+
+    // The added value will be persisted, appended to the old values (since we didn't clear)
+    ByteStringOutputStream out = new ByteStringOutputStream();
+    timestampedValueCoder.encode(A2, out);
+    assertEquals(out.toByteString(), fakeClient.getData().get(createOrderedListStateKey("A", 2)));
+  }
+
+  @Test
+  public void testOnlyBundleForKeys() throws Exception {
+    FakeBeamFnStateClient fakeClient =
+        new FakeBeamFnStateClient(
+            timestampedValueCoder,
+            ImmutableMap.of(createOrderedListStateKey("A", 1), Collections.singletonList(A1)));
+    OrderedListUserState<String> userState =
+        new OrderedListUserState<>(
+            Caches.noop(),
+            fakeClient,
+            "instructionId",
+            createOrderedListStateKey("A"),
+            StringUtf8Coder.of(),
+            false /* hasNoState */,
+            true /* onlyBundleForKeys */);
+
+    // Reads still work
+    assertArrayEquals(
+        Collections.singletonList(A1).toArray(),
+        Iterables.toArray(userState.read(), TimestampedValue.class));
+
+    // Add something
+    userState.add(A2);
+
+    // We can observe the added value locally
+    assertArrayEquals(
+        asList(A1, A2).toArray(), Iterables.toArray(userState.read(), TimestampedValue.class));
+
+    userState.asyncClose();
+
+    // But when we close, the data is NOT persisted because onlyBundleForKeys = true
+    ByteStringOutputStream out = new ByteStringOutputStream();
+    timestampedValueCoder.encode(A1, out);
+    assertEquals(out.toByteString(), fakeClient.getData().get(createOrderedListStateKey("A", 1)));
+    assertFalse(fakeClient.getData().containsKey(createOrderedListStateKey("A", 2)));
   }
 
   private ByteString encode(String... values) throws IOException {
