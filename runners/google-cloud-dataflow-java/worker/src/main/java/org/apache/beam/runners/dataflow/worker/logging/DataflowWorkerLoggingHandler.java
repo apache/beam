@@ -161,6 +161,9 @@ public class DataflowWorkerLoggingHandler extends Handler {
   @LazyInit private ImmutableMap<String, String> defaultLabels = ImmutableMap.of();
   @LazyInit private @Nullable Consumer<LogEntry> testDirectLogInterceptor;
 
+  @GuardedBy("this")
+  private Instant nextDirectFallbackLogInstant = Instant.EPOCH;
+
   private static final String LOG_TYPE = "dataflow.googleapis.com%2Fworker";
   private static final String RESOURCE_TYPE = "dataflow_step";
   private static final String STEP_RESOURCE_LABEL = "step_id";
@@ -507,6 +510,19 @@ public class DataflowWorkerLoggingHandler extends Handler {
 
       // Either we were throttled or encountered an error enqueuing the log.
       if (!fallbackDirectErrorsToDisk) {
+        boolean shouldLog = false;
+        Instant now = Instant.now();
+        synchronized (this) {
+          if (now.isAfter(nextDirectFallbackLogInstant)) {
+            nextDirectFallbackLogInstant = now.plusSeconds(300);
+            shouldLog = true;
+          }
+        }
+        if (shouldLog) {
+          printErrorToDisk(
+              "Unable to buffer log to send directly to cloud logging and fallback is disabled, dropping log records.",
+              null);
+        }
         return;
       }
     }
