@@ -29,10 +29,12 @@ import time
 from typing import Optional
 
 try:
+  from google.api_core import exceptions as api_exceptions
   from google.cloud import pubsub_v1
   PUBSUB_AVAILABLE = True
 except ImportError:
   PUBSUB_AVAILABLE = False
+  api_exceptions = None
   logging.warning('google-cloud-pubsub not available')
 
 try:
@@ -160,9 +162,12 @@ def ensure_pubsub_topic(project: str, topic_name: str) -> str:
   try:
     publisher.get_topic(request={'topic': topic_path})
     logging.info('Topic %s already exists', topic_name)
-  except Exception:
-    publisher.create_topic(name=topic_path)
-    logging.info('Created topic %s', topic_name)
+  except api_exceptions.NotFound:
+    try:
+      publisher.create_topic(name=topic_path)
+      logging.info('Created topic %s', topic_name)
+    except api_exceptions.AlreadyExists:
+      logging.info('Topic %s was created by another process', topic_name)
 
   return topic_path
 
@@ -191,9 +196,13 @@ def ensure_pubsub_subscription(
   try:
     subscriber.get_subscription(request={'subscription': subscription_path})
     logging.info('Subscription %s already exists', subscription_name)
-  except Exception:
-    subscriber.create_subscription(name=subscription_path, topic=topic_path)
-    logging.info('Created subscription %s', subscription_name)
+  except api_exceptions.NotFound:
+    try:
+      subscriber.create_subscription(name=subscription_path, topic=topic_path)
+      logging.info('Created subscription %s', subscription_name)
+    except api_exceptions.AlreadyExists:
+      logging.info(
+          'Subscription %s was created by another process', subscription_name)
 
   return subscription_path
 
@@ -219,6 +228,9 @@ def cleanup_pubsub_resources(
       subscriber.delete_subscription(
           request={'subscription': subscription_path})
       logging.info('Deleted subscription %s', subscription_name)
+    except api_exceptions.NotFound:
+      logging.info(
+          'Subscription %s not found or already deleted', subscription_name)
     except Exception as e:
       logging.warning('Failed to delete subscription: %s', e)
 
@@ -226,6 +238,8 @@ def cleanup_pubsub_resources(
   try:
     publisher.delete_topic(request={'topic': topic_path})
     logging.info('Deleted topic %s', topic_name)
+  except api_exceptions.NotFound:
+    logging.info('Topic %s not found or already deleted', topic_name)
   except Exception as e:
     logging.warning('Failed to delete topic: %s', e)
 

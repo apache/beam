@@ -45,9 +45,18 @@ Example usage for batch:
     --output_table=PROJECT:DATASET.TABLE \
     --model_path=gs://BUCKET/model.pkl \
     --feature_columns=feature1,feature2,feature3
+
+  # Batch with file output
+  python table_row_inference.py \
+    --mode=batch \
+    --input_file=data.jsonl \
+    --output_file=predictions.jsonl \
+    --model_path=model.pkl \
+    --feature_columns=feature1,feature2,feature3
 """
 
 import argparse
+import hashlib
 import json
 import logging
 from collections.abc import Iterable
@@ -111,7 +120,7 @@ class TableRowModelHandler(SklearnModelHandlerNumpy):
     features_array = []
     for row in batch:
       row_dict = row._asdict()
-      features = [row_dict[col] for col in self.feature_columns]
+      features = [row_dict.get(col, 0.0) for col in self.feature_columns]
       features_array.append(features)
 
     features_array = np.array(features_array, dtype=np.float32)
@@ -150,7 +159,7 @@ class FormatTableOutput(beam.DoFn):
       output['model_id'] = prediction.model_id
 
     for field_name in self.feature_columns:
-      output[f'input_{field_name}'] = row_dict[field_name]
+      output[f'input_{field_name}'] = row_dict.get(field_name, 0.0)
 
     yield output
 
@@ -169,7 +178,7 @@ def parse_json_to_table_row(
   """
   data = json.loads(message.decode('utf-8'))
 
-  row_key = data.get('id', str(hash(message)))
+  row_key = data.get('id', hashlib.sha256(message).hexdigest())
 
   row_fields = {}
   for key, value in data.items():
@@ -219,9 +228,15 @@ def parse_known_args(argv):
   parser.add_argument(
       '--output_table',
       help='BigQuery output table (format: PROJECT:DATASET.TABLE)')
+  parser.add_argument(
+      '--output_file',
+      help='Output file path (JSONL format) for batch mode. '
+      'Alternative to or in addition to output_table.')
   parser.add_argument('--model_path', help='Path to saved model file')
   parser.add_argument(
-      '--feature_columns', help='Comma-separated list of feature column names')
+      '--feature_columns',
+      required=True,
+      help='Comma-separated list of feature column names')
   parser.add_argument(
       '--window_size_sec',
       type=int,
@@ -259,6 +274,13 @@ def run(
     raise ValueError('input_subscription is required for streaming mode')
   if known_args.mode == 'batch' and not known_args.input_file:
     raise ValueError('input_file is required for batch mode')
+  if known_args.mode == 'streaming' and not known_args.output_table:
+    raise ValueError('output_table is required for streaming mode')
+  if (known_args.mode == 'batch' and not known_args.output_table and
+      not known_args.output_file):
+    raise ValueError(
+        'In batch mode, specify at least one of --output_table or --output_file'
+    )
 
   feature_columns = [
       col.strip() for col in known_args.feature_columns.split(',')
@@ -309,16 +331,30 @@ def run(
   write_disposition = (
       beam.io.BigQueryDisposition.WRITE_APPEND if known_args.mode == 'streaming'
       else beam.io.BigQueryDisposition.WRITE_TRUNCATE)
-  _ = (
+
+  formatted = (
       input_data
       | 'RunInference' >> RunInference(KeyedModelHandler(model_handler))
-      | 'FormatOutput' >> beam.ParDo(FormatTableOutput(feature_columns))
-      | 'WriteToBigQuery' >> beam.io.WriteToBigQuery(
-          known_args.output_table,
-          schema=output_schema,
-          write_disposition=write_disposition,
-          create_disposition=beam.io.BigQueryDisposition.CREATE_IF_NEEDED,
-          method=write_method))
+      | 'FormatOutput' >> beam.ParDo(FormatTableOutput(feature_columns)))
+
+  if known_args.output_table:
+    _ = (
+        formatted
+        | 'WriteToBigQuery' >> beam.io.WriteToBigQuery(
+            known_args.output_table,
+            schema=output_schema,
+            write_disposition=write_disposition,
+            create_disposition=beam.io.BigQueryDisposition.CREATE_IF_NEEDED,
+            method=write_method))
+
+  if known_args.mode == 'batch' and known_args.output_file:
+    _ = (
+        formatted
+        | 'FormatJSON' >> beam.Map(json.dumps)
+        | 'WriteToFile' >> beam.io.WriteToText(
+            known_args.output_file,
+            file_name_suffix='.jsonl',
+            shard_name_template=''))
 
   result = pipeline.run()
 
