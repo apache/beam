@@ -61,13 +61,13 @@ public class BagUserState<T> {
 
   /** The cache must be namespaced for this state object accordingly. */
   public BagUserState(
-    Cache<?, ?> cache,
-    BeamFnStateClient beamFnStateClient,
-    String instructionId,
-    StateKey stateKey,
-    Coder<T> valueCoder,
-    boolean hasNoState,
-    boolean onlyBundleForKeys) {
+        Cache<?, ?> cache,
+        BeamFnStateClient beamFnStateClient,
+        String instructionId,
+        StateKey stateKey,
+        Coder<T> valueCoder,
+        boolean hasNoState,
+        boolean onlyBundleForKeys) {
     checkArgument(
         stateKey.hasBagUserState(), "Expected BagUserState StateKey but received %s.", stateKey);
     this.cache = cache;
