@@ -90,7 +90,7 @@ public class OrderedListUserState<T> {
   private boolean isClosed = false;
   private final boolean hasNoState;
   private final boolean onlyBundleForKeys;
-  
+
   public static class TimestampedValueCoder<T> extends StructuredCoder<TimestampedValue<T>> {
 
     private final Coder<T> valueCoder;
@@ -209,7 +209,7 @@ public class OrderedListUserState<T> {
     }
     Iterable<TimestampedValue<T>> valuesInRange = Iterables.concat(pendingAddsInRange);
 
-    if (!isCleared) {
+    if (!isCleared && !hasNoState) {
       StateRequest.Builder getRequestBuilder = this.requestTemplate.toBuilder();
       getRequestBuilder
           .getStateKeyBuilder()
@@ -224,8 +224,7 @@ public class OrderedListUserState<T> {
               Caches.noop(),
               this.beamFnStateClient,
               getRequestBuilder.build(),
-              this.timestampedValueCoder,
-              hasNoState);
+              this.timestampedValueCoder);
 
       // Make a snapshot of the current pendingRemoves and use them to filter persistent values.
       // The values of pendingRemoves are copied, so that they will still be accessible in

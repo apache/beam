@@ -23,6 +23,7 @@ import org.apache.beam.fn.harness.Cache;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateKey;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateRequest;
 import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.fn.stream.PrefetchableIterables;
 import org.apache.beam.sdk.transforms.Materializations.IterableView;
 
 /**
@@ -46,12 +47,17 @@ public class IterableSideInput<T> implements IterableView<T> {
         stateKey.hasIterableSideInput(),
         "Expected IterableSideInput StateKey but received %s.",
         stateKey);
-    this.values = hasNoState ? PrefetchableIterables.emptyIterable() :
-        StateFetchingIterators.readAllAndDecodeStartingFrom(
-            cache,
-            beamFnStateClient,
-            StateRequest.newBuilder().setInstructionId(instructionId).setStateKey(stateKey).build(),
-            valueCoder);
+    this.values =
+        hasNoState
+            ? PrefetchableIterables.emptyIterable()
+            : StateFetchingIterators.readAllAndDecodeStartingFrom(
+                cache,
+                beamFnStateClient,
+                StateRequest.newBuilder()
+                    .setInstructionId(instructionId)
+                    .setStateKey(stateKey)
+                    .build(),
+                valueCoder);
   }
 
   @Override

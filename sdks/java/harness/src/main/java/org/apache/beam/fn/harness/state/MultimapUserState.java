@@ -108,7 +108,7 @@ public class MultimapUserState<K, V> {
         hasNoState
             ? PrefetchableIterables.emptyIterable()
             : StateFetchingIterators.readAllAndDecodeStartingFrom(
-                cache, beamFnStateClient, keysStateRequest, mapKeyCoder, hasNoState);
+                cache, beamFnStateClient, keysStateRequest, mapKeyCoder);
 
     StateRequest.Builder userStateRequestBuilder = StateRequest.newBuilder();
     userStateRequestBuilder
@@ -171,7 +171,7 @@ public class MultimapUserState<K, V> {
             ? PrefetchableIterables.fromArray()
             : PrefetchableIterables.limit(
                 pendingAddValues.getValue(), pendingAddValues.getValue().size());
-    if (isCleared || pendingRemoves.containsKey(structuralKey)) {
+    if (isCleared || hasNoState || pendingRemoves.containsKey(structuralKey)) {
       return pendingValues;
     }
 
@@ -552,8 +552,7 @@ public class MultimapUserState<K, V> {
                           request.getStateKey().getMultimapUserState().getMapKey()),
                       beamFnStateClient,
                       request,
-                      valueCoder,
-                      hasNoState));
+                      valueCoder));
             })
         .getValue();
   }

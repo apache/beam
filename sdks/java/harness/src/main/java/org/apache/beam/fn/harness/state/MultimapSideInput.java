@@ -32,6 +32,7 @@ import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateRequest;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.IterableCoder;
 import org.apache.beam.sdk.coders.KvCoder;
+import org.apache.beam.sdk.fn.stream.PrefetchableIterables;
 import org.apache.beam.sdk.transforms.Materializations.MultimapView;
 import org.apache.beam.sdk.util.ByteStringOutputStream;
 import org.apache.beam.sdk.values.KV;
@@ -129,8 +130,7 @@ public class MultimapSideInput<K, V> implements MultimapView<K, V> {
                           Caches.noop(),
                           beamFnStateClient,
                           bulkReadRequest,
-                          KvCoder.of(keyCoder, IterableCoder.of(valueCoder)),
-                          hasNoState)
+                          KvCoder.of(keyCoder, IterableCoder.of(valueCoder)))
                       .iterator();
               while (bulkRead.size() < BULK_READ_SIZE && entries.hasNext()) {
                 KV<K, Iterable<V>> entry = entries.next();
@@ -179,10 +179,7 @@ public class MultimapSideInput<K, V> implements MultimapView<K, V> {
 
     StateRequest request = keysRequest.toBuilder().setStateKey(stateKey).build();
     return StateFetchingIterators.readAllAndDecodeStartingFrom(
-        Caches.subCache(cache, "ValuesForKey", encodedKey),
-        beamFnStateClient,
-        request,
-        valueCoder);
+        Caches.subCache(cache, "ValuesForKey", encodedKey), beamFnStateClient, request, valueCoder);
   }
 
   private ByteString encodeKey(K k) {

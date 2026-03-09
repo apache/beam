@@ -61,13 +61,13 @@ public class BagUserState<T> {
 
   /** The cache must be namespaced for this state object accordingly. */
   public BagUserState(
-    Cache<?, ?> cache,
-    BeamFnStateClient beamFnStateClient,
-    String instructionId,
-    StateKey stateKey,
-    Coder<T> valueCoder,
-    boolean hasNoState,
-    boolean onlyBundleForKeys) {
+      Cache<?, ?> cache,
+      BeamFnStateClient beamFnStateClient,
+      String instructionId,
+      StateKey stateKey,
+      Coder<T> valueCoder,
+      boolean hasNoState,
+      boolean onlyBundleForKeys) {
     checkArgument(
         stateKey.hasBagUserState(), "Expected BagUserState StateKey but received %s.", stateKey);
     this.cache = cache;
@@ -79,8 +79,10 @@ public class BagUserState<T> {
         StateRequest.newBuilder().setInstructionId(instructionId).setStateKey(stateKey).build();
 
     this.oldValues =
-        StateFetchingIterators.readAllAndDecodeStartingFrom(
-            this.cache, beamFnStateClient, request, valueCoder, hasNoState);
+        hasNoState
+            ? PrefetchableIterables.emptyIterable()
+            : StateFetchingIterators.readAllAndDecodeStartingFrom(
+                this.cache, beamFnStateClient, request, valueCoder);
     this.newValues = new ArrayList<>();
   }
 
@@ -89,8 +91,8 @@ public class BagUserState<T> {
         !isClosed,
         "Bag user state is no longer usable because it is closed for %s",
         request.getStateKey());
-    if (isCleared) {
-      // If we were cleared we should disregard old values.
+    if (isCleared || hasNoState) {
+      // If we were cleared or have no state we should disregard old values.
       return PrefetchableIterables.limit(Collections.unmodifiableList(newValues), newValues.size());
     } else if (newValues.isEmpty()) {
       // If we have no new values then just return the old values.
