@@ -65,6 +65,7 @@ import org.apache.iceberg.Table;
 import org.apache.iceberg.catalog.Catalog;
 import org.apache.iceberg.catalog.Namespace;
 import org.apache.iceberg.catalog.TableIdentifier;
+import org.apache.iceberg.data.Record;
 import org.apache.iceberg.hadoop.HadoopCatalog;
 import org.apache.iceberg.io.FileIO;
 import org.apache.iceberg.io.InputFile;
@@ -957,7 +958,7 @@ public class RecordWriterManagerTest {
   }
 
   @Test
-  public void testRecordWriterKeepsFileIOOpenUntilClose() throws IOException {
+  public void testRecordWriterDoesNotCloseSharedFileIO() throws IOException {
     TableIdentifier tableId =
         TableIdentifier.of(
             "default",
@@ -980,7 +981,104 @@ public class RecordWriterManagerTest {
     writer.write(IcebergUtils.beamRowToIcebergRecord(ICEBERG_SCHEMA, row));
     writer.close();
 
-    assertTrue("FileIO should be closed after writer close", trackingFileIO.closed);
+    // RecordWriter must NOT close FileIO — it may be a shared instance.
+    assertFalse("RecordWriter.close() must not close the shared FileIO", trackingFileIO.closed);
+  }
+
+  /**
+   * Verifies that when multiple writers share the same FileIO, closing any writer does not close
+   * the shared FileIO — that is the responsibility of RecordWriterManager.close().
+   */
+  @Test
+  public void testMultipleWritersSharingFileIOSurviveBatchClose() throws IOException {
+    // Create two tables that share the same FileIO (simulating dynamic destinations
+    // backed by the same catalog)
+    TableIdentifier tableId1 =
+        TableIdentifier.of(
+            "default",
+            "table_batch_close_a_" + UUID.randomUUID().toString().replace("-", "").substring(0, 6));
+    TableIdentifier tableId2 =
+        TableIdentifier.of(
+            "default",
+            "table_batch_close_b_" + UUID.randomUUID().toString().replace("-", "").substring(0, 6));
+    Table table1 = warehouse.createTable(tableId1, ICEBERG_SCHEMA);
+    Table table2 = warehouse.createTable(tableId2, ICEBERG_SCHEMA);
+
+    // Both tables share the same CloseTrackingFileIO — mirrors how some catalogs
+    // return a shared FileIO instance across tables
+    CloseTrackingFileIO sharedFileIO = new CloseTrackingFileIO(table1.io());
+    Table spyTable1 = Mockito.spy(table1);
+    Table spyTable2 = Mockito.spy(table2);
+    Mockito.doReturn(sharedFileIO).when(spyTable1).io();
+    Mockito.doReturn(sharedFileIO).when(spyTable2).io();
+
+    PartitionKey pk1 = new PartitionKey(spyTable1.spec(), spyTable1.schema());
+    PartitionKey pk2 = new PartitionKey(spyTable2.spec(), spyTable2.schema());
+
+    RecordWriter writer1 = new RecordWriter(spyTable1, FileFormat.PARQUET, "file1.parquet", pk1);
+    RecordWriter writer2 = new RecordWriter(spyTable2, FileFormat.PARQUET, "file2.parquet", pk2);
+
+    Row row = Row.withSchema(BEAM_SCHEMA).addValues(1, "aaa", true).build();
+    Record record = IcebergUtils.beamRowToIcebergRecord(ICEBERG_SCHEMA, row);
+
+    writer1.write(record);
+    writer2.write(record);
+
+    writer1.close();
+    assertFalse("FileIO must remain open between batch writer closes", sharedFileIO.closed);
+
+    writer2.close();
+    assertFalse("FileIO must remain open after all writers close", sharedFileIO.closed);
+
+    // Both writers produced valid data files
+    assertNotNull(writer1.getDataFile());
+    assertNotNull(writer2.getDataFile());
+  }
+
+  /**
+   * Verifies that RecordWriterManager.close() flushes data files from multiple destinations and
+   * closes the shared FileIO.
+   */
+  @Test
+  public void testRecordWriterManagerClosesSharedFileIOAfterFlush() throws IOException {
+    String tableName1 =
+        "table_mgr_io_a_" + UUID.randomUUID().toString().replace("-", "").substring(0, 6);
+    String tableName2 =
+        "table_mgr_io_b_" + UUID.randomUUID().toString().replace("-", "").substring(0, 6);
+    TableIdentifier tableId1 = TableIdentifier.of("default", tableName1);
+    TableIdentifier tableId2 = TableIdentifier.of("default", tableName2);
+
+    Table realTable1 = warehouse.createTable(tableId1, ICEBERG_SCHEMA);
+    Table realTable2 = warehouse.createTable(tableId2, ICEBERG_SCHEMA);
+
+    CloseTrackingFileIO sharedTrackingIO = new CloseTrackingFileIO(realTable1.io());
+    Table spyTable1 = Mockito.spy(realTable1);
+    Table spyTable2 = Mockito.spy(realTable2);
+    Mockito.doReturn(sharedTrackingIO).when(spyTable1).io();
+    Mockito.doReturn(sharedTrackingIO).when(spyTable2).io();
+
+    Catalog spyCatalog = Mockito.spy(catalog);
+    Mockito.doReturn(spyTable1).when(spyCatalog).loadTable(tableId1);
+    Mockito.doReturn(spyTable2).when(spyCatalog).loadTable(tableId2);
+
+    WindowedValue<IcebergDestination> dest1 = getWindowedDestination(tableName1, null);
+    WindowedValue<IcebergDestination> dest2 = getWindowedDestination(tableName2, null);
+
+    RecordWriterManager writerManager =
+        new RecordWriterManager(spyCatalog, "test_file_name", 1000, 3);
+
+    Row row = Row.withSchema(BEAM_SCHEMA).addValues(1, "aaa", true).build();
+    assertTrue(writerManager.write(dest1, row));
+    assertTrue(writerManager.write(dest2, row));
+    assertEquals(2, writerManager.openWriters);
+
+    writerManager.close();
+
+    Map<WindowedValue<IcebergDestination>, List<SerializableDataFile>> dataFiles =
+        writerManager.getSerializableDataFiles();
+    assertTrue("Should have data files for dest1", dataFiles.containsKey(dest1));
+    assertTrue("Should have data files for dest2", dataFiles.containsKey(dest2));
+    assertTrue("Shared FileIO should be closed", sharedTrackingIO.closed);
   }
 
   private static final class CloseTrackingFileIO implements FileIO {
