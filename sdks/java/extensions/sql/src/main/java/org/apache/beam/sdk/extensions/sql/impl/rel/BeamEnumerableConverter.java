@@ -203,7 +203,7 @@ public class BeamEnumerableConverter extends ConverterImpl implements Enumerable
           break;
         }
       } catch (IOException e) {
-        LOG.warn(e.toString());
+        LOG.warn("{}", e.toString());
         break;
       }
     }

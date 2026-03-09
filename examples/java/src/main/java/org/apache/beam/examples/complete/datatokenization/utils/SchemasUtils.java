@@ -73,7 +73,7 @@ public class SchemasUtils {
       byte[] encoded = Files.readAllBytes(Paths.get(path));
       parseJson(new String(encoded, encoding));
     }
-    LOG.info("Extracted schema: " + bigQuerySchema.toPrettyString());
+    LOG.info("Extracted schema: {}", bigQuerySchema.toPrettyString());
   }
 
   public TableSchema getBigQuerySchema() {
@@ -156,7 +156,7 @@ public class SchemasUtils {
       return CharStreams.toString(reader);
 
     } catch (IOException ioe) {
-      LOG.error("File system i/o error: " + ioe.getMessage());
+      LOG.error("File system i/o error", ioe);
       throw new RuntimeException(ioe);
     }
   }

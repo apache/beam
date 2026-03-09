@@ -161,7 +161,7 @@ public class WorkerCustomSources {
             "Ignoring negative estimated size {} produced by source {}", estimatedSize, source);
       }
     } catch (Exception e) {
-      LOG.warn("Size estimation of the source failed: " + source, e);
+      LOG.warn("Size estimation of the source failed: {}", source, e);
     }
     cloudSource.setMetadata(metadata);
     return cloudSource;

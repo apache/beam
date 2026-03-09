@@ -196,7 +196,7 @@ public class BigQueryStreamingTornadoes {
   }
 
   public static void runBigQueryTornadoes(Options options) {
-    LOG.info("Running BigQuery Tornadoes with options " + options.toString());
+    LOG.info("Running BigQuery Tornadoes with options {}", options.toString());
     Pipeline p = Pipeline.create(options);
     applyBigQueryStreamingTornadoes(p, options);
     p.run().waitUntilFinish();
