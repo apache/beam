@@ -90,6 +90,7 @@ public class OrderedListUserState<T> {
   private boolean isClosed = false;
   private final boolean hasNoState;
   private final boolean onlyBundleForKeys;
+  
   public static class TimestampedValueCoder<T> extends StructuredCoder<TimestampedValue<T>> {
 
     private final Coder<T> valueCoder;
@@ -289,6 +290,11 @@ public class OrderedListUserState<T> {
 
   public void asyncClose() throws Exception {
     isClosed = true;
+    if (onlyBundleForKeys) {
+      pendingRemoves.clear();
+      pendingAdds.clear();
+      return;
+    }
 
     if (!pendingRemoves.isEmpty()) {
       for (Range<Instant> r : pendingRemoves.asRanges()) {
@@ -307,11 +313,6 @@ public class OrderedListUserState<T> {
         }
       }
       pendingRemoves.clear();
-    }
-
-    if (onlyBundleForKeys) {
-      pendingAdds.clear();
-      return;
     }
 
     if (!pendingAdds.isEmpty()) {

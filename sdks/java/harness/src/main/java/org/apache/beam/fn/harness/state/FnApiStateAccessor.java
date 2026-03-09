@@ -418,7 +418,8 @@ public class FnApiStateAccessor<K> implements SideInputReader, StateBinder {
                               beamFnStateClient,
                               processBundleInstructionId.get(),
                               key,
-                              sideInputSpec.getCoder()));
+                              sideInputSpec.getCoder(),
+                              hasNoState));
                 case Materializations.MULTIMAP_MATERIALIZATION_URN:
                   return sideInputSpec
                       .getViewFn()

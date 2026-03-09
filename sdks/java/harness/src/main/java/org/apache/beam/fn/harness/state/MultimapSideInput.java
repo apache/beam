@@ -82,12 +82,18 @@ public class MultimapSideInput<K, V> implements MultimapView<K, V> {
 
   @Override
   public Iterable<K> get() {
-    return StateFetchingIterators.readAllAndDecodeStartingFrom(
-      cache, beamFnStateClient, keysRequest, keyCoder, hasNoState);
+    return this.hasNoState
+        ? PrefetchableIterables.emptyIterable()
+        : StateFetchingIterators.readAllAndDecodeStartingFrom(
+            cache, beamFnStateClient, keysRequest, keyCoder);
   }
 
   @Override
   public Iterable<V> get(K k) {
+    if (this.hasNoState) {
+      return PrefetchableIterables.emptyIterable();
+    }
+
     ByteString encodedKey = encodeKey(k);
 
     if (useBulkRead) {
@@ -176,8 +182,7 @@ public class MultimapSideInput<K, V> implements MultimapView<K, V> {
         Caches.subCache(cache, "ValuesForKey", encodedKey),
         beamFnStateClient,
         request,
-        valueCoder,
-        hasNoState);
+        valueCoder);
   }
 
   private ByteString encodeKey(K k) {

@@ -105,8 +105,10 @@ public class MultimapUserState<K, V> {
     this.keysStateRequest =
         StateRequest.newBuilder().setInstructionId(instructionId).setStateKey(stateKey).build();
     this.persistedKeys =
-        StateFetchingIterators.readAllAndDecodeStartingFrom(
-            cache, beamFnStateClient, keysStateRequest, mapKeyCoder, hasNoState);
+        hasNoState
+            ? PrefetchableIterables.emptyIterable()
+            : StateFetchingIterators.readAllAndDecodeStartingFrom(
+                cache, beamFnStateClient, keysStateRequest, mapKeyCoder, hasNoState);
 
     StateRequest.Builder userStateRequestBuilder = StateRequest.newBuilder();
     userStateRequestBuilder
@@ -130,12 +132,13 @@ public class MultimapUserState<K, V> {
         .setKey(stateKey.getMultimapKeysUserState().getKey());
     this.entriesStateRequest = entriesStateRequestBuilder.build();
     this.persistedEntries =
-        StateFetchingIterators.readAllAndDecodeStartingFrom(
-            Caches.subCache(this.cache, "AllEntries"),
-            beamFnStateClient,
-            entriesStateRequest,
-            KvCoder.of(mapKeyCoder, IterableCoder.of(valueCoder)),
-            hasNoState);
+        hasNoState
+            ? PrefetchableIterables.emptyIterable()
+            : StateFetchingIterators.readAllAndDecodeStartingFrom(
+                Caches.subCache(this.cache, "AllEntries"),
+                beamFnStateClient,
+                entriesStateRequest,
+                KvCoder.of(mapKeyCoder, IterableCoder.of(valueCoder)));
   }
 
   public void clear() {
@@ -186,7 +189,7 @@ public class MultimapUserState<K, V> {
         !isClosed,
         "Multimap user state is no longer usable because it is closed for %s",
         keysStateRequest.getStateKey());
-    if (isCleared) {
+    if (isCleared || hasNoState) {
       List<K> keys = new ArrayList<>(pendingAdds.size());
       for (Map.Entry<?, KV<K, List<V>>> entry : pendingAdds.entrySet()) {
         keys.add(entry.getValue().getKey());
@@ -284,7 +287,7 @@ public class MultimapUserState<K, V> {
           entry.getKey(),
           KV.of(entry.getValue().getKey(), new ArrayList<>(entry.getValue().getValue())));
     }
-    if (isCleared) {
+    if (isCleared || hasNoState) {
       return PrefetchableIterables.maybePrefetchable(
           Iterables.concat(
               Iterables.transform(
@@ -422,7 +425,7 @@ public class MultimapUserState<K, V> {
         keysStateRequest.getStateKey());
     isClosed = true;
     // No mutations necessary
-    if (!isCleared && pendingRemoves.isEmpty() && pendingAdds.isEmpty()) {
+    if (onlyBundleForKeys || (!isCleared && pendingRemoves.isEmpty() && pendingAdds.isEmpty())) {
       return;
     }
 
@@ -445,7 +448,7 @@ public class MultimapUserState<K, V> {
     }
 
     // Persist pending key-values
-    if (!pendingAdds.isEmpty() && !onlyBundleForKeys) {
+    if (!pendingAdds.isEmpty()) {
       for (KV<K, List<V>> entry : pendingAdds.values()) {
         StateRequest request = createUserStateRequest(entry.getKey());
         beamFnStateClient.handle(

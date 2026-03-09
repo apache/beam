@@ -46,13 +46,12 @@ public class IterableSideInput<T> implements IterableView<T> {
         stateKey.hasIterableSideInput(),
         "Expected IterableSideInput StateKey but received %s.",
         stateKey);
-    this.values =
+    this.values = hasNoState ? PrefetchableIterables.emptyIterable() :
         StateFetchingIterators.readAllAndDecodeStartingFrom(
             cache,
             beamFnStateClient,
             StateRequest.newBuilder().setInstructionId(instructionId).setStateKey(stateKey).build(),
-            valueCoder,
-            hasNoState);
+            valueCoder);
   }
 
   @Override

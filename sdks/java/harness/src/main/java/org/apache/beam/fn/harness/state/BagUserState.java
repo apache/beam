@@ -126,14 +126,14 @@ public class BagUserState<T> {
         "Bag user state is no longer usable because it is closed for %s",
         request.getStateKey());
     isClosed = true;
-    if (!isCleared && newValues.isEmpty()) {
+    if (onlyBundleForKeys || (!isCleared && newValues.isEmpty())) {
       return;
     }
     if (isCleared) {
       beamFnStateClient.handle(
           request.toBuilder().setClear(StateClearRequest.getDefaultInstance()));
     }
-    if (!onlyBundleForKeys && !newValues.isEmpty()) {
+    if (!newValues.isEmpty()) {
       // Batch values up to a arbitrary limit to reduce overhead of write
       // requests. We treat this limit as strict to ensure that large elements
       // are not batched as they may otherwise exceed runner limits.
