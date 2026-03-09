@@ -453,11 +453,9 @@ task validatesRunner {
       'org.apache.beam.sdk.transforms.ParDoLifecycleTest.testTeardownCalledAfterExceptionInSetupStateful',
       'org.apache.beam.sdk.transforms.ParDoLifecycleTest.testTeardownCalledAfterExceptionInStartBundle',
       'org.apache.beam.sdk.transforms.ParDoLifecycleTest.testTeardownCalledAfterExceptionInStartBundleStateful',
-
-      // Batch legacy worker does not support bundle finalization.
-      'org.apache.beam.sdk.transforms.SplittableDoFnTest.testBundleFinalizationOccursOnBoundedSplittableDoFn',
-      'org.apache.beam.sdk.transforms.SplittableDoFnTest.testBundleFinalizationOccursOnUnboundedSplittableDoFn',
-      ]
+    ],
+    // Batch legacy worker does not support bundle finalization.
+    excludedCategories: [ 'org.apache.beam.sdk.testing.UsesBundleFinalizer', ],
   ))
 }
 

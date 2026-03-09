@@ -454,25 +454,23 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext<Step
   public Map<Long, Pair<Instant, Runnable>> flushState() {
     Map<Long, Pair<Instant, Runnable>> callbacks = new HashMap<>();
 
-    List<Pair<Instant, BundleFinalizer.Callback>> bundleFinalizers = new ArrayList<>();
     for (StepContext stepContext : getAllStepContexts()) {
       stepContext.flushState();
-      bundleFinalizers.addAll(stepContext.flushBundleFinalizerCallbacks());
-    }
-    for (Pair<Instant, BundleFinalizer.Callback> bundleFinalizer : bundleFinalizers) {
-      long id = ThreadLocalRandom.current().nextLong();
-      callbacks.put(
-          id,
-          Pair.of(
-              bundleFinalizer.getLeft(),
-              () -> {
-                try {
-                  bundleFinalizer.getRight().onBundleSuccess();
-                } catch (Exception e) {
-                  throw new RuntimeException("Exception while running bundle finalizer", e);
-                }
-              }));
-      outputBuilder.addFinalizeIds(id);
+      for (Pair<Instant, BundleFinalizer.Callback> bundleFinalizer : stepContext.flushBundleFinalizerCallbacks()) {
+        long id = ThreadLocalRandom.current().nextLong();
+        callbacks.put(
+            id,
+            Pair.of(
+                bundleFinalizer.getLeft(),
+                () -> {
+                  try {
+                    bundleFinalizer.getRight().onBundleSuccess();
+                  } catch (Exception e) {
+                    throw new RuntimeException("Exception while running bundle finalizer", e);
+                  }
+                }));
+        outputBuilder.addFinalizeIds(id);
+      }
     }
 
     if (activeReader != null) {
