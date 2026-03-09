@@ -105,50 +105,30 @@ class RowTypeConstraint(typehints.TypeConstraint):
     if match_is_named_tuple(user_type):
       fields = [(name, user_type.__annotations__[name])
                 for name in user_type._fields]
-
-      field_descriptions = getattr(user_type, '_field_descriptions', None)
-
-      if _user_type_is_generated(user_type):
-        return RowTypeConstraint.from_fields(
-            fields,
-            schema_id=getattr(user_type, _BEAM_SCHEMA_ID),
-            schema_options=schema_options,
-            field_options=field_options,
-            field_descriptions=field_descriptions)
-
-      # TODO(https://github.com/apache/beam/issues/22125): Add user API for
-      # specifying schema/field options
-      return RowTypeConstraint(
-          fields=fields,
-          user_type=user_type,
-          schema_options=schema_options,
-          field_options=field_options,
-          field_descriptions=field_descriptions)
-
-    if match_is_dataclass(user_type):
+    elif match_is_dataclass(user_type):
       fields = [(field.name, field.type)
                 for field in dataclasses.fields(user_type)]
+    else:
+      return None
 
-      field_descriptions = getattr(user_type, '_field_descriptions', None)
+    field_descriptions = getattr(user_type, '_field_descriptions', None)
 
-      if _user_type_is_generated(user_type):
-        return RowTypeConstraint.from_fields(
-            fields,
-            schema_id=getattr(user_type, _BEAM_SCHEMA_ID),
-            schema_options=schema_options,
-            field_options=field_options,
-            field_descriptions=field_descriptions)
-
-      # TODO(https://github.com/apache/beam/issues/22125): Add user API for
-      # specifying schema/field options
-      return RowTypeConstraint(
-          fields=fields,
-          user_type=user_type,
+    if _user_type_is_generated(user_type):
+      return RowTypeConstraint.from_fields(
+          fields,
+          schema_id=getattr(user_type, _BEAM_SCHEMA_ID),
           schema_options=schema_options,
           field_options=field_options,
           field_descriptions=field_descriptions)
 
-    return None
+    # TODO(https://github.com/apache/beam/issues/22125): Add user API for
+    # specifying schema/field options
+    return RowTypeConstraint(
+        fields=fields,
+        user_type=user_type,
+        schema_options=schema_options,
+        field_options=field_options,
+        field_descriptions=field_descriptions)
 
   @staticmethod
   def from_fields(

@@ -423,7 +423,6 @@ def convert_to_beam_type(typ):
       # This MUST appear before the entry for the normal Tuple.
       _TypeMapEntry(
           match=match_is_named_tuple, arity=0, beam_type=typehints.Any),
-      _TypeMapEntry(match=match_is_dataclass, arity=0, beam_type=typehints.Any),
       _TypeMapEntry(
           match=_match_is_primitive(tuple), arity=-1,
           beam_type=typehints.Tuple),
