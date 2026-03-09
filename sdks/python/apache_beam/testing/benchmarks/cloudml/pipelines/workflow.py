@@ -117,6 +117,7 @@ def setup_pipeline(p, args):
                           use_deep_copy_optimization=True):
       decoded_input_data = (
           input_data | 'DecodeForAnalyze' >> input_tfxio.BeamSource())
+      decoded_input_data |= 'Reshuffle' >> beam.transforms.Reshuffle()  # pylint: disable=no-value-for-parameter
       transform_fn = ((decoded_input_data, input_tfxio.TensorAdapterConfig())
                       | 'Analyze' >> tft_beam.AnalyzeDataset(preprocessing_fn))
 
