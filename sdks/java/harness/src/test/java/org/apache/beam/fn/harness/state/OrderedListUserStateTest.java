@@ -76,7 +76,9 @@ public class OrderedListUserStateTest {
             fakeClient,
             "instructionId",
             createOrderedListStateKey("A"),
-            StringUtf8Coder.of());
+            StringUtf8Coder.of(),
+            false,
+            false);
     assertThat(userState.read(), is(emptyIterable()));
   }
 
@@ -92,7 +94,9 @@ public class OrderedListUserStateTest {
             fakeClient,
             "instructionId",
             createOrderedListStateKey("A"),
-            StringUtf8Coder.of());
+            StringUtf8Coder.of(),
+            false,
+            false);
 
     assertArrayEquals(
         asList(A1, B1).toArray(), Iterables.toArray(userState.read(), TimestampedValue.class));
@@ -116,7 +120,9 @@ public class OrderedListUserStateTest {
             fakeClient,
             "instructionId",
             createOrderedListStateKey("A"),
-            StringUtf8Coder.of());
+            StringUtf8Coder.of(),
+            false,
+            false);
 
     Iterable<TimestampedValue<String>> stateBeforeB2 =
         userState.readRange(Instant.ofEpochMilli(2), Instant.ofEpochMilli(4));
@@ -171,7 +177,9 @@ public class OrderedListUserStateTest {
             fakeClient,
             "instructionId",
             createOrderedListStateKey("A"),
-            StringUtf8Coder.of());
+            StringUtf8Coder.of(),
+            false,
+            false);
 
     // add to an existing timestamp
     userState.add(B1);
@@ -216,7 +224,9 @@ public class OrderedListUserStateTest {
             fakeClient,
             "instructionId",
             createOrderedListStateKey("A"),
-            StringUtf8Coder.of());
+            StringUtf8Coder.of(),
+            false,
+            false);
 
     Iterable<TimestampedValue<String>> initStateFrom2To3 =
         userState.readRange(Instant.ofEpochMilli(2), Instant.ofEpochMilli(4));
@@ -284,7 +294,9 @@ public class OrderedListUserStateTest {
             fakeClient,
             "instructionId",
             createOrderedListStateKey("A"),
-            StringUtf8Coder.of());
+            StringUtf8Coder.of(),
+            false,
+            false);
 
     Iterable<TimestampedValue<String>> stateBeforeClear = userState.read();
     userState.clear();
@@ -316,7 +328,9 @@ public class OrderedListUserStateTest {
             fakeClient,
             "instructionId",
             createOrderedListStateKey("A"),
-            StringUtf8Coder.of());
+            StringUtf8Coder.of(),
+            false,
+            false);
 
     // add to a non-existing timestamp, clear, and then add
     userState.add(A2);
@@ -387,7 +401,9 @@ public class OrderedListUserStateTest {
             fakeClient,
             "instructionId",
             createOrderedListStateKey("A"),
-            StringUtf8Coder.of());
+            StringUtf8Coder.of(),
+            false,
+            false);
 
     userState.clear();
     userState.clearRange(Instant.ofEpochMilli(0), Instant.ofEpochMilli(5));
@@ -427,7 +443,9 @@ public class OrderedListUserStateTest {
               fakeClient,
               "instructionId",
               createOrderedListStateKey("A"),
-              StringUtf8Coder.of());
+              StringUtf8Coder.of(),
+              false,
+              false);
 
       userState.asyncClose();
     }
@@ -439,7 +457,9 @@ public class OrderedListUserStateTest {
               fakeClient,
               "instructionId",
               createOrderedListStateKey("A"),
-              StringUtf8Coder.of());
+              StringUtf8Coder.of(),
+              false,
+              false);
 
       assertArrayEquals(
           asList(A1, A3, A4).toArray(),
@@ -466,7 +486,9 @@ public class OrderedListUserStateTest {
               fakeClient,
               "instructionId",
               createOrderedListStateKey("A"),
-              StringUtf8Coder.of());
+              StringUtf8Coder.of(),
+              false,
+              false);
 
       userState.add(B1);
       userState.add(A2);
@@ -479,7 +501,9 @@ public class OrderedListUserStateTest {
               fakeClient,
               "instructionId",
               createOrderedListStateKey("A"),
-              StringUtf8Coder.of());
+              StringUtf8Coder.of(),
+              false,
+              false);
 
       assertArrayEquals(
           asList(A1, B1, A2, A3, A4).toArray(),
@@ -508,7 +532,9 @@ public class OrderedListUserStateTest {
               fakeClient,
               "instructionId",
               createOrderedListStateKey("A"),
-              StringUtf8Coder.of());
+              StringUtf8Coder.of(),
+              false,
+              false);
 
       userState.clearRange(Instant.ofEpochMilli(1), Instant.ofEpochMilli(3));
       userState.clearRange(Instant.ofEpochMilli(4), Instant.ofEpochMilli(5));
@@ -521,7 +547,9 @@ public class OrderedListUserStateTest {
               fakeClient,
               "instructionId",
               createOrderedListStateKey("A"),
-              StringUtf8Coder.of());
+              StringUtf8Coder.of(),
+              false,
+              false);
 
       assertArrayEquals(
           Collections.singletonList(A3).toArray(),
@@ -546,7 +574,9 @@ public class OrderedListUserStateTest {
               fakeClient,
               "instructionId",
               createOrderedListStateKey("A"),
-              StringUtf8Coder.of());
+              StringUtf8Coder.of(),
+              false,
+              false);
 
       userState.add(B1);
       userState.add(A2);
@@ -562,7 +592,9 @@ public class OrderedListUserStateTest {
               fakeClient,
               "instructionId",
               createOrderedListStateKey("A"),
-              StringUtf8Coder.of());
+              StringUtf8Coder.of(),
+              false,
+              false);
 
       assertArrayEquals(
           Collections.singletonList(A3).toArray(),
@@ -591,7 +623,9 @@ public class OrderedListUserStateTest {
               fakeClient,
               "instructionId",
               createOrderedListStateKey("A"),
-              StringUtf8Coder.of());
+              StringUtf8Coder.of(),
+              false,
+              false);
 
       userState.clear();
       userState.asyncClose();
@@ -603,7 +637,9 @@ public class OrderedListUserStateTest {
               fakeClient,
               "instructionId",
               createOrderedListStateKey("A"),
-              StringUtf8Coder.of());
+              StringUtf8Coder.of(),
+              false,
+              false);
 
       assertThat(userState.read(), is(emptyIterable()));
     }
@@ -630,7 +666,9 @@ public class OrderedListUserStateTest {
             fakeClient,
             "instructionId",
             createOrderedListStateKey("A"),
-            StringUtf8Coder.of());
+            StringUtf8Coder.of(),
+            false,
+            false);
 
     Iterator<TimestampedValue<String>> iter = userState.read().iterator();
     assertEquals(iter.next(), A1);

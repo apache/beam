@@ -70,7 +70,8 @@ public class MultimapSideInputTest {
             keysStateKey(),
             ByteArrayCoder.of(),
             StringUtf8Coder.of(),
-            true);
+            true,
+            false);
     assertArrayEquals(
         new String[] {"A1", "A2", "A3"}, Iterables.toArray(multimapSideInput.get(A), String.class));
     assertArrayEquals(
@@ -96,7 +97,8 @@ public class MultimapSideInputTest {
             keysStateKey(),
             ByteArrayCoder.of(),
             StringUtf8Coder.of(),
-            true);
+            true,
+            false);
     assertArrayEquals(
         new String[] {"A1", "A2", "A3"}, Iterables.toArray(multimapSideInput.get(A), String.class));
     assertArrayEquals(
@@ -127,7 +129,8 @@ public class MultimapSideInputTest {
               keysStateKey(),
               ByteArrayCoder.of(),
               StringUtf8Coder.of(),
-              true);
+              true,
+              false);
       assertArrayEquals(
           new String[] {"A1", "A2", "A3"},
           Iterables.toArray(multimapSideInput.get(A), String.class));
@@ -151,7 +154,8 @@ public class MultimapSideInputTest {
               keysStateKey(),
               ByteArrayCoder.of(),
               StringUtf8Coder.of(),
-              true);
+              true,
+              false);
       assertArrayEquals(
           new String[] {"A1", "A2", "A3"},
           Iterables.toArray(multimapSideInput.get(A), String.class));
