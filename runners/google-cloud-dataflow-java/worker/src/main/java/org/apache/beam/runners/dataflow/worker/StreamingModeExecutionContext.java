@@ -24,7 +24,6 @@ import com.google.api.services.dataflow.model.CounterUpdate;
 import com.google.api.services.dataflow.model.SideInputInfo;
 import java.io.Closeable;
 import java.io.IOException;
-import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.Iterator;
@@ -456,7 +455,8 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext<Step
 
     for (StepContext stepContext : getAllStepContexts()) {
       stepContext.flushState();
-      for (Pair<Instant, BundleFinalizer.Callback> bundleFinalizer : stepContext.flushBundleFinalizerCallbacks()) {
+      for (Pair<Instant, BundleFinalizer.Callback> bundleFinalizer :
+          stepContext.flushBundleFinalizerCallbacks()) {
         long id = ThreadLocalRandom.current().nextLong();
         callbacks.put(
             id,
