@@ -21,7 +21,7 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
-import java.time.ZoneId;
+import java.time.ZoneOffset;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils;
 import org.apache.beam.sdk.schemas.Schema;
@@ -71,9 +71,9 @@ public class BeamSqlRowCoderTest {
                 1.1,
                 BigDecimal.ZERO,
                 "hello",
-                LocalTime.now(ZoneId.of("UTC")),
-                LocalDate.now(ZoneId.of("UTC")),
-                LocalDateTime.now(ZoneId.of("UTC")),
+                LocalTime.now(ZoneOffset.UTC),
+                LocalDate.now(ZoneOffset.UTC),
+                LocalDateTime.now(ZoneOffset.UTC),
                 DateTime.now().toInstant(),
                 true)
             .build();

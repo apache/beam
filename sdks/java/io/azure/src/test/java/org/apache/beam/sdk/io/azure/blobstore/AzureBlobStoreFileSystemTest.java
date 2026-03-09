@@ -46,6 +46,7 @@ import java.nio.channels.ReadableByteChannel;
 import java.nio.channels.WritableByteChannel;
 import java.time.Duration;
 import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -111,8 +112,7 @@ public class AzureBlobStoreFileSystemTest {
     when(mockedBlobClient.getBlockBlobClient()).thenReturn(mockedBlockBlob);
     when(mockedBlobClient.getProperties()).thenReturn(mockedProperties);
     when(mockedProperties.getBlobSize()).thenReturn(Long.valueOf(1));
-    when(mockedProperties.getLastModified())
-        .thenReturn(OffsetDateTime.now(java.time.ZoneOffset.UTC));
+    when(mockedProperties.getLastModified()).thenReturn(OffsetDateTime.now(ZoneOffset.UTC));
     when(mockedContainerClient.listBlobs(any(ListBlobsOptions.class), any(Duration.class)))
         .thenReturn(mockedPagedIterable);
     when(mockedContainerClient.listBlobsByHierarchy(any(String.class)))

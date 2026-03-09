@@ -25,6 +25,7 @@ import java.time.LocalTime;
 import java.time.OffsetDateTime;
 import java.time.OffsetTime;
 import java.time.ZoneId;
+import java.time.ZoneOffset;
 import org.apache.beam.sdk.extensions.sbe.SbeLogicalTypes.LocalMktDate;
 import org.apache.beam.sdk.extensions.sbe.SbeLogicalTypes.TZTimeOnly;
 import org.apache.beam.sdk.extensions.sbe.SbeLogicalTypes.TZTimestamp;
@@ -59,7 +60,7 @@ public final class SbeLogicalTypesTest {
 
   @Test
   public void testUtcTimeOnly() {
-    LocalTime time = LocalTime.now(ZoneId.of("UTC"));
+    LocalTime time = LocalTime.now(ZoneOffset.UTC);
     UTCTimeOnly timeOnly = new UTCTimeOnly();
 
     LocalTime afterConversions = timeOnly.toInputType(timeOnly.toBaseType(time));
@@ -79,7 +80,7 @@ public final class SbeLogicalTypesTest {
 
   @Test
   public void testUtcDateOnly() {
-    LocalDate date = LocalDate.now(ZoneId.of("UTC"));
+    LocalDate date = LocalDate.now(ZoneOffset.UTC);
     UTCDateOnly dateOnly = new UTCDateOnly();
 
     LocalDate afterConversions = dateOnly.toInputType(dateOnly.toBaseType(date));
@@ -89,7 +90,7 @@ public final class SbeLogicalTypesTest {
 
   @Test
   public void testLocalMktDate() {
-    LocalDate date = LocalDate.now(ZoneId.of("UTC"));
+    LocalDate date = LocalDate.now(ZoneOffset.UTC);
     LocalMktDate localMktDate = new LocalMktDate();
 
     LocalDate afterConversions = localMktDate.toInputType(localMktDate.toBaseType(date));

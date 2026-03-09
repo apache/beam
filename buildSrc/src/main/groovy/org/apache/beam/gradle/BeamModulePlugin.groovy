@@ -1542,8 +1542,6 @@ class BeamModulePlugin implements Plugin<Project> {
             "ExtendsAutoValue",
             "InlineMeSuggester",
             "InvalidBlockTag",
-            "InvalidThrows",
-            "JavaUtilDate",
             "JodaConstructors",
             "MixedMutabilityReturnType",
             "PreferJavaTimeOverload",

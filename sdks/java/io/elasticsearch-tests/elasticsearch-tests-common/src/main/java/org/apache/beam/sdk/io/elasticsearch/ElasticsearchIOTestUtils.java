@@ -35,6 +35,7 @@ import java.net.InetSocketAddress;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.time.LocalDateTime;
+import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -343,7 +344,7 @@ class ElasticsearchIOTestUtils {
   static List<String> createDocuments(long numDocs, InjectionMode injectionMode) {
 
     ArrayList<String> data = new ArrayList<>();
-    LocalDateTime baseDateTime = LocalDateTime.now(java.time.ZoneOffset.UTC);
+    LocalDateTime baseDateTime = LocalDateTime.now(ZoneOffset.UTC);
     for (int i = 0; i < numDocs; i++) {
       int index = i % FAMOUS_SCIENTISTS.length;
       // insert 2 malformed documents
