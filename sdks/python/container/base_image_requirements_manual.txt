@@ -36,7 +36,7 @@ google-cloud-profiler;python_version<="3.12"
 # Without google-cloud-profiler at python 3.13+, we need to manually add its
 # transitive dependency google-api-python-client as it is required by internal
 # tests
-google-api-python-client;python_version<="3.13"
+google-api-python-client;python_version>="3.13"
 guppy3
 mmh3  # Optimizes execution of some Beam codepaths. TODO: Make it Beam's dependency.
 nltk  # Commonly used for natural language processing.
