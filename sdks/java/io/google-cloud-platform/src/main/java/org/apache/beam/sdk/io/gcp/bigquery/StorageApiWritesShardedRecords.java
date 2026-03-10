@@ -29,7 +29,7 @@ import com.google.cloud.bigquery.storage.v1.Exceptions;
 import com.google.cloud.bigquery.storage.v1.Exceptions.StreamFinalizedException;
 import com.google.cloud.bigquery.storage.v1.ProtoRows;
 import com.google.cloud.bigquery.storage.v1.TableSchema;
-import com.google.cloud.bigquery.storage.v1.WriteStream.Type;
+import com.google.cloud.bigquery.storage.v1.WriteStream;
 import com.google.protobuf.ByteString;
 import com.google.protobuf.DescriptorProtos;
 import io.grpc.Status;
@@ -395,7 +395,10 @@ public class StorageApiWritesShardedRecords<DestinationT extends @NonNull Object
           // In a buffered stream, data is only visible up to the offset to which it was flushed.
           CreateTableHelpers.createTableWrapper(
               () -> {
-                stream.set(writeStreamService.createWriteStream(tableId, Type.BUFFERED).getName());
+                stream.set(
+                    writeStreamService
+                        .createWriteStream(tableId, WriteStream.Type.BUFFERED)
+                        .getName());
                 return null;
               },
               tryCreateTable);

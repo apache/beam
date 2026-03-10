@@ -19,7 +19,6 @@ package org.apache.beam.runners.spark.structuredstreaming.translation.helpers;
 
 import static org.apache.beam.runners.spark.structuredstreaming.translation.helpers.EncoderFactory.invoke;
 import static org.apache.beam.runners.spark.structuredstreaming.translation.helpers.EncoderFactory.invokeIfNotNull;
-import static org.apache.beam.runners.spark.structuredstreaming.translation.helpers.EncoderFactory.newInstance;
 import static org.apache.beam.runners.spark.structuredstreaming.translation.utils.ScalaInterop.match;
 import static org.apache.beam.runners.spark.structuredstreaming.translation.utils.ScalaInterop.replace;
 import static org.apache.beam.runners.spark.structuredstreaming.translation.utils.ScalaInterop.seqOf;
@@ -416,7 +415,8 @@ public class EncoderHelpers {
   private static <T> Expression deserializeOneOfField(Expression in, Encoder<T> enc, int idx) {
     GetStructField field = new GetStructField(in, idx, Option.empty());
     Expression litNull = lit(null, TUPLE2_TYPE);
-    Expression newTuple = newInstance(Tuple2.class, TUPLE2_TYPE, lit(idx), deserialize(field, enc));
+    Expression newTuple =
+        EncoderFactory.newInstance(Tuple2.class, TUPLE2_TYPE, lit(idx), deserialize(field, enc));
     return new If(new IsNull(field), litNull, newTuple);
   }
 
