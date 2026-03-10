@@ -20,7 +20,6 @@ package org.apache.beam.io.requestresponse;
 import com.google.auto.value.AutoValue;
 import java.io.Serializable;
 import java.util.Arrays;
-import java.util.Optional;
 import org.apache.beam.sdk.metrics.Counter;
 import org.apache.beam.sdk.metrics.Metric;
 import org.apache.beam.sdk.transforms.DoFn;
@@ -287,8 +286,6 @@ public abstract class Monitoring implements Serializable {
     public abstract Builder setCountCacheWriteSuccesses(boolean value);
 
     public abstract Builder setCountCacheWriteFailures(boolean value);
-
-    abstract Optional<Boolean> getCountRequests();
 
     public abstract Monitoring build();
   }
