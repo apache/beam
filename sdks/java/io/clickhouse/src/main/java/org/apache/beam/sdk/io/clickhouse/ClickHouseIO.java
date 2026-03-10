@@ -249,9 +249,6 @@ public class ClickHouseIO {
         tableSchema = getTableSchema(clickHouseUrl(), database(), table(), properties());
       }
 
-      String sdkVersion = ReleaseInfo.getReleaseInfo().getSdkVersion();
-      String userAgent = String.format("Apache Beam/%s", sdkVersion);
-
       Properties properties = properties();
 
       set(properties, "max_insert_block_size", maxInsertBlockSize());
@@ -526,8 +523,7 @@ public class ClickHouseIO {
               .setPassword(password)
               .setDefaultDatabase(database())
               .setOptions(options)
-              .setClientName(
-                  String.format("Apache Beam/%s", ReleaseInfo.getReleaseInfo().getSdkVersion()));
+              .setClientName(properties().getProperty("client_name"));
 
       // Add optional compression if specified in properties
       String compress = properties().getProperty("compress", "false");
@@ -725,8 +721,7 @@ public class ClickHouseIO {
               .setUsername(user)
               .setPassword(password)
               .setDefaultDatabase(database)
-              .setClientName(
-                  String.format("Apache Beam/%s", ReleaseInfo.getReleaseInfo().getSdkVersion()));
+              .setClientName(buildClientName(properties));
 
       try (Client client = clientBuilder.build()) {
         String query = "DESCRIBE TABLE " + quoteIdentifier(table);
@@ -764,6 +759,17 @@ public class ClickHouseIO {
     } catch (Exception e) {
       throw new RuntimeException("Failed to get table schema for table: " + table, e);
     }
+  }
+
+  @VisibleForTesting
+  static String buildClientName(Properties properties) {
+    String beamAgent =
+        String.format("Apache Beam/%s", ReleaseInfo.getReleaseInfo().getSdkVersion());
+    String existingClientName = properties.getProperty("client_name");
+    if (!Strings.isNullOrEmpty(existingClientName)) {
+      return beamAgent + " " + existingClientName;
+    }
+    return beamAgent;
   }
 
   static String quoteIdentifier(String identifier) {
