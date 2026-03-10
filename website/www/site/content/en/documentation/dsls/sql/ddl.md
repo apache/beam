@@ -1,6 +1,6 @@
 ---
 type: languages
-title: "Beam SQL DDL Overview"
+title: "Beam SQL DDL"
 ---
 <!--
 Licensed under the Apache License, Version 2.0 (the "License");
@@ -16,7 +16,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 -->
 
-# Beam SQL DDL Overview
+# Beam SQL DDL
 
 Beam SQL provides a standard three-level hierarchy to manage metadata across external data sources,
 enabling structured discovery and cross-source interoperability.
@@ -84,6 +84,19 @@ to reference Databases directly without their fully-qualified names (e.g. <code>
 USE CATALOG prod_iceberg;
 {{< /highlight >}}
 {{< /tab >}}
+{{< tab ALTER >}}
+Modifies the properties of a registered Catalog.
+{{< highlight >}}
+ALTER CATALOG catalog_name
+[ SET ( 'key' = 'val', ... ) ]
+[ RESET ( 'key', ... ) ]
+{{< /highlight >}}
+<ol>
+  <li><strong>SET:</strong> Adds new properties or updates existing ones.</li>
+  <li><strong>RESET / UNSET:</strong> Removes properties.</li>
+</ol>
+<br>
+{{< /tab >}}
 {{< tab SHOW >}}
 <p>Can be used to either:</p>
 <ol>
@@ -116,19 +129,6 @@ SHOW CURRENT CATALOG;
 {{< highlight >}}
 DROP CATALOG [ IF EXISTS ] catalog_name;
 {{< /highlight >}}
-{{< /tab >}}
-{{< tab ALTER >}}
-Modifies the properties of a registered Catalog.
-{{< highlight >}}
-ALTER CATALOG catalog_name
-  [ SET ( 'key' = 'val', ... ) ]
-  [ RESET ( 'key', ... ) ]
-{{< /highlight >}}
-<ol>
-  <li><strong>SET:</strong> Adds new properties or updates existing ones.</li>
-  <li><strong>RESET / UNSET:</strong> Removes properties.</li>
-</ol>
-<br>
 {{< /tab >}}
 
 ## Databases
@@ -212,6 +212,7 @@ DROP DATABASE [ IF EXISTS ] database_name [ RESTRICT | CASCADE ];
   <li><strong>RESTRICT:</strong> (Default): Fails if the Database is not empty.</li>
   <li><strong>CASCADE:</strong> Drops the Database and all tables contained within it. <strong>Use with caution</strong>.</li>
 </ol>
+<br>
 {{< /tab >}}
 
 ## Tables
@@ -223,22 +224,22 @@ data sources also support applying a partition spec and attaching table-specific
 
 {{< highlight >}}
 CREATE EXTERNAL TABLE [ IF NOT EXISTS ] [ catalog. ][ db. ]table_name (
-col_name col_type [ NOT NULL ] [ COMMENT 'col_comment' ],
-...
-)
-TYPE 'type_name'
-[ PARTITIONED BY ( 'partition_field' [, ... ] ) ]
-[ COMMENT 'table_comment' ]
-[ LOCATION 'location_uri' ]
-[ TBLPROPERTIES 'properties_json_string' ];
+  col_name col_type [ NOT NULL ] [ COMMENT 'col_comment' ],
+    ...
+  )
+  TYPE 'type_name'
+  [ PARTITIONED BY ( 'partition_field' [, ... ] ) ]
+  [ COMMENT 'table_comment' ]
+  [ LOCATION 'location_uri' ]
+  [ TBLPROPERTIES 'properties_json_string' ];
 {{< /highlight >}}
-
-<ol>
+<ul>
   <li><strong>TYPE:</strong> the table type (e.g. <code>'iceberg'</code>, <code>'text'</code>, <code>'kafka'</code>).</li>
   <li><strong>PARTITIONED BY:</strong> an ordered list of fields describing the partition spec.</li>
   <li><strong>LOCATION:</strong> explicitly sets the location of the table (overriding the inferred <code>catalog.db.table_name</code> location)</li>
   <li><strong>TBLPROPERTIES:</strong> configuration properties used when creating the table or setting up its IO connection.</li>
-</ol>
+</ul>
+<br>
 
 <p><i><strong>Example</strong>: Creating an Iceberg Table</i></p>
 {{< highlight >}}
@@ -258,12 +259,12 @@ TBLPROPERTIES '{
 }';
 {{< /highlight >}}
 
-<ol>
+<ul>
   <li>This creates an Iceberg table named <code>orders</code> under the namespace <code>sales_data</code>, within the <code>prod_iceberg</code> catalog.</li>
   <li>The table is partitioned by <code>region_id</code>, then by the day value of <code>order_date</code> (using Iceberg's <a href="https://iceberg.apache.org/docs/latest/partitioning/#icebergs-hidden-partitioning">hidden partitioning</a>).</li>
   <li>The table is created with the appropriate properties <code>"write.format.default"</code> and <code>"read.split.target-size"</code>. The Beam property <code>"beam.write.triggering_frequency_seconds"</code></li>
   <li>Beam properties (prefixed with <code>"beam.write."</code> and <code>"beam.read."</code> are intended for the relevant IOs)</li>
-</ol>
+</ul>
 {{< /tab >}}
 {{< tab ALTER >}}
 Modifies an existing Table's properties and evolves its partition and schema.
@@ -303,6 +304,7 @@ ALTER TABLE orders DROP PARTITIONS ( 'region_id' );
 ALTER TABLE orders SET (
     'write.format.default' = 'orc',
     'write.metadata.metrics.default' = 'full' );
+
 ALTER TABLE orders RESET ( 'write.target-file-size-bytes' );
 {{< /highlight >}}
 
