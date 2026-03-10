@@ -1,5 +1,5 @@
 ---
-title: "PyTorch Language Modeling BERT base Performance"
+title: "PyTorch Image Classification EfficientNet-B0 Streaming (Right-fitting) CPU Performance"
 ---
 
 <!--
@@ -25,7 +25,7 @@ limitations under the License.
 This streaming pipeline performs image classification using an open-source PyTorch EfficientNet-B0 model.
 It reads image URIs from Pub/Sub, decodes and preprocesses them in parallel, and runs inference with adaptive batch sizing.
 
-The following graphs show various metrics when running PyTorch Sentiment Analysis Streaming using Hugging Face DistilBERT base uncased model pipeline.
+The following graphs show various metrics when running the PyTorch Image Classification EfficientNet-B0 Streaming (Right-fitting) CPU pipeline.
 See the [glossary](/performance/glossary) for definitions.
 
 Full pipeline implementation is available [here](https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/inference/pytorch_imagenet_rightfit.py).
