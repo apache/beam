@@ -61,5 +61,8 @@
     "./runners": "./dist/src/apache_beam/index.js",
     "./transforms": "./dist/src/apache_beam/transforms/index.js",
     "./*": "./dist/src/apache_beam/*.js"
+  },
+  "overrides": {
+    "minimatch": "^3.1.4"
   }
 }
