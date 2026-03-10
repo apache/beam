@@ -25,6 +25,7 @@ import unittest
 import uuid
 
 import apache_beam as beam
+from apache_beam.io.gcp import bigquery_tools
 from apache_beam.io.gcp.bigquery_change_history import ReadBigQueryChangeHistory
 from apache_beam.io.gcp.bigquery_change_history import _CleanupTempTablesFn
 from apache_beam.io.gcp.bigquery_change_history import _ExecuteQueryFn
@@ -33,7 +34,6 @@ from apache_beam.io.gcp.bigquery_change_history import _PollConfig
 from apache_beam.io.gcp.bigquery_change_history import _QueryRange
 from apache_beam.io.gcp.bigquery_change_history import _QueryResult
 from apache_beam.io.gcp.bigquery_change_history import _ReadStorageStreamsSDF
-from apache_beam.io.gcp.bigquery_change_history import _table_key
 from apache_beam.io.gcp.bigquery_tools import BigQueryWrapper
 from apache_beam.io.gcp.internal.clients import bigquery
 from apache_beam.testing.test_pipeline import TestPipeline
@@ -160,7 +160,7 @@ class CleanupTempTablesFnTest(BigQueryChangeHistoryIntegrationBase):
         table_id, [{
             'id': 1, 'name': 'a', 'value': 1.0
         }])
-    table_key = _table_key(table_ref)
+    table_key = bigquery_tools.get_hashable_destination(table_ref)
 
     # Feed cleanup signal: all 5 streams read out of 5
     with beam.Pipeline(argv=self.args) as p:
@@ -181,7 +181,7 @@ class CleanupTempTablesFnTest(BigQueryChangeHistoryIntegrationBase):
         table_id, [{
             'id': 1, 'name': 'a', 'value': 1.0
         }])
-    table_key = _table_key(table_ref)
+    table_key = bigquery_tools.get_hashable_destination(table_ref)
 
     # Feed two partial signals: 3/10 + 7/10 = 10/10
     with beam.Pipeline(argv=self.args) as p:
@@ -295,7 +295,7 @@ class ReadStorageStreamsSDFTest(BigQueryChangeHistoryIntegrationBase):
           | 'ExtractKey' >> beam.Map(lambda x: x[0]))
       assert_that(
           cleanup_table_keys,
-          equal_to([_table_key(table_ref)]),
+          equal_to([bigquery_tools.get_hashable_destination(table_ref)]),
           label='CheckCleanupKey')
 
   def test_empty_table(self):

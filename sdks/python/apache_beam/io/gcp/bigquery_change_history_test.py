@@ -20,7 +20,6 @@
 Tests:
   - build_changes_query format
   - compute_ranges chunking
-  - _table_key conversion
   - ReadBigQueryChangeHistory validation
 """
 
@@ -28,10 +27,8 @@ import datetime
 import unittest
 
 from apache_beam.io.gcp.bigquery_change_history import ReadBigQueryChangeHistory
-from apache_beam.io.gcp.bigquery_change_history import _table_key
 from apache_beam.io.gcp.bigquery_change_history import build_changes_query
 from apache_beam.io.gcp.bigquery_change_history import compute_ranges
-from apache_beam.io.gcp.internal.clients import bigquery
 from apache_beam.utils.timestamp import Duration
 from apache_beam.utils.timestamp import Timestamp
 
@@ -185,15 +182,6 @@ class ComputeRangesTest(unittest.TestCase):
     end = Timestamp(0) + _DAY * Duration(seconds=2)
     ranges = compute_ranges(start, end, 'CHANGES')
     self.assertEqual(len(ranges), 2)
-
-
-@unittest.skipIf(HttpError is None, 'GCP dependencies are not installed')
-class TableKeyTest(unittest.TestCase):
-  """Tests for _table_key()."""
-  def test_conversion(self):
-    ref = bigquery.TableReference(
-        projectId='proj', datasetId='ds', tableId='tbl')
-    self.assertEqual(_table_key(ref), 'proj.ds.tbl')
 
 
 @unittest.skipIf(HttpError is None, 'GCP dependencies are not installed')

@@ -974,14 +974,13 @@ class _CleanupTempTablesFn(beam.DoFn):
         total_streams)
 
     if current_read >= total_streams:
-      parts = table_key.split('.')
-      if len(parts) == 3:
-        project, dataset, table = parts
-        _LOGGER.info(
-            '[Cleanup] All streams read: DELETING temp table %s', table_key)
-        self._bq_wrapper._delete_table(project, dataset, table)
-        _LOGGER.info('[Cleanup] Deleted temp table %s', table_key)
-        Metrics.counter('BigQueryChangeHistory', 'temp_tables_deleted').inc()
+      parsed = bigquery_tools.parse_table_reference(table_key)
+      _LOGGER.info(
+          '[Cleanup] All streams read: DELETING temp table %s', table_key)
+      self._bq_wrapper._delete_table(
+          parsed.projectId, parsed.datasetId, parsed.tableId)
+      _LOGGER.info('[Cleanup] Deleted temp table %s', table_key)
+      Metrics.counter('BigQueryChangeHistory', 'temp_tables_deleted').inc()
       streams_read.clear()
     else:
       _LOGGER.info(
