@@ -202,8 +202,9 @@ class BlipCaptionModelHandler(ModelHandler):
       uris.append(x.get("uri", ""))
       try:
         images.append(decode_pil(b))
-      except Exception:
+      except Exception as e:
         # fallback: a blank image (so pipeline keeps going)
+        logging.warning("Failed to decode image %s: %s", uris[-1], e)
         images.append(PILImage.new("RGB", (224, 224), color=(0, 0, 0)))
 
     # Processor makes pixel_values
@@ -305,7 +306,8 @@ class ClipRankModelHandler(ModelHandler):
 
       try:
         img = decode_pil(image_bytes)
-      except Exception:
+      except Exception as e:
+        logging.warning("Failed to decode image for CLIP ranking: %s", e)
         img = PILImage.new("RGB", (224, 224), color=(0, 0, 0))
 
       start_i = len(texts)
