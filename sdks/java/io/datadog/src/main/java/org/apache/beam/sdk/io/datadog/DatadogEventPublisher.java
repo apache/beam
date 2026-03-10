@@ -264,8 +264,6 @@ public abstract class DatadogEventPublisher {
      * @return {@link Builder}
      */
     public Builder withMaxElapsedMillis(int maxElapsedMillis) {
-      checkNotNull(
-          maxElapsedMillis, "withMaxElapsedMillis(maxElapsedMillis) called with null input.");
       return setMaxElapsedMillis(maxElapsedMillis);
     }
 
