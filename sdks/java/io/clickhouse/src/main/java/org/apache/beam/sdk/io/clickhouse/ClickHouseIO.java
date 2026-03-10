@@ -258,7 +258,7 @@ public class ClickHouseIO {
       set(properties, "insert_quorum", insertQuorum());
       set(properties, "insert_distributed_sync", insertDistributedSync());
       set(properties, "insert_deduplication", insertDeduplicate());
-      set(properties, "product_name", userAgent);
+      set(properties, "client_name", buildClientName(properties));
 
       WriteFn<T> fn =
           new AutoValue_ClickHouseIO_WriteFn.Builder<T>()
