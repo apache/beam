@@ -642,6 +642,7 @@ public class SolrIO {
       }
 
       // Flushes the batch, implementing the retry mechanism as configured in the spec.
+      @SuppressWarnings("Slf4jFormatShouldBeConst")
       private void flushBatch() throws IOException, InterruptedException {
         if (batch.isEmpty()) {
           return;
@@ -677,7 +678,7 @@ public class SolrIO {
 
               } else {
                 // Note: this used in test cases to verify behavior
-                LOG.warn("Error writing to Solr. Retry attempt {}", attempt, exception);
+                LOG.warn(String.format(RETRY_ATTEMPT_LOG, attempt), exception);
               }
             }
           }
