@@ -17,6 +17,8 @@
  */
 package org.apache.beam.examples.snippets.transforms.io.iceberg;
 
+import java.util.Arrays;
+import java.util.Map;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.managed.Managed;
 import org.apache.beam.sdk.schemas.Schema;
@@ -31,12 +33,10 @@ import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TypeDescriptors;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 
-import java.util.Arrays;
-import java.util.Map;
-
 public class Quickstart {
   static String PROJECT_ID = "apache-beam-testing";
   static String BUCKET_NAME = "my-bucket";
+
   public static void main(String[] args) {
     // [START hadoop_catalog_props]
     Map<String, String> catalogProps =
@@ -49,14 +49,14 @@ public class Quickstart {
   public static void publicDatasets() {
     // [START biglake_public_catalog_props]
     Map<String, String> catalogProps =
-      ImmutableMap.of(
-        "type", "rest",
-        "uri", "https://biglake.googleapis.com/iceberg/v1/restcatalog",
-        "warehouse", "gs://biglake-public-nyc-taxi-iceberg",
-        "header.x-goog-user-project", PROJECT_ID,
-        "rest.auth.type", "google",
-        "io-impl", "org.apache.iceberg.gcp.gcs.GCSFileIO",
-        "header.X-Iceberg-Access-Delegation", "vended-credentials");
+        ImmutableMap.of(
+            "type", "rest",
+            "uri", "https://biglake.googleapis.com/iceberg/v1/restcatalog",
+            "warehouse", "gs://biglake-public-nyc-taxi-iceberg",
+            "header.x-goog-user-project", PROJECT_ID,
+            "rest.auth.type", "google",
+            "io-impl", "org.apache.iceberg.gcp.gcs.GCSFileIO",
+            "header.X-Iceberg-Access-Delegation", "vended-credentials");
     // [END biglake_public_catalog_props]
 
     // [START biglake_public_query]
@@ -64,38 +64,38 @@ public class Quickstart {
 
     // Set up query properties:
     Map<String, Object> config =
-      ImmutableMap.of(
-        "table",
-        "public_data.nyc_taxicab",
-        "catalog_properties",
-        catalogProps,
-        "filter",
-        "data_file_year = 2021 AND tip_amount > 100",
-        "keep",
-        Arrays.asList("passenger_count", "total_amount", "trip_distance"));
+        ImmutableMap.of(
+            "table",
+            "public_data.nyc_taxicab",
+            "catalog_properties",
+            catalogProps,
+            "filter",
+            "data_file_year = 2021 AND tip_amount > 100",
+            "keep",
+            Arrays.asList("passenger_count", "total_amount", "trip_distance"));
 
     // Read Iceberg records
     PCollection<Row> icebergRows =
-      p.apply(Managed.read("iceberg").withConfig(config)).getSinglePCollection();
+        p.apply(Managed.read("iceberg").withConfig(config)).getSinglePCollection();
 
     // Perform further analysis on records
     PCollection<Row> result =
-      icebergRows
-        .apply(AddFields.<Row>create().field("num_trips", Schema.FieldType.INT32, 1))
-        .apply(
-          Group.<Row>byFieldNames("passenger_count")
-            .aggregateField("num_trips", Sum.ofIntegers(), "num_trips")
-            .aggregateField("total_amount", Mean.of(), "avg_fare")
-            .aggregateField("trip_distance", Mean.of(), "avg_distance"));
+        icebergRows
+            .apply(AddFields.<Row>create().field("num_trips", Schema.FieldType.INT32, 1))
+            .apply(
+                Group.<Row>byFieldNames("passenger_count")
+                    .aggregateField("num_trips", Sum.ofIntegers(), "num_trips")
+                    .aggregateField("total_amount", Mean.of(), "avg_fare")
+                    .aggregateField("trip_distance", Mean.of(), "avg_distance"));
 
     // Print to console
     result.apply(
-      MapElements.into(TypeDescriptors.voids())
-        .via(
-          row -> {
-            System.out.println(row);
-            return null;
-          }));
+        MapElements.into(TypeDescriptors.voids())
+            .via(
+                row -> {
+                  System.out.println(row);
+                  return null;
+                }));
 
     // Execute
     p.run().waitUntilFinish();
