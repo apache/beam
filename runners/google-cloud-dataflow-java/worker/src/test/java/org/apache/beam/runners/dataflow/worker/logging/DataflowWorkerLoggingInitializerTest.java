@@ -45,6 +45,7 @@ import java.util.logging.Level;
 import java.util.logging.LogManager;
 import java.util.logging.LogRecord;
 import java.util.logging.Logger;
+import javax.annotation.Nullable;
 import org.apache.beam.runners.dataflow.options.DataflowWorkerLoggingOptions;
 import org.apache.beam.runners.dataflow.options.DataflowWorkerLoggingOptions.WorkerLogLevelOverrides;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
@@ -76,13 +77,10 @@ public class DataflowWorkerLoggingInitializerTest {
 
   @Rule public RestoreSystemProperties restoreProperties = new RestoreSystemProperties();
 
-  // Should match {@link DataflowWorkerLoggingInitializer#FILEPATH_PROPERTY}
-  private static final String LOGPATH_PROPERTY = "dataflow.worker.logging.filepath";
-
   @Before
   public void setUp() {
     Path logFileBasePath = Paths.get(logFolder.getRoot().getAbsolutePath(), "logfile.txt");
-    System.setProperty(LOGPATH_PROPERTY, logFileBasePath.toString());
+    System.setProperty(RUNNER_FILEPATH_PROPERTY, logFileBasePath.toString());
     LogManager.getLogManager().reset();
     DataflowWorkerLoggingInitializer.reset();
     DataflowWorkerLoggingInitializer.initialize();
@@ -171,10 +169,10 @@ public class DataflowWorkerLoggingInitializerTest {
     assertEquals(Level.FINE, rootLogger.getLevel());
     DataflowWorkerLoggingHandler handler =
         assertIsDataflowWorkerLoggingHandler(rootLogger.getHandlers()[0]);
-    assertTrue(handler.isConfiguredDirectLog(new LogRecord(Level.FINE, "")));
-    assertTrue(handler.isConfiguredDirectLog(new LogRecord(Level.INFO, "")));
-    assertFalse(handler.isConfiguredDirectLog(new LogRecord(Level.WARNING, "")));
-    assertFalse(handler.isConfiguredDirectLog(new LogRecord(Level.SEVERE, "")));
+    assertTrue(handler.testVerifyIsConfiguredDirectLog(new LogRecord(Level.FINE, "")));
+    assertTrue(handler.testVerifyIsConfiguredDirectLog(new LogRecord(Level.INFO, "")));
+    assertFalse(handler.testVerifyIsConfiguredDirectLog(new LogRecord(Level.WARNING, "")));
+    assertFalse(handler.testVerifyIsConfiguredDirectLog(new LogRecord(Level.SEVERE, "")));
   }
 
   @Test
@@ -394,10 +392,12 @@ public class DataflowWorkerLoggingInitializerTest {
 
   private List<String> retrieveLogLines() throws IOException {
     List<String> allLogLines = Lists.newArrayList();
-    for (File logFile : logFolder.getRoot().listFiles()) {
-      allLogLines.addAll(Files.readAllLines(logFile.toPath(), StandardCharsets.UTF_8));
+    @Nullable File[] files = logFolder.getRoot().listFiles();
+    if (files != null) {
+      for (File logFile : files) {
+        allLogLines.addAll(Files.readAllLines(logFile.toPath(), StandardCharsets.UTF_8));
+      }
     }
-
     return allLogLines;
   }
 }

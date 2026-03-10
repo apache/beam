@@ -157,7 +157,9 @@ public class DataflowWorkerLoggingHandlerTest {
     }
     handler.enableDirectLogging(pipelineOptionsForTest(), Level.SEVERE, (e) -> {});
     return handler.constructDirectLogEntry(
-        record, (DataflowExecutionState) ExecutionStateTracker.getCurrentExecutionState());
+        record,
+        (DataflowExecutionState) ExecutionStateTracker.getCurrentExecutionState(),
+        ImmutableMap.of());
   }
 
   private final ExecutionStateTracker tracker = ExecutionStateTracker.newForTest();
@@ -540,18 +542,9 @@ public class DataflowWorkerLoggingHandlerTest {
         entry.getPayload());
     assertEquals(Severity.INFO, entry.getSeverity());
     assertEquals("dataflow_step", entry.getResource().getType());
+    // The testing setup just sets the additional label, not all the default labels.
     assertEquals(
-        ImmutableMap.of(
-            "job_name",
-            "testJobName",
-            "job_id",
-            "testJobId",
-            "region",
-            "testRegion",
-            "step_id",
-            NameContextsForTests.USER_NAME,
-            "project_id",
-            "testProject"),
+        ImmutableMap.of("step_id", NameContextsForTests.USER_NAME),
         entry.getResource().getLabels());
   }
 
@@ -689,31 +682,40 @@ public class DataflowWorkerLoggingHandlerTest {
   public void isConfiguredDirectLog() throws IOException {
     ByteArrayOutputStream fileOutput = new ByteArrayOutputStream();
     FixedOutputStreamFactory factory = new FixedOutputStreamFactory(fileOutput);
-    DataflowWorkerLoggingHandler handler = new DataflowWorkerLoggingHandler(factory, 0);
-    handler.enableDirectLogging(pipelineOptionsForTest(), Level.WARNING, (e) -> {});
 
     // Using the default log level to determine.
     LogRecord record = createLogRecord();
     record.setLevel(Level.WARNING);
-    assertFalse(handler.isConfiguredDirectLog(record));
+    assertFalse(DataflowWorkerLoggingHandler.isConfiguredDirectLog(record, Level.WARNING));
+    assertFalse(DataflowWorkerLoggingHandler.isConfiguredDirectLog(record, Level.INFO));
     record.setLevel(Level.SEVERE);
-    assertFalse(handler.isConfiguredDirectLog(record));
+    assertFalse(DataflowWorkerLoggingHandler.isConfiguredDirectLog(record, Level.WARNING));
+    assertFalse(DataflowWorkerLoggingHandler.isConfiguredDirectLog(record, Level.INFO));
     record.setLevel(Level.INFO);
-    assertTrue(handler.isConfiguredDirectLog(record));
+    assertTrue(DataflowWorkerLoggingHandler.isConfiguredDirectLog(record, Level.WARNING));
+    assertFalse(DataflowWorkerLoggingHandler.isConfiguredDirectLog(record, Level.INFO));
     record.setLevel(Level.FINE);
-    assertTrue(handler.isConfiguredDirectLog(record));
+    assertTrue(DataflowWorkerLoggingHandler.isConfiguredDirectLog(record, Level.WARNING));
+    assertTrue(DataflowWorkerLoggingHandler.isConfiguredDirectLog(record, Level.INFO));
 
     // Using an override to determine
     record.setLevel(Level.INFO);
     record.setResourceBundle(
         DataflowWorkerLoggingHandler.resourceBundleForNonDirectLogLevelHint(Level.INFO));
-    assertFalse(handler.isConfiguredDirectLog(record));
+    assertFalse(DataflowWorkerLoggingHandler.isConfiguredDirectLog(record, Level.WARNING));
+    assertFalse(DataflowWorkerLoggingHandler.isConfiguredDirectLog(record, Level.INFO));
     record.setResourceBundle(
         DataflowWorkerLoggingHandler.resourceBundleForNonDirectLogLevelHint(Level.FINE));
-    assertFalse(handler.isConfiguredDirectLog(record));
+    assertFalse(DataflowWorkerLoggingHandler.isConfiguredDirectLog(record, Level.WARNING));
+    assertFalse(DataflowWorkerLoggingHandler.isConfiguredDirectLog(record, Level.INFO));
     record.setResourceBundle(
         DataflowWorkerLoggingHandler.resourceBundleForNonDirectLogLevelHint(Level.WARNING));
-    assertTrue(handler.isConfiguredDirectLog(record));
+    assertTrue(DataflowWorkerLoggingHandler.isConfiguredDirectLog(record, Level.WARNING));
+    assertTrue(DataflowWorkerLoggingHandler.isConfiguredDirectLog(record, Level.INFO));
+    record.setResourceBundle(
+        DataflowWorkerLoggingHandler.resourceBundleForNonDirectLogLevelHint(Level.SEVERE));
+    assertTrue(DataflowWorkerLoggingHandler.isConfiguredDirectLog(record, Level.WARNING));
+    assertTrue(DataflowWorkerLoggingHandler.isConfiguredDirectLog(record, Level.INFO));
   }
 
   @Test

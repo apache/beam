@@ -17,6 +17,7 @@
  */
 package org.apache.beam.runners.dataflow.worker.logging;
 
+import static org.apache.beam.repackaged.core.org.apache.commons.lang3.StringUtils.abbreviateMiddle;
 import static org.apache.beam.runners.dataflow.worker.logging.DataflowWorkerLoggingInitializer.LEVELS;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkNotNull;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkState;
@@ -62,6 +63,7 @@ import java.util.MissingResourceException;
 import java.util.ResourceBundle;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
 import java.util.logging.ErrorManager;
 import java.util.logging.Handler;
@@ -71,6 +73,7 @@ import java.util.logging.SimpleFormatter;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.GuardedBy;
+import org.apache.beam.repackaged.core.org.apache.commons.lang3.tuple.Pair;
 import org.apache.beam.runners.core.metrics.ExecutionStateTracker;
 import org.apache.beam.runners.core.metrics.ExecutionStateTracker.ExecutionState;
 import org.apache.beam.runners.dataflow.options.DataflowPipelineOptions;
@@ -110,8 +113,8 @@ public class DataflowWorkerLoggingHandler extends Handler {
     private static final String LEVEL_KEY = "NonDirectLogLevel";
     private final Level nonDirectLogLevel;
 
-    DirectHintResourceBundle(Level directLevel) {
-      this.nonDirectLogLevel = directLevel;
+    DirectHintResourceBundle(Level nonDirectLogLevel) {
+      this.nonDirectLogLevel = nonDirectLogLevel;
     }
 
     @Override
@@ -145,24 +148,43 @@ public class DataflowWorkerLoggingHandler extends Handler {
   /** If true, add SLF4J MDC to custom_data of the log message. */
   @LazyInit private boolean logCustomMdc = false;
 
-  // All of the direct logging related fields are only initialized if enableDirectLogging is called.
-  //  Afterwards they
-  // are logically final.
-  @LazyInit private @Nullable Logging directLogging = null;
-  @LazyInit private boolean fallbackDirectErrorsToDisk = false;
-  @LazyInit private Level defaultNonDirectLogLevel = Level.ALL;
-  @LazyInit private Logging.WriteOption[] directWriteOptions = new Logging.WriteOption[0];
-  @LazyInit private ImmutableMap<String, String> defaultResourceLabels = ImmutableMap.of();
+  // Only instantiated and set if enableDirectLogging is called.
+  private static class DirectLoggingState {
+    DirectLoggingState(
+        ImmutableMap<String, String> defaultLabels,
+        ImmutableMap<String, String> defaultResourceLabels,
+        MonitoredResource steplessMonitoredResource,
+        Level defaultNonDirectLogLevel,
+        boolean fallbackDirectErrorsToDisk,
+        @Nullable Logging directLogging,
+        Logging.WriteOption[] directWriteOptions,
+        @Nullable Consumer<LogEntry> testDirectLogInterceptor) {
+      checkState((directLogging == null) != (testDirectLogInterceptor == null));
+      this.defaultLabels = defaultLabels;
+      this.defaultResourceLabels = defaultResourceLabels;
+      this.steplessMonitoredResource = steplessMonitoredResource;
+      this.fallbackDirectErrorsToDisk = fallbackDirectErrorsToDisk;
+      this.defaultNonDirectLogLevel = defaultNonDirectLogLevel;
+      this.directLogging = directLogging;
+      this.directWriteOptions = directWriteOptions;
+      this.testDirectLogInterceptor =
+          testDirectLogInterceptor == null ? e -> {} : testDirectLogInterceptor;
+    }
 
-  @LazyInit
-  private MonitoredResource steplessMonitoredResource =
-      MonitoredResource.newBuilder(RESOURCE_TYPE).build();
+    final @Nullable Logging directLogging;
+    final boolean fallbackDirectErrorsToDisk;
+    final Level defaultNonDirectLogLevel;
+    final Logging.WriteOption[] directWriteOptions;
+    final ImmutableMap<String, String> defaultResourceLabels;
+    final MonitoredResource steplessMonitoredResource;
+    final ImmutableMap<String, String> defaultLabels;
+    final Consumer<LogEntry> testDirectLogInterceptor;
+  }
 
-  @LazyInit private ImmutableMap<String, String> defaultLabels = ImmutableMap.of();
-  @LazyInit private @Nullable Consumer<LogEntry> testDirectLogInterceptor;
+  private final AtomicReference<DirectLoggingState> directLoggingState = new AtomicReference<>();
 
   @GuardedBy("this")
-  private Instant nextDirectFallbackLogInstant = Instant.EPOCH;
+  Instant nextDirectFallbackLogInstant = Instant.EPOCH;
 
   private static final String LOG_TYPE = "dataflow.googleapis.com%2Fworker";
   private static final String RESOURCE_TYPE = "dataflow_step";
@@ -229,7 +251,8 @@ public class DataflowWorkerLoggingHandler extends Handler {
     logCustomMdc = enabled;
   }
 
-  private void initializeLabelMaps(PipelineOptions options) {
+  private static Pair<ImmutableMap<String, String>, ImmutableMap<String, String>>
+      labelsFromOptionsAndMetadata(PipelineOptions options) {
     DataflowPipelineOptions dataflowOptions = options.as(DataflowPipelineOptions.class);
     DataflowWorkerHarnessOptions harnessOptions = options.as(DataflowWorkerHarnessOptions.class);
     @Nullable String jobId = harnessOptions.getJobId();
@@ -272,7 +295,6 @@ public class DataflowWorkerLoggingHandler extends Handler {
     defaultLabelsBuilder.put("dataflow.googleapis.com/region", region);
     defaultLabelsBuilder.put("dataflow.googleapis.com/job_name", jobName);
     defaultLabelsBuilder.put("dataflow.googleapis.com/job_id", jobId);
-    defaultLabels = defaultLabelsBuilder.buildOrThrow();
 
     ImmutableMap.Builder<String, String> resourceLabelBuilder = new ImmutableMap.Builder<>();
     resourceLabelBuilder.put("job_id", jobId);
@@ -280,26 +302,12 @@ public class DataflowWorkerLoggingHandler extends Handler {
     resourceLabelBuilder.put("project_id", projectId);
     resourceLabelBuilder.put("region", region);
     // We add the step when constructing the resource as it can change.
-    defaultResourceLabels = resourceLabelBuilder.buildOrThrow();
-    steplessMonitoredResource =
-        MonitoredResource.newBuilder(RESOURCE_TYPE)
-            .setLabels(defaultResourceLabels)
-            .addLabel(STEP_RESOURCE_LABEL, "")
-            .build();
+
+    return Pair.of(defaultLabelsBuilder.buildOrThrow(), resourceLabelBuilder.buildOrThrow());
   }
 
   private static String middleCrop(String value, int maxSize) {
-    if (value.length() <= maxSize) {
-      return value;
-    }
-    if (maxSize < 3) {
-      return value.substring(0, maxSize);
-    }
-    int firstHalfSize = (maxSize - 2) / 2;
-    int secondHalfSize = (maxSize - 3) / 2;
-    return value.substring(0, firstHalfSize)
-        + "..."
-        + value.substring(value.length() - secondHalfSize);
+    return abbreviateMiddle(value, "...", maxSize);
   }
 
   private static Severity severityFor(Level level) {
@@ -323,7 +331,7 @@ public class DataflowWorkerLoggingHandler extends Handler {
     return Severity.NONE;
   }
 
-  private void addLogField(
+  private static void addLogField(
       Struct.Builder builder, String field, @Nullable String value, int maxSize) {
     if (value == null || value.isEmpty()) {
       return;
@@ -333,7 +341,9 @@ public class DataflowWorkerLoggingHandler extends Handler {
 
   @VisibleForTesting
   LogEntry constructDirectLogEntry(
-      LogRecord record, @Nullable DataflowExecutionState executionState) {
+      LogRecord record,
+      @Nullable DataflowExecutionState executionState,
+      ImmutableMap<String, String> defaultResourceLabels) {
     Struct.Builder payloadBuilder = Struct.newBuilder();
     addLogField(payloadBuilder, "logger", record.getLoggerName(), FIELD_MAX_LENGTH);
     addLogField(
@@ -402,17 +412,25 @@ public class DataflowWorkerLoggingHandler extends Handler {
       Level defaultNonDirectLogLevel,
       @Nullable Consumer<LogEntry> testDirectLogInterceptor) {
     checkState(
-        directLogging == null && this.testDirectLogInterceptor == null,
+        directLoggingState.get() == null,
         "enableDirectLogging should only be called once on a DataflowWorkerLoggingHandler");
-    initializeLabelMaps(pipelineOptions);
+    Pair<ImmutableMap<String, String>, ImmutableMap<String, String>> labels =
+        labelsFromOptionsAndMetadata(pipelineOptions);
+    ImmutableMap<String, String> defaultLabels = labels.getLeft();
+    ImmutableMap<String, String> defaultResourceLabels = labels.getRight();
+    MonitoredResource steplessMonitoredResource =
+        MonitoredResource.newBuilder(RESOURCE_TYPE)
+            .setLabels(defaultResourceLabels)
+            .addLabel(STEP_RESOURCE_LABEL, "")
+            .build();
 
     DataflowWorkerLoggingOptions dfLoggingOptions =
         pipelineOptions.as(DataflowWorkerLoggingOptions.class);
-    this.fallbackDirectErrorsToDisk =
-        Boolean.TRUE.equals(dfLoggingOptions.getDirectLoggingFallbackToDiskOnErrors());
     directThrottler.setCooldownDuration(
         Duration.ofSeconds(dfLoggingOptions.getDirectLoggingCooldownSeconds()));
 
+    @Nullable Logging logging = null;
+    ArrayList<Logging.WriteOption> writeOptions = new ArrayList<>();
     if (testDirectLogInterceptor == null) {
       // Override some of the default settings.
       LoggingOptions cloudLoggingOptions =
@@ -446,21 +464,29 @@ public class DataflowWorkerLoggingHandler extends Handler {
                       .setDelayThresholdDuration(Duration.ofMillis(50L))
                       .build())
               .build();
-      ArrayList<Logging.WriteOption> writeOptions = new ArrayList<>();
+
       writeOptions.add(Logging.WriteOption.labels(defaultLabels));
       writeOptions.add(Logging.WriteOption.logName(LOG_TYPE));
       writeOptions.add(Logging.WriteOption.resource(steplessMonitoredResource));
-      this.directWriteOptions = Iterables.toArray(writeOptions, Logging.WriteOption.class);
 
-      Logging directLogging = cloudLoggingOptions.getService();
-      directLogging.setFlushSeverity(Severity.NONE);
-      directLogging.setWriteSynchronicity(Synchronicity.ASYNC);
-
-      this.directLogging = directLogging;
-    } else {
-      this.testDirectLogInterceptor = testDirectLogInterceptor;
+      logging = cloudLoggingOptions.getService();
+      logging.setFlushSeverity(Severity.NONE);
+      logging.setWriteSynchronicity(Synchronicity.ASYNC);
     }
-    this.defaultNonDirectLogLevel = defaultNonDirectLogLevel;
+
+    checkState(
+        directLoggingState.getAndSet(
+                new DirectLoggingState(
+                    defaultLabels,
+                    defaultResourceLabels,
+                    steplessMonitoredResource,
+                    defaultNonDirectLogLevel,
+                    Boolean.TRUE.equals(dfLoggingOptions.getDirectLoggingFallbackToDiskOnErrors()),
+                    logging,
+                    Iterables.toArray(writeOptions, Logging.WriteOption.class),
+                    testDirectLogInterceptor))
+            == null,
+        "enableDirectLogging should only be called once on a DataflowWorkerLoggingHandler");
   }
 
   private static @Nullable DataflowExecutionState getCurrentDataflowExecutionState() {
@@ -480,23 +506,26 @@ public class DataflowWorkerLoggingHandler extends Handler {
   }
 
   public void publish(@Nullable DataflowExecutionState executionState, LogRecord record) {
-    boolean isDirectLog = isConfiguredDirectLog(record);
-    if (isDirectLog) {
+    @Nullable DirectLoggingState direct = directLoggingState.get();
+    if (direct != null && isConfiguredDirectLog(record, direct.defaultNonDirectLogLevel)) {
       if (directThrottler.shouldAttemptDirectLog()) {
         try {
-          LogEntry logEntry = constructDirectLogEntry(record, executionState);
-          if (testDirectLogInterceptor != null) {
-            // The default labels are applied by write options generally bute we merge them in here
+          LogEntry logEntry =
+              constructDirectLogEntry(record, executionState, direct.defaultResourceLabels);
+          if (direct.directLogging != null) {
+            checkNotNull(direct.directLogging)
+                .write(ImmutableList.of(logEntry), direct.directWriteOptions);
+          } else {
+            // This is the testing path when testDirectLogInterceptor was specified.
+            // The default labels are applied by write options generally but we merge them in here
             // so they are visible to the test.
-            HashMap<String, String> mergedLabels = new HashMap<>(defaultLabels);
+            HashMap<String, String> mergedLabels = new HashMap<>(direct.defaultLabels);
             mergedLabels.putAll(logEntry.getLabels());
             logEntry = logEntry.toBuilder().setLabels(mergedLabels).build();
             if (logEntry.getResource() == null) {
-              logEntry = logEntry.toBuilder().setResource(steplessMonitoredResource).build();
+              logEntry = logEntry.toBuilder().setResource(direct.steplessMonitoredResource).build();
             }
-            checkNotNull(testDirectLogInterceptor).accept(logEntry);
-          } else {
-            checkNotNull(directLogging).write(ImmutableList.of(logEntry), directWriteOptions);
+            checkNotNull(direct.testDirectLogInterceptor).accept(logEntry);
           }
           directThrottler.noteDirectLoggingEnqueueSuccess();
           return;
@@ -509,7 +538,7 @@ public class DataflowWorkerLoggingHandler extends Handler {
       }
 
       // Either we were throttled or encountered an error enqueuing the log.
-      if (!fallbackDirectErrorsToDisk) {
+      if (!direct.fallbackDirectErrorsToDisk) {
         boolean shouldLog = false;
         Instant now = Instant.now();
         synchronized (this) {
@@ -610,16 +639,19 @@ public class DataflowWorkerLoggingHandler extends Handler {
   }
 
   @VisibleForTesting
-  boolean isConfiguredDirectLog(LogRecord record) {
-    if (directLogging == null && testDirectLogInterceptor == null) {
-      return false;
-    }
+  static boolean isConfiguredDirectLog(LogRecord record, Level defaultNonDirectLogLevel) {
     @Nullable ResourceBundle resourceBundle = record.getResourceBundle();
     Level nonDirectLogLevel =
         (resourceBundle instanceof DirectHintResourceBundle)
             ? ((DirectHintResourceBundle) resourceBundle).nonDirectLogLevel
             : defaultNonDirectLogLevel;
     return nonDirectLogLevel.intValue() > record.getLevel().intValue();
+  }
+
+  @VisibleForTesting
+  boolean testVerifyIsConfiguredDirectLog(LogRecord record) {
+    return isConfiguredDirectLog(
+        record, checkNotNull(directLoggingState).get().defaultNonDirectLogLevel);
   }
 
   @VisibleForTesting
@@ -737,8 +769,9 @@ public class DataflowWorkerLoggingHandler extends Handler {
   @Override
   public void flush() {
     flushDisk();
-    if (directLogging != null) {
-      directLogging.flush();
+    @Nullable DirectLoggingState direct = directLoggingState.get();
+    if (direct != null && direct.directLogging != null) {
+      direct.directLogging.flush();
     }
   }
 
@@ -761,8 +794,9 @@ public class DataflowWorkerLoggingHandler extends Handler {
       }
     }
     try {
-      if (directLogging != null) {
-        directLogging.close();
+      @Nullable DirectLoggingState direct = directLoggingState.get();
+      if (direct != null && direct.directLogging != null) {
+        direct.directLogging.close();
       }
     } catch (Exception e) {
       reportFailure("Unable to close", e, ErrorManager.CLOSE_FAILURE);
