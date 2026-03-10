@@ -30,6 +30,7 @@ import org.apache.beam.sdk.schemas.SchemaRegistry;
 import org.apache.beam.sdk.schemas.transforms.SchemaTransform;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.Filter;
+import org.apache.beam.sdk.transforms.GroupByKey;
 import org.apache.beam.sdk.transforms.GroupIntoBatches;
 import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.ParDo;
@@ -89,6 +90,7 @@ import static org.apache.beam.sdk.io.iceberg.AddFiles.ConvertToDataFile.DATA_FIL
 import static org.apache.beam.sdk.io.iceberg.AddFiles.ConvertToDataFile.ERRORS;
 import static org.apache.beam.sdk.metrics.Metrics.counter;
 import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
+import static org.apache.beam.sdk.values.PCollection.IsBounded.BOUNDED;
 
 /**
  * A transform that takes in a stream of file paths, converts them to Iceberg {@link DataFile}s with
@@ -172,14 +174,21 @@ public class AddFiles extends SchemaTransform {
       throw new RuntimeException(e);
     }
 
-    PCollection<Row> snapshots =
+    PCollection<KV<Void, SerializableDataFile>> keyedFiles =
         dataFiles
             .get(DATA_FILES)
             .setCoder(sdfSchema)
-            .apply("AddStaticKey", WithKeys.of((Void) null))
-            .apply(
+            .apply("AddStaticKey", WithKeys.of((Void) null));
+
+    PCollection<KV<Void, Iterable<SerializableDataFile>>> groupedFiles =
+        keyedFiles.isBounded().equals(BOUNDED)
+            ? keyedFiles.apply(GroupByKey.create())
+            : keyedFiles.apply(
                 GroupIntoBatches.<Void, SerializableDataFile>ofSize(numFilesTrigger)
-                    .withMaxBufferingDuration(intervalTrigger))
+                    .withMaxBufferingDuration(intervalTrigger));
+
+    PCollection<Row> snapshots =
+        groupedFiles
             .apply(
                 "CommitFilesToIceberg",
                 ParDo.of(new CommitFilesDoFn(catalogConfig, tableIdentifier, jobId)))
