@@ -44,6 +44,7 @@ You can register new catalogs, switch between them, and modify their configurati
 ### [SHOW](/documentation/dsls/sql/ddl/show#SHOW-CATALOGS)
 
 ## Databases
+A Database lives inside a catalog and may contain a number of Tables.
 
 ### [CREATE](/documentation/dsls/sql/ddl/create#CREATE-DATABASE)
 ### [USE](/documentation/dsls/sql/ddl/use#USE-DATABASE)
@@ -51,6 +52,8 @@ You can register new catalogs, switch between them, and modify their configurati
 ### [SHOW](/documentation/dsls/sql/ddl/show#SHOW-DATABASES)
 
 ## Tables
+The actual entity containing data, and is described by a schema. Some
+data sources also support applying a partition spec and attaching table-specific properties.
 
 ### [CREATE](/documentation/dsls/sql/ddl/create#CREATE-TABLE)
 ### [DROP](/documentation/dsls/sql/ddl/drop#DROP-TABLE)
