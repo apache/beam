@@ -199,9 +199,9 @@ class ValidationTest(unittest.TestCase):
 
   def test_default_buffer(self):
     t = ReadBigQueryChangeHistory(table='p:d.t', change_function='CHANGES')
-    self.assertEqual(t._buffer_sec, 15)
+    self.assertEqual(t._buffer_sec, 10)
     t = ReadBigQueryChangeHistory(table='p:d.t', change_function='APPENDS')
-    self.assertEqual(t._buffer_sec, 15)
+    self.assertEqual(t._buffer_sec, 10)
 
 
 if __name__ == '__main__':
