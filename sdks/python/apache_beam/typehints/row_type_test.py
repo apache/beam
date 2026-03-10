@@ -17,9 +17,9 @@
 
 """Unit tests for the Beam Row typing functionality."""
 
-from dataclasses import dataclass
 import typing
 import unittest
+from dataclasses import dataclass
 
 import apache_beam as beam
 from apache_beam.testing.test_pipeline import TestPipeline
@@ -84,3 +84,7 @@ class RowTypeTest(unittest.TestCase):
           | 'GBK' >> beam.GroupByKey()
           | 'Count Elements' >> beam.Map(self._check_key_type_and_count))
       assert_that(result, equal_to([10] * 100))
+
+
+if __name__ == '__main__':
+  unittest.main()
