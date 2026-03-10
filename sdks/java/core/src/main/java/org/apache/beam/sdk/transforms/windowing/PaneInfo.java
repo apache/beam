@@ -343,7 +343,7 @@ public final class PaneInfo {
 
       public static Encoding fromTag(byte b) throws CoderException {
         int index = b >> 4;
-        if (index < 0 || index > values().length) {
+        if (index < 0 || index >= values().length) {
           throw new CoderException("Invalid pane encoding " + index);
         }
         return Encoding.values()[b >> 4];
