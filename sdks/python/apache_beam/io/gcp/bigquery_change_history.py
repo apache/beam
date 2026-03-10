@@ -302,11 +302,6 @@ class _PollWatermarkEstimatorProvider(WatermarkEstimatorProvider):
     return _PollWatermarkEstimator(estimator_state)
 
 
-def _table_key(table_ref: 'bigquery.TableReference') -> str:
-  """Convert a TableReference to a 'project.dataset.table' string."""
-  return f'{table_ref.projectId}.{table_ref.datasetId}.{table_ref.tableId}'
-
-
 def build_changes_query(
     table: str,
     start: Timestamp,
@@ -711,7 +706,7 @@ class _ReadStorageStreamsSDF(beam.DoFn,
 
   Emits:
     Main output: TimestampedValue(row_dict, event_timestamp)
-    Side output (_CLEANUP_TAG): (table_key, streams_read, total_streams)
+    Side output (_CLEANUP_TAG): (table_key, (streams_read, total_streams))
   """
   def __init__(
       self,
@@ -738,7 +733,7 @@ class _ReadStorageStreamsSDF(beam.DoFn,
   def initial_restriction(self, element: _QueryResult) -> _StreamRestriction:
     """Create ReadSession and return _StreamRestriction with stream names."""
     self._ensure_client()
-    table_key = _table_key(element.temp_table_ref)
+    table_key = bigquery_tools.get_hashable_destination(element.temp_table_ref)
     session = self._create_read_session(element.temp_table_ref)
     stream_names = tuple(s.name for s in session.streams)
     _LOGGER.info(
@@ -775,7 +770,7 @@ class _ReadStorageStreamsSDF(beam.DoFn,
           _CDCWatermarkEstimatorProvider())
   ) -> Iterable[Dict[str, Any]]:
     self._ensure_client()
-    table_key = _table_key(element.temp_table_ref)
+    table_key = bigquery_tools.get_hashable_destination(element.temp_table_ref)
 
     _LOGGER.info(
         '[Read] Processing %s, range=[%s, %s), '
@@ -825,7 +820,7 @@ class _ReadStorageStreamsSDF(beam.DoFn,
         yield TimestampedValue(row, ts)
         stream_rows += 1
         total_rows += 1
-        Metrics.counter('BigQueryChangeHistory', 'rows_emitted').inc()
+      Metrics.counter('BigQueryChangeHistory', 'rows_emitted').inc(total_rows)
 
       streams_read += 1
       _LOGGER.info(
@@ -854,11 +849,7 @@ class _ReadStorageStreamsSDF(beam.DoFn,
           total_streams,
           total_rows)
       yield beam.pvalue.TaggedOutput(
-          _CLEANUP_TAG, (
-              table_key,
-              streams_read,
-              total_streams,
-          ))
+          _CLEANUP_TAG, (table_key, (streams_read, total_streams)))
 
   def _create_read_session(self, table_ref: 'bigquery.TableReference') -> Any:
     """Create a BigQuery Storage ReadSession for the given table."""
@@ -925,10 +916,7 @@ class _ReadStorageStreamsSDF(beam.DoFn,
       if batch_bytes and schema is not None:
         batch = pyarrow.ipc.read_record_batch(
             pyarrow.py_buffer(batch_bytes), schema)
-        columns = batch.to_pydict()
-        col_names = batch.schema.names
-        for i in range(batch.num_rows):
-          yield {name: columns[name][i] for name in col_names}
+        yield from batch.to_pylist()
         row_count += batch.num_rows
     elapsed = time.time() - t0
     _LOGGER.info(
@@ -1023,7 +1011,9 @@ class ReadBigQueryChangeHistory(beam.PTransform):
         Default: current time when pipeline starts.
     stop_time: Stop polling at this timestamp. Default: run forever.
     change_function: 'CHANGES' or 'APPENDS'. Default 'APPENDS'.
-    buffer_sec: Safety buffer in seconds behind now(). Default 15.
+    buffer_sec: Safety buffer in seconds behind now(). Default 15. BQ does not
+        fail or wait if the query end_ts is less than BQ's CURRENT_TIMESTAMP.
+        This is an extra guardrail to protect against silent data.
     project: GCP project ID. Default: from pipeline options.
     temp_dataset: Dataset for temp tables. If None (default), a
         per-pipeline dataset is auto-created with a 24-hour table
@@ -1087,7 +1077,7 @@ class ReadBigQueryChangeHistory(beam.PTransform):
       raise ValueError(
           f'poll_interval_sec must be >= 15, got {poll_interval_sec}')
     if buffer_sec < 0:
-      raise ValueError(f'buffer_sec must be >= 10, got {buffer_sec}')
+      raise ValueError(f'buffer_sec must be >= 0, got {buffer_sec}')
     self._table = table
     self._poll_interval_sec = poll_interval_sec
     self._start_time = start_time
@@ -1191,9 +1181,6 @@ class ReadBigQueryChangeHistory(beam.PTransform):
 
     _ = (
         read_outputs[_CLEANUP_TAG]
-        | 'KeyByTable' >>
-        beam.Map(lambda x: (x[0], (x[1], x[2]))).with_output_types(
-            beam.typehints.Tuple[str, beam.typehints.Tuple[int, int]])
         | 'CleanupTempTables' >> beam.ParDo(_CleanupTempTablesFn()))
 
     return read_outputs['rows']
