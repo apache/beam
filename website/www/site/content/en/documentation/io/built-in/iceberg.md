@@ -47,6 +47,14 @@ To use IcebergIO, install the [Beam SQL Shell](https://beam.apache.org/documenta
 ```
 {{% /section %}}
 
+{{< paragraph class="language-yaml" >}}
+To use IcebergIO with [Beam YAML](../../sdks/yaml), install the `yaml` extra:
+{{< /paragraph >}}
+
+{{< highlight yaml >}}
+pip install apache_beam[yaml]
+{{< /highlight >}}
+
 {{< paragraph >}}
 If you're new to Iceberg, check out the [basics section](#iceberg-basics) under the guide.
 {{< /paragraph >}}
