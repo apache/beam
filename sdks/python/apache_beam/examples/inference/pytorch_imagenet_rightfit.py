@@ -29,7 +29,6 @@ import json
 import logging
 import threading
 import time
-from typing import Iterable
 from typing import Optional
 from typing import Tuple
 
@@ -50,6 +49,7 @@ from apache_beam.runners.runner import PipelineResult
 from apache_beam.transforms import userstate
 from apache_beam.transforms import window
 
+from google.api_core.exceptions import NotFound
 from google.cloud import pubsub_v1
 import PIL.Image as PILImage
 
@@ -245,6 +245,16 @@ def parse_known_args(argv):
       type=float,
       default=None,
       help='Elements per second for load pipeline')
+  parser.add_argument(
+      '--feeder_start_delay_sec',
+      type=int,
+      default=900,
+      help=(
+        'Delay before starting the feeder pipeline that reads URIs from GCS '
+        'and publishes them to Pub/Sub. This delay allows the main streaming '
+        'pipeline workers to start and scale before data ingestion begins.'
+      ),
+  )
 
   # Model & inference
   parser.add_argument(
@@ -289,13 +299,13 @@ def ensure_pubsub_resources(
 
   try:
     publisher.get_topic(request={"topic": full_topic_path})
-  except Exception:
+  except NotFound:
     publisher.create_topic(name=full_topic_path)
 
   try:
     subscriber.get_subscription(
         request={"subscription": full_subscription_path})
-  except Exception:
+  except NotFound:
     subscriber.create_subscription(
         name=full_subscription_path, topic=full_topic_path)
 
@@ -316,14 +326,14 @@ def cleanup_pubsub_resources(
     subscriber.delete_subscription(
         request={"subscription": full_subscription_path})
     print(f"Deleted subscription: {subscription_name}")
-  except Exception as e:
-    print(f"Failed to delete subscription: {e}")
+  except NotFound:
+    print(f"Subscription already deleted: {subscription_name}")
 
   try:
     publisher.delete_topic(request={"topic": full_topic_path})
     print(f"Deleted topic: {topic_name}")
-  except Exception as e:
-    print(f"Failed to delete topic: {e}")
+  except NotFound:
+    print(f"Topic already deleted: {topic_name}")
 
 
 def override_or_add(args, flag, value):
@@ -402,9 +412,12 @@ def run(
         subscription_path=known_args.pubsub_subscription)
 
     # Start feeder thread that reads URIs from GCS and fills Pub/Sub.
+    # Delay is used to allow the main streaming pipeline workers to start
+    # and autoscale before the feeder pipeline begins publishing messages.
     threading.Thread(
-        target=lambda:
-        (time.sleep(900), run_load_pipeline(known_args, pipeline_args)),
+        target=lambda: (
+            time.sleep(known_args.feeder_start_delay_sec),
+            run_load_pipeline(known_args, pipeline_args)),
         daemon=True).start()
 
   # StandardOptions
