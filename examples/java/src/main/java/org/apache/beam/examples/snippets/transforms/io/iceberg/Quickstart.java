@@ -34,8 +34,8 @@ import org.apache.beam.sdk.values.TypeDescriptors;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 
 public class Quickstart {
-  static String PROJECT_ID = "apache-beam-testing";
-  static String BUCKET_NAME = "my-bucket";
+  static final String PROJECT_ID = "apache-beam-testing";
+  static final String BUCKET_NAME = "my-bucket";
 
   public static void main(String[] args) {
     // [START hadoop_catalog_props]
