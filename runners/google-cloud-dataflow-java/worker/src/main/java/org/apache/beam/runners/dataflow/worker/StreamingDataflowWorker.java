@@ -330,7 +330,8 @@ public final class StreamingDataflowWorker {
   }
 
   private StreamingWorkerHarnessFactoryOutput createApplianceWorkerHarness(
-      @UnderInitialization() StreamingDataflowWorker this,
+      @UnderInitialization()
+          StreamingDataflowWorker this, // Use receiver parameter syntax to allow annotation.
       long clientId,
       DataflowWorkerHarnessOptions options,
       WindmillServerStub windmillServer,
@@ -370,7 +371,8 @@ public final class StreamingDataflowWorker {
   }
 
   private StreamingWorkerHarnessFactoryOutput createFanOutStreamingEngineWorkerHarness(
-      @UnknownInitialization() StreamingDataflowWorker this,
+      @UnknownInitialization()
+          StreamingDataflowWorker this, // Use receiver parameter syntax to allow annotation.
       long clientId,
       DataflowWorkerHarnessOptions options,
       GrpcWindmillStreamFactory windmillStreamFactory,
@@ -437,7 +439,8 @@ public final class StreamingDataflowWorker {
   }
 
   private StreamingWorkerHarnessFactoryOutput createSingleSourceWorkerHarness(
-      @UnknownInitialization() StreamingDataflowWorker this,
+      @UnknownInitialization()
+          StreamingDataflowWorker this, // Use receiver parameter syntax to allow annotation.
       long clientId,
       DataflowWorkerHarnessOptions options,
       WindmillServerStub windmillServer,
