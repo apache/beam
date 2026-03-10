@@ -181,8 +181,12 @@ class PostProcessDoFn(beam.DoFn):
         # fallback: try first value if dict shape differs
         try:
           logits = next(iter(inference_obj.values()))
+          logging.warning(
+              'Could not find <logits> key in model output.'
+              'Falling back to first value in dict.'
+          )
         except Exception:
-          logits = None
+          logging.warning('Could not find <logits> key in dict.')
     else:
       logits = inference_obj
 
@@ -454,7 +458,7 @@ def run(
         mdl(torch.unsqueeze(dummy, 0))
       bs_ok = bs if bs is not None else 64
       break
-    except Exception as e:
+    except RuntimeError as e:
       last_err = e
       logging.warning("Batch size %s failed during warmup: %s", bs, e)
       continue
