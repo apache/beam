@@ -54,12 +54,12 @@ class WindowingWindmillReader<K, T> extends NativeReader<WindowedValue<KeyedWork
   private final Coder<? extends BoundedWindow> windowCoder;
   private final Coder<Collection<? extends BoundedWindow>> windowsCoder;
   private StreamingModeExecutionContext context;
-  private final ValueProvider<Boolean> skipDecodingExceptions;
+  private final ValueProvider<Boolean> skipUndecodableElements;
 
   WindowingWindmillReader(
       Coder<WindowedValue<KeyedWorkItem<K, T>>> coder,
       StreamingModeExecutionContext context,
-      ValueProvider<Boolean> skipDecodingExceptions) {
+      ValueProvider<Boolean> skipUndecodableElements) {
     FullWindowedValueCoder<KeyedWorkItem<K, T>> inputCoder =
         (FullWindowedValueCoder<KeyedWorkItem<K, T>>) coder;
     this.windowsCoder = inputCoder.getWindowsCoder();
@@ -69,7 +69,7 @@ class WindowingWindmillReader<K, T> extends NativeReader<WindowedValue<KeyedWork
     this.keyCoder = keyedWorkItemCoder.getKeyCoder();
     this.valueCoder = keyedWorkItemCoder.getElementCoder();
     this.context = context;
-    this.skipDecodingExceptions = skipDecodingExceptions;
+    this.skipUndecodableElements = skipUndecodableElements;
   }
 
   /** A {@link ReaderFactory.Registrar} for grouping windmill sources. */
@@ -144,7 +144,8 @@ class WindowingWindmillReader<K, T> extends NativeReader<WindowedValue<KeyedWork
             valueCoder,
             context.getWindmillTagEncoding(),
             context.getDrainMode(),
-            Boolean.TRUE.equals(skipDecodingExceptions.get()));
+            skipUndecodableElements.isAccessible()
+                && Boolean.TRUE.equals(skipUndecodableElements.get()));
     final boolean isEmptyWorkItem =
         (Iterables.isEmpty(keyedWorkItem.timersIterable())
             && Iterables.isEmpty(keyedWorkItem.elementsIterable()));

@@ -856,12 +856,6 @@ public class StreamingDataflowWorkerTest {
     if (streamingEngine) {
       argsList.add("--experiments=enable_streaming_engine");
     }
-    // We need to set the ValueProvider in all cases because we examine it and it is a
-    // RuntimeValueParameter.
-    if (argsList.stream()
-        .noneMatch(s -> s.startsWith("--skipInputElementsWithDecodingExceptions"))) {
-      argsList.add("--skipInputElementsWithDecodingExceptions=false");
-    }
     LOG.info("Running with args {}", argsList);
     DataflowWorkerHarnessOptions options =
         PipelineOptionsFactory.fromArgs(argsList.toArray(new String[0]))

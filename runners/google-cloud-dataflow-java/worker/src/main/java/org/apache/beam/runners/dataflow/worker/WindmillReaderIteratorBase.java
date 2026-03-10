@@ -70,8 +70,13 @@ public abstract class WindmillReaderIteratorBase<T>
         current = checkNotNull(decodeMessage(bundle.getMessages(messageIndex)));
         return true;
       } catch (RuntimeException | IOException e) {
-        if (Boolean.TRUE.equals(skipUndecodableElements.get())) {
-          LOG.error("Skipping input element due to decoding error", e);
+        if (skipUndecodableElements.isAccessible()
+            && Boolean.TRUE.equals(skipUndecodableElements.get())) {
+          LOG.error(
+              "Skipping input element for work token {} on sharding key {} due to decoding error",
+              work.getWorkToken(),
+              work.getShardingKey(),
+              e);
           continue;
         }
         throw e;

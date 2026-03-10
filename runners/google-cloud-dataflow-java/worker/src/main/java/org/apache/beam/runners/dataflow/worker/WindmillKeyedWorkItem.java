@@ -164,7 +164,11 @@ public class WindmillKeyedWorkItem<K, ElemT> implements KeyedWorkItem<K, ElemT> 
       if (!skipUndecodableElements) {
         throw new RuntimeException(e);
       }
-      LOG.error("Skipping input element due to decoding error", e);
+      LOG.error(
+          "Skipping input element for work token {} on sharding key {} due to decoding error",
+          workItem.getWorkToken(),
+          workItem.getShardingKey(),
+          e);
       return null;
     }
   }
