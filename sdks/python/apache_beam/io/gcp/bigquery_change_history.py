@@ -1010,7 +1010,7 @@ class ReadBigQueryChangeHistory(beam.PTransform):
         Default: current time when pipeline starts.
     stop_time: Stop polling at this timestamp. Default: run forever.
     change_function: 'CHANGES' or 'APPENDS'. Default 'APPENDS'.
-    buffer_sec: Safety buffer in seconds behind now(). Default 15. BQ does not
+    buffer_sec: Safety buffer in seconds behind now(). Default 10. BQ does not
         fail or wait if the query end_ts is less than BQ's CURRENT_TIMESTAMP.
         This is an extra guardrail to protect against silent data.
     project: GCP project ID. Default: from pipeline options.
@@ -1049,7 +1049,7 @@ class ReadBigQueryChangeHistory(beam.PTransform):
       start_time: Optional[float] = None,
       stop_time: Optional[float] = None,
       change_function: str = 'APPENDS',
-      buffer_sec: float = 15,
+      buffer_sec: float = 10,
       project: Optional[str] = None,
       temp_dataset: Optional[str] = None,
       location: Optional[str] = None,

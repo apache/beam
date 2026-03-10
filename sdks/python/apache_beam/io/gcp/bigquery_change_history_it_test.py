@@ -150,6 +150,21 @@ class BigQueryChangeHistoryIntegrationBase(unittest.TestCase):
     return bigquery.TableReference(
         projectId=cls.project, datasetId=cls.dataset, tableId=table_id)
 
+  @classmethod
+  def _run_dml(cls, sql):
+    """Run a DML statement (INSERT/UPDATE/DELETE) and wait for completion."""
+    job_id = f'beam_ch_dml_{uuid.uuid4().hex[:8]}'
+    reference = bigquery.JobReference(jobId=job_id, projectId=cls.project)
+    request = bigquery.BigqueryJobsInsertRequest(
+        projectId=cls.project,
+        job=bigquery.Job(
+            configuration=bigquery.JobConfiguration(
+                query=bigquery.JobConfigurationQuery(
+                    query=sql, useLegacySql=False)),
+            jobReference=reference))
+    response = cls.bq_wrapper._start_job(request)
+    cls.bq_wrapper.wait_for_bq_job(response.jobReference, sleep_duration_sec=2)
+
 
 class CleanupTempTablesFnTest(BigQueryChangeHistoryIntegrationBase):
   """Integration tests for _CleanupTempTablesFn against real BigQuery."""
@@ -395,6 +410,84 @@ class ExecuteQueryFnTest(BigQueryChangeHistoryIntegrationBase):
 
       result_count = results | beam.combiners.Count.Globally()
       assert_that(result_count, equal_to([1]), label='CheckOneResult')
+
+
+class ChangesEndToEndTest(BigQueryChangeHistoryIntegrationBase):
+  """End-to-end test using CHANGES function to capture all mutation types.
+
+  Creates a change-history-enabled table, performs INSERT, UPDATE, and
+  DELETE operations via DML, then reads back via CHANGES to verify all
+  change types appear.
+  """
+  @classmethod
+  def setUpClass(cls):
+    super().setUpClass()
+    cls.test_table_id = f'e2e_changes_{secrets.token_hex(4)}'
+    fq_table = f'{cls.project}.{cls.dataset}.{cls.test_table_id}'
+
+    # Create a change-history-enabled table and insert initial rows via DML.
+    # DML inserts (not streaming inserts) are immediately visible and avoid
+    # streaming-buffer flush delays.
+    cls._create_change_history_table(cls.test_table_id)
+    cls.dml_start_time = time.time()
+    cls._run_dml(
+        f"INSERT INTO `{fq_table}` (id, name, value) "
+        f"VALUES (1, 'alice', 10.0), (2, 'bob', 20.0), (3, 'charlie', 30.0)")
+    cls._run_dml(f"UPDATE `{fq_table}` SET value = 25.0 WHERE id = 2")
+    cls._run_dml(f"DELETE FROM `{fq_table}` WHERE id = 3")
+
+    _LOGGER.info('Waiting for change history propagation...')
+    time.sleep(15)
+
+  def test_changes_captures_insert_update_delete(self):
+    """ReadBigQueryChangeHistory with CHANGES sees all mutation types."""
+    table_str = f'{self.project}:{self.dataset}.{self.test_table_id}'
+    start_time = self.dml_start_time - 120
+    stop_time = time.time() + 15
+
+    with beam.Pipeline(argv=self.args) as p:
+      rows = (
+          p
+          | ReadBigQueryChangeHistory(
+              table=table_str,
+              poll_interval_sec=15,
+              start_time=start_time,
+              stop_time=stop_time,
+              change_function='CHANGES',
+              buffer_sec=10,
+              project=self.project,
+              temp_dataset=self.temp_dataset,
+              location=self.location))
+
+      def check_rows(actual):
+        by_type = {}
+        for row in actual:
+          ct = row['change_type']
+          by_type.setdefault(ct, []).append(row)
+
+        # BQ CHANGES returns:
+        #   INSERT: 3 (original rows)
+        #   UPDATE: 1 (bob with new value=25.0)
+        #   DELETE: 2 (bob's pre-update row + charlie's explicit delete)
+        inserts = sorted(by_type.get('INSERT', []), key=lambda r: r['id'])
+        assert len(inserts) == 3, (
+            f'Expected 3 INSERTs, got {len(inserts)}: {inserts}')
+
+        updates = by_type.get('UPDATE', [])
+        assert len(updates) == 1, (
+            f'Expected 1 UPDATE, got {len(updates)}: {updates}')
+        assert updates[0]['id'] == 2 and updates[0]['value'] == 25.0, (
+            f'Unexpected UPDATE row: {updates[0]}')
+
+        deletes = sorted(by_type.get('DELETE', []), key=lambda r: r['id'])
+        assert len(deletes) == 2, (
+            f'Expected 2 DELETEs, got {len(deletes)}: {deletes}')
+        delete_ids = {r['id'] for r in deletes}
+        assert delete_ids == {
+            2, 3
+        }, (f'Expected DELETE ids {{2, 3}}, got {delete_ids}')
+
+      assert_that(rows, check_rows)
 
 
 class EndToEndTest(BigQueryChangeHistoryIntegrationBase):
