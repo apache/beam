@@ -550,6 +550,9 @@ if __name__ == '__main__':
               # https://github.com/apache/beam/issues/31285
               # 'xgboost<2.0',  # https://github.com/apache/beam/issues/31252
           ] + ml_base,
+          'p310_ml_test': [
+            'datatable',
+          ] + ml_base,
           'p312_ml_test': [
               'datatable',
           ] + ml_base,
