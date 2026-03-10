@@ -37,22 +37,22 @@ Click below to learn about metadata management at each level:
 The Catalog is the entry point for external metadata. When you initialize Beam SQL, you start off with a `default` catalog that contains a `default` database.
 You can register new catalogs, switch between them, and modify their configurations.
 
-### [CREATE](/create#CREATE-CATALOG)
-### [USE](/use#USE-CATALOG)
-### [DROP](/drop#DROP-CATALOG)
-### [ALTER](/alter#ALTER-CATALOG)
-### [SHOW](/show#SHOW-CATALOGS)
+### [CREATE](/documentation/dsls/sql/ddl/create#CREATE-CATALOG)
+### [USE](/documentation/dsls/sql/ddl/use#USE-CATALOG)
+### [DROP](/documentation/dsls/sql/ddl/drop#DROP-CATALOG)
+### [ALTER](/documentation/dsls/sql/ddl/alter#ALTER-CATALOG)
+### [SHOW](/documentation/dsls/sql/ddl/show#SHOW-CATALOGS)
 
 ## Databases
 
-### [CREATE](/create#CREATE-DATABASE)
-### [USE](/use#USE-DATABASE)
-### [DROP](/drop#DROP-DATABASE)
-### [SHOW](/show#SHOW-DATABASES)
+### [CREATE](/documentation/dsls/sql/ddl/create#CREATE-DATABASE)
+### [USE](/documentation/dsls/sql/ddl/use#USE-DATABASE)
+### [DROP](/documentation/dsls/sql/ddl/drop#DROP-DATABASE)
+### [SHOW](/documentation/dsls/sql/ddl/show#SHOW-DATABASES)
 
 ## Tables
 
-### [CREATE](/create#CREATE-TABLE)
-### [DROP](/drop#DROP-TABLE)
-### [ALTER](/alter#ALTER-TABLE)
-### [SHOW](/show#SHOW-TABLES)
+### [CREATE](/documentation/dsls/sql/ddl/create#CREATE-TABLE)
+### [DROP](/documentation/dsls/sql/ddl/drop#DROP-TABLE)
+### [ALTER](/documentation/dsls/sql/ddl/alter#ALTER-TABLE)
+### [SHOW](/documentation/dsls/sql/ddl/show#SHOW-TABLES)
