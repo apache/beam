@@ -1,5 +1,5 @@
 ---
-title: "PyTorch Language Modeling BERT base Performance"
+title: "PyTorch Image Classification EfficientNet-B0 Streaming (Right-fitting, Exactly-once) GPU Performance"
 ---
 
 <!--
@@ -26,7 +26,7 @@ This streaming pipeline performs image classification using an open-source PyTor
 It reads image URIs from Pub/Sub, decodes and preprocesses them in parallel, and runs inference with adaptive batch sizing for optimal GPU utilization.
 The pipeline ensures exactly-once semantics via stateful deduplication and idempotent BigQuery writes, allowing stable and reproducible performance measurements under continuous load.
 
-The following graphs show various metrics when running PyTorch Sentiment Analysis Streaming using Hugging Face DistilBERT base uncased model pipeline.
+The following graphs show various metrics when running the PyTorch Image Classification EfficientNet-B0 Streaming (Right-fitting, Exactly-once) GPU pipeline.
 See the [glossary](/performance/glossary) for definitions.
 
 Full pipeline implementation is available [here](https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/inference/pytorch_imagenet_rightfit.py).

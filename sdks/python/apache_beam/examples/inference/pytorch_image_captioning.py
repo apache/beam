@@ -59,13 +59,6 @@ def now_millis() -> int:
   return int(time.time() * 1000)
 
 
-def read_gcs_file_lines(gcs_path: str) -> Iterable[str]:
-  """Reads text lines from a GCS file."""
-  with FileSystems.open(gcs_path) as f:
-    for line in f.read().decode("utf-8").splitlines():
-      yield line.strip()
-
-
 def load_image_from_uri(uri: str) -> bytes:
   with FileSystems.open(uri) as f:
     return f.read()
@@ -552,8 +545,7 @@ def run_load_pipeline(known_args, pipeline_args):
 
   lines = (
       pipeline
-      |
-      'ReadGCSFile' >> beam.Create(list(read_gcs_file_lines(known_args.input)))
+      | 'ReadGCSFile' >> beam.io.ReadFromText(known_args.input)
       | 'FilterEmpty' >> beam.Filter(lambda line: line.strip()))
   if known_args.rate_limit:
     lines = lines | 'RateLimit' >> beam.ParDo(
@@ -614,8 +606,7 @@ def run(
   if known_args.mode == 'batch':
     pcoll = (
         pipeline
-        | 'ReadURIsBatch' >> beam.Create(
-            list(read_gcs_file_lines(known_args.input)))
+        | 'ReadURIsBatch' >> beam.io.ReadFromText(known_args.input)
         | 'FilterEmptyBatch' >> beam.Filter(lambda s: s.strip()))
   else:
     pcoll = (
