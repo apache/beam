@@ -31,49 +31,53 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Immuta
 import org.joda.time.DateTime;
 
 public class IcebergBeamSchemaAndRow {
-  Schema nestedSchema =
-      Schema.builder().addStringField("nested_field").addInt32Field("nested_field_2").build();
-  Schema beamSchema =
-      Schema.builder()
-          .addBooleanField("boolean_field")
-          .addInt32Field("int_field")
-          .addInt64Field("long_field")
-          .addFloatField("float_field")
-          .addDoubleField("double_field")
-          .addDecimalField("numeric_field")
-          .addByteArrayField("bytes_field")
-          .addStringField("string_field")
-          .addLogicalTypeField("time_field", SqlTypes.TIME)
-          .addLogicalTypeField("date_field", SqlTypes.DATE)
-          .addLogicalTypeField("timestamp_field", Timestamp.MICROS)
-          .addDateTimeField("timestamptz_field")
-          .addArrayField("array_field", Schema.FieldType.INT32)
-          .addMapField("map_field", Schema.FieldType.STRING, Schema.FieldType.INT32)
-          .addRowField("struct_field", nestedSchema)
-          .build();
+  public Row createRow() {
+    Schema nestedSchema =
+        Schema.builder().addStringField("nested_field").addInt32Field("nested_field_2").build();
+    Schema beamSchema =
+        Schema.builder()
+            .addBooleanField("boolean_field")
+            .addInt32Field("int_field")
+            .addInt64Field("long_field")
+            .addFloatField("float_field")
+            .addDoubleField("double_field")
+            .addDecimalField("numeric_field")
+            .addByteArrayField("bytes_field")
+            .addStringField("string_field")
+            .addLogicalTypeField("time_field", SqlTypes.TIME)
+            .addLogicalTypeField("date_field", SqlTypes.DATE)
+            .addLogicalTypeField("timestamp_field", Timestamp.MICROS)
+            .addDateTimeField("timestamptz_field")
+            .addArrayField("array_field", Schema.FieldType.INT32)
+            .addMapField("map_field", Schema.FieldType.STRING, Schema.FieldType.INT32)
+            .addRowField("struct_field", nestedSchema)
+            .build();
 
-  Row beamRow =
-      Row.withSchema(beamSchema)
-          .withFieldValues(
-              ImmutableMap.<String, Object>builder()
-                  .put("boolean_field", true)
-                  .put("int_field", 1)
-                  .put("long_field", 2L)
-                  .put("float_field", 3.4f)
-                  .put("double_field", 4.5d)
-                  .put("numeric_field", new BigDecimal(67))
-                  .put("bytes_field", new byte[] {1, 2, 3})
-                  .put("string_field", "value")
-                  .put("time_field", LocalTime.now())
-                  .put("date_field", LocalDate.now())
-                  .put("timestamp_field", Instant.now())
-                  .put("timestamptz_field", DateTime.now())
-                  .put("array_field", Arrays.asList(1, 2, 3))
-                  .put("map_field", ImmutableMap.of("a", 1, "b", 2))
-                  .put(
-                      "struct_field",
-                      Row.withSchema(nestedSchema).addValues("nested_value", 123).build())
-                  .build())
-          .build();
+    Row beamRow =
+        Row.withSchema(beamSchema)
+            .withFieldValues(
+                ImmutableMap.<String, Object>builder()
+                    .put("boolean_field", true)
+                    .put("int_field", 1)
+                    .put("long_field", 2L)
+                    .put("float_field", 3.4f)
+                    .put("double_field", 4.5d)
+                    .put("numeric_field", new BigDecimal(67))
+                    .put("bytes_field", new byte[] {1, 2, 3})
+                    .put("string_field", "value")
+                    .put("time_field", LocalTime.now())
+                    .put("date_field", LocalDate.now())
+                    .put("timestamp_field", Instant.now())
+                    .put("timestamptz_field", DateTime.now())
+                    .put("array_field", Arrays.asList(1, 2, 3))
+                    .put("map_field", ImmutableMap.of("a", 1, "b", 2))
+                    .put(
+                        "struct_field",
+                        Row.withSchema(nestedSchema).addValues("nested_value", 123).build())
+                    .build())
+            .build();
+
+    return beamRow;
+  }
 }
 // [END iceberg_schema_and_row]
