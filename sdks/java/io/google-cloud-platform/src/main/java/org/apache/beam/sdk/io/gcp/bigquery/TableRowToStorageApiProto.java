@@ -819,7 +819,7 @@ public class TableRowToStorageApiProto {
   }
 
   /**
-   * Forwards {@param changeSequenceNum} to {@link #messageFromTableRow(SchemaInformation,
+   * Forwards {@code changeSequenceNum} to {@link #messageFromTableRow(SchemaInformation,
    * Descriptor, TableRow, boolean, boolean, TableRow, String, String)} via {@link
    * Long#toHexString}.
    */

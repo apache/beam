@@ -83,7 +83,7 @@ import org.joda.time.Instant;
  *
  * <p>By default, the latest element from the previous bucket is propagated into missing buckets. The user can override
  * this using the {@link #withMergeFunction} method. Several built-in merge functions are provided for -
- * {@link #keepLatest()} (the default), {@link #keepEarliest()}, an {@link #keepNull()}.
+ * {@link #keepLatest()} (the default), {@link #keepEarliest()}, and {@code keepNull()}.
  *
  * <p>Sometimes elements need to be modified before being propagated into a missing bucket. For example, consider the
  * following element type containing a timestamp:

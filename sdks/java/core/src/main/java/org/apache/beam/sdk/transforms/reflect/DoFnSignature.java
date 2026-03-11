@@ -741,7 +741,7 @@ public abstract class DoFnSignature {
     }
 
     /**
-     * Descriptor for a (@link Parameter} of type {@link DoFn.Element} where the type does not match
+     * Descriptor for a {@link Parameter} of type {@link DoFn.Element} where the type does not match
      * the DoFn's input type. This implies that the input must have a schema that is compatible.
      */
     @AutoValue
