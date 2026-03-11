@@ -487,9 +487,10 @@ def run_inference(
               model_handler_provider._postprocess_fn_internal()),
           inference_args=inference_args)
       | beam.Map(
-          lambda row: beam.Row(**{
-              str(inference_tag): row[1], **row[0]._asdict()
-          })).with_output_types(schema))
+          lambda row: beam.Row(
+              **{
+                  str(inference_tag): row[1], **row[0]._asdict()
+              })).with_output_types(schema))
 
 
 def _config_to_obj(spec):
