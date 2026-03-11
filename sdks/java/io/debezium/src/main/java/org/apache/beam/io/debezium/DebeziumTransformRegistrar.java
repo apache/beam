@@ -152,7 +152,7 @@ public class DebeziumTransformRegistrar implements ExternalTransformRegistrar {
       if (configuration.offsetStoragePath != null) {
         readTransform =
             readTransform.withOffsetRetainer(
-                new FileSystemOffsetRetainer(configuration.offsetStoragePath));
+                FileSystemOffsetRetainer.of(configuration.offsetStoragePath));
       }
 
       return readTransform;

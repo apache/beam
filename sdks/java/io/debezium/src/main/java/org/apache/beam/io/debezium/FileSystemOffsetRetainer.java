@@ -26,6 +26,7 @@ import java.io.OutputStream;
 import java.nio.channels.Channels;
 import java.nio.channels.ReadableByteChannel;
 import java.nio.channels.WritableByteChannel;
+import java.util.Collections;
 import java.util.Map;
 import org.apache.beam.sdk.io.FileSystems;
 import org.apache.beam.sdk.io.fs.ResourceId;
@@ -51,7 +52,7 @@ import org.slf4j.LoggerFactory;
  * DebeziumIO.read()
  *     .withConnectorConfiguration(config)
  *     .withOffsetRetainer(
- *         new FileSystemOffsetRetainer("gs://my-bucket/debezium/orders-offset.json"))
+ *         FileSystemOffsetRetainer.of("gs://my-bucket/debezium/orders-offset.json"))
  *     .withFormatFunction(myMapper);
  * }</pre>
  *
@@ -60,12 +61,13 @@ import org.slf4j.LoggerFactory;
  * <pre>{@code
  * DebeziumIO.read()
  *     .withConnectorConfiguration(config)
- *     .withOffsetRetainer(new FileSystemOffsetRetainer("/tmp/debezium-offset.json"))
+ *     .withOffsetRetainer(FileSystemOffsetRetainer.of("/tmp/debezium-offset.json"))
  *     .withFormatFunction(myMapper);
  * }</pre>
  *
- * <p><b>Note:</b> writes are not atomic. If the pipeline is killed mid-write, the offset file may
- * be corrupt. In that case, delete the file and the connector will restart from the beginning.
+ * <p><b>Note:</b> writes are performed atomically: the offset is first written to a {@code .tmp}
+ * sibling file and then renamed to the final path, so a mid-write crash leaves the previous offset
+ * intact.
  */
 public class FileSystemOffsetRetainer implements OffsetRetainer {
 
@@ -77,8 +79,16 @@ public class FileSystemOffsetRetainer implements OffsetRetainer {
   // ObjectMapper is thread-safe after configuration and does not need to be serialised.
   private transient @Nullable ObjectMapper objectMapper;
 
-  public FileSystemOffsetRetainer(String path) {
+  // Tracks the last successfully saved offset so repeated identical saves are skipped.
+  private transient @Nullable Map<String, Object> lastSavedOffset;
+
+  private FileSystemOffsetRetainer(String path) {
     this.path = path;
+  }
+
+  /** Creates a new {@code FileSystemOffsetRetainer} that stores the offset at {@code path}. */
+  public static FileSystemOffsetRetainer of(String path) {
+    return new FileSystemOffsetRetainer(path);
   }
 
   private ObjectMapper mapper() {
@@ -89,8 +99,9 @@ public class FileSystemOffsetRetainer implements OffsetRetainer {
   }
 
   /**
-   * Reads the offset JSON file and returns its contents, or {@code null} if the file does not exist
-   * or cannot be read.
+   * Reads the offset JSON file and returns its contents, or {@code null} if the file does not yet
+   * exist (first run). Throws {@link RuntimeException} if the file exists but cannot be read, to
+   * prevent silently reprocessing data from the beginning.
    */
   @Override
   public @Nullable Map<String, Object> loadOffset() {
@@ -106,24 +117,43 @@ public class FileSystemOffsetRetainer implements OffsetRetainer {
       LOG.info("OffsetRetainer: no offset file found at {}; starting from the beginning.", path);
       return null;
     } catch (IOException e) {
-      LOG.warn(
-          "OffsetRetainer: failed to load offset from {}; starting from the beginning.", path, e);
-      return null;
+      throw new RuntimeException(
+          "OffsetRetainer: failed to read offset from "
+              + path
+              + ". "
+              + "Delete the file to restart from the beginning.",
+          e);
     }
   }
 
   /**
-   * Serialises {@code offset} to JSON and writes it to the configured path, overwriting any
-   * existing file. Errors are logged as warnings and swallowed so the pipeline continues.
+   * Serialises {@code offset} to JSON and writes it atomically to the configured path.
+   *
+   * <p>If the offset is identical to the last successfully written one, the write is skipped to
+   * avoid unnecessary I/O on every checkpoint.
+   *
+   * <p>Otherwise the data is first written to a {@code .tmp} sibling file and then renamed to the
+   * final path, so a mid-write crash leaves the previous offset intact.
+   *
+   * <p>Errors are logged as warnings and swallowed so the pipeline continues.
    */
   @Override
   public void saveOffset(Map<String, Object> offset) {
+    if (offset.equals(lastSavedOffset)) {
+      LOG.debug("OffsetRetainer: offset unchanged, skipping write to {}", path);
+      return;
+    }
+    String tmpPath = path + ".tmp";
     try {
-      ResourceId resourceId = FileSystems.matchNewResource(path, /* isDirectory= */ false);
-      try (WritableByteChannel channel = FileSystems.create(resourceId, "application/json");
+      ResourceId tmpResourceId = FileSystems.matchNewResource(tmpPath, /* isDirectory= */ false);
+      try (WritableByteChannel channel = FileSystems.create(tmpResourceId, "application/json");
           OutputStream stream = Channels.newOutputStream(channel)) {
         mapper().writeValue(stream, offset);
       }
+      ResourceId finalResourceId = FileSystems.matchNewResource(path, /* isDirectory= */ false);
+      FileSystems.rename(
+          Collections.singletonList(tmpResourceId), Collections.singletonList(finalResourceId));
+      lastSavedOffset = offset;
       LOG.debug("OffsetRetainer: saved offset to {}: {}", path, offset);
     } catch (IOException e) {
       LOG.warn(
