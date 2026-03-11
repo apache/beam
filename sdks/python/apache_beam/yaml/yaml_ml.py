@@ -488,7 +488,7 @@ def run_inference(
           inference_args=inference_args)
       | beam.Map(
           lambda row: beam.Row(**{
-              inference_tag: row[1], **row[0]._asdict()
+              str(inference_tag): row[1], **row[0]._asdict()
           })).with_output_types(schema))
 
 
