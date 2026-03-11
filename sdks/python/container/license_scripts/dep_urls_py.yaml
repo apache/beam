@@ -135,7 +135,7 @@ pip_dependencies:
   pyhamcrest:
     license: "https://raw.githubusercontent.com/hamcrest/PyHamcrest/master/LICENSE.txt"
   pyjsparser:
-    license: "https://github.com/PiotrDabkowski/pyjsparser/blob/master/LICENSE"
+    license: "https://raw.githubusercontent.com/PiotrDabkowski/pyjsparser/refs/heads/master/LICENSE"
   pymongo:
     license: "https://raw.githubusercontent.com/mongodb/mongo-python-driver/master/LICENSE"
   milvus-lite:
