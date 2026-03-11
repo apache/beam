@@ -1942,6 +1942,11 @@ public class SpannerIO {
      * of higher rpc rate and cpu usage.
      */
     public ReadChangeStream withLowLatency() {
+      // Set both the realtime end timestamp and the heartbeat interval.
+      // Heartbeats might not trigger if data arrives continuously (e.g. every 50ms),
+      // which could delay the bundle completion up to the runner's default split time (often 5s).
+      // Since end-to-end processing requires the bundle to finish and commit,
+      // adding a realtime end timeout of 1s bounds this delay and improves latency.
       return toBuilder()
           .setHeartbeatMillis(DEFAULT_LOW_LATENCY_DEFAULT_HEARTBEAT_MILLIS)
           .setCancelQueryOnHeartbeat(true)

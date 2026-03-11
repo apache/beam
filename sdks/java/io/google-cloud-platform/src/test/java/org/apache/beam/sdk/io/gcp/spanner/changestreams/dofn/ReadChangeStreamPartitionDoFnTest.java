@@ -68,7 +68,7 @@ public class ReadChangeStreamPartitionDoFnTest {
       Timestamp.ofTimeSecondsAndNanos(10, 20);
   private static final Timestamp PARTITION_END_TIMESTAMP = Timestamp.ofTimeSecondsAndNanos(30, 40);
   private static final long PARTITION_HEARTBEAT_MILLIS = 30_000L;
-  private static final boolean CANCEL_QUERY_ON_HEARTBEAT = false;
+  private static final boolean CANCEL_QUERY_ON_HEARTBEAT = true;
 
   private ReadChangeStreamPartitionDoFn doFn;
   private PartitionMetadata partition;
