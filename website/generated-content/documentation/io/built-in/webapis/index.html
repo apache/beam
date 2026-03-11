@@ -349,7 +349,7 @@ including inherent Java classes such as <code>String</code>, <code>Double</code>
 </span></span><span class=line><span class=cl>    <span class=k>return</span> <span class=k>new</span> <span class=n>AutoValue_ImageRequest</span><span class=o>.</span><span class=na>Builder</span><span class=o>();</span>
 </span></span><span class=line><span class=cl>  <span class=o>}</span>
 </span></span><span class=line><span class=cl>
-</span></span><span class=line><span class=cl>  <span class=cm>/** Build an {@link ImageRequest} from a {@param url}. */</span>
+</span></span><span class=line><span class=cl>  <span class=cm>/** Build an {@link ImageRequest} from a {@code url}. */</span>
 </span></span><span class=line><span class=cl>  <span class=kd>static</span> <span class=n>ImageRequest</span> <span class=nf>of</span><span class=o>(</span><span class=n>String</span> <span class=n>url</span><span class=o>)</span> <span class=o>{</span>
 </span></span><span class=line><span class=cl>    <span class=k>return</span> <span class=n>builder</span><span class=o>().</span><span class=na>setImageUrl</span><span class=o>(</span><span class=n>url</span><span class=o>).</span><span class=na>setMimeType</span><span class=o>(</span><span class=n>mimeTypeOf</span><span class=o>(</span><span class=n>url</span><span class=o>)).</span><span class=na>build</span><span class=o>();</span>
 </span></span><span class=line><span class=cl>  <span class=o>}</span>
