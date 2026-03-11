@@ -1805,11 +1805,6 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
     }
 
     @Override
-    public CausedByDrain causedByDrain(DoFn<InputT, OutputT> doFn) {
-      return currentElement.causedByDrain();
-    }
-
-    @Override
     public State state(String stateId, boolean alwaysFetched) {
       StateDeclaration stateDeclaration = doFnSignature.stateDeclarations().get(stateId);
       checkNotNull(stateDeclaration, "No state declaration found for %s", stateId);
@@ -1859,11 +1854,6 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
           currentElement.getTimestamp(),
           currentElement.getTimestamp(),
           currentElement.getPaneInfo());
-    }
-
-    @Override
-    public CausedByDrain causedByDrain() {
-      return currentElement.causedByDrain();
     }
   }
 
@@ -1946,12 +1936,6 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
       }
       outputTo(consumer, WindowedValues.of(output, timestamp, windows, paneInfo));
     }
-
-    @Override
-    public CausedByDrain causedByDrain() {
-      return currentElement.causedByDrain();
-    }
-
     @Override
     public CausedByDrain causedByDrain(DoFn<InputT, OutputT> doFn) {
       return currentElement.causedByDrain();
@@ -2253,6 +2237,16 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
     @Override
     public WatermarkEstimator<?> watermarkEstimator() {
       return currentWatermarkEstimator;
+    }
+
+    @Override
+    public CausedByDrain causedByDrain() {
+      return currentElement.causedByDrain();
+    }
+
+    @Override
+    public CausedByDrain causedByDrain(DoFn<InputT, OutputT> doFn) {
+      return currentElement.causedByDrain();
     }
   }
 
