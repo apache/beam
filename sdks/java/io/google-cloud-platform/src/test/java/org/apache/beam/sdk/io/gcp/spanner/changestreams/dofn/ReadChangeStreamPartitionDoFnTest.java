@@ -68,6 +68,7 @@ public class ReadChangeStreamPartitionDoFnTest {
       Timestamp.ofTimeSecondsAndNanos(10, 20);
   private static final Timestamp PARTITION_END_TIMESTAMP = Timestamp.ofTimeSecondsAndNanos(30, 40);
   private static final long PARTITION_HEARTBEAT_MILLIS = 30_000L;
+  private static final boolean CANCEL_QUERY_ON_HEARTBEAT = false;
 
   private ReadChangeStreamPartitionDoFn doFn;
   private PartitionMetadata partition;
@@ -106,7 +107,12 @@ public class ReadChangeStreamPartitionDoFnTest {
 
     doFn =
         new ReadChangeStreamPartitionDoFn(
-            daoFactory, mapperFactory, actionFactory, metrics, Duration.standardMinutes(2), false);
+            daoFactory,
+            mapperFactory,
+            actionFactory,
+            metrics,
+            Duration.standardMinutes(2),
+            CANCEL_QUERY_ON_HEARTBEAT);
     doFn.setThroughputEstimator(throughputEstimator);
 
     partition =
@@ -134,7 +140,8 @@ public class ReadChangeStreamPartitionDoFnTest {
 
     when(actionFactory.dataChangeRecordAction(throughputEstimator))
         .thenReturn(dataChangeRecordAction);
-    when(actionFactory.heartbeatRecordAction(metrics, false)).thenReturn(heartbeatRecordAction);
+    when(actionFactory.heartbeatRecordAction(metrics, CANCEL_QUERY_ON_HEARTBEAT))
+        .thenReturn(heartbeatRecordAction);
     when(actionFactory.childPartitionsRecordAction(partitionMetadataDao, metrics))
         .thenReturn(childPartitionsRecordAction);
     when(actionFactory.partitionStartRecordAction(partitionMetadataDao, metrics))

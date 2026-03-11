@@ -104,6 +104,6 @@ public class HeartbeatRecordAction {
       return Optional.empty();
     }
     // no new data, finish reading data
-    return Optional.of(ProcessContinuation.resume());
+    return cancelQueryOnHeartbeat ? Optional.empty() : Optional.of(ProcessContinuation.resume());
   }
 }
