@@ -375,7 +375,8 @@ if __name__ == '__main__':
       ext_modules=extensions,
       install_requires=[
           'cryptography>=39.0.0,<48.0.0',
-          'envoy-data-plane>=1.0.3,<2',
+          'envoy-data-plane>=1.0.3,<2; python_version >= "3.11"',
+          'envoy-data-plane<0.3.0; python_version < "3.11"',
           'fastavro>=0.23.6,<2',
           'fasteners>=0.3,<1.0',
           'grpcio>=1.33.1,<2,!=1.48.0,!=1.59.*,!=1.60.*,!=1.61.*,!=1.62.0,!=1.62.1,!=1.66.*,!=1.67.*,!=1.68.*,!=1.69.*,!=1.70.*',  # pylint: disable=line-too-long
@@ -539,6 +540,7 @@ if __name__ == '__main__':
               # hard requirement in setup.py.
               'dill',
               'tensorflow-transform',
+              'protobuf<4; python_version<"3.11"',
               # Comment out xgboost as it is breaking presubmit python ml
               # tests due to tag check introduced since pip 24.2
               # https://github.com/apache/beam/issues/31285
