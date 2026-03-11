@@ -219,9 +219,7 @@ public interface DoFnInvoker<InputT, OutputT> {
     Instant timestamp(DoFn<InputT, OutputT> doFn);
 
     /** Provide a reference to the caused by drain. */
-    default CausedByDrain causedByDrain(DoFn<InputT, OutputT> doFn) {
-      return CausedByDrain.NORMAL;
-    }
+    CausedByDrain causedByDrain(DoFn<InputT, OutputT> doFn);
 
     /** Provide a reference to the time domain for a timer firing. */
     TimeDomain timeDomain(DoFn<InputT, OutputT> doFn);
