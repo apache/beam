@@ -31,7 +31,7 @@ joining a production BigQuery table with a developmental Iceberg dataset in GCS)
 By using fully qualified names (e.g., catalog.database.table), you can perform cross-catalog joins or
 migrate data between clouds without manual schema mapping or intermediate storage.
 
-Click below to learn about metadata management at each level:
+Below are details about metadata management at each level:
 
 ## Catalogs
 The Catalog is the entry point for external metadata. When you initialize Beam SQL, you start off with a `default` Catalog that contains a `default` Database.
