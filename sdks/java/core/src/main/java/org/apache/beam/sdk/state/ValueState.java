@@ -37,6 +37,15 @@ public interface ValueState<T> extends ReadableState<@Nullable T>, State {
   @Nullable
   T read();
 
+  /**
+   * Returns the current value of the state, or {@code defaultValue} if the value has never been
+   * written.
+   */
+  default T read(T defaultValue) {
+    T value = read();
+    return value == null ? defaultValue : value;
+  }
+
   @Override
   ValueState<T> readLater();
 }
