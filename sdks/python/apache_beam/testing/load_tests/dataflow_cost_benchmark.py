@@ -193,6 +193,29 @@ class DataflowCostBenchmark(LoadTest):
     """Query Cloud Monitoring for per-PCollection throughput."""
     name = (
         pcollection_name if pcollection_name is not None else self.pcollection)
+
+    def _point_numeric_value(point) -> float:
+      value = point.value
+      # point.value is proto-plus, so use the underlying protobuf oneof.
+      raw_value = getattr(value, '_pb', None)
+      if raw_value is not None:
+        active_field = raw_value.WhichOneof('value')
+        if active_field == 'double_value':
+          return float(value.double_value)
+        if active_field == 'int64_value':
+          return float(value.int64_value)
+        if active_field == 'distribution_value':
+          # Use aligned mean for distribution-valued points.
+          distribution = value.distribution_value
+          if distribution.count > 0:
+            return float(distribution.mean)
+          return 0.0
+        if active_field == 'money_value':
+          money = value.money_value
+          nanos = getattr(money, 'nanos', 0) or 0
+          return float(money.units) + (float(nanos) / 1_000_000_000.0)
+      return 0.0
+
     interval = monitoring_v3.TimeInterval(
         start_time=start_time, end_time=end_time)
     aggregation = monitoring_v3.Aggregation(
@@ -221,7 +244,7 @@ class DataflowCostBenchmark(LoadTest):
     for key, req in requests.items():
       time_series = self.monitoring_client.list_time_series(request=req)
       values = [
-          point.value.double_value for series in time_series
+          _point_numeric_value(point) for series in time_series
           for point in series.points
       ]
       metrics[f"AvgThroughput{key}"] = sum(values) / len(

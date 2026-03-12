@@ -400,7 +400,6 @@ class RunOneDetector(beam.PTransform[beam.PCollection[NestedKeyedInputT],
 
     ret = (
         input
-        | beam.Reshuffle()
         | f"Score and Learn ({model_uuid})" >> RunScoreAndLearn(self._detector))
 
     if self._detector._threshold_criterion:
