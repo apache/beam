@@ -342,6 +342,8 @@ public abstract class DoFnSignature {
         return cases.dispatch((TimerIdParameter) this);
       } else if (this instanceof BundleFinalizerParameter) {
         return cases.dispatch((BundleFinalizerParameter) this);
+      } else if (this instanceof CausedByDrainParameter) {
+        return cases.dispatch((CausedByDrainParameter) this);
       } else if (this instanceof KeyParameter) {
         return cases.dispatch((KeyParameter) this);
       } else {
@@ -399,6 +401,8 @@ public abstract class DoFnSignature {
       ResultT dispatch(TimerIdParameter p);
 
       ResultT dispatch(BundleFinalizerParameter p);
+
+      ResultT dispatch(CausedByDrainParameter p);
 
       ResultT dispatch(KeyParameter p);
 
@@ -498,6 +502,11 @@ public abstract class DoFnSignature {
         }
 
         @Override
+        public ResultT dispatch(CausedByDrainParameter p) {
+          return dispatchDefault(p);
+        }
+
+        @Override
         public ResultT dispatch(StateParameter p) {
           return dispatchDefault(p);
         }
@@ -552,6 +561,8 @@ public abstract class DoFnSignature {
         new AutoValue_DoFnSignature_Parameter_PipelineOptionsParameter();
     private static final BundleFinalizerParameter BUNDLE_FINALIZER_PARAMETER =
         new AutoValue_DoFnSignature_Parameter_BundleFinalizerParameter();
+    private static final CausedByDrainParameter CAUSED_BY_DRAIN_PARAMETER =
+        new AutoValue_DoFnSignature_Parameter_CausedByDrainParameter();
     private static final OnWindowExpirationContextParameter ON_WINDOW_EXPIRATION_CONTEXT_PARAMETER =
         new AutoValue_DoFnSignature_Parameter_OnWindowExpirationContextParameter();
 
@@ -573,6 +584,11 @@ public abstract class DoFnSignature {
     /** Returns a {@link BundleFinalizerParameter}. */
     public static BundleFinalizerParameter bundleFinalizer() {
       return BUNDLE_FINALIZER_PARAMETER;
+    }
+
+    /** Returns a {@link CausedByDrainParameter}. */
+    public static CausedByDrainParameter causedByDrainParameter() {
+      return CAUSED_BY_DRAIN_PARAMETER;
     }
 
     public static ElementParameter elementParameter(TypeDescriptor<?> elementT) {
@@ -725,6 +741,16 @@ public abstract class DoFnSignature {
     @AutoValue
     public abstract static class BundleFinalizerParameter extends Parameter {
       BundleFinalizerParameter() {}
+    }
+
+    /**
+     * Descriptor for a {@link Parameter} of type {@link org.apache.beam.sdk.values.CausedByDrain}.
+     *
+     * <p>All such descriptors are equal.
+     */
+    @AutoValue
+    public abstract static class CausedByDrainParameter extends Parameter {
+      CausedByDrainParameter() {}
     }
 
     /**

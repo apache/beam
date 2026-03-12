@@ -556,6 +556,11 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
     }
 
     @Override
+    public CausedByDrain causedByDrain(DoFn<InputT, OutputT> doFn) {
+      return elem.causedByDrain();
+    }
+
+    @Override
     public String timerId(DoFn<InputT, OutputT> doFn) {
       throw new UnsupportedOperationException(
           "Cannot access timerId as parameter outside of @OnTimer method.");
@@ -829,6 +834,11 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
     @Override
     public Instant timestamp(DoFn<InputT, OutputT> doFn) {
       return timestamp();
+    }
+
+    @Override
+    public CausedByDrain causedByDrain(DoFn<InputT, OutputT> doFn) {
+      return causedByDrain;
     }
 
     @Override
@@ -1117,6 +1127,11 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
     @Override
     public Instant timestamp(DoFn<InputT, OutputT> doFn) {
       return timestamp;
+    }
+
+    @Override
+    public CausedByDrain causedByDrain(DoFn<InputT, OutputT> doFn) {
+      throw new UnsupportedOperationException("CausedByDrain parameters are not supported.");
     }
 
     @Override
