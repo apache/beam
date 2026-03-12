@@ -41,9 +41,9 @@ These steps and instructions on getting started are outlined below as well.
 - A [GitHub](https://github.com/) account.
 - A Linux, macOS, or Microsoft Windows development environment.
 - Java JDK 11 (preferred, or 8, 17, 21) installed.
-  - Windows note:
+  - General note:
     - Set `JAVA_HOME` to the JDK **installation directory**, not the `bin` directory
-    - (for example: `C:\Program Files\Eclipse Adoptium\jdk-11.x.x`)
+    - (Window for example: `C:\Program Files\Eclipse Adoptium\jdk-11.x.x`)
     - If multiple JDK versions are installed, ensure Java 11 appears first on `PATH`
     - The initial Gradle build may take 10–15 minutes due to dependency downloads
 - Latest [Go](https://golang.org) 1.x installed.
