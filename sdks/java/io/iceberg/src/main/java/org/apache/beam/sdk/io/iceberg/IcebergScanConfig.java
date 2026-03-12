@@ -24,6 +24,7 @@ import static org.apache.hadoop.util.Sets.newHashSet;
 import com.google.auto.value.AutoValue;
 import java.io.Serializable;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Set;
 import org.apache.beam.sdk.io.iceberg.IcebergIO.ReadRows.StartingStrategy;
@@ -36,6 +37,7 @@ import org.apache.iceberg.Table;
 import org.apache.iceberg.catalog.TableIdentifier;
 import org.apache.iceberg.expressions.Evaluator;
 import org.apache.iceberg.expressions.Expression;
+import org.apache.iceberg.types.TypeUtil;
 import org.checkerframework.checker.nullness.qual.MonotonicNonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.checkerframework.dataflow.qual.Pure;
@@ -91,30 +93,16 @@ public abstract class IcebergScanConfig implements Serializable {
     if (keep != null && !keep.isEmpty()) {
       selectedFieldsBuilder.addAll(keep);
     } else if (drop != null && !drop.isEmpty()) {
-      // Get all field paths including nested ones
-      java.util.List<String> allPaths =
-          new java.util.ArrayList<>(
-              org.apache.iceberg.types.TypeUtil.indexByName(schema.asStruct()).keySet());
-      java.util.Collections.sort(allPaths);
-
-      // Identify leaf fields only (fields that are not parents of other fields)
-      // This prevents selecting a parent struct from implicitly including dropped children
-      java.util.Set<String> leaves = new java.util.HashSet<>();
-      for (int i = 0; i < allPaths.size(); i++) {
-        String path = allPaths.get(i);
-        // If the next path starts with "path.", then "path" is a parent - skip it
-        if (i + 1 < allPaths.size() && allPaths.get(i + 1).startsWith(path + ".")) {
-          continue;
+      List<String> paths = new ArrayList<>(TypeUtil.indexNameById(schema.asStruct()).values());
+      Collections.sort(paths);
+      for (int i = 0; i < paths.size(); i++) {
+        String path = paths.get(i);
+        boolean isParent = i + 1 < paths.size() && paths.get(i + 1).startsWith(path + ".");
+        boolean isDrop = drop.stream().anyMatch(d -> path.equals(d) || path.startsWith(d + "."));
+        if (!isParent && !isDrop) {
+          selectedFieldsBuilder.add(path);
         }
-        leaves.add(path);
       }
-
-      // Remove fields that are dropped or are children of dropped fields
-      for (String d : drop) {
-        leaves.removeIf(f -> f.equals(d) || f.startsWith(d + "."));
-      }
-
-      selectedFieldsBuilder.addAll(leaves);
     } else {
       // default: include all columns
       return schema;
@@ -345,8 +333,6 @@ public abstract class IcebergScanConfig implements Serializable {
         param = "drop";
         fieldsSpecified = newHashSet(checkNotNull(drop));
       }
-      // Use findField() to support nested column paths (e.g., "colA.colB")
-      // Iceberg's Schema.findField() resolves dot-notation paths for nested fields
       fieldsSpecified.removeIf(name -> table.schema().findField(name) != null);
 
       checkArgument(
