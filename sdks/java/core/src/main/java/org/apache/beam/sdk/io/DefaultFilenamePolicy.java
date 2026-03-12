@@ -357,7 +357,8 @@ public final class DefaultFilenamePolicy extends FilenamePolicy {
       // since colons are illegal characters in Windows file paths.
       String startStr = iw.start().toString();
       String endStr = iw.end().toString();
-      if (System.getProperty("os.name").startsWith("Windows")) {
+      String osName = System.getProperty("os.name");
+      if (osName != null && osName.startsWith("Windows")) {
         startStr = startStr.replace(':', '_');
         endStr = endStr.replace(':', '_');
       }
