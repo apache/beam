@@ -53,9 +53,9 @@ public class ChangeStreamsConstants {
 
   public static final int DEFAULT_HEARTBEAT_MILLIS = 2000;
 
-  public static final int DEFAULT_LOW_LATENCY_DEFAULT_HEARTBEAT_MILLIS = 100;
+  public static final int LOW_LATENCY_DEFAULT_HEARTBEAT_MILLIS = 100;
 
-  public static final Duration DEFAULT_LOW_LATENCY_REAL_TIME_CHECKPOINT_INTERVAL =
+  public static final Duration LOW_LATENCY_REAL_TIME_CHECKPOINT_INTERVAL =
       Duration.standardSeconds(1);
 
   /** The default priority for a change stream query is {@link RpcPriority#HIGH}. */

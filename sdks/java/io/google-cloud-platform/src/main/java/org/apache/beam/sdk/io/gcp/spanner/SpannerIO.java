@@ -23,11 +23,11 @@ import static org.apache.beam.sdk.io.gcp.spanner.changestreams.ChangeStreamsCons
 import static org.apache.beam.sdk.io.gcp.spanner.changestreams.ChangeStreamsConstants.DEFAULT_HEARTBEAT_MILLIS;
 import static org.apache.beam.sdk.io.gcp.spanner.changestreams.ChangeStreamsConstants.DEFAULT_INCLUSIVE_END_AT;
 import static org.apache.beam.sdk.io.gcp.spanner.changestreams.ChangeStreamsConstants.DEFAULT_INCLUSIVE_START_AT;
-import static org.apache.beam.sdk.io.gcp.spanner.changestreams.ChangeStreamsConstants.DEFAULT_LOW_LATENCY_DEFAULT_HEARTBEAT_MILLIS;
-import static org.apache.beam.sdk.io.gcp.spanner.changestreams.ChangeStreamsConstants.DEFAULT_LOW_LATENCY_REAL_TIME_CHECKPOINT_INTERVAL;
 import static org.apache.beam.sdk.io.gcp.spanner.changestreams.ChangeStreamsConstants.DEFAULT_REAL_TIME_CHECKPOINT_INTERVAL;
 import static org.apache.beam.sdk.io.gcp.spanner.changestreams.ChangeStreamsConstants.DEFAULT_RPC_PRIORITY;
 import static org.apache.beam.sdk.io.gcp.spanner.changestreams.ChangeStreamsConstants.DEFAULT_WATERMARK_REFRESH_RATE;
+import static org.apache.beam.sdk.io.gcp.spanner.changestreams.ChangeStreamsConstants.LOW_LATENCY_DEFAULT_HEARTBEAT_MILLIS;
+import static org.apache.beam.sdk.io.gcp.spanner.changestreams.ChangeStreamsConstants.LOW_LATENCY_REAL_TIME_CHECKPOINT_INTERVAL;
 import static org.apache.beam.sdk.io.gcp.spanner.changestreams.ChangeStreamsConstants.MAX_INCLUSIVE_END_AT;
 import static org.apache.beam.sdk.io.gcp.spanner.changestreams.ChangeStreamsConstants.THROUGHPUT_WINDOW_SECONDS;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
@@ -1770,7 +1770,7 @@ public class SpannerIO {
 
     abstract Duration getRealTimeCheckpointInterval();
 
-    abstract Integer getHeartbeatMillis();
+    abstract int getHeartbeatMillis();
 
     abstract boolean getCancelQueryOnHeartbeat();
 
@@ -1811,7 +1811,7 @@ public class SpannerIO {
       abstract Builder setRealTimeCheckpointInterval(Duration realTimeCheckpointInterval);
 
       /** Heartbeat interval for all change stream queries. */
-      abstract Builder setHeartbeatMillis(Integer heartbeatMillis);
+      abstract Builder setHeartbeatMillis(int heartbeatMillis);
 
       abstract Builder setCancelQueryOnHeartbeat(boolean cancelQueryOnHeartbeat);
 
@@ -1938,8 +1938,22 @@ public class SpannerIO {
     }
 
     /**
-     * Configures the change stream to checkpoint and flush output targeting low latency at the cost
-     * of higher rpc rate and cpu usage.
+     * Configures low latency experiment for readChangeStream transform. Example usage:
+     *
+     * <pre>{@code
+     * PCollection<Struct> rows = p.apply(
+     *    SpannerIO.readChangeStream()
+     *    .withSpannerConfig(
+     *       SpannerConfig.create()
+     *         .withProjectId(projectId)
+     *         .withInstanceId(instanceId)
+     *         .withDatabaseId(dbId))
+     *    .withChangeStreamName(changeStreamName)
+     *    .withMetadataInstance(metadataInstanceId)
+     *    .withMetadataDatabase(metadataDatabase)
+     *    .withInclusiveStartAt(Timestamp.now()))
+     *    .withLowLatency();
+     * }</pre>
      */
     public ReadChangeStream withLowLatency() {
       // Set both the realtime end timestamp and the heartbeat interval.
@@ -1948,9 +1962,9 @@ public class SpannerIO {
       // Since end-to-end processing requires the bundle to finish and commit,
       // adding a realtime end timeout of 1s bounds this delay and improves latency.
       return toBuilder()
-          .setHeartbeatMillis(DEFAULT_LOW_LATENCY_DEFAULT_HEARTBEAT_MILLIS)
+          .setHeartbeatMillis(LOW_LATENCY_DEFAULT_HEARTBEAT_MILLIS)
           .setCancelQueryOnHeartbeat(true)
-          .setRealTimeCheckpointInterval(DEFAULT_LOW_LATENCY_REAL_TIME_CHECKPOINT_INTERVAL)
+          .setRealTimeCheckpointInterval(LOW_LATENCY_REAL_TIME_CHECKPOINT_INTERVAL)
           .build();
     }
 
@@ -2060,7 +2074,7 @@ public class SpannerIO {
           MoreObjects.firstNonNull(getWatermarkRefreshRate(), DEFAULT_WATERMARK_REFRESH_RATE);
       final CacheFactory cacheFactory = new CacheFactory(daoFactory, watermarkRefreshRate);
 
-      final long heartbeatMillis = getHeartbeatMillis().longValue();
+      final long heartbeatMillis = getHeartbeatMillis();
 
       final InitializeDoFn initializeDoFn =
           new InitializeDoFn(
@@ -2068,7 +2082,6 @@ public class SpannerIO {
       final DetectNewPartitionsDoFn detectNewPartitionsDoFn =
           new DetectNewPartitionsDoFn(
               daoFactory, mapperFactory, actionFactory, cacheFactory, metrics);
-      final Duration realTimeCheckpointInterval = getRealTimeCheckpointInterval();
 
       final ReadChangeStreamPartitionDoFn readChangeStreamPartitionDoFn =
           new ReadChangeStreamPartitionDoFn(
@@ -2076,7 +2089,7 @@ public class SpannerIO {
               mapperFactory,
               actionFactory,
               metrics,
-              realTimeCheckpointInterval,
+              getRealTimeCheckpointInterval(),
               getCancelQueryOnHeartbeat());
       final PostProcessingMetricsDoFn postProcessingMetricsDoFn =
           new PostProcessingMetricsDoFn(metrics);
