@@ -489,7 +489,7 @@ def run_inference(
       | beam.Map(
           lambda row: beam.Row(
               **{
-                  str(inference_tag): row[1], **row[0]._asdict()
+                  **row[0]._asdict(), str(inference_tag): row[1]
               })).with_output_types(schema))
 
 
