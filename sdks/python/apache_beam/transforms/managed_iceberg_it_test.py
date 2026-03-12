@@ -15,7 +15,6 @@
 # limitations under the License.
 #
 import datetime
-import os
 import unittest
 import uuid
 
