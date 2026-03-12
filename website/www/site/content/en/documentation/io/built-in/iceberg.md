@@ -234,12 +234,12 @@ built-in credential delegation and unified metadata management. It requires a fe
 
 ### Create a Namespace
 
-You can use Beam SQL to create a new namespace through an explicit DDL statement:
+If you're on Beam SQL, you can explicitly create a new namespace:
 ```sql
 CREATE DATABASE my_catalog.my_db;
 ```
 
-Alternatively, the IcebergIO sink can automatically create missing namespaces at runtime.
+Alternatively, the IcebergIO sink will automatically create missing namespaces at runtime.
 This is ideal for dynamic pipelines where destinations are determined by the incoming data
 
 ### Create a Table
@@ -309,7 +309,7 @@ pipeline:
 
 ### View Namespaces and Tables
 
-You can use Beam SQL to view the newly created resources:
+If you're on Beam SQL, you can view the newly created resources:
 ```sql
 SHOW DATABASES my_catalog;
 ```
