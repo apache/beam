@@ -87,8 +87,10 @@ import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.ChannelzServ
 import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.GrpcDispatcherClient;
 import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.GrpcWindmillServer;
 import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.GrpcWindmillStreamFactory;
+import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.auth.VendoredCredentialsAdapter;
 import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.stubs.ChannelCache;
 import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.stubs.ChannelCachingRemoteStubFactory;
+import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.stubs.FailoverChannel;
 import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.stubs.IsolationChannel;
 import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.stubs.WindmillStubFactoryFactory;
 import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.stubs.WindmillStubFactoryFactoryImpl;
@@ -113,6 +115,8 @@ import org.apache.beam.sdk.io.gcp.bigquery.BigQuerySinkMetrics;
 import org.apache.beam.sdk.metrics.MetricsEnvironment;
 import org.apache.beam.sdk.util.construction.CoderTranslation;
 import org.apache.beam.sdk.values.WindowedValues;
+import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.ManagedChannel;
+import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.auth.MoreCallCredentials;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.cache.CacheStats;
@@ -376,7 +380,7 @@ public final class StreamingDataflowWorker {
       MemoryMonitor memoryMonitor,
       GrpcDispatcherClient dispatcherClient) {
     WeightedSemaphore<Commit> maxCommitByteSemaphore = Commits.maxCommitByteSemaphore();
-    ChannelCache channelCache = createChannelCache(options, configFetcher);
+    ChannelCache channelCache = createChannelCache(options, configFetcher, dispatcherClient);
     FanOutStreamingEngineWorkerHarness fanOutStreamingEngineWorkerHarness =
         FanOutStreamingEngineWorkerHarness.create(
             createJobHeader(options, clientId),
@@ -789,20 +793,54 @@ public final class StreamingDataflowWorker {
   }
 
   private static ChannelCache createChannelCache(
-      DataflowWorkerHarnessOptions workerOptions, ComputationConfig.Fetcher configFetcher) {
+      DataflowWorkerHarnessOptions workerOptions,
+      ComputationConfig.Fetcher configFetcher,
+      GrpcDispatcherClient dispatcherClient) {
     ChannelCache channelCache =
-        ChannelCache.create(
-            (currentFlowControlSettings, serviceAddress) -> {
-              // IsolationChannel will create and manage separate RPC channels to the same
-              // serviceAddress.
-              return IsolationChannel.create(
-                  () ->
-                      remoteChannel(
-                          serviceAddress,
-                          workerOptions.getWindmillServiceRpcChannelAliveTimeoutSec(),
-                          currentFlowControlSettings),
-                  currentFlowControlSettings.getOnReadyThresholdBytes());
-            });
+        Boolean.TRUE.equals(
+                workerOptions
+                    .getUseWindmillIsolatedChannels()) // Create failover channel only if isolated
+            // channels
+            // is enabled for dispatcher client
+            ? ChannelCache.create(
+                (currentFlowControlSettings, serviceAddress) -> {
+                  ManagedChannel primaryChannel =
+                      IsolationChannel.create(
+                          () ->
+                              remoteChannel(
+                                  serviceAddress,
+                                  workerOptions.getWindmillServiceRpcChannelAliveTimeoutSec(),
+                                  currentFlowControlSettings),
+                          currentFlowControlSettings.getOnReadyThresholdBytes());
+                  // Create an isolated fallback channel from dispatcher endpoints.
+                  // This ensures both primary and fallback use separate isolated channels.
+                  ManagedChannel fallbackChannel =
+                      IsolationChannel.create(
+                          () ->
+                              remoteChannel(
+                                  dispatcherClient.getDispatcherEndpoints().iterator().next(),
+                                  workerOptions.getWindmillServiceRpcChannelAliveTimeoutSec(),
+                                  currentFlowControlSettings),
+                          currentFlowControlSettings.getOnReadyThresholdBytes());
+                  return FailoverChannel.create(
+                      primaryChannel,
+                      fallbackChannel,
+                      MoreCallCredentials.from(
+                          new VendoredCredentialsAdapter(workerOptions.getGcpCredential())));
+                })
+            : ChannelCache.create(
+                (currentFlowControlSettings, serviceAddress) -> {
+                  // IsolationChannel will create and manage separate RPC channels to the same
+                  // serviceAddress.
+                  return IsolationChannel.create(
+                      () ->
+                          remoteChannel(
+                              serviceAddress,
+                              workerOptions.getWindmillServiceRpcChannelAliveTimeoutSec(),
+                              currentFlowControlSettings),
+                      currentFlowControlSettings.getOnReadyThresholdBytes());
+                });
+
     configFetcher
         .getGlobalConfigHandle()
         .registerConfigObserver(
