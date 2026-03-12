@@ -298,7 +298,7 @@ public class Read {
         desiredChunkSize = 64 << 20; // 64mb
       } else {
         // 1mb --> 1 shard; 1gb --> 32 shards; 1tb --> 1000 shards, 1pb --> 32k shards
-        desiredChunkSize = Math.max(1 << 20, (long) (1000 * Math.sqrt(estimatedSize)));
+        desiredChunkSize = Math.max(1 << 20, (long) (1000 * Math.sqrt((double) estimatedSize)));
       }
       List<BoundedSourceT> splits =
           (List<BoundedSourceT>) restriction.split(desiredChunkSize, pipelineOptions);
@@ -1079,7 +1079,7 @@ public class Read {
           if (size != UnboundedReader.BACKLOG_UNKNOWN) {
             // The UnboundedSource/UnboundedReader API has no way of reporting how much work
             // has been completed so runners can only see the work remaining changing.
-            return Progress.from(0, size);
+            return Progress.from(0, (double) size);
           }
 
           // TODO: Support "global" backlog reporting

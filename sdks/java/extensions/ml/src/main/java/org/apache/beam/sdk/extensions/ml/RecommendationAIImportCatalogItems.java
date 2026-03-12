@@ -79,7 +79,7 @@ public abstract class RecommendationAIImportCatalogItems
   public abstract @Nullable String catalogName();
 
   /** Returns size of input elements batch to be sent in one request. */
-  public abstract Integer batchSize();
+  public abstract int batchSize();
 
   /**
    * Returns time limit (in processing time) on how long an incomplete batch of elements is allowed
@@ -95,7 +95,7 @@ public abstract class RecommendationAIImportCatalogItems
     return this.toBuilder().setCatalogName(catalogName).build();
   }
 
-  public RecommendationAIImportCatalogItems withBatchSize(Integer batchSize) {
+  public RecommendationAIImportCatalogItems withBatchSize(int batchSize) {
     return this.toBuilder().setBatchSize(batchSize).build();
   }
 
@@ -142,7 +142,7 @@ public abstract class RecommendationAIImportCatalogItems
      * @param batchSize Amount of input elements to be sent to Recommendation AI service in one
      *     request.
      */
-    public abstract Builder setBatchSize(Integer batchSize);
+    public abstract Builder setBatchSize(int batchSize);
 
     /**
      * Sets time limit (in processing time) on how long an incomplete batch of elements is allowed

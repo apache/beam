@@ -21,12 +21,14 @@ import static java.util.stream.Collectors.toList;
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasDisplayItem;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 import java.io.ByteArrayOutputStream;
+import java.io.File;
 import java.io.IOException;
 import java.io.Serializable;
 import java.io.UnsupportedEncodingException;
@@ -57,8 +59,11 @@ import org.apache.beam.sdk.values.Row;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.parquet.filter2.predicate.FilterApi;
 import org.apache.parquet.filter2.predicate.FilterPredicate;
+import org.apache.parquet.hadoop.ParquetFileReader;
 import org.apache.parquet.hadoop.ParquetInputFormat;
 import org.apache.parquet.hadoop.metadata.BlockMetaData;
+import org.apache.parquet.hadoop.metadata.ParquetMetadata;
+import org.apache.parquet.hadoop.util.HadoopInputFile;
 import org.apache.parquet.io.api.Binary;
 import org.junit.Rule;
 import org.junit.Test;
@@ -515,6 +520,93 @@ public class ParquetIOTest implements Serializable {
                 .from(temporaryFolder.getRoot().getAbsolutePath() + "/*"));
 
     PAssert.that(readBackAsJson).containsInAnyOrder(convertRecordsToJson(expectedRecords));
+    readPipeline.run().waitUntilFinish();
+  }
+
+  @Test
+  public void testWriteWithDefaultWriterProperties() throws Exception {
+    List<GenericRecord> records = generateGenericRecords(1000);
+
+    mainPipeline
+        .apply(Create.of(records).withCoder(AvroCoder.of(SCHEMA)))
+        .apply(
+            FileIO.<GenericRecord>write()
+                .via(ParquetIO.sink(SCHEMA))
+                .to(temporaryFolder.getRoot().getAbsolutePath()));
+    mainPipeline.run().waitUntilFinish();
+
+    File[] outputFiles = temporaryFolder.getRoot().listFiles((dir, name) -> !name.startsWith("."));
+    assertTrue("Expected at least one output file", outputFiles != null && outputFiles.length > 0);
+
+    org.apache.hadoop.fs.Path hadoopPath = new org.apache.hadoop.fs.Path(outputFiles[0].toURI());
+    try (ParquetFileReader reader =
+        ParquetFileReader.open(HadoopInputFile.fromPath(hadoopPath, new Configuration()))) {
+      ParquetMetadata footer = reader.getFooter();
+
+      // Verify bloom filters are absent by default.
+      boolean hasBloomFilter =
+          footer.getBlocks().stream()
+              .flatMap(block -> block.getColumns().stream())
+              .anyMatch(col -> col.getBloomFilterOffset() >= 0);
+      assertFalse("Expected no bloom filters by default", hasBloomFilter);
+
+      // Verify dictionary encoding is enabled by default.
+      boolean hasDictionary =
+          footer.getBlocks().stream()
+              .flatMap(block -> block.getColumns().stream())
+              .anyMatch(col -> col.getDictionaryPageOffset() > 0);
+      assertTrue("Expected dictionary pages to be present by default", hasDictionary);
+    }
+  }
+
+  @Test
+  public void testWriteWithWriterProperties() throws Exception {
+    List<GenericRecord> records = generateGenericRecords(1000);
+
+    mainPipeline
+        .apply(Create.of(records).withCoder(AvroCoder.of(SCHEMA)))
+        .apply(
+            FileIO.<GenericRecord>write()
+                .via(
+                    ParquetIO.sink(SCHEMA)
+                        .withPageSize(256 * 1024)
+                        .withDictionaryEncoding(false)
+                        .withBloomFilterEnabled(true)
+                        .withMinRowCountForPageSizeCheck(5))
+                .to(temporaryFolder.getRoot().getAbsolutePath()));
+    mainPipeline.run().waitUntilFinish();
+
+    // Read back the file metadata and verify the settings took effect.
+    File[] outputFiles = temporaryFolder.getRoot().listFiles((dir, name) -> !name.startsWith("."));
+    assertTrue("Expected at least one output file", outputFiles != null && outputFiles.length > 0);
+
+    org.apache.hadoop.fs.Path hadoopPath = new org.apache.hadoop.fs.Path(outputFiles[0].toURI());
+    try (ParquetFileReader reader =
+        ParquetFileReader.open(HadoopInputFile.fromPath(hadoopPath, new Configuration()))) {
+      ParquetMetadata footer = reader.getFooter();
+
+      // Verify bloom filters were written: at least one column should have a bloom filter.
+      boolean hasBloomFilter =
+          footer.getBlocks().stream()
+              .flatMap(block -> block.getColumns().stream())
+              .anyMatch(col -> col.getBloomFilterOffset() >= 0);
+      assertTrue("Expected bloom filters to be present", hasBloomFilter);
+
+      // Verify dictionary encoding was disabled: no columns should have dictionary pages.
+      // getDictionaryPageOffset() returns 0 when no dictionary page is present.
+      boolean hasDictionary =
+          footer.getBlocks().stream()
+              .flatMap(block -> block.getColumns().stream())
+              .anyMatch(col -> col.getDictionaryPageOffset() > 0);
+      assertFalse(
+          "Expected no dictionary pages when dictionary encoding is disabled", hasDictionary);
+    }
+
+    // Verify the data still round-trips correctly.
+    PCollection<GenericRecord> readBack =
+        readPipeline.apply(
+            ParquetIO.read(SCHEMA).from(temporaryFolder.getRoot().getAbsolutePath() + "/*"));
+    PAssert.that(readBack).containsInAnyOrder(records);
     readPipeline.run().waitUntilFinish();
   }
 

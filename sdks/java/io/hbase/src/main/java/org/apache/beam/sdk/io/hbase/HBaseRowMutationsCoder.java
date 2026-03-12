@@ -92,7 +92,7 @@ class HBaseRowMutationsCoder extends StructuredCoder<RowMutations> implements Se
    * which is asserted equal in this coder 2. Canonical encoding is maintained regardless of object
    * machine or time context
    *
-   * @throws @UnknownKeyFor@NonNull@Initialized NonDeterministicException
+   * @throws NonDeterministicException
    */
   @Override
   public void verifyDeterministic() {}

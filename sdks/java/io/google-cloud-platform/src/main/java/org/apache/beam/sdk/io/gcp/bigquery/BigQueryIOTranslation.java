@@ -193,9 +193,7 @@ public class BigQueryIOTranslation {
       if (transform.getFromBeamRowFn() != null) {
         fieldValues.put("from_beam_row_fn", toByteArray(transform.getFromBeamRowFn()));
       }
-      if (transform.getUseAvroLogicalTypes() != null) {
-        fieldValues.put("use_avro_logical_types", transform.getUseAvroLogicalTypes());
-      }
+      fieldValues.put("use_avro_logical_types", transform.getUseAvroLogicalTypes());
       if (transform.getDirectReadPicosTimestampPrecision() != null) {
         fieldValues.put(
             "direct_read_picos_timestamp_precision",
@@ -565,19 +563,11 @@ public class BigQueryIOTranslation {
         fieldValues.put("custom_gcs_temp_location", transform.getCustomGcsTempLocation().get());
       }
       fieldValues.put("extended_error_info", transform.getExtendedErrorInfo());
-      if (transform.getSkipInvalidRows() != null) {
-        fieldValues.put("skip_invalid_rows", transform.getSkipInvalidRows());
-      }
-      if (transform.getIgnoreUnknownValues() != null) {
-        fieldValues.put("ignore_unknown_values", transform.getIgnoreUnknownValues());
-      }
-      if (transform.getIgnoreInsertIds() != null) {
-        fieldValues.put("ignore_insert_ids", transform.getIgnoreInsertIds());
-      }
+      fieldValues.put("skip_invalid_rows", transform.getSkipInvalidRows());
+      fieldValues.put("ignore_unknown_values", transform.getIgnoreUnknownValues());
+      fieldValues.put("ignore_insert_ids", transform.getIgnoreInsertIds());
       fieldValues.put("max_retry_jobs", transform.getMaxRetryJobs());
-      if (transform.getPropagateSuccessful() != null) {
-        fieldValues.put("propagate_successful", transform.getPropagateSuccessful());
-      }
+      fieldValues.put("propagate_successful", transform.getPropagateSuccessful());
       if (transform.getKmsKey() != null) {
         fieldValues.put("kms_key", transform.getKmsKey());
       }
@@ -589,24 +579,14 @@ public class BigQueryIOTranslation {
             "default_missing_value_interpretation",
             toByteArray(transform.getDefaultMissingValueInterpretation()));
       }
-      if (transform.getOptimizeWrites() != null) {
-        fieldValues.put("optimize_writes", transform.getOptimizeWrites());
-      }
-      if (transform.getUseBeamSchema() != null) {
-        fieldValues.put("use_beam_schema", transform.getUseBeamSchema());
-      }
-      if (transform.getAutoSharding() != null) {
-        fieldValues.put("auto_sharding", transform.getAutoSharding());
-      }
-      if (transform.getAutoSchemaUpdate() != null) {
-        fieldValues.put("auto_schema_update", transform.getAutoSchemaUpdate());
-      }
+      fieldValues.put("optimize_writes", transform.getOptimizeWrites());
+      fieldValues.put("use_beam_schema", transform.getUseBeamSchema());
+      fieldValues.put("auto_sharding", transform.getAutoSharding());
+      fieldValues.put("auto_schema_update", transform.getAutoSchemaUpdate());
       if (transform.getWriteProtosClass() != null) {
         fieldValues.put("write_protos_class", toByteArray(transform.getWriteProtosClass()));
       }
-      if (transform.getDirectWriteProtos() != null) {
-        fieldValues.put("direct_write_protos", transform.getDirectWriteProtos());
-      }
+      fieldValues.put("direct_write_protos", transform.getDirectWriteProtos());
       if (transform.getDeterministicRecordIdFn() != null) {
         fieldValues.put(
             "deterministic_record_id_fn", toByteArray(transform.getDeterministicRecordIdFn()));

@@ -234,7 +234,7 @@ public final class FluentBackoff {
           Math.min(
               backoffConfig.initialBackoff.getMillis()
                   * Math.pow(backoffConfig.exponent, currentRetry),
-              backoffConfig.maxBackoff.getMillis());
+              (double) backoffConfig.maxBackoff.getMillis());
       double randomOffset =
           (Math.random() * 2 - 1) * DEFAULT_RANDOMIZATION_FACTOR * currentIntervalMillis;
       long nextBackoffMillis = Math.round(currentIntervalMillis + randomOffset);

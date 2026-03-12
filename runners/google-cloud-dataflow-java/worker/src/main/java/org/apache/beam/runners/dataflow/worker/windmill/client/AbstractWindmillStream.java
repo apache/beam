@@ -58,10 +58,10 @@ import org.slf4j.Logger;
  * broken stream.
  *
  * <p>Subclasses should override {@link #newResponseHandler()} to implement a handler for physical
- * stream connection. {@link #onNewStream()} to perform any work that must be done when a new stream
- * is created, such as sending headers or retrying requests.
+ * stream connection. {@link #onFlushPending(boolean)} to perform any work that must be done when a
+ * new stream is created, such as sending headers or retrying requests.
  *
- * <p>{@link #trySend(RequestT)} and {@link #startStream()} should not be called when handling
+ * <p>{@link #trySend(Object)} and {@link #startStream()} should not be called when handling
  * responses; use {@link #executeSafely(Runnable)} instead.
  *
  * <p>Synchronization on this is used to synchronize the gRpc stream state and internal data

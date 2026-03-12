@@ -341,7 +341,7 @@ public final class BigQueryIOLT extends IOLoadTestBase {
             region,
             launchInfo.jobId(),
             getBeamMetricsName(PipelineMetricsType.COUNTER, READ_ELEMENT_METRIC_NAME));
-    assertEquals(configuration.numRecords, numRecords, 0.5);
+    assertEquals((double) configuration.numRecords, numRecords, 0.5);
 
     // export metrics
     MetricsConfiguration metricsConfig =

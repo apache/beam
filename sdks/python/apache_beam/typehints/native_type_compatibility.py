@@ -21,6 +21,7 @@
 
 import collections
 import collections.abc
+import dataclasses
 import logging
 import sys
 import types
@@ -173,6 +174,10 @@ def match_is_named_tuple(user_type):
   return (
       _safe_issubclass(user_type, typing.Tuple) and
       hasattr(user_type, '__annotations__') and hasattr(user_type, '_fields'))
+
+
+def match_is_dataclass(user_type):
+  return dataclasses.is_dataclass(user_type) and isinstance(user_type, type)
 
 
 def _match_is_optional(user_type):
