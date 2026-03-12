@@ -18,33 +18,32 @@
 package org.apache.beam.sdk.io.iceberg;
 
 import static org.apache.beam.sdk.io.iceberg.AddFilesSchemaTransformProvider.Configuration;
+import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
 
 import com.google.auto.service.AutoService;
 import com.google.auto.value.AutoValue;
 import java.util.List;
 import java.util.Map;
 import org.apache.beam.sdk.schemas.AutoValueSchema;
+import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
 import org.apache.beam.sdk.schemas.annotations.SchemaFieldDescription;
+import org.apache.beam.sdk.schemas.transforms.SchemaTransform;
 import org.apache.beam.sdk.schemas.transforms.SchemaTransformProvider;
 import org.apache.beam.sdk.schemas.transforms.TypedSchemaTransformProvider;
+import org.apache.beam.sdk.transforms.Filter;
+import org.apache.beam.sdk.transforms.MapElements;
+import org.apache.beam.sdk.values.PCollectionRowTuple;
+import org.apache.beam.sdk.values.TypeDescriptors;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
 
 @AutoService(SchemaTransformProvider.class)
 public class AddFilesSchemaTransformProvider extends TypedSchemaTransformProvider<Configuration> {
   @Override
-  public AddFiles from(Configuration configuration) {
-    @Nullable Integer frequency = configuration.getTriggeringFrequencySeconds();
-
-    return new AddFiles(
-        configuration.getIcebergCatalog(),
-        configuration.getTable(),
-        configuration.getLocationPrefix(),
-        configuration.getPartitionFields(),
-        configuration.getTableProperties(),
-        configuration.getAppendBatchSize(),
-        frequency != null ? Duration.standardSeconds(frequency) : null);
+  public AddFilesSchemaTransform from(Configuration configuration) {
+    return new AddFilesSchemaTransform(configuration);
   }
 
   @Override
@@ -133,6 +132,43 @@ public class AddFilesSchemaTransformProvider extends TypedSchemaTransformProvide
           .setCatalogProperties(getCatalogProperties())
           .setConfigProperties(getConfigProperties())
           .build();
+    }
+  }
+
+  public static class AddFilesSchemaTransform extends SchemaTransform {
+    private final Configuration configuration;
+
+    public AddFilesSchemaTransform(Configuration configuration) {
+      this.configuration = configuration;
+    }
+
+    @Override
+    public PCollectionRowTuple expand(PCollectionRowTuple input) {
+      Schema inputSchema = input.getSinglePCollection().getSchema();
+      Preconditions.checkState(
+          inputSchema.getFieldCount() == 1
+              && inputSchema.getField(0).getType().getTypeName().equals(Schema.TypeName.STRING),
+          "Incoming Row Schema must contain only one field of type String. Instead, got schema: %s",
+          inputSchema);
+
+      @Nullable Integer frequency = configuration.getTriggeringFrequencySeconds();
+
+      return input
+          .getSinglePCollection()
+          .apply("Filter empty paths", Filter.by(row -> row.getString(0) != null))
+          .apply(
+              "ExtractPaths",
+              MapElements.into(TypeDescriptors.strings())
+                  .via(row -> checkStateNotNull(row.getString(0))))
+          .apply(
+              new AddFiles(
+                  configuration.getIcebergCatalog(),
+                  configuration.getTable(),
+                  configuration.getLocationPrefix(),
+                  configuration.getPartitionFields(),
+                  configuration.getTableProperties(),
+                  configuration.getAppendBatchSize(),
+                  frequency != null ? Duration.standardSeconds(frequency) : null));
     }
   }
 }

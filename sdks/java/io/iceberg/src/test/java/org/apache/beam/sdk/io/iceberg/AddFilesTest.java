@@ -32,7 +32,7 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
-import org.apache.beam.sdk.schemas.Schema;
+import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.TestStream;
@@ -96,8 +96,6 @@ public class AddFilesTest {
   @Rule
   public transient TestDataWarehouse warehouse = new TestDataWarehouse(TEMPORARY_FOLDER, "default");
 
-  private static final Schema INPUT_SCHEMA = Schema.builder().addStringField("filepath").build();
-
   @Before
   public void setup() throws Exception {
     // Root for existing data files:
@@ -144,23 +142,19 @@ public class AddFilesTest {
     writer2.close();
 
     // 2. Setup the input PCollection
-    Row row1 = Row.withSchema(INPUT_SCHEMA).addValue(file1).build();
-    Row row2 = Row.withSchema(INPUT_SCHEMA).addValue(file2).build();
-    PCollection<Row> inputFiles =
-        pipeline.apply("Create Input", Create.of(row1, row2).withRowSchema(INPUT_SCHEMA));
+    PCollection<String> inputFiles = pipeline.apply("Create Input", Create.of(file1, file2));
 
     // 3. Apply the transform (Trigger aggressively for testing)
     PCollectionRowTuple output =
-        PCollectionRowTuple.of("input", inputFiles)
-            .apply(
-                new AddFiles(
-                    catalogConfig,
-                    tableId.toString(),
-                    isPartitioned ? root : null,
-                    isPartitioned ? partitionFields : null,
-                    tableProps,
-                    2, // trigger at 2 files
-                    Duration.standardSeconds(10)));
+        inputFiles.apply(
+            new AddFiles(
+                catalogConfig,
+                tableId.toString(),
+                isPartitioned ? root : null,
+                isPartitioned ? partitionFields : null,
+                tableProps,
+                2, // trigger at 2 files
+                Duration.standardSeconds(10)));
 
     // 4. Validate PCollection Outputs
     PAssert.that(output.get("errors")).empty();
@@ -238,24 +232,19 @@ public class AddFilesTest {
     writer3.close();
 
     // 2. Setup the input PCollection
-    Row row1 = Row.withSchema(INPUT_SCHEMA).addValue(file1).build();
-    Row row2 = Row.withSchema(INPUT_SCHEMA).addValue(file2).build();
-    Row row3 = Row.withSchema(INPUT_SCHEMA).addValue(file3).build();
-    PCollection<Row> inputFiles =
-        pipeline.apply("Create Input", Create.of(row1, row2, row3).withRowSchema(INPUT_SCHEMA));
+    PCollection<String> inputFiles = pipeline.apply("Create Input", Create.of(file1, file2, file3));
 
     // 3. Apply the transform (Trigger aggressively for testing)
     PCollectionRowTuple output =
-        PCollectionRowTuple.of("input", inputFiles)
-            .apply(
-                new AddFiles(
-                    catalogConfig,
-                    tableId.toString(),
-                    null, // no prefix, so determine partition from DF metrics
-                    partitionFields,
-                    tableProps,
-                    2, // trigger at 2 files
-                    Duration.standardSeconds(10)));
+        inputFiles.apply(
+            new AddFiles(
+                catalogConfig,
+                tableId.toString(),
+                null, // no prefix, so determine partition from DF metrics
+                partitionFields,
+                tableProps,
+                2, // trigger at 2 files
+                Duration.standardSeconds(10)));
 
     // 4. There should be an error for File3, because its partition could not be determined
     PAssert.that(output.get("errors"))
@@ -315,40 +304,40 @@ public class AddFilesTest {
 
   @Test
   public void testStreamingAdds() throws IOException {
-    List<Row> paths = new ArrayList<>();
+    List<String> paths = new ArrayList<>();
     for (int i = 0; i < 100; i++) {
       String file = String.format("%sdata_%s.parquet", root, i);
       DataWriter<Record> writer = createWriter(file);
       writer.write(record(1, "SomeName", 30));
       writer.close();
-      paths.add(Row.withSchema(INPUT_SCHEMA).addValue(file).build());
+      paths.add(file);
     }
 
-    PCollection<Row> files =
+    PCollection<String> files =
         pipeline.apply(
-            TestStream.create(INPUT_SCHEMA)
+            TestStream.create(StringUtf8Coder.of())
                 .addElements(
-                    paths.get(0), paths.subList(1, 15).toArray(new Row[] {})) // should commit twice
+                    paths.get(0),
+                    paths.subList(1, 15).toArray(new String[] {})) // should commit twice
                 .advanceProcessingTime(Duration.standardSeconds(10))
                 .addElements(
                     paths.get(15),
-                    paths.subList(16, 40).toArray(new Row[] {})) // should commit 3 times
+                    paths.subList(16, 40).toArray(new String[] {})) // should commit 3 times
                 .advanceProcessingTime(Duration.standardSeconds(10))
                 .addElements(
                     paths.get(40),
-                    paths.subList(41, 45).toArray(new Row[] {})) // should commit once
+                    paths.subList(41, 45).toArray(new String[] {})) // should commit once
                 .advanceWatermarkToInfinity());
 
-    PCollectionRowTuple.of("input", files)
-        .apply(
-            new AddFiles(
-                catalogConfig,
-                tableId.toString(),
-                null,
-                null,
-                null,
-                10, // trigger at 10 files
-                Duration.standardSeconds(5)));
+    files.apply(
+        new AddFiles(
+            catalogConfig,
+            tableId.toString(),
+            null,
+            null,
+            null,
+            10, // trigger at 10 files
+            Duration.standardSeconds(5)));
     pipeline.run().waitUntilFinish();
 
     Table table = catalog.loadTable(tableId);
@@ -372,12 +361,11 @@ public class AddFilesTest {
     File txtFile = temp.newFile("unsupported.txt");
     txtFile.createNewFile();
 
-    Row badRow = Row.withSchema(INPUT_SCHEMA).addValue(txtFile.getAbsolutePath()).build();
-    PCollection<Row> inputFiles =
-        pipeline.apply("Create Input", Create.of(badRow).withRowSchema(INPUT_SCHEMA));
+    PCollection<String> inputFiles =
+        pipeline.apply("Create Input", Create.of(txtFile.getAbsolutePath()));
 
     AddFiles addFiles = new AddFiles(catalogConfig, tableId.toString(), null, null, null, 1, null);
-    PCollectionRowTuple outputTuple = PCollectionRowTuple.of("input", inputFiles).apply(addFiles);
+    PCollectionRowTuple outputTuple = inputFiles.apply(addFiles);
 
     // Validate the file ended up in the errors PCollection with the correct schema
     PAssert.that(outputTuple.get("errors"))
@@ -402,14 +390,12 @@ public class AddFilesTest {
     writer.write(record(1, "Andrew", 30));
     writer.close();
 
-    Row row1 = Row.withSchema(INPUT_SCHEMA).addValue(file1).build();
-    PCollection<Row> inputFiles =
-        pipeline.apply("Create Input", Create.of(row1).withRowSchema(INPUT_SCHEMA));
+    PCollection<String> inputFiles = pipeline.apply("Create Input", Create.of(file1));
 
     // Notice locationPrefix is "some/prefix/" but the absolute path doesn't start with it
     AddFiles addFiles =
         new AddFiles(catalogConfig, tableId.toString(), "some/prefix/", null, null, 1, null);
-    PCollectionRowTuple outputTuple = PCollectionRowTuple.of("input", inputFiles).apply(addFiles);
+    PCollectionRowTuple outputTuple = inputFiles.apply(addFiles);
 
     PAssert.that(outputTuple.get("errors"))
         .containsInAnyOrder(

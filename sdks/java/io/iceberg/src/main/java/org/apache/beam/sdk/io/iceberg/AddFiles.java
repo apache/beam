@@ -41,12 +41,10 @@ import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.SchemaCoder;
 import org.apache.beam.sdk.schemas.SchemaRegistry;
-import org.apache.beam.sdk.schemas.transforms.SchemaTransform;
 import org.apache.beam.sdk.transforms.DoFn;
-import org.apache.beam.sdk.transforms.Filter;
 import org.apache.beam.sdk.transforms.GroupByKey;
 import org.apache.beam.sdk.transforms.GroupIntoBatches;
-import org.apache.beam.sdk.transforms.MapElements;
+import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.Redistribute;
 import org.apache.beam.sdk.transforms.WithKeys;
@@ -58,7 +56,6 @@ import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
-import org.apache.beam.sdk.values.TypeDescriptors;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Strings;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
@@ -95,12 +92,12 @@ import org.slf4j.LoggerFactory;
  * A transform that takes in a stream of file paths, converts them to Iceberg {@link DataFile}s with
  * partition metadata and metrics, then commits them to an Iceberg {@link Table}.
  */
-public class AddFiles extends SchemaTransform {
+public class AddFiles extends PTransform<PCollection<String>, PCollectionRowTuple> {
   private static final Duration DEFAULT_TRIGGER_INTERVAL = Duration.standardMinutes(10);
   private static final Counter numFilesAdded = counter(AddFiles.class, "numFilesAdded");
   private static final Counter numErrorFiles = counter(AddFiles.class, "numErrorFiles");
   private static final Logger LOG = LoggerFactory.getLogger(AddFiles.class);
-  private static final int DEFAULT_FILES_TRIGGER = 100_000;
+  private static final int DEFAULT_FILES_TRIGGER = 1_000;
   static final Schema ERROR_SCHEMA =
       Schema.builder().addStringField("file").addStringField("error").build();
   private final IcebergCatalogConfig catalogConfig;
@@ -130,7 +127,7 @@ public class AddFiles extends SchemaTransform {
   }
 
   @Override
-  public PCollectionRowTuple expand(PCollectionRowTuple input) {
+  public PCollectionRowTuple expand(PCollection<String> input) {
     LOG.info(
         "AddFiles configured to commit after accumulating {} files, or after {} seconds.",
         numFilesTrigger,
@@ -140,21 +137,8 @@ public class AddFiles extends SchemaTransform {
           "AddFiles configured to build partition metadata after the prefix: '{}'", locationPrefix);
     }
 
-    Schema inputSchema = input.getSinglePCollection().getSchema();
-    Preconditions.checkState(
-        inputSchema.getFieldCount() == 1
-            && inputSchema.getField(0).getType().getTypeName().equals(Schema.TypeName.STRING),
-        "Incoming Row Schema must contain only one field of type String. Instead, got schema: %s",
-        inputSchema);
-
     PCollectionTuple dataFiles =
         input
-            .getSinglePCollection()
-            .apply("Filter empty paths", Filter.by(row -> row.getString(0) != null))
-            .apply(
-                "ExtractPaths",
-                MapElements.into(TypeDescriptors.strings())
-                    .via(row -> checkStateNotNull(row.getString(0))))
             .apply(Redistribute.arbitrarily())
             .apply(
                 "ConvertToDataFiles",
