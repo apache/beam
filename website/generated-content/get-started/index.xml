@@ -24,7 +24,7 @@ We learn what is a data pipeline, a PCollection, a PTransform, as well as some b
 &lt;td>
 &lt;a class="button" target="_blank" href="https://colab.research.google.com/github/apache/beam/blob/master/examples/notebooks/interactive-overview/getting-started.ipynb">
 &lt;img alt="Run in Colab" width="32px" height="32px"
-src="https://github.com/googlecolab/open_in_colab/raw/master/images/icon32.png" />
+src="/images/colab/icon32.png" />
 Run in Colab
 &lt;/a>
 &lt;/td>
@@ -38,7 +38,7 @@ We also see how we can read from CSV files, read from a SQLite database, write f
 &lt;td>
 &lt;a class="button" target="_blank" href="https://colab.research.google.com/github/apache/beam/blob/master/examples/notebooks/interactive-overview/reading-and-writing-data.ipynb">
 &lt;img alt="Run in Colab" width="32px" height="32px"
-src="https://github.com/googlecolab/open_in_colab/raw/master/images/icon32.png" />
+src="/images/colab/icon32.png" />
 Run in Colab
 &lt;/a>
 &lt;/td>
@@ -51,7 +51,7 @@ We introduce the &lt;code>GlobalWindow&lt;/code>, &lt;code>FixedWindows&lt;/code
 &lt;td>
 &lt;a class="button" target="_blank" href="https://colab.research.google.com/github/apache/beam/blob/master/examples/notebooks/interactive-overview/windowing.ipynb">
 &lt;img alt="Run in Colab" width="32px" height="32px"
-src="https://github.com/googlecolab/open_in_colab/raw/master/images/icon32.png" />
+src="/images/colab/icon32.png" />
 Run in Colab
 &lt;/a>
 &lt;/td>
@@ -66,7 +66,7 @@ To learn more about Beam DataFrames, take a look at the
 &lt;td>
 &lt;a class="button" target="_blank" href="https://colab.research.google.com/github/apache/beam/blob/master/examples/notebooks/interactive-overview/dataframes.ipynb">
 &lt;img alt="Run in Colab" width="32px" height="32px"
-src="https://github.com/googlecolab/open_in_colab/raw/master/images/icon32.png" />
+src="/images/colab/icon32.png" />
 Run in Colab
 &lt;/a>
 &lt;/td>
@@ -82,7 +82,7 @@ for a complete list of the available transforms.&lt;/p>
 &lt;td>
 &lt;a class="button" target="_blank" href="https://colab.research.google.com/github/apache/beam/blob/master/examples/notebooks/documentation/transforms/python/elementwise/map-py.ipynb">
 &lt;img alt="Run in Colab" width="32px" height="32px"
-src="https://github.com/googlecolab/open_in_colab/raw/master/images/icon32.png" />
+src="/images/colab/icon32.png" />
 Run in Colab
 &lt;/a>
 &lt;/td>
@@ -94,7 +94,7 @@ Run in Colab
 &lt;td>
 &lt;a class="button" target="_blank" href="https://colab.research.google.com/github/apache/beam/blob/master/examples/notebooks/documentation/transforms/python/elementwise/flatmap-py.ipynb">
 &lt;img alt="Run in Colab" width="32px" height="32px"
-src="https://github.com/googlecolab/open_in_colab/raw/master/images/icon32.png" />
+src="/images/colab/icon32.png" />
 Run in Colab
 &lt;/a>
 &lt;/td>
@@ -106,7 +106,7 @@ Run in Colab
 &lt;td>
 &lt;a class="button" target="_blank" href="https://colab.research.google.com/github/apache/beam/blob/master/examples/notebooks/documentation/transforms/python/elementwise/filter-py.ipynb">
 &lt;img alt="Run in Colab" width="32px" height="32px"
-src="https://github.com/googlecolab/open_in_colab/raw/master/images/icon32.png" />
+src="/images/colab/icon32.png" />
 Run in Colab
 &lt;/a>
 &lt;/td>
@@ -118,7 +118,7 @@ Run in Colab
 &lt;td>
 &lt;a class="button" target="_blank" href="https://colab.research.google.com/github/apache/beam/blob/master/examples/notebooks/documentation/transforms/python/elementwise/partition-py.ipynb">
 &lt;img alt="Run in Colab" width="32px" height="32px"
-src="https://github.com/googlecolab/open_in_colab/raw/master/images/icon32.png" />
+src="/images/colab/icon32.png" />
 Run in Colab
 &lt;/a>
 &lt;/td>
@@ -130,7 +130,7 @@ Run in Colab
 &lt;td>
 &lt;a class="button" target="_blank" href="https://colab.research.google.com/github/apache/beam/blob/master/examples/notebooks/documentation/transforms/python/elementwise/pardo-py.ipynb">
 &lt;img alt="Run in Colab" width="32px" height="32px"
-src="https://github.com/googlecolab/open_in_colab/raw/master/images/icon32.png" />
+src="/images/colab/icon32.png" />
 Run in Colab
 &lt;/a>
 &lt;/td>
