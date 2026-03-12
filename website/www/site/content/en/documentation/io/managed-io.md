@@ -134,32 +134,6 @@ and Beam SQL is invoked via the Managed API under the hood.
       </td>
     </tr>
     <tr>
-      <td><strong>SQLSERVER</strong></td>
-      <td>
-        <strong>jdbc_url</strong> (<code style="color: green">str</code>)<br>
-        connection_properties (<code style="color: green">str</code>)<br>
-        disable_auto_commit (<code style="color: orange">boolean</code>)<br>
-        fetch_size (<code style="color: #f54251">int32</code>)<br>
-        location (<code style="color: green">str</code>)<br>
-        num_partitions (<code style="color: #f54251">int32</code>)<br>
-        output_parallelization (<code style="color: orange">boolean</code>)<br>
-        partition_column (<code style="color: green">str</code>)<br>
-        password (<code style="color: green">str</code>)<br>
-        read_query (<code style="color: green">str</code>)<br>
-        username (<code style="color: green">str</code>)<br>
-      </td>
-      <td>
-        <strong>jdbc_url</strong> (<code style="color: green">str</code>)<br>
-        autosharding (<code style="color: orange">boolean</code>)<br>
-        batch_size (<code style="color: #f54251">int64</code>)<br>
-        connection_properties (<code style="color: green">str</code>)<br>
-        location (<code style="color: green">str</code>)<br>
-        password (<code style="color: green">str</code>)<br>
-        username (<code style="color: green">str</code>)<br>
-        write_statement (<code style="color: green">str</code>)<br>
-      </td>
-    </tr>
-    <tr>
       <td><strong>MYSQL</strong></td>
       <td>
         <strong>jdbc_url</strong> (<code style="color: green">str</code>)<br>
@@ -180,6 +154,32 @@ and Beam SQL is invoked via the Managed API under the hood.
         autosharding (<code style="color: orange">boolean</code>)<br>
         batch_size (<code style="color: #f54251">int64</code>)<br>
         connection_init_sql (<code>list[<span style="color: green;">str</span>]</code>)<br>
+        connection_properties (<code style="color: green">str</code>)<br>
+        location (<code style="color: green">str</code>)<br>
+        password (<code style="color: green">str</code>)<br>
+        username (<code style="color: green">str</code>)<br>
+        write_statement (<code style="color: green">str</code>)<br>
+      </td>
+    </tr>
+    <tr>
+      <td><strong>SQLSERVER</strong></td>
+      <td>
+        <strong>jdbc_url</strong> (<code style="color: green">str</code>)<br>
+        connection_properties (<code style="color: green">str</code>)<br>
+        disable_auto_commit (<code style="color: orange">boolean</code>)<br>
+        fetch_size (<code style="color: #f54251">int32</code>)<br>
+        location (<code style="color: green">str</code>)<br>
+        num_partitions (<code style="color: #f54251">int32</code>)<br>
+        output_parallelization (<code style="color: orange">boolean</code>)<br>
+        partition_column (<code style="color: green">str</code>)<br>
+        password (<code style="color: green">str</code>)<br>
+        read_query (<code style="color: green">str</code>)<br>
+        username (<code style="color: green">str</code>)<br>
+      </td>
+      <td>
+        <strong>jdbc_url</strong> (<code style="color: green">str</code>)<br>
+        autosharding (<code style="color: orange">boolean</code>)<br>
+        batch_size (<code style="color: #f54251">int64</code>)<br>
         connection_properties (<code style="color: green">str</code>)<br>
         location (<code style="color: green">str</code>)<br>
         password (<code style="color: green">str</code>)<br>
@@ -890,7 +890,7 @@ For more information on table properties, please visit https://iceberg.apache.or
   </table>
 </div>
 
-### `SQLSERVER` Write
+### `MYSQL` Write
 
 <div class="table-container-wrapper">
   <table class="table table-bordered">
@@ -930,6 +930,17 @@ For more information on table properties, please visit https://iceberg.apache.or
       </td>
       <td>
         n/a
+      </td>
+    </tr>
+    <tr>
+      <td>
+        connection_init_sql
+      </td>
+      <td>
+        <code>list[<span style="color: green;">str</span>]</code>
+      </td>
+      <td>
+        Sets the connection init sql statements used by the Driver. Only MySQL and MariaDB support this.
       </td>
     </tr>
     <tr>
@@ -985,139 +996,6 @@ For more information on table properties, please visit https://iceberg.apache.or
       </td>
       <td>
         SQL query used to insert records into the JDBC sink.
-      </td>
-    </tr>
-  </table>
-</div>
-
-### `SQLSERVER` Read
-
-<div class="table-container-wrapper">
-  <table class="table table-bordered">
-    <tr>
-      <th>Configuration</th>
-      <th>Type</th>
-      <th>Description</th>
-    </tr>
-    <tr>
-      <td>
-        <strong>jdbc_url</strong>
-      </td>
-      <td>
-        <code style="color: green">str</code>
-      </td>
-      <td>
-        Connection URL for the JDBC source.
-      </td>
-    </tr>
-    <tr>
-      <td>
-        connection_properties
-      </td>
-      <td>
-        <code style="color: green">str</code>
-      </td>
-      <td>
-        Used to set connection properties passed to the JDBC driver not already defined as standalone parameter (e.g. username and password can be set using parameters above accordingly). Format of the string must be "key1=value1;key2=value2;".
-      </td>
-    </tr>
-    <tr>
-      <td>
-        disable_auto_commit
-      </td>
-      <td>
-        <code style="color: orange">boolean</code>
-      </td>
-      <td>
-        Whether to disable auto commit on read. Defaults to true if not provided. The need for this config varies depending on the database platform. Informix requires this to be set to false while Postgres requires this to be set to true.
-      </td>
-    </tr>
-    <tr>
-      <td>
-        fetch_size
-      </td>
-      <td>
-        <code style="color: #f54251">int32</code>
-      </td>
-      <td>
-        This method is used to override the size of the data that is going to be fetched and loaded in memory per every database call. It should ONLY be used if the default value throws memory errors.
-      </td>
-    </tr>
-    <tr>
-      <td>
-        location
-      </td>
-      <td>
-        <code style="color: green">str</code>
-      </td>
-      <td>
-        Name of the table to read from.
-      </td>
-    </tr>
-    <tr>
-      <td>
-        num_partitions
-      </td>
-      <td>
-        <code style="color: #f54251">int32</code>
-      </td>
-      <td>
-        The number of partitions
-      </td>
-    </tr>
-    <tr>
-      <td>
-        output_parallelization
-      </td>
-      <td>
-        <code style="color: orange">boolean</code>
-      </td>
-      <td>
-        Whether to reshuffle the resulting PCollection so results are distributed to all workers.
-      </td>
-    </tr>
-    <tr>
-      <td>
-        partition_column
-      </td>
-      <td>
-        <code style="color: green">str</code>
-      </td>
-      <td>
-        Name of a column of numeric type that will be used for partitioning.
-      </td>
-    </tr>
-    <tr>
-      <td>
-        password
-      </td>
-      <td>
-        <code style="color: green">str</code>
-      </td>
-      <td>
-        Password for the JDBC source.
-      </td>
-    </tr>
-    <tr>
-      <td>
-        read_query
-      </td>
-      <td>
-        <code style="color: green">str</code>
-      </td>
-      <td>
-        SQL query used to query the JDBC source.
-      </td>
-    </tr>
-    <tr>
-      <td>
-        username
-      </td>
-      <td>
-        <code style="color: green">str</code>
-      </td>
-      <td>
-        Username for the JDBC source.
       </td>
     </tr>
   </table>
@@ -1267,7 +1145,140 @@ For more information on table properties, please visit https://iceberg.apache.or
   </table>
 </div>
 
-### `MYSQL` Write
+### `SQLSERVER` Read
+
+<div class="table-container-wrapper">
+  <table class="table table-bordered">
+    <tr>
+      <th>Configuration</th>
+      <th>Type</th>
+      <th>Description</th>
+    </tr>
+    <tr>
+      <td>
+        <strong>jdbc_url</strong>
+      </td>
+      <td>
+        <code style="color: green">str</code>
+      </td>
+      <td>
+        Connection URL for the JDBC source.
+      </td>
+    </tr>
+    <tr>
+      <td>
+        connection_properties
+      </td>
+      <td>
+        <code style="color: green">str</code>
+      </td>
+      <td>
+        Used to set connection properties passed to the JDBC driver not already defined as standalone parameter (e.g. username and password can be set using parameters above accordingly). Format of the string must be "key1=value1;key2=value2;".
+      </td>
+    </tr>
+    <tr>
+      <td>
+        disable_auto_commit
+      </td>
+      <td>
+        <code style="color: orange">boolean</code>
+      </td>
+      <td>
+        Whether to disable auto commit on read. Defaults to true if not provided. The need for this config varies depending on the database platform. Informix requires this to be set to false while Postgres requires this to be set to true.
+      </td>
+    </tr>
+    <tr>
+      <td>
+        fetch_size
+      </td>
+      <td>
+        <code style="color: #f54251">int32</code>
+      </td>
+      <td>
+        This method is used to override the size of the data that is going to be fetched and loaded in memory per every database call. It should ONLY be used if the default value throws memory errors.
+      </td>
+    </tr>
+    <tr>
+      <td>
+        location
+      </td>
+      <td>
+        <code style="color: green">str</code>
+      </td>
+      <td>
+        Name of the table to read from.
+      </td>
+    </tr>
+    <tr>
+      <td>
+        num_partitions
+      </td>
+      <td>
+        <code style="color: #f54251">int32</code>
+      </td>
+      <td>
+        The number of partitions
+      </td>
+    </tr>
+    <tr>
+      <td>
+        output_parallelization
+      </td>
+      <td>
+        <code style="color: orange">boolean</code>
+      </td>
+      <td>
+        Whether to reshuffle the resulting PCollection so results are distributed to all workers.
+      </td>
+    </tr>
+    <tr>
+      <td>
+        partition_column
+      </td>
+      <td>
+        <code style="color: green">str</code>
+      </td>
+      <td>
+        Name of a column of numeric type that will be used for partitioning.
+      </td>
+    </tr>
+    <tr>
+      <td>
+        password
+      </td>
+      <td>
+        <code style="color: green">str</code>
+      </td>
+      <td>
+        Password for the JDBC source.
+      </td>
+    </tr>
+    <tr>
+      <td>
+        read_query
+      </td>
+      <td>
+        <code style="color: green">str</code>
+      </td>
+      <td>
+        SQL query used to query the JDBC source.
+      </td>
+    </tr>
+    <tr>
+      <td>
+        username
+      </td>
+      <td>
+        <code style="color: green">str</code>
+      </td>
+      <td>
+        Username for the JDBC source.
+      </td>
+    </tr>
+  </table>
+</div>
+
+### `SQLSERVER` Write
 
 <div class="table-container-wrapper">
   <table class="table table-bordered">
@@ -1307,17 +1318,6 @@ For more information on table properties, please visit https://iceberg.apache.or
       </td>
       <td>
         n/a
-      </td>
-    </tr>
-    <tr>
-      <td>
-        connection_init_sql
-      </td>
-      <td>
-        <code>list[<span style="color: green;">str</span>]</code>
-      </td>
-      <td>
-        Sets the connection init sql statements used by the Driver. Only MySQL and MariaDB support this.
       </td>
     </tr>
     <tr>
@@ -1373,6 +1373,73 @@ For more information on table properties, please visit https://iceberg.apache.or
       </td>
       <td>
         SQL query used to insert records into the JDBC sink.
+      </td>
+    </tr>
+  </table>
+</div>
+
+### `BIGQUERY` Read
+
+<div class="table-container-wrapper">
+  <table class="table table-bordered">
+    <tr>
+      <th>Configuration</th>
+      <th>Type</th>
+      <th>Description</th>
+    </tr>
+    <tr>
+      <td>
+        kms_key
+      </td>
+      <td>
+        <code style="color: green">str</code>
+      </td>
+      <td>
+        Use this Cloud KMS key to encrypt your data
+      </td>
+    </tr>
+    <tr>
+      <td>
+        query
+      </td>
+      <td>
+        <code style="color: green">str</code>
+      </td>
+      <td>
+        The SQL query to be executed to read from the BigQuery table.
+      </td>
+    </tr>
+    <tr>
+      <td>
+        row_restriction
+      </td>
+      <td>
+        <code style="color: green">str</code>
+      </td>
+      <td>
+        Read only rows that match this filter, which must be compatible with Google standard SQL. This is not supported when reading via query.
+      </td>
+    </tr>
+    <tr>
+      <td>
+        fields
+      </td>
+      <td>
+        <code>list[<span style="color: green;">str</span>]</code>
+      </td>
+      <td>
+        Read only the specified fields (columns) from a BigQuery table. Fields may not be returned in the order specified. If no value is specified, then all fields are returned. Example: "col1, col2, col3"
+      </td>
+    </tr>
+    <tr>
+      <td>
+        table
+      </td>
+      <td>
+        <code style="color: green">str</code>
+      </td>
+      <td>
+        The fully-qualified name of the BigQuery table to read from. Format: [${PROJECT}:]${DATASET}.${TABLE}
       </td>
     </tr>
   </table>
@@ -1451,173 +1518,6 @@ For more information on table properties, please visit https://iceberg.apache.or
       </td>
       <td>
         Determines how often to 'commit' progress into BigQuery. Default is every 5 seconds.
-      </td>
-    </tr>
-  </table>
-</div>
-
-### `BIGQUERY` Read
-
-<div class="table-container-wrapper">
-  <table class="table table-bordered">
-    <tr>
-      <th>Configuration</th>
-      <th>Type</th>
-      <th>Description</th>
-    </tr>
-    <tr>
-      <td>
-        kms_key
-      </td>
-      <td>
-        <code style="color: green">str</code>
-      </td>
-      <td>
-        Use this Cloud KMS key to encrypt your data
-      </td>
-    </tr>
-    <tr>
-      <td>
-        query
-      </td>
-      <td>
-        <code style="color: green">str</code>
-      </td>
-      <td>
-        The SQL query to be executed to read from the BigQuery table.
-      </td>
-    </tr>
-    <tr>
-      <td>
-        row_restriction
-      </td>
-      <td>
-        <code style="color: green">str</code>
-      </td>
-      <td>
-        Read only rows that match this filter, which must be compatible with Google standard SQL. This is not supported when reading via query.
-      </td>
-    </tr>
-    <tr>
-      <td>
-        fields
-      </td>
-      <td>
-        <code>list[<span style="color: green;">str</span>]</code>
-      </td>
-      <td>
-        Read only the specified fields (columns) from a BigQuery table. Fields may not be returned in the order specified. If no value is specified, then all fields are returned. Example: "col1, col2, col3"
-      </td>
-    </tr>
-    <tr>
-      <td>
-        table
-      </td>
-      <td>
-        <code style="color: green">str</code>
-      </td>
-      <td>
-        The fully-qualified name of the BigQuery table to read from. Format: [${PROJECT}:]${DATASET}.${TABLE}
-      </td>
-    </tr>
-  </table>
-</div>
-
-### `POSTGRES` Write
-
-<div class="table-container-wrapper">
-  <table class="table table-bordered">
-    <tr>
-      <th>Configuration</th>
-      <th>Type</th>
-      <th>Description</th>
-    </tr>
-    <tr>
-      <td>
-        <strong>jdbc_url</strong>
-      </td>
-      <td>
-        <code style="color: green">str</code>
-      </td>
-      <td>
-        Connection URL for the JDBC sink.
-      </td>
-    </tr>
-    <tr>
-      <td>
-        autosharding
-      </td>
-      <td>
-        <code style="color: orange">boolean</code>
-      </td>
-      <td>
-        If true, enables using a dynamically determined number of shards to write.
-      </td>
-    </tr>
-    <tr>
-      <td>
-        batch_size
-      </td>
-      <td>
-        <code style="color: #f54251">int64</code>
-      </td>
-      <td>
-        n/a
-      </td>
-    </tr>
-    <tr>
-      <td>
-        connection_properties
-      </td>
-      <td>
-        <code style="color: green">str</code>
-      </td>
-      <td>
-        Used to set connection properties passed to the JDBC driver not already defined as standalone parameter (e.g. username and password can be set using parameters above accordingly). Format of the string must be "key1=value1;key2=value2;".
-      </td>
-    </tr>
-    <tr>
-      <td>
-        location
-      </td>
-      <td>
-        <code style="color: green">str</code>
-      </td>
-      <td>
-        Name of the table to write to.
-      </td>
-    </tr>
-    <tr>
-      <td>
-        password
-      </td>
-      <td>
-        <code style="color: green">str</code>
-      </td>
-      <td>
-        Password for the JDBC source.
-      </td>
-    </tr>
-    <tr>
-      <td>
-        username
-      </td>
-      <td>
-        <code style="color: green">str</code>
-      </td>
-      <td>
-        Username for the JDBC source.
-      </td>
-    </tr>
-    <tr>
-      <td>
-        write_statement
-      </td>
-      <td>
-        <code style="color: green">str</code>
-      </td>
-      <td>
-        SQL query used to insert records into the JDBC sink.
       </td>
     </tr>
   </table>
@@ -1740,6 +1640,106 @@ For more information on table properties, please visit https://iceberg.apache.or
       </td>
       <td>
         Username for the JDBC source.
+      </td>
+    </tr>
+  </table>
+</div>
+
+### `POSTGRES` Write
+
+<div class="table-container-wrapper">
+  <table class="table table-bordered">
+    <tr>
+      <th>Configuration</th>
+      <th>Type</th>
+      <th>Description</th>
+    </tr>
+    <tr>
+      <td>
+        <strong>jdbc_url</strong>
+      </td>
+      <td>
+        <code style="color: green">str</code>
+      </td>
+      <td>
+        Connection URL for the JDBC sink.
+      </td>
+    </tr>
+    <tr>
+      <td>
+        autosharding
+      </td>
+      <td>
+        <code style="color: orange">boolean</code>
+      </td>
+      <td>
+        If true, enables using a dynamically determined number of shards to write.
+      </td>
+    </tr>
+    <tr>
+      <td>
+        batch_size
+      </td>
+      <td>
+        <code style="color: #f54251">int64</code>
+      </td>
+      <td>
+        n/a
+      </td>
+    </tr>
+    <tr>
+      <td>
+        connection_properties
+      </td>
+      <td>
+        <code style="color: green">str</code>
+      </td>
+      <td>
+        Used to set connection properties passed to the JDBC driver not already defined as standalone parameter (e.g. username and password can be set using parameters above accordingly). Format of the string must be "key1=value1;key2=value2;".
+      </td>
+    </tr>
+    <tr>
+      <td>
+        location
+      </td>
+      <td>
+        <code style="color: green">str</code>
+      </td>
+      <td>
+        Name of the table to write to.
+      </td>
+    </tr>
+    <tr>
+      <td>
+        password
+      </td>
+      <td>
+        <code style="color: green">str</code>
+      </td>
+      <td>
+        Password for the JDBC source.
+      </td>
+    </tr>
+    <tr>
+      <td>
+        username
+      </td>
+      <td>
+        <code style="color: green">str</code>
+      </td>
+      <td>
+        Username for the JDBC source.
+      </td>
+    </tr>
+    <tr>
+      <td>
+        write_statement
+      </td>
+      <td>
+        <code style="color: green">str</code>
+      </td>
+      <td>
+        SQL query used to insert records into the JDBC sink.
       </td>
     </tr>
   </table>
