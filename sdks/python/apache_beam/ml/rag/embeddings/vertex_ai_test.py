@@ -16,10 +16,11 @@
 
 """Tests for apache_beam.ml.rag.embeddings.vertex_ai."""
 
-import pytest
 import shutil
 import tempfile
 import unittest
+
+import pytest
 
 import apache_beam as beam
 from apache_beam.ml.rag.types import Chunk
