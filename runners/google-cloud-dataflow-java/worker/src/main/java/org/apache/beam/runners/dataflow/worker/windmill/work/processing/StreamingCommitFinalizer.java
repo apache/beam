@@ -50,7 +50,7 @@ final class StreamingCommitFinalizer {
   /** A {@link Runnable} and expiry time pair. */
   @AutoValue
   public abstract static class FinalizationInfo {
-    public abstract Long getId();
+    public abstract long getId();
 
     public abstract Instant getExpiryTime();
 
