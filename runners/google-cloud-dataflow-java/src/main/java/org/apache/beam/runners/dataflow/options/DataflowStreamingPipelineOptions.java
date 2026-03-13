@@ -101,6 +101,13 @@ public interface DataflowStreamingPipelineOptions extends PipelineOptions {
   void setWindmillServiceCommitThreads(Integer value);
 
   @Description(
+      "Number of commit threads per backend windmill worker in streaming engine direct path mode.")
+  @Default.Integer(1)
+  Integer getWindmillServiceDirectPathCommitThreads();
+
+  void setWindmillServiceDirectPathCommitThreads(Integer value);
+
+  @Description(
       "Frequency at which active work should be reported back to Windmill, in millis. "
           + "The first refresh will occur after at least this much time has passed since "
           + "starting the work item")
