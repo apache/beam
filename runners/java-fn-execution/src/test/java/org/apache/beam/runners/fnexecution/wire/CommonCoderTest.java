@@ -152,7 +152,7 @@ public class CommonCoderTest {
     @SuppressWarnings("mutable")
     abstract byte[] getPayload();
 
-    abstract Boolean getNonDeterministic();
+    abstract boolean getNonDeterministic();
 
     abstract Map<ByteString, ByteString> getState();
 

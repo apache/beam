@@ -20,8 +20,11 @@ package org.apache.beam.io.debezium;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.Assert.assertThrows;
 
+import java.util.Collections;
 import org.apache.beam.sdk.schemas.Schema;
+import org.apache.kafka.connect.source.SourceRecord;
 import org.hamcrest.Matchers;
+import org.joda.time.Instant;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -59,11 +62,45 @@ public class KafkaConnectSchemaTest {
 
   @Test
   public void testTimestampRequired() {
-    org.apache.kafka.connect.source.SourceRecord record = SourceRecordJsonTest.buildSourceRecord();
+    SourceRecord record = SourceRecordJsonTest.buildSourceRecord();
 
     IllegalArgumentException e =
         assertThrows(
             IllegalArgumentException.class, () -> KafkaConnectUtils.debeziumRecordInstant(record));
-    assertThat(e.getMessage(), Matchers.containsString("Should be STRUCT with ts_ms field"));
+    assertThat(
+        e.getMessage(),
+        Matchers.containsString("Should be STRUCT with ts_ms field or sourceOffset with ts_usec"));
+  }
+
+  @Test
+  public void testDebeziumRecordInstantNullValueSchema() {
+    SourceRecord record =
+        new SourceRecord(
+            Collections.singletonMap("server", "test"),
+            Collections.singletonMap("ts_usec", 1614854400000000L),
+            "test-topic",
+            null,
+            null);
+
+    Instant instant = KafkaConnectUtils.debeziumRecordInstant(record);
+    assertThat(instant.getMillis(), Matchers.is(1614854400000L));
+  }
+
+  @Test
+  public void testDebeziumRecordInstantMissingTimestamp() {
+    SourceRecord record =
+        new SourceRecord(
+            Collections.singletonMap("server", "test"),
+            Collections.emptyMap(),
+            "test-topic",
+            null,
+            null);
+
+    IllegalArgumentException e =
+        assertThrows(
+            IllegalArgumentException.class, () -> KafkaConnectUtils.debeziumRecordInstant(record));
+    assertThat(
+        e.getMessage(),
+        Matchers.containsString("Should be STRUCT with ts_ms field or sourceOffset with ts_usec"));
   }
 }

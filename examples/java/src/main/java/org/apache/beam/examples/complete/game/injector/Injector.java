@@ -17,6 +17,8 @@
  */
 package org.apache.beam.examples.complete.game.injector;
 
+import static java.nio.charset.StandardCharsets.UTF_8;
+
 import com.google.api.services.pubsub.Pubsub;
 import com.google.api.services.pubsub.model.PublishRequest;
 import com.google.api.services.pubsub.model.PubsubMessage;
@@ -327,7 +329,7 @@ class Injector {
     for (int i = 0; i < Math.max(1, numMessages); i++) {
       Long currTime = System.currentTimeMillis();
       String message = generateEvent(currTime, delayInMillis);
-      PubsubMessage pubsubMessage = new PubsubMessage().encodeData(message.getBytes("UTF-8"));
+      PubsubMessage pubsubMessage = new PubsubMessage().encodeData(message.getBytes(UTF_8));
       pubsubMessage.setAttributes(
           ImmutableMap.of(
               GameConstants.TIMESTAMP_ATTRIBUTE,
@@ -350,7 +352,7 @@ class Injector {
     PrintWriter out =
         new PrintWriter(
             new OutputStreamWriter(
-                new BufferedOutputStream(new FileOutputStream(fileName, true)), "UTF-8"));
+                new BufferedOutputStream(new FileOutputStream(fileName, true)), UTF_8));
 
     try {
       for (int i = 0; i < Math.max(1, numMessages); i++) {

@@ -146,7 +146,7 @@ public class BeamRowToStorageApiProto {
           .build();
 
   /**
-   * Forwards (@param changeSequenceNum) to {@link #messageFromBeamRow(Descriptor, Row, String,
+   * Forwards ({@code changeSequenceNum}) to {@link #messageFromBeamRow(Descriptor, Row, String,
    * String)} via {@link Long#toHexString}.
    */
   public static DynamicMessage messageFromBeamRow(

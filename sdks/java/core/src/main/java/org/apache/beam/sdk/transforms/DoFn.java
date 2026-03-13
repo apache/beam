@@ -1049,7 +1049,7 @@ public abstract class DoFn<InputT extends @Nullable Object, OutputT extends @Nul
    * RestrictionTracker.HasProgress} implementation within the {@link RestrictionTracker} is an
    * inaccurate representation of known work.
    *
-   * <p>It is up to each splittable {@DoFn} to convert between their natural representation of
+   * <p>It is up to each splittable {@link DoFn} to convert between their natural representation of
    * outstanding work and this representation. For example:
    *
    * <ul>

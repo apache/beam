@@ -381,10 +381,7 @@ if __name__ == '__main__':
           'envoy-data-plane<0.3.0; python_version < "3.13"',
           'fastavro>=0.23.6,<2',
           'fasteners>=0.3,<1.0',
-          'grpcio>=1.33.1,<2,!=1.48.0,!=1.59.*,!=1.60.*,!=1.61.*,!=1.62.0,!=1.62.1,!=1.66.*,!=1.67.*,!=1.68.*,!=1.69.*,!=1.70.*,!=1.71.*,!=1.72.*,!=1.73.*,!=1.74.*,!=1.75.*,!=1.76.*,!=1.77.*,!=1.78.0; python_version <= "3.12"',  # pylint: disable=line-too-long
-          # TODO(https://github.com/grpc/grpc/issues/37710): Consolidate bounds
-          # across python versions once 1.78.1 is avaliable.
-          'grpcio>=1.67.0,<2; python_version >= "3.13"',
+          'grpcio>=1.33.1,<2,!=1.48.0,!=1.59.*,!=1.60.*,!=1.61.*,!=1.62.0,!=1.62.1,!=1.66.*,!=1.67.*,!=1.68.*,!=1.69.*,!=1.70.*',  # pylint: disable=line-too-long
           'httplib2>=0.8,<0.32.0',
           'jsonpickle>=3.0.0,<4.0.0',
           # numpy can have breaking changes in minor versions.
@@ -550,6 +547,9 @@ if __name__ == '__main__':
               # https://github.com/apache/beam/issues/31285
               # 'xgboost<2.0',  # https://github.com/apache/beam/issues/31252
           ] + ml_base,
+          'p310_ml_test': [
+            'datatable',
+          ] + ml_base,
           'p312_ml_test': [
               'datatable',
           ] + ml_base,
@@ -627,7 +627,7 @@ if __name__ == '__main__':
           'xgboost': ['xgboost>=1.6.0,<2.1.3', 'datatable==1.0.0'],
           'tensorflow-hub': ['tensorflow-hub>=0.14.0,<0.16.0'],
           'milvus': milvus_dependency,
-          'vllm': ['openai==1.107.1', 'vllm==0.10.1.1', 'triton==3.3.1']
+          'vllm': ['openai==1.107.1', 'vllm==0.14', 'triton==3.3.1']
       },
       zip_safe=False,
       # PyPI package information.

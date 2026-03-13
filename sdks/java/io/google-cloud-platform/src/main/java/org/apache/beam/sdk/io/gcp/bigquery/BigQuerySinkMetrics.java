@@ -140,7 +140,7 @@ public class BigQuerySinkMetrics {
     }
     long timeElapsed = java.time.Duration.between(operationStartTime, operationEndTime).toMillis();
     if (timeElapsed > 0) {
-      BigQuerySinkMetrics.createRPCLatencyHistogram(method).update(timeElapsed);
+      BigQuerySinkMetrics.createRPCLatencyHistogram(method).update((double) timeElapsed);
     }
   }
 

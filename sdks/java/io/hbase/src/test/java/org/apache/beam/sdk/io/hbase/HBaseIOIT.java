@@ -157,7 +157,7 @@ public class HBaseIOIT {
     @ProcessElement
     public void processElement(ProcessContext c) {
       c.output(
-          new Put(c.element().id().toString().getBytes(StandardCharsets.UTF_8))
+          new Put(String.valueOf(c.element().id()).getBytes(StandardCharsets.UTF_8))
               .addColumn(COLUMN_FAMILY, COLUMN_HASH, Bytes.toBytes(c.element().name())));
     }
   }

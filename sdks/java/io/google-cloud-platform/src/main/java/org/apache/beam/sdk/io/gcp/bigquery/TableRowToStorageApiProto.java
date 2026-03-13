@@ -33,7 +33,6 @@ import com.google.protobuf.DescriptorProtos;
 import com.google.protobuf.DescriptorProtos.DescriptorProto;
 import com.google.protobuf.DescriptorProtos.FieldDescriptorProto;
 import com.google.protobuf.DescriptorProtos.FieldDescriptorProto.Label;
-import com.google.protobuf.DescriptorProtos.FieldDescriptorProto.Type;
 import com.google.protobuf.DescriptorProtos.FileDescriptorProto;
 import com.google.protobuf.Descriptors;
 import com.google.protobuf.Descriptors.Descriptor;
@@ -645,20 +644,22 @@ public class TableRowToStorageApiProto {
     }
   }
 
-  static final Map<TableFieldSchema.Type, Type> PRIMITIVE_TYPES_BQ_TO_PROTO =
-      ImmutableMap.<TableFieldSchema.Type, Type>builder()
-          .put(TableFieldSchema.Type.INT64, Type.TYPE_INT64)
-          .put(TableFieldSchema.Type.DOUBLE, Type.TYPE_DOUBLE)
-          .put(TableFieldSchema.Type.STRING, Type.TYPE_STRING)
-          .put(TableFieldSchema.Type.BOOL, Type.TYPE_BOOL)
-          .put(TableFieldSchema.Type.BYTES, Type.TYPE_BYTES)
-          .put(TableFieldSchema.Type.NUMERIC, Type.TYPE_BYTES)
-          .put(TableFieldSchema.Type.BIGNUMERIC, Type.TYPE_BYTES)
-          .put(TableFieldSchema.Type.GEOGRAPHY, Type.TYPE_STRING) // Pass through the JSON encoding.
-          .put(TableFieldSchema.Type.DATE, Type.TYPE_INT32)
-          .put(TableFieldSchema.Type.TIME, Type.TYPE_INT64)
-          .put(TableFieldSchema.Type.DATETIME, Type.TYPE_INT64)
-          .put(TableFieldSchema.Type.JSON, Type.TYPE_STRING)
+  static final Map<TableFieldSchema.Type, FieldDescriptorProto.Type> PRIMITIVE_TYPES_BQ_TO_PROTO =
+      ImmutableMap.<TableFieldSchema.Type, FieldDescriptorProto.Type>builder()
+          .put(TableFieldSchema.Type.INT64, FieldDescriptorProto.Type.TYPE_INT64)
+          .put(TableFieldSchema.Type.DOUBLE, FieldDescriptorProto.Type.TYPE_DOUBLE)
+          .put(TableFieldSchema.Type.STRING, FieldDescriptorProto.Type.TYPE_STRING)
+          .put(TableFieldSchema.Type.BOOL, FieldDescriptorProto.Type.TYPE_BOOL)
+          .put(TableFieldSchema.Type.BYTES, FieldDescriptorProto.Type.TYPE_BYTES)
+          .put(TableFieldSchema.Type.NUMERIC, FieldDescriptorProto.Type.TYPE_BYTES)
+          .put(TableFieldSchema.Type.BIGNUMERIC, FieldDescriptorProto.Type.TYPE_BYTES)
+          .put(
+              TableFieldSchema.Type.GEOGRAPHY,
+              FieldDescriptorProto.Type.TYPE_STRING) // Pass through the JSON encoding.
+          .put(TableFieldSchema.Type.DATE, FieldDescriptorProto.Type.TYPE_INT32)
+          .put(TableFieldSchema.Type.TIME, FieldDescriptorProto.Type.TYPE_INT64)
+          .put(TableFieldSchema.Type.DATETIME, FieldDescriptorProto.Type.TYPE_INT64)
+          .put(TableFieldSchema.Type.JSON, FieldDescriptorProto.Type.TYPE_STRING)
           .build();
 
   static final Map<Descriptors.FieldDescriptor.Type, TableFieldSchema.Type>
@@ -818,7 +819,7 @@ public class TableRowToStorageApiProto {
   }
 
   /**
-   * Forwards {@param changeSequenceNum} to {@link #messageFromTableRow(SchemaInformation,
+   * Forwards {@code changeSequenceNum} to {@link #messageFromTableRow(SchemaInformation,
    * Descriptor, TableRow, boolean, boolean, TableRow, String, String)} via {@link
    * Long#toHexString}.
    */
@@ -1044,14 +1045,16 @@ public class TableRowToStorageApiProto {
       FieldDescriptorProto.Builder fieldDescriptorBuilder = FieldDescriptorProto.newBuilder();
       fieldDescriptorBuilder = fieldDescriptorBuilder.setName(StorageApiCDC.CHANGE_TYPE_COLUMN);
       fieldDescriptorBuilder = fieldDescriptorBuilder.setNumber(i++);
-      fieldDescriptorBuilder = fieldDescriptorBuilder.setType(Type.TYPE_STRING);
+      fieldDescriptorBuilder =
+          fieldDescriptorBuilder.setType(FieldDescriptorProto.Type.TYPE_STRING);
       fieldDescriptorBuilder = fieldDescriptorBuilder.setLabel(Label.LABEL_OPTIONAL);
       descriptorBuilder.addField(fieldDescriptorBuilder.build());
 
       fieldDescriptorBuilder = FieldDescriptorProto.newBuilder();
       fieldDescriptorBuilder = fieldDescriptorBuilder.setName(StorageApiCDC.CHANGE_SQN_COLUMN);
       fieldDescriptorBuilder = fieldDescriptorBuilder.setNumber(i++);
-      fieldDescriptorBuilder = fieldDescriptorBuilder.setType(Type.TYPE_STRING);
+      fieldDescriptorBuilder =
+          fieldDescriptorBuilder.setType(FieldDescriptorProto.Type.TYPE_STRING);
       fieldDescriptorBuilder = fieldDescriptorBuilder.setLabel(Label.LABEL_OPTIONAL);
       descriptorBuilder.addField(fieldDescriptorBuilder.build());
     }
@@ -1090,7 +1093,9 @@ public class TableRowToStorageApiProto {
                 fieldSchema.getFieldsList(), respectRequired, false);
         descriptorBuilder.addNestedType(nested);
         fieldDescriptorBuilder =
-            fieldDescriptorBuilder.setType(Type.TYPE_MESSAGE).setTypeName(nested.getName());
+            fieldDescriptorBuilder
+                .setType(FieldDescriptorProto.Type.TYPE_MESSAGE)
+                .setTypeName(nested.getName());
         break;
       case TIMESTAMP:
         if (fieldSchema.getTimestampPrecision().getValue() == PICOSECOND_PRECISION) {
@@ -1103,16 +1108,18 @@ public class TableRowToStorageApiProto {
           }
           fieldDescriptorBuilder =
               fieldDescriptorBuilder
-                  .setType(Type.TYPE_MESSAGE)
+                  .setType(FieldDescriptorProto.Type.TYPE_MESSAGE)
                   .setTypeName(TIMESTAMP_PICOS_DESCRIPTOR_PROTO.getName());
         } else {
           // Microsecond precision - use simple INT64
-          fieldDescriptorBuilder = fieldDescriptorBuilder.setType(Type.TYPE_INT64);
+          fieldDescriptorBuilder =
+              fieldDescriptorBuilder.setType(FieldDescriptorProto.Type.TYPE_INT64);
         }
         break;
 
       default:
-        @Nullable Type type = PRIMITIVE_TYPES_BQ_TO_PROTO.get(fieldSchema.getType());
+        FieldDescriptorProto.@Nullable Type type =
+            PRIMITIVE_TYPES_BQ_TO_PROTO.get(fieldSchema.getType());
         if (type == null) {
           throw new UnsupportedOperationException(
               "Converting BigQuery type " + fieldSchema.getType() + " to Beam type is unsupported");
