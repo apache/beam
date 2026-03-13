@@ -458,9 +458,10 @@ public final class StreamingDataflowWorker {
     WorkCommitter workCommitter =
         StreamingEngineWorkCommitter.builder()
             .setCommitWorkStreamFactory(
-                WindmillStreamPool.create(
-                        numCommitThreads, COMMIT_STREAM_TIMEOUT, windmillServer::commitWorkStream)
-                    ::getCloseableStream)
+                () ->
+                    WindmillStreamPool.create(
+                            1, COMMIT_STREAM_TIMEOUT, windmillServer::commitWorkStream)
+                        .getCloseableStream())
             .setCommitByteSemaphore(Commits.maxCommitByteSemaphore())
             .setNumCommitSenders(numCommitThreads)
             .setOnCommitComplete(this::onCompleteCommit)
