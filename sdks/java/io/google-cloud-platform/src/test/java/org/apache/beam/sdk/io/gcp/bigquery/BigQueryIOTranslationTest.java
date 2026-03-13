@@ -63,6 +63,8 @@ public class BigQueryIOTranslationTest {
     READ_TRANSFORM_SCHEMA_MAPPING.put("getQueryTempProject", "query_temp_project");
     READ_TRANSFORM_SCHEMA_MAPPING.put("getMethod", "method");
     READ_TRANSFORM_SCHEMA_MAPPING.put("getFormat", "format");
+    READ_TRANSFORM_SCHEMA_MAPPING.put(
+        "getDirectReadPicosTimestampPrecision", "direct_read_picos_timestamp_precision");
     READ_TRANSFORM_SCHEMA_MAPPING.put("getSelectedFields", "selected_fields");
     READ_TRANSFORM_SCHEMA_MAPPING.put("getRowRestriction", "row_restriction");
     READ_TRANSFORM_SCHEMA_MAPPING.put("getCoder", "coder");
@@ -322,5 +324,25 @@ public class BigQueryIOTranslationTest {
                       .getFieldNames()
                       .contains(fieldName));
             });
+  }
+
+  @Test
+  public void testReCreateReadTransformFromRowWithDirectReadPicosTimestampPrecision() {
+    BigQueryIO.TypedRead<TableRow> readTransform =
+        BigQueryIO.readTableRows()
+            .from("dummyproject:dummydataset.dummytable")
+            .withMethod(TypedRead.Method.DIRECT_READ)
+            .withDirectReadPicosTimestampPrecision(TimestampPrecision.PICOS);
+
+    BigQueryIOTranslation.BigQueryIOReadTranslator translator =
+        new BigQueryIOTranslation.BigQueryIOReadTranslator();
+    Row row = translator.toConfigRow(readTransform);
+
+    BigQueryIO.TypedRead<TableRow> readTransformFromRow =
+        (BigQueryIO.TypedRead<TableRow>)
+            translator.fromConfigRow(row, PipelineOptionsFactory.create());
+
+    assertEquals(
+        TimestampPrecision.PICOS, readTransformFromRow.getDirectReadPicosTimestampPrecision());
   }
 }

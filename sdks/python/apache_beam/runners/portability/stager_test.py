@@ -100,6 +100,8 @@ class StagerTest(unittest.TestCase):
     _ = requirements_file
     self.create_temp_file(os.path.join(cache_dir, 'abc.txt'), 'nothing')
     self.create_temp_file(os.path.join(cache_dir, 'def.txt'), 'nothing')
+    # Return the list of packages that were "downloaded" for this requirements
+    return {'abc.txt', 'def.txt'}
 
   @mock.patch('apache_beam.runners.portability.stager.open')
   @mock.patch('apache_beam.runners.portability.stager.get_new_http')
@@ -810,10 +812,14 @@ class StagerTest(unittest.TestCase):
 
   def _populate_requitements_cache_fake(
       self, requirements_file, temp_dir, populate_cache_with_sdists):
+    packages = set()
     if not populate_cache_with_sdists:
       self.create_temp_file(os.path.join(temp_dir, 'nothing.whl'), 'Fake whl')
+      packages.add('nothing.whl')
     self.create_temp_file(
         os.path.join(temp_dir, 'nothing.tar.gz'), 'Fake tarball')
+    packages.add('nothing.tar.gz')
+    return packages
 
   # requirements cache will popultated with bdist/whl if present
   # else source would be downloaded.
@@ -912,6 +918,89 @@ class StagerTest(unittest.TestCase):
         extra_packages_contents = fin.read()
       self.assertNotIn('fake_pypi', extra_packages_contents)
       self.assertIn('local_package', extra_packages_contents)
+
+  def test_only_required_packages_staged_from_cache(self):
+    """Test that only packages needed for current requirements are staged.
+
+    This test verifies the fix for the issue where the entire cache directory
+    was being staged, even when some packages weren't needed for the current
+    workflow.
+    """
+    staging_dir = self.make_temp_dir()
+    requirements_cache_dir = self.make_temp_dir()
+    source_dir = self.make_temp_dir()
+
+    # Pre-populate cache with packages from a "previous run"
+    self.create_temp_file(
+        os.path.join(requirements_cache_dir, 'old_package.whl'), 'old package')
+    self.create_temp_file(
+        os.path.join(requirements_cache_dir, 'another_old.tar.gz'), 'another')
+
+    options = PipelineOptions()
+    self.update_options(options)
+    options.view_as(SetupOptions).requirements_cache = requirements_cache_dir
+    options.view_as(SetupOptions).requirements_file = os.path.join(
+        source_dir, stager.REQUIREMENTS_FILE)
+    self.create_temp_file(
+        os.path.join(source_dir, stager.REQUIREMENTS_FILE), 'new_package')
+
+    def populate_cache_for_new_requirements(
+        requirements_file, cache_dir, populate_cache_with_sdists=False):
+      # Simulate downloading only the packages needed for new requirements
+      self.create_temp_file(
+          os.path.join(cache_dir, 'new_package.whl'), 'new package content')
+      return {'new_package.whl'}
+
+    resources = self.stager.create_and_stage_job_resources(
+        options,
+        populate_requirements_cache=populate_cache_for_new_requirements,
+        staging_location=staging_dir)[1]
+
+    # Verify only new_package.whl is staged, not old packages
+    self.assertIn('new_package.whl', resources)
+    self.assertNotIn('old_package.whl', resources)
+    self.assertNotIn('another_old.tar.gz', resources)
+
+    # Verify the file exists in staging
+    self.assertTrue(
+        os.path.isfile(os.path.join(staging_dir, 'new_package.whl')))
+    # Verify old packages are NOT in staging
+    self.assertFalse(
+        os.path.isfile(os.path.join(staging_dir, 'old_package.whl')))
+    self.assertFalse(
+        os.path.isfile(os.path.join(staging_dir, 'another_old.tar.gz')))
+
+  def test_populate_requirements_cache_uses_find_links(self):
+    """Test that _populate_requirements_cache uses --find-links to reuse cache.
+
+    This test verifies that pip download is called with --find-links pointing
+    to the cache directory, so packages already in cache are reused instead
+    of being re-downloaded from PyPI.
+    """
+    requirements_cache_dir = self.make_temp_dir()
+    source_dir = self.make_temp_dir()
+
+    # Create a requirements file
+    requirements_file = os.path.join(source_dir, 'requirements.txt')
+    self.create_temp_file(requirements_file, 'some_package==1.0.0')
+
+    captured_cmd_args = []
+
+    def mock_check_output(cmd_args, **kwargs):
+      captured_cmd_args.extend(cmd_args)
+      return b''
+
+    with mock.patch(
+        'apache_beam.runners.portability.stager.processes.check_output',
+        side_effect=mock_check_output):
+      stager.Stager._populate_requirements_cache(
+          requirements_file, requirements_cache_dir)
+
+    # Verify --find-links is in the command with the cache directory
+    self.assertIn('--find-links', captured_cmd_args)
+    find_links_index = captured_cmd_args.index('--find-links')
+    self.assertEqual(
+        requirements_cache_dir, captured_cmd_args[find_links_index + 1])
 
 
 class TestStager(stager.Stager):

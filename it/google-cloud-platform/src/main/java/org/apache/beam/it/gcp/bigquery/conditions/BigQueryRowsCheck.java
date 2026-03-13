@@ -31,7 +31,7 @@ public abstract class BigQueryRowsCheck extends ConditionCheck {
 
   abstract TableId tableId();
 
-  abstract Integer minRows();
+  abstract int minRows();
 
   abstract @Nullable Integer maxRows();
 
@@ -87,7 +87,7 @@ public abstract class BigQueryRowsCheck extends ConditionCheck {
 
     public abstract Builder setTableId(TableId tableId);
 
-    public abstract Builder setMinRows(Integer minRows);
+    public abstract Builder setMinRows(int minRows);
 
     public abstract Builder setMaxRows(Integer maxRows);
 

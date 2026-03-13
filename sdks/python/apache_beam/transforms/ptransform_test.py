@@ -163,6 +163,25 @@ class PTransformTest(unittest.TestCase):
           lambda x, addon: [x + addon], addon=pvalue.AsSingleton(side))
       assert_that(result, equal_to([11, 12, 13]))
 
+  def test_callable_non_serializable_error_message(self):
+    class NonSerializable:
+      def __getstate__(self):
+        raise RuntimeError('nope')
+
+    bad = NonSerializable()
+
+    with self.assertRaises(RuntimeError) as context:
+      _ = beam.Map(lambda x: bad)
+
+    message = str(context.exception)
+    self.assertIn('Unable to pickle fn', message)
+    self.assertIn(
+        'User code must be serializable (picklable) for distributed execution.',
+        message)
+    self.assertIn('non-serializable objects like file handles', message)
+    self.assertIn(
+        'Try: (1) using module-level functions instead of lambdas', message)
+
   def test_do_with_do_fn_returning_string_raises_warning(self):
     ex_details = r'.*Returning a str from a ParDo or FlatMap is discouraged.'
 

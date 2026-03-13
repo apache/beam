@@ -74,7 +74,7 @@ public class MonitoringInfoMetricName extends MetricName {
     return urn.split(":", 2)[1];
   }
 
-  /** @return the urn of this MonitoringInfo metric. */
+  /** Returns the urn of this MonitoringInfo metric. */
   public String getUrn() {
     return this.urn;
   }

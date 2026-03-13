@@ -144,6 +144,8 @@ public class StateTags {
 
   private interface SystemStateTag<StateT extends State> {
     StateTag<StateT> asKind(StateKind kind);
+
+    StateKind getKind();
   }
 
   /** Create a state tag for the given id and spec. */
@@ -241,6 +243,16 @@ public class StateTags {
     @SuppressWarnings("unchecked")
     SystemStateTag<StateT> typedTag = (SystemStateTag<StateT>) tag;
     return typedTag.asKind(StateKind.SYSTEM);
+  }
+
+  /*
+   * Returns true if the tag is a system internal tag.
+   */
+  public static <StateT extends State> boolean isSystemTagInternal(StateTag<StateT> tag) {
+    if (!(tag instanceof SystemStateTag)) {
+      return false;
+    }
+    return StateKind.SYSTEM.equals(((SystemStateTag<?>) tag).getKind());
   }
 
   public static <InputT, AccumT, OutputT> StateTag<BagState<AccumT>> convertToBagTagInternal(
@@ -356,6 +368,11 @@ public class StateTags {
     @Override
     public StateTag<StateT> asKind(StateKind kind) {
       return new SimpleStateTag<>(id.asKind(kind), spec);
+    }
+
+    @Override
+    public StateKind getKind() {
+      return id.kind;
     }
 
     @Override

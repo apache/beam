@@ -142,16 +142,16 @@ public class JsonToRow {
    *
    * <p>Then access the parsed results via, {@link ParseResult#getResults()}
    *
-   * <p>{@Code PCollection<Row> personRows = results.getResults()}
+   * <p>{@code PCollection<Row> personRows = results.getResults()}
    *
    * <p>And access the failed to parse results via, {@link ParseResult#getFailedToParseLines()}
    *
-   * <p>{@Code PCollection<Row> errorsLines = results.getFailedToParseLines()}
+   * <p>{@code PCollection<Row> errorsLines = results.getFailedToParseLines()}
    *
    * <p>This will produce a Row with Schema {@link JsonToRowWithErrFn#ERROR_ROW_SCHEMA}
    *
    * <p>To access the reason for the failure you will need to first enable extended error reporting.
-   * {@link JsonToRowWithErrFn#withExtendedErrorInfo()} {@Code ParseResult results =
+   * {@link JsonToRowWithErrFn#withExtendedErrorInfo()} {@code ParseResult results =
    * jsonPersons.apply(JsonToRow.withExceptionReporting(PERSON_SCHEMA).withExtendedErrorInfo()); }
    *
    * <p>This will provide access to the reason for the Parse failure. The call to {@link

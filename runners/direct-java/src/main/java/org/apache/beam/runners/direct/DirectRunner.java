@@ -27,6 +27,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.logging.Logger;
 import org.apache.beam.runners.core.SplittableParDoViaKeyedWorkItems;
 import org.apache.beam.runners.direct.DirectRunner.DirectPipelineResult;
 import org.apache.beam.runners.direct.TestStreamEvaluatorFactory.DirectTestStreamFactory;
@@ -37,6 +38,7 @@ import org.apache.beam.sdk.PipelineRunner;
 import org.apache.beam.sdk.metrics.MetricResults;
 import org.apache.beam.sdk.metrics.MetricsEnvironment;
 import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.options.SdkHarnessOptions;
 import org.apache.beam.sdk.runners.PTransformOverride;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.util.UserCodeException;
@@ -184,7 +186,10 @@ public class DirectRunner extends PipelineRunner<DirectPipelineResult> {
 
       DisplayDataValidator.validatePipeline(pipeline);
       DisplayDataValidator.validateOptions(options);
-
+      // Ensure a reference is held on the configured loggers as otherwise they are eligible for
+      // garbage collection as they are internally weak references.
+      List<Logger> loggers =
+          SdkHarnessOptions.getConfiguredLoggerFromOptions(options.as(SdkHarnessOptions.class));
       ExecutorService metricsPool =
           Executors.newCachedThreadPool(
               new ThreadFactoryBuilder()
@@ -218,13 +223,13 @@ public class DirectRunner extends PipelineRunner<DirectPipelineResult> {
           result.waitUntilFinish();
         } catch (UserCodeException userException) {
           throw new PipelineExecutionException(userException.getCause());
+        } catch (RuntimeException | OutOfMemoryError e) {
+          throw e;
         } catch (Throwable t) {
-          if (t instanceof RuntimeException) {
-            throw (RuntimeException) t;
-          }
           throw new RuntimeException(t);
         }
       }
+      loggers.clear();
       return result;
     } finally {
       MetricsEnvironment.setMetricsSupported(false);

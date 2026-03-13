@@ -1023,6 +1023,7 @@ class PipelineOptionsTest(unittest.TestCase):
     self.assertEqual({
         'from_dictionary',
         'get_all_options',
+        'is_compat_version_prior_to',
         'slices',
         'style',
         'view_as',
@@ -1038,6 +1039,7 @@ class PipelineOptionsTest(unittest.TestCase):
     self.assertEqual({
         'from_dictionary',
         'get_all_options',
+        'is_compat_version_prior_to',
         'style',
         'view_as',
         'display_data',

@@ -506,6 +506,55 @@ class ElasticsearchIOTestCommon {
     pipeline.run();
   }
 
+  void testWriteWithElasticClientResponseExceptionIsRetried() throws Exception {
+    try (ElasticsearchIOTestUtils.AlwaysFailServer srv =
+        new ElasticsearchIOTestUtils.AlwaysFailServer(0, 500)) {
+      int port = srv.getPort();
+      String[] hosts = {String.format("http://localhost:%d", port)};
+      ConnectionConfiguration clientConfig = ConnectionConfiguration.create(hosts);
+
+      Write write =
+          ElasticsearchIO.write()
+              .withConnectionConfiguration(clientConfig)
+              .withBackendVersion(8) // Mock server does not return proper version
+              .withMaxBatchSize(numDocs + 1)
+              .withMaxBatchSizeBytes(
+                  Long.MAX_VALUE) // Max long number to make sure all docs are flushed in one batch.
+              .withThrowWriteErrors(false)
+              .withRetryConfiguration(
+                  ElasticsearchIO.RetryConfiguration.create(MAX_ATTEMPTS, Duration.millis(35000))
+                      .withRetryPredicate(CUSTOM_RETRY_PREDICATE))
+              .withIdFn(new ExtractValueFn("id"))
+              .withUseStatefulBatches(true);
+
+      List<String> data =
+          ElasticsearchIOTestUtils.createDocuments(1, InjectionMode.DO_NOT_INJECT_INVALID_DOCS);
+
+      PCollectionTuple outputs = pipeline.apply(Create.of(data)).apply(write);
+
+      // The whole batch should fail and direct to tag FAILED_WRITES because of one invalid doc.
+      PCollection<String> success =
+          outputs
+              .get(Write.SUCCESSFUL_WRITES)
+              .apply("Convert success to input ID", MapElements.via(mapToInputIdString));
+
+      PCollection<String> fail =
+          outputs
+              .get(Write.FAILED_WRITES)
+              .apply("Convert fails to input ID", MapElements.via(mapToInputIdString));
+
+      PAssert.that(success).empty();
+      PAssert.that(fail).containsInAnyOrder("0"); // First and only document
+
+      // Verify response item contains the corresponding error message.
+      String expectedError =
+          String.format(ElasticsearchIO.BulkIO.RETRY_FAILED_LOG, EXPECTED_RETRIES);
+      PAssert.that(outputs.get(Write.FAILED_WRITES))
+          .satisfies(responseItemJsonSubstringValidator(expectedError));
+      pipeline.run();
+    }
+  }
+
   void testWriteWithAllowedErrors() throws Exception {
     Set<String> allowedErrors = new HashSet<>();
     allowedErrors.add("json_parse_exception");

@@ -21,6 +21,7 @@ import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Pr
 
 import com.google.api.core.ApiFuture;
 import com.google.api.core.ApiFutures;
+import com.google.api.services.bigquery.model.TableReference;
 import com.google.api.services.bigquery.model.TableRow;
 import com.google.cloud.bigquery.storage.v1.AppendRowsRequest;
 import com.google.cloud.bigquery.storage.v1.AppendRowsResponse;
@@ -28,7 +29,7 @@ import com.google.cloud.bigquery.storage.v1.Exceptions;
 import com.google.cloud.bigquery.storage.v1.Exceptions.StreamFinalizedException;
 import com.google.cloud.bigquery.storage.v1.ProtoRows;
 import com.google.cloud.bigquery.storage.v1.TableSchema;
-import com.google.cloud.bigquery.storage.v1.WriteStream.Type;
+import com.google.cloud.bigquery.storage.v1.WriteStream;
 import com.google.protobuf.ByteString;
 import com.google.protobuf.DescriptorProtos;
 import io.grpc.Status;
@@ -394,7 +395,10 @@ public class StorageApiWritesShardedRecords<DestinationT extends @NonNull Object
           // In a buffered stream, data is only visible up to the offset to which it was flushed.
           CreateTableHelpers.createTableWrapper(
               () -> {
-                stream.set(writeStreamService.createWriteStream(tableId, Type.BUFFERED).getName());
+                stream.set(
+                    writeStreamService
+                        .createWriteStream(tableId, WriteStream.Type.BUFFERED)
+                        .getName());
                 return null;
               },
               tryCreateTable);
@@ -481,6 +485,7 @@ public class StorageApiWritesShardedRecords<DestinationT extends @NonNull Object
               });
       final String tableId = tableDestination.getTableUrn(bigQueryOptions);
       final String shortTableId = tableDestination.getShortTableUrn();
+      final TableReference tableReference = tableDestination.getTableReference();
       final DatasetService datasetService = getDatasetService(pipelineOptions);
       final WriteStreamService writeStreamService = getWriteStreamService(pipelineOptions);
 
@@ -619,7 +624,8 @@ public class StorageApiWritesShardedRecords<DestinationT extends @NonNull Object
               (failedRow, errorMessage) -> {
                 o.get(failedRowsTag)
                     .outputWithTimestamp(
-                        new BigQueryStorageApiInsertError(failedRow.getValue(), errorMessage),
+                        new BigQueryStorageApiInsertError(
+                            failedRow.getValue(), errorMessage, tableReference),
                         failedRow.getTimestamp());
                 rowsSentToFailedRowsCollection.inc();
                 BigQuerySinkMetrics.appendRowsRowStatusCounter(
@@ -739,7 +745,9 @@ public class StorageApiWritesShardedRecords<DestinationT extends @NonNull Object
                 o.get(failedRowsTag)
                     .outputWithTimestamp(
                         new BigQueryStorageApiInsertError(
-                            failedRow, error.getRowIndexToErrorMessage().get(failedIndex)),
+                            failedRow,
+                            error.getRowIndexToErrorMessage().get(failedIndex),
+                            tableReference),
                         timestamp);
               }
               int failedRows = failedRowIndices.size();
@@ -910,7 +918,9 @@ public class StorageApiWritesShardedRecords<DestinationT extends @NonNull Object
             o.get(failedRowsTag)
                 .outputWithTimestamp(
                     new BigQueryStorageApiInsertError(
-                        failedRow, "Row payload too large. Maximum size " + maxRequestSize),
+                        failedRow,
+                        "Row payload too large. Maximum size " + maxRequestSize,
+                        tableReference),
                     timestamp);
           }
           int numRowsFailed = splitValue.getProtoRows().getSerializedRowsCount();

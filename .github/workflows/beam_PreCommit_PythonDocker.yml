@@ -102,4 +102,5 @@ jobs:
           gradle-command: :sdks:python:container:py${{steps.set_py_ver_clean.outputs.py_ver_clean}}:docker
           arguments: |
             -Pposargs=apache_beam/dataframe/ \
-            -PpythonVersion=${{ matrix.python_version }}
+            -PpythonVersion=${{ matrix.python_version }} \
+            -Pdocker-pull-licenses

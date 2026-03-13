@@ -12,6 +12,7 @@
 
 host: https://storage.googleapis.com
 path: public_looker_explores_us_a3853f40
+static_base: /images/performance/looks
 looks:
   bigquery:
     read:

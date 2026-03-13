@@ -230,6 +230,8 @@ class TensorRTEngineHandlerNumPy(ModelHandler[np.ndarray,
       large_model: bool = False,
       model_copies: Optional[int] = None,
       max_batch_duration_secs: Optional[int] = None,
+      max_batch_weight: Optional[int] = None,
+      element_size_fn: Optional[Callable[[Any], int]] = None,
       **kwargs):
     """Implementation of the ModelHandler interface for TensorRT.
 
@@ -258,6 +260,8 @@ class TensorRTEngineHandlerNumPy(ModelHandler[np.ndarray,
         GPU capacity and want to maximize resource utilization.
       max_batch_duration_secs: the maximum amount of time to buffer
         a batch before emitting; used in streaming contexts.
+      max_batch_weight: the maximum total weight of a batch.
+      element_size_fn: a function that returns the size (weight) of an element.
       kwargs: Additional arguments like 'engine_path' and 'onnx_path' are
         currently supported. 'env_vars' can be used to set environment variables
         before loading the model.
@@ -265,25 +269,20 @@ class TensorRTEngineHandlerNumPy(ModelHandler[np.ndarray,
     See https://docs.nvidia.com/deeplearning/tensorrt/api/python_api/
     for details
     """
-    self.min_batch_size = min_batch_size
-    self.max_batch_size = max_batch_size
-    self.max_batch_duration_secs = max_batch_duration_secs
+    super().__init__(
+        min_batch_size=min_batch_size,
+        max_batch_size=max_batch_size,
+        max_batch_duration_secs=max_batch_duration_secs,
+        max_batch_weight=max_batch_weight,
+        element_size_fn=element_size_fn,
+        large_model=large_model,
+        model_copies=model_copies,
+        **kwargs)
     self.inference_fn = inference_fn
     if 'engine_path' in kwargs:
       self.engine_path = kwargs.get('engine_path')
     elif 'onnx_path' in kwargs:
       self.onnx_path = kwargs.get('onnx_path')
-    self._env_vars = kwargs.get('env_vars', {})
-    self._share_across_processes = large_model or (model_copies is not None)
-    self._model_copies = model_copies or 1
-
-  def batch_elements_kwargs(self):
-    """Sets min_batch_size and max_batch_size of a TensorRT engine."""
-    return {
-        'min_batch_size': self.min_batch_size,
-        'max_batch_size': self.max_batch_size,
-        'max_batch_duration_secs': self.max_batch_duration_secs
-    }
 
   def load_model(self) -> TensorRTEngine:
     """Loads and initializes a TensorRT engine for processing."""
@@ -335,12 +334,6 @@ class TensorRTEngineHandlerNumPy(ModelHandler[np.ndarray,
     Returns a namespace for metrics collected by the RunInference transform.
     """
     return 'BeamML_TensorRT'
-
-  def share_model_across_processes(self) -> bool:
-    return self._share_across_processes
-
-  def model_copies(self) -> int:
-    return self._model_copies
 
   def validate_inference_args(self, inference_args: Optional[dict[str, Any]]):
     """

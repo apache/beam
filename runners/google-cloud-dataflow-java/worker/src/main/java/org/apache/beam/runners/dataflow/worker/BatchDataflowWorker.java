@@ -276,11 +276,11 @@ public class BatchDataflowWorker implements Closeable {
       executeWork(worker, progressUpdater);
       workItemStatusClient.reportSuccess();
       return true;
-
+    } catch (OutOfMemoryError oom) {
+      throw oom;
     } catch (Throwable e) {
       workItemStatusClient.reportError(e);
       return false;
-
     } finally {
       if (worker != null) {
         try {

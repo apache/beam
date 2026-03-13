@@ -395,11 +395,11 @@ class CloudSQLEnrichmentHandler(EnrichmentSourceHandler[beam.Row, beam.Row]):
         return data
       except Exception as e:
         transaction.rollback()
-        raise RuntimeError(f"Database operation failed: {e}")
+        raise RuntimeError(f"Database operation failed: {e}") from e
     except Exception as e:
       raise Exception(
           f'Could not execute the query. Please check if the query is properly '
-          f'formatted and the table exists. {e}')
+          f'formatted and the table exists. {e}') from e
     finally:
       if connection:
         connection.close()

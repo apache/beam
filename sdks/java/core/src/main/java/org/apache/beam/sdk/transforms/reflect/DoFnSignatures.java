@@ -91,6 +91,7 @@ import org.apache.beam.sdk.transforms.splittabledofn.WatermarkEstimator;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.util.common.ReflectHelpers;
+import org.apache.beam.sdk.values.CausedByDrain;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
@@ -139,6 +140,7 @@ public class DoFnSignatures {
               Parameter.StateParameter.class,
               Parameter.SideInputParameter.class,
               Parameter.TimerFamilyParameter.class,
+              Parameter.CausedByDrainParameter.class,
               Parameter.BundleFinalizerParameter.class);
 
   private static final ImmutableList<Class<? extends Parameter>>
@@ -155,6 +157,7 @@ public class DoFnSignatures {
               Parameter.RestrictionTrackerParameter.class,
               Parameter.WatermarkEstimatorParameter.class,
               Parameter.SideInputParameter.class,
+              Parameter.CausedByDrainParameter.class,
               Parameter.BundleFinalizerParameter.class);
 
   private static final ImmutableList<Class<? extends Parameter>> ALLOWED_SETUP_PARAMETERS =
@@ -185,6 +188,7 @@ public class DoFnSignatures {
           Parameter.StateParameter.class,
           Parameter.TimerFamilyParameter.class,
           Parameter.TimerIdParameter.class,
+          Parameter.CausedByDrainParameter.class,
           Parameter.KeyParameter.class);
 
   private static final ImmutableList<Class<? extends Parameter>>
@@ -201,6 +205,7 @@ public class DoFnSignatures {
               Parameter.StateParameter.class,
               Parameter.TimerFamilyParameter.class,
               Parameter.TimerIdParameter.class,
+              Parameter.CausedByDrainParameter.class,
               Parameter.KeyParameter.class);
 
   private static final Collection<Class<? extends Parameter>>
@@ -291,12 +296,12 @@ public class DoFnSignatures {
               Parameter.PipelineOptionsParameter.class,
               Parameter.SideInputParameter.class);
 
-  /** @return the {@link DoFnSignature} for the given {@link DoFn} instance. */
+  /** Returns the {@link DoFnSignature} for the given {@link DoFn} instance. */
   public static <FnT extends DoFn<?, ?>> DoFnSignature signatureForDoFn(FnT fn) {
     return getSignature(fn.getClass());
   }
 
-  /** @return the {@link DoFnSignature} for the given {@link DoFn} subclass. */
+  /** Returns the {@link DoFnSignature} for the given {@link DoFn} subclass. */
   public static <FnT extends DoFn<?, ?>> DoFnSignature getSignature(Class<FnT> fn) {
     return signatureCache.computeIfAbsent(fn, DoFnSignatures::parseSignature);
   }
@@ -1357,6 +1362,11 @@ public class DoFnSignatures {
       return Parameter.keyT(paramT);
     } else if (rawType.equals(TimeDomain.class)) {
       return Parameter.timeDomainParameter();
+    } else if (CausedByDrain.class.isAssignableFrom(rawType)) {
+      methodErrors.checkArgument(
+          rawType.equals(CausedByDrain.class),
+          "CausedByDrain argument must have type org.apache.beam.sdk.values.CausedByDrain.");
+      return Parameter.causedByDrainParameter();
     } else if (hasAnnotation(DoFn.SideInput.class, param.getAnnotations())) {
       String sideInputId = getSideInputId(param.getAnnotations());
       paramErrors.checkArgument(

@@ -123,7 +123,7 @@ class FlinkStreamingTranslationContext {
 
   public Map<TupleTag<?>, Coder<?>> getOutputCoders() {
     return currentTransform.getOutputs().entrySet().stream()
-        .filter(e -> e.getValue() instanceof PCollection)
+        .filter(e -> e.getValue() != null)
         .collect(Collectors.toMap(e -> e.getKey(), e -> ((PCollection) e.getValue()).getCoder()));
   }
 

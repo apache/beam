@@ -145,7 +145,7 @@ if sys.platform == 'win32' and sys.maxsize <= 2**32:
   pyarrow_dependency = ['']
 else:
   pyarrow_dependency = [
-      'pyarrow>=3.0.0,<19.0.0',
+      'pyarrow>=6.0.1,<24.0.0',
       # NOTE(https://github.com/apache/beam/issues/29392): We can remove this
       # once Beam increases the pyarrow lower bound to a version that fixes CVE.
       # (lower bound >= 14.0.1)
@@ -163,14 +163,15 @@ dataframe_dependency = [
 milvus_dependency = ['pymilvus>=2.5.10,<3.0.0']
 
 ml_base = [
-    'embeddings',
+    'embeddings>=0.0.4', # 0.0.3 crashes setuptools
     'onnxruntime',
     'langchain',
     'sentence-transformers>=2.2.2',
     'skl2onnx',
-    'pillow',
-    'pyod',
+    'pyod>=0.7.6', # 0.7.5 crashes setuptools
     'tensorflow',
+    # tensorflow transient dep, lower versions not compatible with Python3.10+
+    'absl-py>=0.12.0',
     'tensorflow-hub',
     'tf2onnx',
     'torch',
@@ -374,18 +375,21 @@ if __name__ == '__main__':
       ext_modules=extensions,
       install_requires=[
           'cryptography>=39.0.0,<48.0.0',
+          # reconcile envoy-data-plane dependency for python < 3.12 and >= 3.13
+          # when grpcio unpinned, check for protobuf version compatibility
+          'envoy-data-plane>=1.0.3,<2; python_version >= "3.13"',
+          'envoy-data-plane<0.3.0; python_version < "3.13"',
           'fastavro>=0.23.6,<2',
           'fasteners>=0.3,<1.0',
-          # TODO(https://github.com/grpc/grpc/issues/37710): Unpin grpc
-          'grpcio>=1.33.1,<2,!=1.48.0,!=1.59.*,!=1.60.*,!=1.61.*,!=1.62.0,!=1.62.1,<1.66.0; python_version <= "3.12"',  # pylint: disable=line-too-long
-          'grpcio>=1.67.0; python_version >= "3.13"',
-          'httplib2>=0.8,<0.23.0',
+          'grpcio>=1.33.1,<2,!=1.48.0,!=1.59.*,!=1.60.*,!=1.61.*,!=1.62.0,!=1.62.1,!=1.66.*,!=1.67.*,!=1.68.*,!=1.69.*,!=1.70.*',  # pylint: disable=line-too-long
+          'httplib2>=0.8,<0.32.0',
           'jsonpickle>=3.0.0,<4.0.0',
           # numpy can have breaking changes in minor versions.
           # Use a strict upper bound.
-          'numpy>=1.14.3,<2.4.0',  # Update pyproject.toml as well.
+          'numpy>=1.14.3,<2.5.0',  # Update pyproject.toml as well.
           'objsize>=0.6.1,<0.8.0',
           'packaging>=22.0',
+          'pillow>=12.1.1,<13',
           'pymongo>=3.8.0,<5.0.0',
           'proto-plus>=1.7.1,<2',
           # 1. Use a tighter upper bound in protobuf dependency to make sure
@@ -462,7 +466,7 @@ if __name__ == '__main__':
               'pg8000>=1.31.5',
               "PyMySQL>=1.1.0",
               'oracledb>=3.1.1'
-          ] + milvus_dependency,
+          ],
           'gcp': [
               'cachetools>=3.1.0,<7',
               'google-api-core>=2.0.0,<3',
@@ -475,13 +479,13 @@ if __name__ == '__main__':
               'google-auth-httplib2>=0.1.0,<0.3.0',
               'google-cloud-datastore>=2.0.0,<3',
               'google-cloud-pubsub>=2.1.0,<3',
-              'google-cloud-pubsublite>=1.2.0,<2',
               'google-cloud-storage>=2.18.2,<3',
               # GCP packages required by tests
               'google-cloud-bigquery>=2.0.0,<4',
               'google-cloud-bigquery-storage>=2.6.3,<3',
               'google-cloud-core>=2.0.0,<3',
               'google-cloud-bigtable>=2.19.0,<3',
+              'google-cloud-build>=3.35.0,<4',
               'google-cloud-spanner>=3.0.0,<4',
               # GCP Packages required by ML functionality
               'google-cloud-dlp>=3.0.0,<4',
@@ -543,10 +547,15 @@ if __name__ == '__main__':
               # https://github.com/apache/beam/issues/31285
               # 'xgboost<2.0',  # https://github.com/apache/beam/issues/31252
           ] + ml_base,
+          'p310_ml_test': [
+            'datatable',
+          ] + ml_base,
           'p312_ml_test': [
               'datatable',
           ] + ml_base,
-          'p313_ml_test': ml_base,
+          # maintainer: milvus tests only run with this extension. Make sure it
+          # is covered by docker-in-docker test when changing py version
+          'p313_ml_test': ml_base + milvus_dependency,
           'aws': ['boto3>=1.9,<2'],
           'azure': [
               'azure-storage-blob>=12.3.2,<13',
@@ -579,7 +588,11 @@ if __name__ == '__main__':
           # For more info, see
           # https://docs.google.com/document/d/1c84Gc-cZRCfrU8f7kWGsNR2o8oSRjCM-dGHO9KvPWPw/edit?usp=sharing
           'torch': ['torch>=1.9.0,<2.8.0'],
-          'tensorflow': ['tensorflow>=2.12rc1,<2.21'],
+          'tensorflow': [
+              'tensorflow>=2.12rc1,<2.21',
+              # tensorflow transitive dep
+              'absl-py>=0.12.0'
+          ],
           'transformers': [
               'transformers>=4.28.0,<4.56.0',
               'tensorflow>=2.12.0',
@@ -588,7 +601,9 @@ if __name__ == '__main__':
           'ml_cpu': [
               'tensorflow>=2.12.0',
               'torch==2.8.0+cpu',
-              'transformers>=4.28.0,<4.56.0'
+              'transformers>=4.28.0,<4.56.0',
+              # tensorflow transient dep
+              'absl-py>=0.12.0'
           ],
           'redis': ['redis>=5.0.0,<6'],
           'tft': [
@@ -605,12 +620,14 @@ if __name__ == '__main__':
               'tensorflow==2.11.0',
               'tf2onnx==1.13.0',
               'skl2onnx==1.13',
-              'transformers==4.25.1'
+              'transformers==4.25.1',
+               # tensorflow transient dep
+              'absl-py>=0.12.0'
           ],
           'xgboost': ['xgboost>=1.6.0,<2.1.3', 'datatable==1.0.0'],
           'tensorflow-hub': ['tensorflow-hub>=0.14.0,<0.16.0'],
           'milvus': milvus_dependency,
-          'vllm': ['openai==1.107.1', 'vllm==0.10.1.1', 'triton==3.3.1']
+          'vllm': ['openai==1.107.1', 'vllm==0.14', 'triton==3.3.1']
       },
       zip_safe=False,
       # PyPI package information.

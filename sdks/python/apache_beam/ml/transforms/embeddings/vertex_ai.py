@@ -45,7 +45,7 @@ import apache_beam as beam
 from apache_beam.ml.inference.base import ModelHandler
 from apache_beam.ml.inference.base import RemoteModelHandler
 from apache_beam.ml.inference.base import RunInference
-from apache_beam.ml.rag.types import Chunk
+from apache_beam.ml.rag.types import EmbeddableItem
 from apache_beam.ml.rag.types import Embedding
 from apache_beam.ml.transforms.base import EmbeddingsManager
 from apache_beam.ml.transforms.base import EmbeddingTypeAdapter
@@ -316,7 +316,7 @@ class VertexVideo:
 class VertexAIMultiModalInput:
   image: Optional[VertexImage] = None
   video: Optional[VertexVideo] = None
-  contextual_text: Optional[Chunk] = None
+  contextual_text: Optional[EmbeddableItem] = None
 
 
 class _VertexAIMultiModalEmbeddingHandler(RemoteModelHandler):
@@ -387,7 +387,7 @@ def _multimodal_dict_input_fn(
   for item in batch:
     img: Optional[VertexImage] = None
     vid: Optional[VertexVideo] = None
-    text: Optional[Chunk] = None
+    text: Optional[EmbeddableItem] = None
     if image_column:
       img = item[image_column]
     if video_column:
@@ -472,8 +472,8 @@ class VertexAIMultiModalEmbeddings(EmbeddingsManager):
         is expected to be formatted as VertexVideo objects, containing a Vertex
         Video object an a VideoSegmentConfig object.
       text_column: The column containing text data to be embedded. This data is
-        expected to be formatted as Chunk objects, containing the string to be
-        embedded in the Chunk's content field.
+        expected to be formatted as EmbeddableItem objects, containing the string
+        to be embedded in the item's content field.
       dimension: The length of the embedding vector to generate. Must be one of
         128, 256, 512, or 1408. If not set, Vertex AI's default value is 1408.
         If submitting video content, dimension *musst* be 1408.

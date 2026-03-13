@@ -46,12 +46,110 @@ export interface StateProvider {
 }
 
 // TODO: (Advanced) Cross-bundle caching.
+/**
+ * Wrapper for cached values that tracks their weight (memory size).
+ */
+interface WeightedCacheEntry<T> {
+  entry: MaybePromise<T>;
+  weight: number;
+}
+
+// Default weight for values that cannot be sized (e.g., promises)
+const DEFAULT_WEIGHT = 64;
+
+/**
+ * Estimates the memory size of a value in bytes.
+ * Handles circular references by tracking visited objects.
+ */
+function sizeof(value: any, visited: Set<any> = new Set()): number {
+  if (value === null || value === undefined) {
+    return 8;
+  }
+
+  // Handle circular references for objects
+  if (typeof value === "object") {
+    if (visited.has(value)) {
+      return 8; // Account for reference size, not the full object again
+    }
+    visited.add(value);
+  }
+
+  const type = typeof value;
+
+  if (type === "boolean") {
+    return 4;
+  }
+  if (type === "number") {
+    return 8;
+  }
+  if (type === "string") {
+    // Each character is 2 bytes in JavaScript (UTF-16) + overhead
+    return 40 + value.length * 2;
+  }
+  if (value instanceof Uint8Array || value instanceof Buffer) {
+    return 40 + value.length;
+  }
+  if (Array.isArray(value)) {
+    let size = 40; // Array overhead
+    for (const item of value) {
+      size += sizeof(item, visited);
+    }
+    return size;
+  }
+  if (type === "object") {
+    let size = 40; // Object overhead
+    for (const key of Object.keys(value)) {
+      size += sizeof(key, visited) + sizeof(value[key], visited);
+    }
+    return size;
+  }
+
+  // Default for unknown types
+  return DEFAULT_WEIGHT;
+}
+
+// Default cache size: 100MB
+const DEFAULT_MAX_CACHE_WEIGHT = 100 * 1024 * 1024;
+
 export class CachingStateProvider implements StateProvider {
   underlying: StateProvider;
-  cache: Map<string, MaybePromise<any>> = new Map();
+  cache: Map<string, WeightedCacheEntry<any>> = new Map();
+  maxCacheWeight: number;
+  currentWeight: number = 0;
 
-  constructor(underlying: StateProvider) {
+  constructor(
+    underlying: StateProvider,
+    maxCacheWeight: number = DEFAULT_MAX_CACHE_WEIGHT,
+  ) {
     this.underlying = underlying;
+    this.maxCacheWeight = maxCacheWeight;
+  }
+
+  /**
+   * Evicts least recently used entries until the cache is under the weight limit.
+   * JavaScript Maps preserve insertion order, so the first entry is the oldest.
+   */
+  private evictIfNeeded() {
+    while (this.currentWeight > this.maxCacheWeight && this.cache.size > 0) {
+      // Get the first (oldest) entry from the map iterator
+      const firstEntry = this.cache.entries().next().value;
+      const firstKey = firstEntry[0];
+      const evictedEntry = firstEntry[1];
+      this.currentWeight -= evictedEntry.weight;
+      this.cache.delete(firstKey);
+    }
+  }
+
+  /**
+   * Moves a cache entry to the end (most recently used) by deleting and re-adding it.
+   * This maintains LRU order: most recently accessed items are at the end.
+   */
+  private touchCacheEntry(cacheKey: string) {
+    const value = this.cache.get(cacheKey);
+    if (value !== undefined) {
+      this.cache.delete(cacheKey);
+      this.cache.set(cacheKey, value);
+    }
   }
 
   getState<T>(stateKey: fnApi.StateKey, decode: (data: Uint8Array) => T) {
@@ -62,21 +160,44 @@ export class CachingStateProvider implements StateProvider {
       "base64",
     );
     if (this.cache.has(cacheKey)) {
-      return this.cache.get(cacheKey)!;
+      // Cache hit: move to end (most recently used)
+      this.touchCacheEntry(cacheKey);
+      return this.cache.get(cacheKey)!.entry;
     }
+    // Cache miss: fetch from underlying provider
     let result = this.underlying.getState(stateKey, decode);
-    const this_ = this;
     if (result.type === "promise") {
       result = {
         type: "promise",
         promise: result.promise.then((value) => {
-          this_.cache.set(cacheKey, { type: "value", value });
+          // When promise resolves, update cache with resolved value
+          const currentEntry = this.cache.get(cacheKey);
+          // Only update if the entry in the cache is still the promise we are resolving.
+          // This prevents a race condition where the entry is evicted and replaced
+          // before this promise resolves.
+          if (currentEntry?.entry === result) {
+            // Remove old weight (of the promise) from total
+            this.currentWeight -= currentEntry.weight;
+
+            const resolvedWeight = sizeof(value);
+            this.cache.set(cacheKey, {
+              entry: { type: "value", value },
+              weight: resolvedWeight,
+            });
+            this.currentWeight += resolvedWeight;
+            this.evictIfNeeded();
+          }
           return value;
         }),
       };
     }
-    // TODO: (Perf) Cache eviction.
-    this.cache.set(cacheKey, result);
+    // Calculate weight for the new entry
+    const weight =
+      result.type === "value" ? sizeof(result.value) : DEFAULT_WEIGHT;
+    // Add new entry to cache and then evict if needed
+    this.currentWeight += weight;
+    this.cache.set(cacheKey, { entry: result, weight });
+    this.evictIfNeeded();
     return result;
   }
 }

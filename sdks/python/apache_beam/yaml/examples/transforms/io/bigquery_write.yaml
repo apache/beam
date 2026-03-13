@@ -1,0 +1,59 @@
+# coding=utf-8
+#
+# Licensed to the Apache Software Foundation (ASF) under one or more
+# contributor license agreements.  See the NOTICE file distributed with
+# this work for additional information regarding copyright ownership.
+# The ASF licenses this file to You under the Apache License, Version 2.0
+# (the "License"); you may not use this file except in compliance with
+# the License.  You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
+# This pipeline demonstrates a simple write to BigQuery using Dynamic Destinations 
+# (see https://cloud.google.com/dataflow/docs/guides/managed-io#dynamic-destinations).
+#
+# Prerequisites:
+# - A GCP project
+# - A BigQuery dataset
+# - Google Cloud credentials set up
+#
+# Usage:
+# python -m apache_beam.yaml.main --yaml_pipeline_file=<path_to_bigquery_write.yaml> \
+#   --project=<project_id> \
+#   --temp_location=gs://<bucket_name>/temp
+
+pipeline:
+  type: chain
+  transforms:
+    - type: Create
+      name: CreateSampleData
+      config:
+        elements:
+          - {id: 1, name: "Alice", country: "CN"}
+          - {id: 2, name: "Bob", country: "UK"}
+          - {id: 3, name: "Charlie", country: "US"}
+    - type: WriteToBigQuery
+      name: WriteToTable
+      config:
+        table: "<project_id>:<dataset_id>.users_{country}"
+        create_disposition: CREATE_IF_NEEDED
+        write_disposition: WRITE_APPEND
+        num_streams: 1
+
+options:
+  temp_location: "gs://<bucket_name>/temp"
+
+# Expected:
+#  Row(id=1, name='Alice', country='CN')
+#  Row(id=2, name='Bob', country='UK')
+#  Row(id=3, name='Charlie', country='US')
+
+
+

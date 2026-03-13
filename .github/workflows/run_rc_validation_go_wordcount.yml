@@ -3,18 +3,18 @@ name: Validate Go SDK Release Candidate
 on:
   workflow_dispatch:
     inputs:
-      rc_tag:
-        description: 'Beam RC Tag (e.g., v2.59.0-RC1)'
+      RELEASE_VER:
+        description: 'Beam Release Version (e.g., 2.69.0)'
         required: true
-        type: string
-      container_tag:
-        description: 'Beam Go SDK Container Tag (e.g., 2.59.0rc1)'
+        default: '2.69.0'
+      RC_NUM:
+        description: 'Release Candidate number (e.g., 1)'
         required: true
-        type: string
+        default: '1'
 
 # This allows a subsequently queued workflow run to interrupt previous runs
 concurrency:
-  group: '${{ github.workflow }} @ ${{ github.event.inputs.rc_tag }}' # Group by RC tag
+  group: '${{ github.workflow }}'
   cancel-in-progress: true
 
 # Setting explicit permissions (copied from Java Mobile Gaming workflow)
@@ -40,6 +40,8 @@ env:
   GCS_TEMP_LOCATION: gs://rc-validation-migration-tests/temp/
   GCS_STAGING_LOCATION: gs://rc-validation-migration-tests/staging/
   GCS_INPUT_PATH: gs://apache-beam-samples/shakespeare/kinglear.txt
+  CONTAINER_TAG: "${{github.event.inputs.RELEASE_VER}}rc${{github.event.inputs.RC_NUM}}"
+  RC_TAG: "v${{github.event.inputs.RELEASE_VER}}-RC${{github.event.inputs.RC_NUM}}"
 
 jobs:
   validate-rc-package:
@@ -61,7 +63,7 @@ jobs:
           wget -O $TEMP_DIR/wordcount.go https://raw.githubusercontent.com/apache/beam/refs/heads/master/sdks/go/examples/wordcount/wordcount.go
           cd $TEMP_DIR
           go mod init rc-test
-          go get github.com/apache/beam/sdks/v2/go/pkg/beam@${{ github.event.inputs.rc_tag }}
+          go get github.com/apache/beam/sdks/v2/go/pkg/beam@${{ env.RC_TAG }}
           go mod tidy
           echo "work_dir=$TEMP_DIR" >> $GITHUB_OUTPUT # Output relative path
 
@@ -97,7 +99,7 @@ jobs:
         working-directory: ./${{ steps.setup_go.outputs.work_dir }}
         env:
           # Define output path based on constant prefix and RC tag for uniqueness
-          GCS_OUTPUT_PATH: ${{ env.GCS_OUTPUT_PREFIX }}/${{ github.event.inputs.rc_tag }}/dataflow/output
+          GCS_OUTPUT_PATH: ${{ env.GCS_OUTPUT_PREFIX }}/${{ env.RC_TAG }}/dataflow/output
         run: |
           echo "Using output path: $GCS_OUTPUT_PATH"
           go run wordcount.go \
@@ -109,13 +111,13 @@ jobs:
             --temp_location=${{ env.GCS_TEMP_LOCATION }} \
             --staging_location=${{ env.GCS_STAGING_LOCATION }} \
             --environment_type=DOCKER \
-            --environment_config=apache/beam_go_sdk:${{ github.event.inputs.container_tag }}
+            --environment_config=apache/beam_go_sdk:${{ env.CONTAINER_TAG }}
 
       - name: Check Dataflow Output in GCS
         working-directory: ./${{ steps.setup_go.outputs.work_dir }} # Added working directory for consistency, though not strictly needed for gsutil
         env:
           # Re-define the output path pattern for checking
-          GCS_OUTPUT_PATH_PATTERN: ${{ env.GCS_OUTPUT_PREFIX }}/${{ github.event.inputs.rc_tag }}/dataflow/output*
+          GCS_OUTPUT_PATH_PATTERN: ${{ env.GCS_OUTPUT_PREFIX }}/${{ env.RC_TAG }}/dataflow/output*
         run: |
           echo "Checking for Dataflow output files in GCS at: $GCS_OUTPUT_PATH_PATTERN"
           # Use gsutil stat. The -q flag suppresses errors for non-existent files,

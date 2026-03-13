@@ -44,7 +44,7 @@ def _preparse_jinja_flags(argv):
   This is to facilitate tools (such as dataflow templates) that must pass
   options as un-nested flags.
   """
-  parser = argparse.ArgumentParser()
+  parser = argparse.ArgumentParser(allow_abbrev=False)
   parser.add_argument(
       '--jinja_variable_flags',
       default=[],
@@ -60,7 +60,7 @@ def _preparse_jinja_flags(argv):
   if not jinja_args.jinja_variable_flags:
     return argv
 
-  jinja_variable_parser = argparse.ArgumentParser()
+  jinja_variable_parser = argparse.ArgumentParser(allow_abbrev=False)
   for flag_name in jinja_args.jinja_variable_flags:
     jinja_variable_parser.add_argument('--' + flag_name)
   jinja_flag_variables, pipeline_args = jinja_variable_parser.parse_known_args(
@@ -78,7 +78,7 @@ def _preparse_jinja_flags(argv):
 
 
 def _parse_arguments(argv):
-  parser = argparse.ArgumentParser()
+  parser = argparse.ArgumentParser(allow_abbrev=False)
   parser.add_argument(
       '--yaml_pipeline',
       '--pipeline_spec',

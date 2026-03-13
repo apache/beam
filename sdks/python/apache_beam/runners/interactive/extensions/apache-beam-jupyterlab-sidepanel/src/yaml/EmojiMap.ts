@@ -62,8 +62,6 @@ export const transformEmojiMap: Record<string, string> = {
   WriteToPostgres: '⬆️🐘',
   ReadFromPubSub: '⬇️📢',
   WriteToPubSub: '⬆️📢',
-  ReadFromPubSubLite: '⬇️📣',
-  WriteToPubSubLite: '⬆️📣',
   ReadFromSpanner: '⬇️📏',
   WriteToSpanner: '⬆️📏',
   ReadFromSqlServer: '⬇️🗄️',

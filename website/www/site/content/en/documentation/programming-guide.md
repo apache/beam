@@ -6853,7 +6853,7 @@ class EventTimerDoFn(DoFn):
 
   @on_timer(TIMER)
   def expiry_callback(self, buffer = DoFn.StateParam(ALL_ELEMENTS)):
-    state.clear()
+    buffer.clear()
 
 _ = (p | 'Read per user' >> ReadPerUser()
        | 'EventTime timer pardo' >> beam.ParDo(EventTimerDoFn()))
@@ -6905,7 +6905,7 @@ class ProcessingTimerDoFn(DoFn):
   @on_timer(TIMER)
   def expiry_callback(self, buffer = DoFn.StateParam(ALL_ELEMENTS)):
     # Process timer.
-    state.clear()
+    buffer.clear()
 
 _ = (p | 'Read per user' >> ReadPerUser()
        | 'ProcessingTime timer pardo' >> beam.ParDo(ProcessingTimerDoFn()))

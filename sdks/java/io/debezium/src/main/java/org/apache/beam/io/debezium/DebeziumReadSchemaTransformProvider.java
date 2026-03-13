@@ -180,7 +180,7 @@ public class DebeziumReadSchemaTransformProvider
 
     public abstract String getHost();
 
-    public abstract Integer getPort();
+    public abstract int getPort();
 
     public abstract String getTable();
 
@@ -201,7 +201,7 @@ public class DebeziumReadSchemaTransformProvider
 
       public abstract Builder setHost(String host);
 
-      public abstract Builder setPort(Integer port);
+      public abstract Builder setPort(int port);
 
       public abstract Builder setDatabase(String database);
 

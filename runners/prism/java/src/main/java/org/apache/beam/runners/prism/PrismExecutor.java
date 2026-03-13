@@ -110,7 +110,7 @@ abstract class PrismExecutor {
 
   /**
    * Execute the {@link ProcessBuilder} that starts the Prism service. Redirects output to the
-   * {@param outputStream}.
+   * {@code outputStream}.
    */
   void execute(OutputStream outputStream) throws IOException {
     execute(createProcessBuilder().redirectErrorStream(true));
@@ -127,7 +127,7 @@ abstract class PrismExecutor {
 
   /**
    * Execute the {@link ProcessBuilder} that starts the Prism service. Redirects output to the
-   * {@param file}.
+   * {@code file}.
    */
   void execute(File file) throws IOException {
     execute(

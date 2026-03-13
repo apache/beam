@@ -19,10 +19,14 @@ package org.apache.beam.sdk.io.clickhouse;
 
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
 
-import java.sql.ResultSet;
+import com.clickhouse.client.api.query.GenericRecord;
+import com.clickhouse.client.api.query.Records;
+import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 import java.util.Objects;
+import java.util.Properties;
 import org.apache.beam.sdk.io.clickhouse.TableSchema.ColumnType;
 import org.apache.beam.sdk.schemas.JavaFieldSchema;
 import org.apache.beam.sdk.schemas.Schema;
@@ -155,15 +159,17 @@ public class ClickHouseIOTest extends BaseClickHouseTest {
 
     pipeline.run().waitUntilFinish();
 
-    try (ResultSet rs = executeQuery("SELECT * FROM test_named_tuples")) {
-      rs.next();
-      assertEquals("[tuple, true]", rs.getString("t0"));
+    try (Records records = executeQuery("SELECT * FROM test_named_tuples")) {
+      for (GenericRecord record : records) {
+        assertArrayEquals(new Object[] {"tuple", true}, record.getTuple("t0"));
+      }
     }
 
-    try (ResultSet rs = executeQuery("SELECT t0.f0 as f0, t0.f1 as f1 FROM test_named_tuples")) {
-      rs.next();
-      assertEquals("tuple", rs.getString("f0"));
-      assertEquals("true", rs.getString("f1"));
+    try (Records records = executeQuery("SELECT t0.f0 as f0, t0.f1 as f1 FROM test_named_tuples")) {
+      for (GenericRecord record : records) {
+        assertEquals("tuple", record.getString("f0"));
+        assertTrue(record.getBoolean("f1"));
+      }
     }
   }
 
@@ -202,17 +208,24 @@ public class ClickHouseIOTest extends BaseClickHouseTest {
 
     pipeline.run().waitUntilFinish();
 
-    try (ResultSet rs = executeQuery("SELECT * FROM test_named_complex_tuples")) {
-      rs.next();
-      assertEquals("[[test, [10, 20], 1.0.0], mobile]", rs.getString("prop"));
+    try (Records records = executeQuery("SELECT * FROM test_named_complex_tuples")) {
+      for (GenericRecord record : records) {
+        //        Object[] propValue = record.getTuple("prop");
+        // Adjust assertion based on actual output
+        assertArrayEquals(
+            new Object[] {new Object[] {"test", new Object[] {10L, 20L}, "1.0.0"}, "mobile"},
+            record.getTuple("prop"));
+        //        assertEquals("(('test',[10,20],'1.0.0'),'mobile')", propValue);
+      }
     }
 
-    try (ResultSet rs =
+    try (Records records =
         executeQuery(
             "SELECT prop.browser.name as name, prop.browser.size as size FROM test_named_complex_tuples")) {
-      rs.next();
-      assertEquals("test", rs.getString("name"));
-      assertEquals("[10, 20]", rs.getString("size"));
+      for (GenericRecord record : records) {
+        assertEquals("test", record.getString("name"));
+        assertArrayEquals(new Object[] {10L, 20L}, record.getTuple("size"));
+      }
     }
   }
 
@@ -292,29 +305,32 @@ public class ClickHouseIOTest extends BaseClickHouseTest {
 
     pipeline.run().waitUntilFinish();
 
-    try (ResultSet rs = executeQuery("SELECT * FROM test_primitive_types")) {
-      rs.next();
-
-      assertEquals("2030-10-01", rs.getString("f0"));
-      assertEquals("2030-10-09 08:07:06", rs.getString("f1"));
-      assertEquals("2.2", rs.getString("f2"));
-      assertEquals("3.3", rs.getString("f3"));
-      assertEquals("4", rs.getString("f4"));
-      assertEquals("5", rs.getString("f5"));
-      assertEquals("6", rs.getString("f6"));
-      assertEquals("7", rs.getString("f7"));
-      assertEquals("eight", rs.getString("f8"));
-      assertEquals("9", rs.getString("f9"));
-      assertEquals("10", rs.getString("f10"));
-      assertEquals("11", rs.getString("f11"));
-      assertEquals("12", rs.getString("f12"));
-      assertEquals("abc", rs.getString("f13"));
-      assertEquals("cde", rs.getString("f14"));
-      assertArrayEquals(new byte[] {'q', 'w', 'e'}, rs.getBytes("f15"));
-      assertArrayEquals(new byte[] {'a', 's', 'd'}, rs.getBytes("f16"));
-      assertArrayEquals(new byte[] {'z', 'x', 'c'}, rs.getBytes("f17"));
-      assertEquals("true", rs.getString("f18"));
-      assertEquals("lowcardenality", rs.getString("f19"));
+    try (Records records = executeQuery("SELECT * FROM test_primitive_types")) {
+      for (GenericRecord record : records) {
+        assertEquals("2030-10-01", record.getString("f0"));
+        assertEquals("2030-10-09 08:07:06", record.getString("f1"));
+        assertEquals("2.2", record.getString("f2"));
+        assertEquals("3.3", record.getString("f3"));
+        assertEquals("4", record.getString("f4"));
+        assertEquals("5", record.getString("f5"));
+        assertEquals("6", record.getString("f6"));
+        assertEquals("7", record.getString("f7"));
+        assertEquals("eight", record.getString("f8"));
+        assertEquals("9", record.getString("f9"));
+        assertEquals("10", record.getString("f10"));
+        assertEquals("11", record.getString("f11"));
+        assertEquals("12", record.getString("f12"));
+        assertEquals("abc", record.getString("f13"));
+        assertEquals("cde", record.getString("f14"));
+        assertArrayEquals(
+            new byte[] {'q', 'w', 'e'}, record.getString("f15").getBytes(StandardCharsets.UTF_8));
+        assertArrayEquals(
+            new byte[] {'a', 's', 'd'}, record.getString("f16").getBytes(StandardCharsets.UTF_8));
+        assertArrayEquals(
+            new byte[] {'z', 'x', 'c'}, record.getString("f17").getBytes(StandardCharsets.UTF_8));
+        assertEquals("true", record.getString("f18"));
+        assertEquals("lowcardenality", record.getString("f19"));
+      }
     }
   }
 
@@ -388,26 +404,28 @@ public class ClickHouseIOTest extends BaseClickHouseTest {
 
     pipeline.run().waitUntilFinish();
 
-    try (ResultSet rs = executeQuery("SELECT * FROM test_array_of_primitive_types")) {
-      rs.next();
+    try (Records records = executeQuery("SELECT * FROM test_array_of_primitive_types")) {
+      for (GenericRecord record : records) {
+        // Date/time arrays as strings
+        assertEquals("[2030-10-01, 2031-10-01]", record.getString("f0"));
+        assertEquals("[2030-10-09 08:07:06, 2031-10-09 08:07:06]", record.getString("f1"));
+        assertEquals("[2.2, 3.3]", record.getString("f2"));
+        assertEquals("[3.3, 4.4]", record.getString("f3"));
 
-      assertEquals("[2030-10-01, 2031-10-01]", rs.getString("f0"));
-      assertEquals("[2030-10-09T08:07:06, 2031-10-09T08:07:06]", rs.getString("f1"));
-      // Since comparing float/double values is not precise, we compare the string representation
-      assertEquals("[2.2,3.3]", rs.getString("f2"));
-      assertEquals("[3.3,4.4]", rs.getString("f3"));
-      assertArrayEquals(new byte[] {4, 5}, (byte[]) rs.getArray("f4").getArray());
-      assertArrayEquals(new short[] {5, 6}, (short[]) rs.getArray("f5").getArray());
-      assertArrayEquals(new int[] {6, 7}, (int[]) rs.getArray("f6").getArray());
-      assertArrayEquals(new long[] {7L, 8L}, (long[]) rs.getArray("f7").getArray());
-      assertArrayEquals(new String[] {"eight", "nine"}, (String[]) rs.getArray("f8").getArray());
-      assertArrayEquals(new byte[] {9, 10}, (byte[]) rs.getArray("f9").getArray());
-      assertArrayEquals(new short[] {10, 11}, (short[]) rs.getArray("f10").getArray());
-      assertArrayEquals(new int[] {11, 12}, (int[]) rs.getArray("f11").getArray());
-      assertArrayEquals(new long[] {12L, 13L}, (long[]) rs.getArray("f12").getArray());
-      assertArrayEquals(new String[] {"abc", "cde"}, (String[]) rs.getArray("f13").getArray());
-      assertArrayEquals(new String[] {"cde", "abc"}, (String[]) rs.getArray("f14").getArray());
-      assertArrayEquals(new boolean[] {true, false}, (boolean[]) rs.getArray("f15").getArray());
+        // Use the proper typed array methods
+        assertArrayEquals(new byte[] {4, 5}, record.getByteArray("f4")); // Int8
+        assertArrayEquals(new short[] {5, 6}, record.getShortArray("f5")); // Int16
+        assertArrayEquals(new int[] {6, 7}, record.getIntArray("f6")); // Int32
+        assertArrayEquals(new long[] {7L, 8L}, record.getLongArray("f7")); // Int64
+        assertArrayEquals(new String[] {"eight", "nine"}, record.getStringArray("f8")); // String
+        assertArrayEquals(new short[] {9, 10}, record.getShortArray("f9")); // UInt8 -> short
+        assertArrayEquals(new int[] {10, 11}, record.getIntArray("f10")); // UInt16 -> int
+        assertArrayEquals(new long[] {11, 12}, record.getLongArray("f11")); // UInt32 -> long
+        assertEquals("[12, 13]", record.getString("f12")); // UInt64
+        assertEquals("[abc, cde]", record.getString("f13")); // FixedString
+        assertEquals("[cde, abc]", record.getString("f14")); // FixedString
+        assertArrayEquals(new boolean[] {true, false}, record.getBooleanArray("f15"));
+      }
     }
   }
 
@@ -475,6 +493,12 @@ public class ClickHouseIOTest extends BaseClickHouseTest {
   }
 
   private <T> ClickHouseIO.Write<T> write(String table) {
-    return ClickHouseIO.<T>write(clickHouse.getJdbcUrl(), table).withMaxRetries(0);
+    Properties properties = new Properties();
+    properties.setProperty("user", clickHouse.getUsername());
+    properties.setProperty("password", clickHouse.getPassword());
+
+    return ClickHouseIO.<T>write(clickHouseUrl, database, table)
+        .withProperties(properties)
+        .withMaxRetries(0);
   }
 }

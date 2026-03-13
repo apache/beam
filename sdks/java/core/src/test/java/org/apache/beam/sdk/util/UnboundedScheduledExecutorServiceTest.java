@@ -58,16 +58,17 @@ public class UnboundedScheduledExecutorServiceTest {
   private static final Logger LOG =
       LoggerFactory.getLogger(UnboundedScheduledExecutorServiceTest.class);
 
-  private static final Runnable RUNNABLE =
-      () -> {
-        // no-op
-      };
-  private static final Callable<String> CALLABLE = () -> "A";
+  private static void runnable() {
+    // no-op
+  }
 
-  private static final Callable<String> FAILING_CALLABLE =
-      () -> {
-        throw new Exception("Test");
-      };
+  private static String callable() {
+    return "A";
+  }
+
+  private static String failingCallable() throws Exception {
+    throw new Exception("Test");
+  }
 
   @Test
   public void testScheduleMethodErrorChecking() throws Exception {
@@ -80,44 +81,64 @@ public class UnboundedScheduledExecutorServiceTest {
 
     assertThrows(
         NullPointerException.class, () -> executorService.schedule((Runnable) null, 10, SECONDS));
-    assertThrows(NullPointerException.class, () -> executorService.schedule(RUNNABLE, 10, null));
+    assertThrows(
+        NullPointerException.class,
+        () -> executorService.schedule(UnboundedScheduledExecutorServiceTest::runnable, 10, null));
     assertThrows(
         RejectedExecutionException.class,
-        () -> shutdownExecutorService.schedule(RUNNABLE, 10, SECONDS));
+        () ->
+            shutdownExecutorService.schedule(
+                UnboundedScheduledExecutorServiceTest::runnable, 10, SECONDS));
 
     assertThrows(
         NullPointerException.class,
         () -> executorService.schedule((Callable<String>) null, 10, SECONDS));
-    assertThrows(NullPointerException.class, () -> executorService.schedule(CALLABLE, 10, null));
+    assertThrows(
+        NullPointerException.class,
+        () -> executorService.schedule(UnboundedScheduledExecutorServiceTest::callable, 10, null));
     assertThrows(
         RejectedExecutionException.class,
-        () -> shutdownExecutorService.schedule(CALLABLE, 10, SECONDS));
+        () ->
+            shutdownExecutorService.schedule(
+                UnboundedScheduledExecutorServiceTest::callable, 10, SECONDS));
 
     assertThrows(
         NullPointerException.class,
         () -> executorService.scheduleAtFixedRate(null, 10, 10, SECONDS));
     assertThrows(
         NullPointerException.class,
-        () -> executorService.scheduleAtFixedRate(RUNNABLE, 10, 10, null));
+        () ->
+            executorService.scheduleAtFixedRate(
+                UnboundedScheduledExecutorServiceTest::runnable, 10, 10, null));
     assertThrows(
         IllegalArgumentException.class,
-        () -> executorService.scheduleAtFixedRate(RUNNABLE, 10, -10, SECONDS));
+        () ->
+            executorService.scheduleAtFixedRate(
+                UnboundedScheduledExecutorServiceTest::runnable, 10, -10, SECONDS));
     assertThrows(
         RejectedExecutionException.class,
-        () -> shutdownExecutorService.scheduleAtFixedRate(RUNNABLE, 10, 10, SECONDS));
+        () ->
+            shutdownExecutorService.scheduleAtFixedRate(
+                UnboundedScheduledExecutorServiceTest::runnable, 10, 10, SECONDS));
 
     assertThrows(
         NullPointerException.class,
         () -> executorService.scheduleWithFixedDelay((Runnable) null, 10, 10, SECONDS));
     assertThrows(
         NullPointerException.class,
-        () -> executorService.scheduleWithFixedDelay(RUNNABLE, 10, 10, null));
+        () ->
+            executorService.scheduleWithFixedDelay(
+                UnboundedScheduledExecutorServiceTest::runnable, 10, 10, null));
     assertThrows(
         IllegalArgumentException.class,
-        () -> executorService.scheduleWithFixedDelay(RUNNABLE, 10, -10, SECONDS));
+        () ->
+            executorService.scheduleWithFixedDelay(
+                UnboundedScheduledExecutorServiceTest::runnable, 10, -10, SECONDS));
     assertThrows(
         RejectedExecutionException.class,
-        () -> shutdownExecutorService.scheduleWithFixedDelay(RUNNABLE, 10, 10, SECONDS));
+        () ->
+            shutdownExecutorService.scheduleWithFixedDelay(
+                UnboundedScheduledExecutorServiceTest::runnable, 10, 10, SECONDS));
 
     assertThat(executorService.shutdownNow(), empty());
     assertThat(executorService.shutdownNow(), empty());
@@ -134,13 +155,20 @@ public class UnboundedScheduledExecutorServiceTest {
 
     assertThrows(NullPointerException.class, () -> executorService.submit(null, "result"));
     assertThrows(
-        RejectedExecutionException.class, () -> shutdownExecutorService.submit(RUNNABLE, "result"));
+        RejectedExecutionException.class,
+        () ->
+            shutdownExecutorService.submit(
+                UnboundedScheduledExecutorServiceTest::runnable, "result"));
 
     assertThrows(NullPointerException.class, () -> executorService.submit((Runnable) null));
-    assertThrows(RejectedExecutionException.class, () -> shutdownExecutorService.submit(RUNNABLE));
+    assertThrows(
+        RejectedExecutionException.class,
+        () -> shutdownExecutorService.submit(UnboundedScheduledExecutorServiceTest::runnable));
 
     assertThrows(NullPointerException.class, () -> executorService.submit((Callable<String>) null));
-    assertThrows(RejectedExecutionException.class, () -> shutdownExecutorService.submit(CALLABLE));
+    assertThrows(
+        RejectedExecutionException.class,
+        () -> shutdownExecutorService.submit(UnboundedScheduledExecutorServiceTest::callable));
 
     assertThat(executorService.shutdownNow(), empty());
     assertThat(executorService.shutdownNow(), empty());
@@ -160,7 +188,9 @@ public class UnboundedScheduledExecutorServiceTest {
         NullPointerException.class, () -> executorService.invokeAll(Collections.singleton(null)));
     assertThrows(
         RejectedExecutionException.class,
-        () -> shutdownExecutorService.invokeAll(Collections.singleton(CALLABLE)));
+        () ->
+            shutdownExecutorService.invokeAll(
+                Collections.singleton(UnboundedScheduledExecutorServiceTest::callable)));
 
     assertThrows(NullPointerException.class, () -> executorService.invokeAll(null, 10, SECONDS));
     assertThrows(
@@ -168,10 +198,16 @@ public class UnboundedScheduledExecutorServiceTest {
         () -> executorService.invokeAll(Collections.singleton(null), 10, SECONDS));
     assertThrows(
         NullPointerException.class,
-        () -> executorService.invokeAll(Collections.singleton(CALLABLE), 10, null));
+        () ->
+            executorService.invokeAll(
+                Collections.singleton(UnboundedScheduledExecutorServiceTest::callable), 10, null));
     assertThrows(
         RejectedExecutionException.class,
-        () -> shutdownExecutorService.invokeAll(Collections.singleton(CALLABLE), 10, SECONDS));
+        () ->
+            shutdownExecutorService.invokeAll(
+                Collections.singleton(UnboundedScheduledExecutorServiceTest::callable),
+                10,
+                SECONDS));
 
     assertThrows(NullPointerException.class, () -> executorService.invokeAny(null));
     assertThrows(
@@ -180,10 +216,16 @@ public class UnboundedScheduledExecutorServiceTest {
         IllegalArgumentException.class, () -> executorService.invokeAny(Collections.emptyList()));
     assertThrows(
         ExecutionException.class,
-        () -> executorService.invokeAny(Arrays.asList(FAILING_CALLABLE, FAILING_CALLABLE)));
+        () ->
+            executorService.invokeAny(
+                Arrays.asList(
+                    UnboundedScheduledExecutorServiceTest::failingCallable,
+                    UnboundedScheduledExecutorServiceTest::failingCallable)));
     assertThrows(
         RejectedExecutionException.class,
-        () -> shutdownExecutorService.invokeAny(Collections.singleton(CALLABLE)));
+        () ->
+            shutdownExecutorService.invokeAny(
+                Collections.singleton(UnboundedScheduledExecutorServiceTest::callable)));
 
     assertThrows(NullPointerException.class, () -> executorService.invokeAny(null, 10, SECONDS));
     assertThrows(
@@ -191,7 +233,9 @@ public class UnboundedScheduledExecutorServiceTest {
         () -> executorService.invokeAny(Collections.singleton(null), 10, SECONDS));
     assertThrows(
         NullPointerException.class,
-        () -> executorService.invokeAny(Collections.singleton(CALLABLE), 10, null));
+        () ->
+            executorService.invokeAny(
+                Collections.singleton(UnboundedScheduledExecutorServiceTest::callable), 10, null));
     assertThrows(
         IllegalArgumentException.class,
         () -> executorService.invokeAny(Collections.emptyList(), 10, SECONDS));
@@ -199,10 +243,18 @@ public class UnboundedScheduledExecutorServiceTest {
         ExecutionException.class,
         () ->
             executorService.invokeAny(
-                Arrays.asList(FAILING_CALLABLE, FAILING_CALLABLE), 10, SECONDS));
+                Arrays.asList(
+                    UnboundedScheduledExecutorServiceTest::failingCallable,
+                    UnboundedScheduledExecutorServiceTest::failingCallable),
+                10,
+                SECONDS));
     assertThrows(
         RejectedExecutionException.class,
-        () -> shutdownExecutorService.invokeAny(Collections.singleton(CALLABLE), 10, SECONDS));
+        () ->
+            shutdownExecutorService.invokeAny(
+                Collections.singleton(UnboundedScheduledExecutorServiceTest::callable),
+                10,
+                SECONDS));
 
     assertThat(executorService.shutdownNow(), empty());
     assertThat(executorService.shutdownNow(), empty());
@@ -218,7 +270,9 @@ public class UnboundedScheduledExecutorServiceTest {
     shutdownExecutorService.shutdown();
 
     assertThrows(NullPointerException.class, () -> executorService.execute(null));
-    assertThrows(RejectedExecutionException.class, () -> shutdownExecutorService.execute(RUNNABLE));
+    assertThrows(
+        RejectedExecutionException.class,
+        () -> shutdownExecutorService.execute(UnboundedScheduledExecutorServiceTest::runnable));
 
     assertThat(executorService.shutdownNow(), empty());
     assertThat(executorService.shutdownNow(), empty());
@@ -230,27 +284,45 @@ public class UnboundedScheduledExecutorServiceTest {
     UnboundedScheduledExecutorService executorService =
         new UnboundedScheduledExecutorService(fastNanoClockAndSleeper);
 
-    assertThat(executorService.submit(RUNNABLE), instanceOf(ScheduledFutureTask.class));
-    assertThat(executorService.submit(CALLABLE), instanceOf(ScheduledFutureTask.class));
-    assertThat(executorService.submit(RUNNABLE, "Answer"), instanceOf(ScheduledFutureTask.class));
-
     assertThat(
-        executorService.schedule(RUNNABLE, 10, SECONDS), instanceOf(ScheduledFutureTask.class));
-    assertThat(
-        executorService.schedule(CALLABLE, 10, SECONDS), instanceOf(ScheduledFutureTask.class));
-    assertThat(
-        executorService.scheduleAtFixedRate(RUNNABLE, 10, 10, SECONDS),
+        executorService.submit(UnboundedScheduledExecutorServiceTest::runnable),
         instanceOf(ScheduledFutureTask.class));
     assertThat(
-        executorService.scheduleWithFixedDelay(RUNNABLE, 10, 10, SECONDS),
+        executorService.submit(UnboundedScheduledExecutorServiceTest::callable),
+        instanceOf(ScheduledFutureTask.class));
+    assertThat(
+        executorService.submit(UnboundedScheduledExecutorServiceTest::runnable, "Answer"),
         instanceOf(ScheduledFutureTask.class));
 
     assertThat(
-        executorService.invokeAll(Arrays.asList(CALLABLE, CALLABLE)),
+        executorService.schedule(UnboundedScheduledExecutorServiceTest::runnable, 10, SECONDS),
+        instanceOf(ScheduledFutureTask.class));
+    assertThat(
+        executorService.schedule(UnboundedScheduledExecutorServiceTest::callable, 10, SECONDS),
+        instanceOf(ScheduledFutureTask.class));
+    assertThat(
+        executorService.scheduleAtFixedRate(
+            UnboundedScheduledExecutorServiceTest::runnable, 10, 10, SECONDS),
+        instanceOf(ScheduledFutureTask.class));
+    assertThat(
+        executorService.scheduleWithFixedDelay(
+            UnboundedScheduledExecutorServiceTest::runnable, 10, 10, SECONDS),
+        instanceOf(ScheduledFutureTask.class));
+
+    assertThat(
+        executorService.invokeAll(
+            Arrays.asList(
+                UnboundedScheduledExecutorServiceTest::callable,
+                UnboundedScheduledExecutorServiceTest::callable)),
         IsIterableContainingInOrder.contains(
             instanceOf(ScheduledFutureTask.class), instanceOf(ScheduledFutureTask.class)));
     assertThat(
-        executorService.invokeAll(Arrays.asList(CALLABLE, CALLABLE), 10, SECONDS),
+        executorService.invokeAll(
+            Arrays.asList(
+                UnboundedScheduledExecutorServiceTest::callable,
+                UnboundedScheduledExecutorServiceTest::callable),
+            10,
+            SECONDS),
         IsIterableContainingInOrder.contains(
             instanceOf(ScheduledFutureTask.class), instanceOf(ScheduledFutureTask.class)));
 

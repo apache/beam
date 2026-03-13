@@ -27,6 +27,8 @@ import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -69,14 +71,18 @@ import java.util.Collection;
 import java.util.Iterator;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
+import java.util.stream.Collectors;
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.memory.RootAllocator;
 import org.apache.arrow.vector.BigIntVector;
+import org.apache.arrow.vector.TimeStampMicroTZVector;
+import org.apache.arrow.vector.TimeStampNanoTZVector;
 import org.apache.arrow.vector.VarCharVector;
 import org.apache.arrow.vector.VectorSchemaRoot;
 import org.apache.arrow.vector.VectorUnloader;
 import org.apache.arrow.vector.ipc.WriteChannel;
 import org.apache.arrow.vector.ipc.message.MessageSerializer;
+import org.apache.arrow.vector.types.TimeUnit;
 import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.apache.arrow.vector.util.Text;
 import org.apache.avro.Schema;
@@ -443,6 +449,63 @@ public class BigQueryIOStorageReadTest {
       new org.apache.arrow.vector.types.pojo.Schema(
           asList(
               field("name", new ArrowType.Utf8()), field("number", new ArrowType.Int(64, true))));
+
+  // --- MICROS ---
+  private static final TableSchema TABLE_SCHEMA_TIMESTAMP =
+      new TableSchema()
+          .setFields(
+              ImmutableList.of(
+                  new TableFieldSchema()
+                      .setName("ts")
+                      .setType("TIMESTAMP")
+                      .setMode("REQUIRED")
+                      .setTimestampPrecision(12L)));
+
+  private static final org.apache.arrow.vector.types.pojo.Schema ARROW_SCHEMA_TS_MICROS =
+      new org.apache.arrow.vector.types.pojo.Schema(
+          asList(field("ts", new ArrowType.Timestamp(TimeUnit.MICROSECOND, "UTC"))));
+
+  private static final String AVRO_SCHEMA_TS_MICROS_STRING =
+      "{\"namespace\": \"example.avro\","
+          + " \"type\": \"record\","
+          + " \"name\": \"RowRecord\","
+          + " \"fields\": ["
+          + "     {\"name\": \"ts\", \"type\": {\"type\": \"long\", \"logicalType\": \"timestamp-micros\"}}"
+          + " ]}";
+
+  private static final Schema AVRO_SCHEMA_TS_MICROS =
+      new Schema.Parser().parse(AVRO_SCHEMA_TS_MICROS_STRING);
+
+  // --- NANOS ---
+  private static final org.apache.arrow.vector.types.pojo.Schema ARROW_SCHEMA_TS_NANOS =
+      new org.apache.arrow.vector.types.pojo.Schema(
+          asList(field("ts", new ArrowType.Timestamp(TimeUnit.NANOSECOND, "UTC"))));
+
+  private static final String AVRO_SCHEMA_TS_NANOS_STRING =
+      "{\"namespace\": \"example.avro\","
+          + " \"type\": \"record\","
+          + " \"name\": \"RowRecord\","
+          + " \"fields\": ["
+          + "     {\"name\": \"ts\", \"type\": {\"type\": \"long\", \"logicalType\": \"timestamp-nanos\"}}"
+          + " ]}";
+
+  private static final Schema AVRO_SCHEMA_TS_NANOS =
+      new Schema.Parser().parse(AVRO_SCHEMA_TS_NANOS_STRING);
+
+  // --- PICOS (string) ---
+  private static final org.apache.arrow.vector.types.pojo.Schema ARROW_SCHEMA_TS_PICOS =
+      new org.apache.arrow.vector.types.pojo.Schema(asList(field("ts", new ArrowType.Utf8())));
+
+  private static final String AVRO_SCHEMA_TS_PICOS_STRING =
+      "{\"namespace\": \"example.avro\","
+          + " \"type\": \"record\","
+          + " \"name\": \"RowRecord\","
+          + " \"fields\": ["
+          + "     {\"name\": \"ts\", \"type\": \"string\"}"
+          + " ]}";
+
+  private static final Schema AVRO_SCHEMA_TS_PICOS =
+      new Schema.Parser().parse(AVRO_SCHEMA_TS_PICOS_STRING);
 
   private void doTableSourceInitialSplitTest(long bundleSize, int streamCount) throws Exception {
     fakeDatasetService.createDataset("foo.com:project", "dataset", "", "", null);
@@ -2379,6 +2442,587 @@ public class BigQueryIOStorageReadTest {
 
     // Make sure rowA has not mutated after advance
     assertEquals(new Utf8("A"), rowA.get("name"));
+  }
+
+  @Test
+  public void testTimestampPrecisionDefaultValue() {
+    BigQueryIO.TypedRead<TableRow> typedRead =
+        BigQueryIO.read(new TableRowParser())
+            .withCoder(TableRowJsonCoder.of())
+            .withMethod(Method.DIRECT_READ)
+            .from("foo.com:project:dataset.table");
+
+    assertNull(typedRead.getDirectReadPicosTimestampPrecision());
+  }
+
+  @Test
+  public void testwithDirectReadPicosTimestampPrecisionNanos() {
+    BigQueryIO.TypedRead<TableRow> typedRead =
+        BigQueryIO.read(new TableRowParser())
+            .withCoder(TableRowJsonCoder.of())
+            .withMethod(Method.DIRECT_READ)
+            .from("foo.com:project:dataset.table")
+            .withDirectReadPicosTimestampPrecision(TimestampPrecision.NANOS);
+
+    assertEquals(TimestampPrecision.NANOS, typedRead.getDirectReadPicosTimestampPrecision());
+  }
+
+  @Test
+  public void testwithDirectReadPicosTimestampPrecisionPicos() {
+    BigQueryIO.TypedRead<TableRow> typedRead =
+        BigQueryIO.read(new TableRowParser())
+            .withCoder(TableRowJsonCoder.of())
+            .withMethod(Method.DIRECT_READ)
+            .from("foo.com:project:dataset.table")
+            .withDirectReadPicosTimestampPrecision(TimestampPrecision.PICOS);
+
+    assertEquals(TimestampPrecision.PICOS, typedRead.getDirectReadPicosTimestampPrecision());
+  }
+
+  @Test
+  public void testTableSourceInitialSplit_withDirectReadPicosTimestampPrecisionNanos_Arrow()
+      throws Exception {
+    fakeDatasetService.createDataset("foo.com:project", "dataset", "", "", null);
+    TableReference tableRef = BigQueryHelpers.parseTableSpec("foo.com:project:dataset.table");
+    Table table = new Table().setTableReference(tableRef).setNumBytes(100L).setSchema(TABLE_SCHEMA);
+    fakeDatasetService.createTable(table);
+
+    CreateReadSessionRequest expectedRequest =
+        CreateReadSessionRequest.newBuilder()
+            .setParent("projects/project-id")
+            .setReadSession(
+                ReadSession.newBuilder()
+                    .setTable("projects/foo.com:project/datasets/dataset/tables/table")
+                    .setDataFormat(DataFormat.ARROW)
+                    .setReadOptions(
+                        ReadSession.TableReadOptions.newBuilder()
+                            .setArrowSerializationOptions(
+                                com.google.cloud.bigquery.storage.v1.ArrowSerializationOptions
+                                    .newBuilder()
+                                    .setPicosTimestampPrecision(
+                                        com.google.cloud.bigquery.storage.v1
+                                            .ArrowSerializationOptions.PicosTimestampPrecision
+                                            .TIMESTAMP_PRECISION_NANOS))))
+            .setMaxStreamCount(10)
+            .build();
+
+    ReadSession.Builder builder =
+        ReadSession.newBuilder()
+            .setArrowSchema(
+                ArrowSchema.newBuilder().setSerializedSchema(serializeArrowSchema(ARROW_SCHEMA)))
+            .setDataFormat(DataFormat.ARROW);
+    for (int i = 0; i < 10; i++) {
+      builder.addStreams(ReadStream.newBuilder().setName("stream-" + i));
+    }
+
+    StorageClient fakeStorageClient = mock(StorageClient.class);
+    when(fakeStorageClient.createReadSession(expectedRequest)).thenReturn(builder.build());
+
+    BigQueryStorageTableSource<TableRow> tableSource =
+        BigQueryStorageTableSource.create(
+            ValueProvider.StaticValueProvider.of(tableRef),
+            DataFormat.ARROW,
+            null, /* selectedFields */
+            null, /* rowRestriction */
+            new TableRowParser(),
+            TableRowJsonCoder.of(),
+            new FakeBigQueryServices()
+                .withDatasetService(fakeDatasetService)
+                .withStorageClient(fakeStorageClient),
+            false, /* projectionPushdownApplied */
+            TimestampPrecision.NANOS);
+
+    List<? extends BoundedSource<TableRow>> sources = tableSource.split(10L, options);
+    assertEquals(10L, sources.size());
+  }
+
+  private org.apache.arrow.vector.types.pojo.Schema getArrowSchemaTs(TimestampPrecision precision) {
+    switch (precision) {
+      case NANOS:
+        return ARROW_SCHEMA_TS_NANOS;
+      case PICOS:
+        return ARROW_SCHEMA_TS_PICOS;
+      case MICROS:
+      default:
+        return ARROW_SCHEMA_TS_MICROS;
+    }
+  }
+
+  private Schema getAvroSchemaTs(TimestampPrecision precision) {
+    switch (precision) {
+      case NANOS:
+        return AVRO_SCHEMA_TS_NANOS;
+      case PICOS:
+        return AVRO_SCHEMA_TS_PICOS;
+      case MICROS:
+      default:
+        return AVRO_SCHEMA_TS_MICROS;
+    }
+  }
+
+  private String getAvroSchemaStringTs(TimestampPrecision precision) {
+    switch (precision) {
+      case NANOS:
+        return AVRO_SCHEMA_TS_NANOS_STRING;
+      case PICOS:
+        return AVRO_SCHEMA_TS_PICOS_STRING;
+      case MICROS:
+      default:
+        return AVRO_SCHEMA_TS_MICROS_STRING;
+    }
+  }
+
+  /**
+   * Converts ISO timestamp strings to the appropriate format for the precision. - MICROS: Long
+   * (epoch microseconds) - NANOS: Long (epoch nanoseconds) - PICOS: String (formatted as
+   * "yyyy-MM-dd HH:mm:ss.SSSSSSSSSSSS UTC")
+   */
+  private List<Object> convertInputsForPrecision(
+      List<String> isoTimestamps, TimestampPrecision precision) {
+    return isoTimestamps.stream()
+        .map(
+            iso -> {
+              if (precision == TimestampPrecision.PICOS) {
+                // For PICOS, input IS the string (already formatted)
+                return iso;
+              }
+              java.time.Instant instant = java.time.Instant.parse(iso);
+              if (precision == TimestampPrecision.NANOS) {
+                return instant.getEpochSecond() * 1_000_000_000L + instant.getNano();
+              } else {
+                // MICROS (default)
+                return instant.getEpochSecond() * 1_000_000L + instant.getNano() / 1000;
+              }
+            })
+        .collect(Collectors.toList());
+  }
+
+  private ReadSession createTsReadSession(
+      DataFormat dataFormat,
+      org.apache.arrow.vector.types.pojo.Schema arrowSchema,
+      String avroSchemaString) {
+    ReadSession.Builder builder =
+        ReadSession.newBuilder()
+            .setName("readSessionName")
+            .addStreams(ReadStream.newBuilder().setName("streamName"))
+            .setDataFormat(dataFormat);
+
+    if (dataFormat == DataFormat.ARROW) {
+      builder.setArrowSchema(
+          ArrowSchema.newBuilder().setSerializedSchema(serializeArrowSchema(arrowSchema)).build());
+    } else {
+      builder.setAvroSchema(AvroSchema.newBuilder().setSchema(avroSchemaString).build());
+    }
+    return builder.build();
+  }
+
+  private ReadRowsResponse createArrowTsResponse(
+      org.apache.arrow.vector.types.pojo.Schema arrowSchema,
+      TimestampPrecision precision,
+      List<Object> inputValues) {
+    ArrowRecordBatch serializedRecord;
+    try (VectorSchemaRoot schemaRoot = VectorSchemaRoot.create(arrowSchema, allocator)) {
+      schemaRoot.allocateNew();
+      schemaRoot.setRowCount(inputValues.size());
+
+      switch (precision) {
+        case NANOS:
+          TimeStampNanoTZVector nanoVector =
+              (TimeStampNanoTZVector) schemaRoot.getFieldVectors().get(0);
+          for (int i = 0; i < inputValues.size(); i++) {
+            nanoVector.set(i, (Long) inputValues.get(i));
+          }
+          break;
+        case PICOS:
+          VarCharVector stringVector = (VarCharVector) schemaRoot.getFieldVectors().get(0);
+          for (int i = 0; i < inputValues.size(); i++) {
+            stringVector.set(i, new Text((String) inputValues.get(i)));
+          }
+          break;
+        case MICROS:
+        default:
+          TimeStampMicroTZVector microVector =
+              (TimeStampMicroTZVector) schemaRoot.getFieldVectors().get(0);
+          for (int i = 0; i < inputValues.size(); i++) {
+            microVector.set(i, (Long) inputValues.get(i));
+          }
+          break;
+      }
+
+      VectorUnloader unLoader = new VectorUnloader(schemaRoot);
+      try (org.apache.arrow.vector.ipc.message.ArrowRecordBatch records =
+          unLoader.getRecordBatch()) {
+        try (ByteArrayOutputStream os = new ByteArrayOutputStream()) {
+          MessageSerializer.serialize(new WriteChannel(Channels.newChannel(os)), records);
+          serializedRecord =
+              ArrowRecordBatch.newBuilder()
+                  .setRowCount(records.getLength())
+                  .setSerializedRecordBatch(ByteString.copyFrom(os.toByteArray()))
+                  .build();
+        }
+      }
+    } catch (IOException e) {
+      throw new RuntimeException(e);
+    }
+
+    return ReadRowsResponse.newBuilder()
+        .setArrowRecordBatch(serializedRecord)
+        .setRowCount(inputValues.size())
+        .setStats(
+            StreamStats.newBuilder()
+                .setProgress(Progress.newBuilder().setAtResponseStart(0.0).setAtResponseEnd(1.0)))
+        .build();
+  }
+
+  private ReadRowsResponse createAvroTsResponse(
+      Schema avroSchema, TimestampPrecision precision, List<Object> inputValues) throws Exception {
+    List<GenericRecord> records = new ArrayList<>();
+    for (Object value : inputValues) {
+      GenericRecord record = new Record(avroSchema);
+      record.put("ts", value);
+      records.add(record);
+    }
+
+    GenericDatumWriter<GenericRecord> writer = new GenericDatumWriter<>(avroSchema);
+    ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+    Encoder binaryEncoder = EncoderFactory.get().binaryEncoder(outputStream, null);
+    for (GenericRecord record : records) {
+      writer.write(record, binaryEncoder);
+    }
+    binaryEncoder.flush();
+
+    return ReadRowsResponse.newBuilder()
+        .setAvroRows(
+            AvroRows.newBuilder()
+                .setSerializedBinaryRows(ByteString.copyFrom(outputStream.toByteArray()))
+                .setRowCount(records.size()))
+        .setRowCount(records.size())
+        .setStats(
+            StreamStats.newBuilder()
+                .setProgress(Progress.newBuilder().setAtResponseStart(0.0).setAtResponseEnd(1.0)))
+        .build();
+  }
+
+  private void runTimestampTest(
+      DataFormat dataFormat,
+      TimestampPrecision precision,
+      boolean useSchema,
+      List<String> inputTimestamps,
+      List<String> expectedOutputs)
+      throws Exception {
+
+    TimestampPrecision effectivePrecision =
+        (precision != null) ? precision : TimestampPrecision.MICROS;
+
+    fakeDatasetService.createDataset("foo.com:project", "dataset", "", "", null);
+    TableReference tableRef = BigQueryHelpers.parseTableSpec("foo.com:project:dataset.table");
+    Table table =
+        new Table().setTableReference(tableRef).setNumBytes(10L).setSchema(TABLE_SCHEMA_TIMESTAMP);
+    fakeDatasetService.createTable(table);
+
+    org.apache.arrow.vector.types.pojo.Schema arrowSchema = getArrowSchemaTs(effectivePrecision);
+    Schema avroSchema = getAvroSchemaTs(effectivePrecision);
+    String avroSchemaString = getAvroSchemaStringTs(effectivePrecision);
+
+    List<Object> inputValues = convertInputsForPrecision(inputTimestamps, effectivePrecision);
+
+    ReadSession readSession = createTsReadSession(dataFormat, arrowSchema, avroSchemaString);
+
+    List<ReadRowsResponse> readRowsResponses;
+    if (dataFormat == DataFormat.ARROW) {
+      readRowsResponses =
+          Lists.newArrayList(createArrowTsResponse(arrowSchema, effectivePrecision, inputValues));
+    } else {
+      readRowsResponses =
+          Lists.newArrayList(createAvroTsResponse(avroSchema, effectivePrecision, inputValues));
+    }
+
+    StorageClient fakeStorageClient = mock(StorageClient.class, withSettings().serializable());
+    when(fakeStorageClient.createReadSession(any(CreateReadSessionRequest.class)))
+        .thenReturn(readSession);
+    when(fakeStorageClient.readRows(any(ReadRowsRequest.class), eq("")))
+        .thenReturn(new FakeBigQueryServerStream<>(readRowsResponses));
+
+    TypedRead<TableRow> read =
+        useSchema ? BigQueryIO.readTableRowsWithSchema() : BigQueryIO.readTableRows();
+
+    read =
+        read.from("foo.com:project:dataset.table")
+            .withMethod(Method.DIRECT_READ)
+            .withFormat(dataFormat)
+            .withTestServices(
+                new FakeBigQueryServices()
+                    .withDatasetService(fakeDatasetService)
+                    .withStorageClient(fakeStorageClient));
+
+    if (precision != null) {
+      read = read.withDirectReadPicosTimestampPrecision(precision);
+    }
+
+    PCollection<TableRow> output = p.apply(read);
+
+    PAssert.that(output)
+        .satisfies(
+            rows -> {
+              List<TableRow> rowList = Lists.newArrayList(rows);
+              assertEquals(expectedOutputs.size(), rowList.size());
+
+              List<String> actualTimestamps =
+                  rowList.stream()
+                      .map(r -> (String) r.get("ts"))
+                      .sorted()
+                      .collect(Collectors.toList());
+
+              List<String> sortedExpected =
+                  expectedOutputs.stream().sorted().collect(Collectors.toList());
+
+              assertEquals(sortedExpected, actualTimestamps);
+              return null;
+            });
+
+    p.run();
+  }
+
+  // ===== Avro + readTableRows =====
+
+  @Test
+  public void testReadTableRows_Avro_DefaultPrecision() throws Exception {
+    runTimestampTest(
+        DataFormat.AVRO,
+        null,
+        false,
+        Arrays.asList("2024-01-01T00:00:00.123456Z", "2024-06-15T12:30:45.987654Z"),
+        Arrays.asList("2024-01-01 00:00:00.123456 UTC", "2024-06-15 12:30:45.987654 UTC"));
+  }
+
+  @Test
+  public void testReadTableRows_Avro_MicrosPrecision() throws Exception {
+    runTimestampTest(
+        DataFormat.AVRO,
+        TimestampPrecision.MICROS,
+        false,
+        Arrays.asList("2024-01-01T00:00:00.123456Z", "2024-06-15T12:30:45.987654Z"),
+        Arrays.asList("2024-01-01 00:00:00.123456 UTC", "2024-06-15 12:30:45.987654 UTC"));
+  }
+
+  @Test
+  public void testReadTableRows_Avro_NanosPrecision() throws Exception {
+    runTimestampTest(
+        DataFormat.AVRO,
+        TimestampPrecision.NANOS,
+        false,
+        Arrays.asList("2024-01-01T00:00:00.123456789Z", "2024-06-15T12:30:45.987654321Z"),
+        Arrays.asList("2024-01-01 00:00:00.123456789 UTC", "2024-06-15 12:30:45.987654321 UTC"));
+  }
+
+  @Test
+  public void testReadTableRows_Avro_PicosPrecision() throws Exception {
+    runTimestampTest(
+        DataFormat.AVRO,
+        TimestampPrecision.PICOS,
+        false,
+        Arrays.asList(
+            "2024-01-01 00:00:00.123456789012 UTC", "2024-06-15 12:30:45.987654321098 UTC"),
+        Arrays.asList(
+            "2024-01-01 00:00:00.123456789012 UTC", "2024-06-15 12:30:45.987654321098 UTC"));
+  }
+
+  // ===== Avro + readTableRowsWithSchema =====
+
+  @Test
+  public void testReadTableRowsWithSchema_Avro_DefaultPrecision() throws Exception {
+    runTimestampTest(
+        DataFormat.AVRO,
+        null,
+        true,
+        Arrays.asList("2024-01-01T00:00:00.123456Z", "2024-06-15T12:30:45.987654Z"),
+        Arrays.asList("2024-01-01 00:00:00.123456 UTC", "2024-06-15 12:30:45.987654 UTC"));
+  }
+
+  @Test
+  public void testReadTableRowsWithSchema_Avro_MicrosPrecision() throws Exception {
+    runTimestampTest(
+        DataFormat.AVRO,
+        TimestampPrecision.MICROS,
+        true,
+        Arrays.asList("2024-01-01T00:00:00.123456Z", "2024-06-15T12:30:45.987654Z"),
+        Arrays.asList("2024-01-01 00:00:00.123456 UTC", "2024-06-15 12:30:45.987654 UTC"));
+  }
+
+  @Test
+  public void testReadTableRowsWithSchema_Avro_NanosPrecision() throws Exception {
+    runTimestampTest(
+        DataFormat.AVRO,
+        TimestampPrecision.NANOS,
+        true,
+        Arrays.asList("2024-01-01T00:00:00.123456789Z", "2024-06-15T12:30:45.987654321Z"),
+        Arrays.asList("2024-01-01 00:00:00.123456789 UTC", "2024-06-15 12:30:45.987654321 UTC"));
+  }
+
+  @Test
+  public void testReadTableRowsWithSchema_Avro_PicosPrecision() throws Exception {
+    runTimestampTest(
+        DataFormat.AVRO,
+        TimestampPrecision.PICOS,
+        true,
+        Arrays.asList(
+            "2024-01-01 00:00:00.123456789012 UTC", "2024-06-15 12:30:45.987654321098 UTC"),
+        Arrays.asList(
+            "2024-01-01 00:00:00.123456789012 UTC", "2024-06-15 12:30:45.987654321098 UTC"));
+  }
+
+  // ===== Arrow + readTableRows =====
+
+  @Test
+  public void testReadTableRows_Arrow_DefaultPrecision() throws Exception {
+    //    Avro records are always converted to beam Row and then to GenericRecord in
+    // ArrowConversion.java
+    //    ArrowConversion.java is a generic utility to convert Arrow records and it does not take
+    // into account
+    //    the BigQuery TableSchema to determine the appropriate beam type. Historically arrow
+    // microsecond timestamps
+    //    are converted to FieldType.DATETIME, which maps to joda Instants, which only supports up
+    // to millisecond precision
+    //    hence precision is lost.
+    runTimestampTest(
+        DataFormat.ARROW,
+        null,
+        false,
+        Arrays.asList("2024-01-01T00:00:00.123456Z", "2024-06-15T12:30:45.987654Z"),
+        Arrays.asList("2024-01-01 00:00:00.123 UTC", "2024-06-15 12:30:45.987 UTC"));
+  }
+
+  @Test
+  public void testReadTableRows_Arrow_MicrosPrecision() throws Exception {
+    runTimestampTest(
+        DataFormat.ARROW,
+        TimestampPrecision.MICROS,
+        false,
+        Arrays.asList("2024-01-01T00:00:00.123456Z", "2024-06-15T12:30:45.987654Z"),
+        Arrays.asList("2024-01-01 00:00:00.123 UTC", "2024-06-15 12:30:45.987 UTC"));
+  }
+
+  @Test
+  public void testReadTableRows_Arrow_NanosPrecision() throws Exception {
+    runTimestampTest(
+        DataFormat.ARROW,
+        TimestampPrecision.NANOS,
+        false,
+        Arrays.asList("2024-01-01T00:00:00.123456789Z", "2024-06-15T12:30:45.987654321Z"),
+        Arrays.asList("2024-01-01 00:00:00.123456789 UTC", "2024-06-15 12:30:45.987654321 UTC"));
+  }
+
+  @Test
+  public void testReadTableRows_Arrow_PicosPrecision() throws Exception {
+    runTimestampTest(
+        DataFormat.ARROW,
+        TimestampPrecision.PICOS,
+        false,
+        Arrays.asList(
+            "2024-01-01 00:00:00.123456789012 UTC", "2024-06-15 12:30:45.987654321098 UTC"),
+        Arrays.asList(
+            "2024-01-01 00:00:00.123456789012 UTC", "2024-06-15 12:30:45.987654321098 UTC"));
+  }
+
+  // ===== Arrow + readTableRowsWithSchema =====
+
+  @Test
+  public void testReadTableRowsWithSchema_Arrow_DefaultPrecision() throws Exception {
+    runTimestampTest(
+        DataFormat.ARROW,
+        null,
+        true,
+        Arrays.asList("2024-01-01T00:00:00.123456Z", "2024-06-15T12:30:45.987654Z"),
+        Arrays.asList("2024-01-01 00:00:00.123 UTC", "2024-06-15 12:30:45.987 UTC"));
+  }
+
+  @Test
+  public void testReadTableRowsWithSchema_Arrow_MicrosPrecision() throws Exception {
+    runTimestampTest(
+        DataFormat.ARROW,
+        TimestampPrecision.MICROS,
+        true,
+        Arrays.asList("2024-01-01T00:00:00.123456Z", "2024-06-15T12:30:45.987654Z"),
+        Arrays.asList("2024-01-01 00:00:00.123 UTC", "2024-06-15 12:30:45.987 UTC"));
+  }
+
+  @Test
+  public void testReadTableRowsWithSchema_Arrow_NanosPrecision() throws Exception {
+    runTimestampTest(
+        DataFormat.ARROW,
+        TimestampPrecision.NANOS,
+        true,
+        Arrays.asList("2024-01-01T00:00:00.123456789Z", "2024-06-15T12:30:45.987654321Z"),
+        Arrays.asList("2024-01-01 00:00:00.123456789 UTC", "2024-06-15 12:30:45.987654321 UTC"));
+  }
+
+  @Test
+  public void testReadTableRowsWithSchema_Arrow_PicosPrecision() throws Exception {
+    runTimestampTest(
+        DataFormat.ARROW,
+        TimestampPrecision.PICOS,
+        true,
+        Arrays.asList(
+            "2024-01-01 00:00:00.123456789012 UTC", "2024-06-15 12:30:45.987654321098 UTC"),
+        Arrays.asList(
+            "2024-01-01 00:00:00.123456789012 UTC", "2024-06-15 12:30:45.987654321098 UTC"));
+  }
+
+  @Test
+  public void testTableSourceInitialSplit_withDirectReadPicosTimestampPrecisionNanos_Avro()
+      throws Exception {
+    fakeDatasetService.createDataset("foo.com:project", "dataset", "", "", null);
+    TableReference tableRef = BigQueryHelpers.parseTableSpec("foo.com:project:dataset.table");
+    Table table = new Table().setTableReference(tableRef).setNumBytes(100L).setSchema(TABLE_SCHEMA);
+    fakeDatasetService.createTable(table);
+
+    // Expected request should include AvroSerializationOptions with NANOS precision
+    CreateReadSessionRequest expectedRequest =
+        CreateReadSessionRequest.newBuilder()
+            .setParent("projects/project-id")
+            .setReadSession(
+                ReadSession.newBuilder()
+                    .setTable("projects/foo.com:project/datasets/dataset/tables/table")
+                    .setDataFormat(DataFormat.AVRO)
+                    .setReadOptions(
+                        ReadSession.TableReadOptions.newBuilder()
+                            .setAvroSerializationOptions(
+                                com.google.cloud.bigquery.storage.v1.AvroSerializationOptions
+                                    .newBuilder()
+                                    .setPicosTimestampPrecision(
+                                        com.google.cloud.bigquery.storage.v1
+                                            .AvroSerializationOptions.PicosTimestampPrecision
+                                            .TIMESTAMP_PRECISION_NANOS))))
+            .setMaxStreamCount(10)
+            .build();
+
+    ReadSession.Builder builder =
+        ReadSession.newBuilder()
+            .setAvroSchema(AvroSchema.newBuilder().setSchema(AVRO_SCHEMA_STRING))
+            .setDataFormat(DataFormat.AVRO);
+    for (int i = 0; i < 10; i++) {
+      builder.addStreams(ReadStream.newBuilder().setName("stream-" + i));
+    }
+
+    StorageClient fakeStorageClient = mock(StorageClient.class);
+    when(fakeStorageClient.createReadSession(expectedRequest)).thenReturn(builder.build());
+
+    BigQueryStorageTableSource<TableRow> tableSource =
+        BigQueryStorageTableSource.create(
+            ValueProvider.StaticValueProvider.of(tableRef),
+            DataFormat.AVRO,
+            null, /* selectedFields */
+            null, /* rowRestriction */
+            new TableRowParser(),
+            TableRowJsonCoder.of(),
+            new FakeBigQueryServices()
+                .withDatasetService(fakeDatasetService)
+                .withStorageClient(fakeStorageClient),
+            false, /* projectionPushdownApplied */
+            TimestampPrecision.NANOS);
+
+    List<? extends BoundedSource<TableRow>> sources = tableSource.split(10L, options);
+    assertEquals(10L, sources.size());
   }
 
   private static org.apache.arrow.vector.types.pojo.Field field(

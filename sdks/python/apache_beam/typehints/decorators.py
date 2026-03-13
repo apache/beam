@@ -89,12 +89,16 @@ from typing import Callable
 from typing import Dict
 from typing import Iterable
 from typing import List
+from typing import Literal
 from typing import NamedTuple
 from typing import Optional
 from typing import Tuple
 from typing import TypeVar
 from typing import Union
+from typing import get_args
+from typing import get_origin
 
+from apache_beam.pvalue import TaggedOutput
 from apache_beam.typehints import native_type_compatibility
 from apache_beam.typehints import typehints
 from apache_beam.typehints.native_type_compatibility import convert_to_beam_type
@@ -180,6 +184,83 @@ def disable_type_annotations():
 
 
 TRACEBACK_LIMIT = 5
+_NO_MAIN_TYPE = object()
+
+
+def _tag_and_type(t):
+  """Extract tag name and value type from TaggedOutput[Literal['tag'], Type].
+
+  Returns raw Python types - conversion to beam types happens in
+  _extract_output_types.
+  """
+  args = get_args(t)
+  if len(args) != 2:
+    raise TypeError(
+        f"TaggedOutput expects 2 type parameters, got {len(args)}: {t}")
+
+  literal_type, value_type = args
+
+  if get_origin(literal_type) is not Literal:
+    raise TypeError(
+        f"First type parameter of TaggedOutput must be Literal['tag_name'], "
+        f"got {literal_type}. Example: TaggedOutput[Literal['errors'], str]")
+
+  tag_string = get_args(literal_type)[0]
+  return tag_string, value_type
+
+
+def _extract_tagged_from_type(beam_type):
+  """Extract tagged output types from a Beam type (post-convert_to_beam_type).
+
+  Called after the Iterable wrapper has been removed.
+  At this point, the type has already been through convert_to_beam_type, so
+  unions are typehints.UnionConstraint (not typing.Union), but
+  TaggedOutput[Literal['tag'], T] passes through unchanged as a typing
+  generic alias.
+
+  Returns:
+    (clean_type, tagged_dict) where clean_type is the type without TaggedOutput
+    members (or _NO_MAIN_TYPE if no main type), and tagged_dict maps tag names
+    to their Beam types.
+  """
+  # Single TaggedOutput[Literal['tag'], Type]
+  if get_origin(beam_type) is TaggedOutput:
+    tag, typ = _tag_and_type(beam_type)
+    return _NO_MAIN_TYPE, {tag: convert_to_beam_type(typ)}
+
+  # Bare TaggedOutput (unparameterized)
+  if beam_type is TaggedOutput:
+    logging.warning(
+        "TaggedOutput in return type must include type parameters: "
+        "TaggedOutput[Literal['tag_name'], ValueType]. "
+        "Bare TaggedOutput will be ignored.")
+    return _NO_MAIN_TYPE, {}
+
+  if not isinstance(beam_type, typehints.UnionHint.UnionConstraint):
+    return beam_type, {}
+
+  # UnionConstraint containing TaggedOutput members
+  main_types = []
+  tagged = {}
+  for member in beam_type.union_types:
+    if get_origin(member) is TaggedOutput:
+      tag, typ = _tag_and_type(member)
+      tagged[tag] = convert_to_beam_type(typ)
+    elif member is TaggedOutput:
+      logging.warning(
+          "TaggedOutput in return type must include type parameters: "
+          "TaggedOutput[Literal['tag_name'], ValueType]. "
+          "Bare TaggedOutput will be ignored.")
+    else:
+      main_types.append(member)
+  if not tagged and len(main_types) == len(beam_type.union_types):
+    return beam_type, {}
+  if not main_types:
+    return _NO_MAIN_TYPE, tagged
+  elif len(main_types) == 1:
+    return main_types[0], tagged
+  else:
+    return typehints.Union[tuple(main_types)], tagged
 
 
 class IOTypeHints(NamedTuple):
@@ -273,6 +354,7 @@ class IOTypeHints(NamedTuple):
                                 param.VAR_POSITIONAL], \
               'Unsupported Parameter kind: %s' % param.kind
           input_args.append(convert_to_beam_type(param.annotation))
+
     output_args = []
     if signature.return_annotation != signature.empty:
       output_args.append(convert_to_beam_type(signature.return_annotation))
@@ -308,18 +390,24 @@ class IOTypeHints(NamedTuple):
 
   def simple_output_type(self, context):
     if self._has_output_types():
-      args, kwargs = self.output_types
-      if len(args) != 1 or kwargs:
+      args, _ = self.output_types
+      # Note: kwargs may contain tagged output types, which are ignored here.
+      # Use tagged_output_types() to access those.
+      if len(args) != 1:
         raise TypeError(
             'Expected single output type hint for %s but got: %s' %
             (context, self.output_types))
       return args[0]
 
+  def tagged_output_types(self):
+    if not self._has_output_types():
+      return {}
+    _, tagged_output_types = self.output_types
+    return tagged_output_types
+
   def has_simple_output_type(self):
     """Whether there's a single positional output type."""
-    return (
-        self.output_types and len(self.output_types[0]) == 1 and
-        not self.output_types[1])
+    return (self.output_types and len(self.output_types[0]) == 1)
 
   def strip_pcoll(self):
     from apache_beam.pipeline import Pipeline
@@ -413,6 +501,7 @@ class IOTypeHints(NamedTuple):
     if self.output_types is None or not self.has_simple_output_type():
       return self
     output_type = self.output_types[0][0]
+    tagged_output_types = self.output_types[1]
     if output_type is None or isinstance(output_type, type(None)):
       return self
     # If output_type == Optional[T]: output_type = T.
@@ -427,13 +516,50 @@ class IOTypeHints(NamedTuple):
     if isinstance(output_type, typehints.TypeVariable):
       # We don't know what T yields, so we just assume Any.
       return self._replace(
-          output_types=((typehints.Any, ), {}),
+          output_types=((typehints.Any, ), tagged_output_types),
           origin=self._make_origin([self], tb=False, msg=['strip_iterable()']))
 
     yielded_type = typehints.get_yielded_type(output_type)
+
+    # Also strip Iterable from tagged output types (e.g. from Map/MapTuple
+    # which wrap both main and tagged types in Iterable).
+    stripped_tags = {
+        tag: typehints.get_yielded_type(hint)
+        for tag, hint in tagged_output_types.items()
+    }
+
     return self._replace(
-        output_types=((yielded_type, ), {}),
+        output_types=((yielded_type, ), stripped_tags),
         origin=self._make_origin([self], tb=False, msg=['strip_iterable()']))
+
+  def extract_tagged_outputs(self):
+    """Extract TaggedOutput types from the main output type into kwargs.
+
+    For annotation style (e.g. -> Iterable[int | TaggedOutput[...]]),
+    TaggedOutput stays embedded in the main type through convert_to_beam_type
+    and strip_iterable. This method extracts those TaggedOutput members into
+    the tagged output kwargs dict.
+
+    Should be called after strip_iterable().
+
+    Returns:
+      A copy of this instance with TaggedOutput members moved from the main
+      output type into the output kwargs dict.
+    """
+    if self.output_types is None or not self.has_simple_output_type():
+      return self
+    output_type = self.output_types[0][0]
+
+    clean_type, extracted_tags = _extract_tagged_from_type(output_type)
+    if not extracted_tags:
+      return self
+    if clean_type is _NO_MAIN_TYPE:
+      clean_type = typehints.Any
+    return self._replace(
+        output_types=((clean_type, ), extracted_tags),
+        origin=self._make_origin([self],
+                                 tb=False,
+                                 msg=['extract_tagged_outputs()']))
 
   def with_defaults(self, hints: Optional['IOTypeHints']) -> 'IOTypeHints':
     if not hints:
@@ -782,7 +908,7 @@ def with_input_types(*positional_hints: Any,
 
 
 def with_output_types(*return_type_hint: Any,
-                      **kwargs: Any) -> Callable[[T], T]:
+                      **tagged_type_hints: Any) -> Callable[[T], T]:
   """A decorator that type-checks defined type-hints for return values(s).
 
   This decorator will type-check the return value(s) of the decorated function.
@@ -822,18 +948,34 @@ def with_output_types(*return_type_hint: Any,
     def negate(p):
       return not p if p else p
 
+  For DoFns with tagged outputs, you can specify type hints for each tag:
+
+  .. testcode::
+    from apache_beam.typehints import with_input_types, with_output_types
+    @with_output_types(int, errors=str, warnings=str)
+    class MyDoFn(beam.DoFn):
+      def process(self, element):
+        if element < 0:
+          yield beam.pvalue.TaggedOutput('errors', 'Negative value')
+        elif element == 0:
+          yield beam.pvalue.TaggedOutput('warnings', 'Zero value')
+        else:
+          yield element
+
   Args:
     *return_type_hint: A type-hint specifying the proper return type of the
       function. This argument should either be a built-in Python type or an
       instance of a :class:`~apache_beam.typehints.typehints.TypeConstraint`
       created by 'indexing' a
       :class:`~apache_beam.typehints.typehints.CompositeTypeHint`.
-    **kwargs: Not used.
+    **tagged_type_hints: Type hints for tagged outputs. Each keyword argument
+      specifies the type for a tagged output, e.g., ``errors=str``.
+
 
   Raises:
-    :class:`ValueError`: If any kwarg parameters are passed in,
-      or the length of **return_type_hint** is greater than ``1``. Or if the
-      inner wrapper function isn't passed a function object.
+    :class:`ValueError`: If the length of **return_type_hint** is greater
+      than ``1``. Or if the inner wrapper function isn't passed a function
+      object.
     :class:`TypeCheckError`: If the **return_type_hint** object is
       in invalid type-hint.
 
@@ -841,11 +983,6 @@ def with_output_types(*return_type_hint: Any,
     The original function decorated such that it enforces type-hint constraints
     for all return values.
   """
-  if kwargs:
-    raise ValueError(
-        "All arguments for the 'returns' decorator must be "
-        "positional arguments.")
-
   if len(return_type_hint) != 1:
     raise ValueError(
         "'returns' accepts only a single positional argument. In "
@@ -854,13 +991,20 @@ def with_output_types(*return_type_hint: Any,
 
   return_type_hint = native_type_compatibility.convert_to_beam_type(
       return_type_hint[0])
-
   validate_composite_type_param(
       return_type_hint, error_msg_prefix='All type hint arguments')
 
+  converted_tag_hints = {}
+  for tag, hint in tagged_type_hints.items():
+    converted_hint = native_type_compatibility.convert_to_beam_type(hint)
+    validate_composite_type_param(
+        converted_hint, 'Tagged output type hint for %r' % tag)
+    converted_tag_hints[tag] = converted_hint
+
   def annotate_output_types(f):
     th = getattr(f, '_type_hints', IOTypeHints.empty())
-    f._type_hints = th.with_output_types(return_type_hint)  # pylint: disable=protected-access
+    f._type_hints = th.with_output_types( # pylint: disable=protected-access
+        return_type_hint, **converted_tag_hints)
     return f
 
   return annotate_output_types

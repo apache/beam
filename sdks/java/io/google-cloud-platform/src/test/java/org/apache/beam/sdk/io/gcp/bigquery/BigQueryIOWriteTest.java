@@ -19,7 +19,6 @@ package org.apache.beam.sdk.io.gcp.bigquery;
 
 import static org.apache.beam.sdk.io.gcp.bigquery.BigQueryHelpers.toJsonString;
 import static org.apache.beam.sdk.io.gcp.bigquery.TableRowToStorageApiProto.TYPE_MAP_PROTO_CONVERTERS;
-import static org.apache.beam.sdk.io.gcp.bigquery.WriteTables.ResultCoder.INSTANCE;
 import static org.apache.beam.sdk.io.gcp.bigquery.providers.BigQueryFileLoadsSchemaTransformProvider.BigQueryFileLoadsSchemaTransform;
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasDisplayItem;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
@@ -1933,7 +1932,7 @@ public class BigQueryIOWriteTest implements Serializable {
     }
   }
 
-  /** Coder for @link{PartitionedGlobalWindow}. */
+  /** Coder for {@link PartitionedGlobalWindow}. */
   private static class PartitionedGlobalWindowCoder extends AtomicCoder<PartitionedGlobalWindow> {
     @Override
     public void encode(PartitionedGlobalWindow window, OutputStream outStream) throws IOException {
@@ -3006,7 +3005,7 @@ public class BigQueryIOWriteTest implements Serializable {
     PCollection<KV<TableDestination, WriteTables.Result>> writeTablesOutput =
         writeTablesInput
             .apply(writeTables)
-            .setCoder(KvCoder.of(StringUtf8Coder.of(), INSTANCE))
+            .setCoder(KvCoder.of(StringUtf8Coder.of(), new WriteTables.ResultCoder()))
             .apply(
                 ParDo.of(
                     new DoFn<
@@ -3115,7 +3114,9 @@ public class BigQueryIOWriteTest implements Serializable {
             Create.of(
                     ImmutableList.of(
                         (Iterable<KV<TableDestination, WriteTables.Result>>) tempTablesElement))
-                .withCoder(IterableCoder.of(KvCoder.of(TableDestinationCoder.of(), INSTANCE))))
+                .withCoder(
+                    IterableCoder.of(
+                        KvCoder.of(TableDestinationCoder.of(), WriteTables.ResultCoder.INSTANCE))))
         .apply(writeRename);
 
     p.run().waitUntilFinish();

@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.io.gcp.bigquery;
 
+import com.google.api.services.bigquery.model.TableReference;
 import com.google.api.services.bigquery.model.TableRow;
 import javax.annotation.Nullable;
 
@@ -25,13 +26,21 @@ public class BigQueryStorageApiInsertError {
 
   private @Nullable String errorMessage;
 
+  private @Nullable TableReference table;
+
   public BigQueryStorageApiInsertError(TableRow row) {
-    this.row = row;
+    this(row, null, null);
   }
 
   public BigQueryStorageApiInsertError(TableRow row, @Nullable String errorMessage) {
+    this(row, errorMessage, null);
+  }
+
+  public BigQueryStorageApiInsertError(
+      TableRow row, @Nullable String errorMessage, @Nullable TableReference table) {
     this.row = row;
     this.errorMessage = errorMessage;
+    this.table = table;
   }
 
   public TableRow getRow() {
@@ -43,6 +52,11 @@ public class BigQueryStorageApiInsertError {
     return errorMessage;
   }
 
+  @Nullable
+  public TableReference getTable() {
+    return table;
+  }
+
   @Override
   public String toString() {
     return "BigQueryStorageApiInsertError{"
@@ -51,6 +65,8 @@ public class BigQueryStorageApiInsertError {
         + ", errorMessage='"
         + errorMessage
         + '\''
+        + ", table="
+        + table
         + '}';
   }
 }

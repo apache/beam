@@ -533,7 +533,7 @@ public class ElasticsearchIO {
 
     /**
      * If Elasticsearch authentication is enabled, provide an API key. Be aware that you can only
-     * use one of {@Code withApiToken()}, {@code withBearerToken()} and {@code withDefaultHeaders}
+     * use one of {@code withApiToken()}, {@code withBearerToken()} and {@code withDefaultHeaders}
      * at the same time, as they (potentially) use the same header.
      *
      * @param apiKey the API key used to authenticate to Elasticsearch
@@ -549,7 +549,7 @@ public class ElasticsearchIO {
 
     /**
      * If Elasticsearch authentication is enabled, provide a bearer token. Be aware that you can
-     * only use one of {@Code withApiToken()}, {@code withBearerToken()} and {@code
+     * only use one of {@code withApiToken()}, {@code withBearerToken()} and {@code
      * withDefaultHeaders} at the same time, as they (potentially) use the same header.
      *
      * @param bearerToken the bearer token used to authenticate to Elasticsearch
@@ -1793,7 +1793,7 @@ public class ElasticsearchIO {
      * Providing this hint means there is no need for setting {@link
      * DocToBulk#withConnectionConfiguration}. This can also be very useful for testing purposes.
      *
-     * <p>Note: if the value of @param backendVersion differs from the version the destination
+     * <p>Note: if the value of {@code backendVersion} differs from the version the destination
      * cluster is running, behavior is undefined and likely to yield errors.
      *
      * @param backendVersion the major version number of the version of Elasticsearch being run in
@@ -2051,7 +2051,7 @@ public class ElasticsearchIO {
 
     public abstract @Nullable String getBulkDirective();
 
-    public abstract Boolean getHasError();
+    public abstract boolean getHasError();
 
     public abstract @Nullable String getResponseItemJson();
 
@@ -2486,7 +2486,7 @@ public class ElasticsearchIO {
 
     /**
      * Provide a set of textual error types which can be contained in Bulk API response
-     * items[].error.type field. Any element in @param allowableResponseErrorTypes will suppress
+     * items[].error.type field. Any element in {@code allowableResponseErrorTypes} will suppress
      * errors of the same type in Bulk responses.
      *
      * <p>See also
@@ -2543,7 +2543,7 @@ public class ElasticsearchIO {
      * batches are maintained per-key-per-window. BE AWARE that low values for @param
      * maxParallelRequests, in particular if the input data has a finite number of windows, can
      * reduce parallelism greatly. Because data will be temporarily globally windowed as part of
-     * writing data to Elasticsearch, if @param maxParallelRequests is set to 1, there will only
+     * writing data to Elasticsearch, if {@code maxParallelRequests} is set to 1, there will only
      * ever be 1 request in flight. Having only a single request in flight can be beneficial for
      * ensuring an Elasticsearch cluster is not overwhelmed by parallel requests, but may not work
      * for all use cases. If this number is less than the number of maximum workers in your
@@ -2566,7 +2566,7 @@ public class ElasticsearchIO {
      * batches are maintained per-key-per-window. BE AWARE that low values for @param
      * maxParallelRequests, in particular if the input data has a finite number of windows, can
      * reduce parallelism greatly. Because data will be temporarily globally windowed as part of
-     * writing data to Elasticsearch, if @param maxParallelRequests is set to 1, there will only
+     * writing data to Elasticsearch, if {@code maxParallelRequests} is set to 1, there will only
      * ever be 1 request in flight. Having only a single request in flight can be beneficial for
      * ensuring an Elasticsearch cluster is not overwhelmed by parallel requests, but may not work
      * for all use cases. If this number is less than the number of maximum workers in your
@@ -2811,14 +2811,23 @@ public class ElasticsearchIO {
       }
 
       private boolean isRetryableClientException(Throwable t) {
-        // RestClient#performRequest only throws wrapped IOException so we must inspect the
+        // RestClient#performRequest mainly throws wrapped IOException so we must inspect the
         // exception cause to determine if the exception is likely transient i.e. retryable or
-        // not.
+        // not. One exception is the ResponseException that is thrown when attempting to parse the
+        // response. This exception is not wrapped.
+
+        // ResponseException should not be wrapped, but check the cause to be safe for future
+        // changes
+        ResponseException re = null;
+        if (t instanceof ResponseException) {
+          re = (ResponseException) t;
+        } else if (t.getCause() instanceof ResponseException) {
+          re = (ResponseException) t.getCause();
+        }
 
         // Retry for 500-range response code except for 501.
-        if (t.getCause() instanceof ResponseException) {
-          ResponseException ex = (ResponseException) t.getCause();
-          int statusCode = ex.getResponse().getStatusLine().getStatusCode();
+        if (re != null) {
+          int statusCode = re.getResponse().getStatusLine().getStatusCode();
           return statusCode >= 500 && statusCode != 501;
         }
         return t.getCause() instanceof ConnectTimeoutException
@@ -2893,7 +2902,16 @@ public class ElasticsearchIO {
               && spec.getRetryConfiguration().getRetryPredicate().test(responseEntity)) {
             LOG.warn("ES Cluster is responding with HTP 429 - TOO_MANY_REQUESTS.");
           }
-          responseEntity = handleRetry("POST", endPoint, Collections.emptyMap(), requestBody);
+          try {
+            responseEntity = handleRetry("POST", endPoint, Collections.emptyMap(), requestBody);
+          } catch (java.io.IOException ex) {
+            // No more retry attempts, determine what to do using throwWriteErrors
+            if (spec.getThrowWriteErrors()) {
+              throw ex;
+            } else {
+              elasticResponseExceptionMessage = ex.getMessage();
+            }
+          }
         }
 
         List<Document> responses;

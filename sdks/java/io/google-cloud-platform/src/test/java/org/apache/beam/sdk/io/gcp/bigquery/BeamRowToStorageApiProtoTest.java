@@ -21,11 +21,11 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 
+import com.google.cloud.bigquery.storage.v1.TableFieldSchema;
 import com.google.protobuf.ByteString;
 import com.google.protobuf.DescriptorProtos.DescriptorProto;
 import com.google.protobuf.DescriptorProtos.FieldDescriptorProto;
 import com.google.protobuf.DescriptorProtos.FieldDescriptorProto.Label;
-import com.google.protobuf.DescriptorProtos.FieldDescriptorProto.Type;
 import com.google.protobuf.Descriptors.Descriptor;
 import com.google.protobuf.Descriptors.FieldDescriptor;
 import com.google.protobuf.DynamicMessage;
@@ -47,6 +47,7 @@ import org.apache.beam.sdk.schemas.Schema.Field;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.schemas.logicaltypes.EnumerationType;
 import org.apache.beam.sdk.schemas.logicaltypes.SqlTypes;
+import org.apache.beam.sdk.schemas.logicaltypes.Timestamp;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Functions;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
@@ -60,6 +61,17 @@ import org.junit.runners.JUnit4;
 /** Unit tests form {@link BeamRowToStorageApiProto}. */
 @RunWith(JUnit4.class)
 public class BeamRowToStorageApiProtoTest {
+  private static final java.time.Instant TEST_INSTANT_NANOS =
+      java.time.Instant.parse("2024-01-15T12:30:45.123456789Z");
+
+  private static final Schema TIMESTAMP_NANOS_SCHEMA =
+      Schema.builder()
+          .addField("timestampNanos", FieldType.logicalType(Timestamp.NANOS).withNullable(true))
+          .build();
+  private static final Schema TIMESTAMP_NANOS_ARRAY_SCHEMA =
+      Schema.builder()
+          .addField("timestampNanosArray", FieldType.array(FieldType.logicalType(Timestamp.NANOS)))
+          .build();
   private static final EnumerationType TEST_ENUM =
       EnumerationType.create("ONE", "TWO", "RED", "BLUE");
   private static final Schema BASE_SCHEMA =
@@ -92,133 +104,133 @@ public class BeamRowToStorageApiProtoTest {
               FieldDescriptorProto.newBuilder()
                   .setName("bytevalue")
                   .setNumber(1)
-                  .setType(Type.TYPE_INT64)
+                  .setType(FieldDescriptorProto.Type.TYPE_INT64)
                   .setLabel(Label.LABEL_OPTIONAL)
                   .build())
           .addField(
               FieldDescriptorProto.newBuilder()
                   .setName("int16value")
                   .setNumber(2)
-                  .setType(Type.TYPE_INT64)
+                  .setType(FieldDescriptorProto.Type.TYPE_INT64)
                   .setLabel(Label.LABEL_REQUIRED)
                   .build())
           .addField(
               FieldDescriptorProto.newBuilder()
                   .setName("int32value")
                   .setNumber(3)
-                  .setType(Type.TYPE_INT64)
+                  .setType(FieldDescriptorProto.Type.TYPE_INT64)
                   .setLabel(Label.LABEL_OPTIONAL)
                   .build())
           .addField(
               FieldDescriptorProto.newBuilder()
                   .setName("int64value")
                   .setNumber(4)
-                  .setType(Type.TYPE_INT64)
+                  .setType(FieldDescriptorProto.Type.TYPE_INT64)
                   .setLabel(Label.LABEL_OPTIONAL)
                   .build())
           .addField(
               FieldDescriptorProto.newBuilder()
                   .setName("decimalvalue")
                   .setNumber(5)
-                  .setType(Type.TYPE_BYTES)
+                  .setType(FieldDescriptorProto.Type.TYPE_BYTES)
                   .setLabel(Label.LABEL_OPTIONAL)
                   .build())
           .addField(
               FieldDescriptorProto.newBuilder()
                   .setName("floatvalue")
                   .setNumber(6)
-                  .setType(Type.TYPE_DOUBLE)
+                  .setType(FieldDescriptorProto.Type.TYPE_DOUBLE)
                   .setLabel(Label.LABEL_OPTIONAL)
                   .build())
           .addField(
               FieldDescriptorProto.newBuilder()
                   .setName("doublevalue")
                   .setNumber(7)
-                  .setType(Type.TYPE_DOUBLE)
+                  .setType(FieldDescriptorProto.Type.TYPE_DOUBLE)
                   .setLabel(Label.LABEL_OPTIONAL)
                   .build())
           .addField(
               FieldDescriptorProto.newBuilder()
                   .setName("stringvalue")
                   .setNumber(8)
-                  .setType(Type.TYPE_STRING)
+                  .setType(FieldDescriptorProto.Type.TYPE_STRING)
                   .setLabel(Label.LABEL_OPTIONAL)
                   .build())
           .addField(
               FieldDescriptorProto.newBuilder()
                   .setName("datetimevalue")
                   .setNumber(9)
-                  .setType(Type.TYPE_INT64)
+                  .setType(FieldDescriptorProto.Type.TYPE_INT64)
                   .setLabel(Label.LABEL_OPTIONAL)
                   .build())
           .addField(
               FieldDescriptorProto.newBuilder()
                   .setName("booleanvalue")
                   .setNumber(10)
-                  .setType(Type.TYPE_BOOL)
+                  .setType(FieldDescriptorProto.Type.TYPE_BOOL)
                   .setLabel(Label.LABEL_OPTIONAL)
                   .build())
           .addField(
               FieldDescriptorProto.newBuilder()
                   .setName("bytesvalue")
                   .setNumber(11)
-                  .setType(Type.TYPE_BYTES)
+                  .setType(FieldDescriptorProto.Type.TYPE_BYTES)
                   .setLabel(Label.LABEL_OPTIONAL)
                   .build())
           .addField(
               FieldDescriptorProto.newBuilder()
                   .setName("arrayvalue")
                   .setNumber(12)
-                  .setType(Type.TYPE_STRING)
+                  .setType(FieldDescriptorProto.Type.TYPE_STRING)
                   .setLabel(Label.LABEL_REPEATED)
                   .build())
           .addField(
               FieldDescriptorProto.newBuilder()
                   .setName("arraynullvalue")
                   .setNumber(13)
-                  .setType(Type.TYPE_STRING)
+                  .setType(FieldDescriptorProto.Type.TYPE_STRING)
                   .setLabel(Label.LABEL_REPEATED)
                   .build())
           .addField(
               FieldDescriptorProto.newBuilder()
                   .setName("iterablevalue")
                   .setNumber(14)
-                  .setType(Type.TYPE_STRING)
+                  .setType(FieldDescriptorProto.Type.TYPE_STRING)
                   .setLabel(Label.LABEL_REPEATED)
                   .build())
           .addField(
               FieldDescriptorProto.newBuilder()
                   .setName("sqldatevalue")
                   .setNumber(15)
-                  .setType(Type.TYPE_INT32)
+                  .setType(FieldDescriptorProto.Type.TYPE_INT32)
                   .setLabel(Label.LABEL_OPTIONAL)
                   .build())
           .addField(
               FieldDescriptorProto.newBuilder()
                   .setName("sqltimevalue")
                   .setNumber(16)
-                  .setType(Type.TYPE_INT64)
+                  .setType(FieldDescriptorProto.Type.TYPE_INT64)
                   .setLabel(Label.LABEL_OPTIONAL)
                   .build())
           .addField(
               FieldDescriptorProto.newBuilder()
                   .setName("sqldatetimevalue")
                   .setNumber(17)
-                  .setType(Type.TYPE_INT64)
+                  .setType(FieldDescriptorProto.Type.TYPE_INT64)
                   .setLabel(Label.LABEL_OPTIONAL)
                   .build())
           .addField(
               FieldDescriptorProto.newBuilder()
                   .setName("sqltimestampvalue")
                   .setNumber(18)
-                  .setType(Type.TYPE_INT64)
+                  .setType(FieldDescriptorProto.Type.TYPE_INT64)
                   .setLabel(Label.LABEL_OPTIONAL)
                   .build())
           .addField(
               FieldDescriptorProto.newBuilder()
                   .setName("enumvalue")
                   .setNumber(19)
-                  .setType(Type.TYPE_STRING)
+                  .setType(FieldDescriptorProto.Type.TYPE_STRING)
                   .setLabel(Label.LABEL_OPTIONAL)
                   .build())
           .build();
@@ -302,11 +314,11 @@ public class BeamRowToStorageApiProtoTest {
     DescriptorProto descriptor =
         TableRowToStorageApiProto.descriptorSchemaFromTableSchema(
             BeamRowToStorageApiProto.protoTableSchemaFromBeamSchema(BASE_SCHEMA), true, false);
-    Map<String, Type> types =
+    Map<String, FieldDescriptorProto.Type> types =
         descriptor.getFieldList().stream()
             .collect(
                 Collectors.toMap(FieldDescriptorProto::getName, FieldDescriptorProto::getType));
-    Map<String, Type> expectedTypes =
+    Map<String, FieldDescriptorProto.Type> expectedTypes =
         BASE_SCHEMA_PROTO.getFieldList().stream()
             .collect(
                 Collectors.toMap(FieldDescriptorProto::getName, FieldDescriptorProto::getType));
@@ -334,12 +346,12 @@ public class BeamRowToStorageApiProtoTest {
     DescriptorProto descriptor =
         TableRowToStorageApiProto.descriptorSchemaFromTableSchema(
             BeamRowToStorageApiProto.protoTableSchemaFromBeamSchema((NESTED_SCHEMA)), true, false);
-    Map<String, Type> expectedBaseTypes =
+    Map<String, FieldDescriptorProto.Type> expectedBaseTypes =
         BASE_SCHEMA_PROTO.getFieldList().stream()
             .collect(
                 Collectors.toMap(FieldDescriptorProto::getName, FieldDescriptorProto::getType));
 
-    Map<String, Type> types =
+    Map<String, FieldDescriptorProto.Type> types =
         descriptor.getFieldList().stream()
             .collect(
                 Collectors.toMap(FieldDescriptorProto::getName, FieldDescriptorProto::getType));
@@ -358,34 +370,34 @@ public class BeamRowToStorageApiProtoTest {
         descriptor.getNestedTypeList().stream()
             .collect(Collectors.toMap(DescriptorProto::getName, Functions.identity()));
     assertEquals(4, nestedTypes.size());
-    assertEquals(Type.TYPE_MESSAGE, types.get("nested"));
+    assertEquals(FieldDescriptorProto.Type.TYPE_MESSAGE, types.get("nested"));
     assertEquals(Label.LABEL_OPTIONAL, typeLabels.get("nested"));
     String nestedTypeName1 = typeNames.get("nested");
-    Map<String, Type> nestedTypes1 =
+    Map<String, FieldDescriptorProto.Type> nestedTypes1 =
         nestedTypes.get(nestedTypeName1).getFieldList().stream()
             .collect(
                 Collectors.toMap(FieldDescriptorProto::getName, FieldDescriptorProto::getType));
     assertEquals(expectedBaseTypes, nestedTypes1);
 
-    assertEquals(Type.TYPE_MESSAGE, types.get("nestedarray"));
+    assertEquals(FieldDescriptorProto.Type.TYPE_MESSAGE, types.get("nestedarray"));
     assertEquals(Label.LABEL_REPEATED, typeLabels.get("nestedarray"));
     String nestedTypeName2 = typeNames.get("nestedarray");
-    Map<String, Type> nestedTypes2 =
+    Map<String, FieldDescriptorProto.Type> nestedTypes2 =
         nestedTypes.get(nestedTypeName2).getFieldList().stream()
             .collect(
                 Collectors.toMap(FieldDescriptorProto::getName, FieldDescriptorProto::getType));
     assertEquals(expectedBaseTypes, nestedTypes2);
 
-    assertEquals(Type.TYPE_MESSAGE, types.get("nestediterable"));
+    assertEquals(FieldDescriptorProto.Type.TYPE_MESSAGE, types.get("nestediterable"));
     assertEquals(Label.LABEL_REPEATED, typeLabels.get("nestediterable"));
     String nestedTypeName3 = typeNames.get("nestediterable");
-    Map<String, Type> nestedTypes3 =
+    Map<String, FieldDescriptorProto.Type> nestedTypes3 =
         nestedTypes.get(nestedTypeName3).getFieldList().stream()
             .collect(
                 Collectors.toMap(FieldDescriptorProto::getName, FieldDescriptorProto::getType));
     assertEquals(expectedBaseTypes, nestedTypes3);
 
-    assertEquals(Type.TYPE_MESSAGE, types.get("nestedmap"));
+    assertEquals(FieldDescriptorProto.Type.TYPE_MESSAGE, types.get("nestedmap"));
     assertEquals(Label.LABEL_REPEATED, typeLabels.get("nestedmap"));
     String nestedTypeName4 = typeNames.get("nestedmap");
     // expects 2 fields in the nested map, key and value
@@ -395,7 +407,7 @@ public class BeamRowToStorageApiProtoTest {
     assertTrue(stream.get().anyMatch(fdp -> fdp.getName().equals("key")));
     assertTrue(stream.get().anyMatch(fdp -> fdp.getName().equals("value")));
 
-    Map<String, Type> nestedTypes4 =
+    Map<String, FieldDescriptorProto.Type> nestedTypes4 =
         nestedTypes.get(nestedTypeName4).getNestedTypeList().stream()
             .flatMap(vdesc -> vdesc.getFieldList().stream())
             .collect(
@@ -421,7 +433,7 @@ public class BeamRowToStorageApiProtoTest {
             true,
             false);
 
-    Map<String, Type> types =
+    Map<String, FieldDescriptorProto.Type> types =
         descriptor.getFieldList().stream()
             .collect(
                 Collectors.toMap(FieldDescriptorProto::getName, FieldDescriptorProto::getType));
@@ -439,7 +451,7 @@ public class BeamRowToStorageApiProtoTest {
             .collect(Collectors.toMap(DescriptorProto::getName, Functions.identity()));
     assertEquals(2, nestedTypes.size());
 
-    assertEquals(Type.TYPE_MESSAGE, types.get("nestedmultimap"));
+    assertEquals(FieldDescriptorProto.Type.TYPE_MESSAGE, types.get("nestedmultimap"));
     assertEquals(Label.LABEL_REPEATED, typeLabels.get("nestedmultimap"));
     String nestedMultiMapName = typeNames.get("nestedmultimap");
     // expects 2 fields for the nested array of maps, key and value
@@ -456,7 +468,7 @@ public class BeamRowToStorageApiProtoTest {
                 .count()
             == 1);
 
-    assertEquals(Type.TYPE_MESSAGE, types.get("nestedmapnullable"));
+    assertEquals(FieldDescriptorProto.Type.TYPE_MESSAGE, types.get("nestedmapnullable"));
     // even though the field is marked as optional in the row we will should see repeated in proto
     assertEquals(Label.LABEL_REPEATED, typeLabels.get("nestedmapnullable"));
     String nestedMapNullableName = typeNames.get("nestedmapnullable");
@@ -589,8 +601,72 @@ public class BeamRowToStorageApiProtoTest {
               p -> {
                 assertEquals(
                     p.getValue(),
-                    BeamRowToStorageApiProto.scalarToProtoValue(entry.getKey(), p.getKey()));
+                    BeamRowToStorageApiProto.scalarToProtoValue(null, entry.getKey(), p.getKey()));
               });
     }
+  }
+
+  @Test
+  public void testTimestampNanosSchema() {
+    com.google.cloud.bigquery.storage.v1.TableSchema protoSchema =
+        BeamRowToStorageApiProto.protoTableSchemaFromBeamSchema(TIMESTAMP_NANOS_SCHEMA);
+
+    assertEquals(1, protoSchema.getFieldsCount());
+    TableFieldSchema field = protoSchema.getFields(0);
+    assertEquals(TableFieldSchema.Type.TIMESTAMP, field.getType());
+    assertEquals(12L, field.getTimestampPrecision().getValue());
+  }
+
+  @Test
+  public void testTimestampNanosArraySchema() {
+    com.google.cloud.bigquery.storage.v1.TableSchema protoSchema =
+        BeamRowToStorageApiProto.protoTableSchemaFromBeamSchema(TIMESTAMP_NANOS_ARRAY_SCHEMA);
+
+    assertEquals(1, protoSchema.getFieldsCount());
+    TableFieldSchema field = protoSchema.getFields(0);
+    assertEquals(TableFieldSchema.Type.TIMESTAMP, field.getType());
+    assertEquals(
+        com.google.cloud.bigquery.storage.v1.TableFieldSchema.Mode.REPEATED, field.getMode());
+    assertEquals(12L, field.getTimestampPrecision().getValue());
+  }
+
+  @Test
+  public void testTimestampNanosDescriptor() throws Exception {
+    DescriptorProto descriptor =
+        TableRowToStorageApiProto.descriptorSchemaFromTableSchema(
+            BeamRowToStorageApiProto.protoTableSchemaFromBeamSchema(TIMESTAMP_NANOS_SCHEMA),
+            true,
+            false);
+
+    FieldDescriptorProto field = descriptor.getField(0);
+    assertEquals("timestampnanos", field.getName());
+    assertEquals(FieldDescriptorProto.Type.TYPE_MESSAGE, field.getType());
+    assertEquals("TimestampPicos", field.getTypeName());
+  }
+
+  @Test
+  public void testTimestampNanosMessage() throws Exception {
+    Row row =
+        Row.withSchema(TIMESTAMP_NANOS_SCHEMA)
+            .withFieldValue("timestampNanos", TEST_INSTANT_NANOS)
+            .build();
+
+    Descriptor descriptor =
+        TableRowToStorageApiProto.getDescriptorFromTableSchema(
+            BeamRowToStorageApiProto.protoTableSchemaFromBeamSchema(TIMESTAMP_NANOS_SCHEMA),
+            true,
+            false);
+
+    DynamicMessage msg = BeamRowToStorageApiProto.messageFromBeamRow(descriptor, row, null, -1);
+
+    FieldDescriptor field = descriptor.findFieldByName("timestampnanos");
+    DynamicMessage picos = (DynamicMessage) msg.getField(field);
+    Descriptor picosDesc = field.getMessageType();
+
+    assertEquals(
+        TEST_INSTANT_NANOS.getEpochSecond(), picos.getField(picosDesc.findFieldByName("seconds")));
+    assertEquals(
+        TEST_INSTANT_NANOS.getNano() * 1000L,
+        picos.getField(picosDesc.findFieldByName("picoseconds")));
   }
 }

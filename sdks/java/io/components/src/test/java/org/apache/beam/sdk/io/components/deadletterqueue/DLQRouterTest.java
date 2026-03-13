@@ -17,7 +17,6 @@
  */
 package org.apache.beam.sdk.io.components.deadletterqueue;
 
-
 import org.apache.beam.sdk.io.components.deadletterqueue.sinks.ThrowingSink;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
@@ -31,46 +30,45 @@ import org.junit.rules.ExpectedException;
 
 public class DLQRouterTest {
 
-  @Rule
-  public final transient TestPipeline p = TestPipeline.create();
+  @Rule public final transient TestPipeline p = TestPipeline.create();
 
   @Rule public ExpectedException thrown = ExpectedException.none();
 
-
   @Test
-  public void testExceptionWithInvalidConfiguration(){
+  public void testExceptionWithInvalidConfiguration() {
     thrown.expect(IllegalArgumentException.class);
-    thrown.expectMessage("DLQ Router only supports PCollectionTuples split between two message groupings");
+    thrown.expectMessage(
+        "DLQ Router only supports PCollectionTuples split between two message groupings");
 
     TupleTag<String> tag1 = new TupleTag<>();
     TupleTag<String> tag2 = new TupleTag<>();
     TupleTag<String> tag3 = new TupleTag<>();
-    PCollectionTuple tuple = PCollectionTuple.of(tag1, p.apply(Create.<String>of("elem1")))
-        .and(tag2, p.apply(Create.<String>of("elem2")))
-        .and(tag3, p.apply(Create.<String>of("elem1")));
+    PCollectionTuple tuple =
+        PCollectionTuple.of(tag1, p.apply(Create.<String>of("elem1")))
+            .and(tag2, p.apply(Create.<String>of("elem2")))
+            .and(tag3, p.apply(Create.<String>of("elem1")));
     tuple.apply(new DLQRouter<>(tag1, tag2, new ThrowingSink<>()));
 
     p.run();
-
   }
 
   @Test
-  public void testExpectCorrectRouting(){
+  public void testExpectCorrectRouting() {
     thrown.expect(RuntimeException.class);
     thrown.expectMessage("elem2");
 
     TupleTag<String> tag1 = new TupleTag<>();
     TupleTag<String> tag2 = new TupleTag<>();
 
-    PCollectionTuple tuple = PCollectionTuple.of(tag1, p.apply("create elem1", Create.<String>of("elem1")))
-        .and(tag2, p.apply("create elem2", Create.<String>of("elem2")));
+    PCollectionTuple tuple =
+        PCollectionTuple.of(tag1, p.apply("create elem1", Create.<String>of("elem1")))
+            .and(tag2, p.apply("create elem2", Create.<String>of("elem2")));
 
-    PCollection<String> expectedElement = tuple.apply(new DLQRouter<>(tag1, tag2, new ThrowingSink<>()));
+    PCollection<String> expectedElement =
+        tuple.apply(new DLQRouter<>(tag1, tag2, new ThrowingSink<>()));
 
     PAssert.thatSingleton(expectedElement).isEqualTo("elem1");
 
     p.run();
   }
-
-
 }

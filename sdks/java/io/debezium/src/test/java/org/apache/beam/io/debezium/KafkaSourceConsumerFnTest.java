@@ -18,21 +18,27 @@
 package org.apache.beam.io.debezium;
 
 import com.google.common.testing.EqualsTester;
+import java.io.IOException;
 import java.io.Serializable;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
+import java.util.ListIterator;
 import java.util.Map;
+import javax.annotation.concurrent.NotThreadSafe;
 import org.apache.beam.io.debezium.KafkaSourceConsumerFn.OffsetHolder;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.MapCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.testing.PAssert;
+import org.apache.beam.sdk.testing.TestOutputReceiver;
 import org.apache.beam.sdk.transforms.Create;
+import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
@@ -48,6 +54,7 @@ import org.apache.kafka.connect.source.SourceRecord;
 import org.apache.kafka.connect.source.SourceTask;
 import org.apache.kafka.connect.source.SourceTaskContext;
 import org.checkerframework.checker.nullness.qual.Nullable;
+import org.junit.After;
 import org.junit.Assert;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -55,6 +62,19 @@ import org.junit.runners.JUnit4;
 
 @RunWith(JUnit4.class)
 public class KafkaSourceConsumerFnTest implements Serializable {
+
+  static <T> DebeziumIO.Read<T> getSpec(SourceRecordMapper<T> fn, Integer maxRecords) {
+    DebeziumIO.Read<T> transform = DebeziumIO.<T>read().withFormatFunction(fn);
+    if (maxRecords > 0) {
+      transform = transform.withMaxNumberOfRecords(maxRecords);
+    }
+    return transform;
+  }
+
+  @After
+  public void cleanUp() {
+    CounterTask.resetCountTask();
+  }
 
   @Test
   public void testKafkaSourceConsumerFn() {
@@ -76,9 +96,10 @@ public class KafkaSourceConsumerFnTest implements Serializable {
                 ParDo.of(
                     new KafkaSourceConsumerFn<>(
                         CounterSourceConnector.class,
-                        sourceRecord ->
-                            ((Struct) sourceRecord.value()).getInt64("value").intValue(),
-                        10)))
+                        getSpec(
+                            sourceRecord ->
+                                ((Struct) sourceRecord.value()).getInt64("value").intValue(),
+                            10))))
             .setCoder(VarIntCoder.of());
 
     PAssert.that(counts).containsInAnyOrder(1, 2, 3, 4, 5, 6, 7, 8, 9, 10);
@@ -104,8 +125,10 @@ public class KafkaSourceConsumerFnTest implements Serializable {
             ParDo.of(
                 new KafkaSourceConsumerFn<>(
                     CounterSourceConnector.class,
-                    sourceRecord -> ((Struct) sourceRecord.value()).getInt64("value").intValue(),
-                    1)))
+                    getSpec(
+                        sourceRecord ->
+                            ((Struct) sourceRecord.value()).getInt64("value").intValue(),
+                        1))))
         .setCoder(VarIntCoder.of());
 
     pipeline.run().waitUntilFinish();
@@ -159,6 +182,36 @@ public class KafkaSourceConsumerFnTest implements Serializable {
             null));
     tester.testEquals();
   }
+
+  @Test(timeout = 2000)
+  public void testMaxTimeToRun() throws IOException {
+    KafkaSourceConsumerFn<Integer> kafkaSourceConsumerFn =
+        new KafkaSourceConsumerFn<>(
+            CounterSourceConnector.class,
+            KafkaSourceConsumerFnTest.getSpec(
+                    sourceRecord -> ((Struct) sourceRecord.value()).getInt64("value").intValue(), 0)
+                .withPollingTimeout(100L)
+                .withMaxTimeToRun(500L)); // Run for 0.5 s
+    kafkaSourceConsumerFn.setup();
+    OffsetHolder initialRestriction = kafkaSourceConsumerFn.getInitialRestriction(null);
+    RestrictionTracker<OffsetHolder, Map<String, Object>> tracker =
+        kafkaSourceConsumerFn.newTracker(initialRestriction);
+    Map<String, String> config =
+        ImmutableMap.of("from", "1", "delay", "0.4", "sleep", "1", "topic", "any");
+    TestOutputReceiver<Integer> receiver = new TestOutputReceiver<>();
+    while (true) {
+      DoFn.ProcessContinuation continuation =
+          kafkaSourceConsumerFn.process(config, tracker, receiver);
+      if (continuation == DoFn.ProcessContinuation.stop()) {
+        break;
+      }
+    }
+    // Check results are in order
+    ListIterator<Integer> it = receiver.getOutputs().listIterator();
+    while (it.hasNext()) {
+      Assert.assertEquals(it.nextIndex(), it.next() - 1);
+    }
+  }
 }
 
 class CounterSourceConnector extends SourceConnector {
@@ -173,9 +226,15 @@ class CounterSourceConnector extends SourceConnector {
     protected static ConfigDef configDef() {
       return new ConfigDef()
           .define("from", ConfigDef.Type.INT, ConfigDef.Importance.HIGH, "Number to start from")
-          .define("to", ConfigDef.Type.INT, ConfigDef.Importance.HIGH, "Number to go to")
+          .define("to", ConfigDef.Type.INT, -1, ConfigDef.Importance.HIGH, "Number to go to")
           .define(
               "delay", ConfigDef.Type.DOUBLE, ConfigDef.Importance.HIGH, "Time between each event")
+          .define(
+              "sleep",
+              ConfigDef.Type.INT,
+              0,
+              ConfigDef.Importance.MEDIUM,
+              "Millis to sleep in each poll")
           .define(
               "topic",
               ConfigDef.Type.STRING,
@@ -205,8 +264,9 @@ class CounterSourceConnector extends SourceConnector {
     return Collections.singletonList(
         ImmutableMap.of(
             "from", this.connectorConfig.props.get("from"),
-            "to", this.connectorConfig.props.get("to"),
+            "to", this.connectorConfig.props.getOrDefault("to", "-1"),
             "delay", this.connectorConfig.props.get("delay"),
+            "sleep", this.connectorConfig.props.getOrDefault("sleep", "0"),
             "topic", this.connectorConfig.props.get("topic")));
   }
 
@@ -224,11 +284,13 @@ class CounterSourceConnector extends SourceConnector {
   }
 }
 
+@NotThreadSafe
 class CounterTask extends SourceTask {
   private static int countStopTasks = 0;
   private String topic = "";
   private Integer from = 0;
   private Integer to = 0;
+  private Integer sleep = 0;
   private Double delay = 0.0;
 
   private Long start = System.currentTimeMillis();
@@ -266,8 +328,9 @@ class CounterTask extends SourceTask {
   public void start(Map<String, String> props) {
     this.topic = props.getOrDefault("topic", "");
     this.from = Integer.parseInt(props.getOrDefault("from", "0"));
-    this.to = Integer.parseInt(props.getOrDefault("to", "0"));
+    this.to = Integer.parseInt(props.getOrDefault("to", "-1"));
     this.delay = Double.parseDouble(props.getOrDefault("delay", "0"));
+    this.sleep = Integer.parseInt(props.getOrDefault("sleep", "0"));
 
     if (this.lastOffset != null) {
       return;
@@ -296,7 +359,7 @@ class CounterTask extends SourceTask {
     Long secondsSinceStart = (callTime - this.start) / 1000;
     Long recordsToOutput = Math.round(Math.floor(secondsSinceStart / this.delay));
 
-    while (this.last < this.to) {
+    while (this.to == -1 || this.last < this.to) {
       this.last = this.last + 1;
       Map<String, Integer> sourcePartition = Collections.singletonMap(PARTITION_FIELD, 1);
       Map<String, Long> sourceOffset =
@@ -316,7 +379,9 @@ class CounterTask extends SourceTask {
         break;
       }
     }
-
+    if (this.sleep > 0) {
+      Thread.sleep(this.sleep);
+    }
     return records;
   }
 
@@ -327,5 +392,9 @@ class CounterTask extends SourceTask {
 
   public static int getCountTasks() {
     return CounterTask.countStopTasks;
+  }
+
+  public static void resetCountTask() {
+    CounterTask.countStopTasks = 0;
   }
 }

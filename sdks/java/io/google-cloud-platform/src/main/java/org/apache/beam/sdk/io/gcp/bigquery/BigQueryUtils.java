@@ -115,6 +115,8 @@ public class BigQueryUtils {
               + "(?<DATASET>[a-zA-Z0-9_]{1,1024})[\\.]"
               + "(?<TABLE>[\\p{L}\\p{M}\\p{N}\\p{Pc}\\p{Pd}\\p{Zs}$]{1,1024})$");
 
+  private static final long PICOSECOND_PRECISION = 12L;
+
   /** Options for how to convert BigQuery data to Beam data. */
   @AutoValue
   public abstract static class ConversionOptions implements Serializable {
@@ -381,12 +383,73 @@ public class BigQueryUtils {
   }
 
   /**
+   * Represents a timestamp with picosecond precision, split into seconds and picoseconds
+   * components.
+   */
+  public static class TimestampPicos {
+    final long seconds;
+    final long picoseconds;
+
+    TimestampPicos(long seconds, long picoseconds) {
+      this.seconds = seconds;
+      this.picoseconds = picoseconds;
+    }
+
+    /**
+     * Parses a timestamp string into seconds and picoseconds components.
+     *
+     * <p>Handles two formats:
+     *
+     * <ul>
+     *   <li>ISO format with exactly 12 fractional digits ending in Z (picosecond precision): e.g.,
+     *       "2024-01-15T10:30:45.123456789012Z"
+     *   <li>UTC format with 0-9 fractional digits ending in "UTC" (up to nanosecond precision):
+     *       e.g., "2024-01-15 10:30:45.123456789 UTC", "2024-01-15 10:30:45 UTC"
+     * </ul>
+     */
+    public static TimestampPicos fromString(String timestampString) {
+      // Check for ISO picosecond format up to 12 fractional digits before Z
+      // Format: "2024-01-15T10:30:45.123456789012Z"
+      if (timestampString.endsWith("Z")) {
+        int dotIndex = timestampString.lastIndexOf('.');
+
+        if (dotIndex > 0) {
+          String fractionalPart =
+              timestampString.substring(dotIndex + 1, timestampString.length() - 1);
+
+          if ((long) fractionalPart.length() == PICOSECOND_PRECISION) {
+            // ISO timestamp with 12 decimal digits (picosecond precision)
+            // Parse the datetime part (without fractional seconds)
+            String dateTimePart = timestampString.substring(0, dotIndex) + "Z";
+            java.time.Instant baseInstant = java.time.Instant.parse(dateTimePart);
+
+            // Parse all 12 digits directly as picoseconds (subsecond portion)
+            long picoseconds = Long.parseLong(fractionalPart);
+
+            return new TimestampPicos(baseInstant.getEpochSecond(), picoseconds);
+          }
+        }
+
+        // ISO format with 0-9 fractional digits - Instant.parse handles this
+        java.time.Instant timestamp = java.time.Instant.parse(timestampString);
+        return new TimestampPicos(timestamp.getEpochSecond(), timestamp.getNano() * 1000L);
+      }
+
+      // UTC format: "2024-01-15 10:30:45.123456789 UTC"
+      // Use TIMESTAMP_FORMATTER which handles space separator and "UTC" suffix
+      java.time.Instant timestamp =
+          java.time.Instant.from(TIMESTAMP_FORMATTER.parse(timestampString));
+      return new TimestampPicos(timestamp.getEpochSecond(), timestamp.getNano() * 1000L);
+    }
+  }
+
+  /**
    * Get the Beam {@link FieldType} from a BigQuery type name.
    *
    * <p>Supports both standard and legacy SQL types.
    *
    * @param schema Schema of the type returned
-   * @param nestedFields Nested fields for the given type (eg. RECORD type)
+   * @param options Options for schema conversion
    * @return Corresponding Beam {@link FieldType}
    */
   private static FieldType fromTableFieldSchemaType(
@@ -524,7 +587,17 @@ public class BigQueryUtils {
         field.setFields(toTableFieldSchema(mapSchema));
         field.setMode(Mode.REPEATED.toString());
       }
-      field.setType(toStandardSQLTypeName(type).toString());
+      Schema.LogicalType<?, ?> logicalType = type.getLogicalType();
+      if (logicalType != null && Timestamp.IDENTIFIER.equals(logicalType.getIdentifier())) {
+        int precision = Preconditions.checkArgumentNotNull(logicalType.getArgument());
+        if (precision != 9) {
+          throw new IllegalArgumentException(
+              "Unsupported precision for Timestamp logical type " + precision);
+        }
+        field.setType(StandardSQLTypeName.TIMESTAMP.toString()).setTimestampPrecision(12L);
+      } else {
+        field.setType(toStandardSQLTypeName(type).toString());
+      }
 
       fields.add(field);
     }
@@ -1144,6 +1217,9 @@ public class BigQueryUtils {
   }
 
   /**
+   * Returns a {@link TableReference} by parsing the {@code fullTableId}. If it cannot be parsed
+   * properly null is returned.
+   *
    * @param fullTableId - Is one of the two forms commonly used to refer to bigquery tables in the
    *     beam codebase:
    *     <ul>
@@ -1151,9 +1227,6 @@ public class BigQueryUtils {
    *       <li>myproject:mydataset.mytable
    *       <li>myproject.mydataset.mytable
    *     </ul>
-   *
-   * @return a BigQueryTableIdentifier by parsing the fullTableId. If it cannot be parsed properly
-   *     null is returned.
    */
   public static @Nullable TableReference toTableReference(String fullTableId) {
     // Try parsing the format:
@@ -1180,9 +1253,10 @@ public class BigQueryUtils {
   }
 
   /**
+   * Returns a String representation of the table destination in the form:
+   * `myproject.mydataset.mytable`.
+   *
    * @param tableReference - a BigQueryTableIdentifier that may or may not include the project.
-   * @return a String representation of the table destination in the form:
-   *     `myproject.mydataset.mytable`
    */
   public static @Nullable String toTableSpec(TableReference tableReference) {
     if (tableReference.getDatasetId() == null || tableReference.getTableId() == null) {
@@ -1266,11 +1340,12 @@ public class BigQueryUtils {
   }
 
   /**
+   * Returns a ServiceCallMetric for recording statuses for all BQ API responses related to reading
+   * elements directly from BigQuery in a process-wide metric. Such as: calls to readRows,
+   * splitReadStream, createReadSession.
+   *
    * @param tableReference - The table being read from. Can be a temporary BQ table used to read
    *     from a SQL query.
-   * @return a ServiceCallMetric for recording statuses for all BQ API responses related to reading
-   *     elements directly from BigQuery in a process-wide metric. Such as: calls to readRows,
-   *     splitReadStream, createReadSession.
    */
   public static @Nullable ServiceCallMetric readCallMetric(
       @Nullable TableReference tableReference) {
@@ -1278,9 +1353,10 @@ public class BigQueryUtils {
   }
 
   /**
+   * Returns a ServiceCallMetric for recording statuses for all BQ responses related to writing
+   * elements directly to BigQuery in a process-wide metric. Such as: insertAll.
+   *
    * @param tableReference - The table being written to.
-   * @return a ServiceCallMetric for recording statuses for all BQ responses related to writing
-   *     elements directly to BigQuery in a process-wide metric. Such as: insertAll.
    */
   public static ServiceCallMetric writeCallMetric(TableReference tableReference) {
     return callMetricForMethod(tableReference, "BigQueryBatchWrite");

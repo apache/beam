@@ -21,6 +21,7 @@
 
 import collections
 import collections.abc
+import dataclasses
 import logging
 import sys
 import types
@@ -95,7 +96,7 @@ def _get_args(typ):
     A tuple of args.
   """
   try:
-    if typ.__args__ is None:
+    if typ.__args__ is None or not isinstance(typ.__args__, tuple):
       return ()
     return typ.__args__
   except AttributeError:
@@ -173,6 +174,10 @@ def match_is_named_tuple(user_type):
   return (
       _safe_issubclass(user_type, typing.Tuple) and
       hasattr(user_type, '__annotations__') and hasattr(user_type, '_fields'))
+
+
+def match_is_dataclass(user_type):
+  return dataclasses.is_dataclass(user_type) and isinstance(user_type, type)
 
 
 def _match_is_optional(user_type):

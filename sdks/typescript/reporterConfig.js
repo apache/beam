@@ -10,8 +10,19 @@
 // License for the specific language governing permissions and limitations under
 // the License.
 
-const develocityReporter = require.resolve('@gradle-tech/develocity-agent/mocha-reporter');
+let develocityReporter = null;
+try {
+  // Optional: used in ASF CI for build scans. Local contributors may not have it.
+  develocityReporter = require.resolve(
+    "@gradle-tech/develocity-agent/mocha-reporter",
+  );
+} catch (e) {
+  // Fall back to the default reporter when the Develocity reporter is not installed.
+  develocityReporter = null;
+}
 
 module.exports = {
-  reporterEnabled: ['spec', develocityReporter].join(', '),
-}
+  reporterEnabled: develocityReporter
+    ? ["spec", develocityReporter].join(", ")
+    : "spec",
+};

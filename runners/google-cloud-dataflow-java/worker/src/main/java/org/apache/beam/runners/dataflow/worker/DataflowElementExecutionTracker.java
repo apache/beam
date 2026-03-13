@@ -100,14 +100,14 @@ public class DataflowElementExecutionTracker extends ElementExecutionTracker {
     /** Marker execution to represent when there is no element currently being processed. */
     static final ElementExecution IDLE = new ElementExecution();
 
-    /** Only empty for {@see IDLE}. */
+    /** Only empty for {@link #IDLE}. */
     final Optional<NameContext> step;
 
     ElementExecution(NameContext step) {
       this.step = Optional.of(step);
     }
 
-    /** Only used for {@see IDLE}. */
+    /** Only used for {@link #IDLE}. */
     private ElementExecution() {
       step = Optional.empty();
     }
@@ -155,8 +155,8 @@ public class DataflowElementExecutionTracker extends ElementExecutionTracker {
      * Journal of fragments of execution per element to count for attributing processing time. Each
      * time we transition up or down the stage fusion graph we add an execution fragment for the
      * currently processing element with an incremented snapshot version. Each snapshot version must
-     * have a representative value in the {@code executionJournal}, or {@see IDLE_EXECUTION} to
-     * represent completion of processing.
+     * have a representative value in the {@code executionJournal}, or {@link ElementExecution#IDLE}
+     * to represent completion of processing.
      */
     private final Journal<ElementExecution> executionJournal;
 
