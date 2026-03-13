@@ -54,7 +54,6 @@ import org.apache.beam.runners.dataflow.worker.streaming.config.FixedGlobalConfi
 import org.apache.beam.runners.dataflow.worker.streaming.config.StreamingApplianceComputationConfigFetcher;
 import org.apache.beam.runners.dataflow.worker.streaming.config.StreamingEngineComputationConfigFetcher;
 import org.apache.beam.runners.dataflow.worker.streaming.config.StreamingGlobalConfig;
-import org.apache.beam.runners.dataflow.worker.streaming.config.StreamingGlobalConfigHandle;
 import org.apache.beam.runners.dataflow.worker.streaming.config.StreamingGlobalConfigHandleImpl;
 import org.apache.beam.runners.dataflow.worker.streaming.harness.FanOutStreamingEngineWorkerHarness;
 import org.apache.beam.runners.dataflow.worker.streaming.harness.SingleSourceWorkerHarness;
@@ -460,12 +459,7 @@ public final class StreamingDataflowWorker {
             windmillServer::getDataStream);
     GetDataClient getDataClient =
         new StreamPoolGetDataClient(getDataMetricTracker, getDataStreamPool);
-    HeartbeatSender heartbeatSender =
-        createStreamingEngineHeartbeatSender(
-            options,
-            windmillServer,
-            getDataStreamPool,
-            checkNotNull(configFetcher).getGlobalConfigHandle());
+    HeartbeatSender heartbeatSender = createStreamingEngineHeartbeatSender(windmillServer);
     @SuppressWarnings("methodref.receiver.bound")
     WorkCommitter workCommitter =
         StreamingEngineWorkCommitter.builder()
@@ -603,25 +597,9 @@ public final class StreamingDataflowWorker {
   }
 
   private static HeartbeatSender createStreamingEngineHeartbeatSender(
-      DataflowWorkerHarnessOptions options,
-      WindmillServerStub windmillClient,
-      WindmillStreamPool<GetDataStream> getDataStreamPool,
-      StreamingGlobalConfigHandle globalConfigHandle) {
-    // Experiment gates the logic till backend changes are rollback safe
-    if (!DataflowRunner.hasExperiment(
-            options, STREAMING_ENGINE_USE_JOB_SETTINGS_FOR_HEARTBEAT_POOL_EXPERIMENT)
-        || options.getUseSeparateWindmillHeartbeatStreams() != null) {
-      return StreamPoolHeartbeatSender.create(
-          Boolean.TRUE.equals(options.getUseSeparateWindmillHeartbeatStreams())
-              ? WindmillStreamPool.create(1, GET_DATA_STREAM_TIMEOUT, windmillClient::getDataStream)
-              : getDataStreamPool);
-
-    } else {
-      return StreamPoolHeartbeatSender.create(
-          WindmillStreamPool.create(1, GET_DATA_STREAM_TIMEOUT, windmillClient::getDataStream),
-          getDataStreamPool,
-          globalConfigHandle);
-    }
+      WindmillServerStub windmillClient) {
+    return StreamPoolHeartbeatSender.create(
+        WindmillStreamPool.create(1, GET_DATA_STREAM_TIMEOUT, windmillClient::getDataStream));
   }
 
   public static StreamingDataflowWorker fromOptions(DataflowWorkerHarnessOptions options) {
