@@ -703,7 +703,7 @@ public final class StreamingDataflowWorker {
           Function<ComputationConfig.Fetcher, ComputationStateCache> computationStateCacheFactory) {
     if (options.isEnableStreamingEngine()) {
       GrpcDispatcherClient dispatcherClient =
-          GrpcDispatcherClient.create(options, new WindmillStubFactoryFactoryImpl(options));
+          GrpcDispatcherClient.create(new WindmillStubFactoryFactoryImpl(options));
       ComputationConfig.Fetcher configFetcher =
           StreamingEngineComputationConfigFetcher.create(
               options.getGlobalConfigRefreshPeriod().getMillis(), dataflowServiceClient);
@@ -731,7 +731,7 @@ public final class StreamingDataflowWorker {
     if (options.getWindmillServiceEndpoint() != null
         || options.getLocalWindmillHostport().startsWith("grpc:")) {
       GrpcDispatcherClient dispatcherClient =
-          GrpcDispatcherClient.create(options, new WindmillStubFactoryFactoryImpl(options));
+          GrpcDispatcherClient.create(new WindmillStubFactoryFactoryImpl(options));
       GrpcWindmillStreamFactory windmillStreamFactory =
           windmillStreamFactoryBuilder
               .setHealthCheckIntervalMillis(
@@ -898,7 +898,7 @@ public final class StreamingDataflowWorker {
         createGrpcwindmillStreamFactoryBuilder(options, 1)
             .setProcessHeartbeatResponses(
                 new WorkHeartbeatResponseProcessor(computationStateCache::get));
-    GrpcDispatcherClient grpcDispatcherClient = GrpcDispatcherClient.create(options, stubFactory);
+    GrpcDispatcherClient grpcDispatcherClient = GrpcDispatcherClient.create(stubFactory);
     grpcDispatcherClient.consumeWindmillDispatcherEndpoints(
         ImmutableSet.<HostAndPort>builder()
             .add(HostAndPort.fromHost("StreamingDataflowWorkerTest"))
