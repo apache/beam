@@ -170,7 +170,7 @@ ml_base = [
     'skl2onnx',
     'pyod>=0.7.6', # 0.7.5 crashes setuptools
     'tensorflow',
-    # tensorflow transient dep, lower versions not compatible with Python3.10+
+    # tensorflow transitive dep, lower versions not compatible with Python3.10+
     'absl-py>=0.12.0',
     'tensorflow-hub',
     'tf2onnx',
@@ -541,11 +541,14 @@ if __name__ == '__main__':
               # tensorflow-transform requires dill, but doesn't set dill as a
               # hard requirement in setup.py.
               'dill',
-              # match tft requirement.
+              # match tft extra.
               'tensorflow_transform>=1.14.0,<1.15.0',
-              # To help with dependency resolution. Revise once
+              # TFT->TFX-BSL require pandas 1.x, which is not compatible
+              # with numpy 2.x
+              'numpy<2',
+              # To help with dependency resolution in test suite. Revise once
               # https://github.com/apache/beam/issues/37854 is fixed
-              'protobuf<4; python_version<"3.11"',
+              'protobuf<4; python_version<"3.11"'
               # Comment out xgboost as it is breaking presubmit python ml
               # tests due to tag check introduced since pip 24.2
               # https://github.com/apache/beam/issues/31285
@@ -611,10 +614,12 @@ if __name__ == '__main__':
           ],
           'redis': ['redis>=5.0.0,<6'],
           'tft': [
-              'tensorflow_transform>=1.14.0,<1.15.0'
+              'tensorflow_transform>=1.14.0,<1.15.0',
+              # TFT->TFX-BSL require pandas 1.x, which is not compatible
+              # with numpy 2.x
+              'numpy<2',
               # tensorflow-transform requires dill, but doesn't set dill as a
               # hard requirement in setup.py.
-              ,
               'dill'
           ],
           'tfrecord': ['crcmod>=1.7,<2.0'],
