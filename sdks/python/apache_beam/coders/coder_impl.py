@@ -493,7 +493,7 @@ class FastPrimitivesCoderImpl(StreamCoderImpl):
       stream.write_byte(PROTO_TYPE)
       self.encode_type(type(value), stream)
       stream.write(value.SerializePartialToString(deterministic=True), True)
-    elif dataclasses and dataclasses.is_dataclass(value):
+    elif dataclasses.is_dataclass(value):
       if not type(value).__dataclass_params__.frozen:
         raise TypeError(
             "Unable to deterministically encode non-frozen '%s' of type '%s' "

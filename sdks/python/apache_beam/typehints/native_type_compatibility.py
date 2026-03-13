@@ -176,8 +176,30 @@ def match_is_named_tuple(user_type):
       hasattr(user_type, '__annotations__') and hasattr(user_type, '_fields'))
 
 
-def match_is_dataclass(user_type):
-  return dataclasses.is_dataclass(user_type) and isinstance(user_type, type)
+def match_dataclass_for_row(user_type):
+  """Match whether the type is a dataclass handled by row coder.
+
+  for frozen dataclasses, only true when explicitly registered with row coder:
+
+    beam.coders.typecoders.registry.register_coder(
+        MyDataClass, beam.coders.RowCoder)
+  """
+  if not dataclasses.is_dataclass(user_type):
+    return False
+
+  if not user_type.__dataclass_params__.frozen:
+    return True
+
+  # avoid circular import
+  # pylint: disable=wrong-import-position
+  from apache_beam.coders.typecoders import registry as coders_registry
+  from apache_beam.coders import RowCoder
+
+  # check _coders (not get_coder) to get the registered coder directly without
+  # fallback
+  return (
+      user_type in coders_registry._coders and
+      coders_registry._coders[user_type] == RowCoder)
 
 
 def _match_is_optional(user_type):
