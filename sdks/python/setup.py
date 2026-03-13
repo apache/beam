@@ -376,6 +376,8 @@ if __name__ == '__main__':
       install_requires=[
           'cryptography>=39.0.0,<48.0.0',
           'envoy-data-plane>=1.0.3,<2; python_version >= "3.11"',
+          # Newer version only work on Python 3.11. Versions 0.3 <= ver < 1.x
+          # conflict with other GCP dependencies.
           'envoy-data-plane<0.3.0; python_version < "3.11"',
           'fastavro>=0.23.6,<2',
           'fasteners>=0.3,<1.0',
@@ -539,7 +541,10 @@ if __name__ == '__main__':
               # tensorflow-transform requires dill, but doesn't set dill as a
               # hard requirement in setup.py.
               'dill',
-              'tensorflow-transform',
+              # match tft requirement.
+              'tensorflow_transform>=1.14.0,<1.15.0',
+              # To help with dependency resolution. Revise once
+              # https://github.com/apache/beam/issues/37854 is fixed
               'protobuf<4; python_version<"3.11"',
               # Comment out xgboost as it is breaking presubmit python ml
               # tests due to tag check introduced since pip 24.2
