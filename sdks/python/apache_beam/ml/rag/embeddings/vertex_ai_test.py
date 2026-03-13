@@ -16,7 +16,6 @@
 
 """Tests for apache_beam.ml.rag.embeddings.vertex_ai."""
 
-import os
 import shutil
 import struct
 import tempfile
@@ -186,13 +185,9 @@ class VertexAIImageEmbeddingsTest(unittest.TestCase):
 
   def test_image_embedding_pipeline_from_path(self):
     png_bytes = _create_png_bytes()
-    img_path = os.path.join(self.artifact_location, 'test_img.png')
-    with open(img_path, 'wb') as f:
-      f.write(png_bytes)
-
     test_items = [
         EmbeddableItem.from_image(
-            img_path, id="img1", metadata={"source": "test"}),
+            png_bytes, id="img1", metadata={"source": "test"}),
     ]
 
     expected = [
@@ -200,7 +195,7 @@ class VertexAIImageEmbeddingsTest(unittest.TestCase):
             id="img1",
             embedding=Embedding(dense_embedding=[0.0] * 1408),
             metadata={"source": "test"},
-            content=Content(image=img_path)),
+            content=Content(image=png_bytes)),
     ]
 
     artifact_location = tempfile.mkdtemp(prefix='vertex_ai_img_path_')
