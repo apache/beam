@@ -415,8 +415,8 @@ public final class StreamingDataflowWorker {
                     .setBackendWorkerToken(commitWorkStream.backendWorkerToken())
                     .setOnCommitComplete(this::onCompleteCommit)
                     .setNumCommitSenders(Math.max(options.getWindmillServiceCommitThreads(), 1))
-                    .setCommitWorkStreamFactoryFactory(
-                        () -> () -> CloseableStream.create(commitWorkStream, () -> {}))
+                    .setCommitWorkStreamFactory(
+                        () -> CloseableStream.create(commitWorkStream, () -> {}))
                     .build(),
             getDataMetricTracker);
     ChannelzServlet channelzServlet =
@@ -457,11 +457,10 @@ public final class StreamingDataflowWorker {
             options, windmillServer, getDataStreamPool, configFetcher.getGlobalConfigHandle());
     WorkCommitter workCommitter =
         StreamingEngineWorkCommitter.builder()
-            .setCommitWorkStreamFactoryFactory(
-                () ->
-                    WindmillStreamPool.create(
-                            1, COMMIT_STREAM_TIMEOUT, windmillServer::commitWorkStream)
-                        ::getCloseableStream)
+            .setCommitWorkStreamFactory(
+                WindmillStreamPool.create(
+                        numCommitThreads, COMMIT_STREAM_TIMEOUT, windmillServer::commitWorkStream)
+                    ::getCloseableStream)
             .setCommitByteSemaphore(Commits.maxCommitByteSemaphore())
             .setNumCommitSenders(numCommitThreads)
             .setOnCommitComplete(this::onCompleteCommit)

@@ -81,7 +81,7 @@ public class StreamingEngineWorkCommitterTest {
   @Rule public transient Timeout globalTimeout = Timeout.seconds(600);
   private WorkCommitter workCommitter;
   private FakeWindmillServer fakeWindmillServer;
-  private Supplier<Supplier<CloseableStream<CommitWorkStream>>> commitWorkStreamFactoryFactory;
+  private Supplier<CloseableStream<CommitWorkStream>> commitWorkStreamFactory;
 
   private static void waitForExpectedSetSize(Set<?> s, int expectedSize) {
     long deadline = System.currentTimeMillis() + 100 * 1000; // 100 seconds
@@ -147,17 +147,16 @@ public class StreamingEngineWorkCommitterTest {
     fakeWindmillServer =
         new FakeWindmillServer(
             errorCollector, ignored -> Optional.of(mock(ComputationState.class)));
-    commitWorkStreamFactoryFactory =
-        () ->
-            WindmillStreamPool.create(
-                    1, Duration.standardMinutes(1), fakeWindmillServer::commitWorkStream)
-                ::getCloseableStream;
+    commitWorkStreamFactory =
+        WindmillStreamPool.create(
+                1, Duration.standardMinutes(1), fakeWindmillServer::commitWorkStream)
+            ::getCloseableStream;
   }
 
   private WorkCommitter createWorkCommitter(Consumer<CompleteCommit> onCommitComplete) {
     return StreamingEngineWorkCommitter.builder()
         .setCommitByteSemaphore(Commits.maxCommitByteSemaphore())
-        .setCommitWorkStreamFactoryFactory(commitWorkStreamFactoryFactory)
+        .setCommitWorkStreamFactory(commitWorkStreamFactory)
         .setOnCommitComplete(onCommitComplete)
         .build();
   }
@@ -341,10 +340,9 @@ public class StreamingEngineWorkCommitterTest {
               public void shutdown() {}
             };
 
-    commitWorkStreamFactoryFactory =
-        () ->
-            WindmillStreamPool.create(1, Duration.standardMinutes(1), fakeCommitWorkStream)
-                ::getCloseableStream;
+    commitWorkStreamFactory =
+        WindmillStreamPool.create(1, Duration.standardMinutes(1), fakeCommitWorkStream)
+            ::getCloseableStream;
 
     Set<CompleteCommit> completeCommits = Collections.newSetFromMap(new ConcurrentHashMap<>());
     workCommitter = createWorkCommitter(completeCommits::add);
@@ -378,16 +376,15 @@ public class StreamingEngineWorkCommitterTest {
 
   @Test
   public void testMultipleCommitSendersSingleStream() {
-    commitWorkStreamFactoryFactory =
-        () ->
-            WindmillStreamPool.create(
-                    1, Duration.standardMinutes(1), fakeWindmillServer::commitWorkStream)
-                ::getCloseableStream;
+    commitWorkStreamFactory =
+        WindmillStreamPool.create(
+                1, Duration.standardMinutes(1), fakeWindmillServer::commitWorkStream)
+            ::getCloseableStream;
     Set<CompleteCommit> completeCommits = Collections.newSetFromMap(new ConcurrentHashMap<>());
     workCommitter =
         StreamingEngineWorkCommitter.builder()
             .setCommitByteSemaphore(Commits.maxCommitByteSemaphore())
-            .setCommitWorkStreamFactoryFactory(commitWorkStreamFactoryFactory)
+            .setCommitWorkStreamFactory(commitWorkStreamFactory)
             .setNumCommitSenders(5)
             .setOnCommitComplete(completeCommits::add)
             .build();
@@ -430,7 +427,7 @@ public class StreamingEngineWorkCommitterTest {
             // Set the semaphore to only allow a single commit at a time.
             // This creates a bottleneck on purpose to trigger race conditions during shutdown.
             .setCommitByteSemaphore(WeightedSemaphore.create(1, (commit) -> 1))
-            .setCommitWorkStreamFactoryFactory(commitWorkStreamFactoryFactory)
+            .setCommitWorkStreamFactory(commitWorkStreamFactory)
             .setOnCommitComplete(completeCommits::add)
             .build();
 

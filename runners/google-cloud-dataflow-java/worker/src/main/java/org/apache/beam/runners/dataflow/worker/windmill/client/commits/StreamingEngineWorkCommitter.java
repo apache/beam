@@ -59,12 +59,12 @@ public final class StreamingEngineWorkCommitter implements WorkCommitter {
   private final AtomicBoolean isRunning;
 
   StreamingEngineWorkCommitter(
-      Supplier<Supplier<CloseableStream<CommitWorkStream>>> commitWorkStreamFactoryFactory,
+      Supplier<CloseableStream<CommitWorkStream>> commitWorkStreamFactory,
       int numCommitSenders,
       Consumer<CompleteCommit> onCommitComplete,
       String backendWorkerToken,
       WeightedSemaphore<Commit> commitByteSemaphore) {
-    this.commitWorkStreamFactory = commitWorkStreamFactoryFactory.get();
+    this.commitWorkStreamFactory = commitWorkStreamFactory;
     this.commitQueue = WeightedBoundedQueue.create(commitByteSemaphore);
     this.commitSenders =
         Executors.newFixedThreadPool(
@@ -261,8 +261,8 @@ public final class StreamingEngineWorkCommitter implements WorkCommitter {
   @AutoBuilder
   public interface Builder {
 
-    Builder setCommitWorkStreamFactoryFactory(
-        Supplier<Supplier<CloseableStream<CommitWorkStream>>> commitWorkStreamFactoryFactory);
+    Builder setCommitWorkStreamFactory(
+        Supplier<CloseableStream<CommitWorkStream>> commitWorkStreamFactory);
 
     Builder setCommitByteSemaphore(WeightedSemaphore<Commit> commitByteSemaphore);
 
