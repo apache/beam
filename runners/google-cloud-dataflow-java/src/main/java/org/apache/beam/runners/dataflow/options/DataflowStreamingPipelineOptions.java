@@ -126,7 +126,9 @@ public interface DataflowStreamingPipelineOptions extends PipelineOptions {
 
   void setWindmillMessagesBetweenIsReadyChecks(int value);
 
-  @Description("If true, a most a single active rpc will be used per channel.")
+  /** @deprecated since 2.73.0 */
+  @Deprecated
+  @Description("Unused flag.")
   Boolean getUseWindmillIsolatedChannels();
 
   void setUseWindmillIsolatedChannels(Boolean value);
