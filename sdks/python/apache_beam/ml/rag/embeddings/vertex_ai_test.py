@@ -16,7 +16,6 @@
 
 """Tests for apache_beam.ml.rag.embeddings.vertex_ai."""
 
-import os
 import shutil
 import struct
 import tempfile
