@@ -72,6 +72,7 @@
 
 ## Breaking Changes
 
+* Minimum Go version for Beam Go updated to 1.26.0.
 * The Python SDK container's `boot.go` now passes pipeline options through a file instead of the `PIPELINE_OPTIONS` environment variable. If a user pairs a new Python SDK container with an older SDK version (which does not support the file-based approach), the pipeline options will not be recognized and the pipeline will fail. Users must ensure their SDK and container versions are synchronized ([#37370](https://github.com/apache/beam/issues/37370)).
 
 ## Deprecations

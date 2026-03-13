@@ -66,7 +66,7 @@ jobs:
         uses: ./.github/actions/setup-environment-action
         with:
           python-version: default
-          go-version: '1.25'
+          go-version: '1.26'
       - name: Install requirements
         run: |
           cd $BEAM_ROOT_DIR/playground/infrastructure
