@@ -138,6 +138,12 @@ public class DebeziumTransformRegistrar implements ExternalTransformRegistrar {
         Map<String, Object> startOffsetMap = new HashMap<>();
         for (String property : configuration.startOffset) {
           String[] parts = property.split("=", 2);
+          if (parts.length != 2) {
+            throw new IllegalArgumentException(
+                "Invalid startOffset entry: \""
+                    + property
+                    + "\". Expected format is \"key=value\".");
+          }
           String key = parts[0];
           String value = parts[1];
           try {

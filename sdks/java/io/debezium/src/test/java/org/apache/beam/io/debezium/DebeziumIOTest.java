@@ -27,6 +27,7 @@ import io.debezium.config.Configuration;
 import io.debezium.connector.mysql.MySqlConnector;
 import io.debezium.connector.mysql.MySqlConnectorConfig;
 import java.io.Serializable;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
 import org.apache.beam.io.debezium.DebeziumIO.ConnectorConfiguration;
@@ -230,5 +231,20 @@ public class DebeziumIOTest implements Serializable {
     KafkaSourceConsumerFn<String> fn = new KafkaSourceConsumerFn<>(MySqlConnector.class, spec);
     KafkaSourceConsumerFn.OffsetHolder restriction = fn.getInitialRestriction(null);
     assertEquals(explicitOffset, restriction.offset);
+  }
+
+  @Test
+  public void testBuildExternalThrowsOnMalformedStartOffsetEntry() {
+    DebeziumTransformRegistrar.ReadBuilder.Configuration config =
+        new DebeziumTransformRegistrar.ReadBuilder.Configuration();
+    config.setUsername("user");
+    config.setPassword("pass");
+    config.setHost("localhost");
+    config.setPort("3306");
+    config.setConnectorClass("MySQL");
+    config.setStartOffset(Arrays.asList("lsn=100", "no-equals-sign"));
+    assertThrows(
+        IllegalArgumentException.class,
+        () -> new DebeziumTransformRegistrar.ReadBuilder().buildExternal(config));
   }
 }
