@@ -56,6 +56,7 @@ import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TupleTag;
+import org.apache.beam.sdk.values.WindowedValue;
 import org.apache.beam.sdk.values.WindowedValues;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.util.concurrent.Uninterruptibles;
 import org.checkerframework.checker.nullness.qual.Nullable;
@@ -560,13 +561,7 @@ public class SplittableParDoNaiveBounded {
           public OutputBuilder<OutputT> builder(OutputT value) {
             return outputBuilderSupplier
                 .builder(value)
-                .setReceiver(
-                    windowedValue ->
-                        outerContext.outputWindowedValue(
-                            windowedValue.getValue(),
-                            windowedValue.getTimestamp(),
-                            windowedValue.getWindows(),
-                            windowedValue.getPaneInfo()));
+                .setReceiver(windowedValue -> outerContext.outputWindowedValue(windowedValue));
           }
         };
       }
@@ -657,6 +652,16 @@ public class SplittableParDoNaiveBounded {
           Collection<? extends BoundedWindow> windows,
           PaneInfo paneInfo) {
         outerContext.outputWindowedValue(tag, output, timestamp, windows, paneInfo);
+      }
+
+      @Override
+      public void outputWindowedValue(WindowedValue<OutputT> windowedValue) {
+        outerContext.outputWindowedValue(windowedValue);
+      }
+
+      @Override
+      public <T> void outputWindowedValue(TupleTag<T> tag, WindowedValue<T> windowedValue) {
+        outerContext.outputWindowedValue(tag, windowedValue);
       }
 
       @Override

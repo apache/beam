@@ -120,19 +120,9 @@ public class DoFnOutputReceivers {
     @Override
     public void output(WindowedValue<T> windowedValue) {
       if (outputTag != null) {
-        context.outputWindowedValue(
-            outputTag,
-            windowedValue.getValue(),
-            windowedValue.getTimestamp(),
-            windowedValue.getWindows(),
-            windowedValue.getPaneInfo());
+        context.outputWindowedValue(outputTag, windowedValue);
       } else {
-        ((DoFn<?, T>.WindowedContext) context)
-            .outputWindowedValue(
-                windowedValue.getValue(),
-                windowedValue.getTimestamp(),
-                windowedValue.getWindows(),
-                windowedValue.getPaneInfo());
+        ((DoFn<?, T>.WindowedContext) context).outputWindowedValue(windowedValue);
       }
     }
   }

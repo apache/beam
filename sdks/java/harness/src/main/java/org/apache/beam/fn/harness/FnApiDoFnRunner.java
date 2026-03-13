@@ -1788,6 +1788,16 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
     }
 
     @Override
+    public void outputWindowedValue(WindowedValue<OutputT> windowedValue) {
+      outputTo(mainOutputConsumer, windowedValue);
+    }
+
+    @Override
+    public <T> void outputWindowedValue(TupleTag<T> tag, WindowedValue<T> windowedValue) {
+      outputTo((FnDataReceiver) localNameToConsumer.get(tag.getId()), windowedValue);
+    }
+
+    @Override
     public <T> void outputWindowedValue(
         TupleTag<T> tag,
         T output,
@@ -1935,6 +1945,16 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
         throw new IllegalArgumentException(String.format("Unknown output tag %s", tag));
       }
       outputTo(consumer, WindowedValues.of(output, timestamp, windows, paneInfo));
+    }
+
+    @Override
+    public void outputWindowedValue(WindowedValue<OutputT> windowedValue) {
+      outputTo(mainOutputConsumer, windowedValue);
+    }
+
+    @Override
+    public <T> void outputWindowedValue(TupleTag<T> tag, WindowedValue<T> windowedValue) {
+      outputTo((FnDataReceiver) localNameToConsumer.get(tag.getId()), windowedValue);
     }
 
     @Override
@@ -2354,6 +2374,16 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
         outputTo(consumer, WindowedValues.of(output, timestamp, windows, paneInfo));
       }
 
+      @Override
+      public void outputWindowedValue(WindowedValue<OutputT> windowedValue) {
+        outputTo(mainOutputConsumer, windowedValue);
+      }
+
+      @Override
+      public <T> void outputWindowedValue(TupleTag<T> tag, WindowedValue<T> windowedValue) {
+        outputTo((FnDataReceiver) localNameToConsumer.get(tag.getId()), windowedValue);
+      }
+
       @SuppressWarnings(
           "deprecation") // Allowed Skew is deprecated for users, but must be respected
       private void checkOnWindowExpirationTimestamp(Instant timestamp) {
@@ -2642,6 +2672,16 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
         outputTo(
             consumer,
             WindowedValues.of(output, timestamp, currentWindow, currentTimer.getPaneInfo()));
+      }
+
+      @Override
+      public void outputWindowedValue(WindowedValue<OutputT> windowedValue) {
+        outputTo(mainOutputConsumer, windowedValue);
+      }
+
+      @Override
+      public <T> void outputWindowedValue(TupleTag<T> tag, WindowedValue<T> windowedValue) {
+        outputTo((FnDataReceiver) localNameToConsumer.get(tag.getId()), windowedValue);
       }
 
       @Override

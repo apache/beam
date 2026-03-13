@@ -77,7 +77,10 @@ public class WindowedValues {
         .setValue(template.getValue())
         .setTimestamp(template.getTimestamp())
         .setWindows(template.getWindows())
-        .setPaneInfo(template.getPaneInfo());
+        .setPaneInfo(template.getPaneInfo())
+        .setRecordOffset(template.getRecordOffset())
+        .setRecordId(template.getRecordId())
+        .setCausedByDrain(template.causedByDrain());
   }
 
   public static class Builder<T> implements OutputBuilder<T> {
@@ -271,7 +274,14 @@ public class WindowedValues {
     checkArgument(windows.size() > 0, "WindowedValue requires windows, but there were none");
 
     if (windows.size() == 1) {
-      return of(value, timestamp, windows.iterator().next(), paneInfo, causedByDrain);
+      return of(
+          value,
+          timestamp,
+          windows.iterator().next(),
+          paneInfo,
+          currentRecordId,
+          currentRecordOffset,
+          causedByDrain);
     } else {
       return new TimestampedValueInMultipleWindows<>(
           value, timestamp, windows, paneInfo, currentRecordId, currentRecordOffset, causedByDrain);
@@ -287,7 +297,7 @@ public class WindowedValues {
       PaneInfo paneInfo,
       CausedByDrain causedByDrain) {
     if (windows.size() == 1) {
-      return of(value, timestamp, windows.iterator().next(), paneInfo, causedByDrain);
+      return of(value, timestamp, windows.iterator().next(), paneInfo, null, null, causedByDrain);
     } else {
       return new TimestampedValueInMultipleWindows<>(
           value, timestamp, windows, paneInfo, null, null, causedByDrain);
@@ -299,7 +309,7 @@ public class WindowedValues {
       T value, Instant timestamp, BoundedWindow window, PaneInfo paneInfo) {
     checkArgument(paneInfo != null, "WindowedValue requires PaneInfo, but it was null");
 
-    return of(value, timestamp, window, paneInfo, CausedByDrain.NORMAL);
+    return of(value, timestamp, window, paneInfo, null, null, CausedByDrain.NORMAL);
   }
 
   /** Returns a {@code WindowedValue} with the given value, timestamp, and window. */
@@ -308,18 +318,21 @@ public class WindowedValues {
       Instant timestamp,
       BoundedWindow window,
       PaneInfo paneInfo,
+      @Nullable String currentRecordId,
+      @Nullable Long currentRecordOffset,
       CausedByDrain causedByDrain) {
     checkArgument(paneInfo != null, "WindowedValue requires PaneInfo, but it was null");
 
     boolean isGlobal = GlobalWindow.INSTANCE.equals(window);
     if (isGlobal && BoundedWindow.TIMESTAMP_MIN_VALUE.equals(timestamp)) {
-      return new ValueInGlobalWindow<>(value, paneInfo, null, null, causedByDrain);
+      return new ValueInGlobalWindow<>(
+          value, paneInfo, currentRecordId, currentRecordOffset, causedByDrain);
     } else if (isGlobal) {
       return new TimestampedValueInGlobalWindow<>(
-          value, timestamp, paneInfo, null, null, causedByDrain);
+          value, timestamp, paneInfo, currentRecordId, currentRecordOffset, causedByDrain);
     } else {
       return new TimestampedValueInSingleWindow<>(
-          value, timestamp, window, paneInfo, null, null, causedByDrain);
+          value, timestamp, window, paneInfo, currentRecordId, currentRecordOffset, causedByDrain);
     }
   }
 
