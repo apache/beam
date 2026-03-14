@@ -21,5 +21,5 @@ import org.apache.beam.sdk.annotations.Internal;
 
 @Internal
 public interface WindmillStubFactoryFactory {
-  WindmillStubFactory makeWindmillStubFactory(boolean useIsolatedChannels);
+  WindmillStubFactory makeWindmillStubFactory();
 }

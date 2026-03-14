@@ -21,10 +21,7 @@ import static org.junit.Assert.assertEquals;
 
 import java.util.Optional;
 import org.apache.beam.runners.dataflow.worker.FakeWindmillServer;
-import org.apache.beam.runners.dataflow.worker.streaming.config.FakeGlobalConfigHandle;
-import org.apache.beam.runners.dataflow.worker.streaming.config.StreamingGlobalConfig;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.HeartbeatRequest;
-import org.apache.beam.runners.dataflow.worker.windmill.Windmill.UserWorkerRunnerV1Settings;
 import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStreamPool;
 import org.joda.time.Duration;
 import org.junit.Test;
@@ -47,86 +44,5 @@ public class StreamPoolHeartbeatSenderTest {
         .put("key", HeartbeatRequest.newBuilder().setWorkToken(123).build());
     heartbeatSender.sendHeartbeats(heartbeatsBuilder.build());
     assertEquals(1, server.getGetDataRequests().size());
-  }
-
-  @Test
-  public void sendsHeartbeatsOnDedicatedStream() {
-    FakeWindmillServer dedicatedServer =
-        new FakeWindmillServer(new ErrorCollector(), c -> Optional.empty());
-    FakeWindmillServer getDataServer =
-        new FakeWindmillServer(new ErrorCollector(), c -> Optional.empty());
-
-    FakeGlobalConfigHandle configHandle =
-        new FakeGlobalConfigHandle(getGlobalConfig(/*useSeparateHeartbeatStreams=*/ true));
-    StreamPoolHeartbeatSender heartbeatSender =
-        StreamPoolHeartbeatSender.create(
-            WindmillStreamPool.create(
-                1, Duration.standardSeconds(10), dedicatedServer::getDataStream),
-            WindmillStreamPool.create(
-                1, Duration.standardSeconds(10), getDataServer::getDataStream),
-            configHandle);
-    Heartbeats.Builder heartbeatsBuilder = Heartbeats.builder();
-    heartbeatsBuilder
-        .heartbeatRequestsBuilder()
-        .put("key", HeartbeatRequest.newBuilder().setWorkToken(123).build());
-    heartbeatSender.sendHeartbeats(heartbeatsBuilder.build());
-    assertEquals(1, dedicatedServer.getGetDataRequests().size());
-    assertEquals(0, getDataServer.getGetDataRequests().size());
-
-    heartbeatSender.sendHeartbeats(heartbeatsBuilder.build());
-    assertEquals(2, dedicatedServer.getGetDataRequests().size());
-    assertEquals(0, getDataServer.getGetDataRequests().size());
-
-    // Turn off separate heartbeats
-    configHandle.setConfig(getGlobalConfig(/*useSeparateHeartbeatStreams=*/ false));
-    heartbeatSender.sendHeartbeats(heartbeatsBuilder.build());
-    // request to getDataServer increases and dedicatedServer remains same
-    assertEquals(2, dedicatedServer.getGetDataRequests().size());
-    assertEquals(1, getDataServer.getGetDataRequests().size());
-  }
-
-  private static StreamingGlobalConfig getGlobalConfig(boolean useSeparateHeartbeatStreams) {
-    return StreamingGlobalConfig.builder()
-        .setUserWorkerJobSettings(
-            UserWorkerRunnerV1Settings.newBuilder()
-                .setUseSeparateWindmillHeartbeatStreams(useSeparateHeartbeatStreams)
-                .build())
-        .build();
-  }
-
-  @Test
-  public void sendsHeartbeatsOnGetDataStream() {
-    FakeWindmillServer dedicatedServer =
-        new FakeWindmillServer(new ErrorCollector(), c -> Optional.empty());
-    FakeWindmillServer getDataServer =
-        new FakeWindmillServer(new ErrorCollector(), c -> Optional.empty());
-
-    FakeGlobalConfigHandle configHandle =
-        new FakeGlobalConfigHandle(getGlobalConfig(/*useSeparateHeartbeatStreams=*/ false));
-    StreamPoolHeartbeatSender heartbeatSender =
-        StreamPoolHeartbeatSender.create(
-            WindmillStreamPool.create(
-                1, Duration.standardSeconds(10), dedicatedServer::getDataStream),
-            WindmillStreamPool.create(
-                1, Duration.standardSeconds(10), getDataServer::getDataStream),
-            configHandle);
-    Heartbeats.Builder heartbeatsBuilder = Heartbeats.builder();
-    heartbeatsBuilder
-        .heartbeatRequestsBuilder()
-        .put("key", HeartbeatRequest.newBuilder().setWorkToken(123).build());
-    heartbeatSender.sendHeartbeats(heartbeatsBuilder.build());
-    assertEquals(0, dedicatedServer.getGetDataRequests().size());
-    assertEquals(1, getDataServer.getGetDataRequests().size());
-
-    heartbeatSender.sendHeartbeats(heartbeatsBuilder.build());
-    assertEquals(0, dedicatedServer.getGetDataRequests().size());
-    assertEquals(2, getDataServer.getGetDataRequests().size());
-
-    // Turn on separate heartbeats
-    configHandle.setConfig(getGlobalConfig(/*useSeparateHeartbeatStreams=*/ true));
-    heartbeatSender.sendHeartbeats(heartbeatsBuilder.build());
-    // request to dedicatedServer increases and getDataServer remains same
-    assertEquals(1, dedicatedServer.getGetDataRequests().size());
-    assertEquals(2, getDataServer.getGetDataRequests().size());
   }
 }

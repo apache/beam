@@ -133,13 +133,16 @@ public interface DataflowStreamingPipelineOptions extends PipelineOptions {
 
   void setWindmillMessagesBetweenIsReadyChecks(int value);
 
-  @Description("If true, a most a single active rpc will be used per channel.")
+  /** @deprecated since 2.73.0 */
+  @Deprecated
+  @Description("Unused flag.")
   Boolean getUseWindmillIsolatedChannels();
 
   void setUseWindmillIsolatedChannels(Boolean value);
 
-  @Description(
-      "If true, separate streaming rpcs will be used for heartbeats instead of sharing streams with state reads.")
+  /** @deprecated since beam 2.73.0 */
+  @Deprecated
+  @Description("Unused Flag")
   Boolean getUseSeparateWindmillHeartbeatStreams();
 
   void setUseSeparateWindmillHeartbeatStreams(Boolean value);
