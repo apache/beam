@@ -796,6 +796,29 @@ def _enforce_schema(pcoll, label, error_handling_spec, clean_schema):
 def expand_composite_transform(spec, scope):
   spec = normalize_inputs_outputs(normalize_source_sink(spec))
 
+  original_transforms = spec['transforms']
+  has_explicit_io = any(
+      io in t for t in original_transforms for io in ('input', 'output'))
+
+  if not has_explicit_io:
+    new_transforms = []
+    for ix, transform in enumerate(original_transforms):
+      transform = dict(transform)
+      if ix == 0:
+        composite_input = spec.get('input', {})
+        if is_explicitly_empty(composite_input):
+          transform['input'] = composite_input
+        elif not is_empty(composite_input):
+          transform['input'] = {key: key for key in composite_input.keys()}
+      else:
+        transform['input'] = new_transforms[-1]['__uuid__']
+      new_transforms.append(transform)
+
+    if new_transforms:
+      spec = dict(spec, transforms=new_transforms)
+      if 'output' not in spec:
+        spec['output'] = {'__implicit_outputs__': new_transforms[-1]['__uuid__']}
+
   inner_scope = Scope(
       scope.root,
       {
