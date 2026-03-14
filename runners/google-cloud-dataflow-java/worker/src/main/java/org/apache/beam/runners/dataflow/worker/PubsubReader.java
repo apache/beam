@@ -24,6 +24,7 @@ import com.google.auto.service.AutoService;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.Map;
+import org.apache.beam.runners.dataflow.options.DataflowStreamingPipelineOptions;
 import org.apache.beam.runners.dataflow.util.CloudObject;
 import org.apache.beam.runners.dataflow.util.PropertyNames;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.NativeReader;
@@ -32,6 +33,7 @@ import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubMessage;
 import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.transforms.SimpleFunction;
 import org.apache.beam.sdk.util.SerializableUtils;
 import org.apache.beam.sdk.values.WindowedValue;
@@ -41,26 +43,24 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Immuta
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** A Reader that receives elements from Pubsub, via a Windmill server. */
-@SuppressWarnings({
-  "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
-  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
-})
 class PubsubReader<T> extends NativeReader<WindowedValue<T>> {
   private final Coder<T> coder;
   private final StreamingModeExecutionContext context;
   // Function used to parse Windmill data.
   // If non-null, data from Windmill is expected to be a PubsubMessage protobuf.
-  private final SimpleFunction<PubsubMessage, T> parseFn;
+  private final @Nullable SimpleFunction<PubsubMessage, T> parseFn;
+  private final ValueProvider<Boolean> skipUndecodableElements;
 
   PubsubReader(
       Coder<WindowedValue<T>> coder,
       StreamingModeExecutionContext context,
-      SimpleFunction<PubsubMessage, T> parseFn) {
-    @SuppressWarnings({"unchecked", "rawtypes"})
-    WindowedValueCoder<T> windowedCoder = (WindowedValueCoder) coder;
+      @Nullable SimpleFunction<PubsubMessage, T> parseFn,
+      ValueProvider<Boolean> skipUndecodableElements) {
+    WindowedValueCoder<T> windowedCoder = (WindowedValueCoder<T>) coder;
     this.coder = windowedCoder.getValueCoder();
     this.context = context;
     this.parseFn = parseFn;
+    this.skipUndecodableElements = skipUndecodableElements;
   }
 
   /** A {@link ReaderFactory.Registrar} for pubsub sources. */
@@ -75,19 +75,19 @@ class PubsubReader<T> extends NativeReader<WindowedValue<T>> {
     }
   }
 
+  @SuppressWarnings({"unchecked", "rawtypes"})
   static class Factory implements ReaderFactory {
     @Override
     public NativeReader<?> create(
         CloudObject cloudSourceSpec,
-        Coder<?> coder,
+        @Nullable Coder<?> coder,
         @Nullable PipelineOptions options,
         @Nullable DataflowExecutionContext executionContext,
         DataflowOperationContext operationContext)
         throws Exception {
-      coder = checkArgumentNotNull(coder);
-      @SuppressWarnings("unchecked")
-      Coder<WindowedValue<Object>> typedCoder = (Coder<WindowedValue<Object>>) coder;
-      SimpleFunction<PubsubMessage, Object> parseFn = null;
+      Coder<WindowedValue<Object>> typedCoder =
+          (Coder<WindowedValue<Object>>) checkArgumentNotNull(coder);
+      @Nullable SimpleFunction<PubsubMessage, Object> parseFn = null;
       byte[] attributesFnBytes =
           getBytes(cloudSourceSpec, PropertyNames.PUBSUB_SERIALIZED_ATTRIBUTES_FN, null);
       // If attributesFnBytes is set, Pubsub data will be in PubsubMessage protobuf format. The
@@ -98,8 +98,20 @@ class PubsubReader<T> extends NativeReader<WindowedValue<T>> {
             (SimpleFunction<PubsubMessage, Object>)
                 SerializableUtils.deserializeFromByteArray(attributesFnBytes, "serialized fn info");
       }
+      @Nullable
+      ValueProvider<Boolean> skipUndecodableElements =
+          (options != null)
+              ? options
+                  .as(DataflowStreamingPipelineOptions.class)
+                  .getSkipInputElementsWithDecodingExceptions()
+              : null;
       return new PubsubReader<>(
-          typedCoder, (StreamingModeExecutionContext) executionContext, parseFn);
+          typedCoder,
+          (StreamingModeExecutionContext) checkArgumentNotNull(executionContext),
+          parseFn,
+          skipUndecodableElements != null
+              ? skipUndecodableElements
+              : ValueProvider.StaticValueProvider.of(false));
     }
   }
 
@@ -110,7 +122,7 @@ class PubsubReader<T> extends NativeReader<WindowedValue<T>> {
 
   class PubsubReaderIterator extends WindmillReaderIteratorBase<T> {
     protected PubsubReaderIterator(Windmill.WorkItem work) {
-      super(work);
+      super(work, skipUndecodableElements);
     }
 
     @Override

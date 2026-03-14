@@ -113,9 +113,9 @@ abstract class HttpEventPublisher {
   @SuppressWarnings("mutable")
   abstract byte @Nullable [] rootCaCertificate();
 
-  abstract Boolean disableCertificateValidation();
+  abstract @Nullable Boolean disableCertificateValidation();
 
-  abstract Boolean enableGzipHttpCompression();
+  abstract @Nullable Boolean enableGzipHttpCompression();
 
   /**
    * Executes a POST for the list of {@link SplunkEvent} objects into Splunk's Http Event Collector

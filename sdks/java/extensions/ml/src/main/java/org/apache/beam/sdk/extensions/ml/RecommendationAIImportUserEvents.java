@@ -85,7 +85,7 @@ public abstract class RecommendationAIImportUserEvents
   public abstract @Nullable String eventStore();
 
   /** Returns size of input elements batch to be sent in one request. */
-  public abstract Integer batchSize();
+  public abstract int batchSize();
 
   /**
    * Returns time limit (in processing time) on how long an incomplete batch of elements is allowed
@@ -105,7 +105,7 @@ public abstract class RecommendationAIImportUserEvents
     return this.toBuilder().setEventStore(eventStore).build();
   }
 
-  public RecommendationAIImportUserEvents withBatchSize(Integer batchSize) {
+  public RecommendationAIImportUserEvents withBatchSize(int batchSize) {
     return this.toBuilder().setBatchSize(batchSize).build();
   }
 
@@ -159,7 +159,7 @@ public abstract class RecommendationAIImportUserEvents
      * @param batchSize Amount of input elements to be sent to Recommendation AI service in one
      *     request.
      */
-    public abstract Builder setBatchSize(Integer batchSize);
+    public abstract Builder setBatchSize(int batchSize);
 
     /**
      * Sets time limit (in processing time) on how long an incomplete batch of elements is allowed

@@ -120,7 +120,7 @@ abstract class PubsubRowToMessage extends PTransform<PCollection<Row>, PCollecti
   /**
    * As a convenience method, generates {@link InputSchemaFactory} for expected {@link Schema} for
    * {@link Row} input into {@link PubsubRowToMessage}. The {@link Field} for {@link
-   * #getPayloadKeyName()} is excluded for null {@param payloadFieldType}. See {@link
+   * #getPayloadKeyName()} is excluded for null {@code payloadFieldType}. See {@link
    * InputSchemaFactory#buildSchema(Field...)} for details on how to add additional fields.
    */
   InputSchemaFactory inputSchemaFactory(@Nullable FieldType payloadFieldType) {
@@ -308,7 +308,7 @@ abstract class PubsubRowToMessage extends PTransform<PCollection<Row>, PCollecti
       this.schema = schema;
     }
 
-    /** Returns true of all {@param fieldMatchers} {@link FieldMatcher#match(Schema)}. */
+    /** Returns true of all {@code fieldMatchers} {@link FieldMatcher#match(Schema)}. */
     boolean matchesAll(FieldMatcher... fieldMatchers) {
       for (FieldMatcher fieldMatcher : fieldMatchers) {
         if (!fieldMatcher.match(schema)) {
@@ -318,7 +318,7 @@ abstract class PubsubRowToMessage extends PTransform<PCollection<Row>, PCollecti
       return true;
     }
 
-    /** Returns true of any {@param fieldMatchers} {@link FieldMatcher#match(Schema)}. */
+    /** Returns true of any {@code fieldMatchers} {@link FieldMatcher#match(Schema)}. */
     boolean matchesAny(FieldMatcher... fieldMatchers) {
       for (FieldMatcher fieldMatcher : fieldMatchers) {
         if (fieldMatcher.match(schema)) {
@@ -558,7 +558,7 @@ abstract class PubsubRowToMessage extends PTransform<PCollection<Row>, PCollecti
 
     /**
      * Builds a {@link Schema} from {@link #getAttributesField()} and {@link #getTimestampField()}
-     * and {@param additionalFields}. Users are encouraged to use the {@link #removeFields(Schema,
+     * and {@code additionalFields}. Users are encouraged to use the {@link #removeFields(Schema,
      * String...)} method to customize the resulting {@link Schema}.
      */
     Schema buildSchema(Field... additionalFields) {

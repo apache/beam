@@ -104,9 +104,9 @@ public class QueryChangeStreamAction {
    * @param dataChangeRecordAction action class to process {@link DataChangeRecord}s
    * @param heartbeatRecordAction action class to process {@link HeartbeatRecord}s
    * @param childPartitionsRecordAction action class to process {@link ChildPartitionsRecord}s
-   * @param PartitionStartRecordAction action class to process {@link PartitionStartRecord}s
-   * @param PartitionEndRecordAction action class to process {@link PartitionEndRecord}s
-   * @param PartitionEventRecordAction action class to process {@link PartitionEventRecord}s
+   * @param partitionStartRecordAction action class to process {@link PartitionStartRecord}s
+   * @param partitionEndRecordAction action class to process {@link PartitionEndRecord}s
+   * @param partitionEventRecordAction action class to process {@link PartitionEventRecord}s
    * @param metrics metrics gathering class
    * @param isMutableChangeStream whether the change stream is mutable or not
    */

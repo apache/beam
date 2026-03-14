@@ -38,7 +38,7 @@ import org.joda.time.Duration;
  *
  * <p>There are two types of processing - when the sequence numbers are contiguous per key and these
  * sequences per keys are independent of each other, and when there is a global sequence shared by
- * all keys. In case of the global sequence processing the custom handler must extend from {@see
+ * all keys. In case of the global sequence processing the custom handler must extend from {@link
  * OrderedProcessingGlobalSequenceHandler}.
  *
  * @param <EventT> type of events to be processed

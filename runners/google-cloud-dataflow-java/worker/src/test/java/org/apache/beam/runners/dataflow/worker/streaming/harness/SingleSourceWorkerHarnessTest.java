@@ -24,7 +24,6 @@ import static org.mockito.Mockito.mock;
 import java.util.Optional;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
-import java.util.function.Function;
 import org.apache.beam.runners.dataflow.worker.WorkerUncaughtExceptionHandler;
 import org.apache.beam.runners.dataflow.worker.streaming.ComputationState;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.JvmRuntime;
@@ -44,9 +43,13 @@ public class SingleSourceWorkerHarnessTest {
   private final WorkCommitter workCommitter = mock(WorkCommitter.class);
   private final GetDataClient getDataClient = mock(GetDataClient.class);
   private final HeartbeatSender heartbeatSender = mock(HeartbeatSender.class);
-  private final Runnable waitForResources = () -> {};
-  private final Function<String, Optional<ComputationState>> computationStateFetcher =
-      ignored -> Optional.empty();
+
+  private void waitForResources() {}
+
+  private Optional<ComputationState> computationStateFetcher(String ignored) {
+    return Optional.empty();
+  }
+
   private final StreamingWorkScheduler streamingWorkScheduler = mock(StreamingWorkScheduler.class);
 
   private SingleSourceWorkerHarness createWorkerHarness(
@@ -57,9 +60,9 @@ public class SingleSourceWorkerHarnessTest {
         .setWorkCommitter(workCommitter)
         .setGetDataClient(getDataClient)
         .setHeartbeatSender(heartbeatSender)
-        .setWaitForResources(waitForResources)
+        .setWaitForResources(this::waitForResources)
         .setStreamingWorkScheduler(streamingWorkScheduler)
-        .setComputationStateFetcher(computationStateFetcher)
+        .setComputationStateFetcher(this::computationStateFetcher)
         .setGetWorkSender(getWorkSender)
         .build();
   }
