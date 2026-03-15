@@ -808,7 +808,10 @@ def expand_composite_transform(spec, scope):
         composite_input = spec.get('input', {})
         if is_explicitly_empty(composite_input):
           transform['input'] = composite_input
-        elif not is_empty(composite_input):
+        elif is_empty(composite_input):
+          # No explicit input - will use the pipeline input
+          pass
+        else:
           transform['input'] = {key: key for key in composite_input.keys()}
       else:
         transform['input'] = new_transforms[-1]['__uuid__']
