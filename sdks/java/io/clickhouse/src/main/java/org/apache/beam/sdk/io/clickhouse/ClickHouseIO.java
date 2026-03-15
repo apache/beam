@@ -244,18 +244,19 @@ public class ClickHouseIO {
 
     @Override
     public PDone expand(PCollection<T> input) {
-      TableSchema tableSchema = tableSchema();
-      if (tableSchema == null) {
-        tableSchema = getTableSchema(clickHouseUrl(), database(), table(), properties());
-      }
 
       Properties properties = properties();
+      set(properties, "client_name", buildClientName(properties));
+
+      TableSchema tableSchema = tableSchema();
+      if (tableSchema == null) {
+        tableSchema = getTableSchema(clickHouseUrl(), database(), table(), properties);
+      }
 
       set(properties, "max_insert_block_size", maxInsertBlockSize());
       set(properties, "insert_quorum", insertQuorum());
       set(properties, "insert_distributed_sync", insertDistributedSync());
       set(properties, "insert_deduplication", insertDeduplicate());
-      set(properties, "client_name", buildClientName(properties));
 
       WriteFn<T> fn =
           new AutoValue_ClickHouseIO_WriteFn.Builder<T>()
