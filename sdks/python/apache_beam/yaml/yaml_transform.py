@@ -817,7 +817,9 @@ def expand_composite_transform(spec, scope):
     if new_transforms:
       spec = dict(spec, transforms=new_transforms)
       if 'output' not in spec:
-        spec['output'] = {'__implicit_outputs__': new_transforms[-1]['__uuid__']}
+        spec['output'] = {
+          '__implicit_outputs__': new_transforms[-1]['__uuid__']
+      }
 
   inner_scope = Scope(
       scope.root,
