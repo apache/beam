@@ -711,9 +711,11 @@ class _ReadStorageStreamsSDF(beam.DoFn,
   def __init__(
       self,
       batch_arrow_read: bool = True,
-      change_timestamp_column: str = 'change_timestamp') -> None:
+      change_timestamp_column: str = 'change_timestamp',
+      split_streams: bool = True) -> None:
     self._batch_arrow_read = batch_arrow_read
     self._change_timestamp_column = change_timestamp_column
+    self._split_streams = split_streams
     self._storage_client = None
 
   def _ensure_client(self) -> None:
@@ -730,16 +732,73 @@ class _ReadStorageStreamsSDF(beam.DoFn,
   def setup(self) -> None:
     self._ensure_client()
 
+  def _split_all_streams(self, stream_names: Tuple[str,
+                                                   ...]) -> Tuple[str, ...]:
+    """Split each stream at fraction=0.5 repeatedly until BQ refuses.
+
+    Each round attempts to split every stream in the current list. A
+    successful split replaces the original stream with primary + remainder.
+    A refused split (both fields empty) keeps the original stream intact.
+    Stops when a full round produces zero new splits.
+
+    BQ's server-side granularity controls how many splits are possible.
+    Small tables may not split at all; large tables may allow multiple
+    rounds of doubling.
+    """
+    result = list(stream_names)
+    round_num = 0
+    while True:
+      round_num += 1
+      new_result = []
+      made_progress = False
+      for name in result:
+        response = self._storage_client.split_read_stream(
+            request=bq_storage.types.SplitReadStreamRequest(
+                name=name, fraction=0.5))
+        primary = response.primary_stream.name
+        remainder = response.remainder_stream.name
+        if primary and remainder:
+          new_result.extend([primary, remainder])
+          made_progress = True
+        else:
+          new_result.append(name)
+      result = new_result
+      _LOGGER.info(
+          '[Read] _split_all_streams round %d: %d streams '
+          '(progress=%s)',
+          round_num,
+          len(result),
+          made_progress)
+      if not made_progress:
+        break
+    return tuple(result)
+
   def initial_restriction(self, element: _QueryResult) -> _StreamRestriction:
-    """Create ReadSession and return _StreamRestriction with stream names."""
+    """Create ReadSession and return _StreamRestriction with stream names.
+
+    When split_streams is enabled, uses SplitReadStream to subdivide each
+    stream at fraction=0.5 repeatedly until BQ refuses further splits.
+    This maximizes parallelism beyond what CreateReadSession provides.
+    """
     self._ensure_client()
     table_key = bigquery_tools.get_hashable_destination(element.temp_table_ref)
     session = self._create_read_session(element.temp_table_ref)
     stream_names = tuple(s.name for s in session.streams)
+    original_count = len(stream_names)
     _LOGGER.info(
-        '[Read] initial_restriction for %s: %d streams',
+        '[Read] initial_restriction for %s: %d streams from CreateReadSession',
         table_key,
-        len(stream_names))
+        original_count)
+
+    if self._split_streams:
+      stream_names = self._split_all_streams(stream_names)
+      _LOGGER.info(
+          '[Read] initial_restriction for %s: %d -> %d streams '
+          'after SplitReadStream',
+          table_key,
+          original_count,
+          len(stream_names))
+
     return _StreamRestriction(stream_names, 0, len(stream_names))
 
   def create_tracker(
@@ -1041,6 +1100,12 @@ class ReadBigQueryChangeHistory(beam.PTransform):
         bulk using to_pydict() instead of per-cell .as_py() calls.
         This is 1.5x faster for large tables at the cost of ~2x peak
         memory per RecordBatch. Set to False for minimal memory usage.
+    split_streams: If True (default), use SplitReadStream to subdivide
+        each Storage Read API stream for increased parallelism. Each
+        stream is repeatedly split at fraction=0.5 until BigQuery
+        refuses further splits. The number of splits depends on table
+        size (BQ's server-side storage granularity). Small tables may
+        not split at all. Set to False to disable.
   """
   def __init__(
       self,
@@ -1057,7 +1122,8 @@ class ReadBigQueryChangeHistory(beam.PTransform):
       change_timestamp_column: str = 'change_timestamp',
       columns: Optional[List[str]] = None,
       row_filter: Optional[str] = None,
-      batch_arrow_read: bool = True) -> None:
+      batch_arrow_read: bool = True,
+      split_streams: bool = True) -> None:
     super().__init__()
     if bq_storage is None:
       raise ImportError(
@@ -1091,6 +1157,7 @@ class ReadBigQueryChangeHistory(beam.PTransform):
     self._columns = columns
     self._row_filter = row_filter
     self._batch_arrow_read = batch_arrow_read
+    self._split_streams = split_streams
 
   def expand(self, pbegin: beam.pvalue.PBegin) -> beam.PCollection:
     project = self._project
@@ -1175,8 +1242,9 @@ class ReadBigQueryChangeHistory(beam.PTransform):
         | 'ReadStorageStreams' >> beam.ParDo(
             _ReadStorageStreamsSDF(
                 batch_arrow_read=self._batch_arrow_read,
-                change_timestamp_column=self._change_timestamp_column)).
-        with_outputs(_CLEANUP_TAG, main='rows'))
+                change_timestamp_column=self._change_timestamp_column,
+                split_streams=self._split_streams)).with_outputs(
+                    _CLEANUP_TAG, main='rows'))
 
     _ = (
         read_outputs[_CLEANUP_TAG]
