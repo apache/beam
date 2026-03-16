@@ -122,7 +122,21 @@ public class KafkaSourceConsumerFn<T> extends DoFn<Map<String, String>, T> {
   @GetInitialRestriction
   public OffsetHolder getInitialRestriction(@Element Map<String, String> unused)
       throws IOException {
-    return new OffsetHolder(null, null, null, spec.getMaxNumberOfRecords(), spec.getMaxTimeToRun());
+    Map<String, Object> initialOffset = null;
+
+    // Retainer takes precedence: it reflects the most recently committed position.
+    OffsetRetainer retainer = spec.getOffsetRetainer();
+    if (retainer != null) {
+      initialOffset = retainer.loadOffset();
+    }
+
+    // Fall back to the explicit one-time override when the retainer has no saved offset.
+    if (initialOffset == null) {
+      initialOffset = spec.getStartOffset();
+    }
+
+    return new OffsetHolder(
+        initialOffset, null, null, spec.getMaxNumberOfRecords(), spec.getMaxTimeToRun());
   }
 
   @NewTracker
@@ -284,6 +298,16 @@ public class KafkaSourceConsumerFn<T> extends DoFn<Map<String, String>, T> {
           receiver.outputWithTimestamp(json, recordInstant);
         }
         task.commit();
+
+        // Persist the offset after every successful commit so the pipeline can resume
+        // from this position on restart.
+        OffsetRetainer retainer = spec.getOffsetRetainer();
+        @SuppressWarnings("unchecked")
+        Map<String, Object> committedOffset =
+            (Map<String, Object>) tracker.currentRestriction().offset;
+        if (retainer != null && committedOffset != null) {
+          retainer.saveOffset(committedOffset);
+        }
       }
     } catch (Exception ex) {
       throw new RuntimeException("Error occurred when consuming changes from Database. ", ex);
