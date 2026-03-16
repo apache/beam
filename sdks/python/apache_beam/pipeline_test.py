@@ -1648,10 +1648,9 @@ class RunnerApiTest(unittest.TestCase):
       all_applied_transforms[xform.full_label] = xform
       current_transforms.extend(xform.parts)
     xform = all_applied_transforms['Split Sales']
-    # Confirm that Split Sales correctly has three outputs: the main
-    # (untagged) output plus the two tagged outputs specified by
-    # ParDo.with_outputs in ParentSalesSplitter.
-    assert len(xform.outputs) == 3
+    # Confirm that Split Sales correctly has two outputs as specified by
+    #  ParDo.with_outputs in ParentSalesSplitter.
+    assert len(xform.outputs) == 2
 
 
 if __name__ == '__main__':

@@ -104,8 +104,8 @@ public abstract class DataflowExecutionContext<T extends DataflowStepContext> {
    * PCollectionView PCollectionViews}.
    *
    * <p>If side input source metadata is provided by the service in {@link SideInputInfo
-   * sideInputInfos}, we request a {@link SideInputReader} from the {@code executionContext} using
-   * that info. If no side input source metadata is provided but the DoFn expects side inputs, as a
+   * sideInputInfos}, we request a {@link SideInputReader} from the execution context using that
+   * info. If no side input source metadata is provided but the DoFn expects side inputs, as a
    * fallback, we request a {@link SideInputReader} based only on the expected views.
    *
    * <p>These cases are not disjoint: Whenever a {@link GroupAlsoByWindowFn} takes side inputs,

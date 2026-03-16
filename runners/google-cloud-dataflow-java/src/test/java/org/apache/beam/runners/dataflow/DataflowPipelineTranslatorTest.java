@@ -17,6 +17,7 @@
  */
 package org.apache.beam.runners.dataflow;
 
+import static org.apache.beam.runners.dataflow.util.Structs.getBoolean;
 import static org.apache.beam.runners.dataflow.util.Structs.getString;
 import static org.apache.beam.sdk.util.StringUtils.jsonStringToByteArray;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
@@ -89,11 +90,13 @@ import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.CreateDisposition;
 import org.apache.beam.sdk.io.range.OffsetRange;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
+import org.apache.beam.sdk.options.StreamingOptions;
 import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.state.StateSpec;
 import org.apache.beam.sdk.state.StateSpecs;
 import org.apache.beam.sdk.state.ValueState;
 import org.apache.beam.sdk.testing.PAssert;
+import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.Count;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
@@ -110,7 +113,17 @@ import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.transforms.resourcehints.ResourceHints;
 import org.apache.beam.sdk.transforms.resourcehints.ResourceHintsOptions;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
+import org.apache.beam.sdk.transforms.windowing.AfterAll;
+import org.apache.beam.sdk.transforms.windowing.AfterFirst;
+import org.apache.beam.sdk.transforms.windowing.AfterPane;
+import org.apache.beam.sdk.transforms.windowing.AfterProcessingTime;
+import org.apache.beam.sdk.transforms.windowing.AfterSynchronizedProcessingTime;
+import org.apache.beam.sdk.transforms.windowing.AfterWatermark;
+import org.apache.beam.sdk.transforms.windowing.DefaultTrigger;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
+import org.apache.beam.sdk.transforms.windowing.Never;
+import org.apache.beam.sdk.transforms.windowing.Repeatedly;
+import org.apache.beam.sdk.transforms.windowing.Trigger;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
 import org.apache.beam.sdk.util.DoFnInfo;
@@ -233,6 +246,131 @@ public class DataflowPipelineTranslatorTest implements Serializable {
     FileSystems.setDefaultPipelineOptions(options);
 
     return options;
+  }
+
+  private void testTriggerCombinerLiftingDisabled(Trigger trigger) throws Exception {
+    DataflowPipelineOptions options = buildPipelineOptions();
+    options.setRunner(DataflowRunner.class);
+    options.as(StreamingOptions.class).setStreaming(true);
+    Pipeline p = Pipeline.create(options);
+
+    p.traverseTopologically(new RecordingPipelineVisitor());
+    SdkComponents sdkComponents = createSdkComponents(options);
+
+    p.apply("create", Create.of(1, 2, 3, 4).withCoder(VarIntCoder.of()))
+        .setIsBoundedInternal(IsBounded.UNBOUNDED)
+        .apply("window", Window.<Integer>configure().triggering(trigger).discardingFiredPanes())
+        .apply("count", Combine.globally(Count.<Integer>combineFn()).withoutDefaults());
+
+    RunnerApi.Pipeline pipelineProto = PipelineTranslation.toProto(p, sdkComponents, true);
+    DataflowPipelineOptions translatorOptions =
+        PipelineOptionsFactory.as(DataflowPipelineOptions.class);
+    translatorOptions.setStreaming(true);
+    DataflowPipelineTranslator t = DataflowPipelineTranslator.fromOptions(translatorOptions);
+
+    JobSpecification jobSpecification =
+        t.translate(
+            p,
+            pipelineProto,
+            sdkComponents,
+            DataflowRunner.fromOptions(options),
+            Collections.emptyList());
+
+    boolean foundDisable = false;
+    for (Step step : jobSpecification.getJob().getSteps()) {
+      if (getBoolean(step.getProperties(), PropertyNames.DISALLOW_COMBINER_LIFTING, false)) {
+        foundDisable = true;
+      }
+    }
+    assertTrue(foundDisable);
+  }
+
+  @Test
+  public void testRepeatedCountTriggerDisablesCombinerLifting() throws IOException, Exception {
+    testTriggerCombinerLiftingDisabled(Repeatedly.forever((AfterPane.elementCountAtLeast(1))));
+  }
+
+  @Test
+  public void testEarlyCountTriggerDisablesCombinerLifting() throws IOException, Exception {
+    testTriggerCombinerLiftingDisabled(
+        AfterWatermark.pastEndOfWindow().withEarlyFirings(AfterPane.elementCountAtLeast(1)));
+  }
+
+  @Test
+  public void testAfterFirstCountTriggerDisablesCombinerLifting() throws IOException, Exception {
+    testTriggerCombinerLiftingDisabled(
+        Repeatedly.forever(AfterFirst.of(Never.ever(), AfterPane.elementCountAtLeast(1))));
+  }
+
+  @Test
+  public void testAfterAllCountTriggerDisablesCombinerLifting() throws IOException, Exception {
+    testTriggerCombinerLiftingDisabled(
+        Repeatedly.forever(AfterAll.of(Never.ever(), AfterPane.elementCountAtLeast(1))));
+  }
+
+  @Test
+  public void testCombinerLiftingEnabled() throws IOException, Exception {
+    DataflowPipelineOptions options = buildPipelineOptions();
+    options.setRunner(DataflowRunner.class);
+    options.as(StreamingOptions.class).setStreaming(true);
+    Pipeline p = Pipeline.create(options);
+
+    p.traverseTopologically(new RecordingPipelineVisitor());
+    SdkComponents sdkComponents = createSdkComponents(options);
+
+    PCollection<Integer> input =
+        p.apply("create", Create.of(1, 2, 3, 4).withCoder(VarIntCoder.of()));
+
+    input
+        .setIsBoundedInternal(IsBounded.UNBOUNDED)
+        .apply(
+            "window1",
+            Window.<Integer>into(FixedWindows.of(Duration.millis(1)))
+                .triggering(DefaultTrigger.of())
+                .discardingFiredPanes())
+        .apply("count", Combine.globally(Count.<Integer>combineFn()).withoutDefaults());
+
+    input
+        .apply(
+            "window2",
+            Window.<Integer>configure()
+                .triggering(AfterWatermark.pastEndOfWindow())
+                .discardingFiredPanes())
+        .apply("count2", Combine.globally(Count.<Integer>combineFn()).withoutDefaults());
+
+    input
+        .apply(
+            "window3",
+            Window.<Integer>configure()
+                .triggering(
+                    AfterWatermark.pastEndOfWindow()
+                        .withEarlyFirings(
+                            AfterProcessingTime.pastFirstElementInPane().plusDelayOf(Duration.ZERO))
+                        .withLateFirings(AfterSynchronizedProcessingTime.ofFirstElement()))
+                .discardingFiredPanes())
+        .apply("count3", Combine.globally(Count.<Integer>combineFn()).withoutDefaults());
+
+    RunnerApi.Pipeline pipelineProto = PipelineTranslation.toProto(p, sdkComponents, true);
+    DataflowPipelineOptions translatorOptions =
+        PipelineOptionsFactory.as(DataflowPipelineOptions.class);
+    translatorOptions.setStreaming(true);
+    DataflowPipelineTranslator t = DataflowPipelineTranslator.fromOptions(translatorOptions);
+
+    JobSpecification jobSpecification =
+        t.translate(
+            p,
+            pipelineProto,
+            sdkComponents,
+            DataflowRunner.fromOptions(options),
+            Collections.emptyList());
+
+    boolean foundDisable = false;
+    for (Step step : jobSpecification.getJob().getSteps()) {
+      if (getBoolean(step.getProperties(), PropertyNames.DISALLOW_COMBINER_LIFTING, false)) {
+        foundDisable = true;
+      }
+    }
+    assertFalse(foundDisable);
   }
 
   // Test that the transform names for Storage Write API for streaming pipelines are what we expect

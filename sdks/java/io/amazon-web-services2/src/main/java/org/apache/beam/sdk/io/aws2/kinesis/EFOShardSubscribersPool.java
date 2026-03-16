@@ -34,7 +34,6 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.Executors;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.ScheduledExecutorService;
-import java.util.function.BiConsumer;
 import java.util.function.Supplier;
 import org.apache.beam.repackaged.core.org.apache.commons.lang3.RandomStringUtils;
 import org.apache.beam.sdk.util.Preconditions;
@@ -103,21 +102,11 @@ class EFOShardSubscribersPool {
    */
   private boolean isStopped = false;
 
-  /**
-   * Async completion callback handling {@link EFOShardSubscriber#subscribe supscriptions} that
-   * terminate exceptionally.
-   *
-   * <p>Unless already in error state, stores error as {@link #subscriptionError}. This pool will be
-   * stopped when {@link #getNextRecord()} is called next, but allowing the {@link #eventQueue} to
-   * be drained. Only once empty any {@link #subscriptionError} is propagated. This simplifies state
-   * management and checkpointing a lot.
-   */
-  private final BiConsumer<Void, Throwable> errorHandler =
-      (Void unused, Throwable error) -> {
-        if (error != null && subscriptionError == null) {
-          subscriptionError = error;
-        }
-      };
+  private void errorHandler(Void unused, Throwable error) {
+    if (error != null && subscriptionError == null) {
+      subscriptionError = error;
+    }
+  }
 
   private final ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor();
 
@@ -284,7 +273,7 @@ class EFOShardSubscribersPool {
         new EFOShardSubscriber(this, cp.getShardId(), consumerArn, kinesis, onErrorCoolDownMs);
     StartingPosition startingPosition = cp.toEFOStartingPosition();
     if (subscriptionError == null) {
-      subscriber.subscribe(startingPosition).whenCompleteAsync(errorHandler);
+      subscriber.subscribe(startingPosition).whenCompleteAsync(this::errorHandler);
     }
     return subscriber;
   }

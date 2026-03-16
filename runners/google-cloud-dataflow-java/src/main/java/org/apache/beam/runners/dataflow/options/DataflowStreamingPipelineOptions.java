@@ -23,6 +23,7 @@ import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.options.ExperimentalOptions;
 import org.apache.beam.sdk.options.Hidden;
 import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.options.ValueProvider;
 import org.joda.time.Duration;
 
 /** [Internal] Options for configuring StreamingDataflowWorker. */
@@ -225,6 +226,12 @@ public interface DataflowStreamingPipelineOptions extends PipelineOptions {
   int getWindmillServiceStreamMaxBackoffMillis();
 
   void setWindmillServiceStreamMaxBackoffMillis(int value);
+
+  @Description(
+      "If true, log and skip input elements that are unable to successfully decode from the streaming backend.")
+  ValueProvider<Boolean> getSkipInputElementsWithDecodingExceptions();
+
+  void setSkipInputElementsWithDecodingExceptions(ValueProvider<Boolean> value);
 
   @Description("Enables direct path mode for streaming engine.")
   @Default.InstanceFactory(EnableWindmillServiceDirectPathFactory.class)

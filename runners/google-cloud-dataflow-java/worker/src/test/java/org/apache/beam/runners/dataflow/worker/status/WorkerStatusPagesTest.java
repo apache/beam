@@ -20,7 +20,6 @@ package org.apache.beam.runners.dataflow.worker.status;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsString;
 
-import java.util.function.BooleanSupplier;
 import org.apache.beam.runners.dataflow.worker.util.MemoryMonitor;
 import org.eclipse.jetty.server.LocalConnector;
 import org.eclipse.jetty.server.Server;
@@ -39,13 +38,17 @@ public class WorkerStatusPagesTest {
   private final Server server = new Server();
   private final LocalConnector connector = new LocalConnector(server);
   @Mock private MemoryMonitor mockMemoryMonitor;
-  private final BooleanSupplier mockHealthyIndicator = () -> true;
+
+  private boolean mockHealthyIndicator() {
+    return true;
+  }
+
   private WorkerStatusPages wsp;
 
   @Before
   public void setUp() throws Exception {
     MockitoAnnotations.initMocks(this);
-    wsp = new WorkerStatusPages(server, mockMemoryMonitor, mockHealthyIndicator);
+    wsp = new WorkerStatusPages(server, mockMemoryMonitor, this::mockHealthyIndicator);
     server.addConnector(connector);
     wsp.start();
   }
