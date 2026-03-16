@@ -798,7 +798,7 @@ def expand_composite_transform(spec, scope):
 
   original_transforms = spec['transforms']
   has_explicit_io = any(
-      io in t for t in original_transforms for io in ('input', 'output'))
+      not is_empty(t.get(io, {})) for t in original_transforms for io in ('input', 'output'))
 
   if not has_explicit_io:
     new_transforms = []
@@ -811,7 +811,7 @@ def expand_composite_transform(spec, scope):
         elif is_empty(composite_input):
           # No explicit input - the composite input IS the pipeline input.
           # Reference the 'input' key from the Scope's inputs.
-          transform['input'] = 'input'
+          transform['input'] = {'input': 'input'}
         else:
           transform['input'] = {key: key for key in composite_input.keys()}
       else:
@@ -820,10 +820,13 @@ def expand_composite_transform(spec, scope):
 
     if new_transforms:
       spec = dict(spec, transforms=new_transforms)
-      if 'output' not in spec:
+      if is_empty(spec.get('output', {})):
         spec['output'] = {
             '__implicit_outputs__': new_transforms[-1]['__uuid__']
         }
+      # Set a name so the expand path returns a PCollection, not a dict
+      if 'name' not in spec:
+        spec['name'] = 'Composite'
 
   inner_scope = Scope(
       scope.root,
