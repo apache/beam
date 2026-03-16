@@ -47,6 +47,7 @@ import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.util.OutputBuilderSuppliers;
 import org.apache.beam.sdk.util.WindowedValueMultiReceiver;
+import org.apache.beam.sdk.values.CausedByDrain;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.Row;
@@ -397,6 +398,11 @@ public class OutputAndTimeBoundedSplittableProcessElementInvoker<
     }
 
     @Override
+    public CausedByDrain causedByDrain() {
+      return element.causedByDrain();
+    }
+
+    @Override
     public PipelineOptions getPipelineOptions() {
       return pipelineOptions;
     }
@@ -432,7 +438,15 @@ public class OutputAndTimeBoundedSplittableProcessElementInvoker<
     @Override
     public <T> void outputWithTimestamp(TupleTag<T> tag, T value, Instant timestamp) {
       outputReceiver.output(
-          tag, WindowedValues.of(value, timestamp, element.getWindows(), element.getPaneInfo()));
+          tag,
+          WindowedValues.of(
+              value,
+              timestamp,
+              element.getWindows(),
+              element.getPaneInfo(),
+              element.getRecordId(),
+              element.getRecordOffset(),
+              element.causedByDrain()));
     }
 
     @Override
@@ -446,7 +460,16 @@ public class OutputAndTimeBoundedSplittableProcessElementInvoker<
       if (watermarkEstimator instanceof TimestampObservingWatermarkEstimator) {
         ((TimestampObservingWatermarkEstimator) watermarkEstimator).observeTimestamp(timestamp);
       }
-      outputReceiver.output(tag, WindowedValues.of(value, timestamp, windows, paneInfo));
+      outputReceiver.output(
+          tag,
+          WindowedValues.of(
+              value,
+              timestamp,
+              windows,
+              paneInfo,
+              element.getRecordId(),
+              element.getRecordOffset(),
+              element.causedByDrain()));
     }
 
     private void noteOutput() {

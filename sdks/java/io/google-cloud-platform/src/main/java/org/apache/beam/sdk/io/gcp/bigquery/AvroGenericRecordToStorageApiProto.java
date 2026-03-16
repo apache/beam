@@ -267,7 +267,7 @@ public class AvroGenericRecordToStorageApiProto {
   }
 
   /**
-   * Forwards {@param changeSequenceNum} to {@link #messageFromGenericRecord(Descriptor,
+   * Forwards {@code changeSequenceNum} to {@link #messageFromGenericRecord(Descriptor,
    * GenericRecord, String, String)} via {@link Long#toHexString}.
    */
   public static DynamicMessage messageFromGenericRecord(
@@ -348,6 +348,9 @@ public class AvroGenericRecordToStorageApiProto {
             fieldDescriptorFromAvroField(
                 new Schema.Field(field.name(), elementType, field.doc(), field.defaultVal()));
         builder = builder.setType(elementFieldSchema.getType());
+        if (elementFieldSchema.hasTimestampPrecision()) {
+          builder.setTimestampPrecision(elementFieldSchema.getTimestampPrecision());
+        }
         builder.addAllFields(elementFieldSchema.getFieldsList());
         builder = builder.setMode(TableFieldSchema.Mode.REPEATED);
         break;

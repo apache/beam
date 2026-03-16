@@ -48,7 +48,6 @@ from apache_beam.runners import pipeline_context
 from apache_beam.runners.portability import artifact_service
 from apache_beam.transforms import environments
 from apache_beam.transforms import ptransform
-from apache_beam.transforms.util import is_compat_version_prior_to
 from apache_beam.typehints import WithTypeHints
 from apache_beam.typehints import native_type_compatibility
 from apache_beam.typehints import row_type
@@ -499,9 +498,9 @@ class SchemaAwareExternalTransform(ptransform.PTransform):
     expansion_service = self._expansion_service
 
     if self._managed_replacement:
-      compat_version_prior_to_current = is_compat_version_prior_to(
-          pcolls.pipeline._options,
-          self._managed_replacement.update_compatibility_version)
+      compat_version_prior_to_current = (
+          pcolls.pipeline._options.is_compat_version_prior_to(
+              self._managed_replacement.update_compatibility_version))
       if not compat_version_prior_to_current:
         payload_builder = self._managed_payload_builder
         expansion_service = self._managed_expansion_service
@@ -804,16 +803,19 @@ class ExternalTransform(ptransform.PTransform):
               spec=beam_runner_api_pb2.FunctionSpec(
                   urn=common_urns.primitives.IMPULSE.urn),
               outputs={'out': transform_proto.inputs[tag]}))
+
+    # Retrieve type hints and store them in variables
+    # to avoid duplicate calls and AttributeError
+    hints = self.get_type_hints()
     output_coders = None
-    if self._type_hints.output_types:
-      if self._type_hints.output_types[0]:
-        output_coders = dict(
-            (str(k), context.coder_id_from_element_type(v))
-            for (k, v) in enumerate(self._type_hints.output_types[0]))
-      elif self._type_hints.output_types[1]:
+    if hints.output_types:
+      if hints.output_types[0]:
+        output_coders = dict((str(k), context.coder_id_from_element_type(v))
+                             for (k, v) in enumerate(hints.output_types[0]))
+      elif hints.output_types[1]:
         output_coders = {
             k: context.coder_id_from_element_type(v)
-            for (k, v) in self._type_hints.output_types[1].items()
+            for (k, v) in hints.output_types[1].items()
         }
     components = context.to_runner_api()
     request = beam_expansion_api_pb2.ExpansionRequest(

@@ -147,7 +147,7 @@ public class Utils {
   static Map<TupleTag<?>, Coder<?>> getOutputValueCoders(
       AppliedPTransform<?, ?, ?> appliedTransform) {
     return appliedTransform.getOutputs().entrySet().stream()
-        .filter(e -> e.getValue() instanceof PCollection)
+        .filter(e -> e.getValue() != null)
         .collect(Collectors.toMap(Map.Entry::getKey, e -> ((PCollection) e.getValue()).getCoder()));
   }
 

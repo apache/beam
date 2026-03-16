@@ -101,7 +101,7 @@ public abstract class PubsubClient implements Closeable {
 
   /**
    * Return the timestamp (in ms since unix epoch) to use for a Pubsub message with {@code
-   * timestampAttribute} and {@code attriutes}.
+   * timestampAttribute} and {@code attributes}.
    *
    * <p>The message attributes must contain {@code timestampAttribute}, and the value of that
    * attribute will be taken as the timestamp.

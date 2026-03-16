@@ -93,6 +93,12 @@ class InteractiveRunner(runners.PipelineRunner):
     # return self._underlying_runner.is_fnapi_compatible()
     return False
 
+  def default_pickle_library_override(self):
+    """Delegates pickler override to the underlying runner."""
+    if hasattr(self._underlying_runner, 'default_pickle_library_override'):
+      return self._underlying_runner.default_pickle_library_override()
+    return super().default_pickle_library_override()
+
   def set_render_option(self, render_option):
     """Sets the rendering option.
 

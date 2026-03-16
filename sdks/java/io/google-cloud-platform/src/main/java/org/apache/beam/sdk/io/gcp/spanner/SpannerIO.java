@@ -20,10 +20,14 @@ package org.apache.beam.sdk.io.gcp.spanner;
 import static java.util.stream.Collectors.toList;
 import static org.apache.beam.sdk.io.gcp.spanner.MutationUtils.isPointDelete;
 import static org.apache.beam.sdk.io.gcp.spanner.changestreams.ChangeStreamsConstants.DEFAULT_CHANGE_STREAM_NAME;
+import static org.apache.beam.sdk.io.gcp.spanner.changestreams.ChangeStreamsConstants.DEFAULT_HEARTBEAT_MILLIS;
 import static org.apache.beam.sdk.io.gcp.spanner.changestreams.ChangeStreamsConstants.DEFAULT_INCLUSIVE_END_AT;
 import static org.apache.beam.sdk.io.gcp.spanner.changestreams.ChangeStreamsConstants.DEFAULT_INCLUSIVE_START_AT;
+import static org.apache.beam.sdk.io.gcp.spanner.changestreams.ChangeStreamsConstants.DEFAULT_REAL_TIME_CHECKPOINT_INTERVAL;
 import static org.apache.beam.sdk.io.gcp.spanner.changestreams.ChangeStreamsConstants.DEFAULT_RPC_PRIORITY;
 import static org.apache.beam.sdk.io.gcp.spanner.changestreams.ChangeStreamsConstants.DEFAULT_WATERMARK_REFRESH_RATE;
+import static org.apache.beam.sdk.io.gcp.spanner.changestreams.ChangeStreamsConstants.LOW_LATENCY_DEFAULT_HEARTBEAT_MILLIS;
+import static org.apache.beam.sdk.io.gcp.spanner.changestreams.ChangeStreamsConstants.LOW_LATENCY_REAL_TIME_CHECKPOINT_INTERVAL;
 import static org.apache.beam.sdk.io.gcp.spanner.changestreams.ChangeStreamsConstants.MAX_INCLUSIVE_END_AT;
 import static org.apache.beam.sdk.io.gcp.spanner.changestreams.ChangeStreamsConstants.THROUGHPUT_WINDOW_SECONDS;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
@@ -46,6 +50,8 @@ import com.google.cloud.spanner.Mutation.Op;
 import com.google.cloud.spanner.Options;
 import com.google.cloud.spanner.Options.RpcPriority;
 import com.google.cloud.spanner.PartitionOptions;
+import com.google.cloud.spanner.ReadOnlyTransaction;
+import com.google.cloud.spanner.ResultSet;
 import com.google.cloud.spanner.Spanner;
 import com.google.cloud.spanner.SpannerException;
 import com.google.cloud.spanner.SpannerOptions;
@@ -535,6 +541,9 @@ public class SpannerIO {
         .setRpcPriority(DEFAULT_RPC_PRIORITY)
         .setInclusiveStartAt(DEFAULT_INCLUSIVE_START_AT)
         .setInclusiveEndAt(DEFAULT_INCLUSIVE_END_AT)
+        .setRealTimeCheckpointInterval(DEFAULT_REAL_TIME_CHECKPOINT_INTERVAL)
+        .setHeartbeatMillis(DEFAULT_HEARTBEAT_MILLIS)
+        .setCancelQueryOnHeartbeat(false)
         .build();
   }
 
@@ -560,7 +569,7 @@ public class SpannerIO {
 
       abstract Builder setTimestampBound(TimestampBound timestampBound);
 
-      abstract Builder setBatching(Boolean batching);
+      abstract Builder setBatching(boolean batching);
 
       abstract ReadAll build();
     }
@@ -692,7 +701,7 @@ public class SpannerIO {
       return withSpannerConfig(config.withRpcPriority(RpcPriority.HIGH));
     }
 
-    abstract Boolean getBatching();
+    abstract boolean getBatching();
 
     @Override
     public PCollection<Struct> expand(PCollection<ReadOperation> input) {
@@ -774,7 +783,7 @@ public class SpannerIO {
 
     abstract @Nullable PartitionOptions getPartitionOptions();
 
-    abstract Boolean getBatching();
+    abstract boolean getBatching();
 
     abstract @Nullable TypeDescriptor<Struct> getTypeDescriptor();
 
@@ -797,7 +806,7 @@ public class SpannerIO {
 
       abstract Builder setPartitionOptions(PartitionOptions partitionOptions);
 
-      abstract Builder setBatching(Boolean batching);
+      abstract Builder setBatching(boolean batching);
 
       abstract Builder setTypeDescriptor(TypeDescriptor<Struct> typeDescriptor);
 
@@ -1759,6 +1768,12 @@ public class SpannerIO {
 
     abstract @Nullable ValueProvider<Boolean> getPlainText();
 
+    abstract Duration getRealTimeCheckpointInterval();
+
+    abstract int getHeartbeatMillis();
+
+    abstract boolean getCancelQueryOnHeartbeat();
+
     abstract Builder toBuilder();
 
     @AutoValue.Builder
@@ -1787,6 +1802,18 @@ public class SpannerIO {
       abstract Builder setExperimentalHost(ValueProvider<String> experimentalHost);
 
       abstract Builder setPlainText(ValueProvider<Boolean> plainText);
+
+      /**
+       * When caught up to real-time, checkpoint processing of change stream this often. This sets a
+       * bound on latency of processing if a steady trickle of elements prevents the heartbeat
+       * interval from triggering.
+       */
+      abstract Builder setRealTimeCheckpointInterval(Duration realTimeCheckpointInterval);
+
+      /** Heartbeat interval for all change stream queries. */
+      abstract Builder setHeartbeatMillis(int heartbeatMillis);
+
+      abstract Builder setCancelQueryOnHeartbeat(boolean cancelQueryOnHeartbeat);
 
       abstract ReadChangeStream build();
     }
@@ -1910,6 +1937,37 @@ public class SpannerIO {
       return withUsingPlainTextChannel(ValueProvider.StaticValueProvider.of(plainText));
     }
 
+    /**
+     * Configures low latency experiment for readChangeStream transform. Example usage:
+     *
+     * <pre>{@code
+     * PCollection<Struct> rows = p.apply(
+     *    SpannerIO.readChangeStream()
+     *    .withSpannerConfig(
+     *       SpannerConfig.create()
+     *         .withProjectId(projectId)
+     *         .withInstanceId(instanceId)
+     *         .withDatabaseId(dbId))
+     *    .withChangeStreamName(changeStreamName)
+     *    .withMetadataInstance(metadataInstanceId)
+     *    .withMetadataDatabase(metadataDatabase)
+     *    .withInclusiveStartAt(Timestamp.now()))
+     *    .withLowLatency();
+     * }</pre>
+     */
+    public ReadChangeStream withLowLatency() {
+      // Set both the realtime end timestamp and the heartbeat interval.
+      // Heartbeats might not trigger if data arrives continuously (e.g. every 50ms),
+      // which could delay the bundle completion up to the runner's default split time (often 5s).
+      // Since end-to-end processing requires the bundle to finish and commit,
+      // adding a realtime end timeout of 1s bounds this delay and improves latency.
+      return toBuilder()
+          .setHeartbeatMillis(LOW_LATENCY_DEFAULT_HEARTBEAT_MILLIS)
+          .setCancelQueryOnHeartbeat(true)
+          .setRealTimeCheckpointInterval(LOW_LATENCY_REAL_TIME_CHECKPOINT_INTERVAL)
+          .build();
+    }
+
     @Override
     public PCollection<DataChangeRecord> expand(PBegin input) {
       checkArgument(
@@ -1975,11 +2033,6 @@ public class SpannerIO {
               + changeStreamDatabaseId
               + " has dialect "
               + changeStreamDatabaseDialect);
-      LOG.info(
-          "The Spanner database "
-              + fullPartitionMetadataDatabaseId
-              + " has dialect "
-              + metadataDatabaseDialect);
       PartitionMetadataTableNames partitionMetadataTableNames =
           Optional.ofNullable(getMetadataTable())
               .map(
@@ -1998,6 +2051,12 @@ public class SpannerIO {
       final MapperFactory mapperFactory = new MapperFactory(changeStreamDatabaseDialect);
       final ChangeStreamMetrics metrics = new ChangeStreamMetrics();
       final RpcPriority rpcPriority = MoreObjects.firstNonNull(getRpcPriority(), RpcPriority.HIGH);
+      final SpannerAccessor spannerAccessor =
+          SpannerAccessor.getOrCreate(changeStreamSpannerConfig);
+      final boolean isMutableChangeStream =
+          isMutableChangeStream(
+              spannerAccessor.getDatabaseClient(), changeStreamDatabaseDialect, changeStreamName);
+      LOG.info("The change stream " + changeStreamName + " is mutable: " + isMutableChangeStream);
       final DaoFactory daoFactory =
           new DaoFactory(
               changeStreamSpannerConfig,
@@ -2007,20 +2066,31 @@ public class SpannerIO {
               rpcPriority,
               input.getPipeline().getOptions().getJobName(),
               changeStreamDatabaseDialect,
-              metadataDatabaseDialect);
+              metadataDatabaseDialect,
+              isMutableChangeStream);
       final ActionFactory actionFactory = new ActionFactory();
 
       final Duration watermarkRefreshRate =
           MoreObjects.firstNonNull(getWatermarkRefreshRate(), DEFAULT_WATERMARK_REFRESH_RATE);
       final CacheFactory cacheFactory = new CacheFactory(daoFactory, watermarkRefreshRate);
 
+      final long heartbeatMillis = getHeartbeatMillis();
+
       final InitializeDoFn initializeDoFn =
-          new InitializeDoFn(daoFactory, mapperFactory, startTimestamp, endTimestamp);
+          new InitializeDoFn(
+              daoFactory, mapperFactory, startTimestamp, endTimestamp, heartbeatMillis);
       final DetectNewPartitionsDoFn detectNewPartitionsDoFn =
           new DetectNewPartitionsDoFn(
               daoFactory, mapperFactory, actionFactory, cacheFactory, metrics);
+
       final ReadChangeStreamPartitionDoFn readChangeStreamPartitionDoFn =
-          new ReadChangeStreamPartitionDoFn(daoFactory, mapperFactory, actionFactory, metrics);
+          new ReadChangeStreamPartitionDoFn(
+              daoFactory,
+              mapperFactory,
+              actionFactory,
+              metrics,
+              getRealTimeCheckpointInterval(),
+              getCancelQueryOnHeartbeat());
       final PostProcessingMetricsDoFn postProcessingMetricsDoFn =
           new PostProcessingMetricsDoFn(metrics);
 
@@ -2101,9 +2171,10 @@ public class SpannerIO {
     // Allow passing the credential from pipeline options to the getDialect() call.
     SpannerConfig spannerConfigWithCredential =
         buildSpannerConfigWithCredential(spannerConfig, pipelineOptions);
-    DatabaseClient databaseClient =
-        SpannerAccessor.getOrCreate(spannerConfigWithCredential).getDatabaseClient();
-    return databaseClient.getDialect();
+    try (SpannerAccessor sa = SpannerAccessor.getOrCreate(spannerConfigWithCredential)) {
+      DatabaseClient databaseClient = sa.getDatabaseClient();
+      return databaseClient.getDialect();
+    }
   }
 
   /**
@@ -2687,5 +2758,59 @@ public class SpannerIO {
             || config.getProjectId().get().isEmpty()
         ? SpannerOptions.getDefaultProjectId()
         : config.getProjectId().get();
+  }
+
+  @VisibleForTesting
+  static boolean isMutableChangeStream(
+      DatabaseClient databaseClient, Dialect dialect, String changeStreamName) {
+    String fetchedPartitionMode = fetchPartitionMode(databaseClient, dialect, changeStreamName);
+    if (fetchedPartitionMode.isEmpty()
+        || fetchedPartitionMode.equalsIgnoreCase("IMMUTABLE_KEY_RANGE")) {
+      return false;
+    }
+    return true;
+  }
+
+  private static String fetchPartitionMode(
+      DatabaseClient databaseClient, Dialect dialect, String changeStreamName) {
+    try (ReadOnlyTransaction tx = databaseClient.readOnlyTransaction()) {
+      Statement statement;
+      if (dialect == Dialect.POSTGRESQL) {
+        statement =
+            Statement.newBuilder(
+                    "select option_value\n"
+                        + "from information_schema.change_stream_options\n"
+                        + "where change_stream_name = $1 and option_name = 'partition_mode'")
+                .bind("p1")
+                .to(changeStreamName)
+                .build();
+      } else {
+        statement =
+            Statement.newBuilder(
+                    "select option_value\n"
+                        + "from information_schema.change_stream_options\n"
+                        + "where change_stream_name = @changeStreamName and  option_name = 'partition_mode'")
+                .bind("changeStreamName")
+                .to(changeStreamName)
+                .build();
+      }
+      ResultSet resultSet = tx.executeQuery(statement);
+      while (resultSet.next()) {
+        String value = resultSet.getString(0);
+        if (value != null) {
+          return value;
+        }
+      }
+      return "";
+    } catch (RuntimeException e) {
+      // Log the failure (with stack trace) but rethrow so the caller still observes
+      // the error.
+      LOG.warn(
+          "Failed to fetch partition_mode for change stream '{}', dialect={} - will propagate exception",
+          changeStreamName,
+          dialect,
+          e);
+      throw e;
+    }
   }
 }

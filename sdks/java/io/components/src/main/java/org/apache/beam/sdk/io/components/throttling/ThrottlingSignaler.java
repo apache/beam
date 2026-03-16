@@ -19,11 +19,11 @@ package org.apache.beam.sdk.io.components.throttling;
 
 import org.apache.beam.sdk.metrics.Counter;
 import org.apache.beam.sdk.metrics.Metrics;
+
 /**
- * The ThrottlingSignaler is a utility class for IOs to signal to the runner
- * that a process is being throttled, preventing autoscaling. This is primarily
- * used when making calls to a remote service where quotas and rate limiting
- * are reasonable considerations.
+ * The ThrottlingSignaler is a utility class for IOs to signal to the runner that a process is being
+ * throttled, preventing autoscaling. This is primarily used when making calls to a remote service
+ * where quotas and rate limiting are reasonable considerations.
  */
 public class ThrottlingSignaler {
   private final Counter throttleCounter;
@@ -37,8 +37,7 @@ public class ThrottlingSignaler {
   }
 
   /**
-   * Signal that a transform has been throttled for an amount of time
-   * represented in milliseconds.
+   * Signal that a transform has been throttled for an amount of time represented in milliseconds.
    */
   public void signalThrottling(long milliseconds) {
     throttleCounter.inc(milliseconds);

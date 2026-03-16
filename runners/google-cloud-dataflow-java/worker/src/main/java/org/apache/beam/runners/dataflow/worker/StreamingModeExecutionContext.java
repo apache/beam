@@ -50,6 +50,7 @@ import org.apache.beam.runners.dataflow.worker.counters.NameContext;
 import org.apache.beam.runners.dataflow.worker.profiler.ScopedProfiler.ProfileScope;
 import org.apache.beam.runners.dataflow.worker.streaming.Watermarks;
 import org.apache.beam.runners.dataflow.worker.streaming.Work;
+import org.apache.beam.runners.dataflow.worker.streaming.config.StreamingGlobalConfig;
 import org.apache.beam.runners.dataflow.worker.streaming.config.StreamingGlobalConfigHandle;
 import org.apache.beam.runners.dataflow.worker.streaming.sideinput.SideInput;
 import org.apache.beam.runners.dataflow.worker.streaming.sideinput.SideInputState;
@@ -65,6 +66,7 @@ import org.apache.beam.runners.dataflow.worker.windmill.state.WindmillStateReade
 import org.apache.beam.runners.dataflow.worker.windmill.state.WindmillTagEncoding;
 import org.apache.beam.runners.dataflow.worker.windmill.state.WindmillTagEncodingV1;
 import org.apache.beam.runners.dataflow.worker.windmill.state.WindmillTagEncodingV2;
+import org.apache.beam.runners.dataflow.worker.windmill.state.WindmillTimerData;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.io.UnboundedSource;
@@ -122,7 +124,7 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext<Step
    */
   private final Map<TupleTag<?>, Map<BoundedWindow, SideInput<?>>> sideInputCache;
 
-  private final WindmillTagEncoding windmillTagEncoding;
+  private WindmillTagEncoding windmillTagEncoding;
   /**
    * The current user-facing key for this execution context.
    *
@@ -162,8 +164,7 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext<Step
       StreamingModeExecutionStateRegistry executionStateRegistry,
       StreamingGlobalConfigHandle globalConfigHandle,
       long sinkByteLimit,
-      boolean throwExceptionOnLargeOutput,
-      boolean enableWindmillTagEncodingV2) {
+      boolean throwExceptionOnLargeOutput) {
     super(
         counterFactory,
         metricsContainerRegistry,
@@ -174,10 +175,6 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext<Step
     this.readerCache = readerCache;
     this.globalConfigHandle = globalConfigHandle;
     this.sideInputCache = new HashMap<>();
-    this.windmillTagEncoding =
-        enableWindmillTagEncodingV2
-            ? WindmillTagEncodingV2.instance()
-            : WindmillTagEncodingV1.instance();
     this.stateNameMap = ImmutableMap.copyOf(stateNameMap);
     this.stateCache = stateCache;
     this.backlogBytes = UnboundedReader.BACKLOG_UNKNOWN;
@@ -244,8 +241,13 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext<Step
     this.work = work;
     this.computationKey = WindmillComputationKey.create(computationId, work.getShardedKey());
     this.sideInputStateFetcher = sideInputStateFetcher;
+    StreamingGlobalConfig config = globalConfigHandle.getConfig();
     // Snapshot the limits for entire bundle processing.
-    this.operationalLimits = globalConfigHandle.getConfig().operationalLimits();
+    this.operationalLimits = config.operationalLimits();
+    this.windmillTagEncoding =
+        config.enableStateTagEncodingV2()
+            ? WindmillTagEncodingV2.instance()
+            : WindmillTagEncodingV1.instance();
     this.outputBuilder = outputBuilder;
     this.sideInputCache.clear();
     clearSinkFullHint();
@@ -797,7 +799,7 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext<Step
       this.systemTimerInternals =
           new WindmillTimerInternals(
               stateFamily,
-              WindmillNamespacePrefix.SYSTEM_NAMESPACE_PREFIX,
+              WindmillTimerType.SYSTEM_TIMER,
               processingTime,
               watermarks,
               windmillTagEncoding,
@@ -806,7 +808,7 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext<Step
       this.userTimerInternals =
           new WindmillTimerInternals(
               stateFamily,
-              WindmillNamespacePrefix.USER_NAMESPACE_PREFIX,
+              WindmillTimerType.USER_TIMER,
               processingTime,
               watermarks,
               windmillTagEncoding,
@@ -831,17 +833,15 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext<Step
       if (cachedFiredSystemTimers == null) {
         cachedFiredSystemTimers =
             FluentIterable.from(StreamingModeExecutionContext.this.getFiredTimers())
-                .filter(
-                    timer ->
-                        WindmillTimerInternals.isSystemTimer(timer)
-                            && timer.getStateFamily().equals(stateFamily))
+                .filter(timer -> timer.getStateFamily().equals(stateFamily))
                 .transform(
                     timer ->
                         windmillTagEncoding.windmillTimerToTimerData(
-                            WindmillNamespacePrefix.SYSTEM_NAMESPACE_PREFIX,
-                            timer,
-                            windowCoder,
-                            getDrainMode()))
+                            timer, windowCoder, getDrainMode()))
+                .filter(
+                    windmillTimerData ->
+                        windmillTimerData.getWindmillTimerType() == WindmillTimerType.SYSTEM_TIMER)
+                .transform(WindmillTimerData::getTimerData)
                 .iterator();
       }
 
@@ -894,17 +894,16 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext<Step
         cachedFiredUserTimers =
             Iterators.peekingIterator(
                 FluentIterable.from(StreamingModeExecutionContext.this.getFiredTimers())
-                    .filter(
-                        timer ->
-                            WindmillTimerInternals.isUserTimer(timer)
-                                && timer.getStateFamily().equals(stateFamily))
+                    .filter(timer -> timer.getStateFamily().equals(stateFamily))
                     .transform(
                         timer ->
                             windmillTagEncoding.windmillTimerToTimerData(
-                                WindmillNamespacePrefix.USER_NAMESPACE_PREFIX,
-                                timer,
-                                windowCoder,
-                                getDrainMode()))
+                                timer, windowCoder, getDrainMode()))
+                    .filter(
+                        windmillTimerData ->
+                            windmillTimerData.getWindmillTimerType()
+                                == WindmillTimerType.USER_TIMER)
+                    .transform(WindmillTimerData::getTimerData)
                     .iterator());
       }
 

@@ -1,6 +1,6 @@
 ---
 type: languages
-title: "Apache Beam YAML API"
+title: "Apache Beam YAML"
 ---
 <!--
     Licensed to the Apache Software Foundation (ASF) under one
@@ -21,11 +21,13 @@ title: "Apache Beam YAML API"
     under the License.
 -->
 
-# Beam YAML API
+# Beam YAML
 
 Beam YAML is a declarative syntax for describing Apache Beam pipelines by using
 YAML files. You can use Beam YAML to author and run a Beam pipeline without
 writing any code.
+
+For a full transform API reference, see https://beam.apache.org/releases/yamldoc/current/
 
 ## Overview
 
@@ -814,7 +816,7 @@ There are many more ways to import and even use template inheritance using
 Jinja as seen [here](https://jinja.palletsprojects.com/en/stable/templates/#import)
 and [here](https://jinja.palletsprojects.com/en/stable/templates/#inheritance).
 Note that for large chunks of functionality, we recommend packaging them up via
-more reusable [yaml providers](yaml-providers) rather than using textual `%includes`.
+more reusable [yaml providers](../yaml-providers) rather than using textual `%includes`.
 
 Full jinja pipeline examples can be found [here](https://github.com/apache/beam/tree/master/sdks/python/apache_beam/yaml/examples/transforms/jinja).
 

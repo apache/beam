@@ -330,6 +330,9 @@ public abstract class DoFn<InputT extends @Nullable Object, OutputT extends @Nul
 
     @Pure
     public abstract @Nullable Long currentRecordOffset();
+
+    @Pure
+    public abstract org.apache.beam.sdk.values.CausedByDrain causedByDrain();
   }
 
   /** Information accessible when running a {@link DoFn.OnTimer} method. */
@@ -346,6 +349,9 @@ public abstract class DoFn<InputT extends @Nullable Object, OutputT extends @Nul
 
     /** Returns the time domain of the current timer. */
     public abstract TimeDomain timeDomain();
+
+    @Pure
+    public abstract org.apache.beam.sdk.values.CausedByDrain causedByDrain();
   }
 
   public abstract class OnWindowExpirationContext extends WindowedContext {
@@ -1043,7 +1049,7 @@ public abstract class DoFn<InputT extends @Nullable Object, OutputT extends @Nul
    * RestrictionTracker.HasProgress} implementation within the {@link RestrictionTracker} is an
    * inaccurate representation of known work.
    *
-   * <p>It is up to each splittable {@DoFn} to convert between their natural representation of
+   * <p>It is up to each splittable {@link DoFn} to convert between their natural representation of
    * outstanding work and this representation. For example:
    *
    * <ul>

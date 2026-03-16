@@ -56,6 +56,7 @@ import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.util.IdentitySideInputWindowFn;
+import org.apache.beam.sdk.values.CausedByDrain;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
@@ -307,7 +308,15 @@ public class SimplePushbackSideInputDoFnRunnerTest {
 
     // Mocking is not easily compatible with annotation analysis, so we manually record
     // the method call.
-    runner.onTimer(timerId, "", null, window, timestamp, timestamp, TimeDomain.EVENT_TIME);
+    runner.onTimer(
+        timerId,
+        "",
+        null,
+        window,
+        timestamp,
+        timestamp,
+        TimeDomain.EVENT_TIME,
+        CausedByDrain.CAUSED_BY_DRAIN);
 
     assertThat(
         underlying.firedTimers,
@@ -317,7 +326,8 @@ public class SimplePushbackSideInputDoFnRunnerTest {
                 StateNamespaces.window(IntervalWindow.getCoder(), window),
                 timestamp,
                 timestamp,
-                TimeDomain.EVENT_TIME)));
+                TimeDomain.EVENT_TIME,
+                CausedByDrain.CAUSED_BY_DRAIN)));
   }
 
   private static class TestDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, OutputT> {
@@ -351,7 +361,8 @@ public class SimplePushbackSideInputDoFnRunnerTest {
         BoundedWindow window,
         Instant timestamp,
         Instant outputTimestamp,
-        TimeDomain timeDomain) {
+        TimeDomain timeDomain,
+        CausedByDrain causedByDrain) {
       firedTimers.add(
           TimerData.of(
               timerId,
@@ -359,7 +370,8 @@ public class SimplePushbackSideInputDoFnRunnerTest {
               StateNamespaces.window(IntervalWindow.getCoder(), (IntervalWindow) window),
               timestamp,
               outputTimestamp,
-              timeDomain));
+              timeDomain,
+              causedByDrain));
     }
 
     @Override
@@ -507,7 +519,8 @@ public class SimplePushbackSideInputDoFnRunnerTest {
           window,
           timer.getTimestamp(),
           timer.getOutputTimestamp(),
-          timer.getDomain());
+          timer.getDomain(),
+          timer.causedByDrain());
     }
   }
 

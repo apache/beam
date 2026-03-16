@@ -51,6 +51,7 @@ import org.apache.beam.sdk.util.construction.ReplacementOutputs;
 import org.apache.beam.sdk.util.construction.SplittableParDo;
 import org.apache.beam.sdk.util.construction.SplittableParDo.ProcessKeyedElements;
 import org.apache.beam.sdk.util.construction.TransformPayloadTranslatorRegistrar;
+import org.apache.beam.sdk.values.CausedByDrain;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
@@ -598,9 +599,14 @@ public class SplittableParDoViaKeyedWorkItems {
           timerInternals.currentProcessingTime().plus(result.getContinuation().resumeDelay());
       holdState.add(futureOutputWatermark);
       // Set a timer to continue processing this element.
+      // todo radoslws@ decide if draining should be set on timer
       timerInternals.setTimer(
           TimerInternals.TimerData.of(
-              stateNamespace, wakeupTime, wakeupTime, TimeDomain.PROCESSING_TIME));
+              stateNamespace,
+              wakeupTime,
+              wakeupTime,
+              TimeDomain.PROCESSING_TIME,
+              timer == null ? CausedByDrain.NORMAL : timer.causedByDrain()));
     }
 
     private DoFnInvoker.ArgumentProvider<InputT, OutputT> wrapOptionsAsSetup(

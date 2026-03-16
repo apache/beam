@@ -23,6 +23,7 @@ import org.apache.beam.runners.core.StateNamespaces;
 import org.apache.beam.runners.core.TimerInternals;
 import org.apache.beam.sdk.state.TimeDomain;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
+import org.apache.beam.sdk.values.CausedByDrain;
 import org.apache.samza.operators.Scheduler;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
@@ -104,7 +105,8 @@ public class PortableBundleManager<OutT> implements BundleManager<OutT> {
             StateNamespaces.global(),
             nextBundleCheckTime,
             nextBundleCheckTime,
-            TimeDomain.PROCESSING_TIME);
+            TimeDomain.PROCESSING_TIME,
+            CausedByDrain.NORMAL);
     bundleTimerScheduler.schedule(
         new KeyedTimerData<>(new byte[0], null, timerData), nextBundleCheckTime.getMillis());
   }

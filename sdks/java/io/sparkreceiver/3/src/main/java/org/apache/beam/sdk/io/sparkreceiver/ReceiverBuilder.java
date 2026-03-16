@@ -47,8 +47,8 @@ public class ReceiverBuilder<X, T extends Receiver<X>> implements Serializable {
   }
 
   /**
-   * @return Proxy for given {@param receiver} that doesn't use Spark environment and uses Apache
-   *     Beam mechanisms instead.
+   * Returns proxy for given {@param receiver} that doesn't use Spark environment and uses Apache
+   * Beam mechanisms instead.
    */
   public T build()
       throws InvocationTargetException, InstantiationException, IllegalAccessException {

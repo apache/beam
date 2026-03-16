@@ -37,11 +37,13 @@ from apache_beam.testing.test_utils import patch_retry
 try:
   # pylint: disable=wrong-import-order, wrong-import-position
   # pylint: disable=ungrouped-imports
-  from apitools.base.py.exceptions import HttpError
+  from google.api_core.exceptions import GoogleAPICallError
+  from google.api_core.exceptions import NotFound
 
   from apache_beam.io.gcp.gcsfilesystem import GCSFileSystem
 except ImportError:
-  HttpError = None
+  GoogleAPICallError = None  # type: ignore
+  NotFound = None  # type: ignore
   GCSFileSystem = None  # type: ignore
 
 
@@ -122,15 +124,12 @@ class PipelineVerifiersTest(unittest.TestCase):
     self.assertEqual(verifiers.MAX_RETRIES + 1, mock_match.call_count)
 
   @patch.object(GCSFileSystem, 'match')
-  @unittest.skipIf(HttpError is None, 'google-apitools is not installed')
+  @unittest.skipIf(
+      GoogleAPICallError is None, 'GCP dependencies are not installed')
   def test_file_checksum_matcher_service_error(self, mock_match):
-    mock_match.side_effect = HttpError(
-        response={'status': '404'},
-        url='',
-        content='Not Found',
-    )
+    mock_match.side_effect = NotFound('Not Found')
     matcher = verifiers.FileChecksumMatcher('gs://dummy/path', Mock())
-    with self.assertRaises(HttpError):
+    with self.assertRaises(NotFound):
       hc_assert_that(self._mock_result, matcher)
     self.assertTrue(mock_match.called)
     self.assertEqual(verifiers.MAX_RETRIES + 1, mock_match.call_count)

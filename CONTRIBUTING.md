@@ -41,14 +41,20 @@ These steps and instructions on getting started are outlined below as well.
 - A [GitHub](https://github.com/) account.
 - A Linux, macOS, or Microsoft Windows development environment.
 - Java JDK 11 (preferred, or 8, 17, 21) installed.
+  - General note:
+    - Set `JAVA_HOME` to the JDK **installation directory**, not the `bin` directory
+    - (Window for example: `C:\Program Files\Eclipse Adoptium\jdk-11.x.x`)
+    - If multiple JDK versions are installed, ensure Java 11 appears first on `PATH`
+    - The initial Gradle build may take 10–15 minutes due to dependency downloads
 - Latest [Go](https://golang.org) 1.x installed.
 - [Docker](https://www.docker.com/) installed for some tasks including building worker containers and testing changes to this website locally.
 - For SDK Development:
   - For manual testing, install any supported Python version (found [here](gradle.properties)) suffices.
   - For running test suites, however, you will need Python interpreters for all Python versions supported by Beam.
     Interpreters should be installed and available in shell via `python3.x` commands.
-    For more information, see:
-    Python installation tips in [Developer Wiki](https://cwiki.apache.org/confluence/display/BEAM/Python+Tips#PythonTips-InstallingPythoninterpreters).
+    See Python installation tips in [Developer Wiki](https://cwiki.apache.org/confluence/display/BEAM/Python+Tips#PythonTips-InstallingPythoninterpreters).
+  - If you encounter errors like `python3.10: command not found` or `Cannot run program "python3.10": No such file or directory`, your system may be missing some Python versions.
+    Workaround: install missing versions with `pyenv` (for example, `pyenv install 3.10` then `pyenv global 3.10 3.11 3.12 3.13` to make all available), or create symlinks in `/usr/local/bin/` pointing to installed Python binaries.
 - For large contributions, a signed [Individual Contributor License
   Agreement](https://www.apache.org/licenses/icla.pdf) (ICLA) to the Apache
   Software Foundation (ASF).

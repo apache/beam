@@ -199,7 +199,7 @@ public class BigQueryIOPushDownIT {
     suppliers.add(
         reader -> {
           long fieldsRead = reader.getCounterMetric(FIELDS_READ_METRIC);
-          return NamedTestResult.create(uuid, timestamp, FIELDS_READ_METRIC, fieldsRead);
+          return NamedTestResult.create(uuid, timestamp, FIELDS_READ_METRIC, (double) fieldsRead);
         });
     return suppliers;
   }
