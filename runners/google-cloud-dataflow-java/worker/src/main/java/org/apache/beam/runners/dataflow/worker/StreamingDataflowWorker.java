@@ -793,61 +793,38 @@ public final class StreamingDataflowWorker {
   }
 
   private static ChannelCache createChannelCache(
-      DataflowWorkerHarnessOptions workerOptions,
-      ComputationConfig.Fetcher configFetcher,
-      GrpcDispatcherClient dispatcherClient) {
-    ChannelCache channelCache =
-        Boolean.TRUE.equals(
-                workerOptions
-                    .getUseWindmillIsolatedChannels()) // Create failover channel only if isolated
-            // channels
-            // is enabled for dispatcher client
-            ? ChannelCache.create(
-                (currentFlowControlSettings, serviceAddress) -> {
-                  ManagedChannel primaryChannel =
-                      IsolationChannel.create(
-                          () ->
-                              remoteChannel(
+          DataflowWorkerHarnessOptions workerOptions,
+          ComputationConfig.Fetcher configFetcher,
+          GrpcDispatcherClient dispatcherClient) {
+      ChannelCache channelCache = ChannelCache.create(
+              (currentFlowControlSettings, serviceAddress) -> {
+                  ManagedChannel primaryChannel = IsolationChannel.create(
+                          () -> remoteChannel(
                                   serviceAddress,
                                   workerOptions.getWindmillServiceRpcChannelAliveTimeoutSec(),
                                   currentFlowControlSettings),
                           currentFlowControlSettings.getOnReadyThresholdBytes());
                   // Create an isolated fallback channel from dispatcher endpoints.
                   // This ensures both primary and fallback use separate isolated channels.
-                  ManagedChannel fallbackChannel =
-                      IsolationChannel.create(
-                          () ->
-                              remoteChannel(
+                  ManagedChannel fallbackChannel = IsolationChannel.create(
+                          () -> remoteChannel(
                                   dispatcherClient.getDispatcherEndpoints().iterator().next(),
                                   workerOptions.getWindmillServiceRpcChannelAliveTimeoutSec(),
                                   currentFlowControlSettings),
                           currentFlowControlSettings.getOnReadyThresholdBytes());
                   return FailoverChannel.create(
-                      primaryChannel,
-                      fallbackChannel,
-                      MoreCallCredentials.from(
-                          new VendoredCredentialsAdapter(workerOptions.getGcpCredential())));
-                })
-            : ChannelCache.create(
-                (currentFlowControlSettings, serviceAddress) -> {
-                  // IsolationChannel will create and manage separate RPC channels to the same
-                  // serviceAddress.
-                  return IsolationChannel.create(
-                      () ->
-                          remoteChannel(
-                              serviceAddress,
-                              workerOptions.getWindmillServiceRpcChannelAliveTimeoutSec(),
-                              currentFlowControlSettings),
-                      currentFlowControlSettings.getOnReadyThresholdBytes());
-                });
+                          primaryChannel,
+                          fallbackChannel,
+                          MoreCallCredentials.from(
+                                  new VendoredCredentialsAdapter(workerOptions.getGcpCredential())));
+              });
 
-    configFetcher
-        .getGlobalConfigHandle()
-        .registerConfigObserver(
-            config ->
-                channelCache.consumeFlowControlSettings(
-                    config.userWorkerJobSettings().getFlowControlSettings()));
-    return channelCache;
+      configFetcher
+              .getGlobalConfigHandle()
+              .registerConfigObserver(
+                      config -> channelCache.consumeFlowControlSettings(
+                              config.userWorkerJobSettings().getFlowControlSettings()));
+      return channelCache;
   }
 
   @VisibleForTesting
