@@ -284,6 +284,7 @@ public abstract class DoFnSignature {
   }
 
   /** A descriptor for an optional parameter of the {@link DoFn.ProcessElement} method. */
+  @SuppressWarnings("ClassInitializationDeadlock")
   public abstract static class Parameter {
 
     // Private as no extensions other than those nested here are permitted

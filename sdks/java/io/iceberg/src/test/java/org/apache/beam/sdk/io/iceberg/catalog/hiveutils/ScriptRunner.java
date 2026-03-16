@@ -34,7 +34,7 @@ import java.sql.Statement;
  * href="https://github.com/apache/iceberg/blob/main/hive-metastore/src/test/java/org/apache/iceberg/hive/ScriptRunner.java">Iceberg's
  * integration testing</a>
  */
-@SuppressWarnings({"OperatorPrecedence", "DefaultCharset"})
+@SuppressWarnings({"OperatorPrecedence", "DefaultCharset", "ThreadPriorityCheck"})
 public class ScriptRunner {
 
   private static final String DEFAULT_DELIMITER = ";";
