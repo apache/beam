@@ -35,6 +35,7 @@ import org.apache.beam.sdk.state.Timer;
 import org.apache.beam.sdk.state.TimerSpec;
 import org.apache.beam.sdk.state.TimerSpecs;
 import org.apache.beam.sdk.state.ValueState;
+import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.ShardedKey;
 import org.apache.beam.sdk.util.common.ElementByteSizeObserver;
@@ -205,6 +206,20 @@ public class GroupIntoBatches<K, InputT>
   /** Returns user supplied parameters for batching. */
   public BatchingParams<InputT> getBatchingParams() {
     return params;
+  }
+
+  @Override
+  public void populateDisplayData(DisplayData.Builder builder) {
+    super.populateDisplayData(builder);
+    if (params.getBatchSize() < Long.MAX_VALUE) {
+      builder.add(DisplayData.item("batchSize", params.getBatchSize()));
+    }
+    if (params.getBatchSizeBytes() < Long.MAX_VALUE) {
+      builder.add(DisplayData.item("batchSizeBytes", params.getBatchSizeBytes()));
+    }
+    if (params.getMaxBufferingDuration().isLongerThan(Duration.ZERO)) {
+      builder.add(DisplayData.item("maxBufferingDuration", params.getMaxBufferingDuration()));
+    }
   }
 
   @Override
