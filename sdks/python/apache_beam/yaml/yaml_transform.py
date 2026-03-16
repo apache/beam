@@ -809,10 +809,9 @@ def expand_composite_transform(spec, scope):
         if is_explicitly_empty(composite_input):
           transform['input'] = composite_input
         elif is_empty(composite_input):
-          # No explicit input - will use the pipeline input.
-          # Remove from spec so Scope doesn't try to use it.
-          if 'input' in spec:
-            del spec['input']
+          # No explicit input - the composite input IS the pipeline input.
+          # Reference the 'input' key from the Scope's inputs.
+          transform['input'] = 'input'
         else:
           transform['input'] = {key: key for key in composite_input.keys()}
       else:
