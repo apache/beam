@@ -8,6 +8,7 @@ from apitools.base.protorpclite import messages as _messages
 from apitools.base.py import encoding
 from apitools.base.py import extra_types
 
+
 package = 'dataflow'
 
 
@@ -105,6 +106,7 @@ class AutoscalingEvent(_messages.Message):
     workerPool: A short and friendly name for the worker pool this event
       refers to.
   """
+
   class EventTypeValueValuesEnum(_messages.Enum):
     r"""The type of autoscaling event to report.
 
@@ -150,6 +152,7 @@ class AutoscalingSettings(_messages.Message):
     algorithm: The algorithm to use for autoscaling.
     maxNumWorkers: The maximum number of workers to cap scaling at.
   """
+
   class AlgorithmValueValuesEnum(_messages.Enum):
     r"""The algorithm to use for autoscaling.
 
@@ -211,6 +214,61 @@ class BigTableIODetails(_messages.Message):
   instanceId = _messages.StringField(1)
   projectId = _messages.StringField(2)
   tableId = _messages.StringField(3)
+
+
+class BoundedTrie(_messages.Message):
+  r"""The message type used for encoding metrics of type bounded trie.
+
+  Fields:
+    bound: The maximum number of elements to store before truncation.
+    root: A compact representation of all the elements in this trie.
+    singleton: A more efficient representation for metrics consisting of a
+      single value.
+  """
+
+  bound = _messages.IntegerField(1, variant=_messages.Variant.INT32)
+  root = _messages.MessageField('BoundedTrieNode', 2)
+  singleton = _messages.StringField(3, repeated=True)
+
+
+class BoundedTrieNode(_messages.Message):
+  r"""A single node in a BoundedTrie.
+
+  Messages:
+    ChildrenValue: Children of this node. Must be empty if truncated is true.
+
+  Fields:
+    children: Children of this node. Must be empty if truncated is true.
+    truncated: Whether this node has been truncated. A truncated leaf
+      represents possibly many children with the same prefix.
+  """
+
+  @encoding.MapUnrecognizedFields('additionalProperties')
+  class ChildrenValue(_messages.Message):
+    r"""Children of this node. Must be empty if truncated is true.
+
+    Messages:
+      AdditionalProperty: An additional property for a ChildrenValue object.
+
+    Fields:
+      additionalProperties: Additional properties of type ChildrenValue
+    """
+
+    class AdditionalProperty(_messages.Message):
+      r"""An additional property for a ChildrenValue object.
+
+      Fields:
+        key: Name of the additional property.
+        value: A BoundedTrieNode attribute.
+      """
+
+      key = _messages.StringField(1)
+      value = _messages.MessageField('BoundedTrieNode', 2)
+
+    additionalProperties = _messages.MessageField('AdditionalProperty', 1, repeated=True)
+
+  children = _messages.MessageField('ChildrenValue', 1)
+  truncated = _messages.BooleanField(2)
 
 
 class BucketOptions(_messages.Message):
@@ -325,8 +383,7 @@ class ContainerSpec(_messages.Message):
     sdkInfo: Required. SDK info of the Flex Template.
   """
 
-  defaultEnvironment = _messages.MessageField(
-      'FlexTemplateRuntimeEnvironment', 1)
+  defaultEnvironment = _messages.MessageField('FlexTemplateRuntimeEnvironment', 1)
   image = _messages.StringField(2)
   imageRepositoryCertPath = _messages.StringField(3)
   imageRepositoryPasswordSecretId = _messages.StringField(4)
@@ -349,6 +406,7 @@ class CounterMetadata(_messages.Message):
     otherUnits: A string referring to the unit type.
     standardUnits: System defined Units, see above enum.
   """
+
   class KindValueValuesEnum(_messages.Enum):
     r"""Counter aggregation kind.
 
@@ -436,6 +494,7 @@ class CounterStructuredName(_messages.Message):
     portion: Portion of this counter, either key or value.
     workerId: ID of a particular worker.
   """
+
   class OriginValueValuesEnum(_messages.Enum):
     r"""One of the standard Origins defined above.
 
@@ -484,10 +543,11 @@ class CounterStructuredNameAndMetadata(_messages.Message):
 
 
 class CounterUpdate(_messages.Message):
-  r"""An update to a Counter sent from a worker.
+  r"""An update to a Counter sent from a worker. Next ID: 17
 
   Fields:
     boolean: Boolean value for And, Or.
+    boundedTrie: Bounded trie data
     cumulative: True if this counter is reported as the total cumulative
       aggregate value accumulated since the worker started working on this
       WorkItem. By default this is false, indicating that this counter is
@@ -511,21 +571,21 @@ class CounterUpdate(_messages.Message):
   """
 
   boolean = _messages.BooleanField(1)
-  cumulative = _messages.BooleanField(2)
-  distribution = _messages.MessageField('DistributionUpdate', 3)
-  floatingPoint = _messages.FloatField(4)
-  floatingPointList = _messages.MessageField('FloatingPointList', 5)
-  floatingPointMean = _messages.MessageField('FloatingPointMean', 6)
-  integer = _messages.MessageField('SplitInt64', 7)
-  integerGauge = _messages.MessageField('IntegerGauge', 8)
-  integerList = _messages.MessageField('IntegerList', 9)
-  integerMean = _messages.MessageField('IntegerMean', 10)
-  internal = _messages.MessageField('extra_types.JsonValue', 11)
-  nameAndKind = _messages.MessageField('NameAndKind', 12)
-  shortId = _messages.IntegerField(13)
-  stringList = _messages.MessageField('StringList', 14)
-  structuredNameAndMetadata = _messages.MessageField(
-      'CounterStructuredNameAndMetadata', 15)
+  boundedTrie = _messages.MessageField('BoundedTrie', 2)
+  cumulative = _messages.BooleanField(3)
+  distribution = _messages.MessageField('DistributionUpdate', 4)
+  floatingPoint = _messages.FloatField(5)
+  floatingPointList = _messages.MessageField('FloatingPointList', 6)
+  floatingPointMean = _messages.MessageField('FloatingPointMean', 7)
+  integer = _messages.MessageField('SplitInt64', 8)
+  integerGauge = _messages.MessageField('IntegerGauge', 9)
+  integerList = _messages.MessageField('IntegerList', 10)
+  integerMean = _messages.MessageField('IntegerMean', 11)
+  internal = _messages.MessageField('extra_types.JsonValue', 12)
+  nameAndKind = _messages.MessageField('NameAndKind', 13)
+  shortId = _messages.IntegerField(14)
+  stringList = _messages.MessageField('StringList', 15)
+  structuredNameAndMetadata = _messages.MessageField('CounterStructuredNameAndMetadata', 16)
 
 
 class CreateJobFromTemplateRequest(_messages.Message):
@@ -545,6 +605,7 @@ class CreateJobFromTemplateRequest(_messages.Message):
       which to direct the request.
     parameters: The runtime parameters to pass to the job.
   """
+
   @encoding.MapUnrecognizedFields('additionalProperties')
   class ParametersValue(_messages.Message):
     r"""The runtime parameters to pass to the job.
@@ -555,6 +616,7 @@ class CreateJobFromTemplateRequest(_messages.Message):
     Fields:
       additionalProperties: Additional properties of type ParametersValue
     """
+
     class AdditionalProperty(_messages.Message):
       r"""An additional property for a ParametersValue object.
 
@@ -566,8 +628,7 @@ class CreateJobFromTemplateRequest(_messages.Message):
       key = _messages.StringField(1)
       value = _messages.StringField(2)
 
-    additionalProperties = _messages.MessageField(
-        'AdditionalProperty', 1, repeated=True)
+    additionalProperties = _messages.MessageField('AdditionalProperty', 1, repeated=True)
 
   environment = _messages.MessageField('RuntimeEnvironment', 1)
   gcsPath = _messages.StringField(2)
@@ -617,6 +678,7 @@ class DataSamplingConfig(_messages.Message):
       exception sampling. If DISABLED is in the list, then sampling will be
       disabled and ignore the other given behaviors. Ordering does not matter.
   """
+
   class BehaviorsValueListEntryValuesEnum(_messages.Enum):
     r"""BehaviorsValueListEntryValuesEnum enum type.
 
@@ -634,8 +696,7 @@ class DataSamplingConfig(_messages.Message):
     ALWAYS_ON = 2
     EXCEPTIONS = 3
 
-  behaviors = _messages.EnumField(
-      'BehaviorsValueListEntryValuesEnum', 1, repeated=True)
+  behaviors = _messages.EnumField('BehaviorsValueListEntryValuesEnum', 1, repeated=True)
 
 
 class DataSamplingReport(_messages.Message):
@@ -665,6 +726,18 @@ class DataSamplingReport(_messages.Message):
   pcollectionsSampledCount = _messages.IntegerField(5)
   persistenceErrorsCount = _messages.IntegerField(6)
   translationErrorsCount = _messages.IntegerField(7)
+
+
+class DataflowGaugeValue(_messages.Message):
+  r"""The gauge value of a metric.
+
+  Fields:
+    measuredTime: The timestamp when the gauge was recorded.
+    value: The value of the gauge.
+  """
+
+  measuredTime = _messages.StringField(1)
+  value = _messages.IntegerField(2)
 
 
 class DataflowHistogramValue(_messages.Message):
@@ -729,6 +802,7 @@ class DataflowProjectsJobsAggregatedRequest(_messages.Message):
     view: Deprecated. ListJobs always returns summaries now. Use GetJob for
       other JobViews.
   """
+
   class FilterValueValuesEnum(_messages.Enum):
     r"""The kind of filter to use.
 
@@ -797,6 +871,7 @@ class DataflowProjectsJobsCreateRequest(_messages.Message):
     replaceJobId: Deprecated. This field is now in the Job message.
     view: The level of information requested in response.
   """
+
   class ViewValueValuesEnum(_messages.Enum):
     r"""The level of information requested in response.
 
@@ -891,6 +966,7 @@ class DataflowProjectsJobsGetRequest(_messages.Message):
     projectId: The ID of the Cloud Platform project that the job belongs to.
     view: The level of information requested in response.
   """
+
   class ViewValueValuesEnum(_messages.Enum):
     r"""The level of information requested in response.
 
@@ -944,6 +1020,7 @@ class DataflowProjectsJobsListRequest(_messages.Message):
     view: Deprecated. ListJobs always returns summaries now. Use GetJob for
       other JobViews.
   """
+
   class FilterValueValuesEnum(_messages.Enum):
     r"""The kind of filter to use.
 
@@ -1023,6 +1100,7 @@ class DataflowProjectsJobsMessagesListRequest(_messages.Message):
       start_time. The default is the job creation time (i.e. beginning of
       messages).
   """
+
   class MinimumImportanceValueValuesEnum(_messages.Enum):
     r"""Filter to only get messages with importance >= level
 
@@ -1136,8 +1214,7 @@ class DataflowProjectsJobsWorkItemsReportStatusRequest(_messages.Message):
 
   jobId = _messages.StringField(1, required=True)
   projectId = _messages.StringField(2, required=True)
-  reportWorkItemStatusRequest = _messages.MessageField(
-      'ReportWorkItemStatusRequest', 3)
+  reportWorkItemStatusRequest = _messages.MessageField('ReportWorkItemStatusRequest', 3)
 
 
 class DataflowProjectsLocationsFlexTemplatesLaunchRequest(_messages.Message):
@@ -1153,8 +1230,7 @@ class DataflowProjectsLocationsFlexTemplatesLaunchRequest(_messages.Message):
       belongs to.
   """
 
-  launchFlexTemplateRequest = _messages.MessageField(
-      'LaunchFlexTemplateRequest', 1)
+  launchFlexTemplateRequest = _messages.MessageField('LaunchFlexTemplateRequest', 1)
   location = _messages.StringField(2, required=True)
   projectId = _messages.StringField(3, required=True)
 
@@ -1174,6 +1250,7 @@ class DataflowProjectsLocationsJobsCreateRequest(_messages.Message):
     replaceJobId: Deprecated. This field is now in the Job message.
     view: The level of information requested in response.
   """
+
   class ViewValueValuesEnum(_messages.Enum):
     r"""The level of information requested in response.
 
@@ -1224,6 +1301,25 @@ class DataflowProjectsLocationsJobsDebugGetConfigRequest(_messages.Message):
   projectId = _messages.StringField(4, required=True)
 
 
+class DataflowProjectsLocationsJobsDebugGetWorkerStacktracesRequest(_messages.Message):
+  r"""A DataflowProjectsLocationsJobsDebugGetWorkerStacktracesRequest object.
+
+  Fields:
+    getWorkerStacktracesRequest: A GetWorkerStacktracesRequest resource to be
+      passed as the request body.
+    jobId: The job for which to get stacktraces.
+    location: The [regional endpoint]
+      (https://cloud.google.com/dataflow/docs/concepts/regional-endpoints)
+      that contains the job specified by job_id.
+    projectId: The project id.
+  """
+
+  getWorkerStacktracesRequest = _messages.MessageField('GetWorkerStacktracesRequest', 1)
+  jobId = _messages.StringField(2, required=True)
+  location = _messages.StringField(3, required=True)
+  projectId = _messages.StringField(4, required=True)
+
+
 class DataflowProjectsLocationsJobsDebugSendCaptureRequest(_messages.Message):
   r"""A DataflowProjectsLocationsJobsDebugSendCaptureRequest object.
 
@@ -1243,8 +1339,7 @@ class DataflowProjectsLocationsJobsDebugSendCaptureRequest(_messages.Message):
   sendDebugCaptureRequest = _messages.MessageField('SendDebugCaptureRequest', 4)
 
 
-class DataflowProjectsLocationsJobsGetExecutionDetailsRequest(_messages.Message
-                                                              ):
+class DataflowProjectsLocationsJobsGetExecutionDetailsRequest(_messages.Message):
   r"""A DataflowProjectsLocationsJobsGetExecutionDetailsRequest object.
 
   Fields:
@@ -1301,6 +1396,7 @@ class DataflowProjectsLocationsJobsGetRequest(_messages.Message):
     projectId: The ID of the Cloud Platform project that the job belongs to.
     view: The level of information requested in response.
   """
+
   class ViewValueValuesEnum(_messages.Enum):
     r"""The level of information requested in response.
 
@@ -1354,6 +1450,7 @@ class DataflowProjectsLocationsJobsListRequest(_messages.Message):
     view: Deprecated. ListJobs always returns summaries now. Use GetJob for
       other JobViews.
   """
+
   class FilterValueValuesEnum(_messages.Enum):
     r"""The kind of filter to use.
 
@@ -1433,6 +1530,7 @@ class DataflowProjectsLocationsJobsMessagesListRequest(_messages.Message):
       start_time. The default is the job creation time (i.e. beginning of
       messages).
   """
+
   class MinimumImportanceValueValuesEnum(_messages.Enum):
     r"""Filter to only get messages with importance >= level
 
@@ -1510,8 +1608,7 @@ class DataflowProjectsLocationsJobsSnapshotsListRequest(_messages.Message):
   projectId = _messages.StringField(3, required=True)
 
 
-class DataflowProjectsLocationsJobsStagesGetExecutionDetailsRequest(
-    _messages.Message):
+class DataflowProjectsLocationsJobsStagesGetExecutionDetailsRequest(_messages.Message):
   r"""A DataflowProjectsLocationsJobsStagesGetExecutionDetailsRequest object.
 
   Fields:
@@ -1585,8 +1682,7 @@ class DataflowProjectsLocationsJobsWorkItemsLeaseRequest(_messages.Message):
   projectId = _messages.StringField(4, required=True)
 
 
-class DataflowProjectsLocationsJobsWorkItemsReportStatusRequest(
-    _messages.Message):
+class DataflowProjectsLocationsJobsWorkItemsReportStatusRequest(_messages.Message):
   r"""A DataflowProjectsLocationsJobsWorkItemsReportStatusRequest object.
 
   Fields:
@@ -1602,8 +1698,7 @@ class DataflowProjectsLocationsJobsWorkItemsReportStatusRequest(
   jobId = _messages.StringField(1, required=True)
   location = _messages.StringField(2, required=True)
   projectId = _messages.StringField(3, required=True)
-  reportWorkItemStatusRequest = _messages.MessageField(
-      'ReportWorkItemStatusRequest', 4)
+  reportWorkItemStatusRequest = _messages.MessageField('ReportWorkItemStatusRequest', 4)
 
 
 class DataflowProjectsLocationsSnapshotsDeleteRequest(_messages.Message):
@@ -1663,8 +1758,7 @@ class DataflowProjectsLocationsTemplatesCreateRequest(_messages.Message):
       belongs to.
   """
 
-  createJobFromTemplateRequest = _messages.MessageField(
-      'CreateJobFromTemplateRequest', 1)
+  createJobFromTemplateRequest = _messages.MessageField('CreateJobFromTemplateRequest', 1)
   location = _messages.StringField(2, required=True)
   projectId = _messages.StringField(3, required=True)
 
@@ -1685,6 +1779,7 @@ class DataflowProjectsLocationsTemplatesGetRequest(_messages.Message):
       belongs to.
     view: The view to retrieve. Defaults to METADATA_ONLY.
   """
+
   class ViewValueValuesEnum(_messages.Enum):
     r"""The view to retrieve. Defaults to METADATA_ONLY.
 
@@ -1725,8 +1820,7 @@ class DataflowProjectsLocationsTemplatesLaunchRequest(_messages.Message):
   dynamicTemplate_gcsPath = _messages.StringField(1)
   dynamicTemplate_stagingLocation = _messages.StringField(2)
   gcsPath = _messages.StringField(3)
-  launchTemplateParameters = _messages.MessageField(
-      'LaunchTemplateParameters', 4)
+  launchTemplateParameters = _messages.MessageField('LaunchTemplateParameters', 4)
   location = _messages.StringField(5, required=True)
   projectId = _messages.StringField(6, required=True)
   validateOnly = _messages.BooleanField(7)
@@ -1746,8 +1840,7 @@ class DataflowProjectsLocationsWorkerMessagesRequest(_messages.Message):
 
   location = _messages.StringField(1, required=True)
   projectId = _messages.StringField(2, required=True)
-  sendWorkerMessagesRequest = _messages.MessageField(
-      'SendWorkerMessagesRequest', 3)
+  sendWorkerMessagesRequest = _messages.MessageField('SendWorkerMessagesRequest', 3)
 
 
 class DataflowProjectsSnapshotsGetRequest(_messages.Message):
@@ -1789,8 +1882,7 @@ class DataflowProjectsTemplatesCreateRequest(_messages.Message):
       belongs to.
   """
 
-  createJobFromTemplateRequest = _messages.MessageField(
-      'CreateJobFromTemplateRequest', 1)
+  createJobFromTemplateRequest = _messages.MessageField('CreateJobFromTemplateRequest', 1)
   projectId = _messages.StringField(2, required=True)
 
 
@@ -1810,6 +1902,7 @@ class DataflowProjectsTemplatesGetRequest(_messages.Message):
       belongs to.
     view: The view to retrieve. Defaults to METADATA_ONLY.
   """
+
   class ViewValueValuesEnum(_messages.Enum):
     r"""The view to retrieve. Defaults to METADATA_ONLY.
 
@@ -1850,8 +1943,7 @@ class DataflowProjectsTemplatesLaunchRequest(_messages.Message):
   dynamicTemplate_gcsPath = _messages.StringField(1)
   dynamicTemplate_stagingLocation = _messages.StringField(2)
   gcsPath = _messages.StringField(3)
-  launchTemplateParameters = _messages.MessageField(
-      'LaunchTemplateParameters', 4)
+  launchTemplateParameters = _messages.MessageField('LaunchTemplateParameters', 4)
   location = _messages.StringField(5)
   projectId = _messages.StringField(6, required=True)
   validateOnly = _messages.BooleanField(7)
@@ -1867,8 +1959,7 @@ class DataflowProjectsWorkerMessagesRequest(_messages.Message):
   """
 
   projectId = _messages.StringField(1, required=True)
-  sendWorkerMessagesRequest = _messages.MessageField(
-      'SendWorkerMessagesRequest', 2)
+  sendWorkerMessagesRequest = _messages.MessageField('SendWorkerMessagesRequest', 2)
 
 
 class DatastoreIODetails(_messages.Message):
@@ -1915,6 +2006,7 @@ class DerivedSource(_messages.Message):
     derivationMode: What source to base the produced source on (if any).
     source: Specification of the source.
   """
+
   class DerivationModeValueValuesEnum(_messages.Enum):
     r"""What source to base the produced source on (if any).
 
@@ -2065,7 +2157,8 @@ class Environment(_messages.Message):
       by the user. These options are passed through the service and are used
       to recreate the SDK pipeline options on the worker in a language
       agnostic and platform independent way.
-    UserAgentValue: A description of the process that generated the request.
+    UserAgentValue: Optional. A description of the process that generated the
+      request.
     VersionValue: A structure describing which components and their versions
       of the service are required in order to run the job.
 
@@ -2115,9 +2208,12 @@ class Environment(_messages.Message):
       The supported resource type is: Google Cloud Storage:
       storage.googleapis.com/{bucket}/{object}
       bucket.storage.googleapis.com/{object}
+    usePublicIps: Optional. True when any worker pool that uses public IPs is
+      present.
     useStreamingEngineResourceBasedBilling: Output only. Whether the job uses
       the Streaming Engine resource-based billing model.
-    userAgent: A description of the process that generated the request.
+    userAgent: Optional. A description of the process that generated the
+      request.
     version: A structure describing which components and their versions of the
       service are required in order to run the job.
     workerPools: The worker pools. At least one "harness" worker pool must be
@@ -2134,6 +2230,7 @@ class Environment(_messages.Message):
       is specified, a zone in the control plane's region is chosen based on
       available capacity.
   """
+
   class FlexResourceSchedulingGoalValueValuesEnum(_messages.Enum):
     r"""Optional. Which Flexible Resource Scheduling mode to run in.
 
@@ -2193,6 +2290,7 @@ class Environment(_messages.Message):
       additionalProperties: Properties of the object. Contains field @type
         with type URL.
     """
+
     class AdditionalProperty(_messages.Message):
       r"""An additional property for a InternalExperimentsValue object.
 
@@ -2204,8 +2302,7 @@ class Environment(_messages.Message):
       key = _messages.StringField(1)
       value = _messages.MessageField('extra_types.JsonValue', 2)
 
-    additionalProperties = _messages.MessageField(
-        'AdditionalProperty', 1, repeated=True)
+    additionalProperties = _messages.MessageField('AdditionalProperty', 1, repeated=True)
 
   @encoding.MapUnrecognizedFields('additionalProperties')
   class SdkPipelineOptionsValue(_messages.Message):
@@ -2221,6 +2318,7 @@ class Environment(_messages.Message):
     Fields:
       additionalProperties: Properties of the object.
     """
+
     class AdditionalProperty(_messages.Message):
       r"""An additional property for a SdkPipelineOptionsValue object.
 
@@ -2232,12 +2330,11 @@ class Environment(_messages.Message):
       key = _messages.StringField(1)
       value = _messages.MessageField('extra_types.JsonValue', 2)
 
-    additionalProperties = _messages.MessageField(
-        'AdditionalProperty', 1, repeated=True)
+    additionalProperties = _messages.MessageField('AdditionalProperty', 1, repeated=True)
 
   @encoding.MapUnrecognizedFields('additionalProperties')
   class UserAgentValue(_messages.Message):
-    r"""A description of the process that generated the request.
+    r"""Optional. A description of the process that generated the request.
 
     Messages:
       AdditionalProperty: An additional property for a UserAgentValue object.
@@ -2245,6 +2342,7 @@ class Environment(_messages.Message):
     Fields:
       additionalProperties: Properties of the object.
     """
+
     class AdditionalProperty(_messages.Message):
       r"""An additional property for a UserAgentValue object.
 
@@ -2256,8 +2354,7 @@ class Environment(_messages.Message):
       key = _messages.StringField(1)
       value = _messages.MessageField('extra_types.JsonValue', 2)
 
-    additionalProperties = _messages.MessageField(
-        'AdditionalProperty', 1, repeated=True)
+    additionalProperties = _messages.MessageField('AdditionalProperty', 1, repeated=True)
 
   @encoding.MapUnrecognizedFields('additionalProperties')
   class VersionValue(_messages.Message):
@@ -2270,6 +2367,7 @@ class Environment(_messages.Message):
     Fields:
       additionalProperties: Properties of the object.
     """
+
     class AdditionalProperty(_messages.Message):
       r"""An additional property for a VersionValue object.
 
@@ -2281,15 +2379,13 @@ class Environment(_messages.Message):
       key = _messages.StringField(1)
       value = _messages.MessageField('extra_types.JsonValue', 2)
 
-    additionalProperties = _messages.MessageField(
-        'AdditionalProperty', 1, repeated=True)
+    additionalProperties = _messages.MessageField('AdditionalProperty', 1, repeated=True)
 
   clusterManagerApiService = _messages.StringField(1)
   dataset = _messages.StringField(2)
   debugOptions = _messages.MessageField('DebugOptions', 3)
   experiments = _messages.StringField(4, repeated=True)
-  flexResourceSchedulingGoal = _messages.EnumField(
-      'FlexResourceSchedulingGoalValueValuesEnum', 5)
+  flexResourceSchedulingGoal = _messages.EnumField('FlexResourceSchedulingGoalValueValuesEnum', 5)
   internalExperiments = _messages.MessageField('InternalExperimentsValue', 6)
   sdkPipelineOptions = _messages.MessageField('SdkPipelineOptionsValue', 7)
   serviceAccountEmail = _messages.StringField(8)
@@ -2298,12 +2394,13 @@ class Environment(_messages.Message):
   shuffleMode = _messages.EnumField('ShuffleModeValueValuesEnum', 11)
   streamingMode = _messages.EnumField('StreamingModeValueValuesEnum', 12)
   tempStoragePrefix = _messages.StringField(13)
-  useStreamingEngineResourceBasedBilling = _messages.BooleanField(14)
-  userAgent = _messages.MessageField('UserAgentValue', 15)
-  version = _messages.MessageField('VersionValue', 16)
-  workerPools = _messages.MessageField('WorkerPool', 17, repeated=True)
-  workerRegion = _messages.StringField(18)
-  workerZone = _messages.StringField(19)
+  usePublicIps = _messages.BooleanField(14)
+  useStreamingEngineResourceBasedBilling = _messages.BooleanField(15)
+  userAgent = _messages.MessageField('UserAgentValue', 16)
+  version = _messages.MessageField('VersionValue', 17)
+  workerPools = _messages.MessageField('WorkerPool', 18, repeated=True)
+  workerRegion = _messages.StringField(19)
+  workerZone = _messages.StringField(20)
 
 
 class ExecutionStageState(_messages.Message):
@@ -2319,6 +2416,7 @@ class ExecutionStageState(_messages.Message):
     executionStageState: Executions stage states allow the same set of values
       as JobState.
   """
+
   class ExecutionStageStateValueValuesEnum(_messages.Enum):
     r"""Executions stage states allow the same set of values as JobState.
 
@@ -2372,6 +2470,8 @@ class ExecutionStageState(_messages.Message):
         indicates that the batch job's associated resources are currently
         being cleaned up after a successful run. Currently, this is an opt-in
         feature, please reach out to Cloud support team if you are interested.
+      JOB_STATE_PAUSING: `JOB_STATE_PAUSING` is not implemented yet.
+      JOB_STATE_PAUSED: `JOB_STATE_PAUSED` is not implemented yet.
     """
     JOB_STATE_UNKNOWN = 0
     JOB_STATE_STOPPED = 1
@@ -2386,11 +2486,12 @@ class ExecutionStageState(_messages.Message):
     JOB_STATE_CANCELLING = 10
     JOB_STATE_QUEUED = 11
     JOB_STATE_RESOURCE_CLEANING_UP = 12
+    JOB_STATE_PAUSING = 13
+    JOB_STATE_PAUSED = 14
 
   currentStateTime = _messages.StringField(1)
   executionStageName = _messages.StringField(2)
-  executionStageState = _messages.EnumField(
-      'ExecutionStageStateValueValuesEnum', 3)
+  executionStageState = _messages.EnumField('ExecutionStageStateValueValuesEnum', 3)
 
 
 class ExecutionStageSummary(_messages.Message):
@@ -2413,6 +2514,7 @@ class ExecutionStageSummary(_messages.Message):
     prerequisiteStage: Other stages that must complete before this stage can
       run.
   """
+
   class KindValueValuesEnum(_messages.Enum):
     r"""Type of transform this stage is executing.
 
@@ -2439,8 +2541,7 @@ class ExecutionStageSummary(_messages.Message):
     SHUFFLE_KIND = 8
 
   componentSource = _messages.MessageField('ComponentSource', 1, repeated=True)
-  componentTransform = _messages.MessageField(
-      'ComponentTransform', 2, repeated=True)
+  componentTransform = _messages.MessageField('ComponentTransform', 2, repeated=True)
   id = _messages.StringField(3)
   inputSource = _messages.MessageField('StageSource', 4, repeated=True)
   kind = _messages.EnumField('KindValueValuesEnum', 5)
@@ -2486,7 +2587,6 @@ class FlattenInstruction(_messages.Message):
 
 class FlexTemplateRuntimeEnvironment(_messages.Message):
   r"""The environment values to be set at runtime for flex template.
-  LINT.IfChange
 
   Enums:
     AutoscalingAlgorithmValueValuesEnum: The algorithm to use for autoscaling
@@ -2510,6 +2610,8 @@ class FlexTemplateRuntimeEnvironment(_messages.Message):
 
   Fields:
     additionalExperiments: Additional experiment flags for the job.
+    additionalPipelineOptions: Optional. Additional pipeline option flags for
+      the job.
     additionalUserLabels: Additional user labels to be specified for the job.
       Keys and values must follow the restrictions specified in the [labeling
       restrictions](https://cloud.google.com/compute/docs/labeling-
@@ -2584,6 +2686,7 @@ class FlexTemplateRuntimeEnvironment(_messages.Message):
       for launching worker instances to run your pipeline. In the future,
       worker_zone will take precedence.
   """
+
   class AutoscalingAlgorithmValueValuesEnum(_messages.Enum):
     r"""The algorithm to use for autoscaling
 
@@ -2661,6 +2764,7 @@ class FlexTemplateRuntimeEnvironment(_messages.Message):
       additionalProperties: Additional properties of type
         AdditionalUserLabelsValue
     """
+
     class AdditionalProperty(_messages.Message):
       r"""An additional property for a AdditionalUserLabelsValue object.
 
@@ -2672,35 +2776,34 @@ class FlexTemplateRuntimeEnvironment(_messages.Message):
       key = _messages.StringField(1)
       value = _messages.StringField(2)
 
-    additionalProperties = _messages.MessageField(
-        'AdditionalProperty', 1, repeated=True)
+    additionalProperties = _messages.MessageField('AdditionalProperty', 1, repeated=True)
 
   additionalExperiments = _messages.StringField(1, repeated=True)
-  additionalUserLabels = _messages.MessageField('AdditionalUserLabelsValue', 2)
-  autoscalingAlgorithm = _messages.EnumField(
-      'AutoscalingAlgorithmValueValuesEnum', 3)
-  diskSizeGb = _messages.IntegerField(4, variant=_messages.Variant.INT32)
-  dumpHeapOnOom = _messages.BooleanField(5)
-  enableLauncherVmSerialPortLogging = _messages.BooleanField(6)
-  enableStreamingEngine = _messages.BooleanField(7)
-  flexrsGoal = _messages.EnumField('FlexrsGoalValueValuesEnum', 8)
-  ipConfiguration = _messages.EnumField('IpConfigurationValueValuesEnum', 9)
-  kmsKeyName = _messages.StringField(10)
-  launcherMachineType = _messages.StringField(11)
-  machineType = _messages.StringField(12)
-  maxWorkers = _messages.IntegerField(13, variant=_messages.Variant.INT32)
-  network = _messages.StringField(14)
-  numWorkers = _messages.IntegerField(15, variant=_messages.Variant.INT32)
-  saveHeapDumpsToGcsPath = _messages.StringField(16)
-  sdkContainerImage = _messages.StringField(17)
-  serviceAccountEmail = _messages.StringField(18)
-  stagingLocation = _messages.StringField(19)
-  streamingMode = _messages.EnumField('StreamingModeValueValuesEnum', 20)
-  subnetwork = _messages.StringField(21)
-  tempLocation = _messages.StringField(22)
-  workerRegion = _messages.StringField(23)
-  workerZone = _messages.StringField(24)
-  zone = _messages.StringField(25)
+  additionalPipelineOptions = _messages.StringField(2, repeated=True)
+  additionalUserLabels = _messages.MessageField('AdditionalUserLabelsValue', 3)
+  autoscalingAlgorithm = _messages.EnumField('AutoscalingAlgorithmValueValuesEnum', 4)
+  diskSizeGb = _messages.IntegerField(5, variant=_messages.Variant.INT32)
+  dumpHeapOnOom = _messages.BooleanField(6)
+  enableLauncherVmSerialPortLogging = _messages.BooleanField(7)
+  enableStreamingEngine = _messages.BooleanField(8)
+  flexrsGoal = _messages.EnumField('FlexrsGoalValueValuesEnum', 9)
+  ipConfiguration = _messages.EnumField('IpConfigurationValueValuesEnum', 10)
+  kmsKeyName = _messages.StringField(11)
+  launcherMachineType = _messages.StringField(12)
+  machineType = _messages.StringField(13)
+  maxWorkers = _messages.IntegerField(14, variant=_messages.Variant.INT32)
+  network = _messages.StringField(15)
+  numWorkers = _messages.IntegerField(16, variant=_messages.Variant.INT32)
+  saveHeapDumpsToGcsPath = _messages.StringField(17)
+  sdkContainerImage = _messages.StringField(18)
+  serviceAccountEmail = _messages.StringField(19)
+  stagingLocation = _messages.StringField(20)
+  streamingMode = _messages.EnumField('StreamingModeValueValuesEnum', 21)
+  subnetwork = _messages.StringField(22)
+  tempLocation = _messages.StringField(23)
+  workerRegion = _messages.StringField(24)
+  workerZone = _messages.StringField(25)
+  zone = _messages.StringField(26)
 
 
 class FloatingPointList(_messages.Message):
@@ -2723,6 +2826,29 @@ class FloatingPointMean(_messages.Message):
 
   count = _messages.MessageField('SplitInt64', 1)
   sum = _messages.FloatField(2)
+
+
+class GPUUsage(_messages.Message):
+  r"""Information about the GPU usage on the worker.
+
+  Fields:
+    timestamp: Required. Timestamp of the measurement.
+    utilization: Required. Utilization info about the GPU.
+  """
+
+  timestamp = _messages.StringField(1)
+  utilization = _messages.MessageField('GPUUtilization', 2)
+
+
+class GPUUtilization(_messages.Message):
+  r"""Utilization details about the GPU.
+
+  Fields:
+    rate: Required. GPU utilization rate of any kernel over the last sample
+      period in the range of [0, 1].
+  """
+
+  rate = _messages.FloatField(1)
 
 
 class GetDebugConfigRequest(_messages.Message):
@@ -2767,6 +2893,7 @@ class GetTemplateResponse(_messages.Message):
       request will be indicated in the error_details.
     templateType: Template Type.
   """
+
   class TemplateTypeValueValuesEnum(_messages.Enum):
     r"""Template Type.
 
@@ -2783,6 +2910,30 @@ class GetTemplateResponse(_messages.Message):
   runtimeMetadata = _messages.MessageField('RuntimeMetadata', 2)
   status = _messages.MessageField('Status', 3)
   templateType = _messages.EnumField('TemplateTypeValueValuesEnum', 4)
+
+
+class GetWorkerStacktracesRequest(_messages.Message):
+  r"""Request to get worker stacktraces from debug capture.
+
+  Fields:
+    endTime: The end time for the stacktrace query. The returned stacktraces
+      will be a recent stack trace at or shortly before this time.
+    workerId: The worker for which to get stacktraces. The returned
+      stacktraces will be for the SDK harness running on this worker.
+  """
+
+  endTime = _messages.StringField(1)
+  workerId = _messages.StringField(2)
+
+
+class GetWorkerStacktracesResponse(_messages.Message):
+  r"""Response to get worker stacktraces from debug capture.
+
+  Fields:
+    sdks: Repeated as unified worker may have multiple SDK processes.
+  """
+
+  sdks = _messages.MessageField('Sdk', 1, repeated=True)
 
 
 class Histogram(_messages.Message):
@@ -2817,6 +2968,7 @@ class HotKeyDebuggingInfo(_messages.Message):
     detectedHotKeys: Debugging information for each detected hot key. Keyed by
       a hash of the key.
   """
+
   @encoding.MapUnrecognizedFields('additionalProperties')
   class DetectedHotKeysValue(_messages.Message):
     r"""Debugging information for each detected hot key. Keyed by a hash of
@@ -2829,6 +2981,7 @@ class HotKeyDebuggingInfo(_messages.Message):
     Fields:
       additionalProperties: Additional properties of type DetectedHotKeysValue
     """
+
     class AdditionalProperty(_messages.Message):
       r"""An additional property for a DetectedHotKeysValue object.
 
@@ -2840,8 +2993,7 @@ class HotKeyDebuggingInfo(_messages.Message):
       key = _messages.StringField(1)
       value = _messages.MessageField('HotKeyInfo', 2)
 
-    additionalProperties = _messages.MessageField(
-        'AdditionalProperty', 1, repeated=True)
+    additionalProperties = _messages.MessageField('AdditionalProperty', 1, repeated=True)
 
   detectedHotKeys = _messages.MessageField('DetectedHotKeysValue', 1)
 
@@ -2894,8 +3046,7 @@ class InstructionInput(_messages.Message):
   """
 
   outputNum = _messages.IntegerField(1, variant=_messages.Variant.INT32)
-  producerInstructionIndex = _messages.IntegerField(
-      2, variant=_messages.Variant.INT32)
+  producerInstructionIndex = _messages.IntegerField(2, variant=_messages.Variant.INT32)
 
 
 class InstructionOutput(_messages.Message):
@@ -2917,6 +3068,7 @@ class InstructionOutput(_messages.Message):
     systemName: System-defined name of this output. Unique across the
       workflow.
   """
+
   @encoding.MapUnrecognizedFields('additionalProperties')
   class CodecValue(_messages.Message):
     r"""The codec to use to encode data being written via this output.
@@ -2927,6 +3079,7 @@ class InstructionOutput(_messages.Message):
     Fields:
       additionalProperties: Properties of the object.
     """
+
     class AdditionalProperty(_messages.Message):
       r"""An additional property for a CodecValue object.
 
@@ -2938,8 +3091,7 @@ class InstructionOutput(_messages.Message):
       key = _messages.StringField(1)
       value = _messages.MessageField('extra_types.JsonValue', 2)
 
-    additionalProperties = _messages.MessageField(
-        'AdditionalProperty', 1, repeated=True)
+    additionalProperties = _messages.MessageField('AdditionalProperty', 1, repeated=True)
 
   codec = _messages.MessageField('CodecValue', 1)
   name = _messages.StringField(2)
@@ -3108,6 +3260,7 @@ class Job(_messages.Message):
       job to be replaced to the corresponding name prefixes of the new job.
     type: Optional. The type of Dataflow job.
   """
+
   class CurrentStateValueValuesEnum(_messages.Enum):
     r"""The current state of the job. Jobs are created in the
     `JOB_STATE_STOPPED` state unless otherwise specified. A job in the
@@ -3166,6 +3319,8 @@ class Job(_messages.Message):
         indicates that the batch job's associated resources are currently
         being cleaned up after a successful run. Currently, this is an opt-in
         feature, please reach out to Cloud support team if you are interested.
+      JOB_STATE_PAUSING: `JOB_STATE_PAUSING` is not implemented yet.
+      JOB_STATE_PAUSED: `JOB_STATE_PAUSED` is not implemented yet.
     """
     JOB_STATE_UNKNOWN = 0
     JOB_STATE_STOPPED = 1
@@ -3180,6 +3335,8 @@ class Job(_messages.Message):
     JOB_STATE_CANCELLING = 10
     JOB_STATE_QUEUED = 11
     JOB_STATE_RESOURCE_CLEANING_UP = 12
+    JOB_STATE_PAUSING = 13
+    JOB_STATE_PAUSED = 14
 
   class RequestedStateValueValuesEnum(_messages.Enum):
     r"""The job's requested state. Applies to `UpdateJob` requests. Set
@@ -3240,6 +3397,8 @@ class Job(_messages.Message):
         indicates that the batch job's associated resources are currently
         being cleaned up after a successful run. Currently, this is an opt-in
         feature, please reach out to Cloud support team if you are interested.
+      JOB_STATE_PAUSING: `JOB_STATE_PAUSING` is not implemented yet.
+      JOB_STATE_PAUSED: `JOB_STATE_PAUSED` is not implemented yet.
     """
     JOB_STATE_UNKNOWN = 0
     JOB_STATE_STOPPED = 1
@@ -3254,6 +3413,8 @@ class Job(_messages.Message):
     JOB_STATE_CANCELLING = 10
     JOB_STATE_QUEUED = 11
     JOB_STATE_RESOURCE_CLEANING_UP = 12
+    JOB_STATE_PAUSING = 13
+    JOB_STATE_PAUSED = 14
 
   class TypeValueValuesEnum(_messages.Enum):
     r"""Optional. The type of Dataflow job.
@@ -3284,6 +3445,7 @@ class Job(_messages.Message):
     Fields:
       additionalProperties: Additional properties of type LabelsValue
     """
+
     class AdditionalProperty(_messages.Message):
       r"""An additional property for a LabelsValue object.
 
@@ -3295,8 +3457,7 @@ class Job(_messages.Message):
       key = _messages.StringField(1)
       value = _messages.StringField(2)
 
-    additionalProperties = _messages.MessageField(
-        'AdditionalProperty', 1, repeated=True)
+    additionalProperties = _messages.MessageField('AdditionalProperty', 1, repeated=True)
 
   @encoding.MapUnrecognizedFields('additionalProperties')
   class TransformNameMappingValue(_messages.Message):
@@ -3311,6 +3472,7 @@ class Job(_messages.Message):
       additionalProperties: Additional properties of type
         TransformNameMappingValue
     """
+
     class AdditionalProperty(_messages.Message):
       r"""An additional property for a TransformNameMappingValue object.
 
@@ -3322,8 +3484,7 @@ class Job(_messages.Message):
       key = _messages.StringField(1)
       value = _messages.StringField(2)
 
-    additionalProperties = _messages.MessageField(
-        'AdditionalProperty', 1, repeated=True)
+    additionalProperties = _messages.MessageField('AdditionalProperty', 1, repeated=True)
 
   clientRequestId = _messages.StringField(1)
   createTime = _messages.StringField(2)
@@ -3380,6 +3541,7 @@ class JobExecutionInfo(_messages.Message):
   Fields:
     stages: A mapping from each stage to the information about that stage.
   """
+
   @encoding.MapUnrecognizedFields('additionalProperties')
   class StagesValue(_messages.Message):
     r"""A mapping from each stage to the information about that stage.
@@ -3390,6 +3552,7 @@ class JobExecutionInfo(_messages.Message):
     Fields:
       additionalProperties: Additional properties of type StagesValue
     """
+
     class AdditionalProperty(_messages.Message):
       r"""An additional property for a StagesValue object.
 
@@ -3401,8 +3564,7 @@ class JobExecutionInfo(_messages.Message):
       key = _messages.StringField(1)
       value = _messages.MessageField('JobExecutionStageInfo', 2)
 
-    additionalProperties = _messages.MessageField(
-        'AdditionalProperty', 1, repeated=True)
+    additionalProperties = _messages.MessageField('AdditionalProperty', 1, repeated=True)
 
   stages = _messages.MessageField('StagesValue', 1)
 
@@ -3432,6 +3594,7 @@ class JobMessage(_messages.Message):
     messageText: The text of the message.
     time: The timestamp of the message.
   """
+
   class MessageImportanceValueValuesEnum(_messages.Enum):
     r"""Importance level of the message.
 
@@ -3497,6 +3660,7 @@ class JobMetadata(_messages.Message):
       job.
     userDisplayProperties: List of display properties to help UI filter jobs.
   """
+
   @encoding.MapUnrecognizedFields('additionalProperties')
   class UserDisplayPropertiesValue(_messages.Message):
     r"""List of display properties to help UI filter jobs.
@@ -3509,6 +3673,7 @@ class JobMetadata(_messages.Message):
       additionalProperties: Additional properties of type
         UserDisplayPropertiesValue
     """
+
     class AdditionalProperty(_messages.Message):
       r"""An additional property for a UserDisplayPropertiesValue object.
 
@@ -3520,21 +3685,16 @@ class JobMetadata(_messages.Message):
       key = _messages.StringField(1)
       value = _messages.StringField(2)
 
-    additionalProperties = _messages.MessageField(
-        'AdditionalProperty', 1, repeated=True)
+    additionalProperties = _messages.MessageField('AdditionalProperty', 1, repeated=True)
 
-  bigTableDetails = _messages.MessageField(
-      'BigTableIODetails', 1, repeated=True)
-  bigqueryDetails = _messages.MessageField(
-      'BigQueryIODetails', 2, repeated=True)
-  datastoreDetails = _messages.MessageField(
-      'DatastoreIODetails', 3, repeated=True)
+  bigTableDetails = _messages.MessageField('BigTableIODetails', 1, repeated=True)
+  bigqueryDetails = _messages.MessageField('BigQueryIODetails', 2, repeated=True)
+  datastoreDetails = _messages.MessageField('DatastoreIODetails', 3, repeated=True)
   fileDetails = _messages.MessageField('FileIODetails', 4, repeated=True)
   pubsubDetails = _messages.MessageField('PubSubIODetails', 5, repeated=True)
   sdkVersion = _messages.MessageField('SdkVersion', 6)
   spannerDetails = _messages.MessageField('SpannerIODetails', 7, repeated=True)
-  userDisplayProperties = _messages.MessageField(
-      'UserDisplayPropertiesValue', 8)
+  userDisplayProperties = _messages.MessageField('UserDisplayPropertiesValue', 8)
 
 
 class JobMetrics(_messages.Message):
@@ -3628,6 +3788,7 @@ class LaunchFlexTemplateParameter(_messages.Message):
       streaming job. When set, the job name should be the same as the running
       job.
   """
+
   @encoding.MapUnrecognizedFields('additionalProperties')
   class LaunchOptionsValue(_messages.Message):
     r"""Launch options for this flex template job. This is a common set of
@@ -3641,6 +3802,7 @@ class LaunchFlexTemplateParameter(_messages.Message):
     Fields:
       additionalProperties: Additional properties of type LaunchOptionsValue
     """
+
     class AdditionalProperty(_messages.Message):
       r"""An additional property for a LaunchOptionsValue object.
 
@@ -3652,8 +3814,7 @@ class LaunchFlexTemplateParameter(_messages.Message):
       key = _messages.StringField(1)
       value = _messages.StringField(2)
 
-    additionalProperties = _messages.MessageField(
-        'AdditionalProperty', 1, repeated=True)
+    additionalProperties = _messages.MessageField('AdditionalProperty', 1, repeated=True)
 
   @encoding.MapUnrecognizedFields('additionalProperties')
   class ParametersValue(_messages.Message):
@@ -3665,6 +3826,7 @@ class LaunchFlexTemplateParameter(_messages.Message):
     Fields:
       additionalProperties: Additional properties of type ParametersValue
     """
+
     class AdditionalProperty(_messages.Message):
       r"""An additional property for a ParametersValue object.
 
@@ -3676,8 +3838,7 @@ class LaunchFlexTemplateParameter(_messages.Message):
       key = _messages.StringField(1)
       value = _messages.StringField(2)
 
-    additionalProperties = _messages.MessageField(
-        'AdditionalProperty', 1, repeated=True)
+    additionalProperties = _messages.MessageField('AdditionalProperty', 1, repeated=True)
 
   @encoding.MapUnrecognizedFields('additionalProperties')
   class TransformNameMappingsValue(_messages.Message):
@@ -3692,6 +3853,7 @@ class LaunchFlexTemplateParameter(_messages.Message):
       additionalProperties: Additional properties of type
         TransformNameMappingsValue
     """
+
     class AdditionalProperty(_messages.Message):
       r"""An additional property for a TransformNameMappingsValue object.
 
@@ -3703,8 +3865,7 @@ class LaunchFlexTemplateParameter(_messages.Message):
       key = _messages.StringField(1)
       value = _messages.StringField(2)
 
-    additionalProperties = _messages.MessageField(
-        'AdditionalProperty', 1, repeated=True)
+    additionalProperties = _messages.MessageField('AdditionalProperty', 1, repeated=True)
 
   containerSpec = _messages.MessageField('ContainerSpec', 1)
   containerSpecGcsPath = _messages.StringField(2)
@@ -3712,8 +3873,7 @@ class LaunchFlexTemplateParameter(_messages.Message):
   jobName = _messages.StringField(4)
   launchOptions = _messages.MessageField('LaunchOptionsValue', 5)
   parameters = _messages.MessageField('ParametersValue', 6)
-  transformNameMappings = _messages.MessageField(
-      'TransformNameMappingsValue', 7)
+  transformNameMappings = _messages.MessageField('TransformNameMappingsValue', 7)
   update = _messages.BooleanField(8)
 
 
@@ -3764,6 +3924,7 @@ class LaunchTemplateParameters(_messages.Message):
     update: If set, replace the existing pipeline with the name specified by
       jobName with this pipeline, preserving state.
   """
+
   @encoding.MapUnrecognizedFields('additionalProperties')
   class ParametersValue(_messages.Message):
     r"""The runtime parameters to pass to the job.
@@ -3774,6 +3935,7 @@ class LaunchTemplateParameters(_messages.Message):
     Fields:
       additionalProperties: Additional properties of type ParametersValue
     """
+
     class AdditionalProperty(_messages.Message):
       r"""An additional property for a ParametersValue object.
 
@@ -3785,8 +3947,7 @@ class LaunchTemplateParameters(_messages.Message):
       key = _messages.StringField(1)
       value = _messages.StringField(2)
 
-    additionalProperties = _messages.MessageField(
-        'AdditionalProperty', 1, repeated=True)
+    additionalProperties = _messages.MessageField('AdditionalProperty', 1, repeated=True)
 
   @encoding.MapUnrecognizedFields('additionalProperties')
   class TransformNameMappingValue(_messages.Message):
@@ -3802,6 +3963,7 @@ class LaunchTemplateParameters(_messages.Message):
       additionalProperties: Additional properties of type
         TransformNameMappingValue
     """
+
     class AdditionalProperty(_messages.Message):
       r"""An additional property for a TransformNameMappingValue object.
 
@@ -3813,8 +3975,7 @@ class LaunchTemplateParameters(_messages.Message):
       key = _messages.StringField(1)
       value = _messages.StringField(2)
 
-    additionalProperties = _messages.MessageField(
-        'AdditionalProperty', 1, repeated=True)
+    additionalProperties = _messages.MessageField('AdditionalProperty', 1, repeated=True)
 
   environment = _messages.MessageField('RuntimeEnvironment', 1)
   jobName = _messages.StringField(2)
@@ -3846,6 +4007,8 @@ class LeaseWorkItemRequest(_messages.Message):
     location: The [regional endpoint]
       (https://cloud.google.com/dataflow/docs/concepts/regional-endpoints)
       that contains the WorkItem's job.
+    projectNumber: Optional. The project number of the project this worker
+      belongs to.
     requestedLeaseDuration: The initial lease period.
     unifiedWorkerRequest: Untranslated bag-of-bytes WorkRequest from
       UnifiedWorker.
@@ -3855,6 +4018,7 @@ class LeaseWorkItemRequest(_messages.Message):
     workerId: Identifies the worker leasing work -- typically the ID of the
       virtual machine running the worker.
   """
+
   @encoding.MapUnrecognizedFields('additionalProperties')
   class UnifiedWorkerRequestValue(_messages.Message):
     r"""Untranslated bag-of-bytes WorkRequest from UnifiedWorker.
@@ -3867,6 +4031,7 @@ class LeaseWorkItemRequest(_messages.Message):
       additionalProperties: Properties of the object. Contains field @type
         with type URL.
     """
+
     class AdditionalProperty(_messages.Message):
       r"""An additional property for a UnifiedWorkerRequestValue object.
 
@@ -3878,16 +4043,16 @@ class LeaseWorkItemRequest(_messages.Message):
       key = _messages.StringField(1)
       value = _messages.MessageField('extra_types.JsonValue', 2)
 
-    additionalProperties = _messages.MessageField(
-        'AdditionalProperty', 1, repeated=True)
+    additionalProperties = _messages.MessageField('AdditionalProperty', 1, repeated=True)
 
   currentWorkerTime = _messages.StringField(1)
   location = _messages.StringField(2)
-  requestedLeaseDuration = _messages.StringField(3)
-  unifiedWorkerRequest = _messages.MessageField('UnifiedWorkerRequestValue', 4)
-  workItemTypes = _messages.StringField(5, repeated=True)
-  workerCapabilities = _messages.StringField(6, repeated=True)
-  workerId = _messages.StringField(7)
+  projectNumber = _messages.IntegerField(3)
+  requestedLeaseDuration = _messages.StringField(4)
+  unifiedWorkerRequest = _messages.MessageField('UnifiedWorkerRequestValue', 5)
+  workItemTypes = _messages.StringField(6, repeated=True)
+  workerCapabilities = _messages.StringField(7, repeated=True)
+  workerId = _messages.StringField(8)
 
 
 class LeaseWorkItemResponse(_messages.Message):
@@ -3902,6 +4067,7 @@ class LeaseWorkItemResponse(_messages.Message):
       UnifiedWorker.
     workItems: A list of the leased WorkItems.
   """
+
   @encoding.MapUnrecognizedFields('additionalProperties')
   class UnifiedWorkerResponseValue(_messages.Message):
     r"""Untranslated bag-of-bytes WorkResponse for UnifiedWorker.
@@ -3914,6 +4080,7 @@ class LeaseWorkItemResponse(_messages.Message):
       additionalProperties: Properties of the object. Contains field @type
         with type URL.
     """
+
     class AdditionalProperty(_messages.Message):
       r"""An additional property for a UnifiedWorkerResponseValue object.
 
@@ -3925,11 +4092,9 @@ class LeaseWorkItemResponse(_messages.Message):
       key = _messages.StringField(1)
       value = _messages.MessageField('extra_types.JsonValue', 2)
 
-    additionalProperties = _messages.MessageField(
-        'AdditionalProperty', 1, repeated=True)
+    additionalProperties = _messages.MessageField('AdditionalProperty', 1, repeated=True)
 
-  unifiedWorkerResponse = _messages.MessageField(
-      'UnifiedWorkerResponseValue', 1)
+  unifiedWorkerResponse = _messages.MessageField('UnifiedWorkerResponseValue', 1)
   workItems = _messages.MessageField('WorkItem', 2, repeated=True)
 
 
@@ -3958,8 +4123,7 @@ class ListJobMessagesResponse(_messages.Message):
       more.
   """
 
-  autoscalingEvents = _messages.MessageField(
-      'AutoscalingEvent', 1, repeated=True)
+  autoscalingEvents = _messages.MessageField('AutoscalingEvent', 1, repeated=True)
   jobMessages = _messages.MessageField('JobMessage', 2, repeated=True)
   nextPageToken = _messages.StringField(3)
 
@@ -4029,8 +4193,7 @@ class MemInfo(_messages.Message):
     totalGbMs: Total memory (RSS) usage since start up in GB * ms.
   """
 
-  currentLimitBytes = _messages.IntegerField(
-      1, variant=_messages.Variant.UINT64)
+  currentLimitBytes = _messages.IntegerField(1, variant=_messages.Variant.UINT64)
   currentOoms = _messages.IntegerField(2)
   currentRssBytes = _messages.IntegerField(3, variant=_messages.Variant.UINT64)
   timestamp = _messages.StringField(4)
@@ -4073,6 +4236,7 @@ class MetricStructuredName(_messages.Message):
       metrics; will be "dataflow" for metrics defined by the Dataflow service
       or SDK.
   """
+
   @encoding.MapUnrecognizedFields('additionalProperties')
   class ContextValue(_messages.Message):
     r"""Zero or more labeled fields which identify the part of the job this
@@ -4087,6 +4251,7 @@ class MetricStructuredName(_messages.Message):
     Fields:
       additionalProperties: Additional properties of type ContextValue
     """
+
     class AdditionalProperty(_messages.Message):
       r"""An additional property for a ContextValue object.
 
@@ -4098,8 +4263,7 @@ class MetricStructuredName(_messages.Message):
       key = _messages.StringField(1)
       value = _messages.StringField(2)
 
-    additionalProperties = _messages.MessageField(
-        'AdditionalProperty', 1, repeated=True)
+    additionalProperties = _messages.MessageField('AdditionalProperty', 1, repeated=True)
 
   context = _messages.MessageField('ContextValue', 1)
   name = _messages.StringField(2)
@@ -4110,6 +4274,10 @@ class MetricUpdate(_messages.Message):
   r"""Describes the state of a metric.
 
   Fields:
+    boundedTrie: Worker-computed aggregate value for the "Trie" aggregation
+      kind. The only possible value type is a BoundedTrieNode. Introduced this
+      field to avoid breaking older SDKs when Dataflow service starts to
+      populate the `bounded_trie` field.
     cumulative: True if this metric is reported as the total cumulative
       aggregate value accumulated since the worker started working on this
       WorkItem. By default this is false, indicating that this metric is
@@ -4139,24 +4307,28 @@ class MetricUpdate(_messages.Message):
       Double, and Boolean.
     set: Worker-computed aggregate value for the "Set" aggregation kind. The
       only possible value type is a list of Values whose type can be Long,
-      Double, or String, according to the metric's type. All Values in the
-      list must be of the same type.
+      Double, String, or BoundedTrie according to the metric's type. All
+      Values in the list must be of the same type.
+    trie: Worker-computed aggregate value for the "Trie" aggregation kind. The
+      only possible value type is a BoundedTrieNode.
     updateTime: Timestamp associated with the metric value. Optional when
       workers are reporting work progress; it will be filled in responses from
       the metrics API.
   """
 
-  cumulative = _messages.BooleanField(1)
-  distribution = _messages.MessageField('extra_types.JsonValue', 2)
-  gauge = _messages.MessageField('extra_types.JsonValue', 3)
-  internal = _messages.MessageField('extra_types.JsonValue', 4)
-  kind = _messages.StringField(5)
-  meanCount = _messages.MessageField('extra_types.JsonValue', 6)
-  meanSum = _messages.MessageField('extra_types.JsonValue', 7)
-  name = _messages.MessageField('MetricStructuredName', 8)
-  scalar = _messages.MessageField('extra_types.JsonValue', 9)
-  set = _messages.MessageField('extra_types.JsonValue', 10)
-  updateTime = _messages.StringField(11)
+  boundedTrie = _messages.MessageField('extra_types.JsonValue', 1)
+  cumulative = _messages.BooleanField(2)
+  distribution = _messages.MessageField('extra_types.JsonValue', 3)
+  gauge = _messages.MessageField('extra_types.JsonValue', 4)
+  internal = _messages.MessageField('extra_types.JsonValue', 5)
+  kind = _messages.StringField(6)
+  meanCount = _messages.MessageField('extra_types.JsonValue', 7)
+  meanSum = _messages.MessageField('extra_types.JsonValue', 8)
+  name = _messages.MessageField('MetricStructuredName', 9)
+  scalar = _messages.MessageField('extra_types.JsonValue', 10)
+  set = _messages.MessageField('extra_types.JsonValue', 11)
+  trie = _messages.MessageField('extra_types.JsonValue', 12)
+  updateTime = _messages.StringField(13)
 
 
 class MetricValue(_messages.Message):
@@ -4168,9 +4340,11 @@ class MetricValue(_messages.Message):
   Fields:
     metric: Base name for this metric.
     metricLabels: Optional. Set of metric labels for this metric.
+    valueGauge64: Non-cumulative int64 value of this metric.
     valueHistogram: Histogram value of this metric.
     valueInt64: Integer value of this metric.
   """
+
   @encoding.MapUnrecognizedFields('additionalProperties')
   class MetricLabelsValue(_messages.Message):
     r"""Optional. Set of metric labels for this metric.
@@ -4182,6 +4356,7 @@ class MetricValue(_messages.Message):
     Fields:
       additionalProperties: Additional properties of type MetricLabelsValue
     """
+
     class AdditionalProperty(_messages.Message):
       r"""An additional property for a MetricLabelsValue object.
 
@@ -4193,13 +4368,13 @@ class MetricValue(_messages.Message):
       key = _messages.StringField(1)
       value = _messages.StringField(2)
 
-    additionalProperties = _messages.MessageField(
-        'AdditionalProperty', 1, repeated=True)
+    additionalProperties = _messages.MessageField('AdditionalProperty', 1, repeated=True)
 
   metric = _messages.StringField(1)
   metricLabels = _messages.MessageField('MetricLabelsValue', 2)
-  valueHistogram = _messages.MessageField('DataflowHistogramValue', 3)
-  valueInt64 = _messages.IntegerField(4)
+  valueGauge64 = _messages.MessageField('DataflowGaugeValue', 3)
+  valueHistogram = _messages.MessageField('DataflowHistogramValue', 4)
+  valueInt64 = _messages.IntegerField(5)
 
 
 class MountedDataDisk(_messages.Message):
@@ -4235,6 +4410,7 @@ class NameAndKind(_messages.Message):
     kind: Counter aggregation kind.
     name: Name of the counter.
   """
+
   class KindValueValuesEnum(_messages.Enum):
     r"""Counter aggregation kind.
 
@@ -4320,6 +4496,7 @@ class ParDoInstruction(_messages.Message):
     sideInputs: Zero or more side inputs.
     userFn: The user function to invoke.
   """
+
   @encoding.MapUnrecognizedFields('additionalProperties')
   class UserFnValue(_messages.Message):
     r"""The user function to invoke.
@@ -4330,6 +4507,7 @@ class ParDoInstruction(_messages.Message):
     Fields:
       additionalProperties: Properties of the object.
     """
+
     class AdditionalProperty(_messages.Message):
       r"""An additional property for a UserFnValue object.
 
@@ -4341,8 +4519,7 @@ class ParDoInstruction(_messages.Message):
       key = _messages.StringField(1)
       value = _messages.MessageField('extra_types.JsonValue', 2)
 
-    additionalProperties = _messages.MessageField(
-        'AdditionalProperty', 1, repeated=True)
+    additionalProperties = _messages.MessageField('AdditionalProperty', 1, repeated=True)
 
   input = _messages.MessageField('InstructionInput', 1)
   multiOutputInfos = _messages.MessageField('MultiOutputInfo', 2, repeated=True)
@@ -4434,6 +4611,7 @@ class ParameterMetadata(_messages.Message):
       been provided).
     regexes: Optional. Regexes that the parameter must match.
   """
+
   class ParamTypeValueValuesEnum(_messages.Enum):
     r"""Optional. The type of the parameter. Used for selecting input picker.
 
@@ -4509,6 +4687,7 @@ class ParameterMetadata(_messages.Message):
     Fields:
       additionalProperties: Additional properties of type CustomMetadataValue
     """
+
     class AdditionalProperty(_messages.Message):
       r"""An additional property for a CustomMetadataValue object.
 
@@ -4520,13 +4699,11 @@ class ParameterMetadata(_messages.Message):
       key = _messages.StringField(1)
       value = _messages.StringField(2)
 
-    additionalProperties = _messages.MessageField(
-        'AdditionalProperty', 1, repeated=True)
+    additionalProperties = _messages.MessageField('AdditionalProperty', 1, repeated=True)
 
   customMetadata = _messages.MessageField('CustomMetadataValue', 1)
   defaultValue = _messages.StringField(2)
-  enumOptions = _messages.MessageField(
-      'ParameterMetadataEnumOption', 3, repeated=True)
+  enumOptions = _messages.MessageField('ParameterMetadataEnumOption', 3, repeated=True)
   groupName = _messages.StringField(4)
   helpText = _messages.StringField(5)
   hiddenUi = _messages.BooleanField(6)
@@ -4575,6 +4752,7 @@ class PartialGroupByKeyInstruction(_messages.Message):
     sideInputs: Zero or more side inputs.
     valueCombiningFn: The value combining function to invoke.
   """
+
   @encoding.MapUnrecognizedFields('additionalProperties')
   class InputElementCodecValue(_messages.Message):
     r"""The codec to use for interpreting an element in the input PTable.
@@ -4586,6 +4764,7 @@ class PartialGroupByKeyInstruction(_messages.Message):
     Fields:
       additionalProperties: Properties of the object.
     """
+
     class AdditionalProperty(_messages.Message):
       r"""An additional property for a InputElementCodecValue object.
 
@@ -4597,8 +4776,7 @@ class PartialGroupByKeyInstruction(_messages.Message):
       key = _messages.StringField(1)
       value = _messages.MessageField('extra_types.JsonValue', 2)
 
-    additionalProperties = _messages.MessageField(
-        'AdditionalProperty', 1, repeated=True)
+    additionalProperties = _messages.MessageField('AdditionalProperty', 1, repeated=True)
 
   @encoding.MapUnrecognizedFields('additionalProperties')
   class ValueCombiningFnValue(_messages.Message):
@@ -4611,6 +4789,7 @@ class PartialGroupByKeyInstruction(_messages.Message):
     Fields:
       additionalProperties: Properties of the object.
     """
+
     class AdditionalProperty(_messages.Message):
       r"""An additional property for a ValueCombiningFnValue object.
 
@@ -4622,8 +4801,7 @@ class PartialGroupByKeyInstruction(_messages.Message):
       key = _messages.StringField(1)
       value = _messages.MessageField('extra_types.JsonValue', 2)
 
-    additionalProperties = _messages.MessageField(
-        'AdditionalProperty', 1, repeated=True)
+    additionalProperties = _messages.MessageField('AdditionalProperty', 1, repeated=True)
 
   input = _messages.MessageField('InstructionInput', 1)
   inputElementCodec = _messages.MessageField('InputElementCodecValue', 2)
@@ -4659,8 +4837,7 @@ class PerWorkerMetrics(_messages.Message):
       and namespace.
   """
 
-  perStepNamespaceMetrics = _messages.MessageField(
-      'PerStepNamespaceMetrics', 1, repeated=True)
+  perStepNamespaceMetrics = _messages.MessageField('PerStepNamespaceMetrics', 1, repeated=True)
 
 
 class PipelineDescription(_messages.Message):
@@ -4679,10 +4856,8 @@ class PipelineDescription(_messages.Message):
   """
 
   displayData = _messages.MessageField('DisplayData', 1, repeated=True)
-  executionPipelineStage = _messages.MessageField(
-      'ExecutionStageSummary', 2, repeated=True)
-  originalPipelineTransform = _messages.MessageField(
-      'TransformSummary', 3, repeated=True)
+  executionPipelineStage = _messages.MessageField('ExecutionStageSummary', 2, repeated=True)
+  originalPipelineTransform = _messages.MessageField('TransformSummary', 3, repeated=True)
   stepNamesHash = _messages.StringField(4)
 
 
@@ -4816,6 +4991,8 @@ class ReportWorkItemStatusRequest(_messages.Message):
     location: The [regional endpoint]
       (https://cloud.google.com/dataflow/docs/concepts/regional-endpoints)
       that contains the WorkItem's job.
+    projectNumber: Optional. The project number of the project which owns the
+      WorkItem's job.
     unifiedWorkerRequest: Untranslated bag-of-bytes WorkProgressUpdateRequest
       from UnifiedWorker.
     workItemStatuses: The order is unimportant, except that the order of the
@@ -4826,6 +5003,7 @@ class ReportWorkItemStatusRequest(_messages.Message):
       currently has the lease on the WorkItem, the report will be dropped
       (with an error response).
   """
+
   @encoding.MapUnrecognizedFields('additionalProperties')
   class UnifiedWorkerRequestValue(_messages.Message):
     r"""Untranslated bag-of-bytes WorkProgressUpdateRequest from
@@ -4839,6 +5017,7 @@ class ReportWorkItemStatusRequest(_messages.Message):
       additionalProperties: Properties of the object. Contains field @type
         with type URL.
     """
+
     class AdditionalProperty(_messages.Message):
       r"""An additional property for a UnifiedWorkerRequestValue object.
 
@@ -4850,14 +5029,14 @@ class ReportWorkItemStatusRequest(_messages.Message):
       key = _messages.StringField(1)
       value = _messages.MessageField('extra_types.JsonValue', 2)
 
-    additionalProperties = _messages.MessageField(
-        'AdditionalProperty', 1, repeated=True)
+    additionalProperties = _messages.MessageField('AdditionalProperty', 1, repeated=True)
 
   currentWorkerTime = _messages.StringField(1)
   location = _messages.StringField(2)
-  unifiedWorkerRequest = _messages.MessageField('UnifiedWorkerRequestValue', 3)
-  workItemStatuses = _messages.MessageField('WorkItemStatus', 4, repeated=True)
-  workerId = _messages.StringField(5)
+  projectNumber = _messages.IntegerField(3)
+  unifiedWorkerRequest = _messages.MessageField('UnifiedWorkerRequestValue', 4)
+  workItemStatuses = _messages.MessageField('WorkItemStatus', 5, repeated=True)
+  workerId = _messages.StringField(6)
 
 
 class ReportWorkItemStatusResponse(_messages.Message):
@@ -4875,6 +5054,7 @@ class ReportWorkItemStatusResponse(_messages.Message):
       WorkItemStatus messages in the ReportWorkItemStatusRequest which
       resulting in this response.
   """
+
   @encoding.MapUnrecognizedFields('additionalProperties')
   class UnifiedWorkerResponseValue(_messages.Message):
     r"""Untranslated bag-of-bytes WorkProgressUpdateResponse for
@@ -4888,6 +5068,7 @@ class ReportWorkItemStatusResponse(_messages.Message):
       additionalProperties: Properties of the object. Contains field @type
         with type URL.
     """
+
     class AdditionalProperty(_messages.Message):
       r"""An additional property for a UnifiedWorkerResponseValue object.
 
@@ -4899,13 +5080,10 @@ class ReportWorkItemStatusResponse(_messages.Message):
       key = _messages.StringField(1)
       value = _messages.MessageField('extra_types.JsonValue', 2)
 
-    additionalProperties = _messages.MessageField(
-        'AdditionalProperty', 1, repeated=True)
+    additionalProperties = _messages.MessageField('AdditionalProperty', 1, repeated=True)
 
-  unifiedWorkerResponse = _messages.MessageField(
-      'UnifiedWorkerResponseValue', 1)
-  workItemServiceStates = _messages.MessageField(
-      'WorkItemServiceState', 2, repeated=True)
+  unifiedWorkerResponse = _messages.MessageField('UnifiedWorkerResponseValue', 1)
+  workItemServiceStates = _messages.MessageField('WorkItemServiceState', 2, repeated=True)
 
 
 class ReportedParallelism(_messages.Message):
@@ -4936,8 +5114,10 @@ class ResourceUtilizationReport(_messages.Message):
   Fields:
     containers: Per container information. Key: container name.
     cpuTime: CPU utilization samples.
+    gpuUsage: Optional. GPU usage samples.
     memoryInfo: Memory utilization samples.
   """
+
   @encoding.MapUnrecognizedFields('additionalProperties')
   class ContainersValue(_messages.Message):
     r"""Per container information. Key: container name.
@@ -4948,6 +5128,7 @@ class ResourceUtilizationReport(_messages.Message):
     Fields:
       additionalProperties: Additional properties of type ContainersValue
     """
+
     class AdditionalProperty(_messages.Message):
       r"""An additional property for a ContainersValue object.
 
@@ -4959,12 +5140,12 @@ class ResourceUtilizationReport(_messages.Message):
       key = _messages.StringField(1)
       value = _messages.MessageField('ResourceUtilizationReport', 2)
 
-    additionalProperties = _messages.MessageField(
-        'AdditionalProperty', 1, repeated=True)
+    additionalProperties = _messages.MessageField('AdditionalProperty', 1, repeated=True)
 
   containers = _messages.MessageField('ContainersValue', 1)
   cpuTime = _messages.MessageField('CPUTime', 2, repeated=True)
-  memoryInfo = _messages.MessageField('MemInfo', 3, repeated=True)
+  gpuUsage = _messages.MessageField('GPUUsage', 3, repeated=True)
+  memoryInfo = _messages.MessageField('MemInfo', 4, repeated=True)
 
 
 class ResourceUtilizationReportResponse(_messages.Message):
@@ -4972,8 +5153,9 @@ class ResourceUtilizationReportResponse(_messages.Message):
   """
 
 
+
 class RuntimeEnvironment(_messages.Message):
-  r"""The environment values to set at runtime. LINT.IfChange
+  r"""The environment values to set at runtime.
 
   Enums:
     IpConfigurationValueValuesEnum: Optional. Configuration for VM IPs.
@@ -4996,6 +5178,8 @@ class RuntimeEnvironment(_messages.Message):
   Fields:
     additionalExperiments: Optional. Additional experiment flags for the job,
       specified with the `--experiments` option.
+    additionalPipelineOptions: Optional. Additional pipeline option flags for
+      the job.
     additionalUserLabels: Optional. Additional user labels to be specified for
       the job. Keys and values should follow the restrictions specified in the
       [labeling restrictions](https://cloud.google.com/compute/docs/labeling-
@@ -5053,6 +5237,7 @@ class RuntimeEnvironment(_messages.Message):
       for launching worker instances to run your pipeline. In the future,
       worker_zone will take precedence.
   """
+
   class IpConfigurationValueValuesEnum(_messages.Enum):
     r"""Optional. Configuration for VM IPs.
 
@@ -5104,6 +5289,7 @@ class RuntimeEnvironment(_messages.Message):
       additionalProperties: Additional properties of type
         AdditionalUserLabelsValue
     """
+
     class AdditionalProperty(_messages.Message):
       r"""An additional property for a AdditionalUserLabelsValue object.
 
@@ -5115,27 +5301,27 @@ class RuntimeEnvironment(_messages.Message):
       key = _messages.StringField(1)
       value = _messages.StringField(2)
 
-    additionalProperties = _messages.MessageField(
-        'AdditionalProperty', 1, repeated=True)
+    additionalProperties = _messages.MessageField('AdditionalProperty', 1, repeated=True)
 
   additionalExperiments = _messages.StringField(1, repeated=True)
-  additionalUserLabels = _messages.MessageField('AdditionalUserLabelsValue', 2)
-  bypassTempDirValidation = _messages.BooleanField(3)
-  diskSizeGb = _messages.IntegerField(4, variant=_messages.Variant.INT32)
-  enableStreamingEngine = _messages.BooleanField(5)
-  ipConfiguration = _messages.EnumField('IpConfigurationValueValuesEnum', 6)
-  kmsKeyName = _messages.StringField(7)
-  machineType = _messages.StringField(8)
-  maxWorkers = _messages.IntegerField(9, variant=_messages.Variant.INT32)
-  network = _messages.StringField(10)
-  numWorkers = _messages.IntegerField(11, variant=_messages.Variant.INT32)
-  serviceAccountEmail = _messages.StringField(12)
-  streamingMode = _messages.EnumField('StreamingModeValueValuesEnum', 13)
-  subnetwork = _messages.StringField(14)
-  tempLocation = _messages.StringField(15)
-  workerRegion = _messages.StringField(16)
-  workerZone = _messages.StringField(17)
-  zone = _messages.StringField(18)
+  additionalPipelineOptions = _messages.StringField(2, repeated=True)
+  additionalUserLabels = _messages.MessageField('AdditionalUserLabelsValue', 3)
+  bypassTempDirValidation = _messages.BooleanField(4)
+  diskSizeGb = _messages.IntegerField(5, variant=_messages.Variant.INT32)
+  enableStreamingEngine = _messages.BooleanField(6)
+  ipConfiguration = _messages.EnumField('IpConfigurationValueValuesEnum', 7)
+  kmsKeyName = _messages.StringField(8)
+  machineType = _messages.StringField(9)
+  maxWorkers = _messages.IntegerField(10, variant=_messages.Variant.INT32)
+  network = _messages.StringField(11)
+  numWorkers = _messages.IntegerField(12, variant=_messages.Variant.INT32)
+  serviceAccountEmail = _messages.StringField(13)
+  streamingMode = _messages.EnumField('StreamingModeValueValuesEnum', 14)
+  subnetwork = _messages.StringField(15)
+  tempLocation = _messages.StringField(16)
+  workerRegion = _messages.StringField(17)
+  workerZone = _messages.StringField(18)
+  zone = _messages.StringField(19)
 
 
 class RuntimeMetadata(_messages.Message):
@@ -5156,6 +5342,8 @@ class RuntimeUpdatableParams(_messages.Message):
   during job creation.
 
   Fields:
+    acceptableBacklogDuration: Optional. The backlog threshold duration in
+      seconds for autoscaling. Value must be non-negative.
     maxNumWorkers: The maximum number of workers to cap autoscaling at. This
       field is currently only supported for Streaming Engine jobs.
     minNumWorkers: The minimum number of workers to scale down to. This field
@@ -5168,9 +5356,10 @@ class RuntimeUpdatableParams(_messages.Message):
       pipeline).
   """
 
-  maxNumWorkers = _messages.IntegerField(1, variant=_messages.Variant.INT32)
-  minNumWorkers = _messages.IntegerField(2, variant=_messages.Variant.INT32)
-  workerUtilizationHint = _messages.FloatField(3)
+  acceptableBacklogDuration = _messages.StringField(1)
+  maxNumWorkers = _messages.IntegerField(2, variant=_messages.Variant.INT32)
+  minNumWorkers = _messages.IntegerField(3, variant=_messages.Variant.INT32)
+  workerUtilizationHint = _messages.FloatField(4)
 
 
 class SDKInfo(_messages.Message):
@@ -5183,6 +5372,7 @@ class SDKInfo(_messages.Message):
     language: Required. The SDK Language.
     version: Optional. The SDK version.
   """
+
   class LanguageValueValuesEnum(_messages.Enum):
     r"""Required. The SDK Language.
 
@@ -5191,14 +5381,28 @@ class SDKInfo(_messages.Message):
       JAVA: Java.
       PYTHON: Python.
       GO: Go.
+      YAML: YAML.
     """
     UNKNOWN = 0
     JAVA = 1
     PYTHON = 2
     GO = 3
+    YAML = 4
 
   language = _messages.EnumField('LanguageValueValuesEnum', 1)
   version = _messages.StringField(2)
+
+
+class Sdk(_messages.Message):
+  r"""A structured representation of an SDK.
+
+  Fields:
+    sdkId: The SDK harness id.
+    stacks: The stacktraces for the processes running on the SDK harness.
+  """
+
+  sdkId = _messages.StringField(1)
+  stacks = _messages.MessageField('Stack', 2, repeated=True)
 
 
 class SdkBug(_messages.Message):
@@ -5213,6 +5417,7 @@ class SdkBug(_messages.Message):
     type: Output only. Describes the impact of this SDK bug.
     uri: Output only. Link to more information on the bug.
   """
+
   class SeverityValueValuesEnum(_messages.Enum):
     r"""Output only. How severe the SDK bug is.
 
@@ -5288,6 +5493,7 @@ class SdkVersion(_messages.Message):
     version: The version of the SDK used to run the job.
     versionDisplayName: A readable string describing the version of the SDK.
   """
+
   class SdkSupportStatusValueValuesEnum(_messages.Enum):
     r"""The support status for this SDK version.
 
@@ -5329,6 +5535,7 @@ class SendDebugCaptureRequest(_messages.Message):
       that contains the job specified by job_id.
     workerId: The worker id, i.e., VM hostname.
   """
+
   class DataFormatValueValuesEnum(_messages.Enum):
     r"""Format for the data field above (id=5).
 
@@ -5379,8 +5586,7 @@ class SendWorkerMessagesResponse(_messages.Message):
     workerMessageResponses: The servers response to the worker messages.
   """
 
-  workerMessageResponses = _messages.MessageField(
-      'WorkerMessageResponse', 1, repeated=True)
+  workerMessageResponses = _messages.MessageField('WorkerMessageResponse', 1, repeated=True)
 
 
 class SeqMapTask(_messages.Message):
@@ -5399,6 +5605,7 @@ class SeqMapTask(_messages.Message):
       workflow.
     userFn: The user function to invoke.
   """
+
   @encoding.MapUnrecognizedFields('additionalProperties')
   class UserFnValue(_messages.Message):
     r"""The user function to invoke.
@@ -5409,6 +5616,7 @@ class SeqMapTask(_messages.Message):
     Fields:
       additionalProperties: Properties of the object.
     """
+
     class AdditionalProperty(_messages.Message):
       r"""An additional property for a UserFnValue object.
 
@@ -5420,8 +5628,7 @@ class SeqMapTask(_messages.Message):
       key = _messages.StringField(1)
       value = _messages.MessageField('extra_types.JsonValue', 2)
 
-    additionalProperties = _messages.MessageField(
-        'AdditionalProperty', 1, repeated=True)
+    additionalProperties = _messages.MessageField('AdditionalProperty', 1, repeated=True)
 
   inputs = _messages.MessageField('SideInputInfo', 1, repeated=True)
   name = _messages.StringField(2)
@@ -5481,6 +5688,7 @@ class SideInputInfo(_messages.Message):
     tag: The id of the tag the user code will access this side input by; this
       should correspond to the tag of some MultiOutputInfo.
   """
+
   @encoding.MapUnrecognizedFields('additionalProperties')
   class KindValue(_messages.Message):
     r"""How to interpret the source element(s) as a side input value.
@@ -5491,6 +5699,7 @@ class SideInputInfo(_messages.Message):
     Fields:
       additionalProperties: Properties of the object.
     """
+
     class AdditionalProperty(_messages.Message):
       r"""An additional property for a KindValue object.
 
@@ -5502,8 +5711,7 @@ class SideInputInfo(_messages.Message):
       key = _messages.StringField(1)
       value = _messages.MessageField('extra_types.JsonValue', 2)
 
-    additionalProperties = _messages.MessageField(
-        'AdditionalProperty', 1, repeated=True)
+    additionalProperties = _messages.MessageField('AdditionalProperty', 1, repeated=True)
 
   kind = _messages.MessageField('KindValue', 1)
   sources = _messages.MessageField('Source', 2, repeated=True)
@@ -5521,6 +5729,7 @@ class Sink(_messages.Message):
     codec: The codec to use to encode data written to the sink.
     spec: The sink to write to, plus its parameters.
   """
+
   @encoding.MapUnrecognizedFields('additionalProperties')
   class CodecValue(_messages.Message):
     r"""The codec to use to encode data written to the sink.
@@ -5531,6 +5740,7 @@ class Sink(_messages.Message):
     Fields:
       additionalProperties: Properties of the object.
     """
+
     class AdditionalProperty(_messages.Message):
       r"""An additional property for a CodecValue object.
 
@@ -5542,8 +5752,7 @@ class Sink(_messages.Message):
       key = _messages.StringField(1)
       value = _messages.MessageField('extra_types.JsonValue', 2)
 
-    additionalProperties = _messages.MessageField(
-        'AdditionalProperty', 1, repeated=True)
+    additionalProperties = _messages.MessageField('AdditionalProperty', 1, repeated=True)
 
   @encoding.MapUnrecognizedFields('additionalProperties')
   class SpecValue(_messages.Message):
@@ -5555,6 +5764,7 @@ class Sink(_messages.Message):
     Fields:
       additionalProperties: Properties of the object.
     """
+
     class AdditionalProperty(_messages.Message):
       r"""An additional property for a SpecValue object.
 
@@ -5566,8 +5776,7 @@ class Sink(_messages.Message):
       key = _messages.StringField(1)
       value = _messages.MessageField('extra_types.JsonValue', 2)
 
-    additionalProperties = _messages.MessageField(
-        'AdditionalProperty', 1, repeated=True)
+    additionalProperties = _messages.MessageField('AdditionalProperty', 1, repeated=True)
 
   codec = _messages.MessageField('CodecValue', 1)
   spec = _messages.MessageField('SpecValue', 2)
@@ -5592,6 +5801,7 @@ class Snapshot(_messages.Message):
     state: State of the snapshot.
     ttl: The time after which this snapshot will be automatically deleted.
   """
+
   class StateValueValuesEnum(_messages.Enum):
     r"""State of the snapshot.
 
@@ -5616,8 +5826,7 @@ class Snapshot(_messages.Message):
   diskSizeBytes = _messages.IntegerField(3)
   id = _messages.StringField(4)
   projectId = _messages.StringField(5)
-  pubsubMetadata = _messages.MessageField(
-      'PubsubSnapshotMetadata', 6, repeated=True)
+  pubsubMetadata = _messages.MessageField('PubsubSnapshotMetadata', 6, repeated=True)
   region = _messages.StringField(7)
   sourceJobId = _messages.StringField(8)
   state = _messages.EnumField('StateValueValuesEnum', 9)
@@ -5678,6 +5887,7 @@ class Source(_messages.Message):
       field populated.
     spec: The source to read from, plus its parameters.
   """
+
   @encoding.MapUnrecognizedFields('additionalProperties')
   class BaseSpecsValueListEntry(_messages.Message):
     r"""A BaseSpecsValueListEntry object.
@@ -5689,6 +5899,7 @@ class Source(_messages.Message):
     Fields:
       additionalProperties: Properties of the object.
     """
+
     class AdditionalProperty(_messages.Message):
       r"""An additional property for a BaseSpecsValueListEntry object.
 
@@ -5700,8 +5911,7 @@ class Source(_messages.Message):
       key = _messages.StringField(1)
       value = _messages.MessageField('extra_types.JsonValue', 2)
 
-    additionalProperties = _messages.MessageField(
-        'AdditionalProperty', 1, repeated=True)
+    additionalProperties = _messages.MessageField('AdditionalProperty', 1, repeated=True)
 
   @encoding.MapUnrecognizedFields('additionalProperties')
   class CodecValue(_messages.Message):
@@ -5713,6 +5923,7 @@ class Source(_messages.Message):
     Fields:
       additionalProperties: Properties of the object.
     """
+
     class AdditionalProperty(_messages.Message):
       r"""An additional property for a CodecValue object.
 
@@ -5724,8 +5935,7 @@ class Source(_messages.Message):
       key = _messages.StringField(1)
       value = _messages.MessageField('extra_types.JsonValue', 2)
 
-    additionalProperties = _messages.MessageField(
-        'AdditionalProperty', 1, repeated=True)
+    additionalProperties = _messages.MessageField('AdditionalProperty', 1, repeated=True)
 
   @encoding.MapUnrecognizedFields('additionalProperties')
   class SpecValue(_messages.Message):
@@ -5737,6 +5947,7 @@ class Source(_messages.Message):
     Fields:
       additionalProperties: Properties of the object.
     """
+
     class AdditionalProperty(_messages.Message):
       r"""An additional property for a SpecValue object.
 
@@ -5748,11 +5959,9 @@ class Source(_messages.Message):
       key = _messages.StringField(1)
       value = _messages.MessageField('extra_types.JsonValue', 2)
 
-    additionalProperties = _messages.MessageField(
-        'AdditionalProperty', 1, repeated=True)
+    additionalProperties = _messages.MessageField('AdditionalProperty', 1, repeated=True)
 
-  baseSpecs = _messages.MessageField(
-      'BaseSpecsValueListEntry', 1, repeated=True)
+  baseSpecs = _messages.MessageField('BaseSpecsValueListEntry', 1, repeated=True)
   codec = _messages.MessageField('CodecValue', 2)
   doesNotNeedSplitting = _messages.BooleanField(3)
   metadata = _messages.MessageField('SourceMetadata', 4)
@@ -5909,6 +6118,7 @@ class SourceSplitResponse(_messages.Message):
       bundles into which the source was split.
     shards: DEPRECATED in favor of bundles.
   """
+
   class OutcomeValueValuesEnum(_messages.Enum):
     r"""Indicates whether splitting happened and produced a list of bundles.
     If this is USE_CURRENT_SOURCE_AS_IS, the current source should be
@@ -5943,6 +6153,7 @@ class SourceSplitShard(_messages.Message):
     derivationMode: DEPRECATED
     source: DEPRECATED
   """
+
   class DerivationModeValueValuesEnum(_messages.Enum):
     r"""DEPRECATED
 
@@ -5990,6 +6201,26 @@ class SplitInt64(_messages.Message):
 
   highBits = _messages.IntegerField(1, variant=_messages.Variant.INT32)
   lowBits = _messages.IntegerField(2, variant=_messages.Variant.UINT32)
+
+
+class Stack(_messages.Message):
+  r"""A structuredstacktrace for a process running on the worker.
+
+  Fields:
+    stackContent: The raw stack trace.
+    threadCount: With java thread dumps we may get collapsed stacks e.g., N
+      threads in stack "". Instead of having to copy over the same stack trace
+      N times, this int field captures this.
+    threadName: Thread name. For example, "CommitThread-0,10,main"
+    threadState: The state of the thread. For example, "WAITING".
+    timestamp: Timestamp at which the stack was captured.
+  """
+
+  stackContent = _messages.StringField(1)
+  threadCount = _messages.IntegerField(2, variant=_messages.Variant.INT32)
+  threadName = _messages.StringField(3)
+  threadState = _messages.StringField(4)
+  timestamp = _messages.StringField(5)
 
 
 class StageExecutionDetails(_messages.Message):
@@ -6041,6 +6272,7 @@ class StageSummary(_messages.Message):
     state: State of this stage.
     stragglerSummary: Straggler summary for this stage.
   """
+
   class StateValueValuesEnum(_messages.Enum):
     r"""State of this stage.
 
@@ -6094,6 +6326,7 @@ class StandardQueryParameters(_messages.Message):
     uploadType: Legacy upload protocol for media (e.g. "media", "multipart").
     upload_protocol: Upload protocol for media (e.g. "raw", "multipart").
   """
+
   class AltValueValuesEnum(_messages.Enum):
     r"""Data format for response.
 
@@ -6161,6 +6394,7 @@ class Status(_messages.Message):
       user-facing error message should be localized and sent in the
       google.rpc.Status.details field, or localized by the client.
   """
+
   @encoding.MapUnrecognizedFields('additionalProperties')
   class DetailsValueListEntry(_messages.Message):
     r"""A DetailsValueListEntry object.
@@ -6173,6 +6407,7 @@ class Status(_messages.Message):
       additionalProperties: Properties of the object. Contains field @type
         with type URL.
     """
+
     class AdditionalProperty(_messages.Message):
       r"""An additional property for a DetailsValueListEntry object.
 
@@ -6184,8 +6419,7 @@ class Status(_messages.Message):
       key = _messages.StringField(1)
       value = _messages.MessageField('extra_types.JsonValue', 2)
 
-    additionalProperties = _messages.MessageField(
-        'AdditionalProperty', 1, repeated=True)
+    additionalProperties = _messages.MessageField('AdditionalProperty', 1, repeated=True)
 
   code = _messages.IntegerField(1, variant=_messages.Variant.INT32)
   details = _messages.MessageField('DetailsValueListEntry', 2, repeated=True)
@@ -6220,6 +6454,7 @@ class Step(_messages.Message):
       predefined step has its own required set of properties. Must be provided
       on Create. Only retrieved with JOB_VIEW_ALL.
   """
+
   @encoding.MapUnrecognizedFields('additionalProperties')
   class PropertiesValue(_messages.Message):
     r"""Named properties associated with the step. Each kind of predefined
@@ -6232,6 +6467,7 @@ class Step(_messages.Message):
     Fields:
       additionalProperties: Properties of the object.
     """
+
     class AdditionalProperty(_messages.Message):
       r"""An additional property for a PropertiesValue object.
 
@@ -6243,8 +6479,7 @@ class Step(_messages.Message):
       key = _messages.StringField(1)
       value = _messages.MessageField('extra_types.JsonValue', 2)
 
-    additionalProperties = _messages.MessageField(
-        'AdditionalProperty', 1, repeated=True)
+    additionalProperties = _messages.MessageField('AdditionalProperty', 1, repeated=True)
 
   kind = _messages.StringField(1)
   name = _messages.StringField(2)
@@ -6290,6 +6525,7 @@ class StragglerInfo(_messages.Message):
       each straggler cause.
     startTime: The time when the work item attempt became a straggler.
   """
+
   @encoding.MapUnrecognizedFields('additionalProperties')
   class CausesValue(_messages.Message):
     r"""The straggler causes, keyed by the string representation of the
@@ -6302,6 +6538,7 @@ class StragglerInfo(_messages.Message):
     Fields:
       additionalProperties: Additional properties of type CausesValue
     """
+
     class AdditionalProperty(_messages.Message):
       r"""An additional property for a CausesValue object.
 
@@ -6313,8 +6550,7 @@ class StragglerInfo(_messages.Message):
       key = _messages.StringField(1)
       value = _messages.MessageField('StragglerDebuggingInfo', 2)
 
-    additionalProperties = _messages.MessageField(
-        'AdditionalProperty', 1, repeated=True)
+    additionalProperties = _messages.MessageField('AdditionalProperty', 1, repeated=True)
 
   causes = _messages.MessageField('CausesValue', 1)
   startTime = _messages.StringField(2)
@@ -6333,6 +6569,7 @@ class StragglerSummary(_messages.Message):
       string representation of the StragglerCause enum.
     totalStragglerCount: The total count of stragglers.
   """
+
   @encoding.MapUnrecognizedFields('additionalProperties')
   class StragglerCauseCountValue(_messages.Message):
     r"""Aggregated counts of straggler causes, keyed by the string
@@ -6346,6 +6583,7 @@ class StragglerSummary(_messages.Message):
       additionalProperties: Additional properties of type
         StragglerCauseCountValue
     """
+
     class AdditionalProperty(_messages.Message):
       r"""An additional property for a StragglerCauseCountValue object.
 
@@ -6357,8 +6595,7 @@ class StragglerSummary(_messages.Message):
       key = _messages.StringField(1)
       value = _messages.IntegerField(2)
 
-    additionalProperties = _messages.MessageField(
-        'AdditionalProperty', 1, repeated=True)
+    additionalProperties = _messages.MessageField('AdditionalProperty', 1, repeated=True)
 
   recentStragglers = _messages.MessageField('Straggler', 1, repeated=True)
   stragglerCauseCount = _messages.MessageField('StragglerCauseCountValue', 2)
@@ -6412,6 +6649,7 @@ class StreamingComputationConfig(_messages.Message):
     transformUserNameToStateFamily: Map from user name of stateful transforms
       in this stage to their state family.
   """
+
   @encoding.MapUnrecognizedFields('additionalProperties')
   class TransformUserNameToStateFamilyValue(_messages.Message):
     r"""Map from user name of stateful transforms in this stage to their state
@@ -6425,6 +6663,7 @@ class StreamingComputationConfig(_messages.Message):
       additionalProperties: Additional properties of type
         TransformUserNameToStateFamilyValue
     """
+
     class AdditionalProperty(_messages.Message):
       r"""An additional property for a TransformUserNameToStateFamilyValue
       object.
@@ -6437,15 +6676,13 @@ class StreamingComputationConfig(_messages.Message):
       key = _messages.StringField(1)
       value = _messages.StringField(2)
 
-    additionalProperties = _messages.MessageField(
-        'AdditionalProperty', 1, repeated=True)
+    additionalProperties = _messages.MessageField('AdditionalProperty', 1, repeated=True)
 
   computationId = _messages.StringField(1)
   instructions = _messages.MessageField('ParallelInstruction', 2, repeated=True)
   stageName = _messages.StringField(3)
   systemName = _messages.StringField(4)
-  transformUserNameToStateFamily = _messages.MessageField(
-      'TransformUserNameToStateFamilyValue', 5)
+  transformUserNameToStateFamily = _messages.MessageField('TransformUserNameToStateFamilyValue', 5)
 
 
 class StreamingComputationRanges(_messages.Message):
@@ -6458,8 +6695,7 @@ class StreamingComputationRanges(_messages.Message):
   """
 
   computationId = _messages.StringField(1)
-  rangeAssignments = _messages.MessageField(
-      'KeyRangeDataDiskAssignment', 2, repeated=True)
+  rangeAssignments = _messages.MessageField('KeyRangeDataDiskAssignment', 2, repeated=True)
 
 
 class StreamingComputationTask(_messages.Message):
@@ -6475,6 +6711,7 @@ class StreamingComputationTask(_messages.Message):
     dataDisks: Describes the set of data disks this task should apply to.
     taskType: A type of streaming computation task.
   """
+
   class TaskTypeValueValuesEnum(_messages.Enum):
     r"""A type of streaming computation task.
 
@@ -6490,8 +6727,7 @@ class StreamingComputationTask(_messages.Message):
     STREAMING_COMPUTATION_TASK_STOP = 1
     STREAMING_COMPUTATION_TASK_START = 2
 
-  computationRanges = _messages.MessageField(
-      'StreamingComputationRanges', 1, repeated=True)
+  computationRanges = _messages.MessageField('StreamingComputationRanges', 1, repeated=True)
   dataDisks = _messages.MessageField('MountedDataDisk', 2, repeated=True)
   taskType = _messages.EnumField('TaskTypeValueValuesEnum', 3)
 
@@ -6514,7 +6750,13 @@ class StreamingConfigTask(_messages.Message):
     operationalLimits: Operational limits for the streaming job. Can be used
       by the worker to validate outputs sent to the backend.
     streamingComputationConfigs: Set of computation configuration information.
+    streamingEngineStateTagEncodingVersion: Optional. The state tag encoding
+      format version for streaming engine jobs.
     userStepToStateFamilyNameMap: Map from user step names to state families.
+    userWorkerRunnerV1Settings: Binary encoded proto to control runtime
+      behavior of the java runner v1 user worker.
+    userWorkerRunnerV2Settings: Binary encoded proto to control runtime
+      behavior of the runner v2 user worker.
     windmillServiceEndpoint: If present, the worker must use this endpoint to
       communicate with Windmill Service dispatchers, otherwise the worker must
       continue to use whatever endpoint it had been using.
@@ -6522,6 +6764,7 @@ class StreamingConfigTask(_messages.Message):
       communicate with Windmill Service dispatchers. Only applicable when
       windmill_service_endpoint is specified.
   """
+
   @encoding.MapUnrecognizedFields('additionalProperties')
   class UserStepToStateFamilyNameMapValue(_messages.Message):
     r"""Map from user step names to state families.
@@ -6534,6 +6777,7 @@ class StreamingConfigTask(_messages.Message):
       additionalProperties: Additional properties of type
         UserStepToStateFamilyNameMapValue
     """
+
     class AdditionalProperty(_messages.Message):
       r"""An additional property for a UserStepToStateFamilyNameMapValue
       object.
@@ -6546,19 +6790,19 @@ class StreamingConfigTask(_messages.Message):
       key = _messages.StringField(1)
       value = _messages.StringField(2)
 
-    additionalProperties = _messages.MessageField(
-        'AdditionalProperty', 1, repeated=True)
+    additionalProperties = _messages.MessageField('AdditionalProperty', 1, repeated=True)
 
   commitStreamChunkSizeBytes = _messages.IntegerField(1)
   getDataStreamChunkSizeBytes = _messages.IntegerField(2)
   maxWorkItemCommitBytes = _messages.IntegerField(3)
   operationalLimits = _messages.MessageField('StreamingOperationalLimits', 4)
-  streamingComputationConfigs = _messages.MessageField(
-      'StreamingComputationConfig', 5, repeated=True)
-  userStepToStateFamilyNameMap = _messages.MessageField(
-      'UserStepToStateFamilyNameMapValue', 6)
-  windmillServiceEndpoint = _messages.StringField(7)
-  windmillServicePort = _messages.IntegerField(8)
+  streamingComputationConfigs = _messages.MessageField('StreamingComputationConfig', 5, repeated=True)
+  streamingEngineStateTagEncodingVersion = _messages.IntegerField(6, variant=_messages.Variant.INT32)
+  userStepToStateFamilyNameMap = _messages.MessageField('UserStepToStateFamilyNameMapValue', 7)
+  userWorkerRunnerV1Settings = _messages.BytesField(8)
+  userWorkerRunnerV2Settings = _messages.BytesField(9)
+  windmillServiceEndpoint = _messages.StringField(10)
+  windmillServicePort = _messages.IntegerField(11)
 
 
 class StreamingOperationalLimits(_messages.Message):
@@ -6603,17 +6847,13 @@ class StreamingScalingReport(_messages.Message):
 
   activeBundleCount = _messages.IntegerField(1, variant=_messages.Variant.INT32)
   activeThreadCount = _messages.IntegerField(2, variant=_messages.Variant.INT32)
-  maximumBundleCount = _messages.IntegerField(
-      3, variant=_messages.Variant.INT32)
+  maximumBundleCount = _messages.IntegerField(3, variant=_messages.Variant.INT32)
   maximumBytes = _messages.IntegerField(4)
   maximumBytesCount = _messages.IntegerField(5, variant=_messages.Variant.INT32)
-  maximumThreadCount = _messages.IntegerField(
-      6, variant=_messages.Variant.INT32)
-  outstandingBundleCount = _messages.IntegerField(
-      7, variant=_messages.Variant.INT32)
+  maximumThreadCount = _messages.IntegerField(6, variant=_messages.Variant.INT32)
+  outstandingBundleCount = _messages.IntegerField(7, variant=_messages.Variant.INT32)
   outstandingBytes = _messages.IntegerField(8)
-  outstandingBytesCount = _messages.IntegerField(
-      9, variant=_messages.Variant.INT32)
+  outstandingBytesCount = _messages.IntegerField(9, variant=_messages.Variant.INT32)
 
 
 class StreamingScalingReportResponse(_messages.Message):
@@ -6624,8 +6864,7 @@ class StreamingScalingReportResponse(_messages.Message):
     maximumThreadCount: Maximum thread count limit;
   """
 
-  maximumThreadCount = _messages.IntegerField(
-      1, variant=_messages.Variant.INT32)
+  maximumThreadCount = _messages.IntegerField(1, variant=_messages.Variant.INT32)
 
 
 class StreamingSetupTask(_messages.Message):
@@ -6800,6 +7039,7 @@ class TemplateMetadata(_messages.Message):
       supports at least once mode.
     supportsExactlyOnce: Optional. Indicates if the streaming template
       supports exactly once mode.
+    yamlDefinition: Optional. For future use.
   """
 
   defaultStreamingMode = _messages.StringField(1)
@@ -6809,6 +7049,7 @@ class TemplateMetadata(_messages.Message):
   streaming = _messages.BooleanField(5)
   supportsAtLeastOnce = _messages.BooleanField(6)
   supportsExactlyOnce = _messages.BooleanField(7)
+  yamlDefinition = _messages.StringField(8)
 
 
 class TopologyConfig(_messages.Message):
@@ -6828,6 +7069,7 @@ class TopologyConfig(_messages.Message):
     userStageToComputationNameMap: Maps user stage names to stable computation
       names.
   """
+
   @encoding.MapUnrecognizedFields('additionalProperties')
   class UserStageToComputationNameMapValue(_messages.Message):
     r"""Maps user stage names to stable computation names.
@@ -6840,6 +7082,7 @@ class TopologyConfig(_messages.Message):
       additionalProperties: Additional properties of type
         UserStageToComputationNameMapValue
     """
+
     class AdditionalProperty(_messages.Message):
       r"""An additional property for a UserStageToComputationNameMapValue
       object.
@@ -6852,17 +7095,13 @@ class TopologyConfig(_messages.Message):
       key = _messages.StringField(1)
       value = _messages.StringField(2)
 
-    additionalProperties = _messages.MessageField(
-        'AdditionalProperty', 1, repeated=True)
+    additionalProperties = _messages.MessageField('AdditionalProperty', 1, repeated=True)
 
   computations = _messages.MessageField('ComputationTopology', 1, repeated=True)
-  dataDiskAssignments = _messages.MessageField(
-      'DataDiskAssignment', 2, repeated=True)
+  dataDiskAssignments = _messages.MessageField('DataDiskAssignment', 2, repeated=True)
   forwardingKeyBits = _messages.IntegerField(3, variant=_messages.Variant.INT32)
-  persistentStateVersion = _messages.IntegerField(
-      4, variant=_messages.Variant.INT32)
-  userStageToComputationNameMap = _messages.MessageField(
-      'UserStageToComputationNameMapValue', 5)
+  persistentStateVersion = _messages.IntegerField(4, variant=_messages.Variant.INT32)
+  userStageToComputationNameMap = _messages.MessageField('UserStageToComputationNameMapValue', 5)
 
 
 class TransformSummary(_messages.Message):
@@ -6881,6 +7120,7 @@ class TransformSummary(_messages.Message):
     outputCollectionName: User names for all collection outputs to this
       transform.
   """
+
   class KindValueValuesEnum(_messages.Enum):
     r"""Type of transform.
 
@@ -6954,8 +7194,7 @@ class WorkItem(_messages.Message):
   seqMapTask = _messages.MessageField('SeqMapTask', 10)
   shellTask = _messages.MessageField('ShellTask', 11)
   sourceOperationTask = _messages.MessageField('SourceOperationRequest', 12)
-  streamingComputationTask = _messages.MessageField(
-      'StreamingComputationTask', 13)
+  streamingComputationTask = _messages.MessageField('StreamingComputationTask', 13)
   streamingConfigTask = _messages.MessageField('StreamingConfigTask', 14)
   streamingSetupTask = _messages.MessageField('StreamingSetupTask', 15)
 
@@ -6978,6 +7217,7 @@ class WorkItemDetails(_messages.Message):
     stragglerInfo: Information about straggler detections for this work item.
     taskId: Name of this work item.
   """
+
   class StateValueValuesEnum(_messages.Enum):
     r"""State of this work item.
 
@@ -7040,6 +7280,7 @@ class WorkItemServiceState(_messages.Message):
     suggestedStopPoint: DEPRECATED in favor of split_request.
     suggestedStopPosition: Obsolete, always empty.
   """
+
   @encoding.MapUnrecognizedFields('additionalProperties')
   class HarnessDataValue(_messages.Message):
     r"""Other data returned by the service, specific to the particular worker
@@ -7052,6 +7293,7 @@ class WorkItemServiceState(_messages.Message):
     Fields:
       additionalProperties: Properties of the object.
     """
+
     class AdditionalProperty(_messages.Message):
       r"""An additional property for a HarnessDataValue object.
 
@@ -7063,8 +7305,7 @@ class WorkItemServiceState(_messages.Message):
       key = _messages.StringField(1)
       value = _messages.MessageField('extra_types.JsonValue', 2)
 
-    additionalProperties = _messages.MessageField(
-        'AdditionalProperty', 1, repeated=True)
+    additionalProperties = _messages.MessageField('AdditionalProperty', 1, repeated=True)
 
   completeWorkStatus = _messages.MessageField('Status', 1)
   harnessData = _messages.MessageField('HarnessDataValue', 2)
@@ -7146,8 +7387,7 @@ class WorkItemStatus(_messages.Message):
   reportedProgress = _messages.MessageField('ApproximateReportedProgress', 8)
   requestedLeaseDuration = _messages.StringField(9)
   sourceFork = _messages.MessageField('SourceFork', 10)
-  sourceOperationResponse = _messages.MessageField(
-      'SourceOperationResponse', 11)
+  sourceOperationResponse = _messages.MessageField('SourceOperationResponse', 11)
   stopPosition = _messages.MessageField('Position', 12)
   totalThrottlerWaitTimeSeconds = _messages.FloatField(13)
   workItemId = _messages.StringField(14)
@@ -7190,6 +7430,7 @@ class WorkerHealthReport(_messages.Message):
     vmIsHealthy: Whether the VM is currently healthy.
     vmStartupTime: The time the VM was booted.
   """
+
   @encoding.MapUnrecognizedFields('additionalProperties')
   class PodsValueListEntry(_messages.Message):
     r"""A PodsValueListEntry object.
@@ -7201,6 +7442,7 @@ class WorkerHealthReport(_messages.Message):
     Fields:
       additionalProperties: Properties of the object.
     """
+
     class AdditionalProperty(_messages.Message):
       r"""An additional property for a PodsValueListEntry object.
 
@@ -7212,8 +7454,7 @@ class WorkerHealthReport(_messages.Message):
       key = _messages.StringField(1)
       value = _messages.MessageField('extra_types.JsonValue', 2)
 
-    additionalProperties = _messages.MessageField(
-        'AdditionalProperty', 1, repeated=True)
+    additionalProperties = _messages.MessageField('AdditionalProperty', 1, repeated=True)
 
   msg = _messages.StringField(1)
   pods = _messages.MessageField('PodsValueListEntry', 2, repeated=True)
@@ -7259,6 +7500,7 @@ class WorkerLifecycleEvent(_messages.Message):
     metadata: Other stats that can accompany an event. E.g. {
       "downloaded_bytes" : "123456" }
   """
+
   class EventValueValuesEnum(_messages.Enum):
     r"""The event being reported.
 
@@ -7294,6 +7536,7 @@ class WorkerLifecycleEvent(_messages.Message):
     Fields:
       additionalProperties: Additional properties of type MetadataValue
     """
+
     class AdditionalProperty(_messages.Message):
       r"""An additional property for a MetadataValue object.
 
@@ -7305,8 +7548,7 @@ class WorkerLifecycleEvent(_messages.Message):
       key = _messages.StringField(1)
       value = _messages.StringField(2)
 
-    additionalProperties = _messages.MessageField(
-        'AdditionalProperty', 1, repeated=True)
+    additionalProperties = _messages.MessageField('AdditionalProperty', 1, repeated=True)
 
   containerStartTime = _messages.StringField(1)
   event = _messages.EnumField('EventValueValuesEnum', 2)
@@ -7346,6 +7588,7 @@ class WorkerMessage(_messages.Message):
     workerShutdownNotice: Shutdown notice by workers.
     workerThreadScalingReport: Thread scaling information reported by workers.
   """
+
   @encoding.MapUnrecognizedFields('additionalProperties')
   class LabelsValue(_messages.Message):
     r"""Labels are used to group WorkerMessages. For example, a worker_message
@@ -7361,6 +7604,7 @@ class WorkerMessage(_messages.Message):
     Fields:
       additionalProperties: Additional properties of type LabelsValue
     """
+
     class AdditionalProperty(_messages.Message):
       r"""An additional property for a LabelsValue object.
 
@@ -7372,8 +7616,7 @@ class WorkerMessage(_messages.Message):
       key = _messages.StringField(1)
       value = _messages.StringField(2)
 
-    additionalProperties = _messages.MessageField(
-        'AdditionalProperty', 1, repeated=True)
+    additionalProperties = _messages.MessageField('AdditionalProperty', 1, repeated=True)
 
   dataSamplingReport = _messages.MessageField('DataSamplingReport', 1)
   labels = _messages.MessageField('LabelsValue', 2)
@@ -7385,8 +7628,7 @@ class WorkerMessage(_messages.Message):
   workerMessageCode = _messages.MessageField('WorkerMessageCode', 8)
   workerMetrics = _messages.MessageField('ResourceUtilizationReport', 9)
   workerShutdownNotice = _messages.MessageField('WorkerShutdownNotice', 10)
-  workerThreadScalingReport = _messages.MessageField(
-      'WorkerThreadScalingReport', 11)
+  workerThreadScalingReport = _messages.MessageField('WorkerThreadScalingReport', 11)
 
 
 class WorkerMessageCode(_messages.Message):
@@ -7434,6 +7676,7 @@ class WorkerMessageCode(_messages.Message):
       worker identifiers should almost always be passed as labels since they
       will be included on most messages.
   """
+
   @encoding.MapUnrecognizedFields('additionalProperties')
   class ParametersValue(_messages.Message):
     r"""Parameters contains specific information about the code. This is a
@@ -7455,6 +7698,7 @@ class WorkerMessageCode(_messages.Message):
     Fields:
       additionalProperties: Properties of the object.
     """
+
     class AdditionalProperty(_messages.Message):
       r"""An additional property for a ParametersValue object.
 
@@ -7466,8 +7710,7 @@ class WorkerMessageCode(_messages.Message):
       key = _messages.StringField(1)
       value = _messages.MessageField('extra_types.JsonValue', 2)
 
-    additionalProperties = _messages.MessageField(
-        'AdditionalProperty', 1, repeated=True)
+    additionalProperties = _messages.MessageField('AdditionalProperty', 1, repeated=True)
 
   code = _messages.StringField(1)
   parameters = _messages.MessageField('ParametersValue', 2)
@@ -7490,16 +7733,11 @@ class WorkerMessageResponse(_messages.Message):
       for workers.
   """
 
-  streamingScalingReportResponse = _messages.MessageField(
-      'StreamingScalingReportResponse', 1)
-  workerHealthReportResponse = _messages.MessageField(
-      'WorkerHealthReportResponse', 2)
-  workerMetricsResponse = _messages.MessageField(
-      'ResourceUtilizationReportResponse', 3)
-  workerShutdownNoticeResponse = _messages.MessageField(
-      'WorkerShutdownNoticeResponse', 4)
-  workerThreadScalingReportResponse = _messages.MessageField(
-      'WorkerThreadScalingReportResponse', 5)
+  streamingScalingReportResponse = _messages.MessageField('StreamingScalingReportResponse', 1)
+  workerHealthReportResponse = _messages.MessageField('WorkerHealthReportResponse', 2)
+  workerMetricsResponse = _messages.MessageField('ResourceUtilizationReportResponse', 3)
+  workerShutdownNoticeResponse = _messages.MessageField('WorkerShutdownNoticeResponse', 4)
+  workerThreadScalingReportResponse = _messages.MessageField('WorkerThreadScalingReportResponse', 5)
 
 
 class WorkerPool(_messages.Message):
@@ -7588,6 +7826,7 @@ class WorkerPool(_messages.Message):
     zone: Zone to run the worker pools in. If empty or unspecified, the
       service will attempt to choose a reasonable default.
   """
+
   class DefaultPackageSetValueValuesEnum(_messages.Enum):
     r"""The default package set to install. This allows the service to select
     a default set of packages which are useful to worker harnesses written in
@@ -7657,6 +7896,7 @@ class WorkerPool(_messages.Message):
     Fields:
       additionalProperties: Additional properties of type MetadataValue
     """
+
     class AdditionalProperty(_messages.Message):
       r"""An additional property for a MetadataValue object.
 
@@ -7668,8 +7908,7 @@ class WorkerPool(_messages.Message):
       key = _messages.StringField(1)
       value = _messages.StringField(2)
 
-    additionalProperties = _messages.MessageField(
-        'AdditionalProperty', 1, repeated=True)
+    additionalProperties = _messages.MessageField('AdditionalProperty', 1, repeated=True)
 
   @encoding.MapUnrecognizedFields('additionalProperties')
   class PoolArgsValue(_messages.Message):
@@ -7682,6 +7921,7 @@ class WorkerPool(_messages.Message):
       additionalProperties: Properties of the object. Contains field @type
         with type URL.
     """
+
     class AdditionalProperty(_messages.Message):
       r"""An additional property for a PoolArgsValue object.
 
@@ -7693,8 +7933,7 @@ class WorkerPool(_messages.Message):
       key = _messages.StringField(1)
       value = _messages.MessageField('extra_types.JsonValue', 2)
 
-    additionalProperties = _messages.MessageField(
-        'AdditionalProperty', 1, repeated=True)
+    additionalProperties = _messages.MessageField('AdditionalProperty', 1, repeated=True)
 
   autoscalingSettings = _messages.MessageField('AutoscalingSettings', 1)
   dataDisks = _messages.MessageField('Disk', 2, repeated=True)
@@ -7707,14 +7946,12 @@ class WorkerPool(_messages.Message):
   machineType = _messages.StringField(9)
   metadata = _messages.MessageField('MetadataValue', 10)
   network = _messages.StringField(11)
-  numThreadsPerWorker = _messages.IntegerField(
-      12, variant=_messages.Variant.INT32)
+  numThreadsPerWorker = _messages.IntegerField(12, variant=_messages.Variant.INT32)
   numWorkers = _messages.IntegerField(13, variant=_messages.Variant.INT32)
   onHostMaintenance = _messages.StringField(14)
   packages = _messages.MessageField('Package', 15, repeated=True)
   poolArgs = _messages.MessageField('PoolArgsValue', 16)
-  sdkHarnessContainerImages = _messages.MessageField(
-      'SdkHarnessContainerImage', 17, repeated=True)
+  sdkHarnessContainerImages = _messages.MessageField('SdkHarnessContainerImage', 17, repeated=True)
   subnetwork = _messages.StringField(18)
   taskrunnerSettings = _messages.MessageField('TaskRunnerSettings', 19)
   teardownPolicy = _messages.EnumField('TeardownPolicyValueValuesEnum', 20)
@@ -7777,8 +8014,7 @@ class WorkerThreadScalingReport(_messages.Message):
     currentThreadCount: Current number of active threads in a worker.
   """
 
-  currentThreadCount = _messages.IntegerField(
-      1, variant=_messages.Variant.INT32)
+  currentThreadCount = _messages.IntegerField(1, variant=_messages.Variant.INT32)
 
 
 class WorkerThreadScalingReportResponse(_messages.Message):
@@ -7789,8 +8025,7 @@ class WorkerThreadScalingReportResponse(_messages.Message):
     recommendedThreadCount: Recommended number of threads for a worker.
   """
 
-  recommendedThreadCount = _messages.IntegerField(
-      1, variant=_messages.Variant.INT32)
+  recommendedThreadCount = _messages.IntegerField(1, variant=_messages.Variant.INT32)
 
 
 class WriteInstruction(_messages.Message):
@@ -7812,3 +8047,11 @@ encoding.AddCustomJsonEnumMapping(
     StandardQueryParameters.FXgafvValueValuesEnum, '_1', '1')
 encoding.AddCustomJsonEnumMapping(
     StandardQueryParameters.FXgafvValueValuesEnum, '_2', '2')
+encoding.AddCustomJsonFieldMapping(
+    DataflowProjectsLocationsTemplatesLaunchRequest, 'dynamicTemplate_gcsPath', 'dynamicTemplate.gcsPath')
+encoding.AddCustomJsonFieldMapping(
+    DataflowProjectsLocationsTemplatesLaunchRequest, 'dynamicTemplate_stagingLocation', 'dynamicTemplate.stagingLocation')
+encoding.AddCustomJsonFieldMapping(
+    DataflowProjectsTemplatesLaunchRequest, 'dynamicTemplate_gcsPath', 'dynamicTemplate.gcsPath')
+encoding.AddCustomJsonFieldMapping(
+    DataflowProjectsTemplatesLaunchRequest, 'dynamicTemplate_stagingLocation', 'dynamicTemplate.stagingLocation')

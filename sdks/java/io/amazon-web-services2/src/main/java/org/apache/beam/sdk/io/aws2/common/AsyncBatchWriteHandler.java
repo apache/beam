@@ -286,8 +286,8 @@ public abstract class AsyncBatchWriteHandler<RecT, ResT> {
    *       already been attempted by the AWS SDK in that case.
    * </ul>
    *
-   * The next call of {@link #checkForAsyncFailure()}, {@link #batchWrite(String, List< RecT >)}} or
-   * {@link #waitForCompletion()} will check for the last async failure and throw it. Afterwards the
+   * The next call of {@link #checkForAsyncFailure()}, {@link #batchWrite(String, List)} or {@link
+   * #waitForCompletion()} will check for the last async failure and throw it. Afterwards the
    * failure state is reset.
    */
   private class RetryHandler implements BiConsumer<List<ResT>, Throwable> {

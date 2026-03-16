@@ -599,13 +599,14 @@ public class SplittableParDoViaKeyedWorkItems {
           timerInternals.currentProcessingTime().plus(result.getContinuation().resumeDelay());
       holdState.add(futureOutputWatermark);
       // Set a timer to continue processing this element.
+      // todo radoslws@ decide if draining should be set on timer
       timerInternals.setTimer(
           TimerInternals.TimerData.of(
               stateNamespace,
               wakeupTime,
               wakeupTime,
               TimeDomain.PROCESSING_TIME,
-              CausedByDrain.NORMAL));
+              timer == null ? CausedByDrain.NORMAL : timer.causedByDrain()));
     }
 
     private DoFnInvoker.ArgumentProvider<InputT, OutputT> wrapOptionsAsSetup(
