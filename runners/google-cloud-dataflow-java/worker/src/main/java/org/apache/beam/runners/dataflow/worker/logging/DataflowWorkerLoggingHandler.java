@@ -145,7 +145,7 @@ public class DataflowWorkerLoggingHandler extends Handler {
   }
 
   /** If true, add SLF4J MDC to custom_data of the log message. */
-  private AtomicBoolean logCustomMdc = new AtomicBoolean(false);
+  private final AtomicBoolean logCustomMdc = new AtomicBoolean(false);
 
   // Only instantiated and set if enableDirectLogging is called.
   private static class DirectLoggingState {
