@@ -71,11 +71,13 @@ final class StreamingCommitFinalizer {
   private final PriorityQueue<FinalizationInfo> cleanUpQueue =
       new PriorityQueue<>(11, Comparator.comparing(FinalizationInfo::getExpiryTime));
 
+  @GuardedBy("lock")
+  private boolean cleanUpThreadStarted = false;
+
   private final BoundedQueueExecutor finalizationExecutor;
 
   private StreamingCommitFinalizer(BoundedQueueExecutor finalizationCleanupExecutor) {
     finalizationExecutor = finalizationCleanupExecutor;
-    finalizationCleanupExecutor.execute(this::cleanupThreadBody, 0);
   }
 
   private void cleanupThreadBody() {
@@ -131,6 +133,12 @@ final class StreamingCommitFinalizer {
                   + finalizeId
                   + " but had "
                   + existingInfo);
+        }
+        if (!cleanUpThreadStarted) {
+          // Start the cleanup thread lazily for pipelines that don't use finalization callbacks
+          // and some tests.
+          cleanUpThreadStarted = true;
+          finalizationExecutor.execute(this::cleanupThreadBody, 0);
         }
         cleanUpQueue.add(info);
         @SuppressWarnings("ReferenceEquality")
