@@ -509,8 +509,9 @@ class SideInputsTest(unittest.TestCase):
       """ A windowing function that assigns each element a window with ID."""
       def assign(
           self, assign_context: window.WindowFn.AssignContext
-      ) -> Iterable[BoundedWindow | None]:
+      ) -> Iterable[window.BoundedWindow]:
         if assign_context.element is None:
+          assert assign_context.window is not None
           return [assign_context.window]
         return [StringIDWindow(str(assign_context.element))]
 
