@@ -17,13 +17,17 @@
 # under the License.
 
 name: license-compliance
-description: Ensures all new files include proper Apache 2.0 license headers. Use when creating any new file in the Apache Beam repository.
+description: Adds, validates, and formats Apache 2.0 license headers for all file types in Apache Beam. Use when creating new files, fixing RAT check failures, adding copyright headers, or checking license compliance.
 ---
 
 # License Compliance in Apache Beam
 
-## Overview
-Every source file in Apache Beam **MUST** include the Apache 2.0 license header. The RAT (Release Audit Tool) check will fail if any file is missing the required license.
+## Workflow
+1. Create new file
+2. Add the appropriate license header from templates below (must be the very first content)
+3. Run `./gradlew rat` to validate
+4. If failures, check `build/reports/rat/index.html` for details
+5. Fix any missing headers and re-run until passing
 
 ## License Headers by File Type
 
@@ -68,106 +72,17 @@ Every source file in Apache Beam **MUST** include the Apache 2.0 license header.
 #
 ```
 
-### Go
-```go
-// Licensed to the Apache Software Foundation (ASF) under one or more
-// contributor license agreements.  See the NOTICE file distributed with
-// this work for additional information regarding copyright ownership.
-// The ASF licenses this file to You under the Apache License, Version 2.0
-// (the "License"); you may not use this file except in compliance with
-// the License.  You may obtain a copy of the License at
-//
-//    http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-```
+### Go (`//` comments)
+Same license text as above using `//` comment prefix.
 
-### Markdown (.md)
-```markdown
-<!--
-    Licensed to the Apache Software Foundation (ASF) under one
-    or more contributor license agreements.  See the NOTICE file
-    distributed with this work for additional information
-    regarding copyright ownership.  The ASF licenses this file
-    to you under the Apache License, Version 2.0 (the
-    "License"); you may not use this file except in compliance
-    with the License.  You may obtain a copy of the License at
+### Python, YAML, Shell (`#` comments)
+Same license text using `#` comment prefix. For shell scripts, place after `#!/bin/bash` shebang.
 
-      http://www.apache.org/licenses/LICENSE-2.0
-
-    Unless required by applicable law or agreed to in writing,
-    software distributed under the License is distributed on an
-    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
-    KIND, either express or implied.  See the License for the
-    specific language governing permissions and limitations
-    under the License.
--->
-```
-
-### YAML (.yml, .yaml) and YAML Frontmatter
-```yaml
-# Licensed to the Apache Software Foundation (ASF) under one
-# or more contributor license agreements.  See the NOTICE file
-# distributed with this work for additional information
-# regarding copyright ownership.  The ASF licenses this file
-# to you under the Apache License, Version 2.0 (the
-# "License"); you may not use this file except in compliance
-# with the License.  You may obtain a copy of the License at
-#
-#   http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing,
-# software distributed under the License is distributed on an
-# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
-# KIND, either express or implied.  See the License for the
-# specific language governing permissions and limitations
-# under the License.
-```
-
-### Shell Scripts (.sh, .bash)
-```bash
-#!/bin/bash
-#
-# Licensed to the Apache Software Foundation (ASF) under one or more
-# contributor license agreements.  See the NOTICE file distributed with
-# this work for additional information regarding copyright ownership.
-# The ASF licenses this file to You under the Apache License, Version 2.0
-# (the "License"); you may not use this file except in compliance with
-# the License.  You may obtain a copy of the License at
-#
-#    http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
-#
-```
-
-### XML, HTML
+### Markdown, XML, HTML (`<!-- -->` comments)
 ```xml
 <!--
   Licensed to the Apache Software Foundation (ASF) under one
-  or more contributor license agreements.  See the NOTICE file
-  distributed with this work for additional information
-  regarding copyright ownership.  The ASF licenses this file
-  to you under the Apache License, Version 2.0 (the
-  "License"); you may not use this file except in compliance
-  with the License.  You may obtain a copy of the License at
-
-    http://www.apache.org/licenses/LICENSE-2.0
-
-  Unless required by applicable law or agreed to in writing,
-  software distributed under the License is distributed on an
-  "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
-  KIND, either express or implied.  See the License for the
-  specific language governing permissions and limitations
-  under the License.
+  or more contributor license agreements. [full Apache 2.0 text]
 -->
 ```
 

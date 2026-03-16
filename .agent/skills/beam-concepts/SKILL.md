@@ -17,18 +17,14 @@
 # under the License.
 
 name: beam-concepts
-description: Explains core Apache Beam programming model concepts including PCollections, PTransforms, Pipelines, and Runners. Use when learning Beam fundamentals or explaining pipeline concepts.
+description: Explains, demonstrates, and troubleshoots core Apache Beam programming model concepts including PCollections, PTransforms, Pipelines, Runners, windowing, and triggers. Use when learning Beam fundamentals, writing transforms, debugging pipeline errors, or comparing runner options.
 ---
 
 # Apache Beam Core Concepts
 
-## The Beam Model
-Evolved from Google's MapReduce, FlumeJava, and Millwheel projects. Originally called the "Dataflow Model."
-
 ## Key Abstractions
 
 ### Pipeline
-A Pipeline encapsulates the entire data processing task, including reading, transforming, and writing data.
 
 ```java
 // Java
@@ -48,17 +44,9 @@ with beam.Pipeline(options=options) as p:
 ```
 
 ### PCollection
-A distributed dataset that can be bounded (batch) or unbounded (streaming).
-
-#### Properties
-- **Immutable** - Once created, cannot be modified
-- **Distributed** - Elements processed in parallel
-- **May be bounded or unbounded**
-- **Timestamped** - Each element has an event timestamp
-- **Windowed** - Elements assigned to windows
+Distributed dataset — bounded (batch) or unbounded (streaming). Immutable, timestamped, windowed.
 
 ### PTransform
-A data processing operation that transforms PCollections.
 
 ```java
 // Java
@@ -73,7 +61,6 @@ output = input | 'Name' >> beam.ParDo(MyDoFn())
 ## Core Transforms
 
 ### ParDo
-General-purpose parallel processing.
 
 ```java
 // Java
@@ -97,18 +84,13 @@ input | beam.Map(len)
 ```
 
 ### GroupByKey
-Groups elements by key.
 
 ```java
 PCollection<KV<String, Integer>> input = ...;
 PCollection<KV<String, Iterable<Integer>>> grouped = input.apply(GroupByKey.create());
 ```
 
-### CoGroupByKey
-Joins multiple PCollections by key.
-
-### Combine
-Combines elements (sum, mean, etc.).
+### CoGroupByKey / Combine
 
 ```java
 // Global combine
@@ -118,24 +100,16 @@ input.apply(Combine.globally(Sum.ofIntegers()));
 input.apply(Combine.perKey(Sum.ofIntegers()));
 ```
 
-### Flatten
-Merges multiple PCollections.
+### Flatten / Partition
 
 ```java
 PCollectionList<String> collections = PCollectionList.of(pc1).and(pc2).and(pc3);
 PCollection<String> merged = collections.apply(Flatten.pCollections());
 ```
 
-### Partition
-Splits a PCollection into multiple PCollections.
-
 ## Windowing
 
-### Types
-- **Fixed Windows** - Regular, non-overlapping intervals
-- **Sliding Windows** - Overlapping intervals
-- **Session Windows** - Gaps of inactivity define boundaries
-- **Global Window** - All elements in one window (default)
+Types: Fixed (non-overlapping), Sliding (overlapping), Session (gap-based), Global (default).
 
 ```java
 input.apply(Window.into(FixedWindows.of(Duration.standardMinutes(5))));
@@ -146,7 +120,6 @@ input | beam.WindowInto(beam.window.FixedWindows(300))
 ```
 
 ## Triggers
-Control when results are emitted.
 
 ```java
 input.apply(Window.<T>into(FixedWindows.of(Duration.standardMinutes(5)))
@@ -158,7 +131,6 @@ input.apply(Window.<T>into(FixedWindows.of(Duration.standardMinutes(5)))
 ```
 
 ## Side Inputs
-Additional inputs to ParDo.
 
 ```java
 PCollectionView<Map<String, String>> sideInput =
@@ -174,7 +146,6 @@ mainInput.apply(ParDo.of(new DoFn<String, String>() {
 ```
 
 ## Pipeline Options
-Configure pipeline execution.
 
 ```java
 public interface MyOptions extends PipelineOptions {
@@ -188,7 +159,6 @@ MyOptions options = PipelineOptionsFactory.fromArgs(args).as(MyOptions.class);
 ```
 
 ## Schema
-Strongly-typed access to structured data.
 
 ```java
 @DefaultSchema(AutoValueSchema.class)
@@ -222,10 +192,14 @@ PCollectionTuple results = input.apply(ParDo.of(new DoFn<String, String>() {
 
 results.get(successTag).apply(WriteToSuccess());
 results.get(failureTag).apply(WriteToDeadLetter());
+
+// Verify: check dead letter output is non-empty in tests
+PAssert.that(results.get(failureTag)).satisfies(dlq -> {
+    assert dlq.iterator().hasNext(); return null;
+});
 ```
 
 ## Cross-Language Pipelines
-Use transforms from other SDKs.
 
 ```python
 # Use Java Kafka connector from Python

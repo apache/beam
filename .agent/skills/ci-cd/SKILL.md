@@ -17,7 +17,7 @@
 # under the License.
 
 name: ci-cd
-description: Guides understanding and working with Apache Beam's CI/CD system using GitHub Actions. Use when debugging CI failures, understanding test workflows, or modifying CI configuration.
+description: Debugs CI failures, analyzes workflow logs, configures test matrices, and troubleshoots flaky tests in Apache Beam's GitHub Actions CI/CD system. Use when debugging CI failures, understanding test workflows, re-running failed checks, or modifying CI configuration.
 ---
 
 # CI/CD in Apache Beam
@@ -44,34 +44,11 @@ Apache Beam uses GitHub Actions for CI/CD. Workflows are located in `.github/wor
 
 ## Key Workflows
 
-### PreCommit
-| Workflow | Description |
-|----------|-------------|
-| `beam_PreCommit_Java.yml` | Java build and tests |
-| `beam_PreCommit_Python.yml` | Python tests |
-| `beam_PreCommit_Go.yml` | Go tests |
-| `beam_PreCommit_RAT.yml` | License header checks |
-| `beam_PreCommit_Spotless.yml` | Code formatting |
+Naming convention: `beam_{PreCommit,PostCommit}_{Language}[_Variant].yml`
 
-### PostCommit - Java
-| Workflow | Description |
-|----------|-------------|
-| `beam_PostCommit_Java.yml` | Full Java test suite |
-| `beam_PostCommit_Java_ValidatesRunner_*.yml` | Runner validation tests |
-| `beam_PostCommit_Java_Examples_*.yml` | Example pipeline tests |
-
-### PostCommit - Python
-| Workflow | Description |
-|----------|-------------|
-| `beam_PostCommit_Python.yml` | Full Python test suite |
-| `beam_PostCommit_Python_ValidatesRunner_*.yml` | Runner validation |
-| `beam_PostCommit_Python_Examples_*.yml` | Examples |
-
-### Load & Performance Tests
-| Workflow | Description |
-|----------|-------------|
-| `beam_LoadTests_*.yml` | Load testing |
-| `beam_PerformanceTests_*.yml` | I/O performance |
+- **PreCommit**: `Java`, `Python`, `Go`, `RAT` (license), `Spotless` (formatting)
+- **PostCommit**: full test suites, `ValidatesRunner_*`, `Examples_*`
+- **Performance**: `LoadTests_*`, `PerformanceTests_*`
 
 ## Triggering Tests
 
@@ -79,11 +56,14 @@ Apache Beam uses GitHub Actions for CI/CD. Workflows are located in `.github/wor
 - PRs trigger PreCommit tests
 - Merges trigger PostCommit tests
 
-### Triggering Specific Workflows
-Use [trigger files](https://github.com/apache/beam/blob/master/.github/workflows/README.md#running-workflows-manually) to run specific workflows.
+### Re-running Specific Workflows
+```bash
+# Via GitHub CLI
+gh workflow run beam_PreCommit_Java.yml --ref your-branch
 
-### Workflow Dispatch
-Most workflows support manual triggering via GitHub UI.
+# Or use trigger files per the workflows README
+```
+See [trigger files](https://github.com/apache/beam/blob/master/.github/workflows/README.md#running-workflows-manually) for the full trigger phrase catalog.
 
 ## Understanding Test Results
 
@@ -95,17 +75,25 @@ Most workflows support manual triggering via GitHub UI.
 
 ### Common Failure Patterns
 
-#### Flaky Tests
-- Random failures unrelated to change
-- Solution: Use [trigger files](https://github.com/apache/beam/blob/master/.github/workflows/README.md#running-workflows-manually) to re-run the specific workflow.
-
-#### Timeout
-- Increase timeout in workflow if justified
-- Or optimize test
-
-#### Resource Exhaustion
-- GCP quota issues
-- Check project settings
+#### Debugging Workflow
+1. **Check if flaky**: review the workflow's recent runs in the Actions tab for the same test
+   ```bash
+   gh run list --workflow=beam_PreCommit_Java.yml --limit=10
+   ```
+2. **If flaky**: re-run the workflow
+   ```bash
+   gh run rerun <run-id> --failed
+   ```
+3. **If consistent**: reproduce locally using the same command from the workflow's `run` step
+   ```bash
+   # Example: find the failing command in the workflow file
+   grep -A5 'run:' .github/workflows/beam_PreCommit_Java.yml
+   # Then run it locally
+   ./gradlew :sdks:java:core:test --info 2>&1 | tail -50
+   ```
+4. **If timeout**: check test runtime with `--info` flag; increase timeout only if justified
+5. **If resource exhaustion**: check GCP quotas in project settings
+6. **Verify fix**: push and confirm the workflow passes in the PR checks tab
 
 ## GCP Credentials
 
@@ -159,17 +147,20 @@ jobs:
 
 ## Local Debugging
 
-### Run Same Commands as CI
-Check workflow file's `run` commands:
+Reproduce CI commands locally by reading the workflow's `run` step:
 ```bash
-./gradlew :sdks:java:core:test
-./gradlew :sdks:python:test
-```
+# Java PreCommit equivalent
+./gradlew :sdks:java:core:test --info
 
-### Common Issues
-- Clean gradle cache: `rm -rf ~/.gradle .gradle`
-- Remove build directory: `rm -rf build`
-- Check Java version matches CI
+# Python PreCommit equivalent
+./gradlew :sdks:python:test
+
+# If build state is stale
+rm -rf ~/.gradle/caches .gradle build && ./gradlew clean
+
+# Verify Java version matches CI
+java -version  # CI typically uses JDK 11
+```
 
 ## Snapshot Builds
 
