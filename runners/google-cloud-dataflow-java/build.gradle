@@ -509,31 +509,12 @@ task validatesRunnerStreamingTagEncodingV2 {
 task validatesRunnerStreamingEngine {
   group = "Verification"
   description "Validates Dataflow runner forcing streaming mode on streaming engine"
-  dependsOn(createLegacyWorkerValidatesRunnerTest(
-    name: 'validatesRunnerLegacyWorkerTestStreaming',
-    pipelineOptions: legacyPipelineOptions + ['--streaming', '--experiments=enable_streaming_engine'],
-    excludedCategories: [
-      'org.apache.beam.sdk.testing.UsesCommittedMetrics',
-      'org.apache.beam.sdk.testing.UsesRequiresTimeSortedInput',
+  dependsOn(createLegacyWorkerValidatesRunnerTest(validatesRunnerStreamingConfig + [
+    name: 'validatesRunnerLegacyWorkerTestStreamingEngine',
+    pipelineOptions: validatesRunnerStreamingConfig.pipelineOptions + [
+      '--experiments=enable_streaming_engine',
     ],
-    excludedTests: [
-      // TODO(https://github.com/apache/beam/issues/21472)
-      'org.apache.beam.sdk.transforms.GroupByKeyTest$BasicTests.testAfterProcessingTimeContinuationTriggerUsingState',
-      // GroupIntoBatches.withShardedKey not supported on Java streaming worker
-      // https://github.com/apache/beam/issues/22592
-      'org.apache.beam.sdk.transforms.GroupIntoBatchesTest.testWithShardedKeyInGlobalWindow',
-
-      // These tests use static state and don't work with remote execution.
-      'org.apache.beam.sdk.transforms.ParDoLifecycleTest.testTeardownCalledAfterExceptionInFinishBundle',
-      'org.apache.beam.sdk.transforms.ParDoLifecycleTest.testTeardownCalledAfterExceptionInFinishBundleStateful',
-      'org.apache.beam.sdk.transforms.ParDoLifecycleTest.testTeardownCalledAfterExceptionInProcessElement',
-      'org.apache.beam.sdk.transforms.ParDoLifecycleTest.testTeardownCalledAfterExceptionInProcessElementStateful',
-      'org.apache.beam.sdk.transforms.ParDoLifecycleTest.testTeardownCalledAfterExceptionInSetup',
-      'org.apache.beam.sdk.transforms.ParDoLifecycleTest.testTeardownCalledAfterExceptionInSetupStateful',
-      'org.apache.beam.sdk.transforms.ParDoLifecycleTest.testTeardownCalledAfterExceptionInStartBundle',
-      'org.apache.beam.sdk.transforms.ParDoLifecycleTest.testTeardownCalledAfterExceptionInStartBundleStateful',
-    ]
-  ))
+  ]))
 }
 
 def setupXVR = tasks.register("setupXVR") {
