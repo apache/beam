@@ -800,11 +800,11 @@ def expand_composite_transform(spec, scope):
   # Check if any transform has a NON-EMPTY explicit input or output.
   # Note: {} (empty dict) means "no explicit input specified" and should
   # NOT count as having explicit io.
-  # However, if the COMPOSITE itself has no input, we can't do implicit chaining.
+  # However, if the composite has no input, we can't do implicit chaining.
   has_explicit_io = any(
-      io is not None and not is_empty(t.get(io, {})) for 
-      t in original_transforms for io in ('input', 'output'))
-  
+      io is not None and not is_empty(t.get(io, {}))
+      for t in original_transforms for io in ('input', 'output'))
+
   # If the composite has no input, we can't do implicit chaining
   composite_has_input = not is_empty(spec.get('input', {}))
 
@@ -841,14 +841,14 @@ def expand_composite_transform(spec, scope):
   # If the composite has an empty input dict ({}), it means the composite
   # should use the parent scope's inputs directly.
   composite_input = spec.get('input', {})
-  
+
   if is_empty(composite_input):
     # No explicit input - use the parent scope's inputs directly
     inner_scope_inputs = dict(scope._inputs)
   else:
     # The composite has explicit input references
     # They can reference either:
-    # 1. A parent scope input (e.g., 'input' -> the 'input' key in scope._inputs)
+    # 1. A parent scope input (e.g., 'input' key in scope._inputs)
     # 2. A transform output (e.g., 'uuid' -> the output of a transform)
     inner_scope_inputs = {}
     for key, value in composite_input.items():
@@ -858,7 +858,6 @@ def expand_composite_transform(spec, scope):
       else:
         # Reference to a transform output
         inner_scope_inputs[key] = scope.get_pcollection(value)
-  
 
   inner_scope = Scope(
       scope.root,
@@ -906,7 +905,8 @@ def expand_composite_transform(spec, scope):
       else:
         # Reference to a transform output
         input_dict[key] = scope.get_pcollection(value)
-    return (input_dict or scope.root) | scope.unique_name(spec, None) >> transform
+    return (input_dict or
+            scope.root) | scope.unique_name(spec, None) >> transform
 
 
 def expand_chain_transform(spec, scope):
