@@ -30,7 +30,6 @@ from typing import Tuple
 from typing import Union
 
 import pytest
-from unittest import mock
 
 import apache_beam as beam
 from apache_beam.testing.synthetic_pipeline import SyntheticSDFAsSource
