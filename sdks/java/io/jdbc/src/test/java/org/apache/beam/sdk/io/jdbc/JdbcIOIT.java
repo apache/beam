@@ -416,7 +416,7 @@ public class JdbcIOIT {
   }
 
   /**
-   * @return {@link JdbcIO.Write} transform that writes to {@param tableName} Postgres table and
+   * @return {@link JdbcIO.Write} transform that writes to {@code tableName} Postgres table and
    *     returns all fields of modified rows.
    */
   private static JdbcIO.Write<KV<Integer, String>> getJdbcWriteWithReturning(String tableName) {

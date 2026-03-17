@@ -38,6 +38,8 @@ env:
   DEVELOCITY_ACCESS_KEY: ${{ secrets.DEVELOCITY_ACCESS_KEY }}
   GRADLE_ENTERPRISE_CACHE_USERNAME: ${{ secrets.GE_CACHE_USERNAME }}
   GRADLE_ENTERPRISE_CACHE_PASSWORD: ${{ secrets.GE_CACHE_PASSWORD }}
+  # TODO(https://github.com/grpc/grpc/issues/37710): Remove once fixed.
+  GRPC_ENABLE_FORK_SUPPORT: '0'
 
 # Setting explicit permissions for the action to avoid the default permissions which are `write-all` in case of pull_request_target event
 permissions:
@@ -87,3 +89,4 @@ jobs:
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
           gradle-command: :goPortablePreCommit
+          arguments: -Pdocker-pull-licenses

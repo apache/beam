@@ -1855,11 +1855,6 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
           currentElement.getTimestamp(),
           currentElement.getPaneInfo());
     }
-
-    @Override
-    public CausedByDrain causedByDrain() {
-      return currentElement.causedByDrain();
-    }
   }
 
   /** Provides arguments for a {@link DoFnInvoker} for a non-window observing method. */
@@ -1944,6 +1939,11 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
 
     @Override
     public CausedByDrain causedByDrain() {
+      return currentElement.causedByDrain();
+    }
+
+    @Override
+    public CausedByDrain causedByDrain(DoFn<InputT, OutputT> doFn) {
       return currentElement.causedByDrain();
     }
   }
@@ -2243,6 +2243,16 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
     @Override
     public WatermarkEstimator<?> watermarkEstimator() {
       return currentWatermarkEstimator;
+    }
+
+    @Override
+    public CausedByDrain causedByDrain() {
+      return currentElement.causedByDrain();
+    }
+
+    @Override
+    public CausedByDrain causedByDrain(DoFn<InputT, OutputT> doFn) {
+      return currentElement.causedByDrain();
     }
   }
 

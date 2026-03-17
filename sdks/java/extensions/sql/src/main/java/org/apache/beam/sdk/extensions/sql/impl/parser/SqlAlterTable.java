@@ -224,7 +224,7 @@ public class SqlAlterTable extends SqlAlter implements BeamSqlParser.ExecutableS
     writer.identifier(column.getName(), false);
     writer.keyword(CalciteUtils.toSqlTypeName(column.getType()).name());
 
-    if (column.getType().getNullable() != null && !column.getType().getNullable()) {
+    if (!column.getType().getNullable()) {
       writer.keyword("NOT NULL");
     }
 

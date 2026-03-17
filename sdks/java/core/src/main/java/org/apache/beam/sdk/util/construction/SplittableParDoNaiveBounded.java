@@ -544,6 +544,11 @@ public class SplittableParDoNaiveBounded {
       }
 
       @Override
+      public CausedByDrain causedByDrain(DoFn<InputT, OutputT> doFn) {
+        return outerContext.causedByDrain();
+      }
+
+      @Override
       public String timerId(DoFn<InputT, OutputT> doFn) {
         throw new UnsupportedOperationException();
       }

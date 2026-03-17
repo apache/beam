@@ -50,7 +50,6 @@ import org.apache.beam.model.pipeline.v1.RunnerApi.WindowingStrategy;
 import org.apache.beam.runners.fnexecution.artifact.ArtifactRetrievalService;
 import org.apache.beam.runners.fnexecution.data.GrpcDataService;
 import org.apache.beam.runners.fnexecution.environment.EnvironmentFactory;
-import org.apache.beam.runners.fnexecution.environment.EnvironmentFactory.Provider;
 import org.apache.beam.runners.fnexecution.environment.RemoteEnvironment;
 import org.apache.beam.runners.fnexecution.logging.GrpcLoggingService;
 import org.apache.beam.runners.fnexecution.provisioning.JobInfo;
@@ -190,7 +189,7 @@ public class DefaultJobBundleFactoryTest {
         .thenReturn(envFactoryB);
     when(environmentProviderFactoryB.getServerFactory()).thenReturn(serverFactory);
 
-    Map<String, Provider> environmentFactoryProviderMap =
+    Map<String, EnvironmentFactory.Provider> environmentFactoryProviderMap =
         ImmutableMap.of(
             environmentA.getUrn(), environmentProviderFactoryA,
             environmentB.getUrn(), environmentProviderFactoryB);
@@ -231,7 +230,7 @@ public class DefaultJobBundleFactoryTest {
         .thenReturn(envFactoryA);
     when(environmentProviderFactoryA.getServerFactory()).thenReturn(serverFactory);
 
-    Map<String, Provider> environmentFactoryProviderMap =
+    Map<String, EnvironmentFactory.Provider> environmentFactoryProviderMap =
         ImmutableMap.of(environmentA.getUrn(), environmentProviderFactoryA);
 
     PortablePipelineOptions portableOptions =
@@ -309,7 +308,7 @@ public class DefaultJobBundleFactoryTest {
         .thenReturn(envFactoryB);
     when(environmentProviderFactoryB.getServerFactory()).thenReturn(serverFactory);
 
-    Map<String, Provider> environmentFactoryProviderMap =
+    Map<String, EnvironmentFactory.Provider> environmentFactoryProviderMap =
         ImmutableMap.of(
             environmentA.getUrn(), environmentProviderFactoryA,
             environmentB.getUrn(), environmentProviderFactoryB);
@@ -338,7 +337,7 @@ public class DefaultJobBundleFactoryTest {
         .thenReturn(envFactoryA);
     when(environmentProviderFactoryA.getServerFactory()).thenReturn(serverFactory);
 
-    Map<String, Provider> environmentFactoryProviderMap =
+    Map<String, EnvironmentFactory.Provider> environmentFactoryProviderMap =
         ImmutableMap.of(environmentA.getUrn(), environmentProviderFactoryA);
 
     PortablePipelineOptions portableOptions =

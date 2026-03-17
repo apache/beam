@@ -50,13 +50,13 @@ public class TestSchemaTransformProvider
     public abstract String getExtraString();
 
     @SchemaFieldDescription("Integer to add to each row element.")
-    public abstract Integer getExtraInteger();
+    public abstract int getExtraInteger();
 
     @AutoValue.Builder
     public abstract static class Builder {
       public abstract Builder setExtraString(String extraString);
 
-      public abstract Builder setExtraInteger(Integer extraInteger);
+      public abstract Builder setExtraInteger(int extraInteger);
 
       public abstract Config build();
     }
@@ -65,7 +65,7 @@ public class TestSchemaTransformProvider
   @Override
   public SchemaTransform from(Config config) {
     String extraString = config.getExtraString();
-    Integer extraInteger = config.getExtraInteger();
+    int extraInteger = config.getExtraInteger();
     return new SchemaTransform() {
       @Override
       public PCollectionRowTuple expand(PCollectionRowTuple input) {

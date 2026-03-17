@@ -82,13 +82,13 @@ public class SchemaCoderTest {
   public abstract static class SimpleAutoValue {
     public abstract String getString();
 
-    public abstract Integer getInt32();
+    public abstract int getInt32();
 
-    public abstract Long getInt64();
+    public abstract long getInt64();
 
     public abstract DateTime getDatetime();
 
-    public static SimpleAutoValue of(String string, Integer int32, Long int64, DateTime datetime) {
+    public static SimpleAutoValue of(String string, int int32, long int64, DateTime datetime) {
       return new AutoValue_SchemaCoderTest_SimpleAutoValue(string, int32, int64, datetime);
     }
   }

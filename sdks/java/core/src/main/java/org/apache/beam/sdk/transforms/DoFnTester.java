@@ -238,6 +238,11 @@ public class DoFnTester<InputT, OutputT> implements AutoCloseable {
             }
 
             @Override
+            public CausedByDrain causedByDrain(DoFn<InputT, OutputT> doFn) {
+              return processContext.causedByDrain();
+            }
+
+            @Override
             public PaneInfo paneInfo(DoFn<InputT, OutputT> doFn) {
               return processContext.pane();
             }
@@ -598,7 +603,7 @@ public class DoFnTester<InputT, OutputT> implements AutoCloseable {
 
     @Override
     public CausedByDrain causedByDrain() {
-      return CausedByDrain.NORMAL;
+      return element.getCausedByDrain();
     }
 
     @Override
