@@ -491,6 +491,8 @@ task validatesRunnerStreaming {
   description "Validates Dataflow runner forcing streaming mode"
   dependsOn(createLegacyWorkerValidatesRunnerTest(validatesRunnerStreamingConfig + [
     name: 'validatesRunnerLegacyWorkerTestStreaming',
+    // Streaming appliance currently fails bundle finalizer tests.
+    excludedCategories: [ 'org.apache.beam.sdk.testing.UsesBundleFinalizer', ],
   ]))
 }
 
