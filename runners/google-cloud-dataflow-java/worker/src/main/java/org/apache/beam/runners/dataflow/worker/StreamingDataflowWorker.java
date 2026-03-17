@@ -464,13 +464,10 @@ public final class StreamingDataflowWorker {
     @SuppressWarnings("methodref.receiver.bound")
     WorkCommitter workCommitter =
         StreamingEngineWorkCommitter.builder()
-            // Use a separate stream pool for each committer. This ensures the commit
-            // threads are fully isolated.
             .setCommitWorkStreamFactory(
-                () ->
-                    WindmillStreamPool.create(
-                            1, COMMIT_STREAM_TIMEOUT, windmillServer::commitWorkStream)
-                        .getCloseableStream())
+                WindmillStreamPool.create(
+                        numCommitThreads, COMMIT_STREAM_TIMEOUT, windmillServer::commitWorkStream)
+                    ::getCloseableStream)
             .setCommitByteSemaphore(Commits.maxCommitByteSemaphore())
             .setNumCommitSenders(numCommitThreads)
             .setOnCommitComplete(this::onCompleteCommit)
