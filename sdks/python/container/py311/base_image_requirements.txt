@@ -144,7 +144,7 @@ protobuf==6.33.5
 psycopg2-binary==2.9.11
 pyarrow==23.0.1
 pyarrow-hotfix==0.7
-pyasn1==0.6.2
+pyasn1==0.6.3
 pyasn1_modules==0.4.2
 pycparser==3.0
 pydantic==2.12.5
