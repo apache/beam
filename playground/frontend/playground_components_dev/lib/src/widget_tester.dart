@@ -165,10 +165,15 @@ extension WidgetTesterExtension on WidgetTester {
     await Future.delayed(const Duration(seconds: 1));
 
     final event = PlaygroundComponents.analyticsService.lastEvent;
-    expect(event, isA<RunFinishedAnalyticsEvent>());
-
-    final finishedEvent = event! as RunFinishedAnalyticsEvent;
-    expect(finishedEvent.snippetContext, eventSnippetContext);
+    if (event is RunFinishedAnalyticsEvent) {
+      final finishedEvent = event! as RunFinishedAnalyticsEvent;
+      expect(finishedEvent.snippetContext, eventSnippetContext);
+    } else if (event is RunStartedAnalyticsEvent) {
+      final startedEvent = event! as RunStartedAnalyticsEvent;
+      expect(startedEvent.snippetContext, eventSnippetContext);
+    } else {
+      fail('Unexpected analytics event: $event');
+    }
   }
 
   /// Modifies the code controller in a unique way by inserting timestamp

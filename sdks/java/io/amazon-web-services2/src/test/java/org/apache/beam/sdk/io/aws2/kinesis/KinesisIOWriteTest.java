@@ -241,7 +241,7 @@ public class KinesisIOWriteTest extends PutRecordsHelpers {
     pipeline
         .apply(Create.of(100))
         .apply(ParDo.of(new GenerateTestRows()))
-        .apply(kinesisWrite().withPartitioner(row -> row.id().toString()));
+        .apply(kinesisWrite().withPartitioner(row -> String.valueOf(row.id())));
 
     pipeline.run().waitUntilFinish();
     verify(client).putRecords(argThat(hasSize(2))); // 1 aggregated record per shard
@@ -258,7 +258,7 @@ public class KinesisIOWriteTest extends PutRecordsHelpers {
     pipeline
         .apply(Create.of(100))
         .apply(ParDo.of(new GenerateTestRows()))
-        .apply(kinesisWrite().withPartitioner(row -> row.id().toString()));
+        .apply(kinesisWrite().withPartitioner(row -> String.valueOf(row.id())));
 
     pipeline.run().waitUntilFinish();
     resp.complete(ListShardsResponse.builder().build()); // complete list shards after pipeline
@@ -278,7 +278,7 @@ public class KinesisIOWriteTest extends PutRecordsHelpers {
         .apply(
             kinesisWrite()
                 .withRecordAggregation(b -> b.shardRefreshInterval(ZERO)) // disable refresh
-                .withPartitioner(row -> row.id().toString()));
+                .withPartitioner(row -> String.valueOf(row.id())));
 
     pipeline.run().waitUntilFinish();
 
@@ -378,7 +378,7 @@ public class KinesisIOWriteTest extends PutRecordsHelpers {
 
     Write<TestRow> write =
         kinesisWrite()
-            .withPartitioner(r -> r.id().toString())
+            .withPartitioner(r -> String.valueOf(r.id()))
             .withRecordAggregation(b -> b.maxBufferedTime(millis(100)).maxBufferedTimeJitter(0.2));
 
     DateTimeUtils.setCurrentMillisFixed(0);
@@ -420,7 +420,7 @@ public class KinesisIOWriteTest extends PutRecordsHelpers {
 
     Write<TestRow> write =
         kinesisWrite()
-            .withPartitioner(r -> r.id().toString())
+            .withPartitioner(r -> String.valueOf(r.id()))
             .withRecordAggregation(b -> b.shardRefreshInterval(millis(1000)));
 
     DateTimeUtils.setCurrentMillisFixed(1);

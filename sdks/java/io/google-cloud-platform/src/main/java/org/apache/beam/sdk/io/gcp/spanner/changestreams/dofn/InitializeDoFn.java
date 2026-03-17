@@ -36,11 +36,7 @@ public class InitializeDoFn extends DoFn<byte[], PartitionMetadata> implements S
 
   private static final long serialVersionUID = -8921188388649003102L;
 
-  /** Heartbeat interval for all change stream queries will be of 2 seconds. */
-  // Be careful when changing this interval, as it needs to be less than the checkpointing interval
-  // in Dataflow. Otherwise, if there are no records within checkpoint intervals, the consuming of
-  // a change stream query might get stuck.
-  private static final long DEFAULT_HEARTBEAT_MILLIS = 2000;
+  private final long heartbeatMillis;
 
   private final DaoFactory daoFactory;
   private final MapperFactory mapperFactory;
@@ -53,11 +49,13 @@ public class InitializeDoFn extends DoFn<byte[], PartitionMetadata> implements S
       DaoFactory daoFactory,
       MapperFactory mapperFactory,
       com.google.cloud.Timestamp startTimestamp,
-      com.google.cloud.Timestamp endTimestamp) {
+      com.google.cloud.Timestamp endTimestamp,
+      long heartbeatMillis) {
     this.daoFactory = daoFactory;
     this.mapperFactory = mapperFactory;
     this.startTimestamp = startTimestamp;
     this.endTimestamp = endTimestamp;
+    this.heartbeatMillis = heartbeatMillis;
   }
 
   @ProcessElement
@@ -88,7 +86,7 @@ public class InitializeDoFn extends DoFn<byte[], PartitionMetadata> implements S
             .setPartitionToken(InitialPartition.PARTITION_TOKEN)
             .setStartTimestamp(startTimestamp)
             .setEndTimestamp(endTimestamp)
-            .setHeartbeatMillis(DEFAULT_HEARTBEAT_MILLIS)
+            .setHeartbeatMillis(heartbeatMillis)
             .setState(State.CREATED)
             .setWatermark(startTimestamp)
             .build();

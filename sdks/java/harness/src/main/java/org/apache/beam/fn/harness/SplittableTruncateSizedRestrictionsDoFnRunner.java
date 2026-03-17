@@ -764,6 +764,8 @@ public class SplittableTruncateSizedRestrictionsDoFnRunner<
     }
     try {
       consumer.accept(output);
+    } catch (OutOfMemoryError oom) {
+      throw oom;
     } catch (Throwable t) {
       throw UserCodeException.wrap(t);
     }

@@ -102,6 +102,7 @@ import org.apache.beam.sdk.util.construction.PTransformTranslation;
 import org.apache.beam.sdk.util.construction.ParDoTranslation;
 import org.apache.beam.sdk.util.construction.RehydratedComponents;
 import org.apache.beam.sdk.util.construction.Timer;
+import org.apache.beam.sdk.values.CausedByDrain;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.OutputBuilder;
 import org.apache.beam.sdk.values.PCollectionView;
@@ -247,6 +248,7 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
   private WindowedValue<InputT> currentElement;
 
   private Object currentKey;
+  private CausedByDrain causedByDrain;
 
   /**
    * Only valid during {@link
@@ -1200,6 +1202,8 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
     checkNotNull(timerBundleTracker);
     try {
       currentKey = timer.getUserKey();
+      causedByDrain = timer.causedByDrain();
+      // add drain
       Iterator<BoundedWindow> windowIterator =
           (Iterator<BoundedWindow>) timer.getWindows().iterator();
       while (windowIterator.hasNext()) {
@@ -1317,6 +1321,8 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
     }
     try {
       consumer.accept(output);
+    } catch (OutOfMemoryError oom) {
+      throw oom;
     } catch (Throwable t) {
       throw UserCodeException.wrap(t);
     }
@@ -1531,7 +1537,8 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
           Collections.singletonList(boundedWindow),
           scheduledTime,
           outputTimestamp,
-          paneInfo);
+          paneInfo,
+          causedByDrain);
     }
   }
 
@@ -1798,6 +1805,11 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
     }
 
     @Override
+    public CausedByDrain causedByDrain(DoFn<InputT, OutputT> doFn) {
+      return currentElement.causedByDrain();
+    }
+
+    @Override
     public State state(String stateId, boolean alwaysFetched) {
       StateDeclaration stateDeclaration = doFnSignature.stateDeclarations().get(stateId);
       checkNotNull(stateDeclaration, "No state declaration found for %s", stateId);
@@ -1847,6 +1859,11 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
           currentElement.getTimestamp(),
           currentElement.getTimestamp(),
           currentElement.getPaneInfo());
+    }
+
+    @Override
+    public CausedByDrain causedByDrain() {
+      return currentElement.causedByDrain();
     }
   }
 
@@ -1928,6 +1945,16 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
         throw new IllegalArgumentException(String.format("Unknown output tag %s", tag));
       }
       outputTo(consumer, WindowedValues.of(output, timestamp, windows, paneInfo));
+    }
+
+    @Override
+    public CausedByDrain causedByDrain() {
+      return currentElement.causedByDrain();
+    }
+
+    @Override
+    public CausedByDrain causedByDrain(DoFn<InputT, OutputT> doFn) {
+      return currentElement.causedByDrain();
     }
   }
 
@@ -2072,9 +2099,8 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
     public OutputReceiver<Row> outputRowReceiver(DoFn<InputT, OutputT> doFn) {
       checkState(
           mainOutputSchemaCoder != null,
-          "Output with tag "
-              + mainOutputTag
-              + " must have a schema in order to call getRowReceiver");
+          "Output with tag %s must have a schema in order to call getRowReceiver",
+          mainOutputTag);
       return mainRowOutputReceiver;
     }
 
@@ -2115,9 +2141,8 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
             if (tag == null || mainOutputTag.equals(tag)) {
               checkState(
                   mainOutputSchemaCoder != null,
-                  "Output with tag "
-                      + mainOutputTag
-                      + " must have a schema in order to call getRowReceiver");
+                  "Output with tag %s must have a schema in order to call getRowReceiver",
+                  mainOutputTag);
               return mainRowOutputReceiver;
             }
 
@@ -2125,7 +2150,8 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
             checkState(outputCoder != null, "No output tag for %s", tag);
             checkState(
                 outputCoder instanceof SchemaCoder,
-                "Output with tag " + tag + " must have a schema in order to call getRowReceiver");
+                "Output with tag %s must have a schema in order to call getRowReceiver",
+                tag);
             return new OutputReceiver<Row>() {
               private SerializableFunction<Row, T> fromRowFunction =
                   ((SchemaCoder) outputCoder).getFromRowFunction();
@@ -2278,6 +2304,7 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
             .setWindow(currentWindow)
             .setTimestamp(currentTimer.getHoldTimestamp())
             .setPaneInfo(currentTimer.getPaneInfo())
+            .setCausedByDrain(causedByDrain)
             .setReceiver(
                 windowedValue -> {
                   checkOnWindowExpirationTimestamp(windowedValue.getTimestamp());
@@ -2395,6 +2422,7 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
                     .setValue(value)
                     .setTimestamp(currentTimer.getHoldTimestamp())
                     .setWindow(currentWindow)
+                    .setCausedByDrain(causedByDrain)
                     .setReceiver(
                         windowedValue ->
                             context.outputWindowedValue(
@@ -2409,9 +2437,8 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
     public OutputReceiver<Row> outputRowReceiver(DoFn<InputT, OutputT> doFn) {
       checkState(
           mainOutputSchemaCoder != null,
-          "Output with tag "
-              + mainOutputTag
-              + " must have a schema in order to call getRowReceiver");
+          "Output with tag %s must have a schema in order to call getRowReceiver",
+          mainOutputTag);
       return mainRowOutputReceiver;
     }
 
@@ -2432,6 +2459,7 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
                     .setValue(value)
                     .setTimestamp(currentTimer.getHoldTimestamp())
                     .setWindow(currentWindow)
+                    .setCausedByDrain(causedByDrain)
                     .setReceiver(
                         windowedValue ->
                             context.outputWindowedValue(
@@ -2448,9 +2476,8 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
             if (tag == null || mainOutputTag.equals(tag)) {
               checkState(
                   mainOutputSchemaCoder != null,
-                  "Output with tag "
-                      + mainOutputTag
-                      + " must have a schema in order to call getRowReceiver");
+                  "Output with tag %s must have a schema in order to call getRowReceiver",
+                  mainOutputTag);
               return mainRowOutputReceiver;
             }
 
@@ -2458,7 +2485,8 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
             checkState(outputCoder != null, "No output tag for %s", tag);
             checkState(
                 outputCoder instanceof SchemaCoder,
-                "Output with tag " + tag + " must have a schema in order to call getRowReceiver");
+                "Output with tag %s must have a schema in order to call getRowReceiver",
+                tag);
             return new OutputReceiver<Row>() {
               private SerializableFunction<Row, T> fromRowFunction =
                   ((SchemaCoder) outputCoder).getFromRowFunction();
@@ -2469,6 +2497,7 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
                     .setValue(value)
                     .setTimestamp(currentTimer.getHoldTimestamp())
                     .setWindow(currentWindow)
+                    .setCausedByDrain(causedByDrain)
                     .setReceiver(
                         windowedValue ->
                             context.outputWindowedValue(
@@ -2547,12 +2576,18 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
       }
 
       @Override
+      public CausedByDrain causedByDrain() {
+        return causedByDrain;
+      }
+
+      @Override
       public OutputBuilder<OutputT> builder(OutputT value) {
         return WindowedValues.<OutputT>builder()
             .setValue(value)
             .setTimestamp(currentTimer.getHoldTimestamp())
             .setWindow(currentWindow)
             .setPaneInfo(currentTimer.getPaneInfo())
+            .setCausedByDrain(causedByDrain)
             .setReceiver(
                 windowedValue -> {
                   checkTimerTimestamp(windowedValue.getTimestamp());
@@ -2711,9 +2746,8 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
     public OutputReceiver<Row> outputRowReceiver(DoFn<InputT, OutputT> doFn) {
       checkState(
           mainOutputSchemaCoder != null,
-          "Output with tag "
-              + mainOutputTag
-              + " must have a schema in order to call getRowReceiver");
+          "Output with tag %s must have a schema in order to call getRowReceiver",
+          mainOutputTag);
       return mainRowOutputReceiver;
     }
 
@@ -2734,6 +2768,7 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
                     .setValue(value)
                     .setTimestamp(currentTimer.getHoldTimestamp())
                     .setWindow(currentWindow)
+                    .setCausedByDrain(causedByDrain)
                     .setPaneInfo(currentTimer.getPaneInfo())
                     .setReceiver(
                         windowedValue ->
@@ -2750,9 +2785,8 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
             if (tag == null || mainOutputTag.equals(tag)) {
               checkState(
                   mainOutputSchemaCoder != null,
-                  "Output with tag "
-                      + mainOutputTag
-                      + " must have a schema in order to call getRowReceiver");
+                  "Output with tag %s must have a schema in order to call getRowReceiver",
+                  mainOutputTag);
               return mainRowOutputReceiver;
             }
 
@@ -2760,7 +2794,8 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
             checkState(outputCoder != null, "No output tag for %s", tag);
             checkState(
                 outputCoder instanceof SchemaCoder,
-                "Output with tag " + tag + " must have a schema in order to call getRowReceiver");
+                "Output with tag %s must have a schema in order to call getRowReceiver",
+                tag);
             return new OutputReceiver<Row>() {
               private SerializableFunction<Row, T> fromRowFunction =
                   ((SchemaCoder) outputCoder).getFromRowFunction();
@@ -2772,6 +2807,7 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
                     .setTimestamp(currentTimer.getHoldTimestamp())
                     .setWindow(currentWindow)
                     .setPaneInfo(currentTimer.getPaneInfo())
+                    .setCausedByDrain(causedByDrain)
                     .setReceiver(
                         windowedValue ->
                             context.outputWindowedValue(

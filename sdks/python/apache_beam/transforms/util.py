@@ -20,6 +20,7 @@
 
 # pytype: skip-file
 
+import bisect
 import collections
 import contextlib
 import hashlib
@@ -47,7 +48,6 @@ from apache_beam import coders
 from apache_beam import pvalue
 from apache_beam import typehints
 from apache_beam.metrics import Metrics
-from apache_beam.options import pipeline_options
 from apache_beam.portability import common_urns
 from apache_beam.portability.api import beam_runner_api_pb2
 from apache_beam.pvalue import AsSideInput
@@ -1209,6 +1209,30 @@ class WithSharedKey(DoFn):
     yield (self.key, element)
 
 
+class WithLengthBucketKey(DoFn):
+  """Keys elements with (worker_uuid, length_bucket) for length-aware
+  stateful batching. Elements of similar length are routed to the same
+  state partition, reducing padding waste."""
+  def __init__(self, length_fn, bucket_boundaries):
+    self.shared_handle = shared.Shared()
+    self._length_fn = length_fn
+    self._bucket_boundaries = bucket_boundaries
+
+  def setup(self):
+    self.key = self.shared_handle.acquire(
+        load_shared_key, "WithLengthBucketKey").key
+
+  def _get_bucket(self, length):
+    # bisect_right: boundaries are lower-inclusive.
+    # e.g., for boundaries [10, 50], buckets are (-inf, 10), [10, 50), [50, inf)
+    return bisect.bisect_right(self._bucket_boundaries, length)
+
+  def process(self, element):
+    length = self._length_fn(element)
+    bucket = self._get_bucket(length)
+    yield ((self.key, bucket), element)
+
+
 @typehints.with_input_types(T)
 @typehints.with_output_types(list[T])
 class BatchElements(PTransform):
@@ -1268,7 +1292,18 @@ class BatchElements(PTransform):
         donwstream operations (mostly for testing)
     record_metrics: (optional) whether or not to record beam metrics on
         distributions of the batch size. Defaults to True.
+    length_fn: (optional) a callable mapping an element to its length (int).
+        When set together with bucket_boundaries, enables length-aware bucketed
+        keying on the stateful path so that elements of similar length are
+        routed to the same batch, reducing padding waste.
+    bucket_boundaries: (optional) a sorted list of positive boundary values
+        for length bucketing. Boundaries are lower-inclusive (bisect_right
+        semantics): e.g., for boundaries [10, 50], buckets are (-inf, 10),
+        [10, 50), [50, inf). Defaults to [16, 32, 64, 128, 256, 512] when
+        length_fn is set. Requires length_fn.
   """
+  _DEFAULT_BUCKET_BOUNDARIES = [16, 32, 64, 128, 256, 512]
+
   def __init__(
       self,
       min_batch_size=1,
@@ -1281,7 +1316,17 @@ class BatchElements(PTransform):
       element_size_fn=lambda x: 1,
       variance=0.25,
       clock=time.time,
-      record_metrics=True):
+      record_metrics=True,
+      length_fn=None,
+      bucket_boundaries=None):
+    if bucket_boundaries is not None and length_fn is None:
+      raise ValueError('bucket_boundaries requires length_fn to be set.')
+    if bucket_boundaries is not None:
+      if (not bucket_boundaries or any(b <= 0 for b in bucket_boundaries) or
+          bucket_boundaries != sorted(bucket_boundaries)):
+        raise ValueError(
+            'bucket_boundaries must be a non-empty sorted list of '
+            'positive values.')
     self._batch_size_estimator = _BatchSizeEstimator(
         min_batch_size=min_batch_size,
         max_batch_size=max_batch_size,
@@ -1295,13 +1340,23 @@ class BatchElements(PTransform):
     self._element_size_fn = element_size_fn
     self._max_batch_dur = max_batch_duration_secs
     self._clock = clock
+    self._length_fn = length_fn
+    if length_fn is not None and bucket_boundaries is None:
+      self._bucket_boundaries = self._DEFAULT_BUCKET_BOUNDARIES
+    else:
+      self._bucket_boundaries = bucket_boundaries
 
   def expand(self, pcoll):
     if getattr(pcoll.pipeline.runner, 'is_streaming', False):
       raise NotImplementedError("Requires stateful processing (BEAM-2687)")
     elif self._max_batch_dur is not None:
       coder = coders.registry.get_coder(pcoll)
-      return pcoll | ParDo(WithSharedKey()) | ParDo(
+      if self._length_fn is not None:
+        keying_dofn = WithLengthBucketKey(
+            self._length_fn, self._bucket_boundaries)
+      else:
+        keying_dofn = WithSharedKey()
+      return pcoll | ParDo(keying_dofn) | ParDo(
           _pardo_stateful_batch_elements(
               coder,
               self._batch_size_estimator,
@@ -1348,27 +1403,6 @@ class _IdentityWindowFn(NonMergingWindowFn):
 
   def get_window_coder(self):
     return self._window_coder
-
-
-def is_v1_prior_to_v2(*, v1, v2):
-  if v1 is None:
-    return False
-
-  v1_parts = (v1.split('.') + ['0', '0', '0'])[:3]
-  v2_parts = (v2.split('.') + ['0', '0', '0'])[:3]
-  return tuple(map(int, v1_parts)) < tuple(map(int, v2_parts))
-
-
-def is_compat_version_prior_to(options, breaking_change_version):
-  # This function is used in a branch statement to determine whether we should
-  # keep the old behavior prior to a breaking change or use the new behavior.
-  # - If update_compatibility_version < breaking_change_version, we will return
-  #   True and keep the old behavior.
-  update_compatibility_version = options.view_as(
-      pipeline_options.StreamingOptions).update_compatibility_version
-
-  return is_v1_prior_to_v2(
-      v1=update_compatibility_version, v2=breaking_change_version)
 
 
 def reify_metadata_default_window(
@@ -1448,8 +1482,8 @@ class ReshufflePerKey(PTransform):
             for (value, timestamp) in values
         ]
 
-      if is_compat_version_prior_to(pcoll.pipeline.options,
-                                    RESHUFFLE_TYPEHINT_BREAKING_CHANGE_VERSION):
+      if pcoll.pipeline.options.is_compat_version_prior_to(
+          RESHUFFLE_TYPEHINT_BREAKING_CHANGE_VERSION):
         pre_gbk_map = Map(reify_timestamps).with_output_types(Any)
       else:
         pre_gbk_map = Map(reify_timestamps).with_input_types(
@@ -1468,8 +1502,8 @@ class ReshufflePerKey(PTransform):
         key, windowed_values = element
         return [wv.with_value((key, wv.value)) for wv in windowed_values]
 
-      if is_compat_version_prior_to(pcoll.pipeline.options,
-                                    RESHUFFLE_TYPEHINT_BREAKING_CHANGE_VERSION):
+      if pcoll.pipeline.options.is_compat_version_prior_to(
+          RESHUFFLE_TYPEHINT_BREAKING_CHANGE_VERSION):
         pre_gbk_map = Map(reify_timestamps).with_output_types(Any)
       else:
         pre_gbk_map = Map(reify_timestamps).with_input_types(
@@ -1493,7 +1527,7 @@ class ReshufflePerKey(PTransform):
     return result
 
   def expand(self, pcoll):
-    if is_compat_version_prior_to(pcoll.pipeline.options, "2.65.0"):
+    if pcoll.pipeline.options.is_compat_version_prior_to("2.65.0"):
       return self.expand_2_64_0(pcoll)
 
     windowing_saved = pcoll.windowing
@@ -1550,8 +1584,8 @@ class Reshuffle(PTransform):
 
   def expand(self, pcoll):
     # type: (pvalue.PValue) -> pvalue.PCollection
-    if is_compat_version_prior_to(pcoll.pipeline.options,
-                                  RESHUFFLE_TYPEHINT_BREAKING_CHANGE_VERSION):
+    if pcoll.pipeline.options.is_compat_version_prior_to(
+        RESHUFFLE_TYPEHINT_BREAKING_CHANGE_VERSION):
       reshuffle_step = ReshufflePerKey()
     else:
       reshuffle_step = ReshufflePerKey().with_input_types(

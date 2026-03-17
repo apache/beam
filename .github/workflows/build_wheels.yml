@@ -25,9 +25,9 @@ on:
   push:
     branches: ['master', 'release-*']
     tags: 'v*'
+    paths: ['sdks/python/**', 'model/**', 'release/**']
   pull_request:
     branches: ['master', 'release-*']
-    tags: 'v*'
     paths: ['sdks/python/**', 'model/**', 'release/**']
   workflow_dispatch:
 
@@ -250,7 +250,7 @@ jobs:
       name: Set up QEMU
     - name: Install cibuildwheel
       # note: sync cibuildwheel version with gradle task sdks:python:bdistPy* steps
-      run: pip install cibuildwheel==3.3.1 setuptools
+      run: pip install cibuildwheel==3.4.0 setuptools
     - name: Build wheel
       # Only build wheel if it is one of the target versions for this platform, otherwise no-op
       if: ${{ contains(matrix.os_python.python, matrix.py_version) }}

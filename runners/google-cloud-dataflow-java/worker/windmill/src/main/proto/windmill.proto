@@ -966,16 +966,12 @@ enum ConnectivityType {
 
 // Settings to control runtime behavior of the java runner v1 user worker.
 message UserWorkerRunnerV1Settings {
-  // If true, use separate channels for each windmill RPC.
-  optional bool use_windmill_isolated_channels = 1 [default = true];
-
-  // If true, use separate streaming RPC for windmill heartbeats and state reads.
-  optional bool use_separate_windmill_heartbeat_streams = 2 [default = true];
-
   optional UserWorkerGrpcFlowControlSettings flow_control_settings = 3;
 
   optional ConnectivityType connectivity_type = 4
     [default = CONNECTIVITY_TYPE_DEFAULT];
+
+  reserved 1, 2;
 }
 
 service WindmillAppliance {

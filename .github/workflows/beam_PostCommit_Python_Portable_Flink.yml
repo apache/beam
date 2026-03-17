@@ -63,8 +63,9 @@ jobs:
         job_name: ["beam_PostCommit_Python_Portable_Flink"]
         job_phrase: ["Run Python Portable Flink"]
         # TODO: Enable PROCESS https://github.com/apache/beam/issues/35702
-        # environment_type: ['DOCKER', 'LOOPBACK', 'PROCESS']
-        environment_type: ['DOCKER', 'LOOPBACK']
+        # all environment_type: ['DOCKER', 'LOOPBACK', 'PROCESS']
+        # Run modes not covered by PreCommit_Python_PVR_Flink (i.e. other than 'LOOPBACK')
+        environment_type: ['DOCKER']
     steps:
       - uses: actions/checkout@v4
       - name: Setup repository

@@ -18,8 +18,8 @@
 package org.apache.beam.sdk.io;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
-import static org.apache.beam.sdk.TestUtils.LINES_ARRAY;
-import static org.apache.beam.sdk.TestUtils.NO_LINES_ARRAY;
+import static org.apache.beam.sdk.TestUtils.LINES;
+import static org.apache.beam.sdk.TestUtils.NO_LINES;
 import static org.apache.beam.sdk.io.Compression.AUTO;
 import static org.apache.beam.sdk.io.Compression.BZIP2;
 import static org.apache.beam.sdk.io.Compression.DEFLATE;
@@ -767,13 +767,13 @@ public class TextIOReadTest {
     @Test
     @Category(NeedsRunner.class)
     public void testReadStrings() throws Exception {
-      runTestRead(LINES_ARRAY);
+      runTestRead(LINES.toArray(new String[0]));
     }
 
     @Test
     @Category(NeedsRunner.class)
     public void testReadEmptyStrings() throws Exception {
-      runTestRead(NO_LINES_ARRAY);
+      runTestRead(NO_LINES.toArray(new String[0]));
     }
 
     @Test

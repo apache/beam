@@ -135,10 +135,13 @@ task copyGcpCredsToContainer(type: Exec) {
   dependsOn setupDockerContainer
 
   def gcpCredsHost = providers.gradleProperty("gcpCredsFile").orNull
-  if (gcpCredsHost) {
-    commandLine 'docker', 'cp', gcpCredsHost, "${->startDockerContainer.containerId()}:${gcpCredsInContainer}"
-  } else {
-    println "[performance_looks] -PgcpCredsFile not provided, skipping copy"
+
+  onlyIf { gcpCredsHost != null }
+
+  doFirst {
+    commandLine 'docker', 'cp',
+      gcpCredsHost,
+      "${->startDockerContainer.containerId()}:${gcpCredsInContainer}"
   }
 }
 
@@ -146,7 +149,10 @@ task downloadPerformanceLooks(type: Exec) {
   dependsOn setupDockerContainer, copyGcpCredsToContainer
 
   def gcpCredsHost = providers.gradleProperty("gcpCredsFile").orNull
-  if (gcpCredsHost) {
+
+  onlyIf { gcpCredsHost != null }
+
+  doFirst {
     commandLine 'docker', 'exec',
       "${-> setupDockerContainer.containerId()}", '/bin/bash', '-lc',
       """
@@ -173,8 +179,6 @@ task downloadPerformanceLooks(type: Exec) {
         echo "[performance_looks][WARNING] Website build will continue without updated images"
       fi
     """
-  } else {
-    println "[performance_looks] Skipping download of performance looks"
   }
 }
 

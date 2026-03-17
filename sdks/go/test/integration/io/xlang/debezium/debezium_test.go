@@ -34,7 +34,7 @@ import (
 )
 
 const (
-	debeziumImage = "quay.io/debezium/example-postgres:latest"
+	debeziumImage = "quay.io/debezium/example-postgres:3.1.3.Final"
 	debeziumPort  = "5432/tcp"
 	maxRetries    = 5
 )
@@ -82,7 +82,6 @@ func TestDebeziumIO_BasicRead(t *testing.T) {
 	connectionProperties := []string{
 		"database.dbname=inventory",
 		"database.server.name=dbserver1",
-		"database.include.list=inventory",
 		"include.schema.changes=false",
 	}
 	read := ReadPipeline(expansionAddr, username, password, dbname, host, port, debeziumio.PostgreSQL, 1, connectionProperties)

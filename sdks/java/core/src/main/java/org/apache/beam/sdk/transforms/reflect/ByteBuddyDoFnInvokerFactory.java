@@ -27,6 +27,7 @@ import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
 import net.bytebuddy.ByteBuddy;
 import net.bytebuddy.description.field.FieldDescription;
@@ -75,6 +76,7 @@ import org.apache.beam.sdk.transforms.DoFn.TruncateRestriction;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.OnTimerMethod;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.BundleFinalizerParameter;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.Cases;
+import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.CausedByDrainParameter;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.ElementParameter;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.FinishBundleContextParameter;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.OnTimerContextParameter;
@@ -106,6 +108,7 @@ import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.util.UserCodeException;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.sdk.values.TypeDescriptors;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.MoreObjects;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Maps;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.primitives.Primitives;
 import org.checkerframework.checker.nullness.qual.MonotonicNonNull;
@@ -124,6 +127,7 @@ class ByteBuddyDoFnInvokerFactory implements DoFnInvokerFactory {
   public static final String ELEMENT_PARAMETER_METHOD = "element";
   public static final String SCHEMA_ELEMENT_PARAMETER_METHOD = "schemaElement";
   public static final String TIMESTAMP_PARAMETER_METHOD = "timestamp";
+  public static final String CAUSED_BY_DRAIN_PARAMETER_METHOD = "causedByDrain";
   public static final String BUNDLE_FINALIZER_PARAMETER_METHOD = "bundleFinalizer";
   public static final String OUTPUT_ROW_RECEIVER_METHOD = "outputRowReceiver";
   public static final String TIME_DOMAIN_PARAMETER_METHOD = "timeDomain";
@@ -166,20 +170,71 @@ class ByteBuddyDoFnInvokerFactory implements DoFnInvokerFactory {
   private static final String FN_DELEGATE_FIELD_NAME = "delegate";
 
   /**
-   * A cache of constructors of generated {@link DoFnInvoker} classes, keyed by {@link DoFn} class.
-   * Needed because generating an invoker class is expensive, and to avoid generating an excessive
-   * number of classes consuming PermGen memory.
+   * Cache key for DoFnInvoker constructors that includes both the DoFn class and its generic type
+   * parameters to prevent collisions when the same DoFn class is used with different generic types.
+   */
+  private static final class InvokerCacheKey {
+    private final Class<? extends DoFn<?, ?>> fnClass;
+    private final TypeDescriptor<?> inputType;
+    private final TypeDescriptor<?> outputType;
+
+    InvokerCacheKey(
+        Class<? extends DoFn<?, ?>> fnClass,
+        TypeDescriptor<?> inputType,
+        TypeDescriptor<?> outputType) {
+      this.fnClass = fnClass;
+      this.inputType = inputType;
+      this.outputType = outputType;
+    }
+
+    @Override
+    public boolean equals(@Nullable Object o) {
+      if (this == o) {
+        return true;
+      }
+      if (!(o instanceof InvokerCacheKey)) {
+        return false;
+      }
+      InvokerCacheKey that = (InvokerCacheKey) o;
+      return Objects.equals(fnClass, that.fnClass)
+          && Objects.equals(inputType, that.inputType)
+          && Objects.equals(outputType, that.outputType);
+    }
+
+    @Override
+    public int hashCode() {
+      return Objects.hash(fnClass, inputType, outputType);
+    }
+
+    @Override
+    public String toString() {
+      return MoreObjects.toStringHelper(this)
+          .add("fnClass", fnClass.getName())
+          .add("inputType", inputType)
+          .add("outputType", outputType)
+          .toString();
+    }
+  }
+
+  /**
+   * A cache of constructors of generated {@link DoFnInvoker} classes, keyed by {@link DoFn} class
+   * and its generic type parameters. Needed because generating an invoker class is expensive, and
+   * to avoid generating an excessive number of classes consuming PermGen memory.
+   *
+   * <p>The cache key includes generic type information to prevent collisions when the same DoFn
+   * class is used with different generic types (e.g., MyDoFn&lt;String&gt; vs
+   * MyDoFn&lt;Integer&gt;).
    *
    * <p>Note that special care must be taken to enumerate this object as concurrent hash maps are <a
    * href="https://docs.oracle.com/javase/8/docs/api/java/util/concurrent/package-summary.html#Weakly>weakly
    * consistent</a>.
    */
-  private final Map<Class<?>, Constructor<?>> byteBuddyInvokerConstructorCache =
+  private final Map<InvokerCacheKey, Constructor<?>> byteBuddyInvokerConstructorCache =
       new ConcurrentHashMap<>();
 
   private ByteBuddyDoFnInvokerFactory() {}
 
-  /** @return the {@link DoFnInvoker} for the given {@link DoFn}. */
+  /** Returns the {@link DoFnInvoker} for the given {@link DoFn}. */
   @SuppressWarnings({"unchecked", "rawtypes"})
   public <InputT, OutputT> DoFnInvoker<InputT, OutputT> newByteBuddyInvoker(
       DoFn<InputT, OutputT> fn) {
@@ -256,7 +311,7 @@ class ByteBuddyDoFnInvokerFactory implements DoFnInvokerFactory {
     }
   }
 
-  /** @return the {@link DoFnInvoker} for the given {@link DoFn}. */
+  /** Returns the {@link DoFnInvoker} for the given {@link DoFn}. */
   public <InputT, OutputT> DoFnInvoker<InputT, OutputT> newByteBuddyInvoker(
       DoFnSignature signature, DoFn<InputT, OutputT> fn) {
     checkArgument(
@@ -265,11 +320,39 @@ class ByteBuddyDoFnInvokerFactory implements DoFnInvokerFactory {
         signature.fnClass(),
         fn.getClass());
 
+    // Extract input and output type descriptors to distinguish generic instantiations.
+    // Fall back to Object.class if unavailable. When type info is lost, different generic
+    // instantiations share an invoker, which is acceptable since the DoFn class in the cache
+    // key prevents collisions between different DoFn classes.
+    TypeDescriptor<InputT> inputType;
+    try {
+      inputType = fn.getInputTypeDescriptor();
+    } catch (Exception e) {
+      // Some DoFns (like MapElements) throw IllegalStateException if queried after
+      // serialization.
+      // In this case, we fall back to the raw class behavior (Object).
+      inputType = null;
+    }
+    if (inputType == null) {
+      inputType = (TypeDescriptor<InputT>) TypeDescriptor.of(Object.class);
+    }
+
+    TypeDescriptor<OutputT> outputType;
+    try {
+      outputType = fn.getOutputTypeDescriptor();
+    } catch (Exception e) {
+      // Same as above: fall back to Object if type info is unavailable.
+      outputType = null;
+    }
+    if (outputType == null) {
+      outputType = (TypeDescriptor<OutputT>) TypeDescriptor.of(Object.class);
+    }
+
     try {
       @SuppressWarnings("unchecked")
       DoFnInvokerBase<InputT, OutputT, DoFn<InputT, OutputT>> invoker =
           (DoFnInvokerBase<InputT, OutputT, DoFn<InputT, OutputT>>)
-              getByteBuddyInvokerConstructor(signature).newInstance(fn);
+              getByteBuddyInvokerConstructor(signature, inputType, outputType).newInstance(fn);
 
       if (signature.onTimerMethods() != null) {
         for (OnTimerMethod onTimerMethod : signature.onTimerMethods().values()) {
@@ -297,19 +380,24 @@ class ByteBuddyDoFnInvokerFactory implements DoFnInvokerFactory {
   }
 
   /**
-   * Returns a generated constructor for a {@link DoFnInvoker} for the given {@link DoFn} class.
+   * Returns a generated constructor for a {@link DoFnInvoker} for the given {@link DoFnSignature}
+   * and specific generic types.
    *
    * <p>These are cached such that at most one {@link DoFnInvoker} class exists for a given {@link
-   * DoFn} class.
+   * DoFn} class with specific generic type parameters. Different generic instantiations of the same
+   * DoFn class will have separate cached invoker classes.
    */
-  private Constructor<?> getByteBuddyInvokerConstructor(DoFnSignature signature) {
+  private Constructor<?> getByteBuddyInvokerConstructor(
+      DoFnSignature signature, TypeDescriptor<?> inputType, TypeDescriptor<?> outputType) {
     Class<? extends DoFn<?, ?>> fnClass = signature.fnClass();
+    InvokerCacheKey cacheKey = new InvokerCacheKey(fnClass, inputType, outputType);
     return byteBuddyInvokerConstructorCache.computeIfAbsent(
-        fnClass,
-        clazz -> {
-          Class<? extends DoFnInvoker<?, ?>> invokerClass = generateInvokerClass(signature);
+        cacheKey,
+        key -> {
+          Class<? extends DoFnInvoker<?, ?>> invokerClass =
+              generateInvokerClass(signature, inputType, outputType);
           try {
-            return invokerClass.getConstructor(clazz);
+            return invokerClass.getConstructor(fnClass);
           } catch (IllegalArgumentException | NoSuchMethodException | SecurityException e) {
             throw new RuntimeException(e);
           }
@@ -456,9 +544,34 @@ class ByteBuddyDoFnInvokerFactory implements DoFnInvokerFactory {
     }
   }
 
+  /**
+   * Generates a type suffix string for use in invoker class names.
+   *
+   * <p>This creates a unique suffix based on the input and output type descriptors to avoid class
+   * name collisions when the same DoFn class is used with different generic types.
+   *
+   * <p>The format is: {@code DoFnInvoker$<8-digit hex hash>}
+   *
+   * @param inputType the input type descriptor
+   * @param outputType the output type descriptor
+   * @return a string suffix for the invoker class name
+   */
+  public static String generateTypeSuffix(
+      TypeDescriptor<?> inputType, TypeDescriptor<?> outputType) {
+    return String.format(
+        "%s$%08x",
+        DoFnInvoker.class.getSimpleName(),
+        (inputType.toString() + "|" + outputType.toString()).hashCode());
+  }
+
   /** Generates a {@link DoFnInvoker} class for the given {@link DoFnSignature}. */
-  private static Class<? extends DoFnInvoker<?, ?>> generateInvokerClass(DoFnSignature signature) {
+  private static Class<? extends DoFnInvoker<?, ?>> generateInvokerClass(
+      DoFnSignature signature, TypeDescriptor<?> inputType, TypeDescriptor<?> outputType) {
     Class<? extends DoFn<?, ?>> fnClass = signature.fnClass();
+
+    // Create a unique suffix based on the type descriptors to avoid class name collisions
+    // when the same DoFn class is used with different generic types.
+    String typeSuffix = generateTypeSuffix(inputType, outputType);
 
     final TypeDescription clazzDescription = new TypeDescription.ForLoadedType(fnClass);
 
@@ -466,9 +579,7 @@ class ByteBuddyDoFnInvokerFactory implements DoFnInvokerFactory {
         new ByteBuddy()
             // Create subclasses inside the target class, to have access to
             // private and package-private bits
-            .with(
-                StableInvokerNamingStrategy.forDoFnClass(fnClass)
-                    .withSuffix(DoFnInvoker.class.getSimpleName()))
+            .with(StableInvokerNamingStrategy.forDoFnClass(fnClass).withSuffix(typeSuffix))
 
             // class <invoker class> extends DoFnInvokerBase {
             .subclass(DoFnInvokerBase.class, ConstructorStrategy.Default.NO_CONSTRUCTORS)
@@ -989,6 +1100,15 @@ class ByteBuddyDoFnInvokerFactory implements DoFnInvokerFactory {
                 MethodInvocation.invoke(
                     getExtraContextFactoryMethodDescription(
                         TIMESTAMP_PARAMETER_METHOD, DoFn.class)));
+          }
+
+          @Override
+          public StackManipulation dispatch(CausedByDrainParameter p) {
+            return new StackManipulation.Compound(
+                pushDelegate,
+                MethodInvocation.invoke(
+                    getExtraContextFactoryMethodDescription(
+                        CAUSED_BY_DRAIN_PARAMETER_METHOD, DoFn.class)));
           }
 
           @Override

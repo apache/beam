@@ -277,7 +277,7 @@ public class ApproximateQuantiles {
      * of {@code maxNumElements}.
      */
     public ApproximateQuantilesCombineFn<T, ComparatorT> withMaxInputSize(long maxNumElements) {
-      return create(numQuantiles, compareFn, maxNumElements, maxNumElements);
+      return create(numQuantiles, compareFn, maxNumElements, (double) maxNumElements);
     }
 
     /**
@@ -484,7 +484,8 @@ public class ApproximateQuantiles {
         newLevel = Math.max(newLevel, buffer.level + 1);
         newWeight += buffer.weight;
       }
-      List<T> newElements = interpolate(buffers, bufferSize, newWeight, offset(newWeight));
+      List<T> newElements =
+          interpolate(buffers, bufferSize, (double) newWeight, (double) offset(newWeight));
       return new QuantileBuffer<>(newLevel, newWeight, newElements);
     }
 

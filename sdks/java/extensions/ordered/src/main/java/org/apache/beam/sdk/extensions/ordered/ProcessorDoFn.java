@@ -93,7 +93,7 @@ abstract class ProcessorDoFn<
     numberOfResultsBeforeBundleStart = null;
   }
 
-  /** @return true if each event needs to be examined. */
+  /** Returns true if each event needs to be examined. */
   abstract boolean checkForFirstOrLastEvent();
 
   /**
