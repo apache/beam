@@ -16,11 +16,11 @@
  * limitations under the License.
  */
 
-project_id = "PROJECT_ID"
-region     = "REGION"
+project_id = "apache-beam-testing"
+region     = "us-central1"
 
-vpc_name    = "VPC_NAME"
-subnet_name = "SUBNET_NAME"
+vpc_name    = "tarun-private-vpc"
+subnet_name = "private-subnet"
 
 # update the below config value to match your need
 # https://github.com/envoyproxy/ratelimit?tab=readme-ov-file#examples
@@ -31,7 +31,7 @@ descriptors:
     value: users
     rate_limit:
       unit: second
-      requests_per_unit: 1
+      requests_per_unit: 10
 EOF
 
 # Optional Resource Limits
