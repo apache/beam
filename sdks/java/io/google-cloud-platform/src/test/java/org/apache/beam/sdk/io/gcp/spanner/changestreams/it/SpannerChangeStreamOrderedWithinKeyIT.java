@@ -40,7 +40,7 @@ import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.GroupByKey;
 import org.apache.beam.sdk.transforms.ParDo;
-import org.apache.beam.sdk.transforms.windowing.FixedWindows;
+import org.apache.beam.sdk.transforms.windowing.Sessions;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
@@ -113,7 +113,7 @@ public class SpannerChangeStreamOrderedWithinKeyIT {
             .apply(ParDo.of(new BreakRecordByModFn()))
             .apply(ParDo.of(new KeyByIdFn()))
             .apply(ParDo.of(new KeyValueByCommitTimestampAndRecordSequenceFn<>()))
-            .apply(Window.into(FixedWindows.of(Duration.standardMinutes(2))))
+            .apply(Window.into(Sessions.withGapDuration(Duration.standardMinutes(2))))
             .apply(GroupByKey.create())
             .apply(ParDo.of(new ToStringFn()));
 
