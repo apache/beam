@@ -65,11 +65,15 @@ from apache_beam.io.restriction_trackers import OffsetRestrictionTracker
 from apache_beam.io.watermark_estimators import ManualWatermarkEstimator
 from apache_beam.metrics import Metrics
 from apache_beam.transforms.core import WatermarkEstimatorProvider
+from apache_beam.transforms import trigger as beam_trigger
+from apache_beam.transforms.window import GlobalWindows
 from apache_beam.transforms.window import TimestampedValue
 from apache_beam.utils import retry
 from apache_beam.utils.timestamp import MAX_TIMESTAMP
 from apache_beam.utils.timestamp import Duration
 from apache_beam.utils.timestamp import Timestamp
+
+import random
 
 try:
   from google.cloud import bigquery_storage_v1 as bq_storage
@@ -712,10 +716,12 @@ class _ReadStorageStreamsSDF(beam.DoFn,
       self,
       batch_arrow_read: bool = True,
       change_timestamp_column: str = 'change_timestamp',
-      split_streams: bool = True) -> None:
+      max_split_rounds: int = 1,
+      emit_raw_batches: bool = False) -> None:
     self._batch_arrow_read = batch_arrow_read
     self._change_timestamp_column = change_timestamp_column
-    self._split_streams = split_streams
+    self._max_split_rounds = max_split_rounds
+    self._emit_raw_batches = emit_raw_batches
     self._storage_client = None
 
   def _ensure_client(self) -> None:
@@ -732,23 +738,23 @@ class _ReadStorageStreamsSDF(beam.DoFn,
   def setup(self) -> None:
     self._ensure_client()
 
-  def _split_all_streams(self, stream_names: Tuple[str,
-                                                   ...]) -> Tuple[str, ...]:
-    """Split each stream at fraction=0.5 repeatedly until BQ refuses.
+  def _split_all_streams(
+      self, stream_names: Tuple[str, ...],
+      max_split_rounds: int) -> Tuple[str, ...]:
+    """Split each stream at fraction=0.5 for up to max_split_rounds rounds.
 
     Each round attempts to split every stream in the current list. A
     successful split replaces the original stream with primary + remainder.
     A refused split (both fields empty) keeps the original stream intact.
-    Stops when a full round produces zero new splits.
+    Stops when max_split_rounds is reached or a full round produces zero
+    new splits.
 
     BQ's server-side granularity controls how many splits are possible.
     Small tables may not split at all; large tables may allow multiple
     rounds of doubling.
     """
     result = list(stream_names)
-    round_num = 0
-    while True:
-      round_num += 1
+    for round_num in range(1, max_split_rounds + 1):
       new_result = []
       made_progress = False
       for name in result:
@@ -764,9 +770,10 @@ class _ReadStorageStreamsSDF(beam.DoFn,
           new_result.append(name)
       result = new_result
       _LOGGER.info(
-          '[Read] _split_all_streams round %d: %d streams '
+          '[Read] _split_all_streams round %d/%d: %d streams '
           '(progress=%s)',
           round_num,
+          max_split_rounds,
           len(result),
           made_progress)
       if not made_progress:
@@ -776,9 +783,9 @@ class _ReadStorageStreamsSDF(beam.DoFn,
   def initial_restriction(self, element: _QueryResult) -> _StreamRestriction:
     """Create ReadSession and return _StreamRestriction with stream names.
 
-    When split_streams is enabled, uses SplitReadStream to subdivide each
-    stream at fraction=0.5 repeatedly until BQ refuses further splits.
-    This maximizes parallelism beyond what CreateReadSession provides.
+    When max_split_rounds > 0, uses SplitReadStream to subdivide each
+    stream at fraction=0.5 for up to max_split_rounds rounds, maximizing
+    parallelism beyond what CreateReadSession provides.
     """
     self._ensure_client()
     table_key = bigquery_tools.get_hashable_destination(element.temp_table_ref)
@@ -790,8 +797,9 @@ class _ReadStorageStreamsSDF(beam.DoFn,
         table_key,
         original_count)
 
-    if self._split_streams:
-      stream_names = self._split_all_streams(stream_names)
+    if self._max_split_rounds > 0:
+      stream_names = self._split_all_streams(
+          stream_names, self._max_split_rounds)
       _LOGGER.info(
           '[Read] initial_restriction for %s: %d -> %d streams '
           'after SplitReadStream',
@@ -826,8 +834,7 @@ class _ReadStorageStreamsSDF(beam.DoFn,
       element: _QueryResult,
       restriction_tracker=beam.DoFn.RestrictionParam(),
       watermark_estimator=beam.DoFn.WatermarkEstimatorParam(
-          _CDCWatermarkEstimatorProvider())
-  ) -> Iterable[Dict[str, Any]]:
+          _CDCWatermarkEstimatorProvider())):
     self._ensure_client()
     table_key = bigquery_tools.get_hashable_destination(element.temp_table_ref)
 
@@ -844,7 +851,6 @@ class _ReadStorageStreamsSDF(beam.DoFn,
     total_streams = len(stream_names)
 
     streams_read = 0
-    total_rows = 0
 
     _LOGGER.info(
         '[Read] Reading streams [%d, %d) of %d total for %s',
@@ -867,19 +873,27 @@ class _ReadStorageStreamsSDF(beam.DoFn,
           '[Read] try_claim(%d) succeeded: reading stream %s', i, stream_name)
 
       stream_rows = 0
-      for row in self._read_stream(stream_name):
-        ts = row.get(self._change_timestamp_column)
-        if ts is None:
-          raise ValueError(
-              'Row missing %r column. Row keys: %s' %
-              (self._change_timestamp_column, list(row.keys())))
-        if isinstance(ts, datetime.datetime):
-          ts = Timestamp.from_utc_datetime(ts)
+      if self._emit_raw_batches:
+        stream_batches = 0
+        for raw_batch in self._read_stream_raw(stream_name):
+          yield TimestampedValue(raw_batch, element.range_start)
+          stream_batches += 1
+        Metrics.counter('BigQueryChangeHistory',
+                        'batches_emitted').inc(stream_batches)
+      else:
+        for row in self._read_stream(stream_name):
+          ts = row.get(self._change_timestamp_column)
+          if ts is None:
+            raise ValueError(
+                'Row missing %r column. Row keys: %s' %
+                (self._change_timestamp_column, list(row.keys())))
+          if isinstance(ts, datetime.datetime):
+            ts = Timestamp.from_utc_datetime(ts)
 
-        yield TimestampedValue(row, ts)
-        stream_rows += 1
-        total_rows += 1
-      Metrics.counter('BigQueryChangeHistory', 'rows_emitted').inc(total_rows)
+          yield TimestampedValue(row, ts)
+          stream_rows += 1
+        Metrics.counter('BigQueryChangeHistory',
+                        'rows_emitted').inc(stream_rows)
 
       streams_read += 1
       _LOGGER.info(
@@ -897,16 +911,19 @@ class _ReadStorageStreamsSDF(beam.DoFn,
         _utc(element.range_end),
         table_key)
 
+    # Release the storage client so the gRPC channel doesn't go stale
+    # between process() calls. _ensure_client() will create a fresh one.
+    self._storage_client = None
+
     # Emit cleanup signal. Every split that reads at least one stream
     # reports how many it read.
     if streams_read > 0:
       _LOGGER.info(
           '[Read] Emitting cleanup signal for %s: '
-          'streams_read=%d, total_streams=%d, total_rows=%d',
+          'streams_read=%d, total_streams=%d',
           table_key,
           streams_read,
-          total_streams,
-          total_rows)
+          total_streams)
       yield beam.pvalue.TaggedOutput(
           _CLEANUP_TAG, (table_key, (streams_read, total_streams)))
 
@@ -922,7 +939,7 @@ class _ReadStorageStreamsSDF(beam.DoFn,
     requested_session.data_format = bq_storage.types.DataFormat.ARROW
     read_options = requested_session.read_options
     read_options.arrow_serialization_options.buffer_compression = (
-        bq_storage.types.ArrowSerializationOptions.CompressionCodec.LZ4_FRAME)
+        bq_storage.types.ArrowSerializationOptions.CompressionCodec.ZSTD)
 
     session = self._storage_client.create_read_session(
         parent=f'projects/{table_ref.projectId}',
@@ -983,6 +1000,59 @@ class _ReadStorageStreamsSDF(beam.DoFn,
         row_count,
         elapsed,
         row_count / elapsed if elapsed > 0 else 0)
+
+  def _read_stream_raw(self, stream_name: str) -> Iterable[Tuple[bytes, bytes]]:
+    """Yield raw (schema_bytes, batch_bytes) without decompression.
+
+    Used when emit_raw_batches is enabled to defer decompression and
+    Arrow-to-Python conversion to a downstream DoFn after reshuffling.
+    Schema bytes are included in each tuple so each batch is
+    self-contained and can be decoded independently.
+    """
+    schema_bytes = b''
+    batch_count = 0
+    t0 = time.time()
+    for response in self._storage_client.read_rows(stream_name):
+      if not schema_bytes and response.arrow_schema.serialized_schema:
+        schema_bytes = bytes(response.arrow_schema.serialized_schema)
+      batch_bytes = response.arrow_record_batch.serialized_record_batch
+      if batch_bytes and schema_bytes:
+        yield (schema_bytes, bytes(batch_bytes))
+        batch_count += 1
+    elapsed = time.time() - t0
+    _LOGGER.info('[Read] raw_read: %d batches in %.2fs', batch_count, elapsed)
+
+
+class _DecompressArrowBatchesFn(beam.DoFn):
+  """Decompress and convert raw Arrow batches to timestamped row dicts.
+
+  Receives GBK output: (shard_key, Iterable[(schema_bytes, batch_bytes)])
+  and converts each batch to individual row dicts with event timestamps
+  extracted from the change_timestamp column.
+  """
+  def __init__(self, change_timestamp_column: str = 'change_timestamp') -> None:
+    self._change_timestamp_column = change_timestamp_column
+
+  def process(
+      self, element: Tuple[int, Iterable[Tuple[bytes, bytes]]]
+  ) -> Iterable[Dict[str, Any]]:
+    _, batches = element
+    for schema_bytes, batch_bytes in batches:
+      schema = pyarrow.ipc.read_schema(pyarrow.py_buffer(schema_bytes))
+      batch = pyarrow.ipc.read_record_batch(
+          pyarrow.py_buffer(batch_bytes), schema)
+
+      rows = batch.to_pylist()
+      for row in rows:
+        ts = row.get(self._change_timestamp_column)
+        if ts is None:
+          raise ValueError(
+              'Row missing %r column. Row keys: %s' %
+              (self._change_timestamp_column, list(row.keys())))
+        if isinstance(ts, datetime.datetime):
+          ts = Timestamp.from_utc_datetime(ts)
+        yield TimestampedValue(row, ts)
+      Metrics.counter('BigQueryChangeHistory', 'rows_emitted').inc(len(rows))
 
 
 # =============================================================================
@@ -1097,15 +1167,21 @@ class ReadBigQueryChangeHistory(beam.PTransform):
         on the CHANGES/APPENDS query. Do not include the WHERE keyword.
         Example: ``'status = "active" AND region = "US"'``.
     batch_arrow_read: If True (default), convert Arrow RecordBatches in
-        bulk using to_pydict() instead of per-cell .as_py() calls.
+        bulk using to_pylist() instead of per-cell .as_py() calls.
         This is 1.5x faster for large tables at the cost of ~2x peak
         memory per RecordBatch. Set to False for minimal memory usage.
-    split_streams: If True (default), use SplitReadStream to subdivide
-        each Storage Read API stream for increased parallelism. Each
-        stream is repeatedly split at fraction=0.5 until BigQuery
-        refuses further splits. The number of splits depends on table
-        size (BQ's server-side storage granularity). Small tables may
-        not split at all. Set to False to disable.
+    max_split_rounds: Maximum number of recursive SplitReadStream
+        rounds. Each round splits every stream at fraction=0.5,
+        potentially doubling the stream count (if BQ allows). Default
+        1 (one round of splitting). Set 0 to disable splitting
+        entirely. Set higher for very large tables where more
+        parallelism is needed.
+    decompress_shards: If set to a positive integer, the Read SDF
+        emits raw compressed Arrow batches instead of decoded rows.
+        The batches are reshuffled for fan-out and then decoded in a
+        separate DoFn. This spreads decompression and Arrow-to-Python
+        conversion CPU across more workers. If None (default), rows
+        are decoded inline within the Read SDF.
   """
   def __init__(
       self,
@@ -1123,7 +1199,8 @@ class ReadBigQueryChangeHistory(beam.PTransform):
       columns: Optional[List[str]] = None,
       row_filter: Optional[str] = None,
       batch_arrow_read: bool = True,
-      split_streams: bool = True) -> None:
+      max_split_rounds: int = 1,
+      decompress_shards: Optional[int] = None) -> None:
     super().__init__()
     if bq_storage is None:
       raise ImportError(
@@ -1157,7 +1234,8 @@ class ReadBigQueryChangeHistory(beam.PTransform):
     self._columns = columns
     self._row_filter = row_filter
     self._batch_arrow_read = batch_arrow_read
-    self._split_streams = split_streams
+    self._max_split_rounds = max_split_rounds
+    self._decompress_shards = decompress_shards
 
   def expand(self, pbegin: beam.pvalue.PBegin) -> beam.PCollection:
     project = self._project
@@ -1237,17 +1315,46 @@ class ReadBigQueryChangeHistory(beam.PTransform):
                 row_filter=self._row_filter))
         | 'CommitQueryResults' >> beam.Reshuffle())
 
+    emit_raw = self._decompress_shards is not None
+
+    read_sdf = beam.ParDo(
+        _ReadStorageStreamsSDF(
+            batch_arrow_read=self._batch_arrow_read,
+            change_timestamp_column=self._change_timestamp_column,
+            max_split_rounds=self._max_split_rounds,
+            emit_raw_batches=emit_raw))
+    if emit_raw:
+      read_sdf = read_sdf.with_output_types(Tuple[bytes, bytes])
+    else:
+      read_sdf = read_sdf.with_output_types(Dict[str, Any])
+
     read_outputs = (
         query_results
-        | 'ReadStorageStreams' >> beam.ParDo(
-            _ReadStorageStreamsSDF(
-                batch_arrow_read=self._batch_arrow_read,
-                change_timestamp_column=self._change_timestamp_column,
-                split_streams=self._split_streams)).with_outputs(
-                    _CLEANUP_TAG, main='rows'))
+        | 'ReadStorageStreams' >> read_sdf.with_outputs(
+            _CLEANUP_TAG, main='rows'))
 
     _ = (
         read_outputs[_CLEANUP_TAG]
         | 'CleanupTempTables' >> beam.ParDo(_CleanupTempTablesFn()))
 
-    return read_outputs['rows']
+    if emit_raw:
+      # Fan out raw Arrow batches across decompress_shards workers
+      # via GBK, then decompress and convert to timestamped row dicts.
+      # Uses a discarding trigger so GBK fires per-element without
+      # waiting for the GlobalWindow to close.
+      num_shards = self._decompress_shards
+      rows = (
+          read_outputs['rows']
+          | 'ShardBatches' >>
+          beam.WithKeys(lambda _, n=num_shards: random.randint(0, n - 1))
+          | 'WindowForGBK' >> beam.WindowInto(
+              GlobalWindows(),
+              trigger=beam_trigger.Repeatedly(beam_trigger.AfterCount(1)),
+              accumulation_mode=(beam_trigger.AccumulationMode.DISCARDING))
+          | 'GroupByShardKey' >> beam.GroupByKey()
+          | 'DecompressBatches' >> beam.ParDo(
+              _DecompressArrowBatchesFn(
+                  change_timestamp_column=(self._change_timestamp_column))))
+      return rows
+    else:
+      return read_outputs['rows']
