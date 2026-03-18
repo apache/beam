@@ -69,6 +69,7 @@ import java.util.List;
 import java.util.Set;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Function;
 import javax.jms.BytesMessage;
 import javax.jms.Connection;
@@ -1197,17 +1198,14 @@ public class JmsIOTest {
   private static class TextMessageMapperWithErrorCounter
       implements SerializableBiFunction<String, Session, Message> {
 
-    private static int errorCounter;
+    private static final AtomicInteger errorCounter = new AtomicInteger(0);
 
-    TextMessageMapperWithErrorCounter() {
-      errorCounter = 0;
-    }
+    TextMessageMapperWithErrorCounter() {}
 
     @Override
     public Message apply(String value, Session session) {
       try {
-        if (errorCounter == 0) {
-          errorCounter++;
+        if (errorCounter.getAndIncrement() == 0) {
           throw new JMSException("Error!!");
         }
         TextMessage msg = session.createTextMessage();

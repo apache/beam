@@ -506,6 +506,17 @@ task validatesRunnerStreamingTagEncodingV2 {
   ]))
 }
 
+task validatesRunnerStreamingEngine {
+  group = "Verification"
+  description "Validates Dataflow runner forcing streaming mode on streaming engine"
+  dependsOn(createLegacyWorkerValidatesRunnerTest(validatesRunnerStreamingConfig + [
+    name: 'validatesRunnerLegacyWorkerTestStreamingEngine',
+    pipelineOptions: validatesRunnerStreamingConfig.pipelineOptions + [
+      '--experiments=enable_streaming_engine',
+    ],
+  ]))
+}
+
 def setupXVR = tasks.register("setupXVR") {
   dependsOn buildAndPushDockerJavaContainer
   dependsOn buildAndPushDockerPythonContainer

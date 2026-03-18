@@ -419,7 +419,8 @@ public final class StreamingDataflowWorker {
                     .setCommitByteSemaphore(maxCommitByteSemaphore)
                     .setBackendWorkerToken(commitWorkStream.backendWorkerToken())
                     .setOnCommitComplete(this::onCompleteCommit)
-                    .setNumCommitSenders(Math.max(options.getWindmillServiceCommitThreads(), 1))
+                    .setNumCommitSenders(
+                        Math.max(options.getWindmillServiceDirectPathCommitThreads(), 1))
                     .setCommitWorkStreamFactory(
                         () -> CloseableStream.create(commitWorkStream, () -> {}))
                     .build(),

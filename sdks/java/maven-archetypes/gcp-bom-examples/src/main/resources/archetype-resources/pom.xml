@@ -319,6 +319,12 @@
       <artifactId>beam-sdks-java-core</artifactId>
     </dependency>
 
+    <!-- Adds a dependency on the Beam IO utilities. -->
+    <dependency>
+      <groupId>org.apache.beam</groupId>
+      <artifactId>beam-sdks-java-io-components</artifactId>
+    </dependency>
+
     <!-- Adds a dependency on the Beam Google Cloud Platform IO module. -->
     <dependency>
       <groupId>org.apache.beam</groupId>

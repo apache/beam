@@ -245,7 +245,7 @@ public class TestSamzaRunnerWithTransformMetrics {
     // Latency must be positive
     assertTrue(latency.getSnapshot().getAverage() > 0);
     // Cache size must be 0
-    assertEquals(0, cacheSize.getValue().intValue());
+    assertEquals(0L, cacheSize.getValue().longValue());
   }
 
   @Test
@@ -318,6 +318,6 @@ public class TestSamzaRunnerWithTransformMetrics {
     // Latency must be positive
     assertTrue(latency.getSnapshot().getAverage() > 0);
     // Cache size must be 0
-    assertEquals(0, cacheSize.getValue().intValue());
+    assertEquals(0L, cacheSize.getValue().longValue());
   }
 }

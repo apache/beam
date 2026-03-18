@@ -1538,7 +1538,6 @@ class BeamModulePlugin implements Plugin<Project> {
             "ComparableType",
             "DoNotMockAutoValue",
             "EmptyBlockTag",
-            "EmptyCatch",
             "EqualsGetClass",
             "EqualsUnsafeCast",
             "EscapedEntity",
@@ -1554,7 +1553,6 @@ class BeamModulePlugin implements Plugin<Project> {
             "NonCanonicalType",
             "Slf4jFormatShouldBeConst",
             "Slf4jSignOnlyFormat",
-            "StaticAssignmentInConstructor",
             "ThreadPriorityCheck",
             "TimeUnitConversionChecker",
             "UndefinedEquals",
@@ -1562,7 +1560,6 @@ class BeamModulePlugin implements Plugin<Project> {
             "UnnecessaryMethodReference",
             "UnnecessaryParentheses",
             "UnrecognisedJavadocTag",
-            "UnsafeReflectiveConstructionCast",
             // errorprone 3.2.0+ checks
             "DirectInvocationOnMock",
             "Finalize",
@@ -1572,7 +1569,6 @@ class BeamModulePlugin implements Plugin<Project> {
             "NullableTypeParameter",
             "NullableWildcard",
             "SuperCallToObjectMethod",
-            "UnnecessaryLongToIntConversion",
             "UnusedVariable",
             // intended suppressions emerged in newer protobuf versions
             // For backward compatibility. Public method checked in before this check impl
