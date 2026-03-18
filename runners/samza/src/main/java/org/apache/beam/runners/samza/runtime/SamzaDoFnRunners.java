@@ -282,15 +282,9 @@ public class SamzaDoFnRunners {
 
   private static boolean hasSDF(ExecutableStage executableStage) {
     return executableStage.getTransforms().stream()
+        .map(transform -> transform.getTransform().getSpec().getUrn())
         .anyMatch(
-            transform ->
-                transform
-                    .getTransform()
-                    .getSpec()
-                    .getUrn()
-                    .equals(
-                        PTransformTranslation
-                            .SPLITTABLE_PROCESS_SIZED_ELEMENTS_AND_RESTRICTIONS_URN));
+            PTransformTranslation.SPLITTABLE_PROCESS_SIZED_ELEMENTS_AND_RESTRICTIONS_URN::equals);
   }
 
   private static <InT> BundleCheckpointHandler createBundleCheckpointHandler(
