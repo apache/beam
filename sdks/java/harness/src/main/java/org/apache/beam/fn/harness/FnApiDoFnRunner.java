@@ -624,15 +624,18 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
 
   private void processElementForParDo(WindowedValue<InputT> elem) {
     currentElement = elem;
+    causedByDrain = currentElement.causedByDrain();
     try {
       doFnInvoker.invokeProcessElement(processContext);
     } finally {
       currentElement = null;
+      causedByDrain = null;
     }
   }
 
   private void processElementForWindowObservingParDo(WindowedValue<InputT> elem) {
     currentElement = elem;
+    causedByDrain = currentElement.causedByDrain();
     try {
       Iterator<BoundedWindow> windowIterator =
           (Iterator<BoundedWindow>) elem.getWindows().iterator();
@@ -643,12 +646,14 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
     } finally {
       currentElement = null;
       currentWindow = null;
+      causedByDrain = null;
     }
   }
 
   private void processElementForWindowObservingSizedElementAndRestriction(
       WindowedValue<KV<KV<InputT, KV<RestrictionT, WatermarkEstimatorStateT>>, Double>> elem) {
     currentElement = elem.withValue(elem.getValue().getKey().getKey());
+    causedByDrain = elem.causedByDrain();
     windowCurrentIndex = -1;
     windowStopIndex = currentElement.getWindows().size();
     currentWindows = ImmutableList.copyOf(currentElement.getWindows());
@@ -660,6 +665,7 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
           windowCurrentIndex = -1;
           windowStopIndex = 0;
           currentElement = null;
+          causedByDrain = null;
           currentWindows = null;
           currentRestriction = null;
           currentWatermarkEstimatorState = null;
@@ -1202,7 +1208,8 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
     checkNotNull(timerBundleTracker);
     try {
       currentKey = timer.getUserKey();
-      causedByDrain = timer.causedByDrain();
+      causedByDrain = Preconditions.checkNotNull(timer.causedByDrain());
+
       // add drain
       Iterator<BoundedWindow> windowIterator =
           (Iterator<BoundedWindow>) timer.getWindows().iterator();
@@ -1286,6 +1293,7 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
     try {
       currentKey = timer.getUserKey();
       currentTimer = timer;
+      causedByDrain = timer.causedByDrain();
       Iterator<BoundedWindow> windowIterator =
           (Iterator<BoundedWindow>) timer.getWindows().iterator();
       while (windowIterator.hasNext()) {
@@ -1296,6 +1304,7 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
       currentKey = null;
       currentTimer = null;
       currentWindow = null;
+      causedByDrain = null;
     }
   }
 
@@ -2315,7 +2324,7 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
             .setWindow(currentWindow)
             .setTimestamp(currentTimer.getHoldTimestamp())
             .setPaneInfo(currentTimer.getPaneInfo())
-            .setCausedByDrain(causedByDrain)
+            .setCausedByDrain(currentTimer.causedByDrain())
             .setReceiver(
                 windowedValue -> {
                   checkOnWindowExpirationTimestamp(windowedValue.getTimestamp());
@@ -2336,7 +2345,10 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
                 output,
                 currentTimer.getHoldTimestamp(),
                 currentWindow,
-                currentTimer.getPaneInfo()));
+                currentTimer.getPaneInfo(),
+                null,
+                null,
+                currentTimer.causedByDrain()));
       }
 
       @Override
@@ -2786,7 +2798,7 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
                     .setValue(value)
                     .setTimestamp(currentTimer.getHoldTimestamp())
                     .setWindow(currentWindow)
-                    .setCausedByDrain(causedByDrain)
+                    .setCausedByDrain(currentTimer.causedByDrain())
                     .setPaneInfo(currentTimer.getPaneInfo())
                     .setReceiver(windowedValue -> context.outputWindowedValue(windowedValue));
               }
@@ -2819,7 +2831,7 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
                     .setTimestamp(currentTimer.getHoldTimestamp())
                     .setWindow(currentWindow)
                     .setPaneInfo(currentTimer.getPaneInfo())
-                    .setCausedByDrain(causedByDrain)
+                    .setCausedByDrain(currentTimer.causedByDrain())
                     .setReceiver(
                         windowedValue ->
                             context.outputWindowedValue(

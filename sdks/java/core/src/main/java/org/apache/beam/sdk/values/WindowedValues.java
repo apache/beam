@@ -148,6 +148,7 @@ public class WindowedValues {
 
     @Override
     public Builder<T> setCausedByDrain(CausedByDrain causedByDrain) {
+      checkStateNotNull(causedByDrain, "CausedByDrain is null");
       this.causedByDrain = causedByDrain;
       return this;
     }
@@ -202,6 +203,7 @@ public class WindowedValues {
 
     @Override
     public CausedByDrain causedByDrain() {
+      checkStateNotNull(causedByDrain, "CausedByDrain not set");
       return causedByDrain;
     }
 
