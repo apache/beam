@@ -492,7 +492,7 @@ task validatesRunnerStreaming {
   dependsOn(createLegacyWorkerValidatesRunnerTest(validatesRunnerStreamingConfig + [
     name: 'validatesRunnerLegacyWorkerTestStreaming',
     // Streaming appliance currently fails bundle finalizer tests.
-    excludedCategories: [ 'org.apache.beam.sdk.testing.UsesBundleFinalizer', ],
+    excludedCategories: validatesRunnerStreamingConfig.excludedCategories + [ 'org.apache.beam.sdk.testing.UsesBundleFinalizer', ],
   ]))
 }
 
