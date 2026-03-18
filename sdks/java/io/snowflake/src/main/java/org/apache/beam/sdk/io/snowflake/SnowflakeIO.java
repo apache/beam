@@ -1406,6 +1406,9 @@ public class SnowflakeIO {
     public abstract ValueProvider<String> getPassword();
 
     @Nullable
+    public abstract ValueProvider<String> getAccount();
+
+    @Nullable
     public abstract PrivateKey getPrivateKey();
 
     @Nullable
@@ -1456,6 +1459,8 @@ public class SnowflakeIO {
       abstract Builder setUsername(ValueProvider<String> username);
 
       abstract Builder setPassword(ValueProvider<String> password);
+
+      abstract Builder setAccount(ValueProvider<String> account);
 
       abstract Builder setPrivateKey(PrivateKey privateKey);
 
@@ -1843,6 +1848,9 @@ public class SnowflakeIO {
           throw new RuntimeException("Missing credentials values. Please check your credentials");
         }
 
+        if (isNotEmpty(getAccount())) {
+          dataSource.setAccount(getAccount().get());
+        }
         if (isNotEmpty(getDatabase())) {
           dataSource.setDatabaseName(getDatabase().get());
         }
