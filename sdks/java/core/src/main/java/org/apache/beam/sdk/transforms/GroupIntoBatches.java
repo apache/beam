@@ -104,9 +104,6 @@ import org.slf4j.LoggerFactory;
 @SuppressWarnings({
   "nullness", // TODO(https://github.com/apache/beam/issues/20497)
   "rawtypes",
-  // TODO(https://github.com/apache/beam/issues/21230): Remove when new version of
-  // errorprone is released (2.11.0)
-  "unused"
 })
 public class GroupIntoBatches<K, InputT>
     extends PTransform<PCollection<KV<K, InputT>>, PCollection<KV<K, Iterable<InputT>>>> {
@@ -206,20 +203,6 @@ public class GroupIntoBatches<K, InputT>
   /** Returns user supplied parameters for batching. */
   public BatchingParams<InputT> getBatchingParams() {
     return params;
-  }
-
-  @Override
-  public void populateDisplayData(DisplayData.Builder builder) {
-    super.populateDisplayData(builder);
-    if (params.getBatchSize() < Long.MAX_VALUE) {
-      builder.add(DisplayData.item("batchSize", params.getBatchSize()));
-    }
-    if (params.getBatchSizeBytes() < Long.MAX_VALUE) {
-      builder.add(DisplayData.item("batchSizeBytes", params.getBatchSizeBytes()));
-    }
-    if (params.getMaxBufferingDuration().isLongerThan(Duration.ZERO)) {
-      builder.add(DisplayData.item("maxBufferingDuration", params.getMaxBufferingDuration()));
-    }
   }
 
   @Override
@@ -689,6 +672,20 @@ public class GroupIntoBatches<K, InputT>
       storedBatchSizeBytes.clear();
       timerTs.clear();
       minBufferedTs.clear();
+    }
+
+    @Override
+    public void populateDisplayData(DisplayData.Builder builder) {
+      super.populateDisplayData(builder);
+      if (batchSize < Long.MAX_VALUE) {
+        builder.add(DisplayData.item("batchSize", batchSize));
+      }
+      if (batchSizeBytes < Long.MAX_VALUE) {
+        builder.add(DisplayData.item("batchSizeBytes", batchSizeBytes));
+      }
+      if (maxBufferingDuration.isLongerThan(Duration.ZERO)) {
+        builder.add(DisplayData.item("maxBufferingDuration", maxBufferingDuration));
+      }
     }
   }
 }

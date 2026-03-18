@@ -34,6 +34,7 @@ import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.SimpleFunction;
+import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.util.ShardedKey;
 import org.apache.beam.sdk.util.construction.PTransformReplacements;
 import org.apache.beam.sdk.util.construction.ReplacementOutputs;
@@ -41,6 +42,7 @@ import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
+import org.joda.time.Duration;
 
 @SuppressWarnings({
   "rawtypes" // TODO(https://github.com/apache/beam/issues/20447)
@@ -140,6 +142,17 @@ public class GroupIntoBatchesOverride {
                       }
                       if (!currentBatch.isEmpty()) {
                         c.output(KV.of(c.element().getKey(), currentBatch));
+                      }
+                    }
+
+                    @Override
+                    public void populateDisplayData(DisplayData.Builder builder) {
+                      super.populateDisplayData(builder);
+                      if (maxBatchSizeElements < Long.MAX_VALUE) {
+                        builder.add(DisplayData.item("batchSize", maxBatchSizeElements));
+                      }
+                      if (maxBatchSizeBytes < Long.MAX_VALUE) {
+                        builder.add(DisplayData.item("batchSizeBytes", maxBatchSizeBytes));
                       }
                     }
                   }));
