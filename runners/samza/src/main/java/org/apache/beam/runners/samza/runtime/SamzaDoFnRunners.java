@@ -293,7 +293,6 @@ public class SamzaDoFnRunners {
                             .SPLITTABLE_PROCESS_SIZED_ELEMENTS_AND_RESTRICTIONS_URN));
   }
 
-  @SuppressWarnings("unchecked")
   private static <InT> BundleCheckpointHandler createBundleCheckpointHandler(
       ExecutableStage executableStage,
       SamzaStoreStateInternals.Factory<?> nonKeyedStateInternalsFactory,
@@ -307,12 +306,14 @@ public class SamzaDoFnRunners {
       };
     }
     // For SDF in a non-keyed context, we always use null as the state/timer key.
-    StateInternalsFactory<Object> sdfStateFactory =
+    // Factories are typed as <InT> so the handler's type parameter matches the coder,
+    // avoiding any unchecked cast.
+    StateInternalsFactory<InT> sdfStateFactory =
         key -> nonKeyedStateInternalsFactory.stateInternalsForKey(null);
-    TimerInternalsFactory<Object> sdfTimerFactory =
+    TimerInternalsFactory<InT> sdfTimerFactory =
         key -> timerInternalsFactory.timerInternalsForKey(null);
     return new BundleCheckpointHandlers.StateAndTimerBundleCheckpointHandler<>(
-        sdfTimerFactory, sdfStateFactory, (Coder) windowedValueCoder, windowCoder);
+        sdfTimerFactory, sdfStateFactory, windowedValueCoder, windowCoder);
   }
 
   static class SdkHarnessDoFnRunner<InT, FnOutT> implements DoFnRunner<InT, FnOutT> {
