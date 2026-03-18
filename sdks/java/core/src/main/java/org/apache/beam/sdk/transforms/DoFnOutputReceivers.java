@@ -70,10 +70,8 @@ public class DoFnOutputReceivers {
                 rowWithMetadata -> {
                   ((DoFn<?, T>.WindowedContext) context)
                       .outputWindowedValue(
-                          schemaCoder.getFromRowFunction().apply(rowWithMetadata.getValue()),
-                          rowWithMetadata.getTimestamp(),
-                          rowWithMetadata.getWindows(),
-                          rowWithMetadata.getPaneInfo());
+                          rowWithMetadata.withValue(
+                              schemaCoder.getFromRowFunction().apply(rowWithMetadata.getValue())));
                 });
 
       } else {
@@ -84,10 +82,8 @@ public class DoFnOutputReceivers {
                 rowWithMetadata -> {
                   context.outputWindowedValue(
                       tag,
-                      schemaCoder.getFromRowFunction().apply(rowWithMetadata.getValue()),
-                      rowWithMetadata.getTimestamp(),
-                      rowWithMetadata.getWindows(),
-                      rowWithMetadata.getPaneInfo());
+                      rowWithMetadata.withValue(
+                          schemaCoder.getFromRowFunction().apply(rowWithMetadata.getValue())));
                 });
       }
     }

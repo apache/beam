@@ -445,11 +445,13 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
 
     @Override
     public void outputWindowedValue(WindowedValue<OutputT> windowedValue) {
+      checkTimestamp(elem.getTimestamp(), windowedValue.getTimestamp());
       SimpleDoFnRunner.this.outputWindowedValue(mainOutputTag, windowedValue);
     }
 
     @Override
     public <T> void outputWindowedValue(TupleTag<T> tag, WindowedValue<T> windowedValue) {
+      checkTimestamp(elem.getTimestamp(), windowedValue.getTimestamp());
       SimpleDoFnRunner.this.outputWindowedValue(tag, windowedValue);
     }
 
@@ -1039,11 +1041,13 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
 
     @Override
     public void outputWindowedValue(WindowedValue<OutputT> windowedValue) {
+      checkTimestamp(timestamp(), windowedValue.getTimestamp());
       SimpleDoFnRunner.this.outputWindowedValue(mainOutputTag, windowedValue);
     }
 
     @Override
     public <T> void outputWindowedValue(TupleTag<T> tag, WindowedValue<T> windowedValue) {
+      checkTimestamp(timestamp(), windowedValue.getTimestamp());
       SimpleDoFnRunner.this.outputWindowedValue(tag, windowedValue);
     }
 
@@ -1308,11 +1312,13 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
 
     @Override
     public void outputWindowedValue(WindowedValue<OutputT> windowedValue) {
+      checkTimestamp(this.timestamp, windowedValue.getTimestamp());
       SimpleDoFnRunner.this.outputWindowedValue(mainOutputTag, windowedValue);
     }
 
     @Override
     public <T> void outputWindowedValue(TupleTag<T> tag, WindowedValue<T> windowedValue) {
+      checkTimestamp(this.timestamp, windowedValue.getTimestamp());
       SimpleDoFnRunner.this.outputWindowedValue(tag, windowedValue);
     }
 

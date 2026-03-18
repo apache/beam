@@ -577,13 +577,7 @@ public class SplittableParDoNaiveBounded {
                 return outputBuilderSupplier
                     .builder(value)
                     .setReceiver(
-                        windowedValue ->
-                            outerContext.outputWindowedValue(
-                                tag,
-                                windowedValue.getValue(),
-                                windowedValue.getTimestamp(),
-                                windowedValue.getWindows(),
-                                windowedValue.getPaneInfo()));
+                        windowedValue -> outerContext.outputWindowedValue(tag, windowedValue));
               }
             };
           }

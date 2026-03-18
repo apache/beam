@@ -272,7 +272,7 @@ public class WindowedValues {
       CausedByDrain causedByDrain) {
     checkArgument(paneInfo != null, "WindowedValue requires PaneInfo, but it was null");
     checkArgument(windows.size() > 0, "WindowedValue requires windows, but there were none");
-
+    checkArgument(causedByDrain != null, "WindowedValue requires CausedByDrain, but it was null");
     if (windows.size() == 1) {
       return of(
           value,
@@ -322,6 +322,7 @@ public class WindowedValues {
       @Nullable Long currentRecordOffset,
       CausedByDrain causedByDrain) {
     checkArgument(paneInfo != null, "WindowedValue requires PaneInfo, but it was null");
+    checkArgument(causedByDrain != null, "WindowedValue requires CausedByDrain, but it was null");
 
     boolean isGlobal = GlobalWindow.INSTANCE.equals(window);
     if (isGlobal && BoundedWindow.TIMESTAMP_MIN_VALUE.equals(timestamp)) {

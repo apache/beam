@@ -2098,10 +2098,8 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
                     .setReceiver(
                         windowedRow ->
                             ProcessBundleContextBase.this.outputWindowedValue(
-                                fromRowFunction.apply(windowedRow.getValue()),
-                                windowedRow.getTimestamp(),
-                                windowedRow.getWindows(),
-                                windowedRow.getPaneInfo()));
+                                windowedRow.withValue(
+                                    fromRowFunction.apply(windowedRow.getValue()))));
               }
             };
 
@@ -2134,12 +2132,7 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
                     .withValue(value)
                     .setReceiver(
                         windowedValue ->
-                            ProcessBundleContextBase.this.outputWindowedValue(
-                                tag,
-                                windowedValue.getValue(),
-                                windowedValue.getTimestamp(),
-                                windowedValue.getWindows(),
-                                windowedValue.getPaneInfo()));
+                            ProcessBundleContextBase.this.outputWindowedValue(tag, windowedValue));
               }
             };
           }
@@ -2174,10 +2167,8 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
                         windowedRow ->
                             ProcessBundleContextBase.this.outputWindowedValue(
                                 tag,
-                                fromRowFunction.apply(windowedRow.getValue()),
-                                windowedRow.getTimestamp(),
-                                windowedRow.getWindows(),
-                                windowedRow.getPaneInfo()));
+                                windowedRow.withValue(
+                                    fromRowFunction.apply(windowedRow.getValue()))));
               }
             };
           }
@@ -2456,10 +2447,8 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
                     .setReceiver(
                         windowedValue ->
                             context.outputWindowedValue(
-                                fromRowFunction.apply(windowedValue.getValue()),
-                                windowedValue.getTimestamp(),
-                                windowedValue.getWindows(),
-                                windowedValue.getPaneInfo()));
+                                windowedValue.withValue(
+                                    fromRowFunction.apply(windowedValue.getValue()))));
               }
             };
 
@@ -2490,14 +2479,7 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
                     .setTimestamp(currentTimer.getHoldTimestamp())
                     .setWindow(currentWindow)
                     .setCausedByDrain(causedByDrain)
-                    .setReceiver(
-                        windowedValue ->
-                            context.outputWindowedValue(
-                                tag,
-                                windowedValue.getValue(),
-                                windowedValue.getTimestamp(),
-                                windowedValue.getWindows(),
-                                windowedValue.getPaneInfo()));
+                    .setReceiver(windowedValue -> context.outputWindowedValue(tag, windowedValue));
               }
             };
           }
@@ -2532,10 +2514,8 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
                         windowedValue ->
                             context.outputWindowedValue(
                                 tag,
-                                fromRowFunction.apply(windowedValue.getValue()),
-                                windowedValue.getTimestamp(),
-                                windowedValue.getWindows(),
-                                windowedValue.getPaneInfo()));
+                                windowedValue.withValue(
+                                    fromRowFunction.apply(windowedValue.getValue()))));
               }
             };
           }
@@ -2775,10 +2755,8 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
                     .setReceiver(
                         windowedValue ->
                             context.outputWindowedValue(
-                                fromRowFunction.apply(windowedValue.getValue()),
-                                windowedValue.getTimestamp(),
-                                windowedValue.getWindows(),
-                                windowedValue.getPaneInfo()));
+                                windowedValue.withValue(
+                                    fromRowFunction.apply(windowedValue.getValue()))));
               }
             };
 
@@ -2810,13 +2788,7 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
                     .setWindow(currentWindow)
                     .setCausedByDrain(causedByDrain)
                     .setPaneInfo(currentTimer.getPaneInfo())
-                    .setReceiver(
-                        windowedValue ->
-                            context.outputWindowedValue(
-                                windowedValue.getValue(),
-                                windowedValue.getTimestamp(),
-                                windowedValue.getWindows(),
-                                windowedValue.getPaneInfo()));
+                    .setReceiver(windowedValue -> context.outputWindowedValue(windowedValue));
               }
             };
           }
@@ -2851,10 +2823,8 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
                     .setReceiver(
                         windowedValue ->
                             context.outputWindowedValue(
-                                fromRowFunction.apply(windowedValue.getValue()),
-                                windowedValue.getTimestamp(),
-                                windowedValue.getWindows(),
-                                windowedValue.getPaneInfo()));
+                                windowedValue.withValue(
+                                    fromRowFunction.apply(windowedValue.getValue()))));
               }
             };
           }
