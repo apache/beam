@@ -34,11 +34,15 @@ import org.apache.beam.runners.core.DoFnRunner;
 import org.apache.beam.runners.core.DoFnRunners;
 import org.apache.beam.runners.core.SideInputHandler;
 import org.apache.beam.runners.core.StateInternals;
+import org.apache.beam.runners.core.StateInternalsFactory;
 import org.apache.beam.runners.core.StateNamespaces;
 import org.apache.beam.runners.core.StateTags;
 import org.apache.beam.runners.core.StatefulDoFnRunner;
 import org.apache.beam.runners.core.StepContext;
 import org.apache.beam.runners.core.TimerInternals;
+import org.apache.beam.runners.core.TimerInternalsFactory;
+import org.apache.beam.runners.fnexecution.control.BundleCheckpointHandler;
+import org.apache.beam.runners.fnexecution.control.BundleCheckpointHandlers;
 import org.apache.beam.runners.fnexecution.control.OutputReceiverFactory;
 import org.apache.beam.runners.fnexecution.control.RemoteBundle;
 import org.apache.beam.runners.fnexecution.control.StageBundleFactory;
@@ -58,6 +62,7 @@ import org.apache.beam.sdk.transforms.DoFnSchemaInformation;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.util.WindowedValueMultiReceiver;
+import org.apache.beam.sdk.util.construction.PTransformTranslation;
 import org.apache.beam.sdk.util.construction.Timer;
 import org.apache.beam.sdk.util.construction.graph.ExecutableStage;
 import org.apache.beam.sdk.util.construction.graph.PipelineNode;
@@ -236,6 +241,19 @@ public class SamzaDoFnRunners {
                 sideInputMapping,
             sideInputHandler);
 
+    final Coder<BoundedWindow> windowCoder =
+        WindowUtils.getWindowStrategy(
+                executableStage.getInputPCollection().getId(), executableStage.getComponents())
+            .getWindowFn()
+            .windowCoder();
+    final BundleCheckpointHandler bundleCheckpointHandler =
+        createBundleCheckpointHandler(
+            executableStage,
+            nonKeyedStateInternalsFactory,
+            timerInternalsFactory,
+            windowedValueCoder,
+            windowCoder);
+
     final SamzaExecutionContext executionContext =
         (SamzaExecutionContext) context.getApplicationContainerContext();
     final DoFnRunner<InT, FnOutT> underlyingRunner =
@@ -251,11 +269,50 @@ public class SamzaDoFnRunners {
             bundledEventsBag,
             stateRequestHandler,
             samzaExecutionContext,
-            executableStage.getTransforms());
+            executableStage.getTransforms(),
+            bundleCheckpointHandler,
+            nonKeyedStateInternalsFactory,
+            windowedValueCoder,
+            windowCoder);
     return pipelineOptions.getEnableMetrics()
         ? DoFnRunnerWithMetrics.wrap(
             underlyingRunner, executionContext.getMetricsContainer(), transformFullName)
         : underlyingRunner;
+  }
+
+  private static boolean hasSDF(ExecutableStage executableStage) {
+    return executableStage.getTransforms().stream()
+        .anyMatch(
+            transform ->
+                transform
+                    .getTransform()
+                    .getSpec()
+                    .getUrn()
+                    .equals(
+                        PTransformTranslation
+                            .SPLITTABLE_PROCESS_SIZED_ELEMENTS_AND_RESTRICTIONS_URN));
+  }
+
+  @SuppressWarnings("unchecked")
+  private static <InT> BundleCheckpointHandler createBundleCheckpointHandler(
+      ExecutableStage executableStage,
+      SamzaStoreStateInternals.Factory<?> nonKeyedStateInternalsFactory,
+      SamzaTimerInternalsFactory<?> timerInternalsFactory,
+      Coder<WindowedValue<InT>> windowedValueCoder,
+      Coder<BoundedWindow> windowCoder) {
+    if (!hasSDF(executableStage)) {
+      return response -> {
+        throw new UnsupportedOperationException(
+            "Self-checkpoint is only supported on splittable DoFn.");
+      };
+    }
+    // For SDF in a non-keyed context, we always use null as the state/timer key.
+    StateInternalsFactory<Object> sdfStateFactory =
+        key -> nonKeyedStateInternalsFactory.stateInternalsForKey(null);
+    TimerInternalsFactory<Object> sdfTimerFactory =
+        key -> timerInternalsFactory.timerInternalsForKey(null);
+    return new BundleCheckpointHandlers.StateAndTimerBundleCheckpointHandler<>(
+        sdfTimerFactory, sdfStateFactory, (Coder) windowedValueCoder, windowCoder);
   }
 
   static class SdkHarnessDoFnRunner<InT, FnOutT> implements DoFnRunner<InT, FnOutT> {
@@ -277,6 +334,10 @@ public class SamzaDoFnRunners {
     private long startBundleTime;
     private final String stepName;
     private final Collection<PipelineNode.PTransformNode> pTransformNodes;
+    private final BundleCheckpointHandler bundleCheckpointHandler;
+    private final SamzaStoreStateInternals.Factory<?> nonKeyedStateInternalsFactory;
+    private final Coder<WindowedValue<InT>> windowedValueCoder;
+    private final Coder<BoundedWindow> windowCoder;
 
     private SdkHarnessDoFnRunner(
         SamzaPipelineOptions pipelineOptions,
@@ -289,7 +350,11 @@ public class SamzaDoFnRunners {
         BagState<WindowedValue<InT>> bundledEventsBag,
         StateRequestHandler stateRequestHandler,
         SamzaExecutionContext samzaExecutionContext,
-        Collection<PipelineNode.PTransformNode> pTransformNodes) {
+        Collection<PipelineNode.PTransformNode> pTransformNodes,
+        BundleCheckpointHandler bundleCheckpointHandler,
+        SamzaStoreStateInternals.Factory<?> nonKeyedStateInternalsFactory,
+        Coder<WindowedValue<InT>> windowedValueCoder,
+        Coder<BoundedWindow> windowCoder) {
       this.pipelineOptions = pipelineOptions;
       this.timerInternalsFactory = timerInternalsFactory;
       this.windowingStrategy = windowingStrategy;
@@ -301,6 +366,10 @@ public class SamzaDoFnRunners {
       this.samzaExecutionContext = samzaExecutionContext;
       this.stepName = stepName;
       this.pTransformNodes = pTransformNodes;
+      this.bundleCheckpointHandler = bundleCheckpointHandler;
+      this.nonKeyedStateInternalsFactory = nonKeyedStateInternalsFactory;
+      this.windowedValueCoder = windowedValueCoder;
+      this.windowCoder = windowCoder;
     }
 
     @SuppressWarnings("unchecked")
@@ -328,7 +397,6 @@ public class SamzaDoFnRunners {
               }
             };
 
-        final Coder<BoundedWindow> windowCoder = windowingStrategy.getWindowFn().windowCoder();
         final TimerReceiverFactory timerReceiverFactory =
             new TimerReceiverFactory(stageBundleFactory, this::timerDataConsumer, windowCoder);
 
@@ -350,7 +418,9 @@ public class SamzaDoFnRunners {
                 receiverFactory,
                 timerReceiverFactory,
                 stateRequestHandler,
-                samzaMetricsBundleProgressHandler);
+                samzaMetricsBundleProgressHandler,
+                null,
+                bundleCheckpointHandler);
 
         startBundleTime = getStartBundleTime();
 
@@ -433,6 +503,20 @@ public class SamzaDoFnRunners {
         Instant outputTimestamp,
         TimeDomain timeDomain,
         CausedByDrain causedByDrain) {
+      // SDF checkpoint timers are handled by loading the stored residual and re-processing it.
+      if (BundleCheckpointHandlers.StateAndTimerBundleCheckpointHandler.isSdfTimer(timerId)) {
+        StateInternals stateInternals = nonKeyedStateInternalsFactory.stateInternalsForKey(null);
+        WindowedValue<InT> residual =
+            stateInternals
+                .state(
+                    StateNamespaces.window(windowCoder, window),
+                    StateTags.value(timerId, windowedValueCoder))
+                .read();
+        if (residual != null) {
+          processElement(residual);
+        }
+        return;
+      }
       final KV<String, String> timerReceiverKey =
           TimerReceiverFactory.decodeTimerDataTimerId(timerFamilyId);
       final FnDataReceiver<Timer> timerReceiver =
