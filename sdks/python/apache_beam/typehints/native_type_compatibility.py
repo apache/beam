@@ -179,27 +179,38 @@ def match_is_named_tuple(user_type):
 def match_dataclass_for_row(user_type):
   """Match whether the type is a dataclass handled by row coder.
 
-  for frozen dataclasses, only true when explicitly registered with row coder:
+  For frozen dataclasses, only true when explicitly registered with row coder:
 
     beam.coders.typecoders.registry.register_coder(
         MyDataClass, beam.coders.RowCoder)
+
+  (for backward-compatibility reason).
+
+  For non-frozen dataclasses, default to true otherwise explicitly registered
+  with a coder other than the row coder.
   """
+
   if not dataclasses.is_dataclass(user_type):
     return False
 
-  if not user_type.__dataclass_params__.frozen:
-    return True
-
+  is_frozen = user_type.__dataclass_params__.frozen
   # avoid circular import
-  # pylint: disable=wrong-import-position
-  from apache_beam.coders.typecoders import registry as coders_registry
-  from apache_beam.coders import RowCoder
+  try:
+    # pylint: disable=wrong-import-position
+    from apache_beam.coders.typecoders import registry as coders_registry
+    from apache_beam.coders import RowCoder
+  except AttributeError:
+    # coder registery not yet initialized so it must be absent
+    return not is_frozen
 
-  # check _coders (not get_coder) to get the registered coder directly without
-  # fallback
-  return (
-      user_type in coders_registry._coders and
-      coders_registry._coders[user_type] == RowCoder)
+  if is_frozen:
+    return (
+        user_type in coders_registry._coders and
+        coders_registry._coders[user_type] == RowCoder)
+  else:
+    return (
+        user_type not in coders_registry._coders or
+        coders_registry._coders[user_type] == RowCoder)
 
 
 def _match_is_optional(user_type):

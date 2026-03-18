@@ -20,6 +20,7 @@
 # pytype: skip-file
 
 import collections.abc
+import dataclasses
 import enum
 import re
 import typing
@@ -33,6 +34,7 @@ from apache_beam.typehints.native_type_compatibility import convert_to_python_ty
 from apache_beam.typehints.native_type_compatibility import convert_to_python_types
 from apache_beam.typehints.native_type_compatibility import convert_typing_to_builtin
 from apache_beam.typehints.native_type_compatibility import is_any
+from apache_beam.typehints.native_type_compatibility import match_dataclass_for_row
 
 _TestNamedTuple = typing.NamedTuple(
     '_TestNamedTuple', [('age', int), ('name', bytes)])
@@ -508,6 +510,39 @@ class NativeTypeCompatibilityTest(unittest.TestCase):
     self.assertTrue(isinstance(AliasTuple, TypeAliasType))  # pylint: disable=isinstance-second-argument-not-valid-type
     self.assertEqual(
         typehints.Tuple[int, ...], convert_to_beam_type(AliasTuple))
+
+  def test_dataclass_default(self):
+    @dataclasses.dataclass(frozen=True)
+    class FrozenDC:
+      foo: int
+
+    @dataclasses.dataclass
+    class NonFrozenDC:
+      foo: int
+
+    self.assertFalse(match_dataclass_for_row(FrozenDC))
+    self.assertTrue(match_dataclass_for_row(NonFrozenDC))
+
+  def test_dataclass_registered(self):
+    @dataclasses.dataclass(frozen=True)
+    class FrozenRegisteredDC:
+      foo: int
+
+    @dataclasses.dataclass
+    class NonFrozenRegisteredDC:
+      foo: int
+
+    # pylint: disable=wrong-import-position
+    from apache_beam.coders import typecoders
+    from apache_beam.coders.coders import FastPrimitivesCoder
+    from apache_beam.coders import RowCoder
+
+    typecoders.registry.register_coder(FrozenRegisteredDC, RowCoder)
+    typecoders.registry.register_coder(
+        NonFrozenRegisteredDC, FastPrimitivesCoder)
+
+    self.assertTrue(match_dataclass_for_row(FrozenRegisteredDC))
+    self.assertFalse(match_dataclass_for_row(NonFrozenRegisteredDC))
 
 
 if __name__ == '__main__':
