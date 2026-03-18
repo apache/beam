@@ -533,9 +533,9 @@ class NativeTypeCompatibilityTest(unittest.TestCase):
       foo: int
 
     # pylint: disable=wrong-import-position
+    from apache_beam.coders import RowCoder
     from apache_beam.coders import typecoders
     from apache_beam.coders.coders import FastPrimitivesCoder
-    from apache_beam.coders import RowCoder
 
     typecoders.registry.register_coder(FrozenRegisteredDC, RowCoder)
     typecoders.registry.register_coder(

@@ -193,10 +193,19 @@ def match_dataclass_for_row(user_type):
   if not dataclasses.is_dataclass(user_type):
     return False
 
+  # pylint: disable=wrong-import-position
+  try:
+    from apache_beam.options.pipeline_options_context import get_pipeline_options  # pylint: disable=line-too-long
+  except AttributeError:
+    pass
+  else:
+    opts = get_pipeline_options()
+    if opts and opts.is_compat_version_prior_to("2.73.0"):
+      return False
+
   is_frozen = user_type.__dataclass_params__.frozen
   # avoid circular import
   try:
-    # pylint: disable=wrong-import-position
     from apache_beam.coders.typecoders import registry as coders_registry
     from apache_beam.coders import RowCoder
   except AttributeError:
