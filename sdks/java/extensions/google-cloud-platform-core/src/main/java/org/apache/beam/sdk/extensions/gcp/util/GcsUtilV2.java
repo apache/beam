@@ -18,19 +18,24 @@
 package org.apache.beam.sdk.extensions.gcp.util;
 
 import static org.apache.beam.sdk.io.FileSystemUtils.wildcardToRegexp;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkNotNull;
 
 import com.google.api.gax.paging.Page;
 import com.google.auto.value.AutoValue;
 import com.google.cloud.storage.Blob;
+import com.google.cloud.storage.BlobId;
+import com.google.cloud.storage.BlobInfo;
 import com.google.cloud.storage.Bucket;
 import com.google.cloud.storage.BucketInfo;
+import com.google.cloud.storage.CopyWriter;
 import com.google.cloud.storage.Storage;
 import com.google.cloud.storage.Storage.BlobField;
 import com.google.cloud.storage.Storage.BlobGetOption;
 import com.google.cloud.storage.Storage.BlobListOption;
 import com.google.cloud.storage.Storage.BucketField;
 import com.google.cloud.storage.Storage.BucketGetOption;
+import com.google.cloud.storage.Storage.CopyRequest;
 import com.google.cloud.storage.StorageBatch;
 import com.google.cloud.storage.StorageBatchResult;
 import com.google.cloud.storage.StorageException;
@@ -71,18 +76,27 @@ class GcsUtilV2 {
   /** Maximum number of requests permitted in a GCS batch request. */
   private static final int MAX_REQUESTS_PER_BATCH = 100;
 
+  /**
+   * Limit the number of bytes Cloud Storage will attempt to copy before responding to an individual
+   * request. If you see Read Timeout errors, try reducing this value.
+   */
+  private static final long MEGABYTES_COPIED_PER_CHUNK = 2048L;
+
   GcsUtilV2(PipelineOptions options) {
     String projectId = options.as(GcpOptions.class).getProject();
     storage = StorageOptions.newBuilder().setProjectId(projectId).build().getService();
   }
 
   @SuppressWarnings({
-    "nullness" // For Creating AccessDeniedException and FileAlreadyExistsException with null.
+    "nullness" // For Creating AccessDeniedException FileNotFoundException, and
+    // FileAlreadyExistsException with null.
   })
   private IOException translateStorageException(GcsPath gcsPath, StorageException e) {
     switch (e.getCode()) {
       case 403:
         return new AccessDeniedException(gcsPath.toString(), null, e.getMessage());
+      case 404:
+        return new FileNotFoundException(e.getMessage());
       case 409:
         return new FileAlreadyExistsException(gcsPath.toString(), null, e.getMessage());
       default:
@@ -257,6 +271,151 @@ class GcsUtilV2 {
       }
     }
     return results;
+  }
+
+  public enum MissingStrategy {
+    FAIL_IF_MISSING,
+    SKIP_IF_MISSING,
+  }
+
+  public void remove(Iterable<GcsPath> paths, MissingStrategy strategy) throws IOException {
+    for (List<GcsPath> pathPartition :
+        Lists.partition(Lists.newArrayList(paths), MAX_REQUESTS_PER_BATCH)) {
+
+      // Create a new empty batch every time
+      StorageBatch batch = storage.batch();
+      List<StorageBatchResult<Boolean>> batchResultFutures = new ArrayList<>();
+
+      for (GcsPath path : pathPartition) {
+        batchResultFutures.add(batch.delete(path.getBucket(), path.getObject()));
+      }
+      batch.submit();
+
+      for (int i = 0; i < batchResultFutures.size(); i++) {
+        StorageBatchResult<Boolean> future = batchResultFutures.get(i);
+        try {
+          Boolean deleted = future.get();
+          if (!deleted) {
+            if (strategy == MissingStrategy.FAIL_IF_MISSING) {
+              throw new FileNotFoundException(
+                  String.format(
+                      "The specified file does not exist: %s", pathPartition.get(i).toString()));
+            } else {
+              LOG.warn("Ignoring failed deletion on file {}.", pathPartition.get(i).toString());
+            }
+          }
+        } catch (StorageException e) {
+          throw translateStorageException(pathPartition.get(i), e);
+        }
+      }
+    }
+  }
+
+  public enum OverwriteStrategy {
+    FAIL_IF_EXISTS, // Fail if target exists
+    SKIP_IF_EXISTS, // Skip if target exists
+    SAFE_OVERWRITE, // Overwrite only if the generation matches (atomic)
+    ALWAYS_OVERWRITE // Overwrite regardless of state
+  }
+
+  private void rewriteHelper(
+      Iterable<GcsPath> srcPaths,
+      Iterable<GcsPath> dstPaths,
+      boolean deleteSrc,
+      MissingStrategy srcMissing,
+      OverwriteStrategy dstOverwrite)
+      throws IOException {
+    List<GcsPath> srcList = Lists.newArrayList(srcPaths);
+    List<GcsPath> dstList = Lists.newArrayList(dstPaths);
+    checkArgument(
+        srcList.size() == dstList.size(),
+        "Number of source files %s must equal number of destination files %s",
+        srcList.size(),
+        dstList.size());
+
+    for (int i = 0; i < srcList.size(); i++) {
+      GcsPath srcPath = srcList.get(i);
+      GcsPath dstPath = dstList.get(i);
+      BlobId srcId = BlobId.of(srcPath.getBucket(), srcPath.getObject());
+      BlobId dstId = BlobId.of(dstPath.getBucket(), dstPath.getObject());
+
+      CopyRequest.Builder copyRequestBuilder =
+          CopyRequest.newBuilder()
+              .setSource(srcId)
+              .setMegabytesCopiedPerChunk(MEGABYTES_COPIED_PER_CHUNK);
+
+      if (dstOverwrite == OverwriteStrategy.ALWAYS_OVERWRITE) {
+        copyRequestBuilder.setTarget(dstId);
+      } else {
+        // FAIL_IF_EXISTS, SKIP_IF_EXISTS and SAFE_OVERWRITE require checking the target blob
+        BlobInfo existingTarget;
+        try {
+          existingTarget = storage.get(dstId);
+        } catch (StorageException e) {
+          throw translateStorageException(dstPath, e);
+        }
+
+        if (existingTarget == null) {
+          copyRequestBuilder.setTarget(dstId, Storage.BlobTargetOption.doesNotExist());
+        } else {
+          switch (dstOverwrite) {
+            case SKIP_IF_EXISTS:
+              LOG.warn("Ignoring rewriting from {} to {} because target exists.", srcPath, dstPath);
+              continue; // Skip to next file in for-loop
+
+            case SAFE_OVERWRITE:
+              copyRequestBuilder.setTarget(
+                  dstId, Storage.BlobTargetOption.generationMatch(existingTarget.getGeneration()));
+              break;
+
+            case FAIL_IF_EXISTS:
+              throw new FileAlreadyExistsException(
+                  srcPath.toString(),
+                  dstPath.toString(),
+                  "Target object already exists and strategy is FAIL_IF_EXISTS");
+            default:
+              throw new IllegalStateException("Unknown OverwriteStrategy: " + dstOverwrite);
+          }
+        }
+      }
+
+      try {
+        CopyWriter copyWriter = storage.copy(copyRequestBuilder.build());
+        copyWriter.getResult();
+
+        if (deleteSrc) {
+          if (!storage.delete(srcId)) {
+            // This may happen if the source file is deleted by another process after copy.
+            LOG.warn(
+                "Source file {} could not be deleted after move to {}. It may not have existed.",
+                srcPath,
+                dstPath);
+          }
+        }
+      } catch (StorageException e) {
+        if (e.getCode() == 404 && srcMissing == MissingStrategy.SKIP_IF_MISSING) {
+          LOG.warn(
+              "Ignoring rewriting from {} to {} because source does not exist.", srcPath, dstPath);
+          continue;
+        }
+        throw translateStorageException(srcPath, e);
+      }
+    }
+  }
+
+  public void copy(
+      Iterable<GcsPath> srcPaths, Iterable<GcsPath> dstPaths, OverwriteStrategy strategy)
+      throws IOException {
+    rewriteHelper(srcPaths, dstPaths, false, MissingStrategy.FAIL_IF_MISSING, strategy);
+  }
+
+  public void move(
+      Iterable<GcsPath> srcPaths,
+      Iterable<GcsPath> dstPaths,
+      MissingStrategy srcMissing,
+      OverwriteStrategy dstOverwrite)
+      throws IOException {
+    rewriteHelper(srcPaths, dstPaths, true, srcMissing, dstOverwrite);
   }
 
   /** Get the {@link Bucket} from Cloud Storage path or propagates an exception. */

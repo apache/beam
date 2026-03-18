@@ -192,7 +192,7 @@ public class ReduceWindow<InputT, ValueT, AccT, OutputT>
      * Syntactic sugar to enable #combineBy to take only single argument and be used in helpers like
      * #combineBy(Sums.ofLongs()).
      *
-     * @deprecated Replaced by @{link #combineBy(ReduceByKey.CombineFunctionWithIdentity)}.
+     * @deprecated Replaced by {@link #combineBy(ReduceByKey.CombineFunctionWithIdentity)}.
      */
     @Deprecated
     default WindowByBuilder<ValueT> combineBy(

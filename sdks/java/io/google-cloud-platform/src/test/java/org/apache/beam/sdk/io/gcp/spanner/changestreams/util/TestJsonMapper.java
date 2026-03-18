@@ -111,12 +111,12 @@ public class TestJsonMapper {
                     .putFields(
                         "number_of_records_in_transaction",
                         Value.newBuilder()
-                            .setNumberValue(record.getNumberOfRecordsInTransaction())
+                            .setNumberValue((double) record.getNumberOfRecordsInTransaction())
                             .build())
                     .putFields(
                         "number_of_partitions_in_transaction",
                         Value.newBuilder()
-                            .setNumberValue(record.getNumberOfPartitionsInTransaction())
+                            .setNumberValue((double) record.getNumberOfPartitionsInTransaction())
                             .build())
                     .putFields(
                         "transaction_tag",
@@ -149,7 +149,9 @@ public class TestJsonMapper {
                     Value.newBuilder().setBoolValue(columnType.isPrimaryKey()).build())
                 .putFields(
                     "ordinal_position",
-                    Value.newBuilder().setNumberValue(columnType.getOrdinalPosition()).build())
+                    Value.newBuilder()
+                        .setNumberValue((double) columnType.getOrdinalPosition())
+                        .build())
                 .build())
         .build();
   }

@@ -257,7 +257,8 @@ class ParDoEvaluator<InputT> implements TransformEvaluator<InputT> {
           window,
           timer.getTimestamp(),
           timer.getOutputTimestamp(),
-          timer.getDomain());
+          timer.getDomain(),
+          timer.causedByDrain());
     } catch (Exception e) {
       throw UserCodeException.wrap(e);
     }

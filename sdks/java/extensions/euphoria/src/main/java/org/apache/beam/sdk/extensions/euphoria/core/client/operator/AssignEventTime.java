@@ -93,18 +93,20 @@ public class AssignEventTime<InputT> extends Operator<InputT>
   public interface UsingBuilder<InputT> {
 
     /**
+     * See {@link FlatMap.EventTimeBuilder#eventTimeBy(ExtractEventTime)}.
+     *
      * @param fn the event time extraction function
      * @return the next builder to complete the setup
-     * @see FlatMap.EventTimeBuilder#eventTimeBy(ExtractEventTime)
      */
     Builders.Output<InputT> using(ExtractEventTime<InputT> fn);
 
     /**
+     * See {@link FlatMap.EventTimeBuilder#eventTimeBy(ExtractEventTime)}.
+     *
      * @param fn the event time extraction function
      * @param allowedTimestampSkew allowed timestamp skew when assigning timestamps back in time
      *     {@link DoFn#getAllowedTimestampSkew}.
      * @return the next builder to complete the setup
-     * @see FlatMap.EventTimeBuilder#eventTimeBy(ExtractEventTime)
      */
     Builders.Output<InputT> using(ExtractEventTime<InputT> fn, Duration allowedTimestampSkew);
   }
@@ -166,7 +168,8 @@ public class AssignEventTime<InputT> extends Operator<InputT>
   }
 
   /**
-   * @return the user defined event time assigner
+   * Returns the user defined event time assigner.
+   *
    * @see FlatMap#getEventTimeExtractor()
    */
   public ExtractEventTime<InputT> getEventTimeExtractor() {

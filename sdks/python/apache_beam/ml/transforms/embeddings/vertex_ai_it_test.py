@@ -20,10 +20,14 @@ import tempfile
 import unittest
 import uuid
 
+import pytest
+
 import apache_beam as beam
 from apache_beam.ml.inference.base import RunInference
 from apache_beam.ml.transforms import base
 from apache_beam.ml.transforms.base import MLTransform
+
+pytest.importorskip("vertexai", reason="Vertex AI dependencies not available")
 
 # pylint: disable=ungrouped-imports
 # isort: off
@@ -58,8 +62,7 @@ test_query_column = "feature_1"
 model_name: str = "text-embedding-005"
 
 
-@unittest.skipIf(
-    VertexAITextEmbeddings is None, 'Vertex AI Python SDK is not installed.')
+@pytest.mark.vertex_ai_postcommit
 class VertexAIEmbeddingsTest(unittest.TestCase):
   def setUp(self) -> None:
     self.artifact_location = tempfile.mkdtemp(prefix='_vertex_ai_test')
@@ -261,8 +264,7 @@ class VertexAIEmbeddingsTest(unittest.TestCase):
           ptransform_list[i]._model_handler._underlying.model_name, model_name)
 
 
-@unittest.skipIf(
-    VertexAIImageEmbeddings is None, 'Vertex AI Python SDK is not installed.')
+@pytest.mark.vertex_ai_postcommit
 class VertexAIImageEmbeddingsTest(unittest.TestCase):
   def setUp(self) -> None:
     self.artifact_location = tempfile.mkdtemp(prefix='_vertex_ai_image_test')
@@ -308,9 +310,7 @@ def _make_text_chunk(input: str) -> Chunk:
   return Chunk(content=Content(text=input))
 
 
-@unittest.skipIf(
-    VertexAIMultiModalEmbeddings is None,
-    'Vertex AI Python SDK is not installed.')
+@pytest.mark.vertex_ai_postcommit
 class VertexAIMultiModalEmbeddingsTest(unittest.TestCase):
   def setUp(self) -> None:
     self.artifact_location = tempfile.mkdtemp(

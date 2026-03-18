@@ -1415,25 +1415,25 @@ public class TextIO {
   /** @deprecated Use {@link Compression}. */
   @Deprecated
   public enum CompressionType {
-    /** @see Compression#AUTO */
+    /** See {@link Compression#AUTO}. */
     AUTO(Compression.AUTO),
 
-    /** @see Compression#UNCOMPRESSED */
+    /** See {@link Compression#UNCOMPRESSED}. */
     UNCOMPRESSED(Compression.UNCOMPRESSED),
 
-    /** @see Compression#GZIP */
+    /** See {@link Compression#GZIP}. */
     GZIP(Compression.GZIP),
 
-    /** @see Compression#BZIP2 */
+    /** See {@link Compression#BZIP2}. */
     BZIP2(Compression.BZIP2),
 
-    /** @see Compression#ZIP */
+    /** See {@link Compression#ZIP}. */
     ZIP(Compression.ZIP),
 
-    /** @see Compression#ZSTD */
+    /** See {@link Compression#ZSTD}. */
     ZSTD(Compression.ZSTD),
 
-    /** @see Compression#DEFLATE */
+    /** See {@link Compression#DEFLATE}. */
     DEFLATE(Compression.DEFLATE);
 
     private final Compression canonical;
@@ -1442,7 +1442,7 @@ public class TextIO {
       this.canonical = canonical;
     }
 
-    /** @see Compression#matches */
+    /** See {@link Compression#matches}. */
     public boolean matches(String filename) {
       return canonical.matches(filename);
     }

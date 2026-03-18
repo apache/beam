@@ -308,7 +308,15 @@ public class SimplePushbackSideInputDoFnRunnerTest {
 
     // Mocking is not easily compatible with annotation analysis, so we manually record
     // the method call.
-    runner.onTimer(timerId, "", null, window, timestamp, timestamp, TimeDomain.EVENT_TIME);
+    runner.onTimer(
+        timerId,
+        "",
+        null,
+        window,
+        timestamp,
+        timestamp,
+        TimeDomain.EVENT_TIME,
+        CausedByDrain.CAUSED_BY_DRAIN);
 
     assertThat(
         underlying.firedTimers,
@@ -319,7 +327,7 @@ public class SimplePushbackSideInputDoFnRunnerTest {
                 timestamp,
                 timestamp,
                 TimeDomain.EVENT_TIME,
-                CausedByDrain.NORMAL)));
+                CausedByDrain.CAUSED_BY_DRAIN)));
   }
 
   private static class TestDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, OutputT> {
@@ -353,7 +361,8 @@ public class SimplePushbackSideInputDoFnRunnerTest {
         BoundedWindow window,
         Instant timestamp,
         Instant outputTimestamp,
-        TimeDomain timeDomain) {
+        TimeDomain timeDomain,
+        CausedByDrain causedByDrain) {
       firedTimers.add(
           TimerData.of(
               timerId,
@@ -362,7 +371,7 @@ public class SimplePushbackSideInputDoFnRunnerTest {
               timestamp,
               outputTimestamp,
               timeDomain,
-              CausedByDrain.NORMAL));
+              causedByDrain));
     }
 
     @Override
@@ -510,7 +519,8 @@ public class SimplePushbackSideInputDoFnRunnerTest {
           window,
           timer.getTimestamp(),
           timer.getOutputTimestamp(),
-          timer.getDomain());
+          timer.getDomain(),
+          timer.causedByDrain());
     }
   }
 

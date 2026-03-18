@@ -37,7 +37,10 @@ import java.util.Collections;
 import java.util.List;
 import java.util.stream.Collectors;
 import org.apache.beam.sdk.extensions.gcp.options.GcsOptions;
+import org.apache.beam.sdk.extensions.gcp.util.GcsUtilV2.MissingStrategy;
+import org.apache.beam.sdk.extensions.gcp.util.GcsUtilV2.OverwriteStrategy;
 import org.apache.beam.sdk.extensions.gcp.util.gcsfs.GcsPath;
+import org.apache.beam.sdk.io.fs.MoveOptions;
 import org.apache.beam.sdk.options.ExperimentalOptions;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.TestPipelineOptions;
@@ -295,6 +298,293 @@ public class GcsUtilParameterizedIT {
         } catch (IOException e) {
         }
       }
+    }
+  }
+
+  private List<GcsPath> createTestBucketHelper(String bucketName) throws IOException {
+    final List<GcsPath> originPaths =
+        Arrays.asList(
+            GcsPath.fromUri("gs://apache-beam-samples/shakespeare/kingrichardii.txt"),
+            GcsPath.fromUri("gs://apache-beam-samples/shakespeare/kingrichardiii.txt"));
+
+    final List<GcsPath> testPaths =
+        originPaths.stream()
+            .map(o -> GcsPath.fromComponents(bucketName, o.getObject()))
+            .collect(Collectors.toList());
+
+    // create bucket and copy some initial files into there
+    if (experiment.equals("use_gcsutil_v2")) {
+      gcsUtil.createBucket(BucketInfo.of(bucketName));
+
+      gcsUtil.copyV2(originPaths, testPaths);
+    } else {
+      GcsOptions gcsOptions = options.as(GcsOptions.class);
+      gcsUtil.createBucket(gcsOptions.getProject(), new Bucket().setName(bucketName));
+
+      final List<String> originList =
+          originPaths.stream().map(o -> o.toString()).collect(Collectors.toList());
+      final List<String> testList =
+          testPaths.stream().map(o -> o.toString()).collect(Collectors.toList());
+      gcsUtil.copy(originList, testList);
+    }
+
+    return testPaths;
+  }
+
+  private void tearDownTestBucketHelper(String bucketName) {
+    try {
+      // use "**" in the pattern to match any characters including "/".
+      final List<GcsPath> paths =
+          gcsUtil.expand(GcsPath.fromUri(String.format("gs://%s/**", bucketName)));
+      if (experiment.equals("use_gcsutil_v2")) {
+        gcsUtil.remove(paths, MissingStrategy.SKIP_IF_MISSING);
+        gcsUtil.removeBucket(BucketInfo.of(bucketName));
+      } else {
+        gcsUtil.remove(paths.stream().map(GcsPath::toString).collect(Collectors.toList()));
+        gcsUtil.removeBucket(new Bucket().setName(bucketName));
+      }
+    } catch (IOException e) {
+      System.err.println(
+          "Error during tear down of test bucket " + bucketName + ": " + e.getMessage());
+    }
+  }
+
+  @Test
+  public void testCopy() throws IOException {
+    final String existingBucket = "apache-beam-temp-bucket-12345";
+    final String nonExistentBucket = "my-random-test-bucket-12345";
+
+    try {
+      final List<GcsPath> srcPaths = createTestBucketHelper(existingBucket);
+      final List<GcsPath> dstPaths =
+          srcPaths.stream()
+              .map(o -> GcsPath.fromComponents(existingBucket, o.getObject() + ".bak"))
+              .collect(Collectors.toList());
+      final List<GcsPath> errPaths =
+          srcPaths.stream()
+              .map(o -> GcsPath.fromComponents(nonExistentBucket, o.getObject()))
+              .collect(Collectors.toList());
+
+      assertNotExists(dstPaths.get(0));
+      assertNotExists(dstPaths.get(1));
+
+      if (experiment.equals("use_gcsutil_v2")) {
+        // (1) when the target files do not exist
+        gcsUtil.copyV2(srcPaths, dstPaths);
+        assertExists(dstPaths.get(0));
+        assertExists(dstPaths.get(1));
+
+        // (2) when the target files exist
+        // (2a) no exception on SAFE_OVERWRITE, ALWAYS_OVERWRITE, SKIP_IF_EXISTS
+        gcsUtil.copyV2(srcPaths, dstPaths);
+        gcsUtil.copy(srcPaths, dstPaths, OverwriteStrategy.ALWAYS_OVERWRITE);
+        gcsUtil.copy(srcPaths, dstPaths, OverwriteStrategy.SKIP_IF_EXISTS);
+
+        // (2b) raise exception on FAIL_IF_EXISTS
+        assertThrows(
+            FileAlreadyExistsException.class,
+            () -> gcsUtil.copy(srcPaths, dstPaths, OverwriteStrategy.FAIL_IF_EXISTS));
+
+        // (3) raise exception when the target bucket is nonexistent.
+        assertThrows(FileNotFoundException.class, () -> gcsUtil.copyV2(srcPaths, errPaths));
+
+        // (4) raise exception when the source files are nonexistent.
+        assertThrows(FileNotFoundException.class, () -> gcsUtil.copyV2(errPaths, dstPaths));
+      } else {
+        final List<String> srcList =
+            srcPaths.stream().map(o -> o.toString()).collect(Collectors.toList());
+        final List<String> dstList =
+            dstPaths.stream().map(o -> o.toString()).collect(Collectors.toList());
+        final List<String> errList =
+            errPaths.stream().map(o -> o.toString()).collect(Collectors.toList());
+
+        // (1) when the target files do not exist
+        gcsUtil.copy(srcList, dstList);
+        assertExists(dstPaths.get(0));
+        assertExists(dstPaths.get(1));
+
+        // (2) when the target files exist, no exception
+        gcsUtil.copy(srcList, dstList);
+
+        // (3) raise exception when the target bucket is nonexistent.
+        assertThrows(FileNotFoundException.class, () -> gcsUtil.copy(srcList, errList));
+
+        // (4) raise exception when the source files are nonexistent.
+        assertThrows(FileNotFoundException.class, () -> gcsUtil.copy(errList, dstList));
+      }
+    } finally {
+      tearDownTestBucketHelper(existingBucket);
+    }
+  }
+
+  @Test
+  public void testRemove() throws IOException {
+    final String existingBucket = "apache-beam-temp-bucket-12345";
+    final String nonExistentBucket = "my-random-test-bucket-12345";
+
+    try {
+      final List<GcsPath> srcPaths = createTestBucketHelper(existingBucket);
+      final List<GcsPath> errPaths =
+          srcPaths.stream()
+              .map(o -> GcsPath.fromComponents(nonExistentBucket, o.getObject()))
+              .collect(Collectors.toList());
+
+      assertExists(srcPaths.get(0));
+      assertExists(srcPaths.get(1));
+
+      if (experiment.equals("use_gcsutil_v2")) {
+        // (1) when the files to remove exist
+        gcsUtil.removeV2(srcPaths);
+        assertNotExists(srcPaths.get(0));
+        assertNotExists(srcPaths.get(1));
+
+        // (2) when the files to remove have been deleted
+        // (2a) no exception on SKIP_IF_MISSING
+        gcsUtil.removeV2(srcPaths);
+        gcsUtil.remove(srcPaths, MissingStrategy.SKIP_IF_MISSING);
+
+        // (2b) raise exception on FAIL_IF_MISSING
+        assertThrows(
+            FileNotFoundException.class,
+            () -> gcsUtil.remove(srcPaths, MissingStrategy.FAIL_IF_MISSING));
+
+        // (3) when the files are from an nonexistent bucket
+        // (3a) no exception on SKIP_IF_MISSING
+        gcsUtil.removeV2(errPaths);
+        gcsUtil.remove(errPaths, MissingStrategy.SKIP_IF_MISSING);
+
+        // (3b) raise exception on FAIL_IF_MISSING
+        assertThrows(
+            FileNotFoundException.class,
+            () -> gcsUtil.remove(errPaths, MissingStrategy.FAIL_IF_MISSING));
+      } else {
+        final List<String> srcList =
+            srcPaths.stream().map(o -> o.toString()).collect(Collectors.toList());
+        final List<String> errList =
+            errPaths.stream().map(o -> o.toString()).collect(Collectors.toList());
+
+        // (1) when the files to remove exist
+        gcsUtil.remove(srcList);
+        assertNotExists(srcPaths.get(0));
+        assertNotExists(srcPaths.get(1));
+
+        // (2) when the files to remove have been deleted, no exception
+        gcsUtil.remove(srcList);
+
+        // (3) when the files are from an nonexistent bucket, no exception
+        gcsUtil.remove(errList);
+      }
+    } finally {
+      tearDownTestBucketHelper(existingBucket);
+    }
+  }
+
+  @Test
+  public void testRename() throws IOException {
+    final String existingBucket = "apache-beam-temp-bucket-12345";
+    final String nonExistentBucket = "my-random-test-bucket-12345";
+
+    try {
+      final List<GcsPath> srcPaths = createTestBucketHelper(existingBucket);
+      final List<GcsPath> tmpPaths =
+          srcPaths.stream()
+              .map(o -> GcsPath.fromComponents(existingBucket, "tmp/" + o.getObject()))
+              .collect(Collectors.toList());
+      final List<GcsPath> dstPaths =
+          srcPaths.stream()
+              .map(o -> GcsPath.fromComponents(existingBucket, o.getObject() + ".bak"))
+              .collect(Collectors.toList());
+      final List<GcsPath> errPaths =
+          srcPaths.stream()
+              .map(o -> GcsPath.fromComponents(nonExistentBucket, o.getObject()))
+              .collect(Collectors.toList());
+
+      assertNotExists(dstPaths.get(0));
+      assertNotExists(dstPaths.get(1));
+      if (experiment.equals("use_gcsutil_v2")) {
+        // Make a copy of sources
+        gcsUtil.copyV2(srcPaths, tmpPaths);
+
+        // (1) when the source files exist and target files do not
+        gcsUtil.renameV2(tmpPaths, dstPaths);
+        assertNotExists(tmpPaths.get(0));
+        assertNotExists(tmpPaths.get(1));
+        assertExists(dstPaths.get(0));
+        assertExists(dstPaths.get(1));
+
+        // (2) when the source files do not exist
+        // (2a) no exception if IGNORE_MISSING_FILES is set
+        gcsUtil.renameV2(errPaths, dstPaths, MoveOptions.StandardMoveOptions.IGNORE_MISSING_FILES);
+
+        // (2b) raise exception if if IGNORE_MISSING_FILES is not set
+        assertThrows(FileNotFoundException.class, () -> gcsUtil.renameV2(errPaths, dstPaths));
+
+        // (3) when both source files and target files exist
+        gcsUtil.renameV2(
+            srcPaths, dstPaths, MoveOptions.StandardMoveOptions.SKIP_IF_DESTINATION_EXISTS);
+        gcsUtil.renameV2(srcPaths, dstPaths);
+      } else {
+        final List<String> srcList =
+            srcPaths.stream().map(o -> o.toString()).collect(Collectors.toList());
+        final List<String> tmpList =
+            tmpPaths.stream().map(o -> o.toString()).collect(Collectors.toList());
+        final List<String> dstList =
+            dstPaths.stream().map(o -> o.toString()).collect(Collectors.toList());
+        final List<String> errList =
+            errPaths.stream().map(o -> o.toString()).collect(Collectors.toList());
+
+        // Make a copy of sources
+        gcsUtil.copy(srcList, tmpList);
+
+        // (1) when the source files exist and target files do not
+        gcsUtil.rename(tmpList, dstList);
+        assertNotExists(tmpPaths.get(0));
+        assertNotExists(tmpPaths.get(1));
+        assertExists(dstPaths.get(0));
+        assertExists(dstPaths.get(1));
+
+        // (2) when the source files do not exist
+        // (2a) no exception if IGNORE_MISSING_FILES is set
+        gcsUtil.rename(errList, dstList, MoveOptions.StandardMoveOptions.IGNORE_MISSING_FILES);
+
+        // (2b) raise exception if if IGNORE_MISSING_FILES is not set
+        assertThrows(FileNotFoundException.class, () -> gcsUtil.rename(errList, dstList));
+
+        // (3) when both source files and target files exist
+        assertExists(srcPaths.get(0));
+        assertExists(srcPaths.get(1));
+        assertExists(dstPaths.get(0));
+        assertExists(dstPaths.get(1));
+
+        // There is a bug in V1 where SKIP_IF_DESTINATION_EXISTS is not honored.
+        gcsUtil.rename(
+            srcList, dstList, MoveOptions.StandardMoveOptions.SKIP_IF_DESTINATION_EXISTS);
+
+        assertNotExists(srcPaths.get(0)); // BUG! The renaming is supposed to be skipped
+        assertNotExists(srcPaths.get(1)); // BUG! The renaming is supposed to be skipped
+        // assertExists(srcPaths.get(0));
+        // assertExists(srcPaths.get(1));
+        assertExists(dstPaths.get(0));
+        assertExists(dstPaths.get(1));
+      }
+    } finally {
+      tearDownTestBucketHelper(existingBucket);
+    }
+  }
+
+  private void assertExists(GcsPath path) throws IOException {
+    if (experiment.equals("use_gcsutil_v2")) {
+      gcsUtil.getBlob(path);
+    } else {
+      gcsUtil.getObject(path);
+    }
+  }
+
+  private void assertNotExists(GcsPath path) throws IOException {
+    if (experiment.equals("use_gcsutil_v2")) {
+      assertThrows(FileNotFoundException.class, () -> gcsUtil.getBlob(path));
+    } else {
+      assertThrows(FileNotFoundException.class, () -> gcsUtil.getObject(path));
     }
   }
 }

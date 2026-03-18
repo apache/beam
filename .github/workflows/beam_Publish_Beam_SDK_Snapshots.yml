@@ -127,3 +127,4 @@ jobs:
             -Pdocker-tag-list=${{ github.sha }},${BEAM_VERSION}${LATEST_TAG} \
             -Pcontainer-architecture-list=arm64,amd64 \
             -Ppush-containers \
+            -Pdocker-pull-licenses

@@ -469,20 +469,20 @@ public class PackageUtil implements Closeable {
           getSource(), getBytes(), newDestination, getSize(), getHash());
     }
 
-    /** @return the file to be uploaded, if any */
+    /** Returns the file to be uploaded, if any. */
     public abstract @Nullable File getSource();
 
-    /** @return the bytes to be uploaded, if any */
+    /** Returns the bytes to be uploaded, if any. */
     @SuppressWarnings("mutable")
     public abstract byte @Nullable [] getBytes();
 
-    /** @return the dataflowPackage */
+    /** Returns the dataflowPackage. */
     public abstract DataflowPackage getDestination();
 
-    /** @return the size */
+    /** Returns the size. */
     public abstract long getSize();
 
-    /** @return the hash */
+    /** Returns the hash. */
     public abstract String getHash();
 
     public String getSourceDescription() {

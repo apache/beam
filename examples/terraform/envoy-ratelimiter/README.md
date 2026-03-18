@@ -25,9 +25,12 @@ Apache Beam pipelines often process data at massive scale, which can easily over
 
 This Terraform module deploys a **centralized Rate Limit Service (RLS)** using Envoy. Beam workers can query this service to coordinate global quotas across thousands of distributed workers, ensuring you stay within safe API limits without hitting `429 Too Many Requests` errors.
 
-Example Beam Pipelines using it:
+Example Beam Python Pipelines using it:
 *   [Simple DoFn RateLimiter](https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/rate_limiter_simple.py)
 *   [Vertex AI RateLimiter](https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/inference/rate_limiter_vertex_ai.py)
+
+Example Beam Java Pipelines using it:
+*   [Simple DoFn RateLimiter](https://github.com/apache/beam/blob/master/examples/java/src/main/java/org/apache/beam/examples/RateLimiterSimple.java)
 
 ## Architectures:
 - **GKE Autopilot**: Fully managed, serverless Kubernetes environment.
@@ -35,7 +38,7 @@ Example Beam Pipelines using it:
   - **Cloud NAT (Prerequisite)**: Allows private nodes to pull Docker images.
 - **Envoy Rate Limit Service**: A stateless Go/gRPC service that handles rate limit logic.
 - **Redis**: Stores the rate limit counters.
-- **StatsD Exporter**: Sidecar container that converts StatsD metrics to Prometheus format, exposed on port `9102`.
+- **Prometheus Metrics**: Exposes Prometheus metrics on port `9090`. These metrics are exported to Google Cloud Monitoring.
 - **Internal Load Balancer**: A Google Cloud TCP Load Balancer exposing the Rate Limit service internally within the VPC.
 
 ## Prerequisites:
@@ -78,6 +81,8 @@ region                = "us-central1"               # GCP Region for deployment
 cluster_name          = "ratelimit-cluster"         # Name of the GKE cluster
 deletion_protection   = true                        # Prevent accidental cluster deletion (set "true" for prod)
 control_plane_cidr    = "172.16.0.0/28"             # CIDR for GKE control plane (must not overlap with subnet)
+namespace             = "envoy-ratelimiter"         # Kubernetes namespace for deployment
+enable_metrics        = true                        # Enable metrics export to Google Cloud Monitoring
 ratelimit_replicas    = 1                           # Initial number of Rate Limit pods
 min_replicas          = 1                           # Minimum HPA replicas
 max_replicas          = 5                           # Maximum HPA replicas
@@ -105,25 +110,34 @@ EOF
 ```
 
 # Deploy Envoy Rate Limiter:
-1. Initialize Terraform to download providers and modules:
+
+1. **Deploy Script (Recommended)**:
+Run the helper script to handle the deployment process automatically:
 ```bash
+./deploy.sh
+```
+The script will provide the ip address of the load balancer once the deployment is complete.
+
+2. **Deploy (Manual Alternative)**:
+If you prefer running Terraform manually, you can use the following commands:
+```bash
+# Step 1: Initialize Terraform
 terraform init
+
+# Step 2: Create Cluster
+terraform apply -target=time_sleep.wait_for_cluster
+
+# Step 3: Create Resources
+terraform apply
 ```
 
-2. Plan and apply the changes:
-```bash
-terraform plan -out=tfplan
-terraform apply tfplan
-```
-
-3. Connect to the service:
 After deployment, get the **Internal** IP address:
 ```bash
 terraform output load_balancer_ip
 ```
 The service is accessible **only from within the VPC** (e.g., via Dataflow workers or GCE instances in the same network) at `<INTERNAL_IP>:8081`.
 
-4. **Test with Dataflow Workflow**:
+3. **Test with Dataflow Workflow**:
    Verify connectivity and rate limiting logic by running the example Dataflow pipeline.
 
    ```bash
@@ -145,11 +159,40 @@ The service is accessible **only from within the VPC** (e.g., via Dataflow worke
    ```
 
 
+# Observability & Metrics:
+This module supports exporting native Prometheus metrics to **Google Cloud Monitoring**.
+
+ `enable_metrics` is set to `true` by default.
+
+### Sample Metrics
+| Metric Name | Description |
+| :--- | :--- |
+| `ratelimit_service_rate_limit_total_hits` | Total rate limit requests received. |
+| `ratelimit_service_rate_limit_over_limit` | Requests that exceeded the limit (HTTP 429). |
+| `ratelimit_service_rate_limit_near_limit` | Requests that are approaching the limit. |
+| `ratelimit_service_call_should_rate_limit` | Total valid gRPC calls to the service. |
+
+*Note: You will also see many other Go runtime metrics (`go_*`) and Redis client metrics (`redis_*`)
+
+### Viewing in Google Cloud Console
+1. Go to **Monitoring** > **Metrics Explorer**.
+2. Click **Select a metric**.
+3. Search for `ratelimit` and select **Prometheus Target** > **ratelimit**.
+4. Select a metric (e.g., `ratelimit_service_rate_limit_over_limit`) and click **Apply**.
+5. Use **Filters** to drill down by `domain`, `key`, and `value` (e.g., `key=database`, `value=users`).
+
 # Clean up resources:
 To destroy the cluster and all created resources:
+
+```bash
+./deploy.sh destroy
+```
+
+Alternatively:
 ```bash
 terraform destroy
 ```
+
 *Note: If `deletion_protection` was enabled, you must set it to `false` in `terraform.tfvars` before destroying.*
 
 # Variables description:
@@ -163,6 +206,8 @@ terraform destroy
 |region                 |GCP Region for deployment                            |us-central1                      |
 |control_plane_cidr     |CIDR block for GKE control plane                     |172.16.0.0/28                    |
 |cluster_name           |Name of the GKE cluster                              |ratelimit-cluster                |
+|namespace              |Kubernetes namespace to deploy resources into        |envoy-ratelimiter                |
+|enable_metrics         |Enable metrics export to Google Cloud Monitoring     |true                             |
 |deletion_protection    |Prevent accidental cluster deletion                  |false                            |
 |ratelimit_replicas     |Initial number of Rate Limit pods                    |1                                |
 |min_replicas           |Minimum HPA replicas                                 |1                                |

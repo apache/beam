@@ -313,7 +313,7 @@ public class WindowedValues {
 
     boolean isGlobal = GlobalWindow.INSTANCE.equals(window);
     if (isGlobal && BoundedWindow.TIMESTAMP_MIN_VALUE.equals(timestamp)) {
-      return valueInGlobalWindow(value, paneInfo);
+      return new ValueInGlobalWindow<>(value, paneInfo, null, null, causedByDrain);
     } else if (isGlobal) {
       return new TimestampedValueInGlobalWindow<>(
           value, timestamp, paneInfo, null, null, causedByDrain);
@@ -416,7 +416,7 @@ public class WindowedValues {
   /** A {@link WindowedValues} which holds exactly single window per value. */
   public interface SingleWindowedValue {
 
-    /** @return the single window associated with this value. */
+    /** Returns the single window associated with this value. */
     BoundedWindow getWindow();
   }
 

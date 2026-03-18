@@ -440,7 +440,7 @@ public class ExpansionService extends ExpansionServiceGrpc.ExpansionServiceImplB
    *
    * <p>If no Schema is registered, {@link ConfigT} must have a zero-argument constructor and
    * setters corresponding to each field in the row encoded by {@code payload}. Note {@link ConfigT}
-   * may have additional setters not represented in the {@ocde payload} schema.
+   * may have additional setters not represented in the {@code payload} schema.
    *
    * <p>Exposed for testing only. No backwards compatibility guarantees.
    */

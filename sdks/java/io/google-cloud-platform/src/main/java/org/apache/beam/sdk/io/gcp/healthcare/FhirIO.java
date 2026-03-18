@@ -342,7 +342,7 @@ public class FhirIO {
     return new Export(StaticValueProvider.of(fhirStore), StaticValueProvider.of(exportUri));
   }
 
-  /** @see FhirIO#exportResources(String, String) */
+  /** See {@link FhirIO#exportResources(String, String)}. */
   public static Export exportResources(
       ValueProvider<String> fhirStore, ValueProvider<String> exportUri) {
     return new Export(fhirStore, exportUri);
@@ -1540,6 +1540,7 @@ public class FhirIO {
         try {
           statusCode = Integer.parseInt(status.substring(0, 3));
         } catch (IndexOutOfBoundsException | NumberFormatException ignored) {
+          // Ignore parsing exception so we can return the default 404
         }
         return statusCode;
       }

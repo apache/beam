@@ -20,7 +20,6 @@ package org.apache.beam.sdk.fn.server;
 import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.Context;
 import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.Contexts;
 import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.Metadata;
-import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.Metadata.Key;
 import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.ServerCall;
 import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.ServerCall.Listener;
 import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.ServerCallHandler;
@@ -36,8 +35,8 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Precondit
 })
 public class GrpcContextHeaderAccessorProvider {
 
-  private static final Key<String> WORKER_ID_KEY =
-      Key.of("worker_id", Metadata.ASCII_STRING_MARSHALLER);
+  private static final Metadata.Key<String> WORKER_ID_KEY =
+      Metadata.Key.of("worker_id", Metadata.ASCII_STRING_MARSHALLER);
   private static final Context.Key<String> SDK_WORKER_CONTEXT_KEY = Context.key("worker_id");
   private static final GrpcHeaderAccessor HEADER_ACCESSOR = new GrpcHeaderAccessor();
 

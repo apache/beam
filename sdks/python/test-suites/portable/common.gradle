@@ -286,11 +286,12 @@ project.tasks.register("flinkExamples") {
             "--temp_location=gs://temp-storage-for-end-to-end-tests/temp-it",
             "--flink_job_server_jar=${project(":runners:flink:${latestFlink1Version}:job-server").shadowJar.archivePath}",
             "--flink_conf_dir=${flink_conf_dir}",
-            '--sdk_harness_log_level_overrides=' +
-                // suppress info level flink.runtime log flood
-                '{\\"org.apache.flink.runtime\\":\\"WARN\\",' +
-                // suppress full __metricscontainers log printed in FlinkPipelineRunner.createPortablePipelineResult
-                '\\"org.apache.beam.runners.flink.FlinkPipelineRunner\\":\\"WARN\\"}'
+            // Log spam for Flink runner with embedded jar
+            '--job_server_jvm_properties=-Dslf4j.provider=org.slf4j.simple.SimpleServiceProvider',
+            '--job_server_jvm_properties=-Dorg.slf4j.simpleLogger.log.org.apache.flink.streaming=error',
+            '--job_server_jvm_properties=-Dorg.slf4j.simpleLogger.log.org.apache.flink.runtime=error',
+            '--job_server_jvm_properties=-Dorg.slf4j.simpleLogger.log.org.apache.beam.runners.flink.FlinkPipelineRunner=warn',
+            '--job_server_jvm_properties=-Dorg.slf4j.simpleLogger.log.org.apache.beam.runners.fnexecution.control=warn',
     ]
     def cmdArgs = mapToArgString([
             "test_opts": testOpts,
@@ -410,13 +411,12 @@ project.tasks.register("postCommitPy${pythonVersionSuffix}IT") {
         "--temp_location=gs://temp-storage-for-end-to-end-tests/temp-it",
         "--flink_job_server_jar=${project(":runners:flink:${latestFlink1Version}:job-server").shadowJar.archivePath}",
         "--flink_conf_dir=${flink_conf_dir}",
-        '--sdk_harness_log_level_overrides=' +
-            // suppress info level flink.runtime log flood
-            '{\\"org.apache.flink.runtime\\":\\"WARN\\",' +
-            // suppress full __metricscontainers log printed in FlinkPipelineRunner.createPortablePipelineResult
-            '\\"org.apache.beam.runners.flink.FlinkPipelineRunner\\":\\"WARN\\",' +
-            // suppress metric name collision warning logs
-            '\\"org.apache.flink.runtime.metrics.groups\\":\\"ERROR\\"}'
+        // Log spam for Flink runner with embedded jar
+        '--job_server_jvm_properties=-Dslf4j.provider=org.slf4j.simple.SimpleServiceProvider',
+        '--job_server_jvm_properties=-Dorg.slf4j.simpleLogger.log.org.apache.flink.streaming=error',
+        '--job_server_jvm_properties=-Dorg.slf4j.simpleLogger.log.org.apache.flink.runtime=error',
+        '--job_server_jvm_properties=-Dorg.slf4j.simpleLogger.log.org.apache.beam.runners.flink.FlinkPipelineRunner=warn',
+        '--job_server_jvm_properties=-Dorg.slf4j.simpleLogger.log.org.apache.beam.runners.fnexecution.control=warn',
     ]
     def cmdArgs = mapToArgString([
             "test_opts": testOpts,
@@ -460,13 +460,12 @@ project.tasks.register("xlangSpannerIOIT") {
         "--environment_type=LOOPBACK",
         "--temp_location=gs://temp-storage-for-end-to-end-tests/temp-it",
         "--flink_job_server_jar=${project(":runners:flink:${latestFlink1Version}:job-server").shadowJar.archivePath}",
-        '--sdk_harness_log_level_overrides=' +
-            // suppress info level flink.runtime log flood
-            '{\\"org.apache.flink.runtime\\":\\"WARN\\",' +
-            // suppress full __metricscontainers log printed in FlinkPipelineRunner.createPortablePipelineResult
-            '\\"org.apache.beam.runners.flink.FlinkPipelineRunner\\":\\"WARN\\",' +
-            // suppress metric name collision warning logs
-            '\\"org.apache.flink.runtime.metrics.groups\\":\\"ERROR\\"}'
+        // Log spam for Flink runner with embedded jar
+        '--job_server_jvm_properties=-Dslf4j.provider=org.slf4j.simple.SimpleServiceProvider',
+        '--job_server_jvm_properties=-Dorg.slf4j.simpleLogger.log.org.apache.flink.streaming=error',
+        '--job_server_jvm_properties=-Dorg.slf4j.simpleLogger.log.org.apache.flink.runtime=error',
+        '--job_server_jvm_properties=-Dorg.slf4j.simpleLogger.log.org.apache.beam.runners.flink.FlinkPipelineRunner=warn',
+        '--job_server_jvm_properties=-Dorg.slf4j.simpleLogger.log.org.apache.beam.runners.fnexecution.control=warn',
     ]
     def cmdArgs = mapToArgString([
             "test_opts": testOpts,
