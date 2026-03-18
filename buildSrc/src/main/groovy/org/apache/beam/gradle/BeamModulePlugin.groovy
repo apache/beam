@@ -1569,7 +1569,6 @@ class BeamModulePlugin implements Plugin<Project> {
             "NullableTypeParameter",
             "NullableWildcard",
             "SuperCallToObjectMethod",
-            "UnnecessaryLongToIntConversion",
             "UnusedVariable",
             // intended suppressions emerged in newer protobuf versions
             // For backward compatibility. Public method checked in before this check impl
