@@ -19,6 +19,7 @@ package org.apache.beam.fn.harness.state;
 
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
 
+import java.util.function.Supplier;
 import org.apache.beam.fn.harness.Cache;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateKey;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateRequest;
@@ -42,13 +43,13 @@ public class IterableSideInput<T> implements IterableView<T> {
       String instructionId,
       StateKey stateKey,
       Coder<T> valueCoder,
-      boolean hasNoState) {
+      Supplier<Boolean> hasNoState) {
     checkArgument(
         stateKey.hasIterableSideInput(),
         "Expected IterableSideInput StateKey but received %s.",
         stateKey);
     this.values =
-        hasNoState
+        hasNoState.get()
             ? PrefetchableIterables.emptyIterable()
             : StateFetchingIterators.readAllAndDecodeStartingFrom(
                 cache,

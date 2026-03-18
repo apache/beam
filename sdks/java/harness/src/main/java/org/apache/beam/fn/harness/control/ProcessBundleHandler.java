@@ -247,8 +247,8 @@ public class ProcessBundleHandler {
       Collection<BeamFnDataReadRunner<?>> channelRoots,
       Map<ApiServiceDescriptor, BeamFnDataOutboundAggregator> outboundAggregatorMap,
       Set<String> runnerCapabilities,
-      boolean hasNoState,
-      boolean onlyBundleForKeys)
+      Supplier<Boolean> hasNoState,
+      Supplier<Boolean> onlyBundleForKeys)
       throws IOException {
 
     // Recursively ensure that all consumers of the output PCollection have been created.
@@ -494,12 +494,12 @@ public class ProcessBundleHandler {
                 }
 
                 @Override
-                public boolean getHasNoState() {
+                public Supplier<Boolean> getHasNoState() {
                   return hasNoState;
                 }
 
                 @Override
-                public boolean getOnlyBundleForKeys() {
+                public Supplier<Boolean> getOnlyBundleForKeys() {
                   return onlyBundleForKeys;
                 }
               });
@@ -928,8 +928,8 @@ public class ProcessBundleHandler {
           bundleProcessor.getChannelRoots(),
           bundleProcessor.getOutboundAggregators(),
           bundleProcessor.getRunnerCapabilities(),
-          processBundleRequest.getHasNoState(),
-          processBundleRequest.getOnlyBundleForKeys());
+          processBundleRequest::getHasNoState,
+          processBundleRequest::getOnlyBundleForKeys);
     }
     bundleProcessor.finish();
 

@@ -25,6 +25,7 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.function.Function;
+import java.util.function.Supplier;
 import org.apache.beam.fn.harness.Cache;
 import org.apache.beam.fn.harness.Caches;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateKey;
@@ -56,7 +57,7 @@ public class MultimapSideInput<K, V> implements MultimapView<K, V> {
   private final Coder<V> valueCoder;
   private volatile Function<ByteString, Iterable<V>> bulkReadResult;
   private final boolean useBulkRead;
-  private final boolean hasNoState;
+  private final Supplier<Boolean> hasNoState;
 
   public MultimapSideInput(
       Cache<?, ?> cache,
@@ -66,7 +67,7 @@ public class MultimapSideInput<K, V> implements MultimapView<K, V> {
       Coder<K> keyCoder,
       Coder<V> valueCoder,
       boolean useBulkRead,
-      boolean hasNoState) {
+      Supplier<Boolean> hasNoState) {
     checkArgument(
         stateKey.hasMultimapKeysSideInput(),
         "Expected MultimapKeysSideInput StateKey but received %s.",
@@ -83,7 +84,7 @@ public class MultimapSideInput<K, V> implements MultimapView<K, V> {
 
   @Override
   public Iterable<K> get() {
-    return this.hasNoState
+    return this.hasNoState.get()
         ? PrefetchableIterables.emptyIterable()
         : StateFetchingIterators.readAllAndDecodeStartingFrom(
             cache, beamFnStateClient, keysRequest, keyCoder);
@@ -91,7 +92,7 @@ public class MultimapSideInput<K, V> implements MultimapView<K, V> {
 
   @Override
   public Iterable<V> get(K k) {
-    if (this.hasNoState) {
+    if (this.hasNoState.get()) {
       return PrefetchableIterables.emptyIterable();
     }
 

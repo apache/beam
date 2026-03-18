@@ -65,10 +65,10 @@ public abstract class PTransformRunnerFactoryTestContext
     implements PTransformRunnerFactory.Context {
 
   @Override
-  public abstract boolean getHasNoState();
+  public abstract Supplier<Boolean> getHasNoState();
 
   @Override
-  public abstract boolean getOnlyBundleForKeys();
+  public abstract Supplier<Boolean> getOnlyBundleForKeys();
 
   /** Returns a builder for the specified PTransform id and PTransform definition. */
   public static Builder builder(String pTransformId, RunnerApi.PTransform pTransform) {
@@ -156,8 +156,8 @@ public abstract class PTransformRunnerFactoryTestContext
               }
             })
         .runnerCapabilities(new HashSet<>())
-        .hasNoState(false)
-        .onlyBundleForKeys(false);
+        .hasNoState(() -> false)
+        .onlyBundleForKeys(() -> false);
   }
 
   /** A builder to create a context for tests. */
@@ -225,9 +225,9 @@ public abstract class PTransformRunnerFactoryTestContext
 
     Builder timerApiServiceDescriptor(ApiServiceDescriptor value);
 
-    Builder hasNoState(boolean value);
+    Builder hasNoState(Supplier<Boolean> value);
 
-    Builder onlyBundleForKeys(boolean value);
+    Builder onlyBundleForKeys(Supplier<Boolean> value);
 
     PTransformRunnerFactoryTestContext build();
   }

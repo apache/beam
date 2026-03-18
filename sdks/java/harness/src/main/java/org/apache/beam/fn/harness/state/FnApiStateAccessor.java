@@ -114,8 +114,8 @@ public class FnApiStateAccessor<K> implements SideInputReader, StateBinder {
     private final Map<TupleTag<?>, SideInputSpec> sideInputSpecMap;
     private final Coder<K> keyCoder;
     private final Coder<BoundedWindow> windowCoder;
-    private final boolean hasNoState;
-    private final boolean onlyBundleForKeys;
+    private final Supplier<Boolean> hasNoState;
+    private final Supplier<Boolean> onlyBundleForKeys;
 
     public Factory(
         PipelineOptions pipelineOptions,
@@ -129,8 +129,8 @@ public class FnApiStateAccessor<K> implements SideInputReader, StateBinder {
         BeamFnStateClient beamFnStateClient,
         Coder<K> keyCoder,
         Coder<BoundedWindow> windowCoder,
-        boolean hasNoState,
-        boolean onlyBundleForKeys) {
+        Supplier<Boolean> hasNoState,
+        Supplier<Boolean> onlyBundleForKeys) {
       this.pipelineOptions = pipelineOptions;
       this.runnerCapabilities = runnerCapabilities;
       this.ptransformId = ptransformId;
@@ -262,8 +262,8 @@ public class FnApiStateAccessor<K> implements SideInputReader, StateBinder {
   private final Collection<ThrowingRunnable> stateFinalizers;
   private final Coder<K> keyCoder;
   private final Coder<BoundedWindow> windowCoder;
-  private final boolean hasNoState;
-  private final boolean onlyBundleForKeys;
+  private final Supplier<Boolean> hasNoState;
+  private final Supplier<Boolean> onlyBundleForKeys;
 
   private @Nullable Supplier<BoundedWindow> currentWindowSupplier;
   private @Nullable Supplier<ByteString> encodedCurrentKeySupplier;
@@ -281,8 +281,8 @@ public class FnApiStateAccessor<K> implements SideInputReader, StateBinder {
       BeamFnStateClient beamFnStateClient,
       Coder<K> keyCoder,
       Coder<BoundedWindow> windowCoder,
-      boolean hasNoState,
-      boolean onlyBundleForKeys) {
+      Supplier<Boolean> hasNoState,
+      Supplier<Boolean> onlyBundleForKeys) {
     this.pipelineOptions = pipelineOptions;
     this.runnerCapabilities = runnerCapabilities;
     this.stateKeyObjectCache = Maps.newHashMap();

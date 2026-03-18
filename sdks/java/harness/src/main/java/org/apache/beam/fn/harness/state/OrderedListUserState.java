@@ -33,6 +33,7 @@ import java.util.List;
 import java.util.Map.Entry;
 import java.util.NavigableMap;
 import java.util.concurrent.CompletableFuture;
+import java.util.function.Supplier;
 import org.apache.beam.fn.harness.Cache;
 import org.apache.beam.fn.harness.Caches;
 import org.apache.beam.fn.harness.state.StateFetchingIterators.CachingStateIterable;
@@ -88,8 +89,8 @@ public class OrderedListUserState<T> {
 
   private boolean isCleared = false;
   private boolean isClosed = false;
-  private final boolean hasNoState;
-  private final boolean onlyBundleForKeys;
+  private final Supplier<Boolean> hasNoState;
+  private final Supplier<Boolean> onlyBundleForKeys;
 
   public static class TimestampedValueCoder<T> extends StructuredCoder<TimestampedValue<T>> {
 
@@ -164,8 +165,8 @@ public class OrderedListUserState<T> {
       String instructionId,
       StateKey stateKey,
       Coder<T> valueCoder,
-      boolean hasNoState,
-      boolean onlyBundleForKeys) {
+      Supplier<Boolean> hasNoState,
+      Supplier<Boolean> onlyBundleForKeys) {
     checkArgument(
         stateKey.hasOrderedListUserState(),
         "Expected OrderedListUserState StateKey but received %s.",
@@ -209,7 +210,7 @@ public class OrderedListUserState<T> {
     }
     Iterable<TimestampedValue<T>> valuesInRange = Iterables.concat(pendingAddsInRange);
 
-    if (!isCleared && !hasNoState) {
+    if (!isCleared && !hasNoState.get()) {
       StateRequest.Builder getRequestBuilder = this.requestTemplate.toBuilder();
       getRequestBuilder
           .getStateKeyBuilder()
@@ -289,7 +290,7 @@ public class OrderedListUserState<T> {
 
   public void asyncClose() throws Exception {
     isClosed = true;
-    if (onlyBundleForKeys) {
+    if (onlyBundleForKeys.get()) {
       pendingRemoves.clear();
       pendingAdds.clear();
       return;

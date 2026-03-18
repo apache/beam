@@ -31,6 +31,7 @@ import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.Objects;
 import java.util.Set;
+import java.util.function.Supplier;
 import org.apache.beam.fn.harness.Cache;
 import org.apache.beam.fn.harness.Caches;
 import org.apache.beam.fn.harness.state.StateFetchingIterators.CachingStateIterable;
@@ -72,8 +73,8 @@ public class MultimapUserState<K, V> {
 
   private boolean isClosed;
   private boolean isCleared;
-  private final boolean hasNoState;
-  private final boolean onlyBundleForKeys;
+  private final Supplier<Boolean> hasNoState;
+  private final Supplier<Boolean> onlyBundleForKeys;
   // Pending updates to persistent storage
   private HashMap<Object, K> pendingRemoves = Maps.newHashMap();
   private HashMap<Object, KV<K, List<V>>> pendingAdds = Maps.newHashMap();
@@ -87,8 +88,8 @@ public class MultimapUserState<K, V> {
       StateKey stateKey,
       Coder<K> mapKeyCoder,
       Coder<V> valueCoder,
-      boolean hasNoState,
-      boolean onlyBundleForKeys) {
+      Supplier<Boolean> hasNoState,
+      Supplier<Boolean> onlyBundleForKeys) {
     checkArgument(
         stateKey.hasMultimapKeysUserState(),
         "Expected MultimapKeysUserState StateKey but received %s.",
@@ -105,7 +106,7 @@ public class MultimapUserState<K, V> {
     this.keysStateRequest =
         StateRequest.newBuilder().setInstructionId(instructionId).setStateKey(stateKey).build();
     this.persistedKeys =
-        hasNoState
+        hasNoState.get()
             ? StateFetchingIterators.emptyCachingStateIterable(
                 beamFnStateClient, keysStateRequest, mapKeyCoder)
             : StateFetchingIterators.readAllAndDecodeStartingFrom(
@@ -133,7 +134,7 @@ public class MultimapUserState<K, V> {
         .setKey(stateKey.getMultimapKeysUserState().getKey());
     this.entriesStateRequest = entriesStateRequestBuilder.build();
     this.persistedEntries =
-        hasNoState
+        hasNoState.get()
             ? StateFetchingIterators.emptyCachingStateIterable(
                 beamFnStateClient,
                 entriesStateRequest,
@@ -175,7 +176,7 @@ public class MultimapUserState<K, V> {
             ? PrefetchableIterables.fromArray()
             : PrefetchableIterables.limit(
                 pendingAddValues.getValue(), pendingAddValues.getValue().size());
-    if (isCleared || hasNoState || pendingRemoves.containsKey(structuralKey)) {
+    if (isCleared || hasNoState.get() || pendingRemoves.containsKey(structuralKey)) {
       return pendingValues;
     }
 
@@ -193,7 +194,7 @@ public class MultimapUserState<K, V> {
         !isClosed,
         "Multimap user state is no longer usable because it is closed for %s",
         keysStateRequest.getStateKey());
-    if (isCleared || hasNoState) {
+    if (isCleared || hasNoState.get()) {
       List<K> keys = new ArrayList<>(pendingAdds.size());
       for (Map.Entry<?, KV<K, List<V>>> entry : pendingAdds.entrySet()) {
         keys.add(entry.getValue().getKey());
@@ -291,7 +292,7 @@ public class MultimapUserState<K, V> {
           entry.getKey(),
           KV.of(entry.getValue().getKey(), new ArrayList<>(entry.getValue().getValue())));
     }
-    if (isCleared || hasNoState) {
+    if (isCleared || hasNoState.get()) {
       return PrefetchableIterables.maybePrefetchable(
           Iterables.concat(
               Iterables.transform(
@@ -429,7 +430,8 @@ public class MultimapUserState<K, V> {
         keysStateRequest.getStateKey());
     isClosed = true;
     // No mutations necessary
-    if (onlyBundleForKeys || (!isCleared && pendingRemoves.isEmpty() && pendingAdds.isEmpty())) {
+    if (onlyBundleForKeys.get()
+        || (!isCleared && pendingRemoves.isEmpty() && pendingAdds.isEmpty())) {
       return;
     }
 
