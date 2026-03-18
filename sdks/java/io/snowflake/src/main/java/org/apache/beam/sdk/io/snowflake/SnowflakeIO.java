@@ -36,7 +36,8 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 import javax.annotation.Nullable;
 import javax.sql.DataSource;
-import net.snowflake.client.jdbc.SnowflakeBasicDataSource;
+import net.snowflake.client.api.datasource.SnowflakeDataSource;
+import net.snowflake.client.api.datasource.SnowflakeDataSourceFactory;
 import net.snowflake.ingest.SimpleIngestManager;
 import net.snowflake.ingest.connection.HistoryResponse;
 import org.apache.beam.sdk.coders.Coder;
@@ -1801,7 +1802,7 @@ public class SnowflakeIO {
     }
 
     /**
-     * Sets loginTimeout that will be used in {@link SnowflakeBasicDataSource#setLoginTimeout}.
+     * Sets loginTimeout that will be used in {@link SnowflakeDataSource#setLoginTimeout}.
      *
      * @param loginTimeout Integer with timeout value.
      */
@@ -1818,59 +1819,59 @@ public class SnowflakeIO {
       }
     }
 
-    /** Builds {@link SnowflakeBasicDataSource} based on the current configuration. */
+    /** Builds {@link SnowflakeDataSource} based on the current configuration. */
     public DataSource buildDatasource() {
       if (getDataSource() == null) {
-        SnowflakeBasicDataSource basicDataSource = new SnowflakeBasicDataSource();
-        basicDataSource.setUrl(buildUrl());
+        SnowflakeDataSource dataSource = SnowflakeDataSourceFactory.createDataSource();
+        dataSource.setUrl(buildUrl());
 
         if (isNotEmpty(getOauthToken())) {
-          basicDataSource.setOauthToken(getOauthToken().get());
+          dataSource.setToken(getOauthToken().get());
         } else if (isNotEmpty(getUsername()) && getPrivateKey() != null) {
-          basicDataSource.setUser(getUsername().get());
-          basicDataSource.setPrivateKey(getPrivateKey());
+          dataSource.setUser(getUsername().get());
+          dataSource.setPrivateKey(getPrivateKey());
         } else if (isNotEmpty(getUsername()) && isNotEmpty(getRawPrivateKey())) {
           PrivateKey privateKey =
               KeyPairUtils.preparePrivateKey(
                   getRawPrivateKey().get(), getValueOrNull(getPrivateKeyPassphrase()));
-          basicDataSource.setPrivateKey(privateKey);
-          basicDataSource.setUser(getUsername().get());
+          dataSource.setPrivateKey(privateKey);
+          dataSource.setUser(getUsername().get());
         } else if (isNotEmpty(getUsername()) && isNotEmpty(getPassword())) {
-          basicDataSource.setUser(getUsername().get());
-          basicDataSource.setPassword(getPassword().get());
+          dataSource.setUser(getUsername().get());
+          dataSource.setPassword(getPassword().get());
         } else {
           throw new RuntimeException("Missing credentials values. Please check your credentials");
         }
 
         if (isNotEmpty(getDatabase())) {
-          basicDataSource.setDatabaseName(getDatabase().get());
+          dataSource.setDatabaseName(getDatabase().get());
         }
         if (isNotEmpty(getWarehouse())) {
-          basicDataSource.setWarehouse(getWarehouse().get());
+          dataSource.setWarehouse(getWarehouse().get());
         }
         if (isNotEmpty(getSchema())) {
-          basicDataSource.setSchema(getSchema().get());
+          dataSource.setSchema(getSchema().get());
         }
         if (isNotEmpty(getServerName())) {
-          basicDataSource.setServerName(getServerName().get());
+          dataSource.setServerName(getServerName().get());
         }
         if (getPortNumber() != null) {
-          basicDataSource.setPortNumber(getPortNumber());
+          dataSource.setPortNumber(getPortNumber());
         }
         if (isNotEmpty(getRole())) {
-          basicDataSource.setRole(getRole().get());
+          dataSource.setRole(getRole().get());
         }
         if (getAuthenticator() != null) {
-          basicDataSource.setAuthenticator(getAuthenticator());
+          dataSource.setAuthenticator(getAuthenticator());
         }
         if (getLoginTimeout() != null) {
           try {
-            basicDataSource.setLoginTimeout(getLoginTimeout());
+            dataSource.setLoginTimeout(getLoginTimeout());
           } catch (SQLException e) {
             throw new RuntimeException("Failed to setLoginTimeout");
           }
         }
-        return basicDataSource;
+        return dataSource;
       }
       return getDataSource();
     }
