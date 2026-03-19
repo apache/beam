@@ -1153,7 +1153,7 @@ public class JmsIOTest {
             new Class[] {proxyInterface},
             (proxy, method, args) -> {
               Object result = method.invoke(target, args);
-              if (method.getName().equals(methodName)) {
+              if (method.getName().equals(methodName) && result != null) {
                 result = resultTransformer.apply((MethodArgT) result);
               }
               return result;
