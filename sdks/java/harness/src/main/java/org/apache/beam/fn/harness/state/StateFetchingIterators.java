@@ -501,15 +501,42 @@ public class StateFetchingIterators {
       cache.put(IterableCacheKey.INSTANCE, new MutatedBlocks<>(Block.mutatedBlock(allValues)));
     }
 
+    private static final PrefetchableIterator<Object> EMPTY_ITERATOR = new PrefetchableIterator<Object>() {
+      @Override
+      public boolean isReady() {
+        return true;
+      }
+
+      @Override
+      public void prefetch() {
+      }
+
+      @Override
+      public boolean hasNext() {
+        return false;
+      }
+
+      @Override
+      public Object next() {
+        throw new NoSuchElementException();
+      }
+    };
+
+    @SuppressWarnings("unchecked")
+    public static <T> PrefetchableIterator<T> emptyIterator() {
+      return (PrefetchableIterator<T>) EMPTY_ITERATOR;
+    }
+
     private static final CachingStateIterable<Object> EMPTY_ITERABLE =
-        new CachingStateIterable<Object>() {
+        new CachingStateIterable<Object>(null, null, null, null) {
           @Override
-          protected CachingStateIterator<Object> createIterator() {
-            return CachingStateIterator.emptyIterator();
+          public PrefetchableIterator<Object> createIterator() {
+            return emptyIterator();
           }
         };
 
     /** Returns an empty {@link CachingStateIterable}. */
+    @SuppressWarnings("unchecked")
     public static <T> CachingStateIterable<T> emptyIterable() {
       return (CachingStateIterable<T>) EMPTY_ITERABLE;
     }
@@ -666,31 +693,6 @@ public class StateFetchingIterators {
         }
         return currentBlock.getValues().get(currentCachedBlockValueIndex++);
       }
-
-      public static <T> CachingStateIterator<T> emptyIterator() {
-        return (CachingStateIterator<T>) EMPTY_ITERATOR;
-      }
-
-      private static final CachingStateIterator<Object> EMPTY_ITERATOR =
-          new CachingStateIterator<Object>() {
-            @Override
-            public boolean isReady() {
-              return true;
-            }
-
-            @Override
-            public void prefetch() {}
-
-            @Override
-            public boolean hasNext() {
-              return false;
-            }
-
-            @Override
-            public Object next() {
-              throw new NoSuchElementException();
-            }
-          };
     }
   }
 
