@@ -47,11 +47,17 @@ public class TableRowMatchers {
   }
 
   private static boolean rowsMatch(TableRow expected, TableRow actual) {
-    if (expected == null && actual == null) return true;
+    if (expected == null && actual == null) {
+      return true;
+    }
 
-    if (expected == null || actual == null) return false;
+    if (expected == null || actual == null) {
+      return false;
+    }
 
-    if (actual.size() != expected.size()) return false;
+    if (actual.size() != expected.size()) {
+      return false;
+    }
 
     for (String key : expected.keySet()) {
       if (!actual.containsKey(key)) {
@@ -61,8 +67,12 @@ public class TableRowMatchers {
       Object expectedVal = expected.get(key);
       Object actualVal = actual.get(key);
 
-      if (expectedVal == null && actualVal == null) continue;
-      if (expectedVal == null || actualVal == null) return false;
+      if (expectedVal == null && actualVal == null) {
+        continue;
+      }
+      if (expectedVal == null || actualVal == null) {
+        return false;
+      }
 
       // recursively compare nested TableRows
       if (expectedVal instanceof TableRow && actualVal instanceof TableRow) {
@@ -108,7 +118,10 @@ public class TableRowMatchers {
       Object expectedVal = expected.get(key);
       Object actualVal = actual.get(key);
 
-      if (expectedVal == null && actualVal == null) continue;
+      if (expectedVal == null && actualVal == null) {
+        continue;
+      }
+      ;
 
       if (expectedVal == null) {
         mismatch.appendText(
@@ -162,10 +175,14 @@ public class TableRowMatchers {
 
   // recursive formatter
   private static String formatValue(Object val, int depth) {
-    if (val == null) return "null";
+    if (val == null) {
+      return "null";
+    }
 
     // safety net against infinite recursion
-    if (depth > 10) return "...";
+    if (depth > 10) {
+      return "...";
+    }
     if (val instanceof TableRow) {
       TableRow row = (TableRow) val;
       String fields =
