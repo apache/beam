@@ -91,7 +91,10 @@ public class PipelineOptionsTranslation {
       Iterator<String> optionsKeys = rootOptions.fieldNames();
       while (optionsKeys.hasNext()) {
         String optionKey = optionsKeys.next();
-        TreeNode optionValue = rootOptions.get(optionKey);
+        JsonNode optionValue = (JsonNode) rootOptions.get(optionKey);
+        if (optionValue.isNull()) {
+          continue;
+        }
         mapWithoutUrns.put(
             CaseFormat.LOWER_UNDERSCORE.to(
                 CaseFormat.LOWER_CAMEL,

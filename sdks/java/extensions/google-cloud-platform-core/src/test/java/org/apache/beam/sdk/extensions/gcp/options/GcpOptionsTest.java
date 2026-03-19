@@ -52,6 +52,8 @@ import org.apache.beam.sdk.extensions.gcp.util.gcsfs.GcsPath;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.testing.RestoreSystemProperties;
+import org.apache.beam.sdk.util.construction.PipelineOptionsTranslation;
+import org.apache.beam.vendor.grpc.v1p69p0.com.google.protobuf.Struct;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.io.Files;
 import org.junit.Before;
@@ -165,6 +167,70 @@ public class GcpOptionsTest {
           "Error constructing default value for gcpTempLocation: tempLocation is not"
               + " a valid GCS path");
       options.getGcpTempLocation();
+    }
+
+    @Test
+    public void testPipelineOptionsTranslationToFromProto() throws Exception {
+      GcpOptions options = PipelineOptionsFactory.as(GcpOptions.class);
+      options.setProject("test-project");
+      Struct struct = PipelineOptionsTranslation.toProto(options);
+      PipelineOptions deserialized = PipelineOptionsTranslation.fromProto(struct);
+      assertEquals("test-project", deserialized.as(GcpOptions.class).getProject());
+    }
+
+    @Test
+    public void testPipelineOptionsTranslationFromProtoWithDefaultFactory() throws Exception {
+      org.apache.beam.vendor.grpc.v1p69p0.com.google.protobuf.Struct struct =
+          org.apache.beam.vendor.grpc.v1p69p0.com.google.protobuf.Struct.newBuilder()
+              .putFields(
+                  "beam:option:project:v1",
+                  org.apache.beam.vendor.grpc.v1p69p0.com.google.protobuf.Value.newBuilder()
+                      .setStringValue("test-project-deserialized")
+                      .build())
+              .build();
+
+      PipelineOptions deserialized = PipelineOptionsTranslation.fromProto(struct);
+      assertEquals("test-project-deserialized", deserialized.as(GcpOptions.class).getProject());
+    }
+
+    @Test
+    public void testPipelineOptionsTranslationFromProtoWithNullValue() throws Exception {
+      System.setProperty("user.home", tmpFolder.getRoot().getAbsolutePath());
+      File configFolder = tmpFolder.newFolder(".config", "gcloud", "configurations");
+      File configFile = new File(configFolder, "config_default");
+      makePropertiesFileWithProject(configFile, "test-gcloud-project-translated-expected");
+
+      org.apache.beam.vendor.grpc.v1p69p0.com.google.protobuf.Struct struct =
+          org.apache.beam.vendor.grpc.v1p69p0.com.google.protobuf.Struct.newBuilder()
+              .putFields(
+                  "beam:option:project:v1",
+                  org.apache.beam.vendor.grpc.v1p69p0.com.google.protobuf.Value.newBuilder()
+                      .setNullValue(
+                          org.apache.beam.vendor.grpc.v1p69p0.com.google.protobuf.NullValue
+                              .NULL_VALUE)
+                      .build())
+              .build();
+
+      PipelineOptions deserialized = PipelineOptionsTranslation.fromProto(struct);
+      assertEquals(
+          "test-gcloud-project-translated-expected",
+          deserialized.as(GcpOptions.class).getProject());
+    }
+
+    @Test
+    public void testPipelineOptionsTranslationFromProtoWithMissingField() throws Exception {
+      System.setProperty("user.home", tmpFolder.getRoot().getAbsolutePath());
+      File configFolder = tmpFolder.newFolder(".config", "gcloud", "configurations");
+      File configFile = new File(configFolder, "config_default");
+      makePropertiesFileWithProject(configFile, "test-gcloud-project-translated-expected");
+
+      org.apache.beam.vendor.grpc.v1p69p0.com.google.protobuf.Struct struct =
+          org.apache.beam.vendor.grpc.v1p69p0.com.google.protobuf.Struct.newBuilder().build();
+
+      PipelineOptions deserialized = PipelineOptionsTranslation.fromProto(struct);
+      assertEquals(
+          "test-gcloud-project-translated-expected",
+          deserialized.as(GcpOptions.class).getProject());
     }
 
     private static void makePropertiesFileWithProject(File path, String projectId)

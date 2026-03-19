@@ -160,6 +160,38 @@ public class PipelineOptionsTranslationTest {
 
       assertThat(deserialized, notNullValue());
     }
+
+    public interface MyProjectOptions extends PipelineOptions {
+      String getProject();
+
+      void setProject(String project);
+    }
+
+    @Test
+    public void testProjectOptionDeserialization() throws Exception {
+      Struct serialized =
+          Struct.newBuilder()
+              .putFields(
+                  "beam:option:project:v1",
+                  Value.newBuilder().setStringValue("my-test-project-translated").build())
+              .build();
+      PipelineOptions deserialized = PipelineOptionsTranslation.fromProto(serialized);
+
+      MyProjectOptions projectOptions = deserialized.as(MyProjectOptions.class);
+      assertThat(projectOptions.getProject(), equalTo("my-test-project-translated"));
+    }
+
+    @Test
+    public void testDefaultOptionOverriddenByDeserialization() throws Exception {
+      Struct serialized =
+          Struct.newBuilder()
+              .putFields("beam:option:default:v1", Value.newBuilder().setNumberValue(42).build())
+              .build();
+      PipelineOptions deserialized = PipelineOptionsTranslation.fromProto(serialized);
+
+      TestDefaultOptions opts = deserialized.as(TestDefaultOptions.class);
+      assertThat(opts.getDefault(), equalTo(42));
+    }
   }
 
   /** {@link PipelineOptions} with an unserializable option. */
