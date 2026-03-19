@@ -23,9 +23,9 @@ import org.hamcrest.Description;
 import org.hamcrest.Matcher;
 import org.hamcrest.TypeSafeMatcher;
 
-public class TableRowMatchers {
+class TableRowMatchers {
 
-  public static Matcher<TableRow> isTableRowEqualTo(TableRow expected) {
+  static Matcher<TableRow> isTableRowEqualTo(TableRow expected) {
     return new TypeSafeMatcher<TableRow>() {
 
       @Override
