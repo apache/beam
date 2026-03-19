@@ -69,7 +69,7 @@
 ## New Features / Improvements
 
 * Added support for large pipeline options via a file (Python) ([#37370](https://github.com/apache/beam/issues/37370)).
-* Supported infer schema from dataclass (Python) ([#22085](https://github.com/apache/beam/issues/37370)). Default coder for typehint-ed (or set with_output_type) for non-frozen dataclasses changed to RowCoder. To preserve the old behavior (fast primitive coder), explicitly register the type with FastPrimitiveCoder.
+* Supported infer schema from dataclass (Python) ([#22085](https://github.com/apache/beam/issues/22085)). Default coder for typehint-ed (or set with_output_type) for non-frozen dataclasses changed to RowCoder. To preserve the old behavior (fast primitive coder), explicitly register the type with FastPrimitiveCoder.
 
 ## Breaking Changes
 
