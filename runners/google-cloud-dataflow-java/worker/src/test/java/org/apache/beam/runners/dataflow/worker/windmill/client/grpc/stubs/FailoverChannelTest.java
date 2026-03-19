@@ -22,16 +22,19 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.same;
 import static org.mockito.Mockito.atLeast;
 import static org.mockito.Mockito.atLeastOnce;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.atomic.AtomicReference;
 import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.CallCredentials;
 import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.CallOptions;
 import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.ClientCall;
 import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.ClientCall.Listener;
+import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.ConnectivityState;
 import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.ManagedChannel;
 import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.Metadata;
 import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.MethodDescriptor;
@@ -53,7 +56,8 @@ public class FailoverChannelTest {
           .build();
 
   @Test
-  public void testFallbackAndRetry() throws Exception {
+  public void testRPCFailureTriggersFallback() throws Exception {
+    // RPC failure with UNAVAILABLE should switch to fallback channel.
     ManagedChannel mockChannel = mock(ManagedChannel.class);
     ManagedChannel mockFallbackChannel = mock(ManagedChannel.class);
     ClientCall<Object, Object> underlyingCall = mock(ClientCall.class);
@@ -63,7 +67,6 @@ public class FailoverChannelTest {
 
     FailoverChannel failoverChannel = FailoverChannel.create(mockChannel, mockFallbackChannel);
 
-    // First call, triggers fallback
     ClientCall<Object, Object> call1 =
         failoverChannel.newCall(methodDescriptor, CallOptions.DEFAULT);
     Metadata metadata1 = new Metadata();
@@ -71,11 +74,8 @@ public class FailoverChannelTest {
 
     ArgumentCaptor<Listener<Object>> captor = ArgumentCaptor.forClass(ClientCall.Listener.class);
     verify(underlyingCall).start(captor.capture(), same(metadata1));
-
-    // Fail with UNAVAILABLE
     captor.getValue().onClose(Status.UNAVAILABLE, new Metadata());
 
-    // Second call should use fallback Channel
     ClientCall<Object, Object> call2 =
         failoverChannel.newCall(methodDescriptor, CallOptions.DEFAULT);
     call2.start(new NoopClientCall.NoopClientCallListener<>(), new Metadata());
@@ -83,21 +83,21 @@ public class FailoverChannelTest {
   }
 
   @Test
-  public void testFallbackAndPeriodicRetry() throws Exception {
+  public void testRPCFailureRecoveryAfterCoolingPeriod() throws Exception {
+    // After RPC failure, channel stays on fallback during cooling period, then returns to primary.
     ManagedChannel mockChannel = mock(ManagedChannel.class);
     ManagedChannel mockFallbackChannel = mock(ManagedChannel.class);
     ClientCall<Object, Object> underlyingCall = mock(ClientCall.class);
-    ClientCall<Object, Object> underlyingCall2 = mock(ClientCall.class);
     ClientCall<Object, Object> fallbackCall = mock(ClientCall.class);
-    when(mockChannel.newCall(any(), any())).thenReturn(underlyingCall, underlyingCall2);
+    when(mockChannel.newCall(any(), any())).thenReturn(underlyingCall, mock(ClientCall.class));
     when(mockFallbackChannel.newCall(any(), any())).thenReturn(fallbackCall);
+    when(mockChannel.getState(true)).thenReturn(ConnectivityState.READY);
 
     AtomicLong time = new AtomicLong(0);
-
     FailoverChannel failoverChannel =
         FailoverChannel.forTest(mockChannel, mockFallbackChannel, null, time::get);
 
-    // Trigger fallback
+    // Trigger RPC failure fallback
     ClientCall<Object, Object> call1 =
         failoverChannel.newCall(methodDescriptor, CallOptions.DEFAULT);
     call1.start(new NoopClientCall.NoopClientCallListener<>(), new Metadata());
@@ -105,40 +105,30 @@ public class FailoverChannelTest {
     verify(underlyingCall).start(captor.capture(), any());
     captor.getValue().onClose(Status.UNAVAILABLE, new Metadata());
 
-    // Advance time by 30 mins (less than 1 hour)
+    // Within cooling period: still on fallback
     time.addAndGet(TimeUnit.MINUTES.toNanos(30));
-
-    // Should still use fallback
-    ClientCall<Object, Object> call2 =
-        failoverChannel.newCall(methodDescriptor, CallOptions.DEFAULT);
-    call2.start(new NoopClientCall.NoopClientCallListener<>(), new Metadata());
+    failoverChannel.newCall(methodDescriptor, CallOptions.DEFAULT);
     verify(mockFallbackChannel, atLeastOnce()).newCall(any(), any());
 
-    // Advance time by another 40 mins (total > 1 hour)
+    // After cooling period: recovers to primary
     time.addAndGet(TimeUnit.MINUTES.toNanos(40));
-
-    // Should retry direct path
-    ClientCall<Object, Object> call3 =
-        failoverChannel.newCall(methodDescriptor, CallOptions.DEFAULT);
-    call3.start(new NoopClientCall.NoopClientCallListener<>(), new Metadata());
+    failoverChannel.newCall(methodDescriptor, CallOptions.DEFAULT);
     verify(mockChannel, atLeast(2)).newCall(any(), any());
   }
 
   @Test
   public void testFallbackWithCredentials() throws Exception {
+    // Fallback channel should receive custom credentials when provided.
     ManagedChannel mockChannel = mock(ManagedChannel.class);
     ManagedChannel mockFallbackChannel = mock(ManagedChannel.class);
     ClientCall<Object, Object> underlyingCall = mock(ClientCall.class);
-    ClientCall<Object, Object> fallbackCall = mock(ClientCall.class);
     CallCredentials mockCredentials = mock(CallCredentials.class);
-
     when(mockChannel.newCall(any(), any())).thenReturn(underlyingCall);
-    when(mockFallbackChannel.newCall(any(), any())).thenReturn(fallbackCall);
+    when(mockFallbackChannel.newCall(any(), any())).thenReturn(mock(ClientCall.class));
 
     FailoverChannel failoverChannel =
         FailoverChannel.create(mockChannel, mockFallbackChannel, mockCredentials);
 
-    // Trigger fallback
     ClientCall<Object, Object> call1 =
         failoverChannel.newCall(methodDescriptor, CallOptions.DEFAULT);
     call1.start(new NoopClientCall.NoopClientCallListener<>(), new Metadata());
@@ -146,13 +136,77 @@ public class FailoverChannelTest {
     verify(underlyingCall).start(captor.capture(), any());
     captor.getValue().onClose(Status.UNAVAILABLE, new Metadata());
 
-    // Next call should use fallback with credentials
-    ClientCall<Object, Object> call2 =
-        failoverChannel.newCall(methodDescriptor, CallOptions.DEFAULT);
-    call2.start(new NoopClientCall.NoopClientCallListener<>(), new Metadata());
+    failoverChannel.newCall(methodDescriptor, CallOptions.DEFAULT);
 
     ArgumentCaptor<CallOptions> optionsCaptor = ArgumentCaptor.forClass(CallOptions.class);
     verify(mockFallbackChannel).newCall(same(methodDescriptor), optionsCaptor.capture());
     assertEquals(mockCredentials, optionsCaptor.getValue().getCredentials());
+  }
+
+  @Test
+  public void testStateFallbackAfterPrimaryNotReady() {
+    // If primary connection is not ready for 10+ seconds, routes to fallback.
+    ManagedChannel mockChannel = mock(ManagedChannel.class);
+    ManagedChannel mockFallbackChannel = mock(ManagedChannel.class);
+    when(mockChannel.newCall(any(), any())).thenReturn(mock(ClientCall.class));
+    when(mockFallbackChannel.newCall(any(), any())).thenReturn(mock(ClientCall.class));
+    when(mockChannel.getState(true)).thenReturn(ConnectivityState.IDLE, ConnectivityState.IDLE);
+
+    AtomicLong time = new AtomicLong(0);
+    FailoverChannel failoverChannel =
+        FailoverChannel.forTest(mockChannel, mockFallbackChannel, null, time::get);
+
+    // Within 10 seconds: still routes to primary
+    failoverChannel.newCall(methodDescriptor, CallOptions.DEFAULT);
+    verify(mockChannel).newCall(any(), any());
+
+    // After 10 seconds: routes to fallback
+    time.addAndGet(TimeUnit.SECONDS.toNanos(11));
+    failoverChannel.newCall(methodDescriptor, CallOptions.DEFAULT);
+    verify(mockFallbackChannel).newCall(any(), any());
+  }
+
+  @Test
+  public void testStateBasedFallbackRecoveryViaCallback() {
+    // After state-based fallback, recovery to primary is immediate when callback fires with READY.
+    ManagedChannel mockChannel = mock(ManagedChannel.class);
+    ManagedChannel mockFallbackChannel = mock(ManagedChannel.class);
+    when(mockChannel.newCall(any(), any())).thenReturn(mock(ClientCall.class));
+    when(mockFallbackChannel.newCall(any(), any())).thenReturn(mock(ClientCall.class));
+    // getState(true): IDLE starts timer, IDLE exceeds timer, READY on recovery check
+    when(mockChannel.getState(true))
+        .thenReturn(ConnectivityState.IDLE, ConnectivityState.IDLE, ConnectivityState.READY);
+    // getState(false): IDLE for constructor registration, READY when callback fires
+    when(mockChannel.getState(false))
+        .thenReturn(ConnectivityState.IDLE, ConnectivityState.READY, ConnectivityState.READY);
+
+    AtomicReference<Runnable> stateChangeCallback = new AtomicReference<>();
+    doAnswer(
+            invocation -> {
+              stateChangeCallback.set(invocation.getArgument(1));
+              return null;
+            })
+        .when(mockChannel)
+        .notifyWhenStateChanged(any(), any());
+
+    AtomicLong time = new AtomicLong(0);
+    FailoverChannel failoverChannel =
+        FailoverChannel.forTest(mockChannel, mockFallbackChannel, null, time::get);
+
+    // First call - primary not yet timed out, routes to primary
+    failoverChannel.newCall(methodDescriptor, CallOptions.DEFAULT);
+    verify(mockChannel).newCall(any(), any());
+
+    // After 10 seconds: state-based fallback kicks in
+    time.addAndGet(TimeUnit.SECONDS.toNanos(11));
+    failoverChannel.newCall(methodDescriptor, CallOptions.DEFAULT);
+    verify(mockFallbackChannel).newCall(any(), any());
+
+    // Callback fires with primary now READY: clears state flag immediately
+    stateChangeCallback.get().run();
+
+    // Next call recovers to primary with no waiting
+    failoverChannel.newCall(methodDescriptor, CallOptions.DEFAULT);
+    verify(mockChannel, atLeast(2)).newCall(any(), any());
   }
 }

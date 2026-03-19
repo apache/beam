@@ -385,7 +385,8 @@ public final class StreamingDataflowWorker {
       MemoryMonitor memoryMonitor,
       GrpcDispatcherClient dispatcherClient) {
     WeightedSemaphore<Commit> maxCommitByteSemaphore = Commits.maxCommitByteSemaphore();
-    ChannelCache channelCache = createChannelCache(options, checkNotNull(configFetcher), dispatcherClient);
+    ChannelCache channelCache =
+        createChannelCache(options, checkNotNull(configFetcher), dispatcherClient);
     @SuppressWarnings("methodref.receiver.bound")
     FanOutStreamingEngineWorkerHarness fanOutStreamingEngineWorkerHarness =
         FanOutStreamingEngineWorkerHarness.create(
@@ -808,38 +809,44 @@ public final class StreamingDataflowWorker {
   }
 
   private static ChannelCache createChannelCache(
-          DataflowWorkerHarnessOptions workerOptions,
-          ComputationConfig.Fetcher configFetcher,
-          GrpcDispatcherClient dispatcherClient) {
-      ChannelCache channelCache = ChannelCache.create(
-              (currentFlowControlSettings, serviceAddress) -> {
-                  ManagedChannel primaryChannel = IsolationChannel.create(
-                          () -> remoteChannel(
-                                  serviceAddress,
-                                  workerOptions.getWindmillServiceRpcChannelAliveTimeoutSec(),
-                                  currentFlowControlSettings),
-                          currentFlowControlSettings.getOnReadyThresholdBytes());
-                  // Create an isolated fallback channel from dispatcher endpoints.
-                  // This ensures both primary and fallback use separate isolated channels.
-                  ManagedChannel fallbackChannel = IsolationChannel.create(
-                          () -> remoteChannel(
-                                  dispatcherClient.getDispatcherEndpoints().iterator().next(),
-                                  workerOptions.getWindmillServiceRpcChannelAliveTimeoutSec(),
-                                  currentFlowControlSettings),
-                          currentFlowControlSettings.getOnReadyThresholdBytes());
-                  return FailoverChannel.create(
-                          primaryChannel,
-                          fallbackChannel,
-                          MoreCallCredentials.from(
-                                  new VendoredCredentialsAdapter(workerOptions.getGcpCredential())));
-              });
+      DataflowWorkerHarnessOptions workerOptions,
+      ComputationConfig.Fetcher configFetcher,
+      GrpcDispatcherClient dispatcherClient) {
+    ChannelCache channelCache =
+        ChannelCache.create(
+            (currentFlowControlSettings, serviceAddress) -> {
+              ManagedChannel primaryChannel =
+                  IsolationChannel.create(
+                      () ->
+                          remoteChannel(
+                              serviceAddress,
+                              workerOptions.getWindmillServiceRpcChannelAliveTimeoutSec(),
+                              currentFlowControlSettings),
+                      currentFlowControlSettings.getOnReadyThresholdBytes());
+              // Create an isolated fallback channel from dispatcher endpoints.
+              // This ensures both primary and fallback use separate isolated channels.
+              ManagedChannel fallbackChannel =
+                  IsolationChannel.create(
+                      () ->
+                          remoteChannel(
+                              dispatcherClient.getDispatcherEndpoints().iterator().next(),
+                              workerOptions.getWindmillServiceRpcChannelAliveTimeoutSec(),
+                              currentFlowControlSettings),
+                      currentFlowControlSettings.getOnReadyThresholdBytes());
+              return FailoverChannel.create(
+                  primaryChannel,
+                  fallbackChannel,
+                  MoreCallCredentials.from(
+                      new VendoredCredentialsAdapter(workerOptions.getGcpCredential())));
+            });
 
-      configFetcher
-              .getGlobalConfigHandle()
-              .registerConfigObserver(
-                      config -> channelCache.consumeFlowControlSettings(
-                              config.userWorkerJobSettings().getFlowControlSettings()));
-      return channelCache;
+    configFetcher
+        .getGlobalConfigHandle()
+        .registerConfigObserver(
+            config ->
+                channelCache.consumeFlowControlSettings(
+                    config.userWorkerJobSettings().getFlowControlSettings()));
+    return channelCache;
   }
 
   @VisibleForTesting
