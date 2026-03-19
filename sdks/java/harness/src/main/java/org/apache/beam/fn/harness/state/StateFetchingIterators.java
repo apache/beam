@@ -94,20 +94,6 @@ public class StateFetchingIterators {
         valueCoder);
   }
 
-  public static <T> CachingStateIterable<T> emptyCachingStateIterable(
-      BeamFnStateClient beamFnStateClient,
-      StateRequest stateRequestForFirstChunk,
-      Coder<T> valueCoder) {
-    CachingStateIterable<T> result =
-        readAllAndDecodeStartingFrom(
-            org.apache.beam.fn.harness.Caches.noop(),
-            beamFnStateClient,
-            stateRequestForFirstChunk,
-            valueCoder);
-    result.clearAndAppend(java.util.Collections.emptyList());
-    return result;
-  }
-
   /**
    * This adapter handles using the continuation token to provide iteration over all the elements
    * returned by the Beam Fn State API using the supplied state client, state request for the first
@@ -515,6 +501,18 @@ public class StateFetchingIterators {
       cache.put(IterableCacheKey.INSTANCE, new MutatedBlocks<>(Block.mutatedBlock(allValues)));
     }
 
+    private static final CachingStateIterable<Object> EMPTY_ITERABLE = new CachingStateIterable<Object>() {
+      @Override
+      protected CachingStateIterator<Object> createIterator() {
+        return CachingStateIterator.emptyIterator();
+      }
+    };
+
+    /** Returns an empty {@link CachingStateIterable}. */
+    public static <T> CachingStateIterable<T> emptyIterable() {
+      return (CachingStateIterable<T>) EMPTY_ITERABLE;
+    }
+
     class CachingStateIterator implements PrefetchableIterator<T> {
 
       private final LazyBlockingStateFetchingIterator underlyingStateFetchingIterator;
@@ -667,6 +665,31 @@ public class StateFetchingIterators {
         }
         return currentBlock.getValues().get(currentCachedBlockValueIndex++);
       }
+
+      public static <T> CachingStateIterator<T> emptyIterator() {
+        return (CachingStateIterator<T>) EMPTY_ITERATOR;
+      }
+
+      private static final CachingStateIterator<Object> EMPTY_ITERATOR = new CachingStateIterator<Object>() {
+        @Override
+        public boolean isReady() {
+          return true;
+        }
+
+        @Override
+        public void prefetch() {
+        }
+
+        @Override
+        public boolean hasNext() {
+          return false;
+        }
+
+        @Override
+        public Object next() {
+          throw new NoSuchElementException();
+        }
+      };
     }
   }
 
