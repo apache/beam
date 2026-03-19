@@ -891,8 +891,7 @@ def expand_composite_transform(spec, scope):
   if 'name' not in spec:
     spec['name'] = 'Composite'
   if spec['name'] is None:  # top-level pipeline, don't nest
-    result = transform.expand(None)
-    return result
+    return transform.expand(None)
   else:
     _LOGGER.info("Expanding %s ", identify_object(spec))
     # When the input references a scope input (not a transform output),
