@@ -25,7 +25,6 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.function.Function;
-import java.util.function.Supplier;
 import org.apache.beam.fn.harness.Cache;
 import org.apache.beam.fn.harness.Caches;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateKey;
@@ -33,7 +32,6 @@ import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateRequest;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.IterableCoder;
 import org.apache.beam.sdk.coders.KvCoder;
-import org.apache.beam.sdk.fn.stream.PrefetchableIterables;
 import org.apache.beam.sdk.transforms.Materializations.MultimapView;
 import org.apache.beam.sdk.util.ByteStringOutputStream;
 import org.apache.beam.sdk.values.KV;
@@ -57,7 +55,6 @@ public class MultimapSideInput<K, V> implements MultimapView<K, V> {
   private final Coder<V> valueCoder;
   private volatile Function<ByteString, Iterable<V>> bulkReadResult;
   private final boolean useBulkRead;
-  private final Supplier<Boolean> hasNoState;
 
   public MultimapSideInput(
       Cache<?, ?> cache,
@@ -66,8 +63,7 @@ public class MultimapSideInput<K, V> implements MultimapView<K, V> {
       StateKey stateKey,
       Coder<K> keyCoder,
       Coder<V> valueCoder,
-      boolean useBulkRead,
-      Supplier<Boolean> hasNoState) {
+      boolean useBulkRead) {
     checkArgument(
         stateKey.hasMultimapKeysSideInput(),
         "Expected MultimapKeysSideInput StateKey but received %s.",
@@ -79,23 +75,16 @@ public class MultimapSideInput<K, V> implements MultimapView<K, V> {
     this.keyCoder = keyCoder;
     this.valueCoder = valueCoder;
     this.useBulkRead = useBulkRead;
-    this.hasNoState = hasNoState;
   }
 
   @Override
   public Iterable<K> get() {
-    return this.hasNoState.get()
-        ? PrefetchableIterables.emptyIterable()
-        : StateFetchingIterators.readAllAndDecodeStartingFrom(
-            cache, beamFnStateClient, keysRequest, keyCoder);
+    return StateFetchingIterators.readAllAndDecodeStartingFrom(
+        cache, beamFnStateClient, keysRequest, keyCoder);
   }
 
   @Override
   public Iterable<V> get(K k) {
-    if (this.hasNoState.get()) {
-      return PrefetchableIterables.emptyIterable();
-    }
-
     ByteString encodedKey = encodeKey(k);
 
     if (useBulkRead) {
