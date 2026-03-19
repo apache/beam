@@ -47,8 +47,7 @@ public class IterableSideInputTest {
             fakeBeamFnStateClient,
             "instructionId",
             key(),
-            StringUtf8Coder.of(),
-            () -> false);
+            StringUtf8Coder.of());
     assertArrayEquals(
         new String[] {"A1", "A2", "A3", "A4", "A5", "A6"},
         Iterables.toArray(iterableSideInput.get(), String.class));
@@ -70,8 +69,7 @@ public class IterableSideInputTest {
               fakeBeamFnStateClient,
               "instructionId",
               key(),
-              StringUtf8Coder.of(),
-              () -> false);
+              StringUtf8Coder.of());
       assertArrayEquals(
           new String[] {"A1", "A2", "A3", "A4", "A5", "A6"},
           Iterables.toArray(iterableSideInput.get(), String.class));
@@ -87,8 +85,7 @@ public class IterableSideInputTest {
               },
               "instructionId",
               key(),
-              StringUtf8Coder.of(),
-              () -> false);
+              StringUtf8Coder.of());
       assertArrayEquals(
           new String[] {"A1", "A2", "A3", "A4", "A5", "A6"},
           Iterables.toArray(iterableSideInput.get(), String.class));
