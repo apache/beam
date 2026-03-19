@@ -297,6 +297,7 @@ class Call<RequestT, ResponseT> extends PTransform<PCollection<RequestT>, Result
       try {
         boolean ignored = executor.awaitTermination(3L, TimeUnit.SECONDS);
       } catch (InterruptedException ignored) {
+        // Ignore the interrupt during teardown.
       }
     }
 
@@ -352,6 +353,7 @@ class Call<RequestT, ResponseT> extends PTransform<PCollection<RequestT>, Result
           incIfPresent(sleeperCounter);
           sleeper.sleep(backOff.nextBackOffMillis());
         } catch (InterruptedException ignored) {
+          // Ignore the interrupt and try again.
         }
       }
     }
@@ -362,7 +364,14 @@ class Call<RequestT, ResponseT> extends PTransform<PCollection<RequestT>, Result
   abstract static class Configuration<RequestT, ResponseT> implements Serializable {
 
     static <RequestT, ResponseT> Builder<RequestT, ResponseT> builder() {
-      return new AutoValue_Call_Configuration.Builder<RequestT, ResponseT>();
+      return new AutoValue_Call_Configuration.Builder<RequestT, ResponseT>()
+          .setShouldRepeat(false)
+          .setTimeout(RequestResponseIO.DEFAULT_TIMEOUT)
+          .setCallShouldBackoff(new NoopCallShouldBackoff<>())
+          .setSleeperSupplier((SerializableSupplier<Sleeper>) () -> Sleeper.DEFAULT)
+          .setBackOffSupplier(new DefaultSerializableBackoffSupplier())
+          .setMonitoringConfiguration(Monitoring.builder().build())
+          .setSetupTeardown(new NoopSetupTeardown());
     }
 
     /** The user custom code that converts a {@link RequestT} into a {@link ResponseT}. */
@@ -390,7 +399,7 @@ class Call<RequestT, ResponseT> extends PTransform<PCollection<RequestT>, Result
      * invocations, using the {@link Repeater}, in the setting of {@link
      * RequestResponseIO#REPEATABLE_ERROR_TYPES}. Defaults to false.
      */
-    abstract Boolean getShouldRepeat();
+    abstract boolean getShouldRepeat();
 
     /**
      * The {@link CallShouldBackoff} that determines whether the {@link DoFn} should hold {@link
@@ -438,64 +447,36 @@ class Call<RequestT, ResponseT> extends PTransform<PCollection<RequestT>, Result
       /** See {@link Configuration#getTimeout}. */
       abstract Builder<RequestT, ResponseT> setTimeout(Duration value);
 
-      abstract Optional<Duration> getTimeout();
+      abstract Duration getTimeout();
 
       /** See {@link Configuration#getShouldRepeat}. */
-      abstract Builder<RequestT, ResponseT> setShouldRepeat(Boolean value);
+      abstract Builder<RequestT, ResponseT> setShouldRepeat(boolean value);
 
-      abstract Optional<Boolean> getShouldRepeat();
+      abstract boolean getShouldRepeat();
 
       /** See {@link Configuration#getCallShouldBackoff}. */
       abstract Builder<RequestT, ResponseT> setCallShouldBackoff(
           CallShouldBackoff<ResponseT> value);
 
-      abstract Optional<CallShouldBackoff<ResponseT>> getCallShouldBackoff();
+      abstract CallShouldBackoff<ResponseT> getCallShouldBackoff();
 
       /** See {@link Configuration#getSleeperSupplier}. */
       abstract Builder<RequestT, ResponseT> setSleeperSupplier(SerializableSupplier<Sleeper> value);
 
-      abstract Optional<SerializableSupplier<Sleeper>> getSleeperSupplier();
+      abstract SerializableSupplier<Sleeper> getSleeperSupplier();
 
       /** See {@link Configuration#getBackOffSupplier}. */
       abstract Builder<RequestT, ResponseT> setBackOffSupplier(SerializableSupplier<BackOff> value);
 
-      abstract Optional<SerializableSupplier<BackOff>> getBackOffSupplier();
+      abstract SerializableSupplier<BackOff> getBackOffSupplier();
 
       abstract Builder<RequestT, ResponseT> setMonitoringConfiguration(Monitoring value);
 
-      abstract Optional<Monitoring> getMonitoringConfiguration();
+      abstract Monitoring getMonitoringConfiguration();
 
       abstract Configuration<RequestT, ResponseT> autoBuild();
 
       final Configuration<RequestT, ResponseT> build() {
-        if (!getSetupTeardown().isPresent()) {
-          setSetupTeardown(new NoopSetupTeardown());
-        }
-
-        if (!getShouldRepeat().isPresent()) {
-          setShouldRepeat(false);
-        }
-
-        if (!getTimeout().isPresent()) {
-          setTimeout(RequestResponseIO.DEFAULT_TIMEOUT);
-        }
-
-        if (!getCallShouldBackoff().isPresent()) {
-          setCallShouldBackoff(new NoopCallShouldBackoff<>());
-        }
-
-        if (!getSleeperSupplier().isPresent()) {
-          setSleeperSupplier((SerializableSupplier<Sleeper>) () -> Sleeper.DEFAULT);
-        }
-
-        if (!getBackOffSupplier().isPresent()) {
-          setBackOffSupplier(new DefaultSerializableBackoffSupplier());
-        }
-
-        if (!getMonitoringConfiguration().isPresent()) {
-          setMonitoringConfiguration(Monitoring.builder().build());
-        }
-
         return autoBuild();
       }
     }

@@ -21,6 +21,7 @@ import com.google.cloud.spanner.DatabaseAdminClient;
 import com.google.cloud.spanner.DatabaseClient;
 import com.google.cloud.spanner.DatabaseId;
 import com.google.cloud.spanner.Dialect;
+import com.google.cloud.spanner.SessionPoolOptions;
 import com.google.cloud.spanner.Spanner;
 import com.google.cloud.spanner.SpannerOptions;
 import java.util.ArrayList;
@@ -81,6 +82,10 @@ public class IntegrationTestEnv extends ExternalResource {
             .setProjectId(projectId)
             .setHost(host)
             .disableGrpcGcpExtension()
+            .setSessionPoolOption(
+                SessionPoolOptions.newBuilder()
+                    .setWaitForMinSessionsDuration(java.time.Duration.ofMinutes(5))
+                    .build())
             .build()
             .getService();
     databaseAdminClient = spanner.getDatabaseAdminClient();

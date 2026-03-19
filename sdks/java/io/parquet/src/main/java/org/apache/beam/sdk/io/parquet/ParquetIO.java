@@ -69,6 +69,7 @@ import org.apache.parquet.ParquetReadOptions;
 import org.apache.parquet.avro.AvroParquetReader;
 import org.apache.parquet.avro.AvroParquetWriter;
 import org.apache.parquet.avro.AvroReadSupport;
+import org.apache.parquet.column.ParquetProperties;
 import org.apache.parquet.column.page.PageReadStore;
 import org.apache.parquet.filter2.compat.FilterCompat;
 import org.apache.parquet.filter2.compat.FilterCompat.Filter;
@@ -1005,8 +1006,11 @@ public class ParquetIO {
     return new AutoValue_ParquetIO_Sink.Builder()
         .setJsonSchema(schema.toString())
         .setCompressionCodec(CompressionCodecName.SNAPPY)
-        // This resembles the default value for ParquetWriter.rowGroupSize.
         .setRowGroupSize(ParquetWriter.DEFAULT_BLOCK_SIZE)
+        .setPageSize(ParquetWriter.DEFAULT_PAGE_SIZE)
+        .setEnableDictionary(ParquetWriter.DEFAULT_IS_DICTIONARY_ENABLED)
+        .setEnableBloomFilter(ParquetProperties.DEFAULT_BLOOM_FILTER_ENABLED)
+        .setMinRowCountForPageSizeCheck(ParquetProperties.DEFAULT_MINIMUM_RECORD_COUNT_FOR_CHECK)
         .build();
   }
 
@@ -1022,6 +1026,14 @@ public class ParquetIO {
 
     abstract int getRowGroupSize();
 
+    abstract int getPageSize();
+
+    abstract boolean getEnableDictionary();
+
+    abstract boolean getEnableBloomFilter();
+
+    abstract int getMinRowCountForPageSizeCheck();
+
     abstract @Nullable Class<? extends GenericData> getAvroDataModelClass();
 
     abstract Builder toBuilder();
@@ -1035,6 +1047,14 @@ public class ParquetIO {
       abstract Builder setConfiguration(SerializableConfiguration configuration);
 
       abstract Builder setRowGroupSize(int rowGroupSize);
+
+      abstract Builder setPageSize(int pageSize);
+
+      abstract Builder setEnableDictionary(boolean enableDictionary);
+
+      abstract Builder setEnableBloomFilter(boolean enableBloomFilter);
+
+      abstract Builder setMinRowCountForPageSizeCheck(int minRowCountForPageSizeCheck);
 
       abstract Builder setAvroDataModelClass(Class<? extends GenericData> modelClass);
 
@@ -1064,6 +1084,34 @@ public class ParquetIO {
       return toBuilder().setRowGroupSize(rowGroupSize).build();
     }
 
+    /** Specify the page size for the Parquet writer. Defaults to {@code 1 MB}. */
+    public Sink withPageSize(int pageSize) {
+      checkArgument(pageSize > 0, "pageSize must be positive");
+      return toBuilder().setPageSize(pageSize).build();
+    }
+
+    /** Enable or disable dictionary encoding. Enabled by default. */
+    public Sink withDictionaryEncoding(boolean enableDictionary) {
+      return toBuilder().setEnableDictionary(enableDictionary).build();
+    }
+
+    /** Enable or disable bloom filters. Disabled by default. */
+    public Sink withBloomFilterEnabled(boolean enableBloomFilter) {
+      return toBuilder().setEnableBloomFilter(enableBloomFilter).build();
+    }
+
+    /**
+     * Specify the minimum number of rows to write before a page size check is performed. The writer
+     * buffers at least this many rows before checking whether the page size threshold has been
+     * reached. With large rows, the default ({@code 100}) can cause excessive memory use; set a
+     * lower value (e.g. {@code 1}) to flush pages more frequently.
+     */
+    public Sink withMinRowCountForPageSizeCheck(int minRowCountForPageSizeCheck) {
+      checkArgument(
+          minRowCountForPageSizeCheck > 0, "minRowCountForPageSizeCheck must be positive");
+      return toBuilder().setMinRowCountForPageSizeCheck(minRowCountForPageSizeCheck).build();
+    }
+
     /**
      * Define the Avro data model; see {@link AvroParquetWriter.Builder#withDataModel(GenericData)}.
      */
@@ -1079,6 +1127,7 @@ public class ParquetIO {
 
       Schema schema = new Schema.Parser().parse(getJsonSchema());
       Class<? extends GenericData> modelClass = getAvroDataModelClass();
+      Configuration conf = SerializableConfiguration.newConfiguration(getConfiguration());
 
       BeamParquetOutputFile beamParquetOutputFile =
           new BeamParquetOutputFile(Channels.newOutputStream(channel));
@@ -1088,8 +1137,13 @@ public class ParquetIO {
               .withSchema(schema)
               .withCompressionCodec(getCompressionCodec())
               .withWriteMode(OVERWRITE)
-              .withConf(SerializableConfiguration.newConfiguration(getConfiguration()))
-              .withRowGroupSize(getRowGroupSize());
+              .withConf(conf)
+              .withRowGroupSize(getRowGroupSize())
+              .withPageSize(getPageSize())
+              .withDictionaryEncoding(getEnableDictionary())
+              .withBloomFilterEnabled(getEnableBloomFilter())
+              .withMinRowCountForPageSizeCheck(getMinRowCountForPageSizeCheck());
+
       if (modelClass != null) {
         try {
           builder.withDataModel(buildModelObject(modelClass));

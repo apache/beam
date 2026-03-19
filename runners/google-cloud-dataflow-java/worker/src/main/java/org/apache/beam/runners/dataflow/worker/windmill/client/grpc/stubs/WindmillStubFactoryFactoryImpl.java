@@ -33,24 +33,19 @@ public class WindmillStubFactoryFactoryImpl implements WindmillStubFactoryFactor
   }
 
   @Override
-  public WindmillStubFactory makeWindmillStubFactory(boolean useIsolatedChannels) {
+  public WindmillStubFactory makeWindmillStubFactory() {
     ChannelCache channelCache =
         ChannelCache.create(
             (flowControlSettings, serviceAddress) ->
                 // IsolationChannel will create and manage separate RPC channels to the same
                 // serviceAddress via calling the channelFactory, else just directly return the
                 // RPC channel.
-                useIsolatedChannels
-                    ? IsolationChannel.create(
-                        () ->
-                            remoteChannel(
-                                serviceAddress.getServiceAddress(),
-                                windmillServiceRpcChannelAliveTimeoutSec,
-                                flowControlSettings))
-                    : remoteChannel(
-                        serviceAddress.getServiceAddress(),
-                        windmillServiceRpcChannelAliveTimeoutSec,
-                        flowControlSettings));
+                IsolationChannel.create(
+                    () ->
+                        remoteChannel(
+                            serviceAddress.getServiceAddress(),
+                            windmillServiceRpcChannelAliveTimeoutSec,
+                            flowControlSettings)));
     return ChannelCachingRemoteStubFactory.create(gcpCredential, channelCache);
   }
 }

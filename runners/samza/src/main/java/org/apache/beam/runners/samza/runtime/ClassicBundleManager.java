@@ -40,13 +40,11 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * Implementation of BundleManager for non-portable mode. Keeps track of the async function
- * completions.
+ * {@inheritDoc} Implementation of BundleManager for non-portable mode. Keeps track of the async
+ * function completions.
  *
  * <p>This class is not thread safe and the current implementation relies on the assumption that
  * messages are dispatched to BundleManager in a single threaded mode.
- *
- * <p>{@inheritDoc}
  */
 @SuppressWarnings({
   "nullness" // TODO(https://github.com/apache/beam/issues/20497)

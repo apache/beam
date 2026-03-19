@@ -198,6 +198,11 @@ public class OutputAndTimeBoundedSplittableProcessElementInvoker<
               }
 
               @Override
+              public CausedByDrain causedByDrain(DoFn<InputT, OutputT> doFn) {
+                return processContext.causedByDrain();
+              }
+
+              @Override
               public RestrictionTracker<?, ?> restrictionTracker() {
                 return processContext.tracker;
               }

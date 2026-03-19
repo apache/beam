@@ -67,6 +67,38 @@ public interface DataflowWorkerLoggingOptions extends PipelineOptions {
   void setDefaultWorkerLogLevel(Level level);
 
   /**
+   * Controls the log level for which messages are uploaded to Cloud Logging. If a message is
+   * configured to be sent to both directly to cloud logging and default disk-based logging it will
+   * just be sent to disk-based logging. This allows for configuration such as
+   * "--defaultWorkerLogLevel=WARN --defaultWorkerDirectLoggerLevel=INFO where INFO logs will be
+   * directly sent to cloud logging and WARN logs and higher will be sent to disk-based logging.
+   *
+   * <p>Note that this is just the default and may be overridden for specific classes with
+   * --workerDirectLogLevelOverrides.
+   */
+  @Description(
+      "Controls the default direct to Cloud Logging level of all logs without a log level override."
+          + "If a message is configured to be sent to both directly to cloud logging and default disk-based logging "
+          + "it will just be sent to disk-based logging.")
+  @Default.Enum("OFF")
+  Level getDefaultWorkerDirectLoggerLevel();
+
+  void setDefaultWorkerDirectLoggerLevel(Level level);
+
+  @Description(
+      "The maximum buffered bytes for records in the queue that are being sent directly to Cloud Logging.")
+  @Default.Long(100L * 1024 * 1024)
+  Long getWorkerDirectLoggerBufferByteLimit();
+
+  void setWorkerDirectLoggerBufferByteLimit(Long value);
+
+  @Description("The maximum buffered elements in the queue being sent directly to Cloud Logging.")
+  @Default.Long(1_000_000)
+  Long getWorkerDirectLoggerBufferElementLimit();
+
+  void setWorkerDirectLoggerBufferElementLimit(Long value);
+
+  /**
    * Controls the log level given to messages printed to {@code System.out}.
    *
    * <p>Note that the message may be filtered depending on the {@link #getDefaultWorkerLogLevel
@@ -120,6 +152,48 @@ public interface DataflowWorkerLoggingOptions extends PipelineOptions {
   WorkerLogLevelOverrides getWorkerLogLevelOverrides();
 
   void setWorkerLogLevelOverrides(WorkerLogLevelOverrides value);
+
+  /**
+   * This option controls the direct log levels for specifically named loggers. If a message is
+   * configured to be sent to both directly to cloud logging and default disk-based logging it will
+   * just be sent to disk-based logging. If an override only exists for a logger for direct logging,
+   * the --defaultWorkerLogLevel will be used for the non-direct configuration for the logger.
+   *
+   * <p>Later options with equivalent names override earlier options.
+   *
+   * <p>See {@link WorkerLogLevelOverrides} for more information on how to configure logging on a
+   * per {@link Class}, {@link Package}, or name basis. If used from the command line, the expected
+   * format is {"Name":"Level",...}, further details on {@link WorkerLogLevelOverrides#from}.
+   */
+  @Description(
+      "This option controls the direct log levels for specifically named loggers. "
+          + "The expected format is {\"Name\":\"Level\",...}. The Dataflow worker supports a logging "
+          + "hierarchy based off of names that are '.' separated. For example, by specifying the value "
+          + "{\"a.b.c.Foo\":\"DEBUG\"}, the logger for the class 'a.b.c.Foo' will be configured to "
+          + "output logs at the DEBUG level. Similarly, by specifying the value {\"a.b.c\":\"WARN\"}, "
+          + "all loggers underneath the 'a.b.c' package will be configured to output logs at the WARN "
+          + "level. System.out and System.err levels are configured via loggers of the corresponding "
+          + "name. Also, note that when multiple overrides are specified, the exact name followed by "
+          + "the closest parent takes precedence. Note that if an override is just provided for the direct log level "
+          + "for a logger, the default non-direct log level will be used for non-direct logs.")
+  WorkerLogLevelOverrides getWorkerDirectLogLevelOverrides();
+
+  void setWorkerDirectLogLevelOverrides(WorkerLogLevelOverrides value);
+
+  @Default.Boolean(true)
+  @Description(
+      "If true, when there are errors with sending logs directly to Cloud Logging, the logs will fallback to "
+          + "disk-based logging. If false, such logs will be dropped.")
+  Boolean getDirectLoggingFallbackToDiskOnErrors();
+
+  void setDirectLoggingFallbackToDiskOnErrors(Boolean value);
+
+  @Default.Integer(10)
+  @Description(
+      "If an error is encountered with sending logs directly to Cloud Logging, direct logging will not be attempted for this many seconds.")
+  Integer getDirectLoggingCooldownSeconds();
+
+  void setDirectLoggingCooldownSeconds(Integer value);
 
   /**
    * Defines a log level override for a specific class, package, or name.

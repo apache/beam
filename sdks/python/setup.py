@@ -170,7 +170,7 @@ ml_base = [
     'skl2onnx',
     'pyod>=0.7.6', # 0.7.5 crashes setuptools
     'tensorflow',
-    # tensorflow transient dep, lower versions not compatible with Python3.10+
+    # tensorflow transitive dep, lower versions not compatible with Python3.10+
     'absl-py>=0.12.0',
     'tensorflow-hub',
     'tf2onnx',
@@ -375,16 +375,13 @@ if __name__ == '__main__':
       ext_modules=extensions,
       install_requires=[
           'cryptography>=39.0.0,<48.0.0',
-          # reconcile envoy-data-plane dependency for python < 3.12 and >= 3.13
-          # when grpcio unpinned, check for protobuf version compatibility
-          'envoy-data-plane>=1.0.3,<2; python_version >= "3.13"',
-          'envoy-data-plane<0.3.0; python_version < "3.13"',
+          'envoy-data-plane>=1.0.3,<2; python_version >= "3.11"',
+          # Newer version only work on Python 3.11. Versions 0.3 <= ver < 1.x
+          # conflict with other GCP dependencies.
+          'envoy-data-plane<0.3.0; python_version < "3.11"',
           'fastavro>=0.23.6,<2',
           'fasteners>=0.3,<1.0',
-          'grpcio>=1.33.1,<2,!=1.48.0,!=1.59.*,!=1.60.*,!=1.61.*,!=1.62.0,!=1.62.1,!=1.66.*,!=1.67.*,!=1.68.*,!=1.69.*,!=1.70.*,!=1.71.*,!=1.72.*,!=1.73.*,!=1.74.*,!=1.75.*,!=1.76.*,!=1.77.*,!=1.78.0; python_version <= "3.12"',  # pylint: disable=line-too-long
-          # TODO(https://github.com/grpc/grpc/issues/37710): Consolidate bounds
-          # across python versions once 1.78.1 is avaliable.
-          'grpcio>=1.67.0,<2; python_version >= "3.13"',
+          'grpcio>=1.33.1,<2,!=1.48.0,!=1.59.*,!=1.60.*,!=1.61.*,!=1.62.0,!=1.62.1,!=1.66.*,!=1.67.*,!=1.68.*,!=1.69.*,!=1.70.*',  # pylint: disable=line-too-long
           'httplib2>=0.8,<0.32.0',
           'jsonpickle>=3.0.0,<4.0.0',
           # numpy can have breaking changes in minor versions.
@@ -544,11 +541,21 @@ if __name__ == '__main__':
               # tensorflow-transform requires dill, but doesn't set dill as a
               # hard requirement in setup.py.
               'dill',
-              'tensorflow-transform',
+              # match tft extra.
+              'tensorflow_transform>=1.14.0,<1.15.0',
+              # TFT->TFX-BSL require pandas 1.x, which is not compatible
+              # with numpy 2.x
+              'numpy<2',
+              # To help with dependency resolution in test suite. Revise once
+              # https://github.com/apache/beam/issues/37854 is fixed
+              'protobuf<4; python_version<"3.11"'
               # Comment out xgboost as it is breaking presubmit python ml
               # tests due to tag check introduced since pip 24.2
               # https://github.com/apache/beam/issues/31285
               # 'xgboost<2.0',  # https://github.com/apache/beam/issues/31252
+          ] + ml_base,
+          'p310_ml_test': [
+            'datatable',
           ] + ml_base,
           'p312_ml_test': [
               'datatable',
@@ -607,10 +614,12 @@ if __name__ == '__main__':
           ],
           'redis': ['redis>=5.0.0,<6'],
           'tft': [
-              'tensorflow_transform>=1.14.0,<1.15.0'
+              'tensorflow_transform>=1.14.0,<1.15.0',
+              # TFT->TFX-BSL require pandas 1.x, which is not compatible
+              # with numpy 2.x
+              'numpy<2',
               # tensorflow-transform requires dill, but doesn't set dill as a
               # hard requirement in setup.py.
-              ,
               'dill'
           ],
           'tfrecord': ['crcmod>=1.7,<2.0'],

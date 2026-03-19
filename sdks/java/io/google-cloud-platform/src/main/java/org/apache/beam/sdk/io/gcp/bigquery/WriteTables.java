@@ -101,7 +101,7 @@ class WriteTables<DestinationT extends @NonNull Object>
   abstract static class Result {
     abstract String getTableName();
 
-    abstract Boolean isFirstPane();
+    abstract boolean isFirstPane();
   }
 
   static class ResultCoder extends AtomicCoder<WriteTables.Result> {
