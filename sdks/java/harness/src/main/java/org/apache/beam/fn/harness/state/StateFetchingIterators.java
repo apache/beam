@@ -535,24 +535,19 @@ public class StateFetchingIterators {
           }
 
           @Override
-          public void remove(Set<Object> toRemoveStructuralValues) {
-          }
+          public void remove(Set<Object> toRemoveStructuralValues) {}
 
           @Override
-          public void clearAndAppend(List<Object> values) {
-          }
+          public void clearAndAppend(List<Object> values) {}
 
           @Override
-          public void clearAndAppend(WeightedList<Object> values) {
-          }
+          public void clearAndAppend(WeightedList<Object> values) {}
 
           @Override
-          public void append(List<Object> values) {
-          }
+          public void append(List<Object> values) {}
 
           @Override
-          public void append(WeightedList<Object> values) {
-          }
+          public void append(WeightedList<Object> values) {}
         };
 
     /** Returns an empty {@link CachingStateIterable}. */
