@@ -43,11 +43,7 @@ public class IterableSideInputTest {
 
     IterableSideInput<String> iterableSideInput =
         new IterableSideInput<>(
-            Caches.noop(),
-            fakeBeamFnStateClient,
-            "instructionId",
-            key(),
-            StringUtf8Coder.of());
+            Caches.noop(), fakeBeamFnStateClient, "instructionId", key(), StringUtf8Coder.of());
     assertArrayEquals(
         new String[] {"A1", "A2", "A3", "A4", "A5", "A6"},
         Iterables.toArray(iterableSideInput.get(), String.class));
@@ -65,11 +61,7 @@ public class IterableSideInputTest {
       // The first side input will populate the cache.
       IterableSideInput<String> iterableSideInput =
           new IterableSideInput<>(
-              cache,
-              fakeBeamFnStateClient,
-              "instructionId",
-              key(),
-              StringUtf8Coder.of());
+              cache, fakeBeamFnStateClient, "instructionId", key(), StringUtf8Coder.of());
       assertArrayEquals(
           new String[] {"A1", "A2", "A3", "A4", "A5", "A6"},
           Iterables.toArray(iterableSideInput.get(), String.class));

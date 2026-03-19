@@ -501,12 +501,13 @@ public class StateFetchingIterators {
       cache.put(IterableCacheKey.INSTANCE, new MutatedBlocks<>(Block.mutatedBlock(allValues)));
     }
 
-    private static final CachingStateIterable<Object> EMPTY_ITERABLE = new CachingStateIterable<Object>() {
-      @Override
-      protected CachingStateIterator<Object> createIterator() {
-        return CachingStateIterator.emptyIterator();
-      }
-    };
+    private static final CachingStateIterable<Object> EMPTY_ITERABLE =
+        new CachingStateIterable<Object>() {
+          @Override
+          protected CachingStateIterator<Object> createIterator() {
+            return CachingStateIterator.emptyIterator();
+          }
+        };
 
     /** Returns an empty {@link CachingStateIterable}. */
     public static <T> CachingStateIterable<T> emptyIterable() {
@@ -670,26 +671,26 @@ public class StateFetchingIterators {
         return (CachingStateIterator<T>) EMPTY_ITERATOR;
       }
 
-      private static final CachingStateIterator<Object> EMPTY_ITERATOR = new CachingStateIterator<Object>() {
-        @Override
-        public boolean isReady() {
-          return true;
-        }
+      private static final CachingStateIterator<Object> EMPTY_ITERATOR =
+          new CachingStateIterator<Object>() {
+            @Override
+            public boolean isReady() {
+              return true;
+            }
 
-        @Override
-        public void prefetch() {
-        }
+            @Override
+            public void prefetch() {}
 
-        @Override
-        public boolean hasNext() {
-          return false;
-        }
+            @Override
+            public boolean hasNext() {
+              return false;
+            }
 
-        @Override
-        public Object next() {
-          throw new NoSuchElementException();
-        }
-      };
+            @Override
+            public Object next() {
+              throw new NoSuchElementException();
+            }
+          };
     }
   }
 
