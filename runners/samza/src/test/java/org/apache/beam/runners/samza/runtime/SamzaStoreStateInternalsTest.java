@@ -75,7 +75,6 @@ import org.apache.samza.storage.kv.KeyValueStore;
 import org.apache.samza.storage.kv.KeyValueStoreMetrics;
 import org.apache.samza.storage.kv.inmemory.InMemoryKeyValueStorageEngineFactory;
 import org.apache.samza.storage.kv.inmemory.InMemoryKeyValueStore;
-import org.apache.samza.system.SystemStreamPartition;
 import org.junit.BeforeClass;
 import org.junit.Rule;
 import org.junit.Test;
@@ -309,11 +308,10 @@ public class SamzaStoreStateInternalsTest implements Serializable {
   public static class TestStorageEngine extends InMemoryKeyValueStorageEngineFactory {
 
     @Override
-    public KeyValueStore<byte[], byte[]> getKVStore(
+    protected KeyValueStore<byte[], byte[]> getKVStore(
         String storeName,
         File storeDir,
         MetricsRegistry registry,
-        SystemStreamPartition changeLogSystemStreamPartition,
         JobContext jobContext,
         ContainerContext containerContext,
         StorageEngineFactory.StoreMode readWrite) {
