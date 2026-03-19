@@ -81,8 +81,7 @@ public class BagUserState<T> {
 
     this.oldValues =
         hasNoState.get()
-            ? StateFetchingIterators.emptyCachingStateIterable(
-                beamFnStateClient, request, valueCoder)
+            ? CachingStateIterable.emptyIterable()
             : StateFetchingIterators.readAllAndDecodeStartingFrom(
                 this.cache, beamFnStateClient, request, valueCoder);
     this.newValues = new ArrayList<>();

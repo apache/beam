@@ -418,8 +418,7 @@ public class FnApiStateAccessor<K> implements SideInputReader, StateBinder {
                               beamFnStateClient,
                               processBundleInstructionId.get(),
                               key,
-                              sideInputSpec.getCoder(),
-                              hasNoState));
+                              sideInputSpec.getCoder()));
                 case Materializations.MULTIMAP_MATERIALIZATION_URN:
                   return sideInputSpec
                       .getViewFn()
@@ -434,8 +433,7 @@ public class FnApiStateAccessor<K> implements SideInputReader, StateBinder {
                               runnerCapabilities.contains(
                                   BeamUrns.getUrn(
                                       RunnerApi.StandardRunnerProtocols.Enum
-                                          .MULTIMAP_KEYS_VALUES_SIDE_INPUT)),
-                              hasNoState));
+                                          .MULTIMAP_KEYS_VALUES_SIDE_INPUT))));
                 default:
                   throw new IllegalStateException(
                       String.format(
