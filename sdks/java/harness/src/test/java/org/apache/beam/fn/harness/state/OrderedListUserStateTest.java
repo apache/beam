@@ -722,6 +722,41 @@ public class OrderedListUserStateTest {
   }
 
   @Test
+  public void testReadRangeHasNoState() throws Exception {
+    FakeBeamFnStateClient fakeClient =
+        new FakeBeamFnStateClient(
+            timestampedValueCoder,
+            ImmutableMap.of(createOrderedListStateKey("A", 1), Collections.singletonList(A1)));
+    OrderedListUserState<String> userState =
+        new OrderedListUserState<>(
+            Caches.noop(),
+            fakeClient,
+            "instructionId",
+            createOrderedListStateKey("A"),
+            StringUtf8Coder.of(),
+            () -> true, /* hasNoState */
+            () -> false /* onlyBundleForKeys */);
+
+    // Iterating should be empty since hasNoState is true
+    assertThat(
+        userState.readRange(Instant.ofEpochMilli(0), Instant.ofEpochMilli(2)), is(emptyIterable()));
+
+    // We can add new values
+    userState.add(A2);
+    assertArrayEquals(
+        Collections.singletonList(A2).toArray(),
+        Iterables.toArray(
+            userState.readRange(Instant.ofEpochMilli(1), Instant.ofEpochMilli(3)),
+            TimestampedValue.class));
+    userState.asyncClose();
+
+    // The added value will be persisted, appended to the old values (since we didn't clear)
+    ByteStringOutputStream out = new ByteStringOutputStream();
+    timestampedValueCoder.encode(A2, out);
+    assertEquals(out.toByteString(), fakeClient.getData().get(createOrderedListStateKey("A", 2)));
+  }
+
+  @Test
   public void testOnlyBundleForKeys() throws Exception {
     FakeBeamFnStateClient fakeClient =
         new FakeBeamFnStateClient(
@@ -752,6 +787,43 @@ public class OrderedListUserStateTest {
     userState.asyncClose();
 
     // But when we close, the data is NOT persisted because onlyBundleForKeys = true
+    ByteStringOutputStream out = new ByteStringOutputStream();
+    timestampedValueCoder.encode(A1, out);
+    assertEquals(out.toByteString(), fakeClient.getData().get(createOrderedListStateKey("A", 1)));
+    assertFalse(fakeClient.getData().containsKey(createOrderedListStateKey("A", 2)));
+  }
+
+  @Test
+  public void testHasNoStateAndOnlyBundleForKeys() throws Exception {
+    FakeBeamFnStateClient fakeClient =
+        new FakeBeamFnStateClient(
+            timestampedValueCoder,
+            ImmutableMap.of(createOrderedListStateKey("A", 1), Collections.singletonList(A1)));
+    OrderedListUserState<String> userState =
+        new OrderedListUserState<>(
+            Caches.noop(),
+            fakeClient,
+            "instructionId",
+            createOrderedListStateKey("A"),
+            StringUtf8Coder.of(),
+            () -> true /* hasNoState */,
+            () -> true /* onlyBundleForKeys */);
+
+    // Iterating should be empty since hasNoState is true
+    assertThat(userState.read(), is(emptyIterable()));
+
+    // We can add new values
+    userState.add(A2);
+
+    // We can observe the added value locally
+    assertArrayEquals(
+        Collections.singletonList(A2).toArray(),
+        Iterables.toArray(userState.read(), TimestampedValue.class));
+
+    userState.asyncClose();
+
+    // The data is NOT persisted because onlyBundleForKeys = true, and the old data remains
+    // untouched
     ByteStringOutputStream out = new ByteStringOutputStream();
     timestampedValueCoder.encode(A1, out);
     assertEquals(out.toByteString(), fakeClient.getData().get(createOrderedListStateKey("A", 1)));
