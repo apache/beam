@@ -501,26 +501,26 @@ public class StateFetchingIterators {
       cache.put(IterableCacheKey.INSTANCE, new MutatedBlocks<>(Block.mutatedBlock(allValues)));
     }
 
-    private static final PrefetchableIterator<Object> EMPTY_ITERATOR = new PrefetchableIterator<Object>() {
-      @Override
-      public boolean isReady() {
-        return true;
-      }
+    private static final PrefetchableIterator<Object> EMPTY_ITERATOR =
+        new PrefetchableIterator<Object>() {
+          @Override
+          public boolean isReady() {
+            return true;
+          }
 
-      @Override
-      public void prefetch() {
-      }
+          @Override
+          public void prefetch() {}
 
-      @Override
-      public boolean hasNext() {
-        return false;
-      }
+          @Override
+          public boolean hasNext() {
+            return false;
+          }
 
-      @Override
-      public Object next() {
-        throw new NoSuchElementException();
-      }
-    };
+          @Override
+          public Object next() {
+            throw new NoSuchElementException();
+          }
+        };
 
     @SuppressWarnings("unchecked")
     public static <T> PrefetchableIterator<T> emptyIterator() {
@@ -532,6 +532,26 @@ public class StateFetchingIterators {
           @Override
           public PrefetchableIterator<Object> createIterator() {
             return emptyIterator();
+          }
+
+          @Override
+          public void remove(Set<Object> toRemoveStructuralValues) {
+          }
+
+          @Override
+          public void clearAndAppend(List<Object> values) {
+          }
+
+          @Override
+          public void clearAndAppend(WeightedList<Object> values) {
+          }
+
+          @Override
+          public void append(List<Object> values) {
+          }
+
+          @Override
+          public void append(WeightedList<Object> values) {
           }
         };
 
