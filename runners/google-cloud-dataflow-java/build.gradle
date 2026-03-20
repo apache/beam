@@ -205,7 +205,6 @@ def commonLegacyExcludeCategories = [
   'org.apache.beam.sdk.testing.UsesGaugeMetrics',
   'org.apache.beam.sdk.testing.UsesTestStream',
   'org.apache.beam.sdk.testing.UsesMetricsPusher',
-  'org.apache.beam.sdk.testing.UsesBundleFinalizer',
   'org.apache.beam.sdk.testing.UsesBoundedTrieMetrics', // Dataflow QM as of now does not support returning back BoundedTrie in metric result.
 ]
 
@@ -456,7 +455,9 @@ task validatesRunner {
       'org.apache.beam.sdk.transforms.ParDoLifecycleTest.testTeardownCalledAfterExceptionInSetupStateful',
       'org.apache.beam.sdk.transforms.ParDoLifecycleTest.testTeardownCalledAfterExceptionInStartBundle',
       'org.apache.beam.sdk.transforms.ParDoLifecycleTest.testTeardownCalledAfterExceptionInStartBundleStateful',
-      ]
+    ],
+    // Batch legacy worker does not support bundle finalization.
+    excludedCategories: [ 'org.apache.beam.sdk.testing.UsesBundleFinalizer', ],
   ))
 }
 
@@ -490,6 +491,8 @@ task validatesRunnerStreaming {
   description "Validates Dataflow runner forcing streaming mode"
   dependsOn(createLegacyWorkerValidatesRunnerTest(validatesRunnerStreamingConfig + [
     name: 'validatesRunnerLegacyWorkerTestStreaming',
+    // Streaming appliance currently fails bundle finalizer tests.
+    excludedCategories: validatesRunnerStreamingConfig.excludedCategories + [ 'org.apache.beam.sdk.testing.UsesBundleFinalizer', ],
   ]))
 }
 

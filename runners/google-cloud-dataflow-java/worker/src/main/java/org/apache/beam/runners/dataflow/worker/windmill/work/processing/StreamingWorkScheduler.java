@@ -246,6 +246,7 @@ public class StreamingWorkScheduler {
     // Before any processing starts, call any pending OnCommit callbacks.  Nothing that requires
     // cleanup should be done before this, since we might exit early here.
     commitFinalizer.finalizeCommits(workItem.getSourceState().getFinalizeIdsList());
+    commitFinalizer.finalizeCommits(workItem.getAppliedFinalizeIdsList());
     if (workItem.getSourceState().getOnlyFinalize()) {
       Windmill.WorkItemCommitRequest.Builder outputBuilder = initializeOutputBuilder(key, workItem);
       outputBuilder.setSourceStateUpdates(Windmill.SourceState.newBuilder().setOnlyFinalize(true));
