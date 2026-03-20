@@ -364,8 +364,8 @@ public class BagUserStateTest {
             "instructionId",
             key("A"),
             StringUtf8Coder.of(),
-            () -> true, /* hasNoState */
-            () -> false /* onlyBundleForKeys */);
+            true, /* hasNoState */
+            false /* onlyBundleForKeys */);
 
     // Iterating should be empty since hasNoState is true
     assertFalse(userState.get().iterator().hasNext());
@@ -390,8 +390,8 @@ public class BagUserStateTest {
             "instructionId",
             key("A"),
             StringUtf8Coder.of(),
-            () -> false /* hasNoState */,
-            () -> true /* onlyBundleForKeys */);
+            false /* hasNoState */,
+            true /* onlyBundleForKeys */);
 
     // Reads still work
     assertArrayEquals(new String[] {"A1"}, Iterables.toArray(userState.get(), String.class));

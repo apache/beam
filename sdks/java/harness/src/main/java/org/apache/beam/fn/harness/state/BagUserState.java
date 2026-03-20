@@ -23,7 +23,6 @@ import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Pr
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
-import java.util.function.Supplier;
 import org.apache.beam.fn.harness.Cache;
 import org.apache.beam.fn.harness.state.StateFetchingIterators.CachingStateIterable;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateAppendRequest;
@@ -55,8 +54,8 @@ public class BagUserState<T> {
   private List<T> newValues;
   private boolean isCleared;
   private boolean isClosed;
-  private final Supplier<Boolean> hasNoState;
-  private final Supplier<Boolean> onlyBundleForKeys;
+  private final boolean hasNoState;
+  private final boolean onlyBundleForKeys;
 
   static final int BAG_APPEND_BATCHING_LIMIT = 10 * 1024 * 1024;
 
@@ -67,8 +66,8 @@ public class BagUserState<T> {
       String instructionId,
       StateKey stateKey,
       Coder<T> valueCoder,
-      Supplier<Boolean> hasNoState,
-      Supplier<Boolean> onlyBundleForKeys) {
+      boolean hasNoState,
+      boolean onlyBundleForKeys) {
     checkArgument(
         stateKey.hasBagUserState(), "Expected BagUserState StateKey but received %s.", stateKey);
     this.cache = cache;
@@ -80,7 +79,7 @@ public class BagUserState<T> {
         StateRequest.newBuilder().setInstructionId(instructionId).setStateKey(stateKey).build();
 
     this.oldValues =
-        hasNoState.get()
+        hasNoState
             ? CachingStateIterable.emptyIterable()
             : StateFetchingIterators.readAllAndDecodeStartingFrom(
                 this.cache, beamFnStateClient, request, valueCoder);
@@ -92,7 +91,7 @@ public class BagUserState<T> {
         !isClosed,
         "Bag user state is no longer usable because it is closed for %s",
         request.getStateKey());
-    if (isCleared || hasNoState.get()) {
+    if (isCleared || hasNoState) {
       // If we were cleared or have no state we should disregard old values.
       return PrefetchableIterables.limit(Collections.unmodifiableList(newValues), newValues.size());
     } else if (newValues.isEmpty()) {
@@ -129,7 +128,7 @@ public class BagUserState<T> {
         "Bag user state is no longer usable because it is closed for %s",
         request.getStateKey());
     isClosed = true;
-    if (onlyBundleForKeys.get() || (!isCleared && newValues.isEmpty())) {
+    if (onlyBundleForKeys || (!isCleared && newValues.isEmpty())) {
       return;
     }
     if (isCleared) {

@@ -702,8 +702,8 @@ public class OrderedListUserStateTest {
             "instructionId",
             createOrderedListStateKey("A"),
             StringUtf8Coder.of(),
-            () -> true, /* hasNoState */
-            () -> false /* onlyBundleForKeys */);
+            true, /* hasNoState */
+            false /* onlyBundleForKeys */);
 
     // Iterating should be empty since hasNoState is true
     assertThat(userState.read(), is(emptyIterable()));
@@ -734,8 +734,8 @@ public class OrderedListUserStateTest {
             "instructionId",
             createOrderedListStateKey("A"),
             StringUtf8Coder.of(),
-            () -> true, /* hasNoState */
-            () -> false /* onlyBundleForKeys */);
+            true, /* hasNoState */
+            false /* onlyBundleForKeys */);
 
     // Iterating should be empty since hasNoState is true
     assertThat(
@@ -769,8 +769,8 @@ public class OrderedListUserStateTest {
             "instructionId",
             createOrderedListStateKey("A"),
             StringUtf8Coder.of(),
-            () -> false /* hasNoState */,
-            () -> true /* onlyBundleForKeys */);
+            false /* hasNoState */,
+            true /* onlyBundleForKeys */);
 
     // Reads still work
     assertArrayEquals(
@@ -806,8 +806,8 @@ public class OrderedListUserStateTest {
             "instructionId",
             createOrderedListStateKey("A"),
             StringUtf8Coder.of(),
-            () -> true /* hasNoState */,
-            () -> true /* onlyBundleForKeys */);
+            true /* hasNoState */,
+            true /* onlyBundleForKeys */);
 
     // Iterating should be empty since hasNoState is true
     assertThat(userState.read(), is(emptyIterable()));

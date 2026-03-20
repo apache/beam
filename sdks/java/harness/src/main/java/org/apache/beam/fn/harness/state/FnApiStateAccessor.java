@@ -244,8 +244,8 @@ public class FnApiStateAccessor<K> implements SideInputReader, StateBinder {
           beamFnStateClient,
           keyCoder,
           windowCoder,
-          hasNoState,
-          onlyBundleForKeys);
+          hasNoState.get(),
+          onlyBundleForKeys.get());
     }
   }
 
@@ -262,8 +262,8 @@ public class FnApiStateAccessor<K> implements SideInputReader, StateBinder {
   private final Collection<ThrowingRunnable> stateFinalizers;
   private final Coder<K> keyCoder;
   private final Coder<BoundedWindow> windowCoder;
-  private final Supplier<Boolean> hasNoState;
-  private final Supplier<Boolean> onlyBundleForKeys;
+  private final boolean hasNoState;
+  private final boolean onlyBundleForKeys;
 
   private @Nullable Supplier<BoundedWindow> currentWindowSupplier;
   private @Nullable Supplier<ByteString> encodedCurrentKeySupplier;
@@ -281,8 +281,8 @@ public class FnApiStateAccessor<K> implements SideInputReader, StateBinder {
       BeamFnStateClient beamFnStateClient,
       Coder<K> keyCoder,
       Coder<BoundedWindow> windowCoder,
-      Supplier<Boolean> hasNoState,
-      Supplier<Boolean> onlyBundleForKeys) {
+      boolean hasNoState,
+      boolean onlyBundleForKeys) {
     this.pipelineOptions = pipelineOptions;
     this.runnerCapabilities = runnerCapabilities;
     this.stateKeyObjectCache = Maps.newHashMap();

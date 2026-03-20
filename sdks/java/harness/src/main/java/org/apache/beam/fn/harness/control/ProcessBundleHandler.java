@@ -247,8 +247,8 @@ public class ProcessBundleHandler {
       Collection<BeamFnDataReadRunner<?>> channelRoots,
       Map<ApiServiceDescriptor, BeamFnDataOutboundAggregator> outboundAggregatorMap,
       Set<String> runnerCapabilities,
-      Supplier<Boolean> hasNoState,
-      Supplier<Boolean> onlyBundleForKeys)
+      boolean hasNoState,
+      boolean onlyBundleForKeys)
       throws IOException {
 
     // Recursively ensure that all consumers of the output PCollection have been created.
@@ -495,12 +495,12 @@ public class ProcessBundleHandler {
 
                 @Override
                 public Supplier<Boolean> getHasNoState() {
-                  return hasNoState;
+                  return () -> hasNoState;
                 }
 
                 @Override
                 public Supplier<Boolean> getOnlyBundleForKeys() {
-                  return onlyBundleForKeys;
+                  return () -> onlyBundleForKeys;
                 }
               });
       processedPTransformIds.add(pTransformId);
