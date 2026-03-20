@@ -25,6 +25,7 @@ import com.google.cloud.storage.Blob;
 import com.google.cloud.storage.BucketInfo;
 import com.google.cloud.storage.Storage.BlobGetOption;
 import com.google.cloud.storage.Storage.BlobListOption;
+import com.google.cloud.storage.Storage.BlobSourceOption;
 import com.google.cloud.storage.Storage.BucketGetOption;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.io.IOException;
@@ -186,7 +187,17 @@ public class GcsUtil {
   }
 
   public SeekableByteChannel open(GcsPath path) throws IOException {
+    if (delegateV2 != null) {
+      return delegateV2.open(path);
+    }
     return delegate.open(path);
+  }
+
+  public SeekableByteChannel openV2(GcsPath path, BlobSourceOption... options) throws IOException {
+    if (delegateV2 != null) {
+      return delegateV2.open(path, options);
+    }
+    throw new IOException("GcsUtil V2 not initialized.");
   }
 
   /** @deprecated Use {@link #create(GcsPath, CreateOptions)} instead. */

@@ -23,6 +23,7 @@ import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Pr
 
 import com.google.api.gax.paging.Page;
 import com.google.auto.value.AutoValue;
+import com.google.cloud.ReadChannel;
 import com.google.cloud.storage.Blob;
 import com.google.cloud.storage.BlobId;
 import com.google.cloud.storage.BlobInfo;
@@ -33,6 +34,7 @@ import com.google.cloud.storage.Storage;
 import com.google.cloud.storage.Storage.BlobField;
 import com.google.cloud.storage.Storage.BlobGetOption;
 import com.google.cloud.storage.Storage.BlobListOption;
+import com.google.cloud.storage.Storage.BlobSourceOption;
 import com.google.cloud.storage.Storage.BucketField;
 import com.google.cloud.storage.Storage.BucketGetOption;
 import com.google.cloud.storage.Storage.CopyRequest;
@@ -42,6 +44,8 @@ import com.google.cloud.storage.StorageException;
 import com.google.cloud.storage.StorageOptions;
 import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.nio.ByteBuffer;
+import java.nio.channels.SeekableByteChannel;
 import java.nio.file.AccessDeniedException;
 import java.nio.file.FileAlreadyExistsException;
 import java.util.ArrayList;
@@ -480,5 +484,75 @@ class GcsUtilV2 {
     } catch (StorageException e) {
       throw translateStorageException(bucketInfo.getName(), null, e);
     }
+  }
+
+  /** A bridge that allows a GCS ReadChannel to behave as a SeekableByteChannel. */
+  private static class GcsSeekableByteChannel implements SeekableByteChannel {
+    private final ReadChannel reader;
+    private final long size;
+    private long position = 0;
+
+    GcsSeekableByteChannel(ReadChannel reader, long size) {
+      this.reader = reader;
+      this.size = size;
+      this.position = 0;
+    }
+
+    @Override
+    public int read(ByteBuffer dst) throws IOException {
+      int count = reader.read(dst);
+      if (count > 0) {
+        this.position += count;
+      }
+      return count;
+    }
+
+    @Override
+    public SeekableByteChannel position(long newPosition) throws IOException {
+      checkArgument(newPosition >= 0, "Position must be non-negative: %s", newPosition);
+      reader.seek(newPosition);
+      this.position = newPosition;
+      return this;
+    }
+
+    @Override
+    public long position() throws IOException {
+      return this.position;
+    }
+
+    @Override
+    public long size() throws IOException {
+      return size;
+    }
+
+    @Override
+    public SeekableByteChannel truncate(long size) throws IOException {
+      throw new UnsupportedOperationException(
+          "GcsSeekableByteChannels are read-only and cannot be truncated.");
+    }
+
+    @Override
+    public int write(ByteBuffer src) throws IOException {
+      throw new UnsupportedOperationException(
+          "GcsSeekableByteChannel are read-only and does not support writing.");
+    }
+
+    @Override
+    public boolean isOpen() {
+      return reader.isOpen();
+    }
+
+    @Override
+    public void close() throws IOException {
+      if (isOpen()) {
+        reader.close();
+      }
+    }
+  }
+
+  public SeekableByteChannel open(GcsPath path, BlobSourceOption... options) throws IOException {
+    Blob blob = getBlob(path, BlobGetOption.fields(BlobField.SIZE));
+    return new GcsSeekableByteChannel(
+        blob.getStorage().reader(blob.getBlobId(), options), blob.getSize());
   }
 }

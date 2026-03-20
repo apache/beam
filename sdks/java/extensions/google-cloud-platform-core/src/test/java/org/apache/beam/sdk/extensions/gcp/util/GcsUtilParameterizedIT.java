@@ -30,8 +30,12 @@ import com.google.cloud.storage.Blob;
 import com.google.cloud.storage.BucketInfo;
 import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.nio.ByteBuffer;
+import java.nio.channels.SeekableByteChannel;
 import java.nio.file.AccessDeniedException;
 import java.nio.file.FileAlreadyExistsException;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
@@ -585,6 +589,51 @@ public class GcsUtilParameterizedIT {
       assertThrows(FileNotFoundException.class, () -> gcsUtil.getBlob(path));
     } else {
       assertThrows(FileNotFoundException.class, () -> gcsUtil.getObject(path));
+    }
+  }
+
+  @Test
+  public void testOpenAndReadSeekableChannel() throws IOException, NoSuchAlgorithmException {
+    final GcsPath gcsPath = GcsPath.fromUri("gs://apache-beam-samples/shakespeare/kinglear.txt");
+    final String expectedHash = "674a2725884307c96398440497c889ad8cecccedf5689df85e6b0faabe4e0fe8";
+    final long expectedSize = 157283L;
+
+    try (SeekableByteChannel channel = gcsUtil.open(gcsPath)) {
+      // Verify Size
+      assertEquals(expectedSize, channel.size());
+      assertEquals(0, channel.position());
+
+      // Read content into ByteBuffer
+      ByteBuffer buffer = ByteBuffer.allocate((int) expectedSize);
+      int bytesRead = 0;
+      while (buffer.hasRemaining()) {
+        int read = channel.read(buffer);
+        if (read == -1) {
+          break;
+        }
+        bytesRead += read;
+      }
+
+      // Verify total bytes read and position
+      assertEquals(expectedSize, bytesRead);
+      assertEquals(expectedSize, channel.position());
+
+      // Flip the buffer to prepare it for reading (sets limit to current position, position to 0)
+      buffer.flip();
+
+      // Verify hash
+      MessageDigest digest = MessageDigest.getInstance("SHA-256");
+      digest.update(buffer);
+      byte[] hashBytes = digest.digest();
+
+      // Convert bytes to Hex String
+      StringBuilder sb = new StringBuilder();
+      for (byte b : hashBytes) {
+        sb.append(String.format("%02x", b));
+      }
+      String actualHash = sb.toString();
+
+      assertEquals("Content hash should match", expectedHash, actualHash);
     }
   }
 }
