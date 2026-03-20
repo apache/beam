@@ -31,6 +31,7 @@ import org.apache.beam.runners.fnexecution.environment.ProcessManager;
 import org.apache.beam.runners.fnexecution.provisioning.JobInfo;
 import org.apache.beam.runners.jobsubmission.JobInvocation;
 import org.apache.beam.runners.jobsubmission.JobInvoker;
+import org.apache.beam.runners.jobsubmission.JobServerDriver;
 import org.apache.beam.runners.jobsubmission.PortablePipelineResult;
 import org.apache.beam.runners.jobsubmission.PortablePipelineRunner;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
@@ -210,7 +211,7 @@ public class FlinkPortableClientEntryPoint {
     }
   }
 
-  private class DetachedJobInvokerFactory implements FlinkJobServerDriver.JobInvokerFactory {
+  private class DetachedJobInvokerFactory implements JobServerDriver.JobInvokerFactory {
 
     private CountDownLatch latch = new CountDownLatch(1);
     private volatile PortablePipelineRunner actualPipelineRunner;
