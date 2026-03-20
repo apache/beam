@@ -286,7 +286,7 @@ public class BoundedTrieData implements Serializable {
     if (this == other) {
       return true;
     }
-    if (other == null || this.getClass() != other.getClass()) {
+    if (!(other instanceof BoundedTrieData)) {
       return false;
     }
     BoundedTrieData that = (BoundedTrieData) other;
@@ -590,7 +590,7 @@ public class BoundedTrieData implements Serializable {
       if (this == other) {
         return true;
       }
-      if (other == null || getClass() != other.getClass()) {
+      if (!(other instanceof BoundedTrieNode)) {
         return false;
       }
       BoundedTrieNode that = (BoundedTrieNode) other;

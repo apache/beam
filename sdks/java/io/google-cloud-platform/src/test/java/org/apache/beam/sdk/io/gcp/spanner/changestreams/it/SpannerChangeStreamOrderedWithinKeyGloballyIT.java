@@ -466,7 +466,7 @@ public class SpannerChangeStreamOrderedWithinKeyGloballyIT {
       if (this == o) {
         return true;
       }
-      if (o == null || getClass() != o.getClass()) {
+      if (!(o instanceof SortKey)) {
         return false;
       }
       SortKey sortKey = (SortKey) o;

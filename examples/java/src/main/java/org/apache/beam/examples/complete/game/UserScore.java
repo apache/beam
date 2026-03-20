@@ -121,7 +121,7 @@ public class UserScore {
       if (this == o) {
         return true;
       }
-      if (o == null || o.getClass() != this.getClass()) {
+      if (!(o instanceof GameActionInfo)) {
         return false;
       }
 

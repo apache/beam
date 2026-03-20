@@ -309,7 +309,7 @@ public class FlinkExecutionEnvironments {
 
     @Override
     public boolean equals(Object obj) {
-      if (obj == null || this.getClass() != obj.getClass()) {
+      if (!(obj instanceof GlobalJobParametersImpl)) {
         return false;
       }
 
