@@ -308,7 +308,8 @@ public class JdbcIOIT {
     private final long numRecords;
     private final long numPerPeriod;
 
-    public GenerateRecordsStream(long numRecords, long numPerPeriod, Duration periodLength) {
+    public GenerateRecordsStream(
+        long numRecords, long numPerPeriod, @SuppressWarnings("unused") Duration periodLength) {
       this.numRecords = numRecords;
       this.numPerPeriod = numPerPeriod;
     }

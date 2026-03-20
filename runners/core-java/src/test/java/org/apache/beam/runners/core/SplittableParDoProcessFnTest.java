@@ -305,7 +305,8 @@ public class SplittableParDoProcessFnTest {
     }
 
     @GetInitialRestriction
-    public SomeRestriction getInitialRestriction(@Element Integer elem) {
+    public SomeRestriction getInitialRestriction(
+        @SuppressWarnings("unused") @Element Integer elem) {
       return new SomeRestriction();
     }
   }
@@ -364,7 +365,7 @@ public class SplittableParDoProcessFnTest {
     }
 
     @GetInitialRestriction
-    public OffsetRange getInitialRestriction(@Element Instant elem) {
+    public OffsetRange getInitialRestriction(@SuppressWarnings("unused") @Element Instant elem) {
       throw new IllegalStateException("Expected to be supplied explicitly in this test");
     }
 
@@ -446,7 +447,8 @@ public class SplittableParDoProcessFnTest {
     }
 
     @GetInitialRestriction
-    public SomeRestriction getInitialRestriction(@Element Integer elem) {
+    public SomeRestriction getInitialRestriction(
+        @SuppressWarnings("unused") @Element Integer elem) {
       return new SomeRestriction();
     }
   }
@@ -509,7 +511,7 @@ public class SplittableParDoProcessFnTest {
     }
 
     @GetInitialRestriction
-    public OffsetRange getInitialRestriction(@Element Integer elem) {
+    public OffsetRange getInitialRestriction(@SuppressWarnings("unused") @Element Integer elem) {
       throw new UnsupportedOperationException("Expected to be supplied explicitly in this test");
     }
   }
@@ -630,12 +632,15 @@ public class SplittableParDoProcessFnTest {
     private State state = State.BEFORE_SETUP;
 
     @ProcessElement
-    public void process(ProcessContext c, RestrictionTracker<SomeRestriction, Void> tracker) {
+    public void process(
+        @SuppressWarnings("unused") ProcessContext c,
+        @SuppressWarnings("unused") RestrictionTracker<SomeRestriction, Void> tracker) {
       assertEquals(State.INSIDE_BUNDLE, state);
     }
 
     @GetInitialRestriction
-    public SomeRestriction getInitialRestriction(@Element Integer element) {
+    public SomeRestriction getInitialRestriction(
+        @SuppressWarnings("unused") @Element Integer element) {
       return new SomeRestriction();
     }
 

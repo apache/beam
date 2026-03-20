@@ -892,7 +892,7 @@ public class ExpansionService extends ExpansionServiceGrpc.ExpansionServiceImplB
   }
 
   private static class NotRunnableRunner extends PipelineRunner<PipelineResult> {
-    public static NotRunnableRunner fromOptions(PipelineOptions opts) {
+    public static NotRunnableRunner fromOptions(@SuppressWarnings("unused") PipelineOptions opts) {
       return new NotRunnableRunner();
     }
 

@@ -2014,11 +2014,6 @@ public class SpannerIO {
               getMetadataInstance(), changeStreamDatabaseId.getInstanceId().getInstance());
       final String partitionMetadataDatabaseId =
           MoreObjects.firstNonNull(getMetadataDatabase(), changeStreamDatabaseId.getDatabase());
-      final DatabaseId fullPartitionMetadataDatabaseId =
-          DatabaseId.of(
-              getSpannerConfig().getProjectId().get(),
-              partitionMetadataInstanceId,
-              partitionMetadataDatabaseId);
 
       final SpannerConfig changeStreamSpannerConfig = buildChangeStreamSpannerConfig();
       final SpannerConfig partitionMetadataSpannerConfig =

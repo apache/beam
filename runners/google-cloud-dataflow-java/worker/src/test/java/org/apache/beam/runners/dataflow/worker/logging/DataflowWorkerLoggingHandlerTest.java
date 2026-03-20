@@ -679,6 +679,7 @@ public class DataflowWorkerLoggingHandlerTest {
   }
 
   @Test
+  @SuppressWarnings("unused")
   public void isConfiguredDirectLog() throws IOException {
     ByteArrayOutputStream fileOutput = new ByteArrayOutputStream();
     FixedOutputStreamFactory factory = new FixedOutputStreamFactory(fileOutput);

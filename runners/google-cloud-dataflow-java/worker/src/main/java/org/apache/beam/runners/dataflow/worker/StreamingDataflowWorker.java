@@ -166,6 +166,8 @@ public final class StreamingDataflowWorker {
   private static final String CHANNELZ_PATH = "/channelz";
   private static final String BEAM_FN_API_EXPERIMENT = "beam_fn_api";
   private static final String ELEMENT_METADATA_SUPPORTED_EXPERIMENT = "element_metadata_supported";
+
+  @SuppressWarnings("unused")
   private static final String STREAMING_ENGINE_USE_JOB_SETTINGS_FOR_HEARTBEAT_POOL_EXPERIMENT =
       "streaming_engine_use_job_settings_for_heartbeat_pool";
   // Experiment make the monitor within BoundedQueueExecutor fair
