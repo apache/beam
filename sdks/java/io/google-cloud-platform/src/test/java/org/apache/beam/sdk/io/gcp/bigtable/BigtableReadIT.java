@@ -29,7 +29,8 @@ import com.google.cloud.bigtable.data.v2.BigtableDataSettings;
 import com.google.cloud.bigtable.data.v2.models.RowMutation;
 import com.google.cloud.bigtable.data.v2.models.TableId;
 import java.io.IOException;
-import java.util.Date;
+import java.time.LocalDateTime;
+import java.time.ZoneId;
 import org.apache.beam.repackaged.core.org.apache.commons.lang3.StringUtils;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineResult;
@@ -55,7 +56,8 @@ public class BigtableReadIT {
   private String project;
 
   private BigtableTestOptions options;
-  private String tableId = String.format("BigtableReadIT-%tF-%<tH-%<tM-%<tS-%<tL", new Date());
+  private String tableId =
+      String.format("BigtableReadIT-%tF-%<tH-%<tM-%<tS-%<tL", LocalDateTime.now(ZoneId.of("UTC")));
 
   private BigtableDataClient client;
   private BigtableTableAdminClient tableAdminClient;

@@ -101,7 +101,6 @@ public class TransformUpgrader implements AutoCloseable {
    * @param urnsToOverride URNs of the transforms to be overridden.
    * @param options options for determining the transform service to use.
    * @return pipelines with transforms upgraded using the Transform Service.
-   * @throws Exception
    */
   public RunnerApi.Pipeline upgradeTransformsViaTransformService(
       RunnerApi.Pipeline pipeline, List<String> urnsToOverride, PipelineOptions options)
