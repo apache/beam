@@ -73,7 +73,7 @@ func TestPTransformExtractor(t *testing.T) {
 		t.Errorf("extracted annotation %q = %q, want %q", key, got, want)
 	}
 	if got, want := len(ptrans.Annotations), 2; got != want {
-		t.Errorf("extracted annotation %q = %q, want %q - have %v", key, got, want, ptrans)
+		t.Errorf("extracted annotation %v = %d, want %d - have %v", key, got, want, ptrans)
 	}
 }
 
@@ -103,6 +103,6 @@ func TestHintExtractor(t *testing.T) {
 		t.Errorf("extracted annotation %q = %q, want %q", key, got, want)
 	}
 	if got, want := len(env.ResourceHints), 1; got != want {
-		t.Errorf("extracted annotation %q = %q, want %q - have %v", key, got, want, env)
+		t.Errorf("extracted annotation %v = %d, want %d - have %v", key, got, want, env)
 	}
 }
