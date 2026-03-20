@@ -1372,10 +1372,10 @@ public class SnowflakeIO {
                       trackedFilesNames.remove(responseFileName);
 
                       if (entry.getErrorsSeen() > 0) {
-                        LOG.error(String.format("Snowflake SnowPipe ERROR: %s", entry.toString()));
+                        LOG.error("Snowflake SnowPipe ERROR: {}", entry);
                       } else if (entry.getErrorsSeen() == 0
                           && debugMode.equals(StreamingLogLevel.INFO)) {
-                        LOG.info(String.format("Snowflake SnowPipe INFO: %s", entry.toString()));
+                        LOG.info("Snowflake SnowPipe INFO: {}", entry);
                       }
                     }
                   }
@@ -1383,7 +1383,7 @@ public class SnowflakeIO {
           }
         }
         trackedFilesNames.forEach(
-            file -> LOG.info(String.format("File %s was not found in ingest history", file)));
+            file -> LOG.info("File {} was not found in ingest history", file));
       }
     }
   }

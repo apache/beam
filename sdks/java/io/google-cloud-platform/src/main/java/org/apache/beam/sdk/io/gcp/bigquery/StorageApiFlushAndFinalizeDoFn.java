@@ -212,8 +212,7 @@ public class StorageApiFlushAndFinalizeDoFn extends DoFn<KV<String, Operation>, 
             Context<FlushRowsResponse> failedContext =
                 Preconditions.checkArgumentNotNull(Iterables.getFirst(contexts, null));
             Throwable error = failedContext.getError();
-            LOG.warn(
-                "Flush of stream " + streamId + " to offset " + offset + " failed with " + error);
+            LOG.warn("Flush of stream {} to offset {} failed", streamId, offset, error);
             flushOperationsFailed.inc();
             BigQuerySinkMetrics.reportFailedRPCMetrics(
                 failedContext, BigQuerySinkMetrics.RpcMethod.FLUSH_ROWS);
@@ -286,11 +285,9 @@ public class StorageApiFlushAndFinalizeDoFn extends DoFn<KV<String, Operation>, 
           },
           contexts -> {
             LOG.warn(
-                "Finalize of stream "
-                    + streamId
-                    + " failed with "
-                    + Preconditions.checkArgumentNotNull(Iterables.getFirst(contexts, null))
-                        .getError());
+                "Finalize of stream {} failed",
+                streamId,
+                Preconditions.checkArgumentNotNull(Iterables.getFirst(contexts, null)).getError());
             finalizeOperationsFailed.inc();
             @Nullable
             Context<FinalizeWriteStreamResponse> firstContext = Iterables.getFirst(contexts, null);

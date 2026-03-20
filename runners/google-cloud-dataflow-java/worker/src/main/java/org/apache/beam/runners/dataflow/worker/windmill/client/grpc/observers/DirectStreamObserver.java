@@ -155,7 +155,7 @@ final class DirectStreamObserver<T> implements TerminatingStreamObserver<T> {
         totalSecondsWaited += waitSeconds;
         if (totalSecondsWaited > deadlineSeconds) {
           String errorMessage = constructStreamCancelledErrorMessage(totalSecondsWaited);
-          LOG.error(errorMessage);
+          LOG.error("{}", errorMessage);
           throw new WindmillRpcException(errorMessage, e);
         }
 

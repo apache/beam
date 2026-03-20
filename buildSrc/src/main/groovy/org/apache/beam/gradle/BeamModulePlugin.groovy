@@ -1532,7 +1532,6 @@ class BeamModulePlugin implements Plugin<Project> {
           def disabledChecks = [
             // TODO(https://github.com/apache/beam/issues/20955): Enable errorprone checks
             "AutoValueImmutableFields",
-            "AutoValueImmutableFields",
             "AutoValueSubclassLeaked",
             "BigDecimalEquals",
             "ComparableType",
@@ -1550,7 +1549,6 @@ class BeamModulePlugin implements Plugin<Project> {
             "MixedMutabilityReturnType",
             "PreferJavaTimeOverload",
             "NonCanonicalType",
-            "Slf4jFormatShouldBeConst",
             "Slf4jSignOnlyFormat",
             "ThreadPriorityCheck",
             "TimeUnitConversionChecker",

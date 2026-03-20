@@ -131,12 +131,10 @@ public class GameStats extends LeaderBoard {
                           Double gmc = c.sideInput(globalMeanScore);
                           if (score > (gmc * SCORE_WEIGHT)) {
                             LOG.info(
-                                "user "
-                                    + c.element().getKey()
-                                    + " spammer score "
-                                    + score
-                                    + " with mean "
-                                    + gmc);
+                                "user {} spammer score {} with mean {}",
+                                c.element().getKey(),
+                                score,
+                                gmc);
                             numSpammerUsers.inc();
                             c.output(c.element());
                           }

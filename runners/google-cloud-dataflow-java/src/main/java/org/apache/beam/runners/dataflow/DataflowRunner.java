@@ -1238,6 +1238,7 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
 
   private static final Random RANDOM = new Random();
 
+  @SuppressWarnings("Slf4jFormatShouldBeConst")
   @Override
   public DataflowPipelineJob run(Pipeline pipeline) {
     // Multi-language pipelines and pipelines that include upgrades should automatically be upgraded
@@ -1890,9 +1891,9 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
         });
     for (String unconsumed : unconsumedDLQ.values()) {
       LOG.warn(
-          "No transform processes the failed-inserts output from BigQuery sink: "
-              + unconsumed
-              + "! Not processing failed inserts means that those rows will be lost.");
+          "No transform processes the failed-inserts output from BigQuery sink: {}"
+              + "! Not processing failed inserts means that those rows will be lost.",
+          unconsumed);
     }
   }
 

@@ -157,6 +157,7 @@ public class PackageUtil implements Closeable {
     }
   }
 
+  @SuppressWarnings("Slf4jFormatShouldBeConst")
   private StagingResult tryStagePackageWithRetry(
       PackageAttributes attributes, Sleeper retrySleeper, CreateOptions createOptions)
       throws IOException, InterruptedException {

@@ -781,8 +781,7 @@ public class BigQueryIO {
                         (writer, reader) ->
                             new GenericDatumTransformer<>(parseFn, jsonTableSchema, writer);
                   } catch (IOException e) {
-                    LOG.warn(
-                        String.format("Error while converting table schema %s to JSON!", input), e);
+                    LOG.warn("Error while converting table schema {} to JSON!", input, e);
                     return null;
                   }
                 })

@@ -333,7 +333,7 @@ public class StreamingWorkScheduler {
     KeyCommitTooLargeException e =
         KeyCommitTooLargeException.causedBy(computationId, byteLimit, commitRequest);
     failureTracker.trackFailure(computationId, workItem, e);
-    LOG.error(e.toString());
+    LOG.error("{}", e.toString());
 
     // Drop the current request in favor of a new, minimal one requesting truncation.
     // Messages, timers, counters, and other commit content will not be used by the service
@@ -418,7 +418,7 @@ public class StreamingWorkScheduler {
                 computationState.sourceBytesProcessCounterName());
         outputBuilder.setSourceBytesProcessed(sourceBytesProcessed);
       } catch (Exception e) {
-        LOG.error(e.toString());
+        LOG.error("{}", e.toString());
       }
 
       commitFinalizer.cacheCommitFinalizers(computationWorkExecutor.context().flushState());

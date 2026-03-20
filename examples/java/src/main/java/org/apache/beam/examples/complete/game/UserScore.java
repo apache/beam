@@ -172,7 +172,7 @@ public class UserScore {
         c.output(gInfo);
       } catch (ArrayIndexOutOfBoundsException | NumberFormatException e) {
         numParseErrors.inc();
-        LOG.info("Parse error on " + c.element() + ", " + e.getMessage());
+        LOG.info("Parse error on {}", c.element(), e);
       }
     }
   }

@@ -313,9 +313,7 @@ public class HttpHealthcareApiClient implements HealthcareApiClient, Serializabl
     String sendTime = response.getHl7V2Messages().get(0).getSendTime();
     if (Strings.isNullOrEmpty(sendTime)) {
       LOG.warn(
-          String.format(
-              "Earliest message in %s has null or empty sendTime defaulting to Epoch.",
-              hl7v2Store));
+          "Earliest message in {} has null or empty sendTime defaulting to Epoch.", hl7v2Store);
       return Instant.ofEpochMilli(0);
     }
     // sendTime is conveniently RFC3339 UTC "Zulu"
@@ -349,9 +347,8 @@ public class HttpHealthcareApiClient implements HealthcareApiClient, Serializabl
     }
     String sendTime = response.getHl7V2Messages().get(0).getSendTime();
     if (Strings.isNullOrEmpty(sendTime)) {
-      LOG.warn(
-          String.format(
-              "Latest message in %s has null or empty sendTime defaulting to now.", hl7v2Store));
+      LOG.warn("Latest message in {} has null or empty sendTime defaulting to now.", hl7v2Store);
+
       return Instant.now();
     }
     // sendTime is conveniently RFC3339 UTC "Zulu"
@@ -560,7 +557,7 @@ public class HttpHealthcareApiClient implements HealthcareApiClient, Serializabl
   @Override
   public Operation pollOperation(Operation operation, Long sleepMs)
       throws InterruptedException, IOException {
-    LOG.debug(String.format("Operation %s started, polling until complete.", operation.getName()));
+    LOG.debug("Operation {} started, polling until complete.", operation.getName());
     while (operation.getDone() == null || !operation.getDone()) {
       // Update the status of the operation with another request.
       Thread.sleep(sleepMs); // Pause between requests.

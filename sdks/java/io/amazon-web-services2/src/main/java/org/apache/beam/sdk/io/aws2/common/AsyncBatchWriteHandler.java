@@ -344,7 +344,7 @@ public abstract class AsyncBatchWriteHandler<RecT, ResT> {
           } else {
             try {
               if (BackOffUtils.next(Sleeper.DEFAULT, backoff)) {
-                LOG.info(summarizeErrors("Attempting retry", results));
+                LOG.info("{}", summarizeErrors("Attempting retry", results));
                 records = failedRecords(records, results);
                 run();
               } else {
