@@ -928,8 +928,8 @@ public class ProcessBundleHandler {
           bundleProcessor.getChannelRoots(),
           bundleProcessor.getOutboundAggregators(),
           bundleProcessor.getRunnerCapabilities(),
-          processBundleRequest::getHasNoState,
-          processBundleRequest::getOnlyBundleForKeys);
+          processBundleRequest.getHasNoState(),
+          processBundleRequest.getOnlyBundleForKeys());
     }
     bundleProcessor.finish();
 

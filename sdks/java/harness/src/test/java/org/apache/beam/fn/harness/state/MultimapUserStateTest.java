@@ -26,6 +26,7 @@ import static org.hamcrest.collection.IsIterableContainingInAnyOrder.containsInA
 import static org.hamcrest.core.Is.is;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertThrows;
 
@@ -85,8 +86,8 @@ public class MultimapUserStateTest {
             createMultimapKeyStateKey(),
             ByteArrayCoder.of(),
             StringUtf8Coder.of(),
-            () -> false,
-            () -> false);
+            false,
+            false);
     assertThat(userState.keys(), is(emptyIterable()));
   }
 
@@ -107,8 +108,8 @@ public class MultimapUserStateTest {
             createMultimapKeyStateKey(),
             ByteArrayCoder.of(),
             StringUtf8Coder.of(),
-            () -> false,
-            () -> false);
+            false,
+            false);
 
     Iterable<String> initValues = userState.get(A1);
     userState.put(A1, "V3");
@@ -137,8 +138,8 @@ public class MultimapUserStateTest {
             createMultimapKeyStateKey(),
             ByteArrayCoder.of(),
             StringUtf8Coder.of(),
-            () -> false,
-            () -> false);
+            false,
+            false);
 
     Iterable<String> initValues = userState.get(A1);
     userState.clear();
@@ -173,8 +174,8 @@ public class MultimapUserStateTest {
             createMultimapKeyStateKey(),
             ByteArrayCoder.of(),
             StringUtf8Coder.of(),
-            () -> false,
-            () -> false);
+            false,
+            false);
 
     userState.put(A2, "V1");
     Iterable<byte[]> initKeys = userState.keys();
@@ -209,8 +210,8 @@ public class MultimapUserStateTest {
             createMultimapKeyStateKey(),
             ByteArrayCoder.of(),
             StringUtf8Coder.of(),
-            () -> false,
-            () -> false);
+            false,
+            false);
 
     assertArrayEquals(A1, userState.entries().iterator().next().getKey());
     assertThat(
@@ -286,8 +287,8 @@ public class MultimapUserStateTest {
             createMultimapKeyStateKey(),
             ByteArrayCoder.of(),
             StringUtf8Coder.of(),
-            () -> false,
-            () -> false);
+            false,
+            false);
 
     Iterable<String> initValues = userState.get(A1);
     userState.put(A1, "V3");
@@ -315,8 +316,8 @@ public class MultimapUserStateTest {
             createMultimapKeyStateKey(),
             ByteArrayCoder.of(),
             StringUtf8Coder.of(),
-            () -> false,
-            () -> false);
+            false,
+            false);
     userState.remove(A0);
     userState.put(A0, "V2");
     assertArrayEquals(new String[] {"V2"}, Iterables.toArray(userState.get(A0), String.class));
@@ -341,8 +342,8 @@ public class MultimapUserStateTest {
             createMultimapKeyStateKey(),
             ByteArrayCoder.of(),
             StringUtf8Coder.of(),
-            () -> false,
-            () -> false);
+            false,
+            false);
     userState.clear();
     userState.put(A0, "V2");
     assertArrayEquals(new String[] {"V2"}, Iterables.toArray(userState.get(A0), String.class));
@@ -365,8 +366,8 @@ public class MultimapUserStateTest {
             createMultimapKeyStateKey(),
             ByteArrayCoder.of(),
             StringUtf8Coder.of(),
-            () -> false,
-            () -> false);
+            false,
+            false);
     userState.remove(A0);
     userState.clear();
     userState.asyncClose();
@@ -385,8 +386,8 @@ public class MultimapUserStateTest {
             createMultimapKeyStateKey(),
             ByteArrayCoder.of(),
             StringUtf8Coder.of(),
-            () -> false,
-            () -> false);
+            false,
+            false);
     userState.put(A0, "V0");
     userState.put(A1, "V1");
     Iterable<String> values = userState.get(A1); // fakeClient call = 1
@@ -408,8 +409,8 @@ public class MultimapUserStateTest {
             createMultimapKeyStateKey(),
             ByteArrayCoder.of(),
             StringUtf8Coder.of(),
-            () -> false,
-            () -> false);
+            false,
+            false);
     userState.put(A0, "V0");
     userState.put(A1, "V1");
     Iterable<String> values = userState.get(A1); // fakeClient call = 1
@@ -439,8 +440,8 @@ public class MultimapUserStateTest {
             createMultimapKeyStateKey(),
             ByteArrayCoder.of(),
             StringUtf8Coder.of(),
-            () -> false,
-            () -> false);
+            false,
+            false);
 
     Iterable<String> initValues = userState.get(A1);
     userState.put(A1, "V3");
@@ -469,8 +470,8 @@ public class MultimapUserStateTest {
             createMultimapKeyStateKey(),
             ByteArrayCoder.of(),
             StringUtf8Coder.of(),
-            () -> false,
-            () -> false);
+            false,
+            false);
     Iterable<byte[]> keys = userState.keys();
     Iterator<byte[]> keysIterator = keys.iterator();
     keysIterator.next();
@@ -494,8 +495,8 @@ public class MultimapUserStateTest {
             createMultimapKeyStateKey(),
             ByteArrayCoder.of(),
             StringUtf8Coder.of(),
-            () -> false,
-            () -> false);
+            false,
+            false);
     Iterable<String> values = userState.get(A1);
     assertThrows(
         UnsupportedOperationException.class,
@@ -519,8 +520,8 @@ public class MultimapUserStateTest {
             createMultimapKeyStateKey(),
             ByteArrayCoder.of(),
             StringUtf8Coder.of(),
-            () -> false,
-            () -> false);
+            false,
+            false);
     userState.clear();
     userState.asyncClose();
     Map<StateKey, ByteString> data = fakeClient.getData();
@@ -545,8 +546,8 @@ public class MultimapUserStateTest {
             createMultimapKeyStateKey(),
             ByteArrayCoder.of(),
             StringUtf8Coder.of(),
-            () -> false,
-            () -> false);
+            false,
+            false);
     userState.asyncClose();
     assertThrows(IllegalStateException.class, () -> userState.keys());
     assertEquals(0, fakeClient.getCallCount());
@@ -571,8 +572,8 @@ public class MultimapUserStateTest {
             createMultimapKeyStateKey(),
             ByteArrayCoder.of(),
             StringUtf8Coder.of(),
-            () -> false,
-            () -> false);
+            false,
+            false);
     userState.remove(A0);
     userState.put(A1, "V3");
     userState.put(A2, "V1");
@@ -602,8 +603,8 @@ public class MultimapUserStateTest {
             createMultimapKeyStateKey(),
             NullableCoder.of(ByteArrayCoder.of()),
             NullableCoder.of(StringUtf8Coder.of()),
-            () -> false,
-            () -> false);
+            false,
+            false);
     userState.put(null, null);
     userState.put(null, null);
     userState.put(null, "V1");
@@ -622,8 +623,8 @@ public class MultimapUserStateTest {
             createMultimapKeyStateKey(),
             ByteArrayCoder.of(),
             StringUtf8Coder.of(),
-            () -> false,
-            () -> false);
+            false,
+            false);
     assertArrayEquals(new String[] {}, Iterables.toArray(userState.get(A1), String.class));
     assertArrayEquals(new String[] {}, Iterables.toArray(userState.get(A1), String.class));
     assertThat(fakeClient.getCallCount(), is(1));
@@ -646,8 +647,8 @@ public class MultimapUserStateTest {
             createMultimapKeyStateKey(),
             ByteArrayCoder.of(),
             StringUtf8Coder.of(),
-            () -> false,
-            () -> false);
+            false,
+            false);
 
     PrefetchableIterable<String> values = userState.get(A1);
     assertEquals(0, fakeClient.getCallCount());
@@ -674,8 +675,8 @@ public class MultimapUserStateTest {
             createMultimapKeyStateKey(),
             ByteArrayCoder.of(),
             StringUtf8Coder.of(),
-            () -> false,
-            () -> false);
+            false,
+            false);
 
     PrefetchableIterable<byte[]> keys = userState.keys();
     assertEquals(0, fakeClient.getCallCount());
@@ -702,8 +703,8 @@ public class MultimapUserStateTest {
             createMultimapKeyStateKey(),
             ByteArrayCoder.of(),
             StringUtf8Coder.of(),
-            () -> false,
-            () -> false);
+            false,
+            false);
 
     userState.put(A2, "V3");
     PrefetchableIterable<byte[]> keys = userState.keys();
@@ -731,8 +732,8 @@ public class MultimapUserStateTest {
             createMultimapKeyStateKey(),
             ByteArrayCoder.of(),
             StringUtf8Coder.of(),
-            () -> false,
-            () -> false);
+            false,
+            false);
 
     userState.remove(A1);
     userState.put(A1, "V3");
@@ -766,8 +767,8 @@ public class MultimapUserStateTest {
             createMultimapKeyStateKey(),
             ByteArrayCoder.of(),
             StringUtf8Coder.of(),
-            () -> false,
-            () -> false);
+            false,
+            false);
 
     userState.put(A1, "V4");
     PrefetchableIterable<Map.Entry<byte[], String>> entries = userState.entries();
@@ -803,8 +804,8 @@ public class MultimapUserStateTest {
             createMultimapKeyStateKey(),
             ByteArrayCoder.of(),
             StringUtf8Coder.of(),
-            () -> false,
-            () -> false);
+            false,
+            false);
 
     userState.clear();
     userState.put(A2, "V3");
@@ -835,8 +836,8 @@ public class MultimapUserStateTest {
             createMultimapKeyStateKey(),
             ByteArrayCoder.of(),
             StringUtf8Coder.of(),
-            () -> false,
-            () -> false);
+            false,
+            false);
 
     userState.put(A1, "V3");
     PrefetchableIterable<String> values = userState.get(A1);
@@ -861,8 +862,8 @@ public class MultimapUserStateTest {
               createMultimapKeyStateKey(),
               ByteArrayCoder.of(),
               StringUtf8Coder.of(),
-              () -> false,
-              () -> false);
+              false,
+              false);
       assertThat(userState.keys(), is(emptyIterable()));
       assertThat(userState.get(A1), is(emptyIterable()));
     }
@@ -879,8 +880,8 @@ public class MultimapUserStateTest {
               createMultimapKeyStateKey(),
               ByteArrayCoder.of(),
               StringUtf8Coder.of(),
-              () -> false,
-              () -> false);
+              false,
+              false);
       assertThat(userState.keys(), is(emptyIterable()));
       assertThat(userState.get(A1), is(emptyIterable()));
     }
@@ -906,8 +907,8 @@ public class MultimapUserStateTest {
               createMultimapKeyStateKey(),
               ByteArrayCoder.of(),
               StringUtf8Coder.of(),
-              () -> false,
-              () -> false);
+              false,
+              false);
 
       assertArrayEquals(
           new String[] {"V1", "V2"}, Iterables.toArray(userState.get(A1), String.class));
@@ -926,8 +927,8 @@ public class MultimapUserStateTest {
               createMultimapKeyStateKey(),
               ByteArrayCoder.of(),
               StringUtf8Coder.of(),
-              () -> false,
-              () -> false);
+              false,
+              false);
 
       assertArrayEquals(
           new String[] {"V1", "V2"}, Iterables.toArray(userState.get(A1), String.class));
@@ -955,8 +956,8 @@ public class MultimapUserStateTest {
               createMultimapKeyStateKey(),
               ByteArrayCoder.of(),
               StringUtf8Coder.of(),
-              () -> false,
-              () -> false);
+              false,
+              false);
 
       userState.clear();
       assertThat(userState.keys(), is(emptyIterable()));
@@ -976,8 +977,8 @@ public class MultimapUserStateTest {
               createMultimapKeyStateKey(),
               ByteArrayCoder.of(),
               StringUtf8Coder.of(),
-              () -> false,
-              () -> false);
+              false,
+              false);
 
       assertThat(userState.keys(), is(emptyIterable()));
       userState.asyncClose();
@@ -1004,8 +1005,8 @@ public class MultimapUserStateTest {
               createMultimapKeyStateKey(),
               ByteArrayCoder.of(),
               StringUtf8Coder.of(),
-              () -> false,
-              () -> false);
+              false,
+              false);
 
       userState.put(A2, "V1");
       userState.put(A3, "V1");
@@ -1028,8 +1029,8 @@ public class MultimapUserStateTest {
               createMultimapKeyStateKey(),
               ByteArrayCoder.of(),
               StringUtf8Coder.of(),
-              () -> false,
-              () -> false);
+              false,
+              false);
 
       assertThat(
           Iterables.toArray(userState.keys(), byte[].class),
@@ -1058,8 +1059,8 @@ public class MultimapUserStateTest {
               createMultimapKeyStateKey(),
               ByteArrayCoder.of(),
               StringUtf8Coder.of(),
-              () -> false,
-              () -> false);
+              false,
+              false);
 
       userState.put(A1, "V3");
       userState.put(A2, "V1");
@@ -1081,8 +1082,8 @@ public class MultimapUserStateTest {
               createMultimapKeyStateKey(),
               ByteArrayCoder.of(),
               StringUtf8Coder.of(),
-              () -> false,
-              () -> false);
+              false,
+              false);
 
       assertArrayEquals(
           new String[] {"V1", "V2", "V3"}, Iterables.toArray(userState.get(A1), String.class));
@@ -1115,8 +1116,8 @@ public class MultimapUserStateTest {
               createMultimapKeyStateKey(),
               ByteArrayCoder.of(),
               StringUtf8Coder.of(),
-              () -> false,
-              () -> false);
+              false,
+              false);
 
       userState.remove(A0);
       userState.put(A0, "V2");
@@ -1136,8 +1137,8 @@ public class MultimapUserStateTest {
               createMultimapKeyStateKey(),
               ByteArrayCoder.of(),
               StringUtf8Coder.of(),
-              () -> false,
-              () -> false);
+              false,
+              false);
       assertArrayEquals(new String[] {"V2"}, Iterables.toArray(userState.get(A0), String.class));
       userState.asyncClose();
     }
@@ -1163,8 +1164,8 @@ public class MultimapUserStateTest {
               createMultimapKeyStateKey(),
               ByteArrayCoder.of(),
               StringUtf8Coder.of(),
-              () -> false,
-              () -> false);
+              false,
+              false);
       userState.clear();
       userState.put(A0, "V2");
       userState.asyncClose();
@@ -1183,8 +1184,8 @@ public class MultimapUserStateTest {
               createMultimapKeyStateKey(),
               ByteArrayCoder.of(),
               StringUtf8Coder.of(),
-              () -> false,
-              () -> false);
+              false,
+              false);
       assertArrayEquals(new String[] {"V2"}, Iterables.toArray(userState.get(A0), String.class));
       // Even though we never load
       assertArrayEquals(new byte[][] {A0}, Iterables.toArray(userState.keys(), byte[].class));
@@ -1212,8 +1213,8 @@ public class MultimapUserStateTest {
               createMultimapKeyStateKey(),
               ByteArrayCoder.of(),
               StringUtf8Coder.of(),
-              () -> false,
-              () -> false);
+              false,
+              false);
       assertArrayEquals(
           new String[] {"V1", "V2"}, Iterables.toArray(userState.get(A1), String.class));
       userState.remove(A1);
@@ -1235,13 +1236,113 @@ public class MultimapUserStateTest {
               createMultimapKeyStateKey(),
               ByteArrayCoder.of(),
               StringUtf8Coder.of(),
-              () -> false,
-              () -> false);
+              false,
+              false);
       assertThat(userState.get(A1), is(emptyIterable()));
       assertThat(userState.get(A2), is(emptyIterable()));
       assertThat(userState.keys(), is(emptyIterable()));
       userState.asyncClose();
     }
+  }
+
+  @Test
+  public void testHasNoState() throws Exception {
+    FakeBeamFnStateClient fakeClient = new FakeBeamFnStateClient(
+        ImmutableMap.of(
+            createMultimapKeyStateKey(),
+            KV.of(ByteArrayCoder.of(), singletonList(A1)),
+            createMultimapValueStateKey(A1),
+            KV.of(StringUtf8Coder.of(), asList("V1", "V2"))));
+    MultimapUserState<byte[], String> userState = new MultimapUserState<>(
+        Caches.noop(),
+        fakeClient,
+        "instructionId",
+        createMultimapKeyStateKey(),
+        ByteArrayCoder.of(),
+        StringUtf8Coder.of(),
+        true /* hasNoState */,
+        false /* onlyBundleForKeys */);
+
+    // Iterating should be empty since hasNoState is true
+    assertThat(userState.keys(), is(emptyIterable()));
+    assertThat(userState.get(A1), is(emptyIterable()));
+
+    // We can add new values
+    userState.put(A2, "V2");
+
+    // We can observe the added value locally
+    assertArrayEquals(new byte[][] { A2 }, Iterables.toArray(userState.keys(), byte[].class));
+    assertArrayEquals(new String[] { "V2" }, Iterables.toArray(userState.get(A2), String.class));
+
+    userState.asyncClose();
+
+    // The data is persisted
+    assertEquals(encode("V1", "V2"), fakeClient.getData().get(createMultimapValueStateKey(A1)));
+    assertEquals(encode("V2"), fakeClient.getData().get(createMultimapValueStateKey(A2)));
+  }
+
+  @Test
+  public void testOnlyBundleForKeys() throws Exception {
+    FakeBeamFnStateClient fakeClient = new FakeBeamFnStateClient(
+        ImmutableMap.of(
+            createMultimapKeyStateKey(),
+            KV.of(ByteArrayCoder.of(), singletonList(A1)),
+            createMultimapValueStateKey(A1),
+            KV.of(StringUtf8Coder.of(), asList("V1", "V2"))));
+    MultimapUserState<byte[], String> userState = new MultimapUserState<>(
+        Caches.noop(),
+        fakeClient,
+        "instructionId",
+        createMultimapKeyStateKey(),
+        ByteArrayCoder.of(),
+        StringUtf8Coder.of(),
+        false /* hasNoState */,
+        true /* onlyBundleForKeys */);
+
+    assertArrayEquals(new byte[][] { A1 }, Iterables.toArray(userState.keys(), byte[].class));
+    assertArrayEquals(
+        new String[] { "V1", "V2" }, Iterables.toArray(userState.get(A1), String.class));
+
+    userState.put(A2, "V2");
+
+    assertArrayEquals(new byte[][] { A1, A2 }, Iterables.toArray(userState.keys(), byte[].class));
+    assertArrayEquals(new String[] { "V2" }, Iterables.toArray(userState.get(A2), String.class));
+
+    userState.asyncClose();
+
+    // The new data is NOT persisted
+    assertFalse(fakeClient.getData().containsKey(createMultimapValueStateKey(A2)));
+  }
+
+  @Test
+  public void testHasNoStateAndOnlyBundleForKeys() throws Exception {
+    FakeBeamFnStateClient fakeClient = new FakeBeamFnStateClient(
+        ImmutableMap.of(
+            createMultimapKeyStateKey(),
+            KV.of(ByteArrayCoder.of(), singletonList(A1)),
+            createMultimapValueStateKey(A1),
+            KV.of(StringUtf8Coder.of(), asList("V1", "V2"))));
+    MultimapUserState<byte[], String> userState = new MultimapUserState<>(
+        Caches.noop(),
+        fakeClient,
+        "instructionId",
+        createMultimapKeyStateKey(),
+        ByteArrayCoder.of(),
+        StringUtf8Coder.of(),
+        true /* hasNoState */,
+        true /* onlyBundleForKeys */);
+
+    assertThat(userState.keys(), is(emptyIterable()));
+    assertThat(userState.get(A1), is(emptyIterable()));
+
+    userState.put(A2, "V2");
+
+    assertArrayEquals(new byte[][] { A2 }, Iterables.toArray(userState.keys(), byte[].class));
+    assertArrayEquals(new String[] { "V2" }, Iterables.toArray(userState.get(A2), String.class));
+
+    userState.asyncClose();
+
+    assertFalse(fakeClient.getData().containsKey(createMultimapValueStateKey(A2)));
   }
 
   private StateKey createMultimapKeyStateKey() throws IOException {
