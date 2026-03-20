@@ -3271,7 +3271,11 @@ class _CombinePerKeyWithHotKeyFanout(PTransform):
     combine_fn = self._combine_fn
     fanout_fn = self._fanout_fn
 
-    if isinstance(pcoll.windowing.windowfn, SlidingWindows):
+    use_legacy_windowing = pcoll.pipeline.options.is_compat_version_prior_to(
+        "2.73.0")
+
+    if use_legacy_windowing and isinstance(pcoll.windowing.windowfn,
+                                           SlidingWindows):
       raise ValueError(
           'CombinePerKey.with_hot_key_fanout does not yet work properly with '
           'SlidingWindows. See: https://github.com/apache/beam/issues/20528')
@@ -3344,14 +3348,37 @@ class _CombinePerKeyWithHotKeyFanout(PTransform):
 
     cold, hot = pcoll | ParDo(SplitHotCold()).with_outputs('hot', main='cold')
     cold.element_type = typehints.Any  # No multi-output type hints.
-    precombined_hot = (
-        hot
-        # Avoid double counting that may happen with stacked accumulating mode.
-        | 'WindowIntoDiscarding' >> WindowInto(
-            pcoll.windowing, accumulation_mode=AccumulationMode.DISCARDING)
-        | CombinePerKey(PreCombineFn())
-        | Map(StripNonce)
-        | 'WindowIntoOriginal' >> WindowInto(pcoll.windowing))
+
+    if use_legacy_windowing:
+      # Legacy behavior: use WindowInto to swap accumulation mode.
+      # This re-evaluates window assignments from timestamps, which is
+      # idempotent for FixedWindows but corrupts SlidingWindows (hence
+      # the guard above). Preserved for update compatibility with
+      # pipelines created before 2.73.0.
+      precombined_hot = (
+          hot
+          | 'WindowIntoDiscarding' >> WindowInto(
+              pcoll.windowing, accumulation_mode=AccumulationMode.DISCARDING)
+          | CombinePerKey(PreCombineFn())
+          | Map(StripNonce)
+          | 'WindowIntoOriginal' >> WindowInto(pcoll.windowing))
+    else:
+      # New behavior: swap windowing strategy metadata without re-assigning
+      # windows. This mirrors Java's setWindowingStrategyInternal() and
+      # works correctly with all window types including SlidingWindows.
+      # Setting _windowing directly on a PCollection changes what downstream
+      # transforms see as the windowing strategy, without calling
+      # windowfn.assign() on elements — elements keep their existing window
+      # assignments. Using WindowInto would re-evaluate assignments, which
+      # corrupts SlidingWindows by leaking accumulators into adjacent
+      # overlapping windows.
+      if pcoll.windowing.accumulation_mode == AccumulationMode.ACCUMULATING:
+        discarding_windowing = copy.copy(pcoll.windowing)
+        discarding_windowing.accumulation_mode = AccumulationMode.DISCARDING
+        hot._windowing = discarding_windowing
+      precombined_hot = (hot | CombinePerKey(PreCombineFn()) | Map(StripNonce))
+      precombined_hot._windowing = pcoll.windowing
+
     return ((cold, precombined_hot)
             | Flatten()
             | CombinePerKey(PostCombineFn()))
