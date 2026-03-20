@@ -26,6 +26,11 @@ import re
 import typing
 import unittest
 
+from parameterized import param
+from parameterized import parameterized
+
+from apache_beam.options.pipeline_options import PipelineOptions
+from apache_beam.options.pipeline_options_context import scoped_pipeline_options
 from apache_beam.typehints import typehints
 from apache_beam.typehints.native_type_compatibility import convert_builtin_to_typing
 from apache_beam.typehints.native_type_compatibility import convert_to_beam_type
@@ -543,6 +548,25 @@ class NativeTypeCompatibilityTest(unittest.TestCase):
 
     self.assertTrue(match_dataclass_for_row(FrozenRegisteredDC))
     self.assertFalse(match_dataclass_for_row(NonFrozenRegisteredDC))
+
+  @parameterized.expand([
+      param(compat_version="2.72.0"),
+      param(compat_version="2.73.0"),
+  ])
+  def test_dataclass_update_compatibility(self, compat_version):
+    @dataclasses.dataclass(frozen=True)
+    class FrozenDC:
+      foo: int
+
+    @dataclasses.dataclass
+    class NonFrozenDC:
+      foo: int
+
+    with scoped_pipeline_options(
+        PipelineOptions(update_compatibility_version=compat_version)):
+      self.assertFalse(match_dataclass_for_row(FrozenDC))
+      self.assertEqual(
+          compat_version == "2.73.0", match_dataclass_for_row(NonFrozenDC))
 
 
 if __name__ == '__main__':
