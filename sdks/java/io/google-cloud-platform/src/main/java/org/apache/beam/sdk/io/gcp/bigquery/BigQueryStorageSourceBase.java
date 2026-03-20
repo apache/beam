@@ -156,13 +156,27 @@ abstract class BigQueryStorageSourceBase<T> extends BoundedSource<T> {
       streamCount = Math.max(streamCount, MIN_SPLIT_COUNT);
     }
 
+    String project =
+        bqOptions.getBigQueryProject() == null
+            ? bqOptions.getProject()
+            : bqOptions.getBigQueryProject();
+    if (project == null) {
+      if (targetTable != null
+          && targetTable.getTableReference() != null
+          && targetTable.getTableReference().getProjectId() != null) {
+        project = targetTable.getTableReference().getProjectId();
+      } else {
+        @Nullable String tableReferenceId = getTargetTableId(bqOptions);
+        if (tableReferenceId != null) {
+          TableReference tableReference = BigQueryHelpers.parseTableUrn(tableReferenceId);
+          project = tableReference.getProjectId();
+        }
+      }
+    }
+
     CreateReadSessionRequest createReadSessionRequest =
         CreateReadSessionRequest.newBuilder()
-            .setParent(
-                BigQueryHelpers.toProjectResourceName(
-                    bqOptions.getBigQueryProject() == null
-                        ? bqOptions.getProject()
-                        : bqOptions.getBigQueryProject()))
+            .setParent(BigQueryHelpers.toProjectResourceName(project))
             .setReadSession(readSessionBuilder)
             .setMaxStreamCount(streamCount)
             .build();
