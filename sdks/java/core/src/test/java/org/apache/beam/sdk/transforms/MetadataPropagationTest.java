@@ -30,9 +30,6 @@ import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
 public class MetadataPropagationTest {
-  private static final Integer[] EMPTY = new Integer[] {};
-  private static final Integer[] DATA = new Integer[] {1, 2, 3, 4, 5};
-  private static final Integer[] REPEATED_DATA = new Integer[] {1, 1, 2, 2, 3, 3, 4, 4, 5, 5};
 
   @RunWith(JUnit4.class)
   public static class MiscTest {

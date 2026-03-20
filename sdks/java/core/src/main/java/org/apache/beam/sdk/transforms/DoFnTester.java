@@ -651,18 +651,7 @@ public class DoFnTester<InputT, OutputT> implements AutoCloseable {
 
     @Override
     public void outputWindowedValue(WindowedValue<OutputT> windowedValue) {
-      for (BoundedWindow w : windowedValue.getWindows()) {
-        getMutableOutput(mainOutputTag)
-            .add(
-                ValueInSingleWindow.of(
-                    windowedValue.getValue(),
-                    windowedValue.getTimestamp(),
-                    w,
-                    windowedValue.getPaneInfo(),
-                    windowedValue.getRecordId(),
-                    windowedValue.getRecordOffset(),
-                    windowedValue.causedByDrain()));
-      }
+      outputWindowedValue(mainOutputTag, windowedValue);
     }
 
     @Override

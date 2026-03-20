@@ -479,12 +479,7 @@ public class OutputAndTimeBoundedSplittableProcessElementInvoker<
 
     @Override
     public void outputWindowedValue(WindowedValue<OutputT> windowedValue) {
-      noteOutput();
-      if (watermarkEstimator instanceof TimestampObservingWatermarkEstimator) {
-        ((TimestampObservingWatermarkEstimator) watermarkEstimator)
-            .observeTimestamp(windowedValue.getTimestamp());
-      }
-      outputReceiver.output(mainOutputTag, windowedValue);
+      outputWindowedValue(mainOutputTag, windowedValue);
     }
 
     @Override
