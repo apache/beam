@@ -501,13 +501,13 @@ public class SamzaDoFnRunners {
       // SDF checkpoint timers are handled by loading the stored residual and re-processing it.
       if (BundleCheckpointHandlers.StateAndTimerBundleCheckpointHandler.isSdfTimer(timerId)) {
         StateInternals stateInternals = nonKeyedStateInternalsFactory.stateInternalsForKey(null);
-        WindowedValue<InT> residual =
-            stateInternals
-                .state(
-                    StateNamespaces.window(windowCoder, window),
-                    StateTags.value(timerId, windowedValueCoder))
-                .read();
+        org.apache.beam.sdk.state.ValueState<WindowedValue<InT>> residualState =
+            stateInternals.state(
+                StateNamespaces.window(windowCoder, window),
+                StateTags.value(timerId, windowedValueCoder));
+        WindowedValue<InT> residual = residualState.read();
         if (residual != null) {
+          residualState.clear();
           processElement(residual);
         }
         return;
