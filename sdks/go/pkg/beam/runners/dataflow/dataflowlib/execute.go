@@ -90,7 +90,11 @@ func Execute(ctx context.Context, raw *pipepb.Pipeline, opts *JobOptions, worker
 
 	// (3) Translate to v1b3 and submit
 
-	job, err := Translate(ctx, raw, opts, workerURL, modelURL)
+	hashes := map[string]string{
+		"worker": hash,
+	}
+
+	job, err := Translate(ctx, raw, opts, workerURL, modelURL, hashes)
 	if err != nil {
 		return presult, err
 	}

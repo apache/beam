@@ -235,7 +235,7 @@ func Execute(ctx context.Context, p *beam.Pipeline) (beam.PipelineResult, error)
 		log.Info(ctx, "Dry-run: not submitting job!")
 
 		log.Info(ctx, model.String())
-		job, err := dataflowlib.Translate(ctx, model, opts, workerURL, modelURL)
+		job, err := dataflowlib.Translate(ctx, model, opts, workerURL, modelURL, nil)
 		if err != nil {
 			return nil, err
 		}

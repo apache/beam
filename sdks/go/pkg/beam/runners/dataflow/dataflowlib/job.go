@@ -17,6 +17,7 @@ package dataflowlib
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"strings"
 	"time"
@@ -115,7 +116,7 @@ func containerImages(p *pipepb.Pipeline) ([]*df.SdkHarnessContainerImage, []stri
 }
 
 // Translate translates a pipeline to a Dataflow job.
-func Translate(ctx context.Context, p *pipepb.Pipeline, opts *JobOptions, workerURL, modelURL string) (*df.Job, error) {
+func Translate(ctx context.Context, p *pipepb.Pipeline, opts *JobOptions, workerURL, modelURL string, hashes map[string]string) (*df.Job, error) {
 	// (1) Translate pipeline to v1b3 speak.
 
 	jobType := "JOB_TYPE_BATCH"
@@ -155,6 +156,14 @@ func Translate(ctx context.Context, p *pipepb.Pipeline, opts *JobOptions, worker
 	}
 
 	opts.Options.Options["experiments"] = strings.Join(opts.Experiments, ",")
+	
+	var hashesJSON string
+	if len(hashes) > 0 {
+		if data, err := json.Marshal(hashes); err == nil {
+			hashesJSON = string(data)
+		}
+	}
+
 	job := &df.Job{
 		ProjectId: opts.Project,
 		Name:      opts.Name,
@@ -176,10 +185,11 @@ func Translate(ctx context.Context, p *pipepb.Pipeline, opts *JobOptions, worker
 			SdkPipelineOptions: newMsg(pipelineOptions{
 				DisplayData: printOptions(opts, images),
 				Options: dataflowOptions{
-					PipelineURL:  modelURL,
-					Region:       opts.Region,
-					Experiments:  opts.Experiments,
-					TempLocation: opts.TempLocation,
+					PipelineURL:    modelURL,
+					Region:         opts.Region,
+					Experiments:    opts.Experiments,
+					TempLocation:   opts.TempLocation,
+					ArtifactHashes: hashesJSON,
 				},
 				GoOptions: opts.Options,
 			}),
@@ -350,10 +360,11 @@ func GetMetrics(ctx context.Context, client *df.Service, project, region, jobID 
 // pipeline options that are communicated to cross-language SDK harnesses, so any pipeline options
 // needed for cross-language transforms in Dataflow must be declared here.
 type dataflowOptions struct {
-	Experiments  []string `json:"experiments,omitempty"`
-	PipelineURL  string   `json:"pipelineUrl"`
-	Region       string   `json:"region"`
-	TempLocation string   `json:"tempLocation"`
+	Experiments    []string `json:"experiments,omitempty"`
+	PipelineURL    string   `json:"pipelineUrl"`
+	Region         string   `json:"region"`
+	TempLocation   string   `json:"tempLocation"`
+	ArtifactHashes string   `json:"artifactHashes,omitempty"`
 }
 
 func printOptions(opts *JobOptions, images []string) []*displayData {
