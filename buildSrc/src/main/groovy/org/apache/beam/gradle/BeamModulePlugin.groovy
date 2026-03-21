@@ -1581,8 +1581,6 @@ class BeamModulePlugin implements Plugin<Project> {
             "StringCaseLocaleUsage",
             // DoFn methods are executed reflectively at pipeline runtime
             "UnusedMethod",
-            // Void is a valid element type of DoFn elements
-            "VoidUsed",
           ]
           disabledChecks.each {
             options.errorprone.errorproneArgs.add("-Xep:${it}:OFF")
