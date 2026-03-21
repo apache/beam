@@ -103,7 +103,7 @@ class GcsUtilV2 {
     "nullness" // For Creating AccessDeniedException FileNotFoundException, and
     // FileAlreadyExistsException with null.
   })
-  private IOException translateStorageException(GcsPath gcsPath, StorageException e) {
+  private static IOException translateStorageException(GcsPath gcsPath, StorageException e) {
     switch (e.getCode()) {
       case 403:
         return new AccessDeniedException(gcsPath.toString(), null, e.getMessage());
@@ -568,9 +568,11 @@ class GcsUtilV2 {
   /** A bridge that allows a GCS WriteChannel to behave as a WritableByteChannel. */
   private static class GcsWritableByteChannel implements WritableByteChannel {
     private final WriteChannel writer;
+    private final GcsPath gcsPath;
 
-    GcsWritableByteChannel(WriteChannel writer) {
+    GcsWritableByteChannel(WriteChannel writer, GcsPath gcsPath) {
       this.writer = writer;
+      this.gcsPath = gcsPath;
     }
 
     @Override
@@ -578,8 +580,7 @@ class GcsUtilV2 {
       try {
         return writer.write(src);
       } catch (StorageException e) {
-        // In a real implementation, you'd use your translateStorageException here
-        throw new IOException(e);
+        throw translateStorageException(gcsPath, e);
       }
     }
 
@@ -623,7 +624,7 @@ class GcsUtilV2 {
       }
 
       // Return the bridge wrapper
-      return new GcsWritableByteChannel(writer);
+      return new GcsWritableByteChannel(writer, path);
 
     } catch (StorageException e) {
       throw translateStorageException(path, e);

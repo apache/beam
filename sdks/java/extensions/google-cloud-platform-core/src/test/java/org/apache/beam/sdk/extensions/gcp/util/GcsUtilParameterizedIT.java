@@ -659,11 +659,13 @@ public class GcsUtilParameterizedIT {
     try {
       createTestBucketHelper(bucketName, false);
 
+      // Write content to a GCS file
       CreateOptions options = CreateOptions.builder().setExpectFileToNotExist(true).build();
       try (WritableByteChannel writer = gcsUtil.create(targetPath, options)) {
         writer.write(ByteBuffer.wrap(content.getBytes(StandardCharsets.UTF_8)));
       }
 
+      // Read content into a buffer
       StringBuilder readContent = new StringBuilder();
       try (ReadableByteChannel reader = gcsUtil.open(targetPath)) {
         ByteBuffer buffer = ByteBuffer.allocate(1024);
@@ -673,6 +675,8 @@ public class GcsUtilParameterizedIT {
           buffer.clear();
         }
       }
+
+      // Verify content
       assertEquals(content, readContent.toString());
     } finally {
       tearDownTestBucketHelper(bucketName);
