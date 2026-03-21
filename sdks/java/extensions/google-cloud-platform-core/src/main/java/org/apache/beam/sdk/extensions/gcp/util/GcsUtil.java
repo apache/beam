@@ -26,6 +26,7 @@ import com.google.cloud.storage.BucketInfo;
 import com.google.cloud.storage.Storage.BlobGetOption;
 import com.google.cloud.storage.Storage.BlobListOption;
 import com.google.cloud.storage.Storage.BlobSourceOption;
+import com.google.cloud.storage.Storage.BlobWriteOption;
 import com.google.cloud.storage.Storage.BucketGetOption;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.io.IOException;
@@ -265,7 +266,18 @@ public class GcsUtil {
   }
 
   public WritableByteChannel create(GcsPath path, CreateOptions options) throws IOException {
+    if (delegateV2 != null) {
+      delegateV2.create(path, options.delegate);
+    }
     return delegate.create(path, options.delegate);
+  }
+
+  public WritableByteChannel create(
+      GcsPath path, CreateOptions options, BlobWriteOption... writeOptions) throws IOException {
+    if (delegateV2 != null) {
+      return delegateV2.create(path, options.delegate, writeOptions);
+    }
+    throw new IOException("GcsUtil V2 not initialized.");
   }
 
   public void verifyBucketAccessible(GcsPath path) throws IOException {

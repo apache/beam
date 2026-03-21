@@ -31,7 +31,10 @@ import com.google.cloud.storage.BucketInfo;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.nio.ByteBuffer;
+import java.nio.channels.ReadableByteChannel;
 import java.nio.channels.SeekableByteChannel;
+import java.nio.channels.WritableByteChannel;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.AccessDeniedException;
 import java.nio.file.FileAlreadyExistsException;
 import java.security.MessageDigest;
@@ -41,6 +44,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.stream.Collectors;
 import org.apache.beam.sdk.extensions.gcp.options.GcsOptions;
+import org.apache.beam.sdk.extensions.gcp.util.GcsUtil.CreateOptions;
 import org.apache.beam.sdk.extensions.gcp.util.GcsUtilV2.MissingStrategy;
 import org.apache.beam.sdk.extensions.gcp.util.GcsUtilV2.OverwriteStrategy;
 import org.apache.beam.sdk.extensions.gcp.util.gcsfs.GcsPath;
@@ -305,7 +309,8 @@ public class GcsUtilParameterizedIT {
     }
   }
 
-  private List<GcsPath> createTestBucketHelper(String bucketName) throws IOException {
+  private List<GcsPath> createTestBucketHelper(String bucketName, boolean copyData)
+      throws IOException {
     final List<GcsPath> originPaths =
         Arrays.asList(
             GcsPath.fromUri("gs://apache-beam-samples/shakespeare/kingrichardii.txt"),
@@ -320,16 +325,24 @@ public class GcsUtilParameterizedIT {
     if (experiment.equals("use_gcsutil_v2")) {
       gcsUtil.createBucket(BucketInfo.of(bucketName));
 
-      gcsUtil.copyV2(originPaths, testPaths);
+      if (copyData) {
+        gcsUtil.copyV2(originPaths, testPaths);
+      } else {
+        return Collections.emptyList();
+      }
     } else {
       GcsOptions gcsOptions = options.as(GcsOptions.class);
       gcsUtil.createBucket(gcsOptions.getProject(), new Bucket().setName(bucketName));
 
-      final List<String> originList =
-          originPaths.stream().map(o -> o.toString()).collect(Collectors.toList());
-      final List<String> testList =
-          testPaths.stream().map(o -> o.toString()).collect(Collectors.toList());
-      gcsUtil.copy(originList, testList);
+      if (copyData) {
+        final List<String> originList =
+            originPaths.stream().map(o -> o.toString()).collect(Collectors.toList());
+        final List<String> testList =
+            testPaths.stream().map(o -> o.toString()).collect(Collectors.toList());
+        gcsUtil.copy(originList, testList);
+      } else {
+        return Collections.emptyList();
+      }
     }
 
     return testPaths;
@@ -359,7 +372,7 @@ public class GcsUtilParameterizedIT {
     final String nonExistentBucket = "my-random-test-bucket-12345";
 
     try {
-      final List<GcsPath> srcPaths = createTestBucketHelper(existingBucket);
+      final List<GcsPath> srcPaths = createTestBucketHelper(existingBucket, true);
       final List<GcsPath> dstPaths =
           srcPaths.stream()
               .map(o -> GcsPath.fromComponents(existingBucket, o.getObject() + ".bak"))
@@ -427,7 +440,7 @@ public class GcsUtilParameterizedIT {
     final String nonExistentBucket = "my-random-test-bucket-12345";
 
     try {
-      final List<GcsPath> srcPaths = createTestBucketHelper(existingBucket);
+      final List<GcsPath> srcPaths = createTestBucketHelper(existingBucket, true);
       final List<GcsPath> errPaths =
           srcPaths.stream()
               .map(o -> GcsPath.fromComponents(nonExistentBucket, o.getObject()))
@@ -489,7 +502,7 @@ public class GcsUtilParameterizedIT {
     final String nonExistentBucket = "my-random-test-bucket-12345";
 
     try {
-      final List<GcsPath> srcPaths = createTestBucketHelper(existingBucket);
+      final List<GcsPath> srcPaths = createTestBucketHelper(existingBucket, true);
       final List<GcsPath> tmpPaths =
           srcPaths.stream()
               .map(o -> GcsPath.fromComponents(existingBucket, "tmp/" + o.getObject()))
@@ -593,7 +606,7 @@ public class GcsUtilParameterizedIT {
   }
 
   @Test
-  public void testOpenAndReadSeekableChannel() throws IOException, NoSuchAlgorithmException {
+  public void testRead() throws IOException, NoSuchAlgorithmException {
     final GcsPath gcsPath = GcsPath.fromUri("gs://apache-beam-samples/shakespeare/kinglear.txt");
     final String expectedHash = "674a2725884307c96398440497c889ad8cecccedf5689df85e6b0faabe4e0fe8";
     final long expectedSize = 157283L;
@@ -634,6 +647,35 @@ public class GcsUtilParameterizedIT {
       String actualHash = sb.toString();
 
       assertEquals("Content hash should match", expectedHash, actualHash);
+    }
+  }
+
+  @Test
+  public void testWriteAndRead() throws IOException {
+    final String bucketName = "apache-beam-temp-bucket-12345";
+    final GcsPath targetPath = GcsPath.fromComponents(bucketName, "test-object.txt");
+    final String content = "Hello, GCS!";
+
+    try {
+      createTestBucketHelper(bucketName, false);
+
+      CreateOptions options = CreateOptions.builder().setExpectFileToNotExist(true).build();
+      try (WritableByteChannel writer = gcsUtil.create(targetPath, options)) {
+        writer.write(ByteBuffer.wrap(content.getBytes(StandardCharsets.UTF_8)));
+      }
+
+      StringBuilder readContent = new StringBuilder();
+      try (ReadableByteChannel reader = gcsUtil.open(targetPath)) {
+        ByteBuffer buffer = ByteBuffer.allocate(1024);
+        while (reader.read(buffer) != -1) {
+          buffer.flip();
+          readContent.append(StandardCharsets.UTF_8.decode(buffer));
+          buffer.clear();
+        }
+      }
+      assertEquals(content, readContent.toString());
+    } finally {
+      tearDownTestBucketHelper(bucketName);
     }
   }
 }
