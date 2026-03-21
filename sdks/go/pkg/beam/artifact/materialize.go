@@ -295,7 +295,14 @@ func legacyMaterialize(ctx context.Context, endpoint string, rt string, dest str
 
 	var artifacts []*pipepb.ArtifactInformation
 	var list []retrievable
+	
+	hashes := extractArtifactHashes(ctx)
+
 	for _, md := range mds {
+		if trustedHash, ok := hashes[md.Name]; ok && trustedHash != "" {
+			md.Sha256 = trustedHash
+		}
+
 		typePayload, err := proto.Marshal(&pipepb.ArtifactFilePayload{
 			Path:   md.Name,
 			Sha256: md.Sha256,
