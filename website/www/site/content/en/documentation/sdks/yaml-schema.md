@@ -110,6 +110,54 @@ pipeline:
         elements: []
 ```
 
+## Implicit Input Chaining for Composite Transforms
+
+When using `type: composite`, you can now omit explicit `input` specifications on
+sub-transforms. The sub-transforms will automatically chain together, similar to
+how `type: chain` works.
+
+For example, this pipeline:
+
+```yaml
+pipeline:
+  type: composite
+  input: SomeInput
+  transforms:
+    - type: MapToFields
+      config:
+        language: python
+        fields:
+          x: "element.x * 2"
+    - type: Filter
+      config:
+        language: python
+        keep: "element.x > 5"
+```
+
+Is equivalent to:
+
+```yaml
+pipeline:
+  type: composite
+  input: SomeInput
+  transforms:
+    - type: MapToFields
+      input: SomeInput
+      config:
+        language: python
+        fields:
+          x: "element.x * 2"
+    - type: Filter
+      input: MapToFields
+      config:
+        language: python
+        keep: "element.x > 5"
+```
+
+Note: Implicit chaining only works when:
+1. The composite transform has an input (e.g., `input: SomeInput`)
+2. Sub-transforms have no explicit `input` or `output` specifications
+
 WARNING: If a transform doesn't have the error_handling configuration available
 and a user chooses to use this optional output_schema feature, any failures
 found will result in the entire pipeline failing. If the user would still like
