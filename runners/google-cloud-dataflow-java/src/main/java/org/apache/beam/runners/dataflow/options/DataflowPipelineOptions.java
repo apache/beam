@@ -249,6 +249,11 @@ public interface DataflowPipelineOptions
 
   void setHotKeyLoggingEnabled(boolean value);
 
+  @Description("JSON map of staged artifact names to their expected SHA-256 hashes.")
+  String getArtifactHashes();
+
+  void setArtifactHashes(String value);
+
   /**
    * Open modules needed for reflection that access JDK internals with Java 9+
    *

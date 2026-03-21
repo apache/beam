@@ -33,12 +33,15 @@ import (
 	"sync/atomic"
 	"time"
 
+	"encoding/json"
+
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/internal/errors"
 	jobpb "github.com/apache/beam/sdks/v2/go/pkg/beam/model/jobmanagement_v1"
 	pipepb "github.com/apache/beam/sdks/v2/go/pkg/beam/model/pipeline_v1"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/util/errorx"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/util/grpcx"
 	"google.golang.org/protobuf/proto"
+	structpb "google.golang.org/protobuf/types/known/structpb"
 )
 
 // TODO(lostluck): 2018/05/28 Extract these from their enum descriptors in the pipeline_v1 proto
@@ -82,6 +85,9 @@ func newMaterializeWithClient(ctx context.Context, client jobpb.ArtifactRetrieva
 	if err != nil {
 		return nil, err
 	}
+
+	hashes := extractArtifactHashes(ctx)
+	log.Printf("Tarun Hashes: %v", hashes)
 
 	var artifacts []*pipepb.ArtifactInformation
 	var list []retrievable
@@ -131,6 +137,14 @@ func newMaterializeWithClient(ctx context.Context, client jobpb.ArtifactRetrieva
 				RoleUrn:     URNStagingTo,
 				RolePayload: rolePayload,
 			},
+			expectedSha256: func() string {
+				if hashes != nil {
+					if trusted, ok := hashes[path]; ok {
+						return trusted
+					}
+				}
+				return filePayload.Sha256
+			}(),
 		})
 	}
 
@@ -184,8 +198,9 @@ func MustExtractFilePayload(artifact *pipepb.ArtifactInformation) (string, strin
 }
 
 type artifact struct {
-	client jobpb.ArtifactRetrievalServiceClient
-	dep    *pipepb.ArtifactInformation
+	client         jobpb.ArtifactRetrievalServiceClient
+	dep            *pipepb.ArtifactInformation
+	expectedSha256 string
 }
 
 func (a artifact) retrieve(ctx context.Context, dest string) error {
@@ -230,9 +245,17 @@ func (a artifact) retrieve(ctx context.Context, dest string) error {
 		return errors.Wrapf(err, "failed to flush chunks for %v", filename)
 	}
 	stat, _ := fd.Stat()
-	log.Printf("Tarun Downloaded: %v (sha256: %v, size: %v)", filename, sha256Hash, stat.Size())
+	log.Printf("Tarun Downloaded: %v (sha256: %v, size: %v, expectedSha256: %v)", filename, sha256Hash, stat.Size(), a.expectedSha256)
 
-	return fd.Close()
+	if err := fd.Close(); err != nil {
+		return err
+	}
+
+	if a.expectedSha256 != "" && sha256Hash != a.expectedSha256 {
+		return errors.Errorf("bad SHA256 for %v: %v, want %v", filename, sha256Hash, a.expectedSha256)
+	}
+
+	return nil
 }
 
 func writeChunks(stream jobpb.ArtifactRetrievalService_GetArtifactClient, w io.Writer) (string, error) {
@@ -511,4 +534,38 @@ func queue2slice(q chan *jobpb.ArtifactMetadata) []*jobpb.ArtifactMetadata {
 		ret = append(ret, elm)
 	}
 	return ret
+}
+
+type contextKey string
+
+const pipelineOptionsKey contextKey = "pipeline_options"
+
+// WithPipelineOptions returns a new context carrying the full pipeline options struct.
+func WithPipelineOptions(ctx context.Context, options *structpb.Struct) context.Context {
+	return context.WithValue(ctx, pipelineOptionsKey, options)
+}
+
+// extractArtifactHashes gathers hashes dictionary securely using native protobuf struct inspection.
+func extractArtifactHashes(ctx context.Context) map[string]string {
+	options, ok := ctx.Value(pipelineOptionsKey).(*structpb.Struct)
+	if !ok || options == nil {
+		return nil
+	}
+	pipelineOptions, ok := options.GetFields()["options"]
+	if !ok {
+		return nil
+	}
+	hashesOption, ok := pipelineOptions.GetStructValue().GetFields()["artifactHashes"]
+	if !ok {
+		return nil
+	}
+	hashesStr := hashesOption.GetStringValue()
+	if hashesStr == "" {
+		return nil
+	}
+	var hashes map[string]string
+	if err := json.Unmarshal([]byte(hashesStr), &hashes); err != nil {
+		return nil
+	}
+	return hashes
 }
