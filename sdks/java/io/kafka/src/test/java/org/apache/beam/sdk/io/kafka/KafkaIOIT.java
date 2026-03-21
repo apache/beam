@@ -593,7 +593,7 @@ public class KafkaIOIT {
   public static class LogFn extends DoFn<String, String> {
     @ProcessElement
     public void processElement(@Element String element, OutputReceiver<String> outputReceiver) {
-      LOG.error(element);
+      LOG.error("{}", element);
       outputReceiver.output(element);
     }
   }
@@ -827,6 +827,7 @@ public class KafkaIOIT {
     assertNotEquals(PipelineResult.State.FAILED, writeState);
 
     sdfReadPipeline.getOptions().as(Options.class).setStreaming(false);
+    @SuppressWarnings("unused")
     PCollection<KafkaRecord<byte[], byte[]>> rows =
         sdfReadPipeline.apply(
             "Read from bounded Kafka",

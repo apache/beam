@@ -1532,37 +1532,27 @@ class BeamModulePlugin implements Plugin<Project> {
           def disabledChecks = [
             // TODO(https://github.com/apache/beam/issues/20955): Enable errorprone checks
             "AutoValueImmutableFields",
-            "AutoValueImmutableFields",
             "AutoValueSubclassLeaked",
             "BigDecimalEquals",
             "ComparableType",
             "DoNotMockAutoValue",
             "EmptyBlockTag",
-            "EmptyCatch",
-            "EqualsGetClass",
             "EqualsUnsafeCast",
             "EscapedEntity",
             "ExtendsAutoValue",
             "InlineMeSuggester",
             "InvalidBlockTag",
-            "InvalidThrows",
             "JavaTimeDefaultTimeZone",
-            "JavaUtilDate",
             "JodaConstructors",
             "MixedMutabilityReturnType",
             "PreferJavaTimeOverload",
             "NonCanonicalType",
-            "Slf4jFormatShouldBeConst",
             "Slf4jSignOnlyFormat",
-            "StaticAssignmentInConstructor",
             "ThreadPriorityCheck",
-            "TimeUnitConversionChecker",
             "UndefinedEquals",
             "UnescapedEntity",
-            "UnnecessaryMethodReference",
             "UnnecessaryParentheses",
             "UnrecognisedJavadocTag",
-            "UnsafeReflectiveConstructionCast",
             // errorprone 3.2.0+ checks
             "DirectInvocationOnMock",
             "Finalize",
@@ -1572,8 +1562,6 @@ class BeamModulePlugin implements Plugin<Project> {
             "NullableTypeParameter",
             "NullableWildcard",
             "SuperCallToObjectMethod",
-            "UnnecessaryLongToIntConversion",
-            "UnusedVariable",
             // intended suppressions emerged in newer protobuf versions
             // For backward compatibility. Public method checked in before this check impl
             // Possible use in interface subclasses
@@ -2326,7 +2314,7 @@ class BeamModulePlugin implements Plugin<Project> {
 
       // This sets the whole project Go version.
       // The latest stable Go version can be checked at https://go.dev/dl/
-      project.ext.goVersion = "go1.26.0"
+      project.ext.goVersion = "go1.26.1"
 
       // Minor TODO: Figure out if we can pull out the GOCMD env variable after goPrepare script
       // completion, and avoid this GOBIN substitution.

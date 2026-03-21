@@ -101,7 +101,6 @@ public class TransformUpgrader implements AutoCloseable {
    * @param urnsToOverride URNs of the transforms to be overridden.
    * @param options options for determining the transform service to use.
    * @return pipelines with transforms upgraded using the Transform Service.
-   * @throws Exception
    */
   public RunnerApi.Pipeline upgradeTransformsViaTransformService(
       RunnerApi.Pipeline pipeline, List<String> urnsToOverride, PipelineOptions options)
@@ -476,8 +475,8 @@ public class TransformUpgrader implements AutoCloseable {
     } catch (InvalidClassException e) {
       LOG.info(
           "An object cannot be re-generated from the provided byte array. Caller may use the "
-              + "default value for the parameter when upgrading. Underlying error: "
-              + e);
+              + "default value for the parameter when upgrading. Underlying error: {}",
+          e.toString());
       throw e;
     } catch (Exception e) {
       throw new RuntimeException(e);

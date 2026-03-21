@@ -544,7 +544,6 @@ public class ArtifactStagingService
    * @param stagingService an ArtifactStagingService stub which will request artifacts
    * @param stagingToken the staging token of the job whose artifacts will be retrieved
    * @throws InterruptedException
-   * @throws IOException
    */
   public static void offer(
       ArtifactRetrievalService retrievalService,

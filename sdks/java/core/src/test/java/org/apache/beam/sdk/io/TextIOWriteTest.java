@@ -319,21 +319,21 @@ public class TextIOWriteTest {
 
     Iterable<String> aElements =
         elements.stream()
-            .filter(Predicates.compose(new StartsWith("a"), new ExtractWriteDestination())::apply)
+            .filter(Predicates.compose(new StartsWith("a"), new ExtractWriteDestination()))
             .collect(Collectors.toList())
             .stream()
             .map(Functions.toStringFunction())
             .collect(Collectors.toList());
     Iterable<String> bElements =
         elements.stream()
-            .filter(Predicates.compose(new StartsWith("b"), new ExtractWriteDestination())::apply)
+            .filter(Predicates.compose(new StartsWith("b"), new ExtractWriteDestination()))
             .collect(Collectors.toList())
             .stream()
             .map(Functions.toStringFunction())
             .collect(Collectors.toList());
     Iterable<String> cElements =
         elements.stream()
-            .filter(Predicates.compose(new StartsWith("c"), new ExtractWriteDestination())::apply)
+            .filter(Predicates.compose(new StartsWith("c"), new ExtractWriteDestination()))
             .collect(Collectors.toList())
             .stream()
             .map(Functions.toStringFunction())

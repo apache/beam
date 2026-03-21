@@ -104,14 +104,12 @@ public class RetryHttpRequestInitializer implements HttpRequestInitializer {
         ioExceptionRetries += 1;
         LOG.debug("Request failed with IOException, will retry: {}", request.getUrl());
       } else {
-        String message =
+        LOG.warn(
             "Request failed with IOException, "
                 + "performed {} retries due to IOExceptions, "
                 + "performed {} retries due to unsuccessful status codes, "
                 + "HTTP framework says request {} be retried, "
-                + "(caller responsible for retrying): {}";
-        LOG.warn(
-            message,
+                + "(caller responsible for retrying): {}",
             ioExceptionRetries,
             unsuccessfulResponseRetries,
             supportsRetry ? "can" : "cannot",
@@ -138,7 +136,7 @@ public class RetryHttpRequestInitializer implements HttpRequestInitializer {
             request.getUrl());
       } else {
 
-        String message =
+        final String message =
             "Request failed with code {}, "
                 + "performed {} retries due to IOExceptions, "
                 + "performed {} retries due to unsuccessful status codes, "

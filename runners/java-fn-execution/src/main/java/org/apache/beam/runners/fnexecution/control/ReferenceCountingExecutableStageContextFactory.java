@@ -224,7 +224,7 @@ public class ReferenceCountingExecutableStageContextFactory
       if (this == o) {
         return true;
       }
-      if (o == null || getClass() != o.getClass()) {
+      if (!(o instanceof WrappedContext)) {
         return false;
       }
       WrappedContext that = (WrappedContext) o;

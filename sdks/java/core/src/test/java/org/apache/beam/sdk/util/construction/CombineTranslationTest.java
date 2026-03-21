@@ -224,7 +224,7 @@ public class CombineTranslationTest {
 
     @Override
     public boolean equals(@Nullable Object other) {
-      return other != null && other.getClass().equals(TestCombineFn.class);
+      return other instanceof TestCombineFn;
     }
 
     @Override

@@ -243,15 +243,14 @@ public class Query10 extends NexmarkQueryTransform<Done> {
                     }
                     String shard = c.element().getKey();
                     LOG.debug(
-                        String.format(
-                            "%s with timestamp %s has %d actually late and %d on-time "
-                                + "elements in pane %s for window %s",
-                            shard,
-                            c.timestamp(),
-                            numLate,
-                            numOnTime,
-                            c.pane(),
-                            window.maxTimestamp()));
+                        "{} with timestamp {} has {} actually late and {} on-time "
+                            + "elements in pane {} for window {}",
+                        shard,
+                        c.timestamp(),
+                        numLate,
+                        numOnTime,
+                        c.pane(),
+                        window.maxTimestamp());
                     if (c.pane().getTiming() == PaneInfo.Timing.LATE) {
                       if (numLate == 0) {
                         LOG.error("ERROR! No late events in late pane for {}", shard);
@@ -292,9 +291,11 @@ public class Query10 extends NexmarkQueryTransform<Done> {
                     GcsOptions options = c.getPipelineOptions().as(GcsOptions.class);
                     OutputFile outputFile = outputFileFor(window, shard, c.pane());
                     LOG.debug(
-                        String.format(
-                            "Writing %s with record timestamp %s, window timestamp %s, pane %s",
-                            shard, c.timestamp(), window.maxTimestamp(), c.pane()));
+                        "Writing {} with record timestamp {}, window timestamp {}, pane {}",
+                        shard,
+                        c.timestamp(),
+                        window.maxTimestamp(),
+                        c.pane());
                     if (outputFile.filename != null) {
                       LOG.info("Beginning write to '{}'", outputFile.filename);
                       int n = 0;

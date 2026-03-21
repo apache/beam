@@ -25,9 +25,10 @@ import static org.junit.Assert.assertNotNull;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.Serializable;
+import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.Date;
 import java.util.List;
 import java.util.UUID;
 import org.apache.beam.sdk.Pipeline;
@@ -132,7 +133,7 @@ public class TestPipelineTest implements Serializable {
 
       @Override
       public void describeTo(Description description) {
-        description.appendText(String.format("%tL", new Date()));
+        description.appendText(String.format("%tL", LocalDateTime.now(ZoneId.of("UTC"))));
       }
 
       @Override

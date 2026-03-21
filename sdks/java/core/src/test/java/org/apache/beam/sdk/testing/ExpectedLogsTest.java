@@ -49,36 +49,36 @@ public class ExpectedLogsTest {
 
   @Test
   public void testWhenNoExpectations() throws Throwable {
-    LOG.error(generateRandomString());
+    LOG.error("{}", generateRandomString());
   }
 
   @Test
   public void testVerifyWhenMatchedFully() throws Throwable {
     String expected = generateRandomString();
 
-    LOG.error(expected);
+    LOG.error("{}", expected);
     expectedLogs.verifyError(expected);
   }
 
   @Test
   public void testVerifyWhenMatchedPartially() throws Throwable {
     String expected = generateRandomString();
-    LOG.error("Extra stuff around expected " + expected + " blah");
+    LOG.error("Extra stuff around expected {} blah", expected);
     expectedLogs.verifyError(expected);
   }
 
   @Test
   public void testVerifyWhenMatchedWithExceptionBeingLogged() throws Throwable {
     String expected = generateRandomString();
-    LOG.error(expected, new IOException("Fake Exception"));
+    LOG.error("{}", expected, new IOException("Fake Exception"));
     expectedLogs.verifyError(expected);
   }
 
   @Test
   public void testVerifyLogRecords() throws Throwable {
     String expected = generateRandomString();
-    LOG.error(expected);
-    LOG.error(expected);
+    LOG.error("{}", expected);
+    LOG.error("{}", expected);
     expectedLogs.verifyLogRecords(
         new TypeSafeMatcher<Iterable<LogRecord>>() {
           @Override
@@ -108,21 +108,21 @@ public class ExpectedLogsTest {
   public void testVerifyNotLoggedWhenMatchedFully() throws Throwable {
     String expected = generateRandomString();
 
-    LOG.error(expected);
+    LOG.error("{}", expected);
     expectedLogs.verifyNotLogged(expected);
   }
 
   @Test(expected = AssertionError.class)
   public void testVerifyNotLoggedWhenMatchedPartially() throws Throwable {
     String expected = generateRandomString();
-    LOG.error("Extra stuff around expected " + expected + " blah");
+    LOG.error("Extra stuff around expected {} blah", expected);
     expectedLogs.verifyNotLogged(expected);
   }
 
   @Test(expected = AssertionError.class)
   public void testVerifyNotLoggedWhenMatchedWithException() throws Throwable {
     String expected = generateRandomString();
-    LOG.error(expected, new IOException("Fake Exception"));
+    LOG.error("{}", expected, new IOException("Fake Exception"));
     expectedLogs.verifyNotLogged(expected);
   }
 
@@ -135,7 +135,7 @@ public class ExpectedLogsTest {
   @Test
   public void testLogCaptureOccursAtLowestLogLevel() throws Throwable {
     String expected = generateRandomString();
-    LOG.trace(expected);
+    LOG.trace("{}", expected);
     expectedLogs.verifyTrace(expected);
   }
 
@@ -158,7 +158,7 @@ public class ExpectedLogsTest {
                     1,
                     scheduledLogTime
                         - TimeUnit.MILLISECONDS.convert(System.nanoTime(), TimeUnit.NANOSECONDS)));
-            LOG.trace(expected);
+            LOG.trace("{}", expected);
             return null;
           });
     }

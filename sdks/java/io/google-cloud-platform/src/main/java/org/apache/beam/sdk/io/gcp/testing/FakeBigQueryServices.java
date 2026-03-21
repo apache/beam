@@ -25,6 +25,7 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.ListCoder;
@@ -128,7 +129,7 @@ public class FakeBigQueryServices implements BigQueryServices {
 
   // Longs tend to get converted back to Integers due to JSON serialization. Convert them back.
   public static TableRow convertNumbers(TableRow tableRow) {
-    for (TableRow.Entry<?, Object> entry : tableRow.entrySet()) {
+    for (Map.Entry<?, Object> entry : tableRow.entrySet()) {
       if (entry.getValue() instanceof Integer) {
         entry.setValue(Long.valueOf((Integer) entry.getValue()));
       }

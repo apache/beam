@@ -106,7 +106,7 @@ public class RateLimiterSimple {
       }
 
       // Simulate external API call
-      LOG.info("Processing: " + element);
+      LOG.info("Processing: {}", element);
       Thread.sleep(100);
       c.output("Processed: " + element);
     }

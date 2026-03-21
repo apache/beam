@@ -617,6 +617,7 @@ class KafkaUnboundedReader<K, V> extends UnboundedReader<KafkaRecord<K, V>> {
     }
   }
 
+  @SuppressWarnings("Slf4jFormatShouldBeConst")
   private void commitCheckpointMark() {
     KafkaCheckpointMark checkpointMark = finalizedCheckpointMark.getAndSet(null);
     if (checkpointMark == null) {
@@ -740,15 +741,15 @@ class KafkaUnboundedReader<K, V> extends UnboundedReader<KafkaRecord<K, V>> {
       }
       if (recordsDequeuePollTimeout.isLongerThan(RECORDS_DEQUEUE_POLL_TIMEOUT_MIN)) {
         recordsDequeuePollTimeout = recordsDequeuePollTimeout.minus(Duration.millis(1));
-        LOG.debug("Reducing poll timeout for reader to " + recordsDequeuePollTimeout.getMillis());
+        LOG.debug("Reducing poll timeout for reader to {}", recordsDequeuePollTimeout.getMillis());
       }
       return;
     }
 
     if (recordsDequeuePollTimeout.isShorterThan(RECORDS_DEQUEUE_POLL_TIMEOUT_MAX)) {
       recordsDequeuePollTimeout = recordsDequeuePollTimeout.plus(Duration.millis(1));
-      LOG.debug("Increasing poll timeout for reader to " + recordsDequeuePollTimeout.getMillis());
-      LOG.debug("Record count: " + records.count());
+      LOG.debug("Increasing poll timeout for reader to {}", recordsDequeuePollTimeout.getMillis());
+      LOG.debug("Record count: {}", records.count());
     }
 
     partitionStates.forEach(p -> p.recordIter = records.records(p.topicPartition).iterator());

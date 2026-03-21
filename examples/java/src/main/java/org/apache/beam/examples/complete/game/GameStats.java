@@ -21,6 +21,7 @@ import java.util.HashMap;
 import java.util.Map;
 import org.apache.beam.examples.common.ExampleUtils;
 import org.apache.beam.examples.complete.game.utils.GameConstants;
+import org.apache.beam.examples.complete.game.utils.WriteToBigQuery;
 import org.apache.beam.examples.complete.game.utils.WriteWindowedToBigQuery;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineResult;
@@ -130,12 +131,10 @@ public class GameStats extends LeaderBoard {
                           Double gmc = c.sideInput(globalMeanScore);
                           if (score > (gmc * SCORE_WEIGHT)) {
                             LOG.info(
-                                "user "
-                                    + c.element().getKey()
-                                    + " spammer score "
-                                    + score
-                                    + " with mean "
-                                    + gmc);
+                                "user {} spammer score {} with mean {}",
+                                c.element().getKey(),
+                                score,
+                                gmc);
                             numSpammerUsers.inc();
                             c.output(c.element());
                           }
@@ -189,18 +188,17 @@ public class GameStats extends LeaderBoard {
    * Create a map of information that describes how to write pipeline output to BigQuery. This map
    * is used to write information about team score sums.
    */
-  protected static Map<String, WriteWindowedToBigQuery.FieldInfo<KV<String, Integer>>>
+  protected static Map<String, WriteToBigQuery.FieldInfo<KV<String, Integer>>>
       configureWindowedWrite() {
-    Map<String, WriteWindowedToBigQuery.FieldInfo<KV<String, Integer>>> tableConfigure =
-        new HashMap<>();
+    Map<String, WriteToBigQuery.FieldInfo<KV<String, Integer>>> tableConfigure = new HashMap<>();
     tableConfigure.put(
-        "team", new WriteWindowedToBigQuery.FieldInfo<>("STRING", (c, w) -> c.element().getKey()));
+        "team", new WriteToBigQuery.FieldInfo<>("STRING", (c, w) -> c.element().getKey()));
     tableConfigure.put(
         "total_score",
-        new WriteWindowedToBigQuery.FieldInfo<>("INTEGER", (c, w) -> c.element().getValue()));
+        new WriteToBigQuery.FieldInfo<>("INTEGER", (c, w) -> c.element().getValue()));
     tableConfigure.put(
         "window_start",
-        new WriteWindowedToBigQuery.FieldInfo<>(
+        new WriteToBigQuery.FieldInfo<>(
             "STRING",
             (c, w) -> {
               IntervalWindow window = (IntervalWindow) w;
@@ -208,7 +206,7 @@ public class GameStats extends LeaderBoard {
             }));
     tableConfigure.put(
         "processing_time",
-        new WriteWindowedToBigQuery.FieldInfo<>(
+        new WriteToBigQuery.FieldInfo<>(
             "STRING", (c, w) -> GameConstants.DATE_TIME_FORMATTER.print(Instant.now())));
     return tableConfigure;
   }
@@ -217,20 +215,19 @@ public class GameStats extends LeaderBoard {
    * Create a map of information that describes how to write pipeline output to BigQuery. This map
    * is used to write information about mean user session time.
    */
-  protected static Map<String, WriteWindowedToBigQuery.FieldInfo<Double>>
-      configureSessionWindowWrite() {
+  protected static Map<String, WriteToBigQuery.FieldInfo<Double>> configureSessionWindowWrite() {
 
-    Map<String, WriteWindowedToBigQuery.FieldInfo<Double>> tableConfigure = new HashMap<>();
+    Map<String, WriteToBigQuery.FieldInfo<Double>> tableConfigure = new HashMap<>();
     tableConfigure.put(
         "window_start",
-        new WriteWindowedToBigQuery.FieldInfo<>(
+        new WriteToBigQuery.FieldInfo<>(
             "STRING",
             (c, w) -> {
               IntervalWindow window = (IntervalWindow) w;
               return GameConstants.DATE_TIME_FORMATTER.print(window.start());
             }));
     tableConfigure.put(
-        "mean_duration", new WriteWindowedToBigQuery.FieldInfo<>("FLOAT", (c, w) -> c.element()));
+        "mean_duration", new WriteToBigQuery.FieldInfo<>("FLOAT", (c, w) -> c.element()));
     return tableConfigure;
   }
 

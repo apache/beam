@@ -183,17 +183,20 @@ public class KuduIOTest {
     private transient int id = 0; // set on deserialization
 
     @Override
+    @SuppressWarnings("Slf4jFormatShouldBeConst")
     public void openSession() {
       LOG.debug(String.format(LOG_OPEN_SESSION, id));
     }
 
     @Override
+    @SuppressWarnings("Slf4jFormatShouldBeConst")
     public void write(Long entity) {
       LOG.debug(String.format(LOG_WRITE, entity));
       LOG.debug(String.format(LOG_WRITE_VALUE, entity));
     }
 
     @Override
+    @SuppressWarnings("Slf4jFormatShouldBeConst")
     public void closeSession() {
       LOG.debug(String.format(LOG_CLOSE_SESSION, id));
     }
@@ -234,6 +237,7 @@ public class KuduIOTest {
     }
 
     @Override
+    @SuppressWarnings("Slf4jFormatShouldBeConst")
     public boolean start() {
       //  simulate the deserialization of a tablet scanner
       if (source.serializedToken != null) {

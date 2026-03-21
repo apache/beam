@@ -42,7 +42,6 @@ import com.google.cloud.logging.Severity;
 import com.google.cloud.logging.Synchronicity;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Iterators;
-import com.google.errorprone.annotations.concurrent.LazyInit;
 import com.google.protobuf.Struct;
 import java.io.BufferedOutputStream;
 import java.io.File;
@@ -146,7 +145,7 @@ public class DataflowWorkerLoggingHandler extends Handler {
   }
 
   /** If true, add SLF4J MDC to custom_data of the log message. */
-  @LazyInit private boolean logCustomMdc = false;
+  private final AtomicBoolean logCustomMdc = new AtomicBoolean(false);
 
   // Only instantiated and set if enableDirectLogging is called.
   private static class DirectLoggingState {
@@ -248,7 +247,7 @@ public class DataflowWorkerLoggingHandler extends Handler {
   }
 
   public void setLogMdc(boolean enabled) {
-    logCustomMdc = enabled;
+    logCustomMdc.set(enabled);
   }
 
   private static Pair<ImmutableMap<String, String>, ImmutableMap<String, String>>
@@ -355,7 +354,7 @@ public class DataflowWorkerLoggingHandler extends Handler {
     addLogField(payloadBuilder, "worker", DataflowWorkerLoggingMDC.getWorkerId(), FIELD_MAX_LENGTH);
     addLogField(payloadBuilder, "work", DataflowWorkerLoggingMDC.getWorkId(), FIELD_MAX_LENGTH);
     addLogField(payloadBuilder, "job", DataflowWorkerLoggingMDC.getJobId(), FIELD_MAX_LENGTH);
-    if (logCustomMdc) {
+    if (logCustomMdc.get()) {
       @Nullable Map<String, String> mdcMap = MDC.getCopyOfContextMap();
       if (mdcMap != null && !mdcMap.isEmpty()) {
         Struct.Builder customDataBuilder =
@@ -606,7 +605,7 @@ public class DataflowWorkerLoggingHandler extends Handler {
       writeIfNotEmpty(generator, "work", DataflowWorkerLoggingMDC.getWorkId());
       writeIfNotEmpty(generator, "logger", record.getLoggerName());
       writeIfNotEmpty(generator, "exception", formatException(record.getThrown()));
-      if (logCustomMdc) {
+      if (logCustomMdc.get()) {
         @Nullable Map<String, String> mdcMap = MDC.getCopyOfContextMap();
         if (mdcMap != null && !mdcMap.isEmpty()) {
           generator.writeFieldName("custom_data");
@@ -813,6 +812,7 @@ public class DataflowWorkerLoggingHandler extends Handler {
     }
 
     @Override
+    @SuppressWarnings("JavaUtilDate")
     public OutputStream get() {
       try {
         String filename = filepath + "." + formatter.format(new Date()) + ".log";

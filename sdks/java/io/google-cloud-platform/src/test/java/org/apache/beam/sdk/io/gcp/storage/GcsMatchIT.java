@@ -26,8 +26,9 @@ import java.nio.channels.Channels;
 import java.nio.channels.ReadableByteChannel;
 import java.nio.channels.WritableByteChannel;
 import java.nio.file.Path;
+import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.util.Collections;
-import java.util.Date;
 import java.util.Objects;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineResult;
@@ -149,7 +150,9 @@ public class GcsMatchIT {
     GcsOptions gcsOptions = options.as(GcsOptions.class);
     String dstFolderName =
         gcsOptions.getGcpTempLocation()
-            + String.format("/testGcsMatchContinuously.%tF-%<tH-%<tM-%<tS-%<tL/", new Date());
+            + String.format(
+                "/testGcsMatchContinuously.%tF-%<tH-%<tM-%<tS-%<tL/",
+                LocalDateTime.now(ZoneId.of("UTC")));
     watchPath = GcsPath.fromUri(dstFolderName);
   }
 

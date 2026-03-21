@@ -558,6 +558,6 @@ class ParDoBoundMultiTranslator<InT, OutT>
 
   private static class NoOpDoFn<InT, OutT> extends DoFn<InT, OutT> {
     @ProcessElement
-    public void doNothing(ProcessContext context) {}
+    public void doNothing(@SuppressWarnings("unused") ProcessContext context) {}
   }
 }

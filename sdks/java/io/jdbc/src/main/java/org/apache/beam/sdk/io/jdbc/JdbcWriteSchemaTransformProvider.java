@@ -238,7 +238,7 @@ public class JdbcWriteSchemaTransformProvider
 
     private static class NoOutputDoFn<T> extends DoFn<T, Row> {
       @ProcessElement
-      public void process(ProcessContext c) {}
+      public void process(@SuppressWarnings("unused") ProcessContext c) {}
     }
 
     @Override

@@ -1301,7 +1301,7 @@ public class ProcessBundleHandler {
           String.format(
               "No factory registered for %s, known factories %s",
               context.getPTransform().getSpec().getUrn(), knownUrns);
-      LOG.error(message);
+      LOG.error("{}", message);
       throw new IllegalStateException(message);
     }
   }

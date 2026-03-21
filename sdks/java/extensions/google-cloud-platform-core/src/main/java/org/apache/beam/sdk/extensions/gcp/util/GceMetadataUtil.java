@@ -60,6 +60,7 @@ public class GceMetadataUtil {
         }
       }
     } catch (IOException ignored) {
+      LOG.debug("Failed to fetch GCE metadata.", ignored);
     }
 
     // The return value can be an empty string, which may mean it's running on a non DataflowRunner.

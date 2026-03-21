@@ -118,7 +118,7 @@ public class TestAvroFactory {
                 map);
       }
     } catch (ReflectiveOperationException e) {
-      LOG.error(String.format("Fail to create a TestAvro instance: %s", e.getMessage()));
+      LOG.error("Fail to create a TestAvro instance", e);
       return new TestAvro(); // return an empty instance to fail the tests
     }
   }
