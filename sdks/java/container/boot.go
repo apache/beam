@@ -73,7 +73,7 @@ func main() {
 	if err != nil {
 		log.Fatalf("Failed to obtain provisioning information: %v", err)
 	}
-	log.Printf("Provision info:\n%v", info)
+	log.Printf("Tarun Provision info: %v", info)
 
 	// TODO(BEAM-8201): Simplify once flags are no longer used.
 	if info.GetLoggingEndpoint().GetUrl() != "" {
@@ -101,6 +101,7 @@ func main() {
 
 	// (1) Obtain the pipeline options
 	options, err := tools.ProtoToJSON(info.GetPipelineOptions())
+	logger.Printf(ctx, "Tarun Pipeline options: %v", options)
 	if err != nil {
 		logger.Fatalf(ctx, "Failed to convert pipeline options: %v", err)
 	}
