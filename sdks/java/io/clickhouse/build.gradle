@@ -73,3 +73,8 @@ processTestResources {
   // BEAM-12390: config.d/zookeeper_default.xml should have xx4 permission.
   fileMode 0644
 }
+
+test {
+  // Include integration tests (Testcontainers-based *IT classes) alongside unit tests
+  include "**/*IT.class"
+}
