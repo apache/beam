@@ -1178,13 +1178,9 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
             StagedFile.of(filePayload.getPath(), filePayload.getSha256(), stagedName));
       }
     }
-    try {
-      options
-          .as(org.apache.beam.runners.dataflow.options.DataflowPipelineOptions.class)
-          .setArtifactHashes(MAPPER.writeValueAsString(hashes));
-    } catch (IOException e) {
-      throw new RuntimeException("Failed to serialize artifact hashes", e);
-    }
+    options
+        .as(org.apache.beam.runners.dataflow.options.DataflowPipelineOptions.class)
+        .setArtifactHashes(hashes);
     return options.getStager().stageFiles(filesToStageBuilder.build());
   }
 

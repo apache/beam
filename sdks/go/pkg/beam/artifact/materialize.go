@@ -33,8 +33,6 @@ import (
 	"sync/atomic"
 	"time"
 
-	"encoding/json"
-
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/internal/errors"
 	jobpb "github.com/apache/beam/sdks/v2/go/pkg/beam/model/jobmanagement_v1"
 	pipepb "github.com/apache/beam/sdks/v2/go/pkg/beam/model/pipeline_v1"
@@ -552,7 +550,7 @@ func WithPipelineOptions(ctx context.Context, options *structpb.Struct) context.
 	return context.WithValue(ctx, pipelineOptionsKey, options)
 }
 
-// extractArtifactHashes gathers hashes dictionary securely using native protobuf struct inspection.
+// extractArtifactHashes gathers artifact hashes dictionary.
 func extractArtifactHashes(ctx context.Context) map[string]string {
 	options, ok := ctx.Value(pipelineOptionsKey).(*structpb.Struct)
 	if !ok || options == nil {
@@ -566,13 +564,13 @@ func extractArtifactHashes(ctx context.Context) map[string]string {
 	if !ok {
 		return nil
 	}
-	hashesStr := hashesOption.GetStringValue()
-	if hashesStr == "" {
+	hashesStruct := hashesOption.GetStructValue()
+	if hashesStruct == nil {
 		return nil
 	}
-	var hashes map[string]string
-	if err := json.Unmarshal([]byte(hashesStr), &hashes); err != nil {
-		return nil
+	hashes := make(map[string]string)
+	for k, v := range hashesStruct.GetFields() {
+		hashes[k] = v.GetStringValue()
 	}
 	return hashes
 }

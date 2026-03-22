@@ -17,7 +17,6 @@ package dataflowlib
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"strings"
 	"time"
@@ -157,13 +156,6 @@ func Translate(ctx context.Context, p *pipepb.Pipeline, opts *JobOptions, worker
 
 	opts.Options.Options["experiments"] = strings.Join(opts.Experiments, ",")
 	
-	var hashesJSON string
-	if len(hashes) > 0 {
-		if data, err := json.Marshal(hashes); err == nil {
-			hashesJSON = string(data)
-		}
-	}
-
 	job := &df.Job{
 		ProjectId: opts.Project,
 		Name:      opts.Name,
@@ -189,7 +181,7 @@ func Translate(ctx context.Context, p *pipepb.Pipeline, opts *JobOptions, worker
 					Region:         opts.Region,
 					Experiments:    opts.Experiments,
 					TempLocation:   opts.TempLocation,
-					ArtifactHashes: hashesJSON,
+					ArtifactHashes: hashes,
 				},
 				GoOptions: opts.Options,
 			}),
@@ -364,7 +356,7 @@ type dataflowOptions struct {
 	PipelineURL    string   `json:"pipelineUrl"`
 	Region         string   `json:"region"`
 	TempLocation   string   `json:"tempLocation"`
-	ArtifactHashes string   `json:"artifactHashes,omitempty"`
+	ArtifactHashes map[string]string `json:"artifactHashes,omitempty"`
 }
 
 func printOptions(opts *JobOptions, images []string) []*displayData {

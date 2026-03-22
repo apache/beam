@@ -279,7 +279,7 @@ class Environment(object):
       }
       if hashes:
         import json
-        options_dict["artifactHashes"] = json.dumps(hashes)
+        options_dict["artifactHashes"] = hashes
       options_dict["pipelineUrl"] = proto_pipeline_staged_url
       # Don't pass impersonate_service_account through to the harness.
       # Though impersonation should start a job, the workers should
