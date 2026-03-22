@@ -65,6 +65,7 @@
 ## I/Os
 
 * Support for X source added (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
+* Add ArrowFlight IO (Java) ([#20116](https://github.com/apache/beam/issues/20116)).
 
 ## New Features / Improvements
 
@@ -96,6 +97,7 @@
 ## Highlights
 
 ## I/Os
+
 
 * DebeziumIO (Java): added `OffsetRetainer` interface and `FileSystemOffsetRetainer` implementation to persist and restore CDC offsets across pipeline restarts, and exposed `withStartOffset` / `withOffsetRetainer` on `DebeziumIO.Read` and the cross-language `ReadBuilder` ([#28248](https://github.com/apache/beam/issues/28248)).
 
