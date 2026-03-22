@@ -110,7 +110,7 @@ import org.slf4j.LoggerFactory;
  * <h4>User agent</h4>
  *
  * <p>The connector automatically sets the ClickHouse client name to {@code Apache Beam/<version>},
- * which is visible in {@code system.query_log.http_user_agent}. If you set the {@code client_name}
+ * which is visible in {@code system.query_log.client_name}. If you set the {@code client_name}
  * connection property, it is appended after the Beam identifier, for example:
  *
  * <pre>{@code
