@@ -34,6 +34,7 @@ import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
 import org.apache.beam.sdk.schemas.logicaltypes.FixedBytes;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
+import org.apache.beam.sdk.util.ReleaseInfo;
 import org.apache.beam.sdk.values.Row;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.DateTime;
@@ -477,6 +478,40 @@ public class ClickHouseIOIT extends BaseClickHouseTest {
 
     assertEquals(6L, sum0);
     assertEquals(12L, sum1);
+  }
+
+  @Test
+  public void testUserAgentInQueryLog() throws Exception {
+    Schema schema = Schema.of(Schema.Field.of("f0", FieldType.INT64));
+    Row row1 = Row.withSchema(schema).addValue(1L).build();
+
+    executeSql("CREATE TABLE test_user_agent (f0 Int64) ENGINE=Log");
+
+    pipeline.apply(Create.of(row1).withRowSchema(schema)).apply(write("test_user_agent"));
+
+    pipeline.run().waitUntilFinish();
+
+    executeSql("SYSTEM FLUSH LOGS");
+
+    String expectedAgent =
+        String.format("Apache Beam/%s", ReleaseInfo.getReleaseInfo().getSdkVersion());
+
+    // Query system.query_log for an INSERT that has our agent in the http_user_agent field
+    long matchingRows =
+        executeQueryAsLong(
+            String.format(
+                "SELECT COUNT(*) FROM system.query_log"
+                    + " WHERE type = 'QueryStart'"
+                    + " AND query_kind = 'Insert'"
+                    + " AND has(databases, '%s')"
+                    + " AND has(tables, '%s.%s')"
+                    + " AND startsWith(http_user_agent, '%s')",
+                database, database, "test_user_agent", expectedAgent));
+
+    assertTrue(
+        "Expected at least one INSERT in system.query_log with http_user_agent starting with: "
+            + expectedAgent,
+        matchingRows > 0);
   }
 
   private <T> ClickHouseIO.Write<T> write(String table) {
