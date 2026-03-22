@@ -85,7 +85,6 @@ func newMaterializeWithClient(ctx context.Context, client jobpb.ArtifactRetrieva
 	}
 
 	hashes := extractArtifactHashes(ctx)
-	log.Printf("Tarun Hashes: %v", hashes)
 
 	var artifacts []*pipepb.ArtifactInformation
 	var list []retrievable
@@ -146,7 +145,6 @@ func newMaterializeWithClient(ctx context.Context, client jobpb.ArtifactRetrieva
 		})
 	}
 
-	log.Printf("Tarun Artifacts: %v", artifacts)
 	return artifacts, MultiRetrieve(ctx, 10, list, dest)
 }
 
@@ -243,7 +241,7 @@ func (a artifact) retrieve(ctx context.Context, dest string) error {
 		return errors.Wrapf(err, "failed to flush chunks for %v", filename)
 	}
 	stat, _ := fd.Stat()
-	log.Printf("Tarun Downloaded: %v (sha256: %v, size: %v, expectedSha256: %v)", filename, sha256Hash, stat.Size(), a.expectedSha256)
+	log.Printf("Downloaded: %v (sha256: %v, size: %v, expectedSha256: %v)", filename, sha256Hash, stat.Size(), a.expectedSha256)
 
 	if err := fd.Close(); err != nil {
 		return err
