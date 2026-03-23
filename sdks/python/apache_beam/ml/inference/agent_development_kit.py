@@ -70,10 +70,13 @@ try:
   from google.adk.runners import Runner
   from google.adk.sessions import BaseSessionService
   from google.adk.sessions import InMemorySessionService
-  from google.genai import types as genai_types
+  from google.genai.types import Content as genai_Content
+  from google.genai.types import Part as genai_Part
   ADK_AVAILABLE = True
 except ImportError:
   ADK_AVAILABLE = False
+  genai_Content = Any
+  genai_Part = Any
 
 LOGGER = logging.getLogger("ADKAgentModelHandler")
 
@@ -81,7 +84,7 @@ LOGGER = logging.getLogger("ADKAgentModelHandler")
 _AgentOrFactory = Union["Agent", Callable[[], "Agent"]]
 
 
-class ADKAgentModelHandler(ModelHandler[Union[str, genai_types.Content], PredictionResult,
+class ADKAgentModelHandler(ModelHandler[Union[str, genai_Content], PredictionResult,
                                         "Runner"]):
   """ModelHandler for running ADK agents with the Beam RunInference transform.
 
@@ -184,7 +187,7 @@ class ADKAgentModelHandler(ModelHandler[Union[str, genai_types.Content], Predict
 
   def run_inference(
       self,
-      batch: Sequence[Union[str, genai_types.Content]],
+      batch: Sequence[Union[str, genai_Content]],
       model: "Runner",
       inference_args: Optional[dict[str, Any]] = None,
   ) -> Iterable[PredictionResult]:
@@ -231,8 +234,8 @@ class ADKAgentModelHandler(ModelHandler[Union[str, genai_types.Content], Predict
 
       # Wrap plain strings in a Content object
       if isinstance(element, str):
-        message = genai_types.Content(
-            role="user", parts=[genai_types.Part(text=element)])
+        message = genai_Content(
+            role="user", parts=[genai_Part(text=element)])
       else:
         # Assume the caller has already constructed a types.Content object
         message = element
@@ -254,7 +257,7 @@ class ADKAgentModelHandler(ModelHandler[Union[str, genai_types.Content], Predict
       runner: "Runner",
       user_id: str,
       session_id: str,
-      message: genai_types.Content,
+      message: genai_Content,
   ) -> Optional[str]:
     """Drives the ADK event loop and returns the final response text.
 

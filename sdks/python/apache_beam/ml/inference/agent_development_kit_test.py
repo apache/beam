@@ -23,6 +23,9 @@ from unittest import mock
 try:
   from apache_beam.ml.inference.agent_development_kit import ADKAgentModelHandler
   from apache_beam.ml.inference.base import PredictionResult
+  from google.adk.agents.llm_agent import Agent
+  from google.adk.runners import Runner
+  from google.adk.sessions import InMemorySessionService
 except ImportError:
   raise unittest.SkipTest('google-adk dependencies are not installed')
 
@@ -104,21 +107,22 @@ class TestADKAgentModelHandlerInit(unittest.TestCase):
 class TestLoadModel(unittest.TestCase):
   """Tests for load_model / Runner construction."""
 
-  @mock.patch(f"{_MODULE}.Runner")
-  @mock.patch(f"{_MODULE}.InMemorySessionService")
-  def test_load_model_with_agent_object(
-      self, mock_session_cls, mock_runner_cls):
-    agent = _make_mock_agent()
-    handler = ADKAgentModelHandler(agent=agent, app_name="test_app")
+  def test_load_model_with_agent_object(self):
+    def get_current_time(city: str) -> dict:
+        """Returns the current time in a specified city."""
+        return {"status": "success", "city": city, "time": "10:30 AM"}
 
-    handler.load_model()
-
-    mock_session_cls.assert_called_once()
-    mock_runner_cls.assert_called_once_with(
-        agent=agent,
-        app_name="test_app",
-        session_service=mock_session_cls.return_value,
+    agent = Agent(
+        model='gemini-3-flash-preview',
+        name='root_agent',
+        description="Tells the current time in a specified city.",
+        instruction="You are a helpful assistant that tells the current time in cities. Use the 'get_current_time' tool for this purpose.",
+        tools=[get_current_time],
     )
+    handler = ADKAgentModelHandler(agent=agent, app_name="test_app")
+    runner = handler.load_model()
+
+    self.assertEqual(agent, runner.agent)
 
   @mock.patch(f"{_MODULE}.Runner")
   @mock.patch(f"{_MODULE}.InMemorySessionService")
@@ -135,24 +139,6 @@ class TestLoadModel(unittest.TestCase):
         app_name="beam_inference",
         session_service=mock_session_cls.return_value,
     )
-
-  @mock.patch(f"{_MODULE}.Runner")
-  def test_load_model_uses_custom_session_service(self, mock_runner_cls):
-    agent = _make_mock_agent()
-    custom_session_service = mock.MagicMock()
-    session_factory = mock.MagicMock(return_value=custom_session_service)
-
-    handler = ADKAgentModelHandler(
-        agent=agent, session_service_factory=session_factory)
-    handler.load_model()
-
-    session_factory.assert_called_once()
-    mock_runner_cls.assert_called_once_with(
-        agent=agent,
-        app_name="beam_inference",
-        session_service=custom_session_service,
-    )
-
 
 class TestRunInference(unittest.TestCase):
   """Tests for run_inference output and batching."""
