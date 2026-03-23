@@ -84,7 +84,8 @@ LOGGER = logging.getLogger("ADKAgentModelHandler")
 _AgentOrFactory = Union["Agent", Callable[[], "Agent"]]
 
 
-class ADKAgentModelHandler(ModelHandler[Union[str, genai_Content], PredictionResult,
+class ADKAgentModelHandler(ModelHandler[Union[str, genai_Content],
+                                        PredictionResult,
                                         "Runner"]):
   """ModelHandler for running ADK agents with the Beam RunInference transform.
 
@@ -118,13 +119,12 @@ class ADKAgentModelHandler(ModelHandler[Union[str, genai_Content], PredictionRes
     element_size_fn: Optional function that returns the size (weight) of an
       element.
   """
-
   def __init__(
       self,
       agent: _AgentOrFactory,
       app_name: str = "beam_inference",
-      session_service_factory: Optional[Callable[[], "BaseSessionService"]] =
-      None,
+      session_service_factory: Optional[Callable[[],
+                                                 "BaseSessionService"]] = None,
       *,
       min_batch_size: Optional[int] = None,
       max_batch_size: Optional[int] = None,
@@ -234,8 +234,7 @@ class ADKAgentModelHandler(ModelHandler[Union[str, genai_Content], PredictionRes
 
       # Wrap plain strings in a Content object
       if isinstance(element, str):
-        message = genai_Content(
-            role="user", parts=[genai_Part(text=element)])
+        message = genai_Content(role="user", parts=[genai_Part(text=element)])
       else:
         # Assume the caller has already constructed a types.Content object
         message = element

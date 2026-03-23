@@ -21,11 +21,10 @@ import unittest
 from unittest import mock
 
 try:
+  from google.adk.agents.llm_agent import Agent
+
   from apache_beam.ml.inference.agent_development_kit import ADKAgentModelHandler
   from apache_beam.ml.inference.base import PredictionResult
-  from google.adk.agents.llm_agent import Agent
-  from google.adk.runners import Runner
-  from google.adk.sessions import InMemorySessionService
 except ImportError:
   raise unittest.SkipTest('google-adk dependencies are not installed')
 
@@ -72,7 +71,6 @@ _MODULE = "apache_beam.ml.inference.agent_development_kit"
 
 class TestADKAgentModelHandlerInit(unittest.TestCase):
   """Tests for __init__ argument validation."""
-
   def test_raises_if_agent_is_none(self):
     with self.assertRaises((ValueError, TypeError)):
       ADKAgentModelHandler(agent=None)  # type: ignore[arg-type]
@@ -106,17 +104,18 @@ class TestADKAgentModelHandlerInit(unittest.TestCase):
 
 class TestLoadModel(unittest.TestCase):
   """Tests for load_model / Runner construction."""
-
   def test_load_model_with_agent_object(self):
     def get_current_time(city: str) -> dict:
-        """Returns the current time in a specified city."""
-        return {"status": "success", "city": city, "time": "10:30 AM"}
+      """Returns the current time in a specified city."""
+      return {"status": "success", "city": city, "time": "10:30 AM"}
 
     agent = Agent(
         model='gemini-3-flash-preview',
         name='root_agent',
         description="Tells the current time in a specified city.",
-        instruction="You are a helpful assistant that tells the current time in cities. Use the 'get_current_time' tool for this purpose.",
+        instruction=
+        "You are a helpful assistant that tells the current time in cities. "
+        "Use the 'get_current_time' tool for this purpose.",
         tools=[get_current_time],
     )
     handler = ADKAgentModelHandler(agent=agent, app_name="test_app")
@@ -140,9 +139,9 @@ class TestLoadModel(unittest.TestCase):
         session_service=mock_session_cls.return_value,
     )
 
+
 class TestRunInference(unittest.TestCase):
   """Tests for run_inference output and batching."""
-
   def test_string_input_returns_prediction_result(self):
     agent = _make_mock_agent()
     runner = _make_mock_runner(agent, final_text="Paris")
@@ -211,7 +210,6 @@ class TestRunInference(unittest.TestCase):
 
 class TestSessionManagement(unittest.TestCase):
   """Tests for session creation and session_id handling."""
-
   def test_each_element_gets_unique_session_by_default(self):
     agent = _make_mock_agent()
     runner = _make_mock_runner(agent)
@@ -256,7 +254,6 @@ class TestSessionManagement(unittest.TestCase):
 
 class TestResponseExtraction(unittest.TestCase):
   """Tests for extraction of the final response from the event stream."""
-
   def test_returns_none_when_no_final_response(self):
     """Agent emits only non-final events; inference should be None."""
     agent = _make_mock_agent()
