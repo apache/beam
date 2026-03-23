@@ -914,7 +914,9 @@ public class ParDoTest implements Serializable {
       DoFn<Integer, List<Integer>> fn =
           new DoFn<Integer, List<Integer>>() {
             @ProcessElement
-            public void processElement(@SideInput(sideInputTag1) String tag1) {ProcessContext c; }
+            public void processElement(@SideInput(sideInputTag1) String tag1) {
+              ProcessContext c;
+            }
           };
 
       thrown.expect(IllegalArgumentException.class);

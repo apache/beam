@@ -40,6 +40,7 @@ import org.junit.Test;
 /** Tests grouping with null values. */
 public class GroupByWithNullValuesTest implements Serializable {
 
+  @SuppressWarnings("VoidUsed")
   @Test
   public void testGroupByWithNullValues() {
     FlinkPipelineOptions options = FlinkPipelineOptions.defaults();
