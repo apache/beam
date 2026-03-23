@@ -78,7 +78,7 @@ jobs:
         with:
           python-version: default
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
+        uses: docker/setup-buildx-action@v4
       - name: run XVR GoUsingJava Dataflow script
         env:
           USER: github-actions
