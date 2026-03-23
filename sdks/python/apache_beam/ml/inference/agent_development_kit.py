@@ -75,8 +75,8 @@ try:
   ADK_AVAILABLE = True
 except ImportError:
   ADK_AVAILABLE = False
-  genai_Content = Any
-  genai_Part = Any
+  genai_Content = Any  # type: ignore[assignment, misc]
+  genai_Part = Any  # type: ignore[assignment, misc]
 
 LOGGER = logging.getLogger("ADKAgentModelHandler")
 

@@ -73,7 +73,7 @@ class TestADKAgentModelHandlerInit(unittest.TestCase):
   """Tests for __init__ argument validation."""
   def test_raises_if_agent_is_none(self):
     with self.assertRaises((ValueError, TypeError)):
-      ADKAgentModelHandler(agent=None)  # type: ignore[arg-type]
+      ADKAgentModelHandler(agent=None)
 
   def test_accepts_agent_object(self):
     agent = _make_mock_agent()
