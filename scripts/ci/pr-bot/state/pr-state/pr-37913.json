@@ -1,0 +1,14 @@
+{
+  "commentedAboutFailingChecks": false,
+  "reviewersAssignedForLabels": {
+    "java": "chamikaramj",
+    "build": "damccorm",
+    "kafka": "sjvanrossum",
+    "spanner": "nielm",
+    "bigtable": "igorbernstein2"
+  },
+  "nextAction": "Reviewers",
+  "stopReviewerNotifications": false,
+  "remindAfterTestsPass": [],
+  "committerAssigned": false
+}
