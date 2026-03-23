@@ -272,7 +272,7 @@ public class GcsUtil {
     return delegate.create(path, options.delegate);
   }
 
-  public WritableByteChannel create(
+  public WritableByteChannel createV2(
       GcsPath path, CreateOptions options, BlobWriteOption... writeOptions) throws IOException {
     if (delegateV2 != null) {
       return delegateV2.create(path, options.delegate, writeOptions);
