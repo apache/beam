@@ -97,7 +97,7 @@ jobs:
         if: github.ref == 'refs/heads/master'
         run: echo "LATEST_TAG=,latest" >> $GITHUB_ENV
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v4
+        uses: docker/setup-buildx-action@4d04d5d9486b7bd6fa91e7baf45bbb4f8b9deedd
       - name: Authenticate on GCP
         uses: google-github-actions/auth@v3
         with:
