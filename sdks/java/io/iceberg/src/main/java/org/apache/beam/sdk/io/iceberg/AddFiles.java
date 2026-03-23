@@ -26,29 +26,32 @@ import static org.apache.beam.sdk.values.PCollection.IsBounded.BOUNDED;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.channels.SeekableByteChannel;
+import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import java.util.UUID;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
+import org.apache.beam.sdk.coders.VarLongCoder;
 import org.apache.beam.sdk.io.Compression;
 import org.apache.beam.sdk.io.FileSystems;
-import org.apache.beam.sdk.io.fs.MatchResult;
 import org.apache.beam.sdk.io.fs.ResourceId;
 import org.apache.beam.sdk.io.parquet.ParquetIO.ReadFiles.BeamParquetInputFile;
 import org.apache.beam.sdk.metrics.Counter;
-import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.SchemaCoder;
 import org.apache.beam.sdk.schemas.SchemaRegistry;
+import org.apache.beam.sdk.state.StateSpec;
+import org.apache.beam.sdk.state.StateSpecs;
+import org.apache.beam.sdk.state.ValueState;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.GroupByKey;
 import org.apache.beam.sdk.transforms.GroupIntoBatches;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
-import org.apache.beam.sdk.transforms.Redistribute;
 import org.apache.beam.sdk.transforms.WithKeys;
-import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionRowTuple;
@@ -59,6 +62,8 @@ import org.apache.beam.sdk.values.TupleTagList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Strings;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.hash.Hasher;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.hash.Hashing;
 import org.apache.iceberg.AppendFiles;
 import org.apache.iceberg.DataFile;
 import org.apache.iceberg.DataFiles;
@@ -71,9 +76,12 @@ import org.apache.iceberg.PartitionSpec;
 import org.apache.iceberg.Snapshot;
 import org.apache.iceberg.Table;
 import org.apache.iceberg.avro.Avro;
+import org.apache.iceberg.catalog.SupportsNamespaces;
 import org.apache.iceberg.catalog.TableIdentifier;
 import org.apache.iceberg.exceptions.AlreadyExistsException;
 import org.apache.iceberg.io.InputFile;
+import org.apache.iceberg.mapping.MappingUtil;
+import org.apache.iceberg.mapping.NameMapping;
 import org.apache.iceberg.orc.OrcMetrics;
 import org.apache.iceberg.parquet.ParquetSchemaUtil;
 import org.apache.iceberg.parquet.ParquetUtil;
@@ -81,6 +89,8 @@ import org.apache.iceberg.transforms.Transform;
 import org.apache.iceberg.types.Conversions;
 import org.apache.iceberg.types.Type;
 import org.apache.parquet.hadoop.ParquetFileReader;
+import org.apache.parquet.hadoop.metadata.FileMetaData;
+import org.apache.parquet.hadoop.metadata.ParquetMetadata;
 import org.apache.parquet.schema.MessageType;
 import org.checkerframework.checker.nullness.qual.MonotonicNonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
@@ -107,7 +117,6 @@ public class AddFiles extends PTransform<PCollection<String>, PCollectionRowTupl
   private final @Nullable String locationPrefix;
   private final @Nullable List<String> partitionFields;
   private final @Nullable Map<String, String> tableProps;
-  private final String jobId = UUID.randomUUID().toString();
 
   public AddFiles(
       IcebergCatalogConfig catalogConfig,
@@ -138,18 +147,16 @@ public class AddFiles extends PTransform<PCollection<String>, PCollectionRowTupl
     }
 
     PCollectionTuple dataFiles =
-        input
-            .apply(Redistribute.arbitrarily())
-            .apply(
-                "ConvertToDataFiles",
-                ParDo.of(
-                        new ConvertToDataFile(
-                            catalogConfig,
-                            tableIdentifier,
-                            locationPrefix,
-                            partitionFields,
-                            tableProps))
-                    .withOutputTags(DATA_FILES, TupleTagList.of(ERRORS)));
+        input.apply(
+            "ConvertToDataFiles",
+            ParDo.of(
+                    new ConvertToDataFile(
+                        catalogConfig,
+                        tableIdentifier,
+                        locationPrefix,
+                        partitionFields,
+                        tableProps))
+                .withOutputTags(DATA_FILES, TupleTagList.of(ERRORS)));
     SchemaCoder<SerializableDataFile> sdfSchema;
     try {
       sdfSchema = SchemaRegistry.createDefault().getSchemaCoder(SerializableDataFile.class);
@@ -174,7 +181,7 @@ public class AddFiles extends PTransform<PCollection<String>, PCollectionRowTupl
         groupedFiles
             .apply(
                 "CommitFilesToIceberg",
-                ParDo.of(new CommitFilesDoFn(catalogConfig, tableIdentifier, jobId)))
+                ParDo.of(new CommitFilesDoFn(catalogConfig, tableIdentifier)))
             .setRowSchema(SnapshotInfo.getSchema());
 
     return PCollectionRowTuple.of(
@@ -238,7 +245,9 @@ public class AddFiles extends PTransform<PCollection<String>, PCollectionRowTupl
 
       InputFile inputFile = table.io().newInputFile(filePath);
 
-      Metrics metrics = getFileMetrics(inputFile, format, MetricsConfig.forTable(table));
+      Metrics metrics =
+          getFileMetrics(
+              inputFile, format, MetricsConfig.forTable(table), MappingUtil.create(table.schema()));
 
       // Figure out which partition this DataFile should go to
       String partitionPath;
@@ -302,16 +311,7 @@ public class AddFiles extends PTransform<PCollection<String>, PCollectionRowTupl
         throws IOException {
       Preconditions.checkArgument(
           format.equals(FileFormat.PARQUET), "Table creation is only supported for Parquet files.");
-      FileSystems.registerFileSystemsOnce(PipelineOptionsFactory.create());
-
-      MatchResult result = FileSystems.match(filePath);
-      ResourceId resourceId = Iterables.getOnlyElement(result.metadata()).resourceId();
-      Compression compression = Compression.detect(checkStateNotNull(resourceId.getFilename()));
-      SeekableByteChannel channel =
-          (SeekableByteChannel) compression.readDecompressed(FileSystems.open(resourceId));
-      BeamParquetInputFile file = new BeamParquetInputFile(channel);
-
-      try (ParquetFileReader reader = ParquetFileReader.open(file)) {
+      try (ParquetFileReader reader = ParquetFileReader.open(getParquetInputFile(filePath))) {
         MessageType messageType = reader.getFooter().getFileMetaData().getSchema();
         return ParquetSchemaUtil.convert(messageType);
       }
@@ -335,14 +335,13 @@ public class AddFiles extends PTransform<PCollection<String>, PCollectionRowTupl
      * an incorrect partition may lead to it being hidden from some queries.
      */
     private String getPartitionFromMetrics(Metrics metrics, InputFile inputFile)
-        throws UnknownPartitionException {
+        throws UnknownPartitionException, IOException {
       Table table = checkStateNotNull(this.table);
       List<PartitionField> fields = table.spec().fields();
       List<Integer> sourceIds =
           fields.stream().map(PartitionField::sourceId).collect(Collectors.toList());
       Metrics partitionMetrics;
-      // Check if metrics already includes partition columns (this is configured by table
-      // properties):
+      // Check if metrics already includes partition columns (configured by table properties):
       if (metrics.lowerBounds().keySet().containsAll(sourceIds)
           && metrics.upperBounds().keySet().containsAll(sourceIds)) {
         partitionMetrics = metrics;
@@ -360,7 +359,11 @@ public class AddFiles extends PTransform<PCollection<String>, PCollectionRowTupl
                 .collect(Collectors.toMap(s -> "write.metadata.metrics.column." + s, s -> "full"));
         MetricsConfig configWithPartitionFields = MetricsConfig.fromProperties(configProps);
         partitionMetrics =
-            getFileMetrics(inputFile, inferFormat(inputFile.location()), configWithPartitionFields);
+            getFileMetrics(
+                inputFile,
+                inferFormat(inputFile.location()),
+                configWithPartitionFields,
+                MappingUtil.create(table.schema()));
       }
 
       PartitionKey pk = new PartitionKey(table.spec(), table.schema());
@@ -373,15 +376,16 @@ public class AddFiles extends PTransform<PCollection<String>, PCollectionRowTupl
         // Make a best effort estimate by comparing the lower and upper transformed values.
         // If the transformed values are equal, assume that the DataFile's data safely
         // aligns with the same partition.
-        // TODO(ahmedabu98): is comparing min/max safe enough?
+        // TODO(ahmedabu98): is comparing min/max safe enough for bucketing transform?
         //  or should we compare ALL the records in a DF?
         ByteBuffer lowerBytes = partitionMetrics.lowerBounds().get(field.sourceId());
         ByteBuffer upperBytes = partitionMetrics.upperBounds().get(field.sourceId());
         if (lowerBytes == null && upperBytes == null) {
-          pk.set(i, null);
           continue;
         } else if (lowerBytes == null || upperBytes == null) {
-          throw new UnknownPartitionException("Only one of the min/max was was null");
+          throw new UnknownPartitionException(
+              "Only one of the min/max was was null, for field "
+                  + table.schema().findColumnName(field.sourceId()));
         }
         Object lowerTransformedValue = transformValue(transform, type, lowerBytes);
         Object upperTransformedValue = transformValue(transform, type, upperBytes);
@@ -404,17 +408,37 @@ public class AddFiles extends PTransform<PCollection<String>, PCollectionRowTupl
     }
   }
 
+  /**
+   * A stateful {@link DoFn} that commits batches of files to an Iceberg table.
+   *
+   * <p>Addresses two primary concerns:
+   *
+   * <ul>
+   *   <li><b>Concurrency:</b> Being stateful on a dummy {@code Void} key forces the runner to
+   *       process batches sequentially, preventing concurrent commit conflicts on the Iceberg
+   *       table.
+   *   <li><b>Idempotency:</b> Prevents duplicate commits during bundle failures by calculating a
+   *       deterministic hash for the file set. This ID is stored in the Iceberg {@code Snapshot}
+   *       summary, under the key {@code "beam.add-files-commit-id"}. Before committing, the DoFn
+   *       travereses backwards through recent snapshots to check if the current batch's ID is
+   *       already present.
+   * </ul>
+   *
+   * <p>Outputs the resulting Iceberg {@link Snapshot} information.
+   */
   static class CommitFilesDoFn extends DoFn<KV<Void, Iterable<SerializableDataFile>>, Row> {
     private final IcebergCatalogConfig catalogConfig;
     private final String identifier;
     private transient @MonotonicNonNull Table table = null;
-    private final String jobId;
     private static final String COMMIT_ID_KEY = "beam.add-files-commit-id";
 
-    public CommitFilesDoFn(IcebergCatalogConfig catalogConfig, String identifier, String jobId) {
+    @StateId("lastCommitTimestamp")
+    private final StateSpec<ValueState<Long>> lastCommitTimestamp =
+        StateSpecs.value(VarLongCoder.of());
+
+    public CommitFilesDoFn(IcebergCatalogConfig catalogConfig, String identifier) {
       this.catalogConfig = catalogConfig;
       this.identifier = identifier;
-      this.jobId = jobId;
     }
 
     @StartBundle
@@ -427,53 +451,62 @@ public class AddFiles extends PTransform<PCollection<String>, PCollectionRowTupl
     @ProcessElement
     public void process(
         @Element KV<Void, Iterable<SerializableDataFile>> files,
-        PaneInfo pane,
+        @AlwaysFetched @StateId("lastCommitTimestamp") ValueState<Long> lastCommitTimestamp,
         OutputReceiver<Row> output) {
       String commitId = commitHash(files.getValue());
       Table table = checkStateNotNull(this.table);
-      if (shouldSkip(commitId)) {
+      table.refresh();
+
+      if (shouldSkip(commitId, lastCommitTimestamp.read())) {
         return;
       }
 
       int numFiles = 0;
-      AppendFiles appendFiles = table.newAppend();
+      AppendFiles appendFiles = table.newFastAppend();
       for (SerializableDataFile file : files.getValue()) {
         DataFile df = file.createDataFile(table.specs());
         appendFiles.appendFile(df);
         numFiles++;
       }
       appendFiles.set(COMMIT_ID_KEY, commitId);
+      LOG.info("Committing {} files, with commit ID: {}", numFiles, commitId);
       appendFiles.commit();
 
       Snapshot snapshot = table.currentSnapshot();
       output.output(SnapshotInfo.fromSnapshot(snapshot).toRow());
+      lastCommitTimestamp.write(snapshot.timestampMillis());
       numFilesAdded.inc(numFiles);
     }
 
     private String commitHash(Iterable<SerializableDataFile> files) {
-      int hash = 0;
+      Hasher hasher = Hashing.sha256().newHasher();
+
+      // Extract, sort, and hash to ensure deterministic output
+      List<String> paths = new ArrayList<>();
       for (SerializableDataFile file : files) {
-        hash = 31 * hash + file.getPath().hashCode();
+        paths.add(file.getPath());
       }
-      return String.valueOf(Math.abs(hash));
+      Collections.sort(paths);
+
+      for (String path : paths) {
+        hasher.putString(path, StandardCharsets.UTF_8);
+      }
+      return hasher.hash().toString();
     }
 
     /**
-     * If the process call fails immediately after committing files, but before registering with the
-     * runner, then runner will retry committing the same batch of files, possibly leading to data
-     * duplication.
-     *
-     * <p>To mitigate, we create a unique ID per commit and store it in the snapshot summary. We
-     * skip the pane's batch of files if we see a snapshot with the same unique ID.
+     * Performs a look-back through Iceberg table history to determine if this specific batch of
+     * files has already been successfully committed.
      */
-    private boolean shouldSkip(String commitUID) {
+    private boolean shouldSkip(String commitUID, @Nullable Long lastCommitTimestamp) {
+      if (lastCommitTimestamp == null) {
+        return false;
+      }
       Table table = checkStateNotNull(this.table);
-      table.refresh();
 
-      // check the last 10 snapshots to see if it contains the commit ID
-      int i = 0;
+      // check past snapshots to see if they contain the commit ID
       @Nullable Snapshot current = table.currentSnapshot();
-      while (current != null && i < 10) {
+      while (current != null && current.timestampMillis() > lastCommitTimestamp) {
         Map<String, String> summary = current.summary();
         if (summary != null && commitUID.equals(summary.get(COMMIT_ID_KEY))) {
           return true; // commit already happened, we should skip
@@ -482,7 +515,6 @@ public class AddFiles extends PTransform<PCollection<String>, PCollectionRowTupl
           break;
         }
         current = table.snapshot(current.parentId());
-        i++;
       }
 
       return false;
@@ -490,12 +522,23 @@ public class AddFiles extends PTransform<PCollection<String>, PCollectionRowTupl
   }
 
   @SuppressWarnings("argument")
-  public static Metrics getFileMetrics(InputFile file, FileFormat format, MetricsConfig config) {
+  public static Metrics getFileMetrics(
+      InputFile file, FileFormat format, MetricsConfig config, NameMapping mapping)
+      throws IOException {
     switch (format) {
       case PARQUET:
-        return ParquetUtil.fileMetrics(file, config);
+        try (ParquetFileReader reader =
+            ParquetFileReader.open(getParquetInputFile(file.location()))) {
+          ParquetMetadata footer = reader.getFooter();
+          MessageType originalMessageType = footer.getFileMetaData().getSchema();
+          if (!ParquetSchemaUtil.hasIds(originalMessageType)) {
+            footer = getFooterWithTypeIds(originalMessageType, footer, mapping);
+          }
+
+          return ParquetUtil.footerMetrics(footer, Stream.empty(), config, mapping);
+        }
       case ORC:
-        return OrcMetrics.fromInputFile(file, config);
+        return OrcMetrics.fromInputFile(file, config, mapping);
       case AVRO:
         return new Metrics(Avro.rowCount(file), null, null, null, null);
       default:
@@ -503,6 +546,7 @@ public class AddFiles extends PTransform<PCollection<String>, PCollectionRowTupl
     }
   }
 
+  /** Tries to infer other file formats. Defaults to Parquet. */
   public static FileFormat inferFormat(String path) {
     String lowerPath = path.toLowerCase();
 
@@ -512,9 +556,28 @@ public class AddFiles extends PTransform<PCollection<String>, PCollectionRowTupl
       return FileFormat.ORC;
     } else if (lowerPath.endsWith(".avro")) {
       return FileFormat.AVRO;
+    } else {
+      throw new UnknownFormatException();
     }
+  }
 
-    throw new UnknownFormatException();
+  static ParquetMetadata getFooterWithTypeIds(
+      MessageType originalMessageType, ParquetMetadata footer, NameMapping mapping) {
+    originalMessageType = ParquetSchemaUtil.applyNameMapping(originalMessageType, mapping);
+    FileMetaData oldFileMeta = footer.getFileMetaData();
+    FileMetaData newFileMeta =
+        new FileMetaData(
+            originalMessageType, oldFileMeta.getKeyValueMetaData(), oldFileMeta.getCreatedBy());
+    return new ParquetMetadata(newFileMeta, footer.getBlocks());
+  }
+
+  static org.apache.parquet.io.InputFile getParquetInputFile(String filePath) throws IOException {
+    ResourceId resourceId =
+        Iterables.getOnlyElement(FileSystems.match(filePath).metadata()).resourceId();
+    Compression compression = Compression.detect(checkStateNotNull(resourceId.getFilename()));
+    SeekableByteChannel channel =
+        (SeekableByteChannel) compression.readDecompressed(FileSystems.open(resourceId));
+    return new BeamParquetInputFile(channel);
   }
 
   static class UnknownFormatException extends IllegalArgumentException {}

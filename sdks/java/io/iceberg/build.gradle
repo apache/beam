@@ -80,6 +80,8 @@ dependencies {
     testImplementation project(":sdks:java:extensions:google-cloud-platform-core")
     testImplementation library.java.junit
     testImplementation library.java.hamcrest
+    testImplementation project(path: ":sdks:java:extensions:avro")
+    testImplementation 'org.awaitility:awaitility:4.2.0'
 
     // Hive catalog test dependencies
     testImplementation project(path: ":sdks:java:io:iceberg:hive")
@@ -96,6 +98,7 @@ dependencies {
     testImplementation project(path: ":sdks:java:io:iceberg:bqms", configuration: "shadow")
     testImplementation project(":sdks:java:io:google-cloud-platform")
     testImplementation library.java.google_api_services_bigquery
+    testImplementation 'com.google.cloud:google-cloud-storage'
 
     testImplementation library.java.google_auth_library_oauth2_http
     testRuntimeOnly library.java.slf4j_jdk14
