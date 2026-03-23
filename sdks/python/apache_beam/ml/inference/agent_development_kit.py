@@ -81,7 +81,7 @@ LOGGER = logging.getLogger("ADKAgentModelHandler")
 _AgentOrFactory = Union["Agent", Callable[[], "Agent"]]
 
 
-class ADKAgentModelHandler(ModelHandler[Union[str, Any], PredictionResult,
+class ADKAgentModelHandler(ModelHandler[Union[str, genai_types.Content], PredictionResult,
                                         "Runner"]):
   """ModelHandler for running ADK agents with the Beam RunInference transform.
 
@@ -184,7 +184,7 @@ class ADKAgentModelHandler(ModelHandler[Union[str, Any], PredictionResult,
 
   def run_inference(
       self,
-      batch: Sequence[Union[str, Any]],
+      batch: Sequence[Union[str, genai_types.Content]],
       model: "Runner",
       inference_args: Optional[dict[str, Any]] = None,
   ) -> Iterable[PredictionResult]:
@@ -254,7 +254,7 @@ class ADKAgentModelHandler(ModelHandler[Union[str, Any], PredictionResult,
       runner: "Runner",
       user_id: str,
       session_id: str,
-      message: Any,
+      message: genai_types.Content,
   ) -> Optional[str]:
     """Drives the ADK event loop and returns the final response text.
 
@@ -268,7 +268,6 @@ class ADKAgentModelHandler(ModelHandler[Union[str, Any], PredictionResult,
       The text of the agent's final response, or ``None`` if the agent
       produced no final text response.
     """
-    final_text: Optional[str] = None
     async for event in runner.run_async(
         user_id=user_id,
         session_id=session_id,
@@ -276,9 +275,8 @@ class ADKAgentModelHandler(ModelHandler[Union[str, Any], PredictionResult,
     ):
       if event.is_final_response():
         if event.content and event.content.parts:
-          final_text = event.content.parts[0].text
-        break
-    return final_text
+          return event.content.parts[0].text
+    return None
 
   def get_metrics_namespace(self) -> str:
     return "ADKAgentModelHandler"
