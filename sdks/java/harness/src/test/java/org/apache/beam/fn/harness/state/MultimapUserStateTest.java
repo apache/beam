@@ -1247,21 +1247,23 @@ public class MultimapUserStateTest {
 
   @Test
   public void testHasNoState() throws Exception {
-    FakeBeamFnStateClient fakeClient = new FakeBeamFnStateClient(
-        ImmutableMap.of(
+    FakeBeamFnStateClient fakeClient =
+        new FakeBeamFnStateClient(
+            ImmutableMap.of(
+                createMultimapKeyStateKey(),
+                KV.of(ByteArrayCoder.of(), singletonList(A1)),
+                createMultimapValueStateKey(A1),
+                KV.of(StringUtf8Coder.of(), asList("V1", "V2"))));
+    MultimapUserState<byte[], String> userState =
+        new MultimapUserState<>(
+            Caches.noop(),
+            fakeClient,
+            "instructionId",
             createMultimapKeyStateKey(),
-            KV.of(ByteArrayCoder.of(), singletonList(A1)),
-            createMultimapValueStateKey(A1),
-            KV.of(StringUtf8Coder.of(), asList("V1", "V2"))));
-    MultimapUserState<byte[], String> userState = new MultimapUserState<>(
-        Caches.noop(),
-        fakeClient,
-        "instructionId",
-        createMultimapKeyStateKey(),
-        ByteArrayCoder.of(),
-        StringUtf8Coder.of(),
-        true /* hasNoState */,
-        false /* onlyBundleForKeys */);
+            ByteArrayCoder.of(),
+            StringUtf8Coder.of(),
+            true /* hasNoState */,
+            false /* onlyBundleForKeys */);
 
     // Iterating should be empty since hasNoState is true
     assertThat(userState.keys(), is(emptyIterable()));
@@ -1271,8 +1273,8 @@ public class MultimapUserStateTest {
     userState.put(A2, "V2");
 
     // We can observe the added value locally
-    assertArrayEquals(new byte[][] { A2 }, Iterables.toArray(userState.keys(), byte[].class));
-    assertArrayEquals(new String[] { "V2" }, Iterables.toArray(userState.get(A2), String.class));
+    assertArrayEquals(new byte[][] {A2}, Iterables.toArray(userState.keys(), byte[].class));
+    assertArrayEquals(new String[] {"V2"}, Iterables.toArray(userState.get(A2), String.class));
 
     userState.asyncClose();
 
@@ -1283,30 +1285,32 @@ public class MultimapUserStateTest {
 
   @Test
   public void testOnlyBundleForKeys() throws Exception {
-    FakeBeamFnStateClient fakeClient = new FakeBeamFnStateClient(
-        ImmutableMap.of(
+    FakeBeamFnStateClient fakeClient =
+        new FakeBeamFnStateClient(
+            ImmutableMap.of(
+                createMultimapKeyStateKey(),
+                KV.of(ByteArrayCoder.of(), singletonList(A1)),
+                createMultimapValueStateKey(A1),
+                KV.of(StringUtf8Coder.of(), asList("V1", "V2"))));
+    MultimapUserState<byte[], String> userState =
+        new MultimapUserState<>(
+            Caches.noop(),
+            fakeClient,
+            "instructionId",
             createMultimapKeyStateKey(),
-            KV.of(ByteArrayCoder.of(), singletonList(A1)),
-            createMultimapValueStateKey(A1),
-            KV.of(StringUtf8Coder.of(), asList("V1", "V2"))));
-    MultimapUserState<byte[], String> userState = new MultimapUserState<>(
-        Caches.noop(),
-        fakeClient,
-        "instructionId",
-        createMultimapKeyStateKey(),
-        ByteArrayCoder.of(),
-        StringUtf8Coder.of(),
-        false /* hasNoState */,
-        true /* onlyBundleForKeys */);
+            ByteArrayCoder.of(),
+            StringUtf8Coder.of(),
+            false /* hasNoState */,
+            true /* onlyBundleForKeys */);
 
-    assertArrayEquals(new byte[][] { A1 }, Iterables.toArray(userState.keys(), byte[].class));
+    assertArrayEquals(new byte[][] {A1}, Iterables.toArray(userState.keys(), byte[].class));
     assertArrayEquals(
-        new String[] { "V1", "V2" }, Iterables.toArray(userState.get(A1), String.class));
+        new String[] {"V1", "V2"}, Iterables.toArray(userState.get(A1), String.class));
 
     userState.put(A2, "V2");
 
-    assertArrayEquals(new byte[][] { A1, A2 }, Iterables.toArray(userState.keys(), byte[].class));
-    assertArrayEquals(new String[] { "V2" }, Iterables.toArray(userState.get(A2), String.class));
+    assertArrayEquals(new byte[][] {A1, A2}, Iterables.toArray(userState.keys(), byte[].class));
+    assertArrayEquals(new String[] {"V2"}, Iterables.toArray(userState.get(A2), String.class));
 
     userState.asyncClose();
 
@@ -1316,29 +1320,31 @@ public class MultimapUserStateTest {
 
   @Test
   public void testHasNoStateAndOnlyBundleForKeys() throws Exception {
-    FakeBeamFnStateClient fakeClient = new FakeBeamFnStateClient(
-        ImmutableMap.of(
+    FakeBeamFnStateClient fakeClient =
+        new FakeBeamFnStateClient(
+            ImmutableMap.of(
+                createMultimapKeyStateKey(),
+                KV.of(ByteArrayCoder.of(), singletonList(A1)),
+                createMultimapValueStateKey(A1),
+                KV.of(StringUtf8Coder.of(), asList("V1", "V2"))));
+    MultimapUserState<byte[], String> userState =
+        new MultimapUserState<>(
+            Caches.noop(),
+            fakeClient,
+            "instructionId",
             createMultimapKeyStateKey(),
-            KV.of(ByteArrayCoder.of(), singletonList(A1)),
-            createMultimapValueStateKey(A1),
-            KV.of(StringUtf8Coder.of(), asList("V1", "V2"))));
-    MultimapUserState<byte[], String> userState = new MultimapUserState<>(
-        Caches.noop(),
-        fakeClient,
-        "instructionId",
-        createMultimapKeyStateKey(),
-        ByteArrayCoder.of(),
-        StringUtf8Coder.of(),
-        true /* hasNoState */,
-        true /* onlyBundleForKeys */);
+            ByteArrayCoder.of(),
+            StringUtf8Coder.of(),
+            true /* hasNoState */,
+            true /* onlyBundleForKeys */);
 
     assertThat(userState.keys(), is(emptyIterable()));
     assertThat(userState.get(A1), is(emptyIterable()));
 
     userState.put(A2, "V2");
 
-    assertArrayEquals(new byte[][] { A2 }, Iterables.toArray(userState.keys(), byte[].class));
-    assertArrayEquals(new String[] { "V2" }, Iterables.toArray(userState.get(A2), String.class));
+    assertArrayEquals(new byte[][] {A2}, Iterables.toArray(userState.keys(), byte[].class));
+    assertArrayEquals(new String[] {"V2"}, Iterables.toArray(userState.get(A2), String.class));
 
     userState.asyncClose();
 

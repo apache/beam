@@ -54,8 +54,8 @@ public class BagUserStateTest {
             "instructionId",
             key("A"),
             StringUtf8Coder.of(),
-            () -> false,
-            () -> false);
+            false /* hasNoState */,
+            false /* onlyBundleForKeys */);
     assertArrayEquals(
         new String[] {"A1", "A2", "A3"}, Iterables.toArray(userState.get(), String.class));
 
@@ -79,8 +79,8 @@ public class BagUserStateTest {
               "instructionId",
               key("A"),
               StringUtf8Coder.of(),
-              () -> false,
-              () -> false);
+              false /* hasNoState */,
+              false /* onlyBundleForKeys */);
       assertArrayEquals(
           new String[] {"A1", "A2", "A3"}, Iterables.toArray(userState.get(), String.class));
       userState.asyncClose();
@@ -97,8 +97,8 @@ public class BagUserStateTest {
               "instructionId",
               key("A"),
               StringUtf8Coder.of(),
-              () -> false,
-              () -> false);
+              false /* hasNoState */,
+              false /* onlyBundleForKeys */);
       assertArrayEquals(
           new String[] {"A1", "A2", "A3"}, Iterables.toArray(userState.get(), String.class));
       userState.asyncClose();
@@ -116,8 +116,8 @@ public class BagUserStateTest {
             "instructionId",
             key("A"),
             StringUtf8Coder.of(),
-            () -> false,
-            () -> false);
+            false /* hasNoState */,
+            false /* onlyBundleForKeys */);
     userState.append("A2");
     Iterable<String> stateBeforeA3 = userState.get();
     assertArrayEquals(new String[] {"A1", "A2"}, Iterables.toArray(stateBeforeA3, String.class));
@@ -144,8 +144,8 @@ public class BagUserStateTest {
             "instructionId",
             key("A"),
             StringUtf8Coder.of(),
-            () -> false,
-            () -> false);
+            false /* hasNoState */,
+            false /* onlyBundleForKeys */);
     String a2 = Strings.repeat("A2", 2 * 1024 * 1024);
     userState.append(a2);
     String a3 = Strings.repeat("A3", 4 * 1024 * 1024);
@@ -188,8 +188,8 @@ public class BagUserStateTest {
               "instructionId",
               key("A"),
               StringUtf8Coder.of(),
-              () -> false,
-              () -> false);
+              false /* hasNoState */,
+              false /* onlyBundleForKeys */);
       userState.append("A2");
       Iterable<String> stateBeforeA3 = userState.get();
       assertArrayEquals(new String[] {"A1", "A2"}, Iterables.toArray(stateBeforeA3, String.class));
@@ -215,8 +215,8 @@ public class BagUserStateTest {
               "instructionId",
               key("A"),
               StringUtf8Coder.of(),
-              () -> false,
-              () -> false);
+              false /* hasNoState */,
+              false /* onlyBundleForKeys */);
       userState.append("A4");
       Iterable<String> stateBeforeA5 = userState.get();
       assertArrayEquals(
@@ -244,8 +244,8 @@ public class BagUserStateTest {
             "instructionId",
             key("A"),
             StringUtf8Coder.of(),
-            () -> false,
-            () -> false);
+            false /* hasNoState */,
+            false /* onlyBundleForKeys */);
     assertArrayEquals(
         new String[] {"A1", "A2", "A3"}, Iterables.toArray(userState.get(), String.class));
     userState.clear();
@@ -276,8 +276,8 @@ public class BagUserStateTest {
               "instructionId",
               key("A"),
               StringUtf8Coder.of(),
-              () -> false,
-              () -> false);
+              false /* hasNoState */,
+              false /* onlyBundleForKeys */);
       assertArrayEquals(
           new String[] {"A1", "A2", "A3"}, Iterables.toArray(userState.get(), String.class));
       userState.clear();
@@ -302,8 +302,8 @@ public class BagUserStateTest {
               "instructionId",
               key("A"),
               StringUtf8Coder.of(),
-              () -> false,
-              () -> false);
+              false /* hasNoState */,
+              false /* onlyBundleForKeys */);
       assertArrayEquals(new String[] {"A4"}, Iterables.toArray(userState.get(), String.class));
       userState.clear();
       assertFalse(userState.get().iterator().hasNext());
@@ -325,8 +325,8 @@ public class BagUserStateTest {
               "instructionId",
               key("A"),
               StringUtf8Coder.of(),
-              () -> false,
-              () -> false);
+              false /* hasNoState */,
+              false /* onlyBundleForKeys */);
       assertArrayEquals(new String[] {}, Iterables.toArray(userState.get(), String.class));
       userState.asyncClose();
     }
