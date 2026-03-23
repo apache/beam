@@ -1551,7 +1551,6 @@ class BeamModulePlugin implements Plugin<Project> {
             "ThreadPriorityCheck",
             "UndefinedEquals",
             "UnescapedEntity",
-            "UnnecessaryParentheses",
             "UnrecognisedJavadocTag",
             // errorprone 3.2.0+ checks
             "DirectInvocationOnMock",
@@ -1586,6 +1585,12 @@ class BeamModulePlugin implements Plugin<Project> {
           ]
           disabledChecks.each {
             options.errorprone.errorproneArgs.add("-Xep:${it}:OFF")
+          }
+          def warnChecks = [
+            "UnnecessaryParentheses",
+          ]
+          warnChecks.each {
+            options.errorprone.errorproneArgs.add("-Xep:${it}:WARN")
           }
         }
       }

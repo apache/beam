@@ -282,13 +282,13 @@ public class TestPipelineTest implements Serializable {
         pipeline.apply(Create.of("")).apply(new ValidateTempLocation<>());
         PipelineResult.State result =
             pipeline.runWithAdditionalOptionArgs(pipelineArgs).waitUntilFinish();
-        assert (result == PipelineResult.State.DONE);
+        assertEquals(PipelineResult.State.DONE, result);
       }
 
       static class ValidateTempLocation<T> extends PTransform<PCollection<T>, PCollection<T>> {
         @Override
         public void validate(PipelineOptions pipelineOptions) {
-          assert (!Strings.isNullOrEmpty(pipelineOptions.getTempLocation()));
+          assert !Strings.isNullOrEmpty(pipelineOptions.getTempLocation());
         }
 
         @Override

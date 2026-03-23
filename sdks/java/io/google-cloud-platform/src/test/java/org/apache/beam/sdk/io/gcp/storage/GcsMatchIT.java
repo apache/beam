@@ -189,7 +189,7 @@ public class GcsMatchIT {
     MatchResult matchResult = FileSystems.match(watchPath.resolve("*").toString());
     ImmutableList<ResourceId> resourceIdList =
         FluentIterable.from(matchResult.metadata())
-            .transform(metadata -> (metadata.resourceId()))
+            .transform(metadata -> metadata.resourceId())
             .toList();
     // delete temporary files
     FileSystems.delete(resourceIdList);

@@ -2069,8 +2069,7 @@ public class KafkaIO {
         String uniqueId = null;
         if (element != null) {
           offset = element.getOffset();
-          uniqueId =
-              (String.format("%s-%d-%d", element.getTopic(), element.getPartition(), offset));
+          uniqueId = String.format("%s-%d-%d", element.getTopic(), element.getPartition(), offset);
         }
         outputReceiver.builder(element).setRecordId(uniqueId).setRecordOffset(offset).output();
       }
