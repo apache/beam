@@ -21,6 +21,23 @@
 
 [Apache Beam](http://beam.apache.org/) is a unified model for defining both batch and streaming data-parallel processing pipelines, as well as a set of language-specific SDKs for constructing pipelines and Runners for executing them on distributed processing backends, including [Apache Flink](http://flink.apache.org/), [Apache Spark](http://spark.apache.org/), [Google Cloud Dataflow](http://cloud.google.com/dataflow/), and [Hazelcast Jet](https://hazelcast.com/).
 
+## 🚀 Quick Start (Beginner Friendly)
+
+If you're new to Apache Beam, start here:
+
+1. Choose a language:
+   - Java → [Java Quickstart](https://beam.apache.org/get-started/quickstart-java/)
+   - Python → [Python Quickstart](https://beam.apache.org/get-started/quickstart-py/)
+   - Go → [Go Quickstart](https://beam.apache.org/get-started/quickstart-go/)
+
+2. Run your first example:
+   - Minimal WordCount example (available in this repository)
+
+3. Understand core concepts:
+   - PCollection
+   - PTransform
+   - Pipeline
+
 ## Status
 
 [![Maven Version](https://maven-badges.herokuapp.com/maven-central/org.apache.beam/beam-sdks-java-core/badge.svg)](http://search.maven.org/#search|gav|1|g:"org.apache.beam")
@@ -96,7 +113,7 @@ Here are some resources actively maintained by the Beam community to help you ge
 <tbody>
   <tr>
     <td><a href="https://beam.apache.org" target="_blank" rel="noopener noreferrer">Apache Beam Website</a></td>
-    <td>Our website discussing the project, and it's specifics.</td>
+    <td>Offical website with documentation, concepts, and guides for Apache Beam.</td>
   </tr>
   <tr>
     <td><a href="https://beam.apache.org/get-started/quickstart-java" target="_blank" rel="noopener noreferrer">Java Quickstart</a></td>
