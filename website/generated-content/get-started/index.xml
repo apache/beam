@@ -927,12 +927,10 @@ late results.&lt;/em>&lt;/p>
 &lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">Double&lt;/span> &lt;span class="n">gmc&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">c&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">sideInput&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">globalMeanScore&lt;/span>&lt;span class="o">);&lt;/span>
 &lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">if&lt;/span> &lt;span class="o">(&lt;/span>&lt;span class="n">score&lt;/span> &lt;span class="o">&amp;gt;&lt;/span> &lt;span class="o">(&lt;/span>&lt;span class="n">gmc&lt;/span> &lt;span class="o">*&lt;/span> &lt;span class="n">SCORE_WEIGHT&lt;/span>&lt;span class="o">))&lt;/span> &lt;span class="o">{&lt;/span>
 &lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">LOG&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">info&lt;/span>&lt;span class="o">(&lt;/span>
-&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="s">&amp;#34;user &amp;#34;&lt;/span>
-&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="o">+&lt;/span> &lt;span class="n">c&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">element&lt;/span>&lt;span class="o">().&lt;/span>&lt;span class="na">getKey&lt;/span>&lt;span class="o">()&lt;/span>
-&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="o">+&lt;/span> &lt;span class="s">&amp;#34; spammer score &amp;#34;&lt;/span>
-&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="o">+&lt;/span> &lt;span class="n">score&lt;/span>
-&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="o">+&lt;/span> &lt;span class="s">&amp;#34; with mean &amp;#34;&lt;/span>
-&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="o">+&lt;/span> &lt;span class="n">gmc&lt;/span>&lt;span class="o">);&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="s">&amp;#34;user {} spammer score {} with mean {}&amp;#34;&lt;/span>&lt;span class="o">,&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">c&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">element&lt;/span>&lt;span class="o">().&lt;/span>&lt;span class="na">getKey&lt;/span>&lt;span class="o">(),&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">score&lt;/span>&lt;span class="o">,&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">gmc&lt;/span>&lt;span class="o">);&lt;/span>
 &lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">numSpammerUsers&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">inc&lt;/span>&lt;span class="o">();&lt;/span>
 &lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">c&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">output&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">c&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">element&lt;/span>&lt;span class="o">());&lt;/span>
 &lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="o">}&lt;/span>
