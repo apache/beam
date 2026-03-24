@@ -1234,9 +1234,7 @@ class PGBKOperation(Operation):
 
 
 class PGBKCVOperation(Operation):
-    """
-    PGBKCVOperation represents a Partial GroupByKey with Combine Values step
-    in the Beam execution model.
+    """ PGBKCVOperation GroupByKey with CombineValues operation.
 
     This operation groups elements by key and performs partial aggregation
     of values to optimize data processing before final grouping.
