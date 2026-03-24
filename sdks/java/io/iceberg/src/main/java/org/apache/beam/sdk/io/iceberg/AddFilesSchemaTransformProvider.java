@@ -17,6 +17,8 @@
  */
 package org.apache.beam.sdk.io.iceberg;
 
+import static org.apache.beam.sdk.io.iceberg.AddFiles.ERROR_TAG;
+import static org.apache.beam.sdk.io.iceberg.AddFiles.OUTPUT_TAG;
 import static org.apache.beam.sdk.io.iceberg.AddFilesSchemaTransformProvider.Configuration;
 import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
 
@@ -31,6 +33,7 @@ import org.apache.beam.sdk.schemas.annotations.SchemaFieldDescription;
 import org.apache.beam.sdk.schemas.transforms.SchemaTransform;
 import org.apache.beam.sdk.schemas.transforms.SchemaTransformProvider;
 import org.apache.beam.sdk.schemas.transforms.TypedSchemaTransformProvider;
+import org.apache.beam.sdk.schemas.transforms.providers.ErrorHandling;
 import org.apache.beam.sdk.transforms.Filter;
 import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.values.PCollectionRowTuple;
@@ -106,6 +109,9 @@ public class AddFilesSchemaTransformProvider extends TypedSchemaTransformProvide
             + " please visit https://iceberg.apache.org/docs/latest/configuration/#table-properties.")
     public abstract @Nullable Map<String, String> getTableProperties();
 
+    @SchemaFieldDescription("This option specifies whether and where to output unwritable rows.")
+    public abstract @Nullable ErrorHandling getErrorHandling();
+
     @AutoValue.Builder
     public abstract static class Builder {
       public abstract Builder setTable(String table);
@@ -123,6 +129,8 @@ public class AddFilesSchemaTransformProvider extends TypedSchemaTransformProvide
       public abstract Builder setPartitionFields(List<String> fields);
 
       public abstract Builder setTableProperties(Map<String, String> props);
+
+      public abstract Builder setErrorHandling(ErrorHandling errorHandling);
 
       public abstract Configuration build();
     }
@@ -153,22 +161,30 @@ public class AddFilesSchemaTransformProvider extends TypedSchemaTransformProvide
 
       @Nullable Integer frequency = configuration.getTriggeringFrequencySeconds();
 
-      return input
-          .getSinglePCollection()
-          .apply("Filter empty paths", Filter.by(row -> row.getString(0) != null))
-          .apply(
-              "ExtractPaths",
-              MapElements.into(TypeDescriptors.strings())
-                  .via(row -> checkStateNotNull(row.getString(0))))
-          .apply(
-              new AddFiles(
-                  configuration.getIcebergCatalog(),
-                  configuration.getTable(),
-                  configuration.getLocationPrefix(),
-                  configuration.getPartitionFields(),
-                  configuration.getTableProperties(),
-                  configuration.getAppendBatchSize(),
-                  frequency != null ? Duration.standardSeconds(frequency) : null));
+      PCollectionRowTuple result =
+          input
+              .getSinglePCollection()
+              .apply("Filter empty paths", Filter.by(row -> row.getString(0) != null))
+              .apply(
+                  "ExtractPaths",
+                  MapElements.into(TypeDescriptors.strings())
+                      .via(row -> checkStateNotNull(row.getString(0))))
+              .apply(
+                  new AddFiles(
+                      configuration.getIcebergCatalog(),
+                      configuration.getTable(),
+                      configuration.getLocationPrefix(),
+                      configuration.getPartitionFields(),
+                      configuration.getTableProperties(),
+                      configuration.getAppendBatchSize(),
+                      frequency != null ? Duration.standardSeconds(frequency) : null));
+
+      PCollectionRowTuple output = PCollectionRowTuple.of("snapshots", result.get(OUTPUT_TAG));
+      ErrorHandling errorHandling = configuration.getErrorHandling();
+      if (errorHandling != null) {
+        output = output.and(errorHandling.getOutput(), result.get(ERROR_TAG));
+      }
+      return output;
     }
   }
 }

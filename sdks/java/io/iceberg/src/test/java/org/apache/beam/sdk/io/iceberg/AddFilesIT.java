@@ -24,6 +24,7 @@ import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
 import static org.apache.beam.sdk.values.TypeDescriptors.strings;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
 
 import com.google.api.services.storage.model.StorageObject;
 import com.google.cloud.storage.Blob;
@@ -143,6 +144,11 @@ public class AddFilesIT {
   private static final PartitionSpec SPEC =
       PartitionUtils.toPartitionSpec(PARTITION_FIELDS, ROW_SCHEMA);
   private static final Map<String, String> TABLE_PROPS = ImmutableMap.of("foo", "bar");
+  private static final List<Row> TEST_ROWS =
+      IntStream.range(0, 20)
+          .mapToObj(
+              i -> Row.withSchema(ROW_SCHEMA).addValues((long) i, "name_" + i, i + 30).build())
+          .collect(Collectors.toList());
   private final RESTCatalog catalog = new RESTCatalog();
 
   @Before
@@ -235,8 +241,8 @@ public class AddFilesIT {
   }
 
   @Test
-  public void testAddFilesFromSrcIcebergTable()
-      throws IOException, InterruptedException, TimeoutException {
+  public void testStreamingImportFromExistingIcebergTable()
+      throws IOException, InterruptedException {
     // first create a source iceberg table
     catalog.createTable(srcTableId, beamSchemaToIcebergSchema(ROW_SCHEMA), SPEC);
 
@@ -250,14 +256,8 @@ public class AddFilesIT {
 
     // write some rows to the source table
     LOG.info("Writing records to the source table");
-    List<Row> rows =
-        IntStream.range(0, 20)
-            .mapToObj(
-                i -> Row.withSchema(ROW_SCHEMA).addValues((long) i, "name_" + i, i + 30).build())
-            .collect(Collectors.toList());
-
     Pipeline q = Pipeline.create();
-    q.apply(Create.of(rows))
+    q.apply(Create.of(TEST_ROWS))
         .setRowSchema(ROW_SCHEMA)
         .apply(
             Managed.write(Managed.ICEBERG)
@@ -299,16 +299,7 @@ public class AddFilesIT {
     addFilesPipeline.cancel();
 
     // check all records are there
-    Pipeline s = Pipeline.create();
-    PCollection<Row> destRows =
-        s.apply(
-                Managed.read(Managed.ICEBERG)
-                    .withConfig(
-                        ImmutableMap.of(
-                            "table", destTableId.toString(), "catalog_properties", BIGLAKE_PROPS)))
-            .getSinglePCollection();
-    PAssert.that(destRows).containsInAnyOrder(rows);
-    s.run().waitUntilFinish();
+    checkRecordsInDestinationTable();
   }
 
   /**
@@ -344,7 +335,8 @@ public class AddFilesIT {
   }
 
   @Test
-  public void testAddParquetFiles() throws InterruptedException, TimeoutException, IOException {
+  public void testStreamingParquetImport()
+      throws InterruptedException, TimeoutException, IOException {
     // start with a table that does not exist
 
     String parquetDir = format("%s/%s/", WAREHOUSE, dirName);
@@ -358,15 +350,9 @@ public class AddFilesIT {
 
     // write some parquet files
     LOG.info("Writing records to the parquet dir");
-    List<Row> rows =
-        IntStream.range(0, 20)
-            .mapToObj(
-                i -> Row.withSchema(ROW_SCHEMA).addValues((long) i, "name_" + i, i + 30).build())
-            .collect(Collectors.toList());
-
     Pipeline q = Pipeline.create();
     org.apache.avro.Schema avroSchema = AvroUtils.toAvroSchema(ROW_SCHEMA);
-    q.apply(Create.of(rows))
+    q.apply(Create.of(TEST_ROWS))
         .setRowSchema(ROW_SCHEMA)
         .apply(
             MapElements.into(TypeDescriptor.of(GenericRecord.class))
@@ -385,7 +371,7 @@ public class AddFilesIT {
     q.run().waitUntilFinish();
 
     GcsUtil gcsUtil = TestPipeline.testingPipelineOptions().as(GcsOptions.class).getGcsUtil();
-    //    String prefix = format("%s/", dirName);
+
     Iterable<StorageObject> objects =
         gcsUtil.listObjects(WAREHOUSE.replace("gs://", ""), dirName, null).getItems();
     List<String> writtenFilePaths =
@@ -414,6 +400,81 @@ public class AddFilesIT {
     addFilesPipeline.cancel();
 
     // check all records are there
+    checkRecordsInDestinationTable();
+  }
+
+  @Test
+  public void testBatchParquetImport() throws IOException {
+    // start with a table that does not exist
+
+    String parquetDir = format("%s/%s/", WAREHOUSE, dirName);
+    String tempDir = format("%s/%s-tmp/", WAREHOUSE, dirName);
+
+    // write some parquet files
+    LOG.info("Writing records to the parquet dir");
+    Pipeline q = Pipeline.create();
+    org.apache.avro.Schema avroSchema = AvroUtils.toAvroSchema(ROW_SCHEMA);
+    q.apply(Create.of(TEST_ROWS))
+        .setRowSchema(ROW_SCHEMA)
+        .apply(
+            MapElements.into(TypeDescriptor.of(GenericRecord.class))
+                .via(AvroUtils.getRowToGenericRecordFunction(avroSchema)))
+        .setCoder(AvroCoder.of(avroSchema))
+        .apply(
+            FileIO.<String, GenericRecord>writeDynamic()
+                .by(
+                    record ->
+                        format("%s-%s-%s", record.get("id"), record.get("name"), record.get("age")))
+                .via(ParquetIO.sink(avroSchema))
+                .withNaming(name -> defaultNaming(name, ".parquet"))
+                .withTempDirectory(tempDir)
+                .to(parquetDir)
+                .withDestinationCoder(StringUtf8Coder.of()));
+    q.run().waitUntilFinish();
+
+    GcsUtil gcsUtil = TestPipeline.testingPipelineOptions().as(GcsOptions.class).getGcsUtil();
+
+    Iterable<StorageObject> objects =
+        gcsUtil.listObjects(WAREHOUSE.replace("gs://", ""), dirName, null).getItems();
+    List<String> writtenFilePaths =
+        Lists.newArrayList(objects).stream()
+            .map(o -> format("gs://%s/%s", o.getBucket(), o.getName()))
+            .collect(Collectors.toList());
+    LOG.info("Written file paths: {}", writtenFilePaths);
+
+    // before adding, confirm the destination table still does not exist
+    assertFalse(catalog.tableExists(destTableId));
+
+    // run batch AddFiles
+    Pipeline p = Pipeline.create();
+    PCollectionRowTuple tuple =
+        p.apply(Create.of(writtenFilePaths))
+            .apply(
+                new AddFiles(
+                    IcebergCatalogConfig.builder().setCatalogProperties(BIGLAKE_PROPS).build(),
+                    namespace + "." + destTableName,
+                    null,
+                    PARTITION_FIELDS,
+                    TABLE_PROPS,
+                    10,
+                    Duration.standardSeconds(10)));
+    PAssert.that(tuple.get("errors")).empty();
+    p.run().waitUntilFinish();
+
+    // check that the destination table has been created
+    assertTrue(catalog.tableExists(destTableId));
+    LOG.info("Destination table has been created");
+
+    LOG.info("Checking if all source files have been registered in the destination table");
+    assertTrue(checkTableHasRegisteredParquetFiles(writtenFilePaths));
+    LOG.info(
+        "Destination table has registered all source files ({} files).", writtenFilePaths.size());
+
+    // check all records are there
+    checkRecordsInDestinationTable();
+  }
+
+  private void checkRecordsInDestinationTable() {
     Pipeline s = Pipeline.create();
     PCollection<Row> destRows =
         s.apply(
@@ -422,7 +483,7 @@ public class AddFilesIT {
                         ImmutableMap.of(
                             "table", destTableId.toString(), "catalog_properties", BIGLAKE_PROPS)))
             .getSinglePCollection();
-    PAssert.that(destRows).containsInAnyOrder(rows);
+    PAssert.that(destRows).containsInAnyOrder(TEST_ROWS);
     s.run().waitUntilFinish();
   }
 

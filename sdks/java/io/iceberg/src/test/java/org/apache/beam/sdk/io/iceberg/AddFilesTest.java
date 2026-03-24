@@ -17,15 +17,21 @@
  */
 package org.apache.beam.sdk.io.iceberg;
 
+import static org.apache.beam.sdk.io.iceberg.AddFiles.ConvertToDataFile.PREFIX_ERROR;
+import static org.apache.beam.sdk.io.iceberg.AddFiles.ConvertToDataFile.UNKNOWN_PARTITION_ERROR;
+import static org.apache.beam.sdk.io.iceberg.AddFiles.ConvertToDataFile.getPartitionFromMetrics;
 import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkState;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.hasEntry;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
 
 import java.io.File;
 import java.io.IOException;
+import java.nio.ByteBuffer;
+import java.nio.CharBuffer;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Comparator;
@@ -45,8 +51,12 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterab
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.iceberg.DataFile;
+import org.apache.iceberg.FileFormat;
 import org.apache.iceberg.Files;
+import org.apache.iceberg.Metrics;
+import org.apache.iceberg.MetricsConfig;
 import org.apache.iceberg.PartitionData;
+import org.apache.iceberg.PartitionField;
 import org.apache.iceberg.PartitionKey;
 import org.apache.iceberg.PartitionSpec;
 import org.apache.iceberg.Snapshot;
@@ -58,14 +68,19 @@ import org.apache.iceberg.data.Record;
 import org.apache.iceberg.data.parquet.GenericParquetWriter;
 import org.apache.iceberg.hadoop.HadoopCatalog;
 import org.apache.iceberg.io.DataWriter;
+import org.apache.iceberg.io.InputFile;
+import org.apache.iceberg.mapping.MappingUtil;
 import org.apache.iceberg.parquet.Parquet;
+import org.apache.iceberg.types.Conversions;
 import org.apache.iceberg.types.Types;
+import org.apache.iceberg.util.SerializableFunction;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
 import org.junit.Before;
 import org.junit.ClassRule;
 import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.ExpectedException;
 import org.junit.rules.TemporaryFolder;
 import org.junit.rules.TestName;
 import org.junit.runner.RunWith;
@@ -92,6 +107,7 @@ public class AddFilesTest {
   private IcebergCatalogConfig catalogConfig;
   @ClassRule public static final TemporaryFolder TEMPORARY_FOLDER = new TemporaryFolder();
   @Rule public TestName testName = new TestName();
+  @Rule public ExpectedException thrown = ExpectedException.none();
 
   @Rule
   public transient TestDataWarehouse warehouse = new TestDataWarehouse(TEMPORARY_FOLDER, "default");
@@ -255,7 +271,7 @@ public class AddFilesTest {
                   errorRow.getSchema().equals(AddFiles.ERROR_SCHEMA)
                       && file3.equals(errorRow.getString(0))
                       && checkStateNotNull(errorRow.getString(1))
-                          .startsWith(AddFiles.ConvertToDataFile.UNKNOWN_PARTITION_ERROR));
+                          .startsWith(UNKNOWN_PARTITION_ERROR));
               return null;
             });
 
@@ -399,11 +415,224 @@ public class AddFilesTest {
 
     PAssert.that(outputTuple.get("errors"))
         .containsInAnyOrder(
-            Row.withSchema(AddFiles.ERROR_SCHEMA)
-                .addValues(file1, "File path did not start with the specified prefix")
-                .build());
+            Row.withSchema(AddFiles.ERROR_SCHEMA).addValues(file1, PREFIX_ERROR).build());
 
     pipeline.run().waitUntilFinish();
+  }
+
+  @Test
+  public void testRecognizesBucketPartitionMismatch() throws IOException {
+    catalog.dropTable(tableId);
+
+    String file1 = root + "data1.parquet";
+    wrapper.wrap(record(-1, "And", 30));
+    DataWriter<Record> writer = createWriter(file1, wrapper.copy());
+    writer.write(record(1, "Andrew", 30));
+    writer.write(record(5, "Sally", 30));
+    writer.write(record(10, "Ahmed", 30));
+    writer.close();
+
+    // 1 (min) and 10 (max) will transform to bucket=0
+    // 5 (some middle value) transforms to bucket=1
+    // we should pick up on this and pass this file to DLQ
+    // to prove the transform value mapping, below is a sanity check:
+    List<String> partitionFields = Arrays.asList("bucket(id, 2)", "age");
+    PartitionSpec spec = PartitionUtils.toPartitionSpec(partitionFields, icebergSchema);
+    PartitionField bucketPartition = spec.fields().get(0);
+    assertEquals("id_bucket", bucketPartition.name());
+    assertTrue(bucketPartition.transform().toString().contains("bucket["));
+    SerializableFunction<Long, Integer> transformFunc =
+        (SerializableFunction<Long, Integer>)
+            bucketPartition.transform().bind(Types.LongType.get());
+    assertEquals(0, (int) transformFunc.apply(1L));
+    assertEquals(1, (int) transformFunc.apply(5L));
+    assertEquals(0, (int) transformFunc.apply(10L));
+
+    AddFiles addFiles =
+        new AddFiles(catalogConfig, tableId.toString(), null, partitionFields, null, 1, null);
+    PCollection<String> inputFiles = pipeline.apply("Create Input", Create.of(file1));
+    PCollectionRowTuple outputTuple = inputFiles.apply(addFiles);
+
+    PAssert.that(outputTuple.get("errors"))
+        .containsInAnyOrder(
+            Row.withSchema(AddFiles.ERROR_SCHEMA)
+                .addValues(
+                    file1,
+                    UNKNOWN_PARTITION_ERROR
+                        + "Found records with conflicting transformed values, for column: id")
+                .build());
+    pipeline.run().waitUntilFinish();
+  }
+
+  @Test
+  public void testGetPartitionFromMetrics() throws IOException, InterruptedException {
+    PartitionSpec partitionSpec =
+        PartitionSpec.builderFor(icebergSchema)
+            .bucket("id", 2)
+            .truncate("name", 4)
+            .identity("age")
+            .build();
+
+    List<PartitionTestCase> testCases =
+        Arrays.asList(
+            PartitionTestCase.of(
+                root + "data_1.parquet",
+                record(1, "aaaa", 10),
+                Arrays.asList(
+                    record(1, "aaaa123", 10),
+                    record(10, "aaaa789", 10),
+                    record(100, "aaaa456", 10)),
+                Arrays.asList(1, CharBuffer.wrap("aaaa123"), 10),
+                Arrays.asList(100, CharBuffer.wrap("aaaa789"), 10),
+                "id_bucket=0/name_trunc=aaaa/age=10"),
+            PartitionTestCase.of(
+                root + "data_2.parquet",
+                record(1, "bbbb", 30),
+                Arrays.asList(
+                    record(5, "bbbb789", 30),
+                    record(55, "bbbb456", 30),
+                    record(500, "bbbb123", 30)),
+                Arrays.asList(5, CharBuffer.wrap("bbbb123"), 30),
+                Arrays.asList(500, CharBuffer.wrap("bbbb789"), 30),
+                "id_bucket=1/name_trunc=bbbb/age=30"));
+
+    PartitionKey pk = new PartitionKey(partitionSpec, icebergSchema);
+    MetricsConfig metricsConfig = MetricsConfig.fromProperties(tableProps);
+    Table table = catalog.createTable(tableId, icebergSchema, partitionSpec);
+
+    for (PartitionTestCase caze : testCases) {
+      List<Record> records = caze.records;
+      String fileName = caze.fileName;
+      pk.wrap(caze.partition);
+      DataWriter<Record> writer = createWriter(fileName, pk.copy());
+
+      for (Record record : records) {
+        writer.write(record);
+      }
+      writer.close();
+      InputFile file = table.io().newInputFile(fileName);
+
+      Metrics metrics =
+          AddFiles.getFileMetrics(
+              file, FileFormat.PARQUET, metricsConfig, MappingUtil.create(icebergSchema));
+      for (int i = 0; i < partitionSpec.fields().size(); i++) {
+        PartitionField partitionField = partitionSpec.fields().get(i);
+        Types.NestedField field = icebergSchema.findField(partitionField.sourceId());
+        ByteBuffer lowerBytes = metrics.lowerBounds().get(field.fieldId());
+        ByteBuffer upperBytes = metrics.upperBounds().get(field.fieldId());
+
+        Object lower = Conversions.fromByteBuffer(field.type(), lowerBytes);
+        Object upper = Conversions.fromByteBuffer(field.type(), upperBytes);
+
+        assertEquals(caze.expectedLower.get(i), lower);
+        assertEquals(caze.expectedUpper.get(i), upper);
+      }
+
+      String partitionPath = getPartitionFromMetrics(metrics, file, table);
+      assertEquals(caze.expectedPartition, partitionPath);
+    }
+  }
+
+  @Test
+  public void testThrowPartitionMismatchError() throws IOException, InterruptedException {
+    PartitionSpec partitionSpec =
+        PartitionSpec.builderFor(icebergSchema)
+            .bucket("id", 2)
+            .truncate("name", 4)
+            .identity("age")
+            .build();
+
+    List<PartitionTestCase> testCases =
+        Arrays.asList(
+            PartitionTestCase.of(
+                root + "data_1.parquet",
+                record(1, "aaaa", 10),
+                Arrays.asList(
+                    record(1, "aaaa123", 10), record(10, "abab", 10), record(100, "aaaa789", 10)),
+                Arrays.asList(1, CharBuffer.wrap("aaaa123"), 10),
+                Arrays.asList(100, CharBuffer.wrap("abab"), 10),
+                "error"),
+            PartitionTestCase.of(
+                root + "data_2.parquet",
+                record(1, "bbbb", 30),
+                Arrays.asList(
+                    record(5, "bbbb", 30), record(55, "bbbb", 30), record(500, "bbbb", 50)),
+                Arrays.asList(5, CharBuffer.wrap("bbbb"), 30),
+                Arrays.asList(500, CharBuffer.wrap("bbbb"), 50),
+                "error"));
+
+    PartitionKey pk = new PartitionKey(partitionSpec, icebergSchema);
+    MetricsConfig metricsConfig = MetricsConfig.fromProperties(tableProps);
+    Table table = catalog.createTable(tableId, icebergSchema, partitionSpec);
+
+    for (PartitionTestCase caze : testCases) {
+      List<Record> records = caze.records;
+      String fileName = caze.fileName;
+      pk.wrap(caze.partition);
+      DataWriter<Record> writer = createWriter(fileName, pk.copy());
+
+      for (Record record : records) {
+        writer.write(record);
+      }
+      writer.close();
+      InputFile file = table.io().newInputFile(fileName);
+
+      Metrics metrics =
+          AddFiles.getFileMetrics(
+              file, FileFormat.PARQUET, metricsConfig, MappingUtil.create(icebergSchema));
+      // check that lower/upper stats are still fetched correctly
+      for (int i = 0; i < partitionSpec.fields().size(); i++) {
+        PartitionField partitionField = partitionSpec.fields().get(i);
+        Types.NestedField field = icebergSchema.findField(partitionField.sourceId());
+        ByteBuffer lowerBytes = metrics.lowerBounds().get(field.fieldId());
+        ByteBuffer upperBytes = metrics.upperBounds().get(field.fieldId());
+
+        Object lower = Conversions.fromByteBuffer(field.type(), lowerBytes);
+        Object upper = Conversions.fromByteBuffer(field.type(), upperBytes);
+
+        assertEquals(caze.expectedLower.get(i), lower);
+        assertEquals(caze.expectedUpper.get(i), upper);
+      }
+
+      assertThrows(
+          AddFiles.UnknownPartitionException.class,
+          () -> getPartitionFromMetrics(metrics, file, table));
+    }
+  }
+
+  static class PartitionTestCase {
+    String fileName;
+    StructLike partition;
+    List<Record> records;
+    List<Object> expectedLower;
+    List<Object> expectedUpper;
+    String expectedPartition;
+
+    PartitionTestCase(
+        String fileName,
+        StructLike partition,
+        List<Record> records,
+        List<Object> expectedLower,
+        List<Object> expectedUpper,
+        String expectedPartition) {
+      this.fileName = fileName;
+      this.partition = partition;
+      this.records = records;
+      this.expectedLower = expectedLower;
+      this.expectedUpper = expectedUpper;
+      this.expectedPartition = expectedPartition;
+    }
+
+    static PartitionTestCase of(
+        String fileName,
+        StructLike partition,
+        List<Record> records,
+        List<Object> expectedLower,
+        List<Object> expectedUpper,
+        String expectedPartition) {
+      return new PartitionTestCase(
+          fileName, partition, records, expectedLower, expectedUpper, expectedPartition);
+    }
   }
 
   private DataWriter<Record> createWriter(String file) throws IOException {

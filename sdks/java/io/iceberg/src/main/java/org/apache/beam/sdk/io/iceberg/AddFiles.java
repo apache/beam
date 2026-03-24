@@ -29,9 +29,11 @@ import java.nio.channels.SeekableByteChannel;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.concurrent.Semaphore;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import org.apache.beam.sdk.coders.VarLongCoder;
@@ -77,7 +79,9 @@ import org.apache.iceberg.Snapshot;
 import org.apache.iceberg.Table;
 import org.apache.iceberg.avro.Avro;
 import org.apache.iceberg.catalog.TableIdentifier;
+import org.apache.iceberg.data.Record;
 import org.apache.iceberg.exceptions.AlreadyExistsException;
+import org.apache.iceberg.io.CloseableIterable;
 import org.apache.iceberg.io.InputFile;
 import org.apache.iceberg.mapping.MappingUtil;
 import org.apache.iceberg.mapping.NameMapping;
@@ -87,6 +91,8 @@ import org.apache.iceberg.parquet.ParquetUtil;
 import org.apache.iceberg.transforms.Transform;
 import org.apache.iceberg.types.Conversions;
 import org.apache.iceberg.types.Type;
+import org.apache.iceberg.types.TypeUtil;
+import org.apache.iceberg.types.Types;
 import org.apache.parquet.hadoop.ParquetFileReader;
 import org.apache.parquet.hadoop.metadata.FileMetaData;
 import org.apache.parquet.hadoop.metadata.ParquetMetadata;
@@ -102,6 +108,8 @@ import org.slf4j.LoggerFactory;
  * partition metadata and metrics, then commits them to an Iceberg {@link Table}.
  */
 public class AddFiles extends PTransform<PCollection<String>, PCollectionRowTuple> {
+  static final String OUTPUT_TAG = "snapshots";
+  static final String ERROR_TAG = "errors";
   private static final Duration DEFAULT_TRIGGER_INTERVAL = Duration.standardMinutes(10);
   private static final Counter numFilesAdded = counter(AddFiles.class, "numFilesAdded");
   private static final Counter numErrorFiles = counter(AddFiles.class, "numErrorFiles");
@@ -184,7 +192,7 @@ public class AddFiles extends PTransform<PCollection<String>, PCollectionRowTupl
             .setRowSchema(SnapshotInfo.getSchema());
 
     return PCollectionRowTuple.of(
-        "snapshots", snapshots, "errors", dataFiles.get(ERRORS).setRowSchema(ERROR_SCHEMA));
+        OUTPUT_TAG, snapshots, ERROR_TAG, dataFiles.get(ERRORS).setRowSchema(ERROR_SCHEMA));
   }
 
   static class ConvertToDataFile extends DoFn<String, SerializableDataFile> {
@@ -196,6 +204,8 @@ public class AddFiles extends PTransform<PCollection<String>, PCollectionRowTupl
     private final @Nullable List<String> partitionFields;
     private final @Nullable Map<String, String> tableProps;
     private transient @MonotonicNonNull Table table;
+    private static final int MAX_READERS = 5;
+    private static final Semaphore ACTIVE_READERS = new Semaphore(MAX_READERS);
 
     public ConvertToDataFile(
         IcebergCatalogConfig catalogConfig,
@@ -210,12 +220,13 @@ public class AddFiles extends PTransform<PCollection<String>, PCollectionRowTupl
       this.tableProps = tableProps;
     }
 
-    private static final String PREFIX_ERROR = "File path did not start with the specified prefix";
+    static final String PREFIX_ERROR = "File path did not start with the specified prefix";
     private static final String UNKNOWN_FORMAT_ERROR = "Could not determine the file's format";
-    static final String UNKNOWN_PARTITION_ERROR = "Could not determine the file's partition";
+    static final String UNKNOWN_PARTITION_ERROR = "Could not determine the file's partition: ";
 
     @ProcessElement
-    public void process(@Element String filePath, MultiOutputReceiver output) throws IOException {
+    public void process(@Element String filePath, MultiOutputReceiver output)
+        throws IOException, InterruptedException {
       FileFormat format;
       try {
         format = inferFormat(filePath);
@@ -259,13 +270,13 @@ public class AddFiles extends PTransform<PCollection<String>, PCollectionRowTupl
       } else {
         try {
           // option 2: examine DataFile min/max statistics to determine partition
-          partitionPath = getPartitionFromMetrics(metrics, inputFile);
+          partitionPath = getPartitionFromMetrics(metrics, inputFile, table);
         } catch (UnknownPartitionException e) {
           output
               .get(ERRORS)
               .output(
                   Row.withSchema(ERROR_SCHEMA)
-                      .addValues(filePath, UNKNOWN_PARTITION_ERROR + ": " + e.getMessage())
+                      .addValues(filePath, UNKNOWN_PARTITION_ERROR + e.getMessage())
                       .build());
           numErrorFiles.inc();
           return;
@@ -284,8 +295,12 @@ public class AddFiles extends PTransform<PCollection<String>, PCollectionRowTupl
       output.get(DATA_FILES).output(SerializableDataFile.from(df, partitionPath));
     }
 
-    private <W, T> T transformValue(Transform<W, T> transform, Type type, ByteBuffer bytes) {
+    static <W, T> T transformValue(Transform<W, T> transform, Type type, ByteBuffer bytes) {
       return transform.bind(type).apply(Conversions.fromByteBuffer(type, bytes));
+    }
+
+    private static <W, T> T transformValue(Transform<W, T> transform, Type type, Object value) {
+      return transform.bind(type).apply((W) value);
     }
 
     private Table getOrCreateTable(org.apache.iceberg.Schema schema) {
@@ -330,12 +345,19 @@ public class AddFiles extends PTransform<PCollection<String>, PCollectionRowTupl
      * Examines the min/max values of each partition column to determine the destination partition.
      *
      * <p>If the transformed min/max values are not equal for any given column, we won't be able to
-     * determine the partition. In this case, we output the DataFile to the DLQ, because assigning
-     * an incorrect partition may lead to it being hidden from some queries.
+     * determine the partition. We also cannot fall back to a "null" partition, because that will
+     * also get skipped by most queries.
+     *
+     * <p>The Bucket partition transform is an exceptional case because it is not monotonic, meaning
+     * it's not enough to just compare the min and max values. There may be a middle value somewhere
+     * that gets hashed to a different value. For this transform, we'll need to read all the values
+     * in the column ensure they all get transformed to the same partition value.
+     *
+     * <p>In these cases, we output the DataFile to the DLQ, because assigning an incorrect
+     * partition may lead to it being completely ignored by downstream queries.
      */
-    private String getPartitionFromMetrics(Metrics metrics, InputFile inputFile)
-        throws UnknownPartitionException, IOException {
-      Table table = checkStateNotNull(this.table);
+    static String getPartitionFromMetrics(Metrics metrics, InputFile inputFile, Table table)
+        throws UnknownPartitionException, IOException, InterruptedException {
       List<PartitionField> fields = table.spec().fields();
       List<Integer> sourceIds =
           fields.stream().map(PartitionField::sourceId).collect(Collectors.toList());
@@ -351,7 +373,7 @@ public class AddFiles extends PTransform<PCollection<String>, PCollectionRowTupl
         // Some tables are very wide and users may not want to store excessive metadata.
         List<String> sourceNames =
             fields.stream()
-                .map(pf -> checkStateNotNull(table.schema().idToName().get(pf.sourceId())))
+                .map(pf -> table.schema().findColumnName(pf.sourceId()))
                 .collect(Collectors.toList());
         Map<String, String> configProps =
             sourceNames.stream()
@@ -367,16 +389,28 @@ public class AddFiles extends PTransform<PCollection<String>, PCollectionRowTupl
 
       PartitionKey pk = new PartitionKey(table.spec(), table.schema());
 
+      HashMap<Integer, PartitionField> bucketPartitions = new HashMap<>();
       for (int i = 0; i < fields.size(); i++) {
         PartitionField field = fields.get(i);
+        Transform<?, ?> transform = field.transform();
+        if (transform.toString().contains("bucket[")) {
+          bucketPartitions.put(i, field);
+        }
+      }
+
+      // first, read only metadata for the non-bucket partition types
+      for (int i = 0; i < fields.size(); i++) {
+        PartitionField field = fields.get(i);
+        // skip bucket partitions (we will process them below)
+        if (bucketPartitions.containsKey(i)) {
+          continue;
+        }
         Type type = table.schema().findType(field.sourceId());
         Transform<?, ?> transform = field.transform();
 
         // Make a best effort estimate by comparing the lower and upper transformed values.
         // If the transformed values are equal, assume that the DataFile's data safely
         // aligns with the same partition.
-        // TODO(ahmedabu98): is comparing min/max safe enough for bucketing transform?
-        //  or should we compare ALL the records in a DF?
         ByteBuffer lowerBytes = partitionMetrics.lowerBounds().get(field.sourceId());
         ByteBuffer upperBytes = partitionMetrics.upperBounds().get(field.sourceId());
         if (lowerBytes == null && upperBytes == null) {
@@ -392,17 +426,64 @@ public class AddFiles extends PTransform<PCollection<String>, PCollectionRowTupl
         if (!Objects.deepEquals(lowerTransformedValue, upperTransformedValue)) {
           // The DataFile contains values that align to different partitions, so we cannot
           // safely determine a partition.
-          // If we commit the DataFile with an incorrect partition, downstream queries may
-          // completely ignore it (due to Iceberg's smart partition scan-planning).
-          // We also cannot commit the DataFile with a "null" partition, because that will
-          // also get skipped by most queries.
-          // The safe thing to do is to output the file to DLQ.
-          throw new UnknownPartitionException("Min and max transformed values were not equal");
+          throw new UnknownPartitionException(
+              "Min and max transformed values were not equal, for column: " + field.name());
         }
 
         pk.set(i, lowerTransformedValue);
       }
 
+      // bucket transform needs extra processing (see java doc above)
+      if (!bucketPartitions.isEmpty()) {
+        // Optimize by only reading bucket-transformed columns into memory
+        org.apache.iceberg.Schema bucketCols =
+            TypeUtil.select(
+                table.schema(),
+                bucketPartitions.values().stream()
+                    .map(PartitionField::sourceId)
+                    .collect(Collectors.toSet()));
+
+        // Keep one instance of transformed value per column. Use this to compare against each
+        // record's transformed value.
+        // Values in the same columns must yield the same transformed value, otherwise we cannot
+        // determine a partition
+        // from this file.
+        Map<Integer, Object> transformedValues = new HashMap<>();
+
+        // Do a one-time read of the file and compare all bucket-transformed columns
+        ACTIVE_READERS.acquire();
+        try (CloseableIterable<Record> reader = ReadUtils.createReader(inputFile, bucketCols)) {
+          for (Record record : reader) {
+            for (Map.Entry<Integer, PartitionField> entry : bucketPartitions.entrySet()) {
+              int partitionIndex = entry.getKey();
+              PartitionField partitionField = entry.getValue();
+              Transform<?, ?> transform = partitionField.transform();
+              Types.NestedField field = table.schema().findField(partitionField.sourceId());
+              Object value = record.getField(field.name());
+
+              // set initial transformed value for this column
+              @Nullable Object transformedValue = transformedValues.get(partitionIndex);
+              Object currentTransformedValue = transformValue(transform, field.type(), value);
+              if (transformedValue == null) {
+                transformedValues.put(partitionIndex, checkStateNotNull(currentTransformedValue));
+                continue;
+              }
+
+              if (!Objects.deepEquals(currentTransformedValue, transformedValue)) {
+                throw new UnknownPartitionException(
+                    "Found records with conflicting transformed values, for column: "
+                        + field.name());
+              }
+            }
+          }
+        } finally {
+          ACTIVE_READERS.release();
+        }
+
+        for (Map.Entry<Integer, Object> partitionCol : transformedValues.entrySet()) {
+          pk.set(partitionCol.getKey(), partitionCol.getValue());
+        }
+      }
       return pk.toPath();
     }
   }
