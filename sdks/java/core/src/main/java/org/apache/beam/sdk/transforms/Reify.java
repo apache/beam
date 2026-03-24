@@ -159,7 +159,8 @@ public class Reify {
                                   paneInfo,
                                   pc.currentRecordId(),
                                   pc.currentRecordOffset(),
-                                  causedByDrain)));
+                                  causedByDrain,
+                                  null)));
                     }
                   }))
           .setCoder(
