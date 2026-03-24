@@ -204,7 +204,8 @@ public class AddFiles extends PTransform<PCollection<String>, PCollectionRowTupl
     private final @Nullable List<String> partitionFields;
     private final @Nullable Map<String, String> tableProps;
     private transient @MonotonicNonNull Table table;
-    private static final int MAX_READERS = 5;
+    // Limit open readers to avoid blowing up memory on one worker
+    private static final int MAX_READERS = 10;
     private static final Semaphore ACTIVE_READERS = new Semaphore(MAX_READERS);
 
     public ConvertToDataFile(
@@ -354,7 +355,7 @@ public class AddFiles extends PTransform<PCollection<String>, PCollectionRowTupl
      * in the column ensure they all get transformed to the same partition value.
      *
      * <p>In these cases, we output the DataFile to the DLQ, because assigning an incorrect
-     * partition may lead to it being completely ignored by downstream queries.
+     * partition may lead to it being incorrectly ignored by downstream queries.
      */
     static String getPartitionFromMetrics(Metrics metrics, InputFile inputFile, Table table)
         throws UnknownPartitionException, IOException, InterruptedException {
