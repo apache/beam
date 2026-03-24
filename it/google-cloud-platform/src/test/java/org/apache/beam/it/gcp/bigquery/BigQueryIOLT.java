@@ -244,7 +244,7 @@ public final class BigQueryIOLT extends IOLoadTestBase {
                 .withAvroFormatFunction(
                     new AvroFormatFn(
                         configuration.numColumns,
-                        "STORAGE_WRITE_API".equalsIgnoreCase(configuration.writeMethod)));
+                        !"STORAGE_WRITE_API".equalsIgnoreCase(configuration.writeMethod)));
         break;
       case JSON:
         writeIO =
