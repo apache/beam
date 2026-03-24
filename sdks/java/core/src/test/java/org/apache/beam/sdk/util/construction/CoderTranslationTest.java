@@ -163,7 +163,7 @@ public class CoderTranslationTest {
     }
 
     @Test
-    public void validateCoderTranslators() {
+    public void validateModelCoderTranslators() {
       assertThat(
           "Every Model Coder must have a Translator",
           new ModelCoderRegistrar().getCoderURNs().keySet(),

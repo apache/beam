@@ -22,7 +22,6 @@ import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Pr
 import java.io.IOException;
 import java.util.Collections;
 import java.util.List;
-import java.util.function.Supplier;
 import org.apache.beam.model.pipeline.v1.SchemaApi;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.IterableCoder;
@@ -31,8 +30,6 @@ import org.apache.beam.sdk.coders.LengthPrefixCoder;
 import org.apache.beam.sdk.coders.NullableCoder;
 import org.apache.beam.sdk.coders.RowCoder;
 import org.apache.beam.sdk.coders.TimestampPrefixingWindowCoder;
-import org.apache.beam.sdk.options.PipelineOptions;
-import org.apache.beam.sdk.options.StreamingOptions;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.SchemaCoder;
 import org.apache.beam.sdk.schemas.SchemaTranslation;
@@ -53,10 +50,6 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Immuta
 /** {@link CoderTranslator} implementations for known coder types. */
 class CoderTranslators {
   private CoderTranslators() {}
-
-  public interface TranslationContextWithOptions extends TranslationContext {
-    Supplier<PipelineOptions> pipelineOptions();
-  }
 
   static <T extends Coder<?>> CoderTranslator<T> atomic(final Class<T> clazz) {
     return new SimpleStructuredCoderTranslator<T>() {
@@ -152,9 +145,7 @@ class CoderTranslators {
       }
 
       @Override
-      public byte[] getPayload(
-          WindowedValues.ParamWindowedValueCoder<?> from,
-          CoderTranslation.TranslationContext context) {
+      public byte[] getPayload(WindowedValues.ParamWindowedValueCoder<?> from) {
         return WindowedValues.ParamWindowedValueCoder.getPayload(from);
       }
 
@@ -174,7 +165,7 @@ class CoderTranslators {
       }
 
       @Override
-      public byte[] getPayload(RowCoder from, CoderTranslation.TranslationContext context) {
+      public byte[] getPayload(RowCoder from) {
         return SchemaTranslation.schemaToProto(from.getSchema(), true).toByteArray();
       }
 
@@ -205,33 +196,8 @@ class CoderTranslators {
         return ImmutableList.of();
       }
 
-      // Used for backwards compatibility with older versions of the SDK.
-      private boolean encodeAsJavaSerializedCoder(TranslationContext context) {
-        if (context instanceof TranslationContextWithOptions) {
-          PipelineOptions options =
-              ((TranslationContextWithOptions) context).pipelineOptions().get();
-          if (StreamingOptions.updateCompatibilityVersionLessThan(options, "2.73")) {
-            return true;
-          }
-        }
-        return false;
-      }
-
       @Override
-      public String getUrn(SchemaCoder<T> from, TranslationContext context) {
-        if (encodeAsJavaSerializedCoder(context)) {
-          return CoderTranslation.JAVA_SERIALIZED_CODER_URN;
-        } else {
-          return CoderTranslation.getKnownCoderUrns()
-              .getOrDefault(from.getClass(), CoderTranslation.JAVA_SERIALIZED_CODER_URN);
-        }
-      }
-
-      @Override
-      public byte[] getPayload(SchemaCoder<T> from, TranslationContext context) {
-        if (encodeAsJavaSerializedCoder(context)) {
-          return SerializableUtils.serializeToByteArray(from);
-        }
+      public byte[] getPayload(SchemaCoder<T> from) {
         SchemaApi.SchemaCoderPayload.Builder payload = SchemaApi.SchemaCoderPayload.newBuilder();
         payload.setSchema(SchemaTranslation.schemaToProto(from.getSchema(), true));
         payload
@@ -260,9 +226,6 @@ class CoderTranslators {
           List<Coder<?>> components, byte[] payload, TranslationContext context) {
         checkArgument(
             components.isEmpty(), "Expected empty component list, but received: %s", components);
-        checkArgument(
-            !encodeAsJavaSerializedCoder(context),
-            "This translator should not be used for Java serialized coders.");
         try {
           SchemaApi.SchemaCoderPayload schemaCoderPayload =
               SchemaApi.SchemaCoderPayload.parseFrom(payload);

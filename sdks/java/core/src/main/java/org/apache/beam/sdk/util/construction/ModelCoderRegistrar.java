@@ -34,6 +34,8 @@ import org.apache.beam.sdk.coders.RowCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.TimestampPrefixingWindowCoder;
 import org.apache.beam.sdk.coders.VarLongCoder;
+import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.options.StreamingOptions;
 import org.apache.beam.sdk.schemas.SchemaCoder;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.IntervalWindow.IntervalWindowCoder;
@@ -126,10 +128,6 @@ public class ModelCoderRegistrar implements CoderTranslatorRegistrar {
         Coder.class.getSimpleName());
   }
 
-  public static boolean isKnownCoder(Coder<?> coder) {
-    return BEAM_MODEL_CODER_URNS.containsKey(coder.getClass());
-  }
-
   @Override
   public Map<Class<? extends Coder>, String> getCoderURNs() {
     return BEAM_MODEL_CODER_URNS;
@@ -138,5 +136,24 @@ public class ModelCoderRegistrar implements CoderTranslatorRegistrar {
   @Override
   public Map<Class<? extends Coder>, CoderTranslator<? extends Coder>> getCoderTranslators() {
     return BEAM_MODEL_CODERS;
+  }
+
+  @Override
+  public boolean isKnownCoder(Coder<?> coder, PipelineOptions options) {
+    if (coder.getClass() == SchemaCoder.class
+        && StreamingOptions.updateCompatibilityVersionLessThan(options, "2.73")) {
+      return false;
+    }
+    return BEAM_MODEL_CODER_URNS.containsKey(coder.getClass());
+  }
+
+  @Override
+  public CoderTranslator<? extends Coder> getCoderTranslator(Class<? extends Coder> coderClass) {
+    return BEAM_MODEL_CODERS.getOrDefault(coderClass, null);
+  }
+
+  @Override
+  public Class<? extends Coder> getCoderForUrn(String coderUrn) {
+    return BEAM_MODEL_CODER_URNS.inverse().getOrDefault(coderUrn, null);
   }
 }

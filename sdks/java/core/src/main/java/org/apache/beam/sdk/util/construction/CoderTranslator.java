@@ -29,12 +29,6 @@ import org.apache.beam.sdk.util.construction.CoderTranslation.TranslationContext
  */
 public interface CoderTranslator<T extends Coder<?>> {
 
-  /** Returns the String to use for the coder URN. */
-  default String getUrn(T coder, TranslationContext context) {
-    return CoderTranslation.getKnownCoderUrns()
-        .getOrDefault(coder.getClass(), CoderTranslation.JAVA_SERIALIZED_CODER_URN);
-  }
-
   /** Extract all component {@link Coder coders} within a coder. */
   List<? extends Coder<?>> getComponents(T from);
 
@@ -44,7 +38,7 @@ public interface CoderTranslator<T extends Coder<?>> {
    *
    * <p>The default implementation returns a byte array of length zero.
    */
-  default byte[] getPayload(T from, TranslationContext context) {
+  default byte[] getPayload(T from) {
     return new byte[0];
   }
 
