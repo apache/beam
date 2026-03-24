@@ -217,8 +217,9 @@ class ADKAgentModelHandler(ModelHandler[Union[str, genai_Content],
       inference_args = {}
 
     user_id: str = inference_args.get("user_id", "beam_user")
+    agent_invocations = []
+    elements_with_sessions = []
 
-    results = []
     for element in batch:
       session_id: str = inference_args.get("session_id", str(uuid.uuid4()))
 
@@ -236,13 +237,22 @@ class ADKAgentModelHandler(ModelHandler[Union[str, genai_Content],
         # Assume the caller has already constructed a types.Content object
         message = element
 
-      response_text = asyncio.run(
+      agent_invocations.append(
           self._invoke_agent(model, user_id, session_id, message))
+      elements_with_sessions.append(element)
 
+    # Run all agent invocations concurrently
+    async def _run_concurrently():
+      return await asyncio.gather(*agent_invocations)
+
+    response_texts = asyncio.run(_run_concurrently())
+
+    results = []
+    for i, element in enumerate(elements_with_sessions):
       results.append(
           PredictionResult(
               example=element,
-              inference=response_text,
+              inference=response_texts[i],
               model_id=model.agent.name,
           ))
 

@@ -21,7 +21,7 @@ import unittest
 from unittest import mock
 
 try:
-  from google.adk.agents.llm_agent import Agent
+  from google.adk.agents import Agent
 
   from apache_beam.ml.inference.agent_development_kit import ADKAgentModelHandler
   from apache_beam.ml.inference.base import PredictionResult
