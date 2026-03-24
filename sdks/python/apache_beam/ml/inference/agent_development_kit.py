@@ -22,9 +22,6 @@ This module provides :class:`ADKAgentModelHandler`, a Beam
 :class:`google.adk.agents.llm_agent.LlmAgent` so it can be used with the
 :class:`~apache_beam.ml.inference.base.RunInference` transform.
 
-**NOTE:** This API and its implementation are under development and do not
-provide backward compatibility guarantees.
-
 Typical usage::
 
     import apache_beam as beam
