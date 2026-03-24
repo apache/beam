@@ -434,8 +434,8 @@ public class AddFilesTest {
 
     // 1 (min) and 10 (max) will transform to bucket=0
     // 5 (some middle value) transforms to bucket=1
-    // we should pick up on this and pass this file to DLQ
-    // to prove the transform value mapping, below is a sanity check:
+    // To prove this transform value mapping^, below is a sanity check.
+    // We should recognize that we cannot assign a partition to such a file, and pass it to DLQ.
     List<String> partitionFields = Arrays.asList("bucket(id, 2)", "age");
     PartitionSpec spec = PartitionUtils.toPartitionSpec(partitionFields, icebergSchema);
     PartitionField bucketPartition = spec.fields().get(0);
