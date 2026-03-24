@@ -585,11 +585,6 @@ class CombineTest(unittest.TestCase):
       assert_that(result, has_expected_values)
 
   def test_combining_with_sliding_windows_and_fanout(self):
-    # SlidingWindows + fanout now works (fixed in 2.73.0).
-    # Previously this raised ValueError due to WindowInto re-evaluating
-    # window assignments. The fix sets windowing strategy metadata directly
-    # on the PCollection without re-assigning windows, mirroring Java's
-    # setWindowingStrategyInternal().
     options = PipelineOptions()
     options.view_as(StandardOptions).streaming = True
     with TestPipeline(options=options) as p:
