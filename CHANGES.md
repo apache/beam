@@ -103,6 +103,7 @@
 * Remove Pubsublite IO support, since service will be deprecated in March 2026. ([#37375](https://github.com/apache/beam/issues/37375)).
 * (Java) ClickHouse - migrating from the legacy JDBC driver (v0.6.3) to ClickHouse Java Client v2 (v0.9.6). See the [class documentation](https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/clickhouse/ClickHouseIO.html) for migration guide   ([#37610](https://github.com/apache/beam/issues/37610)).
 * (Java) Upgraded GoogleAdsIO to use GoogleAdsIO API v23 ([#37620](https://github.com/apache/beam/issues/37620)).
+* (Java) Added support for withMinRowCountForPageSizeCheck to ParquetIO.Sink to avoid OOM when writing large columns ([#37740](https://github.com/apache/beam/issues/37740)).
 
 ## New Features / Improvements
 
