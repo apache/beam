@@ -116,7 +116,6 @@ import org.apache.beam.sdk.io.gcp.bigquery.BigQuerySinkMetrics;
 import org.apache.beam.sdk.metrics.MetricsEnvironment;
 import org.apache.beam.sdk.util.construction.CoderTranslation;
 import org.apache.beam.sdk.values.WindowedValues;
-import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.ManagedChannel;
 import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.auth.MoreCallCredentials;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
@@ -814,31 +813,25 @@ public final class StreamingDataflowWorker {
       GrpcDispatcherClient dispatcherClient) {
     ChannelCache channelCache =
         ChannelCache.create(
-            (currentFlowControlSettings, serviceAddress) -> {
-              ManagedChannel primaryChannel =
-                  IsolationChannel.create(
-                      () ->
-                          remoteChannel(
-                              serviceAddress,
-                              workerOptions.getWindmillServiceRpcChannelAliveTimeoutSec(),
-                              currentFlowControlSettings),
-                      currentFlowControlSettings.getOnReadyThresholdBytes());
-              // Create an isolated fallback channel from dispatcher endpoints.
-              // This ensures both primary and fallback use separate isolated channels.
-              ManagedChannel fallbackChannel =
-                  IsolationChannel.create(
-                      () ->
-                          remoteChannel(
-                              dispatcherClient.getDispatcherEndpoints().iterator().next(),
-                              workerOptions.getWindmillServiceRpcChannelAliveTimeoutSec(),
-                              currentFlowControlSettings),
-                      currentFlowControlSettings.getOnReadyThresholdBytes());
-              return FailoverChannel.create(
-                  primaryChannel,
-                  fallbackChannel,
-                  MoreCallCredentials.from(
-                      new VendoredCredentialsAdapter(workerOptions.getGcpCredential())));
-            });
+            (currentFlowControlSettings, serviceAddress) ->
+                // IsolationChannel wraps FailoverChannel so that each active RPC gets its own
+                // FailoverChannel instance. FailoverChannel creates two channels (primary,
+                // fallback)
+                // per active RPC.
+                IsolationChannel.create(
+                    () ->
+                        FailoverChannel.create(
+                            remoteChannel(
+                                serviceAddress,
+                                workerOptions.getWindmillServiceRpcChannelAliveTimeoutSec(),
+                                currentFlowControlSettings),
+                            remoteChannel(
+                                dispatcherClient.getDispatcherEndpoints().iterator().next(),
+                                workerOptions.getWindmillServiceRpcChannelAliveTimeoutSec(),
+                                currentFlowControlSettings),
+                            MoreCallCredentials.from(
+                                new VendoredCredentialsAdapter(workerOptions.getGcpCredential()))),
+                    currentFlowControlSettings.getOnReadyThresholdBytes()));
 
     configFetcher
         .getGlobalConfigHandle()
