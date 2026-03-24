@@ -1234,6 +1234,16 @@ class PGBKOperation(Operation):
 
 
 class PGBKCVOperation(Operation):
+    """
+    PGBKCVOperation represents a Partial GroupByKey with Combine Values step
+    in the Beam execution model.
+
+    This operation groups elements by key and performs partial aggregation
+    of values to optimize data processing before final grouping.
+
+    It is used internally by Beam runners to improve efficiency in
+    distributed execution.
+    """
   def __init__(
       self, name_context, spec, counter_factory, state_sampler, windowing=None):
     super(PGBKCVOperation,
