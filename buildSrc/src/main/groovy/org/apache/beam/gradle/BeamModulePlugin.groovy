@@ -597,7 +597,7 @@ class BeamModulePlugin implements Plugin<Project> {
     //
     // There are a few versions are determined by the BOMs by running scripts/tools/bomupgrader.py
     // marked as [bomupgrader]. See the documentation of that script for detail.
-    def activemq_version = "5.14.5"
+    def activemq_version = "5.19.2"
     def autovalue_version = "1.9"
     def autoservice_version = "1.0.1"
     def aws_java_sdk2_version = "2.20.162"

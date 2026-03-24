@@ -85,6 +85,10 @@
 
 * Fixed X (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
 
+## Security Fixes
+
+* Fixed [CVE-2023-46604](https://www.cve.org/CVERecord?id=CVE-2023-46604) (CVSS 10.0) and [CVE-2022-41678](https://www.cve.org/CVERecord?id=CVE-2022-41678) by upgrading ActiveMQ from 5.14.5 to 5.19.2 (Java) ([#37943](https://github.com/apache/beam/issues/37943)).
+
 ## Known Issues
 
 [comment]: # ( When updating known issues after release, make sure also update website blog in website/www/site/content/blog.)
