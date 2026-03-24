@@ -703,7 +703,7 @@ public class FakeDatasetService implements DatasetService, WriteStreamService, S
             if (this.updatedSchema == null) {
               this.updatedSchema = newSchema;
               this.schemaInformation =
-                  TableRowToStorageApiProto.SchemaInformation.fromTableSchema((this.updatedSchema));
+                  TableRowToStorageApiProto.SchemaInformation.fromTableSchema(this.updatedSchema);
             }
           }
         }

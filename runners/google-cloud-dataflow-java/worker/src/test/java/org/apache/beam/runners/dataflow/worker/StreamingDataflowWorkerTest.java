@@ -3540,7 +3540,7 @@ public class StreamingDataflowWorkerTest {
     // Release the blocked calls.
     BlockingFn.blocker().countDown();
     Map<Long, Windmill.WorkItemCommitRequest> commits =
-        server.waitForAndGetCommitsWithTimeout(1, Duration.standardSeconds((5)));
+        server.waitForAndGetCommitsWithTimeout(1, Duration.standardSeconds(5));
     assertEquals(1, commits.size());
 
     assertEquals(0, BlockingFn.teardownCounter.get());
@@ -3594,7 +3594,7 @@ public class StreamingDataflowWorkerTest {
     // Release the blocked call, there should not be a commit and the dofn should be invalidated.
     BlockingFn.blocker().countDown();
     Map<Long, Windmill.WorkItemCommitRequest> commits =
-        server.waitForAndGetCommitsWithTimeout(1, Duration.standardSeconds((5)));
+        server.waitForAndGetCommitsWithTimeout(1, Duration.standardSeconds(5));
     assertEquals(1, commits.size());
 
     assertEquals(0, BlockingFn.teardownCounter.get());

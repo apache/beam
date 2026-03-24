@@ -54,9 +54,7 @@ public class PulsarIOTest implements Serializable {
     PCollection<Integer> pcoll =
         pipeline
             .apply(
-                PulsarIO.read()
-                    .withTopic(TEST_TOPIC)
-                    .withPulsarClient((ignored -> newFakeClient())))
+                PulsarIO.read().withTopic(TEST_TOPIC).withPulsarClient(ignored -> newFakeClient()))
             .apply(
                 MapElements.into(TypeDescriptor.of(Integer.class))
                     .via(m -> (int) m.getMessageId()[1]));
@@ -75,7 +73,7 @@ public class PulsarIOTest implements Serializable {
   @Test
   public void testExpandReadFailUnserializableType() {
     pipeline.apply(
-        PulsarIO.read(t -> t).withTopic(TEST_TOPIC).withPulsarClient((ignored -> newFakeClient())));
+        PulsarIO.read(t -> t).withTopic(TEST_TOPIC).withPulsarClient(ignored -> newFakeClient()));
     IllegalStateException exception =
         Assert.assertThrows(IllegalStateException.class, pipeline::run);
     String errorMsg = exception.getMessage();

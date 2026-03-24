@@ -1551,7 +1551,6 @@ class BeamModulePlugin implements Plugin<Project> {
             "ThreadPriorityCheck",
             "UndefinedEquals",
             "UnescapedEntity",
-            "UnnecessaryParentheses",
             "UnrecognisedJavadocTag",
             // errorprone 3.2.0+ checks
             "DirectInvocationOnMock",

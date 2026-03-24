@@ -97,7 +97,7 @@ public class VarInt {
     }
     stream.write((byte) (v | 0x80));
     v >>>= 7;
-    stream.write((byte) (v));
+    stream.write((byte) v);
   }
 
   /** Decodes an integer value from the given stream. */
