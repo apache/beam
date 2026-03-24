@@ -34,7 +34,6 @@ import org.apache.beam.sdk.state.Timer;
 import org.apache.beam.sdk.state.TimerSpec;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.TestStream;
-import org.apache.beam.sdk.transforms.DoFn.BundleFinalizer;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.transforms.display.HasDisplayData;
 import org.apache.beam.sdk.transforms.splittabledofn.HasDefaultTracker;
@@ -588,7 +587,7 @@ public abstract class DoFn<InputT extends @Nullable Object, OutputT extends @Nul
    * Annotation for registering a callback for a timer.
    *
    * <p>See the javadoc for {@link TimerId} for use in a full example.
-   * 
+   *
    * <p>The method annotated with {@code @OnTimer} may have parameters according to the same logic
    * as {@link ProcessElement}, but limited to the {@link BoundedWindow}, {@link State} subclasses,
    * {@link Timer}, {@link FireTimestamp}, {@link Timestamp}, {@link Key}, {@link TimeDomain},
@@ -801,12 +800,12 @@ public abstract class DoFn<InputT extends @Nullable Object, OutputT extends @Nul
    *   <li>If one of its arguments is tagged with the {@link Timestamp} annotation, then it will be
    *       passed the timestamp of the current element being processed; the argument must be of type
    *       {@link Instant}.
-   *   <li>If one of its arguments is tagged with the {@link RecordId} annotation, then it will be
-   *       passed the record ID of the current element being processed; the argument must be of type
-   *       {@link String}.
-   *   <li>If one of its arguments is tagged with the {@link RecordOffset} annotation, then it will
-   *       be passed the record offset of the current element being processed; the argument must be
-   *       of type {@link Long}.
+   *   <li>If one of its arguments is tagged with the {@link CurrentRecordId} annotation, then it
+   *       will be passed the record ID of the current element being processed; the argument must be
+   *       of type {@link String}.
+   *   <li>If one of its arguments is tagged with the {@link CurrentRecordOffset} annotation, then
+   *       it will be passed the record offset of the current element being processed; the argument
+   *       must be of type {@link Long}.
    *   <li>If one of its arguments is of the type {@link WatermarkEstimator}, then it will be passed
    *       the watermark estimator.
    *   <li>If one of its arguments is of the type {@link ManualWatermarkEstimator}, then it will be
@@ -854,13 +853,13 @@ public abstract class DoFn<InputT extends @Nullable Object, OutputT extends @Nul
   @Documented
   @Retention(RetentionPolicy.RUNTIME)
   @Target(ElementType.PARAMETER)
-  public @interface RecordId {}
+  public @interface CurrentRecordId {}
 
   /** Parameter annotation for the input element record offset for {@link ProcessElement}. */
   @Documented
   @Retention(RetentionPolicy.RUNTIME)
   @Target(ElementType.PARAMETER)
-  public @interface RecordOffset {}
+  public @interface CurrentRecordOffset {}
 
   /**
    * Parameter annotation for the restriction for {@link GetSize}, {@link SplitRestriction}, {@link

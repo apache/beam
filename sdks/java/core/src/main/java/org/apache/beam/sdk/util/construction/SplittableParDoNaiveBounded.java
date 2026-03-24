@@ -690,12 +690,12 @@ public class SplittableParDoNaiveBounded {
       }
 
       @Override
-      public @Nullable String recordId(DoFn<InputT, OutputT> doFn) {
+      public @Nullable String currentRecordId(DoFn<InputT, OutputT> doFn) {
         return outerContext.currentRecordId();
       }
 
       @Override
-      public @Nullable Long recordOffset(DoFn<InputT, OutputT> doFn) {
+      public @Nullable Long currentRecordOffset(DoFn<InputT, OutputT> doFn) {
         return outerContext.currentRecordOffset();
       }
 

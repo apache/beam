@@ -344,10 +344,10 @@ public abstract class DoFnSignature {
         return cases.dispatch((BundleFinalizerParameter) this);
       } else if (this instanceof CausedByDrainParameter) {
         return cases.dispatch((CausedByDrainParameter) this);
-      } else if (this instanceof RecordIdParameter) {
-        return cases.dispatch((RecordIdParameter) this);
-      } else if (this instanceof RecordOffsetParameter) {
-        return cases.dispatch((RecordOffsetParameter) this);
+      } else if (this instanceof CurrentRecordIdParameter) {
+        return cases.dispatch((CurrentRecordIdParameter) this);
+      } else if (this instanceof CurrentRecordOffsetParameter) {
+        return cases.dispatch((CurrentRecordOffsetParameter) this);
       } else if (this instanceof FireTimestampParameter) {
         return cases.dispatch((FireTimestampParameter) this);
       } else if (this instanceof KeyParameter) {
@@ -380,9 +380,9 @@ public abstract class DoFnSignature {
 
       ResultT dispatch(TaggedOutputReceiverParameter p);
 
-      ResultT dispatch(RecordIdParameter p);
+      ResultT dispatch(CurrentRecordIdParameter p);
 
-      ResultT dispatch(RecordOffsetParameter p);
+      ResultT dispatch(CurrentRecordOffsetParameter p);
 
       ResultT dispatch(FireTimestampParameter p);
 
@@ -474,12 +474,12 @@ public abstract class DoFnSignature {
         }
 
         @Override
-        public ResultT dispatch(RecordIdParameter p) {
+        public ResultT dispatch(CurrentRecordIdParameter p) {
           return dispatchDefault(p);
         }
 
         @Override
-        public ResultT dispatch(RecordOffsetParameter p) {
+        public ResultT dispatch(CurrentRecordOffsetParameter p) {
           return dispatchDefault(p);
         }
 
@@ -592,10 +592,10 @@ public abstract class DoFnSignature {
         new AutoValue_DoFnSignature_Parameter_CausedByDrainParameter();
     private static final OnWindowExpirationContextParameter ON_WINDOW_EXPIRATION_CONTEXT_PARAMETER =
         new AutoValue_DoFnSignature_Parameter_OnWindowExpirationContextParameter();
-    private static final RecordIdParameter RECORD_ID_PARAMETER =
-        new AutoValue_DoFnSignature_Parameter_RecordIdParameter();
-    private static final RecordOffsetParameter RECORD_OFFSET_PARAMETER =
-        new AutoValue_DoFnSignature_Parameter_RecordOffsetParameter();
+    private static final CurrentRecordIdParameter CURRENT_RECORD_ID_PARAMETER =
+        new AutoValue_DoFnSignature_Parameter_CurrentRecordIdParameter();
+    private static final CurrentRecordOffsetParameter CURRENT_RECORD_OFFSET_PARAMETER =
+        new AutoValue_DoFnSignature_Parameter_CurrentRecordOffsetParameter();
     private static final FireTimestampParameter FIRE_TIMESTAMP_PARAMETER =
         new AutoValue_DoFnSignature_Parameter_FireTimestampParameter();
 
@@ -624,14 +624,14 @@ public abstract class DoFnSignature {
       return CAUSED_BY_DRAIN_PARAMETER;
     }
 
-    /** Returns a {@link RecordIdParameter}. */
-    public static RecordIdParameter recordIdParameter() {
-      return RECORD_ID_PARAMETER;
+    /** Returns a {@link CurrentRecordIdParameter}. */
+    public static CurrentRecordIdParameter currentRecordIdParameter() {
+      return CURRENT_RECORD_ID_PARAMETER;
     }
 
-    /** Returns a {@link RecordOffsetParameter}. */
-    public static RecordOffsetParameter recordOffsetParameter() {
-      return RECORD_OFFSET_PARAMETER;
+    /** Returns a {@link CurrentRecordOffsetParameter}. */
+    public static CurrentRecordOffsetParameter currentRecordOffsetParameter() {
+      return CURRENT_RECORD_OFFSET_PARAMETER;
     }
 
     /** Returns a {@link FireTimestampParameter}. */
@@ -807,8 +807,8 @@ public abstract class DoFnSignature {
      * <p>All such descriptors are equal.
      */
     @AutoValue
-    public abstract static class RecordIdParameter extends Parameter {
-      RecordIdParameter() {}
+    public abstract static class CurrentRecordIdParameter extends Parameter {
+      CurrentRecordIdParameter() {}
     }
 
     /**
@@ -817,8 +817,8 @@ public abstract class DoFnSignature {
      * <p>All such descriptors are equal.
      */
     @AutoValue
-    public abstract static class RecordOffsetParameter extends Parameter {
-      RecordOffsetParameter() {}
+    public abstract static class CurrentRecordOffsetParameter extends Parameter {
+      CurrentRecordOffsetParameter() {}
     }
 
     /**

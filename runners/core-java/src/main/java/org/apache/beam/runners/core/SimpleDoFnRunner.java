@@ -566,12 +566,12 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
     }
 
     @Override
-    public @Nullable String recordId(DoFn<InputT, OutputT> doFn) {
+    public @Nullable String currentRecordId(DoFn<InputT, OutputT> doFn) {
       return currentRecordId();
     }
 
     @Override
-    public @Nullable Long recordOffset(DoFn<InputT, OutputT> doFn) {
+    public @Nullable Long currentRecordOffset(DoFn<InputT, OutputT> doFn) {
       return currentRecordOffset();
     }
 
@@ -863,13 +863,13 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
     }
 
     @Override
-    public @Nullable String recordId(DoFn<InputT, OutputT> doFn) {
+    public @Nullable String currentRecordId(DoFn<InputT, OutputT> doFn) {
       throw new UnsupportedOperationException(
           "Cannot access record id outside of @ProcessElement method.");
     }
 
     @Override
-    public @Nullable Long recordOffset(DoFn<InputT, OutputT> doFn) {
+    public @Nullable Long currentRecordOffset(DoFn<InputT, OutputT> doFn) {
       throw new UnsupportedOperationException(
           "Cannot access record offset outside of @ProcessElement method.");
     }
@@ -1178,13 +1178,13 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
     }
 
     @Override
-    public @Nullable String recordId(DoFn<InputT, OutputT> doFn) {
+    public @Nullable String currentRecordId(DoFn<InputT, OutputT> doFn) {
       throw new UnsupportedOperationException(
           "Cannot access record id outside of @ProcessElement method.");
     }
 
     @Override
-    public @Nullable Long recordOffset(DoFn<InputT, OutputT> doFn) {
+    public @Nullable Long currentRecordOffset(DoFn<InputT, OutputT> doFn) {
       throw new UnsupportedOperationException(
           "Cannot access record offset outside of @ProcessElement method.");
     }

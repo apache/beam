@@ -77,6 +77,8 @@ import org.apache.beam.sdk.transforms.reflect.DoFnSignature.OnTimerMethod;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.BundleFinalizerParameter;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.Cases;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.CausedByDrainParameter;
+import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.CurrentRecordIdParameter;
+import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.CurrentRecordOffsetParameter;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.ElementParameter;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.FinishBundleContextParameter;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.FireTimestampParameter;
@@ -84,8 +86,6 @@ import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.OnTimerCon
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.OutputReceiverParameter;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.PaneInfoParameter;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.ProcessContextParameter;
-import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.RecordIdParameter;
-import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.RecordOffsetParameter;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.RestrictionParameter;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.RestrictionTrackerParameter;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.SchemaElementParameter;
@@ -131,8 +131,8 @@ class ByteBuddyDoFnInvokerFactory implements DoFnInvokerFactory {
   public static final String SCHEMA_ELEMENT_PARAMETER_METHOD = "schemaElement";
   public static final String TIMESTAMP_PARAMETER_METHOD = "timestamp";
   public static final String CAUSED_BY_DRAIN_PARAMETER_METHOD = "causedByDrain";
-  public static final String RECORD_ID_PARAMETER_METHOD = "recordId";
-  public static final String RECORD_OFFSET_PARAMETER_METHOD = "recordOffset";
+  public static final String CURRENT_RECORD_ID_PARAMETER_METHOD = "currentRecordId";
+  public static final String CURRENT_RECORD_OFFSET_PARAMETER_METHOD = "currentRecordOffset";
   public static final String FIRE_TIMESTAMP_PARAMETER_METHOD = "fireTimestamp";
   public static final String BUNDLE_FINALIZER_PARAMETER_METHOD = "bundleFinalizer";
   public static final String OUTPUT_ROW_RECEIVER_METHOD = "outputRowReceiver";
@@ -1272,21 +1272,21 @@ class ByteBuddyDoFnInvokerFactory implements DoFnInvokerFactory {
           }
 
           @Override
-          public StackManipulation dispatch(RecordIdParameter p) {
+          public StackManipulation dispatch(CurrentRecordIdParameter p) {
             return new StackManipulation.Compound(
                 pushDelegate,
                 MethodInvocation.invoke(
                     getExtraContextFactoryMethodDescription(
-                        RECORD_ID_PARAMETER_METHOD, DoFn.class)));
+                        CURRENT_RECORD_ID_PARAMETER_METHOD, DoFn.class)));
           }
 
           @Override
-          public StackManipulation dispatch(RecordOffsetParameter p) {
+          public StackManipulation dispatch(CurrentRecordOffsetParameter p) {
             return new StackManipulation.Compound(
                 pushDelegate,
                 MethodInvocation.invoke(
                     getExtraContextFactoryMethodDescription(
-                        RECORD_OFFSET_PARAMETER_METHOD, DoFn.class)));
+                        CURRENT_RECORD_OFFSET_PARAMETER_METHOD, DoFn.class)));
           }
 
           @Override

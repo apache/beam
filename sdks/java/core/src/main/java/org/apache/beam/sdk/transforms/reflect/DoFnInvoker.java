@@ -220,11 +220,11 @@ public interface DoFnInvoker<InputT, OutputT> {
 
     /** Provide a reference to the record id of the current element. */
     @Nullable
-    String recordId(DoFn<InputT, OutputT> doFn);
+    String currentRecordId(DoFn<InputT, OutputT> doFn);
 
     /** Provide a reference to the record offset of the current element. */
     @Nullable
-    Long recordOffset(DoFn<InputT, OutputT> doFn);
+    Long currentRecordOffset(DoFn<InputT, OutputT> doFn);
 
     /** Provide a reference to the firing timestamp of the current timer. */
     Instant fireTimestamp(DoFn<InputT, OutputT> doFn);
@@ -341,13 +341,13 @@ public interface DoFnInvoker<InputT, OutputT> {
     }
 
     @Override
-    public @Nullable String recordId(DoFn<InputT, OutputT> doFn) {
+    public @Nullable String currentRecordId(DoFn<InputT, OutputT> doFn) {
       throw new UnsupportedOperationException(
           String.format("RecordId unsupported in %s", getErrorContext()));
     }
 
     @Override
-    public @Nullable Long recordOffset(DoFn<InputT, OutputT> doFn) {
+    public @Nullable Long currentRecordOffset(DoFn<InputT, OutputT> doFn) {
       throw new UnsupportedOperationException(
           String.format("RecordOffset unsupported in %s", getErrorContext()));
     }
@@ -554,13 +554,13 @@ public interface DoFnInvoker<InputT, OutputT> {
     }
 
     @Override
-    public @Nullable String recordId(DoFn<InputT, OutputT> doFn) {
-      return delegate.recordId(doFn);
+    public @Nullable String currentRecordId(DoFn<InputT, OutputT> doFn) {
+      return delegate.currentRecordId(doFn);
     }
 
     @Override
-    public @Nullable Long recordOffset(DoFn<InputT, OutputT> doFn) {
-      return delegate.recordOffset(doFn);
+    public @Nullable Long currentRecordOffset(DoFn<InputT, OutputT> doFn) {
+      return delegate.currentRecordOffset(doFn);
     }
 
     @Override

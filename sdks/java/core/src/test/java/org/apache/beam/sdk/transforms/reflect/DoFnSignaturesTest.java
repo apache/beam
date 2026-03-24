@@ -57,6 +57,8 @@ import org.apache.beam.sdk.transforms.Sum;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.BundleFinalizerParameter;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.CausedByDrainParameter;
+import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.CurrentRecordIdParameter;
+import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.CurrentRecordOffsetParameter;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.ElementParameter;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.FinishBundleContextParameter;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.FireTimestampParameter;
@@ -64,8 +66,6 @@ import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.OutputRece
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.PaneInfoParameter;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.PipelineOptionsParameter;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.ProcessContextParameter;
-import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.RecordIdParameter;
-import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.RecordOffsetParameter;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.SchemaElementParameter;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.SideInputParameter;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.StartBundleContextParameter;
@@ -109,7 +109,7 @@ public class DoFnSignaturesTest {
     final String timerId = "some-timer-id";
     thrown.expect(IllegalArgumentException.class);
     thrown.expectMessage("Illegal parameter type");
-    thrown.expectMessage("RecordIdParameter");
+    thrown.expectMessage("CurrentRecordIdParameter");
     DoFnSignatures.getSignature(
         new DoFn<String, String>() {
           @TimerId(timerId)
@@ -119,7 +119,7 @@ public class DoFnSignaturesTest {
           public void process(ProcessContext c) {}
 
           @OnTimer(timerId)
-          public void onTimer(@DoFn.RecordId String id) {}
+          public void onTimer(@DoFn.CurrentRecordId String id) {}
         }.getClass());
   }
 
@@ -193,13 +193,16 @@ public class DoFnSignaturesTest {
         DoFnSignatures.getSignature(
             new DoFn<String, String>() {
               @ProcessElement
-              public void process(@RecordId String id, @RecordOffset Long offset) {}
+              public void process(
+                  @DoFn.CurrentRecordId String id, @DoFn.CurrentRecordOffset Long offset) {}
             }.getClass());
 
     assertThat(sig.processElement().extraParameters().size(), equalTo(2));
-    assertThat(sig.processElement().extraParameters().get(0), instanceOf(RecordIdParameter.class));
     assertThat(
-        sig.processElement().extraParameters().get(1), instanceOf(RecordOffsetParameter.class));
+        sig.processElement().extraParameters().get(0), instanceOf(CurrentRecordIdParameter.class));
+    assertThat(
+        sig.processElement().extraParameters().get(1),
+        instanceOf(CurrentRecordOffsetParameter.class));
   }
 
   @Test
