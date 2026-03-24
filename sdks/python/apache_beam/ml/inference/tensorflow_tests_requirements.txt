@@ -21,3 +21,4 @@ tensorflow_hub>=0.10.0
 Pillow>=9.0.0
 typing-extensions>=4.8.0
 google-cloud-monitoring>=2.27.0
+setuptools>=65.0.0,<82
