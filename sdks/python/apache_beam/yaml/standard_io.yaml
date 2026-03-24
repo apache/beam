@@ -403,3 +403,24 @@
         'ReadFromIcebergCDC': 'beam:schematransform:org.apache.beam:iceberg_cdc_read:v1'
       config:
         gradle_target: 'sdks:java:io:expansion-service:shadowJar'
+
+#IcebergAddFiles
+- type: renaming
+  transforms:
+    'IcebergAddFiles': 'IcebergAddFiles'
+  config:
+    mappings:
+      'IcebergAddFiles':
+        table: 'table'
+        catalog_properties: 'catalog_properties'
+        config_properties: 'config_properties'
+        triggering_frequency_seconds: 'triggering_frequency_seconds'
+        append_batch_size: 'append_batch_size'
+        location_prefix: 'location_prefix'
+    underlying_provider:
+      type: beamJar
+      transforms:
+        'IcebergAddFiles': 'beam:schematransform:iceberg_add_files:v1'
+      config:
+        gradle_target: 'sdks:java:io:expansion-service:shadowJar'
+
