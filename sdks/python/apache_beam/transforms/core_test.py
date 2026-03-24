@@ -643,8 +643,8 @@ class ExceptionHandlingWithOutputsTest(unittest.TestCase):
       assert_that(bad_elements, equal_to([2]), 'bad')
 
   def test_exception_handling_compat_version_uses_old_behavior(self):
-    """With compat version < 2.72.0, old expand path is used."""
-    options = PipelineOptions(update_compatibility_version="2.71.0")
+    """With compat version < 2.73.0, old expand path is used."""
+    options = PipelineOptions(update_compatibility_version="2.72.0")
     with beam.Pipeline(options=options) as p:
       good, bad = (
           p
@@ -657,10 +657,10 @@ class ExceptionHandlingWithOutputsTest(unittest.TestCase):
       assert_that(bad_elements, equal_to([2]), 'bad')
 
   def test_exception_handling_compat_version_element_type_set_manually(self):
-    """With compat version < 2.72.0, element_type is set via manual override
+    """With compat version < 2.73.0, element_type is set via manual override
     (the old behavior) rather than via with_output_types."""
 
-    options = PipelineOptions(update_compatibility_version="2.71.0")
+    options = PipelineOptions(update_compatibility_version="2.72.0")
     with beam.Pipeline(options=options) as p:
       results = (
           p

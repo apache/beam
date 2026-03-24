@@ -2430,8 +2430,8 @@ class _ExceptionHandlingWrapper(ptransform.PTransform):
     else:
       return result
 
-  def expand_2_71_0(self, pcoll):
-    """Pre-2.72.0 behavior: manual element_type override, no with_output_types.
+  def expand_2_72_0(self, pcoll):
+    """Pre-2.73.0 behavior: manual element_type override, no with_output_types.
     """
     pardo = self._build_pardo(pcoll)
     result = pcoll | pardo.with_outputs(
@@ -2443,8 +2443,8 @@ class _ExceptionHandlingWrapper(ptransform.PTransform):
     return self._post_process_result(pcoll, result)
 
   def expand(self, pcoll):
-    if pcoll.pipeline.options.is_compat_version_prior_to("2.72.0"):
-      return self.expand_2_71_0(pcoll)
+    if pcoll.pipeline.options.is_compat_version_prior_to("2.73.0"):
+      return self.expand_2_72_0(pcoll)
 
     pardo = self._build_pardo(pcoll)
 
