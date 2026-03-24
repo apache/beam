@@ -167,6 +167,7 @@ dependencies {
   implementation library.java.jackson_annotations
   implementation library.java.slf4j_api
   implementation library.java.joda_time
+  implementation library.java.opentelemetry_context
   implementation library.java.commons_lang3
   implementation library.java.args4j
   implementation project(path: ":model:fn-execution", configuration: "shadow")
