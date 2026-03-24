@@ -282,7 +282,7 @@ public class CoderRegistryTest {
     private static class OutputDoFn
         extends DoFn<String, KV<String, MySerializableGeneric<String>>> {
       @ProcessElement
-      public void processElement(ProcessContext c) {}
+      public void processElement(@SuppressWarnings("unused") ProcessContext c) {}
     }
 
     @Override
@@ -339,7 +339,7 @@ public class CoderRegistryTest {
 
     private class OutputDoFn extends DoFn<String, KV<String, MySerializableGeneric<T>>> {
       @ProcessElement
-      public void processElement(ProcessContext c) {}
+      public void processElement(@SuppressWarnings("unused") ProcessContext c) {}
     }
 
     @Override

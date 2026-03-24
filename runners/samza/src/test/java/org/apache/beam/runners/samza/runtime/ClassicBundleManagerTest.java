@@ -50,7 +50,7 @@ public final class ClassicBundleManagerTest {
 
   private FutureCollector<String> mockFutureCollector;
   private ClassicBundleManager<String> bundleManager;
-  private ClassicBundleManager.BundleProgressListener<String> bundleProgressListener;
+  private BundleManager.BundleProgressListener<String> bundleProgressListener;
   private Scheduler<KeyedTimerData<Void>> mockScheduler;
 
   @Before

@@ -76,7 +76,7 @@ public class CachingFactory<CreatedT extends @NonNull Object> implements Factory
     if (this == o) {
       return true;
     }
-    if (o == null || getClass() != o.getClass()) {
+    if (!(o instanceof CachingFactory)) {
       return false;
     }
     CachingFactory<?> that = (CachingFactory<?>) o;

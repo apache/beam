@@ -41,7 +41,7 @@ public class AvroGeneratedUserFactory {
 
         return (AvroGeneratedUser) constructor.newInstance(name, favoriteNumber, favoriteColor);
       } catch (ReflectiveOperationException e) {
-        LOG.error(String.format("Fail to create a AvroGeneratedUser instance: %s", e.getMessage()));
+        LOG.error("Fail to create a AvroGeneratedUser instance", e);
         return new AvroGeneratedUser(); // return an empty instance to fail the tests
       }
     }

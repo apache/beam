@@ -299,7 +299,7 @@ public class HBaseIO {
       if (this == o) {
         return true;
       }
-      if (o == null || getClass() != o.getClass()) {
+      if (!(o instanceof Read)) {
         return false;
       }
       Read read = (Read) o;
@@ -676,7 +676,7 @@ public class HBaseIO {
       if (this == o) {
         return true;
       }
-      if (o == null || getClass() != o.getClass()) {
+      if (!(o instanceof Write)) {
         return false;
       }
       Write write = (Write) o;
@@ -745,7 +745,7 @@ public class HBaseIO {
       }
 
       @StartBundle
-      public void startBundle(StartBundleContext c) throws IOException {
+      public void startBundle(@SuppressWarnings("unused") StartBundleContext c) throws IOException {
         BufferedMutatorParams params = new BufferedMutatorParams(TableName.valueOf(tableId));
         mutator = connection.getBufferedMutator(params);
         recordsWritten = 0;
@@ -842,7 +842,7 @@ public class HBaseIO {
       if (this == o) {
         return true;
       }
-      if (o == null || getClass() != o.getClass()) {
+      if (!(o instanceof WriteRowMutations)) {
         return false;
       }
       WriteRowMutations writeRowMutations = (WriteRowMutations) o;
@@ -913,7 +913,7 @@ public class HBaseIO {
       }
 
       @StartBundle
-      public void startBundle(StartBundleContext c) throws IOException {
+      public void startBundle(@SuppressWarnings("unused") StartBundleContext c) throws IOException {
         table = connection.getTable(TableName.valueOf(tableId));
         recordsWritten = 0;
       }
@@ -949,7 +949,7 @@ public class HBaseIO {
           recordsWritten++;
         } catch (IOException e) {
           throw new RuntimeException(
-              (String.join(
+              String.join(
                   " ",
                   "Table",
                   tableId,
@@ -963,7 +963,7 @@ public class HBaseIO {
                       connection.getAdmin().isTableEnabled(TableName.valueOf(tableId))),
                   "\nConnection Closed/Aborted/Locks:",
                   Boolean.toString(connection.isClosed()),
-                  Boolean.toString(connection.isAborted()))));
+                  Boolean.toString(connection.isAborted())));
         }
       }
 

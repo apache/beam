@@ -97,7 +97,7 @@ public class FhirSearchParameter<T> {
     if (this == o) {
       return true;
     }
-    if (o == null || getClass() != o.getClass()) {
+    if (!(o instanceof FhirSearchParameter)) {
       return false;
     }
     FhirSearchParameter<?> that = (FhirSearchParameter<?>) o;

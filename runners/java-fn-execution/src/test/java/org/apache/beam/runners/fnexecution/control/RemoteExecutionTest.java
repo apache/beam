@@ -376,8 +376,8 @@ public class RemoteExecutionTest implements Serializable {
                   @ProcessElement
                   public void process(ProcessContext ctxt) {
                     org.slf4j.Logger logger = LoggerFactory.getLogger(RemoteExecutionTest.class);
-                    logger.warn("TEST" + ctxt.element());
-                    logger.error("TEST_EXCEPTION" + ctxt.element(), new Exception());
+                    logger.warn("TEST{}", ctxt.element());
+                    logger.error("TEST_EXCEPTION{}", ctxt.element(), new Exception());
                   }
                 }))
         .apply("addKeys", WithKeys.of("foo"))

@@ -100,16 +100,12 @@ public class StatefulTeamScore extends LeaderBoard {
    */
   private static Map<String, FieldInfo<KV<String, Integer>>> configureCompleteWindowedTableWrite() {
 
-    Map<String, WriteWindowedToBigQuery.FieldInfo<KV<String, Integer>>> tableConfigure =
-        new HashMap<>();
-    tableConfigure.put(
-        "team", new WriteWindowedToBigQuery.FieldInfo<>("STRING", (c, w) -> c.element().getKey()));
-    tableConfigure.put(
-        "total_score",
-        new WriteWindowedToBigQuery.FieldInfo<>("INTEGER", (c, w) -> c.element().getValue()));
+    Map<String, FieldInfo<KV<String, Integer>>> tableConfigure = new HashMap<>();
+    tableConfigure.put("team", new FieldInfo<>("STRING", (c, w) -> c.element().getKey()));
+    tableConfigure.put("total_score", new FieldInfo<>("INTEGER", (c, w) -> c.element().getValue()));
     tableConfigure.put(
         "processing_time",
-        new WriteWindowedToBigQuery.FieldInfo<>(
+        new FieldInfo<>(
             "STRING", (c, w) -> GameConstants.DATE_TIME_FORMATTER.print(Instant.now())));
     return tableConfigure;
   }

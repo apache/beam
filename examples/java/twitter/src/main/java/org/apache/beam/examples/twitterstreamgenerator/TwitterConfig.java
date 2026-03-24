@@ -53,7 +53,7 @@ public class TwitterConfig implements Serializable {
     if (this == o) {
       return true;
     }
-    if (o == null || getClass() != o.getClass()) {
+    if (!(o instanceof TwitterConfig)) {
       return false;
     }
     TwitterConfig that = (TwitterConfig) o;

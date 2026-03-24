@@ -27,7 +27,7 @@ from typing import Sequence
 from typing import Tuple
 
 from apache_beam.typehints import typehints
-from apache_beam.typehints.native_type_compatibility import match_is_dataclass
+from apache_beam.typehints.native_type_compatibility import match_dataclass_for_row
 from apache_beam.typehints.native_type_compatibility import match_is_named_tuple
 from apache_beam.typehints.schema_registry import SchemaTypeRegistry
 
@@ -91,6 +91,9 @@ class RowTypeConstraint(typehints.TypeConstraint):
     # Currently registration happens when converting to schema protos, in
     # apache_beam.typehints.schemas
     self._schema_id = getattr(self._user_type, _BEAM_SCHEMA_ID, None)
+    if self._schema_id and _BEAM_SCHEMA_ID not in self._user_type.__dict__:
+      # schema id does not inherit. Unset if schema id is from base class
+      self._schema_id = None
 
     self._schema_options = schema_options or []
     self._field_options = field_options or {}
@@ -105,7 +108,7 @@ class RowTypeConstraint(typehints.TypeConstraint):
     if match_is_named_tuple(user_type):
       fields = [(name, user_type.__annotations__[name])
                 for name in user_type._fields]
-    elif match_is_dataclass(user_type):
+    elif match_dataclass_for_row(user_type):
       fields = [(field.name, field.type)
                 for field in dataclasses.fields(user_type)]
     else:

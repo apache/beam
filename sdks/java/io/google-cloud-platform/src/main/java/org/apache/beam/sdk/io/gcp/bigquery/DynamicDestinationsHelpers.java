@@ -451,7 +451,7 @@ class DynamicDestinationsHelpers {
             try (DatasetService datasetService = bqServices.getDatasetService(bqOptions)) {
               return datasetService.getTable(tableReference);
             } catch (InterruptedException | IOException e) {
-              LOG.info("Failed to get BigQuery table " + tableReference);
+              LOG.info("Failed to get BigQuery table {}", tableReference);
             }
           } catch (Exception e) {
             throw new RuntimeException(e);

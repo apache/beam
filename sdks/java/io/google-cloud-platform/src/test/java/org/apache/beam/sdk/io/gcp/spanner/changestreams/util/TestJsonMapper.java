@@ -57,7 +57,7 @@ public class TestJsonMapper {
           .omittingInsignificantWhitespace()
           .print(value);
     } catch (InvalidProtocolBufferException exc) {
-      LOG.info("Failed to convert record to JSON: " + record.toString());
+      LOG.info("Failed to convert record to JSON: {}", record);
     }
     return null;
   }

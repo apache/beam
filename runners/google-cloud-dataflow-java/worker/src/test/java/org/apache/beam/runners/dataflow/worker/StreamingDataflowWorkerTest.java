@@ -224,7 +224,7 @@ import org.slf4j.LoggerFactory;
 
 /** Unit tests for {@link StreamingDataflowWorker}. */
 @RunWith(Parameterized.class)
-@SuppressWarnings("deprecation")
+@SuppressWarnings({"deprecation", "unused"})
 public class StreamingDataflowWorkerTest {
 
   private static final Logger LOG = LoggerFactory.getLogger(StreamingDataflowWorkerTest.class);
@@ -3462,7 +3462,7 @@ public class StreamingDataflowWorkerTest {
         makeWorker(defaultWorkerParams().setInstructions(instructions).publishCounters().build());
     worker.start();
 
-    server.whenGetWorkCalled().thenReturn(makeInput(0, TimeUnit.MILLISECONDS.toMicros(0)));
+    server.whenGetWorkCalled().thenReturn(makeInput(0, 0L /* microseconds */));
 
     server.waitForAndGetCommits(0);
     worker.stop();
@@ -3484,7 +3484,7 @@ public class StreamingDataflowWorkerTest {
                 .build());
     worker.start();
 
-    server.whenGetWorkCalled().thenReturn(makeInput(0, TimeUnit.MILLISECONDS.toMicros(0)));
+    server.whenGetWorkCalled().thenReturn(makeInput(0, 0L /* microseconds */));
     server.waitForAndGetCommits(1);
 
     worker.stop();
@@ -3510,17 +3510,12 @@ public class StreamingDataflowWorkerTest {
                 .build());
     worker.start();
 
-    GetWorkResponse workItem =
-        makeInput(0, TimeUnit.MILLISECONDS.toMicros(0), "key", DEFAULT_SHARDING_KEY);
+    GetWorkResponse workItem = makeInput(0, 0L /* microseconds */, "key", DEFAULT_SHARDING_KEY);
     int failedWorkToken = 1;
     int failedCacheToken = 5;
     GetWorkResponse workItemToFail =
         makeInput(
-            failedWorkToken,
-            failedCacheToken,
-            TimeUnit.MILLISECONDS.toMicros(0),
-            "key",
-            DEFAULT_SHARDING_KEY);
+            failedWorkToken, failedCacheToken, 0L /* microseconds */, "key", DEFAULT_SHARDING_KEY);
 
     // Queue up two work items for the same key.
     server.whenGetWorkCalled().thenReturn(workItem).thenReturn(workItemToFail);
@@ -3545,7 +3540,7 @@ public class StreamingDataflowWorkerTest {
     // Release the blocked calls.
     BlockingFn.blocker().countDown();
     Map<Long, Windmill.WorkItemCommitRequest> commits =
-        server.waitForAndGetCommitsWithTimeout(1, Duration.standardSeconds((5)));
+        server.waitForAndGetCommitsWithTimeout(1, Duration.standardSeconds(5));
     assertEquals(1, commits.size());
 
     assertEquals(0, BlockingFn.teardownCounter.get());
@@ -3571,11 +3566,10 @@ public class StreamingDataflowWorkerTest {
     worker.start();
 
     GetWorkResponse workItemToFail =
-        makeInput(0, TimeUnit.MILLISECONDS.toMicros(0), "key", DEFAULT_SHARDING_KEY);
+        makeInput(0, 0L /* microseconds */, "key", DEFAULT_SHARDING_KEY);
     long failedWorkToken = workItemToFail.getWork(0).getWork(0).getWorkToken();
     long failedCacheToken = workItemToFail.getWork(0).getWork(0).getCacheToken();
-    GetWorkResponse workItem =
-        makeInput(1, TimeUnit.MILLISECONDS.toMicros(0), "key", DEFAULT_SHARDING_KEY);
+    GetWorkResponse workItem = makeInput(1, 0L /* microseconds */, "key", DEFAULT_SHARDING_KEY);
 
     // Queue up the work item for the key.
     server.whenGetWorkCalled().thenReturn(workItemToFail).thenReturn(workItem);
@@ -3600,7 +3594,7 @@ public class StreamingDataflowWorkerTest {
     // Release the blocked call, there should not be a commit and the dofn should be invalidated.
     BlockingFn.blocker().countDown();
     Map<Long, Windmill.WorkItemCommitRequest> commits =
-        server.waitForAndGetCommitsWithTimeout(1, Duration.standardSeconds((5)));
+        server.waitForAndGetCommitsWithTimeout(1, Duration.standardSeconds(5));
     assertEquals(1, commits.size());
 
     assertEquals(0, BlockingFn.teardownCounter.get());
@@ -3805,7 +3799,7 @@ public class StreamingDataflowWorkerTest {
     ActiveWorkRefreshSink awrSink =
         new ActiveWorkRefreshSink(StreamingDataflowWorkerTest::emptyDataResponder);
     server.whenGetDataCalled().answerByDefault(awrSink::getData).delayEachResponseBy(Duration.ZERO);
-    server.whenGetWorkCalled().thenReturn(makeInput(workToken, TimeUnit.MILLISECONDS.toMicros(0)));
+    server.whenGetWorkCalled().thenReturn(makeInput(workToken, 0L /* microseconds */));
     server.waitForAndGetCommits(1);
 
     worker.stop();
@@ -3885,7 +3879,7 @@ public class StreamingDataflowWorkerTest {
                 .build());
     worker.start();
 
-    server.whenGetWorkCalled().thenReturn(makeInput(0, TimeUnit.MILLISECONDS.toMicros(0)));
+    server.whenGetWorkCalled().thenReturn(makeInput(0, 0L /* microseconds */));
 
     Map<Long, Windmill.WorkItemCommitRequest> result = server.waitForAndGetCommits(1);
     Windmill.WorkItemCommitRequest commit = result.get(0L);
@@ -3924,7 +3918,7 @@ public class StreamingDataflowWorkerTest {
                 .build());
     worker.start();
 
-    server.whenGetWorkCalled().thenReturn(makeInput(0, TimeUnit.MILLISECONDS.toMicros(0)));
+    server.whenGetWorkCalled().thenReturn(makeInput(0, 0L /* microseconds */));
 
     Map<Long, Windmill.WorkItemCommitRequest> result = server.waitForAndGetCommits(1);
 

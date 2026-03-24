@@ -74,6 +74,8 @@
 * (Go) Added OrderedListState support to the Go SDK stateful DoFn API ([#37629](https://github.com/apache/beam/issues/37629)).
 * Added support for large pipeline options via a file (Python) ([#37370](https://github.com/apache/beam/issues/37370)).
 * X feature added (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
+* Supported infer schema from dataclass (Python) ([#22085](https://github.com/apache/beam/issues/22085)). Default coder for typehint-ed (or set with_output_type) for non-frozen dataclasses changed to RowCoder. To preserve the old behavior (fast primitive coder), explicitly register the type with FastPrimitiveCoder.
+* Updates minimum Go version to 1.26.1 ([#37897](https://github.com/apache/beam/issues/37897)).
 
 ## Breaking Changes
 

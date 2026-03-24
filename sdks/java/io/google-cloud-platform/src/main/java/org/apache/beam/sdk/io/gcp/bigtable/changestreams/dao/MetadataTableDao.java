@@ -413,8 +413,8 @@ public class MetadataTableDao {
   public List<StreamPartitionWithWatermark> readStreamPartitionsWithWatermark()
       throws InvalidProtocolBufferException {
     LOG.debug(
-        "Reading stream partitions from metadata table: "
-            + getFullStreamPartitionPrefix().toStringUtf8());
+        "Reading stream partitions from metadata table: {}",
+        getFullStreamPartitionPrefix().toStringUtf8());
     Filter filterForWatermark =
         FILTERS
             .chain()

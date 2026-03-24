@@ -156,7 +156,7 @@ public class AvroCoderTest {
       if (this == other) {
         return true;
       }
-      if (other == null || getClass() != other.getClass()) {
+      if (!(other instanceof Pojo)) {
         return false;
       }
       Pojo that = (Pojo) other;
@@ -921,6 +921,7 @@ public class AvroCoderTest {
     @AvroSchema(
         "{\"name\": \"bar\", \"type\": \"record\", \"fields\": ["
             + "{\"name\": \"foo\", \"type\": \"int\"}]}")
+    @SuppressWarnings("unused")
     GenericRecord genericRecord;
   }
 
@@ -938,6 +939,7 @@ public class AvroCoderTest {
     @AvroSchema(
         "{\"name\": \"bar\", \"type\": \"record\", \"fields\": ["
             + "{\"name\": \"foo\", \"type\": \"int\"}]}")
+    @SuppressWarnings("unused")
     int withCustomSchema;
   }
 

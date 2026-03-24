@@ -123,11 +123,11 @@ public class CombineRunners {
     }
 
     void processElement(WindowedValue<KV<KeyT, InputT>> elem) throws Exception {
-      getGroupingTable().put(elem, output::accept);
+      getGroupingTable().put(elem, output);
     }
 
     void finishBundle() throws Exception {
-      getGroupingTable().flush(output::accept);
+      getGroupingTable().flush(output);
       groupingTable = null;
     }
   }
