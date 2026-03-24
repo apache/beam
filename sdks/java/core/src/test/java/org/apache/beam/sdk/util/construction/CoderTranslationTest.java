@@ -82,9 +82,9 @@ public class CoderTranslationTest {
   public abstract static class SimpleAutoValue {
     public abstract String getString();
 
-    public abstract Integer getInt32();
+    public abstract int getInt32();
 
-    public abstract Long getInt64();
+    public abstract long getInt64();
 
     public static SimpleAutoValue of(String string, Integer int32, Long int64) {
       return new AutoValue_CoderTranslationTest_SimpleAutoValue(string, int32, int64);

@@ -52,7 +52,7 @@ public class AvroGenericCoderRegistrar implements CoderTranslatorRegistrar {
 
   @Override
   public @Nullable CoderTranslator<? extends Coder> getCoderTranslator(
-    Class<? extends Coder> coderClass) {
+      Class<? extends Coder> coderClass) {
     return coderClass == AvroGenericCoder.class ? new AvroGenericCoderTranslator() : null;
   }
 
@@ -60,5 +60,4 @@ public class AvroGenericCoderRegistrar implements CoderTranslatorRegistrar {
   public @Nullable Class<? extends Coder> getCoderForUrn(String coderUrn) {
     return AVRO_CODER_URN.equals(coderUrn) ? AvroGenericCoder.class : null;
   }
-
 }
