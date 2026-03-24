@@ -869,6 +869,8 @@ class BeamModulePlugin implements Plugin<Project> {
         opentelemetry_sdk                           : "io.opentelemetry:opentelemetry-sdk", // opentelemetry-bom sets version
         opentelemetry_exporter_otlp                 : "io.opentelemetry:opentelemetry-exporter-otlp", // opentelemetry-bom sets version
         opentelemetry_extension_autoconfigure       : "io.opentelemetry:opentelemetry-sdk-extension-autoconfigure", // opentelemetry-bom sets version
+        opentelemetry_proto                         : "io.opentelemetry.proto:opentelemetry-proto:$opentelemetry_version-alpha",
+        opentelemetry_sdk_testing                   : "io.opentelemetry:opentelemetry-sdk-testing:$opentelemetry_version",
         postgres                                    : "org.postgresql:postgresql:$postgres_version",
         protobuf_java                               : "com.google.protobuf:protobuf-java:$protobuf_version",
         protobuf_java_util                          : "com.google.protobuf:protobuf-java-util:$protobuf_version",

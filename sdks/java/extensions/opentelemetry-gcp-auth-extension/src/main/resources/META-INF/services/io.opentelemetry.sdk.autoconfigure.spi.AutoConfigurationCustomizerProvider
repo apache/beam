@@ -1,0 +1,1 @@
+org.apache.beam.sdk.extensions.opentelemetry.gcp.auth.GcpAuthAutoConfigurationCustomizerProvider
