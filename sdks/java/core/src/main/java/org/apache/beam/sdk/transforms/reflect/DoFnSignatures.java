@@ -140,6 +140,8 @@ public class DoFnSignatures {
               Parameter.StateParameter.class,
               Parameter.SideInputParameter.class,
               Parameter.TimerFamilyParameter.class,
+              Parameter.RecordIdParameter.class,
+              Parameter.RecordOffsetParameter.class,
               Parameter.CausedByDrainParameter.class,
               Parameter.BundleFinalizerParameter.class);
 
@@ -157,6 +159,8 @@ public class DoFnSignatures {
               Parameter.RestrictionTrackerParameter.class,
               Parameter.WatermarkEstimatorParameter.class,
               Parameter.SideInputParameter.class,
+              Parameter.RecordIdParameter.class,
+              Parameter.RecordOffsetParameter.class,
               Parameter.CausedByDrainParameter.class,
               Parameter.BundleFinalizerParameter.class);
 
@@ -188,6 +192,7 @@ public class DoFnSignatures {
           Parameter.StateParameter.class,
           Parameter.TimerFamilyParameter.class,
           Parameter.TimerIdParameter.class,
+          Parameter.FireTimestampParameter.class,
           Parameter.CausedByDrainParameter.class,
           Parameter.KeyParameter.class);
 
@@ -205,6 +210,7 @@ public class DoFnSignatures {
               Parameter.StateParameter.class,
               Parameter.TimerFamilyParameter.class,
               Parameter.TimerIdParameter.class,
+              Parameter.FireTimestampParameter.class,
               Parameter.CausedByDrainParameter.class,
               Parameter.KeyParameter.class);
 
@@ -1348,6 +1354,19 @@ public class DoFnSignatures {
           rawType.equals(Instant.class),
           "@Timestamp argument must have type org.joda.time.Instant.");
       return Parameter.timestampParameter();
+    } else if (hasAnnotation(DoFn.RecordId.class, param.getAnnotations())) {
+      methodErrors.checkArgument(
+          rawType.equals(String.class), "@RecordId argument must have type String.");
+      return Parameter.recordIdParameter();
+    } else if (hasAnnotation(DoFn.RecordOffset.class, param.getAnnotations())) {
+      methodErrors.checkArgument(
+          rawType.equals(Long.class), "@RecordOffset argument must have type Long.");
+      return Parameter.recordOffsetParameter();
+    } else if (hasAnnotation(DoFn.FireTimestamp.class, param.getAnnotations())) {
+      methodErrors.checkArgument(
+          rawType.equals(Instant.class),
+          "@FireTimestamp argument must have type org.joda.time.Instant.");
+      return Parameter.fireTimestampParameter();
     } else if (hasAnnotation(DoFn.Key.class, param.getAnnotations())) {
       methodErrors.checkArgument(
           KV.class.equals(inputT.getRawType()),

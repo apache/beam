@@ -344,6 +344,12 @@ public abstract class DoFnSignature {
         return cases.dispatch((BundleFinalizerParameter) this);
       } else if (this instanceof CausedByDrainParameter) {
         return cases.dispatch((CausedByDrainParameter) this);
+      } else if (this instanceof RecordIdParameter) {
+        return cases.dispatch((RecordIdParameter) this);
+      } else if (this instanceof RecordOffsetParameter) {
+        return cases.dispatch((RecordOffsetParameter) this);
+      } else if (this instanceof FireTimestampParameter) {
+        return cases.dispatch((FireTimestampParameter) this);
       } else if (this instanceof KeyParameter) {
         return cases.dispatch((KeyParameter) this);
       } else {
@@ -373,6 +379,12 @@ public abstract class DoFnSignature {
       ResultT dispatch(OutputReceiverParameter p);
 
       ResultT dispatch(TaggedOutputReceiverParameter p);
+
+      ResultT dispatch(RecordIdParameter p);
+
+      ResultT dispatch(RecordOffsetParameter p);
+
+      ResultT dispatch(FireTimestampParameter p);
 
       ResultT dispatch(OnTimerContextParameter p);
 
@@ -458,6 +470,21 @@ public abstract class DoFnSignature {
 
         @Override
         public ResultT dispatch(TimeDomainParameter p) {
+          return dispatchDefault(p);
+        }
+
+        @Override
+        public ResultT dispatch(RecordIdParameter p) {
+          return dispatchDefault(p);
+        }
+
+        @Override
+        public ResultT dispatch(RecordOffsetParameter p) {
+          return dispatchDefault(p);
+        }
+
+        @Override
+        public ResultT dispatch(FireTimestampParameter p) {
           return dispatchDefault(p);
         }
 
@@ -565,6 +592,12 @@ public abstract class DoFnSignature {
         new AutoValue_DoFnSignature_Parameter_CausedByDrainParameter();
     private static final OnWindowExpirationContextParameter ON_WINDOW_EXPIRATION_CONTEXT_PARAMETER =
         new AutoValue_DoFnSignature_Parameter_OnWindowExpirationContextParameter();
+    private static final RecordIdParameter RECORD_ID_PARAMETER =
+        new AutoValue_DoFnSignature_Parameter_RecordIdParameter();
+    private static final RecordOffsetParameter RECORD_OFFSET_PARAMETER =
+        new AutoValue_DoFnSignature_Parameter_RecordOffsetParameter();
+    private static final FireTimestampParameter FIRE_TIMESTAMP_PARAMETER =
+        new AutoValue_DoFnSignature_Parameter_FireTimestampParameter();
 
     /** Returns a {@link ProcessContextParameter}. */
     public static ProcessContextParameter processContext() {
@@ -589,6 +622,21 @@ public abstract class DoFnSignature {
     /** Returns a {@link CausedByDrainParameter}. */
     public static CausedByDrainParameter causedByDrainParameter() {
       return CAUSED_BY_DRAIN_PARAMETER;
+    }
+
+    /** Returns a {@link RecordIdParameter}. */
+    public static RecordIdParameter recordIdParameter() {
+      return RECORD_ID_PARAMETER;
+    }
+
+    /** Returns a {@link RecordOffsetParameter}. */
+    public static RecordOffsetParameter recordOffsetParameter() {
+      return RECORD_OFFSET_PARAMETER;
+    }
+
+    /** Returns a {@link FireTimestampParameter}. */
+    public static FireTimestampParameter fireTimestampParameter() {
+      return FIRE_TIMESTAMP_PARAMETER;
     }
 
     public static ElementParameter elementParameter(TypeDescriptor<?> elementT) {
@@ -751,6 +799,36 @@ public abstract class DoFnSignature {
     @AutoValue
     public abstract static class CausedByDrainParameter extends Parameter {
       CausedByDrainParameter() {}
+    }
+
+    /**
+     * Descriptor for a {@link Parameter} of type {@link DoFn.RecordId}.
+     *
+     * <p>All such descriptors are equal.
+     */
+    @AutoValue
+    public abstract static class RecordIdParameter extends Parameter {
+      RecordIdParameter() {}
+    }
+
+    /**
+     * Descriptor for a {@link Parameter} of type {@link DoFn.RecordOffset}.
+     *
+     * <p>All such descriptors are equal.
+     */
+    @AutoValue
+    public abstract static class RecordOffsetParameter extends Parameter {
+      RecordOffsetParameter() {}
+    }
+
+    /**
+     * Descriptor for a {@link Parameter} of type {@link DoFn.FireTimestamp}.
+     *
+     * <p>All such descriptors are equal.
+     */
+    @AutoValue
+    public abstract static class FireTimestampParameter extends Parameter {
+      FireTimestampParameter() {}
     }
 
     /**

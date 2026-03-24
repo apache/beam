@@ -34,6 +34,7 @@ import org.apache.beam.sdk.state.Timer;
 import org.apache.beam.sdk.state.TimerSpec;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.TestStream;
+import org.apache.beam.sdk.transforms.DoFn.BundleFinalizer;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.transforms.display.HasDisplayData;
 import org.apache.beam.sdk.transforms.splittabledofn.HasDefaultTracker;
@@ -587,11 +588,13 @@ public abstract class DoFn<InputT extends @Nullable Object, OutputT extends @Nul
    * Annotation for registering a callback for a timer.
    *
    * <p>See the javadoc for {@link TimerId} for use in a full example.
-   *
+   * 
    * <p>The method annotated with {@code @OnTimer} may have parameters according to the same logic
    * as {@link ProcessElement}, but limited to the {@link BoundedWindow}, {@link State} subclasses,
-   * and {@link Timer}. State and timer parameters must be annotated with their {@link StateId} and
-   * {@link TimerId} respectively.
+   * {@link Timer}, {@link FireTimestamp}, {@link Timestamp}, {@link Key}, {@link TimeDomain},
+   * {@link PipelineOptions}, {@link OutputReceiver}, {@link MultiOutputReceiver}, and {@link
+   * org.apache.beam.sdk.values.CausedByDrain CausedByDrain}. State and timer parameters must be
+   * annotated with their {@link StateId} and {@link TimerId} respectively.
    */
   @Documented
   @Retention(RetentionPolicy.RUNTIME)
@@ -608,8 +611,10 @@ public abstract class DoFn<InputT extends @Nullable Object, OutputT extends @Nul
    *
    * <p>The method annotated with {@code @OnTimerFamily} may have parameters according to the same
    * logic as {@link ProcessElement}, but limited to the {@link BoundedWindow}, {@link State}
-   * subclasses, and {@link org.apache.beam.sdk.state.TimerMap}. State and timer parameters must be
-   * annotated with their {@link StateId} and {@link TimerId} respectively.
+   * subclasses, {@link org.apache.beam.sdk.state.TimerMap}, {@link Timestamp}, {@link Key}, {@link
+   * TimeDomain}, {@link PipelineOptions}, {@link OutputReceiver}, {@link MultiOutputReceiver}, and
+   * {@link org.apache.beam.sdk.values.CausedByDrain CausedByDrain}. State and timer parameters must
+   * be annotated with their {@link StateId} and {@link TimerId} respectively.
    */
   @Documented
   @Retention(RetentionPolicy.RUNTIME)
@@ -700,6 +705,12 @@ public abstract class DoFn<InputT extends @Nullable Object, OutputT extends @Nul
    *   <li>If one of its arguments is tagged with the {@link Element} annotation, then it will be
    *       passed the current element being processed. The argument type must match the input type
    *       of this DoFn exactly, or both types must have equivalent schemas registered.
+   *   <li>If one of its arguments is tagged with the {@link RecordId} annotation, then it will be
+   *       passed the record id of the current element being processed; the argument must be of type
+   *       {@link String}.
+   *   <li>If one of its arguments is tagged with the {@link RecordOffset} annotation, then it will
+   *       be passed the record offset of the current element being processed; the argument must be
+   *       of type {@link Long}.
    *   <li>If one of its arguments is tagged with the {@link Timestamp} annotation, then it will be
    *       passed the timestamp of the current element being processed; the argument must be of type
    *       {@link Instant}.
@@ -790,6 +801,12 @@ public abstract class DoFn<InputT extends @Nullable Object, OutputT extends @Nul
    *   <li>If one of its arguments is tagged with the {@link Timestamp} annotation, then it will be
    *       passed the timestamp of the current element being processed; the argument must be of type
    *       {@link Instant}.
+   *   <li>If one of its arguments is tagged with the {@link RecordId} annotation, then it will be
+   *       passed the record ID of the current element being processed; the argument must be of type
+   *       {@link String}.
+   *   <li>If one of its arguments is tagged with the {@link RecordOffset} annotation, then it will
+   *       be passed the record offset of the current element being processed; the argument must be
+   *       of type {@link Long}.
    *   <li>If one of its arguments is of the type {@link WatermarkEstimator}, then it will be passed
    *       the watermark estimator.
    *   <li>If one of its arguments is of the type {@link ManualWatermarkEstimator}, then it will be
@@ -833,6 +850,18 @@ public abstract class DoFn<InputT extends @Nullable Object, OutputT extends @Nul
   @Target(ElementType.PARAMETER)
   public @interface Element {}
 
+  /** Parameter annotation for the input element record id for {@link ProcessElement}. */
+  @Documented
+  @Retention(RetentionPolicy.RUNTIME)
+  @Target(ElementType.PARAMETER)
+  public @interface RecordId {}
+
+  /** Parameter annotation for the input element record offset for {@link ProcessElement}. */
+  @Documented
+  @Retention(RetentionPolicy.RUNTIME)
+  @Target(ElementType.PARAMETER)
+  public @interface RecordOffset {}
+
   /**
    * Parameter annotation for the restriction for {@link GetSize}, {@link SplitRestriction}, {@link
    * GetInitialWatermarkEstimatorState}, {@link NewWatermarkEstimator}, and {@link NewTracker}
@@ -854,6 +883,12 @@ public abstract class DoFn<InputT extends @Nullable Object, OutputT extends @Nul
   @Retention(RetentionPolicy.RUNTIME)
   @Target(ElementType.PARAMETER)
   public @interface Timestamp {}
+
+  /** Parameter annotation for the firing timestamp for {@link OnTimer}. */
+  @Documented
+  @Retention(RetentionPolicy.RUNTIME)
+  @Target(ElementType.PARAMETER)
+  public @interface FireTimestamp {}
 
   /** Parameter annotation for the SideInput for a {@link ProcessElement} method. */
   @Documented

@@ -566,6 +566,22 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
     }
 
     @Override
+    public @Nullable String recordId(DoFn<InputT, OutputT> doFn) {
+      return currentRecordId();
+    }
+
+    @Override
+    public @Nullable Long recordOffset(DoFn<InputT, OutputT> doFn) {
+      return currentRecordOffset();
+    }
+
+    @Override
+    public Instant fireTimestamp(DoFn<InputT, OutputT> doFn) {
+      throw new UnsupportedOperationException(
+          "Cannot access fire timestamp outside of @OnTimer method.");
+    }
+
+    @Override
     public CausedByDrain causedByDrain(DoFn<InputT, OutputT> doFn) {
       return elem.causedByDrain();
     }
@@ -844,6 +860,23 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
     @Override
     public Instant timestamp(DoFn<InputT, OutputT> doFn) {
       return timestamp();
+    }
+
+    @Override
+    public @Nullable String recordId(DoFn<InputT, OutputT> doFn) {
+      throw new UnsupportedOperationException(
+          "Cannot access record id outside of @ProcessElement method.");
+    }
+
+    @Override
+    public @Nullable Long recordOffset(DoFn<InputT, OutputT> doFn) {
+      throw new UnsupportedOperationException(
+          "Cannot access record offset outside of @ProcessElement method.");
+    }
+
+    @Override
+    public Instant fireTimestamp(DoFn<InputT, OutputT> doFn) {
+      return fireTimestamp();
     }
 
     @Override
@@ -1142,6 +1175,24 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
     @Override
     public CausedByDrain causedByDrain(DoFn<InputT, OutputT> doFn) {
       throw new UnsupportedOperationException("CausedByDrain parameters are not supported.");
+    }
+
+    @Override
+    public @Nullable String recordId(DoFn<InputT, OutputT> doFn) {
+      throw new UnsupportedOperationException(
+          "Cannot access record id outside of @ProcessElement method.");
+    }
+
+    @Override
+    public @Nullable Long recordOffset(DoFn<InputT, OutputT> doFn) {
+      throw new UnsupportedOperationException(
+          "Cannot access record offset outside of @ProcessElement method.");
+    }
+
+    @Override
+    public Instant fireTimestamp(DoFn<InputT, OutputT> doFn) {
+      throw new UnsupportedOperationException(
+          "Cannot access fire timestamp outside of @OnTimer method.");
     }
 
     @Override
