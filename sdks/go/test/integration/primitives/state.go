@@ -40,6 +40,7 @@ func init() {
 	register.DoFn3x1[state.Provider, string, int, string](&mapStateClearFn{})
 	register.DoFn3x1[state.Provider, string, int, string](&setStateFn{})
 	register.DoFn3x1[state.Provider, string, int, string](&setStateClearFn{})
+	register.DoFn3x1[state.Provider, string, int, string](&orderedListStateFn{})
 	register.Function2x0(pairWithOne)
 	register.Emitter2[string, int]()
 	register.Combiner1[int](&combine1{})
@@ -559,4 +560,41 @@ func SetStateParDoClear(s beam.Scope) {
 	keyed := beam.ParDo(s, pairWithOne, in)
 	counts := beam.ParDo(s, &setStateClearFn{State1: state.MakeSetState[string]("key1")}, keyed)
 	passert.Equals(s, counts, "apple: [apple]", "pear: [pear]", "peach: [peach]", "apple: [apple1 apple2 apple3]", "apple: []", "pear: [pear1 pear2 pear3]")
+}
+
+type orderedListStateFn struct {
+	State1 state.OrderedList[int]
+}
+
+func (f *orderedListStateFn) ProcessElement(s state.Provider, w string, c int) string {
+	// Read current list.
+	cur, ok, err := f.State1.Read(s)
+	if err != nil {
+		panic(err)
+	}
+	if !ok {
+		cur = []state.OrderedListValue[int]{}
+	}
+
+	// Add element with sort key = count * 100.
+	sortKey := int64(len(cur)+1) * 100
+	err = f.State1.Add(s, sortKey, c)
+	if err != nil {
+		panic(err)
+	}
+
+	// Build output summarizing what we read.
+	vals := make([]int, len(cur))
+	for i, tv := range cur {
+		vals[i] = tv.Value
+	}
+	return fmt.Sprintf("%s: %v", w, vals)
+}
+
+// OrderedListStateParDo tests a DoFn that uses ordered list state.
+func OrderedListStateParDo(s beam.Scope) {
+	in := beam.Create(s, "apple", "pear", "peach", "apple", "apple", "pear")
+	keyed := beam.ParDo(s, pairWithOne, in)
+	counts := beam.ParDo(s, &orderedListStateFn{State1: state.MakeOrderedListState[int]("key1")}, keyed)
+	passert.Equals(s, counts, "apple: []", "pear: []", "peach: []", "apple: [1]", "apple: [1 1]", "pear: [1]")
 }
