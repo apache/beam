@@ -156,8 +156,8 @@ public abstract class PTransformRunnerFactoryTestContext
               }
             })
         .runnerCapabilities(new HashSet<>())
-        .hasNoState(() -> false)
-        .onlyBundleForKeys(() -> false);
+        .hasNoStateSupplier(() -> false)
+        .onlyBundleForKeysSupplier(() -> false);
   }
 
   /** A builder to create a context for tests. */
@@ -225,9 +225,9 @@ public abstract class PTransformRunnerFactoryTestContext
 
     Builder timerApiServiceDescriptor(ApiServiceDescriptor value);
 
-    Builder hasNoState(Supplier<Boolean> value);
+    Builder hasNoStateSupplier(Supplier<Boolean> value);
 
-    Builder onlyBundleForKeys(Supplier<Boolean> value);
+    Builder onlyBundleForKeysSupplier(Supplier<Boolean> value);
 
     PTransformRunnerFactoryTestContext build();
   }
