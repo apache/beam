@@ -1190,9 +1190,10 @@ def create_pgbk_op(step_name, spec, counter_factory, state_sampler):
 class PGBKOperation(Operation):
   """Partial group-by-key operation.
 
-  This takes (windowed) input (key, value) tuples and outputs
-  (key, [value]) tuples, performing a best effort group-by-key for
-  values in this bundle, memory permitting.
+  This operations groups elements by key within a 
+  bundle.
+  It stores values temporarily and flushes based
+  on size.
   """
   def __init__(self, name_context, spec, counter_factory, state_sampler):
     super(PGBKOperation,
