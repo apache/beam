@@ -15,6 +15,7 @@
 # limitations under the License.
 #
 import datetime
+import os
 import unittest
 import uuid
 
@@ -27,10 +28,10 @@ from apache_beam.testing.util import equal_to
 
 
 @pytest.mark.uses_io_java_expansion_service
-# @unittest.skipUnless(
-#     os.environ.get('EXPANSION_JARS'),
-#     "EXPANSION_JARS environment var is not provided, "
-#     "indicating that jars have not been built")
+@unittest.skipUnless(
+    os.environ.get('EXPANSION_JARS'),
+    "EXPANSION_JARS environment var is not provided, "
+    "indicating that jars have not been built")
 class ManagedIcebergIT(unittest.TestCase):
   WAREHOUSE = "gs://temp-storage-for-end-to-end-tests/xlang-python-using-java"
 
