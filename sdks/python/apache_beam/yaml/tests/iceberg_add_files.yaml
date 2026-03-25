@@ -20,20 +20,6 @@ fixtures:
     type: "tempfile.TemporaryDirectory"
 
 pipelines:
-  # Pipeline 0: Initialize Iceberg table
-  - pipeline:
-      type: chain
-      transforms:
-        - type: Create
-          config:
-            elements:
-              - {label: "dummy", rank: -1, bool: true}
-        - type: WriteToIceberg
-          config:
-            table: "default.table"
-            catalog_properties:
-              type: "hadoop"
-              warehouse: "{TEMP_DIR}/dir"
 
   # Pipeline 1: Write a dummy Parquet file
   - pipeline:
@@ -83,7 +69,6 @@ pipelines:
         - type: AssertEqual
           config:
             elements:
-              - {label: "dummy", rank: -1, bool: true}
               - {label: "11a", rank: 0, bool: true}
               - {label: "37a", rank: 1, bool: false}
               - {label: "389a", rank: 2, bool: false}

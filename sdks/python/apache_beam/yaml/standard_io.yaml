@@ -417,6 +417,9 @@
         triggering_frequency_seconds: 'triggering_frequency_seconds'
         append_batch_size: 'append_batch_size'
         location_prefix: 'location_prefix'
+        partition_fields: 'partition_fields'
+        table_properties: 'table_properties'
+        error_handling: 'error_handling'
     underlying_provider:
       type: beamJar
       transforms:
