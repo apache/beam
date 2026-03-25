@@ -75,3 +75,36 @@ pipelines:
               - {label: "3821b", rank: 3, bool: true}
               - {label: "990c", rank: 4, bool: true}
               - {label: "1024d", rank: 5, bool: false}
+
+  # Pipeline 4: Add an invalid file to trigger the DLQ
+  - pipeline:
+      type: composite
+      transforms:
+        - type: Create
+          config:
+            elements:
+              - {file: "gs://dummy-bucket/does-not-exist.txt"}
+        - type: IcebergAddFiles
+          name: AddInvalidFile
+          input: Create
+          config:
+            table: "default.table"
+            location_prefix: "gs://dummy-bucket/"
+            catalog_properties:
+              type: "hadoop"
+              warehouse: "{TEMP_DIR}/dir"
+            error_handling:
+              output: error_output
+        - type: WriteToJson
+          name: WriteErrorsToJson
+          input: AddInvalidFile.error_output
+          config:
+            path: "{TEMP_DIR}/error.json"
+
+  # Pipeline 5: Ensure errors were written
+  - pipeline:
+      type: chain
+      transforms:
+        - type: ReadFromJson
+          config:
+            path: "{TEMP_DIR}/error.json*"
