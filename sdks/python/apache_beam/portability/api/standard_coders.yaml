@@ -1,0 +1,628 @@
+#
+# Licensed to the Apache Software Foundation (ASF) under one or more
+# contributor license agreements.  See the NOTICE file distributed with
+# this work for additional information regarding copyright ownership.
+# The ASF licenses this file to You under the Apache License, Version 2.0
+# (the "License"); you may not use this file except in compliance with
+# the License.  You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
+# This file is broken into multiple sections delimited by ---. Each section specifies a set of
+# reference encodings for a single standardized coder used in a specific context.
+#
+# Each section contains up to 3 properties:
+#
+#   coder: a common coder spec. Currently, a URN and URNs for component coders as necessary.
+#   nested: a boolean meaning whether the coder was used in the nested context. Missing means to
+#           test both contexts, a shorthand for when the coder is invariant across context.
+#   examples: a map of {encoded bytes: original JSON object} encoded with the coder in the context.
+#             The LHS (key) is a byte array encoded as a JSON-escaped string. The RHS (value) is
+#             one of a few standard JSON types such as numbers, strings, dicts that map naturally
+#             to the type encoded by the coder.
+#
+# Java code snippet to generate example bytes:
+#   Coder<Timer<String>> coder = Timer.Coder.of(StringUtf8Coder.of(), GlobalWindow.Coder.INSTANCE);
+#   Instant now = new Instant(1000L);
+#   Timer<String> timer = Timer.of(
+#     "key",
+#     "tag",
+#     Collections.singletonList(GlobalWindow.INSTANCE),
+#     now,
+#     now,
+#     PaneInfo.NO_FIRING);
+#   byte[] bytes = CoderUtils.encodeToByteArray(coder, timer);
+#   String str = new String(bytes, java.nio.charset.StandardCharsets.ISO_8859_1);
+#   String example = "";
+#   for(int i = 0; i < str.length(); i++){
+#      example += CharUtils.unicodeEscaped(str.charAt(i));
+#   }
+#
+# These choices were made to strike a balance between portability, ease of use, and simple
+# legibility of this file itself.
+#
+# It is expected that future work will move the `coder` field into a format that it would be
+# represented by the Runner API, so that it can be understood by all SDKs and harnesses.
+#
+# If a coder is marked non-deterministic in the coder spec, then only the decoding should be validated.
+
+
+coder:
+  urn: "beam:coder:bytes:v1"
+nested: false
+examples:
+  "abc": abc
+  "ab\0c": "ab\0c"
+
+---
+
+coder:
+  urn: "beam:coder:bytes:v1"
+nested: true
+examples:
+  "\u0003abc": abc
+  "\u0004ab\0c": "ab\0c"
+  "\u00c8\u0001       10|       20|       30|       40|       50|       60|       70|       80|       90|      100|      110|      120|      130|      140|      150|      160|      170|      180|      190|      200|":
+              "       10|       20|       30|       40|       50|       60|       70|       80|       90|      100|      110|      120|      130|      140|      150|      160|      170|      180|      190|      200|"
+
+---
+
+coder:
+  urn: "beam:coder:bool:v1"
+examples:
+  "\0": false
+  "\u0001": true
+
+---
+
+coder:
+  urn: "beam:coder:string_utf8:v1"
+nested: false
+examples:
+  "abc": abc
+  "ab\0c": "ab\0c"
+  "\u00c3\u00bf": "\u00ff"
+  "\u00e5\u0085\u0089\u00e7\u00ba\u00bf": "光线"
+
+---
+
+coder:
+  urn: "beam:coder:string_utf8:v1"
+nested: true
+examples:
+  "\u0003abc": abc
+  "\u0004ab\0c": "ab\0c"
+  "\u0002\u00c3\u00bf": "\u00ff"
+  "\u0006\u00e5\u0085\u0089\u00e7\u00ba\u00bf": "光线"
+  "\u00c8\u0001       10|       20|       30|       40|       50|       60|       70|       80|       90|      100|      110|      120|      130|      140|      150|      160|      170|      180|      190|      200|":
+    "       10|       20|       30|       40|       50|       60|       70|       80|       90|      100|      110|      120|      130|      140|      150|      160|      170|      180|      190|      200|"
+
+---
+
+coder:
+  urn: "beam:coder:varint:v1"
+examples:
+  "\0": 0
+  "\u0001": 1
+  "\u000A": 10
+  "\u00c8\u0001": 200
+  "\u00e8\u0007": 1000
+  "\u00a9\u0046": 9001
+  "\u00ff\u00ff\u00ff\u00ff\u00ff\u00ff\u00ff\u00ff\u00ff\u0001": -1
+
+---
+
+coder:
+  urn: "beam:coder:kv:v1"
+  components: [{urn: "beam:coder:bytes:v1"},
+               {urn: "beam:coder:varint:v1"}]
+examples:
+  "\u0003abc\0": {key: abc, value: 0}
+  "\u0004ab\0c\u000A": {key: "ab\0c", value: 10}
+
+---
+
+coder:
+  urn: "beam:coder:kv:v1"
+  components: [{urn: "beam:coder:bytes:v1"},
+               {urn: "beam:coder:bytes:v1"}]
+nested: false
+examples:
+  "\u0003abcdef": {key: abc, value: def}
+  "\u0004ab\0cde\0f": {key: "ab\0c", value: "de\0f"}
+
+---
+
+coder:
+  urn: "beam:coder:kv:v1"
+  components: [{urn: "beam:coder:bytes:v1"},
+               {urn: "beam:coder:bytes:v1"}]
+nested: true
+examples:
+  "\u0003abc\u0003def": {key: abc, value: def}
+  "\u0004ab\0c\u0004de\0f": {key: "ab\0c", value: "de\0f"}
+
+---
+
+coder:
+  urn: "beam:coder:kv:v1"
+  components: [{urn: "beam:coder:bytes:v1"},
+               {urn: "beam:coder:bool:v1"}]
+examples:
+  "\u0003abc\u0001": {key: abc, value: true}
+  "\u0004ab\0c\0": {key: "ab\0c", value: false}
+
+---
+
+coder:
+  urn: "beam:coder:interval_window:v1"
+examples:
+  "\u0080\u0000\u0001\u0052\u009a\u00a4\u009b\u0068\u0080\u00dd\u00db\u0001" : {end: 1454293425000, span: 3600000}
+  "\u0080\u0000\u0001\u0053\u0034\u00ec\u0074\u00e8\u0080\u0090\u00fb\u00d3\u0009" : {end: 1456881825000, span: 2592000000}
+  "\u007f\u00df\u003b\u0064\u005a\u001c\u00ad\u0076\u00ed\u0002" : {end: -9223372036854410, span: 365}
+  "\u0080\u0020\u00c4\u009b\u00a5\u00e3\u0053\u00f7\u0000" : {end: 9223372036854775, span: 0}
+
+---
+
+coder:
+  urn: "beam:coder:iterable:v1"
+  components: [{urn: "beam:coder:varint:v1"}]
+examples:
+  "\0\0\0\u0001\0": [0]
+  "\0\0\0\u0004\u0001\n\u00c8\u0001\u00e8\u0007": [1, 10, 200, 1000]
+  # 130 items.
+  "\0\0\0\u0082A-AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA-A": [65, 45, 65, 65, 65, 65, 65, 65, 65, 65, 65, 65, 65, 65, 65, 65, 65, 65, 65, 65, 65, 65, 65, 65, 65, 65, 65, 65, 65, 65, 65, 65, 65, 65, 65, 65, 65, 65, 65, 65, 65, 65, 65, 65, 65, 65, 65, 65, 65, 65, 65, 65, 65, 65, 65, 65, 65, 65, 65, 65, 65, 65, 65, 65, 65, 65, 65, 65, 65, 65, 65, 65, 65, 65, 65, 65, 65, 65, 65, 65, 65, 65, 65, 65, 65, 65, 65, 65, 65, 65, 65, 65, 65, 65, 65, 65, 65, 65, 65, 65, 65, 65, 65, 65, 65, 65, 65, 65, 65, 65, 65, 65, 65, 65, 65, 65, 65, 65, 65, 65, 65, 65, 65, 65, 65, 65, 65, 65, 45, 65]
+  "\0\0\0\0": []
+
+---
+
+coder:
+  urn: "beam:coder:iterable:v1"
+  components: [{urn: "beam:coder:bytes:v1"}]
+examples:
+  "\0\0\0\u0001\u0003abc": ["abc"]
+  "\0\0\0\u0002\u0004ab\0c\u0004de\0f": ["ab\0c", "de\0f"]
+  "\0\0\0\0": []
+
+---
+
+coder:
+  urn: "beam:coder:iterable:v1"
+  components: [{urn: "beam:coder:bool:v1"}]
+examples:
+  "\0\0\0\u0001\u0001": [true]
+  "\0\0\0\u0002\u0001\0": [true, false]
+  "\0\0\0\0": []
+
+---
+
+coder:
+  urn: "beam:coder:iterable:v1"
+  components: [{urn: "beam:coder:bytes:v1"}]
+  # This is for iterables of unknown length, where the encoding is not
+  # deterministic.
+  non_deterministic: true
+examples:
+  "\u00ff\u00ff\u00ff\u00ff\u0000": []
+  "\u00ff\u00ff\u00ff\u00ff\u0001\u0003abc\u0000": ["abc"]
+  "\u00ff\u00ff\u00ff\u00ff\u0002\u0004ab\u0000c\u0004de\u0000f\u0000": ["ab\0c", "de\0f"]
+
+---
+
+coder:
+  urn: "beam:coder:iterable:v1"
+  components: [{urn: "beam:coder:global_window:v1"}]
+examples:
+  "\0\0\0\u0001": [""]
+
+---
+
+coder:
+  urn: "beam:coder:timer:v1"
+  components: [{urn: "beam:coder:string_utf8:v1"},
+               {urn: "beam:coder:global_window:v1"}]
+examples:
+  "\u0003\u006b\u0065\u0079\u0003\u0074\u0061\u0067\u0000\u0000\u0000\u0001\u0000\u0080\u0000\u0000\u0000\u0000\u0000\u0004\u00d2\u0080\u0000\u0000\u0000\u0000\u0000\u0016\u002e\u000f": {
+    userKey: key,
+    dynamicTimerTag: tag,
+    windows: ["global"],
+    clearBit: false,
+    fireTimestamp: 1234,
+    holdTimestamp: 5678,
+    pane: {is_first: true, is_last: true, timing: UNKNOWN, index: 0, on_time_index: 0},
+  }
+  "\u0003\u006b\u0065\u0079\u0003\u0074\u0061\u0067\u0000\u0000\u0000\u0001\u0001": {
+    userKey: key,
+    dynamicTimerTag: tag,
+    windows: ["global"],
+    clearBit: true,
+  }
+
+---
+
+coder:
+  urn: "beam:coder:global_window:v1"
+examples:
+  "": ""
+
+---
+
+# All windowed values consist of pane infos that represent NO_FIRING until full support is added
+# in the Python SDK (BEAM-1522).
+coder:
+  urn: "beam:coder:windowed_value:v1"
+  components: [{urn: "beam:coder:varint:v1"},
+               {urn: "beam:coder:global_window:v1"}]
+examples:
+  "\u0080\0\u0001R\u009a\u00a4\u009bh\0\0\0\u0001\u000f\u0002": {
+    value: 2,
+    timestamp: 1454293425000,
+    pane: {is_first: true, is_last: true, timing: UNKNOWN, index: 0, on_time_index: 0},
+    windows: ["global"]
+  }
+
+---
+
+coder:
+  urn: "beam:coder:windowed_value:v1"
+  components: [{urn: "beam:coder:varint:v1"},
+               {urn: "beam:coder:interval_window:v1"}]
+examples:
+  "\u007f\u00ff\u00ff\u00ff\u00ff\u00f9\u00e5\u0080\0\0\0\u0001\u0080\0\u0001R\u009a\u00a4\u009bh\u00c0\u008b\u0011\u000f\u0004": {
+    value: 4,
+    timestamp: -400000,
+    pane: {is_first: true, is_last: true, timing: UNKNOWN, index: 0, on_time_index: 0},
+    windows: [{end: 1454293425000, span: 280000}]
+  }
+
+  "\u007f\u00ff\u00ff\u00ff\u00ff\u00ff\u00ff\u009c\0\0\0\u0002\u0080\0\u0001R\u009a\u00a4\u009bh\u0080\u00dd\u00db\u0001\u007f\u00df;dZ\u001c\u00adv\u00ed\u0002\u000f\u0002": {
+    value: 2,
+    timestamp: -100,
+    pane: {is_first: true, is_last: true, timing: UNKNOWN, index: 0, on_time_index: 0},
+    windows: [{end: 1454293425000, span: 3600000}, {end: -9223372036854410, span: 365}]
+  }
+
+---
+
+# ParamWindowedValueCoder with constant value of:
+# timestamp: Instant.ofEpochMilli(1000)
+# windows: [IntervalWindow(10, 20)]
+# pane info: PaneInfo(false, true, PaneInfo.Timing.ON_TIME, 30, 40)
+coder:
+  urn: "beam:coder:param_windowed_value:v1"
+  payload: "\x80\x00\x00\x00\x00\x00\x03è\x00\x00\x00\x01\x80\x00\x00\x00\x00\x00\x00\x14\n&\x1E(\x00"
+  components: [{urn: "beam:coder:varint:v1"},
+               {urn: "beam:coder:interval_window:v1"}]
+examples:
+  "\u0002": {
+    value: 2,
+    timestamp: 1000,
+    pane: {is_first: false, is_last: true, timing: ON_TIME, index: 30, on_time_index: 40},
+    windows: [{end: 20, span: 10}]
+  }
+
+---
+
+# ParamWindowedValueCoder with constant value of:
+# timestamp: BoundedWindow.TIMESTAMP_MIN_VALUE
+# windows: [GlobalWindow.INSTANCE]
+# pane info: PaneInfo.NO_FIRING
+coder:
+  urn: "beam:coder:param_windowed_value:v1"
+  payload: "\x7Fß;dZ\x1C¬\t\x00\x00\x00\x01\x0F\x00"
+  components: [{urn: "beam:coder:varint:v1"},
+               {urn: "beam:coder:global_window:v1"}]
+examples:
+  "\u0002": {
+    value: 2,
+    timestamp: -9223372036854775,
+    pane: {is_first: true, is_last: true, timing: UNKNOWN, index: 0, on_time_index: 0},
+    windows: ["global"]
+  }
+
+---
+
+coder:
+  urn: "beam:coder:double:v1"
+examples:
+  "\0\0\0\0\0\0\0\0": "0"
+  "\u0080\0\0\0\0\0\0\0": "-0"
+  "\u003f\u00b9\u0099\u0099\u0099\u0099\u0099\u009a": "0.1"
+  "\u00bf\u00b9\u0099\u0099\u0099\u0099\u0099\u009a": "-0.1"
+  "\0\0\0\0\0\0\0\u0001": "4.9e-324"
+  "\0\u0001\0\0\0\0\0\0": "1.390671161567e-309"
+  "\u007f\u00ef\u00ff\u00ff\u00ff\u00ff\u00ff\u00ff": "1.7976931348623157e308"
+  "\u007f\u00f0\0\0\0\0\0\0": "Infinity"
+  "\u00ff\u00f0\0\0\0\0\0\0": "-Infinity"
+  "\u007f\u00f8\0\0\0\0\0\0": "NaN"
+
+---
+
+coder:
+  urn: "beam:coder:row:v1"
+  # str: string, i32: int32, f64: float64, arr: array[string]
+  payload: "\n\t\n\x03str\x1a\x02\x10\x07\n\t\n\x03i32\x1a\x02\x10\x03\n\t\n\x03f64\x1a\x02\x10\x06\n\r\n\x03arr\x1a\x06\x1a\x04\n\x02\x10\x07\x12$4e5e554c-d4c1-4a5d-b5e1-f3293a6b9f05"
+examples:
+    "\u0004\u0000\u0003foo\u00a9\u0046\u003f\u00b9\u0099\u0099\u0099\u0099\u0099\u009a\0\0\0\u0003\u0003foo\u0003bar\u0003baz": {str: "foo", i32: 9001, f64: "0.1", arr: ["foo", "bar", "baz"]}
+
+---
+
+coder:
+  urn: "beam:coder:row:v1"
+  # str: nullable string, i32: nullable int32, f64: nullable float64
+  payload: "\n\x0b\n\x03str\x1a\x04\x08\x01\x10\x07\n\x0b\n\x03i32\x1a\x04\x08\x01\x10\x03\n\x0b\n\x03f64\x1a\x04\x08\x01\x10\x06\x12$b20c6545-57af-4bc8-b2a9-51ace21c7393"
+examples:
+  "\u0003\u0001\u0007": {str: null, i32: null, f64: null}
+  "\u0003\u0001\u0004\u0003foo\u00a9\u0046": {str: "foo", i32: 9001, f64: null}
+  "\u0003\u0000\u0003foo\u00a9\u0046\u003f\u00b9\u0099\u0099\u0099\u0099\u0099\u009a": {str: "foo", i32: 9001, f64: "0.1"}
+
+---
+
+# Binary data generated with the python SDK:
+#
+# import typing
+# import apache_beam as beam
+# class Test(typing.NamedTuple):
+#   f_bool: bool
+#   f_byte: typing.Optional[bytes]
+# schema = beam.typehints.schemas.named_tuple_to_schema(Test)
+# coder = beam.coders.row_coder.RowCoder(schema)
+# print("payload = %s" % schema.SerializeToString())
+# print("example = %s" % coder.encode(Test(f_bool=True, f_nullable=None)))
+coder:
+  urn: "beam:coder:row:v1"
+  # f_bool: boolean, f_bytes: nullable bytes
+  payload: "\n\x0c\n\x06f_bool\x1a\x02\x10\x08\n\x0f\n\x07f_bytes\x1a\x04\x08\x01\x10\t\x12$eea1b747-7571-43d3-aafa-9255afdceafb"
+examples:
+  "\x02\x01\x02\x01": {f_bool: true, f_bytes: null}
+  "\x02\x00\x00\x04ab\x00c": {f_bool: false, f_bytes: "ab\0c"}
+
+---
+
+# Binary data generated with the python SDK:
+#
+# import typing
+# import apache_beam as beam
+# class Test(typing.NamedTuple):
+#   f_map: typing.Mapping[str,typing.Optional[int]]
+# schema = beam.typehints.schemas.named_tuple_to_schema(Test)
+# coder = beam.coders.row_coder.RowCoder(schema)
+# print("payload = %s" % schema.SerializeToString())
+# examples = (Test(f_map={}),
+#             Test(f_map={"foo": 9001, "bar": 9223372036854775807}),
+#             Test(f_map={"everything": None, "is": None, "null!": None, "¯\_(ツ)_/¯": None}))
+# for example in examples:
+#   print("example = %s" % coder.encode(example))
+coder:
+  urn: "beam:coder:row:v1"
+  # f_map: map<str, nullable int64>
+  payload: "\n\x15\n\x05f_map\x1a\x0c*\n\n\x02\x10\x07\x12\x04\x08\x01\x10\x04\x12$d8c8f969-14e6-457f-a8b5-62a1aec7f1cd"
+  # map ordering is non-deterministic
+  non_deterministic: true
+examples:
+  "\x01\x00\x00\x00\x00\x00": {f_map: {}}
+  "\x01\x00\x00\x00\x00\x02\x03foo\x01\xa9F\x03bar\x01\xff\xff\xff\xff\xff\xff\xff\xff\x7f": {f_map: {"foo": 9001, "bar": 9223372036854775807}}
+  "\x01\x00\x00\x00\x00\x04\neverything\x00\x02is\x00\x05null!\x00\r\xc2\xaf\\_(\xe3\x83\x84)_/\xc2\xaf\x00": {f_map: {"everything": null, "is": null, "null!": null, "¯\\_(ツ)_/¯": null}}
+
+---
+# Binary data generated with the python SDK:
+# schema1 = schema_pb2.Schema(
+# id="30ea5a25-dcd8-4cdb-abeb-5332d15ab4b9",
+# fields=[
+#     schema_pb2.Field(
+#         name="str",
+#         type=schema_pb2.FieldType(atomic_type=schema_pb2.STRING),
+#         encoding_position=1),
+#     schema_pb2.Field(
+#         name="f_bool",
+#         type=schema_pb2.FieldType(atomic_type=schema_pb2.BOOLEAN),
+#         encoding_position=2),
+#     schema_pb2.Field(
+#         name="i32",
+#         type=schema_pb2.FieldType(
+#             atomic_type=schema_pb2.INT32, nullable=True),
+#         encoding_position=0)
+#   ],
+#   encoding_positions_set=True)
+#
+# coder = RowCoder(schema1)
+# c = coder.schema.SerializeToString()
+# print("payload = %s" % c)
+# test = typing.NamedTuple("test", [ ("f_bool", bool), ("i32", np.int32), ("str", str) ])
+# example = coder.encode(test(False,21,"str2"))
+# print("example = %s" % example)
+coder:
+  urn: "beam:coder:row:v1"
+  payload: "\n\x0b\n\x03str\x1a\x02\x10\x07(\x01\n\x0e\n\x06f_bool\x1a\x02\x10\x08(\x02\n\x0b\n\x03i32\x1a\x04\x08\x01\x10\x03\x12$30ea5a25-dcd8-4cdb-abeb-5332d15ab4b9 \x01"
+examples:
+  "\x03\x00\x15\x04str2\x00": {f_bool: false, i32: 21, str: "str2"}
+
+---
+
+coder:
+  urn: "beam:coder:row:v1"
+  # f_timestamp: logical(micros_instant), f_string: string, f_int: int64
+  payload: "\n\x7f\n\x0bf_timestamp\x1ap:n\n#beam:logical_type:micros_instant:v1\x1aG2E\nC\n\r\n\x07seconds\x1a\x02\x10\x04\n\x0c\n\x06micros\x1a\x02\x10\x04\x12$4d3f6e8f-7412-4ad7-bfd9-b424a1664aef\n\x0e\n\x08f_string\x1a\x02\x10\x07\n\x0b\n\x05f_int\x1a\x02\x10\x04\x12$33dafd37-397c-4083-a84e-42177d122221"
+examples:
+    "\x03\x00\x02\x00\xb6\x95\xd5\xf9\x05\xc0\xc4\x07\x1b2020-08-13T14:14:14.123456Z\xc0\xf7\x85\xda\xae\x98\xeb\x02": {f_timestamp: {seconds: 1597328054, micros: 123456}, f_string: "2020-08-13T14:14:14.123456Z", f_int: 1597328054123456}
+
+---
+
+coder:
+  urn: "beam:coder:row:v1"
+  # f_timestamp: logical(millis_instant), f_string: string, f_int: int64
+  payload: "\n:\n\x0bf_timestamp\x1a+:)\n#beam:logical_type:millis_instant:v1\x1a\x02\x10\x04\n\x0e\n\x08f_string\x1a\x02\x10\x07\n\x0b\n\x05f_int\x1a\x02\x10\x04\x12$80be749a-5700-4ede-89d8-dd9a4433a3f8"
+examples:
+  "\x03\x00\x80\x00\x01s\xe8+\xd7k\x182020-08-13T14:14:14.123Z\xeb\xae\xaf\xc1\xbe.": {f_timestamp: -9223370439526721685, f_string: "2020-08-13T14:14:14.123Z", f_int: 1597328054123}
+
+---
+
+coder:
+  urn: "beam:coder:row:v1"
+  # f_float: float32
+  payload: "\n\r\n\x07f_float\x1a\x02\x10\x05\x12$8c97b6c5-69e5-4733-907b-26cd8edae612"
+examples:
+  "\x01\x00\x00\x00\x00\x00": {f_float: "0.0"}
+  "\x01\x00?\x80\x00\x00": {f_float: "1.0"}
+  "\x01\x00@I\x0eV": {f_float: "3.1415"}
+
+---
+
+coder:
+  urn: "beam:coder:row:v1"
+  # f_float: float32, f_decimal: logical(decimal)
+  payload: "\n\r\n\x07f_float\x1a\x02\x10\x05\n1\n\tf_decimal\x1a$:\"\n\x1cbeam:logical_type:decimal:v1\x1a\x02\x10\t\x12$800c44ae-a1b7-4def-bbf6-6217cca89ec4"
+examples:
+  "\x02\x00\x00\x00\x00\x00\x01\x01\x00": {f_float: "0.0", f_decimal: "0.0"}
+  "\x02\x00?\x80\x00\x00\x01\x01\n": {f_float: "1.0", f_decimal: "1.0"}
+  "\x02\x00@I\x0eV\x04\x02z\xb7": {f_float: "3.1415", f_decimal: "3.1415"}
+  "\x02\x00\xc2\xc8>\xfa\x03\x03\xfex\xe5": {f_float: "-100.123", f_decimal: "-100.123"}
+
+---
+
+coder:
+  urn: "beam:coder:row:v1"
+  # f_char: logical(fixed_char(5)), f_varchar: logical(var_char(5)), f_bytes: logical(fixed_bytes(5)), f_varbytes: logical(var_bytes(5))
+  payload: "\n=\n\x06f_char\x1a3\x08\x01:/\n\x1fbeam:logical_type:fixed_char:v1\x1a\x02\x10\x07\"\x02\x10\x03*\x04\n\x02\x18\x05\nB\n\tf_varchar\x1a1\x08\x01:-\n\x1dbeam:logical_type:var_char:v1\x1a\x02\x10\x07\"\x02\x10\x03*\x04\n\x02\x18\n \x01(\x01\nC\n\x07f_bytes\x1a4\x08\x01:0\n beam:logical_type:fixed_bytes:v1\x1a\x02\x10\t\"\x02\x10\x03*\x04\n\x02\x18\x05 \x02(\x02\nD\n\nf_varbytes\x1a2\x08\x01:.\n\x1ebeam:logical_type:var_bytes:v1\x1a\x02\x10\t\"\x02\x10\x03*\x04\n\x02\x18\n \x03(\x03\x12$f0ffb3a4-f46f-41ca-a942-85e3e939452a"
+examples:
+  "\x04\x00\x05ABCDE\x05ABCDE\x05ABCDE\x05ABCDE": {f_char: "ABCDE", f_varchar: "ABCDE", f_bytes: "ABCDE", f_varbytes: "ABCDE"}
+  "\x04\x00\x05A\n   \x02A\n\x05A\n\x00\x00\x00\x02A\n": {f_char: "A\n   ", f_varchar: "A\n", f_bytes: "A\n\x00\x00\x00", f_varbytes: "A\n"}
+  "\x04\x01\x06\x05null?\x04null": {f_char: "null?", f_varchar: null, f_bytes: null, f_varbytes: "null"}
+
+---
+
+coder:
+  urn: "beam:coder:sharded_key:v1"
+  components: [{urn: "beam:coder:string_utf8:v1"}]
+
+examples:
+  "\u0000\u0000": {
+    shardId: "",
+    key: ""
+  }
+  "\u0008\u0073\u0068\u0061\u0072\u0064\u005f\u0069\u0064\u0000": {
+    shardId: shard_id,
+    key: ""
+  }
+  "\u0008\u0073\u0068\u0061\u0072\u0064\u005f\u0069\u0064\u0003\u006b\u0065\u0079": {
+    shardId: shard_id,
+    key: "key"
+  }
+  "\u0000\u0003\u006b\u0065\u0079": {
+    shardId: "",
+    key: "key"
+  }
+
+---
+
+
+coder:
+  urn: "beam:coder:state_backed_iterable:v1"
+  components: [{urn: "beam:coder:varint:v1"}]
+examples:
+  "\0\0\0\u0001\0": [0]
+  "\0\0\0\u0004\u0001\n\u00c8\u0001\u00e8\u0007": [1, 10, 200, 1000]
+  "\0\0\0\0": []
+
+---
+
+coder:
+  urn: "beam:coder:state_backed_iterable:v1"
+  components: [{urn: "beam:coder:bytes:v1"}]
+examples:
+  "\0\0\0\u0001\u0003abc": ["abc"]
+  "\0\0\0\u0002\u0004ab\0c\u0004de\0f": ["ab\0c", "de\0f"]
+  "\0\0\0\0": []
+
+---
+
+coder:
+  urn: "beam:coder:state_backed_iterable:v1"
+  components: [{urn: "beam:coder:bool:v1"}]
+examples:
+  "\0\0\0\u0001\u0001": [true]
+  "\0\0\0\u0002\u0001\0": [true, false]
+  "\0\0\0\0": []
+
+---
+
+coder:
+  urn: "beam:coder:state_backed_iterable:v1"
+  components: [{urn: "beam:coder:bytes:v1"}]
+  # This is for iterables of unknown length, where the encoding is not
+  # deterministic.
+  non_deterministic: true
+examples:
+  "\u00ff\u00ff\u00ff\u00ff\u0000": []
+  "\u00ff\u00ff\u00ff\u00ff\u0001\u0003abc\u0000": ["abc"]
+  "\u00ff\u00ff\u00ff\u00ff\u0002\u0004ab\u0000c\u0004de\u0000f\u0000": ["ab\0c", "de\0f"]
+
+---
+
+coder:
+  urn: "beam:coder:state_backed_iterable:v1"
+  components: [{urn: "beam:coder:global_window:v1"}]
+examples:
+  "\0\0\0\u0001": [""]
+
+---
+
+coder:
+  urn: "beam:coder:state_backed_iterable:v1"
+  components: [{urn: "beam:coder:varint:v1"}]
+  state: {
+    emptySuffix: "",
+    nonEmptySuffix: "\u0001\n"   # Represents the values [1, 10]
+  }
+  # This is for iterables of unknown length, where the encoding is not
+  # deterministic.
+  non_deterministic: true
+
+examples:
+  "\u00FF\u00FF\u00FF\u00FF\0": []  # Unknown length with empty prefix and no token
+  "\u00FF\u00FF\u00FF\u00FF\u0002\u00C8\u0001\u00E8\u0007\0": [200, 1000]  # Unknown length with non-empty prefix and no token
+  "\u00FF\u00FF\u00FF\u00FF\u00FF\u00FF\u00FF\u00FF\u00FF\u00FF\u00FF\u00FF\u00FF\u0001\u000BemptySuffix": []  # Unknown length with empty prefix and token with empty suffix
+  "\u00FF\u00FF\u00FF\u00FF\u00FF\u00FF\u00FF\u00FF\u00FF\u00FF\u00FF\u00FF\u00FF\u0001\u000EnonEmptySuffix": [1, 10]  # Unknown length with empty prefix and token with non-empty suffix
+  "\u00FF\u00FF\u00FF\u00FF\u0002\u00C8\u0001\u00E8\u0007\u00FF\u00FF\u00FF\u00FF\u00FF\u00FF\u00FF\u00FF\u00FF\u0001\u000BemptySuffix": [200, 1000]  # Unknown length with non-empty prefix and token with empty suffix
+  "\u00FF\u00FF\u00FF\u00FF\u0002\u00C8\u0001\u00E8\u0007\u00FF\u00FF\u00FF\u00FF\u00FF\u00FF\u00FF\u00FF\u00FF\u0001\u000EnonEmptySuffix": [200, 1000, 1, 10]  # Unknown length with non-empty prefix and token with non-empty suffix
+
+---
+
+# Java code snippet to generate example bytes:
+#  TimestampPrefixingWindowCoder<IntervalWindow> coder = TimestampPrefixingWindowCoder.of(IntervalWindowCoder.of());
+#  Instant end = new Instant(-9223372036854410L);
+#  Duration span = Duration.millis(365L);
+#  IntervalWindow window = new IntervalWindow(end.minus(span), span);
+#  byte[] bytes = CoderUtils.encodeToByteArray(coder, window);
+#  String str = new String(bytes, java.nio.charset.StandardCharsets.ISO_8859_1);
+#  String example = "";
+#  for(int i = 0; i < str.length(); i++){
+#    example += CharUtils.unicodeEscaped(str.charAt(i));
+#  }
+#  System.out.println(example);
+coder:
+  urn: "beam:coder:custom_window:v1"
+  components: [{urn: "beam:coder:interval_window:v1"}]
+
+examples:
+  "\u0080\u0000\u0001\u0052\u009a\u00a4\u009b\u0067\u0080\u0000\u0001\u0052\u009a\u00a4\u009b\u0068\u0080\u00dd\u00db\u0001" : {window: {end: 1454293425000, span: 3600000}}
+  "\u007f\u00df\u003b\u0064\u005a\u001c\u00ad\u0075\u007f\u00df\u003b\u0064\u005a\u001c\u00ad\u0076\u00ed\u0002" : {window: {end: -9223372036854410, span: 365}}
+
+
+---
+coder:
+  urn: "beam:coder:nullable:v1"
+  components: [{urn: "beam:coder:bytes:v1"}]
+nested: true
+
+examples:
+  "\u0001\u0003\u0061\u0062\u0063" : "abc"
+  "\u0001\u000a\u006d\u006f\u0072\u0065\u0020\u0062\u0079\u0074\u0065\u0073" : "more bytes"
+  "\u0000" : null

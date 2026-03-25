@@ -1,0 +1,194 @@
+{
+  "run": "Run",
+  "@run": {
+    "description": "Title for the run button"
+  },
+  "cancel": "Cancel",
+  "@cancel": {
+    "description": "Title for the cancel button"
+  },
+  "cancelExecution": "Cancel Execution",
+  "@cancelExecution": {
+    "description": "Title for the cancel execution notification"
+  },
+  "log": "Log",
+  "@log": {
+    "description": "Title for the log section"
+  },
+  "graph": "Graph",
+  "@graph": {
+    "description": "Title for the graph section"
+  },
+  "output": "Output",
+  "@output": {
+    "description": "Title for the output section"
+  },
+  "shortcuts": "Shortcuts",
+  "@shortcuts": {
+    "description": "Title for the Shortcuts menu item"
+  },
+  "beamPlaygroundOnGithub": "Beam Playground on Github",
+  "@beamPlaygroundOnGithub": {
+    "description": "Title for the Beam Playground on Github menu item"
+  },
+  "apacheBeamOnGithub": "Apache Beam on Github",
+  "@apacheBeamOnGithub": {
+    "description": "Title for the Apache Beam on Github menu item"
+  },
+  "scioOnGithub": "SCIO on Github",
+  "@scioOnGithub": {
+    "description": "Title for the SCIO on Github menu item"
+  },
+  "toApacheBeamWebsite": "To Apache Beam Website",
+  "@toApacheBeamWebsite": {
+    "description": "Title for the To Apache Beam Website menu item"
+  },
+  "aboutApacheBeam": "About Apache Beam",
+  "@aboutApacheBeam": {
+    "description": "Title for the About Apache Beam menu item"
+  },
+  "enjoying": "Good Experience",
+  "@enjoying": {
+    "description": "Thumb up enjoying playground label"
+  },
+  "notEnjoying": "Bad Experience",
+  "@enjoying": {
+    "description": "Thumb down enjoying playground label"
+  },
+  "sendFeedback": "Send feedback",
+  "@sendFeedback": {
+    "description": "Title of the send feedback button"
+  },
+  "search": "Search",
+  "@search": {
+    "description": "Hint text for a search field"
+  },
+  "all": "All",
+  "@all": {
+    "description": "Title for the category bubble, that sort categories to show all types of examples"
+  },
+  "examples": "Examples",
+  "@example": {
+    "description": "Title for the category bubble, that sort categories to show only Examples"
+  },
+  "katas": "Katas",
+  "@katas": {
+    "description": "Title for the category bubble, that sort categories to show only Katas"
+  },
+  "unitTests": "Unit tests",
+  "@unitTests": {
+    "description": "Title for the category bubble, that sort categories to show only Unit tests"
+  },
+  "pipelineOptions": "Pipeline Options",
+  "@pipelineOptions": {
+    "description": "Title for the pipeline options field"
+  },
+  "pipelineOptionsPlaceholder": "Add Pipeline Options here in the format --key1 value1 --key2 value2",
+  "@pipelineOptionsPlaceholder": {
+    "description": "Pipeline options hint text"
+  },
+  "outputPlacementSemantic": "Change Output Area Placement",
+  "@outputPlacementSemantic": {
+    "description": "Text for the output placement semantics"
+  },
+  "selectSdkDropdownSemantics": "Select SDK Dropdown",
+  "@selectSdkDropdownSemantics": {
+    "description": "Text label for SDK Dropdown semantics"
+  },
+  "selectSdkPlaceholder": "Loading...",
+  "@selectSdkPlaceholder": {
+    "description": "A placeholder for SDK dropdown when none is selected"
+  },
+  "close": "CLOSE",
+  "@close": {
+    "description": "Title for close buttons"
+  },
+  "tryInPlayground": "Try in Playground",
+  "@tryInPlayground": {
+    "description": "Title for the try button in the embedded version of Playground"
+  },
+  "runCode": "Run Code",
+  "@runCode": {
+    "description": "Title for the run code notification"
+  },
+  "enjoyingPlayground": "Enjoying Playground?",
+  "@enjoyingPlayground": {
+    "description": "Title for the Enjoying Playground button"
+  },
+  "bottom": "Bottom",
+  "@bottom": {
+    "description": "Part of the output placements semantics label"
+  },
+  "right": "Right",
+  "@right": {
+    "description": "Part of the output placements semantics label"
+  },
+  "left": "Left",
+  "@left": {
+    "description": "Part of the output placements semantics label"
+  },
+  "pipelineOptions": "Pipeline Options",
+  "@pipelineOptions": {
+    "description": "Title for the Pipeline Options"
+  },
+  "input": "Input",
+  "@input": {
+    "description": "Text input label"
+  },
+  "name": "Name",
+  "@name": {
+    "description": "Text name label"
+  },
+  "value": "Value",
+  "@value": {
+    "description": "Text value label"
+  },
+  "addExample": "Add your own example",
+  "@addExample": {
+    "description": "Add example link text"
+  },
+  "exampleDescription": "Example Description",
+  "@exampleDescription": {
+    "description": "Description icon label"
+  },
+  "exampleMultifile": "Multifile",
+  "@exampleDescription": {
+    "exampleMultifile": "Multifile icon label"
+  },
+  "multifile": "Multifile",
+  "@multifile": {
+    "description": "Multifile example"
+  },
+  "multifileWarning": "Multifile not supported yet for running in playground. Open it on github.",
+  "@multifileWarning": {
+    "description": "Multifile not supported text"
+  },
+  "displayAtThisTab": "Display at this tab",
+  "@displayAtThisTab": {
+    "description": "Description for the output filter popover"
+  },
+  "result": "Result",
+  "@result": {
+    "description": "Name for the output tab"
+  },
+  "shareMyCode": "Share my code",
+  "@shareMyCode": {
+    "description": "Text for the share button"
+  },
+  "link": "Link",
+  "@link": {
+    "description": "Name of the Link tab in Share dropdown"
+  },
+  "embed": "Embed",
+  "@embed": {
+    "description": "Name of the Embed tab in Share dropdown"
+  },
+  "linkReady": "Link is ready! Anyone with this link can view your example.",
+  "@linkReady": {
+    "description": "Text that appears when user sees link to code sample"
+  },
+  "iframeCodeReady": "With this code you can embed Playground to your website.",
+  "@iframeCodeReady": {
+    "description": "Text that appears when user sees Playground iframe code"
+  }
+}
