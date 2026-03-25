@@ -33,6 +33,7 @@ import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TypeDescriptors;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 
+@SuppressWarnings("all")
 public class Quickstart {
   static final String PROJECT_ID = "apache-beam-testing";
   static final String BUCKET_NAME = "my-bucket";
