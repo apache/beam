@@ -1,0 +1,2 @@
+[console_scripts]
+python-grpc-tools-protoc = grpc_tools.protoc:entrypoint

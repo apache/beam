@@ -1234,19 +1234,8 @@ class PGBKOperation(Operation):
 
 
 class PGBKCVOperation(Operation):
-  """PGBKCVOperation GroupByKey with CombineValues operation.
-
-  Groups elements by key and performs 
-partial aggregation
-  of values to optimize data processing 
-before final grouping.
-
-  Used internally by Beam runners to improve 
-efficiency 
-  in distributed execution.
-  """
-
-  def __init__(self, name_context, spec, counter_factory, state_sampler, windowing=None):
+  def __init__(
+      self, name_context, spec, counter_factory, state_sampler, windowing=None):
     super(PGBKCVOperation,
           self).__init__(name_context, spec, counter_factory, state_sampler)
     # Combiners do not accept deferred side-inputs (the ignored fourth
