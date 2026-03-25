@@ -21,7 +21,7 @@ Apache Beam is built to maximize throughput by scaling workloads across thousand
 
 ## Centralized Rate Limit Service
 
-The recommended approach for global rate limiting in Beam is using a centralized Rate Limit Service (RLS). 
+The recommended approach for global rate limiting in Beam is using a centralized Rate Limit Service (RLS).
 
 A production-ready Terraform module to deploy this service on GKE is available in the beam repository:
 [`envoy-ratelimiter`](https://github.com/apache/beam/tree/master/examples/terraform/envoy-ratelimiter)

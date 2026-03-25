@@ -60,8 +60,9 @@ class SampleApiDoFn(beam.DoFn):
     logging.info("Processing element: %s", element)
     time.sleep(0.1)
     yield element
-# [END RateLimiterSimplePython]
 
+
+# [END RateLimiterSimplePython]
 
 
 def parse_known_args(argv):
