@@ -138,6 +138,11 @@ try:
       e.include_dirs.append(numpy.get_include())
     return extensions
 except ImportError:
+  warnings.warn(
+      "Cython not found, cython extensions will not be generated. " \
+      "To use cythonized extensions, pip install cython and run " \
+      "python setup.py build_ext --inplace"
+  )
   cythonize = lambda *args, **kwargs: []
 
 # [BEAM-8181] pyarrow cannot be installed on 32-bit Windows platforms.
@@ -163,12 +168,12 @@ dataframe_dependency = [
 milvus_dependency = ['pymilvus>=2.5.10,<3.0.0']
 
 ml_base = [
-    'embeddings>=0.0.4', # 0.0.3 crashes setuptools
+    'embeddings>=0.0.4',  # 0.0.3 crashes setuptools
     'onnxruntime',
     'langchain',
     'sentence-transformers>=2.2.2',
     'skl2onnx',
-    'pyod>=0.7.6', # 0.7.5 crashes setuptools
+    'pyod>=0.7.6',  # 0.7.5 crashes setuptools
     'tensorflow',
     # tensorflow transitive dep, lower versions not compatible with Python3.10+
     'absl-py>=0.12.0',
@@ -540,8 +545,7 @@ if __name__ == '__main__':
               'datatable',
               # tensorflow-transform requires dill, but doesn't set dill as a
               # hard requirement in setup.py.
-              'dill',
-              # match tft extra.
+              'dill',  # match tft extra.
               'tensorflow_transform>=1.14.0,<1.15.0',
               # TFT->TFX-BSL require pandas 1.x, which is not compatible
               # with numpy 2.x
@@ -555,7 +559,7 @@ if __name__ == '__main__':
               # 'xgboost<2.0',  # https://github.com/apache/beam/issues/31252
           ] + ml_base,
           'p310_ml_test': [
-            'datatable',
+              'datatable',
           ] + ml_base,
           'p312_ml_test': [
               'datatable',
@@ -596,8 +600,7 @@ if __name__ == '__main__':
           # https://docs.google.com/document/d/1c84Gc-cZRCfrU8f7kWGsNR2o8oSRjCM-dGHO9KvPWPw/edit?usp=sharing
           'torch': ['torch>=1.9.0,<2.8.0'],
           'tensorflow': [
-              'tensorflow>=2.12rc1,<2.21',
-              # tensorflow transitive dep
+              'tensorflow>=2.12rc1,<2.21',  # tensorflow transitive dep
               'absl-py>=0.12.0'
           ],
           'transformers': [
@@ -608,8 +611,7 @@ if __name__ == '__main__':
           'ml_cpu': [
               'tensorflow>=2.12.0',
               'torch==2.8.0+cpu',
-              'transformers>=4.28.0,<4.56.0',
-              # tensorflow transient dep
+              'transformers>=4.28.0,<4.56.0',  # tensorflow transient dep
               'absl-py>=0.12.0'
           ],
           'redis': ['redis>=5.0.0,<6'],
@@ -629,8 +631,7 @@ if __name__ == '__main__':
               'tensorflow==2.11.0',
               'tf2onnx==1.13.0',
               'skl2onnx==1.13',
-              'transformers==4.25.1',
-               # tensorflow transient dep
+              'transformers==4.25.1',  # tensorflow transient dep
               'absl-py>=0.12.0'
           ],
           'xgboost': ['xgboost>=1.6.0,<2.1.3', 'datatable==1.0.0'],
