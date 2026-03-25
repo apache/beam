@@ -17,13 +17,13 @@ limitations under the License.
 
 # Rate limiting patterns
 
-Apache Beam pipelines often process data at massive scale by scaling worloads across thousands of workers. This can easily overwhelm 3rd-party REST APIs, databases, or internal microservices. Without a centralized coordination, independent workers can easily overwhelm these systems, leading to service degradation or broad IP blocking.
+Apache Beam is built to maximize throughput by scaling workloads across thousands of workers. However, this massive parallelism becomes a liability when pipelines interact with external systems that enforce strict quotas, such as 3rd-party REST APIs, databases, or internal microservices. Without a centralized coordination mechanism, independent workers can easily overwhelm these systems, leading to service degradation or broad IP blocking.
 
 ## Centralized Rate Limit Service
 
 The recommended approach for global rate limiting in Beam is using a centralized Rate Limit Service (RLS). 
 
-A production-ready **Terraform** module to deploy this service on GKE is available in the beam repository:
+A production-ready Terraform module to deploy this service on GKE is available in the beam repository:
 [`envoy-ratelimiter`](https://github.com/apache/beam/tree/master/examples/terraform/envoy-ratelimiter)
 
 To deploy the rate-limiting infrastructure on GKE:
@@ -39,7 +39,7 @@ This script automates deployment and, upon completion, returns the Internal Load
 
 ## Using RateLimiter
 
-To rate limit requests in your pipeline, you create a RateLimiter client in your `DoFn`'s setup phase and acquire permits before making calls in the process phase.
+To rate limit requests in your pipeline, you can create a RateLimiter client in your `DoFn`'s setup phase and acquire permits before making calls in the process phase.
 
 {{< paragraph class="language-java" >}}
 In Java, use the `RateLimiter` interface and `EnvoyRateLimiterFactory` implementation to coordinate with the Envoy service. Create `RateLimiterOptions` with your service address, initialize the client in @Setup using `EnvoyRateLimiterFactory`, and call `rateLimiter.allow(batchSize)` in @ProcessElement to acquire a batch of permits.
@@ -57,26 +57,18 @@ In Python, use the `EnvoyRateLimiter` and <a href="/documentation/patterns/share
 {{< code_sample "sdks/python/apache_beam/examples/rate_limiter_simple.py" RateLimiterSimplePython >}}
 {{< /highlight >}}
 
+## AutoScaler Integration
+
+When using RateLimiter in your pipelines, the throttling time and signals will be picked up by the autoscaler. This allows the autoscaler to scale down the number of workers when the pipeline is being throttled by the external service, preventing unnecessary resource usage.
+
+**Dataflow** currently supports this AutoScaler integration for **Batch RunnerV2**. Note that AutoScaler integration for Streaming mode is a known limitation.
 
 {{< paragraph class="language-py" >}}
 If you are using **RunInference** for remote model inference (e.g., Vertex AI), you can pass the `EnvoyRateLimiter` directly to the `ModelHandler`. The model handler coordinates the rate limit internally across your distributed workers.
 {{< /paragraph >}}
 
 {{< highlight py >}}
-# Initialize the EnvoyRateLimiter
-rate_limiter = EnvoyRateLimiter(
-    service_address=known_args.rls_address,
-    domain="mongo_cps",
-    descriptors=[{"database": "users"}]
-)
-
-# Initialize the VertexAIModelHandler with the rate limiter
-model_handler = VertexAIModelHandlerJSON(
-    endpoint_id=known_args.endpoint_id,
-    project=known_args.project,
-    location=known_args.location,
-    rate_limiter=rate_limiter
-)
+{{< code_sample "sdks/python/apache_beam/examples/inference/rate_limiter_vertex_ai.py" RateLimiterVertexPy >}}
 {{< /highlight >}}
 
 ---
@@ -124,3 +116,8 @@ python -m apache_beam.examples.rate_limiter_simple \
 ```
 </div>
 
+## AutoScaler Integration
+
+The throttling time and signals from the RateLimiter has to be picked up by the autoscaler. This allows the autoscaler to scale down the workers when the pipeline is being throttled by the external service, preventing unnecessary resource usage.
+
+**Dataflow** currently supports this AutoScaler integration for **Batch RunnerV2**. Note that AutoScaler integration for Streaming mode is a known limitation.
