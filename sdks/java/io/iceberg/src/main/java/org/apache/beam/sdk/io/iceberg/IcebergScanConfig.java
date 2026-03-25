@@ -42,8 +42,6 @@ import org.checkerframework.checker.nullness.qual.MonotonicNonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.checkerframework.dataflow.qual.Pure;
 import org.joda.time.Duration;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 @AutoValue
 public abstract class IcebergScanConfig implements Serializable {
@@ -66,8 +64,6 @@ public abstract class IcebergScanConfig implements Serializable {
 
   @Pure
   public abstract String getTableIdentifier();
-
-  private static final Logger LOG = LoggerFactory.getLogger(IcebergScanConfig.class);
 
   @Pure
   public Table getTable() {
