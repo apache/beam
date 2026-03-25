@@ -397,12 +397,14 @@ public final class StreamingDataflowWorker {
                 watermarks,
                 processingContext,
                 drainMode,
+                appliedFinalizeIds,
                 getWorkStreamLatencies) ->
                 checkNotNull(computationStateCache)
                     .get(processingContext.computationId())
                     .ifPresent(
                         computationState -> {
                           memoryMonitor.waitForResources("GetWork");
+                          streamingWorkScheduler.queueAppliedFinalizeIds(appliedFinalizeIds);
                           streamingWorkScheduler.scheduleWork(
                               computationState,
                               workItem,
