@@ -494,12 +494,12 @@ public class ProcessBundleHandler {
                 }
 
                 @Override
-                public Supplier<Boolean> getHasNoState() {
+                public Supplier<Boolean> getHasNoStateSupplier() {
                   return hasNoState;
                 }
 
                 @Override
-                public Supplier<Boolean> getOnlyBundleForKeys() {
+                public Supplier<Boolean> getOnlyBundleForKeysSupplier() {
                   return onlyBundleForKeys;
                 }
               });
