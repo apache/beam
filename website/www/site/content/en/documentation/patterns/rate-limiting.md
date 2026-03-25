@@ -71,13 +71,11 @@ If you are using **RunInference** for remote model inference (e.g., Vertex AI), 
 
 Once your Rate Limiter Service is deployed and has an Internal IP, you can run your pipeline pointing to that address.
 
-<div class="language-java">
-
-```bash
+{{< highlight java >}}
 # Get the IP from your RLS deployment
 export RLS_ADDRESS="<INTERNAL_IP>:8081"
 
-./gradlew :examples:java:execute -DmainClass=org.apache.beam.examples.RateLimiterSimple \
+./gradlew :examples:java:exec -DmainClass=org.apache.beam.examples.RateLimiterSimple \
   -Dexec.args="--runner=DataflowRunner \
   --project=<YOUR_PROJECT_ID> \
   --region=<YOUR_REGION> \
@@ -86,12 +84,9 @@ export RLS_ADDRESS="<INTERNAL_IP>:8081"
   --rateLimiterDomain=mongo_cps \
   --subnetwork=regions/<YOUR_REGION>/subnetworks/<YOUR_SUBNET_NAME> \
   --usePublicIps=false"
-```
-</div>
+{{< /highlight >}}
 
-<div class="language-py">
-
-```bash
+{{< highlight py >}}
 # Get the IP from your RLS deployment
 export RLS_ADDRESS="<INTERNAL_IP>:8081"
 
@@ -103,8 +98,7 @@ python -m apache_beam.examples.rate_limiter_simple \
   --rls_address=${RLS_ADDRESS} \
   --subnetwork=regions/<YOUR_REGION>/subnetworks/<YOUR_SUBNET_NAME> \
   --no_use_public_ips
-```
-</div>
+{{< /highlight >}}
 
 ## AutoScaler Integration
 

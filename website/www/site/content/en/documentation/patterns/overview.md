@@ -56,7 +56,7 @@ Pipeline patterns demonstrate common Beam use cases. Pipeline patterns are based
 * [Dynamically grouping elements](/documentation/patterns/batch-elements/#dynamically-grouping-elements-using-the-`BatchElements`-transform)
 
 **Rate limiting patterns** - Patterns for rate limiting DoFns and Transforms in Beam pipelines
-* [Rate limiting DoFns and Transforms](/documentation/patterns/rate-limiting/#rate-limiting-dofns-and-transforms-in-beam-pipelines)
+* [Rate limiting DoFns and Transforms](/documentation/patterns/rate-limiting)
 
 **Cache with a shared object** - Patterns for using a shared object as a cache using the Python SDK
 * [Create a cache on a batch pipeline](/documentation/patterns/shared-class/#create-a-cache-on-a-batch-pipeline)
