@@ -993,33 +993,6 @@ class MicrosInstant(NoArgumentLogicalType[Timestamp,
 
 
 @LogicalType._register_internal
-class Date(NoArgumentLogicalType[datetime.date, np.int64]):
-  """Date logical type that handles ``datetime.date``, days since epoch."""
-  EPOCH = datetime.date(1970, 1, 1)
-
-  @classmethod
-  def urn(cls):
-    return common_urns.date.urn
-
-  @classmethod
-  def representation_type(cls):
-    # type: () -> type
-    return np.int64
-
-  @classmethod
-  def language_type(cls):
-    return datetime.date
-
-  def to_representation_type(self, value):
-    # type: (datetime.date) -> np.int64
-    return (value - self.EPOCH).days
-
-  def to_language_type(self, value):
-    # type: (np.int64) -> datetime.date
-    return self.EPOCH + datetime.timedelta(days=value)
-
-
-@LogicalType._register_internal
 class PythonCallable(NoArgumentLogicalType[PythonCallableWithSource, str]):
   """A logical type for PythonCallableSource objects."""
   @classmethod
@@ -1345,3 +1318,30 @@ class JdbcTimeType(LogicalType[datetime.time, MillisInstant, str]):
   @classmethod
   def _from_typing(cls, typ):
     return cls()
+
+
+@LogicalType._register_internal
+class Date(NoArgumentLogicalType[datetime.date, np.int64]):
+  """Date logical type that handles ``datetime.date``, days since epoch."""
+  EPOCH = datetime.date(1970, 1, 1)
+
+  @classmethod
+  def urn(cls):
+    return common_urns.date.urn
+
+  @classmethod
+  def representation_type(cls):
+    # type: () -> type
+    return np.int64
+
+  @classmethod
+  def language_type(cls):
+    return datetime.date
+
+  def to_representation_type(self, value):
+    # type: (datetime.date) -> np.int64
+    return (value - self.EPOCH).days
+
+  def to_language_type(self, value):
+    # type: (np.int64) -> datetime.date
+    return self.EPOCH + datetime.timedelta(days=value)
