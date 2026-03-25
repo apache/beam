@@ -64,12 +64,6 @@ import org.joda.time.Instant;
 public abstract class PTransformRunnerFactoryTestContext
     implements PTransformRunnerFactory.Context {
 
-  @Override
-  public abstract Supplier<Boolean> getHasNoState();
-
-  @Override
-  public abstract Supplier<Boolean> getOnlyBundleForKeys();
-
   /** Returns a builder for the specified PTransform id and PTransform definition. */
   public static Builder builder(String pTransformId, RunnerApi.PTransform pTransform) {
     return new AutoValue_PTransformRunnerFactoryTestContext.Builder()
