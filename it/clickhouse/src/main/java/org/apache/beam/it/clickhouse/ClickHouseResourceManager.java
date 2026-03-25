@@ -23,7 +23,6 @@ import java.sql.ResultSet;
 import java.sql.ResultSetMetaData;
 import java.sql.SQLException;
 import java.sql.Statement;
-import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -38,7 +37,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testcontainers.clickhouse.ClickHouseContainer;
 import org.testcontainers.containers.GenericContainer;
-import org.testcontainers.containers.wait.strategy.LogMessageWaitStrategy;
 import org.testcontainers.utility.DockerImageName;
 
 /**
@@ -74,10 +72,6 @@ public class ClickHouseResourceManager extends TestContainerResourceManager<Gene
                 DockerImageName.parse(builder.containerImageName)
                     .withTag(builder.containerImageTag))
             .withStartupAttempts(10);
-
-    Duration startupTimeout = Duration.ofMinutes(2);
-    container.setWaitStrategy(new LogMessageWaitStrategy().withStartupTimeout(startupTimeout));
-
     return container;
   }
 

@@ -39,7 +39,7 @@ dependencies {
     implementation library.java.testcontainers_base
     implementation library.java.testcontainers_clickhouse
     implementation "com.clickhouse:client-v2:$clickhouse_java_client_version:all"
-    runtimeOnly "com.clickhouse:clickhouse-jdbc:$clickhouse_java_client_version:all"
+    implementation "com.clickhouse:clickhouse-jdbc:$clickhouse_java_client_version:all"
 
     testImplementation(library.java.truth)
     testImplementation 'junit:junit:4.13.2'
@@ -51,5 +51,5 @@ dependencies {
     testRuntimeOnly library.java.slf4j_simple
 
     permitUnusedDeclared "com.clickhouse:client-v2:$clickhouse_java_client_version:all"
-
+    permitUnusedDeclared "com.clickhouse:clickhouse-jdbc:$clickhouse_java_client_version:all"
 }
