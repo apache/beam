@@ -69,6 +69,10 @@
 
 ## New Features / Improvements
 
+* (Python) Added foundation for UnboundedSource API: CheckpointMark, UnboundedReader, and UnboundedSource abstract base classes enabling support for continuous data streams in Apache Beam ([#19137](https://github.com/apache/beam/issues/19137)).
+* (Python) Added exception chaining to preserve error context in CloudSQLEnrichmentHandler, processes utilities, and core transforms ([#37422](https://github.com/apache/beam/issues/37422)).
+* (Python) Added `take(n)` convenience for PCollection: `beam.take(n)` and `pcoll.take(n)` to get the first N elements deterministically without Top.Of + FlatMap ([#X](https://github.com/apache/beam/issues/37429)).
+* X feature added (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
 * Added support for large pipeline options via a file (Python) ([#37370](https://github.com/apache/beam/issues/37370)).
 * Supported infer schema from dataclass (Python) ([#22085](https://github.com/apache/beam/issues/22085)). Default coder for typehint-ed (or set with_output_type) for non-frozen dataclasses changed to RowCoder. To preserve the old behavior (fast primitive coder), explicitly register the type with FastPrimitiveCoder.
 * Updates minimum Go version to 1.26.1 ([#37897](https://github.com/apache/beam/issues/37897)).
@@ -83,6 +87,7 @@
 
 ## Bugfixes
 
+* Fixed IndexError in `apache_beam.utils.processes` when pip subprocess fails with short command (e.g. `pip install pkg`) (Python) ([#37515](https://github.com/apache/beam/issues/37515)).
 * Fixed X (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
 
 ## Security Fixes
