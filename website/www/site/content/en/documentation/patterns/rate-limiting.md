@@ -57,12 +57,6 @@ In Python, use the `EnvoyRateLimiter` and <a href="/documentation/patterns/share
 {{< code_sample "sdks/python/apache_beam/examples/rate_limiter_simple.py" RateLimiterSimplePython >}}
 {{< /highlight >}}
 
-## AutoScaler Integration
-
-When using RateLimiter in your pipelines, the throttling time and signals will be picked up by the autoscaler. This allows the autoscaler to scale down the number of workers when the pipeline is being throttled by the external service, preventing unnecessary resource usage.
-
-**Dataflow** currently supports this AutoScaler integration for **Batch RunnerV2**. Note that AutoScaler integration for Streaming mode is a known limitation.
-
 {{< paragraph class="language-py" >}}
 If you are using **RunInference** for remote model inference (e.g., Vertex AI), you can pass the `EnvoyRateLimiter` directly to the `ModelHandler`. The model handler coordinates the rate limit internally across your distributed workers.
 {{< /paragraph >}}
@@ -78,8 +72,6 @@ If you are using **RunInference** for remote model inference (e.g., Vertex AI), 
 Once your Rate Limiter Service is deployed and has an Internal IP, you can run your pipeline pointing to that address.
 
 <div class="language-java">
-
-### Example Execution
 
 ```bash
 # Get the IP from your RLS deployment
@@ -98,8 +90,6 @@ export RLS_ADDRESS="<INTERNAL_IP>:8081"
 </div>
 
 <div class="language-py">
-
-### Example Execution
 
 ```bash
 # Get the IP from your RLS deployment
