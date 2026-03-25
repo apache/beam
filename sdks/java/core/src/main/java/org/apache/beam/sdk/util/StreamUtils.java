@@ -68,8 +68,8 @@ public class StreamUtils {
       if (initialReadSize == -1) {
         return new byte[0];
       }
-      int nextChar = stream.read();
-      if (nextChar == -1) {
+      int nextByte = stream.read();
+      if (nextByte == -1) {
         if (initialReadSize == available) {
           // Available reflected the full buffer and we copied directly to the
           // right size.
@@ -79,7 +79,7 @@ public class StreamUtils {
       }
       outputStream = new ByteArrayOutputStream();
       outputStream.write(initialBuffer, 0, initialReadSize);
-      outputStream.write(nextChar);
+      outputStream.write(nextByte);
     } else {
       outputStream = new ByteArrayOutputStream();
     }
