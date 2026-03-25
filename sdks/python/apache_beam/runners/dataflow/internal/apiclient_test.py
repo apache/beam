@@ -39,6 +39,7 @@ from apache_beam.portability import common_urns
 from apache_beam.portability.api import beam_runner_api_pb2
 from apache_beam.runners.dataflow.internal import names
 from apache_beam.transforms import Create
+from apache_beam.transforms import DataflowDistributionCounter
 from apache_beam.transforms import DoFn
 from apache_beam.transforms import ParDo
 from apache_beam.transforms.environments import DockerEnvironment
@@ -492,25 +493,25 @@ class UtilTest(unittest.TestCase):
         metric_update.distribution['count'], distribution_update.count)
 
 
-#   def test_translate_distribution_using_dataflow_distribution_counter(self):
-#     counter_update = DataflowDistributionCounter()
-#     counter_update.add_input(1)
-#     counter_update.add_input(3)
-#     metric_proto = dataflow.MetricUpdate()
-#     apiclient.translate_distribution(counter_update, metric_proto)
-#     histogram = mock.Mock(firstBucketOffset=None, bucketCounts=None)
-#     counter_update.translate_to_histogram(histogram)
-#     self.assertEqual(metric_proto.distribution['min'], counter_update.min)
-#     self.assertEqual(metric_proto.distribution['max'], counter_update.max)
-#     self.assertEqual(metric_proto.distribution['sum'], counter_update.sum)
-#     self.assertEqual(
-#         metric_proto.distribution['count'], counter_update.count)
-#     self.assertEqual(
-#         metric_proto.distribution.histogram.bucketCounts,
-#         histogram.bucketCounts)
-#     self.assertEqual(
-#         metric_proto.distribution.histogram.firstBucketOffset,
-#         histogram.firstBucketOffset)
+  def test_translate_distribution_using_dataflow_distribution_counter(self):
+    counter_update = DataflowDistributionCounter()
+    counter_update.add_input(1)
+    counter_update.add_input(3)
+    metric_proto = dataflow.MetricUpdate()
+    apiclient.translate_distribution(counter_update, metric_proto)
+    histogram = mock.Mock(firstBucketOffset=None, bucketCounts=None)
+    counter_update.translate_to_histogram(histogram)
+    self.assertEqual(metric_proto.distribution['min'], counter_update.min)
+    self.assertEqual(metric_proto.distribution['max'], counter_update.max)
+    self.assertEqual(metric_proto.distribution['sum'], counter_update.sum)
+    self.assertEqual(
+        metric_proto.distribution['count'], counter_update.count)
+    self.assertEqual(
+        metric_proto.distribution['firstBucketOffset'],
+        histogram.firstBucketOffset)
+    self.assertEqual(
+        metric_proto.distribution['bucketCounts'],
+        histogram.bucketCounts)
 
   def test_translate_means(self):
     metric_update = dataflow.MetricUpdate()

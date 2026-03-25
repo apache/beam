@@ -69,6 +69,7 @@ from apache_beam.runners.dataflow.internal import names
 from apache_beam.runners.internal import names as shared_names
 from apache_beam.runners.pipeline_utils import validate_pipeline_graph
 from apache_beam.runners.portability.stager import Stager
+from apache_beam.transforms import DataflowDistributionCounter
 from apache_beam.transforms import cy_combiners
 from apache_beam.transforms.display import DisplayData
 from apache_beam.transforms.environments import is_apache_beam_container
@@ -1109,6 +1110,12 @@ class _LegacyDataflowStager(Stager):
     return shared_names.BEAM_PACKAGE_NAME
 
 
+class Histogram(object):
+  def __init__(self):
+    self.firstBucketOffset = None
+    self.bucketCounts = None
+
+
 class DataflowJobAlreadyExistsError(retry.PermanentException):
   """A non-retryable exception that a job with the given name already exists."""
   # Inherits retry.PermanentException to avoid retry in
@@ -1133,9 +1140,11 @@ def translate_distribution(
   dist_update_proto.update({"count": distribution_update.count})
   dist_update_proto.update({"sum": distribution_update.sum})
   # DataflowDistributionCounter needs to translate histogram
-  # if isinstance(distribution_update, DataflowDistributionCounter):
-  #   dist_update_proto.histogram = dataflow.Histogram()
-  #   distribution_update.translate_to_histogram(dist_update_proto.histogram)
+  if isinstance(distribution_update, DataflowDistributionCounter):
+    histogram = Histogram()
+    distribution_update.translate_to_histogram(histogram)
+    dist_update_proto.update({"firstBucketOffset": histogram.firstBucketOffset})
+    dist_update_proto.update({"bucketCounts": histogram.bucketCounts})
   metric_update_proto.distribution = dist_update_proto
 
 
