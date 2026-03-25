@@ -1340,13 +1340,14 @@ class UtilTest(unittest.TestCase):
                     ])
             }))
     client = apiclient.DataflowApplicationClient(pipeline_options)
-    with mock.patch.object(apiclient._LegacyDataflowStager,
-                           'stage_job_resources') as mock_stager:
-      client._stage_resources(pipeline, pipeline_options)
+    with mock.patch.object(apiclient.DataflowApplicationClient, '_compute_sha256', return_value='dummy_hash'):
+      with mock.patch.object(apiclient._LegacyDataflowStager,
+                             'stage_job_resources') as mock_stager:
+        client._stage_resources(pipeline, pipeline_options)
     mock_stager.assert_called_once_with(
-        [('/tmp/foo1', 'foo1', ''), ('/tmp/bar1', 'bar1', ''),
-         ('/tmp/baz', 'baz1', ''), ('/tmp/renamed1', 'renamed1', 'abcdefg'),
-         ('/tmp/foo2', 'foo2', ''), ('/tmp/bar2', 'bar2', '')],
+        [('/tmp/foo1', 'foo1', 'dummy_hash'), ('/tmp/bar1', 'bar1', 'dummy_hash'),
+         ('/tmp/baz', 'baz1', 'dummy_hash'), ('/tmp/renamed1', 'renamed1', 'abcdefg'),
+         ('/tmp/foo2', 'foo2', 'dummy_hash'), ('/tmp/bar2', 'bar2', 'dummy_hash')],
         staging_location='gs://test-location/staging')
 
     pipeline_expected = beam_runner_api_pb2.Pipeline(
@@ -1357,7 +1358,8 @@ class UtilTest(unittest.TestCase):
                         beam_runner_api_pb2.ArtifactInformation(
                             type_urn=common_urns.artifact_types.URL.urn,
                             type_payload=beam_runner_api_pb2.ArtifactUrlPayload(
-                                url='gs://test-location/staging/foo1'
+                                url='gs://test-location/staging/foo1',
+                                sha256='dummy_hash'
                             ).SerializeToString(),
                             role_urn=common_urns.artifact_roles.STAGING_TO.urn,
                             role_payload=beam_runner_api_pb2.
@@ -1366,7 +1368,8 @@ class UtilTest(unittest.TestCase):
                         beam_runner_api_pb2.ArtifactInformation(
                             type_urn=common_urns.artifact_types.URL.urn,
                             type_payload=beam_runner_api_pb2.ArtifactUrlPayload(
-                                url='gs://test-location/staging/bar1').
+                                url='gs://test-location/staging/bar1',
+                                sha256='dummy_hash').
                             SerializeToString(),
                             role_urn=common_urns.artifact_roles.STAGING_TO.urn,
                             role_payload=beam_runner_api_pb2.
@@ -1375,7 +1378,8 @@ class UtilTest(unittest.TestCase):
                         beam_runner_api_pb2.ArtifactInformation(
                             type_urn=common_urns.artifact_types.URL.urn,
                             type_payload=beam_runner_api_pb2.ArtifactUrlPayload(
-                                url='gs://test-location/staging/baz1').
+                                url='gs://test-location/staging/baz1',
+                                sha256='dummy_hash').
                             SerializeToString(),
                             role_urn=common_urns.artifact_roles.STAGING_TO.urn,
                             role_payload=beam_runner_api_pb2.
@@ -1396,7 +1400,8 @@ class UtilTest(unittest.TestCase):
                         beam_runner_api_pb2.ArtifactInformation(
                             type_urn=common_urns.artifact_types.URL.urn,
                             type_payload=beam_runner_api_pb2.ArtifactUrlPayload(
-                                url='gs://test-location/staging/foo2').
+                                url='gs://test-location/staging/foo2',
+                                sha256='dummy_hash').
                             SerializeToString(),
                             role_urn=common_urns.artifact_roles.STAGING_TO.urn,
                             role_payload=beam_runner_api_pb2.
@@ -1405,7 +1410,8 @@ class UtilTest(unittest.TestCase):
                         beam_runner_api_pb2.ArtifactInformation(
                             type_urn=common_urns.artifact_types.URL.urn,
                             type_payload=beam_runner_api_pb2.ArtifactUrlPayload(
-                                url='gs://test-location/staging/bar2').
+                                url='gs://test-location/staging/bar2',
+                                sha256='dummy_hash').
                             SerializeToString(),
                             role_urn=common_urns.artifact_roles.STAGING_TO.urn,
                             role_payload=beam_runner_api_pb2.
@@ -1414,7 +1420,8 @@ class UtilTest(unittest.TestCase):
                         beam_runner_api_pb2.ArtifactInformation(
                             type_urn=common_urns.artifact_types.URL.urn,
                             type_payload=beam_runner_api_pb2.ArtifactUrlPayload(
-                                url='gs://test-location/staging/baz1').
+                                url='gs://test-location/staging/baz1',
+                                sha256='dummy_hash').
                             SerializeToString(),
                             role_urn=common_urns.artifact_roles.STAGING_TO.urn,
                             role_payload=beam_runner_api_pb2.

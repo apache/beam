@@ -266,6 +266,19 @@ func TestNewRetrieveWithResolution(t *testing.T) {
 	checkStagedFiles(mds, dest, expected, t)
 }
 
+func TestNewRetrieveWithBadShaFails(t *testing.T) {
+	expected := map[string]string{"a.txt": "a"}
+	client := &fakeRetrievalService{artifacts: expected}
+	dest := makeTempDir(t)
+	defer os.RemoveAll(dest)
+	ctx := grpcx.WriteWorkerID(context.Background(), "worker")
+
+	_, err := newMaterializeWithClient(ctx, client, client.fileArtifactsWithBadSha(), dest)
+	if err == nil {
+		t.Fatalf("expected materialization to fail due to bad sha256 mismatch")
+	}
+}
+
 func checkStagedFiles(mds []*pipepb.ArtifactInformation, dest string, expected map[string]string, t *testing.T) {
 	if len(mds) != len(expected) {
 		t.Errorf("wrong number of artifacts staged %v vs %v", len(mds), len(expected))
@@ -315,6 +328,21 @@ func (fake *fakeRetrievalService) fileArtifactsWithoutStagingTo() []*pipepb.Arti
 	for name := range fake.artifacts {
 		payload, _ := proto.Marshal(&pipepb.ArtifactFilePayload{
 			Path: filepath.Join("/tmp", name)})
+		artifacts = append(artifacts, &pipepb.ArtifactInformation{
+			TypeUrn:     URNFileArtifact,
+			TypePayload: payload,
+		})
+	}
+	return artifacts
+}
+
+func (fake *fakeRetrievalService) fileArtifactsWithBadSha() []*pipepb.ArtifactInformation {
+	var artifacts []*pipepb.ArtifactInformation
+	for name := range fake.artifacts {
+		payload, _ := proto.Marshal(&pipepb.ArtifactFilePayload{
+			Path:   filepath.Join("/tmp", name),
+			Sha256: "badhash",
+		})
 		artifacts = append(artifacts, &pipepb.ArtifactInformation{
 			TypeUrn:     URNFileArtifact,
 			TypePayload: payload,
