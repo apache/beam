@@ -108,3 +108,8 @@ pipelines:
         - type: ReadFromJson
           config:
             path: "{TEMP_DIR}/error.json*"
+        - type: AssertEqual
+          config:
+            elements:
+              - {file: "gs://dummy-bucket/does-not-exist.txt", error: "Could not determine the file's format"}
+
