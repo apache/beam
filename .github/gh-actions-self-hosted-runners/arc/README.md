@@ -16,7 +16,7 @@
     limitations under the License.
 -->
 
-# Actions Runner Contoler
+# Actions Runner Controller
 
 # About
 Check out the docs at https://github.com/actions/actions-runner-controller/blob/master/docs/about-arc.md
