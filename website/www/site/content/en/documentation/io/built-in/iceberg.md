@@ -1,5 +1,5 @@
 ---
-title: "Apache Iceberg"
+title: "Apache Iceberg I/O connector"
 ---
 <!--
 Licensed under the Apache License, Version 2.0 (the "License");
@@ -96,7 +96,7 @@ When you've met those prerequisites, start by setting up your catalog:
   );
 {{< /highlight >}}
 {{< highlight java>}}
-  {{< code_sample "examples/java/src/main/java/org/apache/beam/examples/snippets/transforms/io/iceberg/Quickstart.java" biglake_public_catalog_props >}}
+  {{< code_sample "examples/java/iceberg/src/main/java/org/apache/beam/examples/iceberg/snippets/Quickstart.java" biglake_public_catalog_props >}}
 {{< /highlight >}}
 {{< highlight py >}}
   {{< code_sample "sdks/python/apache_beam/examples/snippets/snippets.py" biglake_public_catalog_props >}}
@@ -130,7 +130,7 @@ Now simply query the public dataset:
     num_trips DESC;
 {{< /highlight >}}
 {{< highlight java>}}
-  {{< code_sample "examples/java/src/main/java/org/apache/beam/examples/snippets/transforms/io/iceberg/Quickstart.java" biglake_public_query >}}
+  {{< code_sample "examples/java/iceberg/src/main/java/org/apache/beam/examples/iceberg/snippets/Quickstart.java" biglake_public_query >}}
 {{< /highlight >}}
 {{< highlight py >}}
   {{< code_sample "sdks/python/apache_beam/examples/snippets/snippets.py" biglake_public_query >}}
@@ -181,7 +181,7 @@ Beam supports a wide variety of Iceberg catalogs, but this guide focuses on two 
     );
   {{< /highlight >}}
   {{< highlight java>}}
-    {{< code_sample "examples/java/src/main/java/org/apache/beam/examples/snippets/transforms/io/iceberg/Quickstart.java" hadoop_catalog_props >}}
+    {{< code_sample "examples/java/iceberg/src/main/java/org/apache/beam/examples/iceberg/snippets/Quickstart.java" hadoop_catalog_props >}}
   {{< /highlight >}}
   {{< highlight py >}}
     {{< code_sample "sdks/python/apache_beam/examples/snippets/snippets.py" hadoop_catalog_config >}}
@@ -215,7 +215,7 @@ built-in credential delegation and unified metadata management. It requires a fe
   );
   {{< /highlight >}}
   {{< highlight java>}}
-  {{< code_sample "examples/java/src/main/java/org/apache/beam/examples/snippets/transforms/io/iceberg/Quickstart.java" biglake_catalog_props >}}
+  {{< code_sample "examples/java/iceberg/src/main/java/org/apache/beam/examples/iceberg/snippets/Quickstart.java" biglake_catalog_props >}}
   {{< /highlight >}}
   {{< highlight py >}}
   {{< code_sample "sdks/python/apache_beam/examples/snippets/snippets.py" biglake_catalog_props >}}
@@ -255,7 +255,7 @@ CREATE EXTERNAL TABLE my_catalog.my_db.my_table (
 TYPE 'iceberg'
 {{< /highlight >}}
 {{< highlight java>}}
-{{< code_sample "examples/java/src/main/java/org/apache/beam/examples/snippets/transforms/io/iceberg/Quickstart.java" managed_iceberg_config >}}
+{{< code_sample "examples/java/iceberg/src/main/java/org/apache/beam/examples/iceberg/snippets/Quickstart.java" managed_iceberg_config >}}
 {{< /highlight >}}
 {{< highlight py >}}
 {{< code_sample "sdks/python/apache_beam/examples/snippets/snippets.py" managed_iceberg_config >}}
@@ -280,7 +280,7 @@ INSERT INTO my_catalog.my_db.my_table VALUES
     (3, 'Rachel', 27);
 {{< /highlight >}}
 {{< highlight java>}}
-{{< code_sample "examples/java/src/main/java/org/apache/beam/examples/snippets/transforms/io/iceberg/Quickstart.java" managed_iceberg_insert >}}
+{{< code_sample "examples/java/iceberg/src/main/java/org/apache/beam/examples/iceberg/snippets/Quickstart.java" managed_iceberg_insert >}}
 {{< /highlight >}}
 {{< highlight py >}}
 {{< code_sample "sdks/python/apache_beam/examples/snippets/snippets.py" managed_iceberg_insert >}}
@@ -323,7 +323,7 @@ SHOW TABLES my_catalog.my_db;
 SELECT * FROM my_catalog.my_db.my_table;
 {{< /highlight >}}
 {{< highlight java>}}
-{{< code_sample "examples/java/src/main/java/org/apache/beam/examples/snippets/transforms/io/iceberg/Quickstart.java" managed_iceberg_read >}}
+{{< code_sample "examples/java/iceberg/src/main/java/org/apache/beam/examples/iceberg/snippets/Quickstart.java" managed_iceberg_read >}}
 {{< /highlight >}}
 {{< highlight py >}}
 {{< code_sample "sdks/python/apache_beam/examples/snippets/snippets.py" managed_iceberg_read >}}
@@ -368,7 +368,7 @@ the standard mapping for core data types across SQL, Java, Python, and YAML:
   )
 {{< /highlight >}}
 {{< highlight java >}}
-  {{< code_sample "examples/java/src/main/java/org/apache/beam/examples/snippets/transforms/io/iceberg/IcebergBeamSchemaAndRow.java" iceberg_schema_and_row >}}
+  {{< code_sample "examples/java/iceberg/src/main/java/org/apache/beam/examples/iceberg/snippets/IcebergBeamSchemaAndRow.java" iceberg_schema_and_row >}}
 {{< /highlight >}}
 {{< highlight py >}}
   {{< code_sample "sdks/python/apache_beam/examples/snippets/snippets.py" model_managed_iceberg_data_types >}}
