@@ -229,6 +229,8 @@ class HuggingFaceModelHandlerKeyedTensor(ModelHandler[dict[str,
       model_copies: Optional[int] = None,
       max_batch_weight: Optional[int] = None,
       element_size_fn: Optional[Callable[[Any], int]] = None,
+      batch_length_fn: Optional[Callable[[Any], int]] = None,
+      batch_bucket_boundaries: Optional[list[int]] = None,
       **kwargs):
     """
     Implementation of the ModelHandler interface for HuggingFace with
@@ -266,6 +268,10 @@ class HuggingFaceModelHandlerKeyedTensor(ModelHandler[dict[str,
         GPU capacity and want to maximize resource utilization.
       max_batch_weight: the maximum total weight of a batch.
       element_size_fn: a function that returns the size (weight) of an element.
+      batch_length_fn: a callable that returns the length of an element for
+        length-aware batching.
+      batch_bucket_boundaries: a sorted list of positive boundary values for
+        length-aware batching buckets.
       kwargs: 'env_vars' can be used to set environment variables
         before loading the model.
 
@@ -278,6 +284,8 @@ class HuggingFaceModelHandlerKeyedTensor(ModelHandler[dict[str,
         max_batch_duration_secs=max_batch_duration_secs,
         max_batch_weight=max_batch_weight,
         element_size_fn=element_size_fn,
+        batch_length_fn=batch_length_fn,
+        batch_bucket_boundaries=batch_bucket_boundaries,
         large_model=large_model,
         model_copies=model_copies,
         **kwargs)
@@ -411,6 +419,8 @@ class HuggingFaceModelHandlerTensor(ModelHandler[Union[tf.Tensor, torch.Tensor],
       model_copies: Optional[int] = None,
       max_batch_weight: Optional[int] = None,
       element_size_fn: Optional[Callable[[Any], int]] = None,
+      batch_length_fn: Optional[Callable[[Any], int]] = None,
+      batch_bucket_boundaries: Optional[list[int]] = None,
       **kwargs):
     """
     Implementation of the ModelHandler interface for HuggingFace with
@@ -448,6 +458,10 @@ class HuggingFaceModelHandlerTensor(ModelHandler[Union[tf.Tensor, torch.Tensor],
         GPU capacity and want to maximize resource utilization.
       max_batch_weight: the maximum total weight of a batch.
       element_size_fn: a function that returns the size (weight) of an element.
+      batch_length_fn: a callable that returns the length of an element for
+        length-aware batching.
+      batch_bucket_boundaries: a sorted list of positive boundary values for
+        length-aware batching buckets.
       kwargs: 'env_vars' can be used to set environment variables
         before loading the model.
 
@@ -460,6 +474,8 @@ class HuggingFaceModelHandlerTensor(ModelHandler[Union[tf.Tensor, torch.Tensor],
         max_batch_duration_secs=max_batch_duration_secs,
         max_batch_weight=max_batch_weight,
         element_size_fn=element_size_fn,
+        batch_length_fn=batch_length_fn,
+        batch_bucket_boundaries=batch_bucket_boundaries,
         large_model=large_model,
         model_copies=model_copies,
         **kwargs)
@@ -576,6 +592,8 @@ class HuggingFacePipelineModelHandler(ModelHandler[str,
       model_copies: Optional[int] = None,
       max_batch_weight: Optional[int] = None,
       element_size_fn: Optional[Callable[[Any], int]] = None,
+      batch_length_fn: Optional[Callable[[Any], int]] = None,
+      batch_bucket_boundaries: Optional[list[int]] = None,
       **kwargs):
     """
     Implementation of the ModelHandler interface for Hugging Face Pipelines.
@@ -621,6 +639,10 @@ class HuggingFacePipelineModelHandler(ModelHandler[str,
         GPU capacity and want to maximize resource utilization.
       max_batch_weight: the maximum total weight of a batch.
       element_size_fn: a function that returns the size (weight) of an element.
+      batch_length_fn: a callable that returns the length of an element for
+        length-aware batching.
+      batch_bucket_boundaries: a sorted list of positive boundary values for
+        length-aware batching buckets.
       kwargs: 'env_vars' can be used to set environment variables
         before loading the model.
 
@@ -633,6 +655,8 @@ class HuggingFacePipelineModelHandler(ModelHandler[str,
         max_batch_duration_secs=max_batch_duration_secs,
         max_batch_weight=max_batch_weight,
         element_size_fn=element_size_fn,
+        batch_length_fn=batch_length_fn,
+        batch_bucket_boundaries=batch_bucket_boundaries,
         large_model=large_model,
         model_copies=model_copies,
         **kwargs)
