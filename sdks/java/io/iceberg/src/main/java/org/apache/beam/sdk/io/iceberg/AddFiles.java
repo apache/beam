@@ -23,6 +23,7 @@ import static org.apache.beam.sdk.metrics.Metrics.counter;
 import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
 import static org.apache.beam.sdk.values.PCollection.IsBounded.BOUNDED;
 
+import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.channels.SeekableByteChannel;
@@ -81,6 +82,7 @@ import org.apache.iceberg.avro.Avro;
 import org.apache.iceberg.catalog.TableIdentifier;
 import org.apache.iceberg.data.Record;
 import org.apache.iceberg.exceptions.AlreadyExistsException;
+import org.apache.iceberg.exceptions.NoSuchTableException;
 import org.apache.iceberg.io.CloseableIterable;
 import org.apache.iceberg.io.InputFile;
 import org.apache.iceberg.mapping.MappingUtil;
@@ -240,7 +242,18 @@ public class AddFiles extends PTransform<PCollection<String>, PCollectionRowTupl
       }
 
       if (table == null) {
-        table = getOrCreateTable(getSchema(filePath, format));
+        try {
+          table = getOrCreateTable(filePath, format);
+        } catch (FileNotFoundException e) {
+          output
+              .get(ERRORS)
+              .output(
+                  Row.withSchema(ERROR_SCHEMA)
+                      .addValues(filePath, checkStateNotNull(e.getMessage()))
+                      .build());
+          numErrorFiles.inc();
+          return;
+        }
       }
 
       // Check if the file path contains the provided prefix
@@ -256,9 +269,24 @@ public class AddFiles extends PTransform<PCollection<String>, PCollectionRowTupl
 
       InputFile inputFile = table.io().newInputFile(filePath);
 
-      Metrics metrics =
-          getFileMetrics(
-              inputFile, format, MetricsConfig.forTable(table), MappingUtil.create(table.schema()));
+      Metrics metrics;
+      try {
+        metrics =
+            getFileMetrics(
+                inputFile,
+                format,
+                MetricsConfig.forTable(table),
+                MappingUtil.create(table.schema()));
+      } catch (FileNotFoundException e) {
+        output
+            .get(ERRORS)
+            .output(
+                Row.withSchema(ERROR_SCHEMA)
+                    .addValues(filePath, checkStateNotNull(e.getMessage()))
+                    .build());
+        numErrorFiles.inc();
+        return;
+      }
 
       // Figure out which partition this DataFile should go to
       String partitionPath;
@@ -304,16 +332,23 @@ public class AddFiles extends PTransform<PCollection<String>, PCollectionRowTupl
       return transform.bind(type).apply((W) value);
     }
 
-    private Table getOrCreateTable(org.apache.iceberg.Schema schema) {
-      PartitionSpec spec = PartitionUtils.toPartitionSpec(partitionFields, schema);
+    private Table getOrCreateTable(String filePath, FileFormat format) throws IOException {
+      TableIdentifier tableId = TableIdentifier.parse(identifier);
       try {
-        return tableProps == null
-            ? catalogConfig.catalog().createTable(TableIdentifier.parse(identifier), schema, spec)
-            : catalogConfig
-                .catalog()
-                .createTable(TableIdentifier.parse(identifier), schema, spec, tableProps);
-      } catch (AlreadyExistsException e) { // if table already exists, just load it
-        return catalogConfig.catalog().loadTable(TableIdentifier.parse(identifier));
+        return catalogConfig.catalog().loadTable(tableId);
+      } catch (NoSuchTableException e) {
+        try {
+          org.apache.iceberg.Schema schema = getSchema(filePath, format);
+          PartitionSpec spec = PartitionUtils.toPartitionSpec(partitionFields, schema);
+
+          return tableProps == null
+              ? catalogConfig.catalog().createTable(TableIdentifier.parse(identifier), schema, spec)
+              : catalogConfig
+                  .catalog()
+                  .createTable(TableIdentifier.parse(identifier), schema, spec, tableProps);
+        } catch (AlreadyExistsException e2) { // if table already exists, just load it
+          return catalogConfig.catalog().loadTable(TableIdentifier.parse(identifier));
+        }
       }
     }
 

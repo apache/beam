@@ -23,6 +23,7 @@ import static org.apache.beam.sdk.io.iceberg.AddFiles.ConvertToDataFile.getParti
 import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkState;
 import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.hasEntry;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThrows;
@@ -422,8 +423,6 @@ public class AddFilesTest {
 
   @Test
   public void testRecognizesBucketPartitionMismatch() throws IOException {
-    catalog.dropTable(tableId);
-
     String file1 = root + "data1.parquet";
     wrapper.wrap(record(-1, "And", 30));
     DataWriter<Record> writer = createWriter(file1, wrapper.copy());
@@ -461,6 +460,30 @@ public class AddFilesTest {
                     UNKNOWN_PARTITION_ERROR
                         + "Found records with conflicting transformed values, for column: id")
                 .build());
+    pipeline.run().waitUntilFinish();
+  }
+
+  @Test
+  public void testCatchFileNotFoundException() throws IOException {
+    String file = root + "non-existent.parquet";
+
+    PCollectionRowTuple outputTuple =
+        pipeline
+            .apply("Create Input", Create.of(file))
+            .apply(new AddFiles(catalogConfig, tableId.toString(), null, null, null, 1, null));
+
+    PAssert.that(outputTuple.get("errors"))
+        .satisfies(
+            rows -> {
+              Row error = Iterables.getOnlyElement(rows);
+              String errorFile = error.getString("file");
+              String message = error.getString("error");
+
+              assertEquals(file, errorFile);
+              assertThat(message, containsString("No files found"));
+              assertThat(message, containsString(errorFile));
+              return null;
+            });
     pipeline.run().waitUntilFinish();
   }
 
