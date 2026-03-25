@@ -20,6 +20,21 @@ fixtures:
     type: "tempfile.TemporaryDirectory"
 
 pipelines:
+  # Pipeline 0: Initialize Iceberg table
+  - pipeline:
+      type: chain
+      transforms:
+        - type: Create
+          config:
+            elements:
+              - {label: "dummy", rank: -1, bool: true}
+        - type: WriteToIceberg
+          config:
+            table: "default.table"
+            catalog_properties:
+              type: "hadoop"
+              warehouse: "{TEMP_DIR}/dir"
+
   # Pipeline 1: Write a dummy Parquet file
   - pipeline:
       type: chain
@@ -36,6 +51,7 @@ pipelines:
         - type: WriteToParquet
           config:
             path: "{TEMP_DIR}/data/data"
+            file_name_suffix: ".parquet"
 
   # Pipeline 2: Add our generated file to the Iceberg table
   - pipeline:
@@ -45,7 +61,7 @@ pipelines:
           config:
             elements:
               # By default, Beam writes a sharded file like <prefix>-00000-of-00001
-              - {file: "{TEMP_DIR}/data/data-00000-of-00001"}
+              - {file: "{TEMP_DIR}/data/data-00000-of-00001.parquet"}
         - type: IcebergAddFiles
           config:
             table: "default.table"
@@ -53,3 +69,24 @@ pipelines:
             catalog_properties:
               type: "hadoop"
               warehouse: "{TEMP_DIR}/dir"
+
+  # Pipeline 3: Read from Iceberg and verify the contents
+  - pipeline:
+      type: chain
+      transforms:
+        - type: ReadFromIceberg
+          config:
+            table: "default.table"
+            catalog_properties:
+              type: "hadoop"
+              warehouse: "{TEMP_DIR}/dir"
+        - type: AssertEqual
+          config:
+            elements:
+              - {label: "dummy", rank: -1, bool: true}
+              - {label: "11a", rank: 0, bool: true}
+              - {label: "37a", rank: 1, bool: false}
+              - {label: "389a", rank: 2, bool: false}
+              - {label: "3821b", rank: 3, bool: true}
+              - {label: "990c", rank: 4, bool: true}
+              - {label: "1024d", rank: 5, bool: false}
