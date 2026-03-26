@@ -4206,6 +4206,11 @@ output_pc = input_pc | beam.Select("user_id")
 Support for Nested fields hasn't been developed for the Python SDK yet.
 {{< /paragraph >}}
 
+<< highlight py >>
+input_pc = ...  # {"shippingAddress": {"postCode": "12345"}}
+output_pc = input_pc | beam.Select("shippingAddress.postCode")
+<< /highlight >>
+
 {{< paragraph class="language-go">}}
 Support for Nested fields hasn't been developed for the Go SDK yet.
 {{< /paragraph >}}
