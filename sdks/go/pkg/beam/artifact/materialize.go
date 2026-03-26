@@ -527,12 +527,12 @@ type contextKey string
 
 const pipelineOptionsKey contextKey = "pipeline_options"
 
-// Returns a new context carrying the full pipeline options struct.
+// WithPipelineOptions returns a new context carrying the full pipeline options struct.
 func WithPipelineOptions(ctx context.Context, options *structpb.Struct) context.Context {
 	return context.WithValue(ctx, pipelineOptionsKey, options)
 }
 
-// Parses pipeline options to check if "disable_integrity_checks" is enabled.
+// isArtifactValidationEnabled parses pipeline options to check if "disable_integrity_checks" is enabled.
 func isArtifactValidationEnabled(ctx context.Context) bool {
 	options, _ := ctx.Value(pipelineOptionsKey).(*structpb.Struct)
 	if options != nil {
