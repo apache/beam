@@ -162,11 +162,3 @@ playground/cloudfunction.zip
 # as its generated with terraform
 .test-infra/metrics/sync/github/github_runs_prefetcher/code.zip
 .venv/
-
-
-beam-env/
-build/
-*.pyc 
-__pycache__/
-*.pyd
-*.egg-info/
