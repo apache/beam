@@ -362,7 +362,7 @@ public class BeamFnDataOutboundAggregator {
     }
 
     public boolean hasBufferedOutput() {
-      return output.isEmpty();
+      return !output.isEmpty();
     }
 
     public ByteString toByteStringAndResetBuffer() {
