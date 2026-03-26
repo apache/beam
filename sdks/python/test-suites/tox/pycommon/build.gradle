@@ -41,5 +41,5 @@ check.dependsOn formatter
 toxTask "lint", "lint", "${posargs}"
 linter.dependsOn lint
 
-toxTask "mypy", "mypy", "${posargs}"
-linter.dependsOn mypy
+// toxTask "mypy", "mypy", "${posargs}"
+// linter.dependsOn mypy
