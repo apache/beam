@@ -287,7 +287,7 @@ public class DataflowPipelineTranslatorTest implements Serializable {
 
   @Test
   public void testRepeatedCountTriggerDisablesCombinerLifting() throws IOException, Exception {
-    testTriggerCombinerLiftingDisabled(Repeatedly.forever((AfterPane.elementCountAtLeast(1))));
+    testTriggerCombinerLiftingDisabled(Repeatedly.forever(AfterPane.elementCountAtLeast(1)));
   }
 
   @Test

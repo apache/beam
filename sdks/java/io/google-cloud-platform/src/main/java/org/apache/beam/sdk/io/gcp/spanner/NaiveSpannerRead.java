@@ -122,7 +122,7 @@ abstract class NaiveSpannerRead
       } catch (SpannerException e) {
         serviceCallMetric.call(e.getErrorCode().getGrpcStatusCode().toString());
         LOG.error("Error while reading operation: {}", op, e);
-        throw (e);
+        throw e;
       }
       serviceCallMetric.call("ok");
       // Report Lineage metrics

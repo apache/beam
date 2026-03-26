@@ -478,7 +478,7 @@ public abstract class DataflowExecutionContext<T extends DataflowStepContext> {
         return;
       }
       int processingTime =
-          (int) (this.activeMessageMetadata.stopwatch().elapsed(TimeUnit.MILLISECONDS));
+          (int) this.activeMessageMetadata.stopwatch().elapsed(TimeUnit.MILLISECONDS);
       this.processingTimesByStep.compute(
           this.activeMessageMetadata.userStepName(),
           (k, v) -> {

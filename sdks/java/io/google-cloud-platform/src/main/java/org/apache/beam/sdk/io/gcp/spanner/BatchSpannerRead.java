@@ -256,7 +256,7 @@ abstract class BatchSpannerRead
         serviceCallMetric.call(e.getErrorCode().getGrpcStatusCode().toString());
         LOG.error(
             "Error while reading partition for operation: {}", op.getReadOperation().toString(), e);
-        throw (e);
+        throw e;
       }
       serviceCallMetric.call("ok");
       // Report Lineage metrics

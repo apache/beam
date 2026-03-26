@@ -1112,7 +1112,7 @@ public abstract class DoFnSignature {
           extraParameters().stream()
               .filter(Predicates.instanceOf(OutputReceiverParameter.class)::apply)
               .findFirst();
-      return parameter.isPresent() ? ((OutputReceiverParameter) parameter.get()) : null;
+      return parameter.isPresent() ? (OutputReceiverParameter) parameter.get() : null;
     }
 
     /**

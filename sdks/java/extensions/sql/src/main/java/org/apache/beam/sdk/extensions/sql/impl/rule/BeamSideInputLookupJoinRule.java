@@ -47,15 +47,14 @@ public class BeamSideInputLookupJoinRule extends ConverterRule {
   @Override
   public boolean matches(RelOptRuleCall call) {
     RelNode joinRel = call.rel(0);
-    boolean matches = BeamJoinRel.containsSeekableInput(joinRel);
-    return (matches);
+    return BeamJoinRel.containsSeekableInput(joinRel);
   }
 
   @Override
   public RelNode convert(RelNode rel) {
     Join join = (Join) rel;
 
-    return (new BeamSideInputLookupJoinRel(
+    return new BeamSideInputLookupJoinRel(
         join.getCluster(),
         join.getTraitSet().replace(BeamLogicalConvention.INSTANCE),
         convert(
@@ -64,6 +63,6 @@ public class BeamSideInputLookupJoinRule extends ConverterRule {
             join.getRight(), join.getRight().getTraitSet().replace(BeamLogicalConvention.INSTANCE)),
         join.getCondition(),
         join.getVariablesSet(),
-        join.getJoinType()));
+        join.getJoinType());
   }
 }

@@ -49,7 +49,7 @@ jobs:
         with:
           ref: ${{ github.event.pull_request.merged == true && github.base_ref || github.event.pull_request.head.sha }}
       - name: Setup gcloud
-        uses: google-github-actions/setup-gcloud@v3
+        uses: google-github-actions/setup-gcloud@aa5489c8933f4cc7a4f7d45035b3b1440c9c10db
       - name: Install Terraform
         uses: hashicorp/setup-terraform@v3
         with:

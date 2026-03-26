@@ -949,7 +949,7 @@ public class HBaseIO {
           recordsWritten++;
         } catch (IOException e) {
           throw new RuntimeException(
-              (String.join(
+              String.join(
                   " ",
                   "Table",
                   tableId,
@@ -963,7 +963,7 @@ public class HBaseIO {
                       connection.getAdmin().isTableEnabled(TableName.valueOf(tableId))),
                   "\nConnection Closed/Aborted/Locks:",
                   Boolean.toString(connection.isClosed()),
-                  Boolean.toString(connection.isAborted()))));
+                  Boolean.toString(connection.isAborted())));
         }
       }
 
