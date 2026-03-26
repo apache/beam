@@ -453,7 +453,7 @@ func retrieve(ctx context.Context, client jobpb.LegacyArtifactRetrievalServiceCl
 	}
 
 	// Artifact Sha256 hash is an optional field in metadata so we should only validate when its present.
-	if a.Sha256 != "" && sha256Hash != a.Sha256 {
+	if isArtifactValidationEnabled(ctx) && a.Sha256 != "" && sha256Hash != a.Sha256 {
 		return errors.Errorf("bad SHA256 for %v: %v, want %v", filename, sha256Hash, a.Sha256)
 	}
 	return nil

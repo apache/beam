@@ -83,6 +83,57 @@ func TestMultiRetrieve(t *testing.T) {
 	}
 }
 
+func TestRetrieveWithBadShaFails(t *testing.T) {
+	cc := startServer(t)
+	defer cc.Close()
+
+	ctx := grpcx.WriteWorkerID(context.Background(), "idA")
+	keys := []string{"foo"}
+	st := "whatever"
+	rt, artifacts := populate(ctx, cc, t, keys, 300, st)
+
+	dst := makeTempDir(t)
+	defer os.RemoveAll(dst)
+
+	client := jobpb.NewLegacyArtifactRetrievalServiceClient(cc)
+	for _, a := range artifacts {
+		a.Sha256 = "badhash" // mutate hash
+		if err := Retrieve(ctx, client, a, rt, dst); err == nil {
+			t.Errorf("expected materialization to fail due to bad sha256 mismatch")
+		}
+	}
+}
+
+func TestRetrieveWithBadShaAndExperimentSucceeds(t *testing.T) {
+	cc := startServer(t)
+	defer cc.Close()
+
+	options, _ := structpb.NewStruct(map[string]interface{}{
+		"options": map[string]interface{}{
+			"experiments": []interface{}{"disable_integrity_checks"},
+		},
+	})
+	ctx := WithPipelineOptions(grpcx.WriteWorkerID(context.Background(), "idA"), options)
+	keys := []string{"foo"}
+	st := "whatever"
+	rt, artifacts := populate(ctx, cc, t, keys, 300, st)
+
+	dst := makeTempDir(t)
+	defer os.RemoveAll(dst)
+
+	client := jobpb.NewLegacyArtifactRetrievalServiceClient(cc)
+	for _, a := range artifacts {
+		originalHash := a.Sha256
+		a.Sha256 = "badhash" // mutate hash
+		filename := makeFilename(dst, a.Name)
+		if err := Retrieve(ctx, client, a, rt, dst); err != nil {
+			t.Errorf("materialize failed but should have succeeded because validation was disabled via experiment: %v", err)
+			continue
+		}
+		verifySHA256(t, filename, originalHash)
+	}
+}
+
 // populate stages a set of artifacts with the given keys, each with
 // slightly different sizes and chucksizes.
 func populate(ctx context.Context, cc *grpc.ClientConn, t *testing.T, keys []string, size int, st string) (string, []*jobpb.ArtifactMetadata) {
