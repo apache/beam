@@ -56,7 +56,6 @@ dependencies {
   implementation project(":sdks:java:io:google-cloud-platform")
   implementation project(":sdks:java:io:kafka")
   implementation project(":sdks:java:extensions:ml")
-  implementation project(":sdks:java:managed")
   implementation library.java.avro
   implementation library.java.bigdataoss_util
   implementation library.java.google_api_client
