@@ -17,7 +17,7 @@ limitations under the License.
 
 # Rate limiting patterns
 
-Apache Beam is built to maximize throughput by scaling workloads across thousands of workers. However, this massive parallelism becomes a liability when pipelines interact with external systems that enforce strict quotas, such as 3rd-party REST APIs, databases, or internal microservices. Without a centralized coordination mechanism, independent workers can easily overwhelm these systems, leading to service degradation or broad IP blocking.
+Apache Beam is built to maximize throughput by scaling workloads across thousands of workers. However, this massive parallelism requires coordination when pipelines interact with external systems that enforce strict quotas, such as 3rd-party REST APIs, databases, or internal microservices. Without a centralized rate limiting mechanism, independent workers might exceed the capacity of these systems, resulting in service degradation or broad IP blocking.
 
 ## Centralized Rate Limit Service
 
