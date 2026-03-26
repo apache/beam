@@ -4305,6 +4305,15 @@ arrays, the use of {} curly brackets in the selector is recommended, to make it 
 selected, they can be omitted for brevity. In the future, map key selectors will be supported, allowing selection of
 specific keys from the map. For example, given the following schema:
 
+<< paragraph class="language-py" >>
+Example of selecting a specific key from a map field:
+<< /paragraph >>
+
+<< highlight py >>
+input_pc = ...
+output_pc = input_pc | beam.Select("purchasesByType['electronics']")
+<< /highlight >>
+
 **PurchasesByType**
 
 <table class="table-wrapper--pr">
