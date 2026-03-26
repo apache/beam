@@ -17,12 +17,13 @@
  */
 package org.apache.beam.fn.harness.state;
 
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkNotNull;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkState;
 
-import com.google.auto.value.AutoValue;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
@@ -56,9 +57,6 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.math.LongMath;
  * Adapters which convert a logical series of chunks using continuation tokens over the Beam Fn
  * State API into an {@link Iterator} of {@link ByteString}s.
  */
-@SuppressWarnings({
-  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
-})
 public class StateFetchingIterators {
 
   // do not instantiate
@@ -148,7 +146,7 @@ public class StateFetchingIterators {
       }
 
       @Override
-      protected T computeNext() {
+      protected @Nullable T computeNext() {
         try {
           while (currentChunk.available() == 0) {
             if (chunkIterator.hasNext()) {
@@ -263,7 +261,7 @@ public class StateFetchingIterators {
       }
 
       @Override
-      public BlocksPrefix<T> shrink() {
+      public @Nullable BlocksPrefix<T> shrink() {
         // Copy the list to not hold a reference to the tail of the original list.
         List<Block<T>> subList = new ArrayList<>(getBlocks().subList(0, getBlocks().size() / 2));
         if (subList.isEmpty()) {
@@ -278,9 +276,71 @@ public class StateFetchingIterators {
       }
     }
 
-    @AutoValue
-    abstract static class Block<T> implements Weighted {
-      private static final Block<Void> EMPTY = fromValues(ImmutableList.of(), 0, null);
+    static class Block<T> implements Weighted {
+      private final List<T> values;
+      private final @Nullable ByteString nextToken;
+      private final long weight;
+      private static final long ARRAY_LIST_OVERHEAD = 3 * Caches.REFERENCE_SIZE;
+      private static final Block<Void> EMPTY = new Block<>(ImmutableList.of(), null, 0);
+
+      private Block(List<T> values, @Nullable ByteString nextToken, long weight) {
+        this.values = values;
+        this.nextToken = nextToken;
+        this.weight = weight;
+      }
+
+      public @Nullable ByteString getNextToken() {
+        return nextToken;
+      }
+
+      @Override
+      public long getWeight() {
+        return weight;
+      }
+
+      public List<T> getValues() {
+        return values;
+      }
+
+      static class Builder<T> {
+        private Builder(int initialCapacity) {
+          values = new ArrayList<>(initialCapacity);
+          weight = ARRAY_LIST_OVERHEAD;
+        }
+
+        void addAndWeighAll(List<T> addedValues) {
+          values.addAll(addedValues);
+          for (@Nullable T v : addedValues) {
+            weight = LongMath.saturatedAdd(weight, Caches.weigh(v));
+          }
+        }
+
+        void addAllWithWeight(List<T> addedValues, long addedWeight) {
+          values.addAll(addedValues);
+          weight = LongMath.saturatedAdd(weight, addedWeight);
+        }
+
+        void addBlock(Block<T> b) {
+          values.addAll(b.getValues());
+          weight = LongMath.saturatedAdd(weight, b.getWeight());
+        }
+
+        // The builder should not be used after this method.
+        Block<T> build() {
+          if (values.isEmpty()) {
+            return emptyBlock();
+          }
+          weight = LongMath.saturatedAdd(values.size() * Caches.REFERENCE_SIZE, weight);
+          return new Block<>(values, null, weight);
+        }
+
+        private long weight;
+        private final ArrayList<T> values;
+      }
+
+      static <T> Builder<T> builder(int initialCapacity) {
+        return new Builder<>(initialCapacity);
+      }
 
       @SuppressWarnings("unchecked") // Based upon as Collections.emptyList()
       public static <T> Block<T> emptyBlock() {
@@ -296,45 +356,47 @@ public class StateFetchingIterators {
       }
 
       public static <T> Block<T> fromValues(List<T> values, @Nullable ByteString nextToken) {
-        if (values.isEmpty() && nextToken == null) {
-          return emptyBlock();
-        }
-        ImmutableList<T> immutableValues = ImmutableList.copyOf(values);
-        long listWeight = immutableValues.size() * Caches.REFERENCE_SIZE;
-        for (T value : immutableValues) {
+        long listWeight = values.size() * Caches.REFERENCE_SIZE;
+        for (@Nullable T value : values) {
           listWeight = LongMath.saturatedAdd(listWeight, Caches.weigh(value));
         }
-        return fromValues(immutableValues, listWeight, nextToken);
+        return copyValues(values, listWeight, nextToken);
       }
 
       public static <T> Block<T> fromValues(
           WeightedList<T> values, @Nullable ByteString nextToken) {
-        if (values.isEmpty() && nextToken == null) {
-          return emptyBlock();
-        }
-        return fromValues(ImmutableList.copyOf(values.getBacking()), values.getWeight(), nextToken);
+        return copyValues(values.getBacking(), values.getWeight(), nextToken);
       }
 
-      private static <T> Block<T> fromValues(
-          ImmutableList<T> values, long listWeight, @Nullable ByteString nextToken) {
-        long weight = LongMath.saturatedAdd(listWeight, 24);
+      private static <T> Block<T> copyValues(
+          List<T> values, long valuesWeight, @Nullable ByteString nextToken) {
+        if (nextToken == null && values.isEmpty()) {
+          return emptyBlock();
+        }
+        long listOverhead;
+        if (values instanceof ImmutableList) {
+          listOverhead = Caches.REFERENCE_SIZE * 3;
+        } else {
+          // We can't use ImmutableList.copy because that requires non-null values
+          // and null values are supported in Beam.
+          @SuppressWarnings("unchecked")
+          List<T> copiedValues = (List<T>) Arrays.asList(values.toArray());
+          values = copiedValues;
+          listOverhead = ARRAY_LIST_OVERHEAD;
+        }
+        long weight = LongMath.saturatedAdd(valuesWeight, listOverhead);
         if (nextToken != null) {
           if (nextToken.isEmpty()) {
             nextToken = ByteString.EMPTY;
           } else {
-            weight = LongMath.saturatedAdd(weight, Caches.weigh(nextToken));
+            // We don't expect large tokens that would not be copied by ByteString so we just count
+            // the size plus some overhead as weighing accurately is expensive.
+            weight =
+                LongMath.saturatedAdd(weight, (long) nextToken.size() + Caches.REFERENCE_SIZE * 2);
           }
         }
-        return new AutoValue_StateFetchingIterators_CachingStateIterable_Block<>(
-            values, nextToken, weight);
+        return new Block<>(values, nextToken, weight);
       }
-
-      abstract List<T> getValues();
-
-      abstract @Nullable ByteString getNextToken();
-
-      @Override
-      public abstract long getWeight();
     }
 
     private final Cache<IterableCacheKey, Blocks<T>> cache;
@@ -385,8 +447,7 @@ public class StateFetchingIterators {
         totalSize += tBlock.getValues().size();
       }
 
-      ImmutableList.Builder<T> allValues = ImmutableList.builderWithExpectedSize(totalSize);
-      long weight = 0;
+      Block.Builder<T> builder = Block.builder(totalSize);
       List<T> blockValuesToKeep = new ArrayList<>();
       for (Block<T> block : blocks) {
         blockValuesToKeep.clear();
@@ -402,19 +463,13 @@ public class StateFetchingIterators {
         // If any value was removed from this block, need to estimate the weight again.
         // Otherwise, just reuse the block's weight.
         if (valueRemovedFromBlock) {
-          allValues.addAll(blockValuesToKeep);
-          for (T value : blockValuesToKeep) {
-            weight = LongMath.saturatedAdd(weight, Caches.weigh(value));
-          }
+          builder.addAndWeighAll(blockValuesToKeep);
         } else {
-          allValues.addAll(block.getValues());
-          weight = LongMath.saturatedAdd(weight, block.getWeight());
+          builder.addBlock(block);
         }
       }
 
-      cache.put(
-          IterableCacheKey.INSTANCE,
-          new MutatedBlocks<>(Block.fromValues(allValues.build(), weight, null)));
+      cache.put(IterableCacheKey.INSTANCE, new MutatedBlocks<>(builder.build()));
     }
 
     /**
@@ -505,24 +560,16 @@ public class StateFetchingIterators {
       for (Block<T> block : blocks) {
         totalSize += block.getValues().size();
       }
-      ImmutableList.Builder<T> allValues = ImmutableList.builderWithExpectedSize(totalSize);
-      long weight = 0;
+      Block.Builder<T> builder = Block.builder(totalSize);
       for (Block<T> block : blocks) {
-        allValues.addAll(block.getValues());
-        weight = LongMath.saturatedAdd(weight, block.getWeight());
+        builder.addBlock(block);
       }
       if (newWeight < 0) {
-        newWeight = 0;
-        for (T value : newValues) {
-          newWeight = LongMath.saturatedAdd(newWeight, Caches.weigh(value));
-        }
+        builder.addAndWeighAll(newValues);
+      } else {
+        builder.addAllWithWeight(newValues, newWeight);
       }
-      allValues.addAll(newValues);
-      weight = LongMath.saturatedAdd(weight, newWeight);
-
-      cache.put(
-          IterableCacheKey.INSTANCE,
-          new MutatedBlocks<>(Block.fromValues(allValues.build(), weight, null)));
+      cache.put(IterableCacheKey.INSTANCE, new MutatedBlocks<>(builder.build()));
     }
 
     class CachingStateIterator implements PrefetchableIterator<T> {
@@ -539,8 +586,7 @@ public class StateFetchingIterators {
             new DataStreamDecoder<>(valueCoder, underlyingStateFetchingIterator);
         this.currentBlock =
             Block.fromValues(
-                WeightedList.of(Collections.emptyList(), 0L),
-                stateRequestForFirstChunk.getGet().getContinuationToken());
+                ImmutableList.of(), stateRequestForFirstChunk.getGet().getContinuationToken());
         this.currentCachedBlockValueIndex = 0;
       }
 
@@ -550,11 +596,12 @@ public class StateFetchingIterators {
           if (currentBlock.getValues().size() > currentCachedBlockValueIndex) {
             return true;
           }
-          if (currentBlock.getNextToken() == null) {
+          @Nullable ByteString nextToken = currentBlock.getNextToken();
+          if (nextToken == null) {
             return true;
           }
-          Blocks<T> existing = cache.peek(IterableCacheKey.INSTANCE);
-          boolean isFirstBlock = ByteString.EMPTY.equals(currentBlock.getNextToken());
+          @Nullable Blocks<T> existing = cache.peek(IterableCacheKey.INSTANCE);
+          boolean isFirstBlock = ByteString.EMPTY.equals(nextToken);
           if (existing == null) {
             // If there is nothing cached and we are on the first block then we are not ready.
             return false;
@@ -566,9 +613,7 @@ public class StateFetchingIterators {
               List<Block<T>> blocks = existing.getBlocks();
               int currentBlockIndex = 0;
               for (; currentBlockIndex < blocks.size(); ++currentBlockIndex) {
-                if (currentBlock
-                    .getNextToken()
-                    .equals(blocks.get(currentBlockIndex).getNextToken())) {
+                if (Objects.equals(nextToken, blocks.get(currentBlockIndex).getNextToken())) {
                   break;
                 }
               }
@@ -626,7 +671,7 @@ public class StateFetchingIterators {
             List<Block<T>> blocks = existing.getBlocks();
             int currentBlockIndex = 0;
             for (; currentBlockIndex < blocks.size(); ++currentBlockIndex) {
-              if (nextToken.equals(blocks.get(currentBlockIndex).getNextToken())) {
+              if (Objects.equals(nextToken, blocks.get(currentBlockIndex).getNextToken())) {
                 break;
               }
             }
@@ -645,7 +690,8 @@ public class StateFetchingIterators {
               // tokens.
               if (existing != null
                   && !existing.getBlocks().isEmpty()
-                  && nextToken.equals(
+                  && Objects.equals(
+                      nextToken,
                       existing.getBlocks().get(existing.getBlocks().size() - 1).getNextToken())) {
                 List<Block<T>> newBlocks = new ArrayList<>(currentBlockIndex + 1);
                 newBlocks.addAll(existing.getBlocks());
@@ -662,8 +708,8 @@ public class StateFetchingIterators {
       Block<T> loadNextBlock(ByteString continuationToken) {
         underlyingStateFetchingIterator.seekToContinuationToken(continuationToken);
         WeightedList<T> values = dataStreamDecoder.decodeFromChunkBoundaryToChunkBoundary();
-        ByteString nextToken = underlyingStateFetchingIterator.getContinuationToken();
-        if (ByteString.EMPTY.equals(nextToken)) {
+        @Nullable ByteString nextToken = underlyingStateFetchingIterator.getContinuationToken();
+        if (Objects.equals(nextToken, ByteString.EMPTY)) {
           nextToken = null;
         }
         return Block.fromValues(values, nextToken);
@@ -690,8 +736,8 @@ public class StateFetchingIterators {
 
     private final BeamFnStateClient beamFnStateClient;
     private final StateRequest stateRequestForFirstChunk;
-    private ByteString continuationToken;
-    private CompletableFuture<StateResponse> prefetchedResponse;
+    private @Nullable ByteString continuationToken;
+    private @Nullable CompletableFuture<StateResponse> prefetchedResponse;
 
     LazyBlockingStateFetchingIterator(
         BeamFnStateClient beamFnStateClient, StateRequest stateRequestForFirstChunk) {
@@ -762,7 +808,7 @@ public class StateFetchingIterators {
       prefetch();
       StateResponse stateResponse;
       try {
-        stateResponse = prefetchedResponse.get();
+        stateResponse = checkNotNull(prefetchedResponse).get();
       } catch (InterruptedException e) {
         Thread.currentThread().interrupt();
         throw new IllegalStateException(e);
