@@ -193,28 +193,41 @@ public class FailoverChannelTest {
 
   @Test
   public void testStateFallbackAfterPrimaryNotReady() {
-    // If primary connection is not ready for 10+ seconds, routes to fallback.
+    // If the state-change callback signals primary is not ready for 10+ seconds,
+    // the next newCall() should route to fallback.
     ManagedChannel mockChannel = mock(ManagedChannel.class);
     ManagedChannel mockFallbackChannel = mock(ManagedChannel.class);
     when(mockChannel.newCall(any(), any())).thenReturn(mock(ClientCall.class));
     when(mockFallbackChannel.newCall(any(), any())).thenReturn(mock(ClientCall.class));
-    // IDLE for constructor registration, TRANSIENT_FAILURE for the
-    // two checkAndUpdateStateFallback() calls.
+    // IDLE for constructor registration, TRANSIENT_FAILURE when callback fires,
+    // TRANSIENT_FAILURE for re-registration after the callback.
     when(mockChannel.getState(false))
         .thenReturn(
             ConnectivityState.IDLE,
             ConnectivityState.TRANSIENT_FAILURE,
             ConnectivityState.TRANSIENT_FAILURE);
 
+    AtomicReference<Runnable> stateChangeCallback = new AtomicReference<>();
+    doAnswer(
+            invocation -> {
+              stateChangeCallback.set(invocation.getArgument(1));
+              return null;
+            })
+        .when(mockChannel)
+        .notifyWhenStateChanged(any(), any());
+
     AtomicLong time = new AtomicLong(0);
     FailoverChannel failoverChannel =
         FailoverChannel.forTest(mockChannel, mockFallbackChannel, null, time::get);
 
-    // Within 10 seconds: still routes to primary
+    // Callback fires: primary is TRANSIENT_FAILURE, starts the not-ready timer.
+    stateChangeCallback.get().run();
+
+    // Within 10 seconds: grace period not elapsed, routes to primary.
     failoverChannel.newCall(methodDescriptor, CallOptions.DEFAULT);
     verify(mockChannel).newCall(any(), any());
 
-    // After 10 seconds: routes to fallback
+    // After 10 seconds: routes to fallback.
     time.addAndGet(TimeUnit.SECONDS.toNanos(11));
     failoverChannel.newCall(methodDescriptor, CallOptions.DEFAULT);
     verify(mockFallbackChannel).newCall(any(), any());
@@ -253,14 +266,18 @@ public class FailoverChannelTest {
     ManagedChannel mockFallbackChannel = mock(ManagedChannel.class);
     when(mockChannel.newCall(any(), any())).thenReturn(mock(ClientCall.class));
     when(mockFallbackChannel.newCall(any(), any())).thenReturn(mock(ClientCall.class));
-    // IDLE for constructor registration, TRANSIENT_FAILURE for call1 (starts
-    // the 10s timer) and call2 (timer exceeds 10s), READY when callback fires
-    // (clears state flag) and for subsequent re-registration and state checks.
+    // getState() calls in order:
+    // 1. constructor registerPrimaryStateChangeListener() → IDLE
+    // 2. onPrimaryStateChanged() fires (TRANSIENT_FAILURE) → TRANSIENT_FAILURE
+    // 3. re-registerPrimaryStateChangeListener() after 1st callback → TRANSIENT_FAILURE
+    // 4. onPrimaryStateChanged() fires (READY) → READY
+    // 5. re-registerPrimaryStateChangeListener() after 2nd callback → READY
     when(mockChannel.getState(false))
         .thenReturn(
             ConnectivityState.IDLE,
             ConnectivityState.TRANSIENT_FAILURE,
             ConnectivityState.TRANSIENT_FAILURE,
+            ConnectivityState.READY,
             ConnectivityState.READY);
 
     AtomicReference<Runnable> stateChangeCallback = new AtomicReference<>();
@@ -276,19 +293,22 @@ public class FailoverChannelTest {
     FailoverChannel failoverChannel =
         FailoverChannel.forTest(mockChannel, mockFallbackChannel, null, time::get);
 
-    // First call - primary not yet timed out, routes to primary
+    // First callback fires: primary is TRANSIENT_FAILURE, starts the not-ready timer at t=0.
+    stateChangeCallback.get().run();
+
+    // Within grace period: routes to primary.
     failoverChannel.newCall(methodDescriptor, CallOptions.DEFAULT);
     verify(mockChannel).newCall(any(), any());
 
-    // After 10 seconds: state-based fallback kicks in
+    // After 10 seconds: state-based fallback kicks in.
     time.addAndGet(TimeUnit.SECONDS.toNanos(11));
     failoverChannel.newCall(methodDescriptor, CallOptions.DEFAULT);
     verify(mockFallbackChannel).newCall(any(), any());
 
-    // Callback fires with primary now READY
+    // Second callback fires: primary is now READY, clears all fallback state.
     stateChangeCallback.get().run();
 
-    // Next call recovers to primary with no waiting
+    // Next call recovers to primary immediately.
     failoverChannel.newCall(methodDescriptor, CallOptions.DEFAULT);
     verify(mockChannel, atLeast(2)).newCall(any(), any());
   }

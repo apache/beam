@@ -96,7 +96,7 @@ public final class FailoverChannel extends ManagedChannel {
      * Determines whether the next RPC should route to the fallback channel, updating internal state
      * as needed.
      */
-    synchronized boolean computeUseFallback(long nowNanos, ConnectivityState primaryState) {
+    synchronized boolean computeUseFallback(long nowNanos) {
       // Clear RPC-based fallback if the cooling period has elapsed.
       if (useFallbackDueToRPC
           && nowNanos - lastRPCFallbackTimeNanos >= FALLBACK_COOLING_PERIOD_NANOS) {
@@ -105,33 +105,35 @@ public final class FailoverChannel extends ManagedChannel {
             "[channel-{}] Primary channel cooling period elapsed; switching back from fallback.",
             channelId);
       }
-      // If not already on fallback, check primary connectivity state.
-      // gRPC's state machine only transitions to IDLE from READY. Treat both as healthy.
-      if (!useFallbackDueToRPC && !useFallbackDueToState) {
-        if (primaryState == ConnectivityState.READY || primaryState == ConnectivityState.IDLE) {
-          primaryNotReadySinceNanos = -1;
-        } else {
-          if (primaryNotReadySinceNanos < 0) {
-            primaryNotReadySinceNanos = nowNanos;
-          }
-          if (nowNanos - primaryNotReadySinceNanos > PRIMARY_NOT_READY_WAIT_NANOS
-              && !useFallbackDueToState) {
-            useFallbackDueToState = true;
-            LOG.warn(
-                "[channel-{}] Primary connection unavailable. Switching to secondary connection.",
-                channelId);
-          }
-        }
+      // Check if primary has been not-ready long enough to switch to fallback.
+      // primaryNotReadySinceNanos is set by the state-change callback when primary is not ready.
+      if (!useFallbackDueToRPC
+          && !useFallbackDueToState
+          && primaryNotReadySinceNanos >= 0
+          && nowNanos - primaryNotReadySinceNanos > PRIMARY_NOT_READY_WAIT_NANOS) {
+        useFallbackDueToState = true;
+        LOG.warn(
+            "[channel-{}] Primary connection unavailable. Switching to secondary connection.",
+            channelId);
       }
       return useFallbackDueToRPC || useFallbackDueToState;
     }
 
     /**
-     * Transitions the fallback state.
-     * When toFallback is true (RPC failure) it enables RPC-based fallback if
-     * not already active and returns true so the caller can log the failure details.
-     * When toFallback is false (primary recovered) it clears all fallback flags
-     * and returns true if recovery actually changed state, so the caller can log it.
+     * Starts the not-ready grace period timer. Called by the state-change callback when primary
+     * transitions to a non-ready state. Has no effect if already tracking or already on fallback.
+     */
+    synchronized void markPrimaryNotReady(long nowNanos) {
+      if (!useFallbackDueToRPC && !useFallbackDueToState && primaryNotReadySinceNanos < 0) {
+        primaryNotReadySinceNanos = nowNanos;
+      }
+    }
+
+    /**
+     * Transitions the fallback state. When toFallback is true (RPC failure) it enables RPC-based
+     * fallback if not already active and returns true so the caller can log the failure details.
+     * When toFallback is false (primary recovered) it clears all fallback flags and returns true if
+     * recovery actually changed state, so the caller can log it.
      */
     synchronized boolean transitionFallback(boolean toFallback, long nowNanos) {
       if (toFallback) {
@@ -189,11 +191,9 @@ public final class FailoverChannel extends ManagedChannel {
   @Override
   public <ReqT, RespT> ClientCall<ReqT, RespT> newCall(
       MethodDescriptor<ReqT, RespT> methodDescriptor, CallOptions callOptions) {
-    // Read connectivity state and clock before the synchronized call to avoid holding external
-    // APIs under the state lock.
-    ConnectivityState primaryState = primary.getState(false);
+    // Read the clock before the synchronized call to avoid holding it under the state lock.
     long nowNanos = nanoClock.getAsLong();
-    boolean useFallback = state.computeUseFallback(nowNanos, primaryState);
+    boolean useFallback = state.computeUseFallback(nowNanos);
 
     if (useFallback) {
       return new FailoverClientCall<>(
@@ -348,13 +348,17 @@ public final class FailoverChannel extends ManagedChannel {
       return;
     }
 
-    // If primary is READY, clear both fallback flags so we immediately resume routing there,
-    // regardless of which failover mode triggered the switch.
-    if (primary.getState(false) == ConnectivityState.READY) {
+    ConnectivityState newState = primary.getState(false);
+    // IDLE means the channel was READY but has no active RPCs — treat as healthy.
+    if (newState == ConnectivityState.READY || newState == ConnectivityState.IDLE) {
       if (state.transitionFallback(false, 0)) {
         LOG.info(
             "[channel-{}] Primary channel recovered; switching back from fallback.", channelId);
       }
+    } else {
+      // Primary is not ready; start the grace period timer so computeUseFallback can
+      // switch to fallback once PRIMARY_NOT_READY_WAIT_NANOS elapses.
+      state.markPrimaryNotReady(nanoClock.getAsLong());
     }
 
     // Always re-register for next state change (unless shutdown).
