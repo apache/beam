@@ -557,20 +557,15 @@ public class AddFiles extends PTransform<PCollection<String>, PCollectionRowTupl
       this.identifier = identifier;
     }
 
-    @StartBundle
-    public void start() {
-      if (table == null) {
-        table = catalogConfig.catalog().loadTable(TableIdentifier.parse(identifier));
-      }
-    }
-
     @ProcessElement
     public void process(
         @Element KV<Void, Iterable<SerializableDataFile>> files,
         @AlwaysFetched @StateId("lastCommitTimestamp") ValueState<Long> lastCommitTimestamp,
         OutputReceiver<Row> output) {
       String commitId = commitHash(files.getValue());
-      Table table = checkStateNotNull(this.table);
+      if (table == null) {
+        table = catalogConfig.catalog().loadTable(TableIdentifier.parse(identifier));
+      }
       table.refresh();
 
       if (shouldSkip(commitId, lastCommitTimestamp.read())) {
