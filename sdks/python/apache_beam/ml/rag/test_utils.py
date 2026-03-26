@@ -96,7 +96,7 @@ class CustomMilvusContainer(MilvusContainer):
   ) -> None:
     # Skip the parent class's constructor and go straight to
     # GenericContainer.
-    super(MilvusContainer, self).__init__(image=image, **kwargs)
+    super(MilvusContainer, self).__init__(image=image, **kwargs) # pylint: disable=bad-super-call
     self.port = service_container_port
     self.healthcheck_port = healthcheck_container_port
     self.with_exposed_ports(service_container_port, healthcheck_container_port)
