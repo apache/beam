@@ -224,11 +224,15 @@ class ADKAgentModelHandler(ModelHandler[Union[str, genai_Content],
       session_id: str = inference_args.get("session_id", str(uuid.uuid4()))
 
       # Ensure a session exists for this invocation
-      model.session_service.create_session(
-          app_name=self._app_name,
-          user_id=user_id,
-          session_id=session_id,
-      )
+      try:
+        model.session_service.create_session(
+            app_name=self._app_name,
+            user_id=user_id,
+            session_id=session_id,
+        )
+      except SessionExistsError:
+        # It's okay if the session already exists for shared session IDs.
+        pass
 
       # Wrap plain strings in a Content object
       if isinstance(element, str):
@@ -283,8 +287,8 @@ class ADKAgentModelHandler(ModelHandler[Union[str, genai_Content],
         new_message=message,
     ):
       if event.is_final_response():
-        if event.content and event.content.parts:
-          return event.content.parts[0].text
+        if event.content:
+          return event.content.text
     return None
 
   def get_metrics_namespace(self) -> str:
