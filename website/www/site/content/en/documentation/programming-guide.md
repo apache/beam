@@ -4229,6 +4229,15 @@ output_pc = input_pc | beam.Select(post_code=lambda item: str(item["shipping_add
 Support for wildcards hasn't been developed for the Python SDK yet.
 {{< /paragraph >}}
 
+<< paragraph class="language-py" >>
+Example of selecting all nested fields using wildcard:
+<< /paragraph >>
+
+<< highlight py >>
+input_pc = ...
+output_pc = input_pc | beam.Select("shippingAddress.*")
+<< /highlight >>
+
 {{< paragraph class="language-go">}}
 Support for wildcards hasn't been developed for the Go SDK yet.
 {{< /paragraph >}}
