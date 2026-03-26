@@ -185,11 +185,14 @@ public class QueryChangeStreamAction {
       ManualWatermarkEstimator<Instant> watermarkEstimator,
       BundleFinalizer bundleFinalizer) {
     final String token = partition.getPartitionToken();
+    final String tvfName = partition.getTvfName();
 
     // TODO: Potentially we can avoid this fetch, by enriching the runningAt timestamp when the
     // ReadChangeStreamPartitionDoFn#processElement is called
     final PartitionMetadata updatedPartition =
-        Optional.ofNullable(partitionMetadataDao.getPartition(token))
+        Optional.ofNullable(
+                partitionMetadataDao.getPartition(
+                    PartitionMetadataDao.composePartitionTokenWithTvfName(token, tvfName)))
             .map(partitionMetadataMapper::from)
             .orElseThrow(
                 () ->
@@ -223,7 +226,11 @@ public class QueryChangeStreamAction {
 
     try (ChangeStreamResultSet resultSet =
         changeStreamDao.changeStreamQuery(
-            token, startTimestamp, changeStreamQueryEndTimestamp, partition.getHeartbeatMillis())) {
+            token,
+            tvfName,
+            startTimestamp,
+            changeStreamQueryEndTimestamp,
+            partition.getHeartbeatMillis())) {
 
       metrics.incQueryCounter();
       while (resultSet.next()) {
@@ -298,7 +305,9 @@ public class QueryChangeStreamAction {
             LOG.debug("[{}] Continuation present, returning {}", token, maybeContinuation);
             bundleFinalizer.afterBundleCommit(
                 Instant.now().plus(BUNDLE_FINALIZER_TIMEOUT),
-                updateWatermarkCallback(token, watermarkEstimator));
+                updateWatermarkCallback(
+                    PartitionMetadataDao.composePartitionTokenWithTvfName(token, tvfName),
+                    watermarkEstimator));
             return maybeContinuation.get();
           }
         }
@@ -341,7 +350,9 @@ public class QueryChangeStreamAction {
       }
       bundleFinalizer.afterBundleCommit(
           Instant.now().plus(BUNDLE_FINALIZER_TIMEOUT),
-          updateWatermarkCallback(token, watermarkEstimator));
+          updateWatermarkCallback(
+              PartitionMetadataDao.composePartitionTokenWithTvfName(token, tvfName),
+              watermarkEstimator));
       LOG.debug("[{}] Rescheduling partition to resume reading", token);
       return ProcessContinuation.resume();
     }
@@ -361,25 +372,27 @@ public class QueryChangeStreamAction {
     LOG.debug("[{}] Finishing partition", token);
     // TODO: This should be performed after the commit succeeds.  Since bundle finalizers are not
     // guaranteed to be called, this needs to be performed in a subsequent fused stage.
-    partitionMetadataDao.updateToFinished(token);
+    partitionMetadataDao.updateToFinished(
+        PartitionMetadataDao.composePartitionTokenWithTvfName(token, tvfName));
     metrics.decActivePartitionReadCounter();
     LOG.info("[{}] After attempting to finish the partition", token);
     return ProcessContinuation.stop();
   }
 
   private BundleFinalizer.Callback updateWatermarkCallback(
-      String token, WatermarkEstimator<Instant> watermarkEstimator) {
+      String composedToken, WatermarkEstimator<Instant> watermarkEstimator) {
     return () -> {
       final Instant watermark = watermarkEstimator.currentWatermark();
-      LOG.debug("[{}] Updating current watermark to {}", token, watermark);
+      LOG.debug("[{}] Updating current watermark to {}", composedToken, watermark);
       try {
         partitionMetadataDao.updateWatermark(
-            token, Timestamp.ofTimeMicroseconds(watermark.getMillis() * 1_000L));
+            composedToken, Timestamp.ofTimeMicroseconds(watermark.getMillis() * 1_000L));
       } catch (SpannerException e) {
         if (e.getErrorCode() == ErrorCode.NOT_FOUND) {
-          LOG.debug("[{}] Unable to update the current watermark, partition NOT FOUND", token);
+          LOG.debug(
+              "[{}] Unable to update the current watermark, partition NOT FOUND", composedToken);
         } else {
-          LOG.error("[{}] Error updating the current watermark", token, e);
+          LOG.error("[{}] Error updating the current watermark", composedToken, e);
         }
       }
     };
