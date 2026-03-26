@@ -4268,6 +4268,15 @@ selected, the result is an array of the selected subfield type. For example
 Support for Array fields hasn't been developed for the Python SDK yet.
 {{< /paragraph >}}
 
+{{< paragraph class="language-py" >}}
+example of selecting a nested field inside an array:
+{{< /paragraph >}}
+
+<< highlight py >>
+input_pc = ...
+output_pc = input_pc | beam.Select("transactions[].bank")
+<< /highlight py >>
+
 {{< paragraph class="language-go">}}
 Support for Array fields hasn't been developed for the Go SDK yet.
 {{< /paragraph >}}
