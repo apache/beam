@@ -17,8 +17,11 @@
  */
 package org.apache.beam.runners.dataflow.worker.windmill.client.grpc.stubs;
 
+import java.io.IOException;
+import java.io.InputStream;
 import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.ClientCall;
 import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.Metadata;
+import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.MethodDescriptor.Marshaller;
 
 /**
  * {@link NoopClientCall} is a class that is designed for use in tests. It is designed to be used in
@@ -33,6 +36,24 @@ public class NoopClientCall<ReqT, RespT> extends ClientCall<ReqT, RespT> {
    * methods are noops, and designed to be overridden.
    */
   public static class NoopClientCallListener<T> extends ClientCall.Listener<T> {}
+
+  public static class NoopMarshaller implements Marshaller<Object> {
+
+    @Override
+    public InputStream stream(Object o) {
+      return new InputStream() {
+        @Override
+        public int read() throws IOException {
+          return 0;
+        }
+      };
+    }
+
+    @Override
+    public Object parse(InputStream inputStream) {
+      return null;
+    }
+  }
 
   @Override
   public void start(ClientCall.Listener<RespT> listener, Metadata headers) {}

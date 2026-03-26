@@ -813,25 +813,25 @@ public final class StreamingDataflowWorker {
       GrpcDispatcherClient dispatcherClient) {
     ChannelCache channelCache =
         ChannelCache.create(
-            (currentFlowControlSettings, serviceAddress) ->
-                // IsolationChannel wraps FailoverChannel so that each active RPC gets its own
-                // FailoverChannel instance. FailoverChannel creates two channels (primary,
-                // fallback)
-                // per active RPC.
-                IsolationChannel.create(
-                    () ->
-                        FailoverChannel.create(
-                            remoteChannel(
-                                serviceAddress,
-                                workerOptions.getWindmillServiceRpcChannelAliveTimeoutSec(),
-                                currentFlowControlSettings),
-                            remoteChannel(
-                                dispatcherClient.getDispatcherEndpoints().iterator().next(),
-                                workerOptions.getWindmillServiceRpcChannelAliveTimeoutSec(),
-                                currentFlowControlSettings),
-                            MoreCallCredentials.from(
-                                new VendoredCredentialsAdapter(workerOptions.getGcpCredential()))),
-                    currentFlowControlSettings.getOnReadyThresholdBytes()));
+            (currentFlowControlSettings, serviceAddress) -> {
+              // IsolationChannel wrapping FailoverChannel so that each active RPC gets its own
+              // FailoverChannel instance. FailoverChannel creates two channels (primary,
+              // fallback) per active RPC.
+              return IsolationChannel.create(
+                  () ->
+                      FailoverChannel.create(
+                          remoteChannel(
+                              serviceAddress,
+                              workerOptions.getWindmillServiceRpcChannelAliveTimeoutSec(),
+                              currentFlowControlSettings),
+                          remoteChannel(
+                              dispatcherClient.getDispatcherEndpoints().iterator().next(),
+                              workerOptions.getWindmillServiceRpcChannelAliveTimeoutSec(),
+                              currentFlowControlSettings),
+                          MoreCallCredentials.from(
+                              new VendoredCredentialsAdapter(workerOptions.getGcpCredential()))),
+                  currentFlowControlSettings.getOnReadyThresholdBytes());
+            });
 
     configFetcher
         .getGlobalConfigHandle()

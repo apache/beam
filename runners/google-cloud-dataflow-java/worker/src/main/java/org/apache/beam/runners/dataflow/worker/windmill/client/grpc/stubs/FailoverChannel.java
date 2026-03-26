@@ -19,6 +19,7 @@ package org.apache.beam.runners.dataflow.worker.windmill.client.grpc.stubs;
 
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.LongSupplier;
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.GuardedBy;
@@ -55,18 +56,20 @@ import org.slf4j.LoggerFactory;
 @Internal
 public final class FailoverChannel extends ManagedChannel {
   private static final Logger LOG = LoggerFactory.getLogger(FailoverChannel.class);
+  private static final AtomicInteger CHANNEL_ID_COUNTER = new AtomicInteger(0);
   // Time to wait before retrying the primary channel after an RPC-based fallback.
   private static final long FALLBACK_COOLING_PERIOD_NANOS = TimeUnit.HOURS.toNanos(1);
   private static final long PRIMARY_NOT_READY_WAIT_NANOS = TimeUnit.SECONDS.toNanos(10);
 
   private final ManagedChannel primary;
   private final ManagedChannel fallback;
+  private final int channelId;
   @Nullable private final CallCredentials fallbackCallCredentials;
   private final LongSupplier nanoClock;
   // Held only during registration to prevent duplicate listener registration.
   private final AtomicBoolean stateChangeListenerRegistered = new AtomicBoolean(false);
   // All mutable routing state is consolidated here to ensure related fields are updated atomically.
-  private final FailoverState state = new FailoverState();
+  private final FailoverState state;
 
   private static final class FailoverState {
     // Set when primary's connection state has been unavailable for too long.
@@ -82,6 +85,72 @@ public final class FailoverChannel extends ManagedChannel {
     // Time when primary first became not-ready. -1 when primary is currently READY.
     @GuardedBy("this")
     long primaryNotReadySinceNanos = -1;
+
+    private final int channelId;
+
+    FailoverState(int channelId) {
+      this.channelId = channelId;
+    }
+
+    /**
+     * Determines whether the next RPC should route to the fallback channel, updating internal state
+     * as needed.
+     */
+    synchronized boolean computeUseFallback(long nowNanos, ConnectivityState primaryState) {
+      // Clear RPC-based fallback if the cooling period has elapsed.
+      if (useFallbackDueToRPC
+          && nowNanos - lastRPCFallbackTimeNanos >= FALLBACK_COOLING_PERIOD_NANOS) {
+        useFallbackDueToRPC = false;
+        LOG.info(
+            "[channel-{}] Primary channel cooling period elapsed; switching back from fallback.",
+            channelId);
+      }
+      // If not already on fallback, check primary connectivity state.
+      // gRPC's state machine only transitions to IDLE from READY. Treat both as healthy.
+      if (!useFallbackDueToRPC && !useFallbackDueToState) {
+        if (primaryState == ConnectivityState.READY || primaryState == ConnectivityState.IDLE) {
+          primaryNotReadySinceNanos = -1;
+        } else {
+          if (primaryNotReadySinceNanos < 0) {
+            primaryNotReadySinceNanos = nowNanos;
+          }
+          if (nowNanos - primaryNotReadySinceNanos > PRIMARY_NOT_READY_WAIT_NANOS
+              && !useFallbackDueToState) {
+            useFallbackDueToState = true;
+            LOG.warn(
+                "[channel-{}] Primary connection unavailable. Switching to secondary connection.",
+                channelId);
+          }
+        }
+      }
+      return useFallbackDueToRPC || useFallbackDueToState;
+    }
+
+    /**
+     * Transitions the fallback state.
+     * When toFallback is true (RPC failure) it enables RPC-based fallback if
+     * not already active and returns true so the caller can log the failure details.
+     * When toFallback is false (primary recovered) it clears all fallback flags
+     * and returns true if recovery actually changed state, so the caller can log it.
+     */
+    synchronized boolean transitionFallback(boolean toFallback, long nowNanos) {
+      if (toFallback) {
+        if (!useFallbackDueToRPC) {
+          useFallbackDueToRPC = true;
+          lastRPCFallbackTimeNanos = nowNanos;
+          // Return true to indicate fallback state was changed and caller should log the event.
+          return true;
+        }
+        // Already in RPC-based fallback, no state change.
+        return false;
+      }
+      // Clear all fallback state as primary has recovered.
+      boolean wasOnFallback = useFallbackDueToState || useFallbackDueToRPC;
+      useFallbackDueToState = false;
+      useFallbackDueToRPC = false;
+      primaryNotReadySinceNanos = -1;
+      return wasOnFallback;
+    }
   }
 
   private FailoverChannel(
@@ -91,6 +160,8 @@ public final class FailoverChannel extends ManagedChannel {
       LongSupplier nanoClock) {
     this.primary = primary;
     this.fallback = fallback;
+    this.channelId = CHANNEL_ID_COUNTER.getAndIncrement();
+    this.state = new FailoverState(channelId);
     this.fallbackCallCredentials = fallbackCallCredentials;
     this.nanoClock = nanoClock;
     // Register callback to monitor primary channel state changes
@@ -118,34 +189,11 @@ public final class FailoverChannel extends ManagedChannel {
   @Override
   public <ReqT, RespT> ClientCall<ReqT, RespT> newCall(
       MethodDescriptor<ReqT, RespT> methodDescriptor, CallOptions callOptions) {
-    // Read connectivity state before acquiring the lock to avoid calling an external API while
-    // holding our lock.
+    // Read connectivity state and clock before the synchronized call to avoid holding external
+    // APIs under the state lock.
     ConnectivityState primaryState = primary.getState(false);
-    final boolean useFallback;
-    synchronized (state) {
-      // Step 1: If we switched to fallback due to a failed RPC, check whether enough time has
-      // elapsed to retry primary. If so, clear the flag — the next step will then re-evaluate
-      // whether primary is actually healthy before committing to routing there.
-      if (state.useFallbackDueToRPC) {
-        long timeSinceLastFallback = nanoClock.getAsLong() - state.lastRPCFallbackTimeNanos;
-        if (timeSinceLastFallback >= FALLBACK_COOLING_PERIOD_NANOS) {
-          state.useFallbackDueToRPC = false;
-          LOG.info("Primary channel cooling period elapsed; switching back from fallback.");
-        }
-      }
-
-      // Step 2: If neither fallback flag is set, inspect the primary's connectivity state. This
-      // may set useFallbackDueToState if primary has been non-READY for longer than the
-      // threshold. Skipped when already on fallback.
-      // useFallbackDueToState is cleared in onPrimaryStateChanged callback when primary becomes
-      // READY again.
-      if (!state.useFallbackDueToRPC && !state.useFallbackDueToState) {
-        checkAndUpdateStateFallback(primaryState);
-      }
-
-      // Step 3: Decide which channel to route the request to based on the current state.
-      useFallback = state.useFallbackDueToRPC || state.useFallbackDueToState;
-    }
+    long nowNanos = nanoClock.getAsLong();
+    boolean useFallback = state.computeUseFallback(nowNanos, primaryState);
 
     if (useFallback) {
       return new FailoverClientCall<>(
@@ -193,68 +241,45 @@ public final class FailoverChannel extends ManagedChannel {
   }
 
   private boolean shouldFallbackBasedOnRPCStatus(Status status, boolean receivedResponse) {
+    // If a response was received, the connection was healthy and any error is an application-level
+    // issue, not a connectivity problem. Never failover in this case regardless of status.
+    if (receivedResponse) {
+      return false;
+    }
     switch (status.getCode()) {
       case UNAVAILABLE:
       case UNKNOWN:
-        return true;
       case DEADLINE_EXCEEDED:
-        // Only failover if no response was received. If a response was received, the connection
-        // was healthy and the timeout is an application-level issue, not a connectivity problem.
-        return !receivedResponse;
+        return true;
       default:
         return false;
     }
   }
 
   private CallOptions applyFallbackCredentials(CallOptions callOptions) {
-    if (fallbackCallCredentials != null && callOptions.getCredentials() == null) {
+    if (fallbackCallCredentials != null) {
       return callOptions.withCallCredentials(fallbackCallCredentials);
     }
     return callOptions;
   }
 
-  /**
-   * Checks primary channel connectivity state and updates {@code state.useFallbackDueToState} if
-   * the primary has been not-ready long enough to warrant failover.
-   */
-  @GuardedBy("state")
-  private void checkAndUpdateStateFallback(ConnectivityState connectivityState) {
-    // gRPC's state machine only transitions to IDLE from READY. Hence, we treat both
-    // READY and IDLE as healthy states.
-    if (connectivityState == ConnectivityState.READY
-        || connectivityState == ConnectivityState.IDLE) {
-      state.primaryNotReadySinceNanos = -1;
-      return;
-    }
-    long currentTimeNanos = nanoClock.getAsLong();
-    if (state.primaryNotReadySinceNanos < 0) {
-      state.primaryNotReadySinceNanos = currentTimeNanos;
-    }
-    if (currentTimeNanos - state.primaryNotReadySinceNanos > PRIMARY_NOT_READY_WAIT_NANOS) {
-      if (!state.useFallbackDueToState) {
-        state.useFallbackDueToState = true;
-        LOG.warn("Primary connection unavailable. Switching to secondary connection.");
-      }
-    }
-  }
-
   private void notifyCallDone(
       Status status, boolean isFallback, String methodName, boolean receivedResponse) {
     if (!status.isOk() && !isFallback && shouldFallbackBasedOnRPCStatus(status, receivedResponse)) {
-      synchronized (state) {
-        if (!state.useFallbackDueToRPC) {
-          state.useFallbackDueToRPC = true;
-          state.lastRPCFallbackTimeNanos = nanoClock.getAsLong();
-          LOG.warn(
-              "Primary connection failed for method: {}. Switching to secondary connection."
-                  + " Status: {}",
-              methodName,
-              status.getCode());
-        }
+      if (state.transitionFallback(true, nanoClock.getAsLong())) {
+        LOG.warn(
+            "[channel-{}] Primary connection failed for method: {}. Switching to secondary"
+                + " connection. Status: {}",
+            channelId,
+            methodName,
+            status.getCode());
       }
     } else if (isFallback && !status.isOk()) {
       LOG.warn(
-          "Secondary connection failed for method: {}. Status: {}", methodName, status.getCode());
+          "[channel-{}] Secondary connection failed for method: {}. Status: {}",
+          channelId,
+          methodName,
+          status.getCode());
     }
   }
 
@@ -309,7 +334,9 @@ public final class FailoverChannel extends ManagedChannel {
         primary.notifyWhenStateChanged(currentState, this::onPrimaryStateChanged);
       } catch (Exception e) {
         LOG.warn(
-            "Failed to register channel state monitor. Continuing with fallback detection.", e);
+            "[channel-{}] Failed to register channel state monitor. Continuing with fallback detection.",
+            channelId,
+            e);
         stateChangeListenerRegistered.set(false);
       }
     }
@@ -321,18 +348,12 @@ public final class FailoverChannel extends ManagedChannel {
       return;
     }
 
-    // If primary is READY, clear both useFallbackDueToState useFallbackDueToRPC flag.
-    // This ensures we switch back to primary as soon as it recovers,
+    // If primary is READY, clear both fallback flags so we immediately resume routing there,
     // regardless of which failover mode triggered the switch.
     if (primary.getState(false) == ConnectivityState.READY) {
-      synchronized (state) {
-        boolean wasOnFallback = state.useFallbackDueToState || state.useFallbackDueToRPC;
-        state.useFallbackDueToState = false;
-        state.useFallbackDueToRPC = false;
-        state.primaryNotReadySinceNanos = -1;
-        if (wasOnFallback) {
-          LOG.info("Primary channel recovered; switching back from fallback.");
-        }
+      if (state.transitionFallback(false, 0)) {
+        LOG.info(
+            "[channel-{}] Primary channel recovered; switching back from fallback.", channelId);
       }
     }
 

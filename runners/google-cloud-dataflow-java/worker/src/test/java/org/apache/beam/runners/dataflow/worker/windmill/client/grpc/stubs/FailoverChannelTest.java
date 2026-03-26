@@ -59,8 +59,8 @@ public class FailoverChannelTest {
       MethodDescriptor.newBuilder()
           .setType(MethodDescriptor.MethodType.UNARY)
           .setFullMethodName(MethodDescriptor.generateFullMethodName("test", "test"))
-          .setRequestMarshaller(new IsolationChannelTest.NoopMarshaller())
-          .setResponseMarshaller(new IsolationChannelTest.NoopMarshaller())
+          .setRequestMarshaller(new NoopClientCall.NoopMarshaller())
+          .setResponseMarshaller(new NoopClientCall.NoopMarshaller())
           .build();
 
   private static FailoverChannel createForTest(ManagedChannel primary, ManagedChannel fallback) {
@@ -74,38 +74,29 @@ public class FailoverChannelTest {
   private void triggerRPCFailure(
       FailoverChannel channel, ClientCall<Object, Object> underlying, Status status)
       throws Exception {
+    Metadata metadata = new Metadata();
     channel
         .newCall(methodDescriptor, CallOptions.DEFAULT)
-        .start(new NoopClientCall.NoopClientCallListener<>(), new Metadata());
+        .start(new NoopClientCall.NoopClientCallListener<>(), metadata);
     ArgumentCaptor<Listener<Object>> captor = ArgumentCaptor.forClass(ClientCall.Listener.class);
-    verify(underlying).start(captor.capture(), any());
+    verify(underlying).start(captor.capture(), same(metadata));
     captor.getValue().onClose(status, new Metadata());
   }
 
-
+  @Test
   public void testRPCFailureTriggersFallback() throws Exception {
     // RPC failure with UNAVAILABLE should switch to fallback channel.
     ManagedChannel mockChannel = mock(ManagedChannel.class);
     ManagedChannel mockFallbackChannel = mock(ManagedChannel.class);
     ClientCall<Object, Object> underlyingCall = mock(ClientCall.class);
-    ClientCall<Object, Object> fallbackCall = mock(ClientCall.class);
     when(mockChannel.newCall(any(), any())).thenReturn(underlyingCall);
-    when(mockFallbackChannel.newCall(any(), any())).thenReturn(fallbackCall);
+    when(mockFallbackChannel.newCall(any(), any())).thenReturn(mock(ClientCall.class));
 
     FailoverChannel failoverChannel = createForTest(mockChannel, mockFallbackChannel);
 
-    ClientCall<Object, Object> call1 =
-        failoverChannel.newCall(methodDescriptor, CallOptions.DEFAULT);
-    Metadata metadata1 = new Metadata();
-    call1.start(new NoopClientCall.NoopClientCallListener<>(), metadata1);
+    triggerRPCFailure(failoverChannel, underlyingCall, Status.UNAVAILABLE);
 
-    ArgumentCaptor<Listener<Object>> captor = ArgumentCaptor.forClass(ClientCall.Listener.class);
-    verify(underlyingCall).start(captor.capture(), same(metadata1));
-    captor.getValue().onClose(Status.UNAVAILABLE, new Metadata());
-
-    ClientCall<Object, Object> call2 =
-        failoverChannel.newCall(methodDescriptor, CallOptions.DEFAULT);
-    call2.start(new NoopClientCall.NoopClientCallListener<>(), new Metadata());
+    failoverChannel.newCall(methodDescriptor, CallOptions.DEFAULT);
     verify(mockFallbackChannel, atLeastOnce()).newCall(any(), any());
   }
 
@@ -115,23 +106,15 @@ public class FailoverChannelTest {
     ManagedChannel mockChannel = mock(ManagedChannel.class);
     ManagedChannel mockFallbackChannel = mock(ManagedChannel.class);
     ClientCall<Object, Object> underlyingCall = mock(ClientCall.class);
-    ClientCall<Object, Object> fallbackCall = mock(ClientCall.class);
     when(mockChannel.newCall(any(), any())).thenReturn(underlyingCall, mock(ClientCall.class));
-    when(mockFallbackChannel.newCall(any(), any())).thenReturn(fallbackCall);
-
+    when(mockFallbackChannel.newCall(any(), any())).thenReturn(mock(ClientCall.class));
     when(mockChannel.getState(false)).thenReturn(ConnectivityState.READY);
 
     AtomicLong time = new AtomicLong(0);
     FailoverChannel failoverChannel =
         FailoverChannel.forTest(mockChannel, mockFallbackChannel, null, time::get);
 
-    // Trigger RPC failure fallback
-    ClientCall<Object, Object> call1 =
-        failoverChannel.newCall(methodDescriptor, CallOptions.DEFAULT);
-    call1.start(new NoopClientCall.NoopClientCallListener<>(), new Metadata());
-    ArgumentCaptor<Listener<Object>> captor = ArgumentCaptor.forClass(ClientCall.Listener.class);
-    verify(underlyingCall).start(captor.capture(), any());
-    captor.getValue().onClose(Status.UNAVAILABLE, new Metadata());
+    triggerRPCFailure(failoverChannel, underlyingCall, Status.UNAVAILABLE);
 
     // Within cooling period, still on fallback
     time.addAndGet(TimeUnit.MINUTES.toNanos(30));
@@ -171,12 +154,7 @@ public class FailoverChannelTest {
         FailoverChannel.forTest(mockChannel, mockFallbackChannel, null, time::get);
 
     // RPC failure results in entering cooling period
-    ClientCall<Object, Object> call1 =
-        failoverChannel.newCall(methodDescriptor, CallOptions.DEFAULT);
-    call1.start(new NoopClientCall.NoopClientCallListener<>(), new Metadata());
-    ArgumentCaptor<Listener<Object>> captor = ArgumentCaptor.forClass(ClientCall.Listener.class);
-    verify(underlyingCall).start(captor.capture(), any());
-    captor.getValue().onClose(Status.UNAVAILABLE, new Metadata());
+    triggerRPCFailure(failoverChannel, underlyingCall, Status.UNAVAILABLE);
 
     // Still within cooling period, routes to fallback
     time.addAndGet(TimeUnit.MINUTES.toNanos(30));
@@ -204,12 +182,7 @@ public class FailoverChannelTest {
     FailoverChannel failoverChannel =
         FailoverChannel.create(mockChannel, mockFallbackChannel, mockCredentials);
 
-    ClientCall<Object, Object> call1 =
-        failoverChannel.newCall(methodDescriptor, CallOptions.DEFAULT);
-    call1.start(new NoopClientCall.NoopClientCallListener<>(), new Metadata());
-    ArgumentCaptor<Listener<Object>> captor = ArgumentCaptor.forClass(ClientCall.Listener.class);
-    verify(underlyingCall).start(captor.capture(), any());
-    captor.getValue().onClose(Status.UNAVAILABLE, new Metadata());
+    triggerRPCFailure(failoverChannel, underlyingCall, Status.UNAVAILABLE);
 
     failoverChannel.newCall(methodDescriptor, CallOptions.DEFAULT);
 
