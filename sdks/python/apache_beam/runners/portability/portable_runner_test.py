@@ -462,14 +462,13 @@ class PortableRunnerTestWithLocalDocker(PortableRunnerTest):
 
 class PortableRunnerOptimizationTest(unittest.TestCase):
   """Tests for PortableRunner._optimize_pipeline."""
-
   def test_default_optimize_expands_sdf(self):
     """Verify that expand_sdf is applied in the default pre_optimize setting.
 
     See https://github.com/apache/beam/issues/24422.
     """
-    from apache_beam.portability import common_urns
     from apache_beam.io import restriction_trackers
+    from apache_beam.portability import common_urns
 
     class ExpandStringsProvider(beam.transforms.core.RestrictionProvider):
       def initial_restriction(self, element):
@@ -511,14 +510,13 @@ class PortableRunnerOptimizationTest(unittest.TestCase):
         common_urns.sdf_components.SPLIT_AND_SIZE_RESTRICTIONS.urn,
         transform_urns)
     self.assertIn(
-        common_urns.sdf_components
-        .PROCESS_SIZED_ELEMENTS_AND_RESTRICTIONS.urn,
+        common_urns.sdf_components.PROCESS_SIZED_ELEMENTS_AND_RESTRICTIONS.urn,
         transform_urns)
 
   def test_custom_optimize_expand_sdf(self):
     """Verify that expand_sdf can be requested explicitly."""
-    from apache_beam.portability import common_urns
     from apache_beam.io import restriction_trackers
+    from apache_beam.portability import common_urns
 
     class ExpandStringsProvider(beam.transforms.core.RestrictionProvider):
       def initial_restriction(self, element):
@@ -559,8 +557,7 @@ class PortableRunnerOptimizationTest(unittest.TestCase):
         common_urns.sdf_components.SPLIT_AND_SIZE_RESTRICTIONS.urn,
         transform_urns)
     self.assertIn(
-        common_urns.sdf_components
-        .PROCESS_SIZED_ELEMENTS_AND_RESTRICTIONS.urn,
+        common_urns.sdf_components.PROCESS_SIZED_ELEMENTS_AND_RESTRICTIONS.urn,
         transform_urns)
 
   def test_default_optimize_expands_bounded_read(self):
@@ -572,8 +569,8 @@ class PortableRunnerOptimizationTest(unittest.TestCase):
     optimization, these arrive at the Spark job server as a single ParDo,
     executing on one partition with no parallelization.
     """
-    from apache_beam.portability import common_urns
     from apache_beam.io import iobase
+    from apache_beam.portability import common_urns
 
     class _FakeBoundedSource(iobase.BoundedSource):
       def get_range_tracker(self, start_position, stop_position):
@@ -606,12 +603,10 @@ class PortableRunnerOptimizationTest(unittest.TestCase):
         common_urns.sdf_components.SPLIT_AND_SIZE_RESTRICTIONS.urn,
         transform_urns)
     self.assertIn(
-        common_urns.sdf_components
-        .PROCESS_SIZED_ELEMENTS_AND_RESTRICTIONS.urn,
+        common_urns.sdf_components.PROCESS_SIZED_ELEMENTS_AND_RESTRICTIONS.urn,
         transform_urns)
     # Reshuffle should be present to enable parallelization.
-    self.assertIn(
-        common_urns.composites.RESHUFFLE.urn, transform_urns)
+    self.assertIn(common_urns.composites.RESHUFFLE.urn, transform_urns)
 
 
 if __name__ == '__main__':
