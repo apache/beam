@@ -712,7 +712,8 @@ class DictHintTestCase(TypeHintTestCase):
 
   def test_type_check_collection(self):
     hint = typehints.Dict[str, int]
-    l = collections.defaultdict(list[("blue", 2)])
+    element = ("blue", 2)
+    l = collections.defaultdict(list[element])
     self.assertIsNone(hint.type_check(l))
 
   def test_type_check_invalid_key_type(self):

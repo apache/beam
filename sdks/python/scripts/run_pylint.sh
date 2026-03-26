@@ -78,11 +78,8 @@ done
 echo -e "Skipping lint for files:\n${FILES_TO_IGNORE}"
 echo -e "Linting modules:\n${MODULE}"
 
-echo "Running pylint..."
-pylint -j8 ${MODULE} --ignore-patterns="$FILES_TO_IGNORE"
-echo "Running flake8..."
-flake8 ${MODULE} --count --select=E9,F821,F822,F823 --show-source --statistics \
-  --exclude="${FILES_TO_IGNORE}"
+echo "Running ruff..."
+ruff check ${MODULE} --extend-exclude="$FILES_TO_IGNORE"
 
 echo "Running isort..."
 # Skip files where isort is behaving weirdly
