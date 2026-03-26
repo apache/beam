@@ -32,6 +32,7 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/protobuf/proto"
+	structpb "google.golang.org/protobuf/types/known/structpb"
 )
 
 // TestRetrieve tests that we can successfully retrieve fresh files.
@@ -266,6 +267,23 @@ func TestNewRetrieveWithResolution(t *testing.T) {
 	checkStagedFiles(mds, dest, expected, t)
 }
 
+func TestIsArtifactValidationEnabled(t *testing.T) {
+	ctx := context.Background()
+	if !isArtifactValidationEnabled(ctx) {
+		t.Errorf("empty context should have validation enabled")
+	}
+
+	options, _ := structpb.NewStruct(map[string]interface{}{
+		"options": map[string]interface{}{
+			"experiments": []interface{}{"disable_integrity_checks"},
+		},
+	})
+	ctx2 := WithPipelineOptions(ctx, options)
+	if isArtifactValidationEnabled(ctx2) {
+		t.Errorf("populated context should have validation disabled")
+	}
+}
+
 func TestNewRetrieveWithBadShaFails(t *testing.T) {
 	expected := map[string]string{"a.txt": "a"}
 	client := &fakeRetrievalService{artifacts: expected}
@@ -277,6 +295,35 @@ func TestNewRetrieveWithBadShaFails(t *testing.T) {
 	if err == nil {
 		t.Fatalf("expected materialization to fail due to bad sha256 mismatch")
 	}
+}
+
+func TestNewRetrieveWithBadShaAndExperimentSucceeds(t *testing.T) {
+	expected := map[string]string{"a.txt": "a"}
+	client := &fakeRetrievalService{artifacts: expected}
+	dest := makeTempDir(t)
+	defer os.RemoveAll(dest)
+
+	options, _ := structpb.NewStruct(map[string]interface{}{
+		"options": map[string]interface{}{
+			"experiments": []interface{}{"disable_integrity_checks"},
+		},
+	})
+	ctx := WithPipelineOptions(grpcx.WriteWorkerID(context.Background(), "worker"), options)
+
+	mds, err := newMaterializeWithClient(ctx, client, client.fileArtifactsWithBadSha(), dest)
+	if err != nil {
+		t.Fatalf("materialize failed but should have succeeded because validation was disabled via experiment: %v", err)
+	}
+
+	generated := make(map[string]string)
+	for _, md := range mds {
+		name, _ := MustExtractFilePayload(md)
+		payload, _ := proto.Marshal(&pipepb.ArtifactStagingToRolePayload{
+			StagedName: name})
+		generated[name] = string(payload)
+	}
+
+	checkStagedFiles(mds, dest, generated, t)
 }
 
 func checkStagedFiles(mds []*pipepb.ArtifactInformation, dest string, expected map[string]string, t *testing.T) {

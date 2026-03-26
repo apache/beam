@@ -184,6 +184,9 @@ func launchSDKProcess() error {
 		logger.Fatalf(ctx, "Failed to convert pipeline options: %v", err)
 	}
 
+	// Inject pipeline options into context
+	ctx = artifact.WithPipelineOptions(ctx, info.GetPipelineOptions())
+
 	experiments := getExperiments(options)
 	pipNoBuildIsolation = false
 	if slices.Contains(experiments, "pip_no_build_isolation") {

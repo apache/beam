@@ -91,6 +91,9 @@ func main() {
 		logger.Fatalf(ctx, "Failed to convert pipeline options: %v", err)
 	}
 
+	// Inject pipeline options into context
+	ctx = artifact.WithPipelineOptions(ctx, info.GetPipelineOptions())
+
 	// (2) Retrieve and install the staged packages.
 
 	dir := filepath.Join(*semiPersistDir, *id, "staged")
