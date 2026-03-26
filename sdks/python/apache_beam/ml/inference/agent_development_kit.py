@@ -230,7 +230,7 @@ class ADKAgentModelHandler(ModelHandler[Union[str, genai_Content],
             user_id=user_id,
             session_id=session_id,
         )
-      except SessionExistsError:
+      except sessions.SessionExistsError:
         # It's okay if the session already exists for shared session IDs.
         pass
 
