@@ -65,6 +65,7 @@ from apache_beam.ml.inference.base import PredictionResult
 try:
   from google.adk.agents import Agent
   from google.adk.runners import Runner
+  from google.adk import sessions
   from google.adk.sessions import BaseSessionService
   from google.adk.sessions import InMemorySessionService
   from google.genai.types import Content as genai_Content
