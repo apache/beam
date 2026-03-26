@@ -67,7 +67,7 @@ If you are using **RunInference** for remote model inference (e.g., Vertex AI), 
 
 ---
 
-## Running with Dataflow
+## Running Example Pipelines with RateLimiter
 
 Once your Rate Limiter Service is deployed and has an Internal IP, you can run your pipeline pointing to that address.
 
@@ -76,14 +76,9 @@ Once your Rate Limiter Service is deployed and has an Internal IP, you can run y
 export RLS_ADDRESS="<INTERNAL_IP>:8081"
 
 ./gradlew :examples:java:exec -DmainClass=org.apache.beam.examples.RateLimiterSimple \
-  -Dexec.args="--runner=DataflowRunner \
-  --project=<YOUR_PROJECT_ID> \
-  --region=<YOUR_REGION> \
-  --tempLocation=gs://<YOUR_BUCKET>/temp \
+  -Dexec.args="--runner=<RUNNER> \
   --rateLimiterAddress=${RLS_ADDRESS} \
-  --rateLimiterDomain=mongo_cps \
-  --subnetwork=regions/<YOUR_REGION>/subnetworks/<YOUR_SUBNET_NAME> \
-  --usePublicIps=false"
+  --rateLimiterDomain=mongo_cps"
 {{< /highlight >}}
 
 {{< highlight py >}}
@@ -91,13 +86,8 @@ export RLS_ADDRESS="<INTERNAL_IP>:8081"
 export RLS_ADDRESS="<INTERNAL_IP>:8081"
 
 python -m apache_beam.examples.rate_limiter_simple \
-  --runner=DataflowRunner \
-  --project=<YOUR_PROJECT_ID> \
-  --region=<YOUR_REGION> \
-  --temp_location=gs://<YOUR_BUCKET>/temp \
-  --rls_address=${RLS_ADDRESS} \
-  --subnetwork=regions/<YOUR_REGION>/subnetworks/<YOUR_SUBNET_NAME> \
-  --no_use_public_ips
+  --runner=<RUNNER> \
+  --rls_address=${RLS_ADDRESS}
 {{< /highlight >}}
 
 ## AutoScaler Integration
