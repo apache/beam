@@ -43,12 +43,12 @@ logger = logging.getLogger(__name__)
 
 def create_sample_data_and_model(tmpdir, num_rows=100, num_features=3):
   """Create sample model and data for testing.
-  
+
   Args:
     tmpdir: Temporary directory path
     num_rows: Number of data rows to generate
     num_features: Number of features per row
-    
+
   Returns:
     Tuple of (model_path, data_path, feature_columns)
   """
@@ -89,7 +89,7 @@ def create_sample_data_and_model(tmpdir, num_rows=100, num_features=3):
 
 def run_example(num_rows=100, num_features=3):
   """Run complete batch inference example.
-  
+
   Args:
     num_rows: Number of data rows to generate
     num_features: Number of features per row
