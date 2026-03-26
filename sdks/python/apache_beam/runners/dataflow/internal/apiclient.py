@@ -600,7 +600,7 @@ class DataflowApplicationClient(object):
         if not type_payload.sha256:
           type_payload.sha256 = self._compute_sha256(type_payload.path)
 
-        if self._enable_caching and type_payload.sha256 and type_payload.sha256 in staged_hashes:
+        if type_payload.sha256 and type_payload.sha256 in staged_hashes:
           _LOGGER.info(
               'Found duplicated artifact sha256: %s (%s)',
               type_payload.path,
