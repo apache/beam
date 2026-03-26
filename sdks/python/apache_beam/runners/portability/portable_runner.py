@@ -316,6 +316,10 @@ class PortableRunner(runner.PipelineRunner):
             # Eventually remove the 'lift_combiners' phase from 'default'.
             translations.pack_combiners,
             translations.lift_combiners,
+            # Expand SDF so that portable runners that don't support SDFs
+            # natively (e.g. Spark) can still parallelize Read transforms.
+            # See https://github.com/apache/beam/issues/24422
+            translations.expand_sdf,
             translations.sort_stages
         ]
         partial = True
@@ -332,7 +336,8 @@ class PortableRunner(runner.PipelineRunner):
         phases = []
         for phase_name in pre_optimize.split(','):
           # For now, these are all we allow.
-          if phase_name in ('pack_combiners', 'lift_combiners'):
+          if phase_name in (
+              'pack_combiners', 'lift_combiners', 'expand_sdf'):
             phases.append(getattr(translations, phase_name))
           else:
             raise ValueError(
