@@ -42,11 +42,8 @@ def _make_mock_runner(
 ) -> mock.MagicMock:
   """Returns a mock Runner whose run_async yields one final-response event."""
   # Build a mock event that looks like a final response
-  part = mock.MagicMock()
-  part.text = final_text
-
   content = mock.MagicMock()
-  content.parts = [part]
+  content.text = final_text
 
   event = mock.MagicMock()
   event.is_final_response.return_value = True
@@ -301,10 +298,8 @@ class TestResponseExtraction(unittest.TestCase):
     agent = _make_mock_agent()
 
     def _make_event(text: str):
-      part = mock.MagicMock()
-      part.text = text
       content = mock.MagicMock()
-      content.parts = [part]
+      content.text = text
       event = mock.MagicMock()
       event.is_final_response.return_value = True
       event.content = content
