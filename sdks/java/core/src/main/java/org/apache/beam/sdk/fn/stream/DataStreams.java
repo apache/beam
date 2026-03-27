@@ -99,12 +99,10 @@ public class DataStreams {
     public void delimitElement() throws IOException {
       // If the previous encoding was exactly zero bytes, output a single marker byte as per
       // https://s.apache.org/beam-fn-api-send-and-receive-data
-      int newPosition = output.size();
-      if (previousPosition == newPosition) {
+      if (previousPosition == output.size()) {
         write(0);
-        ++newPosition;
       }
-      previousPosition = newPosition;
+      previousPosition = output.size();
     }
 
     @Override
@@ -138,7 +136,7 @@ public class DataStreams {
 
     @Override
     public void close() throws IOException {
-      if (!output.isEmpty()) {
+      if (output.size() > 0) {
         consumer.read(output.toByteString());
       }
       output.close();
