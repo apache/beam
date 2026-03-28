@@ -192,7 +192,7 @@ public class ArrowFlightIO {
   @AutoValue
   public abstract static class Read extends PTransform<PBegin, PCollection<Row>> {
 
-    abstract String host();
+    abstract @Nullable String host();
 
     abstract int port();
 
@@ -252,7 +252,8 @@ public class ArrowFlightIO {
 
       Schema beamSchema;
       try (BufferAllocator allocator = new RootAllocator(Long.MAX_VALUE);
-          FlightClient client = createClient(allocator, host(), port(), useTls())) {
+          FlightClient client =
+              createClient(allocator, checkNotNull(host(), "host"), port(), useTls())) {
         FlightInfo info =
             client.getInfo(
                 FlightDescriptor.command(
@@ -283,7 +284,7 @@ public class ArrowFlightIO {
     @Override
     public void populateDisplayData(DisplayData.Builder builder) {
       super.populateDisplayData(builder);
-      builder.add(DisplayData.item("host", host()));
+      builder.addIfNotNull(DisplayData.item("host", host()));
       builder.add(DisplayData.item("port", port()));
       builder.add(DisplayData.item("useTls", useTls()));
       builder.addIfNotNull(DisplayData.item("command", command()));
@@ -315,7 +316,9 @@ public class ArrowFlightIO {
 
       List<BoundedSource<Row>> sources = new ArrayList<>();
       try (BufferAllocator allocator = new RootAllocator(Long.MAX_VALUE);
-          FlightClient client = createClient(allocator, spec.host(), spec.port(), spec.useTls())) {
+          FlightClient client =
+              createClient(
+                  allocator, checkNotNull(spec.host(), "host"), spec.port(), spec.useTls())) {
         FlightInfo info =
             client.getInfo(
                 FlightDescriptor.command(
@@ -323,7 +326,8 @@ public class ArrowFlightIO {
                 spec.callOptions());
         for (FlightEndpoint fe : info.getEndpoints()) {
           SerializableEndpoint se =
-              SerializableEndpoint.fromFlightEndpoint(fe, spec.host(), spec.port());
+              SerializableEndpoint.fromFlightEndpoint(
+                  fe, checkNotNull(spec.host(), "host"), spec.port());
           sources.add(new FlightBoundedSource(spec, beamSchema, se));
         }
       }
@@ -340,7 +344,9 @@ public class ArrowFlightIO {
         return -1;
       }
       try (BufferAllocator allocator = new RootAllocator(Long.MAX_VALUE);
-          FlightClient client = createClient(allocator, spec.host(), spec.port(), spec.useTls())) {
+          FlightClient client =
+              createClient(
+                  allocator, checkNotNull(spec.host(), "host"), spec.port(), spec.useTls())) {
         FlightInfo info =
             client.getInfo(
                 FlightDescriptor.command(
@@ -388,13 +394,14 @@ public class ArrowFlightIO {
       allocator = new RootAllocator(Long.MAX_VALUE);
       Read spec = source.spec;
 
+      String hostName = checkNotNull(spec.host(), "host");
       if (source.endpoint != null) {
-        String host = source.endpoint.getHost(spec.host());
+        String host = source.endpoint.getHost(hostName);
         int port = source.endpoint.getPort(spec.port());
         client = createClient(allocator, host, port, spec.useTls());
         stream = client.getStream(source.endpoint.getTicket(), spec.callOptions());
       } else {
-        client = createClient(allocator, spec.host(), spec.port(), spec.useTls());
+        client = createClient(allocator, hostName, spec.port(), spec.useTls());
         FlightInfo info =
             client.getInfo(
                 FlightDescriptor.command(
@@ -422,7 +429,15 @@ public class ArrowFlightIO {
         if (stream.next()) {
           VectorSchemaRoot root = stream.getRoot();
           if (root.getRowCount() > 0) {
-            currentBatchIterator = ArrowConversion.rowsFromRecordBatch(source.beamSchema, root);
+            Iterator<Row> lazyIterator =
+                ArrowConversion.rowsFromRecordBatch(source.beamSchema, root);
+            List<Row> materializedRows = new ArrayList<>();
+            while (lazyIterator.hasNext()) {
+              Row lazyRow = lazyIterator.next();
+              materializedRows.add(
+                  Row.withSchema(source.beamSchema).addValues(lazyRow.getValues()).build());
+            }
+            currentBatchIterator = materializedRows.iterator();
           }
         } else {
           return false;
@@ -472,7 +487,7 @@ public class ArrowFlightIO {
   @AutoValue
   public abstract static class Write extends PTransform<PCollection<Row>, PDone> {
 
-    abstract String host();
+    abstract @Nullable String host();
 
     abstract int port();
 
@@ -547,7 +562,7 @@ public class ArrowFlightIO {
     @Override
     public void populateDisplayData(DisplayData.Builder builder) {
       super.populateDisplayData(builder);
-      builder.add(DisplayData.item("host", host()));
+      builder.addIfNotNull(DisplayData.item("host", host()));
       builder.add(DisplayData.item("port", port()));
       builder.add(DisplayData.item("useTls", useTls()));
       builder.addIfNotNull(DisplayData.item("descriptor", descriptor()));
@@ -665,7 +680,6 @@ public class ArrowFlightIO {
       }
       ensureConnection();
 
-      root.setRowCount(batch.size());
       for (int colIdx = 0; colIdx < beamSchema.getFieldCount(); colIdx++) {
         FieldVector vector = root.getVector(colIdx);
         vector.allocateNew();
@@ -680,6 +694,7 @@ public class ArrowFlightIO {
         }
         vector.setValueCount(batch.size());
       }
+      root.setRowCount(batch.size());
 
       listener.putNext();
       RECORDS_WRITTEN.inc(batch.size());

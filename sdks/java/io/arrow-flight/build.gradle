@@ -37,3 +37,7 @@ dependencies {
   testRuntimeOnly library.java.slf4j_simple
   testRuntimeOnly project(path: ":runners:direct-java", configuration: "shadow")
 }
+
+test {
+  jvmArgs '--add-opens=java.base/java.nio=ALL-UNNAMED'
+}

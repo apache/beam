@@ -21,6 +21,7 @@ import static org.junit.Assert.assertEquals;
 
 import java.nio.charset.StandardCharsets;
 import java.util.Collections;
+import java.util.concurrent.atomic.AtomicInteger;
 import org.apache.arrow.flight.Action;
 import org.apache.arrow.flight.ActionType;
 import org.apache.arrow.flight.Criteria;
@@ -121,14 +122,14 @@ public class ArrowFlightIOTest {
 
     pipeline.run().waitUntilFinish();
 
-    assertEquals(2, producer.writtenRecords);
+    assertEquals(2, producer.writtenRecords.get());
   }
 
   /** A simple FlightProducer that returns predefined data for reads and counts writes. */
   private static class TestFlightProducer implements FlightProducer {
 
     private final BufferAllocator allocator;
-    int writtenRecords = 0;
+    final AtomicInteger writtenRecords = new AtomicInteger();
 
     TestFlightProducer(BufferAllocator allocator) {
       this.allocator = allocator;
@@ -189,7 +190,7 @@ public class ArrowFlightIOTest {
         try {
           while (flightStream.next()) {
             VectorSchemaRoot root = flightStream.getRoot();
-            writtenRecords += root.getRowCount();
+            writtenRecords.addAndGet(root.getRowCount());
           }
           ackStream.onCompleted();
         } catch (Exception e) {
