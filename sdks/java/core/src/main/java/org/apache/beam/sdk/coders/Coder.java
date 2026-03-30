@@ -53,6 +53,24 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  *
  * @param <T> the type of values being encoded and decoded
  */
+/**
+ * <p><b>Example usage:</b>
+ * <pre>{@code
+ * Coder<String> coder = StringUtf8Coder.of();
+ *
+ * // Encoding a single standalone value(typically uses OUTER context)
+ * coder.encode("hello", outStream);
+ *
+ * // Encoding multiple values (NESTED context scenario)
+ * for (String value : values) {
+ *     coder.encode(value, outStream);
+ * }
+ * }</pre>
+ *
+ * <p>When multiple values are encoded into the same stream, coders must ensure
+ * that each value can be correctly decoded. This is typically done by encoding
+ * length or delimiter information.
+ */
 public abstract class Coder<T> implements Serializable {
   /**
    * The context in which encoding or decoding is being done.
@@ -64,22 +82,32 @@ public abstract class Coder<T> implements Serializable {
   @Deprecated
   public static class Context {
     /**
-     * The outer context: the value being encoded or decoded takes up the remainder of the
-     * record/stream contents.
-     */
+    * The outer context indicates that the value being encoded or decoded
+    * occupies the entire remaining stream.
+    *
+    * <p>In this context, the coder does not need to include length or boundary
+    * information, since the value extends to the end of the stream.
+    *
+    * <p><b>Example:</b> Encoding a single standalone value.
+    */
     public static final Context OUTER = new Context(true);
-
     /**
-     * The nested context: the value being encoded or decoded is (potentially) a part of a larger
-     * record/stream contents, and may have other parts encoded or decoded after it.
-     */
+    * The nested context indicates that the value being encoded or decoded
+    * is part of a larger structure or stream containing multiple values.
+    *
+    * <p>In this context, the coder must include enough information (such as
+    * length or delimiters) to allow correct decoding of individual elements.
+    *
+    * <p><b>Example:</b> Encoding elements inside a collection or record.
+    */
     public static final Context NESTED = new Context(false);
 
     /**
-     * Whether the encoded or decoded value fills the remainder of the output or input (resp.)
-     * record/stream contents. If so, then the size of the decoded value can be determined from the
-     * remaining size of the record/stream contents, and so explicit lengths aren't required.
-     */
+    * Indicates whether the encoded/decoded value consumes the entire remaining stream.
+    *
+    * <p>If true, no additional length information is required.
+    * If false, the coder must encode boundaries to allow correct decoding.
+    */    
     public final boolean isWholeStream;
 
     public Context(boolean isWholeStream) {
@@ -116,9 +144,11 @@ public abstract class Coder<T> implements Serializable {
    * be encoded next to each other on the output stream, each coder should encode information to
    * know how many bytes to read when decoding. A common approach is to prefix the encoding with the
    * element's encoded length.
-   *
-   * @throws IOException if writing to the {@code OutputStream} fails for some reason
-   * @throws CoderException if the value could not be encoded for some reason
+   * <p>The behavior of encoding depends on the {@link Context} in which it is used.
+   * When using {@link Context#OUTER}, the encoded value may consume the entire remaining stream,
+   * so no additional length information is required. In contrast, when using {@link Context#NESTED},
+   * the encoded value is part of a larger structure, and the coder must include sufficient
+   * boundary information (such as length prefixes) to allow correct decoding of individual elements.
    */
   public abstract void encode(T value, OutputStream outStream) throws CoderException, IOException;
 
@@ -136,10 +166,16 @@ public abstract class Coder<T> implements Serializable {
   }
 
   /**
-   * Decodes a value of type {@code T} from the given input stream in the given context. Returns the
-   * decoded value. Multiple elements can be encoded next to each other on the input stream, each
-   * coder should encode information to know how many bytes to read when decoding. A common approach
-   * is to prefix the encoding with the element's encoded length.
+   * Decodes a value of type {@code T} from the given input stream and returns the decoded value.
+   *
+   * <p>When multiple elements are encoded in the same stream, the coder must be able to determine
+   * how many bytes to read for each element. This is typically achieved by encoding length or
+   * delimiter information during encoding.
+   *
+   * <p>The behavior of decoding depends on the {@link Context} in which it is used.
+   * When decoding in {@link Context#OUTER}, the value is expected to consume the entire remaining
+   * stream. In {@link Context#NESTED}, the value is part of a larger structure, so the coder must
+   * rely on encoded boundaries (such as length prefixes) to correctly extract individual elements.
    *
    * @throws IOException if reading from the {@code InputStream} fails for some reason
    * @throws CoderException if the value could not be decoded for some reason
