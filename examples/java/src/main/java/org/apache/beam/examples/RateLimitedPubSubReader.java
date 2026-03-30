@@ -31,7 +31,6 @@ import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.options.Validation;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
-import org.apache.beam.sdk.transforms.Reshuffle;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.slf4j.Logger;
@@ -125,7 +124,6 @@ public class RateLimitedPubSubReader {
     Pipeline p = Pipeline.create(options);
 
     p.apply("ReadFromPubSub", PubsubIO.readStrings().fromTopic(options.getTopic()))
-        .apply("Reshuffle", Reshuffle.viaRandomKey())
         .apply(
             "RateLimitAndLog",
             ParDo.of(
