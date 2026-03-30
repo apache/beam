@@ -43,25 +43,25 @@ import (
 // spanner: struct tag.
 
 type csRow struct {
-	DataChangeRecord     []csDataChangeRecord     `spanner:"data_change_record"`
-	HeartbeatRecord      []csHeartbeatRecord      `spanner:"heartbeat_record"`
-	ChildPartitionsRecord []csChildPartitionsRecord `spanner:"child_partitions_record"`
+	DataChangeRecord      []*csDataChangeRecord      `spanner:"data_change_record"`
+	HeartbeatRecord       []*csHeartbeatRecord       `spanner:"heartbeat_record"`
+	ChildPartitionsRecord []*csChildPartitionsRecord  `spanner:"child_partitions_record"`
 }
 
 type csDataChangeRecord struct {
-	CommitTimestamp     time.Time    `spanner:"commit_timestamp"`
-	RecordSequence      string       `spanner:"record_sequence"`
-	ServerTransactionID string       `spanner:"server_transaction_id"`
-	IsLastRecord        bool         `spanner:"is_last_record_in_transaction_in_partition"`
-	TableName           string       `spanner:"table_name"`
-	ColumnTypes         []csColumnType `spanner:"column_types"`
-	Mods                []csMod      `spanner:"mods"`
-	ModType             string       `spanner:"mod_type"`
-	ValueCaptureType    string       `spanner:"value_capture_type"`
-	NumberOfRecords     int64        `spanner:"number_of_records_in_transaction"`
-	NumberOfPartitions  int64        `spanner:"number_of_partitions_in_transaction"`
-	TransactionTag      string       `spanner:"transaction_tag"`
-	IsSystemTransaction bool         `spanner:"is_system_transaction"`
+	CommitTimestamp     time.Time      `spanner:"commit_timestamp"`
+	RecordSequence      string         `spanner:"record_sequence"`
+	ServerTransactionID string         `spanner:"server_transaction_id"`
+	IsLastRecord        bool           `spanner:"is_last_record_in_transaction_in_partition"`
+	TableName           string         `spanner:"table_name"`
+	ColumnTypes         []*csColumnType `spanner:"column_types"`
+	Mods                []*csMod        `spanner:"mods"`
+	ModType             string         `spanner:"mod_type"`
+	ValueCaptureType    string         `spanner:"value_capture_type"`
+	NumberOfRecords     int64          `spanner:"number_of_records_in_transaction"`
+	NumberOfPartitions  int64          `spanner:"number_of_partitions_in_transaction"`
+	TransactionTag      string         `spanner:"transaction_tag"`
+	IsSystemTransaction bool           `spanner:"is_system_transaction"`
 }
 
 type csColumnType struct {
@@ -82,9 +82,9 @@ type csHeartbeatRecord struct {
 }
 
 type csChildPartitionsRecord struct {
-	StartTimestamp  time.Time          `spanner:"start_timestamp"`
-	RecordSequence  string             `spanner:"record_sequence"`
-	ChildPartitions []csChildPartition `spanner:"child_partitions"`
+	StartTimestamp  time.Time           `spanner:"start_timestamp"`
+	RecordSequence  string              `spanner:"record_sequence"`
+	ChildPartitions []*csChildPartition `spanner:"child_partitions"`
 }
 
 type csChildPartition struct {
@@ -288,7 +288,18 @@ func (fn *readChangeStreamFn) ProcessElement(
 		active.Token, active.StartTimestamp, len(rest.Pending))
 
 	// Use a bounded context so we self-checkpoint periodically.
-	queryCtx, cancel := context.WithTimeout(ctx, defaultCheckpointInterval)
+	// For bounded partitions, extend the timeout to ensure the query can
+	// finish naturally before the context expires. Without this extension,
+	// the context can expire just before iterator.Done is returned (when
+	// the partition's time window is close to defaultCheckpointInterval),
+	// causing a spurious checkpoint that re-reads already-processed records.
+	checkpointInterval := defaultCheckpointInterval
+	if active.bounded() {
+		if remaining := time.Until(active.EndTimestamp); remaining+5*time.Second > checkpointInterval {
+			checkpointInterval = remaining + 5*time.Second
+		}
+	}
+	queryCtx, cancel := context.WithTimeout(ctx, checkpointInterval)
 	defer cancel()
 
 	iter := fn.client.Single().Query(queryCtx, fn.buildStatement(active))
@@ -328,13 +339,13 @@ func (fn *readChangeStreamFn) ProcessElement(
 			return sdf.StopProcessing(), fmt.Errorf("reading change stream %q partition %q: %w", fn.ChangeStreamName, active.Token, err)
 		}
 
-		var rows []csRow
+		var rows []*csRow
 		if err := row.Column(0, &rows); err != nil {
 			return sdf.StopProcessing(), fmt.Errorf("decoding ChangeRecord column: %w", err)
 		}
 
 		for _, r := range rows {
-			stop, err := fn.handleCSRow(ctx, rt, we, emit, active.Token, r)
+			stop, err := fn.handleCSRow(ctx, rt, we, emit, active.Token, *r)
 			if err != nil {
 				return sdf.StopProcessing(), err
 			}
@@ -356,7 +367,7 @@ func (fn *readChangeStreamFn) handleCSRow(
 	r csRow,
 ) (stop bool, err error) {
 	for _, dcr := range r.DataChangeRecord {
-		rec := dataChangeRecordFromCS(token, dcr)
+		rec := dataChangeRecordFromCS(token, *dcr)
 		if !rt.TryClaim(PartitionTimestampClaim{Timestamp: rec.CommitTimestamp}) {
 			return true, nil
 		}

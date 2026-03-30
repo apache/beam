@@ -85,13 +85,18 @@ func TestReadChangeStream_BoundedRead(t *testing.T) {
 	// time (which is after CreateTable returns) with a small buffer.
 	startTime := time.Now().UTC()
 
-	// Write two rows that the change stream should capture.
-	mutations := []*spanner.Mutation{
+	// Write two rows in separate transactions so Spanner generates two distinct
+	// DataChangeRecords (one per transaction).  A single Apply with both rows
+	// produces only one DataChangeRecord because they share the same transaction.
+	if _, err := client.Apply(ctx, []*spanner.Mutation{
 		spanner.Insert("Items", []string{"Id", "Name"}, []interface{}{int64(1), "alpha"}),
-		spanner.Insert("Items", []string{"Id", "Name"}, []interface{}{int64(2), "beta"}),
+	}); err != nil {
+		t.Fatalf("Apply first mutation: %v", err)
 	}
-	if _, err := client.Apply(ctx, mutations); err != nil {
-		t.Fatalf("Apply mutations: %v", err)
+	if _, err := client.Apply(ctx, []*spanner.Mutation{
+		spanner.Insert("Items", []string{"Id", "Name"}, []interface{}{int64(2), "beta"}),
+	}); err != nil {
+		t.Fatalf("Apply second mutation: %v", err)
 	}
 
 	// Give the emulator a moment to commit, then set the end time far enough
