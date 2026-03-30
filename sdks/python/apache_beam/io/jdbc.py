@@ -298,7 +298,6 @@ class ReadFromJdbc(ExternalTransform):
   Experimental; no backwards compatibility guarantees.
   """
 
-
   URN = 'beam:transform:org.apache.beam:schemaio_jdbc_read:v1'
 
   def __init__(
