@@ -147,7 +147,7 @@ pyasn1_modules==0.4.2
 pycparser==3.0
 pydantic==2.12.5
 pydantic_core==2.41.5
-Pygments==2.19.2
+Pygments==2.20.0
 PyHamcrest==2.1.0
 pymongo==4.16.0
 PyMySQL==1.1.2
