@@ -255,7 +255,8 @@ class CheckpointMark(object):
   Implementations must be serializable so they can be persisted and restored
   across pipeline restarts.
 
-  Example:
+  For example::
+
     class MyCheckpointMark(CheckpointMark):
       def __init__(self, offset):
         self.offset = offset
@@ -293,7 +294,8 @@ class UnboundedReader(object):
     3. get_current_timestamp() - gets timestamp of current record
     4. get_checkpoint_mark() - creates a checkpoint for resuming
 
-  Example:
+  For example::
+
     reader = source.reader()
     if reader.start():
       process(reader.get_current())
@@ -391,7 +393,8 @@ class UnboundedSource(SourceBase):
   - Supporting checkpointing for fault tolerance
   - Splitting into multiple parallel readers if possible
 
-  Example:
+  For example::
+
     class MyUnboundedSource(UnboundedSource):
       def reader(self, checkpoint=None):
         return MyUnboundedReader(checkpoint)
