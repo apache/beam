@@ -36,7 +36,7 @@ concurrency:
   cancel-in-progress: true
 jobs:
   build:
-    runs-on: [self-hosted, ubuntu-20.04, main]
+    runs-on: [self-hosted, ubuntu-24.04, main]
     name: Go Build
     steps:
       - name: Check out code
