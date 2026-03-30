@@ -23,8 +23,11 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assume.assumeFalse;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -35,7 +38,9 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.NoSuchFileException;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.ArrayList;
 import java.util.List;
+import org.apache.beam.sdk.io.FileSystem.LineageLevel;
 import org.apache.beam.sdk.io.fs.CreateOptions;
 import org.apache.beam.sdk.io.fs.MatchResult;
 import org.apache.beam.sdk.io.fs.MoveOptions;
@@ -54,6 +59,8 @@ import org.junit.rules.ExpectedException;
 import org.junit.rules.TemporaryFolder;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
+import org.mockito.MockedStatic;
+import org.mockito.Mockito;
 
 /** Tests for {@link FileSystems}. */
 @RunWith(JUnit4.class)
@@ -335,6 +342,97 @@ public class FileSystemsTest {
               testCase.getValue().getKey(), testCase.getValue().getValue());
       assertEquals(expected, actual);
     }
+  }
+
+  @Test
+  public void testReportSourceLineageFewFiles() {
+    List<ResourceId> resources = new ArrayList<>();
+    for (int i = 0; i < 5; i++) {
+      resources.add(mockResourceId("/dir/file" + i, "/dir/"));
+    }
+
+    try (MockedStatic<FileSystems> mocked =
+        Mockito.mockStatic(FileSystems.class, Mockito.CALLS_REAL_METHODS)) {
+      mocked
+          .when(() -> FileSystems.reportSourceLineage(any(ResourceId.class)))
+          .thenAnswer(inv -> null);
+      mocked
+          .when(() -> FileSystems.reportSourceLineage(any(ResourceId.class), any()))
+          .thenAnswer(inv -> null);
+
+      FileSystems.reportSourceLineage(resources);
+
+      for (ResourceId r : resources) {
+        mocked.verify(() -> FileSystems.reportSourceLineage(r));
+      }
+    }
+  }
+
+  @Test
+  public void testReportSourceLineageManyFilesFewDirs() {
+    ResourceId dir = mockResourceId("/dir/", null);
+    List<ResourceId> resources = new ArrayList<>();
+    for (int i = 0; i < 150; i++) {
+      resources.add(mockResourceId("/dir/file" + i, dir));
+    }
+
+    try (MockedStatic<FileSystems> mocked =
+        Mockito.mockStatic(FileSystems.class, Mockito.CALLS_REAL_METHODS)) {
+      mocked
+          .when(() -> FileSystems.reportSourceLineage(any(ResourceId.class)))
+          .thenAnswer(inv -> null);
+      mocked
+          .when(() -> FileSystems.reportSourceLineage(any(ResourceId.class), any()))
+          .thenAnswer(inv -> null);
+
+      FileSystems.reportSourceLineage(resources);
+
+      // Should report the unique directory, not individual files
+      mocked.verify(() -> FileSystems.reportSourceLineage(dir));
+      mocked.verify(
+          () -> FileSystems.reportSourceLineage(any(ResourceId.class), any(LineageLevel.class)),
+          never());
+    }
+  }
+
+  @Test
+  public void testReportSourceLineageManyFilesManyDirs() {
+    List<ResourceId> resources = new ArrayList<>();
+    for (int i = 0; i < 150; i++) {
+      ResourceId dir = mockResourceId("/dir" + i + "/", null);
+      resources.add(mockResourceId("/dir" + i + "/file", dir));
+    }
+
+    try (MockedStatic<FileSystems> mocked =
+        Mockito.mockStatic(FileSystems.class, Mockito.CALLS_REAL_METHODS)) {
+      mocked
+          .when(() -> FileSystems.reportSourceLineage(any(ResourceId.class)))
+          .thenAnswer(inv -> null);
+      mocked
+          .when(() -> FileSystems.reportSourceLineage(any(ResourceId.class), any()))
+          .thenAnswer(inv -> null);
+
+      FileSystems.reportSourceLineage(resources);
+
+      // Should fall back to TOP_LEVEL reporting
+      mocked.verify(
+          () -> FileSystems.reportSourceLineage(any(ResourceId.class), eq(LineageLevel.TOP_LEVEL)));
+      // Should not report individual files or directories at FILE level
+      mocked.verify(() -> FileSystems.reportSourceLineage(any(ResourceId.class)), never());
+    }
+  }
+
+  private ResourceId mockResourceId(String path, Object dir) {
+    ResourceId resourceId = mock(ResourceId.class);
+    when(resourceId.toString()).thenReturn(path);
+    if (dir instanceof String) {
+      ResourceId dirId = mock(ResourceId.class);
+      when(dirId.toString()).thenReturn((String) dir);
+      when(resourceId.getCurrentDirectory()).thenReturn(dirId);
+    } else if (dir instanceof ResourceId) {
+      when(resourceId.getCurrentDirectory()).thenReturn((ResourceId) dir);
+    }
+    return resourceId;
   }
 
   private static List<ResourceId> toResourceIds(List<Path> paths, final boolean isDirectory) {
