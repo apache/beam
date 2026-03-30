@@ -1,4 +1,51 @@
-<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>Apache Beam – Blogs</title><link>/blog/</link><description>Recent content in Blogs on Apache Beam</description><generator>Hugo -- gohugo.io</generator><language>en</language><lastBuildDate>Tue, 13 Jan 2026 09:00:00 -0700</lastBuildDate><atom:link href="/blog/index.xml" rel="self" type="application/rss+xml"/><item><title>Blog: Apache Beam 2.71.0</title><link>/blog/beam-2.71.0/</link><pubDate>Tue, 13 Jan 2026 09:00:00 -0700</pubDate><guid>/blog/beam-2.71.0/</guid><description>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>Apache Beam – Blogs</title><link>/blog/</link><description>Recent content in Blogs on Apache Beam</description><generator>Hugo -- gohugo.io</generator><language>en</language><lastBuildDate>Mon, 30 Mar 2026 09:00:00 -0700</lastBuildDate><atom:link href="/blog/index.xml" rel="self" type="application/rss+xml"/><item><title>Blog: Apache Beam 2.72.0</title><link>/blog/beam-2.72.0/</link><pubDate>Mon, 30 Mar 2026 09:00:00 -0700</pubDate><guid>/blog/beam-2.72.0/</guid><description>
+&lt;!--
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+http://www.apache.org/licenses/LICENSE-2.0
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+&lt;p>We are happy to present the new 2.72.0 release of Beam.
+This release includes both improvements and new functionality.
+See the &lt;a href="/get-started/downloads/#2720-2026-03-30">download page&lt;/a> for this release.&lt;/p>
+&lt;p>For more information on changes in 2.72.0, check out the &lt;a href="https://github.com/apache/beam/milestone/39">detailed release notes&lt;/a>.&lt;/p>
+&lt;h2 id="highlights">Highlights&lt;/h2>
+&lt;ul>
+&lt;li>Flink 2.0 support (&lt;a href="https://github.com/apache/beam/issues/36947">#36947&lt;/a>).&lt;/li>
+&lt;/ul>
+&lt;h3 id="ios">I/Os&lt;/h3>
+&lt;ul>
+&lt;li>Add Datadog IO support (Java) (&lt;a href="https://github.com/apache/beam/issues/37318">#37318&lt;/a>).&lt;/li>
+&lt;li>Remove Pubsublite IO support, since service will be deprecated in March 2026. (&lt;a href="https://github.com/apache/beam/issues/37375">#37375&lt;/a>).&lt;/li>
+&lt;li>(Java) ClickHouse - migrating from the legacy JDBC driver (v0.6.3) to ClickHouse Java Client v2 (v0.9.6). See the &lt;a href="https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/clickhouse/ClickHouseIO.html">class documentation&lt;/a> for migration guide (&lt;a href="https://github.com/apache/beam/issues/37610">#37610&lt;/a>).&lt;/li>
+&lt;li>(Java) Upgraded GoogleAdsIO to use GoogleAdsIO API v23 (&lt;a href="https://github.com/apache/beam/issues/37620">#37620&lt;/a>).&lt;/li>
+&lt;/ul>
+&lt;h3 id="new-features--improvements">New Features / Improvements&lt;/h3>
+&lt;ul>
+&lt;li>(Python) Added exception chaining to preserve error context in CloudSQLEnrichmentHandler, processes utilities, and core transforms (&lt;a href="https://github.com/apache/beam/issues/37422">#37422&lt;/a>).&lt;/li>
+&lt;li>(Python) Added a pipeline option &lt;code>--experiments=pip_no_build_isolation&lt;/code> to disable build isolation when installing dependencies in the runtime environment (&lt;a href="https://github.com/apache/beam/issues/37331">#37331&lt;/a>).&lt;/li>
+&lt;/ul>
+&lt;h3 id="deprecations">Deprecations&lt;/h3>
+&lt;ul>
+&lt;li>(Python) Removed previously deprecated list_prefix method for filesystem interfaces (&lt;a href="https://github.com/apache/beam/issues/37587">#37587&lt;/a>).&lt;/li>
+&lt;/ul>
+&lt;h3 id="bugfixes">Bugfixes&lt;/h3>
+&lt;ul>
+&lt;li>Fixed (Yaml) issue with validate compatible method (&lt;a href="https://github.com/apache/beam/issues/37588">#37588&lt;/a>).&lt;/li>
+&lt;li>Fixed (Yaml) issue with Create transform dealing with different type elements (&lt;a href="https://github.com/apache/beam/issues/37585">#37585&lt;/a>).&lt;/li>
+&lt;/ul>
+&lt;h3 id="security-fixes">Security Fixes&lt;/h3>
+&lt;ul>
+&lt;li>Fixed &lt;a href="https://www.cve.org/CVERecord?id=CVE-2024-28397">CVE-2024-28397&lt;/a> by switching from js2py to pythonmonkey (Yaml) (&lt;a href="https://github.com/apache/beam/issues/37560">#37560&lt;/a>).&lt;/li>
+&lt;/ul>
+&lt;h2 id="list-of-contributors">List of Contributors&lt;/h2>
+&lt;p>According to git shortlog, the following people contributed to the 2.72.0 release. Thank you to all contributors!&lt;/p>
+&lt;p>Abdelrahman Ibrahim, Ahmed Abualsaud, Andrew Crites, Arun Pandian, Ben Feinstein, Bentsi Leviav, Celeste Zeng, Danny McCormick, Danny Mccormick, Derrick Williams, Elia LIU, Ganesh, Jack McCluskey, Kenneth Knowles, Labesse Kévin, M Junaid Shaukat, Mansi Singh, Mattie Fu, Nayan Mathur, Pablo Estrada, Pirzada Ahmad Faraz, Radek Stankiewicz, Radosław Stankiewicz, Robert Bradshaw, Rohan Sah, RuiLong J., Sakthivel Subramanian, Sam Whittle, Shaheer Amjad, Shunping Huang, Steven van Rossum, Tarun Annapareddy, Tobias Kaymak, Valentyn Tymofieiev, Vitaly Terentyev, Yi Hu, XQ Hu, ZIHAN DAI, apanich, chenxuesdu, claudevdm, franzonia137&lt;/p></description></item><item><title>Blog: Apache Beam 2.71.0</title><link>/blog/beam-2.71.0/</link><pubDate>Tue, 13 Jan 2026 09:00:00 -0700</pubDate><guid>/blog/beam-2.71.0/</guid><description>
 &lt;!--
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -19,21 +66,21 @@ See the &lt;a href="/get-started/downloads/#2710-2026-01-22">download page&lt;/a
 &lt;li>(Java) Elasticsearch 9 Support (&lt;a href="https://github.com/apache/beam/issues/36491">#36491&lt;/a>).&lt;/li>
 &lt;li>(Java) Upgraded HCatalogIO to Hive 4.0.1 (&lt;a href="https://github.com/apache/beam/issues/32189">#32189&lt;/a>).&lt;/li>
 &lt;/ul>
-&lt;h2 id="new-features--improvements">New Features / Improvements&lt;/h2>
+&lt;h3 id="new-features--improvements">New Features / Improvements&lt;/h3>
 &lt;ul>
 &lt;li>Support configuring Firestore database on ReadFn transforms (Java) (&lt;a href="https://github.com/apache/beam/issues/36904">#36904&lt;/a>).&lt;/li>
 &lt;li>(Python) Inference args are now allowed in most model handlers, except where they are explicitly/intentionally disallowed (&lt;a href="https://github.com/apache/beam/issues/37093">#37093&lt;/a>).&lt;/li>
 &lt;/ul>
-&lt;h2 id="bugfixes">Bugfixes&lt;/h2>
+&lt;h3 id="bugfixes">Bugfixes&lt;/h3>
 &lt;ul>
 &lt;li>Fixed FirestoreV1 Beam connectors allow configuring inconsistent project/database IDs between RPC requests and routing headers #36895 (Java) (&lt;a href="https://github.com/apache/beam/issues/36895">#36895&lt;/a>).&lt;/li>
 &lt;li>Logical type and coder registry are saved for pipelines in the case of default pickler (&lt;a href="https://github.com/apache/beam/issues/36271">#36271&lt;/a>). This fixes a side effect of switching to cloudpickle as default pickler in Beam 2.65.0 (Python) (&lt;a href="https://github.com/apache/beam/issues/35738">#35738&lt;/a>).&lt;/li>
 &lt;/ul>
-&lt;h2 id="known-issues">Known Issues&lt;/h2>
+&lt;h3 id="known-issues">Known Issues&lt;/h3>
 &lt;p>For the most up to date list of known issues, see &lt;a href="https://github.com/apache/beam/blob/master/CHANGES.md">https://github.com/apache/beam/blob/master/CHANGES.md&lt;/a>&lt;/p>
 &lt;h2 id="list-of-contributors">List of Contributors&lt;/h2>
 &lt;p>According to git shortlog, the following people contributed to the 2.71.0 release. Thank you to all contributors!&lt;/p>
-&lt;p>Abacn, Ahmed Abualsaud, Amar3tto, Andrew Crites, apanich, Arun, Arun Pandian, assaf127, Chamikara Jayalath, CherisPatelInfocusp, Cheskel Twersky, Claire McGinty, Claude, Danny Mccormick, dependabot[bot], Derrick Williams, Egbert van der Wal, Evan Galpin, Ganesh, github-actions[bot], hekk-kaori-maeda, Jack Dingilian, Jack McCluskey, JayajP, Jiang Zhu, Kenneth Knowles, liferoad, M Junaid Shaukat, Nayan Mathur, Noah Stapp, Paco Avila, Radek Stankiewicz, Radosław Stankiewicz, Robert Stupp, Sam Whittle, Shunping Huang, Steven van Rossum, Suvrat Acharya, Tarun Annapareddy, tvalentyn, Utkarsh Parekh, Vitaly Terentyev, Xiaochu Liu, Yala Huang Feng, Yi Hu, Yu Watanabe, zhan7236&lt;/p></description></item><item><title>Blog: Apache Beam 2.70.0</title><link>/blog/beam-2.70.0/</link><pubDate>Tue, 16 Dec 2025 15:00:00 -0500</pubDate><guid>/blog/beam-2.70.0/</guid><description>
+&lt;p>Ahmed Abualsaud, Andrew Crites, apanich, Arun, Arun Pandian, assaf127, Chamikara Jayalath, CherisPatelInfocusp, Cheskel Twersky, Claire McGinty, Claude, Danny Mccormick, Derrick Williams, Egbert van der Wal, Evan Galpin, Ganesh, hekk-kaori-maeda, Jack Dingilian, Jack McCluskey, JayajP, Jiang Zhu, Kenneth Knowles, liferoad, M Junaid Shaukat, Nayan Mathur, Noah Stapp, Paco Avila, Radek Stankiewicz, Radosław Stankiewicz, Robert Stupp, Sam Whittle, Shunping Huang, Steven van Rossum, Suvrat Acharya, Tarun Annapareddy, tvalentyn, Utkarsh Parekh, Vitaly Terentyev, Xiaochu Liu, Yala Huang Feng, Yi Hu, Yu Watanabe, zhan7236&lt;/p></description></item><item><title>Blog: Apache Beam 2.70.0</title><link>/blog/beam-2.70.0/</link><pubDate>Tue, 16 Dec 2025 15:00:00 -0500</pubDate><guid>/blog/beam-2.70.0/</guid><description>
 &lt;!--
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -6106,138 +6153,4 @@ alt="Apache Beam Playground">&lt;/p>
 &lt;li>Join the Beam &lt;a href="/community/contact-us">users@&lt;/a> mailing list&lt;/li>
 &lt;li>Contribute to the Apache Beam Playground codebase by following a few steps in this &lt;a href="/contribute">Contribution Guide&lt;/a>&lt;/li>
 &lt;/ul>
-&lt;p>Please &lt;a href="/community/contact-us">reach out&lt;/a> if you have any feedback or encounter any issues!&lt;/p></description></item><item><title>Blog: Apache Beam 2.43.0</title><link>/blog/beam-2.43.0/</link><pubDate>Thu, 17 Nov 2022 09:00:00 -0700</pubDate><guid>/blog/beam-2.43.0/</guid><description>
-&lt;!--
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-http://www.apache.org/licenses/LICENSE-2.0
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
--->
-&lt;p>We are happy to present the new 2.43.0 release of Beam.
-This release includes both improvements and new functionality.
-See the &lt;a href="/get-started/downloads/#2430-2022-11-17">download page&lt;/a> for this release.&lt;/p>
-&lt;p>For more information on changes in 2.43.0, check out the &lt;a href="https://github.com/apache/beam/milestone/5?closed=1">detailed release notes&lt;/a>.&lt;/p>
-&lt;h2 id="highlights">Highlights&lt;/h2>
-&lt;ul>
-&lt;li>Python 3.10 support in Apache Beam (&lt;a href="https://github.com/apache/beam/issues/21458">#21458&lt;/a>).&lt;/li>
-&lt;li>An initial implementation of a runner that allows us to run Beam pipelines on Dask. Try it out and give us feedback! (Python) (&lt;a href="https://github.com/apache/beam/issues/18962">#18962&lt;/a>).&lt;/li>
-&lt;/ul>
-&lt;h2 id="ios">I/Os&lt;/h2>
-&lt;ul>
-&lt;li>Decreased TextSource CPU utilization by 2.3x (Java) (&lt;a href="https://github.com/apache/beam/issues/23193">#23193&lt;/a>).&lt;/li>
-&lt;li>Fixed bug when using SpannerIO with RuntimeValueProvider options (Java) (&lt;a href="https://github.com/apache/beam/issues/22146">#22146&lt;/a>).&lt;/li>
-&lt;li>Fixed issue for unicode rendering on WriteToBigQuery (&lt;a href="https://github.com/apache/beam/issues/22312">#22312&lt;/a>)&lt;/li>
-&lt;li>Remove obsolete variants of BigQuery Read and Write, always using Beam-native variant
-(&lt;a href="https://github.com/apache/beam/issues/23564">#23564&lt;/a> and &lt;a href="https://github.com/apache/beam/issues/23559">#23559&lt;/a>).&lt;/li>
-&lt;li>Bumped google-cloud-spanner dependency version to 3.x for Python SDK (&lt;a href="https://github.com/apache/beam/issues/21198">#21198&lt;/a>).&lt;/li>
-&lt;/ul>
-&lt;h2 id="new-features--improvements">New Features / Improvements&lt;/h2>
-&lt;ul>
-&lt;li>Dataframe wrapper added in Go SDK via Cross-Language (with automatic expansion service). (Go) (&lt;a href="https://github.com/apache/beam/issues/23384">#23384&lt;/a>).&lt;/li>
-&lt;li>Name all Java threads to aid in debugging (&lt;a href="https://github.com/apache/beam/issues/23049">#23049&lt;/a>).&lt;/li>
-&lt;li>An initial implementation of a runner that allows us to run Beam pipelines on Dask. (Python) (&lt;a href="https://github.com/apache/beam/issues/18962">#18962&lt;/a>).&lt;/li>
-&lt;li>Allow configuring GCP OAuth scopes via pipeline options. This unblocks usages of Beam IOs that require additional scopes.
-For example, this feature makes it possible to access Google Drive backed tables in BigQuery (&lt;a href="https://github.com/apache/beam/issues/23290">#23290&lt;/a>).&lt;/li>
-&lt;li>An example for using Python RunInference from Java (&lt;a href="https://github.com/apache/beam/pull/23619">#23290&lt;/a>).&lt;/li>
-&lt;/ul>
-&lt;h2 id="breaking-changes">Breaking Changes&lt;/h2>
-&lt;ul>
-&lt;li>CoGroupByKey transform in Python SDK has changed the output typehint. The typehint component representing grouped values changed from List to Iterable,
-which more accurately reflects the nature of the arbitrarily large output collection. &lt;a href="https://github.com/apache/beam/issues/21556">#21556&lt;/a> Beam users may see an error on transforms downstream from CoGroupByKey. Users must change methods expecting a List to expect an Iterable going forward. See &lt;a href="https://docs.google.com/document/d/1RIzm8-g-0CyVsPb6yasjwokJQFoKHG4NjRUcKHKINu0">document&lt;/a> for information and fixes.&lt;/li>
-&lt;li>The PortableRunner for Spark assumes Spark 3 as default Spark major version unless configured otherwise using &lt;code>--spark_version&lt;/code>.
-Spark 2 support is deprecated and will be removed soon (&lt;a href="https://github.com/apache/beam/issues/23728">#23728&lt;/a>).&lt;/li>
-&lt;/ul>
-&lt;h2 id="bugfixes">Bugfixes&lt;/h2>
-&lt;ul>
-&lt;li>Fixed Python cross-language JDBC IO Connector cannot read or write rows containing Numeric/Decimal type values (&lt;a href="https://github.com/apache/beam/issues/19817">#19817&lt;/a>).&lt;/li>
-&lt;/ul>
-&lt;h2 id="list-of-contributors">List of Contributors&lt;/h2>
-&lt;p>According to git shortlog, the following people contributed to the 2.43.0 release. Thank you to all contributors!&lt;/p>
-&lt;p>Ahmed Abualsaud
-AlexZMLyu
-Alexey Romanenko
-Anand Inguva
-Andrew Pilloud
-Andy Ye
-Arnout Engelen
-Benjamin Gonzalez
-Bharath Kumarasubramanian
-BjornPrime
-Brian Hulette
-Bruno Volpato
-Chamikara Jayalath
-Colin Versteeg
-Damon
-Daniel Smilkov
-Daniela Martín
-Danny McCormick
-Darkhan Nausharipov
-David Huntsperger
-Denis Pyshev
-Dmitry Repin
-Evan Galpin
-Evgeny Antyshev
-Fernando Morales
-Geddy05
-Harshit Mehrotra
-Iñigo San Jose Visiers
-Ismaël Mejía
-Israel Herraiz
-Jan Lukavský
-Juta Staes
-Kanishk Karanawat
-Kenneth Knowles
-KevinGG
-Kiley Sok
-Liam Miller-Cushon
-Luke Cwik
-Mc
-Melissa Pashniak
-Moritz Mack
-Ning Kang
-Pablo Estrada
-Philippe Moussalli
-Pranav Bhandari
-Rebecca Szper
-Reuven Lax
-Ritesh Ghorse
-Robert Bradshaw
-Robert Burke
-Ryan Thompson
-Ryohei Nagao
-Sam Rohde
-Sam Whittle
-Sanil Jain
-Seunghwan Hong
-Shane Hansen
-Shubham Krishna
-Shunsuke Otani
-Steve Niemitz
-Steven van Rossum
-Svetak Sundhar
-Thiago Nunes
-Toran Sahu
-Veronica Wasson
-Vitaly Terentyev
-Vladislav Chunikhin
-Xinyu Liu
-Yi Hu
-Yixiao Shen
-alexeyinkin
-arne-alex
-azhurkevich
-bulat safiullin
-bullet03
-coldWater
-dpcollins-google
-egalpin
-johnjcasey
-liferoad
-rvballada
-shaojwu
-tvalentyn&lt;/p></description></item></channel></rss>
+&lt;p>Please &lt;a href="/community/contact-us">reach out&lt;/a> if you have any feedback or encounter any issues!&lt;/p></description></item></channel></rss>
