@@ -634,7 +634,7 @@ class BeamModulePlugin implements Plugin<Project> {
     def netty_version = "4.1.124.Final"
     // [bomupgrader] determined by: io.opentelemetry:opentelemetry-sdk, consistent with: google_cloud_platform_libraries_bom
     def opentelemetry_version = "1.51.0"
-    def postgres_version = "42.7.10"
+    def postgres_version = "42.2.16"
     // [bomupgrader] determined by: com.google.protobuf:protobuf-java, consistent with: google_cloud_platform_libraries_bom
     def protobuf_version = "4.33.2"
     // TODO(https://github.com/apache/beam/issues/37637): Remove this once the Bom has been updated to at least reach this version
