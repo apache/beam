@@ -23,11 +23,9 @@ import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.instanceOf;
 import static org.hamcrest.Matchers.notNullValue;
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.fail;
 
 import java.util.Arrays;
 import java.util.List;
-import java.util.ServiceLoader;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.metrics.Lineage;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
@@ -37,7 +35,6 @@ import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
@@ -47,9 +44,9 @@ import org.junit.runner.Description;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/** Tests for {@link LineageRegistrar} ServiceLoader discovery and DirectRunner integration. */
+/** Tests for {@link LineageBase} pipeline option selection and DirectRunner integration. */
 @RunWith(JUnit4.class)
-public class LineageRegistrarTest {
+public class LineagePluginTest {
 
   /**
    * TestWatcher that logs detailed lineage diagnostics only when tests fail. This keeps successful
@@ -87,10 +84,10 @@ public class LineageRegistrarTest {
     TestLineage.clearRecorded();
   }
 
-  /** Helper to create a TestPipeline with test lineage enabled. */
+  /** Helper to create a TestPipeline with test lineage configured. */
   private TestPipeline createTestPipelineWithLineage() {
-    TestLineageOptions options = PipelineOptionsFactory.create().as(TestLineageOptions.class);
-    options.setEnableTestLineage(true);
+    LineageOptions options = PipelineOptionsFactory.create().as(LineageOptions.class);
+    options.setLineageType(TestLineage.class);
     TestPipeline pipeline = TestPipeline.fromOptions(options);
     // Disable enforcement since we're not using @Rule
     pipeline.enableAbandonedNodeEnforcement(false);
@@ -98,35 +95,22 @@ public class LineageRegistrarTest {
   }
 
   @Test
-  public void testServiceLoaderDiscovery() {
-    // Load all LineageRegistrar implementations via ServiceLoader
-    for (LineageRegistrar registrar :
-        Lists.newArrayList(ServiceLoader.load(LineageRegistrar.class).iterator())) {
+  public void testExplicitLineageSelection() {
+    // Instantiate TestLineage directly and verify behavior
+    LineageOptions options = PipelineOptionsFactory.create().as(LineageOptions.class);
+    options.setLineageType(TestLineage.class);
 
-      // Check if we found the TestLineageRegistrar
-      if (registrar instanceof TestLineageRegistrar) {
+    // Test with SOURCE direction
+    TestLineage sourceLineage = new TestLineage(options, Lineage.LineageDirection.SOURCE);
+    assertThat(sourceLineage, notNullValue());
+    assertThat(sourceLineage, instanceOf(LineageBase.class));
+    assertEquals(Lineage.LineageDirection.SOURCE, sourceLineage.getDirection());
 
-        // Create options with test lineage enabled
-        TestLineageOptions options = PipelineOptionsFactory.create().as(TestLineageOptions.class);
-        options.setEnableTestLineage(true);
-
-        // Test with SOURCE direction
-        LineageBase sourceLineage = registrar.fromOptions(options, Lineage.LineageDirection.SOURCE);
-        assertThat(sourceLineage, notNullValue());
-        assertThat(sourceLineage, instanceOf(TestLineage.class));
-        assertEquals(Lineage.LineageDirection.SOURCE, ((TestLineage) sourceLineage).getDirection());
-
-        // Test with SINK direction
-        LineageBase sinkLineage = registrar.fromOptions(options, Lineage.LineageDirection.SINK);
-        assertThat(sinkLineage, notNullValue());
-        assertThat(sinkLineage, instanceOf(TestLineage.class));
-        assertEquals(Lineage.LineageDirection.SINK, ((TestLineage) sinkLineage).getDirection());
-
-        return;
-      }
-    }
-
-    fail("Expected to find " + TestLineageRegistrar.class);
+    // Test with SINK direction
+    TestLineage sinkLineage = new TestLineage(options, Lineage.LineageDirection.SINK);
+    assertThat(sinkLineage, notNullValue());
+    assertThat(sinkLineage, instanceOf(LineageBase.class));
+    assertEquals(Lineage.LineageDirection.SINK, sinkLineage.getDirection());
   }
 
   @Test

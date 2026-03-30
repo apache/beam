@@ -19,9 +19,9 @@
  * Lineage tracking support for Apache Beam pipelines.
  *
  * <p>This package provides a plugin mechanism to support different lineage implementations through
- * the {@link org.apache.beam.sdk.lineage.LineageRegistrar} interface. Lineage implementations can
- * be registered and discovered at runtime to track data lineage information during pipeline
- * execution.
+ * the {@link org.apache.beam.sdk.lineage.LineageBase} interface. Lineage implementations can be
+ * selected via the {@code --lineageType} pipeline option to track data lineage information during
+ * pipeline execution.
  *
  * <p>For lineage capabilities, see {@link org.apache.beam.sdk.metrics.Lineage}.
  */

@@ -22,8 +22,12 @@ import org.apache.beam.sdk.annotations.Internal;
 /**
  * Plugin interface for lineage implementations.
  *
- * <p>This is the core contract that lineage plugins must implement. Plugins should implement this
- * interface and register via {@link LineageRegistrar}.
+ * <p>This is the core contract that lineage plugins must implement. Custom implementations are
+ * selected via the {@code --lineageType} pipeline option (see {@link LineageOptions}).
+ *
+ * <p>Implementations must provide a public constructor accepting ({@link
+ * org.apache.beam.sdk.options.PipelineOptions}, {@link
+ * org.apache.beam.sdk.metrics.Lineage.LineageDirection}).
  *
  * <p>End users should use the {@link org.apache.beam.sdk.metrics.Lineage} facade class instead of
  * implementing this interface directly.

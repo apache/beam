@@ -15,18 +15,27 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.lineage;
+package org.apache.beam.sdk.metrics;
 
-import org.apache.beam.sdk.options.Default;
-import org.apache.beam.sdk.options.Description;
-import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.lineage.LineageBase;
 
-/** PipelineOptions for configuring the test lineage plugin. */
-public interface TestLineageOptions extends PipelineOptions {
+/**
+ * Lineage implementation that stores lineage information in {@link StringSet} metrics.
+ *
+ * <p>Used when {@link Metrics.MetricsFlag#lineageRollupEnabled()} is false.
+ */
+class StringSetMetricsLineage implements LineageBase {
 
-  @Description("Enable test lineage plugin for integration testing")
-  @Default.Boolean(false)
-  Boolean getEnableTestLineage();
+  private final StringSet metric;
 
-  void setEnableTestLineage(Boolean value);
+  StringSetMetricsLineage(Lineage.LineageDirection direction) {
+    Lineage.Type type =
+        (direction == Lineage.LineageDirection.SOURCE) ? Lineage.Type.SOURCE : Lineage.Type.SINK;
+    this.metric = Metrics.stringSet(Lineage.LINEAGE_NAMESPACE, type.toString());
+  }
+
+  @Override
+  public void add(Iterable<String> rollupSegments) {
+    metric.add(String.join("", rollupSegments));
+  }
 }

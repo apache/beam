@@ -23,22 +23,18 @@ import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
-import java.util.ServiceLoader;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.regex.Pattern;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.lineage.LineageBase;
-import org.apache.beam.sdk.lineage.LineageRegistrar;
+import org.apache.beam.sdk.lineage.LineageOptions;
 import org.apache.beam.sdk.metrics.Metrics.MetricsFlag;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
-import org.apache.beam.sdk.util.common.ReflectHelpers;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Splitter;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Sets;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -111,22 +107,32 @@ public final class Lineage {
   }
 
   private static Lineage createLineage(PipelineOptions options, LineageDirection direction) {
-    Set<LineageRegistrar> registrars =
-        Sets.newTreeSet(ReflectHelpers.ObjectsClassComparator.INSTANCE);
-    registrars.addAll(
-        Lists.newArrayList(
-            ServiceLoader.load(LineageRegistrar.class, ReflectHelpers.findClassLoader())));
+    Class<? extends LineageBase> lineageClass = options.as(LineageOptions.class).getLineageType();
 
-    for (LineageRegistrar registrar : registrars) {
-      LineageBase reporter = registrar.fromOptions(options, direction);
-      if (reporter != null) {
-        LOG.info("Using {} for lineage direction {}", reporter.getClass().getName(), direction);
-        return new Lineage(reporter);
+    if (lineageClass != null) {
+      try {
+        LineageBase lineage =
+            lineageClass
+                .getDeclaredConstructor(PipelineOptions.class, LineageDirection.class)
+                .newInstance(options, direction);
+        LOG.info("Using {} for lineage direction {}", lineageClass.getName(), direction);
+        return new Lineage(lineage);
+      } catch (ReflectiveOperationException e) {
+        throw new IllegalArgumentException(
+            "Failed to instantiate lineage implementation: "
+                + lineageClass.getName()
+                + ". The class must have a public constructor accepting "
+                + "(PipelineOptions, Lineage.LineageDirection).",
+            e);
       }
     }
 
     LOG.debug("Using default Metrics-based lineage for direction {}", direction);
-    return new Lineage(new MetricsLineage(direction));
+    LineageBase defaultLineage =
+        MetricsFlag.lineageRollupEnabled()
+            ? new BoundedTrieMetricsLineage(direction)
+            : new StringSetMetricsLineage(direction);
+    return new Lineage(defaultLineage);
   }
 
   /** {@link Lineage} representing sources and optionally side inputs. */

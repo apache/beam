@@ -17,13 +17,25 @@
  */
 package org.apache.beam.sdk.lineage;
 
-import javax.annotation.Nullable;
-import org.apache.beam.sdk.metrics.Lineage;
+import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.options.PipelineOptions;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
-/** Interface for discovering and creating lineage plugin implementations. */
-public interface LineageRegistrar {
+/**
+ * Pipeline options for selecting a custom {@link LineageBase} implementation.
+ *
+ * <p>When not set, the default Metrics-based lineage is used. Can be set from the command line:
+ * {@code --lineageType=com.example.MyLineage}
+ */
+public interface LineageOptions extends PipelineOptions {
 
+  @Description(
+      "The fully qualified class name of the LineageBase implementation to use for recording "
+          + "lineage. The class must implement LineageBase and have a public constructor accepting "
+          + "(PipelineOptions, Lineage.LineageDirection). "
+          + "If not specified, the default Metrics-based lineage is used.")
   @Nullable
-  LineageBase fromOptions(PipelineOptions options, Lineage.LineageDirection direction);
+  Class<? extends LineageBase> getLineageType();
+
+  void setLineageType(@Nullable Class<? extends LineageBase> lineageClass);
 }

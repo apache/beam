@@ -21,11 +21,11 @@ import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 import org.apache.beam.sdk.metrics.Lineage;
+import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 
 /**
- * A test implementation of {@link LineageBase} for testing LineageRegistrar ServiceLoader discovery
- * and integration testing with DirectRunner.
+ * A test implementation of {@link LineageBase} for integration testing with DirectRunner.
  *
  * <p>This implementation records all lineage FQNs in thread-safe static storage for test
  * assertions.
@@ -37,6 +37,11 @@ public class TestLineage implements LineageBase {
       new ConcurrentHashMap<>();
 
   private final Lineage.LineageDirection direction;
+
+  /** Constructor used by reflection via {@code --lineageType} pipeline option. */
+  public TestLineage(PipelineOptions options, Lineage.LineageDirection direction) {
+    this(direction);
+  }
 
   public TestLineage(Lineage.LineageDirection direction) {
     this.direction = direction;
