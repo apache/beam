@@ -298,9 +298,6 @@ class ReadFromJdbc(ExternalTransform):
   Experimental; no backwards compatibility guarantees.
   """
 
-  # override new portable Date type with the current Jdbc type
-  # TODO: switch JdbcIO to return portable Date type
-  LogicalType.register_logical_type(JdbcDateType)
 
   URN = 'beam:transform:org.apache.beam:schemaio_jdbc_read:v1'
 
@@ -364,6 +361,9 @@ class ReadFromJdbc(ExternalTransform):
                    of the output PCollection elements. This bypasses automatic
                    schema inference during pipeline construction.
     """
+    # override new portable Date type with the current Jdbc type
+    # TODO: switch JdbcIO to return portable Date type
+    LogicalType.register_logical_type(JdbcDateType)
     classpath = classpath or DEFAULT_JDBC_CLASSPATH
 
     dataSchema = None
