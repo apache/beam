@@ -18,7 +18,7 @@
 # This image contains Hugo and dependencies required to build and test the Beam
 # website. It is used by tasks in build.gradle.
 
-FROM debian:stable-slim
+FROM --platform=linux/amd64 debian:stable-slim
 
 SHELL ["/bin/bash", "-o", "pipefail", "-e", "-u", "-x", "-c"]
 
