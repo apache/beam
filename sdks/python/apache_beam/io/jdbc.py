@@ -264,9 +264,6 @@ def enforce_millis_instant_for_timestamp():
   LogicalType._known_logical_types = old_registry.copy()
   try:
     LogicalType.register_logical_type(MillisInstant)
-    # override new portable Date type with the temporary Jdbc-compatible type
-    # TODO: add support for portable Date type in JdbcIO
-    LogicalType.register_logical_type(JdbcDateType)
     yield
   finally:
     LogicalType._known_logical_types = old_registry
@@ -300,6 +297,10 @@ class ReadFromJdbc(ExternalTransform):
 
   Experimental; no backwards compatibility guarantees.
   """
+
+  # override new portable Date type with the current Jdbc type
+  # TODO: switch JdbcIO to return portable Date type
+  LogicalType.register_logical_type(JdbcDateType)
 
   URN = 'beam:transform:org.apache.beam:schemaio_jdbc_read:v1'
 
