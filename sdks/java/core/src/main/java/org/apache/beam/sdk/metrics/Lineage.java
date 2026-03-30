@@ -42,7 +42,7 @@ import org.slf4j.LoggerFactory;
 /**
  * Standard collection of metrics used to record source and sinks information for lineage tracking.
  */
-public final class Lineage {
+public class Lineage {
   public static final String LINEAGE_NAMESPACE = "lineage";
   private static final Logger LOG = LoggerFactory.getLogger(Lineage.class);
   private static final AtomicReference<Lineage> SOURCES = new AtomicReference<>();

@@ -86,7 +86,11 @@
 
 ## Bugfixes
 
+<<<<<<< HEAD
 * Fixed BigQueryEnrichmentHandler batch mode dropping earlier requests when multiple requests share the same enrichment key (Python) ([#38035](https://github.com/apache/beam/issues/38035)).
+=======
+* Fixed X (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
+>>>>>>> 7a91283a2b (fix failing test with moquito)
 
 ## Security Fixes
 
