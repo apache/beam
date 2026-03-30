@@ -95,7 +95,7 @@ versions denoted `0.x.y`.
 
 ### Current release
 
-#### 2.72.0 (2026-03-??)
+#### 2.72.0 (2026-03-30)
 
 Official [source code download](https://www.apache.org/dyn/closer.lua/beam/2.72.0/apache-beam-2.72.0-source-release.zip).
 [SHA-512](https://downloads.apache.org/beam/2.72.0/apache-beam-2.72.0-source-release.zip.sha512).

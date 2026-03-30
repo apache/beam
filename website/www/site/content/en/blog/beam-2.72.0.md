@@ -1,6 +1,6 @@
 ---
 title:  "Apache Beam 2.72.0"
-date:   2026-03-?? 9:00:00 -0700
+date:   2026-03-30 9:00:00 -0700
 categories:
   - blog
   - release
@@ -21,7 +21,7 @@ limitations under the License.
 
 We are happy to present the new 2.72.0 release of Beam.
 This release includes both improvements and new functionality.
-See the [download page](/get-started/downloads/#2720-2026-03-??) for this release.
+See the [download page](/get-started/downloads/#2720-2026-03-30) for this release.
 
 <!--more-->
 
