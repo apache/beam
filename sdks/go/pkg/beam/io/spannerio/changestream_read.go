@@ -45,30 +45,30 @@ import (
 type csRow struct {
 	DataChangeRecord      []*csDataChangeRecord      `spanner:"data_change_record"`
 	HeartbeatRecord       []*csHeartbeatRecord       `spanner:"heartbeat_record"`
-	ChildPartitionsRecord []*csChildPartitionsRecord  `spanner:"child_partitions_record"`
+	ChildPartitionsRecord []*csChildPartitionsRecord `spanner:"child_partitions_record"`
 }
 
 type csDataChangeRecord struct {
-	CommitTimestamp     time.Time      `spanner:"commit_timestamp"`
-	RecordSequence      string         `spanner:"record_sequence"`
-	ServerTransactionID string         `spanner:"server_transaction_id"`
-	IsLastRecord        bool           `spanner:"is_last_record_in_transaction_in_partition"`
-	TableName           string         `spanner:"table_name"`
+	CommitTimestamp     time.Time       `spanner:"commit_timestamp"`
+	RecordSequence      string          `spanner:"record_sequence"`
+	ServerTransactionID string          `spanner:"server_transaction_id"`
+	IsLastRecord        bool            `spanner:"is_last_record_in_transaction_in_partition"`
+	TableName           string          `spanner:"table_name"`
 	ColumnTypes         []*csColumnType `spanner:"column_types"`
 	Mods                []*csMod        `spanner:"mods"`
-	ModType             string         `spanner:"mod_type"`
-	ValueCaptureType    string         `spanner:"value_capture_type"`
-	NumberOfRecords     int64          `spanner:"number_of_records_in_transaction"`
-	NumberOfPartitions  int64          `spanner:"number_of_partitions_in_transaction"`
-	TransactionTag      string         `spanner:"transaction_tag"`
-	IsSystemTransaction bool           `spanner:"is_system_transaction"`
+	ModType             string          `spanner:"mod_type"`
+	ValueCaptureType    string          `spanner:"value_capture_type"`
+	NumberOfRecords     int64           `spanner:"number_of_records_in_transaction"`
+	NumberOfPartitions  int64           `spanner:"number_of_partitions_in_transaction"`
+	TransactionTag      string          `spanner:"transaction_tag"`
+	IsSystemTransaction bool            `spanner:"is_system_transaction"`
 }
 
 type csColumnType struct {
-	Name            string          `spanner:"name"`
+	Name            string           `spanner:"name"`
 	Type            spanner.NullJSON `spanner:"type"`
-	IsPrimaryKey    bool            `spanner:"is_primary_key"`
-	OrdinalPosition int64           `spanner:"ordinal_position"`
+	IsPrimaryKey    bool             `spanner:"is_primary_key"`
+	OrdinalPosition int64            `spanner:"ordinal_position"`
 }
 
 type csMod struct {
@@ -88,7 +88,7 @@ type csChildPartitionsRecord struct {
 }
 
 type csChildPartition struct {
-	Token                string   `spanner:"token"`
+	Token                 string   `spanner:"token"`
 	ParentPartitionTokens []string `spanner:"parent_partition_tokens"`
 }
 
@@ -393,7 +393,7 @@ func (fn *readChangeStreamFn) handleCSRow(
 			})
 		}
 		if !rt.TryClaim(PartitionTimestampClaim{
-			Timestamp:      cpr.StartTimestamp,
+			Timestamp:       cpr.StartTimestamp,
 			ChildPartitions: children,
 		}) {
 			return true, nil

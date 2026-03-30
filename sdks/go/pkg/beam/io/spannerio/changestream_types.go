@@ -35,10 +35,10 @@ const (
 type ValueCaptureType int32
 
 const (
-	ValueCaptureTypeUnspecified       ValueCaptureType = 0
-	ValueCaptureTypeOldAndNewValues   ValueCaptureType = 10
-	ValueCaptureTypeNewValues         ValueCaptureType = 20
-	ValueCaptureTypeNewRow            ValueCaptureType = 30
+	ValueCaptureTypeUnspecified        ValueCaptureType = 0
+	ValueCaptureTypeOldAndNewValues    ValueCaptureType = 10
+	ValueCaptureTypeNewValues          ValueCaptureType = 20
+	ValueCaptureTypeNewRow             ValueCaptureType = 30
 	ValueCaptureTypeNewRowAndOldValues ValueCaptureType = 40
 )
 
@@ -114,4 +114,3 @@ type DataChangeRecord struct {
 	// IsSystemTransaction indicates this is a Spanner-internal transaction (e.g., TTL).
 	IsSystemTransaction bool
 }
-
