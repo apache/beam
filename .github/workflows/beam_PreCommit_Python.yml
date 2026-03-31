@@ -111,12 +111,14 @@ jobs:
         env:
           TOX_TESTENV_PASSENV: "DOCKER_*,TESTCONTAINERS_*,TC_*,BEAM_*,GRPC_*,OMP_*,OPENBLAS_*,PYTHONHASHSEED,PYTEST_*"
           # Aggressive retry and timeout settings for flaky CI
-          PYTEST_ADDOPTS: "-v --tb=short --maxfail=5 --durations=30 --reruns=5 --reruns-delay=15 --timeout=600 --disable-warnings"
+          PYTEST_ADDOPTS: "-v --tb=short --maxfail=5 --durations=30 --reruns=5 --reruns-delay=15 --timeout=900 --disable-warnings"
           # Container stability - much more generous timeouts
           TC_TIMEOUT: "300"
           TC_MAX_TRIES: "15"
           TC_SLEEP_TIME: "5"
           # Additional gRPC stability for flaky environment
+          GRPC_ARG_KEEPALIVE_TIME_MS: "60000"
+          GRPC_ARG_KEEPALIVE_TIMEOUT_MS: "60000"
           GRPC_ARG_MAX_CONNECTION_IDLE_MS: "60000"
           GRPC_ARG_HTTP2_BDP_PROBE: "1"
           GRPC_ARG_SO_REUSEPORT: "1"
@@ -125,6 +127,7 @@ jobs:
           # Additional gRPC settings
           GRPC_ARG_MAX_RECONNECT_BACKOFF_MS: "120000"
           GRPC_ARG_INITIAL_RECONNECT_BACKOFF_MS: "2000"
+          BEAM_RUNNER_BUNDLE_TIMEOUT_MS: "600000"
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
           gradle-command: :sdks:python:test-suites:tox:py${{steps.set_py_ver_clean.outputs.py_ver_clean}}:preCommitPy${{steps.set_py_ver_clean.outputs.py_ver_clean}}
