@@ -930,6 +930,12 @@ python -m apache_beam.examples.inference.vllm_text_completion \
 
 Make sure to enable the 5xx driver since vLLM only works with 5xx drivers, not 4xx.
 
+On GPUs with about 16GiB of memory (for example NVIDIA T4), vLLM’s defaults can fail
+during engine startup with CUDA out of memory. The example therefore passes conservative
+``--max-num-seqs`` and ``--gpu-memory-utilization`` values by default (overridable with
+``--vllm_max_num_seqs`` and ``--vllm_gpu_memory_utilization``) via
+`vllm_server_kwargs`, matching the pattern used in other vLLM examples.
+
 This writes the output to the output file location with contents like:
 
 ```
