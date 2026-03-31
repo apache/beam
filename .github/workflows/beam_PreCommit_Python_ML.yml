@@ -65,7 +65,7 @@ jobs:
       matrix:
         job_name: ['beam_PreCommit_Python_ML']
         job_phrase: ['Run Python_ML PreCommit']
-        python_version: ['3.10','3.11','3.12','3.13']
+        python_version: ['3.10','3.11','3.12','3.13','3.14']
         # Run on both self-hosted and GitHub-hosted runners.
         # Some tests (marked require_docker_in_docker) can't run on Beam's
         # self-hosted runners due to Docker-in-Docker environment constraint.
