@@ -99,6 +99,7 @@ import org.apache.beam.sdk.extensions.protobuf.ByteStringCoder;
 import org.apache.beam.sdk.extensions.protobuf.ProtoCoder;
 import org.apache.beam.sdk.io.BoundedSource;
 import org.apache.beam.sdk.io.BoundedSource.BoundedReader;
+import org.apache.beam.sdk.io.UnboundedSource;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.TableRowParser;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.TypedRead;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.TypedRead.Method;
@@ -120,6 +121,7 @@ import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.display.DisplayData;
+import org.apache.beam.sdk.util.construction.UnboundedReadFromBoundedSource;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
@@ -703,6 +705,49 @@ public class BigQueryIOStorageReadTest {
     thrown.expect(UnsupportedOperationException.class);
     thrown.expectMessage("BigQuery storage source must be split before reading");
     tableSource.createReader(options);
+  }
+
+  @Test
+  public void testUnboundedReadFromBoundedSourceWithEmptyTable() throws Exception {
+    fakeDatasetService.createDataset("project-id", "dataset", "", "", null);
+    TableReference tableRef = BigQueryHelpers.parseTableSpec("project-id:dataset.table");
+
+    Table table =
+        new Table().setTableReference(tableRef).setNumBytes(0L).setSchema(new TableSchema());
+
+    fakeDatasetService.createTable(table);
+
+    ReadSession emptyReadSession = ReadSession.newBuilder().build();
+    StorageClient fakeStorageClient = mock(StorageClient.class);
+    when(fakeStorageClient.createReadSession(any())).thenReturn(emptyReadSession);
+
+    BigQueryStorageTableSource<TableRow> tableSource =
+        BigQueryStorageTableSource.create(
+            ValueProvider.StaticValueProvider.of(tableRef),
+            null,
+            null,
+            new TableRowParser(),
+            TableRowJsonCoder.of(),
+            new FakeBigQueryServices()
+                .withDatasetService(fakeDatasetService)
+                .withStorageClient(fakeStorageClient));
+
+    // This simulates what happens in a streaming pipeline when BoundedSource is used
+    UnboundedSource<TableRow, ?> unboundedSource =
+        new UnboundedReadFromBoundedSource.BoundedToUnboundedSourceAdapter<>(tableSource);
+
+    // Initial split
+    List<? extends UnboundedSource<TableRow, ?>> splits = unboundedSource.split(1, options);
+    // Because tableSource.split returns empty list, BoundedToUnboundedSourceAdapter falls back to
+    // returning itself
+    assertEquals(1, splits.size());
+    UnboundedSource<TableRow, ?> splitSource = splits.get(0);
+
+    // Create reader
+    UnboundedSource.UnboundedReader<TableRow> reader = splitSource.createReader(options, null);
+
+    // This should NOT throw UnsupportedOperationException
+    assertFalse(reader.start());
   }
 
   private static GenericRecord createRecord(String name, Schema schema) {
