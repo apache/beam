@@ -21,6 +21,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.LongSupplier;
+import java.util.function.Supplier;
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.GuardedBy;
 import org.apache.beam.sdk.annotations.Internal;
@@ -34,6 +35,7 @@ import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.ManagedChannel;
 import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.Metadata;
 import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.MethodDescriptor;
 import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.Status;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Suppliers;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -46,11 +48,11 @@ import org.slf4j.LoggerFactory;
  *   <li><b>Connection Status Failover:</b> If the primary channel is not ready for 10+ seconds
  *       (e.g., during network issues), routes to fallback channel. Switches back as soon as the
  *       primary channel becomes READY again.
- *   <li><b>RPC Failover:</b> If primary channel RPC fails with transient errors ({@link
- *       Status.Code#UNAVAILABLE} or {@link Status.Code#UNKNOWN}), or with {@link
+ *   <li><b>RPC Failover:</b> If primary channel RPCs fail continuously with transient errors
+ *       ({@link Status.Code#UNAVAILABLE} or {@link Status.Code#UNKNOWN}), or with {@link
  *       Status.Code#DEADLINE_EXCEEDED} before receiving any response (indicating the connection was
- *       never established) and connection status is not READY, switches to fallback channel and
- *       waits for a 1-hour cooling period before retrying primary.
+ *       never established), for 30+ seconds without any successful response, switches to fallback
+ *       channel and waits for a 1-hour cooling period before retrying primary.
  * </ul>
  */
 @Internal
@@ -60,15 +62,18 @@ public final class FailoverChannel extends ManagedChannel {
   // Time to wait before retrying the primary channel after an RPC-based fallback.
   private static final long FALLBACK_COOLING_PERIOD_NANOS = TimeUnit.HOURS.toNanos(1);
   private static final long PRIMARY_NOT_READY_WAIT_NANOS = TimeUnit.SECONDS.toNanos(10);
+  // Minimum duration of continuous RPC failures required before switching to fallback.
+  private static final long RPC_FAILURE_THRESHOLD_NANOS = TimeUnit.SECONDS.toNanos(30);
 
   private final ManagedChannel primary;
-  private final ManagedChannel fallback;
+  private final Supplier<ManagedChannel> fallbackSupplier;
+  // Non-null once the fallback channel has been created.
+  @Nullable private volatile ManagedChannel fallback;
   private final int channelId;
   @Nullable private final CallCredentials fallbackCallCredentials;
   private final LongSupplier nanoClock;
   // Held only during registration to prevent duplicate listener registration.
   private final AtomicBoolean stateChangeListenerRegistered = new AtomicBoolean(false);
-  // All mutable routing state is consolidated here to ensure related fields are updated atomically.
   private final FailoverState state;
 
   private static final class FailoverState {
@@ -85,11 +90,16 @@ public final class FailoverChannel extends ManagedChannel {
     // Time when primary first became not-ready. -1 when primary is currently READY.
     @GuardedBy("this")
     long primaryNotReadySinceNanos = -1;
+    // Time when the first consecutive RPC failure was observed. -1 when no failure streak.
+    @GuardedBy("this")
+    long firstRPCFailureSinceNanos = -1;
 
     private final int channelId;
+    private final long rpcFailureThresholdNanos;
 
-    FailoverState(int channelId) {
+    FailoverState(int channelId, long rpcFailureThresholdNanos) {
       this.channelId = channelId;
+      this.rpcFailureThresholdNanos = rpcFailureThresholdNanos;
     }
 
     /**
@@ -101,6 +111,7 @@ public final class FailoverChannel extends ManagedChannel {
       if (useFallbackDueToRPC
           && nowNanos - lastRPCFallbackTimeNanos >= FALLBACK_COOLING_PERIOD_NANOS) {
         useFallbackDueToRPC = false;
+        firstRPCFailureSinceNanos = -1;
         LOG.info(
             "[channel-{}] Primary channel cooling period elapsed; switching back from fallback.",
             channelId);
@@ -130,40 +141,63 @@ public final class FailoverChannel extends ManagedChannel {
     }
 
     /**
-     * Transitions the fallback state. When toFallback is true (RPC failure) it enables RPC-based
-     * fallback if not already active and returns true so the caller can log the failure details.
-     * When toFallback is false (primary recovered) it clears all fallback flags and returns true if
-     * recovery actually changed state, so the caller can log it.
+     * Clears all fallback state when the primary channel recovers (READY/IDLE callback). Returns
+     * true if any fallback state was actually cleared, so the caller can log the recovery.
      */
-    synchronized boolean transitionFallback(boolean toFallback, long nowNanos) {
-      if (toFallback) {
-        if (!useFallbackDueToRPC) {
-          useFallbackDueToRPC = true;
-          lastRPCFallbackTimeNanos = nowNanos;
-          // Return true to indicate fallback state was changed and caller should log the event.
-          return true;
-        }
-        // Already in RPC-based fallback, no state change.
-        return false;
-      }
-      // Clear all fallback state as primary has recovered.
+    synchronized boolean markPrimaryReady() {
       boolean wasOnFallback = useFallbackDueToState || useFallbackDueToRPC;
       useFallbackDueToState = false;
       useFallbackDueToRPC = false;
       primaryNotReadySinceNanos = -1;
+      firstRPCFailureSinceNanos = -1;
       return wasOnFallback;
+    }
+
+    /**
+     * Records an RPC failure on the primary channel. Switches to RPC-based fallback only after
+     * failures have persisted for {@link FailoverChannel#RPC_FAILURE_THRESHOLD_NANOS}. Returns true
+     * if fallback was newly triggered so the caller can log the event.
+     */
+    synchronized boolean notePrimaryRpcFailure(long nowNanos) {
+      if (useFallbackDueToRPC) {
+        return false;
+      }
+      if (firstRPCFailureSinceNanos < 0) {
+        if (rpcFailureThresholdNanos <= 0) {
+          useFallbackDueToRPC = true;
+          lastRPCFallbackTimeNanos = nowNanos;
+          return true;
+        }
+        // This is the first failure. Start the timer.
+        firstRPCFailureSinceNanos = nowNanos;
+        return false;
+      }
+      if (nowNanos - firstRPCFailureSinceNanos >= rpcFailureThresholdNanos) {
+        // Failures have persisted long enough. Switch to fallback.
+        useFallbackDueToRPC = true;
+        lastRPCFallbackTimeNanos = nowNanos;
+        firstRPCFailureSinceNanos = -1;
+        return true;
+      }
+      return false;
+    }
+
+    /** Resets the RPC failure streak. Called when a primary RPC succeeds. */
+    synchronized void notePrimaryRpcSuccess() {
+      firstRPCFailureSinceNanos = -1;
     }
   }
 
   private FailoverChannel(
       ManagedChannel primary,
-      ManagedChannel fallback,
+      Supplier<ManagedChannel> fallbackSupplier,
       @Nullable CallCredentials fallbackCallCredentials,
-      LongSupplier nanoClock) {
+      LongSupplier nanoClock,
+      long rpcFailureThresholdNanos) {
     this.primary = primary;
-    this.fallback = fallback;
+    this.fallbackSupplier = Suppliers.memoize(fallbackSupplier::get);
     this.channelId = CHANNEL_ID_COUNTER.getAndIncrement();
-    this.state = new FailoverState(channelId);
+    this.state = new FailoverState(channelId, rpcFailureThresholdNanos);
     this.fallbackCallCredentials = fallbackCallCredentials;
     this.nanoClock = nanoClock;
     // Register callback to monitor primary channel state changes
@@ -171,8 +205,20 @@ public final class FailoverChannel extends ManagedChannel {
   }
 
   public static FailoverChannel create(
+      ManagedChannel primary,
+      Supplier<ManagedChannel> fallbackSupplier,
+      CallCredentials fallbackCallCredentials) {
+    return new FailoverChannel(
+        primary,
+        fallbackSupplier,
+        fallbackCallCredentials,
+        System::nanoTime,
+        RPC_FAILURE_THRESHOLD_NANOS);
+  }
+
+  public static FailoverChannel create(
       ManagedChannel primary, ManagedChannel fallback, CallCredentials fallbackCallCredentials) {
-    return new FailoverChannel(primary, fallback, fallbackCallCredentials, System::nanoTime);
+    return create(primary, () -> fallback, fallbackCallCredentials);
   }
 
   static FailoverChannel forTest(
@@ -180,7 +226,23 @@ public final class FailoverChannel extends ManagedChannel {
       ManagedChannel fallback,
       CallCredentials fallbackCallCredentials,
       LongSupplier nanoClock) {
-    return new FailoverChannel(primary, fallback, fallbackCallCredentials, nanoClock);
+    return forTest(primary, fallback, fallbackCallCredentials, nanoClock, 0L);
+  }
+
+  static FailoverChannel forTest(
+      ManagedChannel primary,
+      ManagedChannel fallback,
+      CallCredentials fallbackCallCredentials,
+      LongSupplier nanoClock,
+      long rpcFailureThresholdNanos) {
+    return new FailoverChannel(
+        primary, () -> fallback, fallbackCallCredentials, nanoClock, rpcFailureThresholdNanos);
+  }
+
+  /** Returns the fallback channel, creating it from the supplier at most once. */
+  private ManagedChannel getOrCreateFallback() {
+    fallback = fallbackSupplier.get();
+    return fallback;
   }
 
   @Override
@@ -197,7 +259,7 @@ public final class FailoverChannel extends ManagedChannel {
 
     if (useFallback) {
       return new FailoverClientCall<>(
-          fallback.newCall(methodDescriptor, applyFallbackCredentials(callOptions)),
+          getOrCreateFallback().newCall(methodDescriptor, applyFallbackCredentials(callOptions)),
           true,
           methodDescriptor.getFullMethodName());
     }
@@ -211,33 +273,41 @@ public final class FailoverChannel extends ManagedChannel {
   @Override
   public ManagedChannel shutdown() {
     primary.shutdown();
-    fallback.shutdown();
+    if (fallback != null) {
+      fallback.shutdown();
+    }
     return this;
   }
 
   @Override
   public ManagedChannel shutdownNow() {
     primary.shutdownNow();
-    fallback.shutdownNow();
+    if (fallback != null) {
+      fallback.shutdownNow();
+    }
     return this;
   }
 
   @Override
   public boolean isShutdown() {
-    return primary.isShutdown() && fallback.isShutdown();
+    return primary.isShutdown() && (fallback == null || fallback.isShutdown());
   }
 
   @Override
   public boolean isTerminated() {
-    return primary.isTerminated() && fallback.isTerminated();
+    return primary.isTerminated() && (fallback == null || fallback.isTerminated());
   }
 
   @Override
   public boolean awaitTermination(long timeout, TimeUnit unit) throws InterruptedException {
     long endTimeNanos = nanoClock.getAsLong() + unit.toNanos(timeout);
     boolean primaryTerminated = primary.awaitTermination(timeout, unit);
+    ManagedChannel fb = fallback;
+    if (fb == null) {
+      return primaryTerminated;
+    }
     long remainingNanos = Math.max(0, endTimeNanos - nanoClock.getAsLong());
-    return primaryTerminated && fallback.awaitTermination(remainingNanos, TimeUnit.NANOSECONDS);
+    return primaryTerminated && fb.awaitTermination(remainingNanos, TimeUnit.NANOSECONDS);
   }
 
   private boolean shouldFallbackBasedOnRPCStatus(Status status, boolean receivedResponse) {
@@ -266,7 +336,7 @@ public final class FailoverChannel extends ManagedChannel {
   private void notifyCallDone(
       Status status, boolean isFallback, String methodName, boolean receivedResponse) {
     if (!status.isOk() && !isFallback && shouldFallbackBasedOnRPCStatus(status, receivedResponse)) {
-      if (state.transitionFallback(true, nanoClock.getAsLong())) {
+      if (state.notePrimaryRpcFailure(nanoClock.getAsLong())) {
         LOG.warn(
             "[channel-{}] Primary connection failed for method: {}. Switching to secondary"
                 + " connection. Status: {}",
@@ -274,6 +344,10 @@ public final class FailoverChannel extends ManagedChannel {
             methodName,
             status.getCode());
       }
+    } else if (!isFallback && (status.isOk() || receivedResponse)) {
+      // Primary RPC succeeded (clean close or received at least one response).
+      // Reset the failure streak so transient errors don't accumulate toward failover.
+      state.notePrimaryRpcSuccess();
     } else if (isFallback && !status.isOk()) {
       LOG.warn(
           "[channel-{}] Secondary connection failed for method: {}. Status: {}",
@@ -331,6 +405,16 @@ public final class FailoverChannel extends ManagedChannel {
     if (!stateChangeListenerRegistered.getAndSet(true)) {
       try {
         ConnectivityState currentState = primary.getState(false);
+        // Seed failover state from the current connectivity state at registration time.
+        // Without this, if primary starts in a non-ready state (e.g. TRANSIENT_FAILURE) and
+        // never transitions, markPrimaryNotReady() would never be called and state-based
+        // failover would not trigger even after the grace period.
+        if (currentState == ConnectivityState.READY || currentState == ConnectivityState.IDLE) {
+          state.markPrimaryReady();
+        } else {
+          // Seed the not-ready timer even if there is no future state transition.
+          state.markPrimaryNotReady(nanoClock.getAsLong());
+        }
         primary.notifyWhenStateChanged(currentState, this::onPrimaryStateChanged);
       } catch (Exception e) {
         LOG.warn(
@@ -351,7 +435,7 @@ public final class FailoverChannel extends ManagedChannel {
     ConnectivityState newState = primary.getState(false);
     // IDLE means the channel was READY but has no active RPCs — treat as healthy.
     if (newState == ConnectivityState.READY || newState == ConnectivityState.IDLE) {
-      if (state.transitionFallback(false, 0)) {
+      if (state.markPrimaryReady()) {
         LOG.info(
             "[channel-{}] Primary channel recovered; switching back from fallback.", channelId);
       }

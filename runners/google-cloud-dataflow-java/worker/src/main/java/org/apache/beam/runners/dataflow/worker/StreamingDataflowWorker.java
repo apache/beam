@@ -815,8 +815,8 @@ public final class StreamingDataflowWorker {
         ChannelCache.create(
             (currentFlowControlSettings, serviceAddress) -> {
               // IsolationChannel wrapping FailoverChannel so that each active RPC gets its own
-              // FailoverChannel instance. FailoverChannel creates two channels (primary,
-              // fallback) per active RPC.
+              // FailoverChannel instance. The fallback channel is created lazily, at most once,
+              // only if failover is actually needed.
               return IsolationChannel.create(
                   () ->
                       FailoverChannel.create(
@@ -824,10 +824,11 @@ public final class StreamingDataflowWorker {
                               serviceAddress,
                               workerOptions.getWindmillServiceRpcChannelAliveTimeoutSec(),
                               currentFlowControlSettings),
-                          remoteChannel(
-                              dispatcherClient.getDispatcherEndpoints().iterator().next(),
-                              workerOptions.getWindmillServiceRpcChannelAliveTimeoutSec(),
-                              currentFlowControlSettings),
+                          () ->
+                              remoteChannel(
+                                  dispatcherClient.getDispatcherEndpoints().iterator().next(),
+                                  workerOptions.getWindmillServiceRpcChannelAliveTimeoutSec(),
+                                  currentFlowControlSettings),
                           MoreCallCredentials.from(
                               new VendoredCredentialsAdapter(workerOptions.getGcpCredential()))),
                   currentFlowControlSettings.getOnReadyThresholdBytes());

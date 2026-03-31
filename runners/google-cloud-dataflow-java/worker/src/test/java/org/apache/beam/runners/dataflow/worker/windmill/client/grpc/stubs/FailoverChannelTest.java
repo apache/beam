@@ -101,6 +101,39 @@ public class FailoverChannelTest {
   }
 
   @Test
+  public void testRPCFallbackRespectsThirtySecondGracePeriod() throws Exception {
+    ManagedChannel mockChannel = mock(ManagedChannel.class);
+    ManagedChannel mockFallbackChannel = mock(ManagedChannel.class);
+    ClientCall<Object, Object> firstUnderlyingCall = mock(ClientCall.class);
+    ClientCall<Object, Object> secondUnderlyingCall = mock(ClientCall.class);
+    ClientCall<Object, Object> thirdUnderlyingCall = mock(ClientCall.class);
+    when(mockChannel.newCall(any(), any()))
+        .thenReturn(firstUnderlyingCall, secondUnderlyingCall, thirdUnderlyingCall);
+    when(mockFallbackChannel.newCall(any(), any())).thenReturn(mock(ClientCall.class));
+    when(mockChannel.getState(false)).thenReturn(ConnectivityState.READY);
+
+    AtomicLong time = new AtomicLong(0);
+    FailoverChannel failoverChannel =
+        FailoverChannel.forTest(
+            mockChannel, mockFallbackChannel, null, time::get, TimeUnit.SECONDS.toNanos(30));
+
+    // First failure at t=0 should not trigger fallback.
+    triggerRPCFailure(failoverChannel, firstUnderlyingCall, Status.UNAVAILABLE);
+    verify(mockFallbackChannel, never()).newCall(any(), any());
+
+    // Second failure before 30s should still not trigger fallback.
+    time.addAndGet(TimeUnit.SECONDS.toNanos(29));
+    triggerRPCFailure(failoverChannel, secondUnderlyingCall, Status.UNAVAILABLE);
+    verify(mockFallbackChannel, never()).newCall(any(), any());
+
+    // Failure at/after 30s should trigger fallback.
+    time.addAndGet(TimeUnit.SECONDS.toNanos(1));
+    triggerRPCFailure(failoverChannel, thirdUnderlyingCall, Status.UNAVAILABLE);
+    failoverChannel.newCall(methodDescriptor, CallOptions.DEFAULT);
+    verify(mockFallbackChannel, atLeastOnce()).newCall(any(), any());
+  }
+
+  @Test
   public void testRPCFailureRecoveryAfterCoolingPeriod() throws Exception {
     // After RPC failure, channel stays on fallback during cooling period, then returns to primary.
     ManagedChannel mockChannel = mock(ManagedChannel.class);
@@ -179,8 +212,9 @@ public class FailoverChannelTest {
     when(mockChannel.newCall(any(), any())).thenReturn(underlyingCall);
     when(mockFallbackChannel.newCall(any(), any())).thenReturn(mock(ClientCall.class));
 
+    AtomicLong time = new AtomicLong(0);
     FailoverChannel failoverChannel =
-        FailoverChannel.create(mockChannel, mockFallbackChannel, mockCredentials);
+        FailoverChannel.forTest(mockChannel, mockFallbackChannel, mockCredentials, time::get);
 
     triggerRPCFailure(failoverChannel, underlyingCall, Status.UNAVAILABLE);
 
@@ -228,6 +262,30 @@ public class FailoverChannelTest {
     verify(mockChannel).newCall(any(), any());
 
     // After 10 seconds: routes to fallback.
+    time.addAndGet(TimeUnit.SECONDS.toNanos(11));
+    failoverChannel.newCall(methodDescriptor, CallOptions.DEFAULT);
+    verify(mockFallbackChannel).newCall(any(), any());
+  }
+
+  @Test
+  public void testStateFallbackWhenPrimaryStartsNonReadyWithoutTransition() {
+    // Primary starts in a non-ready state and stays there. Even without a state transition,
+    // fallback should start after the 10s grace period.
+    ManagedChannel mockChannel = mock(ManagedChannel.class);
+    ManagedChannel mockFallbackChannel = mock(ManagedChannel.class);
+    when(mockChannel.newCall(any(), any())).thenReturn(mock(ClientCall.class));
+    when(mockFallbackChannel.newCall(any(), any())).thenReturn(mock(ClientCall.class));
+    when(mockChannel.getState(false)).thenReturn(ConnectivityState.TRANSIENT_FAILURE);
+
+    AtomicLong time = new AtomicLong(0);
+    FailoverChannel failoverChannel =
+        FailoverChannel.forTest(mockChannel, mockFallbackChannel, null, time::get);
+
+    // Before grace period, still routes to primary.
+    failoverChannel.newCall(methodDescriptor, CallOptions.DEFAULT);
+    verify(mockChannel).newCall(any(), any());
+
+    // After 10 seconds in non-ready state, should route to fallback.
     time.addAndGet(TimeUnit.SECONDS.toNanos(11));
     failoverChannel.newCall(methodDescriptor, CallOptions.DEFAULT);
     verify(mockFallbackChannel).newCall(any(), any());
