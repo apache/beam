@@ -111,7 +111,7 @@ jobs:
         env:
           TOX_TESTENV_PASSENV: "DOCKER_*,TESTCONTAINERS_*,TC_*,BEAM_*,GRPC_*,OMP_*,OPENBLAS_*,PYTHONHASHSEED,PYTEST_*"
           # Aggressive retry and timeout settings for flaky CI
-          PYTEST_ADDOPTS: "-v --tb=short --maxfail=5 --durations=30 --reruns=5 --reruns-delay=15 --timeout=900 --disable-warnings"
+          PYTEST_ADDOPTS: "-v --tb=short --maxfail=5 --durations=30 --reruns=5 --reruns-delay=15 --timeout=600 --disable-warnings"
           # Container stability - much more generous timeouts
           TC_TIMEOUT: "300"
           TC_MAX_TRIES: "15"
