@@ -1232,7 +1232,6 @@ class VariableString(PassThroughLogicalType[str, np.int32]):
 # TODO: A temporary fix for missing jdbc logical types.
 # See the discussion in https://github.com/apache/beam/issues/35738 for
 # more detail.
-@LogicalType._register_internal
 class JdbcDateType(LogicalType[datetime.date, MillisInstant, str]):
   """
   For internal use only; no backwards-compatibility guarantees.
