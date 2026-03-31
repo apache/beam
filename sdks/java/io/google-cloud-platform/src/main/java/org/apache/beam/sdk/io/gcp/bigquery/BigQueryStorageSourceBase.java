@@ -74,6 +74,7 @@ abstract class BigQueryStorageSourceBase<T> extends BoundedSource<T> {
   protected final Coder<T> outputCoder;
   protected final BigQueryServices bqServices;
   private final @Nullable TimestampPrecision picosTimestampPrecision;
+  private boolean emptyOrPruned = false;
 
   BigQueryStorageSourceBase(
       @Nullable DataFormat format,
@@ -181,8 +182,10 @@ abstract class BigQueryStorageSourceBase<T> extends BoundedSource<T> {
     if (readSession.getStreamsList().isEmpty()) {
       LOG.info(
           "Returned stream list is empty. The underlying table is empty or all rows have been pruned.");
+      emptyOrPruned = true;
       return ImmutableList.of();
     } else {
+      emptyOrPruned = false;
       LOG.info("Read session returned {} streams", readSession.getStreamsList().size());
     }
 
@@ -205,15 +208,11 @@ abstract class BigQueryStorageSourceBase<T> extends BoundedSource<T> {
 
   @Override
   public BoundedReader<T> createReader(PipelineOptions options) throws IOException {
-    try {
-      if (split(0, options).isEmpty()) {
-        return new EmptyReader<>(this);
-      }
-    } catch (Exception e) {
-      // If split fails, we can't be sure if it's empty or not.
-      // For backwards compatibility with tests that don't mock everything,
-      // we still throw UnsupportedOperationException.
-      LOG.debug("Split failed during createReader emptiness check", e);
+    if (emptyOrPruned) {
+      // When split() returns an empty list, UnboundedReadFromBoundedSource falls back to wrapping
+      // the original unsplit source directly (ImmutableList.of(bigQuerySotrageSourceBase)) so we
+      // need to return empty reader.
+      return new EmptyReader<>(this);
     }
     throw new UnsupportedOperationException("BigQuery storage source must be split before reading");
   }
