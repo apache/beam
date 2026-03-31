@@ -3271,10 +3271,7 @@ class _CombinePerKeyWithHotKeyFanout(PTransform):
     combine_fn = self._combine_fn
     fanout_fn = self._fanout_fn
 
-    if isinstance(pcoll.windowing.windowfn, SlidingWindows):
-      raise ValueError(
-          'CombinePerKey.with_hot_key_fanout does not yet work properly with '
-          'SlidingWindows. See: https://github.com/apache/beam/issues/20528')
+    use_direct_windowing = isinstance(pcoll.windowing.windowfn, SlidingWindows)
 
     class SplitHotCold(DoFn):
       def start_bundle(self):
@@ -3344,14 +3341,31 @@ class _CombinePerKeyWithHotKeyFanout(PTransform):
 
     cold, hot = pcoll | ParDo(SplitHotCold()).with_outputs('hot', main='cold')
     cold.element_type = typehints.Any  # No multi-output type hints.
-    precombined_hot = (
-        hot
-        # Avoid double counting that may happen with stacked accumulating mode.
-        | 'WindowIntoDiscarding' >> WindowInto(
-            pcoll.windowing, accumulation_mode=AccumulationMode.DISCARDING)
-        | CombinePerKey(PreCombineFn())
-        | Map(StripNonce)
-        | 'WindowIntoOriginal' >> WindowInto(pcoll.windowing))
+
+    if use_direct_windowing:
+      # For SlidingWindows, swap windowing strategy metadata directly on the
+      # PCollection without re-assigning windows. This mirrors Java's
+      # setWindowingStrategyInternal(). Using WindowInto would call
+      # windowfn.assign() which re-evaluates window assignments from
+      # timestamps — with SlidingWindows, this causes accumulators to leak
+      # into adjacent overlapping windows.
+      if pcoll.windowing.accumulation_mode == AccumulationMode.ACCUMULATING:
+        discarding_windowing = copy.copy(pcoll.windowing)
+        discarding_windowing.accumulation_mode = AccumulationMode.DISCARDING
+        hot._windowing = discarding_windowing
+      precombined_hot = (hot | CombinePerKey(PreCombineFn()) | Map(StripNonce))
+      precombined_hot._windowing = pcoll.windowing
+    else:
+      precombined_hot = (
+          hot
+          # Avoid double counting that may happen with stacked accumulating
+          # mode.
+          | 'WindowIntoDiscarding' >> WindowInto(
+              pcoll.windowing, accumulation_mode=AccumulationMode.DISCARDING)
+          | CombinePerKey(PreCombineFn())
+          | Map(StripNonce)
+          | 'WindowIntoOriginal' >> WindowInto(pcoll.windowing))
+
     return ((cold, precombined_hot)
             | Flatten()
             | CombinePerKey(PostCombineFn()))
