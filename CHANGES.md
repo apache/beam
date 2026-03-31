@@ -77,6 +77,7 @@
 * Supported infer schema from dataclass (Python) ([#22085](https://github.com/apache/beam/issues/22085)). Default coder for typehint-ed (or set with_output_type) for non-frozen dataclasses changed to RowCoder. To preserve the old behavior (fast primitive coder), explicitly register the type with FastPrimitiveCoder.
 * Updates minimum Go version to 1.26.1 ([#37897](https://github.com/apache/beam/issues/37897)).
 * (Python) Added image embedding support in `apache_beam.ml.rag` package ([#37628](https://github.com/apache/beam/issues/37628)).
+* (Python) Added support for Python version 3.14 ([#37247](https://github.com/apache/beam/issues/37247)).
 
 ## Breaking Changes
 
