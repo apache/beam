@@ -41,6 +41,7 @@ class ManagedIcebergIT(unittest.TestCase):
     self.args.extend([
         '--experiments=enable_managed_transforms',
     ])
+    self.project = self.test_pipeline.get_option('project')
 
   def _create_row(self, num: int):
     return beam.Row(
@@ -53,14 +54,20 @@ class ManagedIcebergIT(unittest.TestCase):
         date_=datetime.date.today() - datetime.timedelta(days=num))
 
   def test_write_read_pipeline(self):
+    biglake_catalog_props = {
+      'type': 'rest',
+      'uri': 'https://biglake.googleapis.com/iceberg/v1/restcatalog',
+      'warehouse': self.WAREHOUSE,
+      'header.x-goog-user-project': self.project,
+      'rest.auth.type': 'google',
+      'io-impl': 'org.apache.iceberg.gcp.gcs.GCSFileIO',
+      'header.X-Iceberg-Access-Delegation': 'vended-credentials'
+    }
+
     iceberg_config = {
         "table": "test_iceberg_write_read.test_" + uuid.uuid4().hex,
         "catalog_name": "default",
-        "catalog_properties": {
-            "type": "hadoop",
-            "warehouse": self.WAREHOUSE,
-            "io-impl": "org.apache.iceberg.gcp.gcs.GCSFileIO"
-        }
+        "catalog_properties": biglake_catalog_props
     }
 
     rows = [self._create_row(i) for i in range(100)]
