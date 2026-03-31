@@ -563,7 +563,6 @@ if __name__ == '__main__':
           # maintainer: milvus tests only run with this extension. Make sure it
           # is covered by docker-in-docker test when changing py version
           'p313_ml_test': ml_base + milvus_dependency,
-          'p314_ml_test': ml_base + milvus_dependency,
           'aws': ['boto3>=1.9,<2'],
           'azure': [
               'azure-storage-blob>=12.3.2,<13',
