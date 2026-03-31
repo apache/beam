@@ -22,9 +22,11 @@ Compares two batching strategies for variable-length inference workloads:
 - Baseline (BatchElements): fixed-count chunking, ignores element sizes.
 - Stateless (SortAndBatchElements): within each bundle, sorts elements
   by size, then splits batches using max_batch_weight so that each batch
-  has a bounded total weight.  The improvement comes from *changing batch
-  boundaries* (weight-based splitting), NOT from sorting alone -- sorting
-  within fixed boundaries yields 0% gain (verified by strict-control).
+  has a bounded total weight.  The improvement comes from sorting
+  combined with weight-based splitting: sorting clusters similar-sized
+  elements together, and the weight constraint then produces tighter
+  batches.  Sorting alone with fixed count-based boundaries yields ~0%
+  gain (verified by strict-control ablation).
 
 Padding ratio::
 

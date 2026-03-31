@@ -90,6 +90,8 @@ from apache_beam.utils.timestamp import Timestamp
 if TYPE_CHECKING:
   from apache_beam.runners.pipeline_context import PipelineContext
 
+_LOGGER = logging.getLogger(__name__)
+
 __all__ = [
     'BatchElements',
     'CoGroupByKey',
@@ -1320,24 +1322,6 @@ class BatchElements(PTransform):
               self._batch_size_estimator, self._element_size_fn))
 
 
-def _default_element_size_fn(element: Any) -> int:
-  """Default element size function that tries len(), falls back to 1.
-
-  This function attempts to compute the size of an element using len().
-  If the element does not support len() (e.g., integers), it falls back to 1.
-
-  Args:
-    element: The element to compute the size of.
-
-  Returns:
-    The size of the element, or 1 if len() is not supported.
-  """
-  try:
-    return len(element)
-  except TypeError:
-    return 1
-
-
 class _SortAndBatchElementsDoFn(DoFn):
   """DoFn that buffers, sorts by element size, and batches elements.
 
@@ -1364,8 +1348,22 @@ class _SortAndBatchElementsDoFn(DoFn):
     self._min_batch_size = min_batch_size
     self._max_batch_size = max_batch_size
     self._max_batch_weight = max_batch_weight
-    self._element_size_fn = element_size_fn
+    self._element_size_fn = element_size_fn or self._default_element_size
+    self._has_warned_type_error = False
     self._buffer = []
+
+  def _default_element_size(self, element):
+    try:
+      return len(element)
+    except TypeError:
+      if not self._has_warned_type_error:
+        _LOGGER.warning(
+            'Element of type %s does not support len(). Falling back to '
+            'size 1. Consider providing a custom element_size_fn to '
+            'SortAndBatchElements for meaningful size-based batching.',
+            type(element).__name__)
+        self._has_warned_type_error = True
+      return 1
 
   def start_bundle(self):
     self._buffer = []
@@ -1438,8 +1436,22 @@ class _WindowAwareSortAndBatchElementsDoFn(DoFn):
     self._min_batch_size = min_batch_size
     self._max_batch_size = max_batch_size
     self._max_batch_weight = max_batch_weight
-    self._element_size_fn = element_size_fn
+    self._element_size_fn = element_size_fn or self._default_element_size
+    self._has_warned_type_error = False
     self._buffers = collections.defaultdict(list)
+
+  def _default_element_size(self, element):
+    try:
+      return len(element)
+    except TypeError:
+      if not self._has_warned_type_error:
+        _LOGGER.warning(
+            'Element of type %s does not support len(). Falling back to '
+            'size 1. Consider providing a custom element_size_fn to '
+            'SortAndBatchElements for meaningful size-based batching.',
+            type(element).__name__)
+        self._has_warned_type_error = True
+      return 1
 
   def start_bundle(self):
     self._buffers = collections.defaultdict(list)
@@ -1566,10 +1578,9 @@ class SortAndBatchElements(PTransform):
     self._max_batch_size = max_batch_size
     self._max_batch_weight = max_batch_weight
 
-    # Smart default: try len(), fallback to 1 when len() is unsupported
-    self._element_size_fn: Callable[[Any], int] = (
-        element_size_fn
-        if element_size_fn is not None else _default_element_size_fn)
+    # None means the DoFn will use its own _default_element_size method,
+    # which tries len() and warns once on TypeError before falling back to 1.
+    self._element_size_fn = element_size_fn
 
   def expand(self, pcoll):
     if pcoll.windowing.is_default():

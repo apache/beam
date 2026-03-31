@@ -1250,15 +1250,29 @@ class SortAndBatchElementsDoFnDirectTest(unittest.TestCase):
   so coverage tools in the main process cannot capture DoFn code paths.
   These tests exercise the DoFn methods directly in-process.
   """
-  def test_default_element_size_fn_len(self):
-    from apache_beam.transforms.util import _default_element_size_fn
-    self.assertEqual(_default_element_size_fn('abc'), 3)
-    self.assertEqual(_default_element_size_fn([1, 2]), 2)
+  def test_default_element_size_len(self):
+    from apache_beam.transforms.util import _SortAndBatchElementsDoFn
+    dofn = _SortAndBatchElementsDoFn(
+        min_batch_size=1,
+        max_batch_size=10,
+        max_batch_weight=100,
+        element_size_fn=None)
+    self.assertEqual(dofn._element_size_fn('abc'), 3)
+    self.assertEqual(dofn._element_size_fn([1, 2]), 2)
 
-  def test_default_element_size_fn_fallback(self):
-    from apache_beam.transforms.util import _default_element_size_fn
-    self.assertEqual(_default_element_size_fn(42), 1)
-    self.assertEqual(_default_element_size_fn(3.14), 1)
+  def test_default_element_size_fallback_warns_once(self):
+    from apache_beam.transforms.util import _SortAndBatchElementsDoFn
+    dofn = _SortAndBatchElementsDoFn(
+        min_batch_size=1,
+        max_batch_size=10,
+        max_batch_weight=100,
+        element_size_fn=None)
+    with self.assertLogs('apache_beam.transforms.util', level='WARNING') as cm:
+      self.assertEqual(dofn._element_size_fn(42), 1)
+    self.assertIn('does not support len()', cm.output[0])
+    # Second call should not warn again
+    self.assertEqual(dofn._element_size_fn(3.14), 1)
+    self.assertTrue(dofn._has_warned_type_error)
 
   def test_global_dofn_sort_and_batch(self):
     """Test _SortAndBatchElementsDoFn directly."""
