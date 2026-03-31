@@ -213,6 +213,7 @@ abstract class BigQueryStorageSourceBase<T> extends BoundedSource<T> {
       // If split fails, we can't be sure if it's empty or not.
       // For backwards compatibility with tests that don't mock everything,
       // we still throw UnsupportedOperationException.
+      LOG.debug("Split failed during createReader emptiness check", e);
     }
     throw new UnsupportedOperationException("BigQuery storage source must be split before reading");
   }
