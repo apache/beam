@@ -23,6 +23,7 @@ import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.regex.Pattern;
@@ -32,7 +33,6 @@ import org.apache.beam.sdk.lineage.LineageOptions;
 import org.apache.beam.sdk.metrics.Metrics.MetricsFlag;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
-import org.apache.beam.sdk.values.KV;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Splitter;
 import org.checkerframework.checker.nullness.qual.Nullable;
@@ -48,8 +48,8 @@ public class Lineage {
   private static final AtomicReference<Lineage> SOURCES = new AtomicReference<>();
   private static final AtomicReference<Lineage> SINKS = new AtomicReference<>();
 
-  private static final AtomicReference<KV<Long, Integer>> LINEAGE_REVISION =
-      new AtomicReference<>();
+  private static final AtomicReference<@Nullable Class<? extends LineageBase>>
+      CURRENT_LINEAGE_TYPE = new AtomicReference<>();
 
   // Reserved characters are backtick, colon, whitespace (space, \t, \n) and dot.
   private static final Pattern RESERVED_CHARS = Pattern.compile("[:\\s.`]");
@@ -68,41 +68,16 @@ public class Lineage {
   @Internal
   public static void setDefaultPipelineOptions(PipelineOptions options) {
     checkNotNull(options, "options cannot be null");
-    long optionsId = options.getOptionsId();
-    int nextRevision = options.revision();
+    Class<? extends LineageBase> requestedType = options.as(LineageOptions.class).getLineageType();
 
-    while (true) {
-      KV<Long, Integer> currentRevision = LINEAGE_REVISION.get();
-
-      if (currentRevision != null
-          && currentRevision.getKey().equals(optionsId)
-          && currentRevision.getValue() >= nextRevision) {
-        LOG.debug(
-            "Lineage already initialized with options ID {} revision {}, skipping",
-            optionsId,
-            currentRevision.getValue());
-        return;
-      }
-
-      if (LINEAGE_REVISION.compareAndSet(currentRevision, KV.of(optionsId, nextRevision))) {
-        Lineage sources = createLineage(options, LineageDirection.SOURCE);
-        Lineage sinks = createLineage(options, LineageDirection.SINK);
-
-        SOURCES.set(sources);
-        SINKS.set(sinks);
-
-        if (currentRevision == null) {
-          LOG.info("Lineage initialized with options ID {} revision {}", optionsId, nextRevision);
-        } else {
-          LOG.info(
-              "Lineage re-initialized from options ID {} to {} (revision {} -> {})",
-              currentRevision.getKey(),
-              optionsId,
-              currentRevision.getValue(),
-              nextRevision);
-        }
-        return;
-      }
+    Class<? extends LineageBase> currentType = CURRENT_LINEAGE_TYPE.get();
+    if (Objects.equals(currentType, requestedType) && SOURCES.get() != null) {
+      return;
+    }
+    if (CURRENT_LINEAGE_TYPE.compareAndSet(currentType, requestedType)) {
+      SOURCES.set(createLineage(options, LineageDirection.SOURCE));
+      SINKS.set(createLineage(options, LineageDirection.SINK));
+      LOG.debug("Lineage initialized with type {}", requestedType);
     }
   }
 
@@ -127,7 +102,7 @@ public class Lineage {
       }
     }
 
-    LOG.info("Using default Metrics-based lineage for direction {}", direction);
+    LOG.debug("Using default Metrics-based lineage for direction {}", direction);
     LineageBase defaultLineage =
         MetricsFlag.lineageRollupEnabled()
             ? new BoundedTrieMetricsLineage(direction)

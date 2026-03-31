@@ -43,10 +43,14 @@ import org.junit.rules.TestWatcher;
 import org.junit.runner.Description;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /** Tests for {@link LineageBase} pipeline option selection and DirectRunner integration. */
 @RunWith(JUnit4.class)
 public class LineagePluginTest {
+
+  private static final Logger LOG = LoggerFactory.getLogger(LineagePluginTest.class);
 
   /**
    * TestWatcher that logs detailed lineage diagnostics only when tests fail. This keeps successful
@@ -57,24 +61,24 @@ public class LineagePluginTest {
       new TestWatcher() {
         @Override
         protected void failed(Throwable e, Description description) {
-          System.err.println("=== Lineage Test Failure Diagnostics ===");
-          System.err.println("Test: " + description.getMethodName());
-          System.err.println("Error: " + e.getMessage());
+          LOG.error("=== Lineage Test Failure Diagnostics ===");
+          LOG.error("Test: {}", description.getMethodName());
+          LOG.error("Error:", e);
 
           List<String> sources = TestLineage.getRecordedSources();
           List<String> sinks = TestLineage.getRecordedSinks();
 
-          System.err.println("\nRecorded Sources (" + sources.size() + "):");
+          LOG.error("Recorded Sources ({}):", sources.size());
           for (int i = 0; i < sources.size(); i++) {
-            System.err.println("  [" + i + "] \"" + sources.get(i) + "\"");
+            LOG.error("  [{}] \"{}\"", i, sources.get(i));
           }
 
-          System.err.println("\nRecorded Sinks (" + sinks.size() + "):");
+          LOG.error("Recorded Sinks ({}):", sinks.size());
           for (int i = 0; i < sinks.size(); i++) {
-            System.err.println("  [" + i + "] \"" + sinks.get(i) + "\"");
+            LOG.error("  [{}] \"{}\"", i, sinks.get(i));
           }
 
-          System.err.println("========================================");
+          LOG.error("========================================");
         }
       };
 
