@@ -22,6 +22,8 @@ import static org.apache.beam.sdk.io.iceberg.AddFiles.ConvertToDataFile.ERRORS;
 import static org.apache.beam.sdk.metrics.Metrics.counter;
 import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
 import static org.apache.beam.sdk.values.PCollection.IsBounded.BOUNDED;
+import static org.apache.beam.sdk.values.PCollection.IsBounded.UNBOUNDED;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkState;
 
 import java.io.FileNotFoundException;
 import java.io.IOException;
@@ -31,10 +33,13 @@ import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.Iterator;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.Callable;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
@@ -60,6 +65,7 @@ import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.WithKeys;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
+import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionRowTuple;
@@ -70,6 +76,7 @@ import org.apache.beam.sdk.values.TupleTagList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Strings;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.hash.Hasher;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.hash.Hashing;
 import org.apache.iceberg.AppendFiles;
@@ -122,13 +129,13 @@ public class AddFiles extends PTransform<PCollection<String>, PCollectionRowTupl
   private static final Counter numFilesAdded = counter(AddFiles.class, "numFilesAdded");
   private static final Counter numErrorFiles = counter(AddFiles.class, "numErrorFiles");
   private static final Logger LOG = LoggerFactory.getLogger(AddFiles.class);
-  private static final int DEFAULT_FILES_TRIGGER = 1_000;
+  private static final int DEFAULT_FILES_TRIGGER = 10_000;
   static final Schema ERROR_SCHEMA =
       Schema.builder().addStringField("file").addStringField("error").build();
   private final IcebergCatalogConfig catalogConfig;
   private final String tableIdentifier;
-  private final Duration intervalTrigger;
-  private final int numFilesTrigger;
+  private @Nullable Duration intervalTrigger;
+  private @Nullable Integer numFilesTrigger;
   private final @Nullable String locationPrefix;
   private final @Nullable List<String> partitionFields;
   private final @Nullable Map<String, String> tableProps;
@@ -152,10 +159,19 @@ public class AddFiles extends PTransform<PCollection<String>, PCollectionRowTupl
 
   @Override
   public PCollectionRowTuple expand(PCollection<String> input) {
-    LOG.info(
-        "AddFiles configured to commit after accumulating {} files, or after {} seconds.",
-        numFilesTrigger,
-        intervalTrigger.getStandardSeconds());
+    if (input.isBounded().equals(UNBOUNDED)) {
+      intervalTrigger = intervalTrigger != null ? intervalTrigger : DEFAULT_TRIGGER_INTERVAL;
+      numFilesTrigger = numFilesTrigger != null ? numFilesTrigger : DEFAULT_FILES_TRIGGER;
+      LOG.info(
+          "AddFiles configured to commit after accumulating {} files, or after {} seconds.",
+          numFilesTrigger,
+          intervalTrigger.getStandardSeconds());
+    } else {
+      checkState(
+          intervalTrigger == null && numFilesTrigger == null,
+          "Specifying an interval trigger or file trigger is only supported for streaming pipelines.");
+    }
+
     if (!Strings.isNullOrEmpty(locationPrefix)) {
       LOG.info(
           "AddFiles configured to build partition metadata after the prefix: '{}'", locationPrefix);
@@ -204,22 +220,24 @@ public class AddFiles extends PTransform<PCollection<String>, PCollectionRowTupl
   }
 
   /**
-   * Reads incoming file paths, extracts Iceberg metadata, and converts them into {@link SerializableDataFile} objects.
+   * Reads incoming file paths, extracts Iceberg metadata, and converts them into {@link
+   * SerializableDataFile} objects.
    *
-   * <p><b>Asynchronous Bundle Processing:</b>
-   * Because file I/O, catalog lookups, and metadata inference can be highly latency-bound,
-   * this DoFn implements an asynchronous processing pattern to maximize throughput. By default,
-   * Beam processes elements in a bundle sequentially. To avoid bottlenecking the pipeline,
-   * we use an internal {@link ExecutorService} to process multiple files concurrently within a single DoFn instance.
+   * <p><b>Asynchronous Bundle Processing:</b> Because file I/O, catalog lookups, and metadata
+   * inference can be highly latency-bound, this DoFn implements an asynchronous processing pattern
+   * to maximize throughput. By default, Beam processes elements in a bundle sequentially. To avoid
+   * bottlenecking the pipeline, we use an internal {@link ExecutorService} to process multiple
+   * files concurrently within a single DoFn instance.
    *
    * <p><b>Lifecycle & Thread Safety:</b>
+   *
    * <ul>
-   *   <li><b>{@link ProcessElement}:</b> Submits the heavy lifting (format inference,
-   *   metrics collection, and partition resolution) to a background thread pool and stores
-   *   the resulting {@link Future}.
+   *   <li><b>{@link ProcessElement}:</b> Submits the heavy lifting (format inference, metrics
+   *       collection, and partition resolution) to a background thread pool and stores the
+   *       resulting {@link Future}.
    *   <li><b>{@link FinishBundle}:</b> Blocks and awaits the completion of all futures in the
-   *   current bundle. It safely emits the successfully parsed {@link DataFile}s, or error rows,
-   *   back to the runner on the main thread, as {@link MultiOutputReceiver} is not thread-safe.
+   *       current bundle. It safely emits the successfully parsed {@link DataFile}s, or error rows,
+   *       back to the runner on the main thread, as {@link MultiOutputReceiver} is not thread-safe.
    * </ul>
    */
   static class ConvertToDataFile extends DoFn<String, SerializableDataFile> {
@@ -231,14 +249,15 @@ public class AddFiles extends PTransform<PCollection<String>, PCollectionRowTupl
     private final @Nullable List<String> partitionFields;
     private final @Nullable Map<String, String> tableProps;
     private transient @MonotonicNonNull ExecutorService executor;
-    private transient @MonotonicNonNull List<Future<ProcessResult>> activeTasks;
-    private transient @MonotonicNonNull Table table;
+    private transient @MonotonicNonNull LinkedList<Future<ProcessResult>> activeTasks;
+    private transient volatile @MonotonicNonNull Table table;
 
     // Limit open readers to avoid blowing up memory on one worker
     private static final int MAX_READERS = 10;
     private static final Semaphore ACTIVE_READERS = new Semaphore(MAX_READERS);
     // Number of parallel threads processing incoming files
     private static final int THREAD_POOL_SIZE = 10;
+    private static final int MAX_IN_FLIGHT_TASKS = 100;
 
     public ConvertToDataFile(
         IcebergCatalogConfig catalogConfig,
@@ -262,13 +281,15 @@ public class AddFiles extends PTransform<PCollection<String>, PCollectionRowTupl
       final @Nullable Row errorRow;
       final Instant timestamp;
       final BoundedWindow window;
+      final PaneInfo paneInfo;
 
       ProcessResult(
           @Nullable SerializableDataFile dataFile,
           @Nullable Row errorRow,
           Instant timestamp,
-          BoundedWindow window) {
-        Preconditions.checkState(
+          BoundedWindow window,
+          PaneInfo paneInfo) {
+        checkState(
             dataFile == null || errorRow == null,
             "Expected only one of dataFile or errorRow, but got both:%n\tfile: %s%n\terror: %s",
             dataFile != null ? dataFile.getPath() : null,
@@ -277,6 +298,7 @@ public class AddFiles extends PTransform<PCollection<String>, PCollectionRowTupl
         this.errorRow = errorRow;
         this.timestamp = timestamp;
         this.window = window;
+        this.paneInfo = paneInfo;
       }
     }
 
@@ -294,11 +316,79 @@ public class AddFiles extends PTransform<PCollection<String>, PCollectionRowTupl
 
     @StartBundle
     public void startBundle() {
-      activeTasks = new ArrayList<>();
+      activeTasks = Lists.newLinkedList();
+    }
+
+    @ProcessElement
+    public void process(
+        @Element String filePath,
+        @Timestamp Instant timestamp,
+        BoundedWindow window,
+        PaneInfo paneInfo,
+        MultiOutputReceiver output)
+        throws IOException, InterruptedException, ExecutionException {
+      LinkedList<Future<ProcessResult>> activeTasks = checkStateNotNull(this.activeTasks);
+
+      // start draining finished tasks, but don't block
+      Iterator<Future<ProcessResult>> iterator = activeTasks.iterator();
+      while (iterator.hasNext()) {
+        Future<ProcessResult> future = iterator.next();
+        if (future.isDone()) {
+          outputResult(future.get(), output);
+          iterator.remove();
+        }
+      }
+
+      // if we have too many active tasks, wait until some finish
+      while (activeTasks.size() >= MAX_IN_FLIGHT_TASKS) {
+        Future<ProcessResult> oldestTask = activeTasks.removeFirst();
+        outputResult(oldestTask.get(), output); // .get() blocks until the task completes
+      }
+
+      // create a new task for the current element and add to queue
+      Callable<ProcessResult> task = createProcessTask(filePath, timestamp, window, paneInfo);
+      activeTasks.add(checkStateNotNull(executor).submit(task));
+    }
+
+    private void outputResult(ProcessResult result, MultiOutputReceiver output) {
+      if (result.errorRow != null) {
+        output
+            .get(ERRORS)
+            .outputWindowedValue(
+                result.errorRow,
+                result.timestamp,
+                Collections.singleton(result.window),
+                result.paneInfo);
+        numErrorFiles.inc();
+      } else if (result.dataFile != null) {
+        output
+            .get(DATA_FILES)
+            .outputWindowedValue(
+                result.dataFile,
+                result.timestamp,
+                Collections.singleton(result.window),
+                result.paneInfo);
+      }
+    }
+
+    @FinishBundle
+    public void finishBundle(FinishBundleContext context) throws Exception {
+      // Block and wait for threads to finish their work
+      int numErrors = 0;
+      for (Future<ProcessResult> future : checkStateNotNull(activeTasks)) {
+        ProcessResult result = future.get();
+        if (result.errorRow != null) {
+          context.output(ERRORS, result.errorRow, result.timestamp, result.window);
+          numErrors++;
+        } else if (result.dataFile != null) {
+          context.output(DATA_FILES, result.dataFile, result.timestamp, result.window);
+        }
+      }
+      numErrorFiles.inc(numErrors);
     }
 
     private Callable<ProcessResult> createProcessTask(
-        String filePath, Instant timestamp, BoundedWindow window) {
+        String filePath, Instant timestamp, BoundedWindow window, PaneInfo paneInfo) {
 
       return () -> {
         FileFormat format;
@@ -309,21 +399,27 @@ public class AddFiles extends PTransform<PCollection<String>, PCollectionRowTupl
               null,
               Row.withSchema(ERROR_SCHEMA).addValues(filePath, UNKNOWN_FORMAT_ERROR).build(),
               timestamp,
-              window);
+              window,
+              paneInfo);
         }
 
         // Synchronize table initialization
         if (table == null) {
-          try {
-            table = getOrCreateTable(filePath, format);
-          } catch (FileNotFoundException e) {
-            return new ProcessResult(
-                null,
-                Row.withSchema(ERROR_SCHEMA)
-                    .addValues(filePath, checkStateNotNull(e.getMessage()))
-                    .build(),
-                timestamp,
-                window);
+          synchronized (this) {
+            if (table == null) {
+              try {
+                table = getOrCreateTable(filePath, format);
+              } catch (FileNotFoundException e) {
+                return new ProcessResult(
+                    null,
+                    Row.withSchema(ERROR_SCHEMA)
+                        .addValues(filePath, checkStateNotNull(e.getMessage()))
+                        .build(),
+                    timestamp,
+                    window,
+                    paneInfo);
+              }
+            }
           }
         }
 
@@ -335,7 +431,8 @@ public class AddFiles extends PTransform<PCollection<String>, PCollectionRowTupl
               null,
               Row.withSchema(ERROR_SCHEMA).addValues(filePath, PREFIX_ERROR).build(),
               timestamp,
-              window);
+              window,
+              paneInfo);
         }
 
         InputFile inputFile = table.io().newInputFile(filePath);
@@ -355,7 +452,8 @@ public class AddFiles extends PTransform<PCollection<String>, PCollectionRowTupl
                   .addValues(filePath, checkStateNotNull(e.getMessage()))
                   .build(),
               timestamp,
-              window);
+              window,
+              paneInfo);
         }
 
         // Figure out which partition this DataFile should go to
@@ -377,7 +475,8 @@ public class AddFiles extends PTransform<PCollection<String>, PCollectionRowTupl
                     .addValues(filePath, UNKNOWN_PARTITION_ERROR + e.getMessage())
                     .build(),
                 timestamp,
-                window);
+                window,
+                paneInfo);
           }
         }
 
@@ -391,36 +490,8 @@ public class AddFiles extends PTransform<PCollection<String>, PCollectionRowTupl
                 .build();
 
         return new ProcessResult(
-            SerializableDataFile.from(df, partitionPath), null, timestamp, window);
+            SerializableDataFile.from(df, partitionPath), null, timestamp, window, paneInfo);
       };
-    }
-
-    @ProcessElement
-    public void process(
-        @Element String filePath,
-        @Timestamp Instant timestamp,
-        BoundedWindow window,
-        MultiOutputReceiver output)
-        throws IOException, InterruptedException {
-
-      Callable<ProcessResult> task = createProcessTask(filePath, timestamp, window);
-      checkStateNotNull(activeTasks).add(checkStateNotNull(executor).submit(task));
-    }
-
-    @FinishBundle
-    public void finishBundle(FinishBundleContext context) throws Exception {
-      for (Future<ProcessResult> future : checkStateNotNull(activeTasks)) {
-        // Block and wait for threads to finish their work
-        ProcessResult result = future.get();
-
-        // Safely output on the main runner thread
-        if (result.errorRow != null) {
-          context.output(ERRORS, result.errorRow, result.timestamp, result.window);
-          numErrorFiles.inc();
-        } else if (result.dataFile != null) {
-          context.output(DATA_FILES, result.dataFile, result.timestamp, result.window);
-        }
-      }
     }
 
     static <W, T> T transformValue(Transform<W, T> transform, Type type, ByteBuffer bytes) {
