@@ -57,7 +57,6 @@ from collections.abc import Iterable
 from collections.abc import Sequence
 from typing import Any
 from typing import Optional
-from typing import Union
 
 from apache_beam.ml.inference.base import ModelHandler
 from apache_beam.ml.inference.base import PredictionResult
@@ -75,14 +74,15 @@ except ImportError:
   ADK_AVAILABLE = False
   genai_Content = Any  # type: ignore[assignment, misc]
   genai_Part = Any  # type: ignore[assignment, misc]
+  Agent = None
 
 LOGGER = logging.getLogger("ADKAgentModelHandler")
 
 # Type alias for an agent or factory that produces one
-_AgentOrFactory = Union["Agent", Callable[[], "Agent"]]
+_AgentOrFactory = Agent | Callable[[], Agent]
 
 
-class ADKAgentModelHandler(ModelHandler[Union[str, genai_Content],
+class ADKAgentModelHandler(ModelHandler[str | genai_Content,
                                         PredictionResult,
                                         "Runner"]):
   """ModelHandler for running ADK agents with the Beam RunInference transform.
@@ -185,7 +185,7 @@ class ADKAgentModelHandler(ModelHandler[Union[str, genai_Content],
 
   def run_inference(
       self,
-      batch: Sequence[Union[str, genai_Content]],
+      batch: Sequence[str | genai_Content],
       model: "Runner",
       inference_args: Optional[dict[str, Any]] = None,
   ) -> Iterable[PredictionResult]:
