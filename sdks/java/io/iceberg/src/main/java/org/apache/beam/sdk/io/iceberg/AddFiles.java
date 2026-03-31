@@ -152,8 +152,8 @@ public class AddFiles extends PTransform<PCollection<String>, PCollectionRowTupl
     this.tableIdentifier = tableIdentifier;
     this.partitionFields = partitionFields;
     this.tableProps = tableProps;
-    this.intervalTrigger = intervalTrigger != null ? intervalTrigger : DEFAULT_TRIGGER_INTERVAL;
-    this.numFilesTrigger = numFilesTrigger != null ? numFilesTrigger : DEFAULT_FILES_TRIGGER;
+    this.intervalTrigger = intervalTrigger;
+    this.numFilesTrigger = numFilesTrigger;
     this.locationPrefix = locationPrefix;
   }
 
@@ -205,8 +205,9 @@ public class AddFiles extends PTransform<PCollection<String>, PCollectionRowTupl
         keyedFiles.isBounded().equals(BOUNDED)
             ? keyedFiles.apply(GroupByKey.create())
             : keyedFiles.apply(
-                GroupIntoBatches.<Void, SerializableDataFile>ofSize(numFilesTrigger)
-                    .withMaxBufferingDuration(intervalTrigger));
+                GroupIntoBatches.<Void, SerializableDataFile>ofSize(
+                        checkStateNotNull(numFilesTrigger))
+                    .withMaxBufferingDuration(checkStateNotNull(intervalTrigger)));
 
     PCollection<Row> snapshots =
         groupedFiles
@@ -445,7 +446,7 @@ public class AddFiles extends PTransform<PCollection<String>, PCollectionRowTupl
                   format,
                   MetricsConfig.forTable(table),
                   MappingUtil.create(table.schema()));
-        } catch (FileNotFoundException e) {
+        } catch (Exception e) {
           return new ProcessResult(
               null,
               Row.withSchema(ERROR_SCHEMA)
