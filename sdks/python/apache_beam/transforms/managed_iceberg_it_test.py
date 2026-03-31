@@ -33,7 +33,7 @@ from apache_beam.testing.util import equal_to
     "EXPANSION_JARS environment var is not provided, "
     "indicating that jars have not been built")
 class ManagedIcebergIT(unittest.TestCase):
-  WAREHOUSE = "gs://temp-storage-for-end-to-end-tests/xlang-python-using-java"
+  WAREHOUSE = "gs://temp-storage-for-end-to-end-tests"
 
   def setUp(self):
     self.test_pipeline = TestPipeline(is_integration_test=True)
@@ -55,13 +55,13 @@ class ManagedIcebergIT(unittest.TestCase):
 
   def test_write_read_pipeline(self):
     biglake_catalog_props = {
-      'type': 'rest',
-      'uri': 'https://biglake.googleapis.com/iceberg/v1/restcatalog',
-      'warehouse': self.WAREHOUSE,
-      'header.x-goog-user-project': self.project,
-      'rest.auth.type': 'google',
-      'io-impl': 'org.apache.iceberg.gcp.gcs.GCSFileIO',
-      'header.X-Iceberg-Access-Delegation': 'vended-credentials'
+        'type': 'rest',
+        'uri': 'https://biglake.googleapis.com/iceberg/v1/restcatalog',
+        'warehouse': self.WAREHOUSE,
+        'header.x-goog-user-project': self.project,
+        'rest.auth.type': 'google',
+        'io-impl': 'org.apache.iceberg.gcp.gcs.GCSFileIO',
+        'header.X-Iceberg-Access-Delegation': 'vended-credentials'
     }
 
     iceberg_config = {
