@@ -27,6 +27,7 @@ import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
+import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -430,9 +431,11 @@ public class IcebergUtils {
     // timestamptz
     if (shouldAdjustToUtc) {
       if (beamValue instanceof java.time.Instant) { // MicrosInstant
+        OffsetDateTime epoch = java.time.Instant.ofEpochSecond(0).atOffset(ZoneOffset.UTC);
         java.time.Instant instant = (java.time.Instant) beamValue;
-        return DateTimeUtil.timestamptzFromNanos(
-            TimeUnit.SECONDS.toNanos(instant.getEpochSecond()) + instant.getNano());
+        long nanosFromEpoch =
+            TimeUnit.SECONDS.toNanos(instant.getEpochSecond()) + instant.getNano();
+        return ChronoUnit.NANOS.addTo(epoch, nanosFromEpoch);
       } else if (beamValue instanceof LocalDateTime) { // SqlTypes.DATETIME
         return OffsetDateTime.of((LocalDateTime) beamValue, ZoneOffset.UTC);
       } else if (beamValue instanceof Instant) { // FieldType.DATETIME
