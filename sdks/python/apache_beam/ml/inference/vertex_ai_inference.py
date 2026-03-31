@@ -72,6 +72,8 @@ class VertexAIModelHandlerJSON(RemoteModelHandler[Any,
       max_batch_duration_secs: Optional[int] = None,
       max_batch_weight: Optional[int] = None,
       element_size_fn: Optional[Callable[[Any], int]] = None,
+      batch_length_fn: Optional[Callable[[Any], int]] = None,
+      batch_bucket_boundaries: Optional[list[int]] = None,
       **kwargs):
     """Implementation of the ModelHandler interface for Vertex AI.
     **NOTE:** This API and its implementation are under development and
@@ -115,6 +117,10 @@ class VertexAIModelHandlerJSON(RemoteModelHandler[Any,
       max_batch_weight: optional. the maximum total weight of a batch.
       element_size_fn: optional. a function that returns the size (weight)
         of an element.
+      batch_length_fn: optional. a callable that returns the length of an
+        element for length-aware batching.
+      batch_bucket_boundaries: optional. a sorted list of positive boundary
+        values for length-aware batching buckets.
     """
     self._batching_kwargs = {}
     self._env_vars = kwargs.get('env_vars', {})
@@ -129,6 +135,10 @@ class VertexAIModelHandlerJSON(RemoteModelHandler[Any,
       self._batching_kwargs["max_batch_weight"] = max_batch_weight
     if element_size_fn is not None:
       self._batching_kwargs['element_size_fn'] = element_size_fn
+    if batch_length_fn is not None:
+      self._batching_kwargs['length_fn'] = batch_length_fn
+    if batch_bucket_boundaries is not None:
+      self._batching_kwargs['bucket_boundaries'] = batch_bucket_boundaries
 
     if private and network is None:
       raise ValueError(
