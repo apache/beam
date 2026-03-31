@@ -536,7 +536,8 @@ public class SimplePushbackSideInputDoFnRunnerTest {
     public final StateSpec<ValueState<Integer>> intState = StateSpecs.value(VarIntCoder.of());
 
     @ProcessElement
-    public void processElement(ProcessContext c, @StateId(stateId) ValueState<Integer> state) {
+    public void processElement(
+        @SuppressWarnings("unused") ProcessContext c, @StateId(stateId) ValueState<Integer> state) {
       Integer currentValue = MoreObjects.firstNonNull(state.read(), 0);
       state.write(currentValue + 1);
     }

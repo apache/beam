@@ -1932,7 +1932,7 @@ public class BigQueryIOWriteTest implements Serializable {
     }
   }
 
-  /** Coder for @link{PartitionedGlobalWindow}. */
+  /** Coder for {@link PartitionedGlobalWindow}. */
   private static class PartitionedGlobalWindowCoder extends AtomicCoder<PartitionedGlobalWindow> {
     @Override
     public void encode(PartitionedGlobalWindow window, OutputStream outStream) throws IOException {
@@ -3502,7 +3502,7 @@ public class BigQueryIOWriteTest implements Serializable {
     String fieldName = "number";
     Function<TableRow, Boolean> shouldFailRow =
         (Function<TableRow, Boolean> & Serializable)
-            tr -> (Long.valueOf((String) tr.get(fieldName))) >= failFrom;
+            tr -> Long.valueOf((String) tr.get(fieldName)) >= failFrom;
     fakeDatasetService.setShouldFailRow(shouldFailRow);
 
     SerializableFunction<Long, TableRow> formatRecordOnFailureFunction =

@@ -349,7 +349,7 @@ public class TextSource extends FileBasedSource<String> {
         // Search for the newline
         for (; bufferPosn < bufferLength; ++bufferPosn) {
           if (buffer[bufferPosn] == LF) {
-            newlineLength = (prevCharCR) ? 2 : 1;
+            newlineLength = prevCharCR ? 2 : 1;
             ++bufferPosn; // at next invocation proceed from following byte
             break;
           }

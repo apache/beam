@@ -154,7 +154,7 @@ public class ZstdCoder<T> extends Coder<T> {
     if (o == this) {
       return true;
     }
-    if (o == null || getClass() != o.getClass()) {
+    if (!(o instanceof ZstdCoder)) {
       return false;
     }
     ZstdCoder<?> that = (ZstdCoder<?>) o;

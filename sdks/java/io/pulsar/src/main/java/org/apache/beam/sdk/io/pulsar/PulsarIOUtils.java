@@ -21,12 +21,9 @@ import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 final class PulsarIOUtils {
 
-  private static final Logger LOG = LoggerFactory.getLogger(PulsarIOUtils.class);
   static final String LOCAL_SERVICE_URL = "pulsar://localhost:6650";
   static final long DEFAULT_CONSUMER_POLLING_TIMEOUT = 2L;
 

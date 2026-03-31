@@ -280,7 +280,7 @@ public class Utils {
       if (this == o) {
         return true;
       }
-      if (o == null || getClass() != o.getClass()) {
+      if (!(o instanceof ByteArrayKey)) {
         return false;
       }
       ByteArrayKey that = (ByteArrayKey) o;

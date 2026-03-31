@@ -24,7 +24,8 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.channels.WritableByteChannel;
 import java.nio.charset.StandardCharsets;
-import java.util.Date;
+import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.util.UUID;
 import org.apache.beam.sdk.io.FileSystems;
 import org.apache.beam.sdk.io.fs.MatchResult;
@@ -125,7 +126,9 @@ public class RequiresStableInputIT {
     ResourceId outputDir =
         FileSystems.matchNewResource(options.getTempRoot(), true)
             .resolve(
-                String.format("requires-stable-input-%tF-%<tH-%<tM-%<tS-%<tL", new Date()),
+                String.format(
+                    "requires-stable-input-%tF-%<tH-%<tM-%<tS-%<tL",
+                    LocalDateTime.now(ZoneId.of("UTC"))),
                 StandardResolveOptions.RESOLVE_DIRECTORY);
     String singleOutputPrefix =
         outputDir

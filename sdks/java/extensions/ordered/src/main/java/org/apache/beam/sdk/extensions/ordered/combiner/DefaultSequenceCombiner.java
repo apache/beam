@@ -96,7 +96,7 @@ public class DefaultSequenceCombiner<EventKeyT, EventT, StateT extends MutableSt
   public ContiguousSequenceRange extractOutput(SequenceRangeAccumulator accum) {
     ContiguousSequenceRange result = accum.largestContinuousRange();
     if (LOG.isDebugEnabled()) {
-      LOG.debug("Returning completed sequence range: " + result);
+      LOG.debug("Returning completed sequence range: {}", result);
     }
     return result;
   }

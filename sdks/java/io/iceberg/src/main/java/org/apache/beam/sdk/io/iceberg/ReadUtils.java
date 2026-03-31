@@ -46,9 +46,11 @@ import org.apache.iceberg.encryption.EncryptedFiles;
 import org.apache.iceberg.encryption.EncryptedInputFile;
 import org.apache.iceberg.expressions.Evaluator;
 import org.apache.iceberg.expressions.Expression;
+import org.apache.iceberg.expressions.Expressions;
 import org.apache.iceberg.hadoop.HadoopInputFile;
 import org.apache.iceberg.io.CloseableIterable;
 import org.apache.iceberg.io.InputFile;
+import org.apache.iceberg.mapping.MappingUtil;
 import org.apache.iceberg.mapping.NameMapping;
 import org.apache.iceberg.mapping.NameMappingParser;
 import org.apache.iceberg.parquet.ParquetReader;
@@ -108,6 +110,34 @@ public class ReadUtils {
         fileSchema -> GenericParquetReaders.buildReader(schema, fileSchema, idToConstants),
         mapping,
         task.residual(),
+        false,
+        true);
+  }
+
+  static ParquetReader<Record> createReader(InputFile inputFile, Schema schema) {
+    ParquetReadOptions.Builder optionsBuilder;
+    if (inputFile instanceof HadoopInputFile) {
+      // remove read properties already set that may conflict with this read
+      Configuration conf = new Configuration(((HadoopInputFile) inputFile).getConf());
+      for (String property : READ_PROPERTIES_TO_REMOVE) {
+        conf.unset(property);
+      }
+      optionsBuilder = HadoopReadOptions.builder(conf);
+    } else {
+      optionsBuilder = ParquetReadOptions.builder();
+    }
+    optionsBuilder =
+        optionsBuilder
+            .withRange(0, inputFile.getLength())
+            .withMaxAllocationInBytes(MAX_FILE_BUFFER_SIZE);
+
+    return new ParquetReader<>(
+        inputFile,
+        schema,
+        optionsBuilder.build(),
+        fileSchema -> GenericParquetReaders.buildReader(schema, fileSchema),
+        MappingUtil.create(schema),
+        Expressions.alwaysTrue(),
         false,
         true);
   }

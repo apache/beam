@@ -392,7 +392,7 @@ public class SamzaStoreStateInternals<K> implements StateInternals {
       if (this == o) {
         return true;
       }
-      if (o == null || getClass() != o.getClass()) {
+      if (!(o instanceof SamzaStoreStateInternals.AbstractSamzaState)) {
         return false;
       }
 
@@ -1016,7 +1016,7 @@ public class SamzaStoreStateInternals<K> implements StateInternals {
 
     @Override
     public boolean equals(@Nullable Object o) {
-      if (o == null || getClass() != o.getClass()) {
+      if (!(o instanceof ByteArray)) {
         return false;
       }
       ByteArray byteArray = (ByteArray) o;

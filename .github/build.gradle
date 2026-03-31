@@ -28,6 +28,7 @@ buildscript {
 /** check that yml are valid */
 task check {
   doLast {
+    def workflowDoc = new File("${project.projectDir}/workflows/README.md").text
     List<String> errors = []
     fileTree("${project.projectDir}/workflows").matching {
       include "*.yml"
@@ -67,6 +68,11 @@ task check {
             return
           }
         }
+      }
+
+      // Make sure the workflow is listed in README.md
+      if ( fname.startsWith("beam_") && !workflowDoc.contains(fname)) {
+        errors.add("Workflow ${fname} not listed in workflows/README.md");
       }
     }
     if (!errors.isEmpty()) {

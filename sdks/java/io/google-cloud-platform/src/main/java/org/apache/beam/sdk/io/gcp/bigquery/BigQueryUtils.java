@@ -449,7 +449,7 @@ public class BigQueryUtils {
    * <p>Supports both standard and legacy SQL types.
    *
    * @param schema Schema of the type returned
-   * @param nestedFields Nested fields for the given type (eg. RECORD type)
+   * @param options Options for schema conversion
    * @return Corresponding Beam {@link FieldType}
    */
   private static FieldType fromTableFieldSchemaType(

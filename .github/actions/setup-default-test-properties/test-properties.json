@@ -18,6 +18,8 @@
     "SPARK_VERSIONS": ["3"]
   },
   "GoTestProperties": {
-    "SUPPORTED_VERSIONS": ["1.25"]
+    "SUPPORTED_VERSIONS": [
+      "1.26"
+    ]
   }
 }

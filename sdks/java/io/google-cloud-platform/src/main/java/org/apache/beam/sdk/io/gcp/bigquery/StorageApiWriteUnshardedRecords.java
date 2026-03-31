@@ -135,7 +135,7 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
           .expireAfterAccess(15, TimeUnit.MINUTES)
           .removalListener(
               (RemovalNotification<String, AppendClientInfo> removal) -> {
-                LOG.info("Expiring append client for " + removal.getKey());
+                LOG.info("Expiring append client for {}", removal.getKey());
                 final @Nullable AppendClientInfo appendClientInfo = removal.getValue();
                 if (appendClientInfo != null) {
                   appendClientInfo.close();

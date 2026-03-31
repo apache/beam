@@ -1601,6 +1601,66 @@ public class BigQueryIOStorageReadTest {
   }
 
   @Test
+  public void testReadFromBigQueryIOWithFallbackProject() throws Exception {
+    fakeDatasetService.createDataset("fallback-project", "dataset", "", "", null);
+    TableReference tableRef = BigQueryHelpers.parseTableSpec("fallback-project:dataset.table");
+    Table table = new Table().setTableReference(tableRef).setNumBytes(10L).setSchema(TABLE_SCHEMA);
+    fakeDatasetService.createTable(table);
+
+    CreateReadSessionRequest expectedCreateReadSessionRequest =
+        CreateReadSessionRequest.newBuilder()
+            .setParent("projects/fallback-project")
+            .setReadSession(
+                ReadSession.newBuilder()
+                    .setTable("projects/fallback-project/datasets/dataset/tables/table")
+                    .setDataFormat(DataFormat.AVRO)
+                    .setReadOptions(ReadSession.TableReadOptions.newBuilder()))
+            .setMaxStreamCount(10)
+            .build();
+
+    ReadSession readSession =
+        ReadSession.newBuilder()
+            .setName("readSessionName")
+            .setAvroSchema(AvroSchema.newBuilder().setSchema(AVRO_SCHEMA_STRING))
+            .addStreams(ReadStream.newBuilder().setName("streamName"))
+            .setDataFormat(DataFormat.AVRO)
+            .build();
+
+    ReadRowsRequest expectedReadRowsRequest =
+        ReadRowsRequest.newBuilder().setReadStream("streamName").build();
+
+    List<GenericRecord> records = Lists.newArrayList(createRecord("A", 1, AVRO_SCHEMA));
+
+    List<ReadRowsResponse> readRowsResponses =
+        Lists.newArrayList(createResponse(AVRO_SCHEMA, records.subList(0, 1), 0.0, 1.0));
+
+    StorageClient fakeStorageClient = mock(StorageClient.class, withSettings().serializable());
+    when(fakeStorageClient.createReadSession(expectedCreateReadSessionRequest))
+        .thenReturn(readSession);
+    when(fakeStorageClient.readRows(expectedReadRowsRequest, ""))
+        .thenReturn(new FakeBigQueryServerStream<>(readRowsResponses));
+
+    // Explicitly set the pipeline's project option to null to simulate missing
+    // cross-language parameters, and verify it uses the project from the TableReference.
+    options.as(BigQueryOptions.class).setProject(null);
+
+    PCollection<KV<String, Long>> output =
+        p.apply(
+            BigQueryIO.read(new ParseKeyValue())
+                .from("fallback-project:dataset.table")
+                .withMethod(Method.DIRECT_READ)
+                .withFormat(DataFormat.AVRO)
+                .withTestServices(
+                    new FakeBigQueryServices()
+                        .withDatasetService(fakeDatasetService)
+                        .withStorageClient(fakeStorageClient)));
+
+    PAssert.that(output).containsInAnyOrder(ImmutableList.of(KV.of("A", 1L)));
+
+    p.run();
+  }
+
+  @Test
   public void testReadFromBigQueryIOWithTrimmedSchema() throws Exception {
     fakeDatasetService.createDataset("foo.com:project", "dataset", "", "", null);
     TableReference tableRef = BigQueryHelpers.parseTableSpec("foo.com:project:dataset.table");
@@ -2675,7 +2735,10 @@ public class BigQueryIOStorageReadTest {
   }
 
   private ReadRowsResponse createAvroTsResponse(
-      Schema avroSchema, TimestampPrecision precision, List<Object> inputValues) throws Exception {
+      Schema avroSchema,
+      @SuppressWarnings("unused") TimestampPrecision precision,
+      List<Object> inputValues)
+      throws Exception {
     List<GenericRecord> records = new ArrayList<>();
     for (Object value : inputValues) {
       GenericRecord record = new Record(avroSchema);

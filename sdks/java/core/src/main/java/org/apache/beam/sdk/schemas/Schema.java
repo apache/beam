@@ -407,7 +407,7 @@ public class Schema implements Serializable {
     if (this == o) {
       return true;
     }
-    if (o == null || getClass() != o.getClass()) {
+    if (!(o instanceof Schema)) {
       return false;
     }
     Schema other = (Schema) o;
@@ -1246,7 +1246,7 @@ public class Schema implements Serializable {
       if (this == o) {
         return true;
       }
-      if (o == null || getClass() != o.getClass()) {
+      if (!(o instanceof Options)) {
         return false;
       }
       Options options1 = (Options) o;
@@ -1296,7 +1296,7 @@ public class Schema implements Serializable {
         if (this == o) {
           return true;
         }
-        if (o == null || getClass() != o.getClass()) {
+        if (!(o instanceof Option)) {
           return false;
         }
         Option option = (Option) o;

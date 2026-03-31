@@ -101,7 +101,7 @@ public class PythonService {
     if (!extraPackages.isEmpty()) {
       bootstrapCommand.add("--extra_packages=" + String.join(";", extraPackages));
     }
-    LOG.info("Running bootstrap command " + bootstrapCommand);
+    LOG.info("Running bootstrap command {}", bootstrapCommand);
     Process bootstrap =
         new ProcessBuilder(bootstrapCommand).redirectError(ProcessBuilder.Redirect.INHERIT).start();
     bootstrap.getOutputStream().close();
@@ -111,7 +111,7 @@ public class PythonService {
     String lastLine = reader.readLine();
     String lastNonEmptyLine = lastLine;
     while (lastLine != null) {
-      LOG.info(lastLine);
+      LOG.info("{}", lastLine);
       if (lastLine.length() > 0) {
         lastNonEmptyLine = lastLine;
       }
@@ -129,7 +129,7 @@ public class PythonService {
     command.add("-m");
     command.add(module);
     command.addAll(args);
-    LOG.info("Starting python service with arguments " + command);
+    LOG.info("Starting python service with arguments {}", command);
     Process p =
         new ProcessBuilder(command)
             .redirectError(ProcessBuilder.Redirect.INHERIT)

@@ -115,7 +115,7 @@ public class ExpansionServiceSchemaTransformProvider
     }
 
     Schema configSchemaFromRequest =
-        SchemaTranslation.schemaFromProto((payload.getConfigurationSchema()));
+        SchemaTranslation.schemaFromProto(payload.getConfigurationSchema());
     Schema configSchemaFromProvider = provider.configurationSchema();
 
     if (!configSchemaFromRequest.assignableTo(configSchemaFromProvider)) {

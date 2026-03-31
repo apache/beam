@@ -36,10 +36,12 @@ import java.sql.Struct;
 import java.util.Map;
 import java.util.Properties;
 import java.util.concurrent.Executor;
-import net.snowflake.client.jdbc.SnowflakeBasicDataSource;
+import net.snowflake.client.internal.api.implementation.datasource.SnowflakeBasicDataSource;
 
 /**
- * Fake implementation of {@link net.snowflake.client.jdbc.SnowflakeBasicDataSource} used in tests.
+ * Fake implementation of {@link
+ * net.snowflake.client.internal.api.implementation.datasource.SnowflakeBasicDataSource} used in
+ * tests.
  */
 public class FakeSnowflakeBasicDataSource extends SnowflakeBasicDataSource implements Serializable {
   @Override

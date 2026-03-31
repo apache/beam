@@ -352,7 +352,7 @@ public class ApproximateUnique {
         if (this == o) {
           return true;
         }
-        if (o == null || getClass() != o.getClass()) {
+        if (!(o instanceof LargestUnique)) {
           return false;
         }
         LargestUnique that = (LargestUnique) o;

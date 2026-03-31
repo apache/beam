@@ -756,7 +756,7 @@ public class TableRowToStorageApiProto {
               TableRow nestedUnknown = new TableRow();
               if (fieldDescriptor.isRepeated()) {
                 ((List<TableRow>)
-                        (unknownFields.computeIfAbsent(key, k -> new ArrayList<TableRow>())))
+                        unknownFields.computeIfAbsent(key, k -> new ArrayList<TableRow>()))
                     .add(nestedUnknown);
                 return nestedUnknown;
               }
@@ -819,7 +819,7 @@ public class TableRowToStorageApiProto {
   }
 
   /**
-   * Forwards {@param changeSequenceNum} to {@link #messageFromTableRow(SchemaInformation,
+   * Forwards {@code changeSequenceNum} to {@link #messageFromTableRow(SchemaInformation,
    * Descriptor, TableRow, boolean, boolean, TableRow, String, String)} via {@link
    * Long#toHexString}.
    */
@@ -895,7 +895,7 @@ public class TableRowToStorageApiProto {
                 }
                 TableRow localUnknownFields = Preconditions.checkStateNotNull(unknownFields);
                 @Nullable
-                TableRow nested = (TableRow) (localUnknownFields.getF().get(finalIndex).getV());
+                TableRow nested = (TableRow) localUnknownFields.getF().get(finalIndex).getV();
                 if (nested == null) {
                   nested = new TableRow();
                   localUnknownFields.getF().set(finalIndex, new TableCell().setV(nested));

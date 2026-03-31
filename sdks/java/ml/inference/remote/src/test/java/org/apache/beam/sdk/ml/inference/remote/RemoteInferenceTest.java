@@ -178,12 +178,10 @@ public class RemoteInferenceTest {
   public static class MockSuccessHandler
       implements BaseModelHandler<TestParameters, TestInput, TestOutput> {
 
-    private TestParameters parameters;
     private boolean clientCreated = false;
 
     @Override
-    public void createClient(TestParameters parameters) {
-      this.parameters = parameters;
+    public void createClient(@SuppressWarnings("unused") TestParameters parameters) {
       this.clientCreated = true;
     }
 
@@ -203,7 +201,7 @@ public class RemoteInferenceTest {
       implements BaseModelHandler<TestParameters, TestInput, TestOutput> {
 
     @Override
-    public void createClient(TestParameters parameters) {
+    public void createClient(@SuppressWarnings("unused") TestParameters parameters) {
       // Setup succeeds
     }
 
@@ -218,7 +216,7 @@ public class RemoteInferenceTest {
       implements BaseModelHandler<TestParameters, TestInput, TestOutput> {
 
     @Override
-    public void createClient(TestParameters parameters) {
+    public void createClient(@SuppressWarnings("unused") TestParameters parameters) {
       throw new RuntimeException("Setup failed intentionally");
     }
 
@@ -233,7 +231,7 @@ public class RemoteInferenceTest {
       implements BaseModelHandler<TestParameters, TestInput, TestOutput> {
 
     @Override
-    public void createClient(TestParameters parameters) {
+    public void createClient(@SuppressWarnings("unused") TestParameters parameters) {
       // Setup succeeds
     }
 
@@ -247,14 +245,10 @@ public class RemoteInferenceTest {
   public static class MockNoDefaultConstructorHandler
       implements BaseModelHandler<TestParameters, TestInput, TestOutput> {
 
-    private final String required;
-
-    public MockNoDefaultConstructorHandler(String required) {
-      this.required = required;
-    }
+    public MockNoDefaultConstructorHandler(@SuppressWarnings("unused") String required) {}
 
     @Override
-    public void createClient(TestParameters parameters) {}
+    public void createClient(@SuppressWarnings("unused") TestParameters parameters) {}
 
     @Override
     public Iterable<PredictionResult<TestInput, TestOutput>> request(List<TestInput> input) {

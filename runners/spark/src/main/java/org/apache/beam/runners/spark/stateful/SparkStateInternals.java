@@ -212,7 +212,7 @@ public class SparkStateInternals<K> implements StateInternals {
       if (this == o) {
         return true;
       }
-      if (o == null || getClass() != o.getClass()) {
+      if (!(o instanceof AbstractState)) {
         return false;
       }
       @SuppressWarnings("unchecked")

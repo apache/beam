@@ -134,7 +134,7 @@ public class FlinkStateInternals<K> implements StateInternals {
       if (this == o) {
         return true;
       }
-      if (o == null || getClass() != o.getClass()) {
+      if (!(o instanceof StateAndNamespaceDescriptor<?>)) {
         return false;
       }
       StateAndNamespaceDescriptor<?> other = (StateAndNamespaceDescriptor<?>) o;
@@ -580,7 +580,7 @@ public class FlinkStateInternals<K> implements StateInternals {
       if (this == o) {
         return true;
       }
-      if (o == null || getClass() != o.getClass()) {
+      if (!(o instanceof FlinkValueState<?>)) {
         return false;
       }
 
@@ -840,7 +840,7 @@ public class FlinkStateInternals<K> implements StateInternals {
       if (this == o) {
         return true;
       }
-      if (o == null || getClass() != o.getClass()) {
+      if (!(o instanceof FlinkBagState<?>)) {
         return false;
       }
 
@@ -1002,7 +1002,7 @@ public class FlinkStateInternals<K> implements StateInternals {
       if (this == o) {
         return true;
       }
-      if (o == null || getClass() != o.getClass()) {
+      if (!(o instanceof FlinkCombiningState<?, ?, ?, ?>)) {
         return false;
       }
 
@@ -1167,7 +1167,7 @@ public class FlinkStateInternals<K> implements StateInternals {
       if (this == o) {
         return true;
       }
-      if (o == null || getClass() != o.getClass()) {
+      if (!(o instanceof FlinkCombiningStateWithContext<?, ?, ?, ?>)) {
         return false;
       }
 
@@ -1289,7 +1289,7 @@ public class FlinkStateInternals<K> implements StateInternals {
       if (this == o) {
         return true;
       }
-      if (o == null || getClass() != o.getClass()) {
+      if (!(o instanceof FlinkStateInternals.FlinkWatermarkHoldState)) {
         return false;
       }
 
@@ -1511,7 +1511,7 @@ public class FlinkStateInternals<K> implements StateInternals {
       if (this == o) {
         return true;
       }
-      if (o == null || getClass() != o.getClass()) {
+      if (!(o instanceof FlinkMapState<?, ?>)) {
         return false;
       }
 
@@ -1660,7 +1660,7 @@ public class FlinkStateInternals<K> implements StateInternals {
       if (this == o) {
         return true;
       }
-      if (o == null || getClass() != o.getClass()) {
+      if (!(o instanceof FlinkSetState<?>)) {
         return false;
       }
 

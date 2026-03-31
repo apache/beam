@@ -1658,7 +1658,7 @@ public class DoFnOperator<PreInputT, InputT, OutputT>
       }
     }
 
-    /** @deprecated use {@link #deleteTimer(StateNamespace, String, TimeDomain)}. */
+    /** @deprecated use {@link #deleteTimer(StateNamespace, String, String, TimeDomain)}. */
     @Deprecated
     @Override
     public void deleteTimer(StateNamespace namespace, String timerId, String timerFamilyId) {
@@ -1675,7 +1675,7 @@ public class DoFnOperator<PreInputT, InputT, OutputT>
       }
     }
 
-    /** @deprecated use {@link #deleteTimer(StateNamespace, String, TimeDomain)}. */
+    /** @deprecated use {@link #deleteTimer(StateNamespace, String, String, TimeDomain)}. */
     @Override
     @Deprecated
     public void deleteTimer(TimerData timer) {

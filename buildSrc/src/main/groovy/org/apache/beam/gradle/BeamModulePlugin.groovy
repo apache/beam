@@ -597,7 +597,7 @@ class BeamModulePlugin implements Plugin<Project> {
     //
     // There are a few versions are determined by the BOMs by running scripts/tools/bomupgrader.py
     // marked as [bomupgrader]. See the documentation of that script for detail.
-    def activemq_version = "5.14.5"
+    def activemq_version = "5.19.2"
     def autovalue_version = "1.9"
     def autoservice_version = "1.0.1"
     def aws_java_sdk2_version = "2.20.162"
@@ -634,7 +634,7 @@ class BeamModulePlugin implements Plugin<Project> {
     def netty_version = "4.1.124.Final"
     // [bomupgrader] determined by: io.opentelemetry:opentelemetry-sdk, consistent with: google_cloud_platform_libraries_bom
     def opentelemetry_version = "1.51.0"
-    def postgres_version = "42.2.16"
+    def postgres_version = "42.7.10"
     // [bomupgrader] determined by: com.google.protobuf:protobuf-java, consistent with: google_cloud_platform_libraries_bom
     def protobuf_version = "4.33.2"
     // TODO(https://github.com/apache/beam/issues/37637): Remove this once the Bom has been updated to at least reach this version
@@ -1532,40 +1532,26 @@ class BeamModulePlugin implements Plugin<Project> {
           def disabledChecks = [
             // TODO(https://github.com/apache/beam/issues/20955): Enable errorprone checks
             "AutoValueImmutableFields",
-            "AutoValueImmutableFields",
             "AutoValueSubclassLeaked",
             "BigDecimalEquals",
             "ComparableType",
             "DoNotMockAutoValue",
             "EmptyBlockTag",
-            "EmptyCatch",
-            "EqualsGetClass",
             "EqualsUnsafeCast",
             "EscapedEntity",
             "ExtendsAutoValue",
             "InlineMeSuggester",
             "InvalidBlockTag",
-            "InvalidInlineTag",
-            "InvalidLink",
-            "InvalidParam",
-            "InvalidThrows",
             "JavaTimeDefaultTimeZone",
-            "JavaUtilDate",
             "JodaConstructors",
             "MixedMutabilityReturnType",
             "PreferJavaTimeOverload",
             "NonCanonicalType",
-            "Slf4jFormatShouldBeConst",
             "Slf4jSignOnlyFormat",
-            "StaticAssignmentInConstructor",
             "ThreadPriorityCheck",
-            "TimeUnitConversionChecker",
             "UndefinedEquals",
             "UnescapedEntity",
-            "UnnecessaryMethodReference",
-            "UnnecessaryParentheses",
             "UnrecognisedJavadocTag",
-            "UnsafeReflectiveConstructionCast",
             // errorprone 3.2.0+ checks
             "DirectInvocationOnMock",
             "Finalize",
@@ -1575,8 +1561,6 @@ class BeamModulePlugin implements Plugin<Project> {
             "NullableTypeParameter",
             "NullableWildcard",
             "SuperCallToObjectMethod",
-            "UnnecessaryLongToIntConversion",
-            "UnusedVariable",
             // intended suppressions emerged in newer protobuf versions
             // For backward compatibility. Public method checked in before this check impl
             // Possible use in interface subclasses
@@ -2329,7 +2313,7 @@ class BeamModulePlugin implements Plugin<Project> {
 
       // This sets the whole project Go version.
       // The latest stable Go version can be checked at https://go.dev/dl/
-      project.ext.goVersion = "go1.26.0"
+      project.ext.goVersion = "go1.26.1"
 
       // Minor TODO: Figure out if we can pull out the GOCMD env variable after goPrepare script
       // completion, and avoid this GOBIN substitution.
@@ -3090,7 +3074,7 @@ class BeamModulePlugin implements Plugin<Project> {
 
       // Set min/max python versions used for containers and supported versions.
       project.ext.minPythonVersion = 10
-      project.ext.maxPythonVersion = 13
+      project.ext.maxPythonVersion = 14
 
       def setupVirtualenv = project.tasks.register('setupVirtualenv')  {
         doLast {

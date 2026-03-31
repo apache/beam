@@ -101,6 +101,13 @@ public interface DataflowStreamingPipelineOptions extends PipelineOptions {
   void setWindmillServiceCommitThreads(Integer value);
 
   @Description(
+      "Number of commit threads per backend windmill worker in streaming engine direct path mode.")
+  @Default.Integer(1)
+  Integer getWindmillServiceDirectPathCommitThreads();
+
+  void setWindmillServiceDirectPathCommitThreads(Integer value);
+
+  @Description(
       "Frequency at which active work should be reported back to Windmill, in millis. "
           + "The first refresh will occur after at least this much time has passed since "
           + "starting the work item")
@@ -126,13 +133,16 @@ public interface DataflowStreamingPipelineOptions extends PipelineOptions {
 
   void setWindmillMessagesBetweenIsReadyChecks(int value);
 
-  @Description("If true, a most a single active rpc will be used per channel.")
+  /** @deprecated since 2.73.0 */
+  @Deprecated
+  @Description("Unused flag.")
   Boolean getUseWindmillIsolatedChannels();
 
   void setUseWindmillIsolatedChannels(Boolean value);
 
-  @Description(
-      "If true, separate streaming rpcs will be used for heartbeats instead of sharing streams with state reads.")
+  /** @deprecated since beam 2.73.0 */
+  @Deprecated
+  @Description("Unused Flag")
   Boolean getUseSeparateWindmillHeartbeatStreams();
 
   void setUseSeparateWindmillHeartbeatStreams(Boolean value);

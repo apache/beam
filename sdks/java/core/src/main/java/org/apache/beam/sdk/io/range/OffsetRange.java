@@ -69,7 +69,7 @@ public class OffsetRange
     if (this == o) {
       return true;
     }
-    if (o == null || getClass() != o.getClass()) {
+    if (!(o instanceof OffsetRange)) {
       return false;
     }
 
