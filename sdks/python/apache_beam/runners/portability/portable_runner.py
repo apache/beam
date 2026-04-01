@@ -152,7 +152,7 @@ class JobServiceHandle(object):
             add_arg_args['action'] = 'store_true' \
               if option.default_value != 'true' else 'store_false'
           elif option.type == beam_job_api_pb2.PipelineOptionType.INTEGER:
-            add_arg_args['type'] = int
+            add_arg_args['type'] = int  # type: ignore
           elif option.type == beam_job_api_pb2.PipelineOptionType.ARRAY:
             add_arg_args['action'] = 'append'
           parser.add_argument("--%s" % option.name, **add_arg_args)
