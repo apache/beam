@@ -80,6 +80,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
 import org.junit.Before;
 import org.junit.ClassRule;
+import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
@@ -425,6 +426,12 @@ public class AddFilesTest {
     pipeline.run().waitUntilFinish();
   }
 
+  /**
+   * We reverted the in-depth bucket-partition validation in
+   * https://github.com/apache/beam/pull/38039, partly because it was too resource intensive, and
+   * also because the Spark AddFiles equivalent performs zero validation.
+   */
+  @Ignore
   @Test
   public void testRecognizesBucketPartitionMismatch() throws IOException {
     String file1 = root + "data1.parquet";

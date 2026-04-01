@@ -31,7 +31,6 @@ import java.nio.channels.SeekableByteChannel;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
@@ -97,10 +96,8 @@ import org.apache.iceberg.Snapshot;
 import org.apache.iceberg.Table;
 import org.apache.iceberg.avro.Avro;
 import org.apache.iceberg.catalog.TableIdentifier;
-import org.apache.iceberg.data.Record;
 import org.apache.iceberg.exceptions.AlreadyExistsException;
 import org.apache.iceberg.exceptions.NoSuchTableException;
-import org.apache.iceberg.io.CloseableIterable;
 import org.apache.iceberg.io.InputFile;
 import org.apache.iceberg.io.OutputFile;
 import org.apache.iceberg.mapping.MappingUtil;
@@ -111,8 +108,6 @@ import org.apache.iceberg.parquet.ParquetUtil;
 import org.apache.iceberg.transforms.Transform;
 import org.apache.iceberg.types.Conversions;
 import org.apache.iceberg.types.Type;
-import org.apache.iceberg.types.TypeUtil;
-import org.apache.iceberg.types.Types;
 import org.apache.parquet.hadoop.ParquetFileReader;
 import org.apache.parquet.hadoop.metadata.FileMetaData;
 import org.apache.parquet.hadoop.metadata.ParquetMetadata;
@@ -573,11 +568,6 @@ public class AddFiles extends PTransform<PCollection<String>, PCollectionRowTupl
      * determine the partition. We also cannot fall back to a "null" partition, because that will
      * also get skipped by most queries.
      *
-     * <p>The Bucket partition transform is an exceptional case because it is not monotonic, meaning
-     * it's not enough to just compare the min and max values. There may be a middle value somewhere
-     * that gets hashed to a different value. For this transform, we'll need to read all the values
-     * in the column ensure they all get transformed to the same partition value.
-     *
      * <p>In these cases, we output the DataFile to the DLQ, because assigning an incorrect
      * partition may lead to it being incorrectly ignored by downstream queries.
      */
@@ -614,22 +604,9 @@ public class AddFiles extends PTransform<PCollection<String>, PCollectionRowTupl
 
       PartitionKey pk = new PartitionKey(table.spec(), table.schema());
 
-      HashMap<Integer, PartitionField> bucketPartitions = new HashMap<>();
+      // read metadata from footer and set partition based on min/max transformed values
       for (int i = 0; i < fields.size(); i++) {
         PartitionField field = fields.get(i);
-        Transform<?, ?> transform = field.transform();
-        if (transform.toString().contains("bucket[")) {
-          bucketPartitions.put(i, field);
-        }
-      }
-
-      // first, read only metadata for the non-bucket partition types
-      for (int i = 0; i < fields.size(); i++) {
-        PartitionField field = fields.get(i);
-        // skip bucket partitions (we will process them below)
-        if (bucketPartitions.containsKey(i)) {
-          continue;
-        }
         Type type = table.schema().findType(field.sourceId());
         Transform<?, ?> transform = field.transform();
 
@@ -658,54 +635,6 @@ public class AddFiles extends PTransform<PCollection<String>, PCollectionRowTupl
         pk.set(i, lowerTransformedValue);
       }
 
-      // bucket transform needs extra processing (see java doc above)
-      if (!bucketPartitions.isEmpty()) {
-        // Optimize by only reading bucket-transformed columns into memory
-        org.apache.iceberg.Schema bucketCols =
-            TypeUtil.select(
-                table.schema(),
-                bucketPartitions.values().stream()
-                    .map(PartitionField::sourceId)
-                    .collect(Collectors.toSet()));
-
-        // Keep one instance of transformed value per column. Use this to compare against each
-        // record's transformed value.
-        // Values in the same columns must yield the same transformed value, otherwise we cannot
-        // determine a partition
-        // from this file.
-        Map<Integer, Object> transformedValues = new HashMap<>();
-
-        // Do a one-time read of the file and compare all bucket-transformed columns
-        try (CloseableIterable<Record> reader = ReadUtils.createReader(inputFile, bucketCols)) {
-          for (Record record : reader) {
-            for (Map.Entry<Integer, PartitionField> entry : bucketPartitions.entrySet()) {
-              int partitionIndex = entry.getKey();
-              PartitionField partitionField = entry.getValue();
-              Transform<?, ?> transform = partitionField.transform();
-              Types.NestedField field = table.schema().findField(partitionField.sourceId());
-              Object value = record.getField(field.name());
-
-              // set initial transformed value for this column
-              @Nullable Object transformedValue = transformedValues.get(partitionIndex);
-              Object currentTransformedValue = transformValue(transform, field.type(), value);
-              if (transformedValue == null) {
-                transformedValues.put(partitionIndex, checkStateNotNull(currentTransformedValue));
-                continue;
-              }
-
-              if (!Objects.deepEquals(currentTransformedValue, transformedValue)) {
-                throw new UnknownPartitionException(
-                    "Found records with conflicting transformed values, for column: "
-                        + field.name());
-              }
-            }
-          }
-        }
-
-        for (Map.Entry<Integer, Object> partitionCol : transformedValues.entrySet()) {
-          pk.set(partitionCol.getKey(), partitionCol.getValue());
-        }
-      }
       return pk.toPath();
     }
   }
