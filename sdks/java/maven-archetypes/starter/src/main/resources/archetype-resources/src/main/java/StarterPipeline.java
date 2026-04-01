@@ -54,13 +54,14 @@ public class StarterPipeline {
     .apply(
       MapElements.via(
         new SimpleFunction<String, String>() {
-            @Override
-            public String apply(String input) 
-            {
-                 return input.toUpperCase();
-            }
-         }))
-    .apply(ParDo.of(new DoFn<String, Void>() {
+         @Override
+         public String apply(String input) {
+             return input.toUpperCase();
+         }
+      }))
+    .apply(
+      ParDo.of(
+       new DoFn<String, Void>() {
       @ProcessElement
       public void processElement(@Element String element)  {
         LOG.info(element);
