@@ -154,8 +154,7 @@ class WriteToPubSub(beam.PTransform):
         message with the given name and the message's publish time as the value.
       publish_with_ordering_key: If True, enables ordering key support when
         publishing messages. The ordering key must be set on each
-        PubsubMessage via the ``ordering_key`` attribute. Requires
-        messages to be routed to the same region.
+        PubsubMessage via the ``ordering_key`` attribute. 
     """
     self.params = WriteToPubsubSchema(
         topic=topic,
@@ -169,7 +168,7 @@ class WriteToPubSub(beam.PTransform):
   def expand(self, pvalue):
     if self.with_attributes:
       pcoll = pvalue | 'ToProto' >> Map(
-          lambda m: m._to_proto_str(for_publish=True))
+          pubsub.WriteToPubSub.message_to_proto_str)
     else:
       pcoll = pvalue | 'ToProto' >> Map(
           lambda x: pubsub.PubsubMessage(x, {})._to_proto_str())
