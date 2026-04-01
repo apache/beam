@@ -38,10 +38,14 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionList;
 import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.Row;
+import org.apache.beam.sdk.transforms.windowing.FixedWindows;
+import org.apache.beam.sdk.transforms.windowing.Window;
+import org.apache.beam.sdk.values.TimestampedValue;
 import org.apache.beam.sdk.values.TupleTagList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.MoreObjects;
 import org.apache.iceberg.Table;
 import org.apache.iceberg.catalog.TableIdentifier;
+import org.joda.time.Duration;
 
 /**
  * An Iceberg source that incrementally reads a table's changelogs using range(s) of table
@@ -82,16 +86,25 @@ public class IncrementalChangelogSource extends IncrementalScanSource {
     ReadFromChangelogs.CdcOutput outputRows =
         changelogTasks.apply(new ReadFromChangelogs(scanConfig));
 
+    Window<KV<Row, TimestampedValue<Row>>> cdcWindowing =
+        Window.into(FixedWindows.of(Duration.standardSeconds(1)));
+    Window<Row> uniDirectionalWindowing = Window.into(FixedWindows.of(Duration.standardSeconds(1)));
+
     // compare bi-directional rows to identify potential updates
+    PCollection<KV<Row, TimestampedValue<Row>>> keyedInserts = outputRows.keyedInserts().apply("Window Inserts", cdcWindowing);
+    PCollection<KV<Row, TimestampedValue<Row>>> keyedDeletes = outputRows.keyedDeletes().apply("Window Deletes", cdcWindowing);
     PCollection<Row> biDirectionalCdcRows =
-        KeyedPCollectionTuple.of(INSERTS, outputRows.keyedInserts())
-            .and(DELETES, outputRows.keyedDeletes())
+        KeyedPCollectionTuple.of(INSERTS, keyedInserts)
+            .and(DELETES, keyedDeletes)
             .apply("CoGroupBy Primary Key", CoGroupByKey.create())
             .apply("Resolve Delete-Insert Pairs", ParDo.of(new ResolveChanges()))
             .setRowSchema(IcebergUtils.icebergSchemaToBeamSchema(scanConfig.getProjectedSchema()));
 
     // Merge uni-directional and bi-directional outputs
-    return PCollectionList.of(outputRows.uniDirectionalRows())
+    return PCollectionList.of(
+            outputRows
+                .uniDirectionalRows()
+                .apply("Window Uni-Directional", uniDirectionalWindowing))
         .and(biDirectionalCdcRows)
         .apply(Flatten.pCollections());
   }

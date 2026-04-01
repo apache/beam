@@ -75,6 +75,7 @@ import org.apache.iceberg.util.Pair;
 import org.apache.iceberg.util.PropertyUtil;
 import org.checkerframework.checker.nullness.qual.MonotonicNonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
+import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -175,11 +176,14 @@ public class ChangelogScanner
   @StartBundle
   public void start() {
     snapshotMap = new HashMap<>();
+    TableCache.setup(scanConfig);
   }
 
   @ProcessElement
   public void process(@Element KV<String, List<SnapshotInfo>> element, MultiOutputReceiver out)
       throws IOException {
+    long millis = System.currentTimeMillis();
+    System.out.println("xxx started processing at: " + Instant.ofEpochMilli(millis));
     Table table = TableCache.getRefreshed(scanConfig.getTableIdentifier());
 
     List<SnapshotInfo> snapshots = element.getValue();
@@ -228,6 +232,10 @@ public class ChangelogScanner
         endSnapshot,
         SerializableTable.copyOf(table),
         out);
+    long endMillis = System.currentTimeMillis();
+    System.out.printf(
+        "xxx finished processing (%s) after: %s seconds\n",
+        Instant.ofEpochMilli(endMillis), Duration.millis(endMillis - millis).getStandardSeconds());
   }
 
   private void gatherPartitionData(
@@ -514,10 +522,39 @@ public class ChangelogScanner
       return Pair.of(Collections.emptyList(), tasks);
     }
 
-    // check for any overlapping delete and insert tasks
-    for (TaskAndBounds insertTask : insertTasks) {
-      for (TaskAndBounds deleteTask : deleteTasks) {
-        deleteTask.checkOverlapWith(insertTask, idComp);
+    if (!insertTasks.isEmpty() && !deleteTasks.isEmpty()) {
+      Comparator<TaskAndBounds> boundsComp = (t1, t2) -> idComp.compare(t1.lowerId, t2.lowerId);
+      insertTasks.sort(boundsComp);
+      deleteTasks.sort(boundsComp);
+
+      TaskAndBounds firstInsert = insertTasks.get(0);
+      TaskAndBounds lastInsert = insertTasks.get(insertTasks.size() - 1);
+      TaskAndBounds firstDelete = deleteTasks.get(0);
+      TaskAndBounds lastDelete = deleteTasks.get(deleteTasks.size() - 1);
+
+      boolean deletesBeforeInserts = idComp.compare(lastDelete.upperId, firstInsert.lowerId) < 0;
+      boolean insertsBeforeDeletes = idComp.compare(lastInsert.upperId, firstDelete.lowerId) < 0;
+
+      if (!deletesBeforeInserts && !insertsBeforeDeletes) {
+        // Iterate through inserts and only check relevant deletes
+        for (TaskAndBounds insert : insertTasks) {
+          // We can verify overlap against the full delete range first to avoid the inner loop
+          // if this specific insert is out of the global delete window.
+          if (idComp.compare(insert.upperId, firstDelete.lowerId) < 0
+              || idComp.compare(insert.lowerId, lastDelete.upperId) > 0) {
+            continue;
+          }
+
+          for (TaskAndBounds del : deleteTasks) {
+            // if the delete's lower bound is already past the insert's upper bound,
+            // no subsequent delete can overlap this insert. We can break inner loop.
+            if (idComp.compare(del.lowerId, insert.upperId) > 0) {
+              break;
+            }
+
+            del.checkOverlapWith(insert, idComp);
+          }
+        }
       }
     }
 
