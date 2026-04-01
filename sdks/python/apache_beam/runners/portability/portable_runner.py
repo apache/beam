@@ -144,7 +144,10 @@ class JobServiceHandle(object):
         try:
           # no default values - we don't want runner options
           # added unless they were specified by the user
-          add_arg_args = {'action': 'store', 'help': option.description}
+          add_arg_args = {'action': 'store'}
+          if option.description is not None:
+            # Prevent bare %'s in help strings in 3.14+
+            add_arg_args['help'] = option.description.replace("%", "%%")
           if option.type == beam_job_api_pb2.PipelineOptionType.BOOLEAN:
             add_arg_args['action'] = 'store_true' \
               if option.default_value != 'true' else 'store_false'
