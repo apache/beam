@@ -1,8 +1,8 @@
 {
   "commentedAboutFailingChecks": true,
   "reviewersAssignedForLabels": {
-    "java": "kennknowles",
-    "build": "Abacn"
+    "java": "chamikaramj",
+    "build": "liferoad"
   },
   "nextAction": "Reviewers",
   "stopReviewerNotifications": false,
