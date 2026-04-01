@@ -82,7 +82,7 @@ LOGGER = logging.getLogger("ADKAgentModelHandler")
 _AgentOrFactory = Union["Agent", Callable[[], "Agent"]]
 
 
-class ADKAgentModelHandler(ModelHandler[Union[str, genai_Content],
+class ADKAgentModelHandler(ModelHandler[str | genai_Content,
                                         PredictionResult,
                                         "Runner"]):
   """ModelHandler for running ADK agents with the Beam RunInference transform.
@@ -185,7 +185,7 @@ class ADKAgentModelHandler(ModelHandler[Union[str, genai_Content],
 
   def run_inference(
       self,
-      batch: Sequence[Union[str, genai_Content]],
+      batch: Sequence[str | genai_Content],
       model: "Runner",
       inference_args: Optional[dict[str, Any]] = None,
   ) -> Iterable[PredictionResult]:
