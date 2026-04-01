@@ -57,6 +57,7 @@ from collections.abc import Iterable
 from collections.abc import Sequence
 from typing import Any
 from typing import Optional
+from typing import Union
 
 from apache_beam.ml.inference.base import ModelHandler
 from apache_beam.ml.inference.base import PredictionResult
@@ -74,12 +75,11 @@ except ImportError:
   ADK_AVAILABLE = False
   genai_Content = Any  # type: ignore[assignment, misc]
   genai_Part = Any  # type: ignore[assignment, misc]
-  Agent = None
 
 LOGGER = logging.getLogger("ADKAgentModelHandler")
 
 # Type alias for an agent or factory that produces one
-_AgentOrFactory = Agent | Callable[[], Agent]
+_AgentOrFactory = Union["Agent", Callable[[], "Agent"]]
 
 
 class ADKAgentModelHandler(ModelHandler[str | genai_Content,
