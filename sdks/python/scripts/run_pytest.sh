@@ -129,10 +129,18 @@ if [[ -n "$test_paths" ]]; then
 fi
 pytest_command_args="$options $pyargs_section"
 
+disable_xdist="${BEAM_PYTEST_DISABLE_XDIST:-0}"
+
 # Run tests in parallel.
 echo "Running parallel tests with: pytest -m \"$marker_for_parallel_tests\" $pytest_command_args"
-pytest -v -rs -o junit_suite_name=${envname} \
-  --junitxml=pytest_${envname}.xml -m "$marker_for_parallel_tests" -n 6 --import-mode=importlib ${pytest_args} ${pytest_command_args}
+if [[ "$disable_xdist" == "1" ]]; then
+  echo "BEAM_PYTEST_DISABLE_XDIST=1 -> running non-no_xdist marker set without xdist"
+  pytest -v -rs -o junit_suite_name=${envname} \
+    --junitxml=pytest_${envname}.xml -m "$marker_for_parallel_tests" --import-mode=importlib ${pytest_args} ${pytest_command_args}
+else
+  pytest -v -rs -o junit_suite_name=${envname} \
+    --junitxml=pytest_${envname}.xml -m "$marker_for_parallel_tests" -n 6 --import-mode=importlib ${pytest_args} ${pytest_command_args}
+fi
 status1=$?
 
 # Run tests sequentially.
