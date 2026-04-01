@@ -107,9 +107,51 @@ jobs:
           PY_VER=${{ matrix.python_version }}
           PY_VER_CLEAN=${PY_VER//.}
           echo "py_ver_clean=$PY_VER_CLEAN" >> $GITHUB_OUTPUT
+      - name: Start CI stack trace sampler
+        shell: bash
+        env:
+          BEAM_CI_DUMP_DIR: ${{ github.workspace }}/beam-ci-stacktrace-dumps
+          BEAM_CI_PYSTACK_INTERVAL: "300"
+        run: |
+          set -euo pipefail
+          mkdir -p "${BEAM_CI_DUMP_DIR}"
+          cat <<'EOF' > "${BEAM_CI_DUMP_DIR}/README.txt"
+          Apache Beam Python PreCommit — CI hang debugging bundle
+          When a job stalls, open this artifact and check:
+          - faulthandler-periodic-pid*.log — Python tracebacks every N seconds (and on SIGUSR1) per pytest process
+          - pystack-samples.log — samples from `pystack remote` attached to pytest PIDs
+          Compare consecutive samples to see stable blocked frames (e.g. gRPC wait_lock).
+          Disable by removing BEAM_CI_STACKTRACE_INSTRUMENTATION from the workflow or setting it to 0.
+          EOF
+          python3 -m pip install --user --quiet pystack || pip3 install --user --quiet pystack || true
+          export PATH="${HOME}/.local/bin:${PATH}"
+          nohup bash -c '
+            set -u
+            DUMP_DIR="${BEAM_CI_DUMP_DIR}"
+            INTERVAL="${BEAM_CI_PYSTACK_INTERVAL:-300}"
+            export PATH="${HOME}/.local/bin:${PATH}"
+            while true; do
+              sleep "${INTERVAL}"
+              ts=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+              for pid in $(pgrep -f pytest 2>/dev/null || true); do
+                {
+                  echo "======== ${ts} pystack remote pid=${pid} ========"
+                  pystack remote "${pid}" 2>&1 || echo "(pystack failed for pid=${pid})"
+                  echo ""
+                } >> "${DUMP_DIR}/pystack-samples.log"
+              done
+            done
+          ' </dev/null >>"${BEAM_CI_DUMP_DIR}/sampler-nohup.log" 2>&1 &
+          echo $! > /tmp/beam-pystack-sampler.pid
+          echo "Started pystack sampler pid=$(cat /tmp/beam-pystack-sampler.pid)"
       - name: Run pythonPreCommit
         env:
-          TOX_TESTENV_PASSENV: "DOCKER_*,TESTCONTAINERS_*,TC_*,BEAM_*,GRPC_*,OMP_*,OPENBLAS_*,PYTHONHASHSEED,PYTEST_*"
+          TOX_TESTENV_PASSENV: "DOCKER_*,TESTCONTAINERS_*,TC_*,BEAM_*,GRPC_*,OMP_*,OPENBLAS_*,PYTHONHASHSEED,PYTEST_*,BEAM_CI_STACKTRACE_INSTRUMENTATION,BEAM_CI_DUMP_DIR,BEAM_CI_FAULT_INTERVAL_SEC,BEAM_CI_PYSTACK_INTERVAL"
+          BEAM_CI_STACKTRACE_INSTRUMENTATION: "1"
+          BEAM_CI_DUMP_DIR: ${{ github.workspace }}/beam-ci-stacktrace-dumps
+          BEAM_CI_FAULT_INTERVAL_SEC: "300"
+          BEAM_CI_PYSTACK_INTERVAL: "300"
+          PYTHONFAULTHANDLER: "1"
           # Aggressive retry and timeout settings for flaky CI
           PYTEST_ADDOPTS: "-v --tb=short --maxfail=5 --durations=30 --reruns=5 --reruns-delay=15 --timeout=600 --disable-warnings"
           # Container stability - much more generous timeouts
@@ -131,6 +173,21 @@ jobs:
           arguments: |
             -Pposargs="--ignore=apache_beam/dataframe/ --ignore=apache_beam/ml/ --ignore=apache_beam/examples/ --ignore=apache_beam/runners/ --ignore=apache_beam/transforms/" \
             -PpythonVersion=${{ matrix.python_version }}
+      - name: Stop CI stack trace sampler
+        if: always()
+        shell: bash
+        run: |
+          if [ -f /tmp/beam-pystack-sampler.pid ]; then
+            kill "$(cat /tmp/beam-pystack-sampler.pid)" 2>/dev/null || true
+            rm -f /tmp/beam-pystack-sampler.pid
+          fi
+      - name: Archive Python stack trace dumps (CI hang debug)
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: Python ${{ matrix.python_version }} stack trace dumps
+          path: beam-ci-stacktrace-dumps/
+          if-no-files-found: ignore
       - name: Archive Python Test Results
         uses: actions/upload-artifact@v4
         if: failure()

@@ -17,8 +17,10 @@
 
 """Pytest configuration and custom hooks."""
 
+import faulthandler
 import gc
 import os
+import signal
 import sys
 import threading
 import time
@@ -30,6 +32,7 @@ from apache_beam.options import pipeline_options
 from apache_beam.testing.test_pipeline import TestPipeline
 
 MAX_SUPPORTED_PYTHON_VERSION = (3, 14)
+_FAULT_HANDLER_IDENT = None
 
 
 def pytest_addoption(parser):
@@ -148,6 +151,42 @@ def enhance_mock_stability():
 
   # Brief pause after test class to let mocks clean up
   time.sleep(0.05)
+
+
+def pytest_sessionstart(session):
+  """Optional CI-only periodic stack dumps and SIGUSR1 dumps for hung-test debugging."""
+  global _FAULT_HANDLER_IDENT
+  if os.environ.get('BEAM_CI_STACKTRACE_INSTRUMENTATION') != '1':
+    return
+  dump_root = os.environ.get('BEAM_CI_DUMP_DIR')
+  if not dump_root:
+    dump_root = os.path.join(os.getcwd(), 'beam-ci-stacktrace-dumps')
+  os.makedirs(dump_root, exist_ok=True)
+  interval = int(os.environ.get('BEAM_CI_FAULT_INTERVAL_SEC', '300'))
+  log_path = os.path.join(
+    dump_root, 'faulthandler-periodic-pid{}.log'.format(os.getpid()))
+  log_file = open(log_path, 'a', buffering=1)
+  faulthandler.enable(file=log_file)
+  try:
+    faulthandler.register(signal.SIGUSR1, file=log_file)
+  except (AttributeError, OSError, ValueError):
+    pass
+  _FAULT_HANDLER_IDENT = faulthandler.dump_traceback_later(
+    interval, repeat=True, file=log_file)
+  sys.stdout.write(
+    '\n--- CI stack trace instrumentation: pid={} log={} every {}s; '
+    'send SIGUSR1 for an immediate dump ---\n'.format(
+      os.getpid(), log_path, interval))
+
+
+def pytest_sessionfinish(session, exitstatus):
+  global _FAULT_HANDLER_IDENT
+  if _FAULT_HANDLER_IDENT is not None:
+    try:
+      faulthandler.cancel_traceback_later(_FAULT_HANDLER_IDENT)
+    except (ValueError, AttributeError):
+      pass
+    _FAULT_HANDLER_IDENT = None
 
 
 def pytest_configure(config):
