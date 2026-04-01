@@ -51,20 +51,15 @@ public class StarterPipeline {
         PipelineOptionsFactory.fromArgs(args).withValidation().create());
 
     p.apply(Create.of("Hello", "World"))
-    .apply(MapElements.via(
-      new   @SuppressWarnings("serial") 
-    SimpleFunction<String, String>() {
+    .apply(MapElements.via(new SimpleFunction<String, String>() {
       @Override
       public String apply(String input) {
         return input.toUpperCase();
       }
     }))
-    .apply(ParDo.of(
-       new @SuppressWarnings("serial") 
-    DoFn<String, Void>() {
+    .apply(ParDo.of(new DoFn<String, Void>() {
       @ProcessElement
-      public void 
-    processElement(ProcessContext c)  {
+      public void processElement(ProcessContext c)  {
         LOG.info(c.element());
       }
     }));
