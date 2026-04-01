@@ -3077,11 +3077,13 @@ class BeamModulePlugin implements Plugin<Project> {
       project.ext.maxPythonVersion = 14
 
       def setupVirtualenv = project.tasks.register('setupVirtualenv')  {
+        doNotTrackState("Virtualenv directory is not suitable for Gradle state tracking")
         doLast {
           def virtualenvCmd = [
             "python${project.ext.pythonVersion}",
             "-m",
             "venv",
+            "--copies",
             "--clear",
             "${project.ext.envdir}",
           ]
@@ -3096,9 +3098,9 @@ class BeamModulePlugin implements Plugin<Project> {
             // until it is resolved on pip's side, don't use pip's cache.
             // pip 25.1 casues :sdks:python:installGcpTest stuck. Pin to 25.0.1 for now.
             args '-c', ". ${project.ext.envdir}/bin/activate && " +
-                "pip install --pre --retries 10 --upgrade pip==25.0.1 --no-cache-dir && " +
-                "pip install --pre --retries 10 --upgrade tox --no-cache-dir && " +
-                "pip install --pre --retries 10 --upgrade setuptools build --no-cache-dir"
+                "python -m pip install --pre --retries 10 --upgrade pip==25.0.1 --no-cache-dir && " +
+                "python -m pip install --pre --retries 10 --upgrade tox --no-cache-dir && " +
+                "python -m pip install --pre --retries 10 --upgrade setuptools build --no-cache-dir"
           }
         }
         // Gradle will delete outputs whenever it thinks they are stale. Putting a
