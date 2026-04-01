@@ -38,6 +38,8 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.LongSupplier;
+import javax.annotation.Nullable;
 import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.CallCredentials;
 import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.CallOptions;
 import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.ClientCall;
@@ -54,7 +56,6 @@ import org.mockito.ArgumentCaptor;
 
 @RunWith(JUnit4.class)
 public class FailoverChannelTest {
-
   private MethodDescriptor<Object, Object> methodDescriptor =
       MethodDescriptor.newBuilder()
           .setType(MethodDescriptor.MethodType.UNARY)
@@ -64,7 +65,29 @@ public class FailoverChannelTest {
           .build();
 
   private static FailoverChannel createForTest(ManagedChannel primary, ManagedChannel fallback) {
-    return FailoverChannel.forTest(primary, fallback, null, System::nanoTime);
+    return createForTest(primary, fallback, null, System::nanoTime, null);
+  }
+
+  private static FailoverChannel createForTest(
+      ManagedChannel primary,
+      ManagedChannel fallback,
+      @Nullable CallCredentials fallbackCallCredentials,
+      LongSupplier nanoClock) {
+    return createForTest(primary, fallback, fallbackCallCredentials, nanoClock, null);
+  }
+
+  private static FailoverChannel createForTest(
+      ManagedChannel primary,
+      ManagedChannel fallback,
+      @Nullable CallCredentials fallbackCallCredentials,
+      LongSupplier nanoClock,
+      @Nullable Long rpcFailureThresholdNanos) {
+    return FailoverChannel.forTest(
+        primary,
+        fallback,
+        fallbackCallCredentials,
+        nanoClock,
+        rpcFailureThresholdNanos != null ? rpcFailureThresholdNanos : 0L);
   }
 
   /**
@@ -114,7 +137,7 @@ public class FailoverChannelTest {
 
     AtomicLong time = new AtomicLong(0);
     FailoverChannel failoverChannel =
-        FailoverChannel.forTest(
+        createForTest(
             mockChannel, mockFallbackChannel, null, time::get, TimeUnit.SECONDS.toNanos(30));
 
     // First failure at t=0 should not trigger fallback.
@@ -145,7 +168,7 @@ public class FailoverChannelTest {
 
     AtomicLong time = new AtomicLong(0);
     FailoverChannel failoverChannel =
-        FailoverChannel.forTest(mockChannel, mockFallbackChannel, null, time::get);
+        createForTest(mockChannel, mockFallbackChannel, null, time::get);
 
     triggerRPCFailure(failoverChannel, underlyingCall, Status.UNAVAILABLE);
 
@@ -184,7 +207,7 @@ public class FailoverChannelTest {
 
     AtomicLong time = new AtomicLong(0);
     FailoverChannel failoverChannel =
-        FailoverChannel.forTest(mockChannel, mockFallbackChannel, null, time::get);
+        createForTest(mockChannel, mockFallbackChannel, null, time::get);
 
     // RPC failure results in entering cooling period
     triggerRPCFailure(failoverChannel, underlyingCall, Status.UNAVAILABLE);
@@ -214,7 +237,7 @@ public class FailoverChannelTest {
 
     AtomicLong time = new AtomicLong(0);
     FailoverChannel failoverChannel =
-        FailoverChannel.forTest(mockChannel, mockFallbackChannel, mockCredentials, time::get);
+        createForTest(mockChannel, mockFallbackChannel, mockCredentials, time::get);
 
     triggerRPCFailure(failoverChannel, underlyingCall, Status.UNAVAILABLE);
 
@@ -252,7 +275,7 @@ public class FailoverChannelTest {
 
     AtomicLong time = new AtomicLong(0);
     FailoverChannel failoverChannel =
-        FailoverChannel.forTest(mockChannel, mockFallbackChannel, null, time::get);
+        createForTest(mockChannel, mockFallbackChannel, null, time::get);
 
     // Callback fires: primary is TRANSIENT_FAILURE, starts the not-ready timer.
     stateChangeCallback.get().run();
@@ -279,7 +302,7 @@ public class FailoverChannelTest {
 
     AtomicLong time = new AtomicLong(0);
     FailoverChannel failoverChannel =
-        FailoverChannel.forTest(mockChannel, mockFallbackChannel, null, time::get);
+        createForTest(mockChannel, mockFallbackChannel, null, time::get);
 
     // Before grace period, still routes to primary.
     failoverChannel.newCall(methodDescriptor, CallOptions.DEFAULT);
@@ -305,7 +328,7 @@ public class FailoverChannelTest {
 
     AtomicLong time = new AtomicLong(0);
     FailoverChannel failoverChannel =
-        FailoverChannel.forTest(mockChannel, mockFallbackChannel, null, time::get);
+        createForTest(mockChannel, mockFallbackChannel, null, time::get);
 
     // Advance well past the 10-second threshold while primary remains IDLE
     time.addAndGet(TimeUnit.SECONDS.toNanos(30));
@@ -349,7 +372,7 @@ public class FailoverChannelTest {
 
     AtomicLong time = new AtomicLong(0);
     FailoverChannel failoverChannel =
-        FailoverChannel.forTest(mockChannel, mockFallbackChannel, null, time::get);
+        createForTest(mockChannel, mockFallbackChannel, null, time::get);
 
     // First callback fires: primary is TRANSIENT_FAILURE, starts the not-ready timer at t=0.
     stateChangeCallback.get().run();

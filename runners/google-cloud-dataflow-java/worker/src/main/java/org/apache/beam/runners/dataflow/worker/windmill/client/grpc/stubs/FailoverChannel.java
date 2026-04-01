@@ -216,19 +216,6 @@ public final class FailoverChannel extends ManagedChannel {
         RPC_FAILURE_THRESHOLD_NANOS);
   }
 
-  public static FailoverChannel create(
-      ManagedChannel primary, ManagedChannel fallback, CallCredentials fallbackCallCredentials) {
-    return create(primary, () -> fallback, fallbackCallCredentials);
-  }
-
-  static FailoverChannel forTest(
-      ManagedChannel primary,
-      ManagedChannel fallback,
-      CallCredentials fallbackCallCredentials,
-      LongSupplier nanoClock) {
-    return forTest(primary, fallback, fallbackCallCredentials, nanoClock, 0L);
-  }
-
   static FailoverChannel forTest(
       ManagedChannel primary,
       ManagedChannel fallback,
@@ -241,7 +228,9 @@ public final class FailoverChannel extends ManagedChannel {
 
   /** Returns the fallback channel, creating it from the supplier at most once. */
   private ManagedChannel getOrCreateFallback() {
-    fallback = fallbackSupplier.get();
+    if (fallback == null) {
+      fallback = fallbackSupplier.get();
+    }
     return fallback;
   }
 
