@@ -21,7 +21,6 @@ import static org.apache.beam.sdk.io.iceberg.AddFiles.ConvertToDataFile.DATA_FIL
 import static org.apache.beam.sdk.io.iceberg.AddFiles.ConvertToDataFile.ERRORS;
 import static org.apache.beam.sdk.metrics.Metrics.counter;
 import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
-import static org.apache.beam.sdk.values.PCollection.IsBounded.BOUNDED;
 import static org.apache.beam.sdk.values.PCollection.IsBounded.UNBOUNDED;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkState;
 
@@ -38,14 +37,16 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.UUID;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
-import java.util.concurrent.Semaphore;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
+import org.apache.beam.sdk.coders.KvCoder;
+import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.coders.VarLongCoder;
 import org.apache.beam.sdk.io.Compression;
 import org.apache.beam.sdk.io.FileSystems;
@@ -59,13 +60,13 @@ import org.apache.beam.sdk.state.StateSpec;
 import org.apache.beam.sdk.state.StateSpecs;
 import org.apache.beam.sdk.state.ValueState;
 import org.apache.beam.sdk.transforms.DoFn;
-import org.apache.beam.sdk.transforms.GroupByKey;
 import org.apache.beam.sdk.transforms.GroupIntoBatches;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.WithKeys;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
+import org.apache.beam.sdk.util.ShardedKey;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionRowTuple;
@@ -83,6 +84,10 @@ import org.apache.iceberg.AppendFiles;
 import org.apache.iceberg.DataFile;
 import org.apache.iceberg.DataFiles;
 import org.apache.iceberg.FileFormat;
+import org.apache.iceberg.GenericManifestFile;
+import org.apache.iceberg.ManifestFile;
+import org.apache.iceberg.ManifestFiles;
+import org.apache.iceberg.ManifestWriter;
 import org.apache.iceberg.Metrics;
 import org.apache.iceberg.MetricsConfig;
 import org.apache.iceberg.PartitionField;
@@ -97,6 +102,7 @@ import org.apache.iceberg.exceptions.AlreadyExistsException;
 import org.apache.iceberg.exceptions.NoSuchTableException;
 import org.apache.iceberg.io.CloseableIterable;
 import org.apache.iceberg.io.InputFile;
+import org.apache.iceberg.io.OutputFile;
 import org.apache.iceberg.mapping.MappingUtil;
 import org.apache.iceberg.mapping.NameMapping;
 import org.apache.iceberg.orc.OrcMetrics;
@@ -126,16 +132,20 @@ public class AddFiles extends PTransform<PCollection<String>, PCollectionRowTupl
   static final String OUTPUT_TAG = "snapshots";
   static final String ERROR_TAG = "errors";
   private static final Duration DEFAULT_TRIGGER_INTERVAL = Duration.standardMinutes(10);
-  private static final Counter numFilesAdded = counter(AddFiles.class, "numFilesAdded");
+  private static final Counter numManifestFilesAdded =
+      counter(AddFiles.class, "numManifestFilesAdded");
+  private static final Counter numDataFilesAdded = counter(AddFiles.class, "numDataFilesAdded");
   private static final Counter numErrorFiles = counter(AddFiles.class, "numErrorFiles");
   private static final Logger LOG = LoggerFactory.getLogger(AddFiles.class);
-  private static final int DEFAULT_FILES_TRIGGER = 10_000;
+  private static final int DEFAULT_DATAFILES_PER_MANIFEST = 10_000;
+  private static final int DEFAULT_MAX_MANIFESTS_PER_SNAPSHOT = 100;
   static final Schema ERROR_SCHEMA =
       Schema.builder().addStringField("file").addStringField("error").build();
+  private static final long MANIFEST_PREFIX = UUID.randomUUID().getMostSignificantBits();
   private final IcebergCatalogConfig catalogConfig;
   private final String tableIdentifier;
   private @Nullable Duration intervalTrigger;
-  private @Nullable Integer numFilesTrigger;
+  private final int manifestFileSize;
   private final @Nullable String locationPrefix;
   private final @Nullable List<String> partitionFields;
   private final @Nullable Map<String, String> tableProps;
@@ -146,14 +156,15 @@ public class AddFiles extends PTransform<PCollection<String>, PCollectionRowTupl
       @Nullable String locationPrefix,
       @Nullable List<String> partitionFields,
       @Nullable Map<String, String> tableProps,
-      @Nullable Integer numFilesTrigger,
+      @Nullable Integer manifestFileSize,
       @Nullable Duration intervalTrigger) {
     this.catalogConfig = catalogConfig;
     this.tableIdentifier = tableIdentifier;
     this.partitionFields = partitionFields;
     this.tableProps = tableProps;
     this.intervalTrigger = intervalTrigger;
-    this.numFilesTrigger = numFilesTrigger;
+    this.manifestFileSize =
+        manifestFileSize != null ? manifestFileSize : DEFAULT_DATAFILES_PER_MANIFEST;
     this.locationPrefix = locationPrefix;
   }
 
@@ -161,15 +172,14 @@ public class AddFiles extends PTransform<PCollection<String>, PCollectionRowTupl
   public PCollectionRowTuple expand(PCollection<String> input) {
     if (input.isBounded().equals(UNBOUNDED)) {
       intervalTrigger = intervalTrigger != null ? intervalTrigger : DEFAULT_TRIGGER_INTERVAL;
-      numFilesTrigger = numFilesTrigger != null ? numFilesTrigger : DEFAULT_FILES_TRIGGER;
       LOG.info(
-          "AddFiles configured to commit after accumulating {} files, or after {} seconds.",
-          numFilesTrigger,
+          "AddFiles configured to generate a new manifest after accumulating {} files, or after {} seconds.",
+          manifestFileSize,
           intervalTrigger.getStandardSeconds());
     } else {
       checkState(
-          intervalTrigger == null && numFilesTrigger == null,
-          "Specifying an interval trigger or file trigger is only supported for streaming pipelines.");
+          intervalTrigger == null,
+          "Specifying an interval trigger is only supported for streaming pipelines.");
     }
 
     if (!Strings.isNullOrEmpty(locationPrefix)) {
@@ -188,32 +198,44 @@ public class AddFiles extends PTransform<PCollection<String>, PCollectionRowTupl
                         partitionFields,
                         tableProps))
                 .withOutputTags(DATA_FILES, TupleTagList.of(ERRORS)));
-    SchemaCoder<SerializableDataFile> sdfSchema;
+    SchemaCoder<SerializableDataFile> sdfCoder;
     try {
-      sdfSchema = SchemaRegistry.createDefault().getSchemaCoder(SerializableDataFile.class);
+      sdfCoder = SchemaRegistry.createDefault().getSchemaCoder(SerializableDataFile.class);
     } catch (Exception e) {
       throw new RuntimeException(e);
     }
 
-    PCollection<KV<Void, SerializableDataFile>> keyedFiles =
+    PCollection<KV<Integer, SerializableDataFile>> keyedFiles =
         dataFiles
             .get(DATA_FILES)
-            .setCoder(sdfSchema)
-            .apply("AddStaticKey", WithKeys.of((Void) null));
+            .setCoder(sdfCoder)
+            .apply("AddSpecIdKey", WithKeys.of(SerializableDataFile::getPartitionSpecId))
+            .setCoder(KvCoder.of(VarIntCoder.of(), sdfCoder));
 
-    PCollection<KV<Void, Iterable<SerializableDataFile>>> groupedFiles =
-        keyedFiles.isBounded().equals(BOUNDED)
-            ? keyedFiles.apply(GroupByKey.create())
-            : keyedFiles.apply(
-                GroupIntoBatches.<Void, SerializableDataFile>ofSize(
-                        checkStateNotNull(numFilesTrigger))
-                    .withMaxBufferingDuration(checkStateNotNull(intervalTrigger)));
+    GroupIntoBatches<Integer, SerializableDataFile> batchDataFiles =
+        GroupIntoBatches.ofSize(manifestFileSize);
+    GroupIntoBatches<String, byte[]> batchManifestFiles =
+        GroupIntoBatches.ofSize(DEFAULT_MAX_MANIFESTS_PER_SNAPSHOT);
+
+    if (keyedFiles.isBounded().equals(UNBOUNDED)) {
+      batchDataFiles = batchDataFiles.withMaxBufferingDuration(checkStateNotNull(intervalTrigger));
+      batchManifestFiles =
+          batchManifestFiles.withMaxBufferingDuration(checkStateNotNull(intervalTrigger));
+    }
+
+    PCollection<KV<ShardedKey<Integer>, Iterable<SerializableDataFile>>> groupedFiles =
+        keyedFiles.apply("GroupDataFilesIntoBatches", batchDataFiles.withShardedKey());
+
+    PCollection<KV<String, byte[]>> manifests =
+        groupedFiles.apply(
+            "CreateManifests", ParDo.of(new CreateManifests(catalogConfig, tableIdentifier)));
 
     PCollection<Row> snapshots =
-        groupedFiles
+        manifests
+            .apply("GatherManifests", batchManifestFiles)
             .apply(
-                "CommitFilesToIceberg",
-                ParDo.of(new CommitFilesDoFn(catalogConfig, tableIdentifier)))
+                "CommitManifests",
+                ParDo.of(new CommitManifestFilesDoFn(catalogConfig, tableIdentifier)))
             .setRowSchema(SnapshotInfo.getSchema());
 
     return PCollectionRowTuple.of(
@@ -253,9 +275,6 @@ public class AddFiles extends PTransform<PCollection<String>, PCollectionRowTupl
     private transient @MonotonicNonNull LinkedList<Future<ProcessResult>> activeTasks;
     private transient volatile @MonotonicNonNull Table table;
 
-    // Limit open readers to avoid blowing up memory on one worker
-    private static final int MAX_READERS = 10;
-    private static final Semaphore ACTIVE_READERS = new Semaphore(MAX_READERS);
     // Number of parallel threads processing incoming files
     private static final int THREAD_POOL_SIZE = 10;
     private static final int MAX_IN_FLIGHT_TASKS = 100;
@@ -489,7 +508,6 @@ public class AddFiles extends PTransform<PCollection<String>, PCollectionRowTupl
                 .withFileSizeInBytes(inputFile.getLength())
                 .withPartitionPath(partitionPath)
                 .build();
-
         return new ProcessResult(
             SerializableDataFile.from(df, partitionPath), null, timestamp, window, paneInfo);
       };
@@ -658,7 +676,6 @@ public class AddFiles extends PTransform<PCollection<String>, PCollectionRowTupl
         Map<Integer, Object> transformedValues = new HashMap<>();
 
         // Do a one-time read of the file and compare all bucket-transformed columns
-        ACTIVE_READERS.acquire();
         try (CloseableIterable<Record> reader = ReadUtils.createReader(inputFile, bucketCols)) {
           for (Record record : reader) {
             for (Map.Entry<Integer, PartitionField> entry : bucketPartitions.entrySet()) {
@@ -683,8 +700,6 @@ public class AddFiles extends PTransform<PCollection<String>, PCollectionRowTupl
               }
             }
           }
-        } finally {
-          ACTIVE_READERS.release();
         }
 
         for (Map.Entry<Integer, Object> partitionCol : transformedValues.entrySet()) {
@@ -692,6 +707,64 @@ public class AddFiles extends PTransform<PCollection<String>, PCollectionRowTupl
         }
       }
       return pk.toPath();
+    }
+  }
+
+  /**
+   * Writes batches of {@link SerializableDataFile}s (grouped by Partition Spec ID) into {@link
+   * ManifestFile}s.
+   *
+   * <p>Returns the byte-encoded {@link ManifestFile}, to be reconstructed and committed by
+   * downstream {@link CommitManifestFilesDoFn}.
+   */
+  static class CreateManifests
+      extends DoFn<KV<ShardedKey<Integer>, Iterable<SerializableDataFile>>, KV<String, byte[]>> {
+    private final IcebergCatalogConfig catalogConfig;
+    private final String identifier;
+    private transient @MonotonicNonNull Table table;
+
+    public CreateManifests(IcebergCatalogConfig catalogConfig, String identifier) {
+      this.catalogConfig = catalogConfig;
+      this.identifier = identifier;
+    }
+
+    @ProcessElement
+    public void process(
+        @Element KV<ShardedKey<Integer>, Iterable<SerializableDataFile>> batch,
+        OutputReceiver<KV<String, byte[]>> output)
+        throws IOException {
+      if (!batch.getValue().iterator().hasNext()) {
+        return;
+      }
+      if (table == null) {
+        table = catalogConfig.catalog().loadTable(TableIdentifier.parse(identifier));
+      }
+
+      PartitionSpec spec = checkStateNotNull(table.specs().get(batch.getKey().getKey()));
+
+      String manifestPath =
+          String.format(
+              "%s/metadata/%s-%s-m0.avro", table.location(), MANIFEST_PREFIX, UUID.randomUUID());
+      OutputFile outputFile = table.io().newOutputFile(manifestPath);
+
+      int numDataFiles = 0;
+      ManifestFile manifestFile;
+      try (ManifestWriter<DataFile> writer = ManifestFiles.write(spec, outputFile)) {
+        for (SerializableDataFile sdf : batch.getValue()) {
+          DataFile df = sdf.createDataFile(table.specs());
+          writer.add(df);
+          numDataFiles++;
+        }
+        writer.close();
+        manifestFile = writer.toManifestFile();
+
+        // Provide a non-null dummy Snapshot ID to avoid encoding/decoding Null exceptions.
+        // The snapshot ID will be overwritten when the file is committed.
+        ((GenericManifestFile) manifestFile).set(6, -1L);
+      }
+
+      output.output(KV.of(identifier, ManifestFiles.encode(manifestFile)));
+      numDataFilesAdded.inc(numDataFiles);
     }
   }
 
@@ -707,13 +780,13 @@ public class AddFiles extends PTransform<PCollection<String>, PCollectionRowTupl
    *   <li><b>Idempotency:</b> Prevents duplicate commits during bundle failures by calculating a
    *       deterministic hash for the file set. This ID is stored in the Iceberg {@code Snapshot}
    *       summary, under the key {@code "beam.add-files-commit-id"}. Before committing, the DoFn
-   *       travereses backwards through recent snapshots to check if the current batch's ID is
+   *       traverses backwards through recent snapshots to check if the current batch's ID is
    *       already present.
    * </ul>
    *
    * <p>Outputs the resulting Iceberg {@link Snapshot} information.
    */
-  static class CommitFilesDoFn extends DoFn<KV<Void, Iterable<SerializableDataFile>>, Row> {
+  static class CommitManifestFilesDoFn extends DoFn<KV<String, Iterable<byte[]>>, Row> {
     private final IcebergCatalogConfig catalogConfig;
     private final String identifier;
     private transient @MonotonicNonNull Table table = null;
@@ -723,17 +796,22 @@ public class AddFiles extends PTransform<PCollection<String>, PCollectionRowTupl
     private final StateSpec<ValueState<Long>> lastCommitTimestamp =
         StateSpecs.value(VarLongCoder.of());
 
-    public CommitFilesDoFn(IcebergCatalogConfig catalogConfig, String identifier) {
+    public CommitManifestFilesDoFn(IcebergCatalogConfig catalogConfig, String identifier) {
       this.catalogConfig = catalogConfig;
       this.identifier = identifier;
     }
 
     @ProcessElement
     public void process(
-        @Element KV<Void, Iterable<SerializableDataFile>> files,
+        @Element KV<String, Iterable<byte[]>> batch,
         @AlwaysFetched @StateId("lastCommitTimestamp") ValueState<Long> lastCommitTimestamp,
-        OutputReceiver<Row> output) {
-      String commitId = commitHash(files.getValue());
+        OutputReceiver<Row> output)
+        throws IOException {
+      List<ManifestFile> manifests = new ArrayList<>();
+      for (byte[] bytes : batch.getValue()) {
+        manifests.add(ManifestFiles.decode(bytes));
+      }
+      String commitId = commitHash(manifests);
       if (table == null) {
         table = catalogConfig.catalog().loadTable(TableIdentifier.parse(identifier));
       }
@@ -743,30 +821,29 @@ public class AddFiles extends PTransform<PCollection<String>, PCollectionRowTupl
         return;
       }
 
-      int numFiles = 0;
+      int numManifests = 0;
       AppendFiles appendFiles = table.newFastAppend();
-      for (SerializableDataFile file : files.getValue()) {
-        DataFile df = file.createDataFile(table.specs());
-        appendFiles.appendFile(df);
-        numFiles++;
+      for (ManifestFile file : manifests) {
+        appendFiles.appendManifest(file);
+        numManifests++;
       }
       appendFiles.set(COMMIT_ID_KEY, commitId);
-      LOG.info("Committing {} files, with commit ID: {}", numFiles, commitId);
+      LOG.info("Committing {} files, with commit ID: {}", numManifests, commitId);
       appendFiles.commit();
 
       Snapshot snapshot = table.currentSnapshot();
       output.output(SnapshotInfo.fromSnapshot(snapshot).toRow());
       lastCommitTimestamp.write(snapshot.timestampMillis());
-      numFilesAdded.inc(numFiles);
+      numManifestFilesAdded.inc(numManifests);
     }
 
-    private String commitHash(Iterable<SerializableDataFile> files) {
+    private String commitHash(Iterable<ManifestFile> files) {
       Hasher hasher = Hashing.sha256().newHasher();
 
       // Extract, sort, and hash to ensure deterministic output
       List<String> paths = new ArrayList<>();
-      for (SerializableDataFile file : files) {
-        paths.add(file.getPath());
+      for (ManifestFile file : files) {
+        paths.add(file.path());
       }
       Collections.sort(paths);
 
