@@ -432,7 +432,17 @@ class WriteToPubSub(PTransform):
   def expand(self, pcoll):
     # Store pipeline options for use in DoFn
     self.pipeline_options = pcoll.pipeline.options if pcoll.pipeline else None
-
+    # Warn Dataflow users to use the XLang path for ordering key support,
+    # since _PubSubWriteDoFn._flush() is not used by Dataflow's implementation.
+    import logging
+    runner = self.pipeline_options.get_all_options().get(
+        'runner', '') if self.pipeline_options else ''
+    if 'Dataflow' in str(runner):
+      logging.warning(
+          'WriteToPubSub ordering_key support is not available on Dataflow '
+          'via this transform. Use the XLang WriteToPubSub path instead: '
+          'apache_beam.io.external.gcp.pubsub.WriteToPubSub with '
+          'publish_with_ordering_key=True.')
     if self.with_attributes:
       pcoll = pcoll | 'ToProtobufX' >> ParDo(
           _AddMetricsAndMap(
