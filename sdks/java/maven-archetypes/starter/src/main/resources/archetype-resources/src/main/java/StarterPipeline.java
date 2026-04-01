@@ -26,6 +26,7 @@ import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.SimpleFunction;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.apache.beam.sdk.transforms.DoFn.Element;
 
 /**
  * A starter example for writing Beam programs.
