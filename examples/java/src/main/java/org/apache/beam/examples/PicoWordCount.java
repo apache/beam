@@ -21,11 +21,11 @@ import java.util.Arrays;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.io.TextIO;
 import org.apache.beam.sdk.transforms.Count;
+import org.apache.beam.sdk.transforms.Filter;
 import org.apache.beam.sdk.transforms.FlatMapElements;
 import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.TypeDescriptors;
-import org.apache.beam.sdk.transforms.Filter;
 
 /**
  * A minimal "pico" example of WordCount.
@@ -39,16 +39,17 @@ public class PicoWordCount {
     Pipeline p = Pipeline.create();
 
     p.apply("ReadLines", TextIO.read().from("input.txt"))
-     .apply("ExtractWords",
-         FlatMapElements.into(TypeDescriptors.strings())
-             .via((String line) -> Arrays.asList(line.split("\\W+"))))
-     .apply("FilterEmptyWords",
-    Filter.by((String word) -> !word.isEmpty()))
-     .apply("CountWords", Count.perElement())
-     .apply("FormatResults",
-         MapElements.into(TypeDescriptors.strings())
-             .via((KV<String, Long> kv) -> kv.getKey() + ": " + kv.getValue()))
-     .apply("WriteResults", TextIO.write().to("output"));
+        .apply(
+            "ExtractWords",
+            FlatMapElements.into(TypeDescriptors.strings())
+                .via((String line) -> Arrays.asList(line.split("\\W+"))))
+        .apply("FilterEmptyWords", Filter.by((String word) -> !word.isEmpty()))
+        .apply("CountWords", Count.perElement())
+        .apply(
+            "FormatResults",
+            MapElements.into(TypeDescriptors.strings())
+                .via((KV<String, Long> kv) -> kv.getKey() + ": " + kv.getValue()))
+        .apply("WriteResults", TextIO.write().to("output"));
 
     p.run().waitUntilFinish();
   }
