@@ -456,8 +456,8 @@ public class AddFilesIT {
                     null,
                     PARTITION_FIELDS,
                     TABLE_PROPS,
-                    10,
-                    Duration.standardSeconds(10)));
+                    null,
+                    null));
     PAssert.that(tuple.get("errors")).empty();
     p.run().waitUntilFinish();
 
