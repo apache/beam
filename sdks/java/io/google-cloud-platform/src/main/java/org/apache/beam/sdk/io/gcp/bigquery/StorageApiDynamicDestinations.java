@@ -19,6 +19,7 @@ package org.apache.beam.sdk.io.gcp.bigquery;
 
 import com.google.api.services.bigquery.model.TableRow;
 import com.google.protobuf.DescriptorProtos;
+import java.io.IOException;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServices.DatasetService;
 import org.apache.beam.sdk.transforms.DoFn;
@@ -31,10 +32,23 @@ abstract class StorageApiDynamicDestinations<T, DestinationT>
 
     DescriptorProtos.DescriptorProto getDescriptor(boolean includeCdcColumns) throws Exception;
 
+    default StorageApiWritePayload toMessage(
+        T element, @Nullable RowMutationInformation rowMutationInformation) throws Exception {
+      return toMessage(
+          element, rowMutationInformation, TableRowToStorageApiProto.ErrorCollector.DONT_COLLECT);
+    }
+
     StorageApiWritePayload toMessage(
-        T element, @Nullable RowMutationInformation rowMutationInformation) throws Exception;
+        T element,
+        @Nullable RowMutationInformation rowMutationInformation,
+        TableRowToStorageApiProto.ErrorCollector collectedExceptions)
+        throws Exception;
 
     TableRow toFailsafeTableRow(T element);
+
+    byte[] getSchemaHash();
+
+    void updateSchemaFromTable() throws IOException, InterruptedException;
   }
 
   StorageApiDynamicDestinations(DynamicDestinations<T, DestinationT> inner) {

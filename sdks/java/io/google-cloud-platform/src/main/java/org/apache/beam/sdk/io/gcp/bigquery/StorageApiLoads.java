@@ -63,6 +63,7 @@ public class StorageApiLoads<DestinationT, ElementT>
   @Nullable TupleTag<TableRow> successfulWrittenRowsTag;
   Predicate<String> successfulRowsPredicate;
   private final Coder<DestinationT> destinationCoder;
+  private final Coder<ElementT> elementCoder;
   private final StorageApiDynamicDestinations<ElementT, DestinationT> dynamicDestinations;
 
   private final @Nullable SerializableFunction<ElementT, RowMutationInformation> rowUpdateFn;
@@ -86,6 +87,7 @@ public class StorageApiLoads<DestinationT, ElementT>
 
   public StorageApiLoads(
       Coder<DestinationT> destinationCoder,
+      Coder<ElementT> elementCoder,
       StorageApiDynamicDestinations<ElementT, DestinationT> dynamicDestinations,
       @Nullable SerializableFunction<ElementT, RowMutationInformation> rowUpdateFn,
       CreateDisposition createDisposition,
@@ -105,6 +107,7 @@ public class StorageApiLoads<DestinationT, ElementT>
       BadRecordRouter badRecordRouter,
       ErrorHandler<BadRecord, ?> badRecordErrorHandler) {
     this.destinationCoder = destinationCoder;
+    this.elementCoder = elementCoder;
     this.dynamicDestinations = dynamicDestinations;
     this.rowUpdateFn = rowUpdateFn;
     this.createDisposition = createDisposition;
@@ -171,6 +174,8 @@ public class StorageApiLoads<DestinationT, ElementT>
                 successfulConvertedRowsTag,
                 BigQueryStorageApiInsertErrorCoder.of(),
                 successCoder,
+                elementCoder,
+                destinationCoder,
                 rowUpdateFn,
                 badRecordRouter));
     PCollectionTuple writeRecordsResult =
@@ -235,6 +240,8 @@ public class StorageApiLoads<DestinationT, ElementT>
                 successfulConvertedRowsTag,
                 BigQueryStorageApiInsertErrorCoder.of(),
                 successCoder,
+                elementCoder,
+                destinationCoder,
                 rowUpdateFn,
                 badRecordRouter));
 
@@ -358,6 +365,8 @@ public class StorageApiLoads<DestinationT, ElementT>
                 successfulConvertedRowsTag,
                 BigQueryStorageApiInsertErrorCoder.of(),
                 successCoder,
+                elementCoder,
+                destinationCoder,
                 rowUpdateFn,
                 badRecordRouter));
 

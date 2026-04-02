@@ -91,6 +91,7 @@ import java.util.Set;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.function.Function;
+import java.util.function.IntFunction;
 import java.util.function.LongFunction;
 import java.util.function.Predicate;
 import java.util.regex.Matcher;
@@ -191,6 +192,7 @@ import org.apache.beam.sdk.values.ValueInSingleWindow;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ArrayListMultimap;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableSet;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Maps;
@@ -2511,6 +2513,181 @@ public class BigQueryIOWriteTest implements Serializable {
         containsInAnyOrder(
             Iterables.toArray(
                 Iterables.concat(expectedDroppedValues, expectedFullValues), TableRow.class)));
+  }
+
+  @Test
+  public void testAutoPatchTableSchemaTest() throws Exception {
+    assumeTrue(useStreaming);
+    assumeTrue(useStorageApi);
+
+    // Make sure that GroupIntoBatches does not buffer data.
+    p.getOptions().as(BigQueryOptions.class).setStorageApiAppendThresholdBytes(1);
+    p.getOptions().as(BigQueryOptions.class).setNumStorageWriteApiStreams(1);
+    p.getOptions().as(BigQueryOptions.class).setSchemaUpgradeBufferingShards(2);
+
+    BigQueryIO.Write.Method method =
+        useStorageApiApproximate ? Method.STORAGE_API_AT_LEAST_ONCE : Method.STORAGE_WRITE_API;
+    p.enableAbandonedNodeEnforcement(false);
+
+    TableReference tableRef = BigQueryHelpers.parseTableSpec("project-id:dataset-id.table");
+    TableSchema tableSchema =
+        new TableSchema()
+            .setFields(
+                ImmutableList.of(
+                    new TableFieldSchema().setName("number").setType("INT64"),
+                    new TableFieldSchema().setName("name").setType("STRING"),
+                    new TableFieldSchema().setName("req").setType("STRING").setMode("REQUIRED")));
+    fakeDatasetService.createTable(new Table().setTableReference(tableRef).setSchema(tableSchema));
+
+    final int stride = 5;
+    Function<Integer, TableSchema> getUpdatedSchema =
+        currentStride -> {
+          TableSchema tableSchemaUpdated = new TableSchema();
+          tableSchemaUpdated.setFields(
+              Lists.newArrayList(
+                  new TableFieldSchema().setName("number").setType("INT64").setMode("NULLABLE"),
+                  new TableFieldSchema().setName("name").setType("STRING").setMode("NULLABLE"),
+                  new TableFieldSchema().setName("req").setType("STRING").setMode("NULLABLE"),
+                  new TableFieldSchema().setName("new1").setType("STRING").setMode("NULLABLE"),
+                  new TableFieldSchema().setName("new2").setType("STRING").setMode("NULLABLE")));
+
+          if (currentStride >= 2) {
+            List<TableFieldSchema> nestedFields =
+                Lists.newArrayList(
+                    new TableFieldSchema()
+                        .setName("nested_field1")
+                        .setType("STRING")
+                        .setMode("NULLABLE"),
+                    new TableFieldSchema()
+                        .setName("nested_field2")
+                        .setType("STRING")
+                        .setMode("NULLABLE"));
+            if (currentStride >= 3) {
+              List<TableFieldSchema> doubleNestedFields =
+                  Lists.newArrayList(
+                      new TableFieldSchema()
+                          .setName("double_nested_field1")
+                          .setType("STRING")
+                          .setMode("NULLABLE"));
+              nestedFields.add(
+                  new TableFieldSchema()
+                      .setName("double_nested")
+                      .setType("STRUCT")
+                      .setMode("NULLABLE")
+                      .setFields(doubleNestedFields));
+
+              List<TableFieldSchema> repeatedNestedFields =
+                  Lists.newArrayList(
+                      new TableFieldSchema()
+                          .setName("repeated_nested_field1")
+                          .setType("STRING")
+                          .setMode("NULLABLE"),
+                      new TableFieldSchema()
+                          .setName("repeated_nested_field2")
+                          .setType("STRING")
+                          .setMode("NULLABLE"));
+
+              nestedFields.add(
+                  new TableFieldSchema()
+                      .setName("repeated_nested")
+                      .setType("STRUCT")
+                      .setMode("REPEATED")
+                      .setFields(repeatedNestedFields));
+            }
+            tableSchemaUpdated
+                .getFields()
+                .add(
+                    new TableFieldSchema()
+                        .setName("nested")
+                        .setType("STRUCT")
+                        .setMode("NULLABLE")
+                        .setFields(nestedFields));
+          }
+          return tableSchemaUpdated;
+        };
+
+    IntFunction<TableRow> getRow =
+        (IntFunction<TableRow> & Serializable)
+            (int i) -> {
+              TableRow row = new TableRow().set("name", "name" + i).set("number", Long.toString(i));
+              if (i < stride) {
+                row = row.set("req", "foo");
+              } else {
+                row = row.set("new1", "blah" + i);
+                row = row.set("new2", "baz" + i);
+
+                if (i >= 2 * stride) {
+                  TableRow nested =
+                      new TableRow()
+                          .set("nested_field1", "nested1" + i)
+                          .set("nested_field2", "nested2" + i);
+
+                  if (i >= 3 * stride) {
+                    TableRow double_nested =
+                        new TableRow().set("double_nested_field1", "double_nested1" + i);
+                    nested = nested.set("double_nested", double_nested);
+
+                    // Add a repeated struct to ensure that we capture this code path as well.
+                    TableRow repeated_nested1 =
+                        new TableRow().set("repeated_nested_field1", "repeated_nested1" + i);
+                    TableRow repeated_nested2 =
+                        new TableRow().set("repeated_nested_field2", "repeated_nested2" + i);
+                    nested =
+                        nested.set(
+                            "repeated_nested",
+                            ImmutableList.of(repeated_nested1, repeated_nested2));
+                  }
+                  row.set("nested", nested);
+                }
+              }
+              return row;
+            };
+
+    TestStream.Builder<TableRow> testStream =
+        TestStream.create(TableRowJsonCoder.of()).advanceWatermarkTo(new Instant(0));
+    List<TableRow> expectedRows = Lists.newArrayList();
+    for (int i = 0; i < 20; i += stride) {
+      for (int j = i; j < i + stride; ++j) {
+        TableRow tableRow = getRow.apply(j);
+        expectedRows.add(tableRow);
+        testStream = testStream.addElements(tableRow);
+      }
+      if (i > 0 && (i % 5) == 0) {
+        for (int n = 0; n < 5; ++n) {
+          testStream = testStream.advanceProcessingTime(Duration.standardSeconds(2));
+        }
+      }
+    }
+    for (int i = 0; i < 5; ++i) {
+      testStream = testStream.advanceProcessingTime(Duration.standardSeconds(2));
+    }
+
+    PCollection<TableRow> tableRows = p.apply(testStream.advanceWatermarkToInfinity());
+
+    BigQueryIO.Write<TableRow> write =
+        BigQueryIO.writeTableRows()
+            .to(tableRef)
+            .withMethod(method)
+            .withCreateDisposition(BigQueryIO.Write.CreateDisposition.CREATE_NEVER)
+            .withSchemaUpdateOptions(
+                ImmutableSet.of(
+                    SchemaUpdateOption.ALLOW_FIELD_ADDITION,
+                    SchemaUpdateOption.ALLOW_FIELD_RELAXATION))
+            .withTestServices(fakeBqServices)
+            .withoutValidation();
+    if (method == Method.STORAGE_WRITE_API) {
+      write =
+          write
+              .withTriggeringFrequency(Duration.standardSeconds(1))
+              .withNumStorageWriteApiStreams(2);
+    }
+    tableRows.apply(write);
+
+    p.run();
+    assertEquals(
+        getUpdatedSchema.apply(Integer.MAX_VALUE),
+        fakeDatasetService.getTable(tableRef).getSchema());
+    assertThat(fakeDatasetService.getAllRows(tableRef), containsInAnyOrder(expectedRows.toArray()));
   }
 
   TableRow filterUnknownValues(TableRow row, List<TableFieldSchema> tableSchemaFields) {

@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.io.gcp.bigquery;
 
+import static org.apache.beam.sdk.io.gcp.bigquery.UpgradeTableSchema.isPayloadSchemaOutOfDate;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkNotNull;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkState;
@@ -313,9 +314,11 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
       private final Callable<Boolean> tryCreateTable;
 
       private final boolean useDefaultStream;
-      private TableSchema initialTableSchema;
-      private DescriptorProtos.DescriptorProto initialDescriptor;
+      private final TableSchema initialTableSchema;
+      private final DescriptorProtos.DescriptorProto initialDescriptor;
+      private final MessageConverter<ElementT> messageConverter;
       private Instant nextCacheTickle = Instant.MAX;
+      private boolean schemaMismatchSeen = false;
       private final int clientNumber;
       private final boolean usingMultiplexing;
       private final long maxRequestSize;
@@ -345,6 +348,7 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
         this.useDefaultStream = useDefaultStream;
         this.initialTableSchema = messageConverter.getTableSchema();
         this.initialDescriptor = messageConverter.getDescriptor(includeCdcColumns);
+        this.messageConverter = messageConverter;
         this.clientNumber = new Random().nextInt(streamAppendClientCount);
         this.usingMultiplexing = usingMultiplexing;
         this.maxRequestSize = maxRequestSize;
@@ -577,6 +581,16 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
           OutputReceiver<BigQueryStorageApiInsertError> failedRowsReceiver)
           throws Exception {
         maybeTickleCache();
+
+        this.schemaMismatchSeen =
+            this.schemaMismatchSeen
+                || isPayloadSchemaOutOfDate(
+                    payload,
+                    messageConverter::getSchemaHash,
+                    () ->
+                        TableRowToStorageApiProto.wrapDescriptorProto(
+                            messageConverter.getDescriptor(includeCdcColumns)));
+
         ByteString payloadBytes = ByteString.copyFrom(payload.getPayload());
         @Nullable TableRow failsafeTableRow = payload.getFailsafeTableRow();
         if (autoUpdateSchema) {
@@ -629,6 +643,16 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
           throws Exception {
         if (pendingMessages.isEmpty()) {
           return 0;
+        }
+
+        if (this.schemaMismatchSeen) {
+          // Update message converter!
+          this.messageConverter.updateSchemaFromTable();
+          invalidateWriteStream();
+          appendClientInfo =
+              Preconditions.checkStateNotNull(
+                  getAppendClientInfo(false, messageConverter.getTableSchema()));
+          this.schemaMismatchSeen = false;
         }
 
         final ProtoRows.Builder insertsBuilder = ProtoRows.newBuilder();
@@ -847,11 +871,34 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
                         + failedContext.offset);
               }
 
+              // Schema mismatched exceptions can happen if the table was recently updated. Since
+              // vortex caches schemas
+              // we might see the new schema before vortex does. In this case, we simply need to
+              // retry.
+              Exceptions.@Nullable StorageException storageException =
+                  (error == null) ? null : Exceptions.toStorageException(error);
+              boolean schemaMismatch =
+                  (storageException instanceof Exceptions.SchemaMismatchedException);
+              if (!schemaMismatch && error != null) {
+                // There's no special error code for missing required fields, and that can also
+                // happen due to vortex
+                // being delayed at seeing a new schema. We're forced to parse the description to
+                // determine that this
+                // has happened.
+                Status status = Status.fromThrowable(error);
+                if (status.getCode() == Status.Code.INVALID_ARGUMENT) {
+                  String description = status.getDescription();
+                  schemaMismatch =
+                      description != null && description.contains("incompatible fields");
+                }
+              }
+
               boolean hasPersistentErrors =
                   failedContext.getError() instanceof Exceptions.StreamFinalizedException
                       || statusCode.equals(Status.Code.INVALID_ARGUMENT)
                       || statusCode.equals(Status.Code.NOT_FOUND)
                       || statusCode.equals(Status.Code.FAILED_PRECONDITION);
+              hasPersistentErrors = hasPersistentErrors && !schemaMismatch;
               if (hasPersistentErrors) {
                 throw new RuntimeException(
                     String.format(

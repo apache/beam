@@ -516,6 +516,9 @@ public class StorageApiWritesShardedRecords<DestinationT extends @NonNull Object
           () ->
               getOrCreateStream(
                   tableId, streamName, streamOffset, idleTimer, writeStreamService, tryCreateTable);
+
+      StorageApiDynamicDestinations.MessageConverter<?> messageConverter =
+          messageConverters.get(element.getKey().getKey(), dynamicDestinations, datasetService);
       Callable<AppendClientInfo> getAppendClientInfo =
           () -> {
             @Nullable TableSchema tableSchema;
@@ -531,11 +534,8 @@ public class StorageApiWritesShardedRecords<DestinationT extends @NonNull Object
             } else {
               // Start off with the base schema. As we get notified of schema updates, we
               // will update the descriptor.
-              StorageApiDynamicDestinations.MessageConverter<?> converter =
-                  messageConverters.get(
-                      element.getKey().getKey(), dynamicDestinations, datasetService);
-              tableSchema = converter.getTableSchema();
-              descriptor = converter.getDescriptor(false);
+              tableSchema = messageConverter.getTableSchema();
+              descriptor = messageConverter.getDescriptor(false);
 
               if (autoUpdateSchema) {
                 // A StreamWriter ignores table schema updates that happen prior to its creation.
@@ -618,9 +618,12 @@ public class StorageApiWritesShardedRecords<DestinationT extends @NonNull Object
           new SplittingIterable(
               element.getValue(),
               splitSize,
+              // Unknown field merger
               (bytes, tableRow) ->
                   appendClientInfo.get().mergeNewFields(bytes, tableRow, ignoreUnknownValues),
+              // Convert back to TableRow
               bytes -> appendClientInfo.get().toTableRow(bytes, Predicates.alwaysTrue()),
+              // Failed rows consumer
               (failedRow, errorMessage) -> {
                 o.get(failedRowsTag)
                     .outputWithTimestamp(
@@ -634,6 +637,11 @@ public class StorageApiWritesShardedRecords<DestinationT extends @NonNull Object
                         shortTableId)
                     .inc(1);
               },
+              // Get the currently-known TableSchema hash
+              messageConverter::getSchemaHash,
+              () ->
+                  TableRowToStorageApiProto.wrapDescriptorProto(
+                      messageConverter.getDescriptor(false)),
               autoUpdateSchema,
               elementTs);
 
@@ -674,7 +682,7 @@ public class StorageApiWritesShardedRecords<DestinationT extends @NonNull Object
           };
 
       Consumer<Iterable<AppendRowsContext>> clearClients =
-          contexts -> {
+          (contexts) -> {
             APPEND_CLIENTS.invalidate(messageConverters.getAppendClientKey(element.getKey()));
             appendClientInfo.set(appendClientInfo.get().withNoAppendClient());
             APPEND_CLIENTS.put(
@@ -785,6 +793,7 @@ public class StorageApiWritesShardedRecords<DestinationT extends @NonNull Object
             }
 
             Throwable error = Preconditions.checkStateNotNull(failedContext.getError());
+
             Status.Code statusCode = Status.fromThrowable(error).getCode();
 
             // This means that the offset we have stored does not match the current end of
@@ -814,8 +823,12 @@ public class StorageApiWritesShardedRecords<DestinationT extends @NonNull Object
             }
 
             if (!quotaError) {
-              // This forces us to close and reopen all gRPC connections to Storage API on error,
-              // which empirically fixes random stuckness issues.
+              // For known errors (offset mismatch, not found) we must reestablish
+              // the streams.
+              // However we've seen that doing this fixes random stuckness issues by reestablishing
+              // gRPC connections,
+              // so we close the clients for all non-quota errors.
+
               clearClients.accept(failedContexts);
             }
             appendFailures.inc();
@@ -823,6 +836,27 @@ public class StorageApiWritesShardedRecords<DestinationT extends @NonNull Object
             BigQuerySinkMetrics.appendRowsRowStatusCounter(
                     BigQuerySinkMetrics.RowStatus.RETRIED, errorCode, shortTableId)
                 .inc(retriedRows);
+
+            // Schema mismatched exceptions can happen if the table was recently updated. Since
+            // vortex caches schemas
+            // we might see the new schema before vortex does. In this case, we simply need to
+            // retry.
+            Exceptions.@Nullable StorageException storageException =
+                Exceptions.toStorageException(error);
+            boolean schemaMismatch =
+                (storageException instanceof Exceptions.SchemaMismatchedException);
+            if (!schemaMismatch) {
+              // There's no special error code for missing required fields, and that can also happen
+              // due to vortex
+              // being delayed at seeing a new schema. We're forced to parse the description to
+              // determine that this
+              // has happened.
+              Status status = Status.fromThrowable(error);
+              if (status.getCode() == Code.INVALID_ARGUMENT) {
+                String description = status.getDescription();
+                schemaMismatch = description != null && description.contains("incompatible fields");
+              }
+            }
 
             boolean explicitStreamFinalized =
                 failedContext.getError() instanceof StreamFinalizedException;
@@ -833,6 +867,8 @@ public class StorageApiWritesShardedRecords<DestinationT extends @NonNull Object
                     || statusCode.equals(Code.INVALID_ARGUMENT)
                     || statusCode.equals(Code.NOT_FOUND)
                     || statusCode.equals(Code.FAILED_PRECONDITION);
+            streamDoesNotExist = streamDoesNotExist && !schemaMismatch;
+
             if (offsetMismatch || streamDoesNotExist) {
               appendOffsetFailures.inc();
               LOG.warn(
@@ -893,7 +929,9 @@ public class StorageApiWritesShardedRecords<DestinationT extends @NonNull Object
               maxRetries,
               BigQuerySinkMetrics.throttledTimeCounter(BigQuerySinkMetrics.RpcMethod.APPEND_ROWS));
       int numAppends = 0;
+      boolean schemaMismatchSeen = false;
       for (SplittingIterable.Value splitValue : messages) {
+        schemaMismatchSeen = schemaMismatchSeen || splitValue.getSchemaMismatchSeen();
         // Handle the case of a row that is too large.
         if (splitValue.getProtoRows().getSerializedSize() >= maxRequestSize) {
           if (splitValue.getProtoRows().getSerializedRowsCount() > 1) {
@@ -941,6 +979,17 @@ public class StorageApiWritesShardedRecords<DestinationT extends @NonNull Object
           recordsAppended.inc(splitValue.getProtoRows().getSerializedRowsCount());
           appendSizeDistribution.update(context.protoRows.getSerializedRowsCount());
         }
+      }
+      if (schemaMismatchSeen) {
+        // Force the message converter to get the schema again from the table.
+        messageConverter.updateSchemaFromTable();
+        // Close all RPC clients that were opened with the old descriptor. Clear the cache, forcing
+        // us to create
+        // a new append client with the updated descriptor.
+        APPEND_CLIENTS.invalidate(messageConverters.getAppendClientKey(element.getKey()));
+        appendClientInfo.set(
+            APPEND_CLIENTS.get(
+                messageConverters.getAppendClientKey(element.getKey()), getAppendClientInfo));
       }
 
       if (numAppends > 0) {

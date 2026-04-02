@@ -29,6 +29,7 @@ import com.google.api.services.bigquery.model.Dataset;
 import com.google.api.services.bigquery.model.DatasetReference;
 import com.google.api.services.bigquery.model.Table;
 import com.google.api.services.bigquery.model.TableDataInsertAllResponse;
+import com.google.api.services.bigquery.model.TableFieldSchema;
 import com.google.api.services.bigquery.model.TableReference;
 import com.google.api.services.bigquery.model.TableRow;
 import com.google.api.services.bigquery.model.TableSchema;
@@ -39,9 +40,11 @@ import com.google.cloud.bigquery.storage.v1.Exceptions;
 import com.google.cloud.bigquery.storage.v1.FinalizeWriteStreamResponse;
 import com.google.cloud.bigquery.storage.v1.FlushRowsResponse;
 import com.google.cloud.bigquery.storage.v1.ProtoRows;
+import com.google.cloud.bigquery.storage.v1.StorageError;
 import com.google.cloud.bigquery.storage.v1.WriteStream;
 import com.google.errorprone.annotations.FormatMethod;
 import com.google.errorprone.annotations.FormatString;
+import com.google.protobuf.Any;
 import com.google.protobuf.ByteString;
 import com.google.protobuf.DescriptorProtos;
 import com.google.protobuf.Descriptors;
@@ -52,6 +55,7 @@ import com.google.rpc.Code;
 import io.grpc.Status;
 import java.io.IOException;
 import java.io.Serializable;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -59,6 +63,8 @@ import java.util.UUID;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Function;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryHelpers;
@@ -96,6 +102,20 @@ public class FakeDatasetService implements DatasetService, WriteStreamService, S
 
   @Override
   public void close() throws Exception {}
+
+  private static Exceptions.StorageException getStorageException(
+      String streamName, StorageError.StorageErrorCode code, String errorMessage) {
+    StorageError storageError =
+        StorageError.newBuilder()
+            .setEntity(streamName)
+            .setCode(code)
+            .setErrorMessage(errorMessage)
+            .build();
+    com.google.rpc.Status status =
+        com.google.rpc.Status.newBuilder().addDetails(Any.pack(storageError)).build();
+    return org.apache.beam.sdk.util.Preconditions.checkArgumentNotNull(
+        Exceptions.toStorageException(status, null));
+  }
 
   static class Stream {
     static class Entry {
@@ -156,23 +176,28 @@ public class FakeDatasetService implements DatasetService, WriteStreamService, S
       return stream.size();
     }
 
-    void appendRows(long position, List<Entry> rowsToAppend) {
+    @Nullable
+    Exceptions.StorageException appendRows(long position, List<Entry> rowsToAppend) {
       if (finalized) {
-        throw new RuntimeException("Stream already finalized.");
+        return getStorageException(
+            streamName, StorageError.StorageErrorCode.STREAM_FINALIZED, "Stream finalized");
       }
+
       if (position != -1 && position != stream.size()) {
-        throw new RuntimeException(
-            "Bad append: "
-                + position
-                + " + for stream "
-                + streamName
-                + " expected "
-                + stream.size());
+        String errorMessage =
+            String.format("expected offset %d, received %d", stream.size(), position);
+        StorageError.StorageErrorCode code =
+            position > stream.size()
+                ? StorageError.StorageErrorCode.OFFSET_OUT_OF_RANGE
+                : StorageError.StorageErrorCode.OFFSET_ALREADY_EXISTS;
+        return getStorageException(streamName, code, errorMessage);
       }
+
       stream.addAll(rowsToAppend);
       if (type == WriteStream.Type.COMMITTED) {
         rowsToAppend.forEach(this::applyEntry);
       }
+      return null;
     }
 
     void flush(long position) {
@@ -266,6 +291,12 @@ public class FakeDatasetService implements DatasetService, WriteStreamService, S
 
       return tableContainer == null ? null : tableContainer.getTable();
     }
+  }
+
+  public List<TableRow> getAllRows(TableReference tableReference)
+      throws InterruptedException, IOException {
+    return getAllRows(
+        tableReference.getProjectId(), tableReference.getDatasetId(), tableReference.getTableId());
   }
 
   public List<TableRow> getAllRows(String projectId, String datasetId, String tableId)
@@ -378,13 +409,107 @@ public class FakeDatasetService implements DatasetService, WriteStreamService, S
       if (tableContainer == null) {
         throwNotFound("Tried to get a table %s, but no such table existed", tableReference);
       }
-      // TODO: Only allow "legal" schema changes.
+      checkSchemaChanges(tableContainer.table.getSchema().getFields(), tableSchema.getFields());
       tableContainer.table.setSchema(tableSchema);
 
       for (Stream stream : writeStreams.values()) {
         if (stream.tableContainer == tableContainer) {
           stream.setUpdatedSchema(tableSchema);
         }
+      }
+    }
+  }
+
+  private void checkSchemaChanges(
+      List<TableFieldSchema> oldSchema, List<TableFieldSchema> newSchema) {
+    List<com.google.cloud.bigquery.storage.v1.TableFieldSchema> oldSchemaProtos =
+        oldSchema.stream()
+            .map(TableRowToStorageApiProto::tableFieldToProtoTableField)
+            .collect(Collectors.toList());
+
+    List<com.google.cloud.bigquery.storage.v1.TableFieldSchema> newSchemaProtos =
+        newSchema.stream()
+            .map(TableRowToStorageApiProto::tableFieldToProtoTableField)
+            .collect(Collectors.toList());
+    checkSchemaChangesProtos(oldSchemaProtos, newSchemaProtos);
+  }
+
+  private void checkSchemaChangesProtos(
+      List<com.google.cloud.bigquery.storage.v1.TableFieldSchema> oldSchemaProtos,
+      List<com.google.cloud.bigquery.storage.v1.TableFieldSchema> newSchemaProtos) {
+    // Convert new schema to a map for easy name-based lookup
+    Map<String, com.google.cloud.bigquery.storage.v1.TableFieldSchema> newFields =
+        newSchemaProtos.stream()
+            .collect(Collectors.toMap(t -> t.getName().toLowerCase(), Function.identity()));
+    Map<String, Integer> newFieldIndices =
+        IntStream.range(0, newSchemaProtos.size())
+            .boxed()
+            .collect(Collectors.toMap(i -> newSchemaProtos.get(i).getName().toLowerCase(), i -> i));
+
+    Map<String, com.google.cloud.bigquery.storage.v1.TableFieldSchema> oldFields =
+        oldSchemaProtos.stream()
+            .collect(Collectors.toMap(t -> t.getName().toLowerCase(), Function.identity()));
+
+    for (com.google.cloud.bigquery.storage.v1.TableFieldSchema oldField : oldSchemaProtos) {
+      com.google.cloud.bigquery.storage.v1.TableFieldSchema newField =
+          newFields.get(oldField.getName().toLowerCase());
+      // 1. Check that no fields were removed
+      Preconditions.checkArgument(newField != null, "Cannot remove field %s", oldField.getName());
+
+      // 2. Check that the types match
+      Preconditions.checkArgument(
+          oldField.getType().equals(newField.getType()),
+          "Field type cannot change for field %s: %s to %s",
+          oldField.getName(),
+          oldField.getType(),
+          newField.getType());
+
+      com.google.cloud.bigquery.storage.v1.TableFieldSchema.Mode oldMode = oldField.getMode();
+      com.google.cloud.bigquery.storage.v1.TableFieldSchema.Mode newMode = newField.getMode();
+
+      // 3. Check that the mode only changes if relaxing from REQUIRED to NULLABLE
+      if (oldMode.equals(com.google.cloud.bigquery.storage.v1.TableFieldSchema.Mode.REQUIRED)) {
+        Preconditions.checkArgument(
+            newMode.equals(com.google.cloud.bigquery.storage.v1.TableFieldSchema.Mode.REQUIRED)
+                || newMode.equals(
+                    com.google.cloud.bigquery.storage.v1.TableFieldSchema.Mode.NULLABLE),
+            "Cannot change mode of %s from REQUIRED to %s",
+            oldField.getName(),
+            newMode);
+      } else {
+        Preconditions.checkArgument(
+            oldMode.equals(newMode),
+            "Cannot change mode of %s from %s to %s",
+            oldField.getName(),
+            oldMode,
+            newMode);
+      }
+
+      // 4. Recursively check nested schema fields
+      if (oldField.getFieldsCount() > 0) {
+        Preconditions.checkArgument(
+            newField.getFieldsCount() >= oldField.getFieldsCount(), "Cannot remove nested fields");
+        checkSchemaChangesProtos(oldField.getFieldsList(), newField.getFieldsList());
+      }
+    }
+
+    for (com.google.cloud.bigquery.storage.v1.TableFieldSchema newField : newSchemaProtos) {
+      if (oldFields.containsKey(newField.getName().toLowerCase())) {
+        // We've already checked this above.
+        continue;
+      }
+
+      int newIndex = newFieldIndices.get(newField.getName().toLowerCase());
+      Preconditions.checkArgument(
+          newIndex >= oldFields.size(), "New fields can only be added at the end of a schema.");
+      Preconditions.checkArgument(
+          !newField
+              .getMode()
+              .equals(com.google.cloud.bigquery.storage.v1.TableFieldSchema.Mode.REQUIRED),
+          "New field cannot be required");
+      if (newField.getFieldsCount() > 0) {
+        // Recurse only on the new fields.
+        checkSchemaChangesProtos(Collections.emptyList(), newField.getFieldsList());
       }
     }
   }
@@ -566,6 +691,20 @@ public class FakeDatasetService implements DatasetService, WriteStreamService, S
   }
 
   @Override
+  public Table patchTableSchema(TableReference tableReference, TableSchema newSchema)
+      throws IOException, InterruptedException {
+    updateTableSchema(tableReference, newSchema);
+    synchronized (FakeDatasetService.class) {
+      TableContainer tableContainer =
+          getTableContainer(
+              tableReference.getProjectId(),
+              tableReference.getDatasetId(),
+              tableReference.getTableId());
+      return tableContainer.getTable();
+    }
+  }
+
+  @Override
   public WriteStream createWriteStream(String tableUrn, WriteStream.Type type)
       throws InterruptedException {
     try {
@@ -640,7 +779,11 @@ public class FakeDatasetService implements DatasetService, WriteStreamService, S
         synchronized (FakeDatasetService.class) {
           Stream stream = writeStreams.get(streamName);
           if (stream == null) {
-            throw new RuntimeException("No such stream: " + streamName);
+            return ApiFutures.immediateFailedFuture(
+                getStorageException(
+                    streamName,
+                    StorageError.StorageErrorCode.STREAM_NOT_FOUND,
+                    "Stream not found"));
           }
           List<Stream.Entry> streamEntries =
               Lists.newArrayListWithExpectedSize(rows.getSerializedRowsCount());
@@ -648,9 +791,6 @@ public class FakeDatasetService implements DatasetService, WriteStreamService, S
           for (int i = 0; i < rows.getSerializedRowsCount(); ++i) {
             ByteString bytes = rows.getSerializedRows(i);
             DynamicMessage msg = DynamicMessage.parseFrom(protoDescriptor, bytes);
-            if (msg.getUnknownFields() != null && !msg.getUnknownFields().asMap().isEmpty()) {
-              throw new RuntimeException("Unknown fields set in append! " + msg.getUnknownFields());
-            }
             TableRow tableRow =
                 TableRowToStorageApiProto.tableRowFromMessage(
                     schemaInformation,
@@ -695,7 +835,10 @@ public class FakeDatasetService implements DatasetService, WriteStreamService, S
                     stream.streamName,
                     rowIndexToErrorMessage));
           }
-          stream.appendRows(offset, streamEntries);
+          @Nullable Exceptions.StorageException failure = stream.appendRows(offset, streamEntries);
+          if (failure != null) {
+            return ApiFutures.immediateFailedFuture(failure);
+          }
           if (stream.getUpdatedSchema() != null) {
             com.google.cloud.bigquery.storage.v1.TableSchema newSchema =
                 TableRowToStorageApiProto.schemaToProtoTableSchema(stream.getUpdatedSchema());

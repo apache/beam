@@ -22,12 +22,15 @@ import com.google.cloud.bigquery.storage.v1.TableSchema;
 import com.google.protobuf.DescriptorProtos;
 import com.google.protobuf.Descriptors.Descriptor;
 import com.google.protobuf.Message;
+import java.io.IOException;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServices.DatasetService;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.transforms.SerializableBiFunction;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.util.Preconditions;
 import org.apache.beam.sdk.values.Row;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Supplier;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Suppliers;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
@@ -41,6 +44,7 @@ class StorageApiDynamicDestinationsBeamRow<T, DestinationT extends @NonNull Obje
       formatRecordOnFailureFunction;
 
   private final boolean usesCdc;
+  private Supplier<byte[]> getSchemaHash;
 
   StorageApiDynamicDestinationsBeamRow(
       DynamicDestinations<T, DestinationT> inner,
@@ -52,6 +56,8 @@ class StorageApiDynamicDestinationsBeamRow<T, DestinationT extends @NonNull Obje
       boolean usesCdc) {
     super(inner);
     this.tableSchema = BeamRowToStorageApiProto.protoTableSchemaFromBeamSchema(schema);
+    this.getSchemaHash =
+        Suppliers.memoize(() -> TableRowToStorageApiProto.tableSchemaHash(this.tableSchema));
     this.toRow = toRow;
     this.formatRecordOnFailureFunction = formatRecordOnFailureFunction;
     this.usesCdc = usesCdc;
@@ -80,8 +86,16 @@ class StorageApiDynamicDestinationsBeamRow<T, DestinationT extends @NonNull Obje
     }
 
     @Override
+    public void updateSchemaFromTable() throws IOException, InterruptedException {}
+
+    @Override
     public TableSchema getTableSchema() {
       return tableSchema;
+    }
+
+    @Override
+    public byte[] getSchemaHash() {
+      return getSchemaHash.get();
     }
 
     @Override
@@ -92,7 +106,10 @@ class StorageApiDynamicDestinationsBeamRow<T, DestinationT extends @NonNull Obje
     @Override
     @SuppressWarnings("nullness")
     public StorageApiWritePayload toMessage(
-        T element, @Nullable RowMutationInformation rowMutationInformation) throws Exception {
+        T element,
+        @Nullable RowMutationInformation rowMutationInformation,
+        TableRowToStorageApiProto.ErrorCollector collectedExceptions)
+        throws Exception {
       String changeType = null;
       String changeSequenceNum = null;
       Descriptor descriptorToUse = descriptor;

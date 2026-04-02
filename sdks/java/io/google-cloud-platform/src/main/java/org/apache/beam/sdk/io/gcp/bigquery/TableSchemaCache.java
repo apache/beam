@@ -200,6 +200,16 @@ public class TableSchemaCache {
     return existing.map(SchemaHolder::getTableSchema).orElse(null);
   }
 
+  @Nullable
+  public TableSchema putSchema(TableReference tableReference, TableSchema tableSchema) {
+    final String key = tableKey(tableReference);
+    Optional<SchemaHolder> existing =
+        runUnderMonitor(
+            () ->
+                Optional.ofNullable(this.cachedSchemas.put(key, SchemaHolder.of(tableSchema, 0))));
+    return existing.map(SchemaHolder::getTableSchema).orElse(null);
+  }
+
   public void refreshSchema(TableReference tableReference, DatasetService datasetService) {
     int targetVersion =
         runUnderMonitor(
@@ -211,7 +221,7 @@ public class TableSchemaCache {
               String key = tableKey(tableReference);
               @Nullable SchemaHolder schemaHolder = cachedSchemas.get(key);
               int nextVersion = schemaHolder != null ? schemaHolder.getVersion() + 1 : 0;
-              tablesToRefresh.put(key, Refresh.of(datasetService, nextVersion));
+              tablesToRefresh.putIfAbsent(key, Refresh.of(datasetService, nextVersion));
               // Wait at least until the next version.
               return nextVersion;
             });

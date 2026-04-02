@@ -24,11 +24,14 @@ import com.google.protobuf.DescriptorProtos;
 import com.google.protobuf.Descriptors;
 import com.google.protobuf.DynamicMessage;
 import com.google.protobuf.Message;
+import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServices.DatasetService;
 import org.apache.beam.sdk.util.Preconditions;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Predicates;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Supplier;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Suppliers;
 import org.checkerframework.checker.nullness.qual.NonNull;
 
 /** Storage API DynamicDestinations used when the input is a compiled protocol buffer. */
@@ -65,10 +68,13 @@ class StorageApiDynamicDestinationsProto<T extends Message, DestinationT extends
 
   class Converter implements MessageConverter<T> {
     TableSchema tableSchema;
+    Supplier<byte[]> getSchemaHash;
     transient @Nullable TableRowToStorageApiProto.SchemaInformation schemaInformation;
 
     Converter(TableSchema tableSchema) {
       this.tableSchema = tableSchema;
+      this.getSchemaHash =
+          Suppliers.memoize(() -> TableRowToStorageApiProto.tableSchemaHash(tableSchema));
       this.schemaInformation = null;
     }
 
@@ -76,6 +82,14 @@ class StorageApiDynamicDestinationsProto<T extends Message, DestinationT extends
     public TableSchema getTableSchema() {
       return tableSchema;
     }
+
+    @Override
+    public byte[] getSchemaHash() {
+      return getSchemaHash.get();
+    }
+
+    @Override
+    public void updateSchemaFromTable() throws IOException, InterruptedException {}
 
     public TableRowToStorageApiProto.SchemaInformation getSchemaInformation() {
       if (this.schemaInformation == null) {
@@ -95,7 +109,10 @@ class StorageApiDynamicDestinationsProto<T extends Message, DestinationT extends
 
     @Override
     public StorageApiWritePayload toMessage(
-        T element, @Nullable RowMutationInformation rowMutationInformation) throws Exception {
+        T element,
+        @Nullable RowMutationInformation rowMutationInformation,
+        TableRowToStorageApiProto.ErrorCollector collectedExceptions)
+        throws Exception {
       // NB: What makes this path efficient is that the storage API directly understands protos, so
       // we can forward
       // the through directly. This means that we don't currently support ignoreUnknownValues or
