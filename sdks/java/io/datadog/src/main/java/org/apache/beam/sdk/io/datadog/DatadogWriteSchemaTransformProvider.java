@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.io.datadog;
 
 import com.google.auto.service.AutoService;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import org.apache.beam.sdk.schemas.Schema;
@@ -33,7 +34,6 @@ import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
-import org.checkerframework.checker.nullness.qual.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -42,19 +42,23 @@ public class DatadogWriteSchemaTransformProvider
     extends TypedSchemaTransformProvider<DatadogWriteSchemaTransformConfiguration> {
   private static final String IDENTIFIER = "beam:schematransform:org.apache.beam:datadog_write:v1";
   static final String INPUT = "input";
+  static final String OUTPUT = "output";
+  static final String ERROR = "errors";
+  public static final TupleTag<DatadogEvent> OUTPUT_TAG = new TupleTag<DatadogEvent>() {};
+  public static final TupleTag<Row> ERROR_TAG = new TupleTag<Row>() {};
   private static final Logger LOG =
       LoggerFactory.getLogger(DatadogWriteSchemaTransformProvider.class);
+
+  @Override
+  protected Class<DatadogWriteSchemaTransformConfiguration> configurationClass() {
+    return DatadogWriteSchemaTransformConfiguration.class;
+  }
 
   /** Returns the expected {@link SchemaTransform} of the configuration. */
   @Override
   protected SchemaTransform from(DatadogWriteSchemaTransformConfiguration configuration) {
     return new DatadogWriteSchemaTransform(configuration);
   }
-
-  // @Override
-  // protected Class<DatadogWriteSchemaTransformConfiguration> configurationClass() {
-  //   return DatadogWriteSchemaTransformConfiguration.class;
-  // }
 
   /** Implementation of the {@link TypedSchemaTransformProvider} identifier method. */
   @Override
@@ -71,14 +75,14 @@ public class DatadogWriteSchemaTransformProvider
   /** Implementation of the {@link TypedSchemaTransformProvider} output collection names method. */
   @Override
   public List<String> outputCollectionNames() {
-    return Collections.emptyList();
+    return Arrays.asList(OUTPUT, ERROR);
   }
 
   /**
    * An implementation of {@link SchemaTransform} for Datadog Write jobs configured using {@link
    * DatadogWriteSchemaTransformConfiguration}.
    */
-  protected static class DatadogWriteSchemaTransform extends SchemaTransform {
+  static class DatadogWriteSchemaTransform extends SchemaTransform {
     private final DatadogWriteSchemaTransformConfiguration configuration;
 
     DatadogWriteSchemaTransform(DatadogWriteSchemaTransformConfiguration configuration) {
@@ -90,11 +94,21 @@ public class DatadogWriteSchemaTransformProvider
       // Validate configuration parameters
       configuration.validate();
 
+      DatadogIO.Write.Builder writeTransform;
+
       // Create basic transform
-      DatadogIO.Write.Builder writeTransform =
-          DatadogIO.writeBuilder()
-              .withUrl(configuration.getUrl())
-              .withApiKey(configuration.getApiKey());
+      Integer minBatchCount = configuration.getMinBatchCount();
+      if (minBatchCount == null) {
+        writeTransform =
+            DatadogIO.writeBuilder()
+                .withUrl(configuration.getUrl())
+                .withApiKey(configuration.getApiKey());
+      } else {
+        writeTransform =
+            DatadogIO.writeBuilder(minBatchCount)
+                .withUrl(configuration.getUrl())
+                .withApiKey(configuration.getApiKey());
+      }
 
       // Add more parameters if not null
       Integer batchCount = configuration.getBatchCount();
@@ -110,77 +124,60 @@ public class DatadogWriteSchemaTransformProvider
         writeTransform = writeTransform.withParallelism(parallelism);
       }
 
+      // Obtain input rows
       PCollection<Row> inputRows = input.get(INPUT);
-      TupleTag<DatadogEvent> successTag = new TupleTag<>();
-      TupleTag<Row> failureTag = new TupleTag<>();
 
+      // Obtain input schema
+      Schema inputSchema = inputRows.getSchema();
+
+      // Create error schema based on input schema
+      Schema errorSchema = ErrorHandling.errorSchema(inputSchema);
+
+      // Check for errors
+      boolean handleErrors = ErrorHandling.hasOutput(configuration.getErrorHandling());
+
+      // Apply row to Datadog event fn with error handling
       PCollectionTuple pCollectionTuple =
           inputRows.apply(
               "RowToDatadogEvent",
-              ParDo.of(new RowToDatadogEventFn(failureTag))
-                  .withOutputTags(successTag, TupleTagList.of(failureTag)));
+              ParDo.of(new RowToDatadogEventFn(errorSchema, handleErrors))
+                  .withOutputTags(OUTPUT_TAG, TupleTagList.of(ERROR_TAG)));
 
-      pCollectionTuple
-          .get(failureTag)
-          .setRowSchema(
-              Schema.builder()
-                  .addRowField("failed_row", inputRows.getSchema())
-                  .addNullableField("error_message", Schema.FieldType.STRING)
-                  .build());
+      // Obtain error output
+      PCollection<Row> errorOutput = pCollectionTuple.get(ERROR_TAG).setRowSchema(errorSchema);
 
-      PCollection<DatadogEvent> events = pCollectionTuple.get(successTag);
+      // Obtain events ready to be sent to Datadog
+      PCollection<DatadogEvent> events = pCollectionTuple.get(OUTPUT_TAG);
+
+      // Set coder for events
       events.setCoder(DatadogEventCoder.of());
 
-      // TODO: correctly handle write errors
+      // Apply the write transform to events to write events to Datadog
       events.apply("WriteToDatadog", writeTransform.build());
 
+      // Error handling
       ErrorHandling errorHandling = configuration.getErrorHandling();
       if (errorHandling != null) {
-        return PCollectionRowTuple.of(errorHandling.getOutput(), pCollectionTuple.get(failureTag));
+        // Return error output for downstream further processing
+        return PCollectionRowTuple.of(errorHandling.getOutput(), errorOutput);
       } else {
+        // Return empty tuple since no errors were encountered
         return PCollectionRowTuple.empty(input.getPipeline());
       }
     }
   }
 
-  static class DatadogWriteErrorToRowFn extends DoFn<DatadogWriteError, Row> {
-
-    private final Boolean isConfigured;
-
-    public DatadogWriteErrorToRowFn(Boolean isConfigured) {
-      this.isConfigured = isConfigured;
-    }
-
-    public static final Schema ERROR_SCHEMA =
-        Schema.builder()
-            .addNullableField("statusCode", Schema.FieldType.INT32)
-            .addNullableField("statusMessage", Schema.FieldType.STRING)
-            .addNullableField("payload", Schema.FieldType.STRING)
-            .build();
-
-    @ProcessElement
-    public void processElement(@Element DatadogWriteError error, OutputReceiver<Row> out) {
-      if (!isConfigured) {
-        return;
-      }
-      Integer status = error.statusCode();
-      String message = error.statusMessage();
-      String payload = error.payload();
-      Row row =
-          Row.withSchema(ERROR_SCHEMA)
-              .withFieldValue("statusCode", status == null ? 0 : status)
-              .withFieldValue("statusMessage", message == null ? "" : message)
-              .withFieldValue("payload", payload == null ? "" : payload)
-              .build();
-      out.output(row);
-    }
-  }
-
+  /**
+   * A {@link DoFn} that converts a {@link Row} into a {@link DatadogEvent} and emits failures to a
+   * dead-letter queue.
+   */
   static class RowToDatadogEventFn extends DoFn<Row, DatadogEvent> {
-    private final @Nullable TupleTag<Row> failureTag;
+    private final Schema errorSchema;
+    private final boolean handleErrors;
 
-    public RowToDatadogEventFn(@Nullable TupleTag<Row> failureTag) {
-      this.failureTag = failureTag;
+    RowToDatadogEventFn(Schema errorSchema, boolean handleErrors) {
+      this.errorSchema = errorSchema;
+      this.handleErrors = handleErrors;
     }
 
     @ProcessElement
@@ -223,20 +220,10 @@ public class DatadogWriteSchemaTransformProvider
 
         c.output(builder.build());
       } catch (Exception e) {
-        if (this.failureTag != null) {
-          c.output(
-              failureTag,
-              Row.withSchema(
-                      Schema.builder()
-                          .addRowField("failed_row", row.getSchema())
-                          .addNullableField("error_message", Schema.FieldType.STRING)
-                          .build())
-                  .withFieldValue("failed_row", row)
-                  .withFieldValue("error_message", e.getMessage() == null ? "" : e.getMessage())
-                  .build());
-        } else {
+        if (!handleErrors) {
           throw new RuntimeException(e);
         }
+        c.output(ERROR_TAG, ErrorHandling.errorRecord(errorSchema, row, e));
       }
     }
   }

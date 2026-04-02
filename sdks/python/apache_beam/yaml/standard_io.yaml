@@ -428,3 +428,20 @@
       config:
         gradle_target: 'sdks:java:io:expansion-service:shadowJar'
 
+- type: renaming
+  transforms:
+    'WriteToDataDog': 'WriteToDataDog'
+  config:
+    mappings:
+      'url': 'url'
+      'api_key': 'api_key'
+      'min_batch_count': 'min_batch_count'
+      'batch_count': 'batch_count'
+      'max_buffer_size': 'max_buffer_size'
+      'parallelism': 'parallelism'
+    underlying_provider:
+      type: beamJar
+      transforms:
+        'WriteToDataDog': 'beam:schematransform:org.apache.beam:data_dog_write:v1'
+      config:
+        gradle_target: 'sdks:java:io:expansion-service:shadowJar'

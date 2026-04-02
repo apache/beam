@@ -534,6 +534,85 @@ def temp_pubsub_emulator(project_id="apache-beam-testing"):
     yield created_topic_object.name
 
 
+class DatadogContainer(DockerContainer):
+  """
+  DatadogContainer starts a Datadog agent container for integration tests.
+  It exposes ports for DogStatsD (metrics) and the trace agent (APM).
+  """
+  def __init__(self, image="datadog/agent:latest"):
+    super().__init__(image)
+    self.statsd_port = 8125
+    self.trace_port = 8126
+    # An API key is required, but for local testing against the agent,
+    # it doesn't have to be a valid one.
+    self.with_env("DD_API_KEY", "dummy_key_for_testing")
+    # Disable log collection for test purposes to reduce noise
+    self.with_env("DD_LOGS_ENABLED", "false")
+    self.with_exposed_ports(self.statsd_port, self.trace_port)
+
+  def start(self):
+    super().start()
+    # Wait for the agent to be ready to receive traces and metrics.
+    # "Agent started" indicates the core agent is up.
+    wait_for_logs(self, "Agent started", timeout=120)
+    return self
+
+  def get_statsd_host(self):
+    return self.get_container_host_ip()
+
+  def get_statsd_port(self):
+    return self.get_exposed_port(self.statsd_port)
+
+  def get_trace_agent_host(self):
+    return self.get_container_host_ip()
+
+  def get_trace_agent_port(self):
+    return self.get_exposed_port(self.trace_port)
+
+  def get_api_key(self):
+    return "dummy_key_for_testing"
+
+  def get_logs_url(self):
+    # The trace agent and logs agent listen on the same port by default
+    return \
+      f"http://{self.get_container_host_ip()}:{self.get_trace_agent_port()}"
+
+
+class DatadogConnection:
+  def __init__(self, url, api_key):
+    self.url = url
+    self.api_key = api_key
+
+
+@contextlib.contextmanager
+def temp_datadog_agent():
+  """Context manager to provide a temporary Datadog Agent for testing.
+
+  This function utilizes the 'testcontainers' library to spin up a
+  Datadog Agent instance within a Docker container. It yields a dictionary
+  containing connection details for the Datadog agent.
+
+  The Docker container is automatically managed and torn down when the
+  context manager exits.
+
+  Yields:
+      dict: A dictionary with connection details:
+            {'url': <url>, 'api_key': <api_key>}
+
+  Raises:
+      Exception: Any exception encountered during the setup process.
+  """
+  with DatadogContainer() as datadog_container:
+    try:
+      yield DatadogConnection(
+          url=datadog_container.get_logs_url(),
+          api_key=datadog_container.get_api_key(),
+      )
+    except Exception as err:
+      logging.error("Error interacting with temporary Datadog Agent: %s", err)
+      raise err
+
+
 def replace_recursive(spec, vars):
   """Recursively replaces string placeholders in a spec with values from vars.
 
