@@ -155,7 +155,12 @@ public class IntegrationTestEnv extends ExternalResource {
               .get(TIMEOUT_MINUTES, TimeUnit.MINUTES);
         }
       } catch (Exception e) {
-        LOG.error("Failed to drop table {}. Skipping...", table, e);
+        if (isPlacementTableBasedChangeStream) {
+          // Drop placement table requires all rows deleted and garbage collected.
+          LOG.info("Failed to drop table {}. Skipping...", table, e);
+        } else {
+          LOG.error("Failed to drop table {}. Skipping...", table, e);
+        }
       }
     }
 
