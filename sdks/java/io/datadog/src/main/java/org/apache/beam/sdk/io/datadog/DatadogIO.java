@@ -95,8 +95,7 @@ public class DatadogIO {
       // Return a PCollection<DatadogWriteError>
       return input
           .apply("Create KV pairs", CreateKeys.of(parallelism()))
-          .apply("Write Datadog events", ParDo.of(writer))
-          .setCoder(DatadogWriteErrorCoder.of());
+          .apply("Write Datadog events", ParDo.of(writer));
     }
 
     /** A builder for creating {@link Write} objects. */
