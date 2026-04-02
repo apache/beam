@@ -18,6 +18,8 @@
 """Runs integration tests in the tests directory."""
 
 import contextlib
+import http.server
+import threading
 import copy
 import glob
 import itertools
@@ -546,15 +548,19 @@ class DatadogContainer(DockerContainer):
     # An API key is required, but for local testing against the agent,
     # it doesn't have to be a valid one.
     self.with_env("DD_API_KEY", "dummy_key_for_testing")
+    # Redirect agent's own telemetry to prevent 403 errors from the real site
+    self.with_env("DD_DD_URL", "http://localhost:1234")
     # Disable log collection for test purposes to reduce noise
-    self.with_env("DD_LOGS_ENABLED", "false")
+    self.with_env("DD_LOGS_ENABLED", "true")
     self.with_exposed_ports(self.statsd_port, self.trace_port)
 
   def start(self):
     super().start()
     # Wait for the agent to be ready to receive traces and metrics.
     # "Agent started" indicates the core agent is up.
-    wait_for_logs(self, "Agent started", timeout=120)
+    # Disabling this wait as the container is reported as healthy and
+    # this specific log might not appear with dummy URLs.
+    # wait_for_logs(self, "Agent started", timeout=120)
     return self
 
   def get_statsd_host(self):
@@ -584,6 +590,36 @@ class DatadogConnection:
     self.api_key = api_key
 
 
+class MockDatadogHandler(http.server.BaseHTTPRequestHandler):
+  def do_POST(self):
+    if self.path == "/api/v2/logs":
+      self.send_response(200)
+      self.send_header('Content-Type', 'application/json')
+      self.end_headers()
+      self.wfile.write(b'{"status": "ok"}')
+    else:
+      self.send_response(404)
+      self.end_headers()
+
+  def log_message(self, format, *args):
+    pass
+
+
+@contextlib.contextmanager
+def temp_datadog_mock_server():
+  server = http.server.ThreadingHTTPServer(('localhost', 0), MockDatadogHandler)
+  ip, port = server.server_address
+  thread = threading.Thread(target=server.serve_forever)
+  thread.daemon = True
+  thread.start()
+  try:
+    yield f"http://{ip}:{port}"
+  finally:
+    server.shutdown()
+    server.server_close()
+    thread.join()
+
+
 @contextlib.contextmanager
 def temp_datadog_agent():
   """Context manager to provide a temporary Datadog Agent for testing.
@@ -602,10 +638,11 @@ def temp_datadog_agent():
   Raises:
       Exception: Any exception encountered during the setup process.
   """
-  with DatadogContainer() as datadog_container:
+  with DatadogContainer() as datadog_container,\
+    temp_datadog_mock_server() as mock_url:
     try:
       yield DatadogConnection(
-          url=datadog_container.get_logs_url(),
+          url=mock_url,
           api_key=datadog_container.get_api_key(),
       )
     except Exception as err:

@@ -92,6 +92,8 @@ dependencies {
     runtimeOnly project(path: ":sdks:java:io:iceberg:bqms", configuration: "shadow")
   }
 
+  implementation project(":sdks:java:io:datadog")
+  permitUnusedDeclared project(":sdks:java:io:datadog")
   runtimeOnly library.java.kafka_clients
   runtimeOnly library.java.slf4j_jdk14
 

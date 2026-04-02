@@ -34,8 +34,6 @@ import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 @AutoService(SchemaTransformProvider.class)
 public class DatadogWriteSchemaTransformProvider
@@ -46,8 +44,6 @@ public class DatadogWriteSchemaTransformProvider
   static final String ERROR = "errors";
   public static final TupleTag<DatadogEvent> OUTPUT_TAG = new TupleTag<DatadogEvent>() {};
   public static final TupleTag<Row> ERROR_TAG = new TupleTag<Row>() {};
-  private static final Logger LOG =
-      LoggerFactory.getLogger(DatadogWriteSchemaTransformProvider.class);
 
   @Override
   protected Class<DatadogWriteSchemaTransformConfiguration> configurationClass() {
@@ -153,7 +149,11 @@ public class DatadogWriteSchemaTransformProvider
       events.setCoder(DatadogEventCoder.of());
 
       // Apply the write transform to events to write events to Datadog
-      events.apply("WriteToDatadog", writeTransform.build());
+      PCollection<DatadogWriteError> writeErrors =
+          events.apply("WriteToDatadog", writeTransform.build());
+      writeErrors
+          .apply("ConvertWriteErrors", ParDo.of(new ConvertWriteErrorFn(WRITE_ERROR_SCHEMA)))
+          .setRowSchema(WRITE_ERROR_SCHEMA);
 
       // Error handling
       ErrorHandling errorHandling = configuration.getErrorHandling();
@@ -225,6 +225,33 @@ public class DatadogWriteSchemaTransformProvider
         }
         c.output(ERROR_TAG, ErrorHandling.errorRecord(errorSchema, row, e));
       }
+    }
+  }
+
+  static final Schema WRITE_ERROR_SCHEMA =
+      Schema.builder()
+          .addNullableField("payload", Schema.FieldType.STRING)
+          .addNullableField("statusCode", Schema.FieldType.INT32)
+          .addNullableField("statusMessage", Schema.FieldType.STRING)
+          .build();
+
+  static class ConvertWriteErrorFn extends DoFn<DatadogWriteError, Row> {
+    private final Schema schema;
+
+    ConvertWriteErrorFn(Schema schema) {
+      this.schema = schema;
+    }
+
+    @ProcessElement
+    public void processElement(ProcessContext c) {
+      DatadogWriteError error = c.element();
+      Row row =
+          Row.withSchema(schema)
+              .addValue(error.payload())
+              .addValue(error.statusCode())
+              .addValue(error.statusMessage())
+              .build();
+      c.output(row);
     }
   }
 }

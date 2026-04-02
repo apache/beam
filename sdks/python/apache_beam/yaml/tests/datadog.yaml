@@ -21,7 +21,7 @@ fixtures:
 
 pipelines:
   - pipeline:
-      type: chain
+      type: composite
       transforms:
         - type: Create
           config:
@@ -30,7 +30,8 @@ pipelines:
               - { ddsource: "apache-beam2", ddtags: "test-tags2", hostname: "test-host", service: "test-service", message: "Event for label 37a" }
               - { ddsource: "apache-beam3", ddtags: "test-tags3", hostname: "test-host", service: "test-service", message: "Event for label 389a" }
               - { ddsource: "apache-beam4", ddtags: "test-tags4", hostname: "test-host", service: "test-service", message: "Event for label 3821b" }
-        - type: WriteToDataDog
+        - type: WriteToDatadog
+          input: Create
           config:
             url: "{DATADOG_AGENT.url}"
             api_key: "{DATADOG_AGENT.api_key}"
@@ -41,9 +42,10 @@ pipelines:
             error_handling:
               output: error_output
         - type: AssertEqual
+          input: WriteToDatadog.error_output
           config:
-            elements:
-            
+            elements: []
+
 
 
 # todo assert equal?
