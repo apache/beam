@@ -182,7 +182,9 @@ class VLLMCompletionsModelHandler(ModelHandler[str,
       max_batch_size: Optional[int] = None,
       max_batch_duration_secs: Optional[int] = None,
       max_batch_weight: Optional[int] = None,
-      element_size_fn: Optional[Callable[[Any], int]] = None):
+      element_size_fn: Optional[Callable[[Any], int]] = None,
+      batch_length_fn: Optional[Callable[[Any], int]] = None,
+      batch_bucket_boundaries: Optional[list[int]] = None):
     """Implementation of the ModelHandler interface for vLLM using text as
     input.
 
@@ -210,13 +212,19 @@ class VLLMCompletionsModelHandler(ModelHandler[str,
       max_batch_weight: optional. the maximum total weight of a batch.
       element_size_fn: optional. a function that returns the size (weight) of
         an element.
+      batch_length_fn: optional. a callable that returns the length of an
+        element for length-aware batching.
+      batch_bucket_boundaries: optional. a sorted list of positive boundary
+        values for length-aware batching buckets.
     """
     super().__init__(
         min_batch_size=min_batch_size,
         max_batch_size=max_batch_size,
         max_batch_duration_secs=max_batch_duration_secs,
         max_batch_weight=max_batch_weight,
-        element_size_fn=element_size_fn)
+        element_size_fn=element_size_fn,
+        batch_length_fn=batch_length_fn,
+        batch_bucket_boundaries=batch_bucket_boundaries)
     self._model_name = model_name
     self._vllm_server_kwargs: dict[str, str] = vllm_server_kwargs or {}
 
@@ -280,7 +288,9 @@ class VLLMChatModelHandler(ModelHandler[Sequence[OpenAIChatMessage],
       max_batch_size: Optional[int] = None,
       max_batch_duration_secs: Optional[int] = None,
       max_batch_weight: Optional[int] = None,
-      element_size_fn: Optional[Callable[[Any], int]] = None):
+      element_size_fn: Optional[Callable[[Any], int]] = None,
+      batch_length_fn: Optional[Callable[[Any], int]] = None,
+      batch_bucket_boundaries: Optional[list[int]] = None):
     """ Implementation of the ModelHandler interface for vLLM using previous
     messages as input.
 
@@ -313,13 +323,19 @@ class VLLMChatModelHandler(ModelHandler[Sequence[OpenAIChatMessage],
       max_batch_weight: optional. the maximum total weight of a batch.
       element_size_fn: optional. a function that returns the size (weight) of
         an element.
+      batch_length_fn: optional. a callable that returns the length of an
+        element for length-aware batching.
+      batch_bucket_boundaries: optional. a sorted list of positive boundary
+        values for length-aware batching buckets.
     """
     super().__init__(
         min_batch_size=min_batch_size,
         max_batch_size=max_batch_size,
         max_batch_duration_secs=max_batch_duration_secs,
         max_batch_weight=max_batch_weight,
-        element_size_fn=element_size_fn)
+        element_size_fn=element_size_fn,
+        batch_length_fn=batch_length_fn,
+        batch_bucket_boundaries=batch_bucket_boundaries)
     self._model_name = model_name
     self._vllm_server_kwargs: dict[str, str] = vllm_server_kwargs or {}
     self._chat_template_path = chat_template_path

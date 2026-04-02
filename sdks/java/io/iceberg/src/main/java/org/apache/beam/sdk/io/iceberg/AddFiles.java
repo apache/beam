@@ -22,6 +22,8 @@ import static org.apache.beam.sdk.io.iceberg.AddFiles.ConvertToDataFile.ERRORS;
 import static org.apache.beam.sdk.metrics.Metrics.counter;
 import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
 import static org.apache.beam.sdk.values.PCollection.IsBounded.BOUNDED;
+import static org.apache.beam.sdk.values.PCollection.IsBounded.UNBOUNDED;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkState;
 
 import java.io.FileNotFoundException;
 import java.io.IOException;
@@ -31,9 +33,16 @@ import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.Iterator;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.concurrent.Callable;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 import java.util.concurrent.Semaphore;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -55,6 +64,8 @@ import org.apache.beam.sdk.transforms.GroupIntoBatches;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.WithKeys;
+import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
+import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionRowTuple;
@@ -65,6 +76,7 @@ import org.apache.beam.sdk.values.TupleTagList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Strings;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.hash.Hasher;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.hash.Hashing;
 import org.apache.iceberg.AppendFiles;
@@ -102,6 +114,7 @@ import org.apache.parquet.schema.MessageType;
 import org.checkerframework.checker.nullness.qual.MonotonicNonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
+import org.joda.time.Instant;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -116,13 +129,13 @@ public class AddFiles extends PTransform<PCollection<String>, PCollectionRowTupl
   private static final Counter numFilesAdded = counter(AddFiles.class, "numFilesAdded");
   private static final Counter numErrorFiles = counter(AddFiles.class, "numErrorFiles");
   private static final Logger LOG = LoggerFactory.getLogger(AddFiles.class);
-  private static final int DEFAULT_FILES_TRIGGER = 1_000;
+  private static final int DEFAULT_FILES_TRIGGER = 10_000;
   static final Schema ERROR_SCHEMA =
       Schema.builder().addStringField("file").addStringField("error").build();
   private final IcebergCatalogConfig catalogConfig;
   private final String tableIdentifier;
-  private final Duration intervalTrigger;
-  private final int numFilesTrigger;
+  private @Nullable Duration intervalTrigger;
+  private @Nullable Integer numFilesTrigger;
   private final @Nullable String locationPrefix;
   private final @Nullable List<String> partitionFields;
   private final @Nullable Map<String, String> tableProps;
@@ -139,17 +152,26 @@ public class AddFiles extends PTransform<PCollection<String>, PCollectionRowTupl
     this.tableIdentifier = tableIdentifier;
     this.partitionFields = partitionFields;
     this.tableProps = tableProps;
-    this.intervalTrigger = intervalTrigger != null ? intervalTrigger : DEFAULT_TRIGGER_INTERVAL;
-    this.numFilesTrigger = numFilesTrigger != null ? numFilesTrigger : DEFAULT_FILES_TRIGGER;
+    this.intervalTrigger = intervalTrigger;
+    this.numFilesTrigger = numFilesTrigger;
     this.locationPrefix = locationPrefix;
   }
 
   @Override
   public PCollectionRowTuple expand(PCollection<String> input) {
-    LOG.info(
-        "AddFiles configured to commit after accumulating {} files, or after {} seconds.",
-        numFilesTrigger,
-        intervalTrigger.getStandardSeconds());
+    if (input.isBounded().equals(UNBOUNDED)) {
+      intervalTrigger = intervalTrigger != null ? intervalTrigger : DEFAULT_TRIGGER_INTERVAL;
+      numFilesTrigger = numFilesTrigger != null ? numFilesTrigger : DEFAULT_FILES_TRIGGER;
+      LOG.info(
+          "AddFiles configured to commit after accumulating {} files, or after {} seconds.",
+          numFilesTrigger,
+          intervalTrigger.getStandardSeconds());
+    } else {
+      checkState(
+          intervalTrigger == null && numFilesTrigger == null,
+          "Specifying an interval trigger or file trigger is only supported for streaming pipelines.");
+    }
+
     if (!Strings.isNullOrEmpty(locationPrefix)) {
       LOG.info(
           "AddFiles configured to build partition metadata after the prefix: '{}'", locationPrefix);
@@ -183,8 +205,9 @@ public class AddFiles extends PTransform<PCollection<String>, PCollectionRowTupl
         keyedFiles.isBounded().equals(BOUNDED)
             ? keyedFiles.apply(GroupByKey.create())
             : keyedFiles.apply(
-                GroupIntoBatches.<Void, SerializableDataFile>ofSize(numFilesTrigger)
-                    .withMaxBufferingDuration(intervalTrigger));
+                GroupIntoBatches.<Void, SerializableDataFile>ofSize(
+                        checkStateNotNull(numFilesTrigger))
+                    .withMaxBufferingDuration(checkStateNotNull(intervalTrigger)));
 
     PCollection<Row> snapshots =
         groupedFiles
@@ -197,6 +220,27 @@ public class AddFiles extends PTransform<PCollection<String>, PCollectionRowTupl
         OUTPUT_TAG, snapshots, ERROR_TAG, dataFiles.get(ERRORS).setRowSchema(ERROR_SCHEMA));
   }
 
+  /**
+   * Reads incoming file paths, extracts Iceberg metadata, and converts them into {@link
+   * SerializableDataFile} objects.
+   *
+   * <p><b>Asynchronous Bundle Processing:</b> Because file I/O, catalog lookups, and metadata
+   * inference can be highly latency-bound, this DoFn implements an asynchronous processing pattern
+   * to maximize throughput. By default, Beam processes elements in a bundle sequentially. To avoid
+   * bottlenecking the pipeline, we use an internal {@link ExecutorService} to process multiple
+   * files concurrently within a single DoFn instance.
+   *
+   * <p><b>Lifecycle & Thread Safety:</b>
+   *
+   * <ul>
+   *   <li><b>{@link ProcessElement}:</b> Submits the heavy lifting (format inference, metrics
+   *       collection, and partition resolution) to a background thread pool and stores the
+   *       resulting {@link Future}.
+   *   <li><b>{@link FinishBundle}:</b> Blocks and awaits the completion of all futures in the
+   *       current bundle. It safely emits the successfully parsed {@link DataFile}s, or error rows,
+   *       back to the runner on the main thread, as {@link MultiOutputReceiver} is not thread-safe.
+   * </ul>
+   */
   static class ConvertToDataFile extends DoFn<String, SerializableDataFile> {
     private final IcebergCatalogConfig catalogConfig;
     private final String identifier;
@@ -205,10 +249,16 @@ public class AddFiles extends PTransform<PCollection<String>, PCollectionRowTupl
     private final @Nullable String prefix;
     private final @Nullable List<String> partitionFields;
     private final @Nullable Map<String, String> tableProps;
-    private transient @MonotonicNonNull Table table;
+    private transient @MonotonicNonNull ExecutorService executor;
+    private transient @MonotonicNonNull LinkedList<Future<ProcessResult>> activeTasks;
+    private transient volatile @MonotonicNonNull Table table;
+
     // Limit open readers to avoid blowing up memory on one worker
     private static final int MAX_READERS = 10;
     private static final Semaphore ACTIVE_READERS = new Semaphore(MAX_READERS);
+    // Number of parallel threads processing incoming files
+    private static final int THREAD_POOL_SIZE = 10;
+    private static final int MAX_IN_FLIGHT_TASKS = 100;
 
     public ConvertToDataFile(
         IcebergCatalogConfig catalogConfig,
@@ -227,101 +277,222 @@ public class AddFiles extends PTransform<PCollection<String>, PCollectionRowTupl
     private static final String UNKNOWN_FORMAT_ERROR = "Could not determine the file's format";
     static final String UNKNOWN_PARTITION_ERROR = "Could not determine the file's partition: ";
 
+    private static class ProcessResult {
+      final @Nullable SerializableDataFile dataFile;
+      final @Nullable Row errorRow;
+      final Instant timestamp;
+      final BoundedWindow window;
+      final PaneInfo paneInfo;
+
+      ProcessResult(
+          @Nullable SerializableDataFile dataFile,
+          @Nullable Row errorRow,
+          Instant timestamp,
+          BoundedWindow window,
+          PaneInfo paneInfo) {
+        checkState(
+            dataFile == null || errorRow == null,
+            "Expected only one of dataFile or errorRow, but got both:%n\tfile: %s%n\terror: %s",
+            dataFile != null ? dataFile.getPath() : null,
+            errorRow);
+        this.dataFile = dataFile;
+        this.errorRow = errorRow;
+        this.timestamp = timestamp;
+        this.window = window;
+        this.paneInfo = paneInfo;
+      }
+    }
+
+    @Setup
+    public void setup() {
+      executor = Executors.newFixedThreadPool(THREAD_POOL_SIZE);
+    }
+
+    @Teardown
+    public void teardown() {
+      if (executor != null) {
+        executor.shutdownNow();
+      }
+    }
+
+    @StartBundle
+    public void startBundle() {
+      activeTasks = Lists.newLinkedList();
+    }
+
     @ProcessElement
-    public void process(@Element String filePath, MultiOutputReceiver output)
-        throws IOException, InterruptedException {
-      FileFormat format;
-      try {
-        format = inferFormat(filePath);
-      } catch (UnknownFormatException e) {
-        output
-            .get(ERRORS)
-            .output(Row.withSchema(ERROR_SCHEMA).addValues(filePath, UNKNOWN_FORMAT_ERROR).build());
-        numErrorFiles.inc();
-        return;
-      }
+    public void process(
+        @Element String filePath,
+        @Timestamp Instant timestamp,
+        BoundedWindow window,
+        PaneInfo paneInfo,
+        MultiOutputReceiver output)
+        throws IOException, InterruptedException, ExecutionException {
+      LinkedList<Future<ProcessResult>> activeTasks = checkStateNotNull(this.activeTasks);
 
-      if (table == null) {
-        try {
-          table = getOrCreateTable(filePath, format);
-        } catch (FileNotFoundException e) {
-          output
-              .get(ERRORS)
-              .output(
-                  Row.withSchema(ERROR_SCHEMA)
-                      .addValues(filePath, checkStateNotNull(e.getMessage()))
-                      .build());
-          numErrorFiles.inc();
-          return;
+      // start draining finished tasks, but don't block
+      Iterator<Future<ProcessResult>> iterator = activeTasks.iterator();
+      while (iterator.hasNext()) {
+        Future<ProcessResult> future = iterator.next();
+        if (future.isDone()) {
+          outputResult(future.get(), output);
+          iterator.remove();
         }
       }
 
-      // Check if the file path contains the provided prefix
-      if (table.spec().isPartitioned()
-          && !Strings.isNullOrEmpty(prefix)
-          && !filePath.startsWith(checkStateNotNull(prefix))) {
-        output
-            .get(ERRORS)
-            .output(Row.withSchema(ERROR_SCHEMA).addValues(filePath, PREFIX_ERROR).build());
-        numErrorFiles.inc();
-        return;
+      // if we have too many active tasks, wait until some finish
+      while (activeTasks.size() >= MAX_IN_FLIGHT_TASKS) {
+        Future<ProcessResult> oldestTask = activeTasks.removeFirst();
+        outputResult(oldestTask.get(), output); // .get() blocks until the task completes
       }
 
-      InputFile inputFile = table.io().newInputFile(filePath);
+      // create a new task for the current element and add to queue
+      Callable<ProcessResult> task = createProcessTask(filePath, timestamp, window, paneInfo);
+      activeTasks.add(checkStateNotNull(executor).submit(task));
+    }
 
-      Metrics metrics;
-      try {
-        metrics =
-            getFileMetrics(
-                inputFile,
-                format,
-                MetricsConfig.forTable(table),
-                MappingUtil.create(table.schema()));
-      } catch (FileNotFoundException e) {
+    private void outputResult(ProcessResult result, MultiOutputReceiver output) {
+      if (result.errorRow != null) {
         output
             .get(ERRORS)
-            .output(
+            .outputWindowedValue(
+                result.errorRow,
+                result.timestamp,
+                Collections.singleton(result.window),
+                result.paneInfo);
+        numErrorFiles.inc();
+      } else if (result.dataFile != null) {
+        output
+            .get(DATA_FILES)
+            .outputWindowedValue(
+                result.dataFile,
+                result.timestamp,
+                Collections.singleton(result.window),
+                result.paneInfo);
+      }
+    }
+
+    @FinishBundle
+    public void finishBundle(FinishBundleContext context) throws Exception {
+      // Block and wait for threads to finish their work
+      int numErrors = 0;
+      for (Future<ProcessResult> future : checkStateNotNull(activeTasks)) {
+        ProcessResult result = future.get();
+        if (result.errorRow != null) {
+          context.output(ERRORS, result.errorRow, result.timestamp, result.window);
+          numErrors++;
+        } else if (result.dataFile != null) {
+          context.output(DATA_FILES, result.dataFile, result.timestamp, result.window);
+        }
+      }
+      numErrorFiles.inc(numErrors);
+    }
+
+    private Callable<ProcessResult> createProcessTask(
+        String filePath, Instant timestamp, BoundedWindow window, PaneInfo paneInfo) {
+
+      return () -> {
+        FileFormat format;
+        try {
+          format = inferFormat(filePath);
+        } catch (UnknownFormatException e) {
+          return new ProcessResult(
+              null,
+              Row.withSchema(ERROR_SCHEMA).addValues(filePath, UNKNOWN_FORMAT_ERROR).build(),
+              timestamp,
+              window,
+              paneInfo);
+        }
+
+        // Synchronize table initialization
+        if (table == null) {
+          synchronized (this) {
+            if (table == null) {
+              try {
+                table = getOrCreateTable(filePath, format);
+              } catch (FileNotFoundException e) {
+                return new ProcessResult(
+                    null,
+                    Row.withSchema(ERROR_SCHEMA)
+                        .addValues(filePath, checkStateNotNull(e.getMessage()))
+                        .build(),
+                    timestamp,
+                    window,
+                    paneInfo);
+              }
+            }
+          }
+        }
+
+        // Check if the file path contains the provided prefix
+        if (table.spec().isPartitioned()
+            && !Strings.isNullOrEmpty(prefix)
+            && !filePath.startsWith(checkStateNotNull(prefix))) {
+          return new ProcessResult(
+              null,
+              Row.withSchema(ERROR_SCHEMA).addValues(filePath, PREFIX_ERROR).build(),
+              timestamp,
+              window,
+              paneInfo);
+        }
+
+        InputFile inputFile = table.io().newInputFile(filePath);
+
+        Metrics metrics;
+        try {
+          metrics =
+              getFileMetrics(
+                  inputFile,
+                  format,
+                  MetricsConfig.forTable(table),
+                  MappingUtil.create(table.schema()));
+        } catch (Exception e) {
+          return new ProcessResult(
+              null,
+              Row.withSchema(ERROR_SCHEMA)
+                  .addValues(filePath, checkStateNotNull(e.getMessage()))
+                  .build(),
+              timestamp,
+              window,
+              paneInfo);
+        }
+
+        // Figure out which partition this DataFile should go to
+        String partitionPath;
+        if (table.spec().isUnpartitioned()) {
+          partitionPath = "";
+        } else if (!Strings.isNullOrEmpty(prefix)) {
+          // option 1: use directory structure to determine partition
+          // Note: we don't validate the DataFile content here
+          partitionPath = getPartitionFromFilePath(filePath);
+        } else {
+          try {
+            // option 2: examine DataFile min/max statistics to determine partition
+            partitionPath = getPartitionFromMetrics(metrics, inputFile, table);
+          } catch (UnknownPartitionException e) {
+            return new ProcessResult(
+                null,
                 Row.withSchema(ERROR_SCHEMA)
-                    .addValues(filePath, checkStateNotNull(e.getMessage()))
-                    .build());
-        numErrorFiles.inc();
-        return;
-      }
-
-      // Figure out which partition this DataFile should go to
-      String partitionPath;
-      if (table.spec().isUnpartitioned()) {
-        partitionPath = "";
-      } else if (!Strings.isNullOrEmpty(prefix)) {
-        // option 1: use directory structure to determine partition
-        // Note: we don't validate the DataFile content here
-        partitionPath = getPartitionFromFilePath(filePath);
-      } else {
-        try {
-          // option 2: examine DataFile min/max statistics to determine partition
-          partitionPath = getPartitionFromMetrics(metrics, inputFile, table);
-        } catch (UnknownPartitionException e) {
-          output
-              .get(ERRORS)
-              .output(
-                  Row.withSchema(ERROR_SCHEMA)
-                      .addValues(filePath, UNKNOWN_PARTITION_ERROR + e.getMessage())
-                      .build());
-          numErrorFiles.inc();
-          return;
+                    .addValues(filePath, UNKNOWN_PARTITION_ERROR + e.getMessage())
+                    .build(),
+                timestamp,
+                window,
+                paneInfo);
+          }
         }
-      }
 
-      DataFile df =
-          DataFiles.builder(table.spec())
-              .withPath(filePath)
-              .withFormat(format)
-              .withMetrics(metrics)
-              .withFileSizeInBytes(inputFile.getLength())
-              .withPartitionPath(partitionPath)
-              .build();
+        DataFile df =
+            DataFiles.builder(table.spec())
+                .withPath(filePath)
+                .withFormat(format)
+                .withMetrics(metrics)
+                .withFileSizeInBytes(inputFile.getLength())
+                .withPartitionPath(partitionPath)
+                .build();
 
-      output.get(DATA_FILES).output(SerializableDataFile.from(df, partitionPath));
+        return new ProcessResult(
+            SerializableDataFile.from(df, partitionPath), null, timestamp, window, paneInfo);
+      };
     }
 
     static <W, T> T transformValue(Transform<W, T> transform, Type type, ByteBuffer bytes) {
@@ -557,20 +728,15 @@ public class AddFiles extends PTransform<PCollection<String>, PCollectionRowTupl
       this.identifier = identifier;
     }
 
-    @StartBundle
-    public void start() {
-      if (table == null) {
-        table = catalogConfig.catalog().loadTable(TableIdentifier.parse(identifier));
-      }
-    }
-
     @ProcessElement
     public void process(
         @Element KV<Void, Iterable<SerializableDataFile>> files,
         @AlwaysFetched @StateId("lastCommitTimestamp") ValueState<Long> lastCommitTimestamp,
         OutputReceiver<Row> output) {
       String commitId = commitHash(files.getValue());
-      Table table = checkStateNotNull(this.table);
+      if (table == null) {
+        table = catalogConfig.catalog().loadTable(TableIdentifier.parse(identifier));
+      }
       table.refresh();
 
       if (shouldSkip(commitId, lastCommitTimestamp.read())) {

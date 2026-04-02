@@ -187,6 +187,7 @@ public class Redistribute {
                       .setTimestamp(kv.getValue().getTimestamp())
                       .setWindow(kv.getValue().getWindow())
                       .setPaneInfo(kv.getValue().getPaneInfo())
+                      .setCausedByDrain(kv.getValue().getCausedByDrain())
                       .output();
                 }
               }));

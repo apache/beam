@@ -23,8 +23,8 @@ resource "helm_release" "cert-manager" {
   repository = "https://charts.jetstack.io"
   chart      = "cert-manager"
 
-  atomic = "true"
-  timeout = 100
+  atomic = true
+  timeout = 600
 
   set = [
     {
@@ -38,12 +38,12 @@ resource "helm_release" "cert-manager" {
 resource "helm_release" "arc" {
   name = "arc"
   namespace = "arc"
-  create_namespace = "true"
+  create_namespace = true
   repository = "https://actions-runner-controller.github.io/actions-runner-controller"
   chart = "actions-runner-controller"
 
-  atomic = "true"
-  timeout = 120
+  atomic = true
+  timeout = 600
 
   set = [
     for k, v in local.arc_values : {
