@@ -168,7 +168,8 @@ dataframe_dependency = [
 milvus_dependency = ['pymilvus>=2.5.10,<3.0.0']
 
 ml_base = [
-    'embeddings>=0.0.4',  # 0.0.3 crashes setuptools
+    'embeddings>=0.0.4', # 0.0.3 crashes setuptools
+    'google-adk',
     'onnxruntime',
     'langchain',
     'sentence-transformers>=2.2.2',
@@ -301,7 +302,7 @@ def get_portability_package_data():
 
 python_requires = '>=3.10'
 
-if sys.version_info.major == 3 and sys.version_info.minor >= 14:
+if sys.version_info.major == 3 and sys.version_info.minor >= 15:
   warnings.warn(
       'This version of Apache Beam has not been sufficiently tested on '
       'Python %s.%s. You may encounter bugs or missing features.' %
@@ -649,6 +650,7 @@ if __name__ == '__main__':
           'Programming Language :: Python :: 3.11',
           'Programming Language :: Python :: 3.12',
           'Programming Language :: Python :: 3.13',
+          'Programming Language :: Python :: 3.14',
           # When updating version classifiers, also update version warnings
           # above and in apache_beam/__init__.py.
           'Topic :: Software Development :: Libraries',

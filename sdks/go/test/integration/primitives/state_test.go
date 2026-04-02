@@ -76,3 +76,8 @@ func TestSetStateClear(t *testing.T) {
 	integration.CheckFilters(t)
 	ptest.BuildAndRun(t, SetStateParDoClear)
 }
+
+func TestOrderedListState(t *testing.T) {
+	integration.CheckFilters(t)
+	ptest.BuildAndRun(t, OrderedListStateParDo)
+}

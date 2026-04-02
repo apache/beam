@@ -194,11 +194,14 @@ public class ClickHouseResourceManagerTest {
   public void testGetUriShouldReturnCorrectValue() throws SQLException {
     when(mockContainer.getHost()).thenReturn(HOST);
     when(mockContainer.getMappedPort(CLICKHOUSE_PORT)).thenReturn(MAPPED_PORT);
+    when(mockContainer.getUsername()).thenReturn("test");
+    when(mockContainer.getPassword()).thenReturn("test");
 
     assertThat(
             new ClickHouseResourceManager(
                     mockConnection, mockContainer, ClickHouseResourceManager.builder(TEST_ID))
                 .getJdbcConnectionString())
-        .matches("jdbc:clickhouse://" + HOST + ":" + MAPPED_PORT + "/default");
+        .matches(
+            "jdbc:clickhouse://" + HOST + ":" + MAPPED_PORT + "/default\\?user=test&password=test");
   }
 }

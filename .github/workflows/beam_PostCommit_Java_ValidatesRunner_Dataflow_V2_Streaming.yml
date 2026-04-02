@@ -19,7 +19,7 @@ name: PostCommit Java ValidatesRunner Dataflow V2 Streaming
 
 on:
   schedule:
-    - cron: '30 6/8 * * *'
+    - cron: '30 6/12 * * *'
   pull_request_target:
     paths: ['release/trigger_all_tests.json', '.github/trigger_files/beam_PostCommit_Java_ValidatesRunner_Dataflow_V2_Streaming.json']
   workflow_dispatch:
@@ -76,6 +76,13 @@ jobs:
         uses: ./.github/actions/setup-environment-action
         with:
           java-version: default
+      - name: Authenticate to GCP
+        uses: google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093
+        with:
+          service_account: ${{ secrets.GCP_SA_EMAIL }}
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@aa5489c8933f4cc7a4f7d45035b3b1440c9c10db
       - name: run validatesRunnerV2Streaming script
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:

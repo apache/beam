@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.util;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
@@ -26,7 +27,9 @@ import static org.mockito.Mockito.mock;
 
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.nio.charset.StandardCharsets;
 import org.apache.beam.sdk.coders.AtomicCoder;
+import org.apache.beam.sdk.coders.ByteArrayCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.Coder.Context;
 import org.apache.beam.sdk.coders.CoderException;
@@ -141,5 +144,12 @@ public class CoderUtilsTest {
         "9 unexpected extra bytes after decoding test string",
         CoderException.class,
         () -> CoderUtils.decodeFromByteString(StringUtf8Coder.of(), byteString, Context.NESTED));
+  }
+
+  @Test
+  public void testDecodeByteArrayWithoutCopy() throws Exception {
+    byte[] data = "test data".getBytes(StandardCharsets.UTF_8);
+    byte[] result = CoderUtils.decodeFromByteArray(ByteArrayCoder.of(), data);
+    assertSame(data, result);
   }
 }

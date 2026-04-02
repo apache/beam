@@ -597,7 +597,7 @@ class BeamModulePlugin implements Plugin<Project> {
     //
     // There are a few versions are determined by the BOMs by running scripts/tools/bomupgrader.py
     // marked as [bomupgrader]. See the documentation of that script for detail.
-    def activemq_version = "5.14.5"
+    def activemq_version = "5.19.2"
     def autovalue_version = "1.9"
     def autoservice_version = "1.0.1"
     def aws_java_sdk2_version = "2.20.162"
@@ -634,7 +634,7 @@ class BeamModulePlugin implements Plugin<Project> {
     def netty_version = "4.1.124.Final"
     // [bomupgrader] determined by: io.opentelemetry:opentelemetry-sdk, consistent with: google_cloud_platform_libraries_bom
     def opentelemetry_version = "1.51.0"
-    def postgres_version = "42.2.16"
+    def postgres_version = "42.6.2"
     // [bomupgrader] determined by: com.google.protobuf:protobuf-java, consistent with: google_cloud_platform_libraries_bom
     def protobuf_version = "4.33.2"
     // TODO(https://github.com/apache/beam/issues/37637): Remove this once the Bom has been updated to at least reach this version
@@ -1580,8 +1580,6 @@ class BeamModulePlugin implements Plugin<Project> {
             "StringCaseLocaleUsage",
             // DoFn methods are executed reflectively at pipeline runtime
             "UnusedMethod",
-            // Void is a valid element type of DoFn elements
-            "VoidUsed",
           ]
           disabledChecks.each {
             options.errorprone.errorproneArgs.add("-Xep:${it}:OFF")
@@ -3074,14 +3072,16 @@ class BeamModulePlugin implements Plugin<Project> {
 
       // Set min/max python versions used for containers and supported versions.
       project.ext.minPythonVersion = 10
-      project.ext.maxPythonVersion = 13
+      project.ext.maxPythonVersion = 14
 
       def setupVirtualenv = project.tasks.register('setupVirtualenv')  {
+        doNotTrackState("Virtualenv directory is not suitable for Gradle state tracking")
         doLast {
           def virtualenvCmd = [
             "python${project.ext.pythonVersion}",
             "-m",
             "venv",
+            "--copies",
             "--clear",
             "${project.ext.envdir}",
           ]
@@ -3096,9 +3096,9 @@ class BeamModulePlugin implements Plugin<Project> {
             // until it is resolved on pip's side, don't use pip's cache.
             // pip 25.1 casues :sdks:python:installGcpTest stuck. Pin to 25.0.1 for now.
             args '-c', ". ${project.ext.envdir}/bin/activate && " +
-                "pip install --pre --retries 10 --upgrade pip==25.0.1 --no-cache-dir && " +
-                "pip install --pre --retries 10 --upgrade tox --no-cache-dir && " +
-                "pip install --pre --retries 10 --upgrade setuptools build --no-cache-dir"
+                "python -m pip install --pre --retries 10 --upgrade pip==25.0.1 --no-cache-dir && " +
+                "python -m pip install --pre --retries 10 --upgrade tox --no-cache-dir && " +
+                "python -m pip install --pre --retries 10 --upgrade setuptools build --no-cache-dir"
           }
         }
         // Gradle will delete outputs whenever it thinks they are stale. Putting a

@@ -129,7 +129,7 @@ public class FanOutStreamingEngineWorkerHarnessTest {
         getWorkStreamLatencies) -> {};
   }
 
-  private static GetWorkRequest getWorkRequest(long items, long bytes) {
+  private static GetWorkRequest getWorkRequest(long items, long bytes, String backendWorkerToken) {
     return GetWorkRequest.newBuilder()
         .setJobId(JOB_ID)
         .setProjectId(PROJECT_ID)
@@ -137,6 +137,7 @@ public class FanOutStreamingEngineWorkerHarnessTest {
         .setClientId(JOB_HEADER.getClientId())
         .setMaxItems(items)
         .setMaxBytes(bytes)
+        .setBackendWorkerToken(backendWorkerToken)
         .build();
   }
 
@@ -236,9 +237,22 @@ public class FanOutStreamingEngineWorkerHarnessTest {
         .distributeBudget(
             any(), eq(GetWorkBudget.builder().setItems(items).setBytes(bytes).build()));
 
-    verify(streamFactory, times(2))
+    verify(streamFactory, times(1))
         .createDirectGetWorkStream(
-            any(), eq(getWorkRequest(0, 0)), any(), any(), any(), eq(noOpProcessWorkItemFn()));
+            any(),
+            eq(getWorkRequest(0, 0, workerToken)),
+            any(),
+            any(),
+            any(),
+            eq(noOpProcessWorkItemFn()));
+    verify(streamFactory, times(1))
+        .createDirectGetWorkStream(
+            any(),
+            eq(getWorkRequest(0, 0, workerToken2)),
+            any(),
+            any(),
+            any(),
+            eq(noOpProcessWorkItemFn()));
 
     verify(streamFactory, times(2)).createDirectGetDataStream(any());
     verify(streamFactory, times(2)).createDirectCommitWorkStream(any());

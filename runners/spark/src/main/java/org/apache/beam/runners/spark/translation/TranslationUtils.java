@@ -445,8 +445,14 @@ public final class TranslationUtils {
     return tuple2 -> {
       TupleTag<?> tupleTag = tuple2._1;
       WindowedValue<?> windowedValue = tuple2._2;
-      return new Tuple2<>(
-          tupleTag, ValueAndCoderLazySerializable.of(windowedValue, coderMap.get(tupleTag)));
+      Coder<WindowedValue<?>> coder = coderMap.get(tupleTag);
+      if (coder == null) {
+        // there is no coder as this output is unconsumed and is not read anywhere, so coder is
+        // pruned
+        // from coderMap
+        return null;
+      }
+      return new Tuple2<>(tupleTag, ValueAndCoderLazySerializable.of(windowedValue, coder));
     };
   }
 
