@@ -1617,7 +1617,7 @@ public class BigQueryServicesImpl implements BigQueryServices {
         }
 
         @Override
-        public void unpin() throws Exception {
+        public void unpin() {
           boolean closeWriter;
           synchronized (this) {
             Preconditions.checkState(pins > 0, "Tried to unpin when pins==0");

@@ -47,9 +47,6 @@ import java.util.Optional;
 import java.util.Random;
 import java.util.Set;
 import java.util.concurrent.Callable;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Predicate;
@@ -89,9 +86,6 @@ import org.apache.beam.sdk.values.TupleTagList;
 import org.apache.beam.sdk.values.WindowedValues;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Predicates;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Strings;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.cache.Cache;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.cache.CacheBuilder;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.cache.RemovalNotification;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Maps;
@@ -122,56 +116,17 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
   private final Coder<TableRow> successfulRowsCoder;
   private final boolean autoUpdateSchema;
   private final boolean ignoreUnknownValues;
-  private static final ExecutorService closeWriterExecutor = Executors.newCachedThreadPool();
   private final BigQueryIO.Write.CreateDisposition createDisposition;
   private final @Nullable String kmsKey;
   private final boolean usesCdc;
   private final AppendRowsRequest.MissingValueInterpretation defaultMissingValueInterpretation;
   private final @Nullable Map<String, String> bigLakeConfiguration;
 
-  /**
-   * The Guava cache object is thread-safe. However our protocol requires that client pin the
-   * StreamAppendClient after looking up the cache, and we must ensure that the cache is not
-   * accessed in between the lookup and the pin (any access of the cache could trigger element
-   * expiration). Therefore most used of APPEND_CLIENTS should synchronize.
-   */
-  private static final Cache<String, AppendClientInfo> APPEND_CLIENTS =
-      CacheBuilder.newBuilder()
-          .expireAfterAccess(15, TimeUnit.MINUTES)
-          .removalListener(
-              (RemovalNotification<String, AppendClientInfo> removal) -> {
-                LOG.info("Expiring append client for {}", removal.getKey());
-                final @Nullable AppendClientInfo appendClientInfo = removal.getValue();
-                if (appendClientInfo != null) {
-                  appendClientInfo.close();
-                }
-              })
-          .build();
+  private static final AppendClientCache<String> APPEND_CLIENTS =
+      new AppendClientCache<>(Duration.standardMinutes(15));
 
   static void clearCache() {
-    APPEND_CLIENTS.invalidateAll();
-  }
-
-  // Run a closure asynchronously, ignoring failures.
-  private interface ThrowingRunnable {
-    void run() throws Exception;
-  }
-
-  private static void runAsyncIgnoreFailure(ExecutorService executor, ThrowingRunnable task) {
-    executor.submit(
-        () -> {
-          try {
-            task.run();
-          } catch (Exception e) {
-            String msg =
-                e.toString()
-                    + "\n"
-                    + Arrays.stream(e.getStackTrace())
-                        .map(StackTraceElement::toString)
-                        .collect(Collectors.joining("\n"));
-            System.err.println("Exception happened while executing async task. Ignoring: " + msg);
-          }
-        });
+    APPEND_CLIENTS.clear();
   }
 
   public StorageApiWriteUnshardedRecords(
@@ -362,18 +317,9 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
 
       void teardown() {
         maybeTickleCache();
-        if (appendClientInfo != null) {
-          StreamAppendClient client = appendClientInfo.getStreamAppendClient();
-          if (client != null) {
-            runAsyncIgnoreFailure(closeWriterExecutor, client::unpin);
-          }
-          // if this is a PENDING stream, we won't be using it again after cleaning up this
-          // destination state, so clear it from the cache
-          if (!useDefaultStream) {
-            APPEND_CLIENTS.invalidate(streamName);
-          }
-          appendClientInfo = null;
-        }
+        // if this is a PENDING stream, we won't be using it again after cleaning up this
+        // destination state, so clear it from the cache
+        invalidateAppendClient(!useDefaultStream);
       }
 
       String getDefaultStreamName() {
@@ -419,18 +365,7 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
                 AppendClientInfo.of(
                     schemaAndDescriptor.tableSchema,
                     schemaAndDescriptor.descriptor,
-                    // Make sure that the client is always closed in a different thread to avoid
-                    // blocking.
-                    client ->
-                        runAsyncIgnoreFailure(
-                            closeWriterExecutor,
-                            () -> {
-                              synchronized (APPEND_CLIENTS) {
-                                // Remove the pin owned by the cache.
-                                client.unpin();
-                                client.close();
-                              }
-                            })));
+                    AutoCloseable::close));
 
         CreateTableHelpers.createTableWrapper(
             () -> {
@@ -446,9 +381,6 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
               return null;
             },
             tryCreateTable);
-
-        // This pin is "owned" by the cache.
-        Preconditions.checkStateNotNull(appendClientInfo.get().getStreamAppendClient()).pin();
         return appendClientInfo.get();
       }
 
@@ -515,23 +447,14 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
         try {
           if (this.appendClientInfo == null) {
             getOrCreateStreamName();
-            final AppendClientInfo newAppendClientInfo;
-            synchronized (APPEND_CLIENTS) {
-              if (lookupCache) {
-                newAppendClientInfo =
-                    APPEND_CLIENTS.get(
+            this.appendClientInfo =
+                lookupCache
+                    ? APPEND_CLIENTS.getAndPin(
+                        getStreamAppendClientCacheEntryKey(), () -> generateClient(updatedSchema))
+                    : APPEND_CLIENTS.putAndPin(
                         getStreamAppendClientCacheEntryKey(), () -> generateClient(updatedSchema));
-              } else {
-                newAppendClientInfo = generateClient(updatedSchema);
-                // override the clients in the cache.
-                APPEND_CLIENTS.put(getStreamAppendClientCacheEntryKey(), newAppendClientInfo);
-              }
-              // This pin is "owned" by the current DoFn.
-              Preconditions.checkStateNotNull(newAppendClientInfo.getStreamAppendClient()).pin();
-            }
-            nextCacheTickle = Instant.now().plus(java.time.Duration.ofMinutes(1));
-            this.appendClientInfo = newAppendClientInfo;
           }
+          nextCacheTickle = Instant.now().plus(java.time.Duration.ofMinutes(1));
           return Preconditions.checkStateNotNull(appendClientInfo);
         } catch (Exception e) {
           throw new RuntimeException(e);
@@ -540,37 +463,24 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
 
       void maybeTickleCache() {
         if (appendClientInfo != null && Instant.now().isAfter(nextCacheTickle)) {
-          synchronized (APPEND_CLIENTS) {
-            APPEND_CLIENTS.getIfPresent(getStreamAppendClientCacheEntryKey());
-          }
+          APPEND_CLIENTS.tickle(getStreamAppendClientCacheEntryKey());
           nextCacheTickle = Instant.now().plus(java.time.Duration.ofMinutes(1));
         }
       }
 
-      void invalidateWriteStream() {
-        if (appendClientInfo != null) {
-          synchronized (APPEND_CLIENTS) {
-            // Unpin in a different thread, as it may execute a blocking close.
-            StreamAppendClient client = appendClientInfo.getStreamAppendClient();
-            if (client != null) {
-              runAsyncIgnoreFailure(closeWriterExecutor, client::unpin);
-            }
-            // The default stream is cached across multiple different DoFns. If they all try and
-            // invalidate, then we can get races between threads invalidating and recreating
-            // streams. For this reason,
-            // we check to see that the cache still contains the object we created before
-            // invalidating (in case another
-            // thread has already invalidated and recreated the stream).
-            String cacheEntryKey = getStreamAppendClientCacheEntryKey();
-            @Nullable
-            AppendClientInfo cachedAppendClient = APPEND_CLIENTS.getIfPresent(cacheEntryKey);
-            if (cachedAppendClient != null
-                && System.identityHashCode(cachedAppendClient)
-                    == System.identityHashCode(appendClientInfo)) {
-              APPEND_CLIENTS.invalidate(cacheEntryKey);
-            }
+      void invalidateAppendClient(boolean invalidateCache) {
+        if (this.appendClientInfo != null) {
+          // Unpin in a different thread, as it may execute a blocking close.
+          StreamAppendClient client = appendClientInfo.getStreamAppendClient();
+          if (client != null) {
+            APPEND_CLIENTS.unpinAsync(Preconditions.checkStateNotNull(this.appendClientInfo));
           }
-          appendClientInfo = null;
+          if (invalidateCache) {
+            APPEND_CLIENTS.invalidate(
+                getStreamAppendClientCacheEntryKey(),
+                Preconditions.checkStateNotNull(this.appendClientInfo));
+          }
+          this.appendClientInfo = null;
         }
       }
 
@@ -677,7 +587,7 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
             LOG.info("Schema out of date: refreshing table schema for {}.", tableUrn);
             // Refresh our view of the schema and try again..
             this.messageConverter.updateSchemaFromTable();
-            invalidateWriteStream();
+            invalidateAppendClient(true);
             this.appendClientInfo =
                 Preconditions.checkStateNotNull(
                     getAppendClientInfo(
@@ -874,7 +784,7 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
               if (!quotaError) {
                 // This forces us to close and reopen all gRPC connections to Storage API on error,
                 // which empirically fixes random stuckness issues.
-                invalidateWriteStream();
+                invalidateAppendClient(true);
                 allowedRetry = 5;
               } else {
                 allowedRetry = 35;
@@ -1031,7 +941,7 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
                 TableSchemaUpdateUtils.getUpdatedSchema(
                     this.messageConverter.getTableSchema(), updatedTableSchemaReturned);
             if (updatedTableSchema.isPresent()) {
-              invalidateWriteStream();
+              invalidateAppendClient(true);
               appendClientInfo =
                   Preconditions.checkStateNotNull(
                       getAppendClientInfo(false, updatedTableSchema.get()));
