@@ -364,7 +364,7 @@ class HomogeneousWindowedBatch(WindowedBatch):
 
   @staticmethod
   def from_batch_and_windowed_value(
-      *, batch, windowed_value: WindowedValue) -> 'WindowedBatch':
+      *, batch, windowed_value: WindowedValue) -> WindowedBatch:
     return HomogeneousWindowedBatch(windowed_value.with_value(batch))
 
   @staticmethod

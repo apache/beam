@@ -235,7 +235,7 @@ class AbstractMetricCell(MetricCell):
   def reset(self):
     self.data = self.data_class.identity_element()
 
-  def combine(self, other: 'AbstractMetricCell') -> 'AbstractMetricCell':
+  def combine(self, other: AbstractMetricCell) -> AbstractMetricCell:
     result = type(self)()  # type: ignore[call-arg]
     result.data = self.data.combine(other.data)
     return result
@@ -670,7 +670,7 @@ class _BoundedTrieNode(object):
   def __init__(self):
     # invariant: size = len(self.flattened()) = min(1, sum(size of children))
     self._size = 1
-    self._children: Optional[dict[str, '_BoundedTrieNode']] = {}
+    self._children: Optional[dict[str, _BoundedTrieNode]] = {}
     self._truncated = False
 
   def to_proto(self) -> metrics_pb2.BoundedTrieNode:
@@ -682,7 +682,7 @@ class _BoundedTrieNode(object):
         } if self._children else None)
 
   @staticmethod
-  def from_proto(proto: metrics_pb2.BoundedTrieNode) -> '_BoundedTrieNode':
+  def from_proto(proto: metrics_pb2.BoundedTrieNode) -> _BoundedTrieNode:
     node = _BoundedTrieNode()
     if proto.truncated:
       node._truncated = True
@@ -736,7 +736,7 @@ class _BoundedTrieNode(object):
     self._size += delta
     return delta
 
-  def merge(self, other: '_BoundedTrieNode') -> int:
+  def merge(self, other: _BoundedTrieNode) -> int:
     if self._truncated:
       delta = 0
     elif other._truncated:
@@ -750,8 +750,8 @@ class _BoundedTrieNode(object):
       delta = other._size - self._size
     else:
       delta = 0
-      other_child: '_BoundedTrieNode'
-      self_child: Optional['_BoundedTrieNode']
+      other_child: _BoundedTrieNode
+      self_child: Optional[_BoundedTrieNode]
       for prefix, other_child in other._children.items():
         self_child = self._children.get(prefix, None)
         if self_child is None:
@@ -822,7 +822,7 @@ class BoundedTrieData(object):
         root=self._root.to_proto() if self._root else None)
 
   @staticmethod
-  def from_proto(proto: metrics_pb2.BoundedTrie) -> 'BoundedTrieData':
+  def from_proto(proto: metrics_pb2.BoundedTrie) -> BoundedTrieData:
     return BoundedTrieData(
         bound=proto.bound,
         singleton=tuple(proto.singleton) if proto.singleton else None,
@@ -851,7 +851,7 @@ class BoundedTrieData(object):
   def __repr__(self) -> str:
     return 'BoundedTrieData({})'.format(self.as_trie())
 
-  def get_cumulative(self) -> "BoundedTrieData":
+  def get_cumulative(self) -> BoundedTrieData:
     return copy.deepcopy(self)
 
   def get_result(self) -> Set[tuple]:
@@ -877,7 +877,7 @@ class BoundedTrieData(object):
       if self._root._size > self._bound:
         self._root.trim()
 
-  def combine(self, other: "BoundedTrieData") -> "BoundedTrieData":
+  def combine(self, other: BoundedTrieData) -> BoundedTrieData:
     if self._root is None and self._singleton is None:
       return other
     elif other._root is None and other._singleton is None:
@@ -896,13 +896,13 @@ class BoundedTrieData(object):
       return BoundedTrieData(root=combined)
 
   @staticmethod
-  def singleton(value: str) -> "BoundedTrieData":
+  def singleton(value: str) -> BoundedTrieData:
     s = BoundedTrieData()
     s.add(value)
     return s
 
   @staticmethod
-  def identity_element() -> "BoundedTrieData":
+  def identity_element() -> BoundedTrieData:
     return BoundedTrieData()
 
 
