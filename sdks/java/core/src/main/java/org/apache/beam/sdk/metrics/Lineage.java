@@ -23,7 +23,6 @@ import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
-import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.regex.Pattern;
@@ -48,8 +47,7 @@ public class Lineage {
   private static final AtomicReference<Lineage> SOURCES = new AtomicReference<>();
   private static final AtomicReference<Lineage> SINKS = new AtomicReference<>();
 
-  private static final AtomicReference<@Nullable Class<? extends LineageBase>>
-      CURRENT_LINEAGE_TYPE = new AtomicReference<>();
+  private static final Object INIT_LOCK = new Object();
 
   // Reserved characters are backtick, colon, whitespace (space, \t, \n) and dot.
   private static final Pattern RESERVED_CHARS = Pattern.compile("[:\\s.`]");
@@ -68,16 +66,11 @@ public class Lineage {
   @Internal
   public static void setDefaultPipelineOptions(PipelineOptions options) {
     checkNotNull(options, "options cannot be null");
-    Class<? extends LineageBase> requestedType = options.as(LineageOptions.class).getLineageType();
-
-    Class<? extends LineageBase> currentType = CURRENT_LINEAGE_TYPE.get();
-    if (Objects.equals(currentType, requestedType) && SOURCES.get() != null) {
-      return;
-    }
-    if (CURRENT_LINEAGE_TYPE.compareAndSet(currentType, requestedType)) {
+    synchronized (INIT_LOCK) {
       SOURCES.set(createLineage(options, LineageDirection.SOURCE));
       SINKS.set(createLineage(options, LineageDirection.SINK));
-      LOG.debug("Lineage initialized with type {}", requestedType);
+      LOG.debug(
+          "Lineage initialized with type {}", options.as(LineageOptions.class).getLineageType());
     }
   }
 
