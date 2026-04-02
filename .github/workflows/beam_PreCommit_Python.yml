@@ -57,6 +57,7 @@ env:
   PYTHONHASHSEED: "0"
   OMP_NUM_THREADS: "1"
   OPENBLAS_NUM_THREADS: "1"
+  # TODO(https://github.com/grpc/grpc/issues/37710): Remove once fixed.
   GRPC_ENABLE_FORK_SUPPORT: "0"
   # gRPC stability - more conservative for unstable networks
   GRPC_ARG_KEEPALIVE_TIME_MS: "10000"

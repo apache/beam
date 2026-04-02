@@ -1412,8 +1412,7 @@ class PypiExpansionService:
 
   @classmethod
   def _create_venv_to_clone(cls, base_python: str) -> str:
-    _ci = os.environ.get('CI', '').lower() in ('true', '1', 'yes')
-    if '.dev' in beam_version and not _ci:
+    if '.dev' in beam_version:
       base_venv = os.path.dirname(os.path.dirname(base_python))
       print('Cloning dev environment from', base_venv)
       return base_venv
