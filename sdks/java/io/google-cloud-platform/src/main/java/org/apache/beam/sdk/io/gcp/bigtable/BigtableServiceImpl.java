@@ -44,6 +44,7 @@ import com.google.cloud.bigtable.data.v2.internal.ByteStringComparator;
 import com.google.cloud.bigtable.data.v2.internal.NameUtil;
 import com.google.cloud.bigtable.data.v2.models.Filters;
 import com.google.cloud.bigtable.data.v2.models.KeyOffset;
+import com.google.cloud.bigtable.data.v2.models.MaterializedViewId;
 import com.google.cloud.bigtable.data.v2.models.Query;
 import com.google.cloud.bigtable.data.v2.models.RowAdapter;
 import com.google.cloud.bigtable.data.v2.models.RowMutation;
@@ -139,6 +140,7 @@ class BigtableServiceImpl implements BigtableService {
     private final String projectId;
     private final String instanceId;
     private final String tableId;
+    private final @Nullable String materializedViewName;
 
     private final List<ByteKeyRange> ranges;
     private final RowFilter rowFilter;
@@ -160,10 +162,24 @@ class BigtableServiceImpl implements BigtableService {
         List<ByteKeyRange> ranges,
         @Nullable RowFilter rowFilter,
         boolean skipLargeRows) {
+      this(client, projectId, instanceId, tableId, null, ranges, rowFilter, skipLargeRows);
+    }
+
+    @VisibleForTesting
+    BigtableReaderImpl(
+        BigtableDataClient client,
+        String projectId,
+        String instanceId,
+        @Nullable String tableId,
+        @Nullable String materializedViewName,
+        List<ByteKeyRange> ranges,
+        @Nullable RowFilter rowFilter,
+        boolean skipLargeRows) {
       this.client = client;
       this.projectId = projectId;
       this.instanceId = instanceId;
       this.tableId = tableId;
+      this.materializedViewName = materializedViewName;
       this.ranges = ranges;
       this.rowFilter = rowFilter;
       this.skipLargeRows = skipLargeRows;
@@ -171,9 +187,15 @@ class BigtableServiceImpl implements BigtableService {
 
     @Override
     public boolean start() throws IOException {
-      ServiceCallMetric serviceCallMetric = createCallMetric(projectId, instanceId, tableId);
+      String metricId = materializedViewName != null ? materializedViewName : tableId;
+      ServiceCallMetric serviceCallMetric = createCallMetric(projectId, instanceId, metricId);
 
-      Query query = Query.create(tableId);
+      Query query;
+      if (materializedViewName != null) {
+        query = Query.create(MaterializedViewId.of(materializedViewName));
+      } else {
+        query = Query.create(tableId);
+      }
       for (ByteKeyRange sourceRange : ranges) {
         query.range(
             ByteString.copyFrom(sourceRange.getStartKey().getValue()),
@@ -233,7 +255,8 @@ class BigtableServiceImpl implements BigtableService {
 
     @Override
     public void reportLineage() {
-      Lineage.getSources().add("bigtable", ImmutableList.of(projectId, instanceId, tableId));
+      String targetName = materializedViewName != null ? materializedViewName : tableId;
+      Lineage.getSources().add("bigtable", ImmutableList.of(projectId, instanceId, targetName));
     }
   }
 
@@ -250,7 +273,8 @@ class BigtableServiceImpl implements BigtableService {
     private ServiceCallMetric serviceCallMetric;
     private final String projectId;
     private final String instanceId;
-    private final String tableId;
+    private final @Nullable String tableId;
+    private final @Nullable String materializedViewName;
 
     private static class UpstreamResults {
       private final List<Row> rows;
@@ -266,7 +290,8 @@ class BigtableServiceImpl implements BigtableService {
         BigtableDataClient client,
         String projectId,
         String instanceId,
-        String tableId,
+        @Nullable String tableId,
+        @Nullable String materializedViewName,
         List<ByteKeyRange> ranges,
         @Nullable RowFilter rowFilter,
         int maxBufferedElementCount) {
@@ -292,16 +317,18 @@ class BigtableServiceImpl implements BigtableService {
                   MIN_BYTE_BUFFER_SIZE,
                   (Runtime.getRuntime().totalMemory() * DEFAULT_BYTE_LIMIT_PERCENTAGE));
 
+      String metricId = materializedViewName != null ? materializedViewName : tableId;
       return new BigtableSegmentReaderImpl(
           client,
           projectId,
           instanceId,
           tableId,
+          materializedViewName,
           rowSet,
           filter,
           maxBufferedElementCount,
           maxSegmentByteSize,
-          createCallMetric(projectId, instanceId, tableId));
+          createCallMetric(projectId, instanceId, metricId));
     }
 
     @VisibleForTesting
@@ -315,16 +342,45 @@ class BigtableServiceImpl implements BigtableService {
         int maxRowsInBuffer,
         long maxSegmentByteSize,
         ServiceCallMetric serviceCallMetric) {
+      this(
+          client,
+          projectId,
+          instanceId,
+          tableId,
+          null,
+          rowSet,
+          filter,
+          maxRowsInBuffer,
+          maxSegmentByteSize,
+          serviceCallMetric);
+    }
+
+    @VisibleForTesting
+    BigtableSegmentReaderImpl(
+        BigtableDataClient client,
+        String projectId,
+        String instanceId,
+        @Nullable String tableId,
+        @Nullable String materializedViewName,
+        RowSet rowSet,
+        @Nullable RowFilter filter,
+        int maxRowsInBuffer,
+        long maxSegmentByteSize,
+        ServiceCallMetric serviceCallMetric) {
       if (rowSet.equals(rowSet.getDefaultInstanceForType())) {
         rowSet = RowSet.newBuilder().addRowRanges(RowRange.getDefaultInstance()).build();
       }
+
+      ReadRowsRequest.Builder requestBuilder = ReadRowsRequest.newBuilder();
+      if (materializedViewName != null) {
+        requestBuilder.setMaterializedViewName(
+            NameUtil.formatMaterializedViewName(projectId, instanceId, materializedViewName));
+      } else {
+        requestBuilder.setTableName(NameUtil.formatTableName(projectId, instanceId, tableId));
+      }
+
       ReadRowsRequest request =
-          ReadRowsRequest.newBuilder()
-              .setTableName(NameUtil.formatTableName(projectId, instanceId, tableId))
-              .setRows(rowSet)
-              .setFilter(filter)
-              .setRowsLimit(maxRowsInBuffer)
-              .build();
+          requestBuilder.setRows(rowSet).setFilter(filter).setRowsLimit(maxRowsInBuffer).build();
 
       this.client = client;
       this.nextRequest = request;
@@ -337,6 +393,7 @@ class BigtableServiceImpl implements BigtableService {
       this.projectId = projectId;
       this.instanceId = instanceId;
       this.tableId = tableId;
+      this.materializedViewName = materializedViewName;
     }
 
     @Override
@@ -344,7 +401,8 @@ class BigtableServiceImpl implements BigtableService {
 
     @Override
     public void reportLineage() {
-      Lineage.getSources().add("bigtable", ImmutableList.of(projectId, instanceId, tableId));
+      String targetName = materializedViewName != null ? materializedViewName : tableId;
+      Lineage.getSources().add("bigtable", ImmutableList.of(projectId, instanceId, targetName));
     }
 
     @Override
@@ -669,12 +727,22 @@ class BigtableServiceImpl implements BigtableService {
 
   @Override
   public Reader createReader(BigtableSource source) throws IOException {
+    String tableId =
+        source.getTableId() != null && source.getTableId().isAccessible()
+            ? source.getTableId().get()
+            : null;
+    String mvName =
+        source.getMaterializedViewName() != null && source.getMaterializedViewName().isAccessible()
+            ? source.getMaterializedViewName().get()
+            : null;
+
     if (source.getMaxBufferElementCount() != null) {
       return BigtableSegmentReaderImpl.create(
           client,
           projectId,
           instanceId,
-          source.getTableId().get(),
+          tableId,
+          mvName,
           source.getRanges(),
           source.getRowFilter(),
           source.getMaxBufferElementCount());
@@ -683,7 +751,8 @@ class BigtableServiceImpl implements BigtableService {
           client,
           projectId,
           instanceId,
-          source.getTableId().get(),
+          tableId,
+          mvName,
           source.getRanges(),
           source.getRowFilter(),
           skipLargeRows);
@@ -692,6 +761,10 @@ class BigtableServiceImpl implements BigtableService {
 
   @Override
   public List<KeyOffset> getSampleRowKeys(BigtableSource source) {
+    if (source.getMaterializedViewName() != null
+        && source.getMaterializedViewName().isAccessible()) {
+      return client.sampleRowKeys(MaterializedViewId.of(source.getMaterializedViewName().get()));
+    }
     return client.sampleRowKeys(source.getTableId().get());
   }
 
