@@ -15,7 +15,7 @@
   "author": "apache-beam",
   "files": [
     "lib/**/*.{d.ts,eot,gif,html,jpg,js,js.map,json,png,svg,woff2,ttf}",
-    "style/**/*.{css,eot,gif,html,jpg,json,png,svg,woff2,ttf}"
+    "style/**/*.{css,js,eot,gif,html,jpg,json,png,svg,woff2,ttf}"
   ],
   "main": "lib/index.js",
   "types": "lib/index.d.ts",
@@ -100,6 +100,7 @@
     "style/*.css",
     "style/index.js"
   ],
+  "styleModule": "style/index.js",
   "jupyterlab": {
     "extension": true,
     "outputDir": "apache_beam_jupyterlab_sidepanel/labextension"
