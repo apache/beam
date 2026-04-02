@@ -249,7 +249,9 @@ public class FileIOTest implements Serializable {
       context.output(Objects.requireNonNull(context.element()).getValue());
 
       CopyOption[] cpOptions = {StandardCopyOption.COPY_ATTRIBUTES};
-      CopyOption[] updOptions = {StandardCopyOption.REPLACE_EXISTING};
+      CopyOption[] updOptions = {
+        StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.COPY_ATTRIBUTES
+      };
       final Path sourcePath = Paths.get(sourcePathStr);
       final Path watchPath = Paths.get(watchPathStr);
 
