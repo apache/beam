@@ -77,15 +77,11 @@ class TestBigQueryEnrichment(unittest.TestCase):
         min_batch_size=2,
         max_batch_size=2,
     )
-    requests = [
-        beam.Row(id='1', name='first'),
-        beam.Row(id='1', name='second')
-    ]
+    requests = [beam.Row(id='1', name='first'), beam.Row(id='1', name='second')]
 
-    with mock.patch.object(
-        handler,
-        '_execute_query',
-        return_value=[{'id': '1', 'value': 'enriched'}]):
+    with mock.patch.object(handler,
+                           '_execute_query',
+                           return_value=[{'id': '1', 'value': 'enriched'}]):
       responses = handler(requests)
 
     self.assertEqual(
@@ -106,10 +102,7 @@ class TestBigQueryEnrichment(unittest.TestCase):
         max_batch_size=2,
         throw_exception_on_empty_results=False,
     )
-    requests = [
-        beam.Row(id='1', name='first'),
-        beam.Row(id='1', name='second')
-    ]
+    requests = [beam.Row(id='1', name='first'), beam.Row(id='1', name='second')]
 
     with mock.patch.object(handler, '_execute_query', return_value=None):
       responses = handler(requests)

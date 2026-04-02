@@ -214,7 +214,8 @@ class BigQueryEnrichmentHandler(EnrichmentSourceHandler[Union[Row, list[Row]],
 
       responses_dict = self._execute_query(query)
       unmatched_requests = {
-          key: list(reqs) for key, reqs in requests_map.items()
+          key: list(reqs)
+          for key, reqs in requests_map.items()
       }
       if responses_dict:
         for response in responses_dict:
