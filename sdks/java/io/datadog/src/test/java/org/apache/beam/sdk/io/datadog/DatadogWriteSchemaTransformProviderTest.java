@@ -23,6 +23,9 @@ import static org.junit.Assert.fail;
 
 import java.util.Arrays;
 import java.util.List;
+import java.util.ServiceLoader;
+import java.util.stream.Collectors;
+import java.util.stream.StreamSupport;
 import org.apache.beam.sdk.Pipeline.PipelineExecutionException;
 import org.apache.beam.sdk.coders.Coder.NonDeterministicException;
 import org.apache.beam.sdk.schemas.AutoValueSchema;
@@ -30,6 +33,7 @@ import org.apache.beam.sdk.schemas.NoSuchSchemaException;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.SchemaRegistry;
 import org.apache.beam.sdk.schemas.transforms.SchemaTransform;
+import org.apache.beam.sdk.schemas.transforms.SchemaTransformProvider;
 import org.apache.beam.sdk.schemas.transforms.providers.ErrorHandling;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
@@ -38,6 +42,8 @@ import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionRowTuple;
 import org.apache.beam.sdk.values.Row;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Sets;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -51,7 +57,7 @@ public class DatadogWriteSchemaTransformProviderTest {
   private static final Logger LOG =
       LoggerFactory.getLogger(DatadogWriteSchemaTransformProviderTest.class);
 
-  @Rule public transient TestPipeline p = TestPipeline.create();
+  @Rule public TestPipeline p = TestPipeline.create();
 
   private static final Schema SCHEMA =
       Schema.builder()
@@ -100,13 +106,69 @@ public class DatadogWriteSchemaTransformProviderTest {
   }
 
   @Test
+  public void testWriteBuildTransform() {
+    DatadogWriteSchemaTransformProvider provider = new DatadogWriteSchemaTransformProvider();
+    DatadogWriteSchemaTransformConfiguration configuration =
+        DatadogWriteSchemaTransformConfiguration.builder()
+            .setApiKey("test-api-key")
+            .setUrl("http://localhost:8080")
+            .build();
+
+    provider.from(configuration);
+  }
+
+  @Test
+  public void testWriteBuildTransformAndRun() {
+    DatadogWriteSchemaTransformProvider provider = new DatadogWriteSchemaTransformProvider();
+    DatadogWriteSchemaTransformConfiguration configuration =
+        DatadogWriteSchemaTransformConfiguration.builder()
+            .setApiKey("test-api-key")
+            .setUrl("http://localhost:8080")
+            .build();
+
+    SchemaTransform transform = provider.from(configuration);
+
+    PCollection<Row> input = p.apply("Create", Create.of(ROWS).withRowSchema(SCHEMA));
+    PCollectionRowTuple inputTuple = PCollectionRowTuple.of("input", input);
+    PCollectionRowTuple output = transform.expand(inputTuple);
+    assertTrue(output.getAll().isEmpty());
+
+    p.run().waitUntilFinish();
+  }
+
+  @Test
+  public void testWriteBuildTransformWithCorrectFields() {
+    ServiceLoader<SchemaTransformProvider> serviceLoader =
+        ServiceLoader.load(SchemaTransformProvider.class);
+    List<SchemaTransformProvider> providers =
+        StreamSupport.stream(serviceLoader.spliterator(), false)
+            .filter(provider -> provider.getClass() == DatadogWriteSchemaTransformProvider.class)
+            .collect(Collectors.toList());
+    SchemaTransformProvider datadogProvider = providers.get(0);
+    assertEquals(datadogProvider.outputCollectionNames(), Lists.newArrayList("output", "errors"));
+
+    assertEquals(
+        Sets.newHashSet(
+            "url",
+            "api_key",
+            "min_batch_count",
+            "batch_count",
+            "max_buffer_size",
+            "parallelism",
+            "error_handling"),
+        datadogProvider.configurationSchema().getFields().stream()
+            .map(field -> field.getName())
+            .collect(Collectors.toSet()));
+  }
+
+  @Test
   public void testRowToDatadogEventFn() throws NonDeterministicException {
     PCollection<Row> input = p.apply(Create.of(ROWS).withRowSchema(SCHEMA));
 
     PCollection<DatadogEvent> output =
         input.apply(
             "RowToDatadogEvent",
-            ParDo.of(new DatadogWriteSchemaTransformProvider.RowToDatadogEventFn(null)));
+            ParDo.of(new DatadogWriteSchemaTransformProvider.RowToDatadogEventFn(null, false)));
 
     output.setCoder(DatadogEventCoder.of());
 
@@ -141,7 +203,7 @@ public class DatadogWriteSchemaTransformProviderTest {
     PCollection<DatadogEvent> output =
         input.apply(
             "RowToDatadogEvent",
-            ParDo.of(new DatadogWriteSchemaTransformProvider.RowToDatadogEventFn(null)));
+            ParDo.of(new DatadogWriteSchemaTransformProvider.RowToDatadogEventFn(null, false)));
 
     output.setCoder(DatadogEventCoder.of());
 
@@ -185,7 +247,7 @@ public class DatadogWriteSchemaTransformProviderTest {
     PCollection<DatadogEvent> output =
         input.apply(
             "RowToDatadogEvent",
-            ParDo.of(new DatadogWriteSchemaTransformProvider.RowToDatadogEventFn(null)));
+            ParDo.of(new DatadogWriteSchemaTransformProvider.RowToDatadogEventFn(null, false)));
 
     output.setCoder(DatadogEventCoder.of());
 
@@ -217,7 +279,7 @@ public class DatadogWriteSchemaTransformProviderTest {
     PCollection<DatadogEvent> output =
         input.apply(
             "RowToDatadogEvent",
-            ParDo.of(new DatadogWriteSchemaTransformProvider.RowToDatadogEventFn(null)));
+            ParDo.of(new DatadogWriteSchemaTransformProvider.RowToDatadogEventFn(null, false)));
 
     output.setCoder(DatadogEventCoder.of());
 
@@ -236,24 +298,6 @@ public class DatadogWriteSchemaTransformProviderTest {
   }
 
   @Test
-  public void testBuildTransform() {
-    DatadogWriteSchemaTransformProvider provider = new DatadogWriteSchemaTransformProvider();
-    DatadogWriteSchemaTransformConfiguration configuration =
-        DatadogWriteSchemaTransformConfiguration.builder()
-            .setApiKey("test-api-key")
-            .setUrl("http://localhost:8080")
-            .build();
-
-    SchemaTransform transform = provider.from(configuration);
-
-    PCollection<Row> input = p.apply("CreateEmpty", Create.empty(SCHEMA));
-    PCollectionRowTuple inputTuple = PCollectionRowTuple.of("input", input);
-    transform.expand(inputTuple);
-
-    p.run().waitUntilFinish();
-  }
-
-  @Test
   public void testBuildTransformWithAllParameters() {
     DatadogWriteSchemaTransformProvider provider = new DatadogWriteSchemaTransformProvider();
     DatadogWriteSchemaTransformConfiguration configuration =
@@ -269,7 +313,8 @@ public class DatadogWriteSchemaTransformProviderTest {
 
     PCollection<Row> input = p.apply("Create", Create.of(ROWS).withRowSchema(SCHEMA));
     PCollectionRowTuple inputTuple = PCollectionRowTuple.of("input", input);
-    transform.expand(inputTuple);
+    PCollectionRowTuple output = transform.expand(inputTuple);
+    assertTrue(output.getAll().isEmpty());
 
     p.run().waitUntilFinish();
   }
@@ -285,6 +330,96 @@ public class DatadogWriteSchemaTransformProviderTest {
   public void testBuildTransformMissingApiKey() {
     DatadogWriteSchemaTransformProvider provider = new DatadogWriteSchemaTransformProvider();
     provider.from(DatadogWriteSchemaTransformConfiguration.builder().setUrl("test-url").build());
+  }
+
+  @Test
+  public void testBuildTransformWithInvalidParallelism() {
+    DatadogWriteSchemaTransformProvider provider = new DatadogWriteSchemaTransformProvider();
+    DatadogWriteSchemaTransformConfiguration configuration =
+        DatadogWriteSchemaTransformConfiguration.builder()
+            .setApiKey("test-api-key")
+            .setUrl("http://localhost:8080")
+            .setParallelism(0)
+            .build();
+
+    SchemaTransform transform = provider.from(configuration);
+
+    PCollection<Row> input = p.apply("Create", Create.of(ROWS).withRowSchema(SCHEMA));
+    PCollectionRowTuple inputTuple = PCollectionRowTuple.of("input", input);
+    PCollectionRowTuple output = transform.expand(inputTuple);
+    assertTrue(output.getAll().isEmpty());
+
+    try {
+      p.run().waitUntilFinish();
+      fail("Expected a PipelineExecutionException to be thrown.");
+    } catch (PipelineExecutionException e) {
+      Throwable cause = e.getCause();
+      while (cause.getCause() != null) {
+        cause = cause.getCause();
+      }
+      assertTrue(
+          "Expected cause to be of type IllegalArgumentException",
+          cause instanceof IllegalArgumentException);
+      assertTrue(
+          "Expected message to contain 'bound must be positive'",
+          cause.getMessage().contains("bound must be positive"));
+    }
+  }
+
+  @Test
+  public void testBuildTransformWithInvalidBatchCount() {
+    DatadogWriteSchemaTransformProvider provider = new DatadogWriteSchemaTransformProvider();
+    DatadogWriteSchemaTransformConfiguration configuration =
+        DatadogWriteSchemaTransformConfiguration.builder()
+            .setApiKey("test-api-key")
+            .setUrl("http://localhost:8080")
+            .setBatchCount(0)
+            .setMinBatchCount(1)
+            .build();
+
+    SchemaTransform transform = provider.from(configuration);
+
+    PCollection<Row> input = p.apply("Create", Create.of(ROWS).withRowSchema(SCHEMA));
+    PCollectionRowTuple inputTuple = PCollectionRowTuple.of("input", input);
+    try {
+      transform.expand(inputTuple);
+      fail("Expected an IllegalArgumentException to be thrown.");
+    } catch (IllegalArgumentException e) {
+      assertTrue(
+          "Expected message to contain 'inputBatchCount must be greater than or equal to 1'",
+          e.getMessage().contains("inputBatchCount must be greater than or equal to 1"));
+    }
+  }
+
+  @Test
+  public void testBuildTransformFromRowConfiguration() throws NoSuchSchemaException {
+    DatadogWriteSchemaTransformProvider provider = new DatadogWriteSchemaTransformProvider();
+    SchemaRegistry registry = SchemaRegistry.createDefault();
+    registry.registerSchemaProvider(ErrorHandling.class, new AutoValueSchema());
+    Schema configSchema = registry.getSchema(DatadogWriteSchemaTransformConfiguration.class);
+    Schema errorHandlingSchema = registry.getSchema(ErrorHandling.class);
+
+    Row errorHandlingRow =
+        Row.withSchema(errorHandlingSchema).withFieldValue("output", "errors").build();
+
+    Row configRow =
+        Row.withSchema(configSchema)
+            .withFieldValue("url", "http://localhost:8080")
+            .withFieldValue("apiKey", "test-api-key")
+            .withFieldValue("batchCount", 10)
+            .withFieldValue("maxBufferSize", 100L)
+            .withFieldValue("parallelism", 2)
+            .withFieldValue("errorHandling", errorHandlingRow)
+            .build();
+
+    SchemaTransform transform = provider.from(configRow);
+
+    PCollection<Row> input = p.apply("Create", Create.of(ROWS).withRowSchema(SCHEMA));
+    PCollectionRowTuple inputTuple = PCollectionRowTuple.of("input", input);
+    PCollectionRowTuple output = transform.expand(inputTuple);
+    assertTrue(output.getAll().isEmpty());
+
+    p.run().waitUntilFinish();
   }
 
   @Test
@@ -309,7 +444,7 @@ public class DatadogWriteSchemaTransformProviderTest {
     PCollection<DatadogEvent> output =
         input.apply(
             "RowToDatadogEvent",
-            ParDo.of(new DatadogWriteSchemaTransformProvider.RowToDatadogEventFn(null)));
+            ParDo.of(new DatadogWriteSchemaTransformProvider.RowToDatadogEventFn(null, false)));
 
     output.setCoder(DatadogEventCoder.of());
 
@@ -381,6 +516,48 @@ public class DatadogWriteSchemaTransformProviderTest {
   }
 
   @Test
+  public void testErrorHandlingWithMissingRequiredField() {
+    DatadogWriteSchemaTransformProvider provider = new DatadogWriteSchemaTransformProvider();
+    ErrorHandling errorHandling = ErrorHandling.builder().setOutput("errors").build();
+    DatadogWriteSchemaTransformConfiguration configuration =
+        DatadogWriteSchemaTransformConfiguration.builder()
+            .setApiKey("test-api-key")
+            .setUrl("http://localhost:8080")
+            .setErrorHandling(errorHandling)
+            .build();
+
+    Schema missingFieldSchema =
+        Schema.builder().addStringField("ddsource").addStringField("hostname").build();
+
+    Row row =
+        Row.withSchema(missingFieldSchema)
+            .withFieldValue("ddsource", "my-source")
+            .withFieldValue("hostname", "my-host")
+            .build();
+
+    PCollection<Row> input = p.apply(Create.of(row).withRowSchema(missingFieldSchema));
+    PCollectionRowTuple inputTuple = PCollectionRowTuple.of("input", input);
+
+    SchemaTransform transform = provider.from(configuration);
+    PCollectionRowTuple outputTuple = transform.expand(inputTuple);
+
+    assertTrue(outputTuple.has("errors"));
+    PAssert.that(outputTuple.get("errors"))
+        .satisfies(
+            (errors) -> {
+              assertEquals(1, errors.spliterator().getExactSizeIfKnown());
+              Row error = errors.iterator().next();
+              assertEquals(row, error.getRow("failed_row"));
+              assertTrue(
+                  "Expected error message to contain 'Message is required.'",
+                  error.getString("error_message").contains("Message is required."));
+              return null;
+            });
+
+    p.run().waitUntilFinish();
+  }
+
+  @Test
   public void testConfigurationSchema() throws NoSuchSchemaException {
     SchemaRegistry registry = SchemaRegistry.createDefault();
     registry.registerSchemaProvider(ErrorHandling.class, new AutoValueSchema());
@@ -389,9 +566,10 @@ public class DatadogWriteSchemaTransformProviderTest {
 
     LOG.info(schema.getFieldNames().toString());
 
-    assertEquals(6, schema.getFieldCount());
+    assertEquals(7, schema.getFieldCount());
     assertTrue(schema.hasField("url"));
     assertTrue(schema.hasField("apiKey"));
+    assertTrue(schema.hasField("minBatchCount"));
     assertTrue(schema.hasField("batchCount"));
     assertTrue(schema.hasField("maxBufferSize"));
     assertTrue(schema.hasField("parallelism"));

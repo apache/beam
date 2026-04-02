@@ -58,6 +58,9 @@ public abstract class DatadogWriteSchemaTransformConfiguration {
   @SchemaFieldDescription("The Datadog API key.")
   public abstract String getApiKey();
 
+  @SchemaFieldDescription("The minimum number of events to batch together for each write.")
+  public abstract @Nullable Integer getMinBatchCount();
+
   @SchemaFieldDescription("The number of events to batch together for each write.")
   public abstract @Nullable Integer getBatchCount();
 
@@ -75,6 +78,8 @@ public abstract class DatadogWriteSchemaTransformConfiguration {
     public abstract Builder setUrl(String url);
 
     public abstract Builder setApiKey(String apiKey);
+
+    public abstract Builder setMinBatchCount(Integer minBatchCount);
 
     public abstract Builder setBatchCount(Integer batchCount);
 
