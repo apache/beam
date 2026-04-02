@@ -77,7 +77,6 @@ jobs:
           - "python:container:ml:py311:docker"
           - "python:container:ml:py312:docker"
           - "python:container:ml:py313:docker"
-          - "python:container:ml:py314:docker"
           - "java:expansion-service:container:docker"
     steps:
       - uses: actions/checkout@v4
