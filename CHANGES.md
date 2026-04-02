@@ -74,7 +74,6 @@
   compatible. Both coders can decode encoded bytes from the other coder
   ([#38139](https://github.com/apache/beam/issues/38139)).
 * (Python) Added type alias for with_exception_handling to be used for typehints. ([#38173](https://github.com/apache/beam/issues/38173)).
-* Added plugin mechanism to support different Lineage implementations (Java) ([#36790](https://github.com/apache/beam/issues/36790)).
 
 ## Breaking Changes
 
@@ -86,11 +85,7 @@
 
 ## Bugfixes
 
-<<<<<<< HEAD
 * Fixed BigQueryEnrichmentHandler batch mode dropping earlier requests when multiple requests share the same enrichment key (Python) ([#38035](https://github.com/apache/beam/issues/38035)).
-=======
-* Fixed X (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
->>>>>>> 7a91283a2b (fix failing test with moquito)
 
 ## Security Fixes
 
@@ -111,6 +106,7 @@
 
 ## New Features / Improvements
 
+* Added plugin mechanism to support different Lineage implementations (Java) ([#36790](https://github.com/apache/beam/issues/36790)).
 * Added `ADKAgentModelHandler` for running Google Agent Development Kit (ADK) agents (Python) ([#37917](https://github.com/apache/beam/issues/37917)).
 * (Python) Added exception chaining to preserve error context in CloudSQLEnrichmentHandler, processes utilities, and core transforms ([#37422](https://github.com/apache/beam/issues/37422)).
 * (Python) Added a pipeline option `--experiments=pip_no_build_isolation` to disable build isolation when installing dependencies in the runtime environment ([#37331](https://github.com/apache/beam/issues/37331)).
