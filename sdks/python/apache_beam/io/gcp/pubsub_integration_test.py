@@ -308,16 +308,18 @@ class PubSubIntegrationTest(unittest.TestCase):
   @pytest.mark.it_postcommit
   def test_batch_write_with_ordering_key(self):
     """Test WriteToPubSub in batch mode with ordering keys.
-    This test only applies to the Direct Runner. The ordering key fix in
-    _PubSubWriteDoFn._flush() does not apply to Dataflow, which uses its own
-    internal implementation. Dataflow users should use the XLang WriteToPubSub
+    Dataflow Native PubSub Sink does not support ordering_key, therefore this
+    test only applies to runners that use Beam's Python WriteToPubSub Sink.
+    To use ordering_key, Dataflow users should use the XLang WriteToPubSub
     path instead.
     """
     if self.runner_name == 'TestDataflowRunner':
       self.skipTest(
-          'Ordering key support via _flush() is not applicable to Dataflow. '
-          'Use the XLang WriteToPubSub path for ordering key support on '
-          'Dataflow.')
+          'Dataflow Native PubSub Sink does not support ordering_key '
+          '(see https://github.com/apache/beam/issues/36201), therefore '
+          'this test only applies to runners that use Beam\'s Python '
+          'WriteToPubSub Sink. To use ordering_key, Dataflow users should '
+          'use the XLang WriteToPubSub path instead.')
 
     from apache_beam.options.pipeline_options import PipelineOptions
     from apache_beam.options.pipeline_options import StandardOptions
