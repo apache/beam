@@ -38,9 +38,10 @@ from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.options.pipeline_options import SetupOptions
 from apache_beam.runners.runner import PipelineResult
 
-# Defaults avoid CUDA OOM on ~16GB GPUs (e.g. NVIDIA T4) with vLLM V1: the engine
-# warms the sampler with many dummy sequences unless max_num_seqs is reduced, and
-# the default gpu_memory_utilization can leave no free VRAM for that step.
+# Defaults avoid CUDA OOM on ~16GB GPUs (e.g. NVIDIA T4) with vLLM V1: the
+# engine warms the sampler with many dummy sequences unless max_num_seqs is
+# reduced, and the default gpu_memory_utilization can leave no free VRAM for
+# that step.
 _DEFAULT_VLLM_MAX_NUM_SEQS = 32
 _DEFAULT_VLLM_GPU_MEMORY_UTILIZATION = 0.72
 
@@ -141,7 +142,7 @@ def parse_known_args(argv):
 
 
 def build_vllm_server_kwargs(known_args) -> dict[str, str]:
-  """Returns CLI flags for ``VLLMCompletionsModelHandler(..., vllm_server_kwargs=...)``."""
+  """Returns vllm_server_kwargs for ``VLLMCompletionsModelHandler``."""
   return {
       'max-num-seqs': str(known_args.vllm_max_num_seqs),
       'gpu-memory-utilization': str(known_args.vllm_gpu_memory_utilization),
