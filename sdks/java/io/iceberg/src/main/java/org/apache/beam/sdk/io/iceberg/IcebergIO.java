@@ -381,7 +381,10 @@ import org.joda.time.Duration;
 public class IcebergIO {
 
   public static WriteRows writeRows(IcebergCatalogConfig catalog) {
-    return new AutoValue_IcebergIO_WriteRows.Builder().setCatalogConfig(catalog).build();
+    return new AutoValue_IcebergIO_WriteRows.Builder()
+        .setCatalogConfig(catalog)
+        .setGroupByPartitions(false)
+        .build();
   }
 
   @AutoValue
@@ -397,6 +400,8 @@ public class IcebergIO {
 
     abstract @Nullable Integer getDirectWriteByteLimit();
 
+    abstract boolean getGroupByPartitions();
+
     abstract Builder toBuilder();
 
     @AutoValue.Builder
@@ -410,6 +415,8 @@ public class IcebergIO {
       abstract Builder setTriggeringFrequency(Duration triggeringFrequency);
 
       abstract Builder setDirectWriteByteLimit(Integer directWriteByteLimit);
+
+      abstract Builder setGroupByPartitions(boolean GroupByPartitions);
 
       abstract WriteRows build();
     }
@@ -443,6 +450,15 @@ public class IcebergIO {
       return toBuilder().setDirectWriteByteLimit(directWriteByteLimit).build();
     }
 
+    /**
+     * Groups incoming rows by partition before sending to writes, ensuring that a given bundle is
+     * written to only one partition. For partitioned tables, this helps significantly to reduce the
+     * number of small files.
+     */
+    public WriteRows groupingByPartitions() {
+      return toBuilder().setGroupByPartitions(true).build();
+    }
+
     @Override
     public IcebergWriteResult expand(PCollection<Row> input) {
       List<?> allToArgs = Arrays.asList(getTableIdentifier(), getDynamicDestinations());
@@ -464,15 +480,26 @@ public class IcebergIO {
             IcebergUtils.isUnbounded(input),
             "Must only provide direct write limit for unbounded pipelines.");
       }
-      return input
-          .apply("Assign Table Destinations", new AssignDestinations(destinations))
-          .apply(
-              "Write Rows to Destinations",
-              new WriteToDestinations(
-                  getCatalogConfig(),
-                  destinations,
-                  getTriggeringFrequency(),
-                  getDirectWriteByteLimit()));
+
+      if (getGroupByPartitions()) {
+        return input
+            .apply(
+                "AssignDestinationAndPartition",
+                new AssignDestinationsAndPartitions(destinations, getCatalogConfig()))
+            .apply(
+                "Write Rows to Partitions",
+                new WriteToPartitions(getCatalogConfig(), destinations, getTriggeringFrequency()));
+      } else {
+        return input
+            .apply("Assign Table Destinations", new AssignDestinations(destinations))
+            .apply(
+                "Write Rows to Destinations",
+                new WriteToDestinations(
+                    getCatalogConfig(),
+                    destinations,
+                    getTriggeringFrequency(),
+                    getDirectWriteByteLimit()));
+      }
     }
   }
 

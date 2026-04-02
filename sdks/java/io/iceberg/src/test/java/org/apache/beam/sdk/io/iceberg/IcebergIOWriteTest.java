@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.io.iceberg;
 
+import static java.util.Arrays.asList;
 import static org.apache.beam.sdk.io.iceberg.IcebergUtils.beamRowToIcebergRecord;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.Assert.assertFalse;
@@ -64,13 +65,21 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 import org.junit.runner.RunWith;
-import org.junit.runners.JUnit4;
+import org.junit.runners.Parameterized;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-@RunWith(JUnit4.class)
+@RunWith(Parameterized.class)
 public class IcebergIOWriteTest implements Serializable {
   private static final Logger LOG = LoggerFactory.getLogger(IcebergIOWriteTest.class);
+
+  @Parameterized.Parameters
+  public static Iterable<Object[]> data() {
+    return asList(new Object[][] {{false}, {true}});
+  }
+
+  @Parameterized.Parameter(0)
+  public boolean groupByPartitions;
 
   @ClassRule public static final TemporaryFolder TEMPORARY_FOLDER = new TemporaryFolder();
 
@@ -78,6 +87,13 @@ public class IcebergIOWriteTest implements Serializable {
   public transient TestDataWarehouse warehouse = new TestDataWarehouse(TEMPORARY_FOLDER, "default");
 
   @Rule public transient TestPipeline testPipeline = TestPipeline.create();
+
+  private IcebergIO.WriteRows maybeGroupByPartitions(IcebergIO.WriteRows transform) {
+    if (groupByPartitions) {
+      return transform.groupingByPartitions();
+    }
+    return transform;
+  }
 
   @Test
   public void testSimpleAppend() throws Exception {
@@ -99,7 +115,7 @@ public class IcebergIOWriteTest implements Serializable {
     testPipeline
         .apply("Records To Add", Create.of(TestFixtures.asRows(TestFixtures.FILE1SNAPSHOT1)))
         .setRowSchema(IcebergUtils.icebergSchemaToBeamSchema(TestFixtures.SCHEMA))
-        .apply("Append To Table", IcebergIO.writeRows(catalog).to(tableId));
+        .apply("Append To Table", maybeGroupByPartitions(IcebergIO.writeRows(catalog).to(tableId)));
 
     LOG.info("Executing pipeline");
     testPipeline.run().waitUntilFinish();
@@ -129,7 +145,7 @@ public class IcebergIOWriteTest implements Serializable {
     testPipeline
         .apply("Records To Add", Create.of(TestFixtures.asRows(TestFixtures.FILE1SNAPSHOT1)))
         .setRowSchema(IcebergUtils.icebergSchemaToBeamSchema(TestFixtures.SCHEMA))
-        .apply("Append To Table", IcebergIO.writeRows(catalog).to(tableId));
+        .apply("Append To Table", maybeGroupByPartitions(IcebergIO.writeRows(catalog).to(tableId)));
 
     assertFalse(((SupportsNamespaces) catalog.catalog()).namespaceExists(newNamespace));
     LOG.info("Executing pipeline");
@@ -200,7 +216,9 @@ public class IcebergIOWriteTest implements Serializable {
                         TestFixtures.FILE1SNAPSHOT2,
                         TestFixtures.FILE1SNAPSHOT3))))
         .setRowSchema(IcebergUtils.icebergSchemaToBeamSchema(TestFixtures.SCHEMA))
-        .apply("Append To Table", IcebergIO.writeRows(catalog).to(dynamicDestinations));
+        .apply(
+            "Append To Table",
+            maybeGroupByPartitions(IcebergIO.writeRows(catalog).to(dynamicDestinations)));
 
     LOG.info("Executing pipeline");
     testPipeline.run().waitUntilFinish();
@@ -293,7 +311,9 @@ public class IcebergIOWriteTest implements Serializable {
     testPipeline
         .apply("Records To Add", Create.of(TestFixtures.asRows(elements)))
         .setRowSchema(IcebergUtils.icebergSchemaToBeamSchema(TestFixtures.SCHEMA))
-        .apply("Append To Table", IcebergIO.writeRows(catalog).to(dynamicDestinations));
+        .apply(
+            "Append To Table",
+            maybeGroupByPartitions(IcebergIO.writeRows(catalog).to(dynamicDestinations)));
 
     LOG.info("Executing pipeline");
     testPipeline.run().waitUntilFinish();
@@ -386,9 +406,10 @@ public class IcebergIOWriteTest implements Serializable {
             .apply("Stream Records", stream)
             .apply(
                 "Append To Table",
-                IcebergIO.writeRows(catalog)
-                    .to(tableId)
-                    .withTriggeringFrequency(Duration.standardSeconds(3)))
+                maybeGroupByPartitions(
+                    IcebergIO.writeRows(catalog)
+                        .to(tableId)
+                        .withTriggeringFrequency(Duration.standardSeconds(3))))
             .getSnapshots();
     // verify that 2 snapshots are created (one per triggering interval)
     PCollection<Long> snapshots = output.apply(Count.globally());

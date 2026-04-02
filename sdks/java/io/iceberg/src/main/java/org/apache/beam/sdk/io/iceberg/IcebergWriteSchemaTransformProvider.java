@@ -134,6 +134,8 @@ public class IcebergWriteSchemaTransformProvider
             + " please visit https://iceberg.apache.org/docs/latest/configuration/#table-properties.")
     public abstract @Nullable Map<String, String> getTableProperties();
 
+    public abstract @Nullable Boolean getGroupByPartitions();
+
     @AutoValue.Builder
     public abstract static class Builder {
       public abstract Builder setTable(String table);
@@ -157,6 +159,8 @@ public class IcebergWriteSchemaTransformProvider
       public abstract Builder setPartitionFields(List<String> partitionFields);
 
       public abstract Builder setTableProperties(Map<String, String> tableProperties);
+
+      public abstract Builder setGroupByPartitions(Boolean groupByPartitions);
 
       public abstract Configuration build();
     }
@@ -236,6 +240,11 @@ public class IcebergWriteSchemaTransformProvider
       Integer directWriteByteLimit = configuration.getDirectWriteByteLimit();
       if (directWriteByteLimit != null) {
         writeTransform = writeTransform.withDirectWriteByteLimit(directWriteByteLimit);
+      }
+
+      @Nullable Boolean groupByPartitions = configuration.getGroupByPartitions();
+      if (groupByPartitions != null && groupByPartitions) {
+        writeTransform = writeTransform.groupingByPartitions();
       }
 
       // TODO: support dynamic destinations
