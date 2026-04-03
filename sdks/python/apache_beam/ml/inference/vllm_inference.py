@@ -201,7 +201,10 @@ class VLLMCompletionsModelHandler(ModelHandler[str,
         `python -m vllm.entrypoints.openai.api_serverv <beam provided args>
         <vllm_server_kwargs>`. For example, you could pass
         `{'echo': 'true'}` to prepend new messages with the previous message.
-        For a list of possible kwargs, see
+        On ~16GB GPUs, pass lower ``max-num-seqs`` and
+        ``gpu-memory-utilization`` values (see
+        ``apache_beam.examples.inference.vllm_text_completion``). For a list of
+        possible kwargs, see
         https://docs.vllm.ai/en/latest/serving/openai_compatible_server.html#extra-parameters-for-completions-api
       min_batch_size: optional. the minimum batch size to use when batching
         inputs.
