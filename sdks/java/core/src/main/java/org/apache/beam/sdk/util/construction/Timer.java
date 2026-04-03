@@ -126,7 +126,7 @@ public abstract class Timer<K> {
    */
   public abstract @Nullable PaneInfo getPaneInfo();
 
-  public abstract @Nullable CausedByDrain causedByDrain();
+  public abstract CausedByDrain causedByDrain();
 
   @Override
   public final boolean equals(@Nullable Object other) {

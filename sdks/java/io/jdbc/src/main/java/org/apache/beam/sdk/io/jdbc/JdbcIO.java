@@ -2615,7 +2615,7 @@ public class JdbcIO {
       return instances.computeIfAbsent(
           config.config,
           ignored -> {
-            DataSource basicSource = config.apply(input);
+            DataSource basicSource = config.apply(null);
             DataSourceConnectionFactory connectionFactory =
                 new DataSourceConnectionFactory(basicSource);
             @SuppressWarnings("nullness") // apache.commons.dbcp2 not annotated

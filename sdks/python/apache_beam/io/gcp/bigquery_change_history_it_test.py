@@ -490,6 +490,19 @@ class ChangesEndToEndTest(BigQueryChangeHistoryIntegrationBase):
       assert_that(rows, check_rows)
 
 
+_EXPECTED_ROWS = [
+    {
+        'id': 1, 'name': 'alice', 'value': 10.0, 'change_type': 'INSERT'
+    },
+    {
+        'id': 2, 'name': 'bob', 'value': 20.0, 'change_type': 'INSERT'
+    },
+    {
+        'id': 3, 'name': 'charlie', 'value': 30.0, 'change_type': 'INSERT'
+    },
+]
+
+
 class EndToEndTest(BigQueryChangeHistoryIntegrationBase):
   """End-to-end test using the public ReadBigQueryChangeHistory API.
 
@@ -545,25 +558,77 @@ class EndToEndTest(BigQueryChangeHistoryIntegrationBase):
             for k, v in row.items() if k != 'change_timestamp'
         } for row in actual],
                      key=lambda r: r['id'])
-        expected = [
-            {
-                'id': 1,
-                'name': 'alice',
-                'value': 10.0,
-                'change_type': 'INSERT'
-            },
-            {
-                'id': 2, 'name': 'bob', 'value': 20.0, 'change_type': 'INSERT'
-            },
-            {
-                'id': 3,
-                'name': 'charlie',
-                'value': 30.0,
-                'change_type': 'INSERT'
-            },
-        ]
-        assert got == expected, (
-            f'Row mismatch:\n  got:      {got}\n  expected: {expected}')
+        assert got == _EXPECTED_ROWS, (
+            f'Row mismatch:\n  got:      {got}\n  expected: '
+            f'{_EXPECTED_ROWS}')
+
+      assert_that(rows, check_rows)
+
+  def test_public_api_reads_inserted_row_inline_decompress(self):
+    """ReadBigQueryChangeHistory with inline decompression (no reshuffle)."""
+    table_str = f'{self.project}:{self.dataset}.{self.test_table_id}'
+    start_time = self.insert_time - 120  # 2 min before insert
+    stop_time = time.time() + 15
+
+    with beam.Pipeline(argv=self.args) as p:
+      rows = (
+          p
+          | ReadBigQueryChangeHistory(
+              table=table_str,
+              poll_interval_sec=15,
+              start_time=start_time,
+              stop_time=stop_time,
+              change_function='APPENDS',
+              buffer_sec=10,
+              project=self.project,
+              temp_dataset=self.temp_dataset,
+              location=self.location,
+              reshuffle_decompress=False))
+
+      def check_rows(actual):
+        assert len(actual) == 3, f'Expected 3 rows, got {len(actual)}'
+        got = sorted([{
+            k: v
+            for k, v in row.items() if k != 'change_timestamp'
+        } for row in actual],
+                     key=lambda r: r['id'])
+        assert got == _EXPECTED_ROWS, (
+            f'Row mismatch:\n  got:      {got}\n  expected: '
+            f'{_EXPECTED_ROWS}')
+
+      assert_that(rows, check_rows)
+
+  def test_public_api_reads_inserted_row_with_split_streams(self):
+    """ReadBigQueryChangeHistory with max_split_rounds=1."""
+    table_str = f'{self.project}:{self.dataset}.{self.test_table_id}'
+    start_time = self.insert_time - 120  # 2 min before insert
+    stop_time = time.time() + 15
+
+    with beam.Pipeline(argv=self.args) as p:
+      rows = (
+          p
+          | ReadBigQueryChangeHistory(
+              table=table_str,
+              poll_interval_sec=15,
+              start_time=start_time,
+              stop_time=stop_time,
+              change_function='APPENDS',
+              buffer_sec=10,
+              project=self.project,
+              temp_dataset=self.temp_dataset,
+              location=self.location,
+              max_split_rounds=10))
+
+      def check_rows(actual):
+        assert len(actual) == 3, f'Expected 3 rows, got {len(actual)}'
+        got = sorted([{
+            k: v
+            for k, v in row.items() if k != 'change_timestamp'
+        } for row in actual],
+                     key=lambda r: r['id'])
+        assert got == _EXPECTED_ROWS, (
+            f'Row mismatch:\n  got:      {got}\n  expected: '
+            f'{_EXPECTED_ROWS}')
 
       assert_that(rows, check_rows)
 

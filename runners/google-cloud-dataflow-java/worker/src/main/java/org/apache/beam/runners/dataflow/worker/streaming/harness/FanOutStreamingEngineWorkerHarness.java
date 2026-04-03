@@ -410,15 +410,18 @@ public final class FanOutStreamingEngineWorkerHarness implements StreamingWorker
   }
 
   private WindmillStreamSender createAndStartWindmillStreamSender(Endpoint endpoint) {
+    GetWorkRequest.Builder getWorkRequestBuilder =
+        GetWorkRequest.newBuilder()
+            .setClientId(jobHeader.getClientId())
+            .setJobId(jobHeader.getJobId())
+            .setProjectId(jobHeader.getProjectId())
+            .setWorkerId(jobHeader.getWorkerId());
+    endpoint.workerToken().ifPresent(getWorkRequestBuilder::setBackendWorkerToken);
+
     WindmillStreamSender windmillStreamSender =
         WindmillStreamSender.create(
             WindmillConnection.from(endpoint, this::createWindmillStub),
-            GetWorkRequest.newBuilder()
-                .setClientId(jobHeader.getClientId())
-                .setJobId(jobHeader.getJobId())
-                .setProjectId(jobHeader.getProjectId())
-                .setWorkerId(jobHeader.getWorkerId())
-                .build(),
+            getWorkRequestBuilder.build(),
             GetWorkBudget.noBudget(),
             streamFactory,
             workItemScheduler,

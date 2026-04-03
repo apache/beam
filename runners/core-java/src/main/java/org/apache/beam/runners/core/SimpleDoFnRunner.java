@@ -454,6 +454,17 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
     }
 
     @Override
+    public void outputWindowedValue(WindowedValue<OutputT> windowedValue) {
+      outputWindowedValue(mainOutputTag, windowedValue);
+    }
+
+    @Override
+    public <T> void outputWindowedValue(TupleTag<T> tag, WindowedValue<T> windowedValue) {
+      checkTimestamp(elem.getTimestamp(), windowedValue.getTimestamp());
+      SimpleDoFnRunner.this.outputWindowedValue(tag, windowedValue);
+    }
+
+    @Override
     public <T> void outputWithTimestamp(TupleTag<T> tag, T output, Instant timestamp) {
       checkNotNull(tag, "Tag passed to outputWithTimestamp cannot be null");
       checkTimestamp(elem.getTimestamp(), timestamp);
@@ -1038,6 +1049,17 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
     }
 
     @Override
+    public void outputWindowedValue(WindowedValue<OutputT> windowedValue) {
+      outputWindowedValue(mainOutputTag, windowedValue);
+    }
+
+    @Override
+    public <T> void outputWindowedValue(TupleTag<T> tag, WindowedValue<T> windowedValue) {
+      checkTimestamp(timestamp(), windowedValue.getTimestamp());
+      SimpleDoFnRunner.this.outputWindowedValue(tag, windowedValue);
+    }
+
+    @Override
     public BundleFinalizer bundleFinalizer() {
       throw new UnsupportedOperationException(
           "Bundle finalization is not supported in OnTimer calls.");
@@ -1294,6 +1316,17 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
           .setPaneInfo(paneInfo)
           .setReceiver(wv -> SimpleDoFnRunner.this.outputWindowedValue(tag, wv))
           .output();
+    }
+
+    @Override
+    public void outputWindowedValue(WindowedValue<OutputT> windowedValue) {
+      outputWindowedValue(mainOutputTag, windowedValue);
+    }
+
+    @Override
+    public <T> void outputWindowedValue(TupleTag<T> tag, WindowedValue<T> windowedValue) {
+      checkTimestamp(this.timestamp, windowedValue.getTimestamp());
+      SimpleDoFnRunner.this.outputWindowedValue(tag, windowedValue);
     }
 
     @Override
