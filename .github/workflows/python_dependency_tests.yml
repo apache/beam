@@ -7,7 +7,7 @@ on:
     branches: ['master', 'release-*']
     tags: 'v*'
     # paths where Beam Python's dependencies are configured.
-    paths: ['sdks/python/setup.py', 'sdks/python/pyproject.toml', 'sdks/python/container/base_image_requirements_manual.txt']
+    paths: ['sdks/python/setup.py', 'sdks/python/pyproject.toml', 'sdks/python/container/base_image_requirements_manual.txt', 'release/trigger_all_tests.json']
 
 # This allows a subsequently queued workflow run to interrupt previous runs
 concurrency:
