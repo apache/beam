@@ -78,7 +78,7 @@ jobs:
       - name: Run mongodbioIT script
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
-          gradle-command: :sdks:python:test-suites:direct:py313:mongodbioIT
+          gradle-command: :sdks:python:test-suites:direct:py314:mongodbioIT
           arguments: |
             -PpythonVersion=3.14 \
       - name: Archive Python Test Results
