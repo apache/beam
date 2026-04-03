@@ -1707,6 +1707,10 @@ func (ss *stageState) GetSideData(tID, inputID string, watermark mtime.Time) map
 	d := ss.sideInputs[LinkID{Transform: tID, Local: inputID}]
 	ret := map[typex.Window][][]byte{}
 	for win, ds := range d {
+		if _, ok := win.(window.GlobalWindow); ok {
+			ret[win] = ds
+			continue
+		}
 		if win.MaxTimestamp() <= watermark {
 			ret[win] = ds
 		}
