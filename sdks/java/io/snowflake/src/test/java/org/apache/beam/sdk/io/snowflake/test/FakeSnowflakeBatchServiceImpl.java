@@ -18,12 +18,15 @@
 package org.apache.beam.sdk.io.snowflake.test;
 
 import java.io.IOException;
+import java.io.OutputStream;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.zip.GZIPOutputStream;
 import net.snowflake.client.api.exception.SnowflakeSQLException;
 import org.apache.beam.sdk.io.snowflake.data.SnowflakeTableSchema;
 import org.apache.beam.sdk.io.snowflake.enums.CreateDisposition;
@@ -123,8 +126,13 @@ public class FakeSnowflakeBatchServiceImpl implements SnowflakeServices.BatchSer
     Path filePath = Paths.get(String.format("./%s/table.csv.gz", stagingBucketNameTmp));
     try {
       Files.createDirectories(filePath.getParent());
-      Files.createFile(filePath);
-      Files.write(filePath, rows);
+      try (OutputStream os = Files.newOutputStream(filePath);
+          GZIPOutputStream gzip = new GZIPOutputStream(os)) {
+        for (String row : rows) {
+          gzip.write(row.getBytes(StandardCharsets.UTF_8));
+          gzip.write('\n');
+        }
+      }
     } catch (IOException e) {
       throw new RuntimeException("Failed to create files", e);
     }
