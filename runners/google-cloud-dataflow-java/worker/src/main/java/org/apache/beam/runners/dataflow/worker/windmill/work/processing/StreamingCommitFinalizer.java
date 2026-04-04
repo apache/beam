@@ -138,7 +138,7 @@ final class StreamingCommitFinalizer {
           // Start the cleanup thread lazily for pipelines that don't use finalization callbacks
           // and some tests.
           cleanUpThreadStarted = true;
-          finalizationExecutor.execute(this::cleanupThreadBody, 0);
+          finalizationExecutor.forceExecute(this::cleanupThreadBody, 0);
         }
         cleanUpQueue.add(info);
         @SuppressWarnings("ReferenceEquality")
