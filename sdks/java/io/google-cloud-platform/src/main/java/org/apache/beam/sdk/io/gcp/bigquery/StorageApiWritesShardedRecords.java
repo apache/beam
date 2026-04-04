@@ -901,9 +901,9 @@ public class StorageApiWritesShardedRecords<DestinationT extends @NonNull Object
               }
             }
             if (schemaMismatchError) {
-                LOG.info(
+              LOG.info(
                   "Vortex failed stream open due to incompatible fields. This is likely because the BigTable "
-                    + "schema was recently updated and Vortex hasn't noticed yet, so retrying. error {}",
+                      + "schema was recently updated and Vortex hasn't noticed yet, so retrying. error {}",
                   Preconditions.checkStateNotNull(error).toString());
             }
 

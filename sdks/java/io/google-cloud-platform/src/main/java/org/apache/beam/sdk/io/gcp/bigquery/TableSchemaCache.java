@@ -170,15 +170,14 @@ public class TableSchemaCache {
       TableReference tableReference, DatasetService datasetService) {
     Optional<SchemaHolder> schemaHolder;
     // We don't use computeIfAbsent here, as we want to avoid calling into datasetService (which can
-    // be an RPC
-    // with the monitor locked).
+    // be an RPC with the monitor locked).
     final String key = tableKey(tableReference);
     schemaHolder = runUnderMonitor(() -> Optional.ofNullable(cachedSchemas.get(key)));
     if (!schemaHolder.isPresent()) {
       // Not initialized. Query the new schema with the monitor released and then update the cache.
       try {
         // requesting the BASIC view will prevent BQ backend to run calculations
-        // related with storage stats that are not needed here
+        // related with storage stats that are not needed here.
         @Nullable
         Table table =
             datasetService.getTable(

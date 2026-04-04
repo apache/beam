@@ -26,7 +26,7 @@ import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderRegistry;
 import org.apache.beam.sdk.transforms.Combine;
 
-/** Merge schemas. */
+/** A CombineFn to merge TableSchemas. */
 public class MergeSchemaCombineFn extends Combine.CombineFn<TableSchema, TableSchema, TableSchema> {
   @Override
   public TableSchema createAccumulator() {

@@ -110,15 +110,16 @@ public class PatchTableSchemaDoFn<DestinationT extends @NonNull Object, ElementT
     while (true) {
       TableSchema baseSchema = messageConverter.getTableSchema();
       TableSchema updatedSchema = UpgradeTableSchema.mergeSchemas(baseSchema, tableSchemaDiff);
+      // Check first to see if the schema still needs updating.
       if (baseSchema.equals(updatedSchema)) {
         return;
       }
-      // Check first to see if the schema still needs updating.
       BackOff backoff =
           new ExponentialBackOff.Builder()
               .setMaxElapsedTimeMillis((int) TimeUnit.MINUTES.toMillis(1))
               .build();
       boolean schemaOutOfDate = false;
+      Exception lastException = null;
       do {
         try {
           getDatasetService(pipelineOptions)
@@ -133,6 +134,8 @@ public class PatchTableSchemaDoFn<DestinationT extends @NonNull Object, ElementT
           if (errorExtractor.preconditionNotMet(e) || errorExtractor.badRequest(e)) {
             schemaOutOfDate = true;
             break;
+          } else {
+            lastException = e;
           }
         }
       } while (BackOffUtils.next(com.google.api.client.util.Sleeper.DEFAULT, backoff));
@@ -141,7 +144,7 @@ public class PatchTableSchemaDoFn<DestinationT extends @NonNull Object, ElementT
         messageConverter.updateSchemaFromTable();
       } else {
         // We ran out of retries.
-        throw new RuntimeException("Failed to patch table schema");
+        throw new RuntimeException("Failed to patch table schema.", lastException);
       }
     }
   }

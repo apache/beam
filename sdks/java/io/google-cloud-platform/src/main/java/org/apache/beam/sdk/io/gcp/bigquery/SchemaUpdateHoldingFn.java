@@ -55,7 +55,6 @@ public class SchemaUpdateHoldingFn<DestinationT extends @NonNull Object, Element
     extends DoFn<
         KV<ShardedKey<DestinationT>, @Nullable ElementT>,
         KV<DestinationT, StorageApiWritePayload>> {
-  // private static final Duration POLL_DURATION = Duration.standardMinutes(2);
   private static final Duration POLL_DURATION = Duration.standardSeconds(1);
 
   @StateId("bufferedElements")
@@ -74,12 +73,11 @@ public class SchemaUpdateHoldingFn<DestinationT extends @NonNull Object, Element
   @TimerId("holdTimer")
   private final TimerSpec holdTimerSpec = TimerSpecs.timer(TimeDomain.EVENT_TIME);
 
-  private final StorageApiConvertMessages.ConvertMessagesDoFn<DestinationT, ElementT>
-      convertMessagesDoFn;
+  private final ConvertMessagesDoFn<DestinationT, ElementT> convertMessagesDoFn;
 
   public SchemaUpdateHoldingFn(
       Coder<ElementT> elementCoder,
-      StorageApiConvertMessages.ConvertMessagesDoFn<DestinationT, ElementT> convertMessagesDoFn) {
+      ConvertMessagesDoFn<DestinationT, ElementT> convertMessagesDoFn) {
     this.convertMessagesDoFn = convertMessagesDoFn;
     this.bufferedSpec = StateSpecs.bag(TimestampedValue.TimestampedValueCoder.of(elementCoder));
     this.timerTsSpec = StateSpecs.value();
@@ -131,13 +129,8 @@ public class SchemaUpdateHoldingFn<DestinationT extends @NonNull Object, Element
     } else {
       // This means that the table schema was recently updated. Try to flush the pending elements.
       if (tryFlushBuffer(
-          element.getKey().getKey(),
-          context.getPipelineOptions(),
-          bag,
-          minBufferedTimestamp,
-          window,
-          o)) {
-        // Nothing in buffer. clear timer.
+          element.getKey().getKey(), context.getPipelineOptions(), bag, minBufferedTimestamp, o)) {
+        // Nothing left in buffer. clear timer.
         pollTimer.clear();
         timerTs.clear();
       } else {
@@ -162,6 +155,8 @@ public class SchemaUpdateHoldingFn<DestinationT extends @NonNull Object, Element
     return Duration.millis(Long.MAX_VALUE);
   }
 
+  // noop. We need this method because we have a holdTimer, but the timer only exists to hold the
+  // watermark.
   @OnTimer("holdTimer")
   public void onHoldTimer() {}
 
@@ -177,7 +172,7 @@ public class SchemaUpdateHoldingFn<DestinationT extends @NonNull Object, Element
       BoundedWindow window,
       MultiOutputReceiver o)
       throws Exception {
-    if (tryFlushBuffer(key.getKey(), pipelineOptions, bag, minBufferedTimestamp, window, o)) {
+    if (tryFlushBuffer(key.getKey(), pipelineOptions, bag, minBufferedTimestamp, o)) {
       timerTs.clear();
     } else {
       // We still have buffered elements. Make sure that the polling timer keeps looping.
@@ -196,21 +191,20 @@ public class SchemaUpdateHoldingFn<DestinationT extends @NonNull Object, Element
       PipelineOptions pipelineOptions,
       @StateId("bufferedElements") BagState<TimestampedValue<ElementT>> bag,
       @StateId("minBufferedTimestamp") CombiningState<Long, long[], Long> minBufferedTimestamp,
-      BoundedWindow window,
       MultiOutputReceiver o)
       throws Exception {
     // This can happen on test completion or drain. We can't set any more timers in window
-    // expiration, so we just
-    // have to loop until the schema is updated.
+    // expiration, so we just have to loop until the schema is updated.
     BackOff backoff =
         new ExponentialBackOff.Builder()
             .setMaxElapsedTimeMillis((int) TimeUnit.SECONDS.toMillis(500))
             .build();
     do {
-      if (tryFlushBuffer(key.getKey(), pipelineOptions, bag, minBufferedTimestamp, window, o)) {
+      if (tryFlushBuffer(key.getKey(), pipelineOptions, bag, minBufferedTimestamp, o)) {
         return;
       }
     } while (BackOffUtils.next(com.google.api.client.util.Sleeper.DEFAULT, backoff));
+    throw new RuntimeException("Failed to flush elements on window expiration!");
   }
 
   public boolean tryFlushBuffer(
@@ -218,7 +212,6 @@ public class SchemaUpdateHoldingFn<DestinationT extends @NonNull Object, Element
       PipelineOptions pipelineOptions,
       @StateId("bufferedElements") BagState<TimestampedValue<ElementT>> bag,
       @StateId("minBufferedTimestamp") CombiningState<Long, long[], Long> minBufferedTimestamp,
-      BoundedWindow window,
       MultiOutputReceiver o)
       throws Exception {
     // Force an update of the MessageConverter schema.
@@ -236,7 +229,7 @@ public class SchemaUpdateHoldingFn<DestinationT extends @NonNull Object, Element
     List<TimestampedValue<ElementT>> stillWaiting = Lists.newArrayList();
     minBufferedTimestamp.clear();
 
-    Iterable<TimestampedValue<KV<DestinationT, ElementT>>> bagElements =
+    Iterable<TimestampedValue<KV<DestinationT, ElementT>>> kvBagElements =
         Iterables.transform(
             bag.read(),
             e -> TimestampedValue.of(KV.of(destination, e.getValue()), e.getTimestamp()));
@@ -244,8 +237,10 @@ public class SchemaUpdateHoldingFn<DestinationT extends @NonNull Object, Element
     TableRowToStorageApiProto.ErrorCollector errorCollector =
         UpgradeTableSchema.newErrorCollector();
     Iterable<TimestampedValue<KV<DestinationT, ElementT>>> unProcessed =
-        convertMessagesDoFn.handleProcessElements(messageConverter, bagElements, o, errorCollector);
+        convertMessagesDoFn.handleProcessElements(
+            messageConverter, kvBagElements, o, errorCollector);
     if (!errorCollector.isEmpty()) {
+      // Collect all elements that still fail to convert.
       unProcessed.forEach(
           tv -> {
             stillWaiting.add(TimestampedValue.of(tv.getValue().getValue(), tv.getTimestamp()));
@@ -253,6 +248,7 @@ public class SchemaUpdateHoldingFn<DestinationT extends @NonNull Object, Element
           });
     }
 
+    // Add the remaining elements back into the bag.
     bag.clear();
     stillWaiting.forEach(bag::add);
 

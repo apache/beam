@@ -100,6 +100,7 @@ public class StorageApiDynamicDestinationsTableRow<T, DestinationT extends @NonN
             getConverter, options, datasetService, writeStreamService);
   }
 
+  // This is a wrapper class used when schemaUpdateOptions are set.
   class SchemaUpgradingTableRowConverter implements MessageConverter<T> {
     private final SerializableFunction<@Nullable TableSchema, TableRowConverter> getConverter;
     private final DatasetService datasetService;
@@ -151,6 +152,7 @@ public class StorageApiDynamicDestinationsTableRow<T, DestinationT extends @NonN
     public void updateSchemaFromTable() throws IOException, InterruptedException {
       SCHEMA_CACHE.refreshSchema(
           delegate.get().tableReference, datasetService, writeStreamService, bigQueryOptions);
+      // Recycle the internal MessageConverter so that we pick up the new schema from the cache.
       this.delegate.set(getConverter.apply(null));
     }
 
