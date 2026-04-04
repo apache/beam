@@ -42,6 +42,7 @@ public class PatchTableSchemaDoFn<DestinationT extends @NonNull Object, ElementT
   private final StorageApiDynamicDestinations<ElementT, DestinationT> dynamicDestinations;
   private TwoLevelMessageConverterCache<DestinationT, ElementT> messageConverters;
   private transient BigQueryServices.@Nullable DatasetService datasetServiceInternal = null;
+  private transient BigQueryServices.@Nullable WriteStreamService writeStreamServiceInternal = null;
 
   PatchTableSchemaDoFn(
       String operationName,
@@ -61,6 +62,31 @@ public class PatchTableSchemaDoFn<DestinationT extends @NonNull Object, ElementT
     return datasetServiceInternal;
   }
 
+  private BigQueryServices.WriteStreamService getWriteStreamService(PipelineOptions pipelineOptions)
+      throws IOException {
+    if (writeStreamServiceInternal == null) {
+      writeStreamServiceInternal =
+          bqServices.getWriteStreamService(pipelineOptions.as(BigQueryOptions.class));
+    }
+    return writeStreamServiceInternal;
+  }
+
+  @Teardown
+  public void onTeardown() {
+    try {
+      if (datasetServiceInternal != null) {
+        datasetServiceInternal.close();
+        datasetServiceInternal = null;
+      }
+      if (writeStreamServiceInternal != null) {
+        writeStreamServiceInternal.close();
+        writeStreamServiceInternal = null;
+      }
+    } catch (Exception e) {
+      throw new RuntimeException(e);
+    }
+  }
+
   @ProcessElement
   public void processElement(
       @Element KV<DestinationT, TableSchema> element,
@@ -73,7 +99,12 @@ public class PatchTableSchemaDoFn<DestinationT extends @NonNull Object, ElementT
     TableSchema tableSchemaDiff = element.getValue();
 
     StorageApiDynamicDestinations.MessageConverter<ElementT> messageConverter =
-        messageConverters.get(destination, dynamicDestinations, getDatasetService(pipelineOptions));
+        messageConverters.get(
+            destination,
+            dynamicDestinations,
+            pipelineOptions,
+            getDatasetService(pipelineOptions),
+            getWriteStreamService(pipelineOptions));
     messageConverter.updateSchemaFromTable();
 
     while (true) {

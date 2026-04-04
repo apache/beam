@@ -264,6 +264,8 @@ public class StorageApiConvertMessages<DestinationT, ElementT>
     private final Coder<KV<DestinationT, ElementT>> elementCoder;
     private final Map<DestinationT, BufferedCollectorInformation> collectors = Maps.newHashMap();
     private transient @Nullable DatasetService datasetServiceInternal = null;
+    private transient BigQueryServices.@Nullable WriteStreamService writeStreamServiceInternal =
+        null;
 
     static final class BufferedCollectorInformation {
       TableRowToStorageApiProto.@Nullable ErrorCollector collector = null;
@@ -319,6 +321,15 @@ public class StorageApiConvertMessages<DestinationT, ElementT>
       return datasetServiceInternal;
     }
 
+    BigQueryServices.WriteStreamService getWriteStreamService(PipelineOptions pipelineOptions)
+        throws IOException {
+      if (writeStreamServiceInternal == null) {
+        writeStreamServiceInternal =
+            bqServices.getWriteStreamService(pipelineOptions.as(BigQueryOptions.class));
+      }
+      return writeStreamServiceInternal;
+    }
+
     StorageApiDynamicDestinations<ElementT, DestinationT> getDynamicDestinations() {
       return dynamicDestinations;
     }
@@ -333,6 +344,10 @@ public class StorageApiConvertMessages<DestinationT, ElementT>
         if (datasetServiceInternal != null) {
           datasetServiceInternal.close();
           datasetServiceInternal = null;
+        }
+        if (writeStreamServiceInternal != null) {
+          writeStreamServiceInternal.close();
+          writeStreamServiceInternal = null;
         }
       } catch (Exception e) {
         throw new RuntimeException(e);
@@ -360,7 +375,11 @@ public class StorageApiConvertMessages<DestinationT, ElementT>
       // side inputs in finishBundle.
       MessageConverter<ElementT> messageConverter =
           messageConverters.get(
-              destination, dynamicDestinations, getDatasetService(pipelineOptions));
+              destination,
+              dynamicDestinations,
+              pipelineOptions,
+              getDatasetService(pipelineOptions),
+              getWriteStreamService(pipelineOptions));
       TableRowToStorageApiProto.ErrorCollector errorCollector =
           UpgradeTableSchema.newErrorCollector();
       Iterable<TimestampedValue<KV<DestinationT, ElementT>>> unProcessed =

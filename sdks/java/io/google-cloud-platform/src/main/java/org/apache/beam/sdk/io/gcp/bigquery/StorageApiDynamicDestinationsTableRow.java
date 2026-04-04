@@ -29,6 +29,7 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.atomic.AtomicReference;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.CreateDisposition;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServices.DatasetService;
+import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.util.Preconditions;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.MoreObjects;
@@ -80,7 +81,10 @@ public class StorageApiDynamicDestinationsTableRow<T, DestinationT extends @NonN
 
   @Override
   public MessageConverter<T> getMessageConverter(
-      DestinationT destination, DatasetService datasetService) {
+      DestinationT destination,
+      PipelineOptions options,
+      DatasetService datasetService,
+      BigQueryServices.WriteStreamService writeStreamService) {
     SerializableFunction<@Nullable TableSchema, TableRowConverter> getConverter =
         tableSchema -> {
           try {
@@ -92,19 +96,26 @@ public class StorageApiDynamicDestinationsTableRow<T, DestinationT extends @NonN
 
     return schemaUpdateOptions.isEmpty()
         ? getConverter.apply(getSchema(destination))
-        : new SchemaUpgradingTableRowConverter(getConverter, datasetService);
+        : new SchemaUpgradingTableRowConverter(
+            getConverter, options, datasetService, writeStreamService);
   }
 
   class SchemaUpgradingTableRowConverter implements MessageConverter<T> {
     private final SerializableFunction<@Nullable TableSchema, TableRowConverter> getConverter;
     private final DatasetService datasetService;
+    private final BigQueryServices.WriteStreamService writeStreamService;
+    private final BigQueryOptions bigQueryOptions;
     private AtomicReference<TableRowConverter> delegate = new AtomicReference<>();
 
     SchemaUpgradingTableRowConverter(
         SerializableFunction<@Nullable TableSchema, TableRowConverter> getConverter,
-        DatasetService datasetService) {
+        PipelineOptions options,
+        DatasetService datasetService,
+        BigQueryServices.WriteStreamService writeStreamService) {
       this.getConverter = getConverter;
       this.datasetService = datasetService;
+      this.writeStreamService = writeStreamService;
+      this.bigQueryOptions = options.as(BigQueryOptions.class);
       // Pass in null - force us to look up the actual table schema.
       this.delegate.set(getConverter.apply(null));
     }
@@ -112,11 +123,6 @@ public class StorageApiDynamicDestinationsTableRow<T, DestinationT extends @NonN
     @Override
     public com.google.cloud.bigquery.storage.v1.TableSchema getTableSchema() {
       return delegate.get().getTableSchema();
-    }
-
-    @Override
-    public byte[] getSchemaHash() {
-      return delegate.get().getSchemaHash();
     }
 
     @Override
@@ -131,7 +137,7 @@ public class StorageApiDynamicDestinationsTableRow<T, DestinationT extends @NonN
         @Nullable RowMutationInformation rowMutationInformation,
         TableRowToStorageApiProto.ErrorCollector collectedExceptions)
         throws Exception {
-      MessageConverter<T> converter = delegate.get();
+      TableRowConverter converter = delegate.get();
       StorageApiWritePayload payload =
           converter.toMessage(element, rowMutationInformation, collectedExceptions);
       // Set the schema hash on the payload so the next transform knows whether it has an
@@ -143,9 +149,8 @@ public class StorageApiDynamicDestinationsTableRow<T, DestinationT extends @NonN
 
     @Override
     public void updateSchemaFromTable() throws IOException, InterruptedException {
-      // THIS IS NOT GOOD! WE NEED TO FIRST TRY THE ROW AGAINST THE CACHED SCHEMA TO SEE IF IT
-      // WORKS.
-      SCHEMA_CACHE.refreshSchema(delegate.get().tableReference, datasetService);
+      SCHEMA_CACHE.refreshSchema(
+          delegate.get().tableReference, datasetService, writeStreamService, bigQueryOptions);
       this.delegate.set(getConverter.apply(null));
     }
 
@@ -225,8 +230,7 @@ public class StorageApiDynamicDestinationsTableRow<T, DestinationT extends @NonN
       return protoTableSchema;
     }
 
-    @Override
-    public byte[] getSchemaHash() {
+    byte[] getSchemaHash() {
       return getSchemaHash.get();
     }
 

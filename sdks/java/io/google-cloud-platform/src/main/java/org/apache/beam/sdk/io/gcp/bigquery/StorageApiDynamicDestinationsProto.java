@@ -28,10 +28,9 @@ import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServices.DatasetService;
+import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.util.Preconditions;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Predicates;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Supplier;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Suppliers;
 import org.checkerframework.checker.nullness.qual.NonNull;
 
 /** Storage API DynamicDestinations used when the input is a compiled protocol buffer. */
@@ -60,7 +59,11 @@ class StorageApiDynamicDestinationsProto<T extends Message, DestinationT extends
 
   @Override
   public MessageConverter<T> getMessageConverter(
-      DestinationT destination, DatasetService datasetService) throws Exception {
+      DestinationT destination,
+      PipelineOptions pipelineOptions,
+      DatasetService datasetService,
+      BigQueryServices.WriteStreamService writeStreamService)
+      throws Exception {
     return new Converter(
         TableRowToStorageApiProto.schemaToProtoTableSchema(
             Preconditions.checkStateNotNull(getSchema(destination))));
@@ -68,24 +71,16 @@ class StorageApiDynamicDestinationsProto<T extends Message, DestinationT extends
 
   class Converter implements MessageConverter<T> {
     TableSchema tableSchema;
-    Supplier<byte[]> getSchemaHash;
     transient @Nullable TableRowToStorageApiProto.SchemaInformation schemaInformation;
 
     Converter(TableSchema tableSchema) {
       this.tableSchema = tableSchema;
-      this.getSchemaHash =
-          Suppliers.memoize(() -> TableRowToStorageApiProto.tableSchemaHash(tableSchema));
       this.schemaInformation = null;
     }
 
     @Override
     public TableSchema getTableSchema() {
       return tableSchema;
-    }
-
-    @Override
-    public byte[] getSchemaHash() {
-      return getSchemaHash.get();
     }
 
     @Override

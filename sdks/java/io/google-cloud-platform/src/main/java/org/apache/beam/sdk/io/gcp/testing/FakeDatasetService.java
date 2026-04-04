@@ -164,10 +164,11 @@ public class FakeDatasetService implements DatasetService, WriteStreamService, S
     }
 
     WriteStream toWriteStream() {
+      TableSchema tableSchema = updatedSchema != null ? updatedSchema : currentSchema;
       return WriteStream.newBuilder()
           .setName(streamName)
           .setType(type)
-          .setTableSchema(TableRowToStorageApiProto.schemaToProtoTableSchema(currentSchema))
+          .setTableSchema(TableRowToStorageApiProto.schemaToProtoTableSchema(tableSchema))
           .build();
     }
 

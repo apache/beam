@@ -26,9 +26,8 @@ import java.io.IOException;
 import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServices.DatasetService;
+import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.SerializableFunction;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Supplier;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Suppliers;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
@@ -57,14 +56,17 @@ class StorageApiDynamicDestinationsGenericRecord<T, DestinationT extends @NonNul
 
   @Override
   public MessageConverter<T> getMessageConverter(
-      DestinationT destination, DatasetService datasetService) throws Exception {
+      DestinationT destination,
+      PipelineOptions pipelineOptions,
+      DatasetService datasetService,
+      BigQueryServices.WriteStreamService writeStreamService)
+      throws Exception {
     return new GenericRecordConverter(destination);
   }
 
   class GenericRecordConverter implements MessageConverter<T> {
 
     final com.google.cloud.bigquery.storage.v1.TableSchema protoTableSchema;
-    final Supplier<byte[]> getSchemaHash;
     final Schema avroSchema;
     final Descriptor descriptor;
     final @javax.annotation.Nullable Descriptor cdcDescriptor;
@@ -73,8 +75,6 @@ class StorageApiDynamicDestinationsGenericRecord<T, DestinationT extends @NonNul
       avroSchema = schemaFactory.apply(getSchema(destination));
       protoTableSchema =
           AvroGenericRecordToStorageApiProto.protoTableSchemaFromAvroSchema(avroSchema);
-      this.getSchemaHash =
-          Suppliers.memoize(() -> TableRowToStorageApiProto.tableSchemaHash(this.protoTableSchema));
 
       descriptor =
           TableRowToStorageApiProto.getDescriptorFromTableSchema(protoTableSchema, true, false);
@@ -84,11 +84,6 @@ class StorageApiDynamicDestinationsGenericRecord<T, DestinationT extends @NonNul
       } else {
         cdcDescriptor = null;
       }
-    }
-
-    @Override
-    public byte[] getSchemaHash() {
-      return getSchemaHash.get();
     }
 
     @Override

@@ -228,7 +228,9 @@ public class SchemaUpdateHoldingFn<DestinationT extends @NonNull Object, Element
             .get(
                 destination,
                 convertMessagesDoFn.getDynamicDestinations(),
-                convertMessagesDoFn.getDatasetService(pipelineOptions));
+                pipelineOptions,
+                convertMessagesDoFn.getDatasetService(pipelineOptions),
+                convertMessagesDoFn.getWriteStreamService(pipelineOptions));
     messageConverter.updateSchemaFromTable();
 
     List<TimestampedValue<ElementT>> stillWaiting = Lists.newArrayList();

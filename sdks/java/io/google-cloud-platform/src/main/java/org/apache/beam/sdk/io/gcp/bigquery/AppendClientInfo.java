@@ -139,6 +139,11 @@ abstract class AppendClientInfo {
     }
   }
 
+  @Memoized
+  public byte[] getTableSchemaHash() {
+    return TableRowToStorageApiProto.tableSchemaHash(getTableSchema());
+  }
+
   boolean hasSchemaChanged(TableSchema updatedTableSchema) {
     return updatedTableSchema.hashCode() != getTableSchema().hashCode();
   }

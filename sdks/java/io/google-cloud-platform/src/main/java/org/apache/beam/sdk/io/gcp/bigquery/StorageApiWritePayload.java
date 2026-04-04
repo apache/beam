@@ -87,6 +87,10 @@ public abstract class StorageApiWritePayload {
     return toBuilder().setTimestamp(instant).build();
   }
 
+  public StorageApiWritePayload withSchemaHash(byte[] schemaHash) {
+    return toBuilder().setSchemaHash(schemaHash).build();
+  }
+
   public @Memoized @Nullable TableRow getUnknownFields() throws IOException {
     @Nullable byte[] fields = getUnknownFieldsPayload();
     if (fields == null) {

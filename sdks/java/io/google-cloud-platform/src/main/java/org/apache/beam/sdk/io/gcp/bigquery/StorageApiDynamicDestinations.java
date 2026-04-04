@@ -22,6 +22,7 @@ import com.google.protobuf.DescriptorProtos;
 import java.io.IOException;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServices.DatasetService;
+import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.DoFn;
 
 /** Base dynamicDestinations class used by the Storage API sink. */
@@ -46,8 +47,6 @@ abstract class StorageApiDynamicDestinations<T, DestinationT>
 
     TableRow toFailsafeTableRow(T element);
 
-    byte[] getSchemaHash();
-
     void updateSchemaFromTable() throws IOException, InterruptedException;
   }
 
@@ -56,7 +55,11 @@ abstract class StorageApiDynamicDestinations<T, DestinationT>
   }
 
   public abstract MessageConverter<T> getMessageConverter(
-      DestinationT destination, DatasetService datasetService) throws Exception;
+      DestinationT destination,
+      PipelineOptions options,
+      DatasetService datasetService,
+      BigQueryServices.WriteStreamService writeStreamService)
+      throws Exception;
 
   @Override
   void setSideInputAccessorFromProcessContext(DoFn<?, ?>.ProcessContext context) {
