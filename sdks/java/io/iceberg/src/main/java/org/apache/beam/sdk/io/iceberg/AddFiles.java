@@ -512,10 +512,6 @@ public class AddFiles extends PTransform<PCollection<String>, PCollectionRowTupl
       return transform.bind(type).apply(Conversions.fromByteBuffer(type, bytes));
     }
 
-    private static <W, T> T transformValue(Transform<W, T> transform, Type type, Object value) {
-      return transform.bind(type).apply((W) value);
-    }
-
     private Table getOrCreateTable(String filePath, FileFormat format) throws IOException {
       TableIdentifier tableId = TableIdentifier.parse(identifier);
       try {
