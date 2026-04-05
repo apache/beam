@@ -15,6 +15,7 @@
 # limitations under the License.
 #
 
+import datetime
 import os
 import unittest
 import uuid
@@ -49,7 +50,8 @@ class ManagedIcebergIT(unittest.TestCase):
         bytes_=bytes(num),
         bool_=(num % 2 == 0),
         float_=(num + float(num) / 100),
-        arr_=[num, num, num])
+        arr_=[num, num, num],
+        date_=datetime.date.today() - datetime.timedelta(days=num)))
 
   def test_write_read_pipeline(self):
     iceberg_config = {
