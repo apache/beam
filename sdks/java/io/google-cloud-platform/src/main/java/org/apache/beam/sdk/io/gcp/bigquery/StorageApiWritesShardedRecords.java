@@ -1035,11 +1035,6 @@ public class StorageApiWritesShardedRecords<DestinationT extends @NonNull Object
       Instant now = Instant.now();
 
       RetryManager<AppendRowsResponse, AppendRowsContext> retryManager = maybeRetryManager.get();
-      new RetryManager<>(
-          Duration.standardSeconds(1),
-          Duration.standardSeconds(20),
-          maxRetries,
-          BigQuerySinkMetrics.throttledTimeCounter(BigQuerySinkMetrics.RpcMethod.APPEND_ROWS));
       int numAppends = retryManager.getRemainingOperationCount();
       Iterable<AppendRowsContext> contexts = retryManager.getRemainingContexts();
 

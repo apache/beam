@@ -97,6 +97,12 @@ public class SchemaUpdateHoldingFn<DestinationT extends @NonNull Object, Element
     this.minBufferedTsSpec = StateSpecs.combining(minCombineFn);
   }
 
+  @StartBundle
+  public void startBundle() {
+    convertMessagesDoFn.startBundle();
+    ;
+  }
+
   @Teardown
   public void onTeardown() {
     convertMessagesDoFn.onTeardown();

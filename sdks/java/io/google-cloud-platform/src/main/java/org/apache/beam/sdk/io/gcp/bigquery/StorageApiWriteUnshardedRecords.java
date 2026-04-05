@@ -508,7 +508,6 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
 
       AppendClientInfo getAppendClientInfo(
           boolean lookupCache, final @Nullable TableSchema updatedSchema) {
-        lookupCache = false;
         try {
           if (this.appendClientInfo == null) {
             getOrCreateStreamName();
@@ -781,15 +780,6 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
                       ByteString protoBytes =
                           failedContext.protoRows.getSerializedRows(failedIndex);
                       AppendClientInfo aci = Preconditions.checkStateNotNull(this.appendClientInfo);
-                      // TODO: WHY ARE WE HITTING THIS FAILURE!!!!!!! WE successfully reopend the
-                      // connection with
-                      // a new TableSchema, yet Vortex is failing the individual rows.
-                      // APPEARS THAT STREAMWRITER isn't getting updated?
-                      LOG.error(
-                          "UNEXPECTED. DUMPING ERROR {}, CONVERTER SCHEMA {}, ACI SCHEMA {}",
-                          error.getRowIndexToErrorMessage().get(failedIndex),
-                          messageConverter.getTableSchema(),
-                          aci.getTableSchema());
                       failedRow =
                           TableRowToStorageApiProto.tableRowFromMessage(
                               aci.getSchemaInformation(),
