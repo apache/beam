@@ -106,8 +106,8 @@ public abstract class Coder<T> implements Serializable {
    * should delegate to component coders with the appropriate context when encoding nested
    * structures.
    *
-   * @deprecated This class is deprecated. Use the newer encoding context mechanisms provided by the
-   *     beam SDK instead.
+   * @deprecated This class is deprecated and will be removed in future release. 
+   *  Use {@link Coder.Context} alternatives provided by the Beam SDk instead.
    */
   @Deprecated
   public static class Context {
