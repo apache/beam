@@ -105,6 +105,9 @@ public abstract class Coder<T> implements Serializable {
    * <p><b>Note:</b> Most coder implementations do not need to manually manage {@link Context}. They
    * should delegate to component coders with the appropriate context when encoding nested
    * structures.
+   *
+   * @deprecated This class is deprecated. Use the newer encoding context mechanisms provided by the
+   *     beam SDK instead.
    */
   @Deprecated
   public static class Context {
