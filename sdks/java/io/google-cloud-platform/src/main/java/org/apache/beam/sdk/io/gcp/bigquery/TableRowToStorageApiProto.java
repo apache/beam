@@ -98,7 +98,7 @@ public class TableRowToStorageApiProto {
     private final List<SchemaConversionException> exceptions = Lists.newArrayList();
     private final Predicate<SchemaConversionException> shouldCollect;
 
-    public static ErrorCollector DONT_COLLECT = new ErrorCollector(Predicates.alwaysFalse());
+    public static final ErrorCollector DONT_COLLECT = new ErrorCollector(Predicates.alwaysFalse());
 
     public ErrorCollector(Predicate<SchemaConversionException> shouldCollect) {
       this.shouldCollect = shouldCollect;

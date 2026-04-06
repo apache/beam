@@ -2623,19 +2623,18 @@ public class BigQueryIOWriteTest implements Serializable {
                           .set("nested_field2", "nested2" + i);
 
                   if (i >= 3 * stride) {
-                    TableRow double_nested =
+                    TableRow doubleNested =
                         new TableRow().set("double_nested_field1", "double_nested1" + i);
-                    nested = nested.set("double_nested", double_nested);
+                    nested = nested.set("double_nested", doubleNested);
 
                     // Add a repeated struct to ensure that we capture this code path as well.
-                    TableRow repeated_nested1 =
+                    TableRow repeatedNested1 =
                         new TableRow().set("repeated_nested_field1", "repeated_nested1" + i);
-                    TableRow repeated_nested2 =
+                    TableRow repeatedNested2 =
                         new TableRow().set("repeated_nested_field2", "repeated_nested2" + i);
                     nested =
                         nested.set(
-                            "repeated_nested",
-                            ImmutableList.of(repeated_nested1, repeated_nested2));
+                            "repeated_nested", ImmutableList.of(repeatedNested1, repeatedNested2));
                   }
                   row.set("nested", nested);
                 }

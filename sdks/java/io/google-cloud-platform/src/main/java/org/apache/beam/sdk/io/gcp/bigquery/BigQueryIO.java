@@ -3246,8 +3246,12 @@ public class BigQueryIO {
     /**
      * Allows the schema of the destination table to be updated as a side effect of the write.
      *
-     * <p>This configuration applies only when writing to BigQuery with {@link Method#FILE_LOADS} as
+     * <p>This configuration applies only when writing to BigQuery with {@link Method#FILE_LOADS},
+     * {@link Method#STORAGE_WRITE_API", or {@link Method#STORAGE_API_AT_LEAST_ONCE} as
      * method.
+     * <p>If using with storage-write API, new fields (except for nested messages) will always be created with type
+     * STRING.
+     * TODO: Followon PR will add support for a user-supplied type mapping.
      */
     public Write<T> withSchemaUpdateOptions(Set<SchemaUpdateOption> schemaUpdateOptions) {
       checkArgument(schemaUpdateOptions != null, "schemaUpdateOptions can not be null");
