@@ -164,7 +164,7 @@ milvus_dependency = ['pymilvus>=2.5.10,<3.0.0']
 
 ml_base = [
     'embeddings>=0.0.4', # 0.0.3 crashes setuptools
-    'google-adk',
+    'google-adk>=1.28.1',
     'onnxruntime',
     'langchain',
     'sentence-transformers>=2.2.2',
