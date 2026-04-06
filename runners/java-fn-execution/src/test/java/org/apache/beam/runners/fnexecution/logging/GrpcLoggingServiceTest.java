@@ -117,6 +117,7 @@ public class GrpcLoggingServiceTest {
             BeamFnLoggingGrpc.newStub(channel)
                 .logging(
                     TestStreams.withOnNext(messageDiscarder)
+                        .withOnCompleted(new CountDown(waitForTermination))
                         .withOnError(new CountDown(waitForTermination))
                         .build());
         outboundObserver.onNext(createLogsWithIds(instructionId, -instructionId));
