@@ -120,6 +120,7 @@
 * Updates minimum Go version to 1.26.1 ([#37897](https://github.com/apache/beam/issues/37897)).
 * (Python) Added image embedding support in `apache_beam.ml.rag` package ([#37628](https://github.com/apache/beam/issues/37628)).
 * (Python) Added support for Python version 3.14 ([#37247](https://github.com/apache/beam/issues/37247)).
+* (Python) Added [Qdrant](https://qdrant.tech/) VectorDatabaseWriteConfig implementation ([#38141](https://github.com/apache/beam/issues/38141)).
 
 ## Breaking Changes
 
