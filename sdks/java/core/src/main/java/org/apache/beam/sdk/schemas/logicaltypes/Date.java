@@ -18,7 +18,10 @@
 package org.apache.beam.sdk.schemas.logicaltypes;
 
 import java.time.LocalDate;
+import org.apache.beam.model.pipeline.v1.RunnerApi;
+import org.apache.beam.model.pipeline.v1.SchemaApi;
 import org.apache.beam.sdk.schemas.Schema;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * A date without a time-zone.
@@ -30,23 +33,20 @@ import org.apache.beam.sdk.schemas.Schema;
  * incrementing count of days where day 0 is 1970-01-01 (ISO).
  */
 public class Date implements Schema.LogicalType<LocalDate, Long> {
-  public static final String IDENTIFIER = "beam:logical_type:date:v1";
+  public static final String IDENTIFIER =
+      SchemaApi.LogicalTypes.Enum.DATE
+          .getValueDescriptor()
+          .getOptions()
+          .getExtension(RunnerApi.beamUrn);
 
   @Override
   public String getIdentifier() {
     return IDENTIFIER;
   }
 
-  // unused
   @Override
-  public Schema.FieldType getArgumentType() {
-    return Schema.FieldType.STRING;
-  }
-
-  // unused
-  @Override
-  public String getArgument() {
-    return "";
+  public Schema.@Nullable FieldType getArgumentType() {
+    return null;
   }
 
   @Override
