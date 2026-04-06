@@ -203,7 +203,7 @@ public class SchemaUpdateHoldingFn<DestinationT extends @NonNull Object, Element
     // expiration, so we just have to loop until the schema is updated.
     BackOff backoff =
         new ExponentialBackOff.Builder()
-            .setMaxElapsedTimeMillis((int) TimeUnit.SECONDS.toMillis(500))
+            .setMaxElapsedTimeMillis((int) TimeUnit.SECONDS.toMillis(10))
             .build();
     do {
       if (tryFlushBuffer(key.getKey(), pipelineOptions, bag, minBufferedTimestamp, o)) {

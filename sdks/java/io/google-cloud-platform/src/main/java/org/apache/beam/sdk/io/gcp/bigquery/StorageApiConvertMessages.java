@@ -73,6 +73,7 @@ public class StorageApiConvertMessages<DestinationT, ElementT>
 
   private final @Nullable SerializableFunction<ElementT, RowMutationInformation> rowMutationFn;
   private final BadRecordRouter badRecordRouter;
+  private final boolean hasSchemaUpdateOptions;
 
   public StorageApiConvertMessages(
       StorageApiDynamicDestinations<ElementT, DestinationT> dynamicDestinations,
@@ -84,7 +85,8 @@ public class StorageApiConvertMessages<DestinationT, ElementT>
       Coder<ElementT> elementCoder,
       Coder<DestinationT> destinationCoder,
       @Nullable SerializableFunction<ElementT, RowMutationInformation> rowMutationFn,
-      BadRecordRouter badRecordRouter) {
+      BadRecordRouter badRecordRouter,
+      boolean hasSchemaUpdateOptions) {
     this.dynamicDestinations = dynamicDestinations;
     this.bqServices = bqServices;
     this.failedWritesTag = failedWritesTag;
@@ -97,6 +99,7 @@ public class StorageApiConvertMessages<DestinationT, ElementT>
     this.destinationCoder = destinationCoder;
     this.rowMutationFn = rowMutationFn;
     this.badRecordRouter = badRecordRouter;
+    this.hasSchemaUpdateOptions = hasSchemaUpdateOptions;
   }
 
   @Override
@@ -117,7 +120,8 @@ public class StorageApiConvertMessages<DestinationT, ElementT>
             elementsWaitingForSchemaTag,
             rowMutationFn,
             badRecordRouter,
-            input.getCoder());
+            input.getCoder(),
+            hasSchemaUpdateOptions);
 
     PCollectionTuple result =
         input.apply(
@@ -234,7 +238,13 @@ public class StorageApiConvertMessages<DestinationT, ElementT>
         PCollectionList.of(result.get(failedWritesTag))
             .and(retryResult.get(failedWritesTag))
             .apply("flattenFailures", Flatten.pCollections());
-    return PCollectionTuple.of(successfulWritesTag, allSuccesses).and(failedWritesTag, allFailures);
+    PCollection<BadRecord> allBadRecords =
+        PCollectionList.of(result.get(BAD_RECORD_TAG))
+            .and(retryResult.get(BAD_RECORD_TAG))
+            .apply("flattenBadRecords", Flatten.pCollections());
+    return PCollectionTuple.of(successfulWritesTag, allSuccesses)
+        .and(failedWritesTag, allFailures)
+        .and(BAD_RECORD_TAG, allBadRecords);
   }
 
   static class AssignShardFn<K, V> extends DoFn<KV<K, V>, KV<ShardedKey<K>, V>> {

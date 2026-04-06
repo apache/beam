@@ -60,6 +60,7 @@ public class ConvertMessagesDoFn<DestinationT extends @NonNull Object, ElementT>
   private final BadRecordRouter badRecordRouter;
   private final Coder<KV<DestinationT, ElementT>> elementCoder;
   private final Map<DestinationT, BufferedCollectorInformation> errorCollectors = Maps.newHashMap();
+  private final boolean hasSchemaUpdateOptions;
   private transient BigQueryServices.@Nullable DatasetService datasetServiceInternal = null;
   private transient BigQueryServices.@Nullable WriteStreamService writeStreamServiceInternal = null;
 
@@ -96,7 +97,8 @@ public class ConvertMessagesDoFn<DestinationT extends @NonNull Object, ElementT>
       TupleTag<KV<@NonNull DestinationT, ElementT>> retryElementsWaitingForSchemaTag,
       @Nullable SerializableFunction<ElementT, RowMutationInformation> rowMutationFn,
       BadRecordRouter badRecordRouter,
-      Coder<KV<DestinationT, ElementT>> elementCoder) {
+      Coder<KV<DestinationT, ElementT>> elementCoder,
+      boolean hasSchemaUpdateOptions) {
     this.dynamicDestinations = dynamicDestinations;
     this.messageConverters = new TwoLevelMessageConverterCache<>(operationName);
     this.bqServices = bqServices;
@@ -107,6 +109,7 @@ public class ConvertMessagesDoFn<DestinationT extends @NonNull Object, ElementT>
     this.rowMutationFn = rowMutationFn;
     this.badRecordRouter = badRecordRouter;
     this.elementCoder = elementCoder;
+    this.hasSchemaUpdateOptions = hasSchemaUpdateOptions;
   }
 
   BigQueryServices.DatasetService getDatasetService(PipelineOptions pipelineOptions)
@@ -178,7 +181,9 @@ public class ConvertMessagesDoFn<DestinationT extends @NonNull Object, ElementT>
             getDatasetService(pipelineOptions),
             getWriteStreamService(pipelineOptions));
     TableRowToStorageApiProto.ErrorCollector errorCollector =
-        UpgradeTableSchema.newErrorCollector();
+        hasSchemaUpdateOptions
+            ? UpgradeTableSchema.newErrorCollector()
+            : TableRowToStorageApiProto.ErrorCollector.DONT_COLLECT;
     Iterable<TimestampedValue<KV<DestinationT, ElementT>>> unProcessed =
         handleProcessElements(
             messageConverter,
@@ -186,6 +191,9 @@ public class ConvertMessagesDoFn<DestinationT extends @NonNull Object, ElementT>
             o,
             errorCollector);
     if (!errorCollector.isEmpty()) {
+      org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkState(
+          hasSchemaUpdateOptions);
+
       // Track all errors. Generate schema-update message in finishBundle.
       BufferedCollectorInformation bufferedCollectorInformation =
           errorCollectors.computeIfAbsent(

@@ -84,6 +84,7 @@ public class StorageApiLoads<DestinationT, ElementT>
   private final BadRecordRouter badRecordRouter;
 
   private final ErrorHandler<BadRecord, ?> badRecordErrorHandler;
+  private final boolean hasSchemaUpdateOptions;
 
   public StorageApiLoads(
       Coder<DestinationT> destinationCoder,
@@ -105,7 +106,8 @@ public class StorageApiLoads<DestinationT, ElementT>
       AppendRowsRequest.MissingValueInterpretation defaultMissingValueInterpretation,
       Map<String, String> bigLakeConfiguration,
       BadRecordRouter badRecordRouter,
-      ErrorHandler<BadRecord, ?> badRecordErrorHandler) {
+      ErrorHandler<BadRecord, ?> badRecordErrorHandler,
+      boolean hasSchemaUpdateOptions) {
     this.destinationCoder = destinationCoder;
     this.elementCoder = elementCoder;
     this.dynamicDestinations = dynamicDestinations;
@@ -128,6 +130,7 @@ public class StorageApiLoads<DestinationT, ElementT>
     this.bigLakeConfiguration = bigLakeConfiguration;
     this.badRecordRouter = badRecordRouter;
     this.badRecordErrorHandler = badRecordErrorHandler;
+    this.hasSchemaUpdateOptions = hasSchemaUpdateOptions;
   }
 
   public TupleTag<BigQueryStorageApiInsertError> getFailedRowsTag() {
@@ -177,7 +180,8 @@ public class StorageApiLoads<DestinationT, ElementT>
                 elementCoder,
                 destinationCoder,
                 rowUpdateFn,
-                badRecordRouter));
+                badRecordRouter,
+                hasSchemaUpdateOptions));
     PCollectionTuple writeRecordsResult =
         convertMessagesResult
             .get(successfulConvertedRowsTag)
@@ -243,7 +247,8 @@ public class StorageApiLoads<DestinationT, ElementT>
                 elementCoder,
                 destinationCoder,
                 rowUpdateFn,
-                badRecordRouter));
+                badRecordRouter,
+                hasSchemaUpdateOptions));
 
     PCollection<KV<ShardedKey<DestinationT>, Iterable<StorageApiWritePayload>>> groupedRecords;
 
@@ -368,7 +373,8 @@ public class StorageApiLoads<DestinationT, ElementT>
                 elementCoder,
                 destinationCoder,
                 rowUpdateFn,
-                badRecordRouter));
+                badRecordRouter,
+                hasSchemaUpdateOptions));
 
     PCollection<KV<DestinationT, StorageApiWritePayload>> successfulConvertedRows =
         convertMessagesResult.get(successfulConvertedRowsTag);

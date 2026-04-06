@@ -19,14 +19,13 @@ package org.apache.beam.sdk.io.gcp.bigquery;
 
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.MoreObjects.firstNonNull;
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertTrue;
 
 import com.google.api.services.bigquery.model.Table;
 import com.google.api.services.bigquery.model.TableFieldSchema;
 import com.google.api.services.bigquery.model.TableReference;
 import com.google.api.services.bigquery.model.TableRow;
 import com.google.api.services.bigquery.model.TableSchema;
+import com.google.auto.value.AutoValue;
 import java.io.IOException;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -128,8 +127,8 @@ public class StorageApiDataTriggeredSchemaUpdateIT {
     @ProcessElement
     public void processElement(ProcessContext c, @StateId(COUNTER) ValueState<Integer> counter) {
       int current = firstNonNull(counter.read(), 0);
-      counter.write(++current);
       c.output(getRow(current));
+      counter.write(++current);
     }
 
     TableRow getRow(int i) {
@@ -187,6 +186,53 @@ public class StorageApiDataTriggeredSchemaUpdateIT {
                     new TableFieldSchema().setName("number").setType("INT64"),
                     new TableFieldSchema().setName("name").setType("STRING"),
                     new TableFieldSchema().setName("req").setType("STRING").setMode("REQUIRED")));
+    TableSchema evolvedSchema =
+        new TableSchema()
+            .setFields(
+                ImmutableList.of(
+                    new TableFieldSchema().setName("number").setType("INT64").setMode("NULLABLE"),
+                    new TableFieldSchema().setName("name").setType("STRING").setMode("NULLABLE"),
+                    new TableFieldSchema().setName("req").setType("STRING").setMode("NULLABLE"),
+                    new TableFieldSchema().setName("new1").setType("STRING").setMode("NULLABLE"),
+                    new TableFieldSchema().setName("new2").setType("STRING").setMode("NULLABLE"),
+                    new TableFieldSchema()
+                        .setName("nested")
+                        .setType("STRUCT")
+                        .setMode("NULLABLE")
+                        .setFields(
+                            ImmutableList.of(
+                                new TableFieldSchema()
+                                    .setName("nested_field1")
+                                    .setType("STRING")
+                                    .setMode("NULLABLE"),
+                                new TableFieldSchema()
+                                    .setName("nested_field2")
+                                    .setType("STRING")
+                                    .setMode("NULLABLE"),
+                                new TableFieldSchema()
+                                    .setName("double_nested")
+                                    .setType("STRUCT")
+                                    .setMode("NULLABLE")
+                                    .setFields(
+                                        ImmutableList.of(
+                                            new TableFieldSchema()
+                                                .setName("double_nested_field1")
+                                                .setType("STRING")
+                                                .setMode("NULLABLE"))),
+                                new TableFieldSchema()
+                                    .setName("repeated_nested")
+                                    .setType("STRUCT")
+                                    .setMode("REPEATED")
+                                    .setFields(
+                                        ImmutableList.of(
+                                            new TableFieldSchema()
+                                                .setName("repeated_nested_field1")
+                                                .setType("STRING")
+                                                .setMode("NULLABLE"),
+                                            new TableFieldSchema()
+                                                .setName("repeated_nested_field2")
+                                                .setType("STRING")
+                                                .setMode("NULLABLE")))))));
 
     String tableId = createTable(baseSchema);
     String tableSpec = PROJECT + ":" + BIG_QUERY_DATASET_ID + "." + tableId;
@@ -218,12 +264,40 @@ public class StorageApiDataTriggeredSchemaUpdateIT {
 
     p.run().waitUntilFinish();
 
+    List<TableRow> response =
+        BQ_CLIENT.queryUnflattened(
+            String.format("SELECT * FROM [%s] ORDER BY number", tableSpec),
+            PROJECT,
+            true,
+            false,
+            bigQueryLocation);
+    System.err.println("FULL RESULT " + response);
+
     // Verification
-    verifyTableSchemaUpdated(tableSpec);
-    //    verifyDataWritten(tableSpec, 10, "age");
+    verifyTableSchemaUpdated(tableSpec, evolvedSchema);
+    List<VerificationInfo> verifications =
+        ImmutableList.of(
+            new AutoValue_StorageApiDataTriggeredSchemaUpdateIT_VerificationInfo("", 20),
+            new AutoValue_StorageApiDataTriggeredSchemaUpdateIT_VerificationInfo("req IS NULL", 15),
+            new AutoValue_StorageApiDataTriggeredSchemaUpdateIT_VerificationInfo(
+                "new1 IS NOT NULL", 15),
+            new AutoValue_StorageApiDataTriggeredSchemaUpdateIT_VerificationInfo(
+                "new2 IS NOT NULL", 15),
+            new AutoValue_StorageApiDataTriggeredSchemaUpdateIT_VerificationInfo(
+                "nested.nested_field1 IS NOT NULL", 10),
+            new AutoValue_StorageApiDataTriggeredSchemaUpdateIT_VerificationInfo(
+                "nested.nested_field2 IS NOT NULL", 10),
+            new AutoValue_StorageApiDataTriggeredSchemaUpdateIT_VerificationInfo(
+                "nested.double_nested.double_nested_field1 IS NOT NULL", 5),
+            new AutoValue_StorageApiDataTriggeredSchemaUpdateIT_VerificationInfo(
+                "nested.repeated_nested.repeated_nested_field1 IS NOT NULL", 5),
+            new AutoValue_StorageApiDataTriggeredSchemaUpdateIT_VerificationInfo(
+                "nested.repeated_nested.repeated_nested_field2 IS NOT NULL", 5));
+    verifyDataWritten(tableSpec, verifications);
   }
 
-  private void verifyTableSchemaUpdated(String tableSpec) throws IOException, InterruptedException {
+  private void verifyTableSchemaUpdated(String tableSpec, TableSchema evolvedSchema)
+      throws IOException, InterruptedException {
     Table table =
         BQ_CLIENT.getTableResource(
             PROJECT,
@@ -231,44 +305,34 @@ public class StorageApiDataTriggeredSchemaUpdateIT {
             Iterables.getLast(
                 org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Splitter.on('.')
                     .split(tableSpec)));
-    System.err.println("NEW SCHEMA " + table.getSchema());
-    /*
-    boolean foundAge = false;
-    for (TableFieldSchema field : table.getSchema().getFields()) {
-      if (field.getName().equals(extraField)) {
-        foundAge = true;
-        break;
-      }
-    }
-    assertTrue("Table schema should include the upgraded field '" + extraField + "'", foundAge);
-     */
+    assertEquals(
+        TableRowToStorageApiProto.schemaToProtoTableSchema(evolvedSchema),
+        TableRowToStorageApiProto.schemaToProtoTableSchema(table.getSchema()));
   }
 
-  private void verifyDataWritten(String tableSpec, int expectedTotalRows, String extraField)
-      throws IOException, InterruptedException {
-    TableRow countResponse =
-        Iterables.getOnlyElement(
-            BQ_CLIENT.queryUnflattened(
-                String.format("SELECT COUNT(1) as total FROM [%s]", tableSpec),
-                PROJECT,
-                true,
-                false,
-                bigQueryLocation));
-    assertEquals(expectedTotalRows, Integer.parseInt((String) countResponse.get("total")));
+  @AutoValue
+  abstract static class VerificationInfo {
+    abstract String getFilter();
 
-    List<TableRow> rows =
-        BQ_CLIENT.queryUnflattened(
-            String.format("SELECT * FROM [%s] WHERE age IS NOT NULL", tableSpec),
-            PROJECT,
-            true,
-            false,
-            bigQueryLocation);
-    // We added 'age' to rows with id >= 5 (indices 5 to 9)
-    assertEquals(5, rows.size());
-    for (TableRow row : rows) {
-      int id = Integer.parseInt((String) row.get("id"));
-      assertTrue("Row ID should be >= 5 for rows with age", id >= 5);
-      assertNotNull("Age should be present", row.get(extraField));
+    abstract int getExpectedCount();
+  }
+
+  private void verifyDataWritten(String tableSpec, List<VerificationInfo> verifications)
+      throws IOException, InterruptedException {
+    for (VerificationInfo verification : verifications) {
+      String format =
+          verification.getFilter().isEmpty()
+              ? String.format("SELECT COUNT(1) as total FROM [%s]", tableSpec)
+              : String.format(
+                  "SELECT COUNT(1) as total FROM [%s] WHERE %s",
+                  tableSpec, verification.getFilter());
+      TableRow totalCountResponse =
+          Iterables.getOnlyElement(
+              BQ_CLIENT.queryUnflattened(format, PROJECT, true, false, bigQueryLocation));
+      assertEquals(
+          "Unexpected result for query " + format,
+          verification.getExpectedCount(),
+          Integer.parseInt((String) totalCountResponse.get("total")));
     }
   }
 }

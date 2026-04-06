@@ -4329,7 +4329,8 @@ public class BigQueryIO {
                 getDefaultMissingValueInterpretation(),
                 getBigLakeConfiguration(),
                 getBadRecordRouter(),
-                getBadRecordErrorHandler());
+                getBadRecordErrorHandler(),
+                !getSchemaUpdateOptions().isEmpty());
         return input.apply("StorageApiLoads", storageApiLoads);
       } else {
         throw new RuntimeException("Unexpected write method " + method);

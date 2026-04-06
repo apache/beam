@@ -33,12 +33,6 @@ abstract class StorageApiDynamicDestinations<T, DestinationT>
 
     DescriptorProtos.DescriptorProto getDescriptor(boolean includeCdcColumns) throws Exception;
 
-    default StorageApiWritePayload toMessage(
-        T element, @Nullable RowMutationInformation rowMutationInformation) throws Exception {
-      return toMessage(
-          element, rowMutationInformation, TableRowToStorageApiProto.ErrorCollector.DONT_COLLECT);
-    }
-
     StorageApiWritePayload toMessage(
         T element,
         @Nullable RowMutationInformation rowMutationInformation,
