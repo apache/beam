@@ -41,7 +41,7 @@ on:
       - 'sdks/java/extensions/sql/**'
       - 'release/**'
       - 'release/trigger_all_tests.json'
-      - '.github/workflows/beam_PreCommit_Xlang_Generated_Transforms.yml'
+      - '.github/trigger_files/beam_PreCommit_Xlang_Generated_Transforms.json'
   issue_comment:
     types: [created]
   schedule:
