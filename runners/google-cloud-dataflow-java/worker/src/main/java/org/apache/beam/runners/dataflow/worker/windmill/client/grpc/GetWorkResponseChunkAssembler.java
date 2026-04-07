@@ -100,12 +100,12 @@ final class GetWorkResponseChunkAssembler {
   private Optional<AssembledWorkItem> flushToWorkItem() {
     try {
       workItemBuilder.mergeFrom(data);
-      workItemBuilder.addAllAppliedFinalizeIds(appliedFinalizeIds);
       return Optional.of(
           AssembledWorkItem.create(
               workItemBuilder.build(),
               Preconditions.checkNotNull(metadata),
               workTimingInfosTracker.getLatencyAttributions(),
+              ImmutableList.copyOf(appliedFinalizeIds),
               bufferedSize));
     } catch (IOException e) {
       LOG.error("Failed to parse work item from stream: ", e);
@@ -149,9 +149,10 @@ final class GetWorkResponseChunkAssembler {
         WorkItem workItem,
         ComputationMetadata computationMetadata,
         ImmutableList<LatencyAttribution> latencyAttributions,
+        ImmutableList<Long> appliedFinalizeIds,
         long size) {
       return new AutoValue_GetWorkResponseChunkAssembler_AssembledWorkItem(
-          workItem, computationMetadata, latencyAttributions, size);
+          workItem, computationMetadata, latencyAttributions, appliedFinalizeIds, size);
     }
 
     abstract WorkItem workItem();
@@ -159,6 +160,8 @@ final class GetWorkResponseChunkAssembler {
     abstract ComputationMetadata computationMetadata();
 
     abstract ImmutableList<LatencyAttribution> latencyAttributions();
+
+    abstract ImmutableList<Long> appliedFinalizeIds();
 
     abstract long bufferedSize();
   }
