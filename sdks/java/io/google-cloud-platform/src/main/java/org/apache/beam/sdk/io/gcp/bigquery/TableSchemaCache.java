@@ -282,7 +282,6 @@ public class TableSchemaCache {
         }
       }
 
-      // FIX FOR ERRORS
       // Query all the tables for their schema.
       final Map<String, @Nullable TableSchema> schemas = refreshAll(localTablesToRefresh);
 

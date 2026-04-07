@@ -757,25 +757,40 @@ public class FakeDatasetService implements DatasetService, WriteStreamService, S
       private boolean usedForInsert = false;
       private boolean usedForUpdate = false;
 
-      {
-        this.protoDescriptor = TableRowToStorageApiProto.wrapDescriptorProto(descriptor);
-
+      @Nullable
+      Exceptions.StorageException tryInitialize() throws Exception {
         synchronized (FakeDatasetService.class) {
-          Stream stream = writeStreams.get(streamName);
-          if (stream == null) {
-            // TODO(relax): Return the exact error that BigQuery returns.
-            throw new ApiException(null, GrpcStatusCode.of(Status.Code.NOT_FOUND), false);
+          if (this.protoDescriptor == null) {
+            this.protoDescriptor = TableRowToStorageApiProto.wrapDescriptorProto(descriptor);
+
+            Stream stream = writeStreams.get(streamName);
+            if (stream == null) {
+              return getStorageException(
+                  streamName, StorageError.StorageErrorCode.STREAM_NOT_FOUND, "Stream not found");
+            }
+
+            // TODO: we should validate the descriptor against the table schema and ensure it
+            // matches.
+
+            currentSchema = stream.tableContainer.getTable().getSchema();
+            schemaInformation =
+                TableRowToStorageApiProto.SchemaInformation.fromTableSchema(
+                    TableRowToStorageApiProto.schemaToProtoTableSchema(currentSchema));
           }
-          currentSchema = stream.tableContainer.getTable().getSchema();
-          schemaInformation =
-              TableRowToStorageApiProto.SchemaInformation.fromTableSchema(
-                  TableRowToStorageApiProto.schemaToProtoTableSchema(currentSchema));
         }
+        return null;
       }
 
       @Override
       public ApiFuture<AppendRowsResponse> appendRows(long offset, ProtoRows rows)
           throws Exception {
+        // The BigQuery client returns stream-open errors when the first append is called, so we
+        // duplicate that here.
+        Exceptions.StorageException storageException = tryInitialize();
+        if (storageException != null) {
+          return ApiFutures.immediateFailedFuture(storageException);
+        }
+
         AppendRowsResponse.Builder responseBuilder = AppendRowsResponse.newBuilder();
         synchronized (FakeDatasetService.class) {
           Stream stream = writeStreams.get(streamName);
