@@ -189,13 +189,13 @@ public class TableRowToStorageApiProto {
   public static class SchemaMissingRequiredFieldException extends SchemaConversionException {
     private final Set<String> missingFields;
 
-    SchemaMissingRequiredFieldException(Set<String> missingFields, String msg) {
-      super(msg);
+    SchemaMissingRequiredFieldException(Set<String> missingFields) {
+      super("Missing required fields: " + missingFields);
       this.missingFields = missingFields;
     }
 
-    SchemaMissingRequiredFieldException(Set<String> missingFields, String msg, Exception e) {
-      super(msg + ". Exception: " + e, e);
+    SchemaMissingRequiredFieldException(Set<String> missingFields, Exception e) {
+      super("Missing required fields: " + missingFields + ". Exception: " + e, e);
       this.missingFields = missingFields;
     }
 
@@ -861,12 +861,13 @@ public class TableRowToStorageApiProto {
           schemaInformation.subFields.stream()
               .filter(s -> !s.isNullable() && !s.isRepeated())
               .map(SchemaInformation::getName)
+              .map(String::toLowerCase)
               .collect(toSet());
     }
     for (final Map.Entry<String, Object> entry : map.entrySet()) {
       String key = entry.getKey().toLowerCase();
       if (requiredFieldsRemaining != null) {
-        requiredFieldsRemaining.remove(entry.getKey());
+        requiredFieldsRemaining.remove(key);
       }
 
       String protoFieldName =
@@ -1027,8 +1028,7 @@ public class TableRowToStorageApiProto {
           requiredFieldsRemaining.stream()
               .map(key -> prefix.isEmpty() ? key : String.join(".", prefix, key))
               .collect(Collectors.toSet());
-      SchemaConversionException e =
-          new SchemaMissingRequiredFieldException(missingFields, "Missing fields");
+      SchemaConversionException e = new SchemaMissingRequiredFieldException(missingFields);
       collectedExceptions.collect(e); // Throws if not collected.
     }
     if (!collectedExceptions.isEmpty()) {
@@ -1560,8 +1560,7 @@ public class TableRowToStorageApiProto {
       } else {
         SchemaConversionException exception =
             new SchemaMissingRequiredFieldException(
-                ImmutableSet.of(schemaInformation.getFullName()),
-                "Received null value for non-nullable field " + schemaInformation.getFullName());
+                ImmutableSet.of(schemaInformation.getFullName()));
         collectedExceptions.collect(exception); // Throws if not collected.
         return null;
       }

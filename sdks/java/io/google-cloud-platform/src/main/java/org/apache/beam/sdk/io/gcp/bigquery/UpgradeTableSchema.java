@@ -251,10 +251,10 @@ public class UpgradeTableSchema {
       ThrowingSupplier<byte[]> schemaHash,
       ThrowingSupplier<Descriptors.Descriptor> schemaDescriptor)
       throws Exception {
-    byte @Nullable [] payloadSchema = payload.getSchemaHash();
-    if (payloadSchema != null) {
+    byte @Nullable [] payloadSchemaHash = payload.getSchemaHash();
+    if (payloadSchemaHash != null) {
       // Schema hash is only included in the payload if schema update options are set.
-      HashCode lhs = HashCode.fromBytes(payloadSchema);
+      HashCode lhs = HashCode.fromBytes(payloadSchemaHash);
       HashCode rhs = HashCode.fromBytes(schemaHash.get());
       if (!lhs.equals(rhs)) {
         DynamicMessage msg =
