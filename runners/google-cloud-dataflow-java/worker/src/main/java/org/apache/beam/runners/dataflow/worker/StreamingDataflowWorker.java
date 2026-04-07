@@ -622,7 +622,7 @@ public final class StreamingDataflowWorker {
     BoundedQueueExecutor workExecutor = createWorkUnitExecutor(options);
     ScheduledExecutorService commitFinalizerCleanupExecutor =
         Executors.newScheduledThreadPool(
-            10,
+            1,
             new ThreadFactoryBuilder()
                 .setNameFormat("FinalizationCallbackCleanup-%d")
                 .setDaemon(true)
@@ -856,7 +856,7 @@ public final class StreamingDataflowWorker {
     BoundedQueueExecutor workExecutor = createWorkUnitExecutor(options);
     ScheduledExecutorService commitFinalizerCleanupExecutor =
         Executors.newScheduledThreadPool(
-            10,
+            1,
             new ThreadFactoryBuilder()
                 .setNameFormat("FinalizationCallbackCleanup-%d")
                 .setDaemon(true)

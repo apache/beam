@@ -66,7 +66,7 @@ public class StreamingCommitFinalizerTest {
 
     cleanupExecutor =
         Executors.newScheduledThreadPool(
-            10,
+            1,
             new ThreadFactoryBuilder()
                 .setNameFormat("FinalizationCallbackCleanup-%d")
                 .setDaemon(true)

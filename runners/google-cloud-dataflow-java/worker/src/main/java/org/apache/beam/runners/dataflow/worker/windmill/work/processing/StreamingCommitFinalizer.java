@@ -88,12 +88,18 @@ final class StreamingCommitFinalizer {
    * has been successfully committed to the backing state store.
    */
   public void cacheCommitFinalizers(Map<Long, Pair<Instant, Runnable>> callbacks) {
-    List<FinalizationInfo> finalizeInfos = new ArrayList<>();
+    if (callbacks.isEmpty()) {
+      return;
+    }
     Instant now = Instant.now();
-    for (Map.Entry<Long, Pair<Instant, Runnable>> entry : callbacks.entrySet()) {
-      Instant cleanupTime = entry.getValue().getLeft();
-      // Ignore finalizers that have already expired.
-      if (cleanupTime.isAfter(now)) {
+    lock.lock();
+    try {
+      for (Map.Entry<Long, Pair<Instant, Runnable>> entry : callbacks.entrySet()) {
+        Instant cleanupTime = entry.getValue().getLeft();
+        // Ignore finalizers that have already expired.
+        if (cleanupTime.isBefore(now)) {
+          continue;
+        }
         ScheduledFuture<?> cleanupFuture =
             cleanupExecutor.schedule(
                 () -> {
@@ -106,30 +112,23 @@ final class StreamingCommitFinalizer {
                 },
                 new Duration(now, cleanupTime).getMillis(),
                 TimeUnit.MILLISECONDS);
-        finalizeInfos.add(
+        FinalizationInfo info =
             FinalizationInfo.create(
                 entry.getKey(),
                 entry.getValue().getLeft(),
                 entry.getValue().getRight(),
-                cleanupFuture));
-      }
-    }
-    if (!finalizeInfos.isEmpty()) {
-      lock.lock();
-      try {
-        for (FinalizationInfo info : finalizeInfos) {
-          FinalizationInfo existingInfo = commitFinalizationCallbacks.put(info.getId(), info);
-          if (existingInfo != null) {
-            throw new IllegalStateException(
-                "Expected to not have any past callbacks for bundle "
-                    + info.getId()
-                    + " but had "
-                    + existingInfo);
-          }
+                cleanupFuture);
+        FinalizationInfo existingInfo = commitFinalizationCallbacks.put(info.getId(), info);
+        if (existingInfo != null) {
+          throw new IllegalStateException(
+              "Expected to not have any past callbacks for bundle "
+                  + info.getId()
+                  + " but had "
+                  + existingInfo);
         }
-      } finally {
-        lock.unlock();
       }
+    } finally {
+      lock.unlock();
     }
   }
 
