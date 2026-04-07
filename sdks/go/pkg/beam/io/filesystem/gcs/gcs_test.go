@@ -271,6 +271,124 @@ func TestGCS_copy(t *testing.T) {
 	}
 }
 
+func TestGlobToRegex(t *testing.T) {
+	tests := []struct {
+		pattern string
+		name    string
+		want    bool
+	}{
+		// Single * should NOT match / in object names
+		{"*.txt", "file.txt", true},
+		{"*.txt", "dir/file.txt", false},
+		{"prefix*", "prefix123", true},
+		{"prefix*", "prefix/subdir", false},
+
+		// ** should match any characters including /
+		{"**", "file.txt", true},
+		{"**", "dir/file.txt", true},
+		{"**", "dir/subdir/file.txt", true},
+		{"prefix/**", "prefix/file.txt", true},
+		{"prefix/**", "prefix/subdir/file.txt", true},
+		{"**/file.txt", "file.txt", true},
+		{"**/file.txt", "dir/file.txt", true},
+		{"**/file.txt", "dir/subdir/file.txt", true},
+
+		// Mixed patterns
+		{"dir/*.txt", "dir/file.txt", true},
+		{"dir/*.txt", "dir/subdir/file.txt", false},
+		{"dir/**/*.txt", "dir/file.txt", true},
+		{"dir/**/*.txt", "dir/subdir/file.txt", true},
+		{"dir/**/file.txt", "dir/file.txt", true},
+		{"dir/**/file.txt", "dir/a/b/c/file.txt", true},
+
+		// ? should match any single character including /
+		{"file?.txt", "file1.txt", true},
+		{"file?.txt", "file12.txt", false},
+
+		// Character classes
+		{"file[0-9].txt", "file1.txt", true},
+		{"file[0-9].txt", "filea.txt", false},
+		{"file[!0-9].txt", "filea.txt", true},
+		{"file[!0-9].txt", "file1.txt", false},
+
+		// Exact match (no wildcards)
+		{"exact.txt", "exact.txt", true},
+		{"exact.txt", "notexact.txt", false},
+
+		// Regex special characters should be escaped
+		{"file.txt", "file.txt", true},
+		{"file.txt", "fileXtxt", false},
+		{"file(1).txt", "file(1).txt", true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.pattern+"_"+tt.name, func(t *testing.T) {
+			re, err := globToRegex(tt.pattern)
+			if err != nil {
+				t.Fatalf("globToRegex(%q) error = %v", tt.pattern, err)
+			}
+			got := re.MatchString(tt.name)
+			if got != tt.want {
+				t.Errorf("globToRegex(%q).MatchString(%q) = %v, want %v", tt.pattern, tt.name, got, tt.want)
+			}
+		})
+	}
+}
+
+func TestGCS_listWithSlashesInObjectNames(t *testing.T) {
+	ctx := context.Background()
+	bucket := "beamgogcsfilesystemtest"
+	dirPath := "gs://" + bucket
+
+	// Create server with objects that have / in their names
+	server := fakestorage.NewServer([]fakestorage.Object{
+		{ObjectAttrs: fakestorage.ObjectAttrs{BucketName: bucket, Name: "file.txt"}, Content: []byte("")},
+		{ObjectAttrs: fakestorage.ObjectAttrs{BucketName: bucket, Name: "dir/file.txt"}, Content: []byte("")},
+		{ObjectAttrs: fakestorage.ObjectAttrs{BucketName: bucket, Name: "dir/subdir/file.txt"}, Content: []byte("")},
+		{ObjectAttrs: fakestorage.ObjectAttrs{BucketName: bucket, Name: "other.txt"}, Content: []byte("")},
+	})
+	t.Cleanup(server.Stop)
+	c := &fs{client: server.Client()}
+
+	tests := []struct {
+		glob string
+		want []string
+	}{
+		// Single * should only match top-level files
+		{dirPath + "/*.txt", []string{dirPath + "/file.txt", dirPath + "/other.txt"}},
+		// ** should match all files recursively
+		{dirPath + "/**", []string{
+			dirPath + "/file.txt",
+			dirPath + "/dir/file.txt",
+			dirPath + "/dir/subdir/file.txt",
+			dirPath + "/other.txt",
+		}},
+		// dir/* should only match immediate children
+		{dirPath + "/dir/*", []string{dirPath + "/dir/file.txt"}},
+		// dir/** should match all descendants
+		{dirPath + "/dir/**", []string{
+			dirPath + "/dir/file.txt",
+			dirPath + "/dir/subdir/file.txt",
+		}},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.glob, func(t *testing.T) {
+			got, err := c.List(ctx, tt.glob)
+			if err != nil {
+				t.Fatalf("List(%q) error = %v", tt.glob, err)
+			}
+
+			sort.Strings(got)
+			sort.Strings(tt.want)
+
+			if !cmp.Equal(got, tt.want) {
+				t.Errorf("List(%q) = %v, want %v", tt.glob, got, tt.want)
+			}
+		})
+	}
+}
+
 func createFakeGCSServer(tb testing.TB) *fakestorage.Server {
 	tb.Helper()
 
