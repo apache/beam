@@ -237,7 +237,7 @@ public class BeamFnDataOutboundAggregator {
   private Elements.Builder convertBufferForTransmission() {
     Elements.Builder bufferedElements = Elements.newBuilder();
     for (Map.Entry<String, Receiver<?>> entry : outputDataReceivers.entrySet()) {
-      if (entry.getValue().bufferedSize() == 0) {
+      if (!entry.getValue().hasBufferedOutput()) {
         continue;
       }
       ByteString bytes = entry.getValue().toByteStringAndResetBuffer();
@@ -248,7 +248,7 @@ public class BeamFnDataOutboundAggregator {
           .setData(bytes);
     }
     for (Map.Entry<TimerEndpoint, Receiver<?>> entry : outputTimersReceivers.entrySet()) {
-      if (entry.getValue().bufferedSize() == 0) {
+      if (!entry.getValue().hasBufferedOutput()) {
         continue;
       }
       ByteString bytes = entry.getValue().toByteStringAndResetBuffer();
@@ -340,10 +340,11 @@ public class BeamFnDataOutboundAggregator {
     public void accept(T input) throws Exception {
       int size = output.size();
       coder.encode(input, output);
-      if (output.size() - size == 0) {
+      long delta = (long) output.size() - size;
+      if (delta == 0) {
         output.write(0);
+        delta = 1;
       }
-      final long delta = (long) output.size() - size;
       bytesWrittenSinceFlush += delta;
       perBundleByteCount += delta;
       perBundleElementCount += 1;
@@ -360,8 +361,8 @@ public class BeamFnDataOutboundAggregator {
       return perBundleElementCount;
     }
 
-    public int bufferedSize() {
-      return output.size();
+    public boolean hasBufferedOutput() {
+      return !output.isEmpty();
     }
 
     public ByteString toByteStringAndResetBuffer() {
