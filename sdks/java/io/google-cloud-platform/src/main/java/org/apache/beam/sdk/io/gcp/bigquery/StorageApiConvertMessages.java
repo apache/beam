@@ -40,6 +40,7 @@ import org.apache.beam.sdk.transforms.errorhandling.BadRecord;
 import org.apache.beam.sdk.transforms.errorhandling.BadRecordRouter;
 import org.apache.beam.sdk.transforms.windowing.AfterProcessingTime;
 import org.apache.beam.sdk.transforms.windowing.DefaultTrigger;
+import org.apache.beam.sdk.transforms.windowing.GlobalWindows;
 import org.apache.beam.sdk.transforms.windowing.Repeatedly;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.util.ShardedKey;
@@ -49,6 +50,7 @@ import org.apache.beam.sdk.values.PCollectionList;
 import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.primitives.UnsignedInteger;
 import org.checkerframework.checker.nullness.qual.NonNull;
@@ -105,6 +107,8 @@ public class StorageApiConvertMessages<DestinationT, ElementT>
   @Override
   public PCollectionTuple expand(PCollection<KV<DestinationT, ElementT>> input) {
     String operationName = input.getName() + "/" + getName();
+    // This code currently assumes that the input is in the global window.
+    Preconditions.checkState(input.getWindowingStrategy().getWindowFn() instanceof GlobalWindows);
 
     @SuppressWarnings({
       "nullness" // TODO(https://github.com/apache/beam/issues/20497)
@@ -152,7 +156,8 @@ public class StorageApiConvertMessages<DestinationT, ElementT>
             .getSchemaUpgradeBufferingShards();
 
     // Throttle the stream to the patch-table function so that only a single update per table per
-    // second gets processed. The combiner merges incremental schemas, so we won't miss any pdates.
+    // two seconds gets processed (to match quotas). The combiner merges incremental schemas, so we
+    // won't miss any updates.
     PCollection<KV<ShardedKey<DestinationT>, ElementT>> tablesPatched =
         result
             .get(patchTableSchemaTag)
@@ -162,7 +167,7 @@ public class StorageApiConvertMessages<DestinationT, ElementT>
                     .triggering(
                         Repeatedly.forever(
                             AfterProcessingTime.pastFirstElementInPane()
-                                .plusDelayOf(Duration.standardSeconds(1))))
+                                .plusDelayOf(Duration.standardSeconds(2))))
                     .discardingFiredPanes())
             .apply("merge schemas", Combine.perKey(new MergeSchemaCombineFn()))
             .setCoder(KvCoder.of(destinationCoder, ProtoCoder.of(TableSchema.class)))

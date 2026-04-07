@@ -69,10 +69,6 @@ public class SchemaUpdateHoldingFn<DestinationT extends @NonNull Object, Element
   @TimerId("pollTimer")
   private final TimerSpec pollTimerSpec = TimerSpecs.timer(TimeDomain.PROCESSING_TIME);
 
-  // Noop timer used only for watermark holds.
-  @TimerId("holdTimer")
-  private final TimerSpec holdTimerSpec = TimerSpecs.timer(TimeDomain.EVENT_TIME);
-
   private final ConvertMessagesDoFn<DestinationT, ElementT> convertMessagesDoFn;
 
   public SchemaUpdateHoldingFn(
@@ -116,7 +112,6 @@ public class SchemaUpdateHoldingFn<DestinationT extends @NonNull Object, Element
       @StateId("minBufferedTimestamp") CombiningState<Long, long[], Long> minBufferedTimestamp,
       @StateId("timerTimestamp") ValueState<Long> timerTs,
       @TimerId("pollTimer") Timer pollTimer,
-      @TimerId("holdTimer") Timer holdTimer,
       ProcessContext context,
       BoundedWindow window,
       MultiOutputReceiver o)
@@ -126,12 +121,19 @@ public class SchemaUpdateHoldingFn<DestinationT extends @NonNull Object, Element
     minBufferedTimestamp.readLater();
     timerTs.readLater();
     ElementT value = element.getValue();
-    boolean needsNewTimer = false;
+    Instant newTimerTs = null;
     if (value != null) {
       // Buffer the element.
       bag.add(TimestampedValue.of(value, timestamp));
       minBufferedTimestamp.add(timestamp.getMillis());
-      needsNewTimer = (timerTs.read() == null);
+      Long currentTimerTs = timerTs.read();
+      // We always have to reset the timer to update the output timestamp, however if there already
+      // is a timer then
+      // we keep the current expiration.
+      newTimerTs =
+          currentTimerTs == null
+              ? pollTimer.getCurrentRelativeTime().plus(POLL_DURATION)
+              : Instant.ofEpochMilli(currentTimerTs);
     } else {
       // This means that the table schema was recently updated. Try to flush the pending elements.
       if (tryFlushBuffer(
@@ -140,14 +142,11 @@ public class SchemaUpdateHoldingFn<DestinationT extends @NonNull Object, Element
         pollTimer.clear();
         timerTs.clear();
       } else {
-        // We just scanned the buffer, so bump the timer.
-        needsNewTimer = true;
+        // We just scanned the buffer, so bump the timer to the next poll duration.
+        newTimerTs = pollTimer.getCurrentRelativeTime().plus(POLL_DURATION);
       }
     }
-    updateHold(holdTimer, window, Instant.ofEpochMilli(minBufferedTimestamp.read()));
-
-    if (needsNewTimer) {
-      Instant newTimerTs = pollTimer.getCurrentRelativeTime().plus(POLL_DURATION);
+    if (newTimerTs != null) {
       pollTimer
           .withOutputTimestamp(Instant.ofEpochMilli(minBufferedTimestamp.read()))
           .set(newTimerTs);
@@ -161,11 +160,6 @@ public class SchemaUpdateHoldingFn<DestinationT extends @NonNull Object, Element
     return Duration.millis(Long.MAX_VALUE);
   }
 
-  // noop. We need this method because we have a holdTimer, but the timer only exists to hold the
-  // watermark.
-  @OnTimer("holdTimer")
-  public void onHoldTimer() {}
-
   @OnTimer("pollTimer")
   public void onPollTimer(
       @Key ShardedKey<DestinationT> key,
@@ -174,7 +168,6 @@ public class SchemaUpdateHoldingFn<DestinationT extends @NonNull Object, Element
       @StateId("minBufferedTimestamp") CombiningState<Long, long[], Long> minBufferedTimestamp,
       @StateId("timerTimestamp") ValueState<Long> timerTs,
       @TimerId("pollTimer") Timer pollTimer,
-      @TimerId("holdTimer") Timer holdTimer,
       BoundedWindow window,
       MultiOutputReceiver o)
       throws Exception {
@@ -188,7 +181,6 @@ public class SchemaUpdateHoldingFn<DestinationT extends @NonNull Object, Element
           .set(newTimerTs);
       timerTs.write(newTimerTs.getMillis());
     }
-    updateHold(holdTimer, window, Instant.ofEpochMilli(minBufferedTimestamp.read()));
   }
 
   @OnWindowExpiration
@@ -213,6 +205,7 @@ public class SchemaUpdateHoldingFn<DestinationT extends @NonNull Object, Element
     throw new RuntimeException("Failed to flush elements on window expiration!");
   }
 
+  // Returns true if the buffer is completely flushed.
   public boolean tryFlushBuffer(
       DestinationT destination,
       PipelineOptions pipelineOptions,
@@ -259,15 +252,5 @@ public class SchemaUpdateHoldingFn<DestinationT extends @NonNull Object, Element
     stillWaiting.forEach(bag::add);
 
     return stillWaiting.isEmpty();
-  }
-
-  void updateHold(Timer holdTimer, BoundedWindow window, Instant minTimestamp) {
-    // Use a dummy timer to hold the watermark to the minimum buffered timestamp.
-    if (minTimestamp.getMillis() == BoundedWindow.TIMESTAMP_MAX_VALUE.getMillis()) {
-      holdTimer.clear();
-    } else {
-      Instant windowEnd = window.maxTimestamp();
-      holdTimer.withOutputTimestamp(minTimestamp).set(windowEnd);
-    }
   }
 }

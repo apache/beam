@@ -23,6 +23,7 @@ import com.google.api.core.ApiFuture;
 import com.google.api.core.ApiFutures;
 import com.google.api.services.bigquery.model.TableReference;
 import com.google.api.services.bigquery.model.TableRow;
+import com.google.auto.value.AutoValue;
 import com.google.cloud.bigquery.storage.v1.AppendRowsRequest;
 import com.google.cloud.bigquery.storage.v1.AppendRowsResponse;
 import com.google.cloud.bigquery.storage.v1.Exceptions;
@@ -37,6 +38,7 @@ import io.grpc.Status.Code;
 import java.io.IOException;
 import java.time.Instant;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -91,6 +93,7 @@ import org.apache.beam.sdk.util.ShardedKey;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
+import org.apache.beam.sdk.values.TimestampedValue;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
 import org.apache.beam.sdk.values.TypeDescriptor;
@@ -143,45 +146,6 @@ public class StorageApiWritesShardedRecords<DestinationT extends @NonNull Object
 
   private final TupleTag<KV<String, Operation>> flushTag = new TupleTag<>("flushTag");
   private static final ExecutorService closeWriterExecutor = Executors.newCachedThreadPool();
-
-  // Context passed into RetryManager for each call.
-  class AppendRowsContext extends RetryManager.Operation.Context<AppendRowsResponse> {
-    final ShardedKey<DestinationT> key;
-    String streamName = "";
-    @Nullable StreamAppendClient client = null;
-    long offset = -1;
-    long numRows = 0;
-    long tryIteration = 0;
-    ProtoRows protoRows;
-
-    List<org.joda.time.Instant> timestamps;
-    List<@Nullable TableRow> failsafeTableRows;
-
-    AppendRowsContext(
-        ShardedKey<DestinationT> key,
-        ProtoRows protoRows,
-        List<org.joda.time.Instant> timestamps,
-        List<@Nullable TableRow> failsafeTableRows) {
-      this.key = key;
-      this.protoRows = protoRows;
-      this.timestamps = timestamps;
-      this.failsafeTableRows = failsafeTableRows;
-    }
-
-    @Override
-    public String toString() {
-      return "Context: key="
-          + key
-          + " streamName="
-          + streamName
-          + " offset="
-          + offset
-          + " numRows="
-          + numRows
-          + " tryIteration: "
-          + tryIteration;
-    }
-  };
 
   private static final Cache<KV<String, ShardedKey<?>>, AppendClientInfo> APPEND_CLIENTS =
       CacheBuilder.newBuilder()
@@ -307,6 +271,74 @@ public class StorageApiWritesShardedRecords<DestinationT extends @NonNull Object
       writeRecordsResult.get(successfulRowsTag).setCoder(succussfulRowsCoder);
     }
     return writeRecordsResult;
+  }
+
+  // Context passed into RetryManager for each call.
+  static class AppendRowsContext<DestinationT>
+      extends RetryManager.Operation.Context<AppendRowsResponse> {
+    final ShardedKey<DestinationT> key;
+    String streamName = "";
+    @Nullable StreamAppendClient client = null;
+    long offset = -1;
+    long numRows = 0;
+    long tryIteration = 0;
+    ProtoRows protoRows;
+
+    List<org.joda.time.Instant> timestamps;
+    List<@Nullable TableRow> failsafeTableRows;
+
+    AppendRowsContext(
+        ShardedKey<DestinationT> key,
+        ProtoRows protoRows,
+        List<org.joda.time.Instant> timestamps,
+        List<@Nullable TableRow> failsafeTableRows) {
+      this.key = key;
+      this.protoRows = protoRows;
+      this.timestamps = timestamps;
+      this.failsafeTableRows = failsafeTableRows;
+    }
+
+    @Override
+    public String toString() {
+      return "Context: key="
+          + key
+          + " streamName="
+          + streamName
+          + " offset="
+          + offset
+          + " numRows="
+          + numRows
+          + " tryIteration: "
+          + tryIteration;
+    }
+  };
+
+  @AutoValue
+  abstract static class CreateRetryManagerResult<DestinationT> {
+    abstract @Nullable RetryManager<AppendRowsResponse, AppendRowsContext<DestinationT>>
+        getRetryManager();
+
+    abstract boolean getSchemaMismatchSeen();
+
+    abstract List<TimestampedValue<BigQueryStorageApiInsertError>> getFailedRows();
+
+    abstract int getRecordsAppended();
+
+    abstract List<Integer> getHistogramValues();
+
+    static <DestinationT> CreateRetryManagerResult<DestinationT> schemaMismatch() {
+      return new AutoValue_StorageApiWritesShardedRecords_CreateRetryManagerResult<>(
+          null, true, Collections.emptyList(), 0, Collections.emptyList());
+    }
+
+    static <DestinationT> CreateRetryManagerResult<DestinationT> of(
+        RetryManager<AppendRowsResponse, AppendRowsContext<DestinationT>> retryManager,
+        List<TimestampedValue<BigQueryStorageApiInsertError>> failedRows,
+        int recordsAppended,
+        List<Integer> histogram) {
+      return new AutoValue_StorageApiWritesShardedRecords_CreateRetryManagerResult<>(
+          retryManager, false, failedRows, recordsAppended, histogram);
+    }
   }
 
   class WriteRecordsDoFn
@@ -451,27 +483,28 @@ public class StorageApiWritesShardedRecords<DestinationT extends @NonNull Object
       }
     }
 
-    // Returns Optional.empty if there is a schema mismatch.
-    private Optional<RetryManager<AppendRowsResponse, AppendRowsContext>> createRetryManager(
+    private CreateRetryManagerResult<DestinationT> createRetryManager(
         ShardedKey<DestinationT> key,
         Iterable<SplittingIterable.Value> messages,
-        Function<AppendRowsContext, ApiFuture<AppendRowsResponse>> runOperation,
-        Function<Iterable<AppendRowsContext>, RetryType> onError,
-        Consumer<AppendRowsContext> onSuccess,
+        Function<AppendRowsContext<DestinationT>, ApiFuture<AppendRowsResponse>> runOperation,
+        Function<Iterable<AppendRowsContext<DestinationT>>, RetryType> onError,
+        Consumer<AppendRowsContext<DestinationT>> onSuccess,
         AppendClientInfo appendClientInfo,
-        TableReference tableReference,
-        String shortTableId,
-        MultiOutputReceiver o)
+        TableReference tableReference)
         throws Exception {
-      RetryManager<AppendRowsResponse, AppendRowsContext> retryManager =
+      RetryManager<AppendRowsResponse, AppendRowsContext<DestinationT>> retryManager =
           new RetryManager<>(
               Duration.standardSeconds(1),
               Duration.standardSeconds(20),
               maxRetries,
               BigQuerySinkMetrics.throttledTimeCounter(BigQuerySinkMetrics.RpcMethod.APPEND_ROWS));
+
+      List<TimestampedValue<BigQueryStorageApiInsertError>> failedRows = Lists.newArrayList();
+      int recordsAppended = 0;
+      List<Integer> histogramUpdates = Lists.newArrayList();
       for (SplittingIterable.Value splitValue : messages) {
         if (splitValue.getSchemaMismatchSeen()) {
-          return Optional.empty();
+          return CreateRetryManagerResult.schemaMismatch();
         }
         // Handle the case of a row that is too large.
         if (splitValue.getProtoRows().getSerializedSize() >= maxRequestSize) {
@@ -491,35 +524,30 @@ public class StorageApiWritesShardedRecords<DestinationT extends @NonNull Object
               ByteString rowBytes = splitValue.getProtoRows().getSerializedRows(i);
               failedRow = appendClientInfo.toTableRow(rowBytes, Predicates.alwaysTrue());
             }
-            o.get(failedRowsTag)
-                .outputWithTimestamp(
+            failedRows.add(
+                TimestampedValue.of(
                     new BigQueryStorageApiInsertError(
                         failedRow,
                         "Row payload too large. Maximum size " + maxRequestSize,
                         tableReference),
-                    timestamp);
+                    timestamp));
           }
-          int numRowsFailed = splitValue.getProtoRows().getSerializedRowsCount();
-          rowsSentToFailedRowsCollection.inc(numRowsFailed);
-          BigQuerySinkMetrics.appendRowsRowStatusCounter(
-                  BigQuerySinkMetrics.RowStatus.FAILED,
-                  BigQuerySinkMetrics.PAYLOAD_TOO_LARGE,
-                  shortTableId)
-              .inc(numRowsFailed);
         } else {
           // RetryManager
-          AppendRowsContext context =
-              new AppendRowsContext(
+          AppendRowsContext<DestinationT> context =
+              new AppendRowsContext<>(
                   key,
                   splitValue.getProtoRows(),
                   splitValue.getTimestamps(),
                   splitValue.getFailsafeTableRows());
           retryManager.addOperation(runOperation, onError, onSuccess, context);
-          recordsAppended.inc(splitValue.getProtoRows().getSerializedRowsCount());
-          appendSizeDistribution.update(context.protoRows.getSerializedRowsCount());
+          recordsAppended += splitValue.getProtoRows().getSerializedRowsCount();
+          histogramUpdates.add(context.protoRows.getSerializedRowsCount());
         }
       }
-      return Optional.of(retryManager);
+
+      return CreateRetryManagerResult.of(
+          retryManager, failedRows, recordsAppended, histogramUpdates);
     }
 
     @ProcessElement
@@ -689,7 +717,7 @@ public class StorageApiWritesShardedRecords<DestinationT extends @NonNull Object
 
       // Initialize stream names and offsets for all contexts. This will be called initially, but
       // will also be called if we roll over to a new stream on a retry.
-      BiConsumer<Iterable<AppendRowsContext>, Boolean> initializeContexts =
+      BiConsumer<Iterable<AppendRowsContext<DestinationT>>, Boolean> initializeContexts =
           (contexts, isFailure) -> {
             try {
               if (isFailure) {
@@ -709,7 +737,7 @@ public class StorageApiWritesShardedRecords<DestinationT extends @NonNull Object
                       appendClientInfo.get().getStreamAppendClient());
               String streamNameRead = Preconditions.checkArgumentNotNull(streamName.read());
               long currentOffset = Preconditions.checkArgumentNotNull(streamOffset.read());
-              for (AppendRowsContext context : contexts) {
+              for (AppendRowsContext<DestinationT> context : contexts) {
                 context.streamName = streamNameRead;
                 streamAppendClient.pin();
                 context.client = appendClientInfo.get().getStreamAppendClient();
@@ -723,13 +751,13 @@ public class StorageApiWritesShardedRecords<DestinationT extends @NonNull Object
             }
           };
 
-      Consumer<Iterable<AppendRowsContext>> clearClients =
+      Consumer<Iterable<AppendRowsContext<DestinationT>>> clearClients =
           (contexts) -> {
             APPEND_CLIENTS.invalidate(messageConverters.getAppendClientKey(element.getKey()));
             appendClientInfo.set(appendClientInfo.get().withNoAppendClient());
             APPEND_CLIENTS.put(
                 messageConverters.getAppendClientKey(element.getKey()), appendClientInfo.get());
-            for (AppendRowsContext context : contexts) {
+            for (AppendRowsContext<DestinationT> context : contexts) {
               if (context.client != null) {
                 // Unpin in a different thread, as it may execute a blocking close.
                 runAsyncIgnoreFailure(closeWriterExecutor, context.client::unpin);
@@ -738,7 +766,7 @@ public class StorageApiWritesShardedRecords<DestinationT extends @NonNull Object
             }
           };
 
-      Function<AppendRowsContext, ApiFuture<AppendRowsResponse>> runOperation =
+      Function<AppendRowsContext<DestinationT>, ApiFuture<AppendRowsResponse>> runOperation =
           context -> {
             if (context.protoRows.getSerializedRowsCount() == 0) {
               // This might happen if all rows in a batch failed and were sent to the failed-rows
@@ -761,10 +789,10 @@ public class StorageApiWritesShardedRecords<DestinationT extends @NonNull Object
             }
           };
 
-      Function<Iterable<AppendRowsContext>, RetryType> onError =
+      Function<Iterable<AppendRowsContext<DestinationT>>, RetryType> onError =
           failedContexts -> {
             // The first context is always the one that fails.
-            AppendRowsContext failedContext =
+            AppendRowsContext<DestinationT> failedContext =
                 Preconditions.checkStateNotNull(Iterables.getFirst(failedContexts, null));
             BigQuerySinkMetrics.reportFailedRPCMetrics(
                 failedContext, BigQuerySinkMetrics.RpcMethod.APPEND_ROWS, shortTableId);
@@ -826,7 +854,7 @@ public class StorageApiWritesShardedRecords<DestinationT extends @NonNull Object
 
               // Since we removed rows, we need to update the insert offsets for all remaining rows.
               long offset = failedContext.offset;
-              for (AppendRowsContext context : failedContexts) {
+              for (AppendRowsContext<DestinationT> context : failedContexts) {
                 context.offset = offset;
                 offset += context.protoRows.getSerializedRowsCount();
               }
@@ -891,8 +919,10 @@ public class StorageApiWritesShardedRecords<DestinationT extends @NonNull Object
               // There's no special error code for missing required fields, and that can also happen
               // due to vortex
               // being delayed at seeing a new schema. We're forced to parse the description to
-              // determine that this
-              // has happened.
+              // determine that this has happened.
+              // TODO: Vortex team to introduce a special storage error code for this, so we don't
+              // have to parse
+              // descriptions.
               Status status = Status.fromThrowable(error);
               if (status.getCode() == Code.INVALID_ARGUMENT) {
                 String description = status.getDescription();
@@ -940,7 +970,7 @@ public class StorageApiWritesShardedRecords<DestinationT extends @NonNull Object
             return RetryType.RETRY_ALL_OPERATIONS;
           };
 
-      Consumer<AppendRowsContext> onSuccess =
+      Consumer<AppendRowsContext<DestinationT>> onSuccess =
           context -> {
             AppendRowsResponse response = Preconditions.checkStateNotNull(context.getResult());
             o.get(flushTag)
@@ -970,8 +1000,7 @@ public class StorageApiWritesShardedRecords<DestinationT extends @NonNull Object
             }
           };
 
-      Optional<RetryManager<AppendRowsResponse, AppendRowsContext>> maybeRetryManager =
-          Optional.empty();
+      CreateRetryManagerResult<DestinationT> createRetryManagerResult;
       do {
         // Each ProtoRows object contains at most 1MB of rows.
         // TODO: Push messageFromTableRow up to top level. That we we cans skip TableRow entirely if
@@ -1007,7 +1036,7 @@ public class StorageApiWritesShardedRecords<DestinationT extends @NonNull Object
                 autoUpdateSchema,
                 elementTs);
 
-        maybeRetryManager =
+        createRetryManagerResult =
             createRetryManager(
                 element.getKey(),
                 messages,
@@ -1015,28 +1044,45 @@ public class StorageApiWritesShardedRecords<DestinationT extends @NonNull Object
                 onError,
                 onSuccess,
                 appendClientInfo.get(),
-                tableReference,
-                shortTableId,
-                o);
-        // createRetryManager returns empty if the schema doesn't match.
-        if (!maybeRetryManager.isPresent()) {
+                tableReference);
+        if (createRetryManagerResult.getSchemaMismatchSeen()) {
+          // TODO: This can throttle a pipeline. We should be updating throttle-time counters to
+          // ensure that autoscaling
+          // doesn't upscale simply because we're waiting for a table schema.
           LOG.info("Schema out of date: refreshing table schema for {}", tableId);
           // Force the message converter to get the schema again from the table.
           messageConverter.updateSchemaFromTable();
           // Close all RPC clients that were opened with the old descriptor. Clear the cache,
-          // forcing
-          // us to create a new append client with the updated descriptor.
+          // forcing us to create a new append client with the updated descriptor.
           APPEND_CLIENTS.invalidate(messageConverters.getAppendClientKey(element.getKey()));
           appendClientInfo.set(
               APPEND_CLIENTS.get(
                   messageConverters.getAppendClientKey(element.getKey()), getAppendClientInfo));
+          // TODO: Do we need exponential backoff here? updateSchemaFromTable should add some delay
+          // to this retry.
         }
-      } while (!maybeRetryManager.isPresent());
+      } while (createRetryManagerResult.getSchemaMismatchSeen());
+      // Output any rows that failed along they way.
+      createRetryManagerResult
+          .getFailedRows()
+          .forEach(
+              tv -> o.get(failedRowsTag).outputWithTimestamp(tv.getValue(), tv.getTimestamp()));
+      rowsSentToFailedRowsCollection.inc(createRetryManagerResult.getFailedRows().size());
+      BigQuerySinkMetrics.appendRowsRowStatusCounter(
+              BigQuerySinkMetrics.RowStatus.FAILED,
+              BigQuerySinkMetrics.PAYLOAD_TOO_LARGE,
+              shortTableId)
+          .inc(createRetryManagerResult.getFailedRows().size());
+
+      recordsAppended.inc(createRetryManagerResult.getRecordsAppended());
+      createRetryManagerResult.getHistogramValues().forEach(appendSizeDistribution::update);
+
       Instant now = Instant.now();
 
-      RetryManager<AppendRowsResponse, AppendRowsContext> retryManager = maybeRetryManager.get();
+      RetryManager<AppendRowsResponse, AppendRowsContext<DestinationT>> retryManager =
+          Preconditions.checkStateNotNull(createRetryManagerResult.getRetryManager());
       int numAppends = retryManager.getRemainingOperationCount();
-      Iterable<AppendRowsContext> contexts = retryManager.getRemainingContexts();
+      Iterable<AppendRowsContext<DestinationT>> contexts = retryManager.getRemainingContexts();
 
       if (numAppends > 0) {
         initializeContexts.accept(contexts, false);
@@ -1044,7 +1090,7 @@ public class StorageApiWritesShardedRecords<DestinationT extends @NonNull Object
           retryManager.run(true);
         } finally {
           // Make sure that all pins are removed.
-          for (AppendRowsContext context : contexts) {
+          for (AppendRowsContext<DestinationT> context : contexts) {
             if (context.client != null) {
               runAsyncIgnoreFailure(closeWriterExecutor, context.client::unpin);
             }
