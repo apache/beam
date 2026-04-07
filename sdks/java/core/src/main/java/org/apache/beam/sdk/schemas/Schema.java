@@ -963,24 +963,38 @@ public class Schema implements Serializable {
 
     /** Returns true if two FieldTypes are equal. */
     public boolean typesEqual(FieldType other) {
-      if (!Objects.equals(getTypeName(), other.getTypeName())) {
+      if (other == null) {
         return false;
       }
-      if (getTypeName().isLogicalType()) {
-        if (!other.getTypeName().isLogicalType()) {
+      TypeName typeName = getTypeName();
+      TypeName otherTypeName = other.getTypeName();
+      if (!Objects.equals(typeName, otherTypeName)) {
+        return false;
+      }
+      if (typeName == null) {
+        return false;
+      }
+      if (typeName.isLogicalType()) {
+        if (!otherTypeName.isLogicalType()) {
           return false;
         }
-        if (!Objects.equals(
-            getLogicalType().getIdentifier(), other.getLogicalType().getIdentifier())) {
+        LogicalType<?, ?> logicalType = getLogicalType();
+        LogicalType<?, ?> otherLogicalType = other.getLogicalType();
+        if (logicalType == null || otherLogicalType == null) {
           return false;
         }
-        if (!getLogicalType().getArgumentType().equals(other.getLogicalType().getArgumentType())) {
+        if (!Objects.equals(logicalType.getIdentifier(), otherLogicalType.getIdentifier())) {
+          return false;
+        }
+        FieldType argumentType = logicalType.getArgumentType();
+        if (!Objects.equals(argumentType, otherLogicalType.getArgumentType())) {
+          return false;
+        }
+        if (argumentType == null) {
           return false;
         }
         if (!Row.Equals.deepEquals(
-            getLogicalType().getArgument(),
-            other.getLogicalType().getArgument(),
-            getLogicalType().getArgumentType())) {
+            logicalType.getArgument(), otherLogicalType.getArgument(), argumentType)) {
           return false;
         }
       }
@@ -990,17 +1004,17 @@ public class Schema implements Serializable {
       if (!Objects.equals(getMetadata(), other.getMetadata())) {
         return false;
       }
-      if (getTypeName().isCollectionType()
+      if (typeName.isCollectionType()
           && !getCollectionElementType().typesEqual(other.getCollectionElementType())) {
         return false;
       }
 
-      if (getTypeName() == TypeName.MAP
+      if (typeName == TypeName.MAP
           && (!getMapValueType().typesEqual(other.getMapValueType())
               || !getMapKeyType().typesEqual(other.getMapKeyType()))) {
         return false;
       }
-      if (getTypeName() == TypeName.ROW && !getRowSchema().typesEqual(other.getRowSchema())) {
+      if (typeName == TypeName.ROW && !getRowSchema().typesEqual(other.getRowSchema())) {
         return false;
       }
       return true;
