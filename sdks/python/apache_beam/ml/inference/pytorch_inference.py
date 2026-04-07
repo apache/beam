@@ -66,7 +66,7 @@ def _cuda_device_is_usable() -> bool:
     torch.empty(1, device='cuda')
     return True
   except Exception:  # pylint: disable=broad-except
-    logging.debug("CUDA probe failed", exc_info=True)
+    logging.warning("CUDA probe failed", exc_info=True)
     return False
 
 
