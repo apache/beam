@@ -75,7 +75,11 @@ import org.apache.beam.sdk.transforms.Reshuffle;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
+import org.apache.beam.sdk.util.BackOff;
+import org.apache.beam.sdk.util.BackOffUtils;
+import org.apache.beam.sdk.util.FluentBackoff;
 import org.apache.beam.sdk.util.Preconditions;
+import org.apache.beam.sdk.util.Sleeper;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.OutputBuilder;
 import org.apache.beam.sdk.values.PCollection;
@@ -641,6 +645,15 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
         final ProtoRows.Builder insertsBuilder = ProtoRows.newBuilder();
         List<@Nullable TableRow> failsafeTableRows = Lists.newArrayList();
         boolean schemaMismatchSeen;
+        BackOff backoff =
+            FluentBackoff.DEFAULT
+                .withInitialBackoff(Duration.standardSeconds(1))
+                .withMaxBackoff(Duration.standardMinutes(1))
+                .withMaxRetries(500)
+                .withThrottledTimeCounter(
+                    BigQuerySinkMetrics.throttledTimeCounter(
+                        BigQuerySinkMetrics.RpcMethod.OPEN_WRITE_STREAM))
+                .backoff();
         do {
           insertsBuilder.clear();
           failsafeTableRows.clear();
@@ -670,7 +683,7 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
                     getAppendClientInfo(
                         false, null /* read updated schema from messageConverter */));
           }
-        } while (schemaMismatchSeen);
+        } while (schemaMismatchSeen && BackOffUtils.next(Sleeper.DEFAULT, backoff));
 
         pendingMessages.clear();
         final ProtoRows inserts = insertsBuilder.build();
@@ -1110,7 +1123,6 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
       long numRowsWritten = 0;
       for (DestinationState destinationState :
           Preconditions.checkStateNotNull(destinations).values()) {
-
         RetryManager<AppendRowsResponse, AppendRowsContext> retryManager =
             new RetryManager<>(
                 Duration.standardSeconds(1),

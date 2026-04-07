@@ -17,18 +17,19 @@
  */
 package org.apache.beam.sdk.io.gcp.bigquery;
 
-import com.google.api.client.util.BackOff;
-import com.google.api.client.util.BackOffUtils;
-import com.google.api.client.util.ExponentialBackOff;
 import com.google.cloud.bigquery.storage.v1.TableSchema;
 import com.google.cloud.hadoop.util.ApiErrorExtractor;
 import java.io.IOException;
-import java.util.concurrent.TimeUnit;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.util.BackOff;
+import org.apache.beam.sdk.util.BackOffUtils;
+import org.apache.beam.sdk.util.FluentBackoff;
+import org.apache.beam.sdk.util.Sleeper;
 import org.apache.beam.sdk.values.KV;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
+import org.joda.time.Duration;
 
 /**
  * This DoFn is responsible for updating a BigQuery's table schema. The input is a TableSchema
@@ -114,10 +115,17 @@ public class PatchTableSchemaDoFn<DestinationT extends @NonNull Object, ElementT
       if (baseSchema.equals(updatedSchema)) {
         return;
       }
+
       BackOff backoff =
-          new ExponentialBackOff.Builder()
-              .setMaxElapsedTimeMillis((int) TimeUnit.MINUTES.toMillis(1))
-              .build();
+          FluentBackoff.DEFAULT
+              .withInitialBackoff(Duration.standardSeconds(1))
+              .withMaxBackoff(Duration.standardMinutes(1))
+              .withMaxRetries(500)
+              .withThrottledTimeCounter(
+                  BigQuerySinkMetrics.throttledTimeCounter(
+                      BigQuerySinkMetrics.RpcMethod.PATCH_TABLE))
+              .backoff();
+
       boolean schemaOutOfDate = false;
       Exception lastException = null;
       do {
@@ -138,7 +146,7 @@ public class PatchTableSchemaDoFn<DestinationT extends @NonNull Object, ElementT
             lastException = e;
           }
         }
-      } while (BackOffUtils.next(com.google.api.client.util.Sleeper.DEFAULT, backoff));
+      } while (BackOffUtils.next(Sleeper.DEFAULT, backoff));
       if (schemaOutOfDate) {
         // This could be due to an out-of-date schema.
         messageConverter.updateSchemaFromTable();

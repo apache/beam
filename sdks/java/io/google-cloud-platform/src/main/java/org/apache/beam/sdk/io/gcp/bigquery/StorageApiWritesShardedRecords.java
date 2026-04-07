@@ -88,8 +88,12 @@ import org.apache.beam.sdk.transforms.windowing.AfterProcessingTime;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.Repeatedly;
 import org.apache.beam.sdk.transforms.windowing.Window;
+import org.apache.beam.sdk.util.BackOff;
+import org.apache.beam.sdk.util.BackOffUtils;
+import org.apache.beam.sdk.util.FluentBackoff;
 import org.apache.beam.sdk.util.Preconditions;
 import org.apache.beam.sdk.util.ShardedKey;
+import org.apache.beam.sdk.util.Sleeper;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
@@ -1000,6 +1004,15 @@ public class StorageApiWritesShardedRecords<DestinationT extends @NonNull Object
             }
           };
 
+      BackOff backoff =
+          FluentBackoff.DEFAULT
+              .withInitialBackoff(Duration.standardSeconds(1))
+              .withMaxBackoff(Duration.standardMinutes(1))
+              .withMaxRetries(500)
+              .withThrottledTimeCounter(
+                  BigQuerySinkMetrics.throttledTimeCounter(
+                      BigQuerySinkMetrics.RpcMethod.OPEN_WRITE_STREAM))
+              .backoff();
       CreateRetryManagerResult<DestinationT> createRetryManagerResult;
       do {
         // Each ProtoRows object contains at most 1MB of rows.
@@ -1046,9 +1059,9 @@ public class StorageApiWritesShardedRecords<DestinationT extends @NonNull Object
                 appendClientInfo.get(),
                 tableReference);
         if (createRetryManagerResult.getSchemaMismatchSeen()) {
-          // TODO: This can throttle a pipeline. We should be updating throttle-time counters to
-          // ensure that autoscaling
-          // doesn't upscale simply because we're waiting for a table schema.
+          // TODO: The call to updateSchemaFromTable will throttle the DoFn (both because of the RPC
+          // call and because
+          // the cache has a delay on refresh). We should update throttling counters here as well.
           LOG.info("Schema out of date: refreshing table schema for {}", tableId);
           // Force the message converter to get the schema again from the table.
           messageConverter.updateSchemaFromTable();
@@ -1058,10 +1071,10 @@ public class StorageApiWritesShardedRecords<DestinationT extends @NonNull Object
           appendClientInfo.set(
               APPEND_CLIENTS.get(
                   messageConverters.getAppendClientKey(element.getKey()), getAppendClientInfo));
-          // TODO: Do we need exponential backoff here? updateSchemaFromTable should add some delay
-          // to this retry.
         }
-      } while (createRetryManagerResult.getSchemaMismatchSeen());
+      } while (createRetryManagerResult.getSchemaMismatchSeen()
+          && BackOffUtils.next(Sleeper.DEFAULT, backoff));
+
       // Output any rows that failed along they way.
       createRetryManagerResult
           .getFailedRows()
