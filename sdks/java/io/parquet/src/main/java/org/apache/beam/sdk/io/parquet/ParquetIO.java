@@ -1123,8 +1123,9 @@ public class ParquetIO {
         ValueProvider<Integer> minRowCountForPageSizeCheck) {
       checkNotNull(minRowCountForPageSizeCheck, "minRowCountForPageSizeCheck can not be null");
       if (minRowCountForPageSizeCheck.isAccessible()) {
-        checkArgument(
-            minRowCountForPageSizeCheck.get() > 0, "minRowCountForPageSizeCheck must be positive");
+        Integer value = minRowCountForPageSizeCheck.get();
+        checkNotNull(value, "minRowCountForPageSizeCheck value cannot be null");
+        checkArgument(value > 0, "minRowCountForPageSizeCheck must be positive");
       }
       return toBuilder().setMinRowCountForPageSizeCheck(minRowCountForPageSizeCheck).build();
     }
@@ -1162,9 +1163,11 @@ public class ParquetIO {
 
       ValueProvider<Integer> minRowCountProvider = getMinRowCountForPageSizeCheck();
       if (minRowCountProvider != null) {
-        int minRowCount = minRowCountProvider.get();
-        checkArgument(minRowCount > 0, "minRowCountForPageSizeCheck must be positive");
-        builder = builder.withMinRowCountForPageSizeCheck(minRowCount);
+        Integer minRowCount = minRowCountProvider.get();
+        if (minRowCount != null) {
+          checkArgument(minRowCount > 0, "minRowCountForPageSizeCheck must be positive");
+          builder = builder.withMinRowCountForPageSizeCheck(minRowCount);
+        }
       }
 
       if (modelClass != null) {
