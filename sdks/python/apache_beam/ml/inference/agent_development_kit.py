@@ -237,7 +237,7 @@ class ADKAgentModelHandler(ModelHandler[str | genai_Content,
 
       # Wrap plain strings in a Content object
       if isinstance(element, str):
-        message = genai_Content(role="user", parts=[genai_Part(text=element)])
+        message = genai_Content(role="user", parts=[genai_Part(text=element)])  # pyrefly: ignore[bad-instantiation]
       else:
         # Assume the caller has already constructed a types.Content object
         message = element
