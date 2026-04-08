@@ -1010,7 +1010,6 @@ public class ParquetIO {
         .setPageSize(ParquetWriter.DEFAULT_PAGE_SIZE)
         .setEnableDictionary(ParquetWriter.DEFAULT_IS_DICTIONARY_ENABLED)
         .setEnableBloomFilter(ParquetProperties.DEFAULT_BLOOM_FILTER_ENABLED)
-        .setMinRowCountForPageSizeCheck(ValueProvider.StaticValueProvider.of(null))
         .build();
   }
 
@@ -1032,7 +1031,7 @@ public class ParquetIO {
 
     abstract boolean getEnableBloomFilter();
 
-    abstract ValueProvider<Integer> getMinRowCountForPageSizeCheck();
+    abstract @Nullable ValueProvider<Integer> getMinRowCountForPageSizeCheck();
 
     abstract @Nullable Class<? extends GenericData> getAvroDataModelClass();
 
@@ -1122,8 +1121,11 @@ public class ParquetIO {
      */
     public Sink withMinRowCountForPageSizeCheck(
         ValueProvider<Integer> minRowCountForPageSizeCheck) {
-      checkArgument(
-          minRowCountForPageSizeCheck != null, "minRowCountForPageSizeCheck must not be null");
+      checkNotNull(minRowCountForPageSizeCheck, "minRowCountForPageSizeCheck can not be null");
+      if (minRowCountForPageSizeCheck.isAccessible()) {
+        checkArgument(
+            minRowCountForPageSizeCheck.get() > 0, "minRowCountForPageSizeCheck must be positive");
+      }
       return toBuilder().setMinRowCountForPageSizeCheck(minRowCountForPageSizeCheck).build();
     }
 
@@ -1158,8 +1160,10 @@ public class ParquetIO {
               .withDictionaryEncoding(getEnableDictionary())
               .withBloomFilterEnabled(getEnableBloomFilter());
 
-      Integer minRowCount = getMinRowCountForPageSizeCheck().get();
-      if (minRowCount != null) {
+      ValueProvider<Integer> minRowCountProvider = getMinRowCountForPageSizeCheck();
+      if (minRowCountProvider != null) {
+        int minRowCount = minRowCountProvider.get();
+        checkArgument(minRowCount > 0, "minRowCountForPageSizeCheck must be positive");
         builder = builder.withMinRowCountForPageSizeCheck(minRowCount);
       }
 
