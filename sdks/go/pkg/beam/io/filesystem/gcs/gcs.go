@@ -46,7 +46,7 @@ const (
 //   - ** matches any sequence of characters including / (zero or more)
 //   - **/  matches zero or more path segments (e.g., "" or "dir/" or "dir/subdir/")
 //   - * matches any sequence of characters except / (zero or more)
-//   - ? matches a single character (any character including /)
+//   - ? matches any single character except /
 //
 // This matches the behavior of the Python and Java SDKs.
 func globToRegex(pattern string) (*regexp.Regexp, error) {
@@ -73,7 +73,7 @@ func globToRegex(pattern string) (*regexp.Regexp, error) {
 				result.WriteString("[^/]*")
 			}
 		case '?':
-			result.WriteString(".")
+			result.WriteString("[^/]")
 		case '[':
 			// Character class - find the closing bracket
 			j := i + 1
@@ -87,8 +87,7 @@ func globToRegex(pattern string) (*regexp.Regexp, error) {
 				j++
 			}
 			if j >= len(pattern) {
-				// No closing bracket, treat [ as literal
-				result.WriteString(regexp.QuoteMeta(string(c)))
+				return nil, fmt.Errorf("syntax error: unclosed '[' in pattern %q", pattern)
 			} else {
 				// Copy the character class, converting ! to ^ for negation
 				result.WriteByte('[')
@@ -102,26 +101,12 @@ func globToRegex(pattern string) (*regexp.Regexp, error) {
 				i = j
 			}
 		default:
-			// Escape regex special characters
-			if isRegexSpecial(c) {
-				result.WriteByte('\\')
-			}
-			result.WriteByte(c)
+			result.WriteString(regexp.QuoteMeta(string(c)))
 		}
 	}
 
 	result.WriteString("$") // match end
 	return regexp.Compile(result.String())
-}
-
-// isRegexSpecial returns true if the character is a regex metacharacter
-// that needs to be escaped.
-func isRegexSpecial(c byte) bool {
-	switch c {
-	case '.', '+', '^', '$', '(', ')', '|', '{', '}', '\\':
-		return true
-	}
-	return false
 }
 
 var billingProject string = ""

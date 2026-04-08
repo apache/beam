@@ -19,6 +19,7 @@ import (
 	"context"
 	"io"
 	"sort"
+	"strings"
 	"testing"
 	"time"
 
@@ -301,9 +302,11 @@ func TestGlobToRegex(t *testing.T) {
 		{"dir/**/file.txt", "dir/file.txt", true},
 		{"dir/**/file.txt", "dir/a/b/c/file.txt", true},
 
-		// ? should match any single character including /
+		// ? should match any single character except /
 		{"file?.txt", "file1.txt", true},
 		{"file?.txt", "file12.txt", false},
+		{"file?.txt", "file/.txt", false}, // ? should not cross /
+		{"dir?file.txt", "dir/file.txt", false},
 
 		// Character classes
 		{"file[0-9].txt", "file1.txt", true},
@@ -330,6 +333,27 @@ func TestGlobToRegex(t *testing.T) {
 			got := re.MatchString(tt.name)
 			if got != tt.want {
 				t.Errorf("globToRegex(%q).MatchString(%q) = %v, want %v", tt.pattern, tt.name, got, tt.want)
+			}
+		})
+	}
+}
+
+func TestGlobToRegex_errors(t *testing.T) {
+	tests := []struct {
+		pattern string
+		wantErr string
+	}{
+		{"file[abc.txt", "unclosed '['"},
+		{"[invalid", "unclosed '['"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.pattern, func(t *testing.T) {
+			_, err := globToRegex(tt.pattern)
+			if err == nil {
+				t.Errorf("globToRegex(%q) expected error containing %q, got nil", tt.pattern, tt.wantErr)
+			} else if !strings.Contains(err.Error(), tt.wantErr) {
+				t.Errorf("globToRegex(%q) error = %v, want error containing %q", tt.pattern, err, tt.wantErr)
 			}
 		})
 	}
@@ -368,6 +392,10 @@ func TestGCS_listWithSlashesInObjectNames(t *testing.T) {
 		// dir/** should match all descendants
 		{dirPath + "/dir/**", []string{
 			dirPath + "/dir/file.txt",
+			dirPath + "/dir/subdir/file.txt",
+		}},
+		// Deeply nested ** matching (core scenario from issue #38059)
+		{dirPath + "/dir/subdir/**", []string{
 			dirPath + "/dir/subdir/file.txt",
 		}},
 	}
