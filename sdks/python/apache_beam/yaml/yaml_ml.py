@@ -282,6 +282,52 @@ class VertexAIModelHandlerJSONProvider(ModelHandlerProvider):
                                           ('model_id', Optional[str])])
 
 
+@ModelHandlerProvider.register_handler_type('HuggingFacePipeline')
+class HuggingFacePipelineProvider(ModelHandlerProvider):
+  def __init__(
+      self,
+      task: str = "",
+      model: str = "",
+      preprocess: Optional[dict[str, str]] = None,
+      postprocess: Optional[dict[str, str]] = None,
+      device: Optional[str] = None,
+      inference_fn: Optional[dict[str, str]] = None,
+      load_pipeline_args: Optional[dict[str, Any]] = None,
+      **kwargs):
+    try:
+      from apache_beam.ml.inference.huggingface_inference import HuggingFacePipelineModelHandler
+    except ImportError:
+      raise ValueError(
+          'Unable to import HuggingFacePipelineModelHandler. Please '
+          'install transformers dependencies.')
+
+    kwargs = {k: v for k, v in kwargs.items() if not k.startswith('_')}
+
+    inference_fn_obj = self.parse_processing_transform(
+        inference_fn, 'inference_fn') if inference_fn else None
+
+    handler_kwargs = {}
+    if inference_fn_obj:
+      handler_kwargs['inference_fn'] = inference_fn_obj
+
+    _handler = HuggingFacePipelineModelHandler(
+        task=task,
+        model=model,
+        device=device,
+        load_pipeline_args=load_pipeline_args,
+        **handler_kwargs,
+        **kwargs)
+
+    super().__init__(_handler, preprocess, postprocess)
+
+  @staticmethod
+  def validate(model_handler_spec):
+    pass
+
+  def inference_output_type(self):
+    return Any
+
+
 @beam.ptransform.ptransform_fn
 def run_inference(
     pcoll,
