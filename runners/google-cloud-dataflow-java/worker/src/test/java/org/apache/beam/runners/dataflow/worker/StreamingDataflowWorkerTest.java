@@ -698,10 +698,10 @@ public class StreamingDataflowWorkerTest {
             + "\""
             + "      }"
             + "    }"
-            + "    applied_finalize_ids: "
-            + finalizeId
             + "  }"
-            + "}",
+            + "}"
+            + "applied_finalize_ids: "
+            + finalizeId,
         CoderUtils.encodeToByteArray(
             CollectionCoder.of(IntervalWindow.getCoder()),
             Collections.singletonList(DEFAULT_WINDOW)));
