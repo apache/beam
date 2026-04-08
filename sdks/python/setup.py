@@ -424,6 +424,12 @@ if __name__ == '__main__':
       python_requires=python_requires,
       # BEAM-8840: Do NOT use tests_require or setup_requires.
       extras_require={
+          'dev': [
+            'isort==7.0.0',
+            'pyrefly==0.54.0',
+            'ruff==0.15.7',
+            'yapf==0.43.0',
+          ],
           'dill': [
               # Dill doesn't have forwards-compatibility guarantees within minor
               # version. Pickles created with a new version of dill may not

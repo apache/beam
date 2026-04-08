@@ -176,10 +176,10 @@ Use `--requirements_file=requirements.txt` or custom containers.
 ## Code Quality Tools
 ```bash
 # Linting
-pylint apache_beam/
+ruff check apache_beam/
 
 # Type checking
-mypy apache_beam/
+pyrefly check apache_beam/
 
 # Formatting (via yapf)
 yapf -i apache_beam/file.py
