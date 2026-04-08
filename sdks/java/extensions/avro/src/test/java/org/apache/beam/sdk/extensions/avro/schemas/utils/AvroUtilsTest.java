@@ -286,7 +286,7 @@ public class AvroUtilsTest {
     List<GenericRecord> records = Lists.newArrayList((Iterable<GenericRecord>) iterable);
 
     // Use JSON tree comparison to avoid Avro 1.12.0 GenericRecord.equals() throwing
-    // "Can't compare maps!" for records with nested map types (AVRO-4222)
+    // "Can't compare maps!" for records with nested map types
     ObjectMapper mapper = new ObjectMapper();
     for (GenericRecord record : records) {
       Row row = AvroUtils.toBeamRowStrict(record, schema);
