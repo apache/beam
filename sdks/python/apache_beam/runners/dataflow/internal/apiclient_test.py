@@ -609,6 +609,24 @@ class UtilTest(unittest.TestCase):
                                 FAKE_PIPELINE_URL)
     self.assertEqual(env.proto.workerPools[0].numThreadsPerWorker, 2)
 
+  def test_disk_provisioning_options(self):
+    pipeline_options = PipelineOptions([
+        '--temp_location',
+        'gs://any-location/temp',
+        '--disk_provisioned_iops',
+        '4000',
+        '--disk_provisioned_throughput_mibps',
+        '200'
+    ])
+    env = apiclient.Environment([],
+                                pipeline_options,
+                                '2.0.0',
+                                FAKE_PIPELINE_URL)
+    self.assertEqual(
+        env.proto.workerPools[0].diskProvisionedIops, 4000)
+    self.assertEqual(
+        env.proto.workerPools[0].diskProvisionedThroughputMibps, 200)
+
   @mock.patch(
       'apache_beam.runners.dataflow.internal.apiclient.'
       'beam_version.__version__',
