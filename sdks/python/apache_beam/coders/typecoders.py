@@ -124,6 +124,7 @@ class CoderRegistry(object):
   def register_coder(
       self, typehint_type: Any,
       typehint_coder_class: Type[coders.Coder]) -> None:
+    "Register a user type with a coder"
     if not isinstance(typehint_coder_class, type):
       raise TypeError(
           'Coder registration requires a coder class object. '
@@ -132,6 +133,21 @@ class CoderRegistry(object):
       self.custom_types.append(typehint_type)
     self._register_coder_internal(
         self._normalize_typehint_type(typehint_type), typehint_coder_class)
+
+  def register_row(self, typehint_type: Any) -> None:
+    """
+    Register a user type with a Beam Row.
+
+    This registers the type with a RowCoder and register its schema.
+    """
+    from apache_beam.coders import RowCoder
+    from apache_beam.typehints.schemas import typing_to_runner_api
+
+    # Register with row coder
+    self.register_coder(typehint_type, RowCoder)
+    # This call generated a schema id for the type and register it with
+    # schema registry
+    typing_to_runner_api(typehint_type)
 
   def get_coder(self, typehint: Any) -> coders.Coder:
     if typehint and typehint.__module__ == '__main__':
