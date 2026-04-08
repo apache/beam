@@ -7957,6 +7957,8 @@ class WorkerPool(_messages.Message):
   teardownPolicy = _messages.EnumField('TeardownPolicyValueValuesEnum', 20)
   workerHarnessContainerImage = _messages.StringField(21)
   zone = _messages.StringField(22)
+  diskProvisionedIops = _messages.IntegerField(23, variant=_messages.Variant.INT32)
+  diskProvisionedThroughputMibps = _messages.IntegerField(24, variant=_messages.Variant.INT32)
 
 
 class WorkerSettings(_messages.Message):
