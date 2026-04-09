@@ -21,7 +21,11 @@
 import logging
 import os
 import tempfile
-import unittest
+import typing
+from google3.testing.pybase import googletest
+googletest.ThisTestIsUsefulWithoutCallingMain()
+unittest = googletest
+
 from typing import Iterable
 from typing import Literal
 from typing import TypeVar
@@ -520,14 +524,19 @@ class ExceptionHandlingTest(unittest.TestCase):
 
 class ExceptionHandlingWithOutputsTest(unittest.TestCase):
   """Tests for combining with_exception_handling() and with_outputs()."""
+
   def _create_dofn_with_tagged_outputs(self):
     """A DoFn that yields tagged outputs and can raise on even numbers."""
+
     class DoWithFailures(beam.DoFn):
+
       def process(
           self, element: int
-      ) -> Iterable[int
-                    | beam.pvalue.TaggedOutput[Literal['threes'], int]
-                    | beam.pvalue.TaggedOutput[Literal['fives'], str]]:
+      ) -> Iterable[
+          int
+          | beam.pvalue.TaggedOutput[Literal['threes'], int]
+          | beam.pvalue.TaggedOutput[Literal['fives'], str]
+      ]:
         if element % 2 == 0:
           raise ValueError(f'Even numbers not allowed {element}')
         if element % 3 == 0:
@@ -546,9 +555,10 @@ class ExceptionHandlingWithOutputsTest(unittest.TestCase):
       results = (
           p
           | beam.Create([1, 2, 3, 4, 5, 6, 7])
-          | beam.ParDo(self._create_dofn_with_tagged_outputs()).
-          with_exception_handling().with_outputs(
-              'threes', 'fives', main='main'))
+          | beam.ParDo(self._create_dofn_with_tagged_outputs())
+          .with_exception_handling()
+          .with_outputs('threes', 'fives', main='main')
+      )
 
       assert_that(results.main, equal_to([1, 7]), 'main')
       assert_that(results.threes, equal_to([3]), 'threes')
@@ -561,7 +571,8 @@ class ExceptionHandlingWithOutputsTest(unittest.TestCase):
       self.assertEqual(results.fives.element_type, str)
       self.assertEqual(
           results.bad.element_type,
-          typehints.Tuple[int, typehints.Tuple[type, str, typehints.List[str]]])
+          typehints.Tuple[int, typehints.Tuple[type[typing.Any], str, typehints.Sequence[str]]],
+      )
 
   def test_with_outputs_then_with_exception_handling(self):
     """Direction 2: .with_outputs().with_exception_handling()"""
@@ -570,8 +581,10 @@ class ExceptionHandlingWithOutputsTest(unittest.TestCase):
       results = (
           p
           | beam.Create([1, 2, 3, 4, 5, 6, 7])
-          | beam.ParDo(self._create_dofn_with_tagged_outputs()).with_outputs(
-              'threes', 'fives', main='main').with_exception_handling())
+          | beam.ParDo(self._create_dofn_with_tagged_outputs())
+          .with_outputs('threes', 'fives', main='main')
+          .with_exception_handling()
+      )
 
       assert_that(results.main, equal_to([1, 7]), 'main')
       assert_that(results.threes, equal_to([3]), 'threes')
@@ -584,19 +597,22 @@ class ExceptionHandlingWithOutputsTest(unittest.TestCase):
       self.assertEqual(results.fives.element_type, str)
       self.assertEqual(
           results.bad.element_type,
-          typehints.Tuple[int, typehints.Tuple[type, str, typehints.List[str]]])
+          typehints.Tuple[int, typehints.Tuple[type[typing.Any], str, typehints.Sequence[str]]],
+      )
 
   def test_with_outputs_then_with_exception_handling_custom_dead_letter_tag(
-      self):
+      self,
+  ):
     """Direction 2 with custom dead_letter_tag."""
 
     with beam.Pipeline() as p:
       results = (
           p
           | beam.Create([1, 2, 3])
-          | beam.ParDo(self._create_dofn_with_tagged_outputs()).with_outputs(
-              'threes',
-              main='main').with_exception_handling(dead_letter_tag='errors'))
+          | beam.ParDo(self._create_dofn_with_tagged_outputs())
+          .with_outputs('threes', main='main')
+          .with_exception_handling(dead_letter_tag='errors')
+      )
 
       assert_that(results.main, equal_to([1]), 'main')
       assert_that(results.threes, equal_to([3]), 'threes')
@@ -605,19 +621,22 @@ class ExceptionHandlingWithOutputsTest(unittest.TestCase):
       self.assertEqual(results.threes.element_type, int)
       self.assertEqual(
           results.errors.element_type,
-          typehints.Tuple[int, typehints.Tuple[type, str, typehints.List[str]]])
+          typehints.Tuple[int, typehints.Tuple[type[typing.Any], str, typehints.Sequence[str]]],
+      )
 
   def test_with_exception_handling_then_with_outputs_custom_dead_letter_tag(
-      self):
+      self,
+  ):
     """Direction 1 with custom dead_letter_tag."""
 
     with beam.Pipeline() as p:
       results = (
           p
           | beam.Create([1, 2, 3])
-          | beam.ParDo(
-              self._create_dofn_with_tagged_outputs()).with_exception_handling(
-                  dead_letter_tag='errors').with_outputs('threes', main='main'))
+          | beam.ParDo(self._create_dofn_with_tagged_outputs())
+          .with_exception_handling(dead_letter_tag='errors')
+          .with_outputs('threes', main='main')
+      )
 
       assert_that(results.main, equal_to([1]), 'main')
       assert_that(results.threes, equal_to([3]), 'threes')
@@ -626,7 +645,8 @@ class ExceptionHandlingWithOutputsTest(unittest.TestCase):
       self.assertEqual(results.threes.element_type, int)
       self.assertEqual(
           results.errors.element_type,
-          typehints.Tuple[int, typehints.Tuple[type, str, typehints.List[str]]])
+          typehints.Tuple[int, typehints.Tuple[type[typing.Any], str, typehints.Sequence[str]]],
+      )
 
   def test_exception_handling_no_with_outputs_backward_compat(self):
     """Without with_outputs(), behavior is unchanged."""
@@ -635,8 +655,10 @@ class ExceptionHandlingWithOutputsTest(unittest.TestCase):
       good, bad = (
           p
           | beam.Create([1, 2, 7])
-          | beam.ParDo(self._create_dofn_with_tagged_outputs())
-          .with_exception_handling())
+          | beam.ParDo(
+              self._create_dofn_with_tagged_outputs()
+          ).with_exception_handling()
+      )
 
       assert_that(good, equal_to([1, 7]), 'good')
       bad_elements = bad | beam.Keys()
@@ -644,13 +666,15 @@ class ExceptionHandlingWithOutputsTest(unittest.TestCase):
 
   def test_exception_handling_compat_version_uses_old_behavior(self):
     """With compat version < 2.73.0, old expand path is used."""
-    options = PipelineOptions(update_compatibility_version="2.72.0")
+    options = PipelineOptions(update_compatibility_version='2.72.0')
     with beam.Pipeline(options=options) as p:
       good, bad = (
           p
           | beam.Create([1, 2, 7])
-          | beam.ParDo(self._create_dofn_with_tagged_outputs())
-          .with_exception_handling())
+          | beam.ParDo(
+              self._create_dofn_with_tagged_outputs()
+          ).with_exception_handling()
+      )
 
       assert_that(good, equal_to([1, 7]), 'good')
       bad_elements = bad | beam.Keys()
@@ -658,15 +682,19 @@ class ExceptionHandlingWithOutputsTest(unittest.TestCase):
 
   def test_exception_handling_compat_version_element_type_set_manually(self):
     """With compat version < 2.73.0, element_type is set via manual override
-    (the old behavior) rather than via with_output_types."""
 
-    options = PipelineOptions(update_compatibility_version="2.72.0")
+    (the old behavior) rather than via with_output_types.
+    """
+
+    options = PipelineOptions(update_compatibility_version='2.72.0')
     with beam.Pipeline(options=options) as p:
       results = (
           p
           | beam.Create([1, 2, 3])
-          | beam.ParDo(self._create_dofn_with_tagged_outputs()).
-          with_exception_handling().with_outputs('threes', main='main'))
+          | beam.ParDo(self._create_dofn_with_tagged_outputs())
+          .with_exception_handling()
+          .with_outputs('threes', main='main')
+      )
 
       # In old path, dead letter type is Any (no with_output_types call)
       self.assertEqual(results.bad.element_type, typehints.Any)
@@ -682,17 +710,23 @@ class ExceptionHandlingWithOutputsTest(unittest.TestCase):
       results = (
           p
           | beam.Create([1, 2, 3, 4, 5])
-          | beam.Map(lambda x: x if x % 2 != 0 else 1 / 0).with_outputs(
-              main='main').with_exception_handling())
+          | beam.Map(lambda x: x if x % 2 != 0 else 1 / 0)
+          .with_outputs(main='main')
+          .with_exception_handling()
+      )
       assert_that(results.main, equal_to([1, 3, 5]), 'main')
       bad_elements = results.bad | beam.Keys()
       assert_that(bad_elements, equal_to([2, 4]), 'bad')
 
   def test_with_output_types_chained_on_pardo(self):
     """When type hints are chained on the ParDo (not annotations on the DoFn),
+
     tagged output types should still be propagated through
-    with_exception_handling().with_outputs()."""
+    with_exception_handling().with_outputs().
+    """
+
     class DoWithFailuresNoAnnotations(beam.DoFn):
+
       def process(self, element):
         if element % 2 == 0:
           raise ValueError(f'Even numbers not allowed {element}')
@@ -705,9 +739,11 @@ class ExceptionHandlingWithOutputsTest(unittest.TestCase):
       results = (
           p
           | beam.Create([1, 2, 3, 7])
-          | beam.ParDo(DoWithFailuresNoAnnotations()).with_output_types(
-              int, threes=int).with_exception_handling().with_outputs(
-                  'threes', main='main'))
+          | beam.ParDo(DoWithFailuresNoAnnotations())
+          .with_output_types(int, threes=int)
+          .with_exception_handling()
+          .with_outputs('threes', main='main')
+      )
 
       assert_that(results.main, equal_to([1, 7]), 'main')
       assert_that(results.threes, equal_to([3]), 'threes')
@@ -718,16 +754,20 @@ class ExceptionHandlingWithOutputsTest(unittest.TestCase):
 
   def test_with_outputs_and_error_handler(self):
     """with_outputs() + error_handler should return DoOutputsTuple, not a
-    bare PCollection."""
+
+    bare PCollection.
+    """
     from apache_beam.transforms.error_handling import ErrorHandler
+
     with beam.Pipeline() as p:
       with ErrorHandler(beam.Map(lambda x: x)) as handler:
         results = (
             p
             | beam.Create([1, 2, 3, 4, 5, 6, 7])
-            | beam.ParDo(self._create_dofn_with_tagged_outputs()).with_outputs(
-                'threes', 'fives',
-                main='main').with_exception_handling(error_handler=handler))
+            | beam.ParDo(self._create_dofn_with_tagged_outputs())
+            .with_outputs('threes', 'fives', main='main')
+            .with_exception_handling(error_handler=handler)
+        )
 
         assert_that(results.main, equal_to([1, 7]), 'main')
         assert_that(results.threes, equal_to([3]), 'threes')
