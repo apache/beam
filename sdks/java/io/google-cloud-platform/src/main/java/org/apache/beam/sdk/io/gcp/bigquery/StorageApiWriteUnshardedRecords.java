@@ -850,7 +850,7 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
               boolean hasPersistentErrors =
                   failedContext.getError() instanceof Exceptions.StreamFinalizedException
                       || statusCode.equals(Status.Code.INVALID_ARGUMENT)
-                      || statusCode.equals(Status.Code.NOT_FOUND)
+                      || (!this.useDefaultStream && statusCode.equals(Status.Code.NOT_FOUND))
                       || statusCode.equals(Status.Code.FAILED_PRECONDITION);
               if (hasPersistentErrors) {
                 throw new RuntimeException(
