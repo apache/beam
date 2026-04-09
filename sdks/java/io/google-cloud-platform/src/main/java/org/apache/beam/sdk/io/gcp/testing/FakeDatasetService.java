@@ -753,6 +753,7 @@ public class FakeDatasetService implements DatasetService, WriteStreamService, S
       private TableSchema currentSchema;
       private @Nullable com.google.cloud.bigquery.storage.v1.TableSchema updatedSchema;
       TableRowToStorageApiProto.SchemaInformation schemaInformation;
+      private boolean initialized;
 
       private boolean usedForInsert = false;
       private boolean usedForUpdate = false;
@@ -760,7 +761,7 @@ public class FakeDatasetService implements DatasetService, WriteStreamService, S
       @Nullable
       Exceptions.StorageException tryInitialize() throws Exception {
         synchronized (FakeDatasetService.class) {
-          if (this.protoDescriptor == null) {
+          if (!initialized) {
             this.protoDescriptor = TableRowToStorageApiProto.wrapDescriptorProto(descriptor);
 
             Stream stream = writeStreams.get(streamName);
@@ -776,6 +777,7 @@ public class FakeDatasetService implements DatasetService, WriteStreamService, S
             schemaInformation =
                 TableRowToStorageApiProto.SchemaInformation.fromTableSchema(
                     TableRowToStorageApiProto.schemaToProtoTableSchema(currentSchema));
+            initialized = true;
           }
         }
         return null;
