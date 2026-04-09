@@ -183,11 +183,12 @@ class MilvusTestHelpers:
           mapped_container = vector_db_container.with_volume_mapping(
               cfg, "/milvus/configs/user.yaml")
           assert mapped_container is not None
-          vector_db_container = mapped_container
-          vector_db_container.start()
-          host = vector_db_container.get_container_host_ip()
-          port = vector_db_container.get_exposed_port(service_container_port)
-          info = VectorDBContainerInfo(vector_db_container, host, port)
+          running_container: CustomMilvusContainer = mapped_container
+          vector_db_container = running_container
+          running_container.start()
+          host = running_container.get_container_host_ip()
+          port = running_container.get_exposed_port(service_container_port)
+          info = VectorDBContainerInfo(running_container, host, port)
           MilvusTestHelpers._wait_for_milvus_grpc(info.uri)
           _LOGGER.info(
               "milvus db container started successfully on %s.", info.uri)
