@@ -22,7 +22,7 @@ module github.com/apache/beam/sdks/v2
 
 go 1.26.0
 
-toolchain go1.26.1
+toolchain go1.26.2
 
 require (
 	cloud.google.com/go/bigquery v1.72.0
