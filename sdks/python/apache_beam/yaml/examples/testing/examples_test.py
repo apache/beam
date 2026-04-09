@@ -1219,11 +1219,6 @@ def _batch_log_analysis_test_preprocessor(
             }
         }
 
-      # Mock MapToFields in ml_preprocessing.yaml pipeline
-      elif transform.get('type', '') == 'MapToFields' and \
-          transform.get('name', '') == 'Normalize':
-        transform['config']['dependencies'] = ['numpy']
-
       # Mock ReadFromBigQuery in anomaly_scoring.yaml pipeline
       elif transform.get('type', '') == 'ReadFromBigQuery':
         transform['type'] = 'Create'
