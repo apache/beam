@@ -759,8 +759,8 @@ class DataflowPipelineResult(PipelineResult):
             values_enum.JOB_STATE_CANCELLING: PipelineState.CANCELLING,
             values_enum.JOB_STATE_RESOURCE_CLEANING_UP: PipelineState.
             RESOURCE_CLEANING_UP,
-            # values_enum.JOB_STATE_PAUSING : PipelineState.PAUSING,
-            # values_enum.JOB_STATE_PAUSED : PipelineState.PAUSED,
+            values_enum.JOB_STATE_PAUSING : PipelineState.PAUSING,
+            values_enum.JOB_STATE_PAUSED : PipelineState.PAUSED,
         })
 
     return (

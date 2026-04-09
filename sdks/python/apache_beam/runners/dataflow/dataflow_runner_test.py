@@ -197,6 +197,22 @@ class DataflowRunnerTest(unittest.TestCase, ExtraAssertionsMixin):
       result = duration_timedout_result.wait_until_finish(5000)
       self.assertEqual(result, PipelineState.RUNNING)
 
+    with mock.patch('time.time', mock.MagicMock(side_effect=[1, 9, 9, 20, 20])):
+      duration_timedout_runner = MockDataflowRunner(
+          [values_enum.JOB_STATE_PAUSING])
+      duration_timedout_result = DataflowPipelineResult(
+          duration_timedout_runner.job, duration_timedout_runner, options)
+      result = duration_timedout_result.wait_until_finish(5000)
+      self.assertEqual(result, PipelineState.PAUSING)
+
+    with mock.patch('time.time', mock.MagicMock(side_effect=[1, 9, 9, 20, 20])):
+      duration_timedout_runner = MockDataflowRunner(
+          [values_enum.JOB_STATE_PAUSED])
+      duration_timedout_result = DataflowPipelineResult(
+          duration_timedout_runner.job, duration_timedout_runner, options)
+      result = duration_timedout_result.wait_until_finish(5000)
+      self.assertEqual(result, PipelineState.PAUSED)
+
     with mock.patch('time.time', mock.MagicMock(side_effect=[1, 1, 2, 2, 3])):
       with self.assertRaisesRegex(DataflowRuntimeException,
                                   'Dataflow pipeline failed. State: CANCELLED'):
@@ -255,6 +271,8 @@ class DataflowRunnerTest(unittest.TestCase, ExtraAssertionsMixin):
         (values_enum.JOB_STATE_DRAINED, PipelineState.DRAINED),
         (values_enum.JOB_STATE_PENDING, PipelineState.PENDING),
         (values_enum.JOB_STATE_CANCELLING, PipelineState.CANCELLING),
+        (values_enum.JOB_STATE_PAUSING, PipelineState.PAUSING),
+        (values_enum.JOB_STATE_PAUSED, PipelineState.PAUSED),
         (
             values_enum.JOB_STATE_RESOURCE_CLEANING_UP,
             PipelineState.RESOURCE_CLEANING_UP),
