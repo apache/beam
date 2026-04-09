@@ -1688,7 +1688,8 @@ class ParDo(PTransformWithSideInputs):
         on_failure_callback,
         allow_unsafe_userstate_in_process,
         self.get_resource_hints(),
-        self.get_type_hints())
+        self.get_type_hints(),
+    )
 
   def with_error_handler(self, error_handler, **exception_handling_kwargs):
     """An alias for `with_exception_handling(error_handler=error_handler, ...)`
@@ -1984,7 +1985,8 @@ class _MultiParDo(PTransform):
     if main_tag is None:
       main_tag = self._main_tag or 'good'
     named = self._do_transform.with_exception_handling(
-        main_tag=main_tag, **kwargs)
+        main_tag=main_tag, **kwargs
+    )
     # named is _NamedPTransform wrapping _ExceptionHandlingWrapper
     named.transform._extra_tags = self._tags
     return named
@@ -2331,7 +2333,8 @@ class _ExceptionHandlingWrapper(ptransform.PTransform):
       on_failure_callback,
       allow_unsafe_userstate_in_process,
       resource_hints,
-      pardo_type_hints=None):
+      pardo_type_hints=None,
+  ):
     if partial and use_subprocess:
       raise ValueError('partial and use_subprocess are mutually incompatible.')
     self._fn = fn
@@ -2431,24 +2434,25 @@ class _ExceptionHandlingWrapper(ptransform.PTransform):
       return result
 
   def expand_2_72_0(self, pcoll):
-    """Pre-2.73.0 behavior: manual element_type override, no with_output_types.
-    """
+    """Pre-2.73.0 behavior: manual element_type override, no with_output_types."""
     pardo = self._build_pardo(pcoll)
     result = pcoll | pardo.with_outputs(
-        self._dead_letter_tag, main=self._main_tag, allow_unknown_tags=True)
-    #TODO(BEAM-18957): Fix when type inference supports tagged outputs.
+        self._dead_letter_tag, main=self._main_tag, allow_unknown_tags=True
+    )
+    # TODO(BEAM-18957): Fix when type inference supports tagged outputs.
     result[self._main_tag].element_type = self._fn.infer_output_type(
-        pcoll.element_type)
+        pcoll.element_type
+    )
 
     return self._post_process_result(pcoll, result)
 
   def expand(self, pcoll):
-    if pcoll.pipeline.options.is_compat_version_prior_to("2.73.0"):
+    if pcoll.pipeline.options.is_compat_version_prior_to('2.73.0'):
       return self.expand_2_72_0(pcoll)
 
     pardo = self._build_pardo(pcoll)
 
-    if (self._pardo_type_hints and self._pardo_type_hints._has_output_types()):
+    if self._pardo_type_hints and self._pardo_type_hints._has_output_types():
       main_output_type = self._pardo_type_hints.simple_output_type(self.label)
       tagged_type_hints = dict(self._pardo_type_hints.tagged_output_types())
     else:
@@ -2456,17 +2460,18 @@ class _ExceptionHandlingWrapper(ptransform.PTransform):
       tagged_type_hints = dict(self._fn.get_type_hints().tagged_output_types())
 
     # Dead letter format: Tuple[element, Tuple[exception_type, repr, traceback]]
-    dead_letter_type = typehints.Tuple[pcoll.element_type,
-                                       typehints.Tuple[type,
-                                                       str,
-                                                       typehints.List[str]]]
+    dead_letter_type = typehints.Tuple[
+        pcoll.element_type,
+        typehints.Tuple[type[typing.Any], str, typehints.Sequence[str]],
+    ]
 
     tagged_type_hints[self._dead_letter_tag] = dead_letter_type
     pardo = pardo.with_output_types(main_output_type, **tagged_type_hints)
 
     all_tags = tuple(set(self._extra_tags or ()) | {self._dead_letter_tag})
     result = pcoll | pardo.with_outputs(
-        *all_tags, main=self._main_tag, allow_unknown_tags=True)
+        *all_tags, main=self._main_tag, allow_unknown_tags=True
+    )
 
     return self._post_process_result(pcoll, result)
 
