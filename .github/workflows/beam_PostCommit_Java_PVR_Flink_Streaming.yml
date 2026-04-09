@@ -53,7 +53,7 @@ env:
 jobs:
   beam_PostCommit_Java_PVR_Flink_Streaming:
     name: ${{ matrix.job_name }} (${{ matrix.flink_version }})
-    runs-on: [self-hosted, ubuntu-20.04, main]
+    runs-on: [self-hosted, ubuntu-24.04, main]
     timeout-minutes: 120
     strategy:
       matrix: 

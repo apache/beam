@@ -22,7 +22,7 @@ env:
 
 jobs:
   deploy_release_candidate_pypi:
-    runs-on: [self-hosted, ubuntu-20.04, main]
+    runs-on: [self-hosted, ubuntu-24.04, main]
     steps:
     - name: Mask PyPi id/password
       run: |

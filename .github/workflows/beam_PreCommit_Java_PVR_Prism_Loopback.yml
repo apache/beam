@@ -80,7 +80,7 @@ jobs:
         job_name: ["beam_PreCommit_Java_PVR_Prism_Loopback"]
         job_phrase: ["Run Java_PVR_Prism_Loopback PreCommit"]
     timeout-minutes: 240
-    runs-on: [self-hosted, ubuntu-20.04]
+    runs-on: [self-hosted, ubuntu-24.04, main]
     if: |
       github.event_name == 'push' ||
       github.event_name == 'pull_request_target' ||
