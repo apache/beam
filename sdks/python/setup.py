@@ -469,6 +469,7 @@ if __name__ == '__main__':
               'mock>=1.0.1,<6.0.0',
               'pandas<2.3.0',
               'parameterized>=0.7.1,<0.10.0',
+              'pydot>=1.2.0,<2',
               'pyhamcrest>=1.9,!=1.10.0,<3.0.0',
               'requests_mock>=1.7,<2.0',
               # google-adk 1.28+ requires tenacity>=9,<10 (conflicts with <9).
