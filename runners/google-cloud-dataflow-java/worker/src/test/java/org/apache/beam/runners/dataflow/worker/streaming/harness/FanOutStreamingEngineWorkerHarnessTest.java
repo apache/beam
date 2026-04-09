@@ -126,6 +126,7 @@ public class FanOutStreamingEngineWorkerHarnessTest {
         watermarks,
         processingContext,
         drainMode,
+        appliedFinalizeIds,
         getWorkStreamLatencies) -> {};
   }
 

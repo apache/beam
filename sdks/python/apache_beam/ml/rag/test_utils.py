@@ -204,8 +204,8 @@ class MilvusTestHelpers:
 
     client = retry_with_backoff(
         create_client,
-        max_retries=3,
-        retry_delay=1.0,
+        max_retries=5,
+        retry_delay=2.0,
         operation_name="Test Milvus client connection",
         exception_types=(MilvusException, ))
 
