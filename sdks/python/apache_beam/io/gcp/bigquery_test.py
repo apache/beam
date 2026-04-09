@@ -716,6 +716,7 @@ class TestReadFromBigQuery(unittest.TestCase):
   ])
   def test_read_export_exception(self, exception_type, error_message):
 
+    # Mocked BigQuery + Prism can flake in CI; use in-process DirectRunner path.
     with mock.patch.object(beam.io.gcp.bigquery._CustomBigQuerySource,
                            'estimate_size') as mock_estimate,\
       mock.patch.object(bigquery_v2_client.BigqueryV2.TablesService, 'Get'),\
@@ -723,7 +724,8 @@ class TestReadFromBigQuery(unittest.TestCase):
                         'Insert') as mock_query_job, \
       mock.patch('time.sleep'), \
       self.assertRaises(Exception) as exc,\
-      beam.Pipeline() as p:
+      beam.Pipeline(options=PipelineOptions(
+          [], direct_runner_use_prism=False)) as p:
 
       mock_estimate.return_value = None
       mock_query_job.side_effect = exception_type(error_message)

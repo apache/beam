@@ -205,7 +205,10 @@ class SwitchingDirectRunner(PipelineRunner):
 
     # Check whether all transforms used in the pipeline are supported by the
     # PrismRunner
-    if _PrismRunnerSupportVisitor().accept(pipeline, self._is_interactive):
+    direct_opts = options.view_as(DirectOptions)
+    use_prism = getattr(direct_opts, 'direct_runner_use_prism', True)
+    if (use_prism and
+        _PrismRunnerSupportVisitor().accept(pipeline, self._is_interactive)):
       _LOGGER.info('Running pipeline with PrismRunner.')
       from apache_beam.runners.portability import prism_runner
       runner = prism_runner.PrismRunner()

@@ -996,6 +996,15 @@ class DirectOptions(PipelineOptions):
         '(in seconds) at which the split requests will be sent, and '
         'fractions is a corresponding list of floating points to use in the '
         'split requests themselves.')
+    parser.add_argument(
+        '--no_direct_runner_use_prism',
+        action='store_false',
+        dest='direct_runner_use_prism',
+        default=True,
+        help='SwitchingDirectRunner will not execute supported batch pipelines '
+        'on PrismRunner (avoids the portable/gRPC subprocess path). Prefer this '
+        'when Prism is slow or flaky, e.g. in constrained or highly parallel '
+        'test environments.')
 
 
 class GoogleCloudOptions(PipelineOptions):

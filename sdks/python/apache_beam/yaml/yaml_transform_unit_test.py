@@ -50,9 +50,11 @@ except ImportError:
 
 
 def new_pipeline():
+  # Default DirectRunner may run batch workloads on Prism (gRPC subprocess);
+  # disable for stable unit tests (DirectOptions.direct_runner_use_prism).
   return beam.Pipeline(
       options=beam.options.pipeline_options.PipelineOptions(
-          pickle_library='cloudpickle'))
+          [], pickle_library='cloudpickle', direct_runner_use_prism=False))
 
 
 @unittest.skipIf(jsonschema is None, "Yaml dependencies not installed")
@@ -652,7 +654,7 @@ class MainTest(unittest.TestCase):
             size: 4
           input: {{input: input}}
       output: {result['transforms'][0]['__uuid__']}
-      config: 
+      config:
         error_handling: {{}}
     '''
     self.assertYaml(expected, result)
@@ -775,7 +777,7 @@ class MainTest(unittest.TestCase):
             type: fixed
             size: 4
       output: {result['transforms'][1]["__uuid__"]}
-      config: 
+      config:
         error_handling: {{}}
     '''
     self.maxDiff = 1e9
