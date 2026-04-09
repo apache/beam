@@ -492,7 +492,6 @@ class UtilTest(unittest.TestCase):
     self.assertEqual(
         metric_update.distribution['count'], distribution_update.count)
 
-
   def test_translate_distribution_using_dataflow_distribution_counter(self):
     counter_update = DataflowDistributionCounter()
     counter_update.add_input(1)
@@ -504,14 +503,12 @@ class UtilTest(unittest.TestCase):
     self.assertEqual(metric_proto.distribution['min'], counter_update.min)
     self.assertEqual(metric_proto.distribution['max'], counter_update.max)
     self.assertEqual(metric_proto.distribution['sum'], counter_update.sum)
-    self.assertEqual(
-        metric_proto.distribution['count'], counter_update.count)
+    self.assertEqual(metric_proto.distribution['count'], counter_update.count)
     self.assertEqual(
         metric_proto.distribution['firstBucketOffset'],
         histogram.firstBucketOffset)
     self.assertEqual(
-        metric_proto.distribution['bucketCounts'],
-        histogram.bucketCounts)
+        metric_proto.distribution['bucketCounts'], histogram.bucketCounts)
 
   def test_translate_means(self):
     metric_update = dataflow.MetricUpdate()
@@ -1788,6 +1785,7 @@ class UtilTest(unittest.TestCase):
           mock_stage_file.assert_not_called()
           mock_sleep.assert_not_called()
           mock_file_open.assert_not_called()
+
 
 if __name__ == '__main__':
   unittest.main()
