@@ -719,13 +719,23 @@ def create_test_methods(spec):
                   **yaml_transform.SafeLineLoader.strip_metadata(
                       fixture.get('config', {}))))
         for pipeline_spec in spec['pipelines']:
-          with beam.Pipeline(options=PipelineOptions(
-              pickle_library='cloudpickle',
-              **replace_recursive(yaml_transform.SafeLineLoader.strip_metadata(
-                  pipeline_spec.get('options', {})),
-                                  vars))) as p:
-            yaml_transform.expand_pipeline(
-                p, replace_recursive(pipeline_spec, vars))
+          try:
+            with beam.Pipeline(options=PipelineOptions(
+                pickle_library='cloudpickle',
+                **replace_recursive(
+                    yaml_transform.SafeLineLoader.strip_metadata(
+                        pipeline_spec.get('options', {})),
+                    vars))) as p:
+              yaml_transform.expand_pipeline(
+                  p, replace_recursive(pipeline_spec, vars))
+          except ValueError as exn:
+            # FnApiRunner currently does not support this requirement in
+            # some xlang scenarios (e.g. Iceberg YAML pipelines).
+            if 'beam:requirement:pardo:on_window_expiration:v1' in str(exn):
+              self.skipTest(
+                  'Runner does not support '
+                  'beam:requirement:pardo:on_window_expiration:v1')
+            raise
 
     yield f'test_{suffix}', test
 
