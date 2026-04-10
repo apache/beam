@@ -1001,10 +1001,11 @@ class DirectOptions(PipelineOptions):
         action='store_false',
         dest='direct_runner_use_prism',
         default=True,
-        help='SwitchingDirectRunner will not execute supported batch pipelines '
-        'on PrismRunner (avoids the portable/gRPC subprocess path). Prefer this '
-        'when Prism is slow or flaky, e.g. in constrained or highly parallel '
-        'test environments.')
+        help='SwitchingDirectRunner will not execute supported batch '
+        'pipelines on PrismRunner '
+        '(avoids the portable/gRPC subprocess path). '
+        'Prefer this when Prism is slow or flaky, '
+        'e.g. in constrained or highly parallel test environments.')
 
 
 class GoogleCloudOptions(PipelineOptions):
