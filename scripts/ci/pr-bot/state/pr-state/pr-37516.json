@@ -1,10 +1,10 @@
 {
   "commentedAboutFailingChecks": true,
   "reviewersAssignedForLabels": {
-    "java": "ahmedabu98"
+    "java": "Abacn"
   },
   "nextAction": "Reviewers",
-  "stopReviewerNotifications": true,
+  "stopReviewerNotifications": false,
   "remindAfterTestsPass": [],
   "committerAssigned": false
 }
