@@ -3,10 +3,11 @@ import logging
 import apache_beam as beam
 from apache_beam.transforms import DoFn
 
-from framework import prism_options, dataflow_options
-from framework import periodic_source
-from framework import dump_to_log
-from timestamp_buffer import TimestampBufferDoFnBag
+from apache_beam.examples.timestamp_buffer.framework import prism_options
+from apache_beam.examples.timestamp_buffer.framework import dataflow_options
+from apache_beam.examples.timestamp_buffer.framework import periodic_source
+from apache_beam.examples.timestamp_buffer.framework import dump_to_log
+from apache_beam.examples.timestamp_buffer.timestamp_buffer import TimestampBufferDoFnBag
 
 logging.basicConfig(level=logging.INFO)
 
@@ -18,7 +19,7 @@ class MyBufferDoFn(TimestampBufferDoFnBag):
                       **extra_state):
     yield [v[1] for v in context] + [value]
 
-with beam.Pipeline(options=prism_options) as p:
+with beam.Pipeline(options=dataflow_options) as p:
   _ = (
       p
       | periodic_source

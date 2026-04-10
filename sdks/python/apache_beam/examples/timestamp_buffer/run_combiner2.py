@@ -5,9 +5,10 @@ import apache_beam as beam
 from apache_beam.transforms import DoFn
 from apache_beam.transforms.window import FixedWindows
 
-from framework import prism_options, dataflow_options
-from framework import periodic_source
-from framework import dump_to_log
+from apache_beam.examples.timestamp_buffer.framework import prism_options
+from apache_beam.examples.timestamp_buffer.framework import dataflow_options
+from apache_beam.examples.timestamp_buffer.framework import periodic_source
+from apache_beam.examples.timestamp_buffer.framework import dump_to_log
 
 logging.basicConfig(level=logging.INFO)
 
