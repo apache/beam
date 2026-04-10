@@ -69,6 +69,10 @@
 ## New Features / Improvements
 
 * X feature added (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
+* TriggerStateMachineRunner changes from BitSetCoder to SentinelBitSetCoder to
+  encode finished bitset [#38139](https://github.com/apache/beam/pull/38139).
+  SentinelBitSetCoder and BitSetCoder are state compatible. Both coders can
+  decode encoded bytes from the other coder.
 
 ## Breaking Changes
 
