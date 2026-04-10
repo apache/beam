@@ -72,7 +72,7 @@
 * TriggerStateMachineRunner changes from BitSetCoder to SentinelBitSetCoder to
   encode finished bitset. SentinelBitSetCoder and BitSetCoder are state
   compatible. Both coders can decode encoded bytes from the other coder
-  [#38139](https://github.com/apache/beam/issues/38139).
+  ([#38139](https://github.com/apache/beam/issues/38139)).
 
 ## Breaking Changes
 
