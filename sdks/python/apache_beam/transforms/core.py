@@ -2456,10 +2456,9 @@ class _ExceptionHandlingWrapper(ptransform.PTransform):
       tagged_type_hints = dict(self._fn.get_type_hints().tagged_output_types())
 
     # Dead letter format: Tuple[element, Tuple[exception_type, repr, traceback]]
-    dead_letter_type = typehints.Tuple[pcoll.element_type,
-                                       typehints.Tuple[type,
-                                                       str,
-                                                       typehints.List[str]]]
+    dead_letter_type = typehints.Tuple[
+        pcoll.element_type,
+        typehints.Tuple[type[typing.Any], str, typehints.Sequence[str]]]
 
     tagged_type_hints[self._dead_letter_tag] = dead_letter_type
     pardo = pardo.with_output_types(main_output_type, **tagged_type_hints)
