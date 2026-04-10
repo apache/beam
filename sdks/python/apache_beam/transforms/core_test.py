@@ -562,7 +562,7 @@ class ExceptionHandlingWithOutputsTest(unittest.TestCase):
       self.assertEqual(results.fives.element_type, str)
       self.assertEqual(
           results.bad.element_type,
-          typehints.Tuple[int, typehints.Tuple[type[typing.Any], str, typehints.Sequence[str]]])
+          typehints.Tuple[int, typehints.Tuple[type[Any], str, typehints.Sequence[str]]])
 
   def test_with_outputs_then_with_exception_handling(self):
     """Direction 2: .with_outputs().with_exception_handling()"""
@@ -585,7 +585,7 @@ class ExceptionHandlingWithOutputsTest(unittest.TestCase):
       self.assertEqual(results.fives.element_type, str)
       self.assertEqual(
           results.bad.element_type,
-          typehints.Tuple[int, typehints.Tuple[type[typing.Any], str, typehints.Sequence[str]]])
+          typehints.Tuple[int, typehints.Tuple[type[Any], str, typehints.Sequence[str]]])
 
   def test_with_outputs_then_with_exception_handling_custom_dead_letter_tag(
       self):
@@ -606,7 +606,7 @@ class ExceptionHandlingWithOutputsTest(unittest.TestCase):
       self.assertEqual(results.threes.element_type, int)
       self.assertEqual(
           results.errors.element_type,
-          typehints.Tuple[int, typehints.Tuple[type[typing.Any], str, typehints.Sequence[str]]])
+          typehints.Tuple[int, typehints.Tuple[type[Any], str, typehints.Sequence[str]]])
 
   def test_with_exception_handling_then_with_outputs_custom_dead_letter_tag(
       self):
@@ -627,7 +627,7 @@ class ExceptionHandlingWithOutputsTest(unittest.TestCase):
       self.assertEqual(results.threes.element_type, int)
       self.assertEqual(
           results.errors.element_type,
-          typehints.Tuple[int, typehints.Tuple[type[typing.Any], str, typehints.Sequence[str]]])
+          typehints.Tuple[int, typehints.Tuple[type[Any], str, typehints.Sequence[str]]])
 
   def test_exception_handling_no_with_outputs_backward_compat(self):
     """Without with_outputs(), behavior is unchanged."""
