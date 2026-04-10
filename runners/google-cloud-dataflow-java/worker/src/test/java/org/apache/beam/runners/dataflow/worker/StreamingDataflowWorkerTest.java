@@ -669,6 +669,45 @@ public class StreamingDataflowWorkerTest {
   }
 
   private Windmill.GetWorkResponse makeInput(
+      int index, long timestamp, String key, long shardingKey, Long finalizeId) throws Exception {
+    return buildInput(
+        "work {"
+            + "  computation_id: \""
+            + DEFAULT_COMPUTATION_ID
+            + "\""
+            + "  input_data_watermark: 0"
+            + "  work {"
+            + "    key: \""
+            + key
+            + "\""
+            + "    sharding_key: "
+            + shardingKey
+            + "    work_token: "
+            + index
+            + "    cache_token: "
+            + (index + 1)
+            + "    message_bundles {"
+            + "      source_computation_id: \""
+            + DEFAULT_SOURCE_COMPUTATION_ID
+            + "\""
+            + "      messages {"
+            + "        timestamp: "
+            + timestamp
+            + "        data: \"data"
+            + index
+            + "\""
+            + "      }"
+            + "    }"
+            + "  }"
+            + "}"
+            + "applied_finalize_ids: "
+            + finalizeId,
+        CoderUtils.encodeToByteArray(
+            CollectionCoder.of(IntervalWindow.getCoder()),
+            Collections.singletonList(DEFAULT_WINDOW)));
+  }
+
+  private Windmill.GetWorkResponse makeInput(
       int workToken, int cacheToken, long timestamp, String key, long shardingKey)
       throws Exception {
     return buildInput(
@@ -4277,6 +4316,39 @@ public class StreamingDataflowWorkerTest {
     worker.stop();
   }
 
+  @Test
+  public void testBundleFinalizersAreCalled() throws Exception {
+    List<ParallelInstruction> instructions =
+        Arrays.asList(
+            makeSourceInstruction(StringUtf8Coder.of()),
+            makeDoFnInstruction(new BundleFinalizerFn(), 0, StringUtf8Coder.of()),
+            makeSinkInstruction(StringUtf8Coder.of(), 0));
+
+    StreamingDataflowWorker worker =
+        makeWorker(
+            defaultWorkerParams("--activeWorkRefreshPeriodMillis=10")
+                .setInstructions(instructions)
+                .build());
+    worker.start();
+
+    server.whenGetWorkCalled().thenReturn(makeInput(0, 0L, "key", DEFAULT_SHARDING_KEY));
+
+    Map<Long, Windmill.WorkItemCommitRequest> result = server.waitForAndGetCommits(1);
+    List<Long> finalizeIds = new ArrayList<>();
+    for (Windmill.WorkItemCommitRequest commit : result.values()) {
+      finalizeIds.addAll(commit.getFinalizeIdsList());
+    }
+    assertEquals(1, finalizeIds.size());
+    server
+        .whenGetWorkCalled()
+        .thenReturn(makeInput(1, 0L, "key", DEFAULT_SHARDING_KEY, finalizeIds.get(0)));
+    server.waitForAndGetCommits(1);
+    assertThat(
+        "At least one commit finalizer called", BundleFinalizerFn.bundleFinalizerCount.get() > 0);
+
+    worker.stop();
+  }
+
   private void runNumCommitThreadsTest(int configNumCommitThreads, int expectedNumCommitThreads) {
     List<ParallelInstruction> instructions =
         Arrays.asList(
@@ -4618,6 +4690,18 @@ public class StreamingDataflowWorkerTest {
     public void processElement(ProcessContext c) throws Exception {
       Thread.sleep(1000);
       c.output(c.element());
+    }
+  }
+
+  private static class BundleFinalizerFn extends DoFn<String, String> {
+    public static AtomicInteger bundleFinalizerCount = new AtomicInteger();
+
+    @ProcessElement
+    public void processElement(ProcessContext c, BundleFinalizer bundleFinalizer) {
+      c.output(c.element());
+      bundleFinalizer.afterBundleCommit(
+          Instant.now().plus(Duration.standardMinutes(5)),
+          () -> bundleFinalizerCount.incrementAndGet());
     }
   }
 
