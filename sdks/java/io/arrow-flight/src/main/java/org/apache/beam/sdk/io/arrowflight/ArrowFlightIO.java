@@ -26,9 +26,12 @@ import java.io.Serializable;
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
+import org.apache.arrow.flight.AsyncPutListener;
+import org.apache.arrow.flight.CallOption;
 import org.apache.arrow.flight.FlightCallHeaders;
 import org.apache.arrow.flight.FlightClient;
 import org.apache.arrow.flight.FlightDescriptor;
@@ -37,7 +40,6 @@ import org.apache.arrow.flight.FlightInfo;
 import org.apache.arrow.flight.FlightStream;
 import org.apache.arrow.flight.HeaderCallOption;
 import org.apache.arrow.flight.Location;
-import org.apache.arrow.flight.PutResult;
 import org.apache.arrow.flight.Ticket;
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.memory.RootAllocator;
@@ -119,6 +121,42 @@ public class ArrowFlightIO {
   private static final Logger LOG = LoggerFactory.getLogger(ArrowFlightIO.class);
 
   private ArrowFlightIO() {}
+
+  private static byte[] copyToken(byte[] token) {
+    return Arrays.copyOf(checkNotNull(token, "token"), token.length);
+  }
+
+  private static CallOption[] callOptions(byte @Nullable [] token) {
+    if (token == null) {
+      return new CallOption[0];
+    }
+    FlightCallHeaders headers = new FlightCallHeaders();
+    headers.insert("authorization", "Bearer " + new String(token, StandardCharsets.UTF_8));
+    return new CallOption[] {new HeaderCallOption(headers)};
+  }
+
+  private static void validateWriteSchema(Schema schema) {
+    for (Schema.Field field : schema.getFields()) {
+      switch (field.getType().getTypeName()) {
+        case BYTE:
+        case INT16:
+        case INT32:
+        case INT64:
+        case FLOAT:
+        case DOUBLE:
+        case STRING:
+        case BOOLEAN:
+        case BYTES:
+        case DATETIME:
+          break;
+        default:
+          throw new IllegalArgumentException(
+              String.format(
+                  "ArrowFlightIO.write() does not support Beam type '%s' for field '%s'.",
+                  field.getType().getTypeName(), field.getName()));
+      }
+    }
+  }
 
   public static Read read() {
     return new AutoValue_ArrowFlightIO_Read.Builder().setPort(47470).setUseTls(false).build();
@@ -242,7 +280,7 @@ public class ArrowFlightIO {
 
     /** Sets a bearer token for authentication. */
     public Read withToken(byte[] token) {
-      return builder().setToken(token).build();
+      return builder().setToken(copyToken(token)).build();
     }
 
     @Override
@@ -270,15 +308,8 @@ public class ArrowFlightIO {
           .setRowSchema(beamSchema);
     }
 
-    HeaderCallOption[] callOptions() {
-      if (token() != null) {
-        FlightCallHeaders headers = new FlightCallHeaders();
-        headers.insert(
-            "authorization",
-            "Bearer " + new String(checkNotNull(token(), "token"), StandardCharsets.UTF_8));
-        return new HeaderCallOption[] {new HeaderCallOption(headers)};
-      }
-      return new HeaderCallOption[0];
+    CallOption[] callOptions() {
+      return ArrowFlightIO.callOptions(token());
     }
 
     @Override
@@ -547,15 +578,21 @@ public class ArrowFlightIO {
 
     /** Sets a bearer token for authentication. */
     public Write withToken(byte[] token) {
-      return builder().setToken(token).build();
+      return builder().setToken(copyToken(token)).build();
+    }
+
+    CallOption[] callOptions() {
+      return ArrowFlightIO.callOptions(token());
     }
 
     @Override
     public PDone expand(PCollection<Row> input) {
       checkArgument(host() != null, "withHost() is required");
       checkArgument(descriptor() != null, "withDescriptor() is required");
+      Schema inputSchema = checkNotNull(input.getSchema(), "input schema");
+      validateWriteSchema(inputSchema);
 
-      input.apply(ParDo.of(new FlightWriteFn(this)));
+      input.apply(ParDo.of(new FlightWriteFn(this, inputSchema)));
       return PDone.in(input.getPipeline());
     }
 
@@ -579,16 +616,17 @@ public class ArrowFlightIO {
         Metrics.counter(ArrowFlightIO.class, "batchesWritten");
 
     private final Write spec;
-    private transient BufferAllocator allocator;
-    private transient FlightClient client;
-    private transient FlightClient.ClientStreamListener listener;
-    private transient VectorSchemaRoot root;
+    private final Schema beamSchema;
+    private transient @Nullable BufferAllocator allocator;
+    private transient @Nullable FlightClient client;
+    private transient FlightClient.@Nullable ClientStreamListener listener;
+    private transient @Nullable VectorSchemaRoot root;
     private transient org.apache.arrow.vector.types.pojo.Schema arrowSchema;
     private transient List<Row> batch;
-    private transient @Nullable Schema beamSchema;
 
-    FlightWriteFn(Write spec) {
+    FlightWriteFn(Write spec, Schema beamSchema) {
       this.spec = spec;
+      this.beamSchema = beamSchema;
     }
 
     @StartBundle
@@ -598,9 +636,9 @@ public class ArrowFlightIO {
 
     @ProcessElement
     public void processElement(@Element Row row) {
-      if (beamSchema == null) {
-        beamSchema = row.getSchema();
-      }
+      checkArgument(
+          row.getSchema().equivalent(beamSchema),
+          "ArrowFlightIO.write() requires all rows to use the same schema.");
       batch.add(row);
       if (batch.size() >= spec.batchSize()) {
         flush();
@@ -609,30 +647,59 @@ public class ArrowFlightIO {
 
     @FinishBundle
     public void finishBundle() {
-      flush();
-      closeConnection();
+      RuntimeException failure = null;
+      try {
+        flush();
+      } catch (RuntimeException e) {
+        failure = e;
+      }
+
+      try {
+        closeConnection();
+      } catch (RuntimeException e) {
+        if (failure == null) {
+          failure = e;
+        } else {
+          failure.addSuppressed(e);
+        }
+      }
+
+      if (failure != null) {
+        throw failure;
+      }
     }
 
     @Teardown
     public void teardown() {
-      closeConnection();
+      try {
+        closeConnection();
+      } catch (RuntimeException e) {
+        LOG.warn("Error closing Flight write connection during teardown", e);
+      }
     }
 
-    @SuppressWarnings("nullness")
     private void ensureConnection() {
       if (client == null) {
-        allocator = new RootAllocator(Long.MAX_VALUE);
-        client = createClient(allocator, spec.host(), spec.port(), spec.useTls());
+        BufferAllocator currentAllocator = new RootAllocator(Long.MAX_VALUE);
+        allocator = currentAllocator;
+        FlightClient currentClient =
+            createClient(
+                currentAllocator, checkNotNull(spec.host(), "host"), spec.port(), spec.useTls());
+        client = currentClient;
 
         List<Field> arrowFields = new ArrayList<>();
         for (Schema.Field beamField : beamSchema.getFields()) {
           arrowFields.add(toArrowField(beamField));
         }
         arrowSchema = new org.apache.arrow.vector.types.pojo.Schema(arrowFields);
-        root = VectorSchemaRoot.create(arrowSchema, allocator);
+        VectorSchemaRoot currentRoot = VectorSchemaRoot.create(arrowSchema, currentAllocator);
+        root = currentRoot;
 
-        FlightDescriptor descriptor = FlightDescriptor.path(spec.descriptor());
-        listener = client.startPut(descriptor, root, new AsyncPutListener());
+        FlightDescriptor descriptor =
+            FlightDescriptor.path(checkNotNull(spec.descriptor(), "descriptor"));
+        listener =
+            currentClient.startPut(
+                descriptor, currentRoot, new AsyncPutListener(), spec.callOptions());
       }
     }
 
@@ -668,8 +735,8 @@ public class ArrowFlightIO {
         case DATETIME:
           return new ArrowType.Timestamp(TimeUnit.MILLISECOND, "UTC");
         default:
-          LOG.warn("Unsupported Beam type {}, falling back to Utf8", beamType.getTypeName());
-          return ArrowType.Utf8.INSTANCE;
+          throw new IllegalArgumentException(
+              "Unsupported Beam type for ArrowFlightIO.write(): " + beamType.getTypeName());
       }
     }
 
@@ -745,76 +812,70 @@ public class ArrowFlightIO {
           ((TimeStampMilliTZVector) vector).setSafe(index, millis);
           break;
         default:
-          ((VarCharVector) vector)
-              .setSafe(index, value.toString().getBytes(StandardCharsets.UTF_8));
-          break;
+          throw new IllegalArgumentException(
+              "Unsupported Beam type for ArrowFlightIO.write(): " + type.getTypeName());
       }
     }
 
-    @SuppressWarnings("nullness")
     private void closeConnection() {
+      RuntimeException failure = null;
+      FlightClient.ClientStreamListener currentListener = listener;
+      listener = null;
       try {
-        if (listener != null) {
-          listener.completed();
-          listener.getResult();
-          listener = null;
+        if (currentListener != null) {
+          currentListener.completed();
+          currentListener.getResult();
+        }
+      } catch (RuntimeException e) {
+        failure = e;
+      }
+
+      VectorSchemaRoot currentRoot = root;
+      root = null;
+      try {
+        if (currentRoot != null) {
+          currentRoot.close();
         }
       } catch (Exception e) {
-        LOG.warn("Error completing Flight put", e);
-      }
-      try {
-        if (root != null) {
-          root.close();
-          root = null;
+        if (failure == null) {
+          failure = new RuntimeException("Error closing VectorSchemaRoot", e);
+        } else {
+          failure.addSuppressed(e);
         }
-      } catch (Exception e) {
-        LOG.warn("Error closing VectorSchemaRoot", e);
       }
+
+      FlightClient currentClient = client;
+      client = null;
       try {
-        if (client != null) {
-          client.close();
-          client = null;
+        if (currentClient != null) {
+          currentClient.close();
         }
       } catch (InterruptedException e) {
         Thread.currentThread().interrupt();
-        LOG.warn("Interrupted closing FlightClient", e);
+        RuntimeException closeFailure = new RuntimeException("Interrupted closing FlightClient", e);
+        if (failure == null) {
+          failure = closeFailure;
+        } else {
+          failure.addSuppressed(closeFailure);
+        }
       }
+
+      BufferAllocator currentAllocator = allocator;
+      allocator = null;
       try {
-        if (allocator != null) {
-          allocator.close();
-          allocator = null;
+        if (currentAllocator != null) {
+          currentAllocator.close();
         }
       } catch (Exception e) {
-        LOG.warn("Error closing BufferAllocator", e);
+        if (failure == null) {
+          failure = new RuntimeException("Error closing BufferAllocator", e);
+        } else {
+          failure.addSuppressed(e);
+        }
       }
-    }
-  }
 
-  /** A no-op listener for async put operations. */
-  static class AsyncPutListener implements FlightClient.PutListener {
-    private volatile @Nullable Throwable error;
-
-    @Override
-    public void onNext(PutResult val) {}
-
-    @Override
-    public void onError(Throwable t) {
-      this.error = t;
-    }
-
-    @Override
-    public void onCompleted() {}
-
-    @Override
-    public boolean isCancelled() {
-      return false;
-    }
-
-    @Override
-    public void getResult() {
-      Throwable t = error;
-      if (t != null) {
-        throw new RuntimeException("Error during Flight put", t);
+      if (failure != null) {
+        throw failure;
       }
     }
   }
