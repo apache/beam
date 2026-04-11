@@ -36,7 +36,7 @@ env:
 
 jobs:
   set-properties:
-    runs-on: [self-hosted, ubuntu-20.04, highmem]
+    runs-on: [self-hosted, ubuntu-24.04, highmem]
     outputs:
       properties: ${{ steps.test-properties.outputs.properties }}
     steps:
@@ -46,7 +46,7 @@ jobs:
         uses: ./.github/actions/setup-default-test-properties
 
   update_python_dependencies:
-    runs-on: [self-hosted, ubuntu-20.04]
+    runs-on: [self-hosted, ubuntu-24.04, main]
     needs: set-properties
     name: Update Python Dependencies
     steps:

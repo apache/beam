@@ -64,7 +64,7 @@ env:
 jobs:
   run_java_quickstart_rc_validation:
     name: Run Java QuickStart RC Validation (${{ github.event.inputs.RELEASE_VER }} RC${{ github.event.inputs.RC_NUM }})
-    runs-on: [self-hosted, ubuntu-20.04, main]
+    runs-on: [self-hosted, ubuntu-24.04, main]
     timeout-minutes: 60 # Adjust timeout as needed
     steps:
       - name: Checkout code at RC tag

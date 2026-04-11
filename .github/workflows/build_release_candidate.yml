@@ -58,7 +58,7 @@ env:
 jobs:
   publish_java_artifacts:
     if:  ${{ fromJson(github.event.inputs.STAGE).java_artifacts == 'yes'}}
-    runs-on: [self-hosted, ubuntu-20.04, main]
+    runs-on: [self-hosted, ubuntu-24.04, main]
     steps:
       - name: Checkout
         uses: actions/checkout@v4
