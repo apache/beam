@@ -253,6 +253,7 @@ public class AsyncBatchWriteHandlerTest {
         fun.run();
         return;
       } catch (AssertionError | InterruptedException t) {
+        // Ignore and try again.
       }
     }
     fun.run();

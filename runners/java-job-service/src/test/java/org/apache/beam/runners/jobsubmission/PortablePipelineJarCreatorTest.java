@@ -122,7 +122,7 @@ public class PortablePipelineJarCreatorTest implements Serializable {
   }
 
   private static class FakePipelineRunnner {
-    public static void main(String[] args) {
+    public static void main(@SuppressWarnings("unused") String[] args) {
       System.out.println("Hello world");
     }
   }
@@ -145,7 +145,7 @@ public class PortablePipelineJarCreatorTest implements Serializable {
 
   @SuppressWarnings("IncorrectMainMethod") // intended
   private static class EvilPipelineRunner {
-    public static int main(String[] args) {
+    public static int main(@SuppressWarnings("unused") String[] args) {
       return 0;
     }
   }

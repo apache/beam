@@ -62,7 +62,7 @@ permissions:
 
 # This allows a subsequently queued workflow run to interrupt previous runs
 concurrency:
-  group: '${{ github.workflow }} @ ${{ github.event.issue.number || github.event.pull_request.head.label || github.sha || github.head_ref || github.ref }}-${{ github.event.schedule || github.event.comment.id || github.event.sender.login }}'
+  group: '${{ github.workflow }} @ ${{ github.event.pull_request.number || github.event.pull_request.head.label || github.sha || github.head_ref || github.ref }}-${{ github.event.schedule || github.event.comment.id || github.event.sender.login }}'
   cancel-in-progress: true
 
 env:
@@ -119,6 +119,7 @@ jobs:
           -PtestJavaVersion=21 \
           -PskipCheckerFramework \
           -Pjava21Home=$JAVA_HOME_21_X64 \
+          -Pdocker-pull-licenses \
         max-workers: 12
     - name: Archive JUnit Test Results
       uses: actions/upload-artifact@v4

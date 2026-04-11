@@ -184,7 +184,7 @@ public class SamzaRunner extends PipelineRunner<SamzaPipelineResult> {
         final MetricsReporter reporter = options.getMetricsReporters().get(i);
 
         reporters.put(name, (MetricsReporterFactory) (nm, processorId, config) -> reporter);
-        LOG.info(name + ": " + reporter.getClass().getName());
+        LOG.info("{}: {}", name, reporter.getClass().getName());
       }
       return reporters;
     } else {

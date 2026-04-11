@@ -210,7 +210,7 @@ public abstract class AbstractJDBCResourceManager<T extends JdbcDatabaseContaine
         sql.append(String.join(",", valueList)).append(")");
 
         try {
-          LOG.info("Running SQL statement: " + sql);
+          LOG.info("Running SQL statement: {}", sql);
           stmt.executeUpdate(sql.toString());
         } catch (SQLException e) {
           throw new JDBCResourceManagerException(

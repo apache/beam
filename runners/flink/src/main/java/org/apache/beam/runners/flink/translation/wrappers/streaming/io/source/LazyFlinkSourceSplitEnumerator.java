@@ -22,6 +22,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CountDownLatch;
 import javax.annotation.Nullable;
 import org.apache.beam.runners.flink.FlinkPipelineOptions;
 import org.apache.beam.sdk.io.BoundedSource;
@@ -53,7 +54,8 @@ public class LazyFlinkSourceSplitEnumerator<T>
   private final PipelineOptions pipelineOptions;
   private final int numSplits;
   private final List<FlinkSourceSplit<T>> pendingSplits;
-  private boolean splitsInitialized;
+  private volatile boolean splitsInitialized;
+  private final CountDownLatch initializationLatch = new CountDownLatch(1);
 
   public LazyFlinkSourceSplitEnumerator(
       SplitEnumeratorContext<FlinkSourceSplit<T>> context,
@@ -90,6 +92,8 @@ public class LazyFlinkSourceSplitEnumerator<T>
             return pendingSplits;
           } catch (Exception e) {
             throw new RuntimeException(e);
+          } finally {
+            initializationLatch.countDown();
           }
         },
         (sourceSplits, error) -> {
@@ -97,6 +101,7 @@ public class LazyFlinkSourceSplitEnumerator<T>
             pendingSplits.addAll(sourceSplits);
             throw new RuntimeException("Failed to start source enumerator.", error);
           }
+          splitsInitialized = true;
         });
   }
 
@@ -111,6 +116,16 @@ public class LazyFlinkSourceSplitEnumerator<T>
       final String hostInfo =
           hostname == null ? "(no host locality info)" : "(on host '" + hostname + "')";
       LOG.info("Subtask {} {} is requesting a file source split", subtask, hostInfo);
+    }
+
+    if (!splitsInitialized) {
+      try {
+        initializationLatch.await();
+      } catch (InterruptedException e) {
+        Thread.currentThread().interrupt();
+        LOG.warn("Interrupted while waiting for splits initialization", e);
+        return;
+      }
     }
 
     if (!pendingSplits.isEmpty()) {

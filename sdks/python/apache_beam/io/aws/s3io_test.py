@@ -170,14 +170,17 @@ class TestS3IO(unittest.TestCase):
     file_size = 1024
     self._insert_random_file(self.client, src_file_name, file_size)
 
-    self.assertTrue(src_file_name in self.aws.list_prefix(self.TEST_DATA_PATH))
+    self.assertTrue(
+        src_file_name in dict(self.aws.list_files(self.TEST_DATA_PATH)))
     self.assertFalse(
-        dest_file_name in self.aws.list_prefix(self.TEST_DATA_PATH))
+        dest_file_name in dict(self.aws.list_files(self.TEST_DATA_PATH)))
 
     self.aws.copy(src_file_name, dest_file_name)
 
-    self.assertTrue(src_file_name in self.aws.list_prefix(self.TEST_DATA_PATH))
-    self.assertTrue(dest_file_name in self.aws.list_prefix(self.TEST_DATA_PATH))
+    self.assertTrue(
+        src_file_name in dict(self.aws.list_files(self.TEST_DATA_PATH)))
+    self.assertTrue(
+        dest_file_name in dict(self.aws.list_files(self.TEST_DATA_PATH)))
 
     # Clean up
     self.aws.delete_files([src_file_name, dest_file_name])
@@ -290,9 +293,9 @@ class TestS3IO(unittest.TestCase):
       dest_file_name = dest_dir_name + path
       self._insert_random_file(self.client, src_file_name, file_size)
       self.assertTrue(
-          src_file_name in self.aws.list_prefix(self.TEST_DATA_PATH))
+          src_file_name in dict(self.aws.list_files(self.TEST_DATA_PATH)))
       self.assertFalse(
-          dest_file_name in self.aws.list_prefix(self.TEST_DATA_PATH))
+          dest_file_name in dict(self.aws.list_files(self.TEST_DATA_PATH)))
 
     results = self.aws.copy_tree(src_dir_name, dest_dir_name)
 
@@ -303,9 +306,9 @@ class TestS3IO(unittest.TestCase):
       self.assertIsNone(err)
 
       self.assertTrue(
-          src_file_name in self.aws.list_prefix(self.TEST_DATA_PATH))
+          src_file_name in dict(self.aws.list_files(self.TEST_DATA_PATH)))
       self.assertTrue(
-          dest_file_name in self.aws.list_prefix(self.TEST_DATA_PATH))
+          dest_file_name in dict(self.aws.list_files(self.TEST_DATA_PATH)))
 
     # Clean up
     for path in paths:
@@ -320,14 +323,17 @@ class TestS3IO(unittest.TestCase):
 
     self._insert_random_file(self.client, src_file_name, file_size)
 
-    self.assertTrue(src_file_name in self.aws.list_prefix(self.TEST_DATA_PATH))
+    self.assertTrue(
+        src_file_name in dict(self.aws.list_files(self.TEST_DATA_PATH)))
     self.assertFalse(
-        dest_file_name in self.aws.list_prefix(self.TEST_DATA_PATH))
+        dest_file_name in dict(self.aws.list_files(self.TEST_DATA_PATH)))
 
     self.aws.rename(src_file_name, dest_file_name)
 
-    self.assertFalse(src_file_name in self.aws.list_prefix(self.TEST_DATA_PATH))
-    self.assertTrue(dest_file_name in self.aws.list_prefix(self.TEST_DATA_PATH))
+    self.assertFalse(
+        src_file_name in dict(self.aws.list_files(self.TEST_DATA_PATH)))
+    self.assertTrue(
+        dest_file_name in dict(self.aws.list_files(self.TEST_DATA_PATH)))
 
     # Clean up
     self.aws.delete_files([src_file_name, dest_file_name])
@@ -439,7 +445,7 @@ class TestS3IO(unittest.TestCase):
 
     # Create the file and check that it was created
     self._insert_random_file(self.aws.client, file_name, file_size)
-    files = self.aws.list_prefix(self.TEST_DATA_PATH)
+    files = dict(self.aws.list_files(self.TEST_DATA_PATH))
     self.assertTrue(file_name in files)
 
     # Delete the file and check that it was deleted
@@ -748,7 +754,7 @@ class TestS3IO(unittest.TestCase):
     # Clean up
     self.aws.delete(file_name)
 
-  def test_list_prefix(self):
+  def test_list_files(self):
 
     objects = [
         ('jerry/pigpen/phil', 5),
@@ -785,7 +791,7 @@ class TestS3IO(unittest.TestCase):
       expected_file_names = [(self.TEST_DATA_PATH + object_name, size)
                              for (object_name, size) in expected_object_names]
       self.assertEqual(
-          set(self.aws.list_prefix(file_pattern).items()),
+          set(dict(self.aws.list_files(file_pattern)).items()),
           set(expected_file_names))
 
     # Clean up

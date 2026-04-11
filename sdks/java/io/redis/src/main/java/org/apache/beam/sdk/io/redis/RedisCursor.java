@@ -77,7 +77,7 @@ public class RedisCursor implements Comparable<RedisCursor>, Serializable {
     if (this == o) {
       return true;
     }
-    if (o == null || getClass() != o.getClass()) {
+    if (!(o instanceof RedisCursor)) {
       return false;
     }
     RedisCursor that = (RedisCursor) o;

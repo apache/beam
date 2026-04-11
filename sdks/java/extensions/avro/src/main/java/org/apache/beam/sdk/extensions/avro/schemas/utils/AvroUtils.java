@@ -56,7 +56,6 @@ import org.apache.avro.Conversion;
 import org.apache.avro.Conversions;
 import org.apache.avro.LogicalType;
 import org.apache.avro.LogicalTypes;
-import org.apache.avro.Schema.Type;
 import org.apache.avro.generic.GenericData;
 import org.apache.avro.generic.GenericFixed;
 import org.apache.avro.generic.GenericRecord;
@@ -238,7 +237,7 @@ public class AvroUtils {
     }
 
     TypeWithNullability(org.apache.avro.Schema avroSchema) {
-      if (avroSchema.getType() == Type.UNION) {
+      if (avroSchema.getType() == org.apache.avro.Schema.Type.UNION) {
         List<org.apache.avro.Schema> types = avroSchema.getTypes();
 
         // optional fields in AVRO have form of:
@@ -246,7 +245,9 @@ public class AvroUtils {
 
         // don't need recursion because nested unions aren't supported in AVRO
         List<org.apache.avro.Schema> nonNullTypes =
-            types.stream().filter(x -> x.getType() != Type.NULL).collect(Collectors.toList());
+            types.stream()
+                .filter(x -> x.getType() != org.apache.avro.Schema.Type.NULL)
+                .collect(Collectors.toList());
 
         if (nonNullTypes.size() == types.size() || nonNullTypes.isEmpty()) {
           // union without `null` or all 'null' union, keep as is.
@@ -303,7 +304,7 @@ public class AvroUtils {
 
     /** Create a {@link FixedBytesField} from an AVRO type. */
     public static @Nullable FixedBytesField fromAvroType(org.apache.avro.Schema type) {
-      if (type.getType().equals(Type.FIXED)) {
+      if (type.getType().equals(org.apache.avro.Schema.Type.FIXED)) {
         return new FixedBytesField(type.getFixedSize());
       } else {
         return null;
@@ -672,7 +673,9 @@ public class AvroUtils {
   public static @Nullable <T> Schema getSchema(
       Class<T> clazz, org.apache.avro.@Nullable Schema schema) {
     if (schema != null) {
-      return schema.getType().equals(Type.RECORD) ? toBeamSchema(schema) : null;
+      return schema.getType().equals(org.apache.avro.Schema.Type.RECORD)
+          ? toBeamSchema(schema)
+          : null;
     }
     if (GenericRecord.class.equals(clazz)) {
       throw new IllegalArgumentException("No schema provided for getSchema(GenericRecord)");
@@ -764,7 +767,7 @@ public class AvroUtils {
       if (this == other) {
         return true;
       }
-      if (other == null || getClass() != other.getClass()) {
+      if (!(other instanceof GenericRecordToRowFn)) {
         return false;
       }
       GenericRecordToRowFn that = (GenericRecordToRowFn) other;
@@ -803,7 +806,7 @@ public class AvroUtils {
       if (this == other) {
         return true;
       }
-      if (other == null || getClass() != other.getClass()) {
+      if (!(other instanceof RowToGenericRecordFn)) {
         return false;
       }
       RowToGenericRecordFn that = (RowToGenericRecordFn) other;
@@ -1118,44 +1121,45 @@ public class AvroUtils {
       case BYTE:
       case INT16:
       case INT32:
-        baseType = org.apache.avro.Schema.create(Type.INT);
+        baseType = org.apache.avro.Schema.create(org.apache.avro.Schema.Type.INT);
         break;
 
       case INT64:
-        baseType = org.apache.avro.Schema.create(Type.LONG);
+        baseType = org.apache.avro.Schema.create(org.apache.avro.Schema.Type.LONG);
         break;
 
       case DECIMAL:
         baseType =
             LogicalTypes.decimal(Integer.MAX_VALUE)
-                .addToSchema(org.apache.avro.Schema.create(Type.BYTES));
+                .addToSchema(org.apache.avro.Schema.create(org.apache.avro.Schema.Type.BYTES));
         break;
 
       case FLOAT:
-        baseType = org.apache.avro.Schema.create(Type.FLOAT);
+        baseType = org.apache.avro.Schema.create(org.apache.avro.Schema.Type.FLOAT);
         break;
 
       case DOUBLE:
-        baseType = org.apache.avro.Schema.create(Type.DOUBLE);
+        baseType = org.apache.avro.Schema.create(org.apache.avro.Schema.Type.DOUBLE);
         break;
 
       case STRING:
-        baseType = org.apache.avro.Schema.create(Type.STRING);
+        baseType = org.apache.avro.Schema.create(org.apache.avro.Schema.Type.STRING);
         break;
 
       case DATETIME:
         // TODO: There is a desire to move Beam schema DATETIME to a micros representation. When
         // this is done, this logical type needs to be changed.
         baseType =
-            LogicalTypes.timestampMillis().addToSchema(org.apache.avro.Schema.create(Type.LONG));
+            LogicalTypes.timestampMillis()
+                .addToSchema(org.apache.avro.Schema.create(org.apache.avro.Schema.Type.LONG));
         break;
 
       case BOOLEAN:
-        baseType = org.apache.avro.Schema.create(Type.BOOLEAN);
+        baseType = org.apache.avro.Schema.create(org.apache.avro.Schema.Type.BOOLEAN);
         break;
 
       case BYTES:
-        baseType = org.apache.avro.Schema.create(Type.BYTES);
+        baseType = org.apache.avro.Schema.create(org.apache.avro.Schema.Type.BYTES);
         break;
 
       case LOGICAL_TYPE:
@@ -1167,7 +1171,7 @@ public class AvroUtils {
           baseType = fixedBytesField.toAvroType("fixed", namespace + "." + fieldName);
         } else if (VariableBytes.IDENTIFIER.equals(identifier)) {
           // treat VARBINARY as bytes as that is what avro supports
-          baseType = org.apache.avro.Schema.create(Type.BYTES);
+          baseType = org.apache.avro.Schema.create(org.apache.avro.Schema.Type.BYTES);
         } else if (FixedString.IDENTIFIER.equals(identifier)
             || "CHAR".equals(identifier)
             || "NCHAR".equals(identifier)) {
@@ -1190,19 +1194,24 @@ public class AvroUtils {
                       .map(x -> getFieldSchema(x.getType(), x.getName(), namespace))
                       .collect(Collectors.toList()));
         } else if ("DATE".equals(identifier) || SqlTypes.DATE.getIdentifier().equals(identifier)) {
-          baseType = LogicalTypes.date().addToSchema(org.apache.avro.Schema.create(Type.INT));
+          baseType =
+              LogicalTypes.date()
+                  .addToSchema(org.apache.avro.Schema.create(org.apache.avro.Schema.Type.INT));
         } else if ("TIME".equals(identifier)) {
-          baseType = LogicalTypes.timeMillis().addToSchema(org.apache.avro.Schema.create(Type.INT));
+          baseType =
+              LogicalTypes.timeMillis()
+                  .addToSchema(org.apache.avro.Schema.create(org.apache.avro.Schema.Type.INT));
         } else if (SqlTypes.TIMESTAMP.getIdentifier().equals(identifier)) {
           baseType =
-              LogicalTypes.timestampMicros().addToSchema(org.apache.avro.Schema.create(Type.LONG));
+              LogicalTypes.timestampMicros()
+                  .addToSchema(org.apache.avro.Schema.create(org.apache.avro.Schema.Type.LONG));
         } else if (Timestamp.IDENTIFIER.equals(identifier)) {
           int precision = checkNotNull(logicalType.getArgument());
           if (precision != 9) {
             throw new RuntimeException(
                 "Timestamp logical type precision not supported:" + precision);
           }
-          baseType = org.apache.avro.Schema.create(Type.LONG);
+          baseType = org.apache.avro.Schema.create(org.apache.avro.Schema.Type.LONG);
           baseType.addProp("logicalType", TIMESTAMP_NANOS_LOGICAL_TYPE);
         } else {
           throw new RuntimeException(
@@ -1242,16 +1251,17 @@ public class AvroUtils {
   private static final Map<org.apache.avro.Schema, Function<Number, ? extends Number>>
       NUMERIC_CONVERTERS =
           ImmutableMap.of(
-              org.apache.avro.Schema.create(Type.INT), Number::intValue,
-              org.apache.avro.Schema.create(Type.LONG), Number::longValue,
-              org.apache.avro.Schema.create(Type.FLOAT), Number::floatValue,
-              org.apache.avro.Schema.create(Type.DOUBLE), Number::doubleValue);
+              org.apache.avro.Schema.create(org.apache.avro.Schema.Type.INT), Number::intValue,
+              org.apache.avro.Schema.create(org.apache.avro.Schema.Type.LONG), Number::longValue,
+              org.apache.avro.Schema.create(org.apache.avro.Schema.Type.FLOAT), Number::floatValue,
+              org.apache.avro.Schema.create(org.apache.avro.Schema.Type.DOUBLE),
+                  Number::doubleValue);
 
   /** Convert a value from Beam Row to a vlue used for Avro GenericRecord. */
   private static @Nullable Object genericFromBeamField(
       FieldType fieldType, org.apache.avro.Schema avroSchema, @Nullable Object value) {
     TypeWithNullability typeWithNullability = new TypeWithNullability(avroSchema);
-    if (!fieldType.getNullable().equals(typeWithNullability.nullable)) {
+    if (fieldType.getNullable() != typeWithNullability.nullable) {
       throw new IllegalArgumentException(
           "FieldType "
               + fieldType
@@ -1290,10 +1300,10 @@ public class AvroUtils {
         return result;
 
       case DATETIME:
-        if (typeWithNullability.type.getType() == Type.INT) {
+        if (typeWithNullability.type.getType() == org.apache.avro.Schema.Type.INT) {
           ReadableInstant instant = (ReadableInstant) value;
           return (int) Days.daysBetween(Instant.EPOCH, instant).getDays();
-        } else if (typeWithNullability.type.getType() == Type.LONG) {
+        } else if (typeWithNullability.type.getType() == org.apache.avro.Schema.Type.LONG) {
           ReadableInstant instant = (ReadableInstant) value;
           return (long) instant.getMillis();
         } else {
@@ -1418,7 +1428,7 @@ public class AvroUtils {
 
     // TODO: Remove this workaround once Avro is upgraded to 1.12+ where timestamp-nanos
     if (TIMESTAMP_NANOS_LOGICAL_TYPE.equals(type.type.getProp("logicalType"))) {
-      if (type.type.getType() == Type.LONG) {
+      if (type.type.getType() == org.apache.avro.Schema.Type.LONG) {
         Long nanos = (Long) value;
         // Check if Beam expects Timestamp logical type
         if (fieldType.getTypeName() == TypeName.LOGICAL_TYPE

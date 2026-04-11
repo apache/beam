@@ -142,7 +142,6 @@ public class BigtableServiceImplTest {
    * as expected.
    *
    * @throws IOException
-   * @throws InterruptedException
    */
   @Test
   @SuppressWarnings("unchecked")
@@ -179,7 +178,8 @@ public class BigtableServiceImplTest {
             bigtableDataSettings.getInstanceId(),
             mockBigtableSource.getTableId().get(),
             mockBigtableSource.getRanges(),
-            null);
+            null,
+            false);
 
     underTest.start();
     Assert.assertEquals(expectedRow, underTest.getCurrentRow());
@@ -830,7 +830,6 @@ public class BigtableServiceImplTest {
    * expected.
    *
    * @throws IOException
-   * @throws InterruptedException
    */
   @Test
   public void testWrite() throws IOException {

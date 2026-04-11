@@ -35,6 +35,7 @@ import org.apache.beam.sdk.state.Timer;
 import org.apache.beam.sdk.state.TimerSpec;
 import org.apache.beam.sdk.state.TimerSpecs;
 import org.apache.beam.sdk.state.ValueState;
+import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.ShardedKey;
 import org.apache.beam.sdk.util.common.ElementByteSizeObserver;
@@ -103,9 +104,6 @@ import org.slf4j.LoggerFactory;
 @SuppressWarnings({
   "nullness", // TODO(https://github.com/apache/beam/issues/20497)
   "rawtypes",
-  // TODO(https://github.com/apache/beam/issues/21230): Remove when new version of
-  // errorprone is released (2.11.0)
-  "unused"
 })
 public class GroupIntoBatches<K, InputT>
     extends PTransform<PCollection<KV<K, InputT>>, PCollection<KV<K, Iterable<InputT>>>> {
@@ -212,7 +210,7 @@ public class GroupIntoBatches<K, InputT>
     return super.toString() + ", params=" + params;
   }
 
-  /** @see #ofSize(long) */
+  /** See {@link #ofSize(long)}. */
   public GroupIntoBatches<K, InputT> withSize(long batchSize) {
     Preconditions.checkState(batchSize < Long.MAX_VALUE);
     return new GroupIntoBatches<>(
@@ -223,7 +221,7 @@ public class GroupIntoBatches<K, InputT>
             params.getMaxBufferingDuration()));
   }
 
-  /** @see #ofByteSize(long) */
+  /** See {@link #ofByteSize(long)}. */
   public GroupIntoBatches<K, InputT> withByteSize(long batchSizeBytes) {
     Preconditions.checkState(batchSizeBytes < Long.MAX_VALUE);
     return new GroupIntoBatches<>(
@@ -234,7 +232,7 @@ public class GroupIntoBatches<K, InputT>
             params.getMaxBufferingDuration()));
   }
 
-  /** @see #ofByteSize(long, SerializableFunction) */
+  /** See {@link #ofByteSize(long, SerializableFunction)}. */
   public GroupIntoBatches<K, InputT> withByteSize(
       long batchSizeBytes, SerializableFunction<InputT, Long> getElementByteSize) {
     Preconditions.checkState(batchSizeBytes < Long.MAX_VALUE);
@@ -674,6 +672,20 @@ public class GroupIntoBatches<K, InputT>
       storedBatchSizeBytes.clear();
       timerTs.clear();
       minBufferedTs.clear();
+    }
+
+    @Override
+    public void populateDisplayData(DisplayData.Builder builder) {
+      super.populateDisplayData(builder);
+      if (batchSize < Long.MAX_VALUE) {
+        builder.add(DisplayData.item("batchSize", batchSize));
+      }
+      if (batchSizeBytes < Long.MAX_VALUE) {
+        builder.add(DisplayData.item("batchSizeBytes", batchSizeBytes));
+      }
+      if (maxBufferingDuration.isLongerThan(Duration.ZERO)) {
+        builder.add(DisplayData.item("maxBufferingDuration", maxBufferingDuration));
+      }
     }
   }
 }

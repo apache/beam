@@ -97,7 +97,7 @@ public class MetadataTableDao {
     this.changeStreamNamePrefix = changeStreamNamePrefix;
   }
 
-  /** @return the prefix that is prepended to every row belonging to this beam job. */
+  /** Returns the prefix that is prepended to every row belonging to this beam job. */
   public ByteString getChangeStreamNamePrefix() {
     return changeStreamNamePrefix;
   }
@@ -208,8 +208,8 @@ public class MetadataTableDao {
   }
 
   /**
-   * @return all the new partitions resulting from splits and merges waiting to be streamed
-   *     including ones marked for deletion.
+   * Returns all the new partitions resulting from splits and merges waiting to be streamed
+   * including ones marked for deletion.
    */
   public List<NewPartition> readNewPartitionsIncludingDeleted()
       throws InvalidProtocolBufferException {
@@ -243,7 +243,7 @@ public class MetadataTableDao {
     return newPartitions;
   }
 
-  /** @return list the new partitions resulting from splits and merges waiting to be streamed. */
+  /** Returns list the new partitions resulting from splits and merges waiting to be streamed. */
   public List<NewPartition> readNewPartitions() throws InvalidProtocolBufferException {
     List<NewPartition> newPartitions = new ArrayList<>();
     Query query =
@@ -413,8 +413,8 @@ public class MetadataTableDao {
   public List<StreamPartitionWithWatermark> readStreamPartitionsWithWatermark()
       throws InvalidProtocolBufferException {
     LOG.debug(
-        "Reading stream partitions from metadata table: "
-            + getFullStreamPartitionPrefix().toStringUtf8());
+        "Reading stream partitions from metadata table: {}",
+        getFullStreamPartitionPrefix().toStringUtf8());
     Filter filterForWatermark =
         FILTERS
             .chain()

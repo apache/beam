@@ -22,6 +22,7 @@ from collections.abc import Sequence
 from typing import Any
 from typing import Optional
 from typing import Union
+from typing import cast
 
 from google import genai
 from google.genai import errors
@@ -73,7 +74,7 @@ def generate_from_string(
       call.
   """
   return model.models.generate_content(
-      model=model_name, contents=batch, **inference_args)
+      model=model_name, contents=cast(Any, batch), **inference_args)
 
 
 def generate_image_from_strings_and_images(
@@ -96,7 +97,7 @@ def generate_image_from_strings_and_images(
       call.
   """
   return model.models.generate_content(
-      model=model_name, contents=batch, **inference_args)
+      model=model_name, contents=cast(Any, batch), **inference_args)
 
 
 class GeminiModelHandler(RemoteModelHandler[Any, PredictionResult,
@@ -116,6 +117,8 @@ class GeminiModelHandler(RemoteModelHandler[Any, PredictionResult,
       max_batch_duration_secs: Optional[int] = None,
       max_batch_weight: Optional[int] = None,
       element_size_fn: Optional[Callable[[Any], int]] = None,
+      batch_length_fn: Optional[Callable[[Any], int]] = None,
+      batch_bucket_boundaries: Optional[list[int]] = None,
       **kwargs):
     """Implementation of the ModelHandler interface for Google Gemini.
     **NOTE:** This API and its implementation are under development and
@@ -157,6 +160,10 @@ class GeminiModelHandler(RemoteModelHandler[Any, PredictionResult,
       max_batch_weight: optional. the maximum total weight of a batch.
       element_size_fn: optional. a function that returns the size (weight)
         of an element.
+      batch_length_fn: optional. a callable that returns the length of an
+        element for length-aware batching.
+      batch_bucket_boundaries: optional. a sorted list of positive boundary
+        values for length-aware batching buckets.
     """
     self._batching_kwargs = {}
     self._env_vars = kwargs.get('env_vars', {})
@@ -170,6 +177,10 @@ class GeminiModelHandler(RemoteModelHandler[Any, PredictionResult,
       self._batching_kwargs["max_batch_weight"] = max_batch_weight
     if element_size_fn is not None:
       self._batching_kwargs['element_size_fn'] = element_size_fn
+    if batch_length_fn is not None:
+      self._batching_kwargs['length_fn'] = batch_length_fn
+    if batch_bucket_boundaries is not None:
+      self._batching_kwargs['bucket_boundaries'] = batch_bucket_boundaries
 
     self.model_name = model_name
     self.request_fn = request_fn

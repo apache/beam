@@ -34,6 +34,7 @@ ARG py_version
 RUN  \
     # Install native bindings required for dependencies.
     apt-get update && \
+    apt-get upgrade -y && \
     apt-get install -y \
        # Required by python-snappy
        libsnappy-dev \

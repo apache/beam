@@ -781,8 +781,7 @@ public class BigQueryIO {
                         (writer, reader) ->
                             new GenericDatumTransformer<>(parseFn, jsonTableSchema, writer);
                   } catch (IOException e) {
-                    LOG.warn(
-                        String.format("Error while converting table schema %s to JSON!", input), e);
+                    LOG.warn("Error while converting table schema {} to JSON!", input, e);
                     return null;
                   }
                 })
@@ -1003,7 +1002,8 @@ public class BigQueryIO {
 
       private long getDesiredChunkSize(
           PipelineOptions options, BigQueryStorageTableSource<T> output) throws Exception {
-        return Math.max(1 << 20, (long) (1000 * Math.sqrt(output.getEstimatedSizeBytes(options))));
+        return Math.max(
+            1 << 20, (long) (1000 * Math.sqrt((double) output.getEstimatedSizeBytes(options))));
       }
     }
 
@@ -1206,7 +1206,7 @@ public class BigQueryIO {
 
       abstract Builder<T> setUseLegacySql(Boolean useLegacySql);
 
-      abstract Builder<T> setWithTemplateCompatibility(Boolean useTemplateCompatibility);
+      abstract Builder<T> setWithTemplateCompatibility(boolean useTemplateCompatibility);
 
       abstract Builder<T> setBigQueryServices(BigQueryServices bigQueryServices);
 
@@ -1243,7 +1243,7 @@ public class BigQueryIO {
 
       abstract Builder<T> setFromBeamRowFn(FromBeamRowFunction<T> fromRowFn);
 
-      abstract Builder<T> setUseAvroLogicalTypes(Boolean useAvroLogicalTypes);
+      abstract Builder<T> setUseAvroLogicalTypes(boolean useAvroLogicalTypes);
 
       abstract Builder<T> setBadRecordErrorHandler(
           ErrorHandler<BadRecord, ?> badRecordErrorHandler);
@@ -1265,7 +1265,7 @@ public class BigQueryIO {
 
     abstract @Nullable Boolean getUseLegacySql();
 
-    abstract Boolean getWithTemplateCompatibility();
+    abstract boolean getWithTemplateCompatibility();
 
     abstract BigQueryServices getBigQueryServices();
 
@@ -1300,7 +1300,7 @@ public class BigQueryIO {
 
     abstract @Nullable FromBeamRowFunction<T> getFromBeamRowFn();
 
-    abstract Boolean getUseAvroLogicalTypes();
+    abstract boolean getUseAvroLogicalTypes();
 
     abstract ErrorHandler<BadRecord, ?> getBadRecordErrorHandler();
 
@@ -1389,10 +1389,6 @@ public class BigQueryIO {
           getDirectReadPicosTimestampPrecision());
     }
 
-    private static final String QUERY_VALIDATION_FAILURE_ERROR =
-        "Validation of query \"%1$s\" failed. If the query depends on an earlier stage of the"
-            + " pipeline, This validation can be disabled using #withoutValidation.";
-
     @Override
     public void validate(PipelineOptions options) {
       // Even if existence validation is disabled, we need to make sure that the BigQueryIO
@@ -1452,7 +1448,11 @@ public class BigQueryIO {
                   getQueryLocation());
             } catch (Exception e) {
               throw new IllegalArgumentException(
-                  String.format(QUERY_VALIDATION_FAILURE_ERROR, getQuery().get()), e);
+                  String.format(
+                      "Validation of query \"%1$s\" failed. If the query depends on an earlier stage of the"
+                          + " pipeline, This validation can be disabled using #withoutValidation.",
+                      getQuery().get()),
+                  e);
             }
 
             // If the user provided a temp dataset, check if the dataset exists before launching the
@@ -1755,7 +1755,8 @@ public class BigQueryIO {
               desiredChunkSize = 64 << 20; // 64mb
             } else {
               // 1mb --> 1 shard; 1gb --> 32 shards; 1tb --> 1000 shards, 1pb --> 32k shards
-              desiredChunkSize = Math.max(1 << 20, (long) (1000 * Math.sqrt(estimatedSize)));
+              desiredChunkSize =
+                  Math.max(1 << 20, (long) (1000 * Math.sqrt((double) estimatedSize)));
             }
             sources = source.split(desiredChunkSize, bqOptions);
           } catch (Exception e) {
@@ -2748,11 +2749,11 @@ public class BigQueryIO {
 
     abstract boolean getExtendedErrorInfo();
 
-    abstract Boolean getSkipInvalidRows();
+    abstract boolean getSkipInvalidRows();
 
-    abstract Boolean getIgnoreUnknownValues();
+    abstract boolean getIgnoreUnknownValues();
 
-    abstract Boolean getIgnoreInsertIds();
+    abstract boolean getIgnoreInsertIds();
 
     abstract int getMaxRetryJobs();
 
@@ -2762,19 +2763,19 @@ public class BigQueryIO {
 
     abstract AppendRowsRequest.MissingValueInterpretation getDefaultMissingValueInterpretation();
 
-    abstract Boolean getOptimizeWrites();
+    abstract boolean getOptimizeWrites();
 
-    abstract Boolean getUseBeamSchema();
+    abstract boolean getUseBeamSchema();
 
-    abstract Boolean getAutoSharding();
+    abstract boolean getAutoSharding();
 
-    abstract Boolean getPropagateSuccessful();
+    abstract boolean getPropagateSuccessful();
 
-    abstract Boolean getAutoSchemaUpdate();
+    abstract boolean getAutoSchemaUpdate();
 
     abstract @Nullable Class<T> getWriteProtosClass();
 
-    abstract Boolean getDirectWriteProtos();
+    abstract boolean getDirectWriteProtos();
 
     abstract @Nullable SerializableFunction<T, String> getDeterministicRecordIdFn();
 
@@ -2863,11 +2864,11 @@ public class BigQueryIO {
 
       abstract Builder<T> setExtendedErrorInfo(boolean extendedErrorInfo);
 
-      abstract Builder<T> setSkipInvalidRows(Boolean skipInvalidRows);
+      abstract Builder<T> setSkipInvalidRows(boolean skipInvalidRows);
 
-      abstract Builder<T> setIgnoreUnknownValues(Boolean ignoreUnknownValues);
+      abstract Builder<T> setIgnoreUnknownValues(boolean ignoreUnknownValues);
 
-      abstract Builder<T> setIgnoreInsertIds(Boolean ignoreInsertIds);
+      abstract Builder<T> setIgnoreInsertIds(boolean ignoreInsertIds);
 
       abstract Builder<T> setKmsKey(@Nullable String kmsKey);
 
@@ -2876,21 +2877,21 @@ public class BigQueryIO {
       abstract Builder<T> setDefaultMissingValueInterpretation(
           AppendRowsRequest.MissingValueInterpretation missingValueInterpretation);
 
-      abstract Builder<T> setOptimizeWrites(Boolean optimizeWrites);
+      abstract Builder<T> setOptimizeWrites(boolean optimizeWrites);
 
-      abstract Builder<T> setUseBeamSchema(Boolean useBeamSchema);
+      abstract Builder<T> setUseBeamSchema(boolean useBeamSchema);
 
-      abstract Builder<T> setAutoSharding(Boolean autoSharding);
+      abstract Builder<T> setAutoSharding(boolean autoSharding);
 
       abstract Builder<T> setMaxRetryJobs(int maxRetryJobs);
 
-      abstract Builder<T> setPropagateSuccessful(Boolean propagateSuccessful);
+      abstract Builder<T> setPropagateSuccessful(boolean propagateSuccessful);
 
-      abstract Builder<T> setAutoSchemaUpdate(Boolean autoSchemaUpdate);
+      abstract Builder<T> setAutoSchemaUpdate(boolean autoSchemaUpdate);
 
       abstract Builder<T> setWriteProtosClass(@Nullable Class<T> clazz);
 
-      abstract Builder<T> setDirectWriteProtos(Boolean direct);
+      abstract Builder<T> setDirectWriteProtos(boolean direct);
 
       abstract Builder<T> setDeterministicRecordIdFn(
           SerializableFunction<T, String> toUniqueIdFunction);

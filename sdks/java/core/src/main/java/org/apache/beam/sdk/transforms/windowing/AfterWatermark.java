@@ -69,7 +69,7 @@ public class AfterWatermark {
     return new FromEndOfWindow();
   }
 
-  /** @see AfterWatermark */
+  /** See {@link AfterWatermark}. */
   public static class AfterWatermarkEarlyAndLate extends Trigger {
 
     private final OnceTrigger earlyTrigger;
@@ -102,6 +102,11 @@ public class AfterWatermark {
     }
 
     @Override
+    public <OutputT> OutputT accept(TriggerVisitor<OutputT> visitor) {
+      return visitor.visit(this);
+    }
+
+    @Override
     public Trigger getContinuationTrigger() {
       return new AfterWatermarkEarlyAndLate(
           earlyTrigger.getContinuationTrigger(),
@@ -120,7 +125,7 @@ public class AfterWatermark {
       return window.maxTimestamp();
     }
 
-    /** @return true if there is no late firing set up, otherwise false */
+    /** Returns true if there is no late firing set up, otherwise false. */
     @Override
     public boolean mayFinish() {
       return lateTrigger == null;
@@ -175,6 +180,11 @@ public class AfterWatermark {
     @Override
     protected FromEndOfWindow getContinuationTrigger(List<Trigger> continuationTriggers) {
       return this;
+    }
+
+    @Override
+    public <OutputT> OutputT accept(TriggerVisitor<OutputT> visitor) {
+      return visitor.visit(this);
     }
 
     @Override

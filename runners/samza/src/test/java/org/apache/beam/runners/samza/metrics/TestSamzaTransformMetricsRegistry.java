@@ -102,7 +102,7 @@ public class TestSamzaTransformMetricsRegistry {
             .get("dummy-pvalue.out")
             .containsKey(watermarkMessage.getTimestamp()));
     // Cache size must be 0
-    assertEquals(0, cacheSize.getValue().intValue());
+    assertEquals(0L, cacheSize.getValue().longValue());
   }
 
   @Test
@@ -186,6 +186,6 @@ public class TestSamzaTransformMetricsRegistry {
     // Check the latency metric is same
     assertTrue(1000 == latency.getSnapshot().getAverage());
     // Cache size must be 0
-    assertEquals(0, cacheSize.getValue().intValue());
+    assertEquals(0L, cacheSize.getValue().longValue());
   }
 }

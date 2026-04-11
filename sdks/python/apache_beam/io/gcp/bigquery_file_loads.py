@@ -1120,8 +1120,8 @@ class BigQueryBatchFileLoads(beam.PTransform):
          of the load jobs would fail but not other. If any of them fails, then
          copy jobs are not triggered.
     """
-    self.reshuffle_before_load = not util.is_compat_version_prior_to(
-        p.options, "2.65.0")
+    self.reshuffle_before_load = not p.options.is_compat_version_prior_to(
+        "2.65.0")
     if self.reshuffle_before_load:
       # Ensure that TriggerLoadJob retry inputs are deterministic by breaking
       # fusion for inputs.

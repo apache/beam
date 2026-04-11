@@ -30,6 +30,7 @@ For internal use only; no backwards-compatibility guarantees.
 """
 # pytype: skip-file
 
+import dataclasses
 import decimal
 import enum
 import itertools
@@ -66,11 +67,6 @@ from apache_beam.utils.sharded_key import ShardedKey
 from apache_beam.utils.timestamp import MAX_TIMESTAMP
 from apache_beam.utils.timestamp import MIN_TIMESTAMP
 from apache_beam.utils.timestamp import Timestamp
-
-try:
-  import dataclasses
-except ImportError:
-  dataclasses = None  # type: ignore
 
 try:
   import dill
@@ -497,7 +493,7 @@ class FastPrimitivesCoderImpl(StreamCoderImpl):
       stream.write_byte(PROTO_TYPE)
       self.encode_type(type(value), stream)
       stream.write(value.SerializePartialToString(deterministic=True), True)
-    elif dataclasses and dataclasses.is_dataclass(value):
+    elif dataclasses.is_dataclass(value):
       if not type(value).__dataclass_params__.frozen:
         raise TypeError(
             "Unable to deterministically encode non-frozen '%s' of type '%s' "

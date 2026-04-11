@@ -87,7 +87,7 @@ public class ConfigBuilder {
     config.putAll(properties);
   }
 
-  /** @return built configuration */
+  /** Returns built configuration. */
   public Config build() {
     try {
       // apply framework configs
@@ -158,13 +158,13 @@ public class ConfigBuilder {
 
     // If user provides a config file, use it as base configs.
     if (StringUtils.isNoneEmpty(configFilePath)) {
-      LOG.info("configFilePath: " + configFilePath);
+      LOG.info("configFilePath: {}", configFilePath);
 
       final Config properties = new MapConfig(Collections.singletonMap("path", configFilePath));
       final ConfigLoaderFactory configLoaderFactory =
           options.getConfigLoaderFactory().getDeclaredConstructor().newInstance();
 
-      LOG.info("configLoaderFactory: " + configLoaderFactory.getClass().getName());
+      LOG.info("configLoaderFactory: {}", configLoaderFactory.getClass().getName());
 
       // Config file must exist for default properties config
       // TODO: add check to all non-empty files once we don't need to
@@ -303,7 +303,7 @@ public class ConfigBuilder {
           "org.apache.samza.storage.kv.inmemory.InMemoryKeyValueStorageEngineFactory");
     }
 
-    LOG.info("Execution environment is " + options.getSamzaExecutionEnvironment());
+    LOG.info("Execution environment is {}", options.getSamzaExecutionEnvironment());
     switch (options.getSamzaExecutionEnvironment()) {
       case YARN:
         configBuilder.putAll(yarnRunConfig());

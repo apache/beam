@@ -29,11 +29,11 @@ public class TestUtils {
   // Do not instantiate.
   private TestUtils() {}
 
-  public static final String[] NO_LINES_ARRAY = new String[] {};
+  private static final String[] NO_LINES_ARRAY = new String[] {};
 
   public static final List<String> NO_LINES = Arrays.asList(NO_LINES_ARRAY);
 
-  public static final String[] LINES_ARRAY =
+  private static final String[] LINES_ARRAY =
       new String[] {
         "To be, or not to be: that is the question: ",
         "Whether 'tis nobler in the mind to suffer ",
@@ -74,15 +74,15 @@ public class TestUtils {
 
   public static final List<String> LINES = Arrays.asList(LINES_ARRAY);
 
-  public static final String[] LINES2_ARRAY = new String[] {"hi", "there", "bob!"};
+  private static final String[] LINES2_ARRAY = new String[] {"hi", "there", "bob!"};
 
   public static final List<String> LINES2 = Arrays.asList(LINES2_ARRAY);
 
-  public static final Integer[] NO_INTS_ARRAY = new Integer[] {};
+  private static final Integer[] NO_INTS_ARRAY = new Integer[] {};
 
   public static final List<Integer> NO_INTS = Arrays.asList(NO_INTS_ARRAY);
 
-  public static final Integer[] INTS_ARRAY =
+  private static final Integer[] INTS_ARRAY =
       new Integer[] {3, 42, Integer.MAX_VALUE, 0, -1, Integer.MIN_VALUE, 666};
 
   public static final List<Integer> INTS = Arrays.asList(INTS_ARRAY);

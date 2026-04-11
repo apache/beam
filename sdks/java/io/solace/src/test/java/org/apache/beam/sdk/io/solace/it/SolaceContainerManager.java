@@ -115,7 +115,7 @@ public class SolaceContainerManager {
       if (execResult.getExitCode() != 0) {
         logCommandError(execResult.getStderr(), command);
       } else {
-        LOG.info(execResult.getStdout());
+        LOG.info("{}", execResult.getStdout());
       }
     } catch (IOException | InterruptedException e) {
       logCommandError(e.getMessage(), command);

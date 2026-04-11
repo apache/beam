@@ -326,7 +326,7 @@ public class BeamCalcRel extends AbstractBeamCalcRel {
           Schema schema = BeamSqlRelUtils.getErrorRowSchema(row.getSchema());
           Row errorRow =
               toBeamRow(Arrays.asList(row.getValues(), e.getCause().getMessage()), schema, true);
-          LOG.error("CalcFn failed to evaluate: " + processElementBlock, e.getCause());
+          LOG.error("CalcFn failed to evaluate: {}", processElementBlock, e.getCause());
           multiOutputReceiver.get(errors).output(errorRow);
         } else {
           throw new RuntimeException(

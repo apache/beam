@@ -94,7 +94,9 @@ public class JsonUtilsTest {
 
   private static class TestCase<T extends RowEncodable> {
 
+    @SuppressWarnings("unused")
     final String name;
+
     final T userT;
     final String jsonString;
     final byte[] jsonBytes;
@@ -173,7 +175,7 @@ public class JsonUtilsTest {
       if (this == o) {
         return true;
       }
-      if (o == null || getClass() != o.getClass()) {
+      if (!(o instanceof Cat)) {
         return false;
       }
       Cat cat = (Cat) o;
@@ -227,7 +229,7 @@ public class JsonUtilsTest {
       if (this == o) {
         return true;
       }
-      if (o == null || getClass() != o.getClass()) {
+      if (!(o instanceof NestedCat)) {
         return false;
       }
       NestedCat nestedCat = (NestedCat) o;
@@ -277,7 +279,7 @@ public class JsonUtilsTest {
       if (this == o) {
         return true;
       }
-      if (o == null || getClass() != o.getClass()) {
+      if (!(o instanceof ArrayOfCats)) {
         return false;
       }
       ArrayOfCats that = (ArrayOfCats) o;

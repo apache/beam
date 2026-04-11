@@ -129,6 +129,6 @@ public class PTransformReplacementsTest {
 
   private static class TestDoFn extends DoFn<Long, Long> {
     @ProcessElement
-    public void process(ProcessContext context) {}
+    public void process(@SuppressWarnings("unused") ProcessContext context) {}
   }
 }

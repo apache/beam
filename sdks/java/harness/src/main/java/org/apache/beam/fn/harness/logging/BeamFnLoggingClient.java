@@ -214,7 +214,8 @@ public class BeamFnLoggingClient implements LoggingClient {
       this.streamPhaser = new AdvancingPhaser(1);
       this.channel = channel;
 
-      BeamFnLoggingGrpc.BeamFnLoggingStub stub = BeamFnLoggingGrpc.newStub(channel);
+      BeamFnLoggingGrpc.BeamFnLoggingStub stub =
+          BeamFnLoggingGrpc.newStub(channel).withWaitForReady();
       this.inboundObserver = new LogControlObserver();
       this.outboundObserver =
           new DirectStreamObserver<BeamFnApi.LogEntry.List>(
@@ -265,6 +266,8 @@ public class BeamFnLoggingClient implements LoggingClient {
             throw new RuntimeException(e);
           }
         }
+      } catch (OutOfMemoryError oom) {
+        throw oom;
       } catch (Throwable t) {
         thrown = t;
         throw new RuntimeException(t);

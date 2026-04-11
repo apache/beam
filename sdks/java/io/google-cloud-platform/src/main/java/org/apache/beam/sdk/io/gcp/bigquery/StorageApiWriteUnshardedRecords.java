@@ -29,7 +29,7 @@ import com.google.cloud.bigquery.storage.v1.AppendRowsResponse;
 import com.google.cloud.bigquery.storage.v1.Exceptions;
 import com.google.cloud.bigquery.storage.v1.ProtoRows;
 import com.google.cloud.bigquery.storage.v1.TableSchema;
-import com.google.cloud.bigquery.storage.v1.WriteStream.Type;
+import com.google.cloud.bigquery.storage.v1.WriteStream;
 import com.google.protobuf.ByteString;
 import com.google.protobuf.DescriptorProtos;
 import com.google.protobuf.Descriptors.Descriptor;
@@ -135,7 +135,7 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
           .expireAfterAccess(15, TimeUnit.MINUTES)
           .removalListener(
               (RemovalNotification<String, AppendClientInfo> removal) -> {
-                LOG.info("Expiring append client for " + removal.getKey());
+                LOG.info("Expiring append client for {}", removal.getKey());
                 final @Nullable AppendClientInfo appendClientInfo = removal.getValue();
                 if (appendClientInfo != null) {
                   appendClientInfo.close();
@@ -397,7 +397,7 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
                 if (!useDefaultStream) {
                   this.streamName =
                       Preconditions.checkStateNotNull(maybeWriteStreamService)
-                          .createWriteStream(tableUrn, Type.PENDING)
+                          .createWriteStream(tableUrn, WriteStream.Type.PENDING)
                           .getName();
                   this.currentOffset = 0;
                 } else {

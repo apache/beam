@@ -68,10 +68,13 @@ class PartitionUtils {
 
   static PartitionSpec toPartitionSpec(
       @Nullable List<String> fields, org.apache.beam.sdk.schemas.Schema beamSchema) {
+    return toPartitionSpec(fields, IcebergUtils.beamSchemaToIcebergSchema(beamSchema));
+  }
+
+  static PartitionSpec toPartitionSpec(@Nullable List<String> fields, Schema schema) {
     if (fields == null) {
       return PartitionSpec.unpartitioned();
     }
-    Schema schema = IcebergUtils.beamSchemaToIcebergSchema(beamSchema);
     PartitionSpec.Builder builder = PartitionSpec.builderFor(schema);
 
     for (String field : fields) {

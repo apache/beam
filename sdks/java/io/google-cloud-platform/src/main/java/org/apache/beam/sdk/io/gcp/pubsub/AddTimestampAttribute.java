@@ -57,10 +57,9 @@ class AddTimestampAttribute extends PTransform<PCollection<Row>, PCollection<Row
         // Warn the user if they're writing data to TIMESTAMP_FIELD, but event timestamp is mapped
         // to publish time. The data will be dropped.
         LOG.warn(
-            String.format(
-                "Dropping output field '%s' before writing to PubSub because this is a read-only "
-                    + "column. To preserve this information you must configure a timestamp attribute.",
-                TIMESTAMP_FIELD));
+            "Dropping output field '{}' before writing to PubSub because this is a read-only "
+                + "column. To preserve this information you must configure a timestamp attribute.",
+            TIMESTAMP_FIELD);
       }
       rows = withTimestamp.apply(DropFields.fields(TIMESTAMP_FIELD));
     } else {

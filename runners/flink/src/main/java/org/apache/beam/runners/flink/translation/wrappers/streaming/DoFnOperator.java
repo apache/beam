@@ -598,9 +598,9 @@ public class DoFnOperator<PreInputT, InputT, OutputT>
   }
 
   /**
-   * Retrieve a keyed state backend that should be used to buffer elements for {@link @{code @}
-   * RequiresStableInput} functionality. By default this is the default keyed backend, but can be
-   * override in @{link ExecutableStageDoFnOperator}.
+   * Retrieve a keyed state backend that should be used to buffer elements for
+   * {@code @RequiresStableInput} functionality. By default this is the default keyed backend, but
+   * can be override in {@link ExecutableStageDoFnOperator}.
    *
    * @return the keyed backend to use for element buffering
    */
@@ -974,10 +974,10 @@ public class DoFnOperator<PreInputT, InputT, OutputT>
    * of finishing a bundle in snapshot() first.
    *
    * <p>In order to avoid having {@link DoFnRunner#processElement(WindowedValue)} or {@link
-   * DoFnRunner#onTimer(String, String, Object, BoundedWindow, Instant, Instant, TimeDomain)} not
-   * between StartBundle and FinishBundle, this method needs to be called in each processElement and
-   * each processWatermark and onProcessingTime. Do not need to call in onEventTime, because it has
-   * been guaranteed in the processWatermark.
+   * DoFnRunner#onTimer(String, String, Object, BoundedWindow, Instant, Instant, TimeDomain,
+   * CausedByDrain)} not between StartBundle and FinishBundle, this method needs to be called in
+   * each processElement and each processWatermark and onProcessingTime. Do not need to call in
+   * onEventTime, because it has been guaranteed in the processWatermark.
    */
   private void checkInvokeStartBundle() {
     if (!bundleStarted) {
@@ -1195,6 +1195,7 @@ public class DoFnOperator<PreInputT, InputT, OutputT>
     BoundedWindow window = ((WindowNamespace) namespace).getWindow();
     timerInternals.onFiredOrDeletedTimer(timerData);
 
+    // hej
     pushbackDoFnRunner.onTimer(
         timerData.getTimerId(),
         timerData.getTimerFamilyId(),
@@ -1202,7 +1203,8 @@ public class DoFnOperator<PreInputT, InputT, OutputT>
         window,
         timerData.getTimestamp(),
         timerData.getOutputTimestamp(),
-        timerData.getDomain());
+        timerData.getDomain(),
+        timerData.causedByDrain());
   }
 
   @SuppressWarnings("unchecked")
@@ -1656,7 +1658,7 @@ public class DoFnOperator<PreInputT, InputT, OutputT>
       }
     }
 
-    /** @deprecated use {@link #deleteTimer(StateNamespace, String, TimeDomain)}. */
+    /** @deprecated use {@link #deleteTimer(StateNamespace, String, String, TimeDomain)}. */
     @Deprecated
     @Override
     public void deleteTimer(StateNamespace namespace, String timerId, String timerFamilyId) {
@@ -1673,7 +1675,7 @@ public class DoFnOperator<PreInputT, InputT, OutputT>
       }
     }
 
-    /** @deprecated use {@link #deleteTimer(StateNamespace, String, TimeDomain)}. */
+    /** @deprecated use {@link #deleteTimer(StateNamespace, String, String, TimeDomain)}. */
     @Override
     @Deprecated
     public void deleteTimer(TimerData timer) {

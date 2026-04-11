@@ -62,6 +62,7 @@
   <suppress id="ForbidNonVendoredGrpcProtobuf" files=".*sdk.*core.*GroupByKeyIT.*" />
   <suppress id="ForbidNonVendoredGrpcProtobuf" files=".*sdk.*core.*ValidateRunnerXlangTest.*" />
   <suppress id="ForbidNonVendoredGrpcProtobuf" files=".*sdk.*extensions.*ml.*" />
+  <suppress id="ForbidNonVendoredGrpcProtobuf" files=".*sdk.*io.*components.*ratelimiter.*" />
   <suppress id="ForbidNonVendoredGrpcProtobuf" files=".*sdk.*io.*gcp.*" />
   <suppress id="ForbidNonVendoredGrpcProtobuf" files=".*sdk.*io.*googleads.*DummyRateLimitPolicy\.java" />
   <suppress id="ForbidNonVendoredGrpcProtobuf" files=".*sdk.*io.*googleads.*GoogleAds.*\.java" />
