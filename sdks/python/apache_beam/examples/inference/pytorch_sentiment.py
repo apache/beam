@@ -98,7 +98,11 @@ def parse_known_args(argv):
       required=True,
       help="Path to the model's state_dict.")
   parser.add_argument(
-      '--input', required=True, help='Path to input file on GCS')
+      '--input',
+      '--input_file',
+      dest='input',
+      required=True,
+      help='Path to input file on GCS (load tests pass --input_file).')
   parser.add_argument(
       '--pubsub_topic',
       default='projects/apache-beam-testing/topics/test_sentiment_topic',
@@ -117,6 +121,11 @@ def parse_known_args(argv):
       type=float,
       default=None,
       help='Elements per second to send to Pub/Sub')
+  parser.add_argument(
+      '--device',
+      default='CPU',
+      choices=['CPU', 'GPU'],
+      help='Device to use for inference. Choices are CPU or GPU.')
   return parser.parse_known_args(argv)
 
 
@@ -183,8 +192,6 @@ def override_or_add(args, flag, value):
 
 def run_load_pipeline(known_args, pipeline_args):
   """Load data pipeline: read lines from GCS file and send to Pub/Sub."""
-
-  override_or_add(pipeline_args, '--device', 'CPU')
   override_or_add(pipeline_args, '--num_workers', '5')
   override_or_add(pipeline_args, '--max_num_workers', '10')
   override_or_add(
@@ -238,7 +245,7 @@ def run(
       model_class=DistilBertForSequenceClassification,
       model_params={'config': DistilBertConfig(num_labels=2)},
       state_dict_path=known_args.model_state_dict_path,
-      device='GPU')
+      device=known_args.device)
 
   tokenizer = DistilBertTokenizerFast.from_pretrained(known_args.model_path)
 
