@@ -30,7 +30,6 @@ import java.util.concurrent.TimeUnit;
 import org.apache.beam.runners.flink.adapter.FlinkKey;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.Coder;
-import org.apache.beam.sdk.coders.ShardedKeyCoder;
 import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.io.FileBasedSink;
 import org.apache.beam.sdk.io.ShardingFunction;
@@ -49,9 +48,9 @@ import org.apache.beam.sdk.util.construction.ReplacementOutputs;
 import org.apache.beam.sdk.util.construction.UnconsumedReads;
 import org.apache.beam.sdk.util.construction.WriteFilesTranslation;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.util.ShardedKey;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.PValue;
-import org.apache.beam.sdk.values.ShardedKey;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.cache.Cache;
@@ -320,7 +319,7 @@ class FlinkStreamingPipelineTranslator extends FlinkPipelineTranslator {
     private final int parallelism;
     private final int maxParallelism;
     private final Coder<DestinationT> destinationCoder;
-    private final ShardedKeyCoder<Integer> shardedKeyCoder = ShardedKeyCoder.of(VarIntCoder.of());
+    private final ShardedKey.Coder<Integer> shardedKeyCoder = ShardedKey.Coder.of(VarIntCoder.of());
     private transient Cache<Integer, Map<Integer, ShardedKey<Integer>>> cache;
 
     private int shardNumber = -1;

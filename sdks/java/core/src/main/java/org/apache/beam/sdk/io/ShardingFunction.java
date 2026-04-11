@@ -18,7 +18,7 @@
 package org.apache.beam.sdk.io;
 
 import java.io.Serializable;
-import org.apache.beam.sdk.values.ShardedKey;
+import org.apache.beam.sdk.util.ShardedKey;
 
 /** Function for assigning {@link ShardedKey}s to input elements for sharded {@link WriteFiles}. */
 public interface ShardingFunction<UserT, DestinationT> extends Serializable {

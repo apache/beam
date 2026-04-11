@@ -71,4 +71,36 @@ public class ShardedKeyTest {
         ShardedKey.of("key", "shard_id".getBytes(UTF_8)),
         ShardedKey.of("key", "shard_id".getBytes(UTF_8)));
   }
+
+  @Test
+  public void testIntShardNumber() {
+    ShardedKey<String> key = ShardedKey.of("key", 42);
+    assertEquals("key", key.getKey());
+    assertEquals(42, key.getShardNumber());
+  }
+
+  @Test
+  public void testIntShardNumberEquality() {
+    assertEquals(ShardedKey.of("key", 0), ShardedKey.of("key", 0));
+    assertEquals(ShardedKey.of("key", 42), ShardedKey.of("key", 42));
+    assertEquals(ShardedKey.of("key", -1), ShardedKey.of("key", -1));
+  }
+
+  @Test
+  public void testIntShardNumberCoderRoundTrip() throws Exception {
+    Coder<ShardedKey<String>> coder = ShardedKey.Coder.of(StringUtf8Coder.of());
+    CoderProperties.coderDecodeEncodeEqual(coder, ShardedKey.of(KEY, 0));
+    CoderProperties.coderDecodeEncodeEqual(coder, ShardedKey.of(KEY, 42));
+    CoderProperties.coderDecodeEncodeEqual(coder, ShardedKey.of(KEY, -1));
+  }
+
+  @Test
+  public void testGetShardNumberPreservedAfterCoderRoundTrip() throws Exception {
+    Coder<ShardedKey<String>> coder = ShardedKey.Coder.of(StringUtf8Coder.of());
+    ShardedKey<String> original = ShardedKey.of(KEY, 42);
+    byte[] encoded = org.apache.beam.sdk.util.CoderUtils.encodeToByteArray(coder, original);
+    ShardedKey<String> decoded =
+        org.apache.beam.sdk.util.CoderUtils.decodeFromByteArray(coder, encoded);
+    assertEquals(42, decoded.getShardNumber());
+  }
 }

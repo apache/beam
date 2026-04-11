@@ -10741,13 +10741,6 @@ ShardedKey:
   - structuralValue
   - toString
   - verifyDeterministic
-ShardedKeyCoder: 
-  methods: 
-  - decode
-  - encode
-  - getCoderArguments
-  - of
-  - verifyDeterministic
 ShardingWritableByteChannel: 
   methods: 
   - addChannel

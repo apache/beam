@@ -37,7 +37,6 @@ import org.apache.beam.sdk.coders.Coder.NonDeterministicException;
 import org.apache.beam.sdk.coders.IterableCoder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.ListCoder;
-import org.apache.beam.sdk.coders.ShardedKeyCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.io.FileBasedSink.DynamicDestinations;
@@ -76,6 +75,7 @@ import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.util.CoderUtils;
 import org.apache.beam.sdk.util.MoreFutures;
+import org.apache.beam.sdk.util.ShardedKey;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollection.IsBounded;
@@ -85,7 +85,6 @@ import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.PCollectionViews;
 import org.apache.beam.sdk.values.PDone;
 import org.apache.beam.sdk.values.PValue;
-import org.apache.beam.sdk.values.ShardedKey;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Objects;
@@ -627,7 +626,7 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
       PCollectionTuple spilledWriteTuple =
           writeTuple
               .get(unwrittenRecordsTag)
-              .setCoder(KvCoder.of(ShardedKeyCoder.of(VarIntCoder.of()), input.getCoder()))
+              .setCoder(KvCoder.of(ShardedKey.Coder.of(VarIntCoder.of()), input.getCoder()))
               // Here we group by a synthetic shard number in the range [0, spill factor),
               // just for the sake of getting some parallelism within each destination when
               // writing the spilled records, whereas the non-spilled records don't have a shard
@@ -928,7 +927,7 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
       PCollectionTuple writtenFiles =
           shardedFiles
               .get(shardedRecords)
-              .setCoder(KvCoder.of(ShardedKeyCoder.of(VarIntCoder.of()), input.getCoder()))
+              .setCoder(KvCoder.of(ShardedKey.Coder.of(VarIntCoder.of()), input.getCoder()))
               .apply("GroupIntoShards", GroupByKey.create())
               .apply(
                   "WriteShardsIntoTempFiles",
@@ -984,7 +983,7 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
                   .withOutputTags(shardTag, TupleTagList.of(BAD_RECORD_TAG)));
       addErrorCollection(shardedElements);
 
-      PCollection<KV<org.apache.beam.sdk.util.ShardedKey<Integer>, Iterable<UserT>>> shardedInput =
+      PCollection<KV<ShardedKey<Integer>, Iterable<UserT>>> shardedInput =
           shardedElements
               .get(shardTag)
               .setCoder(KvCoder.of(VarIntCoder.of(), input.getCoder()))
@@ -996,8 +995,7 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
                       .withShardedKey())
               .setCoder(
                   KvCoder.of(
-                      org.apache.beam.sdk.util.ShardedKey.Coder.of(VarIntCoder.of()),
-                      IterableCoder.of(input.getCoder())));
+                      ShardedKey.Coder.of(VarIntCoder.of()), IterableCoder.of(input.getCoder())));
 
       TupleTag<FileResult<DestinationT>> writtenRecordsTag = new TupleTag<>("writtenRecords");
       // Write grouped elements to temp files.
@@ -1007,12 +1005,11 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
                   "AddDummyShard",
                   MapElements.via(
                       new SimpleFunction<
-                          KV<org.apache.beam.sdk.util.ShardedKey<Integer>, Iterable<UserT>>,
+                          KV<ShardedKey<Integer>, Iterable<UserT>>,
                           KV<ShardedKey<Integer>, Iterable<UserT>>>() {
                         @Override
                         public KV<ShardedKey<Integer>, Iterable<UserT>> apply(
-                            KV<org.apache.beam.sdk.util.ShardedKey<Integer>, Iterable<UserT>>
-                                input) {
+                            KV<ShardedKey<Integer>, Iterable<UserT>> input) {
                           // Add dummy shard since it is required by WriteShardsIntoTempFilesFn. It
                           // will be dropped after we generate the temp files.
                           return KV.of(
@@ -1022,7 +1019,7 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
                       }))
               .setCoder(
                   KvCoder.of(
-                      ShardedKeyCoder.of(VarIntCoder.of()), IterableCoder.of(input.getCoder())))
+                      ShardedKey.Coder.of(VarIntCoder.of()), IterableCoder.of(input.getCoder())))
               .apply(
                   "WriteShardsIntoTempFiles",
                   ParDo.of(new WriteShardsIntoTempFilesFn(input.getCoder()))

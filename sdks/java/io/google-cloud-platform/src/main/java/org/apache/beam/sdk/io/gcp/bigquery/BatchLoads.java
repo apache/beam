@@ -34,7 +34,6 @@ import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.IterableCoder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.NullableCoder;
-import org.apache.beam.sdk.coders.ShardedKeyCoder;
 import org.apache.beam.sdk.extensions.gcp.options.GcsOptions;
 import org.apache.beam.sdk.extensions.gcp.util.gcsfs.GcsPath;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.CreateDisposition;
@@ -70,12 +69,12 @@ import org.apache.beam.sdk.transforms.windowing.Repeatedly;
 import org.apache.beam.sdk.transforms.windowing.TimestampCombiner;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.util.Preconditions;
+import org.apache.beam.sdk.util.ShardedKey;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionList;
 import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.PCollectionView;
-import org.apache.beam.sdk.values.ShardedKey;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
 import org.apache.beam.sdk.values.TypeDescriptor;
@@ -642,7 +641,7 @@ class BatchLoads<DestinationT, ElementT>
     PCollection<KV<ShardedKey<DestinationT>, ElementT>> unwrittenRecords =
         writeBundlesTuple
             .get(unwrittedRecordsTag)
-            .setCoder(KvCoder.of(ShardedKeyCoder.of(destinationCoder), elementCoder));
+            .setCoder(KvCoder.of(ShardedKey.Coder.of(destinationCoder), elementCoder));
     badRecordErrorHandler.addErrorCollection(
         writeBundlesTuple.get(BAD_RECORD_TAG).setCoder(BadRecord.getCoder(input.getPipeline())));
 
@@ -689,7 +688,7 @@ class BatchLoads<DestinationT, ElementT>
                                 element.getValue()));
                       }
                     }))
-            .setCoder(KvCoder.of(ShardedKeyCoder.of(destinationCoder), elementCoder));
+            .setCoder(KvCoder.of(ShardedKey.Coder.of(destinationCoder), elementCoder));
 
     return writeShardedRecords(shardedRecords, tempFilePrefix);
   }
@@ -723,18 +722,17 @@ class BatchLoads<DestinationT, ElementT>
                     .withShardedKey())
             .setCoder(
                 KvCoder.of(
-                    org.apache.beam.sdk.util.ShardedKey.Coder.of(destinationCoder),
+                    ShardedKey.Coder.of(destinationCoder),
                     IterableCoder.of(elementCoder)))
             .apply(
                 "StripShardId",
                 MapElements.via(
                     new SimpleFunction<
-                        KV<org.apache.beam.sdk.util.ShardedKey<DestinationT>, Iterable<ElementT>>,
+                        KV<ShardedKey<DestinationT>, Iterable<ElementT>>,
                         KV<DestinationT, Iterable<ElementT>>>() {
                       @Override
                       public KV<DestinationT, Iterable<ElementT>> apply(
-                          KV<org.apache.beam.sdk.util.ShardedKey<DestinationT>, Iterable<ElementT>>
-                              input) {
+                          KV<ShardedKey<DestinationT>, Iterable<ElementT>> input) {
                         return KV.of(input.getKey().getKey(), input.getValue());
                       }
                     }))
@@ -811,7 +809,7 @@ class BatchLoads<DestinationT, ElementT>
 
     Coder<KV<ShardedKey<DestinationT>, WritePartition.Result>> partitionsCoder =
         KvCoder.of(
-            ShardedKeyCoder.of(NullableCoder.of(destinationCoder)),
+            ShardedKey.Coder.of(NullableCoder.of(destinationCoder)),
             WritePartition.ResultCoder.INSTANCE);
 
     // If WriteBundlesToFiles produced more than DEFAULT_MAX_FILES_PER_PARTITION files or
@@ -857,7 +855,7 @@ class BatchLoads<DestinationT, ElementT>
 
     Coder<KV<ShardedKey<DestinationT>, WritePartition.Result>> partitionsCoder =
         KvCoder.of(
-            ShardedKeyCoder.of(NullableCoder.of(destinationCoder)),
+            ShardedKey.Coder.of(NullableCoder.of(destinationCoder)),
             WritePartition.ResultCoder.INSTANCE);
     // Write single partition to final table
     PCollection<KV<DestinationT, WriteTables.Result>> successfulWrites =

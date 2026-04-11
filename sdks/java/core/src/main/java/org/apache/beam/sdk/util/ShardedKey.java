@@ -22,6 +22,8 @@ import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Pr
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.io.Serializable;
+import java.nio.ByteBuffer;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
@@ -29,11 +31,17 @@ import org.apache.beam.sdk.coders.ByteArrayCoder;
 import org.apache.beam.sdk.coders.StructuredCoder;
 import org.apache.beam.sdk.util.common.ElementByteSizeObserver;
 
-/** A sharded key consisting of a user key and an opaque shard id represented by bytes. */
+/**
+ * A sharded key consisting of a user key and a shard identifier.
+ *
+ * <p>The shard identifier is stored as an opaque byte array. Convenience methods are provided for
+ * creating sharded keys with integer shard numbers, which are encoded as 4-byte big-endian arrays.
+ */
 @SuppressWarnings({
   "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
-public class ShardedKey<K> {
+public class ShardedKey<K> implements Serializable {
+  private static final long serialVersionUID = 1L;
 
   private final K key;
   private final byte[] shardId;
@@ -53,12 +61,42 @@ public class ShardedKey<K> {
     return new ShardedKey<K>(key, shardId);
   }
 
+  /**
+   * Creates a ShardedKey with given key and integer shard number. The shard number is stored as a
+   * 4-byte big-endian byte array.
+   */
+  public static <K> ShardedKey<K> of(K key, int shardNumber) {
+    checkArgument(key != null, "Key should not be null!");
+    byte[] shardId = ByteBuffer.allocate(Integer.BYTES).putInt(shardNumber).array();
+    return new ShardedKey<K>(key, shardId);
+  }
+
   public K getKey() {
     return key;
   }
 
+  /**
+   * Returns the integer shard number. This method should only be called on ShardedKeys that were
+   * created with {@link #of(Object, int)}, or whose shard id is a 4-byte big-endian encoded
+   * integer.
+   *
+   * @throws IllegalArgumentException if the shard id is not 4 bytes
+   */
+  public int getShardNumber() {
+    checkArgument(
+        shardId.length == Integer.BYTES,
+        "ShardedKey was not created with an integer shard number (shard id has %s bytes,"
+            + " expected %s)",
+        shardId.length,
+        Integer.BYTES);
+    return ByteBuffer.wrap(shardId).getInt();
+  }
+
   @Override
   public String toString() {
+    if (shardId.length == Integer.BYTES) {
+      return "ShardedKey{key=" + key + ", shard=" + ByteBuffer.wrap(shardId).getInt() + "}";
+    }
     return "ShardedKey{key=" + key + ", shardId=" + Arrays.toString(shardId) + "}";
   }
 

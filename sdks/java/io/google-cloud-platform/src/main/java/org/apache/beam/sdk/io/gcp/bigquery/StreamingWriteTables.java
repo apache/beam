@@ -21,7 +21,6 @@ import com.google.api.services.bigquery.model.TableRow;
 import org.apache.beam.sdk.coders.AtomicCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.KvCoder;
-import org.apache.beam.sdk.coders.ShardedKeyCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.PTransform;
@@ -33,10 +32,10 @@ import org.apache.beam.sdk.transforms.windowing.DefaultTrigger;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindows;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.util.Preconditions;
+import org.apache.beam.sdk.util.ShardedKey;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
-import org.apache.beam.sdk.values.ShardedKey;
 import org.apache.beam.sdk.values.TupleTag;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.checkerframework.checker.nullness.qual.RequiresNonNull;
@@ -412,11 +411,11 @@ public class StreamingWriteTables<ElementT>
       PCollection<KV<ShardedKey<String>, TableRowInfo<ElementT>>> shardedTagged =
           input
               .apply("ShardTableWrites", ParDo.of(new GenerateShardedTable<>(numShards)))
-              .setCoder(KvCoder.of(ShardedKeyCoder.of(StringUtf8Coder.of()), elementCoder))
+              .setCoder(KvCoder.of(ShardedKey.Coder.of(StringUtf8Coder.of()), elementCoder))
               .apply("TagWithUniqueIds", ParDo.of(new TagWithUniqueIds<>(deterministicRecordIdFn)))
               .setCoder(
                   KvCoder.of(
-                      ShardedKeyCoder.of(StringUtf8Coder.of()),
+                      ShardedKey.Coder.of(StringUtf8Coder.of()),
                       TableRowInfoCoder.of(elementCoder)));
 
       if (deterministicRecordIdFn == null) {

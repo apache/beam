@@ -33,7 +33,6 @@ import java.util.Random;
 import java.util.Set;
 import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.coders.KvCoder;
-import org.apache.beam.sdk.coders.ShardedKeyCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.extensions.gcp.util.BackOffAdapter;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryHelpers.PendingJob;
@@ -43,6 +42,7 @@ import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
 import org.apache.beam.sdk.util.CoderUtils;
 import org.apache.beam.sdk.util.FluentBackoff;
+import org.apache.beam.sdk.util.ShardedKey;
 import org.apache.beam.sdk.values.WindowedValues;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableSet;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Sets;
@@ -164,7 +164,7 @@ public class BigQueryHelpersTest {
 
   @Test
   public void testShardedKeyCoderIsSerializableWithWellKnownCoderType() {
-    CoderProperties.coderSerializable(ShardedKeyCoder.of(GlobalWindow.Coder.INSTANCE));
+    CoderProperties.coderSerializable(ShardedKey.Coder.of(GlobalWindow.Coder.INSTANCE));
   }
 
   @Test
@@ -177,7 +177,7 @@ public class BigQueryHelpersTest {
     CoderProperties.coderSerializable(
         WindowedValues.getFullCoder(
             KvCoder.of(
-                ShardedKeyCoder.of(StringUtf8Coder.of()),
+                ShardedKey.Coder.of(StringUtf8Coder.of()),
                 TableRowInfoCoder.of(TableRowJsonCoder.of())),
             IntervalWindow.getCoder()));
   }
