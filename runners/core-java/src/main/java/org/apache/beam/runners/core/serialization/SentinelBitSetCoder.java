@@ -26,9 +26,12 @@ import org.apache.beam.sdk.coders.ByteArrayCoder;
 import org.apache.beam.sdk.coders.CoderException;
 
 /**
- * Coder for {@link BitSet} that stores an empty bit set as a byte array with a single 0 element.
+ * Coder for {@link BitSet} that stores an empty bit set as a byte array with a single 0 element. In
+ * general BitSetCoder should be preferred as it encodes an empty bit set as an empty byte array.
+ * However, there are cases where non-empty values are useful to indicate presence.
  */
 public class SentinelBitSetCoder extends AtomicCoder<BitSet> {
+
   private static final SentinelBitSetCoder INSTANCE = new SentinelBitSetCoder();
   private static final ByteArrayCoder BYTE_ARRAY_CODER = ByteArrayCoder.of();
 
