@@ -329,6 +329,8 @@ var dataflowFilters = []string{
 	// so no dump file is created.
 	// TODO: https://github.com/apache/beam/issues/34498
 	"TestOomParDo",
+	// Runner V2 doesn't support OrderedListState SDK feature.
+	"TestOrderedListState",
 }
 
 // CheckFilters checks if an integration test is filtered to be skipped, either

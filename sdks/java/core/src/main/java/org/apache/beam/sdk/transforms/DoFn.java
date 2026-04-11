@@ -51,6 +51,7 @@ import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TypeDescriptor;
+import org.apache.beam.sdk.values.WindowedValue;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.checkerframework.dataflow.qual.Pure;
@@ -284,6 +285,10 @@ public abstract class DoFn<InputT extends @Nullable Object, OutputT extends @Nul
         Instant timestamp,
         Collection<? extends BoundedWindow> windows,
         PaneInfo paneInfo);
+
+    public abstract <T> void outputWindowedValue(TupleTag<T> tag, WindowedValue<T> windowedValue);
+
+    public abstract void outputWindowedValue(WindowedValue<OutputT> windowedValue);
   }
 
   /** Information accessible when running a {@link DoFn.ProcessElement} method. */

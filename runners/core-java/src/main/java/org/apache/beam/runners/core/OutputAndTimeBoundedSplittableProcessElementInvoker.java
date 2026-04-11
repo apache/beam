@@ -477,6 +477,21 @@ public class OutputAndTimeBoundedSplittableProcessElementInvoker<
               element.causedByDrain()));
     }
 
+    @Override
+    public void outputWindowedValue(WindowedValue<OutputT> windowedValue) {
+      outputWindowedValue(mainOutputTag, windowedValue);
+    }
+
+    @Override
+    public <T> void outputWindowedValue(TupleTag<T> tag, WindowedValue<T> windowedValue) {
+      noteOutput();
+      if (watermarkEstimator instanceof TimestampObservingWatermarkEstimator) {
+        ((TimestampObservingWatermarkEstimator) watermarkEstimator)
+            .observeTimestamp(windowedValue.getTimestamp());
+      }
+      outputReceiver.output(tag, windowedValue);
+    }
+
     private void noteOutput() {
       checkState(!hasClaimFailed, "Output is not allowed after a failed tryClaim()");
       checkState(numClaimedBlocks > 0, "Output is not allowed before tryClaim()");

@@ -46,7 +46,7 @@ permissions:
 
 # This allows a subsequently queued workflow run to interrupt previous runs
 concurrency:
-  group: '${{ github.workflow }} @ ${{ github.event.issue.number || github.event.pull_request.head.label || github.sha || github.head_ref || github.ref }}-${{ github.event.schedule || github.event.comment.id || github.event.sender.login }}'
+  group: '${{ github.workflow }} @ ${{ github.event.pull_request.number || github.event.pull_request.head.label || github.sha || github.head_ref || github.ref }}-${{ github.event.schedule || github.event.comment.id || github.event.sender.login }}'
   cancel-in-progress: true
 
 env:
@@ -58,14 +58,14 @@ env:
 jobs:
   beam_PreCommit_Python_Transforms:
     name: ${{ matrix.job_name }} (${{ matrix.job_phrase }} ${{ matrix.python_version }})
-    runs-on: [self-hosted, ubuntu-20.04, main]
+    runs-on: [self-hosted, ubuntu-24.04, main]
     timeout-minutes: 180
     strategy:
       fail-fast: false
       matrix:
         job_name: ['beam_PreCommit_Python_Transforms']
         job_phrase: ['Run Python_Transforms PreCommit']
-        python_version: ['3.10','3.11','3.12','3.13']
+        python_version: ['3.10','3.11','3.12','3.13','3.14']
     if: |
       github.event_name == 'push' ||
       github.event_name == 'pull_request_target' ||

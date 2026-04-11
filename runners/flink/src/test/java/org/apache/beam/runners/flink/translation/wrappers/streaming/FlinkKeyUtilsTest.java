@@ -44,10 +44,9 @@ public class FlinkKeyUtilsTest {
 
   @Test
   public void testNullKey() {
-    Void key = null;
     VoidCoder coder = VoidCoder.of();
 
-    ByteBuffer byteBuffer = FlinkKeyUtils.encodeKey(key, coder);
+    ByteBuffer byteBuffer = FlinkKeyUtils.encodeKey(null, coder);
     assertThat(FlinkKeyUtils.decodeKey(byteBuffer, coder), is(nullValue()));
   }
 

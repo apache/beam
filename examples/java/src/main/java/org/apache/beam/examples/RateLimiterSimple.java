@@ -59,6 +59,7 @@ public class RateLimiterSimple {
     void setRateLimiterDomain(String value);
   }
 
+  // [START RateLimiterSimpleJava]
   static class CallExternalServiceFn extends DoFn<String, String> {
     private final String rlsAddress;
     private final String rlsDomain;
@@ -111,6 +112,7 @@ public class RateLimiterSimple {
       c.output("Processed: " + element);
     }
   }
+  // [END RateLimiterSimpleJava]
 
   public static void main(String[] args) {
     Options options = PipelineOptionsFactory.fromArgs(args).withValidation().as(Options.class);
