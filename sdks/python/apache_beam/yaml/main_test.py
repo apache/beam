@@ -158,7 +158,7 @@ class MainTest(unittest.TestCase):
             fin.read().strip(), datetime.datetime.now().strftime("%Y-%m-%d"))
 
   def test_inline_test_specs(self):
-    main.run_tests(['--yaml_pipeline', TEST_PIPELINE, '--test'], exit=False)
+    main.run_tests(['--yaml_pipeline', TEST_PIPELINE, '--tests'], exit=False)
 
   def test_external_test_specs(self):
     with tempfile.TemporaryDirectory() as tmpdir:
