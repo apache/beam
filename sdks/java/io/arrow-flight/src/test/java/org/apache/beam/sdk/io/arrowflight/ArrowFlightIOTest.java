@@ -17,14 +17,20 @@
  */
 package org.apache.beam.sdk.io.arrowflight;
 
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.containsString;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertThrows;
 
 import java.nio.charset.StandardCharsets;
 import java.util.Collections;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
 import org.apache.arrow.flight.Action;
 import org.apache.arrow.flight.ActionType;
+import org.apache.arrow.flight.CallStatus;
 import org.apache.arrow.flight.Criteria;
+import org.apache.arrow.flight.FlightConstants;
 import org.apache.arrow.flight.FlightDescriptor;
 import org.apache.arrow.flight.FlightEndpoint;
 import org.apache.arrow.flight.FlightInfo;
@@ -34,6 +40,7 @@ import org.apache.arrow.flight.FlightStream;
 import org.apache.arrow.flight.Location;
 import org.apache.arrow.flight.PutResult;
 import org.apache.arrow.flight.Result;
+import org.apache.arrow.flight.ServerHeaderMiddleware;
 import org.apache.arrow.flight.Ticket;
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.memory.RootAllocator;
@@ -42,6 +49,8 @@ import org.apache.arrow.vector.VectorSchemaRoot;
 import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.types.pojo.FieldType;
+import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.sdk.Pipeline.PipelineExecutionException;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
@@ -125,11 +134,81 @@ public class ArrowFlightIOTest {
     assertEquals(2, producer.writtenRecords.get());
   }
 
+  @Test
+  public void testWriteWithToken() throws Exception {
+    producer.requiredAuthorizationHeader = "Bearer test-token";
+
+    Schema expectedSchema = Schema.builder().addStringField("name").build();
+    Row row = Row.withSchema(expectedSchema).addValue("Charlie").build();
+
+    pipeline
+        .apply(Create.of(row).withRowSchema(expectedSchema))
+        .apply(
+            "Write to Flight with Token",
+            ArrowFlightIO.write()
+                .withHost("localhost")
+                .withPort(port)
+                .withDescriptor("test_table")
+                .withToken("test-token".getBytes(StandardCharsets.UTF_8)));
+
+    pipeline.run().waitUntilFinish();
+
+    assertEquals("Bearer test-token", producer.lastAuthorizationHeader.get());
+    assertEquals(1, producer.writtenRecords.get());
+  }
+
+  @Test
+  public void testWritePropagatesServerErrors() {
+    producer.failWrites = true;
+
+    Schema expectedSchema = Schema.builder().addStringField("name").build();
+    Row row = Row.withSchema(expectedSchema).addValue("Charlie").build();
+
+    pipeline
+        .apply(Create.of(row).withRowSchema(expectedSchema))
+        .apply(
+            "Write to Failing Flight Server",
+            ArrowFlightIO.write()
+                .withHost("localhost")
+                .withPort(port)
+                .withDescriptor("test_table"));
+
+    PipelineExecutionException exception =
+        assertThrows(PipelineExecutionException.class, () -> pipeline.run().waitUntilFinish());
+    assertThat(exception.getMessage(), containsString("Rejected write"));
+  }
+
+  @Test
+  public void testWriteRejectsUnsupportedSchema() {
+    Schema unsupportedSchema =
+        Schema.builder().addArrayField("names", Schema.FieldType.STRING).build();
+    Row row =
+        Row.withSchema(unsupportedSchema).addArray(Collections.singletonList("Charlie")).build();
+    Pipeline testPipeline = Pipeline.create();
+
+    IllegalArgumentException exception =
+        assertThrows(
+            IllegalArgumentException.class,
+            () ->
+                testPipeline
+                    .apply(Create.of(row).withRowSchema(unsupportedSchema))
+                    .apply(
+                        ArrowFlightIO.write()
+                            .withHost("localhost")
+                            .withPort(port)
+                            .withDescriptor("test_table")));
+
+    assertThat(exception.getMessage(), containsString("does not support Beam type 'ARRAY'"));
+  }
+
   /** A simple FlightProducer that returns predefined data for reads and counts writes. */
   private static class TestFlightProducer implements FlightProducer {
 
     private final BufferAllocator allocator;
     final AtomicInteger writtenRecords = new AtomicInteger();
+    final AtomicReference<String> lastAuthorizationHeader = new AtomicReference<>();
+    volatile boolean failWrites;
+    volatile String requiredAuthorizationHeader;
 
     TestFlightProducer(BufferAllocator allocator) {
       this.allocator = allocator;
@@ -186,11 +265,28 @@ public class ArrowFlightIOTest {
     @Override
     public Runnable acceptPut(
         CallContext context, FlightStream flightStream, StreamListener<PutResult> ackStream) {
+      ServerHeaderMiddleware headerMiddleware = context.getMiddleware(FlightConstants.HEADER_KEY);
+      lastAuthorizationHeader.set(
+          headerMiddleware == null ? null : headerMiddleware.headers().get("authorization"));
+
       return () -> {
         try {
+          if (requiredAuthorizationHeader != null
+              && !requiredAuthorizationHeader.equals(lastAuthorizationHeader.get())) {
+            ackStream.onError(
+                CallStatus.UNAUTHENTICATED
+                    .withDescription("Missing or invalid authorization header")
+                    .toRuntimeException());
+            return;
+          }
           while (flightStream.next()) {
             VectorSchemaRoot root = flightStream.getRoot();
             writtenRecords.addAndGet(root.getRowCount());
+          }
+          if (failWrites) {
+            ackStream.onError(
+                CallStatus.INTERNAL.withDescription("Rejected write").toRuntimeException());
+            return;
           }
           ackStream.onCompleted();
         } catch (Exception e) {
