@@ -17,6 +17,8 @@
  */
 package org.apache.beam.sdk.io.iceberg;
 
+import java.io.Closeable;
+import java.io.IOException;
 import java.util.List;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
@@ -118,6 +120,13 @@ class WriteGroupedRowsToFiles
                 .setTableIdentifier(destination.getTableIdentifier())
                 .setSerializableDataFile(dataFile)
                 .build());
+      }
+    }
+
+    @Teardown
+    public void teardown() throws IOException {
+      if (catalog instanceof Closeable) {
+        ((Closeable) catalog).close();
       }
     }
   }

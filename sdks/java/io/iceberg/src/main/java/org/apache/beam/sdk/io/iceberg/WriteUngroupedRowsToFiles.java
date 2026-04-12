@@ -17,6 +17,8 @@
  */
 package org.apache.beam.sdk.io.iceberg;
 
+import java.io.Closeable;
+import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.List;
 import java.util.Map;
@@ -286,6 +288,13 @@ class WriteUngroupedRowsToFiles
         }
       }
       recordWriterManager = null;
+    }
+
+    @Teardown
+    public void teardown() throws IOException {
+      if (catalog instanceof Closeable) {
+        ((Closeable) catalog).close();
+      }
     }
   }
 }

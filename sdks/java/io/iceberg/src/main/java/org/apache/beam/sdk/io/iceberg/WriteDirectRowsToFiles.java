@@ -17,6 +17,8 @@
  */
 package org.apache.beam.sdk.io.iceberg;
 
+import java.io.Closeable;
+import java.io.IOException;
 import java.util.List;
 import java.util.Map;
 import org.apache.beam.sdk.transforms.DoFn;
@@ -136,6 +138,13 @@ class WriteDirectRowsToFiles
         }
       }
       recordWriterManager = null;
+    }
+
+    @Teardown
+    public void teardown() throws IOException {
+      if (catalog instanceof Closeable) {
+        ((Closeable) catalog).close();
+      }
     }
   }
 }

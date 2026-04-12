@@ -33,6 +33,7 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
+import java.io.Closeable;
 import java.io.IOException;
 import java.net.URLEncoder;
 import java.nio.ByteBuffer;
@@ -1036,11 +1037,12 @@ public class RecordWriterManagerTest {
   }
 
   /**
-   * Verifies that RecordWriterManager.close() flushes data files from multiple destinations and
-   * closes the shared FileIO.
+   * Verifies that RecordWriterManager.close() flushes data files from multiple destinations but
+   * does NOT close the shared FileIO. FileIO lifecycle is managed by the catalog, not by
+   * RecordWriterManager.
    */
   @Test
-  public void testRecordWriterManagerClosesSharedFileIOAfterFlush() throws IOException {
+  public void testRecordWriterManagerDoesNotCloseSharedFileIO() throws IOException {
     String tableName1 =
         "table_mgr_io_a_" + UUID.randomUUID().toString().replace("-", "").substring(0, 6);
     String tableName2 =
@@ -1078,7 +1080,8 @@ public class RecordWriterManagerTest {
         writerManager.getSerializableDataFiles();
     assertTrue("Should have data files for dest1", dataFiles.containsKey(dest1));
     assertTrue("Should have data files for dest2", dataFiles.containsKey(dest2));
-    assertTrue("Shared FileIO should be closed", sharedTrackingIO.closed);
+    assertFalse(
+        "Shared FileIO should NOT be closed by RecordWriterManager", sharedTrackingIO.closed);
   }
 
   private static final class CloseTrackingFileIO implements FileIO {
@@ -1153,6 +1156,46 @@ public class RecordWriterManagerTest {
     }
   }
 
+  /**
+   * Verifies that the shared FileIO survives across multiple bundles. This is the core regression
+   * test: if RecordWriterManager.close() closed the FileIO, the second bundle would fail with
+   * "Connection pool shut down".
+   */
+  @Test
+  public void testFileIOSurvivesAcrossBundles() throws IOException {
+    String tableName =
+        "table_survive_" + UUID.randomUUID().toString().replace("-", "").substring(0, 6);
+    TableIdentifier tableId = TableIdentifier.of("default", tableName);
+
+    Table realTable = warehouse.createTable(tableId, ICEBERG_SCHEMA);
+
+    CloseTrackingFileIO sharedIO = new CloseTrackingFileIO(realTable.io());
+    Table spyTable = Mockito.spy(realTable);
+    Mockito.doReturn(sharedIO).when(spyTable).io();
+
+    Catalog spyCatalog = Mockito.spy(catalog);
+    Mockito.doReturn(spyTable).when(spyCatalog).loadTable(tableId);
+
+    WindowedValue<IcebergDestination> dest = getWindowedDestination(tableName, null);
+    Row row = Row.withSchema(BEAM_SCHEMA).addValues(1, "aaa", true).build();
+
+    // Bundle 1: write and close
+    RecordWriterManager bundle1 = new RecordWriterManager(spyCatalog, "file_b1", 1000, 3);
+    assertTrue(bundle1.write(dest, row));
+    bundle1.close();
+    assertFalse("FileIO must survive after bundle 1 close", sharedIO.closed);
+    assertTrue(
+        "Bundle 1 should produce data files", bundle1.getSerializableDataFiles().containsKey(dest));
+
+    // Bundle 2: write and close using the same catalog (simulates DoFn reuse)
+    RecordWriterManager bundle2 = new RecordWriterManager(spyCatalog, "file_b2", 1000, 3);
+    assertTrue(bundle2.write(dest, row));
+    bundle2.close();
+    assertFalse("FileIO must survive after bundle 2 close", sharedIO.closed);
+    assertTrue(
+        "Bundle 2 should produce data files", bundle2.getSerializableDataFiles().containsKey(dest));
+  }
+
   @Test
   public void testGetOrCreateTable_refreshLogic() {
     Table mockTable = mock(Table.class);
@@ -1200,5 +1243,58 @@ public class RecordWriterManagerTest {
 
     // Verify that refresh() WAS called exactly once because the entry was stale.
     verify(mockTable, times(1)).refresh();
+  }
+
+  /**
+   * Simulates the full DoFn lifecycle: multiple bundles using a shared Closeable catalog, then
+   * catalog.close() (as @Teardown would do). Verifies that: 1. FileIO survives across bundles
+   * (RecordWriterManager.close() does not close it) 2. Closing the catalog at the end properly
+   * closes the FileIO
+   */
+  @Test
+  public void testFullLifecycleBundlesThenCatalogClose() throws IOException {
+    String tableName =
+        "table_lifecycle_" + UUID.randomUUID().toString().replace("-", "").substring(0, 6);
+    TableIdentifier tableId = TableIdentifier.of("default", tableName);
+
+    Table realTable = warehouse.createTable(tableId, ICEBERG_SCHEMA);
+
+    CloseTrackingFileIO sharedIO = new CloseTrackingFileIO(realTable.io());
+    Table spyTable = Mockito.spy(realTable);
+    Mockito.doReturn(sharedIO).when(spyTable).io();
+
+    // Create a catalog spy that also implements Closeable, simulating RESTCatalog/GlueCatalog
+    Catalog spyCatalog =
+        mock(Catalog.class, Mockito.withSettings().extraInterfaces(Closeable.class));
+    Mockito.doReturn(spyTable).when(spyCatalog).loadTable(tableId);
+
+    // Wire Closeable.close() to close the shared FileIO (simulating what real catalogs do)
+    Mockito.doAnswer(
+            invocation -> {
+              sharedIO.close();
+              return null;
+            })
+        .when((Closeable) spyCatalog)
+        .close();
+
+    WindowedValue<IcebergDestination> dest = getWindowedDestination(tableName, null);
+    Row row = Row.withSchema(BEAM_SCHEMA).addValues(1, "aaa", true).build();
+
+    // Bundle 1
+    RecordWriterManager bundle1 = new RecordWriterManager(spyCatalog, "file_lc1", 1000, 3);
+    assertTrue(bundle1.write(dest, row));
+    bundle1.close();
+    assertFalse("FileIO must survive after bundle 1", sharedIO.closed);
+
+    // Bundle 2
+    RecordWriterManager bundle2 = new RecordWriterManager(spyCatalog, "file_lc2", 1000, 3);
+    assertTrue(bundle2.write(dest, row));
+    bundle2.close();
+    assertFalse("FileIO must survive after bundle 2", sharedIO.closed);
+
+    // Simulate @Teardown: close the catalog
+    ((Closeable) spyCatalog).close();
+    verify((Closeable) spyCatalog, times(1)).close();
+    assertTrue("FileIO should be closed after catalog.close()", sharedIO.closed);
   }
 }
