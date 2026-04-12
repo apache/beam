@@ -974,7 +974,8 @@ public class Schema implements Serializable {
             getLogicalType().getIdentifier(), other.getLogicalType().getIdentifier())) {
           return false;
         }
-        if (!getLogicalType().getArgumentType().equals(other.getLogicalType().getArgumentType())) {
+        if (!Objects.equals(
+            getLogicalType().getArgumentType(), other.getLogicalType().getArgumentType())) {
           return false;
         }
         if (!Row.Equals.deepEquals(

@@ -84,7 +84,8 @@ class UtilsTest(unittest.TestCase):
     # Parameters of an Union type can be in any order.
     possible_expected = (
         'OptionalUnionType(unnamed: typing.Union[int, str, NoneType])',
-        'OptionalUnionType(unnamed: typing.Union[str, int, NoneType])')
+        'OptionalUnionType(unnamed: typing.Union[str, int, NoneType])',
+        'OptionalUnionType(unnamed: int | str | None)')
     self.assertIn(actual, possible_expected)
 
   def test_pformat_dict(self):

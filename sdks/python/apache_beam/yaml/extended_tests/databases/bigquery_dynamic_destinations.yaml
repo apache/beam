@@ -1,0 +1,97 @@
+#
+# Licensed to the Apache Software Foundation (ASF) under one or more
+# contributor license agreements.  See the NOTICE file distributed with
+# this work for additional information regarding copyright ownership.
+# The ASF licenses this file to You under the Apache License, Version 2.0
+# (the "License"); you may not use this file except in compliance with
+# the License.  You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
+fixtures:
+  - name: BQ_TABLE
+    type: "apache_beam.yaml.integration_tests.temp_bigquery_table"
+    config:
+      project: "apache-beam-testing"
+  - name: TEMP_DIR_0
+    # Need distributed filesystem to be able to read and write from a container.
+    type: "apache_beam.yaml.integration_tests.gcs_temp_dir"
+    config:
+      bucket: "gs://temp-storage-for-end-to-end-tests/temp-it"
+
+pipelines:
+  - pipeline:
+      type: chain
+      transforms:
+        - type: Create
+          name: CreateUsers
+          config:
+            elements:
+              - {id: 1, name: "Alice", country: "US"}
+              - {id: 2, name: "Bob", country: "UK"}
+              - {id: 3, name: "Charlie", country: "CN"}
+              - {id: 4, name: "David", country: "US"}
+        - type: WriteToBigQuery
+          name: WriteWithDynamicDestinations
+          config:
+            # NOTE: This will create 3 tables: BQ_TABLE_US, BQ_TABLE_UK, BQ_TABLE_CN
+            # This is because the table name is dynamically generated using the country field.
+            # The {{country}} syntax is used to dynamically generate the table name.
+            # For this testing example we are using {{country}} to dynamically generate the table name.
+            # In production, we would use {country} to dynamically generate the table name.
+            table: "{BQ_TABLE}_{{country}}"
+            create_disposition: CREATE_IF_NEEDED
+            write_disposition: WRITE_APPEND
+    options:
+      project: "apache-beam-testing"
+      temp_location: "{TEMP_DIR_0}"
+
+  - pipeline:
+      type: chain
+      transforms:
+        - type: ReadFromBigQuery
+          config:
+            table: "{BQ_TABLE}_US"
+        - type: AssertEqual
+          config:
+            elements:
+              - {id: 1, name: "Alice", country: "US"}
+              - {id: 4, name: "David", country: "US"}
+    options:
+      project: "apache-beam-testing"
+      temp_location: "{TEMP_DIR_0}"
+
+  - pipeline:
+      type: chain
+      transforms:
+        - type: ReadFromBigQuery
+          config:
+            table: "{BQ_TABLE}_UK"
+        - type: AssertEqual
+          config:
+            elements:
+              - {id: 2, name: "Bob", country: "UK"}
+    options:
+      project: "apache-beam-testing"
+      temp_location: "{TEMP_DIR_0}"
+
+  - pipeline:
+      type: chain
+      transforms:
+        - type: ReadFromBigQuery
+          config:
+            table: "{BQ_TABLE}_CN"
+        - type: AssertEqual
+          config:
+            elements:
+              - {id: 3, name: "Charlie", country: "CN"}
+    options:
+      project: "apache-beam-testing"
+      temp_location: "{TEMP_DIR_0}"

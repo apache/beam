@@ -608,14 +608,14 @@ class BeamModulePlugin implements Plugin<Project> {
     def dbcp2_version = "2.9.0"
     def errorprone_version = "2.31.0"
     // [bomupgrader] determined by: com.google.api:gax, consistent with: google_cloud_platform_libraries_bom
-    def gax_version = "2.74.1"
+    def gax_version = "2.76.0"
     def google_ads_version = "33.0.0"
     def google_clients_version = "2.0.0"
     def google_cloud_bigdataoss_version = "2.2.26"
     def google_code_gson_version = "2.10.1"
     def google_oauth_clients_version = "1.34.1"
     // [bomupgrader] determined by: io.grpc:grpc-netty, consistent with: google_cloud_platform_libraries_bom
-    def grpc_version = "1.76.2"
+    def grpc_version = "1.76.3"
     def guava_version = "33.1.0-jre"
     def hadoop_version = "3.4.2"
     def hamcrest_version = "2.1"
@@ -634,7 +634,7 @@ class BeamModulePlugin implements Plugin<Project> {
     def netty_version = "4.1.124.Final"
     // [bomupgrader] determined by: io.opentelemetry:opentelemetry-sdk, consistent with: google_cloud_platform_libraries_bom
     def opentelemetry_version = "1.51.0"
-    def postgres_version = "42.2.16"
+    def postgres_version = "42.6.2"
     // [bomupgrader] determined by: com.google.protobuf:protobuf-java, consistent with: google_cloud_platform_libraries_bom
     def protobuf_version = "4.33.2"
     // TODO(https://github.com/apache/beam/issues/37637): Remove this once the Bom has been updated to at least reach this version
@@ -743,7 +743,7 @@ class BeamModulePlugin implements Plugin<Project> {
         google_api_services_dataflow                : "com.google.apis:google-api-services-dataflow:v1b3-rev20260118-$google_clients_version",
         google_api_services_healthcare              : "com.google.apis:google-api-services-healthcare:v1-rev20240130-$google_clients_version",
         google_api_services_pubsub                  : "com.google.apis:google-api-services-pubsub:v1-rev20220904-$google_clients_version",
-        google_api_services_storage                 : "com.google.apis:google-api-services-storage:v1-rev20251118-2.0.0",  // [bomupgrader] sets version
+        google_api_services_storage                 : "com.google.apis:google-api-services-storage:v1-rev20260204-2.0.0",  // [bomupgrader] sets version
         google_auth_library_credentials             : "com.google.auth:google-auth-library-credentials", // google_cloud_platform_libraries_bom sets version
         google_auth_library_oauth2_http             : "com.google.auth:google-auth-library-oauth2-http", // google_cloud_platform_libraries_bom sets version
         google_cloud_bigquery                       : "com.google.cloud:google-cloud-bigquery", // google_cloud_platform_libraries_bom sets version
@@ -755,14 +755,14 @@ class BeamModulePlugin implements Plugin<Project> {
         google_cloud_core_grpc                      : "com.google.cloud:google-cloud-core-grpc", // google_cloud_platform_libraries_bom sets version
         google_cloud_datacatalog_v1beta1            : "com.google.cloud:google-cloud-datacatalog", // google_cloud_platform_libraries_bom sets version
         google_cloud_dataflow_java_proto_library_all: "com.google.cloud.dataflow:google-cloud-dataflow-java-proto-library-all:0.5.160304",
-        google_cloud_datastore_v1_proto_client      : "com.google.cloud.datastore:datastore-v1-proto-client:2.34.0",   // [bomupgrader] sets version
+        google_cloud_datastore_v1_proto_client      : "com.google.cloud.datastore:datastore-v1-proto-client:2.37.0",   // [bomupgrader] sets version
         google_cloud_firestore                      : "com.google.cloud:google-cloud-firestore", // google_cloud_platform_libraries_bom sets version
         google_cloud_kms                            : "com.google.cloud:google-cloud-kms", // google_cloud_platform_libraries_bom sets version
         google_cloud_logging                        : "com.google.cloud:google-cloud-logging", // google_cloud_platform_libraries_bom sets version
         google_cloud_pubsub                         : "com.google.cloud:google-cloud-pubsub", // google_cloud_platform_libraries_bom sets version
         // [bomupgrader] the BOM version is set by scripts/tools/bomupgrader.py. If update manually, also update
         // libraries-bom version on sdks/java/container/license_scripts/dep_urls_java.yaml
-        google_cloud_platform_libraries_bom         : "com.google.cloud:libraries-bom:26.76.0",
+        google_cloud_platform_libraries_bom         : "com.google.cloud:libraries-bom:26.79.0",
         google_cloud_secret_manager                 : "com.google.cloud:google-cloud-secretmanager", // google_cloud_platform_libraries_bom sets version
         google_cloud_spanner                        : "com.google.cloud:google-cloud-spanner", // google_cloud_platform_libraries_bom sets version
         google_cloud_storage                        : "com.google.cloud:google-cloud-storage", // google_cloud_platform_libraries_bom sets version
@@ -1580,8 +1580,6 @@ class BeamModulePlugin implements Plugin<Project> {
             "StringCaseLocaleUsage",
             // DoFn methods are executed reflectively at pipeline runtime
             "UnusedMethod",
-            // Void is a valid element type of DoFn elements
-            "VoidUsed",
           ]
           disabledChecks.each {
             options.errorprone.errorproneArgs.add("-Xep:${it}:OFF")
@@ -3074,14 +3072,16 @@ class BeamModulePlugin implements Plugin<Project> {
 
       // Set min/max python versions used for containers and supported versions.
       project.ext.minPythonVersion = 10
-      project.ext.maxPythonVersion = 13
+      project.ext.maxPythonVersion = 14
 
       def setupVirtualenv = project.tasks.register('setupVirtualenv')  {
+        doNotTrackState("Virtualenv directory is not suitable for Gradle state tracking")
         doLast {
           def virtualenvCmd = [
             "python${project.ext.pythonVersion}",
             "-m",
             "venv",
+            "--copies",
             "--clear",
             "${project.ext.envdir}",
           ]
@@ -3096,9 +3096,9 @@ class BeamModulePlugin implements Plugin<Project> {
             // until it is resolved on pip's side, don't use pip's cache.
             // pip 25.1 casues :sdks:python:installGcpTest stuck. Pin to 25.0.1 for now.
             args '-c', ". ${project.ext.envdir}/bin/activate && " +
-                "pip install --pre --retries 10 --upgrade pip==25.0.1 --no-cache-dir && " +
-                "pip install --pre --retries 10 --upgrade tox --no-cache-dir && " +
-                "pip install --pre --retries 10 --upgrade setuptools build --no-cache-dir"
+                "python -m pip install --pre --retries 10 --upgrade pip==25.0.1 --no-cache-dir && " +
+                "python -m pip install --pre --retries 10 --upgrade tox --no-cache-dir && " +
+                "python -m pip install --pre --retries 10 --upgrade setuptools build --no-cache-dir"
           }
         }
         // Gradle will delete outputs whenever it thinks they are stale. Putting a

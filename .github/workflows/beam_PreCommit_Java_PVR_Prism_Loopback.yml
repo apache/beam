@@ -48,7 +48,7 @@ on:
 
 # This allows a subsequently queued workflow run to interrupt previous runs
 concurrency:
-  group: '${{ github.workflow }} @ ${{ github.event.issue.number || github.event.pull_request.head.label || github.sha || github.head_ref || github.ref }}-${{ github.event.schedule || github.event.comment.id || github.event.sender.login }}'
+  group: '${{ github.workflow }} @ ${{ github.event.pull_request.number || github.event.pull_request.head.label || github.sha || github.head_ref || github.ref }}-${{ github.event.schedule || github.event.comment.id || github.event.sender.login }}'
   cancel-in-progress: true
 
 #Setting explicit permissions for the action to avoid the default permissions which are `write-all` in case of pull_request_target event
@@ -80,7 +80,7 @@ jobs:
         job_name: ["beam_PreCommit_Java_PVR_Prism_Loopback"]
         job_phrase: ["Run Java_PVR_Prism_Loopback PreCommit"]
     timeout-minutes: 240
-    runs-on: [self-hosted, ubuntu-20.04]
+    runs-on: [self-hosted, ubuntu-24.04, main]
     if: |
       github.event_name == 'push' ||
       github.event_name == 'pull_request_target' ||

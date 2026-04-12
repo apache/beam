@@ -1234,6 +1234,11 @@ class PGBKOperation(Operation):
 
 
 class PGBKCVOperation(Operation):
+  """Partial group-by-key operation.
+
+  This operation handles grouped values with
+a combine function applied.
+  """
   def __init__(
       self, name_context, spec, counter_factory, state_sampler, windowing=None):
     super(PGBKCVOperation,

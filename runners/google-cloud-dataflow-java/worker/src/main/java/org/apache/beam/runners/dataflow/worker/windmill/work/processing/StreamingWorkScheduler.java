@@ -23,6 +23,7 @@ import com.google.api.services.dataflow.model.MapTask;
 import com.google.auto.value.AutoValue;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentMap;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
 import java.util.function.Supplier;
@@ -121,6 +122,7 @@ public class StreamingWorkScheduler {
       ReaderCache readerCache,
       DataflowMapTaskExecutorFactory mapTaskExecutorFactory,
       BoundedQueueExecutor workExecutor,
+      ScheduledExecutorService commitFinalizerCleanupExecutor,
       Function<String, WindmillStateCache.ForComputation> stateCacheFactory,
       FailureTracker failureTracker,
       WorkFailureProcessor workFailureProcessor,
@@ -148,7 +150,7 @@ public class StreamingWorkScheduler {
         SideInputStateFetcherFactory.fromOptions(options),
         failureTracker,
         workFailureProcessor,
-        StreamingCommitFinalizer.create(workExecutor),
+        StreamingCommitFinalizer.create(workExecutor, commitFinalizerCleanupExecutor),
         streamingCounters,
         hotKeyLogger,
         stageInfoMap,
@@ -219,6 +221,11 @@ public class StreamingWorkScheduler {
             work -> processWork(computationState, work, getWorkStreamLatencies)));
   }
 
+  /** Adds any applied finalize ids to the commit finalizer to have their callbacks executed. */
+  public void queueAppliedFinalizeIds(ImmutableList<Long> appliedFinalizeIds) {
+    commitFinalizer.finalizeCommits(appliedFinalizeIds);
+  }
+
   /**
    * Executes the user DoFns processing {@link Work} then queues the {@link Commit}(s) to be sent to
    * backing persistent store to mark that the {@link Work} has finished processing. May retry
@@ -246,7 +253,6 @@ public class StreamingWorkScheduler {
     // Before any processing starts, call any pending OnCommit callbacks.  Nothing that requires
     // cleanup should be done before this, since we might exit early here.
     commitFinalizer.finalizeCommits(workItem.getSourceState().getFinalizeIdsList());
-    commitFinalizer.finalizeCommits(workItem.getAppliedFinalizeIdsList());
     if (workItem.getSourceState().getOnlyFinalize()) {
       Windmill.WorkItemCommitRequest.Builder outputBuilder = initializeOutputBuilder(key, workItem);
       outputBuilder.setSourceStateUpdates(Windmill.SourceState.newBuilder().setOnlyFinalize(true));

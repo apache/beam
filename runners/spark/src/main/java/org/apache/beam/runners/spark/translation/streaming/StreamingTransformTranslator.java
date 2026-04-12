@@ -27,6 +27,7 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Queue;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.stream.Collectors;
@@ -593,6 +594,10 @@ public final class StreamingTransformTranslator {
               TranslationUtils.getTupleTagCoders(outputs);
           all =
               all.mapToPair(TranslationUtils.getTupleTagEncodeFunction(coderMap))
+                  .filter(
+                      Objects
+                          ::nonNull) // skip nulls to save on encoding, nulls are tags that are not
+                  // read
                   .cache()
                   .mapToPair(TranslationUtils.getTupleTagDecodeFunction(coderMap));
         }

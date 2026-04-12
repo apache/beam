@@ -1127,7 +1127,7 @@ This table provides a consolidated, at-a-glance overview of the available built-
   </tr>
   <tr>
     <td>
-      Iceberg (Managed I/O)
+      Iceberg (<a href="/documentation/io/built-in/iceberg/">guide</a>)
     </td>
     <td class="present">✔</td>
     <td class="present">✔</td>
