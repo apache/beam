@@ -1957,7 +1957,8 @@ public class PipelineOptionsFactoryTest {
   }
 
   private static class RegisteredTestRunner extends PipelineRunner<PipelineResult> {
-    public static PipelineRunner<PipelineResult> fromOptions(PipelineOptions options) {
+    public static PipelineRunner<PipelineResult> fromOptions(
+        @SuppressWarnings("unused") PipelineOptions options) {
       return new RegisteredTestRunner();
     }
 
@@ -2174,7 +2175,7 @@ public class PipelineOptionsFactoryTest {
       if (this == o) {
         return true;
       }
-      if (o == null || getClass() != o.getClass()) {
+      if (!(o instanceof ComplexType2)) {
         return false;
       }
       ComplexType2 that = (ComplexType2) o;

@@ -35,6 +35,7 @@ import java.util.Set;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.atomic.AtomicLong;
 import javax.annotation.concurrent.NotThreadSafe;
+import org.apache.beam.repackaged.core.org.apache.commons.lang3.tuple.Pair;
 import org.apache.beam.runners.core.SideInputReader;
 import org.apache.beam.runners.core.StateInternals;
 import org.apache.beam.runners.core.StateNamespace;
@@ -73,6 +74,7 @@ import org.apache.beam.sdk.io.UnboundedSource;
 import org.apache.beam.sdk.io.UnboundedSource.UnboundedReader;
 import org.apache.beam.sdk.metrics.MetricsContainer;
 import org.apache.beam.sdk.state.TimeDomain;
+import org.apache.beam.sdk.transforms.DoFn.BundleFinalizer;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.ByteStringOutputStream;
 import org.apache.beam.sdk.values.PCollectionView;
@@ -82,8 +84,10 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.Vi
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Supplier;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.FluentIterable;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.HashBasedTable;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableSet;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterators;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.PeekingIterator;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Sets;
@@ -446,11 +450,27 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext<Step
     }
   }
 
-  public Map<Long, Runnable> flushState() {
-    Map<Long, Runnable> callbacks = new HashMap<>();
+  public Map<Long, Pair<Instant, Runnable>> flushState() {
+    Map<Long, Pair<Instant, Runnable>> callbacks = new HashMap<>();
 
     for (StepContext stepContext : getAllStepContexts()) {
       stepContext.flushState();
+      for (Pair<Instant, BundleFinalizer.Callback> bundleFinalizer :
+          stepContext.flushBundleFinalizerCallbacks()) {
+        long id = ThreadLocalRandom.current().nextLong();
+        callbacks.put(
+            id,
+            Pair.of(
+                bundleFinalizer.getLeft(),
+                () -> {
+                  try {
+                    bundleFinalizer.getRight().onBundleSuccess();
+                  } catch (Exception e) {
+                    throw new RuntimeException("Exception while running bundle finalizer", e);
+                  }
+                }));
+        outputBuilder.addFinalizeIds(id);
+      }
     }
 
     if (activeReader != null) {
@@ -462,13 +482,15 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext<Step
       sourceStateBuilder.addFinalizeIds(id);
       callbacks.put(
           id,
-          () -> {
-            try {
-              checkpointMark.finalizeCheckpoint();
-            } catch (IOException e) {
-              throw new RuntimeException("Exception while finalizing checkpoint", e);
-            }
-          });
+          Pair.of(
+              Instant.now().plus(Duration.standardMinutes(5)),
+              () -> {
+                try {
+                  checkpointMark.finalizeCheckpoint();
+                } catch (IOException e) {
+                  throw new RuntimeException("Exception while finalizing checkpoint", e);
+                }
+              }));
 
       @SuppressWarnings("unchecked")
       Coder<UnboundedSource.CheckpointMark> checkpointCoder =
@@ -699,6 +721,11 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext<Step
     public DataflowStepContext namespacedToUser() {
       return this;
     }
+
+    @Override
+    public BundleFinalizer bundleFinalizer() {
+      return wrapped.bundleFinalizer();
+    }
   }
 
   /** A {@link SideInputReader} that fetches side inputs from the streaming worker's cache. */
@@ -771,6 +798,7 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext<Step
     // A list of timer keys that were modified by user processing earlier in this bundle. This
     // serves a tombstone, so that we know not to fire any bundle timers that were modified.
     private Table<String, StateNamespace, TimerData> modifiedUserTimerKeys = null;
+    private final WindmillBundleFinalizer bundleFinalizer = new WindmillBundleFinalizer();
 
     public StepContext(DataflowOperationContext operationContext) {
       super(operationContext.nameContext());
@@ -1043,9 +1071,37 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext<Step
       return checkNotNull(systemTimerInternals);
     }
 
+    @Override
+    public BundleFinalizer bundleFinalizer() {
+      return bundleFinalizer;
+    }
+
     public TimerInternals userTimerInternals() {
       ensureStateful("Tried to access user timers");
       return checkNotNull(userTimerInternals);
+    }
+
+    public ImmutableList<Pair<Instant, BundleFinalizer.Callback>> flushBundleFinalizerCallbacks() {
+      return bundleFinalizer.flushCallbacks();
+    }
+  }
+
+  private static class WindmillBundleFinalizer implements BundleFinalizer {
+    private ImmutableList.Builder<Pair<Instant, Callback>> callbacks = ImmutableList.builder();
+
+    private WindmillBundleFinalizer() {}
+
+    private ImmutableList<Pair<Instant, Callback>> flushCallbacks() {
+      ImmutableList<Pair<Instant, Callback>> flushedCallbacks = callbacks.build();
+      if (!Iterables.isEmpty(flushedCallbacks)) {
+        callbacks = ImmutableList.builder();
+      }
+      return flushedCallbacks;
+    }
+
+    @Override
+    public void afterBundleCommit(Instant callbackExpiry, Callback callback) {
+      callbacks.add(Pair.of(callbackExpiry, callback));
     }
   }
 }

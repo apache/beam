@@ -70,7 +70,7 @@ public class JulHandlerPrintStreamAdapterFactoryTest {
   public void testLogRecordMetadata() {
     PrintStream printStream =
         JulHandlerPrintStreamAdapterFactory.create(
-            handler, "fooLogger", Level.WARNING, StandardCharsets.UTF_8);
+            handler::publish, "fooLogger", Level.WARNING, StandardCharsets.UTF_8);
     printStream.println("anyMessage");
 
     assertThat(handler.getLogs(), not(empty()));
@@ -207,6 +207,6 @@ public class JulHandlerPrintStreamAdapterFactoryTest {
 
   private PrintStream createPrintStreamAdapter() {
     return JulHandlerPrintStreamAdapterFactory.create(
-        handler, LOGGER_NAME, Level.INFO, StandardCharsets.UTF_8);
+        handler::publish, LOGGER_NAME, Level.INFO, StandardCharsets.UTF_8);
   }
 }

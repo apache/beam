@@ -77,6 +77,7 @@ import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.util.UserCodeException;
+import org.apache.beam.sdk.values.CausedByDrain;
 import org.apache.beam.sdk.values.OutputBuilder;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.sdk.values.TypeDescriptors;
@@ -561,6 +562,7 @@ public class DoFnInvokersTest {
                     .setTimestamp(mockTimestamp)
                     .setWindow(mockWindow)
                     .setPaneInfo(PaneInfo.NO_FIRING)
+                    .setCausedByDrain(CausedByDrain.NORMAL)
                     .setReceiver(windowedValue -> outputs.add(windowedValue.getValue()));
               }
             };
@@ -801,6 +803,7 @@ public class DoFnInvokersTest {
                     .setTimestamp(mockTimestamp)
                     .setWindow(mockWindow)
                     .setPaneInfo(PaneInfo.NO_FIRING)
+                    .setCausedByDrain(CausedByDrain.NORMAL)
                     .setReceiver(
                         windowedValue -> {
                           assertFalse(invoked);

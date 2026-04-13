@@ -90,7 +90,7 @@ public final class SparkContextFactory {
         throw new IllegalStateException(
             "No Spark context was provided. Use SparkContextFactor.setProvidedSparkContext to do so.");
       } else if (jsc.sc().isStopped()) {
-        LOG.error("The provided Spark context " + jsc + " was already stopped.");
+        LOG.error("The provided Spark context {} was already stopped.", jsc);
         throw new IllegalStateException("The provided Spark context was already stopped");
       }
       LOG.info("Using a provided Spark Context");

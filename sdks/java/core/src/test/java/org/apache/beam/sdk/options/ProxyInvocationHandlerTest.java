@@ -683,9 +683,7 @@ public class ProxyInvocationHandlerTest {
 
     @Override
     public boolean equals(@Nullable Object obj) {
-      return obj != null
-          && getClass().equals(obj.getClass())
-          && doubleField == ((InnerType) obj).doubleField;
+      return obj instanceof InnerType && doubleField == ((InnerType) obj).doubleField;
     }
   }
 
@@ -703,8 +701,7 @@ public class ProxyInvocationHandlerTest {
 
     @Override
     public boolean equals(@Nullable Object obj) {
-      return obj != null
-          && getClass().equals(obj.getClass())
+      return obj instanceof ComplexType
           && Objects.equals(stringField, ((ComplexType) obj).stringField)
           && Objects.equals(intField, ((ComplexType) obj).intField)
           && Objects.equals(genericType, ((ComplexType) obj).genericType)
@@ -1247,6 +1244,7 @@ public class ProxyInvocationHandlerTest {
   }
 
   private static class CapturesOptions implements Serializable {
+    @SuppressWarnings("unused")
     PipelineOptions options = PipelineOptionsFactory.create();
   }
 

@@ -463,16 +463,16 @@ public class TFRecordIO {
   /** @deprecated Use {@link Compression}. */
   @Deprecated
   public enum CompressionType {
-    /** @see Compression#AUTO */
+    /** See {@link Compression#AUTO}. */
     AUTO(Compression.AUTO),
 
-    /** @see Compression#UNCOMPRESSED */
+    /** See {@link Compression#UNCOMPRESSED}. */
     NONE(Compression.UNCOMPRESSED),
 
-    /** @see Compression#GZIP */
+    /** See {@link Compression#GZIP}. */
     GZIP(Compression.GZIP),
 
-    /** @see Compression#DEFLATE */
+    /** See {@link Compression#DEFLATE}. */
     ZLIB(Compression.DEFLATE);
 
     private final Compression canonical;
@@ -481,7 +481,7 @@ public class TFRecordIO {
       this.canonical = canonical;
     }
 
-    /** @see Compression#matches */
+    /** See {@link Compression#matches}. */
     public boolean matches(String filename) {
       return canonical.matches(filename);
     }

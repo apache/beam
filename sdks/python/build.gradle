@@ -175,7 +175,7 @@ tasks.register("postCommitYamlIntegrationTests") {
       }
       exec {
         executable 'sh'
-        args '-c', "${envdir}/bin/pytest -v apache_beam/yaml/integration_tests.py --deselect apache_beam/yaml/integration_tests.py::BigqueryTest::test_ReadFromBigQuery_ExternalJavaProvider_0 --test_files_dir='${test_files_dir}'"
+        args '-c', "${envdir}/bin/pytest -v apache_beam/yaml/integration_tests.py --test_files_dir='${test_files_dir}'"
       }
     }
   }
@@ -200,7 +200,7 @@ platform_identifiers_map.each { platform, idsuffix ->
   }
   getVersionsAsList('python_versions').each { it ->
     def pyversion = it.replace('.', '')
-    def cibuildwheel_version = it == '3.10' ? '2.23.3' : '3.3.1'
+    def cibuildwheel_version = it == '3.10' ? '2.23.3' : '3.4.0'
 
     project.tasks.register("bdistPy${pyversion}${platform}") {
       description "Build a Python wheel distribution for Py${pyversion} ${platform}"

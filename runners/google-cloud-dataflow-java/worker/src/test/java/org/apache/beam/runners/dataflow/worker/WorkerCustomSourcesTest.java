@@ -239,6 +239,7 @@ public class WorkerCustomSourcesTest {
   }
 
   private static class SourceWithLargeObject extends MockSource {
+    @SuppressWarnings("unused")
     byte[] array;
 
     public SourceWithLargeObject(int sourceObjectSize) {

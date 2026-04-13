@@ -276,7 +276,7 @@ public class EncoderHelpersTest {
 
     @Override
     public boolean equals(Object o) {
-      if (o == null || getClass() != o.getClass()) {
+      if (!(o instanceof PrivateString)) {
         return false;
       }
       PrivateString that = (PrivateString) o;

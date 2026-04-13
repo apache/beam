@@ -820,7 +820,7 @@ public class JmsIO {
           session = null;
         }
       } catch (Exception e) {
-        LOG.error("Error closing session" + e.getMessage(), e);
+        LOG.error("Error closing session", e);
       }
     }
 

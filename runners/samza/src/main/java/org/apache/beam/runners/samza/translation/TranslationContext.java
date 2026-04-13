@@ -139,9 +139,10 @@ public class TranslationContext {
         @SuppressWarnings("unchecked")
         MessageStream<OpMessage<OutT>> messageStream = registeredInputStreams.get(streamId);
         LOG.info(
-            String.format(
-                "Stream id %s has already been mapped to %s stream. Mapping %s to the same message stream.",
-                streamId, messageStream, key));
+            "Stream id {} has already been mapped to {} stream. Mapping {} to the same message stream.",
+            streamId,
+            messageStream,
+            key);
         streamsToMerge.add(messageStream);
       } else {
         final MessageStream<OpMessage<OutT>> typedStream =

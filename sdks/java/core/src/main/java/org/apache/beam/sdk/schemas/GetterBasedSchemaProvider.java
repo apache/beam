@@ -146,7 +146,7 @@ public abstract class GetterBasedSchemaProvider implements SchemaProvider {
       if (this == o) {
         return true;
       }
-      if (o == null || getClass() != o.getClass()) {
+      if (!(o instanceof ToRowWithValueGetters)) {
         return false;
       }
       ToRowWithValueGetters<?> that = (ToRowWithValueGetters<?>) o;
@@ -186,6 +186,7 @@ public abstract class GetterBasedSchemaProvider implements SchemaProvider {
   }
 
   @Override
+  @SuppressWarnings("EqualsGetClass")
   public boolean equals(@Nullable Object obj) {
     return obj != null && this.getClass() == obj.getClass();
   }

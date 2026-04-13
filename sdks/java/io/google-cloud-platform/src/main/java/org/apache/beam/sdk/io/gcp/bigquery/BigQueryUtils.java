@@ -290,7 +290,7 @@ public class BigQueryUtils {
             .appendFraction(java.time.temporal.ChronoField.NANO_OF_SECOND, 0, 9, true)
             .appendLiteral(" UTC")
             .toFormatter()
-            .withZone(java.time.ZoneId.of("UTC"));
+            .withZone(ZoneOffset.UTC);
   }
 
   private static final Map<TypeName, StandardSQLTypeName> BEAM_TO_BIGQUERY_TYPE_MAPPING =
@@ -449,7 +449,7 @@ public class BigQueryUtils {
    * <p>Supports both standard and legacy SQL types.
    *
    * @param schema Schema of the type returned
-   * @param nestedFields Nested fields for the given type (eg. RECORD type)
+   * @param options Options for schema conversion
    * @return Corresponding Beam {@link FieldType}
    */
   private static FieldType fromTableFieldSchemaType(
@@ -1217,6 +1217,9 @@ public class BigQueryUtils {
   }
 
   /**
+   * Returns a {@link TableReference} by parsing the {@code fullTableId}. If it cannot be parsed
+   * properly null is returned.
+   *
    * @param fullTableId - Is one of the two forms commonly used to refer to bigquery tables in the
    *     beam codebase:
    *     <ul>
@@ -1224,9 +1227,6 @@ public class BigQueryUtils {
    *       <li>myproject:mydataset.mytable
    *       <li>myproject.mydataset.mytable
    *     </ul>
-   *
-   * @return a BigQueryTableIdentifier by parsing the fullTableId. If it cannot be parsed properly
-   *     null is returned.
    */
   public static @Nullable TableReference toTableReference(String fullTableId) {
     // Try parsing the format:
@@ -1253,9 +1253,10 @@ public class BigQueryUtils {
   }
 
   /**
+   * Returns a String representation of the table destination in the form:
+   * `myproject.mydataset.mytable`.
+   *
    * @param tableReference - a BigQueryTableIdentifier that may or may not include the project.
-   * @return a String representation of the table destination in the form:
-   *     `myproject.mydataset.mytable`
    */
   public static @Nullable String toTableSpec(TableReference tableReference) {
     if (tableReference.getDatasetId() == null || tableReference.getTableId() == null) {
@@ -1339,11 +1340,12 @@ public class BigQueryUtils {
   }
 
   /**
+   * Returns a ServiceCallMetric for recording statuses for all BQ API responses related to reading
+   * elements directly from BigQuery in a process-wide metric. Such as: calls to readRows,
+   * splitReadStream, createReadSession.
+   *
    * @param tableReference - The table being read from. Can be a temporary BQ table used to read
    *     from a SQL query.
-   * @return a ServiceCallMetric for recording statuses for all BQ API responses related to reading
-   *     elements directly from BigQuery in a process-wide metric. Such as: calls to readRows,
-   *     splitReadStream, createReadSession.
    */
   public static @Nullable ServiceCallMetric readCallMetric(
       @Nullable TableReference tableReference) {
@@ -1351,9 +1353,10 @@ public class BigQueryUtils {
   }
 
   /**
+   * Returns a ServiceCallMetric for recording statuses for all BQ responses related to writing
+   * elements directly to BigQuery in a process-wide metric. Such as: insertAll.
+   *
    * @param tableReference - The table being written to.
-   * @return a ServiceCallMetric for recording statuses for all BQ responses related to writing
-   *     elements directly to BigQuery in a process-wide metric. Such as: insertAll.
    */
   public static ServiceCallMetric writeCallMetric(TableReference tableReference) {
     return callMetricForMethod(tableReference, "BigQueryBatchWrite");

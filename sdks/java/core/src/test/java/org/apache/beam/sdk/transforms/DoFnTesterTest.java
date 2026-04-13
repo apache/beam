@@ -375,7 +375,7 @@ public class DoFnTesterTest {
     }
 
     @ProcessElement
-    public void processElement(ProcessContext c) {
+    public void processElement(@SuppressWarnings("unused") ProcessContext c) {
       elements++;
     }
 

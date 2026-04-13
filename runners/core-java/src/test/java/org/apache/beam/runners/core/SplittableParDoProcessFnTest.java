@@ -45,6 +45,7 @@ import org.apache.beam.sdk.coders.InstantCoder;
 import org.apache.beam.sdk.coders.SerializableCoder;
 import org.apache.beam.sdk.coders.VoidCoder;
 import org.apache.beam.sdk.io.range.OffsetRange;
+import org.apache.beam.sdk.state.TimeDomain;
 import org.apache.beam.sdk.testing.ResetDateTimeProvider;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.DoFn;
@@ -61,6 +62,7 @@ import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.util.WindowedValueMultiReceiver;
+import org.apache.beam.sdk.values.CausedByDrain;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TimestampedValue;
@@ -223,6 +225,22 @@ public class SplittableParDoProcessFnTest {
               "key".getBytes(StandardCharsets.UTF_8), Collections.singletonList(windowedValue)));
     }
 
+    boolean advanceDrain() throws Exception {
+
+      List<TimerInternals.TimerData> timers = new ArrayList<>();
+      timers.add(
+          TimerInternals.TimerData.of(
+              "",
+              StateNamespaces.window(GlobalWindow.Coder.INSTANCE, GlobalWindow.INSTANCE),
+              new Instant(Long.MAX_VALUE),
+              new Instant(Long.MAX_VALUE),
+              TimeDomain.EVENT_TIME,
+              CausedByDrain.CAUSED_BY_DRAIN));
+      tester.processElement(
+          KeyedWorkItems.timersWorkItem("key".getBytes(StandardCharsets.UTF_8), timers));
+      return true;
+    }
+
     /**
      * Advances processing time by a given duration and, if any timers fired, performs a non-seed
      * {@link DoFn.ProcessElement} call, feeding it the timers.
@@ -287,7 +305,8 @@ public class SplittableParDoProcessFnTest {
     }
 
     @GetInitialRestriction
-    public SomeRestriction getInitialRestriction(@Element Integer elem) {
+    public SomeRestriction getInitialRestriction(
+        @SuppressWarnings("unused") @Element Integer elem) {
       return new SomeRestriction();
     }
   }
@@ -334,15 +353,19 @@ public class SplittableParDoProcessFnTest {
     public void process(
         ProcessContext c,
         RestrictionTracker<OffsetRange, Long> tracker,
-        ManualWatermarkEstimator<Instant> watermarkEstimator) {
+        ManualWatermarkEstimator<Instant> watermarkEstimator,
+        CausedByDrain causedByDrain) {
       for (long i = tracker.currentRestriction().getFrom(); tracker.tryClaim(i); ++i) {
         watermarkEstimator.setWatermark(c.element().plus(Duration.standardSeconds(i)));
         c.output(String.valueOf(i));
+        if (causedByDrain == CausedByDrain.CAUSED_BY_DRAIN) {
+          c.output("drains");
+        }
       }
     }
 
     @GetInitialRestriction
-    public OffsetRange getInitialRestriction(@Element Instant elem) {
+    public OffsetRange getInitialRestriction(@SuppressWarnings("unused") @Element Instant elem) {
       throw new IllegalStateException("Expected to be supplied explicitly in this test");
     }
 
@@ -361,6 +384,28 @@ public class SplittableParDoProcessFnTest {
         @WatermarkEstimatorState Instant watermarkEstimatorState) {
       return new WatermarkEstimators.Manual(watermarkEstimatorState);
     }
+  }
+
+  @Test
+  public void testDrains() throws Exception {
+    DoFn<Instant, String> fn = new WatermarkUpdateFn();
+    Instant base = Instant.now();
+
+    ProcessFnTester<Instant, String, OffsetRange, Long, Instant> tester =
+        new ProcessFnTester<>(
+            base,
+            fn,
+            InstantCoder.of(),
+            SerializableCoder.of(OffsetRange.class),
+            InstantCoder.of(),
+            3,
+            MAX_BUNDLE_DURATION);
+
+    tester.startElement(base, new OffsetRange(0, 8));
+    assertThat(tester.takeOutputElements(), hasItems("0", "1", "2"));
+    assertEquals(base.plus(Duration.standardSeconds(2)), tester.getWatermarkHold());
+    assertTrue(tester.advanceDrain());
+    assertThat(tester.takeOutputElements(), hasItems("3", "4", "drains", "drains"));
   }
 
   @Test
@@ -402,7 +447,8 @@ public class SplittableParDoProcessFnTest {
     }
 
     @GetInitialRestriction
-    public SomeRestriction getInitialRestriction(@Element Integer elem) {
+    public SomeRestriction getInitialRestriction(
+        @SuppressWarnings("unused") @Element Integer elem) {
       return new SomeRestriction();
     }
   }
@@ -465,7 +511,7 @@ public class SplittableParDoProcessFnTest {
     }
 
     @GetInitialRestriction
-    public OffsetRange getInitialRestriction(@Element Integer elem) {
+    public OffsetRange getInitialRestriction(@SuppressWarnings("unused") @Element Integer elem) {
       throw new UnsupportedOperationException("Expected to be supplied explicitly in this test");
     }
   }
@@ -586,12 +632,15 @@ public class SplittableParDoProcessFnTest {
     private State state = State.BEFORE_SETUP;
 
     @ProcessElement
-    public void process(ProcessContext c, RestrictionTracker<SomeRestriction, Void> tracker) {
+    public void process(
+        @SuppressWarnings("unused") ProcessContext c,
+        @SuppressWarnings("unused") RestrictionTracker<SomeRestriction, Void> tracker) {
       assertEquals(State.INSIDE_BUNDLE, state);
     }
 
     @GetInitialRestriction
-    public SomeRestriction getInitialRestriction(@Element Integer element) {
+    public SomeRestriction getInitialRestriction(
+        @SuppressWarnings("unused") @Element Integer element) {
       return new SomeRestriction();
     }
 

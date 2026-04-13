@@ -84,7 +84,7 @@ public class PTransformMatchers {
       if (this == o) {
         return true;
       }
-      if (o == null || getClass() != o.getClass()) {
+      if (!(o instanceof EqualUrnPTransformMatcher)) {
         return false;
       }
       EqualUrnPTransformMatcher that = (EqualUrnPTransformMatcher) o;

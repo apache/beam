@@ -130,7 +130,7 @@ public class CsvConverters {
             break;
 
           default:
-            LOG.error("Invalid data type, got: " + type);
+            LOG.error("Invalid data type, got: {}", type);
             throw new RuntimeException("Invalid data type, got: " + type);
         }
       }
@@ -435,7 +435,7 @@ public class CsvConverters {
     @Nullable
     public abstract String delimiter();
 
-    public abstract Boolean hasHeaders();
+    public abstract boolean hasHeaders();
 
     public abstract String inputFileSpec();
 
@@ -468,7 +468,7 @@ public class CsvConverters {
 
       public abstract Builder setDelimiter(@Nullable String delimiter);
 
-      public abstract Builder setHasHeaders(Boolean hasHeaders);
+      public abstract Builder setHasHeaders(boolean hasHeaders);
 
       public abstract Builder setInputFileSpec(String inputFileSpec);
 
@@ -485,8 +485,6 @@ public class CsvConverters {
         checkArgument(readCsv.inputFileSpec() != null, "Input file spec must be provided.");
 
         checkArgument(readCsv.csvFormat() != null, "Csv format must not be null.");
-
-        checkArgument(readCsv.hasHeaders() != null, "Header information must be provided.");
 
         return readCsv;
       }

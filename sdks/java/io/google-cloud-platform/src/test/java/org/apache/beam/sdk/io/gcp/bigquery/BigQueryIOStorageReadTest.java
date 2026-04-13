@@ -99,6 +99,7 @@ import org.apache.beam.sdk.extensions.protobuf.ByteStringCoder;
 import org.apache.beam.sdk.extensions.protobuf.ProtoCoder;
 import org.apache.beam.sdk.io.BoundedSource;
 import org.apache.beam.sdk.io.BoundedSource.BoundedReader;
+import org.apache.beam.sdk.io.UnboundedSource;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.TableRowParser;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.TypedRead;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.TypedRead.Method;
@@ -120,6 +121,7 @@ import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.display.DisplayData;
+import org.apache.beam.sdk.util.construction.UnboundedReadFromBoundedSource;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
@@ -703,6 +705,49 @@ public class BigQueryIOStorageReadTest {
     thrown.expect(UnsupportedOperationException.class);
     thrown.expectMessage("BigQuery storage source must be split before reading");
     tableSource.createReader(options);
+  }
+
+  @Test
+  public void testUnboundedReadFromBoundedSourceWithEmptyTable() throws Exception {
+    fakeDatasetService.createDataset("project-id", "dataset", "", "", null);
+    TableReference tableRef = BigQueryHelpers.parseTableSpec("project-id:dataset.table");
+
+    Table table =
+        new Table().setTableReference(tableRef).setNumBytes(0L).setSchema(new TableSchema());
+
+    fakeDatasetService.createTable(table);
+
+    ReadSession emptyReadSession = ReadSession.newBuilder().build();
+    StorageClient fakeStorageClient = mock(StorageClient.class);
+    when(fakeStorageClient.createReadSession(any())).thenReturn(emptyReadSession);
+
+    BigQueryStorageTableSource<TableRow> tableSource =
+        BigQueryStorageTableSource.create(
+            ValueProvider.StaticValueProvider.of(tableRef),
+            null,
+            null,
+            new TableRowParser(),
+            TableRowJsonCoder.of(),
+            new FakeBigQueryServices()
+                .withDatasetService(fakeDatasetService)
+                .withStorageClient(fakeStorageClient));
+
+    // This simulates what happens in a streaming pipeline when BoundedSource is used
+    UnboundedSource<TableRow, ?> unboundedSource =
+        new UnboundedReadFromBoundedSource.BoundedToUnboundedSourceAdapter<>(tableSource);
+
+    // Initial split
+    List<? extends UnboundedSource<TableRow, ?>> splits = unboundedSource.split(1, options);
+    // Because tableSource.split returns empty list, BoundedToUnboundedSourceAdapter falls back to
+    // returning itself
+    assertEquals(1, splits.size());
+    UnboundedSource<TableRow, ?> splitSource = splits.get(0);
+
+    // Create reader
+    UnboundedSource.UnboundedReader<TableRow> reader = splitSource.createReader(options, null);
+
+    // This should NOT throw UnsupportedOperationException
+    assertFalse(reader.start());
   }
 
   private static GenericRecord createRecord(String name, Schema schema) {
@@ -1596,6 +1641,66 @@ public class BigQueryIOStorageReadTest {
     PAssert.that(output)
         .containsInAnyOrder(
             ImmutableList.of(KV.of("A", 1L), KV.of("B", 2L), KV.of("C", 3L), KV.of("D", 4L)));
+
+    p.run();
+  }
+
+  @Test
+  public void testReadFromBigQueryIOWithFallbackProject() throws Exception {
+    fakeDatasetService.createDataset("fallback-project", "dataset", "", "", null);
+    TableReference tableRef = BigQueryHelpers.parseTableSpec("fallback-project:dataset.table");
+    Table table = new Table().setTableReference(tableRef).setNumBytes(10L).setSchema(TABLE_SCHEMA);
+    fakeDatasetService.createTable(table);
+
+    CreateReadSessionRequest expectedCreateReadSessionRequest =
+        CreateReadSessionRequest.newBuilder()
+            .setParent("projects/fallback-project")
+            .setReadSession(
+                ReadSession.newBuilder()
+                    .setTable("projects/fallback-project/datasets/dataset/tables/table")
+                    .setDataFormat(DataFormat.AVRO)
+                    .setReadOptions(ReadSession.TableReadOptions.newBuilder()))
+            .setMaxStreamCount(10)
+            .build();
+
+    ReadSession readSession =
+        ReadSession.newBuilder()
+            .setName("readSessionName")
+            .setAvroSchema(AvroSchema.newBuilder().setSchema(AVRO_SCHEMA_STRING))
+            .addStreams(ReadStream.newBuilder().setName("streamName"))
+            .setDataFormat(DataFormat.AVRO)
+            .build();
+
+    ReadRowsRequest expectedReadRowsRequest =
+        ReadRowsRequest.newBuilder().setReadStream("streamName").build();
+
+    List<GenericRecord> records = Lists.newArrayList(createRecord("A", 1, AVRO_SCHEMA));
+
+    List<ReadRowsResponse> readRowsResponses =
+        Lists.newArrayList(createResponse(AVRO_SCHEMA, records.subList(0, 1), 0.0, 1.0));
+
+    StorageClient fakeStorageClient = mock(StorageClient.class, withSettings().serializable());
+    when(fakeStorageClient.createReadSession(expectedCreateReadSessionRequest))
+        .thenReturn(readSession);
+    when(fakeStorageClient.readRows(expectedReadRowsRequest, ""))
+        .thenReturn(new FakeBigQueryServerStream<>(readRowsResponses));
+
+    // Explicitly set the pipeline's project option to null to simulate missing
+    // cross-language parameters, and verify it uses the project from the TableReference.
+    options.as(BigQueryOptions.class).setProject(null);
+
+    PCollection<KV<String, Long>> output =
+        p.apply(
+            BigQueryIO.read(new ParseKeyValue())
+                .from("fallback-project:dataset.table")
+                .withMethod(Method.DIRECT_READ)
+                .withFormat(DataFormat.AVRO)
+                .withTestServices(
+                    new FakeBigQueryServices()
+                        .withDatasetService(fakeDatasetService)
+                        .withStorageClient(fakeStorageClient)));
+
+    PAssert.that(output).containsInAnyOrder(ImmutableList.of(KV.of("A", 1L)));
 
     p.run();
   }
@@ -2675,7 +2780,10 @@ public class BigQueryIOStorageReadTest {
   }
 
   private ReadRowsResponse createAvroTsResponse(
-      Schema avroSchema, TimestampPrecision precision, List<Object> inputValues) throws Exception {
+      Schema avroSchema,
+      @SuppressWarnings("unused") TimestampPrecision precision,
+      List<Object> inputValues)
+      throws Exception {
     List<GenericRecord> records = new ArrayList<>();
     for (Object value : inputValues) {
       GenericRecord record = new Record(avroSchema);

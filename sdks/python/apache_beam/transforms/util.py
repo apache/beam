@@ -20,6 +20,7 @@
 
 # pytype: skip-file
 
+import bisect
 import collections
 import contextlib
 import hashlib
@@ -88,6 +89,8 @@ from apache_beam.utils.timestamp import Timestamp
 
 if TYPE_CHECKING:
   from apache_beam.runners.pipeline_context import PipelineContext
+
+_LOGGER = logging.getLogger(__name__)
 
 __all__ = [
     'BatchElements',
@@ -498,7 +501,7 @@ class GcpHsmGeneratedSecret(Secret):
             request={"name": secret_version_path})
         return response.payload.data
       except api_exceptions.NotFound:
-        logging.info(
+        _LOGGER.info(
             "Secret version %s not found. "
             "Creating new secret and version.",
             secret_version_path)
@@ -703,7 +706,7 @@ class GroupByEncryptedKey(PTransform):
       try:
         coder = coder.as_deterministic_coder(self.label)
       except ValueError:
-        logging.warning(
+        _LOGGER.warning(
             'GroupByEncryptedKey %s: '
             'The key coder is not deterministic. This may result in incorrect '
             'pipeline output. This can be fixed by adding a type hint to the '
@@ -1024,7 +1027,7 @@ class _GlobalWindowsBatchingDoFn(DoFn):
       self._batch = None
       self._running_batch_size = 0
     self._target_batch_size = self._batch_size_estimator.next_batch_size()
-    logging.info(
+    _LOGGER.info(
         "BatchElements statistics: " + self._batch_size_estimator.stats())
 
 
@@ -1208,6 +1211,30 @@ class WithSharedKey(DoFn):
     yield (self.key, element)
 
 
+class WithLengthBucketKey(DoFn):
+  """Keys elements with (worker_uuid, length_bucket) for length-aware
+  stateful batching. Elements of similar length are routed to the same
+  state partition, reducing padding waste."""
+  def __init__(self, length_fn, bucket_boundaries):
+    self.shared_handle = shared.Shared()
+    self._length_fn = length_fn
+    self._bucket_boundaries = bucket_boundaries
+
+  def setup(self):
+    self.key = self.shared_handle.acquire(
+        load_shared_key, "WithLengthBucketKey").key
+
+  def _get_bucket(self, length):
+    # bisect_right: boundaries are lower-inclusive.
+    # e.g., for boundaries [10, 50], buckets are (-inf, 10), [10, 50), [50, inf)
+    return bisect.bisect_right(self._bucket_boundaries, length)
+
+  def process(self, element):
+    length = self._length_fn(element)
+    bucket = self._get_bucket(length)
+    yield ((self.key, bucket), element)
+
+
 @typehints.with_input_types(T)
 @typehints.with_output_types(list[T])
 class BatchElements(PTransform):
@@ -1267,7 +1294,18 @@ class BatchElements(PTransform):
         donwstream operations (mostly for testing)
     record_metrics: (optional) whether or not to record beam metrics on
         distributions of the batch size. Defaults to True.
+    length_fn: (optional) a callable mapping an element to its length (int).
+        When set together with bucket_boundaries, enables length-aware bucketed
+        keying on the stateful path so that elements of similar length are
+        routed to the same batch, reducing padding waste.
+    bucket_boundaries: (optional) a sorted list of positive boundary values
+        for length bucketing. Boundaries are lower-inclusive (bisect_right
+        semantics): e.g., for boundaries [10, 50], buckets are (-inf, 10),
+        [10, 50), [50, inf). Defaults to [16, 32, 64, 128, 256, 512] when
+        length_fn is set. Requires length_fn.
   """
+  _DEFAULT_BUCKET_BOUNDARIES = [16, 32, 64, 128, 256, 512]
+
   def __init__(
       self,
       min_batch_size=1,
@@ -1280,7 +1318,17 @@ class BatchElements(PTransform):
       element_size_fn=lambda x: 1,
       variance=0.25,
       clock=time.time,
-      record_metrics=True):
+      record_metrics=True,
+      length_fn=None,
+      bucket_boundaries=None):
+    if bucket_boundaries is not None and length_fn is None:
+      raise ValueError('bucket_boundaries requires length_fn to be set.')
+    if bucket_boundaries is not None:
+      if (not bucket_boundaries or any(b <= 0 for b in bucket_boundaries) or
+          bucket_boundaries != sorted(bucket_boundaries)):
+        raise ValueError(
+            'bucket_boundaries must be a non-empty sorted list of '
+            'positive values.')
     self._batch_size_estimator = _BatchSizeEstimator(
         min_batch_size=min_batch_size,
         max_batch_size=max_batch_size,
@@ -1294,13 +1342,23 @@ class BatchElements(PTransform):
     self._element_size_fn = element_size_fn
     self._max_batch_dur = max_batch_duration_secs
     self._clock = clock
+    self._length_fn = length_fn
+    if length_fn is not None and bucket_boundaries is None:
+      self._bucket_boundaries = self._DEFAULT_BUCKET_BOUNDARIES
+    else:
+      self._bucket_boundaries = bucket_boundaries
 
   def expand(self, pcoll):
     if getattr(pcoll.pipeline.runner, 'is_streaming', False):
       raise NotImplementedError("Requires stateful processing (BEAM-2687)")
     elif self._max_batch_dur is not None:
       coder = coders.registry.get_coder(pcoll)
-      return pcoll | ParDo(WithSharedKey()) | ParDo(
+      if self._length_fn is not None:
+        keying_dofn = WithLengthBucketKey(
+            self._length_fn, self._bucket_boundaries)
+      else:
+        keying_dofn = WithSharedKey()
+      return pcoll | ParDo(keying_dofn) | ParDo(
           _pardo_stateful_batch_elements(
               coder,
               self._batch_size_estimator,
@@ -1901,15 +1959,15 @@ class LogElements(PTransform):
         log_line += ', pane_info=' + repr(pane_info)
 
       if self.level == logging.DEBUG:
-        logging.debug(log_line)
+        _LOGGER.debug(log_line)
       elif self.level == logging.INFO:
-        logging.info(log_line)
+        _LOGGER.info(log_line)
       elif self.level == logging.WARNING:
-        logging.warning(log_line)
+        _LOGGER.warning(log_line)
       elif self.level == logging.ERROR:
-        logging.error(log_line)
+        _LOGGER.error(log_line)
       elif self.level == logging.CRITICAL:
-        logging.critical(log_line)
+        _LOGGER.critical(log_line)
       else:
         print(log_line)
 

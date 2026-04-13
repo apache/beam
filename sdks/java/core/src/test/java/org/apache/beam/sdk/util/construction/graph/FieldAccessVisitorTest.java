@@ -171,7 +171,8 @@ public class FieldAccessVisitorTest {
 
                     @ProcessElement
                     public void processElement(
-                        @FieldAccess("row") Row row, OutputReceiver<Row> outputReceiver)
+                        @SuppressWarnings("unused") @FieldAccess("row") Row row,
+                        @SuppressWarnings("unused") OutputReceiver<Row> outputReceiver)
                         throws Exception {
                       // Do nothing; we don't need to execute this DoFn.
                     }
@@ -183,7 +184,7 @@ public class FieldAccessVisitorTest {
   /** Just some random DoFn without field access information. */
   private static class UnknownDoFn extends DoFn<Row, Row> {
     @ProcessElement
-    public void processElement(ProcessContext c) {
+    public void processElement(@SuppressWarnings("unused") ProcessContext c) {
       // Do nothing; we don't need to execute this DoFn.
     }
   }
@@ -191,7 +192,7 @@ public class FieldAccessVisitorTest {
   /** Just some random DoFn that process raw strings, no Rows or Schemas involved. */
   private static class StringDoFn extends DoFn<String, String> {
     @ProcessElement
-    public void processElement(ProcessContext c) {
+    public void processElement(@SuppressWarnings("unused") ProcessContext c) {
       // Do nothing; we don't need to execute this DoFn.
     }
   }

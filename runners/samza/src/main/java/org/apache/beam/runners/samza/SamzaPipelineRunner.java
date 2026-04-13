@@ -62,7 +62,7 @@ public class SamzaPipelineRunner implements PortablePipelineRunner {
             : GreedyPipelineFuser.fuse(trimmedPipeline).toPipeline();
 
     LOG.info("Portable pipeline to run:");
-    LOG.info(PipelineDotRenderer.toDotString(fusedPipeline));
+    LOG.info("{}", PipelineDotRenderer.toDotString(fusedPipeline));
     // the pipeline option coming from sdk will set the sdk specific runner which will break
     // serialization
     // so we need to reset the runner here to a valid Java runner

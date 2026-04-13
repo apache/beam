@@ -41,7 +41,7 @@ permissions:
 jobs:
   beam_GCP_Security_LogAnalyzer:
     name: GCP Security Log Analysis
-    runs-on: [self-hosted, ubuntu-20.04, main]
+    runs-on: [self-hosted, ubuntu-24.04, main]
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
@@ -58,7 +58,7 @@ jobs:
           pip install -r requirements.txt
           
       - name: Setup gcloud
-        uses: google-github-actions/setup-gcloud@v3
+        uses: google-github-actions/setup-gcloud@aa5489c8933f4cc7a4f7d45035b3b1440c9c10db
 
       - name: Initialize Log Sinks
         if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'

@@ -69,7 +69,7 @@ public class TestJavaBeans {
       if (this == o) {
         return true;
       }
-      if (o == null || getClass() != o.getClass()) {
+      if (!(o instanceof NullableBean)) {
         return false;
       }
       NullableBean that = (NullableBean) o;
@@ -102,7 +102,7 @@ public class TestJavaBeans {
       if (this == o) {
         return true;
       }
-      if (o == null || getClass() != o.getClass()) {
+      if (!(o instanceof MismatchingNullableBean)) {
         return false;
       }
       MismatchingNullableBean that = (MismatchingNullableBean) o;
@@ -260,7 +260,7 @@ public class TestJavaBeans {
       if (this == o) {
         return true;
       }
-      if (o == null || getClass() != o.getClass()) {
+      if (!(o instanceof SimpleBean)) {
         return false;
       }
       SimpleBean that = (SimpleBean) o;
@@ -447,7 +447,7 @@ public class TestJavaBeans {
       if (this == o) {
         return true;
       }
-      if (o == null || getClass() != o.getClass()) {
+      if (!(o instanceof SimpleBean)) {
         return false;
       }
       SimpleBean that = (SimpleBean) o;
@@ -617,7 +617,7 @@ public class TestJavaBeans {
       if (this == o) {
         return true;
       }
-      if (o == null || getClass() != o.getClass()) {
+      if (!(o instanceof SimpleBeanWithAnnotations)) {
         return false;
       }
       SimpleBeanWithAnnotations that = (SimpleBeanWithAnnotations) o;
@@ -696,7 +696,7 @@ public class TestJavaBeans {
       if (this == o) {
         return true;
       }
-      if (o == null || getClass() != o.getClass()) {
+      if (!(o instanceof NestedBean)) {
         return false;
       }
       NestedBean that = (NestedBean) o;
@@ -758,7 +758,7 @@ public class TestJavaBeans {
       if (this == o) {
         return true;
       }
-      if (o == null || getClass() != o.getClass()) {
+      if (!(o instanceof PrimitiveArrayBean)) {
         return false;
       }
       PrimitiveArrayBean that = (PrimitiveArrayBean) o;
@@ -808,7 +808,7 @@ public class TestJavaBeans {
       if (this == o) {
         return true;
       }
-      if (o == null || getClass() != o.getClass()) {
+      if (!(o instanceof NestedArrayBean)) {
         return false;
       }
       NestedArrayBean that = (NestedArrayBean) o;
@@ -849,7 +849,7 @@ public class TestJavaBeans {
       if (this == o) {
         return true;
       }
-      if (o == null || getClass() != o.getClass()) {
+      if (!(o instanceof NestedArraysBean)) {
         return false;
       }
       NestedArraysBean that = (NestedArraysBean) o;
@@ -900,7 +900,7 @@ public class TestJavaBeans {
       if (this == o) {
         return true;
       }
-      if (o == null || getClass() != o.getClass()) {
+      if (!(o instanceof NestedCollectionBean)) {
         return false;
       }
       NestedCollectionBean that = (NestedCollectionBean) o;
@@ -945,7 +945,7 @@ public class TestJavaBeans {
       if (this == o) {
         return true;
       }
-      if (o == null || getClass() != o.getClass()) {
+      if (!(o instanceof PrimitiveMapBean)) {
         return false;
       }
       PrimitiveMapBean that = (PrimitiveMapBean) o;
@@ -986,7 +986,7 @@ public class TestJavaBeans {
       if (this == o) {
         return true;
       }
-      if (o == null || getClass() != o.getClass()) {
+      if (!(o instanceof NestedMapBean)) {
         return false;
       }
       NestedMapBean that = (NestedMapBean) o;
@@ -1070,7 +1070,7 @@ public class TestJavaBeans {
       if (this == o) {
         return true;
       }
-      if (o == null || getClass() != o.getClass()) {
+      if (!(o instanceof BeanWithBoxedFields)) {
         return false;
       }
       BeanWithBoxedFields that = (BeanWithBoxedFields) o;
@@ -1131,7 +1131,7 @@ public class TestJavaBeans {
       if (this == o) {
         return true;
       }
-      if (o == null || getClass() != o.getClass()) {
+      if (!(o instanceof BeanWithByteArray)) {
         return false;
       }
       BeanWithByteArray that = (BeanWithByteArray) o;
@@ -1174,7 +1174,7 @@ public class TestJavaBeans {
       if (this == o) {
         return true;
       }
-      if (o == null || getClass() != o.getClass()) {
+      if (!(o instanceof IterableBean)) {
         return false;
       }
       IterableBean that = (IterableBean) o;
@@ -1215,7 +1215,7 @@ public class TestJavaBeans {
       if (this == o) {
         return true;
       }
-      if (o == null || getClass() != o.getClass()) {
+      if (!(o instanceof ArrayOfByteArray)) {
         return false;
       }
       ArrayOfByteArray that = (ArrayOfByteArray) o;
@@ -1264,7 +1264,7 @@ public class TestJavaBeans {
       if (this == o) {
         return true;
       }
-      if (o == null || getClass() != o.getClass()) {
+      if (!(o instanceof BeanWithCaseFormat)) {
         return false;
       }
       BeanWithCaseFormat that = (BeanWithCaseFormat) o;
@@ -1337,7 +1337,7 @@ public class TestJavaBeans {
       if (this == o) {
         return true;
       }
-      if (o == null || getClass() != o.getClass()) {
+      if (!(o instanceof BeanWithCaseFormat)) {
         return false;
       }
       BeanWithCaseFormat that = (BeanWithCaseFormat) o;

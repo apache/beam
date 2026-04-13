@@ -88,7 +88,19 @@ import org.apache.beam.sdk.transforms.display.HasDisplayData;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignatures;
 import org.apache.beam.sdk.transforms.resourcehints.ResourceHint;
 import org.apache.beam.sdk.transforms.resourcehints.ResourceHints;
+import org.apache.beam.sdk.transforms.windowing.AfterAll;
+import org.apache.beam.sdk.transforms.windowing.AfterEach;
+import org.apache.beam.sdk.transforms.windowing.AfterFirst;
+import org.apache.beam.sdk.transforms.windowing.AfterPane;
+import org.apache.beam.sdk.transforms.windowing.AfterProcessingTime;
+import org.apache.beam.sdk.transforms.windowing.AfterSynchronizedProcessingTime;
+import org.apache.beam.sdk.transforms.windowing.AfterWatermark;
 import org.apache.beam.sdk.transforms.windowing.DefaultTrigger;
+import org.apache.beam.sdk.transforms.windowing.Never;
+import org.apache.beam.sdk.transforms.windowing.OrFinallyTrigger;
+import org.apache.beam.sdk.transforms.windowing.Repeatedly;
+import org.apache.beam.sdk.transforms.windowing.ReshuffleTrigger;
+import org.apache.beam.sdk.transforms.windowing.TriggerVisitor;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.util.AppliedCombineFn;
 import org.apache.beam.sdk.util.CoderUtils;
@@ -133,6 +145,78 @@ public class DataflowPipelineTranslator {
   // Must be kept in sync with their internal counterparts.
   private static final Logger LOG = LoggerFactory.getLogger(DataflowPipelineTranslator.class);
   private static final ObjectMapper MAPPER = new ObjectMapper();
+
+  /** Checks to see whether the Trigger tree is compatible with combiner lifting. */
+  private static class TriggerCombinerLiftingCompatibility implements TriggerVisitor<Boolean> {
+    static final TriggerCombinerLiftingCompatibility INSTANCE =
+        new TriggerCombinerLiftingCompatibility();
+
+    @Override
+    public Boolean visit(DefaultTrigger trigger) {
+      return true;
+    }
+
+    @Override
+    public Boolean visit(AfterWatermark.FromEndOfWindow trigger) {
+      return true;
+    }
+
+    @Override
+    public Boolean visit(AfterWatermark.AfterWatermarkEarlyAndLate trigger) {
+      return trigger.subTriggers().stream().allMatch(t -> t.accept(this));
+    }
+
+    @Override
+    public Boolean visit(Never.NeverTrigger trigger) {
+      return true;
+    }
+
+    @Override
+    public Boolean visit(ReshuffleTrigger<?> trigger) {
+      return false;
+    }
+
+    @Override
+    public Boolean visit(AfterProcessingTime trigger) {
+      return true;
+    }
+
+    @Override
+    public Boolean visit(AfterSynchronizedProcessingTime trigger) {
+      return true;
+    }
+
+    @Override
+    public Boolean visit(AfterFirst trigger) {
+      return trigger.subTriggers().stream().allMatch(t -> t.accept(this));
+    }
+
+    @Override
+    public Boolean visit(AfterAll trigger) {
+      return trigger.subTriggers().stream().allMatch(t -> t.accept(this));
+    }
+
+    @Override
+    public Boolean visit(AfterEach trigger) {
+      return trigger.subTriggers().stream().allMatch(t -> t.accept(this));
+    }
+
+    @Override
+    public Boolean visit(AfterPane trigger) {
+      // Combiner lifting not supported for count triggers.
+      return false;
+    }
+
+    @Override
+    public Boolean visit(Repeatedly trigger) {
+      return trigger.subTriggers().stream().allMatch(t -> t.accept(this));
+    }
+
+    @Override
+    public Boolean visit(OrFinallyTrigger trigger) {
+      return trigger.subTriggers().stream().allMatch(t -> t.accept(this));
+    }
+  }
 
   private static byte[] serializeWindowingStrategy(
       WindowingStrategy<?, ?> windowingStrategy, PipelineOptions options) {
@@ -970,8 +1054,10 @@ public class DataflowPipelineTranslator {
                     && windowingStrategy.getWindowFn().assignsToOneWindow();
             if (isStreaming) {
               allowCombinerLifting &= transform.fewKeys();
-              // TODO: Allow combiner lifting on the non-default trigger, as appropriate.
-              allowCombinerLifting &= (windowingStrategy.getTrigger() instanceof DefaultTrigger);
+              allowCombinerLifting &=
+                  windowingStrategy
+                      .getTrigger()
+                      .accept(TriggerCombinerLiftingCompatibility.INSTANCE);
             }
             stepContext.addInput(PropertyNames.DISALLOW_COMBINER_LIFTING, !allowCombinerLifting);
             stepContext.addInput(
