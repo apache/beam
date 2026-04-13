@@ -57,8 +57,10 @@ type JobOptions struct {
 	NoUsePublicIPs      bool
 	NumWorkers          int64
 	DiskSizeGb          int64
-	DiskType            string
-	MachineType         string
+	DiskType                       string
+	DiskProvisionedIops            int64
+	DiskProvisionedThroughputMibps int64
+	MachineType                    string
 	Labels              map[string]string
 	ServiceAccountEmail string
 	WorkerRegion        string
