@@ -1,0 +1,5 @@
+{
+  "packageManager": "python",
+  "packageName": "apache_beam_jupyterlab_sidepanel",
+  "uninstallInstructions": "Use your Python package manager (pip, conda, etc.) to uninstall the package apache_beam_jupyterlab_sidepanel"
+}
