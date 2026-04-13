@@ -71,7 +71,7 @@ jobs:
         # every major version
         flink_version: ['1.20', '2.0']
     timeout-minutes: 240
-    runs-on: [self-hosted, ubuntu-20.04, highmem]
+    runs-on: [self-hosted, ubuntu-24.04, highmem]
     if: |
       github.event_name == 'push' ||
       github.event_name == 'pull_request_target' ||

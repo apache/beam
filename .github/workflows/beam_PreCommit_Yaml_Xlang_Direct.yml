@@ -69,7 +69,7 @@ jobs:
       github.event_name == 'pull_request_target' ||
       (github.event_name == 'schedule' && github.repository == 'apache/beam') ||
       github.event.comment.body == 'Run Yaml_Xlang_Direct PreCommit'
-    runs-on: [self-hosted, ubuntu-20.04, main]
+    runs-on: [self-hosted, ubuntu-24.04, main]
     timeout-minutes: 100
     name: ${{ matrix.job_name }} (${{ matrix.job_phrase }})
     strategy:

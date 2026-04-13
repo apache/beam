@@ -28,7 +28,7 @@ Currently, we have both GitHub-hosted and self-hosted runners for running the Gi
 ### Getting Started with self-hosted runners
 * Refer to [this README](./gh-actions-self-hosted-runners/README.md) for the steps for creating your own self-hosted runners for testing your workflows.
 * Depending on your workflow's needs, it must specify the following `runs-on` tags to run in the specified operating system:
-  * Ubuntu 20.04 self-hosted runner: `[self-hosted, ubuntu-20.04]`
+  * Ubuntu 24.04 self-hosted runner: `[self-hosted, ubuntu-24.04, main]` (also `small`, `highmem`, or `highmem22` pool labels as needed)
   * Windows Server 2019 self-hosted runner: `[self-hosted, windows-server-2019]`
   * MacOS GitHub-hosted runner: `macos-latest`
 * Every workflow that tests the source code, needs to have the workflow trigger `pull_request_target` instead of `pull_request`.
@@ -48,7 +48,7 @@ Currently, we have both GitHub-hosted and self-hosted runners for running the Gi
       node-version: 16
 ```
 * You can find the GitHub-hosted runner installations in the following links:
-  * [Ubuntu-20.04](https://github.com/actions/runner-images/blob/main/images/linux/Ubuntu2004-Readme.md#installed-apt-packages)
+  * [Ubuntu-24.04](https://github.com/actions/runner-images/blob/main/images/ubuntu/Ubuntu2404-Readme.md#installed-apt-packages)
   * [Windows-2019](https://github.com/actions/runner-images/blob/main/images/win/Windows2019-Readme.md)
 
 #### GitHub Actions Example
@@ -60,7 +60,7 @@ on:
 permissions: read-all
 jobs:
   github-actions-example:
-    runs-on: [self-hosted, ubuntu-20.04]
+    runs-on: [self-hosted, ubuntu-24.04, main]
     steps:
       - name: Check out repository code
         uses: actions/checkout@v2

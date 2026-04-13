@@ -24,7 +24,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import java.io.IOException;
 import java.text.ParseException;
 import java.time.Duration;
-import java.time.ZoneId;
+import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
 import java.util.Collections;
 import java.util.List;
@@ -116,7 +116,7 @@ public final class KafkaIOST extends IOStressTestBase {
     kafkaTopic =
         "io-kafka-"
             + DateTimeFormatter.ofPattern("MMddHHmmssSSS")
-                .withZone(ZoneId.of("UTC"))
+                .withZone(ZoneOffset.UTC)
                 .format(java.time.Instant.now())
             + UUID.randomUUID().toString().substring(0, 10);
     adminClient.createTopics(Collections.singletonList(new NewTopic(kafkaTopic, 1, (short) 3)));

@@ -41,7 +41,7 @@ permissions:
 jobs:
   beam_GCP_Security_LogAnalyzer:
     name: GCP Security Log Analysis
-    runs-on: [self-hosted, ubuntu-20.04, main]
+    runs-on: [self-hosted, ubuntu-24.04, main]
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
