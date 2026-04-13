@@ -141,7 +141,7 @@ public class ModelCoderRegistrar implements CoderTranslatorRegistrar {
   @Override
   public boolean isKnownCoder(Coder<?> coder, PipelineOptions options) {
     if (coder.getClass() == SchemaCoder.class
-        && StreamingOptions.updateCompatibilityVersionLessThan(options, "2.73")) {
+        && StreamingOptions.updateCompatibilityVersionLessThan(options, "2.74")) {
       return false;
     }
     return BEAM_MODEL_CODER_URNS.containsKey(coder.getClass());
