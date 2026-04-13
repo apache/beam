@@ -72,8 +72,8 @@ class AssignDestinationsAndPartitions
   }
 
   static class AssignDoFn extends DoFn<Row, KV<Row, Row>> {
-    static final Map<String, PartitionKey> PARTITION_KEYS = new ConcurrentHashMap<>();
-    static final Map<String, BeamRowWrapper> WRAPPERS = new ConcurrentHashMap<>();
+    private final Map<String, PartitionKey> partitionKeys = new ConcurrentHashMap<>();
+    private final Map<String, BeamRowWrapper> wrappers = new ConcurrentHashMap<>();
     private final DynamicDestinations dynamicDestinations;
     private final IcebergCatalogConfig catalogConfig;
 
@@ -94,8 +94,8 @@ class AssignDestinationsAndPartitions
               ValueInSingleWindow.of(element, timestamp, window, paneInfo));
       Row data = dynamicDestinations.getData(element);
 
-      @Nullable PartitionKey partitionKey = PARTITION_KEYS.get(tableIdentifier);
-      @Nullable BeamRowWrapper wrapper = WRAPPERS.get(tableIdentifier);
+      @Nullable PartitionKey partitionKey = partitionKeys.get(tableIdentifier);
+      @Nullable BeamRowWrapper wrapper = wrappers.get(tableIdentifier);
       if (partitionKey == null || wrapper == null) {
         PartitionSpec spec = PartitionSpec.unpartitioned();
         Schema schema = IcebergUtils.beamSchemaToIcebergSchema(data.getSchema());
@@ -117,8 +117,8 @@ class AssignDestinationsAndPartitions
         }
         partitionKey = new PartitionKey(spec, schema);
         wrapper = new BeamRowWrapper(data.getSchema(), schema.asStruct());
-        PARTITION_KEYS.put(tableIdentifier, partitionKey);
-        WRAPPERS.put(tableIdentifier, wrapper);
+        partitionKeys.put(tableIdentifier, partitionKey);
+        wrappers.put(tableIdentifier, wrapper);
       }
       partitionKey.partition(wrapper.wrap(data));
       String partitionPath = partitionKey.toPath();

@@ -43,7 +43,6 @@ import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.TestStream;
 import org.apache.beam.sdk.transforms.Create;
-import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
@@ -54,11 +53,11 @@ import org.apache.beam.sdk.util.RowStringInterpolator;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionRowTuple;
 import org.apache.beam.sdk.values.Row;
-import org.apache.beam.sdk.values.TypeDescriptors;
 import org.apache.beam.sdk.values.ValueInSingleWindow;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.apache.iceberg.CatalogUtil;
+import org.apache.iceberg.DistributionMode;
 import org.apache.iceberg.PartitionSpec;
 import org.apache.iceberg.Table;
 import org.apache.iceberg.catalog.TableIdentifier;
@@ -83,11 +82,11 @@ import org.yaml.snakeyaml.Yaml;
 public class IcebergWriteSchemaTransformProviderTest {
   @Parameterized.Parameters
   public static Iterable<Object[]> data() {
-    return asList(new Object[][] {{false}, {true}});
+    return asList(new Object[][] {{DistributionMode.NONE}, {DistributionMode.HASH}});
   }
 
   @Parameterized.Parameter(0)
-  public boolean groupByPartitions;
+  public DistributionMode distributionMode;
 
   @ClassRule public static final TemporaryFolder TEMPORARY_FOLDER = new TemporaryFolder();
 
@@ -125,7 +124,7 @@ public class IcebergWriteSchemaTransformProviderTest {
             .setTable(identifier)
             .setCatalogName("name")
             .setCatalogProperties(properties)
-            .setGroupByPartitions(groupByPartitions)
+            .setDistributionMode(distributionMode.name())
             .build();
 
     PCollectionRowTuple input =
@@ -162,12 +161,12 @@ public class IcebergWriteSchemaTransformProviderTest {
         String.format(
             "table: %s\n"
                 + "catalog_name: test-name\n"
-                + "group_by_partitions: %s\n"
+                + "distribution_mode: %s\n"
                 + "catalog_properties: \n"
                 + "  type: %s\n"
                 + "  warehouse: %s",
             identifier,
-            groupByPartitions,
+            distributionMode.name(),
             CatalogUtil.ICEBERG_CATALOG_TYPE_HADOOP,
             warehouse.location);
     Map<String, Object> configMap = new Yaml().load(yamlConfig);
@@ -219,7 +218,7 @@ public class IcebergWriteSchemaTransformProviderTest {
             ImmutableMap.<String, Object>builder()
                 .put("table", destinationTemplate)
                 .put("catalog_name", "test-name")
-                .put("group_by_partitions", groupByPartitions)
+                .put("distribution_mode", distributionMode.name())
                 .put(
                     "catalog_properties",
                     ImmutableMap.<String, String>builder()
@@ -432,8 +431,8 @@ public class IcebergWriteSchemaTransformProviderTest {
             identifier,
             "catalog_properties",
             ImmutableMap.of("type", "hadoop", "warehouse", warehouse.location),
-            "group_by_partitions",
-            groupByPartitions);
+            "distribution_mode",
+            distributionMode.name());
 
     List<Row> rows = new ArrayList<>();
     for (int i = 0; i < 30; i++) {
@@ -510,8 +509,8 @@ public class IcebergWriteSchemaTransformProviderTest {
                 "month(m_date)",
                 "day(d_date)",
                 "hour(h_datetimetz)"),
-            "group_by_partitions",
-            groupByPartitions);
+            "distribution_mode",
+            distributionMode.name());
 
     List<Row> rows = new ArrayList<>();
     for (int i = 0; i < 30; i++) {
@@ -584,8 +583,8 @@ public class IcebergWriteSchemaTransformProviderTest {
             ImmutableMap.of("type", "hadoop", "warehouse", warehouse.location),
             "table_properties",
             tableProperties,
-            "group_by_partitions",
-            groupByPartitions);
+            "distribution_mode",
+            distributionMode.name());
 
     List<Row> rows = new ArrayList<>();
     for (int i = 0; i < 10; i++) {
@@ -645,8 +644,8 @@ public class IcebergWriteSchemaTransformProviderTest {
             identifier,
             "catalog_properties",
             ImmutableMap.of("type", "hadoop", "warehouse", warehouse.location),
-            "group_by_partitions",
-            groupByPartitions);
+            "distribution_mode",
+            distributionMode.name());
 
     PCollection<Row> result =
         testPipeline

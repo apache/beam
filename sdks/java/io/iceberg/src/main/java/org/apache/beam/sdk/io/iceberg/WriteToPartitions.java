@@ -17,12 +17,18 @@
  */
 package org.apache.beam.sdk.io.iceberg;
 
+import static org.apache.beam.sdk.util.Preconditions.checkArgumentNotNull;
+
 import java.util.UUID;
 import org.apache.beam.sdk.coders.IterableCoder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.RowCoder;
 import org.apache.beam.sdk.transforms.GroupIntoBatches;
 import org.apache.beam.sdk.transforms.PTransform;
+import org.apache.beam.sdk.transforms.windowing.AfterProcessingTime;
+import org.apache.beam.sdk.transforms.windowing.GlobalWindows;
+import org.apache.beam.sdk.transforms.windowing.Repeatedly;
+import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.util.ShardedKey;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
@@ -55,7 +61,7 @@ class WriteToPartitions extends PTransform<PCollection<KV<Row, Row>>, IcebergWri
     GroupIntoBatches<Row, Row> groupIntoPartitions =
         GroupIntoBatches.ofByteSize(DEFAULT_BYTES_PER_FILE);
     if (unbounded && triggeringFrequency != null) {
-      groupIntoPartitions.withMaxBufferingDuration(triggeringFrequency);
+      groupIntoPartitions = groupIntoPartitions.withMaxBufferingDuration(triggeringFrequency);
     }
 
     PCollection<KV<ShardedKey<Row>, Iterable<Row>>> groupedRows =
@@ -70,6 +76,18 @@ class WriteToPartitions extends PTransform<PCollection<KV<Row, Row>>, IcebergWri
     PCollection<FileWriteResult> writtenFiles =
         groupedRows.apply(
             new WritePartitionedRowsToFiles(catalogConfig, dynamicDestinations, filePrefix));
+
+    if (unbounded && triggeringFrequency != null) {
+      writtenFiles =
+          writtenFiles.apply(
+              "ApplyUserTrigger",
+              Window.<FileWriteResult>into(new GlobalWindows())
+                  .triggering(
+                      Repeatedly.forever(
+                          AfterProcessingTime.pastFirstElementInPane()
+                              .plusDelayOf(checkArgumentNotNull(triggeringFrequency))))
+                  .discardingFiredPanes());
+    }
 
     // Commit files to tables
     PCollection<KV<String, SnapshotInfo>> snapshots =

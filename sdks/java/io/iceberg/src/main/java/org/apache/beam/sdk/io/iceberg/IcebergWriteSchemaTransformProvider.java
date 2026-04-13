@@ -42,6 +42,7 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionRowTuple;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
+import org.apache.iceberg.DistributionMode;
 import org.apache.iceberg.FileFormat;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
@@ -134,7 +135,11 @@ public class IcebergWriteSchemaTransformProvider
             + " please visit https://iceberg.apache.org/docs/latest/configuration/#table-properties.")
     public abstract @Nullable Map<String, String> getTableProperties();
 
-    public abstract @Nullable Boolean getGroupByPartitions();
+    @SchemaFieldDescription(
+        "Defines distribution of write data. Supported distributions:"
+            + "\n- none: don't shuffle rows (default)"
+            + "\n- hash: shuffle rows by partition key before writing data")
+    public abstract @Nullable String getDistributionMode();
 
     @AutoValue.Builder
     public abstract static class Builder {
@@ -160,7 +165,7 @@ public class IcebergWriteSchemaTransformProvider
 
       public abstract Builder setTableProperties(Map<String, String> tableProperties);
 
-      public abstract Builder setGroupByPartitions(Boolean groupByPartitions);
+      public abstract Builder setDistributionMode(String mode);
 
       public abstract Configuration build();
     }
@@ -242,9 +247,9 @@ public class IcebergWriteSchemaTransformProvider
         writeTransform = writeTransform.withDirectWriteByteLimit(directWriteByteLimit);
       }
 
-      @Nullable Boolean groupByPartitions = configuration.getGroupByPartitions();
-      if (groupByPartitions != null && groupByPartitions) {
-        writeTransform = writeTransform.groupingByPartitions();
+      @Nullable String mode = configuration.getDistributionMode();
+      if (mode != null) {
+        writeTransform = writeTransform.withDistributionMode(DistributionMode.fromName(mode));
       }
 
       // TODO: support dynamic destinations
