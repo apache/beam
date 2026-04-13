@@ -75,27 +75,39 @@ public abstract class IcebergCatalogConfig implements Serializable {
 
   public abstract Builder toBuilder();
 
+  /**
+   * Returns a cached Catalog instance for driver-side operations (pipeline construction, schema
+   * inference, etc.). Not intended for use within DoFns — use {@link #newCatalog()} instead.
+   */
   public org.apache.iceberg.catalog.Catalog catalog() {
     if (cachedCatalog == null) {
-      String catalogName = getCatalogName();
-      if (catalogName == null) {
-        catalogName = "apache-beam-" + ReleaseInfo.getReleaseInfo().getVersion();
-      }
-      Map<String, String> catalogProps = getCatalogProperties();
-      if (catalogProps == null) {
-        catalogProps = Maps.newHashMap();
-      }
-      Map<String, String> confProps = getConfigProperties();
-      if (confProps == null) {
-        confProps = Maps.newHashMap();
-      }
-      Configuration config = new Configuration();
-      for (Map.Entry<String, String> prop : confProps.entrySet()) {
-        config.set(prop.getKey(), prop.getValue());
-      }
-      cachedCatalog = CatalogUtil.buildIcebergCatalog(catalogName, catalogProps, config);
+      cachedCatalog = newCatalog();
     }
     return cachedCatalog;
+  }
+
+  /**
+   * Creates and returns a new Catalog instance. Use this in DoFn {@code @Setup} methods to ensure
+   * each DoFn owns its own catalog lifecycle independently of other transforms.
+   */
+  public org.apache.iceberg.catalog.Catalog newCatalog() {
+    String catalogName = getCatalogName();
+    if (catalogName == null) {
+      catalogName = "apache-beam-" + ReleaseInfo.getReleaseInfo().getVersion();
+    }
+    Map<String, String> catalogProps = getCatalogProperties();
+    if (catalogProps == null) {
+      catalogProps = Maps.newHashMap();
+    }
+    Map<String, String> confProps = getConfigProperties();
+    if (confProps == null) {
+      confProps = Maps.newHashMap();
+    }
+    Configuration config = new Configuration();
+    for (Map.Entry<String, String> prop : confProps.entrySet()) {
+      config.set(prop.getKey(), prop.getValue());
+    }
+    return CatalogUtil.buildIcebergCatalog(catalogName, catalogProps, config);
   }
 
   private void checkSupportsNamespaces() {

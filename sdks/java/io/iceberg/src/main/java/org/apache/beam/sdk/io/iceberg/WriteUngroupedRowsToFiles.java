@@ -17,6 +17,8 @@
  */
 package org.apache.beam.sdk.io.iceberg;
 
+import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
+
 import java.io.Closeable;
 import java.io.IOException;
 import java.nio.ByteBuffer;
@@ -46,10 +48,12 @@ import org.apache.beam.sdk.values.WindowedValue;
 import org.apache.beam.sdk.values.WindowedValues;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.cache.Cache;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
 import org.apache.iceberg.catalog.Catalog;
+import org.apache.iceberg.catalog.TableIdentifier;
 import org.checkerframework.checker.nullness.qual.MonotonicNonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
@@ -196,6 +200,9 @@ class WriteUngroupedRowsToFiles
     private final DynamicDestinations dynamicDestinations;
     private final IcebergCatalogConfig catalogConfig;
     private transient @MonotonicNonNull Catalog catalog;
+    private transient @MonotonicNonNull Cache<
+            TableIdentifier, RecordWriterManager.LastRefreshedTable>
+        tableCache;
     private transient @Nullable RecordWriterManager recordWriterManager;
     private int spilledShardNumber;
 
@@ -212,17 +219,21 @@ class WriteUngroupedRowsToFiles
       this.maxFileSize = maxFileSize;
     }
 
-    private org.apache.iceberg.catalog.Catalog getCatalog() {
-      if (catalog == null) {
-        this.catalog = catalogConfig.catalog();
-      }
-      return catalog;
+    @Setup
+    public void setup() {
+      this.catalog = catalogConfig.newCatalog();
+      this.tableCache = RecordWriterManager.createTableCache();
     }
 
     @StartBundle
     public void startBundle() {
       recordWriterManager =
-          new RecordWriterManager(getCatalog(), filename, maxFileSize, maxWritersPerBundle);
+          new RecordWriterManager(
+              checkStateNotNull(catalog),
+              filename,
+              maxFileSize,
+              maxWritersPerBundle,
+              checkStateNotNull(tableCache));
       this.spilledShardNumber = ThreadLocalRandom.current().nextInt(SPILLED_RECORD_SHARDING_FACTOR);
     }
 

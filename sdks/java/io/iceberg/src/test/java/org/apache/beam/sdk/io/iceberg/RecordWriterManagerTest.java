@@ -52,6 +52,7 @@ import org.apache.beam.sdk.schemas.logicaltypes.SqlTypes;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.WindowedValue;
 import org.apache.beam.sdk.values.WindowedValues;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.cache.Cache;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.apache.commons.lang3.RandomStringUtils;
 import org.apache.hadoop.conf.Configuration;
@@ -110,13 +111,14 @@ public class RecordWriterManagerTest {
 
   private WindowedValue<IcebergDestination> windowedDestination;
   private HadoopCatalog catalog;
+  private Cache<TableIdentifier, RecordWriterManager.LastRefreshedTable> tableCache;
 
   @Before
   public void setUp() {
     windowedDestination =
         getWindowedDestination("table_" + testName.getMethodName(), PARTITION_SPEC);
     catalog = new HadoopCatalog(new Configuration(), warehouse.location);
-    RecordWriterManager.LAST_REFRESHED_TABLE_CACHE.invalidateAll();
+    tableCache = RecordWriterManager.createTableCache();
   }
 
   private WindowedValue<IcebergDestination> getWindowedDestination(
@@ -143,7 +145,8 @@ public class RecordWriterManagerTest {
 
   @Test
   public void testCreateNamespaceAndTable() {
-    RecordWriterManager writerManager = new RecordWriterManager(catalog, "test_file_name", 1000, 3);
+    RecordWriterManager writerManager =
+        new RecordWriterManager(catalog, "test_file_name", 1000, 3, tableCache);
     Namespace newNamespace = Namespace.of("new_namespace");
     TableIdentifier identifier = TableIdentifier.of(newNamespace, testName.getMethodName());
     WindowedValue<IcebergDestination> dest =
@@ -164,7 +167,8 @@ public class RecordWriterManagerTest {
   @Test
   public void testCreateNewWriterForEachDestination() throws IOException {
     // Writer manager with a maximum limit of 3 writers
-    RecordWriterManager writerManager = new RecordWriterManager(catalog, "test_file_name", 1000, 3);
+    RecordWriterManager writerManager =
+        new RecordWriterManager(catalog, "test_file_name", 1000, 3, tableCache);
     assertEquals(0, writerManager.openWriters);
 
     boolean writeSuccess;
@@ -225,7 +229,8 @@ public class RecordWriterManagerTest {
   @Test
   public void testCreateNewWriterForEachPartition() throws IOException {
     // Writer manager with a maximum limit of 3 writers
-    RecordWriterManager writerManager = new RecordWriterManager(catalog, "test_file_name", 1000, 3);
+    RecordWriterManager writerManager =
+        new RecordWriterManager(catalog, "test_file_name", 1000, 3, tableCache);
     assertEquals(0, writerManager.openWriters);
 
     boolean writeSuccess;
@@ -286,7 +291,8 @@ public class RecordWriterManagerTest {
   @Test
   public void testRespectMaxFileSize() throws IOException {
     // Writer manager with a maximum file size of 100 bytes
-    RecordWriterManager writerManager = new RecordWriterManager(catalog, "test_file_name", 100, 2);
+    RecordWriterManager writerManager =
+        new RecordWriterManager(catalog, "test_file_name", 100, 2, tableCache);
     assertEquals(0, writerManager.openWriters);
     boolean writeSuccess;
 
@@ -332,7 +338,8 @@ public class RecordWriterManagerTest {
 
   @Test
   public void testRequireClosingBeforeFetchingDataFiles() {
-    RecordWriterManager writerManager = new RecordWriterManager(catalog, "test_file_name", 100, 2);
+    RecordWriterManager writerManager =
+        new RecordWriterManager(catalog, "test_file_name", 100, 2, tableCache);
     Row row = Row.withSchema(BEAM_SCHEMA).addValues(1, "aaa", true).build();
     writerManager.write(windowedDestination, row);
     assertEquals(1, writerManager.openWriters);
@@ -447,7 +454,8 @@ public class RecordWriterManagerTest {
 
     // write some rows
     RecordWriterManager writer =
-        new RecordWriterManager(catalog, "test_prefix", Long.MAX_VALUE, Integer.MAX_VALUE);
+        new RecordWriterManager(
+            catalog, "test_prefix", Long.MAX_VALUE, Integer.MAX_VALUE, tableCache);
     writer.write(windowedDestination, row);
     writer.write(windowedDestination, row2);
     writer.close();
@@ -465,20 +473,19 @@ public class RecordWriterManagerTest {
     assertThat(dataFile.path().toString(), containsString("bool=true"));
 
     // table is cached
-    assertEquals(1, RecordWriterManager.LAST_REFRESHED_TABLE_CACHE.size());
+    assertEquals(1, tableCache.size());
 
     // update spec
     table.updateSpec().addField("id").removeField("bool").commit();
     // Make the cached table stale to force reloading its metadata.
-    RecordWriterManager.LAST_REFRESHED_TABLE_CACHE.getIfPresent(
-                windowedDestination.getValue().getTableIdentifier())
-            .lastRefreshTime =
+    tableCache.getIfPresent(windowedDestination.getValue().getTableIdentifier()).lastRefreshTime =
         Instant.EPOCH;
 
     // write a second data file
     // should refresh the table and use the new partition spec
     RecordWriterManager writer2 =
-        new RecordWriterManager(catalog, "test_prefix_2", Long.MAX_VALUE, Integer.MAX_VALUE);
+        new RecordWriterManager(
+            catalog, "test_prefix_2", Long.MAX_VALUE, Integer.MAX_VALUE, tableCache);
     writer2.write(windowedDestination, row);
     writer2.write(windowedDestination, row2);
     writer2.close();
@@ -546,7 +553,8 @@ public class RecordWriterManagerTest {
         getWindowedDestination("identity_partitioning", icebergSchema, spec);
 
     RecordWriterManager writer =
-        new RecordWriterManager(catalog, "test_prefix", Long.MAX_VALUE, Integer.MAX_VALUE);
+        new RecordWriterManager(
+            catalog, "test_prefix", Long.MAX_VALUE, Integer.MAX_VALUE, tableCache);
     writer.write(dest, row);
     writer.close();
     List<SerializableDataFile> files = writer.getSerializableDataFiles().get(dest);
@@ -632,7 +640,8 @@ public class RecordWriterManagerTest {
         getWindowedDestination("bucket_partitioning", icebergSchema, spec);
 
     RecordWriterManager writer =
-        new RecordWriterManager(catalog, "test_prefix", Long.MAX_VALUE, Integer.MAX_VALUE);
+        new RecordWriterManager(
+            catalog, "test_prefix", Long.MAX_VALUE, Integer.MAX_VALUE, tableCache);
     writer.write(dest, row);
     writer.close();
     List<SerializableDataFile> files = writer.getSerializableDataFiles().get(dest);
@@ -698,7 +707,8 @@ public class RecordWriterManagerTest {
 
     // write some rows
     RecordWriterManager writer =
-        new RecordWriterManager(catalog, "test_prefix", Long.MAX_VALUE, Integer.MAX_VALUE);
+        new RecordWriterManager(
+            catalog, "test_prefix", Long.MAX_VALUE, Integer.MAX_VALUE, tableCache);
     writer.write(dest, row);
     writer.close();
     List<SerializableDataFile> files = writer.getSerializableDataFiles().get(dest);
@@ -739,7 +749,8 @@ public class RecordWriterManagerTest {
 
   @Test
   public void testWriterExceptionGetsCaught() throws IOException {
-    RecordWriterManager writerManager = new RecordWriterManager(catalog, "test_file_name", 100, 2);
+    RecordWriterManager writerManager =
+        new RecordWriterManager(catalog, "test_file_name", 100, 2, tableCache);
     Row row = Row.withSchema(BEAM_SCHEMA).addValues(1, "abcdef", true).build();
     PartitionKey partitionKey = new PartitionKey(PARTITION_SPEC, ICEBERG_SCHEMA);
     partitionKey.partition(IcebergUtils.beamRowToIcebergRecord(ICEBERG_SCHEMA, row));
@@ -811,7 +822,8 @@ public class RecordWriterManagerTest {
     WindowedValue<IcebergDestination> singleDestination =
         WindowedValues.valueInGlobalWindow(destination);
 
-    RecordWriterManager writerManager = new RecordWriterManager(catalog, "test_file_name", 1000, 3);
+    RecordWriterManager writerManager =
+        new RecordWriterManager(catalog, "test_file_name", 1000, 3, tableCache);
     Row row1 = Row.withSchema(BEAM_SCHEMA).addValues(1, "aaa", true).build();
     Row row2 = Row.withSchema(BEAM_SCHEMA).addValues(2, "bbb", false).build();
     Row row3 = Row.withSchema(BEAM_SCHEMA).addValues(3, "ccc", true).build();
@@ -873,7 +885,8 @@ public class RecordWriterManagerTest {
     WindowedValue<IcebergDestination> singleDestination =
         WindowedValues.valueInGlobalWindow(destination);
 
-    RecordWriterManager writerManager = new RecordWriterManager(catalog, "test_file_name", 1000, 3);
+    RecordWriterManager writerManager =
+        new RecordWriterManager(catalog, "test_file_name", 1000, 3, tableCache);
     Row row1 = Row.withSchema(BEAM_SCHEMA).addValues(1, "aaa", true).build();
     Row row2 = Row.withSchema(BEAM_SCHEMA).addValues(2, "bbb", false).build();
     Row row3 = Row.withSchema(BEAM_SCHEMA).addValues(3, "ccc", true).build();
@@ -1067,7 +1080,7 @@ public class RecordWriterManagerTest {
     WindowedValue<IcebergDestination> dest2 = getWindowedDestination(tableName2, null);
 
     RecordWriterManager writerManager =
-        new RecordWriterManager(spyCatalog, "test_file_name", 1000, 3);
+        new RecordWriterManager(spyCatalog, "test_file_name", 1000, 3, tableCache);
 
     Row row = Row.withSchema(BEAM_SCHEMA).addValues(1, "aaa", true).build();
     assertTrue(writerManager.write(dest1, row));
@@ -1180,7 +1193,8 @@ public class RecordWriterManagerTest {
     Row row = Row.withSchema(BEAM_SCHEMA).addValues(1, "aaa", true).build();
 
     // Bundle 1: write and close
-    RecordWriterManager bundle1 = new RecordWriterManager(spyCatalog, "file_b1", 1000, 3);
+    RecordWriterManager bundle1 =
+        new RecordWriterManager(spyCatalog, "file_b1", 1000, 3, tableCache);
     assertTrue(bundle1.write(dest, row));
     bundle1.close();
     assertFalse("FileIO must survive after bundle 1 close", sharedIO.closed);
@@ -1188,7 +1202,8 @@ public class RecordWriterManagerTest {
         "Bundle 1 should produce data files", bundle1.getSerializableDataFiles().containsKey(dest));
 
     // Bundle 2: write and close using the same catalog (simulates DoFn reuse)
-    RecordWriterManager bundle2 = new RecordWriterManager(spyCatalog, "file_b2", 1000, 3);
+    RecordWriterManager bundle2 =
+        new RecordWriterManager(spyCatalog, "file_b2", 1000, 3, tableCache);
     assertTrue(bundle2.write(dest, row));
     bundle2.close();
     assertFalse("FileIO must survive after bundle 2 close", sharedIO.closed);
@@ -1215,16 +1230,13 @@ public class RecordWriterManagerTest {
     Schema beamSchema = null;
 
     // Instantiate a RecordWriterManager with a dummy catalog.
-    RecordWriterManager writer = new RecordWriterManager(null, "p", 1L, 1);
-
-    // Clean up cache before test
-    RecordWriterManager.LAST_REFRESHED_TABLE_CACHE.invalidateAll();
+    RecordWriterManager writer = new RecordWriterManager(null, "p", 1L, 1, tableCache);
 
     // --- 1. Test the fast path (entry is not stale) ---
     Instant freshTimestamp = Instant.now().minus(Duration.ofMinutes(1));
     RecordWriterManager.LastRefreshedTable freshEntry =
         new RecordWriterManager.LastRefreshedTable(mockTable, freshTimestamp);
-    RecordWriterManager.LAST_REFRESHED_TABLE_CACHE.put(identifier, freshEntry);
+    tableCache.put(identifier, freshEntry);
 
     // Access the table
     writer.getOrCreateTable(destination, beamSchema);
@@ -1236,7 +1248,7 @@ public class RecordWriterManagerTest {
     Instant staleTimestamp = Instant.now().minus(Duration.ofMinutes(5));
     RecordWriterManager.LastRefreshedTable staleEntry =
         new RecordWriterManager.LastRefreshedTable(mockTable, staleTimestamp);
-    RecordWriterManager.LAST_REFRESHED_TABLE_CACHE.put(identifier, staleEntry);
+    tableCache.put(identifier, staleEntry);
 
     // Access the table again
     writer.getOrCreateTable(destination, beamSchema);
@@ -1281,13 +1293,15 @@ public class RecordWriterManagerTest {
     Row row = Row.withSchema(BEAM_SCHEMA).addValues(1, "aaa", true).build();
 
     // Bundle 1
-    RecordWriterManager bundle1 = new RecordWriterManager(spyCatalog, "file_lc1", 1000, 3);
+    RecordWriterManager bundle1 =
+        new RecordWriterManager(spyCatalog, "file_lc1", 1000, 3, tableCache);
     assertTrue(bundle1.write(dest, row));
     bundle1.close();
     assertFalse("FileIO must survive after bundle 1", sharedIO.closed);
 
     // Bundle 2
-    RecordWriterManager bundle2 = new RecordWriterManager(spyCatalog, "file_lc2", 1000, 3);
+    RecordWriterManager bundle2 =
+        new RecordWriterManager(spyCatalog, "file_lc2", 1000, 3, tableCache);
     assertTrue(bundle2.write(dest, row));
     bundle2.close();
     assertFalse("FileIO must survive after bundle 2", sharedIO.closed);
@@ -1296,5 +1310,95 @@ public class RecordWriterManagerTest {
     ((Closeable) spyCatalog).close();
     verify((Closeable) spyCatalog, times(1)).close();
     assertTrue("FileIO should be closed after catalog.close()", sharedIO.closed);
+  }
+
+  /**
+   * Verifies that two DoFn instances with separate table caches don't see each other's entries.
+   */
+  @Test
+  public void testPerDoFnCacheIsolation() throws IOException {
+    String tableName =
+        "table_isolation_" + UUID.randomUUID().toString().replace("-", "").substring(0, 6);
+    TableIdentifier tableId = TableIdentifier.of("default", tableName);
+    warehouse.createTable(tableId, ICEBERG_SCHEMA);
+
+    WindowedValue<IcebergDestination> dest = getWindowedDestination(tableName, null);
+    Row row = Row.withSchema(BEAM_SCHEMA).addValues(1, "aaa", true).build();
+
+    // Simulate two DoFn instances, each with their own cache
+    Cache<TableIdentifier, RecordWriterManager.LastRefreshedTable> doFn1Cache =
+        RecordWriterManager.createTableCache();
+    Cache<TableIdentifier, RecordWriterManager.LastRefreshedTable> doFn2Cache =
+        RecordWriterManager.createTableCache();
+
+    // DoFn instance 1 writes — populates its cache
+    RecordWriterManager bundle1 =
+        new RecordWriterManager(catalog, "file_dofn1", 1000, 3, doFn1Cache);
+    assertTrue(bundle1.write(dest, row));
+    bundle1.close();
+    assertEquals("DoFn 1 cache should have one entry", 1, doFn1Cache.size());
+    assertEquals("DoFn 2 cache should be empty", 0, doFn2Cache.size());
+
+    // DoFn instance 2 writes — populates its own cache independently
+    RecordWriterManager bundle2 =
+        new RecordWriterManager(catalog, "file_dofn2", 1000, 3, doFn2Cache);
+    assertTrue(bundle2.write(dest, row));
+    bundle2.close();
+    assertEquals("DoFn 1 cache should still have one entry", 1, doFn1Cache.size());
+    assertEquals("DoFn 2 cache should have one entry", 1, doFn2Cache.size());
+  }
+
+  /**
+   * Verifies that closing one DoFn's catalog doesn't poison another DoFn's table cache. Previously,
+   * a closed catalog's dead Table objects could be returned to other DoFn instances
+   * via the shared static cache.
+   */
+  @Test
+  public void testClosedCatalogDoesNotPoisonOtherCache() throws IOException {
+    String tableName =
+        "table_poison_" + UUID.randomUUID().toString().replace("-", "").substring(0, 6);
+    TableIdentifier tableId = TableIdentifier.of("default", tableName);
+
+    Table realTable = warehouse.createTable(tableId, ICEBERG_SCHEMA);
+
+    // Create two separate "catalogs" with their own FileIO tracking
+    CloseTrackingFileIO doFn1IO = new CloseTrackingFileIO(realTable.io());
+    Table spyTable1 = Mockito.spy(realTable);
+    Mockito.doReturn(doFn1IO).when(spyTable1).io();
+    Catalog spyCatalog1 = Mockito.spy(catalog);
+    Mockito.doReturn(spyTable1).when(spyCatalog1).loadTable(tableId);
+
+    CloseTrackingFileIO doFn2IO = new CloseTrackingFileIO(realTable.io());
+    Table spyTable2 = Mockito.spy(realTable);
+    Mockito.doReturn(doFn2IO).when(spyTable2).io();
+    Catalog spyCatalog2 = Mockito.spy(catalog);
+    Mockito.doReturn(spyTable2).when(spyCatalog2).loadTable(tableId);
+
+    Cache<TableIdentifier, RecordWriterManager.LastRefreshedTable> doFn1Cache =
+        RecordWriterManager.createTableCache();
+    Cache<TableIdentifier, RecordWriterManager.LastRefreshedTable> doFn2Cache =
+        RecordWriterManager.createTableCache();
+
+    WindowedValue<IcebergDestination> dest = getWindowedDestination(tableName, null);
+    Row row = Row.withSchema(BEAM_SCHEMA).addValues(1, "aaa", true).build();
+
+    // DoFn instance 1 writes, then closes its catalog (simulating @Teardown)
+    RecordWriterManager bundle1 =
+        new RecordWriterManager(spyCatalog1, "file_dofn1", 1000, 3, doFn1Cache);
+    assertTrue(bundle1.write(dest, row));
+    bundle1.close();
+    doFn1IO.close(); // simulate catalog close killing FileIO
+
+    assertTrue("DoFn 1 FileIO should be closed", doFn1IO.closed);
+    assertFalse("DoFn 2 FileIO should still be alive", doFn2IO.closed);
+
+    // DoFn instance 2 writes — should get its own live Table, not the dead one from doFn1Cache
+    RecordWriterManager bundle2 =
+        new RecordWriterManager(spyCatalog2, "file_dofn2", 1000, 3, doFn2Cache);
+    assertTrue(bundle2.write(dest, row));
+    bundle2.close();
+    assertFalse("DoFn 2 FileIO must still be alive after write", doFn2IO.closed);
+    assertTrue(
+        "DoFn 2 should produce data files", bundle2.getSerializableDataFiles().containsKey(dest));
   }
 }

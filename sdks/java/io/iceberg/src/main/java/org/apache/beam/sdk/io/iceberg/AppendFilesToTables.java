@@ -17,6 +17,8 @@
  */
 package org.apache.beam.sdk.io.iceberg;
 
+import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
+
 import java.io.Closeable;
 import java.io.IOException;
 import java.util.ArrayList;
@@ -105,11 +107,9 @@ class AppendFilesToTables
       this.manifestFilePrefix = manifestFilePrefix;
     }
 
-    private Catalog getCatalog() {
-      if (catalog == null) {
-        catalog = catalogConfig.catalog();
-      }
-      return catalog;
+    @Setup
+    public void setup() {
+      this.catalog = catalogConfig.newCatalog();
     }
 
     private boolean containsMultiplePartitionSpecs(Iterable<FileWriteResult> fileWriteResults) {
@@ -129,7 +129,7 @@ class AppendFilesToTables
         BoundedWindow window)
         throws IOException {
       String tableStringIdentifier = element.getKey();
-      Table table = getCatalog().loadTable(TableIdentifier.parse(element.getKey()));
+      Table table = checkStateNotNull(catalog).loadTable(TableIdentifier.parse(element.getKey()));
       Iterable<FileWriteResult> fileWriteResults = element.getValue();
       if (shouldSkip(table, fileWriteResults)) {
         return;
