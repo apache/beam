@@ -1212,7 +1212,7 @@ class WriteImpl(ptransform.PTransform):
             AsSingleton(init_result_coll),
             AsIter(write_result_coll),
             min_shards,
-            AsSingleton(pre_finalize_coll)).with_output_types(str))
+            AsSingleton(pre_finalize_coll)))
 
   def _apply_windowing(self, pcoll):
     """
