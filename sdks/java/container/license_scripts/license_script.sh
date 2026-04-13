@@ -39,12 +39,12 @@ echo "Copying already-fetched licenses from ${EXISTING_LICENSE_DIR} to ${DOWNLOA
 if [ -d "$DOWNLOAD_DIR" ]; then rm -rf "$DOWNLOAD_DIR" ; fi
 mkdir -p "$DOWNLOAD_DIR"
 cp -r "${EXISTING_LICENSE_DIR}"/*.jar "${DOWNLOAD_DIR}"
-python -m venv --clear ${ENV_DIR}  --without-pip --system-site-packages
+${PYTHON} -m venv --clear ${ENV_DIR}  --without-pip --system-site-packages
 . ${ENV_DIR}/bin/activate
-python -m pip install --retries 10 --upgrade pip setuptools wheel
+${PYTHON} -m pip install --retries 10 --upgrade pip setuptools wheel
 
 # install packages
-python -m pip install --retries 10 -r ${SCRIPT_DIR}/requirement.txt
+${PYTHON} -m pip install --retries 10 -r ${SCRIPT_DIR}/requirement.txt
 
 # pull licenses, notices and source code
 FLAGS="--license_index=${INDEX_FILE} \
@@ -53,8 +53,8 @@ FLAGS="--license_index=${INDEX_FILE} \
        --manual_license_path=${SCRIPT_DIR}/manual_licenses \
        --use_license_cache"
 
-echo "Executing python ${SCRIPT_DIR}/pull_licenses_java.py $FLAGS"
-python "${SCRIPT_DIR}/pull_licenses_java.py" $FLAGS
+echo "Executing ${PYTHON} ${SCRIPT_DIR}/pull_licenses_java.py $FLAGS"
+${PYTHON} "${SCRIPT_DIR}/pull_licenses_java.py" $FLAGS
 
 # If this script is running, it is assumed that outputs are out of date and should be cleared and rewritten
 if [ -d "$DEST_DIR" ]; then rm -rf "$DEST_DIR"; fi
