@@ -623,7 +623,8 @@ class UtilTest(unittest.TestCase):
                                 '2.0.0',
                                 FAKE_PIPELINE_URL)
     self.assertEqual(env.proto.workerPools[0].diskProvisionedIops, 4000)
-    self.assertEqual(env.proto.workerPools[0].diskProvisionedThroughputMibps, 200)
+    self.assertEqual(
+        env.proto.workerPools[0].diskProvisionedThroughputMibps, 200)
 
   @mock.patch(
       'apache_beam.runners.dataflow.internal.apiclient.'
