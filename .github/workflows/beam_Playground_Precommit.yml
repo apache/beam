@@ -36,7 +36,7 @@ jobs:
       github.event_name == 'pull_request_target' ||
       github.event.comment.body == 'Run Playground PreCommit'
     name: ${{ matrix.job_name }} (${{ matrix.job_phrase }})
-    runs-on: [self-hosted, ubuntu-20.04, main]
+    runs-on: [self-hosted, ubuntu-24.04, main]
     strategy:
       fail-fast: false
       matrix:
@@ -75,7 +75,7 @@ jobs:
           sudo apt-get install sbt --yes
           sudo wget https://codeload.github.com/spotify/scio.g8/zip/7c1ba7c1651dfd70976028842e721da4107c0d6d -O scio.g8.zip && unzip scio.g8.zip && sudo mv scio.g8-7c1ba7c1651dfd70976028842e721da4107c0d6d /opt/scio.g8
       - name: Set up Cloud SDK and its components
-        uses: google-github-actions/setup-gcloud@v3
+        uses: google-github-actions/setup-gcloud@aa5489c8933f4cc7a4f7d45035b3b1440c9c10db
         with:
           install_components: 'beta,cloud-datastore-emulator'
           version: '${{ env.DATASTORE_EMULATOR_VERSION }}'

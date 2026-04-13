@@ -43,6 +43,7 @@ import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
 import org.apache.beam.sdk.transforms.windowing.IntervalWindow.IntervalWindowCoder;
 import org.apache.beam.sdk.util.ByteStringOutputStream;
+import org.apache.beam.sdk.values.CausedByDrain;
 import org.apache.beam.vendor.grpc.v1p69p0.com.google.protobuf.ByteString;
 import org.joda.time.Instant;
 
@@ -286,7 +287,8 @@ public class WindmillTagEncodingV2 extends WindmillTagEncoding {
               stateNamespace,
               timestamp,
               outputTimestamp,
-              timerTypeToTimeDomain(timer.getType())));
+              timerTypeToTimeDomain(timer.getType()),
+              draining ? CausedByDrain.CAUSED_BY_DRAIN : CausedByDrain.NORMAL));
 
     } catch (IOException e) {
       throw new RuntimeException(e);
@@ -294,7 +296,7 @@ public class WindmillTagEncodingV2 extends WindmillTagEncoding {
     // todo add draining (https://github.com/apache/beam/issues/36884)
   }
 
-  /** @return the singleton WindmillStateTagUtil */
+  /** Returns the singleton WindmillStateTagUtil. */
   public static WindmillTagEncodingV2 instance() {
     return INSTANCE;
   }

@@ -29,9 +29,9 @@ import java.lang.annotation.Target;
 @Target(ElementType.TYPE)
 public @interface Basic {
 
-  /** @return the state complexity */
+  /** Returns the state complexity. */
   StateComplexity state();
 
-  /** @return number of global repartition operations */
+  /** Returns number of global repartition operations. */
   int repartitions();
 }

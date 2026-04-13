@@ -64,7 +64,7 @@ public class CountExample {
 
     @ProcessElement
     public void processElement(ProcessContext c) throws Exception {
-      LOG.info(prefix + c.element());
+      LOG.info("{}{}", prefix, c.element());
       c.output(c.element());
     }
   }

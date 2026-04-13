@@ -31,8 +31,6 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import java.io.IOException;
-import java.io.InputStream;
 import java.util.concurrent.TimeUnit;
 import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.CallOptions;
 import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.ClientCall;
@@ -40,7 +38,6 @@ import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.ClientCall.Listener;
 import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.ManagedChannel;
 import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.Metadata;
 import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.MethodDescriptor;
-import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.MethodDescriptor.Marshaller;
 import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.Status;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Supplier;
 import org.junit.Test;
@@ -49,65 +46,17 @@ import org.junit.runners.JUnit4;
 import org.mockito.ArgumentCaptor;
 import org.mockito.InOrder;
 
-/**
- * {@link NoopClientCall} is a class that is designed for use in tests. It is designed to be used in
- * places where a scriptable call is necessary. By default, all methods are noops, and designed to
- * be overridden.
- */
-class NoopClientCall<ReqT, RespT> extends ClientCall<ReqT, RespT> {
-
-  /**
-   * {@link NoopClientCall.NoopClientCallListener} is a class that is designed for use in tests. It
-   * is designed to be used in places where a scriptable call listener is necessary. By default, all
-   * methods are noops, and designed to be overridden.
-   */
-  public static class NoopClientCallListener<T> extends ClientCall.Listener<T> {}
-
-  @Override
-  public void start(ClientCall.Listener<RespT> listener, Metadata headers) {}
-
-  @Override
-  public void request(int numMessages) {}
-
-  @Override
-  public void cancel(String message, Throwable cause) {}
-
-  @Override
-  public void halfClose() {}
-
-  @Override
-  public void sendMessage(ReqT message) {}
-}
-
 @RunWith(JUnit4.class)
 public class IsolationChannelTest {
 
   private Supplier<ManagedChannel> channelSupplier = mock(Supplier.class);
 
-  private static class NoopMarshaller implements Marshaller<Object> {
-
-    @Override
-    public InputStream stream(Object o) {
-      return new InputStream() {
-        @Override
-        public int read() throws IOException {
-          return 0;
-        }
-      };
-    }
-
-    @Override
-    public Object parse(InputStream inputStream) {
-      return null;
-    }
-  };
-
   private MethodDescriptor<Object, Object> methodDescriptor =
       MethodDescriptor.newBuilder()
           .setType(MethodDescriptor.MethodType.UNARY)
           .setFullMethodName(MethodDescriptor.generateFullMethodName("test", "test"))
-          .setRequestMarshaller(new NoopMarshaller())
-          .setResponseMarshaller(new NoopMarshaller())
+          .setRequestMarshaller(new NoopClientCall.NoopMarshaller())
+          .setResponseMarshaller(new NoopClientCall.NoopMarshaller())
           .build();
 
   @Test
@@ -414,19 +363,18 @@ public class IsolationChannelTest {
 
     when(mockChannel.shutdown()).thenReturn(mockChannel);
     when(mockChannel.isTerminated()).thenReturn(false, false, false, true, true);
-    when(mockChannel.awaitTermination(longThat(l -> l < 2_000_000), eq(TimeUnit.NANOSECONDS)))
+    when(mockChannel.awaitTermination(longThat(l -> l > 0), eq(TimeUnit.NANOSECONDS)))
         .thenReturn(false, true);
 
     isolationChannel.shutdown();
-    assertFalse(isolationChannel.awaitTermination(1, TimeUnit.MILLISECONDS));
-    assertTrue(isolationChannel.awaitTermination(1, TimeUnit.MILLISECONDS));
+    assertFalse(isolationChannel.awaitTermination(10, TimeUnit.SECONDS));
+    assertTrue(isolationChannel.awaitTermination(10, TimeUnit.SECONDS));
 
     assertTrue(isolationChannel.isTerminated());
 
     verify(channelSupplier, times(1)).get();
     verify(mockChannel, times(1)).shutdown();
     verify(mockChannel, times(5)).isTerminated();
-    verify(mockChannel, times(2))
-        .awaitTermination(longThat(l -> l < 2_000_000), eq(TimeUnit.NANOSECONDS));
+    verify(mockChannel, times(2)).awaitTermination(longThat(l -> l > 0), eq(TimeUnit.NANOSECONDS));
   }
 }

@@ -158,3 +158,29 @@ task wordCount(type:JavaExec) {
   systemProperties = System.getProperties()
   args = ["--output=/tmp/output.txt"]
 }
+
+// Run any example by using class name
+// this task defines class path based on the runner argument
+task exec (type:JavaExec) {
+    mainClass = System.getProperty("mainClass")
+    def execArgs = System.getProperty("exec.args")
+    String runner
+    if (execArgs) {
+        def runnerPattern = /runner[ =]([A-Za-z]+)/
+        def matcher = execArgs =~ runnerPattern
+        if (matcher) {
+            runner = matcher[0][1]
+            runner = runner.substring(0, 1).toLowerCase() + runner.substring(1);
+            if (!(runner in (preCommitRunners + nonPreCommitRunners))) {
+                throw new GradleException("Unsupported runner: " + runner)
+            }
+        }
+    }
+    if (runner) {
+        classpath = sourceSets.main.runtimeClasspath + configurations."${runner}PreCommit"
+    } else {
+        classpath = sourceSets.main.runtimeClasspath
+    }
+    systemProperties System.getProperties()
+    args execArgs ? execArgs.split() : []
+}

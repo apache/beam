@@ -19,8 +19,8 @@ package org.apache.beam.sdk.io.gcp.testing;
 
 import static org.junit.Assert.assertEquals;
 
-import com.google.api.client.googleapis.json.GoogleJsonResponseException;
 import com.google.api.client.http.HttpHeaders;
+import com.google.api.client.http.HttpResponseException;
 import com.google.api.core.ApiFuture;
 import com.google.api.core.ApiFutures;
 import com.google.api.gax.grpc.GrpcStatusCode;
@@ -40,7 +40,6 @@ import com.google.cloud.bigquery.storage.v1.FinalizeWriteStreamResponse;
 import com.google.cloud.bigquery.storage.v1.FlushRowsResponse;
 import com.google.cloud.bigquery.storage.v1.ProtoRows;
 import com.google.cloud.bigquery.storage.v1.WriteStream;
-import com.google.cloud.bigquery.storage.v1.WriteStream.Type;
 import com.google.errorprone.annotations.FormatMethod;
 import com.google.errorprone.annotations.FormatString;
 import com.google.protobuf.ByteString;
@@ -120,13 +119,13 @@ public class FakeDatasetService implements DatasetService, WriteStreamService, S
     final String streamName;
     final List<Entry> stream;
     final TableContainer tableContainer;
-    final Type type;
+    final WriteStream.Type type;
     long nextFlushPosition;
     boolean finalized;
     TableSchema currentSchema;
     @Nullable TableSchema updatedSchema = null;
 
-    Stream(String streamName, TableContainer tableContainer, Type type) {
+    Stream(String streamName, TableContainer tableContainer, WriteStream.Type type) {
       this.streamName = streamName;
       this.stream = Lists.newArrayList();
       this.tableContainer = tableContainer;
@@ -171,13 +170,13 @@ public class FakeDatasetService implements DatasetService, WriteStreamService, S
                 + stream.size());
       }
       stream.addAll(rowsToAppend);
-      if (type == Type.COMMITTED) {
+      if (type == WriteStream.Type.COMMITTED) {
         rowsToAppend.forEach(this::applyEntry);
       }
     }
 
     void flush(long position) {
-      Preconditions.checkState(type == Type.BUFFERED);
+      Preconditions.checkState(type == WriteStream.Type.BUFFERED);
       Preconditions.checkState(!finalized);
       if (position >= stream.size()) {
         throw new RuntimeException("");
@@ -204,7 +203,7 @@ public class FakeDatasetService implements DatasetService, WriteStreamService, S
       if (!finalized) {
         throw new RuntimeException("Can't commit unfinalized stream.");
       }
-      Preconditions.checkState(type == Type.PENDING);
+      Preconditions.checkState(type == WriteStream.Type.PENDING);
       stream.forEach(this::applyEntry);
     }
   }
@@ -356,7 +355,8 @@ public class FakeDatasetService implements DatasetService, WriteStreamService, S
                     tableReference.getProjectId(),
                     tableReference.getDatasetId(),
                     BigQueryHelpers.stripPartitionDecorator(tableReference.getTableId()));
-            writeStreams.put(streamName, new Stream(streamName, tableContainer, Type.COMMITTED));
+            writeStreams.put(
+                streamName, new Stream(streamName, tableContainer, WriteStream.Type.COMMITTED));
 
             return tableContainer;
           });
@@ -566,7 +566,8 @@ public class FakeDatasetService implements DatasetService, WriteStreamService, S
   }
 
   @Override
-  public WriteStream createWriteStream(String tableUrn, Type type) throws InterruptedException {
+  public WriteStream createWriteStream(String tableUrn, WriteStream.Type type)
+      throws InterruptedException {
     try {
       TableReference tableReference =
           BigQueryHelpers.parseTableUrn(BigQueryHelpers.stripPartitionDecorator(tableUrn));
@@ -702,7 +703,7 @@ public class FakeDatasetService implements DatasetService, WriteStreamService, S
             if (this.updatedSchema == null) {
               this.updatedSchema = newSchema;
               this.schemaInformation =
-                  TableRowToStorageApiProto.SchemaInformation.fromTableSchema((this.updatedSchema));
+                  TableRowToStorageApiProto.SchemaInformation.fromTableSchema(this.updatedSchema);
             }
           }
         }
@@ -810,7 +811,7 @@ public class FakeDatasetService implements DatasetService, WriteStreamService, S
   void throwNotFound(@FormatString String format, Object... args) throws IOException {
     throw new IOException(
         String.format(format, args),
-        new GoogleJsonResponseException.Builder(404, String.format(format, args), new HttpHeaders())
+        new HttpResponseException.Builder(404, String.format(format, args), new HttpHeaders())
             .build());
   }
 }

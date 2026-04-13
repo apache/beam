@@ -123,11 +123,17 @@ pip install build && python -m build --sdist
 ./gradlew :sdks:python:bdistPy311linux  # For Python 3.11 on Linux
 ```
 
-### Build SDK Container
+### Build and Push SDK Container Image
 ```bash
-./gradlew :sdks:python:container:py39:docker \
-  -Pdocker-repository-root=gcr.io/your-project -Pdocker-tag=custom
+./gradlew :sdks:python:container:py311:docker \
+  -Pdocker-repository-root=gcr.io/your-project/your-name \
+  -Pdocker-tag=custom \
+  -Ppush-containers
+
+# Container image will be pushed to: gcr.io/your-project/your-name/beam_python3.11_sdk:custom
 ```
+
+To use this container image, supply it via `--sdk_container_image`.
 
 ## Running Pipelines with Modified Code
 

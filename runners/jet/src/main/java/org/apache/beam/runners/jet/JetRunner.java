@@ -143,7 +143,7 @@ public class JetRunner extends PipelineRunner<PipelineResult> {
       for (int i = 0; i < noOfLocalMembers; i++) {
         jetInstances.add(Jet.newJetInstance());
       }
-      LOG.info("Started " + jetInstances.size() + " Jet cluster members");
+      LOG.info("Started {} Jet cluster members", jetInstances.size());
     }
   }
 

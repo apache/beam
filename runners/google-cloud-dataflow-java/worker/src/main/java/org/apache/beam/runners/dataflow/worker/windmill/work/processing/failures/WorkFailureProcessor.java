@@ -107,14 +107,20 @@ public final class WorkFailureProcessor {
       String computationId,
       ExecutableWork executableWork,
       Throwable t,
-      Consumer<Work> onInvalidWork) {
-    if (shouldRetryLocally(computationId, executableWork.work(), t)) {
-      // Try again after some delay and at the end of the queue to avoid a tight loop.
-      executeWithDelay(retryLocallyDelayMs, executableWork);
-    } else {
-      // Consider the item invalid. It will eventually be retried by Windmill if it still needs to
-      // be processed.
-      onInvalidWork.accept(executableWork.work());
+      Consumer<Work> onInvalidWork)
+      throws Throwable {
+    switch (evaluateRetry(computationId, executableWork.work(), t)) {
+      case DO_NOT_RETRY:
+        // Consider the item invalid. It will eventually be retried by Windmill if it still needs to
+        // be processed.
+        onInvalidWork.accept(executableWork.work());
+        break;
+      case RETRY_LOCALLY:
+        // Try again after some delay and at the end of the queue to avoid a tight loop.
+        executeWithDelay(retryLocallyDelayMs, executableWork);
+        break;
+      case RETHROW_THROWABLE:
+        throw t;
     }
   }
 
@@ -131,7 +137,13 @@ public final class WorkFailureProcessor {
         executableWork, executableWork.work().getSerializedWorkItemSize());
   }
 
-  private boolean shouldRetryLocally(String computationId, Work work, Throwable t) {
+  private enum RetryEvaluation {
+    DO_NOT_RETRY,
+    RETRY_LOCALLY,
+    RETHROW_THROWABLE,
+  }
+
+  private RetryEvaluation evaluateRetry(String computationId, Work work, Throwable t) {
     @Nullable final Throwable cause = t.getCause();
     Throwable parsedException = (t instanceof UserCodeException && cause != null) ? cause : t;
     if (KeyTokenInvalidException.isKeyTokenInvalidException(parsedException)) {
@@ -140,53 +152,59 @@ public final class WorkFailureProcessor {
               + "Work will not be retried locally.",
           computationId,
           work.getWorkItem().getShardingKey());
-    } else if (WorkItemCancelledException.isWorkItemCancelledException(parsedException)) {
+      return RetryEvaluation.DO_NOT_RETRY;
+    }
+    if (WorkItemCancelledException.isWorkItemCancelledException(parsedException)) {
       LOG.debug(
           "Execution of work for computation '{}' on sharding key '{}' failed. "
               + "Work will not be retried locally.",
           computationId,
           work.getWorkItem().getShardingKey());
-    } else {
-      LastExceptionDataProvider.reportException(parsedException);
-      LOG.debug("Failed work: {}", work);
-      Duration elapsedTimeSinceStart = new Duration(work.getStartTime(), clock.get());
-      if (!failureTracker.trackFailure(computationId, work.getWorkItem(), parsedException)) {
-        LOG.error(
-            "Execution of work for computation '{}' on sharding key '{}' failed with uncaught exception, "
-                + "and Windmill indicated not to retry locally.",
-            computationId,
-            work.getWorkItem().getShardingKey(),
-            parsedException);
-      } else if (isOutOfMemoryError(parsedException)) {
-        String heapDump = tryToDumpHeap();
-        LOG.error(
-            "Execution of work for computation '{}' for sharding key '{}' failed with out-of-memory. "
-                + "Work will not be retried locally. Heap dump {}.",
-            computationId,
-            work.getWorkItem().getShardingKey(),
-            heapDump,
-            parsedException);
-      } else if (elapsedTimeSinceStart.isLongerThan(MAX_LOCAL_PROCESSING_RETRY_DURATION)) {
-        LOG.error(
-            "Execution of work for computation '{}' for sharding key '{}' failed with uncaught exception, "
-                + "and it will not be retried locally because the elapsed time since start {} "
-                + "exceeds {}.",
-            computationId,
-            work.getWorkItem().getShardingKey(),
-            elapsedTimeSinceStart,
-            MAX_LOCAL_PROCESSING_RETRY_DURATION,
-            parsedException);
-      } else {
-        LOG.error(
-            "Execution of work for computation '{}' on sharding key '{}' failed with uncaught exception. "
-                + "Work will be retried locally.",
-            computationId,
-            work.getWorkItem().getShardingKey(),
-            parsedException);
-        return true;
-      }
+      return RetryEvaluation.DO_NOT_RETRY;
     }
 
-    return false;
+    LastExceptionDataProvider.reportException(parsedException);
+    LOG.debug("Failed work: {}", work);
+    Duration elapsedTimeSinceStart = new Duration(work.getStartTime(), clock.get());
+    if (isOutOfMemoryError(parsedException)) {
+      String heapDump = tryToDumpHeap();
+      LOG.error(
+          "Execution of work for computation '{}' for sharding key '{}' failed with out-of-memory. "
+              + "Work will not be retried locally. Heap dump {}.",
+          computationId,
+          work.getWorkItem().getShardingKey(),
+          heapDump,
+          parsedException);
+      return RetryEvaluation.RETHROW_THROWABLE;
+    }
+
+    if (!failureTracker.trackFailure(computationId, work.getWorkItem(), parsedException)) {
+      LOG.error(
+          "Execution of work for computation '{}' on sharding key '{}' failed with uncaught exception, "
+              + "and Windmill indicated not to retry locally.",
+          computationId,
+          work.getWorkItem().getShardingKey(),
+          parsedException);
+      return RetryEvaluation.DO_NOT_RETRY;
+    }
+    if (elapsedTimeSinceStart.isLongerThan(MAX_LOCAL_PROCESSING_RETRY_DURATION)) {
+      LOG.error(
+          "Execution of work for computation '{}' for sharding key '{}' failed with uncaught exception, "
+              + "and it will not be retried locally because the elapsed time since start {} "
+              + "exceeds {}.",
+          computationId,
+          work.getWorkItem().getShardingKey(),
+          elapsedTimeSinceStart,
+          MAX_LOCAL_PROCESSING_RETRY_DURATION,
+          parsedException);
+      return RetryEvaluation.DO_NOT_RETRY;
+    }
+    LOG.error(
+        "Execution of work for computation '{}' on sharding key '{}' failed with uncaught exception. "
+            + "Work will be retried locally.",
+        computationId,
+        work.getWorkItem().getShardingKey(),
+        parsedException);
+    return RetryEvaluation.RETRY_LOCALLY;
   }
 }

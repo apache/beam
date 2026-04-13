@@ -267,7 +267,7 @@ public class ConcatReader<T> extends NativeReader<T> {
         return new DynamicSplitResultWithPosition(
             SourceTranslationUtils.cloudPositionToReaderPosition(positionToSplit));
       } else {
-        LOG.debug("Could not perform the dynamic split request " + splitRequest);
+        LOG.debug("Could not perform the dynamic split request {}", splitRequest);
         return null;
       }
     }

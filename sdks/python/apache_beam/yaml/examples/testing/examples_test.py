@@ -683,7 +683,8 @@ def _kafka_test_preprocessor(
     'test_wordCountInclude_yaml',
     'test_wordCountImport_yaml',
     'test_wordCountInheritance_yaml',
-    'test_iceberg_to_alloydb_yaml'
+    'test_iceberg_to_alloydb_yaml',
+    'test_bigquery_write_yaml'
 ])
 def _io_write_test_preprocessor(
     test_spec: dict, expected: List[str], env: TestEnvironment):

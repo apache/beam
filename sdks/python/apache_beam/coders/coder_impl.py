@@ -30,6 +30,7 @@ For internal use only; no backwards-compatibility guarantees.
 """
 # pytype: skip-file
 
+import dataclasses
 import decimal
 import enum
 import itertools
@@ -66,11 +67,6 @@ from apache_beam.utils.sharded_key import ShardedKey
 from apache_beam.utils.timestamp import MAX_TIMESTAMP
 from apache_beam.utils.timestamp import MIN_TIMESTAMP
 from apache_beam.utils.timestamp import Timestamp
-
-try:
-  import dataclasses
-except ImportError:
-  dataclasses = None  # type: ignore
 
 try:
   import dill
@@ -316,9 +312,6 @@ class ProtoCoderImpl(SimpleCoderImpl):
     proto_message.ParseFromString(encoded)  # This is in effect "ParsePartial".
     return proto_message
 
-  def estimate_size(self, value, nested=False):
-    return self._get_nested_size(value.ByteSize(), nested)
-
 
 class DeterministicProtoCoderImpl(ProtoCoderImpl):
   """For internal use only; no backwards-compatibility guarantees."""
@@ -337,9 +330,6 @@ class ProtoPlusCoderImpl(SimpleCoderImpl):
 
   def decode(self, value):
     return self.proto_plus_type.deserialize(value)
-
-  def estimate_size(self, value, nested=False):
-    return self._get_nested_size(type(value).pb(value).ByteSize(), nested)
 
 
 UNKNOWN_TYPE = 0xFF
@@ -503,7 +493,7 @@ class FastPrimitivesCoderImpl(StreamCoderImpl):
       stream.write_byte(PROTO_TYPE)
       self.encode_type(type(value), stream)
       stream.write(value.SerializePartialToString(deterministic=True), True)
-    elif dataclasses and dataclasses.is_dataclass(value):
+    elif dataclasses.is_dataclass(value):
       if not type(value).__dataclass_params__.frozen:
         raise TypeError(
             "Unable to deterministically encode non-frozen '%s' of type '%s' "

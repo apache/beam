@@ -588,7 +588,7 @@ public class HistogramData implements Serializable {
     }
 
     private int getBucketIndexNegativeScale(int value) {
-      return getBucketIndexZeroScale(value) >> (-getScale());
+      return getBucketIndexZeroScale(value) >> -getScale();
     }
 
     // This method is valid for all 'scale' values but we fallback to more efficient methods for

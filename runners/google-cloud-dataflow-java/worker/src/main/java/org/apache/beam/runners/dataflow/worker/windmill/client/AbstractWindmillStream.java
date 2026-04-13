@@ -58,10 +58,10 @@ import org.slf4j.Logger;
  * broken stream.
  *
  * <p>Subclasses should override {@link #newResponseHandler()} to implement a handler for physical
- * stream connection. {@link #onNewStream()} to perform any work that must be done when a new stream
- * is created, such as sending headers or retrying requests.
+ * stream connection. {@link #onFlushPending(boolean)} to perform any work that must be done when a
+ * new stream is created, such as sending headers or retrying requests.
  *
- * <p>{@link #trySend(RequestT)} and {@link #startStream()} should not be called when handling
+ * <p>{@link #trySend(Object)} and {@link #startStream()} should not be called when handling
  * responses; use {@link #executeSafely(Runnable)} instead.
  *
  * <p>Synchronization on this is used to synchronize the gRpc stream state and internal data
@@ -268,29 +268,36 @@ public abstract class AbstractWindmillStream<RequestT, ResponseT> implements Win
           debugMetrics.recordStart();
           streamHandler.streamDebugMetrics.recordStart();
           currentPhysicalStream = streamHandler;
-          currentPhysicalStreamForDebug.set(currentPhysicalStream);
-          requestObserver.reset(physicalStreamFactory.apply(new ResponseObserver(streamHandler)));
-          onFlushPending(true);
-          if (clientClosed) {
-            // The logical stream is half-closed so after flushing the remaining requests close the
-            // physical stream.
-            streamHandler.streamDebugMetrics.recordHalfClose();
-            requestObserver.onCompleted();
-          } else if (!halfClosePhysicalStreamAfter.isZero()) {
-            halfCloseFuture =
-                executor.schedule(
-                    () -> onHalfClosePhysicalStreamTimeout(streamHandler),
-                    halfClosePhysicalStreamAfter.getSeconds(),
-                    TimeUnit.SECONDS);
+          boolean resetCurrentPhysicalStream = true;
+          try {
+            currentPhysicalStreamForDebug.set(currentPhysicalStream);
+            requestObserver.reset(physicalStreamFactory.apply(new ResponseObserver(streamHandler)));
+            onFlushPending(true);
+            if (clientClosed) {
+              // The logical stream is half-closed so after flushing the remaining requests close
+              // the
+              // physical stream.
+              streamHandler.streamDebugMetrics.recordHalfClose();
+              requestObserver.onCompleted();
+            } else if (!halfClosePhysicalStreamAfter.isZero()) {
+              halfCloseFuture =
+                  executor.schedule(
+                      () -> onHalfClosePhysicalStreamTimeout(streamHandler),
+                      halfClosePhysicalStreamAfter.getSeconds(),
+                      TimeUnit.SECONDS);
+            }
+            resetCurrentPhysicalStream = false;
+          } finally {
+            if (resetCurrentPhysicalStream) {
+              clearCurrentPhysicalStream(true);
+            }
           }
           return;
         } catch (WindmillStreamShutdownException e) {
           logger.debug("Stream was shutdown while creating new stream.", e);
-          clearCurrentPhysicalStream(true);
           break;
         } catch (Exception e) {
           logger.error("Failed to create new stream, retrying: ", e);
-          clearCurrentPhysicalStream(true);
           debugMetrics.recordRestartReason("Failed to create new stream, retrying: " + e);
         }
       }
@@ -357,6 +364,8 @@ public abstract class AbstractWindmillStream<RequestT, ResponseT> implements Win
   protected abstract void sendHealthCheck() throws WindmillStreamShutdownException;
 
   /**
+   * Appends a summary of the stream to the given PrintWriter.
+   *
    * @implNote Care is taken that synchronization on this is unnecessary for all status page
    *     information. Blocking sends are made beneath this stream object's lock which could block
    *     status page rendering.
@@ -616,7 +625,7 @@ public abstract class AbstractWindmillStream<RequestT, ResponseT> implements Win
       String restartReason =
           "Stream completed successfully but did not complete requested operations, "
               + "recreating";
-      logger.warn(restartReason);
+      logger.warn("{}", restartReason);
       debugMetrics.recordRestartReason(restartReason);
     } else {
       int currentErrorCount = debugMetrics.incrementAndGetErrors();

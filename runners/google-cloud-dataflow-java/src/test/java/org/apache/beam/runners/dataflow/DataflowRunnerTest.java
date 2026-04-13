@@ -26,6 +26,7 @@ import static org.hamcrest.Matchers.endsWith;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.hasEntry;
 import static org.hamcrest.Matchers.hasItem;
+import static org.hamcrest.Matchers.hasItems;
 import static org.hamcrest.Matchers.hasKey;
 import static org.hamcrest.Matchers.hasProperty;
 import static org.hamcrest.Matchers.instanceOf;
@@ -1791,7 +1792,7 @@ public class DataflowRunnerTest implements Serializable {
       assertFalse(options.isEnableStreamingEngine());
       assertThat(
           options.getExperiments(),
-          containsInAnyOrder(
+          hasItems(
               "beam_fn_api", "use_runner_v2", "use_unified_worker", "use_portable_job_submission"));
     }
 
@@ -1807,7 +1808,7 @@ public class DataflowRunnerTest implements Serializable {
       assertTrue(options.isEnableStreamingEngine());
       assertThat(
           options.getExperiments(),
-          containsInAnyOrder(
+          hasItems(
               "beam_fn_api",
               "use_runner_v2",
               "use_unified_worker",

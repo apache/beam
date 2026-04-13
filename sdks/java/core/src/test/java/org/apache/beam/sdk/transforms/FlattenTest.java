@@ -19,9 +19,7 @@ package org.apache.beam.sdk.transforms;
 
 import static org.apache.beam.sdk.TestUtils.LINES;
 import static org.apache.beam.sdk.TestUtils.LINES2;
-import static org.apache.beam.sdk.TestUtils.LINES_ARRAY;
 import static org.apache.beam.sdk.TestUtils.NO_LINES;
-import static org.apache.beam.sdk.TestUtils.NO_LINES_ARRAY;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.not;
@@ -255,7 +253,7 @@ public class FlattenTest implements Serializable {
 
     PCollection<String> output = input.apply(Flatten.iterables());
 
-    PAssert.that(output).containsInAnyOrder(LINES_ARRAY);
+    PAssert.that(output).containsInAnyOrder(LINES.toArray(new String[0]));
 
     p.run();
   }
@@ -268,7 +266,7 @@ public class FlattenTest implements Serializable {
 
     PCollection<String> output = input.apply(Flatten.iterables());
 
-    PAssert.that(output).containsInAnyOrder(LINES_ARRAY);
+    PAssert.that(output).containsInAnyOrder(LINES.toArray(new String[0]));
 
     p.run();
   }
@@ -283,7 +281,7 @@ public class FlattenTest implements Serializable {
 
     PCollection<String> output = input.apply(Flatten.iterables());
 
-    PAssert.that(output).containsInAnyOrder(LINES_ARRAY);
+    PAssert.that(output).containsInAnyOrder(LINES.toArray(new String[0]));
 
     p.run();
   }
@@ -300,7 +298,7 @@ public class FlattenTest implements Serializable {
 
     PCollection<String> output = input.apply(Flatten.iterables());
 
-    PAssert.that(output).containsInAnyOrder(LINES_ARRAY);
+    PAssert.that(output).containsInAnyOrder(LINES.toArray(new String[0]));
 
     p.run();
   }
@@ -315,7 +313,7 @@ public class FlattenTest implements Serializable {
 
     PCollection<String> output = input.apply(Flatten.iterables());
 
-    PAssert.that(output).containsInAnyOrder(NO_LINES_ARRAY);
+    PAssert.that(output).containsInAnyOrder(NO_LINES.toArray(new String[0]));
 
     p.run();
   }

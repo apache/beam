@@ -146,7 +146,7 @@ public class BeamEnumerableConverterTest {
             ParDo.of(
                 new DoFn<Row, Void>() {
                   @ProcessElement
-                  public void processElement(ProcessContext context) {}
+                  public void processElement(@SuppressWarnings("unused") ProcessContext context) {}
                 }));
         return PDone.in(input.getPipeline());
       }

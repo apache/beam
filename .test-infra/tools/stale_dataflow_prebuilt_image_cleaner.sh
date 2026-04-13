@@ -73,11 +73,11 @@ for image_name in ${IMAGE_NAMES[@]}; do
     # list containers of the image name
     echo "Command" gcloud container images list-tags \
     ${image_name} \
-    --sort-by=TIMESTAMP  --filter="NOT tags:latest AND timestamp.datetime < $DELETE_BEFORE_DAY" \
+    --sort-by=TIMESTAMP  --filter="NOT tags:(latest,2.*.0) AND timestamp.datetime < $DELETE_BEFORE_DAY" \
     --format="get(digest,timestamp.year)"
     STALE_IMAGES=$(gcloud container images list-tags \
      ${image_name} \
-      --sort-by=TIMESTAMP  --filter="NOT tags:latest AND timestamp.datetime < $DELETE_BEFORE_DAY" \
+      --sort-by=TIMESTAMP  --filter="NOT tags:(latest,2.*.0) AND timestamp.datetime < $DELETE_BEFORE_DAY" \
       --format="get(digest,timestamp.year)")
 
     STALE_IMAGES_CURRENT=($STALE_IMAGES)

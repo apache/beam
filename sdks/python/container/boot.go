@@ -29,7 +29,6 @@ import (
 	"os/exec"
 	"os/signal"
 	"path/filepath"
-	"regexp"
 	"slices"
 	"strings"
 	"sync"
@@ -47,8 +46,6 @@ import (
 )
 
 var (
-	acceptableWhlSpecs []string
-
 	// SetupOnly option is used to invoke the boot sequence to only process the provided artifacts and builds new dependency pre-cached images.
 	setupOnly = flag.Bool("setup_only", false, "Execute boot program in setup only mode (optional).")
 	artifacts = flag.String("artifacts", "", "Path to artifacts metadata file used in setup only mode (optional).")
@@ -406,37 +403,15 @@ func setupVenv(ctx context.Context, logger *tools.Logger, baseDir, workerId stri
 	return dir, nil
 }
 
-// setupAcceptableWheelSpecs setup wheel specs according to installed python version
-func setupAcceptableWheelSpecs() error {
-	cmd := exec.Command("python", "-V")
-	stdoutStderr, err := cmd.CombinedOutput()
-	if err != nil {
-		return err
-	}
-	re := regexp.MustCompile(`Python (\d)\.(\d+).*`)
-	pyVersions := re.FindStringSubmatch(string(stdoutStderr[:]))
-	if len(pyVersions) != 3 {
-		return fmt.Errorf("cannot get parse Python version from %s", stdoutStderr)
-	}
-	pyVersion := fmt.Sprintf("%s%s", pyVersions[1], pyVersions[2])
-	wheelName := fmt.Sprintf("cp%s-cp%s-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", pyVersion, pyVersion)
-	acceptableWhlSpecs = append(acceptableWhlSpecs, wheelName)
-	return nil
-}
-
 // installSetupPackages installs Beam SDK and user dependencies.
 func installSetupPackages(ctx context.Context, logger *tools.Logger, files []string, workDir string, requirementsFiles []string) error {
 	bufLogger := tools.NewBufferedLogger(logger)
 	bufLogger.Printf(ctx, "Installing setup packages ...")
 
-	if err := setupAcceptableWheelSpecs(); err != nil {
-		bufLogger.Printf(ctx, "Failed to setup acceptable wheel specs, leave it as empty: %v", err)
-	}
-
 	// Install the Dataflow Python SDK if one was staged. In released
 	// container images, SDK is already installed, but can be overriden
 	// using the --sdk_location pipeline option.
-	if err := installSdk(ctx, logger, files, workDir, sdkSrcFile, acceptableWhlSpecs, false); err != nil {
+	if err := installSdk(ctx, logger, files, workDir, sdkSrcFile, false); err != nil {
 		return fmt.Errorf("failed to install SDK: %v", err)
 	}
 	pkgName := "apache-beam"

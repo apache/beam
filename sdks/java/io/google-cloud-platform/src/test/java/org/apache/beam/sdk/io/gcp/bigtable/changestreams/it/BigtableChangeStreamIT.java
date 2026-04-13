@@ -88,7 +88,7 @@ public class BigtableChangeStreamIT {
     appProfileId = "default";
 
     bigtableClientOverride = new BigtableClientIntegrationTestOverride();
-    LOG.info(bigtableClientOverride.toString());
+    LOG.info("{}", bigtableClientOverride);
 
     BigtableDataSettings.Builder dataSettingsBuilder = BigtableDataSettings.newBuilder();
     BigtableTableAdminSettings.Builder tableAdminSettingsBuilder =

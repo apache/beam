@@ -355,7 +355,7 @@ public class BigtableWriteSchemaTransformProvider
                             throw new RuntimeException(
                                 String.format(
                                     "Unexpected mutation type [%s]: Key value is %s",
-                                    ((input.getString("type"))),
+                                    input.getString("type"),
                                     Arrays.toString(input.getBytes("key"))));
                         }
                         return KV.of(key, bigtableMutation);

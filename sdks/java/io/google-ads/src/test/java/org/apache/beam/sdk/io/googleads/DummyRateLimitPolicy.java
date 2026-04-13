@@ -21,7 +21,7 @@ import com.google.ads.googleads.v23.errors.GoogleAdsError;
 import com.google.protobuf.Message;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
-public class DummyRateLimitPolicy implements GoogleAdsV23.RateLimitPolicy<GoogleAdsError> {
+public class DummyRateLimitPolicy implements GoogleAdsIO.RateLimitPolicy<GoogleAdsError> {
   @Override
   public void onBeforeRequest(@Nullable String developerToken, String customerId, Message request)
       throws InterruptedException {}

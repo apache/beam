@@ -128,7 +128,7 @@ import org.testcontainers.utility.DockerImageName;
 /**
  * IO Integration test for {@link org.apache.beam.sdk.io.kafka.KafkaIO}.
  *
- * <p>{@see https://beam.apache.org/documentation/io/testing/#i-o-transform-integration-tests} for
+ * <p>{@link https://beam.apache.org/documentation/io/testing/#i-o-transform-integration-tests} for
  * more details.
  *
  * <p>NOTE: This test sets retention policy of the messages so that all messages are retained in the
@@ -593,7 +593,7 @@ public class KafkaIOIT {
   public static class LogFn extends DoFn<String, String> {
     @ProcessElement
     public void processElement(@Element String element, OutputReceiver<String> outputReceiver) {
-      LOG.error(element);
+      LOG.error("{}", element);
       outputReceiver.output(element);
     }
   }
@@ -827,6 +827,7 @@ public class KafkaIOIT {
     assertNotEquals(PipelineResult.State.FAILED, writeState);
 
     sdfReadPipeline.getOptions().as(Options.class).setStreaming(false);
+    @SuppressWarnings("unused")
     PCollection<KafkaRecord<byte[], byte[]>> rows =
         sdfReadPipeline.apply(
             "Read from bounded Kafka",
