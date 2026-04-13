@@ -18,7 +18,7 @@
 package org.apache.beam.it.gcp.datastore;
 
 import java.time.Instant;
-import java.time.ZoneId;
+import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.CaseFormat;
 
@@ -44,7 +44,7 @@ final class DatastoreUtils {
         CaseFormat.UPPER_CAMEL.converterTo(CaseFormat.LOWER_HYPHEN).convert(prefix);
     String formattedTimestamp =
         DateTimeFormatter.ofPattern("yyyyMMddHHmmssSSS")
-            .withZone(ZoneId.of("UTC"))
+            .withZone(ZoneOffset.UTC)
             .format(Instant.now());
     return String.format("%s-%s", convertedPrefix, formattedTimestamp);
   }
