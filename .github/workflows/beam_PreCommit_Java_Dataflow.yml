@@ -14,7 +14,7 @@
 #    express or implied.  See the License for the specific language
 #    governing permissions and limitations under the License.
 
-name: PreCommit Java Dataflow
+name: PreCommit Java Dataflow Non-portable Worker
 
 on:
   push:
@@ -26,9 +26,8 @@ on:
   pull_request_target:
     branches: ['master', 'release-*']
     paths:
-      - 'runners/google-cloud-dataflow-java/worker/**'
-      - '.github/trigger_files/beam_PreCommit_Java_Dataflow.json'
-      - 'release/trigger_all_tests.json'
+      - 'runners/google-cloud-data-dataflow-java/worker/**'
+      - '.github/workflows/beam_PreCommit_Java_Dataflow.yml'
   issue_comment:
     types: [created]
   schedule:
@@ -62,19 +61,19 @@ env:
 jobs:
   beam_PreCommit_Java_Dataflow:
     name: ${{ matrix.job_name }} (${{ matrix.job_phrase }})
-    runs-on: [self-hosted, ubuntu-20.04, main]
+    runs-on: [self-hosted, ubuntu-24.04, main]
     strategy:
       fail-fast: false
       matrix:
-        job_name: [beam_PreCommit_Java_Dataflow]
-        job_phrase: [Run Java Dataflow PreCommit]
+        job_name: [beam_PreCommit_Java_Dataflow_NonportableWorker]
+        job_phrase: [Run Java Dataflow Non-portable Worker PreCommit]
     timeout-minutes: 240
     if: |
       github.event_name == 'push' ||
       github.event_name == 'pull_request_target' ||
       (github.event_name == 'schedule' && github.repository == 'apache/beam') ||
       github.event_name == 'workflow_dispatch' ||
-      github.event.comment.body == 'Run Java Dataflow PreCommit'
+      github.event.comment.body == 'Run Java Dataflow Non-portable Worker PreCommit'
     steps:
       - uses: actions/checkout@v4
       - name: Setup repository
