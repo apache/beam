@@ -48,10 +48,12 @@ mkdir -p "$DOWNLOAD_DIR"
 cp -r "${EXISTING_LICENSE_DIR}"/*.jar "${DOWNLOAD_DIR}"
 ${PYTHON} -m venv --clear ${ENV_DIR}  --without-pip --system-site-packages
 . ${ENV_DIR}/bin/activate
-${PYTHON} -m pip install --retries 10 --upgrade pip setuptools wheel
+# Some runner images do not provide pip inside venv when using --without-pip.
+python -m ensurepip --upgrade
+python -m pip install --retries 10 --upgrade pip setuptools wheel
 
 # install packages
-${PYTHON} -m pip install --retries 10 -r ${SCRIPT_DIR}/requirement.txt
+python -m pip install --retries 10 -r ${SCRIPT_DIR}/requirement.txt
 
 # pull licenses, notices and source code
 FLAGS="--license_index=${INDEX_FILE} \
@@ -60,8 +62,8 @@ FLAGS="--license_index=${INDEX_FILE} \
        --manual_license_path=${SCRIPT_DIR}/manual_licenses \
        --use_license_cache"
 
-echo "Executing ${PYTHON} ${SCRIPT_DIR}/pull_licenses_java.py $FLAGS"
-${PYTHON} "${SCRIPT_DIR}/pull_licenses_java.py" $FLAGS
+echo "Executing python ${SCRIPT_DIR}/pull_licenses_java.py $FLAGS"
+python "${SCRIPT_DIR}/pull_licenses_java.py" $FLAGS
 
 # If this script is running, it is assumed that outputs are out of date and should be cleared and rewritten
 if [ -d "$DEST_DIR" ]; then rm -rf "$DEST_DIR"; fi
