@@ -410,8 +410,10 @@ public class DataflowPipelineTranslator {
 
       WorkerPool workerPool = new WorkerPool();
 
-      // If streaming engine is enabled set the proper experiments so that it is enabled on the
-      // back end as well.  If streaming engine is not enabled make sure the experiments are also
+      // If streaming engine is enabled set the proper experiments so that it is
+      // enabled on the
+      // back end as well. If streaming engine is not enabled make sure the
+      // experiments are also
       // not enabled.
       if (options.isEnableStreamingEngine()) {
         List<String> experiments = options.getExperiments();
@@ -490,10 +492,11 @@ public class DataflowPipelineTranslator {
         workerPool.setDiskSizeGb(options.getDiskSizeGb());
       }
       if (options.getDiskProvisionedIops() != null) {
-        workerPool.setDiskProvisionedIops(options.getDiskProvisionedIops());
+        workerPool.setDiskProvisionedIops(Long.valueOf(options.getDiskProvisionedIops()));
       }
       if (options.getDiskProvisionedThroughputMibps() != null) {
-        workerPool.setDiskProvisionedThroughputMibps(options.getDiskProvisionedThroughputMibps());
+        workerPool.setDiskProvisionedThroughputMibps(
+            Long.valueOf(options.getDiskProvisionedThroughputMibps()));
       }
       AutoscalingSettings settings = new AutoscalingSettings();
       if (options.getAutoscalingAlgorithm() != null) {
@@ -586,12 +589,15 @@ public class DataflowPipelineTranslator {
       LOG.debug("Translating {}", transform);
       currentTransform = node.toAppliedPTransform(getPipeline());
       ResourceHints hints = transform.getResourceHints();
-      // AppliedPTransform instance stores resource hints of current transform merged with outer
+      // AppliedPTransform instance stores resource hints of current transform merged
+      // with outer
       // hints (e.g. set on outer composites).
-      // Translation reads resource hints from PTransform objects, so update the hints.
+      // Translation reads resource hints from PTransform objects, so update the
+      // hints.
       transform.setResourceHints(currentTransform.getResourceHints());
       translator.translate(transform, this);
-      // Avoid side-effects in case the same transform is applied in multiple places in the
+      // Avoid side-effects in case the same transform is applied in multiple places
+      // in the
       // pipeline.
       transform.setResourceHints(hints);
       // translator.translate(node, this);
@@ -603,8 +609,10 @@ public class DataflowPipelineTranslator {
       LOG.debug("Checking translation of {}", value);
       // Primitive transforms are the only ones assigned step names.
       if (producer.getTransform() instanceof CreateDataflowView) {
-        // CreateDataflowView produces a dummy output (as it must be a primitive transform)
-        // but in the Dataflow Job graph produces only the view and not the output PCollection.
+        // CreateDataflowView produces a dummy output (as it must be a primitive
+        // transform)
+        // but in the Dataflow Job graph produces only the view and not the output
+        // PCollection.
         asOutputReference(
             ((CreateDataflowView) producer.getTransform()).getView(),
             producer.toAppliedPTransform(getPipeline()));
@@ -705,7 +713,8 @@ public class DataflowPipelineTranslator {
 
     private final Translator translator;
     private final Step step;
-    // For compatibility with URL encoding implementations that represent space as +,
+    // For compatibility with URL encoding implementations that represent space as
+    // +,
     // always encode + as %2b even though we don't encode space as +.
     private final PercentCodec percentCodec =
         new PercentCodec("+".getBytes(StandardCharsets.US_ASCII), false);
@@ -793,7 +802,8 @@ public class DataflowPipelineTranslator {
     private void addOutput(String name, PValue value, Coder<?> valueCoder) {
       translator.registerOutputName(value, name);
 
-      // If the output requires runner determined sharding, also append necessary input properties.
+      // If the output requires runner determined sharding, also append necessary
+      // input properties.
       if (value instanceof PCollection) {
         if (translator.runner.doesPCollectionRequireAutoSharding((PCollection<?>) value)) {
           addInput(PropertyNames.ALLOWS_SHARDABLE_STATE, "true");
@@ -1351,7 +1361,8 @@ public class DataflowPipelineTranslator {
 
     stepContext.addInput(PropertyNames.USER_FN, fn.getClass().getName());
 
-    // Fn API does not need the additional metadata in the wrapper, and it is Java-only serializable
+    // Fn API does not need the additional metadata in the wrapper, and it is
+    // Java-only serializable
     // hence not suitable for portable execution
     stepContext.addInput(
         PropertyNames.SERIALIZED_FN,
