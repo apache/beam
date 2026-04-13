@@ -18,6 +18,13 @@ set -e
 
 # Get currently used Python version from Gradle or assume a default.
 PYTHON=${1:-python3}
+if ! command -v "${PYTHON}" >/dev/null 2>&1; then
+  if command -v python3 >/dev/null 2>&1; then
+    PYTHON=python3
+  else
+    PYTHON=python
+  fi
+fi
 SCRIPT_DIR="${PWD}/license_scripts"
 ENV_DIR="${PWD}/build/virtualenv"
 
