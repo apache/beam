@@ -593,7 +593,7 @@ class ExceptionHandlingWithOutputsTest(unittest.TestCase):
                                           str,
                                           typehints.Sequence[str]]])
 
-def test_with_outputs_then_with_exception_handling_custom_dead_letter_tag(
+  def test_with_outputs_then_with_exception_handling_custom_dead_letter_tag(
       self):
     """Direction 2 with custom dead_letter_tag."""
 
