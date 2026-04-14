@@ -16,8 +16,8 @@
  * limitations under the License.
  */
 project.ext {
-    delimited="2.5.1"
-    undelimited="251"
+    delimited="3.9.1"
+    undelimited="391"
     sdfCompatible=true
 }
 
