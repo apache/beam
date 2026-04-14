@@ -20,6 +20,7 @@
 # pytype: skip-file
 
 import collections
+import cProfile
 import gc
 import importlib
 import os
@@ -70,10 +71,11 @@ class BenchmarkConfig(NamedTuple):
   size: int
   num_runs: int
 
+  def name(self):
+    return getattr(self.benchmark, '__name__', str(self.benchmark))
+
   def __str__(self):
-    return "%s, %s element(s)" % (
-        getattr(self.benchmark, '__name__', str(self.benchmark)),
-        str(self.size))
+    return "%s, %s element(s)" % (self.name(), str(self.size))
 
 
 class LinearRegressionBenchmarkConfig(NamedTuple):
@@ -109,7 +111,8 @@ class LinearRegressionBenchmarkConfig(NamedTuple):
         str(self.increment))
 
 
-def run_benchmarks(benchmark_suite, verbose=True):
+def run_benchmarks(benchmark_suite, verbose=True,
+                   profile_filename_base=None):
   """Runs benchmarks, and collects execution times.
 
   A simple instrumentation to run a callable several times, collect and print
@@ -123,12 +126,15 @@ def run_benchmarks(benchmark_suite, verbose=True):
     A dictionary of the form string -> list of floats. Keys of the dictionary
     are benchmark names, values are execution times in seconds for each run.
   """
+  profiler = cProfile.Profile()
   def run(benchmark: BenchmarkFactoryFn, size: int):
     # Contain each run of a benchmark inside a function so that any temporary
     # objects can be garbage-collected after the run.
     benchmark_instance_callable = benchmark(size)
     start = time.time()
+    profiler.enable()
     _ = benchmark_instance_callable()
+    profiler.disable()
     return time.time() - start
 
   cost_series = collections.defaultdict(list)
@@ -163,6 +169,11 @@ def run_benchmarks(benchmark_suite, verbose=True):
       size += step
     if verbose:
       print("")
+
+    if profile_filename_base:
+      filename = profile_filename_base + benchmark_config.name() + '.prof'
+      print("Dumping profile to " + filename)
+      profiler.dump_stats(filename)
 
   if verbose:
     pad_length = max([len(str(bc)) for bc in benchmark_suite])

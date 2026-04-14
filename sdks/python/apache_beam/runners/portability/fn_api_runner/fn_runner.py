@@ -151,6 +151,7 @@ class FnApiRunner(runner.PipelineRunner):
     if not 'beam_fn_api' in experiments:
       experiments.append('beam_fn_api')
     options.view_as(pipeline_options.DebugOptions).experiments = experiments
+    RuntimeValueProvider.set_runtime_options({'experiments': set(experiments)})
 
     # This is sometimes needed if type checking is disabled
     # to enforce that the inputs (and outputs) of GroupByKey operations
