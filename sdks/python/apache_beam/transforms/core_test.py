@@ -31,9 +31,9 @@ import pytest
 import apache_beam as beam
 from apache_beam.coders import coders
 from apache_beam.options.pipeline_options import PipelineOptions
-from apache_beam.transforms.core import DeadLetter
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
+from apache_beam.transforms.core import DeadLetter
 from apache_beam.transforms.resources import ResourceHint
 from apache_beam.transforms.userstate import BagStateSpec
 from apache_beam.transforms.userstate import ReadModifyWriteStateSpec
