@@ -326,15 +326,17 @@ class PubSubIntegrationTest(unittest.TestCase):
     from apache_beam.options.pipeline_options import PipelineOptions
     from apache_beam.options.pipeline_options import StandardOptions
     from apache_beam.transforms import Create
+    from google.pubsub_v1.types import Subscription
 
     ordering_topic = self.pub_client.create_topic(
         name=self.pub_client.topic_path(
             self.project, 'psit_topic_ordering' + self.uuid))
     ordering_sub = self.sub_client.create_subscription(
-        name=self.sub_client.subscription_path(
-            self.project, 'psit_sub_ordering' + self.uuid),
-        topic=ordering_topic.name,
-        enable_message_ordering=True)
+        request=Subscription(
+            name=self.sub_client.subscription_path(
+                self.project, 'psit_sub_ordering' + self.uuid),
+            topic=ordering_topic.name,
+            enable_message_ordering=True))
     time.sleep(10)
 
     try:
