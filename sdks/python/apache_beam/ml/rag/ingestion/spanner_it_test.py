@@ -41,7 +41,7 @@ except ImportError:
 try:
   from testcontainers.core.container import DockerContainer
 except ImportError:
-  DockerContainer = None
+  DockerContainer = None  # type: ignore[assignment]
 # pylint: enable=wrong-import-order, wrong-import-position
 
 
