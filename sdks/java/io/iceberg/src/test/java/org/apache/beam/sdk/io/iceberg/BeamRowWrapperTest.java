@@ -28,6 +28,7 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
+import java.time.ZoneId;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 import org.apache.beam.sdk.schemas.Schema;
@@ -99,7 +100,7 @@ public class BeamRowWrapperTest {
               new BigDecimal("123.45"),
               org.joda.time.Instant.now(),
               Instant.now(),
-              LocalDateTime.now(),
+              LocalDateTime.now(ZoneId.systemDefault()),
               LocalDate.now(),
               LocalTime.now(),
               new BigDecimal("567.89"),
