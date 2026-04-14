@@ -52,6 +52,7 @@ import org.apache.beam.sdk.util.WindowedValueReceiver;
 import org.apache.beam.sdk.util.common.ElementByteSizeObserver;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.MoreObjects;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
 import org.checkerframework.checker.nullness.qual.MonotonicNonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.checkerframework.dataflow.qual.Pure;
@@ -413,7 +414,7 @@ public class WindowedValues {
     // comparisons are made on their Chronology objects.
     return left.getTimestamp().isEqual(right.getTimestamp())
         && Objects.equals(left.getValue(), right.getValue())
-        && Objects.equals(left.getWindows(), right.getWindows())
+        && Iterables.elementsEqual(left.getWindows(), right.getWindows())
         && Objects.equals(left.getPaneInfo(), right.getPaneInfo());
   }
 
@@ -800,7 +801,7 @@ public class WindowedValues {
             && Objects.equals(that.getPaneInfo(), this.getPaneInfo())) {
           ensureWindowsAreASet();
           that.ensureWindowsAreASet();
-          return that.windows.equals(this.windows);
+          return ((Set<?>) that.windows).equals((Set<?>) this.windows);
         } else {
           return false;
         }

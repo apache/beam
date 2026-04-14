@@ -1546,7 +1546,6 @@ class BeamModulePlugin implements Plugin<Project> {
             "PreferJavaTimeOverload",
             "NonCanonicalType",
             "Slf4jSignOnlyFormat",
-            "UndefinedEquals",
             "UnescapedEntity",
             "UnrecognisedJavadocTag",
             // errorprone 3.2.0+ checks

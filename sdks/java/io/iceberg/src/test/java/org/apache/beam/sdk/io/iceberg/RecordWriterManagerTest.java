@@ -341,7 +341,7 @@ public class RecordWriterManagerTest {
 
   /** DataFile doesn't implement a .equals() method. Check equality manually. */
   private static void checkDataFileEquality(DataFile d1, DataFile d2) {
-    assertEquals(d1.path(), d2.path());
+    assertEquals(d1.path().toString(), d2.path().toString());
     assertEquals(d1.format(), d2.format());
     assertEquals(d1.recordCount(), d2.recordCount());
     assertEquals(d1.partition(), d2.partition());

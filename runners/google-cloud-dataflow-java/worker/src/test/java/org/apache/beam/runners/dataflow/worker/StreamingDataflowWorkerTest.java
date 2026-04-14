@@ -1940,7 +1940,7 @@ public class StreamingDataflowWorkerTest {
         PaneInfo.createPane(true, true, Timing.ON_TIME), PaneInfoCoder.INSTANCE.decode(inStream));
     assertEquals(
         Collections.singletonList(WINDOW_AT_ZERO),
-        DEFAULT_WINDOW_COLLECTION_CODER.decode(inStream, Coder.Context.OUTER));
+        Lists.newArrayList(DEFAULT_WINDOW_COLLECTION_CODER.decode(inStream, Coder.Context.OUTER)));
 
     // Data was deleted
     assertThat(
@@ -2230,7 +2230,7 @@ public class StreamingDataflowWorkerTest {
         PaneInfo.createPane(true, true, Timing.ON_TIME), PaneInfoCoder.INSTANCE.decode(inStream));
     assertEquals(
         Collections.singletonList(WINDOW_AT_ZERO),
-        DEFAULT_WINDOW_COLLECTION_CODER.decode(inStream, Coder.Context.OUTER));
+        Lists.newArrayList(DEFAULT_WINDOW_COLLECTION_CODER.decode(inStream, Coder.Context.OUTER)));
 
     // Data was deleted
     assertThat(
