@@ -1533,7 +1533,6 @@ class BeamModulePlugin implements Plugin<Project> {
             // TODO(https://github.com/apache/beam/issues/20955): Enable errorprone checks
             "AutoValueImmutableFields",
             "AutoValueSubclassLeaked",
-            "BigDecimalEquals",
             "ComparableType",
             "DoNotMockAutoValue",
             "EmptyBlockTag",
@@ -1583,6 +1582,7 @@ class BeamModulePlugin implements Plugin<Project> {
           disabledChecks.each {
             options.errorprone.errorproneArgs.add("-Xep:${it}:OFF")
           }
+          options.errorprone.errorproneArgs.add("-Xep:BigDecimalEquals:WARN")
         }
       }
 

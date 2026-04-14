@@ -141,7 +141,7 @@ class RowJsonValueExtractors {
                     || (jsonNode.isFloatingPointNumber()
                         && jsonNode
                             .decimalValue()
-                            .equals(BigDecimal.valueOf(jsonNode.doubleValue()))))
+                            .compareTo(BigDecimal.valueOf(jsonNode.doubleValue())) == 0))
         .build();
   }
 
