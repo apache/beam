@@ -32,6 +32,8 @@ import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.options.Validation;
 import org.apache.beam.sdk.transforms.Count;
 import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.DoFn.Element;
+import org.apache.beam.sdk.transforms.DoFn.OutputReceiver;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.KV;
@@ -79,10 +81,10 @@ public class BigQueryTornadoes {
    */
   static class ExtractTornadoesFn extends DoFn<TableRow, Integer> {
     @ProcessElement
-    public void processElement(ProcessContext c) {
-      TableRow row = c.element();
+    public void processElement(@Element TableRow element, OutputReceiver<Integer> receiver) {
+      TableRow row = element;
       if ((Boolean) row.get("tornado")) {
-        c.output(Integer.parseInt((String) row.get("month")));
+        receiver.output(Integer.parseInt((String) row.get("month")));
       }
     }
   }
@@ -93,12 +95,11 @@ public class BigQueryTornadoes {
    */
   static class FormatCountsFn extends DoFn<KV<Integer, Long>, TableRow> {
     @ProcessElement
-    public void processElement(ProcessContext c) {
+    public void processElement(
+        @Element KV<Integer, Long> element, OutputReceiver<TableRow> receiver) {
       TableRow row =
-          new TableRow()
-              .set("month", c.element().getKey())
-              .set("tornado_count", c.element().getValue());
-      c.output(row);
+          new TableRow().set("month", element.getKey()).set("tornado_count", element.getValue());
+      receiver.output(row);
     }
   }
 

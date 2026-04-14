@@ -49,6 +49,8 @@ import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.DoFn.Element;
+import org.apache.beam.sdk.transforms.DoFn.OutputReceiver;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.Sum;
@@ -175,8 +177,9 @@ public class KafkaStreaming {
       private static final Random RANDOM = new Random();
 
       @ProcessElement
-      public void processElement(ProcessContext c) {
-        c.output(generate());
+      public void processElement(
+          @Element Object element, OutputReceiver<KV<String, Integer>> receiver) {
+        receiver.output(generate());
       }
 
       public KV<String, Integer> generate() {
@@ -290,17 +293,22 @@ public class KafkaStreaming {
 
   static class LogResults extends DoFn<Map<String, Integer>, Map<String, Integer>> {
     @ProcessElement
-    public void processElement(ProcessContext c, IntervalWindow w) throws Exception {
-      Map<String, Integer> map = c.element();
+    public void processElement(
+        PaneInfo pane,
+        IntervalWindow w,
+        @Element Map<String, Integer> element,
+        OutputReceiver<Map<String, Integer>> receiver)
+        throws Exception {
+      Map<String, Integer> map = element;
       if (map == null) {
-        c.output(c.element());
+        receiver.output(element);
         return;
       }
 
       String startTime = w.start().toString(dateTimeFormatter);
       String endTime = w.end().toString(dateTimeFormatter);
 
-      PaneInfo.Timing timing = c.pane().getTiming();
+      PaneInfo.Timing timing = pane.getTiming();
 
       switch (timing) {
         case EARLY:
@@ -326,7 +334,7 @@ public class KafkaStreaming {
         System.out.println();
       }
 
-      c.output(c.element());
+      receiver.output(element);
     }
   }
 
@@ -340,9 +348,9 @@ public class KafkaStreaming {
 
     static class LogErrorFn extends DoFn<BadRecord, BadRecord> {
       @ProcessElement
-      public void processElement(@Element BadRecord record, OutputReceiver<BadRecord> receiver) {
-        System.out.println(record);
-        receiver.output(record);
+      public void processElement(@Element BadRecord element, OutputReceiver<BadRecord> receiver) {
+        System.out.println(element);
+        receiver.output(element);
       }
     }
   }

@@ -38,6 +38,9 @@ import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.options.StreamingOptions;
 import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.DoFn.Element;
+import org.apache.beam.sdk.transforms.DoFn.OutputReceiver;
+import org.apache.beam.sdk.transforms.DoFn.Timestamp;
 import org.apache.beam.sdk.transforms.GroupByKey;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
@@ -46,6 +49,7 @@ import org.apache.beam.sdk.transforms.windowing.AfterProcessingTime;
 import org.apache.beam.sdk.transforms.windowing.AfterWatermark;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
+import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.transforms.windowing.Repeatedly;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.values.KV;
@@ -364,15 +368,18 @@ public class TriggerExample {
                   new DoFn<KV<String, Iterable<Integer>>, KV<String, String>>() {
 
                     @ProcessElement
-                    public void processElement(ProcessContext c) throws Exception {
-                      Iterable<Integer> flows = c.element().getValue();
+                    public void processElement(
+                        @Element KV<String, Iterable<Integer>> element,
+                        OutputReceiver<KV<String, String>> receiver)
+                        throws Exception {
+                      Iterable<Integer> flows = element.getValue();
                       Integer sum = 0;
                       Long numberOfRecords = 0L;
                       for (Integer value : flows) {
                         sum += value;
                         numberOfRecords++;
                       }
-                      c.output(KV.of(c.element().getKey(), sum + "," + numberOfRecords));
+                      receiver.output(KV.of(element.getKey(), sum + "," + numberOfRecords));
                     }
                   }));
       PCollection<TableRow> output = results.apply(ParDo.of(new FormatTotalFlow(triggerType)));
@@ -392,21 +399,27 @@ public class TriggerExample {
     }
 
     @ProcessElement
-    public void processElement(ProcessContext c, BoundedWindow window) throws Exception {
-      String[] values = c.element().getValue().split(",", -1);
+    public void processElement(
+        PaneInfo pane,
+        @Timestamp Instant timestamp,
+        BoundedWindow window,
+        @Element KV<String, String> element,
+        OutputReceiver<TableRow> receiver)
+        throws Exception {
+      String[] values = element.getValue().split(",", -1);
       TableRow row =
           new TableRow()
               .set("trigger_type", triggerType)
-              .set("freeway", c.element().getKey())
+              .set("freeway", element.getKey())
               .set("total_flow", Integer.parseInt(values[0]))
               .set("number_of_records", Long.parseLong(values[1]))
               .set("window", window.toString())
-              .set("isFirst", c.pane().isFirst())
-              .set("isLast", c.pane().isLast())
-              .set("timing", c.pane().getTiming().toString())
-              .set("event_time", c.timestamp().toString())
+              .set("isFirst", pane.isFirst())
+              .set("isLast", pane.isLast())
+              .set("timing", pane.getTiming().toString())
+              .set("event_time", timestamp.toString())
               .set("processing_time", Instant.now().toString());
-      c.output(row);
+      receiver.output(row);
     }
   }
 
@@ -418,8 +431,9 @@ public class TriggerExample {
     private static final int VALID_NUM_FIELDS = 50;
 
     @ProcessElement
-    public void processElement(ProcessContext c) throws Exception {
-      String[] laneInfo = c.element().split(",", -1);
+    public void processElement(
+        @Element String element, OutputReceiver<KV<String, Integer>> receiver) throws Exception {
+      String[] laneInfo = element.split(",", -1);
       if ("timestamp".equals(laneInfo[0])) {
         // Header row
         return;
@@ -435,7 +449,7 @@ public class TriggerExample {
       if (totalFlow == null || totalFlow <= 0) {
         return;
       }
-      c.output(KV.of(freeway, totalFlow));
+      receiver.output(KV.of(freeway, totalFlow));
     }
   }
 
@@ -509,7 +523,8 @@ public class TriggerExample {
     }
 
     @ProcessElement
-    public void processElement(ProcessContext c) throws Exception {
+    public void processElement(@Element String element, OutputReceiver<String> receiver)
+        throws Exception {
       Instant timestamp = Instant.now();
       if (random.nextDouble() < THRESHOLD) {
         int range = MAX_DELAY - MIN_DELAY;
@@ -517,7 +532,7 @@ public class TriggerExample {
         long delayInMillis = TimeUnit.MINUTES.toMillis(delayInMinutes);
         timestamp = new Instant(timestamp.getMillis() - delayInMillis);
       }
-      c.outputWithTimestamp(c.element(), timestamp);
+      receiver.outputWithTimestamp(element, timestamp);
     }
   }
 
