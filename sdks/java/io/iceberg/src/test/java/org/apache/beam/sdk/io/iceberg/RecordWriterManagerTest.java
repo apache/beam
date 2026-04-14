@@ -1312,9 +1312,7 @@ public class RecordWriterManagerTest {
     assertTrue("FileIO should be closed after catalog.close()", sharedIO.closed);
   }
 
-  /**
-   * Verifies that two DoFn instances with separate table caches don't see each other's entries.
-   */
+  /** Verifies that two DoFn instances with separate table caches don't see each other's entries. */
   @Test
   public void testPerDoFnCacheIsolation() throws IOException {
     String tableName =
@@ -1350,8 +1348,8 @@ public class RecordWriterManagerTest {
 
   /**
    * Verifies that closing one DoFn's catalog doesn't poison another DoFn's table cache. Previously,
-   * a closed catalog's dead Table objects could be returned to other DoFn instances
-   * via the shared static cache.
+   * a closed catalog's dead Table objects could be returned to other DoFn instances via the shared
+   * static cache.
    */
   @Test
   public void testClosedCatalogDoesNotPoisonOtherCache() throws IOException {

@@ -79,7 +79,7 @@ public abstract class IcebergCatalogConfig implements Serializable {
    * Returns a cached Catalog instance for driver-side operations (pipeline construction, schema
    * inference, etc.). Not intended for use within DoFns — use {@link #newCatalog()} instead.
    */
-  public org.apache.iceberg.catalog.Catalog catalog() {
+  public Catalog catalog() {
     if (cachedCatalog == null) {
       cachedCatalog = newCatalog();
     }
@@ -90,7 +90,7 @@ public abstract class IcebergCatalogConfig implements Serializable {
    * Creates and returns a new Catalog instance. Use this in DoFn {@code @Setup} methods to ensure
    * each DoFn owns its own catalog lifecycle independently of other transforms.
    */
-  public org.apache.iceberg.catalog.Catalog newCatalog() {
+  public Catalog newCatalog() {
     String catalogName = getCatalogName();
     if (catalogName == null) {
       catalogName = "apache-beam-" + ReleaseInfo.getReleaseInfo().getVersion();
