@@ -140,8 +140,9 @@ class RowJsonValueExtractors {
                     // Or a decimal number which allows lossless conversion to float
                     || (jsonNode.isFloatingPointNumber()
                         && jsonNode
-                            .decimalValue()
-                            .compareTo(BigDecimal.valueOf(jsonNode.doubleValue())) == 0))
+                                .decimalValue()
+                                .compareTo(BigDecimal.valueOf(jsonNode.doubleValue()))
+                            == 0))
         .build();
   }
 
