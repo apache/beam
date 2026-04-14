@@ -346,6 +346,10 @@ class NativeTypeCompatibilityTest(unittest.TestCase):
     self.assertEqual(
         typehints.List[typehints.Any], convert_to_beam_type(list['int']))
 
+  def test_annotationlib_forward_ref(self):
+    beam_type = convert_to_beam_type(dict[str, typing.ForwardRef('foo.Bar')])
+    self.assertEqual(typehints.Dict[str, typehints.Any], beam_type)
+
   def test_convert_nested_to_beam_type(self):
     self.assertEqual(typehints.List[typing.Any], typehints.List[typehints.Any])
     self.assertEqual(
