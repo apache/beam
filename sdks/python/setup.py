@@ -162,10 +162,16 @@ dataframe_dependency = [
 
 milvus_dependency = ['pymilvus>=2.5.10,<3.0.0']
 
-ml_base = [
+# google-adk / OpenTelemetry require protobuf>=5; tensorflow-transform in
+# ml_test is pinned to versions that require protobuf<5 on Python 3.10. Those
+# cannot be installed together, so ADK deps stay out of ml_test (use ml_base).
+ml_base_core = [
     'embeddings>=0.0.4', # 0.0.3 crashes setuptools
-    'google-adk',
     'onnxruntime',
+    # onnx 1.12–1.13 cap protobuf in ways that trigger huge backtracking with
+    # Beam[gcp]+ml_test; pip can fall back to onnx 1.11 sdist which needs cmake.
+    # 1.14.1+ matches tf2onnx>=1.16 and ships manylinux wheels for py3.10.
+    'onnx>=1.14.1,<2',
     'langchain',
     'sentence-transformers>=2.2.2',
     'skl2onnx',
@@ -174,10 +180,23 @@ ml_base = [
     # tensorflow transitive dep, lower versions not compatible with Python3.10+
     'absl-py>=0.12.0',
     'tensorflow-hub',
-    'tf2onnx',
     'torch',
     'transformers',
 ]
+
+ml_adk_dependency = [
+    'google-adk==1.28.1',
+    # proto-plus<1.24 caps protobuf<5; opentelemetry-proto (via ADK) needs
+    # protobuf>=5. Scoped here so the main dependency list stays broader.
+    'proto-plus>=1.26.1,<2',
+    'opentelemetry-api==1.37.0',
+    'opentelemetry-sdk==1.37.0',
+    'opentelemetry-exporter-otlp-proto-http==1.37.0',
+    # protobuf>=5 (ADK/OTel); tf2onnx 1.16.x pins protobuf~=3.20 only.
+    'tf2onnx>=1.17.0,<1.18',
+]
+
+ml_base = ml_base_core + ml_adk_dependency
 
 
 def find_by_ext(root_dir, ext):
@@ -392,6 +411,9 @@ if __name__ == '__main__':
           'packaging>=22.0',
           'pillow>=12.1.1,<13',
           'pymongo>=3.8.0,<5.0.0',
+          # ADK / OpenTelemetry need proto-plus>=1.26.1 (protobuf>=5); that
+          # floor is declared on ml_adk_dependency only so core installs stay
+          # compatible with older proto-plus.
           'proto-plus>=1.7.1,<2',
           # 1. Use a tighter upper bound in protobuf dependency to make sure
           # the minor version at job submission
@@ -447,9 +469,11 @@ if __name__ == '__main__':
               'mock>=1.0.1,<6.0.0',
               'pandas<2.3.0',
               'parameterized>=0.7.1,<0.10.0',
+              'pydot>=1.2.0,<2',
               'pyhamcrest>=1.9,!=1.10.0,<3.0.0',
               'requests_mock>=1.7,<2.0',
-              'tenacity>=8.0.0,<9',
+              # google-adk 1.28+ requires tenacity>=9,<10 (conflicts with <9).
+              'tenacity>=8.0.0,<10',
               'pytest>=7.1.2,<9.0',
               'pytest-xdist>=2.5.0,<4',
               'pytest-timeout>=2.1.0,<3',
@@ -547,14 +571,14 @@ if __name__ == '__main__':
               # TFT->TFX-BSL require pandas 1.x, which is not compatible
               # with numpy 2.x
               'numpy<2',
-              # To help with dependency resolution in test suite. Revise once
-              # https://github.com/apache/beam/issues/37854 is fixed
-              'protobuf<4; python_version<"3.11"'
               # Comment out xgboost as it is breaking presubmit python ml
               # tests due to tag check introduced since pip 24.2
               # https://github.com/apache/beam/issues/31285
               # 'xgboost<2.0',  # https://github.com/apache/beam/issues/31252
-          ] + ml_base,
+              # tft needs protobuf<5; tf2onnx 1.17+ allows protobuf 5 on the
+              # ADK-only path.
+              'tf2onnx>=1.16.1,<1.17',
+          ] + ml_base_core,
           'p310_ml_test': [
             'datatable',
           ] + ml_base,
