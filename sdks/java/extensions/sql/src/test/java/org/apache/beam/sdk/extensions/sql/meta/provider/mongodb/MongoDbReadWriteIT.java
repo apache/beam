@@ -36,21 +36,11 @@ import com.mongodb.client.MongoClients;
 import com.mongodb.client.MongoCollection;
 import com.mongodb.client.MongoDatabase;
 import com.mongodb.client.model.Filters;
-import de.flapdoodle.embed.mongo.MongodExecutable;
-import de.flapdoodle.embed.mongo.MongodProcess;
-import de.flapdoodle.embed.mongo.MongodStarter;
-import de.flapdoodle.embed.mongo.config.MongoCmdOptions;
-import de.flapdoodle.embed.mongo.config.MongodConfig;
-import de.flapdoodle.embed.mongo.config.Net;
-import de.flapdoodle.embed.mongo.config.Storage;
-import de.flapdoodle.embed.mongo.distribution.Version;
-import de.flapdoodle.embed.process.runtime.Network;
 import java.util.Arrays;
 import org.apache.beam.sdk.extensions.sql.impl.BeamSqlEnv;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamPushDownIOSourceRel;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamRelNode;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamSqlRelUtils;
-import org.apache.beam.sdk.io.common.NetworkTestHelper;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.testing.PAssert;
@@ -66,11 +56,12 @@ import org.junit.BeforeClass;
 import org.junit.ClassRule;
 import org.junit.Rule;
 import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.testcontainers.containers.MongoDBContainer;
+import org.testcontainers.utility.DockerImageName;
 
 /**
  * A test of {@link org.apache.beam.sdk.extensions.sql.meta.provider.mongodb.MongoDbTable} on an
@@ -94,12 +85,11 @@ public class MongoDbReadWriteIT {
   private static final String hostname = "localhost";
   private static final String database = "beam";
   private static final String collection = "collection";
+  private static final DockerImageName MONGO_IMAGE = DockerImageName.parse("mongo:4.4.17");
 
-  @ClassRule public static final TemporaryFolder MONGODB_LOCATION = new TemporaryFolder();
+  @ClassRule
+  public static final MongoDBContainer MONGO_CONTAINER = new MongoDBContainer(MONGO_IMAGE);
 
-  private static final MongodStarter mongodStarter = MongodStarter.getDefaultInstance();
-  private static MongodExecutable mongodExecutable;
-  private static MongodProcess mongodProcess;
   private static MongoClient client;
 
   private static BeamSqlEnv sqlEnv;
@@ -110,27 +100,9 @@ public class MongoDbReadWriteIT {
 
   @BeforeClass
   public static void setUp() throws Exception {
-    int port = NetworkTestHelper.getAvailableLocalPort();
-    LOG.info("Starting MongoDB embedded instance on {}", port);
-    MongodConfig mongodConfig =
-        MongodConfig.builder()
-            .version(Version.Main.PRODUCTION)
-            .isConfigServer(false)
-            .replication(new Storage(MONGODB_LOCATION.getRoot().getPath(), null, 0))
-            .net(new Net(hostname, port, Network.localhostIsIPv6()))
-            .cmdOptions(
-                MongoCmdOptions.builder()
-                    .syncDelay(10)
-                    .useNoPrealloc(true)
-                    .useSmallFiles(true)
-                    .useNoJournal(true)
-                    .isVerbose(false)
-                    .build())
-            .build();
-    mongodExecutable = mongodStarter.prepare(mongodConfig);
-    mongodProcess = mongodExecutable.start();
+    int port = MONGO_CONTAINER.getMappedPort(27017);
+    LOG.info("Starting MongoDB container on {}", port);
     client = MongoClients.create("mongodb://" + hostname + ":" + port);
-
     mongoSqlUrl = String.format("mongodb://%s:%d/%s/%s", hostname, port, database, collection);
   }
 
@@ -138,8 +110,6 @@ public class MongoDbReadWriteIT {
   public static void tearDown() throws Exception {
     client.getDatabase(database).drop();
     client.close();
-    mongodProcess.stop();
-    mongodExecutable.stop();
   }
 
   @Before
