@@ -562,7 +562,7 @@ def write_to_iceberg(
     keep: Optional[Iterable[str]] = None,
     drop: Optional[Iterable[str]] = None,
     only: Optional[str] = None,
-    distribution_mode: Optional[str] = False,
+    distribution_mode: Optional[str] = None,
 ):
   # TODO(robertwb): It'd be nice to derive this list of parameters, along with
   # their types and docs, programmatically from the iceberg (or managed)
