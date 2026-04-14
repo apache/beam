@@ -17,8 +17,10 @@
  */
 package org.apache.beam.sdk.io.iceberg;
 
+import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
+
+import java.util.HashMap;
 import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.RowCoder;
 import org.apache.beam.sdk.transforms.DoFn;
@@ -35,6 +37,7 @@ import org.apache.iceberg.PartitionSpec;
 import org.apache.iceberg.Schema;
 import org.apache.iceberg.catalog.TableIdentifier;
 import org.apache.iceberg.exceptions.NoSuchTableException;
+import org.checkerframework.checker.nullness.qual.MonotonicNonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Instant;
 
@@ -72,14 +75,19 @@ class AssignDestinationsAndPartitions
   }
 
   static class AssignDoFn extends DoFn<Row, KV<Row, Row>> {
-    private final Map<String, PartitionKey> partitionKeys = new ConcurrentHashMap<>();
-    private final Map<String, BeamRowWrapper> wrappers = new ConcurrentHashMap<>();
+    private final Map<String, PartitionKey> partitionKeys = new HashMap<>();
+    private transient @MonotonicNonNull Map<String, BeamRowWrapper> wrappers;
     private final DynamicDestinations dynamicDestinations;
     private final IcebergCatalogConfig catalogConfig;
 
     AssignDoFn(DynamicDestinations dynamicDestinations, IcebergCatalogConfig catalogConfig) {
       this.dynamicDestinations = dynamicDestinations;
       this.catalogConfig = catalogConfig;
+    }
+
+    @Setup
+    public void setup() {
+      this.wrappers = new HashMap<>();
     }
 
     @ProcessElement
@@ -95,7 +103,7 @@ class AssignDestinationsAndPartitions
       Row data = dynamicDestinations.getData(element);
 
       @Nullable PartitionKey partitionKey = partitionKeys.get(tableIdentifier);
-      @Nullable BeamRowWrapper wrapper = wrappers.get(tableIdentifier);
+      @Nullable BeamRowWrapper wrapper = checkStateNotNull(wrappers).get(tableIdentifier);
       if (partitionKey == null || wrapper == null) {
         PartitionSpec spec = PartitionSpec.unpartitioned();
         Schema schema = IcebergUtils.beamSchemaToIcebergSchema(data.getSchema());
@@ -118,7 +126,7 @@ class AssignDestinationsAndPartitions
         partitionKey = new PartitionKey(spec, schema);
         wrapper = new BeamRowWrapper(data.getSchema(), schema.asStruct());
         partitionKeys.put(tableIdentifier, partitionKey);
-        wrappers.put(tableIdentifier, wrapper);
+        checkStateNotNull(wrappers).put(tableIdentifier, wrapper);
       }
       partitionKey.partition(wrapper.wrap(data));
       String partitionPath = partitionKey.toPath();
