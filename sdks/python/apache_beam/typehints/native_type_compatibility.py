@@ -83,7 +83,12 @@ _CONVERTED_COLLECTIONS = [
     collections.abc.Mapping,
 ]
 
-_CONVERTED_MODULES = ('typing', 'collections', 'collections.abc')
+_CONVERTED_MODULES = (
+    'typing',
+    'collections',
+    'collections.abc',
+    'annotationlib',
+)
 
 
 def _get_args(typ):
