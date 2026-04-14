@@ -308,7 +308,9 @@ class PubSubIntegrationTest(unittest.TestCase):
   @pytest.mark.it_postcommit
   def test_batch_write_with_ordering_key(self):
     """Test WriteToPubSub in batch mode with ordering keys.
-    Dataflow Native PubSub Sink does not support ordering_key, therefore this
+
+    Dataflow Native PubSub Sink does not support ordering_key
+    (https://github.com/apache/beam/issues/36201), therefore this
     test only applies to runners that use Beam's Python WriteToPubSub Sink.
     To use ordering_key, Dataflow users should use the XLang WriteToPubSub
     path instead.
@@ -325,44 +327,62 @@ class PubSubIntegrationTest(unittest.TestCase):
     from apache_beam.options.pipeline_options import StandardOptions
     from apache_beam.transforms import Create
 
-    # Create test messages with ordering keys
-    test_messages = [
-        PubsubMessage(
-            b'order_data001', {'attr': 'value1'}, ordering_key='key1'),
-        PubsubMessage(
-            b'order_data002', {'attr': 'value2'}, ordering_key='key1'),
-        PubsubMessage(
-            b'order_data003', {'attr': 'value3'}, ordering_key='key2')
-    ]
-
-    pipeline_options = PipelineOptions()
-    pipeline_options.view_as(StandardOptions).streaming = False
-
-    with TestPipeline(options=pipeline_options) as p:
-      messages = p | 'CreateMessages' >> Create(test_messages)
-      _ = messages | 'WriteToPubSub' >> WriteToPubSub(
-          self.output_topic.name, with_attributes=True)
-
-    # Verify messages were published
+    ordering_topic = self.pub_client.create_topic(
+        name=self.pub_client.topic_path(
+            self.project, 'psit_topic_ordering' + self.uuid))
+    ordering_sub = self.sub_client.create_subscription(
+        name=self.sub_client.subscription_path(
+            self.project, 'psit_sub_ordering' + self.uuid),
+        topic=ordering_topic.name,
+        enable_message_ordering=True)
     time.sleep(10)
 
-    response = self.sub_client.pull(
-        request={
-            "subscription": self.output_sub.name,
-            "max_messages": 10,
-        })
+    try:
+      test_messages = [
+          PubsubMessage(
+              b'order_data001', {'attr': 'value1'}, ordering_key='key1'),
+          PubsubMessage(
+              b'order_data002', {'attr': 'value2'}, ordering_key='key1'),
+          PubsubMessage(
+              b'order_data003', {'attr': 'value3'}, ordering_key='key2')
+      ]
 
-    self.assertEqual(len(response.received_messages), len(test_messages))
+      pipeline_options = PipelineOptions()
+      pipeline_options.view_as(StandardOptions).streaming = False
 
-    # Verify ordering keys were preserved
-    for received_message in response.received_messages:
-      self.assertIn('ordering_key', dir(received_message.message))
-      self.sub_client.acknowledge(
+      with TestPipeline(options=pipeline_options) as p:
+        messages = p | 'CreateMessages' >> Create(test_messages)
+        _ = messages | 'WriteToPubSub' >> WriteToPubSub(
+            ordering_topic.name, with_attributes=True)
+
+      time.sleep(10)
+
+      response = self.sub_client.pull(
           request={
-              "subscription": self.output_sub.name,
-              "ack_ids": [received_message.ack_id],
+              "subscription": ordering_sub.name,
+              "max_messages": 10,
           })
 
+      self.assertEqual(len(response.received_messages), len(test_messages))
+
+      received_map = {
+          msg.message.data: msg.message
+          for msg in response.received_messages
+      }
+      self.assertEqual(received_map[b'order_data001'].ordering_key, 'key1')
+      self.assertEqual(received_map[b'order_data002'].ordering_key, 'key1')
+      self.assertEqual(received_map[b'order_data003'].ordering_key, 'key2')
+
+      ack_ids = [msg.ack_id for msg in response.received_messages]
+      if ack_ids:
+        self.sub_client.acknowledge(
+            request={
+                "subscription": ordering_sub.name,
+                "ack_ids": ack_ids,
+            })
+    finally:
+      test_utils.cleanup_subscriptions(self.sub_client, [ordering_sub])
+      test_utils.cleanup_topics(self.pub_client, [ordering_topic])
 
 if __name__ == '__main__':
   logging.getLogger().setLevel(logging.DEBUG)
