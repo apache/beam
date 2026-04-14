@@ -94,6 +94,7 @@ import org.apache.iceberg.PartitionKey;
 import org.apache.iceberg.PartitionSpec;
 import org.apache.iceberg.Snapshot;
 import org.apache.iceberg.Table;
+import org.apache.iceberg.TableProperties;
 import org.apache.iceberg.avro.Avro;
 import org.apache.iceberg.catalog.TableIdentifier;
 import org.apache.iceberg.exceptions.AlreadyExistsException;
@@ -102,6 +103,7 @@ import org.apache.iceberg.io.InputFile;
 import org.apache.iceberg.io.OutputFile;
 import org.apache.iceberg.mapping.MappingUtil;
 import org.apache.iceberg.mapping.NameMapping;
+import org.apache.iceberg.mapping.NameMappingParser;
 import org.apache.iceberg.orc.OrcMetrics;
 import org.apache.iceberg.parquet.ParquetSchemaUtil;
 import org.apache.iceberg.parquet.ParquetUtil;
@@ -514,21 +516,36 @@ public class AddFiles extends PTransform<PCollection<String>, PCollectionRowTupl
 
     private Table getOrCreateTable(String filePath, FileFormat format) throws IOException {
       TableIdentifier tableId = TableIdentifier.parse(identifier);
+      @Nullable Table t;
       try {
-        return catalogConfig.catalog().loadTable(tableId);
+        t = catalogConfig.catalog().loadTable(tableId);
       } catch (NoSuchTableException e) {
         try {
           org.apache.iceberg.Schema schema = getSchema(filePath, format);
           PartitionSpec spec = PartitionUtils.toPartitionSpec(partitionFields, schema);
 
-          return tableProps == null
-              ? catalogConfig.catalog().createTable(TableIdentifier.parse(identifier), schema, spec)
-              : catalogConfig
-                  .catalog()
-                  .createTable(TableIdentifier.parse(identifier), schema, spec, tableProps);
+          t =
+              tableProps == null
+                  ? catalogConfig
+                      .catalog()
+                      .createTable(TableIdentifier.parse(identifier), schema, spec)
+                  : catalogConfig
+                      .catalog()
+                      .createTable(TableIdentifier.parse(identifier), schema, spec, tableProps);
         } catch (AlreadyExistsException e2) { // if table already exists, just load it
-          return catalogConfig.catalog().loadTable(TableIdentifier.parse(identifier));
+          t = catalogConfig.catalog().loadTable(TableIdentifier.parse(identifier));
         }
+      }
+      ensureNameMappingPresent(t);
+      return t;
+    }
+
+    private static void ensureNameMappingPresent(Table table) {
+      if (table.properties().get(TableProperties.DEFAULT_NAME_MAPPING) == null) {
+        // Forces Name based resolution instead of position based resolution
+        NameMapping mapping = MappingUtil.create(table.schema());
+        String mappingJson = NameMappingParser.toJson(mapping);
+        table.updateProperties().set(TableProperties.DEFAULT_NAME_MAPPING, mappingJson).commit();
       }
     }
 
