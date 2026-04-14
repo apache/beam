@@ -2423,6 +2423,11 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
     }
 
     @Override
+    public CausedByDrain causedByDrain(DoFn<InputT, OutputT> doFn) {
+      return currentTimer.causedByDrain();
+    }
+
+    @Override
     public Instant timestamp(DoFn<InputT, OutputT> doFn) {
       return currentTimer.getHoldTimestamp();
     }

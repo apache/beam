@@ -360,6 +360,11 @@ class ReadFromJdbc(ExternalTransform):
                    of the output PCollection elements. This bypasses automatic
                    schema inference during pipeline construction.
     """
+    # override new portable Date type with the current Jdbc type
+    # TODO(https://github.com/apache/beam/issues/28359):
+    #  switch JdbcIO to return portable Date type
+    LogicalType.register_logical_type(JdbcDateType)
+
     classpath = classpath or DEFAULT_JDBC_CLASSPATH
 
     dataSchema = None
