@@ -154,7 +154,7 @@ input.apply(ParDo.of(new MyFn(null))); // to introduce null
 **DoFn side:**
 ```java
 class MyFn extends DoFn<T, V> {
-  private final PCollectionView<String> view; 
+  private final PCollectionView<String> view;
   MyFn(PCollectionView<String> view) { this.view = view; }
 
   @ProcessElement
@@ -163,7 +163,7 @@ class MyFn extends DoFn<T, V> {
     if (this.view != null) { // can do conditional side input
       value = c.sideInput(this.view);
     }
-    
+
     // ...
   }
 }
