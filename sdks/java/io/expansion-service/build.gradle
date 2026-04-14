@@ -56,6 +56,9 @@ configurations.runtimeClasspath {
 
   // Pin zookeeper to 3.8.6 to fix CVE in transitive 3.8.4 from hadoop/hbase
   resolutionStrategy.force 'org.apache.zookeeper:zookeeper:3.8.6'
+
+  // Pin nimbus-jose-jwt to 9.37.4 to fix CVE-2025-53864 (transitive via hadoop-auth)
+  resolutionStrategy.force 'com.nimbusds:nimbus-jose-jwt:9.37.4'
 }
 
 shadowJar {
