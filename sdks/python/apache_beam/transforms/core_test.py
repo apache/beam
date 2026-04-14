@@ -31,6 +31,7 @@ import pytest
 import apache_beam as beam
 from apache_beam.coders import coders
 from apache_beam.options.pipeline_options import PipelineOptions
+from apache_beam.transforms.core import DeadLetter
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
 from apache_beam.transforms.resources import ResourceHint
@@ -559,9 +560,7 @@ class ExceptionHandlingWithOutputsTest(unittest.TestCase):
       self.assertEqual(results.main.element_type, int)
       self.assertEqual(results.threes.element_type, int)
       self.assertEqual(results.fives.element_type, str)
-      self.assertEqual(
-          results.bad.element_type,
-          typehints.Tuple[int, typehints.Tuple[type, str, typehints.List[str]]])
+      self.assertEqual(results.bad.element_type, DeadLetter[int])
 
   def test_with_outputs_then_with_exception_handling(self):
     """Direction 2: .with_outputs().with_exception_handling()"""
@@ -582,9 +581,7 @@ class ExceptionHandlingWithOutputsTest(unittest.TestCase):
       self.assertEqual(results.main.element_type, int)
       self.assertEqual(results.threes.element_type, int)
       self.assertEqual(results.fives.element_type, str)
-      self.assertEqual(
-          results.bad.element_type,
-          typehints.Tuple[int, typehints.Tuple[type, str, typehints.List[str]]])
+      self.assertEqual(results.bad.element_type, DeadLetter[int])
 
   def test_with_outputs_then_with_exception_handling_custom_dead_letter_tag(
       self):
@@ -603,9 +600,7 @@ class ExceptionHandlingWithOutputsTest(unittest.TestCase):
       bad_elements = results.errors | beam.Keys()
       assert_that(bad_elements, equal_to([2]), 'errors')
       self.assertEqual(results.threes.element_type, int)
-      self.assertEqual(
-          results.errors.element_type,
-          typehints.Tuple[int, typehints.Tuple[type, str, typehints.List[str]]])
+      self.assertEqual(results.errors.element_type, DeadLetter[int])
 
   def test_with_exception_handling_then_with_outputs_custom_dead_letter_tag(
       self):
@@ -624,9 +619,7 @@ class ExceptionHandlingWithOutputsTest(unittest.TestCase):
       bad_elements = results.errors | beam.Keys()
       assert_that(bad_elements, equal_to([2]), 'errors')
       self.assertEqual(results.threes.element_type, int)
-      self.assertEqual(
-          results.errors.element_type,
-          typehints.Tuple[int, typehints.Tuple[type, str, typehints.List[str]]])
+      self.assertEqual(results.errors.element_type, DeadLetter[int])
 
   def test_exception_handling_no_with_outputs_backward_compat(self):
     """Without with_outputs(), behavior is unchanged."""
