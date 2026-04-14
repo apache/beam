@@ -95,8 +95,7 @@ public class TopWikipediaSessions {
   /** Extracts user and timestamp from a TableRow representing a Wikipedia edit. */
   static class ExtractUserAndTimestamp extends DoFn<TableRow, String> {
     @ProcessElement
-    public void processElement(@Element TableRow element, OutputReceiver<String> receiver) {
-      TableRow row = element;
+    public void processElement(@Element TableRow row, OutputReceiver<String> receiver) {
       int timestamp;
       // TODO(BEAM-5390): Avoid this workaround.
       try {

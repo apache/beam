@@ -552,13 +552,12 @@ public class CsvConverters {
     }
 
     @ProcessElement
-    public void processElement(@Element ReadableFile element, MultiOutputReceiver outputReceiver) {
-      ReadableFile f = element;
+    public void processElement(@Element ReadableFile file, MultiOutputReceiver outputReceiver) {
       String headers;
       List<String> records = null;
       String delimiter = String.valueOf(this.csvFormat.getDelimiter());
       try {
-        String csvFileString = f.readFullyAsUTF8String();
+        String csvFileString = file.readFullyAsUTF8String();
         StringReader reader = new StringReader(csvFileString);
         CSVParser parser = CSVParser.parse(reader, this.csvFormat.withFirstRecordAsHeader());
         records =

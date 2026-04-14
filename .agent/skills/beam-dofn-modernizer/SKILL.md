@@ -1,6 +1,6 @@
 ---
 name: beam-dofn-modernizer
-description: Rewrite Apache Beam DoFn methods (@ProcessElement, @OnTimer, @OnWindowExpiration) to remove legacy ProcessContext or OnTimerContext usage. Use this skill when you encounter DoFn methods that use context.element(), context.output(), etc., and need to modernization them using parameter injection (@Element, @Timestamp, @Pane, OutputReceiver, MultiOutputReceiver).
+description: Rewrite Apache Beam DoFn methods (@ProcessElement, @OnTimer, @OnWindowExpiration) to remove legacy ProcessContext or OnTimerContext usage. Use this skill when you encounter DoFn methods that use context.element(), context.output(), etc., and need to modernize them using parameter injection (@Element, @Timestamp, @Pane, OutputReceiver, MultiOutputReceiver).
 ---
 
 # Modernizing Apache Beam DoFns
@@ -79,8 +79,9 @@ public void onTimer(
     *   `org.apache.beam.sdk.transforms.DoFn.MultiOutputReceiver` (if needed)
     *   `org.apache.beam.sdk.values.PCollectionView` (if using `@SideInput`)
     *   `org.apache.beam.sdk.transforms.DoFn.SideInput`
-    *.  `org.apache.beam.sdk.transforms.windowing.PaneInfo`
+    *   `org.apache.beam.sdk.transforms.windowing.PaneInfo`
 4.  **Side Inputs**: When using `@SideInput`, make sure to use the correct name that matches the one passed to `ParDo.withSideInput("name", view)`.
+5.  **Parameter Naming and Redundant Variables**: Use descriptive names for the `@Element` parameter (e.g., `record`, `line`, `row`) instead of a generic `element` if it improves readability. Do not create a redundant local variable to copy the element (e.g., `MyType elm = element;`), use the parameter directly.
 
 ## Example Conversion
 
@@ -141,28 +142,27 @@ class MyFn extends DoFn<T, V> {
 
 ### Nullable Side Inputs
 
-If pCollection argument is nullable (can be marked with nullable annotation but not always) and ProcessElement has logic that depends on it, then raise it as a blocking issue for modernization of this pattern and create two DoFns one with side input and one without side input.
+If a side input is optional and a `DoFn` has conditional logic based on whether the side input is present, it is best to split the `DoFn` into two separate classes: one that requires the side input and one that does not. This avoids creating complex, conditional `DoFn`s and ensures type safety.
 
 **PTransform/Pipeline side:**
 ```java
 PCollectionView<String> myView = ...;
 input.apply(ParDo.of(new MyFn(myView)).withSideInputs(myView));
 //or
-input.apply(ParDo.of(new MyFn(myView)); // to indroduce null
+input.apply(ParDo.of(new MyFn(null))); // to introduce null
 ```
 **DoFn side:**
-```
-java
+```java
 class MyFn extends DoFn<T, V> {
   private final PCollectionView<String> view; 
   MyFn(PCollectionView<String> view) { this.view = view; }
 
   @ProcessElement
   public void processElement(ProcessContext c) {
-String value = null
-if (this.view != null) { // can do conditional side input
-        value = context.sideInput(this.headersView);
-      }
+    String value = null;
+    if (this.view != null) { // can do conditional side input
+      value = c.sideInput(this.view);
+    }
     
     // ...
   }

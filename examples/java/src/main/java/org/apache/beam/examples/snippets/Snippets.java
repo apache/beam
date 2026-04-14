@@ -545,8 +545,7 @@ public class Snippets {
                 new DoFn<KV<String, CoGbkResult>, String>() {
                   @ProcessElement
                   public void processElement(
-                      @Element KV<String, CoGbkResult> element, OutputReceiver<String> receiver) {
-                    KV<String, CoGbkResult> e = element;
+                      @Element KV<String, CoGbkResult> e, OutputReceiver<String> receiver) {
                     String name = e.getKey();
                     Iterable<String> emailsIter = e.getValue().getAll(emailsTag);
                     Iterable<String> phonesIter = e.getValue().getAll(phonesTag);

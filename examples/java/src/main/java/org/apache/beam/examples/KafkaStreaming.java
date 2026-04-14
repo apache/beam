@@ -296,14 +296,9 @@ public class KafkaStreaming {
     public void processElement(
         PaneInfo pane,
         IntervalWindow w,
-        @Element Map<String, Integer> element,
+        @Element Map<String, Integer> scores,
         OutputReceiver<Map<String, Integer>> receiver)
         throws Exception {
-      Map<String, Integer> map = element;
-      if (map == null) {
-        receiver.output(element);
-        return;
-      }
 
       String startTime = w.start().toString(dateTimeFormatter);
       String endTime = w.end().toString(dateTimeFormatter);
@@ -324,7 +319,7 @@ public class KafkaStreaming {
           throw new RuntimeException("Unknown timing value");
       }
 
-      for (Map.Entry<String, Integer> entry : map.entrySet()) {
+      for (Map.Entry<String, Integer> entry : scores.entrySet()) {
         System.out.printf("%10s: %-10s%n", entry.getKey(), entry.getValue());
       }
 
@@ -334,7 +329,7 @@ public class KafkaStreaming {
         System.out.println();
       }
 
-      receiver.output(element);
+      receiver.output(scores);
     }
   }
 

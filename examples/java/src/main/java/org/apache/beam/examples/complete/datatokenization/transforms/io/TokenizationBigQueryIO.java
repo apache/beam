@@ -92,8 +92,7 @@ public class TokenizationBigQueryIO {
   public static class RowToTableRowFn extends DoFn<Row, TableRow> {
 
     @ProcessElement
-    public void processElement(@Element Row element, OutputReceiver<TableRow> receiver) {
-      Row row = element;
+    public void processElement(@Element Row row, OutputReceiver<TableRow> receiver) {
       receiver.output(BigQueryUtils.toTableRow(row));
     }
   }
