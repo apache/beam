@@ -15,6 +15,7 @@
 # limitations under the License.
 #
 import logging
+from collections import defaultdict
 from collections.abc import Callable
 from collections.abc import Mapping
 from typing import Any
@@ -189,7 +190,7 @@ class BigQueryEnrichmentHandler(EnrichmentSourceHandler[Union[Row, list[Row]],
     if isinstance(request, list):
       values = []
       responses = []
-      requests_map: dict[Any, Any] = {}
+      requests_map: dict[Any, list[beam.Row]] = defaultdict(list)
       batch_size = len(request)
       raw_query = self.query_template
       if batch_size > 1:
@@ -208,25 +209,29 @@ class BigQueryEnrichmentHandler(EnrichmentSourceHandler[Union[Row, list[Row]],
               "Make sure the values passed in `fields` are the "
               "keys in the input `beam.Row`." + str(e))
         values.extend(current_values)
-        requests_map[self.create_row_key(req)] = req
+        requests_map[self.create_row_key(req)].append(req)
       query = raw_query.format(*values)
 
       responses_dict = self._execute_query(query)
-      unmatched_requests = requests_map.copy()
+      unmatched_requests = {
+          key: list(reqs)
+          for key, reqs in requests_map.items()
+      }
       if responses_dict:
         for response in responses_dict:
           response_row = beam.Row(**response)
           response_key = self.create_row_key(response_row)
           if response_key in unmatched_requests:
-            req = unmatched_requests.pop(response_key)
-            responses.append((req, response_row))
+            for req in unmatched_requests.pop(response_key):
+              responses.append((req, response_row))
       if unmatched_requests:
         if self.throw_exception_on_empty_results:
           raise ValueError(f"no matching row found for query: {query}")
         else:
           _LOGGER.warning('no matching row found for query: %s', query)
-          for req in unmatched_requests.values():
-            responses.append((req, beam.Row()))
+          for reqs in unmatched_requests.values():
+            for req in reqs:
+              responses.append((req, beam.Row()))
       return responses
     else:
       request_dict = request._asdict()

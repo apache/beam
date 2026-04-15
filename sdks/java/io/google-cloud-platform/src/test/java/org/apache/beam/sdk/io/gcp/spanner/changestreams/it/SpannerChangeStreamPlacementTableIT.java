@@ -57,7 +57,6 @@ import org.junit.Assert;
 import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.ClassRule;
-import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
@@ -66,12 +65,15 @@ import org.junit.runners.JUnit4;
 
 /** End-to-end test of Cloud Spanner placement table. */
 @RunWith(JUnit4.class)
-@Ignore(
-    "TODO: enable this test class when placement table is supported by change stream in prod."
-        + "For now this test can only be exercised mannually.")
 public class SpannerChangeStreamPlacementTableIT {
 
-  @ClassRule public static final IntegrationTestEnv ENV = new IntegrationTestEnv();
+  @ClassRule
+  public static final IntegrationTestEnv ENV =
+      new IntegrationTestEnv(
+          /*isPostgres=*/ false,
+          /*isMutableChangeStream=*/ true,
+          /*isPlacementTable=*/ true,
+          /*host=*/ Optional.empty());
 
   @Rule public final transient TestPipeline pipeline = TestPipeline.create();
 

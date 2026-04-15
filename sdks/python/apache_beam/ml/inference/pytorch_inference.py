@@ -56,6 +56,20 @@ KeyedTensorInferenceFn = Callable[[
                                   Iterable[PredictionResult]]
 
 
+def _cuda_device_is_usable() -> bool:
+  """Returns True only when CUDA can actually allocate tensors."""
+  if not torch.cuda.is_available():
+    return False
+  try:
+    # Some environments report CUDA available but fail at first real use
+    # because a driver is missing or inaccessible.
+    torch.empty(1, device='cuda')
+    return True
+  except Exception:  # pylint: disable=broad-except
+    logging.warning("CUDA probe failed", exc_info=True)
+    return False
+
+
 def _validate_constructor_args(
     state_dict_path, model_class, torch_script_model_path):
   message = (
@@ -86,7 +100,7 @@ def _load_model(
     model_params: Optional[dict[str, Any]],
     torch_script_model_path: Optional[str],
     load_model_args: Optional[dict[str, Any]]):
-  if device == torch.device('cuda') and not torch.cuda.is_available():
+  if device == torch.device('cuda') and not _cuda_device_is_usable():
     logging.warning(
         "Model handler specified a 'GPU' device, but GPUs are not available. "
         "Switching to CPU.")

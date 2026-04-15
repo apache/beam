@@ -20,6 +20,7 @@
 # pytype: skip-file
 
 import dataclasses
+import datetime
 import itertools
 import pickle
 import unittest
@@ -105,6 +106,7 @@ class ComplexSchema(NamedTuple):
   optional_array: Optional[Sequence[np.float32]]
   array_optional: Sequence[Optional[bool]]
   timestamp: Timestamp
+  date: datetime.date
 
 
 def get_test_beam_fieldtype_protos():

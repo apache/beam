@@ -154,6 +154,7 @@ public class DebeziumIOTest implements Serializable {
   // ---- OffsetRetainer tests -----------------------------------------------
 
   /** Minimal in-memory retainer used only in tests. */
+  @SuppressWarnings("unused")
   private static class InMemoryOffsetRetainer implements OffsetRetainer {
     private final @Nullable Map<String, Object> loadResult;
     private @Nullable Map<String, Object> lastSaved;

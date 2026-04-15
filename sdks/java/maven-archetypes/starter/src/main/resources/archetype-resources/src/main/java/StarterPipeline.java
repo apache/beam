@@ -51,16 +51,19 @@ public class StarterPipeline {
         PipelineOptionsFactory.fromArgs(args).withValidation().create());
 
     p.apply(Create.of("Hello", "World"))
-    .apply(MapElements.via(new SimpleFunction<String, String>() {
-      @Override
-      public String apply(String input) {
-        return input.toUpperCase();
-      }
-    }))
+    .apply(
+      MapElements.via(
+        new SimpleFunction<String, String>() {
+            @Override
+            public String apply(String input) 
+            {
+                 return input.toUpperCase();
+            }
+         }))
     .apply(ParDo.of(new DoFn<String, Void>() {
       @ProcessElement
-      public void processElement(ProcessContext c)  {
-        LOG.info(c.element());
+      public void processElement(@Element String element)  {
+        LOG.info(element);
       }
     }));
 

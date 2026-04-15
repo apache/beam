@@ -38,7 +38,7 @@ permissions:
 jobs:
   push_docker_artifacts:
     if: ${{github.event.inputs.PUSH_DOCKER_ARTIFACTS == 'yes'}}
-    runs-on: [self-hosted, ubuntu-20.04, main]
+    runs-on: [self-hosted, ubuntu-24.04, main]
     steps:
     - name: Login to Docker Hub
       uses: docker/login-action@b45d80f862d83dbcd57f89517bcf500b2ab88fb2
@@ -88,7 +88,7 @@ jobs:
 
   publish_python_artifacts:
     if: ${{github.event.inputs.PUBLISH_PYTHON_ARTIFACTS == 'yes'}}
-    runs-on: [self-hosted, ubuntu-20.04, main]
+    runs-on: [self-hosted, ubuntu-24.04, main]
     steps:
     - name: Checkout
       uses: actions/checkout@v4
@@ -129,7 +129,7 @@ jobs:
 
   push_git_tags:
     if: ${{github.event.inputs.TAG_RELEASE == 'yes'}}
-    runs-on: [self-hosted, ubuntu-20.04, main]
+    runs-on: [self-hosted, ubuntu-24.04, main]
     steps:
     - name: Checkout
       uses: actions/checkout@v4

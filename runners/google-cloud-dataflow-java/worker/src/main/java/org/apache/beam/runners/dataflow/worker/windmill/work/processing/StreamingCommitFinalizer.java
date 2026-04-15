@@ -17,17 +17,14 @@
  */
 package org.apache.beam.runners.dataflow.worker.windmill.work.processing;
 
-import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkState;
-
 import com.google.auto.value.AutoValue;
 import java.util.ArrayList;
-import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.PriorityQueue;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.ReentrantLock;
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.GuardedBy;
@@ -56,61 +53,34 @@ final class StreamingCommitFinalizer {
 
     public abstract Runnable getCallback();
 
-    public static FinalizationInfo create(Long id, Instant expiryTime, Runnable callback) {
-      return new AutoValue_StreamingCommitFinalizer_FinalizationInfo(id, expiryTime, callback);
+    public abstract ScheduledFuture<?> getCleanupFuture();
+
+    public static FinalizationInfo create(
+        Long id, Instant expiryTime, Runnable callback, ScheduledFuture<?> cleanupFuture) {
+      return new AutoValue_StreamingCommitFinalizer_FinalizationInfo(
+          id, expiryTime, callback, cleanupFuture);
     }
   }
 
   private final ReentrantLock lock = new ReentrantLock();
-  private final Condition queueMinChanged = lock.newCondition();
 
   @GuardedBy("lock")
   private final HashMap<Long, FinalizationInfo> commitFinalizationCallbacks = new HashMap<>();
 
-  @GuardedBy("lock")
-  private final PriorityQueue<FinalizationInfo> cleanUpQueue =
-      new PriorityQueue<>(11, Comparator.comparing(FinalizationInfo::getExpiryTime));
-
-  @GuardedBy("lock")
-  private boolean cleanUpThreadStarted = false;
-
   private final BoundedQueueExecutor finalizationExecutor;
 
-  private StreamingCommitFinalizer(BoundedQueueExecutor finalizationCleanupExecutor) {
-    finalizationExecutor = finalizationCleanupExecutor;
+  // The cleanup threads run in their own Executor, so they don't block processing.
+  private final ScheduledExecutorService cleanupExecutor;
+
+  private StreamingCommitFinalizer(
+      BoundedQueueExecutor finalizationExecutor, ScheduledExecutorService cleanupExecutor) {
+    this.finalizationExecutor = finalizationExecutor;
+    this.cleanupExecutor = cleanupExecutor;
   }
 
-  private void cleanupThreadBody() {
-    lock.lock();
-    try {
-      while (true) {
-        final @Nullable FinalizationInfo minValue = cleanUpQueue.peek();
-        if (minValue == null) {
-          // Wait for an element to be added and loop to re-examine the min.
-          queueMinChanged.await();
-          continue;
-        }
-
-        Instant now = Instant.now();
-        Duration timeDifference = new Duration(now, minValue.getExpiryTime());
-        if (timeDifference.getMillis() < 0
-            || (queueMinChanged.await(timeDifference.getMillis(), TimeUnit.MILLISECONDS)
-                && cleanUpQueue.peek() == minValue)) {
-          // The minimum element has an expiry time before now, either because it had elapsed when
-          // we pulled it or because we awaited it, and it is still the minimum.
-          checkState(minValue == cleanUpQueue.poll());
-          checkState(commitFinalizationCallbacks.remove(minValue.getId()) == minValue);
-        }
-      }
-    } catch (InterruptedException e) {
-      // We're being shutdown.
-    } finally {
-      lock.unlock();
-    }
-  }
-
-  static StreamingCommitFinalizer create(BoundedQueueExecutor workExecutor) {
-    return new StreamingCommitFinalizer(workExecutor);
+  static StreamingCommitFinalizer create(
+      BoundedQueueExecutor workExecutor, ScheduledExecutorService cleanupExecutor) {
+    return new StreamingCommitFinalizer(workExecutor, cleanupExecutor);
   }
 
   /**
@@ -118,37 +88,47 @@ final class StreamingCommitFinalizer {
    * has been successfully committed to the backing state store.
    */
   public void cacheCommitFinalizers(Map<Long, Pair<Instant, Runnable>> callbacks) {
-    for (Map.Entry<Long, Pair<Instant, Runnable>> entry : callbacks.entrySet()) {
-      Long finalizeId = entry.getKey();
-      final FinalizationInfo info =
-          FinalizationInfo.create(
-              finalizeId, entry.getValue().getLeft(), entry.getValue().getRight());
-
-      lock.lock();
-      try {
-        FinalizationInfo existingInfo = commitFinalizationCallbacks.put(finalizeId, info);
+    if (callbacks.isEmpty()) {
+      return;
+    }
+    Instant now = Instant.now();
+    lock.lock();
+    try {
+      for (Map.Entry<Long, Pair<Instant, Runnable>> entry : callbacks.entrySet()) {
+        Instant cleanupTime = entry.getValue().getLeft();
+        // Ignore finalizers that have already expired.
+        if (cleanupTime.isBefore(now)) {
+          continue;
+        }
+        ScheduledFuture<?> cleanupFuture =
+            cleanupExecutor.schedule(
+                () -> {
+                  lock.lock();
+                  try {
+                    commitFinalizationCallbacks.remove(entry.getKey());
+                  } finally {
+                    lock.unlock();
+                  }
+                },
+                new Duration(now, cleanupTime).getMillis(),
+                TimeUnit.MILLISECONDS);
+        FinalizationInfo info =
+            FinalizationInfo.create(
+                entry.getKey(),
+                entry.getValue().getLeft(),
+                entry.getValue().getRight(),
+                cleanupFuture);
+        FinalizationInfo existingInfo = commitFinalizationCallbacks.put(info.getId(), info);
         if (existingInfo != null) {
           throw new IllegalStateException(
               "Expected to not have any past callbacks for bundle "
-                  + finalizeId
+                  + info.getId()
                   + " but had "
                   + existingInfo);
         }
-        if (!cleanUpThreadStarted) {
-          // Start the cleanup thread lazily for pipelines that don't use finalization callbacks
-          // and some tests.
-          cleanUpThreadStarted = true;
-          finalizationExecutor.execute(this::cleanupThreadBody, 0);
-        }
-        cleanUpQueue.add(info);
-        @SuppressWarnings("ReferenceEquality")
-        boolean newMin = cleanUpQueue.peek() == info;
-        if (newMin) {
-          queueMinChanged.signal();
-        }
-      } finally {
-        lock.unlock();
       }
+    } finally {
+      lock.unlock();
     }
   }
 
@@ -167,8 +147,8 @@ final class StreamingCommitFinalizer {
       for (long finalizeId : finalizeIds) {
         @Nullable FinalizationInfo info = commitFinalizationCallbacks.remove(finalizeId);
         if (info != null) {
-          checkState(cleanUpQueue.remove(info));
           callbacksToExecute.add(info.getCallback());
+          info.getCleanupFuture().cancel(true);
         }
       }
     } finally {
@@ -186,10 +166,10 @@ final class StreamingCommitFinalizer {
   }
 
   @VisibleForTesting
-  int cleanupQueueSize() {
+  int pendingCallbacksSize() {
     lock.lock();
     try {
-      return cleanUpQueue.size();
+      return commitFinalizationCallbacks.size();
     } finally {
       lock.unlock();
     }
