@@ -64,7 +64,8 @@ public class IntegrationTestEnv extends ExternalResource {
   private DatabaseAdminClient databaseAdminClient;
   private DatabaseClient databaseClient;
   private boolean isPostgres;
-  private boolean isPlacementTableBasedChangeStream;
+  private boolean isMutableChangeStream;
+  private boolean isPlacementTable;
   public boolean useSeparateMetadataDb;
 
   @Override
@@ -100,13 +101,18 @@ public class IntegrationTestEnv extends ExternalResource {
 
   IntegrationTestEnv() {
     this.isPostgres = false;
-    this.isPlacementTableBasedChangeStream = false;
+    this.isMutableChangeStream = false;
+    this.isPlacementTable = false;
   }
 
   IntegrationTestEnv(
-      boolean isPostgres, boolean isPlacementTableBasedChangeStream, Optional<String> host) {
+      boolean isPostgres,
+      boolean isMutableChangeStream,
+      boolean isPlacementTable,
+      Optional<String> host) {
     this.isPostgres = isPostgres;
-    this.isPlacementTableBasedChangeStream = isPlacementTableBasedChangeStream;
+    this.isMutableChangeStream = isMutableChangeStream;
+    this.isPlacementTable = isPlacementTable;
     if (host.isPresent()) {
       this.host = host.get();
     }
@@ -155,7 +161,7 @@ public class IntegrationTestEnv extends ExternalResource {
               .get(TIMEOUT_MINUTES, TimeUnit.MINUTES);
         }
       } catch (Exception e) {
-        if (isPlacementTableBasedChangeStream) {
+        if (isPlacementTable) {
           // Drop placement table requires all rows deleted and garbage collected.
           LOG.info("Failed to drop table {}. Skipping...", table, e);
         } else {
@@ -214,7 +220,7 @@ public class IntegrationTestEnv extends ExternalResource {
   }
 
   String createGSQLTableDDL(String tableName) {
-    if (this.isPlacementTableBasedChangeStream) {
+    if (this.isPlacementTable) {
       // create a placement table.
       return "CREATE TABLE "
           + tableName
@@ -245,8 +251,7 @@ public class IntegrationTestEnv extends ExternalResource {
           .updateDatabaseDdl(
               instanceId,
               databaseId,
-              Collections.singletonList(
-                  "CREATE CHANGE STREAM \"" + changeStreamName + "\" FOR \"" + tableName + "\""),
+              Collections.singletonList(createPostgresChangeStreamDDL(changeStreamName, tableName)),
               null)
           .get(TIMEOUT_MINUTES, TimeUnit.MINUTES);
     } else {
@@ -263,7 +268,7 @@ public class IntegrationTestEnv extends ExternalResource {
   }
 
   String createGSQLChangeStreamDDL(String changeStreamName, String tableName) {
-    if (this.isPlacementTableBasedChangeStream) {
+    if (this.isMutableChangeStream) {
       // Create a MUTABLE_KEY_RANGE change stream.
       String statement =
           "CREATE CHANGE STREAM "
@@ -274,6 +279,21 @@ public class IntegrationTestEnv extends ExternalResource {
       return statement;
     }
     return "CREATE CHANGE STREAM " + changeStreamName + " FOR " + tableName;
+  }
+
+  String createPostgresChangeStreamDDL(String changeStreamName, String tableName) {
+    if (this.isMutableChangeStream) {
+      // Create a MUTABLE_KEY_RANGE change stream.
+      String statement =
+          "CREATE CHANGE STREAM \""
+              + changeStreamName
+              + "\" FOR \""
+              + tableName
+              + "\""
+              + " WITH (partition_mode = 'MUTABLE_KEY_RANGE')";
+      return statement;
+    }
+    return "CREATE CHANGE STREAM \"" + changeStreamName + "\" FOR \"" + tableName + "\"";
   }
 
   void createRoleAndGrantPrivileges(String table, String changeStream)
