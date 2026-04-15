@@ -24,7 +24,6 @@ import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
 import static org.apache.beam.sdk.values.PCollection.IsBounded.UNBOUNDED;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkState;
 
-import java.io.Closeable;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.nio.ByteBuffer;
@@ -95,8 +94,8 @@ import org.apache.iceberg.PartitionKey;
 import org.apache.iceberg.PartitionSpec;
 import org.apache.iceberg.Snapshot;
 import org.apache.iceberg.Table;
+import org.apache.iceberg.TableProperties;
 import org.apache.iceberg.avro.Avro;
-import org.apache.iceberg.catalog.Catalog;
 import org.apache.iceberg.catalog.TableIdentifier;
 import org.apache.iceberg.exceptions.AlreadyExistsException;
 import org.apache.iceberg.exceptions.NoSuchTableException;
@@ -104,6 +103,7 @@ import org.apache.iceberg.io.InputFile;
 import org.apache.iceberg.io.OutputFile;
 import org.apache.iceberg.mapping.MappingUtil;
 import org.apache.iceberg.mapping.NameMapping;
+import org.apache.iceberg.mapping.NameMappingParser;
 import org.apache.iceberg.orc.OrcMetrics;
 import org.apache.iceberg.parquet.ParquetSchemaUtil;
 import org.apache.iceberg.parquet.ParquetUtil;
@@ -268,7 +268,6 @@ public class AddFiles extends PTransform<PCollection<String>, PCollectionRowTupl
     private final @Nullable String prefix;
     private final @Nullable List<String> partitionFields;
     private final @Nullable Map<String, String> tableProps;
-    private transient @MonotonicNonNull Catalog catalog;
     private transient @MonotonicNonNull ExecutorService executor;
     private transient @MonotonicNonNull LinkedList<Future<ProcessResult>> activeTasks;
     private transient volatile @MonotonicNonNull Table table;
@@ -322,15 +321,11 @@ public class AddFiles extends PTransform<PCollection<String>, PCollectionRowTupl
 
     @Setup
     public void setup() {
-      this.catalog = catalogConfig.newCatalog();
       executor = Executors.newFixedThreadPool(THREAD_POOL_SIZE);
     }
 
     @Teardown
-    public void teardown() throws IOException {
-      if (catalog instanceof Closeable) {
-        ((Closeable) catalog).close();
-      }
+    public void teardown() {
       if (executor != null) {
         executor.shutdownNow();
       }
@@ -520,21 +515,37 @@ public class AddFiles extends PTransform<PCollection<String>, PCollectionRowTupl
     }
 
     private Table getOrCreateTable(String filePath, FileFormat format) throws IOException {
-      Catalog cat = checkStateNotNull(catalog);
       TableIdentifier tableId = TableIdentifier.parse(identifier);
+      @Nullable Table t;
       try {
-        return cat.loadTable(tableId);
+        t = catalogConfig.catalog().loadTable(tableId);
       } catch (NoSuchTableException e) {
         try {
           org.apache.iceberg.Schema schema = getSchema(filePath, format);
           PartitionSpec spec = PartitionUtils.toPartitionSpec(partitionFields, schema);
 
-          return tableProps == null
-              ? cat.createTable(tableId, schema, spec)
-              : cat.createTable(tableId, schema, spec, tableProps);
+          t =
+              tableProps == null
+                  ? catalogConfig
+                      .catalog()
+                      .createTable(TableIdentifier.parse(identifier), schema, spec)
+                  : catalogConfig
+                      .catalog()
+                      .createTable(TableIdentifier.parse(identifier), schema, spec, tableProps);
         } catch (AlreadyExistsException e2) { // if table already exists, just load it
-          return cat.loadTable(tableId);
+          t = catalogConfig.catalog().loadTable(TableIdentifier.parse(identifier));
         }
+      }
+      ensureNameMappingPresent(t);
+      return t;
+    }
+
+    private static void ensureNameMappingPresent(Table table) {
+      if (table.properties().get(TableProperties.DEFAULT_NAME_MAPPING) == null) {
+        // Forces Name based resolution instead of position based resolution
+        NameMapping mapping = MappingUtil.create(table.schema());
+        String mappingJson = NameMappingParser.toJson(mapping);
+        table.updateProperties().set(TableProperties.DEFAULT_NAME_MAPPING, mappingJson).commit();
       }
     }
 
@@ -652,24 +663,11 @@ public class AddFiles extends PTransform<PCollection<String>, PCollectionRowTupl
       extends DoFn<KV<ShardedKey<Integer>, Iterable<SerializableDataFile>>, KV<String, byte[]>> {
     private final IcebergCatalogConfig catalogConfig;
     private final String identifier;
-    private transient @MonotonicNonNull Catalog catalog;
     private transient @MonotonicNonNull Table table;
 
     public CreateManifests(IcebergCatalogConfig catalogConfig, String identifier) {
       this.catalogConfig = catalogConfig;
       this.identifier = identifier;
-    }
-
-    @Setup
-    public void setup() {
-      this.catalog = catalogConfig.newCatalog();
-    }
-
-    @Teardown
-    public void teardown() throws IOException {
-      if (catalog instanceof Closeable) {
-        ((Closeable) catalog).close();
-      }
     }
 
     @ProcessElement
@@ -681,7 +679,7 @@ public class AddFiles extends PTransform<PCollection<String>, PCollectionRowTupl
         return;
       }
       if (table == null) {
-        table = checkStateNotNull(catalog).loadTable(TableIdentifier.parse(identifier));
+        table = catalogConfig.catalog().loadTable(TableIdentifier.parse(identifier));
       }
 
       PartitionSpec spec = checkStateNotNull(table.specs().get(batch.getKey().getKey()));
@@ -733,8 +731,7 @@ public class AddFiles extends PTransform<PCollection<String>, PCollectionRowTupl
   static class CommitManifestFilesDoFn extends DoFn<KV<String, Iterable<byte[]>>, Row> {
     private final IcebergCatalogConfig catalogConfig;
     private final String identifier;
-    private transient @MonotonicNonNull Catalog catalog;
-    private transient @MonotonicNonNull Table table;
+    private transient @MonotonicNonNull Table table = null;
     private static final String COMMIT_ID_KEY = "beam.add-files-commit-id";
 
     @StateId("lastCommitTimestamp")
@@ -744,18 +741,6 @@ public class AddFiles extends PTransform<PCollection<String>, PCollectionRowTupl
     public CommitManifestFilesDoFn(IcebergCatalogConfig catalogConfig, String identifier) {
       this.catalogConfig = catalogConfig;
       this.identifier = identifier;
-    }
-
-    @Setup
-    public void setup() {
-      this.catalog = catalogConfig.newCatalog();
-    }
-
-    @Teardown
-    public void teardown() throws IOException {
-      if (catalog instanceof Closeable) {
-        ((Closeable) catalog).close();
-      }
     }
 
     @ProcessElement
@@ -770,7 +755,7 @@ public class AddFiles extends PTransform<PCollection<String>, PCollectionRowTupl
       }
       String commitId = commitHash(manifests);
       if (table == null) {
-        table = checkStateNotNull(catalog).loadTable(TableIdentifier.parse(identifier));
+        table = catalogConfig.catalog().loadTable(TableIdentifier.parse(identifier));
       }
       table.refresh();
 

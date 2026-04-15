@@ -47,6 +47,7 @@ import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateKey;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateRequest;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateResponse;
 import org.apache.beam.sdk.coders.BigEndianIntegerCoder;
+import org.apache.beam.sdk.coders.NullableCoder;
 import org.apache.beam.sdk.fn.data.WeightedList;
 import org.apache.beam.sdk.fn.stream.PrefetchableIterator;
 import org.apache.beam.vendor.grpc.v1p69p0.com.google.protobuf.ByteString;
@@ -294,6 +295,44 @@ public class StateFetchingIteratorsTest {
 
       BlocksPrefix<String> blocksOverflow = new BlocksPrefix<>(originalBlocks);
       assertEquals(Long.MAX_VALUE, blocksOverflow.getWeight());
+    }
+
+    // Regression test: ensure null values are supported
+    @Test
+    public void testNullableValues() throws Exception {
+      StateRequest requestForFirstChunk =
+          StateRequest.newBuilder()
+              .setStateKey(
+                  StateKey.newBuilder()
+                      .setBagUserState(
+                          StateKey.BagUserState.newBuilder()
+                              .setTransformId("transformId")
+                              .setUserStateId("stateId")
+                              .setKey(ByteString.copyFromUtf8("key"))
+                              .setWindow(ByteString.copyFromUtf8("window"))))
+              .setGet(StateGetRequest.getDefaultInstance())
+              .build();
+
+      List<Integer> expected = Arrays.asList(0, null, 1, null, 2);
+      FakeBeamFnStateClient fakeStateClient =
+          new FakeBeamFnStateClient(
+              NullableCoder.of(BigEndianIntegerCoder.of()),
+              ImmutableMap.of(requestForFirstChunk.getStateKey(), expected),
+              2);
+
+      CachingStateIterable<Integer> iterable =
+          new CachingStateIterable<>(
+              Caches.eternal(),
+              fakeStateClient,
+              requestForFirstChunk,
+              NullableCoder.of(BigEndianIntegerCoder.of()));
+
+      List<Integer> results = new ArrayList<>();
+      PrefetchableIterator<Integer> iterator = iterable.createIterator();
+      while (iterator.hasNext()) {
+        results.add(iterator.next());
+      }
+      assertEquals(expected, results);
     }
 
     private CachingStateIterable<Integer> create(int chunkSize, int... values) {
