@@ -36,7 +36,7 @@ from apache_beam.testing.test_pipeline import TestPipeline
 try:
   from google.cloud import spanner
 except ImportError:
-  spanner = None
+  spanner = None # type: ignore[assignment]
 
 try:
   from testcontainers.core.container import DockerContainer
