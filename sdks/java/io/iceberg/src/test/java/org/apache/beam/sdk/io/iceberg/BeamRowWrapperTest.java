@@ -101,8 +101,8 @@ public class BeamRowWrapperTest {
               org.joda.time.Instant.now(),
               Instant.now(),
               LocalDateTime.now(ZoneId.systemDefault()),
-              LocalDate.now(),
-              LocalTime.now(),
+              LocalDate.now(ZoneId.systemDefault()),
+              LocalTime.now(ZoneId.systemDefault()),
               new BigDecimal("567.89"),
               NESTED_ROW,
               888)
