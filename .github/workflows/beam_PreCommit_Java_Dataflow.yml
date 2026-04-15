@@ -26,7 +26,8 @@ on:
   pull_request_target:
     branches: ['master', 'release-*']
     paths:
-      - 'runners/google-cloud-data-dataflow-java/worker/**'
+      - 'runners/google-cloud-dataflow-java/worker/**'
+      - '.github/trigger_files/beam_PreCommit_Java_Dataflow.json'
       - '.github/workflows/beam_PreCommit_Java_Dataflow.yml'
   issue_comment:
     types: [created]
