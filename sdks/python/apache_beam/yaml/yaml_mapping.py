@@ -229,23 +229,17 @@ def _expand_javascript_mapping_func(
     raise ValueError(
         "Javascript mapping functions require the 'quickjs' package.")
 
-  import json
-
   if expression:
-    source = '\n'.join(
-        ['function fn(json_row) {', '  const __row__ = JSON.parse(json_row);'] +
-        [
-            f'  const {name} = __row__.{name};'
-            for name in original_fields if name in expression
-        ] + ['  return JSON.stringify(' + expression + ');'] + ['}'])
+    source = '\n'.join(['function fn(__row__) {'] + [
+        f'  const {name} = __row__["{name}"];' for name in original_fields
+        if name.isidentifier() and name in expression
+    ] + ['  return (' + expression + ');'] + ['}'])
     js_func = _QuickJsCallable(source, "fn")
 
   elif callable:
     # Wrap the callable in a named function to use quickjs.Function
-    source = (
-        f"function fn(json_row) {{ "
-        f"const row = JSON.parse(json_row); "
-        f"return JSON.stringify(({callable})(row)); }}")
+    source = (f"function fn(row) {{ "
+              f"return ({callable})(row); }}")
     js_func = _QuickJsCallable(source, "fn")
 
   else:
@@ -253,16 +247,14 @@ def _expand_javascript_mapping_func(
       raise ValueError(f'File "{path}" is not a valid .js file.')
     udf_code = FileSystems.open(path).read().decode()
     bridge_source = (
-        udf_code + f"\nfunction bridge_fn(json_row) {{ "
-        f"return JSON.stringify({name}(JSON.parse(json_row))); }}")
+        udf_code + f"\nfunction bridge_fn(row) {{ "
+        f"return {name}(row); }}")
     js_func = _QuickJsCallable(bridge_source, "bridge_fn")
 
   def js_wrapper(row):
     row_as_dict = py_value_to_js_dict(row)
-    row_json = json.dumps(row_as_dict)
     try:
-      js_result_json = js_func(row_json)
-      js_result = json.loads(js_result_json)
+      js_result = js_func(row_as_dict)
     except Exception as exn:
       raise RuntimeError(
           f"Error evaluating javascript expression: {exn}") from exn
