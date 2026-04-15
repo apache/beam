@@ -64,6 +64,7 @@ import org.apache.iceberg.PartitionSpec;
 import org.apache.iceberg.Snapshot;
 import org.apache.iceberg.StructLike;
 import org.apache.iceberg.Table;
+import org.apache.iceberg.TableProperties;
 import org.apache.iceberg.catalog.TableIdentifier;
 import org.apache.iceberg.data.GenericRecord;
 import org.apache.iceberg.data.Record;
@@ -72,6 +73,7 @@ import org.apache.iceberg.hadoop.HadoopCatalog;
 import org.apache.iceberg.io.DataWriter;
 import org.apache.iceberg.io.InputFile;
 import org.apache.iceberg.mapping.MappingUtil;
+import org.apache.iceberg.mapping.NameMappingParser;
 import org.apache.iceberg.parquet.Parquet;
 import org.apache.iceberg.types.Conversions;
 import org.apache.iceberg.types.Types;
@@ -219,6 +221,12 @@ public class AddFilesTest {
     // check partition metadata is preserved
     assertEquals(writtenDf1.partition(), addedDf1.partition());
     assertEquals(writtenDf2.partition(), addedDf2.partition());
+
+    // check that mapping util was added
+    assertEquals(
+        MappingUtil.create(icebergSchema).asMappedFields(),
+        NameMappingParser.fromJson(table.properties().get(TableProperties.DEFAULT_NAME_MAPPING))
+            .asMappedFields());
   }
 
   @Test
@@ -319,6 +327,11 @@ public class AddFilesTest {
     // check partition metadata is preserved
     assertEquals(expectedPartition1, addedDf1.partition());
     assertEquals(expectedPartition2, addedDf2.partition());
+
+    assertEquals(
+        MappingUtil.create(icebergSchema).asMappedFields(),
+        NameMappingParser.fromJson(table.properties().get(TableProperties.DEFAULT_NAME_MAPPING))
+            .asMappedFields());
   }
 
   @Test
