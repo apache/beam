@@ -1555,7 +1555,6 @@ class BeamModulePlugin implements Plugin<Project> {
             "Finalize",
             "JUnitIncompatibleType",
             "MockNotUsedInProduction",
-            "NarrowCalculation",
             "NullableTypeParameter",
             "NullableWildcard",
             "SuperCallToObjectMethod",
