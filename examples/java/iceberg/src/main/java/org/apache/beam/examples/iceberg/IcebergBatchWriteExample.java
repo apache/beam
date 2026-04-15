@@ -76,8 +76,7 @@ public class IcebergBatchWriteExample {
 
   static class ExtractBrowserTransactionsFn extends DoFn<Row, KV<String, Long>> {
     @ProcessElement
-    public void processElement(@Element Row element, OutputReceiver<KV<String, Long>> receiver) {
-      Row row = element;
+    public void processElement(@Element Row row, OutputReceiver<KV<String, Long>> receiver) {
       receiver.output(
           KV.of(
               Preconditions.checkStateNotNull(row.getString("browser")),

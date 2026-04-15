@@ -343,9 +343,9 @@ public class KafkaStreaming {
 
     static class LogErrorFn extends DoFn<BadRecord, BadRecord> {
       @ProcessElement
-      public void processElement(@Element BadRecord element, OutputReceiver<BadRecord> receiver) {
-        System.out.println(element);
-        receiver.output(element);
+      public void processElement(@Element BadRecord badRecord, OutputReceiver<BadRecord> receiver) {
+        System.out.println(badRecord);
+        receiver.output(badRecord);
       }
     }
   }

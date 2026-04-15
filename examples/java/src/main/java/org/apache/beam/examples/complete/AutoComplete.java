@@ -537,11 +537,10 @@ public class AutoComplete {
                       new DoFn<KV<String, List<CompletionCandidate>>, Long>() {
                         @ProcessElement
                         public void process(
-                            @Element KV<String, List<CompletionCandidate>> element,
+                            @Element KV<String, List<CompletionCandidate>> elm,
                             OutputReceiver<Long> receiver) {
-                          KV<String, List<CompletionCandidate>> elm = element;
                           Long listHash =
-                              element.getValue().stream().mapToLong(cc -> cc.hashCode()).sum();
+                              elm.getValue().stream().mapToLong(cc -> cc.hashCode()).sum();
                           receiver.output(Long.valueOf(elm.getKey().hashCode()) + listHash);
                         }
                       }))

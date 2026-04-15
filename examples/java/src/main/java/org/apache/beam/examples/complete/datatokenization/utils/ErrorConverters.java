@@ -205,9 +205,8 @@ public class ErrorConverters {
     @ProcessElement
     public void processElement(
         @Timestamp Instant timestamp,
-        @Element FailsafeElement<String, String> element,
+        @Element FailsafeElement<String, String> failsafeElement,
         OutputReceiver<TableRow> receiver) {
-      FailsafeElement<String, String> failsafeElement = element;
       final String message = failsafeElement.getOriginalPayload();
 
       // Format the timestamp for insertion

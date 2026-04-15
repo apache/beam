@@ -81,8 +81,7 @@ public class BigQueryTornadoes {
    */
   static class ExtractTornadoesFn extends DoFn<TableRow, Integer> {
     @ProcessElement
-    public void processElement(@Element TableRow element, OutputReceiver<Integer> receiver) {
-      TableRow row = element;
+    public void processElement(@Element TableRow row, OutputReceiver<Integer> receiver) {
       if ((Boolean) row.get("tornado")) {
         receiver.output(Integer.parseInt((String) row.get("month")));
       }
