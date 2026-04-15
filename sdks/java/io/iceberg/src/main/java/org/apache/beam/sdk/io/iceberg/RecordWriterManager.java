@@ -291,34 +291,25 @@ class RecordWriterManager implements AutoCloseable {
     }
   }
 
-  private final Cache<TableIdentifier, LastRefreshedTable> tableCache;
+  @VisibleForTesting
+  static final Cache<TableIdentifier, LastRefreshedTable> LAST_REFRESHED_TABLE_CACHE =
+      CacheBuilder.newBuilder().expireAfterAccess(10, TimeUnit.MINUTES).build();
 
   private boolean isClosed = false;
 
-  /** Creates a new table cache with the default 10-minute TTL. */
-  static Cache<TableIdentifier, LastRefreshedTable> createTableCache() {
-    return CacheBuilder.newBuilder().expireAfterAccess(10, TimeUnit.MINUTES).build();
-  }
-
-  RecordWriterManager(
-      Catalog catalog,
-      String filePrefix,
-      long maxFileSize,
-      int maxNumWriters,
-      Cache<TableIdentifier, LastRefreshedTable> tableCache) {
+  RecordWriterManager(Catalog catalog, String filePrefix, long maxFileSize, int maxNumWriters) {
     this.catalog = catalog;
     this.filePrefix = filePrefix;
     this.maxFileSize = maxFileSize;
     this.maxNumWriters = maxNumWriters;
-    this.tableCache = tableCache;
   }
 
   /**
    * Returns an Iceberg {@link Table}.
    *
-   * <p>First attempts to fetch the table from the {@link #tableCache}. If it's not there, we
-   * attempt to load it using the Iceberg API. If the table doesn't exist at all, we attempt to
-   * create it, inferring the table schema from the record schema.
+   * <p>First attempts to fetch the table from the {@link #LAST_REFRESHED_TABLE_CACHE}. If it's not
+   * there, we attempt to load it using the Iceberg API. If the table doesn't exist at all, we
+   * attempt to create it, inferring the table schema from the record schema.
    *
    * <p>Note that this is a best-effort operation that depends on the {@link Catalog}
    * implementation. Although it is expected, some implementations may not support creating a table
@@ -327,7 +318,8 @@ class RecordWriterManager implements AutoCloseable {
   @VisibleForTesting
   Table getOrCreateTable(IcebergDestination destination, Schema dataSchema) {
     TableIdentifier identifier = destination.getTableIdentifier();
-    @Nullable LastRefreshedTable lastRefreshedTable = tableCache.getIfPresent(identifier);
+    @Nullable
+    LastRefreshedTable lastRefreshedTable = LAST_REFRESHED_TABLE_CACHE.getIfPresent(identifier);
     if (lastRefreshedTable != null && lastRefreshedTable.table != null) {
       lastRefreshedTable.refreshIfStale();
       return lastRefreshedTable.table;
@@ -343,7 +335,7 @@ class RecordWriterManager implements AutoCloseable {
             : Maps.newHashMap();
 
     @Nullable Table table = null;
-    synchronized (tableCache) {
+    synchronized (LAST_REFRESHED_TABLE_CACHE) {
       // Create namespace if it does not exist yet
       if (!namespace.isEmpty() && catalog instanceof SupportsNamespaces) {
         SupportsNamespaces supportsNamespaces = (SupportsNamespaces) catalog;
@@ -380,7 +372,7 @@ class RecordWriterManager implements AutoCloseable {
       }
     }
     lastRefreshedTable = new LastRefreshedTable(table, Instant.now());
-    tableCache.put(identifier, lastRefreshedTable);
+    LAST_REFRESHED_TABLE_CACHE.put(identifier, lastRefreshedTable);
     return table;
   }
 

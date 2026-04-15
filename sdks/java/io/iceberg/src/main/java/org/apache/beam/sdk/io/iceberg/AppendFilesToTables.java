@@ -17,9 +17,6 @@
  */
 package org.apache.beam.sdk.io.iceberg;
 
-import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
-
-import java.io.Closeable;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -107,9 +104,11 @@ class AppendFilesToTables
       this.manifestFilePrefix = manifestFilePrefix;
     }
 
-    @Setup
-    public void setup() {
-      this.catalog = catalogConfig.newCatalog();
+    private Catalog getCatalog() {
+      if (catalog == null) {
+        catalog = catalogConfig.catalog();
+      }
+      return catalog;
     }
 
     private boolean containsMultiplePartitionSpecs(Iterable<FileWriteResult> fileWriteResults) {
@@ -129,7 +128,7 @@ class AppendFilesToTables
         BoundedWindow window)
         throws IOException {
       String tableStringIdentifier = element.getKey();
-      Table table = checkStateNotNull(catalog).loadTable(TableIdentifier.parse(element.getKey()));
+      Table table = getCatalog().loadTable(TableIdentifier.parse(element.getKey()));
       Iterable<FileWriteResult> fileWriteResults = element.getValue();
       if (shouldSkip(table, fileWriteResults)) {
         return;
@@ -191,17 +190,15 @@ class AppendFilesToTables
         int specId = entry.getKey();
         List<DataFile> files = entry.getValue();
         PartitionSpec spec = Preconditions.checkStateNotNull(specs.get(specId));
-        ManifestWriter<DataFile> writer;
-        try (FileIO io = table.io()) {
-          writer = createManifestWriter(table.location(), uuid, spec, io);
-          for (DataFile file : files) {
-            writer.add(file);
-            committedDataFileByteSize.update(file.fileSizeInBytes());
-            committedDataFileRecordCount.update(file.recordCount());
-          }
-          writer.close();
-          update.appendManifest(writer.toManifestFile());
+        FileIO io = table.io();
+        ManifestWriter<DataFile> writer = createManifestWriter(table.location(), uuid, spec, io);
+        for (DataFile file : files) {
+          writer.add(file);
+          committedDataFileByteSize.update(file.fileSizeInBytes());
+          committedDataFileRecordCount.update(file.recordCount());
         }
+        writer.close();
+        update.appendManifest(writer.toManifestFile());
       }
       update.commit();
     }
@@ -251,13 +248,6 @@ class AppendFilesToTables
         }
       }
       return false;
-    }
-
-    @Teardown
-    public void teardown() throws IOException {
-      if (catalog instanceof Closeable) {
-        ((Closeable) catalog).close();
-      }
     }
   }
 }

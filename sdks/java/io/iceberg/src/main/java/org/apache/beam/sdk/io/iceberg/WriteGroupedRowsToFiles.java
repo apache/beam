@@ -17,10 +17,6 @@
  */
 package org.apache.beam.sdk.io.iceberg;
 
-import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
-
-import java.io.Closeable;
-import java.io.IOException;
 import java.util.List;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
@@ -34,9 +30,7 @@ import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.WindowedValue;
 import org.apache.beam.sdk.values.WindowedValues;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.cache.Cache;
 import org.apache.iceberg.catalog.Catalog;
-import org.apache.iceberg.catalog.TableIdentifier;
 import org.checkerframework.checker.nullness.qual.MonotonicNonNull;
 
 class WriteGroupedRowsToFiles
@@ -74,9 +68,6 @@ class WriteGroupedRowsToFiles
     private final DynamicDestinations dynamicDestinations;
     private final IcebergCatalogConfig catalogConfig;
     private transient @MonotonicNonNull Catalog catalog;
-    private transient @MonotonicNonNull Cache<
-            TableIdentifier, RecordWriterManager.LastRefreshedTable>
-        tableCache;
     private final String filePrefix;
     private final long maxFileSize;
 
@@ -91,10 +82,11 @@ class WriteGroupedRowsToFiles
       this.maxFileSize = maxFileSize;
     }
 
-    @Setup
-    public void setup() {
-      this.catalog = catalogConfig.newCatalog();
-      this.tableCache = RecordWriterManager.createTableCache();
+    private org.apache.iceberg.catalog.Catalog getCatalog() {
+      if (catalog == null) {
+        this.catalog = catalogConfig.catalog();
+      }
+      return catalog;
     }
 
     @ProcessElement
@@ -111,12 +103,7 @@ class WriteGroupedRowsToFiles
           WindowedValues.of(destination, window.maxTimestamp(), window, paneInfo);
       RecordWriterManager writer;
       try (RecordWriterManager openWriter =
-          new RecordWriterManager(
-              checkStateNotNull(catalog),
-              filePrefix,
-              maxFileSize,
-              Integer.MAX_VALUE,
-              checkStateNotNull(tableCache))) {
+          new RecordWriterManager(getCatalog(), filePrefix, maxFileSize, Integer.MAX_VALUE)) {
         writer = openWriter;
         for (Row e : element.getValue()) {
           writer.write(windowedDestination, e);
@@ -131,13 +118,6 @@ class WriteGroupedRowsToFiles
                 .setTableIdentifier(destination.getTableIdentifier())
                 .setSerializableDataFile(dataFile)
                 .build());
-      }
-    }
-
-    @Teardown
-    public void teardown() throws IOException {
-      if (catalog instanceof Closeable) {
-        ((Closeable) catalog).close();
       }
     }
   }

@@ -23,6 +23,7 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.util.ReleaseInfo;
@@ -45,7 +46,6 @@ import org.apache.iceberg.catalog.TableIdentifier;
 import org.apache.iceberg.exceptions.AlreadyExistsException;
 import org.apache.iceberg.exceptions.NoSuchTableException;
 import org.apache.iceberg.types.Type;
-import org.checkerframework.checker.nullness.qual.MonotonicNonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.checkerframework.dataflow.qual.Pure;
 import org.slf4j.Logger;
@@ -54,7 +54,8 @@ import org.slf4j.LoggerFactory;
 @AutoValue
 public abstract class IcebergCatalogConfig implements Serializable {
   private static final Logger LOG = LoggerFactory.getLogger(IcebergCatalogConfig.class);
-  private transient @MonotonicNonNull Catalog cachedCatalog;
+  private static final ConcurrentHashMap<IcebergCatalogConfig, Catalog> CATALOG_CACHE =
+      new ConcurrentHashMap<>();
 
   @Pure
   @Nullable
@@ -75,31 +76,20 @@ public abstract class IcebergCatalogConfig implements Serializable {
 
   public abstract Builder toBuilder();
 
-  /**
-   * Returns a cached Catalog instance for driver-side operations (pipeline construction, schema
-   * inference, etc.). Not intended for use within DoFns — use {@link #newCatalog()} instead.
-   */
   public Catalog catalog() {
-    if (cachedCatalog == null) {
-      cachedCatalog = newCatalog();
-    }
-    return cachedCatalog;
+    return CATALOG_CACHE.computeIfAbsent(this, IcebergCatalogConfig::buildCatalog);
   }
 
-  /**
-   * Creates and returns a new Catalog instance. Use this in DoFn {@code @Setup} methods to ensure
-   * each DoFn owns its own catalog lifecycle independently of other transforms.
-   */
-  public Catalog newCatalog() {
-    String catalogName = getCatalogName();
+  private static Catalog buildCatalog(IcebergCatalogConfig catalogConfig) {
+    String catalogName = catalogConfig.getCatalogName();
     if (catalogName == null) {
       catalogName = "apache-beam-" + ReleaseInfo.getReleaseInfo().getVersion();
     }
-    Map<String, String> catalogProps = getCatalogProperties();
+    Map<String, String> catalogProps = catalogConfig.getCatalogProperties();
     if (catalogProps == null) {
       catalogProps = Maps.newHashMap();
     }
-    Map<String, String> confProps = getConfigProperties();
+    Map<String, String> confProps = catalogConfig.getConfigProperties();
     if (confProps == null) {
       confProps = Maps.newHashMap();
     }
