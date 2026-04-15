@@ -315,6 +315,12 @@ public class CalciteUtils {
         Schema schema = fieldType.getRowSchema();
         Preconditions.checkArgumentNotNull(schema);
         return toCalciteRowType(schema, dataTypeFactory);
+      case LOGICAL_TYPE:
+        Schema.LogicalType<?, ?> logicalType = fieldType.getLogicalType();
+        if (logicalType instanceof PassThroughLogicalType) {
+          return toRelDataType(dataTypeFactory, logicalType.getBaseType());
+        }
+        return dataTypeFactory.createSqlType(toSqlTypeName(fieldType));
       default:
         return dataTypeFactory.createSqlType(toSqlTypeName(fieldType));
     }
