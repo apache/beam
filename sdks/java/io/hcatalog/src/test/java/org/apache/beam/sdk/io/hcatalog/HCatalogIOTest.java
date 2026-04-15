@@ -426,4 +426,17 @@ public class HCatalogIOTest implements Serializable {
     reCreateTestTable();
     insertTestData(getConfigPropertiesAsMap(service.getHiveConf()));
   }
+
+  @Test
+  public void testJodaTimeShading() {
+    org.joda.time.Instant instant = org.joda.time.Instant.ofEpochMilli(123L);
+    assertEquals(123L, instant.getMillis());
+  }
+
+  @Test
+  public void testJodaTimeRelocation() {
+    org.apache.beam.vendor.hive_exec.v4_0_1.org.joda.time.Instant instant =
+        new org.apache.beam.vendor.hive_exec.v4_0_1.org.joda.time.Instant(123L);
+    org.junit.Assert.assertEquals(123L, instant.getMillis());
+  }
 }

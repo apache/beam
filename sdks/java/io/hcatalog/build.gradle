@@ -54,7 +54,7 @@ dependencies {
   // Calcite (a dependency of Hive) bundles without repackaging Guava which is why we redeclare it
   // here so that it appears on the compile/test/runtime classpath before Calcite.
   provided library.java.hadoop_common
-  provided "org.apache.hive:hive-exec:$hive_version"
+  provided project(path: ":vendor:hive-exec-4_0_1", configuration: "relocated")
   provided(group: "org.apache.hive.hcatalog", name: "hive-hcatalog-core", version: hive_version) {
     exclude group: "org.apache.hive", module: "hive-exec"
     exclude group: "com.google.protobuf", module: "protobuf-java"
@@ -62,8 +62,10 @@ dependencies {
   testImplementation library.java.commons_io
   testImplementation library.java.junit
   testImplementation library.java.hamcrest
-  testImplementation "org.apache.hive.hcatalog:hive-hcatalog-core:$hive_version:tests"
-  testImplementation "org.apache.hive:hive-exec:$hive_version"
+  testImplementation("org.apache.hive.hcatalog:hive-hcatalog-core:$hive_version:tests") {
+    exclude group: "org.apache.hive", module: "hive-exec"
+  }
+  testImplementation project(path: ":vendor:hive-exec-4_0_1", configuration: "relocated")
   // datanucleus dependency version should be in alignment with managed dependencies of hive-standalone-metastore
   testRuntimeOnly 'org.datanucleus:datanucleus-api-jdo:5.2.8'
   testRuntimeOnly 'org.datanucleus:datanucleus-rdbms:5.2.10'
@@ -79,6 +81,10 @@ dependencies {
     "hadoopVersion$kv.key" "org.apache.hadoop:hadoop-hdfs-client:$kv.value"
     "hadoopVersion$kv.key" "org.apache.hadoop:hadoop-mapreduce-client-core:$kv.value"
   }
+}
+
+configurations.all {
+  exclude group: "org.apache.hive", module: "hive-exec"
 }
 
 hadoopVersions.each {kv ->

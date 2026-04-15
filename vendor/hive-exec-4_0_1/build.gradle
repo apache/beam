@@ -1,0 +1,53 @@
+plugins {
+    id 'com.gradleup.shadow'
+    id 'java-library'
+}
+
+def hive_version = "4.0.1" // Keep in sync with sdks/java/io/hcatalog/build.gradle
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    implementation("org.apache.hive:hive-exec:$hive_version") {
+        transitive = false // We only want the fat jar
+    }
+}
+
+shadowJar {
+    // Relocate the problematic packages to a unique prefix
+    def relocatedVersion = hive_version.replace('.', '_')
+    relocate 'org.joda.time', "org.apache.beam.vendor.hive_exec.v${relocatedVersion}.org.joda.time"
+    
+    exclude '**/HiveParser.class'
+    
+    archiveClassifier.set('shadow')
+}
+
+task extractHiveParser(type: Copy) {
+    def hiveExecJar = configurations.compileClasspath.findAll { it.name.contains('hive-exec') }
+    if (hiveExecJar.isEmpty()) {
+        hiveExecJar = configurations.runtimeClasspath.findAll { it.name.contains('hive-exec') }
+    }
+    from(zipTree(hiveExecJar.first())) {
+        include '**/HiveParser.class'
+    }
+    into "$buildDir/extracted"
+}
+
+tasks.register('finalJar', Jar) {
+    dependsOn shadowJar, extractHiveParser
+    archiveClassifier.set('')
+    from zipTree(shadowJar.archiveFile)
+    from "$buildDir/extracted"
+}
+
+configurations {
+    relocated
+}
+
+artifacts {
+    relocated(finalJar)
+}
+
