@@ -230,34 +230,58 @@ def _expand_javascript_mapping_func(
         "Javascript mapping functions require the 'quickjs' package.")
 
   if expression:
-    source = '\n'.join(['function fn(__row__) {'] + [
-        f'  const {name} = __row__["{name}"];' for name in original_fields
+    args = [
+        name for name in original_fields
         if name.isidentifier() and name in expression
-    ] + ['  return (' + expression + ');'] + ['}'])
+    ]
+    source = '\n'.join([f'function fn({", ".join(args)}) {{'] +
+                       ['  return (' + expression + ');'] + ['}'])
     js_func = _QuickJsCallable(source, "fn")
+    used_fields = args
 
   elif callable:
     # Wrap the callable in a named function to use quickjs.Function
-    source = (f"function fn(row) {{ "
-              f"return ({callable})(row); }}")
+    source = (
+        f"function fn(keys, values) {{ "
+        f"  const row = {{}}; "
+        f"  for (let i = 0; i < keys.length; i++) {{ "
+        f"    row[keys[i]] = values[i]; "
+        f"  }} "
+        f"  return ({callable})(row); }}")
     js_func = _QuickJsCallable(source, "fn")
+    used_fields = None
 
   else:
     if not path.endswith('.js'):
       raise ValueError(f'File "{path}" is not a valid .js file.')
     udf_code = FileSystems.open(path).read().decode()
     bridge_source = (
-        udf_code + f"\nfunction bridge_fn(row) {{ "
-        f"return {name}(row); }}")
+        udf_code + f"\nfunction bridge_fn(keys, values) {{ "
+        f"  const row = {{}}; "
+        f"  for (let i = 0; i < keys.length; i++) {{ "
+        f"    row[keys[i]] = values[i]; "
+        f"  }} "
+        f"  return {name}(row); }}")
     js_func = _QuickJsCallable(bridge_source, "bridge_fn")
+    used_fields = None
 
   def js_wrapper(row):
-    row_as_dict = py_value_to_js_dict(row)
-    try:
-      js_result = js_func(row_as_dict)
-    except Exception as exn:
-      raise RuntimeError(
-          f"Error evaluating javascript expression: {exn}") from exn
+    if expression:
+      vals = [getattr(row, name) for name in used_fields]
+      js_vals = [py_value_to_js_dict(val) for val in vals]
+      try:
+        js_result = js_func(*js_vals)
+      except Exception as exn:
+        raise RuntimeError(
+            f"Error evaluating javascript expression: {exn}") from exn
+    else:
+      row_as_dict = py_value_to_js_dict(row)
+      try:
+        js_result = js_func(
+            list(row_as_dict.keys()), list(row_as_dict.values()))
+      except Exception as exn:
+        raise RuntimeError(
+            f"Error evaluating javascript expression: {exn}") from exn
     return dicts_to_rows(js_result)
 
   return js_wrapper
