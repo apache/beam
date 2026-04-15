@@ -286,11 +286,11 @@ class VertexAIModelHandlerJSONProvider(ModelHandlerProvider):
 class HuggingFacePipelineProvider(ModelHandlerProvider):
   def __init__(
       self,
-      task: str = "",
-      model: str = "",
+      task: Optional[str] = None,
+      model: Optional[str] = None,
       preprocess: Optional[dict[str, str]] = None,
       postprocess: Optional[dict[str, str]] = None,
-      device: Optional[str] = None,
+      device: Optional[Any] = None,
       inference_fn: Optional[dict[str, str]] = None,
       load_pipeline_args: Optional[dict[str, Any]] = None,
       **kwargs):
@@ -322,7 +322,11 @@ class HuggingFacePipelineProvider(ModelHandlerProvider):
 
   @staticmethod
   def validate(model_handler_spec):
-    pass
+    config = model_handler_spec.get('config', {})
+    if not config.get('task') and not config.get('model'):
+      raise ValueError(
+          "HuggingFacePipeline requires either 'task' or "
+          "'model' to be specified.")
 
   def inference_output_type(self):
     return Any
