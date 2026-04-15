@@ -29,6 +29,7 @@ on:
       - 'runners/google-cloud-dataflow-java/worker/**'
       - '.github/trigger_files/beam_PreCommit_Java_Dataflow.json'
       - '.github/workflows/beam_PreCommit_Java_Dataflow.yml'
+      - 'release/trigger_all_tests.json'
   issue_comment:
     types: [created]
   schedule:
