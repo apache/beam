@@ -109,6 +109,56 @@ class YamlUDFMappingTest(unittest.TestCase):
                   row=beam.Row(rank=2, values=[7, 8, 9, 12])),
           ]))
 
+  @unittest.skipIf(quickjs is None, 'quickjs not installed.')
+  def test_map_to_fields_date_js(self):
+    import datetime
+    with beam.Pipeline(options=beam.options.pipeline_options.PipelineOptions(
+        pickle_library='cloudpickle', yaml_experimental_features=['javascript'
+                                                                  ])) as p:
+      elements = p | beam.Create([beam.Row(val=1)])
+      result = elements | YamlTransform(
+          '''
+      type: MapToFields
+      config:
+        language: javascript
+        fields:
+          date:
+            callable: |
+              function get_date(x) {
+                return new Date("2026-04-16T12:00:00.000Z")
+              }
+      ''')
+      assert_that(
+          result,
+          equal_to([
+              beam.Row(
+                  date=datetime.datetime(
+                      2026, 4, 16, 12, 0, 0, tzinfo=datetime.timezone.utc)),
+          ]))
+
+  @unittest.skipIf(quickjs is None, 'quickjs not installed.')
+  def test_map_to_fields_new_complex_types_js(self):
+    with beam.Pipeline(options=beam.options.pipeline_options.PipelineOptions(
+        pickle_library='cloudpickle', yaml_experimental_features=['javascript'
+                                                                  ])) as p:
+      elements = p | beam.Create([beam.Row(val=1)])
+      result = elements | YamlTransform(
+          '''
+      type: MapToFields
+      config:
+        language: javascript
+        fields:
+          arr:
+            callable: "function(x) { return [1, 2, 3]; }"
+          obj:
+            callable: "function(x) { return {a: 1, b: 'two'}; }"
+      ''')
+      assert_that(
+          result,
+          equal_to([
+              beam.Row(arr=[1, 2, 3], obj=beam.Row(a=1, b='two')),
+          ]))
+
   def test_map_to_fields_filter_inline_py(self):
     with beam.Pipeline(options=beam.options.pipeline_options.PipelineOptions(
         pickle_library='cloudpickle')) as p:

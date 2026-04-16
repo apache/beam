@@ -195,8 +195,8 @@ class _QuickJsCallable:
         self._func = context.eval(self.source)
     return self._func
 
-  def __call__(self, *args, **kwargs):
-    return self._get_func()(*args, **kwargs)
+  def __call__(self, *args):
+    return self._get_func()(*args)
 
   def __getstate__(self):
     return {'source': self.source, 'name': self.name}
@@ -239,7 +239,7 @@ def _expand_javascript_mapping_func(
     keys_json = json.dumps(list(original_fields))
     return (
         f"function {func_name}(serialized_flags, ...values) {{ "
-        f"  const keys = JSON.parse('{keys_json}'); "
+        f"  const keys = {keys_json}; "
         f"  const flags = serialized_flags.split(','); "
         f"  const row = {{}}; "
         f"  for (let i = 0; i < keys.length; i++) {{ "
@@ -248,8 +248,9 @@ def _expand_javascript_mapping_func(
         f"    row[keys[i]] = val; "
         f"  }} "
         f"  const result = {call_expr}; "
-        f"  return (typeof result === 'object' && result !== null) "
-        f"? '__json__:' + JSON.stringify(result) : result; "
+        f"  if (result instanceof Date) "
+        f"return {{__type__: 'date', value: result.toISOString()}}; "
+        f"  return result; "
         f"}}")
 
   if expression:
@@ -266,8 +267,8 @@ function fn(serialized_flags, {", ".join(args)}) {{
   const flags = serialized_flags.split(',');
 {chr(10).join(parses)}
   const result = ({expression});
-  return (typeof result === 'object' && result !== null) ?
-    "__json__:" + JSON.stringify(result) : result;
+  if (result instanceof Date) return {{__type__: 'date', value: result.toISOString()}};
+  return result;
 }}
 """
     js_func = _QuickJsCallable(source, "fn")
@@ -287,6 +288,18 @@ function fn(serialized_flags, {", ".join(args)}) {{
     js_func = _QuickJsCallable(bridge_source, "bridge_fn")
     used_fields = None
 
+  def _prepare_args(vals):
+    js_vals = []
+    flags = []
+    for val in vals:
+      if isinstance(val, (list, dict)):
+        js_vals.append(json.dumps(val))
+        flags.append('1')
+      else:
+        js_vals.append(val)
+        flags.append('0')
+    return ",".join(flags), js_vals
+
   def js_wrapper(row):
     # Prepare arguments for the JS function. We optimize performance by
     # passing primitives directly and only serializing complex types (lists,
@@ -294,44 +307,25 @@ function fn(serialized_flags, {", ".join(args)}) {{
     # inform the JS bridge which arguments need to be JSON.parsed.
     if expression:
       vals = [py_value_to_js_dict(getattr(row, name)) for name in used_fields]
-      js_vals = []
-      flags = []
-      for val in vals:
-        if isinstance(val, (list, dict)):
-          js_vals.append(json.dumps(val))
-          flags.append('1')
-        else:
-          js_vals.append(val)
-          flags.append('0')
-
-      flags_str = ",".join(flags)
-      try:
-        js_result = js_func(flags_str, *js_vals)
-      except Exception as exn:
-        raise RuntimeError(
-            f"Error evaluating javascript expression: {exn}") from exn
     else:
       row_as_dict = py_value_to_js_dict(row)
-      js_vals = []
-      flags = []
-      for name in original_fields:
-        val = row_as_dict.get(name)
-        if isinstance(val, (list, dict)):
-          js_vals.append(json.dumps(val))
-          flags.append('1')
-        else:
-          js_vals.append(val)
-          flags.append('0')
+      vals = [row_as_dict.get(name) for name in original_fields]
 
-      flags_str = ",".join(flags)
-      try:
-        js_result = js_func(flags_str, *js_vals)
-      except Exception as exn:
-        raise RuntimeError(
-            f"Error evaluating javascript expression: {exn}") from exn
+    flags_str, js_vals = _prepare_args(vals)
 
-    if isinstance(js_result, str) and js_result.startswith("__json__:"):
-      js_result = json.loads(js_result[9:])
+    try:
+      js_result = js_func(flags_str, *js_vals)
+    except Exception as exn:
+      raise RuntimeError(
+          f"Error evaluating javascript expression: {exn}") from exn
+
+    if isinstance(js_result, quickjs.Object):
+      obj = json.loads(js_result.json())
+      if isinstance(obj, dict) and obj.get('__type__') == 'date':
+        import datetime
+        js_result = datetime.datetime.fromisoformat(obj['value'])
+      else:
+        js_result = obj
 
     return dicts_to_rows(js_result)
 
