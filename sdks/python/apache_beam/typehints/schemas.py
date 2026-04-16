@@ -106,6 +106,8 @@ from apache_beam.utils.python_callable import PythonCallableWithSource
 from apache_beam.utils.timestamp import Timestamp
 
 PYTHON_ANY_URN = "beam:logical:pythonsdk_any:v1"
+_PYTHON_ANY_FIELD_TYPE_BYTE = "_pythonsdk_any_type_byte"
+_PYTHON_ANY_FIELD_PAYLOAD = "payload"
 _SCHEMA_OPTION_STATIC_ENCODING = "beam:option:row:static_encoding"
 
 # Bi-directional mappings
@@ -257,6 +259,7 @@ def schema_field(
 
 
 def _python_any_schema_pb2():
+  # A portable schema matches FastPrimitivesCoder encoded values
   return schema_pb2.FieldType(
       logical_type=schema_pb2.LogicalType(
           urn=PYTHON_ANY_URN,
@@ -266,11 +269,11 @@ def _python_any_schema_pb2():
                   schema=schema_pb2.Schema(
                       fields=[
                           schema_pb2.Field(
-                              name="type_byte",
+                              name=_PYTHON_ANY_FIELD_TYPE_BYTE,
                               type=schema_pb2.FieldType(
                                   atomic_type=schema_pb2.BYTE, nullable=False)),
                           schema_pb2.Field(
-                              name="payload",
+                              name=_PYTHON_ANY_FIELD_PAYLOAD,
                               type=schema_pb2.FieldType(
                                   atomic_type=schema_pb2.BYTES, nullable=False))
                       ],

@@ -841,7 +841,7 @@ class BigEndianShortCoderImpl(StreamCoderImpl):
     out.write_bigendian_int16(value)
 
   def decode_from_stream(self, in_stream, nested):
-    # type: (create_InputStream, bool) -> float
+    # type: (create_InputStream, bool) -> int
     return in_stream.read_bigendian_int16()
 
   def estimate_size(self, unused_value, nested=False):
@@ -857,12 +857,12 @@ class ByteCoderImpl(StreamCoderImpl):
     out.write_byte(value)
 
   def decode_from_stream(self, in_stream, nested):
-    # type: (create_InputStream, bool) -> float
+    # type: (create_InputStream, bool) -> int
     return in_stream.read_byte()
 
   def estimate_size(self, unused_value, nested=False):
     # type: (Any, bool) -> int
-    # A short is encoded as 2 bytes, regardless of nesting.
+    # A byte is encoded as 1 byte, regardless of nesting.
     return 1
 
 

@@ -162,19 +162,6 @@ class SqlTransformTest(unittest.TestCase):
           | SqlTransform("SELECT a*a as s, LENGTH(b) AS c FROM PCOLLECTION"))
       assert_that(out, equal_to([(1, 1), (4, 1), (100, 2)]))
 
-  @staticmethod
-  def recover_to_python_type(input):
-    fields = []
-    for field in input:
-      print(field)
-      if hasattr(field, 'type_byte') and hasattr(field, 'payload'):
-        obj = coders.FastPrimitivesCoder().decode(
-            field.type_byte.to_bytes() + field.payload)
-        fields.append(obj)
-      else:
-        fields.append(field)
-    return tuple(fields)
-
   def test_row_user_type(self):
     with TestPipeline() as p:
       out = (
@@ -183,9 +170,7 @@ class SqlTransformTest(unittest.TestCase):
               UserTypeRow(1, Aribitrary("abc"), -1j),
           ])
           | SqlTransform("SELECT arb, complex FROM PCOLLECTION")
-          # TODO: recover to user type. Currently pipeline can run,
-          # but elements returned back to Python are generated rows
-          | beam.Map(self.recover_to_python_type))
+          | beam.Map(tuple))
       assert_that(
           out,
           equal_to([(Aribitrary(1.0), 1 + 2.5j), (Aribitrary("abc"), -1j)]))

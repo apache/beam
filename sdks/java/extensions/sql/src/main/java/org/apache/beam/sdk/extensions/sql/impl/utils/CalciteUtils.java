@@ -22,6 +22,7 @@ import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
 import java.util.Date;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.IntStream;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
@@ -169,6 +170,12 @@ public class CalciteUtils {
           FieldType.DATETIME, SqlTypeName.TIMESTAMP,
           FieldType.STRING, SqlTypeName.VARCHAR);
 
+  // Associating FieldType to generated RelDataType objects for Beam logical types. Used for
+  // recovering the original type in output schema after full Beam FieldType->Calcite Type->Beam
+  // FieldType trip
+  private static final Map<RelDataType, FieldType> LOGICAL_TYPE_REL_DATA_MAPPING =
+      new ConcurrentHashMap<>();
+
   /** Generate {@link Schema} from {@code RelDataType} which is used to create table. */
   public static Schema toSchema(RelDataType tableInfo) {
     return tableInfo.getFieldList().stream().map(CalciteUtils::toField).collect(Schema.toSchema());
@@ -254,6 +261,9 @@ public class CalciteUtils {
   }
 
   public static FieldType toFieldType(RelDataType calciteType) {
+    if (LOGICAL_TYPE_REL_DATA_MAPPING.containsKey(calciteType)) {
+      return LOGICAL_TYPE_REL_DATA_MAPPING.get(calciteType);
+    }
     switch (calciteType.getSqlTypeName()) {
       case ARRAY:
       case MULTISET:
@@ -317,10 +327,27 @@ public class CalciteUtils {
         return toCalciteRowType(schema, dataTypeFactory);
       case LOGICAL_TYPE:
         Schema.LogicalType<?, ?> logicalType = fieldType.getLogicalType();
+        RelDataType relDataType;
         if (logicalType instanceof PassThroughLogicalType) {
-          return toRelDataType(dataTypeFactory, logicalType.getBaseType());
+          relDataType =
+              toRelDataType(
+                  dataTypeFactory, logicalType.getBaseType().withNullable(fieldType.getNullable()));
+        } else {
+          relDataType = dataTypeFactory.createSqlType(toSqlTypeName(fieldType));
         }
-        return dataTypeFactory.createSqlType(toSqlTypeName(fieldType));
+        // For backward-compatibility, exclude logical types registered in
+        // CALCITE_TO_BEAM_TYPE_MAPPING,
+        // e.g., primitive types, date time types, etc.
+        SqlTypeName typeName = relDataType.getSqlTypeName();
+        if (typeName != null && !CALCITE_TO_BEAM_TYPE_MAPPING.containsKey(typeName)) {
+          // register both nullable and non-nullable variants.
+          boolean flipNullable = !relDataType.isNullable();
+          LOGICAL_TYPE_REL_DATA_MAPPING.put(relDataType, fieldType);
+          LOGICAL_TYPE_REL_DATA_MAPPING.put(
+              dataTypeFactory.createTypeWithNullability(relDataType, flipNullable),
+              fieldType.withNullable(flipNullable));
+        }
+        return relDataType;
       default:
         return dataTypeFactory.createSqlType(toSqlTypeName(fieldType));
     }

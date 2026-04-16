@@ -17,6 +17,8 @@
  */
 package org.apache.beam.sdk.extensions.sql;
 
+import static org.junit.Assert.assertEquals;
+
 import java.nio.charset.StandardCharsets;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -792,6 +794,7 @@ public class BeamComplexTypeTest {
             .apply(SqlTransform.query("select * from PCOLLECTION"));
 
     PAssert.that(outputRow).containsInAnyOrder(inputRow);
+    assertEquals(inputRow.getSchema(), outputRow.getSchema());
     pipeline.run().waitUntilFinish(Duration.standardMinutes(1));
   }
 }

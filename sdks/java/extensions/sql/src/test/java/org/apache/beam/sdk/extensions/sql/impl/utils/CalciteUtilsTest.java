@@ -24,6 +24,8 @@ import static org.junit.Assert.assertTrue;
 import java.util.Map;
 import java.util.stream.Collectors;
 import org.apache.beam.sdk.schemas.Schema;
+import org.apache.beam.sdk.schemas.logicaltypes.PassThroughLogicalType;
+import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.rel.type.RelDataType;
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.rel.type.RelDataTypeFactory;
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.rel.type.RelDataTypeSystem;
@@ -184,9 +186,8 @@ public class CalciteUtilsTest {
     Schema nestedSchema = Schema.builder().addField("nested_f1", Schema.FieldType.INT32).build();
     Schema.FieldType rowType = Schema.FieldType.row(nestedSchema);
 
-    Schema.LogicalType<org.apache.beam.sdk.values.Row, org.apache.beam.sdk.values.Row> logicalType =
-        new org.apache.beam.sdk.schemas.logicaltypes.PassThroughLogicalType<
-            org.apache.beam.sdk.values.Row>(
+    Schema.LogicalType<Row, Row> logicalType =
+        new PassThroughLogicalType<Row>(
             "RowBackedLogicalType", Schema.FieldType.STRING, "", rowType) {};
 
     Schema.FieldType logicalFieldType = Schema.FieldType.logicalType(logicalType);
