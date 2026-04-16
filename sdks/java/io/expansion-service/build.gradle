@@ -91,6 +91,12 @@ dependencies {
 
   runtimeOnly library.java.kafka_clients
   runtimeOnly library.java.slf4j_jdk14
+
+  // Force log4j-core version in shadow jar to fix CVE-2026-34477 in the shaded jar
+  // `org.apache.beam:beam-sdks-java-io-expansion-service`
+  // Currently, it has a transitive dependency of `org.apache.iceberg:iceberg-aws-bundle:1.10.0`,
+  // which includes a vulnerable log4j-core (2.20.0).
+  runtimeOnly library.java.log4j2_core
 }
 
 task runExpansionService (type: JavaExec) {
