@@ -33,9 +33,9 @@ repos:
 
   - repo: https://github.com/astral-sh/ruff-pre-commit
     # this rev is a release tag in the repo above and corresponds with a ruff
-    # version. make sure this matches the version of yapf in setup.py
+    # version. make sure this matches the version of ruff in setup.py
     rev: v0.15.7
     hooks:
       - id: ruff-check
-        files: "sdks/python/apache_beam"
+        files: ^sdks/python/apache_beam/
         args: ["--config=sdks/python/ruff.toml"]

@@ -41,9 +41,9 @@ description: Guides Python SDK development in Apache Beam, including environment
 - `pyproject.toml` - Build configuration
 - `tox.ini` - Test automation
 - `pytest.ini` - Pytest configuration
-- `.pylintrc` - Linting rules
+- `ruff.toml` - Linting rules
 - `.isort.cfg` - Import sorting
-- `mypy.ini` - Type checking
+- `pyrefly.toml` - Type checking
 
 ## Environment Setup
 
