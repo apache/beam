@@ -59,6 +59,7 @@ public class BeamFnStatusClient implements AutoCloseable {
   private final MemoryMonitor memoryMonitor;
   private final Cache<?, ?> cache;
 
+  @SuppressWarnings("ThreadPriorityCheck")
   @SuppressFBWarnings("SC_START_IN_CTOR") // for memory monitor thread
   public BeamFnStatusClient(
       ApiServiceDescriptor apiServiceDescriptor,

@@ -1546,22 +1546,15 @@ class BeamModulePlugin implements Plugin<Project> {
             "PreferJavaTimeOverload",
             "NonCanonicalType",
             "Slf4jSignOnlyFormat",
-            "ThreadPriorityCheck",
             "UndefinedEquals",
             "UnescapedEntity",
             "UnrecognisedJavadocTag",
             // errorprone 3.2.0+ checks
             "DirectInvocationOnMock",
-            "Finalize",
             "JUnitIncompatibleType",
             "MockNotUsedInProduction",
-            "NullableTypeParameter",
             "NullableWildcard",
             "SuperCallToObjectMethod",
-            // intended suppressions emerged in newer protobuf versions
-            // For backward compatibility. Public method checked in before this check impl
-            // Possible use in interface subclasses
-            "ClassInitializationDeadlock",
             // for encoding efficiency and backward compatibility
             "EnumOrdinal",
             // widely used in non-public methods
