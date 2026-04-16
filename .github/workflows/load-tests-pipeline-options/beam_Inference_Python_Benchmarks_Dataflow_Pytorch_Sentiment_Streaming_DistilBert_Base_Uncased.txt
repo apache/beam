@@ -28,9 +28,10 @@
 --metrics_table=torch_sentiment_distilbert_base_uncased
 --input_options={}
 --influx_measurement=torch_sentiment_distilbert_base_uncased
---device=CPU
+--device=GPU
 --input_file=gs://apache-beam-ml/testing/inputs/sentences_50k.txt
 --runner=DataflowRunner
+--experiments=use_runner_v2
 --dataflow_service_options=worker_accelerator=type:nvidia-tesla-t4;count:1;install-nvidia-driver
 --model_path=distilbert-base-uncased-finetuned-sst-2-english
 --model_state_dict_path=gs://apache-beam-ml/models/huggingface.sentiment.distilbert-base-uncased.pth
