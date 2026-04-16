@@ -231,6 +231,11 @@ def _expand_javascript_mapping_func(
         "Javascript mapping functions require the 'quickjs' package.")
 
   def make_bridge_source(func_name, call_expr):
+    # The bridge function facilitates high-performance data transfer from Python
+    # to QuickJS by reconstructing the row object in JS.
+    # To minimize JSON overhead, primitives are passed directly, while complex
+    # types (lists/dicts) are passed as JSON strings and parsed in JS.
+    # The 'flags' argument indicates which values need parsing.
     keys_json = json.dumps(list(original_fields))
     return (
         f"function {func_name}(serialized_flags, ...values) {{ "
@@ -283,6 +288,10 @@ function fn(serialized_flags, {", ".join(args)}) {{
     used_fields = None
 
   def js_wrapper(row):
+    # Prepare arguments for the JS function. We optimize performance by
+    # passing primitives directly and only serializing complex types (lists,
+    # dicts) to JSON strings. A string of flags ('0' or '1') is passed to
+    # inform the JS bridge which arguments need to be JSON.parsed.
     if expression:
       vals = [py_value_to_js_dict(getattr(row, name)) for name in used_fields]
       js_vals = []
