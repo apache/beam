@@ -104,13 +104,13 @@ jobs:
       github.event_name == 'pull_request_target' ||
       (github.event_name == 'schedule' && github.repository == 'apache/beam') ||
       github.event_name == 'workflow_dispatch' ||
-      startsWith(github.event.comment.body, 'Run Job With Matrix')
+      (github.event_name == 'issue_comment' && github.event.comment.body == format('{0} {1}', matrix.job_phrase, matrix.python_version))
     steps:
       - uses: actions/checkout@v3
       - name: Setup repository
         uses: ./.github/actions/setup-action
         with:
-          comment_phrase: ${{ matrix.job_phrase }}
+          comment_phrase: ${{ matrix.job_phrase }} ${{ matrix.python_version }}
           github_token: ${{ secrets.GITHUB_TOKEN }}
           github_job: ${{ matrix.job_name }} (${{ matrix.job_phrase }} ${{ matrix.python_version }})
 ```
