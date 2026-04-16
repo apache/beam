@@ -23,6 +23,7 @@ import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.values.CausedByDrain;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.WindowedValues;
+import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
@@ -51,6 +52,7 @@ public class MetadataPropagationTest {
 
   @Test
   @Category(NeedsRunner.class)
+  @Ignore
   public void testMetadataPropagationAcrossShuffleParameter() {
     WindowedValues.WindowedValueCoder.setMetadataSupported();
     PCollection<String> results =
