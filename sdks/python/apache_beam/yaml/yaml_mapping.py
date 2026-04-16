@@ -16,9 +16,11 @@
 #
 
 """This module defines the basic MapToFields operation."""
+import datetime
 import itertools
 import json
 import re
+import threading
 from collections import abc
 from collections.abc import Callable
 from collections.abc import Collection
@@ -181,19 +183,20 @@ class _QuickJsCallable:
   def __init__(self, source, name=None):
     self.source = source
     self.name = name
-    self._func = None
+    self._local = threading.local()
 
   def _get_func(self):
-    if self._func is None:
+    if not hasattr(self._local, 'func'):
       if quickjs is None:
         raise ValueError("quickjs is not installed.")
       context = quickjs.Context()
       if self.name:
         context.eval(self.source)
-        self._func = context.get(self.name)
+        self._local.func = context.get(self.name)
       else:
-        self._func = context.eval(self.source)
-    return self._func
+        self._local.func = context.eval(self.source)
+      self._local.context = context  # Keep context alive
+    return self._local.func
 
   def __call__(self, *args):
     return self._get_func()(*args)
@@ -204,7 +207,7 @@ class _QuickJsCallable:
   def __setstate__(self, state):
     self.source = state['source']
     self.name = state['name']
-    self._func = None
+    self._local = threading.local()
 
 
 # TODO(yaml) Improve type inferencing for JS UDF's
@@ -263,7 +266,7 @@ def _expand_javascript_mapping_func(
       parses.append(f"  if (flags[{i}] === '1') {arg} = JSON.parse({arg});")
 
     source = f"""
-function fn(serialized_flags, {", ".join(args)}) {{
+function fn(serialized_flags{', ' + ', '.join(args) if args else ''}) {{
   const flags = serialized_flags.split(',');
 {chr(10).join(parses)}
   const result = ({expression});
@@ -322,7 +325,6 @@ function fn(serialized_flags, {", ".join(args)}) {{
     if isinstance(js_result, quickjs.Object):
       obj = json.loads(js_result.json())
       if isinstance(obj, dict) and obj.get('__type__') == 'date':
-        import datetime
         js_result = datetime.datetime.fromisoformat(obj['value'])
       else:
         js_result = obj
