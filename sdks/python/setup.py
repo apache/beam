@@ -49,7 +49,7 @@ def normalize_path(filename):
   return os.path.normcase(os.path.realpath(os.path.normpath(filename)))
 
 
-class mypy(Command):
+class pyrefly(Command):
   user_options = []
 
   def initialize_options(self):
@@ -71,10 +71,10 @@ class mypy(Command):
     return os.path.join(project_path, to_filename(ei_cmd.egg_name))
 
   def run(self):
-    args = ['mypy', self.get_project_path()]
+    args = ['pyrefly', 'check', self.get_project_path()]
     result = subprocess.call(args)
     if result != 0:
-      raise DistutilsError("mypy exited with status %d" % result)
+      raise DistutilsError("pyrefly exited with status %d" % result)
 
 
 def get_version():
@@ -446,6 +446,12 @@ if __name__ == '__main__':
       python_requires=python_requires,
       # BEAM-8840: Do NOT use tests_require or setup_requires.
       extras_require={
+          'dev': [
+            'isort==7.0.0',
+            'pyrefly==0.54.0',
+            'ruff==0.15.7',
+            'yapf==0.43.0',
+          ],
           'dill': [
               # Dill doesn't have forwards-compatibility guarantees within minor
               # version. Pickles created with a new version of dill may not
@@ -683,6 +689,6 @@ if __name__ == '__main__':
       license='Apache License, Version 2.0',
       keywords=PACKAGE_KEYWORDS,
       cmdclass={
-          'mypy': mypy,
+          'pyrefly': pyrefly,
       },
   )
