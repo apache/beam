@@ -388,15 +388,7 @@ func (b *CoderUnmarshaller) makeCoder(id string, c *pipepb.Coder) (*coder.Coder,
 		if err != nil {
 			return nil, err
 		}
-		skT := typex.LookupShardedKeyType(keyC.T.Type())
-		if skT == nil {
-			return nil, errors.Errorf(
-				"could not unmarshal sharded_key coder: no typex.ShardedKey instantiation registered for key type %v. "+
-					"The SDK registers ShardedKey[K] types automatically when GroupIntoBatchesWithShardedKey is used; "+
-					"for direct cross-language pipelines, call typex.RegisterShardedKeyType at worker-init time.",
-				keyC.T.Type())
-		}
-		return coder.NewSK(skT, keyC), nil
+		return coder.NewSK(keyC), nil
 	case urnIntervalWindow:
 		return coder.NewIntervalWindowCoder(), nil
 

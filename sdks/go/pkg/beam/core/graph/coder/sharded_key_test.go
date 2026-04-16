@@ -23,41 +23,17 @@ import (
 )
 
 func TestNewSK(t *testing.T) {
-	// Register the ShardedKey[string] instantiation so NewSK can build a
-	// FullType with the correct concrete struct.
-	skStrType := reflect.TypeOf(typex.ShardedKey[string]{})
-	typex.RegisterShardedKeyType(reflect.TypeOf(""), skStrType)
-
 	t.Run("nilKeyCoder_panics", func(t *testing.T) {
 		defer func() {
 			if p := recover(); p == nil {
 				t.Fatal("expected panic on nil keyCoder, got none")
 			}
 		}()
-		NewSK(skStrType, nil)
+		NewSK(nil)
 	})
 
-	t.Run("nonShardedKeyType_panics", func(t *testing.T) {
-		defer func() {
-			if p := recover(); p == nil {
-				t.Fatal("expected panic on non-ShardedKey type, got none")
-			}
-		}()
-		NewSK(reflect.TypeOf(""), NewString())
-	})
-
-	t.Run("mismatchedKeyType_panics", func(t *testing.T) {
-		defer func() {
-			if p := recover(); p == nil {
-				t.Fatal("expected panic on mismatched key type, got none")
-			}
-		}()
-		// ShardedKey[string] but key coder encodes bytes — inconsistent
-		NewSK(skStrType, NewBytes())
-	})
-
-	t.Run("valid", func(t *testing.T) {
-		sk := NewSK(skStrType, NewString())
+	t.Run("valid_string_key", func(t *testing.T) {
+		sk := NewSK(NewString())
 		if sk.Kind != ShardedKey {
 			t.Fatalf("Kind = %v, want %v", sk.Kind, ShardedKey)
 		}
@@ -70,26 +46,35 @@ func TestNewSK(t *testing.T) {
 		if sk.Components[0].Kind != String {
 			t.Fatalf("Components[0].Kind = %v, want %v", sk.Components[0].Kind, String)
 		}
+		if sk.T.Type() != typex.ShardedKeyType {
+			t.Fatalf("T.Type() = %v, want %v", sk.T.Type(), typex.ShardedKeyType)
+		}
+	})
+
+	t.Run("nested_composite_panics", func(t *testing.T) {
+		defer func() {
+			if p := recover(); p == nil {
+				t.Fatal("expected panic on nested composite key, got none")
+			}
+		}()
+		// KV components inside a ShardedKey key are disallowed by fulltype.New.
+		NewSK(NewKV([]*Coder{NewString(), NewBytes()}))
 	})
 }
 
 func TestSK_IsDeterministic(t *testing.T) {
-	skStrType := reflect.TypeOf(typex.ShardedKey[string]{})
-	typex.RegisterShardedKeyType(reflect.TypeOf(""), skStrType)
-
-	detSK := NewSK(skStrType, NewString())
+	detSK := NewSK(NewString())
 	if !detSK.IsDeterministic() {
 		t.Errorf("ShardedKey<string>.IsDeterministic() = false, want true")
 	}
 
-	// Build a ShardedKey whose key coder is a non-deterministic custom coder.
 	nonDet, err := NewCustomCoder("nonDet", reflect.TypeOf(""),
 		func(string) []byte { return nil }, func([]byte) string { return "" })
 	if err != nil {
 		t.Fatal(err)
 	}
 	nonDetC := &Coder{Kind: Custom, Custom: nonDet, T: typex.New(reflect.TypeOf(""))}
-	nonDetSK := NewSK(skStrType, nonDetC)
+	nonDetSK := NewSK(nonDetC)
 	if nonDetSK.IsDeterministic() {
 		t.Errorf("ShardedKey<nonDet>.IsDeterministic() = true, want false")
 	}

@@ -223,18 +223,6 @@ func inferCoder(t FullType) (*coder.Coder, error) {
 				return coder.CoderFrom(c), nil
 			}
 
-			// ShardedKey[K] is a concrete generic struct whose wire format is
-			// the standard beam:coder:sharded_key:v1 coder. Detect it before
-			// falling back to Row/JSON so cross-SDK interop is preserved.
-			if typex.IsShardedKey(et) {
-				keyT := typex.ShardedKeyKeyType(et)
-				keyCoder, err := inferCoder(typex.New(keyT))
-				if err != nil {
-					return nil, errors.Wrapf(err, "inferCoder for ShardedKey key type %v", keyT)
-				}
-				return coder.NewSK(et, keyCoder), nil
-			}
-
 			if EnableSchemas {
 				switch et.Kind() {
 				case reflect.Ptr:
@@ -276,6 +264,8 @@ func inferCoder(t FullType) (*coder.Coder, error) {
 			// are non-windowed? We either need to know the windowing strategy or
 			// we should remove this case.
 			return &coder.Coder{Kind: coder.WindowedValue, T: t, Components: c, Window: coder.NewGlobalWindow()}, nil
+		case typex.ShardedKeyType:
+			return &coder.Coder{Kind: coder.ShardedKey, T: t, Components: c}, nil
 
 		default:
 			panic(fmt.Sprintf("Unexpected composite type: %v", t))

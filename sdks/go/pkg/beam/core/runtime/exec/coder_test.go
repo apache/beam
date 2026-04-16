@@ -164,10 +164,7 @@ func compareFV(t *testing.T, got *FullValue, want *FullValue) {
 // component). A single divergent byte would silently corrupt cross-SDK
 // pipelines on Dataflow / Flink.
 func TestShardedKeyCoder_WireFormat(t *testing.T) {
-	skStrType := reflect.TypeOf(typex.ShardedKey[string]{})
-	typex.RegisterShardedKeyType(reflect.TypeOf(""), skStrType)
-
-	c := coder.NewSK(skStrType, coder.NewString())
+	c := coder.NewSK(coder.NewString())
 	enc := MakeElementEncoder(c)
 	dec := MakeElementDecoder(c)
 
@@ -213,10 +210,9 @@ func TestShardedKeyCoder_WireFormat(t *testing.T) {
 	for _, f := range fixtures {
 		f := f
 		t.Run(f.name, func(t *testing.T) {
-			in := typex.ShardedKey[string]{Key: f.key, ShardID: f.shardID}
-
 			var buf bytes.Buffer
-			if err := enc.Encode(&FullValue{Elm: in}, &buf); err != nil {
+			// ShardedKey values are carried as FullValue{Elm: key, Elm2: shardID}.
+			if err := enc.Encode(&FullValue{Elm: f.key, Elm2: f.shardID}, &buf); err != nil {
 				t.Fatalf("Encode: %v", err)
 			}
 			if got := buf.Bytes(); !bytes.Equal(got, f.wire) {
@@ -227,16 +223,20 @@ func TestShardedKeyCoder_WireFormat(t *testing.T) {
 			if err != nil {
 				t.Fatalf("Decode: %v", err)
 			}
-			out, ok := fv.Elm.(typex.ShardedKey[string])
+			gotKey, ok := fv.Elm.(string)
 			if !ok {
-				t.Fatalf("Decode: got %T, want typex.ShardedKey[string]", fv.Elm)
+				t.Fatalf("Decode Elm: got %T, want string", fv.Elm)
 			}
-			if out.Key != f.key {
-				t.Errorf("Decode Key: got %q, want %q", out.Key, f.key)
+			if gotKey != f.key {
+				t.Errorf("Decode Elm: got %q, want %q", gotKey, f.key)
+			}
+			gotShard, ok := fv.Elm2.([]byte)
+			if !ok {
+				t.Fatalf("Decode Elm2: got %T, want []byte", fv.Elm2)
 			}
 			// Both sides "empty" — accept nil or zero-length slice equivalence.
-			if len(out.ShardID) != len(f.shardID) || (len(out.ShardID) > 0 && !bytes.Equal(out.ShardID, f.shardID)) {
-				t.Errorf("Decode ShardID: got %#v, want %#v", out.ShardID, f.shardID)
+			if len(gotShard) != len(f.shardID) || (len(gotShard) > 0 && !bytes.Equal(gotShard, f.shardID)) {
+				t.Errorf("Decode Elm2: got %#v, want %#v", gotShard, f.shardID)
 			}
 		})
 	}

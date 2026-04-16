@@ -295,7 +295,6 @@ func MakeElementDecoder(c *coder.Coder) ElementDecoder {
 
 	case coder.ShardedKey:
 		return &shardedKeyDecoder{
-			t:   c.T.Type(),
 			key: MakeElementDecoder(c.Components[0]),
 		}
 
@@ -1368,57 +1367,35 @@ func decodeTimer(dec ElementDecoder, win WindowDecoder, r io.Reader) (TimerRecv,
 	return tm, nil
 }
 
-// shardedKeyEncoder encodes typex.ShardedKey[K] values in the standard
+// shardedKeyEncoder encodes ShardedKey-typed values in the standard
 // beam:coder:sharded_key:v1 wire format:
 //
 //	ByteArrayCoder.encode(ShardID) ++ keyCoder.encode(Key)
 //
-// ShardID is encoded as a length-prefixed byte string (varint length + raw
-// bytes). The key is then encoded using the wrapped element encoder with
-// no further prefix. This matches the Java util.ShardedKey.Coder and
-// Python sharded_key encodings exactly — any divergence of 1 byte would
-// silently corrupt cross-SDK pipelines.
-//
-// Runtime implementation uses reflect rather than a type assertion because
-// Go generic types are erased at runtime and the exec layer cannot assert
-// ShardedKey[K] for an unknown K.
+// Runtime values are carried by a FullValue whose Elm holds the user key
+// and whose Elm2 holds the []byte shard identifier — the same two-part
+// convention used by the KV coder. This matches the Java
+// util.ShardedKey.Coder and Python sharded_key encodings exactly; any
+// divergence of a single byte would silently corrupt cross-SDK pipelines.
 type shardedKeyEncoder struct {
 	key ElementEncoder
 }
 
 func (e *shardedKeyEncoder) Encode(val *FullValue, w io.Writer) error {
-	rv := reflect.ValueOf(val.Elm)
-	if rv.Kind() != reflect.Struct {
-		return errors.Errorf(
-			"shardedKeyEncoder: expected a ShardedKey struct, got %T", val.Elm)
-	}
-	keyField := rv.FieldByName("Key")
-	if !keyField.IsValid() {
-		return errors.Errorf(
-			"shardedKeyEncoder: value of type %T has no Key field", val.Elm)
-	}
-	shardIDField := rv.FieldByName("ShardID")
-	if !shardIDField.IsValid() {
-		return errors.Errorf(
-			"shardedKeyEncoder: value of type %T has no ShardID field", val.Elm)
-	}
-	shardID, ok := shardIDField.Interface().([]byte)
+	shardID, ok := val.Elm2.([]byte)
 	if !ok {
 		return errors.Errorf(
-			"shardedKeyEncoder: ShardID field is not []byte (got %v)",
-			shardIDField.Type())
+			"shardedKeyEncoder: Elm2 must be []byte shardID (got %T)", val.Elm2)
 	}
 	if err := coder.EncodeBytes(shardID, w); err != nil {
 		return errors.WithContext(err, "shardedKeyEncoder: shardID")
 	}
-	return e.key.Encode(&FullValue{Elm: keyField.Interface()}, w)
+	return e.key.Encode(&FullValue{Elm: val.Elm}, w)
 }
 
-// shardedKeyDecoder is the inverse of shardedKeyEncoder. The exact struct
-// type for reconstruction is stored in t at encoder-build time from the
-// coder's FullType.Type().
+// shardedKeyDecoder is the inverse of shardedKeyEncoder. Decoded values
+// are placed in FullValue{Elm: key, Elm2: shardID}.
 type shardedKeyDecoder struct {
-	t   reflect.Type
 	key ElementDecoder
 }
 
@@ -1431,21 +1408,7 @@ func (d *shardedKeyDecoder) DecodeTo(r io.Reader, fv *FullValue) error {
 	if err != nil {
 		return errors.WithContext(err, "shardedKeyDecoder: key")
 	}
-	if d.t == nil || d.t.Kind() != reflect.Struct {
-		return errors.Errorf(
-			"shardedKeyDecoder: target type %v is not a struct", d.t)
-	}
-	out := reflect.New(d.t).Elem()
-	keyField := out.FieldByName("Key")
-	shardIDField := out.FieldByName("ShardID")
-	if !keyField.IsValid() || !shardIDField.IsValid() {
-		return errors.Errorf(
-			"shardedKeyDecoder: target type %v is not a valid ShardedKey struct "+
-				"(missing Key or ShardID field)", d.t)
-	}
-	keyField.Set(reflect.ValueOf(keyFV.Elm))
-	shardIDField.Set(reflect.ValueOf(shardID))
-	*fv = FullValue{Elm: out.Interface()}
+	*fv = FullValue{Elm: keyFV.Elm, Elm2: shardID}
 	return nil
 }
 

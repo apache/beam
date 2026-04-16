@@ -231,10 +231,10 @@ func IsUniversal(t reflect.Type) bool {
 }
 
 // IsComposite returns true iff the given type is one of the predefined
-// Composite marker types: KV, CoGBK or WindowedValue.
+// Composite marker types: KV, CoGBK, WindowedValue, Timers or ShardedKey.
 func IsComposite(t reflect.Type) bool {
 	switch t {
-	case KVType, CoGBKType, WindowedValueType, TimersType:
+	case KVType, CoGBKType, WindowedValueType, TimersType, ShardedKeyType:
 		return true
 	default:
 		return false

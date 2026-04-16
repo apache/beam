@@ -507,29 +507,20 @@ func NewCoGBK(components []*Coder) *Coder {
 	}
 }
 
-// NewSK returns a coder for a ShardedKey[K] value, where skT is the
-// reflect.Type of the concrete typex.ShardedKey[K] instantiation and
-// keyCoder encodes the K key component.
+// NewSK returns a coder for ShardedKey-typed values. The component
+// keyCoder encodes the user key; the ShardID is encoded as a
+// length-prefixed byte string preceding it (beam:coder:sharded_key:v1).
 //
-// The wire format is beam:coder:sharded_key:v1 — length-prefixed shard id
-// followed by the key encoding. The caller must pass a reflect.Type
-// corresponding to an actual typex.ShardedKey[K] instantiation (use
-// typex.IsShardedKey to verify).
-func NewSK(skT reflect.Type, keyCoder *Coder) *Coder {
+// The resulting FullType root is typex.ShardedKeyType with the key's
+// FullType as the single component, following the same Composite
+// pattern as KV.
+func NewSK(keyCoder *Coder) *Coder {
 	if keyCoder == nil {
 		panic("NewSK: keyCoder must not be nil")
 	}
-	if !typex.IsShardedKey(skT) {
-		panic(fmt.Sprintf("NewSK: type %v is not a typex.ShardedKey instantiation", skT))
-	}
-	if typex.ShardedKeyKeyType(skT) != keyCoder.T.Type() {
-		panic(fmt.Sprintf(
-			"NewSK: key type mismatch — struct Key field is %v but keyCoder encodes %v",
-			typex.ShardedKeyKeyType(skT), keyCoder.T.Type()))
-	}
 	return &Coder{
 		Kind:       ShardedKey,
-		T:          typex.New(skT),
+		T:          typex.New(typex.ShardedKeyType, keyCoder.T),
 		Components: []*Coder{keyCoder},
 	}
 }
