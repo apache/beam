@@ -180,6 +180,12 @@ def _check_mapping_arguments(
 
 
 class _QuickJsCallable:
+  """A wrapper for QuickJS callables to ensure thread-safety and context reuse.
+
+  QuickJS contexts are not thread-safe. This class uses thread-local storage
+  to ensure each thread has its own QuickJS context, while reusing it across
+  multiple calls on the same thread.
+  """
   def __init__(self, source, name=None):
     self.source = source
     self.name = name
@@ -234,22 +240,11 @@ def _expand_javascript_mapping_func(
         "Javascript mapping functions require the 'quickjs' package.")
 
   def make_bridge_source(func_name, call_expr):
-    # The bridge function facilitates high-performance data transfer from Python
-    # to QuickJS by reconstructing the row object in JS.
-    # To minimize JSON overhead, primitives are passed directly, while complex
-    # types (lists/dicts) are passed as JSON strings and parsed in JS.
-    # The 'flags' argument indicates which values need parsing.
-    keys_json = json.dumps(list(original_fields))
+    # The bridge function facilitates data transfer from Python to QuickJS by
+    # parsing a JSON string representing the row object.
     return (
-        f"function {func_name}(serialized_flags, ...values) {{ "
-        f"  const keys = {keys_json}; "
-        f"  const flags = serialized_flags.split(','); "
-        f"  const row = {{}}; "
-        f"  for (let i = 0; i < keys.length; i++) {{ "
-        f"    let val = values[i]; "
-        f"    if (flags[i] === '1') val = JSON.parse(val); "
-        f"    row[keys[i]] = val; "
-        f"  }} "
+        f"function {func_name}(row_json) {{ "
+        f"  const row = JSON.parse(row_json); "
         f"  const result = {call_expr}; "
         f"  if (result instanceof Date) "
         f"return {{__type__: 'date', value: result.toISOString()}}; "
@@ -261,26 +256,25 @@ def _expand_javascript_mapping_func(
         name for name in original_fields
         if name.isidentifier() and name in expression
     ]
-    parses = []
-    for i, arg in enumerate(args):
-      parses.append(f"  if (flags[{i}] === '1') {arg} = JSON.parse({arg});")
+
+    row_var_name = "row"
+    while row_var_name in args:
+      row_var_name += "_"
 
     source = f"""
-function fn(serialized_flags{', ' + ', '.join(args) if args else ''}) {{
-  const flags = serialized_flags.split(',');
-{chr(10).join(parses)}
+function fn(row_json) {{
+  const {row_var_name} = JSON.parse(row_json);
+  {chr(10).join([f"  const {name} = {row_var_name}.{name};" for name in args])}
   const result = ({expression});
   if (result instanceof Date) return {{__type__: 'date', value: result.toISOString()}};
   return result;
 }}
 """
     js_func = _QuickJsCallable(source, "fn")
-    used_fields = args
 
   elif callable:
     source = make_bridge_source("fn", f"({callable})(row)")
     js_func = _QuickJsCallable(source, "fn")
-    used_fields = None
 
   else:
     if not path.endswith('.js'):
@@ -289,41 +283,22 @@ function fn(serialized_flags{', ' + ', '.join(args) if args else ''}) {{
     bridge_source = udf_code + "\n" + make_bridge_source(
         "bridge_fn", f"{name}(row)")
     js_func = _QuickJsCallable(bridge_source, "bridge_fn")
-    used_fields = None
-
-  def _prepare_args(vals):
-    js_vals = []
-    flags = []
-    for val in vals:
-      if isinstance(val, (list, dict)):
-        js_vals.append(json.dumps(val))
-        flags.append('1')
-      else:
-        js_vals.append(val)
-        flags.append('0')
-    return ",".join(flags), js_vals
 
   def js_wrapper(row):
-    # Prepare arguments for the JS function. We optimize performance by
-    # passing primitives directly and only serializing complex types (lists,
-    # dicts) to JSON strings. A string of flags ('0' or '1') is passed to
-    # inform the JS bridge which arguments need to be JSON.parsed.
-    if expression:
-      vals = [py_value_to_js_dict(getattr(row, name)) for name in used_fields]
-    else:
-      row_as_dict = py_value_to_js_dict(row)
-      vals = [row_as_dict.get(name) for name in original_fields]
-
-    flags_str, js_vals = _prepare_args(vals)
+    # Serialize the entire row to JSON to pass to QuickJS.
+    row_as_dict = py_value_to_js_dict(row)
+    row_json = json.dumps(row_as_dict)
 
     try:
-      js_result = js_func(flags_str, *js_vals)
+      js_result = js_func(row_json)
     except Exception as exn:
       raise RuntimeError(
           f"Error evaluating javascript expression: {exn}") from exn
 
     if isinstance(js_result, quickjs.Object):
+      # Use native json() method to transfer complex types from JS to Python.
       obj = json.loads(js_result.json())
+      # Handle special tagged types like Date
       if isinstance(obj, dict) and obj.get('__type__') == 'date':
         js_result = datetime.datetime.fromisoformat(obj['value'])
       else:
