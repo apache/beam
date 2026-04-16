@@ -479,7 +479,7 @@ if __name__ == '__main__':
               'requests_mock>=1.7,<2.0',
               # google-adk 1.28+ requires tenacity>=9,<10 (conflicts with <9).
               'tenacity>=8.0.0,<10',
-              'pytest>=7.1.2,<9.0',
+              'pytest>=7.1.2,<10.0',
               'pytest-xdist>=2.5.0,<4',
               'pytest-timeout>=2.1.0,<3',
               'scikit-learn>=0.20.0,<1.8.0',
