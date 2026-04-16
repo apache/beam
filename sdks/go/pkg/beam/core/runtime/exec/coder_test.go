@@ -158,6 +158,90 @@ func compareFV(t *testing.T, got *FullValue, want *FullValue) {
 	}
 }
 
+// TestShardedKeyCoder_WireFormat verifies the exact bytes produced by the
+// ShardedKey coder against the standard_coders.yaml fixtures (lines
+// 501-521, urn "beam:coder:sharded_key:v1" with a string_utf8 key
+// component). A single divergent byte would silently corrupt cross-SDK
+// pipelines on Dataflow / Flink.
+func TestShardedKeyCoder_WireFormat(t *testing.T) {
+	skStrType := reflect.TypeOf(typex.ShardedKey[string]{})
+	typex.RegisterShardedKeyType(reflect.TypeOf(""), skStrType)
+
+	c := coder.NewSK(skStrType, coder.NewString())
+	enc := MakeElementEncoder(c)
+	dec := MakeElementDecoder(c)
+
+	type fixture struct {
+		name    string
+		key     string
+		shardID []byte
+		wire    []byte
+	}
+	fixtures := []fixture{
+		{
+			name:    "empty_empty",
+			key:     "",
+			shardID: []byte{},
+			wire:    []byte{0x00, 0x00},
+		},
+		{
+			name:    "shardId_emptyKey",
+			key:     "",
+			shardID: []byte("shard_id"),
+			wire: append(
+				append([]byte{0x08}, []byte("shard_id")...),
+				0x00,
+			),
+		},
+		{
+			name:    "shardId_key",
+			key:     "key",
+			shardID: []byte("shard_id"),
+			wire: append(
+				append([]byte{0x08}, []byte("shard_id")...),
+				append([]byte{0x03}, []byte("key")...)...,
+			),
+		},
+		{
+			name:    "emptyShardId_key",
+			key:     "key",
+			shardID: []byte{},
+			wire:    append([]byte{0x00, 0x03}, []byte("key")...),
+		},
+	}
+
+	for _, f := range fixtures {
+		f := f
+		t.Run(f.name, func(t *testing.T) {
+			in := typex.ShardedKey[string]{Key: f.key, ShardID: f.shardID}
+
+			var buf bytes.Buffer
+			if err := enc.Encode(&FullValue{Elm: in}, &buf); err != nil {
+				t.Fatalf("Encode: %v", err)
+			}
+			if got := buf.Bytes(); !bytes.Equal(got, f.wire) {
+				t.Fatalf("Encode: got bytes %#v, want %#v", got, f.wire)
+			}
+
+			fv, err := dec.Decode(bytes.NewReader(f.wire))
+			if err != nil {
+				t.Fatalf("Decode: %v", err)
+			}
+			out, ok := fv.Elm.(typex.ShardedKey[string])
+			if !ok {
+				t.Fatalf("Decode: got %T, want typex.ShardedKey[string]", fv.Elm)
+			}
+			if out.Key != f.key {
+				t.Errorf("Decode Key: got %q, want %q", out.Key, f.key)
+			}
+			// Both sides "empty" — accept nil or zero-length slice equivalence.
+			if len(out.ShardID) != len(f.shardID) || (len(out.ShardID) > 0 && !bytes.Equal(out.ShardID, f.shardID)) {
+				t.Errorf("Decode ShardID: got %#v, want %#v", out.ShardID, f.shardID)
+			}
+		})
+	}
+}
+
 func TestIterableCoder(t *testing.T) {
 	cod := coder.NewI(coder.NewVarInt())
 	wantVals := []int64{8, 24, 72}

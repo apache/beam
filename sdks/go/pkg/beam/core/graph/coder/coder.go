@@ -84,6 +84,18 @@ func (c *CustomCoder) String() string {
 	return fmt.Sprintf("%v[%v;%v]", c.Type, c.Name, c.ID)
 }
 
+// IsDeterministic reports whether this CustomCoder produces a deterministic
+// encoding. A CustomCoder is deterministic iff the user opted in by
+// registering the coder via RegisterDeterministicCoder. Default is false
+// (conservative): a non-deterministic key coder would silently corrupt state
+// keying in stateful DoFns.
+func (c *CustomCoder) IsDeterministic() bool {
+	if c == nil {
+		return false
+	}
+	return isCustomCoderDeterministic(c.Type)
+}
+
 // Type signatures of encode/decode for verification.
 var (
 	encodeSig = &funcx.Signature{
@@ -195,6 +207,17 @@ const (
 	//
 	// TODO(https://github.com/apache/beam/issues/18032): once this JIRA is done, this coder should become the new thing.
 	CoGBK Kind = "CoGBK"
+
+	// ShardedKey encodes a user key wrapped with an opaque shard identifier,
+	// used by GroupIntoBatchesWithShardedKey to distribute a single logical
+	// key's processing across workers. Wire format
+	// (beam:coder:sharded_key:v1):
+	//
+	//     ByteArrayCoder.encode(shardId) ++ keyCoder.encode(key)
+	//
+	// matching sdks/java/core ShardedKey and the Python sharded_key
+	// encoding for cross-SDK interoperability.
+	ShardedKey Kind = "SK"
 )
 
 // Coder is a description of how to encode and decode values of a given type.
@@ -271,6 +294,62 @@ func (c *Coder) String() string {
 		ret += fmt.Sprintf("[%v]", c.T)
 	}
 	return ret
+}
+
+// IsDeterministic reports whether this Coder produces a deterministic
+// byte encoding — i.e. encoding two equal values always yields identical
+// byte sequences.
+//
+// Determinism is a prerequisite for any Coder used as a state key in a
+// stateful DoFn, as the key component of a KV consumed by GroupByKey, or as
+// a grouping key in a CoGroupByKey. A non-deterministic key coder causes
+// state-keyed operations to silently corrupt: two encodings of the same
+// logical key map to distinct physical keys, splintering state across
+// apparently-distinct keys.
+//
+// Built-in coders for primitive types (bytes, bool, varint, double,
+// string) are deterministic. Composite coders (KV, Iterable, Nullable)
+// are deterministic iff every component is. The Map coder is
+// non-deterministic because Go map iteration order is unspecified.
+// Custom user-registered coders are non-deterministic by default; users
+// opt in by registering with RegisterDeterministicCoder.
+func (c *Coder) IsDeterministic() bool {
+	if c == nil {
+		return false
+	}
+	switch c.Kind {
+	case Bytes, Bool, VarInt, Double, String:
+		return true
+	case Custom:
+		return c.Custom.IsDeterministic()
+	case KV, CoGBK, Nullable, Iterable, LP, ShardedKey:
+		for _, comp := range c.Components {
+			if !comp.IsDeterministic() {
+				return false
+			}
+		}
+		return true
+	case WindowedValue, ParamWindowedValue, Window, Timer, PaneInfo, IW:
+		// These coders are structural: they wrap runner/window bookkeeping that is
+		// not used as a state key. Recurse into the data component when present so
+		// that a non-deterministic inner coder is still reported.
+		for _, comp := range c.Components {
+			if !comp.IsDeterministic() {
+				return false
+			}
+		}
+		return true
+	case Row:
+		// Schema (row) coding encodes fields in a fixed field-id order and
+		// produces a stable byte layout; however, row coders may contain fields
+		// backed by custom coders we cannot introspect here. Conservative
+		// default: return false and allow users to opt in via schema-level
+		// determinism guarantees once they're exposed. Structs wanting
+		// deterministic behavior can register a deterministic custom coder
+		// instead.
+		return false
+	}
+	return false
 }
 
 // NewBytes returns a new []byte coder using the built-in scheme. It
@@ -426,6 +505,38 @@ func NewCoGBK(components []*Coder) *Coder {
 		T:          typex.New(typex.CoGBKType, Types(components)...),
 		Components: components,
 	}
+}
+
+// NewSK returns a coder for a ShardedKey[K] value, where skT is the
+// reflect.Type of the concrete typex.ShardedKey[K] instantiation and
+// keyCoder encodes the K key component.
+//
+// The wire format is beam:coder:sharded_key:v1 — length-prefixed shard id
+// followed by the key encoding. The caller must pass a reflect.Type
+// corresponding to an actual typex.ShardedKey[K] instantiation (use
+// typex.IsShardedKey to verify).
+func NewSK(skT reflect.Type, keyCoder *Coder) *Coder {
+	if keyCoder == nil {
+		panic("NewSK: keyCoder must not be nil")
+	}
+	if !typex.IsShardedKey(skT) {
+		panic(fmt.Sprintf("NewSK: type %v is not a typex.ShardedKey instantiation", skT))
+	}
+	if typex.ShardedKeyKeyType(skT) != keyCoder.T.Type() {
+		panic(fmt.Sprintf(
+			"NewSK: key type mismatch — struct Key field is %v but keyCoder encodes %v",
+			typex.ShardedKeyKeyType(skT), keyCoder.T.Type()))
+	}
+	return &Coder{
+		Kind:       ShardedKey,
+		T:          typex.New(skT),
+		Components: []*Coder{keyCoder},
+	}
+}
+
+// IsSK returns true iff the coder is for a ShardedKey.
+func IsSK(c *Coder) bool {
+	return c != nil && c.Kind == ShardedKey
 }
 
 // SkipW returns the data coder used by a WindowedValue, or returns the coder. This

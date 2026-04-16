@@ -89,6 +89,21 @@ func (c Coder) String() string {
 	return c.coder.String()
 }
 
+// IsDeterministic reports whether this coder produces a byte-deterministic
+// encoding: encoding two equal values always yields identical byte
+// sequences.
+//
+// Determinism is required for any coder used as a state key in a stateful
+// DoFn or as the key component of a KV consumed by GroupByKey /
+// GroupIntoBatches. A non-deterministic key coder would silently corrupt
+// state keying, splintering state across apparently-distinct keys.
+func (c Coder) IsDeterministic() bool {
+	if c.coder == nil {
+		return false
+	}
+	return c.coder.IsDeterministic()
+}
+
 // NewElementEncoder returns a new encoding function for the given type.
 func NewElementEncoder(t reflect.Type) ElementEncoder {
 	c, err := inferCoder(typex.New(t))
@@ -206,6 +221,18 @@ func inferCoder(t FullType) (*coder.Coder, error) {
 			et := t.Type()
 			if c := coder.LookupCustomCoder(et); c != nil {
 				return coder.CoderFrom(c), nil
+			}
+
+			// ShardedKey[K] is a concrete generic struct whose wire format is
+			// the standard beam:coder:sharded_key:v1 coder. Detect it before
+			// falling back to Row/JSON so cross-SDK interop is preserved.
+			if typex.IsShardedKey(et) {
+				keyT := typex.ShardedKeyKeyType(et)
+				keyCoder, err := inferCoder(typex.New(keyT))
+				if err != nil {
+					return nil, errors.Wrapf(err, "inferCoder for ShardedKey key type %v", keyT)
+				}
+				return coder.NewSK(et, keyCoder), nil
 			}
 
 			if EnableSchemas {
