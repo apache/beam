@@ -17,6 +17,7 @@
 
 """This module defines the basic MapToFields operation."""
 import itertools
+import json
 import re
 from collections import abc
 from collections.abc import Callable
@@ -229,25 +230,46 @@ def _expand_javascript_mapping_func(
     raise ValueError(
         "Javascript mapping functions require the 'quickjs' package.")
 
+  def make_bridge_source(func_name, call_expr):
+    keys_json = json.dumps(list(original_fields))
+    return (
+        f"function {func_name}(serialized_flags, ...values) {{ "
+        f"  const keys = JSON.parse('{keys_json}'); "
+        f"  const flags = serialized_flags.split(','); "
+        f"  const row = {{}}; "
+        f"  for (let i = 0; i < keys.length; i++) {{ "
+        f"    let val = values[i]; "
+        f"    if (flags[i] === '1') val = JSON.parse(val); "
+        f"    row[keys[i]] = val; "
+        f"  }} "
+        f"  const result = {call_expr}; "
+        f"  return (typeof result === 'object' && result !== null) "
+        f"? '__json__:' + JSON.stringify(result) : result; "
+        f"}}")
+
   if expression:
     args = [
         name for name in original_fields
         if name.isidentifier() and name in expression
     ]
-    source = '\n'.join([f'function fn({", ".join(args)}) {{'] +
-                       ['  return (' + expression + ');'] + ['}'])
+    parses = []
+    for i, arg in enumerate(args):
+      parses.append(f"  if (flags[{i}] === '1') {arg} = JSON.parse({arg});")
+
+    source = f"""
+function fn(serialized_flags, {", ".join(args)}) {{
+  const flags = serialized_flags.split(',');
+{chr(10).join(parses)}
+  const result = ({expression});
+  return (typeof result === 'object' && result !== null) ?
+    "__json__:" + JSON.stringify(result) : result;
+}}
+"""
     js_func = _QuickJsCallable(source, "fn")
     used_fields = args
 
   elif callable:
-    # Wrap the callable in a named function to use quickjs.Function
-    source = (
-        f"function fn(keys, values) {{ "
-        f"  const row = {{}}; "
-        f"  for (let i = 0; i < keys.length; i++) {{ "
-        f"    row[keys[i]] = values[i]; "
-        f"  }} "
-        f"  return ({callable})(row); }}")
+    source = make_bridge_source("fn", f"({callable})(row)")
     js_func = _QuickJsCallable(source, "fn")
     used_fields = None
 
@@ -255,33 +277,53 @@ def _expand_javascript_mapping_func(
     if not path.endswith('.js'):
       raise ValueError(f'File "{path}" is not a valid .js file.')
     udf_code = FileSystems.open(path).read().decode()
-    bridge_source = (
-        udf_code + f"\nfunction bridge_fn(keys, values) {{ "
-        f"  const row = {{}}; "
-        f"  for (let i = 0; i < keys.length; i++) {{ "
-        f"    row[keys[i]] = values[i]; "
-        f"  }} "
-        f"  return {name}(row); }}")
+    bridge_source = udf_code + "\n" + make_bridge_source(
+        "bridge_fn", f"{name}(row)")
     js_func = _QuickJsCallable(bridge_source, "bridge_fn")
     used_fields = None
 
   def js_wrapper(row):
     if expression:
-      vals = [getattr(row, name) for name in used_fields]
-      js_vals = [py_value_to_js_dict(val) for val in vals]
+      vals = [py_value_to_js_dict(getattr(row, name)) for name in used_fields]
+      js_vals = []
+      flags = []
+      for val in vals:
+        if isinstance(val, (list, dict)):
+          js_vals.append(json.dumps(val))
+          flags.append('1')
+        else:
+          js_vals.append(val)
+          flags.append('0')
+
+      flags_str = ",".join(flags)
       try:
-        js_result = js_func(*js_vals)
+        js_result = js_func(flags_str, *js_vals)
       except Exception as exn:
         raise RuntimeError(
             f"Error evaluating javascript expression: {exn}") from exn
     else:
       row_as_dict = py_value_to_js_dict(row)
+      js_vals = []
+      flags = []
+      for name in original_fields:
+        val = row_as_dict.get(name)
+        if isinstance(val, (list, dict)):
+          js_vals.append(json.dumps(val))
+          flags.append('1')
+        else:
+          js_vals.append(val)
+          flags.append('0')
+
+      flags_str = ",".join(flags)
       try:
-        js_result = js_func(
-            list(row_as_dict.keys()), list(row_as_dict.values()))
+        js_result = js_func(flags_str, *js_vals)
       except Exception as exn:
         raise RuntimeError(
             f"Error evaluating javascript expression: {exn}") from exn
+
+    if isinstance(js_result, str) and js_result.startswith("__json__:"):
+      js_result = json.loads(js_result[9:])
+
     return dicts_to_rows(js_result)
 
   return js_wrapper
