@@ -21,7 +21,6 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.pholser.junit.quickcheck.From;
 import com.pholser.junit.quickcheck.Property;
 import com.pholser.junit.quickcheck.runner.JUnitQuickcheck;
@@ -285,14 +284,10 @@ public class AvroUtilsTest {
     Iterable iterable = randomData(avroSchema, 10);
     List<GenericRecord> records = Lists.newArrayList((Iterable<GenericRecord>) iterable);
 
-    // Use JSON tree comparison to avoid Avro 1.12.0 GenericRecord.equals() throwing
-    // "Can't compare maps!" for records with nested map types
-    // (see AVRO-4139)
-    ObjectMapper mapper = new ObjectMapper();
     for (GenericRecord record : records) {
       Row row = AvroUtils.toBeamRowStrict(record, schema);
       GenericRecord out = AvroUtils.toGenericRecord(row, avroSchema);
-      assertEquals(mapper.readTree(record.toString()), mapper.readTree(out.toString()));
+      assertEquals(record, out);
     }
   }
 
