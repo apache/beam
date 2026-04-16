@@ -790,6 +790,7 @@ public class WindowedValues {
     }
 
     @Override
+    @SuppressWarnings("UndefinedEquals")
     public boolean equals(@Nullable Object o) {
       if (o instanceof TimestampedValueInMultipleWindows) {
         TimestampedValueInMultipleWindows<?> that = (TimestampedValueInMultipleWindows<?>) o;
@@ -801,7 +802,7 @@ public class WindowedValues {
             && Objects.equals(that.getPaneInfo(), this.getPaneInfo())) {
           ensureWindowsAreASet();
           that.ensureWindowsAreASet();
-          return ((Set<?>) that.windows).equals((Set<?>) this.windows);
+          return that.windows.equals(this.windows);
         } else {
           return false;
         }
