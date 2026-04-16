@@ -2312,6 +2312,24 @@ def FlatMapTuple(fn, *args, **kwargs):  # pylint: disable=invalid-name
   return pardo
 
 
+# Element format emitted on the dead-letter tag by `with_exception_handling()`:
+# (exception_class, repr(exception), formatted_traceback_lines).
+# The first slot is the bare metaclass `type` rather than `Type[BaseException]`
+# because the runtime value is `type(exn)`, a class object whose only
+# universally-correct hint is `type`. Beam has no parametric `Type[...]`
+# constraint that would yield a non-pickle coder anyway, so narrowing here
+# would over-promise without changing the wire format.
+ExceptionInfo = typehints.Tuple[type, str, typehints.List[str]]
+
+
+class DeadLetter:
+  """Type hint for a dead-letter element: (original_element, ExceptionInfo).
+
+  Use as ``DeadLetter[T]`` in ``with_output_types(...)`` etc."""
+  def __class_getitem__(cls, element_type):
+    return typehints.Tuple[element_type, ExceptionInfo]
+
+
 class _ExceptionHandlingWrapper(ptransform.PTransform):
   """Implementation of ParDo.with_exception_handling."""
   def __init__(
@@ -2455,13 +2473,7 @@ class _ExceptionHandlingWrapper(ptransform.PTransform):
       main_output_type = self._fn.infer_output_type(pcoll.element_type)
       tagged_type_hints = dict(self._fn.get_type_hints().tagged_output_types())
 
-    # Dead letter format: Tuple[element, Tuple[exception_type, repr, traceback]]
-    dead_letter_type = typehints.Tuple[pcoll.element_type,
-                                       typehints.Tuple[type,
-                                                       str,
-                                                       typehints.List[str]]]
-
-    tagged_type_hints[self._dead_letter_tag] = dead_letter_type
+    tagged_type_hints[self._dead_letter_tag] = DeadLetter[pcoll.element_type]
     pardo = pardo.with_output_types(main_output_type, **tagged_type_hints)
 
     all_tags = tuple(set(self._extra_tags or ()) | {self._dead_letter_tag})
