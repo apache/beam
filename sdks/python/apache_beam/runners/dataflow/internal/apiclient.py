@@ -193,7 +193,7 @@ class Environment(object):
       pool.autoscaling_settings.max_num_workers = (
           self.worker_options.max_num_workers)
     if self.worker_options.autoscaling_algorithm:
-      values_enum = dataflow.AutoscalingSettings.algorithm
+      values_enum = dataflow.AutoscalingAlgorithm
       pool.autoscaling_settings.algorithm = {
           'NONE': values_enum.AUTOSCALING_ALGORITHM_NONE,
           'THROUGHPUT_BASED': values_enum.AUTOSCALING_ALGORITHM_BASIC,
