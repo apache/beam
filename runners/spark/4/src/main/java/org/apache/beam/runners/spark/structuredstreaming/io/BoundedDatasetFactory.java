@@ -86,7 +86,10 @@ public class BoundedDatasetFactory {
     Params<T> params = new Params<>(encoder, options, session.sparkContext().defaultParallelism());
     BeamTable<T> table = new BeamTable<>(source, params);
     LogicalPlan logicalPlan = DataSourceV2Relation.create(table, Option.empty(), Option.empty());
-    // In Spark 4.0+, Dataset$ moved to org.apache.spark.sql.classic; cast session accordingly.
+    // In Spark 4.0+, Dataset$ moved to org.apache.spark.sql.classic and its ofRows() now
+    // takes the classic SparkSession subclass. The runtime instance returned by
+    // SparkSession.builder() is always a classic.SparkSession, so the downcast is safe and
+    // avoids reflection.
     return (Dataset<WindowedValue<T>>)
         Dataset$.MODULE$
             .ofRows((org.apache.spark.sql.classic.SparkSession) session, logicalPlan)
