@@ -1,0 +1,41 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+def basePath = '../../../job-server/container'
+
+project.ext {
+  resource_path = basePath
+  spark_job_server_image = 'spark4_job_server'
+}
+
+// Load the main build script which contains all build logic.
+apply from: "$basePath/spark_job_server_container.gradle"
+
+// Override the Dockerfile copy to use the Java 17 Dockerfile for Spark 4.
+copyDockerfileDependencies {
+  // Remove the shared Dockerfile added by the shared gradle script and use the local one instead.
+  // The shared Dockerfile uses eclipse-temurin:11 which is incompatible with Spark 4 (requires Java 17).
+  exclude 'Dockerfile'
+}
+
+task copySpark4Dockerfile(type: Copy) {
+  from "Dockerfile"
+  into "build"
+}
+
+dockerPrepare.dependsOn copySpark4Dockerfile
