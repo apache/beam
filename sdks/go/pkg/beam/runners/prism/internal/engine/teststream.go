@@ -230,7 +230,7 @@ func (ev tsWatermarkEvent) Execute(em *ElementManager) {
 		ss.updateUpstreamWatermark(ss.inputID, t.watermark)
 		em.changedStages.insert(sID)
 	}
-	// Clear the default hold after the inserts have occured.
+	// Clear the default hold after the inserts have occurred.
 	em.testStreamHandler.UpdateHold(em, t.watermark)
 }
 

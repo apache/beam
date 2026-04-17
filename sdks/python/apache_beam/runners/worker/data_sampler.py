@@ -81,10 +81,10 @@ class ExceptionMetadata:
   # The repr-ified Exception.
   msg: str
 
-  # The transform where the exception occured.
+  # The transform where the exception occurred.
   transform_id: str
 
-  # The instruction when the exception occured.
+  # The instruction when the exception occurred.
   instruction_id: str
 
 

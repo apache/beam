@@ -56,7 +56,7 @@ public class Generator implements Iterator<TimestampedValue<Event>>, Serializabl
     /** When, in wallclock time, should this event be emitted? */
     public final long wallclockTimestamp;
 
-    /** When, in event time, should this event be considered to have occured? */
+    /** When, in event time, should this event be considered to have occurred? */
     public final long eventTimestamp;
 
     /** The event itself. */
