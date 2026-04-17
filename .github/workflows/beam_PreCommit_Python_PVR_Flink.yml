@@ -106,6 +106,7 @@ jobs:
         env:
           CLOUDSDK_CONFIG: ${{ env.KUBELET_GCLOUD_CONFIG_PATH}}
         with:
+          # Run Flink 2 tests. Flink 1.20 is covered by PostCommit_Python_ValidatesRunner_Flink
           gradle-command: :sdks:python:test-suites:portable:py313:flinkValidatesRunner
           arguments: |
             -PpythonVersion=3.13 \

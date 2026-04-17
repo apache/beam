@@ -50,6 +50,7 @@ import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.util.AppliedCombineFn;
 import org.apache.beam.sdk.util.WindowedValueMultiReceiver;
+import org.apache.beam.sdk.values.CausedByDrain;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.WindowedValue;
@@ -167,7 +168,7 @@ public class StreamingKeyedWorkItemSideInputDoFnRunnerTest {
         timestamp,
         timestamp,
         type == Windmill.Timer.Type.WATERMARK ? TimeDomain.EVENT_TIME : TimeDomain.PROCESSING_TIME,
-        TimerData.CausedByDrain.NORMAL);
+        CausedByDrain.NORMAL);
   }
 
   private IntervalWindow window(long start, long end) {

@@ -86,7 +86,7 @@ jobs:
           python-version: ${{ matrix.python_version }}
           go-version: default
       - name: Setup Buildx
-        uses: docker/setup-buildx-action@v3
+        uses: docker/setup-buildx-action@4d04d5d9486b7bd6fa91e7baf45bbb4f8b9deedd
         with:
           install: true
           driver: 'docker'
@@ -102,4 +102,5 @@ jobs:
           gradle-command: :sdks:python:container:py${{steps.set_py_ver_clean.outputs.py_ver_clean}}:docker
           arguments: |
             -Pposargs=apache_beam/dataframe/ \
-            -PpythonVersion=${{ matrix.python_version }}
+            -PpythonVersion=${{ matrix.python_version }} \
+            -Pdocker-pull-licenses

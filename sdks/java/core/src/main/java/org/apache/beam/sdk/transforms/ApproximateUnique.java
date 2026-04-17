@@ -352,7 +352,7 @@ public class ApproximateUnique {
         if (this == o) {
           return true;
         }
-        if (o == null || getClass() != o.getClass()) {
+        if (!(o instanceof LargestUnique)) {
           return false;
         }
         LargestUnique that = (LargestUnique) o;
@@ -384,6 +384,8 @@ public class ApproximateUnique {
       try {
         heap.add(hash(input, coder));
         return heap;
+      } catch (OutOfMemoryError oom) {
+        throw oom;
       } catch (Throwable e) {
         throw new RuntimeException(e);
       }

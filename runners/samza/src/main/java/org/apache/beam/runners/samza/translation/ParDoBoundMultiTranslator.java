@@ -113,7 +113,7 @@ class ParDoBoundMultiTranslator<InT, OutT>
     final PCollection<? extends InT> input = ctx.getInput(transform);
     final Map<TupleTag<?>, Coder<?>> outputCoders =
         ctx.getCurrentTransform().getOutputs().entrySet().stream()
-            .filter(e -> e.getValue() instanceof PCollection)
+            .filter(e -> e.getValue() != null)
             .collect(
                 Collectors.toMap(e -> e.getKey(), e -> ((PCollection<?>) e.getValue()).getCoder()));
 
@@ -145,7 +145,7 @@ class ParDoBoundMultiTranslator<InT, OutT>
       final Map.Entry<TupleTag<?>, PCollection<?>> taggedOutput = outputs.get(index);
       tagToIndexMap.put(taggedOutput.getKey(), index);
 
-      if (!(taggedOutput.getValue() instanceof PCollection)) {
+      if (taggedOutput.getValue() == null) {
         throw new IllegalArgumentException(
             "Expected side output to be PCollection, but was: " + taggedOutput.getValue());
       }
@@ -558,6 +558,6 @@ class ParDoBoundMultiTranslator<InT, OutT>
 
   private static class NoOpDoFn<InT, OutT> extends DoFn<InT, OutT> {
     @ProcessElement
-    public void doNothing(ProcessContext context) {}
+    public void doNothing(@SuppressWarnings("unused") ProcessContext context) {}
   }
 }

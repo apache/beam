@@ -26,6 +26,8 @@ from unittest.mock import patch
 from apache_beam.utils import multi_process_shared
 
 try:
+  from apache_beam.metrics.execution import MetricsEnvironment
+  from apache_beam.metrics.metricbase import MetricName
   from apache_beam.ml.inference.model_manager import GPUMonitor
   from apache_beam.ml.inference.model_manager import ModelManager
   from apache_beam.ml.inference.model_manager import ResourceEstimator
@@ -174,11 +176,19 @@ class TestModelManager(unittest.TestCase):
     def acquire_model_with_timeout():
       return self.manager.acquire_model(model_name, loader)
 
-    with ThreadPoolExecutor(max_workers=1) as executor:
-      future = executor.submit(acquire_model_with_timeout)
+    with ThreadPoolExecutor(max_workers=1000) as executor:
+      futures = [
+          executor.submit(acquire_model_with_timeout) for i in range(1000)
+      ]
       with self.assertRaises(RuntimeError) as context:
-        future.result(timeout=5.0)
+        for future in futures:
+          future.result()
       self.assertIn("Timeout waiting to acquire model", str(context.exception))
+
+    # Release the initially acquired model and try to acquire again
+    # to make sure the manager is still functional
+    self.manager.release_model(model_name, model_name)
+    _ = self.manager.acquire_model(model_name, loader)
 
   def test_model_manager_capacity_check(self):
     """
@@ -327,28 +337,90 @@ class TestModelManager(unittest.TestCase):
     instance = self.manager.acquire_model(model_name, lambda: "model_instance")
     self.manager.release_model(model_name, instance)
 
+  def test_model_manager_metrics(self):
+    """Test that distribution metrics are updated correctly."""
+    tag1 = "model1"
+    tag2 = "model2"
+
+    def _get_count_dist_max(tag):
+      dist = MetricsEnvironment.process_wide_container().get_distribution(
+          MetricName('BeamML_ModelManager', f'num_loaded_models_{tag}'))
+      return dist.get_cumulative().max
+
+    def _get_est_dist_mean(tag):
+      dist = MetricsEnvironment.process_wide_container().get_distribution(
+          MetricName('BeamML_ModelManager', f'memory_estimate_mb_{tag}'))
+      val = dist.get_cumulative()
+      return int(val.sum / val.count) if val.count > 0 else 0
+
+    # Verify that initial estimates correctly export int metrics
+    self.manager._estimator.set_initial_estimate(tag1, 1000.5)
+    self.assertEqual(_get_est_dist_mean(tag1), 1000)
+
+    self.manager._estimator.set_initial_estimate(tag2, 2000.9)
+    self.assertEqual(_get_est_dist_mean(tag2), 2000)
+
+    # 1. Acquire a model
+    self.manager.acquire_model(
+        tag1, lambda: MockModel(tag1, 1000.0, self.mock_monitor))
+    self.assertEqual(_get_count_dist_max(tag1), 1)
+    self.assertEqual(_get_est_dist_mean(tag1), 1000)
+
+    # 2. Acquire another instance of same model
+    self.manager.acquire_model(
+        tag1, lambda: MockModel(tag1, 1000.0, self.mock_monitor))
+    self.assertEqual(_get_count_dist_max(tag1), 2)
+    self.assertEqual(_get_est_dist_mean(tag1), 1000)
+
+    # 3. Acquire a different model
+    self.manager.acquire_model(
+        tag2, lambda: MockModel(tag2, 2000.0, self.mock_monitor))
+    self.assertEqual(_get_count_dist_max(tag2), 1)
+    self.assertEqual(_get_est_dist_mean(tag2), 2000)
+
+    # tag1 max count should remain 2
+    self.assertEqual(_get_count_dist_max(tag1), 2)
+    self.assertEqual(_get_est_dist_mean(tag1), 1000)
+
+    # 4. Delete all models
+    self.manager._delete_all_models()
+    # It retains the highest count it ever saw.
+    self.assertEqual(_get_count_dist_max(tag1), 2)
+    self.assertEqual(_get_count_dist_max(tag2), 1)
+
+    self.assertEqual(_get_est_dist_mean(tag1), 1000)
+    self.assertEqual(_get_est_dist_mean(tag2), 2000)
+
+    # 5. Repopulate and force reset
+    self.manager.acquire_model(
+        tag1, lambda: MockModel(tag1, 1000.0, self.mock_monitor))
+    # Max is still 2 from earlier in the test run
+    self.assertEqual(_get_count_dist_max(tag1), 2)
+
+    self.manager._force_reset()
+    self.assertEqual(_get_count_dist_max(tag1), 2)
+
   def test_single_model_convergence_with_fluctuations(self):
     """
     Tests that the estimator converges to the true usage with fluctuations.
     """
     model_name = "fluctuating_model"
     model_cost = 3000.0
-    load_cost = 2500.0
     # Fix random seed for reproducibility
     random.seed(42)
 
     def loader():
-      self.mock_monitor.allocate(load_cost)
+      self.mock_monitor.allocate(model_cost)
       return model_name
 
     model = self.manager.acquire_model(model_name, loader)
     self.manager.release_model(model_name, model)
     initial_est = self.manager._estimator.get_estimate(model_name)
-    self.assertEqual(initial_est, load_cost)
+    self.assertEqual(initial_est, model_cost)
 
     def run_inference():
       model = self.manager.acquire_model(model_name, loader)
-      noise = model_cost - load_cost + random.uniform(-300.0, 300.0)
+      noise = random.uniform(-300.0, 300.0)
       self.mock_monitor.allocate(noise)
       time.sleep(0.1)
       self.mock_monitor.free(noise)

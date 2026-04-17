@@ -39,9 +39,12 @@ dependencies {
   implementation library.java.vendored_guava_32_1_2_jre
   implementation project(path: ":sdks:java:core", configuration: "shadow")
   implementation project(path: ":runners:core-java")
+  implementation library.java.gax
   implementation library.java.google_http_client_gson
   implementation library.java.google_auth_library_oauth2_http
   implementation library.java.google_api_client
+  implementation library.java.google_cloud_core
+  implementation library.java.google_cloud_storage
   implementation library.java.bigdataoss_gcsio
   implementation library.java.bigdataoss_util
   implementation library.java.google_api_services_cloudresourcemanager

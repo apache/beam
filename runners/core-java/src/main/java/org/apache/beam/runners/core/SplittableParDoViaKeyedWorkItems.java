@@ -51,6 +51,7 @@ import org.apache.beam.sdk.util.construction.ReplacementOutputs;
 import org.apache.beam.sdk.util.construction.SplittableParDo;
 import org.apache.beam.sdk.util.construction.SplittableParDo.ProcessKeyedElements;
 import org.apache.beam.sdk.util.construction.TransformPayloadTranslatorRegistrar;
+import org.apache.beam.sdk.values.CausedByDrain;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
@@ -461,7 +462,19 @@ public class SplittableParDoViaKeyedWorkItems {
         elementState.readLater();
         restrictionState.readLater();
         watermarkEstimatorState.readLater();
-        elementAndRestriction = KV.of(elementState.read(), restrictionState.read());
+        WindowedValue<InputT> read = elementState.read();
+        if (timer.causedByDrain() == CausedByDrain.CAUSED_BY_DRAIN) {
+          read =
+              WindowedValues.of(
+                  read.getValue(),
+                  read.getTimestamp(),
+                  read.getWindows(),
+                  read.getPaneInfo(),
+                  read.getRecordId(),
+                  read.getRecordOffset(),
+                  CausedByDrain.CAUSED_BY_DRAIN);
+        }
+        elementAndRestriction = KV.of(read, restrictionState.read());
         watermarkEstimatorStateT = watermarkEstimatorState.read();
       }
 
@@ -573,7 +586,7 @@ public class SplittableParDoViaKeyedWorkItems {
           result =
               processElementInvoker.invokeProcessElement(
                   invoker,
-                  elementAndRestriction.getKey(),
+                  elementAndRestriction.getKey(), // windowed value
                   tracker,
                   watermarkEstimator,
                   sideInputMapping);
@@ -597,14 +610,18 @@ public class SplittableParDoViaKeyedWorkItems {
       Instant wakeupTime =
           timerInternals.currentProcessingTime().plus(result.getContinuation().resumeDelay());
       holdState.add(futureOutputWatermark);
-      // Set a timer to continue processing this element.
-      timerInternals.setTimer(
-          TimerInternals.TimerData.of(
-              stateNamespace,
-              wakeupTime,
-              wakeupTime,
-              TimeDomain.PROCESSING_TIME,
-              TimerInternals.TimerData.CausedByDrain.NORMAL));
+      // Set a timer to continue processing this element, but only when no drain
+      if (timer == null || timer.causedByDrain() == CausedByDrain.NORMAL) {
+        timerInternals.setTimer(
+            TimerInternals.TimerData.of(
+                stateNamespace,
+                wakeupTime,
+                wakeupTime,
+                TimeDomain.PROCESSING_TIME,
+                CausedByDrain.NORMAL));
+      } else {
+        holdState.clear();
+      }
     }
 
     private DoFnInvoker.ArgumentProvider<InputT, OutputT> wrapOptionsAsSetup(

@@ -164,7 +164,7 @@ class CloudSQLPostgresVectorWriterConfig(postgres.PostgresVectorWriterConfig):
         column_specs:
             Use :class:`~.postgres_common.ColumnSpecsBuilder` to configure how
             embeddings and metadata are written a database
-            schema. If None, uses default Chunk schema.
+            schema. If None, uses default EmbeddableItem schema.
         conflict_resolution: Optional
             :class:`~.postgres_common.ConflictResolution`
             strategy for handling insert conflicts. ON CONFLICT DO NOTHING by

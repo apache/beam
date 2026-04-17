@@ -32,9 +32,9 @@ public class TestStreams {
     return new Builder<>(
         new ForwardingCallStreamObserver<>(
             onNext,
-            TestStreams.throwingErrorHandler(),
-            TestStreams.noopRunnable(),
-            TestStreams.alwaysTrueSupplier()));
+            TestStreams::throwingErrorHandler,
+            TestStreams::noopRunnable,
+            TestStreams::alwaysTrueSupplier));
   }
 
   /** A builder for a test {@link CallStreamObserver} that performs various callbacks. */
@@ -90,18 +90,14 @@ public class TestStreams {
     }
   }
 
-  private static Consumer<Throwable> throwingErrorHandler() {
-    return item -> {
-      throw new RuntimeException(item);
-    };
+  private static void throwingErrorHandler(Throwable item) {
+    throw new RuntimeException(item);
   }
 
-  private static Runnable noopRunnable() {
-    return () -> {};
-  }
+  private static void noopRunnable() {}
 
-  private static Supplier<Boolean> alwaysTrueSupplier() {
-    return () -> true;
+  private static boolean alwaysTrueSupplier() {
+    return true;
   }
 
   /** A {@link CallStreamObserver} which executes the supplied callbacks. */

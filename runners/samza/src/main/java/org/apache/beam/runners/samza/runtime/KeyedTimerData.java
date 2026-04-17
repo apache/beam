@@ -121,7 +121,7 @@ public class KeyedTimerData<K> implements Comparable<KeyedTimerData<K>> {
       return true;
     }
 
-    if (o == null || getClass() != o.getClass()) {
+    if (!(o instanceof KeyedTimerData)) {
       return false;
     }
 

@@ -32,6 +32,7 @@ import org.apache.beam.runners.spark.translation.AbstractInOutIterator;
 import org.apache.beam.sdk.state.TimeDomain;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
+import org.apache.beam.sdk.values.CausedByDrain;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.WindowedValue;
 import org.apache.beam.sdk.values.WindowingStrategy;
@@ -116,8 +117,8 @@ public class TimerUtils {
     }
 
     @Override
-    public boolean causedByDrain() {
-      return false;
+    public CausedByDrain causedByDrain() {
+      return CausedByDrain.NORMAL;
     }
 
     @Override

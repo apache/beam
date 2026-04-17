@@ -41,6 +41,7 @@ import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker.Truncate
 import org.apache.beam.sdk.transforms.splittabledofn.WatermarkEstimator;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
+import org.apache.beam.sdk.values.CausedByDrain;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.checkerframework.checker.nullness.qual.Nullable;
@@ -217,6 +218,9 @@ public interface DoFnInvoker<InputT, OutputT> {
     /** Provide a reference to the input element timestamp. */
     Instant timestamp(DoFn<InputT, OutputT> doFn);
 
+    /** Provide a reference to the caused by drain. */
+    CausedByDrain causedByDrain(DoFn<InputT, OutputT> doFn);
+
     /** Provide a reference to the time domain for a timer firing. */
     TimeDomain timeDomain(DoFn<InputT, OutputT> doFn);
 
@@ -323,6 +327,12 @@ public interface DoFnInvoker<InputT, OutputT> {
     public Instant timestamp(DoFn<InputT, OutputT> doFn) {
       throw new UnsupportedOperationException(
           String.format("Timestamp unsupported in %s", getErrorContext()));
+    }
+
+    @Override
+    public CausedByDrain causedByDrain(DoFn<InputT, OutputT> doFn) {
+      throw new UnsupportedOperationException(
+          String.format("CausedByDrain unsupported in %s", getErrorContext()));
     }
 
     @Override
@@ -512,6 +522,11 @@ public interface DoFnInvoker<InputT, OutputT> {
     @Override
     public Instant timestamp(DoFn<InputT, OutputT> doFn) {
       return delegate.timestamp(doFn);
+    }
+
+    @Override
+    public CausedByDrain causedByDrain(DoFn<InputT, OutputT> doFn) {
+      return delegate.causedByDrain(doFn);
     }
 
     @Override

@@ -511,7 +511,7 @@ public class ProcessBundleDescriptors {
     public abstract Coder<K> coder();
   }
 
-  /** */
+  /** ExecutableProcessBundleDescriptor. */
   @AutoValue
   @AutoValue.CopyAnnotations
   @SuppressWarnings({"rawtypes"})

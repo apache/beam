@@ -100,9 +100,9 @@ public class FileSystems {
    * <p>Implementation handles the following ambiguities of a user-provided spec:
    *
    * <ol>
-   *   <li>{@code spec} could be a glob or a uri. {@link #match} should be able to tell and choose
+   *   <li>{@code specs} could be a glob or a uri. {@link #match} should be able to tell and choose
    *       efficient implementations.
-   *   <li>The user-provided {@code spec} might refer to files or directories. It is common that
+   *   <li>The user-provided {@code specs} might refer to files or directories. It is common that
    *       users that wish to indicate a directory will omit the trailing path delimiter, such as
    *       {@code "/tmp/dir"} in Linux. The {@link FileSystem} should be able to recognize a
    *       directory with the trailing path delimiter omitted, but should always return a correct

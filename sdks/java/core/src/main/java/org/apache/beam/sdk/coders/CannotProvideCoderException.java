@@ -51,7 +51,7 @@ public class CannotProvideCoderException extends Exception {
     this.reason = reason;
   }
 
-  /** @return the reason that Coder inference failed. */
+  /** Returns the reason that Coder inference failed. */
   public ReasonCode getReason() {
     return reason;
   }

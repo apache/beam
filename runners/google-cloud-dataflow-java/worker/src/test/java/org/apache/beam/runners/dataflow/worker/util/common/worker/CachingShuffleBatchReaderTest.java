@@ -82,7 +82,7 @@ public final class CachingShuffleBatchReaderTest {
     verify(base, times(1)).read(null, null);
     CachingShuffleBatchReader.BatchRange range =
         new CachingShuffleBatchReader.BatchRange(null, null);
-    CachingShuffleBatchReader.Batch batch = reader.cache.get(range);
+    ShuffleBatchReader.Batch batch = reader.cache.get(range);
     assertThat(batch, notNullValue());
     reader.cache.invalidateAll();
     read = reader.read(null, null);

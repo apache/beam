@@ -31,8 +31,8 @@ resource "google_container_cluster" "primary" {
 
   # Private Cluster Configuration
   private_cluster_config {
-    enable_private_nodes    = true            # Nodes have internal IPs only
-    enable_private_endpoint = false           # Master is accessible via Public IP (required for Terraform from outside VPC)
+    enable_private_nodes    = true  # Nodes have internal IPs only
+    enable_private_endpoint = false # Master is accessible via Public IP (required for Terraform from outside VPC)
     master_ipv4_cidr_block  = var.control_plane_cidr
   }
 }

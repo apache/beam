@@ -54,6 +54,7 @@ final class GetWorkResponseChunkAssembler {
   private final WorkItem.Builder workItemBuilder; // Reused to reduce GC overhead.
   private ByteString data;
   private long bufferedSize;
+  private final List<Long> appliedFinalizeIds;
 
   GetWorkResponseChunkAssembler() {
     workTimingInfosTracker = new GetWorkTimingInfosTracker(System::currentTimeMillis);
@@ -61,10 +62,11 @@ final class GetWorkResponseChunkAssembler {
     bufferedSize = 0;
     metadata = null;
     workItemBuilder = WorkItem.newBuilder();
+    appliedFinalizeIds = new ArrayList<>();
   }
 
   /**
-   * Appends the response chunk bytes to the {@link #data }byte buffer. Return the assembled
+   * Appends the response chunk bytes to the {@link #data} byte buffer. Return the assembled
    * WorkItem if all response chunks for a WorkItem have been received.
    */
   List<AssembledWorkItem> append(Windmill.StreamingGetWorkResponseChunk chunk) {
@@ -72,6 +74,7 @@ final class GetWorkResponseChunkAssembler {
       metadata = ComputationMetadata.fromProto(chunk.getComputationMetadata());
     }
     workTimingInfosTracker.addTimingInfo(chunk.getPerWorkItemTimingInfosList());
+    appliedFinalizeIds.addAll(chunk.getAppliedFinalizeIdsList());
 
     List<AssembledWorkItem> response = new ArrayList<>();
     for (int i = 0; i < chunk.getSerializedWorkItemList().size(); i++) {
@@ -90,13 +93,14 @@ final class GetWorkResponseChunkAssembler {
   }
 
   /**
-   * Attempt to flush the {@link #data} bytes into a {@link WorkItem} w/ it's metadata. Resets the
+   * Attempt to flush the {@link #data} bytes into a {@link WorkItem} w/ its metadata. Resets the
    * data byte string and tracking metadata afterwards, whether the {@link WorkItem} deserialization
    * was successful or not.
    */
   private Optional<AssembledWorkItem> flushToWorkItem() {
     try {
       workItemBuilder.mergeFrom(data);
+      workItemBuilder.addAllAppliedFinalizeIds(appliedFinalizeIds);
       return Optional.of(
           AssembledWorkItem.create(
               workItemBuilder.build(),
@@ -110,6 +114,7 @@ final class GetWorkResponseChunkAssembler {
       workTimingInfosTracker.reset();
       data = ByteString.EMPTY;
       bufferedSize = 0;
+      appliedFinalizeIds.clear();
     }
 
     return Optional.empty();

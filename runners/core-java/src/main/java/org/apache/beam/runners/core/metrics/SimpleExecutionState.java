@@ -151,7 +151,7 @@ public class SimpleExecutionState extends ExecutionState {
 
   @Override
   public void reportLull(Thread trackedThread, long millis) {
-    LOG.warn(getLullMessage(trackedThread, Duration.millis(millis)));
+    LOG.warn("{}", getLullMessage(trackedThread, Duration.millis(millis)));
   }
 
   @VisibleForTesting

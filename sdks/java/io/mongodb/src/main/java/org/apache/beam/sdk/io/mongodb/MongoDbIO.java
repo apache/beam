@@ -553,7 +553,7 @@ public class MongoDbIO {
                         ? Filters.and(findQuery.filters(), filters)
                         : filters);
             FindQuery queryWithFilter = findQuery.toBuilder().setFilters(allFilters).build();
-            LOG.debug("using filters: " + allFilters.toJson());
+            LOG.debug("using filters: {}", allFilters.toJson());
             sources.add(new BoundedMongoDbSource(spec.withQueryFn(queryWithFilter)));
           }
         } else {

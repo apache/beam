@@ -33,6 +33,7 @@ import org.apache.beam.sdk.state.TimeDomain;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
+import org.apache.beam.sdk.values.CausedByDrain;
 import org.apache.beam.sdk.values.WindowedValue;
 import org.apache.beam.sdk.values.WindowedValues;
 import org.hamcrest.Matchers;
@@ -111,7 +112,7 @@ public class DoFnLifecycleManagerRemovingTransformEvaluatorTest {
               new Instant(0),
               new Instant(0),
               TimeDomain.EVENT_TIME,
-              TimerData.CausedByDrain.NORMAL),
+              CausedByDrain.NORMAL),
           "",
           GlobalWindow.INSTANCE);
     } catch (Exception e) {
@@ -143,6 +144,6 @@ public class DoFnLifecycleManagerRemovingTransformEvaluatorTest {
 
   private static class TestFn extends DoFn<Object, Object> {
     @ProcessElement
-    public void processElement(ProcessContext c) throws Exception {}
+    public void processElement(@SuppressWarnings("unused") ProcessContext c) throws Exception {}
   }
 }

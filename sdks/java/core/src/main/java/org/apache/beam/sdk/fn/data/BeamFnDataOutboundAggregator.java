@@ -268,6 +268,8 @@ public class BeamFnDataOutboundAggregator {
       synchronized (flushLock) {
         flushInternal();
       }
+    } catch (OutOfMemoryError oom) {
+      throw oom;
     } catch (Throwable t) {
       throw new RuntimeException(t);
     }

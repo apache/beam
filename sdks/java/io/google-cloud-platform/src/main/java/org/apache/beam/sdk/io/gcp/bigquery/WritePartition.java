@@ -48,7 +48,7 @@ class WritePartition<DestinationT>
   abstract static class Result {
     public abstract List<String> getFilenames();
 
-    abstract Boolean isFirstPane();
+    abstract boolean isFirstPane();
   }
 
   static class ResultCoder extends AtomicCoder<Result> {

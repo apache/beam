@@ -29,6 +29,7 @@ import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
 import org.apache.beam.sdk.transforms.windowing.Sessions;
+import org.apache.beam.sdk.transforms.windowing.WindowFn;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableSet;
 import org.joda.time.Duration;
@@ -68,8 +69,9 @@ public class MergingActiveWindowSetTest {
   private void add(long... instants) {
     for (final long instant : instants) {
       System.out.println("ADD " + instant);
-      Sessions.AssignContext context =
-          windowFn.new AssignContext() {
+      WindowFn<Object, IntervalWindow> wf = windowFn;
+      WindowFn<Object, IntervalWindow>.AssignContext context =
+          wf.new AssignContext() {
             @Override
             public Object element() {
               return (Object) instant;

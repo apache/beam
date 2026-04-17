@@ -29,6 +29,7 @@ import org.apache.beam.runners.core.StateNamespaces;
 import org.apache.beam.runners.core.TimerInternals;
 import org.apache.beam.sdk.state.TimeDomain;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
+import org.apache.beam.sdk.values.CausedByDrain;
 import org.apache.beam.sdk.values.WindowedValue;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
@@ -39,10 +40,11 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * @inheritDoc Implementation of BundleManager for non-portable mode. Keeps track of the async
- *     function completions.
- *     <p>This class is not thread safe and the current implementation relies on the assumption that
- *     messages are dispatched to BundleManager in a single threaded mode.
+ * {@inheritDoc} Implementation of BundleManager for non-portable mode. Keeps track of the async
+ * function completions.
+ *
+ * <p>This class is not thread safe and the current implementation relies on the assumption that
+ * messages are dispatched to BundleManager in a single threaded mode.
  */
 @SuppressWarnings({
   "nullness" // TODO(https://github.com/apache/beam/issues/20497)
@@ -118,7 +120,7 @@ public class ClassicBundleManager<OutT> implements BundleManager<OutT> {
             nextBundleCheckTime,
             nextBundleCheckTime,
             TimeDomain.PROCESSING_TIME,
-            TimerInternals.TimerData.CausedByDrain.NORMAL);
+            CausedByDrain.NORMAL);
     bundleTimerScheduler.schedule(
         new KeyedTimerData<>(new byte[0], null, timerData), nextBundleCheckTime.getMillis());
   }

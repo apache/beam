@@ -141,9 +141,9 @@ class WorkerStatusClient implements Closeable {
         future.complete(response);
       } else {
         LOG.warn(
-            String.format(
-                "Received response for status with unknown response id %s and status %s",
-                response.getId(), response.getStatusInfo()));
+            "Received response for status with unknown response id {} and status {}",
+            response.getId(),
+            response.getStatusInfo());
       }
     }
 

@@ -19,7 +19,6 @@ package org.apache.beam.runners.spark.structuredstreaming.translation.helpers;
 
 import static org.apache.beam.runners.spark.structuredstreaming.translation.helpers.EncoderFactory.invoke;
 import static org.apache.beam.runners.spark.structuredstreaming.translation.helpers.EncoderFactory.invokeIfNotNull;
-import static org.apache.beam.runners.spark.structuredstreaming.translation.helpers.EncoderFactory.newInstance;
 import static org.apache.beam.runners.spark.structuredstreaming.translation.utils.ScalaInterop.match;
 import static org.apache.beam.runners.spark.structuredstreaming.translation.utils.ScalaInterop.replace;
 import static org.apache.beam.runners.spark.structuredstreaming.translation.utils.ScalaInterop.seqOf;
@@ -37,7 +36,6 @@ import java.util.Map;
 import java.util.Set;
 import java.util.TreeMap;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.function.Function;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
@@ -114,42 +112,42 @@ public class EncoderHelpers {
   private static final Map<Class<?>, Encoder<?>> DEFAULT_ENCODERS = new ConcurrentHashMap<>();
 
   // Factory for default encoders by class
-  private static final Function<Class<?>, @Nullable Encoder<?>> ENCODER_FACTORY =
-      cls -> {
-        if (cls.equals(PaneInfo.class)) {
-          return paneInfoEncoder();
-        } else if (cls.equals(GlobalWindow.class)) {
-          return binaryEncoder(GlobalWindow.Coder.INSTANCE, false);
-        } else if (cls.equals(IntervalWindow.class)) {
-          return binaryEncoder(IntervalWindowCoder.of(), false);
-        } else if (cls.equals(Instant.class)) {
-          return instantEncoder();
-        } else if (cls.equals(String.class)) {
-          return Encoders.STRING();
-        } else if (cls.equals(Boolean.class)) {
-          return Encoders.BOOLEAN();
-        } else if (cls.equals(Integer.class)) {
-          return Encoders.INT();
-        } else if (cls.equals(Long.class)) {
-          return Encoders.LONG();
-        } else if (cls.equals(Float.class)) {
-          return Encoders.FLOAT();
-        } else if (cls.equals(Double.class)) {
-          return Encoders.DOUBLE();
-        } else if (cls.equals(BigDecimal.class)) {
-          return Encoders.DECIMAL();
-        } else if (cls.equals(byte[].class)) {
-          return Encoders.BINARY();
-        } else if (cls.equals(Byte.class)) {
-          return Encoders.BYTE();
-        } else if (cls.equals(Short.class)) {
-          return Encoders.SHORT();
-        }
-        return null;
-      };
+  private static @Nullable Encoder<?> encoderFactory(Class<?> cls) {
+    if (cls.equals(PaneInfo.class)) {
+      return paneInfoEncoder();
+    } else if (cls.equals(GlobalWindow.class)) {
+      return binaryEncoder(GlobalWindow.Coder.INSTANCE, false);
+    } else if (cls.equals(IntervalWindow.class)) {
+      return binaryEncoder(IntervalWindowCoder.of(), false);
+    } else if (cls.equals(Instant.class)) {
+      return instantEncoder();
+    } else if (cls.equals(String.class)) {
+      return Encoders.STRING();
+    } else if (cls.equals(Boolean.class)) {
+      return Encoders.BOOLEAN();
+    } else if (cls.equals(Integer.class)) {
+      return Encoders.INT();
+    } else if (cls.equals(Long.class)) {
+      return Encoders.LONG();
+    } else if (cls.equals(Float.class)) {
+      return Encoders.FLOAT();
+    } else if (cls.equals(Double.class)) {
+      return Encoders.DOUBLE();
+    } else if (cls.equals(BigDecimal.class)) {
+      return Encoders.DECIMAL();
+    } else if (cls.equals(byte[].class)) {
+      return Encoders.BINARY();
+    } else if (cls.equals(Byte.class)) {
+      return Encoders.BYTE();
+    } else if (cls.equals(Short.class)) {
+      return Encoders.SHORT();
+    }
+    return null;
+  }
 
+  @SuppressWarnings({"nullness", "methodref.return"}) // computeIfAbsent allows null returns
   private static <T> @Nullable Encoder<T> getOrCreateDefaultEncoder(Class<? super T> cls) {
-    return (Encoder<T>) DEFAULT_ENCODERS.computeIfAbsent(cls, ENCODER_FACTORY);
+    return (Encoder<T>) DEFAULT_ENCODERS.computeIfAbsent(cls, EncoderHelpers::encoderFactory);
   }
 
   /** Gets or creates a default {@link Encoder} for {@link T}. */
@@ -176,10 +174,10 @@ public class EncoderHelpers {
 
   /**
    * Creates a Spark {@link Encoder} for {@link T} of {@link StructType} with fields {@code value},
-   * {@code timestamp}, {@code windows} and {@code pane}.
+   * {@code timestamp}, {@code window} and {@code pane}.
    *
    * @param value {@link Encoder} to encode field `{@code value}`.
-   * @param window {@link Encoder} to encode individual windows in field `{@code windows}`
+   * @param window {@link Encoder} to encode individual windows in field `{@code window}`
    */
   public static <T, W extends BoundedWindow> Encoder<WindowedValue<T>> windowedValueEncoder(
       Encoder<T> value, Encoder<W> window) {
@@ -417,7 +415,8 @@ public class EncoderHelpers {
   private static <T> Expression deserializeOneOfField(Expression in, Encoder<T> enc, int idx) {
     GetStructField field = new GetStructField(in, idx, Option.empty());
     Expression litNull = lit(null, TUPLE2_TYPE);
-    Expression newTuple = newInstance(Tuple2.class, TUPLE2_TYPE, lit(idx), deserialize(field, enc));
+    Expression newTuple =
+        EncoderFactory.newInstance(Tuple2.class, TUPLE2_TYPE, lit(idx), deserialize(field, enc));
     return new If(new IsNull(field), litNull, newTuple);
   }
 

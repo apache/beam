@@ -104,6 +104,7 @@ var directFilters = []string{
 	"TestMapStateClear",
 	"TestSetState",
 	"TestSetStateClear",
+	"TestOrderedListState",
 	"TestTimers.*", // no timer support for the go direct runner.
 
 	// no support for BundleFinalizer
@@ -135,6 +136,7 @@ var portableFilters = []string{
 	"TestMapStateClear",
 	"TestSetState",
 	"TestSetStateClear",
+	"TestOrderedListState",
 
 	// The portable runner does not uniquify timers. (data elements re-fired)
 	"TestTimers.*",
@@ -185,6 +187,7 @@ var flinkFilters = []string{
 	"TestMapStateClear",
 	"TestSetStateClear",
 	"TestSetState",
+	"TestOrderedListState",
 
 	// With TestStream Flink adds extra length prefixs some data types, causing SDK side failures.
 	"TestTestStreamStrings",
@@ -240,6 +243,8 @@ var samzaFilters = []string{
 	// TODO(https://github.com/apache/beam/issues/26126): Java runner issue (AcitveBundle has no regsitered handler)
 	"TestDebeziumIO_BasicRead",
 
+	"TestOrderedListState",
+
 	// Samza does not support state.
 	"TestTimers.*",
 	"TestBagStateBlindWrite",
@@ -277,6 +282,7 @@ var sparkFilters = []string{
 	"TestMapStateClear",
 	"TestSetStateClear",
 	"TestSetState",
+	"TestOrderedListState",
 
 	"TestTimers_EventTime_Unbounded",      // Side inputs in executable stage not supported.
 	"TestTimers_ProcessingTime_Infinity",  // Spark doesn't support test stream.

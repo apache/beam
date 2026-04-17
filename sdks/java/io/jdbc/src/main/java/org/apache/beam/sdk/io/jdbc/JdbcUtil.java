@@ -127,10 +127,10 @@ public class JdbcUtil {
                 ResourceId destResourceId =
                     FileSystems.matchNewResource(destFile.getAbsolutePath(), false);
                 copy(sourceResourceId, destResourceId);
-                LOG.info("Localized jar: " + sourceResourceId + " to: " + destResourceId);
+                LOG.info("Localized jar: {} to: {}", sourceResourceId, destResourceId);
                 driverJarUrls.add(destFile.toURI().toURL());
               } catch (IOException e) {
-                LOG.warn("Unable to copy " + jarPath, e);
+                LOG.warn("Unable to copy {}", jarPath, e);
               }
             });
     return driverJarUrls.stream().toArray(URL[]::new);
@@ -249,6 +249,7 @@ public class JdbcUtil {
               .build());
 
   /** PreparedStatementSetCaller for Schema Field Logical types. * */
+  @SuppressWarnings("JavaUtilDate")
   static JdbcIO.PreparedStatementSetCaller getPreparedStatementSetCaller(
       Schema.FieldType fieldType) {
     switch (fieldType.getTypeName()) {
@@ -455,10 +456,10 @@ public class JdbcUtil {
     return calendar;
   }
 
-  /** @return a {@code JdbcReadPartitionsHelper} instance associated with the given {@param type} */
+  /** Returns a {@code JdbcReadPartitionsHelper} instance associated with the given {@code type}. */
   static <T> @Nullable JdbcReadWithPartitionsHelper<T> getPartitionsHelper(TypeDescriptor<T> type) {
     // This cast is unchecked, thus this is a small type-checking risk. We just need
-    // to make sure that all preset helpers in `JdbcUtil.PRESET_HELPERS` are matched
+    // to make sure that all preset helpers in {@code PRESET_HELPERS} are matched
     // in type from their Key and their Value.
     return (JdbcReadWithPartitionsHelper<T>) PRESET_HELPERS.get(type.getRawType());
   }

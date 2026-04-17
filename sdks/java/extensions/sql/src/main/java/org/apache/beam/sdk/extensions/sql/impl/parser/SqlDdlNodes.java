@@ -19,18 +19,24 @@ package org.apache.beam.sdk.extensions.sql.impl.parser;
 
 import static org.apache.beam.sdk.util.Preconditions.checkArgumentNotNull;
 import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkState;
 
+import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.jdbc.CalcitePrepare;
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.jdbc.CalciteSchema;
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.sql.SqlDataTypeSpec;
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.sql.SqlIdentifier;
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.sql.SqlLiteral;
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.sql.SqlNode;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.sql.SqlNodeList;
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.sql.parser.SqlParserPos;
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.util.NlsString;
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.util.Pair;
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.util.Util;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** Utilities concerning {@link SqlNode} for DDL. */
@@ -95,6 +101,41 @@ public class SqlDdlNodes {
 
     NlsString literalValue = (NlsString) SqlLiteral.value(n);
     return literalValue == null ? null : literalValue.getValue();
+  }
+
+  static List<String> getStringList(@Nullable SqlNodeList l) {
+    if (l == null || l.isEmpty()) {
+      return Collections.emptyList();
+    }
+    ImmutableList.Builder<String> resetPropsList = ImmutableList.builder();
+    for (SqlNode propNode : l) {
+      @Nullable String prop = SqlDdlNodes.getString(propNode);
+      if (prop != null) {
+        resetPropsList.add(prop);
+      }
+    }
+    return resetPropsList.build();
+  }
+
+  static Map<String, String> getStringMap(@Nullable SqlNodeList nodeList) {
+    if (nodeList == null || nodeList.isEmpty()) {
+      return Collections.emptyMap();
+    }
+
+    ImmutableMap.Builder<String, String> builder = ImmutableMap.builder();
+    for (SqlNode property : nodeList) {
+      checkState(
+          property instanceof SqlNodeList,
+          String.format(
+              "Unexpected properties entry '%s' of class '%s'", property, property.getClass()));
+      SqlNodeList kv = ((SqlNodeList) property);
+      checkState(kv.size() == 2, "Expected 2 items in properties entry, but got %s", kv.size());
+      String key = checkStateNotNull(SqlDdlNodes.getString(kv.get(0)));
+      String value = checkStateNotNull(SqlDdlNodes.getString(kv.get(1)));
+      builder.put(key, value);
+    }
+
+    return builder.build();
   }
 
   static SqlIdentifier getIdentifier(SqlNode n, SqlParserPos pos) {

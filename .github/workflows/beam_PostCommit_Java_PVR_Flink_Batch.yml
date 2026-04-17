@@ -63,11 +63,13 @@ env:
 
 jobs:
   beam_PostCommit_Java_PVR_Flink_Batch:
-    name: ${{ matrix.job_name }} (${{ matrix.job_phrase }})
+    name: ${{ matrix.job_name }} (${{ matrix.flink_version }})
     strategy:
       matrix:
         job_name: ["beam_PostCommit_Java_PVR_Flink_Batch"]
         job_phrase: ["Run Java_PVR_Flink_Batch PostCommit"]
+        # every major version
+        flink_version: ['1.20', '2.0']
     timeout-minutes: 240
     runs-on: [self-hosted, ubuntu-20.04, highmem]
     if: |
@@ -83,13 +85,21 @@ jobs:
         with:
           comment_phrase: ${{ matrix.job_phrase }}
           github_token: ${{ secrets.GITHUB_TOKEN }}
-          github_job: ${{ matrix.job_name }} (${{ matrix.job_phrase }})
+          github_job: ${{ matrix.job_name }} (${{ matrix.flink_version }})
       - name: Setup environment
         uses: ./.github/actions/setup-environment-action
+      - name: run validatesPortableRunnerBatchDataSet script
+        uses: ./.github/actions/gradle-command-self-hosted-action
+        if: startsWith(matrix.flink_version, '1')
+        with:
+          gradle-command: :runners:flink:${{ matrix.flink_version }}:job-server:validatesPortableRunnerBatchDataSet
+        env:
+          CLOUDSDK_CONFIG: ${{ env.KUBELET_GCLOUD_CONFIG_PATH }}
       - name: run validatesPortableRunnerBatch script
         uses: ./.github/actions/gradle-command-self-hosted-action
+        if: startsWith(matrix.flink_version, '2')
         with:
-          gradle-command: :runners:flink:1.20:job-server:validatesPortableRunnerBatchDataSet
+          gradle-command: :runners:flink:${{ matrix.flink_version }}:job-server:validatesPortableRunnerBatch
         env:
           CLOUDSDK_CONFIG: ${{ env.KUBELET_GCLOUD_CONFIG_PATH }}
       - name: Archive JUnit Test Results
@@ -98,9 +108,4 @@ jobs:
         with:
           name: JUnit Test Results
           path: "**/build/reports/tests/"
-      - name: Upload test report
-        uses: actions/upload-artifact@v4
-        with:
-          name: java-code-coverage-report
-          path: "**/build/test-results/**/*.xml"
 # TODO: Investigate 'Max retries exceeded' issue with EnricoMi/publish-unit-test-result-action@v2.

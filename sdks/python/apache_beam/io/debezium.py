@@ -109,7 +109,9 @@ ReadFromDebeziumSchema = NamedTuple(
     'ReadFromDebeziumSchema',
     [('connector_class', str), ('username', str), ('password', str),
      ('host', str), ('port', str), ('max_number_of_records', Optional[int]),
-     ('connection_properties', List[str])])
+     ('connection_properties', List[str]),
+     ('start_offset', Optional[List[str]]),
+     ('offset_storage_path', Optional[str])])
 
 
 class ReadFromDebezium(PTransform):
@@ -131,6 +133,8 @@ class ReadFromDebezium(PTransform):
       port,
       max_number_of_records=None,
       connection_properties=None,
+      start_offset=None,
+      offset_storage_path=None,
       expansion_service=None):
     """
         Initializes a read operation from Debezium.
@@ -144,8 +148,38 @@ class ReadFromDebezium(PTransform):
                                       to be fetched before stop.
         :param connection_properties: properties of the debezium
                                       connection passed as string
-                                      with with format
-                                      [propertyName=property;]*
+                                      with format [propertyName=property;]*
+        :param start_offset: starting offset to resume the connector from
+                             a previously seen position. Provided as a list
+                             of "key=value" strings, where numeric values are
+                             encoded as their decimal string representation.
+                             Example for PostgreSQL::
+
+                               start_offset=["lsn=28160840"]
+
+                             Example for MySQL::
+
+                               start_offset=["file=binlog.000001", "pos=156"]
+
+                             Obtain the offset from the JSON output of a
+                             previous pipeline run (the "metadata" field
+                             contains connector-specific position info) or
+                             via ``SourceRecord.sourceOffset()`` in a custom
+                             Java SourceRecordMapper.
+        :param offset_storage_path: path to a file where the connector offset
+                                    is automatically saved after each checkpoint
+                                    and loaded on pipeline startup, allowing the
+                                    pipeline to resume from where it left off.
+                                    Supports any filesystem available to the
+                                    Beam runner (local, GCS, S3, etc.).
+                                    Example::
+
+                                      offset_storage_path=(
+                                        "gs://my-bucket/debezium/offset.json"
+                                      )
+
+                                    When set, takes precedence over
+                                    ``start_offset``.
         :param expansion_service: The address (host:port)
                                   of the ExpansionService.
     """
@@ -157,7 +191,9 @@ class ReadFromDebezium(PTransform):
         host=host,
         port=str(port),
         max_number_of_records=max_number_of_records,
-        connection_properties=connection_properties)
+        connection_properties=connection_properties,
+        start_offset=start_offset,
+        offset_storage_path=offset_storage_path)
     self.expansion_service = expansion_service or default_io_expansion_service()
 
   def expand(self, pbegin):

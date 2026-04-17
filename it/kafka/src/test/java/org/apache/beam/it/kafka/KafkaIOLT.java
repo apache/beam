@@ -145,7 +145,7 @@ public final class KafkaIOLT extends IOLoadTestBase {
               region,
               readInfo.jobId(),
               getBeamMetricsName(PipelineMetricsType.COUNTER, READ_ELEMENT_METRIC_NAME));
-      assertEquals(configuration.getNumRows(), numRecords, 10.0);
+      assertEquals((double) configuration.getNumRows(), numRecords, 10.0);
     } finally {
       // clean up pipelines
       if (pipelineLauncher.getJobStatus(project, region, writeInfo.jobId())
@@ -207,13 +207,13 @@ public final class KafkaIOLT extends IOLoadTestBase {
   /** Options for Kafka IO load test. */
   @AutoValue
   abstract static class Configuration {
-    abstract Long getNumRows();
+    abstract long getNumRows();
 
-    abstract Integer getPipelineTimeout();
+    abstract int getPipelineTimeout();
 
     abstract String getRunner();
 
-    abstract Integer getRowSize();
+    abstract int getRowSize();
 
     static Configuration of(long numRows, int pipelineTimeout, String runner) {
       return new AutoValue_KafkaIOLT_Configuration.Builder()

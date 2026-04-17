@@ -24,7 +24,7 @@ import org.apache.beam.sdk.util.common.ReflectHelpers;
 public class SerializationTestUtil {
 
   private static final ObjectMapper MAPPER =
-      (new ObjectMapper())
+      new ObjectMapper()
           .registerModules(ObjectMapper.findModules(ReflectHelpers.findClassLoader()));
 
   public static <T> T serializeDeserialize(Class<T> clazz, T obj) {

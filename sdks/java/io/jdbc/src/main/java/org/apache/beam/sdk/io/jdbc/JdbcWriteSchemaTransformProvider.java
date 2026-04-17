@@ -190,8 +190,8 @@ public class JdbcWriteSchemaTransformProvider
       if (Strings.isNullOrEmpty(driverClassName)) {
         driverClassName =
             JDBC_DRIVER_MAP.get(
-                (Objects.requireNonNull(
-                        !Strings.isNullOrEmpty(jdbcType) ? jdbcType : config.getJdbcType()))
+                Objects.requireNonNull(
+                        !Strings.isNullOrEmpty(jdbcType) ? jdbcType : config.getJdbcType())
                     .toLowerCase());
       }
 
@@ -238,7 +238,7 @@ public class JdbcWriteSchemaTransformProvider
 
     private static class NoOutputDoFn<T> extends DoFn<T, Row> {
       @ProcessElement
-      public void process(ProcessContext c) {}
+      public void process(@SuppressWarnings("unused") ProcessContext c) {}
     }
 
     @Override

@@ -864,6 +864,19 @@ class YamlProviders:
                 str: "bar"
                  values: [4, 5, 6]
 
+    If the elements are a mix of dicts and non-dicts, the non-dict elements
+    will be wrapped in a Row with a single field "element". For example::
+
+        type: Create
+        config:
+          elements: [1, {"a": 2}]
+
+    will result in an output with two elements with a schema of
+    Row(element=int, a=int) looking like:
+
+        Row(element=1, a=None)
+        Row(element=None, a=2)
+
     Args:
         elements: The set of elements that should belong to the PCollection.
             YAML/JSON-style mappings will be interpreted as Beam rows.
@@ -877,6 +890,25 @@ class YamlProviders:
     # not the intent.
     if not isinstance(elements, Iterable) or isinstance(elements, (dict, str)):
       raise TypeError('elements must be a list of elements')
+
+    if elements:
+      # Normalize elements to be all dicts or all primitives.
+      has_dict = False
+      has_non_dict = False
+      for e in elements:
+        if isinstance(e, dict):
+          has_dict = True
+        else:
+          has_non_dict = True
+        if has_dict and has_non_dict:
+          break
+
+      if has_dict and has_non_dict:
+        elements = [
+            e if isinstance(e, dict) else {
+                'element': e
+            } for e in elements
+        ]
 
     # Check if elements have different keys
     updated_elements = elements

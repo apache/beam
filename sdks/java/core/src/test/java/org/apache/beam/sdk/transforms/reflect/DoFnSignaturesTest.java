@@ -56,6 +56,7 @@ import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.Sum;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.BundleFinalizerParameter;
+import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.CausedByDrainParameter;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.ElementParameter;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.FinishBundleContextParameter;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.OutputReceiverParameter;
@@ -78,6 +79,7 @@ import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.transforms.windowing.TimestampCombiner;
+import org.apache.beam.sdk.values.CausedByDrain;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TypeDescriptor;
@@ -130,10 +132,11 @@ public class DoFnSignaturesTest {
                   PipelineOptions options,
                   @SideInput("tag1") String input1,
                   @SideInput("tag2") Integer input2,
-                  BundleFinalizer bundleFinalizer) {}
+                  BundleFinalizer bundleFinalizer,
+                  CausedByDrain causedByDrain) {}
             }.getClass());
 
-    assertThat(sig.processElement().extraParameters().size(), equalTo(9));
+    assertThat(sig.processElement().extraParameters().size(), equalTo(10));
     assertThat(sig.processElement().extraParameters().get(0), instanceOf(ElementParameter.class));
     assertThat(sig.processElement().extraParameters().get(1), instanceOf(TimestampParameter.class));
     assertThat(sig.processElement().extraParameters().get(2), instanceOf(WindowParameter.class));
@@ -146,6 +149,8 @@ public class DoFnSignaturesTest {
     assertThat(sig.processElement().extraParameters().get(7), instanceOf(SideInputParameter.class));
     assertThat(
         sig.processElement().extraParameters().get(8), instanceOf(BundleFinalizerParameter.class));
+    assertThat(
+        sig.processElement().extraParameters().get(9), instanceOf(CausedByDrainParameter.class));
   }
 
   @Test
@@ -583,6 +588,31 @@ public class DoFnSignaturesTest {
     assertThat(
         sig.onTimerMethods().get(timerDeclarationId).extraParameters().get(0),
         instanceOf(WindowParameter.class));
+  }
+
+  @Test
+  public void testCausedByDrainOnTimer() throws Exception {
+    final String timerId = "some-timer-id";
+    final String timerDeclarationId = TimerDeclaration.PREFIX + timerId;
+
+    DoFnSignature sig =
+        DoFnSignatures.getSignature(
+            new DoFn<String, String>() {
+
+              @TimerId(timerId)
+              private final TimerSpec myfield1 = TimerSpecs.timer(TimeDomain.EVENT_TIME);
+
+              @ProcessElement
+              public void process(ProcessContext c) {}
+
+              @OnTimer(timerId)
+              public void onTimer(CausedByDrain causedByDrain) {}
+            }.getClass());
+
+    assertThat(sig.onTimerMethods().get(timerDeclarationId).extraParameters().size(), equalTo(1));
+    assertThat(
+        sig.onTimerMethods().get(timerDeclarationId).extraParameters().get(0),
+        instanceOf(CausedByDrainParameter.class));
   }
 
   @Test

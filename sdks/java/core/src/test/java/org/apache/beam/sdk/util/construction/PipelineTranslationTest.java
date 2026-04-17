@@ -275,7 +275,7 @@ public class PipelineTranslationTest {
   private static class DoFnRequiringStableInput extends DoFn<Integer, String> {
     @RequiresStableInput
     @ProcessElement
-    public void process(ProcessContext c) {
+    public void process(@SuppressWarnings("unused") ProcessContext c) {
       // actually never executed and no effect on translation
     }
   }

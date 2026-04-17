@@ -444,7 +444,7 @@ public class BigqueryClient {
                         .setLocation(location))
                 .execute();
         if (response != null) {
-          LOG.info("Successfully created new dataset : " + response.getId());
+          LOG.info("Successfully created new dataset : {}", response.getId());
           return;
         } else {
           lastException =
@@ -467,9 +467,9 @@ public class BigqueryClient {
   public void deleteTable(String projectId, String datasetId, String tableName) {
     try {
       bqClient.tables().delete(projectId, datasetId, tableName).execute();
-      LOG.info("Successfully deleted table: " + tableName);
+      LOG.info("Successfully deleted table: {}", tableName);
     } catch (Exception e) {
-      LOG.debug("Exception caught when deleting table: " + e.getMessage());
+      LOG.debug("Exception caught when deleting table", e);
     }
   }
 
@@ -480,14 +480,14 @@ public class BigqueryClient {
         this.deleteTable(projectId, datasetId, table.getTableReference().getTableId());
       }
     } catch (Exception e) {
-      LOG.debug("Exceptions caught when listing all tables: " + e.getMessage());
+      LOG.debug("Exceptions caught when listing all tables", e);
     }
 
     try {
       bqClient.datasets().delete(projectId, datasetId).execute();
-      LOG.info("Successfully deleted dataset: " + datasetId);
+      LOG.info("Successfully deleted dataset: {}", datasetId);
     } catch (Exception e) {
-      LOG.debug("Exceptions caught when deleting dataset: " + e.getMessage());
+      LOG.debug("Exceptions caught when deleting dataset", e);
     }
   }
 
@@ -503,7 +503,7 @@ public class BigqueryClient {
       try {
         Table response = this.bqClient.tables().insert(projectId, datasetId, newTable).execute();
         if (response != null) {
-          LOG.info("Successfully created new table: " + response.getId());
+          LOG.info("Successfully created new table: {}", response.getId());
           return;
         } else {
           lastException =
@@ -547,7 +547,7 @@ public class BigqueryClient {
                 .execute();
         if (response != null
             && (response.getInsertErrors() == null || response.getInsertErrors().isEmpty())) {
-          LOG.info("Successfully inserted data into table : " + tableName);
+          LOG.info("Successfully inserted data into table : {}", tableName);
           return;
         } else {
           if (response == null || response.getInsertErrors() == null) {

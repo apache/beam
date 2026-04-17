@@ -33,7 +33,6 @@ from apache_beam.io.filesystemio import DownloaderStream
 from apache_beam.io.filesystemio import Uploader
 from apache_beam.io.filesystemio import UploaderStream
 from apache_beam.utils import retry
-from apache_beam.utils.annotations import deprecated
 
 try:
   # pylint: disable=wrong-import-order, wrong-import-position
@@ -100,27 +99,6 @@ class S3IO(object):
     else:
       raise ValueError('Invalid file open mode: %s.' % mode)
 
-  @deprecated(since='2.45.0', current='list_files')
-  def list_prefix(self, path, with_metadata=False):
-    """Lists files matching the prefix.
-
-    ``list_prefix`` has been deprecated. Use `list_files` instead, which returns
-    a generator of file information instead of a dict.
-
-    Args:
-      path: S3 file path pattern in the form s3://<bucket>/[name].
-      with_metadata: Experimental. Specify whether returns file metadata.
-
-    Returns:
-      If ``with_metadata`` is False: dict of file name -> size; if
-        ``with_metadata`` is True: dict of file name -> tuple(size, timestamp).
-    """
-    file_info = {}
-    for file_metadata in self.list_files(path, with_metadata):
-      file_info[file_metadata[0]] = file_metadata[1]
-
-    return file_info
-
   def list_files(self, path, with_metadata=False):
     """Lists files matching the prefix.
 
@@ -186,7 +164,7 @@ class S3IO(object):
         break
 
     logging.log(
-        # do not spam logs when list_prefix is likely used to check empty folder
+        # do not spam logs when list_files is likely used to check empty folder
         logging.INFO if counter > 0 else logging.DEBUG,
         "Finished listing %s files in %s seconds.",
         counter,
@@ -288,7 +266,7 @@ class S3IO(object):
     assert dest.endswith('/')
 
     results = []
-    for entry in self.list_prefix(src):
+    for entry, _ in self.list_files(src):
       rel_path = entry[len(src):]
       try:
         self.copy(entry, dest + rel_path)
@@ -436,7 +414,7 @@ class S3IO(object):
     """
     assert root.endswith('/')
 
-    paths = self.list_prefix(root)
+    paths = [p for p, _ in self.list_files(root)]
     return self.delete_files(paths)
 
   def size(self, path):

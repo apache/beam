@@ -101,7 +101,7 @@ public interface TransformProvider<InputT extends PInput, OutputT extends POutpu
         i++;
       }
       return indexToPCollection.build();
-    } else if (output instanceof POutput) {
+    } else if (output != null) {
       // This is needed to support custom output types.
       Map<TupleTag<?>, PValue> values = output.expand();
       Map<String, PCollection<?>> returnMap = new HashMap<>();

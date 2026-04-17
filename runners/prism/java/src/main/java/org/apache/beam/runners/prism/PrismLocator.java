@@ -242,7 +242,7 @@ class PrismLocator {
   }
 
   private static String mustGetPropertyAsLowerCase(String name) {
-    return checkStateNotNull(System.getProperty(name), "System property: " + name + " not set")
+    return checkStateNotNull(System.getProperty(name), "System property: %s not set", name)
         .toLowerCase();
   }
 

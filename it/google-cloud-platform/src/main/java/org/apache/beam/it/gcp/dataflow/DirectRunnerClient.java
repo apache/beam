@@ -26,7 +26,6 @@ import java.io.IOException;
 import java.lang.reflect.Method;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
-import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -74,7 +73,8 @@ public class DirectRunnerClient implements PipelineLauncher {
 
       String jobId =
           "direct-"
-              + new SimpleDateFormat("yyyy-MM-dd_HH_mm_ss").format(new Date())
+              + new SimpleDateFormat("yyyy-MM-dd_HH_mm_ss")
+                  .format(java.time.Instant.now().toEpochMilli())
               + "-"
               + System.currentTimeMillis();
 

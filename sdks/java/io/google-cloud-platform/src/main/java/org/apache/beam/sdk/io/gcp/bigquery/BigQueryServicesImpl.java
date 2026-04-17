@@ -383,7 +383,7 @@ public class BigQueryServicesImpl implements BigQueryServices {
           return; // SUCCEEDED
         } catch (IOException e) {
           if (errorExtractor.itemAlreadyExists(e)) {
-            LOG.info("BigQuery job " + jobRef + " already exists, will not retry inserting it:", e);
+            LOG.info("BigQuery job {} already exists, will not retry inserting it:", jobRef, e);
             return; // SUCCEEDED
           }
 
@@ -395,7 +395,7 @@ public class BigQueryServicesImpl implements BigQueryServices {
                       .create()
                   : null) {
             // ignore and retry
-            LOG.info("Failed to insert job " + jobRef + ", will retry:", e);
+            LOG.info("Failed to insert job {}, will retry:", jobRef, e);
           }
           lastException = e;
         }
@@ -431,12 +431,11 @@ public class BigQueryServicesImpl implements BigQueryServices {
         } catch (IOException e) {
           if (errorExtractor.itemAlreadyExists(e)) {
             LOG.info(
-                "BigQuery job " + jobReference + " already exists, will not retry inserting it:",
-                e);
+                "BigQuery job {} already exists, will not retry inserting it:", jobReference, e);
             return; // SUCCEEDED
           }
           // ignore and retry
-          LOG.info("Failed to insert job " + jobReference + ", will retry:", e);
+          LOG.info("Failed to insert job {}, will retry:", jobReference, e);
           exception = e;
         }
       } while (nextBackOff(sleeper, backOff));
@@ -1065,9 +1064,8 @@ public class BigQueryServicesImpl implements BigQueryServices {
                     .withFullResourceName(BigQueryHelpers.toTableFullResourceName(ref))
                     .create()) {
               LOG.info(
-                  String.format(
-                      "BigQuery insertAll error, retrying: %s",
-                      ApiErrorExtractor.INSTANCE.getErrorMessage(e)));
+                  "BigQuery insertAll error, retrying: {}",
+                  ApiErrorExtractor.INSTANCE.getErrorMessage(e));
             }
             try {
               long nextBackOffMillis = backoff1.nextBackOffMillis();

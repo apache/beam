@@ -613,7 +613,7 @@ public class GrpcWindmillServerTest {
                     responseObserver.onNext(responseBuilder.build());
                   } catch (Exception e) {
                     // Stream is already closed.
-                    LOG.warn(Arrays.toString(e.getStackTrace()));
+                    LOG.warn("{}", Arrays.toString(e.getStackTrace()));
                   }
                   responseBuilder.clear();
                 }

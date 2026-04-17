@@ -221,7 +221,7 @@ public class FileBasedIOLT extends IOLoadTestBase {
             readInfo.jobId(),
             getBeamMetricsName(PipelineMetricsType.COUNTER, READ_ELEMENT_METRIC_NAME));
 
-    assertEquals(configuration.numRecords, numRecords, 0.5);
+    assertEquals((double) configuration.numRecords, numRecords, 0.5);
 
     // export metrics
     MetricsConfiguration metricsConfig =
@@ -251,7 +251,7 @@ public class FileBasedIOLT extends IOLoadTestBase {
     /** Number of dynamic destinations to write. */
     @JsonProperty public int numShards = 0;
 
-    /** See {@class org.apache.beam.sdk.io.Compression}. */
+    /** See {@link org.apache.beam.sdk.io.Compression}. */
     @JsonProperty public String compressionType = "UNCOMPRESSED";
 
     /** Runner specified to run the pipeline. */

@@ -37,7 +37,6 @@ public class SamzaTransformMetrics implements Serializable {
 
   private static final int DEFAULT_LOOKBACK_TIMER_WINDOW_SIZE_MS = 180000;
   private static final String GROUP = "SamzaBeamTransformMetrics";
-  private static final String METRIC_NAME_PATTERN = "%s-%s";
   private static final String TRANSFORM_LATENCY_METRIC = "handle-message-ns";
   private static final String TRANSFORM_WATERMARK_PROGRESS = "output-watermark-ms";
   private static final String TRANSFORM_IP_THROUGHPUT = "num-input-messages";
@@ -138,6 +137,6 @@ public class SamzaTransformMetrics implements Serializable {
   private static String getMetricNameWithPrefix(String metricName, String transformName) {
     // Replace all non-alphanumeric characters with underscore
     final String samzaSafeMetricName = transformName.replaceAll("[^A-Za-z0-9_]", "_");
-    return String.format(METRIC_NAME_PATTERN, samzaSafeMetricName, metricName);
+    return String.format("%s-%s", samzaSafeMetricName, metricName);
   }
 }

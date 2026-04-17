@@ -493,7 +493,7 @@ public class ExpansionServiceTest {
   @DefaultSchema(AutoValueSchema.class)
   @AutoValue
   abstract static class TestConfigSimpleSchema {
-    abstract Long getFoo();
+    abstract long getFoo();
 
     abstract String getBar();
 

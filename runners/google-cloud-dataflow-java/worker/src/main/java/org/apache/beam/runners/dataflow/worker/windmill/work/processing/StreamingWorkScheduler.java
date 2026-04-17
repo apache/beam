@@ -246,6 +246,7 @@ public class StreamingWorkScheduler {
     // Before any processing starts, call any pending OnCommit callbacks.  Nothing that requires
     // cleanup should be done before this, since we might exit early here.
     commitFinalizer.finalizeCommits(workItem.getSourceState().getFinalizeIdsList());
+    commitFinalizer.finalizeCommits(workItem.getAppliedFinalizeIdsList());
     if (workItem.getSourceState().getOnlyFinalize()) {
       Windmill.WorkItemCommitRequest.Builder outputBuilder = initializeOutputBuilder(key, workItem);
       outputBuilder.setSourceStateUpdates(Windmill.SourceState.newBuilder().setOnlyFinalize(true));
@@ -278,13 +279,20 @@ public class StreamingWorkScheduler {
       recordProcessingStats(commitRequest, workItem, executeWorkResult);
       LOG.debug("Processing done for work token: {}", workItem.getWorkToken());
     } catch (Throwable t) {
-      workFailureProcessor.logAndProcessFailure(
-          computationId,
-          ExecutableWork.create(work, retry -> processWork(computationState, retry)),
-          t,
-          invalidWork ->
-              computationState.completeWorkAndScheduleNextWorkForKey(
-                  invalidWork.getShardedKey(), invalidWork.id()));
+      // OutOfMemoryError that are caught will be rethrown and trigger jvm termination.
+      try {
+        workFailureProcessor.logAndProcessFailure(
+            computationId,
+            ExecutableWork.create(work, retry -> processWork(computationState, retry)),
+            t,
+            invalidWork ->
+                computationState.completeWorkAndScheduleNextWorkForKey(
+                    invalidWork.getShardedKey(), invalidWork.id()));
+      } catch (OutOfMemoryError oom) {
+        throw oom;
+      } catch (Throwable t2) {
+        throw new RuntimeException(t2);
+      }
     } finally {
       // Update total processing time counters. Updating in finally clause ensures that
       // work items causing exceptions are also accounted in time spent.
@@ -325,7 +333,7 @@ public class StreamingWorkScheduler {
     KeyCommitTooLargeException e =
         KeyCommitTooLargeException.causedBy(computationId, byteLimit, commitRequest);
     failureTracker.trackFailure(computationId, workItem, e);
-    LOG.error(e.toString());
+    LOG.error("{}", e.toString());
 
     // Drop the current request in favor of a new, minimal one requesting truncation.
     // Messages, timers, counters, and other commit content will not be used by the service
@@ -410,7 +418,7 @@ public class StreamingWorkScheduler {
                 computationState.sourceBytesProcessCounterName());
         outputBuilder.setSourceBytesProcessed(sourceBytesProcessed);
       } catch (Exception e) {
-        LOG.error(e.toString());
+        LOG.error("{}", e.toString());
       }
 
       commitFinalizer.cacheCommitFinalizers(computationWorkExecutor.context().flushState());

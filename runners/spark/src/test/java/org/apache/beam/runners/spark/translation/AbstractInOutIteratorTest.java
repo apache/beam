@@ -32,6 +32,7 @@ import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.state.TimeDomain;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
+import org.apache.beam.sdk.values.CausedByDrain;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.WindowedValue;
 import org.joda.time.Instant;
@@ -56,6 +57,7 @@ public class AbstractInOutIteratorTest {
   private static final Instant TEST_TIMESTAMP = new Instant(42L);
   private static final Instant TEST_OUTPUT_TIMESTAMP = new Instant(84L);
   private static final TimeDomain TEST_TIME_DOMAIN = TimeDomain.EVENT_TIME;
+  private static final CausedByDrain TEST_CAUSED_BY_DRAIN = CausedByDrain.CAUSED_BY_DRAIN;
 
   private StateNamespace testNamespace;
 
@@ -88,6 +90,7 @@ public class AbstractInOutIteratorTest {
     when(mockTimer.getTimestamp()).thenReturn(TEST_TIMESTAMP);
     when(mockTimer.getOutputTimestamp()).thenReturn(TEST_OUTPUT_TIMESTAMP);
     when(mockTimer.getDomain()).thenReturn(TEST_TIME_DOMAIN);
+    when(mockTimer.causedByDrain()).thenReturn(TEST_CAUSED_BY_DRAIN);
   }
 
   @Test
@@ -107,7 +110,8 @@ public class AbstractInOutIteratorTest {
             mockWindow,
             TEST_TIMESTAMP,
             TEST_OUTPUT_TIMESTAMP,
-            TEST_TIME_DOMAIN);
+            TEST_TIME_DOMAIN,
+            CausedByDrain.CAUSED_BY_DRAIN);
 
     // Verify that timer data iterator deletion was not called (no timer iterator was set in this
     // test)
@@ -133,7 +137,8 @@ public class AbstractInOutIteratorTest {
             mockWindow,
             TEST_TIMESTAMP,
             TEST_OUTPUT_TIMESTAMP,
-            TEST_TIME_DOMAIN);
+            TEST_TIME_DOMAIN,
+            CausedByDrain.CAUSED_BY_DRAIN);
 
     // Verify that the timer data iterator's deleteTimer method was called
     verify(mockTimerDataIterator).deleteTimer(mockTimer);

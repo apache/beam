@@ -153,7 +153,7 @@ public class ReadChangeStreamPartitionDoFnTest {
                 testToken, tenSecondsAgo, BigDecimal.valueOf(20), Instant.now(), false));
     // we should have output 2 100B mutations in the past 10s
     long bytesPerSecond = (mutationSize * 2) / 10;
-    assertEquals(sizeEstimate, bytesPerSecond * watermarkLag, 10);
+    assertEquals(sizeEstimate, (double) (bytesPerSecond * watermarkLag), 10);
     verify(receiver, times(2)).outputWithTimestamp(KV.of(rowKey, mockMutation), Instant.EPOCH);
   }
 

@@ -18,7 +18,9 @@
 package org.apache.beam.runners.dataflow.worker;
 
 import static org.hamcrest.MatcherAssert.assertThat;
+import static org.junit.Assert.assertTrue;
 
+import com.google.common.collect.Iterables;
 import java.io.IOException;
 import java.util.Collection;
 import java.util.Collections;
@@ -43,6 +45,7 @@ import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo.Timing;
+import org.apache.beam.sdk.values.CausedByDrain;
 import org.apache.beam.sdk.values.WindowedValue;
 import org.apache.beam.sdk.values.WindowedValues;
 import org.apache.beam.vendor.grpc.v1p69p0.com.google.protobuf.ByteString;
@@ -117,6 +120,93 @@ public class WindmillKeyedWorkItemTest {
             WindowedValues.of("earth", new Instant(6), WINDOW_1, paneInfo(1))));
   }
 
+  @Test
+  public void testElementIterationWithSkipEnabled() throws Exception {
+    Windmill.WorkItem.Builder workItem =
+        Windmill.WorkItem.newBuilder().setKey(SERIALIZED_KEY).setWorkToken(17);
+    Windmill.InputMessageBundle.Builder chunk1 = workItem.addMessageBundlesBuilder();
+    chunk1.setSourceComputationId("computation");
+    addElement(chunk1, 5, "hello", WINDOW_1, paneInfo(0));
+    addElement(chunk1, 7, "world", WINDOW_2, paneInfo(2));
+    Windmill.InputMessageBundle.Builder chunk2 = workItem.addMessageBundlesBuilder();
+    chunk2.setSourceComputationId("computation");
+    addElement(chunk2, 6, "earth", WINDOW_1, paneInfo(1));
+
+    KeyedWorkItem<String, String> keyedWorkItem =
+        new WindmillKeyedWorkItem<>(
+            KEY,
+            workItem.build(),
+            WINDOW_CODER,
+            WINDOWS_CODER,
+            VALUE_CODER,
+            windmillTagEncoding,
+            false,
+            true);
+
+    assertThat(
+        keyedWorkItem.elementsIterable(),
+        Matchers.contains(
+            WindowedValues.of("hello", new Instant(5), WINDOW_1, paneInfo(0)),
+            WindowedValues.of("world", new Instant(7), WINDOW_2, paneInfo(2)),
+            WindowedValues.of("earth", new Instant(6), WINDOW_1, paneInfo(1))));
+  }
+
+  @Test
+  public void testElementIterationSkips() throws Exception {
+    Windmill.WorkItem.Builder workItem =
+        Windmill.WorkItem.newBuilder().setKey(SERIALIZED_KEY).setWorkToken(17);
+    Windmill.InputMessageBundle.Builder chunk1 = workItem.addMessageBundlesBuilder();
+    chunk1.setSourceComputationId("computation");
+    addElement(chunk1, 5, "hello", WINDOW_1, paneInfo(0));
+    addCorruptedElement(chunk1);
+    Windmill.InputMessageBundle.Builder chunk2 = workItem.addMessageBundlesBuilder();
+    chunk2.setSourceComputationId("computation");
+    addElement(chunk2, 6, "earth", WINDOW_1, paneInfo(1));
+
+    KeyedWorkItem<String, String> keyedWorkItem =
+        new WindmillKeyedWorkItem<>(
+            KEY,
+            workItem.build(),
+            WINDOW_CODER,
+            WINDOWS_CODER,
+            VALUE_CODER,
+            windmillTagEncoding,
+            false,
+            true);
+
+    assertThat(
+        keyedWorkItem.elementsIterable(),
+        Matchers.contains(
+            WindowedValues.of("hello", new Instant(5), WINDOW_1, paneInfo(0)),
+            WindowedValues.of("earth", new Instant(6), WINDOW_1, paneInfo(1))));
+  }
+
+  @Test
+  public void testElementIterationAllSkips() throws Exception {
+    Windmill.WorkItem.Builder workItem =
+        Windmill.WorkItem.newBuilder().setKey(SERIALIZED_KEY).setWorkToken(17);
+    Windmill.InputMessageBundle.Builder chunk1 = workItem.addMessageBundlesBuilder();
+    chunk1.setSourceComputationId("computation");
+    addCorruptedElement(chunk1);
+    addCorruptedElement(chunk1);
+    Windmill.InputMessageBundle.Builder chunk2 = workItem.addMessageBundlesBuilder();
+    chunk2.setSourceComputationId("computation");
+    addCorruptedElement(chunk2);
+
+    KeyedWorkItem<String, String> keyedWorkItem =
+        new WindmillKeyedWorkItem<>(
+            KEY,
+            workItem.build(),
+            WINDOW_CODER,
+            WINDOWS_CODER,
+            VALUE_CODER,
+            windmillTagEncoding,
+            false,
+            true);
+
+    assertTrue(Iterables.isEmpty(keyedWorkItem.elementsIterable()));
+  }
+
   private void addElement(
       Windmill.InputMessageBundle.Builder chunk,
       long timestamp,
@@ -153,6 +243,14 @@ public class WindmillKeyedWorkItemTest {
         .setTimestamp(WindmillTimeUtils.harnessToWindmillTimestamp(new Instant(timestamp)))
         .setData(ByteString.copyFromUtf8(value))
         .setMetadata(encodedMetadata);
+  }
+
+  private void addCorruptedElement(Windmill.InputMessageBundle.Builder chunk) {
+    chunk
+        .addMessagesBuilder()
+        .setTimestamp(1)
+        .setData(ByteString.copyFromUtf8("bad data"))
+        .setMetadata(ByteString.copyFromUtf8("bad metadata"));
   }
 
   private PaneInfo paneInfo(int index) {
@@ -197,13 +295,13 @@ public class WindmillKeyedWorkItemTest {
     return Windmill.Timer.newBuilder()
         .setTag(
             windmillTagEncoding.timerTag(
-                WindmillNamespacePrefix.SYSTEM_NAMESPACE_PREFIX,
+                WindmillTimerType.SYSTEM_TIMER,
                 TimerData.of(
                     ns,
                     new Instant(timestamp),
                     new Instant(timestamp),
                     timerTypeToTimeDomain(type),
-                    TimerData.CausedByDrain.NORMAL)))
+                    CausedByDrain.NORMAL)))
         .setTimestamp(WindmillTimeUtils.harnessToWindmillTimestamp(new Instant(timestamp)))
         .setType(type)
         .setStateFamily(STATE_FAMILY)
@@ -212,7 +310,12 @@ public class WindmillKeyedWorkItemTest {
 
   private static TimerData makeTimer(StateNamespace ns, long timestamp, TimeDomain domain) {
     return TimerData.of(
-        ns, new Instant(timestamp), new Instant(timestamp), domain, TimerData.CausedByDrain.NORMAL);
+        ns, new Instant(timestamp), new Instant(timestamp), domain, CausedByDrain.NORMAL);
+  }
+
+  private static TimerData makeDrainingTimer(StateNamespace ns, long timestamp, TimeDomain domain) {
+    return TimerData.of(
+        ns, new Instant(timestamp), new Instant(timestamp), domain, CausedByDrain.CAUSED_BY_DRAIN);
   }
 
   @Test
@@ -265,14 +368,12 @@ public class WindmillKeyedWorkItemTest {
             true);
 
     Iterator<WindowedValue<String>> iterator = keyedWorkItem.elementsIterable().iterator();
-    Assert.assertTrue(iterator.next().causedByDrain());
-    Assert.assertFalse(iterator.next().causedByDrain());
+    Assert.assertEquals(CausedByDrain.CAUSED_BY_DRAIN, iterator.next().causedByDrain());
+    Assert.assertEquals(CausedByDrain.NORMAL, iterator.next().causedByDrain());
 
-    // todo add assert for draining once timerdata is filled
-    // (https://github.com/apache/beam/issues/36884)
     assertThat(
         keyedWorkItem.timersIterable(),
-        Matchers.contains(makeTimer(STATE_NAMESPACE_2, 3, TimeDomain.EVENT_TIME)));
+        Matchers.contains(makeDrainingTimer(STATE_NAMESPACE_2, 3, TimeDomain.EVENT_TIME)));
   }
 
   private static TimeDomain timerTypeToTimeDomain(Windmill.Timer.Type type) {

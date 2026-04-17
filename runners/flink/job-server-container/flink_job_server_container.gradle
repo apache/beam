@@ -55,8 +55,10 @@ task copyDockerfileDependencies(type: Copy) {
 def pushContainers = project.rootProject.hasProperty(["isRelease"]) || project.rootProject.hasProperty("push-containers")
 def containerName = project.parent.name.startsWith("2") ? "flink_job_server" : "flink${project.parent.name}_job_server"
 def containerTag = project.rootProject.hasProperty(["docker-tag"]) ? project.rootProject["docker-tag"] : project.sdk_version
+String verInSuffix = null
 if (project.parent.name.startsWith("2")) {
   containerTag += "-flink${project.parent.name}"
+  verInSuffix = "-flink${project.parent.name}"
 }
 
 docker {
@@ -68,6 +70,7 @@ docker {
           tag: containerTag)
   // tags used by dockerTag task
   tags containerImageTags()
+  tagSuffix verInSuffix
   files "./build/"
   buildx project.useBuildx()
   platform(*project.containerPlatforms())

@@ -30,9 +30,9 @@ void main() {
     await init(wt);
 
     await _openJavaMinimalWordCount(wt);
+    await checkToggleBrightnessMode(wt);
     await wt.runExpectCached(javaMinimalWordCount);
     await wt.modifyRunExpectReal(javaMinimalWordCount);
-    await checkToggleBrightnessMode(wt);
   });
 }
 

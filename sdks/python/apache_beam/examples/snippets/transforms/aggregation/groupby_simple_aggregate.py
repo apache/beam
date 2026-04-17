@@ -43,6 +43,7 @@ GROCERY_LIST = [
     beam.Row(recipe='pie', fruit='blueberry', quantity=1, unit_price=2.00),
     beam.Row(recipe='muffin', fruit='blueberry', quantity=2, unit_price=2.00),
     beam.Row(recipe='muffin', fruit='banana', quantity=3, unit_price=1.00),
+    beam.Row(recipe='pie', fruit='strawberry', quantity=3, unit_price=1.50),
 ]
 # [END groupby_table]
 
@@ -54,9 +55,9 @@ def simple_aggregate(test=None):
         p
         | beam.Create(GROCERY_LIST)
         | beam.GroupBy('fruit').aggregate_field(
-            'quantity', sum, 'total_quantity')
-        | beam.Map(print))
+            'quantity', sum, 'total_quantity'))
     # [END simple_aggregate]
+
     if test:
       test(grouped)
 

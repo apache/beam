@@ -25,23 +25,35 @@ resource "time_sleep" "wait_for_cluster" {
   depends_on = [google_container_cluster.primary]
 }
 
+# Namespace
+resource "kubernetes_namespace" "ratelimit_namespace" {
+  metadata {
+    name = var.namespace
+  }
+
+  depends_on = [time_sleep.wait_for_cluster]
+}
+
+
 # ConfigMap
 resource "kubernetes_config_map" "ratelimit_config" {
   metadata {
-    name = "ratelimit-config"
+    name      = "ratelimit-config"
+    namespace = var.namespace
   }
 
   data = {
     "config.yaml" = var.ratelimit_config_yaml
   }
 
-  depends_on = [time_sleep.wait_for_cluster]
+  depends_on = [kubernetes_namespace.ratelimit_namespace]
 }
 
 # Redis Deployment
 resource "kubernetes_deployment" "redis" {
   metadata {
-    name = "redis"
+    name      = "redis"
+    namespace = var.namespace
     labels = {
       app = "redis"
     }
@@ -81,13 +93,14 @@ resource "kubernetes_deployment" "redis" {
     }
   }
 
-  depends_on = [time_sleep.wait_for_cluster]
+  depends_on = [kubernetes_namespace.ratelimit_namespace]
 }
 
 # Redis Service
 resource "kubernetes_service" "redis" {
   metadata {
-    name = "redis"
+    name      = "redis"
+    namespace = var.namespace
   }
 
   spec {
@@ -101,13 +114,14 @@ resource "kubernetes_service" "redis" {
     }
   }
 
-  depends_on = [time_sleep.wait_for_cluster]
+  depends_on = [kubernetes_namespace.ratelimit_namespace]
 }
 
 # Rate Limit Deployment
 resource "kubernetes_deployment" "ratelimit" {
   metadata {
-    name = "ratelimit"
+    name      = "ratelimit"
+    namespace = var.namespace
     labels = {
       app = "ratelimit"
     }
@@ -131,8 +145,8 @@ resource "kubernetes_deployment" "ratelimit" {
 
       spec {
         container {
-          name  = "ratelimit"
-          image = var.ratelimit_image
+          name    = "ratelimit"
+          image   = var.ratelimit_image
           command = ["/bin/ratelimit"]
 
           port {
@@ -144,10 +158,43 @@ resource "kubernetes_deployment" "ratelimit" {
           port {
             container_port = 6070
           }
+          dynamic "port" {
+            for_each = var.enable_metrics ? [1] : []
+            content {
+              name           = "metrics"
+              container_port = 9090
+            }
+          }
 
           env {
+            name  = "USE_PROMETHEUS"
+            value = var.enable_metrics ? "true" : "false"
+          }
+          dynamic "env" {
+            for_each = var.enable_metrics ? [1] : []
+            content {
+              name  = "PROMETHEUS_ADDR"
+              value = ":9090"
+            }
+          }
+          dynamic "env" {
+            for_each = var.enable_metrics ? [1] : []
+            content {
+              name  = "PROMETHEUS_PATH"
+              value = "/metrics"
+            }
+          }
+          env {
             name  = "USE_STATSD"
-            value = "true"
+            value = "false"
+          }
+          env {
+            name  = "DISABLE_STATS"
+            value = var.enable_metrics ? "false" : "true"
+          }
+          env {
+            name  = "LOG_FORMAT"
+            value = "json"
           }
           env {
             name  = "LOG_LEVEL"
@@ -182,12 +229,12 @@ resource "kubernetes_deployment" "ratelimit" {
             value = "FILE"
           }
           env {
-            name  = "STATSD_HOST"
-            value = "localhost"
+            name  = "GRPC_MAX_CONNECTION_AGE"
+            value = var.ratelimit_grpc_max_connection_age
           }
           env {
-            name  = "STATSD_PORT"
-            value = "9125"
+            name  = "GRPC_MAX_CONNECTION_AGE_GRACE"
+            value = var.ratelimit_grpc_max_connection_age_grace
           }
 
           resources {
@@ -201,20 +248,7 @@ resource "kubernetes_deployment" "ratelimit" {
           }
         }
 
-        container {
-          name  = "statsd-exporter"
-          image = var.statsd_exporter_image
 
-          port {
-            name           = "metrics"
-            container_port = 9102
-          }
-          port {
-            name           = "statsd-udp"
-            container_port = 9125
-            protocol       = "UDP"
-          }
-        }
 
         volume {
           name = "config-volume"
@@ -227,7 +261,7 @@ resource "kubernetes_deployment" "ratelimit" {
   }
 
   depends_on = [
-    time_sleep.wait_for_cluster,
+    kubernetes_namespace.ratelimit_namespace,
     kubernetes_config_map.ratelimit_config,
     kubernetes_service.redis
   ]
@@ -239,7 +273,8 @@ resource "kubernetes_deployment" "ratelimit" {
 
 resource "kubernetes_horizontal_pod_autoscaler_v2" "ratelimit" {
   metadata {
-    name = "ratelimit-hpa"
+    name      = "ratelimit-hpa"
+    namespace = var.namespace
   }
 
   spec {
@@ -255,7 +290,7 @@ resource "kubernetes_horizontal_pod_autoscaler_v2" "ratelimit" {
     metric {
       type = "Resource"
       resource {
-        name  = "cpu"
+        name = "cpu"
         target {
           type                = "Utilization"
           average_utilization = var.hpa_cpu_target_percentage
@@ -266,7 +301,7 @@ resource "kubernetes_horizontal_pod_autoscaler_v2" "ratelimit" {
     metric {
       type = "Resource"
       resource {
-        name  = "memory"
+        name = "memory"
         target {
           type                = "Utilization"
           average_utilization = var.hpa_memory_target_percentage
@@ -275,13 +310,14 @@ resource "kubernetes_horizontal_pod_autoscaler_v2" "ratelimit" {
     }
   }
 
-  depends_on = [time_sleep.wait_for_cluster]
+  depends_on = [kubernetes_namespace.ratelimit_namespace]
 }
 
 # Rate Limit Internal Service
 resource "kubernetes_service" "ratelimit" {
   metadata {
-    name = "ratelimit"
+    name      = "ratelimit"
+    namespace = var.namespace
   }
 
   spec {
@@ -304,20 +340,24 @@ resource "kubernetes_service" "ratelimit" {
       port        = 6070
       target_port = 6070
     }
-    port {
-      name        = "metrics"
-      port        = 9102
-      target_port = 9102
+    dynamic "port" {
+      for_each = var.enable_metrics ? [1] : []
+      content {
+        name        = "metrics"
+        port        = 9090
+        target_port = 9090
+      }
     }
   }
 
-  depends_on = [time_sleep.wait_for_cluster]
+  depends_on = [kubernetes_namespace.ratelimit_namespace]
 }
 
 # Rate Limit External Service (LoadBalancer)
 resource "kubernetes_service" "ratelimit_external" {
   metadata {
-    name = "ratelimit-external"
+    name      = "ratelimit-external"
+    namespace = var.namespace
     annotations = {
       "networking.gke.io/load-balancer-type" = "Internal"
     }
@@ -341,12 +381,38 @@ resource "kubernetes_service" "ratelimit_external" {
       port        = 6070
       target_port = 6070
     }
-    port {
-      name        = "metrics"
-      port        = 9102
-      target_port = 9102
-    }
+
   }
 
-  depends_on = [time_sleep.wait_for_cluster]
+  depends_on = [kubernetes_namespace.ratelimit_namespace]
+}
+
+# Pod Monitoring
+resource "kubernetes_manifest" "ratelimit_pod_monitoring" {
+  manifest = {
+    apiVersion = "monitoring.googleapis.com/v1"
+    kind       = "PodMonitoring"
+    metadata = {
+      name      = "ratelimit-monitoring"
+      namespace = var.namespace
+    }
+    spec = {
+      selector = {
+        matchLabels = {
+          app = "ratelimit"
+        }
+      }
+      endpoints = [
+        {
+          port = "metrics"
+          path = "/metrics"
+          interval = "15s"
+        }
+      ]
+    }
+  }
+  depends_on = [
+    kubernetes_deployment.ratelimit,
+    time_sleep.wait_for_cluster
+  ]
 }

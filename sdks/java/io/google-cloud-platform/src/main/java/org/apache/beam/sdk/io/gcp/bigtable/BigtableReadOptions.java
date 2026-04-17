@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.io.gcp.bigtable;
 
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkNotNull;
 
 import com.google.auto.value.AutoValue;
 import com.google.bigtable.v2.RowFilter;
@@ -42,6 +43,8 @@ abstract class BigtableReadOptions implements Serializable {
 
   /** Returns the row filter to use. */
   abstract @Nullable ValueProvider<RowFilter> getRowFilter();
+
+  abstract @Nullable ValueProvider<String> getRowFilterTextProto();
 
   /** Returns the key ranges to read. */
   abstract @Nullable ValueProvider<List<ByteKeyRange>> getKeyRanges();
@@ -72,6 +75,8 @@ abstract class BigtableReadOptions implements Serializable {
     abstract Builder setTableId(ValueProvider<String> tableId);
 
     abstract Builder setRowFilter(ValueProvider<RowFilter> rowFilter);
+
+    abstract Builder setRowFilterTextProto(ValueProvider<String> rowFilter);
 
     abstract Builder setMaxBufferElementCount(@Nullable Integer maxBufferElementCount);
 
@@ -110,6 +115,8 @@ abstract class BigtableReadOptions implements Serializable {
     builder
         .addIfNotNull(DisplayData.item("tableId", getTableId()).withLabel("Bigtable Table Id"))
         .addIfNotNull(DisplayData.item("rowFilter", getRowFilter()).withLabel("Row Filter"))
+        .addIfNotNull(
+            DisplayData.item("rowFilterTextProto", getRowFilterTextProto()).withLabel("Row Filter"))
         .addIfNotNull(DisplayData.item("keyRanges", getKeyRanges()).withLabel("Key Ranges"))
         .addIfNotNull(
             DisplayData.item("attemptTimeout", getAttemptTimeout())
@@ -127,6 +134,11 @@ abstract class BigtableReadOptions implements Serializable {
     if (getRowFilter() != null && getRowFilter().isAccessible()) {
       checkArgument(getRowFilter().get() != null, "rowFilter can not be null");
     }
+
+    if (getRowFilterTextProto() != null && getRowFilterTextProto().isAccessible()) {
+      checkNotNull(getRowFilterTextProto(), "rowFilter can not be null");
+    }
+
     if (getMaxBufferElementCount() != null) {
       checkArgument(
           getMaxBufferElementCount() > 0, "maxBufferElementCount can not be zero or negative");

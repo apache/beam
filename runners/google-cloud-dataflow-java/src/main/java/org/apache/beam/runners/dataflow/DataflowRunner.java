@@ -1238,6 +1238,7 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
 
   private static final Random RANDOM = new Random();
 
+  @SuppressWarnings("Slf4jFormatShouldBeConst")
   @Override
   public DataflowPipelineJob run(Pipeline pipeline) {
     // Multi-language pipelines and pipelines that include upgrades should automatically be upgraded
@@ -1299,16 +1300,19 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
     if (shouldActAsStreaming(pipeline)) {
       options.setStreaming(true);
 
+      {
+        List<String> experiments =
+            options.getExperiments() == null
+                ? new ArrayList<>()
+                : new ArrayList<>(options.getExperiments());
+        // Experiment marking that the harness supports tag encoding v2
+        // Backend will enable tag encoding v2 only if the harness supports it.
+        experiments.add("streaming_engine_state_tag_encoding_v2_supported");
+        options.setExperiments(ImmutableList.copyOf(experiments));
+      }
+
       if (useUnifiedWorker(options)) {
         options.setEnableStreamingEngine(true);
-        List<String> experiments =
-            new ArrayList<>(options.getExperiments()); // non-null if useUnifiedWorker is true
-        if (!experiments.contains("enable_streaming_engine")) {
-          experiments.add("enable_streaming_engine");
-        }
-        if (!experiments.contains("enable_windmill_service")) {
-          experiments.add("enable_windmill_service");
-        }
       }
     }
 
@@ -1887,9 +1891,9 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
         });
     for (String unconsumed : unconsumedDLQ.values()) {
       LOG.warn(
-          "No transform processes the failed-inserts output from BigQuery sink: "
-              + unconsumed
-              + "! Not processing failed inserts means that those rows will be lost.");
+          "No transform processes the failed-inserts output from BigQuery sink: {}"
+              + "! Not processing failed inserts means that those rows will be lost.",
+          unconsumed);
     }
   }
 
@@ -2734,11 +2738,11 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
               DataflowRunner.class.getSimpleName()));
     }
     boolean isUnifiedWorker = useUnifiedWorker(options);
-    if (DoFnSignatures.usesBundleFinalizer(fn) && !isUnifiedWorker) {
+    if (DoFnSignatures.usesBundleFinalizer(fn) && !isUnifiedWorker && !streaming) {
       throw new UnsupportedOperationException(
           String.format(
-              "%s does not currently support %s when not using unified worker because it uses "
-                  + "BundleFinalizers in its implementation. Set the `--experiments=use_runner_v2` "
+              "%s does not currently support %s in batch mode when not using unified worker because it "
+                  + "uses BundleFinalizers in its implementation. Set the `--experiments=use_runner_v2` "
                   + "option to use this DoFn.",
               DataflowRunner.class.getSimpleName(), fn.getClass().getSimpleName()));
     }

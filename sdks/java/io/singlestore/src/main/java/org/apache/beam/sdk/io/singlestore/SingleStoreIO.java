@@ -321,8 +321,8 @@ public class SingleStoreIO {
      * <p>NOTE - The "user" and "password" properties can be add via {@link #withUsername(String)},
      * {@link #withPassword(String)}, so they do not need to be included here.
      *
-     * <p>Full list of supported properties can be found here {@link <a
-     * href="https://docs.singlestore.com/managed-service/en/developer-resources/connect-with-application-development-tools/connect-with-java-jdbc/the-singlestore-jdbc-driver.html#connection-string-parameters">...</a>}
+     * <p>Full list of supported properties can be found here <a
+     * href="https://docs.singlestore.com/managed-service/en/developer-resources/connect-with-application-development-tools/connect-with-java-jdbc/the-singlestore-jdbc-driver.html#connection-string-parameters">...</a>
      */
     public DataSourceConfiguration withConnectionProperties(String connectionProperties) {
       checkNotNull(connectionProperties, "connectionProperties can not be null");
@@ -734,13 +734,14 @@ public class SingleStoreIO {
       }
 
       @GetInitialRestriction
-      public OffsetRange getInitialRange(@Element ParameterT element) throws Exception {
+      public OffsetRange getInitialRange(@SuppressWarnings("unused") @Element ParameterT element)
+          throws Exception {
         return new OffsetRange(0L, getNumPartitions());
       }
 
       @SplitRestriction
       public void splitRange(
-          @Element ParameterT element,
+          @SuppressWarnings("unused") @Element ParameterT element,
           @Restriction OffsetRange range,
           OutputReceiver<OffsetRange> receiver) {
         for (long i = range.getFrom(); i < range.getTo(); i++) {

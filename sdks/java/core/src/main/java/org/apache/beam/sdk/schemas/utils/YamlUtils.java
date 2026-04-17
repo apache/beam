@@ -21,6 +21,7 @@ import static org.apache.beam.sdk.values.Row.toRow;
 
 import java.io.InputStream;
 import java.math.BigDecimal;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -36,6 +37,7 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Immuta
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.io.BaseEncoding;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.yaml.snakeyaml.Yaml;
+import org.yaml.snakeyaml.error.YAMLException;
 
 public class YamlUtils {
   private static final Map<Schema.TypeName, Function<String, @Nullable Object>> YAML_VALUE_PARSERS =
@@ -181,7 +183,36 @@ public class YamlUtils {
     if (map == null || map.isEmpty()) {
       return "";
     }
-    return new Yaml().dumpAsMap(map);
+    try {
+      return new Yaml().dumpAsMap(map);
+    } catch (YAMLException e) {
+      List<String> problematicKeys = findNonSerializableKeys(map);
+      throw new IllegalArgumentException(
+          String.format(
+              "Failed to convert configuration map to YAML. "
+                  + "The following keys contain values that cannot be serialized: %s. "
+                  + "Please ensure all configuration values are simple types (String, Number, Boolean) "
+                  + "or properly structured Maps and Lists. Original error: %s",
+              problematicKeys, e.getMessage()),
+          e);
+    }
+  }
+
+  private static List<String> findNonSerializableKeys(Map<String, Object> map) {
+    List<String> problematicKeys = new ArrayList<>();
+    Yaml yaml = new Yaml();
+    for (Map.Entry<String, Object> entry : map.entrySet()) {
+      try {
+        yaml.dump(entry.getValue());
+      } catch (YAMLException e) {
+        problematicKeys.add(
+            String.format(
+                "%s (type: %s)",
+                entry.getKey(),
+                entry.getValue() != null ? entry.getValue().getClass().getName() : "null"));
+      }
+    }
+    return problematicKeys;
   }
 
   public static Map<String, Object> yamlStringToMap(@Nullable String yaml) {

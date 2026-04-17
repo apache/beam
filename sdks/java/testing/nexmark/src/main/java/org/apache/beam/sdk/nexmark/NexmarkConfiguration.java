@@ -596,10 +596,7 @@ public class NexmarkConfiguration implements Serializable {
     if (this == obj) {
       return true;
     }
-    if (obj == null) {
-      return false;
-    }
-    if (getClass() != obj.getClass()) {
+    if (!(obj instanceof NexmarkConfiguration)) {
       return false;
     }
     NexmarkConfiguration other = (NexmarkConfiguration) obj;

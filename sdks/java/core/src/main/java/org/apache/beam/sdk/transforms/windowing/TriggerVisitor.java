@@ -15,33 +15,36 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.runners.dataflow.worker;
+package org.apache.beam.sdk.transforms.windowing;
 
 import org.apache.beam.sdk.annotations.Internal;
-import org.apache.beam.vendor.grpc.v1p69p0.com.google.protobuf.ByteString;
 
-/**
- * A prefix for a Windmill state or timer tag to separate user state and timers from system state
- * and timers.
- */
+/** A TriggerVisitor. */
 @Internal
-public enum WindmillNamespacePrefix {
-  USER_NAMESPACE_PREFIX {
-    @Override
-    public ByteString byteString() {
-      return USER_NAMESPACE_BYTESTRING;
-    }
-  },
+public interface TriggerVisitor<OutputT> {
+  OutputT visit(DefaultTrigger trigger);
 
-  SYSTEM_NAMESPACE_PREFIX {
-    @Override
-    public ByteString byteString() {
-      return SYSTEM_NAMESPACE_BYTESTRING;
-    }
-  };
+  OutputT visit(AfterWatermark.FromEndOfWindow trigger);
 
-  public abstract ByteString byteString();
+  OutputT visit(AfterWatermark.AfterWatermarkEarlyAndLate trigger);
 
-  private static final ByteString USER_NAMESPACE_BYTESTRING = ByteString.copyFromUtf8("/u");
-  private static final ByteString SYSTEM_NAMESPACE_BYTESTRING = ByteString.copyFromUtf8("/s");
+  OutputT visit(Never.NeverTrigger trigger);
+
+  OutputT visit(ReshuffleTrigger<?> trigger);
+
+  OutputT visit(AfterProcessingTime trigger);
+
+  OutputT visit(AfterSynchronizedProcessingTime trigger);
+
+  OutputT visit(AfterFirst trigger);
+
+  OutputT visit(AfterAll trigger);
+
+  OutputT visit(AfterEach trigger);
+
+  OutputT visit(AfterPane trigger);
+
+  OutputT visit(Repeatedly trigger);
+
+  OutputT visit(OrFinallyTrigger trigger);
 }

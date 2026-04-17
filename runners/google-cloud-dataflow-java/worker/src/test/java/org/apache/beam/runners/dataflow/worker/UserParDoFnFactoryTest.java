@@ -65,6 +65,7 @@ import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.util.DoFnInfo;
 import org.apache.beam.sdk.util.SerializableUtils;
 import org.apache.beam.sdk.util.StringUtils;
+import org.apache.beam.sdk.values.CausedByDrain;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.WindowedValues;
@@ -463,7 +464,7 @@ public class UserParDoFnFactoryTest {
                 BoundedWindow.TIMESTAMP_MAX_VALUE,
                 BoundedWindow.TIMESTAMP_MAX_VALUE.minus(Duration.millis(1)),
                 TimeDomain.EVENT_TIME,
-                TimerData.CausedByDrain.NORMAL))
+                CausedByDrain.NORMAL))
         .thenReturn(null);
 
     // Set up non-empty state. We don't mock + verify calls to clear() but instead
@@ -539,7 +540,7 @@ public class UserParDoFnFactoryTest {
                 firstWindow.maxTimestamp().plus(Duration.millis(1L)),
                 firstWindow.maxTimestamp().plus(Duration.millis(1L)),
                 TimeDomain.EVENT_TIME,
-                TimerData.CausedByDrain.NORMAL))
+                CausedByDrain.NORMAL))
         .thenReturn(null);
 
     // This should fire the timer to clean up the first window
@@ -556,7 +557,7 @@ public class UserParDoFnFactoryTest {
                 secondWindow.maxTimestamp().plus(Duration.millis(1L)),
                 secondWindow.maxTimestamp().plus(Duration.millis(1L)),
                 TimeDomain.EVENT_TIME,
-                TimerData.CausedByDrain.NORMAL))
+                CausedByDrain.NORMAL))
         .thenReturn(null);
 
     // And this should clean up the second window

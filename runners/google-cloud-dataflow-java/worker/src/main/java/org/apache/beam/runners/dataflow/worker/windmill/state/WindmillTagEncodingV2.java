@@ -17,8 +17,6 @@
  */
 package org.apache.beam.runners.dataflow.worker.windmill.state;
 
-import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkState;
-
 import java.io.IOException;
 import java.io.InputStream;
 import javax.annotation.concurrent.ThreadSafe;
@@ -30,8 +28,8 @@ import org.apache.beam.runners.core.StateNamespaces.WindowNamespace;
 import org.apache.beam.runners.core.StateTag;
 import org.apache.beam.runners.core.StateTags;
 import org.apache.beam.runners.core.TimerInternals.TimerData;
-import org.apache.beam.runners.dataflow.worker.WindmillNamespacePrefix;
 import org.apache.beam.runners.dataflow.worker.WindmillTimeUtils;
+import org.apache.beam.runners.dataflow.worker.WindmillTimerType;
 import org.apache.beam.runners.dataflow.worker.util.ThreadLocalByteStringOutputStream;
 import org.apache.beam.runners.dataflow.worker.util.ThreadLocalByteStringOutputStream.StreamHandle;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.InternedByteString;
@@ -45,6 +43,7 @@ import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
 import org.apache.beam.sdk.transforms.windowing.IntervalWindow.IntervalWindowCoder;
 import org.apache.beam.sdk.util.ByteStringOutputStream;
+import org.apache.beam.sdk.values.CausedByDrain;
 import org.apache.beam.vendor.grpc.v1p69p0.com.google.protobuf.ByteString;
 import org.joda.time.Instant;
 
@@ -219,7 +218,7 @@ public class WindmillTagEncodingV2 extends WindmillTagEncoding {
   /** {@inheritDoc} */
   @Override
   public ByteString timerHoldTag(
-      WindmillNamespacePrefix prefix, TimerData timerData, ByteString timerTag) {
+      WindmillTimerType windmillTimerType, TimerData timerData, ByteString timerTag) {
     // Same encoding for timer tag and timer hold tag.
     // They are put in different places and won't collide.
     return timerTag;
@@ -227,16 +226,16 @@ public class WindmillTagEncodingV2 extends WindmillTagEncoding {
 
   /** {@inheritDoc} */
   @Override
-  public ByteString timerTag(WindmillNamespacePrefix prefix, TimerData timerData) {
+  public ByteString timerTag(WindmillTimerType windmillTimerType, TimerData timerData) {
     try (StreamHandle streamHandle = ThreadLocalByteStringOutputStream.acquire()) {
       ByteStringOutputStream stream = streamHandle.stream();
       encodeNamespace(timerData.getNamespace(), stream);
-      if (WindmillNamespacePrefix.SYSTEM_NAMESPACE_PREFIX.equals(prefix)) {
+      if (WindmillTimerType.SYSTEM_TIMER.equals(windmillTimerType)) {
         stream.write(SYSTEM_TIMER_BYTE);
-      } else if (WindmillNamespacePrefix.USER_NAMESPACE_PREFIX.equals(prefix)) {
+      } else if (WindmillTimerType.USER_TIMER.equals(windmillTimerType)) {
         stream.write(USER_TIMER_BYTE);
       } else {
-        throw new IllegalStateException("Unexpected WindmillNamespacePrefix" + prefix);
+        throw new IllegalStateException("Unexpected WindmillTimerType" + windmillTimerType);
       }
       StringUtf8Coder.of().encode(timerData.getTimerFamilyId(), stream);
       StringUtf8Coder.of().encode(timerData.getTimerId(), stream);
@@ -248,21 +247,19 @@ public class WindmillTagEncodingV2 extends WindmillTagEncoding {
 
   /** {@inheritDoc} */
   @Override
-  public TimerData windmillTimerToTimerData(
-      WindmillNamespacePrefix prefix,
-      Timer timer,
-      Coder<? extends BoundedWindow> windowCoder,
-      boolean draining) {
+  public WindmillTimerData windmillTimerToTimerData(
+      Timer timer, Coder<? extends BoundedWindow> windowCoder, boolean draining) {
 
     InputStream stream = timer.getTag().newInput();
 
     try {
       StateNamespace stateNamespace = decodeNamespace(stream, windowCoder);
       int nextByte = stream.read();
+      WindmillTimerType timerType;
       if (nextByte == SYSTEM_TIMER_BYTE) {
-        checkState(WindmillNamespacePrefix.SYSTEM_NAMESPACE_PREFIX.equals(prefix));
+        timerType = WindmillTimerType.SYSTEM_TIMER;
       } else if (nextByte == USER_TIMER_BYTE) {
-        checkState(WindmillNamespacePrefix.USER_NAMESPACE_PREFIX.equals(prefix));
+        timerType = WindmillTimerType.USER_TIMER;
       } else {
         throw new IllegalStateException("Unexpected timer tag byte: " + nextByte);
       }
@@ -282,13 +279,16 @@ public class WindmillTagEncodingV2 extends WindmillTagEncoding {
         }
       }
 
-      return TimerData.of(
-          timerId,
-          timerFamilyId,
-          stateNamespace,
-          timestamp,
-          outputTimestamp,
-          timerTypeToTimeDomain(timer.getType()));
+      return WindmillTimerData.create(
+          timerType,
+          TimerData.of(
+              timerId,
+              timerFamilyId,
+              stateNamespace,
+              timestamp,
+              outputTimestamp,
+              timerTypeToTimeDomain(timer.getType()),
+              draining ? CausedByDrain.CAUSED_BY_DRAIN : CausedByDrain.NORMAL));
 
     } catch (IOException e) {
       throw new RuntimeException(e);
@@ -296,7 +296,7 @@ public class WindmillTagEncodingV2 extends WindmillTagEncoding {
     // todo add draining (https://github.com/apache/beam/issues/36884)
   }
 
-  /** @return the singleton WindmillStateTagUtil */
+  /** Returns the singleton WindmillStateTagUtil. */
   public static WindmillTagEncodingV2 instance() {
     return INSTANCE;
   }

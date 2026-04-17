@@ -75,7 +75,7 @@ public interface WorkUnitClient {
    * Reports the worker messages to dataflow. We currently report autoscaling signals and
    * perworkermetrics with this path.
    *
-   * @param msg the WorkerMessages to report
+   * @param messages the WorkerMessages to report
    * @return a list of {@link WorkerMessageResponse}
    */
   List<WorkerMessageResponse> reportWorkerMessage(List<WorkerMessage> messages) throws IOException;

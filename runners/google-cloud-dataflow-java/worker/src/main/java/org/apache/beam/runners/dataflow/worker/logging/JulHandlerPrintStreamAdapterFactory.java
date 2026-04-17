@@ -31,6 +31,7 @@ import java.nio.charset.CodingErrorAction;
 import java.util.Formatter;
 import java.util.Locale;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.function.Consumer;
 import java.util.logging.Handler;
 import java.util.logging.Level;
 import java.util.logging.LogRecord;
@@ -62,7 +63,7 @@ class JulHandlerPrintStreamAdapterFactory {
     /** Hold reference of named logger to check configured {@link Level}. */
     private final Logger logger;
 
-    private final Handler handler;
+    private final Consumer<LogRecord> handler;
     private final String loggerName;
     private final Level messageLevel;
 
@@ -79,7 +80,7 @@ class JulHandlerPrintStreamAdapterFactory {
     private ByteArrayOutputStream carryOverBytes;
 
     private JulHandlerPrintStream(
-        Handler handler, String loggerName, Level logLevel, Charset charset)
+        Consumer<LogRecord> handler, String loggerName, Level logLevel, Charset charset)
         throws UnsupportedEncodingException {
       super(
           new OutputStream() {
@@ -406,11 +407,11 @@ class JulHandlerPrintStreamAdapterFactory {
         if (OUTPUT_WARNING.compareAndSet(false, true)) {
           LogRecord log = new LogRecord(Level.WARNING, LOGGING_DISCLAIMER);
           log.setLoggerName(loggerName);
-          handler.publish(log);
+          handler.accept(log);
         }
         LogRecord log = new LogRecord(messageLevel, message);
         log.setLoggerName(loggerName);
-        handler.publish(log);
+        handler.accept(log);
       }
     }
   }
@@ -420,7 +421,7 @@ class JulHandlerPrintStreamAdapterFactory {
    * specified {@code loggerName} and {@code level}.
    */
   static PrintStream create(
-      Handler handler, String loggerName, Level messageLevel, Charset charset) {
+      Consumer<LogRecord> handler, String loggerName, Level messageLevel, Charset charset) {
     try {
       return new JulHandlerPrintStream(handler, loggerName, messageLevel, charset);
     } catch (UnsupportedEncodingException exc) {

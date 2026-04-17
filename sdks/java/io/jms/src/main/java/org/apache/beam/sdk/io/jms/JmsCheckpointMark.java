@@ -108,7 +108,7 @@ class JmsCheckpointMark implements UnboundedSource.CheckpointMark, Serializable 
     if (this == o) {
       return true;
     }
-    if (o == null || getClass() != o.getClass()) {
+    if (!(o instanceof JmsCheckpointMark)) {
       return false;
     }
     JmsCheckpointMark that = (JmsCheckpointMark) o;

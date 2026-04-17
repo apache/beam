@@ -56,6 +56,7 @@ public class MetricsAccumulator implements SimpleAccumulator<MetricsContainerSte
     try {
       super.clone();
     } catch (CloneNotSupportedException ignored) {
+      // Ignore CloneNotSupportedException
     }
     MetricsAccumulator metricsAccumulator = new MetricsAccumulator();
     metricsAccumulator.getLocalValue().updateAll(this.getLocalValue());

@@ -17,7 +17,7 @@
 # under the License.
 #
 
-FROM ghcr.io/actions-runner-controller/actions-runner-controller/actions-runner:ubuntu-20.04
+FROM ghcr.io/actions-runner-controller/actions-runner-controller/actions-runner:ubuntu-24.04
 #install BuildX
 COPY --from=docker/buildx-bin:0.11.1 /buildx /usr/libexec/docker/cli-plugins/docker-buildx
 RUN docker buildx install && docker buildx version
@@ -31,7 +31,7 @@ RUN curl -OL https://nodejs.org/dist/v22.14.0/node-v22.14.0-linux-x64.tar.xz && 
     mv /usr/local/node-v22.14.0-linux-x64 /usr/local/node
 ENV PATH="${PATH}:/usr/local/node/bin"
 #Install Go
-ARG go_version=1.25.2
+ARG go_version=1.26.1
 RUN curl -OL https://go.dev/dl/go${go_version}.linux-amd64.tar.gz && \
     tar -C /usr/local -xzf go${go_version}.linux-amd64.tar.gz && \
     rm go${go_version}.linux-amd64.tar.gz

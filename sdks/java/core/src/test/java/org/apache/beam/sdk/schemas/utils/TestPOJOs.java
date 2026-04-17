@@ -92,7 +92,7 @@ public class TestPOJOs {
       if (this == o) {
         return true;
       }
-      if (o == null || getClass() != o.getClass()) {
+      if (!(o instanceof POJOWithNestedNullable)) {
         return false;
       }
       POJOWithNestedNullable that = (POJOWithNestedNullable) o;
@@ -302,7 +302,7 @@ public class TestPOJOs {
       if (this == o) {
         return true;
       }
-      if (o == null || getClass() != o.getClass()) {
+      if (!(o instanceof AnnotatedSimplePojo)) {
         return false;
       }
       AnnotatedSimplePojo that = (AnnotatedSimplePojo) o;
@@ -440,7 +440,7 @@ public class TestPOJOs {
       if (this == o) {
         return true;
       }
-      if (o == null || getClass() != o.getClass()) {
+      if (!(o instanceof SimplePOJO)) {
         return false;
       }
       SimplePOJO that = (SimplePOJO) o;
@@ -511,7 +511,7 @@ public class TestPOJOs {
       if (this == o) {
         return true;
       }
-      if (o == null || getClass() != o.getClass()) {
+      if (!(o instanceof NestedPOJO)) {
         return false;
       }
       NestedPOJO that = (NestedPOJO) o;
@@ -549,7 +549,7 @@ public class TestPOJOs {
       if (this == o) {
         return true;
       }
-      if (o == null || getClass() != o.getClass()) {
+      if (!(o instanceof PrimitiveArrayPOJO)) {
         return false;
       }
       PrimitiveArrayPOJO that = (PrimitiveArrayPOJO) o;
@@ -591,7 +591,7 @@ public class TestPOJOs {
       if (this == o) {
         return true;
       }
-      if (o == null || getClass() != o.getClass()) {
+      if (!(o instanceof NestedArrayPOJO)) {
         return false;
       }
       NestedArrayPOJO that = (NestedArrayPOJO) o;
@@ -624,7 +624,7 @@ public class TestPOJOs {
       if (this == o) {
         return true;
       }
-      if (o == null || getClass() != o.getClass()) {
+      if (!(o instanceof NestedArraysPOJO)) {
         return false;
       }
       NestedArraysPOJO that = (NestedArraysPOJO) o;
@@ -659,7 +659,7 @@ public class TestPOJOs {
       if (this == o) {
         return true;
       }
-      if (o == null || getClass() != o.getClass()) {
+      if (!(o instanceof NestedCollectionPOJO)) {
         return false;
       }
       NestedCollectionPOJO that = (NestedCollectionPOJO) o;
@@ -696,7 +696,7 @@ public class TestPOJOs {
       if (this == o) {
         return true;
       }
-      if (o == null || getClass() != o.getClass()) {
+      if (!(o instanceof PrimitiveMapPOJO)) {
         return false;
       }
       PrimitiveMapPOJO that = (PrimitiveMapPOJO) o;
@@ -730,7 +730,7 @@ public class TestPOJOs {
       if (this == o) {
         return true;
       }
-      if (o == null || getClass() != o.getClass()) {
+      if (!(o instanceof NestedMapPOJO)) {
         return false;
       }
       NestedMapPOJO that = (NestedMapPOJO) o;
@@ -774,7 +774,7 @@ public class TestPOJOs {
       if (this == o) {
         return true;
       }
-      if (o == null || getClass() != o.getClass()) {
+      if (!(o instanceof POJOWithBoxedFields)) {
         return false;
       }
       POJOWithBoxedFields that = (POJOWithBoxedFields) o;
@@ -819,7 +819,7 @@ public class TestPOJOs {
       if (this == o) {
         return true;
       }
-      if (o == null || getClass() != o.getClass()) {
+      if (!(o instanceof POJOWithByteArray)) {
         return false;
       }
       POJOWithByteArray that = (POJOWithByteArray) o;
@@ -927,7 +927,7 @@ public class TestPOJOs {
       if (this == o) {
         return true;
       }
-      if (o == null || getClass() != o.getClass()) {
+      if (!(o instanceof PojoWithEnum)) {
         return false;
       }
       PojoWithEnum that = (PojoWithEnum) o;
@@ -999,7 +999,7 @@ public class TestPOJOs {
       if (this == o) {
         return true;
       }
-      if (o == null || getClass() != o.getClass()) {
+      if (!(o instanceof NullablePOJO)) {
         return false;
       }
       NullablePOJO that = (NullablePOJO) o;
@@ -1075,7 +1075,7 @@ public class TestPOJOs {
       if (this == o) {
         return true;
       }
-      if (o == null || getClass() != o.getClass()) {
+      if (!(o instanceof PojoWithCaseFormat)) {
         return false;
       }
       PojoWithCaseFormat that = (PojoWithCaseFormat) o;
@@ -1124,7 +1124,7 @@ public class TestPOJOs {
       if (this == o) {
         return true;
       }
-      if (o == null || getClass() != o.getClass()) {
+      if (!(o instanceof SelfNestedPOJO)) {
         return false;
       }
       SelfNestedPOJO that = (SelfNestedPOJO) o;
@@ -1155,7 +1155,7 @@ public class TestPOJOs {
       if (this == o) {
         return true;
       }
-      if (o == null || getClass() != o.getClass()) {
+      if (!(o instanceof FirstCircularNestedPOJO)) {
         return false;
       }
       FirstCircularNestedPOJO that = (FirstCircularNestedPOJO) o;
@@ -1186,7 +1186,7 @@ public class TestPOJOs {
       if (this == o) {
         return true;
       }
-      if (o == null || getClass() != o.getClass()) {
+      if (!(o instanceof SecondCircularNestedPOJO)) {
         return false;
       }
       SecondCircularNestedPOJO that = (SecondCircularNestedPOJO) o;
@@ -1217,7 +1217,7 @@ public class TestPOJOs {
       if (this == o) {
         return true;
       }
-      if (o == null || getClass() != o.getClass()) {
+      if (!(o instanceof NestedPOJOWithSimplePOJO)) {
         return false;
       }
       NestedPOJOWithSimplePOJO that = (NestedPOJOWithSimplePOJO) o;
@@ -1254,7 +1254,7 @@ public class TestPOJOs {
       if (this == o) {
         return true;
       }
-      if (o == null || getClass() != o.getClass()) {
+      if (!(o instanceof SimplePOJOWithDescription)) {
         return false;
       }
       SimplePOJOWithDescription that = (SimplePOJOWithDescription) o;

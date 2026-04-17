@@ -422,7 +422,7 @@ public class BoundedSourceSystem {
 
     @Override
     public SystemProducer getProducer(String systemName, Config config, MetricsRegistry registry) {
-      LOG.info("System " + systemName + " does not have producer.");
+      LOG.info("System {} does not have producer.", systemName);
       return null;
     }
 

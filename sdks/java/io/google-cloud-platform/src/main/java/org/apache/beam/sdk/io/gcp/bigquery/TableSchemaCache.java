@@ -294,7 +294,7 @@ public class TableSchemaCache {
       // Since this is a daemon thread, don't exit until it is explicitly shut down. Exiting early
       // can cause the
       // pipeline to stall.
-      LOG.error("Caught exception in BigQuery's table schema cache refresh thread: " + e);
+      LOG.error("Caught exception in BigQuery's table schema cache refresh thread", e);
     }
     this.refreshExecutor.submit(this::refreshThread);
   }
@@ -313,7 +313,7 @@ public class TableSchemaCache {
       if (table == null) {
         throw new RuntimeException("Did not get value for table " + tableReference);
       }
-      LOG.info("Refreshed BigQuery schema for " + entry.getKey());
+      LOG.info("Refreshed BigQuery schema for {}", entry.getKey());
       schemas.put(entry.getKey(), table.getSchema());
     }
     return schemas;

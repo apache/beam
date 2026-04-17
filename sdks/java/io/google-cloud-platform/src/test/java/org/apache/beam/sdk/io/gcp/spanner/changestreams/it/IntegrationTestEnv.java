@@ -21,6 +21,7 @@ import com.google.cloud.spanner.DatabaseAdminClient;
 import com.google.cloud.spanner.DatabaseClient;
 import com.google.cloud.spanner.DatabaseId;
 import com.google.cloud.spanner.Dialect;
+import com.google.cloud.spanner.SessionPoolOptions;
 import com.google.cloud.spanner.Spanner;
 import com.google.cloud.spanner.SpannerOptions;
 import java.util.ArrayList;
@@ -77,7 +78,16 @@ public class IntegrationTestEnv extends ExternalResource {
     instanceId = options.getInstanceId();
     generateDatabaseIds(options);
     spanner =
-        SpannerOptions.newBuilder().setProjectId(projectId).setHost(host).build().getService();
+        SpannerOptions.newBuilder()
+            .setProjectId(projectId)
+            .setHost(host)
+            .disableGrpcGcpExtension()
+            .setSessionPoolOption(
+                SessionPoolOptions.newBuilder()
+                    .setWaitForMinSessionsDuration(java.time.Duration.ofMinutes(5))
+                    .build())
+            .build()
+            .getService();
     databaseAdminClient = spanner.getDatabaseAdminClient();
     metadataTableName = generateTableName(METADATA_TABLE_NAME_PREFIX);
 
@@ -124,7 +134,7 @@ public class IntegrationTestEnv extends ExternalResource {
               .get(TIMEOUT_MINUTES, TimeUnit.MINUTES);
         }
       } catch (Exception e) {
-        LOG.error("Failed to drop change stream " + changeStream + ". Skipping...", e);
+        LOG.error("Failed to drop change stream {}. Skipping...", changeStream, e);
       }
     }
 
@@ -145,14 +155,14 @@ public class IntegrationTestEnv extends ExternalResource {
               .get(TIMEOUT_MINUTES, TimeUnit.MINUTES);
         }
       } catch (Exception e) {
-        LOG.error("Failed to drop table " + table + ". Skipping...", e);
+        LOG.error("Failed to drop table {}. Skipping...", table, e);
       }
     }
 
     try {
       databaseAdminClient.dropDatabase(instanceId, databaseId);
     } catch (Exception e) {
-      LOG.error("Failed to drop database " + databaseId + ". Skipping...", e);
+      LOG.error("Failed to drop database {}. Skipping...", databaseId, e);
     }
     if (useSeparateMetadataDb) {
       databaseAdminClient.dropDatabase(instanceId, metadataDatabaseId);
@@ -167,7 +177,7 @@ public class IntegrationTestEnv extends ExternalResource {
 
   String createSingersTable() throws InterruptedException, ExecutionException, TimeoutException {
     final String tableName = generateTableName(SINGERS_TABLE_NAME_PREFIX);
-    LOG.info("Creating table " + tableName);
+    LOG.info("Creating table {}", tableName);
     if (this.isPostgres) {
       databaseAdminClient
           .updateDatabaseDdl(
@@ -224,7 +234,7 @@ public class IntegrationTestEnv extends ExternalResource {
   String createChangeStreamFor(String tableName)
       throws InterruptedException, ExecutionException, TimeoutException {
     final String changeStreamName = generateChangeStreamName();
-    LOG.info("CREATE CHANGE STREAM \"" + changeStreamName + "\" FOR \"" + tableName + "\"");
+    LOG.info("CREATE CHANGE STREAM \"{}\" FOR \"{}\"", changeStreamName, tableName);
     if (this.isPostgres) {
       databaseAdminClient
           .updateDatabaseDdl(
@@ -319,7 +329,7 @@ public class IntegrationTestEnv extends ExternalResource {
       throws ExecutionException, InterruptedException, TimeoutException {
     // Drops the database if it already exists
     databaseAdminClient.dropDatabase(instanceId, databaseId);
-    LOG.info("Creating database " + databaseId + ", isPostgres=" + isPostgres);
+    LOG.info("Creating database {}, isPostgres={}", databaseId, isPostgres);
     if (isPostgres) {
       databaseAdminClient
           .createDatabase(
@@ -342,7 +352,7 @@ public class IntegrationTestEnv extends ExternalResource {
 
   private String generateTableName(String prefix) {
     int maxTableNameLength = MAX_POSTGRES_TABLE_NAME_LENGTH;
-    LOG.info("Max table length: " + maxTableNameLength);
+    LOG.info("Max table length: {}", maxTableNameLength);
     return prefix
         + "_"
         + RandomStringUtils.randomAlphanumeric(maxTableNameLength - 1 - prefix.length());

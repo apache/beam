@@ -36,6 +36,7 @@ import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo.PaneInfoCoder;
 import org.apache.beam.sdk.util.common.ElementByteSizeObserver;
+import org.apache.beam.sdk.values.CausedByDrain;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Instant;
 
@@ -65,9 +66,17 @@ public abstract class Timer<K> {
       Collection<? extends BoundedWindow> windows,
       Instant fireTimestamp,
       Instant holdTimestamp,
-      PaneInfo paneInfo) {
+      PaneInfo paneInfo,
+      CausedByDrain causedByDrain) {
     return new AutoValue_Timer(
-        userKey, dynamicTimerTag, windows, false, fireTimestamp, holdTimestamp, paneInfo);
+        userKey,
+        dynamicTimerTag,
+        windows,
+        false,
+        fireTimestamp,
+        holdTimestamp,
+        paneInfo,
+        causedByDrain);
   }
 
   /**
@@ -76,7 +85,8 @@ public abstract class Timer<K> {
    */
   public static <K> Timer<K> cleared(
       K userKey, String dynamicTimerTag, Collection<? extends BoundedWindow> windows) {
-    return new AutoValue_Timer(userKey, dynamicTimerTag, windows, true, null, null, null);
+    return new AutoValue_Timer(
+        userKey, dynamicTimerTag, windows, true, null, null, null, CausedByDrain.NORMAL);
   }
 
   /** Returns the key that the timer is set on. */
@@ -115,6 +125,8 @@ public abstract class Timer<K> {
    * timer is being cleared.
    */
   public abstract @Nullable PaneInfo getPaneInfo();
+
+  public abstract @Nullable CausedByDrain causedByDrain();
 
   @Override
   public final boolean equals(@Nullable Object other) {
@@ -186,6 +198,7 @@ public abstract class Timer<K> {
         InstantCoder.of().encode(timer.getFireTimestamp(), outStream);
         InstantCoder.of().encode(timer.getHoldTimestamp(), outStream);
         PaneInfoCoder.INSTANCE.encode(timer.getPaneInfo(), outStream);
+        // todo maybe similarly to windowedValue, should we propagate metadata with paneinfo bit
       }
     }
 
@@ -201,7 +214,15 @@ public abstract class Timer<K> {
       Instant fireTimestamp = InstantCoder.of().decode(inStream);
       Instant holdTimestamp = InstantCoder.of().decode(inStream);
       PaneInfo paneInfo = PaneInfoCoder.INSTANCE.decode(inStream);
-      return Timer.of(userKey, dynamicTimerTag, windows, fireTimestamp, holdTimestamp, paneInfo);
+      // todo maybe similarly to windowedValue, should we propagate metadata with paneinfo bit
+      return Timer.of(
+          userKey,
+          dynamicTimerTag,
+          windows,
+          fireTimestamp,
+          holdTimestamp,
+          paneInfo,
+          CausedByDrain.NORMAL);
     }
 
     @Override

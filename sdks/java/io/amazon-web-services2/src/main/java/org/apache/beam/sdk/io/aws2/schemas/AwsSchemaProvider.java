@@ -134,7 +134,7 @@ public class AwsSchemaProvider extends GetterBasedSchemaProviderV2 {
       if (this == o) {
         return true;
       }
-      if (o == null || getClass() != o.getClass()) {
+      if (!(o instanceof FromRowWithBuilder)) {
         return false;
       }
       FromRowWithBuilder<?> that = (FromRowWithBuilder<?>) o;

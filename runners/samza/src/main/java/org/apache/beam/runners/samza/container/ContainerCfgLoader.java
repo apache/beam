@@ -46,9 +46,9 @@ public class ContainerCfgLoader implements ConfigLoader {
       synchronized (LOCK) {
         if (jobModel == null) {
           final String containerId = System.getenv(ShellCommandConfig.ENV_CONTAINER_ID);
-          LOG.info(String.format("Got container ID: %s", containerId));
+          LOG.info("Got container ID: {}", containerId);
           final String coordinatorUrl = System.getenv(ShellCommandConfig.ENV_COORDINATOR_URL);
-          LOG.info(String.format("Got coordinator URL: %s", coordinatorUrl));
+          LOG.info("Got coordinator URL: {}", coordinatorUrl);
           final int delay = RANDOM.nextInt(SamzaContainer.DEFAULT_READ_JOBMODEL_DELAY_MS()) + 1;
           jobModel = SamzaContainer.readJobModel(coordinatorUrl, delay);
         }

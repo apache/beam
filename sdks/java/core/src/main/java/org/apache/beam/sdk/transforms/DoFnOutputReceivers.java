@@ -169,7 +169,8 @@ public class DoFnOutputReceivers {
       checkStateNotNull(outputCoder, "No output tag for %s ", tag);
       checkState(
           outputCoder instanceof SchemaCoder,
-          "Output with tag " + tag + " must have a schema in order to call getRowReceiver");
+          "Output with tag %s must have a schema in order to call getRowReceiver",
+          tag);
       return DoFnOutputReceivers.rowReceiver(
           context, builderSupplier, tag, (SchemaCoder<T>) outputCoder);
     }

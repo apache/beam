@@ -94,6 +94,8 @@ public class KafkaIOTranslationTest {
     WRITE_TRANSFORM_SCHEMA_MAPPING.put("getValueSerializer", "value_serializer");
     WRITE_TRANSFORM_SCHEMA_MAPPING.put("getPublishTimestampFunction", "publish_timestamp_fn");
     WRITE_TRANSFORM_SCHEMA_MAPPING.put("isEOS", "eos");
+    WRITE_TRANSFORM_SCHEMA_MAPPING.put("getEosTriggerTimeout", "eos_trigger_timeout_ms");
+    WRITE_TRANSFORM_SCHEMA_MAPPING.put("getEosTriggerNumElements", "eos_trigger_num_elements");
     WRITE_TRANSFORM_SCHEMA_MAPPING.put("getSinkGroupId", "sink_group_id");
     WRITE_TRANSFORM_SCHEMA_MAPPING.put("getNumShards", "num_shards");
     WRITE_TRANSFORM_SCHEMA_MAPPING.put("getConsumerFactoryFn", "consumer_factory_fn");

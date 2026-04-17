@@ -77,7 +77,7 @@ public class SerializableCoderTest implements Serializable {
       if (this == o) {
         return true;
       }
-      if (o == null || getClass() != o.getClass()) {
+      if (!(o instanceof MyRecord)) {
         return false;
       }
 
@@ -326,7 +326,7 @@ public class SerializableCoderTest implements Serializable {
       if (this == o) {
         return true;
       }
-      if (o == null || getClass() != o.getClass()) {
+      if (!(o instanceof ProperEquals)) {
         return false;
       }
 

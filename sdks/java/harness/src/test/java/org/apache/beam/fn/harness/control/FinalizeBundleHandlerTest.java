@@ -22,9 +22,14 @@ import static org.hamcrest.core.StringContains.containsString;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoMoreInteractions;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicBoolean;
 import org.apache.beam.fn.harness.control.FinalizeBundleHandler.CallbackRegistration;
@@ -32,6 +37,7 @@ import org.apache.beam.model.fnexecution.v1.BeamFnApi.FinalizeBundleRequest;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.FinalizeBundleResponse;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.InstructionRequest;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.InstructionResponse;
+import org.apache.beam.sdk.transforms.DoFn.BundleFinalizer;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.junit.Test;
@@ -104,6 +110,49 @@ public class FinalizeBundleHandlerTest {
       assertTrue(wasCalled1.get());
       assertTrue(wasCalled2.get());
     }
+  }
+
+  @Test
+  public void testCallbackExpiration() throws Exception {
+    ExecutorService executor = Executors.newCachedThreadPool();
+    FinalizeBundleHandler handler = new FinalizeBundleHandler(executor);
+    BundleFinalizer.Callback callback = mock(BundleFinalizer.Callback.class);
+    handler.registerCallbacks(
+        "test",
+        Collections.singletonList(
+            CallbackRegistration.create(Instant.now().plus(Duration.standardHours(1)), callback)));
+    assertEquals(1, handler.cleanupQueueSize());
+
+    BundleFinalizer.Callback callback2 = mock(BundleFinalizer.Callback.class);
+    handler.registerCallbacks(
+        "test2",
+        Collections.singletonList(
+            CallbackRegistration.create(Instant.now().plus(Duration.millis(100)), callback2)));
+    BundleFinalizer.Callback callback3 = mock(BundleFinalizer.Callback.class);
+    handler.registerCallbacks(
+        "test3",
+        Collections.singletonList(
+            CallbackRegistration.create(Instant.now().plus(Duration.millis(1)), callback3)));
+    while (handler.cleanupQueueSize() > 1) {
+      Thread.sleep(500);
+    }
+    // Just the "test" bundle should remain as "test2" and "test3" should have timed out.
+    assertEquals(1, handler.cleanupQueueSize());
+    // Completing test2 and test3 should have successful response but not invoke the callbacks
+    // as they were cleaned up.
+    assertEquals(SUCCESSFUL_RESPONSE, handler.finalizeBundle(requestFor("test2")).build());
+    verifyNoMoreInteractions(callback2);
+    assertEquals(SUCCESSFUL_RESPONSE, handler.finalizeBundle(requestFor("test3")).build());
+    verifyNoMoreInteractions(callback3);
+    // Completing "test" bundle should call the callback and remove it from cleanup queue.
+    assertEquals(1, handler.cleanupQueueSize());
+    assertEquals(SUCCESSFUL_RESPONSE, handler.finalizeBundle(requestFor("test")).build());
+    verify(callback).onBundleSuccess();
+    assertEquals(0, handler.cleanupQueueSize());
+    // Verify that completing again is a no-op as it was cleaned up.
+    assertEquals(SUCCESSFUL_RESPONSE, handler.finalizeBundle(requestFor("test")).build());
+    verifyNoMoreInteractions(callback);
+    executor.shutdownNow();
   }
 
   private static InstructionRequest requestFor(String bundleId) {

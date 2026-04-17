@@ -224,12 +224,20 @@ public class ChangeStreamRecordMapper {
       ChangeStreamResultSet resultSet,
       ChangeStreamResultSetMetadata resultSetMetadata) {
     if (this.isPostgres()) {
-      // In PostgresQL, change stream records are returned as JsonB.
+      // For `MUTABLE_KEY_RANGE` option, change stream records are returned as protos.
+      if (resultSet.isProtoBytesChangeRecord()) {
+        return Arrays.asList(
+            toChangeStreamRecord(partition, resultSet.getBytes(0), resultSetMetadata));
+      }
+
+      // For `IMMUTABLE_KEY_RANGE` option, change stream records are returned as
+      // JsonB.
       return Collections.singletonList(
           toChangeStreamRecordJson(partition, resultSet.getPgJsonb(0), resultSetMetadata));
     }
 
-    // In GoogleSQL, for `MUTABLE_KEY_RANGE` option, change stream records are returned as Protos.
+    // In GoogleSQL, for `MUTABLE_KEY_RANGE` option, change stream records are
+    // returned as Protos.
     if (resultSet.isProtoChangeRecord()) {
       return Arrays.asList(
           toChangeStreamRecord(

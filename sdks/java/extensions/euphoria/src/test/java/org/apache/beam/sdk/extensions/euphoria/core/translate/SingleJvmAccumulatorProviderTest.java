@@ -22,7 +22,6 @@ import org.apache.beam.sdk.extensions.euphoria.core.client.accumulators.Accumula
 import org.apache.beam.sdk.extensions.euphoria.core.client.accumulators.Counter;
 import org.apache.beam.sdk.extensions.euphoria.core.client.accumulators.Histogram;
 import org.apache.beam.sdk.extensions.euphoria.core.testkit.accumulators.SingleJvmAccumulatorProvider;
-import org.apache.beam.sdk.extensions.euphoria.core.testkit.accumulators.SingleJvmAccumulatorProvider.Factory;
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.Test;
@@ -40,7 +39,8 @@ public class SingleJvmAccumulatorProviderTest {
   private static final String TEST_COUNTER_NAME = "test-counter";
   private static final String TEST_HISTOGRAM_NAME = "test-histogram";
 
-  private Factory accFactory = Factory.get();
+  private SingleJvmAccumulatorProvider.Factory accFactory =
+      SingleJvmAccumulatorProvider.Factory.get();
 
   @Test
   public void testBasicAccumulatorsFunction() {

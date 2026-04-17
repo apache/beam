@@ -218,7 +218,10 @@ tasks.rat {
     "learning/prompts/**/*.md",
 
     // Ignore terraform lock files
-    "**/.terraform.lock.hcl"
+    "**/.terraform.lock.hcl",
+
+    // Ignore pytest cache files
+    "**/.pytest_cache/**"
   )
 
   // Add .gitignore excludes to the Apache Rat exclusion list. We re-create the behavior

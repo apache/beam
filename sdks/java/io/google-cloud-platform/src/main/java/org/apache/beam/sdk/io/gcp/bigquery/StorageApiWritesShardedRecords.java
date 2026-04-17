@@ -29,7 +29,7 @@ import com.google.cloud.bigquery.storage.v1.Exceptions;
 import com.google.cloud.bigquery.storage.v1.Exceptions.StreamFinalizedException;
 import com.google.cloud.bigquery.storage.v1.ProtoRows;
 import com.google.cloud.bigquery.storage.v1.TableSchema;
-import com.google.cloud.bigquery.storage.v1.WriteStream.Type;
+import com.google.cloud.bigquery.storage.v1.WriteStream;
 import com.google.protobuf.ByteString;
 import com.google.protobuf.DescriptorProtos;
 import io.grpc.Status;
@@ -395,7 +395,10 @@ public class StorageApiWritesShardedRecords<DestinationT extends @NonNull Object
           // In a buffered stream, data is only visible up to the offset to which it was flushed.
           CreateTableHelpers.createTableWrapper(
               () -> {
-                stream.set(writeStreamService.createWriteStream(tableId, Type.BUFFERED).getName());
+                stream.set(
+                    writeStreamService
+                        .createWriteStream(tableId, WriteStream.Type.BUFFERED)
+                        .getName());
                 return null;
               },
               tryCreateTable);
@@ -799,7 +802,7 @@ public class StorageApiWritesShardedRecords<DestinationT extends @NonNull Object
               // Don't log errors for expected offset mismatch. These will be logged as warnings
               // below.
               LOG.error(
-                  "Got error " + failedContext.getError() + " closing " + failedContext.streamName);
+                  "Got error {} closing {}", failedContext.getError(), failedContext.streamName);
             }
 
             try {
@@ -833,11 +836,9 @@ public class StorageApiWritesShardedRecords<DestinationT extends @NonNull Object
             if (offsetMismatch || streamDoesNotExist) {
               appendOffsetFailures.inc();
               LOG.warn(
-                  "Append to "
-                      + failedContext
-                      + " failed with "
-                      + failedContext.getError()
-                      + " Will retry with a new stream");
+                  "Append to {} failed. Will retry with a new stream",
+                  failedContext,
+                  failedContext.getError());
               // Finalize the stream and clear streamName so a new stream will be created.
               o.get(flushTag)
                   .output(
@@ -901,9 +902,8 @@ public class StorageApiWritesShardedRecords<DestinationT extends @NonNull Object
             // the ProtoRows iterable at 2MB and the max request size is 10MB, this scenario seems
             // nearly impossible.
             LOG.error(
-                "A request containing more than one row is over the request size limit of "
-                    + maxRequestSize
-                    + ". This is unexpected. All rows in the request will be sent to the failed-rows PCollection.");
+                "A request containing more than one row is over the request size limit of {}. This is unexpected. All rows in the request will be sent to the failed-rows PCollection.",
+                maxRequestSize);
           }
           for (int i = 0; i < splitValue.getProtoRows().getSerializedRowsCount(); ++i) {
             org.joda.time.Instant timestamp = splitValue.getTimestamps().get(i);

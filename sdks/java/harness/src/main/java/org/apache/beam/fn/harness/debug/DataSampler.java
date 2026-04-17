@@ -173,7 +173,8 @@ public class DataSampler {
                 pcollectionId,
                 ElementList.newBuilder().addAllElements(outputSampler.samples()).build());
           } catch (IOException e) {
-            LOG.warn("Could not encode elements from \"" + pcollectionId + "\" to bytes: " + e);
+            LOG.warn(
+                "Could not encode elements from \"{}\" to bytes: {}", pcollectionId, e.toString());
           }
         });
 

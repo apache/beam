@@ -112,7 +112,7 @@ public class OpMessage<T> {
       return true;
     }
 
-    if (o == null || getClass() != o.getClass()) {
+    if (!(o instanceof OpMessage<?>)) {
       return false;
     }
 

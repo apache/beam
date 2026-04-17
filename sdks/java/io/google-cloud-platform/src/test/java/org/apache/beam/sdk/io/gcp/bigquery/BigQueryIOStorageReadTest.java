@@ -2675,7 +2675,10 @@ public class BigQueryIOStorageReadTest {
   }
 
   private ReadRowsResponse createAvroTsResponse(
-      Schema avroSchema, TimestampPrecision precision, List<Object> inputValues) throws Exception {
+      Schema avroSchema,
+      @SuppressWarnings("unused") TimestampPrecision precision,
+      List<Object> inputValues)
+      throws Exception {
     List<GenericRecord> records = new ArrayList<>();
     for (Object value : inputValues) {
       GenericRecord record = new Record(avroSchema);
