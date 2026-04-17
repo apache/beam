@@ -30,7 +30,6 @@ import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.HashBasedTable;
 import org.apache.spark.serializer.KryoRegistrator;
-import scala.collection.mutable.WrappedArray;
 
 /**
  * Custom {@link KryoRegistrator}s for Beam's Spark runner needs and registering used class in spark
@@ -61,7 +60,16 @@ public class SparkRunnerKryoRegistrator implements KryoRegistrator {
     kryo.register(PaneInfo.class);
     kryo.register(StateAndTimers.class);
     kryo.register(TupleTag.class);
-    kryo.register(WrappedArray.ofRef.class);
+    // Scala 2.12 uses WrappedArray$ofRef, Scala 2.13 renamed it to ArraySeq$ofRef
+    try {
+      kryo.register(Class.forName("scala.collection.mutable.ArraySeq$ofRef"));
+    } catch (ClassNotFoundException e) {
+      try {
+        kryo.register(Class.forName("scala.collection.mutable.WrappedArray$ofRef"));
+      } catch (ClassNotFoundException ignored) {
+        // Neither class found; skip registration
+      }
+    }
 
     try {
       kryo.register(

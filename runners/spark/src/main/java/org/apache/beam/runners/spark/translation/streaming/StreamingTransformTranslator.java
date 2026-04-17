@@ -306,7 +306,7 @@ public final class StreamingTransformTranslator {
         }
         // start by unifying streams into a single stream.
         JavaDStream<WindowedValue<T>> unifiedStreams =
-            context.getStreamingContext().union(JavaConverters.asScalaBuffer(dStreams));
+            context.getStreamingContext().union(JavaConverters.asScalaBuffer(dStreams).toList());
         context.putDataset(transform, new UnboundedDataset<>(unifiedStreams, streamingSources));
       }
 
