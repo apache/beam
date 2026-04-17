@@ -60,7 +60,7 @@
 ## Highlights
 
 * New highly anticipated feature X added to Python SDK ([#X](https://github.com/apache/beam/issues/X)).
-* New highly anticipated feature Y added to Java SDK ([#Y](https://github.com/apache/beam/issues/Y)).
+* Experimental Spark 4 structured streaming runner added (Java), built against Spark 4.0.2 / Scala 2.13 and requiring Java 17 ([#36841](https://github.com/apache/beam/issues/36841)).
 
 ## I/Os
 
@@ -74,6 +74,10 @@
   compatible. Both coders can decode encoded bytes from the other coder
   ([#38139](https://github.com/apache/beam/issues/38139)).
 * (Python) Added type alias for with_exception_handling to be used for typehints. ([#38173](https://github.com/apache/beam/issues/38173)).
+* (Java) Added a Spark 4 runner module (`:runners:spark:4`) and job-server
+  (`:runners:spark:4:job-server`). Batch-only; streaming is not yet supported.
+  The shared Spark source in `runners/spark/src/` is now compatible with both
+  Scala 2.12 (Spark 3) and Scala 2.13 (Spark 4) ([#36841](https://github.com/apache/beam/issues/36841)).
 
 ## Breaking Changes
 
