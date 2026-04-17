@@ -258,10 +258,15 @@ dependencies {
   }
   permitUnusedDeclared "org.apache.spark:spark-network-common_$spark_scala_version:$spark_version"
   implementation "io.dropwizard.metrics:metrics-core:4.1.1" // version used by Spark 3.1
-  compileOnly "org.scala-lang:scala-library:2.12.15"
-  runtimeOnly library.java.jackson_module_scala_2_12
-  // Force paranamer 2.8 to avoid issues when using Scala 2.12
-  runtimeOnly "com.thoughtworks.paranamer:paranamer:2.8"
+  if (spark_scala_version == '2.13') {
+    compileOnly "org.scala-lang:scala-library:2.13.15"
+    runtimeOnly library.java.jackson_module_scala_2_13
+  } else {
+    compileOnly "org.scala-lang:scala-library:2.12.15"
+    runtimeOnly library.java.jackson_module_scala_2_12
+    // Force paranamer 2.8 to avoid issues when using Scala 2.12
+    runtimeOnly "com.thoughtworks.paranamer:paranamer:2.8"
+  }
   provided "org.apache.hadoop:hadoop-client-api:3.3.1"
   provided library.java.commons_io
   provided library.java.hamcrest
@@ -276,7 +281,9 @@ dependencies {
   testImplementation project(path: ":sdks:java:extensions:avro", configuration: "testRuntimeMigration")
   testImplementation project(":sdks:java:harness")
   testImplementation library.java.avro
-  testImplementation "org.apache.kafka:kafka_$spark_scala_version:2.4.1"
+  // kafka_2.13 artifacts were first published in 2.5.0; use a later version for Scala 2.13
+  def kafka_version = (spark_scala_version == '2.13') ? '2.8.0' : '2.4.1'
+  testImplementation "org.apache.kafka:kafka_$spark_scala_version:$kafka_version"
   testImplementation library.java.kafka_clients
   testImplementation library.java.junit
   testImplementation library.java.mockito_core
