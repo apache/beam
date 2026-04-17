@@ -1,7 +1,8 @@
 {
   "commentedAboutFailingChecks": true,
   "reviewersAssignedForLabels": {
-    "python": "tvalentyn"
+    "python": "damccorm",
+    "java": "ahmedabu98"
   },
   "nextAction": "Reviewers",
   "stopReviewerNotifications": false,
