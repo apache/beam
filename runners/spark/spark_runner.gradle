@@ -94,7 +94,7 @@ hadoopVersions.each { kv -> configurations.create("hadoopVersion$kv.key") }
  *
  * Layout:
  *   runners/spark/src/                 -- shared base (lowest supported version uses these directly)
- *   runners/spark/<major>/src/         -- version-specific overrides (later overrides win)
+ *   runners/spark/<major>/src/         -- version-specific overrides (later overrides take precedence)
  *
  * The lowest supported `spark_major` builds straight from the shared base.
  * Higher versions copy <shared> + <previous majors> + <current> into a single
