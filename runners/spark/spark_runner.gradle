@@ -36,6 +36,16 @@ applyJavaNature(
 
 description = "Apache Beam :: Runners :: Spark $spark_version"
 
+// Numeric version comparison (lexicographic string compare was fragile — e.g. "3.10.0" < "3.5.0").
+def isSparkAtLeast = { String minVersion ->
+  def parts = spark_version.tokenize('.-').findAll { it.isInteger() }*.toInteger()
+  def minParts = minVersion.tokenize('.')*.toInteger()
+  for (int i = 0; i < Math.min(parts.size(), minParts.size()); i++) {
+    if (parts[i] != minParts[i]) return parts[i] > minParts[i]
+  }
+  return parts.size() >= minParts.size()
+}
+
 /*
  * We need to rely on manually specifying these evaluationDependsOn to ensure that
  * the following projects are evaluated before we evaluate this project. This is because
@@ -177,7 +187,7 @@ dependencies {
   spark.components.each { component ->
     provided "$component:$spark_version"
   }
-  if ("$spark_version" >= "3.5.0") {
+  if (isSparkAtLeast("3.5.0")) {
     implementation "org.apache.spark:spark-common-utils_$spark_scala_version:$spark_version"
     implementation "org.apache.spark:spark-sql-api_$spark_scala_version:$spark_version"
   }
@@ -214,7 +224,7 @@ dependencies {
   testImplementation library.java.mockito_core
   testImplementation "org.assertj:assertj-core:3.11.1"
   testImplementation "org.apache.zookeeper:zookeeper:3.4.11"
-  if ("$spark_version" >= "3.5.0") {
+  if (isSparkAtLeast("3.5.0")) {
     testImplementation "org.apache.spark:spark-common-utils_$spark_scala_version:$spark_version"
     testImplementation "org.apache.spark:spark-sql-api_$spark_scala_version:$spark_version"
   }
@@ -228,7 +238,7 @@ dependencies {
     "hadoopVersion$kv.key" "org.apache.hadoop:hadoop-common:$kv.value"
     // Force paranamer 2.8 to avoid issues when using Scala 2.12
     "hadoopVersion$kv.key" "com.thoughtworks.paranamer:paranamer:2.8"
-    if ("$spark_version" >= "3.5.0") {
+    if (isSparkAtLeast("3.5.0")) {
       // Add log4j 2.x dependencies as Spark 3.5+ uses slf4j with log4j 2.x backend
       "hadoopVersion$kv.key" library.java.log4j2_api
       "hadoopVersion$kv.key" library.java.log4j2_core
@@ -254,7 +264,7 @@ configurations.validatesRunner {
   // Exclude to make sure log4j binding is used
   exclude group: "org.slf4j", module: "slf4j-simple"
 
-  if ("$spark_version" >= "3.5.0") {
+  if (isSparkAtLeast("3.5.0")) {
     // Exclude log4j 1.x dependencies to prevent conflict with log4j 2.x used by spark 3.5+
     exclude group: "log4j", module: "log4j"
   }
@@ -265,7 +275,7 @@ hadoopVersions.each { kv ->
     resolutionStrategy {
       force "org.apache.hadoop:hadoop-common:$kv.value"
     }
-    if ("$spark_version" >= "3.5.0") {
+    if (isSparkAtLeast("3.5.0")) {
       // Exclude log4j 1.x dependencies to prevent conflict with log4j 2.x used by spark 3.5+
       exclude group: "log4j", module: "log4j"
     }
