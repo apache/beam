@@ -30,6 +30,8 @@ import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.HashBasedTable;
 import org.apache.spark.serializer.KryoRegistrator;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Custom {@link KryoRegistrator}s for Beam's Spark runner needs and registering used class in spark
@@ -44,6 +46,8 @@ import org.apache.spark.serializer.KryoRegistrator;
   "rawtypes" // TODO(https://github.com/apache/beam/issues/20447)
 })
 public class SparkRunnerKryoRegistrator implements KryoRegistrator {
+
+  private static final Logger LOG = LoggerFactory.getLogger(SparkRunnerKryoRegistrator.class);
 
   @Override
   public void registerClasses(Kryo kryo) {
@@ -67,7 +71,11 @@ public class SparkRunnerKryoRegistrator implements KryoRegistrator {
       try {
         kryo.register(Class.forName("scala.collection.mutable.WrappedArray$ofRef"));
       } catch (ClassNotFoundException ignored) {
-        // Neither class found; skip registration
+        LOG.warn(
+            "Neither scala.collection.mutable.ArraySeq$ofRef (Scala 2.13) nor "
+                + "scala.collection.mutable.WrappedArray$ofRef (Scala 2.12) was found on the "
+                + "classpath. Kryo serialization of Scala wrapped arrays will fall back to Java "
+                + "serialization or fail at runtime if spark.kryo.registrationRequired is true.");
       }
     }
 
