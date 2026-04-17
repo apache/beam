@@ -40,7 +40,7 @@ def avroVersions = [
     '182' : "1.8.2",
     '192' : "1.9.2",
     '1102': "1.10.2",
-    '1121': "1.12.1",
+    '1120': "1.12.0",
 ]
 
 avroVersions.each { k, v ->
@@ -91,13 +91,7 @@ dependencies {
     "avroVersion$k" "com.esotericsoftware:kryo:5.6.2" // Used by Avro coder test
     "avroVersion$k" library.java.zstd_jni // marked as optional in avro
     "avroVersion$k" "org.apache.avro:avro:$v:tests"
-    "avroVersion${k}Generate"("org.apache.avro:avro-tools:$v") {
-      // Avro 1.12.1's avro-tools POM references trevni-*:tests jars that were
-      // never published to Maven Central. trevni isn't used by the 'compile'
-      // tool we invoke, so excluding it is safe.
-      exclude group: "org.apache.avro", module: "trevni-core"
-      exclude group: "org.apache.avro", module: "trevni-avro"
-    }
+    "avroVersion${k}Generate" "org.apache.avro:avro-tools:$v"
   }
 }
 
