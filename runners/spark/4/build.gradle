@@ -19,14 +19,19 @@
 def basePath = '..'
 /* All properties required for loading the Spark build script */
 project.ext {
+  spark_major = '4'
   // Spark 4 version as defined in BeamModulePlugin; requires Scala 2.13 and Java 17
   spark_version = spark4_version
   spark_scala_version = '2.13'
-  copySourceBase = true // copy shared base into build dir; Spark 3 remains the primary dev version
   archives_base_name = 'beam-runners-spark-4'
 }
 
 // Load the main build script which contains all build logic.
+// spark_runner.gradle handles the per-version source-overrides Copy:
+// shared base (runners/spark/src/) + previous majors + this module's ./src/ are
+// merged into build/source-overrides/src using DuplicatesStrategy.INCLUDE so the
+// 11 files under runners/spark/4/src/.../structuredstreaming/ override the
+// shared-base versions.
 apply from: "$basePath/spark_runner.gradle"
 
 // Spark 4 always requires Java 17, so unconditionally add the --add-opens flags
@@ -38,15 +43,11 @@ test {
           "--add-opens=java.base/java.lang.invoke=ALL-UNNAMED"
 }
 
-// Add Spark 4 structured streaming source on top of the copied shared base.
-sourceSets.main.java.srcDirs += "src/main/java"
-sourceSets.test.java.srcDirs += "src/test/java"
-
-// Exclude DStream-based streaming tests from the shared base copy: the Spark 4 module
+// Exclude DStream-based streaming tests from the shared-base copy: the Spark 4 module
 // supports only structured streaming (batch) and does not include legacy DStream support.
 // Streaming test utilities also depend on kafka.server.KafkaServerStartable which was
 // removed in Kafka 2.8.0 (the first Kafka version with a _2.13 artifact).
-tasks.named("copyTestJava") {
+tasks.named("copyTestSourceOverrides") {
   exclude "**/translation/streaming/**"
 }
 
