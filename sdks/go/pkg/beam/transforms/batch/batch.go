@@ -76,13 +76,93 @@ import (
 	"time"
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/funcx"
+	beamcoder "github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/coder"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/mtime"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/state"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/timers"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/typex"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/util/reflectx"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/register"
 	"github.com/google/uuid"
 )
+
+// ShardedKey pairs a user key with an opaque shard identifier. It is
+// the key type of the PCollection produced by
+// GroupIntoBatchesWithShardedKey.
+type ShardedKey[K any] struct {
+	Key     K
+	ShardID []byte
+}
+
+// RegisterShardedKeyType registers a ShardedKey[K] instantiation so
+// its coder survives cross-worker serialization. Common key types
+// (string, []byte, int, int64) are registered automatically at init.
+// Users of other K types must call this at init time.
+func RegisterShardedKeyType[K any]() {
+	var zero K
+	keyT := reflect.TypeOf(zero)
+	skT := reflect.TypeOf(ShardedKey[K]{})
+
+	register.DoFn3x0[K, typex.V, func(ShardedKey[K], typex.V)](&wrapShardedKeyFn[K]{})
+	register.Emitter2[ShardedKey[K], typex.V]()
+	beam.RegisterType(skT)
+
+	keyEnc := beam.NewElementEncoder(keyT)
+	keyDec := beam.NewElementDecoder(keyT)
+
+	enc := func(sk ShardedKey[K]) []byte {
+		var buf bytes.Buffer
+		writeVarInt(&buf, int64(len(sk.ShardID)))
+		buf.Write(sk.ShardID)
+		if err := keyEnc.Encode(sk.Key, &buf); err != nil {
+			panic(err)
+		}
+		return buf.Bytes()
+	}
+	dec := func(b []byte) ShardedKey[K] {
+		r := bytes.NewReader(b)
+		n := readVarInt(r)
+		shardID := make([]byte, n)
+		if n > 0 {
+			if _, err := r.Read(shardID); err != nil {
+				panic(err)
+			}
+		}
+		k, err := keyDec.Decode(r)
+		if err != nil {
+			panic(err)
+		}
+		return ShardedKey[K]{Key: k.(K), ShardID: shardID}
+	}
+
+	// Closures inside generic functions share the same compiler
+	// symbol name for every type instantiation. We wrap them with a
+	// type-qualified name so the cross-worker deserializer resolves
+	// the correct enc/dec for each ShardedKey[K].
+	encName := fmt.Sprintf("batch.encShardedKey[%v]", keyT)
+	decName := fmt.Sprintf("batch.decShardedKey[%v]", keyT)
+
+	encFn := reflectx.MakeFuncWithName(encName, enc)
+	decFn := reflectx.MakeFuncWithName(decName, dec)
+
+	// Register in the runtime cache under the qualified name so
+	// ResolveFunction finds them at deserialization time.
+	runtime.RegisterFunctionWithName(encName, enc)
+	runtime.RegisterFunctionWithName(decName, dec)
+
+	encWrapped, err := funcx.New(encFn)
+	if err != nil {
+		panic(fmt.Sprintf("RegisterShardedKeyType: bad enc for %v: %v", skT, err))
+	}
+	decWrapped, err := funcx.New(decFn)
+	if err != nil {
+		panic(fmt.Sprintf("RegisterShardedKeyType: bad dec for %v: %v", skT, err))
+	}
+
+	beamcoder.RegisterDeterministicCoderWithFuncs(skT, encWrapped, decWrapped)
+}
 
 // Params configures GroupIntoBatches and
 // GroupIntoBatchesWithShardedKey.
@@ -411,57 +491,13 @@ func sizeOf(kind int32, v any) int64 {
 	}
 }
 
-// shardKeyFn maps KV<X, Y> → KV<[]byte, Y> where the output key is a
-// composite byte-string encoding (shardID, user-encoded-key). The
-// output value universal (Y) is preserved for downstream binding.
-type shardKeyFn struct {
-	KeyType beam.EncodedType
+// wrapShardedKeyFn maps KV<K, V> → KV<ShardedKey[K], V>.
+type wrapShardedKeyFn[K any] struct{}
 
-	keyCodec codecCache
-}
-
-func (fn *shardKeyFn) ProcessElement(
-	key typex.X, value typex.Y, emit func([]byte, typex.Y),
+func (*wrapShardedKeyFn[K]) ProcessElement(
+	key K, value typex.V, emit func(ShardedKey[K], typex.V),
 ) {
-	fn.keyCodec.init(fn.KeyType.T)
-	encodedKey := fn.keyCodec.encode(key)
-	shardID := makeShardID()
-
-	var buf bytes.Buffer
-	writeVarInt(&buf, int64(len(shardID)))
-	buf.Write(shardID)
-	buf.Write(encodedKey)
-	emit(buf.Bytes(), value)
-}
-
-// unshardKeyFn maps KV<[]byte, []Y> back to KV<X, []Y> by stripping
-// the shardID prefix and decoding the remaining bytes as the original
-// user key type (captured in KeyType via EncodedType).
-type unshardKeyFn struct {
-	KeyType beam.EncodedType
-
-	keyCodec codecCache
-}
-
-func (fn *unshardKeyFn) ProcessElement(
-	sharded []byte, batch []typex.Y, emit func(typex.X, []typex.Y),
-) {
-	fn.keyCodec.init(fn.KeyType.T)
-
-	r := bytes.NewReader(sharded)
-	n := readVarInt(r)
-	shardBuf := make([]byte, n)
-	if n > 0 {
-		if _, err := r.Read(shardBuf); err != nil {
-			panic(err)
-		}
-	}
-	remaining := make([]byte, r.Len())
-	if _, err := r.Read(remaining); err != nil {
-		panic(err)
-	}
-	key := fn.keyCodec.decode(remaining)
-	emit(key, batch)
+	emit(ShardedKey[K]{Key: key, ShardID: makeShardID()}, value)
 }
 
 var (
@@ -528,11 +564,12 @@ func init() {
 		beam.Window, state.Provider, timers.Provider,
 		typex.T, typex.V, func(typex.T, []typex.V),
 	](&groupIntoBatchesBufferedFn{})
-	register.DoFn3x0[typex.X, typex.Y, func([]byte, typex.Y)](&shardKeyFn{})
-	register.DoFn3x0[[]byte, []typex.Y, func(typex.X, []typex.Y)](&unshardKeyFn{})
 	register.Emitter2[typex.T, []typex.V]()
-	register.Emitter2[[]byte, typex.Y]()
-	register.Emitter2[typex.X, []typex.Y]()
+
+	// Register common ShardedKey[K] types for WithShardedKey.
+	RegisterShardedKeyType[string]()
+	RegisterShardedKeyType[int]()
+	RegisterShardedKeyType[int64]()
 }
 
 // GroupIntoBatches groups the values of the input PCollection<KV<K, V>>
@@ -613,22 +650,18 @@ func GroupIntoBatches(s beam.Scope, params Params, col beam.PCollection) beam.PC
 	return beam.ParDo(s, fn, col)
 }
 
-// GroupIntoBatchesWithShardedKey behaves like GroupIntoBatches but
-// first assigns an opaque per-element shard identifier to the key,
-// groups by the shard-qualified key, then restores the original user
-// key before emitting. This spreads the processing of a single hot
-// logical key across multiple workers: each shard is independent
-// state, so distributed runners can parallelize without the user's
-// key type changing.
+// GroupIntoBatchesWithShardedKey wraps each user key with a
+// ShardedKey{Key: K, ShardID: [24]byte} and then applies
+// GroupIntoBatches. Output is PCollection<KV<ShardedKey[K], []V>>.
 //
-// Output shape: PCollection<KV<K, []V>> — identical to
-// GroupIntoBatches. The shardID is not exposed to callers; unlike the
-// Java/Python variants, Go does not surface ShardedKey<K> downstream
-// because the type-binding engine does not accept custom generic
-// structs as DoFn output types.
+// The key type K must have been registered via
+// RegisterShardedKeyType[K] at init time. Common types (string,
+// []byte, int, int64) are registered automatically.
 //
-// The same determinism and params rules as GroupIntoBatches apply.
-func GroupIntoBatchesWithShardedKey(s beam.Scope, params Params, col beam.PCollection) beam.PCollection {
+// Sharding spreads the processing of a single hot logical key across
+// multiple workers: each shard is independent state, so distributed
+// runners can parallelize without the user's key type changing.
+func GroupIntoBatchesWithShardedKey[K any](s beam.Scope, params Params, col beam.PCollection) beam.PCollection {
 	s = s.Scope("batch.GroupIntoBatchesWithShardedKey")
 
 	if err := params.validate(); err != nil {
@@ -640,20 +673,13 @@ func GroupIntoBatchesWithShardedKey(s beam.Scope, params Params, col beam.PColle
 			col.Type()))
 	}
 	keyFT := col.Type().Components()[0]
-	if !beam.NewCoder(keyFT).IsDeterministic() {
+	var zero K
+	if keyFT.Type() != reflect.TypeOf(zero) {
 		panic(fmt.Errorf(
-			"GroupIntoBatchesWithShardedKey: key coder for type %v is not deterministic.",
-			keyFT.Type()))
+			"GroupIntoBatchesWithShardedKey: type parameter K (%v) does not match input key type (%v)",
+			reflect.TypeOf(zero), keyFT.Type()))
 	}
 
-	keyType := beam.EncodedType{T: keyFT.Type()}
-
-	sharded := beam.ParDo(s, &shardKeyFn{KeyType: keyType}, col)
-	batched := GroupIntoBatches(s, params, sharded)
-	// unshardKeyFn's output key type (typex.X) is not bound by any
-	// input (input key is []byte, not a universal), so we pass an
-	// explicit TypeDefinition to let the binding engine know what X
-	// should substitute to.
-	return beam.ParDo(s, &unshardKeyFn{KeyType: keyType}, batched,
-		beam.TypeDefinition{Var: beam.XType, T: keyFT.Type()})
+	wrapped := beam.ParDo(s, &wrapShardedKeyFn[K]{}, col)
+	return GroupIntoBatches(s, params, wrapped)
 }

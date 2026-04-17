@@ -168,6 +168,20 @@ func NewCustomCoder(id string, t reflect.Type, encode, decode any) (*CustomCoder
 	return c, nil
 }
 
+// NewCustomCoderWithFuncs creates a CustomCoder from pre-wrapped
+// reflectx.Func values. This allows the caller to control the Name()
+// returned by each function — critical for closures inside Go generic
+// functions where the compiler assigns identical names to different
+// type instantiations.
+func NewCustomCoderWithFuncs(id string, t reflect.Type, enc, dec *funcx.Fn) *CustomCoder {
+	return &CustomCoder{
+		Name: id,
+		Type: t,
+		Enc:  enc,
+		Dec:  dec,
+	}
+}
+
 // Kind represents the type of coder used.
 type Kind string
 

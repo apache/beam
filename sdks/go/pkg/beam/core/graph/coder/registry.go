@@ -18,6 +18,7 @@ package coder
 import (
 	"reflect"
 
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/funcx"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/internal/errors"
 )
 
@@ -90,6 +91,20 @@ func RegisterCoder(t reflect.Type, enc, dec any) {
 // Prefer this over RegisterCoder whenever the encoded type may be used as a
 // key. For types that cannot guarantee determinism (e.g. encodings backed by
 // map[K]V iteration order), use the plain RegisterCoder.
+// RegisterDeterministicCoderWithFuncs is like RegisterDeterministicCoder
+// but accepts pre-wrapped reflectx.Func values (typically built via
+// reflectx.MakeFuncWithName) so the caller controls the function name
+// used during cross-worker serialization. This is required for
+// closures inside Go generic functions where different type
+// instantiations produce closures with the same compiler name.
+func RegisterDeterministicCoderWithFuncs(t reflect.Type, encFn, decFn *funcx.Fn) {
+	name := t.String()
+	coderRegistry[t] = func(rt reflect.Type) *CustomCoder {
+		return NewCustomCoderWithFuncs(name, rt, encFn, decFn)
+	}
+	deterministicRegistry[t] = true
+}
+
 func RegisterDeterministicCoder(t reflect.Type, enc, dec any) {
 	RegisterCoder(t, enc, dec)
 	deterministicRegistry[t] = true
