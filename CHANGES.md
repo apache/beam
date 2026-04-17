@@ -60,7 +60,7 @@
 ## Highlights
 
 * New highly anticipated feature X added to Python SDK ([#X](https://github.com/apache/beam/issues/X)).
-* New highly anticipated feature Y added to Java SDK ([#Y](https://github.com/apache/beam/issues/Y)).
+* Experimental Spark 4 structured streaming runner added (Java), built against Spark 4.0.2 / Scala 2.13 and requiring Java 17 ([#36841](https://github.com/apache/beam/issues/36841)).
 
 ## I/Os
 
