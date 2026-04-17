@@ -373,12 +373,13 @@ class YamlUDFMappingTest(unittest.TestCase):
                   conductor=389,
                   row=beam.Row(rank=2, values=[7, 8, 9])),
           ]))
+
   @unittest.skipIf(MiniRacer is None, 'py_mini_racer not installed.')
   def test_map_to_fields_js_date(self):
     import datetime
     with beam.Pipeline(options=beam.options.pipeline_options.PipelineOptions(
-        pickle_library='cloudpickle',
-        yaml_experimental_features=['javascript'])) as p:
+        pickle_library='cloudpickle', yaml_experimental_features=['javascript'
+                                                                  ])) as p:
       elements = p | beam.Create([beam.Row(label='11a')])
       result = elements | YamlTransform(
           '''
@@ -392,12 +393,11 @@ class YamlUDFMappingTest(unittest.TestCase):
                 return new Date('2026-04-17T18:00:00Z')
               }
       ''')
-      
-      expected_date = datetime.datetime(2026, 4, 17, 18, 0, 0, tzinfo=datetime.timezone.utc)
-      
+
+      expected_date = '2026-04-17T18:00:00.000Z'
+
       assert_that(
-          result | as_rows(),
-          equal_to([
+          result | as_rows(), equal_to([
               beam.Row(date=expected_date),
           ]))
 

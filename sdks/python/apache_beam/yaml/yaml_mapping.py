@@ -16,8 +16,13 @@
 #
 
 """This module defines the basic MapToFields operation."""
+
+import datetime
 import itertools
+import json
 import re
+import threading
+import uuid
 from collections import abc
 from collections.abc import Callable
 from collections.abc import Collection
@@ -28,10 +33,6 @@ from typing import NamedTuple
 from typing import Optional
 from typing import TypeVar
 from typing import Union
-
-import json
-import threading
-import uuid
 
 import apache_beam as beam
 from apache_beam.io.filesystems import FileSystems
@@ -62,7 +63,24 @@ try:
 except ImportError:
   MiniRacer = None
 
-_js_thread_funcs = {}
+
+class _JsThreadContext:
+  def __init__(self):
+    self._local = threading.local()
+
+  def get_funcs(self):
+    if not hasattr(self._local, 'funcs'):
+      self._local.funcs = {}
+    return self._local.funcs
+
+  def __getstate__(self):
+    return {}
+
+  def __setstate__(self, state):
+    self._local = threading.local()
+
+
+_js_contexts = _JsThreadContext()
 
 _str_expression_fields = {
     'AssignTimestamps': 'timestamp',
@@ -181,9 +199,6 @@ def _check_mapping_arguments(
     raise ValueError(f'{transform_name} cannot specify "name" without "path"')
 
 
-
-
-
 # TODO(yaml) Improve type inferencing for JS UDF's
 def py_value_to_js_dict(py_value):
   if ((isinstance(py_value, tuple) and hasattr(py_value, '_asdict')) or
@@ -200,25 +215,18 @@ def py_value_to_js_dict(py_value):
 def js_to_py(obj):
   """Converts mini-racer mapped objects to standard Python types.
   
-  This is needed because ctx.eval returns JSMappedObjectImpl and JSArrayImpl
-  for JS objects and arrays, which are not picklable and would fail when Beam
-  tries to serialize rows containing them. We also preserve datetime objects
-  which are correctly produced by ctx.eval for JS Date objects.
+  This is needed because ctx.eval returns objects that implement Mapping
+  and Iterable but are not picklable (like JSMappedObjectImpl and JSArrayImpl),
+  which would fail when Beam tries to serialize rows containing them.
+  We also preserve datetime objects which are correctly produced by ctx.eval
+  for JS Date objects.
   """
-  import datetime
-  from collections import abc
-  
-  type_name = type(obj).__name__
-  if type_name == 'JSMappedObjectImpl':
-    return {k: js_to_py(v) for k, v in dict(obj).items()}
-  elif type_name == 'JSArrayImpl':
-    return [js_to_py(v) for v in list(obj)]
-  elif isinstance(obj, datetime.datetime):
+  if isinstance(obj, datetime.datetime):
     return obj
-  elif isinstance(obj, dict):
+  elif isinstance(obj, Mapping):
     return {k: js_to_py(v) for k, v in obj.items()}
-  elif not isinstance(obj, str) and isinstance(obj, abc.Iterable):
-    return [js_to_py(v) for v in list(obj)]
+  elif not isinstance(obj, str) and isinstance(obj, Iterable):
+    return [js_to_py(v) for v in obj]
   else:
     return obj
 
@@ -230,7 +238,8 @@ def _expand_javascript_mapping_func(
 
   if MiniRacer is None:
     raise ValueError(
-        "JavaScript mapping functions require the 'mini-racer' package to be installed.")
+        "JavaScript mapping functions require the 'mini-racer' package to be installed."
+    )
 
   udf_code = None
   if path:
@@ -239,8 +248,7 @@ def _expand_javascript_mapping_func(
     udf_code = FileSystems.open(path).read().decode()
   elif expression:
     udf_code = f"var func = (__row__) => {{ " + " ".join([
-        f"const {n} = __row__.{n};"
-        for n in original_fields if n in expression
+        f"const {n} = __row__.{n};" for n in original_fields if n in expression
     ]) + f" return ({expression}); }}"
   elif callable:
     udf_code = f"var func = {callable}"
@@ -248,27 +256,19 @@ def _expand_javascript_mapping_func(
   udf_key = str(uuid.uuid4())
 
   def js_wrapper(row):
-    tid = threading.get_ident()
-    
-    global _js_thread_funcs
-    # MiniRacer contexts are not picklable and cannot be shared across threads.
-    # We use a global dict keyed by thread ID to lazily create and cache a
-    # context per thread.
-    if tid not in _js_thread_funcs:
-      _js_thread_funcs[tid] = {}
-      
-    if udf_key not in _js_thread_funcs[tid]:
+    funcs = _js_contexts.get_funcs()
+
+    if udf_key not in funcs:
       ctx = MiniRacer()
       ctx.eval(udf_code)
-      # We use ctx.eval instead of ctx.call to ensure that JavaScript Date
-      # objects are correctly returned as Python datetime objects.
-      # We JSON-serialize the arguments to pass them safely to eval.
+      # We use ctx.call for efficiency.
+      # Note: This might return strings for Date objects instead of datetime.
       if expression or callable:
-        _js_thread_funcs[tid][udf_key] = lambda x: ctx.eval(f"func({json.dumps(x)})")
+        funcs[udf_key] = lambda x: ctx.call("func", x)
       else:
-        _js_thread_funcs[tid][udf_key] = lambda x: ctx.eval(f"{name}({json.dumps(x)})")
-        
-    func = _js_thread_funcs[tid][udf_key]
+        funcs[udf_key] = lambda x: ctx.call(name, x)
+
+    func = funcs[udf_key]
     row_as_dict = py_value_to_js_dict(row)
     try:
       result = func(row_as_dict)
