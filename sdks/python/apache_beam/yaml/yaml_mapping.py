@@ -19,7 +19,6 @@
 
 import datetime
 import itertools
-import json
 import re
 import threading
 import uuid
@@ -225,8 +224,13 @@ def js_to_py(obj):
     return obj
   elif isinstance(obj, Mapping):
     return {k: js_to_py(v) for k, v in obj.items()}
-  elif not isinstance(obj, str) and isinstance(obj, Iterable):
+  elif not isinstance(obj, (str, bytes)) and isinstance(obj, Iterable):
     return [js_to_py(v) for v in obj]
+  elif isinstance(obj, str):
+    try:
+      return datetime.datetime.fromisoformat(obj)
+    except ValueError:
+      return obj
   else:
     return obj
 

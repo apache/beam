@@ -394,12 +394,10 @@ class YamlUDFMappingTest(unittest.TestCase):
               }
       ''')
 
-      expected_date = '2026-04-17T18:00:00.000Z'
+      expected_date = datetime.datetime(
+          2026, 4, 17, 18, tzinfo=datetime.timezone.utc)
 
-      assert_that(
-          result | as_rows(), equal_to([
-              beam.Row(date=expected_date),
-          ]))
+      assert_that(result | as_rows(), equal_to([beam.Row(date=expected_date)]))
 
 
 if __name__ == '__main__':
