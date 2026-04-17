@@ -300,7 +300,10 @@ function fn(row_json) {{
       obj = json.loads(js_result.json())
       # Handle special tagged types like Date
       if isinstance(obj, dict) and obj.get('__type__') == 'date':
-        js_result = datetime.datetime.fromisoformat(obj['value'])
+        val = obj['value']
+        if val.endswith('Z'):
+          val = val[:-1] + '+00:00'
+        js_result = datetime.datetime.fromisoformat(val)
       else:
         js_result = obj
 
