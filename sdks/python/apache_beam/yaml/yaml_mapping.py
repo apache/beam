@@ -29,6 +29,10 @@ from typing import Optional
 from typing import TypeVar
 from typing import Union
 
+import json
+import threading
+import uuid
+
 import apache_beam as beam
 from apache_beam.io.filesystems import FileSystems
 from apache_beam.portability.api import schema_pb2
@@ -53,13 +57,12 @@ from apache_beam.yaml.yaml_errors import maybe_with_exception_handling
 from apache_beam.yaml.yaml_errors import maybe_with_exception_handling_transform_fn
 from apache_beam.yaml.yaml_provider import dicts_to_rows
 
-# Import js2py package if it exists
 try:
-  import js2py
-  from js2py.base import JsObjectWrapper
+  from py_mini_racer import MiniRacer
 except ImportError:
-  js2py = None
-  JsObjectWrapper = object
+  MiniRacer = None
+
+_js_thread_funcs = {}
 
 _str_expression_fields = {
     'AssignTimestamps': 'timestamp',
@@ -178,18 +181,7 @@ def _check_mapping_arguments(
     raise ValueError(f'{transform_name} cannot specify "name" without "path"')
 
 
-# js2py's JsObjectWrapper object has a self-referencing __dict__ property
-# that cannot be pickled without implementing the __getstate__ and
-# __setstate__ methods.
-class _CustomJsObjectWrapper(JsObjectWrapper):
-  def __init__(self, js_obj):
-    super().__init__(js_obj.__dict__['_obj'])
 
-  def __getstate__(self):
-    return self.__dict__.copy()
-
-  def __setstate__(self, state):
-    self.__dict__.update(state)
 
 
 # TODO(yaml) Improve type inferencing for JS UDF's
@@ -205,83 +197,86 @@ def py_value_to_js_dict(py_value):
     return py_value
 
 
+def js_to_py(obj):
+  """Converts mini-racer mapped objects to standard Python types.
+  
+  This is needed because ctx.eval returns JSMappedObjectImpl and JSArrayImpl
+  for JS objects and arrays, which are not picklable and would fail when Beam
+  tries to serialize rows containing them. We also preserve datetime objects
+  which are correctly produced by ctx.eval for JS Date objects.
+  """
+  import datetime
+  from collections import abc
+  
+  type_name = type(obj).__name__
+  if type_name == 'JSMappedObjectImpl':
+    return {k: js_to_py(v) for k, v in dict(obj).items()}
+  elif type_name == 'JSArrayImpl':
+    return [js_to_py(v) for v in list(obj)]
+  elif isinstance(obj, datetime.datetime):
+    return obj
+  elif isinstance(obj, dict):
+    return {k: js_to_py(v) for k, v in obj.items()}
+  elif not isinstance(obj, str) and isinstance(obj, abc.Iterable):
+    return [js_to_py(v) for v in list(obj)]
+  else:
+    return obj
+
+
 # TODO(yaml) Consider adding optional language version parameter to support
 #  ECMAScript 5 and 6
 def _expand_javascript_mapping_func(
     original_fields, expression=None, callable=None, path=None, name=None):
 
-  # Check for installed js2py package
-  if js2py is None:
+  if MiniRacer is None:
     raise ValueError(
-        "Javascript mapping functions are not supported on"
-        " Python 3.12 or later.")
+        "JavaScript mapping functions require the 'mini-racer' package to be installed.")
 
-  # import remaining js2py objects
-  from js2py import base
-  from js2py.constructors import jsdate
-  from js2py.internals import simplex
-
-  js_array_type = (
-      base.PyJsArray,
-      base.PyJsArrayBuffer,
-      base.PyJsInt8Array,
-      base.PyJsUint8Array,
-      base.PyJsUint8ClampedArray,
-      base.PyJsInt16Array,
-      base.PyJsUint16Array,
-      base.PyJsInt32Array,
-      base.PyJsUint32Array,
-      base.PyJsFloat32Array,
-      base.PyJsFloat64Array)
-
-  def _js_object_to_py_object(obj):
-    if isinstance(obj, (base.PyJsNumber, base.PyJsString, base.PyJsBoolean)):
-      return base.to_python(obj)
-    elif isinstance(obj, js_array_type):
-      return [_js_object_to_py_object(value) for value in obj.to_list()]
-    elif isinstance(obj, jsdate.PyJsDate):
-      return obj.to_utc_dt()
-    elif isinstance(obj, (base.PyJsNull, base.PyJsUndefined)):
-      return None
-    elif isinstance(obj, base.PyJsError):
-      raise RuntimeError(obj['message'])
-    elif isinstance(obj, base.PyJsObject):
-      return {
-          key: _js_object_to_py_object(value['value'])
-          for (key, value) in obj.own.items()
-      }
-    elif isinstance(obj, base.JsObjectWrapper):
-      return _js_object_to_py_object(obj._obj)
-
-    return obj
-
-  if expression:
-    source = '\n'.join(['function(__row__) {'] + [
-        f'  {name} = __row__.{name}'
-        for name in original_fields if name in expression
-    ] + ['  return (' + expression + ')'] + ['}'])
-    js_func = _CustomJsObjectWrapper(js2py.eval_js(source))
-
-  elif callable:
-    js_func = _CustomJsObjectWrapper(js2py.eval_js(callable))
-
-  else:
+  udf_code = None
+  if path:
     if not path.endswith('.js'):
       raise ValueError(f'File "{path}" is not a valid .js file.')
     udf_code = FileSystems.open(path).read().decode()
-    js = js2py.EvalJs()
-    js.eval(udf_code)
-    js_func = _CustomJsObjectWrapper(getattr(js, name))
+  elif expression:
+    udf_code = f"var func = (__row__) => {{ " + " ".join([
+        f"const {n} = __row__.{n};"
+        for n in original_fields if n in expression
+    ]) + f" return ({expression}); }}"
+  elif callable:
+    udf_code = f"var func = {callable}"
+
+  udf_key = str(uuid.uuid4())
 
   def js_wrapper(row):
+    tid = threading.get_ident()
+    
+    global _js_thread_funcs
+    # MiniRacer contexts are not picklable and cannot be shared across threads.
+    # We use a global dict keyed by thread ID to lazily create and cache a
+    # context per thread.
+    if tid not in _js_thread_funcs:
+      _js_thread_funcs[tid] = {}
+      
+    if udf_key not in _js_thread_funcs[tid]:
+      ctx = MiniRacer()
+      ctx.eval(udf_code)
+      # We use ctx.eval instead of ctx.call to ensure that JavaScript Date
+      # objects are correctly returned as Python datetime objects.
+      # We JSON-serialize the arguments to pass them safely to eval.
+      if expression or callable:
+        _js_thread_funcs[tid][udf_key] = lambda x: ctx.eval(f"func({json.dumps(x)})")
+      else:
+        _js_thread_funcs[tid][udf_key] = lambda x: ctx.eval(f"{name}({json.dumps(x)})")
+        
+    func = _js_thread_funcs[tid][udf_key]
     row_as_dict = py_value_to_js_dict(row)
     try:
-      js_result = js_func(row_as_dict)
-    except simplex.JsException as exn:
+      result = func(row_as_dict)
+    except Exception as exn:
       raise RuntimeError(
-          f"Error evaluating javascript expression: "
-          f"{exn.mes['message']}") from exn
-    return dicts_to_rows(_js_object_to_py_object(js_result))
+          f"Error evaluating JavaScript expression: {exn}") from exn
+    result = js_to_py(result)
+    return dicts_to_rows(result)
 
   return js_wrapper
 
