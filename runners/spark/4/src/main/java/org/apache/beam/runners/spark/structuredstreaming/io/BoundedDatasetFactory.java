@@ -284,7 +284,6 @@ public class BoundedDatasetFactory {
     @SuppressWarnings("nullness") // ok, reader not used any longer
     public void close() throws IOException {
       if (reader != null) {
-        endOfData();
         try {
           reader.close();
         } finally {
