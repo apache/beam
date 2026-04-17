@@ -81,12 +81,14 @@ public class LazyCachingIteratorToIterableTest {
 
   @Test
   public void testEqualsAndHashCode() {
-    Iterable<String> iterA =
+    LazyCachingIteratorToIterable<String> iterA =
         new LazyCachingIteratorToIterable<>(PrefetchableIterators.fromArray("A", "B", "C"));
-    Iterable<String> iterB =
+    LazyCachingIteratorToIterable<String> iterB =
         new LazyCachingIteratorToIterable<>(PrefetchableIterators.fromArray("A", "B", "C"));
-    Iterable<String> iterC = new LazyCachingIteratorToIterable<>(PrefetchableIterators.fromArray());
-    Iterable<String> iterD = new LazyCachingIteratorToIterable<>(PrefetchableIterators.fromArray());
+    LazyCachingIteratorToIterable<String> iterC =
+        new LazyCachingIteratorToIterable<>(PrefetchableIterators.fromArray());
+    LazyCachingIteratorToIterable<String> iterD =
+        new LazyCachingIteratorToIterable<>(PrefetchableIterators.fromArray());
     assertEquals(iterA, iterB);
     assertEquals(iterC, iterD);
     assertNotEquals(iterA, iterC);
