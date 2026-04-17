@@ -69,6 +69,16 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * </ul>
  *
  * @param <T> the type of values handled by this {@link Coder}
+ * 
+ * <p>The behavior of encoding and decoding depends on the {@link Context}.
+ *
+ * <ul>
+ *   <li>In {@link Context#OUTER}, the value consumes the remainder of the stream.
+ *   <li>In {@link Context#NESTED}, the value is part of a larger structure and must be
+ *       self-delimiting so that subsequent values can be correctly decoded.
+ * </ul>
+ *
+ * <p>See {@link CoderProperties} for utilities to test coder correctness and consistency.
  */
 public abstract class Coder<T> implements Serializable {
   /**
