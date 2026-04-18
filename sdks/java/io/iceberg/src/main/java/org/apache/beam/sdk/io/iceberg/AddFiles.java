@@ -516,36 +516,21 @@ public class AddFiles extends PTransform<PCollection<String>, PCollectionRowTupl
 
     private Table getOrCreateTable(String filePath, FileFormat format) throws IOException {
       TableIdentifier tableId = TableIdentifier.parse(identifier);
-      @Nullable Table t;
       try {
-        t = catalogConfig.catalog().loadTable(tableId);
+        return catalogConfig.catalog().loadTable(tableId);
       } catch (NoSuchTableException e) {
         try {
           org.apache.iceberg.Schema schema = getSchema(filePath, format);
           PartitionSpec spec = PartitionUtils.toPartitionSpec(partitionFields, schema);
 
-          t =
-              tableProps == null
-                  ? catalogConfig
-                      .catalog()
-                      .createTable(TableIdentifier.parse(identifier), schema, spec)
-                  : catalogConfig
-                      .catalog()
-                      .createTable(TableIdentifier.parse(identifier), schema, spec, tableProps);
+          return tableProps == null
+              ? catalogConfig.catalog().createTable(TableIdentifier.parse(identifier), schema, spec)
+              : catalogConfig
+                  .catalog()
+                  .createTable(TableIdentifier.parse(identifier), schema, spec, tableProps);
         } catch (AlreadyExistsException e2) { // if table already exists, just load it
-          t = catalogConfig.catalog().loadTable(TableIdentifier.parse(identifier));
+          return catalogConfig.catalog().loadTable(TableIdentifier.parse(identifier));
         }
-      }
-      ensureNameMappingPresent(t);
-      return t;
-    }
-
-    private static void ensureNameMappingPresent(Table table) {
-      if (table.properties().get(TableProperties.DEFAULT_NAME_MAPPING) == null) {
-        // Forces Name based resolution instead of position based resolution
-        NameMapping mapping = MappingUtil.create(table.schema());
-        String mappingJson = NameMappingParser.toJson(mapping);
-        table.updateProperties().set(TableProperties.DEFAULT_NAME_MAPPING, mappingJson).commit();
       }
     }
 
@@ -743,6 +728,15 @@ public class AddFiles extends PTransform<PCollection<String>, PCollectionRowTupl
       this.identifier = identifier;
     }
 
+    private static void ensureNameMappingPresent(Table table) {
+      if (table.properties().get(TableProperties.DEFAULT_NAME_MAPPING) == null) {
+        // Forces Name based resolution instead of position based resolution
+        NameMapping mapping = MappingUtil.create(table.schema());
+        String mappingJson = NameMappingParser.toJson(mapping);
+        table.updateProperties().set(TableProperties.DEFAULT_NAME_MAPPING, mappingJson).commit();
+      }
+    }
+
     @ProcessElement
     public void process(
         @Element KV<String, Iterable<byte[]>> batch,
@@ -758,6 +752,7 @@ public class AddFiles extends PTransform<PCollection<String>, PCollectionRowTupl
         table = catalogConfig.catalog().loadTable(TableIdentifier.parse(identifier));
       }
       table.refresh();
+      ensureNameMappingPresent(table);
 
       if (shouldSkip(commitId, lastCommitTimestamp.read())) {
         return;
