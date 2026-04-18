@@ -196,14 +196,7 @@ class SDFBoundedSourceRestrictionTrackerTest(unittest.TestCase):
 class UseSdfBoundedSourcesTests(unittest.TestCase):
   def _run_sdf_wrapper_pipeline(self, source, expected_values):
     with beam.Pipeline() as p:
-      experiments = (p._options.view_as(DebugOptions).experiments or [])
-
-      # Setup experiment option to enable using SDFBoundedSourceWrapper
-      if 'beam_fn_api' not in experiments:
-        # Required so mocking below doesn't mock Create used in assert_that.
-        experiments.append('beam_fn_api')
-
-      p._options.view_as(DebugOptions).experiments = experiments
+      p._options.view_as(DebugOptions).add_experiment('beam_fn_api')
 
       actual = p | beam.io.Read(source)
       assert_that(actual, equal_to(expected_values))
