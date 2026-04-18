@@ -146,16 +146,12 @@ class Environment(object):
     ])
     # TODO: Use enumerated type instead of strings for job types.
     if job_type.startswith('FNAPI_'):
-      self.debug_options.experiments = self.debug_options.experiments or []
-
-      debug_options_experiments = self.debug_options.experiments
       # Add use_multiple_sdk_containers flag if it's not already present. Do not
       # add the flag if 'no_use_multiple_sdk_containers' is present.
       # TODO: Cleanup use_multiple_sdk_containers once we deprecate Python SDK
       # till version 2.4.
-      if ('use_multiple_sdk_containers' not in debug_options_experiments and
-          'no_use_multiple_sdk_containers' not in debug_options_experiments):
-        debug_options_experiments.append('use_multiple_sdk_containers')
+      if ('no_use_multiple_sdk_containers' not in (self.debug_options.experiments or [])):
+        self.debug_options.add_experiment('use_multiple_sdk_containers')
     # FlexRS
     if self.google_cloud_options.flexrs_goal == 'COST_OPTIMIZED':
       self.proto.flexResourceSchedulingGoal = (
