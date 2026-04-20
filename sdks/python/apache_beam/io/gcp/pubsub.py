@@ -31,8 +31,9 @@ https://github.com/apache/beam/blob/master/sdks/python/OWNERS
 """
 
 # pytype: skip-file
-
+import logging
 import re
+import time
 from typing import Any
 from typing import List
 from typing import NamedTuple
@@ -434,7 +435,6 @@ class WriteToPubSub(PTransform):
     self.pipeline_options = pcoll.pipeline.options if pcoll.pipeline else None
     # Warn Dataflow users to use the XLang path for ordering key support,
     # since _PubSubWriteDoFn._flush() is not used by Dataflow's implementation.
-    import logging
     runner = self.pipeline_options.get_all_options().get(
         'runner', '') if self.pipeline_options else ''
     if 'Dataflow' in str(runner):
@@ -609,7 +609,7 @@ class _PubSubWriteDoFn(DoFn):
       output_labels_supported = False
 
     # Log debug information for troubleshooting
-    import logging
+
     runner_info = getattr(
         pipeline_options, 'runner',
         'None') if pipeline_options else 'No options'
@@ -640,7 +640,10 @@ class _PubSubWriteDoFn(DoFn):
 
   def setup(self):
     from google.cloud import pubsub
-    self._pub_client = pubsub.PublisherClient()
+    self._pub_client = pubsub.PublisherClient(
+        publisher_options=pubsub.types.PublisherOptions(
+            enable_message_ordering=True,
+        ))
     self._topic = self._pub_client.topic_path(
         self.project, self.short_topic_name)
 
@@ -658,8 +661,6 @@ class _PubSubWriteDoFn(DoFn):
   def _flush(self):
     if not self._buffer:
       return
-
-    import time
 
     # The elements in buffer are serialized protobuf bytes from the previous
     # transforms. We need to deserialize them to extract data and attributes.
