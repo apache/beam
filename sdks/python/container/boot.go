@@ -328,11 +328,7 @@ for _, workerId := range workerIds {
             Endpoint: *loggingEndpoint,
         }
 
-        bufLogger := tools.NewBufferedLoggerWithFlushInterval(
-            workerCtx,
-            workerLogger,
-            100*time.Millisecond,
-        )
+       bufLogger := tools.NewBufferedLogger(workerLogger)
 
         errorCount := 0
         for {
