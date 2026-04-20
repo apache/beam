@@ -39,6 +39,26 @@ import org.slf4j.LoggerFactory;
  */
 @AutoValue
 public abstract class WindmillEndpoints {
+  public enum Type {
+    UNKNOWN,
+    CLOUDPATH,
+    BORG,
+    DIRECTPATH;
+
+    static Type fromProto(Windmill.WorkerMetadataResponse.EndpointType protoType) {
+      switch (protoType) {
+        case CLOUDPATH:
+          return CLOUDPATH;
+        case BORG:
+          return BORG;
+        case DIRECTPATH:
+          return DIRECTPATH;
+        default:
+          return UNKNOWN;
+      }
+    }
+  }
+
   public static final int DEFAULT_WINDMILL_SERVICE_PORT = 443;
   private static final Logger LOG = LoggerFactory.getLogger(WindmillEndpoints.class);
   private static final WindmillEndpoints NO_ENDPOINTS =
@@ -46,6 +66,7 @@ public abstract class WindmillEndpoints {
           .setVersion(Long.MAX_VALUE)
           .setWindmillEndpoints(ImmutableSet.of())
           .setGlobalDataEndpoints(ImmutableMap.of())
+          .setType(Type.UNKNOWN)
           .build();
 
   public static WindmillEndpoints none() {
@@ -75,6 +96,7 @@ public abstract class WindmillEndpoints {
         .setVersion(workerMetadataResponseProto.getMetadataVersion())
         .setGlobalDataEndpoints(globalDataServers)
         .setWindmillEndpoints(windmillServers)
+        .setType(Type.fromProto(workerMetadataResponseProto.getEndpointType()))
         .build();
   }
 
@@ -137,6 +159,8 @@ public abstract class WindmillEndpoints {
 
   /** Version of the endpoints which increases with every modification. */
   public abstract long version();
+
+  public abstract Type type();
 
   /**
    * Used by GetData GlobalDataRequest(s) to support Beam side inputs. Returns a map where the key
@@ -220,6 +244,8 @@ public abstract class WindmillEndpoints {
   @AutoValue.Builder
   public abstract static class Builder {
     public abstract Builder setVersion(long version);
+
+    public abstract Builder setType(Type type);
 
     public abstract Builder setGlobalDataEndpoints(
         ImmutableMap<String, WindmillEndpoints.Endpoint> globalDataServers);

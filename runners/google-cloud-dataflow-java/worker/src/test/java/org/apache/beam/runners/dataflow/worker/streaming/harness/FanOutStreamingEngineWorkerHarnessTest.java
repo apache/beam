@@ -348,6 +348,48 @@ public class FanOutStreamingEngineWorkerHarnessTest {
     TimeUnit.SECONDS.sleep(WAIT_FOR_METADATA_INJECTIONS_SECONDS);
   }
 
+  @Test
+  public void testOnNewWorkerMetadata_consumesEndpointsOnConnectivityTypeChange()
+      throws InterruptedException {
+    String workerToken = "workerToken1";
+
+    WorkerMetadataResponse firstWorkerMetadata =
+        WorkerMetadataResponse.newBuilder()
+            .setMetadataVersion(1)
+            .setEndpointType(Windmill.WorkerMetadataResponse.EndpointType.CLOUDPATH)
+            .addWorkEndpoints(
+                WorkerMetadataResponse.Endpoint.newBuilder()
+                    .setBackendWorkerToken(workerToken)
+                    .build())
+            .putAllGlobalDataEndpoints(DEFAULT)
+            .build();
+    WorkerMetadataResponse secondWorkerMetadata =
+        WorkerMetadataResponse.newBuilder()
+            .setMetadataVersion(1)
+            .setEndpointType(Windmill.WorkerMetadataResponse.EndpointType.DIRECTPATH)
+            .addWorkEndpoints(
+                WorkerMetadataResponse.Endpoint.newBuilder()
+                    .setBackendWorkerToken(workerToken)
+                    .build())
+            .putAllGlobalDataEndpoints(DEFAULT)
+            .build();
+
+    TestGetWorkBudgetDistributor getWorkBudgetDistributor = spy(new TestGetWorkBudgetDistributor());
+    fanOutStreamingEngineWorkProvider =
+        newFanOutStreamingEngineWorkerHarness(
+            GetWorkBudget.builder().setItems(1).setBytes(1).build(),
+            getWorkBudgetDistributor,
+            noOpProcessWorkItemFn());
+
+    fakeGetWorkerMetadataStub.injectWorkerMetadata(firstWorkerMetadata);
+    verify(getWorkBudgetDistributor, times(1)).distributeBudget(any(), any());
+    TimeUnit.SECONDS.sleep(WAIT_FOR_METADATA_INJECTIONS_SECONDS);
+    // Same metadata version, different endpoint type should still trigger consumption
+    fakeGetWorkerMetadataStub.injectWorkerMetadata(secondWorkerMetadata);
+    verify(getWorkBudgetDistributor, times(2)).distributeBudget(any(), any());
+    TimeUnit.SECONDS.sleep(WAIT_FOR_METADATA_INJECTIONS_SECONDS);
+  }
+
   private static class WindmillServiceFakeStub
       extends CloudWindmillServiceV1Alpha1Grpc.CloudWindmillServiceV1Alpha1ImplBase {
     @Override
