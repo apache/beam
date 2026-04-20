@@ -36,6 +36,11 @@ from apache_beam.runners.runner import PipelineState
 from apache_beam.testing import test_utils
 from apache_beam.testing.pipeline_verifiers import PipelineStateMatcher
 from apache_beam.testing.test_pipeline import TestPipeline
+from apache_beam.options.pipeline_options import PipelineOptions
+from apache_beam.options.pipeline_options import StandardOptions
+from apache_beam.transforms import Create
+from google.pubsub_v1.types import Subscription
+from google.cloud import pubsub
 
 INPUT_TOPIC = 'psit_topic_input'
 OUTPUT_TOPIC = 'psit_topic_output'
@@ -139,7 +144,6 @@ class PubSubIntegrationTest(unittest.TestCase):
     self.uuid = str(uuid.uuid4())
 
     # Set up PubSub environment.
-    from google.cloud import pubsub
     self.pub_client = pubsub.PublisherClient()
     self.input_topic = self.pub_client.create_topic(
         name=self.pub_client.topic_path(self.project, INPUT_TOPIC + self.uuid))
@@ -228,9 +232,6 @@ class PubSubIntegrationTest(unittest.TestCase):
       with_attributes: False - Writes message data only.
         True - Writes message data and attributes.
     """
-    from apache_beam.options.pipeline_options import PipelineOptions
-    from apache_beam.options.pipeline_options import StandardOptions
-    from apache_beam.transforms import Create
 
     # Create test messages for batch mode
     test_messages = [
@@ -309,24 +310,19 @@ class PubSubIntegrationTest(unittest.TestCase):
   def test_batch_write_with_ordering_key(self):
     """Test WriteToPubSub in batch mode with ordering keys.
 
-    Dataflow Native PubSub Sink does not support ordering_key
-    (https://github.com/apache/beam/issues/36201), therefore this
-    test only applies to runners that use Beam's Python WriteToPubSub Sink.
-    To use ordering_key, Dataflow users should use the XLang WriteToPubSub
-    path instead.
+    Dataflow's Native Pub/Sub Sink does not support ordering_key
+    (see https://github.com/apache/beam/issues/36201), so this test
+    only applies to runners using Beam's Python WriteToPubSub Sink.
+    Dataflow users should use the XLang WriteToPubSub path instead
+    (apache_beam.io.external.gcp.pubsub.WriteToPubSub with
+    publish_with_ordering_key=True).
     """
     if self.runner_name == 'TestDataflowRunner':
       self.skipTest(
           'Dataflow Native PubSub Sink does not support ordering_key '
-          '(see https://github.com/apache/beam/issues/36201), therefore '
-          'this test only applies to runners that use Beam\'s Python '
-          'WriteToPubSub Sink. To use ordering_key, Dataflow users should '
-          'use the XLang WriteToPubSub path instead.')
-
-    from apache_beam.options.pipeline_options import PipelineOptions
-    from apache_beam.options.pipeline_options import StandardOptions
-    from apache_beam.transforms import Create
-    from google.pubsub_v1.types import Subscription
+          '(see https://github.com/apache/beam/issues/36201). '
+          'Use apache_beam.io.external.gcp.pubsub.WriteToPubSub '
+          'with publish_with_ordering_key=True instead.')
 
     ordering_topic = self.pub_client.create_topic(
         name=self.pub_client.topic_path(
@@ -336,7 +332,8 @@ class PubSubIntegrationTest(unittest.TestCase):
             name=self.sub_client.subscription_path(
                 self.project, 'psit_sub_ordering' + self.uuid),
             topic=ordering_topic.name,
-            enable_message_ordering=True))
+            enable_message_ordering=True,
+        ))
     time.sleep(10)
 
     try:
@@ -346,7 +343,7 @@ class PubSubIntegrationTest(unittest.TestCase):
           PubsubMessage(
               b'order_data002', {'attr': 'value2'}, ordering_key='key1'),
           PubsubMessage(
-              b'order_data003', {'attr': 'value3'}, ordering_key='key2')
+              b'order_data003', {'attr': 'value3'}, ordering_key='key2'),
       ]
 
       pipeline_options = PipelineOptions()
@@ -361,30 +358,30 @@ class PubSubIntegrationTest(unittest.TestCase):
 
       response = self.sub_client.pull(
           request={
-              "subscription": ordering_sub.name,
-              "max_messages": 10,
+              'subscription': ordering_sub.name,
+              'max_messages': 10,
           })
 
       self.assertEqual(len(response.received_messages), len(test_messages))
 
-      received_map = {
-          msg.message.data: msg.message
-          for msg in response.received_messages
-      }
-      self.assertEqual(received_map[b'order_data001'].ordering_key, 'key1')
-      self.assertEqual(received_map[b'order_data002'].ordering_key, 'key1')
-      self.assertEqual(received_map[b'order_data003'].ordering_key, 'key2')
+      received_ordering_keys = [
+          msg.message.ordering_key for msg in response.received_messages
+      ]
+      expected_ordering_keys = sorted(
+          [msg.ordering_key for msg in test_messages])
+      self.assertEqual(sorted(received_ordering_keys), expected_ordering_keys)
 
       ack_ids = [msg.ack_id for msg in response.received_messages]
-      if ack_ids:
-        self.sub_client.acknowledge(
-            request={
-                "subscription": ordering_sub.name,
-                "ack_ids": ack_ids,
-            })
+      self.sub_client.acknowledge(
+          request={
+              'subscription': ordering_sub.name,
+              'ack_ids': ack_ids,
+          })
     finally:
-      test_utils.cleanup_subscriptions(self.sub_client, [ordering_sub])
-      test_utils.cleanup_topics(self.pub_client, [ordering_topic])
+      self.sub_client.delete_subscription(
+          request={'subscription': ordering_sub.name})
+      self.pub_client.delete_topic(request={'topic': ordering_topic.name})
+
 
 if __name__ == '__main__':
   logging.getLogger().setLevel(logging.DEBUG)
