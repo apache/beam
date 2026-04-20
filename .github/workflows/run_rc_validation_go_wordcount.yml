@@ -54,6 +54,8 @@ jobs:
         uses: ./.github/actions/setup-environment-action
         with:
           go-version: default
+      - name: Install wget
+        run: sudo apt-get update && sudo apt-get install -y wget
 
       - name: Setup Go Module and Fetch RC
         id: setup_go
