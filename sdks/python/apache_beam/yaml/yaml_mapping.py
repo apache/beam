@@ -228,6 +228,8 @@ def js_to_py(obj):
     return [js_to_py(v) for v in obj]
   elif isinstance(obj, str):
     try:
+      if obj.endswith('Z'):
+        return datetime.datetime.fromisoformat(obj[:-1] + '+00:00')
       return datetime.datetime.fromisoformat(obj)
     except ValueError:
       return obj
