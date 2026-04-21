@@ -97,7 +97,7 @@ public class EncoderHelpers {
   private static final DataType LIST_TYPE = new ObjectType(List.class);
 
   // Collections / maps of these types can be (de)serialized without (de)serializing each member
-  private static final Set<Class<?>> PRIMITIV_TYPES =
+  private static final Set<Class<?>> PRIMITIVE_TYPES =
       ImmutableSet.of(
           Boolean.class,
           Byte.class,
@@ -480,7 +480,7 @@ public class EncoderHelpers {
   }
 
   private static <T> boolean isPrimitiveEnc(Encoder<T> enc) {
-    return PRIMITIV_TYPES.contains(enc.clsTag().runtimeClass());
+    return PRIMITIVE_TYPES.contains(enc.clsTag().runtimeClass());
   }
 
   private static <T> Expression serialize(Expression input, Encoder<T> enc) {

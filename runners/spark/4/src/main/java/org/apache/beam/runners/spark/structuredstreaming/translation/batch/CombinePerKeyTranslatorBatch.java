@@ -64,7 +64,7 @@ import scala.collection.IterableOnce;
  * TODOs:
  * <li>combine with context (CombineFnWithContext)?
  * <li>combine with sideInputs?
- * <li>other there other missing features?
+ * <li>are there other missing features?
  */
 class CombinePerKeyTranslatorBatch<K, InT, AccT, OutT>
     extends TransformTranslator<
