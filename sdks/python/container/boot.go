@@ -318,7 +318,7 @@ for _, workerId := range workerIds {
     go func(workerId string) {
         defer wg.Done()
 
-        workerCtx := grpcx.WriteWorkerID(ctx, workerId)
+        workerCtx := grpcx.WriteWorkerID(context.Background(), workerId)
 
         // Create a separate logger per worker so that each worker initializes
         // its own Fn logging stream with the correct worker_id metadata.
@@ -328,7 +328,7 @@ for _, workerId := range workerIds {
             Endpoint: *loggingEndpoint,
         }
 
-       bufLogger := tools.NewBufferedLogger(workerLogger)
+       bufLogger := tools.NewBufferedLoggerWithFlushInterval(workerCtx, workerLogger, 100*time.Millisecond)
 
         errorCount := 0
         for {
