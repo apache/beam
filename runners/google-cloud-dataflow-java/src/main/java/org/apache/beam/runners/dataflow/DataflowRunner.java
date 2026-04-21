@@ -1246,13 +1246,11 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
     // Multi-language pipelines and pipelines that include upgrades should automatically be upgraded
     // to Dataflow Portable Runner.
     if (DataflowRunner.isMultiLanguagePipeline(pipeline) || includesTransformUpgrades(pipeline)) {
-      if (!useUnifiedWorker(options)) {
-        List<String> experiments = firstNonNull(options.getExperiments(), Collections.emptyList());
+      if (!firstNonNull(options.getExperiments(), Collections.emptyList()).contains("use_runner_v2")) {
         LOG.info(
             "Automatically enabling Dataflow Portable Runner since the pipeline used cross-language"
                 + " transforms or pipeline needed a transform upgrade.");
-        options.setExperiments(
-            ImmutableList.<String>builder().addAll(experiments).add("use_runner_v2").build());
+        ExperimentalOptions.addExperiment(options, "use_runner_v2");
       }
     }
     if (useUnifiedWorker(options)) {
@@ -1264,21 +1262,10 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
         throw new IllegalArgumentException(
             "Dataflow Portable Runner both disabled and enabled: at least one of ['enable_portable_runner', 'beam_fn_api', 'use_unified_worker', 'use_runner_v2', 'use_portable_job_submission'] is set and also one of ['enable_streaming_java_runner', 'disable_portable_runner', 'disable_runner_v2', 'disable_runner_v2_until_2023', 'disable_prime_runner_v2'] is set.");
       }
-      List<String> experiments =
-          new ArrayList<>(options.getExperiments()); // non-null if useUnifiedWorker is true
-      if (!experiments.contains("use_runner_v2")) {
-        experiments.add("use_runner_v2");
-      }
-      if (!experiments.contains("use_unified_worker")) {
-        experiments.add("use_unified_worker");
-      }
-      if (!experiments.contains("beam_fn_api")) {
-        experiments.add("beam_fn_api");
-      }
-      if (!experiments.contains("use_portable_job_submission")) {
-        experiments.add("use_portable_job_submission");
-      }
-      options.setExperiments(ImmutableList.copyOf(experiments));
+      ExperimentalOptions.addExperiment(options, "use_runner_v2");
+      ExperimentalOptions.addExperiment(options, "use_unified_worker");
+      ExperimentalOptions.addExperiment(options, "beam_fn_api");
+      ExperimentalOptions.addExperiment(options, "use_portable_job_submission");
       // Ensure that logging via the FnApi is enabled
       options.as(SdkHarnessOptions.class).setEnableLogViaFnApi(true);
     }
@@ -1305,19 +1292,16 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
       options.setStreaming(true);
 
       {
-        List<String> experiments =
-            options.getExperiments() == null
-                ? new ArrayList<>()
-                : new ArrayList<>(options.getExperiments());
         // Experiment marking that the harness supports tag encoding v2
         // Backend will enable tag encoding v2 only if the harness supports it.
-        experiments.add("streaming_engine_state_tag_encoding_v2_supported");
+        ExperimentalOptions.addExperiment(
+            options, "streaming_engine_state_tag_encoding_v2_supported");
         // Experiment requesting tag encoding v2 on new jobs starting with 2.75.0. During job
         // updates old job's tag encoding version is carried over by the backend.
         if (!StreamingOptions.updateCompatibilityVersionLessThan(options, "2.75.0")) {
-          experiments.add("enable_streaming_engine_state_tag_encoding_v2");
+          ExperimentalOptions.addExperiment(
+              options, "enable_streaming_engine_state_tag_encoding_v2");
         }
-        options.setExperiments(ImmutableList.copyOf(experiments));
       }
 
       if (useUnifiedWorker(options)) {
@@ -1443,15 +1427,7 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
             pipeline, dataflowV1PipelineProto, dataflowV1Components, this, packages);
 
     if (!isNullOrEmpty(dataflowOptions.getDataflowWorkerJar()) && !useUnifiedWorker(options)) {
-      List<String> experiments =
-          firstNonNull(dataflowOptions.getExperiments(), Collections.emptyList());
-      if (!experiments.contains("use_staged_dataflow_worker_jar")) {
-        dataflowOptions.setExperiments(
-            ImmutableList.<String>builder()
-                .addAll(experiments)
-                .add("use_staged_dataflow_worker_jar")
-                .build());
-      }
+      ExperimentalOptions.addExperiment(options, "use_staged_dataflow_worker_jar");
     }
 
     Job newJob = jobSpecification.getJob();
@@ -1510,11 +1486,7 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
               .collect(Collectors.toList());
 
       if (minCpuFlags.isEmpty()) {
-        dataflowOptions.setExperiments(
-            ImmutableList.<String>builder()
-                .addAll(experiments)
-                .add("min_cpu_platform=" + dataflowOptions.getMinCpuPlatform())
-                .build());
+        ExperimentalOptions.addExperiment(dataflowOptions, "min_cpu_platform=" + dataflowOptions.getMinCpuPlatform());
       } else {
         LOG.warn(
             "Flag min_cpu_platform is defined in both top level PipelineOption, "
@@ -1551,11 +1523,8 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
     byte[] jobGraphBytes = DataflowPipelineTranslator.jobToString(newJob).getBytes(UTF_8);
     int jobGraphByteSize = jobGraphBytes.length;
     if (jobGraphByteSize >= CREATE_JOB_REQUEST_LIMIT_BYTES
-        && !hasExperiment(options, "upload_graph")
         && !useUnifiedWorker(options)) {
-      List<String> experiments = firstNonNull(options.getExperiments(), Collections.emptyList());
-      options.setExperiments(
-          ImmutableList.<String>builder().addAll(experiments).add("upload_graph").build());
+      ExperimentalOptions.addExperiment(options, "upload_graph");
       LOG.info(
           "The job graph size ({} in bytes) is larger than {}. Automatically add "
               + "the upload_graph option to experiments.",
@@ -1563,7 +1532,7 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
           CREATE_JOB_REQUEST_LIMIT_BYTES);
     }
 
-    if (hasExperiment(options, "upload_graph") && useUnifiedWorker(options)) {
+    if (useUnifiedWorker(options)) {
       ArrayList<String> experiments = new ArrayList<>(options.getExperiments());
       while (experiments.remove("upload_graph")) {}
       options.setExperiments(experiments);
