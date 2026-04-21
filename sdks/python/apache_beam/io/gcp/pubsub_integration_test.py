@@ -36,11 +36,6 @@ from apache_beam.runners.runner import PipelineState
 from apache_beam.testing import test_utils
 from apache_beam.testing.pipeline_verifiers import PipelineStateMatcher
 from apache_beam.testing.test_pipeline import TestPipeline
-from apache_beam.options.pipeline_options import PipelineOptions
-from apache_beam.options.pipeline_options import StandardOptions
-from apache_beam.transforms import Create
-from google.pubsub_v1.types import Subscription
-from google.cloud import pubsub
 
 INPUT_TOPIC = 'psit_topic_input'
 OUTPUT_TOPIC = 'psit_topic_output'
@@ -144,6 +139,7 @@ class PubSubIntegrationTest(unittest.TestCase):
     self.uuid = str(uuid.uuid4())
 
     # Set up PubSub environment.
+    from google.cloud import pubsub
     self.pub_client = pubsub.PublisherClient()
     self.input_topic = self.pub_client.create_topic(
         name=self.pub_client.topic_path(self.project, INPUT_TOPIC + self.uuid))
@@ -232,7 +228,10 @@ class PubSubIntegrationTest(unittest.TestCase):
       with_attributes: False - Writes message data only.
         True - Writes message data and attributes.
     """
-
+    from apache_beam.options.pipeline_options import PipelineOptions
+    from apache_beam.options.pipeline_options import StandardOptions
+    from apache_beam.transforms import Create
+    
     # Create test messages for batch mode
     test_messages = [
         PubsubMessage(b'batch_data001', {'batch_attr': 'value1'}),
@@ -323,6 +322,11 @@ class PubSubIntegrationTest(unittest.TestCase):
           '(see https://github.com/apache/beam/issues/36201). '
           'Use apache_beam.io.external.gcp.pubsub.WriteToPubSub '
           'with publish_with_ordering_key=True instead.')
+      
+    from apache_beam.options.pipeline_options import PipelineOptions
+    from apache_beam.options.pipeline_options import StandardOptions
+    from apache_beam.transforms import Create
+    from google.pubsub_v1.types import Subscription
 
     ordering_topic = self.pub_client.create_topic(
         name=self.pub_client.topic_path(
@@ -364,12 +368,13 @@ class PubSubIntegrationTest(unittest.TestCase):
 
       self.assertEqual(len(response.received_messages), len(test_messages))
 
-      received_ordering_keys = [
-          msg.message.ordering_key for msg in response.received_messages
-      ]
-      expected_ordering_keys = sorted(
-          [msg.ordering_key for msg in test_messages])
-      self.assertEqual(sorted(received_ordering_keys), expected_ordering_keys)
+      received_map = {
+          msg.message.data: msg.message
+          for msg in response.received_messages
+      }
+      self.assertEqual(received_map[b'order_data001'].ordering_key, 'key1')
+      self.assertEqual(received_map[b'order_data002'].ordering_key, 'key1')
+      self.assertEqual(received_map[b'order_data003'].ordering_key, 'key2')
 
       ack_ids = [msg.ack_id for msg in response.received_messages]
       self.sub_client.acknowledge(
