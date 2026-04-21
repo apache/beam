@@ -86,7 +86,10 @@ public final class EvaluationContext {
       ds.write().mode("overwrite").format("noop").save();
       LOG.info("Evaluated dataset {} in {}", name, durationSince(startMs));
     } catch (RuntimeException e) {
-      LOG.error("Failed to evaluate dataset {}: {}", name, Throwables.getRootCause(e).getMessage());
+      LOG.error(
+          "Failed to evaluate dataset {}: {}",
+          name,
+          String.valueOf(Throwables.getRootCause(e).getMessage()));
       throw new RuntimeException(e);
     }
   }
@@ -102,7 +105,10 @@ public final class EvaluationContext {
       LOG.info("Collected dataset {} in {} [size: {}]", name, durationSince(startMs), res.length);
       return res;
     } catch (Exception e) {
-      LOG.error("Failed to collect dataset {}: {}", name, Throwables.getRootCause(e).getMessage());
+      LOG.error(
+          "Failed to collect dataset {}: {}",
+          name,
+          String.valueOf(Throwables.getRootCause(e).getMessage()));
       throw new RuntimeException(e);
     }
   }
