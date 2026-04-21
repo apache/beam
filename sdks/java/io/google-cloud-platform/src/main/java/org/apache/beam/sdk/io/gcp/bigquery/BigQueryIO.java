@@ -1113,7 +1113,6 @@ public class BigQueryIO {
     }
   }
 
-  /** Implementation of {@link BigQueryIO#read()}. */
   static class CleanupInfo implements Serializable {
     private final String projectId;
     private final String datasetId;
@@ -1214,9 +1213,7 @@ public class BigQueryIO {
         cleanupInfo = msg.getCleanupInfo();
       }
 
-      if (cleanupInfo != null
-          && cleanupInfo.getTotalStreams() > 0
-          && completed == cleanupInfo.getTotalStreams()) {
+      if (cleanupInfo != null && completed == cleanupInfo.getTotalStreams()) {
         TableReference tempTable = cleanupInfo.getTableReference();
         try (DatasetService datasetService =
             bqServices.getDatasetService(options.as(BigQueryOptions.class))) {
@@ -1264,6 +1261,7 @@ public class BigQueryIO {
     }
   }
 
+  /** Implementation of {@link BigQueryIO#read()}. */
   public static class Read extends PTransform<PBegin, PCollection<TableRow>> {
     private final TypedRead<TableRow> inner;
 
