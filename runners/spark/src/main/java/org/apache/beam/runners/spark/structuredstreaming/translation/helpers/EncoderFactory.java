@@ -91,7 +91,7 @@ public class EncoderFactory {
     try {
       // To address breaking interfaces between various version of Spark 3,  expressions are
       // created reflectively. This is fine as it's just needed once to create the query plan.
-      switch (STATIC_INVOKE_CONSTRUCTOR.getParameterCount()) {
+      switch (INVOKE_CONSTRUCTOR.getParameterCount()) {
         case 6:
           // Spark 3.1.x
           return INVOKE_CONSTRUCTOR.newInstance(obj, fun, type, seqOf(args), false, nullable);
