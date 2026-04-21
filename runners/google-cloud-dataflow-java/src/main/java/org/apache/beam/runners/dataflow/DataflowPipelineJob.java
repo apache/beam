@@ -57,6 +57,11 @@ import org.slf4j.LoggerFactory;
   "nullness", // TODO(https://github.com/apache/beam/issues/20497)
   "Slf4jDoNotLogMessageOfExceptionExplicitly", // intended, sent full stacktrace to LOG.debug
 })
+/**
+ * Dataflow implementation of {@link PipelineResult}.
+ *
+ * <p>Note: This class represents a PipelineResult but uses a different name for historical reasons.
+ */
 public class DataflowPipelineJob implements PipelineResult {
 
   private static final Logger LOG = LoggerFactory.getLogger(DataflowPipelineJob.class);
