@@ -48,7 +48,6 @@ import org.apache.beam.sdk.values.WindowedValue;
 import org.apache.beam.sdk.values.WindowedValues;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableSet;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Maps;
 import org.apache.spark.sql.Encoder;
 import org.apache.spark.sql.Encoders;
@@ -564,9 +563,17 @@ public class EncoderHelpers {
       return CoderHelpers.toByteArray(paneInfo, PaneInfoCoder.of());
     }
 
-    /** The end of the only window (max timestamp). */
-    public static Instant maxTimestamp(Iterable<BoundedWindow> windows) {
-      return Iterables.getOnlyElement(windows).maxTimestamp();
+    /** The maximum {@code maxTimestamp} across all associated windows. */
+    public static Instant maxTimestamp(Iterable<? extends BoundedWindow> windows) {
+      Instant maxTimestamp = null;
+      for (BoundedWindow window : windows) {
+        Instant timestamp = window.maxTimestamp();
+        if (maxTimestamp == null || timestamp.isAfter(maxTimestamp)) {
+          maxTimestamp = timestamp;
+        }
+      }
+      return Preconditions.checkNotNull(
+          maxTimestamp, "WindowedValue must have at least one window");
     }
 
     public static List<Object> copyToList(ArrayData arrayData, DataType type) {
