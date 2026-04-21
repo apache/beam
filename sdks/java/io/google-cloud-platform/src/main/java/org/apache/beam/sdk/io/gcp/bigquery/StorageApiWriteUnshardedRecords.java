@@ -761,7 +761,7 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
                             tableDestination.getTableReference());
                   } catch (Exception e) {
                     LOG.error(
-                        "Failed to insert row and could not parse the result! Insert error: {}.\n Parse error: {}",
+                        "Failed to insert row and could not parse the result! Insert error: {}.",
                         error.getRowIndexToErrorMessage().get(failedIndex),
                         e);
                   }
