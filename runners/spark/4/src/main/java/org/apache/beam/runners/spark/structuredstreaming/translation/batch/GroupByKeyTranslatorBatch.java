@@ -192,7 +192,7 @@ class GroupByKeyTranslatorBatch<K, V>
               .groupByKey(fun1(t -> t._1()), windowedKeyEnc)
               .mapValues(fun1(t -> t._2()), valueEnc)
               .mapGroups(
-                  fun2((wKey, it) -> windowedKV(wKey, iterableOnce((Iterator<V>) it))),
+                  fun2((wKey, it) -> windowedKV(wKey, iterableOnce(it))),
                   cxt.windowedEncoder(outputCoder));
 
     } else {
