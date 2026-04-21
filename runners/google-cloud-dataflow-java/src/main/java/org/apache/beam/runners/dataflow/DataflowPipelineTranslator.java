@@ -69,6 +69,7 @@ import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.IterableCoder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
+import org.apache.beam.sdk.options.ExperimentalOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.StreamingOptions;
 import org.apache.beam.sdk.runners.AppliedPTransform;
@@ -414,19 +415,8 @@ public class DataflowPipelineTranslator {
       // back end as well.  If streaming engine is not enabled make sure the experiments are also
       // not enabled.
       if (options.isEnableStreamingEngine()) {
-        List<String> experiments = options.getExperiments();
-        if (experiments == null) {
-          experiments = new ArrayList<String>();
-        } else {
-          experiments = new ArrayList<String>(experiments);
-        }
-        if (!experiments.contains(GcpOptions.STREAMING_ENGINE_EXPERIMENT)) {
-          experiments.add(GcpOptions.STREAMING_ENGINE_EXPERIMENT);
-        }
-        if (!experiments.contains(GcpOptions.WINDMILL_SERVICE_EXPERIMENT)) {
-          experiments.add(GcpOptions.WINDMILL_SERVICE_EXPERIMENT);
-        }
-        options.setExperiments(experiments);
+        ExperimentalOptions.addExperiment(options, GcpOptions.STREAMING_ENGINE_EXPERIMENT);
+        ExperimentalOptions.addExperiment(options, GcpOptions.WINDMILL_SERVICE_EXPERIMENT);
       } else {
         List<String> experiments = options.getExperiments();
         if (experiments != null) {
