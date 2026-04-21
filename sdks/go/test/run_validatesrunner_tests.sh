@@ -36,7 +36,7 @@
 #    --timeout -> Timeout for the go test command, on a per-package level.
 #    --simultaneous -> Number of simultaneous packages to test.
 #        Controls the -p flag for the go test command.
-#        Not used for Flink, Spark, or Samza runners.  Defaults to 3 otherwise.
+#        Not used for Flink or Spark runners. Defaults to 3 otherwise.
 #    --endpoint -> An endpoint for an existing job server outside the script.
 #        If present, job server jar flags are ignored.
 #    --test_expansion_jar -> Filepath to jar for an expansion service, for
@@ -170,11 +170,6 @@ case $key in
         shift # past argument
         shift # past value
         ;;
-    --samza_job_server_jar)
-        SAMZA_JOB_SERVER_JAR="$2"
-        shift # past argument
-        shift # past value
-        ;;
     --spark_job_server_jar)
         SPARK_JOB_SERVER_JAR="$2"
         shift # past argument
@@ -272,7 +267,7 @@ else
 fi
 
 # Set up environment based on runner.
-if [[ "$RUNNER" == "flink" || "$RUNNER" == "spark" || "$RUNNER" == "samza" || "$RUNNER" == "portable" || "$RUNNER" == "prism" ]]; then
+if [[ "$RUNNER" == "flink" || "$RUNNER" == "spark" || "$RUNNER" == "portable" || "$RUNNER" == "prism" ]]; then
   if [[ -z "$ENDPOINT" ]]; then
     JOB_PORT=$(python3 -c "$SOCKET_SCRIPT")
     ENDPOINT="localhost:$JOB_PORT"
@@ -286,12 +281,6 @@ if [[ "$RUNNER" == "flink" || "$RUNNER" == "spark" || "$RUNNER" == "samza" || "$
           -jar $FLINK_JOB_SERVER_JAR \
           --flink-master [local] \
           --flink-conf-dir $CURRENT_DIRECTORY/build/flink-conf/ \
-          --job-port $JOB_PORT \
-          --expansion-port 0 \
-          --artifact-port 0 &
-    elif [[ "$RUNNER" == "samza" ]]; then
-      "$JAVA_CMD" \
-          -jar $SAMZA_JOB_SERVER_JAR \
           --job-port $JOB_PORT \
           --expansion-port 0 \
           --artifact-port 0 &
@@ -354,7 +343,7 @@ if [[ "$RUNNER" != "direct" ]]; then
 fi
 
 # Disable parallelism on runners that don't support it.
-if [[ "$RUNNER" == "flink" || "$RUNNER" == "spark" || "$RUNNER" == "samza" ]]; then
+if [[ "$RUNNER" == "flink" || "$RUNNER" == "spark" ]]; then
   SIMULTANEOUS=1
 fi
 

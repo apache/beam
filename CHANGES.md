@@ -84,6 +84,7 @@
 ## Deprecations
 
 * X behavior is deprecated and will be removed in X versions ([#X](https://github.com/apache/beam/issues/X)).
+* Removed Samza Runner support ([#35448](https://github.com/apache/beam/issues/35448)).
 
 ## Bugfixes
 
