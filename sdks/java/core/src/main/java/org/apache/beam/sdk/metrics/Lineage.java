@@ -43,9 +43,9 @@ public class Lineage {
   public static final String LINEAGE_NAMESPACE = "lineage";
   private static final Logger LOG = LoggerFactory.getLogger(Lineage.class);
 
-  private static volatile @Nullable Lineage SOURCES;
-  private static volatile @Nullable Lineage SINKS;
-  private static volatile @Nullable Class<? extends LineageBase> CURRENT_LINEAGE_TYPE;
+  private static volatile @Nullable Lineage sources;
+  private static volatile @Nullable Lineage sinks;
+  private static volatile @Nullable Class<? extends LineageBase> currentLineageType;
 
   private static final Object INIT_LOCK = new Object();
 
@@ -75,20 +75,20 @@ public class Lineage {
       if (canSkipInit(requestedType)) {
         return;
       }
-      SOURCES = createLineage(options, LineageDirection.SOURCE);
-      SINKS = createLineage(options, LineageDirection.SINK);
-      CURRENT_LINEAGE_TYPE = requestedType;
+      sources = createLineage(options, LineageDirection.SOURCE);
+      sinks = createLineage(options, LineageDirection.SINK);
+      currentLineageType = requestedType;
       LOG.debug("Lineage initialized with type {}", requestedType);
     }
   }
 
   private static boolean canSkipInit(@Nullable Class<? extends LineageBase> requestedType) {
-    if (SOURCES == null) {
+    if (sources == null) {
       return false;
     }
     // When no type is requested, preserve whatever is already initialized.
     // When a type is requested, only re-init if it differs from the active type.
-    return requestedType == null || requestedType.equals(CURRENT_LINEAGE_TYPE);
+    return requestedType == null || requestedType.equals(currentLineageType);
   }
 
   private static Lineage createLineage(PipelineOptions options, LineageDirection direction) {
@@ -123,14 +123,14 @@ public class Lineage {
   /** {@link Lineage} representing sources and optionally side inputs. */
   public static Lineage getSources() {
     return checkNotNull(
-        SOURCES,
+        sources,
         "Lineage not initialized. FileSystems.setDefaultPipelineOptions must be called first.");
   }
 
   /** {@link Lineage} representing sinks. */
   public static Lineage getSinks() {
     return checkNotNull(
-        SINKS,
+        sinks,
         "Lineage not initialized. FileSystems.setDefaultPipelineOptions must be called first.");
   }
 
