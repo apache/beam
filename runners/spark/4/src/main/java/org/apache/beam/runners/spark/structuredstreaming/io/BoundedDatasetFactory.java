@@ -249,7 +249,7 @@ public class BoundedDatasetFactory {
       try {
         PipelineOptions options = params.options.get();
         long desiredSize = source.getEstimatedSizeBytes(options) / params.numPartitions;
-        List<BoundedSource<T>> split = (List<BoundedSource<T>>) source.split(desiredSize, options);
+        List<? extends BoundedSource<T>> split = source.split(desiredSize, options);
         IntSupplier idxSupplier = new AtomicInteger(0)::getAndIncrement;
         return split.stream().map(s -> new SourcePartition<>(s, idxSupplier)).collect(toList());
       } catch (Exception e) {
