@@ -1140,7 +1140,6 @@ public class BigQueryIO {
     }
   }
 
-  /** Implementation of {@link BigQueryIO#read()}. */
   static class CleanupInfo implements Serializable {
     private final String projectId;
     private final String datasetId;
@@ -1149,23 +1148,14 @@ public class BigQueryIO {
     private final int totalStreams;
 
     public CleanupInfo(TableReference tableRef, boolean datasetCreatedByBeam, int totalStreams) {
-      if (tableRef != null) {
-        this.projectId = tableRef.getProjectId();
-        this.datasetId = tableRef.getDatasetId();
-        this.tableId = tableRef.getTableId();
-      } else {
-        this.projectId = null;
-        this.datasetId = null;
-        this.tableId = null;
-      }
+      this.projectId = tableRef.getProjectId();
+      this.datasetId = tableRef.getDatasetId();
+      this.tableId = tableRef.getTableId();
       this.datasetCreatedByBeam = datasetCreatedByBeam;
       this.totalStreams = totalStreams;
     }
 
     public TableReference getTableReference() {
-      if (projectId == null || datasetId == null || tableId == null) {
-        return null;
-      }
       return new TableReference()
           .setProjectId(projectId)
           .setDatasetId(datasetId)
@@ -1237,13 +1227,11 @@ public class BigQueryIO {
         completed += 1;
         completedStreamsState.write(completed);
       } else {
-        cleanupInfoState.write(msg.getCleanupInfo());
+        cleanupInfoState.write(Preconditions.checkNotNull(msg.getCleanupInfo()));
         cleanupInfo = msg.getCleanupInfo();
       }
 
-      if (cleanupInfo != null
-          && cleanupInfo.getTotalStreams() > 0
-          && completed == cleanupInfo.getTotalStreams()) {
+      if (cleanupInfo != null && completed == cleanupInfo.getTotalStreams()) {
         TableReference tempTable = cleanupInfo.getTableReference();
         try (DatasetService datasetService =
             bqServices.getDatasetService(options.as(BigQueryOptions.class))) {
@@ -1291,6 +1279,7 @@ public class BigQueryIO {
     }
   }
 
+  /** Implementation of {@link BigQueryIO#read()}. */
   public static class Read extends PTransform<PBegin, PCollection<TableRow>> {
     private final TypedRead<TableRow> inner;
 

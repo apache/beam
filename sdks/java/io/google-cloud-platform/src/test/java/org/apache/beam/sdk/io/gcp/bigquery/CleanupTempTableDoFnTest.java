@@ -100,4 +100,54 @@ public class CleanupTempTableDoFnTest {
               || e.getMessage().contains("Not Found"));
     }
   }
+
+  @Test
+  public void testCleanupTempTableDoFnWithZeroStreams() throws Exception {
+    FakeDatasetService fakeDatasetService = new FakeDatasetService();
+    FakeBigQueryServices fakeBqServices =
+        new FakeBigQueryServices().withDatasetService(fakeDatasetService);
+
+    TableReference tableRef =
+        new TableReference().setProjectId("project").setDatasetId("dataset").setTableId("table");
+
+    fakeDatasetService.createDataset(
+        tableRef.getProjectId(), tableRef.getDatasetId(), "", "", null);
+    fakeDatasetService.createTable(
+        new com.google.api.services.bigquery.model.Table().setTableReference(tableRef));
+
+    assertTrue(
+        fakeDatasetService.getDataset(tableRef.getProjectId(), tableRef.getDatasetId()) != null);
+    assertTrue(fakeDatasetService.getTable(tableRef) != null);
+
+    CleanupInfo cleanupInfo = new CleanupInfo(tableRef, true, 0);
+
+    PCollection<KV<String, CleanupOperationMessage>> input =
+        p.apply(
+            "CreateInputWithZeroStreams",
+            Create.of(KV.of("job1", CleanupOperationMessage.initialize(cleanupInfo))));
+
+    input.apply("CleanupWithZeroStreams", ParDo.of(new CleanupTempTableDoFn(fakeBqServices)));
+
+    p.run().waitUntilFinish();
+
+    try {
+      fakeDatasetService.getDataset(tableRef.getProjectId(), tableRef.getDatasetId());
+      fail("Dataset should have been deleted");
+    } catch (Exception e) {
+      assertTrue(
+          e.getMessage().contains("Tried to get a dataset")
+              || e.getMessage().contains("Not Found"));
+    }
+
+    try {
+      TableReference deletedRef =
+          new TableReference().setProjectId("project").setDatasetId("dataset").setTableId("table");
+      Object table = fakeDatasetService.getTable(deletedRef);
+      assertTrue(table == null);
+    } catch (Exception e) {
+      assertTrue(
+          e.getMessage().contains("Tried to get a dataset")
+              || e.getMessage().contains("Not Found"));
+    }
+  }
 }
