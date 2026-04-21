@@ -81,6 +81,9 @@ class _JsThreadContext:
 
 _js_contexts = _JsThreadContext()
 
+_JS_DATE_ISO_REGEX = re.compile(
+    r'^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$')
+
 _str_expression_fields = {
     'AssignTimestamps': 'timestamp',
     'Filter': 'keep',
@@ -227,12 +230,12 @@ def js_to_py(obj):
   elif not isinstance(obj, (str, bytes)) and isinstance(obj, Iterable):
     return [js_to_py(v) for v in obj]
   elif isinstance(obj, str):
-    try:
-      if obj.endswith('Z'):
+    if _JS_DATE_ISO_REGEX.match(obj):
+      try:
         return datetime.datetime.fromisoformat(obj[:-1] + '+00:00')
-      return datetime.datetime.fromisoformat(obj)
-    except ValueError:
-      return obj
+      except ValueError:
+        return obj
+    return obj
   else:
     return obj
 
