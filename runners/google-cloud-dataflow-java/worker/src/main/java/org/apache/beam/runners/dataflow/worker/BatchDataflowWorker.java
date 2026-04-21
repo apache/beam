@@ -180,6 +180,7 @@ public class BatchDataflowWorker implements Closeable {
     return result;
   }
 
+  @SuppressWarnings("ThreadPriorityCheck")
   private static Thread startMemoryMonitorThread(MemoryMonitor memoryMonitor) {
     Thread result = new Thread(memoryMonitor);
     result.setDaemon(true);
