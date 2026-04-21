@@ -26,9 +26,6 @@ import org.joda.time.Duration;
  *
  * <p>This is often a job handle to an underlying data processing engine.
  *
- * <p>Different runners provide their own implementations of this interface. However, the naming of
- * these implementations is not consistent across runners.
- *
  * <ul>
  *   <li>Dataflow: {@code DataflowPipelineJob}
  *   <li>Flink: {@code FlinkRunnerResult}
