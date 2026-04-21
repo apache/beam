@@ -610,7 +610,7 @@ public abstract class DoFn<InputT extends @Nullable Object, OutputT extends @Nul
    *
    * <p>The method annotated with {@code @OnTimerFamily} may have parameters according to the same
    * logic as {@link ProcessElement}, but limited to the {@link BoundedWindow}, {@link State}
-   * subclasses, {@link org.apache.beam.sdk.state.TimerMap}, {@link Timestamp}, {@link Key}, {@link
+   * subclasses, {@link org.apache.beam.sdk.state.TimerMap}, {@link FireTimestamp}, {@link Timestamp}, {@link Key}, {@link
    * TimeDomain}, {@link PipelineOptions}, {@link OutputReceiver}, {@link MultiOutputReceiver}, and
    * {@link org.apache.beam.sdk.values.CausedByDrain CausedByDrain}. State and timer parameters must
    * be annotated with their {@link StateId} and {@link TimerId} respectively.
@@ -704,10 +704,10 @@ public abstract class DoFn<InputT extends @Nullable Object, OutputT extends @Nul
    *   <li>If one of its arguments is tagged with the {@link Element} annotation, then it will be
    *       passed the current element being processed. The argument type must match the input type
    *       of this DoFn exactly, or both types must have equivalent schemas registered.
-   *   <li>If one of its arguments is tagged with the {@link RecordId} annotation, then it will be
+   *   <li>If one of its arguments is tagged with the {@link CurrentRecordId} annotation, then it will be
    *       passed the record id of the current element being processed; the argument must be of type
    *       {@link String}.
-   *   <li>If one of its arguments is tagged with the {@link RecordOffset} annotation, then it will
+   *   <li>If one of its arguments is tagged with the {@link CurrentRecordOffset} annotation, then it will
    *       be passed the record offset of the current element being processed; the argument must be
    *       of type {@link Long}.
    *   <li>If one of its arguments is tagged with the {@link Timestamp} annotation, then it will be
