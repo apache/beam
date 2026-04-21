@@ -24,14 +24,12 @@ import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Set;
-import java.util.concurrent.atomic.AtomicReference;
 import java.util.regex.Pattern;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.lineage.LineageBase;
 import org.apache.beam.sdk.lineage.LineageOptions;
 import org.apache.beam.sdk.metrics.Metrics.MetricsFlag;
 import org.apache.beam.sdk.options.PipelineOptions;
-import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Splitter;
 import org.checkerframework.checker.nullness.qual.Nullable;
@@ -44,8 +42,10 @@ import org.slf4j.LoggerFactory;
 public class Lineage {
   public static final String LINEAGE_NAMESPACE = "lineage";
   private static final Logger LOG = LoggerFactory.getLogger(Lineage.class);
-  private static final AtomicReference<Lineage> SOURCES = new AtomicReference<>();
-  private static final AtomicReference<Lineage> SINKS = new AtomicReference<>();
+
+  private static volatile @Nullable Lineage SOURCES;
+  private static volatile @Nullable Lineage SINKS;
+  private static volatile @Nullable Class<? extends LineageBase> CURRENT_LINEAGE_TYPE;
 
   private static final Object INIT_LOCK = new Object();
 
@@ -66,12 +66,29 @@ public class Lineage {
   @Internal
   public static void setDefaultPipelineOptions(PipelineOptions options) {
     checkNotNull(options, "options cannot be null");
-    synchronized (INIT_LOCK) {
-      SOURCES.set(createLineage(options, LineageDirection.SOURCE));
-      SINKS.set(createLineage(options, LineageDirection.SINK));
-      LOG.debug(
-          "Lineage initialized with type {}", options.as(LineageOptions.class).getLineageType());
+    Class<? extends LineageBase> requestedType = options.as(LineageOptions.class).getLineageType();
+
+    if (canSkipInit(requestedType)) {
+      return;
     }
+    synchronized (INIT_LOCK) {
+      if (canSkipInit(requestedType)) {
+        return;
+      }
+      SOURCES = createLineage(options, LineageDirection.SOURCE);
+      SINKS = createLineage(options, LineageDirection.SINK);
+      CURRENT_LINEAGE_TYPE = requestedType;
+      LOG.debug("Lineage initialized with type {}", requestedType);
+    }
+  }
+
+  private static boolean canSkipInit(@Nullable Class<? extends LineageBase> requestedType) {
+    if (SOURCES == null) {
+      return false;
+    }
+    // When no type is requested, preserve whatever is already initialized.
+    // When a type is requested, only re-init if it differs from the active type.
+    return requestedType == null || requestedType.equals(CURRENT_LINEAGE_TYPE);
   }
 
   private static Lineage createLineage(PipelineOptions options, LineageDirection direction) {
@@ -105,22 +122,16 @@ public class Lineage {
 
   /** {@link Lineage} representing sources and optionally side inputs. */
   public static Lineage getSources() {
-    Lineage sources = SOURCES.get();
-    if (sources == null) {
-      setDefaultPipelineOptions(PipelineOptionsFactory.create());
-      sources = SOURCES.get();
-    }
-    return sources;
+    return checkNotNull(
+        SOURCES,
+        "Lineage not initialized. FileSystems.setDefaultPipelineOptions must be called first.");
   }
 
   /** {@link Lineage} representing sinks. */
   public static Lineage getSinks() {
-    Lineage sinks = SINKS.get();
-    if (sinks == null) {
-      setDefaultPipelineOptions(PipelineOptionsFactory.create());
-      sinks = SINKS.get();
-    }
-    return sinks;
+    return checkNotNull(
+        SINKS,
+        "Lineage not initialized. FileSystems.setDefaultPipelineOptions must be called first.");
   }
 
   @VisibleForTesting
