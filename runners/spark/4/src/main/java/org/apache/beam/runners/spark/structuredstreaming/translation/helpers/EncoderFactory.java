@@ -44,15 +44,29 @@ import scala.collection.immutable.Seq;
 import scala.reflect.ClassTag;
 
 public class EncoderFactory {
-  // default constructor to reflectively create static invoke expressions
+  // Resolve the Scala case-class primary constructor (the one with the most parameters).
+  // Constructor ordering returned by Class.getConstructors() is JVM-defined and not stable
+  // across Spark versions, so we pick the widest constructor explicitly and then dispatch on
+  // parameter count below to pick the right argument shape per Spark version.
   private static final Constructor<StaticInvoke> STATIC_INVOKE_CONSTRUCTOR =
-      (Constructor<StaticInvoke>) StaticInvoke.class.getConstructors()[0];
+      primaryConstructor(StaticInvoke.class);
 
-  private static final Constructor<Invoke> INVOKE_CONSTRUCTOR =
-      (Constructor<Invoke>) Invoke.class.getConstructors()[0];
+  private static final Constructor<Invoke> INVOKE_CONSTRUCTOR = primaryConstructor(Invoke.class);
 
   private static final Constructor<NewInstance> NEW_INSTANCE_CONSTRUCTOR =
-      (Constructor<NewInstance>) NewInstance.class.getConstructors()[0];
+      primaryConstructor(NewInstance.class);
+
+  @SuppressWarnings("unchecked")
+  private static <T> Constructor<T> primaryConstructor(Class<T> cls) {
+    Constructor<?>[] ctors = cls.getConstructors();
+    Constructor<?> widest = ctors[0];
+    for (int i = 1; i < ctors.length; i++) {
+      if (ctors[i].getParameterCount() > widest.getParameterCount()) {
+        widest = ctors[i];
+      }
+    }
+    return (Constructor<T>) widest;
+  }
 
   @SuppressWarnings({"nullness", "unchecked"})
   static <T> ExpressionEncoder<T> create(
@@ -142,6 +156,16 @@ public class EncoderFactory {
       return true;
     }
 
+    /**
+     * Setter required by the Scala compiler when implementing the {@link
+     * AgnosticEncoders.StructEncoder} trait from Java. Scala traits with concrete {@code val}
+     * fields generate a synthetic mangled setter ({@code <trait>$_setter_<field>_$eq}) that the
+     * trait's initializer invokes on subclasses. Java cannot declare {@code val} fields, so we
+     * implement {@link #isStruct()} directly above and accept-but-ignore the trait setter here. The
+     * mangled name is brittle and tied to Spark's Scala source layout — if Spark removes the {@code
+     * isStruct} field from {@code StructEncoder}, this method becomes dead code; if Spark renames
+     * it, compilation will fail and the new mangled name must be substituted.
+     */
     @Override
     public void
         org$apache$spark$sql$catalyst$encoders$AgnosticEncoders$StructEncoder$_setter_$isStruct_$eq(
