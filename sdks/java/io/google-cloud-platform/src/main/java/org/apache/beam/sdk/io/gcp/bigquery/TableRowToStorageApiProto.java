@@ -94,6 +94,10 @@ import org.joda.time.Days;
  */
 public class TableRowToStorageApiProto {
 
+  /**
+   * This class collects errors encountered while attempting to convert a json message into its
+   * matching protocol-buffer message.
+   */
   public static class ErrorCollector {
     private final List<SchemaConversionException> exceptions = Lists.newArrayList();
     private final Predicate<SchemaConversionException> shouldCollect;
@@ -542,6 +546,9 @@ public class TableRowToStorageApiProto {
               ? tableFieldSchema.getName()
               : String.join(".", prefix, tableFieldSchema.getName());
       hashCodes.add(SCHEMA_HASH_FUNCTION.hashString(name.toLowerCase(), StandardCharsets.UTF_8));
+      hashCodes.add(
+          SCHEMA_HASH_FUNCTION.hashString(
+              tableFieldSchema.getType().toString().toLowerCase(), StandardCharsets.UTF_8));
       hashCodes.add(SCHEMA_HASH_FUNCTION.hashInt(tableFieldSchema.getMode().getNumber()));
 
       if (tableFieldSchema.getType().equals(TableFieldSchema.Type.STRUCT)) {
@@ -716,6 +723,8 @@ public class TableRowToStorageApiProto {
                 .collect(Collectors.joining("."));
         return prefix.isEmpty() ? getName() : prefix + "." + getName();
       } else {
+        // We have a sentinal root node with the artificial name "root." Skip it as it's not
+        // actually part of the logical name.
         return "";
       }
     }

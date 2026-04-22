@@ -49,7 +49,10 @@ import org.joda.time.Instant;
 /**
  * This is a stateful DoFn that buffers elements that triggered table schema update. Once the table
  * schema has been updated, this reprocesses the messages and allows them to continue on through the
- * sink.
+ * sink. This DoFn receives messages from both {@link ConvertMessagesDoFn} and {@link
+ * PatchTableSchemaDoFn}. {@link ConvertMessagesDoFn} sends elements to be buffered. {@link
+ * PatchTableSchemaDoFn} sends a null element as a sentinal to indicate that the table has recently
+ * been patched, which triggers us to immediately try and reprocess the buffered elements.
  */
 public class SchemaUpdateHoldingFn<DestinationT extends @NonNull Object, ElementT>
     extends DoFn<

@@ -64,6 +64,7 @@ public class ConvertMessagesDoFn<DestinationT extends @NonNull Object, ElementT>
   private transient BigQueryServices.@Nullable DatasetService datasetServiceInternal = null;
   private transient BigQueryServices.@Nullable WriteStreamService writeStreamServiceInternal = null;
 
+  /** Keeps track of schema errors seen while converting messages. */
   static final class BufferedCollectorInformation {
     TableRowToStorageApiProto.@Nullable ErrorCollector collector = null;
     final TableSchema schema;

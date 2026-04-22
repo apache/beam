@@ -2554,4 +2554,142 @@ public class TableRowToStorageApiProtoTest {
     assertEquals(
         Long.toHexString(42L), msg.getField(fieldDescriptors.get(StorageApiCDC.CHANGE_SQN_COLUMN)));
   }
+
+  @Test
+  public void testTableSchemaHash() {
+    com.google.cloud.bigquery.storage.v1.TableSchema schema1 =
+        com.google.cloud.bigquery.storage.v1.TableSchema.newBuilder()
+            .addFields(
+                com.google.cloud.bigquery.storage.v1.TableFieldSchema.newBuilder()
+                    .setName("field1")
+                    .setType(com.google.cloud.bigquery.storage.v1.TableFieldSchema.Type.STRING)
+                    .setMode(com.google.cloud.bigquery.storage.v1.TableFieldSchema.Mode.NULLABLE)
+                    .build())
+            .addFields(
+                com.google.cloud.bigquery.storage.v1.TableFieldSchema.newBuilder()
+                    .setName("field2")
+                    .setType(com.google.cloud.bigquery.storage.v1.TableFieldSchema.Type.INT64)
+                    .setMode(com.google.cloud.bigquery.storage.v1.TableFieldSchema.Mode.REQUIRED)
+                    .build())
+            .build();
+
+    com.google.cloud.bigquery.storage.v1.TableSchema schemaNameDiff =
+        com.google.cloud.bigquery.storage.v1.TableSchema.newBuilder()
+            .addFields(
+                com.google.cloud.bigquery.storage.v1.TableFieldSchema.newBuilder()
+                    .setName("field1_diff")
+                    .setType(com.google.cloud.bigquery.storage.v1.TableFieldSchema.Type.STRING)
+                    .setMode(com.google.cloud.bigquery.storage.v1.TableFieldSchema.Mode.NULLABLE)
+                    .build())
+            .addFields(
+                com.google.cloud.bigquery.storage.v1.TableFieldSchema.newBuilder()
+                    .setName("field2")
+                    .setType(com.google.cloud.bigquery.storage.v1.TableFieldSchema.Type.INT64)
+                    .setMode(com.google.cloud.bigquery.storage.v1.TableFieldSchema.Mode.REQUIRED)
+                    .build())
+            .build();
+
+    com.google.cloud.bigquery.storage.v1.TableSchema schemaTypeDiff =
+        com.google.cloud.bigquery.storage.v1.TableSchema.newBuilder()
+            .addFields(
+                com.google.cloud.bigquery.storage.v1.TableFieldSchema.newBuilder()
+                    .setName("field1")
+                    .setType(com.google.cloud.bigquery.storage.v1.TableFieldSchema.Type.INT64)
+                    .setMode(com.google.cloud.bigquery.storage.v1.TableFieldSchema.Mode.NULLABLE)
+                    .build())
+            .addFields(
+                com.google.cloud.bigquery.storage.v1.TableFieldSchema.newBuilder()
+                    .setName("field2")
+                    .setType(com.google.cloud.bigquery.storage.v1.TableFieldSchema.Type.INT64)
+                    .setMode(com.google.cloud.bigquery.storage.v1.TableFieldSchema.Mode.REQUIRED)
+                    .build())
+            .build();
+
+    com.google.cloud.bigquery.storage.v1.TableSchema schemaModeDiff =
+        com.google.cloud.bigquery.storage.v1.TableSchema.newBuilder()
+            .addFields(
+                com.google.cloud.bigquery.storage.v1.TableFieldSchema.newBuilder()
+                    .setName("field1")
+                    .setType(com.google.cloud.bigquery.storage.v1.TableFieldSchema.Type.STRING)
+                    .setMode(com.google.cloud.bigquery.storage.v1.TableFieldSchema.Mode.REQUIRED)
+                    .build())
+            .addFields(
+                com.google.cloud.bigquery.storage.v1.TableFieldSchema.newBuilder()
+                    .setName("field2")
+                    .setType(com.google.cloud.bigquery.storage.v1.TableFieldSchema.Type.INT64)
+                    .setMode(com.google.cloud.bigquery.storage.v1.TableFieldSchema.Mode.REQUIRED)
+                    .build())
+            .build();
+
+    com.google.cloud.bigquery.storage.v1.TableSchema schemaOrderDiff =
+        com.google.cloud.bigquery.storage.v1.TableSchema.newBuilder()
+            .addFields(
+                com.google.cloud.bigquery.storage.v1.TableFieldSchema.newBuilder()
+                    .setName("field2")
+                    .setType(com.google.cloud.bigquery.storage.v1.TableFieldSchema.Type.INT64)
+                    .setMode(com.google.cloud.bigquery.storage.v1.TableFieldSchema.Mode.REQUIRED)
+                    .build())
+            .addFields(
+                com.google.cloud.bigquery.storage.v1.TableFieldSchema.newBuilder()
+                    .setName("field1")
+                    .setType(com.google.cloud.bigquery.storage.v1.TableFieldSchema.Type.STRING)
+                    .setMode(com.google.cloud.bigquery.storage.v1.TableFieldSchema.Mode.NULLABLE)
+                    .build())
+            .build();
+
+    byte[] hash1 = TableRowToStorageApiProto.tableSchemaHash(schema1);
+    byte[] hashNameDiff = TableRowToStorageApiProto.tableSchemaHash(schemaNameDiff);
+    byte[] hashTypeDiff = TableRowToStorageApiProto.tableSchemaHash(schemaTypeDiff);
+    byte[] hashModeDiff = TableRowToStorageApiProto.tableSchemaHash(schemaModeDiff);
+    byte[] hashOrderDiff = TableRowToStorageApiProto.tableSchemaHash(schemaOrderDiff);
+
+    assertFalse(Arrays.equals(hash1, hashNameDiff));
+    assertFalse(Arrays.equals(hash1, hashTypeDiff));
+    assertFalse(Arrays.equals(hash1, hashModeDiff));
+    assertFalse(Arrays.equals(hash1, hashOrderDiff));
+  }
+
+  @Test
+  public void testTableSchemaHashWithStruct() {
+    com.google.cloud.bigquery.storage.v1.TableSchema schemaWithStruct1 =
+        com.google.cloud.bigquery.storage.v1.TableSchema.newBuilder()
+            .addFields(
+                com.google.cloud.bigquery.storage.v1.TableFieldSchema.newBuilder()
+                    .setName("structField")
+                    .setType(com.google.cloud.bigquery.storage.v1.TableFieldSchema.Type.STRUCT)
+                    .setMode(com.google.cloud.bigquery.storage.v1.TableFieldSchema.Mode.NULLABLE)
+                    .addFields(
+                        com.google.cloud.bigquery.storage.v1.TableFieldSchema.newBuilder()
+                            .setName("nestedField")
+                            .setType(
+                                com.google.cloud.bigquery.storage.v1.TableFieldSchema.Type.STRING)
+                            .setMode(
+                                com.google.cloud.bigquery.storage.v1.TableFieldSchema.Mode.NULLABLE)
+                            .build())
+                    .build())
+            .build();
+
+    com.google.cloud.bigquery.storage.v1.TableSchema schemaWithStructDiff =
+        com.google.cloud.bigquery.storage.v1.TableSchema.newBuilder()
+            .addFields(
+                com.google.cloud.bigquery.storage.v1.TableFieldSchema.newBuilder()
+                    .setName("structField")
+                    .setType(com.google.cloud.bigquery.storage.v1.TableFieldSchema.Type.STRUCT)
+                    .setMode(com.google.cloud.bigquery.storage.v1.TableFieldSchema.Mode.NULLABLE)
+                    .addFields(
+                        com.google.cloud.bigquery.storage.v1.TableFieldSchema.newBuilder()
+                            .setName("nestedFieldDiff")
+                            .setType(
+                                com.google.cloud.bigquery.storage.v1.TableFieldSchema.Type.STRING)
+                            .setMode(
+                                com.google.cloud.bigquery.storage.v1.TableFieldSchema.Mode.NULLABLE)
+                            .build())
+                    .build())
+            .build();
+
+    byte[] hash1 = TableRowToStorageApiProto.tableSchemaHash(schemaWithStruct1);
+    byte[] hashDiff = TableRowToStorageApiProto.tableSchemaHash(schemaWithStructDiff);
+
+    assertFalse(Arrays.equals(hash1, hashDiff));
+  }
 }

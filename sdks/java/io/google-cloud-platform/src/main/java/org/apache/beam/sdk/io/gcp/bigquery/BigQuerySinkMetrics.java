@@ -47,7 +47,6 @@ public class BigQuerySinkMetrics {
   public static final String METRICS_NAMESPACE = "BigQuerySink";
 
   // Status codes
-  // Status codes
   public static final String UNKNOWN = Status.Code.UNKNOWN.toString();
   public static final String OK = Status.Code.OK.toString();
   static final String INTERNAL = "INTERNAL";

@@ -16,23 +16,6 @@
  * limitations under the License.
  */
 package org.apache.beam.sdk.io.gcp.bigquery;
-/*
- * Licensed to the Apache Software Foundation (ASF) under one
- * or more contributor license agreements.  See the NOTICE file
- * distributed with this work for additional information
- * regarding copyright ownership.  The ASF licenses this file
- * to you under the Apache License, Version 2.0 (the
- * "License"); you may not use this file except in compliance
- * with the License.  You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
 
 import com.google.cloud.bigquery.storage.v1.TableFieldSchema;
 import com.google.cloud.bigquery.storage.v1.TableSchema;
@@ -53,6 +36,7 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Sets;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.hash.HashCode;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
+/** Helper functions for SchemaUpdateOptions. */
 public class UpgradeTableSchema {
   public static TableRowToStorageApiProto.ErrorCollector newErrorCollector() {
     return new TableRowToStorageApiProto.ErrorCollector(
@@ -64,6 +48,12 @@ public class UpgradeTableSchema {
                 || e instanceof TableRowToStorageApiProto.SchemaMissingRequiredFieldException);
   }
 
+  /**
+   * Given a list of schema errors, generate a new schema that represents the minimal changes needed
+   * to the schema in order to validate the new record. We only generate the incremental schema here
+   * for performance reasons, as these schemas will be shuffled. The final transform will merge this
+   * back into the existing table schema before updating the table.
+   */
   public static TableSchema getIncrementalSchema(
       TableRowToStorageApiProto.ErrorCollector errorCollector, TableSchema oldSchema)
       throws TableRowToStorageApiProto.SchemaDoesntMatchException {
@@ -83,6 +73,7 @@ public class UpgradeTableSchema {
         String name = components.get(components.size() - 1);
         TableFieldSchema.Mode mode =
             e.isRepeated() ? TableFieldSchema.Mode.REPEATED : TableFieldSchema.Mode.NULLABLE;
+        // TODO(reuvenlax): Fix this so that arbitrary types can be selected.
         TableFieldSchema.Type type =
             e.isStruct() ? TableFieldSchema.Type.STRUCT : TableFieldSchema.Type.STRING;
         @Nullable
@@ -101,7 +92,12 @@ public class UpgradeTableSchema {
           // ensure that they are compatible.
           if (!oldValue.getType().equals(type)) {
             throw new TableRowToStorageApiProto.SchemaDoesntMatchException(
-                "Inconsistent types seen for field: " + e.getMissingField());
+                "Inconsistent types seen for field: "
+                    + e.getMissingField()
+                    + " "
+                    + oldValue.getType()
+                    + " v.s. "
+                    + type);
           }
         }
       } else if (schemaConversionException
@@ -140,8 +136,7 @@ public class UpgradeTableSchema {
       TableFieldSchema.Builder clonedField = null;
       if (fieldsToRelax.contains(fieldName)) {
         // Since we're only generating the incremental schema, existing fields are only examined if
-        // they change -
-        // i.e. they are relaxed.
+        // they change - e.g. they are relaxed.
         clonedField = fieldSchema.toBuilder();
         clonedField.setMode(TableFieldSchema.Mode.NULLABLE);
       }
@@ -218,7 +213,7 @@ public class UpgradeTableSchema {
     TableFieldSchema.Builder builder = f1.toBuilder().mergeFrom(f2);
     builder.clearFields();
 
-    // Handle mode weakening (REPEATED > NULLABLE > REQUIRED)
+    // Handle mode weakening (NULLABLE > REQUIRED)
     TableFieldSchema.Mode mode1 =
         f1.getMode() == TableFieldSchema.Mode.MODE_UNSPECIFIED
             ? TableFieldSchema.Mode.NULLABLE
@@ -228,14 +223,19 @@ public class UpgradeTableSchema {
             ? TableFieldSchema.Mode.NULLABLE
             : f2.getMode();
 
-    if (mode1 == TableFieldSchema.Mode.REPEATED || mode2 == TableFieldSchema.Mode.REPEATED) {
-      // Any field can be relaxed into a repeated field.
-      builder.setMode(TableFieldSchema.Mode.REPEATED);
-    } else if (mode1 == TableFieldSchema.Mode.NULLABLE || mode2 == TableFieldSchema.Mode.NULLABLE) {
-      // Any field can be relaxed into a nullable field.
+    boolean isNull =
+        ((mode1 == TableFieldSchema.Mode.NULLABLE) && (mode2 != TableFieldSchema.Mode.REPEATED))
+            || (mode2 == TableFieldSchema.Mode.NULLABLE && mode1 != TableFieldSchema.Mode.REPEATED);
+    if (isNull) {
       builder.setMode(TableFieldSchema.Mode.NULLABLE);
+    } else if (mode1.equals(mode2)) {
+      // Either merging REPEATED with REPEATED or REQUIRED with REQUIRED.
+      builder.setMode(mode1);
     } else {
-      builder.setMode(TableFieldSchema.Mode.REQUIRED);
+      throw new IllegalArgumentException(
+          String.format(
+              "Conflicting field modes for field '%s': %s vs %s",
+              f1.getName(), f1.getMode(), f2.getMode()));
     }
 
     // Recursively merge nested fields if the type is STRUCT (Record)

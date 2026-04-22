@@ -4210,9 +4210,8 @@ public class BigQueryIO {
             getSchemaUpdateOptions() != null && !getSchemaUpdateOptions().isEmpty();
         if (useSchemaUpdate) {
           checkArgument(
-              !getAutoSchemaUpdate(),
-              "Schema update options are not supported when using auto schema update");
-          checkArgument(!getIgnoreUnknownValues());
+              !getAutoSchemaUpdate() && !getIgnoreUnknownValues(),
+              "Schema update options are not supported when using auto schema update or ignore unknown values");
         }
         BigQueryOptions bqOptions = input.getPipeline().getOptions().as(BigQueryOptions.class);
         StorageApiDynamicDestinations<T, DestinationT> storageApiDynamicDestinations;
