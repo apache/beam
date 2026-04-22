@@ -92,11 +92,13 @@ jobs:
       - name: Run Dataflow Worker tests
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
-          gradle-command: :runners:google-cloud-dataflow-java:worker:test
+          gradle-command: build
           arguments: |
+            -p runners/google-cloud-dataflow-java/worker
             -PdisableSpotlessCheck=true \
             -PdisableCheckStyle=true \
             -PenableJacocoReport \
+            :runners:google-cloud-dataflow-java:worker:test
       - name: Archive JUnit Test Results
         uses: actions/upload-artifact@v4
         if: ${{ !success() }}
