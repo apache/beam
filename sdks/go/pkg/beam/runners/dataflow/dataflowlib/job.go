@@ -193,6 +193,8 @@ func Translate(ctx context.Context, p *pipepb.Pipeline, opts *JobOptions, worker
 				},
 				DiskSizeGb:                  opts.DiskSizeGb,
 				DiskType:                    opts.DiskType,
+				DiskProvisionedIops:            opts.DiskProvisionedIops,
+				DiskProvisionedThroughputMibps: opts.DiskProvisionedThroughputMibps,
 				IpConfiguration:             ipConfiguration,
 				Kind:                        "harness",
 				Packages:                    packages,
