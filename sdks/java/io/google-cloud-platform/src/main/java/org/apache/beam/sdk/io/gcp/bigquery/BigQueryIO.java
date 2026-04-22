@@ -4249,7 +4249,6 @@ public class BigQueryIO {
               !getIgnoreUnknownValues(),
               "ignoreUnknownValues not supported when using writeProtos."
                   + " Try setting withDirectWriteProtos(false)");
-          checkArgument(!useSchemaUpdate);
 
           storageApiDynamicDestinations =
               (StorageApiDynamicDestinations<T, DestinationT>)

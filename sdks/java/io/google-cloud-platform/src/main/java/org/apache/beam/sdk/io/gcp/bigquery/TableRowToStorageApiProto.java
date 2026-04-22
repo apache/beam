@@ -108,7 +108,6 @@ public class TableRowToStorageApiProto {
       this.shouldCollect = shouldCollect;
     }
 
-    // Returns true if the exception was collected.
     void collect(SchemaConversionException exception) throws SchemaConversionException {
       if (shouldCollect.test(exception)) {
         exceptions.add(exception);
@@ -546,9 +545,7 @@ public class TableRowToStorageApiProto {
               ? tableFieldSchema.getName()
               : String.join(".", prefix, tableFieldSchema.getName());
       hashCodes.add(SCHEMA_HASH_FUNCTION.hashString(name.toLowerCase(), StandardCharsets.UTF_8));
-      hashCodes.add(
-          SCHEMA_HASH_FUNCTION.hashString(
-              tableFieldSchema.getType().toString().toLowerCase(), StandardCharsets.UTF_8));
+      hashCodes.add(SCHEMA_HASH_FUNCTION.hashInt(tableFieldSchema.getType().getNumber()));
       hashCodes.add(SCHEMA_HASH_FUNCTION.hashInt(tableFieldSchema.getMode().getNumber()));
 
       if (tableFieldSchema.getType().equals(TableFieldSchema.Type.STRUCT)) {
