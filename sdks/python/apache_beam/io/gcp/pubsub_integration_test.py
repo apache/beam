@@ -231,7 +231,7 @@ class PubSubIntegrationTest(unittest.TestCase):
     from apache_beam.options.pipeline_options import PipelineOptions
     from apache_beam.options.pipeline_options import StandardOptions
     from apache_beam.transforms import Create
-    
+
     # Create test messages for batch mode
     test_messages = [
         PubsubMessage(b'batch_data001', {'batch_attr': 'value1'}),
@@ -322,7 +322,7 @@ class PubSubIntegrationTest(unittest.TestCase):
           '(see https://github.com/apache/beam/issues/36201). '
           'Use apache_beam.io.external.gcp.pubsub.WriteToPubSub '
           'with publish_with_ordering_key=True instead.')
-      
+
     from apache_beam.options.pipeline_options import PipelineOptions
     from apache_beam.options.pipeline_options import StandardOptions
     from apache_beam.transforms import Create
