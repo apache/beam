@@ -295,6 +295,13 @@ class PythonProviderDepsTest(unittest.TestCase):
       after = yaml_provider.PypiExpansionService._key('base', [pkg])
       self.assertNotEqual(before, after)
 
+  @mock.patch('apache_beam.yaml.yaml_provider.beam_version', '2.99.0.dev')
+  def test_create_venv_to_clone_uses_dev_venv(self):
+    base_python = os.path.join('/tmp', 'venv', 'bin', 'python')
+    self.assertEqual(
+        yaml_provider.PypiExpansionService._create_venv_to_clone(base_python),
+        os.path.join('/tmp', 'venv'))
+
 
 class JoinUrlOrFilepathTest(unittest.TestCase):
   def test_join_url_relative_path(self):

@@ -32,6 +32,7 @@ import shutil
 import subprocess
 import sys
 import tempfile
+import time
 import urllib.parse
 import warnings
 from collections.abc import Callable
@@ -1387,7 +1388,15 @@ class PypiExpansionService:
         # Avoid hard dependency for environments where this is never used.
         import clonevirtualenv
         clonable_venv = cls._create_venv_to_clone(base_python)
-        clonevirtualenv.clone_virtualenv(clonable_venv, venv)
+        for attempt in range(3):
+          try:
+            clonevirtualenv.clone_virtualenv(clonable_venv, venv)
+            break
+          except shutil.Error:
+            if attempt == 2:
+              raise
+            shutil.rmtree(venv, ignore_errors=True)
+            time.sleep(1)
         venv_pip = os.path.join(venv, 'bin', 'pip')
         # Issue warning when installing packages from PyPI
         _LOGGER.warning(
@@ -1412,13 +1421,7 @@ class PypiExpansionService:
 
   @classmethod
   def _create_venv_to_clone(cls, base_python: str) -> str:
-    # For '.dev', the default clone source is the venv that owns base_python.
-    # In CI that is often the active tox/sandbox tree; clonevirtualenv can
-    # race with ephemeral paths (tmp/, caches) under that tree. Use the
-    # scratch clonable venv in CI instead. Locally, keep cloning the dev venv
-    # for speed.
-    _ci = os.environ.get('CI', '').lower() in ('true', '1', 'yes')
-    if '.dev' in beam_version and not _ci:
+    if '.dev' in beam_version:
       base_venv = os.path.dirname(os.path.dirname(base_python))
       print('Cloning dev environment from', base_venv)
       return base_venv
