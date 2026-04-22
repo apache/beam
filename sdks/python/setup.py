@@ -171,7 +171,7 @@ milvus_dependency = ['pymilvus>=2.5.10,<3.0.0']
 # ml_test is pinned to versions that require protobuf<5 on Python 3.10. Those
 # cannot be installed together, so ADK deps stay out of ml_test (use ml_base).
 ml_base_core = [
-    'embeddings>=0.0.4', # 0.0.3 crashes setuptools
+    'embeddings>=0.0.4',  # 0.0.3 crashes setuptools
     'onnxruntime',
     # onnx 1.12–1.13 cap protobuf in ways that trigger huge backtracking with
     # Beam[gcp]+ml_test; pip can fall back to onnx 1.11 sdist which needs cmake.
@@ -303,8 +303,7 @@ def generate_external_transform_wrappers():
   except subprocess.CalledProcessError as err:
     raise RuntimeError(
         'Could not generate external transform wrappers due to '
-        'error: %s',
-        err.stderr)
+        'error: {}'.format(err.stderr))
 
 
 def get_portability_package_data():
