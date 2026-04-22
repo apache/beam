@@ -98,6 +98,8 @@ jobs:
             -PdisableSpotlessCheck=true \
             -PdisableCheckStyle=true \
             -PenableJacocoReport \
+            :runners:google-cloud-dataflow-java:worker:build \
+            :runners:google-cloud-dataflow-java:worker:windmill:build \
             :runners:google-cloud-dataflow-java:worker:test
       - name: Archive JUnit Test Results
         uses: actions/upload-artifact@v4
