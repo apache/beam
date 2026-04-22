@@ -42,15 +42,12 @@ public abstract class WindmillEndpoints {
   public enum Type {
     UNKNOWN,
     CLOUDPATH,
-    BORG,
     DIRECTPATH;
 
     static Type fromProto(Windmill.WorkerMetadataResponse.EndpointType protoType) {
       switch (protoType) {
         case CLOUDPATH:
           return CLOUDPATH;
-        case BORG:
-          return BORG;
         case DIRECTPATH:
           return DIRECTPATH;
         default:
