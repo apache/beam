@@ -678,13 +678,16 @@ class PipelineTest(unittest.TestCase):
       self.assertIsInstance(out.side_outputs.dropped, beam.pvalue.PCollection)
       assert_that(out, equal_to([2, 4]), label='assert_main_output')
       assert_that(
-          out.side_outputs.dropped, equal_to([1, 3]), label='assert_side_output')
+          out.side_outputs.dropped,
+          equal_to([1, 3]),
+          label='assert_side_output')
       assert_that(chained, equal_to([20, 40]), label='assert_chained_output')
 
     applied_transform = _all_applied_transforms(
         pipeline)['FilterWithSideOutputs']
     self.assertIs(applied_transform.outputs[None], out)
-    self.assertIs(applied_transform.outputs['dropped'], out.side_outputs.dropped)
+    self.assertIs(
+        applied_transform.outputs['dropped'], out.side_outputs.dropped)
 
   def test_pcollection_side_outputs_wraps_with_outputs(self):
     pipeline = beam.Pipeline()
@@ -695,7 +698,8 @@ class PipelineTest(unittest.TestCase):
 
     applied_transform = _all_applied_transforms(pipeline)['MyFilter']
     self.assertEqual({None, 'dropped'}, set(applied_transform.outputs))
-    self.assertIs(applied_transform.outputs['dropped'], out.side_outputs.dropped)
+    self.assertIs(
+        applied_transform.outputs['dropped'], out.side_outputs.dropped)
 
   def test_pcollection_side_outputs_rejects_foreign_pcollection(self):
     class ExposeForeignSideOutput(beam.PTransform):
@@ -710,8 +714,8 @@ class PipelineTest(unittest.TestCase):
     source = pipeline | 'Source' >> beam.Create([1, 2, 3])
     foreign = pipeline | 'Foreign' >> beam.Create([10])
 
-    with self.assertRaisesRegex(
-        ValueError, r"Side output 'other' must be produced by"):
+    with self.assertRaisesRegex(ValueError,
+                                r"Side output 'other' must be produced by"):
       _ = source | 'ExposeForeignSideOutput' >> ExposeForeignSideOutput(foreign)
 
   def test_pcollection_side_outputs_rejects_tag_collision(self):
@@ -740,7 +744,8 @@ class PipelineTest(unittest.TestCase):
         | 'NeedsCollisionReplacement' >> OriginalDroppedOutput())
 
     with self.assertRaisesRegex(
-        ValueError, r"Side output tag 'dropped' conflicts with an existing output"):
+        ValueError,
+        r"Side output tag 'dropped' conflicts with an existing output"):
       pipeline.replace_all([CollisionOverride()])
 
   def test_pcollection_side_outputs_allows_idempotent_tag_collision(self):
@@ -809,7 +814,8 @@ class PipelineTest(unittest.TestCase):
     applied_transform = _all_applied_transforms(pipeline)['NeedsReplacement']
     self.assertEqual({None, 'dropped'}, set(applied_transform.outputs))
 
-  def test_pcollection_side_outputs_not_registered_for_nested_return_values(self):
+  def test_pcollection_side_outputs_not_registered_for_nested_return_values(
+      self):
     class NestedReturnWithSideOutputs(beam.PTransform):
       def expand(self, pcoll):
         split = pcoll | 'Split' >> beam.ParDo(_SplitOddDoFn()).with_outputs(
@@ -828,8 +834,9 @@ class PipelineTest(unittest.TestCase):
         pipeline)['NestedReturnWithSideOutputs']
     self.assertEqual({'main'}, set(applied_transform.outputs))
     self.assertNotIn('dropped', applied_transform.outputs)
-    self.assertIs(result['main'].side_outputs.dropped,
-                  result['main']._side_outputs['dropped'])
+    self.assertIs(
+        result['main'].side_outputs.dropped,
+        result['main']._side_outputs['dropped'])
 
   def test_filter_typehint(self):
     # Check input type hint and output type hint are both specified.

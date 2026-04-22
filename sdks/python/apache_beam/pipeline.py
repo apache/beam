@@ -883,7 +883,8 @@ class Pipeline(HasDisplayData):
           tag = '%s_%d' % (base, counter)
 
         current.add_output(result, tag)
-        if result is pvalueish_result and isinstance(result, pvalue.PCollection):
+        if result is pvalueish_result and isinstance(result,
+                                                     pvalue.PCollection):
           _register_top_level_side_outputs(current, result)
 
       if (type_options is not None and
