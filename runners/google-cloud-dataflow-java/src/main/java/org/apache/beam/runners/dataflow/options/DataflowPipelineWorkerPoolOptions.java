@@ -196,9 +196,9 @@ public interface DataflowPipelineWorkerPoolOptions extends GcpOptions, FileStagi
   /** Provisioned IOPS for the worker disk. */
   @Description("Provisioned IOPS for the worker disk.")
   @Nullable
-  Integer getDiskProvisionedIops();
+  Long getDiskProvisionedIops();
 
-  void setDiskProvisionedIops(Integer value);
+  void setDiskProvisionedIops(Long value);
 
   /** Provisioned throughput in MiB/s for the worker disk. */
   @Description("Provisioned throughput in MiB/s for the worker disk.")
