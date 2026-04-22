@@ -1246,7 +1246,8 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
     // Multi-language pipelines and pipelines that include upgrades should automatically be upgraded
     // to Dataflow Portable Runner.
     if (DataflowRunner.isMultiLanguagePipeline(pipeline) || includesTransformUpgrades(pipeline)) {
-      if (!firstNonNull(options.getExperiments(), Collections.emptyList()).contains("use_runner_v2")) {
+      if (!firstNonNull(options.getExperiments(), Collections.emptyList())
+          .contains("use_runner_v2")) {
         LOG.info(
             "Automatically enabling Dataflow Portable Runner since the pipeline used cross-language"
                 + " transforms or pipeline needed a transform upgrade.");
@@ -1486,7 +1487,8 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
               .collect(Collectors.toList());
 
       if (minCpuFlags.isEmpty()) {
-        ExperimentalOptions.addExperiment(dataflowOptions, "min_cpu_platform=" + dataflowOptions.getMinCpuPlatform());
+        ExperimentalOptions.addExperiment(
+            dataflowOptions, "min_cpu_platform=" + dataflowOptions.getMinCpuPlatform());
       } else {
         LOG.warn(
             "Flag min_cpu_platform is defined in both top level PipelineOption, "
@@ -1522,8 +1524,7 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
     // enable upload_graph when the graph is too large
     byte[] jobGraphBytes = DataflowPipelineTranslator.jobToString(newJob).getBytes(UTF_8);
     int jobGraphByteSize = jobGraphBytes.length;
-    if (jobGraphByteSize >= CREATE_JOB_REQUEST_LIMIT_BYTES
-        && !useUnifiedWorker(options)) {
+    if (jobGraphByteSize >= CREATE_JOB_REQUEST_LIMIT_BYTES && !useUnifiedWorker(options)) {
       ExperimentalOptions.addExperiment(options, "upload_graph");
       LOG.info(
           "The job graph size ({} in bytes) is larger than {}. Automatically add "
@@ -1532,7 +1533,7 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
           CREATE_JOB_REQUEST_LIMIT_BYTES);
     }
 
-    if (useUnifiedWorker(options)) {
+    if (hasExperiment(options, "upload_graph") && useUnifiedWorker(options)) {
       ArrayList<String> experiments = new ArrayList<>(options.getExperiments());
       while (experiments.remove("upload_graph")) {}
       options.setExperiments(experiments);
