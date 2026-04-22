@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.metrics;
 
 import org.apache.beam.sdk.lineage.LineageBase;
+import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 
 /**
@@ -29,7 +30,8 @@ class BoundedTrieMetricsLineage implements LineageBase {
 
   private final BoundedTrie metric;
 
-  BoundedTrieMetricsLineage(Lineage.LineageDirection direction) {
+  @SuppressWarnings("unused")
+  public BoundedTrieMetricsLineage(PipelineOptions options, Lineage.LineageDirection direction) {
     Lineage.Type type =
         (direction == Lineage.LineageDirection.SOURCE)
             ? Lineage.Type.SOURCEV2

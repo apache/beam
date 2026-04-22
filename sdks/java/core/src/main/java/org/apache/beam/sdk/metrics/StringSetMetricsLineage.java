@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.metrics;
 
 import org.apache.beam.sdk.lineage.LineageBase;
+import org.apache.beam.sdk.options.PipelineOptions;
 
 /**
  * Lineage implementation that stores lineage information in {@link StringSet} metrics.
@@ -28,7 +29,8 @@ class StringSetMetricsLineage implements LineageBase {
 
   private final StringSet metric;
 
-  StringSetMetricsLineage(Lineage.LineageDirection direction) {
+  @SuppressWarnings("unused")
+  public StringSetMetricsLineage(PipelineOptions options, Lineage.LineageDirection direction) {
     Lineage.Type type =
         (direction == Lineage.LineageDirection.SOURCE) ? Lineage.Type.SOURCE : Lineage.Type.SINK;
     this.metric = Metrics.stringSet(Lineage.LINEAGE_NAMESPACE, type.toString());

@@ -115,8 +115,8 @@ public class Lineage {
     LOG.debug("Using default Metrics-based lineage for direction {}", direction);
     LineageBase defaultLineage =
         MetricsFlag.lineageRollupEnabled()
-            ? new BoundedTrieMetricsLineage(direction)
-            : new StringSetMetricsLineage(direction);
+            ? new BoundedTrieMetricsLineage(options, direction)
+            : new StringSetMetricsLineage(options, direction);
     return new Lineage(defaultLineage);
   }
 
