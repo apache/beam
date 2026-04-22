@@ -82,6 +82,7 @@
 ## Deprecations
 
 * X behavior is deprecated and will be removed in X versions ([#X](https://github.com/apache/beam/issues/X)).
+* Dropped Java 8 support ([#31678](https://github.com/apache/beam/issues/31678)).
 
 ## Bugfixes
 
