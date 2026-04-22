@@ -52,34 +52,34 @@ import (
 // TODO(herohde) 5/16/2017: the Dataflow flags should match the other SDKs.
 
 var (
-	endpoint               = flag.String("dataflow_endpoint", "", "Dataflow endpoint (optional).")
-	stagingLocation        = flag.String("staging_location", "", "GCS staging location (required).")
-	workerHarnessImage     = flag.String("worker_harness_container_image", "", "Worker harness container image (optional). Deprecated in favor of the sdk_container_image flag.")
-	image                  = flag.String("sdk_container_image", "", "Worker harness container image (optional).")
-	labels                 = flag.String("labels", "", "JSON-formatted map[string]string of job labels (optional).")
-	serviceAccountEmail    = flag.String("service_account_email", "", "Service account email (optional).")
-	numWorkers             = flag.Int64("num_workers", 0, "Number of workers (optional).")
-	workerHarnessThreads   = flag.Int64("number_of_worker_harness_threads", 0, "The number of threads per each worker harness process (optional).")
-	maxNumWorkers          = flag.Int64("max_num_workers", 0, "Maximum number of workers during scaling (optional).")
+	endpoint                       = flag.String("dataflow_endpoint", "", "Dataflow endpoint (optional).")
+	stagingLocation                = flag.String("staging_location", "", "GCS staging location (required).")
+	workerHarnessImage             = flag.String("worker_harness_container_image", "", "Worker harness container image (optional). Deprecated in favor of the sdk_container_image flag.")
+	image                          = flag.String("sdk_container_image", "", "Worker harness container image (optional).")
+	labels                         = flag.String("labels", "", "JSON-formatted map[string]string of job labels (optional).")
+	serviceAccountEmail            = flag.String("service_account_email", "", "Service account email (optional).")
+	numWorkers                     = flag.Int64("num_workers", 0, "Number of workers (optional).")
+	workerHarnessThreads           = flag.Int64("number_of_worker_harness_threads", 0, "The number of threads per each worker harness process (optional).")
+	maxNumWorkers                  = flag.Int64("max_num_workers", 0, "Maximum number of workers during scaling (optional).")
 	diskSizeGb                     = flag.Int64("disk_size_gb", 0, "Size of root disk for VMs, in GB (optional).")
 	diskType                       = flag.String("disk_type", "", "Type of root disk for VMs (optional).")
 	diskProvisionedIops            = flag.Int64("disk_provisioned_iops", 0, "Provisioned IOPS for the worker disk (optional).")
 	diskProvisionedThroughputMibps = flag.Int64("disk_provisioned_throughput_mibps", 0, "Provisioned throughput in MiB/s for the worker disk (optional).")
 	autoscalingAlgorithm           = flag.String("autoscaling_algorithm", "", "Autoscaling mode to use (optional).")
-	zone                   = flag.String("zone", "", "GCP zone (optional)")
-	kmsKey                 = flag.String("dataflow_kms_key", "", "The Cloud KMS key identifier used to encrypt data at rest (optional).")
-	network                = flag.String("network", "", "GCP network (optional)")
-	subnetwork             = flag.String("subnetwork", "", "GCP subnetwork (optional)")
-	noUsePublicIPs         = flag.Bool("no_use_public_ips", false, "Workers must not use public IP addresses (optional)")
-	usePublicIPs           = flag.Bool("use_public_ips", true, "Workers must use public IP addresses (optional)")
-	tempLocation           = flag.String("temp_location", "", "Temp location (optional)")
-	workerMachineType      = flag.String("worker_machine_type", "", "GCE machine type (optional)")
-	machineType            = flag.String("machine_type", "", "alias of worker_machine_type (optional)")
-	minCPUPlatform         = flag.String("min_cpu_platform", "", "GCE minimum cpu platform (optional)")
-	workerRegion           = flag.String("worker_region", "", "Dataflow worker region (optional)")
-	workerZone             = flag.String("worker_zone", "", "Dataflow worker zone (optional)")
-	dataflowServiceOptions = flag.String("dataflow_service_options", "", "Comma separated list of additional job modes and configurations (optional)")
-	flexRSGoal             = flag.String("flexrs_goal", "", "Which Flexible Resource Scheduling mode to run in (optional)")
+	zone                           = flag.String("zone", "", "GCP zone (optional)")
+	kmsKey                         = flag.String("dataflow_kms_key", "", "The Cloud KMS key identifier used to encrypt data at rest (optional).")
+	network                        = flag.String("network", "", "GCP network (optional)")
+	subnetwork                     = flag.String("subnetwork", "", "GCP subnetwork (optional)")
+	noUsePublicIPs                 = flag.Bool("no_use_public_ips", false, "Workers must not use public IP addresses (optional)")
+	usePublicIPs                   = flag.Bool("use_public_ips", true, "Workers must use public IP addresses (optional)")
+	tempLocation                   = flag.String("temp_location", "", "Temp location (optional)")
+	workerMachineType              = flag.String("worker_machine_type", "", "GCE machine type (optional)")
+	machineType                    = flag.String("machine_type", "", "alias of worker_machine_type (optional)")
+	minCPUPlatform                 = flag.String("min_cpu_platform", "", "GCE minimum cpu platform (optional)")
+	workerRegion                   = flag.String("worker_region", "", "Dataflow worker region (optional)")
+	workerZone                     = flag.String("worker_zone", "", "Dataflow worker zone (optional)")
+	dataflowServiceOptions         = flag.String("dataflow_service_options", "", "Comma separated list of additional job modes and configurations (optional)")
+	flexRSGoal                     = flag.String("flexrs_goal", "", "Which Flexible Resource Scheduling mode to run in (optional)")
 	// TODO(https://github.com/apache/beam/issues/21604) Turn this on once TO_STRING is implemented
 	// enableHotKeyLogging    = flag.Bool("enable_hot_key_logging", false, "Specifies that when a hot key is detected in the pipeline, the literal, human-readable key is printed in the user's Cloud Logging project (optional).")
 
@@ -107,35 +107,35 @@ func init() {
 // should be added to this map.
 // Don't filter temp_location since we need this included in PipelineOptions to correctly upload heap dumps.
 var flagFilter = map[string]bool{
-	"dataflow_endpoint":              true,
-	"staging_location":               true,
-	"worker_harness_container_image": true,
-	"sdk_container_image":            true,
-	"labels":                         true,
-	"service_account_email":          true,
-	"num_workers":                    true,
-	"max_num_workers":                true,
+	"dataflow_endpoint":                 true,
+	"staging_location":                  true,
+	"worker_harness_container_image":    true,
+	"sdk_container_image":               true,
+	"labels":                            true,
+	"service_account_email":             true,
+	"num_workers":                       true,
+	"max_num_workers":                   true,
 	"disk_size_gb":                      true,
 	"disk_type":                         true,
 	"disk_provisioned_iops":             true,
 	"disk_provisioned_throughput_mibps": true,
 	"autoscaling_algorithm":             true,
-	"zone":                           true,
-	"network":                        true,
-	"subnetwork":                     true,
-	"no_use_public_ips":              true,
-	"template_location":              true,
-	"worker_machine_type":            true,
-	"machine_type":                   true,
-	"min_cpu_platform":               true,
-	"dataflow_worker_jar":            true,
-	"worker_region":                  true,
-	"worker_zone":                    true,
-	"teardown_policy":                true,
-	"cpu_profiling":                  true,
-	"session_recording":              true,
-	"update":                         true,
-	"transform_name_mapping":         true,
+	"zone":                              true,
+	"network":                           true,
+	"subnetwork":                        true,
+	"no_use_public_ips":                 true,
+	"template_location":                 true,
+	"worker_machine_type":               true,
+	"machine_type":                      true,
+	"min_cpu_platform":                  true,
+	"dataflow_worker_jar":               true,
+	"worker_region":                     true,
+	"worker_zone":                       true,
+	"teardown_policy":                   true,
+	"cpu_profiling":                     true,
+	"session_recording":                 true,
+	"update":                            true,
+	"transform_name_mapping":            true,
 
 	// Job Options flags
 	"endpoint":                 true,
@@ -383,39 +383,39 @@ func getJobOptions(ctx context.Context, streaming bool) (*dataflowlib.JobOptions
 
 	beam.PipelineOptions.LoadOptionsFromFlags(flagFilter)
 	opts := &dataflowlib.JobOptions{
-		Name:                   jobopts.GetJobName(),
-		Streaming:              streaming,
-		Experiments:            experiments,
-		DataflowServiceOptions: dfServiceOptions,
-		Options:                beam.PipelineOptions.Export(),
-		Project:                project,
-		Region:                 region,
-		Zone:                   *zone,
-		KmsKey:                 *kmsKey,
-		Network:                *network,
-		Subnetwork:             *subnetwork,
-		NoUsePublicIPs:         *noUsePublicIPs,
-		NumWorkers:             *numWorkers,
-		MaxNumWorkers:          *maxNumWorkers,
-		WorkerHarnessThreads:   *workerHarnessThreads,
+		Name:                           jobopts.GetJobName(),
+		Streaming:                      streaming,
+		Experiments:                    experiments,
+		DataflowServiceOptions:         dfServiceOptions,
+		Options:                        beam.PipelineOptions.Export(),
+		Project:                        project,
+		Region:                         region,
+		Zone:                           *zone,
+		KmsKey:                         *kmsKey,
+		Network:                        *network,
+		Subnetwork:                     *subnetwork,
+		NoUsePublicIPs:                 *noUsePublicIPs,
+		NumWorkers:                     *numWorkers,
+		MaxNumWorkers:                  *maxNumWorkers,
+		WorkerHarnessThreads:           *workerHarnessThreads,
 		DiskSizeGb:                     *diskSizeGb,
 		DiskType:                       *diskType,
 		DiskProvisionedIops:            *diskProvisionedIops,
 		DiskProvisionedThroughputMibps: *diskProvisionedThroughputMibps,
 		Algorithm:                      *autoscalingAlgorithm,
-		FlexRSGoal:             *flexRSGoal,
-		MachineType:            *firstNonEmpty(workerMachineType, machineType),
-		Labels:                 jobLabels,
-		ServiceAccountEmail:    *serviceAccountEmail,
-		TempLocation:           *tempLocation,
-		TemplateLocation:       *templateLocation,
-		Worker:                 *jobopts.WorkerBinary,
-		WorkerRegion:           *workerRegion,
-		WorkerZone:             *workerZone,
-		TeardownPolicy:         *teardownPolicy,
-		ContainerImage:         getContainerImage(ctx),
-		Update:                 *update,
-		TransformNameMapping:   updateTransformMapping,
+		FlexRSGoal:                     *flexRSGoal,
+		MachineType:                    *firstNonEmpty(workerMachineType, machineType),
+		Labels:                         jobLabels,
+		ServiceAccountEmail:            *serviceAccountEmail,
+		TempLocation:                   *tempLocation,
+		TemplateLocation:               *templateLocation,
+		Worker:                         *jobopts.WorkerBinary,
+		WorkerRegion:                   *workerRegion,
+		WorkerZone:                     *workerZone,
+		TeardownPolicy:                 *teardownPolicy,
+		ContainerImage:                 getContainerImage(ctx),
+		Update:                         *update,
+		TransformNameMapping:           updateTransformMapping,
 	}
 	if opts.TempLocation == "" {
 		opts.TempLocation = gcsx.Join(*stagingLocation, "tmp")
