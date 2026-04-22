@@ -34,7 +34,7 @@ import (
 	"sync"
 	"syscall"
 	"time"
-
+git 
 	"github.com/apache/beam/sdks/v2/go/container/tools"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/artifact"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime/xlangx/expansionx"
@@ -318,7 +318,7 @@ for _, workerId := range workerIds {
     go func(workerId string) {
         defer wg.Done()
 
-        workerCtx := grpcx.WriteWorkerID(context.Background(), workerId)
+       workerCtx := grpcx.WriteWorkerID(context.WithoutCancel(ctx), workerId)
 
         // Create a separate logger per worker so that each worker initializes
         // its own Fn logging stream with the correct worker_id metadata.
