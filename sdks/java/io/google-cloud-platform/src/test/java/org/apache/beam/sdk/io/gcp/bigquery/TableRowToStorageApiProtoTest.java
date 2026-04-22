@@ -2638,11 +2638,13 @@ public class TableRowToStorageApiProtoTest {
             .build();
 
     byte[] hash1 = TableRowToStorageApiProto.tableSchemaHash(schema1);
+    byte[] hash2 = TableRowToStorageApiProto.tableSchemaHash(schema1);
     byte[] hashNameDiff = TableRowToStorageApiProto.tableSchemaHash(schemaNameDiff);
     byte[] hashTypeDiff = TableRowToStorageApiProto.tableSchemaHash(schemaTypeDiff);
     byte[] hashModeDiff = TableRowToStorageApiProto.tableSchemaHash(schemaModeDiff);
     byte[] hashOrderDiff = TableRowToStorageApiProto.tableSchemaHash(schemaOrderDiff);
 
+    assertTrue(Arrays.equals(hash1, hash2));
     assertFalse(Arrays.equals(hash1, hashNameDiff));
     assertFalse(Arrays.equals(hash1, hashTypeDiff));
     assertFalse(Arrays.equals(hash1, hashModeDiff));

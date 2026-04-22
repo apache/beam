@@ -20,12 +20,16 @@ package org.apache.beam.sdk.io.gcp.bigquery;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertThrows;
+import static org.junit.Assert.assertTrue;
 
 import com.google.cloud.bigquery.storage.v1.TableFieldSchema;
 import com.google.cloud.bigquery.storage.v1.TableSchema;
 import com.google.protobuf.DescriptorProtos;
 import com.google.protobuf.Descriptors;
+import com.google.protobuf.DynamicMessage;
+import com.google.protobuf.UnknownFieldSet;
 import java.nio.charset.StandardCharsets;
+import org.apache.beam.sdk.util.Preconditions;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Sets;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.hash.Hashing;
 import org.junit.Test;
@@ -102,6 +106,7 @@ public class UpgradeTableSchemaTest {
     TableSchema incrementalSchema = UpgradeTableSchema.getIncrementalSchema(collector, oldSchema);
     assertEquals(1, incrementalSchema.getFieldsCount());
     assertEquals("required_field", incrementalSchema.getFields(0).getName());
+    assertEquals(TableFieldSchema.Type.STRING, incrementalSchema.getFields(0).getType());
     assertEquals(TableFieldSchema.Mode.NULLABLE, incrementalSchema.getFields(0).getMode());
   }
 
@@ -296,9 +301,28 @@ public class UpgradeTableSchemaTest {
     byte[] hash2 =
         Hashing.goodFastHash(32).hashBytes("schema2".getBytes(StandardCharsets.UTF_8)).asBytes();
 
+    DescriptorProtos.DescriptorProto descriptorProto =
+        DescriptorProtos.DescriptorProto.newBuilder()
+            .setName("TestMessage")
+            .addField(
+                DescriptorProtos.FieldDescriptorProto.newBuilder()
+                    .setName("field1")
+                    .setNumber(1)
+                    .setType(DescriptorProtos.FieldDescriptorProto.Type.TYPE_STRING)
+                    .setLabel(DescriptorProtos.FieldDescriptorProto.Label.LABEL_OPTIONAL)
+                    .build())
+            .build();
+    Descriptors.Descriptor descriptor =
+        TableRowToStorageApiProto.wrapDescriptorProto(descriptorProto);
+
+    DynamicMessage msg =
+        DynamicMessage.newBuilder(descriptor)
+            .setField(Preconditions.checkStateNotNull(descriptor.findFieldByNumber(1)), "abcd")
+            .build();
+
     StorageApiWritePayload payload =
         new AutoValue_StorageApiWritePayload.Builder()
-            .setPayload(new byte[0])
+            .setPayload(msg.toByteArray())
             .setSchemaHash(hash1)
             .build();
 
@@ -311,17 +335,26 @@ public class UpgradeTableSchemaTest {
     assertFalse(UpgradeTableSchema.isPayloadSchemaOutOfDate(payload, () -> hash1, null));
 
     // 3. Different hash, but message doesn't have unknown fields (initialized and empty)
-    DescriptorProtos.FileDescriptorProto fileDescriptorProto =
-        DescriptorProtos.FileDescriptorProto.newBuilder()
-            .addMessageType(
-                DescriptorProtos.DescriptorProto.newBuilder().setName("TestMessage").build())
-            .build();
-    Descriptors.FileDescriptor fileDescriptor =
-        Descriptors.FileDescriptor.buildFrom(
-            fileDescriptorProto, new Descriptors.FileDescriptor[0]);
-    Descriptors.Descriptor descriptor = fileDescriptor.getMessageTypes().get(0);
-
     assertFalse(
         UpgradeTableSchema.isPayloadSchemaOutOfDate(payload, () -> hash2, () -> descriptor));
+
+    // 4. Different hash with unknown fields.
+    DynamicMessage unknownFieldSet =
+        DynamicMessage.newBuilder(descriptor)
+            .setField(descriptor.findFieldByNumber(1), "abcd")
+            .setUnknownFields(
+                UnknownFieldSet.newBuilder()
+                    .addField(2, UnknownFieldSet.Field.newBuilder().addFixed64(42).build())
+                    .build())
+            .build();
+
+    StorageApiWritePayload payloadWithUnknown =
+        new AutoValue_StorageApiWritePayload.Builder()
+            .setPayload(unknownFieldSet.toByteArray())
+            .setSchemaHash(hash1)
+            .build();
+    assertTrue(
+        UpgradeTableSchema.isPayloadSchemaOutOfDate(
+            payloadWithUnknown, () -> hash2, () -> descriptor));
   }
 }

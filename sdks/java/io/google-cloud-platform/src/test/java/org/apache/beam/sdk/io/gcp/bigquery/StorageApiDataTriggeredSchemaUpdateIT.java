@@ -264,15 +264,6 @@ public class StorageApiDataTriggeredSchemaUpdateIT {
 
     p.run().waitUntilFinish();
 
-    List<TableRow> response =
-        BQ_CLIENT.queryUnflattened(
-            String.format("SELECT * FROM [%s] ORDER BY number", tableSpec),
-            PROJECT,
-            true,
-            false,
-            bigQueryLocation);
-    System.err.println("FULL RESULT " + response);
-
     // Verification
     verifyTableSchemaUpdated(tableSpec, evolvedSchema);
     List<VerificationInfo> verifications =
