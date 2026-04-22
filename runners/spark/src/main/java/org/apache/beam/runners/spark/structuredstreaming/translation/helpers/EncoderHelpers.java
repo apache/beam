@@ -153,7 +153,7 @@ public class EncoderHelpers {
   public static <T> Encoder<T> encoderOf(Class<? super T> cls) {
     Encoder<T> enc = getOrCreateDefaultEncoder(cls);
     if (enc == null) {
-      throw new IllegalArgumentException("No default coder available for class " + cls);
+      throw new IllegalArgumentException("No default encoder available for class " + cls);
     }
     return enc;
   }
