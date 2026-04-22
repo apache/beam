@@ -62,25 +62,6 @@ try:
 except ImportError:
   MiniRacer = None
 
-
-class _JsThreadContext:
-  def __init__(self):
-    self._local = threading.local()
-
-  def get_funcs(self):
-    if not hasattr(self._local, 'funcs'):
-      self._local.funcs = {}
-    return self._local.funcs
-
-  def __getstate__(self):
-    return {}
-
-  def __setstate__(self, state):
-    self._local = threading.local()
-
-
-_js_contexts = _JsThreadContext()
-
 _JS_DATE_ISO_REGEX = re.compile(
     r'^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$')
 
@@ -240,10 +221,90 @@ def js_to_py(obj):
     return obj
 
 
+class JsFilterDoFn(beam.DoFn):
+  def __init__(self, udf_code, function_name):
+    self.udf_code = udf_code
+    self.function_name = function_name
+    self.ctx = None
+
+  def setup(self):
+    self.ctx = MiniRacer()
+    self.ctx.eval(self.udf_code)
+
+  def process(self, element):
+    row_as_dict = py_value_to_js_dict(element)
+    result = self.ctx.call(self.function_name, row_as_dict)
+    result = js_to_py(result)
+    if result:
+      yield element
+
+
+class JsMapToFieldsDoFn(beam.DoFn):
+  def __init__(self, fields, original_fields, input_schema):
+    self.fields = fields
+    self.original_fields = original_fields
+    self.input_schema = input_schema
+    self.ctx = None
+    self.field_funcs = {}
+    self.passthrough_fields = []
+
+  def setup(self):
+    self.ctx = MiniRacer()
+    script = []
+    for name, expr in self.fields.items():
+      if isinstance(expr, str) and expr in self.input_schema:
+        self.passthrough_fields.append((name, expr))
+        continue
+
+      if isinstance(expr, str):
+        expr = {'expression': expr}
+
+      if 'expression' in expr:
+        e = expr['expression']
+        code = f"var func_{name} = (__row__) => {{ " + " ".join([
+            f"const {n} = __row__.{n};" for n in self.original_fields if n in e
+        ]) + f" return ({e}); }}"
+        script.append(code)
+        self.field_funcs[name] = f"func_{name}"
+      elif 'callable' in expr:
+        code = f"var func_{name} = {expr['callable']}"
+        script.append(code)
+        self.field_funcs[name] = f"func_{name}"
+      elif 'path' in expr and 'name' in expr:
+        path = expr['path']
+        func_name = expr['name']
+        udf_code = FileSystems.open(path).read().decode()
+        script.append(udf_code)
+        self.field_funcs[name] = func_name
+
+    if script:
+      self.ctx.eval("\n".join(script))
+
+  def process(self, element):
+    row_as_dict = py_value_to_js_dict(element)
+    result_dict = {}
+
+    # Handle passthrough fields
+    for name, src in self.passthrough_fields:
+      result_dict[name] = row_as_dict.get(src)
+
+    # Handle JS fields
+    for name, func_name in self.field_funcs.items():
+      res = self.ctx.call(func_name, row_as_dict)
+      result_dict[name] = js_to_py(res)
+
+    yield dicts_to_rows(result_dict)
+
+
 # TODO(yaml) Consider adding optional language version parameter to support
 #  ECMAScript 5 and 6
-def _expand_javascript_mapping_func(
-    original_fields, expression=None, callable=None, path=None, name=None):
+def _get_javascript_udf_code(
+    original_fields,
+    function_name="func",
+    expression=None,
+    callable=None,
+    path=None,
+    name=None):
 
   if MiniRacer is None:
     raise ValueError(
@@ -255,39 +316,17 @@ def _expand_javascript_mapping_func(
     if not path.endswith('.js'):
       raise ValueError(f'File "{path}" is not a valid .js file.')
     udf_code = FileSystems.open(path).read().decode()
+    return udf_code, name
   elif expression:
-    udf_code = f"var func = (__row__) => {{ " + " ".join([
+    udf_code = f"var {function_name} = (__row__) => {{ " + " ".join([
         f"const {n} = __row__.{n};" for n in original_fields if n in expression
     ]) + f" return ({expression}); }}"
+    return udf_code, function_name
   elif callable:
-    udf_code = f"var func = {callable}"
-
-  udf_key = str(uuid.uuid4())
-
-  def js_wrapper(row):
-    funcs = _js_contexts.get_funcs()
-
-    if udf_key not in funcs:
-      ctx = MiniRacer()
-      ctx.eval(udf_code)
-      # We use ctx.call for efficiency.
-      # Note: This might return strings for Date objects instead of datetime.
-      if expression or callable:
-        funcs[udf_key] = lambda x: ctx.call("func", x)
-      else:
-        funcs[udf_key] = lambda x: ctx.call(name, x)
-
-    func = funcs[udf_key]
-    row_as_dict = py_value_to_js_dict(row)
-    try:
-      result = func(row_as_dict)
-    except Exception as exn:
-      raise RuntimeError(
-          f"Error evaluating JavaScript expression: {exn}") from exn
-    result = js_to_py(result)
-    return dicts_to_rows(result)
-
-  return js_wrapper
+    udf_code = f"var {function_name} = {callable}"
+    return udf_code, function_name
+  else:
+    raise ValueError("Must specify expression, callable, or path.")
 
 
 def _expand_python_mapping_func(
@@ -394,14 +433,10 @@ def _as_callable(original_fields, expr, transform_name, language, input_schema):
   explicit_type = expr.pop('output_type', None)
   _check_mapping_arguments(transform_name, **expr)
 
-  if language == "javascript":
-    func = _expand_javascript_mapping_func(original_fields, **expr)
-  elif language in ("python", "generic", None):
+  if language in ("python", "generic", None):
     func = _expand_python_mapping_func(original_fields, **expr)
   else:
-    raise ValueError(
-        f'Unknown language for mapping transform: {language}. '
-        'Supported languages are "javascript" and "python."')
+    raise ValueError(f'Language {language} not supported in this context.')
 
   if explicit_type:
     if isinstance(explicit_type, str):
@@ -640,8 +675,17 @@ def _PyJsFilter(
     error_handling: Whether and where to output records that throw errors when
       the above expressions are evaluated.
   """  # pylint: disable=line-too-long
-  keep_fn = _as_callable_for_pcoll(pcoll, keep, "keep", language or 'generic')
-  return pcoll | beam.Filter(keep_fn)
+  if language == 'javascript':
+    if isinstance(keep, str):
+      keep = {'expression': keep}
+    udf_code, function_name = _get_javascript_udf_code(
+        [f.name for f in schema_from_element_type(pcoll.element_type).fields],
+        **keep
+    )
+    return pcoll | beam.ParDo(JsFilterDoFn(udf_code, function_name))
+  else:
+    keep_fn = _as_callable_for_pcoll(pcoll, keep, "keep", language or 'generic')
+    return pcoll | beam.Filter(keep_fn)
 
 
 def is_expr(v):
@@ -713,10 +757,12 @@ def _PyJsMapToFields(
   """  # pylint: disable=line-too-long
   input_schema, fields = normalize_fields(
       pcoll, fields, drop or (), append, language=language or 'generic')
+  original_fields = list(input_schema.keys())
+
   if language == 'javascript':
     options.YamlOptions.check_enabled(pcoll.pipeline, 'javascript')
-
-  original_fields = list(input_schema.keys())
+    return pcoll | beam.ParDo(
+        JsMapToFieldsDoFn(fields, original_fields, input_schema))
 
   return pcoll | beam.Select(
       **{
