@@ -150,7 +150,8 @@ class Environment(object):
       # add the flag if 'no_use_multiple_sdk_containers' is present.
       # TODO: Cleanup use_multiple_sdk_containers once we deprecate Python SDK
       # till version 2.4.
-      if ('no_use_multiple_sdk_containers' not in (self.debug_options.experiments or [])):
+      if ('no_use_multiple_sdk_containers'
+          not in (self.debug_options.experiments or [])):
         self.debug_options.add_experiment('use_multiple_sdk_containers')
     # FlexRS
     if self.google_cloud_options.flexrs_goal == 'COST_OPTIMIZED':
