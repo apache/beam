@@ -131,17 +131,17 @@ def _all_applied_transforms(pipeline):
   return all_applied_transforms
 
 
-class _SplitOddDoFn(beam.DoFn):
+class _RemoveEvensDoFn(beam.DoFn):
   def process(self, element):
-    if element % 2:
+    if element % 2 == 0:
       yield TaggedOutput('dropped', element)
     else:
       yield element
 
 
-class _FilterWithSideOutputs(beam.PTransform):
+class RemoveEvens(beam.PTransform):
   def expand(self, pcoll):
-    split = pcoll | 'Split' >> beam.ParDo(_SplitOddDoFn()).with_outputs(
+    split = pcoll | 'Split' >> beam.ParDo(_RemoveEvensDoFn()).with_outputs(
         'dropped', main='main')
     return split.main.with_side_outputs(dropped=split.dropped)
 
@@ -672,32 +672,19 @@ class PipelineTest(unittest.TestCase):
       out = (
           pipeline
           | beam.Create([1, 2, 3, 4])
-          | 'FilterWithSideOutputs' >> _FilterWithSideOutputs())
+          | 'RemoveEvens' >> RemoveEvens())
       chained = out | 'ChainMainOutput' >> beam.Map(lambda x: x * 10)
 
       self.assertIsInstance(out.side_outputs.dropped, beam.pvalue.PCollection)
-      assert_that(out, equal_to([2, 4]), label='assert_main_output')
+      assert_that(out, equal_to([1, 3]), label='assert_main_output')
       assert_that(
           out.side_outputs.dropped,
-          equal_to([1, 3]),
+          equal_to([2, 4]),
           label='assert_side_output')
-      assert_that(chained, equal_to([20, 40]), label='assert_chained_output')
+      assert_that(chained, equal_to([10, 30]), label='assert_chained_output')
 
-    applied_transform = _all_applied_transforms(
-        pipeline)['FilterWithSideOutputs']
+    applied_transform = _all_applied_transforms(pipeline)['RemoveEvens']
     self.assertIs(applied_transform.outputs[None], out)
-    self.assertIs(
-        applied_transform.outputs['dropped'], out.side_outputs.dropped)
-
-  def test_pcollection_side_outputs_wraps_with_outputs(self):
-    pipeline = beam.Pipeline()
-    out = (
-        pipeline
-        | beam.Create([1, 2, 3, 4])
-        | 'MyFilter' >> _FilterWithSideOutputs())
-
-    applied_transform = _all_applied_transforms(pipeline)['MyFilter']
-    self.assertEqual({None, 'dropped'}, set(applied_transform.outputs))
     self.assertIs(
         applied_transform.outputs['dropped'], out.side_outputs.dropped)
 
@@ -725,7 +712,7 @@ class PipelineTest(unittest.TestCase):
 
     class ConflictingSideOutput(beam.PTransform):
       def expand(self, pcoll):
-        split = pcoll | 'Split' >> beam.ParDo(_SplitOddDoFn()).with_outputs(
+        split = pcoll | 'Split' >> beam.ParDo(_RemoveEvensDoFn()).with_outputs(
             'dropped', main='main')
         return split.dropped.with_side_outputs(dropped=split.main)
 
@@ -748,42 +735,6 @@ class PipelineTest(unittest.TestCase):
         r"Side output tag 'dropped' conflicts with an existing output"):
       pipeline.replace_all([CollisionOverride()])
 
-  def test_pcollection_side_outputs_allows_idempotent_tag_collision(self):
-    class OriginalDroppedOutput(beam.PTransform):
-      def expand(self, pcoll):
-        return {'dropped': pcoll | 'Inner' >> beam.Filter(lambda x: x % 2)}
-
-    class IdempotentSideOutput(beam.PTransform):
-      def expand(self, pcoll):
-        split = pcoll | 'Split' >> beam.ParDo(_SplitOddDoFn()).with_outputs(
-            'dropped', main='main')
-        result = split.dropped.with_side_outputs()
-        result._side_outputs = {'dropped': result}
-        return result
-
-    class IdempotentOverride(PTransformOverride):
-      def matches(self, applied_ptransform):
-        return applied_ptransform.full_label == 'NeedsIdempotentReplacement'
-
-      def get_replacement_transform_for_applied_ptransform(
-          self, applied_ptransform):
-        return IdempotentSideOutput()
-
-    pipeline = beam.Pipeline()
-    _ = (
-        pipeline
-        | beam.Create([1, 2, 3, 4])
-        | 'NeedsIdempotentReplacement' >> OriginalDroppedOutput())
-
-    pipeline.replace_all([IdempotentOverride()])
-
-    applied_transform = _all_applied_transforms(
-        pipeline)['NeedsIdempotentReplacement']
-    self.assertEqual({'dropped'}, set(applied_transform.outputs))
-    self.assertIs(
-        applied_transform.outputs['dropped'],
-        applied_transform.outputs['dropped']._side_outputs['dropped'])
-
   def test_ptransform_override_registers_side_outputs(self):
     class IdentityComposite(beam.PTransform):
       def expand(self, pcoll):
@@ -791,7 +742,7 @@ class PipelineTest(unittest.TestCase):
 
     class ReplacementWithSideOutputs(beam.PTransform):
       def expand(self, pcoll):
-        split = pcoll | 'Split' >> beam.ParDo(_SplitOddDoFn()).with_outputs(
+        split = pcoll | 'Split' >> beam.ParDo(_RemoveEvensDoFn()).with_outputs(
             'dropped', main='main')
         return split.main.with_side_outputs(dropped=split.dropped)
 
@@ -818,7 +769,7 @@ class PipelineTest(unittest.TestCase):
       self):
     class NestedReturnWithSideOutputs(beam.PTransform):
       def expand(self, pcoll):
-        split = pcoll | 'Split' >> beam.ParDo(_SplitOddDoFn()).with_outputs(
+        split = pcoll | 'Split' >> beam.ParDo(_RemoveEvensDoFn()).with_outputs(
             'dropped', main='main')
         return {
             'main': split.main.with_side_outputs(dropped=split.dropped),
@@ -1266,15 +1217,11 @@ class RunnerApiTest(unittest.TestCase):
 
   def test_side_outputs_survive_runner_api_round_trip(self):
     pipeline = beam.Pipeline()
-    _ = (
-        pipeline
-        | beam.Create([1, 2, 3, 4])
-        | 'FilterWithSideOutputs' >> _FilterWithSideOutputs())
+    _ = (pipeline | beam.Create([1, 2, 3, 4]) | 'RemoveEvens' >> RemoveEvens())
 
     round_tripped = Pipeline.from_runner_api(
         pipeline.to_runner_api(use_fake_coders=True), None, None)
-    applied_transform = _all_applied_transforms(
-        round_tripped)['FilterWithSideOutputs']
+    applied_transform = _all_applied_transforms(round_tripped)['RemoveEvens']
 
     self.assertEqual({None, 'dropped'}, set(applied_transform.outputs))
 

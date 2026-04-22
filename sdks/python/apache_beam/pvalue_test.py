@@ -90,20 +90,17 @@ class PCollectionSideOutputsTest(unittest.TestCase):
         r"No side output named 'missing'\. Available: \['dropped', 'kept'\]"):
       _ = pcoll.side_outputs.missing
 
-  def test_with_side_outputs_rejects_non_pcollection(self):
+  def test_with_side_outputs_validation(self):
     pcoll = PCollection(beam.Pipeline())
+    foreign = PCollection(beam.Pipeline())
 
     with self.assertRaisesRegex(TypeError,
                                 r"Side output 'dropped' must be a PCollection"):
       pcoll.with_side_outputs(dropped='not a PCollection')
 
-  def test_with_side_outputs_rejects_different_pipeline(self):
-    pcoll = PCollection(beam.Pipeline())
-    dropped = PCollection(beam.Pipeline())
-
     with self.assertRaisesRegex(
         ValueError, r"Side output 'dropped' must belong to the same pipeline"):
-      pcoll.with_side_outputs(dropped=dropped)
+      pcoll.with_side_outputs(dropped=foreign)
 
   def test_side_outputs_empty_container_behavior(self):
     pcoll = PCollection(beam.Pipeline())
