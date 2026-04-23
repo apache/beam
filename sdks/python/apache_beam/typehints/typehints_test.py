@@ -1615,6 +1615,7 @@ class DecoratorHelpers(TypeHintTestCase):
 
   def test_is_consistent_with_disable_beartype(self):
     import unittest.mock
+
     from apache_beam.options.pipeline_options import PipelineOptions
     from apache_beam.options.pipeline_options_context import scoped_pipeline_options
 
