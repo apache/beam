@@ -56,6 +56,9 @@ import org.apache.beam.sdk.options.Validation;
 import org.apache.beam.sdk.transforms.Count;
 import org.apache.beam.sdk.transforms.Distinct;
 import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.DoFn.Element;
+import org.apache.beam.sdk.transforms.DoFn.OutputReceiver;
+import org.apache.beam.sdk.transforms.DoFn.SideInput;
 import org.apache.beam.sdk.transforms.Flatten;
 import org.apache.beam.sdk.transforms.Keys;
 import org.apache.beam.sdk.transforms.PTransform;
@@ -236,9 +239,11 @@ public class TfIdf {
               ParDo.of(
                   new DoFn<KV<URI, String>, KV<URI, String>>() {
                     @ProcessElement
-                    public void processElement(ProcessContext c) {
-                      URI uri = c.element().getKey();
-                      String line = c.element().getValue();
+                    public void processElement(
+                        @Element KV<URI, String> element,
+                        OutputReceiver<KV<URI, String>> receiver) {
+                      URI uri = element.getKey();
+                      String line = element.getValue();
                       for (String word : line.split("\\W+", -1)) {
                         // Log INFO messages when the word “love” is found.
                         if ("love".equalsIgnoreCase(word)) {
@@ -246,7 +251,7 @@ public class TfIdf {
                         }
 
                         if (!word.isEmpty()) {
-                          c.output(KV.of(uri, word.toLowerCase()));
+                          receiver.output(KV.of(uri, word.toLowerCase()));
                         }
                       }
                     }
@@ -281,11 +286,13 @@ public class TfIdf {
               ParDo.of(
                   new DoFn<KV<KV<URI, String>, Long>, KV<URI, KV<String, Long>>>() {
                     @ProcessElement
-                    public void processElement(ProcessContext c) {
-                      URI uri = c.element().getKey().getKey();
-                      String word = c.element().getKey().getValue();
-                      Long occurrences = c.element().getValue();
-                      c.output(KV.of(uri, KV.of(word, occurrences)));
+                    public void processElement(
+                        @Element KV<KV<URI, String>, Long> element,
+                        OutputReceiver<KV<URI, KV<String, Long>>> receiver) {
+                      URI uri = element.getKey().getKey();
+                      String word = element.getKey().getValue();
+                      Long occurrences = element.getValue();
+                      receiver.output(KV.of(uri, KV.of(word, occurrences)));
                     }
                   }));
 
@@ -322,16 +329,18 @@ public class TfIdf {
               ParDo.of(
                   new DoFn<KV<URI, CoGbkResult>, KV<String, KV<URI, Double>>>() {
                     @ProcessElement
-                    public void processElement(ProcessContext c) {
-                      URI uri = c.element().getKey();
-                      Long wordTotal = c.element().getValue().getOnly(wordTotalsTag);
+                    public void processElement(
+                        @Element KV<URI, CoGbkResult> element,
+                        OutputReceiver<KV<String, KV<URI, Double>>> receiver) {
+                      URI uri = element.getKey();
+                      Long wordTotal = element.getValue().getOnly(wordTotalsTag);
 
                       for (KV<String, Long> wordAndCount :
-                          c.element().getValue().getAll(wordCountsTag)) {
+                          element.getValue().getAll(wordCountsTag)) {
                         String word = wordAndCount.getKey();
                         Long wordCount = wordAndCount.getValue();
                         Double termFrequency = wordCount.doubleValue() / wordTotal.doubleValue();
-                        c.output(KV.of(word, KV.of(uri, termFrequency)));
+                        receiver.output(KV.of(word, KV.of(uri, termFrequency)));
                       }
                     }
                   }));
@@ -348,17 +357,19 @@ public class TfIdf {
               ParDo.of(
                       new DoFn<KV<String, Long>, KV<String, Double>>() {
                         @ProcessElement
-                        public void processElement(ProcessContext c) {
-                          String word = c.element().getKey();
-                          Long documentCount = c.element().getValue();
-                          Long documentTotal = c.sideInput(totalDocuments);
+                        public void processElement(
+                            @SideInput("totalDocuments") Long documentTotal,
+                            @Element KV<String, Long> element,
+                            OutputReceiver<KV<String, Double>> receiver) {
+                          String word = element.getKey();
+                          Long documentCount = element.getValue();
                           Double documentFrequency =
                               documentCount.doubleValue() / documentTotal.doubleValue();
 
-                          c.output(KV.of(word, documentFrequency));
+                          receiver.output(KV.of(word, documentFrequency));
                         }
                       })
-                  .withSideInputs(totalDocuments));
+                  .withSideInput("totalDocuments", totalDocuments));
 
       // Join the term frequency and document frequency
       // collections, each keyed on the word.
@@ -380,15 +391,17 @@ public class TfIdf {
               ParDo.of(
                   new DoFn<KV<String, CoGbkResult>, KV<String, KV<URI, Double>>>() {
                     @ProcessElement
-                    public void processElement(ProcessContext c) {
-                      String word = c.element().getKey();
-                      Double df = c.element().getValue().getOnly(dfTag);
+                    public void processElement(
+                        @Element KV<String, CoGbkResult> element,
+                        OutputReceiver<KV<String, KV<URI, Double>>> receiver) {
+                      String word = element.getKey();
+                      Double df = element.getValue().getOnly(dfTag);
 
-                      for (KV<URI, Double> uriAndTf : c.element().getValue().getAll(tfTag)) {
+                      for (KV<URI, Double> uriAndTf : element.getValue().getAll(tfTag)) {
                         URI uri = uriAndTf.getKey();
                         Double tf = uriAndTf.getValue();
                         Double tfIdf = tf * Math.log(1 / df);
-                        c.output(KV.of(word, KV.of(uri, tfIdf)));
+                        receiver.output(KV.of(word, KV.of(uri, tfIdf)));
                       }
                     }
                   }));
@@ -419,13 +432,15 @@ public class TfIdf {
               ParDo.of(
                   new DoFn<KV<String, KV<URI, Double>>, String>() {
                     @ProcessElement
-                    public void processElement(ProcessContext c) {
-                      c.output(
+                    public void processElement(
+                        @Element KV<String, KV<URI, Double>> element,
+                        OutputReceiver<String> receiver) {
+                      receiver.output(
                           String.format(
                               "%s,\t%s,\t%f",
-                              c.element().getKey(),
-                              c.element().getValue().getKey(),
-                              c.element().getValue().getValue()));
+                              element.getKey(),
+                              element.getValue().getKey(),
+                              element.getValue().getValue()));
                     }
                   }))
           .apply(TextIO.write().to(output).withSuffix(".csv"));
