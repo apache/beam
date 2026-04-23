@@ -40,6 +40,7 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
+import org.apache.beam.sdk.io.FileSystem;
 import org.apache.beam.sdk.io.FileSystems;
 import org.apache.beam.sdk.io.TextIO;
 import org.apache.beam.sdk.io.fs.CreateOptions.StandardCreateOptions;
@@ -496,7 +497,7 @@ public class HadoopFileSystemTest {
   private void verifyLineage(String uri, List<String> expected) {
     HadoopResourceId resourceId = new HadoopResourceId(URI.create(uri));
     Lineage mockLineage = mock(Lineage.class);
-    fileSystem.reportLineage(resourceId, mockLineage);
+    fileSystem.reportLineage(resourceId, mockLineage, FileSystem.LineageLevel.FILE);
     verify(mockLineage, times(1)).add("hdfs", expected, "/");
   }
 

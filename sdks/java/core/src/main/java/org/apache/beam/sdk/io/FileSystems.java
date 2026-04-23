@@ -408,7 +408,10 @@ public class FileSystems {
    * <p>- Number of directory<=100, report directory names (one level up);
    *
    * <p>- Otherwise, report top level only.
+   *
+   * <p>For internal use only by Beam-provided file-based connectors; not a stable public API.
    */
+  @Internal
   public static void reportSourceLineage(List<ResourceId> resourceIds) {
     final int maxLineageTargets = 100;
     if (resourceIds.size() <= maxLineageTargets) {
