@@ -338,11 +338,6 @@ class HadoopFileSystem extends FileSystem<HadoopResourceId> {
   }
 
   @Override
-  protected void reportLineage(HadoopResourceId resourceId, Lineage lineage) {
-    reportLineage(resourceId, lineage, LineageLevel.FILE);
-  }
-
-  @Override
   protected void reportLineage(HadoopResourceId resourceId, Lineage lineage, LineageLevel level) {
     URI uri = resourceId.toPath().toUri();
     ImmutableList.Builder<String> segments = ImmutableList.builder();
