@@ -66,6 +66,7 @@ In addition, type-hints can be used to implement run-time type-checking via the
 # pytype: skip-file
 
 import copy
+import functools
 import logging
 import types
 import typing
@@ -1485,7 +1486,14 @@ _KNOWN_PRIMITIVE_TYPES.update({
 })
 
 
-def is_consistent_with(sub, base, use_beartype: bool = False) -> bool:
+@functools.lru_cache(maxsize=128)
+def _is_beartype_disabled(options):
+  from apache_beam.options.pipeline_options import TypeOptions
+  return options.view_as(TypeOptions).disable_beartype
+
+
+def is_consistent_with(
+    sub, base, use_beartype: typing.Optional[bool] = None) -> bool:
   """Checks whether sub a is consistent with base.
 
   This is according to the terminology of PEP 483/484.  This relationship is
@@ -1494,6 +1502,14 @@ def is_consistent_with(sub, base, use_beartype: bool = False) -> bool:
   relation, but also handles the special Any type as well as type
   parameterization.
   """
+  if use_beartype is None:
+    from apache_beam.options.pipeline_options_context import get_pipeline_options
+    options = get_pipeline_options()
+    if options:
+      use_beartype = not _is_beartype_disabled(options)
+    else:
+      use_beartype = True
+
   from apache_beam.pvalue import Row
   from apache_beam.typehints.row_type import RowTypeConstraint
   if sub == base:

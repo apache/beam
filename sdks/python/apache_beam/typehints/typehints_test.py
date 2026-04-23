@@ -1613,6 +1613,32 @@ class DecoratorHelpers(TypeHintTestCase):
     self.assertTrue(is_consistent_with(int, pipe_union_2))
     self.assertTrue(is_consistent_with(float, pipe_union_2))
 
+  def test_is_consistent_with_disable_beartype(self):
+    import unittest.mock
+    from apache_beam.options.pipeline_options import PipelineOptions
+    from apache_beam.options.pipeline_options_context import scoped_pipeline_options
+
+    with unittest.mock.patch(
+        'apache_beam.typehints.typehints.is_subhint') as mock_is_subhint:
+      mock_is_subhint.return_value = True
+
+      class A:
+        pass
+
+      class B(A):
+        pass
+
+      options = PipelineOptions([])
+      with scoped_pipeline_options(options):
+        typehints.is_consistent_with(B, A)
+        self.assertTrue(mock_is_subhint.called)
+        mock_is_subhint.reset_mock()
+
+      options = PipelineOptions(['--disable_beartype'])
+      with scoped_pipeline_options(options):
+        typehints.is_consistent_with(B, A)
+        self.assertFalse(mock_is_subhint.called)
+
   def test_positional_arg_hints(self):
     self.assertEqual(typehints.Any, _positional_arg_hints('x', {}))
     self.assertEqual(int, _positional_arg_hints('x', {'x': int}))

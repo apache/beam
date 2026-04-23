@@ -887,6 +887,11 @@ class TypeOptions(PipelineOptions):
         help='Disable type checking at pipeline construction '
         'time')
     parser.add_argument(
+        '--disable_beartype',
+        default=False,
+        action='store_true',
+        help='Disable the use of beartype for type checking.')
+    parser.add_argument(
         '--runtime_type_check',
         default=False,
         action='store_true',
