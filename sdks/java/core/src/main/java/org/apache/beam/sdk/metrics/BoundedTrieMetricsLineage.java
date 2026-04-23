@@ -15,28 +15,32 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.options;
+package org.apache.beam.sdk.metrics;
 
-import com.google.auto.service.AutoService;
-import org.apache.beam.sdk.lineage.LineageOptions;
+import org.apache.beam.sdk.lineage.LineageBase;
+import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 
 /**
- * A {@link PipelineOptionsRegistrar} containing the {@link PipelineOptions} subclasses available by
- * default.
+ * Lineage implementation that stores lineage information in {@link BoundedTrie} metrics.
+ *
+ * <p>Used when {@link Metrics.MetricsFlag#lineageRollupEnabled()} is true.
  */
-@AutoService(PipelineOptionsRegistrar.class)
-public class DefaultPipelineOptionsRegistrar implements PipelineOptionsRegistrar {
+class BoundedTrieMetricsLineage implements LineageBase {
+
+  private final BoundedTrie metric;
+
+  @SuppressWarnings("unused")
+  public BoundedTrieMetricsLineage(PipelineOptions options, Lineage.LineageDirection direction) {
+    Lineage.Type type =
+        (direction == Lineage.LineageDirection.SOURCE)
+            ? Lineage.Type.SOURCEV2
+            : Lineage.Type.SINKV2;
+    this.metric = Metrics.boundedTrie(Lineage.LINEAGE_NAMESPACE, type.toString());
+  }
+
   @Override
-  public Iterable<Class<? extends PipelineOptions>> getPipelineOptions() {
-    return ImmutableList.<Class<? extends PipelineOptions>>builder()
-        .add(PipelineOptions.class)
-        .add(ApplicationNameOptions.class)
-        .add(StreamingOptions.class)
-        .add(ExperimentalOptions.class)
-        .add(SdkHarnessOptions.class)
-        .add(PortablePipelineOptions.class)
-        .add(LineageOptions.class)
-        .build();
+  public void add(Iterable<String> rollupSegments) {
+    metric.add(ImmutableList.copyOf(rollupSegments));
   }
 }
