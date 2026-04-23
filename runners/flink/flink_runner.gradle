@@ -32,9 +32,16 @@ def overrides(versions, type, base_path, group='java') {
   ["${base_path}/src/${type}/${group}"] + versions.collect { "${base_path}/${it}/src/${type}/${group}" } + ["./src/${type}/${group}"]
 }
 
-def all_versions = flink_versions.split(",")
-
-def previous_versions = all_versions.findAll { it < flink_major }
+def all_versions = flink_versions.split(",").collect { it.trim() }
+// Determine version order by list position rather than string comparison so two-digit
+// minors (e.g. "1.20") sort correctly relative to "1.18" / "1.19".
+def flink_major_index = all_versions.indexOf(flink_major)
+if (flink_major_index < 0) {
+  throw new GradleException(
+      "flink_major='${flink_major}' is not listed in flink_versions='${flink_versions}' " +
+      "(see root gradle.properties).")
+}
+def previous_versions = flink_major_index > 0 ? all_versions.subList(0, flink_major_index) : []
 
 // Version specific code overrides.
 def main_source_overrides = overrides(previous_versions, "main", base_path)
@@ -106,7 +113,7 @@ def copyTestResourcesOverrides = tasks.register('copyTestResourcesOverrides', Co
   it.duplicatesStrategy DuplicatesStrategy.INCLUDE
 }
 
-def use_override = (flink_major != all_versions.first())
+def use_override = (flink_major_index > 0)
 def sourceBase = "${project.projectDir}/../src"
 
 if (use_override) {
