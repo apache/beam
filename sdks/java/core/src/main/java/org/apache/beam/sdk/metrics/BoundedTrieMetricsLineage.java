@@ -30,6 +30,7 @@ class BoundedTrieMetricsLineage implements LineageBase {
 
   private final BoundedTrie metric;
 
+  @SuppressWarnings("unused")
   public BoundedTrieMetricsLineage(PipelineOptions options, Lineage.LineageDirection direction) {
     Lineage.Type type =
         (direction == Lineage.LineageDirection.SOURCE)
