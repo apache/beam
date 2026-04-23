@@ -31,15 +31,29 @@ import scala.Option;
 import scala.reflect.ClassTag;
 
 public class EncoderFactory {
-  // default constructor to reflectively create static invoke expressions
+  // Resolve the Scala case-class primary constructor (the one with the most parameters).
+  // Constructor ordering returned by Class.getConstructors() is JVM-defined and not stable
+  // across Spark versions, so we pick the widest constructor explicitly and then dispatch on
+  // parameter count below to pick the right argument shape per Spark version.
   private static final Constructor<StaticInvoke> STATIC_INVOKE_CONSTRUCTOR =
-      (Constructor<StaticInvoke>) StaticInvoke.class.getConstructors()[0];
+      primaryConstructor(StaticInvoke.class);
 
-  private static final Constructor<Invoke> INVOKE_CONSTRUCTOR =
-      (Constructor<Invoke>) Invoke.class.getConstructors()[0];
+  private static final Constructor<Invoke> INVOKE_CONSTRUCTOR = primaryConstructor(Invoke.class);
 
   private static final Constructor<NewInstance> NEW_INSTANCE_CONSTRUCTOR =
-      (Constructor<NewInstance>) NewInstance.class.getConstructors()[0];
+      primaryConstructor(NewInstance.class);
+
+  @SuppressWarnings("unchecked")
+  private static <T> Constructor<T> primaryConstructor(Class<T> cls) {
+    Constructor<?>[] ctors = cls.getConstructors();
+    Constructor<?> widest = ctors[0];
+    for (int i = 1; i < ctors.length; i++) {
+      if (ctors[i].getParameterCount() > widest.getParameterCount()) {
+        widest = ctors[i];
+      }
+    }
+    return (Constructor<T>) widest;
+  }
 
   static <T> ExpressionEncoder<T> create(
       Expression serializer, Expression deserializer, Class<? super T> clazz) {
