@@ -56,6 +56,7 @@ import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TupleTag;
+import org.apache.beam.sdk.values.ValueKind;
 import org.apache.beam.sdk.values.WindowedValue;
 import org.apache.beam.sdk.values.WindowedValues;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.util.concurrent.Uninterruptibles;
@@ -521,6 +522,11 @@ public class SplittableParDoNaiveBounded {
       }
 
       @Override
+      public ValueKind valueKind() {
+        return outerContext.valueKind();
+      }
+
+      @Override
       public Object sideInput(String tagId) {
         PCollectionView<?> view = sideInputMapping.get(tagId);
         if (view == null) {
@@ -547,6 +553,11 @@ public class SplittableParDoNaiveBounded {
       @Override
       public CausedByDrain causedByDrain(DoFn<InputT, OutputT> doFn) {
         return outerContext.causedByDrain();
+      }
+
+      @Override
+      public ValueKind valueKind(DoFn<InputT, OutputT> doFn) {
+        return outerContext.valueKind();
       }
 
       @Override
@@ -620,6 +631,11 @@ public class SplittableParDoNaiveBounded {
       }
 
       @Override
+      public void outputWithKind(OutputT output, ValueKind kind) {
+        outerContext.outputWithKind(output, kind);
+      }
+
+      @Override
       public void outputWindowedValue(
           OutputT output,
           Instant timestamp,
@@ -636,6 +652,11 @@ public class SplittableParDoNaiveBounded {
       @Override
       public <T> void outputWithTimestamp(TupleTag<T> tag, T output, Instant timestamp) {
         outerContext.outputWithTimestamp(tag, output, timestamp);
+      }
+
+      @Override
+      public <T> void outputWithKind(TupleTag<T> tag, T output, ValueKind kind) {
+        outerContext.outputWithKind(tag, output, kind);
       }
 
       @Override

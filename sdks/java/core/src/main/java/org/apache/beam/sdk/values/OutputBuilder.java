@@ -50,5 +50,7 @@ public interface OutputBuilder<T> extends WindowedValue<T> {
 
   OutputBuilder<T> setCausedByDrain(CausedByDrain causedByDrain);
 
+  OutputBuilder<T> setValueKind(ValueKind valueKind);
+
   void output();
 }

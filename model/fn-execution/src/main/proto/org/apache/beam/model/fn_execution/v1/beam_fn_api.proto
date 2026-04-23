@@ -757,6 +757,15 @@ message Elements {
     }
   }
 
+  message ValueKind {
+    enum Enum {
+      INSERT = 0;
+      UPDATE_BEFORE = 1;
+      UPDATE_AFTER = 2;
+      DELETE = 3;
+    }
+  }
+
   // Element metadata passed as part of WindowedValue to make WindowedValue
   // extensible and backward compatible
   message ElementMetadata {
@@ -770,6 +779,9 @@ message Elements {
     // across IOs - Kafka, PubSub, http.
     // Example value: congo=t61rcWkgMzE
     optional string tracestate = 3;
+    // (Optional) The kind of value for CDC metadata.
+    // If missing or unspecified, implies INSERT for backwards compatibility.
+    optional ValueKind.Enum value_kind = 4;
   }
 
   // Represent the encoded user timer for a given instruction, transform and

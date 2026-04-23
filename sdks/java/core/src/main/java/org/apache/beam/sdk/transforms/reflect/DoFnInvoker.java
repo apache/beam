@@ -43,6 +43,7 @@ import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.values.CausedByDrain;
 import org.apache.beam.sdk.values.Row;
+import org.apache.beam.sdk.values.ValueKind;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Instant;
@@ -221,6 +222,9 @@ public interface DoFnInvoker<InputT, OutputT> {
     /** Provide a reference to the caused by drain. */
     CausedByDrain causedByDrain(DoFn<InputT, OutputT> doFn);
 
+    /** Provide a reference to the {@link ValueKind}. */
+    ValueKind valueKind(DoFn<InputT, OutputT> doFn);
+
     /** Provide a reference to the time domain for a timer firing. */
     TimeDomain timeDomain(DoFn<InputT, OutputT> doFn);
 
@@ -333,6 +337,12 @@ public interface DoFnInvoker<InputT, OutputT> {
     public CausedByDrain causedByDrain(DoFn<InputT, OutputT> doFn) {
       throw new UnsupportedOperationException(
           String.format("CausedByDrain unsupported in %s", getErrorContext()));
+    }
+
+    @Override
+    public ValueKind valueKind(DoFn<InputT, OutputT> doFn) {
+      throw new UnsupportedOperationException(
+          String.format("ValueKind unsupported in %s", getErrorContext()));
     }
 
     @Override
@@ -527,6 +537,11 @@ public interface DoFnInvoker<InputT, OutputT> {
     @Override
     public CausedByDrain causedByDrain(DoFn<InputT, OutputT> doFn) {
       return delegate.causedByDrain(doFn);
+    }
+
+    @Override
+    public ValueKind valueKind(DoFn<InputT, OutputT> doFn) {
+      return delegate.valueKind(doFn);
     }
 
     @Override

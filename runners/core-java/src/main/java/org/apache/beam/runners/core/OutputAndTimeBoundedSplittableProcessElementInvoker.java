@@ -52,6 +52,7 @@ import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TupleTag;
+import org.apache.beam.sdk.values.ValueKind;
 import org.apache.beam.sdk.values.WindowedValue;
 import org.apache.beam.sdk.values.WindowedValues;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
@@ -408,6 +409,11 @@ public class OutputAndTimeBoundedSplittableProcessElementInvoker<
     }
 
     @Override
+    public ValueKind valueKind() {
+      return element.getValueKind();
+    }
+
+    @Override
     public PipelineOptions getPipelineOptions() {
       return pipelineOptions;
     }
@@ -452,6 +458,31 @@ public class OutputAndTimeBoundedSplittableProcessElementInvoker<
               element.getRecordId(),
               element.getRecordOffset(),
               element.causedByDrain()));
+    }
+
+    @Override
+    public void outputWithKind(OutputT output, ValueKind kind) {
+      outputWithKind(mainOutputTag, output, kind);
+    }
+
+    @Override
+    public <T> void outputWithKind(TupleTag<T> tag, T value, ValueKind kind) {
+      noteOutput();
+      if (watermarkEstimator instanceof TimestampObservingWatermarkEstimator) {
+        ((TimestampObservingWatermarkEstimator) watermarkEstimator)
+            .observeTimestamp(element.getTimestamp());
+      }
+      outputReceiver.output(
+          tag,
+          WindowedValues.of(
+              value,
+              element.getTimestamp(),
+              element.getWindows(),
+              element.getPaneInfo(),
+              element.getRecordId(),
+              element.getRecordOffset(),
+              element.causedByDrain(),
+              kind));
     }
 
     @Override

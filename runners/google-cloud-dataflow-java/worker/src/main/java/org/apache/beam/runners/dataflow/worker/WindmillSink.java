@@ -40,6 +40,7 @@ import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo.PaneInfoCoder;
 import org.apache.beam.sdk.util.ByteStringOutputStream;
 import org.apache.beam.sdk.values.KV;
+import org.apache.beam.sdk.values.ValueKindUtil;
 import org.apache.beam.sdk.values.ValueWithRecordId;
 import org.apache.beam.sdk.values.ValueWithRecordId.ValueWithRecordIdCoder;
 import org.apache.beam.sdk.values.WindowedValue;
@@ -220,7 +221,9 @@ class WindmillSink<T> extends Sink<WindowedValue<T>> {
       ByteString id = ByteString.EMPTY;
       // todo #33176 specify additional metadata in the future
       BeamFnApi.Elements.ElementMetadata additionalMetadata =
-          BeamFnApi.Elements.ElementMetadata.newBuilder().build();
+          BeamFnApi.Elements.ElementMetadata.newBuilder()
+              .setValueKind(ValueKindUtil.toProto(data.getValueKind()))
+              .build();
       ByteString metadata =
           encodeMetadata(
               stream, windowsCoder, data.getWindows(), data.getPaneInfo(), additionalMetadata);

@@ -51,6 +51,7 @@ import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TypeDescriptor;
+import org.apache.beam.sdk.values.ValueKind;
 import org.apache.beam.sdk.values.WindowedValue;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.checkerframework.checker.nullness.qual.Nullable;
@@ -189,6 +190,25 @@ public abstract class DoFn<InputT extends @Nullable Object, OutputT extends @Nul
     public abstract void outputWithTimestamp(OutputT output, Instant timestamp);
 
     /**
+     * Adds the given element to the main output {@code PCollection}, with the given {@link
+     * ValueKind}.
+     *
+     * <p>Once passed to {@code outputWithKind} the element should not be modified in any way.
+     *
+     * <p>If invoked from {@link ProcessElement}, the output element will have the same windowing
+     * metadata as the input element.
+     *
+     * <p>If invoked from {@link StartBundle} or {@link FinishBundle}, this will attempt to use the
+     * {@link org.apache.beam.sdk.transforms.windowing.WindowFn} of the input {@code PCollection} to
+     * determine what windows the element should be in, throwing an exception if the {@code
+     * WindowFn} attempts to access any information about the input element.
+     *
+     * <p><i>Note:</i> A splittable {@link DoFn} is not allowed to output from {@link StartBundle}
+     * or {@link FinishBundle} methods.
+     */
+    public abstract void outputWithKind(OutputT output, ValueKind kind);
+
+    /**
      * Adds the given element to the main output {@code PCollection}, with the given windowing
      * metadata.
      *
@@ -289,6 +309,17 @@ public abstract class DoFn<InputT extends @Nullable Object, OutputT extends @Nul
     public abstract <T> void outputWindowedValue(TupleTag<T> tag, WindowedValue<T> windowedValue);
 
     public abstract void outputWindowedValue(WindowedValue<OutputT> windowedValue);
+
+    /**
+     * Adds the given element to the main output {@code PCollection} with the given {@link
+     * ValueKind}.
+     *
+     * <p>Once passed to {@code outputWithKind} the element should not be modified in any way.
+     *
+     * <p><i>Note:</i> A splittable {@link DoFn} is not allowed to output from {@link StartBundle}
+     * or {@link FinishBundle} methods.
+     */
+    public abstract <T> void outputWithKind(TupleTag<T> tag, T output, ValueKind kind);
   }
 
   /** Information accessible when running a {@link DoFn.ProcessElement} method. */
@@ -338,6 +369,9 @@ public abstract class DoFn<InputT extends @Nullable Object, OutputT extends @Nul
 
     @Pure
     public abstract org.apache.beam.sdk.values.CausedByDrain causedByDrain();
+
+    @Pure
+    public abstract ValueKind valueKind();
   }
 
   /** Information accessible when running a {@link DoFn.OnTimer} method. */
@@ -419,12 +453,30 @@ public abstract class DoFn<InputT extends @Nullable Object, OutputT extends @Nul
       builder(value).setTimestamp(timestamp).output();
     }
 
+    default void outputWithKind(T value, ValueKind valueKind) {
+      builder(value).setValueKind(valueKind).output();
+    }
+
     default void outputWindowedValue(
         T value,
         Instant timestamp,
         Collection<? extends BoundedWindow> windows,
         PaneInfo paneInfo) {
       builder(value).setTimestamp(timestamp).setWindows(windows).setPaneInfo(paneInfo).output();
+    }
+
+    default void outputWindowedValue(
+        T value,
+        Instant timestamp,
+        Collection<? extends BoundedWindow> windows,
+        PaneInfo paneInfo,
+        ValueKind valueKind) {
+      builder(value)
+          .setTimestamp(timestamp)
+          .setWindows(windows)
+          .setPaneInfo(paneInfo)
+          .setValueKind(valueKind)
+          .output();
     }
   }
 
