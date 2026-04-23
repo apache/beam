@@ -282,8 +282,7 @@ public final class FanOutStreamingEngineWorkerHarness implements StreamingWorker
       // The endpoints are also consumed if the version is the same but the type of endpoints
       // sent by the server has changed.
       if (windmillEndpoints.version() > pendingMetadataVersion
-          || (windmillEndpoints.version() == pendingMetadataVersion
-              && windmillEndpoints.type() != WindmillEndpoints.Type.UNKNOWN
+          || (windmillEndpoints.type() != WindmillEndpoints.Type.UNKNOWN
               && windmillEndpoints.type() != pendingMetadataType)) {
         pendingMetadataVersion = windmillEndpoints.version();
         pendingMetadataType = windmillEndpoints.type();
