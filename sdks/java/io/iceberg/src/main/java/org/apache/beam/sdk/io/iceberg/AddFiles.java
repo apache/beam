@@ -94,6 +94,7 @@ import org.apache.iceberg.PartitionKey;
 import org.apache.iceberg.PartitionSpec;
 import org.apache.iceberg.Snapshot;
 import org.apache.iceberg.Table;
+import org.apache.iceberg.TableProperties;
 import org.apache.iceberg.avro.Avro;
 import org.apache.iceberg.catalog.TableIdentifier;
 import org.apache.iceberg.exceptions.AlreadyExistsException;
@@ -102,6 +103,7 @@ import org.apache.iceberg.io.InputFile;
 import org.apache.iceberg.io.OutputFile;
 import org.apache.iceberg.mapping.MappingUtil;
 import org.apache.iceberg.mapping.NameMapping;
+import org.apache.iceberg.mapping.NameMappingParser;
 import org.apache.iceberg.orc.OrcMetrics;
 import org.apache.iceberg.parquet.ParquetSchemaUtil;
 import org.apache.iceberg.parquet.ParquetUtil;
@@ -726,6 +728,15 @@ public class AddFiles extends PTransform<PCollection<String>, PCollectionRowTupl
       this.identifier = identifier;
     }
 
+    private static void ensureNameMappingPresent(Table table) {
+      if (table.properties().get(TableProperties.DEFAULT_NAME_MAPPING) == null) {
+        // Forces Name based resolution instead of position based resolution
+        NameMapping mapping = MappingUtil.create(table.schema());
+        String mappingJson = NameMappingParser.toJson(mapping);
+        table.updateProperties().set(TableProperties.DEFAULT_NAME_MAPPING, mappingJson).commit();
+      }
+    }
+
     @ProcessElement
     public void process(
         @Element KV<String, Iterable<byte[]>> batch,
@@ -741,6 +752,7 @@ public class AddFiles extends PTransform<PCollection<String>, PCollectionRowTupl
         table = catalogConfig.catalog().loadTable(TableIdentifier.parse(identifier));
       }
       table.refresh();
+      ensureNameMappingPresent(table);
 
       if (shouldSkip(commitId, lastCommitTimestamp.read())) {
         return;

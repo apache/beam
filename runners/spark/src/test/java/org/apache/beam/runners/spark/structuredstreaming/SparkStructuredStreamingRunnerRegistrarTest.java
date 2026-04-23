@@ -36,14 +36,16 @@ public class SparkStructuredStreamingRunnerRegistrarTest {
   public void testOptions() {
     assertEquals(
         ImmutableList.of(SparkStructuredStreamingPipelineOptions.class),
-        new SparkStructuredStreamingRunnerRegistrar.Options().getPipelineOptions());
+        Lists.newArrayList(
+            new SparkStructuredStreamingRunnerRegistrar.Options().getPipelineOptions()));
   }
 
   @Test
   public void testRunners() {
     assertEquals(
         ImmutableList.of(SparkStructuredStreamingRunner.class),
-        new SparkStructuredStreamingRunnerRegistrar.Runner().getPipelineRunners());
+        Lists.newArrayList(
+            new SparkStructuredStreamingRunnerRegistrar.Runner().getPipelineRunners()));
   }
 
   @Test
