@@ -66,7 +66,6 @@ In addition, type-hints can be used to implement run-time type-checking via the
 # pytype: skip-file
 
 import copy
-import functools
 import logging
 import types
 import typing
@@ -1486,12 +1485,6 @@ _KNOWN_PRIMITIVE_TYPES.update({
 })
 
 
-@functools.lru_cache(maxsize=128)
-def _is_beartype_disabled(options):
-  from apache_beam.options.pipeline_options import TypeOptions
-  return options.view_as(TypeOptions).disable_beartype
-
-
 def is_consistent_with(
     sub, base, use_beartype: typing.Optional[bool] = None) -> bool:
   """Checks whether sub a is consistent with base.
@@ -1506,7 +1499,8 @@ def is_consistent_with(
     from apache_beam.options.pipeline_options_context import get_pipeline_options
     options = get_pipeline_options()
     if options:
-      use_beartype = not _is_beartype_disabled(options)
+      from apache_beam.options.pipeline_options import TypeOptions
+      use_beartype = not options.view_as(TypeOptions).disable_beartype
     else:
       use_beartype = True
 
