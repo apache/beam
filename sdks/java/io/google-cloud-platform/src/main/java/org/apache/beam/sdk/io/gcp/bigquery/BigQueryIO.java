@@ -1194,6 +1194,10 @@ public class BigQueryIO {
 
     abstract Builder<T> toBuilder();
 
+    public static <T> Builder<T> builder() {
+      return new AutoValue_BigQueryIO_TypedRead.Builder<>();
+    }
+
     @AutoValue.Builder
     abstract static class Builder<T> {
       abstract Builder<T> setJsonTableRef(ValueProvider<String> jsonTableRef);
@@ -2789,6 +2793,10 @@ public class BigQueryIO {
     abstract BadRecordRouter getBadRecordRouter();
 
     abstract Builder<T> toBuilder();
+
+    public static <T> Builder<T> builder() {
+      return new AutoValue_BigQueryIO_Write.Builder<>();
+    }
 
     @AutoValue.Builder
     abstract static class Builder<T> {

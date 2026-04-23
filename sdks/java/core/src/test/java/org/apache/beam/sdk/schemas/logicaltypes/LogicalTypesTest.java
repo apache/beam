@@ -96,7 +96,7 @@ public class LogicalTypesTest {
 
     Schema schema = Schema.builder().addLogicalTypeField("now", new NanosInstant()).build();
     Row row = Row.withSchema(schema).addValues(now).build();
-    assertEquals(now, row.getLogicalTypeValue(0, NanosInstant.class));
+    assertEquals(now, row.getLogicalTypeValue(0, Instant.class));
     assertEquals(nowAsRow, row.getBaseValue(0, Row.class));
   }
 
@@ -108,7 +108,7 @@ public class LogicalTypesTest {
 
     Schema schema = Schema.builder().addLogicalTypeField("duration", new NanosDuration()).build();
     Row row = Row.withSchema(schema).addValues(duration).build();
-    assertEquals(duration, row.getLogicalTypeValue(0, NanosDuration.class));
+    assertEquals(duration, row.getLogicalTypeValue(0, Duration.class));
     assertEquals(durationAsRow, row.getBaseValue(0, Row.class));
   }
 
