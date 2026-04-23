@@ -29,7 +29,6 @@ class StringSetMetricsLineage implements LineageBase {
 
   private final StringSet metric;
 
-  @SuppressWarnings("unused")
   public StringSetMetricsLineage(PipelineOptions options, Lineage.LineageDirection direction) {
     Lineage.Type type =
         (direction == Lineage.LineageDirection.SOURCE) ? Lineage.Type.SOURCE : Lineage.Type.SINK;
