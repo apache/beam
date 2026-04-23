@@ -24,8 +24,12 @@ import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.CreateDisposition;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.WriteDisposition;
 import org.apache.beam.sdk.io.gcp.bigquery.InsertRetryPolicy;
 import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.DoFn.Element;
+import org.apache.beam.sdk.transforms.DoFn.OutputReceiver;
+import org.apache.beam.sdk.transforms.DoFn.Timestamp;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
+import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PDone;
 
@@ -44,15 +48,20 @@ public class WriteWindowedToBigQuery<T> extends WriteToBigQuery<T> {
   /** Convert each key/score pair into a BigQuery TableRow. */
   protected class BuildRowFn extends DoFn<T, TableRow> {
     @ProcessElement
-    public void processElement(ProcessContext c, BoundedWindow window) {
+    public void processElement(
+        @Element T element,
+        @Timestamp org.joda.time.Instant timestamp,
+        PaneInfo pane,
+        BoundedWindow window,
+        OutputReceiver<TableRow> receiver) {
 
       TableRow row = new TableRow();
       for (Map.Entry<String, FieldInfo<T>> entry : fieldInfo.entrySet()) {
         String key = entry.getKey();
         FieldInfo<T> fcnInfo = entry.getValue();
-        row.set(key, fcnInfo.getFieldFn().apply(c, window));
+        row.set(key, fcnInfo.getFieldFn().apply(element, window, timestamp, pane));
       }
-      c.output(row);
+      receiver.output(row);
     }
   }
 

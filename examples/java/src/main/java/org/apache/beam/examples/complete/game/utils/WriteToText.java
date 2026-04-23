@@ -32,6 +32,9 @@ import org.apache.beam.sdk.io.TextIO;
 import org.apache.beam.sdk.io.fs.ResolveOptions.StandardResolveOptions;
 import org.apache.beam.sdk.io.fs.ResourceId;
 import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.DoFn.Element;
+import org.apache.beam.sdk.transforms.DoFn.OutputReceiver;
+import org.apache.beam.sdk.transforms.DoFn.Timestamp;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
@@ -70,26 +73,32 @@ public class WriteToText<InputT> extends PTransform<PCollection<InputT>, PDone> 
   }
 
   /**
-   * A {@link Serializable} function from a {@link DoFn.ProcessContext} and {@link BoundedWindow} to
-   * the value for that field.
+   * A {@link Serializable} function from an element and {@link BoundedWindow} to the value for that
+   * field.
    */
   public interface FieldFn<InputT> extends Serializable {
-    Object apply(DoFn<InputT, String>.ProcessContext context, BoundedWindow window);
+    Object apply(
+        InputT element, BoundedWindow window, org.joda.time.Instant timestamp, PaneInfo pane);
   }
 
   /** Convert each key/score pair into a row as specified by fieldFn. */
   protected class BuildRowFn extends DoFn<InputT, String> {
 
     @ProcessElement
-    public void processElement(ProcessContext c, BoundedWindow window) {
+    public void processElement(
+        @Element InputT element,
+        @Timestamp org.joda.time.Instant timestamp,
+        PaneInfo pane,
+        BoundedWindow window,
+        OutputReceiver<String> receiver) {
       List<String> fields = new ArrayList<>();
       for (Map.Entry<String, FieldFn<InputT>> entry : fieldFn.entrySet()) {
         String key = entry.getKey();
         FieldFn<InputT> fcn = entry.getValue();
-        fields.add(key + ": " + fcn.apply(c, window));
+        fields.add(key + ": " + fcn.apply(element, window, timestamp, pane));
       }
       String result = fields.stream().collect(Collectors.joining(", "));
-      c.output(result);
+      receiver.output(result);
     }
   }
 
