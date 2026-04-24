@@ -19,8 +19,10 @@ package org.apache.beam.sdk.io.gcp.testing;
 
 import static org.junit.Assert.assertEquals;
 
+import com.google.api.client.googleapis.json.GoogleJsonResponseException;
 import com.google.api.client.http.HttpHeaders;
 import com.google.api.client.http.HttpResponseException;
+import com.google.api.client.http.HttpStatusCodes;
 import com.google.api.core.ApiFuture;
 import com.google.api.core.ApiFutures;
 import com.google.api.gax.grpc.GrpcStatusCode;
@@ -421,8 +423,20 @@ public class FakeDatasetService implements DatasetService, WriteStreamService, S
     }
   }
 
+  @FormatMethod
+  void checkSchemaPredicate(boolean predicate, String msgFormat, Object... args)
+      throws IOException {
+    String msg = String.format(msgFormat, args);
+    if (!predicate) {
+      throw new GoogleJsonResponseException(
+          new HttpResponseException.Builder(
+              HttpStatusCodes.STATUS_CODE_PRECONDITION_FAILED, msg, new HttpHeaders()),
+          null);
+    }
+  }
+
   private void checkSchemaChanges(
-      List<TableFieldSchema> oldSchema, List<TableFieldSchema> newSchema) {
+      List<TableFieldSchema> oldSchema, List<TableFieldSchema> newSchema) throws IOException {
     List<com.google.cloud.bigquery.storage.v1.TableFieldSchema> oldSchemaProtos =
         oldSchema.stream()
             .map(TableRowToStorageApiProto::tableFieldToProtoTableField)
@@ -437,7 +451,8 @@ public class FakeDatasetService implements DatasetService, WriteStreamService, S
 
   private void checkSchemaChangesProtos(
       List<com.google.cloud.bigquery.storage.v1.TableFieldSchema> oldSchemaProtos,
-      List<com.google.cloud.bigquery.storage.v1.TableFieldSchema> newSchemaProtos) {
+      List<com.google.cloud.bigquery.storage.v1.TableFieldSchema> newSchemaProtos)
+      throws IOException {
     // Convert new schema to a map for easy name-based lookup
     Map<String, com.google.cloud.bigquery.storage.v1.TableFieldSchema> newFields =
         newSchemaProtos.stream()
@@ -455,10 +470,10 @@ public class FakeDatasetService implements DatasetService, WriteStreamService, S
       com.google.cloud.bigquery.storage.v1.TableFieldSchema newField =
           newFields.get(oldField.getName().toLowerCase());
       // 1. Check that no fields were removed
-      Preconditions.checkArgument(newField != null, "Cannot remove field %s", oldField.getName());
+      checkSchemaPredicate(newField != null, "Cannot remove field %s", oldField.getName());
 
       // 2. Check that the types match
-      Preconditions.checkArgument(
+      checkSchemaPredicate(
           oldField.getType().equals(newField.getType()),
           "Field type cannot change for field %s: %s to %s",
           oldField.getName(),
@@ -470,7 +485,7 @@ public class FakeDatasetService implements DatasetService, WriteStreamService, S
 
       // 3. Check that the mode only changes if relaxing from REQUIRED to NULLABLE
       if (oldMode.equals(com.google.cloud.bigquery.storage.v1.TableFieldSchema.Mode.REQUIRED)) {
-        Preconditions.checkArgument(
+        checkSchemaPredicate(
             newMode.equals(com.google.cloud.bigquery.storage.v1.TableFieldSchema.Mode.REQUIRED)
                 || newMode.equals(
                     com.google.cloud.bigquery.storage.v1.TableFieldSchema.Mode.NULLABLE),
@@ -478,7 +493,7 @@ public class FakeDatasetService implements DatasetService, WriteStreamService, S
             oldField.getName(),
             newMode);
       } else {
-        Preconditions.checkArgument(
+        checkSchemaPredicate(
             oldMode.equals(newMode),
             "Cannot change mode of %s from %s to %s",
             oldField.getName(),
@@ -488,7 +503,7 @@ public class FakeDatasetService implements DatasetService, WriteStreamService, S
 
       // 4. Recursively check nested schema fields
       if (oldField.getFieldsCount() > 0) {
-        Preconditions.checkArgument(
+        checkSchemaPredicate(
             newField.getFieldsCount() >= oldField.getFieldsCount(), "Cannot remove nested fields");
         checkSchemaChangesProtos(oldField.getFieldsList(), newField.getFieldsList());
       }
@@ -501,9 +516,9 @@ public class FakeDatasetService implements DatasetService, WriteStreamService, S
       }
 
       int newIndex = newFieldIndices.get(newField.getName().toLowerCase());
-      Preconditions.checkArgument(
+      checkSchemaPredicate(
           newIndex >= oldFields.size(), "New fields can only be added at the end of a schema.");
-      Preconditions.checkArgument(
+      checkSchemaPredicate(
           !newField
               .getMode()
               .equals(com.google.cloud.bigquery.storage.v1.TableFieldSchema.Mode.REQUIRED),

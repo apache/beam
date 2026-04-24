@@ -169,7 +169,7 @@ public class StorageApiConvertMessages<DestinationT, ElementT>
                             AfterProcessingTime.pastFirstElementInPane()
                                 .plusDelayOf(Duration.standardSeconds(2))))
                     .discardingFiredPanes())
-            .apply("merge schemas", Combine.perKey(new MergeSchemaCombineFn()))
+            .apply("merge schemas", Combine.fewKeys(new MergeSchemaCombineFn()))
             .setCoder(KvCoder.of(destinationCoder, ProtoCoder.of(TableSchema.class)))
             .apply(
                 "Patch table schema",

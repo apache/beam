@@ -2536,7 +2536,7 @@ public class BigQueryIOWriteTest implements Serializable {
                 ImmutableList.of(
                     new TableFieldSchema().setName("number").setType("INT64"),
                     new TableFieldSchema().setName("name").setType("STRING"),
-                    new TableFieldSchema().setName("req").setType("STRING").setMode("REQUIRED")));
+                    new TableFieldSchema().setName("req").setType("INT64").setMode("REQUIRED")));
     fakeDatasetService.createTable(new Table().setTableReference(tableRef).setSchema(tableSchema));
 
     final int stride = 5;
@@ -2547,7 +2547,7 @@ public class BigQueryIOWriteTest implements Serializable {
               Lists.newArrayList(
                   new TableFieldSchema().setName("number").setType("INT64").setMode("NULLABLE"),
                   new TableFieldSchema().setName("name").setType("STRING").setMode("NULLABLE"),
-                  new TableFieldSchema().setName("req").setType("STRING").setMode("NULLABLE"),
+                  new TableFieldSchema().setName("req").setType("INT64").setMode("NULLABLE"),
                   new TableFieldSchema().setName("new1").setType("STRING").setMode("NULLABLE"),
                   new TableFieldSchema().setName("new2").setType("STRING").setMode("NULLABLE")));
 
@@ -2611,7 +2611,7 @@ public class BigQueryIOWriteTest implements Serializable {
             (int i) -> {
               TableRow row = new TableRow().set("name", "name" + i).set("number", Long.toString(i));
               if (i < stride) {
-                row = row.set("req", "foo");
+                row = row.set("req", "42");
               } else {
                 row = row.set("new1", "blah" + i);
                 row = row.set("new2", "baz" + i);
@@ -2645,7 +2645,7 @@ public class BigQueryIOWriteTest implements Serializable {
     TestStream.Builder<TableRow> testStream =
         TestStream.create(TableRowJsonCoder.of()).advanceWatermarkTo(new Instant(0));
     List<TableRow> expectedRows = Lists.newArrayList();
-    for (int i = 0; i < 20; i += stride) {
+    for (int i = 0; i < 4 * stride; i += stride) {
       for (int j = i; j < i + stride; ++j) {
         TableRow tableRow = getRow.apply(j);
         expectedRows.add(tableRow);
@@ -2657,6 +2657,19 @@ public class BigQueryIOWriteTest implements Serializable {
         }
       }
     }
+    // Test making disallowed changes - these should show up in the dead letter PCollection.
+    List<TableRow> expectedFailedRows = Lists.newArrayList();
+
+    TableRow invalid = getRow.apply(4 * stride + 1);
+    invalid.set("req", ImmutableList.of("43", "44"));
+    expectedFailedRows.add(invalid);
+    testStream = testStream.addElements(invalid);
+
+    invalid = getRow.apply(4 * stride + 2);
+    invalid.set("req", new TableRow());
+    expectedFailedRows.add(invalid);
+    testStream = testStream.addElements(invalid);
+
     for (int i = 0; i < 5; ++i) {
       testStream = testStream.advanceProcessingTime(Duration.standardSeconds(2));
     }
@@ -2680,7 +2693,14 @@ public class BigQueryIOWriteTest implements Serializable {
               .withTriggeringFrequency(Duration.standardSeconds(1))
               .withNumStorageWriteApiStreams(2);
     }
-    tableRows.apply(write);
+    WriteResult result = tableRows.apply(write);
+    PCollection<TableRow> failedInserts =
+        result
+            .getFailedStorageApiInserts()
+            .apply(
+                MapElements.into(TypeDescriptor.of(TableRow.class))
+                    .via(BigQueryStorageApiInsertError::getRow));
+    PAssert.that(failedInserts).containsInAnyOrder(expectedFailedRows);
 
     p.run();
     assertEquals(

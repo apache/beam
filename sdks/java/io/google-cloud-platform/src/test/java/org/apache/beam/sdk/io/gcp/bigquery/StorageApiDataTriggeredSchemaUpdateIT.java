@@ -39,13 +39,16 @@ import org.apache.beam.sdk.io.gcp.testing.BigqueryClient;
 import org.apache.beam.sdk.state.StateSpec;
 import org.apache.beam.sdk.state.StateSpecs;
 import org.apache.beam.sdk.state.ValueState;
+import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.WithKeys;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableSet;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
@@ -119,9 +122,11 @@ public class StorageApiDataTriggeredSchemaUpdateIT {
     private final StateSpec<ValueState<Integer>> counterSpec = StateSpecs.value();
 
     private final int stride;
+    private final int badRowIndex;
 
-    public SequenceRowsDoFn(int stride) {
+    public SequenceRowsDoFn(int stride, int badRowIndex) {
       this.stride = stride;
+      this.badRowIndex = badRowIndex;
     }
 
     @ProcessElement
@@ -134,7 +139,7 @@ public class StorageApiDataTriggeredSchemaUpdateIT {
     TableRow getRow(int i) {
       TableRow row = new TableRow().set("name", "name" + i).set("number", Long.toString(i));
       if (i < stride) {
-        row = row.set("req", "foo");
+        row = row.set("req", "42");
       } else {
         row = row.set("new1", "blah" + i);
         row = row.set("new2", "baz" + i);
@@ -161,6 +166,10 @@ public class StorageApiDataTriggeredSchemaUpdateIT {
           row.set("nested", nested);
         }
       }
+
+      if (i == badRowIndex) {
+        row.set("req", ImmutableList.of("43", "44"));
+      }
       return row;
     };
   }
@@ -185,14 +194,14 @@ public class StorageApiDataTriggeredSchemaUpdateIT {
                 ImmutableList.of(
                     new TableFieldSchema().setName("number").setType("INT64"),
                     new TableFieldSchema().setName("name").setType("STRING"),
-                    new TableFieldSchema().setName("req").setType("STRING").setMode("REQUIRED")));
+                    new TableFieldSchema().setName("req").setType("INT64").setMode("REQUIRED")));
     TableSchema evolvedSchema =
         new TableSchema()
             .setFields(
                 ImmutableList.of(
                     new TableFieldSchema().setName("number").setType("INT64").setMode("NULLABLE"),
                     new TableFieldSchema().setName("name").setType("STRING").setMode("NULLABLE"),
-                    new TableFieldSchema().setName("req").setType("STRING").setMode("NULLABLE"),
+                    new TableFieldSchema().setName("req").setType("INT64").setMode("NULLABLE"),
                     new TableFieldSchema().setName("new1").setType("STRING").setMode("NULLABLE"),
                     new TableFieldSchema().setName("new2").setType("STRING").setMode("NULLABLE"),
                     new TableFieldSchema()
@@ -237,7 +246,7 @@ public class StorageApiDataTriggeredSchemaUpdateIT {
     String tableId = createTable(baseSchema);
     String tableSpec = PROJECT + ":" + BIG_QUERY_DATASET_ID + "." + tableId;
 
-    List<Integer> dummyInputs = IntStream.range(0, 20).boxed().collect(Collectors.toList());
+    List<Integer> dummyInputs = IntStream.range(0, 21).boxed().collect(Collectors.toList());
 
     BigQueryIO.Write<TableRow> write =
         BigQueryIO.writeTableRows()
@@ -256,11 +265,21 @@ public class StorageApiDataTriggeredSchemaUpdateIT {
               .withNumStorageWriteApiStreams(2);
     }
 
-    p.apply("Create Dummy Inputs", Create.of(dummyInputs))
-        .setIsBoundedInternal(PCollection.IsBounded.UNBOUNDED)
-        .apply("Add a dummy key", WithKeys.of(1))
-        .apply("Sequence Rows", ParDo.of(new SequenceRowsDoFn(5)))
-        .apply("Stream to BigQuery", write);
+    SequenceRowsDoFn doFn = new SequenceRowsDoFn(5, 20);
+    WriteResult result =
+        p.apply("Create Dummy Inputs", Create.of(dummyInputs))
+            .setIsBoundedInternal(PCollection.IsBounded.UNBOUNDED)
+            .apply("Add a dummy key", WithKeys.of(1))
+            .apply("Sequence Rows", ParDo.of(doFn))
+            .apply("Stream to BigQuery", write);
+
+    PCollection<TableRow> failedInserts =
+        result
+            .getFailedStorageApiInserts()
+            .apply(
+                MapElements.into(TypeDescriptor.of(TableRow.class))
+                    .via(BigQueryStorageApiInsertError::getRow));
+    PAssert.that(failedInserts).containsInAnyOrder(doFn.getRow(20));
 
     p.run().waitUntilFinish();
 

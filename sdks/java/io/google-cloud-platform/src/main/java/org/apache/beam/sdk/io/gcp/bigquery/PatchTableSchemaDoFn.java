@@ -30,6 +30,8 @@ import org.apache.beam.sdk.values.KV;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * This DoFn is responsible for updating a BigQuery's table schema. The input is a TableSchema
@@ -44,6 +46,8 @@ public class PatchTableSchemaDoFn<DestinationT extends @NonNull Object, ElementT
   private TwoLevelMessageConverterCache<DestinationT, ElementT> messageConverters;
   private transient BigQueryServices.@Nullable DatasetService datasetServiceInternal = null;
   private transient BigQueryServices.@Nullable WriteStreamService writeStreamServiceInternal = null;
+
+  private static final Logger LOG = LoggerFactory.getLogger(PatchTableSchemaDoFn.class);
 
   PatchTableSchemaDoFn(
       String operationName,
@@ -106,7 +110,6 @@ public class PatchTableSchemaDoFn<DestinationT extends @NonNull Object, ElementT
             pipelineOptions,
             getDatasetService(pipelineOptions),
             getWriteStreamService(pipelineOptions));
-    messageConverter.updateSchemaFromTable();
 
     while (true) {
       TableSchema baseSchema = messageConverter.getTableSchema();
@@ -149,6 +152,7 @@ public class PatchTableSchemaDoFn<DestinationT extends @NonNull Object, ElementT
       } while (BackOffUtils.next(Sleeper.DEFAULT, backoff));
       if (schemaOutOfDate) {
         // This could be due to an out-of-date schema.
+        LOG.info("Schema out of date. Refreshing.");
         messageConverter.updateSchemaFromTable();
       } else {
         // We ran out of retries.

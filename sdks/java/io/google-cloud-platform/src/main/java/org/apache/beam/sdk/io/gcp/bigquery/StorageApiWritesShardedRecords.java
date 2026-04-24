@@ -819,6 +819,7 @@ public class StorageApiWritesShardedRecords<DestinationT extends @NonNull Object
                 // Convert the message to a TableRow and send it to the failedRows collection.
                 TableRow failedRow = failedContext.failsafeTableRows.get(failedIndex);
                 if (failedRow == null) {
+                  // TODO: MAKE SURE WE USE UPDATED DESCRIPTOR
                   ByteString protoBytes = failedContext.protoRows.getSerializedRows(failedIndex);
                   failedRow =
                       appendClientInfo.get().toTableRow(protoBytes, Predicates.alwaysTrue());

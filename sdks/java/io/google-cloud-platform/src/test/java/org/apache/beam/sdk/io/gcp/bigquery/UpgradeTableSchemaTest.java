@@ -309,7 +309,7 @@ public class UpgradeTableSchemaTest {
                     .setName("field1")
                     .setNumber(1)
                     .setType(DescriptorProtos.FieldDescriptorProto.Type.TYPE_STRING)
-                    .setLabel(DescriptorProtos.FieldDescriptorProto.Label.LABEL_OPTIONAL)
+                    .setLabel(DescriptorProtos.FieldDescriptorProto.Label.LABEL_REQUIRED)
                     .build())
             .build();
     Descriptors.Descriptor descriptor =
@@ -356,5 +356,16 @@ public class UpgradeTableSchemaTest {
     assertTrue(
         UpgradeTableSchema.isPayloadSchemaOutOfDate(
             payloadWithUnknown, () -> hash2, () -> descriptor));
+
+    // 5. Different hash with missing required fields.
+    DynamicMessage missingField = DynamicMessage.newBuilder(descriptor).buildPartial();
+    StorageApiWritePayload payloadMissingField =
+        new AutoValue_StorageApiWritePayload.Builder()
+            .setPayload(missingField.toByteArray())
+            .setSchemaHash(hash1)
+            .build();
+    assertTrue(
+        UpgradeTableSchema.isPayloadSchemaOutOfDate(
+            payloadMissingField, () -> hash2, () -> descriptor));
   }
 }
