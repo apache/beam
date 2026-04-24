@@ -127,12 +127,11 @@ func (c *fhirStoreClientImpl) search(storePath, resourceType string, queries map
 		queryParams = append(queryParams, googleapi.QueryParameter(pageTokenParameterKey, pageToken))
 	}
 
-	// Pass nil as the body because search parameters are passed via queryParams,
-	// and the new API expects an io.Reader instead of a specific struct.
+	searchRequest := &healthcare.SearchResourcesRequest{}
 	if resourceType == "" {
-		return c.fhirService().Search(storePath, nil).Do(queryParams...)
+		return c.fhirService().Search(storePath, searchRequest).Do(queryParams...)
 	}
-	return c.fhirService().SearchType(storePath, resourceType, nil).Do(queryParams...)
+	return c.fhirService().SearchType(storePath, resourceType, searchRequest).Do(queryParams...)
 }
 
 func (c *fhirStoreClientImpl) deidentify(srcStorePath, dstStorePath string, deidConfig *healthcare.DeidentifyConfig) (operationResults, error) {
