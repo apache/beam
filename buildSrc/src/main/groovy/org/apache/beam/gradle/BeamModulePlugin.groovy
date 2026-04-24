@@ -1548,7 +1548,6 @@ class BeamModulePlugin implements Plugin<Project> {
             "MockNotUsedInProduction",
             "NullableWildcard",
             "SuperCallToObjectMethod",
-            // Intended suppressions with justifications
             // for encoding efficiency and backward compatibility
             "EnumOrdinal",
             // widely used in non-public methods
