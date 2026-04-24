@@ -1,7 +1,13 @@
 {
   "commentedAboutFailingChecks": true,
-  "reviewersAssignedForLabels": {},
-  "nextAction": "Author",
+  "reviewersAssignedForLabels": {
+    "python": "tvalentyn",
+    "java": "ahmedabu98",
+    "go": "jrmccluskey",
+    "build": "liferoad",
+    "website": "damccorm"
+  },
+  "nextAction": "Reviewers",
   "stopReviewerNotifications": false,
   "remindAfterTestsPass": [],
   "committerAssigned": false
