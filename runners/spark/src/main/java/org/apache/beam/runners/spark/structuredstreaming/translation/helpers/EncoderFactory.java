@@ -46,6 +46,9 @@ public class EncoderFactory {
   @SuppressWarnings("unchecked")
   private static <T> Constructor<T> primaryConstructor(Class<T> cls) {
     Constructor<?>[] ctors = cls.getConstructors();
+    if (ctors.length == 0) {
+      throw new IllegalStateException("No public constructors found for " + cls.getName());
+    }
     Constructor<?> widest = ctors[0];
     for (int i = 1; i < ctors.length; i++) {
       if (ctors[i].getParameterCount() > widest.getParameterCount()) {
