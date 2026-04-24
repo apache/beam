@@ -45,25 +45,32 @@ public class JsonPayloadSerializerProvider implements PayloadSerializerProvider 
 
   private static class JsonPayloadSerializer implements PayloadSerializer {
     private final Schema schema;
-    private transient @Nullable ObjectMapper deserializeMapper;
-    private transient @Nullable ObjectMapper serializeMapper;
+    private transient volatile @Nullable ObjectMapper deserializeMapper;
+    private transient volatile @Nullable ObjectMapper serializeMapper;
 
     public JsonPayloadSerializer(Schema schema) {
       this.schema = schema;
-      this.deserializeMapper = null;
-      this.serializeMapper = null;
     }
 
-    private synchronized ObjectMapper getDeserializeMapper() {
+    private ObjectMapper getDeserializeMapper() {
       if (deserializeMapper == null) {
-        deserializeMapper = RowJsonUtils.newObjectMapperWith(RowJsonDeserializer.forSchema(schema));
+        synchronized (this) {
+          if (deserializeMapper == null) {
+            deserializeMapper =
+                RowJsonUtils.newObjectMapperWith(RowJsonDeserializer.forSchema(schema));
+          }
+        }
       }
       return deserializeMapper;
     }
 
-    private synchronized ObjectMapper getSerializeMapper() {
+    private ObjectMapper getSerializeMapper() {
       if (serializeMapper == null) {
-        serializeMapper = RowJsonUtils.newObjectMapperWith(RowJsonSerializer.forSchema(schema));
+        synchronized (this) {
+          if (serializeMapper == null) {
+            serializeMapper = RowJsonUtils.newObjectMapperWith(RowJsonSerializer.forSchema(schema));
+          }
+        }
       }
       return serializeMapper;
     }
