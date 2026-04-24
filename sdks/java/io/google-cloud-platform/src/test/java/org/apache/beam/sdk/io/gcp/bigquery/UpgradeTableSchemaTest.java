@@ -321,14 +321,10 @@ public class UpgradeTableSchemaTest {
             .build();
 
     StorageApiWritePayload payload =
-        new AutoValue_StorageApiWritePayload.Builder()
-            .setPayload(msg.toByteArray())
-            .setSchemaHash(hash1)
-            .build();
+        StorageApiWritePayload.of(msg.toByteArray(), null, null).withSchemaHash(hash1);
 
     // 1. Missing hash in payload
-    StorageApiWritePayload payloadNoHash =
-        new AutoValue_StorageApiWritePayload.Builder().setPayload(new byte[0]).build();
+    StorageApiWritePayload payloadNoHash = StorageApiWritePayload.of(new byte[0], null, null);
     assertFalse(UpgradeTableSchema.isPayloadSchemaOutOfDate(payloadNoHash, () -> hash1, null));
 
     // 2. Equal hash
@@ -349,10 +345,7 @@ public class UpgradeTableSchemaTest {
             .build();
 
     StorageApiWritePayload payloadWithUnknown =
-        new AutoValue_StorageApiWritePayload.Builder()
-            .setPayload(unknownFieldSet.toByteArray())
-            .setSchemaHash(hash1)
-            .build();
+        StorageApiWritePayload.of(unknownFieldSet.toByteArray(), null, null).withSchemaHash(hash1);
     assertTrue(
         UpgradeTableSchema.isPayloadSchemaOutOfDate(
             payloadWithUnknown, () -> hash2, () -> descriptor));
@@ -360,10 +353,7 @@ public class UpgradeTableSchemaTest {
     // 5. Different hash with missing required fields.
     DynamicMessage missingField = DynamicMessage.newBuilder(descriptor).buildPartial();
     StorageApiWritePayload payloadMissingField =
-        new AutoValue_StorageApiWritePayload.Builder()
-            .setPayload(missingField.toByteArray())
-            .setSchemaHash(hash1)
-            .build();
+        StorageApiWritePayload.of(missingField.toByteArray(), null, null).withSchemaHash(hash1);
     assertTrue(
         UpgradeTableSchema.isPayloadSchemaOutOfDate(
             payloadMissingField, () -> hash2, () -> descriptor));
