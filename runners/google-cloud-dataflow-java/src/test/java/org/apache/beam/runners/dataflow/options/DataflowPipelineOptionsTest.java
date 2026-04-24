@@ -328,7 +328,7 @@ public class DataflowPipelineOptionsTest {
     DataflowPipelineOptions options = PipelineOptionsFactory.as(DataflowPipelineOptions.class);
     options.setDiskProvisionedIops(1000);
     options.setDiskProvisionedThroughputMibps(100);
-    assertEquals(Integer.valueOf(1000), options.getDiskProvisionedIops());
-    assertEquals(Integer.valueOf(100), options.getDiskProvisionedThroughputMibps());
+    assertEquals(Long.valueOf(1000), options.getDiskProvisionedIops());
+    assertEquals(Long.valueOf(100), options.getDiskProvisionedThroughputMibps());
   }
 }

@@ -492,7 +492,8 @@ public class DataflowPipelineTranslator {
       if (options.getDiskProvisionedIops() != null && options.getDiskProvisionedIops() > 0) {
         workerPool.setDiskProvisionedIops((long) options.getDiskProvisionedIops());
       }
-      if (options.getDiskProvisionedThroughputMibps() != null && options.getDiskProvisionedThroughputMibps() > 0) {
+      if (options.getDiskProvisionedThroughputMibps() != null
+          && options.getDiskProvisionedThroughputMibps() > 0) {
         workerPool.setDiskProvisionedThroughputMibps(
             (long) options.getDiskProvisionedThroughputMibps());
       }
