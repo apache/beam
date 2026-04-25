@@ -25,12 +25,12 @@ go 1.26.0
 toolchain go1.26.2
 
 require (
-	cloud.google.com/go/bigquery v1.72.0
-	cloud.google.com/go/bigtable v1.41.0
-	cloud.google.com/go/datastore v1.21.0
+	cloud.google.com/go/bigquery v1.74.0
+	cloud.google.com/go/bigtable v1.42.0
+	cloud.google.com/go/datastore v1.22.0
 	cloud.google.com/go/profiler v0.4.3
 	cloud.google.com/go/pubsub v1.50.1
-	cloud.google.com/go/spanner v1.87.0
+	cloud.google.com/go/spanner v1.88.0
 	cloud.google.com/go/storage v1.59.2
 	github.com/aws/aws-sdk-go-v2 v1.41.1
 	github.com/aws/aws-sdk-go-v2/config v1.32.7
