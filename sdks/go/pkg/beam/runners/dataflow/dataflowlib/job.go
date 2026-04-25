@@ -156,6 +156,9 @@ func Translate(ctx context.Context, p *pipepb.Pipeline, opts *JobOptions, worker
 		return nil, err
 	}
 
+	if opts.Options.Options == nil {
+		opts.Options.Options = make(map[string]string)
+	}
 	opts.Options.Options["experiments"] = strings.Join(opts.Experiments, ",")
 	job := &df.Job{
 		ProjectId: opts.Project,
