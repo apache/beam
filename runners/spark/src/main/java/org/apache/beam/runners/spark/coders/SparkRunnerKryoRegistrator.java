@@ -28,8 +28,10 @@ import org.apache.beam.runners.spark.util.ByteArray;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.TupleTag;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.HashBasedTable;
 import org.apache.spark.serializer.KryoRegistrator;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -65,18 +67,18 @@ public class SparkRunnerKryoRegistrator implements KryoRegistrator {
     kryo.register(StateAndTimers.class);
     kryo.register(TupleTag.class);
     // Scala 2.12 uses WrappedArray$ofRef, Scala 2.13 renamed it to ArraySeq$ofRef
-    try {
-      kryo.register(Class.forName("scala.collection.mutable.ArraySeq$ofRef"));
-    } catch (ClassNotFoundException e) {
-      try {
-        kryo.register(Class.forName("scala.collection.mutable.WrappedArray$ofRef"));
-      } catch (ClassNotFoundException ignored) {
-        LOG.warn(
-            "Neither scala.collection.mutable.ArraySeq$ofRef (Scala 2.13) nor "
-                + "scala.collection.mutable.WrappedArray$ofRef (Scala 2.12) was found on the "
-                + "classpath. Kryo serialization of Scala wrapped arrays will fall back to Java "
-                + "serialization or fail at runtime if spark.kryo.registrationRequired is true.");
-      }
+    Class<?> scalaArrayClass =
+        findFirstAvailableClass(
+            "scala.collection.mutable.ArraySeq$ofRef",
+            "scala.collection.mutable.WrappedArray$ofRef");
+    if (scalaArrayClass != null) {
+      kryo.register(scalaArrayClass);
+    } else {
+      LOG.warn(
+          "Neither scala.collection.mutable.ArraySeq$ofRef (Scala 2.13) nor "
+              + "scala.collection.mutable.WrappedArray$ofRef (Scala 2.12) was found on the "
+              + "classpath. Kryo serialization of Scala wrapped arrays will fall back to Java "
+              + "serialization or fail at runtime if spark.kryo.registrationRequired is true.");
     }
 
     try {
@@ -89,5 +91,17 @@ public class SparkRunnerKryoRegistrator implements KryoRegistrator {
     } catch (ClassNotFoundException e) {
       throw new IllegalStateException("Unable to register classes with kryo.", e);
     }
+  }
+
+  @VisibleForTesting
+  static @Nullable Class<?> findFirstAvailableClass(String... classNames) {
+    for (String name : classNames) {
+      try {
+        return Class.forName(name);
+      } catch (ClassNotFoundException ignored) {
+        // try the next candidate
+      }
+    }
+    return null;
   }
 }
