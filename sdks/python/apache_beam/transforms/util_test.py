@@ -1033,13 +1033,14 @@ class SortAndBatchElementsTest(unittest.TestCase):
     with TestPipeline() as p:
       # Create elements with varying sizes
       data = ['aaaaa', 'bb', 'cccc', 'a', 'ddd']
+      expected = [['a', 'bb', 'ddd', 'cccc', 'aaaaa']]
       res = (
           p
           | beam.Create(data, reshuffle=False)
           | util.SortAndBatchElements(
               min_batch_size=1, max_batch_size=5, max_batch_weight=100))
       # All elements fit in one batch, so the expected order is explicit.
-      assert_that(res, equal_to([['a', 'bb', 'ddd', 'cccc', 'aaaaa']]))
+      assert_that(res, equal_to(expected))
 
   def test_batch_respects_max_batch_size(self):
     """Test that batches do not exceed max_batch_size."""
