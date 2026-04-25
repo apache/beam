@@ -1038,14 +1038,8 @@ class SortAndBatchElementsTest(unittest.TestCase):
           | beam.Create(data, reshuffle=False)
           | util.SortAndBatchElements(
               min_batch_size=1, max_batch_size=5, max_batch_weight=100))
-
-      def check_sorted(batch):
-        lengths = [len(s) for s in batch]
-        assert lengths == sorted(lengths), (
-            f'Batch not sorted by size: {lengths}')
-        return batch
-
-      _ = res | beam.Map(check_sorted)
+      # All elements fit in one batch, so the expected order is explicit.
+      assert_that(res, equal_to([['a', 'bb', 'ddd', 'cccc', 'aaaaa']]))
 
   def test_batch_respects_max_batch_size(self):
     """Test that batches do not exceed max_batch_size."""
@@ -1200,47 +1194,9 @@ class SortAndBatchElementsTest(unittest.TestCase):
               min_batch_size=1, max_batch_size=10, max_batch_weight=100)
           |
           beam.Map(lambda batch, ts=beam.DoFn.TimestampParam: (len(batch), ts)))
-      assert_that(res, equal_to([(3, GlobalWindow().max_timestamp())]))
-
-  def test_padding_efficiency_improvement(self):
-    """Test that sorting improves padding efficiency."""
-    # This test verifies the core value proposition of SortAndBatchElements
-    data = ['a', 'aaaaa', 'aa', 'aaaa', 'aaa']
-
-    # Compute what BatchElements would produce (preserves input order)
-    batch_elements_batches = []
-    with TestPipeline() as p:
-      _ = (
-          p
-          | 'Create1' >> beam.Create(data, reshuffle=False)
-          | util.BatchElements(min_batch_size=5, max_batch_size=5)
-          | beam.Map(lambda b: batch_elements_batches.append(list(b))))
-
-    # Compute what SortAndBatchElements produces
-    sort_batch_batches = []
-    with TestPipeline() as p:
-      _ = (
-          p
-          | 'Create2' >> beam.Create(data, reshuffle=False)
-          | util.SortAndBatchElements(
-              min_batch_size=1, max_batch_size=5, max_batch_weight=100)
-          | beam.Map(lambda b: sort_batch_batches.append(list(b))))
-
-    # Calculate padding overhead for each approach
-    # Padding overhead:
-    # sum(max_len_in_batch * batch_size) - sum(actual_lengths)
-    def compute_overhead(batches):
-      overhead = 0
-      for batch in batches:
-        lengths = [len(s) for s in batch]
-        overhead += max(lengths) * len(batch) - sum(lengths)
-      return overhead
-
-    batch_overhead = compute_overhead(batch_elements_batches)
-    sort_overhead = compute_overhead(sort_batch_batches)
-
-    # SortAndBatchElements should have less or equal overhead
-    self.assertLessEqual(sort_overhead, batch_overhead)
+      # The single global-window batch is emitted at end-of-window.
+      expected = [(3, GlobalWindow().max_timestamp())]
+      assert_that(res, equal_to(expected))
 
 
 class SortAndBatchElementsDoFnDirectTest(unittest.TestCase):

@@ -1336,7 +1336,7 @@ class _SortAndBatchElementsDoFn(DoFn):
         Must be >= ``min_batch_size``.
     max_batch_weight: The maximum total weight of elements in a batch,
         where weight is computed by ``element_size_fn``. Must be >= 1.
-    element_size_fn: A callable mapping an element to its integer
+    element_size_fn: An optional callable mapping an element to its integer
         size/weight.
   """
   def __init__(
@@ -1344,7 +1344,7 @@ class _SortAndBatchElementsDoFn(DoFn):
       min_batch_size: int,
       max_batch_size: int,
       max_batch_weight: int,
-      element_size_fn: Callable[[Any], int]):
+      element_size_fn: Optional[Callable[[Any], int]]):
     self._min_batch_size = min_batch_size
     self._max_batch_size = max_batch_size
     self._max_batch_weight = max_batch_weight
@@ -1412,8 +1412,11 @@ class _WindowAwareSortAndBatchElementsDoFn(DoFn):
   This DoFn is used internally by ``SortAndBatchElements`` for
   PCollections with non-default (e.g. fixed, sliding, or session) windows.
   Elements are buffered per window and each window is flushed independently.
-  To prevent unbounded memory growth, when the number of live windows
-  exceeds ``_MAX_LIVE_WINDOWS`` the largest window buffer is flushed early.
+  To prevent a single bundle from retaining too many per-window buffers at
+  once, when the number of live windows exceeds ``_MAX_LIVE_WINDOWS`` the
+  largest window buffer is flushed early. This DoFn reuses
+  ``_WindowAwareBatchingDoFn._MAX_LIVE_WINDOWS`` so it follows the same
+  existing window-aware batching behavior already used in this module.
 
   Args:
     min_batch_size: The minimum number of elements per batch. Must be >= 1.
@@ -1421,18 +1424,18 @@ class _WindowAwareSortAndBatchElementsDoFn(DoFn):
         Must be >= ``min_batch_size``.
     max_batch_weight: The maximum total weight of elements in a batch,
         where weight is computed by ``element_size_fn``. Must be >= 1.
-    element_size_fn: A callable mapping an element to its integer
+    element_size_fn: An optional callable mapping an element to its integer
         size/weight.
   """
 
-  _MAX_LIVE_WINDOWS = 10
+  _MAX_LIVE_WINDOWS = _WindowAwareBatchingDoFn._MAX_LIVE_WINDOWS
 
   def __init__(
       self,
       min_batch_size: int,
       max_batch_size: int,
       max_batch_weight: int,
-      element_size_fn: Callable[[Any], int]):
+      element_size_fn: Optional[Callable[[Any], int]]):
     self._min_batch_size = min_batch_size
     self._max_batch_size = max_batch_size
     self._max_batch_weight = max_batch_weight
@@ -1590,13 +1593,12 @@ class SortAndBatchElements(PTransform):
               self._max_batch_size,
               self._max_batch_weight,
               self._element_size_fn))
-    else:
-      return pcoll | ParDo(
-          _WindowAwareSortAndBatchElementsDoFn(
-              self._min_batch_size,
-              self._max_batch_size,
-              self._max_batch_weight,
-              self._element_size_fn))
+    return pcoll | ParDo(
+        _WindowAwareSortAndBatchElementsDoFn(
+            self._min_batch_size,
+            self._max_batch_size,
+            self._max_batch_weight,
+            self._element_size_fn))
 
 
 class _IdentityWindowFn(NonMergingWindowFn):

@@ -15,18 +15,24 @@
 # limitations under the License.
 #
 
-"""Benchmark: BatchElements vs SortAndBatchElements (weight-based splitting).
+"""Benchmark: BatchElements vs SortAndBatchElements on real Beam pipelines.
 
-Compares two batching strategies for variable-length inference workloads:
+Compares two batching strategies for variable-length inference workloads by
+running the actual Beam transforms under DirectRunner:
 
-- Baseline (BatchElements): fixed-count chunking, ignores element sizes.
-- Stateless (SortAndBatchElements): within each bundle, sorts elements
-  by size, then splits batches using max_batch_weight so that each batch
-  has a bounded total weight.  The improvement comes from sorting
-  combined with weight-based splitting: sorting clusters similar-sized
-  elements together, and the weight constraint then produces tighter
-  batches.  Sorting alone with fixed count-based boundaries yields ~0%
-  gain (verified by strict-control ablation).
+- Baseline (BatchElements): fixed-count batching by setting
+  ``min_batch_size == max_batch_size``.
+- Stateless (SortAndBatchElements): sorts elements by size within each runner
+  bundle, then splits batches using ``max_batch_weight``.
+
+The benchmark materializes per-batch summaries through a temporary Beam sink and
+analyzes them after the pipeline completes. This keeps the benchmark on the
+normal Beam execution path rather than relying on InteractiveRunner-specific
+result materialization or local side effects.
+
+Bundle boundaries are runner-defined. As a result, these measurements are meant
+to compare the actual DirectRunner behavior of the two transforms rather than a
+synthetic, user-configurable bundle model.
 
 Padding ratio::
 
@@ -37,6 +43,7 @@ Methodology:
 
 - N=20 independent trials per condition (3 warmup trials excluded).
 - Same input corpus (seed=42) for A/B comparison.
+- DirectRunner with in-memory execution and one worker for reproducibility.
 - Percentile method: linear interpolation between adjacent ranks
   (equivalent to numpy.percentile with method='linear').
   For N=20 trials: P50 interpolates ranks 10-11 (0-indexed 9-10),
@@ -44,24 +51,27 @@ Methodology:
   P99 interpolates near rank 20 (0-indexed 18.81).
 - Reports median [IQR] and P95 for each metric.
 - Inference model: latency = batch_size * (max_seq_len / 50)^1.5 ms
-  (simulates transformer-like scaling).
+  (simulates downstream transformer-like scaling).
 
 Run::
 
   python3 -m apache_beam.testing.benchmarks.sort_and_batch_benchmark
 """
 
+import glob
+import json
 import math
+import os
 import random
 import statistics
+import tempfile
 import time
+from collections.abc import Sequence
 from typing import Any
-from typing import Callable
-from typing import Dict
-from typing import List
-from typing import Optional
-from typing import Sequence
-from typing import Tuple
+
+import apache_beam as beam
+from apache_beam.options.pipeline_options import PipelineOptions
+from apache_beam.transforms import util
 
 # ---------------------------------------------------------------------------
 # Data generators
@@ -72,7 +82,7 @@ def generate_highly_skewed_data(
     num_elements: int,
     min_length: int = 1,
     max_length: int = 500,
-    seed: int = 42) -> List[str]:
+    seed: int = 42) -> list[str]:
   """Pareto(alpha=1.2) -- most short, few very long."""
   random.seed(seed)
   data = []
@@ -89,7 +99,7 @@ def generate_lognormal_data(
     std_factor: float = 0.8,
     min_length: int = 1,
     max_length: int = 500,
-    seed: int = 42) -> List[str]:
+    seed: int = 42) -> list[str]:
   """Log-normal -- moderate skew, typical NLP."""
   random.seed(seed)
   mu = math.log(mean_length)
@@ -109,7 +119,7 @@ def generate_bimodal_data(
     mode1_ratio: float = 0.7,
     min_length: int = 1,
     max_length: int = 500,
-    seed: int = 42) -> List[str]:
+    seed: int = 42) -> list[str]:
   """Bimodal -- two distinct length groups."""
   random.seed(seed)
   data = []
@@ -129,7 +139,7 @@ def generate_low_variance_data(
     cv: float = 0.1,
     min_length: int = 1,
     max_length: int = 500,
-    seed: int = 42) -> List[str]:
+    seed: int = 42) -> list[str]:
   """Low-variance control (CV=10%)."""
   random.seed(seed)
   std = mean_length * cv
@@ -142,72 +152,71 @@ def generate_low_variance_data(
 
 
 # ---------------------------------------------------------------------------
-# Batching algorithms
+# Real Beam batching
 # ---------------------------------------------------------------------------
 
 
-def simulate_batch_elements(data: List[str],
-                            max_batch_size: int) -> List[List[str]]:
-  """Baseline: simple count-based chunking (BatchElements behaviour)."""
-  batches = []
-  current_batch = []
-  for element in data:
-    current_batch.append(element)
-    if len(current_batch) >= max_batch_size:
-      batches.append(current_batch)
-      current_batch = []
-  if current_batch:
-    batches.append(current_batch)
-  return batches
+def _direct_runner_options() -> PipelineOptions:
+  return PipelineOptions([
+      '--runner=DirectRunner',
+      '--direct_running_mode=in_memory',
+      '--direct_num_workers=1',
+  ])
 
 
-def simulate_sort_and_batch_elements(
-    data: List[str],
-    max_batch_size: int,
-    max_batch_weight: int,
-    element_size_fn: Optional[Callable[[Any], int]] = None,
-    bundle_size: Optional[int] = None) -> List[List[str]]:
-  """Core mechanism: sort by size + weight-based batch splitting."""
-  if element_size_fn is None:
-    element_size_fn = len
+def _batch_to_json(batch: list[str]) -> str:
+  lengths = [len(element) for element in batch]
+  return json.dumps({
+      'batch_size': len(batch),
+      'actual_total_length': sum(lengths),
+      'max_len': max(lengths) if lengths else 0,
+  })
 
-  # Split into bundles if specified (realistic Beam behavior)
-  if bundle_size is not None and bundle_size > 0:
-    bundles = [
-        data[i:i + bundle_size] for i in range(0, len(data), bundle_size)
-    ]
-  else:
-    bundles = [data]
 
-  all_batches = []
+def _read_batch_summaries(output_prefix: str) -> list[dict[str, int]]:
+  summaries = []
+  for path in sorted(glob.glob(f'{output_prefix}*')):
+    if path.endswith('.crc'):
+      continue
+    with open(path, encoding='utf-8') as handle:
+      for line in handle:
+        line = line.strip()
+        if line:
+          summaries.append(json.loads(line))
+  return summaries
 
-  for bundle in bundles:
-    # Sort by element size (ascending)
-    sorted_bundle = sorted(bundle, key=element_size_fn)
 
-    current_batch = []
-    current_weight = 0
+def _run_batching_pipeline(
+    strategy: str, data: list[str], max_batch_size: int,
+    max_batch_weight: int) -> tuple[list[dict[str, int]], float]:
+  """Runs one Beam pipeline and returns batch summaries plus runtime."""
+  with tempfile.TemporaryDirectory(prefix='beam_batch_benchmark_') as temp_dir:
+    output_prefix = os.path.join(temp_dir, strategy)
+    pipeline = beam.Pipeline(options=_direct_runner_options())
+    batched = pipeline | 'CreateInput' >> beam.Create(data, reshuffle=False)
 
-    for element in sorted_bundle:
-      element_weight = element_size_fn(element)
+    if strategy == 'baseline':
+      batched = batched | 'BatchElements' >> util.BatchElements(
+          min_batch_size=max_batch_size, max_batch_size=max_batch_size)
+    elif strategy == 'stateless':
+      batched = batched | 'SortAndBatchElements' >> util.SortAndBatchElements(
+          min_batch_size=1,
+          max_batch_size=max_batch_size,
+          max_batch_weight=max_batch_weight)
+    else:
+      raise ValueError(f'Unknown strategy: {strategy}')
 
-      # Check if adding this element would exceed limits
-      would_exceed_count = len(current_batch) >= max_batch_size
-      would_exceed_weight = (
-          current_weight + element_weight > max_batch_weight and current_batch)
+    _ = (
+        batched
+        | 'SerializeBatchSummary' >> beam.Map(_batch_to_json)
+        | 'WriteBatchSummary' >> beam.io.WriteToText(output_prefix))
 
-      if would_exceed_count or would_exceed_weight:
-        all_batches.append(current_batch)
-        current_batch = []
-        current_weight = 0
+    start = time.perf_counter()
+    result = pipeline.run()
+    result.wait_until_finish()
+    runtime_ms = (time.perf_counter() - start) * 1000
 
-      current_batch.append(element)
-      current_weight += element_weight
-
-    if current_batch:
-      all_batches.append(current_batch)
-
-  return all_batches
+    return _read_batch_summaries(output_prefix), runtime_ms
 
 
 # ---------------------------------------------------------------------------
@@ -216,12 +225,10 @@ def simulate_sort_and_batch_elements(
 
 
 def simulate_inference_latency(
-    batch: List[str], base_latency_ms: float = 1.0) -> float:
-  """Simulate transformer inference: O(batch_size * seq_len^1.5)."""
-  if not batch:
+    batch_size: int, max_len: int, base_latency_ms: float = 1.0) -> float:
+  """Simulate downstream inference: O(batch_size * seq_len^1.5)."""
+  if not batch_size or not max_len:
     return 0.0
-  batch_size = len(batch)
-  max_len = max(len(s) for s in batch)
   return base_latency_ms * batch_size * (max_len / 50)**1.5
 
 
@@ -246,22 +253,13 @@ def percentile(data: Sequence[float], p: float) -> float:
   return s[f] + (k - f) * (s[c] - s[f])
 
 
-def compute_padding_stats(batches: List[List[str]]) -> Dict[str, Any]:
-  """Padding-efficiency statistics for a list of batches."""
-  total_actual = 0
-  total_padded = 0
-  batch_sizes = []
-  max_lengths = []
-
-  for batch in batches:
-    if not batch:
-      continue
-    lengths = [len(s) for s in batch]
-    mx = max(lengths)
-    total_actual += sum(lengths)
-    total_padded += mx * len(batch)
-    batch_sizes.append(len(batch))
-    max_lengths.append(mx)
+def compute_padding_stats(
+    batch_summaries: list[dict[str, int]]) -> dict[str, Any]:
+  """Padding-efficiency statistics for materialized batch summaries."""
+  total_actual = sum(s['actual_total_length'] for s in batch_summaries)
+  total_padded = sum(s['max_len'] * s['batch_size'] for s in batch_summaries)
+  batch_sizes = [s['batch_size'] for s in batch_summaries if s['batch_size']]
+  max_lengths = [s['max_len'] for s in batch_summaries if s['batch_size']]
 
   efficiency = total_actual / total_padded if total_padded else 0.0
   padding_ratio = total_padded / total_actual if total_actual else float('inf')
@@ -269,7 +267,7 @@ def compute_padding_stats(batches: List[List[str]]) -> Dict[str, Any]:
   return {
       'efficiency': efficiency,
       'padding_ratio': padding_ratio,
-      'num_batches': len(batches),
+      'num_batches': len(batch_summaries),
       'avg_batch_size': statistics.mean(batch_sizes) if batch_sizes else 0,
       'total_actual_length': total_actual,
       'total_padded_length': total_padded,
@@ -288,17 +286,16 @@ def compute_padding_stats(batches: List[List[str]]) -> Dict[str, Any]:
 
 
 def validate_invariants(
-    data: List[str],
-    baseline_batches: List[List[str]],
-    stateless_batches: List[List[str]],
-    config: Dict[str, Any]) -> Dict[str, Any]:
+    data: list[str],
+    baseline_summaries: list[dict[str, int]],
+    stateless_summaries: list[dict[str, int]]) -> dict[str, Any]:
   """Validate element/token counts and batch-size equality."""
   n = len(data)
-  b_n = sum(len(b) for b in baseline_batches)
-  s_n = sum(len(b) for b in stateless_batches)
+  b_n = sum(s['batch_size'] for s in baseline_summaries)
+  s_n = sum(s['batch_size'] for s in stateless_summaries)
   tok = sum(len(s) for s in data)
-  b_tok = sum(sum(len(s) for s in b) for b in baseline_batches)
-  s_tok = sum(sum(len(s) for s in b) for b in stateless_batches)
+  b_tok = sum(s['actual_total_length'] for s in baseline_summaries)
+  s_tok = sum(s['actual_total_length'] for s in stateless_summaries)
 
   return {
       'input_elements': n,
@@ -309,8 +306,8 @@ def validate_invariants(
       'baseline_tokens': b_tok,
       'stateless_tokens': s_tok,
       'tokens_match': tok == b_tok == s_tok,
-      'baseline_num_batches': len(baseline_batches),
-      'stateless_num_batches': len(stateless_batches),
+      'baseline_num_batches': len(baseline_summaries),
+      'stateless_num_batches': len(stateless_summaries),
   }
 
 
@@ -320,56 +317,62 @@ def validate_invariants(
 
 
 def run_performance_benchmark(
-    data: List[str],
+    data: list[str],
     max_batch_size: int,
     max_batch_weight: int,
-    bundle_size: int = 500,
     num_trials: int = 20,
-    warmup_trials: int = 3) -> Tuple[Dict[str, Any], Dict[str, Any]]:
+    warmup_trials: int = 3
+) -> tuple[
+    dict[str, Any],
+    dict[str, Any],
+    list[dict[str, int]],
+    list[dict[str, int]],
+]:
   """Run N=20 trials for baseline and stateless."""
   total_tokens = sum(len(s) for s in data)
 
   baseline_trials = []
   stateless_trials = []
+  baseline_sample_summaries = []
+  stateless_sample_summaries = []
 
   for trial_idx in range(warmup_trials + num_trials):
     is_warmup = trial_idx < warmup_trials
+    trial_results = {}
 
-    # --- Baseline ---
-    start = time.perf_counter()
-    b_batches = simulate_batch_elements(data, max_batch_size)
-    batch_ms = (time.perf_counter() - start) * 1000
-    b_inf = [simulate_inference_latency(b) for b in b_batches]
-    b_e2e = batch_ms + sum(b_inf)
-    if not is_warmup:
-      baseline_trials.append({
-          'overhead_ms': batch_ms,
-          'inference_ms': sum(b_inf),
-          'e2e_ms': b_e2e,
-          'batch_latencies': b_inf,
-          'num_batches': len(b_batches),
-      })
+    if trial_idx % 2 == 0:
+      trial_order = ('baseline', 'stateless')
+    else:
+      trial_order = ('stateless', 'baseline')
 
-    # --- Stateless (SortAndBatchElements) ---
-    start = time.perf_counter()
-    s_batches = simulate_sort_and_batch_elements(
-        data, max_batch_size, max_batch_weight, bundle_size=bundle_size)
-    sort_ms = (time.perf_counter() - start) * 1000
-    s_inf = [simulate_inference_latency(b) for b in s_batches]
-    s_e2e = sort_ms + sum(s_inf)
+    for strategy in trial_order:
+      summaries, runtime_ms = _run_batching_pipeline(
+          strategy, data, max_batch_size, max_batch_weight)
+      batch_latencies = [
+          simulate_inference_latency(s['batch_size'], s['max_len'])
+          for s in summaries
+      ]
+      trial_results[strategy] = {
+          'runtime_ms': runtime_ms,
+          'inference_ms': sum(batch_latencies),
+          'e2e_ms': runtime_ms + sum(batch_latencies),
+          'batch_latencies': batch_latencies,
+          'num_batches': len(summaries),
+          'summaries': summaries,
+      }
+
     if not is_warmup:
-      stateless_trials.append({
-          'overhead_ms': sort_ms,
-          'inference_ms': sum(s_inf),
-          'e2e_ms': s_e2e,
-          'batch_latencies': s_inf,
-          'num_batches': len(s_batches),
-      })
+      baseline_trials.append(trial_results['baseline'])
+      stateless_trials.append(trial_results['stateless'])
+      if not baseline_sample_summaries:
+        baseline_sample_summaries = trial_results['baseline']['summaries']
+      if not stateless_sample_summaries:
+        stateless_sample_summaries = trial_results['stateless']['summaries']
 
   def _stats(trials):
     e2e = [t['e2e_ms'] for t in trials]
     tput = [total_tokens / (t['e2e_ms'] / 1000) for t in trials]
-    overhead = [t['overhead_ms'] for t in trials]
+    runtime = [t['runtime_ms'] for t in trials]
     all_lat = [l for t in trials for l in t['batch_latencies']]
     return {
         'e2e_median': percentile(e2e, 50),
@@ -380,10 +383,10 @@ def run_performance_benchmark(
         'tput_p25': percentile(tput, 25),
         'tput_p75': percentile(tput, 75),
         'tput_p95': percentile(tput, 95),
-        'overhead_median': percentile(overhead, 50),
-        'overhead_p25': percentile(overhead, 25),
-        'overhead_p75': percentile(overhead, 75),
-        'overhead_p95': percentile(overhead, 95),
+        'runtime_median': percentile(runtime, 50),
+        'runtime_p25': percentile(runtime, 25),
+        'runtime_p75': percentile(runtime, 75),
+        'runtime_p95': percentile(runtime, 95),
         'batch_lat_p50': percentile(all_lat, 50),
         'batch_lat_p95': percentile(all_lat, 95),
         'batch_lat_p99': percentile(all_lat, 99),
@@ -392,7 +395,12 @@ def run_performance_benchmark(
         'num_batches': trials[0]['num_batches'] if trials else 0,
     }
 
-  return _stats(baseline_trials), _stats(stateless_trials)
+  return (
+      _stats(baseline_trials),
+      _stats(stateless_trials),
+      baseline_sample_summaries,
+      stateless_sample_summaries,
+  )
 
 
 # ---------------------------------------------------------------------------
@@ -406,9 +414,8 @@ def run_benchmark(
     max_length: int = 500,
     max_batch_size: int = 32,
     max_batch_weight: int = 2000,
-    bundle_size: int = 500,
     distribution: str = 'pareto',
-    seed: int = 42) -> Dict[str, Any]:
+    seed: int = 42) -> dict[str, Any]:
   """Run baseline vs stateless comparison."""
   generators = {
       'pareto': lambda: generate_highly_skewed_data(
@@ -426,33 +433,23 @@ def run_benchmark(
   data = generators[distribution]()
   lengths = [len(s) for s in data]
 
-  baseline_batches = simulate_batch_elements(data, max_batch_size)
-  stateless_batches = simulate_sort_and_batch_elements(
-      data, max_batch_size, max_batch_weight, bundle_size=bundle_size)
-
-  baseline_pad = compute_padding_stats(baseline_batches)
-  stateless_pad = compute_padding_stats(stateless_batches)
-
-  baseline_perf, stateless_perf = run_performance_benchmark(
-      data, max_batch_size, max_batch_weight, bundle_size)
+  baseline_perf, stateless_perf, baseline_summaries, stateless_summaries = (
+      run_performance_benchmark(data, max_batch_size, max_batch_weight))
+  baseline_pad = compute_padding_stats(baseline_summaries)
+  stateless_pad = compute_padding_stats(stateless_summaries)
   baseline_pad.update(baseline_perf)
   stateless_pad.update(stateless_perf)
 
   validation = validate_invariants(
-      data,
-      baseline_batches,
-      stateless_batches, {
-          'max_batch_size': max_batch_size,
-          'max_batch_weight': max_batch_weight
-      })
+      data, baseline_summaries, stateless_summaries)
 
   return {
       'config': {
           'num_elements': num_elements,
           'max_batch_size': max_batch_size,
           'max_batch_weight': max_batch_weight,
-          'bundle_size': bundle_size,
           'distribution': distribution,
+          'runner': 'DirectRunner',
       },
       'data_stats': {
           'min': min(lengths),
@@ -476,7 +473,7 @@ def _fmt_iqr(median, p25, p75, unit=''):
   return f"{median:.1f} [{p25:.1f}-{p75:.1f}]{unit}"
 
 
-def print_results(results: Dict[str, Any]) -> None:
+def print_results(results: dict[str, Any]) -> None:
   cfg = results['config']
   ds = results['data_stats']
   bl = results['baseline']
@@ -487,6 +484,7 @@ def print_results(results: Dict[str, Any]) -> None:
   print(
       f"Distribution: {cfg['distribution']}  |  "
       f"N={cfg['num_elements']}  |  "
+      f"runner={cfg['runner']}  |  "
       f"max_batch_size={cfg['max_batch_size']}  |  "
       f"max_batch_weight={cfg['max_batch_weight']}")
   print(
@@ -513,13 +511,13 @@ def print_results(results: Dict[str, Any]) -> None:
         f" [{s['e2e_p25']:.1f}-{s['e2e_p75']:.1f}]")
     print(f"      P95:          {s['e2e_p95']:.1f}")
     print("    ")
-    print("    Overhead (ms):")
+    print("    Pipeline runtime (ms):")
     print(
         f"      Median [IQR]:"
-        f" {s['overhead_median']:.2f}"
-        f" [{s['overhead_p25']:.2f}"
-        f"-{s['overhead_p75']:.2f}]")
-    print(f"      P95:          {s['overhead_p95']:.2f}")
+        f" {s['runtime_median']:.2f}"
+        f" [{s['runtime_p25']:.2f}"
+        f"-{s['runtime_p75']:.2f}]")
+    print(f"      P95:          {s['runtime_p95']:.2f}")
     print("    ")
     print("    Batch latency (ms):")
     print(f"      P50:          {s['batch_lat_p50']:.1f}")
@@ -529,9 +527,9 @@ def print_results(results: Dict[str, Any]) -> None:
   _arm("Baseline (BatchElements)", bl)
   _arm("Stateless (SortAndBatchElements w/ weight-based splitting)", st)
 
-  # Delta — explicit arrows so direction is unambiguous
-  #   ↓ = value decreased (good for latency/padding)
-  #   ↑ = value increased (good for throughput)
+  # Explicit arrows so direction is unambiguous.
+  #   down arrow = value decreased (good for latency/padding)
+  #   up arrow = value increased (good for throughput)
   def _delta_lower(base, new):
     """For metrics where lower is better (latency, padding)."""
     if base == 0:
@@ -583,6 +581,12 @@ def print_results(results: Dict[str, Any]) -> None:
       _delta_lower,
       unit=' ms')
   _line(
+      'Pipeline runtime ',
+      bl['runtime_median'],
+      st['runtime_median'],
+      _delta_lower,
+      unit=' ms')
+  _line(
       'Batch lat p95    ',
       bl['batch_lat_p95'],
       st['batch_lat_p95'],
@@ -614,23 +618,23 @@ def print_results(results: Dict[str, Any]) -> None:
 
 def main():
   print("=" * 80)
-  print("BASELINE (count-based) vs STATELESS (weight-based boundary splitting)")
+  print("BASELINE (BatchElements) vs STATELESS (SortAndBatchElements)")
   print("=" * 80)
   print()
   print("Experiment design:")
-  print("  A = Baseline   : BatchElements with max_batch_size=32 (count-based)")
-  print("  B = Stateless   : SortAndBatchElements with max_batch_weight=2000")
-  print(
-      "                    (sort by size within bundle -> weight-based split)")
+  print("  A = Baseline  : BatchElements with min=max=32")
+  print("  B = Stateless : SortAndBatchElements with max_batch_weight=2000")
+  print("                  (sort within runner bundle, then split by weight)")
   print()
-  print("Why Stateless wins:")
-  print("  Weight-based splitting changes batch BOUNDARIES so each batch has")
-  print(
-      "  similar-length elements -> less padding.  Sorting alone within fixed")
-  print("  boundaries yields 0% gain (verified by strict-control experiment).")
+  print("Implementation notes:")
+  print("  - Runs beam.Create(...) pipelines on DirectRunner")
+  print("  - Materializes per-batch summaries through a temporary text sink")
+  print("  - Uses runner-defined bundle boundaries rather than a synthetic")
+  print("    bundle_size knob")
   print()
   print("Methodology:")
   print("  - N=20 trials, 3 warmup excluded")
+  print("  - DirectRunner, in_memory mode, single worker")
   print("  - Percentiles: linear interpolation (= numpy default)")
   print("  - Same seed=42 for both arms")
   print("  - Inference model: latency = batch_size * (max_seq_len/50)^1.5 ms")
@@ -642,7 +646,6 @@ def main():
       num_elements=10000,
       max_batch_size=32,
       max_batch_weight=2000,
-      bundle_size=500,
       distribution=dist,
       seed=42)
   print_results(r)
