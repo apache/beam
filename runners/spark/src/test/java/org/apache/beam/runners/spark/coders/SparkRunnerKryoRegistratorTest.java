@@ -90,16 +90,14 @@ public class SparkRunnerKryoRegistratorTest {
     @Test
     public void fallsBackWhenFirstMissing() {
       Class<?> result =
-          SparkRunnerKryoRegistrator.findFirstAvailableClass(
-              "does.not.Exist", "java.lang.Integer");
+          SparkRunnerKryoRegistrator.findFirstAvailableClass("does.not.Exist", "java.lang.Integer");
       assertSame(Integer.class, result);
     }
 
     @Test
     public void returnsNullWhenNoneAvailable() {
       Class<?> result =
-          SparkRunnerKryoRegistrator.findFirstAvailableClass(
-              "does.not.Exist1", "does.not.Exist2");
+          SparkRunnerKryoRegistrator.findFirstAvailableClass("does.not.Exist1", "does.not.Exist2");
       assertNull(result);
     }
 
