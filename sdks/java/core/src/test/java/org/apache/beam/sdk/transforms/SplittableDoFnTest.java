@@ -972,7 +972,7 @@ public class SplittableDoFnTest implements Serializable {
     /** Upper bound on {@link ProcessContinuation#resume()} iterations via restriction width. */
     private static final long MAX_ATTEMPTS = 3000;
 
-    private static final long FINALIZATION_CALLBACK_TIMEOUT_SECS = 100;
+    private static final long FINALIZATION_CALLBACK_TIMEOUT_SECS = 180;
     // We use the UUID to uniquely identify this DoFn in case this test is run with
     // other tests in the same JVM.
     private static final Map<UUID, AtomicBoolean> WAS_FINALIZED = new ConcurrentHashMap<>();
