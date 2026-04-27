@@ -217,7 +217,7 @@ public class BigQueryIOTranslation {
           (updateCompatibilityBeamVersion != null) ? updateCompatibilityBeamVersion : "2.53.0";
 
       try {
-        BigQueryIO.TypedRead.Builder builder = BigQueryIO.TypedRead.builder();
+        BigQueryIO.TypedRead.Builder builder = new AutoValue_BigQueryIO_TypedRead.Builder<>();
 
         String jsonTableRef = configRow.getString("json_table_ref");
         if (jsonTableRef != null) {
@@ -378,9 +378,7 @@ public class BigQueryIOTranslation {
     public Map<? extends Class<? extends PTransform>, ? extends TransformPayloadTranslator>
         getTransformPayloadTranslators() {
       return ImmutableMap.<Class<? extends PTransform>, TransformPayloadTranslator>builder()
-          .put(
-              BigQueryIO.read(BigQueryIO.TableRowParser.INSTANCE).getClass(),
-              new BigQueryIOReadTranslator())
+          .put(AutoValue_BigQueryIO_TypedRead.class, new BigQueryIOReadTranslator())
           .build();
     }
   }
@@ -617,7 +615,7 @@ public class BigQueryIOTranslation {
           (updateCompatibilityBeamVersion != null) ? updateCompatibilityBeamVersion : "2.53.0";
 
       try {
-        BigQueryIO.Write.Builder builder = BigQueryIO.Write.builder();
+        BigQueryIO.Write.Builder builder = new AutoValue_BigQueryIO_Write.Builder<>();
 
         String jsonTableRef = configRow.getString("json_table_ref");
         if (jsonTableRef != null) {
@@ -930,7 +928,7 @@ public class BigQueryIOTranslation {
     public Map<? extends Class<? extends PTransform>, ? extends TransformPayloadTranslator>
         getTransformPayloadTranslators() {
       return ImmutableMap.<Class<? extends PTransform>, TransformPayloadTranslator>builder()
-          .put(BigQueryIO.write().getClass(), new BigQueryIOWriteTranslator())
+          .put(AutoValue_BigQueryIO_Write.class, new BigQueryIOWriteTranslator())
           .build();
     }
   }
