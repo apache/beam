@@ -72,6 +72,9 @@ public class WindmillWatermarkHold extends WindmillState implements WatermarkHol
 
   @Override
   public void clear() {
+    if (cachedValue != null && !cachedValue.isPresent() && localAdditions == null) {
+      return;
+    }
     cleared = true;
     cachedValue = Optional.absent();
     localAdditions = null;
