@@ -186,7 +186,10 @@ ml_base_core = [
     'absl-py>=0.12.0',
     'tensorflow-hub',
     'torch',
-    'transformers',
+    # Match tested transformers range.
+    'transformers>=4.28.0,<4.56.0',
+    # Keep tokenizers compatible with this transformers range.
+    'tokenizers>=0.13.3,<0.22.0',
 ]
 
 ml_adk_dependency = [
