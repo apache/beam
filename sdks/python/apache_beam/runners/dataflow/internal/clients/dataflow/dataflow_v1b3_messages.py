@@ -8063,6 +8063,10 @@ encoding.AddCustomJsonEnumMapping(
 encoding.AddCustomJsonEnumMapping(
     StandardQueryParameters.FXgafvValueValuesEnum, '_2', '2')
 encoding.AddCustomJsonFieldMapping(
+    DataflowProjectsLocationsTemplatesLaunchRequest, 'dynamicTemplate_gcsPath', 'dynamicTemplate.gcsPath')
+encoding.AddCustomJsonFieldMapping(
+    DataflowProjectsLocationsTemplatesLaunchRequest, 'dynamicTemplate_stagingLocation', 'dynamicTemplate.stagingLocation')
+encoding.AddCustomJsonFieldMapping(
     DataflowProjectsTemplatesLaunchRequest, 'dynamicTemplate_gcsPath', 'dynamicTemplate.gcsPath')
 encoding.AddCustomJsonFieldMapping(
     DataflowProjectsTemplatesLaunchRequest, 'dynamicTemplate_stagingLocation', 'dynamicTemplate.stagingLocation')
