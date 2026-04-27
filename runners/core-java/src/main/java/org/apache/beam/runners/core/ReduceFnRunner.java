@@ -94,6 +94,11 @@ import org.joda.time.Instant;
 }) // TODO(https://github.com/apache/beam/issues/20497)
 public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow> {
 
+  // Experiments guarding optimizations in development. No backward compatibility guarantees.
+  public static final String UNSTABLE_NOT_UPDATE_COMPATIBLE_NEW_WINDOW_OPTIMIZATION =
+      "unstable_not_update_compatible_new_window_optimization";
+  public static final String UNSTABLE_DISABLE_WATERMARK_KNOWN_EMPTY_OPTIMIZATION =
+      "unstable_disable_watermark_known_empty_optimization";
   /**
    * The {@link ReduceFnRunner} depends on most aspects of the {@link WindowingStrategy}.
    *
@@ -242,14 +247,12 @@ public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow> {
     this.nonEmptyPanes = NonEmptyPanes.create(this.windowingStrategy, this.reduceFn);
 
     this.useNewWindowOptimization =
-        options != null
-            && ExperimentalOptions.hasExperiment(
-                options, "unstable_not_update_compatible_new_window_optimization");
+        ExperimentalOptions.hasExperiment(
+            options, UNSTABLE_NOT_UPDATE_COMPATIBLE_NEW_WINDOW_OPTIMIZATION);
 
     this.disableWatermarkKnownEmptyOptimization =
-        options != null
-            && ExperimentalOptions.hasExperiment(
-                options, "unstable_disable_watermark_known_empty_optimization");
+        ExperimentalOptions.hasExperiment(
+            options, UNSTABLE_DISABLE_WATERMARK_KNOWN_EMPTY_OPTIMIZATION);
 
     // Note this may incur I/O to load persisted window set data.
     this.activeWindows = createActiveWindowSet();
