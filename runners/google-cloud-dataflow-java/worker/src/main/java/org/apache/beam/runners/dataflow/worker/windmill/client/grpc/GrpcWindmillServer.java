@@ -111,6 +111,10 @@ public final class GrpcWindmillServer extends WindmillServerStub {
       boolean enableStreamingEngine, List<String> additionalExperiments) {
     DataflowWorkerHarnessOptions options =
         PipelineOptionsFactory.create().as(DataflowWorkerHarnessOptions.class);
+    // Ensure the experiments list is mutable before any experiments are added.
+    if (options.getExperiments() != null) {
+      options.setExperiments(new ArrayList<>(options.getExperiments()));
+    }
     options.setProject("project");
     options.setJobId("job");
     options.setWorkerId("worker");

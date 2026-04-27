@@ -1243,15 +1243,21 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
   @SuppressWarnings("Slf4jFormatShouldBeConst")
   @Override
   public DataflowPipelineJob run(Pipeline pipeline) {
+    // Ensure the experiments list is mutable before any experiments are added.
+    if (options.getExperiments() != null) {
+      options.setExperiments(new ArrayList<>(options.getExperiments()));
+    }
     // Multi-language pipelines and pipelines that include upgrades should automatically be upgraded
     // to Dataflow Portable Runner.
     if (DataflowRunner.isMultiLanguagePipeline(pipeline) || includesTransformUpgrades(pipeline)) {
-      if (!firstNonNull(options.getExperiments(), Collections.emptyList())
-          .contains("use_runner_v2")) {
-        LOG.info(
-            "Automatically enabling Dataflow Portable Runner since the pipeline used cross-language"
-                + " transforms or pipeline needed a transform upgrade.");
-        ExperimentalOptions.addExperiment(options, "use_runner_v2");
+      if (!useUnifiedWorker(options)) {
+        if (!firstNonNull(options.getExperiments(), Collections.emptyList())
+            .contains("use_runner_v2")) {
+          LOG.info(
+              "Automatically enabling Dataflow Portable Runner since the pipeline used cross-language"
+                  + " transforms or pipeline needed a transform upgrade.");
+          ExperimentalOptions.addExperiment(options, "use_runner_v2");
+        }
       }
     }
     if (useUnifiedWorker(options)) {
