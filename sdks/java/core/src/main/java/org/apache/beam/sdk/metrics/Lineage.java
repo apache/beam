@@ -17,8 +17,6 @@
  */
 package org.apache.beam.sdk.metrics;
 
-import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkNotNull;
-
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.Iterator;
@@ -26,112 +24,44 @@ import java.util.List;
 import java.util.Set;
 import java.util.regex.Pattern;
 import org.apache.beam.sdk.annotations.Internal;
-import org.apache.beam.sdk.lineage.LineageBase;
-import org.apache.beam.sdk.lineage.LineageOptions;
 import org.apache.beam.sdk.metrics.Metrics.MetricsFlag;
-import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Splitter;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.checkerframework.checker.nullness.qual.Nullable;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * Standard collection of metrics used to record source and sinks information for lineage tracking.
  */
 public class Lineage {
+
   public static final String LINEAGE_NAMESPACE = "lineage";
-  private static final Logger LOG = LoggerFactory.getLogger(Lineage.class);
-
-  private static volatile @Nullable Lineage sources;
-  private static volatile @Nullable Lineage sinks;
-  private static volatile @Nullable Class<? extends LineageBase> currentLineageType;
-
-  private static final Object INIT_LOCK = new Object();
-
+  private static final Lineage SOURCES = new Lineage(Type.SOURCE);
+  private static final Lineage SINKS = new Lineage(Type.SINK);
   // Reserved characters are backtick, colon, whitespace (space, \t, \n) and dot.
   private static final Pattern RESERVED_CHARS = Pattern.compile("[:\\s.`]");
 
-  private final LineageBase delegate;
+  private final Metric metric;
 
-  public enum LineageDirection {
-    SOURCE,
-    SINK
-  }
-
-  private Lineage(LineageBase delegate) {
-    this.delegate = checkNotNull(delegate, "delegate cannot be null");
-  }
-
-  @Internal
-  public static void setDefaultPipelineOptions(PipelineOptions options) {
-    checkNotNull(options, "options cannot be null");
-    Class<? extends LineageBase> requestedType = options.as(LineageOptions.class).getLineageType();
-
-    if (canSkipInit(requestedType)) {
-      return;
+  private Lineage(Type type) {
+    if (MetricsFlag.lineageRollupEnabled()) {
+      this.metric =
+          Metrics.boundedTrie(
+              LINEAGE_NAMESPACE,
+              type == Type.SOURCE ? Type.SOURCEV2.toString() : Type.SINKV2.toString());
+    } else {
+      this.metric = Metrics.stringSet(LINEAGE_NAMESPACE, type.toString());
     }
-    synchronized (INIT_LOCK) {
-      if (canSkipInit(requestedType)) {
-        return;
-      }
-      sources = createLineage(options, LineageDirection.SOURCE);
-      sinks = createLineage(options, LineageDirection.SINK);
-      currentLineageType = requestedType;
-      LOG.debug("Lineage initialized with type {}", requestedType);
-    }
-  }
-
-  private static boolean canSkipInit(@Nullable Class<? extends LineageBase> requestedType) {
-    if (sources == null) {
-      return false;
-    }
-    // When no type is requested, preserve whatever is already initialized.
-    // When a type is requested, only re-init if it differs from the active type.
-    return requestedType == null || requestedType.equals(currentLineageType);
-  }
-
-  private static Lineage createLineage(PipelineOptions options, LineageDirection direction) {
-    Class<? extends LineageBase> lineageClass = options.as(LineageOptions.class).getLineageType();
-
-    if (lineageClass != null) {
-      try {
-        LineageBase lineage =
-            lineageClass
-                .getDeclaredConstructor(PipelineOptions.class, LineageDirection.class)
-                .newInstance(options, direction);
-        LOG.info("Using {} for lineage direction {}", lineageClass.getName(), direction);
-        return new Lineage(lineage);
-      } catch (ReflectiveOperationException e) {
-        throw new IllegalArgumentException(
-            "Failed to instantiate lineage implementation: "
-                + lineageClass.getName()
-                + ". The class must have a public constructor accepting "
-                + "(PipelineOptions, Lineage.LineageDirection).",
-            e);
-      }
-    }
-
-    LOG.debug("Using default Metrics-based lineage for direction {}", direction);
-    LineageBase defaultLineage =
-        MetricsFlag.lineageRollupEnabled()
-            ? new BoundedTrieMetricsLineage(options, direction)
-            : new StringSetMetricsLineage(options, direction);
-    return new Lineage(defaultLineage);
   }
 
   /** {@link Lineage} representing sources and optionally side inputs. */
   public static Lineage getSources() {
-    return checkNotNull(
-        sources,
-        "Lineage not initialized. FileSystems.setDefaultPipelineOptions must be called first.");
+    return SOURCES;
   }
 
   /** {@link Lineage} representing sinks. */
   public static Lineage getSinks() {
-    return checkNotNull(
-        sinks,
-        "Lineage not initialized. FileSystems.setDefaultPipelineOptions must be called first.");
+    return SINKS;
   }
 
   @VisibleForTesting
@@ -210,7 +140,12 @@ public class Lineage {
    *     <p>In particular, this means they will often have trailing delimiters.
    */
   public void add(Iterable<String> rollupSegments) {
-    delegate.add(rollupSegments);
+    ImmutableList<String> segments = ImmutableList.copyOf(rollupSegments);
+    if (MetricsFlag.lineageRollupEnabled()) {
+      ((BoundedTrie) this.metric).add(segments);
+    } else {
+      ((StringSet) this.metric).add(String.join("", segments));
+    }
   }
 
   /**
@@ -221,8 +156,6 @@ public class Lineage {
    * @param truncatedMarker the marker to use to represent truncated FQNs.
    * @return A flat representation of all FQNs. If the FQN was truncated then it has a trailing
    *     truncatedMarker.
-   *     <p>NOTE: When using a custom Lineage plugin, this method will return empty results since
-   *     lineage is not stored in Metrics.
    */
   public static Set<String> query(MetricResults results, Type type, String truncatedMarker) {
     MetricQueryResults lineageQueryResults = getLineageQueryResults(results, type);
@@ -251,8 +184,6 @@ public class Lineage {
    * @param results FQNs from the result
    * @param type sources or sinks
    * @return A flat representation of all FQNs. If the FQN was truncated then it has a trailing '*'.
-   *     <p>NOTE: When using a custom Lineage plugin, this method will return empty results since
-   *     lineage is not stored in Metrics.
    */
   public static Set<String> query(MetricResults results, Type type) {
     if (MetricsFlag.lineageRollupEnabled()) {

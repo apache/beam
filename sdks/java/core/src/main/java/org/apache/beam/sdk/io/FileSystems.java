@@ -578,7 +578,6 @@ public class FileSystems {
 
     // entry to set other PipelineOption determined flags
     Metrics.setDefaultPipelineOptions(options);
-    Lineage.setDefaultPipelineOptions(options);
 
     while (true) {
       KV<Long, Integer> revision = FILESYSTEM_REVISION.get();
