@@ -108,6 +108,7 @@
 
 ## New Features / Improvements
 
+* (Python) Added BigQuery CDC streaming source ([#37724](https://github.com/apache/beam/issues/37724))
 * Added `ADKAgentModelHandler` for running Google Agent Development Kit (ADK) agents (Python) ([#37917](https://github.com/apache/beam/issues/37917)).
 * (Python) Added exception chaining to preserve error context in CloudSQLEnrichmentHandler, processes utilities, and core transforms ([#37422](https://github.com/apache/beam/issues/37422)).
 * (Python) Added a pipeline option `--experiments=pip_no_build_isolation` to disable build isolation when installing dependencies in the runtime environment ([#37331](https://github.com/apache/beam/issues/37331)).
@@ -121,6 +122,7 @@
 ## Breaking Changes
 
 * The Python SDK container's `boot.go` now passes pipeline options through a file instead of the `PIPELINE_OPTIONS` environment variable. If a user pairs a new Python SDK container with an older SDK version (which does not support the file-based approach), the pipeline options will not be recognized and the pipeline will fail. Users must ensure their SDK and container versions are synchronized ([#37370](https://github.com/apache/beam/issues/37370)).
+* Python DoFn.with_exception_handling now respects user DoFn typehints. This can break update compatibility if coders change. It can also break pipeline compilation if existing typehints are incorrect. To update safely sepcify the pipeline option `--update_compatibility_version=2.72.0`. To fix typehints replace any incorrect typehints that were previously ignored ([#37590](https://github.com/apache/beam/issues/37590))
 
 ## Bugfixes
 
