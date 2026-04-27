@@ -33,6 +33,7 @@ import com.google.cloud.spanner.SpannerException;
 import com.google.cloud.spanner.Statement;
 import com.google.gson.Gson;
 import java.util.Collections;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
@@ -109,12 +110,18 @@ public class SpannerChangeStreamPlacementTableIT {
 
   @Test
   public void testReadSpannerChangeStream() {
-    testReadSpannerChangeStreamImpl(pipeline, null);
+    testReadSpannerChangeStreamImpl(pipeline, null, null);
+  }
+
+  @Test
+  public void testReadSpannerChangeStreamWithTvfNameList() {
+    testReadSpannerChangeStreamImpl(
+        pipeline, null, Collections.singletonList("READ_" + changeStreamName));
   }
 
   @Test
   public void testReadSpannerChangeStreamWithAuthorizedRole() {
-    testReadSpannerChangeStreamImpl(pipeline, ENV.getDatabaseRole());
+    testReadSpannerChangeStreamImpl(pipeline, ENV.getDatabaseRole(), null);
   }
 
   @Test
@@ -122,10 +129,12 @@ public class SpannerChangeStreamPlacementTableIT {
     assumeTrue(pipeline.getOptions().getRunner() == DirectRunner.class);
     exception.expect(SpannerException.class);
     exception.expectMessage("Role not found: bad_role.");
-    testReadSpannerChangeStreamImpl(pipeline.enableAbandonedNodeEnforcement(false), "bad_role");
+    testReadSpannerChangeStreamImpl(
+        pipeline.enableAbandonedNodeEnforcement(false), "bad_role", null);
   }
 
-  public void testReadSpannerChangeStreamImpl(TestPipeline testPipeline, String role) {
+  public void testReadSpannerChangeStreamImpl(
+      TestPipeline testPipeline, String role, List<String> tvfNameList) {
     // Defines how many rows are going to be inserted / updated / deleted in the test
     final int numRows = 5;
     // Inserts numRows rows and uses the first commit timestamp as the startAt for reading the
@@ -148,17 +157,21 @@ public class SpannerChangeStreamPlacementTableIT {
       spannerConfig = spannerConfig.withDatabaseRole(StaticValueProvider.of(role));
     }
 
+    SpannerIO.ReadChangeStream readChangeStream =
+        SpannerIO.readChangeStream()
+            .withSpannerConfig(spannerConfig)
+            .withChangeStreamName(changeStreamName)
+            .withMetadataDatabase(ENV.getMetadataDatabaseId())
+            .withMetadataTable(metadataTableName)
+            .withInclusiveStartAt(startAt)
+            .withInclusiveEndAt(endAt);
+
+    if (tvfNameList != null) {
+      readChangeStream = readChangeStream.withTvfNameList(tvfNameList);
+    }
+
     final PCollection<String> tokens =
-        testPipeline
-            .apply(
-                SpannerIO.readChangeStream()
-                    .withSpannerConfig(spannerConfig)
-                    .withChangeStreamName(changeStreamName)
-                    .withMetadataDatabase(ENV.getMetadataDatabaseId())
-                    .withMetadataTable(metadataTableName)
-                    .withInclusiveStartAt(startAt)
-                    .withInclusiveEndAt(endAt))
-            .apply(ParDo.of(new ModsToString()));
+        testPipeline.apply(readChangeStream).apply(ParDo.of(new ModsToString()));
 
     // Each row is composed by the following data
     // <mod type, singer id, old first name, old last name, new first name, new last name>
