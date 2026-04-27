@@ -203,8 +203,7 @@ public class WindmillWatermarkHold extends WindmillState implements WatermarkHol
       // 5. Otherwise, we need to combine the local additions with the already persisted data
       result = combineWithPersisted();
     } else {
-      // 6. No changes, so no need to update Windmill.
-      result = Futures.immediateFuture(Windmill.WorkItemCommitRequest.newBuilder().buildPartial());
+      throw new IllegalStateException("Unreachable condition");
     }
 
     final int estimatedByteSize = ENCODED_SIZE + stateKey.byteString().size();
