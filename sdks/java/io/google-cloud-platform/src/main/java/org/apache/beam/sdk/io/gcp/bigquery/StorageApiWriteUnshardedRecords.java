@@ -760,7 +760,10 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
                             error.getRowIndexToErrorMessage().get(failedIndex),
                             tableDestination.getTableReference());
                   } catch (Exception e) {
-                    LOG.error("Failed to insert row and could not parse the result!", e);
+                    LOG.error(
+                        "Failed to insert row and could not parse the result! Insert error: {}.",
+                        error.getRowIndexToErrorMessage().get(failedIndex),
+                        e);
                   }
                   // output outside try {} clause to avoid suppress downstream Exception
                   if (element != null) {
@@ -850,7 +853,7 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
               boolean hasPersistentErrors =
                   failedContext.getError() instanceof Exceptions.StreamFinalizedException
                       || statusCode.equals(Status.Code.INVALID_ARGUMENT)
-                      || statusCode.equals(Status.Code.NOT_FOUND)
+                      || (!this.useDefaultStream && statusCode.equals(Status.Code.NOT_FOUND))
                       || statusCode.equals(Status.Code.FAILED_PRECONDITION);
               if (hasPersistentErrors) {
                 throw new RuntimeException(

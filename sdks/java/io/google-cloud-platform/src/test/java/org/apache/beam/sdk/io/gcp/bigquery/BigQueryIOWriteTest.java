@@ -2962,7 +2962,7 @@ public class BigQueryIOWriteTest implements Serializable {
         partitions.add(
             KV.of(
                 ShardedKey.of(tableDestination.getTableSpec(), j),
-                new AutoValue_WritePartition_Result(filesPerPartition, true)));
+                WritePartition.Result.of(filesPerPartition, true)));
 
         String json =
             String.format(
@@ -3089,8 +3089,7 @@ public class BigQueryIOWriteTest implements Serializable {
         expectedRowsPerTable.putAll(tableDestination, rows);
         String tableJson = toJsonString(tempTable);
         tempTables.put(tableDestination, tableJson);
-        tempTablesElement.add(
-            KV.of(tableDestination, new AutoValue_WriteTables_Result(tableJson, true)));
+        tempTablesElement.add(KV.of(tableDestination, WriteTables.Result.of(tableJson, true)));
       }
     }
 

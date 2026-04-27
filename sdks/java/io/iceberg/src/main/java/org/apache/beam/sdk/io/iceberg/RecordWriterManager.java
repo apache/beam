@@ -29,10 +29,8 @@ import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 import org.apache.beam.sdk.schemas.Schema;
@@ -60,7 +58,6 @@ import org.apache.iceberg.data.InternalRecordWrapper;
 import org.apache.iceberg.data.Record;
 import org.apache.iceberg.exceptions.AlreadyExistsException;
 import org.apache.iceberg.exceptions.NoSuchTableException;
-import org.apache.iceberg.io.FileIO;
 import org.apache.iceberg.transforms.Transforms;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.slf4j.Logger;
@@ -434,20 +431,6 @@ class RecordWriterManager implements AutoCloseable {
         state.dataFiles.clear();
       }
     } finally {
-      // Close unique FileIO instances now that all writers are done.
-      // table.io() may return a shared FileIO; we deduplicate by identity
-      // so we close each underlying connection pool exactly once.
-      Set<FileIO> closedIOs = new HashSet<>();
-      for (DestinationState state : destinations.values()) {
-        FileIO io = state.table.io();
-        if (io != null && closedIOs.add(io)) {
-          try {
-            io.close();
-          } catch (Exception e) {
-            LOG.warn("Failed to close FileIO for table '{}'", state.table.name(), e);
-          }
-        }
-      }
       destinations.clear();
     }
     checkArgument(

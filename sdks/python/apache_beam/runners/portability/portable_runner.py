@@ -335,7 +335,7 @@ class PortableRunner(runner.PipelineRunner):
         phases = []
         for phase_name in pre_optimize.split(','):
           # For now, these are all we allow.
-          if phase_name in ('pack_combiners', 'lift_combiners'):
+          if phase_name in ('pack_combiners', 'lift_combiners', 'expand_sdf'):
             phases.append(getattr(translations, phase_name))
           else:
             raise ValueError(

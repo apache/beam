@@ -74,7 +74,7 @@ jobs:
         job_name: ["beam_PreCommit_Java_PVR_Flink_Batch"]
         job_phrase: ["Run Java_PVR_Flink_Batch PreCommit"]
     timeout-minutes: 240
-    runs-on: [self-hosted, ubuntu-20.04, highmem]
+    runs-on: [self-hosted, ubuntu-24.04, highmem]
     if: |
       github.event_name == 'push' ||
       github.event_name == 'pull_request_target' ||

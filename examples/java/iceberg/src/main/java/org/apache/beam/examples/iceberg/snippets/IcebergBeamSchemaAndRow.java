@@ -22,6 +22,7 @@ import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalTime;
+import java.time.ZoneOffset;
 import java.util.Arrays;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.logicaltypes.SqlTypes;
@@ -65,8 +66,8 @@ public class IcebergBeamSchemaAndRow {
                     .put("numeric_field", new BigDecimal(67))
                     .put("bytes_field", new byte[] {1, 2, 3})
                     .put("string_field", "value")
-                    .put("time_field", LocalTime.now())
-                    .put("date_field", LocalDate.now())
+                    .put("time_field", LocalTime.now(ZoneOffset.UTC))
+                    .put("date_field", LocalDate.now(ZoneOffset.UTC))
                     .put("timestamp_field", Instant.now())
                     .put("timestamptz_field", DateTime.now())
                     .put("array_field", Arrays.asList(1, 2, 3))

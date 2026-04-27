@@ -49,7 +49,7 @@ jobs:
     if: |
       github.event_name == 'workflow_dispatch' ||
       (github.event_name == 'schedule' && github.repository == 'apache/beam')
-    runs-on: [self-hosted, ubuntu-20.04, main]
+    runs-on: [self-hosted, ubuntu-24.04, main]
     timeout-minutes: 30
     name: beam_Publish_Website
     steps:

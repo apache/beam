@@ -275,8 +275,6 @@ tasks.register("javaPreCommit") {
   dependsOn(":runners:google-cloud-dataflow-java:build")
   dependsOn(":runners:google-cloud-dataflow-java:examples-streaming:build")
   dependsOn(":runners:google-cloud-dataflow-java:examples:build")
-  dependsOn(":runners:google-cloud-dataflow-java:worker:build")
-  dependsOn(":runners:google-cloud-dataflow-java:worker:windmill:build")
   dependsOn(":runners:java-fn-execution:build")
   dependsOn(":runners:java-job-service:build")
   dependsOn(":runners:jet:build")

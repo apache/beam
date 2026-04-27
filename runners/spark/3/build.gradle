@@ -19,10 +19,10 @@
 def basePath = '..'
 /* All properties required for loading the Spark build script */
 project.ext {
+  spark_major = '3'
   // Spark 3 version as defined in BeamModulePlugin
   spark_version = spark3_version
   spark_scala_version = '2.12'
-  copySourceBase = false // disabled to use Spark 3 as primary dev version
   archives_base_name = 'beam-runners-spark-3'
 }
 

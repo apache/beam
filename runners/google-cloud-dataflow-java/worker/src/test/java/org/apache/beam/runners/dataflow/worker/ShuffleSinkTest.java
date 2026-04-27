@@ -117,7 +117,8 @@ public class ShuffleSinkTest {
       ByteString valueBytes = record.getValue();
       WindowedValue<Integer> value =
           CoderUtils.decodeFromByteString(windowedValueCoder, valueBytes);
-      Assert.assertEquals(Lists.newArrayList(GlobalWindow.INSTANCE), value.getWindows());
+      Assert.assertEquals(
+          Lists.newArrayList(GlobalWindow.INSTANCE), Lists.newArrayList(value.getWindows()));
       actual.add(value.getValue());
     }
 

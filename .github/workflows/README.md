@@ -91,7 +91,7 @@ And in case when the workflow already utilizes matrix do the following:
 jobs:
   beam_job_with_matrix:
     name: ${{ matrix.job_name }} (${{ matrix.job_phrase }} ${{ matrix.python_version }})
-    runs-on: [self-hosted, ubuntu-20.04, main]
+    runs-on: [self-hosted, ubuntu-24.04, main]
     timeout-minutes: 30
     strategy:
       fail-fast: false
@@ -104,13 +104,13 @@ jobs:
       github.event_name == 'pull_request_target' ||
       (github.event_name == 'schedule' && github.repository == 'apache/beam') ||
       github.event_name == 'workflow_dispatch' ||
-      startsWith(github.event.comment.body, 'Run Job With Matrix')
+      (github.event_name == 'issue_comment' && github.event.comment.body == format('{0} {1}', matrix.job_phrase, matrix.python_version))
     steps:
       - uses: actions/checkout@v3
       - name: Setup repository
         uses: ./.github/actions/setup-action
         with:
-          comment_phrase: ${{ matrix.job_phrase }}
+          comment_phrase: ${{ matrix.job_phrase }} ${{ matrix.python_version }}
           github_token: ${{ secrets.GITHUB_TOKEN }}
           github_job: ${{ matrix.job_name }} (${{ matrix.job_phrase }} ${{ matrix.python_version }})
 ```
@@ -180,9 +180,9 @@ Note: most workflows use [self-hosted runners](https://docs.github.com/en/action
 with the main and ubuntu labels to execute ([example](https://github.com/apache/beam/blob/5a54ee6ddd8cb8444c41802929a364fe2561001e/.github/workflows/beam_PostCommit_Go_Dataflow_ARM.yml#L41)).
 If you are testing on a fork, you likely will not have self-hosted runners set up.
 To work around this, you can start using hosted runners and then switch over when you're ready to create a PR.
-You can do this by changing `runs-on: [self-hosted, ubuntu-20.04, main]` (self-hosted, use in your PR) to `runs-on: ubuntu-20.04` (GitHub hosted, use for local testing).
+You can do this by changing `runs-on: [self-hosted, ubuntu-24.04, main]` (self-hosted, use in your PR) to `runs-on: ubuntu-24.04` (GitHub hosted, use for local testing).
 
-Note when using `ubuntu-20.04` as the host, you might need to choose the Java version since some gradle tasks only work with a certain Java version.
+Note when using `ubuntu-24.04` as the host, you might need to choose the Java version since some gradle tasks only work with a certain Java version.
 One example is below to use Java 11 when testing your workflow:
 ```
     steps:
@@ -211,7 +211,7 @@ If you run into this issue, you can either:
 
 Additionally, as mentioned above your fork likely will not have self-hosted runners set up.
 To work around this, you can start using hosted runners and then switch over when you're ready to create a PR.
-You can do this by changing runs-on: [self-hosted, ubuntu-20.04, main] (self-hosted, use in your PR) to runs-on: ubuntu-20.04 (GitHub hosted, use for local testing).
+You can do this by changing runs-on: [self-hosted, ubuntu-24.04, main] (self-hosted, use in your PR) to runs-on: ubuntu-24.04 (GitHub hosted, use for local testing).
 
 # Workflows
 Please note that jobs with matrix need to have matrix element in the comment. Example:
@@ -228,6 +228,7 @@ PreCommit Jobs run in a schedule and also get triggered in a PR if relevant sour
 | [ PreCommit Go ](https://github.com/apache/beam/actions/workflows/beam_PreCommit_Go.yml) | N/A |`Run Go PreCommit`| [![.github/workflows/beam_PreCommit_Go.yml](https://github.com/apache/beam/actions/workflows/beam_PreCommit_Go.yml/badge.svg?event=schedule)](https://github.com/apache/beam/actions/workflows/beam_PreCommit_Go.yml?query=event%3Aschedule) |
 | [ PreCommit GoPortable ](https://github.com/apache/beam/actions/workflows/beam_PreCommit_GoPortable.yml) | N/A |`Run GoPortable PreCommit`| [![.github/workflows/beam_PreCommit_GoPortable.yml](https://github.com/apache/beam/actions/workflows/beam_PreCommit_GoPortable.yml/badge.svg?event=schedule)](https://github.com/apache/beam/actions/workflows/beam_PreCommit_GoPortable.yml?query=event%3Aschedule) |
 | [ PreCommit Java ](https://github.com/apache/beam/actions/workflows/beam_PreCommit_Java.yml) | N/A |`Run Java PreCommit`| [![.github/workflows/beam_PreCommit_Java.yml](https://github.com/apache/beam/actions/workflows/beam_PreCommit_Java.yml/badge.svg?event=schedule)](https://github.com/apache/beam/actions/workflows/beam_PreCommit_Java.yml?query=event%3Aschedule) |
+| [ PreCommit Java Dataflow Non-portable Worker ](https://github.com/apache/beam/actions/workflows/beam_PreCommit_Java_Dataflow.yml) | N/A |`Run Java Dataflow Non-portable Worker PreCommit`| N/A |
 | [ PreCommit Java Amazon Web Services2 IO Direct ](https://github.com/apache/beam/actions/workflows/beam_PreCommit_Java_Amazon-Web-Services2_IO_Direct.yml) | N/A |`Run Java_Amazon-Web-Services2_IO_Direct PreCommit`| [![.github/workflows/beam_PreCommit_Java_Amazon-Web-Services2_IO_Direct.yml](https://github.com/apache/beam/actions/workflows/beam_PreCommit_Java_Amazon-Web-Services2_IO_Direct.yml/badge.svg?event=schedule)](https://github.com/apache/beam/actions/workflows/beam_PreCommit_Java_Amazon-Web-Services2_IO_Direct.yml?query=event%3Aschedule) |
 | [ PreCommit Java Amqp IO Direct ](https://github.com/apache/beam/actions/workflows/beam_PreCommit_Java_Amqp_IO_Direct.yml) | N/A |`Run Java_Amqp_IO_Direct PreCommit`| [![.github/workflows/beam_PreCommit_Java_Amqp_IO_Direct.yml](https://github.com/apache/beam/actions/workflows/beam_PreCommit_Java_Amqp_IO_Direct.yml/badge.svg?event=schedule)](https://github.com/apache/beam/actions/workflows/beam_PreCommit_Java_Amqp_IO_Direct.yml?query=event%3Aschedule) |
 | [ PreCommit Java Azure IO Direct ](https://github.com/apache/beam/actions/workflows/beam_PreCommit_Java_Azure_IO_Direct.yml) | N/A |`Run Java_Azure_IO_Direct PreCommit`| [![.github/workflows/beam_PreCommit_Java_Azure_IO_Direct.yml](https://github.com/apache/beam/actions/workflows/beam_PreCommit_Java_Azure_IO_Direct.yml/badge.svg?event=schedule)](https://github.com/apache/beam/actions/workflows/beam_PreCommit_Java_Azure_IO_Direct.yml?query=event%3Aschedule) |
