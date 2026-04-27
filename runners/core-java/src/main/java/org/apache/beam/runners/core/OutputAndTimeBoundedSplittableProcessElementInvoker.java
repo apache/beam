@@ -204,6 +204,11 @@ public class OutputAndTimeBoundedSplittableProcessElementInvoker<
               }
 
               @Override
+              public ValueKind valueKind(DoFn<InputT, OutputT> doFn) {
+                return processContext.valueKind();
+              }
+
+              @Override
               public RestrictionTracker<?, ?> restrictionTracker() {
                 return processContext.tracker;
               }

@@ -81,7 +81,7 @@ public class WindowedValueTest {
 
   @Test
   public void testWindowedValueWithElementMetadataCoder() throws CoderException {
-    WindowedValues.WindowedValueCoder.setMetadataSupported();
+    WindowedValues.WindowedValueCoder.setMetadataSupported(true);
     Instant timestamp = new Instant(1234);
     WindowedValue<String> value =
         WindowedValues.of(
@@ -111,7 +111,7 @@ public class WindowedValueTest {
 
   @Test
   public void testWindowedValueWithValueKindCoder() throws CoderException {
-    WindowedValues.WindowedValueCoder.setMetadataSupported();
+    WindowedValues.WindowedValueCoder.setMetadataSupported(true);
     Instant timestamp = new Instant(1234);
     WindowedValue<String> value =
         WindowedValues.<String>builder()

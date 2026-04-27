@@ -327,7 +327,7 @@ public class WindmillKeyedWorkItemTest {
 
   @Test
   public void testDrainPropagated() throws Exception {
-    WindowedValues.FullWindowedValueCoder.setMetadataSupported();
+    WindowedValues.FullWindowedValueCoder.setMetadataSupported(true);
     Windmill.WorkItem.Builder workItem =
         Windmill.WorkItem.newBuilder()
             .setKey(SERIALIZED_KEY)

@@ -1781,11 +1781,11 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
 
     @Override
     public void outputWindowedValue(
-      OutputT output,
-      Instant timestamp,
-      Collection<? extends BoundedWindow> windows,
-      PaneInfo paneInfo,
-      ValueKind valueKind) {
+        OutputT output,
+        Instant timestamp,
+        Collection<? extends BoundedWindow> windows,
+        PaneInfo paneInfo,
+        ValueKind valueKind) {
       outputWindowedValue(mainOutputTag, output, timestamp, windows, paneInfo, valueKind);
     }
 
@@ -1860,14 +1860,7 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
       outputTo(
           consumer,
           WindowedValues.of(
-              output,
-              timestamp,
-              windows,
-              paneInfo,
-              null,
-              null,
-              CausedByDrain.NORMAL,
-              valueKind));
+              output, timestamp, windows, paneInfo, null, null, CausedByDrain.NORMAL, valueKind));
     }
 
     @Override
@@ -1966,17 +1959,17 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
 
     @Override
     public void outputWindowedValue(
-      OutputT output,
-      Instant timestamp,
-      Collection<? extends BoundedWindow> windows,
-      PaneInfo paneInfo,
-      ValueKind valueKind) {
+        OutputT output,
+        Instant timestamp,
+        Collection<? extends BoundedWindow> windows,
+        PaneInfo paneInfo,
+        ValueKind valueKind) {
       builder(output)
-        .setTimestamp(timestamp)
-        .setWindows(windows)
-        .setPaneInfo(paneInfo)
-        .setValueKind(valueKind)
-        .output();
+          .setTimestamp(timestamp)
+          .setWindows(windows)
+          .setPaneInfo(paneInfo)
+          .setValueKind(valueKind)
+          .output();
     }
 
     @Override
@@ -2416,11 +2409,11 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
 
       @Override
       public void outputWindowedValue(
-        OutputT output,
-        Instant timestamp,
-        Collection<? extends BoundedWindow> windows,
-        PaneInfo paneInfo,
-        ValueKind valueKind) {
+          OutputT output,
+          Instant timestamp,
+          Collection<? extends BoundedWindow> windows,
+          PaneInfo paneInfo,
+          ValueKind valueKind) {
         OutputReceiver.super.outputWindowedValue(output, timestamp, windows, paneInfo, valueKind);
       }
 
@@ -2781,11 +2774,11 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
 
       @Override
       public void outputWindowedValue(
-        OutputT output,
-        Instant timestamp,
-        Collection<? extends BoundedWindow> windows,
-        PaneInfo paneInfo,
-        ValueKind valueKind) {
+          OutputT output,
+          Instant timestamp,
+          Collection<? extends BoundedWindow> windows,
+          PaneInfo paneInfo,
+          ValueKind valueKind) {
         OutputReceiver.super.outputWindowedValue(output, timestamp, windows, paneInfo, valueKind);
       }
 

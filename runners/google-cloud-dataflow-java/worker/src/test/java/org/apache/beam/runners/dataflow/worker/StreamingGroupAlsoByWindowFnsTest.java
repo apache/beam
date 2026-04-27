@@ -281,7 +281,7 @@ public class StreamingGroupAlsoByWindowFnsTest {
 
   @Test
   public void testFixedWindowsWithDraining() throws Exception {
-    WindowedValues.WindowedValueCoder.setMetadataSupported();
+    WindowedValues.WindowedValueCoder.setMetadataSupported(true);
     TupleTag<KV<String, Iterable<String>>> outputTag = new TupleTag<>();
     ListOutputManager outputManager = new ListOutputManager();
     DoFnRunner<KeyedWorkItem<String, String>, KV<String, Iterable<String>>> runner =

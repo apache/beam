@@ -480,17 +480,17 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
     @Override
     public <T> void outputWithKind(TupleTag<T> tag, T output, ValueKind kind) {
       builderSupplier
-        .builder(output)
-        .setTimestamp(elem.getTimestamp())
-        .setWindows(elem.getWindows())
-        .setPaneInfo(elem.getPaneInfo())
-        .setValueKind(kind)
-        .setReceiver(
-          wv -> {
-            checkTimestamp(elem.getTimestamp(), wv.getTimestamp());
-            SimpleDoFnRunner.this.outputWindowedValue(tag, wv);
-          })
-        .output();
+          .builder(output)
+          .setTimestamp(elem.getTimestamp())
+          .setWindows(elem.getWindows())
+          .setPaneInfo(elem.getPaneInfo())
+          .setValueKind(kind)
+          .setReceiver(
+              wv -> {
+                checkTimestamp(elem.getTimestamp(), wv.getTimestamp());
+                SimpleDoFnRunner.this.outputWindowedValue(tag, wv);
+              })
+          .output();
     }
 
     @Override
@@ -1076,13 +1076,13 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
     public <T> void outputWithKind(TupleTag<T> tag, T output, ValueKind kind) {
       checkTimestamp(timestamp(), timestamp);
       builderSupplier
-        .builder(output)
-        .setTimestamp(timestamp)
-        .setWindows(Collections.singleton(window()))
-        .setPaneInfo(PaneInfo.NO_FIRING)
-        .setValueKind(kind)
-        .setReceiver(wv -> SimpleDoFnRunner.this.outputWindowedValue(tag, wv))
-        .output();
+          .builder(output)
+          .setTimestamp(timestamp)
+          .setWindows(Collections.singleton(window()))
+          .setPaneInfo(PaneInfo.NO_FIRING)
+          .setValueKind(kind)
+          .setReceiver(wv -> SimpleDoFnRunner.this.outputWindowedValue(tag, wv))
+          .output();
     }
 
     @Override
@@ -1370,12 +1370,12 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
     public <T> void outputWithKind(TupleTag<T> tag, T output, ValueKind kind) {
       checkTimestamp(this.timestamp, timestamp);
       builderSupplier
-        .builder(output)
-        .setTimestamp(timestamp)
-        .setWindows(Collections.singleton(window()))
-        .setPaneInfo(PaneInfo.NO_FIRING)
-        .setReceiver(wv -> SimpleDoFnRunner.this.outputWindowedValue(tag, wv))
-        .output();
+          .builder(output)
+          .setTimestamp(timestamp)
+          .setWindows(Collections.singleton(window()))
+          .setPaneInfo(PaneInfo.NO_FIRING)
+          .setReceiver(wv -> SimpleDoFnRunner.this.outputWindowedValue(tag, wv))
+          .output();
     }
 
     @Override
