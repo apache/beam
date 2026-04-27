@@ -3025,13 +3025,13 @@ public class WindmillStateInternalsTest {
     StateTag<WatermarkHoldState> addr =
         StateTags.watermarkStateInternal("watermark", TimestampCombiner.EARLIEST);
 
-    WatermarkHoldState bag = underTest.state(NAMESPACE, addr);
+    WatermarkHoldState hold = underTest.state(NAMESPACE, addr);
 
-    bag.clear();
-    assertThat(bag.read(), Matchers.nullValue());
+    hold.clear();
+    assertThat(hold.read(), Matchers.nullValue());
 
-    bag.add(new Instant(300));
-    assertThat(bag.read(), Matchers.equalTo(new Instant(300)));
+    hold.add(new Instant(300));
+    assertThat(hold.read(), Matchers.equalTo(new Instant(300)));
 
     // Shouldn't need to read from windmill because the value is already available.
     Mockito.verifyNoMoreInteractions(mockReader);
@@ -3042,36 +3042,156 @@ public class WindmillStateInternalsTest {
     StateTag<WatermarkHoldState> addr =
         StateTags.watermarkStateInternal("watermark", TimestampCombiner.EARLIEST);
 
-    WatermarkHoldState bag = underTest.state(NAMESPACE, addr);
+    WatermarkHoldState hold = underTest.state(NAMESPACE, addr);
 
-    bag.setKnownEmpty();
-    assertThat(bag.read(), Matchers.nullValue());
+    hold.setKnownEmpty();
+    assertThat(hold.read(), Matchers.nullValue());
 
-    bag.add(new Instant(300));
-    assertThat(bag.read(), Matchers.equalTo(new Instant(300)));
+    hold.add(new Instant(300));
+    assertThat(hold.read(), Matchers.equalTo(new Instant(300)));
 
     // Shouldn't need to read from windmill because the value is already available.
     Mockito.verifyNoMoreInteractions(mockReader);
   }
 
   @Test
-  public void testWatermarkSetKnownEmptyPersist() throws Exception {
+  public void testWatermarkSetKnownEmptyThenAddPersist() throws Exception {
     StateTag<WatermarkHoldState> addr =
         StateTags.watermarkStateInternal("watermark", TimestampCombiner.EARLIEST);
 
-    WatermarkHoldState bag = underTest.state(NAMESPACE, addr);
+    WatermarkHoldState hold = underTest.state(NAMESPACE, addr);
 
-    bag.add(new Instant(1000));
-    bag.setKnownEmpty();
+    hold.setKnownEmpty();
+    hold.add(new Instant(1000));
 
     Windmill.WorkItemCommitRequest.Builder commitBuilder =
         Windmill.WorkItemCommitRequest.newBuilder();
     underTest.persist(commitBuilder);
 
-    // Should be a no-op, no reset, no adds.
+    assertEquals(1, commitBuilder.getWatermarkHoldsCount());
+
+    Windmill.WatermarkHold watermarkHold = commitBuilder.getWatermarkHolds(0);
+    assertEquals(key(NAMESPACE, "watermark"), watermarkHold.getTag());
+    assertEquals(TimeUnit.MILLISECONDS.toMicros(1000), watermarkHold.getTimestamps(0));
+
+    Mockito.verifyNoInteractions(mockReader);
+
+    assertBuildable(commitBuilder);
+  }
+
+  @Test
+  public void testNewWatermarkAddPersist() throws Exception {
+    StateTag<WatermarkHoldState> addr =
+        StateTags.watermarkStateInternal("watermark", TimestampCombiner.EARLIEST);
+
+    WatermarkHoldState hold = underTestNewKey.state(NAMESPACE, addr);
+
+    hold.add(new Instant(1000));
+
+    Windmill.WorkItemCommitRequest.Builder commitBuilder =
+        Windmill.WorkItemCommitRequest.newBuilder();
+    underTestNewKey.persist(commitBuilder);
+
+    assertEquals(1, commitBuilder.getWatermarkHoldsCount());
+
+    Windmill.WatermarkHold watermarkHold = commitBuilder.getWatermarkHolds(0);
+    assertEquals(key(NAMESPACE, "watermark"), watermarkHold.getTag());
+    assertEquals(TimeUnit.MILLISECONDS.toMicros(1000), watermarkHold.getTimestamps(0));
+
+    Mockito.verifyNoInteractions(mockReader);
+
+    assertBuildable(commitBuilder);
+  }
+
+  @Test
+  public void testNewWatermarkClearPersist() throws Exception {
+    StateTag<WatermarkHoldState> addr =
+        StateTags.watermarkStateInternal("watermark", TimestampCombiner.EARLIEST);
+
+    WatermarkHoldState hold = underTestNewKey.state(NAMESPACE, addr);
+
+    hold.add(new Instant(1000));
+
+    Windmill.WorkItemCommitRequest.Builder commitBuilder =
+        Windmill.WorkItemCommitRequest.newBuilder();
+    underTestNewKey.persist(commitBuilder);
+
+    assertEquals(1, commitBuilder.getWatermarkHoldsCount());
+
+    Windmill.WatermarkHold watermarkHold = commitBuilder.getWatermarkHolds(0);
+    assertEquals(key(NAMESPACE, "watermark"), watermarkHold.getTag());
+    assertEquals(TimeUnit.MILLISECONDS.toMicros(1000), watermarkHold.getTimestamps(0));
+
+    Mockito.verifyNoInteractions(mockReader);
+
+    assertBuildable(commitBuilder);
+  }
+
+  @Test
+  public void testWatermarkSetKnownEmptyThenClearPersist() throws Exception {
+    StateTag<WatermarkHoldState> addr =
+        StateTags.watermarkStateInternal("watermark", TimestampCombiner.EARLIEST);
+
+    WatermarkHoldState hold = underTest.state(NAMESPACE, addr);
+
+    hold.setKnownEmpty();
+    hold.clear();
+
+    Windmill.WorkItemCommitRequest.Builder commitBuilder =
+        Windmill.WorkItemCommitRequest.newBuilder();
+    underTest.persist(commitBuilder);
+
     assertEquals(0, commitBuilder.getWatermarkHoldsCount());
 
-    Mockito.verifyNoMoreInteractions(mockReader);
+    Mockito.verifyNoInteractions(mockReader);
+
+    assertBuildable(commitBuilder);
+  }
+
+  @Test
+  public void testWatermarkSetKnownEmptyThenPersist() throws Exception {
+    StateTag<WatermarkHoldState> addr =
+        StateTags.watermarkStateInternal("watermark", TimestampCombiner.EARLIEST);
+
+    WatermarkHoldState hold = underTest.state(NAMESPACE, addr);
+
+    hold.setKnownEmpty();
+
+    Windmill.WorkItemCommitRequest.Builder commitBuilder =
+        Windmill.WorkItemCommitRequest.newBuilder();
+    underTest.persist(commitBuilder);
+
+    assertEquals(0, commitBuilder.getWatermarkHoldsCount());
+
+    Mockito.verifyNoInteractions(mockReader);
+
+    assertBuildable(commitBuilder);
+  }
+
+  @Test
+  public void testWatermarkSetKnownEmptyThenClearThenAddPersist() throws Exception {
+    StateTag<WatermarkHoldState> addr =
+        StateTags.watermarkStateInternal("watermark", TimestampCombiner.EARLIEST);
+
+    WatermarkHoldState hold = underTest.state(NAMESPACE, addr);
+
+    hold.setKnownEmpty();
+    hold.clear();
+    hold.add(new Instant(1000));
+
+    Windmill.WorkItemCommitRequest.Builder commitBuilder =
+        Windmill.WorkItemCommitRequest.newBuilder();
+    underTest.persist(commitBuilder);
+
+    assertEquals(1, commitBuilder.getWatermarkHoldsCount());
+
+    Windmill.WatermarkHold watermarkHold = commitBuilder.getWatermarkHolds(0);
+    assertEquals(key(NAMESPACE, "watermark"), watermarkHold.getTag());
+    assertEquals(TimeUnit.MILLISECONDS.toMicros(1000), watermarkHold.getTimestamps(0));
+
+    Mockito.verifyNoInteractions(mockReader);
+
+    assertBuildable(commitBuilder);
   }
 
   @Test

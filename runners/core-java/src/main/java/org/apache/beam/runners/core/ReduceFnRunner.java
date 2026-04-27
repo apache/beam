@@ -37,6 +37,7 @@ import org.apache.beam.runners.core.triggers.TriggerStateMachineContextFactory;
 import org.apache.beam.runners.core.triggers.TriggerStateMachineRunner;
 import org.apache.beam.sdk.metrics.Counter;
 import org.apache.beam.sdk.metrics.Metrics;
+import org.apache.beam.sdk.options.ExperimentalOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.state.TimeDomain;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
@@ -211,6 +212,9 @@ public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow> {
    */
   private final NonEmptyPanes<K, W> nonEmptyPanes;
 
+  private final boolean useNewWindowOptimization;
+  private final boolean disableWatermarkKnownEmptyOptimization;
+
   public ReduceFnRunner(
       K key,
       WindowingStrategy<?, W> windowingStrategy,
@@ -236,6 +240,16 @@ public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow> {
     this.windowingStrategy = objectWindowingStrategy;
 
     this.nonEmptyPanes = NonEmptyPanes.create(this.windowingStrategy, this.reduceFn);
+
+    this.useNewWindowOptimization =
+        options != null
+            && ExperimentalOptions.hasExperiment(
+                options, "unstable_not_update_compatible_new_window_optimization");
+
+    this.disableWatermarkKnownEmptyOptimization =
+        options != null
+            && ExperimentalOptions.hasExperiment(
+                options, "unstable_disable_watermark_known_empty_optimization");
 
     // Note this may incur I/O to load persisted window set data.
     this.activeWindows = createActiveWindowSet();
@@ -623,11 +637,13 @@ public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow> {
               StateStyle.RENAMED,
               value.causedByDrain());
 
-      if (triggerRunner.isNew(directContext.state())) {
+      if (useNewWindowOptimization && triggerRunner.isNew(directContext.state())) {
         // Blindly clear state to ensure Windmill doesn't do unnecessary reads.
         reduceFn.clearState(renamedContext);
         paneInfoTracker.clear(directContext.state());
-        watermarkHold.setKnownEmpty(renamedContext);
+        if (!disableWatermarkKnownEmptyOptimization) {
+          watermarkHold.setKnownEmpty(renamedContext);
+        }
         nonEmptyPanes.clearPane(renamedContext.state());
       }
 
