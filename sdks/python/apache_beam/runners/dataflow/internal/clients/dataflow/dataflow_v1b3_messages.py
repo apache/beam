@@ -8054,6 +8054,8 @@ class WriteInstruction(_messages.Message):
 
   input = _messages.MessageField('InstructionInput', 1)
   sink = _messages.MessageField('Sink', 2)
+
+
 encoding.AddCustomJsonFieldMapping(
     StandardQueryParameters, 'f__xgafv', '$.xgafv')
 encoding.AddCustomJsonEnumMapping(
