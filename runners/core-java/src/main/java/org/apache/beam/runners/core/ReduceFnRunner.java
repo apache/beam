@@ -640,6 +640,8 @@ public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow> {
               StateStyle.RENAMED,
               value.causedByDrain());
 
+      // TODO: Make sure the NewWindowOptimization does not create unbounded trigger state
+      // in GlobalWindow
       if (useNewWindowOptimization && triggerRunner.isNew(directContext.state())) {
         // Blindly clear state to ensure Windmill doesn't do unnecessary reads.
         reduceFn.clearState(renamedContext);
