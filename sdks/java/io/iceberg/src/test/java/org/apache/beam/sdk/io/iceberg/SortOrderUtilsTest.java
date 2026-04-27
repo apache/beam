@@ -81,9 +81,23 @@ public class SortOrderUtilsTest {
             SCHEMA);
     assertEquals(3, order.fields().size());
     assertEquals(SortDirection.DESC, order.fields().get(0).direction());
+    assertEquals("bucket[4]", order.fields().get(0).transform().toString());
     assertEquals(SortDirection.ASC, order.fields().get(1).direction());
+    assertEquals("day", order.fields().get(1).transform().toString());
     assertEquals(SortDirection.ASC, order.fields().get(2).direction());
     assertEquals(NullOrder.NULLS_FIRST, order.fields().get(2).nullOrder());
+    assertEquals("truncate[3]", order.fields().get(2).transform().toString());
+  }
+
+  @Test
+  public void testHandlesExtraWhitespace() {
+    SortOrder order =
+        SortOrderUtils.toSortOrder(Collections.singletonList("  id   desc   "), SCHEMA);
+    assertEquals(1, order.fields().size());
+    SortField field = order.fields().get(0);
+    assertEquals(SortDirection.DESC, field.direction());
+    assertEquals(NullOrder.NULLS_LAST, field.nullOrder());
+    assertEquals("identity", field.transform().toString());
   }
 
   @Test

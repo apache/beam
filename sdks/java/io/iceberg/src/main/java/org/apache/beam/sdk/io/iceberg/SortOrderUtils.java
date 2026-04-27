@@ -27,6 +27,20 @@ import org.apache.iceberg.SortOrder;
 import org.apache.iceberg.expressions.Term;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
+/**
+ * Parses a list of sort field strings into an Iceberg {@link SortOrder} for use when dynamically
+ * creating a table.
+ *
+ * <p>Each entry has the grammar: {@code <term> [asc|desc] [nulls first|nulls last]}, where {@code
+ * <term>} reuses the partition-transform parser ({@link PartitionUtils#toIcebergTerm}) and accepts
+ * an identity column name or a transform such as {@code bucket(col, N)}, {@code truncate(col, N)},
+ * or {@code year|month|day|hour(col)}.
+ *
+ * <p>Defaults: direction defaults to {@code asc}; null order defaults to {@code nulls first} for
+ * ascending and {@code nulls last} for descending, matching Iceberg's {@link
+ * SortOrder.Builder#asc(Term)} / {@link SortOrder.Builder#desc(Term)} conventions. A {@code null}
+ * or empty input yields {@link SortOrder#unsorted()}.
+ */
 class SortOrderUtils {
   private static final Pattern MODIFIERS =
       Pattern.compile(
@@ -54,6 +68,7 @@ class SortOrderUtils {
   }
 
   private static ParsedSortField parse(String field) {
+    field = field.trim();
     int splitAt = findTopLevelWhitespace(field);
     String termStr = (splitAt < 0 ? field : field.substring(0, splitAt)).trim();
     String rest = (splitAt < 0 ? "" : field.substring(splitAt)).trim();

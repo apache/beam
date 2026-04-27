@@ -21,6 +21,7 @@ import com.google.auto.value.AutoValue;
 import java.util.List;
 import java.util.Map;
 import org.apache.beam.sdk.schemas.Schema;
+import org.apache.beam.sdk.schemas.annotations.SchemaIgnore;
 import org.apache.iceberg.PartitionSpec;
 import org.apache.iceberg.SortOrder;
 import org.checkerframework.checker.nullness.qual.Nullable;
@@ -44,6 +45,7 @@ public abstract class IcebergTableCreateConfig {
 
   /** Sort order to apply when the table is dynamically created. */
   @Pure
+  @SchemaIgnore
   public SortOrder getSortOrder() {
     return SortOrderUtils.toSortOrder(getSortFields(), getSchema());
   }
