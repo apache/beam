@@ -30,7 +30,6 @@ import org.apache.beam.sdk.lineage.LineageBase;
 import org.apache.beam.sdk.lineage.LineageOptions;
 import org.apache.beam.sdk.metrics.Metrics.MetricsFlag;
 import org.apache.beam.sdk.options.PipelineOptions;
-import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Splitter;
 import org.checkerframework.checker.nullness.qual.Nullable;
@@ -123,24 +122,16 @@ public class Lineage {
 
   /** {@link Lineage} representing sources and optionally side inputs. */
   public static Lineage getSources() {
-    Lineage localSources = sources;
-    if (localSources == null) {
-      return createDefaultLineage(LineageDirection.SOURCE);
-    }
-    return localSources;
+    return checkNotNull(
+        sources,
+        "Lineage not initialized. FileSystems.setDefaultPipelineOptions must be called first.");
   }
 
   /** {@link Lineage} representing sinks. */
   public static Lineage getSinks() {
-    Lineage localSinks = sinks;
-    if (localSinks == null) {
-      return createDefaultLineage(LineageDirection.SINK);
-    }
-    return localSinks;
-  }
-
-  private static Lineage createDefaultLineage(LineageDirection direction) {
-    return createLineage(PipelineOptionsFactory.create(), direction);
+    return checkNotNull(
+        sinks,
+        "Lineage not initialized. FileSystems.setDefaultPipelineOptions must be called first.");
   }
 
   @VisibleForTesting
