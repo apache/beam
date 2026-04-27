@@ -1241,6 +1241,10 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
   @SuppressWarnings("Slf4jFormatShouldBeConst")
   @Override
   public DataflowPipelineJob run(Pipeline pipeline) {
+    // Ensure the experiments list is mutable before any experiments are added.
+    if (options.getExperiments() != null) {
+      options.setExperiments(new ArrayList<>(options.getExperiments()));
+    }
     // Multi-language pipelines and pipelines that include upgrades should automatically be upgraded
     // to Runner v2.
     if (DataflowRunner.isMultiLanguagePipeline(pipeline) || includesTransformUpgrades(pipeline)) {

@@ -403,6 +403,10 @@ public class DataflowPipelineTranslator {
      * @return a Job definition filled in with the type of job, the environment, and the job steps.
      */
     public Job translate(List<DataflowPackage> packages) {
+      // Ensure the experiments list is mutable before any experiments are added.
+      if (options.getExperiments() != null) {
+        options.setExperiments(new ArrayList<>(options.getExperiments()));
+      }
       job.setName(options.getJobName().toLowerCase());
 
       Environment environment = new Environment();
