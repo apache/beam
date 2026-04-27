@@ -48,7 +48,6 @@ import org.apache.beam.sdk.values.ValueInSingleWindow;
 import org.apache.beam.sdk.values.ValueKind;
 import org.apache.beam.sdk.values.WindowedValues;
 import org.joda.time.Duration;
-import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
@@ -384,7 +383,6 @@ public class ValueKindTest implements Serializable {
   }
 
   @Test
-  @Ignore("SplittableDoFn in-memory shuffle does not preserve ValueKind in Direct Runner.")
   @Category(NeedsRunner.class)
   public void testValueKindInSplittableDoFn() {
     PCollection<String> input = pipeline.apply(Create.of("a"));

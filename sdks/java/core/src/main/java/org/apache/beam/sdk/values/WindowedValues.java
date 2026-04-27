@@ -488,7 +488,8 @@ public class WindowedValues {
         windowedValue.getPaneInfo(),
         windowedValue.getRecordId(),
         windowedValue.getRecordOffset(),
-        windowedValue.causedByDrain());
+        windowedValue.causedByDrain(),
+        windowedValue.getValueKind());
   }
 
   public static <T> boolean equals(
@@ -1247,7 +1248,18 @@ public class WindowedValues {
         Instant timestamp,
         Collection<? extends BoundedWindow> windows,
         PaneInfo paneInfo) {
-      return new ParamWindowedValueCoder<>(valueCoder, windowCoder, timestamp, windows, paneInfo);
+      return of(valueCoder, windowCoder, timestamp, windows, paneInfo, ValueKind.INSERT);
+    }
+
+    public static <T> ParamWindowedValueCoder<T> of(
+        Coder<T> valueCoder,
+        Coder<? extends BoundedWindow> windowCoder,
+        Instant timestamp,
+        Collection<? extends BoundedWindow> windows,
+        PaneInfo paneInfo,
+        ValueKind valueKind) {
+      return new ParamWindowedValueCoder<>(
+          valueCoder, windowCoder, timestamp, windows, paneInfo, valueKind);
     }
 
     /**
@@ -1262,7 +1274,8 @@ public class WindowedValues {
           windowCoder,
           BoundedWindow.TIMESTAMP_MIN_VALUE,
           GLOBAL_WINDOWS,
-          PaneInfo.NO_FIRING);
+          PaneInfo.NO_FIRING,
+          ValueKind.INSERT);
     }
 
     /**
@@ -1280,15 +1293,30 @@ public class WindowedValues {
         Coder<? extends BoundedWindow> windowCoder,
         Instant timestamp,
         Collection<? extends BoundedWindow> windows,
-        PaneInfo paneInfo) {
+        PaneInfo paneInfo,
+        ValueKind valueKind) {
       super(valueCoder, windowCoder);
-      this.windowedValuePrototype = WindowedValues.of(EMPTY_BYTES, timestamp, windows, paneInfo);
+      this.windowedValuePrototype =
+          WindowedValues.of(
+              EMPTY_BYTES,
+              timestamp,
+              windows,
+              paneInfo,
+              null,
+              null,
+              CausedByDrain.NORMAL,
+              valueKind);
     }
 
     @Override
     public <NewT> WindowedValueCoder<NewT> withValueCoder(Coder<NewT> valueCoder) {
       return new ParamWindowedValueCoder<>(
-          valueCoder, getWindowCoder(), getTimestamp(), getWindows(), getPaneInfo());
+          valueCoder,
+          getWindowCoder(),
+          getTimestamp(),
+          getWindows(),
+          getPaneInfo(),
+          getValueKind());
     }
 
     @Override
@@ -1326,6 +1354,10 @@ public class WindowedValues {
       valueCoder.registerByteSizeObserver(value.getValue(), observer);
     }
 
+    public ValueKind getValueKind() {
+      return windowedValuePrototype.getValueKind();
+    }
+
     public Instant getTimestamp() {
       return windowedValuePrototype.getTimestamp();
     }
@@ -1345,7 +1377,14 @@ public class WindowedValues {
       ByteArrayOutputStream baos = new ByteArrayOutputStream();
       WindowedValue<byte[]> windowedValue =
           WindowedValues.of(
-              EMPTY_BYTES, from.getTimestamp(), from.getWindows(), from.getPaneInfo());
+              EMPTY_BYTES,
+              from.getTimestamp(),
+              from.getWindows(),
+              from.getPaneInfo(),
+              null,
+              null,
+              CausedByDrain.NORMAL,
+              from.getValueKind());
       WindowedValues.FullWindowedValueCoder<byte[]> windowedValueCoder =
           WindowedValues.FullWindowedValueCoder.of(ByteArrayCoder.of(), from.getWindowCoder());
       try {
@@ -1373,7 +1412,8 @@ public class WindowedValues {
             windowCoder,
             windowedValue.getTimestamp(),
             windowedValue.getWindows(),
-            windowedValue.getPaneInfo());
+            windowedValue.getPaneInfo(),
+            windowedValue.getValueKind());
       } catch (IOException e) {
         throw new RuntimeException(
             "Unable to decode constant members from payload for ParamWindowedValueCoder: ", e);
