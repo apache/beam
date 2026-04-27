@@ -3254,8 +3254,12 @@ public class BigQueryIO {
     /**
      * Allows the schema of the destination table to be updated as a side effect of the write.
      *
-     * <p>This configuration applies only when writing to BigQuery with {@link Method#FILE_LOADS} as
+     * <p>This configuration applies only when writing to BigQuery with {@link Method#FILE_LOADS},
+     * {@link Method#STORAGE_WRITE_API", or {@link Method#STORAGE_API_AT_LEAST_ONCE} as
      * method.
+     * <p>If using with storage-write API, new fields (except for nested messages) will always be created with type
+     * STRING.
+     * TODO: Followon PR will add support for a user-supplied type mapping.
      */
     public Write<T> withSchemaUpdateOptions(Set<SchemaUpdateOption> schemaUpdateOptions) {
       checkArgument(schemaUpdateOptions != null, "schemaUpdateOptions can not be null");
@@ -4210,9 +4214,18 @@ public class BigQueryIO {
         }
         return input.apply(batchLoads);
       } else if (method == Method.STORAGE_WRITE_API || method == Method.STORAGE_API_AT_LEAST_ONCE) {
+        boolean useSchemaUpdate =
+            getSchemaUpdateOptions() != null && !getSchemaUpdateOptions().isEmpty();
+        if (useSchemaUpdate) {
+          checkArgument(
+              !getAutoSchemaUpdate() && !getIgnoreUnknownValues(),
+              "Schema update options are not supported when using auto schema update or ignore unknown values");
+        }
         BigQueryOptions bqOptions = input.getPipeline().getOptions().as(BigQueryOptions.class);
         StorageApiDynamicDestinations<T, DestinationT> storageApiDynamicDestinations;
         if (getUseBeamSchema()) {
+          checkArgument(
+              !useSchemaUpdate, "SchemaUpdateOptions are not supported when using Beam schemas");
           // This ensures that the Beam rows are directly translated into protos for Storage API
           // writes, with no
           // need to round trip through JSON TableRow objects.
@@ -4224,6 +4237,9 @@ public class BigQueryIO {
                   getFormatRecordOnFailureFunction(),
                   getRowMutationInformationFn() != null);
         } else if (getWriteProtosClass() != null && getDirectWriteProtos()) {
+          checkArgument(
+              !useSchemaUpdate, "SchemaUpdateOptions are not supported when writing protos");
+
           // We could support both of these by falling back to
           // StorageApiDynamicDestinationsTableRow. This
           // would defeat the optimization (we would be forced to create a new dynamic proto message
@@ -4241,6 +4257,7 @@ public class BigQueryIO {
               !getIgnoreUnknownValues(),
               "ignoreUnknownValues not supported when using writeProtos."
                   + " Try setting withDirectWriteProtos(false)");
+
           storageApiDynamicDestinations =
               (StorageApiDynamicDestinations<T, DestinationT>)
                   new StorageApiDynamicDestinationsProto(
@@ -4248,6 +4265,9 @@ public class BigQueryIO {
                       getWriteProtosClass(),
                       getFormatRecordOnFailureFunction());
         } else if (getAvroRowWriterFactory() != null) {
+          checkArgument(
+              !useSchemaUpdate, "SchemaUpdateOptions are not supported when writing avros");
+
           // we can configure the avro to storage write api proto converter for this
           // assuming the format function returns an Avro GenericRecord
           // and there is a schema defined
@@ -4256,7 +4276,6 @@ public class BigQueryIO {
                   || getDynamicDestinations() != null
                   || getSchemaFromView() != null,
               "A schema must be provided for avro rows to be used with StorageWrite API.");
-
           RowWriterFactory.AvroRowWriterFactory<T, GenericRecord, DestinationT>
               recordWriterFactory =
                   (RowWriterFactory.AvroRowWriterFactory<T, GenericRecord, DestinationT>)
@@ -4283,7 +4302,10 @@ public class BigQueryIO {
                   getRowMutationInformationFn() != null,
                   getCreateDisposition(),
                   getIgnoreUnknownValues(),
-                  getAutoSchemaUpdate());
+                  getAutoSchemaUpdate(),
+                  getSchemaUpdateOptions() == null
+                      ? Collections.emptySet()
+                      : getSchemaUpdateOptions());
         }
 
         int numShards = getStorageApiNumStreams(bqOptions);
@@ -4295,6 +4317,7 @@ public class BigQueryIO {
         StorageApiLoads<DestinationT, T> storageApiLoads =
             new StorageApiLoads<>(
                 destinationCoder,
+                elementCoder,
                 storageApiDynamicDestinations,
                 getRowMutationInformationFn(),
                 getCreateDisposition(),
@@ -4312,7 +4335,8 @@ public class BigQueryIO {
                 getDefaultMissingValueInterpretation(),
                 getBigLakeConfiguration(),
                 getBadRecordRouter(),
-                getBadRecordErrorHandler());
+                getBadRecordErrorHandler(),
+                !getSchemaUpdateOptions().isEmpty());
         return input.apply("StorageApiLoads", storageApiLoads);
       } else {
         throw new RuntimeException("Unexpected write method " + method);

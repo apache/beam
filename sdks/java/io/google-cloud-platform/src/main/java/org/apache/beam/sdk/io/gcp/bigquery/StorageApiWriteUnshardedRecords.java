@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.io.gcp.bigquery;
 
+import static org.apache.beam.sdk.io.gcp.bigquery.UpgradeTableSchema.isPayloadSchemaOutOfDate;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkNotNull;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkState;
@@ -74,7 +75,11 @@ import org.apache.beam.sdk.transforms.Reshuffle;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
+import org.apache.beam.sdk.util.BackOff;
+import org.apache.beam.sdk.util.BackOffUtils;
+import org.apache.beam.sdk.util.FluentBackoff;
 import org.apache.beam.sdk.util.Preconditions;
+import org.apache.beam.sdk.util.Sleeper;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.OutputBuilder;
 import org.apache.beam.sdk.values.PCollection;
@@ -296,9 +301,8 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
       private String streamName = "";
       private @Nullable AppendClientInfo appendClientInfo = null;
       private long currentOffset = 0;
-      private List<ByteString> pendingMessages;
+      private List<StorageApiWritePayload> pendingMessages;
       private List<org.joda.time.Instant> pendingTimestamps;
-      private List<@Nullable TableRow> pendingFailsafeTableRows;
       private transient @Nullable WriteStreamService maybeWriteStreamService;
       private final Counter recordsAppended =
           Metrics.counter(WriteRecordsDoFn.class, "recordsAppended");
@@ -313,8 +317,7 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
       private final Callable<Boolean> tryCreateTable;
 
       private final boolean useDefaultStream;
-      private TableSchema initialTableSchema;
-      private DescriptorProtos.DescriptorProto initialDescriptor;
+      private final MessageConverter<ElementT> messageConverter;
       private Instant nextCacheTickle = Instant.MAX;
       private final int clientNumber;
       private final boolean usingMultiplexing;
@@ -340,11 +343,9 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
         this.shortTableUrn = shortTableUrn;
         this.pendingMessages = Lists.newArrayList();
         this.pendingTimestamps = Lists.newArrayList();
-        this.pendingFailsafeTableRows = Lists.newArrayList();
         this.maybeWriteStreamService = writeStreamService;
         this.useDefaultStream = useDefaultStream;
-        this.initialTableSchema = messageConverter.getTableSchema();
-        this.initialDescriptor = messageConverter.getDescriptor(includeCdcColumns);
+        this.messageConverter = messageConverter;
         this.clientNumber = new Random().nextInt(streamAppendClientCount);
         this.usingMultiplexing = usingMultiplexing;
         this.maxRequestSize = maxRequestSize;
@@ -471,7 +472,8 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
                   updatedSchema, true, includeCdcColumns));
         }
 
-        AtomicReference<TableSchema> currentSchema = new AtomicReference<>(initialTableSchema);
+        AtomicReference<TableSchema> currentSchema =
+            new AtomicReference<>(messageConverter.getTableSchema());
         AtomicBoolean updated = new AtomicBoolean();
         CreateTableHelpers.createTableWrapper(
             () -> {
@@ -482,7 +484,8 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
                         .getWriteStreamSchema(streamName);
                 if (streamSchema != null) {
                   Optional<TableSchema> newSchema =
-                      TableSchemaUpdateUtils.getUpdatedSchema(initialTableSchema, streamSchema);
+                      TableSchemaUpdateUtils.getUpdatedSchema(
+                          messageConverter.getTableSchema(), streamSchema);
                   if (newSchema.isPresent()) {
                     currentSchema.set(newSchema.get());
                     updated.set(true);
@@ -503,7 +506,7 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
             updated.get()
                 ? TableRowToStorageApiProto.descriptorSchemaFromTableSchema(
                     currentSchema.get(), true, includeCdcColumns)
-                : initialDescriptor;
+                : messageConverter.getDescriptor(includeCdcColumns);
         return new SchemaAndDescriptor(currentSchema.get(), descriptor);
       }
 
@@ -577,8 +580,8 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
           OutputReceiver<BigQueryStorageApiInsertError> failedRowsReceiver)
           throws Exception {
         maybeTickleCache();
-        ByteString payloadBytes = ByteString.copyFrom(payload.getPayload());
-        @Nullable TableRow failsafeTableRow = payload.getFailsafeTableRow();
+
+        @Nullable ByteString mergedPayloadBytes = null;
         if (autoUpdateSchema) {
           if (appendClientInfo == null) {
             appendClientInfo = getAppendClientInfo(true, null);
@@ -587,16 +590,17 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
           if (unknownFields != null && !unknownFields.isEmpty()) {
             // check if unknownFields contains repeated struct, merge
             // otherwise use concat
+            mergedPayloadBytes = ByteString.copyFrom(payload.getPayload());
             try {
-              payloadBytes =
+              mergedPayloadBytes =
                   Preconditions.checkStateNotNull(appendClientInfo)
-                      .mergeNewFields(payloadBytes, unknownFields, ignoreUnknownValues);
+                      .mergeNewFields(mergedPayloadBytes, unknownFields, ignoreUnknownValues);
             } catch (TableRowToStorageApiProto.SchemaConversionException e) {
               @Nullable TableRow tableRow = payload.getFailsafeTableRow();
               if (tableRow == null) {
                 tableRow =
                     checkNotNull(appendClientInfo)
-                        .toTableRow(payloadBytes, Predicates.alwaysTrue());
+                        .toTableRow(mergedPayloadBytes, Predicates.alwaysTrue());
               }
               // TODO(24926, reuvenlax): We need to merge the unknown fields in! Currently we only
               // execute this
@@ -615,8 +619,15 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
             }
           }
         }
-        pendingMessages.add(payloadBytes);
-        pendingFailsafeTableRows.add(failsafeTableRow);
+        byte[] byteArray =
+            mergedPayloadBytes != null ? mergedPayloadBytes.toByteArray() : payload.getPayload();
+        StorageApiWritePayload pending =
+            StorageApiWritePayload.of(byteArray, null, payload.getFailsafeTableRow());
+        byte[] schemaHash = payload.getSchemaHash();
+        if (schemaHash != null) {
+          pending = pending.withSchemaHash(schemaHash);
+        }
+        pendingMessages.add(pending);
 
         org.joda.time.Instant timestamp = payload.getTimestamp();
         pendingTimestamps.add(timestamp != null ? timestamp : elementTs);
@@ -632,13 +643,51 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
         }
 
         final ProtoRows.Builder insertsBuilder = ProtoRows.newBuilder();
-        insertsBuilder.addAllSerializedRows(pendingMessages);
+        List<@Nullable TableRow> failsafeTableRows = Lists.newArrayList();
+        boolean schemaMismatchSeen;
+        BackOff backoff =
+            FluentBackoff.DEFAULT
+                .withInitialBackoff(Duration.standardSeconds(1))
+                .withMaxBackoff(Duration.standardMinutes(1))
+                .withMaxRetries(500)
+                .withThrottledTimeCounter(
+                    BigQuerySinkMetrics.throttledTimeCounter(
+                        BigQuerySinkMetrics.RpcMethod.OPEN_WRITE_STREAM))
+                .backoff();
+        do {
+          insertsBuilder.clear();
+          failsafeTableRows.clear();
+          schemaMismatchSeen = false;
+          for (StorageApiWritePayload payload : pendingMessages) {
+            schemaMismatchSeen =
+                isPayloadSchemaOutOfDate(
+                    payload,
+                    () -> getAppendClientInfo(true, null).getTableSchemaHash(),
+                    () ->
+                        TableRowToStorageApiProto.wrapDescriptorProto(
+                            messageConverter.getDescriptor(includeCdcColumns)));
+            if (schemaMismatchSeen) {
+              break;
+            }
+
+            insertsBuilder.addSerializedRows(ByteString.copyFrom(payload.getPayload()));
+            failsafeTableRows.add(payload.getFailsafeTableRow());
+          }
+          if (schemaMismatchSeen) {
+            LOG.info("Schema out of date: refreshing table schema for {}.", tableUrn);
+            // Refresh our view of the schema and try again..
+            this.messageConverter.updateSchemaFromTable();
+            invalidateWriteStream();
+            this.appendClientInfo =
+                Preconditions.checkStateNotNull(
+                    getAppendClientInfo(
+                        false, null /* read updated schema from messageConverter */));
+          }
+        } while (schemaMismatchSeen && BackOffUtils.next(Sleeper.DEFAULT, backoff));
+
         pendingMessages.clear();
         final ProtoRows inserts = insertsBuilder.build();
         List<org.joda.time.Instant> insertTimestamps = pendingTimestamps;
-        List<@Nullable TableRow> failsafeTableRows = pendingFailsafeTableRows;
-        pendingTimestamps = Lists.newArrayList();
-        pendingFailsafeTableRows = Lists.newArrayList();
 
         // Handle the case where the request is too large.
         if (inserts.getSerializedSize() >= maxRequestSize) {
@@ -743,7 +792,7 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
                     if (failedRow == null) {
                       ByteString protoBytes =
                           failedContext.protoRows.getSerializedRows(failedIndex);
-                      AppendClientInfo aci = Preconditions.checkStateNotNull(appendClientInfo);
+                      AppendClientInfo aci = Preconditions.checkStateNotNull(this.appendClientInfo);
                       failedRow =
                           TableRowToStorageApiProto.tableRowFromMessage(
                               aci.getSchemaInformation(),
@@ -850,11 +899,40 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
                         + failedContext.offset);
               }
 
+              // Schema mismatched exceptions can happen if the table was recently updated. Since
+              // vortex caches schemas
+              // we might see the new schema before vortex does. In this case, we simply need to
+              // retry.
+              Exceptions.@Nullable StorageException storageException =
+                  (error == null) ? null : Exceptions.toStorageException(error);
+              boolean schemaMismatchError =
+                  (storageException instanceof Exceptions.SchemaMismatchedException);
+              if (!schemaMismatchError && error != null) {
+                // There's no special error code for missing required fields, and that can also
+                // happen due to vortex
+                // being delayed at seeing a new schema. We're forced to parse the description to
+                // determine that this
+                // has happened.
+                Status status = Status.fromThrowable(error);
+                if (status.getCode() == Status.Code.INVALID_ARGUMENT) {
+                  String description = status.getDescription();
+                  schemaMismatchError =
+                      description != null && description.contains("incompatible fields");
+                }
+              }
+              if (schemaMismatchError) {
+                LOG.info(
+                    "Vortex failed stream open due to incompatible fields. This is likely because the BigTable "
+                        + "schema was recently updated and Vortex hasn't noticed yet, so retrying. error {}",
+                    Preconditions.checkStateNotNull(error).toString());
+              }
+
               boolean hasPersistentErrors =
                   failedContext.getError() instanceof Exceptions.StreamFinalizedException
                       || statusCode.equals(Status.Code.INVALID_ARGUMENT)
                       || (!this.useDefaultStream && statusCode.equals(Status.Code.NOT_FOUND))
                       || statusCode.equals(Status.Code.FAILED_PRECONDITION);
+              hasPersistentErrors = hasPersistentErrors && !schemaMismatchError;
               if (hasPersistentErrors) {
                 throw new RuntimeException(
                     String.format(
@@ -951,7 +1029,7 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
           if (updatedTableSchemaReturned != null) {
             Optional<TableSchema> updatedTableSchema =
                 TableSchemaUpdateUtils.getUpdatedSchema(
-                    this.initialTableSchema, updatedTableSchemaReturned);
+                    this.messageConverter.getTableSchema(), updatedTableSchemaReturned);
             if (updatedTableSchema.isPresent()) {
               invalidateWriteStream();
               appendClientInfo =
@@ -1048,7 +1126,6 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
       long numRowsWritten = 0;
       for (DestinationState destinationState :
           Preconditions.checkStateNotNull(destinations).values()) {
-
         RetryManager<AppendRowsResponse, AppendRowsContext> retryManager =
             new RetryManager<>(
                 Duration.standardSeconds(1),
@@ -1133,7 +1210,13 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
 
       MessageConverter<ElementT> messageConverter;
       try {
-        messageConverter = messageConverters.get(destination, dynamicDestinations, datasetService);
+        messageConverter =
+            messageConverters.get(
+                destination,
+                dynamicDestinations,
+                c.getPipelineOptions(),
+                datasetService,
+                writeStreamService);
         return new DestinationState(
             tableDestination1,
             tableDestination1.getTableUrn(bigQueryOptions),
