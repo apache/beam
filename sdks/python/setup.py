@@ -199,7 +199,10 @@ ml_base_core = [
     # `cls_token=` or tokenizers reinstates `cls=` as a deprecation alias.
     'tokenizers<0.23',
     'torch',
-    'transformers',
+    # Match tested transformers range.
+    'transformers>=4.28.0,<4.56.0',
+    # Keep tokenizers compatible with this transformers range.
+    'tokenizers>=0.13.3,<0.22.0',
 ]
 
 ml_adk_dependency = [
