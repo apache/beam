@@ -89,10 +89,6 @@ class AppendClientCache<KeyT extends @NonNull Object> {
     }
   }
 
-  public AppendClientInfo get(KeyT key, Callable<AppendClientInfo> loader) throws Exception {
-    return appendCache.get(key, wrapWithPin(loader));
-  }
-
   public AppendClientInfo putAndPin(KeyT key, Callable<AppendClientInfo> loader) throws Exception {
     synchronized (this) {
       AppendClientInfo info = wrapWithPin(loader).call();
@@ -100,12 +96,6 @@ class AppendClientCache<KeyT extends @NonNull Object> {
       info.pinAppendClient();
       return info;
     }
-  }
-
-  public AppendClientInfo put(KeyT key, Callable<AppendClientInfo> loader) throws Exception {
-    AppendClientInfo info = wrapWithPin(loader).call();
-    appendCache.put(key, info);
-    return info;
   }
 
   public void invalidate(KeyT key, AppendClientInfo expectedClient) {
@@ -133,7 +123,9 @@ class AppendClientCache<KeyT extends @NonNull Object> {
   }
 
   public void tickle(KeyT key) {
-    appendCache.getIfPresent(key);
+    synchronized (this) {
+      appendCache.getIfPresent(key);
+    }
   }
 
   public void clear() {

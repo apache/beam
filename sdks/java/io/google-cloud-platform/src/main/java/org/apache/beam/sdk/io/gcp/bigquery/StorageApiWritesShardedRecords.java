@@ -142,7 +142,7 @@ public class StorageApiWritesShardedRecords<DestinationT extends @NonNull Object
 
   private final TupleTag<KV<String, Operation>> flushTag = new TupleTag<>("flushTag");
 
-  private static AppendClientCache<KV<String, ShardedKey<?>>> APPEND_CLIENTS =
+  private static final AppendClientCache<KV<String, ShardedKey<?>>> APPEND_CLIENTS =
       new AppendClientCache<>(Duration.standardMinutes(5));
 
   static void clearCache() {
@@ -697,7 +697,7 @@ public class StorageApiWritesShardedRecords<DestinationT extends @NonNull Object
       }
       if (schemaMismatchError) {
         LOG.info(
-            "Vortex failed stream open due to incompatible fields. This is likely because the BigTable "
+            "Vortex failed stream open due to incompatible fields. This is likely because the BigQuery "
                 + "schema was recently updated and Vortex hasn't noticed yet, so retrying. error {}",
             Preconditions.checkStateNotNull(error).toString());
       }
