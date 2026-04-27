@@ -8060,3 +8060,7 @@ encoding.AddCustomJsonEnumMapping(
     StandardQueryParameters.FXgafvValueValuesEnum, '_1', '1')
 encoding.AddCustomJsonEnumMapping(
     StandardQueryParameters.FXgafvValueValuesEnum, '_2', '2')
+encoding.AddCustomJsonFieldMapping(
+    DataflowProjectsTemplatesLaunchRequest, 'dynamicTemplate_gcsPath', 'dynamicTemplate.gcsPath')
+encoding.AddCustomJsonFieldMapping(
+    DataflowProjectsTemplatesLaunchRequest, 'dynamicTemplate_stagingLocation', 'dynamicTemplate.stagingLocation')
