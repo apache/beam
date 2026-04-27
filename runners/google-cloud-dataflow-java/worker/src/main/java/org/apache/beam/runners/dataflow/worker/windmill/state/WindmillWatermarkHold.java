@@ -148,6 +148,11 @@ public class WindmillWatermarkHold extends WindmillState implements WatermarkHol
 
     Future<Windmill.WorkItemCommitRequest> result;
 
+    if (!knownEmpty && !cleared && localAdditions == null) {
+      // No changes, so no need to update Windmill and no need to cache any value.
+      return Futures.immediateFuture(Windmill.WorkItemCommitRequest.newBuilder().buildPartial());
+    }
+
     if (knownEmpty) {
       if (localAdditions != null) {
         // 1. We know it's empty, so we can just update with localAdditions
