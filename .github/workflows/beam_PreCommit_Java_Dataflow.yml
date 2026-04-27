@@ -94,13 +94,10 @@ jobs:
         with:
           gradle-command: build
           arguments: |
-            -p runners/google-cloud-dataflow-java/worker
+            -p runners/google-cloud-dataflow-java/worker \
             -PdisableSpotlessCheck=true \
             -PdisableCheckStyle=true \
-            -PenableJacocoReport \
-            :runners:google-cloud-dataflow-java:worker:build \
-            :runners:google-cloud-dataflow-java:worker:windmill:build \
-            :runners:google-cloud-dataflow-java:worker:test
+            -PenableJacocoReport
       - name: Archive JUnit Test Results
         uses: actions/upload-artifact@v4
         if: ${{ !success() }}
