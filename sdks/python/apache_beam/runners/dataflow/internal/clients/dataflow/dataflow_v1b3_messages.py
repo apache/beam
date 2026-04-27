@@ -8054,11 +8054,17 @@ class WriteInstruction(_messages.Message):
 
   input = _messages.MessageField('InstructionInput', 1)
   sink = _messages.MessageField('Sink', 2)
-
-
 encoding.AddCustomJsonFieldMapping(
     StandardQueryParameters, 'f__xgafv', '$.xgafv')
 encoding.AddCustomJsonEnumMapping(
     StandardQueryParameters.FXgafvValueValuesEnum, '_1', '1')
 encoding.AddCustomJsonEnumMapping(
     StandardQueryParameters.FXgafvValueValuesEnum, '_2', '2')
+encoding.AddCustomJsonFieldMapping(
+    DataflowProjectsLocationsTemplatesLaunchRequest, 'dynamicTemplate_gcsPath', 'dynamicTemplate.gcsPath')
+encoding.AddCustomJsonFieldMapping(
+    DataflowProjectsLocationsTemplatesLaunchRequest, 'dynamicTemplate_stagingLocation', 'dynamicTemplate.stagingLocation')
+encoding.AddCustomJsonFieldMapping(
+    DataflowProjectsTemplatesLaunchRequest, 'dynamicTemplate_gcsPath', 'dynamicTemplate.gcsPath')
+encoding.AddCustomJsonFieldMapping(
+    DataflowProjectsTemplatesLaunchRequest, 'dynamicTemplate_stagingLocation', 'dynamicTemplate.stagingLocation')
