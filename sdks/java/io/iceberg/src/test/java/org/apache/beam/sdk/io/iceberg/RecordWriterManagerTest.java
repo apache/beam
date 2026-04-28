@@ -57,10 +57,13 @@ import org.apache.hadoop.conf.Configuration;
 import org.apache.iceberg.AppendFiles;
 import org.apache.iceberg.DataFile;
 import org.apache.iceberg.FileFormat;
+import org.apache.iceberg.NullOrder;
 import org.apache.iceberg.PartitionField;
 import org.apache.iceberg.PartitionKey;
 import org.apache.iceberg.PartitionSpec;
 import org.apache.iceberg.Snapshot;
+import org.apache.iceberg.SortDirection;
+import org.apache.iceberg.SortOrder;
 import org.apache.iceberg.Table;
 import org.apache.iceberg.catalog.Catalog;
 import org.apache.iceberg.catalog.Namespace;
@@ -158,6 +161,36 @@ public class RecordWriterManagerTest {
     boolean writeSuccess = writerManager.write(dest, row);
     assertTrue(writeSuccess);
     assertTrue(catalog.namespaceExists(newNamespace));
+  }
+
+  @Test
+  public void testCreateTableWithSortOrder() throws IOException {
+    RecordWriterManager writerManager = new RecordWriterManager(catalog, "test_file_name", 1000, 3);
+    TableIdentifier identifier = TableIdentifier.of("default", testName.getMethodName());
+    WindowedValue<IcebergDestination> dest =
+        WindowedValues.valueInGlobalWindow(
+            IcebergDestination.builder()
+                .setFileFormat(FileFormat.PARQUET)
+                .setTableIdentifier(identifier)
+                .setTableCreateConfig(
+                    IcebergTableCreateConfig.builder()
+                        .setSchema(BEAM_SCHEMA)
+                        .setPartitionFields(null)
+                        .setSortFields(java.util.Arrays.asList("id desc", "name asc nulls last"))
+                        .build())
+                .build());
+
+    Row row = Row.withSchema(BEAM_SCHEMA).addValues(1, "aaa", true).build();
+    assertTrue(writerManager.write(dest, row));
+    writerManager.close();
+
+    Table created = catalog.loadTable(identifier);
+    SortOrder order = created.sortOrder();
+    assertEquals(2, order.fields().size());
+    assertEquals(SortDirection.DESC, order.fields().get(0).direction());
+    assertEquals(NullOrder.NULLS_LAST, order.fields().get(0).nullOrder());
+    assertEquals(SortDirection.ASC, order.fields().get(1).direction());
+    assertEquals(NullOrder.NULLS_LAST, order.fields().get(1).nullOrder());
   }
 
   @Test
