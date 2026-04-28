@@ -96,7 +96,12 @@ class ADKAgentModelHandler(ModelHandler[str | genai_Content,
   batch. By default every invocation uses a fresh, isolated session (stateless).
   Stateful multi-turn conversations can be achieved by passing a ``session_id``
   key inside ``inference_args``; elements sharing the same ``session_id`` will
-  continue the same conversation history.
+  continue the same conversation history. When using stateful conversations,
+  it is recommended to use a custom session_service_factory to provide a session
+  service implementation which can be managed across multiple workers (e.g.
+  :class:`~google.adk.sessions.DatabaseSessionService`). The default
+  :class:`~google.adk.sessions.InMemorySessionService` will not correctly track
+  the same session across multiple workers.
 
   Args:
     agent: A pre-constructed :class:`~google.adk.agents.Agent` instance, or a
