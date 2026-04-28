@@ -1737,6 +1737,13 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
     public OutputBuilder<OutputT> builder(OutputT value) {
       return WindowedValues.<OutputT>builder()
           .setValue(value)
+          .setTimestamp(currentElement.getTimestamp())
+          .setPaneInfo(currentElement.getPaneInfo())
+          .setWindows(currentElement.getWindows())
+          .setRecordOffset(currentElement.getRecordOffset())
+          .setRecordId(currentElement.getRecordId())
+          .setCausedByDrain(currentElement.causedByDrain())
+          .setValueKind(currentElement.getValueKind())
           .setReceiver(windowedValue -> outputTo(mainOutputConsumer, windowedValue));
     }
 

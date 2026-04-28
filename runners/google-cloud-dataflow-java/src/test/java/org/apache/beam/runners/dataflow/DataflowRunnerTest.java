@@ -154,6 +154,7 @@ import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.Redistribute;
+import org.apache.beam.sdk.transforms.Reshuffle;
 import org.apache.beam.sdk.transforms.SerializableFunctions;
 import org.apache.beam.sdk.transforms.SimpleFunction;
 import org.apache.beam.sdk.transforms.resourcehints.ResourceHints;
@@ -171,11 +172,17 @@ import org.apache.beam.sdk.util.construction.PTransformTranslation.TransformPayl
 import org.apache.beam.sdk.util.construction.PipelineTranslation;
 import org.apache.beam.sdk.util.construction.SdkComponents;
 import org.apache.beam.sdk.util.construction.TransformPayloadTranslatorRegistrar;
+import org.apache.beam.sdk.values.CausedByDrain;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.PValues;
 import org.apache.beam.sdk.values.TimestampedValue;
+import org.apache.beam.sdk.values.TupleTag;
+import org.apache.beam.sdk.values.TupleTagList;
 import org.apache.beam.sdk.values.TypeDescriptors;
+import org.apache.beam.sdk.values.ValueKind;
+import org.apache.beam.sdk.values.WindowedValues;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.beam.vendor.grpc.v1p69p0.com.google.protobuf.InvalidProtocolBufferException;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
@@ -191,6 +198,7 @@ import org.hamcrest.TypeSafeMatcher;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.junit.Before;
+import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
@@ -2760,5 +2768,133 @@ public class DataflowRunnerTest implements Serializable {
                   public void process() {}
                 }));
     p.run();
+  }
+
+  @Test
+  @Category({ValidatesRunner.class})
+  public void testValueKindParameterAndOutputWithKind() {
+    boolean isRunnerV2 = false;
+    @Nullable
+    List<String> experiments =
+        pipeline.getOptions().as(DataflowPipelineOptions.class).getExperiments();
+    if (experiments != null
+        && (experiments.contains("use_unified_worker") || experiments.contains("use_runner_v2"))) {
+      isRunnerV2 = true;
+    }
+    // Skipp runner v2 because its Create uses a splittable DoFn, which contains a shuffle.
+    // ValueKind is not supported in Dataflow shuffle yet
+    assumeFalse(isRunnerV2);
+
+    PCollection<String> input = pipeline.apply(Create.of("a", "b", "c", "d", "e"));
+    TupleTag<String> mainTag = new TupleTag<String>() {};
+    TupleTag<String> sideTag = new TupleTag<String>() {};
+
+    PCollectionTuple tuple =
+        input.apply(
+            "SetKind",
+            ParDo.of(
+                    new DoFn<String, String>() {
+                      @ProcessElement
+                      public void processElement(
+                          @Element String element,
+                          @Timestamp org.joda.time.Instant timestamp,
+                          BoundedWindow window,
+                          PaneInfo paneInfo,
+                          ProcessContext c,
+                          MultiOutputReceiver outputReceiver) {
+                        switch (element) {
+                          case "a":
+                            c.output(element); // default: INSERT
+                            return;
+                          case "b":
+                            c.outputWithKind(element, ValueKind.UPDATE_BEFORE);
+                            return;
+                          case "c":
+                            c.outputWindowedValue(
+                                WindowedValues.of(
+                                    element,
+                                    timestamp,
+                                    Collections.singleton(window),
+                                    paneInfo,
+                                    null,
+                                    null,
+                                    CausedByDrain.NORMAL,
+                                    ValueKind.UPDATE_AFTER));
+                            return;
+                          case "d":
+                            c.outputWithKind(sideTag, element, ValueKind.UPDATE_AFTER);
+                            return;
+                          case "e":
+                            outputReceiver.get(sideTag).outputWithKind(element, ValueKind.DELETE);
+                        }
+                      }
+                    })
+                .withOutputTags(mainTag, TupleTagList.of(sideTag)));
+
+    PCollection<String> main =
+        tuple
+            .get(mainTag)
+            .apply(
+                "ReadKind",
+                ParDo.of(
+                    new DoFn<String, String>() {
+                      @ProcessElement
+                      public void processElement(
+                          @Element String element, ProcessContext c, ValueKind kind) {
+                        c.output(element + ":" + kind);
+                      }
+                    }));
+
+    PCollection<String> side =
+        tuple
+            .get(sideTag)
+            .apply(
+                "ReadKind-SideTag",
+                ParDo.of(
+                    new DoFn<String, String>() {
+                      @ProcessElement
+                      public void processElement(
+                          @Element String element, ProcessContext c, ValueKind kind) {
+                        c.output(element + ":" + kind);
+                      }
+                    }));
+
+    PAssert.that(main).containsInAnyOrder("a:INSERT", "b:UPDATE_BEFORE", "c:UPDATE_AFTER");
+    PAssert.that(side).containsInAnyOrder("d:UPDATE_AFTER", "e:DELETE");
+    pipeline.run();
+  }
+
+  @Test
+  @Ignore("enable once when element metadata is supported in shuffle")
+  @Category({ValidatesRunner.class})
+  public void testValueKindPreservedAcrossShuffle() {
+    PCollection<KV<String, String>> input = pipeline.apply(Create.of(KV.of("key", "value")));
+
+    PCollection<String> output =
+        input
+            .apply(
+                "SetKind",
+                ParDo.of(
+                    new DoFn<KV<String, String>, KV<String, String>>() {
+                      @ProcessElement
+                      public void processElement(
+                          @Element KV<String, String> element, ProcessContext c) {
+                        c.outputWithKind(element, ValueKind.UPDATE_BEFORE);
+                      }
+                    }))
+            .apply(Reshuffle.of())
+            .apply(
+                "ReadKind",
+                ParDo.of(
+                    new DoFn<KV<String, String>, String>() {
+                      @ProcessElement
+                      public void processElement(
+                          @Element KV<String, String> element, ProcessContext c, ValueKind kind) {
+                        c.output(element.getValue() + ":" + kind);
+                      }
+                    }));
+
+    PAssert.that(output).containsInAnyOrder("value:UPDATE_BEFORE");
+    pipeline.run();
   }
 }
