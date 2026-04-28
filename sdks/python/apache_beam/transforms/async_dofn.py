@@ -149,20 +149,22 @@ class AsyncWrapper(beam.DoFn):
     loop.close()
 
   @staticmethod
+  @staticmethod
   def reset_state():
-    if AsyncWrapper._event_loop:
-      AsyncWrapper._event_loop.call_soon_threadsafe(
-          AsyncWrapper._event_loop.stop)
-    if AsyncWrapper._event_loop_thread:
-      AsyncWrapper._event_loop_thread.join()
+    with AsyncWrapper._lock:
+      if AsyncWrapper._event_loop:
+        AsyncWrapper._event_loop.call_soon_threadsafe(
+            AsyncWrapper._event_loop.stop)
+      if AsyncWrapper._event_loop_thread:
+        AsyncWrapper._event_loop_thread.join()
 
-    AsyncWrapper._event_loop = None
-    AsyncWrapper._event_loop_thread = None
-    AsyncWrapper._loop_started.clear()
+      AsyncWrapper._event_loop = None
+      AsyncWrapper._event_loop_thread = None
+      AsyncWrapper._loop_started.clear()
 
-    for pool in AsyncWrapper._pool.values():
-      pool.acquire(AsyncWrapper.initialize_pool(1)).shutdown(
-          wait=True, cancel_futures=True)
+      for pool in AsyncWrapper._pool.values():
+        pool.acquire(AsyncWrapper.initialize_pool(1)).shutdown(
+            wait=True, cancel_futures=True)
     with AsyncWrapper._lock:
       AsyncWrapper._pool = {}
       AsyncWrapper._processing_elements = {}
