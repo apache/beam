@@ -18,6 +18,7 @@
 from __future__ import absolute_import
 
 import asyncio
+import inspect
 import logging
 import random
 import threading
@@ -114,7 +115,9 @@ class AsyncWrapper(beam.DoFn):
       id_fn: A function that returns a hashable object from an element. This
         will be used to track items instead of the element's default hash.
       use_asyncio: If true, use asyncio and coroutines to process items. If
-        false, use ThreadPoolExecutor.
+        false, use ThreadPoolExecutor. Use asyncio when the work being done
+        is not CPU intensive and heavily waits on network or IO which can
+        benefit from higher parallelism.
     """
     self._sync_fn = sync_fn
     self._uuid = uuid.uuid4().hex
@@ -148,7 +151,6 @@ class AsyncWrapper(beam.DoFn):
     loop.run_forever()
     loop.close()
 
-  @staticmethod
   @staticmethod
   def reset_state():
     with AsyncWrapper._lock:
@@ -222,13 +224,7 @@ class AsyncWrapper(beam.DoFn):
     elif not isinstance(bundle_result, GeneratorType):
       bundle_result = [bundle_result]
 
-    to_return = []
-    for x in process_result:
-      to_return.append(x)
-    for x in bundle_result:
-      to_return.append(x)
-
-    return to_return
+    return process_result + bundle_result
 
   async def async_fn_process(self, element, *args, **kwargs):
     """Makes the call to the wrapped dofn's start_bundle, process
@@ -244,30 +240,23 @@ class AsyncWrapper(beam.DoFn):
     Returns:
       A list of elements produced by the input element.
     """
+    async def _collect(result):
+      if result is None:
+        return []
+      if inspect.isawaitable(result):
+        result = await result
+      if isinstance(result, AsyncIterable):
+        return [item async for item in result]
+      if isinstance(result,
+                    (GeneratorType, Iterable)) and not isinstance(result,
+                                                                  (str, bytes)):
+        return list(result)
+      return [result]
+
     self._sync_fn.start_bundle()
-    process_result = self._sync_fn.process(element, *args, **kwargs)
-    bundle_result = self._sync_fn.finish_bundle()
-
-    if not process_result:
-      process_result = []
-    elif isinstance(process_result, AsyncIterable):
-      temp = []
-      async for item in process_result:
-        temp.append(item)
-      process_result = temp
-    elif not isinstance(process_result, (GeneratorType, Iterable)):
-      process_result = [process_result]
-
-    if not bundle_result:
-      bundle_result = []
-    elif isinstance(bundle_result, AsyncIterable):
-      temp = []
-      async for item in bundle_result:
-        temp.append(item)
-      bundle_result = temp
-    elif not isinstance(bundle_result, (GeneratorType, Iterable)):
-      bundle_result = [bundle_result]
-
+    process_result = await _collect(
+        self._sync_fn.process(element, *args, **kwargs))
+    bundle_result = await _collect(self._sync_fn.finish_bundle())
     return process_result + bundle_result
 
   def decrement_items_in_buffer(self, future):

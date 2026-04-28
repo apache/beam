@@ -24,6 +24,7 @@ from threading import Lock
 
 import apache_beam as beam
 import apache_beam.transforms.async_dofn as async_lib
+from parameterized import parameterized_class
 
 
 class BasicDofn(beam.DoFn):
@@ -62,7 +63,7 @@ class FakeBagState:
   def __init__(self, items):
     self.items = items
     # Normally SE would have a lock on the BT row protecting this from multiple
-    # updates. Here without SE we must lock ourselvs.
+    # updates. Here without SE we must lock ourselves.
     self.lock = Lock()
 
   def add(self, item):
@@ -86,9 +87,15 @@ class FakeTimer:
     self.time = time
 
 
-class _AsyncTestBase:
-  use_asyncio: bool
-
+@parameterized_class([
+    {
+        "use_asyncio": True
+    },
+    {
+        "use_asyncio": False
+    },
+])
+class AsyncTest(unittest.TestCase):
   def setUp(self):
     super().setUp()
     async_lib.AsyncWrapper.reset_state()
@@ -184,7 +191,7 @@ class _AsyncTestBase:
     self.assertEqual(fake_bag_state.items, [])
 
   def test_multi_key(self):
-    # Send in two messages with different keys..
+    # Send in two messages with different keys.
     dofn = BasicDofn()
     async_dofn = async_lib.AsyncWrapper(dofn, use_asyncio=self.use_asyncio)
     async_dofn.setup()
@@ -234,7 +241,7 @@ class _AsyncTestBase:
     self.assertEqual(fake_bag_state.items, [])
 
   def test_lost_item(self):
-    # Setup an element in the bag stat thats not in processing state.
+    # Setup an element in the bag state that's not in processing state.
     # The async dofn should reschedule this element.
     dofn = BasicDofn()
     async_dofn = async_lib.AsyncWrapper(dofn, use_asyncio=self.use_asyncio)
@@ -253,7 +260,7 @@ class _AsyncTestBase:
   def test_cancelled_item(self):
     # Test that an item gets removed for processing and does not get output when
     # it is not present in the bag state. Either this item moved or a commit
-    # failed making the local state and bag stat inconsistent.
+    # failed making the local state and bag state inconsistent.
     dofn = BasicDofn()
     async_dofn = async_lib.AsyncWrapper(dofn, use_asyncio=self.use_asyncio)
     async_dofn.setup()
@@ -478,14 +485,6 @@ class _AsyncTestBase:
     for i in range(0, 10):
       self.check_output(results[i], expected_outputs['key' + str(i)])
       self.assertEqual(bag_states['key' + str(i)].items, [])
-
-
-class AsyncTestThreadPool(_AsyncTestBase, unittest.TestCase):
-  use_asyncio = False
-
-
-class AsyncTestAsyncio(_AsyncTestBase, unittest.TestCase):
-  use_asyncio = True
 
 
 if __name__ == '__main__':
