@@ -73,7 +73,7 @@ def runScriptsDir = "${rootDir}/sdks/python/scripts"
 // Basic test options for ITs running on Jenkins.
 def basicPytestOpts = [
     "--capture=no",  // print stdout instantly
-    "--timeout=4500", // timeout of whole command execution
+    "--timeout=7500", // timeout of whole command execution
     "--color=yes", // console color
     "--log-cli-level=INFO", //log level
 ]

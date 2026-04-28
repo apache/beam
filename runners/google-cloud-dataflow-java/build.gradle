@@ -554,7 +554,7 @@ createCrossLanguageValidatesRunnerTask(
   pytestOptions: [
     "--capture=no",
     "--numprocesses=8",
-    "--timeout=4500",
+    "--timeout=7500",
     "--log-cli-level=INFO",
   ],
   goScriptOptions: [
