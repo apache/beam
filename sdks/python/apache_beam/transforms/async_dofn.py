@@ -68,7 +68,7 @@ class AsyncWrapper(beam.DoFn):
   # value.
   _event_loop: Optional[asyncio.AbstractEventLoop] = None
   _event_loop_thread: Optional[threading.Thread] = None
-  _loop_started = threading.Event()
+  _loop_started: Optional[threading.Event] = None
   _processing_elements = {}
   _items_in_buffer = {}
   _pool = {}
@@ -162,7 +162,8 @@ class AsyncWrapper(beam.DoFn):
 
       AsyncWrapper._event_loop = None
       AsyncWrapper._event_loop_thread = None
-      AsyncWrapper._loop_started.clear()
+      if AsyncWrapper._loop_started is not None:
+        AsyncWrapper._loop_started.clear()
 
       for pool in AsyncWrapper._pool.values():
         pool.acquire(AsyncWrapper.initialize_pool(1)).shutdown(
@@ -177,6 +178,7 @@ class AsyncWrapper(beam.DoFn):
     self._sync_fn.setup()
     with AsyncWrapper._lock:
       if self._use_asyncio and AsyncWrapper._event_loop_thread is None:
+        AsyncWrapper._loop_started = threading.Event()
         AsyncWrapper._event_loop_thread = threading.Thread(
             target=AsyncWrapper._run_event_loop, daemon=True)
         AsyncWrapper._event_loop_thread.start()
@@ -224,7 +226,12 @@ class AsyncWrapper(beam.DoFn):
     elif not isinstance(bundle_result, GeneratorType):
       bundle_result = [bundle_result]
 
-    return process_result + bundle_result
+    to_return = []
+    for x in process_result:
+      to_return.append(x)
+    for x in bundle_result:
+      to_return.append(x)
+    return to_return
 
   async def async_fn_process(self, element, *args, **kwargs):
     """Makes the call to the wrapped dofn's start_bundle, process
