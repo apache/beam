@@ -451,7 +451,7 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
                 lookupCache
                     ? APPEND_CLIENTS.getAndPin(
                         getStreamAppendClientCacheEntryKey(), () -> generateClient(updatedSchema))
-                    : APPEND_CLIENTS.refreshObjectAndAndPin(
+                    : APPEND_CLIENTS.refreshObjectAndPin(
                         getStreamAppendClientCacheEntryKey(), () -> generateClient(updatedSchema));
           }
           nextCacheTickle = Instant.now().plus(java.time.Duration.ofMinutes(1));

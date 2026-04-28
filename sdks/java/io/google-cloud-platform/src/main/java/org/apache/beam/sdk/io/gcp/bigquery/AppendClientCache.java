@@ -90,7 +90,7 @@ class AppendClientCache<KeyT extends @NonNull Object> {
   }
 
   /** "Refresh" an object by invalidating the old cache entry. */
-  public AppendClientInfo refreshObjectAndAndPin(KeyT key, Callable<AppendClientInfo> loader)
+  public AppendClientInfo refreshObjectAndPin(KeyT key, Callable<AppendClientInfo> loader)
       throws Exception {
     synchronized (this) {
       appendCache.invalidate(key);
