@@ -232,6 +232,41 @@ public class BigtableIOTest {
   }
 
   @Test
+  public void testReadWithMaterializedViewBuildsCorrectly() {
+    BigtableIO.Read read =
+        BigtableIO.read()
+            .withInstanceId("instance")
+            .withProjectId("project")
+            .withMaterializedViewName("my-mv");
+    assertEquals("instance", read.getBigtableConfig().getInstanceId().get());
+    assertEquals("project", read.getBigtableConfig().getProjectId().get());
+    assertEquals("my-mv", read.getMaterializedViewName());
+  }
+
+  @Test
+  public void testReadValidationFailsMissingTableAndMaterializedView() {
+    BigtableIO.Read read = BigtableIO.read().withInstanceId("instance").withProjectId("project");
+
+    thrown.expect(IllegalArgumentException.class);
+    thrown.expectMessage("Either a Bigtable table id or a materialized view name must be set");
+    read.expand(null);
+  }
+
+  @Test
+  public void testReadValidationFailsBothTableAndMaterializedView() {
+    BigtableIO.Read read =
+        BigtableIO.read()
+            .withInstanceId("instance")
+            .withProjectId("project")
+            .withTableId("table")
+            .withMaterializedViewName("my-mv");
+
+    thrown.expect(IllegalArgumentException.class);
+    thrown.expectMessage("Only one of Bigtable table id or materialized view name can be set");
+    read.expand(null);
+  }
+
+  @Test
   public void testReadValidationFailsMissingTable() {
     BigtableIO.Read read = BigtableIO.read().withBigtableOptions(BIGTABLE_OPTIONS);
 
@@ -288,7 +323,7 @@ public class BigtableIOTest {
             .withTableId(options.getBigtableTableId());
 
     thrown.expect(IllegalArgumentException.class);
-    thrown.expectMessage("tableId was not supplied");
+    thrown.expectMessage("tableId or materializedViewName was not supplied");
 
     p.apply(read);
   }

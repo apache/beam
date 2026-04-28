@@ -395,6 +395,12 @@ public class BigtableIO {
       return tableId != null && tableId.isAccessible() ? tableId.get() : null;
     }
 
+    /** Returns the materialized view being read from. */
+    public @Nullable String getMaterializedViewName() {
+      ValueProvider<String> mvName = getBigtableReadOptions().getMaterializedViewName();
+      return mvName != null && mvName.isAccessible() ? mvName.get() : null;
+    }
+
     /**
      * Returns the Google Cloud Bigtable instance being read from, and other parameters.
      *
@@ -415,7 +421,6 @@ public class BigtableIO {
           .setBigtableConfig(config)
           .setBigtableReadOptions(
               BigtableReadOptions.builder()
-                  .setTableId(StaticValueProvider.of(""))
                   .setKeyRanges(
                       StaticValueProvider.of(Collections.singletonList(ByteKeyRange.ALL_KEYS)))
                   .build())
@@ -519,6 +524,30 @@ public class BigtableIO {
      */
     public Read withAppProfileId(String appProfileId) {
       return withAppProfileId(StaticValueProvider.of(appProfileId));
+    }
+
+    /**
+     * Returns a new {@link BigtableIO.Read} that will read from the specified materialized view.
+     * Mutually exclusive with {@link #withTableId}.
+     *
+     * <p>Does not modify this object.
+     */
+    public Read withMaterializedViewName(ValueProvider<String> materializedViewName) {
+      BigtableReadOptions bigtableReadOptions = getBigtableReadOptions();
+      return toBuilder()
+          .setBigtableReadOptions(
+              bigtableReadOptions.toBuilder().setMaterializedViewName(materializedViewName).build())
+          .build();
+    }
+
+    /**
+     * Returns a new {@link BigtableIO.Read} that will read from the specified materialized view.
+     * Mutually exclusive with {@link #withTableId}.
+     *
+     * <p>Does not modify this object.
+     */
+    public Read withMaterializedViewName(String materializedViewName) {
+      return withMaterializedViewName(StaticValueProvider.of(materializedViewName));
     }
 
     /**
@@ -769,6 +798,11 @@ public class BigtableIO {
     private void validateTableExists(
         BigtableConfig config, BigtableReadOptions readOptions, PipelineOptions options) {
       if (config.getValidate() && config.isDataAccessible() && readOptions.isDataAccessible()) {
+        // Skip table existence validation for materialized views since the standard
+        // readRow-based check only works for tables.
+        if (readOptions.getMaterializedViewName() != null) {
+          return;
+        }
         ValueProvider<String> tableIdProvider = checkArgumentNotNull(readOptions.getTableId());
         String tableId = checkArgumentNotNull(tableIdProvider.get());
         try {
@@ -1890,16 +1924,24 @@ public class BigtableIO {
       }
 
       ValueProvider<String> tableId = readOptions.getTableId();
-      checkArgument(
-          tableId != null && tableId.isAccessible() && !tableId.get().isEmpty(),
-          "tableId was not supplied");
+      ValueProvider<String> mvName = readOptions.getMaterializedViewName();
+      boolean hasTableId = tableId != null && tableId.isAccessible() && !tableId.get().isEmpty();
+      boolean hasMvName = mvName != null && mvName.isAccessible() && !mvName.get().isEmpty();
+      checkArgument(hasTableId || hasMvName, "tableId or materializedViewName was not supplied");
     }
 
     @Override
     public void populateDisplayData(DisplayData.Builder builder) {
       super.populateDisplayData(builder);
 
-      builder.add(DisplayData.item("tableId", readOptions.getTableId()).withLabel("Table ID"));
+      if (readOptions.getTableId() != null) {
+        builder.add(DisplayData.item("tableId", readOptions.getTableId()).withLabel("Table ID"));
+      }
+      if (readOptions.getMaterializedViewName() != null) {
+        builder.add(
+            DisplayData.item("materializedViewName", readOptions.getMaterializedViewName())
+                .withLabel("Materialized View Name"));
+      }
 
       if (getRowFilter() != null) {
         builder.add(
@@ -1984,8 +2026,12 @@ public class BigtableIO {
       return readOptions.getMaxBufferElementCount();
     }
 
-    public ValueProvider<String> getTableId() {
+    public @Nullable ValueProvider<String> getTableId() {
       return readOptions.getTableId();
+    }
+
+    public @Nullable ValueProvider<String> getMaterializedViewName() {
+      return readOptions.getMaterializedViewName();
     }
 
     void reportLineageOnce(BigtableService.Reader reader) {

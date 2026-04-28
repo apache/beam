@@ -188,6 +188,95 @@ public class BigtableServiceImplTest {
     verifyMetricWasSet("google.bigtable.v2.ReadRows", "ok", 1);
   }
 
+  @Test
+  @SuppressWarnings("unchecked")
+  public void testReadWithMaterializedView() throws IOException {
+    ByteKey start = ByteKey.copyFrom("a".getBytes(StandardCharsets.UTF_8));
+    ByteKey end = ByteKey.copyFrom("b".getBytes(StandardCharsets.UTF_8));
+
+    Row expectedRow = Row.newBuilder().setKey(ByteString.copyFromUtf8("a")).build();
+
+    Iterator<Row> mockIterator = Mockito.mock(Iterator.class);
+    when(mockIterator.next()).thenReturn(expectedRow).thenReturn(null);
+    when(mockIterator.hasNext()).thenReturn(true).thenReturn(false);
+    ServerStream<Row> mockRows = Mockito.mock(ServerStream.class);
+    when(mockRows.iterator()).thenReturn(mockIterator);
+    ServerStreamingCallable<Query, Row> mockCallable = Mockito.mock(ServerStreamingCallable.class);
+    when(mockCallable.call(
+            any(com.google.cloud.bigtable.data.v2.models.Query.class), any(ApiCallContext.class)))
+        .thenReturn(mockRows);
+    when(mockStub.createReadRowsCallable(any(RowAdapter.class))).thenReturn(mockCallable);
+    ServerStreamingCallable<Query, Row> callable =
+        mockStub.createReadRowsCallable(new BigtableServiceImpl.BigtableRowProtoAdapter());
+    when(mockBigtableDataClient.readRowsCallable(any(RowAdapter.class))).thenReturn(callable);
+
+    BigtableService.Reader underTest =
+        new BigtableServiceImpl.BigtableReaderImpl(
+            mockBigtableDataClient,
+            PROJECT_ID,
+            INSTANCE_ID,
+            null,
+            "my-materialized-view",
+            Arrays.asList(ByteKeyRange.of(start, end)),
+            null,
+            false);
+
+    underTest.start();
+    Assert.assertEquals(expectedRow, underTest.getCurrentRow());
+    Assert.assertFalse(underTest.advance());
+
+    verifyMetricWasSet("google.bigtable.v2.ReadRows", "ok", 1, "my-materialized-view");
+  }
+
+  @Test
+  public void testReadSegmentWithMaterializedView() throws Exception {
+    RowSet.Builder ranges = RowSet.newBuilder();
+    ranges.addRowRanges(
+        generateRowRange(
+            generateByteString(DEFAULT_PREFIX, 0), generateByteString(DEFAULT_PREFIX, 1)));
+
+    Row expectedRow = Row.newBuilder().setKey(ByteString.copyFromUtf8("a")).build();
+
+    ServerStreamingCallable<Query, Row> mockCallable = Mockito.mock(ServerStreamingCallable.class);
+    doAnswer(
+            new Answer<Void>() {
+              @Override
+              public Void answer(InvocationOnMock invocation) throws Throwable {
+                ((ResponseObserver) invocation.getArgument(1)).onResponse(expectedRow);
+                ((ResponseObserver) invocation.getArgument(1)).onComplete();
+                return null;
+              }
+            })
+        .when(mockCallable)
+        .call(
+            any(com.google.cloud.bigtable.data.v2.models.Query.class),
+            any(ResponseObserver.class),
+            any(ApiCallContext.class));
+    when(mockStub.createReadRowsCallable(any(RowAdapter.class))).thenReturn(mockCallable);
+    ServerStreamingCallable<Query, Row> callable =
+        mockStub.createReadRowsCallable(new BigtableServiceImpl.BigtableRowProtoAdapter());
+    when(mockBigtableDataClient.readRowsCallable(any(RowAdapter.class))).thenReturn(callable);
+
+    BigtableService.Reader underTest =
+        new BigtableServiceImpl.BigtableSegmentReaderImpl(
+            mockBigtableDataClient,
+            PROJECT_ID,
+            INSTANCE_ID,
+            null,
+            "my-materialized-view",
+            ranges.build(),
+            RowFilter.getDefaultInstance(),
+            SEGMENT_SIZE,
+            DEFAULT_BYTE_SEGMENT_SIZE,
+            mockCallMetric);
+
+    underTest.start();
+    Assert.assertEquals(expectedRow, underTest.getCurrentRow());
+    Assert.assertFalse(underTest.advance());
+
+    Mockito.verify(mockCallMetric, Mockito.times(2)).call("ok");
+  }
+
   /**
    * This test ensures that protobuf creation and interactions with {@link BigtableDataClient} work
    * as expected. This test checks that a single row is returned from the future.
@@ -877,6 +966,10 @@ public class BigtableServiceImplTest {
   }
 
   private void verifyMetricWasSet(String method, String status, long count) {
+    verifyMetricWasSet(method, status, count, TABLE_ID);
+  }
+
+  private void verifyMetricWasSet(String method, String status, long count, String targetId) {
     // Verify the metric as reported.
     HashMap<String, String> labels = new HashMap<>();
     labels.put(MonitoringInfoConstants.Labels.PTRANSFORM, "");
@@ -884,12 +977,12 @@ public class BigtableServiceImplTest {
     labels.put(MonitoringInfoConstants.Labels.METHOD, method);
     labels.put(
         MonitoringInfoConstants.Labels.RESOURCE,
-        GcpResourceIdentifiers.bigtableResource(PROJECT_ID, INSTANCE_ID, TABLE_ID));
+        GcpResourceIdentifiers.bigtableResource(PROJECT_ID, INSTANCE_ID, targetId));
     labels.put(MonitoringInfoConstants.Labels.BIGTABLE_PROJECT_ID, PROJECT_ID);
     labels.put(MonitoringInfoConstants.Labels.INSTANCE_ID, INSTANCE_ID);
     labels.put(
         MonitoringInfoConstants.Labels.TABLE_ID,
-        GcpResourceIdentifiers.bigtableTableID(PROJECT_ID, INSTANCE_ID, TABLE_ID));
+        GcpResourceIdentifiers.bigtableTableID(PROJECT_ID, INSTANCE_ID, targetId));
     labels.put(MonitoringInfoConstants.Labels.STATUS, status);
 
     MonitoringInfoMetricName name =
