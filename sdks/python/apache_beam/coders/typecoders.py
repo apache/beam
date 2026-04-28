@@ -124,6 +124,19 @@ class CoderRegistry(object):
   def register_coder(
       self, typehint_type: Any,
       typehint_coder_class: Type[coders.Coder]) -> None:
+    """
+    Register a user type with a coder.
+
+    Typical usage::
+
+      class MyCustomType:
+        pass
+
+      coders.registry.register_coder(MyCustomType, MyCustomCoder)
+
+    To register a supported user type (data class or named tuple) with Beam Row,
+    use :meth:`register_row` instead, as it registers both coder and schema.
+    """
     if not isinstance(typehint_coder_class, type):
       raise TypeError(
           'Coder registration requires a coder class object. '
@@ -132,6 +145,34 @@ class CoderRegistry(object):
       self.custom_types.append(typehint_type)
     self._register_coder_internal(
         self._normalize_typehint_type(typehint_type), typehint_coder_class)
+
+  def register_row(self, typehint_type: type[Any]) -> type[Any]:
+    """
+    Register a user type with a Beam Row.
+
+    This registers the type with a RowCoder and register its schema.
+
+    Register a dataclass::
+
+      @coders.registry.register_row
+      @dataclass
+      class MyDataClass:
+        id: int
+        name: str
+
+    Register a named tuple::
+
+      coders.registry.register_row(MyNamedTuple)
+    """
+    from apache_beam.coders import RowCoder
+    from apache_beam.typehints.schemas import typing_to_runner_api
+
+    # Register with row coder
+    self.register_coder(typehint_type, RowCoder)
+    # This call generated a schema id for the type and register it with
+    # schema registry
+    typing_to_runner_api(typehint_type)
+    return typehint_type
 
   def get_coder(self, typehint: Any) -> coders.Coder:
     if typehint and typehint.__module__ == '__main__':
