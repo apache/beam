@@ -620,19 +620,22 @@ class SchemaTranslation(object):
       descriptions[field.name] = field.description
       subfields.append((field.name, field_py_type))
 
-    user_type = NamedTuple(type_name, subfields)
+    if schema.id in self.schema_registry.by_id:
+      user_type = self.schema_registry.by_id[schema.id][0]
+    else:
+      user_type = NamedTuple(type_name, subfields)
 
-    # Define a reduce function, otherwise these types can't be pickled
-    # (See BEAM-9574)
-    setattr(
-        user_type,
-        '__reduce__',
-        _named_tuple_reduce_method(schema.SerializeToString()))
-    setattr(user_type, "_field_descriptions", descriptions)
-    setattr(user_type, row_type._BEAM_SCHEMA_ID, schema.id)
+      # Define a reduce function, otherwise these types can't be pickled
+      # (See BEAM-9574)
+      setattr(
+          user_type,
+          '__reduce__',
+          _named_tuple_reduce_method(schema.SerializeToString()))
+      setattr(user_type, "_field_descriptions", descriptions)
+      setattr(user_type, row_type._BEAM_SCHEMA_ID, schema.id)
 
-    self.schema_registry.add(user_type, schema)
-    coders.registry.register_coder(user_type, coders.RowCoder)
+      self.schema_registry.add(user_type, schema)
+      coders.registry.register_coder(user_type, coders.RowCoder)
 
     return user_type
 
