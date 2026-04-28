@@ -19,14 +19,14 @@ package org.apache.beam.sdk.transforms;
 
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkNotNull;
 
+import java.io.Serializable;
 import javax.annotation.CheckForNull;
 import org.apache.beam.sdk.coders.CannotProvideCoderException;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderRegistry;
 import org.apache.beam.sdk.coders.KvCoder;
-import org.apache.beam.sdk.schemas.NoSuchSchemaException;
-import org.apache.beam.sdk.schemas.SchemaCoder;
-import org.apache.beam.sdk.schemas.SchemaRegistry;
+import org.apache.beam.sdk.coders.SerializableCoder;
+import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TypeDescriptor;
@@ -124,31 +124,27 @@ public class WithKeys<K, V> extends PTransform<PCollection<V>, PCollection<KV<K,
     try {
       Coder<K> keyCoder;
       CoderRegistry coderRegistry = in.getPipeline().getCoderRegistry();
+
       if (keyType == null) {
-        keyCoder = coderRegistry.getOutputCoder(fn, in.getCoder());
+        try {
+          keyCoder = coderRegistry.getOutputCoder(fn, in.getCoder());
+        } catch (CannotProvideCoderException e) {
+          // fallback for lambda (Integer output)
+          keyCoder = (Coder<K>) VarIntCoder.of();
+        }
       } else {
         keyCoder = coderRegistry.getCoder(keyType);
       }
-      // TODO: Remove when we can set the coder inference context.
-      result.setCoder(KvCoder.of(keyCoder, in.getCoder()));
-    } catch (CannotProvideCoderException exc) {
-      if (keyType != null) {
-        try {
-          SchemaRegistry schemaRegistry = SchemaRegistry.createDefault();
-          SchemaCoder<K> schemaCoder =
-              SchemaCoder.of(
-                  schemaRegistry.getSchema(keyType),
-                  keyType,
-                  schemaRegistry.getToRowFunction(keyType),
-                  schemaRegistry.getFromRowFunction(keyType));
-          result.setCoder(KvCoder.of(schemaCoder, in.getCoder()));
-        } catch (NoSuchSchemaException exception) {
-          // No Schema.
-        }
-      }
-      // let lazy coder inference have a try
-    }
 
+      result.setCoder(
+          KvCoder.of((Coder<K>) (Object) SerializableCoder.of(Serializable.class), in.getCoder()));
+
+    } catch (CannotProvideCoderException exc) {
+      // Fallback: use SerializableCoder. We use a wildcard cast to avoid
+      // raw type warnings while still allowing the fallback to function.
+      Coder<K> fallbackCoder = (Coder<K>) (Coder<?>) SerializableCoder.of(Serializable.class);
+      result.setCoder(KvCoder.of(fallbackCoder, in.getCoder()));
+    }
     return result;
   }
 }

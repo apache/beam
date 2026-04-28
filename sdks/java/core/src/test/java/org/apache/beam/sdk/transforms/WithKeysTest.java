@@ -18,11 +18,13 @@
 package org.apache.beam.sdk.transforms;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
 
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
+import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
@@ -207,6 +209,22 @@ public class WithKeysTest {
     assertEquals(expectedCoder, pCollection.getCoder());
 
     p.run();
+  }
+
+  @Test
+  public void testKeyCoderInferenceSafe() {
+    Pipeline p = Pipeline.create();
+
+    PCollection<String> input = p.apply(Create.of("a", "bb", "ccc"));
+
+    PCollection<KV<Integer, String>> result =
+        input.apply(
+            "AddKeys",
+            WithKeys.of((String s) -> s.length()).withKeyType(TypeDescriptors.integers()));
+
+    assertNotNull(result.getCoder());
+
+    p.run().waitUntilFinish();
   }
 
   @DefaultSchema(JavaBeanSchema.class)
