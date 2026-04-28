@@ -246,9 +246,10 @@ public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow> {
 
     this.nonEmptyPanes = NonEmptyPanes.create(this.windowingStrategy, this.reduceFn);
 
-    this.useNewWindowOptimization = windowingStrategy.getWindowFn().isNonMerging() &&
-        ExperimentalOptions.hasExperiment(
-            options, UNSTABLE_NOT_UPDATE_COMPATIBLE_NEW_WINDOW_OPTIMIZATION);
+    this.useNewWindowOptimization =
+        windowingStrategy.getWindowFn().isNonMerging()
+            && ExperimentalOptions.hasExperiment(
+                options, UNSTABLE_NOT_UPDATE_COMPATIBLE_NEW_WINDOW_OPTIMIZATION);
 
     this.disableWatermarkKnownEmptyOptimization =
         ExperimentalOptions.hasExperiment(
