@@ -20,7 +20,7 @@
 [build-system]
 requires = [
     "setuptools",
-    "wheel>=0.36.0",
+    "wheel>=0.47.0",
     # Note: after upgrading to grpcio-tools, we must bump protobuf to >=5.0.
     # Currently Blocked on old dependencies of Beam tft extra:
     # https://github.com/apache/beam/issues/37854
