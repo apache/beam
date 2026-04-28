@@ -16,9 +16,14 @@
 name: Gemini Review Comment
 
 on:
-  pull_request_target:
-    types: [opened]
   workflow_dispatch:
+    inputs:
+      pr_number:
+        description: 'The Pull Request number to review'
+        required: true
+        type: string
+  pull_request:
+    branches: [ master ]
 
 jobs:
   add-comment:
@@ -29,9 +34,16 @@ jobs:
       - uses: actions/github-script@v8
         with:
           script: |
-            github.rest.issues.createComment({
-              issue_number: context.payload.pull_request.number,
+            // Safely retrieve the PR number from event payload or manual input
+            const prNumber = context.payload.pull_request?.number || context.payload.inputs?.pr_number;
+
+            if (!prNumber) {
+              throw new Error("Could not find a PR number from context or inputs.");
+            }
+
+            await github.rest.issues.createComment({
+              issue_number: parseInt(prNumber),
               owner: context.repo.owner,
               repo: context.repo.repo,
               body: '/gemini review'
-            })
+            });
