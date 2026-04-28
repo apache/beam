@@ -54,7 +54,7 @@ public class MetadataPropagationTest {
   @Category(NeedsRunner.class)
   @Ignore
   public void testMetadataPropagationAcrossShuffleParameter() {
-    WindowedValues.WindowedValueCoder.setMetadataSupported();
+    WindowedValues.WindowedValueCoder.setMetadataSupported(true);
     PCollection<String> results =
         pipeline
             .apply(Create.of(1))

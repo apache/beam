@@ -68,6 +68,8 @@ public abstract class ValueInSingleWindow<T> {
 
   public abstract CausedByDrain getCausedByDrain();
 
+  public abstract ValueKind getValueKind();
+
   // todo #33176 specify additional metadata in the future
   public static <T> ValueInSingleWindow<T> of(
       T value,
@@ -76,14 +78,23 @@ public abstract class ValueInSingleWindow<T> {
       PaneInfo paneInfo,
       @Nullable String currentRecordId,
       @Nullable Long currentRecordOffset,
-      CausedByDrain causedByDrain) {
+      CausedByDrain causedByDrain,
+      ValueKind valueKind) {
     return new AutoValue_ValueInSingleWindow<>(
-        value, timestamp, window, paneInfo, currentRecordId, currentRecordOffset, causedByDrain);
+        value,
+        timestamp,
+        window,
+        paneInfo,
+        currentRecordId,
+        currentRecordOffset,
+        causedByDrain,
+        valueKind);
   }
 
   public static <T> ValueInSingleWindow<T> of(
       T value, Instant timestamp, BoundedWindow window, PaneInfo paneInfo) {
-    return of(value, timestamp, window, paneInfo, null, null, CausedByDrain.NORMAL);
+    return of(
+        value, timestamp, window, paneInfo, null, null, CausedByDrain.NORMAL, ValueKind.INSERT);
   }
 
   /** A coder for {@link ValueInSingleWindow}. */
@@ -127,6 +138,7 @@ public abstract class ValueInSingleWindow<T> {
             windowedElem.getCausedByDrain() == CausedByDrain.CAUSED_BY_DRAIN
                 ? BeamFnApi.Elements.DrainMode.Enum.DRAINING
                 : BeamFnApi.Elements.DrainMode.Enum.NOT_DRAINING);
+        builder.setValueKind(ValueKindUtil.toProto(windowedElem.getValueKind()));
         BeamFnApi.Elements.ElementMetadata metadata = builder.build();
         ByteArrayCoder.of().encode(metadata.toByteArray(), outStream);
       }
@@ -146,6 +158,7 @@ public abstract class ValueInSingleWindow<T> {
       BoundedWindow window = windowCoder.decode(inStream);
       PaneInfo paneInfo = PaneInfo.PaneInfoCoder.INSTANCE.decode(inStream);
       CausedByDrain causedByDrain = CausedByDrain.NORMAL;
+      ValueKind valueKind = ValueKind.INSERT;
       if (WindowedValues.WindowedValueCoder.isMetadataSupported() && paneInfo.isElementMetadata()) {
         BeamFnApi.Elements.ElementMetadata elementMetadata =
             BeamFnApi.Elements.ElementMetadata.parseFrom(ByteArrayCoder.of().decode(inStream));
@@ -153,12 +166,15 @@ public abstract class ValueInSingleWindow<T> {
             elementMetadata.getDrain() == BeamFnApi.Elements.DrainMode.Enum.DRAINING
                 ? CausedByDrain.CAUSED_BY_DRAIN
                 : CausedByDrain.NORMAL;
+        if (elementMetadata.hasValueKind()) {
+          valueKind = ValueKindUtil.fromProto(elementMetadata.getValueKind());
+        }
       }
 
       T value = valueCoder.decode(inStream, context);
       // todo #33176 specify additional metadata in the future
       return new AutoValue_ValueInSingleWindow<>(
-          value, timestamp, window, paneInfo, null, null, causedByDrain);
+          value, timestamp, window, paneInfo, null, null, causedByDrain, valueKind);
     }
 
     @Override

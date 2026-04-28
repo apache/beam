@@ -108,6 +108,7 @@ import org.apache.beam.sdk.values.OutputBuilder;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TupleTag;
+import org.apache.beam.sdk.values.ValueKind;
 import org.apache.beam.sdk.values.WindowedValue;
 import org.apache.beam.sdk.values.WindowedValues;
 import org.apache.beam.sdk.values.WindowedValues.WindowedValueCoder;
@@ -1736,6 +1737,13 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
     public OutputBuilder<OutputT> builder(OutputT value) {
       return WindowedValues.<OutputT>builder()
           .setValue(value)
+          .setTimestamp(currentElement.getTimestamp())
+          .setPaneInfo(currentElement.getPaneInfo())
+          .setWindows(currentElement.getWindows())
+          .setRecordOffset(currentElement.getRecordOffset())
+          .setRecordId(currentElement.getRecordId())
+          .setCausedByDrain(currentElement.causedByDrain())
+          .setValueKind(currentElement.getValueKind())
           .setReceiver(windowedValue -> outputTo(mainOutputConsumer, windowedValue));
     }
 
@@ -1760,6 +1768,32 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
           consumer,
           WindowedValues.of(
               output, currentElement.getTimestamp(), currentWindow, currentElement.getPaneInfo()));
+    }
+
+    @Override
+    public void outputWithKind(OutputT output, ValueKind kind) {
+      builder(output).setValueKind(kind).output();
+    }
+
+    @Override
+    public <T> void outputWithKind(TupleTag<T> tag, T output, ValueKind kind) {
+      outputWindowedValue(
+          tag,
+          output,
+          currentElement.getTimestamp(),
+          currentElement.getWindows(),
+          currentElement.getPaneInfo(),
+          kind);
+    }
+
+    @Override
+    public void outputWindowedValue(
+        OutputT output,
+        Instant timestamp,
+        Collection<? extends BoundedWindow> windows,
+        PaneInfo paneInfo,
+        ValueKind valueKind) {
+      outputWindowedValue(mainOutputTag, output, timestamp, windows, paneInfo, valueKind);
     }
 
     @Override
@@ -1813,6 +1847,16 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
         Instant timestamp,
         Collection<? extends BoundedWindow> windows,
         PaneInfo paneInfo) {
+      outputWindowedValue(tag, output, timestamp, windows, paneInfo, ValueKind.INSERT);
+    }
+
+    public <T> void outputWindowedValue(
+        TupleTag<T> tag,
+        T output,
+        Instant timestamp,
+        Collection<? extends BoundedWindow> windows,
+        PaneInfo paneInfo,
+        ValueKind valueKind) {
       // TODO(https://github.com/apache/beam/issues/29637): Check that timestamp is valid once all
       // runners can provide proper timestamps.
       FnDataReceiver<WindowedValue<T>> consumer =
@@ -1820,7 +1864,10 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
       if (consumer == null) {
         throw new IllegalArgumentException(String.format("Unknown output tag %s", tag));
       }
-      outputTo(consumer, WindowedValues.of(output, timestamp, windows, paneInfo));
+      outputTo(
+          consumer,
+          WindowedValues.of(
+              output, timestamp, windows, paneInfo, null, null, CausedByDrain.NORMAL, valueKind));
     }
 
     @Override
@@ -1910,6 +1957,46 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
       }
       // Don't need to check timestamp since we can always output using the input timestamp.
       outputTo(consumer, currentElement.withValue(output));
+    }
+
+    @Override
+    public void outputWithKind(OutputT output, ValueKind kind) {
+      builder(output).setValueKind(kind).output();
+    }
+
+    @Override
+    public void outputWindowedValue(
+        OutputT output,
+        Instant timestamp,
+        Collection<? extends BoundedWindow> windows,
+        PaneInfo paneInfo,
+        ValueKind valueKind) {
+      builder(output)
+          .setTimestamp(timestamp)
+          .setWindows(windows)
+          .setPaneInfo(paneInfo)
+          .setValueKind(valueKind)
+          .output();
+    }
+
+    @Override
+    public <T> void outputWithKind(TupleTag<T> tag, T output, ValueKind kind) {
+      FnDataReceiver<WindowedValue<T>> consumer =
+          (FnDataReceiver) localNameToConsumer.get(tag.getId());
+      if (consumer == null) {
+        throw new IllegalArgumentException(String.format("Unknown output tag %s", tag));
+      }
+      outputTo(
+          consumer,
+          WindowedValues.of(
+              output,
+              currentElement.getTimestamp(),
+              currentElement.getWindows(),
+              currentElement.getPaneInfo(),
+              null,
+              null,
+              CausedByDrain.NORMAL,
+              kind));
     }
 
     @Override
@@ -2271,8 +2358,18 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
     }
 
     @Override
+    public ValueKind valueKind() {
+      return currentElement.getValueKind();
+    }
+
+    @Override
     public CausedByDrain causedByDrain(DoFn<InputT, OutputT> doFn) {
       return currentElement.causedByDrain();
+    }
+
+    @Override
+    public ValueKind valueKind(DoFn<InputT, OutputT> doFn) {
+      return currentElement.getValueKind();
     }
   }
 
@@ -2310,6 +2407,42 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
           Collection<? extends BoundedWindow> windows,
           PaneInfo paneInfo) {
         OutputReceiver.super.outputWindowedValue(output, timestamp, windows, paneInfo);
+      }
+
+      @Override
+      public void outputWithKind(OutputT output, ValueKind kind) {
+        OutputReceiver.super.outputWithKind(output, kind);
+      }
+
+      @Override
+      public void outputWindowedValue(
+          OutputT output,
+          Instant timestamp,
+          Collection<? extends BoundedWindow> windows,
+          PaneInfo paneInfo,
+          ValueKind valueKind) {
+        OutputReceiver.super.outputWindowedValue(output, timestamp, windows, paneInfo, valueKind);
+      }
+
+      @Override
+      public <T> void outputWithKind(TupleTag<T> tag, T output, ValueKind kind) {
+        checkOnWindowExpirationTimestamp(currentTimer.getHoldTimestamp());
+        FnDataReceiver<WindowedValue<T>> consumer =
+            (FnDataReceiver) localNameToConsumer.get(tag.getId());
+        if (consumer == null) {
+          throw new IllegalArgumentException(String.format("Unknown output tag %s", tag));
+        }
+        outputTo(
+            consumer,
+            WindowedValues.of(
+                output,
+                currentTimer.getHoldTimestamp(),
+                currentWindow,
+                currentTimer.getPaneInfo(),
+                null,
+                null,
+                currentTimer.causedByDrain(),
+                kind));
       }
 
       @Override
@@ -2639,6 +2772,42 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
           Collection<? extends BoundedWindow> windows,
           PaneInfo paneInfo) {
         OutputReceiver.super.outputWindowedValue(output, timestamp, windows, paneInfo);
+      }
+
+      @Override
+      public void outputWithKind(OutputT output, ValueKind kind) {
+        OutputReceiver.super.outputWithKind(output, kind);
+      }
+
+      @Override
+      public void outputWindowedValue(
+          OutputT output,
+          Instant timestamp,
+          Collection<? extends BoundedWindow> windows,
+          PaneInfo paneInfo,
+          ValueKind valueKind) {
+        OutputReceiver.super.outputWindowedValue(output, timestamp, windows, paneInfo, valueKind);
+      }
+
+      @Override
+      public <T> void outputWithKind(TupleTag<T> tag, T output, ValueKind kind) {
+        checkTimerTimestamp(currentTimer.getHoldTimestamp());
+        FnDataReceiver<WindowedValue<T>> consumer =
+            (FnDataReceiver) localNameToConsumer.get(tag.getId());
+        if (consumer == null) {
+          throw new IllegalArgumentException(String.format("Unknown output tag %s", tag));
+        }
+        outputTo(
+            consumer,
+            WindowedValues.of(
+                output,
+                currentTimer.getHoldTimestamp(),
+                currentWindow,
+                currentTimer.getPaneInfo(),
+                null,
+                null,
+                causedByDrain,
+                kind));
       }
 
       @Override

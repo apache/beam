@@ -66,6 +66,7 @@ import org.apache.beam.sdk.options.SdkHarnessOptions;
 import org.apache.beam.sdk.util.UnboundedScheduledExecutorService;
 import org.apache.beam.sdk.util.construction.CoderTranslation;
 import org.apache.beam.sdk.util.construction.PipelineOptionsTranslation;
+import org.apache.beam.sdk.values.WindowedValues;
 import org.apache.beam.vendor.grpc.v1p69p0.com.google.protobuf.TextFormat;
 import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.ManagedChannel;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
@@ -296,6 +297,7 @@ public class FnHarness {
       // Register standard file systems.
       FileSystems.setDefaultPipelineOptions(options);
       CoderTranslation.verifyModelCodersRegistered();
+      WindowedValues.FullWindowedValueCoder.setMetadataSupported(true);
       EnumMap<
               BeamFnApi.InstructionRequest.RequestCase,
               ThrowingFunction<InstructionRequest, BeamFnApi.InstructionResponse.Builder>>

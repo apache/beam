@@ -56,6 +56,7 @@ import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TimestampedValue;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.ValueInSingleWindow;
+import org.apache.beam.sdk.values.ValueKind;
 import org.apache.beam.sdk.values.WindowedValue;
 import org.apache.beam.sdk.values.WindowedValues;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.MoreObjects;
@@ -502,7 +503,8 @@ public class DoFnTester<InputT, OutputT> implements AutoCloseable {
                       PaneInfo.NO_FIRING,
                       null,
                       null,
-                      CausedByDrain.NORMAL));
+                      CausedByDrain.NORMAL,
+                      ValueKind.INSERT));
         }
       };
     }
@@ -607,6 +609,11 @@ public class DoFnTester<InputT, OutputT> implements AutoCloseable {
     }
 
     @Override
+    public ValueKind valueKind() {
+      return element.getValueKind();
+    }
+
+    @Override
     public PipelineOptions getPipelineOptions() {
       return options;
     }
@@ -619,6 +626,11 @@ public class DoFnTester<InputT, OutputT> implements AutoCloseable {
     @Override
     public void outputWithTimestamp(OutputT output, Instant timestamp) {
       outputWithTimestamp(mainOutputTag, output, timestamp);
+    }
+
+    @Override
+    public void outputWithKind(OutputT output, ValueKind kind) {
+      outputWithKind(mainOutputTag, output, kind);
     }
 
     @Override
@@ -646,7 +658,23 @@ public class DoFnTester<InputT, OutputT> implements AutoCloseable {
                   element.getPaneInfo(),
                   null,
                   null,
-                  CausedByDrain.NORMAL));
+                  CausedByDrain.NORMAL,
+                  ValueKind.INSERT));
+    }
+
+    @Override
+    public <T> void outputWithKind(TupleTag<T> tag, T output, ValueKind kind) {
+      getMutableOutput(tag)
+          .add(
+              ValueInSingleWindow.of(
+                  output,
+                  element.getTimestamp(),
+                  element.getWindow(),
+                  element.getPaneInfo(),
+                  null,
+                  null,
+                  CausedByDrain.NORMAL,
+                  kind));
     }
 
     @Override
@@ -666,7 +694,8 @@ public class DoFnTester<InputT, OutputT> implements AutoCloseable {
                     windowedValue.getPaneInfo(),
                     windowedValue.getRecordId(),
                     windowedValue.getRecordOffset(),
-                    windowedValue.causedByDrain()));
+                    windowedValue.causedByDrain(),
+                    windowedValue.getValueKind()));
       }
     }
 
@@ -681,7 +710,14 @@ public class DoFnTester<InputT, OutputT> implements AutoCloseable {
         getMutableOutput(tag)
             .add(
                 ValueInSingleWindow.of(
-                    output, timestamp, w, paneInfo, null, null, CausedByDrain.NORMAL));
+                    output,
+                    timestamp,
+                    w,
+                    paneInfo,
+                    null,
+                    null,
+                    CausedByDrain.NORMAL,
+                    ValueKind.INSERT));
       }
     }
   }

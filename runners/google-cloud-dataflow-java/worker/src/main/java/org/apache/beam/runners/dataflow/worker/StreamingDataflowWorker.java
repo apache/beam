@@ -1024,7 +1024,7 @@ public final class StreamingDataflowWorker {
 
     CoderTranslation.verifyModelCodersRegistered();
     if (DataflowRunner.hasExperiment(options, ELEMENT_METADATA_SUPPORTED_EXPERIMENT)) {
-      WindowedValues.FullWindowedValueCoder.setMetadataSupported();
+      WindowedValues.FullWindowedValueCoder.setMetadataSupported(true);
     }
 
     LOG.debug("Creating StreamingDataflowWorker from options: {}", options);

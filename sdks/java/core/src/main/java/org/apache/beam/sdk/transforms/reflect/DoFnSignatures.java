@@ -98,6 +98,7 @@ import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.sdk.values.TypeDescriptors;
 import org.apache.beam.sdk.values.TypeParameter;
+import org.apache.beam.sdk.values.ValueKind;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Predicates;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
@@ -141,6 +142,7 @@ public class DoFnSignatures {
               Parameter.SideInputParameter.class,
               Parameter.TimerFamilyParameter.class,
               Parameter.CausedByDrainParameter.class,
+              Parameter.ValueKindParameter.class,
               Parameter.BundleFinalizerParameter.class);
 
   private static final ImmutableList<Class<? extends Parameter>>
@@ -158,6 +160,7 @@ public class DoFnSignatures {
               Parameter.WatermarkEstimatorParameter.class,
               Parameter.SideInputParameter.class,
               Parameter.CausedByDrainParameter.class,
+              Parameter.ValueKindParameter.class,
               Parameter.BundleFinalizerParameter.class);
 
   private static final ImmutableList<Class<? extends Parameter>> ALLOWED_SETUP_PARAMETERS =
@@ -1367,6 +1370,11 @@ public class DoFnSignatures {
           rawType.equals(CausedByDrain.class),
           "CausedByDrain argument must have type org.apache.beam.sdk.values.CausedByDrain.");
       return Parameter.causedByDrainParameter();
+    } else if (ValueKind.class.isAssignableFrom(rawType)) {
+      methodErrors.checkArgument(
+          rawType.equals(ValueKind.class),
+          "ValueKind argument must have type org.apache.beam.sdk.values.ValueKind.");
+      return Parameter.valueKindParameter();
     } else if (hasAnnotation(DoFn.SideInput.class, param.getAnnotations())) {
       String sideInputId = getSideInputId(param.getAnnotations());
       paramErrors.checkArgument(

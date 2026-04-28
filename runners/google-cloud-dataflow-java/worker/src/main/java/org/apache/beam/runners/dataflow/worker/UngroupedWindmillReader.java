@@ -38,6 +38,8 @@ import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.values.CausedByDrain;
 import org.apache.beam.sdk.values.KV;
+import org.apache.beam.sdk.values.ValueKind;
+import org.apache.beam.sdk.values.ValueKindUtil;
 import org.apache.beam.sdk.values.WindowedValue;
 import org.apache.beam.sdk.values.WindowedValues;
 import org.apache.beam.sdk.values.WindowedValues.FullWindowedValueCoder;
@@ -139,6 +141,7 @@ class UngroupedWindmillReader<T> extends NativeReader<WindowedValue<T>> {
        * drain happened upstream
        */
       CausedByDrain drainingValueFromUpstream = CausedByDrain.NORMAL;
+      ValueKind valueKind = ValueKind.INSERT;
       if (WindowedValues.WindowedValueCoder.isMetadataSupported()) {
         BeamFnApi.Elements.ElementMetadata elementMetadata =
             WindmillSink.decodeAdditionalMetadata(windowsCoder, message.getMetadata());
@@ -146,6 +149,9 @@ class UngroupedWindmillReader<T> extends NativeReader<WindowedValue<T>> {
             elementMetadata.getDrain() == BeamFnApi.Elements.DrainMode.Enum.DRAINING
                 ? CausedByDrain.CAUSED_BY_DRAIN
                 : CausedByDrain.NORMAL;
+        if (elementMetadata.hasValueKind()) {
+          valueKind = ValueKindUtil.fromProto(elementMetadata.getValueKind());
+        }
       }
       if (valueCoder instanceof KvCoder) {
         KvCoder<?, ?> kvCoder = (KvCoder<?, ?>) valueCoder;
@@ -156,7 +162,14 @@ class UngroupedWindmillReader<T> extends NativeReader<WindowedValue<T>> {
         T result =
             (T) KV.of(decode(kvCoder.getKeyCoder(), key), decode(kvCoder.getValueCoder(), data));
         return WindowedValues.of(
-            result, timestampMillis, windows, paneInfo, null, null, drainingValueFromUpstream);
+            result,
+            timestampMillis,
+            windows,
+            paneInfo,
+            null,
+            null,
+            drainingValueFromUpstream,
+            valueKind);
       } else {
         notifyElementRead(data.available() + metadata.available());
         return WindowedValues.of(
@@ -166,7 +179,8 @@ class UngroupedWindmillReader<T> extends NativeReader<WindowedValue<T>> {
             paneInfo,
             null,
             null,
-            drainingValueFromUpstream);
+            drainingValueFromUpstream,
+            valueKind);
       }
     }
 

@@ -33,6 +33,7 @@ import org.apache.beam.sdk.util.BackOffUtils;
 import org.apache.beam.sdk.util.FluentBackoff;
 import org.apache.beam.sdk.util.Sleeper;
 import org.apache.beam.sdk.util.construction.CoderTranslation;
+import org.apache.beam.sdk.values.WindowedValues;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.joda.time.Duration;
 import org.slf4j.Logger;
@@ -72,6 +73,7 @@ public class DataflowBatchWorkerHarness {
         DataflowBatchWorkerHarness.class.getSimpleName());
 
     CoderTranslation.verifyModelCodersRegistered();
+    WindowedValues.FullWindowedValueCoder.setMetadataSupported(true);
 
     JvmInitializers.runBeforeProcessing(pipelineOptions);
     batchHarness.run();

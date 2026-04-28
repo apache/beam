@@ -30,6 +30,7 @@ import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TimestampedValue;
 import org.apache.beam.sdk.values.TimestampedValue.TimestampedValueCoder;
 import org.apache.beam.sdk.values.ValueInSingleWindow;
+import org.apache.beam.sdk.values.ValueKind;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 
@@ -148,6 +149,7 @@ public class Reify {
                         BoundedWindow window,
                         PaneInfo paneInfo,
                         CausedByDrain causedByDrain,
+                        ValueKind valueKind,
                         OutputReceiver<KV<K, ValueInSingleWindow<V>>> r) {
                       r.output(
                           KV.of(
@@ -159,7 +161,8 @@ public class Reify {
                                   paneInfo,
                                   pc.currentRecordId(),
                                   pc.currentRecordOffset(),
-                                  causedByDrain)));
+                                  causedByDrain,
+                                  valueKind)));
                     }
                   }))
           .setCoder(

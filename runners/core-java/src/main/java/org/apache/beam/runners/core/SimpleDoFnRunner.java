@@ -61,6 +61,7 @@ import org.apache.beam.sdk.values.CausedByDrain;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TupleTag;
+import org.apache.beam.sdk.values.ValueKind;
 import org.apache.beam.sdk.values.WindowedValue;
 import org.apache.beam.sdk.values.WindowedValues;
 import org.apache.beam.sdk.values.WindowingStrategy;
@@ -439,6 +440,11 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
     }
 
     @Override
+    public void outputWithKind(OutputT output, ValueKind kind) {
+      outputWithKind(mainOutputTag, output, kind);
+    }
+
+    @Override
     public void outputWindowedValue(
         OutputT output,
         Instant timestamp,
@@ -469,6 +475,22 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
       checkNotNull(tag, "Tag passed to outputWithTimestamp cannot be null");
       checkTimestamp(elem.getTimestamp(), timestamp);
       outputWindowedValue(tag, output, timestamp, elem.getWindows(), elem.getPaneInfo());
+    }
+
+    @Override
+    public <T> void outputWithKind(TupleTag<T> tag, T output, ValueKind kind) {
+      builderSupplier
+          .builder(output)
+          .setTimestamp(elem.getTimestamp())
+          .setWindows(elem.getWindows())
+          .setPaneInfo(elem.getPaneInfo())
+          .setValueKind(kind)
+          .setReceiver(
+              wv -> {
+                checkTimestamp(elem.getTimestamp(), wv.getTimestamp());
+                SimpleDoFnRunner.this.outputWindowedValue(tag, wv);
+              })
+          .output();
     }
 
     @Override
@@ -504,6 +526,11 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
     @Override
     public @Nullable Long currentRecordOffset() {
       return elem.getRecordOffset();
+    }
+
+    @Override
+    public ValueKind valueKind() {
+      return elem.getValueKind();
     }
 
     public Collection<? extends BoundedWindow> windows() {
@@ -579,6 +606,11 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
     @Override
     public CausedByDrain causedByDrain(DoFn<InputT, OutputT> doFn) {
       return elem.causedByDrain();
+    }
+
+    @Override
+    public ValueKind valueKind(DoFn<InputT, OutputT> doFn) {
+      return elem.getValueKind();
     }
 
     @Override
@@ -863,6 +895,11 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
     }
 
     @Override
+    public ValueKind valueKind(DoFn<InputT, OutputT> doFn) {
+      throw new UnsupportedOperationException("ValueKind parameters are not supported.");
+    }
+
+    @Override
     public String timerId(DoFn<InputT, OutputT> doFn) {
       return timerId;
     }
@@ -1009,6 +1046,11 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
     }
 
     @Override
+    public void outputWithKind(OutputT output, ValueKind kind) {
+      outputWithKind(mainOutputTag, output, kind);
+    }
+
+    @Override
     public void outputWindowedValue(
         OutputT output,
         Instant timestamp,
@@ -1028,6 +1070,19 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
       checkTimestamp(timestamp(), timestamp);
       outputWindowedValue(
           tag, output, timestamp, Collections.singleton(window()), PaneInfo.NO_FIRING);
+    }
+
+    @Override
+    public <T> void outputWithKind(TupleTag<T> tag, T output, ValueKind kind) {
+      checkTimestamp(timestamp(), timestamp);
+      builderSupplier
+          .builder(output)
+          .setTimestamp(timestamp)
+          .setWindows(Collections.singleton(window()))
+          .setPaneInfo(PaneInfo.NO_FIRING)
+          .setValueKind(kind)
+          .setReceiver(wv -> SimpleDoFnRunner.this.outputWindowedValue(tag, wv))
+          .output();
     }
 
     @Override
@@ -1178,6 +1233,11 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
     }
 
     @Override
+    public ValueKind valueKind(DoFn<InputT, OutputT> doFn) {
+      throw new UnsupportedOperationException("ValueKind parameters are not supported.");
+    }
+
+    @Override
     public KeyT key() {
       return key;
     }
@@ -1280,6 +1340,11 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
     }
 
     @Override
+    public void outputWithKind(OutputT output, ValueKind kind) {
+      outputWithKind(mainOutputTag, output, kind);
+    }
+
+    @Override
     public void outputWindowedValue(
         OutputT output,
         Instant timestamp,
@@ -1299,6 +1364,18 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
       checkTimestamp(this.timestamp, timestamp);
       outputWindowedValue(
           tag, output, timestamp, Collections.singleton(window()), PaneInfo.NO_FIRING);
+    }
+
+    @Override
+    public <T> void outputWithKind(TupleTag<T> tag, T output, ValueKind kind) {
+      checkTimestamp(this.timestamp, timestamp);
+      builderSupplier
+          .builder(output)
+          .setTimestamp(timestamp)
+          .setWindows(Collections.singleton(window()))
+          .setPaneInfo(PaneInfo.NO_FIRING)
+          .setReceiver(wv -> SimpleDoFnRunner.this.outputWindowedValue(tag, wv))
+          .output();
     }
 
     @Override
