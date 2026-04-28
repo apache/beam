@@ -23,6 +23,7 @@ on:
         required: true
         type: string
   pull_request_target:
+    types: [ opened ]
     branches: [ master ]
 
 jobs:
