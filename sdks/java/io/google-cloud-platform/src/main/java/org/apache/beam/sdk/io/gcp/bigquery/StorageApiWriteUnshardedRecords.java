@@ -451,7 +451,7 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
                 lookupCache
                     ? APPEND_CLIENTS.getAndPin(
                         getStreamAppendClientCacheEntryKey(), () -> generateClient(updatedSchema))
-                    : APPEND_CLIENTS.putAndPin(
+                    : APPEND_CLIENTS.refreshObjectAndAndPin(
                         getStreamAppendClientCacheEntryKey(), () -> generateClient(updatedSchema));
           }
           nextCacheTickle = Instant.now().plus(java.time.Duration.ofMinutes(1));
@@ -941,7 +941,11 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
                 TableSchemaUpdateUtils.getUpdatedSchema(
                     this.messageConverter.getTableSchema(), updatedTableSchemaReturned);
             if (updatedTableSchema.isPresent()) {
-              invalidateAppendClient(true);
+              invalidateAppendClient(false);
+              // TODO: This overwrites whatever is in the cache which can cause races between
+              // threads.
+              // A better approach would be to check the cache, and keep whichever schema is
+              // "larger".
               appendClientInfo =
                   Preconditions.checkStateNotNull(
                       getAppendClientInfo(false, updatedTableSchema.get()));

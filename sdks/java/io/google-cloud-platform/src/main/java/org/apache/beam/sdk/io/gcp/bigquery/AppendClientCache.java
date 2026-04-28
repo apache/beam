@@ -89,12 +89,12 @@ class AppendClientCache<KeyT extends @NonNull Object> {
     }
   }
 
-  public AppendClientInfo putAndPin(KeyT key, Callable<AppendClientInfo> loader) throws Exception {
+  /** "Refresh" an object by invalidating the old cache entry. */
+  public AppendClientInfo refreshObjectAndAndPin(KeyT key, Callable<AppendClientInfo> loader)
+      throws Exception {
     synchronized (this) {
-      AppendClientInfo info = wrapWithPin(loader).call();
-      appendCache.put(key, info);
-      info.pinAppendClient();
-      return info;
+      appendCache.invalidate(key);
+      return getAndPin(key, loader);
     }
   }
 
