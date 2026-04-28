@@ -284,7 +284,7 @@ testcontainers==4.14.1
 threadpoolctl==3.6.0
 tiktoken==0.12.0
 tokenizers==0.21.4
-torch==2.7.1
+torch==2.8.0
 torchaudio==2.7.1
 torchvision==0.22.1
 tqdm==4.67.3
