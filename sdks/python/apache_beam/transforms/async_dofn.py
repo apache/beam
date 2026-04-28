@@ -268,13 +268,7 @@ class AsyncWrapper(beam.DoFn):
     elif not isinstance(bundle_result, (GeneratorType, Iterable)):
       bundle_result = [bundle_result]
 
-    to_return = []
-    for x in process_result:
-      to_return.append(x)
-    for x in bundle_result:
-      to_return.append(x)
-
-    return to_return
+    return process_result + bundle_result
 
   def decrement_items_in_buffer(self, future):
     with AsyncWrapper._lock:
