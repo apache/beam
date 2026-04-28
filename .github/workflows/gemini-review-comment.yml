@@ -18,6 +18,7 @@ name: Gemini Review Comment
 on:
   pull_request_target:
     types: [opened]
+  workflow_dispatch:
 
 jobs:
   add-comment:
