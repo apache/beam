@@ -26,7 +26,7 @@ RUN docker buildx install && docker buildx version
 USER root
 # Native build toolchain for Python C extensions.
 RUN apt-get update && \
-    DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends build-essential time rsync && \
+    DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends build-essential time rsync openssh-client && \
     rm -rf /var/lib/apt/lists/*
 #Install Node
 RUN curl -OL https://nodejs.org/dist/v22.14.0/node-v22.14.0-linux-x64.tar.xz && \

@@ -49,7 +49,7 @@ def normalize_path(filename):
   return os.path.normcase(os.path.realpath(os.path.normpath(filename)))
 
 
-class mypy(Command):
+class pyrefly(Command):
   user_options = []
 
   def initialize_options(self):
@@ -71,10 +71,10 @@ class mypy(Command):
     return os.path.join(project_path, to_filename(ei_cmd.egg_name))
 
   def run(self):
-    args = ['mypy', self.get_project_path()]
+    args = ['pyrefly', 'check', self.get_project_path()]
     result = subprocess.call(args)
     if result != 0:
-      raise DistutilsError("mypy exited with status %d" % result)
+      raise DistutilsError("pyrefly exited with status %d" % result)
 
 
 def get_version():
@@ -171,7 +171,7 @@ milvus_dependency = ['pymilvus>=2.5.10,<3.0.0']
 # ml_test is pinned to versions that require protobuf<5 on Python 3.10. Those
 # cannot be installed together, so ADK deps stay out of ml_test (use ml_base).
 ml_base_core = [
-    'embeddings>=0.0.4', # 0.0.3 crashes setuptools
+    'embeddings>=0.0.4',  # 0.0.3 crashes setuptools
     'onnxruntime',
     # onnx 1.12–1.13 cap protobuf in ways that trigger huge backtracking with
     # Beam[gcp]+ml_test; pip can fall back to onnx 1.11 sdist which needs cmake.
@@ -185,8 +185,24 @@ ml_base_core = [
     # tensorflow transitive dep, lower versions not compatible with Python3.10+
     'absl-py>=0.12.0',
     'tensorflow-hub',
+    # tokenizers 0.23.0rc0 renamed the PyO3 kwarg of
+    # processors.RobertaProcessing (and BertProcessing) from `cls` to
+    # `cls_token` -- the rename was a drive-by inside huggingface/tokenizers
+    # https://github.com/huggingface/tokenizers/pull/1928.
+    # transformers' slow CLIP tokenizer still calls
+    # `processors.RobertaProcessing(sep=..., cls=..., ...)` at
+    # transformers/models/clip/tokenization_clip.py, so model load fails with
+    # "RobertaProcessing.__new__() got an unexpected keyword argument 'cls'".
+    # The ml tox envs run with pip_pre=True (tox.ini:32), so even though no
+    # 0.23 stable has shipped yet, the rc gets resolved.
+    # Drop this cap once transformers updates the CLIP call site to
+    # `cls_token=` or tokenizers reinstates `cls=` as a deprecation alias.
+    'tokenizers<0.23',
     'torch',
-    'transformers',
+    # Match tested transformers range.
+    'transformers>=4.28.0,<4.56.0',
+    # Keep tokenizers compatible with this transformers range.
+    'tokenizers>=0.13.3,<0.22.0',
 ]
 
 ml_adk_dependency = [
@@ -303,8 +319,7 @@ def generate_external_transform_wrappers():
   except subprocess.CalledProcessError as err:
     raise RuntimeError(
         'Could not generate external transform wrappers due to '
-        'error: %s',
-        err.stderr)
+        'error: {}'.format(err.stderr))
 
 
 def get_portability_package_data():
@@ -446,6 +461,12 @@ if __name__ == '__main__':
       python_requires=python_requires,
       # BEAM-8840: Do NOT use tests_require or setup_requires.
       extras_require={
+          'dev': [
+            'isort==7.0.0',
+            'pyrefly==0.54.0',
+            'ruff==0.15.7',
+            'yapf==0.43.0',
+          ],
           'dill': [
               # Dill doesn't have forwards-compatibility guarantees within minor
               # version. Pickles created with a new version of dill may not
@@ -479,7 +500,7 @@ if __name__ == '__main__':
               'requests_mock>=1.7,<2.0',
               # google-adk 1.28+ requires tenacity>=9,<10 (conflicts with <9).
               'tenacity>=8.0.0,<10',
-              'pytest>=7.1.2,<9.0',
+              'pytest>=7.1.2,<10.0',
               'pytest-xdist>=2.5.0,<4',
               'pytest-timeout>=2.1.0,<3',
               'scikit-learn>=0.20.0,<1.8.0',
@@ -683,6 +704,6 @@ if __name__ == '__main__':
       license='Apache License, Version 2.0',
       keywords=PACKAGE_KEYWORDS,
       cmdclass={
-          'mypy': mypy,
+          'pyrefly': pyrefly,
       },
   )

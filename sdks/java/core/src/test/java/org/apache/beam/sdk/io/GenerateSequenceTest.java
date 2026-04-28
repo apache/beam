@@ -174,16 +174,15 @@ public class GenerateSequenceTest {
 
   @Test
   public void testBuildExternal() {
-    @SuppressWarnings("NonCanonicalType")
     GenerateSequence.External.ExternalConfiguration externalConfig =
-        new AutoValue_GenerateSequence.External.ExternalConfiguration();
+        new GenerateSequence.External.ExternalConfiguration();
     externalConfig.setStart(42L);
     externalConfig.setStop(43L);
     externalConfig.setElementsPerPeriod(1L);
     externalConfig.setMaxReadTime(2L);
     externalConfig.setPeriod(3L);
 
-    AutoValue_GenerateSequence.Builder builder = new AutoValue_GenerateSequence.Builder();
+    GenerateSequence.Builder builder = GenerateSequence.from(0).toBuilder();
     GenerateSequence object = builder.buildExternal(externalConfig);
     assertThat(object.getFrom(), is(42L));
     assertThat(object.getTo(), is(43L));

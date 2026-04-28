@@ -23,6 +23,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.CountDownLatch;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
 import org.junit.Assert;
 import org.junit.Test;
 
@@ -42,7 +43,9 @@ public final class FutureUtilsTest {
         resultFuture.thenAccept(
             actualResults -> {
               Assert.assertEquals(
-                  "Expected flattened results to contain {hello, world}", RESULTS, actualResults);
+                  "Expected flattened results to contain {hello, world}",
+                  RESULTS,
+                  Lists.newArrayList(actualResults));
             });
 
     validationFuture.toCompletableFuture().join();
@@ -93,7 +96,9 @@ public final class FutureUtilsTest {
         resultFuture.thenAccept(
             actualResults -> {
               Assert.assertEquals(
-                  "Expected flattened results to contain {hello, world}", RESULTS, actualResults);
+                  "Expected flattened results to contain {hello, world}",
+                  RESULTS,
+                  Lists.newArrayList(actualResults));
             });
 
     validationFuture.toCompletableFuture().join();

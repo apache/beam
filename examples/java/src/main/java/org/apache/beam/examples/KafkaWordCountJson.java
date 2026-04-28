@@ -52,6 +52,8 @@ import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.transforms.Count;
 import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.DoFn.Element;
+import org.apache.beam.sdk.transforms.DoFn.OutputReceiver;
 import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.SimpleFunction;
@@ -104,10 +106,11 @@ public class KafkaWordCountJson {
             ParDo.of(
                 new DoFn<String, String>() {
                   @ProcessElement
-                  public void processElement(ProcessContext c) {
-                    for (String word : c.element().split(TOKENIZER_PATTERN, 0)) {
+                  public void processElement(
+                      @Element String element, OutputReceiver<String> receiver) {
+                    for (String word : element.split(TOKENIZER_PATTERN, 0)) {
                       if (!word.isEmpty()) {
-                        c.output(word);
+                        receiver.output(word);
                       }
                     }
                   }

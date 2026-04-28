@@ -83,4 +83,4 @@ jobs:
         echo "Will upload the following files to PyPI:"
         ls
 
-        twine upload * -u __token__ -p "${{ github.event.inputs.PYPI_API_TOKEN }}"
+        twine upload --verbose * -u __token__ -p "${{ github.event.inputs.PYPI_API_TOKEN }}"

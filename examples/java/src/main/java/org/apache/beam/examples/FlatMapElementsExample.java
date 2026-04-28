@@ -24,6 +24,8 @@ import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.DoFn.Element;
+import org.apache.beam.sdk.transforms.DoFn.OutputReceiver;
 import org.apache.beam.sdk.transforms.FlatMapElements;
 import org.apache.beam.sdk.transforms.InferableFunction;
 import org.apache.beam.sdk.transforms.ParDo;
@@ -78,9 +80,9 @@ public class FlatMapElementsExample {
     }
 
     @ProcessElement
-    public void processElement(ProcessContext c) throws Exception {
-      LOG.info("{}{}", prefix, c.element());
-      c.output(c.element());
+    public void processElement(@Element T element, OutputReceiver<T> receiver) throws Exception {
+      LOG.info("{}{}", prefix, element);
+      receiver.output(element);
     }
   }
 }
