@@ -22,9 +22,10 @@ import unittest
 from concurrent.futures import ThreadPoolExecutor
 from threading import Lock
 
+from parameterized import parameterized_class
+
 import apache_beam as beam
 import apache_beam.transforms.async_dofn as async_lib
-from parameterized import parameterized_class
 
 
 class BasicDofn(beam.DoFn):
