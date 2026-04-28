@@ -34,7 +34,6 @@ jobs:
       - uses: actions/github-script@v8
         with:
           script: |
-            // Safely retrieve the PR number from event payload or manual input
             const prNumber = context.payload.pull_request?.number || context.payload.inputs?.pr_number;
 
             if (!prNumber) {
