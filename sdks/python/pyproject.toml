@@ -137,36 +137,41 @@ src = ["apache_beam"]
 [tool.ruff.lint]
 select = ["E9", "PL", "F821", "F822", "F823"]
 ignore = [
-    "PLC0415",
-    "PLR2004",
-    "PLR0913",
-    "PLR0912",
-    "PLW0108",
-    "PLW2901",
-    "PLR0915",
-    "PLR1714",
-    "PLR0911",
-    "PLR5501",
-    "PLW0603",
-    "PLR1730",
-    "PLW1641",
-    "PLW0602",
-    "PLC1802",
-    "PLC3002",
-    "PLW0642",
-    "PLR1733",
-    "PLR0402",
-    "PLC0132",
-    "PLC0206",
-    "PLC0207",
-    "PLR1704",
-    "PLR1711",
-    "PLW0406",
-    "PLW3301",
-    "PLR2044",
+    # Ignored Pylint Checks
+    "PLC0415",  # import-outside-toplevel
+    "PLR2004",  # magic-value-comparison
+    "PLR0913",  # too-many-arguments
+    "PLR0912",  # too-many-branches
+    "PLW0108",  # unnecessary-lambda
+    "PLW2901",  # redefined-loop-name
+    "PLR0915",  # too-many-statements
+    "PLR1714",  # repeated-equality-comparison
+    "PLR0911",  # too-many-return-statements
+    "PLR5501",  # collapsible-else-if
+    "PLW0603",  # global-statement
+    "PLR1730",  # if-stmt-min-max
+    "PLW1641",  # eq-without-hash
+    "PLW0602",  # global-variable-not-assigned
+    "PLC1802",  # len-test
+    "PLC3002",  # unnecessary-direct-lambda-call
+    "PLW0642",  # self-or-cls-assignment
+    "PLR1733",  # unnecessary-dict-index-lookup
+    "PLR0402",  # manual-from-import
+    "PLC0132",  # type-param-name-mismatch
+    "PLC0206",  # dict-index-missing-items
+    "PLC0207",  # missing-maxsplit-arg
+    "PLR1704",  # redefined-argument-from-local
+    "PLR1711",  # useless-return
+    "PLW0406",  # import-self
+    "PLW3301",  # nested-min-max
+    "PLR2044",  # empty-comment
 ]
+
+# Allow fix for all enabled rules (when --fix) is provided.
 fixable = ["ALL"]
 unfixable = []
+
+# Allow unused variables when underscore-prefixed.
 dummy-variable-rgx = "^(_+|(_+[a-zA-Z0-9_]*[a-zA-Z0-9]+?))$"
 
 [tool.pyrefly]
@@ -180,6 +185,11 @@ missing-attribute = "ignore"
 invalid-annotation = "ignore"
 redundant-condition = "ignore"
 untyped-import = "ignore"
+# Beam-specific supressions to keep pyrefly green
+# These are in descending order of instances.
+#
+# TODO(https://github.com/apache/beam/issues/37699): Reduce the number of
+# ignored checks.
 bad-param-name-override = "ignore"
 bad-override = "ignore"
 bad-argument-type = "ignore"
