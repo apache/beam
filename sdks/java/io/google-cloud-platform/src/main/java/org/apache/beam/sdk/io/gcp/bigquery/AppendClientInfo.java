@@ -27,11 +27,9 @@ import com.google.protobuf.DescriptorProtos;
 import com.google.protobuf.Descriptors;
 import com.google.protobuf.DynamicMessage;
 import com.google.protobuf.Message;
-import java.util.Arrays;
 import java.util.concurrent.ExecutorService;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
-import java.util.stream.Collectors;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.function.ThrowingConsumer;
 import org.apache.beam.sdk.function.ThrowingRunnable;
@@ -147,13 +145,7 @@ abstract class AppendClientInfo {
         getCloseAppendClient().accept(client);
       } catch (Exception e) {
         // We ignore errors when closing clients.
-        String msg =
-            e
-                + "\n"
-                + Arrays.stream(e.getStackTrace())
-                    .map(StackTraceElement::toString)
-                    .collect(Collectors.joining("\n"));
-        LOG.warn("Caught exception whilw trying to close append client. Ignoring {}", msg);
+        LOG.warn("Caught exception whilw trying to close append client. Ignoring", e);
       }
       activeStreamAppendClients.dec();
     }

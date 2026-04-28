@@ -905,10 +905,9 @@ public class StorageApiWritesShardedRecords<DestinationT extends @NonNull Object
         }
 
         TableSchema updatedSchemaValue = autoUpdateSchema ? updatedSchema.read() : null;
-        if (autoUpdateSchema && updatedSchemaValue != null) {
-          if (appendClientHolder.get().hasSchemaChanged(updatedSchemaValue)) {
-            appendClientHolder.invalidateAndReset();
-          }
+        if ((autoUpdateSchema && updatedSchemaValue != null)
+            && appendClientHolder.get().hasSchemaChanged(updatedSchemaValue)) {
+          appendClientHolder.invalidateAndReset();
         }
 
         // Initialize stream names and offsets for all contexts. This will be called initially, but
