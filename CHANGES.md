@@ -81,7 +81,7 @@
   Spark 4, introduced a numeric `isSparkAtLeast` Gradle helper to replace
   lexicographic Spark version comparison, and routed `requireJavaVersion`
   through `applyJavaNature` so future Spark 4 builds enforce Java 17. No
-  behavior change on Spark 3.5 ([#38324](https://github.com/apache/beam/pull/38324)).
+  behavior change on Spark 3.5 ([#38324](https://github.com/apache/beam/issues/38324)).
 
 ## Breaking Changes
 
