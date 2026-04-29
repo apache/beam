@@ -76,6 +76,12 @@
   ([#38139](https://github.com/apache/beam/issues/38139)).
 * (Python) Added type alias for with_exception_handling to be used for typehints. ([#38173](https://github.com/apache/beam/issues/38173)).
 * Added plugin mechanism to support different Lineage implementations (Java) ([#36790](https://github.com/apache/beam/issues/36790)).
+* Prepared the shared Spark runner base for Spark 4 compatibility: migrated
+  Scala collection and shaded-Guava calls to forms valid on both Spark 3 and
+  Spark 4, introduced a numeric `isSparkAtLeast` Gradle helper to replace
+  lexicographic Spark version comparison, and routed `requireJavaVersion`
+  through `applyJavaNature` so future Spark 4 builds enforce Java 17. No
+  behavior change on Spark 3.5.
 
 ## Breaking Changes
 
