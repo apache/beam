@@ -103,9 +103,9 @@ func (es *ExpansionServices) GetAddr(label string) (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("cannot run jar for expansion service labeled \"%s\": %w", label, err)
 	}
-	
+
 	addr := "localhost:" + portStr
-	
+
 	// Use different wait strategies for test mode vs production
 	if es.testMode {
 		// In test mode, use simple wait time for compatibility with mock processes
@@ -114,7 +114,7 @@ func (es *ExpansionServices) GetAddr(label string) (string, error) {
 		// In production, wait for the jar to start with improved retry logic
 		maxRetries := 30
 		retryDelay := time.Second
-		
+
 		for i := 0; i < maxRetries; i++ {
 			time.Sleep(retryDelay)
 			// Try to connect to the expansion service to verify it's ready
@@ -128,7 +128,7 @@ func (es *ExpansionServices) GetAddr(label string) (string, error) {
 			}
 		}
 	}
-	
+
 	es.procs = append(es.procs, proc)
 	es.addrs[label] = addr
 	return addr, nil
