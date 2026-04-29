@@ -33,6 +33,38 @@ DEFAULT_WRITE_BATCH_SIZE = 1000
 
 @dataclass
 class QdrantConnectionParameters:
+  """Configuration parameters for connecting to Qdrant service.
+
+  Either `location`, `url`, `host`, or `path` must be provided to establish
+  a connection.
+
+  Args:
+    location:
+      If `str` - use it as a `url` parameter.
+      If `None` - use default values for `host` and `port`.
+    url: either host or str of "<scheme>//<host>:<port>/<prefix>".
+      Default: `None`
+    port: Port of the REST API interface. Default: 6333
+    grpc_port: Port of the gRPC interface. Default: 6334
+    prefer_grpc: If `true` - use gPRC interface whenever possible.
+    https: If `true` - use HTTPS(SSL) protocol. Default: `None`
+    api_key: API key for authentication in Qdrant Cloud. Default: `None`
+    prefix:
+      If not `None` - add `prefix` to the REST URL path.
+      Example: `service/v1` will result in
+      `http://localhost:6333/service/v1/{qdrant-endpoint}` for REST API.
+      Default: `None`
+    timeout:
+      Timeout for REST and gRPC API requests.
+      Default: 5 seconds for REST and unlimited for gRPC
+    host:
+      Host name of Qdrant service.
+      If url and host are None, set to 'localhost'.
+      Default: `None`
+    path: Persistence path for QdrantLocal. Default: `None`
+    **kwargs: Additional arguments passed directly into client initialization
+  """
+
   location: Optional[str] = None
   url: Optional[str] = None
   port: Optional[int] = 6333
@@ -54,6 +86,21 @@ class QdrantConnectionParameters:
 
 @dataclass
 class QdrantWriteConfig(VectorDatabaseWriteConfig):
+  """Configuration for writing to Qdrant vector database.
+
+  This class defines the parameters needed to write data to a qdrant collection,
+  including collection targeting, batching behavior, and operation timeouts.
+
+  Args:
+    connection_params: QdrantConnectionParameters with connection settings.
+    collection_name: Name of the Qdrant collection to write to.
+    timeout: Optional timeout for write operations in seconds. Default is None.
+    batch_size: Number of points to write in each batch. Default is 1000.
+    kwargs: Additional keyword arguments to pass to the client's upsert method.
+    dense_embedding_key: name for the dense vector in the qdrant collection.
+    sparse_embedding_key: name for the sparse vector in the qdrant collection.
+  """
+
   connection_params: QdrantConnectionParameters
   collection_name: str
   timeout: Optional[float] = None
@@ -70,8 +117,9 @@ class QdrantWriteConfig(VectorDatabaseWriteConfig):
     return _QdrantWriteTransform(self)
 
   def create_converter(
-      self) -> Callable[[EmbeddableItem], 'models.PointStruct']:
-    def convert(item: EmbeddableItem) -> 'models.PointStruct':
+      self,
+  ) -> Callable[[EmbeddableItem], "models.PointStruct"]:
+    def convert(item: EmbeddableItem) -> "models.PointStruct":
       if item.dense_embedding is None and item.sparse_embedding is None:
         raise ValueError(
             "EmbeddableItem must have at least one embedding (dense or sparse)")
@@ -111,7 +159,7 @@ class _QdrantWriteFn(beam.DoFn):
   def __init__(self, config: QdrantWriteConfig):
     self.config = config
     self._batch = []
-    self._client: 'Optional[QdrantClient]' = None
+    self._client: "Optional[QdrantClient]" = None
 
   def process(self, element, *args, **kwargs):
     self._batch.append(element)
