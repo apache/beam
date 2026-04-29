@@ -26,6 +26,8 @@ import org.apache.beam.sdk.io.gcp.bigquery.BigQueryUtils;
 import org.apache.beam.sdk.io.gcp.bigquery.InsertRetryPolicy;
 import org.apache.beam.sdk.io.gcp.bigquery.WriteResult;
 import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.DoFn.Element;
+import org.apache.beam.sdk.transforms.DoFn.OutputReceiver;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
@@ -90,9 +92,8 @@ public class TokenizationBigQueryIO {
   public static class RowToTableRowFn extends DoFn<Row, TableRow> {
 
     @ProcessElement
-    public void processElement(ProcessContext context) {
-      Row row = context.element();
-      context.output(BigQueryUtils.toTableRow(row));
+    public void processElement(@Element Row row, OutputReceiver<TableRow> receiver) {
+      receiver.output(BigQueryUtils.toTableRow(row));
     }
   }
 }

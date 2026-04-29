@@ -18,8 +18,6 @@ on:
   pull_request_target:
     branches: [ "master", "release-*" ]
     paths: [ "model/**","sdks/python/**","release/**", 'release/trigger_all_tests.json', '.github/trigger_files/beam_PreCommit_PythonDocker.json']
-  issue_comment:
-    types: [created]
   push:
     tags: ['v*']
     branches: ['master', 'release-*']
@@ -69,8 +67,7 @@ jobs:
       github.event_name == 'push' ||
       github.event_name == 'pull_request_target' ||
       github.event_name == 'workflow_dispatch' ||
-      (github.event_name == 'schedule' && github.repository == 'apache/beam') ||
-      startsWith(github.event.comment.body, 'Run PythonDocker PreCommit')
+      (github.event_name == 'schedule' && github.repository == 'apache/beam')
     steps:
       - uses: actions/checkout@v4
       - name: Setup repository

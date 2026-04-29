@@ -106,6 +106,9 @@ from apache_beam.utils.python_callable import PythonCallableWithSource
 from apache_beam.utils.timestamp import Timestamp
 
 PYTHON_ANY_URN = "beam:logical:pythonsdk_any:v1"
+_PYTHON_ANY_FIELD_TYPE_BYTE = "_pythonsdk_any_type_byte"
+_PYTHON_ANY_FIELD_PAYLOAD = "payload"
+_SCHEMA_OPTION_STATIC_ENCODING = "beam:option:row:static_encoding"
 
 # Bi-directional mappings
 _PRIMITIVES = (
@@ -255,6 +258,37 @@ def schema_field(
       description=description)
 
 
+def _python_any_schema_pb2():
+  # A portable schema matches FastPrimitivesCoder encoded values
+  return schema_pb2.FieldType(
+      logical_type=schema_pb2.LogicalType(
+          urn=PYTHON_ANY_URN,
+          representation=schema_pb2.FieldType(
+              nullable=False,
+              row_type=schema_pb2.RowType(
+                  schema=schema_pb2.Schema(
+                      fields=[
+                          schema_pb2.Field(
+                              name=_PYTHON_ANY_FIELD_TYPE_BYTE,
+                              type=schema_pb2.FieldType(
+                                  atomic_type=schema_pb2.BYTE, nullable=False)),
+                          schema_pb2.Field(
+                              name=_PYTHON_ANY_FIELD_PAYLOAD,
+                              type=schema_pb2.FieldType(
+                                  atomic_type=schema_pb2.BYTES, nullable=False))
+                      ],
+                      options=[
+                          schema_pb2.Option(
+                              name=_SCHEMA_OPTION_STATIC_ENCODING,
+                              type=schema_pb2.FieldType(
+                                  atomic_type=schema_pb2.BOOLEAN),
+                              value=schema_pb2.FieldValue(
+                                  atomic_value=schema_pb2.AtomicTypeValue(
+                                      boolean=True)))
+                      ])))),
+      nullable=True)
+
+
 class SchemaTranslation(object):
   def __init__(self, schema_registry: SchemaTypeRegistry = SCHEMA_REGISTRY):
     self.schema_registry = schema_registry
@@ -361,9 +395,7 @@ class SchemaTranslation(object):
         logical_type = LogicalType.from_typing(type_)
     except ValueError:
       # Unknown type, just treat it like Any
-      return schema_pb2.FieldType(
-          logical_type=schema_pb2.LogicalType(urn=PYTHON_ANY_URN),
-          nullable=True)
+      return _python_any_schema_pb2()
     else:
       argument_type = None
       argument = None
@@ -588,19 +620,22 @@ class SchemaTranslation(object):
       descriptions[field.name] = field.description
       subfields.append((field.name, field_py_type))
 
-    user_type = NamedTuple(type_name, subfields)
+    if schema.id in self.schema_registry.by_id:
+      user_type = self.schema_registry.by_id[schema.id][0]
+    else:
+      user_type = NamedTuple(type_name, subfields)
 
-    # Define a reduce function, otherwise these types can't be pickled
-    # (See BEAM-9574)
-    setattr(
-        user_type,
-        '__reduce__',
-        _named_tuple_reduce_method(schema.SerializeToString()))
-    setattr(user_type, "_field_descriptions", descriptions)
-    setattr(user_type, row_type._BEAM_SCHEMA_ID, schema.id)
+      # Define a reduce function, otherwise these types can't be pickled
+      # (See BEAM-9574)
+      setattr(
+          user_type,
+          '__reduce__',
+          _named_tuple_reduce_method(schema.SerializeToString()))
+      setattr(user_type, "_field_descriptions", descriptions)
+      setattr(user_type, row_type._BEAM_SCHEMA_ID, schema.id)
 
-    self.schema_registry.add(user_type, schema)
-    coders.registry.register_coder(user_type, coders.RowCoder)
+      self.schema_registry.add(user_type, schema)
+      coders.registry.register_coder(user_type, coders.RowCoder)
 
     return user_type
 

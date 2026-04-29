@@ -249,7 +249,8 @@ public class SamzaTimerInternalsFactoryTest {
     ByteArrayOutputStream baos = new ByteArrayOutputStream();
     StringUtf8Coder.of().encode(key, baos);
     byte[] keyBytes = baos.toByteArray();
-    assertEquals(readyTimers, Arrays.asList(new KeyedTimerData<>(keyBytes, key, timer2)));
+    assertEquals(
+        new ArrayList<>(readyTimers), Arrays.asList(new KeyedTimerData<>(keyBytes, key, timer2)));
 
     store.close();
   }
@@ -301,7 +302,7 @@ public class SamzaTimerInternalsFactoryTest {
     StringUtf8Coder.of().encode(key, baos);
     byte[] keyBytes = baos.toByteArray();
     assertEquals(
-        readyTimers,
+        new ArrayList<>(readyTimers),
         Arrays.asList(
             new KeyedTimerData<>(keyBytes, key, timer1),
             new KeyedTimerData<>(keyBytes, key, timer2)));

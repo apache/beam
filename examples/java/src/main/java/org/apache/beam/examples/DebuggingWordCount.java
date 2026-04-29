@@ -46,6 +46,8 @@ import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.DoFn.Element;
+import org.apache.beam.sdk.transforms.DoFn.OutputReceiver;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
@@ -115,18 +117,19 @@ public class DebuggingWordCount {
     private final Counter unmatchedWords = Metrics.counter(FilterTextFn.class, "unmatchedWords");
 
     @ProcessElement
-    public void processElement(ProcessContext c) {
-      if (filter.matcher(c.element().getKey()).matches()) {
+    public void processElement(
+        @Element KV<String, Long> element, OutputReceiver<KV<String, Long>> receiver) {
+      if (filter.matcher(element.getKey()).matches()) {
         // Log at the "DEBUG" level each element that we match. When executing this pipeline
         // these log lines will appear only if the log level is set to "DEBUG" or lower.
-        LOG.debug("Matched: {}", c.element().getKey());
+        LOG.debug("Matched: {}", element.getKey());
         matchedWords.inc();
-        c.output(c.element());
+        receiver.output(element);
       } else {
         // Log at the "TRACE" level each element that is not matched. Different log levels
         // can be used to control the verbosity of logging providing an effective mechanism
         // to filter less important information.
-        LOG.trace("Did not match: {}", c.element().getKey());
+        LOG.trace("Did not match: {}", element.getKey());
         unmatchedWords.inc();
       }
     }

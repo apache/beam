@@ -213,6 +213,59 @@ class TestCloudSQLEnrichment(unittest.TestCase):
     with self.assertRaises(NotImplementedError):
       handler.get_cache_key(request)
 
+  def test_batch_elements_kwargs_include_max_batch_duration_secs(self):
+    connection_config = ExternalSQLDBConnectionConfig(
+        db_adapter=DatabaseTypeAdapter.POSTGRESQL,
+        host='localhost',
+        port=5432,
+        user='user',
+        password='password',
+        db_id='db')
+    query_config = TableFieldsQueryConfig(
+        table_id='my_table',
+        where_clause_template='id = :id',
+        where_clause_fields=['id'])
+
+    handler = CloudSQLEnrichmentHandler(
+        connection_config=connection_config,
+        query_config=query_config,
+        min_batch_size=2,
+        max_batch_size=10,
+        max_batch_duration_secs=0.5)
+
+    self.assertEqual(
+        handler.batch_elements_kwargs(),
+        {
+            'min_batch_size': 2,
+            'max_batch_size': 10,
+            'max_batch_duration_secs': 0.5,
+        })
+
+  def test_batch_elements_kwargs_omit_max_batch_duration_secs_by_default(self):
+    connection_config = ExternalSQLDBConnectionConfig(
+        db_adapter=DatabaseTypeAdapter.POSTGRESQL,
+        host='localhost',
+        port=5432,
+        user='user',
+        password='password',
+        db_id='db')
+    query_config = TableFieldsQueryConfig(
+        table_id='my_table',
+        where_clause_template='id = :id',
+        where_clause_fields=['id'])
+
+    handler = CloudSQLEnrichmentHandler(
+        connection_config=connection_config,
+        query_config=query_config,
+        min_batch_size=2,
+        max_batch_size=10)
+
+    self.assertEqual(
+        handler.batch_elements_kwargs(), {
+            'min_batch_size': 2,
+            'max_batch_size': 10,
+        })
+
   def test_extract_parameter_names(self):
     """Test parameter extraction from SQL templates."""
     connection_config = ExternalSQLDBConnectionConfig(

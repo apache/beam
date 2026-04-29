@@ -33,6 +33,7 @@ import java.util.function.Supplier;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.metrics.Counter;
 import org.apache.beam.sdk.metrics.Metrics;
+import org.apache.beam.sdk.util.Preconditions;
 
 /**
  * Container class used by {@link StorageApiWritesShardedRecords} and {@link
@@ -138,6 +139,11 @@ abstract class AppendClientInfo {
     }
   }
 
+  @Memoized
+  public byte[] getTableSchemaHash() {
+    return TableRowToStorageApiProto.tableSchemaHash(getTableSchema());
+  }
+
   boolean hasSchemaChanged(TableSchema updatedTableSchema) {
     return updatedTableSchema.hashCode() != getTableSchema().hashCode();
   }
@@ -145,15 +151,17 @@ abstract class AppendClientInfo {
   public ByteString encodeUnknownFields(TableRow unknown, boolean ignoreUnknownValues)
       throws TableRowToStorageApiProto.SchemaConversionException {
     Message msg =
-        TableRowToStorageApiProto.messageFromTableRow(
-            getSchemaInformation(),
-            getDescriptorIgnoreRequired(),
-            unknown,
-            ignoreUnknownValues,
-            true,
-            null,
-            null,
-            null);
+        Preconditions.checkArgumentNotNull(
+            TableRowToStorageApiProto.messageFromTableRow(
+                getSchemaInformation(),
+                getDescriptorIgnoreRequired(),
+                unknown,
+                ignoreUnknownValues,
+                true,
+                null,
+                null,
+                null,
+                TableRowToStorageApiProto.ErrorCollector.DONT_COLLECT));
     return msg.toByteString();
   }
 

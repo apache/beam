@@ -64,6 +64,7 @@ import org.apache.iceberg.PartitionSpec;
 import org.apache.iceberg.Snapshot;
 import org.apache.iceberg.StructLike;
 import org.apache.iceberg.Table;
+import org.apache.iceberg.TableProperties;
 import org.apache.iceberg.catalog.TableIdentifier;
 import org.apache.iceberg.data.GenericRecord;
 import org.apache.iceberg.data.Record;
@@ -72,6 +73,7 @@ import org.apache.iceberg.hadoop.HadoopCatalog;
 import org.apache.iceberg.io.DataWriter;
 import org.apache.iceberg.io.InputFile;
 import org.apache.iceberg.mapping.MappingUtil;
+import org.apache.iceberg.mapping.NameMappingParser;
 import org.apache.iceberg.parquet.Parquet;
 import org.apache.iceberg.types.Conversions;
 import org.apache.iceberg.types.Types;
@@ -171,6 +173,7 @@ public class AddFilesTest {
                 tableId.toString(),
                 isPartitioned ? root : null,
                 isPartitioned ? partitionFields : null,
+                null,
                 tableProps,
                 null,
                 null));
@@ -219,6 +222,12 @@ public class AddFilesTest {
     // check partition metadata is preserved
     assertEquals(writtenDf1.partition(), addedDf1.partition());
     assertEquals(writtenDf2.partition(), addedDf2.partition());
+
+    // check that mapping util was added
+    assertEquals(
+        MappingUtil.create(icebergSchema).asMappedFields(),
+        NameMappingParser.fromJson(table.properties().get(TableProperties.DEFAULT_NAME_MAPPING))
+            .asMappedFields());
   }
 
   @Test
@@ -261,6 +270,7 @@ public class AddFilesTest {
                 tableId.toString(),
                 null, // no prefix, so determine partition from DF metrics
                 partitionFields,
+                null,
                 tableProps,
                 null,
                 null));
@@ -319,6 +329,11 @@ public class AddFilesTest {
     // check partition metadata is preserved
     assertEquals(expectedPartition1, addedDf1.partition());
     assertEquals(expectedPartition2, addedDf2.partition());
+
+    assertEquals(
+        MappingUtil.create(icebergSchema).asMappedFields(),
+        NameMappingParser.fromJson(table.properties().get(TableProperties.DEFAULT_NAME_MAPPING))
+            .asMappedFields());
   }
 
   @Test
@@ -355,6 +370,7 @@ public class AddFilesTest {
             null,
             null,
             null,
+            null,
             10, // trigger at 10 files
             Duration.standardSeconds(5)));
     pipeline.run().waitUntilFinish();
@@ -386,7 +402,7 @@ public class AddFilesTest {
         pipeline.apply("Create Input", Create.of(txtFile.getAbsolutePath()));
 
     AddFiles addFiles =
-        new AddFiles(catalogConfig, tableId.toString(), null, null, null, null, null);
+        new AddFiles(catalogConfig, tableId.toString(), null, null, null, null, null, null);
     PCollectionRowTuple outputTuple = inputFiles.apply(addFiles);
 
     // Validate the file ended up in the errors PCollection with the correct schema
@@ -416,7 +432,8 @@ public class AddFilesTest {
 
     // Notice locationPrefix is "some/prefix/" but the absolute path doesn't start with it
     AddFiles addFiles =
-        new AddFiles(catalogConfig, tableId.toString(), "some/prefix/", null, null, null, null);
+        new AddFiles(
+            catalogConfig, tableId.toString(), "some/prefix/", null, null, null, null, null);
     PCollectionRowTuple outputTuple = inputFiles.apply(addFiles);
 
     PAssert.that(outputTuple.get("errors"))
@@ -459,7 +476,8 @@ public class AddFilesTest {
     assertEquals(0, (int) transformFunc.apply(10L));
 
     AddFiles addFiles =
-        new AddFiles(catalogConfig, tableId.toString(), null, partitionFields, null, null, null);
+        new AddFiles(
+            catalogConfig, tableId.toString(), null, partitionFields, null, null, null, null);
     PCollection<String> inputFiles = pipeline.apply("Create Input", Create.of(file1));
     PCollectionRowTuple outputTuple = inputFiles.apply(addFiles);
 
@@ -481,7 +499,9 @@ public class AddFilesTest {
     PCollectionRowTuple outputTuple =
         pipeline
             .apply("Create Input", Create.of(file))
-            .apply(new AddFiles(catalogConfig, tableId.toString(), null, null, null, null, null));
+            .apply(
+                new AddFiles(
+                    catalogConfig, tableId.toString(), null, null, null, null, null, null));
 
     PAssert.that(outputTuple.get("errors"))
         .satisfies(

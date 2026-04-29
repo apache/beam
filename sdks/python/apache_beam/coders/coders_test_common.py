@@ -191,6 +191,7 @@ class CodersTest(unittest.TestCase):
         coders.ProtoCoder,
         coders.ProtoPlusCoder,
         coders.BigEndianShortCoder,
+        coders.ByteCoder,
         coders.SinglePrecisionFloatCoder,
         coders.ToBytesCoder,
         coders.BigIntegerCoder,  # tested in DecimalCoder
@@ -1071,6 +1072,16 @@ class CodersTest(unittest.TestCase):
 
     self.check_coder(test_coder, *test_values)
 
+    for idx, value in enumerate(test_values):
+      self.assertEqual(
+          test_encodings[idx],
+          base64.b64encode(test_coder.encode(value)).decode().rstrip("="))
+
+  def test_byte_coder(self):
+    test_coder = coders.ByteCoder()
+    test_values = [0, 80, 127, 128, 255]
+    test_encodings = ("AA", "UA", "fw", "gA", "/w")
+    self.check_coder(test_coder, *test_values)
     for idx, value in enumerate(test_values):
       self.assertEqual(
           test_encodings[idx],

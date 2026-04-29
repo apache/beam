@@ -43,6 +43,7 @@ _DAY = Duration(seconds=86400)
 
 def _ts(*args, **kwargs) -> Timestamp:
   """Create a UTC datetime and return a Beam Timestamp."""
+  # pyrefly: ignore[bad-keyword-argument]
   dt = datetime.datetime(*args, tzinfo=datetime.timezone.utc, **kwargs)
   return Timestamp(dt.timestamp())
 

@@ -102,6 +102,10 @@ class WriteTables<DestinationT extends @NonNull Object>
     abstract String getTableName();
 
     abstract boolean isFirstPane();
+
+    public static Result of(String tableName, boolean isFirstPane) {
+      return new AutoValue_WriteTables_Result(tableName, isFirstPane);
+    }
   }
 
   static class ResultCoder extends AtomicCoder<WriteTables.Result> {
