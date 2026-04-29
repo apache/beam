@@ -15,7 +15,6 @@
 #
 
 import logging
-import signal
 import typing
 
 import apache_beam as beam
@@ -24,7 +23,6 @@ from apache_beam.ml.inference.base import PredictionResult
 from apache_beam.ml.inference.base import RunInference
 from apache_beam.ml.inference.pytorch_inference import PytorchModelHandlerKeyedTensor
 from apache_beam.transforms import ptransform
-from apache_beam.transforms.external import ImplicitSchemaPayloadBuilder
 from transformers import BertConfig
 from transformers import BertForMaskedLM
 from transformers import BertTokenizer
@@ -84,7 +82,7 @@ class InferenceTransform(ptransform.PTransform):
       self.bert_tokenizer = bert_tokenizer
       logging.info('Starting Postprocess')
 
-    def process(self, element: typing.Tuple[str, PredictionResult]) \
+    def process(self, element: tuple[str, PredictionResult]) \
         -> typing.Iterable[str]:
       text, prediction_result = element
       inputs = prediction_result.example

@@ -112,7 +112,7 @@ from apache_beam.transforms.external import NamedTupleBasedPayloadBuilder
 ReadFromKafkaSchema = typing.NamedTuple(
     'ReadFromKafkaSchema',
     [('consumer_config', typing.Mapping[str, str]),
-     ('topics', typing.List[str]), ('key_deserializer', str),
+     ('topics', list[str]), ('key_deserializer', str),
      ('value_deserializer', str), ('start_read_time', typing.Optional[int]),
      ('max_num_records', typing.Optional[int]),
      ('max_read_time', typing.Optional[int]),

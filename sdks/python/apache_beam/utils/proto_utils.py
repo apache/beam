@@ -19,7 +19,6 @@
 
 # pytype: skip-file
 
-from typing import Type
 from typing import TypeVar
 from typing import Union
 from typing import overload
@@ -64,7 +63,7 @@ def pack_Any(msg):
 
 
 @overload
-def unpack_Any(any_msg: any_pb2.Any, msg_class: Type[MessageT]) -> MessageT:
+def unpack_Any(any_msg: any_pb2.Any, msg_class: type[MessageT]) -> MessageT:
   pass
 
 
@@ -86,13 +85,13 @@ def unpack_Any(any_msg, msg_class):
 
 
 @overload
-def parse_Bytes(serialized_bytes: bytes, msg_class: Type[MessageT]) -> MessageT:
+def parse_Bytes(serialized_bytes: bytes, msg_class: type[MessageT]) -> MessageT:
   pass
 
 
 @overload
 def parse_Bytes(
-    serialized_bytes: bytes, msg_class: Union[Type[bytes], None]) -> bytes:
+    serialized_bytes: bytes, msg_class: Union[type[bytes], None]) -> bytes:
   pass
 
 
@@ -116,7 +115,7 @@ def pack_Struct(**kwargs) -> struct_pb2.Struct:
   return msg
 
 
-def from_micros(cls: Type[TimeMessageT], micros: int) -> TimeMessageT:
+def from_micros(cls: type[TimeMessageT], micros: int) -> TimeMessageT:
   result = cls()
   if isinstance(result, duration_pb2.Duration):
     result.FromMicroseconds(micros)

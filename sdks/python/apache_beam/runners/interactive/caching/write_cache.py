@@ -21,7 +21,6 @@ For internal use only; no backward-compatibility guarantees.
 """
 # pytype: skip-file
 
-from typing import Tuple
 
 import apache_beam as beam
 from apache_beam.portability.api import beam_runner_api_pb2
@@ -124,7 +123,7 @@ class WriteCache:
           inputs[key] = input_id
 
   def _build_runner_api_template(
-      self) -> Tuple[beam_runner_api_pb2.Pipeline, '_PCollectionPlaceHolder']:
+      self) -> tuple[beam_runner_api_pb2.Pipeline, '_PCollectionPlaceHolder']:
     pph = _PCollectionPlaceHolder(self._cacheable.pcoll, self._context)
     transform = _WriteCacheTransform(self._cache_manager, self._key)
     _ = pph.placeholder_pcoll | 'sink_cache_' + self._key >> transform

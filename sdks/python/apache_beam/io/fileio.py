@@ -97,11 +97,7 @@ from functools import partial
 from typing import Any
 from typing import BinaryIO  # pylint: disable=unused-import
 from typing import Callable
-from typing import DefaultDict
-from typing import Dict
 from typing import Iterable
-from typing import List
-from typing import Tuple
 from typing import Union
 
 import apache_beam as beam
@@ -164,7 +160,7 @@ class _MatchAllFn(beam.DoFn):
   def __init__(self, empty_match_treatment):
     self._empty_match_treatment = empty_match_treatment
 
-  def process(self, file_pattern: str) -> List[filesystem.FileMetadata]:
+  def process(self, file_pattern: str) -> list[filesystem.FileMetadata]:
     # TODO: Should we batch the lookups?
     match_results = filesystems.FileSystems.match([file_pattern])
     match_result = match_results[0]
@@ -647,7 +643,7 @@ class WriteToFiles(beam.PTransform):
 
 def _create_writer(
     base_path,
-    writer_key: Tuple[str, IntervalWindow],
+    writer_key: tuple[str, IntervalWindow],
     create_metadata_fn: CreateFileMetadataFn,
 ):
   try:
@@ -800,7 +796,7 @@ class _AppendShardedDestination(beam.DoFn):
     self.shards = shards
 
     # We start the shards for a single destination at an arbitrary point.
-    self._shard_counter: DefaultDict[str, int] = collections.defaultdict(
+    self._shard_counter: collections.defaultdict[str, int] = collections.defaultdict(
         lambda: random.randrange(self.shards))
 
   def _next_shard_for_destination(self, destination):
@@ -821,9 +817,9 @@ class _WriteUnshardedRecordsFn(beam.DoFn):
   SPILLED_RECORDS = 'spilled_records'
   WRITTEN_FILES = 'written_files'
 
-  _writers_and_sinks: Dict[Tuple[str, BoundedWindow], Tuple[BinaryIO,
+  _writers_and_sinks: dict[tuple[str, BoundedWindow], tuple[BinaryIO,
                                                             FileSink]] = None
-  _file_names: Dict[Tuple[str, BoundedWindow], str] = None
+  _file_names: dict[tuple[str, BoundedWindow], str] = None
 
   def __init__(
       self,
@@ -903,7 +899,7 @@ class _RemoveDuplicates(beam.DoFn):
 
   def process(
       self,
-      element: Tuple[str, filesystem.FileMetadata],
+      element: tuple[str, filesystem.FileMetadata],
       count_state=beam.DoFn.StateParam(COUNT_STATE)
   ) -> Iterable[filesystem.FileMetadata]:
 
@@ -927,7 +923,7 @@ class _RemoveOldDuplicates(beam.DoFn):
 
   def process(
       self,
-      element: Tuple[str, filesystem.FileMetadata],
+      element: tuple[str, filesystem.FileMetadata],
       time_state=beam.DoFn.StateParam(TIME_STATE)
   ) -> Iterable[filesystem.FileMetadata]:
     path = element[0]

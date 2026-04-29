@@ -108,11 +108,11 @@ class JoinFn(beam.DoFn):
 
   def process(  # type: ignore
       self,
-      element: typing.Tuple[
+      element: tuple[
           str,
-          typing.Dict[str,
-                      typing.Union[typing.List[nexmark_model.Auction],
-                                   typing.List[nexmark_model.Person]]]],
+          dict[str,
+                      typing.Union[list[nexmark_model.Auction],
+                                   list[nexmark_model.Person]]]],
       auction_state=beam.DoFn.StateParam(auction_spec),
       person_state=beam.DoFn.StateParam(person_spec),
       person_timer=beam.DoFn.TimerParam(person_timer_spec)):

@@ -33,20 +33,8 @@ import time
 import traceback
 from concurrent import futures
 from typing import TYPE_CHECKING
-from typing import Any
-from typing import Callable
-from typing import DefaultDict
-from typing import Dict
-from typing import FrozenSet
 from typing import Generic
-from typing import Iterable
-from typing import Iterator
-from typing import List
-from typing import MutableMapping
-from typing import Optional
-from typing import Tuple
 from typing import TypeVar
-from typing import Union
 
 import grpc
 
@@ -58,7 +46,6 @@ from apache_beam.portability.api import beam_fn_api_pb2_grpc
 from apache_beam.portability.api import metrics_pb2
 from apache_beam.runners.worker import bundle_processor
 from apache_beam.runners.worker import data_plane
-from apache_beam.runners.worker import data_sampler
 from apache_beam.runners.worker import statesampler
 from apache_beam.runners.worker.channel_factory import GRPCChannelFactory
 from apache_beam.runners.worker.data_plane import PeriodicThread
@@ -71,8 +58,7 @@ from apache_beam.utils.sentinel import Sentinel
 from apache_beam.version import __version__ as beam_version
 
 if TYPE_CHECKING:
-  from apache_beam.portability.api import endpoints_pb2
-  from apache_beam.utils.profiler import Profile
+  pass
 
 T = TypeVar('T')
 _KT = TypeVar('_KT')
@@ -1461,7 +1447,7 @@ class _DeferredCall(_Future[T]):
     raise NotImplementedError()
 
 
-class KeyedDefaultDict(DefaultDict[_KT, _VT]):
+class KeyedDefaultDict(collections.defaultdict[_KT, _VT]):
   if TYPE_CHECKING:
     # we promise to only use a subset of what DefaultDict can do
     def __init__(self, default_factory):

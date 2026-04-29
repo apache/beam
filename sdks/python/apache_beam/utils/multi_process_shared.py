@@ -32,7 +32,6 @@ import time
 import traceback
 from typing import Any
 from typing import Callable
-from typing import Dict
 from typing import Generic
 from typing import Optional
 from typing import TypeVar
@@ -156,7 +155,7 @@ class _SingletonEntry:
 
 
 class _SingletonManager:
-  entries: Dict[Any, Any] = {}
+  entries: dict[Any, Any] = {}
 
   def __init__(self):
     self._hard_delete_callback = None

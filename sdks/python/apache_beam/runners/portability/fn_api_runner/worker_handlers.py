@@ -30,18 +30,7 @@ import sys
 import threading
 import time
 from typing import TYPE_CHECKING
-from typing import Any
-from typing import BinaryIO  # pylint: disable=unused-import
 from typing import Callable
-from typing import DefaultDict
-from typing import Dict
-from typing import Iterable
-from typing import Iterator
-from typing import List
-from typing import Mapping
-from typing import Optional
-from typing import Tuple
-from typing import Type
 from typing import TypeVar
 from typing import Union
 from typing import cast
@@ -77,7 +66,6 @@ from apache_beam.utils.sentinel import Sentinel
 
 if TYPE_CHECKING:
   from google.protobuf import message
-  from grpc import ServicerContext
 
   from apache_beam.runners.portability.fn_api_runner.fn_runner import \
       ExtendedProvisionInfo  # pylint: disable=ungrouped-imports
@@ -1034,7 +1022,7 @@ class StateServicer(beam_fn_api_pb2_grpc.BeamFnStateServicer,
     def extend(self, other: Buffer) -> None:
       raise NotImplementedError()
 
-  StateType = Union[CopyOnWriteState, DefaultDict[bytes, Buffer]]
+  StateType = Union[CopyOnWriteState, collections.defaultdict[bytes, Buffer]]
 
   def __init__(self):
     # type: () -> None

@@ -96,7 +96,6 @@ from apache_beam.transforms.external import BeamJarExpansionService
 from apache_beam.transforms.external import ExternalTransform
 from apache_beam.transforms.external import NamedTupleBasedPayloadBuilder
 from apache_beam.typehints.schemas import JdbcDateType  # pylint: disable=unused-import
-from apache_beam.typehints.schemas import JdbcTimeType  # pylint: disable=unused-import
 from apache_beam.typehints.schemas import LogicalType
 from apache_beam.typehints.schemas import MillisInstant
 from apache_beam.typehints.schemas import typing_to_runner_api
@@ -123,7 +122,7 @@ Config = typing.NamedTuple(
     'Config',
     [('driver_class_name', str), ('jdbc_url', str), ('username', str),
      ('password', str), ('connection_properties', typing.Optional[str]),
-     ('connection_init_sqls', typing.Optional[typing.List[str]]),
+     ('connection_init_sqls', typing.Optional[list[str]]),
      ('read_query', typing.Optional[str]),
      ('write_statement', typing.Optional[str]),
      ('fetch_size', typing.Optional[np.int16]),

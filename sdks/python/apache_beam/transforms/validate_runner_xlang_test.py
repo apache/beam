@@ -53,7 +53,6 @@ https://docs.google.com/document/d/1xQp0ElIV84b8OCVz8CD2hvbiWdR8w4BvWxPTZJZA6NA
 import logging
 import os
 import sys
-import typing
 import unittest
 from datetime import datetime
 
@@ -145,7 +144,7 @@ class CrossLanguageTestPipelines(object):
           p
           | beam.Create([(0, "1"), (0, "2"),
                          (1, "3")], reshuffle=False).with_output_types(
-                             typing.Tuple[int, str])
+                             tuple[int, str])
           | beam.ExternalTransform(TEST_GBK_URN, None, self.expansion_service)
           | beam.Map(lambda x: "{}:{}".format(x[0], ','.join(sorted(x[1])))))
       assert_that(res, equal_to(['0:1,2', '1:3']))
@@ -165,7 +164,7 @@ class CrossLanguageTestPipelines(object):
           p
           | beam.Create([(0, "1"), (0, "2"),
                          (1, "3")], reshuffle=False).with_output_types(
-                             typing.Tuple[int, str])
+                             tuple[int, str])
           | beam.ExternalTransform(TEST_GBK_URN, None, self.expansion_service))
 
   def run_cogroup_by_key(self, pipeline):
@@ -181,10 +180,10 @@ class CrossLanguageTestPipelines(object):
     with pipeline as p:
       col1 = p | 'create_col1' >> beam.Create(
           [(0, "1"), (0, "2"), (1, "3")], reshuffle=False).with_output_types(
-              typing.Tuple[int, str])
+              tuple[int, str])
       col2 = p | 'create_col2' >> beam.Create(
           [(0, "4"), (1, "5"), (1, "6")], reshuffle=False).with_output_types(
-              typing.Tuple[int, str])
+              tuple[int, str])
       res = (
           dict(col1=col1, col2=col2)
           | beam.ExternalTransform(TEST_CGBK_URN, None, self.expansion_service)
@@ -223,7 +222,7 @@ class CrossLanguageTestPipelines(object):
       res = (
           p
           | beam.Create([('a', 1), ('a', 2),
-                         ('b', 3)]).with_output_types(typing.Tuple[str, int])
+                         ('b', 3)]).with_output_types(tuple[str, int])
           | beam.ExternalTransform(
               TEST_COMPK_URN, None, self.expansion_service))
       assert_that(res, equal_to([('a', 3), ('b', 3)]))

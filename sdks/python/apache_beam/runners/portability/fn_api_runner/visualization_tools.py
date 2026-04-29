@@ -16,8 +16,6 @@
 #
 
 """Set of utilities to visualize a pipeline to be executed by FnApiRunner."""
-from typing import Set
-from typing import Tuple
 
 from apache_beam.runners.portability.fn_api_runner.translations import Stage
 from apache_beam.runners.portability.fn_api_runner.watermark_manager import WatermarkManager
@@ -89,8 +87,8 @@ def show_watermark_manager(watermark_manager: WatermarkManager, filename=None):
         g.edge(link_from, link_to, style=edge_style)
         seen_links.add((link_to, link_from, edge_style))
 
-  seen_nodes: Set[str] = set()
-  seen_links: Set[Tuple[str, str]] = set()
+  seen_nodes: set[str] = set()
+  seen_links: set[tuple[str, str]] = set()
   for node in watermark_manager._stages_by_name.values():
     name = 'STAGE_%s...%s' % (node.name[:30], node.name[-30:])
     add_node(name, 'box')

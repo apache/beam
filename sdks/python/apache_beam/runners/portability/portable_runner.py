@@ -26,10 +26,8 @@ import logging
 import threading
 import time
 from typing import Any
-from typing import Dict
 from typing import Iterator
 from typing import Optional
-from typing import Tuple
 
 import grpc
 from google.protobuf import struct_pb2
@@ -96,7 +94,7 @@ class JobServiceHandle(object):
 
   def submit(
       self, proto_pipeline: beam_runner_api_pb2.Pipeline
-  ) -> Tuple[str,
+  ) -> tuple[str,
              Iterator[beam_job_api_pb2.JobStateEvent],
              Iterator[beam_job_api_pb2.JobMessagesResponse]]:
     """
@@ -171,7 +169,7 @@ class JobServiceHandle(object):
 
   @staticmethod
   def encode_pipeline_options(
-      all_options: Dict[str, Any]) -> 'struct_pb2.Struct':
+      all_options: dict[str, Any]) -> 'struct_pb2.Struct':
     def convert_pipeline_option_value(v):
       # convert int values: BEAM-5509
       if type(v) == int:
@@ -215,7 +213,7 @@ class JobServiceHandle(object):
 
   def run(
       self, preparation_id: str
-  ) -> Tuple[str,
+  ) -> tuple[str,
              Iterator[beam_job_api_pb2.JobStateEvent],
              Iterator[beam_job_api_pb2.JobMessagesResponse]]:
     """Run the job"""

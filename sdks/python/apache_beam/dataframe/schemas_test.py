@@ -64,7 +64,7 @@ def matches_df(expected):
 #   pd.Series([b'abc'], dtype=bytes).dtype != 'S'
 #   pd.Series([b'abc'], dtype=bytes).astype(bytes).dtype == 'S'
 # (test data, pandas_type, column_name, beam_type)
-COLUMNS: typing.List[typing.Tuple[typing.List[typing.Any],
+COLUMNS: list[tuple[list[typing.Any],
                                   typing.Any,
                                   str,
                                   typing.Any]] = [
@@ -125,7 +125,7 @@ NICE_TYPES_PROXY = NICE_TYPES_DF[:0]
 SERIES_TESTS = [(pd.Series(arr, dtype=dtype, name=name), arr, beam_type)
                 for (arr, dtype, name, beam_type) in COLUMNS]
 
-_TEST_ARRAYS: typing.List[typing.List[typing.Any]] = [
+_TEST_ARRAYS: list[list[typing.Any]] = [
     arr for (arr, _, _, _) in COLUMNS
 ]
 DF_RESULT = list(zip(*_TEST_ARRAYS))

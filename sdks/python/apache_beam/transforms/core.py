@@ -77,15 +77,8 @@ from apache_beam.utils import urns
 from apache_beam.utils.timestamp import Duration
 
 if typing.TYPE_CHECKING:
-  from google.protobuf import message  # pylint: disable=ungrouped-imports
 
-  from apache_beam.io import iobase
-  from apache_beam.pipeline import Pipeline
-  from apache_beam.runners.pipeline_context import PipelineContext
-  from apache_beam.transforms import create_source
-  from apache_beam.transforms.trigger import AccumulationMode
-  from apache_beam.transforms.trigger import DefaultTrigger
-  from apache_beam.transforms.trigger import TriggerFn
+  pass
 
 __all__ = [
     'DoFn',
@@ -3441,8 +3434,8 @@ class _CombinePerKeyWithHotKeyFanout(PTransform):
             | CombinePerKey(PostCombineFn()))
 
 
-@typehints.with_input_types(typing.Tuple[K, V])
-@typehints.with_output_types(typing.Tuple[K, typing.Iterable[V]])
+@typehints.with_input_types(tuple[K, V])
+@typehints.with_output_types(tuple[K, typing.Iterable[V]])
 class GroupByKey(PTransform):
   """A group by key transform.
 

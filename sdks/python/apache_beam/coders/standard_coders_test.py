@@ -26,8 +26,6 @@ import os.path
 import sys
 import unittest
 from copy import deepcopy
-from typing import Dict
-from typing import Tuple
 
 import numpy as np
 import yaml
@@ -283,7 +281,7 @@ class StandardCodersTest(unittest.TestCase):
   # Used when --fix is passed.
 
   fix = False
-  to_fix: Dict[Tuple[int, bytes], bytes] = {}
+  to_fix: dict[tuple[int, bytes], bytes] = {}
 
   @classmethod
   def tearDownClass(cls):

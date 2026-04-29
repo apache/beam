@@ -29,12 +29,8 @@ import traceback
 from dataclasses import dataclass
 from threading import Timer
 from typing import Any
-from typing import Deque
-from typing import Dict
 from typing import Iterable
-from typing import List
 from typing import Optional
-from typing import Tuple
 from typing import Union
 
 from apache_beam.coders.coder_impl import CoderImpl
@@ -116,13 +112,13 @@ class OutputSampler:
       coder: Coder,
       max_samples: int = 10,
       sample_every_sec: float = 5) -> None:
-    self._samples: Deque[Any] = collections.deque(maxlen=max_samples)
+    self._samples: collections.deque[Any] = collections.deque(maxlen=max_samples)
     self._samples_lock: threading.Lock = threading.Lock()
     self._coder_impl: CoderImpl = coder.get_impl()
     self._sample_timer = SampleTimer(sample_every_sec, self)
     self.element_sampler = ElementSampler()
     self.element_sampler.has_element = False
-    self._exceptions: Deque[Tuple[Any, ExceptionMetadata]] = collections.deque(
+    self._exceptions: collections.deque[tuple[Any, ExceptionMetadata]] = collections.deque(
         maxlen=max_samples)
 
     # For testing, it's easier to disable the Timer and manually sample.
@@ -143,7 +139,7 @@ class OutputSampler:
       el = el.value
     return el
 
-  def flush(self, clear: bool = True) -> List[beam_fn_api_pb2.SampledElement]:
+  def flush(self, clear: bool = True) -> list[beam_fn_api_pb2.SampledElement]:
     """Returns all samples and optionally clears buffer if clear is True."""
     with self._samples_lock:
       # TODO(rohdesamuel): There can duplicates between the exceptions and
@@ -226,13 +222,13 @@ class DataSampler:
       sample_only_exceptions: bool = False,
       clock=None) -> None:
     # Key is PCollection id. Is guarded by the _samplers_lock.
-    self._samplers: Dict[str, OutputSampler] = {}
+    self._samplers: dict[str, OutputSampler] = {}
     # Bundles are processed in parallel, so new samplers may be added when the
     # runner queries for samples.
     self._samplers_lock: threading.Lock = threading.Lock()
     self._max_samples = max_samples
     self._sample_every_sec = 0.0 if sample_only_exceptions else sample_every_sec
-    self._samplers_by_output: Dict[str, List[OutputSampler]] = {}
+    self._samplers_by_output: dict[str, list[OutputSampler]] = {}
     self._clock = clock
 
   _ENABLE_DATA_SAMPLING = 'enable_data_sampling'
@@ -286,7 +282,7 @@ class DataSampler:
       self,
       transform_id: str,
       descriptor: beam_fn_api_pb2.ProcessBundleDescriptor,
-      coder_factory) -> List[OutputSampler]:
+      coder_factory) -> list[OutputSampler]:
     """Creates the OutputSamplers for the given PTransform.
 
     This initializes the samplers only once per PCollection Id. Note that an
@@ -347,7 +343,7 @@ class DataSampler:
     return ret
 
   def wait_for_samples(
-      self, pcollection_ids: List[str]) -> beam_fn_api_pb2.SampleDataResponse:
+      self, pcollection_ids: list[str]) -> beam_fn_api_pb2.SampleDataResponse:
     """Waits for samples to exist for the given PCollections (only testing)."""
     now = time.time()
     end = now + 30

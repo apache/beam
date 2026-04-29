@@ -31,7 +31,6 @@ import textwrap
 import unittest
 from decimal import Decimal
 from typing import Any
-from typing import List
 from typing import NamedTuple
 
 import pytest
@@ -145,7 +144,7 @@ class CodersTest(unittest.TestCase):
   # nested and unnested context.
 
   # Common test values representing Python's built-in types.
-  test_values_deterministic: List[Any] = [
+  test_values_deterministic: list[Any] = [
       None,
       1,
       -1,

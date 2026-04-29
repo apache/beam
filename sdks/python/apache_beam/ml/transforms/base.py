@@ -25,10 +25,8 @@ from collections.abc import Mapping
 from collections.abc import Sequence
 from dataclasses import dataclass
 from typing import Any
-from typing import Dict
 from typing import Generic
 from typing import Iterable
-from typing import List
 from typing import Optional
 from typing import TypeVar
 from typing import Union
@@ -85,9 +83,9 @@ class EmbeddingTypeAdapter(Generic[EmbeddingTypeAdapterInputT,
         input_fn: Function to extract text for embedding from input type
         output_fn: Function to create output type from input and embeddings
     """
-  input_fn: Callable[[Sequence[EmbeddingTypeAdapterInputT]], List[str]]
+  input_fn: Callable[[Sequence[EmbeddingTypeAdapterInputT]], list[str]]
   output_fn: Callable[[Sequence[EmbeddingTypeAdapterInputT], Sequence[Any]],
-                      List[EmbeddingTypeAdapterOutputT]]
+                      list[EmbeddingTypeAdapterOutputT]]
 
   def __reduce__(self):
     """Custom serialization that preserves type information during
@@ -184,8 +182,8 @@ class ProcessHandler(
 
 
 def _dict_input_fn(
-    columns: Sequence[str], batch: Sequence[Union[Dict[str, Any],
-                                                  beam.Row]]) -> List[str]:
+    columns: Sequence[str], batch: Sequence[Union[dict[str, Any],
+                                                  beam.Row]]) -> list[str]:
   """Extract text from specified columns in batch."""
   if batch and hasattr(batch[0], '_asdict'):
     batch = [row._asdict() if hasattr(row, '_asdict') else row for row in batch]
@@ -222,7 +220,7 @@ def _dict_input_fn(
 
 def _dict_output_fn(
     columns: Sequence[str],
-    batch: Sequence[Union[Dict[str, Any], beam.Row]],
+    batch: Sequence[Union[dict[str, Any], beam.Row]],
     embeddings: Sequence[Any]) -> list[Union[dict[str, Any], beam.Row]]:
   """Map embeddings back to columns in batch."""
   is_beam_row = False
@@ -244,15 +242,15 @@ def _dict_output_fn(
 
 
 def _create_dict_adapter(
-    columns: List[str]) -> EmbeddingTypeAdapter[Dict[str, Any], Dict[str, Any]]:
+    columns: list[str]) -> EmbeddingTypeAdapter[dict[str, Any], dict[str, Any]]:
   """Create adapter for dict-based processing."""
-  return EmbeddingTypeAdapter[Dict[str, Any], Dict[str, Any]](
+  return EmbeddingTypeAdapter[dict[str, Any], dict[str, Any]](
       input_fn=cast(
-          Callable[[Sequence[Dict[str, Any]]], List[str]],
+          Callable[[Sequence[dict[str, Any]]], list[str]],
           functools.partial(_dict_input_fn, columns)),
       output_fn=cast(
-          Callable[[Sequence[Dict[str, Any]], Sequence[Any]],
-                   List[Dict[str, Any]]],
+          Callable[[Sequence[dict[str, Any]], Sequence[Any]],
+                   list[dict[str, Any]]],
           functools.partial(_dict_output_fn, columns)))
 
 
