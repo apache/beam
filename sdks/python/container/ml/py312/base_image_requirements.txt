@@ -209,7 +209,7 @@ termcolor==3.3.0
 testcontainers==4.14.2
 threadpoolctl==3.6.0
 tokenizers==0.21.4
-torch==2.8.0+cpu
+torch==2.8.0
 tqdm==4.67.3
 transformers==4.55.4
 typing-inspection==0.4.2
