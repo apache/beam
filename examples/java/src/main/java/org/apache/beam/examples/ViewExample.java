@@ -99,12 +99,12 @@ public class ViewExample {
                 .withSideInput("citiesToCountries", citiesToCountriesView));
     // [END main_section]
 
-    output.apply("Log", ParDo.of(new LogOutput<>("Output: ")));
+    output.apply("Log", ParDo.of(new LogOutput("Output: ")));
 
     pipeline.run();
   }
 
-  static class LogOutput<T> extends DoFn<T, T> {
+  static class LogOutput extends DoFn<KV<String, String>, KV<String, String>> {
     private static final Logger LOG = LoggerFactory.getLogger(LogOutput.class);
     private final String prefix;
 
