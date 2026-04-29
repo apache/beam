@@ -173,7 +173,7 @@ pymongo==4.16.0
 PyMySQL==1.1.2
 pyparsing==3.3.2
 pyproject_hooks==1.2.0
-pytest==8.4.2
+pytest==9.0.3
 pytest-timeout==2.4.0
 pytest-xdist==3.8.0
 python-dateutil==2.9.0.post0
