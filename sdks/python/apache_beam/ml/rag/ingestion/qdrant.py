@@ -15,8 +15,9 @@
 # limitations under the License.
 
 import logging
+from collections.abc import Callable
 from dataclasses import dataclass, field
-from typing import Any, Callable, Dict, Optional
+from typing import Any, Optional
 
 try:
   from qdrant_client import QdrantClient, models
@@ -43,7 +44,7 @@ class QdrantConnectionParameters:
   timeout: Optional[int] = None
   host: Optional[str] = None
   path: Optional[str] = None
-  kwargs: Dict[str, Any] = field(default_factory=dict)
+  kwargs: dict[str, Any] = field(default_factory=dict)
 
   def __post_init__(self):
     if not (self.location or self.url or self.host or self.path):
@@ -57,7 +58,7 @@ class QdrantWriteConfig(VectorDatabaseWriteConfig):
   collection_name: str
   timeout: Optional[float] = None
   batch_size: int = DEFAULT_WRITE_BATCH_SIZE
-  kwargs: Dict[str, Any] = field(default_factory=dict)
+  kwargs: dict[str, Any] = field(default_factory=dict)
   dense_embedding_key: str = "dense"
   sparse_embedding_key: str = "sparse"
 
