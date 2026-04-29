@@ -73,7 +73,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-@SuppressWarnings({"rawtypes", "nullness"})
+@SuppressWarnings({"rawtypes", "nullness", "AutoValueSubclassLeaked"})
 public class BigQueryIOTranslation {
 
   private static final Logger LOG = LoggerFactory.getLogger(BigQueryIOTranslation.class);

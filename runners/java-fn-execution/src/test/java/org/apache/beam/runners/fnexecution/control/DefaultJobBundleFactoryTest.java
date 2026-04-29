@@ -136,7 +136,7 @@ public class DefaultJobBundleFactoryTest {
     when(stateServer.getService()).thenReturn(stateService);
     when(provisioningServer.getService()).thenReturn(provisionService);
     serverInfo =
-        new AutoValue_DefaultJobBundleFactory_ServerInfo.Builder()
+        DefaultJobBundleFactory.ServerInfo.builder()
             .setControlServer(controlServer)
             .setLoggingServer(loggingServer)
             .setRetrievalServer(retrievalServer)

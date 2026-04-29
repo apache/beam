@@ -22,8 +22,6 @@ capability-matrix:
       name: Apache Spark (RDD/DStream based)
     - class: spark-dataset
       name: Apache Spark Structured Streaming (Dataset based)
-    - class: samza
-      name: Apache Samza
     - class: nemo
       name: Apache Nemo
     - class: jet
@@ -68,10 +66,6 @@ capability-matrix:
               l1: "Partially"
               l2: fully supported in batch mode
               l3: ParDo applies per-element transformations as Spark FlatMapFunction.
-            - class: samza
-              l1: "Yes"
-              l2: fully supported
-              l3: Supported with per-element transformation.
             - class: nemo
               l1: "Yes"
               l2: fully supported
@@ -115,10 +109,6 @@ capability-matrix:
               l1: "Partially"
               l2: fully supported in batch mode
               l3: "Using Spark's <tt>groupByKey</tt>."
-            - class: samza
-              l1: "Yes"
-              l2: fully supported
-              l3: "Uses Samza's partitionBy for key grouping and Beam's logic for window aggregation and triggering."
             - class: nemo
               l1: "Yes"
               l2: fully supported
@@ -162,10 +152,6 @@ capability-matrix:
               l1: "Partially"
               l2: fully supported in batch mode
               l3: Some corner cases like flatten on empty collections are not yet supported.
-            - class: samza
-              l1: "Yes"
-              l2: fully supported
-              l3: ""
             - class: nemo
               l1: "Yes"
               l2: fully supported
@@ -209,10 +195,6 @@ capability-matrix:
               l1: "Partially"
               l2: fully supported in batch mode
               l3: "Using Spark's <tt>Aggregator</tt> and agg function"
-            - class: samza
-              l1: "Yes"
-              l2: fully supported
-              l3: Use combiner for efficient pre-aggregation.
             - class: nemo
               l1: "Yes"
               l2: fully supported
@@ -255,10 +237,6 @@ capability-matrix:
             - class: spark-dataset
               l1: "Partially"
               l2: supported via inlining only in batch mode
-              l3: ""
-            - class: samza
-              l1: "Partially"
-              l2: supported via inlining
               l3: ""
             - class: nemo
               l1: "Yes"
@@ -303,10 +281,6 @@ capability-matrix:
               l1: "Partially"
               l2: fully supported in batch mode
               l3: "Using Spark's broadcast variables."
-            - class: samza
-              l1: "Yes"
-              l2: fully supported
-              l3: Uses Samza's broadcast operator to distribute the side inputs.
             - class: nemo
               l1: "Yes"
               l2: fully supported
@@ -350,10 +324,6 @@ capability-matrix:
               l1: "Partially"
               l2: bounded source only
               l3: "Using Spark's DatasourceV2 API in microbatch mode (Continuous streaming mode is tagged experimental in spark and does not support aggregation)."
-            - class: samza
-              l1: "Yes"
-              l2: fully supported
-              l3: ""
             - class: nemo
               l1: "Yes"
               l2: fully supported
@@ -396,10 +366,6 @@ capability-matrix:
             - class: spark-dataset
               l1: "Partially"
               l2: All metric types are supported in batch mode.
-              l3: Only attempted values are supported. No committed values for metrics.
-            - class: samza
-              l1: "Partially"
-              l2: Counter and Gauge are supported.
               l3: Only attempted values are supported. No committed values for metrics.
             - class: nemo
               l1: "No"

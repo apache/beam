@@ -33,6 +33,7 @@ import com.google.cloud.Timestamp;
 import com.google.cloud.spanner.Struct;
 import java.util.List;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.dao.PartitionMetadataAdminDao;
+import org.apache.beam.sdk.io.gcp.spanner.changestreams.dao.PartitionMetadataDao;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.PartitionMetadata;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.PartitionMetadata.State;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Sets;
@@ -79,7 +80,9 @@ public class PartitionMetadataMapper {
    */
   public PartitionMetadata from(Struct row) {
     return PartitionMetadata.newBuilder()
-        .setPartitionToken(row.getString(COLUMN_PARTITION_TOKEN))
+        .setPartitionToken(
+            PartitionMetadataDao.extractPartitionToken(row.getString(COLUMN_PARTITION_TOKEN)))
+        .setTvfName(PartitionMetadataDao.extractTvfName(row.getString(COLUMN_PARTITION_TOKEN)))
         .setParentTokens(
             !row.isNull(COLUMN_PARENT_TOKENS)
                 ? Sets.newHashSet(row.getStringList(COLUMN_PARENT_TOKENS))

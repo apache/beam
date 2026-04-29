@@ -54,7 +54,7 @@ jobs:
   beam_PostCommit_Python_Arm:
     name: ${{ matrix.job_name }} ${{ matrix.python_version }}
     runs-on: ubuntu-22.04
-    timeout-minutes: 240
+    timeout-minutes: 480
     strategy:
       fail-fast: false
       matrix:

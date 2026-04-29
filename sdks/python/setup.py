@@ -185,8 +185,24 @@ ml_base_core = [
     # tensorflow transitive dep, lower versions not compatible with Python3.10+
     'absl-py>=0.12.0',
     'tensorflow-hub',
+    # tokenizers 0.23.0rc0 renamed the PyO3 kwarg of
+    # processors.RobertaProcessing (and BertProcessing) from `cls` to
+    # `cls_token` -- the rename was a drive-by inside huggingface/tokenizers
+    # https://github.com/huggingface/tokenizers/pull/1928.
+    # transformers' slow CLIP tokenizer still calls
+    # `processors.RobertaProcessing(sep=..., cls=..., ...)` at
+    # transformers/models/clip/tokenization_clip.py, so model load fails with
+    # "RobertaProcessing.__new__() got an unexpected keyword argument 'cls'".
+    # The ml tox envs run with pip_pre=True (tox.ini:32), so even though no
+    # 0.23 stable has shipped yet, the rc gets resolved.
+    # Drop this cap once transformers updates the CLIP call site to
+    # `cls_token=` or tokenizers reinstates `cls=` as a deprecation alias.
+    'tokenizers<0.23',
     'torch',
-    'transformers',
+    # Match tested transformers range.
+    'transformers>=4.28.0,<4.56.0',
+    # Keep tokenizers compatible with this transformers range.
+    'tokenizers>=0.13.3,<0.22.0',
 ]
 
 ml_adk_dependency = [

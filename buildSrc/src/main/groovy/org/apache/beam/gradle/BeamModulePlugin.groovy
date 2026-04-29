@@ -740,7 +740,7 @@ class BeamModulePlugin implements Plugin<Project> {
         google_api_common                           : "com.google.api:api-common", // google_cloud_platform_libraries_bom sets version
         google_api_services_bigquery                : "com.google.apis:google-api-services-bigquery:v2-rev20251012-2.0.0",  // [bomupgrader] sets version
         google_api_services_cloudresourcemanager    : "com.google.apis:google-api-services-cloudresourcemanager:v1-rev20250606-2.0.0",  // [bomupgrader] sets version
-        google_api_services_dataflow                : "com.google.apis:google-api-services-dataflow:v1b3-rev20260118-$google_clients_version",
+        google_api_services_dataflow                : "com.google.apis:google-api-services-dataflow:v1b3-rev20260405-$google_clients_version",
         google_api_services_healthcare              : "com.google.apis:google-api-services-healthcare:v1-rev20240130-$google_clients_version",
         google_api_services_pubsub                  : "com.google.apis:google-api-services-pubsub:v1-rev20220904-$google_clients_version",
         google_api_services_storage                 : "com.google.apis:google-api-services-storage:v1-rev20260204-2.0.0",  // [bomupgrader] sets version
@@ -1537,28 +1537,23 @@ class BeamModulePlugin implements Plugin<Project> {
           def disabledChecks = [
             // TODO(https://github.com/apache/beam/issues/20955): Enable errorprone checks
             "AutoValueImmutableFields",
-            "AutoValueSubclassLeaked",
             "ComparableType",
             "DoNotMockAutoValue",
             "EmptyBlockTag",
-            "EqualsUnsafeCast",
-            "EscapedEntity",
             "ExtendsAutoValue",
             "InlineMeSuggester",
             "InvalidBlockTag",
             "JodaConstructors",
             "MixedMutabilityReturnType",
             "PreferJavaTimeOverload",
-            "NonCanonicalType",
             "Slf4jSignOnlyFormat",
-            "UnescapedEntity",
             "UnrecognisedJavadocTag",
             // errorprone 3.2.0+ checks
             "DirectInvocationOnMock",
-            "JUnitIncompatibleType",
             "MockNotUsedInProduction",
             "NullableWildcard",
             "SuperCallToObjectMethod",
+            // Intended suppressions with justifications
             // for encoding efficiency and backward compatibility
             "EnumOrdinal",
             // widely used in non-public methods
