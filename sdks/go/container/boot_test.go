@@ -267,19 +267,19 @@ func TestConfigureGoogleCloudProfilerEnvVars(t *testing.T) {
 			expectingError: true,
 		},
 		{
-			name: "Missing profiler name and job_name",
-			options: `{
+	        name: "Missing profiler name and job_name",
+	        options: `{
 		        "beam:option:go_options:v1": {
 			        "options": {
 				        "dataflow_service_options": "enable_google_cloud_profiler"
 			        }
 		        }
 	        }`,
-			metadata: map[string]string{
-				"job_id": "job-789",
-			},
-			expectingError: true,
-		},
+	        metadata: map[string]string{
+		        "job_id": "job-789",
+	        },
+	        expectingError: true,
+        },
 	}
 
 	for _, tt := range tests {
