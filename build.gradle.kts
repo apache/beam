@@ -281,8 +281,6 @@ tasks.register("javaPreCommit") {
   dependsOn(":runners:local-java:build")
   dependsOn(":runners:portability:java:build")
   dependsOn(":runners:prism:java:build")
-  dependsOn(":runners:samza:build")
-  dependsOn(":runners:samza:job-server:build")
   dependsOn(":runners:spark:3:build")
   dependsOn(":runners:spark:3:job-server:build")
   dependsOn(":runners:twister2:build")
@@ -410,7 +408,6 @@ tasks.register("javaPostCommit") {
 }
 
 tasks.register("javaPostCommitSickbay") {
-  dependsOn(":runners:samza:validatesRunnerSickbay")
   for (version in project.ext.get("allFlinkVersions") as Array<*>) {
     dependsOn(":runners:flink:${version}:validatesRunnerSickbay")
   }

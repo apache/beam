@@ -836,7 +836,6 @@ class FnApiRunnerTest(unittest.TestCase):
                                'FnApiRunnerTestWithMultiWorkers',
                                'FnApiRunnerTestWithBundleRepeat',
                                'FnApiRunnerTestWithBundleRepeatAndMultiWorkers',
-                               'SamzaRunnerTest',
                                'SparkRunnerTest'}:
       raise unittest.SkipTest("https://github.com/apache/beam/issues/35168")
 
@@ -853,7 +852,6 @@ class FnApiRunnerTest(unittest.TestCase):
                                'FnApiRunnerTestWithMultiWorkers',
                                'FnApiRunnerTestWithBundleRepeat',
                                'FnApiRunnerTestWithBundleRepeatAndMultiWorkers',
-                               'SamzaRunnerTest',
                                'SparkRunnerTest'}:
       raise unittest.SkipTest("https://github.com/apache/beam/issues/35168")
 
@@ -869,7 +867,6 @@ class FnApiRunnerTest(unittest.TestCase):
                                'FnApiRunnerTestWithMultiWorkers',
                                'FnApiRunnerTestWithBundleRepeat',
                                'FnApiRunnerTestWithBundleRepeatAndMultiWorkers',
-                               'SamzaRunnerTest',
                                'SparkRunnerTest'}:
       raise unittest.SkipTest("https://github.com/apache/beam/issues/35168")
     # The timer will fire at T + 10. After the timer is set, it is never

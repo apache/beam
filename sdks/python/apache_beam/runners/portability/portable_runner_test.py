@@ -230,7 +230,6 @@ class PortableRunnerTest(fn_runner_test.FnApiRunnerTest):
         'PortableRunnerTestWithExternalEnv',
         'PortableRunnerTestWithLocalDocker',
         'PortableRunnerOptimizedWithoutFusion',
-        'SamzaRunnerTest',
         'SparkRunnerTest'
     }:
       raise unittest.SkipTest("https://github.com/apache/beam/issues/35168")
@@ -244,7 +243,6 @@ class PortableRunnerTest(fn_runner_test.FnApiRunnerTest):
         'PortableRunnerTestWithExternalEnv',
         'PortableRunnerTestWithLocalDocker',
         'PortableRunnerOptimizedWithoutFusion',
-        'SamzaRunnerTest',
         'SparkRunnerTest'
     }:
       raise unittest.SkipTest("https://github.com/apache/beam/issues/35168")

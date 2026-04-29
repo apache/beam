@@ -206,53 +206,6 @@ var flinkFilters = []string{
 	"TestParDoBundleFinalizer.*",
 }
 
-var samzaFilters = []string{
-	// TODO(https://github.com/apache/beam/issues/20987): Samza tests invalid encoding.
-	"TestReshuffle",
-	"TestReshuffleKV",
-	// The Samza runner does not support the TestStream primitive
-	"TestTestStream.*",
-	// The trigger and pane tests uses TestStream
-	"TestTrigger.*",
-	"TestPanes",
-	// TODO(https://github.com/apache/beam/issues/21244): Samza doesn't yet support post job metrics, used by WordCount
-	"TestWordCount.*",
-	// TODO(BEAM-13215): GCP IOs currently do not work in non-Dataflow portable runners.
-	"TestBigQueryIO.*",
-	"TestBigtableIO.*",
-	"TestSpannerIO.*",
-	// The Samza runner does not support self-checkpointing
-	"TestCheckpointing",
-	// The samza runner does not support pipeline drain for SDF.
-	"TestDrain",
-	// FhirIO currently only supports Dataflow runner
-	"TestFhirIO.*",
-	// OOMs currently only lead to heap dumps on Dataflow runner
-	"TestOomParDo",
-	// The samza runner does not support user state.
-	"TestValueState",
-	"TestValueStateWindowed",
-	"TestValueStateClear",
-	"TestBagState",
-	"TestBagStateClear",
-	"TestCombiningState",
-	"TestMapState",
-	"TestMapStateClear",
-	"TestSetState",
-	"TestSetStateClear",
-	// TODO(https://github.com/apache/beam/issues/26126): Java runner issue (AcitveBundle has no regsitered handler)
-	"TestDebeziumIO_BasicRead",
-
-	"TestOrderedListState",
-
-	// Samza does not support state.
-	"TestTimers.*",
-	"TestBagStateBlindWrite",
-
-	// no support for BundleFinalizer
-	"TestParDoBundleFinalizer.*",
-}
-
 var sparkFilters = []string{
 	// TODO(BEAM-11498): XLang tests broken with Spark runner.
 	"TestXLang.*",
@@ -375,8 +328,6 @@ func CheckFilters(t *testing.T) {
 		filters = portableFilters
 	case "flink", "FlinkRunner":
 		filters = flinkFilters
-	case "samza", "SamzaRunner":
-		filters = samzaFilters
 	case "spark", "SparkRunner":
 		filters = sparkFilters
 	case "dataflow", "DataflowRunner":
