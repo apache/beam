@@ -1,4 +1,3 @@
-# ruff: noqa: UP006
 #
 # Licensed to the Apache Software Foundation (ASF) under one or more
 # contributor license agreements.  See the NOTICE file distributed with
@@ -24,6 +23,7 @@ See additional runtime_type_check=True tests in ptransform_test.py.
 
 # pytype: skip-file
 
+# ruff: noqa: UP006
 import os
 import tempfile
 import unittest

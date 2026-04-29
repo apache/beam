@@ -1,4 +1,3 @@
-# ruff: noqa: UP006
 #
 # Licensed to the Apache Software Foundation (ASF) under one or more
 # contributor license agreements.  See the NOTICE file distributed with
@@ -52,6 +51,7 @@ Note utilities in this package are for internal use only, we make no backward
 compatibility guarantees, except for the type mapping itself.
 """
 
+# ruff: noqa: UP006
 from typing import Any
 from typing import List
 from typing import Optional

@@ -1,4 +1,3 @@
-# ruff: noqa: UP006
 #
 # Licensed to the Apache Software Foundation (ASF) under one or more
 # contributor license agreements.  See the NOTICE file distributed with
@@ -21,6 +20,7 @@
 For internal use only, no backward compatibility guarantees.
 """
 
+# ruff: noqa: UP006
 from functools import partial
 from typing import Dict
 from typing import List

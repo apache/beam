@@ -1,4 +1,3 @@
-# ruff: noqa: UP006
 #
 # Licensed to the Apache Software Foundation (ASF) under one or more
 # contributor license agreements.  See the NOTICE file distributed with
@@ -20,6 +19,7 @@
 
 # pytype: skip-file
 
+# ruff: noqa: UP006
 import typing
 import unittest
 from typing import Tuple
