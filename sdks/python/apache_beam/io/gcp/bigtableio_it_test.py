@@ -30,6 +30,7 @@ import pytest
 
 import apache_beam as beam
 from apache_beam.io.gcp import bigtableio
+from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
@@ -74,6 +75,7 @@ class TestReadFromBigTableIT(unittest.TestCase):
     self.test_pipeline = TestPipeline(is_integration_test=True)
     self.args = self.test_pipeline.get_full_options_as_args()
     self.project = self.test_pipeline.get_option('project')
+    self._runner = PipelineOptions(self.args).get_all_options()['runner']
 
     instance_id = instance_prefix(self.INSTANCE)
 
