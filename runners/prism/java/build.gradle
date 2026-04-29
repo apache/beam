@@ -162,6 +162,9 @@ def sickbayTests = [
     // java.lang.IllegalStateException: java.io.EOFException
     'org.apache.beam.sdk.transforms.ViewTest.testSideInputWithNestedIterables',
 
+    // Triggers index-out-of-bound error in Prism
+    'org.apache.beam.sdk.transforms.ParDoTest$StateTests.testTimerSideInput',
+
     // Missing output due to processing time timer skew.
     'org.apache.beam.sdk.transforms.ParDoTest$TimestampTests.testProcessElementSkew',
 

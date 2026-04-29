@@ -22,7 +22,9 @@ import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Pr
 
 import java.io.Closeable;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import org.apache.beam.runners.core.DoFnRunner;
@@ -59,6 +61,7 @@ import org.apache.beam.sdk.values.WindowedValue;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
@@ -76,7 +79,7 @@ import org.slf4j.LoggerFactory;
   "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
   "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
-public class SimpleParDoFn<InputT, OutputT> implements ParDoFn {
+public class SimpleParDoFn<InputT, OutputT, W extends BoundedWindow> implements ParDoFn {
 
   // TODO: Remove once Distributions has shipped.
   @VisibleForTesting
@@ -111,6 +114,8 @@ public class SimpleParDoFn<InputT, OutputT> implements ParDoFn {
   // This may additionally be null if it is not a real DoFn but an OldDoFn or
   // GroupAlsoByWindowViaWindowSetDoFn
   private @Nullable DoFnSignature fnSignature;
+
+  private @Nullable StreamingSideInputProcessor<InputT, W> sideInputProcessor;
 
   /** Creates a {@link SimpleParDoFn} using basic information about the step being executed. */
   SimpleParDoFn(
@@ -317,8 +322,32 @@ public class SimpleParDoFn<InputT, OutputT> implements ParDoFn {
             outputManager,
             doFnSchemaInformation,
             sideInputMapping);
+    if (hasStreamingSideInput) {
+      sideInputProcessor =
+          new StreamingSideInputProcessor<>(
+              new StreamingSideInputFetcher<InputT, W>(
+                  fnInfo.getSideInputViews(),
+                  fnInfo.getInputCoder(),
+                  (WindowingStrategy<?, W>) fnInfo.getWindowingStrategy(),
+                  (StreamingModeExecutionContext.StreamingModeStepContext) userStepContext));
+    }
 
     fnRunner.startBundle();
+    if (sideInputProcessor != null) {
+      boolean hasState = fnSignature != null && !fnSignature.stateDeclarations().isEmpty();
+      Iterator<WindowedValue<InputT>> unblockedElements = sideInputProcessor.tryUnblockElements();
+      for (Iterator<WindowedValue<InputT>> it = unblockedElements; it.hasNext(); ) {
+        WindowedValue<InputT> unblockedElement = it.next();
+        fnRunner.processElement(unblockedElement);
+        if (hasState) {
+          // These elements are now processed. Register cleanup timers for all the unblocked
+          // windows.
+          registerStateCleanup(
+              (WindowingStrategy<?, W>) getDoFnInfo().getWindowingStrategy(),
+              (Collection<W>) unblockedElement.getWindows());
+        }
+      }
+    }
   }
 
   @Override
@@ -334,14 +363,32 @@ public class SimpleParDoFn<InputT, OutputT> implements ParDoFn {
 
     WindowedValue<InputT> elem = (WindowedValue<InputT>) untypedElem;
 
-    if (fnSignature != null && fnSignature.stateDeclarations().size() > 0) {
-      registerStateCleanup(
-          (WindowingStrategy<?, BoundedWindow>) getDoFnInfo().getWindowingStrategy(),
-          (Collection<BoundedWindow>) elem.getWindows());
-    }
-
+    boolean hasState = fnSignature != null && !fnSignature.stateDeclarations().isEmpty();
     outputsPerElementTracker.onProcessElement();
-    fnRunner.processElement(elem);
+
+    Collection<W> windowsProcessed;
+    if (sideInputProcessor != null) {
+      windowsProcessed = hasState ? Lists.newArrayList() : Collections.emptyList();
+      for (Iterator<? extends WindowedValue<InputT>> it =
+              sideInputProcessor.handleProcessElement(elem);
+          it.hasNext(); ) {
+        WindowedValue<InputT> toProcess = it.next();
+        fnRunner.processElement(toProcess);
+        if (hasState) {
+          windowsProcessed.addAll((Collection<W>) toProcess.getWindows());
+          // If the element was blocked, don't register a cleanup timer. The timer will be
+          // registered
+          // when the window is unblocked ensuring that it is not processed until the element is.
+        }
+      }
+    } else {
+      fnRunner.processElement(elem);
+      windowsProcessed = (Collection<W>) elem.getWindows();
+    }
+    if (hasState) {
+      registerStateCleanup(
+          (WindowingStrategy<?, W>) getDoFnInfo().getWindowingStrategy(), windowsProcessed);
+    }
     outputsPerElementTracker.onProcessElementSuccess();
   }
 
@@ -367,6 +414,9 @@ public class SimpleParDoFn<InputT, OutputT> implements ParDoFn {
     if (fnSignature.timerDeclarations().containsKey(timer.getTimerId())
         || fnSignature.timerFamilyDeclarations().containsKey(timer.getTimerFamilyId())) {
       BoundedWindow window = ((WindowNamespace) timer.getNamespace()).getWindow();
+      if (sideInputProcessor != null) {
+        sideInputProcessor.handleProcessTimer(timer);
+      }
       fnRunner.onTimer(
           timer.getTimerId(),
           timer.getTimerFamilyId(),
@@ -380,7 +430,6 @@ public class SimpleParDoFn<InputT, OutputT> implements ParDoFn {
   }
 
   private void processSystemTimer(TimerData timer) throws Exception {
-
     // Timer owned by this class, for cleaning up state in expired windows
     if (timer.getTimerId().equals(CLEANUP_TIMER_ID)) {
       checkState(
@@ -395,6 +444,13 @@ public class SimpleParDoFn<InputT, OutputT> implements ParDoFn {
           this,
           WindowNamespace.class.getSimpleName(),
           timer);
+
+      if (sideInputProcessor != null) {
+        // We must call this to ensure the side-input is cached for onWindowExpiration. Since we
+        // don't set cleanup
+        // timers until we actually call processElement, the window must be unblocked here.
+        sideInputProcessor.handleProcessTimer(timer);
+      }
 
       BoundedWindow window = ((WindowNamespace) timer.getNamespace()).getWindow();
       Instant targetTime = earliestAllowableCleanupTime(window, fnInfo.getWindowingStrategy());
@@ -436,10 +492,14 @@ public class SimpleParDoFn<InputT, OutputT> implements ParDoFn {
   public void finishBundle() throws Exception {
     if (fnRunner != null) {
       fnRunner.finishBundle();
+      if (sideInputProcessor != null) {
+        sideInputProcessor.handleFinishBundle();
+      }
       doFnInstanceManager.complete(fnInfo);
       fnRunner = null;
       fnInfo = null;
       fnSignature = null;
+      sideInputProcessor = null;
     }
   }
 
@@ -490,7 +550,7 @@ public class SimpleParDoFn<InputT, OutputT> implements ParDoFn {
     }
   }
 
-  private <W extends BoundedWindow> void registerStateCleanup(
+  private void registerStateCleanup(
       WindowingStrategy<?, W> windowingStrategy, Collection<W> windowsToCleanup) {
     Coder<W> windowCoder = windowingStrategy.getWindowFn().windowCoder();
 
