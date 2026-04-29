@@ -117,35 +117,6 @@ task flinkValidatesRunner {
   }
 }
 
-// ValidatesRunner tests for Samza. Runs tests in the integration directory
-// with Samza to validate that the runner behaves as expected.
-task samzaValidatesRunner {
-  dependsOn ":sdks:go:test:goBuild"
-  dependsOn ":sdks:go:container:docker"
-  dependsOn ":sdks:java:container:${project.ext.currentJavaVersion}:docker"
-  dependsOn ":runners:samza:job-server:shadowJar"
-  dependsOn ":sdks:java:testing:expansion-service:buildTestExpansionServiceJar"
-
-  doLast {
-    def pipelineOptions = [  // Pipeline options piped directly to Go SDK flags.
-        "--expansion_jar=test:${project(":sdks:java:testing:expansion-service").buildTestExpansionServiceJar.archivePath}",
-    ]
-    def options = [
-        "--runner samza",
-        "--samza_job_server_jar ${project(":runners:samza:job-server").shadowJar.archivePath}",
-        "--pipeline_opts \"${pipelineOptions.join(' ')}\"",
-        "--prebuild_go_docker_tag ${project(":sdks:go:container").containerImageTags().first()}",
-    ]
-    exec {
-      if (fork_java_home) {
-        environment "JAVA_HOME_JOB_SERVER", fork_java_home
-      }
-      executable "sh"
-      args "-c", "./run_validatesrunner_tests.sh ${options.join(' ')}"
-    }
-  }
-}
-
 // ValidatesRunner tests for Spark. Runs tests in the integration directory
 // with Spark to validate that the runner behaves as expected.
 task sparkValidatesRunner {
