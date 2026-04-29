@@ -77,8 +77,15 @@ from apache_beam.utils import urns
 from apache_beam.utils.timestamp import Duration
 
 if typing.TYPE_CHECKING:
+  from google.protobuf import message  # pylint: disable=ungrouped-imports
 
-  pass
+  from apache_beam.io import iobase
+  from apache_beam.pipeline import Pipeline
+  from apache_beam.runners.pipeline_context import PipelineContext
+  from apache_beam.transforms import create_source
+  from apache_beam.transforms.trigger import AccumulationMode
+  from apache_beam.transforms.trigger import DefaultTrigger
+  from apache_beam.transforms.trigger import TriggerFn
 
 __all__ = [
     'DoFn',

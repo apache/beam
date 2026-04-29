@@ -96,6 +96,7 @@ from apache_beam.transforms.external import BeamJarExpansionService
 from apache_beam.transforms.external import ExternalTransform
 from apache_beam.transforms.external import NamedTupleBasedPayloadBuilder
 from apache_beam.typehints.schemas import JdbcDateType  # pylint: disable=unused-import
+from apache_beam.typehints.schemas import JdbcTimeType  # pylint: disable=unused-import
 from apache_beam.typehints.schemas import LogicalType
 from apache_beam.typehints.schemas import MillisInstant
 from apache_beam.typehints.schemas import typing_to_runner_api

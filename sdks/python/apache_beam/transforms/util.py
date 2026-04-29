@@ -86,7 +86,7 @@ from apache_beam.utils.sharded_key import ShardedKey
 from apache_beam.utils.timestamp import Timestamp
 
 if TYPE_CHECKING:
-  pass
+  from apache_beam.runners.pipeline_context import PipelineContext
 
 _LOGGER = logging.getLogger(__name__)
 
