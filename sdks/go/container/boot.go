@@ -83,13 +83,13 @@ func configureGoogleCloudProfilerEnvVars(ctx context.Context, logger *tools.Logg
 	}
 
 	// Fallback to job_name from metadata
-    if profilerServiceName == "" {
-        if jobName, jobNameExists := metadata["job_name"]; jobNameExists {
-            profilerServiceName = jobName
-        } else {
-            return errors.New("required job_name missing from metadata, profiling will not be enabled without it")
-        }
-    }
+	if profilerServiceName == "" {
+		if jobName, jobNameExists := metadata["job_name"]; jobNameExists {
+			profilerServiceName = jobName
+		} else {
+			return errors.New("required job_name missing from metadata, profiling will not be enabled without it")
+		}
+	}
 
 	jobID, idExists := metadata["job_id"]
 	if !idExists {
