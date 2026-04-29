@@ -29,6 +29,13 @@ import subprocess
 import sys
 import threading
 import time
+from typing import Any
+from typing import BinaryIO
+from typing import DefaultDict
+from typing import Iterable
+from typing import Iterator
+from typing import Mapping
+from typing import Optional
 from typing import TYPE_CHECKING
 from typing import Callable
 from typing import TypeVar

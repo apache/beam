@@ -27,6 +27,13 @@ import itertools
 import logging
 import operator
 from builtins import object
+from typing import Callable
+from typing import Collection
+from typing import Container
+from typing import DefaultDict
+from typing import Iterable
+from typing import Iterator
+from typing import Optional
 from typing import TYPE_CHECKING
 from typing import Any
 from typing import MutableMapping
