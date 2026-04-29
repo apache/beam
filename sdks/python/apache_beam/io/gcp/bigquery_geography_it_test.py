@@ -435,6 +435,7 @@ class BigQueryGeographyIntegrationTests(unittest.TestCase):
       "indicating that jars have not been built")
   def test_geography_storage_write_api(self):
     """Test GEOGRAPHY with Storage Write API method."""
+    self.skip_if_not_dataflow_runner()
     table_name = 'geography_storage_write'
     table_id = '{}.{}'.format(self.dataset_id, table_name)
 
@@ -484,6 +485,14 @@ class BigQueryGeographyIntegrationTests(unittest.TestCase):
               method=WriteToBigQuery.Method.STORAGE_WRITE_API))
 
     hc.assert_that(p, hc.all_of(*pipeline_verifiers))
+
+  def skip_if_not_dataflow_runner(self) -> bool:
+    # skip if dataflow runner is not specified
+    if not self._runner or "dataflowrunner" not in self._runner.lower():
+      self.skipTest(
+          "Streaming with exactly-once route has the requirement "
+          "`beam:requirement:pardo:on_window_expiration:v1`, "
+          "which is currently only supported by the Dataflow runner")
 
   @pytest.mark.it_postcommit
   def test_geography_file_loads_method(self):

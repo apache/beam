@@ -228,17 +228,20 @@ class BigQueryXlangStorageWriteIT(unittest.TestCase):
     hamcrest_assert(p, bq_matcher)
 
   def test_all_types(self):
+    self.skip_if_not_dataflow_runner()
     table_name = "all_types"
     schema = self.ALL_TYPES_SCHEMA
     self.run_storage_write_test(table_name, self.ELEMENTS, schema)
 
   def test_with_at_least_once_semantics(self):
+    self.skip_if_not_dataflow_runner()
     table_name = "with_at_least_once_semantics"
     schema = self.ALL_TYPES_SCHEMA
     self.run_storage_write_test(
         table_name, self.ELEMENTS, schema, use_at_least_once=True)
 
   def test_nested_records_and_lists(self):
+    self.skip_if_not_dataflow_runner()
     table_name = "nested_records_and_lists"
     schema = {
         "fields": [{
@@ -281,6 +284,7 @@ class BigQueryXlangStorageWriteIT(unittest.TestCase):
     self.run_storage_write_test(table_name, items, schema)
 
   def test_write_with_beam_rows(self):
+    self.skip_if_not_dataflow_runner()
     table = 'write_with_beam_rows'
     table_id = '{}:{}.{}'.format(self.project, self.dataset_id, table)
 
@@ -308,6 +312,7 @@ class BigQueryXlangStorageWriteIT(unittest.TestCase):
     hamcrest_assert(p, bq_matcher)
 
   def test_write_with_clustering(self):
+    self.skip_if_not_dataflow_runner()
     table = 'write_with_clustering'
     table_id = '{}:{}.{}'.format(self.project, self.dataset_id, table)
 
@@ -338,6 +343,7 @@ class BigQueryXlangStorageWriteIT(unittest.TestCase):
     hamcrest_assert(p, bq_matcher)
 
   def test_write_with_beam_rows_cdc(self):
+    self.skip_if_not_dataflow_runner()
     table = 'write_with_beam_rows_cdc'
     table_id = '{}:{}.{}'.format(self.project, self.dataset_id, table)
 
@@ -378,6 +384,7 @@ class BigQueryXlangStorageWriteIT(unittest.TestCase):
     hamcrest_assert(p, bq_matcher)
 
   def test_write_with_dicts_cdc(self):
+    self.skip_if_not_dataflow_runner()
     table = 'write_with_dicts_cdc'
     table_id = '{}:{}.{}'.format(self.project, self.dataset_id, table)
 
@@ -460,6 +467,7 @@ class BigQueryXlangStorageWriteIT(unittest.TestCase):
     hamcrest_assert(p, bq_matcher)
 
   def test_write_to_dynamic_destinations(self):
+    self.skip_if_not_dataflow_runner()
     base_table_spec = '{}.dynamic_dest_'.format(self.dataset_id)
     spec_with_project = '{}:{}'.format(self.project, base_table_spec)
     tables = [base_table_spec + str(record['int']) for record in self.ELEMENTS]
@@ -484,6 +492,7 @@ class BigQueryXlangStorageWriteIT(unittest.TestCase):
     hamcrest_assert(p, all_of(*bq_matchers))
 
   def test_write_to_dynamic_destinations_with_beam_rows(self):
+    self.skip_if_not_dataflow_runner()
     base_table_spec = '{}.dynamic_dest_'.format(self.dataset_id)
     spec_with_project = '{}:{}'.format(self.project, base_table_spec)
     tables = [base_table_spec + str(record['int']) for record in self.ELEMENTS]
@@ -570,11 +579,13 @@ class BigQueryXlangStorageWriteIT(unittest.TestCase):
     self.run_streaming(table_name=table)
 
   def test_streaming_with_at_least_once(self):
+    self.skip_if_not_dataflow_runner()
     table = 'streaming_with_at_least_once'
     self.run_streaming(table_name=table, use_at_least_once=True)
 
   def test_write_with_big_lake_configuration(self):
     """Test BigQuery Storage Write API with BigLake configuration."""
+    self.skip_if_not_dataflow_runner()
     table = 'write_with_big_lake_config'
     table_id = '{}:{}.{}'.format(self.project, self.dataset_id, table)
 
@@ -609,6 +620,7 @@ class BigQueryXlangStorageWriteIT(unittest.TestCase):
     self.assert_iceberg_tables_created(table, big_lake_config['storageUri'])
 
   def test_write_with_managed_transform(self):
+    self.skip_if_not_dataflow_runner()
     table = 'write_with_managed_transform'
     table_id = '{}:{}.{}'.format(self.project, self.dataset_id, table)
 

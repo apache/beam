@@ -138,7 +138,16 @@ class TestReadFromBigTableIT(unittest.TestCase):
 
     return cells
 
+  def skip_if_not_dataflow_runner(self) -> bool:
+    # skip if dataflow runner is not specified
+    if not self._runner or "dataflowrunner" not in self._runner.lower():
+      self.skipTest(
+          "Streaming with exactly-once route has the requirement "
+          "`beam:requirement:pardo:on_window_expiration:v1`, "
+          "which is currently only supported by the Dataflow runner")
+
   def test_read_xlang(self):
+    self.skip_if_not_dataflow_runner()
     # create rows and retrieve expected cells
     expected_cells = self.add_rows(
         num_rows=5, num_families=3, num_columns_per_family=4)
