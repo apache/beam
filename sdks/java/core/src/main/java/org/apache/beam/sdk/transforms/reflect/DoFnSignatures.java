@@ -189,7 +189,8 @@ public class DoFnSignatures {
           Parameter.TimerFamilyParameter.class,
           Parameter.TimerIdParameter.class,
           Parameter.CausedByDrainParameter.class,
-          Parameter.KeyParameter.class);
+          Parameter.KeyParameter.class,
+          Parameter.SideInputParameter.class);
 
   private static final ImmutableList<Class<? extends Parameter>>
       ALLOWED_ON_TIMER_FAMILY_PARAMETERS =
@@ -206,7 +207,8 @@ public class DoFnSignatures {
               Parameter.TimerFamilyParameter.class,
               Parameter.TimerIdParameter.class,
               Parameter.CausedByDrainParameter.class,
-              Parameter.KeyParameter.class);
+              Parameter.KeyParameter.class,
+              Parameter.SideInputParameter.class);
 
   private static final Collection<Class<? extends Parameter>>
       ALLOWED_ON_WINDOW_EXPIRATION_PARAMETERS =
@@ -217,7 +219,8 @@ public class DoFnSignatures {
               Parameter.TaggedOutputReceiverParameter.class,
               Parameter.StateParameter.class,
               Parameter.TimestampParameter.class,
-              Parameter.KeyParameter.class);
+              Parameter.KeyParameter.class,
+              Parameter.SideInputParameter.class);
 
   private static final Collection<Class<? extends Parameter>>
       ALLOWED_GET_INITIAL_RESTRICTION_PARAMETERS =

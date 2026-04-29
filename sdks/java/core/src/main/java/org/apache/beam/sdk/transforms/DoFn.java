@@ -355,6 +355,14 @@ public abstract class DoFn<InputT extends @Nullable Object, OutputT extends @Nul
     /** Returns the time domain of the current timer. */
     public abstract TimeDomain timeDomain();
 
+    /**
+     * Returns the value of the side input.
+     *
+     * @throws IllegalArgumentException if this is not a side input
+     */
+    @Pure
+    public abstract <T> T sideInput(PCollectionView<T> view);
+
     @Pure
     public abstract org.apache.beam.sdk.values.CausedByDrain causedByDrain();
   }
@@ -364,6 +372,14 @@ public abstract class DoFn<InputT extends @Nullable Object, OutputT extends @Nul
     /** Returns the window in which the window expiration is firing. */
     @Pure
     public abstract BoundedWindow window();
+
+    /**
+     * Returns the value of the side input.
+     *
+     * @throws IllegalArgumentException if this is not a side input
+     */
+    @Pure
+    public abstract <T> T sideInput(PCollectionView<T> view);
   }
 
   /**

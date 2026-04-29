@@ -1091,12 +1091,19 @@ class WatermarkManager<ExecutableT, CollectionT> {
       TimerUpdate timerUpdate,
       ExecutableT executable,
       @Nullable Bundle<?, ? extends CollectionT> unprocessedInputs,
+      Iterable<FiredTimers<ExecutableT>> unprocessedTimers,
       Iterable<? extends Bundle<?, ? extends CollectionT>> outputs,
       Instant earliestHold) {
     synchronized (pendingUpdates) {
       pendingUpdates.offer(
           PendingWatermarkUpdate.create(
-              executable, completed, timerUpdate, unprocessedInputs, outputs, earliestHold));
+              executable,
+              completed,
+              timerUpdate,
+              unprocessedInputs,
+              unprocessedTimers,
+              outputs,
+              earliestHold));
     }
     tryApplyPendingUpdates();
   }
@@ -1146,6 +1153,7 @@ class WatermarkManager<ExecutableT, CollectionT> {
         pending.getTimerUpdate(),
         executable,
         pending.getUnprocessedInputs(),
+        pending.getUnprocessedTimers(),
         pending.getOutputs());
 
     TransformWatermarks transformWms = transformToWatermarks.get(executable);
@@ -1176,6 +1184,7 @@ class WatermarkManager<ExecutableT, CollectionT> {
       TimerUpdate timerUpdate,
       ExecutableT executable,
       @Nullable Bundle<?, ? extends CollectionT> unprocessedInputs,
+      Iterable<FiredTimers<ExecutableT>> unprocessedTimers,
       Iterable<? extends Bundle<?, ? extends CollectionT>> outputs) {
     // Newly pending elements must be added before completed elements are removed, as the two
     // do not share a Mutex within this call and thus can be interleaved with external calls to
@@ -1192,6 +1201,16 @@ class WatermarkManager<ExecutableT, CollectionT> {
       // Add the unprocessed inputs
       completedTransform.addPending(unprocessedInputs);
     }
+
+    // Add pushed back timers first, so that user-set timers can overwrite them if they collide.
+    for (FiredTimers<ExecutableT> firedTimers : unprocessedTimers) {
+      TimerUpdate.TimerUpdateBuilder builder = TimerUpdate.builder(firedTimers.getKey());
+      for (TimerData td : firedTimers.getTimers()) {
+        builder.setTimer(td);
+      }
+      completedTransform.updateTimers(builder.build());
+    }
+
     completedTransform.updateTimers(timerUpdate);
     if (input != null) {
       completedTransform.removePending(input);
@@ -1732,8 +1751,7 @@ class WatermarkManager<ExecutableT, CollectionT> {
 
     private final Collection<TimerData> timers;
 
-    private FiredTimers(
-        ExecutableT executable, StructuralKey<?> key, Collection<TimerData> timers) {
+    public FiredTimers(ExecutableT executable, StructuralKey<?> key, Collection<TimerData> timers) {
       this.executable = executable;
       this.key = key;
       this.timers = timers;
@@ -1790,6 +1808,8 @@ class WatermarkManager<ExecutableT, CollectionT> {
 
     abstract @Nullable Bundle<?, ? extends CollectionT> getUnprocessedInputs();
 
+    abstract Iterable<FiredTimers<ExecutableT>> getUnprocessedTimers();
+
     abstract Iterable<? extends Bundle<?, ? extends CollectionT>> getOutputs();
 
     abstract Instant getEarliestHold();
@@ -1800,10 +1820,17 @@ class WatermarkManager<ExecutableT, CollectionT> {
             @Nullable Bundle<?, ? extends CollectionT> inputBundle,
             TimerUpdate timerUpdate,
             @Nullable Bundle<?, ? extends CollectionT> unprocessedInputs,
+            Iterable<FiredTimers<ExecutableT>> unprocessedTimers,
             Iterable<? extends Bundle<?, ? extends CollectionT>> outputs,
             Instant earliestHold) {
       return new AutoValue_WatermarkManager_PendingWatermarkUpdate<>(
-          executable, inputBundle, timerUpdate, unprocessedInputs, outputs, earliestHold);
+          executable,
+          inputBundle,
+          timerUpdate,
+          unprocessedInputs,
+          unprocessedTimers,
+          outputs,
+          earliestHold);
     }
   }
 }

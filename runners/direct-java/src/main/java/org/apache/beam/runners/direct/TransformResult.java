@@ -64,6 +64,11 @@ interface TransformResult<InputT> {
    */
   Iterable<? extends WindowedValue<InputT>> getUnprocessedElements();
 
+  /**
+   * Returns timers that were delivered to the {@link TransformEvaluator} but were not processed.
+   */
+  Iterable<WatermarkManager.FiredTimers<AppliedPTransform<?, ?, ?>>> getUnprocessedTimers();
+
   /** Returns the logical metric updates. */
   MetricUpdates getLogicalMetricUpdates();
 

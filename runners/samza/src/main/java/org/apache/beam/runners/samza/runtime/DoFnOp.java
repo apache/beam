@@ -274,7 +274,7 @@ public class DoFnOp<InT, FnOutT, OutT> implements Op<InT, OutT, Void> {
     }
 
     this.pushbackFnRunner =
-        SimplePushbackSideInputDoFnRunner.create(fnRunner, sideInputs, sideInputHandler);
+        SimplePushbackSideInputDoFnRunner.create(fnRunner, sideInputs, sideInputHandler, windowingStrategy.getWindowFn().windowCoder());
     this.pushbackValues = new ArrayList<>();
 
     final Iterator<SamzaDoFnInvokerRegistrar> invokerReg =

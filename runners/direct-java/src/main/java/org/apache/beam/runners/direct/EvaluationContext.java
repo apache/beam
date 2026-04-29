@@ -188,6 +188,7 @@ class EvaluationContext {
         result.getTimerUpdate().withCompletedTimers(completedTimers),
         committedResult.getExecutable(),
         committedResult.getUnprocessedInputs().orElse(null),
+        result.getUnprocessedTimers(),
         committedResult.getOutputs(),
         result.getWatermarkHold());
 

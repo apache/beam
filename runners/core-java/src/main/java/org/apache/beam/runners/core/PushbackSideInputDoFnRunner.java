@@ -54,6 +54,26 @@ public interface PushbackSideInputDoFnRunner<InputT, OutputT> {
       TimeDomain timeDomain,
       CausedByDrain causedByDrain);
 
+  /**
+   * Calls the underlying {@link DoFn.OnTimer} method if side inputs are ready.
+   *
+   * @return timers that could not be processed because they require a side input window that is not
+   *     ready.
+   */
+  default <KeyT> Iterable<TimerInternals.TimerData> onTimerInReadyWindows(
+      String timerId,
+      String timerFamilyId,
+      KeyT key,
+      BoundedWindow window,
+      Instant timestamp,
+      Instant outputTimestamp,
+      TimeDomain timeDomain,
+      CausedByDrain causedByDrain) {
+    onTimer(
+        timerId, timerFamilyId, key, window, timestamp, outputTimestamp, timeDomain, causedByDrain);
+    return java.util.Collections.emptyList();
+  }
+
   /** Calls the underlying {@link DoFn.OnWindowExpiration} method. */
   <KeyT> void onWindowExpiration(BoundedWindow window, Instant outputTimestamp, KeyT key);
 

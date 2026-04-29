@@ -42,6 +42,7 @@ public class SimplePushbackSideInputDoFnRunner<InputT, OutputT>
   private final DoFnRunner<InputT, OutputT> underlying;
   private final Collection<PCollectionView<?>> views;
   private final ReadyCheckingSideInputReader sideInputReader;
+  private final org.apache.beam.sdk.coders.Coder<? extends BoundedWindow> windowCoder;
 
   // Initialized in startBundle()
   private @Nullable Set<BoundedWindow> notReadyWindows;
@@ -49,17 +50,20 @@ public class SimplePushbackSideInputDoFnRunner<InputT, OutputT>
   public static <InputT, OutputT> SimplePushbackSideInputDoFnRunner<InputT, OutputT> create(
       DoFnRunner<InputT, OutputT> underlying,
       Collection<PCollectionView<?>> views,
-      ReadyCheckingSideInputReader sideInputReader) {
-    return new SimplePushbackSideInputDoFnRunner<>(underlying, views, sideInputReader);
+      ReadyCheckingSideInputReader sideInputReader,
+      org.apache.beam.sdk.coders.Coder<? extends BoundedWindow> windowCoder) {
+    return new SimplePushbackSideInputDoFnRunner<>(underlying, views, sideInputReader, windowCoder);
   }
 
   private SimplePushbackSideInputDoFnRunner(
       DoFnRunner<InputT, OutputT> underlying,
       Collection<PCollectionView<?>> views,
-      ReadyCheckingSideInputReader sideInputReader) {
+      ReadyCheckingSideInputReader sideInputReader,
+      org.apache.beam.sdk.coders.Coder<? extends BoundedWindow> windowCoder) {
     this.underlying = underlying;
     this.views = views;
     this.sideInputReader = sideInputReader;
+    this.windowCoder = windowCoder;
   }
 
   @Override
@@ -120,6 +124,40 @@ public class SimplePushbackSideInputDoFnRunner<InputT, OutputT>
       CausedByDrain causedByDrain) {
     underlying.onTimer(
         timerId, timerFamilyId, key, window, timestamp, outputTimestamp, timeDomain, causedByDrain);
+  }
+
+  @Override
+  public <KeyT> Iterable<TimerInternals.TimerData> onTimerInReadyWindows(
+      String timerId,
+      String timerFamilyId,
+      KeyT key,
+      BoundedWindow window,
+      Instant timestamp,
+      Instant outputTimestamp,
+      TimeDomain timeDomain,
+      CausedByDrain causedByDrain) {
+    if (isReady(window)) {
+      underlying.onTimer(
+          timerId,
+          timerFamilyId,
+          key,
+          window,
+          timestamp,
+          outputTimestamp,
+          timeDomain,
+          causedByDrain);
+      return java.util.Collections.emptyList();
+    } else {
+      return java.util.Collections.singletonList(
+          TimerInternals.TimerData.of(
+              timerId,
+              timerFamilyId,
+              StateNamespaces.window(windowCoder, window),
+              timestamp,
+              outputTimestamp,
+              timeDomain,
+              causedByDrain));
+    }
   }
 
   @Override

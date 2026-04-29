@@ -159,7 +159,8 @@ public class SimplePushbackSideInputDoFnRunnerTest {
   private SimplePushbackSideInputDoFnRunner<Integer, Integer> createRunner(
       ImmutableList<PCollectionView<?>> views) {
     SimplePushbackSideInputDoFnRunner<Integer, Integer> runner =
-        SimplePushbackSideInputDoFnRunner.create(underlying, views, reader);
+        SimplePushbackSideInputDoFnRunner.create(
+            underlying, views, reader, WINDOWING_STRATEGY.getWindowFn().windowCoder());
     runner.startBundle();
     return runner;
   }
@@ -330,6 +331,43 @@ public class SimplePushbackSideInputDoFnRunnerTest {
                 CausedByDrain.CAUSED_BY_DRAIN)));
   }
 
+  @Test
+  public void testOnTimerPushedBack() {
+    when(reader.isReady(Mockito.eq(singletonView), Mockito.any(BoundedWindow.class)))
+        .thenReturn(false);
+
+    SimplePushbackSideInputDoFnRunner<Integer, Integer> runner =
+        createRunner(ImmutableList.of(singletonView));
+
+    String timerId = "fooTimer";
+    IntervalWindow window = new IntervalWindow(new Instant(4), new Instant(16));
+    Instant timestamp = new Instant(72);
+
+    Iterable<TimerData> pushedBack =
+        runner.onTimerInReadyWindows(
+            timerId,
+            "",
+            null,
+            window,
+            timestamp,
+            timestamp,
+            TimeDomain.EVENT_TIME,
+            CausedByDrain.CAUSED_BY_DRAIN);
+
+    assertThat(
+        pushedBack,
+        contains(
+            TimerData.of(
+                timerId,
+                "",
+                StateNamespaces.window(WINDOWING_STRATEGY.getWindowFn().windowCoder(), window),
+                timestamp,
+                timestamp,
+                TimeDomain.EVENT_TIME,
+                CausedByDrain.CAUSED_BY_DRAIN)));
+    assertThat(underlying.firedTimers, emptyIterable());
+  }
+
   private static class TestDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, OutputT> {
     List<WindowedValue<InputT>> inputElems;
     List<TimerData> firedTimers;
@@ -387,7 +425,8 @@ public class SimplePushbackSideInputDoFnRunnerTest {
       DoFnRunner<KV<String, Integer>, Integer> doFnRunner,
       ImmutableList<PCollectionView<?>> views) {
     SimplePushbackSideInputDoFnRunner<KV<String, Integer>, Integer> runner =
-        SimplePushbackSideInputDoFnRunner.create(doFnRunner, views, reader);
+        SimplePushbackSideInputDoFnRunner.create(
+            doFnRunner, views, reader, WINDOWING_STRATEGY.getWindowFn().windowCoder());
     runner.startBundle();
     return runner;
   }
