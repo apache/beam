@@ -24,6 +24,9 @@ on:
         description: Whether to publish the python artifacts into PyPi. Should be yes unless you've already completed this step.
         required: true
         default: 'no'
+      REPO_TOKEN:
+        description: Github Personal Access Token with repo permissions.
+        required: true
       TAG_RELEASE:
         description: Whether to tag the release on GitHub. Should be yes unless you've already completed this step.
         required: true
@@ -45,6 +48,10 @@ jobs:
       with:
         username: ${{ secrets.DOCKERHUB_USER }}
         password: ${{ secrets.DOCKERHUB_TOKEN }}
+    - name: Install dependencies
+      run: |
+        sudo apt-get update --yes
+        sudo apt-get install -y wget
     - name: Publish to Docker
       env:
         RELEASE: "${{ github.event.inputs.RELEASE }}"
@@ -114,6 +121,8 @@ jobs:
         disable-cache: true
     - name: Install dependencies
       run: |
+        sudo apt-get update --yes
+        sudo apt-get install -y wget
         pip install python-dateutil
         pip install requests
         pip install twine
@@ -133,6 +142,10 @@ jobs:
     steps:
     - name: Checkout
       uses: actions/checkout@v4
+      with:
+        token: ${{ github.event.inputs.REPO_TOKEN }}
+        repository: apache/beam
+        persist-credentials: true
     - name: Set git config
       run: |
         git config user.name $GITHUB_ACTOR
@@ -156,14 +169,14 @@ jobs:
 
         # Tag for Go SDK
         git tag "sdks/$VERSION_TAG" "$RC_TAG"^{} -m "Tagging release" --local-user="${{steps.import_gpg.outputs.name}}"
-        git push https://github.com/apache/beam "sdks/$VERSION_TAG"
+        git push origin "sdks/$VERSION_TAG"
 
         # Tag for repo root.
         git tag "$VERSION_TAG" "$RC_TAG"^{} -m "Tagging release" --local-user="${{steps.import_gpg.outputs.name}}"
-        git push https://github.com/apache/beam "$VERSION_TAG"
+        git push origin "$VERSION_TAG"
 
         git checkout -b "$POST_RELEASE_BRANCH" "$VERSION_TAG"
-        git push https://github.com/apache/beam "$POST_RELEASE_BRANCH"
+        git push origin "$POST_RELEASE_BRANCH"
 
   update_master:
     needs: push_git_tags
@@ -173,6 +186,9 @@ jobs:
     steps:
       - name: Check out code
         uses: actions/checkout@v4
+        with:
+          token: ${{ github.event.inputs.REPO_TOKEN }}
+          ref: master
       - name: Set git config
         run: |
           git config user.name $GITHUB_ACTOR
