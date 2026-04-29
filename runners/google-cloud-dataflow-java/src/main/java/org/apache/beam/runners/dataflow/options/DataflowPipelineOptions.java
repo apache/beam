@@ -185,6 +185,12 @@ public interface DataflowPipelineOptions
 
   void setPipelineUrl(String urlString);
 
+  /** The SHA-256 hash of the staged portable pipeline proto. */
+  @Description("The SHA-256 hash of the staged portable pipeline proto")
+  String getPipelineProtoHash();
+
+  void setPipelineProtoHash(String hash);
+
   @Description("The customized dataflow worker jar")
   String getDataflowWorkerJar();
 
