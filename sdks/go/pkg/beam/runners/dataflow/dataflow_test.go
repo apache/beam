@@ -516,26 +516,6 @@ func getFieldFromOpt(fieldName string, opts *dataflowlib.JobOptions) string {
 	return reflect.ValueOf(opts).Elem().FieldByName(fieldName).String()
 }
 
-func TestGetJobOptions_DiskProvisionedOptions(t *testing.T) {
-	resetGlobals()
-	*stagingLocation = "gs://testStagingLocation"
-	*gcpopts.Project = "testProject"
-	*gcpopts.Region = "testRegion"
-	*diskProvisionedIops = 1000
-	*diskProvisionedThroughputMibps = 100
-
-	opts, err := getJobOptions(context.Background(), false)
-	if err != nil {
-		t.Fatalf("getJobOptions() returned error %q, want %q", err, "nil")
-	}
-	if got, want := opts.DiskProvisionedIops, int64(1000); got != want {
-		t.Errorf("opts.DiskProvisionedIops = %d, want %d", got, want)
-	}
-	if got, want := opts.DiskProvisionedThroughputMibps, int64(100); got != want {
-		t.Errorf("opts.DiskProvisionedThroughputMibps = %d, want %d", got, want)
-	}
-}
-
 func resetGlobals() {
 	*autoscalingAlgorithm = ""
 	*dataflowServiceOptions = ""
@@ -557,6 +537,4 @@ func resetGlobals() {
 	*workerHarnessImage = ""
 	*workerMachineType = ""
 	*machineType = ""
-	*diskProvisionedIops = 0
-	*diskProvisionedThroughputMibps = 0
 }

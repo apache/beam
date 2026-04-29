@@ -2634,8 +2634,8 @@ class FlexTemplateRuntimeEnvironment(_messages.Message):
     ipConfiguration: Configuration for VM IPs.
     kmsKeyName: Name for the Cloud KMS key for the job. Key format is:
       projects//locations//keyRings//cryptoKeys/
-    launcherMachineType: The machine type to use for launching the job. If not
-      set, Dataflow will select a default machine type.
+    launcherMachineType: The machine type to use for launching the job. The
+      default is n1-standard-1.
     machineType: The machine type to use for the job. Defaults to the value
       from the template if not specified.
     maxWorkers: The maximum number of Google Compute Engine instances to be
@@ -3209,7 +3209,6 @@ class Job(_messages.Message):
       attempts to create a job with the same name as an active job that
       already exists, the attempt returns the existing job. The name must
       match the regular expression `[a-z]([-a-z0-9]{0,1022}[a-z0-9])?`
-    pausable: Output only. Indicates whether the job can be paused.
     pipelineDescription: Preliminary field: The format of this data may change
       at any time. A description of the user pipeline and stages through which
       it is executed. Created by Cloud Dataflow service. Only retrieved with
@@ -3499,23 +3498,22 @@ class Job(_messages.Message):
   labels = _messages.MessageField('LabelsValue', 10)
   location = _messages.StringField(11)
   name = _messages.StringField(12)
-  pausable = _messages.BooleanField(13)
-  pipelineDescription = _messages.MessageField('PipelineDescription', 14)
-  projectId = _messages.StringField(15)
-  replaceJobId = _messages.StringField(16)
-  replacedByJobId = _messages.StringField(17)
-  requestedState = _messages.EnumField('RequestedStateValueValuesEnum', 18)
-  runtimeUpdatableParams = _messages.MessageField('RuntimeUpdatableParams', 19)
-  satisfiesPzi = _messages.BooleanField(20)
-  satisfiesPzs = _messages.BooleanField(21)
-  serviceResources = _messages.MessageField('ServiceResources', 22)
-  stageStates = _messages.MessageField('ExecutionStageState', 23, repeated=True)
-  startTime = _messages.StringField(24)
-  steps = _messages.MessageField('Step', 25, repeated=True)
-  stepsLocation = _messages.StringField(26)
-  tempFiles = _messages.StringField(27, repeated=True)
-  transformNameMapping = _messages.MessageField('TransformNameMappingValue', 28)
-  type = _messages.EnumField('TypeValueValuesEnum', 29)
+  pipelineDescription = _messages.MessageField('PipelineDescription', 13)
+  projectId = _messages.StringField(14)
+  replaceJobId = _messages.StringField(15)
+  replacedByJobId = _messages.StringField(16)
+  requestedState = _messages.EnumField('RequestedStateValueValuesEnum', 17)
+  runtimeUpdatableParams = _messages.MessageField('RuntimeUpdatableParams', 18)
+  satisfiesPzi = _messages.BooleanField(19)
+  satisfiesPzs = _messages.BooleanField(20)
+  serviceResources = _messages.MessageField('ServiceResources', 21)
+  stageStates = _messages.MessageField('ExecutionStageState', 22, repeated=True)
+  startTime = _messages.StringField(23)
+  steps = _messages.MessageField('Step', 24, repeated=True)
+  stepsLocation = _messages.StringField(25)
+  tempFiles = _messages.StringField(26, repeated=True)
+  transformNameMapping = _messages.MessageField('TransformNameMappingValue', 27)
+  type = _messages.EnumField('TypeValueValuesEnum', 28)
 
 
 class JobExecutionDetails(_messages.Message):
@@ -5344,14 +5342,8 @@ class RuntimeUpdatableParams(_messages.Message):
   during job creation.
 
   Fields:
-    acceptableBacklogDuration: Optional. Deprecated: Use `latency_tier`
-      instead. The backlog threshold duration in seconds for autoscaling.
-      Value must be non-negative.
-    autoscalingTier: Optional. Deprecated: Use `latency_tier` instead. The
-      backlog threshold tier for autoscaling. Value must be one of "low-
-      latency", "medium-latency", or "high-latency".
-    latencyTier: Optional. The backlog threshold tier for autoscaling. Value
-      must be one of "low-latency", "medium-latency", or "high-latency".
+    acceptableBacklogDuration: Optional. The backlog threshold duration in
+      seconds for autoscaling. Value must be non-negative.
     maxNumWorkers: The maximum number of workers to cap autoscaling at. This
       field is currently only supported for Streaming Engine jobs.
     minNumWorkers: The minimum number of workers to scale down to. This field
@@ -5365,11 +5357,9 @@ class RuntimeUpdatableParams(_messages.Message):
   """
 
   acceptableBacklogDuration = _messages.StringField(1)
-  autoscalingTier = _messages.StringField(2)
-  latencyTier = _messages.StringField(3)
-  maxNumWorkers = _messages.IntegerField(4, variant=_messages.Variant.INT32)
-  minNumWorkers = _messages.IntegerField(5, variant=_messages.Variant.INT32)
-  workerUtilizationHint = _messages.FloatField(6)
+  maxNumWorkers = _messages.IntegerField(2, variant=_messages.Variant.INT32)
+  minNumWorkers = _messages.IntegerField(3, variant=_messages.Variant.INT32)
+  workerUtilizationHint = _messages.FloatField(4)
 
 
 class SDKInfo(_messages.Message):
@@ -7785,9 +7775,6 @@ class WorkerPool(_messages.Message):
     defaultPackageSet: The default package set to install. This allows the
       service to select a default set of packages which are useful to worker
       harnesses written in a particular language.
-    diskProvisionedIops: Optional. IOPS provisioned for the root disk for VMs.
-    diskProvisionedThroughputMibps: Optional. Throughput provisioned for the
-      root disk for VMs.
     diskSizeGb: Size of root disk for VMs, in GB. If zero or unspecified, the
       service will attempt to choose a reasonable default.
     diskSourceImage: Fully qualified source image for disks.
@@ -7951,27 +7938,25 @@ class WorkerPool(_messages.Message):
   autoscalingSettings = _messages.MessageField('AutoscalingSettings', 1)
   dataDisks = _messages.MessageField('Disk', 2, repeated=True)
   defaultPackageSet = _messages.EnumField('DefaultPackageSetValueValuesEnum', 3)
-  diskProvisionedIops = _messages.IntegerField(4)
-  diskProvisionedThroughputMibps = _messages.IntegerField(5)
-  diskSizeGb = _messages.IntegerField(6, variant=_messages.Variant.INT32)
-  diskSourceImage = _messages.StringField(7)
-  diskType = _messages.StringField(8)
-  ipConfiguration = _messages.EnumField('IpConfigurationValueValuesEnum', 9)
-  kind = _messages.StringField(10)
-  machineType = _messages.StringField(11)
-  metadata = _messages.MessageField('MetadataValue', 12)
-  network = _messages.StringField(13)
-  numThreadsPerWorker = _messages.IntegerField(14, variant=_messages.Variant.INT32)
-  numWorkers = _messages.IntegerField(15, variant=_messages.Variant.INT32)
-  onHostMaintenance = _messages.StringField(16)
-  packages = _messages.MessageField('Package', 17, repeated=True)
-  poolArgs = _messages.MessageField('PoolArgsValue', 18)
-  sdkHarnessContainerImages = _messages.MessageField('SdkHarnessContainerImage', 19, repeated=True)
-  subnetwork = _messages.StringField(20)
-  taskrunnerSettings = _messages.MessageField('TaskRunnerSettings', 21)
-  teardownPolicy = _messages.EnumField('TeardownPolicyValueValuesEnum', 22)
-  workerHarnessContainerImage = _messages.StringField(23)
-  zone = _messages.StringField(24)
+  diskSizeGb = _messages.IntegerField(4, variant=_messages.Variant.INT32)
+  diskSourceImage = _messages.StringField(5)
+  diskType = _messages.StringField(6)
+  ipConfiguration = _messages.EnumField('IpConfigurationValueValuesEnum', 7)
+  kind = _messages.StringField(8)
+  machineType = _messages.StringField(9)
+  metadata = _messages.MessageField('MetadataValue', 10)
+  network = _messages.StringField(11)
+  numThreadsPerWorker = _messages.IntegerField(12, variant=_messages.Variant.INT32)
+  numWorkers = _messages.IntegerField(13, variant=_messages.Variant.INT32)
+  onHostMaintenance = _messages.StringField(14)
+  packages = _messages.MessageField('Package', 15, repeated=True)
+  poolArgs = _messages.MessageField('PoolArgsValue', 16)
+  sdkHarnessContainerImages = _messages.MessageField('SdkHarnessContainerImage', 17, repeated=True)
+  subnetwork = _messages.StringField(18)
+  taskrunnerSettings = _messages.MessageField('TaskRunnerSettings', 19)
+  teardownPolicy = _messages.EnumField('TeardownPolicyValueValuesEnum', 20)
+  workerHarnessContainerImage = _messages.StringField(21)
+  zone = _messages.StringField(22)
 
 
 class WorkerSettings(_messages.Message):
