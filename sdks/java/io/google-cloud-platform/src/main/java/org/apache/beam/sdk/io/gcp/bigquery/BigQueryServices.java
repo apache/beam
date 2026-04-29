@@ -270,7 +270,7 @@ public interface BigQueryServices extends Serializable {
     /**
      * Unpin this object. If the object has been closed, this will release any underlying resources.
      */
-    void unpin() throws Exception;
+    void unpin();
   }
 
   /**
