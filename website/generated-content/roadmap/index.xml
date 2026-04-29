@@ -165,7 +165,7 @@ limitations under the License.
 &lt;h1 id="go-sdk-roadmap">Go SDK Roadmap&lt;/h1>
 &lt;p>The Go SDK is &lt;a href="/blog/go-sdk-release/">fully released as of v2.33.0&lt;/a>.&lt;/p>
 &lt;p>The Go SDK the first SDK purely on the &lt;a href="/roadmap/portability/">Beam Portability Framework&lt;/a>
-and can execute pipelines on portable runners, like Flink, Spark, Samza, and Google Cloud Dataflow.&lt;/p>
+and can execute pipelines on portable runners, like Flink, Spark, and Google Cloud Dataflow.&lt;/p>
 &lt;p>Current roadmap:&lt;/p>
 &lt;ul>
 &lt;li>continue building up unbounded pipeline facing features, as described on the &lt;a href="https://cwiki.apache.org/confluence/display/BEAM/Supporting+Streaming+in+the+Go+SDK">Beam Dev Wiki&lt;/a>.&lt;/li>
@@ -469,7 +469,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 -->
 &lt;h1 id="samza-runner-roadmap">Samza Runner Roadmap&lt;/h1>
-&lt;p>&lt;strong>Note&lt;/strong> Samza runner is deprecated and the support is planned to be removed in Beam 3.0 (&lt;a href="https://github.com/apache/beam/issues/35448">Issue&lt;/a>).&lt;/p>
+&lt;p>&lt;strong>Note&lt;/strong> Samza runner is no longer supported since Beam 2.74.0 (&lt;a href="https://github.com/apache/beam/issues/35448">Issue&lt;/a>).&lt;/p>
 &lt;p>For references, here are available resources:&lt;/p>
 &lt;ul>
 &lt;li>&lt;a href="/documentation/runners/samza">Runner documentation&lt;/a>&lt;/li>

@@ -540,7 +540,7 @@ test that will detect similar failures in the future. For example, you can
 implement a new unit test that covers a problematic code branch.&lt;/p>
 &lt;h2 id="inform_community">Inform the community if Beam breaks downstream projects&lt;/h2>
 &lt;p>There are multiple external projects depending on Beam which contain tests that are
-outside of Beam repository. For example, Dataflow, Samza runner, and IBM Streams.&lt;/p>
+outside of Beam repository. For example, Dataflow, Scio, and IBM Streams.&lt;/p>
 &lt;p>When an external project encounters an issue caused by (a PR) in Beam
 and, in consequence, requests for a change in the Beam repository,
 the first thing is to create a GitHub Issue that addresses

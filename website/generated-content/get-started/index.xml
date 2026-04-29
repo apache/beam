@@ -1181,11 +1181,14 @@ limitations under the License.
 &lt;li>&lt;a href="/documentation/runners/direct">Direct Runner&lt;/a>&lt;/li>
 &lt;li>&lt;a href="/documentation/runners/flink">Apache Flink Runner&lt;/a> &lt;img src="/images/logos/runners/flink.png" height="50px" alt="Apache Flink logo">&lt;/li>
 &lt;li>&lt;a href="/documentation/runners/nemo">Apache Nemo Runner&lt;/a>&lt;/li>
-&lt;li>&lt;a href="/documentation/runners/samza">Apache Samza Runner&lt;/a> &lt;img src="/images/logos/runners/samza.png" height="40px" alt="Apache Samza logo">&lt;/li>
 &lt;li>&lt;a href="/documentation/runners/spark">Apache Spark Runner&lt;/a> &lt;img src="/images/logos/runners/spark.png" height="50px" alt="Apache Spark logo">&lt;/li>
 &lt;li>&lt;a href="/documentation/runners/dataflow">Google Cloud Dataflow Runner&lt;/a> &lt;img src="/images/logos/runners/dataflow.png" height="50px" alt="Google Cloud Dataflow logo">&lt;/li>
 &lt;li>&lt;a href="/documentation/runners/jet">Hazelcast Jet Runner&lt;/a> &lt;img src="/images/logos/runners/jet.png" height="40px" alt="Hazelcast Jet logo">&lt;/li>
 &lt;li>&lt;a href="/documentation/runners/twister2">Twister2 Runner&lt;/a> &lt;img src="/images/logos/runners/twister2.png" height="50px" alt="Twister2 logo">&lt;/li>
+&lt;/ul>
+&lt;p>Runners supported in older Beam versions&lt;/p>
+&lt;ul>
+&lt;li>&lt;a href="/documentation/runners/samza">Apache Samza Runner&lt;/a> &lt;img src="/images/logos/runners/samza.png" height="40px" alt="Apache Samza logo"> until Beam 2.74.0.&lt;/li>
 &lt;/ul>
 &lt;p>&lt;strong>Note:&lt;/strong> You can always execute your pipeline locally for testing and debugging purposes.&lt;/p>
 &lt;h2 id="get-started">Get Started&lt;/h2>
@@ -3042,15 +3045,6 @@ You can monitor the running job by visiting the Flink dashboard at http://&amp;l
 -Pdataflow-runner&lt;/code>&lt;/pre>
 &lt;/div>
 &lt;/div>
-&lt;div class='runner-samza snippet'>
-&lt;div class="notebook-skip code-snippet">
-&lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
-&lt;img src="/images/copy-icon.svg"/>
-&lt;/a>
-&lt;pre tabindex="0">&lt;code class="language-samza" data-lang="samza">$ mvn compile exec:java -Dexec.mainClass=org.apache.beam.examples.WordCount \
--Dexec.args=&amp;#34;--inputFile=pom.xml --output=counts --runner=SamzaRunner&amp;#34; -Psamza-runner&lt;/code>&lt;/pre>
-&lt;/div>
-&lt;/div>
 &lt;div class='runner-nemo snippet'>
 &lt;div class="notebook-skip code-snippet">
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
@@ -3124,14 +3118,6 @@ python -m apache_beam.examples.wordcount --input gs://dataflow-samples/shakespea
 --temp_location gs://YOUR_GCS_BUCKET/tmp/&lt;/code>&lt;/pre>
 &lt;/div>
 &lt;/div>
-&lt;div class='runner-samza snippet'>
-&lt;div class="notebook-skip code-snippet">
-&lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
-&lt;img src="/images/copy-icon.svg"/>
-&lt;/a>
-&lt;pre tabindex="0">&lt;code class="language-samza" data-lang="samza">This runner is not yet available for the Python SDK.&lt;/code>&lt;/pre>
-&lt;/div>
-&lt;/div>
 &lt;div class='runner-nemo snippet'>
 &lt;div class="notebook-skip code-snippet">
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
@@ -3200,14 +3186,6 @@ $ wordcount --input gs://dataflow-samples/shakespeare/kinglear.txt \
 --temp_location gs://&amp;lt;your-gcs-bucket&amp;gt;/tmp/ \
 --staging_location gs://&amp;lt;your-gcs-bucket&amp;gt;/binaries/ \
 --worker_harness_container_image=apache/beam_go_sdk:latest&lt;/code>&lt;/pre>
-&lt;/div>
-&lt;/div>
-&lt;div class='runner-samza snippet'>
-&lt;div class="notebook-skip code-snippet">
-&lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
-&lt;img src="/images/copy-icon.svg"/>
-&lt;/a>
-&lt;pre tabindex="0">&lt;code class="language-samza" data-lang="samza">This runner is not yet available for the Go SDK.&lt;/code>&lt;/pre>
 &lt;/div>
 &lt;/div>
 &lt;div class='runner-nemo snippet'>
@@ -3523,15 +3501,6 @@ You can monitor the running job by visiting the Flink dashboard at http://&amp;l
 -Pdataflow-runner&lt;/code>&lt;/pre>
 &lt;/div>
 &lt;/div>
-&lt;div class='runner-samza snippet'>
-&lt;div class="notebook-skip code-snippet">
-&lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
-&lt;img src="/images/copy-icon.svg"/>
-&lt;/a>
-&lt;pre tabindex="0">&lt;code class="language-samza" data-lang="samza">$ mvn compile exec:java -Dexec.mainClass=org.apache.beam.examples.DebuggingWordCount \
--Dexec.args=&amp;#34;--runner=SamzaRunner --output=counts&amp;#34; -Psamza-runner&lt;/code>&lt;/pre>
-&lt;/div>
-&lt;/div>
 &lt;div class='runner-nemo snippet'>
 &lt;div class="notebook-skip code-snippet">
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
@@ -3597,14 +3566,6 @@ python -m apache_beam.examples.wordcount_debugging --input gs://dataflow-samples
 --runner DataflowRunner \
 --project YOUR_GCP_PROJECT \
 --temp_location gs://YOUR_GCS_BUCKET/tmp/&lt;/code>&lt;/pre>
-&lt;/div>
-&lt;/div>
-&lt;div class='runner-samza snippet'>
-&lt;div class="notebook-skip code-snippet">
-&lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
-&lt;img src="/images/copy-icon.svg"/>
-&lt;/a>
-&lt;pre tabindex="0">&lt;code class="language-samza" data-lang="samza">This runner is not yet available for the Python SDK.&lt;/code>&lt;/pre>
 &lt;/div>
 &lt;/div>
 &lt;div class='runner-nemo snippet'>
@@ -3675,14 +3636,6 @@ $ debugging_wordcount --input gs://dataflow-samples/shakespeare/kinglear.txt \
 --temp_location gs://&amp;lt;your-gcs-bucket&amp;gt;/tmp/ \
 --staging_location gs://&amp;lt;your-gcs-bucket&amp;gt;/binaries/ \
 --worker_harness_container_image=apache-docker-beam-snapshots-docker.bintray.io/beam/go:20180515&lt;/code>&lt;/pre>
-&lt;/div>
-&lt;/div>
-&lt;div class='runner-samza snippet'>
-&lt;div class="notebook-skip code-snippet">
-&lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
-&lt;img src="/images/copy-icon.svg"/>
-&lt;/a>
-&lt;pre tabindex="0">&lt;code class="language-samza" data-lang="samza">This runner is not yet available for the Go SDK.&lt;/code>&lt;/pre>
 &lt;/div>
 &lt;/div>
 &lt;div class='runner-nemo snippet'>
@@ -3984,15 +3937,6 @@ You can monitor the running job by visiting the Flink dashboard at http://&amp;l
 -Pdataflow-runner&lt;/code>&lt;/pre>
 &lt;/div>
 &lt;/div>
-&lt;div class='runner-samza snippet'>
-&lt;div class="notebook-skip code-snippet">
-&lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
-&lt;img src="/images/copy-icon.svg"/>
-&lt;/a>
-&lt;pre tabindex="0">&lt;code class="language-samza" data-lang="samza">$ mvn compile exec:java -Dexec.mainClass=org.apache.beam.examples.WindowedWordCount \
--Dexec.args=&amp;#34;--runner=SamzaRunner --inputFile=pom.xml --output=counts&amp;#34; -Psamza-runner&lt;/code>&lt;/pre>
-&lt;/div>
-&lt;/div>
 &lt;div class='runner-nemo snippet'>
 &lt;div class="notebook-skip code-snippet">
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
@@ -4063,14 +4007,6 @@ python -m apache_beam.examples.windowed_wordcount --input YOUR_INPUT_FILE \
 --temp_location gs://YOUR_GCS_BUCKET/tmp/&lt;/code>&lt;/pre>
 &lt;/div>
 &lt;/div>
-&lt;div class='runner-samza snippet'>
-&lt;div class="notebook-skip code-snippet">
-&lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
-&lt;img src="/images/copy-icon.svg"/>
-&lt;/a>
-&lt;pre tabindex="0">&lt;code class="language-samza" data-lang="samza">This runner is not yet available for the Python SDK.&lt;/code>&lt;/pre>
-&lt;/div>
-&lt;/div>
 &lt;div class='runner-nemo snippet'>
 &lt;div class="notebook-skip code-snippet">
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
@@ -4138,14 +4074,6 @@ $ windowed_wordcount --input gs://dataflow-samples/shakespeare/kinglear.txt \
 --temp_location gs://&amp;lt;your-gcs-bucket&amp;gt;/tmp/ \
 --staging_location gs://&amp;lt;your-gcs-bucket&amp;gt;/binaries/ \
 --worker_harness_container_image=apache-docker-beam-snapshots-docker.bintray.io/beam/go:20180515&lt;/code>&lt;/pre>
-&lt;/div>
-&lt;/div>
-&lt;div class='runner-samza snippet'>
-&lt;div class="notebook-skip code-snippet">
-&lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
-&lt;img src="/images/copy-icon.svg"/>
-&lt;/a>
-&lt;pre tabindex="0">&lt;code class="language-samza" data-lang="samza">This runner is not yet available for the Go SDK.&lt;/code>&lt;/pre>
 &lt;/div>
 &lt;/div>
 &lt;div class='runner-nemo snippet'>
@@ -4485,14 +4413,6 @@ python -m apache_beam.examples.streaming_wordcount \
 --input_topic &amp;#34;projects/YOUR_PUBSUB_PROJECT_NAME/topics/YOUR_INPUT_TOPIC&amp;#34; \
 --output_topic &amp;#34;projects/YOUR_PUBSUB_PROJECT_NAME/topics/YOUR_OUTPUT_TOPIC&amp;#34; \
 --streaming&lt;/code>&lt;/pre>
-&lt;/div>
-&lt;/div>
-&lt;div class='runner-samza snippet'>
-&lt;div class="notebook-skip code-snippet">
-&lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
-&lt;img src="/images/copy-icon.svg"/>
-&lt;/a>
-&lt;pre tabindex="0">&lt;code class="language-samza" data-lang="samza">This runner is not yet available for the Python SDK.&lt;/code>&lt;/pre>
 &lt;/div>
 &lt;/div>
 &lt;div class='runner-nemo snippet'>
@@ -5781,7 +5701,6 @@ the pipeline on an external cluster.)&lt;/li>
 &lt;li>&lt;a href="/documentation/runners/flink">FlinkRunner&lt;/a>&lt;/li>
 &lt;li>&lt;a href="/documentation/runners/spark">SparkRunner&lt;/a>&lt;/li>
 &lt;li>&lt;a href="/documentation/runners/dataflow">DataflowRunner&lt;/a>&lt;/li>
-&lt;li>&lt;a href="/documentation/runners/samza">SamzaRunner&lt;/a>&lt;/li>
 &lt;li>&lt;a href="/documentation/runners/nemo">NemoRunner&lt;/a>&lt;/li>
 &lt;li>&lt;a href="/documentation/runners/jet">JetRunner&lt;/a>&lt;/li>
 &lt;/ul>
@@ -5842,15 +5761,6 @@ the pipeline on an external cluster.)&lt;/li>
 --gcpTempLocation=gs://&amp;lt;your-gcs-bucket&amp;gt;/tmp \
 --inputFile=gs://apache-beam-samples/shakespeare/* --output=gs://&amp;lt;your-gcs-bucket&amp;gt;/counts&amp;#34; \
 -Pdataflow-runner&lt;/code>&lt;/pre>
-&lt;/div>
-&lt;/div>
-&lt;div class='runner-samza snippet'>
-&lt;div class="notebook-skip code-snippet">
-&lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
-&lt;img src="/images/copy-icon.svg"/>
-&lt;/a>
-&lt;pre tabindex="0">&lt;code class="language-samza" data-lang="samza">mvn compile exec:java -Dexec.mainClass=org.apache.beam.examples.WordCount \
--Dexec.args=&amp;#34;--inputFile=sample.txt --output=/tmp/counts --runner=SamzaRunner&amp;#34; -Psamza-runner&lt;/code>&lt;/pre>
 &lt;/div>
 &lt;/div>
 &lt;div class='runner-nemo snippet'>
@@ -5925,15 +5835,6 @@ java -cp target/word-count-beam-bundled-0.1.jar org.apache.beam.examples.WordCou
 -P dataflow-runner&lt;/code>&lt;/pre>
 &lt;/div>
 &lt;/div>
-&lt;div class='runner-samza snippet'>
-&lt;div class="notebook-skip code-snippet">
-&lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
-&lt;img src="/images/copy-icon.svg"/>
-&lt;/a>
-&lt;pre tabindex="0">&lt;code class="language-samza" data-lang="samza">mvn compile exec:java -D exec.mainClass=org.apache.beam.examples.WordCount `
--D exec.args=&amp;#34;--inputFile=sample.txt --output=/tmp/counts --runner=SamzaRunner&amp;#34; -P samza-runner&lt;/code>&lt;/pre>
-&lt;/div>
-&lt;/div>
 &lt;div class='runner-nemo snippet'>
 &lt;div class="notebook-skip code-snippet">
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
@@ -6001,14 +5902,6 @@ java -cp target/word-count-beam-bundled-0.1.jar org.apache.beam.examples.WordCou
 --output=gs://&amp;lt;your-gcs-bucket&amp;gt;/counts --runner=DataflowRunner&amp;#34; -Pdataflow-runner&lt;/code>&lt;/pre>
 &lt;/div>
 &lt;/div>
-&lt;div class='runner-samza snippet'>
-&lt;div class="notebook-skip code-snippet">
-&lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
-&lt;img src="/images/copy-icon.svg"/>
-&lt;/a>
-&lt;pre tabindex="0">&lt;code class="language-samza" data-lang="samza">TODO: document Samza on Gradle: https://github.com/apache/beam/issues/21500&lt;/code>&lt;/pre>
-&lt;/div>
-&lt;/div>
 &lt;div class='runner-nemo snippet'>
 &lt;div class="notebook-skip code-snippet">
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
@@ -6069,14 +5962,6 @@ java -cp target/word-count-beam-bundled-0.1.jar org.apache.beam.examples.WordCou
 &lt;pre tabindex="0">&lt;code class="language-dataflow" data-lang="dataflow">.\gradlew clean execute -DmainClass=org.apache.beam.examples.WordCount \
 --args=&amp;#34;--project=&amp;lt;your-gcp-project&amp;gt; --inputFile=gs://apache-beam-samples/shakespeare/* \
 --output=gs://&amp;lt;your-gcs-bucket&amp;gt;/counts --runner=DataflowRunner&amp;#34; -Pdataflow-runner&lt;/code>&lt;/pre>
-&lt;/div>
-&lt;/div>
-&lt;div class='runner-samza snippet'>
-&lt;div class="notebook-skip code-snippet">
-&lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
-&lt;img src="/images/copy-icon.svg"/>
-&lt;/a>
-&lt;pre tabindex="0">&lt;code class="language-samza" data-lang="samza">TODO: document Samza on Gradle: https://github.com/apache/beam/issues/21500&lt;/code>&lt;/pre>
 &lt;/div>
 &lt;/div>
 &lt;div class='runner-nemo snippet'>
@@ -6147,15 +6032,6 @@ by the runner, giving it the flexibility to do efficient, distributed execution.
 &lt;/code>&lt;/pre>
 &lt;/div>
 &lt;/div>
-&lt;div class='runner-samza snippet'>
-&lt;div class="notebook-skip code-snippet">
-&lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
-&lt;img src="/images/copy-icon.svg"/>
-&lt;/a>
-&lt;pre tabindex="0">&lt;code class="language-samza" data-lang="samza">ls /tmp/counts*
-&lt;/code>&lt;/pre>
-&lt;/div>
-&lt;/div>
 &lt;div class='runner-nemo snippet'>
 &lt;div class="notebook-skip code-snippet">
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
@@ -6219,15 +6095,6 @@ word.&lt;/li>
 &lt;img src="/images/copy-icon.svg"/>
 &lt;/a>
 &lt;pre tabindex="0">&lt;code class="language-dataflow" data-lang="dataflow">gsutil cat gs://&amp;lt;your-gcs-bucket&amp;gt;/counts*
-&lt;/code>&lt;/pre>
-&lt;/div>
-&lt;/div>
-&lt;div class='runner-samza snippet'>
-&lt;div class="notebook-skip code-snippet">
-&lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
-&lt;img src="/images/copy-icon.svg"/>
-&lt;/a>
-&lt;pre tabindex="0">&lt;code class="language-samza" data-lang="samza">more /tmp/counts*
 &lt;/code>&lt;/pre>
 &lt;/div>
 &lt;/div>
