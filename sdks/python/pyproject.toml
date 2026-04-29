@@ -26,7 +26,7 @@ requires = [
     # https://github.com/apache/beam/issues/37854
     "grpcio-tools==1.62.1; python_version <= '3.12'",
     "grpcio-tools==1.71.0; python_version >= '3.13'",
-    "mypy-protobuf==3.5.0",
+    "mypy-protobuf==5.1.0",
     # Avoid https://github.com/pypa/virtualenv/issues/2006
     "distlib==0.3.9",
     # Numpy headers
