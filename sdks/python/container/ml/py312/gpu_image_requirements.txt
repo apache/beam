@@ -246,7 +246,7 @@ pyzmq==27.1.0
 ray==2.54.0
 referencing==0.37.0
 regex==2026.2.28
-requests==2.32.5
+requests==2.33.0
 requests-mock==1.12.1
 rich==14.3.3
 rich-toolkit==0.19.7

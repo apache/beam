@@ -183,7 +183,7 @@ pytz==2026.1.post1
 PyYAML==6.0.3
 referencing==0.37.0
 regex==2026.3.32
-requests==2.33.1
+requests==2.33.0
 requests-mock==1.12.1
 rich==14.3.3
 rpds-py==0.30.0
