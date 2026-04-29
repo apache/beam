@@ -48,6 +48,10 @@ code_review:
     # Type boolean, default: true.
     code_review: true
 
+    # Enables agent functionality on draft pull requests.
+    # Type: boolean, default: true.
+    include_drafts: false
+
 # List of glob patterns to ignore (files and directories).
 # Type: array of string, default: [].
 ignore_patterns: []
