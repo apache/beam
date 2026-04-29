@@ -67,7 +67,7 @@ jobs:
         # Run modes not covered by PreCommit_Python_PVR_Flink (i.e. other than 'LOOPBACK')
         environment_type: ['DOCKER']
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - name: Setup repository
         uses: ./.github/actions/setup-action
         with:
