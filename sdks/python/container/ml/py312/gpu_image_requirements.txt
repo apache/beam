@@ -299,7 +299,7 @@ urllib3==2.6.3
 uvicorn==0.41.0
 uvloop==0.22.1
 virtualenv-clone==0.5.7
-vllm==0.10.1.1
+vllm==0.20.0
 watchfiles==1.1.1
 websockets==16.0
 Werkzeug==3.1.6
