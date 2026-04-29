@@ -410,10 +410,6 @@ capability-matrix:
               l1: "No"
               l2: not implemented
               l3:
-            - class: samza
-              l1: "Partially"
-              l2: non-merging windows
-              l3: "States are backed up by either rocksDb KV store or in-memory hash map, and persist using changelog."
             - class: nemo
               l1: "No"
               l2: not implemented
@@ -466,10 +462,6 @@ capability-matrix:
               l1:
               l2:
               l3: ""
-            - class: samza
-              l1:
-              l2:
-              l3: ""
             - class: nemo
               l1:
               l2:
@@ -510,10 +502,6 @@ capability-matrix:
               l2:
               l3: ""
             - class: spark-dataset
-              l1:
-              l2:
-              l3: ""
-            - class: samza
               l1:
               l2:
               l3: ""
@@ -560,10 +548,6 @@ capability-matrix:
               l1:
               l2:
               l3: ""
-            - class: samza
-              l1:
-              l2:
-              l3: ""
             - class: nemo
               l1:
               l2:
@@ -607,10 +591,6 @@ capability-matrix:
               l1:
               l2:
               l3: ""
-            - class: samza
-              l1:
-              l2:
-              l3: ""
             - class: nemo
               l1:
               l2:
@@ -651,10 +631,6 @@ capability-matrix:
               l2:
               l3: ""
             - class: spark-dataset
-              l1:
-              l2:
-              l3: ""
-            - class: samza
               l1:
               l2:
               l3: ""
@@ -710,10 +686,6 @@ capability-matrix:
               l1:
               l2:
               l3: ""
-            - class: samza
-              l1:
-              l2:
-              l3: ""
             - class: nemo
               l1:
               l2:
@@ -754,10 +726,6 @@ capability-matrix:
               l2:
               l3: ""
             - class: spark-dataset
-              l1:
-              l2:
-              l3: ""
-            - class: samza
               l1:
               l2:
               l3: ""
@@ -804,10 +772,6 @@ capability-matrix:
               l1:
               l2:
               l3: ""
-            - class: samza
-              l1:
-              l2:
-              l3: ""
             - class: nemo
               l1:
               l2:
@@ -851,10 +815,6 @@ capability-matrix:
               l1:
               l2:
               l3: ""
-            - class: samza
-              l1:
-              l2:
-              l3: ""
             - class: nemo
               l1:
               l2:
@@ -895,10 +855,6 @@ capability-matrix:
               l2:
               l3: ""
             - class: spark-dataset
-              l1:
-              l2:
-              l3: ""
-            - class: samza
               l1:
               l2:
               l3: ""
@@ -954,10 +910,6 @@ capability-matrix:
               l1: "Partially"
               l2: fully supported in batch mode
               l3: ""
-            - class: samza
-              l1: "Yes"
-              l2: supported
-              l3: ""
             - class: nemo
               l1: "Yes"
               l2: supported
@@ -992,10 +944,6 @@ capability-matrix:
             - class: spark-dataset
               l1: "Partially"
               l2: fully supported in batch mode
-              l3: ""
-            - class: samza
-              l1: "Yes"
-              l2: supported
               l3: ""
             - class: nemo
               l1: "Yes"
@@ -1032,10 +980,6 @@ capability-matrix:
               l1: "Partially"
               l2: fully supported in batch mode
               l3: ""
-            - class: samza
-              l1: "Yes"
-              l2: supported
-              l3: ""
             - class: nemo
               l1: "Yes"
               l2: supported
@@ -1070,10 +1014,6 @@ capability-matrix:
             - class: spark-dataset
               l1: "Partially"
               l2: fully supported in batch mode
-              l3: ""
-            - class: samza
-              l1: "Yes"
-              l2: supported
               l3: ""
             - class: nemo
               l1: "Yes"
@@ -1110,10 +1050,6 @@ capability-matrix:
               l1: "Partially"
               l2: fully supported in batch mode
               l3: ""
-            - class: samza
-              l1: "Yes"
-              l2: supported
-              l3: ""
             - class: nemo
               l1: "Yes"
               l2: supported
@@ -1149,10 +1085,6 @@ capability-matrix:
               l1: "Partially"
               l2: fully supported in batch mode
               l3: ""
-            - class: samza
-              l1: "Yes"
-              l2: supported
-              l3: ""
             - class: nemo
               l1: "Yes"
               l2: supported
@@ -1187,10 +1119,6 @@ capability-matrix:
             - class: spark-dataset
               l1: "Partially"
               l2: fully supported in batch mode
-              l3: ""
-            - class: samza
-              l1: "Yes"
-              l2: supported
               l3: ""
             - class: nemo
               l1: "Yes"
@@ -1237,10 +1165,6 @@ capability-matrix:
               l1: "Partially"
               l2: fully supported in batch mode
               l3: ""
-            - class: samza
-              l1: "Yes"
-              l2: fully supported
-              l3: ""
             - class: nemo
               l1: "Yes"
               l2: fully supported
@@ -1276,10 +1200,6 @@ capability-matrix:
             - class: spark-dataset
               l1: "Partially"
               l2: fully supported in batch mode
-              l3: ""
-            - class: samza
-              l1: "Yes"
-              l2: fully supported
               l3: ""
             - class: nemo
               l1: "Yes"
@@ -1317,10 +1237,6 @@ capability-matrix:
               l1: "Partially"
               l2: fully supported in batch mode
               l3:
-            - class: samza
-              l1: "Yes"
-              l2: fully supported
-              l3: ""
             - class: nemo
               l1: "Yes"
               l2: fully supported
@@ -1356,10 +1272,6 @@ capability-matrix:
             - class: spark-dataset
               l1: "Partially"
               l2: fully supported in batch mode
-              l3: ""
-            - class: samza
-              l1: "Yes"
-              l2: fully supported
               l3: ""
             - class: nemo
               l1: "Yes"
@@ -1397,10 +1309,6 @@ capability-matrix:
               l1: "Partially"
               l2: fully supported in batch mode
               l3: ""
-            - class: samza
-              l1: "Yes"
-              l2: fully supported
-              l3: ""
             - class: nemo
               l1: "Yes"
               l2: fully supported
@@ -1436,10 +1344,6 @@ capability-matrix:
             - class: spark-dataset
               l1: "No"
               l2: no streaming support in the runner
-              l3: ""
-            - class: samza
-              l1: "Yes"
-              l2: fully supported
               l3: ""
             - class: nemo
               l1: "Yes"
@@ -1477,10 +1381,6 @@ capability-matrix:
               l1: "No"
               l2: not implemented
               l3: ""
-            - class: samza
-              l1: "Partially"
-              l2: non-merging windows
-              l3: The Samza Runner supports timers in non-merging windows.
             - class: nemo
               l1: "No"
               l2: not implemented
@@ -1526,10 +1426,6 @@ capability-matrix:
               l1: "Partially"
               l2: fully supported in batch mode
               l3: ""
-            - class: samza
-              l1: "Yes"
-              l2: fully supported
-              l3: ""
             - class: nemo
               l1: "Yes"
               l2: fully supported
@@ -1565,10 +1461,6 @@ capability-matrix:
             - class: spark-dataset
               l1: "No"
               l2: ""
-              l3: ""
-            - class: samza
-              l1: "Yes"
-              l2: fully supported
               l3: ""
             - class: nemo
               l1: "Yes"
@@ -1615,10 +1507,6 @@ capability-matrix:
               l1:
               l2:
               l3:
-            - class: samza
-              l1:
-              l2:
-              l3:
             - class: nemo
               l1:
               l2:
@@ -1654,10 +1542,6 @@ capability-matrix:
               l1: "No"
               l2:
               l3: not implemented
-            - class: samza
-              l1: "Partially"
-              l2:
-              l3: Samza has a native checkpoint capability.
             - class: nemo
               l1:
               l2:
@@ -1701,10 +1585,6 @@ capability-matrix:
               l1: "Unverified"
               l2:
               l3:
-            - class: samza
-              l1: "Partially"
-              l2:
-              l3: Samza may perform different shuffling algorithms for batch and streaming. Samza guarantees key-ordered delivery in streaming, though not in batch.
             - class: nemo
               l1: "Unverified"
               l2:
