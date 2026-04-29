@@ -55,6 +55,7 @@ class BigQueryGeographyIntegrationTests(unittest.TestCase):
 
   def setUp(self):
     self.test_pipeline = TestPipeline(is_integration_test=True)
+    self.args = self.test_pipeline.get_full_options_as_args()
     self.runner_name = type(self.test_pipeline.runner).__name__
     self.project = self.test_pipeline.get_option('project')
     self._runner = PipelineOptions(self.args).get_all_options()['runner']
