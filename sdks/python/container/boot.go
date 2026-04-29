@@ -183,12 +183,17 @@ func launchSDKProcess() error {
 	if err != nil {
 		logger.Fatalf(ctx, "Failed to convert pipeline options: %v", err)
 	}
+	logger.Printf(ctx, "PipelineOptions=%v", options)
 
 	experiments := getExperiments(options)
+	logger.Printf(ctx, "Experiments=%v", experiments)
+
 	pipNoBuildIsolation = false
 	if slices.Contains(experiments, "pip_no_build_isolation") {
 		pipNoBuildIsolation = true
-		logger.Printf(ctx, "Disabled build isolation when installing packages with pip")
+		logger.Printf(ctx, "Build isolation disabled when installing packages with pip")
+	} else {
+		logger.Printf(ctx, "Build isolation enabled when installing packages with pip")
 	}
 
 	// (2) Retrieve and install the staged packages.
@@ -408,6 +413,10 @@ func installSetupPackages(ctx context.Context, logger *tools.Logger, files []str
 	bufLogger := tools.NewBufferedLogger(logger)
 	bufLogger.Printf(ctx, "Installing setup packages ...")
 
+	if err := logRuntimeDependencies(ctx, bufLogger, "pre-installation"); err != nil {
+		bufLogger.Printf(ctx, "couldn't fetch the runtime python dependencies: %v", err)
+	}
+
 	// Install the Dataflow Python SDK if one was staged. In released
 	// container images, SDK is already installed, but can be overriden
 	// using the --sdk_location pipeline option.
@@ -432,7 +441,7 @@ func installSetupPackages(ctx context.Context, logger *tools.Logger, files []str
 	if err := pipInstallPackage(ctx, logger, files, workDir, workflowFile, false, true, nil); err != nil {
 		return fmt.Errorf("failed to install workflow: %v", err)
 	}
-	if err := logRuntimeDependencies(ctx, bufLogger); err != nil {
+	if err := logRuntimeDependencies(ctx, bufLogger, "post-installation"); err != nil {
 		bufLogger.Printf(ctx, "couldn't fetch the runtime python dependencies: %v", err)
 	}
 	if err := logSubmissionEnvDependencies(ctx, bufLogger, workDir); err != nil {
@@ -485,20 +494,20 @@ func processArtifactsInSetupOnlyMode() {
 
 // logRuntimeDependencies logs the python dependencies
 // installed in the runtime environment.
-func logRuntimeDependencies(ctx context.Context, bufLogger *tools.BufferedLogger) error {
+func logRuntimeDependencies(ctx context.Context, bufLogger *tools.BufferedLogger, phase string) error {
 	pythonVersion, err := expansionx.GetPythonVersion()
 	if err != nil {
 		return err
 	}
-	bufLogger.Printf(ctx, "Using Python version:")
+	bufLogger.Printf(ctx, "Using Python version (%s):", phase)
 	args := []string{"--version"}
 	if err := execx.ExecuteEnvWithIO(nil, os.Stdin, bufLogger, bufLogger, pythonVersion, args...); err != nil {
 		bufLogger.FlushAtError(ctx)
 	} else {
 		bufLogger.FlushAtDebug(ctx)
 	}
-	bufLogger.Printf(ctx, "Logging runtime dependencies:")
-	args = []string{"-m", "pip", "freeze"}
+	bufLogger.Printf(ctx, "Logging runtime dependencies (%s):", phase)
+	args = []string{"-m", "pip", "freeze", "--all"}
 	if err := execx.ExecuteEnvWithIO(nil, os.Stdin, bufLogger, bufLogger, pythonVersion, args...); err != nil {
 		bufLogger.FlushAtError(ctx)
 	} else {
