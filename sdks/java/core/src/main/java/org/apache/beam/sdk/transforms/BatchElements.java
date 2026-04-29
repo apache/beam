@@ -19,11 +19,13 @@ package org.apache.beam.sdk.transforms;
 
 import java.io.Serializable;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Random;
 
+import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.values.PCollection;
 
@@ -327,7 +329,7 @@ public class BatchElements<T> extends PTransform<PCollection<T>, PCollection<Lis
         private int runningBatchSize;
         private int targetBatchSize;
 
-        public GlobalWindowsBatchingDoFn(BatchElements.BatchSizeEstimator estimator) {
+        public GlobalWindowsBatchingDoFn(BatchSizeEstimator estimator) {
             this.estimator = estimator;
         }
 
@@ -371,9 +373,89 @@ public class BatchElements<T> extends PTransform<PCollection<T>, PCollection<Lis
 
     }
 
-    @SuppressWarnings("unchecked")
+    public static class WindowAwareBatchingDoFn<T> extends DoFn<T, List<T>> {
+        private final BatchSizeEstimator estimator;
+        private Map<BoundedWindow, SizedBatch<T>> batches;
+        private int targetBatchSize;
+
+        private static final int MAX_LIVE_WINDOWS = 10;
+
+        private static class SizedBatch<T> {
+            List<T> elements = new ArrayList<>();
+            int size = 0;
+        }
+
+        private WindowAwareBatchingDoFn(BatchSizeEstimator estimator) {
+            this.estimator = estimator;
+        }
+
+        @StartBundle
+        public void startBundle() {
+            batches = new HashMap<>();
+            targetBatchSize = estimator.nextBatchSize();
+            estimator.ignoreNextTiming();
+        }
+
+        @ProcessElement
+        public void processElement(
+                @Element T element,
+                BoundedWindow window,
+                OutputReceiver<List<T>> receiver) {
+
+            // get or create batch for this window
+            SizedBatch<T> batch = batches.computeIfAbsent(window, w -> new SizedBatch<>());
+
+            int elementSize = 1;
+
+            // emit if this window's batch is full
+            if (batch.size + elementSize > targetBatchSize) {
+                try (BatchSizeEstimator.Stopwatch sw = estimator.recordTime(batch.size)) {
+                    receiver.output(batch.elements);
+                }
+                batches.remove(window);
+                targetBatchSize = estimator.nextBatchSize();
+                // create fresh batch for this window after emit
+                batch = batches.computeIfAbsent(window, w -> new SizedBatch<>());
+            }
+
+            batch.elements.add(element);
+            batch.size += elementSize;
+
+            // evict largest window if too many live windows
+            if (batches.size() > MAX_LIVE_WINDOWS) {
+                Map.Entry<BoundedWindow, SizedBatch<T>> largest = batches.entrySet()
+                        .stream()
+                        .max(Comparator.comparingInt(e -> e.getValue().size))
+                        .get();
+
+                try (BatchSizeEstimator.Stopwatch sw = estimator.recordTime(largest.getValue().size)) {
+                    receiver.output(largest.getValue().elements);
+                }
+                batches.remove(largest.getKey());
+                targetBatchSize = estimator.nextBatchSize();
+            }
+        }
+
+        @FinishBundle
+        public void finishBundle(FinishBundleContext context) {
+            for (Map.Entry<BoundedWindow, SizedBatch<T>> entry : batches.entrySet()) {
+                BoundedWindow window = entry.getKey();
+                SizedBatch<T> batch = entry.getValue();
+                if (!batch.elements.isEmpty()) {
+                    try (BatchSizeEstimator.Stopwatch sw = estimator.recordTime(batch.size)) {
+                        context.output(
+                                batch.elements,
+                                window.maxTimestamp(),
+                                window);
+                    }
+                }
+            }
+            batches = null;
+        }
+    }
+
     @Override
     public PCollection<List<T>> expand(PCollection<T> input) {
-       return input.apply(ParDo.of(new GlobalWindowsBatchingDoFn(estimator)));
+        return input.apply(ParDo.of(new GlobalWindowsBatchingDoFn<>(estimator)));
     }
 }
