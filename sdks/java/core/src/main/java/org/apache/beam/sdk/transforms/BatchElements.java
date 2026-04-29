@@ -17,48 +17,140 @@
  */
 package org.apache.beam.sdk.transforms;
 
+import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Random;
 
+import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.values.PCollection;
 
+@SuppressWarnings({ "rawtypes" })
 public class BatchElements<T> extends PTransform<PCollection<T>, PCollection<List<T>>> {
 
-    public class BatchConfig {
-        private int minBatchSize;
-        private int maxBatchSize;
-        private double targetBatchDurationSecs;
-        private double targetBatchDurationSecsIncludingFixedCost;
-        private double targetBatchOverhead;
-        private double variance;
+    private final BatchSizeEstimator estimator;
 
-        // add validations to configinput
-        public BatchConfig(
-                int minBatchSize,
-                int maxBatchSize,
-                double targetBatchDurationSecs,
-                double targetBatchDurationSecsIncludingFixedCost,
-                double targetBatchOverhead,
-                double variance) {
-            this.minBatchSize = minBatchSize;
-            this.maxBatchSize = maxBatchSize;
-            this.targetBatchDurationSecs = targetBatchDurationSecs;
-            this.targetBatchDurationSecsIncludingFixedCost = targetBatchDurationSecsIncludingFixedCost;
-            this.targetBatchOverhead = targetBatchOverhead;
-            this.variance = variance;
+    private BatchElements(BatchConfig config) {
+        this.estimator = new BatchSizeEstimator(config);
+    }
+
+    public BatchElements withConfig(BatchConfig config) {
+        return new BatchElements<>(config);
+    }
+
+    public static final class BatchConfig implements Serializable {
+        final int minBatchSize;
+        final int maxBatchSize;
+        final double targetBatchOverhead;
+        final double targetBatchDurationSecs;
+        final double targetBatchDurationSecsIncludingFixedCost;
+        final double variance;
+
+        private BatchConfig(Builder builder) {
+            this.minBatchSize = builder.minBatchSize;
+            this.maxBatchSize = builder.maxBatchSize;
+            this.targetBatchOverhead = builder.targetBatchOverhead;
+            this.targetBatchDurationSecs = builder.targetBatchDurationSecs;
+            this.targetBatchDurationSecsIncludingFixedCost = builder.targetBatchDurationSecsIncludingFixedCost;
+            this.variance = builder.variance;
+        }
+
+        public static BatchConfig defaults() {
+            return BatchConfig.builder()
+                    .withMinBatchSize(1)
+                    .withMaxBatchSize(10000)
+                    .withTargetBatchOverhead(0.05)
+                    .withTargetBatchDurationSecs(10.0)
+                    .withVariance(0.25)
+                    .build();
+        }
+
+        public static Builder builder() {
+            return new Builder();
+        }
+
+        public static final class Builder {
+            private int minBatchSize = 1;
+            private int maxBatchSize = 10_000;
+            private double targetBatchOverhead = 0.05;
+            private double targetBatchDurationSecs = 10.0;
+            private double targetBatchDurationSecsIncludingFixedCost = -1; // -1 = unset, mirrors Python's None
+            private double variance = 0.25;
+
+            private Builder() {
+            }
+
+            public Builder withMinBatchSize(int minBatchSize) {
+                this.minBatchSize = minBatchSize;
+                return this;
+            }
+
+            public Builder withMaxBatchSize(int maxBatchSize) {
+                this.maxBatchSize = maxBatchSize;
+                return this;
+            }
+
+            public Builder withTargetBatchOverhead(double targetBatchOverhead) {
+                this.targetBatchOverhead = targetBatchOverhead;
+                return this;
+            }
+
+            public Builder withTargetBatchDurationSecs(double targetBatchDurationSecs) {
+                this.targetBatchDurationSecs = targetBatchDurationSecs;
+                return this;
+            }
+
+            public Builder withTargetBatchDurationSecsIncludingFixedCost(double value) {
+                this.targetBatchDurationSecsIncludingFixedCost = value;
+                return this;
+            }
+
+            public Builder withVariance(double variance) {
+                this.variance = variance;
+                return this;
+            }
+
+            public BatchConfig build() {
+                validate();
+                return new BatchConfig(this);
+            }
+
+            private void validate() {
+                if (minBatchSize > maxBatchSize) {
+                    throw new IllegalArgumentException(
+                            String.format("Minimum (%d) must not be greater than maximum (%d)",
+                                    minBatchSize, maxBatchSize));
+                }
+                if (!(targetBatchOverhead > 0 && targetBatchOverhead <= 1)) {
+                    throw new IllegalArgumentException(
+                            String.format("targetBatchOverhead (%f) must be between 0 and 1",
+                                    targetBatchOverhead));
+                }
+                if (targetBatchDurationSecs <= 0) {
+                    throw new IllegalArgumentException(
+                            String.format("targetBatchDurationSecs (%f) must be positive",
+                                    targetBatchDurationSecs));
+                }
+                if (targetBatchDurationSecsIncludingFixedCost != -1
+                        && targetBatchDurationSecsIncludingFixedCost <= 0) {
+                    throw new IllegalArgumentException(
+                            String.format("targetBatchDurationSecsIncludingFixedCost (%f) must be positive",
+                                    targetBatchDurationSecsIncludingFixedCost));
+                }
+            }
         }
     }
 
-    public class BatchSizeEstimator {
+    public static class BatchSizeEstimator implements Serializable {
         private List<long[]> data = new ArrayList<>();
         private BatchConfig config;
         private Integer replayLastBatchSize = null; // null = no replay pending
         private Map<Integer, Integer> batchSizeNumSeen; // tracks how many times each batch size seen
-        private int warmupBatchCount = 0; //_ignore_first_n_seen_per_batch_size
+        private int warmupBatchCount = 1; // _ignore_first_n_seen_per_batch_size
         private boolean ignoreNextTiming = false;
+        private Random random;
 
         private static final int MAX_DATA_POINTS = 100;
         private static final int MAX_GROWTH_FACTOR = 2;
@@ -66,6 +158,7 @@ public class BatchElements<T> extends PTransform<PCollection<T>, PCollection<Lis
         public BatchSizeEstimator(BatchConfig config) {
             this.config = config;
             this.data = new ArrayList<>();
+            this.random = new Random();
             this.batchSizeNumSeen = new HashMap<>();
         }
 
@@ -98,7 +191,6 @@ public class BatchElements<T> extends PTransform<PCollection<T>, PCollection<Lis
         }
 
         private void thinData() {
-            Random random = new Random();
             data.remove(random.nextInt(data.size() / 4));
             data.remove(random.nextInt(data.size() / 2));
         }
@@ -229,8 +321,59 @@ public class BatchElements<T> extends PTransform<PCollection<T>, PCollection<Lis
 
     }
 
+    public static class GlobalWindowsBatchingDoFn<T> extends DoFn<T, List<T>> {
+        private final BatchSizeEstimator estimator;
+        private List<T> batch;
+        private int runningBatchSize;
+        private int targetBatchSize;
+
+        public GlobalWindowsBatchingDoFn(BatchElements.BatchSizeEstimator estimator) {
+            this.estimator = estimator;
+        }
+
+        @StartBundle
+        public void startBundle() {
+            batch = new ArrayList<>();
+            runningBatchSize = 0;
+            targetBatchSize = estimator.nextBatchSize();
+            estimator.ignoreNextTiming();
+        }
+
+        @ProcessElement
+        public void processElement(@Element T element, OutputReceiver<List<T>> receiver) {
+            int elementSize = 1;
+            if (runningBatchSize + elementSize > targetBatchSize) {
+                if (runningBatchSize > 0 && !batch.isEmpty()) {
+                    try (BatchElements.BatchSizeEstimator.Stopwatch sw = estimator.recordTime(runningBatchSize)) {
+                        receiver.output(batch); // emit full batch downstream
+                    }
+                }
+                batch = new ArrayList<>();
+                runningBatchSize = 0;
+                targetBatchSize = estimator.nextBatchSize();
+            }
+            batch.add(element);
+            runningBatchSize += elementSize;
+        }
+
+        @FinishBundle
+        public void finishBundle(FinishBundleContext context) {
+            if (!batch.isEmpty()) {
+                try (BatchElements.BatchSizeEstimator.Stopwatch sw = estimator.recordTime(runningBatchSize)) {
+                    context.output( // flush leftover elements
+                            batch,
+                            GlobalWindow.INSTANCE.maxTimestamp(), // end of window timestamp
+                            GlobalWindow.INSTANCE // global window
+                    );
+                }
+            }
+        }
+
+    }
+
+    @SuppressWarnings("unchecked")
     @Override
     public PCollection<List<T>> expand(PCollection<T> input) {
-        throw new UnsupportedOperationException("expand() not yet implemented");
+       return input.apply(ParDo.of(new GlobalWindowsBatchingDoFn(estimator)));
     }
 }
