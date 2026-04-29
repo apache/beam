@@ -23,6 +23,7 @@ from apache_beam.ml.inference.base import PredictionResult
 from apache_beam.ml.inference.base import RunInference
 from apache_beam.ml.inference.pytorch_inference import PytorchModelHandlerKeyedTensor
 from apache_beam.transforms import ptransform
+from apache_beam.transforms.external import ImplicitSchemaPayloadBuilder
 from transformers import BertConfig
 from transformers import BertForMaskedLM
 from transformers import BertTokenizer
