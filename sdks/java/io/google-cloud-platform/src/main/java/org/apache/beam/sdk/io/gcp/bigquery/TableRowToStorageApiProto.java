@@ -1639,9 +1639,9 @@ public class TableRowToStorageApiProto {
                 null,
                 null,
                 collectedExceptions);
-        if (!collectedExceptions.isEmpty()) {
-          return null;
-        }
+      }
+      if (!collectedExceptions.isEmpty()) {
+        return null;
       }
     } else if (schemaInformation.getType() == TableFieldSchema.Type.TIMESTAMP
         && schemaInformation.getTimestampPrecision() == PICOSECOND_PRECISION) {
