@@ -47,16 +47,6 @@ applyJavaNature(
 
 description = "Apache Beam :: Runners :: Spark $spark_version"
 
-// Numeric version comparison (lexicographic string compare was fragile — e.g. "3.10.0" < "3.5.0").
-def isSparkAtLeast = { String minVersion ->
-  def parts = spark_version.tokenize('.-').findAll { it.isInteger() }*.toInteger()
-  def minParts = minVersion.tokenize('.')*.toInteger()
-  for (int i = 0; i < Math.min(parts.size(), minParts.size()); i++) {
-    if (parts[i] != minParts[i]) return parts[i] > minParts[i]
-  }
-  return parts.size() >= minParts.size()
-}
-
 /*
  * We need to rely on manually specifying these evaluationDependsOn to ensure that
  * the following projects are evaluated before we evaluate this project. This is because
