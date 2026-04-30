@@ -20,8 +20,6 @@
 import datetime
 import itertools
 import re
-import threading
-import uuid
 from collections import abc
 from collections.abc import Callable
 from collections.abc import Collection
@@ -241,18 +239,13 @@ class JsFilterDoFn(beam.DoFn):
 
 class JsMapToFieldsDoFn(beam.DoFn):
   def __init__(self, fields, original_fields, input_schema):
-    self.fields = fields
-    self.original_fields = original_fields
-    self.input_schema = input_schema
     self.ctx = None
     self.field_funcs = {}
     self.passthrough_fields = []
 
-  def setup(self):
-    self.ctx = MiniRacer()
     script = []
-    for name, expr in self.fields.items():
-      if isinstance(expr, str) and expr in self.input_schema:
+    for name, expr in fields.items():
+      if isinstance(expr, str) and expr in input_schema:
         self.passthrough_fields.append((name, expr))
         continue
 
@@ -261,9 +254,9 @@ class JsMapToFieldsDoFn(beam.DoFn):
 
       if 'expression' in expr:
         e = expr['expression']
-        code = f"var func_{name} = (__row__) => {{ " + " ".join([
-            f"const {n} = __row__.{n};" for n in self.original_fields if n in e
-        ]) + f" return ({e}); }}"
+        code = f"var func_{name} = (__row__) => {{ " + " ".join(
+            [f"const {n} = __row__.{n};"
+             for n in original_fields if n in e]) + f" return ({e}); }}"
         script.append(code)
         self.field_funcs[name] = f"func_{name}"
       elif 'callable' in expr:
@@ -277,8 +270,12 @@ class JsMapToFieldsDoFn(beam.DoFn):
         script.append(udf_code)
         self.field_funcs[name] = func_name
 
-    if script:
-      self.ctx.eval("\n".join(script))
+    self.script = "\n".join(script) if script else None
+
+  def setup(self):
+    self.ctx = MiniRacer()
+    if self.script:
+      self.ctx.eval(self.script)
 
   def process(self, element):
     row_as_dict = py_value_to_js_dict(element)
@@ -308,7 +305,7 @@ def _get_javascript_udf_code(
 
   if MiniRacer is None:
     raise ValueError(
-        "JavaScript mapping functions require the 'mini-racer' package to be installed."
+        "JavaScript mapping functions require the 'py-mini-racer' package to be installed."
     )
 
   udf_code = None
