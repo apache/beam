@@ -72,9 +72,9 @@
 
 ## Breaking Changes
 
-* Portable Java SDK now encodes SchemaCoders in a portable way ([34672](https://github.com/apache/beam/issues/34672)).
-  - Original custom Java coder encoding can still be obtained using [StreamingOptions.setUpdateCompatibilityVersion("2.73")](https://github.com/apache/beam/blob/2cf0930e7ae1aa389c26ce6639b584877a3e31d9/sdks/java/core/src/main/java/org/apache/beam/sdk/options/StreamingOptions.java#L47) ([34672](https://github.com/apache/beam/issues/34672)).
-  - Fixes ([36496](https://github.com/apache/beam/issues/36496)), ([30276](https://github.com/apache/beam/issues/30276)), ([29245](https://github.com/apache/beam/issues/29245)).
+* Portable Java SDK now encodes SchemaCoders in a portable way ([#34672](https://github.com/apache/beam/issues/34672)).
+  - Original custom Java coder encoding can still be obtained using [StreamingOptions.setUpdateCompatibilityVersion("2.73")](https://github.com/apache/beam/blob/2cf0930e7ae1aa389c26ce6639b584877a3e31d9/sdks/java/core/src/main/java/org/apache/beam/sdk/options/StreamingOptions.java#L47) ([#34672](https://github.com/apache/beam/issues/34672)).
+  - Fixes ([#36496](https://github.com/apache/beam/issues/36496)), ([#30276](https://github.com/apache/beam/issues/30276)), ([#29245](https://github.com/apache/beam/issues/29245)).
 
 ## Deprecations
 
