@@ -1,4 +1,54 @@
-<rss xmlns:atom="http://www.w3.org/2005/Atom" version="2.0"><channel><title>Apache Beam</title><description>Apache Beam is an open source, unified model and set of language-specific SDKs for defining and executing data processing workflows, and also data ingestion and integration flows, supporting Enterprise Integration Patterns (EIPs) and Domain Specific Languages (DSLs). Dataflow pipelines simplify the mechanics of large-scale batch and streaming data processing and can run on a number of runtimes like Apache Flink, Apache Spark, and Google Cloud Dataflow (a cloud service). Beam also brings DSL in different languages, allowing users to easily implement their data integration processes.</description><link>/</link><generator>Hugo -- gohugo.io</generator><item><title>Apache Beam 2.72.0</title><description>
+<rss xmlns:atom="http://www.w3.org/2005/Atom" version="2.0"><channel><title>Apache Beam</title><description>Apache Beam is an open source, unified model and set of language-specific SDKs for defining and executing data processing workflows, and also data ingestion and integration flows, supporting Enterprise Integration Patterns (EIPs) and Domain Specific Languages (DSLs). Dataflow pipelines simplify the mechanics of large-scale batch and streaming data processing and can run on a number of runtimes like Apache Flink, Apache Spark, and Google Cloud Dataflow (a cloud service). Beam also brings DSL in different languages, allowing users to easily implement their data integration processes.</description><link>/</link><generator>Hugo -- gohugo.io</generator><item><title>Apache Beam 2.73.0</title><description>
+&lt;!--
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+http://www.apache.org/licenses/LICENSE-2.0
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+&lt;p>We are happy to present the new 2.73.0 release of Beam.
+This release includes both improvements and new functionality.
+See the &lt;a href="/get-started/downloads/#2730-2026-04-29">download page&lt;/a> for this release.&lt;/p>
+&lt;p>For more information on changes in 2.73.0, check out the &lt;a href="https://github.com/apache/beam/milestone/41">detailed release notes&lt;/a>.&lt;/p>
+&lt;h2 id="highlights">Highlights&lt;/h2>
+&lt;h3 id="ios">I/Os&lt;/h3>
+&lt;ul>
+&lt;li>DebeziumIO (Java): added &lt;code>OffsetRetainer&lt;/code> interface and &lt;code>FileSystemOffsetRetainer&lt;/code> implementation to persist and restore CDC offsets across pipeline restarts, and exposed &lt;code>withStartOffset&lt;/code> / &lt;code>withOffsetRetainer&lt;/code> on &lt;code>DebeziumIO.Read&lt;/code> and the cross-language &lt;code>ReadBuilder&lt;/code> (&lt;a href="https://github.com/apache/beam/issues/28248">#28248&lt;/a>).&lt;/li>
+&lt;/ul>
+&lt;h3 id="new-features--improvements">New Features / Improvements&lt;/h3>
+&lt;ul>
+&lt;li>(Python) Added BigQuery CDC streaming source (&lt;a href="https://github.com/apache/beam/issues/37724">#37724&lt;/a>)&lt;/li>
+&lt;li>Added &lt;code>ADKAgentModelHandler&lt;/code> for running Google Agent Development Kit (ADK) agents (Python) (&lt;a href="https://github.com/apache/beam/issues/37917">#37917&lt;/a>).&lt;/li>
+&lt;li>(Python) Added exception chaining to preserve error context in CloudSQLEnrichmentHandler, processes utilities, and core transforms (&lt;a href="https://github.com/apache/beam/issues/37422">#37422&lt;/a>).&lt;/li>
+&lt;li>(Python) Added a pipeline option &lt;code>--experiments=pip_no_build_isolation&lt;/code> to disable build isolation when installing dependencies in the runtime environment (&lt;a href="https://github.com/apache/beam/issues/37331">#37331&lt;/a>).&lt;/li>
+&lt;li>(Go) Added OrderedListState support to the Go SDK stateful DoFn API (&lt;a href="https://github.com/apache/beam/issues/37629">#37629&lt;/a>).&lt;/li>
+&lt;li>Added support for large pipeline options via a file (Python) (&lt;a href="https://github.com/apache/beam/issues/37370">#37370&lt;/a>).&lt;/li>
+&lt;li>Supported infer schema from dataclass (Python) (&lt;a href="https://github.com/apache/beam/issues/22085">#22085&lt;/a>). Default coder for typehint-ed (or set with_output_type) for non-frozen dataclasses changed to RowCoder. To preserve the old behavior (fast primitive coder), explicitly register the type with FastPrimitiveCoder.&lt;/li>
+&lt;li>Updates minimum Go version to 1.26.1 (&lt;a href="https://github.com/apache/beam/issues/37897">#37897&lt;/a>).&lt;/li>
+&lt;li>(Python) Added image embedding support in &lt;code>apache_beam.ml.rag&lt;/code> package (&lt;a href="https://github.com/apache/beam/issues/37628">#37628&lt;/a>).&lt;/li>
+&lt;li>(Python) Added support for Python version 3.14 (&lt;a href="https://github.com/apache/beam/issues/37247">#37247&lt;/a>).&lt;/li>
+&lt;/ul>
+&lt;h3 id="breaking-changes">Breaking Changes&lt;/h3>
+&lt;ul>
+&lt;li>The Python SDK container&amp;rsquo;s &lt;code>boot.go&lt;/code> now passes pipeline options through a file instead of the &lt;code>PIPELINE_OPTIONS&lt;/code> environment variable. If a user pairs a new Python SDK container with an older SDK version (which does not support the file-based approach), the pipeline options will not be recognized and the pipeline will fail. Users must ensure their SDK and container versions are synchronized (&lt;a href="https://github.com/apache/beam/issues/37370">#37370&lt;/a>).&lt;/li>
+&lt;li>Python DoFn.with_exception_handling now respects user DoFn typehints. This can break update compatibility if coders change. It can also break pipeline compilation if existing typehints are incorrect. To update safely sepcify the pipeline option &lt;code>--update_compatibility_version=2.72.0&lt;/code>. To fix typehints replace any incorrect typehints that were previously ignored (&lt;a href="https://github.com/apache/beam/issues/37590">#37590&lt;/a>)&lt;/li>
+&lt;/ul>
+&lt;h3 id="bugfixes">Bugfixes&lt;/h3>
+&lt;ul>
+&lt;li>Fixed ProcessManager not reaping child processes, causing zombie process accumulation on long-running Flink deployments (Java) (&lt;a href="https://github.com/apache/beam/issues/37930">#37930&lt;/a>).&lt;/li>
+&lt;/ul>
+&lt;h3 id="security-fixes">Security Fixes&lt;/h3>
+&lt;ul>
+&lt;li>Fixed &lt;a href="https://www.cve.org/CVERecord?id=CVE-2023-46604">CVE-2023-46604&lt;/a> (CVSS 10.0) and &lt;a href="https://www.cve.org/CVERecord?id=CVE-2022-41678">CVE-2022-41678&lt;/a> by upgrading ActiveMQ from 5.14.5 to 5.19.2 (Java) (&lt;a href="https://github.com/apache/beam/issues/37943">#37943&lt;/a>).&lt;/li>
+&lt;li>Fixed &lt;a href="https://www.cve.org/CVERecord?id=CVE-2024-1597">CVE-2024-1597&lt;/a>, &lt;a href="https://www.cve.org/CVERecord?id=CVE-2022-31197">CVE-2022-31197&lt;/a>, and &lt;a href="https://www.cve.org/CVERecord?id=CVE-2022-21724">CVE-2022-21724&lt;/a> by upgrading PostgreSQL JDBC Driver from 42.2.16 to 42.6.2 (Java) (&lt;a href="https://github.com/apache/beam/issues/37942">#37942&lt;/a>).&lt;/li>
+&lt;/ul>
+&lt;h2 id="list-of-contributors">List of Contributors&lt;/h2>
+&lt;p>According to git shortlog, the following people contributed to the 2.73.0 release. Thank you to all contributors!&lt;/p>
+&lt;p>Abdelrahman Ibrahim, Ahmed Abualsaud, Alex Malao, Alexander Nieuwenhuijse, Andres Tiko, Andrew Crites, Arun Pandian, Bentsi Leviav, Bruno Volpato, Chamikara Jayalath, Chandra Kiran Bolla, Danny McCormick, Deji Ibrahim, Derrick Williams, Elia LIU, Esmelealem, Hannes Gustafsson, Jack McCluskey, Joey Tran, Kenneth Knowles, M Junaid Shaukat, Mansi Singh, Matej Aleksandrov, Mathijs Deelen, Mattie Fu, Praneet Nadella, Radek Stankiewicz, Radosław Stankiewicz, Reuven Lax, RuiLong J., S. Veyrié, Sakthivel Subramanian, Sam Whittle, Shubham Thakur, Shunping Huang, Subramanya V, Tarun Annapareddy, Tobias Kaymak, Valentyn Tymofieiev, Vitaly Terentyev, XQ Hu, Yi Hu, ZIHAN DAI, claudevdm, kishorepola, parveensania&lt;/p></description><link>/blog/beam-2.73.0/</link><pubDate>Wed, 29 Apr 2026 09:00:00 -0700</pubDate><guid>/blog/beam-2.73.0/</guid><category>blog</category><category>release</category></item><item><title>Apache Beam 2.72.0</title><description>
 &lt;!--
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -13,7 +63,7 @@ limitations under the License.
 &lt;p>We are happy to present the new 2.72.0 release of Beam.
 This release includes both improvements and new functionality.
 See the &lt;a href="/get-started/downloads/#2720-2026-03-30">download page&lt;/a> for this release.&lt;/p>
-&lt;p>For more information on changes in 2.72.0, check out the &lt;a href="https://github.com/apache/beam/milestone/39">detailed release notes&lt;/a>.&lt;/p>
+&lt;p>For more information on changes in 2.72.0, check out the &lt;a href="https://github.com/apache/beam/milestone/40">detailed release notes&lt;/a>.&lt;/p>
 &lt;h2 id="highlights">Highlights&lt;/h2>
 &lt;ul>
 &lt;li>Flink 2.0 support (&lt;a href="https://github.com/apache/beam/issues/36947">#36947&lt;/a>).&lt;/li>
@@ -784,60 +834,4 @@ limitations under the License.
 &lt;p>You can find my final report &lt;a href="https://gist.github.com/ksobrenat32/b028b8303393afbe73a8fc5e17daff90">here&lt;/a> if you want to take a look at the details of my work.&lt;/p>
 &lt;h2 id="advice-for-future-participants">Advice for Future Participants&lt;/h2>
 &lt;p>If you are considering participating in Google Summer of Code, my advice would be to choose an area you are passionate about; this will make any coding challenge easier to overcome. Also, don&amp;rsquo;t be afraid to ask questions and seek help from your mentors and the community. At the start, I made that mistake, and I learned that asking for help is a sign of strength, not weakness.&lt;/p>
-&lt;p>Finally, make sure to manage your time effectively and stay organized (keeping a progress journal is a great idea). GSoC is a great opportunity to learn and grow as a developer, but it can also be time-consuming, so it&amp;rsquo;s important to stay focused and on track.&lt;/p></description><link>/blog/gsoc-25-infra/</link><pubDate>Mon, 15 Sep 2025 00:00:00 -0600</pubDate><guid>/blog/gsoc-25-infra/</guid><category>blog</category><category>gsoc</category></item><item><title>Apache Beam 2.67.0</title><description>
-&lt;!--
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-http://www.apache.org/licenses/LICENSE-2.0
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
--->
-&lt;p>We are happy to present the new 2.67.0 release of Beam.
-This release includes both improvements and new functionality.
-See the &lt;a href="/get-started/downloads/#2670-2025-08-12">download page&lt;/a> for this release.&lt;/p>
-&lt;p>For more information on changes in 2.67.0, check out the &lt;a href="https://github.com/apache/beam/milestone/35?closed=1">detailed release notes&lt;/a>.&lt;/p>
-&lt;h2 id="highlights">Highlights&lt;/h2>
-&lt;h3 id="ios">I/Os&lt;/h3>
-&lt;ul>
-&lt;li>Debezium IO upgraded to 3.1.1 requires Java 17 (Java) (&lt;a href="https://github.com/apache/beam/issues/34747">#34747&lt;/a>).&lt;/li>
-&lt;li>Add support for streaming writes in IOBase (Python)&lt;/li>
-&lt;li>Implement support for streaming writes in FileBasedSink (Python)&lt;/li>
-&lt;li>Expose support for streaming writes in TextIO (Python)&lt;/li>
-&lt;/ul>
-&lt;h3 id="new-features--improvements">New Features / Improvements&lt;/h3>
-&lt;ul>
-&lt;li>Added support for Processing time Timer in the Spark Classic runner (&lt;a href="https://github.com/apache/beam/issues/33633">#33633&lt;/a>).&lt;/li>
-&lt;li>Add pip-based install support for JupyterLab Sidepanel extension (&lt;a href="https://github.com/apache/beam/issues/35397">#35397&lt;/a>).&lt;/li>
-&lt;li>[IcebergIO] Create tables with a specified table properties (&lt;a href="https://github.com/apache/beam/pull/35496">#35496&lt;/a>)&lt;/li>
-&lt;li>Add support for comma-separated options in Python SDK (Python) (&lt;a href="https://github.com/apache/beam/pull/35580">#35580&lt;/a>).
-Python SDK now supports comma-separated values for experiments and dataflow_service_options,
-matching Java SDK behavior while maintaining backward compatibility.&lt;/li>
-&lt;li>Milvus enrichment handler added (Python) (&lt;a href="https://github.com/apache/beam/pull/35216">#35216&lt;/a>).
-Beam now supports Milvus enrichment handler capabilities for vector, keyword,
-and hybrid search operations.&lt;/li>
-&lt;li>[Beam SQL] Add support for DATABASEs, with an implementation for Iceberg (&lt;a href="https://github.com/apache/beam/issues/35637">#35637&lt;/a>)&lt;/li>
-&lt;li>Respect BatchSize and MaxBufferingDuration when using &lt;code>JdbcIO.WriteWithResults&lt;/code>. Previously, these settings were ignored (&lt;a href="https://github.com/apache/beam/pull/35669">#35669&lt;/a>).&lt;/li>
-&lt;/ul>
-&lt;h3 id="breaking-changes">Breaking Changes&lt;/h3>
-&lt;ul>
-&lt;li>Go: The pubsubio.Read transform now accepts ReadOptions as a value type instead of a pointer, and requires exactly one of Topic or Subscription to be set (they are mutually exclusive). Additionally, the ReadOptions struct now includes a Topic field for specifying the topic directly, replacing the previous topic parameter in the Read function signature (&lt;a href="https://github.com/apache/beam/pull/35369">#35369&lt;/a>).&lt;/li>
-&lt;li>SQL: The &lt;code>ParquetTable&lt;/code> external table provider has changed its handling of the &lt;code>LOCATION&lt;/code> property. To read from a directory, the path must now end with a trailing slash (e.g., &lt;code>LOCATION '/path/to/data/'&lt;/code>). Previously, a trailing slash was not required. This change was made to enable support for glob patterns and single-file paths (&lt;a href="https://github.com/apache/beam/pull/35582">#35582&lt;/a>).&lt;/li>
-&lt;/ul>
-&lt;h3 id="bugfixes">Bugfixes&lt;/h3>
-&lt;ul>
-&lt;li>[YAML] Fixed handling of missing optional fields in JSON parsing (&lt;a href="https://github.com/apache/beam/issues/35179">#35179&lt;/a>).&lt;/li>
-&lt;li>[Python] Fix WriteToBigQuery transform using CopyJob does not work with WRITE_TRUNCATE write disposition (&lt;a href="https://github.com/apache/beam/issues/34247">#34247&lt;/a>)&lt;/li>
-&lt;li>[Python] Fixed dicomio tags mismatch in integration tests (&lt;a href="https://github.com/apache/beam/issues/30760">#30760&lt;/a>).&lt;/li>
-&lt;li>[Java] Fixed spammy logging issues that affected versions 2.64.0 to 2.66.0.&lt;/li>
-&lt;/ul>
-&lt;h3 id="known-issues">Known Issues&lt;/h3>
-&lt;ul>
-&lt;li>(&lt;a href="https://github.com/apache/beam/issues/35666">#35666&lt;/a>). YAML Flatten incorrectly drops fields when input PCollections&amp;rsquo; schema are different. This issue exists for all versions since 2.52.0.&lt;/li>
-&lt;/ul>
-&lt;h2 id="list-of-contributors">List of Contributors&lt;/h2>
-&lt;p>According to git shortlog, the following people contributed to the 2.67.0 release. Thank you to all contributors!&lt;/p>
-&lt;p>Aditya Shukla, Ahmed Abualsaud, Arun Pandian, Boris Li, Chamikara Jayalath, Charles Nguyen, Chenzo, Danny McCormick, David Adeniji, Derrick Williams, Dmytro Tsyliuryk, Dustin Rhodes, Enrique Calderon, Gottipati Gautam, Hai Joey Tran, Hunor Portik, Jack McCluskey, Kenneth Knowles, Khorbaladze A., Marcio Sugar, Minh Son Nguyen, Mohamed Awnallah, Nathaniel Young, Nhon Dinh, Quentin Sommer, Rafael Raposo, Rakesh Kumar, Razvan Culea, Reuven Lax, Robert Bradshaw, Sam Whittle, Shunping Huang, Steven van Rossum, Talat UYARER, Tanu Sharma, Tarun Annapareddy, Tobi Kaymak, Tobias Kaymak, Valentyn Tymofieiev, Veronica Wasson, Vitaly Terentyev, XQ Hu, Yi Hu, akashorabek, arnavarora2004, changliiu, claudevdm, fozzie15, mvhensbergen, twosom&lt;/p></description><link>/blog/beam-2.67.0/</link><pubDate>Tue, 12 Aug 2025 15:00:00 -0500</pubDate><guid>/blog/beam-2.67.0/</guid><category>blog</category><category>release</category></item></channel></rss>
+&lt;p>Finally, make sure to manage your time effectively and stay organized (keeping a progress journal is a great idea). GSoC is a great opportunity to learn and grow as a developer, but it can also be time-consuming, so it&amp;rsquo;s important to stay focused and on track.&lt;/p></description><link>/blog/gsoc-25-infra/</link><pubDate>Mon, 15 Sep 2025 00:00:00 -0600</pubDate><guid>/blog/gsoc-25-infra/</guid><category>blog</category><category>gsoc</category></item></channel></rss>

@@ -1,4 +1,54 @@
-<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>Apache Beam – release</title><link>/categories/release/</link><description>Recent content in release on Apache Beam</description><generator>Hugo -- gohugo.io</generator><language>en</language><lastBuildDate>Mon, 30 Mar 2026 09:00:00 -0700</lastBuildDate><atom:link href="/categories/release/index.xml" rel="self" type="application/rss+xml"/><item><title>Blog: Apache Beam 2.72.0</title><link>/blog/beam-2.72.0/</link><pubDate>Mon, 30 Mar 2026 09:00:00 -0700</pubDate><guid>/blog/beam-2.72.0/</guid><description>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>Apache Beam – release</title><link>/categories/release/</link><description>Recent content in release on Apache Beam</description><generator>Hugo -- gohugo.io</generator><language>en</language><lastBuildDate>Wed, 29 Apr 2026 09:00:00 -0700</lastBuildDate><atom:link href="/categories/release/index.xml" rel="self" type="application/rss+xml"/><item><title>Blog: Apache Beam 2.73.0</title><link>/blog/beam-2.73.0/</link><pubDate>Wed, 29 Apr 2026 09:00:00 -0700</pubDate><guid>/blog/beam-2.73.0/</guid><description>
+&lt;!--
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+http://www.apache.org/licenses/LICENSE-2.0
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+&lt;p>We are happy to present the new 2.73.0 release of Beam.
+This release includes both improvements and new functionality.
+See the &lt;a href="/get-started/downloads/#2730-2026-04-29">download page&lt;/a> for this release.&lt;/p>
+&lt;p>For more information on changes in 2.73.0, check out the &lt;a href="https://github.com/apache/beam/milestone/41">detailed release notes&lt;/a>.&lt;/p>
+&lt;h2 id="highlights">Highlights&lt;/h2>
+&lt;h3 id="ios">I/Os&lt;/h3>
+&lt;ul>
+&lt;li>DebeziumIO (Java): added &lt;code>OffsetRetainer&lt;/code> interface and &lt;code>FileSystemOffsetRetainer&lt;/code> implementation to persist and restore CDC offsets across pipeline restarts, and exposed &lt;code>withStartOffset&lt;/code> / &lt;code>withOffsetRetainer&lt;/code> on &lt;code>DebeziumIO.Read&lt;/code> and the cross-language &lt;code>ReadBuilder&lt;/code> (&lt;a href="https://github.com/apache/beam/issues/28248">#28248&lt;/a>).&lt;/li>
+&lt;/ul>
+&lt;h3 id="new-features--improvements">New Features / Improvements&lt;/h3>
+&lt;ul>
+&lt;li>(Python) Added BigQuery CDC streaming source (&lt;a href="https://github.com/apache/beam/issues/37724">#37724&lt;/a>)&lt;/li>
+&lt;li>Added &lt;code>ADKAgentModelHandler&lt;/code> for running Google Agent Development Kit (ADK) agents (Python) (&lt;a href="https://github.com/apache/beam/issues/37917">#37917&lt;/a>).&lt;/li>
+&lt;li>(Python) Added exception chaining to preserve error context in CloudSQLEnrichmentHandler, processes utilities, and core transforms (&lt;a href="https://github.com/apache/beam/issues/37422">#37422&lt;/a>).&lt;/li>
+&lt;li>(Python) Added a pipeline option &lt;code>--experiments=pip_no_build_isolation&lt;/code> to disable build isolation when installing dependencies in the runtime environment (&lt;a href="https://github.com/apache/beam/issues/37331">#37331&lt;/a>).&lt;/li>
+&lt;li>(Go) Added OrderedListState support to the Go SDK stateful DoFn API (&lt;a href="https://github.com/apache/beam/issues/37629">#37629&lt;/a>).&lt;/li>
+&lt;li>Added support for large pipeline options via a file (Python) (&lt;a href="https://github.com/apache/beam/issues/37370">#37370&lt;/a>).&lt;/li>
+&lt;li>Supported infer schema from dataclass (Python) (&lt;a href="https://github.com/apache/beam/issues/22085">#22085&lt;/a>). Default coder for typehint-ed (or set with_output_type) for non-frozen dataclasses changed to RowCoder. To preserve the old behavior (fast primitive coder), explicitly register the type with FastPrimitiveCoder.&lt;/li>
+&lt;li>Updates minimum Go version to 1.26.1 (&lt;a href="https://github.com/apache/beam/issues/37897">#37897&lt;/a>).&lt;/li>
+&lt;li>(Python) Added image embedding support in &lt;code>apache_beam.ml.rag&lt;/code> package (&lt;a href="https://github.com/apache/beam/issues/37628">#37628&lt;/a>).&lt;/li>
+&lt;li>(Python) Added support for Python version 3.14 (&lt;a href="https://github.com/apache/beam/issues/37247">#37247&lt;/a>).&lt;/li>
+&lt;/ul>
+&lt;h3 id="breaking-changes">Breaking Changes&lt;/h3>
+&lt;ul>
+&lt;li>The Python SDK container&amp;rsquo;s &lt;code>boot.go&lt;/code> now passes pipeline options through a file instead of the &lt;code>PIPELINE_OPTIONS&lt;/code> environment variable. If a user pairs a new Python SDK container with an older SDK version (which does not support the file-based approach), the pipeline options will not be recognized and the pipeline will fail. Users must ensure their SDK and container versions are synchronized (&lt;a href="https://github.com/apache/beam/issues/37370">#37370&lt;/a>).&lt;/li>
+&lt;li>Python DoFn.with_exception_handling now respects user DoFn typehints. This can break update compatibility if coders change. It can also break pipeline compilation if existing typehints are incorrect. To update safely sepcify the pipeline option &lt;code>--update_compatibility_version=2.72.0&lt;/code>. To fix typehints replace any incorrect typehints that were previously ignored (&lt;a href="https://github.com/apache/beam/issues/37590">#37590&lt;/a>)&lt;/li>
+&lt;/ul>
+&lt;h3 id="bugfixes">Bugfixes&lt;/h3>
+&lt;ul>
+&lt;li>Fixed ProcessManager not reaping child processes, causing zombie process accumulation on long-running Flink deployments (Java) (&lt;a href="https://github.com/apache/beam/issues/37930">#37930&lt;/a>).&lt;/li>
+&lt;/ul>
+&lt;h3 id="security-fixes">Security Fixes&lt;/h3>
+&lt;ul>
+&lt;li>Fixed &lt;a href="https://www.cve.org/CVERecord?id=CVE-2023-46604">CVE-2023-46604&lt;/a> (CVSS 10.0) and &lt;a href="https://www.cve.org/CVERecord?id=CVE-2022-41678">CVE-2022-41678&lt;/a> by upgrading ActiveMQ from 5.14.5 to 5.19.2 (Java) (&lt;a href="https://github.com/apache/beam/issues/37943">#37943&lt;/a>).&lt;/li>
+&lt;li>Fixed &lt;a href="https://www.cve.org/CVERecord?id=CVE-2024-1597">CVE-2024-1597&lt;/a>, &lt;a href="https://www.cve.org/CVERecord?id=CVE-2022-31197">CVE-2022-31197&lt;/a>, and &lt;a href="https://www.cve.org/CVERecord?id=CVE-2022-21724">CVE-2022-21724&lt;/a> by upgrading PostgreSQL JDBC Driver from 42.2.16 to 42.6.2 (Java) (&lt;a href="https://github.com/apache/beam/issues/37942">#37942&lt;/a>).&lt;/li>
+&lt;/ul>
+&lt;h2 id="list-of-contributors">List of Contributors&lt;/h2>
+&lt;p>According to git shortlog, the following people contributed to the 2.73.0 release. Thank you to all contributors!&lt;/p>
+&lt;p>Abdelrahman Ibrahim, Ahmed Abualsaud, Alex Malao, Alexander Nieuwenhuijse, Andres Tiko, Andrew Crites, Arun Pandian, Bentsi Leviav, Bruno Volpato, Chamikara Jayalath, Chandra Kiran Bolla, Danny McCormick, Deji Ibrahim, Derrick Williams, Elia LIU, Esmelealem, Hannes Gustafsson, Jack McCluskey, Joey Tran, Kenneth Knowles, M Junaid Shaukat, Mansi Singh, Matej Aleksandrov, Mathijs Deelen, Mattie Fu, Praneet Nadella, Radek Stankiewicz, Radosław Stankiewicz, Reuven Lax, RuiLong J., S. Veyrié, Sakthivel Subramanian, Sam Whittle, Shubham Thakur, Shunping Huang, Subramanya V, Tarun Annapareddy, Tobias Kaymak, Valentyn Tymofieiev, Vitaly Terentyev, XQ Hu, Yi Hu, ZIHAN DAI, claudevdm, kishorepola, parveensania&lt;/p></description></item><item><title>Blog: Apache Beam 2.72.0</title><link>/blog/beam-2.72.0/</link><pubDate>Mon, 30 Mar 2026 09:00:00 -0700</pubDate><guid>/blog/beam-2.72.0/</guid><description>
 &lt;!--
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -13,7 +63,7 @@ limitations under the License.
 &lt;p>We are happy to present the new 2.72.0 release of Beam.
 This release includes both improvements and new functionality.
 See the &lt;a href="/get-started/downloads/#2720-2026-03-30">download page&lt;/a> for this release.&lt;/p>
-&lt;p>For more information on changes in 2.72.0, check out the &lt;a href="https://github.com/apache/beam/milestone/39">detailed release notes&lt;/a>.&lt;/p>
+&lt;p>For more information on changes in 2.72.0, check out the &lt;a href="https://github.com/apache/beam/milestone/40">detailed release notes&lt;/a>.&lt;/p>
 &lt;h2 id="highlights">Highlights&lt;/h2>
 &lt;ul>
 &lt;li>Flink 2.0 support (&lt;a href="https://github.com/apache/beam/issues/36947">#36947&lt;/a>).&lt;/li>
@@ -5019,74 +5069,4 @@ Saavan Nanavati, Sam Bourne, Sam Rohde, Sam Whittle, Sergiy Kolesnikov, Sindy Li
 Niemitz, Terry Xian, Thomas Weise, Tobiasz Kędzierski, Truc Le, Tyson Hamilton, Udi Meiri, Valentyn
 Tymofieiev, Yichi Zhang, Yifan Mai, Yueyang Qiu, annaqin418, danielxjd, dennis, dp, fuyuwei,
 lostluck, nehsyc, odeshpande, odidev, pulasthi, purbanow, rworley-monster, sclukas77, terryxian78,
-tvalentyn, yoshiki.obata&lt;/p></description></item><item><title>Blog: Apache Beam 2.24.0</title><link>/blog/beam-2.24.0/</link><pubDate>Fri, 18 Sep 2020 00:00:01 -0800</pubDate><guid>/blog/beam-2.24.0/</guid><description>
-&lt;!--
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-http://www.apache.org/licenses/LICENSE-2.0
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
--->
-&lt;p>We are happy to present the new 2.24.0 release of Apache Beam. This release includes both improvements and new functionality.
-See the &lt;a href="/get-started/downloads/#2240-2020-09-18">download page&lt;/a> for this release.&lt;/p>
-&lt;p>For more information on changes in 2.24.0, check out the
-&lt;a href="https://issues.apache.org/jira/secure/ReleaseNote.jspa?projectId=12319527&amp;amp;version=12347146">detailed release notes&lt;/a>.&lt;/p>
-&lt;h2 id="highlights">Highlights&lt;/h2>
-&lt;ul>
-&lt;li>Apache Beam 2.24.0 is the last release with Python 2 and Python 3.5
-support.&lt;/li>
-&lt;/ul>
-&lt;h2 id="ios">I/Os&lt;/h2>
-&lt;ul>
-&lt;li>New overloads for BigtableIO.Read.withKeyRange() and BigtableIO.Read.withRowFilter()
-methods that take ValueProvider as a parameter (Java) (&lt;a href="https://issues.apache.org/jira/browse/BEAM-10283">BEAM-10283&lt;/a>).&lt;/li>
-&lt;li>The WriteToBigQuery transform (Python) in Dataflow Batch no longer relies on BigQuerySink by default. It relies on
-a new, fully-featured transform based on file loads into BigQuery. To revert the behavior to the old implementation,
-you may use &lt;code>--experiments=use_legacy_bq_sink&lt;/code>.&lt;/li>
-&lt;li>Add cross-language support to Java&amp;rsquo;s JdbcIO, now available in the Python module &lt;code>apache_beam.io.jdbc&lt;/code> (&lt;a href="https://issues.apache.org/jira/browse/BEAM-10135">BEAM-10135&lt;/a>, &lt;a href="https://issues.apache.org/jira/browse/BEAM-10136">BEAM-10136&lt;/a>).&lt;/li>
-&lt;li>Add support of AWS SDK v2 for KinesisIO.Read (Java) (&lt;a href="https://issues.apache.org/jira/browse/BEAM-9702">BEAM-9702&lt;/a>).&lt;/li>
-&lt;li>Add streaming support to SnowflakeIO in Java SDK (&lt;a href="https://issues.apache.org/jira/browse/BEAM-9896">BEAM-9896&lt;/a>)&lt;/li>
-&lt;li>Support reading and writing to Google Healthcare DICOM APIs in Python SDK (&lt;a href="https://issues.apache.org/jira/browse/BEAM-10601">BEAM-10601&lt;/a>)&lt;/li>
-&lt;li>Add dispositions for SnowflakeIO.write (&lt;a href="https://issues.apache.org/jira/browse/BEAM-10343">BEAM-10343&lt;/a>)&lt;/li>
-&lt;li>Add cross-language support to SnowflakeIO.Read now available in the Python module &lt;code>apache_beam.io.external.snowflake&lt;/code> (&lt;a href="https://issues.apache.org/jira/browse/BEAM-9897">BEAM-9897&lt;/a>).&lt;/li>
-&lt;/ul>
-&lt;h2 id="new-features--improvements">New Features / Improvements&lt;/h2>
-&lt;ul>
-&lt;li>Shared library for simplifying management of large shared objects added to Python SDK. Example use case is sharing a large TF model object across threads (&lt;a href="https://issues.apache.org/jira/browse/BEAM-10417">BEAM-10417&lt;/a>).&lt;/li>
-&lt;li>Dataflow streaming timers are not strictly time ordered when set earlier mid-bundle (&lt;a href="https://issues.apache.org/jira/browse/BEAM-8543">BEAM-8543&lt;/a>).&lt;/li>
-&lt;li>OnTimerContext should not create a new one when processing each element/timer in FnApiDoFnRunner (&lt;a href="https://issues.apache.org/jira/browse/BEAM-9839">BEAM-9839&lt;/a>)&lt;/li>
-&lt;li>Key should be available in @OnTimer methods (Spark Runner) (&lt;a href="https://issues.apache.org/jira/browse/BEAM-9850">BEAM-9850&lt;/a>)&lt;/li>
-&lt;/ul>
-&lt;h2 id="breaking-changes">Breaking Changes&lt;/h2>
-&lt;ul>
-&lt;li>WriteToBigQuery transforms now require a GCS location to be provided through either
-custom_gcs_temp_location in the constructor of WriteToBigQuery or the fallback option
-&amp;ndash;temp_location, or pass method=&amp;ldquo;STREAMING_INSERTS&amp;rdquo; to WriteToBigQuery (&lt;a href="https://issues.apache.org/jira/browse/BEAM-6928">BEAM-6928&lt;/a>).&lt;/li>
-&lt;li>Python SDK now understands &lt;code>typing.FrozenSet&lt;/code> type hints, which are not interchangeable with &lt;code>typing.Set&lt;/code>. You may need to update your pipelines if type checking fails. (&lt;a href="https://issues.apache.org/jira/browse/BEAM-10197">BEAM-10197&lt;/a>)&lt;/li>
-&lt;/ul>
-&lt;h2 id="known-issues">Known Issues&lt;/h2>
-&lt;ul>
-&lt;li>Default compressor change breaks dataflow python streaming job update compatibility. Please use python SDK version &amp;lt;= 2.23.0 or &amp;gt; 2.25.0 if job update is critical.(&lt;a href="https://issues.apache.org/jira/browse/BEAM-11113">BEAM-11113&lt;/a>)&lt;/li>
-&lt;/ul>
-&lt;h2 id="list-of-contributors">List of Contributors&lt;/h2>
-&lt;p>According to git shortlog, the following people contributed to the 2.24.0 release. Thank you to all contributors!&lt;/p>
-&lt;p>adesormi, Ahmet Altay, Alex Amato, Alexey Romanenko, Andrew Pilloud, Ashwin Ramaswami, Borzoo,
-Boyuan Zhang, Brian Hulette, Brian M, Bu Sun Kim, Chamikara Jayalath, Colm O hEigeartaigh,
-Corvin Deboeser, Damian Gadomski, Damon Douglas, Daniel Oliveira, Dariusz Aniszewski,
-davidak09, David Cavazos, David Moravek, David Yan, dhodun, Doug Roeper, Emil Hessman, Emily Ye,
-Etienne Chauchot, Etta Rapp, Eugene Kirpichov, fuyuwei, Gleb Kanterov,
-Harrison Green, Heejong Lee, Henry Suryawirawan, InigoSJ, Ismaël Mejía, Israel Herraiz,
-Jacob Ferriero, Jan Lukavský, Jayendra, jfarr, jhnmora000, Jiadai Xia, JIahao wu, Jie Fan,
-Jiyong Jung, Julius Almeida, Kamil Gałuszka, Kamil Wasilewski, Kasia Kucharczyk, Kenneth Knowles,
-Kevin Puthusseri, Kyle Weaver, Łukasz Gajowy, Luke Cwik, Mark-Zeng, Maximilian Michels,
-Michal Walenia, Niel Markwick, Ning Kang, Pablo Estrada, pawel.urbanowicz, Piotr Szuberski,
-Rafi Kamal, rarokni, Rehman Murad Ali, Reuben van Ammers, Reuven Lax, Ricardo Bordon,
-Robert Bradshaw, Robert Burke, Robin Qiu, Rui Wang, Saavan Nanavati, sabhyankar, Sam Rohde,
-Scott Lukas, Siddhartha Thota, Simone Primarosa, Sławomir Andrian,
-Steve Niemitz, Tobiasz Kędzierski, Tomo Suzuki, Tyson Hamilton, Udi Meiri,
-Valentyn Tymofieiev, viktorjonsson, Xinyu Liu, Yichi Zhang, Yixing Zhang, yoshiki.obata,
-Yueyang Qiu, zijiesong&lt;/p></description></item></channel></rss>
+tvalentyn, yoshiki.obata&lt;/p></description></item></channel></rss>
