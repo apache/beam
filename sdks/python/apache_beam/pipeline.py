@@ -233,10 +233,7 @@ class Pipeline(HasDisplayData):
     # set default experiments for portable runners
     # (needs to occur prior to pipeline construction)
     if runner.is_fnapi_compatible():
-      experiments = (self._options.view_as(DebugOptions).experiments or [])
-      if not 'beam_fn_api' in experiments:
-        experiments.append('beam_fn_api')
-        self._options.view_as(DebugOptions).experiments = experiments
+      self._options.view_as(DebugOptions).add_experiment('beam_fn_api')
 
     self.local_tempdir = tempfile.mkdtemp(prefix='beam-pipeline-temp')
 
