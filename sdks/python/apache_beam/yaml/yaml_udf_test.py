@@ -14,6 +14,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
+import datetime
 import logging
 import os
 import shutil
@@ -376,7 +377,6 @@ class YamlUDFMappingTest(unittest.TestCase):
 
   @unittest.skipIf(MiniRacer is None, 'py_mini_racer not installed.')
   def test_map_to_fields_js_date(self):
-    import datetime
     with beam.Pipeline(options=beam.options.pipeline_options.PipelineOptions(
         pickle_library='cloudpickle', yaml_experimental_features=['javascript'
                                                                   ])) as p:
