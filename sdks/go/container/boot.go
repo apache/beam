@@ -149,6 +149,7 @@ func main() {
 		log.Fatalf("Endpoint not set: %v", err)
 	}
 	logger := &tools.Logger{Endpoint: *loggingEndpoint}
+	log.SetOutput(tools.NewBufferedLoggerWithFlushInterval(ctx, logger, 0))
 	logger.Printf(ctx, "Initializing Go harness: %v", strings.Join(os.Args, " "))
 
 	// (1) Obtain the pipeline options

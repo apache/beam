@@ -110,7 +110,7 @@ func TestRetrieveWithBadShaAndExperimentSucceeds(t *testing.T) {
 
 	options, _ := structpb.NewStruct(map[string]interface{}{
 		"options": map[string]interface{}{
-			"experiments": []interface{}{"disable_integrity_checks"},
+			"experiments": []interface{}{"disable_staged_file_integrity_checks"},
 		},
 	})
 	ctx := WithPipelineOptions(grpcx.WriteWorkerID(context.Background(), "idA"), options)
@@ -326,7 +326,7 @@ func TestIsArtifactValidationEnabled(t *testing.T) {
 
 	options, _ := structpb.NewStruct(map[string]interface{}{
 		"options": map[string]interface{}{
-			"experiments": []interface{}{"disable_integrity_checks"},
+			"experiments": []interface{}{"disable_staged_file_integrity_checks"},
 		},
 	})
 	ctx2 := WithPipelineOptions(ctx, options)
@@ -356,7 +356,7 @@ func TestNewRetrieveWithBadShaAndExperimentSucceeds(t *testing.T) {
 
 	options, _ := structpb.NewStruct(map[string]interface{}{
 		"options": map[string]interface{}{
-			"experiments": []interface{}{"disable_integrity_checks"},
+			"experiments": []interface{}{"disable_staged_file_integrity_checks"},
 		},
 	})
 	ctx := WithPipelineOptions(grpcx.WriteWorkerID(context.Background(), "worker"), options)
