@@ -537,7 +537,7 @@ func isArtifactValidationEnabled(ctx context.Context) bool {
 	options, _ := ctx.Value(pipelineOptionsKey).(*structpb.Struct)
 	if options != nil {
 		for _, v := range options.GetFields()["options"].GetStructValue().GetFields()["experiments"].GetListValue().GetValues() {
-			if v.GetStringValue() == "disable_integrity_checks" {
+			if v.GetStringValue() == "disable_staged_file_integrity_checks" {
 				return false
 			}
 		}
