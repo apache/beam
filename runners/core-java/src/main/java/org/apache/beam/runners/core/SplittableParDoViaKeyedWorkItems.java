@@ -22,6 +22,7 @@ import static org.apache.beam.sdk.util.construction.SplittableParDo.SPLITTABLE_P
 import com.google.auto.service.AutoService;
 import java.util.List;
 import java.util.Map;
+import java.util.function.Consumer;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.sdk.coders.ByteArrayCoder;
 import org.apache.beam.sdk.coders.Coder;
@@ -281,6 +282,7 @@ public class SplittableParDoViaKeyedWorkItems {
         processElementInvoker;
 
     private transient @Nullable DoFnInvoker<InputT, OutputT> invoker;
+    private transient @Nullable Consumer<Double> backlogBytesCallback;
 
     public ProcessFn(
         DoFn<InputT, OutputT> fn,
@@ -321,6 +323,10 @@ public class SplittableParDoViaKeyedWorkItems {
                 InputT, OutputT, RestrictionT, PositionT, WatermarkEstimatorStateT>
             invoker) {
       this.processElementInvoker = invoker;
+    }
+
+    public void setBacklogBytesCallback(Consumer<Double> backlogBytesCallback) {
+      this.backlogBytesCallback = backlogBytesCallback;
     }
 
     public DoFn<InputT, OutputT> getFn() {
@@ -621,6 +627,9 @@ public class SplittableParDoViaKeyedWorkItems {
                 CausedByDrain.NORMAL));
       } else {
         holdState.clear();
+      }
+      if (backlogBytesCallback != null && result.getBacklogBytes() >= 0) {
+        backlogBytesCallback.accept(result.getBacklogBytes());
       }
     }
 

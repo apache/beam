@@ -479,7 +479,7 @@ public class Read {
    * maintain any state.
    */
   @UnboundedPerElement
-  static class UnboundedSourceAsSDFWrapperFn<OutputT, CheckpointT extends CheckpointMark>
+  public static class UnboundedSourceAsSDFWrapperFn<OutputT, CheckpointT extends CheckpointMark>
       extends DoFn<UnboundedSource<OutputT, CheckpointT>, ValueWithRecordId<OutputT>> {
 
     private static final Logger LOG = LoggerFactory.getLogger(UnboundedSourceAsSDFWrapperFn.class);
@@ -493,7 +493,7 @@ public class Read {
     private @Nullable Coder<UnboundedSourceRestriction<OutputT, CheckpointT>> restrictionCoder;
 
     @VisibleForTesting
-    UnboundedSourceAsSDFWrapperFn(Coder<CheckpointT> checkpointCoder) {
+    public UnboundedSourceAsSDFWrapperFn(Coder<CheckpointT> checkpointCoder) {
       this.checkpointCoder = checkpointCoder;
       readerCacheSupplier =
           new MemoizingPerInstantiationSerializableSupplier<>(
@@ -605,7 +605,8 @@ public class Read {
       @SuppressWarnings("ReferenceEquality")
       boolean isInitialRestriction = initialRestriction == currentRestriction;
       CheckpointT checkpoint = currentRestriction.getCheckpoint();
-      if (checkpoint != null
+      if (bundleFinalizer != null
+          && checkpoint != null
           && !isInitialRestriction
           && !(tracker.currentRestriction().getCheckpoint() instanceof NoopCheckpointMark)) {
         bundleFinalizer.afterBundleCommit(
@@ -614,7 +615,7 @@ public class Read {
       }
 
       // If we have been split/checkpoint by a runner, the tracker will have been updated to the
-      // empty source and we will return stop. Otherwise the unbounded source has only temporarily
+      // empty source, and we will return stop. Otherwise, the unbounded source has only temporarily
       // run out of work.
       if (currentRestriction.getSource() instanceof EmptyUnboundedSource) {
         return ProcessContinuation.stop();
@@ -624,6 +625,22 @@ public class Read {
       // are resuming.
       watermarkEstimator.setWatermark(currentRestriction.getWatermark());
       return ProcessContinuation.resume();
+    }
+
+    @GetSize
+    public double getSize(
+        @Restriction UnboundedSourceRestriction<OutputT, CheckpointT> restriction,
+        PipelineOptions pipelineOptions)
+        throws Exception {
+      try (UnboundedReader<OutputT> reader =
+          restriction.getSource().createReader(pipelineOptions, restriction.getCheckpoint())) {
+        reader.start();
+        long backlog = reader.getSplitBacklogBytes();
+        if (backlog != UnboundedReader.BACKLOG_UNKNOWN) {
+          return (double) backlog;
+        }
+      }
+      return -1.0;
     }
 
     @GetInitialWatermarkEstimatorState
@@ -661,7 +678,7 @@ public class Read {
      * splittable DoFn for each output element.
      */
     @AutoValue
-    abstract static class UnboundedSourceValue<T> {
+    public abstract static class UnboundedSourceValue<T> {
       public static <T> UnboundedSourceValue<T> create(
           byte[] id, T value, Instant timestamp, Instant watermark) {
 
@@ -698,7 +715,8 @@ public class Read {
      * future {@link org.apache.beam.sdk.transforms.DoFn.ProcessElement @ProcessElement} calls.
      */
     @AutoValue
-    abstract static class UnboundedSourceRestriction<OutputT, CheckpointT extends CheckpointMark>
+    public abstract static class UnboundedSourceRestriction<
+            OutputT, CheckpointT extends CheckpointMark>
         implements Serializable {
       @SuppressWarnings("nullness") // https://github.com/google/auto/issues/1320
       public static <OutputT, CheckpointT extends CheckpointMark>

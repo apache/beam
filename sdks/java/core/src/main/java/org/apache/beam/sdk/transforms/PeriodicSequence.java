@@ -21,6 +21,7 @@ import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Pr
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkNotNull;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkState;
 
+import java.io.Serializable;
 import java.util.Objects;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.io.range.OffsetRange;
@@ -54,7 +55,7 @@ public class PeriodicSequence
     extends PTransform<PCollection<PeriodicSequence.SequenceDefinition>, PCollection<Instant>> {
 
   @DefaultSchema(JavaFieldSchema.class)
-  public static class SequenceDefinition {
+  public static class SequenceDefinition implements Serializable {
     public Instant first;
     public Instant last;
     public Long durationMilliSec;

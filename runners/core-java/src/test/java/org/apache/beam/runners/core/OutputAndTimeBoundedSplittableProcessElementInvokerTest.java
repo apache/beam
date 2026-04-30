@@ -95,6 +95,24 @@ public class OutputAndTimeBoundedSplittableProcessElementInvokerTest {
     }
   }
 
+  private static class GetSizeFn extends DoFn<Void, String> {
+    @ProcessElement
+    public ProcessContinuation process(RestrictionTracker<OffsetRange, Long> tracker) {
+      assertTrue(tracker.tryClaim(tracker.currentRestriction().getFrom()));
+      return resume();
+    }
+
+    @GetInitialRestriction
+    public OffsetRange getInitialRestriction() {
+      return new OffsetRange(0, 10);
+    }
+
+    @GetSize
+    public double getSize(@Restriction OffsetRange range) {
+      return range.getTo() - range.getFrom();
+    }
+  }
+
   private SplittableProcessElementInvoker<Void, String, OffsetRange, Long, Void>.Result runTest(
       int totalNumOutputs,
       Duration sleepBeforeFirstClaim,
@@ -236,5 +254,16 @@ public class OutputAndTimeBoundedSplittableProcessElementInvokerTest {
         };
     e.expectMessage("Output is not allowed after a failed tryClaim()");
     runTest(brokenFn, new OffsetRange(0, 5));
+  }
+
+  @Test
+  public void testBacklogBytes() throws Exception {
+    GetSizeFn fn = new GetSizeFn();
+    OffsetRange initialRestriction = new OffsetRange(0, 10);
+    SplittableProcessElementInvoker<Void, String, OffsetRange, Long, Void>.Result res =
+        runTest(fn, initialRestriction);
+    // GetSizeFn only claims 1 element and then takes a checkpoint.
+    assertEquals(9.0, res.getBacklogBytes(), 0.001);
+    assertEquals(new OffsetRange(1, 10), res.getResidualRestriction());
   }
 }

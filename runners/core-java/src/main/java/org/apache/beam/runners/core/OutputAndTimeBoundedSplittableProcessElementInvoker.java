@@ -278,8 +278,61 @@ public class OutputAndTimeBoundedSplittableProcessElementInvoker<
     if (residual == null) {
       return new Result(null, cont, null, null);
     }
+    final KV<RestrictionT, KV<Instant, WatermarkEstimatorStateT>> residualForGetSize = residual;
+    double backlogBytes =
+        invoker.invokeGetSize(
+            new DoFnInvoker.BaseArgumentProvider<InputT, OutputT>() {
+              @Override
+              public String getErrorContext() {
+                return OutputAndTimeBoundedSplittableProcessElementInvoker.class.getSimpleName()
+                    + "/GetSize";
+              }
+
+              @Override
+              public Object restriction() {
+                return residualForGetSize.getKey();
+              }
+
+              @Override
+              public InputT element(DoFn<InputT, OutputT> doFn) {
+                return element.getValue();
+              }
+
+              @Override
+              public Instant timestamp(DoFn<InputT, OutputT> doFn) {
+                return element.getTimestamp();
+              }
+
+              @Override
+              public RestrictionTracker<?, ?> restrictionTracker() {
+                return tracker;
+              }
+
+              @Override
+              public WatermarkEstimator<?> watermarkEstimator() {
+                return watermarkEstimator;
+              }
+
+              @Override
+              public PipelineOptions pipelineOptions() {
+                return pipelineOptions;
+              }
+
+              @Override
+              public Object sideInput(String tagId) {
+                PCollectionView<?> view = sideInputMapping.get(tagId);
+                if (view == null) {
+                  throw new IllegalArgumentException("calling getSideInput() with unknown view");
+                }
+                return processContext.sideInput(view);
+              }
+            });
     return new Result(
-        residual.getKey(), cont, residual.getValue().getKey(), residual.getValue().getValue());
+        residual.getKey(),
+        cont,
+        residual.getValue().getKey(),
+        residual.getValue().getValue(),
+        backlogBytes);
   }
 
   private class ProcessContext extends DoFn<InputT, OutputT>.ProcessContext

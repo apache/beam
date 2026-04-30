@@ -31,6 +31,7 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
 import java.io.Serializable;
+import java.lang.reflect.Constructor;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -44,12 +45,16 @@ import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.InstantCoder;
 import org.apache.beam.sdk.coders.SerializableCoder;
 import org.apache.beam.sdk.coders.VoidCoder;
+import org.apache.beam.sdk.io.CountingSource;
+import org.apache.beam.sdk.io.Read;
+import org.apache.beam.sdk.io.UnboundedSource;
 import org.apache.beam.sdk.io.range.OffsetRange;
 import org.apache.beam.sdk.state.TimeDomain;
 import org.apache.beam.sdk.testing.ResetDateTimeProvider;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.DoFnTester;
+import org.apache.beam.sdk.transforms.PeriodicSequence.SequenceDefinition;
 import org.apache.beam.sdk.transforms.splittabledofn.HasDefaultTracker;
 import org.apache.beam.sdk.transforms.splittabledofn.ManualWatermarkEstimator;
 import org.apache.beam.sdk.transforms.splittabledofn.OffsetRangeTracker;
@@ -68,6 +73,7 @@ import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TimestampedValue;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.ValueInSingleWindow;
+import org.apache.beam.sdk.values.ValueWithRecordId;
 import org.apache.beam.sdk.values.WindowedValue;
 import org.apache.beam.sdk.values.WindowedValues;
 import org.apache.beam.sdk.values.WindowingStrategy;
@@ -140,6 +146,8 @@ public class SplittableParDoProcessFnTest {
     private InMemoryTimerInternals timerInternals;
     private TestInMemoryStateInternals<String> stateInternals;
     private InMemoryBundleFinalizer bundleFinalizer;
+    private final ProcessFn<InputT, OutputT, RestrictionT, PositionT, WatermarkEstimatorStateT>
+        processFn;
 
     ProcessFnTester(
         Instant currentProcessingTime,
@@ -154,15 +162,14 @@ public class SplittableParDoProcessFnTest {
       // encode IntervalWindow's because that's what all tests here use.
       WindowingStrategy<InputT, BoundedWindow> windowingStrategy =
           (WindowingStrategy) WindowingStrategy.of(FixedWindows.of(Duration.standardSeconds(1)));
-      final ProcessFn<InputT, OutputT, RestrictionT, PositionT, WatermarkEstimatorStateT>
-          processFn =
-              new ProcessFn<>(
-                  fn,
-                  inputCoder,
-                  restrictionCoder,
-                  watermarkEstimatorStateCoder,
-                  windowingStrategy,
-                  Collections.emptyMap());
+      this.processFn =
+          new ProcessFn<>(
+              fn,
+              inputCoder,
+              restrictionCoder,
+              watermarkEstimatorStateCoder,
+              windowingStrategy,
+              Collections.emptyMap());
       this.tester = DoFnTester.of(processFn);
       this.timerInternals = new InMemoryTimerInternals();
       this.stateInternals = new TestInMemoryStateInternals<>("dummy");
@@ -383,6 +390,35 @@ public class SplittableParDoProcessFnTest {
     public WatermarkEstimators.Manual newWatermarkEstimator(
         @WatermarkEstimatorState Instant watermarkEstimatorState) {
       return new WatermarkEstimators.Manual(watermarkEstimatorState);
+    }
+  }
+
+  private static class GetSizeFn extends DoFn<Integer, String> {
+    @ProcessElement
+    public ProcessContinuation process(
+        ProcessContext c, RestrictionTracker<OffsetRange, Long> tracker) {
+      for (long i = tracker.currentRestriction().getFrom(); tracker.tryClaim(i); ++i) {
+        c.output(String.valueOf(i));
+        if (i == 1) {
+          return resume();
+        }
+      }
+      return stop();
+    }
+
+    @GetInitialRestriction
+    public OffsetRange getInitialRestriction() {
+      return new OffsetRange(0, 10);
+    }
+
+    @NewTracker
+    public OffsetRangeTracker newTracker(@Restriction OffsetRange range) {
+      return new OffsetRangeTracker(range);
+    }
+
+    @GetSize
+    public double getSize(@Restriction OffsetRange range) {
+      return range.getTo() - range.getFrom();
     }
   }
 
@@ -682,6 +718,123 @@ public class SplittableParDoProcessFnTest {
             MAX_OUTPUTS_PER_BUNDLE,
             MAX_BUNDLE_DURATION)) {
       tester.startElement(42, new SomeRestriction());
+    }
+  }
+
+  @Test
+  public void testReportsBacklog() throws Exception {
+    DoFn<Integer, String> fn = new GetSizeFn();
+    Instant base = Instant.now();
+    final List<Double> backlogs = new ArrayList<>();
+
+    try (ProcessFnTester<Integer, String, OffsetRange, Long, Void> tester =
+        new ProcessFnTester<>(
+            base,
+            fn,
+            BigEndianIntegerCoder.of(),
+            SerializableCoder.of(OffsetRange.class),
+            VoidCoder.of(),
+            MAX_OUTPUTS_PER_BUNDLE,
+            MAX_BUNDLE_DURATION)) {
+      tester.processFn.setBacklogBytesCallback(backlogs::add);
+
+      tester.startElement(42, new OffsetRange(0, 10));
+      // First call outputs 0, 1 and then resumes.
+      // The residual range should be [2, 10), so size is 8.
+      assertEquals(1, backlogs.size());
+      assertEquals(8.0, backlogs.get(0), 0.001);
+    }
+  }
+
+  @Test
+  public void testPeriodicSequenceBacklog() throws Exception {
+    Instant base = Instant.now();
+    // Start 10 seconds ago, end 10 seconds from now, interval 1 second.
+    // PeriodicSequenceFn should have some backlog.
+    SequenceDefinition definition =
+        new SequenceDefinition(
+            base.minus(Duration.standardSeconds(10)),
+            base.plus(Duration.standardSeconds(10)),
+            Duration.standardSeconds(1));
+
+    // PeriodicSequenceFn is private, so we use reflection to instantiate it.
+    Class<?> fnClass =
+        Class.forName("org.apache.beam.sdk.transforms.PeriodicSequence$PeriodicSequenceFn");
+    Constructor<?> constructor = fnClass.getDeclaredConstructor();
+    constructor.setAccessible(true);
+    @SuppressWarnings("unchecked")
+    DoFn<SequenceDefinition, Instant> fn =
+        (DoFn<SequenceDefinition, Instant>) constructor.newInstance();
+
+    final List<Double> backlogs = new ArrayList<>();
+    try (ProcessFnTester<SequenceDefinition, Instant, OffsetRange, Long, Instant> tester =
+        new ProcessFnTester<>(
+            base,
+            fn,
+            SerializableCoder.of(SequenceDefinition.class),
+            SerializableCoder.of(OffsetRange.class),
+            InstantCoder.of(),
+            0, // Force immediate checkpoint after 0 outputs to measure initial backlog
+            MAX_BUNDLE_DURATION)) {
+      tester.processFn.setBacklogBytesCallback(backlogs::add);
+
+      // Initial range from PeriodicSequenceFn.getInitialRange
+      OffsetRange initialRange =
+          new OffsetRange(
+              definition.first.getMillis() - definition.durationMilliSec,
+              definition.last.getMillis());
+
+      tester.startElement(definition, initialRange);
+
+      // We expect some backlog to be reported.
+      assertFalse(backlogs.isEmpty());
+      assertTrue("Backlog should be positive", backlogs.get(0) > 0);
+      // 10 seconds in the past + the element at now = 11 elements?
+      // Actually (now - (base-11s)) / 1s = 11.
+      // We expect at least 80 bytes (10 elements).
+      assertThat(backlogs.get(0), greaterThanOrEqualTo(80.0));
+    }
+  }
+
+  @Test
+  public void testUnboundedCountingSourceBacklog() throws Exception {
+    Instant base = Instant.now();
+    UnboundedSource<Long, ?> source = CountingSource.unbounded();
+    Read.UnboundedSourceAsSDFWrapperFn<Long, ?> fn =
+        new Read.UnboundedSourceAsSDFWrapperFn<>(source.getCheckpointMarkCoder());
+
+    final List<Double> backlogs = new ArrayList<>();
+    try (ProcessFnTester<
+            UnboundedSource<Long, ?>,
+            ValueWithRecordId<Long>,
+            Read.UnboundedSourceAsSDFWrapperFn.UnboundedSourceRestriction<Long, ?>,
+            Object,
+            Void>
+        tester =
+            new ProcessFnTester<>(
+                base,
+                fn,
+                (Coder) SerializableCoder.of(source.getClass()),
+                fn.restrictionCoder(),
+                VoidCoder.of(),
+                1, // Force checkpoint after 1 output
+                MAX_BUNDLE_DURATION)) {
+      tester.processFn.setBacklogBytesCallback(backlogs::add);
+
+      // Input element needs to be the source itself
+      Read.UnboundedSourceAsSDFWrapperFn.UnboundedSourceRestriction<Long, ?> restriction =
+          Read.UnboundedSourceAsSDFWrapperFn.UnboundedSourceRestriction.create(
+              source, null, BoundedWindow.TIMESTAMP_MIN_VALUE);
+      tester.startElement(source, restriction);
+
+      // We expect backlog to be reported for unbounded too.
+      // CountingSource.unbounded() reports Long.MAX_VALUE if not started, but here it's started in
+      // getSize.
+      // getSize for unbounded source is now implemented in Read.java.
+      assertFalse("Backlog should have been reported for unbounded", backlogs.isEmpty());
+      // CountingSource.unbounded typically reports a large value or based on getSplitBacklogBytes
+      // which is 8 * elements.
+      assertThat(backlogs.get(0), greaterThanOrEqualTo(0.0));
     }
   }
 }
