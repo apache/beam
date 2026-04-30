@@ -20,7 +20,6 @@
 import datetime
 import itertools
 import re
-from collections import abc
 from collections.abc import Callable
 from collections.abc import Collection
 from collections.abc import Iterable
@@ -187,7 +186,7 @@ def py_value_to_js_dict(py_value):
     py_value = py_value._asdict()
   if isinstance(py_value, dict):
     return {key: py_value_to_js_dict(value) for key, value in py_value.items()}
-  elif not isinstance(py_value, str) and isinstance(py_value, abc.Iterable):
+  elif not isinstance(py_value, str) and isinstance(py_value, Iterable):
     return [py_value_to_js_dict(value) for value in list(py_value)]
   else:
     return py_value
@@ -270,6 +269,14 @@ class JsMapToFieldsDoFn(beam.DoFn):
         script.append(udf_code)
         self.field_funcs[name] = func_name
 
+    if self.field_funcs:
+      aggregator_entries = ", ".join([
+          f'"{name}": {func_name}(__row__)'
+          for name, func_name in self.field_funcs.items()
+      ])
+      script.append(
+          f"var __aggregate_fn__ = (__row__) => ({{ {aggregator_entries} }});")
+
     self.script = "\n".join(script) if script else None
 
   def setup(self):
@@ -285,10 +292,10 @@ class JsMapToFieldsDoFn(beam.DoFn):
     for name, src in self.passthrough_fields:
       result_dict[name] = row_as_dict.get(src)
 
-    # Handle JS fields
-    for name, func_name in self.field_funcs.items():
-      res = self.ctx.call(func_name, row_as_dict)
-      result_dict[name] = js_to_py(res)
+    # Handle JS fields via single aggregate call
+    if self.field_funcs:
+      res = self.ctx.call("__aggregate_fn__", row_as_dict)
+      result_dict.update(js_to_py(res))
 
     yield dicts_to_rows(result_dict)
 
