@@ -390,14 +390,14 @@ public class RequestResponseIOTest {
 
     abstract String getAString();
 
-    abstract Long getALong();
+    abstract long getALong();
 
     @AutoValue.Builder
     abstract static class Builder {
 
       abstract Builder setAString(String value);
 
-      abstract Builder setALong(Long value);
+      abstract Builder setALong(long value);
 
       abstract Request build();
     }
@@ -411,14 +411,14 @@ public class RequestResponseIOTest {
 
     abstract String getAString();
 
-    abstract Long getALong();
+    abstract long getALong();
 
     @AutoValue.Builder
     abstract static class Builder {
 
       abstract Builder setAString(String value);
 
-      abstract Builder setALong(Long value);
+      abstract Builder setALong(long value);
 
       abstract Response build();
     }

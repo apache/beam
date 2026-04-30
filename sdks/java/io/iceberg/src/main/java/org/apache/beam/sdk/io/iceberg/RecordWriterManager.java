@@ -49,6 +49,7 @@ import org.apache.iceberg.ManifestFile;
 import org.apache.iceberg.PartitionField;
 import org.apache.iceberg.PartitionKey;
 import org.apache.iceberg.PartitionSpec;
+import org.apache.iceberg.SortOrder;
 import org.apache.iceberg.Table;
 import org.apache.iceberg.catalog.Catalog;
 import org.apache.iceberg.catalog.Namespace;
@@ -329,6 +330,7 @@ class RecordWriterManager implements AutoCloseable {
     @Nullable IcebergTableCreateConfig createConfig = destination.getTableCreateConfig();
     PartitionSpec partitionSpec =
         createConfig != null ? createConfig.getPartitionSpec() : PartitionSpec.unpartitioned();
+    SortOrder sortOrder = createConfig != null ? createConfig.getSortOrder() : SortOrder.unsorted();
     Map<String, String> tableProperties =
         createConfig != null && createConfig.getTableProperties() != null
             ? createConfig.getTableProperties()
@@ -357,13 +359,20 @@ class RecordWriterManager implements AutoCloseable {
       } catch (NoSuchTableException e) { // Otherwise, create the table
         org.apache.iceberg.Schema tableSchema = IcebergUtils.beamSchemaToIcebergSchema(dataSchema);
         try {
-          table = catalog.createTable(identifier, tableSchema, partitionSpec, tableProperties);
+          table =
+              catalog
+                  .buildTable(identifier, tableSchema)
+                  .withPartitionSpec(partitionSpec)
+                  .withSortOrder(sortOrder)
+                  .withProperties(tableProperties)
+                  .create();
           LOG.info(
               "Created Iceberg table '{}' with schema: {}\n"
-                  + ", partition spec: {}, table properties: {}",
+                  + ", partition spec: {}, sort order: {}, table properties: {}",
               identifier,
               tableSchema,
               partitionSpec,
+              sortOrder,
               tableProperties);
         } catch (AlreadyExistsException ignored) {
           // race condition: another worker already created this table
@@ -403,33 +412,36 @@ class RecordWriterManager implements AutoCloseable {
    */
   @Override
   public void close() throws IOException {
-    for (Map.Entry<WindowedValue<IcebergDestination>, DestinationState>
-        windowedDestinationAndState : destinations.entrySet()) {
-      DestinationState state = windowedDestinationAndState.getValue();
+    try {
+      for (Map.Entry<WindowedValue<IcebergDestination>, DestinationState>
+          windowedDestinationAndState : destinations.entrySet()) {
+        DestinationState state = windowedDestinationAndState.getValue();
 
-      // removing writers from the state's cache will trigger the logic to collect each writer's
-      // data file.
-      state.writers.invalidateAll();
-      // first check for any exceptions swallowed by the cache
-      if (!state.exceptions.isEmpty()) {
-        IllegalStateException exception =
-            new IllegalStateException(
-                String.format("Encountered %s failed writer(s).", state.exceptions.size()));
-        for (Exception e : state.exceptions) {
-          exception.addSuppressed(e);
+        // removing writers from the state's cache will trigger the logic to collect each writer's
+        // data file.
+        state.writers.invalidateAll();
+        // first check for any exceptions swallowed by the cache
+        if (!state.exceptions.isEmpty()) {
+          IllegalStateException exception =
+              new IllegalStateException(
+                  String.format("Encountered %s failed writer(s).", state.exceptions.size()));
+          for (Exception e : state.exceptions) {
+            exception.addSuppressed(e);
+          }
+          throw exception;
         }
-        throw exception;
-      }
 
-      if (state.dataFiles.isEmpty()) {
-        continue;
-      }
+        if (state.dataFiles.isEmpty()) {
+          continue;
+        }
 
-      totalSerializableDataFiles.put(
-          windowedDestinationAndState.getKey(), new ArrayList<>(state.dataFiles));
-      state.dataFiles.clear();
+        totalSerializableDataFiles.put(
+            windowedDestinationAndState.getKey(), new ArrayList<>(state.dataFiles));
+        state.dataFiles.clear();
+      }
+    } finally {
+      destinations.clear();
     }
-    destinations.clear();
     checkArgument(
         openWriters == 0,
         "Expected all data writers to be closed, but found %s data writer(s) still open",

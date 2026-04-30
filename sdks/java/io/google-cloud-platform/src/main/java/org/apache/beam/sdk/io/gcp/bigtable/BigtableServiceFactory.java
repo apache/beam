@@ -81,10 +81,10 @@ class BigtableServiceFactory implements Serializable {
             refCounts.getOrDefault(getConfigId().id(), new AtomicInteger(0)).decrementAndGet();
         if (refCount < 0) {
           LOG.error(
-              "close() Ref count is < 0, configId=" + getConfigId().id() + " refCount=" + refCount);
+              "close() Ref count is < 0, configId={} refCount={}", getConfigId().id(), refCount);
         }
         LOG.debug(
-            "close() is called for config id " + getConfigId().id() + ", ref count is " + refCount);
+            "close() is called for config id {}, ref count is {}", getConfigId().id(), refCount);
         if (refCount == 0) {
           entries.remove(getConfigId().id());
           refCounts.remove(getConfigId().id());
@@ -101,14 +101,14 @@ class BigtableServiceFactory implements Serializable {
       PipelineOptions pipelineOptions)
       throws IOException {
     synchronized (lock) {
-      LOG.debug("getServiceForReading(), config id: " + configId.id());
+      LOG.debug("getServiceForReading(), config id: {}", configId.id());
       BigtableServiceEntry entry = entries.get(configId.id());
       if (entry != null) {
         // When entry is not null, refCount.get(configId.id()) should always exist.
         // Doing a putIfAbsent to avoid NPE.
         AtomicInteger count = refCounts.putIfAbsent(configId.id(), new AtomicInteger(0));
         if (count == null) {
-          LOG.error("entry is not null but refCount of config Id " + configId.id() + " is null.");
+          LOG.error("entry is not null but refCount of config Id {} is null.", configId.id());
         }
         refCounts.get(configId.id()).getAndIncrement();
         LOG.debug("getServiceForReading() returning an existing service entry");
@@ -147,13 +147,13 @@ class BigtableServiceFactory implements Serializable {
       throws IOException {
     synchronized (lock) {
       BigtableServiceEntry entry = entries.get(configId.id());
-      LOG.debug("getServiceForWriting(), config id: " + configId.id());
+      LOG.debug("getServiceForWriting(), config id: {}", configId.id());
       if (entry != null) {
         // When entry is not null, refCount.get(configId.id()) should always exist.
         // Doing a putIfAbsent to avoid NPE.
         AtomicInteger count = refCounts.putIfAbsent(configId.id(), new AtomicInteger(0));
         if (count == null) {
-          LOG.error("entry is not null but refCount of config Id " + configId.id() + " is null.");
+          LOG.error("entry is not null but refCount of config Id {} is null.", configId.id());
         }
         refCounts.get(configId.id()).getAndIncrement();
         LOG.debug("getServiceForWriting() returning an existing service entry");
@@ -201,7 +201,7 @@ class BigtableServiceFactory implements Serializable {
             return false;
           }
           String message = String.format("Error checking whether table %s exists", tableId);
-          LOG.error(message, e);
+          LOG.error("Error checking whether table {} exists", tableId, e);
           throw new IOException(message, e);
         }
       }

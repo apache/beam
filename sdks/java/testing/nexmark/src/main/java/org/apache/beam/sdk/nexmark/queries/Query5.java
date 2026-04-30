@@ -122,7 +122,7 @@ public class Query5 extends NexmarkQueryTransform<AuctionCount> {
         if (this == o) {
           return true;
         }
-        if (o == null || getClass() != o.getClass()) {
+        if (!(o instanceof Accum)) {
           return false;
         }
 

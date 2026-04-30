@@ -17,14 +17,25 @@
  */
 package org.apache.beam.runners.dataflow.worker.windmill.work.processing;
 
-import java.time.Duration;
+import com.google.auto.value.AutoValue;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.locks.ReentrantLock;
 import javax.annotation.Nullable;
+import javax.annotation.concurrent.GuardedBy;
 import javax.annotation.concurrent.ThreadSafe;
+import org.apache.beam.repackaged.core.org.apache.commons.lang3.tuple.Pair;
 import org.apache.beam.runners.dataflow.worker.util.BoundedQueueExecutor;
 import org.apache.beam.sdk.annotations.Internal;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.cache.Cache;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.cache.CacheBuilder;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
+import org.joda.time.Duration;
+import org.joda.time.Instant;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -32,28 +43,93 @@ import org.slf4j.LoggerFactory;
 @Internal
 final class StreamingCommitFinalizer {
   private static final Logger LOG = LoggerFactory.getLogger(StreamingCommitFinalizer.class);
-  private static final Duration DEFAULT_CACHE_ENTRY_EXPIRY = Duration.ofMinutes(5L);
-  private final Cache<Long, Runnable> commitFinalizerCache;
-  private final BoundedQueueExecutor finalizationExecutor;
 
-  private StreamingCommitFinalizer(
-      Cache<Long, Runnable> commitFinalizerCache, BoundedQueueExecutor finalizationExecutor) {
-    this.commitFinalizerCache = commitFinalizerCache;
-    this.finalizationExecutor = finalizationExecutor;
+  /** A {@link Runnable} and expiry time pair. */
+  @AutoValue
+  public abstract static class FinalizationInfo {
+    public abstract long getId();
+
+    public abstract Instant getExpiryTime();
+
+    public abstract Runnable getCallback();
+
+    public abstract ScheduledFuture<?> getCleanupFuture();
+
+    public static FinalizationInfo create(
+        Long id, Instant expiryTime, Runnable callback, ScheduledFuture<?> cleanupFuture) {
+      return new AutoValue_StreamingCommitFinalizer_FinalizationInfo(
+          id, expiryTime, callback, cleanupFuture);
+    }
   }
 
-  static StreamingCommitFinalizer create(BoundedQueueExecutor workExecutor) {
-    return new StreamingCommitFinalizer(
-        CacheBuilder.newBuilder().expireAfterWrite(DEFAULT_CACHE_ENTRY_EXPIRY).build(),
-        workExecutor);
+  private final ReentrantLock lock = new ReentrantLock();
+
+  @GuardedBy("lock")
+  private final HashMap<Long, FinalizationInfo> commitFinalizationCallbacks = new HashMap<>();
+
+  private final BoundedQueueExecutor finalizationExecutor;
+
+  // The cleanup threads run in their own Executor, so they don't block processing.
+  private final ScheduledExecutorService cleanupExecutor;
+
+  private StreamingCommitFinalizer(
+      BoundedQueueExecutor finalizationExecutor, ScheduledExecutorService cleanupExecutor) {
+    this.finalizationExecutor = finalizationExecutor;
+    this.cleanupExecutor = cleanupExecutor;
+  }
+
+  static StreamingCommitFinalizer create(
+      BoundedQueueExecutor workExecutor, ScheduledExecutorService cleanupExecutor) {
+    return new StreamingCommitFinalizer(workExecutor, cleanupExecutor);
   }
 
   /**
    * Stores a map of user worker generated finalization ids and callbacks to execute once a commit
    * has been successfully committed to the backing state store.
    */
-  void cacheCommitFinalizers(Map<Long, Runnable> commitCallbacks) {
-    commitFinalizerCache.putAll(commitCallbacks);
+  public void cacheCommitFinalizers(Map<Long, Pair<Instant, Runnable>> callbacks) {
+    if (callbacks.isEmpty()) {
+      return;
+    }
+    Instant now = Instant.now();
+    lock.lock();
+    try {
+      for (Map.Entry<Long, Pair<Instant, Runnable>> entry : callbacks.entrySet()) {
+        Instant cleanupTime = entry.getValue().getLeft();
+        // Ignore finalizers that have already expired.
+        if (cleanupTime.isBefore(now)) {
+          continue;
+        }
+        ScheduledFuture<?> cleanupFuture =
+            cleanupExecutor.schedule(
+                () -> {
+                  lock.lock();
+                  try {
+                    commitFinalizationCallbacks.remove(entry.getKey());
+                  } finally {
+                    lock.unlock();
+                  }
+                },
+                new Duration(now, cleanupTime).getMillis(),
+                TimeUnit.MILLISECONDS);
+        FinalizationInfo info =
+            FinalizationInfo.create(
+                entry.getKey(),
+                entry.getValue().getLeft(),
+                entry.getValue().getRight(),
+                cleanupFuture);
+        FinalizationInfo existingInfo = commitFinalizationCallbacks.put(info.getId(), info);
+        if (existingInfo != null) {
+          throw new IllegalStateException(
+              "Expected to not have any past callbacks for bundle "
+                  + info.getId()
+                  + " but had "
+                  + existingInfo);
+        }
+      }
+    } finally {
+      lock.unlock();
+    }
   }
 
   /**
@@ -61,27 +137,41 @@ final class StreamingCommitFinalizer {
    * successfully persisted in the backing state store. If the commitCallback for the finalizationId
    * is still cached it is invoked.
    */
-  void finalizeCommits(Iterable<Long> finalizeIds) {
-    for (long finalizeId : finalizeIds) {
-      @Nullable Runnable finalizeCommit = commitFinalizerCache.getIfPresent(finalizeId);
-      // NOTE: It is possible the same callback id may be removed twice if
-      // windmill restarts.
-      // TODO: It is also possible for an earlier finalized id to be lost.
-      // We should automatically discard all older callbacks for the same computation and key.
-      if (finalizeCommit != null) {
-        commitFinalizerCache.invalidate(finalizeId);
-        finalizationExecutor.forceExecute(
-            () -> {
-              try {
-                finalizeCommit.run();
-              } catch (OutOfMemoryError oom) {
-                throw oom;
-              } catch (Throwable t) {
-                LOG.error("Source checkpoint finalization failed:", t);
-              }
-            },
-            0);
+  public void finalizeCommits(Iterable<Long> finalizeIds) {
+    if (Iterables.isEmpty(finalizeIds)) {
+      return;
+    }
+    List<Runnable> callbacksToExecute = new ArrayList<>();
+    lock.lock();
+    try {
+      for (long finalizeId : finalizeIds) {
+        @Nullable FinalizationInfo info = commitFinalizationCallbacks.remove(finalizeId);
+        if (info != null) {
+          callbacksToExecute.add(info.getCallback());
+          info.getCleanupFuture().cancel(true);
+        }
       }
+    } finally {
+      lock.unlock();
+    }
+    for (Runnable callback : callbacksToExecute) {
+      try {
+        finalizationExecutor.forceExecute(callback, 0);
+      } catch (OutOfMemoryError oom) {
+        throw oom;
+      } catch (Throwable t) {
+        LOG.error("Commit finalization failed:", t);
+      }
+    }
+  }
+
+  @VisibleForTesting
+  int pendingCallbacksSize() {
+    lock.lock();
+    try {
+      return commitFinalizationCallbacks.size();
+    } finally {
+      lock.unlock();
     }
   }
 }

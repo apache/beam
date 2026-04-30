@@ -142,7 +142,6 @@ public class BigtableServiceImplTest {
    * as expected.
    *
    * @throws IOException
-   * @throws InterruptedException
    */
   @Test
   @SuppressWarnings("unchecked")
@@ -831,7 +830,6 @@ public class BigtableServiceImplTest {
    * expected.
    *
    * @throws IOException
-   * @throws InterruptedException
    */
   @Test
   public void testWrite() throws IOException {

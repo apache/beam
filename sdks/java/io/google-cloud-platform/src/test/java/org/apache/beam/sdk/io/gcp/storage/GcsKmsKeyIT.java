@@ -23,8 +23,9 @@ import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.Assert.assertNotNull;
 
 import java.io.IOException;
+import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.util.Collections;
-import java.util.Date;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.PipelineResult.State;
@@ -77,7 +78,9 @@ public class GcsKmsKeyIT {
     ResourceId filenamePrefix =
         FileSystems.matchNewResource(gcsOptions.getGcpTempLocation(), true)
             .resolve(
-                String.format("GcsKmsKeyIT-%tF-%<tH-%<tM-%<tS-%<tL.output", new Date()),
+                String.format(
+                    "GcsKmsKeyIT-%tF-%<tH-%<tM-%<tS-%<tL.output",
+                    LocalDateTime.now(ZoneId.of("UTC"))),
                 StandardResolveOptions.RESOLVE_FILE);
 
     Pipeline p = Pipeline.create(options);

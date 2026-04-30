@@ -87,7 +87,8 @@ class CustomMilvusContainer(MilvusContainer):
   Extends MilvusContainer to provide custom port binding and environment
   configuration for testing with standalone Milvus instances.
   """
-  def __init__(
+
+  def __init__(  # pylint: disable=bad-super-call
       self,
       image: str,
       service_container_port,
@@ -96,7 +97,11 @@ class CustomMilvusContainer(MilvusContainer):
   ) -> None:
     # Skip the parent class's constructor and go straight to
     # GenericContainer.
-    super(MilvusContainer, self).__init__(image=image, **kwargs)
+    super(
+        MilvusContainer,
+        self,
+    ).__init__(
+        image=image, **kwargs)
     self.port = service_container_port
     self.healthcheck_port = healthcheck_container_port
     self.with_exposed_ports(service_container_port, healthcheck_container_port)
@@ -134,6 +139,27 @@ class MilvusTestHelpers:
   # https://pypi.org/project/pymilvus/ for version compatibility.
   # Example: Milvus v2.6.0 requires pymilvus==2.6.0 (exact match required).
   @staticmethod
+  def _wait_for_milvus_grpc(uri: str) -> None:
+    """Wait until Milvus accepts RPCs.
+
+    Docker may report started before gRPC is ready.
+    """
+    def list_collections_probe():
+      client = MilvusClient(uri=uri)
+      try:
+        client.list_collections()
+      finally:
+        client.close()
+
+    retry_with_backoff(
+        list_collections_probe,
+        max_retries=25,
+        retry_delay=2.0,
+        retry_backoff_factor=1.2,
+        operation_name="Milvus client connection after container start",
+        exception_types=(MilvusException, ))
+
+  @staticmethod
   def start_db_container(
       image="milvusdb/milvus:v2.5.10",
       max_vec_fields=5,
@@ -148,23 +174,31 @@ class MilvusTestHelpers:
       if tc_max_retries is not None:
         testcontainers_config.max_tries = tc_max_retries
       for i in range(vector_client_max_retries):
+        vector_db_container: Optional[CustomMilvusContainer] = None
         try:
           vector_db_container = CustomMilvusContainer(
               image=image,
               service_container_port=service_container_port,
               healthcheck_container_port=healthcheck_container_port)
-          vector_db_container = vector_db_container.with_volume_mapping(
+          mapped_container = vector_db_container.with_volume_mapping(
               cfg, "/milvus/configs/user.yaml")
-          vector_db_container.start()
-          host = vector_db_container.get_container_host_ip()
-          port = vector_db_container.get_exposed_port(service_container_port)
-          info = VectorDBContainerInfo(vector_db_container, host, port)
+          assert mapped_container is not None
+          running_container: CustomMilvusContainer = mapped_container
+          vector_db_container = running_container
+          running_container.start()
+          host = running_container.get_container_host_ip()
+          port = running_container.get_exposed_port(service_container_port)
+          info = VectorDBContainerInfo(running_container, host, port)
+          MilvusTestHelpers._wait_for_milvus_grpc(info.uri)
           _LOGGER.info(
               "milvus db container started successfully on %s.", info.uri)
+          break
         except Exception as e:
-          stdout_logs, stderr_logs = vector_db_container.get_logs()
-          stdout_logs = stdout_logs.decode("utf-8")
-          stderr_logs = stderr_logs.decode("utf-8")
+          stdout_logs = stderr_logs = ""
+          if vector_db_container is not None:
+            raw_out, raw_err = vector_db_container.get_logs()
+            stdout_logs = raw_out.decode("utf-8")
+            stderr_logs = raw_err.decode("utf-8")
           _LOGGER.warning(
               "Retry %d/%d: Failed to start Milvus DB container. Reason: %s. "
               "STDOUT logs:\n%s\nSTDERR logs:\n%s",
@@ -204,8 +238,8 @@ class MilvusTestHelpers:
 
     client = retry_with_backoff(
         create_client,
-        max_retries=3,
-        retry_delay=1.0,
+        max_retries=5,
+        retry_delay=2.0,
         operation_name="Test Milvus client connection",
         exception_types=(MilvusException, ))
 

@@ -1306,12 +1306,12 @@ public class ExecutableStageDoFnOperator<InputT, OutputT>
 
   private static class NoOpDoFn<InputT, OutputT> extends DoFn<InputT, OutputT> {
     @ProcessElement
-    public void doNothing(ProcessContext context) {}
+    public void doNothing(@SuppressWarnings("unused") ProcessContext context) {}
   }
 
   private static class StableNoOpDoFn<InputT, OutputT> extends DoFn<InputT, OutputT> {
     @RequiresStableInput
     @ProcessElement
-    public void doNothing(ProcessContext context) {}
+    public void doNothing(@SuppressWarnings("unused") ProcessContext context) {}
   }
 }

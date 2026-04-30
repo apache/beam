@@ -23,6 +23,9 @@ import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.DoFn.Element;
+import org.apache.beam.sdk.transforms.DoFn.OutputReceiver;
+import org.apache.beam.sdk.transforms.DoFn.SideInput;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.View;
 import org.apache.beam.sdk.values.KV;
@@ -83,10 +86,8 @@ public class ViewExample {
                       @ProcessElement
                       public void processElement(
                           @Element KV<String, String> person,
-                          OutputReceiver<KV<String, String>> out,
-                          ProcessContext context) {
-                        Map<String, String> citiesToCountries =
-                            context.sideInput(citiesToCountriesView);
+                          @SideInput("citiesToCountries") Map<String, String> citiesToCountries,
+                          OutputReceiver<KV<String, String>> out) {
                         String city = person.getValue();
                         String country = citiesToCountries.get(city);
                         if (country == null) {
@@ -95,7 +96,7 @@ public class ViewExample {
                         out.output(KV.of(person.getKey(), country));
                       }
                     })
-                .withSideInputs(citiesToCountriesView));
+                .withSideInput("citiesToCountries", citiesToCountriesView));
     // [END main_section]
 
     output.apply("Log", ParDo.of(new LogOutput<>("Output: ")));
@@ -112,9 +113,11 @@ public class ViewExample {
     }
 
     @ProcessElement
-    public void processElement(ProcessContext c) throws Exception {
-      LOG.info(prefix + c.element());
-      c.output(c.element());
+    public void processElement(
+        @Element KV<String, String> element, OutputReceiver<KV<String, String>> receiver)
+        throws Exception {
+      LOG.info("{}{}", prefix, element);
+      receiver.output(element);
     }
   }
 }

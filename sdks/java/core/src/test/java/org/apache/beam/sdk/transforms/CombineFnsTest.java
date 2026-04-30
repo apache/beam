@@ -329,7 +329,7 @@ public class CombineFnsTest {
       if (this == o) {
         return true;
       }
-      if (o == null || getClass() != o.getClass()) {
+      if (!(o instanceof UserString)) {
         return false;
       }
       UserString that = (UserString) o;

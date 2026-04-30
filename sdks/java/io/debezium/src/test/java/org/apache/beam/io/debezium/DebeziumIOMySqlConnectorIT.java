@@ -129,7 +129,7 @@ public class DebeziumIOMySqlConnectorIT {
       }
     } catch (SQLException ex) {
       LOG.error("SQL error in monitoring thread. Shutting down.", ex);
-      throw (ex);
+      throw ex;
     } catch (InterruptedException ex) {
       LOG.info("Monitoring thread interrupted. Shutting down.");
       Thread.currentThread().interrupt();

@@ -308,7 +308,8 @@ public class JdbcIOIT {
     private final long numRecords;
     private final long numPerPeriod;
 
-    public GenerateRecordsStream(long numRecords, long numPerPeriod, Duration periodLength) {
+    public GenerateRecordsStream(
+        long numRecords, long numPerPeriod, @SuppressWarnings("unused") Duration periodLength) {
       this.numRecords = numRecords;
       this.numPerPeriod = numPerPeriod;
     }
@@ -416,7 +417,7 @@ public class JdbcIOIT {
   }
 
   /**
-   * @return {@link JdbcIO.Write} transform that writes to {@param tableName} Postgres table and
+   * @return {@link JdbcIO.Write} transform that writes to {@code tableName} Postgres table and
    *     returns all fields of modified rows.
    */
   private static JdbcIO.Write<KV<Integer, String>> getJdbcWriteWithReturning(String tableName) {

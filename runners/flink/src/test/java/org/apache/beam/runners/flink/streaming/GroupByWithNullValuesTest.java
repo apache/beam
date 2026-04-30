@@ -73,6 +73,7 @@ public class GroupByWithNullValuesTest implements Serializable {
             .apply(
                 ParDo.of(
                     new DoFn<KV<String, Iterable<Void>>, Integer>() {
+                      @SuppressWarnings("VoidUsed")
                       @ProcessElement
                       public void processElement(ProcessContext pc) {
                         int count = 0;

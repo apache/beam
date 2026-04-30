@@ -22,6 +22,7 @@ import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.VoidCoder;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
+import org.apache.beam.sdk.values.CausedByDrain;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
@@ -141,16 +142,24 @@ public class Reify {
                   new DoFn<KV<K, V>, KV<K, ValueInSingleWindow<V>>>() {
                     @ProcessElement
                     public void processElement(
+                        ProcessContext pc,
                         @Element KV<K, V> element,
                         @DoFn.Timestamp Instant timestamp,
                         BoundedWindow window,
                         PaneInfo paneInfo,
+                        CausedByDrain causedByDrain,
                         OutputReceiver<KV<K, ValueInSingleWindow<V>>> r) {
                       r.output(
                           KV.of(
                               element.getKey(),
                               ValueInSingleWindow.of(
-                                  element.getValue(), timestamp, window, paneInfo)));
+                                  element.getValue(),
+                                  timestamp,
+                                  window,
+                                  paneInfo,
+                                  pc.currentRecordId(),
+                                  pc.currentRecordOffset(),
+                                  causedByDrain)));
                     }
                   }))
           .setCoder(

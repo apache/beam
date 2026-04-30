@@ -1238,6 +1238,7 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
 
   private static final Random RANDOM = new Random();
 
+  @SuppressWarnings("Slf4jFormatShouldBeConst")
   @Override
   public DataflowPipelineJob run(Pipeline pipeline) {
     // Multi-language pipelines and pipelines that include upgrades should automatically be upgraded
@@ -1890,9 +1891,9 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
         });
     for (String unconsumed : unconsumedDLQ.values()) {
       LOG.warn(
-          "No transform processes the failed-inserts output from BigQuery sink: "
-              + unconsumed
-              + "! Not processing failed inserts means that those rows will be lost.");
+          "No transform processes the failed-inserts output from BigQuery sink: {}"
+              + "! Not processing failed inserts means that those rows will be lost.",
+          unconsumed);
     }
   }
 
@@ -2737,11 +2738,11 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
               DataflowRunner.class.getSimpleName()));
     }
     boolean isUnifiedWorker = useUnifiedWorker(options);
-    if (DoFnSignatures.usesBundleFinalizer(fn) && !isUnifiedWorker) {
+    if (DoFnSignatures.usesBundleFinalizer(fn) && !isUnifiedWorker && !streaming) {
       throw new UnsupportedOperationException(
           String.format(
-              "%s does not currently support %s when not using unified worker because it uses "
-                  + "BundleFinalizers in its implementation. Set the `--experiments=use_runner_v2` "
+              "%s does not currently support %s in batch mode when not using unified worker because it "
+                  + "uses BundleFinalizers in its implementation. Set the `--experiments=use_runner_v2` "
                   + "option to use this DoFn.",
               DataflowRunner.class.getSimpleName(), fn.getClass().getSimpleName()));
     }

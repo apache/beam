@@ -24,7 +24,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import java.io.IOException;
 import java.text.ParseException;
 import java.time.Duration;
-import java.time.ZoneId;
+import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
 import java.util.Base64;
 import java.util.Map;
@@ -151,7 +151,7 @@ public class FileBasedIOLT extends IOLoadTestBase {
     String tempDirName =
         "textiolt-"
             + DateTimeFormatter.ofPattern("MMddHHmmssSSS")
-                .withZone(ZoneId.of("UTC"))
+                .withZone(ZoneOffset.UTC)
                 .format(java.time.Instant.now())
             + UUID.randomUUID().toString().substring(0, 10);
     resourceManager.registerTempDir(tempDirName);
@@ -251,7 +251,7 @@ public class FileBasedIOLT extends IOLoadTestBase {
     /** Number of dynamic destinations to write. */
     @JsonProperty public int numShards = 0;
 
-    /** See {@class org.apache.beam.sdk.io.Compression}. */
+    /** See {@link org.apache.beam.sdk.io.Compression}. */
     @JsonProperty public String compressionType = "UNCOMPRESSED";
 
     /** Runner specified to run the pipeline. */

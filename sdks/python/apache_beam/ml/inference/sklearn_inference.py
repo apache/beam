@@ -95,6 +95,8 @@ class SklearnModelHandlerNumpy(ModelHandler[numpy.ndarray,
       model_copies: Optional[int] = None,
       max_batch_weight: Optional[int] = None,
       element_size_fn: Optional[Callable[[Any], int]] = None,
+      batch_length_fn: Optional[Callable[[Any], int]] = None,
+      batch_bucket_boundaries: Optional[list[int]] = None,
       **kwargs):
     """ Implementation of the ModelHandler interface for scikit-learn
     using numpy arrays as input.
@@ -126,6 +128,10 @@ class SklearnModelHandlerNumpy(ModelHandler[numpy.ndarray,
         GPU capacity and want to maximize resource utilization.
       max_batch_weight: the maximum total weight of a batch.
       element_size_fn: a function that returns the size (weight) of an element.
+      batch_length_fn: a callable that returns the length of an element for
+        length-aware batching.
+      batch_bucket_boundaries: a sorted list of positive boundary values for
+        length-aware batching buckets.
       kwargs: 'env_vars' can be used to set environment variables
         before loading the model.
     """
@@ -135,6 +141,8 @@ class SklearnModelHandlerNumpy(ModelHandler[numpy.ndarray,
         max_batch_duration_secs=max_batch_duration_secs,
         max_batch_weight=max_batch_weight,
         element_size_fn=element_size_fn,
+        batch_length_fn=batch_length_fn,
+        batch_bucket_boundaries=batch_bucket_boundaries,
         large_model=large_model,
         model_copies=model_copies,
         **kwargs)
@@ -224,6 +232,8 @@ class SklearnModelHandlerPandas(ModelHandler[pandas.DataFrame,
       model_copies: Optional[int] = None,
       max_batch_weight: Optional[int] = None,
       element_size_fn: Optional[Callable[[Any], int]] = None,
+      batch_length_fn: Optional[Callable[[Any], int]] = None,
+      batch_bucket_boundaries: Optional[list[int]] = None,
       **kwargs):
     """Implementation of the ModelHandler interface for scikit-learn that
     supports pandas dataframes.
@@ -258,6 +268,10 @@ class SklearnModelHandlerPandas(ModelHandler[pandas.DataFrame,
         GPU capacity and want to maximize resource utilization.
       max_batch_weight: the maximum total weight of a batch.
       element_size_fn: a function that returns the size (weight) of an element.
+      batch_length_fn: a callable that returns the length of an element for
+        length-aware batching.
+      batch_bucket_boundaries: a sorted list of positive boundary values for
+        length-aware batching buckets.
       kwargs: 'env_vars' can be used to set environment variables
         before loading the model.
     """
@@ -267,6 +281,8 @@ class SklearnModelHandlerPandas(ModelHandler[pandas.DataFrame,
         max_batch_duration_secs=max_batch_duration_secs,
         max_batch_weight=max_batch_weight,
         element_size_fn=element_size_fn,
+        batch_length_fn=batch_length_fn,
+        batch_bucket_boundaries=batch_bucket_boundaries,
         large_model=large_model,
         model_copies=model_copies,
         **kwargs)

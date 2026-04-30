@@ -91,8 +91,6 @@ class HBaseRowMutationsCoder extends StructuredCoder<RowMutations> implements Se
    * Coder is always deterministic: 1. {@link RowMutations} maintains equality by row key only,
    * which is asserted equal in this coder 2. Canonical encoding is maintained regardless of object
    * machine or time context
-   *
-   * @throws @UnknownKeyFor@NonNull@Initialized NonDeterministicException
    */
   @Override
   public void verifyDeterministic() {}

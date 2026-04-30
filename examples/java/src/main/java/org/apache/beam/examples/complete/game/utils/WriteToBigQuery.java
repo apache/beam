@@ -30,11 +30,16 @@ import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.CreateDisposition;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.WriteDisposition;
 import org.apache.beam.sdk.io.gcp.bigquery.InsertRetryPolicy;
 import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.DoFn.Element;
+import org.apache.beam.sdk.transforms.DoFn.OutputReceiver;
+import org.apache.beam.sdk.transforms.DoFn.Timestamp;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
+import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PDone;
+import org.joda.time.Instant;
 
 /**
  * Generate, format, and write BigQuery table row information. Use provided information about the
@@ -64,11 +69,11 @@ public class WriteToBigQuery<InputT> extends PTransform<PCollection<InputT>, PDo
   }
 
   /**
-   * A {@link Serializable} function from a {@link DoFn.ProcessContext} and {@link BoundedWindow} to
-   * the value for that field.
+   * A {@link Serializable} function from an element and {@link BoundedWindow} to the value for that
+   * field.
    */
   public interface FieldFn<InputT> extends Serializable {
-    Object apply(DoFn<InputT, TableRow>.ProcessContext context, BoundedWindow window);
+    Object apply(InputT element, BoundedWindow window, Instant timestamp, PaneInfo pane);
   }
 
   /** Define a class to hold information about output table field definitions. */
@@ -96,16 +101,21 @@ public class WriteToBigQuery<InputT> extends PTransform<PCollection<InputT>, PDo
   protected class BuildRowFn extends DoFn<InputT, TableRow> {
 
     @ProcessElement
-    public void processElement(ProcessContext c, BoundedWindow window) {
+    public void processElement(
+        @Element InputT element,
+        @Timestamp Instant timestamp,
+        PaneInfo pane,
+        BoundedWindow window,
+        OutputReceiver<TableRow> receiver) {
 
       TableRow row = new TableRow();
       for (Map.Entry<String, FieldInfo<InputT>> entry : fieldInfo.entrySet()) {
         String key = entry.getKey();
         FieldInfo<InputT> fcnInfo = entry.getValue();
         FieldFn<InputT> fcn = fcnInfo.getFieldFn();
-        row.set(key, fcn.apply(c, window));
+        row.set(key, fcn.apply(element, window, timestamp, pane));
       }
-      c.output(row);
+      receiver.output(row);
     }
   }
 

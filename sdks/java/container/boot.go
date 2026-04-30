@@ -195,6 +195,9 @@ func main() {
 		"-XX:+UseParallelGC",
 		"-XX:+AlwaysActAsServerClassMachine",
 		"-XX:-OmitStackTraceInFastThrow",
+		// Crash and restart instead of throwing OutOfMemoryError which may be caught by user or
+		// framework code and leave things in a degraded state.
+        "-XX:+ExitOnOutOfMemoryError",
 	}
 
 	enableGoogleCloudProfiler := strings.Contains(options, enableGoogleCloudProfilerOption)
@@ -224,15 +227,17 @@ func main() {
 		args = append(args, jammAgentArgs)
 	}
 
+    enableHeapDumpsOnOom := false
 	// If heap dumping is enabled, configure the JVM to dump it on oom events.
 	if pipelineOptions, ok := info.GetPipelineOptions().GetFields()["options"]; ok {
 		if heapDumpOption, ok := pipelineOptions.GetStructValue().GetFields()["enableHeapDumps"]; ok {
-			if heapDumpOption.GetBoolValue() {
-				args = append(args, "-XX:+HeapDumpOnOutOfMemoryError",
-					"-Dbeam.fn.heap_dump_dir="+filepath.Join(dir, "heapdumps"),
-					"-XX:HeapDumpPath="+filepath.Join(dir, "heapdumps", "heap_dump.hprof"))
-			}
+			enableHeapDumpsOnOom = heapDumpOption.GetBoolValue()
 		}
+	}
+    if enableHeapDumpsOnOom {
+		args = append(args, "-XX:+HeapDumpOnOutOfMemoryError",
+			"-Dbeam.fn.heap_dump_dir="+filepath.Join(dir, "heapdumps"),
+			"-XX:HeapDumpPath="+filepath.Join(dir, "heapdumps", "heap_dump.hprof"))
 	}
 
 	// Apply meta options

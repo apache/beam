@@ -187,7 +187,7 @@ public class ThriftIO {
           }
         } catch (Exception ioe) {
           String filename = file.getMetadata().resourceId().toString();
-          LOG.error(String.format("Error in reading file: %1$s%n%2$s", filename, ioe));
+          LOG.error("Error in reading file: {}", filename, ioe);
           throw new RuntimeException(ioe);
         }
       }
@@ -265,10 +265,10 @@ public class ThriftIO {
         TProtocol protocol = protocolFactory.getProtocol(new TIOStreamTransport(baos));
         element.write(protocol);
       } catch (TTransportException tte) {
-        LOG.error("Error in transport to TIOStreamTransport: " + tte);
+        LOG.error("Error in transport to TIOStreamTransport", tte);
         throw new RuntimeException(tte);
       } catch (TException te) {
-        LOG.error("Error in writing element to TProtocol: " + te);
+        LOG.error("Error in writing element to TProtocol", te);
         throw new RuntimeException(te);
       }
       this.stream.write(baos.toByteArray());

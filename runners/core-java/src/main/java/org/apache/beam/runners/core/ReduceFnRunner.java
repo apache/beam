@@ -376,7 +376,7 @@ public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow> {
       emit(
           contextFactory.base(window, StateStyle.DIRECT),
           contextFactory.base(window, StateStyle.RENAMED),
-          null);
+          CausedByDrain.NORMAL);
     }
 
     // We're all done with merging and emitting elements so can compress the activeWindow state.

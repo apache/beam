@@ -238,6 +238,11 @@ public class DoFnTester<InputT, OutputT> implements AutoCloseable {
             }
 
             @Override
+            public CausedByDrain causedByDrain(DoFn<InputT, OutputT> doFn) {
+              return processContext.causedByDrain();
+            }
+
+            @Override
             public PaneInfo paneInfo(DoFn<InputT, OutputT> doFn) {
               return processContext.pane();
             }
@@ -598,7 +603,7 @@ public class DoFnTester<InputT, OutputT> implements AutoCloseable {
 
     @Override
     public CausedByDrain causedByDrain() {
-      return CausedByDrain.NORMAL;
+      return element.getCausedByDrain();
     }
 
     @Override
@@ -642,6 +647,27 @@ public class DoFnTester<InputT, OutputT> implements AutoCloseable {
                   null,
                   null,
                   CausedByDrain.NORMAL));
+    }
+
+    @Override
+    public void outputWindowedValue(WindowedValue<OutputT> windowedValue) {
+      outputWindowedValue(mainOutputTag, windowedValue);
+    }
+
+    @Override
+    public <T> void outputWindowedValue(TupleTag<T> tag, WindowedValue<T> windowedValue) {
+      for (BoundedWindow w : windowedValue.getWindows()) {
+        getMutableOutput(tag)
+            .add(
+                ValueInSingleWindow.of(
+                    windowedValue.getValue(),
+                    windowedValue.getTimestamp(),
+                    w,
+                    windowedValue.getPaneInfo(),
+                    windowedValue.getRecordId(),
+                    windowedValue.getRecordOffset(),
+                    windowedValue.causedByDrain()));
+      }
     }
 
     @Override

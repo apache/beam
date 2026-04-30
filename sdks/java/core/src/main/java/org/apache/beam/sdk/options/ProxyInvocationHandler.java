@@ -329,6 +329,7 @@ class ProxyInvocationHandler implements InvocationHandler, Serializable {
    *     same ProxyInvocationHandler as this.
    */
   @Override
+  @SuppressWarnings("EqualsGetClass")
   public boolean equals(@Nullable Object obj) {
     return obj != null
         && ((obj instanceof ProxyInvocationHandler && this == obj)

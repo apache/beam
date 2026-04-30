@@ -41,7 +41,7 @@ on:
       - 'sdks/java/extensions/sql/**'
       - 'release/**'
       - 'release/trigger_all_tests.json'
-      - '.github/workflows/beam_PreCommit_Xlang_Generated_Transforms.yml'
+      - '.github/trigger_files/beam_PreCommit_Xlang_Generated_Transforms.json'
   issue_comment:
     types: [created]
   schedule:
@@ -66,7 +66,7 @@ permissions:
 
 # This allows a subsequently queued workflow run to interrupt previous runs
 concurrency:
-  group: '${{ github.workflow }} @ ${{ github.event.issue.number || github.event.pull_request.head.label || github.sha || github.head_ref || github.ref }}-${{ github.event.schedule || github.event.comment.id || github.event.sender.login }}'
+  group: '${{ github.workflow }} @ ${{ github.event.pull_request.number || github.event.pull_request.head.label || github.sha || github.head_ref || github.ref }}-${{ github.event.schedule || github.event.comment.id || github.event.sender.login }}'
   cancel-in-progress: true
 
 env:
@@ -78,7 +78,7 @@ jobs:
   beam_PreCommit_Xlang_Generated_Transforms:
     name: ${{ matrix.job_name }} (${{ matrix.job_phrase }} ${{ matrix.python_version }})
     timeout-minutes: 120
-    runs-on: ['self-hosted', ubuntu-20.04, main]
+    runs-on: ['self-hosted', ubuntu-24.04, main]
     strategy:
       fail-fast: false
       matrix:

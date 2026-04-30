@@ -311,9 +311,14 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
     public String getErrorContext() {
       return "SimpleDoFnRunner/StartBundle";
     }
+
+    @Override
+    public BundleFinalizer bundleFinalizer() {
+      return stepContext.bundleFinalizer();
+    }
   }
 
-  /** An {@link DoFnInvoker.ArgumentProvider} for {@link DoFn.StartBundle @StartBundle}. */
+  /** An {@link DoFnInvoker.ArgumentProvider} for {@link DoFn.FinishBundle @FinishBundle}. */
   private class DoFnFinishBundleArgumentProvider
       extends DoFnInvoker.BaseArgumentProvider<InputT, OutputT> {
     /** A concrete implementation of {@link DoFn.FinishBundleContext}. */
@@ -355,6 +360,11 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
     @Override
     public String getErrorContext() {
       return "SimpleDoFnRunner/FinishBundle";
+    }
+
+    @Override
+    public BundleFinalizer bundleFinalizer() {
+      return stepContext.bundleFinalizer();
     }
   }
 
@@ -441,6 +451,17 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
     public <T> void output(TupleTag<T> tag, T output) {
       checkNotNull(tag, "Tag passed to output cannot be null");
       SimpleDoFnRunner.this.outputWindowedValue(tag, elem.withValue(output));
+    }
+
+    @Override
+    public void outputWindowedValue(WindowedValue<OutputT> windowedValue) {
+      outputWindowedValue(mainOutputTag, windowedValue);
+    }
+
+    @Override
+    public <T> void outputWindowedValue(TupleTag<T> tag, WindowedValue<T> windowedValue) {
+      checkTimestamp(elem.getTimestamp(), windowedValue.getTimestamp());
+      SimpleDoFnRunner.this.outputWindowedValue(tag, windowedValue);
     }
 
     @Override
@@ -553,6 +574,27 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
     @Override
     public Instant timestamp(DoFn<InputT, OutputT> doFn) {
       return timestamp();
+    }
+
+    @Override
+    public @Nullable String currentRecordId(DoFn<InputT, OutputT> doFn) {
+      return currentRecordId();
+    }
+
+    @Override
+    public @Nullable Long currentRecordOffset(DoFn<InputT, OutputT> doFn) {
+      return currentRecordOffset();
+    }
+
+    @Override
+    public Instant fireTimestamp(DoFn<InputT, OutputT> doFn) {
+      throw new UnsupportedOperationException(
+          "Cannot access fire timestamp outside of @OnTimer method.");
+    }
+
+    @Override
+    public CausedByDrain causedByDrain(DoFn<InputT, OutputT> doFn) {
+      return elem.causedByDrain();
     }
 
     @Override
@@ -832,6 +874,28 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
     }
 
     @Override
+    public @Nullable String currentRecordId(DoFn<InputT, OutputT> doFn) {
+      throw new UnsupportedOperationException(
+          "Cannot access record id outside of @ProcessElement method.");
+    }
+
+    @Override
+    public @Nullable Long currentRecordOffset(DoFn<InputT, OutputT> doFn) {
+      throw new UnsupportedOperationException(
+          "Cannot access record offset outside of @ProcessElement method.");
+    }
+
+    @Override
+    public Instant fireTimestamp(DoFn<InputT, OutputT> doFn) {
+      return fireTimestamp();
+    }
+
+    @Override
+    public CausedByDrain causedByDrain(DoFn<InputT, OutputT> doFn) {
+      return causedByDrain;
+    }
+
+    @Override
     public String timerId(DoFn<InputT, OutputT> doFn) {
       return timerId;
     }
@@ -1018,9 +1082,20 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
     }
 
     @Override
+    public void outputWindowedValue(WindowedValue<OutputT> windowedValue) {
+      outputWindowedValue(mainOutputTag, windowedValue);
+    }
+
+    @Override
+    public <T> void outputWindowedValue(TupleTag<T> tag, WindowedValue<T> windowedValue) {
+      checkTimestamp(timestamp(), windowedValue.getTimestamp());
+      SimpleDoFnRunner.this.outputWindowedValue(tag, windowedValue);
+    }
+
+    @Override
     public BundleFinalizer bundleFinalizer() {
       throw new UnsupportedOperationException(
-          "Bundle finalization is not supported in non-portable pipelines.");
+          "Bundle finalization is not supported in OnTimer calls.");
     }
   }
 
@@ -1117,6 +1192,29 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
     @Override
     public Instant timestamp(DoFn<InputT, OutputT> doFn) {
       return timestamp;
+    }
+
+    @Override
+    public CausedByDrain causedByDrain(DoFn<InputT, OutputT> doFn) {
+      throw new UnsupportedOperationException("CausedByDrain parameters are not supported.");
+    }
+
+    @Override
+    public @Nullable String currentRecordId(DoFn<InputT, OutputT> doFn) {
+      throw new UnsupportedOperationException(
+          "Cannot access record id outside of @ProcessElement method.");
+    }
+
+    @Override
+    public @Nullable Long currentRecordOffset(DoFn<InputT, OutputT> doFn) {
+      throw new UnsupportedOperationException(
+          "Cannot access record offset outside of @ProcessElement method.");
+    }
+
+    @Override
+    public Instant fireTimestamp(DoFn<InputT, OutputT> doFn) {
+      throw new UnsupportedOperationException(
+          "Cannot access fire timestamp outside of @OnTimer method.");
     }
 
     @Override
@@ -1272,9 +1370,20 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
     }
 
     @Override
+    public void outputWindowedValue(WindowedValue<OutputT> windowedValue) {
+      outputWindowedValue(mainOutputTag, windowedValue);
+    }
+
+    @Override
+    public <T> void outputWindowedValue(TupleTag<T> tag, WindowedValue<T> windowedValue) {
+      checkTimestamp(this.timestamp, windowedValue.getTimestamp());
+      SimpleDoFnRunner.this.outputWindowedValue(tag, windowedValue);
+    }
+
+    @Override
     public BundleFinalizer bundleFinalizer() {
       throw new UnsupportedOperationException(
-          "Bundle finalization is not supported in non-portable pipelines.");
+          "Bundle finalization is not supported in OnWindowExpiration calls.");
     }
   }
 

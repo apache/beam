@@ -1412,7 +1412,13 @@ class PypiExpansionService:
 
   @classmethod
   def _create_venv_to_clone(cls, base_python: str) -> str:
-    if '.dev' in beam_version:
+    # For '.dev', the default clone source is the venv that owns base_python.
+    # In CI that is often the active tox/sandbox tree; clonevirtualenv can
+    # race with ephemeral paths (tmp/, caches) under that tree. Use the
+    # scratch clonable venv in CI instead. Locally, keep cloning the dev venv
+    # for speed.
+    _ci = os.environ.get('CI', '').lower() in ('true', '1', 'yes')
+    if '.dev' in beam_version and not _ci:
       base_venv = os.path.dirname(os.path.dirname(base_python))
       print('Cloning dev environment from', base_venv)
       return base_venv
@@ -1542,6 +1548,9 @@ class RenamingProvider(Provider):
     """Creates a PTransform instance for the given transform type and arguments.
     """
     mappings = self._mappings[typ]
+    # NOTE: If the `key` is not found in the mappings
+    # (e.g. standard_io.yaml), the `key` is passed down
+    # as is to the underlying transform.
     remapped_args = {
         mappings.get(key, key): value
         for key, value in args.items()

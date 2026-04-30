@@ -60,6 +60,11 @@ public class AfterPane extends OnceTrigger {
   }
 
   @Override
+  public <OutputT> OutputT accept(TriggerVisitor<OutputT> visitor) {
+    return visitor.visit(this);
+  }
+
+  @Override
   protected OnceTrigger getContinuationTrigger(List<Trigger> continuationTriggers) {
     return AfterPane.elementCountAtLeast(1);
   }

@@ -196,7 +196,7 @@ class WindmillSink<T> extends Sink<WindowedValue<T>> {
     }
 
     private <EncodeT> ByteString encode(Coder<EncodeT> coder, EncodeT object) throws IOException {
-      if (stream.size() != 0) {
+      if (!stream.isEmpty()) {
         throw new IllegalStateException(
             "Expected output stream to be empty but had " + stream.toByteString());
       }
@@ -214,7 +214,7 @@ class WindmillSink<T> extends Sink<WindowedValue<T>> {
     }
 
     @Override
-    @SuppressWarnings({"rawtypes", "NestedInstanceOfConditions"})
+    @SuppressWarnings("rawtypes")
     public long add(WindowedValue<T> data) throws IOException {
       ByteString key, value;
       ByteString id = ByteString.EMPTY;
@@ -228,16 +228,18 @@ class WindmillSink<T> extends Sink<WindowedValue<T>> {
         KvCoder kvCoder = (KvCoder) valueCoder;
         KV kv = checkNotNull((KV) data.getValue());
         key = encode(kvCoder.getKeyCoder(), kv.getKey());
-        Coder valueCoder = kvCoder.getValueCoder();
+        Coder nestedValueCoder = kvCoder.getValueCoder();
         // If ids are explicitly provided, use that instead of the windmill-generated id.
         // This is used when reading an UnboundedSource to deduplicate records.
-        if (valueCoder instanceof ValueWithRecordId.ValueWithRecordIdCoder) {
+        if (nestedValueCoder instanceof ValueWithRecordId.ValueWithRecordIdCoder) {
           ValueWithRecordId valueAndId = checkNotNull((ValueWithRecordId) kv.getValue());
           value =
-              encode(((ValueWithRecordIdCoder) valueCoder).getValueCoder(), valueAndId.getValue());
+              encode(
+                  ((ValueWithRecordIdCoder) nestedValueCoder).getValueCoder(),
+                  valueAndId.getValue());
           id = ByteString.copyFrom(valueAndId.getId());
         } else {
-          value = encode(valueCoder, kv.getValue());
+          value = encode(nestedValueCoder, kv.getValue());
         }
       } else {
         key = checkNotNull(context.getSerializedKey());
@@ -248,12 +250,9 @@ class WindmillSink<T> extends Sink<WindowedValue<T>> {
           throw new OutputTooLargeException("Key too large: " + key.size());
         } else {
           LOG.error(
-              "Trying to output too large key with size "
-                  + key.size()
-                  + ". Limit is "
-                  + context.getMaxOutputKeyBytes()
-                  + ". See https://cloud.google.com/dataflow/docs/guides/common-errors#key-commit-too-large-exception."
-                  + " Running with --experiments=throw_exceptions_on_large_output will instead throw an OutputTooLargeException which may be caught in user code.");
+              "Trying to output too large key with size {}. Limit is {}. See https://cloud.google.com/dataflow/docs/guides/common-errors#key-commit-too-large-exception. Running with --experiments=throw_exceptions_on_large_output will instead throw an OutputTooLargeException which may be caught in user code.",
+              key.size(),
+              context.getMaxOutputKeyBytes());
         }
       }
       if (value.size() > context.getMaxOutputValueBytes()) {
@@ -261,12 +260,9 @@ class WindmillSink<T> extends Sink<WindowedValue<T>> {
           throw new OutputTooLargeException("Value too large: " + value.size());
         } else {
           LOG.error(
-              "Trying to output too large value with size "
-                  + value.size()
-                  + ". Limit is "
-                  + context.getMaxOutputValueBytes()
-                  + ". See https://cloud.google.com/dataflow/docs/guides/common-errors#key-commit-too-large-exception."
-                  + " Running with --experiments=throw_exceptions_on_large_output will instead throw an OutputTooLargeException which may be caught in user code.");
+              "Trying to output too large value with size {}. Limit is {}. See https://cloud.google.com/dataflow/docs/guides/common-errors#key-commit-too-large-exception. Running with --experiments=throw_exceptions_on_large_output will instead throw an OutputTooLargeException which may be caught in user code.",
+              value.size(),
+              context.getMaxOutputValueBytes());
         }
       }
 

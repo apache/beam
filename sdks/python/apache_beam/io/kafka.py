@@ -274,6 +274,16 @@ class WriteToKafka(ExternalTransform):
     assumed to be byte arrays.
 
     Experimental; no backwards compatibility guarantees.
+
+    When with_headers=True, the input PCollection elements must be beam.Row
+    objects with the following schema:
+
+      - key: bytes (required) - The key of the record.
+      - value: bytes (required) - The value of the record.
+      - headers: List[Row(key=str, value=bytes)] (optional) - Record headers.
+      - topic: str (optional) - Per-record topic override.
+      - partition: int (optional) - Per-record partition.
+      - timestamp: int (optional) - Per-record timestamp in milliseconds.
   """
 
   # Default serializer which passes raw bytes to Kafka
@@ -281,6 +291,8 @@ class WriteToKafka(ExternalTransform):
       'org.apache.kafka.common.serialization.ByteArraySerializer')
 
   URN = 'beam:transform:org.apache.beam:kafka_write:v1'
+  URN_WITH_HEADERS = (
+      'beam:transform:org.apache.beam:kafka_write_with_headers:v1')
 
   def __init__(
       self,
@@ -288,6 +300,7 @@ class WriteToKafka(ExternalTransform):
       topic,
       key_serializer=byte_array_serializer,
       value_serializer=byte_array_serializer,
+      with_headers=False,
       expansion_service=None):
     """
     Initializes a write operation to Kafka.
@@ -302,10 +315,20 @@ class WriteToKafka(ExternalTransform):
         Serializer for the topic's value, e.g.
         'org.apache.kafka.common.serialization.LongSerializer'.
         Default: 'org.apache.kafka.common.serialization.ByteArraySerializer'.
+    :param with_headers: If True, input elements must be beam.Row objects
+        containing 'key', 'value', and optional 'headers' fields.
+        Only ByteArraySerializer is supported when with_headers=True.
     :param expansion_service: The address (host:port) of the ExpansionService.
     """
+    if with_headers and (key_serializer != self.byte_array_serializer or
+                         value_serializer != self.byte_array_serializer):
+      raise ValueError(
+          'WriteToKafka(with_headers=True) only supports '
+          'ByteArraySerializer for key and value.')
+
+    urn = self.URN_WITH_HEADERS if with_headers else self.URN
     super().__init__(
-        self.URN,
+        urn,
         NamedTupleBasedPayloadBuilder(
             WriteToKafkaSchema(
                 producer_config=producer_config,

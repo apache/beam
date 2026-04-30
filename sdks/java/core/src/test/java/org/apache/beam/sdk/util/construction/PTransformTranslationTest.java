@@ -159,7 +159,7 @@ public class PTransformTranslationTest {
   private static class TestDoFn extends DoFn<Long, KV<Long, String>> {
     // Exists to stop the ParDo application from throwing
     @ProcessElement
-    public void process(ProcessContext context) {}
+    public void process(@SuppressWarnings("unused") ProcessContext context) {}
   }
 
   private static AppliedPTransform<?, ?, ?> generateSequence(Pipeline pipeline) {

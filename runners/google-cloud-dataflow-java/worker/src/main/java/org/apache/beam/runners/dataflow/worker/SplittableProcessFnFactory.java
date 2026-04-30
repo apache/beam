@@ -156,10 +156,7 @@ class SplittableProcessFnFactory {
               // in the event of a crash.
               10000,
               Duration.standardSeconds(10),
-              () -> {
-                throw new UnsupportedOperationException(
-                    "BundleFinalizer unsupported by non-portable Dataflow.");
-              }));
+              stepContext::bundleFinalizer));
       DoFnRunner<KeyedWorkItem<byte[], KV<InputT, RestrictionT>>, OutputT> simpleRunner =
           new SimpleDoFnRunner<>(
               options,

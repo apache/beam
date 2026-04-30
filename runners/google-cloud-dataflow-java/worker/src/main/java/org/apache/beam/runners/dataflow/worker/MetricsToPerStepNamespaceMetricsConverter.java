@@ -171,8 +171,8 @@ public class MetricsToPerStepNamespaceMetricsConverter {
 
   /**
    * @param metricName The {@link MetricName} that represents this Histogram.
-   * @param value The histogram value. Currently we only support converting histograms that use
-   *     {@code linear} or {@code exponential} buckets.
+   * @param inputHistogram The histogram value. Currently we only support converting histograms that
+   *     use {@code linear} or {@code exponential} buckets.
    * @return If this conversion succeeds, a {@code MetricValue} that represents this histogram.
    *     Otherwise returns an empty optional.
    */

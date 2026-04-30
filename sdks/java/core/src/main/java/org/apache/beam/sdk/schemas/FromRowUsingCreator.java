@@ -275,7 +275,7 @@ class FromRowUsingCreator<T> implements SerializableFunction<Row, T>, Function<R
     if (this == o) {
       return true;
     }
-    if (o == null || getClass() != o.getClass()) {
+    if (!(o instanceof FromRowUsingCreator)) {
       return false;
     }
     FromRowUsingCreator<?> that = (FromRowUsingCreator<?>) o;

@@ -29,7 +29,7 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.text.ParseException;
 import java.time.Duration;
-import java.time.ZoneId;
+import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -126,7 +126,7 @@ public final class BigQueryIOLT extends IOLoadTestBase {
     String tableName =
         "io-bq-table-"
             + DateTimeFormatter.ofPattern("MMddHHmmssSSS")
-                .withZone(ZoneId.of("UTC"))
+                .withZone(ZoneOffset.UTC)
                 .format(java.time.Instant.now())
             + UUID.randomUUID().toString().substring(0, 10);
     tableQualifier = String.format("%s:%s.%s", project, resourceManager.getDatasetId(), tableName);
@@ -244,7 +244,7 @@ public final class BigQueryIOLT extends IOLoadTestBase {
                 .withAvroFormatFunction(
                     new AvroFormatFn(
                         configuration.numColumns,
-                        !("STORAGE_WRITE_API".equalsIgnoreCase(configuration.writeMethod))));
+                        !"STORAGE_WRITE_API".equalsIgnoreCase(configuration.writeMethod)));
         break;
       case JSON:
         writeIO =

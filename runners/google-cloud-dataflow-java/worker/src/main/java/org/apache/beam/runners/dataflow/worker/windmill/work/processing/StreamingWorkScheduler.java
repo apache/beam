@@ -23,6 +23,7 @@ import com.google.api.services.dataflow.model.MapTask;
 import com.google.auto.value.AutoValue;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentMap;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
 import java.util.function.Supplier;
@@ -121,6 +122,7 @@ public class StreamingWorkScheduler {
       ReaderCache readerCache,
       DataflowMapTaskExecutorFactory mapTaskExecutorFactory,
       BoundedQueueExecutor workExecutor,
+      ScheduledExecutorService commitFinalizerCleanupExecutor,
       Function<String, WindmillStateCache.ForComputation> stateCacheFactory,
       FailureTracker failureTracker,
       WorkFailureProcessor workFailureProcessor,
@@ -148,7 +150,7 @@ public class StreamingWorkScheduler {
         SideInputStateFetcherFactory.fromOptions(options),
         failureTracker,
         workFailureProcessor,
-        StreamingCommitFinalizer.create(workExecutor),
+        StreamingCommitFinalizer.create(workExecutor, commitFinalizerCleanupExecutor),
         streamingCounters,
         hotKeyLogger,
         stageInfoMap,
@@ -217,6 +219,11 @@ public class StreamingWorkScheduler {
             Work.create(
                 workItem, serializedWorkItemSize, watermarks, processingContext, drainMode, clock),
             work -> processWork(computationState, work, getWorkStreamLatencies)));
+  }
+
+  /** Adds any applied finalize ids to the commit finalizer to have their callbacks executed. */
+  public void queueAppliedFinalizeIds(ImmutableList<Long> appliedFinalizeIds) {
+    commitFinalizer.finalizeCommits(appliedFinalizeIds);
   }
 
   /**
@@ -332,7 +339,7 @@ public class StreamingWorkScheduler {
     KeyCommitTooLargeException e =
         KeyCommitTooLargeException.causedBy(computationId, byteLimit, commitRequest);
     failureTracker.trackFailure(computationId, workItem, e);
-    LOG.error(e.toString());
+    LOG.error("{}", e.toString());
 
     // Drop the current request in favor of a new, minimal one requesting truncation.
     // Messages, timers, counters, and other commit content will not be used by the service
@@ -417,7 +424,7 @@ public class StreamingWorkScheduler {
                 computationState.sourceBytesProcessCounterName());
         outputBuilder.setSourceBytesProcessed(sourceBytesProcessed);
       } catch (Exception e) {
-        LOG.error(e.toString());
+        LOG.error("{}", e.toString());
       }
 
       commitFinalizer.cacheCommitFinalizers(computationWorkExecutor.context().flushState());

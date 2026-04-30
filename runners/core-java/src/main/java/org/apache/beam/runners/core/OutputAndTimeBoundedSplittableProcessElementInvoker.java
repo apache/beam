@@ -198,6 +198,11 @@ public class OutputAndTimeBoundedSplittableProcessElementInvoker<
               }
 
               @Override
+              public CausedByDrain causedByDrain(DoFn<InputT, OutputT> doFn) {
+                return processContext.causedByDrain();
+              }
+
+              @Override
               public RestrictionTracker<?, ?> restrictionTracker() {
                 return processContext.tracker;
               }
@@ -470,6 +475,21 @@ public class OutputAndTimeBoundedSplittableProcessElementInvoker<
               element.getRecordId(),
               element.getRecordOffset(),
               element.causedByDrain()));
+    }
+
+    @Override
+    public void outputWindowedValue(WindowedValue<OutputT> windowedValue) {
+      outputWindowedValue(mainOutputTag, windowedValue);
+    }
+
+    @Override
+    public <T> void outputWindowedValue(TupleTag<T> tag, WindowedValue<T> windowedValue) {
+      noteOutput();
+      if (watermarkEstimator instanceof TimestampObservingWatermarkEstimator) {
+        ((TimestampObservingWatermarkEstimator) watermarkEstimator)
+            .observeTimestamp(windowedValue.getTimestamp());
+      }
+      outputReceiver.output(tag, windowedValue);
     }
 
     private void noteOutput() {

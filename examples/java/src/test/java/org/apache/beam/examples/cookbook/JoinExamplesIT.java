@@ -20,7 +20,8 @@ package org.apache.beam.examples.cookbook;
 import static org.apache.beam.sdk.testing.FileChecksumMatcher.fileContentsHaveChecksum;
 import static org.hamcrest.MatcherAssert.assertThat;
 
-import java.util.Date;
+import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.util.regex.Pattern;
 import org.apache.beam.sdk.io.FileSystems;
 import org.apache.beam.sdk.io.fs.ResolveOptions;
@@ -55,7 +56,8 @@ public class JoinExamplesIT {
     options.setOutput(
         FileSystems.matchNewResource(options.getTempRoot(), true)
             .resolve(
-                String.format("JoinExamples-%tF-%<tH-%<tM-%<tS-%<tL", new Date()),
+                String.format(
+                    "JoinExamples-%tF-%<tH-%<tM-%<tS-%<tL", LocalDateTime.now(ZoneId.of("UTC"))),
                 ResolveOptions.StandardResolveOptions.RESOLVE_DIRECTORY)
             .resolve("output", ResolveOptions.StandardResolveOptions.RESOLVE_DIRECTORY)
             .resolve("results", ResolveOptions.StandardResolveOptions.RESOLVE_FILE)

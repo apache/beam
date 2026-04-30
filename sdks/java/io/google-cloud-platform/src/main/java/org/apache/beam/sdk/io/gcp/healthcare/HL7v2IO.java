@@ -54,7 +54,6 @@ import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
 import org.apache.beam.sdk.values.TypeDescriptors;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Throwables;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.FluentIterable;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.checkerframework.checker.nullness.qual.Nullable;
@@ -564,10 +563,7 @@ public class HL7v2IO {
       } catch (Exception e) {
         failedMessageGets.inc();
         LOG.warn(
-            String.format(
-                "Error fetching HL7v2 message with ID %s writing to Dead Letter "
-                    + "Queue. Cause: %s Stack Trace: %s",
-                msgId, e.getMessage(), Throwables.getStackTraceAsString(e)));
+            "Error fetching HL7v2 message with ID {} writing to Dead Letter Queue. ", msgId, e);
         throw e;
       }
     }
@@ -696,19 +692,14 @@ public class HL7v2IO {
       Instant to = Instant.ofEpochMilli(timeRange.getTo());
       Duration totalDuration = new Duration(from, to);
       LOG.info(
-          String.format(
-              "splitting initial sendTime restriction of [minSendTime, now): [%s,%s), "
-                  + "or [%s, %s). \n"
-                  + "total days: %s \n"
-                  + "into %s splits. \n"
-                  + "Last split: %s",
-              from,
-              to,
-              timeRange.getFrom(),
-              timeRange.getTo(),
-              totalDuration.getStandardDays(),
-              splits.size(),
-              splits.get(splits.size() - 1).toString()));
+          "splitting initial sendTime restriction of [minSendTime, now): [{},{}), or [{}, {}). \ntotal days: {} \ninto {} splits. \nLast split: {}",
+          from,
+          to,
+          timeRange.getFrom(),
+          timeRange.getTo(),
+          totalDuration.getStandardDays(),
+          splits.size(),
+          splits.get(splits.size() - 1).toString());
 
       for (OffsetRange s : splits) {
         out.output(s);
@@ -954,12 +945,9 @@ public class HL7v2IO {
               messageIngestLatencyMs.update(Instant.now().getMillis() - requestTimestamp);
             } catch (Exception e) {
               failedMessageWrites.inc();
-              LOG.warn(
-                  String.format(
-                      "Failed to ingest message Error: %s Stacktrace: %s",
-                      e.getMessage(), Throwables.getStackTraceAsString(e)));
+              LOG.warn("Failed to ingest message", e);
               HealthcareIOError<HL7v2Message> err = HealthcareIOError.of(msg, e);
-              LOG.warn(String.format("%s %s", err.getErrorMessage(), err.getStackTrace()));
+              LOG.warn("{} {}", err.getErrorMessage(), err.getStackTrace());
               context.output(err);
             }
         }

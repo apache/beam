@@ -99,7 +99,7 @@ public class SpannerChangeStreamOrderedWithinKeyGloballyIT {
             .withDatabaseId(databaseId);
 
     // Get the time increment interval at which to flush data changes ordered by key.
-    final long timeIncrementInSeconds = 2;
+    final long timeIncrementInSeconds = 10;
 
     // Commit a initial transaction to get the timestamp to start reading from.
     List<Mutation> mutations = new ArrayList<>();
@@ -114,7 +114,7 @@ public class SpannerChangeStreamOrderedWithinKeyGloballyIT {
     try {
       Thread.sleep(timeIncrementInSeconds * 1000);
     } catch (InterruptedException e) {
-      LOG.error(e.toString(), e);
+      LOG.error("Interrupted while waiting", e);
     }
 
     // This will be the second batch of transactions that will have strict timestamp ordering
@@ -125,7 +125,7 @@ public class SpannerChangeStreamOrderedWithinKeyGloballyIT {
     try {
       Thread.sleep(timeIncrementInSeconds * 1000);
     } catch (InterruptedException e) {
-      LOG.error(e.toString(), e);
+      LOG.error("Interrupted while waiting", e);
     }
 
     // This will be the final batch of transactions that will have strict timestamp ordering
@@ -466,7 +466,7 @@ public class SpannerChangeStreamOrderedWithinKeyGloballyIT {
       if (this == o) {
         return true;
       }
-      if (o == null || getClass() != o.getClass()) {
+      if (!(o instanceof SortKey)) {
         return false;
       }
       SortKey sortKey = (SortKey) o;
@@ -497,27 +497,27 @@ public class SpannerChangeStreamOrderedWithinKeyGloballyIT {
     mutations.add(insertRecordMutation(1));
     mutations.add(insertRecordMutation(2));
     com.google.cloud.Timestamp t1 = databaseClient.write(mutations);
-    LOG.info("The first transaction committed with timestamp: " + t1.toString());
+    LOG.info("The first transaction committed with timestamp: {}", t1);
     mutations.clear();
 
     // 2. Commmit a transaction to insert Singer 3 and remove Singer 1 from the table.
     mutations.add(insertRecordMutation(3));
     mutations.add(deleteRecordMutation(1));
     com.google.cloud.Timestamp t2 = databaseClient.write(mutations);
-    LOG.info("The second transaction committed with timestamp: " + t2.toString());
+    LOG.info("The second transaction committed with timestamp: {}", t2);
     mutations.clear();
 
     // 3. Commit a transaction to delete Singer 2 and Singer 3 from the table.
     mutations.add(deleteRecordMutation(2));
     mutations.add(deleteRecordMutation(3));
     com.google.cloud.Timestamp t3 = databaseClient.write(mutations);
-    LOG.info("The third transaction committed with timestamp: " + t3.toString());
+    LOG.info("The third transaction committed with timestamp: {}", t3);
     mutations.clear();
 
     // 4. Commit a transaction to delete Singer 0.
     mutations.add(deleteRecordMutation(0));
     com.google.cloud.Timestamp t4 = databaseClient.write(mutations);
-    LOG.info("The fourth transaction committed with timestamp: " + t4.toString());
+    LOG.info("The fourth transaction committed with timestamp: {}", t4);
     return t4;
   }
 

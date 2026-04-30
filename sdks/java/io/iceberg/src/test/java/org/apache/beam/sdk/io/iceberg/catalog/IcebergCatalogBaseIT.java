@@ -17,6 +17,8 @@
  */
 package org.apache.beam.sdk.io.iceberg.catalog;
 
+import static org.apache.beam.sdk.io.iceberg.IcebergUtils.beamSchemaToIcebergSchema;
+import static org.apache.beam.sdk.io.iceberg.IcebergUtils.icebergSchemaToBeamSchema;
 import static org.apache.beam.sdk.managed.Managed.ICEBERG;
 import static org.apache.beam.sdk.managed.Managed.ICEBERG_CDC;
 import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
@@ -77,8 +79,11 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Immuta
 import org.apache.iceberg.AppendFiles;
 import org.apache.iceberg.CombinedScanTask;
 import org.apache.iceberg.FileScanTask;
+import org.apache.iceberg.NullOrder;
 import org.apache.iceberg.PartitionSpec;
 import org.apache.iceberg.Snapshot;
+import org.apache.iceberg.SortDirection;
+import org.apache.iceberg.SortOrder;
 import org.apache.iceberg.Table;
 import org.apache.iceberg.TableScan;
 import org.apache.iceberg.catalog.Catalog;
@@ -313,7 +318,7 @@ public abstract class IcebergCatalogBaseIT implements Serializable {
       };
 
   protected static final org.apache.iceberg.Schema ICEBERG_SCHEMA =
-      IcebergUtils.beamSchemaToIcebergSchema(BEAM_SCHEMA);
+      beamSchemaToIcebergSchema(BEAM_SCHEMA);
   protected static final SimpleFunction<Row, Record> RECORD_FUNC =
       new SimpleFunction<Row, Record>() {
         @Override
@@ -346,7 +351,7 @@ public abstract class IcebergCatalogBaseIT implements Serializable {
       }
       DataWriter<Record> writer =
           Parquet.writeData(file)
-              .schema(ICEBERG_SCHEMA)
+              .schema(table.schema())
               .createWriterFunc(GenericParquetWriter::create)
               .overwrite()
               .withSpec(table.spec())
@@ -652,7 +657,7 @@ public abstract class IcebergCatalogBaseIT implements Serializable {
     pipeline.run().waitUntilFinish();
 
     Table table = catalog.loadTable(TableIdentifier.parse(tableId()));
-    assertTrue(table.schema().sameSchema(ICEBERG_SCHEMA));
+    assertEquals(BEAM_SCHEMA, icebergSchemaToBeamSchema(table.schema()));
 
     // Read back and check records are correct
     List<Record> returnedRecords = readRecords(table);
@@ -664,15 +669,44 @@ public abstract class IcebergCatalogBaseIT implements Serializable {
   public void testWriteToPartitionedTable() throws IOException {
     Map<String, Object> config = new HashMap<>(managedIcebergConfig(tableId()));
     int truncLength = "value_x".length();
-    config.put(
-        "partition_fields",
-        Arrays.asList("bool_field", "hour(datetime)", "truncate(str, " + truncLength + ")"));
+    List<String> partitionFields =
+        Arrays.asList("bool_field", "hour(datetime)", "truncate(str, " + truncLength + ")");
+    config.put("partition_fields", partitionFields);
     PCollection<Row> input = pipeline.apply(Create.of(inputRows)).setRowSchema(BEAM_SCHEMA);
     input.apply(Managed.write(ICEBERG).withConfig(config));
     pipeline.run().waitUntilFinish();
 
     // Read back and check records are correct
     Table table = catalog.loadTable(TableIdentifier.parse(tableId()));
+    List<Record> returnedRecords = readRecords(table);
+    PartitionSpec expectedSpec =
+        PartitionSpec.builderFor(table.schema())
+            .identity("bool_field")
+            .hour("datetime")
+            .truncate("str", truncLength)
+            .build();
+    assertEquals(expectedSpec, table.spec());
+    assertThat(
+        returnedRecords, containsInAnyOrder(inputRows.stream().map(RECORD_FUNC::apply).toArray()));
+  }
+
+  @Test
+  public void testWriteWithSortOrder() throws IOException {
+    Map<String, Object> config = new HashMap<>(managedIcebergConfig(tableId()));
+    config.put(
+        "sort_fields", Arrays.asList("int_field desc", "bucket(modulo_5, 4) asc nulls last"));
+    PCollection<Row> input = pipeline.apply(Create.of(inputRows)).setRowSchema(BEAM_SCHEMA);
+    input.apply(Managed.write(ICEBERG).withConfig(config));
+    pipeline.run().waitUntilFinish();
+
+    Table table = catalog.loadTable(TableIdentifier.parse(tableId()));
+    SortOrder order = table.sortOrder();
+    assertEquals(2, order.fields().size());
+    assertEquals(SortDirection.DESC, order.fields().get(0).direction());
+    assertEquals(NullOrder.NULLS_LAST, order.fields().get(0).nullOrder());
+    assertEquals(SortDirection.ASC, order.fields().get(1).direction());
+    assertEquals(NullOrder.NULLS_LAST, order.fields().get(1).nullOrder());
+
     List<Record> returnedRecords = readRecords(table);
     assertThat(
         returnedRecords, containsInAnyOrder(inputRows.stream().map(RECORD_FUNC::apply).toArray()));
@@ -815,10 +849,8 @@ public abstract class IcebergCatalogBaseIT implements Serializable {
     Table table3 = catalog.loadTable(TableIdentifier.parse(tableId() + "_3_d"));
     Table table4 = catalog.loadTable(TableIdentifier.parse(tableId() + "_4_e"));
 
-    org.apache.iceberg.Schema tableSchema =
-        IcebergUtils.beamSchemaToIcebergSchema(rowFilter.outputSchema());
     for (Table t : Arrays.asList(table0, table1, table2, table3, table4)) {
-      assertTrue(t.schema().sameSchema(tableSchema));
+      assertEquals(rowFilter.outputSchema(), icebergSchemaToBeamSchema(t.schema()));
     }
 
     // Read back and check records are correct
@@ -830,6 +862,7 @@ public abstract class IcebergCatalogBaseIT implements Serializable {
             readRecords(table3),
             readRecords(table4));
 
+    org.apache.iceberg.Schema tableSchema = beamSchemaToIcebergSchema(rowFilter.outputSchema());
     SerializableFunction<Row, Record> recordFunc =
         row -> IcebergUtils.beamRowToIcebergRecord(tableSchema, row);
 
@@ -936,7 +969,7 @@ public abstract class IcebergCatalogBaseIT implements Serializable {
             table3false,
             table4true,
             table4false)) {
-      assertTrue(t.schema().sameSchema(ICEBERG_SCHEMA));
+      assertEquals(BEAM_SCHEMA, icebergSchemaToBeamSchema(t.schema()));
     }
 
     // Read back and check records are correct

@@ -283,7 +283,7 @@ public class KryoCoder<T> extends CustomCoder<T> {
 
   @Override
   public boolean equals(@Nullable Object other) {
-    if (other != null && getClass().equals(other.getClass())) {
+    if (other instanceof KryoCoder) {
       return instanceId.equals(((KryoCoder<?>) other).instanceId);
     }
     return false;

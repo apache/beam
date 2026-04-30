@@ -94,7 +94,7 @@ public abstract class DLPReidentifyText
   public abstract @Nullable PCollectionView<List<String>> getHeaderColumns();
 
   /** Returns size of input elements batch to be sent to Cloud DLP service in one request. */
-  public abstract Integer getBatchSizeBytes();
+  public abstract int getBatchSizeBytes();
 
   /** Returns ID of Google Cloud project to be used when deidentifying data. */
   public abstract String getProjectId();
@@ -136,7 +136,7 @@ public abstract class DLPReidentifyText
      *
      * @param batchSize Size of input elements batch to be sent to Cloud DLP service in one request.
      */
-    public abstract Builder setBatchSizeBytes(Integer batchSize);
+    public abstract Builder setBatchSizeBytes(int batchSize);
     /**
      * Sets list of column names if the input KV value is a delimited row.
      *

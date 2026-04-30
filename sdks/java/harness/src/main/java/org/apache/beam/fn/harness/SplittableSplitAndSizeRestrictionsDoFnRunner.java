@@ -74,7 +74,7 @@ import org.joda.time.Instant;
  *       Double>>}
  * </ul>
  *
- * <p>In addition to this, it passes {@Code OutputReceiver<RestrictionT>} to the DoFn GetRestriction
+ * <p>In addition to this, it passes {@code OutputReceiver<RestrictionT>} to the DoFn GetRestriction
  * method.
  */
 @Internal

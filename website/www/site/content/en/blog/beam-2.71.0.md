@@ -32,17 +32,17 @@ For more information on changes in 2.71.0, check out the [detailed release notes
 * (Java) Elasticsearch 9 Support ([#36491](https://github.com/apache/beam/issues/36491)).
 * (Java) Upgraded HCatalogIO to Hive 4.0.1 ([#32189](https://github.com/apache/beam/issues/32189)).
 
-## New Features / Improvements
+### New Features / Improvements
 
 * Support configuring Firestore database on ReadFn transforms (Java) ([#36904](https://github.com/apache/beam/issues/36904)).
 * (Python) Inference args are now allowed in most model handlers, except where they are explicitly/intentionally disallowed ([#37093](https://github.com/apache/beam/issues/37093)).
 
-## Bugfixes
+### Bugfixes
 
 * Fixed FirestoreV1 Beam connectors allow configuring inconsistent project/database IDs between RPC requests and routing headers #36895 (Java) ([#36895](https://github.com/apache/beam/issues/36895)).
 * Logical type and coder registry are saved for pipelines in the case of default pickler ([#36271](https://github.com/apache/beam/issues/36271)). This fixes a side effect of switching to cloudpickle as default pickler in Beam 2.65.0 (Python) ([#35738](https://github.com/apache/beam/issues/35738)).
 
-## Known Issues
+### Known Issues
 
 For the most up to date list of known issues, see https://github.com/apache/beam/blob/master/CHANGES.md
 
@@ -50,4 +50,4 @@ For the most up to date list of known issues, see https://github.com/apache/beam
 
 According to git shortlog, the following people contributed to the 2.71.0 release. Thank you to all contributors!
 
-Abacn, Ahmed Abualsaud, Amar3tto, Andrew Crites, apanich, Arun, Arun Pandian, assaf127, Chamikara Jayalath, CherisPatelInfocusp, Cheskel Twersky, Claire McGinty, Claude, Danny Mccormick, dependabot[bot], Derrick Williams, Egbert van der Wal, Evan Galpin, Ganesh, github-actions[bot], hekk-kaori-maeda, Jack Dingilian, Jack McCluskey, JayajP, Jiang Zhu, Kenneth Knowles, liferoad, M Junaid Shaukat, Nayan Mathur, Noah Stapp, Paco Avila, Radek Stankiewicz, Radosław Stankiewicz, Robert Stupp, Sam Whittle, Shunping Huang, Steven van Rossum, Suvrat Acharya, Tarun Annapareddy, tvalentyn, Utkarsh Parekh, Vitaly Terentyev, Xiaochu Liu, Yala Huang Feng, Yi Hu, Yu Watanabe, zhan7236
+Ahmed Abualsaud, Andrew Crites, apanich, Arun, Arun Pandian, assaf127, Chamikara Jayalath, CherisPatelInfocusp, Cheskel Twersky, Claire McGinty, Claude, Danny Mccormick, Derrick Williams, Egbert van der Wal, Evan Galpin, Ganesh, hekk-kaori-maeda, Jack Dingilian, Jack McCluskey, JayajP, Jiang Zhu, Kenneth Knowles, liferoad, M Junaid Shaukat, Nayan Mathur, Noah Stapp, Paco Avila, Radek Stankiewicz, Radosław Stankiewicz, Robert Stupp, Sam Whittle, Shunping Huang, Steven van Rossum, Suvrat Acharya, Tarun Annapareddy, tvalentyn, Utkarsh Parekh, Vitaly Terentyev, Xiaochu Liu, Yala Huang Feng, Yi Hu, Yu Watanabe, zhan7236

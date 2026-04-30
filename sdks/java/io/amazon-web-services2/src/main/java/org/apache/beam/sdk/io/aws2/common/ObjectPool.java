@@ -134,7 +134,7 @@ public class ObjectPool<KeyT extends @NonNull Object, ObjectT extends @NonNull O
       if (this == o) {
         return true;
       }
-      if (o == null || getClass() != o.getClass()) {
+      if (!(o instanceof ObjectPool.RefCounted)) {
         return false;
       }
       // only identity of ref counted shared object matters

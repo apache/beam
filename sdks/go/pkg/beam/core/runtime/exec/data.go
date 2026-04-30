@@ -89,6 +89,12 @@ type StateReader interface {
 	OpenMultimapKeysUserStateReader(ctx context.Context, id StreamID, userStateID string, key []byte, w []byte) (io.ReadCloser, error)
 	// OpenMultimapKeysUserStateClearer opens a byte stream for clearing all keys of user multimap state.
 	OpenMultimapKeysUserStateClearer(ctx context.Context, id StreamID, userStateID string, key []byte, w []byte) (io.Writer, error)
+	// OpenOrderedListUserStateReader opens a byte stream for reading user ordered list state in the range [start, end).
+	OpenOrderedListUserStateReader(ctx context.Context, id StreamID, userStateID string, key []byte, w []byte, start, end int64) (io.ReadCloser, error)
+	// OpenOrderedListUserStateAppender opens a byte stream for appending user ordered list state.
+	OpenOrderedListUserStateAppender(ctx context.Context, id StreamID, userStateID string, key []byte, w []byte) (io.Writer, error)
+	// OpenOrderedListUserStateClearer opens a byte stream for clearing user ordered list state in the range [start, end).
+	OpenOrderedListUserStateClearer(ctx context.Context, id StreamID, userStateID string, key []byte, w []byte, start, end int64) (io.Writer, error)
 	// GetSideInputCache returns the SideInputCache being used at the harness level.
 	GetSideInputCache() SideCache
 }

@@ -284,10 +284,7 @@ public class FlinkStreamingPortablePipelineTranslator
     return context;
   }
 
-  private void urnNotFound(
-      String id,
-      RunnerApi.Pipeline pipeline,
-      FlinkStreamingPortablePipelineTranslator.TranslationContext context) {
+  private void urnNotFound(String id, RunnerApi.Pipeline pipeline, TranslationContext context) {
     throw new IllegalArgumentException(
         String.format(
             "Unknown type of URN %s for PTransform with id %s.",
