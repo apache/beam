@@ -300,8 +300,6 @@ class JsMapToFieldsDoFn(beam.DoFn):
     yield dicts_to_rows(result_dict)
 
 
-# TODO(yaml) Consider adding optional language version parameter to support
-#  ECMAScript 5 and 6
 def _get_javascript_udf_code(
     original_fields,
     function_name="func",
