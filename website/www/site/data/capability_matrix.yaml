@@ -30,8 +30,6 @@ capability-matrix:
       name: Twister2
     - class: python direct
       name: Python Direct FnRunner
-    - class: go direct
-      name: Go Direct Runner
 
   categories:
     - description: What is being computed?
@@ -82,10 +80,6 @@ capability-matrix:
               l1: ""
               l2:
               l3: ""
-            - class: go direct
-              l1: ""
-              l2:
-              l3: ""
         - name: GroupByKey
           description: Grouping of key-value pairs per key, window, and pane. (See also other tabs.)
           values:
@@ -122,10 +116,6 @@ capability-matrix:
               l2: fully supported
               l3: ""
             - class: python direct
-              l1: ""
-              l2:
-              l3: ""
-            - class: go direct
               l1: ""
               l2:
               l3: ""
@@ -168,10 +158,6 @@ capability-matrix:
               l1: ""
               l2:
               l3: ""
-            - class: go direct
-              l1: ""
-              l2:
-              l3: ""
         - name: Combine
           description: 'Application of an associative, commutative operation over all values ("globally") or over all values associated with each key ("per key"). Can be implemented using ParDo, but often more efficient implementations exist.'
           values:
@@ -208,10 +194,6 @@ capability-matrix:
               l2: fully supported
               l3: ""
             - class: python direct
-              l1: ""
-              l2:
-              l3: ""
-            - class: go direct
               l1: ""
               l2:
               l3: ""
@@ -254,10 +236,6 @@ capability-matrix:
               l1: ""
               l2:
               l3: ""
-            - class: go direct
-              l1: ""
-              l2:
-              l3: ""
         - name: Side Inputs
           description: Side inputs are additional <tt>PCollections</tt> whose contents are computed during pipeline execution and then made accessible to DoFn code. The exact shape of the side input depends both on the <tt>PCollectionView</tt> used to describe the access pattern (interable, map, singleton) and the window of the element from the main input that is currently being processed.
           values:
@@ -294,10 +272,6 @@ capability-matrix:
               l2: fully supported
               l3: ""
             - class: python direct
-              l1: ""
-              l2:
-              l3: ""
-            - class: go direct
               l1: ""
               l2:
               l3: ""
@@ -340,10 +314,6 @@ capability-matrix:
               l1: ""
               l2:
               l3: ""
-            - class: go direct
-              l1: ""
-              l2:
-              l3: ""
         - name: Metrics
           description: Allow transforms to gather simple metrics across bundles in a <tt>PTransform</tt>. Provide a mechanism to obtain both committed and attempted metrics. Semantically similar to using an additional output, but support partial results as the transform executes, and support both committed and attempted values. Will likely want to augment <tt>Metrics</tt> to be more useful for processing unbounded data by making them windowed.
           values:
@@ -383,10 +353,6 @@ capability-matrix:
               l1: ""
               l2:
               l3: ""
-            - class: go direct
-              l1: ""
-              l2:
-              l3: ""
         - name: Stateful Processing
           description: Allows fine-grained access to per-key, per-window persistent state. Necessary for certain use cases (e.g. high-volume windows which store large amounts of data, but typically only access small portions of it; complex state machines; etc.) that are not easily or efficiently addressed via <tt>Combine</tt> or <tt>GroupByKey</tt>+<tt>ParDo</tt>.
           values:
@@ -410,10 +376,6 @@ capability-matrix:
               l1: "No"
               l2: not implemented
               l3:
-            - class: samza
-              l1: "Partially"
-              l2: non-merging windows
-              l3: "States are backed up by either rocksDb KV store or in-memory hash map, and persist using changelog."
             - class: nemo
               l1: "No"
               l2: not implemented
@@ -427,10 +389,6 @@ capability-matrix:
               l2: not implemented
               l3: ""
             - class: python direct
-              l1: ""
-              l2:
-              l3: ""
-            - class: go direct
               l1: ""
               l2:
               l3: ""
@@ -466,10 +424,6 @@ capability-matrix:
               l1:
               l2:
               l3: ""
-            - class: samza
-              l1:
-              l2:
-              l3: ""
             - class: nemo
               l1:
               l2:
@@ -483,10 +437,6 @@ capability-matrix:
               l2:
               l3: ""
             - class: python direct
-              l1: "Yes"
-              l2:
-              l3:
-            - class: go direct
               l1: "Yes"
               l2:
               l3:
@@ -513,10 +463,6 @@ capability-matrix:
               l1:
               l2:
               l3: ""
-            - class: samza
-              l1:
-              l2:
-              l3: ""
             - class: nemo
               l1:
               l2:
@@ -531,10 +477,6 @@ capability-matrix:
               l3: ""
             - class: python direct
               l1:
-              l2:
-              l3:
-            - class: go direct
-              l1: "Yes"
               l2:
               l3:
         - name: Splittable DoFn Initiated Checkpointing
@@ -560,10 +502,6 @@ capability-matrix:
               l1:
               l2:
               l3: ""
-            - class: samza
-              l1:
-              l2:
-              l3: ""
             - class: nemo
               l1:
               l2:
@@ -578,10 +516,6 @@ capability-matrix:
               l3: ""
             - class: python direct
               l1: "Yes"
-              l2:
-              l3:
-            - class: go direct
-              l1: "No"
               l2:
               l3:
         - name: Dynamic Splitting
@@ -607,10 +541,6 @@ capability-matrix:
               l1:
               l2:
               l3: ""
-            - class: samza
-              l1:
-              l2:
-              l3: ""
             - class: nemo
               l1:
               l2:
@@ -626,10 +556,6 @@ capability-matrix:
             - class: python direct
               l1: "Yes"
               l2: Only with Python SDK
-              l3:
-            - class: go direct
-              l1: "No"
-              l2:
               l3:
         - name: Bundle Finalization
           description: ""
@@ -654,10 +580,6 @@ capability-matrix:
               l1:
               l2:
               l3: ""
-            - class: samza
-              l1:
-              l2:
-              l3: ""
             - class: nemo
               l1:
               l2:
@@ -672,10 +594,6 @@ capability-matrix:
               l3: ""
             - class: python direct
               l1: "Yes"
-              l2:
-              l3:
-            - class: go direct
-              l1: "No"
               l2:
               l3:
     - description: Unbounded Splittable DoFn Support Status
@@ -710,10 +628,6 @@ capability-matrix:
               l1:
               l2:
               l3: ""
-            - class: samza
-              l1:
-              l2:
-              l3: ""
             - class: nemo
               l1:
               l2:
@@ -728,10 +642,6 @@ capability-matrix:
               l3: ""
             - class: python direct
               l1: "Yes"
-              l2:
-              l3:
-            - class: go direct
-              l1: "No"
               l2:
               l3:
         - name: Side Inputs
@@ -757,10 +667,6 @@ capability-matrix:
               l1:
               l2:
               l3: ""
-            - class: samza
-              l1:
-              l2:
-              l3: ""
             - class: nemo
               l1:
               l2:
@@ -775,10 +681,6 @@ capability-matrix:
               l3: ""
             - class: python direct
               l1:
-              l2:
-              l3:
-            - class: go direct
-              l1: "Yes"
               l2:
               l3:
         - name: Splittable DoFn Initiated Checkpointing
@@ -804,10 +706,6 @@ capability-matrix:
               l1:
               l2:
               l3: ""
-            - class: samza
-              l1:
-              l2:
-              l3: ""
             - class: nemo
               l1:
               l2:
@@ -822,10 +720,6 @@ capability-matrix:
               l3: ""
             - class: python direct
               l1: "Yes"
-              l2:
-              l3:
-            - class: go direct
-              l1: "No"
               l2:
               l3:
         - name: Dynamic Splitting
@@ -851,10 +745,6 @@ capability-matrix:
               l1:
               l2:
               l3: ""
-            - class: samza
-              l1:
-              l2:
-              l3: ""
             - class: nemo
               l1:
               l2:
@@ -868,10 +758,6 @@ capability-matrix:
               l2:
               l3: ""
             - class: python direct
-              l1: "No"
-              l2:
-              l3:
-            - class: go direct
               l1: "No"
               l2:
               l3:
@@ -898,10 +784,6 @@ capability-matrix:
               l1:
               l2:
               l3: ""
-            - class: samza
-              l1:
-              l2:
-              l3: ""
             - class: nemo
               l1:
               l2:
@@ -916,10 +798,6 @@ capability-matrix:
               l3: ""
             - class: python direct
               l1: "Yes"
-              l2:
-              l3:
-            - class: go direct
-              l1: "No"
               l2:
               l3:
     - description: Where in event time?
@@ -954,10 +832,6 @@ capability-matrix:
               l1: "Partially"
               l2: fully supported in batch mode
               l3: ""
-            - class: samza
-              l1: "Yes"
-              l2: supported
-              l3: ""
             - class: nemo
               l1: "Yes"
               l2: supported
@@ -967,6 +841,10 @@ capability-matrix:
               l2: supported
               l3: ""
             - class: twister2
+              l1: "Yes"
+              l2: supported
+              l3: ""
+            - class: python direct
               l1: "Yes"
               l2: supported
               l3: ""
@@ -993,10 +871,6 @@ capability-matrix:
               l1: "Partially"
               l2: fully supported in batch mode
               l3: ""
-            - class: samza
-              l1: "Yes"
-              l2: supported
-              l3: ""
             - class: nemo
               l1: "Yes"
               l2: supported
@@ -1006,6 +880,10 @@ capability-matrix:
               l2: supported
               l3: ""
             - class: twister2
+              l1: "Yes"
+              l2: supported
+              l3: ""
+            - class: python direct
               l1: "Yes"
               l2: supported
               l3: ""
@@ -1032,10 +910,6 @@ capability-matrix:
               l1: "Partially"
               l2: fully supported in batch mode
               l3: ""
-            - class: samza
-              l1: "Yes"
-              l2: supported
-              l3: ""
             - class: nemo
               l1: "Yes"
               l2: supported
@@ -1045,6 +919,10 @@ capability-matrix:
               l2: supported
               l3: ""
             - class: twister2
+              l1: "Yes"
+              l2: supported
+              l3: ""
+            - class: python direct
               l1: "Yes"
               l2: supported
               l3: ""
@@ -1071,10 +949,6 @@ capability-matrix:
               l1: "Partially"
               l2: fully supported in batch mode
               l3: ""
-            - class: samza
-              l1: "Yes"
-              l2: supported
-              l3: ""
             - class: nemo
               l1: "Yes"
               l2: supported
@@ -1084,6 +958,10 @@ capability-matrix:
               l2: supported
               l3: ""
             - class: twister2
+              l1: "Yes"
+              l2: supported
+              l3: ""
+            - class: python direct
               l1: "Yes"
               l2: supported
               l3: ""
@@ -1110,10 +988,6 @@ capability-matrix:
               l1: "Partially"
               l2: fully supported in batch mode
               l3: ""
-            - class: samza
-              l1: "Yes"
-              l2: supported
-              l3: ""
             - class: nemo
               l1: "Yes"
               l2: supported
@@ -1123,6 +997,10 @@ capability-matrix:
               l2: supported
               l3: ""
             - class: twister2
+              l1: "Yes"
+              l2: supported
+              l3: ""
+            - class: python direct
               l1: "Yes"
               l2: supported
               l3: ""
@@ -1149,10 +1027,6 @@ capability-matrix:
               l1: "Partially"
               l2: fully supported in batch mode
               l3: ""
-            - class: samza
-              l1: "Yes"
-              l2: supported
-              l3: ""
             - class: nemo
               l1: "Yes"
               l2: supported
@@ -1162,6 +1036,10 @@ capability-matrix:
               l2: supported
               l3: ""
             - class: twister2
+              l1: "Yes"
+              l2: supported
+              l3: ""
+            - class: python direct
               l1: "Yes"
               l2: supported
               l3: ""
@@ -1188,10 +1066,6 @@ capability-matrix:
               l1: "Partially"
               l2: fully supported in batch mode
               l3: ""
-            - class: samza
-              l1: "Yes"
-              l2: supported
-              l3: ""
             - class: nemo
               l1: "Yes"
               l2: supported
@@ -1201,6 +1075,10 @@ capability-matrix:
               l2: supported
               l3: ""
             - class: twister2
+              l1: "Yes"
+              l2: supported
+              l3: ""
+            - class: python direct
               l1: "Yes"
               l2: supported
               l3: ""
@@ -1237,10 +1115,6 @@ capability-matrix:
               l1: "Partially"
               l2: fully supported in batch mode
               l3: ""
-            - class: samza
-              l1: "Yes"
-              l2: fully supported
-              l3: ""
             - class: nemo
               l1: "Yes"
               l2: fully supported
@@ -1253,7 +1127,10 @@ capability-matrix:
               l1: "Yes"
               l2: fully supported
               l3: ""
-
+            - class: python direct
+              l1: "Yes"
+              l2: fully supported
+              l3: ""
         - name: Event-time triggers
           description: Triggers that fire in response to event-time completeness signals, such as watermarks progressing.
           values:
@@ -1277,10 +1154,6 @@ capability-matrix:
               l1: "Partially"
               l2: fully supported in batch mode
               l3: ""
-            - class: samza
-              l1: "Yes"
-              l2: fully supported
-              l3: ""
             - class: nemo
               l1: "Yes"
               l2: fully supported
@@ -1290,6 +1163,10 @@ capability-matrix:
               l2: fully supported
               l3: ""
             - class: twister2
+              l1: "Yes"
+              l2: fully supported
+              l3: ""
+            - class: python direct
               l1: "Yes"
               l2: fully supported
               l3: ""
@@ -1317,10 +1194,6 @@ capability-matrix:
               l1: "Partially"
               l2: fully supported in batch mode
               l3:
-            - class: samza
-              l1: "Yes"
-              l2: fully supported
-              l3: ""
             - class: nemo
               l1: "Yes"
               l2: fully supported
@@ -1330,6 +1203,10 @@ capability-matrix:
               l2: fully supported
               l3: ""
             - class: twister2
+              l1: "Yes"
+              l2: fully supported
+              l3: ""
+            - class: python direct
               l1: "Yes"
               l2: fully supported
               l3: ""
@@ -1357,10 +1234,6 @@ capability-matrix:
               l1: "Partially"
               l2: fully supported in batch mode
               l3: ""
-            - class: samza
-              l1: "Yes"
-              l2: fully supported
-              l3: ""
             - class: nemo
               l1: "Yes"
               l2: fully supported
@@ -1370,6 +1243,10 @@ capability-matrix:
               l2: fully supported
               l3: ""
             - class: twister2
+              l1: "Yes"
+              l2: fully supported
+              l3: ""
+            - class: python direct
               l1: "Yes"
               l2: fully supported
               l3: ""
@@ -1397,10 +1274,6 @@ capability-matrix:
               l1: "Partially"
               l2: fully supported in batch mode
               l3: ""
-            - class: samza
-              l1: "Yes"
-              l2: fully supported
-              l3: ""
             - class: nemo
               l1: "Yes"
               l2: fully supported
@@ -1412,6 +1285,10 @@ capability-matrix:
             - class: twister2
               l1: "Partially"
               l2:
+              l3: ""
+            - class: python direct
+              l1: "Yes"
+              l2: fully supported
               l3: ""
 
         - name: Allowed lateness
@@ -1437,10 +1314,6 @@ capability-matrix:
               l1: "No"
               l2: no streaming support in the runner
               l3: ""
-            - class: samza
-              l1: "Yes"
-              l2: fully supported
-              l3: ""
             - class: nemo
               l1: "Yes"
               l2: fully supported
@@ -1452,6 +1325,10 @@ capability-matrix:
             - class: twister2
               l1: "Partially"
               l2:
+              l3: ""
+            - class: python direct
+              l1: "Yes"
+              l2: fully supported
               l3: ""
 
         - name: Timers
@@ -1477,10 +1354,6 @@ capability-matrix:
               l1: "No"
               l2: not implemented
               l3: ""
-            - class: samza
-              l1: "Partially"
-              l2: non-merging windows
-              l3: The Samza Runner supports timers in non-merging windows.
             - class: nemo
               l1: "No"
               l2: not implemented
@@ -1492,6 +1365,10 @@ capability-matrix:
             - class: twister2
               l1: "Partially"
               l2:
+              l3: ""
+            - class: python direct
+              l1: "Yes"
+              l2: "Partially"
               l3: ""
 
     - description: How do refinements relate?
@@ -1526,10 +1403,6 @@ capability-matrix:
               l1: "Partially"
               l2: fully supported in batch mode
               l3: ""
-            - class: samza
-              l1: "Yes"
-              l2: fully supported
-              l3: ""
             - class: nemo
               l1: "Yes"
               l2: fully supported
@@ -1539,6 +1412,10 @@ capability-matrix:
               l2: fully supported
               l3: ""
             - class: twister2
+              l1: "Yes"
+              l2: fully supported
+              l3: ""
+            - class: python direct
               l1: "Yes"
               l2: fully supported
               l3: ""
@@ -1566,10 +1443,6 @@ capability-matrix:
               l1: "No"
               l2: ""
               l3: ""
-            - class: samza
-              l1: "Yes"
-              l2: fully supported
-              l3: ""
             - class: nemo
               l1: "Yes"
               l2: fully supported
@@ -1579,6 +1452,10 @@ capability-matrix:
               l2: fully supported
               l3: ""
             - class: twister2
+              l1: "Yes"
+              l2: fully supported
+              l3: ""
+            - class: python direct
               l1: "Yes"
               l2: fully supported
               l3: ""
@@ -1615,10 +1492,6 @@ capability-matrix:
               l1:
               l2:
               l3:
-            - class: samza
-              l1:
-              l2:
-              l3:
             - class: nemo
               l1:
               l2:
@@ -1628,6 +1501,10 @@ capability-matrix:
               l2:
               l3:
             - class: twister2
+              l1:
+              l2:
+              l3:
+            - class: python direct
               l1:
               l2:
               l3:
@@ -1654,10 +1531,6 @@ capability-matrix:
               l1: "No"
               l2:
               l3: not implemented
-            - class: samza
-              l1: "Partially"
-              l2:
-              l3: Samza has a native checkpoint capability.
             - class: nemo
               l1:
               l2:
@@ -1667,6 +1540,10 @@ capability-matrix:
               l2:
               l3:
             - class: twister2
+              l1:
+              l2:
+              l3:
+            - class: python direct
               l1:
               l2:
               l3:
@@ -1681,10 +1558,6 @@ capability-matrix:
               l1: "Yes"
               l2: fully supported
               l3: ""
-            - class: prism
-              l1: "Unverified"
-              l2:
-              l3:
             - class: flink
               l1: "Partially"
               l2:
@@ -1701,10 +1574,6 @@ capability-matrix:
               l1: "Unverified"
               l2:
               l3:
-            - class: samza
-              l1: "Partially"
-              l2:
-              l3: Samza may perform different shuffling algorithms for batch and streaming. Samza guarantees key-ordered delivery in streaming, though not in batch.
             - class: nemo
               l1: "Unverified"
               l2:
