@@ -19,6 +19,7 @@ package org.apache.beam.sdk.io.gcp.bigquery;
 
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.MoreObjects.firstNonNull;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
 
 import com.google.api.services.bigquery.model.Table;
 import com.google.api.services.bigquery.model.TableFieldSchema;
@@ -27,6 +28,7 @@ import com.google.api.services.bigquery.model.TableRow;
 import com.google.api.services.bigquery.model.TableSchema;
 import com.google.auto.value.AutoValue;
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
@@ -45,6 +47,7 @@ import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.WithKeys;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
@@ -279,7 +282,9 @@ public class StorageApiDataTriggeredSchemaUpdateIT {
             .apply(
                 MapElements.into(TypeDescriptor.of(TableRow.class))
                     .via(BigQueryStorageApiInsertError::getRow));
-    PAssert.that(failedInserts).containsInAnyOrder(doFn.getRow(20));
+    // Storage Write API schema upgrades can race with early evolved rows in distributed runs.
+    // Require that the intentionally malformed row is present, while allowing additional failures.
+    PAssert.that(failedInserts).satisfies(new VerifyContainsRow(doFn.getRow(20)));
 
     p.run().waitUntilFinish();
 
@@ -325,6 +330,27 @@ public class StorageApiDataTriggeredSchemaUpdateIT {
     abstract String getFilter();
 
     abstract int getExpectedCount();
+  }
+
+  private static final class VerifyContainsRow
+      implements SerializableFunction<Iterable<TableRow>, Void> {
+    private final TableRow expectedRow;
+
+    private VerifyContainsRow(TableRow expectedRow) {
+      this.expectedRow = expectedRow;
+    }
+
+    @Override
+    public Void apply(Iterable<TableRow> input) {
+      List<TableRow> collected = new ArrayList<>();
+      input.forEach(collected::add);
+      assertTrue(
+          String.format(
+              "Expected failed inserts to include intentionally malformed row %s, but got %s",
+              expectedRow, collected),
+          collected.contains(expectedRow));
+      return null;
+    }
   }
 
   private void verifyDataWritten(String tableSpec, List<VerificationInfo> verifications)
