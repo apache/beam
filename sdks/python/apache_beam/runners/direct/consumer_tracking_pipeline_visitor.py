@@ -19,7 +19,6 @@
 
 # pytype: skip-file
 
-
 from apache_beam import pvalue
 from apache_beam.pipeline import AppliedPTransform
 from apache_beam.pipeline import PipelineVisitor

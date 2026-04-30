@@ -89,7 +89,8 @@ class PipelineGraph(object):
           (beam_runner_api_pb2.Pipeline, beam.Pipeline, type(pipeline)))
 
     # A dict from PCollection ID to a list of its consuming Transform IDs
-    self._consumers: collections.defaultdict[str, list[str]] = collections.defaultdict(list)
+    self._consumers: collections.defaultdict[
+        str, list[str]] = collections.defaultdict(list)
     # A dict from PCollection ID to its producing Transform ID
     self._producers: dict[str, str] = {}
 
