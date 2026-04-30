@@ -65,10 +65,10 @@
 {{ end }}
 
 <script>
-    $('.table-headers').scroll(function(e){
-        $(this).siblings('.table-center').scrollLeft($(this).scrollLeft());
+    $('.table-headers').bind('wheel',function(e){
+        $('#'+this.id+'.table-center').scrollLeft($(this).scrollLeft());
     });
-    $('.table-center').scroll(function(e){
-        $(this).siblings('.table-headers').scrollLeft($(this).scrollLeft());
+    $('.table-center').bind('wheel',function(e){
+        $('#'+this.id+'.table-headers').scrollLeft($(this).scrollLeft());
     });
 </script>
