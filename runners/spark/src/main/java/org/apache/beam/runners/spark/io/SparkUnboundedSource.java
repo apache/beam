@@ -186,7 +186,7 @@ public class SparkUnboundedSource {
 
     @Override
     public scala.collection.immutable.List<DStream<?>> dependencies() {
-      return scala.collection.JavaConversions.asScalaBuffer(
+      return scala.collection.JavaConverters.asScalaBuffer(
               Collections.<DStream<?>>singletonList(parent))
           .toList();
     }
