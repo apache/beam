@@ -96,6 +96,22 @@ class UtilTest(unittest.TestCase):
       self.fail('No pipeline_url found in %s' % recovered_options)
 
     self.assertEqual(pipeline_url.string_value, FAKE_PIPELINE_URL)
+  def test_environment_packages_with_hash(self):
+    pipeline_options = PipelineOptions([
+        '--temp_location',
+        'gs://any-location/temp'
+    ])
+    packages = [('package1', 'hash1'), ('package2', 'hash2')]
+    env = apiclient.Environment(
+        packages,
+        pipeline_options,
+        '2.0.0',
+        FAKE_PIPELINE_URL)
+    self.assertEqual(len(env.proto.workerPools[0].packages), 2)
+    self.assertEqual(env.proto.workerPools[0].packages[0].name, 'package1')
+    self.assertEqual(env.proto.workerPools[0].packages[0].sha256, 'hash1')
+    self.assertEqual(env.proto.workerPools[0].packages[1].name, 'package2')
+    self.assertEqual(env.proto.workerPools[0].packages[1].sha256, 'hash2')
 
   def test_set_network(self):
     pipeline_options = PipelineOptions([

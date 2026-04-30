@@ -171,14 +171,15 @@ class Environment(object):
         self.proto.experiments.append(experiment)
     # Worker pool(s) information.
     package_descriptors = []
-    for package in packages:
+    for package, sha256 in packages:
       package_descriptors.append(
           dataflow.Package(
               location='%s/%s' % (
                   self.google_cloud_options.staging_location.replace(
                       'gs:/', GoogleCloudOptions.STORAGE_API_SERVICE),
                   package),
-              name=package))
+              name=package,
+              sha256=sha256))
 
     pool = dataflow.WorkerPool(
         kind='local' if self.local else 'harness',
@@ -649,7 +650,9 @@ class DataflowApplicationClient(object):
     resource_stager = _LegacyDataflowStager(self)
     staged_resources = resource_stager.stage_job_resources(
         resources, staging_location=google_cloud_options.staging_location)
-    return staged_resources
+    
+    name_to_hash = {remote_name: sha256 for _, remote_name, sha256 in resources}
+    return [(name, name_to_hash.get(name)) for name in staged_resources]
 
   def stage_file(
       self,
