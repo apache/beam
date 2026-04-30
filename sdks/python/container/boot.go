@@ -183,7 +183,6 @@ func launchSDKProcess() error {
 	if err != nil {
 		logger.Fatalf(ctx, "Failed to convert pipeline options: %v", err)
 	}
-	logger.Printf(ctx, "PipelineOptions=%v", options)
 
 	experiments := getExperiments(options)
 	logger.Printf(ctx, "Experiments=%v", experiments)
