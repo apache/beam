@@ -192,7 +192,9 @@ class GroupingBuffer(object):
     self._key_coder = pre_grouped_coder.key_coder()
     self._pre_grouped_coder = pre_grouped_coder
     self._post_grouped_coder = post_grouped_coder
-    self._table: collections.defaultdict[bytes, list[Any]] = collections.defaultdict(list)
+    self._table: collections.defaultdict[bytes,
+                                         list[Any]] = collections.defaultdict(
+                                             list)
     self._windowing = windowing
     self._grouped_output: Optional[list[list[bytes]]] = None
 
@@ -305,9 +307,8 @@ class WindowGroupingBuffer(object):
       raise ValueError("Unknown access pattern: '%s'" % access_pattern.urn)
     self._windowed_value_coder = coder
     self._window_coder = coder.window_coder
-    self._values_by_window: collections.defaultdict[tuple[str, BoundedWindow],
-                                        list[Any]] = collections.defaultdict(
-                                            list)
+    self._values_by_window: collections.defaultdict[
+        tuple[str, BoundedWindow], list[Any]] = collections.defaultdict(list)
 
   def append(self, elements_data: bytes) -> None:
     input_stream = create_InputStream(elements_data)
@@ -380,7 +381,7 @@ class _ProcessingQueueManager(object):
   class KeyedQueue(Generic[QUEUE_KEY_TYPE]):
     def __init__(self) -> None:
       self._q: collections.deque[tuple[QUEUE_KEY_TYPE,
-                                  DataInput]] = collections.deque()
+                                       DataInput]] = collections.deque()
       self._keyed_elements: MutableMapping[QUEUE_KEY_TYPE,
                                            tuple[QUEUE_KEY_TYPE,
                                                  DataInput]] = {}

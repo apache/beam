@@ -18,7 +18,6 @@
 """`iobase.RestrictionTracker` implementations provided with Apache Beam."""
 # pytype: skip-file
 
-
 from apache_beam.io.iobase import RestrictionProgress
 from apache_beam.io.iobase import RestrictionTracker
 from apache_beam.io.range_trackers import OffsetRangeTracker

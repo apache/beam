@@ -341,13 +341,11 @@ class FnRunnerStatefulTriggerContext(TriggerContext):
     self.finished_windows_state = finished_windows_state
 
   def windows_to_elements_map(
-      self
-  ) -> dict[BoundedWindow, list[windowed_value.WindowedValue]]:
-    window_element_pairs: typing.Iterable[tuple[
-        BoundedWindow,
-        windowed_value.WindowedValue]] = self.all_elements_state.read()
-    result: dict[BoundedWindow,
-                        list[windowed_value.WindowedValue]] = {}
+      self) -> dict[BoundedWindow, list[windowed_value.WindowedValue]]:
+    window_element_pairs: typing.Iterable[
+        tuple[BoundedWindow,
+              windowed_value.WindowedValue]] = self.all_elements_state.read()
+    result: dict[BoundedWindow, list[windowed_value.WindowedValue]] = {}
     for w, e in window_element_pairs:
       if w not in result:
         result[w] = []

@@ -796,8 +796,9 @@ class _AppendShardedDestination(beam.DoFn):
     self.shards = shards
 
     # We start the shards for a single destination at an arbitrary point.
-    self._shard_counter: collections.defaultdict[str, int] = collections.defaultdict(
-        lambda: random.randrange(self.shards))
+    self._shard_counter: collections.defaultdict[
+        str,
+        int] = collections.defaultdict(lambda: random.randrange(self.shards))
 
   def _next_shard_for_destination(self, destination):
     self._shard_counter[destination] = ((self._shard_counter[destination] + 1) %

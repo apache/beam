@@ -1177,7 +1177,8 @@ class BundleProcessor(object):
             transform_proto.spec.payload,
             beam_runner_api_pb2.ParDoPayload).side_inputs
 
-    pcoll_consumers: collections.defaultdict[str, list[str]] = collections.defaultdict(list)
+    pcoll_consumers: collections.defaultdict[
+        str, list[str]] = collections.defaultdict(list)
     for transform_id, transform_proto in descriptor.transforms.items():
       for tag, pcoll_id in transform_proto.inputs.items():
         if not is_side_input(transform_proto, tag):
@@ -1251,10 +1252,9 @@ class BundleProcessor(object):
       # both data input and timer input. The data input is identied by
       # transform_id. The data input is identified by
       # (transform_id, timer_family_id).
-      data_channels: collections.defaultdict[data_plane.DataChannel,
-                                 list[Union[str, tuple[
-                                     str,
-                                     str]]]] = collections.defaultdict(list)
+      data_channels: collections.defaultdict[
+          data_plane.DataChannel,
+          list[Union[str, tuple[str, str]]]] = collections.defaultdict(list)
 
       # Add expected data inputs for each data channel.
       input_op_by_transform_id = {}

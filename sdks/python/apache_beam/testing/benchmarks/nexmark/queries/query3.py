@@ -111,8 +111,8 @@ class JoinFn(beam.DoFn):
       element: tuple[
           str,
           dict[str,
-                      typing.Union[list[nexmark_model.Auction],
-                                   list[nexmark_model.Person]]]],
+               typing.Union[list[nexmark_model.Auction],
+                            list[nexmark_model.Person]]]],
       auction_state=beam.DoFn.StateParam(auction_spec),
       person_state=beam.DoFn.StateParam(person_spec),
       person_timer=beam.DoFn.TimerParam(person_timer_spec)):

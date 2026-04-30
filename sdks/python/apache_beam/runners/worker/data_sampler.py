@@ -112,14 +112,15 @@ class OutputSampler:
       coder: Coder,
       max_samples: int = 10,
       sample_every_sec: float = 5) -> None:
-    self._samples: collections.deque[Any] = collections.deque(maxlen=max_samples)
+    self._samples: collections.deque[Any] = collections.deque(
+        maxlen=max_samples)
     self._samples_lock: threading.Lock = threading.Lock()
     self._coder_impl: CoderImpl = coder.get_impl()
     self._sample_timer = SampleTimer(sample_every_sec, self)
     self.element_sampler = ElementSampler()
     self.element_sampler.has_element = False
-    self._exceptions: collections.deque[tuple[Any, ExceptionMetadata]] = collections.deque(
-        maxlen=max_samples)
+    self._exceptions: collections.deque[tuple[
+        Any, ExceptionMetadata]] = collections.deque(maxlen=max_samples)
 
     # For testing, it's easier to disable the Timer and manually sample.
     if sample_every_sec > 0:

@@ -1756,23 +1756,21 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
       return sum(a)
 
     self.assertCompatible(
-        tuple[typing.TypeVar('K'), int],
-        output_hints(beam.CombinePerKey(add)))
+        tuple[typing.TypeVar('K'), int], output_hints(beam.CombinePerKey(add)))
 
   def test_group_by_key_only_output_type_deduction(self):
     d = (
         self.p
         | 'Str' >> beam.Create(['t', 'e', 's', 't']).with_output_types(str)
         | (
-            'Pair' >> beam.Map(lambda x: (x, ord(x))).with_output_types(
-                tuple[str, str]))
+            'Pair' >> beam.Map(lambda x:
+                               (x, ord(x))).with_output_types(tuple[str, str]))
         | beam.GroupByKey())
 
     # Output type should correctly be deduced.
     # GBK-only should deduce that Tuple[A, B] is turned into
     # Tuple[A, Iterable[B]].
-    self.assertCompatible(
-        tuple[str, typing.Iterable[str]], d.element_type)
+    self.assertCompatible(tuple[str, typing.Iterable[str]], d.element_type)
 
   def test_group_by_key_output_type_deduction(self):
     d = (
@@ -1785,8 +1783,7 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
 
     # Output type should correctly be deduced.
     # GBK should deduce that Tuple[A, B] is turned into Tuple[A, Iterable[B]].
-    self.assertCompatible(
-        tuple[int, typing.Iterable[int]], d.element_type)
+    self.assertCompatible(tuple[int, typing.Iterable[int]], d.element_type)
 
   def test_group_by_key_only_does_not_type_check(self):
     # GBK will be passed raw int's here instead of some form of Tuple[A, B].
@@ -2041,8 +2038,7 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
           | (
               'Swap' >>
               beam.FlatMap(lambda x_y1: [x_y1[0] + x_y1[1]]).with_input_types(
-                  tuple[int, float]).with_output_types(
-                      tuple[float, int])))
+                  tuple[int, float]).with_output_types(tuple[float, int])))
       self.p.run()
 
   def test_pipeline_runtime_checking_violation_with_side_inputs_decorator(self):
@@ -2420,8 +2416,8 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
     d = (
         self.p
         | beam.Create(['t', 'e', 's', 't']).with_output_types(str)
-        | 'DupKey' >> beam.Map(lambda x: (x, x)).with_output_types(
-            tuple[str, str])
+        | 'DupKey' >> beam.Map(lambda x:
+                               (x, x)).with_output_types(tuple[str, str])
         | 'CountDups' >> combine.Count.PerKey())
 
     self.assertCompatible(tuple[str, int], d.element_type)
@@ -2509,8 +2505,7 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
                 tuple[int, int]))
         | 'TopMod' >> combine.Top.PerKey(1))
 
-    self.assertCompatible(
-        tuple[int, typing.Iterable[int]], d.element_type)
+    self.assertCompatible(tuple[int, typing.Iterable[int]], d.element_type)
     assert_that(d, equal_to([(0, [99]), (1, [97]), (2, [98])]))
     self.p.run()
 
@@ -2525,8 +2520,7 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
                 tuple[int, int]))
         | 'TopMod' >> combine.Top.PerKey(1))
 
-    self.assertCompatible(
-        tuple[int, typing.Iterable[int]], d.element_type)
+    self.assertCompatible(tuple[int, typing.Iterable[int]], d.element_type)
     assert_that(d, equal_to([(0, [18]), (1, [19]), (2, [20])]))
     self.p.run()
 
@@ -2574,8 +2568,7 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
                          (2, 3)]).with_output_types(tuple[int, int]))
         | 'Sample' >> combine.Sample.FixedSizePerKey(2))
 
-    self.assertCompatible(
-        tuple[int, typing.Iterable[int]], d.element_type)
+    self.assertCompatible(tuple[int, typing.Iterable[int]], d.element_type)
 
     def matcher(expected_len):
       def match(actual):
@@ -2597,8 +2590,7 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
                          (2, 3)]).with_output_types(tuple[int, int]))
         | 'Sample' >> combine.Sample.FixedSizePerKey(1))
 
-    self.assertCompatible(
-        tuple[int, typing.Iterable[int]], d.element_type)
+    self.assertCompatible(tuple[int, typing.Iterable[int]], d.element_type)
 
     def matcher(expected_len):
       def match(actual):
@@ -2661,8 +2653,7 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
   def test_to_dict_pipeline_check_satisfied(self):
     d = (
         self.p
-        | beam.Create([(1, 2),
-                       (3, 4)]).with_output_types(tuple[int, int])
+        | beam.Create([(1, 2), (3, 4)]).with_output_types(tuple[int, int])
         | combine.ToDict())
 
     self.assertCompatible(dict[int, int], d.element_type)
@@ -2674,9 +2665,8 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
 
     d = (
         self.p
-        | (
-            beam.Create([('1', 2),
-                         ('3', 4)]).with_output_types(tuple[str, int]))
+        |
+        (beam.Create([('1', 2), ('3', 4)]).with_output_types(tuple[str, int]))
         | combine.ToDict())
 
     self.assertCompatible(dict[str, int], d.element_type)

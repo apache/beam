@@ -179,11 +179,11 @@ class CrossLanguageTestPipelines(object):
     """
     with pipeline as p:
       col1 = p | 'create_col1' >> beam.Create(
-          [(0, "1"), (0, "2"), (1, "3")], reshuffle=False).with_output_types(
-              tuple[int, str])
+          [(0, "1"), (0, "2"),
+           (1, "3")], reshuffle=False).with_output_types(tuple[int, str])
       col2 = p | 'create_col2' >> beam.Create(
-          [(0, "4"), (1, "5"), (1, "6")], reshuffle=False).with_output_types(
-              tuple[int, str])
+          [(0, "4"), (1, "5"),
+           (1, "6")], reshuffle=False).with_output_types(tuple[int, str])
       res = (
           dict(col1=col1, col2=col2)
           | beam.ExternalTransform(TEST_CGBK_URN, None, self.expansion_service)

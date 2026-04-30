@@ -21,7 +21,6 @@ For internal use only; no backward-compatibility guarantees.
 """
 # pytype: skip-file
 
-
 import apache_beam as beam
 from apache_beam.portability.api import beam_runner_api_pb2
 from apache_beam.runners.interactive import cache_manager as cache

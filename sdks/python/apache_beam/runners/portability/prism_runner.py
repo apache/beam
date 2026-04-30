@@ -480,8 +480,7 @@ class PrismJobServer(job_server.SubprocessJobServer):
 
     return self._prepare_executable(local_path, self.BIN_CACHE, ignore_cache)
 
-  def subprocess_cmd_and_endpoint(
-      self) -> tuple[list[typing.Any], str]:
+  def subprocess_cmd_and_endpoint(self) -> tuple[list[typing.Any], str]:
     bin_path = self._get_executable_path()
     job_port, = subprocess_server.pick_port(self._job_port)
     subprocess_cmd = [bin_path] + self.prism_arguments(job_port)
