@@ -47,18 +47,20 @@ type JobOptions struct {
 	// Pipeline options
 	Options runtime.RawOptions
 
-	Streaming           bool
-	Project             string
-	Region              string
-	Zone                string
-	KmsKey              string
-	Network             string
-	Subnetwork          string
-	NoUsePublicIPs      bool
-	NumWorkers          int64
-	DiskSizeGb          int64
-	DiskType            string
-	MachineType         string
+	Streaming                      bool
+	Project                        string
+	Region                         string
+	Zone                           string
+	KmsKey                         string
+	Network                        string
+	Subnetwork                     string
+	NoUsePublicIPs                 bool
+	NumWorkers                     int64
+	DiskSizeGb                     int64
+	DiskType                       string
+	DiskProvisionedIops            int64
+	DiskProvisionedThroughputMibps int64
+	MachineType                    string
 	Labels              map[string]string
 	ServiceAccountEmail string
 	WorkerRegion        string
@@ -189,18 +191,20 @@ func Translate(ctx context.Context, p *pipepb.Pipeline, opts *JobOptions, worker
 				AutoscalingSettings: &df.AutoscalingSettings{
 					MaxNumWorkers: opts.MaxNumWorkers,
 				},
-				DiskSizeGb:                  opts.DiskSizeGb,
-				DiskType:                    opts.DiskType,
-				IpConfiguration:             ipConfiguration,
-				Kind:                        "harness",
-				Packages:                    packages,
-				WorkerHarnessContainerImage: opts.ContainerImage,
-				SdkHarnessContainerImages:   dfImages,
-				NumWorkers:                  1,
-				MachineType:                 opts.MachineType,
-				Network:                     opts.Network,
-				Subnetwork:                  opts.Subnetwork,
-				Zone:                        opts.Zone,
+				DiskSizeGb:                     opts.DiskSizeGb,
+				DiskType:                       opts.DiskType,
+				DiskProvisionedIops:            opts.DiskProvisionedIops,
+				DiskProvisionedThroughputMibps: opts.DiskProvisionedThroughputMibps,
+				IpConfiguration:                ipConfiguration,
+				Kind:                           "harness",
+				Packages:                       packages,
+				WorkerHarnessContainerImage:    opts.ContainerImage,
+				SdkHarnessContainerImages:      dfImages,
+				NumWorkers:                     1,
+				MachineType:                    opts.MachineType,
+				Network:                        opts.Network,
+				Subnetwork:                     opts.Subnetwork,
+				Zone:                           opts.Zone,
 			}},
 			WorkerRegion:      opts.WorkerRegion,
 			WorkerZone:        opts.WorkerZone,
@@ -354,6 +358,8 @@ type dataflowOptions struct {
 	PipelineURL  string   `json:"pipelineUrl"`
 	Region       string   `json:"region"`
 	TempLocation string   `json:"tempLocation"`
+	DiskProvisionedIops            int64  `json:"diskProvisionedIops"`
+	DiskProvisionedThroughputMibps int64  `json:"diskProvisionedThroughputMibps"`
 }
 
 func printOptions(opts *JobOptions, images []string) []*displayData {

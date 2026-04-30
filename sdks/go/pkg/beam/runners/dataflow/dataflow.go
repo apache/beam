@@ -63,6 +63,8 @@ var (
 	maxNumWorkers          = flag.Int64("max_num_workers", 0, "Maximum number of workers during scaling (optional).")
 	diskSizeGb             = flag.Int64("disk_size_gb", 0, "Size of root disk for VMs, in GB (optional).")
 	diskType               = flag.String("disk_type", "", "Type of root disk for VMs (optional).")
+	diskProvisionedIops            = flag.Int64("disk_provisioned_iops", 0, "Provisioned IOPS for the worker disk (optional).")
+	diskProvisionedThroughputMibps = flag.Int64("disk_provisioned_throughput_mibps", 0, "Provisioned throughput in MiB/s for the worker disk (optional).")
 	autoscalingAlgorithm   = flag.String("autoscaling_algorithm", "", "Autoscaling mode to use (optional).")
 	zone                   = flag.String("zone", "", "GCP zone (optional)")
 	kmsKey                 = flag.String("dataflow_kms_key", "", "The Cloud KMS key identifier used to encrypt data at rest (optional).")
@@ -113,9 +115,11 @@ var flagFilter = map[string]bool{
 	"service_account_email":          true,
 	"num_workers":                    true,
 	"max_num_workers":                true,
-	"disk_size_gb":                   true,
-	"disk_type":                      true,
-	"autoscaling_algorithm":          true,
+	"disk_size_gb":                      true,
+	"disk_type":                         true,
+	"disk_provisioned_iops":             true,
+	"disk_provisioned_throughput_mibps": true,
+	"autoscaling_algorithm":             true,
 	"zone":                           true,
 	"network":                        true,
 	"subnetwork":                     true,
@@ -393,10 +397,12 @@ func getJobOptions(ctx context.Context, streaming bool) (*dataflowlib.JobOptions
 		NoUsePublicIPs:         *noUsePublicIPs,
 		NumWorkers:             *numWorkers,
 		MaxNumWorkers:          *maxNumWorkers,
-		WorkerHarnessThreads:   *workerHarnessThreads,
-		DiskSizeGb:             *diskSizeGb,
-		DiskType:               *diskType,
-		Algorithm:              *autoscalingAlgorithm,
+		WorkerHarnessThreads:           *workerHarnessThreads,
+		DiskSizeGb:                     *diskSizeGb,
+		DiskType:                       *diskType,
+		DiskProvisionedIops:            *diskProvisionedIops,
+		DiskProvisionedThroughputMibps: *diskProvisionedThroughputMibps,
+		Algorithm:                      *autoscalingAlgorithm,
 		FlexRSGoal:             *flexRSGoal,
 		MachineType:            *firstNonEmpty(workerMachineType, machineType),
 		Labels:                 jobLabels,
