@@ -34,9 +34,6 @@ import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.DoFn;
-import org.apache.beam.sdk.transforms.DoFn.Element;
-import org.apache.beam.sdk.transforms.DoFn.OutputReceiver;
-import org.apache.beam.sdk.transforms.DoFn.SideInput;
 import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.Mean;
 import org.apache.beam.sdk.transforms.PTransform;
@@ -129,23 +126,21 @@ public class GameStats extends LeaderBoard {
                             Metrics.counter("main", "SpammerUsers");
 
                         @ProcessElement
-                        public void processElement(
-                            @SideInput("globalMeanScore") Double gmc,
-                            @Element KV<String, Integer> element,
-                            OutputReceiver<KV<String, Integer>> receiver) {
-                          Integer score = element.getValue();
+                        public void processElement(ProcessContext c) {
+                          Integer score = c.element().getValue();
+                          Double gmc = c.sideInput(globalMeanScore);
                           if (score > (gmc * SCORE_WEIGHT)) {
                             LOG.info(
                                 "user {} spammer score {} with mean {}",
-                                element.getKey(),
+                                c.element().getKey(),
                                 score,
                                 gmc);
                             numSpammerUsers.inc();
-                            receiver.output(element);
+                            c.output(c.element());
                           }
                         }
                       })
-                  .withSideInput("globalMeanScore", globalMeanScore));
+                  .withSideInputs(globalMeanScore));
       return filtered;
     }
   }
@@ -154,10 +149,10 @@ public class GameStats extends LeaderBoard {
   /** Calculate and output an element's session duration. */
   private static class UserSessionInfoFn extends DoFn<KV<String, Integer>, Integer> {
     @ProcessElement
-    public void processElement(BoundedWindow window, OutputReceiver<Integer> receiver) {
+    public void processElement(ProcessContext c, BoundedWindow window) {
       IntervalWindow w = (IntervalWindow) window;
       int duration = new Duration(w.start(), w.end()).toPeriod().toStandardMinutes().getMinutes();
-      receiver.output(duration);
+      c.output(duration);
     }
   }
 
@@ -197,21 +192,22 @@ public class GameStats extends LeaderBoard {
       configureWindowedWrite() {
     Map<String, WriteToBigQuery.FieldInfo<KV<String, Integer>>> tableConfigure = new HashMap<>();
     tableConfigure.put(
-        "team", new WriteToBigQuery.FieldInfo<>("STRING", (e, w, t, p) -> e.getKey()));
+        "team", new WriteToBigQuery.FieldInfo<>("STRING", (c, w) -> c.element().getKey()));
     tableConfigure.put(
-        "total_score", new WriteToBigQuery.FieldInfo<>("INTEGER", (e, w, t, p) -> e.getValue()));
+        "total_score",
+        new WriteToBigQuery.FieldInfo<>("INTEGER", (c, w) -> c.element().getValue()));
     tableConfigure.put(
         "window_start",
         new WriteToBigQuery.FieldInfo<>(
             "STRING",
-            (e, w, t, p) -> {
+            (c, w) -> {
               IntervalWindow window = (IntervalWindow) w;
               return GameConstants.DATE_TIME_FORMATTER.print(window.start());
             }));
     tableConfigure.put(
         "processing_time",
         new WriteToBigQuery.FieldInfo<>(
-            "STRING", (e, w, t, p) -> GameConstants.DATE_TIME_FORMATTER.print(Instant.now())));
+            "STRING", (c, w) -> GameConstants.DATE_TIME_FORMATTER.print(Instant.now())));
     return tableConfigure;
   }
 
@@ -226,12 +222,12 @@ public class GameStats extends LeaderBoard {
         "window_start",
         new WriteToBigQuery.FieldInfo<>(
             "STRING",
-            (e, w, t, p) -> {
+            (c, w) -> {
               IntervalWindow window = (IntervalWindow) w;
               return GameConstants.DATE_TIME_FORMATTER.print(window.start());
             }));
     tableConfigure.put(
-        "mean_duration", new WriteToBigQuery.FieldInfo<>("FLOAT", (e, w, t, p) -> e));
+        "mean_duration", new WriteToBigQuery.FieldInfo<>("FLOAT", (c, w) -> c.element()));
     return tableConfigure;
   }
 
@@ -292,17 +288,14 @@ public class GameStats extends LeaderBoard {
             ParDo.of(
                     new DoFn<GameActionInfo, GameActionInfo>() {
                       @ProcessElement
-                      public void processElement(
-                          @SideInput("spammersView") Map<String, Integer> spammers,
-                          @Element GameActionInfo element,
-                          OutputReceiver<GameActionInfo> receiver) {
+                      public void processElement(ProcessContext c) {
                         // If the user is not in the spammers Map, output the data element.
-                        if (spammers.get(element.getUser().trim()) == null) {
-                          receiver.output(element);
+                        if (c.sideInput(spammersView).get(c.element().getUser().trim()) == null) {
+                          c.output(c.element());
                         }
                       }
                     })
-                .withSideInput("spammersView", spammersView))
+                .withSideInputs(spammersView))
         // Extract and sum teamname/score pairs from the event data.
         .apply("ExtractTeamScore", new ExtractAndSumScore("team"))
         // [END DocInclude_FilterAndCalc]
