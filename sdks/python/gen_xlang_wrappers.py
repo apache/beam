@@ -228,7 +228,8 @@ def pretty_type(tp):
     if getattr(tp, '__origin__', None) is None:
       tp = tp.__name__
     else:
-      tp = str(tp)
+      # Remove nested typing module name (like Optional)
+      tp = str(tp).replace("typing.", "")
   elif tp.__module__ == 'typing':
     tp = str(tp).replace("typing.", "")
     tp = tp.replace("Sequence", "list")
