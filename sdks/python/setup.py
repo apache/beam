@@ -166,6 +166,7 @@ dataframe_dependency = [
 ]
 
 milvus_dependency = ['pymilvus>=2.5.10,<3.0.0']
+qdrant_dependency = ['qdrant-client>=1.15.0']
 
 # google-adk / OpenTelemetry require protobuf>=5; tensorflow-transform in
 # ml_test is pinned to versions that require protobuf<5 on Python 3.10. Those
@@ -605,14 +606,14 @@ if __name__ == '__main__':
               'tf2onnx>=1.16.1,<1.17',
           ] + ml_base_core,
           'p310_ml_test': [
-              'datatable',
-          ] + ml_base,
+            'datatable',
+          ] + ml_base + qdrant_dependency,
           'p312_ml_test': [
               'datatable',
-          ] + ml_base,
+          ] + ml_base + qdrant_dependency,
           # maintainer: milvus tests only run with this extension. Make sure it
           # is covered by docker-in-docker test when changing py version
-          'p313_ml_test': ml_base + milvus_dependency,
+          'p313_ml_test': ml_base + milvus_dependency + qdrant_dependency,
           'aws': ['boto3>=1.9,<2'],
           'azure': [
               'azure-storage-blob>=12.3.2,<13',
@@ -683,6 +684,7 @@ if __name__ == '__main__':
           'xgboost': ['xgboost>=1.6.0,<2.1.3', 'datatable==1.0.0'],
           'tensorflow-hub': ['tensorflow-hub>=0.14.0,<0.16.0'],
           'milvus': milvus_dependency,
+          'qdrant': qdrant_dependency,
           'vllm': ['openai==1.107.1', 'vllm==0.10.1.1', 'triton==3.3.1']
       },
       zip_safe=False,
