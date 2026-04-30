@@ -97,10 +97,9 @@
 
 <script>
     $('.table-headers').scroll(function(e){
-        $('#'+this.id+'.table-center').scrollLeft($(this).scrollLeft());
+        $(this).siblings('.table-center').scrollLeft($(this).scrollLeft());
     });
     $('.table-center').scroll(function(e){
-        $('#'+this.id+'.table-headers').scrollLeft($(this).scrollLeft());
+        $(this).siblings('.table-headers').scrollLeft($(this).scrollLeft());
     });
-
 </script>

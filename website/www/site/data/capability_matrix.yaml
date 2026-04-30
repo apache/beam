@@ -30,8 +30,6 @@ capability-matrix:
       name: Twister2
     - class: python direct
       name: Python Direct FnRunner
-    - class: go direct
-      name: Go Direct Runner
 
   categories:
     - description: What is being computed?
@@ -82,10 +80,6 @@ capability-matrix:
               l1: ""
               l2:
               l3: ""
-            - class: go direct
-              l1: ""
-              l2:
-              l3: ""
         - name: GroupByKey
           description: Grouping of key-value pairs per key, window, and pane. (See also other tabs.)
           values:
@@ -122,10 +116,6 @@ capability-matrix:
               l2: fully supported
               l3: ""
             - class: python direct
-              l1: ""
-              l2:
-              l3: ""
-            - class: go direct
               l1: ""
               l2:
               l3: ""
@@ -168,10 +158,6 @@ capability-matrix:
               l1: ""
               l2:
               l3: ""
-            - class: go direct
-              l1: ""
-              l2:
-              l3: ""
         - name: Combine
           description: 'Application of an associative, commutative operation over all values ("globally") or over all values associated with each key ("per key"). Can be implemented using ParDo, but often more efficient implementations exist.'
           values:
@@ -208,10 +194,6 @@ capability-matrix:
               l2: fully supported
               l3: ""
             - class: python direct
-              l1: ""
-              l2:
-              l3: ""
-            - class: go direct
               l1: ""
               l2:
               l3: ""
@@ -254,10 +236,6 @@ capability-matrix:
               l1: ""
               l2:
               l3: ""
-            - class: go direct
-              l1: ""
-              l2:
-              l3: ""
         - name: Side Inputs
           description: Side inputs are additional <tt>PCollections</tt> whose contents are computed during pipeline execution and then made accessible to DoFn code. The exact shape of the side input depends both on the <tt>PCollectionView</tt> used to describe the access pattern (interable, map, singleton) and the window of the element from the main input that is currently being processed.
           values:
@@ -294,10 +272,6 @@ capability-matrix:
               l2: fully supported
               l3: ""
             - class: python direct
-              l1: ""
-              l2:
-              l3: ""
-            - class: go direct
               l1: ""
               l2:
               l3: ""
@@ -340,10 +314,6 @@ capability-matrix:
               l1: ""
               l2:
               l3: ""
-            - class: go direct
-              l1: ""
-              l2:
-              l3: ""
         - name: Metrics
           description: Allow transforms to gather simple metrics across bundles in a <tt>PTransform</tt>. Provide a mechanism to obtain both committed and attempted metrics. Semantically similar to using an additional output, but support partial results as the transform executes, and support both committed and attempted values. Will likely want to augment <tt>Metrics</tt> to be more useful for processing unbounded data by making them windowed.
           values:
@@ -383,10 +353,6 @@ capability-matrix:
               l1: ""
               l2:
               l3: ""
-            - class: go direct
-              l1: ""
-              l2:
-              l3: ""
         - name: Stateful Processing
           description: Allows fine-grained access to per-key, per-window persistent state. Necessary for certain use cases (e.g. high-volume windows which store large amounts of data, but typically only access small portions of it; complex state machines; etc.) that are not easily or efficiently addressed via <tt>Combine</tt> or <tt>GroupByKey</tt>+<tt>ParDo</tt>.
           values:
@@ -423,10 +389,6 @@ capability-matrix:
               l2: not implemented
               l3: ""
             - class: python direct
-              l1: ""
-              l2:
-              l3: ""
-            - class: go direct
               l1: ""
               l2:
               l3: ""
@@ -478,10 +440,6 @@ capability-matrix:
               l1: "Yes"
               l2:
               l3:
-            - class: go direct
-              l1: "Yes"
-              l2:
-              l3:
         - name: Side Inputs
           description: ""
           values:
@@ -519,10 +477,6 @@ capability-matrix:
               l3: ""
             - class: python direct
               l1:
-              l2:
-              l3:
-            - class: go direct
-              l1: "Yes"
               l2:
               l3:
         - name: Splittable DoFn Initiated Checkpointing
@@ -564,10 +518,6 @@ capability-matrix:
               l1: "Yes"
               l2:
               l3:
-            - class: go direct
-              l1: "No"
-              l2:
-              l3:
         - name: Dynamic Splitting
           description: ""
           values:
@@ -607,10 +557,6 @@ capability-matrix:
               l1: "Yes"
               l2: Only with Python SDK
               l3:
-            - class: go direct
-              l1: "No"
-              l2:
-              l3:
         - name: Bundle Finalization
           description: ""
           values:
@@ -648,10 +594,6 @@ capability-matrix:
               l3: ""
             - class: python direct
               l1: "Yes"
-              l2:
-              l3:
-            - class: go direct
-              l1: "No"
               l2:
               l3:
     - description: Unbounded Splittable DoFn Support Status
@@ -702,10 +644,6 @@ capability-matrix:
               l1: "Yes"
               l2:
               l3:
-            - class: go direct
-              l1: "No"
-              l2:
-              l3:
         - name: Side Inputs
           description: ""
           values:
@@ -743,10 +681,6 @@ capability-matrix:
               l3: ""
             - class: python direct
               l1:
-              l2:
-              l3:
-            - class: go direct
-              l1: "Yes"
               l2:
               l3:
         - name: Splittable DoFn Initiated Checkpointing
@@ -788,10 +722,6 @@ capability-matrix:
               l1: "Yes"
               l2:
               l3:
-            - class: go direct
-              l1: "No"
-              l2:
-              l3:
         - name: Dynamic Splitting
           description: ""
           values:
@@ -828,10 +758,6 @@ capability-matrix:
               l2:
               l3: ""
             - class: python direct
-              l1: "No"
-              l2:
-              l3:
-            - class: go direct
               l1: "No"
               l2:
               l3:
@@ -872,10 +798,6 @@ capability-matrix:
               l3: ""
             - class: python direct
               l1: "Yes"
-              l2:
-              l3:
-            - class: go direct
-              l1: "No"
               l2:
               l3:
     - description: Where in event time?
@@ -922,6 +844,10 @@ capability-matrix:
               l1: "Yes"
               l2: supported
               l3: ""
+            - class: python direct
+              l1: "Yes"
+              l2: supported
+              l3: ""
         - name: Fixed windows
           description: Fixed-size, timestamp-based windows. (Hourly, Daily, etc)
           values:
@@ -954,6 +880,10 @@ capability-matrix:
               l2: supported
               l3: ""
             - class: twister2
+              l1: "Yes"
+              l2: supported
+              l3: ""
+            - class: python direct
               l1: "Yes"
               l2: supported
               l3: ""
@@ -992,6 +922,10 @@ capability-matrix:
               l1: "Yes"
               l2: supported
               l3: ""
+            - class: python direct
+              l1: "Yes"
+              l2: supported
+              l3: ""
         - name: Session windows
           description: Based on bursts of activity separated by a gap size. Different per key.
           values:
@@ -1024,6 +958,10 @@ capability-matrix:
               l2: supported
               l3: ""
             - class: twister2
+              l1: "Yes"
+              l2: supported
+              l3: ""
+            - class: python direct
               l1: "Yes"
               l2: supported
               l3: ""
@@ -1062,6 +1000,10 @@ capability-matrix:
               l1: "Yes"
               l2: supported
               l3: ""
+            - class: python direct
+              l1: "Yes"
+              l2: supported
+              l3: ""
         - name: Custom merging windows
           description: A custom <tt>WindowFn</tt> additionally specifies whether and how to merge windows.
           values:
@@ -1097,6 +1039,10 @@ capability-matrix:
               l1: "Yes"
               l2: supported
               l3: ""
+            - class: python direct
+              l1: "Yes"
+              l2: supported
+              l3: ""
         - name: Timestamp control
           description: For a grouping transform, such as GBK or Combine, an OutputTimeFn specifies (1) how to combine input timestamps within a window and (2) how to merge aggregated timestamps when windows merge.
           values:
@@ -1129,6 +1075,10 @@ capability-matrix:
               l2: supported
               l3: ""
             - class: twister2
+              l1: "Yes"
+              l2: supported
+              l3: ""
+            - class: python direct
               l1: "Yes"
               l2: supported
               l3: ""
@@ -1177,7 +1127,10 @@ capability-matrix:
               l1: "Yes"
               l2: fully supported
               l3: ""
-
+            - class: python direct
+              l1: "Yes"
+              l2: fully supported
+              l3: ""
         - name: Event-time triggers
           description: Triggers that fire in response to event-time completeness signals, such as watermarks progressing.
           values:
@@ -1210,6 +1163,10 @@ capability-matrix:
               l2: fully supported
               l3: ""
             - class: twister2
+              l1: "Yes"
+              l2: fully supported
+              l3: ""
+            - class: python direct
               l1: "Yes"
               l2: fully supported
               l3: ""
@@ -1249,6 +1206,10 @@ capability-matrix:
               l1: "Yes"
               l2: fully supported
               l3: ""
+            - class: python direct
+              l1: "Yes"
+              l2: fully supported
+              l3: ""
 
         - name: Count triggers
           description: Triggers that fire after seeing at least N elements.
@@ -1282,6 +1243,10 @@ capability-matrix:
               l2: fully supported
               l3: ""
             - class: twister2
+              l1: "Yes"
+              l2: fully supported
+              l3: ""
+            - class: python direct
               l1: "Yes"
               l2: fully supported
               l3: ""
@@ -1321,6 +1286,10 @@ capability-matrix:
               l1: "Partially"
               l2:
               l3: ""
+            - class: python direct
+              l1: "Yes"
+              l2: fully supported
+              l3: ""
 
         - name: Allowed lateness
           description: A way to bound the useful lifetime of a window (in event time), after which any unemitted results may be materialized, the window contents may be garbage collected, and any addtional late data that arrive for the window may be discarded.
@@ -1357,6 +1326,10 @@ capability-matrix:
               l1: "Partially"
               l2:
               l3: ""
+            - class: python direct
+              l1: "Yes"
+              l2: fully supported
+              l3: ""
 
         - name: Timers
           description: A fine-grained mechanism for performing work at some point in the future, in either the event-time or processing-time domain. Useful for orchestrating delayed events, timeouts, etc in complex state per-key, per-window state machines.
@@ -1392,6 +1365,10 @@ capability-matrix:
             - class: twister2
               l1: "Partially"
               l2:
+              l3: ""
+            - class: python direct
+              l1: "Yes"
+              l2: "Partially"
               l3: ""
 
     - description: How do refinements relate?
@@ -1438,6 +1415,10 @@ capability-matrix:
               l1: "Yes"
               l2: fully supported
               l3: ""
+            - class: python direct
+              l1: "Yes"
+              l2: fully supported
+              l3: ""
 
         - name: Accumulating
           description: Elements are accumulated in state across multiple pane firings for the same window.
@@ -1471,6 +1452,10 @@ capability-matrix:
               l2: fully supported
               l3: ""
             - class: twister2
+              l1: "Yes"
+              l2: fully supported
+              l3: ""
+            - class: python direct
               l1: "Yes"
               l2: fully supported
               l3: ""
@@ -1519,6 +1504,10 @@ capability-matrix:
               l1:
               l2:
               l3:
+            - class: python direct
+              l1:
+              l2:
+              l3:
         - name: Checkpoint
           description: APIs and semantics for saving a pipeline checkpoint are under discussion. This would be a runner-specific materialization of the pipeline state required to resume or duplicate the pipeline.
           values:
@@ -1554,6 +1543,10 @@ capability-matrix:
               l1:
               l2:
               l3:
+            - class: python direct
+              l1:
+              l2:
+              l3:
         - name: Key-ordered delivery
           description: The runner offers guarantees for the order in which elements are passed in between operations. See <a href=''>per-key ordering semantics.</a>
           values:
@@ -1565,10 +1558,6 @@ capability-matrix:
               l1: "Yes"
               l2: fully supported
               l3: ""
-            - class: prism
-              l1: "Unverified"
-              l2:
-              l3:
             - class: flink
               l1: "Partially"
               l2:
