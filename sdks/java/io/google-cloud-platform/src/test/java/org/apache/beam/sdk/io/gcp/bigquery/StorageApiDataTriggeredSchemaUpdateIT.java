@@ -36,6 +36,7 @@ import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.CreateDisposition;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.WriteDisposition;
 import org.apache.beam.sdk.io.gcp.testing.BigqueryClient;
+import org.apache.beam.sdk.options.StreamingOptions;
 import org.apache.beam.sdk.state.StateSpec;
 import org.apache.beam.sdk.state.StateSpecs;
 import org.apache.beam.sdk.state.ValueState;
@@ -187,6 +188,7 @@ public class StorageApiDataTriggeredSchemaUpdateIT {
   private void runTest(Write.Method method) throws Exception {
     Pipeline p = Pipeline.create(TestPipeline.testingPipelineOptions());
     p.getOptions().as(BigQueryOptions.class).setSchemaUpgradeBufferingShards(1);
+    p.getOptions().as(StreamingOptions.class).setStreaming(true);
 
     TableSchema baseSchema =
         new TableSchema()
