@@ -240,7 +240,7 @@ pytest-xdist==3.8.0
 python-dateutil==2.9.0.post0
 python-dotenv==1.2.2
 python-json-logger==4.0.0
-python-multipart==0.0.22
+python-multipart==0.0.26
 python-tds==1.17.1
 pytz==2026.1.post1
 PyYAML==6.0.3
