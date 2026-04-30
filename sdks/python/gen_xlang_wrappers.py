@@ -225,7 +225,10 @@ def pretty_type(tp):
   # TODO(ahmedabu98): Make this more generic to support other remote SDKs
   # Potentially use Runner API types
   if tp.__module__ == 'builtins':
-    tp = tp.__name__
+    if getattr(tp, '__origin__', None) is None:
+      tp = tp.__name__
+    else:
+      tp = str(tp)
   elif tp.__module__ == 'typing':
     tp = str(tp).replace("typing.", "")
     tp = tp.replace("Sequence", "list")

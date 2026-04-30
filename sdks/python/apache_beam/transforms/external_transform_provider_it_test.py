@@ -203,10 +203,10 @@ class AutoGenerationScriptIT(unittest.TestCase):
         dict[int, typing.Optional[str]]
     ]
 
-    expected_type_names = [('List[str]', True), ('int16', False),
-                           ('str', False), ('Dict[str, float64]', False),
-                           ('Dict[str, List[int64]]', True),
-                           ('Dict[int, Optional[str]]', False)]
+    expected_type_names = [('list[str]', True), ('int16', False),
+                           ('str', False), ('dict[str, float64]', False),
+                           ('dict[str, list[int64]]', True),
+                           ('dict[int, Optional[str]]', False)]
 
     for i in range(len(types)):
       self.assertEqual(
