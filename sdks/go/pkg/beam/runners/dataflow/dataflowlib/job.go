@@ -17,6 +17,8 @@ package dataflowlib
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"fmt"
 	"strings"
 	"time"
@@ -131,6 +133,13 @@ func Translate(ctx context.Context, p *pipepb.Pipeline, opts *JobOptions, worker
 		return nil, err
 	}
 
+	serializedPipeline, err := proto.Marshal(p)
+	if err != nil {
+		return nil, err
+	}
+	hash := sha256.Sum256(serializedPipeline)
+	pipelineProtoHash := hex.EncodeToString(hash[:])
+
 	packages := []*df.Package{{
 		Name:     "worker",
 		Location: workerURL,
@@ -176,10 +185,11 @@ func Translate(ctx context.Context, p *pipepb.Pipeline, opts *JobOptions, worker
 			SdkPipelineOptions: newMsg(pipelineOptions{
 				DisplayData: printOptions(opts, images),
 				Options: dataflowOptions{
-					PipelineURL:  modelURL,
-					Region:       opts.Region,
-					Experiments:  opts.Experiments,
-					TempLocation: opts.TempLocation,
+					PipelineURL:       modelURL,
+					PipelineProtoHash: pipelineProtoHash,
+					Region:            opts.Region,
+					Experiments:       opts.Experiments,
+					TempLocation:      opts.TempLocation,
 				},
 				GoOptions: opts.Options,
 			}),
@@ -350,10 +360,11 @@ func GetMetrics(ctx context.Context, client *df.Service, project, region, jobID 
 // pipeline options that are communicated to cross-language SDK harnesses, so any pipeline options
 // needed for cross-language transforms in Dataflow must be declared here.
 type dataflowOptions struct {
-	Experiments  []string `json:"experiments,omitempty"`
-	PipelineURL  string   `json:"pipelineUrl"`
-	Region       string   `json:"region"`
-	TempLocation string   `json:"tempLocation"`
+	Experiments       []string `json:"experiments,omitempty"`
+	PipelineURL       string   `json:"pipelineUrl"`
+	PipelineProtoHash string   `json:"pipelineProtoHash,omitempty"`
+	Region            string   `json:"region"`
+	TempLocation      string   `json:"tempLocation"`
 }
 
 func printOptions(opts *JobOptions, images []string) []*displayData {

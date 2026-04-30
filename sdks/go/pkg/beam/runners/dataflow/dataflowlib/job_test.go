@@ -21,12 +21,18 @@ import (
 	"reflect"
 	"testing"
 
+	"crypto/sha256"
+	"encoding/hex"
+	"encoding/json"
+
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime/graphx"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/util/protox"
 	pipepb "github.com/apache/beam/sdks/v2/go/pkg/beam/model/pipeline_v1"
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
 	df "google.golang.org/api/dataflow/v1b3"
+	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/testing/protocmp"
 )
 
@@ -279,4 +285,52 @@ func Test_containerImages(t *testing.T) {
 
 	}
 
+}
+
+func TestTranslate(t *testing.T) {
+	p := &pipepb.Pipeline{
+		Components: &pipepb.Components{
+			Environments: map[string]*pipepb.Environment{
+				"env1": {
+					Payload: protox.MustEncode(&pipepb.DockerPayload{
+						ContainerImage: "dummy_image",
+					}),
+				},
+			},
+		},
+	}
+	opts := &JobOptions{
+		Name:    "test-job",
+		Project: "test-project",
+		Region:  "test-region",
+		Options: runtime.RawOptions{
+			Options: make(map[string]string),
+		},
+	}
+
+	job, err := Translate(context.Background(), p, opts, "worker-url", "model-url")
+	if err != nil {
+		t.Fatalf("Translate failed: %v", err)
+	}
+
+	// Verify PipelineProtoHash
+	var recoveredOptions struct {
+		Options struct {
+			PipelineURL       string `json:"pipelineUrl"`
+			PipelineProtoHash string `json:"pipelineProtoHash"`
+		} `json:"options"`
+	}
+
+	rawOpts := job.Environment.SdkPipelineOptions
+	if err := json.Unmarshal(rawOpts, &recoveredOptions); err != nil {
+		t.Fatalf("Failed to unmarshal SdkPipelineOptions: %v", err)
+	}
+
+	serializedPipeline, _ := proto.Marshal(p)
+	hash := sha256.Sum256(serializedPipeline)
+	expectedHashStr := hex.EncodeToString(hash[:])
+
+	if recoveredOptions.Options.PipelineProtoHash != expectedHashStr {
+		t.Errorf("Expected PipelineProtoHash %v, got %v", expectedHashStr, recoveredOptions.Options.PipelineProtoHash)
+	}
 }

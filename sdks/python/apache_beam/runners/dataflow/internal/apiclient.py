@@ -279,6 +279,10 @@ class Environment(object):
           for k, v in sdk_pipeline_options.items() if v is not None
       }
       options_dict["pipelineUrl"] = proto_pipeline_staged_url
+      if self._proto_pipeline:
+        serialized_pipeline = self._proto_pipeline.SerializeToString()
+        options_dict["pipelineProtoHash"] = hashlib.sha256(
+            serialized_pipeline).hexdigest()
       # Don't pass impersonate_service_account through to the harness.
       # Though impersonation should start a job, the workers should
       # not try to modify their credentials.
