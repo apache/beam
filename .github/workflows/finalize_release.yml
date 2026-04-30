@@ -158,14 +158,14 @@ jobs:
 
         # Tag for Go SDK
         git tag "sdks/$VERSION_TAG" "$RC_TAG"^{} -m "Tagging release" --local-user="${{steps.import_gpg.outputs.name}}"
-        git push https://${GITHUB_TOKEN}@github.com/apache/beam "sdks/$VERSION_TAG"
+        git push origin "sdks/$VERSION_TAG"
 
         # Tag for repo root.
         git tag "$VERSION_TAG" "$RC_TAG"^{} -m "Tagging release" --local-user="${{steps.import_gpg.outputs.name}}"
-        git push https://${GITHUB_TOKEN}@github.com/apache/beam "$VERSION_TAG"
+        git push origin "$VERSION_TAG"
 
         git checkout -b "$POST_RELEASE_BRANCH" "$VERSION_TAG"
-        git push https://${GITHUB_TOKEN}@github.com/apache/beam "$POST_RELEASE_BRANCH"
+        git push origin "$POST_RELEASE_BRANCH"
 
   update_master:
     needs: push_git_tags
