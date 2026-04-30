@@ -29,8 +29,6 @@ import shutil
 import subprocess
 import typing
 from typing import Any
-from typing import Dict
-from typing import List
 from typing import Union
 
 import yaml
@@ -117,7 +115,7 @@ def generate_transforms_config(input_services, output_file):
   from apache_beam.transforms.external_transform_provider import ExternalTransform
   from apache_beam.transforms.external_transform_provider import ExternalTransformProvider
 
-  transform_list: List[Dict[str, Any]] = []
+  transform_list: list[dict[str, Any]] = []
 
   with open(input_services) as f:
     services = yaml.safe_load(f)
@@ -128,7 +126,7 @@ def generate_transforms_config(input_services, output_file):
       raise ValueError(
           f"Expansion service with target '{target}' does not "
           "specify any default destinations.")
-    service_destinations: Dict[str, str] = service['destinations']
+    service_destinations: dict[str, str] = service['destinations']
     for sdk, dest in service_destinations.items():
       validate_sdks_destinations(sdk, dest, target)
 
@@ -136,7 +134,7 @@ def generate_transforms_config(input_services, output_file):
 
     # use dynamic provider to discover and populate wrapper details
     provider = ExternalTransformProvider(BeamJarExpansionService(target))
-    discovered: Dict[str, ExternalTransform] = provider.get_all()
+    discovered: dict[str, ExternalTransform] = provider.get_all()
     for identifier in sorted(discovered.keys()):
       wrapper = discovered[identifier]
       if identifier in transforms_to_skip:
@@ -242,7 +240,7 @@ def pretty_type(tp):
   return (tp, nullable)
 
 
-def get_wrappers_from_transform_configs(config_file) -> Dict[str, List[str]]:
+def get_wrappers_from_transform_configs(config_file) -> dict[str, list[str]]:
   """
   Generates code for external transform wrapper classes (subclasses of
   :class:`ExternalTransform`).
@@ -264,7 +262,7 @@ def get_wrappers_from_transform_configs(config_file) -> Dict[str, List[str]]:
 
   # maintain a list of wrappers to write in each file. if modified destinations
   # are used, we may end up with multiple wrappers in one file.
-  destinations: Dict[str, List[str]] = {}
+  destinations: dict[str, list[str]] = {}
 
   with open(config_file) as f:
     transforms = yaml.safe_load(f)
@@ -308,7 +306,7 @@ def get_wrappers_from_transform_configs(config_file) -> Dict[str, List[str]]:
 
 
 def write_wrappers_to_destinations(
-    grouped_wrappers: Dict[str, List[str]],
+    grouped_wrappers: dict[str, list[str]],
     output_dir=PY_WRAPPER_OUTPUT_DIR,
     format_code=True):
   """
