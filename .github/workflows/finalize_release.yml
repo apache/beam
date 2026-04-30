@@ -130,6 +130,8 @@ jobs:
   push_git_tags:
     if: ${{github.event.inputs.TAG_RELEASE == 'yes'}}
     runs-on: [self-hosted, ubuntu-24.04, main]
+    env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     steps:
     - name: Checkout
       uses: actions/checkout@v4
@@ -156,20 +158,21 @@ jobs:
 
         # Tag for Go SDK
         git tag "sdks/$VERSION_TAG" "$RC_TAG"^{} -m "Tagging release" --local-user="${{steps.import_gpg.outputs.name}}"
-        git push https://github.com/apache/beam "sdks/$VERSION_TAG"
+        git push https://${GITHUB_TOKEN}@github.com/apache/beam "sdks/$VERSION_TAG"
 
         # Tag for repo root.
         git tag "$VERSION_TAG" "$RC_TAG"^{} -m "Tagging release" --local-user="${{steps.import_gpg.outputs.name}}"
-        git push https://github.com/apache/beam "$VERSION_TAG"
+        git push https://${GITHUB_TOKEN}@github.com/apache/beam "$VERSION_TAG"
 
         git checkout -b "$POST_RELEASE_BRANCH" "$VERSION_TAG"
-        git push https://github.com/apache/beam "$POST_RELEASE_BRANCH"
+        git push https://${GITHUB_TOKEN}@github.com/apache/beam "$POST_RELEASE_BRANCH"
 
   update_master:
     needs: push_git_tags
     runs-on: ubuntu-latest
     env:
         POST_RELEASE_BRANCH: "release-${{ github.event.inputs.RELEASE }}-postrelease"
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     steps:
       - name: Check out code
         uses: actions/checkout@v4
@@ -184,4 +187,4 @@ jobs:
         run: |
           git add .asf.yaml
           git commit -m "Adding ${POST_RELEASE_BRANCH} to protected branches in .asf.yaml"
-          git push origin ${MASTER_BRANCH}
+          git push https://${GITHUB_TOKEN}@github.com/apache/beam ${MASTER_BRANCH}
