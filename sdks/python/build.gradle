@@ -74,7 +74,7 @@ tasks.register("generateExternalTransformsConfig") {
   dependsOn ":sdks:java:io:google-cloud-platform:expansion-service:build"
   dependsOn ":sdks:java:io:expansion-service:build"
   // Keep this in-sync with pyproject.toml
-  def PyYaml = "'pyyaml>=3.12,<7.0.0'"
+  def PyYaml = "'pyyaml>=6.0.3,<7.0.0'"
 
   doLast {
     exec {
