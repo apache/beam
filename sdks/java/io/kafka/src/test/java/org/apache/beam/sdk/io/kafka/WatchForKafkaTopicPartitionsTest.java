@@ -18,10 +18,12 @@
 package org.apache.beam.sdk.io.kafka;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import java.util.Collections;
 import java.util.Set;
 import java.util.regex.Pattern;
 import org.apache.beam.sdk.io.kafka.KafkaMocks.PartitionGrowthMockConsumer;
@@ -104,6 +106,47 @@ public class WatchForKafkaTopicPartitionsTest {
             new TopicPartition("topic1", 1),
             new TopicPartition("topic2", 0),
             new TopicPartition("topic2", 1)),
+        WatchForKafkaTopicPartitions.getAllTopicPartitions(
+            (input) -> mockConsumer, null, givenTopics, null));
+  }
+
+  @Test
+  public void testGetAllTopicPartitionsWithNullPartitionInfo() throws Exception {
+    Set<String> givenTopics = ImmutableSet.of("topic1");
+
+    Consumer<byte[], byte[]> mockConsumer = Mockito.mock(Consumer.class);
+    when(mockConsumer.partitionsFor("topic1")).thenReturn(null);
+    assertTrue(
+        WatchForKafkaTopicPartitions.getAllTopicPartitions(
+                (input) -> mockConsumer, null, givenTopics, null)
+            .isEmpty());
+  }
+
+  @Test
+  public void testGetAllTopicPartitionsWithEmptyPartitionInfo() throws Exception {
+    Set<String> givenTopics = ImmutableSet.of("topic1");
+
+    Consumer<byte[], byte[]> mockConsumer = Mockito.mock(Consumer.class);
+    when(mockConsumer.partitionsFor("topic1")).thenReturn(Collections.emptyList());
+    assertTrue(
+        WatchForKafkaTopicPartitions.getAllTopicPartitions(
+                (input) -> mockConsumer, null, givenTopics, null)
+            .isEmpty());
+  }
+
+  @Test
+  public void testGetAllTopicPartitionsSkipsMissingTopics() throws Exception {
+    Set<String> givenTopics = ImmutableSet.of("topic1", "topic2");
+
+    Consumer<byte[], byte[]> mockConsumer = Mockito.mock(Consumer.class);
+    when(mockConsumer.partitionsFor("topic1")).thenReturn(null);
+    when(mockConsumer.partitionsFor("topic2"))
+        .thenReturn(
+            ImmutableList.of(
+                new PartitionInfo("topic2", 0, null, null, null),
+                new PartitionInfo("topic2", 1, null, null, null)));
+    assertEquals(
+        ImmutableList.of(new TopicPartition("topic2", 0), new TopicPartition("topic2", 1)),
         WatchForKafkaTopicPartitions.getAllTopicPartitions(
             (input) -> mockConsumer, null, givenTopics, null));
   }
