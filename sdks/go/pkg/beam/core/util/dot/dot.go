@@ -14,6 +14,9 @@
 // limitations under the License.
 
 // Package dot produces DOT graphs from Beam graph representations.
+//
+// Deprecated:This package is no longer used by the Beam Go SDK.
+// It is slated for removal in a future Beam release.
 package dot
 
 import (
