@@ -2091,7 +2091,6 @@ public class KafkaIO {
         this.topicPattern = read.getTopicPattern();
         this.startReadTime = read.getStartReadTime();
         this.stopReadTime = read.getStopReadTime();
-        this.logTopicVerification = read.getLogTopicVerification();
       }
 
       private final SerializableFunction<Map<String, Object>, Consumer<byte[], byte[]>>
@@ -2108,7 +2107,6 @@ public class KafkaIO {
       @VisibleForTesting final @Nullable List<String> topics;
 
       private final @Nullable Pattern topicPattern;
-      private final @Nullable Boolean logTopicVerification;
 
       @ProcessElement
       public void processElement(OutputReceiver<KafkaSourceDescriptor> receiver) {
