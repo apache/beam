@@ -52,7 +52,7 @@ permissions:
 jobs:
   beam_Metrics_Report:
     name: beam_Metrics_Report
-    runs-on: [self-hosted, ubuntu-20.04, main]
+    runs-on: [self-hosted, ubuntu-24.04, main]
     timeout-minutes: 100
     if: |
       (

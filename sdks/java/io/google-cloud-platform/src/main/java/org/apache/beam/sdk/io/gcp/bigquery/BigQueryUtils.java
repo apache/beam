@@ -290,7 +290,7 @@ public class BigQueryUtils {
             .appendFraction(java.time.temporal.ChronoField.NANO_OF_SECOND, 0, 9, true)
             .appendLiteral(" UTC")
             .toFormatter()
-            .withZone(java.time.ZoneId.of("UTC"));
+            .withZone(ZoneOffset.UTC);
   }
 
   private static final Map<TypeName, StandardSQLTypeName> BEAM_TO_BIGQUERY_TYPE_MAPPING =

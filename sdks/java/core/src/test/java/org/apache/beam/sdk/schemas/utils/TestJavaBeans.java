@@ -34,6 +34,7 @@ import org.apache.beam.sdk.schemas.annotations.SchemaFieldName;
 import org.apache.beam.sdk.schemas.annotations.SchemaFieldNumber;
 import org.apache.beam.sdk.schemas.annotations.SchemaIgnore;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.CaseFormat;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.DateTime;
 import org.joda.time.Instant;
@@ -905,7 +906,7 @@ public class TestJavaBeans {
       }
       NestedCollectionBean that = (NestedCollectionBean) o;
       return Objects.equals(simples, that.simples)
-          && Objects.equals(iterableSimples, that.iterableSimples);
+          && Iterables.elementsEqual(iterableSimples, that.iterableSimples);
     }
 
     @Override
@@ -1178,7 +1179,7 @@ public class TestJavaBeans {
         return false;
       }
       IterableBean that = (IterableBean) o;
-      return Objects.equals(strings, that.strings);
+      return Iterables.elementsEqual(strings, that.strings);
     }
 
     @Override

@@ -327,7 +327,9 @@ public class RabbitMqMessage implements Serializable {
           && Objects.equals(replyTo, other.replyTo)
           && Objects.equals(expiration, other.expiration)
           && Objects.equals(messageId, other.messageId)
-          && Objects.equals(timestamp, other.timestamp)
+          && Objects.equals(
+              timestamp == null ? null : timestamp.toInstant(),
+              other.timestamp == null ? null : other.timestamp.toInstant())
           && Objects.equals(type, other.type)
           && Objects.equals(userId, other.userId)
           && Objects.equals(appId, other.appId)

@@ -237,12 +237,6 @@ class PipelineGraph(object):
       default_edge_attrs: (Dict[str, str]) a dict of attributes
     """
     with self._lock:
-      try:
-        pydot.Dot()
-      except NameError:
-        raise RuntimeError(
-            'pydot is required for pipeline graph generation. '
-            'Install it with: pip install pydot')
       self._graph = pydot.Dot()
 
       if default_vertex_attrs:

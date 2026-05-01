@@ -47,26 +47,28 @@ type JobOptions struct {
 	// Pipeline options
 	Options runtime.RawOptions
 
-	Streaming           bool
-	Project             string
-	Region              string
-	Zone                string
-	KmsKey              string
-	Network             string
-	Subnetwork          string
-	NoUsePublicIPs      bool
-	NumWorkers          int64
-	DiskSizeGb          int64
-	DiskType            string
-	MachineType         string
-	Labels              map[string]string
-	ServiceAccountEmail string
-	WorkerRegion        string
-	WorkerZone          string
-	ContainerImage      string
-	ArtifactURLs        []string // Additional packages for workers.
-	FlexRSGoal          string
-	EnableHotKeyLogging bool
+	Streaming                      bool
+	Project                        string
+	Region                         string
+	Zone                           string
+	KmsKey                         string
+	Network                        string
+	Subnetwork                     string
+	NoUsePublicIPs                 bool
+	NumWorkers                     int64
+	DiskSizeGb                     int64
+	DiskType                       string
+	DiskProvisionedIops            int64
+	DiskProvisionedThroughputMibps int64
+	MachineType                    string
+	Labels                         map[string]string
+	ServiceAccountEmail            string
+	WorkerRegion                   string
+	WorkerZone                     string
+	ContainerImage                 string
+	ArtifactURLs                   []string // Additional packages for workers.
+	FlexRSGoal                     string
+	EnableHotKeyLogging            bool
 
 	// Streaming update settings
 	Update               bool
@@ -154,6 +156,9 @@ func Translate(ctx context.Context, p *pipepb.Pipeline, opts *JobOptions, worker
 		return nil, err
 	}
 
+	if opts.Options.Options == nil {
+		opts.Options.Options = make(map[string]string)
+	}
 	opts.Options.Options["experiments"] = strings.Join(opts.Experiments, ",")
 	job := &df.Job{
 		ProjectId: opts.Project,
@@ -190,18 +195,20 @@ func Translate(ctx context.Context, p *pipepb.Pipeline, opts *JobOptions, worker
 				AutoscalingSettings: &df.AutoscalingSettings{
 					MaxNumWorkers: opts.MaxNumWorkers,
 				},
-				DiskSizeGb:                  opts.DiskSizeGb,
-				DiskType:                    opts.DiskType,
-				IpConfiguration:             ipConfiguration,
-				Kind:                        "harness",
-				Packages:                    packages,
-				WorkerHarnessContainerImage: opts.ContainerImage,
-				SdkHarnessContainerImages:   dfImages,
-				NumWorkers:                  1,
-				MachineType:                 opts.MachineType,
-				Network:                     opts.Network,
-				Subnetwork:                  opts.Subnetwork,
-				Zone:                        opts.Zone,
+				DiskSizeGb:                     opts.DiskSizeGb,
+				DiskType:                       opts.DiskType,
+				DiskProvisionedIops:            opts.DiskProvisionedIops,
+				DiskProvisionedThroughputMibps: opts.DiskProvisionedThroughputMibps,
+				IpConfiguration:                ipConfiguration,
+				Kind:                           "harness",
+				Packages:                       packages,
+				WorkerHarnessContainerImage:    opts.ContainerImage,
+				SdkHarnessContainerImages:      dfImages,
+				NumWorkers:                     1,
+				MachineType:                    opts.MachineType,
+				Network:                        opts.Network,
+				Subnetwork:                     opts.Subnetwork,
+				Zone:                           opts.Zone,
 			}},
 			WorkerRegion:      opts.WorkerRegion,
 			WorkerZone:        opts.WorkerZone,
@@ -351,11 +358,13 @@ func GetMetrics(ctx context.Context, client *df.Service, project, region, jobID 
 // pipeline options that are communicated to cross-language SDK harnesses, so any pipeline options
 // needed for cross-language transforms in Dataflow must be declared here.
 type dataflowOptions struct {
-	Experiments       []string `json:"experiments,omitempty"`
-	PipelineURL       string   `json:"pipelineUrl"`
-	PipelineProtoHash string   `json:"pipelineProtoHash,omitempty"`
-	Region            string   `json:"region"`
-	TempLocation      string   `json:"tempLocation"`
+	Experiments                    []string `json:"experiments,omitempty"`
+	PipelineURL                    string   `json:"pipelineUrl"`
+	PipelineProtoHash              string   `json:"pipelineProtoHash,omitempty"`
+	Region                         string   `json:"region"`
+	TempLocation                   string   `json:"tempLocation"`
+	DiskProvisionedIops            int64    `json:"diskProvisionedIops"`
+	DiskProvisionedThroughputMibps int64    `json:"diskProvisionedThroughputMibps"`
 }
 
 func printOptions(opts *JobOptions, images []string) []*displayData {
