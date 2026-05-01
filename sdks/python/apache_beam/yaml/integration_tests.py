@@ -19,6 +19,9 @@
 
 import contextlib
 import http.server
+import json
+import gzip
+import io
 import threading
 import copy
 import glob
@@ -593,6 +596,41 @@ class DatadogConnection:
 class MockDatadogHandler(http.server.BaseHTTPRequestHandler):
   def do_POST(self):
     if self.path == "/api/v2/logs":
+      is_chunked = self.headers.get('Transfer-Encoding',
+                                    '').lower() == 'chunked'
+      is_gzip = self.headers.get('Content-Encoding', '').lower() == 'gzip'
+      content_len = int(self.headers.get('Content-Length', 0))
+
+      try:
+        raw_data = b''
+        if is_chunked:
+          while True:
+            line = self.rfile.readline().strip()
+            if not line:
+              break
+            chunk_len = int(line, 16)
+            if chunk_len == 0:
+              self.rfile.readline()  # Clear trail
+              break
+            raw_data += self.rfile.read(chunk_len)
+            self.rfile.readline()  # Clear trail
+        elif content_len > 0:
+          raw_data = self.rfile.read(content_len)
+
+        if raw_data and is_gzip:
+          with gzip.GzipFile(fileobj=io.BytesIO(raw_data)) as f:
+            raw_data = f.read()
+
+        if raw_data:
+          data = json.loads(raw_data)
+          with self.server.record_lock:
+            if isinstance(data, list):
+              self.server.received_records.extend(data)
+            else:
+              self.server.received_records.append(data)
+      except Exception as e:
+        logging.error("CRITICAL: Failure unpacking mock datadog payload: %s", e)
+
       self.send_response(200)
       self.send_header('Content-Type', 'application/json')
       self.end_headers()
@@ -606,8 +644,10 @@ class MockDatadogHandler(http.server.BaseHTTPRequestHandler):
 
 
 @contextlib.contextmanager
-def temp_datadog_mock_server():
+def temp_datadog_mock_server(received_records):
   server = http.server.ThreadingHTTPServer(('localhost', 0), MockDatadogHandler)
+  server.received_records = received_records
+  server.record_lock = threading.Lock()
   ip, port = server.server_address
   thread = threading.Thread(target=server.serve_forever)
   thread.daemon = True
@@ -621,7 +661,7 @@ def temp_datadog_mock_server():
 
 
 @contextlib.contextmanager
-def temp_datadog_agent():
+def temp_datadog_agent(expected_records=None):
   """Context manager to provide a temporary Datadog Agent for testing.
 
   This function utilizes the 'testcontainers' library to spin up a
@@ -638,8 +678,9 @@ def temp_datadog_agent():
   Raises:
       Exception: Any exception encountered during the setup process.
   """
+  received = []
   with DatadogContainer() as datadog_container,\
-    temp_datadog_mock_server() as mock_url:
+    temp_datadog_mock_server(received) as mock_url:
     try:
       yield DatadogConnection(
           url=mock_url,
@@ -648,6 +689,19 @@ def temp_datadog_agent():
     except Exception as err:
       logging.error("Error interacting with temporary Datadog Agent: %s", err)
       raise err
+    finally:
+      if expected_records is not None:
+
+        canonicalize = lambda rec: json.dumps(rec, sort_keys=True)
+
+        actual_strs = sorted([canonicalize(r) for r in received])
+        expected_strs = sorted([canonicalize(e) for e in expected_records])
+
+        assert actual_strs == expected_strs, (
+            f"Mismatch in recorded Datadog events!\n"
+            f"Expected: {expected_strs}\n"
+            f"Actual:   {actual_strs}"
+        )
 
 
 def replace_recursive(spec, vars):

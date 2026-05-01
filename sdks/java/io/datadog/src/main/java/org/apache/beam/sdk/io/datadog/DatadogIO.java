@@ -23,8 +23,6 @@ import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Pr
 import com.google.auto.value.AutoValue;
 import java.util.concurrent.ThreadLocalRandom;
 import javax.annotation.Nullable;
-import org.apache.beam.sdk.coders.BigEndianIntegerCoder;
-import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
@@ -202,9 +200,7 @@ public class DatadogIO {
       @Override
       public PCollection<KV<Integer, DatadogEvent>> expand(PCollection<DatadogEvent> input) {
 
-        return input
-            .apply("Inject Keys", ParDo.of(new CreateKeysFn(this.requestedKeys)))
-            .setCoder(KvCoder.of(BigEndianIntegerCoder.of(), DatadogEventCoder.of()));
+        return input.apply("Inject Keys", ParDo.of(new CreateKeysFn(this.requestedKeys)));
       }
 
       private static class CreateKeysFn extends DoFn<DatadogEvent, KV<Integer, DatadogEvent>> {
