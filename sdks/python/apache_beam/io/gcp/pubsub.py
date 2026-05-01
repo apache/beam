@@ -31,8 +31,9 @@ https://github.com/apache/beam/blob/master/sdks/python/OWNERS
 """
 
 # pytype: skip-file
-
+import logging
 import re
+import time
 from typing import Any
 from typing import List
 from typing import NamedTuple
@@ -432,7 +433,16 @@ class WriteToPubSub(PTransform):
   def expand(self, pcoll):
     # Store pipeline options for use in DoFn
     self.pipeline_options = pcoll.pipeline.options if pcoll.pipeline else None
-
+    # Warn Dataflow users to use the XLang path for ordering key support,
+    # since _PubSubWriteDoFn._flush() is not used by Dataflow's implementation.
+    runner = self.pipeline_options.get_all_options().get(
+        'runner', '') if self.pipeline_options else ''
+    if 'Dataflow' in str(runner):
+      logging.warning(
+          'WriteToPubSub ordering_key support is not available on Dataflow '
+          'via this transform. Use the XLang WriteToPubSub path instead: '
+          'apache_beam.io.external.gcp.pubsub.WriteToPubSub with '
+          'publish_with_ordering_key=True.')
     if self.with_attributes:
       pcoll = pcoll | 'ToProtobufX' >> ParDo(
           _AddMetricsAndMap(
@@ -599,7 +609,7 @@ class _PubSubWriteDoFn(DoFn):
       output_labels_supported = False
 
     # Log debug information for troubleshooting
-    import logging
+
     runner_info = getattr(
         pipeline_options, 'runner',
         'None') if pipeline_options else 'No options'
@@ -630,7 +640,10 @@ class _PubSubWriteDoFn(DoFn):
 
   def setup(self):
     from google.cloud import pubsub
-    self._pub_client = pubsub.PublisherClient()
+    self._pub_client = pubsub.PublisherClient(
+        publisher_options=pubsub.types.PublisherOptions(
+            enable_message_ordering=True,
+        ))
     self._topic = self._pub_client.topic_path(
         self.project, self.short_topic_name)
 
@@ -649,8 +662,6 @@ class _PubSubWriteDoFn(DoFn):
     if not self._buffer:
       return
 
-    import time
-
     # The elements in buffer are serialized protobuf bytes from the previous
     # transforms. We need to deserialize them to extract data and attributes.
     futures = []
@@ -658,12 +669,22 @@ class _PubSubWriteDoFn(DoFn):
       # Deserialize the protobuf to get the original PubsubMessage
       pubsub_msg = PubsubMessage._from_proto_str(elem)
 
-      # Publish with the correct data and attributes
+      # Publish with the correct data, attributes, and ordering_key
       if self.with_attributes and pubsub_msg.attributes:
         future = self._pub_client.publish(
-            self._topic, pubsub_msg.data, **pubsub_msg.attributes)
+            self._topic,
+            pubsub_msg.data,
+            ordering_key=pubsub_msg.ordering_key
+            if pubsub_msg.ordering_key else '',
+            **pubsub_msg.attributes)
       else:
-        future = self._pub_client.publish(self._topic, pubsub_msg.data)
+        if pubsub_msg.ordering_key:
+          future = self._pub_client.publish(
+              self._topic,
+              pubsub_msg.data,
+              ordering_key=pubsub_msg.ordering_key)
+        else:
+          future = self._pub_client.publish(self._topic, pubsub_msg.data)
 
       futures.append(future)
 

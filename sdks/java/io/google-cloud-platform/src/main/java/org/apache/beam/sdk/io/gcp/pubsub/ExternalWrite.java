@@ -53,6 +53,7 @@ public final class ExternalWrite implements ExternalTransformRegistrar {
     private String topic;
     private @Nullable String idAttribute;
     private @Nullable String timestampAttribute;
+    private boolean publishWithOrderingKey = false;
 
     public void setTopic(String topic) {
       this.topic = topic;
@@ -64,6 +65,10 @@ public final class ExternalWrite implements ExternalTransformRegistrar {
 
     public void setTimestampAttribute(@Nullable String timestampAttribute) {
       this.timestampAttribute = timestampAttribute;
+    }
+
+    public void setPublishWithOrderingKey(Boolean publishWithOrderingKey) {
+      this.publishWithOrderingKey = publishWithOrderingKey != null && publishWithOrderingKey;
     }
   }
 
@@ -84,6 +89,9 @@ public final class ExternalWrite implements ExternalTransformRegistrar {
       }
       if (config.timestampAttribute != null) {
         writeBuilder.setTimestampAttribute(config.timestampAttribute);
+      }
+      if (config.publishWithOrderingKey) {
+        writeBuilder.setPublishWithOrderingKey(true);
       }
       writeBuilder.setDynamicDestinations(false);
       return writeBuilder.build();
