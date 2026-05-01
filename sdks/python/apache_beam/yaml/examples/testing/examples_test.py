@@ -394,7 +394,6 @@ def create_test_method(
         for substr in ['java_deps', 'streaming_taxifare_prediction'])
 
   if _python_deps_involved(pipeline_spec_file):
-    test_yaml_example = pytest.mark.no_xdist(test_yaml_example)
     test_yaml_example = unittest.skipIf(
         sys.platform == 'win32', "Github virtualenv permissions issues.")(
             test_yaml_example)
@@ -406,6 +405,7 @@ def create_test_method(
         '-cloud' in os.environ.get('TOX_ENV_NAME', ''),
         'Github actions environment issue.')(
             test_yaml_example)
+    test_yaml_example = pytest.mark.no_xdist(test_yaml_example)
 
   if _java_deps_involved(pipeline_spec_file):
     test_yaml_example = pytest.mark.xlang_sql_expansion_service(
