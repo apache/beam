@@ -365,6 +365,15 @@ public class OutputAndTimeBoundedSplittableProcessElementInvoker<
               public PipelineOptions pipelineOptions() {
                 return pipelineOptions;
               }
+
+              @Override
+              public Object sideInput(String tagId) {
+                PCollectionView<?> view = sideInputMapping.get(tagId);
+                if (view == null) {
+                  throw new IllegalArgumentException("calling getSideInput() with unknown view");
+                }
+                return processContext.sideInput(view);
+              }
             });
     return new Result(
         residual.getKey(),
