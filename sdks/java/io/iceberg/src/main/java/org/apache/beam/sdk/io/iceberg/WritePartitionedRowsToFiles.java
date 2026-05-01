@@ -107,23 +107,10 @@ class WritePartitionedRowsToFiles
       this.dataSchema = dataSchema;
     }
 
-    private long id = UUID.randomUUID().getLeastSignificantBits();
-
-    @Setup
-    public void setup() {
-      id = UUID.randomUUID().getLeastSignificantBits();
-    }
-
-    @StartBundle
-    public void startBundle() {
-      System.out.printf("[%s] new bundle\n", id);
-    }
-
     @ProcessElement
     public void processElement(
         @Element KV<Row, Iterable<Row>> element, OutputReceiver<FileWriteResult> out)
         throws Exception {
-      System.out.println(String.format("[%s] partition key: %s\n", id, element.getKey()));
       String tableIdentifier = checkStateNotNull(element.getKey().getString(DESTINATION));
       String partitionPath = checkStateNotNull(element.getKey().getString(PARTITION));
 
@@ -200,7 +187,6 @@ class WritePartitionedRowsToFiles
     }
 
     Table getOrCreateTable(IcebergDestination destination, Schema dataSchema) {
-      Catalog catalog = catalogConfig.catalog();
       TableIdentifier identifier = destination.getTableIdentifier();
       @Nullable
       LastRefreshedTable lastRefreshedTable = LAST_REFRESHED_TABLE_CACHE.getIfPresent(identifier);
@@ -226,6 +212,7 @@ class WritePartitionedRowsToFiles
           return lastRefreshedTable.table;
         }
 
+        Catalog catalog = catalogConfig.catalog();
         // Create namespace if it does not exist yet
         if (!namespace.isEmpty() && catalog instanceof SupportsNamespaces) {
           SupportsNamespaces supportsNamespaces = (SupportsNamespaces) catalog;

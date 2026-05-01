@@ -597,7 +597,7 @@ public class IcebergIOWriteTest implements Serializable {
                     System.out.println(
                         "hash with autosharding: " + numFilesAddedHashAutoShardingDist);
                     // plain hash distribution should have exactly the same number of partitions
-                    assertEquals(2, numFilesAddedHashAutoShardingDist);
+                    assertEquals(2, numFilesAddedHashDist);
                     // hash with autosharding may create sub-shards and lead to more than just 2
                     // files.
                     // should still be less than 'none' distribution though
@@ -656,6 +656,7 @@ public class IcebergIOWriteTest implements Serializable {
                     .addElements(30L, LongStream.range(31, 40).boxed().toArray(Long[]::new))
                     .advanceProcessingTime(Duration.standardSeconds(10))
                     .addElements(40L, LongStream.range(41, 50).boxed().toArray(Long[]::new))
+                    .advanceProcessingTime(Duration.standardSeconds(10))
                     .advanceProcessingTime(Duration.standardSeconds(10))
                     .advanceWatermarkToInfinity())
             .apply(
@@ -723,13 +724,15 @@ public class IcebergIOWriteTest implements Serializable {
             "validate num files",
             ParDo.of(
                 new DoFn<KV<Integer, Iterable<KV<String, Integer>>>, Void>() {
-                  private Counter numWaves = Metrics.counter(IcebergIOWriteTest.class, "numWaves");
+                  private final Counter numWaves =
+                      Metrics.counter(IcebergIOWriteTest.class, "numWaves");
 
                   @ProcessElement
                   public void process(@Element KV<Integer, Iterable<KV<String, Integer>>> sums) {
                     List<KV<String, Integer>> sumList =
                         Lists.newArrayList(sums.getValue().iterator());
                     // each wave should have one snapshot per write branch
+                    System.out.println("list: " + sumList);
                     assertEquals(3, sumList.size());
 
                     // get the number of files written by each branch

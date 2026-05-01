@@ -186,7 +186,7 @@ public class IcebergWriteSchemaTransformProvider
 
       public abstract Builder setDistributionMode(String mode);
 
-      public abstract Builder setAutosharding(boolean autosharding);
+      public abstract Builder setAutosharding(Boolean autosharding);
 
       public abstract Configuration build();
     }
