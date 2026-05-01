@@ -47,11 +47,11 @@ RUN  \
        && \
     rm -rf /var/lib/apt/lists/* && \
 
-    pip install --upgrade pip setuptools wheel && \
+    pip install --upgrade pip setuptools wheel uv && \
 
     # Install required packages for Beam Python SDK and common dependencies used by users.
     # use --no-deps to ensure the list includes all transitive dependencies.
-    pip install --no-deps -r /tmp/base_image_requirements.txt --extra-index-url https://download.pytorch.org/whl/cpu && \
+    uv pip install --no-cache --no-deps -r /tmp/base_image_requirements.txt --extra-index-url https://download.pytorch.org/whl/cpu --system --index-strategy "unsafe-best-match" && \
     rm -rf /tmp/base_image_requirements.txt && \
     python -c "import nltk; nltk.download('stopwords')" && \
     rm /root/nltk_data/corpora/stopwords.zip && \
@@ -75,24 +75,24 @@ RUN  \
 
     # Install Apache Beam SDK. Use --no-deps and pip check to verify that all
     # necessary dependencies are specified in base_image_requirements.txt.
-    pip install --no-deps -v /opt/apache/beam/tars/apache-beam.tar.gz[gcp] && \
-    pip check || (echo "Container does not include required Beam dependencies or has conflicting dependencies. If Beam dependencies have changed, you need to regenerate base_image_requirements.txt files. See: https://s.apache.org/beam-python-requirements-generate" && exit 1) && \
+    uv pip install --no-cache --no-deps -v /opt/apache/beam/tars/apache-beam.tar.gz[gcp] --system && \
+    uv pip check --system || (echo "Container does not include required Beam dependencies or has conflicting dependencies. If Beam dependencies have changed, you need to regenerate base_image_requirements.txt files. See: https://s.apache.org/beam-python-requirements-generate" && exit 1) && \
 
     # Log complete list of what exact packages and versions are installed.
-    pip freeze --all && \
+    uv pip freeze --system && \
 
     # Remove pip cache.
     rm -rf /root/.cache/pip && \
 
     # Update ensurepip to use most recent versions of setuptools and pip. This avoids some vulnerabilities which won't be fixed on older versions of python.
-    pip install upgrade_ensurepip; \
+    uv pip install --no-cache upgrade_ensurepip --system; \
     python3 -m upgrade_ensurepip; \
     # setuptools is not bundled with ensurepip in Python 3.12+
     if [ "${py_version}" = "3.10" ] || [ "${py_version}" = "3.11" ]; then \
         find /usr/local/lib/python${py_version}/ensurepip/_bundled/setuptools-* -type f ! -name $(basename $(ls -v /usr/local/lib/python${py_version}/ensurepip/_bundled/setuptools-*-py3-none-any.whl | tail -n 1)) -delete; \
     fi; \
     find /usr/local/lib/python${py_version}/ensurepip/_bundled/pip-* -type f ! -name $(basename $(ls -v /usr/local/lib/python${py_version}/ensurepip/_bundled/pip-*-py3-none-any.whl | tail -n 1)) -delete; \
-    pip uninstall upgrade_ensurepip -y; \
+    uv pip uninstall upgrade_ensurepip --system; \
     python3 -m ensurepip;
 
 ENTRYPOINT ["/opt/apache/beam/boot"]
@@ -112,7 +112,7 @@ COPY  target/go-licenses/* /opt/apache/beam/third_party_licenses/golang/
 
 COPY target/license_scripts /tmp/license_scripts/
 RUN if [ "$pull_licenses" = "true" ] ; then \
-      pip install 'pip-licenses<6' pyyaml tenacity && \
+      uv pip install --no-cache 'pip-licenses<6' pyyaml tenacity --system && \
       python /tmp/license_scripts/pull_licenses_py.py ; \
     fi
 
