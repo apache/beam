@@ -69,7 +69,7 @@
 
 ## New Features / Improvements
 
-* Added support for setting disk provisioned IOPS and throughput in Dataflow runner via `--diskProvisionedIops` and `--diskProvisionedThroughputMibps` pipeline options (Java/Go) ([#37377](https://github.com/apache/beam/issues/37377)).
+* Added support for setting disk provisioned IOPS and throughput in Dataflow runner via `--diskProvisionedIops` and `--diskProvisionedThroughputMibps` pipeline options (Java/Go) ([#38349](https://github.com/apache/beam/issues/38349)).
 * X feature added (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
 * TriggerStateMachineRunner changes from BitSetCoder to SentinelBitSetCoder to
   encode finished bitset. SentinelBitSetCoder and BitSetCoder are state
@@ -104,6 +104,7 @@
 # [2.73.0] - 2026-04-29
 
 ## Highlights
+
 
 ## I/Os
 
