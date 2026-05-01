@@ -52,8 +52,6 @@ import org.apache.beam.sdk.options.Validation;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.transforms.Count;
 import org.apache.beam.sdk.transforms.DoFn;
-import org.apache.beam.sdk.transforms.DoFn.Element;
-import org.apache.beam.sdk.transforms.DoFn.OutputReceiver;
 import org.apache.beam.sdk.transforms.Filter;
 import org.apache.beam.sdk.transforms.Flatten;
 import org.apache.beam.sdk.transforms.PTransform;
@@ -133,11 +131,10 @@ public class AutoComplete {
                   ParDo.of(
                       new DoFn<KV<String, Long>, CompletionCandidate>() {
                         @ProcessElement
-                        public void processElement(
-                            @Element KV<String, Long> element,
-                            OutputReceiver<CompletionCandidate> receiver) {
-                          receiver.output(
-                              new CompletionCandidate(element.getKey(), element.getValue()));
+                        public void processElement(ProcessContext c) {
+                          c.output(
+                              new CompletionCandidate(
+                                  c.element().getKey(), c.element().getValue()));
                         }
                       }));
 
@@ -213,11 +210,9 @@ public class AutoComplete {
     private static class FlattenTops
         extends DoFn<KV<String, List<CompletionCandidate>>, CompletionCandidate> {
       @ProcessElement
-      public void processElement(
-          @Element KV<String, List<CompletionCandidate>> element,
-          OutputReceiver<CompletionCandidate> receiver) {
-        for (CompletionCandidate cc : element.getValue()) {
-          receiver.output(cc);
+      public void processElement(ProcessContext c) {
+        for (CompletionCandidate cc : c.element().getValue()) {
+          c.output(cc);
         }
       }
     }
@@ -272,12 +267,10 @@ public class AutoComplete {
     }
 
     @ProcessElement
-    public void processElement(
-        @Element CompletionCandidate element,
-        OutputReceiver<KV<String, CompletionCandidate>> receiver) {
-      String word = element.value;
+    public void processElement(ProcessContext c) {
+      String word = c.element().value;
       for (int i = minPrefix; i <= Math.min(word.length(), maxPrefix); i++) {
-        receiver.output(KV.of(word.substring(0, i), element));
+        c.output(KV.of(word.substring(0, i), c.element()));
       }
     }
   }
@@ -339,24 +332,23 @@ public class AutoComplete {
   /** Takes as input a set of strings, and emits each #hashtag found therein. */
   static class ExtractHashtags extends DoFn<String, String> {
     @ProcessElement
-    public void processElement(@Element String element, OutputReceiver<String> receiver) {
-      Matcher m = Pattern.compile("#\\S+").matcher(element);
+    public void processElement(ProcessContext c) {
+      Matcher m = Pattern.compile("#\\S+").matcher(c.element());
       while (m.find()) {
-        receiver.output(m.group().substring(1));
+        c.output(m.group().substring(1));
       }
     }
   }
 
   static class FormatForBigquery extends DoFn<KV<String, List<CompletionCandidate>>, TableRow> {
     @ProcessElement
-    public void processElement(
-        @Element KV<String, List<CompletionCandidate>> element, OutputReceiver<TableRow> receiver) {
+    public void processElement(ProcessContext c) {
       List<TableRow> completions = new ArrayList<>();
-      for (CompletionCandidate cc : element.getValue()) {
+      for (CompletionCandidate cc : c.element().getValue()) {
         completions.add(new TableRow().set("count", cc.getCount()).set("tag", cc.getValue()));
       }
-      TableRow row = new TableRow().set("prefix", element.getKey()).set("tags", completions);
-      receiver.output(row);
+      TableRow row = new TableRow().set("prefix", c.element().getKey()).set("tags", completions);
+      c.output(row);
     }
 
     /** Defines the BigQuery schema used for the output. */
@@ -394,16 +386,15 @@ public class AutoComplete {
     }
 
     @ProcessElement
-    public void processElement(
-        @Element KV<String, List<CompletionCandidate>> element, OutputReceiver<Entity> receiver) {
+    public void processElement(ProcessContext c) {
       Entity.Builder entityBuilder = Entity.newBuilder();
       com.google.datastore.v1.Key key =
-          makeKey(makeKey(kind, ancestorKey).build(), kind, element.getKey()).build();
+          makeKey(makeKey(kind, ancestorKey).build(), kind, c.element().getKey()).build();
 
       entityBuilder.setKey(key);
       List<Value> candidates = new ArrayList<>();
       Map<String, Value> properties = new HashMap<>();
-      for (CompletionCandidate tag : element.getValue()) {
+      for (CompletionCandidate tag : c.element().getValue()) {
         Entity.Builder tagEntity = Entity.newBuilder();
         properties.put("tag", makeValue(tag.value).build());
         properties.put("count", makeValue(tag.count).build());
@@ -411,7 +402,7 @@ public class AutoComplete {
       }
       properties.put("candidates", makeValue(candidates).build());
       entityBuilder.putAllProperties(properties);
-      receiver.output(entityBuilder.build());
+      c.output(entityBuilder.build());
     }
   }
 
@@ -536,12 +527,11 @@ public class AutoComplete {
                   ParDo.of(
                       new DoFn<KV<String, List<CompletionCandidate>>, Long>() {
                         @ProcessElement
-                        public void process(
-                            @Element KV<String, List<CompletionCandidate>> elm,
-                            OutputReceiver<Long> receiver) {
+                        public void process(ProcessContext c) {
+                          KV<String, List<CompletionCandidate>> elm = c.element();
                           Long listHash =
-                              elm.getValue().stream().mapToLong(cc -> cc.hashCode()).sum();
-                          receiver.output(Long.valueOf(elm.getKey().hashCode()) + listHash);
+                              c.element().getValue().stream().mapToLong(cc -> cc.hashCode()).sum();
+                          c.output(Long.valueOf(elm.getKey().hashCode()) + listHash);
                         }
                       }))
               .apply(Sum.longsGlobally());

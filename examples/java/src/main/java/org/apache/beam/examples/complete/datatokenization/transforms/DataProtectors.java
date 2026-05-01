@@ -37,9 +37,6 @@ import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.Field;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.transforms.DoFn;
-import org.apache.beam.sdk.transforms.DoFn.Element;
-import org.apache.beam.sdk.transforms.DoFn.MultiOutputReceiver;
-import org.apache.beam.sdk.transforms.DoFn.OutputReceiver;
 import org.apache.beam.sdk.transforms.GroupIntoBatches;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
@@ -202,24 +199,20 @@ public class DataProtectors {
 
     @ProcessElement
     @SuppressWarnings("argument")
-    public void process(
-        @Element KV<Integer, Iterable<Row>> element,
-        OutputReceiver<Row> mainReceiver,
-        MultiOutputReceiver multiReceiver) {
+    public void process(@Element KV<Integer, Iterable<Row>> element, ProcessContext context) {
       Iterable<Row> rows = element.getValue();
 
       try {
         for (Row outputRow : getTokenizedRow(rows)) {
-          mainReceiver.output(outputRow);
+          context.output(outputRow);
         }
       } catch (Exception e) {
         for (Row outputRow : rows) {
-          multiReceiver
-              .get(failureTag)
-              .output(
-                  FailsafeElement.of(outputRow, outputRow)
-                      .setErrorMessage(e.getMessage())
-                      .setStacktrace(Throwables.getStackTraceAsString(e)));
+          context.output(
+              failureTag,
+              FailsafeElement.of(outputRow, outputRow)
+                  .setErrorMessage(e.getMessage())
+                  .setStacktrace(Throwables.getStackTraceAsString(e)));
         }
       }
     }

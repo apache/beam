@@ -31,8 +31,6 @@ import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
-import org.apache.beam.sdk.transforms.DoFn.Element;
-import org.apache.beam.sdk.transforms.DoFn.OutputReceiver;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
 import org.checkerframework.checker.nullness.qual.Nullable;
@@ -100,8 +98,8 @@ public class RateLimiterSimple {
     }
 
     @ProcessElement
-    public void processElement(@Element String element, OutputReceiver<String> receiver)
-        throws Exception {
+    public void processElement(ProcessContext c) throws Exception {
+      String element = c.element();
       try {
         Preconditions.checkNotNull(rateLimiter).allow(1);
       } catch (Exception e) {
@@ -111,7 +109,7 @@ public class RateLimiterSimple {
       // Simulate external API call
       LOG.info("Processing: {}", element);
       Thread.sleep(100);
-      receiver.output("Processed: " + element);
+      c.output("Processed: " + element);
     }
   }
   // [END RateLimiterSimpleJava]

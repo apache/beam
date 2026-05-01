@@ -58,9 +58,6 @@ import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.DoFn;
-import org.apache.beam.sdk.transforms.DoFn.Element;
-import org.apache.beam.sdk.transforms.DoFn.OutputReceiver;
-import org.apache.beam.sdk.transforms.DoFn.Timestamp;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.SerializableFunction;
@@ -185,14 +182,13 @@ public class TrafficMaxLaneFlow {
         DateTimeFormat.forPattern("MM/dd/yyyy HH:mm:ss");
 
     @ProcessElement
-    public void processElement(@Element String element, OutputReceiver<String> receiver)
-        throws Exception {
-      String[] items = element.split(",", -1);
+    public void processElement(DoFn<String, String>.ProcessContext c) throws Exception {
+      String[] items = c.element().split(",", -1);
 
       if (items.length > 0) {
         try {
           String timestamp = items[0];
-          receiver.outputWithTimestamp(element, new Instant(dateTimeFormat.parseMillis(timestamp)));
+          c.outputWithTimestamp(c.element(), new Instant(dateTimeFormat.parseMillis(timestamp)));
         } catch (IllegalArgumentException e) {
           // Skip the invalid input.
         }
@@ -210,9 +206,8 @@ public class TrafficMaxLaneFlow {
   static class ExtractFlowInfoFn extends DoFn<String, KV<String, LaneInfo>> {
 
     @ProcessElement
-    public void processElement(
-        @Element String element, OutputReceiver<KV<String, LaneInfo>> receiver) {
-      String[] items = element.split(",", -1);
+    public void processElement(ProcessContext c) {
+      String[] items = c.element().split(",", -1);
       if (items.length < 48) {
         // Skip the invalid input.
         return;
@@ -241,7 +236,7 @@ public class TrafficMaxLaneFlow {
                 laneAvgOccupancy,
                 laneAvgSpeed,
                 totalFlow);
-        receiver.output(KV.of(stationId, laneInfo));
+        c.output(KV.of(stationId, laneInfo));
       }
     }
   }
@@ -275,15 +270,12 @@ public class TrafficMaxLaneFlow {
    */
   static class FormatMaxesFn extends DoFn<KV<String, LaneInfo>, TableRow> {
     @ProcessElement
-    public void processElement(
-        @Element KV<String, LaneInfo> element,
-        @Timestamp Instant timestamp,
-        OutputReceiver<TableRow> receiver) {
+    public void processElement(ProcessContext c) {
 
-      LaneInfo laneInfo = element.getValue();
+      LaneInfo laneInfo = c.element().getValue();
       TableRow row =
           new TableRow()
-              .set("station_id", element.getKey())
+              .set("station_id", c.element().getKey())
               .set("direction", laneInfo.getDirection())
               .set("freeway", laneInfo.getFreeway())
               .set("lane_max_flow", laneInfo.getLaneFlow())
@@ -292,8 +284,8 @@ public class TrafficMaxLaneFlow {
               .set("avg_speed", laneInfo.getLaneAS())
               .set("total_flow", laneInfo.getTotalFlow())
               .set("recorded_timestamp", laneInfo.getRecordedTimestamp())
-              .set("window_timestamp", timestamp.toString());
-      receiver.output(row);
+              .set("window_timestamp", c.timestamp().toString());
+      c.output(row);
     }
 
     /** Defines the BigQuery schema used for the output. */

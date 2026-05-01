@@ -31,9 +31,6 @@ import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.options.Validation;
 import org.apache.beam.sdk.transforms.DoFn;
-import org.apache.beam.sdk.transforms.DoFn.Element;
-import org.apache.beam.sdk.transforms.DoFn.OutputReceiver;
-import org.apache.beam.sdk.transforms.DoFn.SideInput;
 import org.apache.beam.sdk.transforms.Mean;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
@@ -90,7 +87,8 @@ public class FilterExamples {
    */
   static class ProjectionFn extends DoFn<TableRow, TableRow> {
     @ProcessElement
-    public void processElement(@Element TableRow row, OutputReceiver<TableRow> receiver) {
+    public void processElement(ProcessContext c) {
+      TableRow row = c.element();
       // Grab year, month, day, mean_temp from the row
       Integer year = Integer.parseInt((String) row.get("year"));
       Integer month = Integer.parseInt((String) row.get("month"));
@@ -103,7 +101,7 @@ public class FilterExamples {
               .set("month", month)
               .set("day", day)
               .set("mean_temp", meanTemp);
-      receiver.output(outRow);
+      c.output(outRow);
     }
   }
 
@@ -121,11 +119,12 @@ public class FilterExamples {
     }
 
     @ProcessElement
-    public void processElement(@Element TableRow row, OutputReceiver<TableRow> receiver) {
+    public void processElement(ProcessContext c) {
+      TableRow row = c.element();
       Integer month;
       month = (Integer) row.get("month");
       if (month.equals(this.monthFilter)) {
-        receiver.output(row);
+        c.output(row);
       }
     }
   }
@@ -136,9 +135,10 @@ public class FilterExamples {
    */
   static class ExtractTempFn extends DoFn<TableRow, Double> {
     @ProcessElement
-    public void processElement(@Element TableRow row, OutputReceiver<Double> receiver) {
+    public void processElement(ProcessContext c) {
+      TableRow row = c.element();
       Double meanTemp = Double.parseDouble(row.get("mean_temp").toString());
-      receiver.output(meanTemp);
+      c.output(meanTemp);
     }
   }
 
@@ -178,17 +178,16 @@ public class FilterExamples {
               ParDo.of(
                       new DoFn<TableRow, TableRow>() {
                         @ProcessElement
-                        public void processElement(
-                            @SideInput("globalMeanTemp") Double gTemp,
-                            @Element TableRow element,
-                            OutputReceiver<TableRow> receiver) {
-                          Double meanTemp = Double.parseDouble(element.get("mean_temp").toString());
+                        public void processElement(ProcessContext c) {
+                          Double meanTemp =
+                              Double.parseDouble(c.element().get("mean_temp").toString());
+                          Double gTemp = c.sideInput(globalMeanTemp);
                           if (meanTemp < gTemp) {
-                            receiver.output(element);
+                            c.output(c.element());
                           }
                         }
                       })
-                  .withSideInput("globalMeanTemp", globalMeanTemp));
+                  .withSideInputs(globalMeanTemp));
 
       return filteredRows;
     }

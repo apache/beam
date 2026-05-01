@@ -26,8 +26,6 @@ import org.apache.beam.sdk.io.gcp.bigquery.WriteResult
 import org.apache.beam.sdk.metrics.Metrics
 import org.apache.beam.sdk.options.*
 import org.apache.beam.sdk.transforms.*
-import org.apache.beam.sdk.transforms.DoFn.Element
-import org.apache.beam.sdk.transforms.DoFn.OutputReceiver
 import org.apache.beam.sdk.values.KV
 import org.apache.beam.sdk.values.PCollection
 
@@ -72,11 +70,12 @@ object CombinePerKeyExamples {
         private val smallerWords = Metrics.counter(ExtractLargeWordsFn::class.java, "smallerWords")
 
         @ProcessElement
-        fun processElement(@Element row: TableRow, receiver: OutputReceiver<KV<String, String>>) {
+        fun processElement(c: ProcessContext) {
+            val row = c.element()
             val playName = row["corpus"] as String
             val word = row["word"] as String
             if (word.length >= MIN_WORD_LENGTH) {
-                receiver.output(KV.of(word, playName))
+                c.output(KV.of(word, playName))
             } else {
                 // Track how many smaller words we're not including. This information will be
                 // visible in the Monitoring UI.
@@ -91,9 +90,9 @@ object CombinePerKeyExamples {
      */
     internal class FormatShakespeareOutputFn : DoFn<KV<String, String>, TableRow>() {
         @ProcessElement
-        fun processElement(@Element element: KV<String, String>, receiver: OutputReceiver<TableRow>) {
-            val row = TableRow().set("word", element.key).set("all_plays", element.value)
-            receiver.output(row)
+        fun processElement(c: ProcessContext) {
+            val row = TableRow().set("word", c.element().key).set("all_plays", c.element().value)
+            c.output(row)
         }
     }
 

@@ -49,8 +49,6 @@ import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.DoFn;
-import org.apache.beam.sdk.transforms.DoFn.Element;
-import org.apache.beam.sdk.transforms.DoFn.OutputReceiver;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.Sum;
@@ -177,9 +175,8 @@ public class KafkaStreaming {
       private static final Random RANDOM = new Random();
 
       @ProcessElement
-      public void processElement(
-          @Element Object element, OutputReceiver<KV<String, Integer>> receiver) {
-        receiver.output(generate());
+      public void processElement(ProcessContext c) {
+        c.output(generate());
       }
 
       public KV<String, Integer> generate() {
@@ -293,17 +290,17 @@ public class KafkaStreaming {
 
   static class LogResults extends DoFn<Map<String, Integer>, Map<String, Integer>> {
     @ProcessElement
-    public void processElement(
-        PaneInfo pane,
-        IntervalWindow w,
-        @Element Map<String, Integer> scores,
-        OutputReceiver<Map<String, Integer>> receiver)
-        throws Exception {
+    public void processElement(ProcessContext c, IntervalWindow w) throws Exception {
+      Map<String, Integer> map = c.element();
+      if (map == null) {
+        c.output(c.element());
+        return;
+      }
 
       String startTime = w.start().toString(dateTimeFormatter);
       String endTime = w.end().toString(dateTimeFormatter);
 
-      PaneInfo.Timing timing = pane.getTiming();
+      PaneInfo.Timing timing = c.pane().getTiming();
 
       switch (timing) {
         case EARLY:
@@ -319,7 +316,7 @@ public class KafkaStreaming {
           throw new RuntimeException("Unknown timing value");
       }
 
-      for (Map.Entry<String, Integer> entry : scores.entrySet()) {
+      for (Map.Entry<String, Integer> entry : map.entrySet()) {
         System.out.printf("%10s: %-10s%n", entry.getKey(), entry.getValue());
       }
 
@@ -329,7 +326,7 @@ public class KafkaStreaming {
         System.out.println();
       }
 
-      receiver.output(scores);
+      c.output(c.element());
     }
   }
 
@@ -343,9 +340,9 @@ public class KafkaStreaming {
 
     static class LogErrorFn extends DoFn<BadRecord, BadRecord> {
       @ProcessElement
-      public void processElement(@Element BadRecord badRecord, OutputReceiver<BadRecord> receiver) {
-        System.out.println(badRecord);
-        receiver.output(badRecord);
+      public void processElement(@Element BadRecord record, OutputReceiver<BadRecord> receiver) {
+        System.out.println(record);
+        receiver.output(record);
       }
     }
   }

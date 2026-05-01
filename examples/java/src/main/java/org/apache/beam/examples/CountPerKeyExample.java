@@ -23,8 +23,6 @@ import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.transforms.Count;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
-import org.apache.beam.sdk.transforms.DoFn.Element;
-import org.apache.beam.sdk.transforms.DoFn.OutputReceiver;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
@@ -69,9 +67,9 @@ public class CountPerKeyExample {
     }
 
     @ProcessElement
-    public void processElement(@Element T element, OutputReceiver<T> receiver) throws Exception {
-      LOG.info("{}{}", prefix, element);
-      receiver.output(element);
+    public void processElement(ProcessContext c) throws Exception {
+      LOG.info("{}{}", prefix, c.element());
+      c.output(c.element());
     }
   }
 }

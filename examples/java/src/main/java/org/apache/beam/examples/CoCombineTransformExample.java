@@ -46,8 +46,6 @@ import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.CombineFns;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
-import org.apache.beam.sdk.transforms.DoFn.Element;
-import org.apache.beam.sdk.transforms.DoFn.OutputReceiver;
 import org.apache.beam.sdk.transforms.Max;
 import org.apache.beam.sdk.transforms.Min;
 import org.apache.beam.sdk.transforms.ParDo;
@@ -187,16 +185,13 @@ public class CoCombineTransformExample {
                 new DoFn<
                     KV<Long, CombineFns.CoCombineResult>, KV<Long, Iterable<KV<String, Long>>>>() {
                   @ProcessElement
-                  public void processElement(
-                      @Element KV<Long, CombineFns.CoCombineResult> element,
-                      OutputReceiver<KV<Long, Iterable<KV<String, Long>>>> receiver)
-                      throws Exception {
-                    CombineFns.CoCombineResult e = element.getValue();
+                  public void processElement(ProcessContext c) throws Exception {
+                    CombineFns.CoCombineResult e = c.element().getValue();
                     ArrayList<KV<String, Long>> o = new ArrayList<KV<String, Long>>();
                     o.add(KV.of(minTag.getId(), e.get(minTag)));
                     o.add(KV.of(maxTag.getId(), e.get(maxTag)));
                     o.add(KV.of(sumTag.getId(), e.get(sumTag)));
-                    receiver.output(KV.of(element.getKey(), o));
+                    c.output(KV.of(c.element().getKey(), o));
                   }
                 }));
 
@@ -215,9 +210,9 @@ public class CoCombineTransformExample {
     }
 
     @ProcessElement
-    public void processElement(@Element T element, OutputReceiver<T> receiver) throws Exception {
-      LOG.info("{}{}", prefix, element);
-      receiver.output(element);
+    public void processElement(ProcessContext c) throws Exception {
+      LOG.info("{}{}", prefix, c.element());
+      c.output(c.element());
     }
   }
 }
