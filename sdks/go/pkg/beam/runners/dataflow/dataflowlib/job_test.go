@@ -297,11 +297,11 @@ func TestTranslate(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Translate(...) error = %v, want nil", err)
 	}
-	
+
 	if len(job.Environment.WorkerPools) == 0 {
 		t.Fatal("Translate(...) returned job with no worker pools")
 	}
-	
+
 	wp := job.Environment.WorkerPools[0]
 	if wp.DiskProvisionedIops != 4000 {
 		t.Errorf("DiskProvisionedIops = %v, want 4000", wp.DiskProvisionedIops)

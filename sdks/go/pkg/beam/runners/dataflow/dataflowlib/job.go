@@ -61,14 +61,14 @@ type JobOptions struct {
 	DiskProvisionedIops            int64
 	DiskProvisionedThroughputMibps int64
 	MachineType                    string
-	Labels              map[string]string
-	ServiceAccountEmail string
-	WorkerRegion        string
-	WorkerZone          string
-	ContainerImage      string
-	ArtifactURLs        []string // Additional packages for workers.
-	FlexRSGoal          string
-	EnableHotKeyLogging bool
+	Labels                         map[string]string
+	ServiceAccountEmail            string
+	WorkerRegion                   string
+	WorkerZone                     string
+	ContainerImage                 string
+	ArtifactURLs                   []string // Additional packages for workers.
+	FlexRSGoal                     string
+	EnableHotKeyLogging            bool
 
 	// Streaming update settings
 	Update               bool
@@ -357,12 +357,12 @@ func GetMetrics(ctx context.Context, client *df.Service, project, region, jobID 
 // pipeline options that are communicated to cross-language SDK harnesses, so any pipeline options
 // needed for cross-language transforms in Dataflow must be declared here.
 type dataflowOptions struct {
-	Experiments  []string `json:"experiments,omitempty"`
-	PipelineURL  string   `json:"pipelineUrl"`
-	Region       string   `json:"region"`
-	TempLocation string   `json:"tempLocation"`
-	DiskProvisionedIops            int64  `json:"diskProvisionedIops"`
-	DiskProvisionedThroughputMibps int64  `json:"diskProvisionedThroughputMibps"`
+	Experiments                    []string `json:"experiments,omitempty"`
+	PipelineURL                    string   `json:"pipelineUrl"`
+	Region                         string   `json:"region"`
+	TempLocation                   string   `json:"tempLocation"`
+	DiskProvisionedIops            int64    `json:"diskProvisionedIops"`
+	DiskProvisionedThroughputMibps int64    `json:"diskProvisionedThroughputMibps"`
 }
 
 func printOptions(opts *JobOptions, images []string) []*displayData {
