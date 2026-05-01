@@ -296,7 +296,7 @@ func TestTranslate(t *testing.T) {
 	workerURL := "gs://any-location/temp"
 	modelURL := "gs://any-location/temp"
 
-	job, err := Translate(ctx, p, opts, workerURL, modelURL)
+	job, err := Translate(ctx, p, opts, workerURL, modelURL, "dummy-hash-12345")
 	if err != nil {
 		t.Fatalf("Translate(...) error = %v, want nil", err)
 	}
@@ -314,7 +314,7 @@ func TestTranslate(t *testing.T) {
 	}
 }
 
-func TestTranslate(t *testing.T) {
+func TestTranslateWithPipelineHash(t *testing.T) {
 	p := &pipepb.Pipeline{
 		Components: &pipepb.Components{
 			Environments: map[string]*pipepb.Environment{
