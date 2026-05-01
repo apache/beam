@@ -2130,16 +2130,12 @@ public class KafkaIO {
             } else {
               for (String topic : topics) {
                 List<PartitionInfo> partitionInfoList = consumer.partitionsFor(topic);
-                if (logTopicVerification == null || !logTopicVerification) {
-                  checkState(
-                      partitionInfoList != null && !partitionInfoList.isEmpty(),
-                      "Could not find any partitions info for topic %s. Please check Kafka configuration and make sure that provided topics exist.",
-                      topic);
-                } else {
+                if (partitionInfoList == null || partitionInfoList.isEmpty()) {
                   LOG.warn(
-                      "Could not find any partitions info for topic {}. Please check Kafka configuration "
-                          + "and make sure that the provided topics exist.",
+                      "Could not find any partitions info for topic {}. Please check Kafka "
+                          + "configuration and make sure that the provided topics exist.",
                       topic);
+                  continue;
                 }
 
                 for (PartitionInfo p : partitionInfoList) {
