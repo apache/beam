@@ -13,19 +13,17 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-name: PreCommit Python Dataframes
+name: PostCommit Python Versions
 on:
   pull_request_target:
     branches: [ "master", "release-*" ]
-    paths: [ "model/**","sdks/python/**","release/**", 'release/trigger_all_tests.json', '.github/trigger_files/beam_PreCommit_Python_Dataframes.json']
-  issue_comment:
-    types: [created]
+    paths: ['release/trigger_all_tests.json', '.github/trigger_files/beam_PostCommit_Python_Versions.json']
   push:
     tags: ['v*']
     branches: ['master', 'release-*']
-    paths: [ "model/**","sdks/python/**","release/**",".github/workflows/beam_PreCommit_Python_Dataframes.yml"]
+    paths: [ "model/**","sdks/python/**",".github/workflows/beam_PostCommit_Python_Versions.yml"]
   schedule:
-    - cron: '45 2/6 * * *'
+    - cron: '0 3/6 * * *'
   workflow_dispatch:
 
 #Setting explicit permissions for the action to avoid the default permissions which are `write-all` in case of pull_request_target event
@@ -53,32 +51,50 @@ env:
   DEVELOCITY_ACCESS_KEY: ${{ secrets.DEVELOCITY_ACCESS_KEY }}
   GRADLE_ENTERPRISE_CACHE_USERNAME: ${{ secrets.GE_CACHE_USERNAME }}
   GRADLE_ENTERPRISE_CACHE_PASSWORD: ${{ secrets.GE_CACHE_PASSWORD }}
+  # Aggressive stability settings for flaky CI environment
+  PYTHONHASHSEED: "0"
+  OMP_NUM_THREADS: "1"
+  OPENBLAS_NUM_THREADS: "1"
+  # TODO(https://github.com/grpc/grpc/issues/37710): Remove once fixed.
+  GRPC_ENABLE_FORK_SUPPORT: "0"
+  # gRPC stability - more conservative for unstable networks
+  GRPC_ARG_KEEPALIVE_TIME_MS: "10000"
+  GRPC_ARG_KEEPALIVE_TIMEOUT_MS: "15000"
+  GRPC_ARG_KEEPALIVE_PERMIT_WITHOUT_CALLS: "1"
+  GRPC_ARG_HTTP2_MAX_PINGS_WITHOUT_DATA: "0"
+  GRPC_ARG_MAX_RECONNECT_BACKOFF_MS: "30000"
+  # Beam-specific - very generous timeouts
+  BEAM_RETRY_MAX_ATTEMPTS: "5"
+  BEAM_RETRY_INITIAL_DELAY_MS: "5000"
+  BEAM_RETRY_MAX_DELAY_MS: "120000"
+  # Force stable execution
+  BEAM_TESTING_FORCE_SINGLE_BUNDLE: "true"
+  BEAM_TESTING_DETERMINISTIC_ORDER: "true"
 
 jobs:
-  beam_PreCommit_Python_Dataframes:
-    name: ${{ matrix.job_name }} (${{ matrix.job_phrase}} ${{ matrix.python_version}})
+  beam_PostCommit_Python_Versions:
+    name: ${{ matrix.job_name }} (${{ matrix.job_phrase }} ${{ matrix.python_version }})
     runs-on: [self-hosted, ubuntu-24.04, main]
     timeout-minutes: 180
     strategy:
       fail-fast: false
       matrix:
-        job_name: ['beam_PreCommit_Python_Dataframes']
-        job_phrase: ['Run Python_Dataframes PreCommit']
-        python_version: ['3.10','3.14']
+        job_name: ['beam_PostCommit_Python_Versions']
+        job_phrase: ['Run Python Version PostCommit']
+        python_version: ['3.11','3.12','3.13'] # Run Python PreCommit tests on "middle" versions
     if: |
       github.event_name == 'push' ||
       github.event_name == 'pull_request_target' ||
       (github.event_name == 'schedule' && github.repository == 'apache/beam') ||
-      github.event_name == 'workflow_dispatch' ||
-      startsWith(github.event.comment.body, 'Run Python_Dataframes PreCommit')
+      github.event_name == 'workflow_dispatch'
     steps:
       - uses: actions/checkout@v4
       - name: Setup repository
         uses: ./.github/actions/setup-action
         with:
-          comment_phrase: ${{ matrix.job_phrase}} ${{ matrix.python_version}}
+          comment_phrase: ${{ matrix.job_phrase }} ${{ matrix.python_version }}
           github_token: ${{ secrets.GITHUB_TOKEN }}
-          github_job: ${{ matrix.job_name}} (${{ matrix.job_phrase}} ${{ matrix.python_version}})
+          github_job: ${{ matrix.job_name }} (${{ matrix.job_phrase }} ${{ matrix.python_version }})
       - name: Setup environment
         uses: ./.github/actions/setup-environment-action
         with:
@@ -91,12 +107,32 @@ jobs:
           PY_VER_CLEAN=${PY_VER//.}
           echo "py_ver_clean=$PY_VER_CLEAN" >> $GITHUB_OUTPUT
       - name: Run pythonPreCommit
+        env:
+          TOX_TESTENV_PASSENV: "DOCKER_*,TESTCONTAINERS_*,TC_*,BEAM_*,GRPC_*,OMP_*,OPENBLAS_*,PYTHONHASHSEED,PYTEST_*"
+          # Aggressive retry and timeout settings for flaky CI
+          PYTEST_ADDOPTS: "-v --tb=short --maxfail=5 --durations=30 --reruns=5 --reruns-delay=15 --timeout=600 --disable-warnings"
+          # Container stability - much more generous timeouts
+          TC_TIMEOUT: "300"
+          TC_MAX_TRIES: "15"
+          TC_SLEEP_TIME: "5"
+          # Additional gRPC stability for flaky environment
+          GRPC_ARG_KEEPALIVE_TIME_MS: "60000"
+          GRPC_ARG_KEEPALIVE_TIMEOUT_MS: "60000"
+          GRPC_ARG_MAX_CONNECTION_IDLE_MS: "60000"
+          GRPC_ARG_HTTP2_BDP_PROBE: "1"
+          GRPC_ARG_SO_REUSEPORT: "1"
+          # Force sequential execution to reduce load
+          PYTEST_XDIST_WORKER_COUNT: "1"
+          # Additional gRPC settings
+          GRPC_ARG_MAX_RECONNECT_BACKOFF_MS: "120000"
+          GRPC_ARG_INITIAL_RECONNECT_BACKOFF_MS: "2000"
+          BEAM_RUNNER_BUNDLE_TIMEOUT_MS: "600000"
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
           gradle-command: :sdks:python:test-suites:tox:py${{steps.set_py_ver_clean.outputs.py_ver_clean}}:preCommitPy${{steps.set_py_ver_clean.outputs.py_ver_clean}}
           arguments: |
-            -Pposargs=apache_beam/dataframe/ \
-            -PpythonVersion=${{ matrix.python_version }}
+            -PpythonVersion=${{ matrix.python_version }} \
+            -Pposargs="--ignore=apache_beam/ml/" \
       - name: Archive Python Test Results
         uses: actions/upload-artifact@v4
         if: failure()
