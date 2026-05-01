@@ -280,3 +280,33 @@ func Test_containerImages(t *testing.T) {
 	}
 
 }
+
+func TestTranslate(t *testing.T) {
+	ctx := context.Background()
+	p := &pipepb.Pipeline{}
+	opts := &JobOptions{
+		Project:                        "test-project",
+		Name:                           "test-job",
+		DiskProvisionedIops:            4000,
+		DiskProvisionedThroughputMibps: 200,
+	}
+	workerURL := "gs://any-location/temp"
+	modelURL := "gs://any-location/temp"
+
+	job, err := Translate(ctx, p, opts, workerURL, modelURL)
+	if err != nil {
+		t.Fatalf("Translate(...) error = %v, want nil", err)
+	}
+
+	if len(job.Environment.WorkerPools) == 0 {
+		t.Fatal("Translate(...) returned job with no worker pools")
+	}
+
+	wp := job.Environment.WorkerPools[0]
+	if wp.DiskProvisionedIops != 4000 {
+		t.Errorf("DiskProvisionedIops = %v, want 4000", wp.DiskProvisionedIops)
+	}
+	if wp.DiskProvisionedThroughputMibps != 200 {
+		t.Errorf("DiskProvisionedThroughputMibps = %v, want 200", wp.DiskProvisionedThroughputMibps)
+	}
+}
