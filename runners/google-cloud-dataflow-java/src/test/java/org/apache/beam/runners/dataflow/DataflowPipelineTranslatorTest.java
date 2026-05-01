@@ -1848,12 +1848,12 @@ public class DataflowPipelineTranslatorTest implements Serializable {
   public abstract static class SimpleAutoValue {
     public abstract String getString();
 
-    public abstract Integer getInt32();
+    public abstract int getInt32();
 
-    public abstract Long getInt64();
+    public abstract long getInt64();
 
     public static DataflowPipelineTranslatorTest.SimpleAutoValue of(
-        String string, Integer int32, Long int64) {
+        String string, int int32, long int64) {
       return new AutoValue_DataflowPipelineTranslatorTest_SimpleAutoValue(string, int32, int64);
     }
   }
