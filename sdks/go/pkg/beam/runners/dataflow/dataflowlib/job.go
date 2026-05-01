@@ -17,8 +17,6 @@ package dataflowlib
 
 import (
 	"context"
-	"crypto/sha256"
-	"encoding/hex"
 	"fmt"
 	"strings"
 	"time"
@@ -117,7 +115,7 @@ func containerImages(p *pipepb.Pipeline) ([]*df.SdkHarnessContainerImage, []stri
 }
 
 // Translate translates a pipeline to a Dataflow job.
-func Translate(ctx context.Context, p *pipepb.Pipeline, opts *JobOptions, workerURL, modelURL string) (*df.Job, error) {
+func Translate(ctx context.Context, p *pipepb.Pipeline, opts *JobOptions, workerURL, modelURL string, pipelineProtoHash string) (*df.Job, error) {
 	// (1) Translate pipeline to v1b3 speak.
 
 	jobType := "JOB_TYPE_BATCH"
@@ -132,13 +130,6 @@ func Translate(ctx context.Context, p *pipepb.Pipeline, opts *JobOptions, worker
 	if err != nil {
 		return nil, err
 	}
-
-	serializedPipeline, err := proto.Marshal(p)
-	if err != nil {
-		return nil, err
-	}
-	hash := sha256.Sum256(serializedPipeline)
-	pipelineProtoHash := hex.EncodeToString(hash[:])
 
 	packages := []*df.Package{{
 		Name:     "worker",

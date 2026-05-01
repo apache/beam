@@ -308,7 +308,11 @@ func TestTranslate(t *testing.T) {
 		},
 	}
 
-	job, err := Translate(context.Background(), p, opts, "worker-url", "model-url")
+	serializedPipeline, _ := proto.Marshal(p)
+	hash := sha256.Sum256(serializedPipeline)
+	expectedHashStr := hex.EncodeToString(hash[:])
+
+	job, err := Translate(context.Background(), p, opts, "worker-url", "model-url", expectedHashStr)
 	if err != nil {
 		t.Fatalf("Translate failed: %v", err)
 	}
@@ -325,10 +329,6 @@ func TestTranslate(t *testing.T) {
 	if err := json.Unmarshal(rawOpts, &recoveredOptions); err != nil {
 		t.Fatalf("Failed to unmarshal SdkPipelineOptions: %v", err)
 	}
-
-	serializedPipeline, _ := proto.Marshal(p)
-	hash := sha256.Sum256(serializedPipeline)
-	expectedHashStr := hex.EncodeToString(hash[:])
 
 	if recoveredOptions.Options.PipelineProtoHash != expectedHashStr {
 		t.Errorf("Expected PipelineProtoHash %v, got %v", expectedHashStr, recoveredOptions.Options.PipelineProtoHash)
