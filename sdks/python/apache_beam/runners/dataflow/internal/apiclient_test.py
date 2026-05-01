@@ -22,6 +22,7 @@
 import io
 import itertools
 import json
+import hashlib
 import logging
 import os
 import sys
@@ -103,11 +104,15 @@ class UtilTest(unittest.TestCase):
     proto_pipeline = beam_runner_api_pb2.Pipeline()
     proto_pipeline.components.transforms['dummy'].unique_name = 'dummy'
 
+    expected_hash = hashlib.sha256(
+        proto_pipeline.SerializeToString()).hexdigest()
+
     env = apiclient.Environment([],
                                 pipeline_options,
                                 '2.0.0',
                                 FAKE_PIPELINE_URL,
-                                proto_pipeline)
+                                proto_pipeline,
+                                pipeline_proto_hash=expected_hash)
 
     recovered_options = None
     for additionalProperty in env.proto.sdkPipelineOptions.additionalProperties:
@@ -125,9 +130,6 @@ class UtilTest(unittest.TestCase):
     else:
       self.fail('No pipelineProtoHash found')
 
-    import hashlib
-    expected_hash = hashlib.sha256(
-        proto_pipeline.SerializeToString()).hexdigest()
     self.assertEqual(pipeline_proto_hash.string_value, expected_hash)
 
   def test_set_network(self):
