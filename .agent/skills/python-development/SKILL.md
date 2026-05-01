@@ -17,7 +17,7 @@
 # under the License.
 
 name: python-development
-description: Guides Python SDK development in Apache Beam, including environment setup, testing, building, and running pipelines. Use when working with Python code in sdks/python/.
+description: Guides Python SDK development in Apache Beam including configuring virtual environments, running pytest suites, building SDK tarballs, writing transforms and DoFns, and debugging pipeline execution. Use when working with Python code in sdks/python/, writing PCollections or ParDo transforms, or running Beam pipelines.
 ---
 
 # Python Development in Apache Beam
@@ -115,6 +115,7 @@ python -m pytest -o log_cli=True -o log_level=Info \
 ```bash
 cd sdks/python
 pip install build && python -m build --sdist
+# Verify: ls -la dist/*.tar.gz
 # Output: sdks/python/dist/apache-beam-X.XX.0.dev0.tar.gz
 ```
 

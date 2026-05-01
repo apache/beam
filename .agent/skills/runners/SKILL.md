@@ -17,7 +17,7 @@
 # under the License.
 
 name: runners
-description: Guides understanding and working with Apache Beam runners (Direct, Dataflow, Flink, Spark, etc.). Use when configuring pipelines for different execution environments or debugging runner-specific issues.
+description: Configures, optimizes, and troubleshoots Apache Beam runners (Direct, Dataflow, Flink, Spark) for pipeline execution. Use when configuring pipelines for different execution environments, debugging runner-specific issues, or running ValidatesRunner tests.
 ---
 
 # Apache Beam Runners
@@ -229,9 +229,14 @@ Start Spark job server:
 
 ## Debugging
 
+### Debugging Workflow
+1. Run pipeline with DirectRunner first (`--runner=DirectRunner --targetParallelism=1`) to isolate logic errors
+2. Enable debug logging: `-Dorg.slf4j.simpleLogger.defaultLogLevel=debug`
+3. If DirectRunner passes but target runner fails, check runner-specific constraints below
+4. Verify fix by re-running on the target runner
+
 ### Direct Runner
-- Enable logging: `-Dorg.slf4j.simpleLogger.defaultLogLevel=debug`
-- Use `--targetParallelism=1` for deterministic execution
+- Use `--targetParallelism=1` for deterministic, reproducible execution
 
 ### Dataflow
 - Check Dataflow UI: console.cloud.google.com/dataflow

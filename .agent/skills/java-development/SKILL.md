@@ -17,7 +17,7 @@
 # under the License.
 
 name: java-development
-description: Guides Java SDK development in Apache Beam, including building, testing, running examples, and understanding the project structure. Use when working with Java code in sdks/java/, runners/, or examples/java/.
+description: Guides Java SDK development in Apache Beam including compiling, running unit and integration tests, building SDK containers, and publishing artifacts. Use when working with Java code in sdks/java/, runners/, or examples/java/, or running ./gradlew Java tasks.
 ---
 
 # Java Development in Apache Beam
@@ -118,6 +118,9 @@ Set pipeline options via `-DbeamTestPipelineOptions='[...]'`:
 ```bash
 # Publish a specific module
 ./gradlew -Ppublishing -p sdks/java/io/kafka publishToMavenLocal
+
+# Verify: check artifact exists
+ls ~/.m2/repository/org/apache/beam/beam-sdks-java-io-kafka/
 
 # Publish all modules
 ./gradlew -Ppublishing publishToMavenLocal

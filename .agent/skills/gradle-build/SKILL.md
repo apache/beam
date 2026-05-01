@@ -17,7 +17,7 @@
 # under the License.
 
 name: gradle-build
-description: Guides understanding and using the Gradle build system in Apache Beam. Use when building projects, understanding dependencies, or troubleshooting build issues.
+description: Configures build.gradle files, runs Gradle tasks, resolves dependency conflicts, and debugs compilation errors in Apache Beam's mono-repo build system. Use when running ./gradlew commands, troubleshooting build failures, managing dependencies, or understanding the BeamModulePlugin.
 ---
 
 # Gradle Build System in Apache Beam
@@ -207,18 +207,12 @@ rm -rf .gradle
 rm -rf build
 ```
 
-### Common Errors
-
-#### NoClassDefFoundError
-- Run `./gradlew clean`
-- Delete gradle cache
-
-#### Proto-related Errors
-- Regenerate protos: `./gradlew generateProtos`
-
-#### Dependency Conflicts
-- Check dependencies: `./gradlew dependencies`
-- Use `--scan` for detailed analysis
+### Troubleshooting Workflow
+1. If build fails, check error type in output
+2. **NoClassDefFoundError**: run `./gradlew clean` then retry; if persists, delete `~/.gradle/caches`
+3. **Proto-related errors**: run `./gradlew generateProtos` then retry build
+4. **Dependency conflicts**: run `./gradlew :module:dependencies --configuration runtimeClasspath` to inspect, use `--scan` for detailed analysis
+5. Verify fix: re-run the original build command to confirm success
 
 ### Useful Tasks
 

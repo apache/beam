@@ -17,7 +17,7 @@
 # under the License.
 
 name: contributing
-description: Guides the contribution workflow for Apache Beam, including creating PRs, issue management, code review process, and release cycles. Use when contributing code, creating PRs, or understanding the contribution process.
+description: Guides the Apache Beam contribution workflow including creating pull requests, signing the CLA, running precommit checks, labeling issues, and following commit conventions. Use when contributing code, submitting a pull request, understanding how to contribute, or navigating the code review process.
 ---
 
 # Contributing to Apache Beam
@@ -69,8 +69,10 @@ description: Guides the contribution workflow for Apache Beam, including creatin
 - Use descriptive commit messages
 
 ### 5. Create Pull Request
+- Run pre-commit tests locally before pushing: `./gradlew javaPreCommit` (Java), `./gradlew :sdks:python:test` (Python)
+- Verify tests pass, then push and open PR
 - Link to the issue in PR description
-- Pre-commit tests run automatically
+- Pre-commit tests run automatically on the PR
 - If tests fail unrelated to your change, comment: `retest this please`
 
 ### 6. Code Review

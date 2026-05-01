@@ -17,7 +17,7 @@
 # under the License.
 
 name: io-connectors
-description: Guides development and usage of I/O connectors in Apache Beam. Use when working with I/O connectors, creating new connectors, or debugging data source/sink issues.
+description: Implements read/write transforms, configures connection parameters, and tests I/O connectors (BigQuery, Kafka, JDBC, Pub/Sub, GCS) in Apache Beam. Use when reading from or writing to external data sources, creating new connectors, or debugging data source/sink issues.
 ---
 
 # I/O Connectors in Apache Beam
@@ -191,7 +191,11 @@ Beam supports using I/O connectors from one SDK in another via the expansion ser
 ## Creating New Connectors
 See [Developing I/O connectors](https://beam.apache.org/documentation/io/developing-io-overview)
 
-Key components:
-1. **Source** - Reads data (bounded or unbounded)
-2. **Sink** - Writes data
-3. **Read/Write transforms** - User-facing API
+### Workflow
+1. Implement Source (bounded or unbounded read)
+2. Test Source with DirectRunner: `./gradlew :sdks:java:io:myio:test`
+3. Implement Sink (write)
+4. Create user-facing Read/Write transforms
+5. Write integration tests using `TestPipeline`
+6. Run integration tests: `./gradlew :sdks:java:io:myio:integrationTest`
+7. Verify both read and write paths produce expected results
