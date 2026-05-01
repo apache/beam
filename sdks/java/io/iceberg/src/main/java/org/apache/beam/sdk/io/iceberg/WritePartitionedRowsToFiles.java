@@ -53,7 +53,6 @@ import org.apache.iceberg.catalog.TableIdentifier;
 import org.apache.iceberg.data.Record;
 import org.apache.iceberg.exceptions.AlreadyExistsException;
 import org.apache.iceberg.exceptions.NoSuchTableException;
-import org.checkerframework.checker.nullness.qual.MonotonicNonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -94,7 +93,6 @@ class WritePartitionedRowsToFiles
     private final Schema dataSchema;
     static final Cache<TableIdentifier, LastRefreshedTable> LAST_REFRESHED_TABLE_CACHE =
         CacheBuilder.newBuilder().expireAfterAccess(10, TimeUnit.MINUTES).build();
-    private @MonotonicNonNull Map<String, PartitionField> partitionFieldMap;
 
     WriteDoFn(
         IcebergCatalogConfig catalogConfig,
@@ -115,15 +113,9 @@ class WritePartitionedRowsToFiles
       String partitionPath = checkStateNotNull(element.getKey().getString(PARTITION));
 
       IcebergDestination destination = dynamicDestinations.instantiateDestination(tableIdentifier);
-      Table table = getOrCreateTable(destination, dataSchema);
-
-      if (partitionFieldMap == null) {
-        partitionFieldMap = Maps.newHashMap();
-        for (PartitionField partitionField : table.spec().fields()) {
-          partitionFieldMap.put(partitionField.name(), partitionField);
-        }
-      }
-      partitionPath = getPartitionDataPath(partitionPath, partitionFieldMap);
+      LastRefreshedTable lastRefreshedTable = getOrCreateTable(destination, dataSchema);
+      Table table = lastRefreshedTable.table;
+      partitionPath = getPartitionDataPath(partitionPath, lastRefreshedTable.partitionFieldMap);
 
       StructLike partitionData =
           table.spec().isPartitioned()
@@ -158,10 +150,16 @@ class WritePartitionedRowsToFiles
       final Table table;
       volatile Instant lastRefreshTime;
       static final Duration STALENESS_THRESHOLD = Duration.ofMinutes(2);
+      private int specId;
+      Map<String, PartitionField> partitionFieldMap = Maps.newHashMap();
 
       LastRefreshedTable(Table table, Instant lastRefreshTime) {
         this.table = table;
+        this.specId = table.spec().specId();
         this.lastRefreshTime = lastRefreshTime;
+        for (PartitionField partitionField : table.spec().fields()) {
+          partitionFieldMap.put(partitionField.name(), partitionField);
+        }
       }
 
       /**
@@ -181,18 +179,25 @@ class WritePartitionedRowsToFiles
           if (lastRefreshTime.isBefore(Instant.now().minus(STALENESS_THRESHOLD))) {
             table.refresh();
             lastRefreshTime = Instant.now();
+            if (table.spec().specId() != this.specId) {
+              partitionFieldMap = Maps.newHashMap();
+              for (PartitionField partitionField : table.spec().fields()) {
+                partitionFieldMap.put(partitionField.name(), partitionField);
+              }
+              this.specId = table.spec().specId();
+            }
           }
         }
       }
     }
 
-    Table getOrCreateTable(IcebergDestination destination, Schema dataSchema) {
+    LastRefreshedTable getOrCreateTable(IcebergDestination destination, Schema dataSchema) {
       TableIdentifier identifier = destination.getTableIdentifier();
       @Nullable
       LastRefreshedTable lastRefreshedTable = LAST_REFRESHED_TABLE_CACHE.getIfPresent(identifier);
-      if (lastRefreshedTable != null && lastRefreshedTable.table != null) {
+      if (lastRefreshedTable != null) {
         lastRefreshedTable.refreshIfStale();
-        return lastRefreshedTable.table;
+        return lastRefreshedTable;
       }
 
       Namespace namespace = identifier.namespace();
@@ -207,9 +212,9 @@ class WritePartitionedRowsToFiles
       @Nullable Table table = null;
       synchronized (LAST_REFRESHED_TABLE_CACHE) {
         lastRefreshedTable = LAST_REFRESHED_TABLE_CACHE.getIfPresent(identifier);
-        if (lastRefreshedTable != null && lastRefreshedTable.table != null) {
+        if (lastRefreshedTable != null) {
           lastRefreshedTable.refreshIfStale();
-          return lastRefreshedTable.table;
+          return lastRefreshedTable;
         }
 
         Catalog catalog = catalogConfig.catalog();
@@ -252,7 +257,7 @@ class WritePartitionedRowsToFiles
       }
       lastRefreshedTable = new LastRefreshedTable(table, Instant.now());
       LAST_REFRESHED_TABLE_CACHE.put(identifier, lastRefreshedTable);
-      return table;
+      return lastRefreshedTable;
     }
   }
 }
