@@ -397,7 +397,37 @@ class YamlUDFMappingTest(unittest.TestCase):
       expected_date = datetime.datetime(
           2026, 4, 17, 18, tzinfo=datetime.timezone.utc)
 
-      assert_that(result | as_rows(), equal_to([beam.Row(date=expected_date)]))
+  @unittest.skipIf(MiniRacer is None, 'py_mini_racer not installed.')
+  def test_map_to_fields_js_special_names(self):
+    with beam.Pipeline(options=beam.options.pipeline_options.PipelineOptions(
+        pickle_library='cloudpickle', yaml_experimental_features=['javascript'
+                                                                  ])) as p:
+      elements = p | beam.Create([beam.Row(label='test')])
+      result = elements | YamlTransform(
+          '''
+      type: MapToFields
+      config:
+        language: javascript
+        fields:
+          'weird output-name':
+            expression: "label + '-ok'"
+      ''')
+
+      # Verify that it yields a single row with the transformed output.
+      # We use as_dict here because comparing typed Row with spaces can fail
+      # downstream assertions if mapped back to a python tuple.
+      def row_to_dict(r):
+        return {
+            k: getattr(r, k)
+            for k in dir(r)
+            if not k.startswith('_') and not callable(getattr(r, k))
+        }
+
+      assert_that(
+          result | beam.Map(lambda r: dict(r._asdict())),
+          equal_to([{
+              'weird output-name': 'test-ok'
+          }]))
 
 
 if __name__ == '__main__':

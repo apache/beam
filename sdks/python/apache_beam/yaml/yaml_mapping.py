@@ -243,7 +243,7 @@ class JsMapToFieldsDoFn(beam.DoFn):
     self.passthrough_fields = []
 
     script = []
-    for name, expr in fields.items():
+    for i, (name, expr) in enumerate(fields.items()):
       if isinstance(expr, str) and expr in input_schema:
         self.passthrough_fields.append((name, expr))
         continue
@@ -251,17 +251,21 @@ class JsMapToFieldsDoFn(beam.DoFn):
       if isinstance(expr, str):
         expr = {'expression': expr}
 
+      # We use numeric indexing (func_{i}) instead of reusing the output field
+      # name to prevent syntax errors if output names contain spaces or hyphens.
+      # We also use bracket notation for robustness against input field names
+      # that aren't compliant dot-access identifiers.
       if 'expression' in expr:
         e = expr['expression']
-        code = f"var func_{name} = (__row__) => {{ " + " ".join(
-            [f"const {n} = __row__.{n};"
+        code = f"var func_{i} = (__row__) => {{ " + " ".join(
+            [f"const {n} = __row__['{n}'];"
              for n in original_fields if n in e]) + f" return ({e}); }}"
         script.append(code)
-        self.field_funcs[name] = f"func_{name}"
+        self.field_funcs[name] = f"func_{i}"
       elif 'callable' in expr:
-        code = f"var func_{name} = {expr['callable']}"
+        code = f"var func_{i} = {expr['callable']}"
         script.append(code)
-        self.field_funcs[name] = f"func_{name}"
+        self.field_funcs[name] = f"func_{i}"
       elif 'path' in expr and 'name' in expr:
         path = expr['path']
         func_name = expr['name']
@@ -320,8 +324,11 @@ def _get_javascript_udf_code(
     udf_code = FileSystems.open(path).read().decode()
     return udf_code, name
   elif expression:
+    # We use bracket notation for robustness against field names that
+    # aren't compliant dot-access identifiers.
     udf_code = f"var {function_name} = (__row__) => {{ " + " ".join([
-        f"const {n} = __row__.{n};" for n in original_fields if n in expression
+        f"const {n} = __row__['{n}'];"
+        for n in original_fields if n in expression
     ]) + f" return ({expression}); }}"
     return udf_code, function_name
   elif callable:
