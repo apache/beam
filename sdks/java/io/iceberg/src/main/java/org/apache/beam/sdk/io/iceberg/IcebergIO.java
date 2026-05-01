@@ -385,6 +385,7 @@ public class IcebergIO {
     return new AutoValue_IcebergIO_WriteRows.Builder()
         .setCatalogConfig(catalog)
         .setDistributionMode(DistributionMode.NONE)
+        .setAutoSharding(false)
         .build();
   }
 
@@ -403,6 +404,8 @@ public class IcebergIO {
 
     abstract DistributionMode getDistributionMode();
 
+    abstract boolean getAutoSharding();
+
     abstract Builder toBuilder();
 
     @AutoValue.Builder
@@ -418,6 +421,8 @@ public class IcebergIO {
       abstract Builder setDirectWriteByteLimit(Integer directWriteByteLimit);
 
       abstract Builder setDistributionMode(DistributionMode mode);
+
+      abstract Builder setAutoSharding(boolean autoSharding);
 
       abstract WriteRows build();
     }
@@ -452,12 +457,21 @@ public class IcebergIO {
     }
 
     /**
-     * Groups incoming rows by partition before sending to writes, ensuring that a given bundle is
-     * written to only one partition. For partitioned tables, this helps significantly to reduce the
-     * number of small files.
+     * Defines distribution of write data. Supported distributions:
+     *
+     * <ol>
+     *   <li>{@link DistributionMode.NONE}: don't shuffle rows (default)
+     *   <li>{@link DistributionMode.HASH}: shuffle rows by partition key before writing data
+     * </ol>
+     *
+     * {@link DistributionMode.RANGE} is not supported yet
      */
     public WriteRows withDistributionMode(DistributionMode mode) {
       return toBuilder().setDistributionMode(mode).build();
+    }
+
+    public WriteRows withAutosharding() {
+      return toBuilder().setAutoSharding(true).build();
     }
 
     @Override
@@ -484,6 +498,9 @@ public class IcebergIO {
 
       switch (getDistributionMode()) {
         case NONE:
+          Preconditions.checkArgument(
+              !getAutoSharding(),
+              "Autosharding option is only available with " + "'hash' distribution mode.");
           return input
               .apply("Assign Table Destinations", new AssignDestinations(destinations))
               .apply(
@@ -501,7 +518,10 @@ public class IcebergIO {
               .apply(
                   "Write Rows to Partitions",
                   new WriteToPartitions(
-                      getCatalogConfig(), destinations, getTriggeringFrequency()));
+                      getCatalogConfig(),
+                      destinations,
+                      getTriggeringFrequency(),
+                      getAutoSharding()));
         default:
           throw new UnsupportedOperationException(
               "Unsupported distribution mode: " + getDistributionMode());

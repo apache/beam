@@ -25,6 +25,7 @@ import static org.apache.iceberg.util.DateTimeUtil.dateFromDays;
 import static org.apache.iceberg.util.DateTimeUtil.timestampFromMicros;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assume.assumeTrue;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -388,7 +389,17 @@ public class IcebergWriteSchemaTransformProviderTest {
   }
 
   @Test
+  public void testWritePartitionedDataWithAutosharding() {
+    assumeTrue(distributionMode.equals(DistributionMode.HASH));
+    writePartitionedData(true);
+  }
+
+  @Test
   public void testWritePartitionedData() {
+    writePartitionedData(false);
+  }
+
+  public void writePartitionedData(boolean autosharding) {
     Schema schema =
         Schema.builder()
             .addStringField("str")
@@ -432,7 +443,9 @@ public class IcebergWriteSchemaTransformProviderTest {
             "catalog_properties",
             ImmutableMap.of("type", "hadoop", "warehouse", warehouse.location),
             "distribution_mode",
-            distributionMode.name());
+            distributionMode.name(),
+            "autosharding",
+            autosharding);
 
     List<Row> rows = new ArrayList<>();
     for (int i = 0; i < 30; i++) {

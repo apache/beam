@@ -75,7 +75,7 @@ class AssignDestinationsAndPartitions
   }
 
   static class AssignDoFn extends DoFn<Row, KV<Row, Row>> {
-    private final Map<String, PartitionKey> partitionKeys = new HashMap<>();
+    private transient @MonotonicNonNull Map<String, PartitionKey> partitionKeys;
     private transient @MonotonicNonNull Map<String, BeamRowWrapper> wrappers;
     private final DynamicDestinations dynamicDestinations;
     private final IcebergCatalogConfig catalogConfig;
@@ -88,6 +88,7 @@ class AssignDestinationsAndPartitions
     @Setup
     public void setup() {
       this.wrappers = new HashMap<>();
+      this.partitionKeys = new HashMap<>();
     }
 
     @ProcessElement
@@ -102,7 +103,7 @@ class AssignDestinationsAndPartitions
               ValueInSingleWindow.of(element, timestamp, window, paneInfo));
       Row data = dynamicDestinations.getData(element);
 
-      @Nullable PartitionKey partitionKey = partitionKeys.get(tableIdentifier);
+      @Nullable PartitionKey partitionKey = checkStateNotNull(partitionKeys).get(tableIdentifier);
       @Nullable BeamRowWrapper wrapper = checkStateNotNull(wrappers).get(tableIdentifier);
       if (partitionKey == null || wrapper == null) {
         PartitionSpec spec = PartitionSpec.unpartitioned();
@@ -116,8 +117,8 @@ class AssignDestinationsAndPartitions
         } else {
           try {
             // see if table already exists with a spec
-            // TODO(ahmedabu98): improve this by periodically refreshing the table to fetch updated
-            // specs
+            // TODO(https://github.com/apache/beam/issues/38337): improve this by periodically
+            // refreshing the table to fetch updated specs
             spec = catalogConfig.catalog().loadTable(TableIdentifier.parse(tableIdentifier)).spec();
           } catch (NoSuchTableException ignored) {
             // no partition to apply
@@ -125,7 +126,7 @@ class AssignDestinationsAndPartitions
         }
         partitionKey = new PartitionKey(spec, schema);
         wrapper = new BeamRowWrapper(data.getSchema(), schema.asStruct());
-        partitionKeys.put(tableIdentifier, partitionKey);
+        checkStateNotNull(partitionKeys).put(tableIdentifier, partitionKey);
         checkStateNotNull(wrappers).put(tableIdentifier, wrapper);
       }
       partitionKey.partition(wrapper.wrap(data));

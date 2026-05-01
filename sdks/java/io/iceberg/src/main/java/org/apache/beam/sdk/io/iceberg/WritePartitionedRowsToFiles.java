@@ -34,7 +34,6 @@ import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
-import org.apache.beam.sdk.util.ShardedKey;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
@@ -54,13 +53,13 @@ import org.apache.iceberg.catalog.TableIdentifier;
 import org.apache.iceberg.data.Record;
 import org.apache.iceberg.exceptions.AlreadyExistsException;
 import org.apache.iceberg.exceptions.NoSuchTableException;
+import org.checkerframework.checker.nullness.qual.MonotonicNonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 class WritePartitionedRowsToFiles
-    extends PTransform<
-        PCollection<KV<ShardedKey<Row>, Iterable<Row>>>, PCollection<FileWriteResult>> {
+    extends PTransform<PCollection<KV<Row, Iterable<Row>>>, PCollection<FileWriteResult>> {
   private static final Logger LOG = LoggerFactory.getLogger(WritePartitionedRowsToFiles.class);
   private final DynamicDestinations dynamicDestinations;
   private final IcebergCatalogConfig catalogConfig;
@@ -76,20 +75,18 @@ class WritePartitionedRowsToFiles
   }
 
   @Override
-  public PCollection<FileWriteResult> expand(
-      PCollection<KV<ShardedKey<Row>, Iterable<Row>>> input) {
+  public PCollection<FileWriteResult> expand(PCollection<KV<Row, Iterable<Row>>> input) {
     Schema dataSchema =
         ((RowCoder)
                 ((IterableCoder<Row>)
-                        ((KvCoder<ShardedKey<Row>, Iterable<Row>>) input.getCoder())
-                            .getValueCoder())
+                        ((KvCoder<Row, Iterable<Row>>) input.getCoder()).getValueCoder())
                     .getElemCoder())
             .getSchema();
     return input.apply(
         ParDo.of(new WriteDoFn(catalogConfig, dynamicDestinations, filePrefix, dataSchema)));
   }
 
-  private static class WriteDoFn extends DoFn<KV<ShardedKey<Row>, Iterable<Row>>, FileWriteResult> {
+  private static class WriteDoFn extends DoFn<KV<Row, Iterable<Row>>, FileWriteResult> {
 
     private final DynamicDestinations dynamicDestinations;
     private final IcebergCatalogConfig catalogConfig;
@@ -97,6 +94,7 @@ class WritePartitionedRowsToFiles
     private final Schema dataSchema;
     static final Cache<TableIdentifier, LastRefreshedTable> LAST_REFRESHED_TABLE_CACHE =
         CacheBuilder.newBuilder().expireAfterAccess(10, TimeUnit.MINUTES).build();
+    private @MonotonicNonNull Map<String, PartitionField> partitionFieldMap;
 
     WriteDoFn(
         IcebergCatalogConfig catalogConfig,
@@ -109,20 +107,34 @@ class WritePartitionedRowsToFiles
       this.dataSchema = dataSchema;
     }
 
+    private long id = UUID.randomUUID().getLeastSignificantBits();
+
+    @Setup
+    public void setup() {
+      id = UUID.randomUUID().getLeastSignificantBits();
+    }
+
+    @StartBundle
+    public void startBundle() {
+      System.out.printf("[%s] new bundle\n", id);
+    }
+
     @ProcessElement
     public void processElement(
-        @Element KV<ShardedKey<Row>, Iterable<Row>> element, OutputReceiver<FileWriteResult> out)
+        @Element KV<Row, Iterable<Row>> element, OutputReceiver<FileWriteResult> out)
         throws Exception {
-      String tableIdentifier = checkStateNotNull(element.getKey().getKey().getString(DESTINATION));
-      String partitionPath = checkStateNotNull(element.getKey().getKey().getString(PARTITION));
+      System.out.println(String.format("[%s] partition key: %s\n", id, element.getKey()));
+      String tableIdentifier = checkStateNotNull(element.getKey().getString(DESTINATION));
+      String partitionPath = checkStateNotNull(element.getKey().getString(PARTITION));
 
       IcebergDestination destination = dynamicDestinations.instantiateDestination(tableIdentifier);
       Table table = getOrCreateTable(destination, dataSchema);
 
-      // TODO(ahmedabu98): cache this
-      Map<String, PartitionField> partitionFieldMap = Maps.newHashMap();
-      for (PartitionField partitionField : table.spec().fields()) {
-        partitionFieldMap.put(partitionField.name(), partitionField);
+      if (partitionFieldMap == null) {
+        partitionFieldMap = Maps.newHashMap();
+        for (PartitionField partitionField : table.spec().fields()) {
+          partitionFieldMap.put(partitionField.name(), partitionField);
+        }
       }
       partitionPath = getPartitionDataPath(partitionPath, partitionFieldMap);
 
@@ -138,11 +150,14 @@ class WritePartitionedRowsToFiles
 
       RecordWriter writer =
           new RecordWriter(table, destination.getFileFormat(), fileName, partitionData);
-      for (Row row : element.getValue()) {
-        Record record = IcebergUtils.beamRowToIcebergRecord(table.schema(), row);
-        writer.write(record);
+      try {
+        for (Row row : element.getValue()) {
+          Record record = IcebergUtils.beamRowToIcebergRecord(table.schema(), row);
+          writer.write(record);
+        }
+      } finally {
+        writer.close();
       }
-      writer.close();
 
       SerializableDataFile sdf = SerializableDataFile.from(writer.getDataFile(), partitionPath);
       out.output(
@@ -205,6 +220,12 @@ class WritePartitionedRowsToFiles
 
       @Nullable Table table = null;
       synchronized (LAST_REFRESHED_TABLE_CACHE) {
+        lastRefreshedTable = LAST_REFRESHED_TABLE_CACHE.getIfPresent(identifier);
+        if (lastRefreshedTable != null && lastRefreshedTable.table != null) {
+          lastRefreshedTable.refreshIfStale();
+          return lastRefreshedTable.table;
+        }
+
         // Create namespace if it does not exist yet
         if (!namespace.isEmpty() && catalog instanceof SupportsNamespaces) {
           SupportsNamespaces supportsNamespaces = (SupportsNamespaces) catalog;
@@ -214,6 +235,7 @@ class WritePartitionedRowsToFiles
               LOG.info("Created new namespace '{}'.", namespace);
             } catch (AlreadyExistsException ignored) {
               // race condition: another worker already created this namespace
+              LOG.info("Namespace `{}` already exists.", namespace);
             }
           }
         }

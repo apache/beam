@@ -851,6 +851,7 @@ public abstract class IcebergCatalogBaseIT implements Serializable {
       Preconditions.checkState(filterOp == null || !filterOp.equals("only"));
       writeConfig.put("partition_fields", Arrays.asList("bool_field", "modulo_5"));
       writeConfig.put("distribution_mode", "hash");
+      writeConfig.put("autosharding", true);
     }
 
     // Write with Beam

@@ -136,12 +136,6 @@ public class IcebergWriteSchemaTransformProvider
     public abstract @Nullable Map<String, String> getTableProperties();
 
     @SchemaFieldDescription(
-        "Defines distribution of write data. Supported distributions:"
-            + "\n- none: don't shuffle rows (default)"
-            + "\n- hash: shuffle rows by partition key before writing data")
-    public abstract @Nullable String getDistributionMode();
-
-    @SchemaFieldDescription(
         "Fields used to set the table's sort order, applied when the table is created. "
             + "Each entry has the form `<term> [asc|desc] [nulls first|nulls last]`, where `<term>` "
             + "is a field name or one of the partition transforms (e.g. `bucket(col, 4)`, `day(ts)`). "
@@ -150,6 +144,19 @@ public class IcebergWriteSchemaTransformProvider
             + "it does not cause Beam to physically sort records before writing.\n"
             + "For more information on sort orders, please visit https://iceberg.apache.org/spec/#sort-orders.")
     public abstract @Nullable List<String> getSortFields();
+
+    @SchemaFieldDescription(
+        "Defines distribution of write data. Supported distributions:"
+            + "\n- none: don't shuffle rows (default)"
+            + "\n- hash: shuffle rows by partition key before writing data")
+    public abstract @Nullable String getDistributionMode();
+
+    @SchemaFieldDescription(
+        "Enables dynamic sharding to automatically adjust the number of parallel writers "
+            + "based on data volume. It handles data skew "
+            + "by further sub-dividing partitions into multiple shards to prevent bottlenecks "
+            + "during high-throughput writes. Only available with 'hash' distribution mode.")
+    public abstract @Nullable Boolean getAutosharding();
 
     @AutoValue.Builder
     public abstract static class Builder {
@@ -175,9 +182,11 @@ public class IcebergWriteSchemaTransformProvider
 
       public abstract Builder setTableProperties(Map<String, String> tableProperties);
 
+      public abstract Builder setSortFields(List<String> sortFields);
+
       public abstract Builder setDistributionMode(String mode);
 
-      public abstract Builder setSortFields(List<String> sortFields);
+      public abstract Builder setAutosharding(boolean autosharding);
 
       public abstract Configuration build();
     }
@@ -263,6 +272,11 @@ public class IcebergWriteSchemaTransformProvider
       @Nullable String mode = configuration.getDistributionMode();
       if (mode != null) {
         writeTransform = writeTransform.withDistributionMode(DistributionMode.fromName(mode));
+      }
+
+      @Nullable Boolean autoSharding = configuration.getAutosharding();
+      if (autoSharding != null && autoSharding) {
+        writeTransform = writeTransform.withAutosharding();
       }
 
       // TODO: support dynamic destinations

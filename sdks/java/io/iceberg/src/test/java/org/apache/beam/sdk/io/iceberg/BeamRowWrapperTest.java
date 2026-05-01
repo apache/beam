@@ -207,9 +207,7 @@ public class BeamRowWrapperTest {
 
   @Test
   public void testFixedPrecisionNumericLogicalTypeConversion() {
-    assertEquals(
-        ROW.getLogicalTypeValue(11, FixedPrecisionNumeric.class),
-        WRAPPER.get(11, BigDecimal.class));
+    assertEquals(ROW.getLogicalTypeValue(11, BigDecimal.class), WRAPPER.get(11, BigDecimal.class));
   }
 
   @Test

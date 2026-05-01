@@ -42,12 +42,24 @@ import org.apache.iceberg.util.DateTimeUtil;
 import org.apache.iceberg.util.UUIDUtil;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
+/**
+ * A wrapper that adapts a Beam {@link Row} to Iceberg's {@link StructLike} interface.
+ *
+ * <p>This class allows Beam rows to be processed by Iceberg internal components (like partition
+ * keys or writers) without requiring a full conversion into Iceberg's internal Record format. It
+ * handles the mapping between Beam's {@link Schema} and Iceberg's {@link Types.StructType},
+ * including complex type conversions for timestamps, logical types, and UUIDs.
+ *
+ * <p><b>Note:</b> This implementation is <b>read-only</b>. Calls to {@link #set(int, Object)} will
+ * throw an {@link UnsupportedOperationException}.
+ */
 public class BeamRowWrapper implements StructLike {
 
   private final FieldType[] types;
   private final @Nullable PositionalGetter<?>[] getters;
   private @Nullable Row row = null;
 
+  /** Constructs a new wrapper and pre-computes the mapping between Beam and Iceberg fields. */
   public BeamRowWrapper(Schema schema, Types.StructType struct) {
     int size = schema.getFieldCount();
 
@@ -60,6 +72,10 @@ public class BeamRowWrapper implements StructLike {
     }
   }
 
+  /**
+   * Sets the current Beam {@link Row} to be wrapped. This method allows the wrapper to be reused
+   * across different rows to minimize object allocation.
+   */
   public BeamRowWrapper wrap(@Nullable Row row) {
     this.row = row;
     return this;
@@ -70,6 +86,10 @@ public class BeamRowWrapper implements StructLike {
     return types.length;
   }
 
+  /**
+   * Retrieves a field value from the wrapped row, performing any necessary type conversion to match
+   * Iceberg's internal expectations (e.g., converting Timestamps to microseconds).
+   */
   @Override
   public <T> @Nullable T get(int pos, Class<T> javaClass) {
     if (row == null || row.getValue(pos) == null) {
@@ -91,6 +111,17 @@ public class BeamRowWrapper implements StructLike {
     T get(Row data, int pos);
   }
 
+  /**
+   * Factory method to create a getter that handles type-specific conversion logic.
+   *
+   * <p>Handles special cases:
+   *
+   * <ul>
+   *   <li>UUID: Converts {@code byte[]} to Iceberg's UUID representation.
+   *   <li>DateTime: Converts Beam {@code DateTime} or logical types to microsecond timestamps.
+   *   <li>Nested Rows: Recursively wraps nested structures in a new {@code BeamRowWrapper}.
+   * </ul>
+   */
   private static @Nullable PositionalGetter<?> buildGetter(FieldType beamType, Type icebergType) {
     switch (beamType.getTypeName()) {
       case BYTE:

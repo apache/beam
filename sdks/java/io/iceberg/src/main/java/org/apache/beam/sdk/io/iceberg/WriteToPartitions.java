@@ -18,18 +18,21 @@
 package org.apache.beam.sdk.io.iceberg;
 
 import static org.apache.beam.sdk.util.Preconditions.checkArgumentNotNull;
+import static org.apache.beam.sdk.values.TypeDescriptors.iterables;
+import static org.apache.beam.sdk.values.TypeDescriptors.kvs;
+import static org.apache.beam.sdk.values.TypeDescriptors.rows;
 
 import java.util.UUID;
 import org.apache.beam.sdk.coders.IterableCoder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.RowCoder;
 import org.apache.beam.sdk.transforms.GroupIntoBatches;
+import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.windowing.AfterProcessingTime;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindows;
 import org.apache.beam.sdk.transforms.windowing.Repeatedly;
 import org.apache.beam.sdk.transforms.windowing.Window;
-import org.apache.beam.sdk.util.ShardedKey;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
@@ -42,42 +45,59 @@ class WriteToPartitions extends PTransform<PCollection<KV<Row, Row>>, IcebergWri
   private final DynamicDestinations dynamicDestinations;
   private final @Nullable Duration triggeringFrequency;
   private final String filePrefix;
+  private final boolean autoSharding;
 
   WriteToPartitions(
       IcebergCatalogConfig catalogConfig,
       DynamicDestinations dynamicDestinations,
-      @Nullable Duration triggeringFrequency) {
+      @Nullable Duration triggeringFrequency,
+      boolean autoSharding) {
     this.dynamicDestinations = dynamicDestinations;
     this.catalogConfig = catalogConfig;
     this.triggeringFrequency = triggeringFrequency;
     // single unique prefix per write transform
     this.filePrefix = UUID.randomUUID().toString();
+    this.autoSharding = autoSharding;
+  }
+
+  private PCollection<KV<Row, Iterable<Row>>> groupByPartition(PCollection<KV<Row, Row>> input) {
+    RowCoder destinationCoder = RowCoder.of(AssignDestinationsAndPartitions.OUTPUT_SCHEMA);
+    RowCoder dataCoder = RowCoder.of(dynamicDestinations.getDataSchema());
+
+    GroupIntoBatches<Row, Row> groupIntoPartitions =
+        GroupIntoBatches.ofByteSize(DEFAULT_BYTES_PER_FILE);
+    if (IcebergUtils.isUnbounded(input) && triggeringFrequency != null) {
+      groupIntoPartitions = groupIntoPartitions.withMaxBufferingDuration(triggeringFrequency);
+    }
+
+    if (autoSharding) {
+      return input
+          .apply(groupIntoPartitions.withShardedKey())
+          .setCoder(
+              KvCoder.of(
+                  org.apache.beam.sdk.util.ShardedKey.Coder.of(destinationCoder),
+                  IterableCoder.of(dataCoder)))
+          .apply(
+              "DropShardId",
+              MapElements.into(kvs(rows(), iterables(rows())))
+                  .via(kv -> KV.of(kv.getKey().getKey(), kv.getValue())))
+          .setCoder(KvCoder.of(destinationCoder, IterableCoder.of(dataCoder)));
+    } else {
+      return input
+          .apply(groupIntoPartitions)
+          .setCoder(KvCoder.of(destinationCoder, IterableCoder.of(dataCoder)));
+    }
   }
 
   @Override
   public IcebergWriteResult expand(PCollection<KV<Row, Row>> input) {
-    boolean unbounded = IcebergUtils.isUnbounded(input);
-
-    GroupIntoBatches<Row, Row> groupIntoPartitions =
-        GroupIntoBatches.ofByteSize(DEFAULT_BYTES_PER_FILE);
-    if (unbounded && triggeringFrequency != null) {
-      groupIntoPartitions = groupIntoPartitions.withMaxBufferingDuration(triggeringFrequency);
-    }
-
-    PCollection<KV<ShardedKey<Row>, Iterable<Row>>> groupedRows =
-        input
-            .apply(groupIntoPartitions.withShardedKey())
-            .setCoder(
-                KvCoder.of(
-                    org.apache.beam.sdk.util.ShardedKey.Coder.of(
-                        RowCoder.of(AssignDestinationsAndPartitions.OUTPUT_SCHEMA)),
-                    IterableCoder.of(RowCoder.of(dynamicDestinations.getDataSchema()))));
+    PCollection<KV<Row, Iterable<Row>>> groupedRows = groupByPartition(input);
 
     PCollection<FileWriteResult> writtenFiles =
         groupedRows.apply(
             new WritePartitionedRowsToFiles(catalogConfig, dynamicDestinations, filePrefix));
 
-    if (unbounded && triggeringFrequency != null) {
+    if (IcebergUtils.isUnbounded(input) && triggeringFrequency != null) {
       writtenFiles =
           writtenFiles.apply(
               "ApplyUserTrigger",
