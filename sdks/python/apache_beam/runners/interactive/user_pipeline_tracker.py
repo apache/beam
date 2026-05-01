@@ -68,7 +68,7 @@ class UserPipelineTracker:
   def clear(self) -> None:
     """Clears the tracker of all user and derived pipelines."""
     # Remove all local_tempdir of created pipelines.
-    for p in self._pid_to_pipelines.values():
+    for p in list(self._pid_to_pipelines.values()):
       shutil.rmtree(p.local_tempdir, ignore_errors=True)
 
     self._user_pipelines.clear()
