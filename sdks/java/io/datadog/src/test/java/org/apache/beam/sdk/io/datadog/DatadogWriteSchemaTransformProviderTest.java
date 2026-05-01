@@ -158,7 +158,8 @@ public class DatadogWriteSchemaTransformProviderTest {
     PCollection<Row> input = p.apply("Create", Create.of(ROWS).withRowSchema(SCHEMA));
     PCollectionRowTuple inputTuple = PCollectionRowTuple.of("input", input);
     PCollectionRowTuple output = transform.expand(inputTuple);
-    assertTrue(output.getAll().isEmpty());
+    assertEquals(1, output.getAll().size());
+    assertTrue(output.has("write_errors"));
 
     p.run().waitUntilFinish();
   }
@@ -192,14 +193,19 @@ public class DatadogWriteSchemaTransformProviderTest {
   public void testRowToDatadogEventFn() throws NonDeterministicException {
     PCollection<Row> input = p.apply(Create.of(ROWS).withRowSchema(SCHEMA));
 
-    PCollection<DatadogEvent> output =
+    PCollection<Row> output =
         input.apply(
-            "RowToDatadogEvent",
-            ParDo.of(new DatadogWriteSchemaTransformProvider.RowToDatadogEventFn(null, false)));
+            "RowToRowEvent",
+            ParDo.of(new DatadogWriteSchemaTransformProvider.RowToRowEventFn(null, false)));
 
-    output.setCoder(DatadogEventCoder.of());
+    output.setRowSchema(DatadogWriteSchemaTransformProvider.DATADOG_EVENT_SCHEMA);
 
-    PAssert.that(output).containsInAnyOrder(events);
+    List<Row> expectedRows =
+        events.stream()
+            .map(DatadogWriteSchemaTransformProvider::eventToRow)
+            .collect(Collectors.toList());
+
+    PAssert.that(output).containsInAnyOrder(expectedRows);
     p.run().waitUntilFinish();
   }
 
@@ -227,14 +233,16 @@ public class DatadogWriteSchemaTransformProviderTest {
             .build();
 
     PCollection<Row> input = p.apply(Create.of(row).withRowSchema(missingFieldsSchema));
-    PCollection<DatadogEvent> output =
+    PCollection<Row> output =
         input.apply(
-            "RowToDatadogEvent",
-            ParDo.of(new DatadogWriteSchemaTransformProvider.RowToDatadogEventFn(null, false)));
+            "RowToRowEvent",
+            ParDo.of(new DatadogWriteSchemaTransformProvider.RowToRowEventFn(null, false)));
 
-    output.setCoder(DatadogEventCoder.of());
+    output.setRowSchema(DatadogWriteSchemaTransformProvider.DATADOG_EVENT_SCHEMA);
 
-    PAssert.that(output).containsInAnyOrder(expectedEvent);
+    Row expectedRow = DatadogWriteSchemaTransformProvider.eventToRow(expectedEvent);
+
+    PAssert.that(output).containsInAnyOrder(expectedRow);
     p.run().waitUntilFinish();
   }
 
@@ -271,14 +279,16 @@ public class DatadogWriteSchemaTransformProviderTest {
             .build();
 
     PCollection<Row> input = p.apply(Create.of(row).withRowSchema(extraFieldsSchema));
-    PCollection<DatadogEvent> output =
+    PCollection<Row> output =
         input.apply(
-            "RowToDatadogEvent",
-            ParDo.of(new DatadogWriteSchemaTransformProvider.RowToDatadogEventFn(null, false)));
+            "RowToRowEvent",
+            ParDo.of(new DatadogWriteSchemaTransformProvider.RowToRowEventFn(null, false)));
 
-    output.setCoder(DatadogEventCoder.of());
+    output.setRowSchema(DatadogWriteSchemaTransformProvider.DATADOG_EVENT_SCHEMA);
 
-    PAssert.that(output).containsInAnyOrder(expectedEvent);
+    Row expectedRow = DatadogWriteSchemaTransformProvider.eventToRow(expectedEvent);
+
+    PAssert.that(output).containsInAnyOrder(expectedRow);
     p.run().waitUntilFinish();
   }
 
@@ -303,12 +313,12 @@ public class DatadogWriteSchemaTransformProviderTest {
             .build();
 
     PCollection<Row> input = p.apply(Create.of(row).withRowSchema(nullSchema));
-    PCollection<DatadogEvent> output =
+    PCollection<Row> output =
         input.apply(
-            "RowToDatadogEvent",
-            ParDo.of(new DatadogWriteSchemaTransformProvider.RowToDatadogEventFn(null, false)));
+            "RowToRowEvent",
+            ParDo.of(new DatadogWriteSchemaTransformProvider.RowToRowEventFn(null, false)));
 
-    output.setCoder(DatadogEventCoder.of());
+    output.setRowSchema(DatadogWriteSchemaTransformProvider.DATADOG_EVENT_SCHEMA);
 
     try {
       p.run().waitUntilFinish();
@@ -341,7 +351,8 @@ public class DatadogWriteSchemaTransformProviderTest {
     PCollection<Row> input = p.apply("Create", Create.of(ROWS).withRowSchema(SCHEMA));
     PCollectionRowTuple inputTuple = PCollectionRowTuple.of("input", input);
     PCollectionRowTuple output = transform.expand(inputTuple);
-    assertTrue(output.getAll().isEmpty());
+    assertEquals(1, output.getAll().size());
+    assertTrue(output.has("write_errors"));
 
     p.run().waitUntilFinish();
   }
@@ -374,7 +385,8 @@ public class DatadogWriteSchemaTransformProviderTest {
     PCollection<Row> input = p.apply("Create", Create.of(ROWS).withRowSchema(SCHEMA));
     PCollectionRowTuple inputTuple = PCollectionRowTuple.of("input", input);
     PCollectionRowTuple output = transform.expand(inputTuple);
-    assertTrue(output.getAll().isEmpty());
+    assertEquals(1, output.getAll().size());
+    assertTrue(output.has("write_errors"));
 
     try {
       p.run().waitUntilFinish();
@@ -444,8 +456,9 @@ public class DatadogWriteSchemaTransformProviderTest {
     PCollection<Row> input = p.apply("Create", Create.of(ROWS).withRowSchema(SCHEMA));
     PCollectionRowTuple inputTuple = PCollectionRowTuple.of("input", input);
     PCollectionRowTuple output = transform.expand(inputTuple);
-    assertEquals(1, output.getAll().size());
+    assertEquals(2, output.getAll().size());
     assertTrue(output.has("errors"));
+    assertTrue(output.has("write_errors"));
 
     p.run().waitUntilFinish();
   }
@@ -469,12 +482,12 @@ public class DatadogWriteSchemaTransformProviderTest {
             .build();
 
     PCollection<Row> input = p.apply(Create.of(row).withRowSchema(wrongSchema));
-    PCollection<DatadogEvent> output =
+    PCollection<Row> output =
         input.apply(
-            "RowToDatadogEvent",
-            ParDo.of(new DatadogWriteSchemaTransformProvider.RowToDatadogEventFn(null, false)));
+            "RowToRowEvent",
+            ParDo.of(new DatadogWriteSchemaTransformProvider.RowToRowEventFn(null, false)));
 
-    output.setCoder(DatadogEventCoder.of());
+    output.setRowSchema(DatadogWriteSchemaTransformProvider.DATADOG_EVENT_SCHEMA);
 
     try {
       p.run().waitUntilFinish();
@@ -592,7 +605,7 @@ public class DatadogWriteSchemaTransformProviderTest {
     Schema schema = registry.getSchema(DatadogWriteSchemaTransformConfiguration.class);
     Schema errorHandlingSchema = registry.getSchema(ErrorHandling.class);
 
-    LOG.info(schema.getFieldNames().toString());
+    LOG.info("Schema fields: {}", schema.getFieldNames());
 
     assertEquals(7, schema.getFieldCount());
     assertTrue(schema.hasField("url"));
@@ -603,7 +616,7 @@ public class DatadogWriteSchemaTransformProviderTest {
     assertTrue(schema.hasField("parallelism"));
     assertTrue(schema.hasField("errorHandling"));
 
-    LOG.info(schema.getField("url").getType().getTypeName().toString());
+    LOG.info("URL field type: {}", schema.getField("url").getType().getTypeName());
     assertEquals(Schema.FieldType.STRING.withNullable(false), schema.getField("url").getType());
     assertEquals(Schema.FieldType.STRING.withNullable(false), schema.getField("apiKey").getType());
     assertEquals(
