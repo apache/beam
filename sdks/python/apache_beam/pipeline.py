@@ -113,6 +113,42 @@ if TYPE_CHECKING:
 __all__ = ['Pipeline', 'transform_annotations']
 
 
+def _descendant_applied_ptransforms(
+    current: 'AppliedPTransform') -> set['AppliedPTransform']:
+  descendants = set()
+  pending = list(current.parts)
+  while pending:
+    part = pending.pop()
+    if part in descendants:
+      continue
+    descendants.add(part)
+    pending.extend(part.parts)
+  return descendants
+
+
+def _register_top_level_side_outputs(
+    current: 'AppliedPTransform', result: pvalue.PCollection) -> None:
+  if not result._side_outputs:
+    return
+
+  descendants = _descendant_applied_ptransforms(current)
+  for side_tag, side_pcoll in result._side_outputs.items():
+    if side_pcoll.producer is not current and side_pcoll.producer not in descendants:
+      raise ValueError(
+          f"Side output {side_tag!r} must be produced by "
+          f"{current.full_label!r} or one of its descendant transforms.")
+
+    existing = current.outputs.get(side_tag)
+    if existing is not None:
+      if existing is not side_pcoll:
+        raise ValueError(
+            f"Side output tag {side_tag!r} conflicts with an existing "
+            'output of the same transform.')
+      continue
+
+    current.add_output(side_pcoll, side_tag)
+
+
 class Pipeline(HasDisplayData):
   """A pipeline object that manages a DAG of
   :class:`~apache_beam.transforms.ptransform.PTransform` s
@@ -411,6 +447,9 @@ class Pipeline(HasDisplayData):
                   new_output, new_output._main_tag)
             else:
               replacement_transform_node.add_output(new_output, new_output.tag)
+              if isinstance(new_output, pvalue.PCollection):
+                _register_top_level_side_outputs(
+                    replacement_transform_node, new_output)
 
             # Recording updated outputs. This cannot be done in the same
             # visitor since if we dynamically update output type here, we'll
@@ -844,6 +883,9 @@ class Pipeline(HasDisplayData):
           tag = '%s_%d' % (base, counter)
 
         current.add_output(result, tag)
+        if result is pvalueish_result and isinstance(result,
+                                                     pvalue.PCollection):
+          _register_top_level_side_outputs(current, result)
 
       if (type_options is not None and
           type_options.type_check_strictness == 'ALL_REQUIRED' and

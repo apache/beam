@@ -27,6 +27,7 @@ produced when the pipeline gets executed.
 # pytype: skip-file
 
 import collections
+import copy
 import itertools
 from typing import TYPE_CHECKING
 from typing import Any
@@ -139,18 +140,104 @@ class PValue(object):
     return self.pipeline.apply(ptransform, self)
 
 
+class _SideOutputsContainer:
+  """Lightweight accessor over named side-output PCollections.
+
+  Supports attribute access (``container.dropped``), indexing
+  (``container["dropped"]``), iteration over tag names, ``len()``, and
+  ``in``. ``__getattr__`` on a missing tag raises ``AttributeError`` with
+  a message listing available tags.
+  """
+  def __init__(self, side_outputs: dict[str, 'PCollection']):
+    object.__setattr__(self, '_side_outputs', dict(side_outputs))
+
+  def __getattr__(self, tag: str) -> 'PCollection':
+    if tag.startswith('__'):
+      raise AttributeError(tag)
+    try:
+      return self._side_outputs[tag]
+    except KeyError as exc:
+      available = sorted(self._side_outputs)
+      raise AttributeError(
+          f"No side output named {tag!r}. Available: {available}") from exc
+
+  def __getitem__(self, tag: str) -> 'PCollection':
+    return self._side_outputs[tag]
+
+  def __iter__(self):
+    return iter(self._side_outputs)
+
+  def __len__(self):
+    return len(self._side_outputs)
+
+  def __contains__(self, tag):
+    return tag in self._side_outputs
+
+
 class PCollection(PValue, Generic[T]):
   """A multiple values (potentially huge) container.
 
   Dataflow users should not construct PCollection objects directly in their
   pipelines.
   """
+  def __init__(
+      self,
+      pipeline: 'Pipeline',
+      tag: Optional[str] = None,
+      element_type: Optional[Union[type, 'typehints.TypeConstraint']] = None,
+      windowing: Optional['Windowing'] = None,
+      is_bounded=True):
+    super().__init__(
+        pipeline,
+        tag=tag,
+        element_type=element_type,
+        windowing=windowing,
+        is_bounded=is_bounded)
+    self._side_outputs: Optional[dict[str, 'PCollection']] = None
+
   def __eq__(self, other):
     if isinstance(other, PCollection):
       return self.tag == other.tag and self.producer == other.producer
 
   def __hash__(self):
     return hash((self.tag, self.producer))
+
+  def __copy__(self):
+    result = type(self).__new__(type(self))
+    result.__dict__ = self.__dict__.copy()
+    return result
+
+  @property
+  def side_outputs(self) -> _SideOutputsContainer:
+    return _SideOutputsContainer(self._side_outputs or {})
+
+  def with_side_outputs(self, **side_outputs: 'PCollection') -> 'PCollection':
+    """Return a copy of this PCollection carrying the given side outputs.
+
+    Each kwarg becomes accessible as ``result.side_outputs.<tag>``. Tags
+    must be valid Python identifiers (enforced by ``**`` syntax).
+
+    Calling ``with_side_outputs`` again replaces any previously-set side
+    outputs on the new copy; the original is unchanged.
+
+    This annotation is not preserved across runner API round-trips; inspect
+    ``producer.outputs`` on the deserialized pipeline instead.
+
+    Only the main output participates in composite-boundary type checking.
+    """
+    for side_tag, side_pcoll in side_outputs.items():
+      if not isinstance(side_pcoll, PCollection):
+        raise TypeError(
+            'Side output %r must be a PCollection. Got %r.' %
+            (side_tag, side_pcoll))
+      if side_pcoll.pipeline != self.pipeline:
+        raise ValueError(
+            'Side output %r must belong to the same pipeline as %r.' %
+            (side_tag, self))
+
+    result = copy.copy(self)
+    result._side_outputs = dict(side_outputs)
+    return result
 
   @property
   def windowing(self) -> 'Windowing':

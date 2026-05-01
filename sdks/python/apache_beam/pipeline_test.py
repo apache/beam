@@ -121,6 +121,31 @@ class AddThenMultiply(beam.PTransform):
         AddThenMultiplyDoFn(), AsSingleton(pvalues[1]), AsSingleton(pvalues[2]))
 
 
+def _all_applied_transforms(pipeline):
+  all_applied_transforms = {}
+  current_transforms = list(pipeline.transforms_stack)
+  while current_transforms:
+    applied_transform = current_transforms.pop()
+    all_applied_transforms[applied_transform.full_label] = applied_transform
+    current_transforms.extend(applied_transform.parts)
+  return all_applied_transforms
+
+
+class _RemoveEvensDoFn(beam.DoFn):
+  def process(self, element):
+    if element % 2 == 0:
+      yield TaggedOutput('dropped', element)
+    else:
+      yield element
+
+
+class RemoveEvens(beam.PTransform):
+  def expand(self, pcoll):
+    split = pcoll | 'Split' >> beam.ParDo(_RemoveEvensDoFn()).with_outputs(
+        'dropped', main='main')
+    return split.main.with_side_outputs(dropped=split.dropped)
+
+
 class PipelineTest(unittest.TestCase):
   @staticmethod
   def custom_callable(pcoll):
@@ -642,6 +667,128 @@ class PipelineTest(unittest.TestCase):
     self.assertNotIn(multi.letters, visitor.visited)
     self.assertNotIn(multi.numbers, visitor.visited)
 
+  def test_pcollection_side_outputs_end_to_end(self):
+    with TestPipeline() as pipeline:
+      out = (
+          pipeline
+          | beam.Create([1, 2, 3, 4])
+          | 'RemoveEvens' >> RemoveEvens())
+      chained = out | 'ChainMainOutput' >> beam.Map(lambda x: x * 10)
+
+      self.assertIsInstance(out.side_outputs.dropped, beam.pvalue.PCollection)
+      assert_that(out, equal_to([1, 3]), label='assert_main_output')
+      assert_that(
+          out.side_outputs.dropped,
+          equal_to([2, 4]),
+          label='assert_side_output')
+      assert_that(chained, equal_to([10, 30]), label='assert_chained_output')
+
+    applied_transform = _all_applied_transforms(pipeline)['RemoveEvens']
+    self.assertIs(applied_transform.outputs[None], out)
+    self.assertIs(
+        applied_transform.outputs['dropped'], out.side_outputs.dropped)
+
+  def test_pcollection_side_outputs_rejects_foreign_pcollection(self):
+    class ExposeForeignSideOutput(beam.PTransform):
+      def __init__(self, foreign):
+        self._foreign = foreign
+
+      def expand(self, pcoll):
+        main = pcoll | 'Main' >> beam.Map(lambda x: x)
+        return main.with_side_outputs(other=self._foreign)
+
+    pipeline = beam.Pipeline()
+    source = pipeline | 'Source' >> beam.Create([1, 2, 3])
+    foreign = pipeline | 'Foreign' >> beam.Create([10])
+
+    with self.assertRaisesRegex(ValueError,
+                                r"Side output 'other' must be produced by"):
+      _ = source | 'ExposeForeignSideOutput' >> ExposeForeignSideOutput(foreign)
+
+  def test_pcollection_side_outputs_rejects_tag_collision(self):
+    class OriginalDroppedOutput(beam.PTransform):
+      def expand(self, pcoll):
+        return {'dropped': pcoll | 'Inner' >> beam.Filter(lambda x: x % 2)}
+
+    class ConflictingSideOutput(beam.PTransform):
+      def expand(self, pcoll):
+        split = pcoll | 'Split' >> beam.ParDo(_RemoveEvensDoFn()).with_outputs(
+            'dropped', main='main')
+        return split.dropped.with_side_outputs(dropped=split.main)
+
+    class CollisionOverride(PTransformOverride):
+      def matches(self, applied_ptransform):
+        return applied_ptransform.full_label == 'NeedsCollisionReplacement'
+
+      def get_replacement_transform_for_applied_ptransform(
+          self, applied_ptransform):
+        return ConflictingSideOutput()
+
+    pipeline = beam.Pipeline()
+    _ = (
+        pipeline
+        | beam.Create([1, 2, 3, 4])
+        | 'NeedsCollisionReplacement' >> OriginalDroppedOutput())
+
+    with self.assertRaisesRegex(
+        ValueError,
+        r"Side output tag 'dropped' conflicts with an existing output"):
+      pipeline.replace_all([CollisionOverride()])
+
+  def test_ptransform_override_registers_side_outputs(self):
+    class IdentityComposite(beam.PTransform):
+      def expand(self, pcoll):
+        return pcoll | 'Inner' >> beam.Map(lambda x: x)
+
+    class ReplacementWithSideOutputs(beam.PTransform):
+      def expand(self, pcoll):
+        split = pcoll | 'Split' >> beam.ParDo(_RemoveEvensDoFn()).with_outputs(
+            'dropped', main='main')
+        return split.main.with_side_outputs(dropped=split.dropped)
+
+    class SideOutputOverride(PTransformOverride):
+      def matches(self, applied_ptransform):
+        return applied_ptransform.full_label == 'NeedsReplacement'
+
+      def get_replacement_transform_for_applied_ptransform(
+          self, applied_ptransform):
+        return ReplacementWithSideOutputs()
+
+    pipeline = beam.Pipeline()
+    _ = (
+        pipeline
+        | beam.Create([1, 2, 3, 4])
+        | 'NeedsReplacement' >> IdentityComposite())
+
+    pipeline.replace_all([SideOutputOverride()])
+
+    applied_transform = _all_applied_transforms(pipeline)['NeedsReplacement']
+    self.assertEqual({None, 'dropped'}, set(applied_transform.outputs))
+
+  def test_pcollection_side_outputs_not_registered_for_nested_return_values(
+      self):
+    class NestedReturnWithSideOutputs(beam.PTransform):
+      def expand(self, pcoll):
+        split = pcoll | 'Split' >> beam.ParDo(_RemoveEvensDoFn()).with_outputs(
+            'dropped', main='main')
+        return {
+            'main': split.main.with_side_outputs(dropped=split.dropped),
+        }
+
+    pipeline = beam.Pipeline()
+    result = (
+        pipeline
+        | beam.Create([1, 2, 3, 4])
+        | 'NestedReturnWithSideOutputs' >> NestedReturnWithSideOutputs())
+
+    applied_transform = _all_applied_transforms(
+        pipeline)['NestedReturnWithSideOutputs']
+    self.assertEqual({'main'}, set(applied_transform.outputs))
+    self.assertNotIn('dropped', applied_transform.outputs)
+    self.assertIs(
+        result['main'].side_outputs.dropped,
+        result['main']._side_outputs['dropped'])
+
   def test_filter_typehint(self):
     # Check input type hint and output type hint are both specified.
     def always_true_with_all_typehints(x: int) -> bool:
@@ -1067,6 +1214,16 @@ class RunnerApiTest(unittest.TestCase):
     self.assertIsNotNone(p.transforms_stack[0].parts[0].parent)
     self.assertEqual(
         p.transforms_stack[0].parts[0].parent, p.transforms_stack[0])
+
+  def test_side_outputs_survive_runner_api_round_trip(self):
+    pipeline = beam.Pipeline()
+    _ = (pipeline | beam.Create([1, 2, 3, 4]) | 'RemoveEvens' >> RemoveEvens())
+
+    round_tripped = Pipeline.from_runner_api(
+        pipeline.to_runner_api(use_fake_coders=True), None, None)
+    applied_transform = _all_applied_transforms(round_tripped)['RemoveEvens']
+
+    self.assertEqual({None, 'dropped'}, set(applied_transform.outputs))
 
   def test_requirements(self):
     p = beam.Pipeline()
