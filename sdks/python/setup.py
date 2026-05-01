@@ -210,9 +210,9 @@ ml_adk_dependency = [
     # proto-plus<1.24 caps protobuf<5; opentelemetry-proto (via ADK) needs
     # protobuf>=5. Scoped here so the main dependency list stays broader.
     'proto-plus>=1.26.1,<2',
-    'opentelemetry-api==1.37.0',
-    'opentelemetry-sdk==1.37.0',
-    'opentelemetry-exporter-otlp-proto-http==1.37.0',
+    'opentelemetry-api==1.40.0',
+    'opentelemetry-sdk==1.40.0',
+    'opentelemetry-exporter-otlp-proto-http==1.40.0',
     # protobuf>=5 (ADK/OTel); tf2onnx 1.16.x pins protobuf~=3.20 only.
     'tf2onnx>=1.17.0,<1.18',
 ]
@@ -426,7 +426,7 @@ if __name__ == '__main__':
           'jsonpickle>=3.0.0,<4.0.0',
           # numpy can have breaking changes in minor versions.
           # Use a strict upper bound.
-          'numpy>=1.14.3,<2.5.0',  # Update pyproject.toml as well.
+          'numpy>=2.1.3,<2.5.0',  # Update pyproject.toml as well.
           'objsize>=0.6.1,<0.8.0',
           'packaging>=22.0',
           'pillow>=12.1.1,<13',
@@ -500,9 +500,10 @@ if __name__ == '__main__':
               'requests_mock>=1.7,<2.0',
               # google-adk 1.28+ requires tenacity>=9,<10 (conflicts with <9).
               'tenacity>=8.0.0,<10',
-              'pytest>=7.1.2,<10.0',
+              'pytest>=9.0.3,<10.0',
               'pytest-xdist>=2.5.0,<4',
               'pytest-timeout>=2.1.0,<3',
+              'scipy<1.16.0; python_version < "3.11"',
               'scikit-learn>=0.20.0,<1.8.0',
               'sqlalchemy>=1.3,<3.0',
               'psycopg2-binary>=2.8.5,<3.0',
@@ -578,7 +579,7 @@ if __name__ == '__main__':
               'needle>=0.5.0,<1',
               'chromedriver-binary>=117,<118',
               # use a fixed major version of PIL for different python versions
-              'pillow>=7.1.1,<10',
+              'pillow>=12.1.1,<13',
               # urllib 2.x is a breaking change for the headless chrome tests
               'urllib3<2,>=1.21.1'
           ],
@@ -644,9 +645,9 @@ if __name__ == '__main__':
           # in https://github.com/apache/beam/blob/master/sdks/python/tox.ini
           # For more info, see
           # https://docs.google.com/document/d/1c84Gc-cZRCfrU8f7kWGsNR2o8oSRjCM-dGHO9KvPWPw/edit?usp=sharing
-          'torch': ['torch>=1.9.0,<2.8.0'],
+          'torch': ['torch>=1.9.0,<2.9.0'],
           'tensorflow': [
-              'tensorflow>=2.12rc1,<2.21',  # tensorflow transitive dep
+              'tensorflow>=2.12rc1,<2.22',  # tensorflow transitive dep
               'absl-py>=0.12.0'
           ],
           'transformers': [
@@ -656,7 +657,7 @@ if __name__ == '__main__':
           ],
           'ml_cpu': [
               'tensorflow>=2.12.0',
-              'torch==2.8.0+cpu',
+              'torch==2.8.0',
               'transformers>=4.28.0,<4.56.0',  # tensorflow transient dep
               'absl-py>=0.12.0'
           ],

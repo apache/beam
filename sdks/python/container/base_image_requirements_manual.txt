@@ -41,7 +41,8 @@ guppy3
 mmh3  # Optimizes execution of some Beam codepaths. TODO: Make it Beam's dependency.
 nltk  # Commonly used for natural language processing.
 google-crc32c
-scipy
+scipy<1.16.0; python_version < "3.11"
+scipy; python_version >= "3.11"
 scikit-learn
 build>=1.0,<2 # tool to build sdist from setup.py in stager.
 # Dill 0.3.1.1 is included as a base manual requirement so is avaiable to users
