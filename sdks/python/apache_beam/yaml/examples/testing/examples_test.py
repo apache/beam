@@ -23,6 +23,7 @@ import os
 import random
 import re
 import sys
+import time
 import unittest
 from typing import Any
 from typing import Callable
@@ -332,56 +333,79 @@ def create_test_method(
   """
   @mock.patch('apache_beam.Pipeline', TestPipeline)
   def test_yaml_example(self):
-    with open(pipeline_spec_file, encoding="utf-8") as f:
-      lines = f.readlines()
-    expected_key = '# Expected:\n'
-    if expected_key in lines:
-      expected = lines[lines.index('# Expected:\n') + 1:]
-    else:
-      raise ValueError(
-          f"Missing '# Expected:' tag in example file '{pipeline_spec_file}'")
-    for i, line in enumerate(expected):
-      expected[i] = line.replace('#  ', '').replace('\n', '')
-    expected = [line for line in expected if line]
+    def _retryable_cloud_failure(exn):
+      msg = str(exn).lower()
+      return (
+          'deadline exceeded' in msg or 'socket closed' in msg or
+          'statuscode.unavailable' in msg or
+          'statuscode.deadline_exceeded' in msg)
 
-    raw_spec_string = ''.join(lines)
-    # Filter for any jinja preprocessor - this has to be done before other
-    # preprocessors.
-    jinja_preprocessor = [
-        preprocessor for preprocessor in custom_preprocessors
-        if 'jinja_preprocessor' in preprocessor.__name__
-    ]
-    if jinja_preprocessor:
-      jinja_preprocessor = jinja_preprocessor[0]
-      raw_spec_string = jinja_preprocessor(
-          raw_spec_string, self._testMethodName)
-      custom_preprocessors.remove(jinja_preprocessor)
+    max_retries = 3 if '-cloud' in os.environ.get('TOX_ENV_NAME', '') else 1
+    for attempt in range(max_retries):
+      try:
+        with open(pipeline_spec_file, encoding="utf-8") as f:
+          lines = f.readlines()
+        expected_key = '# Expected:\n'
+        if expected_key in lines:
+          expected = lines[lines.index('# Expected:\n') + 1:]
+        else:
+          raise ValueError(
+              f"Missing '# Expected:' tag in example file '{pipeline_spec_file}'"
+          )
+        for i, line in enumerate(expected):
+          expected[i] = line.replace('#  ', '').replace('\n', '')
+        expected = [line for line in expected if line]
 
-    pipeline_spec = yaml.load(
-        raw_spec_string, Loader=yaml_transform.SafeLineLoader)
-
-    with TestEnvironment() as env:
-      for fn in custom_preprocessors:
-        pipeline_spec = fn(pipeline_spec, expected, env)
-      with beam.Pipeline(options=PipelineOptions(
-          pickle_library='cloudpickle',
-          **yaml_transform.SafeLineLoader.strip_metadata(pipeline_spec.get(
-              'options', {})))) as p:
-        actual = [
-            yaml_transform.expand_pipeline(
-                p,
-                pipeline_spec,
-                [
-                    yaml_provider.InlineProvider(
-                        TEST_PROVIDERS, INPUT_TRANSFORM_TEST_PROVIDERS)
-                ])
+        raw_spec_string = ''.join(lines)
+        preprocessors = list(custom_preprocessors)
+        # Filter for any jinja preprocessor - this has to be done before other
+        # preprocessors.
+        jinja_preprocessor = [
+            preprocessor for preprocessor in preprocessors
+            if 'jinja_preprocessor' in preprocessor.__name__
         ]
-        if not actual[0]:
-          actual = list(p.transforms_stack[0].parts[-1].outputs.values())
-          for transform in p.transforms_stack[0].parts[:-1]:
-            if transform.transform.label == 'log_for_testing':
-              actual += list(transform.outputs.values())
-        check_output(expected)(actual)
+        if jinja_preprocessor:
+          jinja_preprocessor = jinja_preprocessor[0]
+          raw_spec_string = jinja_preprocessor(
+              raw_spec_string, self._testMethodName)
+          preprocessors.remove(jinja_preprocessor)
+
+        pipeline_spec = yaml.load(
+            raw_spec_string, Loader=yaml_transform.SafeLineLoader)
+
+        with TestEnvironment() as env:
+          for fn in preprocessors:
+            pipeline_spec = fn(pipeline_spec, expected, env)
+          with beam.Pipeline(options=PipelineOptions(
+              pickle_library='cloudpickle',
+              **yaml_transform.SafeLineLoader.strip_metadata(pipeline_spec.get(
+                  'options', {})))) as p:
+            actual = [
+                yaml_transform.expand_pipeline(
+                    p,
+                    pipeline_spec,
+                    [
+                        yaml_provider.InlineProvider(
+                            TEST_PROVIDERS, INPUT_TRANSFORM_TEST_PROVIDERS)
+                    ])
+            ]
+            if not actual[0]:
+              actual = list(p.transforms_stack[0].parts[-1].outputs.values())
+              for transform in p.transforms_stack[0].parts[:-1]:
+                if transform.transform.label == 'log_for_testing':
+                  actual += list(transform.outputs.values())
+            check_output(expected)(actual)
+        break
+      except Exception as exn:
+        if attempt == max_retries - 1 or not _retryable_cloud_failure(exn):
+          raise
+        _LOGGER.warning(
+            'Retrying transient cloud test failure for %s (attempt %s/%s): %s',
+            pipeline_spec_file,
+            attempt + 2,
+            max_retries,
+            exn)
+        time.sleep(5 * (attempt + 1))
 
   def _python_deps_involved(spec_filename):
     return any(

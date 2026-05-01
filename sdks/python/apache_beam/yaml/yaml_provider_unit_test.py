@@ -295,7 +295,6 @@ class PythonProviderDepsTest(unittest.TestCase):
       after = yaml_provider.PypiExpansionService._key('base', [pkg])
       self.assertNotEqual(before, after)
 
-
 class JoinUrlOrFilepathTest(unittest.TestCase):
   def test_join_url_relative_path(self):
     self.assertEqual(
