@@ -1454,7 +1454,12 @@ class _DeferredCall(_Future[T]):
 
   def get(self, timeout=None):
     # type: (Optional[float]) -> T
-    return self._func(*(arg.get(timeout) for arg in self._args))
+    # List comprehension, not generator: *(gen) causes CPython to build the
+    # argument tuple incrementally via _PyTuple_Resize, which asserts
+    # Py_REFCNT(v)==1. A GC cycle between yields can increment that refcount,
+    # raising SystemError (Objects/tupleobject.c:927). *[list] allocates the
+    # tuple once at its final size, avoiding the resize entirely.
+    return self._func(*[arg.get(timeout) for arg in self._args])
 
   def set(self, value):
     # type: (T) -> _Future[T]

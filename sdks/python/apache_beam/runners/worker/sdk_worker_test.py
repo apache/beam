@@ -704,6 +704,62 @@ class ShortIdCacheTest(unittest.TestCase):
           % case.info)
 
 
+class DeferredCallTest(unittest.TestCase):
+  """Tests for _DeferredCall.get().
+
+  Background: the original implementation used a generator expression in the
+  argument unpack position:
+
+      return self._func(*(arg.get(timeout) for arg in self._args))
+
+  CPython builds the argument tuple incrementally via _PyTuple_Resize as it
+  drains the generator.  _PyTuple_Resize guards that Py_REFCNT(v) == 1 before
+  resizing a non-empty tuple (Objects/tupleobject.c).  Under sustained load,
+  a GC cycle can run between generator yields and temporarily increment the
+  refcount on the partially-built tuple, causing _PyTuple_Resize to call
+  PyErr_BadInternalCall() and raise SystemError.  This was observed in
+  production workers (Python 3.11, Beam 2.73.0) at
+  Objects/tupleobject.c:927.
+
+  The partial tuple is a C-level local inside PySequence_Tuple, so the race
+  cannot be triggered deterministically from pure Python.  The tests here
+  verify correct behaviour; the crash itself requires CPython internal timing
+  or a debug build to reproduce reliably.
+
+  Fix: change the generator to a list comprehension.  CPython builds the list
+  first and passes it to CALL_FUNCTION_EX, which calls PySequence_Fast on a
+  list (a no-op path that does not call _PyTuple_Resize).
+  """
+  def test_get_single_arg(self):
+    f = sdk_worker._Future().set(42)
+    call = sdk_worker._DeferredCall(lambda x: x, f)
+    self.assertEqual(call.get(), 42)
+
+  def test_get_multiple_args(self):
+    futures = [sdk_worker._Future().set(i) for i in range(5)]
+    call = sdk_worker._DeferredCall(lambda *args: sum(args), *futures)
+    self.assertEqual(call.get(), sum(range(5)))
+
+  def test_get_non_future_args_are_wrapped(self):
+    # __init__ wraps non-Future values in _Future().set(v); get() must work.
+    call = sdk_worker._DeferredCall(lambda x, y: x * y, 3, 7)
+    self.assertEqual(call.get(), 21)
+
+  def test_get_mixed_future_and_value_args(self):
+    a = sdk_worker._Future().set(10)
+    call = sdk_worker._DeferredCall(lambda x, y: x + y, a, 5)
+    self.assertEqual(call.get(), 15)
+
+  def test_get_zero_args(self):
+    call = sdk_worker._DeferredCall(lambda: 99)
+    self.assertEqual(call.get(), 99)
+
+  def test_get_preserves_return_value_type(self):
+    f = sdk_worker._Future().set({'key': 'val'})
+    call = sdk_worker._DeferredCall(lambda d: d, f)
+    self.assertEqual(call.get(), {'key': 'val'})
+
+
 def monitoringInfoMetadata(info):
   return {
       descriptor.name: value
