@@ -45,15 +45,10 @@ public class JvmVerification {
     versionMapping.put("0045", v25);
   }
 
-  // bytecode
+  // bytecode compatibility
   @Test
-  public void verifyCodeIsCompiledWithJava8() throws IOException {
-    assertEquals(v1_8, getByteCodeVersion(DoFn.class));
-  }
-
-  @Test
-  public void verifyTestCodeIsCompiledWithJava8() throws IOException {
-    assertEquals(v1_8, getByteCodeVersion(JvmVerification.class));
+  public void verifyCodeIsCompiledWithJava11() throws IOException {
+    assertEquals(v11, getByteCodeVersion(DoFn.class));
   }
 
   @Test
@@ -77,12 +72,6 @@ public class JvmVerification {
   }
 
   // jvm
-  @Test
-  public void verifyRunningJVMVersionIs8() {
-    final String version = getJavaSpecification();
-    assertEquals(v1_8.name, version);
-  }
-
   @Test
   public void verifyRunningJVMVersionIs11() {
     final String version = getJavaSpecification();
