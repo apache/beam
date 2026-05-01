@@ -19,10 +19,10 @@
 
 # pytype: skip-file
 
+import hashlib
 import io
 import itertools
 import json
-import hashlib
 import logging
 import os
 import sys
