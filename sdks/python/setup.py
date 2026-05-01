@@ -206,7 +206,7 @@ ml_base_core = [
 ]
 
 ml_adk_dependency = [
-    'google-adk==1.28.1',
+    'google-adk==1.32.0',
     # proto-plus<1.24 caps protobuf<5; opentelemetry-proto (via ADK) needs
     # protobuf>=5. Scoped here so the main dependency list stays broader.
     'proto-plus>=1.26.1,<2',
