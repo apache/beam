@@ -158,6 +158,9 @@ func main() {
 		logger.Fatalf(ctx, "Failed to convert pipeline options: %v", err)
 	}
 
+	// Inject full pipeline options into context
+	ctx = artifact.WithPipelineOptions(ctx, info.GetPipelineOptions())
+
 	// (2) Retrieve the staged files.
 	//
 	// The Go SDK harness downloads the worker binary and invokes

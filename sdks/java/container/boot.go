@@ -105,6 +105,9 @@ func main() {
 		logger.Fatalf(ctx, "Failed to convert pipeline options: %v", err)
 	}
 
+	// Inject full pipeline options into context
+	ctx = artifact.WithPipelineOptions(ctx, info.GetPipelineOptions())
+
 	// (2) Retrieve the staged user jars. We ignore any disk limit,
 	// because the staged jars are mandatory.
 

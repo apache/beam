@@ -1133,6 +1133,7 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
   protected List<DataflowPackage> stageArtifacts(RunnerApi.Pipeline pipeline) {
     ImmutableList.Builder<StagedFile> filesToStageBuilder = ImmutableList.builder();
     Set<String> stagedNames = new HashSet<>();
+    Map<String, String> hashes = new java.util.HashMap<>();
     for (Map.Entry<String, RunnerApi.Environment> entry :
         pipeline.getComponents().getEnvironmentsMap().entrySet()) {
       for (RunnerApi.ArtifactInformation info : entry.getValue().getDependenciesList()) {
@@ -1172,10 +1173,14 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
         } else {
           stagedNames.add(stagedName);
         }
+        hashes.put(stagedName, filePayload.getSha256());
         filesToStageBuilder.add(
             StagedFile.of(filePayload.getPath(), filePayload.getSha256(), stagedName));
       }
     }
+    options
+        .as(org.apache.beam.runners.dataflow.options.DataflowPipelineOptions.class)
+        .setArtifactHashes(hashes);
     return options.getStager().stageFiles(filesToStageBuilder.build());
   }
 

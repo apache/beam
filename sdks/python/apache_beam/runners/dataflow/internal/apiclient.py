@@ -97,7 +97,8 @@ class Environment(object):
       options,
       environment_version,
       proto_pipeline_staged_url,
-      proto_pipeline=None):
+      proto_pipeline=None,
+      hashes=None):
     self.standard_options = options.view_as(StandardOptions)
     self.google_cloud_options = options.view_as(GoogleCloudOptions)
     self.worker_options = options.view_as(WorkerOptions)
@@ -278,6 +279,9 @@ class Environment(object):
           k: v
           for k, v in sdk_pipeline_options.items() if v is not None
       }
+      if hashes:
+        import json
+        options_dict["artifactHashes"] = hashes
       options_dict["pipelineUrl"] = proto_pipeline_staged_url
       # Don't pass impersonate_service_account through to the harness.
       # Though impersonation should start a job, the workers should
@@ -579,6 +583,7 @@ class DataflowApplicationClient(object):
       raise RuntimeError('The --temp_location option must be specified.')
 
     resources = []
+    hashes = {}
     staged_paths = {}
     staged_hashes = {}
     for _, env in sorted(pipeline.components.environments.items(),
@@ -630,6 +635,7 @@ class DataflowApplicationClient(object):
         else:
           resources.append(
               (type_payload.path, remote_name, type_payload.sha256))
+          hashes[remote_name] = type_payload.sha256
           staged_paths[type_payload.path] = remote_name
           staged_hashes[type_payload.sha256] = remote_name
 
@@ -649,7 +655,7 @@ class DataflowApplicationClient(object):
     resource_stager = _LegacyDataflowStager(self)
     staged_resources = resource_stager.stage_job_resources(
         resources, staging_location=google_cloud_options.staging_location)
-    return staged_resources
+    return staged_resources, hashes
 
   def stage_file(
       self,
@@ -828,7 +834,7 @@ class DataflowApplicationClient(object):
         job.proto_pipeline, self._sdk_image_overrides, job.options)
 
     # Stage other resources for the SDK harness
-    resources = self._stage_resources(job.proto_pipeline, job.options)
+    resources, hashes = self._stage_resources(job.proto_pipeline, job.options)
 
     # Stage proto pipeline.
     self.stage_file_with_retry(
@@ -843,7 +849,8 @@ class DataflowApplicationClient(object):
         packages=resources,
         options=job.options,
         environment_version=self.environment_version,
-        proto_pipeline=job.proto_pipeline).proto
+        proto_pipeline=job.proto_pipeline,
+        hashes=hashes).proto
     _LOGGER.debug('JOB: %s', job)
 
   @retry.with_exponential_backoff(num_retries=3, initial_delay_secs=3)
