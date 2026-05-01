@@ -3540,7 +3540,10 @@ public class WindmillStateInternalsTest {
       MultimapEntryUpdate that = (MultimapEntryUpdate) o;
       return deleteAll == that.deleteAll
           && Objects.equals(key, that.key)
-          && Objects.equals(values, that.values);
+          && (values == that.values
+              || (values != null
+                  && that.values != null
+                  && Iterables.elementsEqual(values, that.values)));
     }
 
     @Override

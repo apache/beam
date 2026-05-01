@@ -436,7 +436,7 @@ public class HBaseIOTest {
 
     thrown.expect(Pipeline.PipelineExecutionException.class);
     thrown.expectCause(Matchers.instanceOf(IllegalArgumentException.class));
-    thrown.expectMessage("No columns to insert");
+    thrown.expectMessage("No columns to put");
     p.run().waitUntilFinish();
   }
 

@@ -31,12 +31,11 @@ repos:
                 sdks/python/apache_beam/portability/api/.*pb2.*.py
             )$
 
-  - repo: https://github.com/pycqa/pylint
-    # this rev is a release tag in the repo above and corresponds with a pylint
-    # version. make sure this matches the version of pylint in tox.ini.
-    rev: v4.0.2
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    # this rev is a release tag in the repo above and corresponds with a ruff
+    # version. make sure this matches the version of ruff in setup.py
+    rev: v0.15.7
     hooks:
-      - id: pylint
-        args: ["--rcfile=sdks/python/.pylintrc"]
+      - id: ruff-check
         files: ^sdks/python/apache_beam/
-        exclude: *exclude
+        args: ["--config=sdks/python/ruff.toml"]

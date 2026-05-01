@@ -51,10 +51,10 @@ permissions:
 jobs:
   beam_CleanUpGCPResources:
     name: ${{ matrix.job_name }} (${{ matrix.job_phrase }})
-    runs-on: [self-hosted, ubuntu-20.04, main]
+    runs-on: [self-hosted, ubuntu-24.04, main]
     timeout-minutes: 100
     strategy:
-      matrix: 
+      matrix:
         job_name: [beam_CleanUpGCPResources]
         job_phrase: [Run Clean GCP Resources]
     if: |
@@ -73,6 +73,7 @@ jobs:
         uses: ./.github/actions/setup-environment-action
         with:
           disable-cache: true
+          python-version: default
       - name: Setup gcloud
         uses: google-github-actions/setup-gcloud@aa5489c8933f4cc7a4f7d45035b3b1440c9c10db
       - name: Install gcloud bigtable cli

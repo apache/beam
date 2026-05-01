@@ -134,6 +134,16 @@ public class IcebergWriteSchemaTransformProvider
             + " please visit https://iceberg.apache.org/docs/latest/configuration/#table-properties.")
     public abstract @Nullable Map<String, String> getTableProperties();
 
+    @SchemaFieldDescription(
+        "Fields used to set the table's sort order, applied when the table is created. "
+            + "Each entry has the form `<term> [asc|desc] [nulls first|nulls last]`, where `<term>` "
+            + "is a field name or one of the partition transforms (e.g. `bucket(col, 4)`, `day(ts)`). "
+            + "Direction defaults to ascending; null order defaults to nulls-first for ascending and "
+            + "nulls-last for descending. Note: this sets the table's declared sort order as metadata; "
+            + "it does not cause Beam to physically sort records before writing.\n"
+            + "For more information on sort orders, please visit https://iceberg.apache.org/spec/#sort-orders.")
+    public abstract @Nullable List<String> getSortFields();
+
     @AutoValue.Builder
     public abstract static class Builder {
       public abstract Builder setTable(String table);
@@ -157,6 +167,8 @@ public class IcebergWriteSchemaTransformProvider
       public abstract Builder setPartitionFields(List<String> partitionFields);
 
       public abstract Builder setTableProperties(Map<String, String> tableProperties);
+
+      public abstract Builder setSortFields(List<String> sortFields);
 
       public abstract Configuration build();
     }
@@ -223,6 +235,7 @@ public class IcebergWriteSchemaTransformProvider
                       FileFormat.PARQUET.toString(),
                       rows.getSchema(),
                       configuration.getPartitionFields(),
+                      configuration.getSortFields(),
                       configuration.getTableProperties(),
                       configuration.getDrop(),
                       configuration.getKeep(),

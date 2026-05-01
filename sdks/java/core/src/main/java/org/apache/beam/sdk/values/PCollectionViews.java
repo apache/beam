@@ -2052,6 +2052,7 @@ public class PCollectionViews {
         }
 
         @Override
+        @SuppressWarnings("UndefinedEquals")
         public boolean contains(Object o) {
           if (!(o instanceof Entry)) {
             return false;

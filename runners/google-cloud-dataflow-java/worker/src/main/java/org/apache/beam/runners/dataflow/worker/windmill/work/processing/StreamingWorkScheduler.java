@@ -23,6 +23,7 @@ import com.google.api.services.dataflow.model.MapTask;
 import com.google.auto.value.AutoValue;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentMap;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
 import java.util.function.Supplier;
@@ -121,6 +122,7 @@ public class StreamingWorkScheduler {
       ReaderCache readerCache,
       DataflowMapTaskExecutorFactory mapTaskExecutorFactory,
       BoundedQueueExecutor workExecutor,
+      ScheduledExecutorService commitFinalizerCleanupExecutor,
       Function<String, WindmillStateCache.ForComputation> stateCacheFactory,
       FailureTracker failureTracker,
       WorkFailureProcessor workFailureProcessor,
@@ -148,7 +150,7 @@ public class StreamingWorkScheduler {
         SideInputStateFetcherFactory.fromOptions(options),
         failureTracker,
         workFailureProcessor,
-        StreamingCommitFinalizer.create(workExecutor),
+        StreamingCommitFinalizer.create(workExecutor, commitFinalizerCleanupExecutor),
         streamingCounters,
         hotKeyLogger,
         stageInfoMap,

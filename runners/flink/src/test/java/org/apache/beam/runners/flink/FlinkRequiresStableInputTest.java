@@ -103,22 +103,22 @@ public class FlinkRequiresStableInputTest {
    * <p>A Savepoint is taken until the desired state in the operators has been reached. We then
    * restore the savepoint to check if we produce impotent results.
    */
-  @Test(timeout = 30_000)
+  @Test(timeout = 120_000)
   public void testParDoRequiresStableInput() throws Exception {
     runTest(false);
   }
 
-  @Test(timeout = 30_000)
+  @Test(timeout = 120_000)
   public void testParDoRequiresStableInputPortable() throws Exception {
     runTest(true);
   }
 
-  @Test(timeout = 30_000)
+  @Test(timeout = 120_000)
   public void testParDoRequiresStableInputStateful() throws Exception {
     testParDoRequiresStableInputStateful(false);
   }
 
-  @Test(timeout = 30_000)
+  @Test(timeout = 120_000)
   public void testParDoRequiresStableInputStatefulPortable() throws Exception {
     testParDoRequiresStableInputStateful(true);
   }

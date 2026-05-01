@@ -77,6 +77,7 @@ public final class UnboundedScheduledExecutorService implements ScheduledExecuto
       value = "EQ_COMPARETO_USE_OBJECT_EQUALS",
       justification =
           "Default equals/hashCode is what we want since two scheduled tasks are only equivalent if they point to the same instance.")
+  @SuppressWarnings("NullableTypeParameter")
   final class ScheduledFutureTask<@Nullable @KeyForBottom V> extends FutureTask<V>
       implements RunnableScheduledFuture<V> {
 
@@ -373,6 +374,7 @@ public final class UnboundedScheduledExecutorService implements ScheduledExecuto
   }
 
   @Override
+  @SuppressWarnings("NullableTypeParameter")
   public Future<@Nullable ?> submit(Runnable command) {
     if (command == null) {
       throw new NullPointerException();
@@ -384,7 +386,7 @@ public final class UnboundedScheduledExecutorService implements ScheduledExecuto
 
   @Override
   /* Ignore improper flag since FB detects that ScheduledExecutorService can't have nullable V. */
-  @SuppressWarnings("override.return")
+  @SuppressWarnings({"override.return", "NullableTypeParameter"})
   public <@Nullable @KeyForBottom T> Future<T> submit(Runnable command, T result) {
     if (command == null) {
       throw new NullPointerException();
@@ -396,7 +398,7 @@ public final class UnboundedScheduledExecutorService implements ScheduledExecuto
 
   @Override
   /* Ignore improper flag since FB detects that ScheduledExecutorService can't have nullable V. */
-  @SuppressWarnings({"override.param", "override.return"})
+  @SuppressWarnings({"override.param", "override.return", "NullableTypeParameter"})
   public <@Nullable @KeyForBottom T> Future<T> submit(Callable<T> command) {
     if (command == null) {
       throw new NullPointerException();
@@ -436,6 +438,7 @@ public final class UnboundedScheduledExecutorService implements ScheduledExecuto
   }
 
   @Override
+  @SuppressWarnings("NullableTypeParameter")
   public ScheduledFuture<@Nullable ?> schedule(Runnable command, long delay, TimeUnit unit) {
     if (command == null || unit == null) {
       throw new NullPointerException();
@@ -448,7 +451,7 @@ public final class UnboundedScheduledExecutorService implements ScheduledExecuto
 
   @Override
   /* Ignore improper flag since FB detects that ScheduledExecutorService can't have nullable V. */
-  @SuppressWarnings({"override.param", "override.return"})
+  @SuppressWarnings({"override.param", "override.return", "NullableTypeParameter"})
   public <@Nullable @KeyForBottom V> ScheduledFuture<V> schedule(
       Callable<V> callable, long delay, TimeUnit unit) {
     if (callable == null || unit == null) {
@@ -460,6 +463,7 @@ public final class UnboundedScheduledExecutorService implements ScheduledExecuto
   }
 
   @Override
+  @SuppressWarnings("NullableTypeParameter")
   public ScheduledFuture<@Nullable ?> scheduleAtFixedRate(
       Runnable command, long initialDelay, long period, TimeUnit unit) {
     if (command == null || unit == null) {
@@ -476,6 +480,7 @@ public final class UnboundedScheduledExecutorService implements ScheduledExecuto
   }
 
   @Override
+  @SuppressWarnings("NullableTypeParameter")
   public ScheduledFuture<@Nullable ?> scheduleWithFixedDelay(
       Runnable command, long initialDelay, long delay, TimeUnit unit) {
     if (command == null || unit == null) {
@@ -491,6 +496,7 @@ public final class UnboundedScheduledExecutorService implements ScheduledExecuto
     return task;
   }
 
+  @SuppressWarnings("NullableTypeParameter")
   private <@Nullable @KeyForBottom T> void runNowOrScheduleInTheFuture(
       ScheduledFutureTask<T> task) {
     long nanosToWait = LongMath.saturatedSubtract(task.time, clock.nanoTime());
